@@ -1,0 +1,268 @@
+"use client";
+
+/**
+ * The government console's shell.
+ *
+ * Deliberately not the operator shell. There is no workspace switcher, no
+ * property switcher and no "view as" role picker, because an officer holds none
+ * of those: their authority is one assignment against one district, and a
+ * console offering to switch it would describe something that does not exist.
+ *
+ * What it does say, on every screen, is WHO is acting and WHERE their scope
+ * ends. Both are the boundary an officer's decisions are judged against, and a
+ * verifier who cannot see their own district on screen has to remember it.
+ */
+
+import Link from "next/link";
+import { usePathname } from "next/navigation";
+import type { ReactNode } from "react";
+
+import { Toaster } from "@injishi/ui";
+
+import { useSignOut } from "../../data/sign-out";
+import { useShownToasts } from "../../lib/toast-queue";
+import { usePms } from "../../store";
+import { oversightNav } from "../lib/nav";
+import { useConsole } from "../store";
+import { Icon } from "./icon";
+
+export function ConsoleShell({ title, children }: { title: string; children: ReactNode }) {
+  const { state, oversight, officer } = useConsole();
+  const { signOut, signingOut } = useSignOut();
+  const pathname = usePathname();
+  const sections = oversightNav(officer, oversight);
+  const toasts = useShownToasts(state.toasts);
+  /*
+   * WHO IS ACTING IS THE SIGNED-IN PERSON, not the officer fixture.
+   *
+   * This panel used to print `officer.name` — "Jean-Bosco Nkurunziza" or
+   * "Claudine Mukamana", two names from `data/oversight.ts` — beside a sign-out
+   * button, on a government console, above a queue of real businesses. Whoever
+   * was actually reviewing those files saw somebody else's name over their own
+   * decisions. The profile is the same one the operator sidebar shows, and
+   * where it has no name it says so rather than inventing one.
+   *
+   * The FUNCTION and the issuing body stay from the officer table: those follow
+   * from which console is open, which the server decided.
+   */
+  const { me } = usePms();
+
+  return (
+    <div className="pms-root light">
+      {/* Keyboard users otherwise tab the whole nav on every screen before
+          reaching the work. Matches the operator and admin shells. */}
+      <a href="#console-content" className="pms-skip">
+        Skip to content
+      </a>
+
+      <aside
+        style={{
+          width: 262,
+          flex: "0 0 262px",
+          display: "flex",
+          flexDirection: "column",
+          padding: "14px 12px",
+          minHeight: 0,
+        }}
+      >
+        <div style={{ padding: "2px 6px 12px" }}>
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src="/shared/img/injishi-extended.svg"
+            alt="Injishi"
+            width={80}
+            height={24}
+            style={{ height: 24, width: 80, display: "block" }}
+          />
+        </div>
+
+        {/* Who is acting, and under which body. The seal colour is the issuing
+            body's, so two officers from two bodies do not read as the same
+            person. The DISTRICT is not printed here: the API scopes the queue
+            but does not tell the console which jurisdiction it scoped it to,
+            and a district read off a fixture is worse than none. */}
+        <div
+          style={{
+            display: "flex",
+            alignItems: "center",
+            gap: 11,
+            borderRadius: "var(--radius-surface)",
+            border: "1px solid var(--sb-hover)",
+            background: "var(--sb-hover)",
+            padding: 9,
+          }}
+        >
+          <span
+            style={{
+              width: 34,
+              height: 34,
+              flex: "0 0 auto",
+              borderRadius: "var(--radius-surface)",
+              background: officer.seal,
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              color: "var(--accent-ink)",
+              fontSize: 12,
+              fontWeight: 700,
+            }}
+          >
+            {me.ini}
+          </span>
+          <span style={{ minWidth: 0, flex: 1 }}>
+            <span
+              style={{
+                display: "block",
+                fontSize: 13.5,
+                fontWeight: 600,
+                color: "var(--sb-afg)",
+                whiteSpace: "nowrap",
+                overflow: "hidden",
+                textOverflow: "ellipsis",
+              }}
+            >
+              {me.name}
+            </span>
+            <span style={{ display: "block", fontSize: 11.5, color: "var(--sb-muted)" }}>
+              {officer.fnLabel} · {officer.body}
+            </span>
+          </span>
+          {/*
+            The officer's way out (F-S01).
+
+            This console has no `Sidebar`, so the sign out that lives there
+            never reaches it. It matters more here than anywhere: an officer
+            reviewing a registration is exercising a government function, and
+            leaving that session open on an unattended machine is the failure
+            this control exists to prevent.
+          */}
+          <button
+            type="button"
+            onClick={signOut}
+            disabled={signingOut}
+            aria-label="Sign out"
+            title="Sign out"
+            style={{
+              display: "inline-flex",
+              flex: "0 0 auto",
+              alignItems: "center",
+              justifyContent: "center",
+              border: "none",
+              background: "none",
+              borderRadius: "var(--radius-surface)",
+              padding: 6,
+              color: "var(--sb-muted)",
+              cursor: signingOut ? "wait" : "pointer",
+            }}
+          >
+            <Icon name="log-out" size={16} />
+          </button>
+        </div>
+
+        <nav style={{ marginTop: 14, flex: 1, minHeight: 0, overflowY: "auto" }}>
+          {sections.map((section) => (
+            <div key={section.label} style={{ marginBottom: 14 }}>
+              <p
+                style={{
+                  padding: "7px 10px 4px",
+                  fontSize: 10,
+                  fontWeight: 700,
+                  letterSpacing: "0.06em",
+                  textTransform: "uppercase",
+                  color: "var(--faint)",
+                }}
+              >
+                {section.label}
+              </p>
+              {section.items.map((item) => {
+                const on = pathname === item.href || pathname.startsWith(`${item.href}/`);
+                return (
+                  <Link
+                    key={item.key}
+                    href={item.href}
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                      gap: 10,
+                      borderRadius: "var(--radius-surface)",
+                      padding: "8px 10px",
+                      fontSize: 13.5,
+                      fontWeight: on ? 600 : 500,
+                      color: on ? "var(--sb-afg)" : "var(--sb-muted)",
+                      background: on ? "var(--sb-hover)" : "transparent",
+                      textDecoration: "none",
+                    }}
+                  >
+                    <Icon name={item.icon} size={17} />
+                    <span style={{ flex: 1, minWidth: 0 }}>{item.label}</span>
+                    {item.count ? (
+                      <span
+                        className="pms-num"
+                        style={{
+                          minWidth: 20,
+                          padding: "1px 6px",
+                          borderRadius: 999,
+                          background: "var(--accent)",
+                          color: "var(--accent-ink)",
+                          fontSize: 11,
+                          fontWeight: 700,
+                          textAlign: "center",
+                        }}
+                      >
+                        {item.count}
+                      </span>
+                    ) : null}
+                  </Link>
+                );
+              })}
+            </div>
+          ))}
+        </nav>
+      </aside>
+
+      <div
+        style={{
+          flex: 1,
+          minWidth: 0,
+          display: "flex",
+          flexDirection: "column",
+          margin: "8px 8px 8px 0",
+          background: "var(--panel)",
+          border: "1px solid var(--panel-bd)",
+          borderRadius: "var(--radius-surface)",
+          overflow: "hidden",
+        }}
+      >
+        <header
+          style={{
+            flex: "0 0 auto",
+            padding: "12px 22px",
+            borderBottom: "1px solid var(--line)",
+          }}
+        >
+          <h1
+            className="pms-display"
+            style={{ fontSize: 20, fontWeight: 700, letterSpacing: "-0.2px", color: "var(--foreground)" }}
+          >
+            {title}
+          </h1>
+          {/* The issuing body, on every screen. The district that used to sit
+              beside it came from the officer fixture, not from the assignment
+              the API checked, so it is gone rather than stated wrongly. */}
+          <span className="pms-num" style={{ fontSize: 12.5, color: "var(--muted)" }}>
+            {officer.bodyName}
+          </span>
+        </header>
+
+        <main
+          id="console-content"
+          style={{ flex: 1, minWidth: 0, minHeight: 0, overflowY: "auto", padding: "20px 24px 30px" }}
+        >
+          {children}
+        </main>
+      </div>
+
+      <Toaster toasts={toasts} />
+    </div>
+  );
+}
