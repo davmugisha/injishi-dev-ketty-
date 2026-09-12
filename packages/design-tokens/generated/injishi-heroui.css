@@ -1,0 +1,570 @@
+/* AUTO-GENERATED from @injishi/design-tokens — do not edit by hand.
+ * Regenerate: pnpm --filter @injishi/design-tokens generate:css
+ * Single source: packages/design-tokens/src/{ramps,semantic,heroui}.ts */
+
+:root,
+.light,
+.default,
+[data-theme="light"],
+[data-theme="default"] {
+  /* fixed - one value in both themes (ADR-010 call 2) */
+  --ink: oklch(21.03% 0.0059 208.00);
+  --white: #FFFFFF;
+  --black: var(--ink);
+  --slate-line: oklch(51.50% 0.0199 208.00);
+  --surface-tint: oklch(95.24% 0.0080 208.00);
+  --canvas: oklch(97.02% 0.0100 208.00);
+  --control-wash: oklch(51.50% 0.0199 208.00);
+  --placeholder-dim: oklch(51.50% 0.0199 208.00);
+
+  /* HeroUI roles (light) */
+  --accent: oklch(65.00% 0.1100 208.00);
+  --accent-foreground: oklch(21.03% 0.0059 208.00);
+  --background: oklch(97.02% 0.0100 208.00);
+  --border: oklch(90.00% 0.0100 208.00);
+  --danger: oklch(58.00% 0.2374 20.24);
+  --danger-foreground: oklch(99.11% 0 0);
+  --default: oklch(94.00% 0.0100 208.00);
+  --default-foreground: oklch(21.03% 0.0059 208.00);
+  --field-background: oklch(100.00% 0.0050 208.00);
+  --field-border: transparent;
+  --field-foreground: oklch(21.03% 0.0100 208.00);
+  --field-placeholder: oklch(51.50% 0.0199 208.00);
+  --focus: oklch(59.00% 0.1100 208.00);
+  --foreground: oklch(21.03% 0.0100 208.00);
+  --muted: oklch(51.50% 0.0199 208.00);
+  --overlay: oklch(100.00% 0.0030 208.00);
+  --overlay-foreground: oklch(21.03% 0.0100 208.00);
+  --scrollbar: oklch(87.10% 0.0100 208.00);
+  --segment: oklch(100.00% 0.0100 208.00);
+  --segment-foreground: oklch(21.03% 0.0100 208.00);
+  --separator: oklch(92.00% 0.0100 208.00);
+  --success: oklch(73.29% 0.1974 145.31);
+  --success-foreground: oklch(21.03% 0.0059 145.31);
+  --surface: oklch(100.00% 0.0050 208.00);
+  --surface-foreground: oklch(21.03% 0.0100 208.00);
+  --surface-secondary: oklch(95.24% 0.0080 208.00);
+  --surface-secondary-foreground: oklch(21.03% 0.0100 208.00);
+  --surface-tertiary: oklch(93.73% 0.0080 208.00);
+  --surface-tertiary-foreground: oklch(21.03% 0.0100 208.00);
+  --warning: oklch(78.19% 0.1617 66.83);
+  --warning-foreground: oklch(21.03% 0.0059 66.83);
+  --accent-text: oklch(49.00% 0.1100 208.00);
+  --danger-text: oklch(52.00% 0.2374 20.24);
+  --info: oklch(52.50% 0.1600 285.00);
+  --foreground-hover: oklch(32.00% 0.0100 208.00);
+  --field-outline: oklch(60.00% 0.0199 208.00);
+  --chart-1: oklch(59.00% 0.1100 208.00);
+  --chart-track: oklch(93.00% 0.0250 208.00);
+  --chart-muted: oklch(80.00% 0.0150 208.00);
+
+  /* legacy Injishi role names, aliased onto the HeroUI roles */
+  --card: var(--surface);
+  --card-foreground: var(--surface-foreground);
+  --popover: var(--overlay);
+  --popover-foreground: var(--overlay-foreground);
+  --primary: var(--foreground);
+  --primary-hover: var(--foreground-hover);
+  --primary-foreground: var(--background);
+  --secondary: var(--surface-secondary);
+  --secondary-foreground: var(--surface-secondary-foreground);
+  --muted-foreground: var(--muted);
+  --destructive: var(--danger);
+  --destructive-foreground: var(--danger-foreground);
+  --input: var(--field-outline);
+  --field: var(--field-background);
+  --ring: var(--focus);
+  --accent-brand: var(--accent);
+  --accent-brand-hover: var(--accent-hover);
+  --accent-brand-foreground: var(--accent-foreground);
+  --scrollbar-thumb: var(--scrollbar);
+
+  /* non-color */
+  --radius: 0.5rem;
+  --field-radius: 0;
+}
+
+.dark,
+[data-theme="dark"] {
+  color-scheme: dark;
+
+  /* fixed - repeated verbatim so a dark scope cannot invert them */
+  --ink: oklch(21.03% 0.0059 208.00);
+  --white: #FFFFFF;
+  --black: var(--ink);
+  --slate-line: oklch(51.50% 0.0199 208.00);
+  --surface-tint: oklch(95.24% 0.0080 208.00);
+  --canvas: oklch(97.02% 0.0100 208.00);
+  --control-wash: oklch(51.50% 0.0199 208.00);
+  --placeholder-dim: oklch(51.50% 0.0199 208.00);
+
+  /* HeroUI roles (dark) */
+  --accent: oklch(65.00% 0.1100 208.00);
+  --accent-foreground: oklch(21.03% 0.0059 208.00);
+  --background: oklch(12.00% 0.0100 208.00);
+  --border: oklch(28.00% 0.0100 208.00);
+  --danger: oklch(57.50% 0.2006 19.13);
+  --danger-foreground: oklch(99.11% 0 0);
+  --default: oklch(27.40% 0.0100 208.00);
+  --default-foreground: oklch(99.11% 0 0);
+  --field-background: oklch(21.03% 0.0199 208.00);
+  --field-border: transparent;
+  --field-foreground: oklch(99.11% 0.0100 208.00);
+  --field-placeholder: oklch(70.50% 0.0199 208.00);
+  --focus: oklch(65.00% 0.1100 208.00);
+  --foreground: oklch(99.11% 0.0100 208.00);
+  --muted: oklch(70.50% 0.0199 208.00);
+  --overlay: oklch(21.03% 0.0199 208.00);
+  --overlay-foreground: oklch(99.11% 0.0100 208.00);
+  --scrollbar: oklch(70.50% 0.0100 208.00);
+  --segment: oklch(39.64% 0.0100 208.00);
+  --segment-foreground: oklch(99.11% 0.0100 208.00);
+  --separator: oklch(25.00% 0.0100 208.00);
+  --success: oklch(73.29% 0.1974 145.31);
+  --success-foreground: oklch(21.03% 0.0059 145.31);
+  --surface: oklch(21.03% 0.0199 208.00);
+  --surface-foreground: oklch(99.11% 0.0100 208.00);
+  --surface-secondary: oklch(25.70% 0.0149 208.00);
+  --surface-secondary-foreground: oklch(99.11% 0.0100 208.00);
+  --surface-tertiary: oklch(27.21% 0.0149 208.00);
+  --surface-tertiary-foreground: oklch(99.11% 0.0100 208.00);
+  --warning: oklch(82.03% 0.1416 70.84);
+  --warning-foreground: oklch(21.03% 0.0059 70.84);
+  --accent-text: oklch(72.00% 0.1100 208.00);
+  --danger-text: oklch(67.50% 0.2006 19.13);
+  --info: oklch(67.00% 0.1600 285.00);
+  --foreground-hover: oklch(88.00% 0.0100 208.00);
+  --field-outline: oklch(56.00% 0.0199 208.00);
+  --chart-1: oklch(68.00% 0.1100 208.00);
+  --chart-track: oklch(32.00% 0.0300 208.00);
+  --chart-muted: oklch(46.00% 0.0150 208.00);
+
+  /* legacy Injishi role names, aliased onto the HeroUI roles */
+  --card: var(--surface);
+  --card-foreground: var(--surface-foreground);
+  --popover: var(--overlay);
+  --popover-foreground: var(--overlay-foreground);
+  --primary: var(--foreground);
+  --primary-hover: var(--foreground-hover);
+  --primary-foreground: var(--background);
+  --secondary: var(--surface-secondary);
+  --secondary-foreground: var(--surface-secondary-foreground);
+  --muted-foreground: var(--muted);
+  --destructive: var(--danger);
+  --destructive-foreground: var(--danger-foreground);
+  --input: var(--field-outline);
+  --field: var(--field-background);
+  --ring: var(--focus);
+  --accent-brand: var(--accent);
+  --accent-brand-hover: var(--accent-hover);
+  --accent-brand-foreground: var(--accent-foreground);
+  --scrollbar-thumb: var(--scrollbar);
+}
+
+/* ── ADR-028: fixed grounds re-pin the theme block inside themselves ─────── */
+.bg-canvas,
+.bg-white,
+.bg-surface-tint {
+  color-scheme: light;
+  --accent: oklch(65.00% 0.1100 208.00);
+  --accent-foreground: oklch(21.03% 0.0059 208.00);
+  --background: oklch(97.02% 0.0100 208.00);
+  --border: oklch(90.00% 0.0100 208.00);
+  --danger: oklch(58.00% 0.2374 20.24);
+  --danger-foreground: oklch(99.11% 0 0);
+  --default: oklch(94.00% 0.0100 208.00);
+  --default-foreground: oklch(21.03% 0.0059 208.00);
+  --field-background: oklch(100.00% 0.0050 208.00);
+  --field-border: transparent;
+  --field-foreground: oklch(21.03% 0.0100 208.00);
+  --field-placeholder: oklch(51.50% 0.0199 208.00);
+  --focus: oklch(59.00% 0.1100 208.00);
+  --foreground: oklch(21.03% 0.0100 208.00);
+  --muted: oklch(51.50% 0.0199 208.00);
+  --overlay: oklch(100.00% 0.0030 208.00);
+  --overlay-foreground: oklch(21.03% 0.0100 208.00);
+  --scrollbar: oklch(87.10% 0.0100 208.00);
+  --segment: oklch(100.00% 0.0100 208.00);
+  --segment-foreground: oklch(21.03% 0.0100 208.00);
+  --separator: oklch(92.00% 0.0100 208.00);
+  --success: oklch(73.29% 0.1974 145.31);
+  --success-foreground: oklch(21.03% 0.0059 145.31);
+  --surface: oklch(100.00% 0.0050 208.00);
+  --surface-foreground: oklch(21.03% 0.0100 208.00);
+  --surface-secondary: oklch(95.24% 0.0080 208.00);
+  --surface-secondary-foreground: oklch(21.03% 0.0100 208.00);
+  --surface-tertiary: oklch(93.73% 0.0080 208.00);
+  --surface-tertiary-foreground: oklch(21.03% 0.0100 208.00);
+  --warning: oklch(78.19% 0.1617 66.83);
+  --warning-foreground: oklch(21.03% 0.0059 66.83);
+  --accent-text: oklch(49.00% 0.1100 208.00);
+  --danger-text: oklch(52.00% 0.2374 20.24);
+  --info: oklch(52.50% 0.1600 285.00);
+  --foreground-hover: oklch(32.00% 0.0100 208.00);
+  --field-outline: oklch(60.00% 0.0199 208.00);
+  --chart-1: oklch(59.00% 0.1100 208.00);
+  --chart-track: oklch(93.00% 0.0250 208.00);
+  --chart-muted: oklch(80.00% 0.0150 208.00);
+  --card: var(--surface);
+  --card-foreground: var(--surface-foreground);
+  --popover: var(--overlay);
+  --popover-foreground: var(--overlay-foreground);
+  --primary: var(--foreground);
+  --primary-hover: var(--foreground-hover);
+  --primary-foreground: var(--background);
+  --secondary: var(--surface-secondary);
+  --secondary-foreground: var(--surface-secondary-foreground);
+  --muted-foreground: var(--muted);
+  --destructive: var(--danger);
+  --destructive-foreground: var(--danger-foreground);
+  --input: var(--field-outline);
+  --field: var(--field-background);
+  --ring: var(--focus);
+  --accent-brand: var(--accent);
+  --accent-brand-hover: var(--accent-hover);
+  --accent-brand-foreground: var(--accent-foreground);
+  --scrollbar-thumb: var(--scrollbar);
+}
+
+.bg-ink,
+.bg-black,
+.bg-control-wash {
+  color-scheme: dark;
+  --accent: oklch(65.00% 0.1100 208.00);
+  --accent-foreground: oklch(21.03% 0.0059 208.00);
+  --background: oklch(12.00% 0.0100 208.00);
+  --border: oklch(28.00% 0.0100 208.00);
+  --danger: oklch(57.50% 0.2006 19.13);
+  --danger-foreground: oklch(99.11% 0 0);
+  --default: oklch(27.40% 0.0100 208.00);
+  --default-foreground: oklch(99.11% 0 0);
+  --field-background: oklch(21.03% 0.0199 208.00);
+  --field-border: transparent;
+  --field-foreground: oklch(99.11% 0.0100 208.00);
+  --field-placeholder: oklch(70.50% 0.0199 208.00);
+  --focus: oklch(65.00% 0.1100 208.00);
+  --foreground: oklch(99.11% 0.0100 208.00);
+  --muted: oklch(70.50% 0.0199 208.00);
+  --overlay: oklch(21.03% 0.0199 208.00);
+  --overlay-foreground: oklch(99.11% 0.0100 208.00);
+  --scrollbar: oklch(70.50% 0.0100 208.00);
+  --segment: oklch(39.64% 0.0100 208.00);
+  --segment-foreground: oklch(99.11% 0.0100 208.00);
+  --separator: oklch(25.00% 0.0100 208.00);
+  --success: oklch(73.29% 0.1974 145.31);
+  --success-foreground: oklch(21.03% 0.0059 145.31);
+  --surface: oklch(21.03% 0.0199 208.00);
+  --surface-foreground: oklch(99.11% 0.0100 208.00);
+  --surface-secondary: oklch(25.70% 0.0149 208.00);
+  --surface-secondary-foreground: oklch(99.11% 0.0100 208.00);
+  --surface-tertiary: oklch(27.21% 0.0149 208.00);
+  --surface-tertiary-foreground: oklch(99.11% 0.0100 208.00);
+  --warning: oklch(82.03% 0.1416 70.84);
+  --warning-foreground: oklch(21.03% 0.0059 70.84);
+  --accent-text: oklch(72.00% 0.1100 208.00);
+  --danger-text: oklch(67.50% 0.2006 19.13);
+  --info: oklch(67.00% 0.1600 285.00);
+  --foreground-hover: oklch(88.00% 0.0100 208.00);
+  --field-outline: oklch(56.00% 0.0199 208.00);
+  --chart-1: oklch(68.00% 0.1100 208.00);
+  --chart-track: oklch(32.00% 0.0300 208.00);
+  --chart-muted: oklch(46.00% 0.0150 208.00);
+  --card: var(--surface);
+  --card-foreground: var(--surface-foreground);
+  --popover: var(--overlay);
+  --popover-foreground: var(--overlay-foreground);
+  --primary: var(--foreground);
+  --primary-hover: var(--foreground-hover);
+  --primary-foreground: var(--background);
+  --secondary: var(--surface-secondary);
+  --secondary-foreground: var(--surface-secondary-foreground);
+  --muted-foreground: var(--muted);
+  --destructive: var(--danger);
+  --destructive-foreground: var(--danger-foreground);
+  --input: var(--field-outline);
+  --field: var(--field-background);
+  --ring: var(--focus);
+  --accent-brand: var(--accent);
+  --accent-brand-hover: var(--accent-hover);
+  --accent-brand-foreground: var(--accent-foreground);
+  --scrollbar-thumb: var(--scrollbar);
+}
+
+/* The one opt-out: follow the PAGE again, inside a fixed ground. */
+.dark .ground-theme,
+[data-theme="dark"] .ground-theme,
+.th-dark .ground-theme {
+  color-scheme: dark;
+  --accent: oklch(65.00% 0.1100 208.00);
+  --accent-foreground: oklch(21.03% 0.0059 208.00);
+  --background: oklch(12.00% 0.0100 208.00);
+  --border: oklch(28.00% 0.0100 208.00);
+  --danger: oklch(57.50% 0.2006 19.13);
+  --danger-foreground: oklch(99.11% 0 0);
+  --default: oklch(27.40% 0.0100 208.00);
+  --default-foreground: oklch(99.11% 0 0);
+  --field-background: oklch(21.03% 0.0199 208.00);
+  --field-border: transparent;
+  --field-foreground: oklch(99.11% 0.0100 208.00);
+  --field-placeholder: oklch(70.50% 0.0199 208.00);
+  --focus: oklch(65.00% 0.1100 208.00);
+  --foreground: oklch(99.11% 0.0100 208.00);
+  --muted: oklch(70.50% 0.0199 208.00);
+  --overlay: oklch(21.03% 0.0199 208.00);
+  --overlay-foreground: oklch(99.11% 0.0100 208.00);
+  --scrollbar: oklch(70.50% 0.0100 208.00);
+  --segment: oklch(39.64% 0.0100 208.00);
+  --segment-foreground: oklch(99.11% 0.0100 208.00);
+  --separator: oklch(25.00% 0.0100 208.00);
+  --success: oklch(73.29% 0.1974 145.31);
+  --success-foreground: oklch(21.03% 0.0059 145.31);
+  --surface: oklch(21.03% 0.0199 208.00);
+  --surface-foreground: oklch(99.11% 0.0100 208.00);
+  --surface-secondary: oklch(25.70% 0.0149 208.00);
+  --surface-secondary-foreground: oklch(99.11% 0.0100 208.00);
+  --surface-tertiary: oklch(27.21% 0.0149 208.00);
+  --surface-tertiary-foreground: oklch(99.11% 0.0100 208.00);
+  --warning: oklch(82.03% 0.1416 70.84);
+  --warning-foreground: oklch(21.03% 0.0059 70.84);
+  --accent-text: oklch(72.00% 0.1100 208.00);
+  --danger-text: oklch(67.50% 0.2006 19.13);
+  --info: oklch(67.00% 0.1600 285.00);
+  --foreground-hover: oklch(88.00% 0.0100 208.00);
+  --field-outline: oklch(56.00% 0.0199 208.00);
+  --chart-1: oklch(68.00% 0.1100 208.00);
+  --chart-track: oklch(32.00% 0.0300 208.00);
+  --chart-muted: oklch(46.00% 0.0150 208.00);
+  --card: var(--surface);
+  --card-foreground: var(--surface-foreground);
+  --popover: var(--overlay);
+  --popover-foreground: var(--overlay-foreground);
+  --primary: var(--foreground);
+  --primary-hover: var(--foreground-hover);
+  --primary-foreground: var(--background);
+  --secondary: var(--surface-secondary);
+  --secondary-foreground: var(--surface-secondary-foreground);
+  --muted-foreground: var(--muted);
+  --destructive: var(--danger);
+  --destructive-foreground: var(--danger-foreground);
+  --input: var(--field-outline);
+  --field: var(--field-background);
+  --ring: var(--focus);
+  --accent-brand: var(--accent);
+  --accent-brand-hover: var(--accent-hover);
+  --accent-brand-foreground: var(--accent-foreground);
+  --scrollbar-thumb: var(--scrollbar);
+}
+
+:where(:root:not(.dark)) .ground-theme,
+.light .ground-theme,
+[data-theme="light"] .ground-theme,
+.th-light .ground-theme {
+  color-scheme: light;
+  --accent: oklch(65.00% 0.1100 208.00);
+  --accent-foreground: oklch(21.03% 0.0059 208.00);
+  --background: oklch(97.02% 0.0100 208.00);
+  --border: oklch(90.00% 0.0100 208.00);
+  --danger: oklch(58.00% 0.2374 20.24);
+  --danger-foreground: oklch(99.11% 0 0);
+  --default: oklch(94.00% 0.0100 208.00);
+  --default-foreground: oklch(21.03% 0.0059 208.00);
+  --field-background: oklch(100.00% 0.0050 208.00);
+  --field-border: transparent;
+  --field-foreground: oklch(21.03% 0.0100 208.00);
+  --field-placeholder: oklch(51.50% 0.0199 208.00);
+  --focus: oklch(59.00% 0.1100 208.00);
+  --foreground: oklch(21.03% 0.0100 208.00);
+  --muted: oklch(51.50% 0.0199 208.00);
+  --overlay: oklch(100.00% 0.0030 208.00);
+  --overlay-foreground: oklch(21.03% 0.0100 208.00);
+  --scrollbar: oklch(87.10% 0.0100 208.00);
+  --segment: oklch(100.00% 0.0100 208.00);
+  --segment-foreground: oklch(21.03% 0.0100 208.00);
+  --separator: oklch(92.00% 0.0100 208.00);
+  --success: oklch(73.29% 0.1974 145.31);
+  --success-foreground: oklch(21.03% 0.0059 145.31);
+  --surface: oklch(100.00% 0.0050 208.00);
+  --surface-foreground: oklch(21.03% 0.0100 208.00);
+  --surface-secondary: oklch(95.24% 0.0080 208.00);
+  --surface-secondary-foreground: oklch(21.03% 0.0100 208.00);
+  --surface-tertiary: oklch(93.73% 0.0080 208.00);
+  --surface-tertiary-foreground: oklch(21.03% 0.0100 208.00);
+  --warning: oklch(78.19% 0.1617 66.83);
+  --warning-foreground: oklch(21.03% 0.0059 66.83);
+  --accent-text: oklch(49.00% 0.1100 208.00);
+  --danger-text: oklch(52.00% 0.2374 20.24);
+  --info: oklch(52.50% 0.1600 285.00);
+  --foreground-hover: oklch(32.00% 0.0100 208.00);
+  --field-outline: oklch(60.00% 0.0199 208.00);
+  --chart-1: oklch(59.00% 0.1100 208.00);
+  --chart-track: oklch(93.00% 0.0250 208.00);
+  --chart-muted: oklch(80.00% 0.0150 208.00);
+  --card: var(--surface);
+  --card-foreground: var(--surface-foreground);
+  --popover: var(--overlay);
+  --popover-foreground: var(--overlay-foreground);
+  --primary: var(--foreground);
+  --primary-hover: var(--foreground-hover);
+  --primary-foreground: var(--background);
+  --secondary: var(--surface-secondary);
+  --secondary-foreground: var(--surface-secondary-foreground);
+  --muted-foreground: var(--muted);
+  --destructive: var(--danger);
+  --destructive-foreground: var(--danger-foreground);
+  --input: var(--field-outline);
+  --field: var(--field-background);
+  --ring: var(--focus);
+  --accent-brand: var(--accent);
+  --accent-brand-hover: var(--accent-hover);
+  --accent-brand-foreground: var(--accent-foreground);
+  --scrollbar-thumb: var(--scrollbar);
+}
+
+/* The DOCUMENT's own scrollbar.
+ *
+ * HeroUI ships a complete scrollbar system - the 'scrollbar', 'scrollbar-thin'
+ * and 'scrollbar-none' utilities, and the [data-scrollbar] ancestor modes - but
+ * it applies NONE of it globally: base/base.css carries the universal rule
+ * commented out, because '*' also matched .modal__backdrop and swallowed the
+ * click that closes an overlay. Its own note says each scroll container is
+ * expected to opt in with an @apply of that utility, and every container in
+ * this workspace now does.
+ *
+ * A page cannot: nothing in an app renders <html>, so the one bar a reader sees
+ * on every screen would have stayed the platform's. This rule is that opt-in,
+ * scoped to the document element alone rather than to '*', so it cannot reach a
+ * backdrop and cannot reintroduce the bug HeroUI disabled the rule for.
+ *
+ * The three declarations are the 'scrollbar' utility verbatim. They are written
+ * out rather than @applied because this sheet is also inlined by consumers that
+ * paste it in ahead of the Tailwind entry, where an @apply has no utility to
+ * resolve. The VALUES stay HeroUI's own variables, so there is still one
+ * source: retheme the bar by moving the token, never by editing this rule. */
+html {
+  scrollbar-width: var(--scrollbar-width);
+  scrollbar-color: var(--scrollbar-color);
+  scrollbar-gutter: var(--scrollbar-gutter);
+}
+
+/* Tailwind v4: one utility per role, so bg-surface, text-muted,
+   border-separator and the legacy text-muted-foreground all compile. */
+@theme inline {
+  --color-ink: var(--ink);
+  --color-white: var(--white);
+  --color-black: var(--black);
+  --color-slate-line: var(--slate-line);
+  --color-surface-tint: var(--surface-tint);
+  --color-canvas: var(--canvas);
+  --color-control-wash: var(--control-wash);
+  --color-placeholder-dim: var(--placeholder-dim);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-background: var(--background);
+  --color-border: var(--border);
+  --color-danger: var(--danger);
+  --color-danger-foreground: var(--danger-foreground);
+  --color-default: var(--default);
+  --color-default-foreground: var(--default-foreground);
+  --color-field-background: var(--field-background);
+  --color-field-border: var(--field-border);
+  --color-field-foreground: var(--field-foreground);
+  --color-field-placeholder: var(--field-placeholder);
+  --color-focus: var(--focus);
+  --color-foreground: var(--foreground);
+  --color-muted: var(--muted);
+  --color-overlay: var(--overlay);
+  --color-overlay-foreground: var(--overlay-foreground);
+  --color-scrollbar: var(--scrollbar);
+  --color-segment: var(--segment);
+  --color-segment-foreground: var(--segment-foreground);
+  --color-separator: var(--separator);
+  --color-success: var(--success);
+  --color-success-foreground: var(--success-foreground);
+  --color-surface: var(--surface);
+  --color-surface-foreground: var(--surface-foreground);
+  --color-surface-secondary: var(--surface-secondary);
+  --color-surface-secondary-foreground: var(--surface-secondary-foreground);
+  --color-surface-tertiary: var(--surface-tertiary);
+  --color-surface-tertiary-foreground: var(--surface-tertiary-foreground);
+  --color-warning: var(--warning);
+  --color-warning-foreground: var(--warning-foreground);
+  --color-accent-text: var(--accent-text);
+  --color-danger-text: var(--danger-text);
+  --color-info: var(--info);
+  --color-foreground-hover: var(--foreground-hover);
+  --color-field-outline: var(--field-outline);
+  --color-chart-1: var(--chart-1);
+  --color-chart-track: var(--chart-track);
+  --color-chart-muted: var(--chart-muted);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-hover: var(--primary-hover);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-input: var(--input);
+  --color-field: var(--field);
+  --color-ring: var(--ring);
+  --color-accent-brand: var(--accent-brand);
+  --color-accent-brand-hover: var(--accent-brand-hover);
+  --color-accent-brand-foreground: var(--accent-brand-foreground);
+  --color-scrollbar-thumb: var(--scrollbar-thumb);
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+  --radius-2xl: calc(var(--radius) + 8px);
+  --radius-3xl: calc(var(--radius) + 16px);
+  --radius-field: 0;
+  --radius-card: 1rem;
+  --shadow-control: 0 2px 8px rgba(4, 35, 48, 0.25);
+}
+
+/* ADR-027 layout scale: eleven named type steps (four authored here, seven
+   Tailwind's), six page widths, three spacing rhythms. A plain @theme, not
+   @theme inline: these are literal lengths, not aliases of a role. */
+@theme {
+  --text-2xs: 0.6875rem;
+  --text-2xs--line-height: 1.4;
+  --text-display-sm: 2rem;
+  --text-display-sm--line-height: 1.2;
+  --text-display-md: 2.75rem;
+  --text-display-md--line-height: 1.1;
+  --text-display-lg: 3.5rem;
+  --text-display-lg--line-height: 1.05;
+
+  --container-page: 70rem;
+  --container-wide: 52.5rem;
+  --container-read: 42rem;
+  --container-narrow: 32rem;
+  --container-form: 28rem;
+  --container-tile: 25rem;
+
+  --spacing-band: 4rem;
+  --spacing-block: 1.5rem;
+  --spacing-inset: 1rem;
+}
+
+/* Motion scale (motion.ts): five durations named for what they are for,
+   four curves named for how a thing moves. duration-settle, ease-settle. */
+@theme {
+  --transition-duration-instant: 120ms;
+  --transition-duration-quick: 180ms;
+  --transition-duration-settle: 240ms;
+  --transition-duration-travel: 320ms;
+  --transition-duration-arrive: 480ms;
+
+  --ease-settle: cubic-bezier(0.22, 1, 0.36, 1);
+  --ease-leave: cubic-bezier(0.5, 0, 0.75, 0);
+  --ease-move: cubic-bezier(0.65, 0, 0.35, 1);
+  --ease-spring: cubic-bezier(0.34, 1.4, 0.64, 1);
+
+  --default-transition-duration: 180ms;
+  --default-transition-timing-function: cubic-bezier(0.22, 1, 0.36, 1);
+}

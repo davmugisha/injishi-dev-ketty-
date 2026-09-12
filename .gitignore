@@ -1,0 +1,96 @@
+# ── injishi (web, pms, mobile, api, vendor mirror) ───────────────────────────
+# Pure application code, plus the committed packages/ source. Nothing else.
+
+# ── Context / AI docs: HARD BLOCK ────────────────────────────────────────────
+# The documentation corpus lives in injishi.context and is published from there.
+# The workspace root owns the single CLAUDE.md / AGENTS.md pair — no per-package
+# copies, at any depth. `tools/guard-splits.mjs` fails the publish on a leak.
+dox/
+docs-context/
+.context/
+CLAUDE.md
+AGENTS.md
+GEMINI.md
+.cursorrules
+.cursor/
+.windsurfrules
+.aider*
+.github/copilot-instructions.md
+.claude/
+.claude.json
+
+# ── Dependencies ─────────────────────────────────────────────────────────────
+node_modules/
+.pnpm-store/
+
+# ── Build output ─────────────────────────────────────────────────────────────
+# NEVER add a bare `dist/` rule here. `packages/design-tokens/dist/` is a build
+# output committed ON PURPOSE — it is what `apps/mobile` and the CSS emitter
+# read, and `pnpm -F @injishi/design-tokens check` fails when it drifts from
+# `src/`. `packages/{auth,contracts}/dist/` are still the only copy of those two
+# until ADR-034 task 8 reconstructs their source. Every rule below is scoped to a
+# workspace directory so packages/ is never swept up.
+apps/*/dist/
+apps/*/.next/
+# `.next-prod` is a second Next build directory (`next build --distDir`), and it
+# was NOT covered by the rule above. 530 of its files reached the initial commit,
+# two webpack packs among them at 148 MB and 127 MB, and GitHub refused the push
+# (GH001, 100 MB ceiling). Keep both spellings.
+apps/*/.next-prod/
+apps/*/.next-build/
+# `.next-verify` and `.next-verify2` are the same story a third and fourth time:
+# a `--distDir` build made to check something without disturbing the running dev
+# server's `.next`. 131 of their files reached a commit on 2026-09-05 before it
+# was undone. Any `.next-*` sibling is build output; match the whole family
+# rather than adding a line per spelling.
+apps/*/.next-*/
+apps/*/.turbo/
+apps/*/.expo/
+apps/*/out/
+# `storybook build` output (ADR-045). Scoped to the one package that runs it.
+packages/ui/storybook-static/
+
+# Serwist compiles `apps/web/src/app/sw.ts` into `public/sw.js` on every build.
+# It is output, not source, and it was tracked by mistake: a stale copy in the
+# tree shadowed the real one and made the service worker look unchanged when it
+# was not. The source it is built from stays tracked.
+apps/web/public/sw.js
+apps/web/public/sw.js.map
+apps/*/build/
+server/*/dist/
+server/*/.turbo/
+server/*/build/
+tools/*/dist/
+*.tsbuildinfo
+
+# ── Secrets ──────────────────────────────────────────────────────────────────
+.env
+.env.*
+!.env.example
+
+# ── Logs / coverage / test output ────────────────────────────────────────────
+*.log
+npm-debug.log*
+pnpm-debug.log*
+yarn-error.log*
+coverage/
+.nyc_output/
+test-results/
+playwright-report/
+
+# ── OS / editor ──────────────────────────────────────────────────────────────
+.DS_Store
+Thumbs.db
+desktop.ini
+.idea/
+.vscode/
+*.swp
+*~
+.gstack/
+
+# Local object storage (F-S09 seam, ADR-026). `LocalDiskStorageAdapter` writes
+# uploaded certificates here in development. These are real personal documents
+# in every sense that matters; they must never reach a commit.
+.storage/
+
+.vercel

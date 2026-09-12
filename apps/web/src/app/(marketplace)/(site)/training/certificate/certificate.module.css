@@ -1,0 +1,391 @@
+/*
+ * The certificate itself, as a stylesheet rather than as utility classes.
+ *
+ * WHY A CSS MODULE in an app that otherwise writes Tailwind. The same two
+ * reasons `components/receipt/receipt.module.css` gives, and the second is the
+ * one that decides it here:
+ *
+ * 1. A certificate is a PRINTED ARTEFACT with a fixed proportion. `@page`,
+ *    `aspect-ratio`, the print isolation below and a display face that scales
+ *    with the sheet are things a stylesheet states directly and a utility class
+ *    cannot state at all.
+ * 2. The paper must not follow the theme, and every Tailwind colour utility in
+ *    this app deliberately does. See below.
+ *
+ * WHY THE PAPER DOES NOT FOLLOW THE THEME. Everything inside `.paper` is dark
+ * ink on light paper in both themes, on screen and on paper. A certificate is a
+ * picture of a thing that comes out of a printer or into a slide, and if the
+ * screen shows pale text on a near-black ground while the printer produces
+ * black on white, the person checking it before they press print is checking a
+ * different document. Worse, a reader in dark mode who prints a theme-following
+ * certificate gets light ink on white paper — an empty sheet.
+ *
+ * The colours are still TOKENS, not literals. `--canvas`, `--ink`,
+ * `--slate-line` and `--accent` are the four the token package declares as
+ * FIXED — repeated verbatim in the `.dark` block "so a dark scope cannot invert
+ * them" — so this is the theme system's own answer for a surface that must not
+ * move, not an escape from it. Everything OUTSIDE the paper — the toolbar, the
+ * refusals, the delivery note — is ordinary chrome in ordinary role tokens and
+ * inverts normally.
+ */
+
+.screen {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+/* --- The paper ----------------------------------------------------------- */
+
+.paper {
+  /* The four fixed tokens the whole document is drawn in, named once so the
+     print block below can restate the ground in one place instead of on every
+     rule, and so nothing inside can reach past them to a theme-following role. */
+  --certificate-paper: var(--canvas);
+  --certificate-ink: var(--ink);
+  --certificate-rule: var(--slate-line);
+  --certificate-seal: var(--accent);
+
+  /* The type scale of the document, expressed as ONE number. Everything below
+     is a multiple of it, so the certificate holds its proportions from a phone
+     to an A4 sheet instead of collapsing into a column of same-sized lines.
+     `cqi` rather than `vw`: the paper sits in a page column with its own
+     gutters, and a viewport unit would keep growing after the column stopped. */
+  --certificate-step: clamp(0.6rem, 1.55cqi, 1.05rem);
+
+  container-type: inline-size;
+  position: relative;
+  box-sizing: border-box;
+  width: 100%;
+  /* A4 landscape. Held rather than left to the content because a certificate
+     whose height follows its longest name is a certificate that is a different
+     shape for every holder — and because the printed sheet is this shape. */
+  aspect-ratio: 297 / 210;
+  /* Below roughly a tablet the sheet proportion stops being a kindness: an A4
+     landscape at 380px wide sets the holder's name at eight points. The paper
+     is allowed to grow taller than the sheet there, and the print rules put the
+     proportion back for the printer. */
+  min-height: 26rem;
+  padding: calc(var(--certificate-step) * 2.2);
+  background: var(--certificate-paper);
+  color: var(--certificate-ink);
+  border: 1px solid var(--certificate-rule);
+  border-radius: var(--radius-card);
+  /* The paper is light in a dark room too, so it needs a shadow to sit on the
+     page rather than glare out of it. Mixed from the ink token, so there is no
+     literal colour here either. */
+  box-shadow: 0 2px 14px color-mix(in oklab, var(--certificate-ink) 22%, transparent);
+  overflow: hidden;
+}
+
+/*
+ * The engraved double rule, drawn as a border on an inner box rather than as an
+ * image. Two lines of different weights and colours are what stops a rectangle
+ * of serif type reading as a word-processor page: the outer hairline is the
+ * paper's edge, the inner accent line is the document's frame.
+ */
+.frame {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: space-between;
+  height: 100%;
+  padding: calc(var(--certificate-step) * 1.9) calc(var(--certificate-step) * 2);
+  text-align: center;
+  border: 1px solid var(--certificate-seal);
+  outline: 1px solid var(--certificate-rule);
+  outline-offset: calc(var(--certificate-step) * 0.45);
+}
+
+/* --- Crest --------------------------------------------------------------- */
+
+.crest {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: calc(var(--certificate-step) * 0.5);
+}
+
+.glyph {
+  width: auto;
+  height: calc(var(--certificate-step) * 3.4);
+  color: var(--certificate-seal);
+}
+
+.issuer {
+  margin: 0;
+  font-size: calc(var(--certificate-step) * 0.95);
+  font-weight: 700;
+  letter-spacing: 0.34em;
+  /* The trailing letter-space pushes a centred, letter-spaced line left of
+     centre by half a space. Everything on this document is centred on the same
+     axis, so half a space is visible. */
+  text-indent: 0.34em;
+  text-transform: uppercase;
+  color: var(--certificate-ink);
+}
+
+/* --- The award ----------------------------------------------------------- */
+
+.award {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: calc(var(--certificate-step) * 0.65);
+}
+
+.title {
+  margin: 0;
+  font-family: var(--font-display), ui-serif, Georgia, serif;
+  font-size: calc(var(--certificate-step) * 3.15);
+  font-weight: 400;
+  line-height: 1.1;
+  letter-spacing: 0.01em;
+}
+
+.preamble {
+  margin: 0;
+  font-size: calc(var(--certificate-step) * 1.15);
+  color: color-mix(in srgb, var(--certificate-ink) 72%, transparent);
+}
+
+/*
+ * The holder's name, and the largest thing on the document on purpose: it is
+ * the one line the person this is for will look at.
+ *
+ * `overflow-wrap: anywhere` rather than a smaller size for long names — a
+ * Rwandan name in full is routinely three words, and shrinking the type until
+ * the longest one fits would set every OTHER certificate too small.
+ */
+.holder {
+  margin: 0;
+  max-width: 100%;
+  font-family: var(--font-display), ui-serif, Georgia, serif;
+  font-size: calc(var(--certificate-step) * 4);
+  font-weight: 600;
+  line-height: 1.12;
+  overflow-wrap: anywhere;
+}
+
+.holderRule {
+  width: min(70%, 34rem);
+  height: 1px;
+  margin: 0;
+  border: 0;
+  background: var(--certificate-rule);
+}
+
+.module {
+  margin: 0;
+  font-family: var(--font-display), ui-serif, Georgia, serif;
+  font-size: calc(var(--certificate-step) * 2.1);
+  font-weight: 600;
+  line-height: 1.15;
+}
+
+.detail {
+  margin: 0;
+  font-size: calc(var(--certificate-step) * 1.05);
+  color: color-mix(in srgb, var(--certificate-ink) 72%, transparent);
+}
+
+.result {
+  margin: 0;
+  font-size: calc(var(--certificate-step) * 1.15);
+  font-weight: 700;
+}
+
+/* --- The registry foot --------------------------------------------------- */
+
+/*
+ * Three columns, and the seal is the middle one so that the two registry blocks
+ * balance around it. `align-items: end` rather than centre: the date and the
+ * serial are read as a pair against the foot of the page, and centring them
+ * against a circle taller than either left them floating.
+ */
+.registry {
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  align-items: end;
+  gap: calc(var(--certificate-step) * 1.5);
+  width: 100%;
+}
+
+.entry {
+  display: flex;
+  flex-direction: column;
+  gap: calc(var(--certificate-step) * 0.25);
+  text-align: left;
+}
+
+.entryRight {
+  text-align: right;
+}
+
+.entryLabel {
+  font-size: calc(var(--certificate-step) * 0.85);
+  font-weight: 700;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: color-mix(in srgb, var(--certificate-ink) 66%, transparent);
+}
+
+.entryValue {
+  font-size: calc(var(--certificate-step) * 1.15);
+  font-weight: 700;
+  /* Digits of equal width: a serial is read back character by character against
+     the one in an inbox, and a proportional `1` breaks that comparison. */
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.02em;
+  overflow-wrap: anywhere;
+}
+
+/*
+ * The seal. A roundel rather than a scanned signature, and that is an honesty
+ * decision as much as a design one: nobody signed this, so drawing a signature
+ * on it would be the one lie this document must not tell. A seal says
+ * "issued by the register", which is exactly what happened.
+ */
+.seal {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: calc(var(--certificate-step) * 0.1);
+  width: calc(var(--certificate-step) * 7.2);
+  height: calc(var(--certificate-step) * 7.2);
+  border: 2px solid var(--certificate-seal);
+  border-radius: 50%;
+  color: var(--certificate-ink);
+}
+
+/*
+ * The inner ring of a real seal.
+ *
+ * A pseudo-element with a BORDER rather than the obvious `box-shadow: inset`,
+ * and the reason is printing: `certificate-print.css` clears every box-shadow
+ * on the page so the site chrome does not print its elevation, and a seal whose
+ * second ring was a shadow would come off the printer with one ring. A border
+ * is not a shadow and survives that, and it also survives a "no background
+ * graphics" print setting, which an inset shadow does not.
+ */
+.seal::after {
+  content: "";
+  position: absolute;
+  inset: calc(var(--certificate-step) * 0.28);
+  border: 1px solid var(--certificate-seal);
+  border-radius: 50%;
+}
+
+.sealTop,
+.sealFoot {
+  font-size: calc(var(--certificate-step) * 0.72);
+  font-weight: 700;
+  letter-spacing: 0.18em;
+  text-indent: 0.18em;
+  text-transform: uppercase;
+}
+
+.sealMark {
+  font-family: var(--font-display), ui-serif, Georgia, serif;
+  font-size: calc(var(--certificate-step) * 1.5);
+  font-weight: 700;
+  line-height: 1.1;
+  color: var(--certificate-seal);
+}
+
+/*
+ * The line that keeps this document honest wherever it ends up.
+ *
+ * It is INSIDE the paper, not beside it, for the same reason the receipt prints
+ * its mock notice on the paper: this artefact is going to be screenshotted,
+ * dropped into a slide and printed, and every one of those leaves the page —
+ * and the page's demonstration notice — behind.
+ */
+.footnote {
+  margin: 0;
+  max-width: 62ch;
+  font-size: calc(var(--certificate-step) * 0.85);
+  line-height: 1.45;
+  color: color-mix(in srgb, var(--certificate-ink) 62%, transparent);
+}
+
+/* --- Print --------------------------------------------------------------- */
+
+/*
+ * A certificate nobody can keep is not a certificate.
+ *
+ * This is the half of the print rules a CSS Module can hold: every selector
+ * names a class this file owns. The other half — releasing the page around the
+ * document and collapsing the site header and footer — has to reach `html`,
+ * `body` and their descendants, which a module may not do (Next compiles
+ * `*.module.css` with pure-selector enforcement, so a top-level `:global(html)`
+ * is a build error rather than a global rule). Those live in
+ * `certificate-print.css` beside this file.
+ *
+ * The reveal rule is here rather than there ON PURPOSE: it has to out-rank the
+ * blanket `body *` hide next door, and `.paper *` beats `body *` on specificity
+ * in any load order, so the two files cannot be loaded in a sequence that
+ * breaks it.
+ */
+@media print {
+  .paper,
+  .paper * {
+    visibility: visible !important;
+  }
+
+  .screen {
+    display: block !important;
+    gap: 0 !important;
+  }
+
+  .paper {
+    /*
+     * Left in the normal flow rather than lifted out with `position: absolute`.
+     * The containing block would be whichever ancestor of the marketplace shell
+     * happens to be positioned, which this file cannot know; and it costs
+     * nothing, because `certificate-print.css` COLLAPSES the chrome above the
+     * document rather than merely hiding it, so there is no band of white left
+     * to escape from.
+     */
+    width: 100% !important;
+    max-width: none !important;
+    min-height: 0 !important;
+    /* The sheet is landscape A4 (`@page` next door), so the document fills it
+       exactly and one certificate is one page. */
+    height: 100% !important;
+    margin: 0 !important;
+    border: 0 !important;
+    border-radius: 0 !important;
+    box-shadow: none !important;
+    padding: 0 !important;
+    /*
+     * PAPER IS NOT PAINTED. On screen the sheet needs a light ground to sit on
+     * a themed page; on a printer the ground is the sheet in the tray, and
+     * flooding it wastes ink, tints a document that should be plain, and is the
+     * first thing a "background graphics off" setting drops anyway. So the
+     * paper token becomes transparent and the printer's own white shows
+     * through — while the INK and the SEAL stay tokens and stay dark, which is
+     * what makes a dark-mode reader's printout identical to a light-mode one.
+     */
+    --certificate-paper: transparent;
+    --certificate-rule: var(--ink);
+    background: transparent !important;
+    color: var(--certificate-ink) !important;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+    /* Type sized against the SHEET rather than the on-screen column: `cqi` is
+       resolved against a container whose print width the browser has already
+       decided, and at A4 landscape that lands the document at the proportions
+       the screen shows. */
+    --certificate-step: 2.6mm;
+  }
+
+  /* Nothing on this document may be split across two sheets. */
+  .frame,
+  .award,
+  .registry {
+    break-inside: avoid;
+  }
+}

@@ -1,0 +1,53 @@
+# What EAS Build uploads from this repo.
+#
+# When this file exists EAS reads it INSTEAD of .gitignore, so every rule that
+# keeps a secret out of git has to be repeated here or the secret goes up with
+# the archive. The secrets block below is copied from .gitignore verbatim; keep
+# the two in step.
+#
+# The only build that runs from this repo is the apps/mobile client. It needs
+# apps/mobile, packages/* (where its workspace:* deps live) and the root manifests
+# so pnpm can resolve every importer in the lockfile. Everything heavy in the
+# other workspaces is dead weight: the first upload was 296 MB and failed
+# mid-transfer, almost all of it apps/web/.next and apps/web/public.
+
+# ── Secrets (verbatim from .gitignore) ───────────────────────────────────────
+.env
+.env.*
+!.env.example
+
+# ── Build output and caches (from .gitignore) ────────────────────────────────
+node_modules/
+.pnpm-store/
+apps/*/dist/
+apps/*/.next/
+apps/*/.next-prod/
+apps/*/.next-build/
+apps/*/.turbo/
+apps/*/.expo/
+apps/*/out/
+apps/*/build/
+server/*/dist/
+server/*/.turbo/
+server/*/build/
+tools/*/dist/
+*.tsbuildinfo
+coverage/
+.nyc_output/
+test-results/
+playwright-report/
+*.log
+
+# ── Not needed for a mobile build ────────────────────────────────────────────
+# 148 MB of web assets. Keep the web workspace's package.json so the lockfile
+# importer still resolves; drop only the payload.
+apps/web/public/
+
+# ── Editor, OS, AI context ───────────────────────────────────────────────────
+.git/
+.idea/
+.vscode/
+.claude/
+.DS_Store
+Thumbs.db
+desktop.ini

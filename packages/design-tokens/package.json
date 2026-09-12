@@ -1,0 +1,31 @@
+{
+  "private": true,
+  "name": "@injishi/design-tokens",
+  "version": "0.1.0",
+  "description": "Single source of the Injishi ink+green design tokens. Authored in src/, compiled to dist/, and emitted as CSS variables (web/app) and a typed RN palette (mobile).",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    },
+    "./css": "./generated/injishi-tokens.css",
+    "./ramps.css": "./generated/injishi-ramps.css",
+    "./heroui.css": "./generated/injishi-heroui.css"
+  },
+  "files": [
+    "dist",
+    "generated",
+    "src"
+  ],
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "generate:css": "node scripts/emit-css.mjs",
+    "check": "node scripts/check-dist.mjs && node scripts/emit-css.mjs --check",
+    "typecheck": "tsc -p tsconfig.json --noEmit"
+  },
+  "devDependencies": {
+    "typescript": "~6.0.3"
+  }
+}

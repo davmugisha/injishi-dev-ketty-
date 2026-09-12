@@ -1,0 +1,171 @@
+"use client";
+
+import { Button } from "@injishi/ui";
+import { Pagination } from "@/components/explore/pagination";
+import {
+  BrandRail,
+  BundleBanner,
+  EditorialCard,
+  SupportInterstitial,
+} from "@/components/explore/result-interstitials";
+import { ResultCard } from "@/components/explore/result-card";
+import { LISTINGS, type Listing } from "@/data/listings";
+import { SEARCH_DISTRICTS } from "@/data/search-options";
+import type { ExploreRefinement, StayIntent } from "@/lib/search-params";
+
+/**
+ * The result list itself: the interstitial-spliced column of cards, the empty
+ * state, and pagination.
+ *
+ * Deliberately holds no state and reads no URL — `explore-shell.tsx` owns
+ * both and hands this component a finished, already-filtered, already-sorted
+ * `results` array plus the callbacks a click needs to reach back up to it.
+ * That split is what lets the shell's tests (and this file's own review)
+ * treat "what the guest sees" and "how the guest's intent became a URL" as
+ * two separate questions.
+ */
+export function ExploreResults({
+  results,
+  intent,
+  refinement,
+  onPageChange,
+  onClearAll,
+  onPickDistrict,
+}: {
+  results: Listing[];
+  intent: StayIntent;
+  refinement: ExploreRefinement;
+  onPageChange: (page: number) => void;
+  onClearAll: () => void;
+  onPickDistrict: (slug: string) => void;
+}) {
+  const firstPageSize = PAGE_SIZE - INTERSTITIAL_SLOTS.length;
+  const pageCount =
+    results.length <= firstPageSize
+      ? 1
+      : 1 + Math.ceil((results.length - firstPageSize) / PAGE_SIZE);
+
+  const currentPage = Math.min(refinement.page, pageCount);
+  const start = currentPage === 1 ? 0 : firstPageSize + (currentPage - 2) * PAGE_SIZE;
+  const pageResults = results.slice(
+    start,
+    currentPage === 1 ? firstPageSize : start + PAGE_SIZE,
+  );
+
+  if (results.length === 0) {
+    return (
+      <EmptyResults
+        intent={intent}
+        onReset={onClearAll}
+        onPickDistrict={onPickDistrict}
+      />
+    );
+  }
+
+  return (
+    <>
+      <div data-result-list className="flex flex-col gap-4">
+        {pageResults.flatMap((listing, index) => {
+          const row: React.ReactNode[] = [
+            <ResultCard key={listing.slug} listing={listing} intent={intent} />,
+          ];
+          // The three interstitials ride the first page only: repeating a
+          // promo under every page turn would read as another result rather
+          // than as a one-off aside, exactly as the support tile always has.
+          if (currentPage === 1) {
+            const slot = INTERSTITIAL_SLOTS.find((entry) => entry.afterIndex === index);
+            if (slot) row.push(<slot.Component key={slot.id} />);
+          }
+          return row;
+        })}
+      </div>
+
+      <Pagination page={currentPage} pageCount={pageCount} onPageChange={onPageChange} />
+    </>
+  );
+}
+
+/**
+ * Where each interstitial rides on page one, and how many result cells they
+ * cost — which is what makes every OTHER page come out to a whole `PAGE_SIZE`
+ * even though page one is thinner by exactly this many slots.
+ */
+const INTERSTITIAL_SLOTS: { id: string; afterIndex: number; Component: () => React.ReactElement | null }[] = [
+  { id: "bundle", afterIndex: 2, Component: BundleBanner },
+  { id: "editorial", afterIndex: 6, Component: EditorialCard },
+  { id: "brand", afterIndex: 10, Component: BrandRail },
+  { id: "support", afterIndex: 14, Component: SupportInterstitial },
+];
+
+/**
+ * Rows per page.
+ *
+ * Four interstitials ride page one, so it carries `PAGE_SIZE - 4` result
+ * cards rather than the full count; every later page carries `PAGE_SIZE`. 24
+ * leaves page one with 20 real cards — comfortably a populated list rather
+ * than a thin one — while keeping later pages a round number.
+ */
+const PAGE_SIZE = 24;
+
+/**
+ * The empty list.
+ *
+ * Names what was searched and offers the districts that do hold stays, because
+ * the search bar can land a guest here on a place the catalogue does not
+ * cover yet, and "clear all filters" answers that by throwing away the one
+ * thing they actually asked for.
+ */
+function EmptyResults({
+  intent,
+  onReset,
+  onPickDistrict,
+}: {
+  intent: StayIntent;
+  onReset: () => void;
+  onPickDistrict: (slug: string) => void;
+}) {
+  const searchedFor =
+    SEARCH_DISTRICTS.find((district) => district.slug === intent.districts[0])?.name ??
+    intent.query.trim();
+
+  const alternatives = SEARCH_DISTRICTS.filter(
+    (district) =>
+      !intent.districts.includes(district.slug) &&
+      LISTINGS.some((listing) => listing.district === district.slug),
+  );
+
+  return (
+    <div data-empty-results className="mb-20 flex flex-col items-center gap-4 py-20 text-center">
+      <p className="text-xl text-page-fg">
+        {searchedFor
+          ? `No stays in ${searchedFor} yet.`
+          : "No stays match these filters yet."}
+      </p>
+      <p className="max-w-[46ch] text-sm text-page-fg-70">
+        {searchedFor
+          ? "We are still signing up hosts there. These districts have verified stays now:"
+          : "Try widening the price range or clearing a filter."}
+      </p>
+
+      {alternatives.length > 0 ? (
+        <div className="mt-1 flex flex-wrap justify-center gap-2">
+          {alternatives.map((district) => (
+            <Button
+              key={district.slug}
+              variant="outline"
+              size="sm"
+              onClick={() => onPickDistrict(district.slug)}
+              className="border-slate-line px-5 py-2 text-page-fg hover:border-ink"
+            >
+              {district.name}
+            </Button>
+          ))}
+        </div>
+      ) : null}
+
+      <Button variant="outline" onClick={onReset} className="mt-2">
+        Clear all filters
+      </Button>
+    </div>
+  );
+}

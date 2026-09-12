@@ -1,0 +1,15 @@
+{
+  "$schema": "https://schema.railpack.com",
+  "steps": {
+    "build": {
+      "inputs": [{ "step": "install" }],
+      "commands": [
+        { "src": ".", "dest": "." },
+        "pnpm --filter @injishi/api build"
+      ]
+    }
+  },
+  "deploy": {
+    "startCommand": "node server/api/dist/main.js"
+  }
+}

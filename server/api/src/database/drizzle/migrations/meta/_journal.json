@@ -1,0 +1,237 @@
+{
+  "version": "7",
+  "dialect": "postgresql",
+  "entries": [
+    {
+      "idx": 0,
+      "version": "7",
+      "when": 1783683385730,
+      "tag": "0000_tough_bug",
+      "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1784123863165,
+      "tag": "0001_identity_and_oversight",
+      "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1784211313931,
+      "tag": "0002_long_firebrand",
+      "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1785776492794,
+      "tag": "0003_booking_hot_path_indexes",
+      "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1785846486364,
+      "tag": "0004_add_housekeeper_org_role",
+      "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1787794104678,
+      "tag": "0005_registration_types",
+      "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1787794104679,
+      "tag": "0006_registration_fee_and_fields",
+      "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1787794171122,
+      "tag": "0007_drop_rha_member",
+      "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1787810824768,
+      "tag": "0008_registration_reviews",
+      "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1787839271912,
+      "tag": "0009_inventory_write_path",
+      "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1787853045589,
+      "tag": "0010_operator_command_idempotency",
+      "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "7",
+      "when": 1787864607823,
+      "tag": "0011_pms_departments",
+      "breakpoints": true
+    },
+    {
+      "idx": 12,
+      "version": "7",
+      "when": 1787864657437,
+      "tag": "0012_pms_ledger_foundation",
+      "breakpoints": true
+    },
+    {
+      "idx": 13,
+      "version": "7",
+      "when": 1787864766358,
+      "tag": "0013_pms_folios",
+      "breakpoints": true
+    },
+    {
+      "idx": 14,
+      "version": "7",
+      "when": 1787864820288,
+      "tag": "0014_pms_room_assignments",
+      "breakpoints": true
+    },
+    {
+      "idx": 15,
+      "version": "7",
+      "when": 1787864878135,
+      "tag": "0015_pms_housekeeping_tasks",
+      "breakpoints": true
+    },
+    {
+      "idx": 16,
+      "version": "7",
+      "when": 1787864933428,
+      "tag": "0016_pms_maintenance_widen",
+      "breakpoints": true
+    },
+    {
+      "idx": 17,
+      "version": "7",
+      "when": 1787864933445,
+      "tag": "0017_pms_maintenance_backfill",
+      "breakpoints": true
+    },
+    {
+      "idx": 18,
+      "version": "7",
+      "when": 1787864933446,
+      "tag": "0018_pms_maintenance_constrain",
+      "breakpoints": true
+    },
+    {
+      "idx": 19,
+      "version": "7",
+      "when": 1787865096524,
+      "tag": "0019_pms_service_catalog",
+      "breakpoints": true
+    },
+    {
+      "idx": 20,
+      "version": "7",
+      "when": 1788569091747,
+      "tag": "0020_two_factor",
+      "breakpoints": true
+    },
+    {
+      "idx": 21,
+      "version": "7",
+      "when": 1788571712115,
+      "tag": "0021_drop_totp_two_factor",
+      "breakpoints": true
+    },
+    {
+      "idx": 22,
+      "version": "7",
+      "when": 1788571733734,
+      "tag": "0022_two_factor_email_challenges",
+      "breakpoints": true
+    },
+    {
+      "idx": 23,
+      "version": "7",
+      "when": 1788600970901,
+      "tag": "0023_guest_saved_and_messaging",
+      "breakpoints": true
+    },
+    {
+      "idx": 24,
+      "version": "7",
+      "when": 1788813424560,
+      "tag": "0024_booking_engine_hardening",
+      "breakpoints": true
+    },
+    {
+      "idx": 25,
+      "version": "7",
+      "when": 1788846574999,
+      "tag": "0025_walkin_guest_name",
+      "breakpoints": true
+    },
+    {
+      "idx": 26,
+      "version": "7",
+      "when": 1788866703806,
+      "tag": "0026_broker_reveal_credits",
+      "breakpoints": true
+    },
+    {
+      "idx": 27,
+      "version": "7",
+      "when": 1789088878269,
+      "tag": "0027_live_ebm_invoice",
+      "breakpoints": true
+    },
+    {
+      "idx": 28,
+      "version": "7",
+      "when": 1789106139938,
+      "tag": "0028_phone_sign_in",
+      "breakpoints": true
+    },
+    {
+      "idx": 29,
+      "version": "7",
+      "when": 1789110813259,
+      "tag": "0029_admin_writes_support_payouts",
+      "breakpoints": true
+    },
+    {
+      "idx": 30,
+      "version": "7",
+      "when": 1789141909236,
+      "tag": "0030_database_identity",
+      "breakpoints": true
+    },
+    {
+      "idx": 31,
+      "version": "7",
+      "when": 1789172093247,
+      "tag": "0031_property_slug",
+      "breakpoints": true
+    },
+    {
+      "idx": 32,
+      "version": "7",
+      "when": 1789176037702,
+      "tag": "0032_payment_attempts",
+      "breakpoints": true
+    }
+  ]
+}

@@ -1,0 +1,69 @@
+import { Module } from '@nestjs/common';
+
+import { AdminSharedModule } from '../admin-shared.module';
+import { AdminGovernanceRepository } from '../governance/admin-governance.repository';
+import { AdminAuditController } from '../governance/audit.controller';
+import { AdminAuditService } from '../governance/audit.service';
+import { AdminComplianceController } from '../governance/compliance.controller';
+import { AdminComplianceService } from '../governance/compliance.service';
+import { AdminModerationController } from '../governance/moderation.controller';
+import { AdminModerationService } from '../governance/moderation.service';
+import { AdminUsersRepository } from './admin-users.repository';
+import { AdminUsersService } from './admin-users.service';
+import { RecordAccessService } from './record-access.service';
+import { AdminUserActionsService } from './user-actions.service';
+import { AdminUsersController } from './users.controller';
+
+/**
+ * Users, Compliance, Audit and Moderation of the admin API.
+ *
+ * ONE MODULE FOR FOUR CONTROLLERS ACROSS TWO FOLDERS, and the name says
+ * `Users` because that is the name `admin-api.module.ts` imports. The fan-out
+ * contract gives each area leaf exactly one exported module name so that four
+ * leaves working at once never edit the same file; a second export from this
+ * area would mean editing the branch-owned module to pick it up.
+ *
+ * The four sections belong together for a real reason and not just for the
+ * wiring: the directory is where an identity is read, and Compliance, Audit and
+ * Moderation are the three records of that reading being justified, logged and
+ * acted on. `RecordAccessService` writes the rows `AdminAuditService` reads
+ * back, so splitting them would put the two halves of one accountability loop
+ * in modules that cannot see each other.
+ *
+ * `AuthModule` is imported because `SessionGuard` resolves `AUTH_INSTANCE` from
+ * it, and `WorkspaceService` is provided because `StaffGuard` depends on it —
+ * it is the ONE reader of `admin_users`, the same one `/api/v1/me/staff` calls,
+ * so the console and the API can never be told different things about who is
+ * staff. `DatabaseModule` is `@Global`, so `DRIZZLE` resolves without an import
+ * here.
+ *
+ * NOT PROVIDED, AND RECORDED RATHER THAN HIDDEN: `TwoFactorService`.
+ * `StaffGuard` does not yet call `assertSatisfied`, so nothing here needs it —
+ * but `admin_users.two_factor_enrolled` exists precisely so staff can be held
+ * to the same step-up rule operators and officers already are. When that guard
+ * grows the check, this module has to provide the service or the API will fail
+ * to boot. That is owed work, not done work.
+ */
+@Module({
+  imports: [AdminSharedModule],
+  controllers: [
+    AdminUsersController,
+    AdminComplianceController,
+    AdminAuditController,
+    AdminModerationController,
+  ],
+  providers: [
+    AdminUsersRepository,
+    AdminUsersService,
+    // The two Users writes (revoke sessions, reissue a claim code). Separate
+    // from the PII reader so each successful write's audit row lives in one
+    // short file rather than among the reads.
+    AdminUserActionsService,
+    RecordAccessService,
+    AdminGovernanceRepository,
+    AdminComplianceService,
+    AdminAuditService,
+    AdminModerationService,
+  ],
+})
+export class UsersAdminModule {}

@@ -1,0 +1,629 @@
+/*
+ * The RRA EBM receipt, as a stylesheet rather than as utility classes.
+ *
+ * WHY A CSS MODULE, in an app that otherwise writes Tailwind.
+ *
+ * 1. `src/app/_injishi-app.css` imports Tailwind with `source(none)` and lists
+ *    the directories it scans. `src/components/receipt` is not on that list and
+ *    this leaf does not own that file, so a utility class written here would
+ *    compile to NOTHING — silently, with no error, which is the worst way for a
+ *    stylesheet to be wrong.
+ * 2. A receipt is a printed artefact with a prescribed layout. `@page`, the
+ *    print isolation below, and the "twice the size of the amount text" rule of
+ *    clause 11 are all things a stylesheet states directly and a utility class
+ *    cannot state at all.
+ *
+ * WHY THE PAPER DOES NOT FOLLOW THE THEME. Everything inside `.sheet` is dark
+ * ink on light paper in both themes, on screen and on paper. A fiscal document
+ * is a picture of a thing that comes out of a printer, and if the screen shows
+ * pale text on a navy ground while the printer produces black on white, the
+ * person checking the layout before they press print is checking a different
+ * document. The two colours are taken from the ramp tokens rather than the
+ * semantic roles for exactly that reason: `--foreground` and `--background`
+ * are theme-relative by design, and paper is not.
+ *
+ * Everything OUTSIDE the paper — the toolbar, the warning callout, the failure
+ * states — is ordinary app chrome and uses the ordinary role tokens.
+ */
+
+.screen {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1rem;
+  padding: 1.5rem 1rem 4rem;
+}
+
+/* --- The paper ----------------------------------------------------------- */
+
+.sheet {
+  /* The two colours the whole document is printed in, plus the hairline the
+     dashed rules are drawn with. Declared here so that everything inside —
+     including the QR code's own SVG, which reads them through `var()` —
+     resolves to the same pair, and so the print block below can restate them
+     in one place instead of on every rule. */
+  --receipt-paper: var(--ink-50);
+  --receipt-ink: var(--ink-950);
+  --receipt-rule: var(--ink-500);
+
+  /*
+   * The QR code's own light. Separate from `--receipt-paper` and NEVER
+   * transparent, including in print where the paper deliberately is.
+   *
+   * The light modules and the quiet zone are part of the SYMBOL, not the page
+   * behind it. Letting them inherit a transparent paper makes the code depend
+   * on whatever is underneath, and a scanner reads nothing off an inverted
+   * symbol — a print rasterised onto a dark ground, a receipt dropped onto a
+   * dark slide. That is not theory: rasterising this receipt's print output
+   * onto black produced a symbol no decoder would read, and it decodes again
+   * with the quiet zone owned rather than borrowed.
+   */
+  --receipt-qr-light: var(--ink-50);
+
+  /* The size of an AMOUNT. Clause 11's warning is defined as a multiple of it
+     below, so the two can never drift apart: change this and the warning
+     changes with it, still at least twice as big. */
+  --receipt-amount-size: 0.8125rem;
+
+  position: relative;
+  box-sizing: border-box;
+  width: 100%;
+  /* A till roll is 80mm. This is that, at a legible size on a screen. */
+  max-width: 26rem;
+  padding: 1.25rem 1.125rem 1.5rem;
+  background: var(--receipt-paper);
+  color: var(--receipt-ink);
+  /* A real receipt is monospaced. The app's `--font-mono` is aliased to the
+     brand sans face, so it cannot be used here: a proportional font breaks the
+     one thing the layout depends on, which is that amounts line up. */
+  font-family: ui-monospace, "SFMono-Regular", "Menlo", "Consolas",
+    "DejaVu Sans Mono", monospace;
+  font-size: var(--receipt-amount-size);
+  line-height: 1.45;
+  /* Digits of equal width, so the amount column is a column. */
+  font-variant-numeric: tabular-nums;
+  border: 1px solid var(--receipt-rule);
+  border-radius: var(--radius-sm);
+  /* The paper is light in a dark room too, so it needs a shadow to sit on the
+     page rather than glare out of it. Mixed from the ink token, so there is no
+     literal colour here either. */
+  box-shadow: 0 1px 3px color-mix(in oklab, var(--ink-950) 18%, transparent);
+  /* Everything below is stacked above the watermark. */
+  isolation: isolate;
+}
+
+/* Long values — a grouped signature, a QR payload — wrap rather than widen the
+   paper. A receipt is a fixed-width column; nothing may make it wider. */
+.sheet * {
+  overflow-wrap: anywhere;
+}
+
+/* --- Bands and rules ----------------------------------------------------- */
+
+/*
+ * The specimen separates its sections with a row of dashes. A dashed border is
+ * that, and unlike a row of literal hyphen characters it cannot be selected,
+ * read aloud by a screen reader, or copied into a paste of the receipt text.
+ */
+.band {
+  position: relative;
+  z-index: 1;
+  padding-block: 0.5rem;
+  border-bottom: 1px dashed var(--receipt-rule);
+}
+
+.band:last-child {
+  border-bottom: 0;
+}
+
+.headerBand {
+  padding-block-start: 0;
+  text-align: center;
+}
+
+.centre {
+  text-align: center;
+}
+
+/* --- Header -------------------------------------------------------------- */
+
+/*
+ * Clause 7.29 — the official RRA logo prints on every receipt regardless of
+ * type. Sized in `rem` rather than by its intrinsic pixels so it holds its
+ * proportion on paper as well as on screen.
+ */
+.logo {
+  display: block;
+  width: auto;
+  height: 3rem;
+  margin: 0 auto 0.375rem;
+}
+
+.tradeName {
+  font-size: 1.0625rem;
+  font-weight: 700;
+  letter-spacing: 0.01em;
+  line-height: 1.25;
+}
+
+.headerLine {
+  margin: 0;
+}
+
+/*
+ * Clause 11 — `COPY`, `TRAINING MODE` and `PROFORMA` sit below the receipt
+ * header and above the item description section, and again above the SDC
+ * block, which is where the specimens on pages 8, 9 and 10 put them.
+ */
+.designation {
+  margin-block-start: 0.25rem;
+  font-size: 1.125rem;
+  font-weight: 700;
+  letter-spacing: 0.18em;
+}
+
+/* --- Lines --------------------------------------------------------------- */
+
+/*
+ * One printed row: a label on the left, an amount hard against the right.
+ * `align-items: baseline` so a label that wraps still sits on the same line as
+ * its amount, and `gap` so the two can never touch on a narrow roll.
+ */
+.line {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+
+.line > .value {
+  flex: none;
+  white-space: nowrap;
+}
+
+.strong {
+  font-weight: 700;
+}
+
+/* An item's own name, printed on its own line above the price line (13.1). */
+.itemName {
+  margin: 0;
+}
+
+/* The price line is indented not at all in the specimen; the discount is. */
+.discount {
+  padding-inline-start: 0.75rem;
+}
+
+/* --- The warning clause 11 requires -------------------------------------- */
+
+/*
+ * "These identifying texts shall be at least twice bigger than the text that
+ * indicates the amount." Expressed as a multiple of the amount size rather than
+ * as a second number, so the relationship survives any change to either.
+ */
+.notOfficial {
+  margin: 0;
+  font-size: calc(var(--receipt-amount-size) * 2);
+  font-weight: 700;
+  line-height: 1.15;
+  letter-spacing: 0.02em;
+  text-align: center;
+  text-transform: uppercase;
+}
+
+/* --- The warning THIS platform requires ---------------------------------- */
+
+/*
+ * Not a clause. The SDC block above it is produced by a declared mock signer,
+ * and the signer's own source says what that means: the SDC id, internal data,
+ * receipt signature, counters and MRC "are FABRICATED … decoration with the
+ * shape of evidence", and the result "is NOT a fiscal document, and must never
+ * be handed to a taxpayer, a guest or a tax officer as one".
+ *
+ * It is drawn INSIDE the paper, so it survives printing, photographing and
+ * pasting — the three ways a screenshot of a convincing fake gets loose. A
+ * banner outside the document would not.
+ */
+.mockNotice {
+  margin-block: 0.25rem 0;
+  padding: 0.5rem 0.625rem;
+  border: 2px solid var(--receipt-ink);
+  text-align: center;
+}
+
+.mockHeading {
+  margin: 0;
+  font-size: calc(var(--receipt-amount-size) * 1.5);
+  font-weight: 700;
+  line-height: 1.2;
+  letter-spacing: 0.04em;
+}
+
+.mockBody {
+  margin: 0.375rem 0 0;
+  line-height: 1.4;
+}
+
+/* --- Watermark ----------------------------------------------------------- */
+
+/*
+ * Clause 11 requires the COPY / TRAINING / PROFORMA designation "as a
+ * watermark" as well as in the text. On a receipt whose signature is simulated
+ * the same device carries the same job for the same reason, which is why this
+ * one element serves both.
+ *
+ * `print-color-adjust: exact` because browsers strip background colours and
+ * lighten faint text when printing to save ink, and a watermark that vanishes
+ * on paper is a watermark that is not there.
+ */
+.watermark {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  pointer-events: none;
+  /* Decorative: the same words are printed in the document body, and hearing
+     them twice tells a screen-reader user nothing new. */
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-print-color-adjust: exact;
+  print-color-adjust: exact;
+}
+
+/*
+ * Wider than the paper, then rotated, so the word runs corner to corner the
+ * way a stamped watermark does. `fill` rather than `color`: the mark is an SVG
+ * <text>, sized by its own viewBox so that a four-letter designation and a
+ * twenty-letter one are drawn at the same width (see `receipt-document.tsx`).
+ *
+ * 0.12 opacity is the compromise the QR code sets the floor for: dark enough to
+ * read as a stamp, light enough that the symbol underneath still decodes — and
+ * it does, verified by decoding a screenshot of this page.
+ */
+.watermarkText {
+  width: 128%;
+  height: auto;
+  fill: var(--receipt-ink);
+  opacity: 0.12;
+  font-family: inherit;
+  transform: rotate(-32deg);
+}
+
+/* --- SDC block ----------------------------------------------------------- */
+
+.blockHeading {
+  margin: 0;
+  font-size: var(--receipt-amount-size);
+  font-weight: 700;
+  letter-spacing: 0.06em;
+}
+
+/*
+ * Internal data and the receipt signature are printed on their own line under
+ * their heading (7.24.5, 7.24.6), already dash-grouped in fours. They are long
+ * and they wrap; `word-break` is deliberately not `break-all`, so a group of
+ * four is never split across two lines and a reader can still compare the
+ * printed value against a screen character by character.
+ */
+.grouped {
+  margin: 0;
+  overflow-wrap: break-word;
+}
+
+.qrWrap {
+  display: flex;
+  justify-content: center;
+  padding-block-start: 0.625rem;
+}
+
+/* --- Closing ------------------------------------------------------------- */
+
+.closingLine {
+  margin: 0;
+  text-align: center;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+}
+
+/* A footnote in the app's own voice, kept visually apart from the receipt's
+   own printed content by size alone — it is still inside the document. */
+.footnote {
+  margin: 0.5rem 0 0;
+  font-size: 0.6875rem;
+  line-height: 1.4;
+  text-align: center;
+  opacity: 0.75;
+}
+
+/* --- Everything outside the paper ---------------------------------------- */
+
+/*
+ * The page's heading, for a reader who navigates by headings and gets nothing
+ * from a document that is all body text. It is not drawn: the receipt announces
+ * itself visually through the trade name at the top of the paper, and a second
+ * title above it would be chrome on a document that has none.
+ */
+.srOnly {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  border: 0;
+  clip-path: inset(50%);
+}
+
+.toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 0.5rem;
+  width: 100%;
+  max-width: 26rem;
+}
+
+/*
+ * The screen-only twin of `.mockNotice`. It says the same thing in ordinary
+ * prose, at a size someone reading a web page will actually read, and it is not
+ * dismissible: the moment this becomes a thing you can close is the moment
+ * somebody screenshots the receipt without it.
+ */
+.callout {
+  width: 100%;
+  max-width: 26rem;
+  padding: 0.875rem 1rem;
+  border: 1px solid var(--destructive);
+  border-radius: var(--radius-lg);
+  background: var(--card);
+  color: var(--card-foreground);
+  font-size: 0.8125rem;
+  line-height: 1.5;
+}
+
+.calloutHeading {
+  margin: 0 0 0.25rem;
+  color: var(--destructive);
+  font-size: 0.875rem;
+  font-weight: 700;
+}
+
+.calloutBody {
+  margin: 0;
+}
+
+/* --- The specimen gallery ------------------------------------------------ */
+
+/*
+ * `/receipt/specimen` renders the specification's own drawings through the same
+ * component the live receipt uses. These rules dress the captions around them;
+ * the paper itself is untouched, which is the point — a specimen that rendered
+ * through a second code path would prove nothing about the first.
+ */
+.specimenIntro {
+  width: 100%;
+  max-width: 34rem;
+  color: var(--foreground);
+  font-size: 0.875rem;
+  line-height: 1.55;
+}
+
+.specimenIntro h1 {
+  margin: 0 0 0.375rem;
+  font-size: 1.25rem;
+  font-weight: 700;
+}
+
+.specimenIntro p {
+  margin: 0 0 0.5rem;
+}
+
+.specimenItem {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.625rem;
+  width: 100%;
+  padding-block-start: 1.5rem;
+  border-top: 1px solid var(--border);
+}
+
+.specimenCaption {
+  width: 100%;
+  max-width: 34rem;
+  color: var(--foreground);
+}
+
+.specimenCaption h2 {
+  margin: 0 0 0.25rem;
+  font-size: 1rem;
+  font-weight: 700;
+}
+
+.specimenCaption p {
+  margin: 0;
+  color: var(--muted-foreground);
+  font-size: 0.8125rem;
+  line-height: 1.5;
+}
+
+.status {
+  width: 100%;
+  max-width: 26rem;
+  padding: 1.5rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  background: var(--card);
+  color: var(--card-foreground);
+  text-align: center;
+  font-size: 0.875rem;
+  line-height: 1.5;
+}
+
+.statusHeading {
+  margin: 0 0 0.375rem;
+  font-size: 1rem;
+  font-weight: 700;
+}
+
+/*
+ * A skeleton of the paper, so the page does not jump when the receipt lands.
+ *
+ * `--secondary`, NOT `--muted`. In this app `--muted` is folded in from the
+ * HeroUI palette after the token block and resolves to a mid grey, so a
+ * "muted" placeholder renders as a solid dark slab where a receipt is about to
+ * be — which reads as a broken image rather than as loading. It was exactly
+ * that on screen until a screenshot caught it. `--secondary` is the light
+ * surface this wants and pairs correctly in both themes.
+ */
+.skeleton {
+  width: 100%;
+  max-width: 26rem;
+  height: 32rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--secondary);
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .skeleton {
+    animation: receiptPulse 1.6s ease-in-out infinite;
+  }
+}
+
+@keyframes receiptPulse {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.55;
+  }
+}
+
+/* --- Print --------------------------------------------------------------- */
+
+/*
+ * A receipt nobody can print is not a receipt.
+ *
+ * This half of the print rules is the half that can live in a CSS Module: every
+ * selector below names a class this file owns. The OTHER half — releasing the
+ * shell's fixed height and hiding everything that is not the receipt — has to
+ * reach `html`, `body` and their descendants, and a module may not do that:
+ * Next compiles `*.module.css` with pure-selector enforcement, so a top-level
+ * `:global(html)` is a build error rather than a global rule. Those live in
+ * `receipt-print.css` beside this file, and the split is exactly the line
+ * between "styles this component owns" and "the page around it", which is a
+ * distinction worth having anyway.
+ *
+ * The reveal rule is here rather than there ON PURPOSE. It has to out-rank the
+ * blanket `body *` hide next door, and `.sheet *` beats `body *` on specificity
+ * in any order, so the two files cannot be loaded in a sequence that breaks it.
+ */
+@media print {
+  .sheet,
+  .sheet * {
+    visibility: visible !important;
+  }
+
+  .screen {
+    display: block !important;
+    padding: 0 !important;
+  }
+
+  .sheet {
+    /*
+     * Left in the normal flow. Lifting it out with `position: absolute` was
+     * tried and is worse in two ways: the containing block is whichever
+     * ancestor of the app shell happens to be positioned, which this file
+     * cannot know, and on `/receipt/specimen` six absolutely positioned sheets
+     * all resolve to the same origin and print on top of one another.
+     *
+     * Staying in flow costs nothing, because `receipt-print.css` collapses the
+     * chrome above the receipt rather than merely hiding it, so there is no
+     * band of white left to escape from. Where that second pass cannot run —
+     * a browser without `:has()` — the receipt starts lower down the first
+     * sheet, which is a blemish rather than a broken document.
+     */
+    width: 100% !important;
+    /*
+     * Capped rather than released. `size: auto` means the page may be an 80mm
+     * till roll or an A4 sheet, and 100mm is wider than the printable width of
+     * the first (so it does not bind) and far narrower than the second — where
+     * an uncapped receipt stretches its amount column across eight inches and
+     * stops reading as a receipt at all.
+     */
+    max-width: 100mm !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    border: 0 !important;
+    border-radius: 0 !important;
+    box-shadow: none !important;
+    /*
+     * PAPER IS NOT PAINTED. On screen the sheet needs a light ground to sit on
+     * a themed page; on a printer the ground is the sheet in the tray, and
+     * flooding it with a colour wastes ink, tints a document that should be
+     * plain, and is the first thing a "background graphics off" print setting
+     * drops anyway. So the paper token becomes transparent here and the
+     * printer's own white shows through.
+     *
+     * The QR code deliberately does NOT follow. Its light is
+     * `--receipt-qr-light`, which is not touched here, because the quiet zone
+     * belongs to the symbol rather than to the page: a transparent one leaves
+     * the code at the mercy of whatever is behind it. Both of its colours are
+     * SVG fills, which are content rather than backgrounds and therefore
+     * survive a "no background graphics" print setting.
+     *
+     * The ink and the hairline stay tokens. The rule is darkened because
+     * `--ink-500` is a legible hairline on a screen and prints faint.
+     */
+    --receipt-paper: transparent;
+    --receipt-rule: var(--ink-950);
+    background: transparent !important;
+    color: var(--receipt-ink) !important;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+
+  /* On the specimen page, one receipt per sheet of paper. */
+  .specimenItem + .specimenItem {
+    break-before: page;
+  }
+
+  /*
+   * The watermark is `absolute` on screen, where the paper is one continuous
+   * column. On paper the receipt runs to more than one sheet, and an absolute
+   * watermark is centred on the whole column — half a word at the foot of the
+   * first sheet, half at the head of the second, and whichever sheet the reader
+   * is actually holding may carry neither.
+   *
+   * `fixed` resolves against the PAGE box when printing, and Chromium and
+   * Firefox both repeat a fixed element on every sheet, which is what a
+   * watermark is for. It is then pinned back over the receipt's own column
+   * rather than the page's centre: the receipt occupies 100mm at the leading
+   * edge of an A4 sheet, and a page-centred watermark would sit in the margin
+   * beside it, marking nothing.
+   */
+  .watermark {
+    position: fixed !important;
+    inset: 0 auto 0 0 !important;
+    width: 100mm !important;
+  }
+
+  /* A section must not be split across two sheets: a totals block whose last
+     line is alone on page two is a receipt an auditor will query. */
+  .band,
+  .mockNotice {
+    break-inside: avoid;
+  }
+
+  .skeleton {
+    display: none !important;
+  }
+}
+

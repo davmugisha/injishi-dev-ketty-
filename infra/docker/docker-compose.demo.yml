@@ -1,0 +1,460 @@
+# The public demo, on the Hangaa VPS beside production and staging (ADR-043).
+#
+# DOKPLOY.md owns every deploy fact; this file is the contract it describes.
+# It runs from its OWN checkout, at staging's current commit, under its own
+# project name and env file:
+#
+#   docker compose -p injishi-demo -f infra/docker/docker-compose.demo.yml \
+#     --env-file /opt/injishi-demo/.env up -d
+#
+# and is rebuilt from scratch every night by infra/docker/demo-nightly.sh,
+# which is also how it is brought up the first time. Do not `up --build` it by
+# hand on a schedule of your own: the job is what builds candidates, seeds a
+# fresh database and swaps back when the new build is unhealthy.
+#
+# A FULL, SEPARATE STACK, modelled on staging's. Its own Postgres, Redis, MinIO,
+# Mailpit, API, worker and three frontends, its own secrets and volumes (the
+# project name namespaces them). Nothing in production's compose file depends
+# on anything here, so a failed demo migration, build or boot cannot stop or
+# change production (AC-2).
+#
+# WHICH PLATFORM THIS IS is pinned below as literals, never read from the env
+# file: the API runs as `demo` and refuses to boot unless its database carries
+# the sample marker, which Postgres grants only to a database that was empty
+# when it was marked. The fixed sign in code exists only in such a process.
+#
+# UNDER injishi.com, unlike staging, and that has one consequence to keep in
+# mind: production sets its session cookie on `.injishi.com`, so browsers carry
+# it to every demo host. The demo drops it before anything reads the request
+# (the API's first hook and each frontend's middleware, built with
+# NEXT_PUBLIC_INJISHI_ENVIRONMENT=demo), and the demo holds no production
+# secret, so it could never be verified here anyway (ADR-043, AC-14).
+#
+# PUBLIC, except admin-demo and the Mailpit inbox, which sit behind
+# ADMIN_ALLOWED_IPS (loopback only when unset). Anyone may sign in as any
+# seeded persona with the published code; everything they can reach is sample
+# data rebuilt nightly, and every mail lands in this stack's Mailpit.
+#
+# Router names start with `injishi-demo-`; images are tagged `:demo` (the
+# nightly job builds candidates as `:demo-next` and keeps the last good set as
+# `:demo-prev` until the new one is healthy). Every service has a resource
+# ceiling, so the demo under load cannot starve production on the same host.
+
+x-api-env: &api-env
+  # Pinned here, never from the env file (ADR-043, AC-6).
+  INJISHI_ENVIRONMENT: demo
+  INJISHI_DATABASE_KIND: sample
+  NODE_ENV: production
+  PORT: "8000"
+  DATABASE_URL: ${DATABASE_URL:?set DATABASE_URL to this stack's own db, database injishi_demo}
+  REDIS_URL: redis://redis:6379
+  COOKIE_SECRET: ${COOKIE_SECRET}
+  # The demo's own secret. Never production's: a demo session is minted with a
+  # code anyone can read.
+  BETTER_AUTH_SECRET: ${BETTER_AUTH_SECRET}
+  BETTER_AUTH_URL: https://${API_HOST:-api-demo.injishi.com}
+  # The shared parent domain, as production's. Cookies stay apart by NAME: a
+  # demo process names its session `injishi-demo.*` (AC-8).
+  AUTH_COOKIE_DOMAIN: ${AUTH_COOKIE_DOMAIN:-.injishi.com}
+  CORS_ORIGINS: https://${WEB_HOST:-www-demo.injishi.com},https://${ADMIN_HOST:-admin-demo.injishi.com}
+  GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:-}
+  GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET:-}
+  # Never live. A demo process refuses to boot on either (AC-13); pinning them
+  # means a line in the env file cannot even try.
+  PAYMENT_ADAPTER_MODE: mock
+  VSDC_ADAPTER_MODE: mock
+  # This stack's own MinIO, through the scoped user minio-init creates.
+  # `injishi-minio`, not `minio`: api also joins dokploy-network, where the other
+  # stacks' `minio` answers to the same name.
+  STORAGE_ADAPTER_MODE: live
+  STORAGE_S3_ENDPOINT: http://injishi-minio:9000
+  STORAGE_S3_PUBLIC_ENDPOINT: https://${STORAGE_HOST:-storage-demo.injishi.com}
+  STORAGE_S3_REGION: us-east-1
+  STORAGE_S3_ACCESS_KEY: ${STORAGE_S3_ACCESS_KEY:?set STORAGE_S3_ACCESS_KEY, the API's own MinIO user}
+  STORAGE_S3_SECRET_KEY: ${STORAGE_S3_SECRET_KEY:?set STORAGE_S3_SECRET_KEY, the API's own MinIO secret}
+  STORAGE_BUCKET: ${STORAGE_BUCKET:-injishi}
+  STORAGE_REQUIRE_ENCRYPTION: "true"
+  # Every message is caught by this stack's Mailpit and goes no further. There
+  # is no relay credential in this stack to leak or to spend (AC-4).
+  SMTP_URL: smtp://injishi-mailpit:1025
+  MAIL_FROM: "Injishi Demo <no-reply@injishi.com>"
+  LOG_LEVEL: ${LOG_LEVEL:-info}
+
+x-demo-public: &demo-public
+  NEXT_PUBLIC_API_URL: https://${API_HOST:-api-demo.injishi.com}
+  NEXT_PUBLIC_WEB_URL: https://${WEB_HOST:-www-demo.injishi.com}
+  NEXT_PUBLIC_SITE_URL: https://${WEB_HOST:-www-demo.injishi.com}
+  # The operator app is a zone under web, so its public URL is web's origin.
+  NEXT_PUBLIC_PMS_URL: https://${WEB_HOST:-www-demo.injishi.com}
+  NEXT_PUBLIC_ADMIN_URL: https://${ADMIN_HOST:-admin-demo.injishi.com}
+  # Pinned (ADR-043, AC-14): these builds strip production's session cookies in
+  # their middleware. It decides nothing on a screen; the screens ask
+  # `GET /api/v1/platform`.
+  NEXT_PUBLIC_INJISHI_ENVIRONMENT: demo
+
+x-small: &small
+  resources:
+    limits:
+      cpus: "0.25"
+      memory: 256M
+
+x-medium: &medium
+  resources:
+    limits:
+      cpus: "0.50"
+      memory: 512M
+
+x-large: &large
+  resources:
+    limits:
+      cpus: "1.00"
+      memory: 768M
+
+networks:
+  default:
+  dokploy-network:
+    external: true
+
+# Postgres and MinIO keep volumes: the nightly job swaps databases INSIDE this
+# Postgres (injishi_demo, injishi_demo_next, injishi_demo_prev) and empties the
+# bucket itself. Redis and Mailpit keep nothing on purpose.
+volumes:
+  db-data:
+  minio-data:
+
+services:
+  db:
+    image: postgres:17-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-injishi}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-change-me}
+      # The live database's name. The nightly job renames around it.
+      POSTGRES_DB: injishi_demo
+    volumes:
+      - db-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    deploy: *medium
+    networks:
+      - default
+
+  # No persistence: a queue of demo jobs is worth nothing after a reset, and
+  # the nightly job flushes it at the swap anyway.
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    command: ["redis-server", "--save", "", "--appendonly", "no"]
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    deploy: *small
+    networks:
+      - default
+
+  # Production's MinIO, pinned the same and encrypted the same, with its own KMS
+  # key and credentials (AC-4). Its S3 port answers on storage-demo, public like
+  # the demo, for reads only and never MinIO's own /minio/ paths.
+  minio:
+    image: minio/minio:RELEASE.2025-09-07T16-13-09Z
+    restart: unless-stopped
+    command: ["server", "/data"]
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER:-injishi}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:?set MINIO_ROOT_PASSWORD, root answers on the storage host}
+      # <key-name>:<base64 of 32 random bytes>, never production's or staging's.
+      MINIO_KMS_SECRET_KEY: ${MINIO_KMS_SECRET_KEY:?set MINIO_KMS_SECRET_KEY, see dokploy-demo.env.example}
+      MINIO_BROWSER: "off"
+    expose:
+      - "9000"
+    volumes:
+      - minio-data:/data
+    healthcheck:
+      test: ["CMD", "mc", "ready", "local"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    deploy: *medium
+    labels:
+      - traefik.enable=true
+      - traefik.docker.network=dokploy-network
+      - traefik.http.services.injishi-demo-storage.loadbalancer.server.port=9000
+      - traefik.http.routers.injishi-demo-storage-http.rule=Host(`${STORAGE_HOST:-storage-demo.injishi.com}`)
+      - traefik.http.routers.injishi-demo-storage-http.entrypoints=web
+      - traefik.http.routers.injishi-demo-storage-http.middlewares=redirect-to-https@file
+      - traefik.http.routers.injishi-demo-storage-http.service=injishi-demo-storage
+      - traefik.http.routers.injishi-demo-storage.rule=Host(`${STORAGE_HOST:-storage-demo.injishi.com}`) && (Method(`GET`) || Method(`HEAD`) || Method(`OPTIONS`)) && !PathPrefix(`/minio/`)
+      - traefik.http.routers.injishi-demo-storage.entrypoints=websecure
+      - traefik.http.routers.injishi-demo-storage.tls.certresolver=letsencrypt
+      - traefik.http.routers.injishi-demo-storage.service=injishi-demo-storage
+    networks:
+      default:
+        aliases:
+          - injishi-minio
+      dokploy-network: {}
+
+  # One shot, on every `up`: the one bucket private and encrypted, and the
+  # API's own scoped user (minio/provision.sh).
+  minio-init:
+    image: minio/mc:RELEASE.2025-08-13T08-35-41Z
+    restart: "no"
+    entrypoint: ["/bin/sh", "/provision.sh"]
+    environment:
+      MINIO_ENDPOINT: http://injishi-minio:9000
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER:-injishi}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD}
+      STORAGE_BUCKET: ${STORAGE_BUCKET:-injishi}
+      STORAGE_S3_ACCESS_KEY: ${STORAGE_S3_ACCESS_KEY}
+      STORAGE_S3_SECRET_KEY: ${STORAGE_S3_SECRET_KEY}
+      STORAGE_ENCRYPT: "on"
+    volumes:
+      - ./minio/provision.sh:/provision.sh:ro
+    depends_on:
+      minio:
+        condition: service_healthy
+    deploy: *small
+    networks:
+      - default
+
+  # Every message the demo sends lands here, and no volume means a restart
+  # empties it (the nightly job restarts it). The inbox answers on mail-demo
+  # behind ADMIN_ALLOWED_IPS; SMTP (1025) is never routed.
+  mailpit:
+    image: axllent/mailpit:v1.31.1
+    restart: unless-stopped
+    expose:
+      - "1025"
+      - "8025"
+    deploy: *small
+    labels:
+      - traefik.enable=true
+      - traefik.docker.network=dokploy-network
+      - traefik.http.services.injishi-demo-mail.loadbalancer.server.port=8025
+      - traefik.http.middlewares.injishi-demo-mail-allow.ipallowlist.sourcerange=${ADMIN_ALLOWED_IPS:-127.0.0.1/32}
+      - traefik.http.routers.injishi-demo-mail-http.rule=Host(`${MAIL_HOST:-mail-demo.injishi.com}`)
+      - traefik.http.routers.injishi-demo-mail-http.entrypoints=web
+      - traefik.http.routers.injishi-demo-mail-http.middlewares=redirect-to-https@file
+      - traefik.http.routers.injishi-demo-mail-http.service=injishi-demo-mail
+      - traefik.http.routers.injishi-demo-mail.rule=Host(`${MAIL_HOST:-mail-demo.injishi.com}`)
+      - traefik.http.routers.injishi-demo-mail.entrypoints=websecure
+      - traefik.http.routers.injishi-demo-mail.tls.certresolver=letsencrypt
+      - traefik.http.routers.injishi-demo-mail.middlewares=injishi-demo-mail-allow
+      - traefik.http.routers.injishi-demo-mail.service=injishi-demo-mail
+    networks:
+      default:
+        aliases:
+          - injishi-mailpit
+      dokploy-network: {}
+
+  api:
+    image: injishi-api:${DEMO_IMAGE_TAG:-demo}
+    build:
+      context: ../..
+      dockerfile: infra/docker/Dockerfile.api
+      args:
+        INJISHI_COMMIT: ${INJISHI_COMMIT:-}
+    restart: unless-stopped
+    # A no-op on a database the nightly job already migrated; kept so a manual
+    # `up` of a newer image cannot boot against an older schema.
+    command: ["sh", "-c", "node scripts/migrate.mjs && node dist/main.js"]
+    environment:
+      <<: *api-env
+      INJISHI_PROCESS: http
+    expose:
+      - "8000"
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "node",
+          "-e",
+          "fetch('http://127.0.0.1:'+(process.env.PORT||8000)+'/api/v1/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))",
+        ]
+      interval: 10s
+      timeout: 5s
+      start_period: 60s
+      retries: 5
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      minio-init:
+        condition: service_completed_successfully
+      mailpit:
+        condition: service_started
+    deploy: *large
+    labels:
+      - traefik.enable=true
+      - traefik.docker.network=dokploy-network
+      - traefik.http.services.injishi-demo-api.loadbalancer.server.port=8000
+      - traefik.http.routers.injishi-demo-api-http.rule=Host(`${API_HOST:-api-demo.injishi.com}`)
+      - traefik.http.routers.injishi-demo-api-http.entrypoints=web
+      - traefik.http.routers.injishi-demo-api-http.middlewares=redirect-to-https@file
+      - traefik.http.routers.injishi-demo-api-http.service=injishi-demo-api
+      - traefik.http.routers.injishi-demo-api.rule=Host(`${API_HOST:-api-demo.injishi.com}`)
+      - traefik.http.routers.injishi-demo-api.entrypoints=websecure
+      - traefik.http.routers.injishi-demo-api.tls.certresolver=letsencrypt
+      - traefik.http.routers.injishi-demo-api.service=injishi-demo-api
+    networks:
+      - default
+      - dokploy-network
+
+  worker:
+    image: injishi-api:${DEMO_IMAGE_TAG:-demo}
+    build:
+      context: ../..
+      dockerfile: infra/docker/Dockerfile.api
+      args:
+        INJISHI_COMMIT: ${INJISHI_COMMIT:-}
+    restart: unless-stopped
+    environment:
+      <<: *api-env
+      INJISHI_PROCESS: worker
+    healthcheck:
+      disable: true
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      minio-init:
+        condition: service_completed_successfully
+      api:
+        condition: service_healthy
+    deploy: *medium
+    networks:
+      - default
+
+  web:
+    image: injishi-web:${DEMO_IMAGE_TAG:-demo}
+    build:
+      context: ../..
+      dockerfile: infra/docker/Dockerfile.web
+      args:
+        <<: *demo-public
+        OPERATOR_APP_URL: http://app:3002
+    restart: unless-stopped
+    environment:
+      <<: *demo-public
+      NODE_ENV: production
+      PORT: "3000"
+      OPERATOR_APP_URL: http://app:3002
+    expose:
+      - "3000"
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "node",
+          "-e",
+          "fetch('http://127.0.0.1:3000/').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))",
+        ]
+      interval: 10s
+      timeout: 5s
+      start_period: 60s
+      retries: 5
+    depends_on:
+      api:
+        condition: service_healthy
+      app:
+        condition: service_started
+    deploy: *large
+    labels:
+      - traefik.enable=true
+      - traefik.docker.network=dokploy-network
+      - traefik.http.services.injishi-demo-web.loadbalancer.server.port=3000
+      - traefik.http.routers.injishi-demo-web-http.rule=Host(`${WEB_HOST:-www-demo.injishi.com}`) || Host(`${APP_HOST:-app-demo.injishi.com}`)
+      - traefik.http.routers.injishi-demo-web-http.entrypoints=web
+      - traefik.http.routers.injishi-demo-web-http.middlewares=redirect-to-https@file
+      - traefik.http.routers.injishi-demo-web-http.service=injishi-demo-web
+      - traefik.http.routers.injishi-demo-web.rule=Host(`${WEB_HOST:-www-demo.injishi.com}`)
+      - traefik.http.routers.injishi-demo-web.entrypoints=websecure
+      - traefik.http.routers.injishi-demo-web.tls.certresolver=letsencrypt
+      - traefik.http.routers.injishi-demo-web.service=injishi-demo-web
+      # app-demo is the operator zone's address, as app.* is production's: its
+      # root goes to /w, any other path keeps its path.
+      - traefik.http.routers.injishi-demo-app-root.rule=Host(`${APP_HOST:-app-demo.injishi.com}`) && Path(`/`)
+      - traefik.http.routers.injishi-demo-app-root.entrypoints=websecure
+      - traefik.http.routers.injishi-demo-app-root.tls.certresolver=letsencrypt
+      - traefik.http.routers.injishi-demo-app-root.middlewares=injishi-demo-app-root-to-zone
+      - traefik.http.routers.injishi-demo-app-root.service=injishi-demo-web
+      - traefik.http.middlewares.injishi-demo-app-root-to-zone.redirectregex.regex=^https?://[^/]+/?$$
+      - traefik.http.middlewares.injishi-demo-app-root-to-zone.redirectregex.replacement=https://${WEB_HOST:-www-demo.injishi.com}/w
+      - traefik.http.routers.injishi-demo-app.rule=Host(`${APP_HOST:-app-demo.injishi.com}`)
+      - traefik.http.routers.injishi-demo-app.entrypoints=websecure
+      - traefik.http.routers.injishi-demo-app.tls.certresolver=letsencrypt
+      - traefik.http.routers.injishi-demo-app.middlewares=injishi-demo-app-to-zone
+      - traefik.http.routers.injishi-demo-app.service=injishi-demo-web
+      - traefik.http.middlewares.injishi-demo-app-to-zone.redirectregex.regex=^https?://[^/]+/(.*)
+      - traefik.http.middlewares.injishi-demo-app-to-zone.redirectregex.replacement=https://${WEB_HOST:-www-demo.injishi.com}/$${1}
+    networks:
+      - default
+      - dokploy-network
+
+  # The operator zone behind web. Compose network only: no public hostname.
+  app:
+    image: injishi-app:${DEMO_IMAGE_TAG:-demo}
+    build:
+      context: ../..
+      dockerfile: infra/docker/Dockerfile.app
+      args:
+        <<: *demo-public
+        OPERATOR_ASSET_PREFIX: /operator-static
+    restart: unless-stopped
+    environment:
+      <<: *demo-public
+      NODE_ENV: production
+      PORT: "3002"
+      OPERATOR_ASSET_PREFIX: /operator-static
+    expose:
+      - "3002"
+    depends_on:
+      api:
+        condition: service_healthy
+    deploy: *large
+    networks:
+      - default
+
+  # The staff console, behind ADMIN_ALLOWED_IPS like production's (AC-3). The
+  # staff persona (`ops@demo.injishi.rw`) opens it after the step up.
+  admin:
+    image: injishi-admin:${DEMO_IMAGE_TAG:-demo}
+    build:
+      context: ../..
+      dockerfile: infra/docker/Dockerfile.admin
+      args:
+        <<: *demo-public
+    restart: unless-stopped
+    environment:
+      <<: *demo-public
+      NODE_ENV: production
+      PORT: "3001"
+    expose:
+      - "3001"
+    depends_on:
+      api:
+        condition: service_healthy
+    deploy: *medium
+    labels:
+      - traefik.enable=true
+      - traefik.docker.network=dokploy-network
+      - traefik.http.services.injishi-demo-admin.loadbalancer.server.port=3001
+      - traefik.http.middlewares.injishi-demo-admin-allow.ipallowlist.sourcerange=${ADMIN_ALLOWED_IPS:-127.0.0.1/32}
+      - traefik.http.routers.injishi-demo-admin-http.rule=Host(`${ADMIN_HOST:-admin-demo.injishi.com}`)
+      - traefik.http.routers.injishi-demo-admin-http.entrypoints=web
+      - traefik.http.routers.injishi-demo-admin-http.middlewares=redirect-to-https@file
+      - traefik.http.routers.injishi-demo-admin-http.service=injishi-demo-admin
+      - traefik.http.routers.injishi-demo-admin.rule=Host(`${ADMIN_HOST:-admin-demo.injishi.com}`)
+      - traefik.http.routers.injishi-demo-admin.entrypoints=websecure
+      - traefik.http.routers.injishi-demo-admin.tls.certresolver=letsencrypt
+      - traefik.http.routers.injishi-demo-admin.middlewares=injishi-demo-admin-allow
+      - traefik.http.routers.injishi-demo-admin.service=injishi-demo-admin
+    networks:
+      - default
+      - dokploy-network

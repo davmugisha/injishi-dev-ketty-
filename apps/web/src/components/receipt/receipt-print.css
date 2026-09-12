@@ -1,0 +1,129 @@
+/*
+ * The half of the receipt's print rules that has to reach outside the receipt.
+ *
+ * A PLAIN stylesheet, not a CSS Module, and the distinction is forced rather
+ * than chosen: Next compiles `*.module.css` with pure-selector enforcement, so
+ * a rule whose selectors are all global — `html`, `body`, `body *` — is a build
+ * error there, not a global rule. `html` and `body` are ANCESTORS of the
+ * receipt, so no local class can anchor them either. Everything the receipt
+ * itself owns stays in `receipt.module.css`; only the page around it is here.
+ *
+ * It is imported by `receipt-screen.tsx` and `specimen-gallery.tsx`, which is
+ * legal for any component in the App Router and keeps the whole of this
+ * behaviour inside `components/receipt/`.
+ *
+ * WHY ANY OF IT IS NEEDED. A receipt nobody can print is not a receipt, and two
+ * things stand between this document and a printer:
+ *
+ * ONE. The signed-in shell is a fixed-height, internally scrolling application
+ * layout (`h-screen` with an overflowing panel). Printed as-is it yields one
+ * page showing one viewport, with the rest of the receipt cut off. Releasing
+ * the height caps and the scroll containers lets the document flow onto as many
+ * sheets as it needs.
+ *
+ * TWO. The sidebar, the top bar, the toolbar and the on-screen callout must not
+ * print. Hiding everything under `body` and then revealing the receipt's own
+ * subtree — which `receipt.module.css` does, from a `.sheet` selector that
+ * out-ranks `body *` on specificity in any load order — does that WITHOUT
+ * naming a single component of the shell. That matters: this leaf does not own
+ * the shell, and a print rule that hardcoded its class names would break
+ * silently the day they were renamed.
+ *
+ * It is done in TWO passes, and the second one exists because the first is not
+ * enough on its own: `visibility: hidden` stops a box painting but still lets
+ * it occupy space, so the top bar left a third of the first sheet blank above
+ * the receipt. The `:has()` pass below then collapses those boxes outright. The
+ * order matters — see the comment on that rule for what each pass is worth when
+ * the other cannot run.
+ */
+
+@media print {
+  html,
+  body {
+    height: auto !important;
+    max-height: none !important;
+    overflow: visible !important;
+    /*
+     * Nothing is painted. The page ground when printing is the sheet in the
+     * tray, and flooding it with the app's theme colour would send a dark
+     * rectangle to the printer for anyone reading in dark mode. `transparent`
+     * is both the correct answer and the one that needs no colour at all.
+     */
+    background: transparent !important;
+  }
+
+  /*
+   * Release every scroll container and height cap between the document and the
+   * receipt. Deliberately broad: the alternative is naming the shell's own
+   * classes from this file, which is the thing this stylesheet exists to avoid.
+   */
+  body * {
+    overflow: visible !important;
+    max-height: none !important;
+  }
+
+  /*
+   * NOTHING PAINTS A GROUND. Clearing `html` and `body` above is not enough:
+   * the shell's own canvas and panel are ANCESTORS of the receipt, so they
+   * survive every hiding rule here by design — and in dark mode they carry
+   * `--background`, which is near-black. A reader in dark mode pressing print
+   * got a black sheet with the receipt's ink invisible on it. Caught by
+   * rasterising the printed PDF after the browser had been switched to dark.
+   *
+   * Killing every background colour is the right blunt instrument for a
+   * printed document, and it is what a printer's own "no background graphics"
+   * setting does anyway. It costs the receipt nothing: the paper is meant to be
+   * unpainted here, and the QR code's light panel is an SVG fill rather than a
+   * background, so the one thing that must stay light does.
+   */
+  body,
+  body * {
+    background-color: transparent !important;
+    background-image: none !important;
+    box-shadow: none !important;
+  }
+
+  body *,
+  body::before,
+  body::after {
+    visibility: hidden !important;
+  }
+
+  /*
+   * The `visibility` pass above hides the shell but does not COLLAPSE it: a
+   * hidden box still occupies its space, so the top bar leaves a third of the
+   * first sheet blank above the receipt and pushes the document onto an extra
+   * page.
+   *
+   * This second pass removes it. `:has()` selects the ancestors of the receipt
+   * — the only elements that must survive — and everything else under `body`
+   * that is neither an ancestor, nor the paper, nor inside it is taken out of
+   * flow entirely.
+   *
+   * WHY THE FIRST PASS STAYS. A browser that does not understand `:has()`
+   * discards this whole rule as invalid, and then the `visibility` pass is
+   * still standing: the printout keeps its blank band and is otherwise
+   * correct. Replacing the first pass with this one would mean the shell
+   * printing in full on such a browser, which is a much worse failure than a
+   * gap. Two passes, degrading in the safe direction.
+   *
+   * `.injishi-receipt-paper` is a plain global class carried by the receipt
+   * alongside its hashed module class, and it exists solely so this file can
+   * name the receipt from outside the module. It carries no styles.
+   */
+  body *:not(:has(.injishi-receipt-paper)):not(.injishi-receipt-paper):not(
+      .injishi-receipt-paper *
+    ) {
+    display: none !important;
+  }
+}
+
+@page {
+  /*
+   * `auto` rather than a named paper size: a thermal till printer and an A4
+   * laser are both legitimate targets for this document, and naming one breaks
+   * the other.
+   */
+  size: auto;
+  margin: 10mm;
+}

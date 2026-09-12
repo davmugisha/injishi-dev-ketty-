@@ -1,0 +1,131 @@
+import { Module } from '@nestjs/common';
+import { ThrottlerModule } from '@nestjs/throttler';
+
+import { AuthModule } from '../../modules/auth/auth.module';
+import { BookingModule } from '../../modules/booking/booking.module';
+import { GeographyModule } from '../../modules/geography/geography.module';
+import { ListingSetupModule } from '../../modules/listing-setup/listing-setup.module';
+import { ListingModule } from '../../modules/listing/listing.module';
+import { OperationsModule } from '../../modules/operations/operations.module';
+import { OrganizationModule } from '../../modules/organization/organization.module';
+import { StorageModule } from '../../modules/storage/storage.module';
+import { UserModule } from '../../modules/user/user.module';
+import { TwoFactorService } from '../../shared/auth/two-factor.service';
+import { WorkspaceService } from '../../shared/auth/workspace.service';
+import { BookingsController } from './bookings/bookings.controller';
+import { DemoPersonasController } from './demo/personas.controller';
+import { EbmOauthController } from './ebm/ebm-oauth.controller';
+import { GeographyController } from './geography/geography.controller';
+import { HealthController } from './health/health.controller';
+import { MeController } from './me/me.controller';
+import { TwoFactorController } from './me/two-factor.controller';
+import { AvailabilityController } from './properties/availability.controller';
+import {
+  BookableController,
+  PropertiesController,
+} from './properties/properties.controller';
+import { InventoryController } from './inventory/inventory.controller';
+import { OpsAmenitiesController } from './ops/amenities.controller';
+import { OpsDepartmentsController } from './ops/departments.controller';
+import { OpsEbmController } from './ops/ebm.controller';
+import { OpsTeamController } from './ops/team.controller';
+import { OpsFoliosController } from './ops/folios.controller';
+import { OpsHousekeepingController } from './ops/housekeeping.controller';
+import {
+  OpsServiceCatalogController,
+  OpsServiceOrdersController,
+} from './ops/service-catalog.controller';
+import {
+  OpsReservationsController,
+  OpsRoomAssignmentsController,
+} from './ops/reservations.controller';
+import { OpsRevenueController } from './ops/revenue.controller';
+import {
+  OpsDepositsController,
+  OpsLeasesController,
+  OpsRentRollController,
+  OpsTicketsController,
+} from './ops/residence.controller';
+import { OpsRoomsController } from './ops/rooms.controller';
+import { OpsThreadsController } from './ops/threads.controller';
+import { OpsStaysController } from './ops/stays.controller';
+import { OversightController } from './oversight/oversight.controller';
+import { PlatformController } from './platform/platform.controller';
+import { RegistrationsController } from './registrations/registrations.controller';
+import { UploadsController } from './uploads/uploads.controller';
+import { SupportModule } from './support/support.module';
+
+/**
+ * Public API (/api/v1). Controllers here compose application services from the
+ * domain modules; they never reach into a module's internals.
+ *
+ * AuthModule is imported so SessionGuard can resolve AUTH_INSTANCE on the
+ * guarded routes (POST /bookings — the commitment step, FL03).
+ */
+@Module({
+  imports: [
+    // Registered here, where the guard is used, and applied per route (review
+    // 2.2): only controllers that opt in with `@UseGuards(UserThrottlerGuard)`
+    // are limited. The `money` bucket is for routes whose every call is a real
+    // provider charge.
+    ThrottlerModule.forRoot([{ name: 'money', ttl: 60_000, limit: 5 }]),
+    AuthModule,
+    GeographyModule,
+    ListingModule,
+    ListingSetupModule,
+    BookingModule,
+    OperationsModule,
+    OrganizationModule,
+    StorageModule,
+    UserModule,
+    // POST /support/tickets, the public support intake; limits and caps are
+    // in its own folder.
+    SupportModule,
+  ],
+  controllers: [
+    HealthController,
+    // Which platform this is, for every client before sign in (ADR-043).
+    PlatformController,
+    GeographyController,
+    PropertiesController,
+    // The checkout's one read: a room type plus the property it belongs to.
+    BookableController,
+    // What is left to sell, per night (ADR-047 wave E).
+    AvailabilityController,
+    BookingsController,
+    RegistrationsController,
+    UploadsController,
+    InventoryController,
+    OpsReservationsController,
+    OpsRoomAssignmentsController,
+    OpsRoomsController,
+    OpsDepartmentsController,
+    OpsTeamController,
+    OpsFoliosController,
+    OpsRevenueController,
+    OpsHousekeepingController,
+    OpsServiceCatalogController,
+    OpsServiceOrdersController,
+    OpsStaysController,
+    OpsThreadsController,
+    OpsLeasesController,
+    OpsRentRollController,
+    OpsTicketsController,
+    OpsDepositsController,
+    OpsAmenitiesController,
+    // RRA EBM account (ADR-041): the operator's setup screen, and the
+    // provider's consent redirect back to it.
+    OpsEbmController,
+    EbmOauthController,
+    OversightController,
+    MeController,
+    TwoFactorController,
+    // Answers only in a demo process; 404 everywhere else (AC-S10, ADR-043).
+    DemoPersonasController,
+  ],
+  // WorkspaceService is the one resolver of "which workspaces does this user
+  // hold" (Spec 0004). WorkspaceGuard depends on it; DatabaseModule is @Global
+  // so DRIZZLE resolves without importing it here.
+  providers: [WorkspaceService, TwoFactorService],
+})
+export class PublicApiModule {}

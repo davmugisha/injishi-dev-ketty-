@@ -1,0 +1,46 @@
+{
+  "name": "injishi",
+  "private": true,
+  "packageManager": "pnpm@10.33.2",
+  "engines": {
+    "node": ">=20.19"
+  },
+  "pnpm": {
+    "onlyBuiltDependencies": [
+      "esbuild",
+      "msgpackr-extract",
+      "sharp"
+    ],
+    "overrides": {
+      "@types/react": "19.1.17",
+      "@types/react-dom": "19.1.11"
+    }
+  },
+  "scripts": {
+    "typecheck": "pnpm -r typecheck",
+    "lint": "pnpm -r lint",
+    "build": "pnpm --filter @injishi/web --filter @injishi/app --filter @injishi/admin --filter @injishi/api build",
+    "dev": "pnpm --filter @injishi/web dev",
+    "dev:all": "pnpm --parallel --filter @injishi/web --filter @injishi/app dev",
+    "web:dev": "pnpm --filter @injishi/web dev",
+    "web:build": "pnpm --filter @injishi/web build",
+    "web:start": "pnpm --filter @injishi/web start",
+    "web:tokens:sync": "pnpm --filter @injishi/web tokens:sync",
+    "app:dev": "pnpm --filter @injishi/app dev",
+    "app:build": "pnpm --filter @injishi/app build",
+    "app:start": "pnpm --filter @injishi/app start",
+    "mobile:start": "pnpm --filter @injishi/mobile start",
+    "api:dev": "pnpm --filter @injishi/api dev",
+    "api:build": "pnpm --filter @injishi/api build",
+    "api:start": "pnpm --filter @injishi/api start",
+    "api:worker": "pnpm --filter @injishi/api worker",
+    "db:seed": "pnpm --filter @injishi/api db:seed",
+    "dev:stack": "node scripts/dev-stack.mjs",
+    "dev:stack:down": "node scripts/dev-stack.mjs --down",
+    "dev:stack:reset": "node scripts/dev-stack.mjs --reset"
+  },
+  "devDependencies": {
+    "@types/react": "19.1.17",
+    "@types/react-dom": "19.1.11"
+  }
+}

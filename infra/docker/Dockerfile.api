@@ -1,0 +1,87 @@
+# Build and run server/api (NestJS HTTP process, or the BullMQ worker).
+#
+# Built from the repository ROOT, because `@injishi/api` depends on the
+# `packages/*` workspace packages and pnpm needs the workspace to resolve them:
+#
+#   docker build -f infra/docker/Dockerfile.api -t injishi-api .
+#
+# One image serves both processes. The worker is the same binary with a flag
+# (or INJISHI_PROCESS=worker), so a queue can never run code the HTTP process
+# did not ship:
+#
+#   HTTP:    node dist/main.js
+#   worker:  node dist/main.js --worker
+#
+# Node is pinned. The root package.json asks for >=20.19, which is a floor and
+# not a choice; a floor lets the base image drift under the build.
+FROM node:22-alpine AS base
+ENV PNPM_HOME=/pnpm
+ENV PATH=$PNPM_HOME:$PATH
+ENV COREPACK_ENABLE_DOWNLOAD_PROMPT=0
+RUN corepack enable
+WORKDIR /repo
+
+# ── deps ─────────────────────────────────────────────────────────────────────
+# Manifests only, so a source edit does not re-run the install.
+# pnpm-workspace.yaml globs apps/*, server/*, packages/*. pnpm reads every
+# member's manifest before it resolves anything, so all of them are copied even
+# though this image only builds @injishi/api.
+FROM base AS deps
+COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
+COPY apps/web/package.json ./apps/web/
+COPY apps/app/package.json ./apps/app/
+COPY apps/admin/package.json ./apps/admin/
+COPY apps/mobile/package.json ./apps/mobile/
+COPY server/api/package.json ./server/api/
+COPY packages/auth/package.json ./packages/auth/
+COPY packages/contracts/package.json ./packages/contracts/
+COPY packages/design-tokens/package.json ./packages/design-tokens/
+COPY packages/ui/package.json ./packages/ui/
+COPY packages/ui-contract/package.json ./packages/ui-contract/
+COPY packages/utils/package.json ./packages/utils/
+RUN --mount=type=cache,id=pnpm,target=/pnpm/store \
+    pnpm install --frozen-lockfile --filter @injishi/api...
+
+# ── build ────────────────────────────────────────────────────────────────────
+FROM base AS build
+COPY --from=deps /repo ./
+COPY pnpm-workspace.yaml package.json pnpm-lock.yaml ./
+# ADR-034: packages/ is the source of the shared packages (not a vendor mirror).
+COPY packages ./packages
+COPY server/api ./server/api
+RUN pnpm --filter @injishi/api build
+# Flatten the workspace into a standalone tree with production deps only. This
+# is what keeps @nestjs/cli, typescript and jest out of the runtime image.
+# `--legacy` is required on pnpm 10 outside inject-workspace-packages mode.
+RUN pnpm --filter @injishi/api --prod --legacy deploy /out
+
+# ── runner ───────────────────────────────────────────────────────────────────
+FROM base AS runner
+ENV NODE_ENV=production
+# Overridden by the platform. Named here so `docker run` alone works too.
+ENV PORT=8000
+# `nest build` compiles .ts and leaves the migration .sql behind, so the folder
+# is copied to a path of its own rather than dug out of a source tree the
+# runtime image does not carry. scripts/migrate.mjs reads this.
+ENV MIGRATIONS_DIR=/app/migrations
+# The commit this image was built from (`git rev-parse --short HEAD`), passed by
+# the release step and the demo's nightly job. `mark-sample-database.mjs`
+# records it in `database_identity.marked_by` (ADR-043); `local` when unset.
+ARG INJISHI_COMMIT=
+ENV INJISHI_COMMIT=$INJISHI_COMMIT
+
+WORKDIR /app
+RUN addgroup -g 1001 -S nodejs && adduser -S api -u 1001
+COPY --from=build --chown=api:nodejs /out ./
+COPY --from=build --chown=api:nodejs \
+     /repo/server/api/src/database/drizzle/migrations ./migrations
+
+USER api
+EXPOSE 8000
+
+# The API mounts under a global prefix and URI versioning, so the health route
+# is /api/v1/health — not /health. Point the platform's check at the same path.
+HEALTHCHECK --interval=30s --timeout=5s --start-period=20s --retries=3 \
+  CMD node -e "fetch('http://127.0.0.1:'+(process.env.PORT||8000)+'/api/v1/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"
+
+CMD ["node", "dist/main.js"]

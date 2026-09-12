@@ -1,0 +1,42 @@
+{
+  "private": true,
+  "name": "@injishi/auth",
+  "version": "0.1.0",
+  "description": "Injishi shared auth: single source of truth for Better Auth server config (email-OTP + Google) and the react client. Consumed by server/api (config + guards) and every frontend (client + UI checks). F-S01.",
+  "type": "module",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    },
+    "./server": {
+      "types": "./dist/server.d.ts",
+      "default": "./dist/server.js"
+    },
+    "./client": {
+      "types": "./dist/client.d.ts",
+      "default": "./dist/client.js"
+    },
+    "./edge": {
+      "types": "./dist/edge.d.ts",
+      "default": "./dist/edge.js"
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "dependencies": {
+    "@injishi/contracts": "workspace:*",
+    "better-auth": "1.6.11"
+  },
+  "peerDependencies": {
+    "react": ">=19"
+  },
+  "peerDependenciesMeta": {
+    "react": {
+      "optional": true
+    }
+  }
+}

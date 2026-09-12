@@ -1,0 +1,18 @@
+-- ADR-035 - a walk in needs somewhere to keep the guest's name.
+--
+-- `guest_stays` read the name by joining to `users` through `guest_user_id`. A
+-- WALK IN has no booking and no account, so every read returned null and the
+-- desk saw "Unnamed guest" for the person standing in front of them. That is
+-- what kept `POST /ops/stays/walk-in` unbuilt.
+--
+-- THE ALTERNATIVE WAS A SHELL `users` ROW per walk in. It mints an account
+-- nobody asked for, and it collides with the real sign up when that same person
+-- later joins with the same email.
+--
+-- NULL for a stay that HAS an account, deliberately. The account is the better
+-- source and it stays current when the person renames themselves; readers
+-- prefer `users.name` and fall back to this column.
+--
+-- Additive and nullable, so it rolls back by dropping exactly what it added and
+-- every existing row stays valid.
+ALTER TABLE "guest_stays" ADD COLUMN "guest_name" text;

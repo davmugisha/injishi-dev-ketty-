@@ -1,0 +1,414 @@
+# Production, on the Hangaa VPS (Dokploy project Injishi).
+#
+# DOKPLOY.md owns every deploy fact; this file is the contract it describes.
+# Run from the injishi repo root, which is the build context (`context: ../..`
+# from this file):
+#
+#   INJISHI_COMMIT=$(git rev-parse --short HEAD) \
+#   docker compose -p injishi -f infra/docker/docker-compose.dokploy.yml \
+#     --env-file /opt/injishi/.env up -d --build
+#
+# PRODUCTION ONLY (ADR-043). The demo used to live in this file: the same api
+# container answered on the demo host too, and doubled a database, a worker and
+# three frontends beside production. It is its own stack now
+# (docker-compose.demo.yml, project injishi-demo), so nothing here depends on a
+# demo service, and a failed demo migration, build or boot cannot touch this
+# stack.
+#
+# WHICH PLATFORM THIS IS is pinned below as literals, never read from the env
+# file: the API runs as `production` and refuses to boot unless its database
+# carries no sample marker (`INJISHI_DATABASE_KIND: real`). A mistyped line in
+# /opt/injishi/.env therefore cannot turn production into the demo.
+#
+# ROUTING IS DECLARED HERE, in Traefik labels, the way Paperclip on this host
+# is: `web` and `websecure` entrypoints, the `letsencrypt` resolver and the
+# `redirect-to-https@file` middleware all come from Dokploy's Traefik. Router
+# names start with `injishi-production-` so the other stacks' cannot collide.
+#
+# STORAGE AND MAIL. Objects live in the minio service, encrypted at rest, in
+# the bucket minio-init provisions before the API or the worker may start.
+# Browsers read them only through URLs the API signs for the public storage
+# host. Mail leaves through the SMTP relay SMTP_URL names; there is no default,
+# so compose refuses to start without one rather than boot an API that cannot
+# send a code.
+#
+# Secrets are ${VAR} substitutions, never committed values. Copy
+# dokploy.env.example to /opt/injishi/.env and replace every change-me. The
+# ones with no safe fallback use the `:?` form, so compose refuses to start
+# without them. infra/docker/docker-compose.yml stays local.
+
+x-api-env: &api-env
+  # Pinned here, never from the env file (ADR-043, AC-6). The API reads both at
+  # boot and refuses to start when the database disagrees.
+  INJISHI_ENVIRONMENT: production
+  INJISHI_DATABASE_KIND: real
+  NODE_ENV: production
+  PORT: "8000"
+  DATABASE_URL: ${DATABASE_URL}
+  REDIS_URL: ${REDIS_URL}
+  COOKIE_SECRET: ${COOKIE_SECRET}
+  BETTER_AUTH_SECRET: ${BETTER_AUTH_SECRET}
+  BETTER_AUTH_URL: https://${API_HOST:-api.injishi.com}
+  AUTH_COOKIE_DOMAIN: ${AUTH_COOKIE_DOMAIN:-.injishi.com}
+  # Every browser origin that calls this API. The apex and app.* hosts only
+  # redirect, but the apex is listed so a request that beats the redirect is not
+  # refused. No demo origin: the demo calls its own API (ADR-043, AC-1).
+  CORS_ORIGINS: https://${WEB_HOST:-www.injishi.com},https://${APEX_HOST:-injishi.com},https://${ADMIN_HOST:-admin.injishi.com}
+  GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:-}
+  GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET:-}
+  # Object storage: the live S3 adapter on the minio service. The API writes
+  # over the compose network and signs browser URLs for the public storage host.
+  # Its credential is the scoped user minio-init creates, never MinIO's root.
+  STORAGE_ADAPTER_MODE: live
+  # `injishi-minio`, not `minio`: api also joins dokploy-network, where the
+  # other stacks' `minio` answers to the same name, and Docker may resolve it
+  # there. The alias exists only on this project's own network.
+  STORAGE_S3_ENDPOINT: http://injishi-minio:9000
+  STORAGE_S3_PUBLIC_ENDPOINT: https://${STORAGE_HOST:-storage.injishi.com}
+  STORAGE_S3_REGION: us-east-1
+  STORAGE_S3_ACCESS_KEY: ${STORAGE_S3_ACCESS_KEY:?set STORAGE_S3_ACCESS_KEY, the API's own MinIO user}
+  STORAGE_S3_SECRET_KEY: ${STORAGE_S3_SECRET_KEY:?set STORAGE_S3_SECRET_KEY, the API's own MinIO secret}
+  # minio-init reads this same name, so the API verifies what was provisioned.
+  STORAGE_BUCKET: ${STORAGE_BUCKET:-injishi}
+  STORAGE_REQUIRE_ENCRYPTION: "true"
+  # Mail: the SMTP relay, e.g. smtps://resend:<key>@smtp.resend.com:465. No
+  # default: production refuses to boot without a transport, and compose
+  # refuses first.
+  SMTP_URL: ${SMTP_URL:?set SMTP_URL to the production SMTP relay}
+  MAIL_FROM: "${MAIL_FROM:-Injishi <no-reply@injishi.com>}"
+  LOG_LEVEL: ${LOG_LEVEL:-info}
+
+# The public origins each frontend build compiles in. Used as build args (they
+# are inlined at compile time) and again as runtime env.
+x-production-public: &production-public
+  NEXT_PUBLIC_API_URL: https://${API_HOST:-api.injishi.com}
+  NEXT_PUBLIC_WEB_URL: https://${WEB_HOST:-www.injishi.com}
+  NEXT_PUBLIC_SITE_URL: https://${WEB_HOST:-www.injishi.com}
+  # The operator app is a zone under web, so its public URL is web's origin.
+  NEXT_PUBLIC_PMS_URL: https://${WEB_HOST:-www.injishi.com}
+  NEXT_PUBLIC_ADMIN_URL: https://${ADMIN_HOST:-admin.injishi.com}
+  # Pinned (ADR-043, AC-14). A production build never strips session cookies:
+  # only a `demo` build does, and it would strip production's own session.
+  NEXT_PUBLIC_INJISHI_ENVIRONMENT: production
+
+networks:
+  default:
+  dokploy-network:
+    external: true
+
+volumes:
+  db-data:
+  redis-data:
+  minio-data:
+
+services:
+  db:
+    image: postgres:17-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-injishi}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-change-me}
+      POSTGRES_DB: ${POSTGRES_DB:-injishi}
+    volumes:
+      - db-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    networks:
+      - default
+
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    command: ["redis-server", "--appendonly", "yes"]
+    volumes:
+      - redis-data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    networks:
+      - default
+
+  # In-country S3-compatible object storage (Law 058/2021). Every object is
+  # encrypted at rest with the KMS key below, and the bucket is private: a
+  # browser reads an object only through a URL the API signed.
+  #
+  # Public on STORAGE_HOST for exactly that. Traefik routes the S3 port and only
+  # reads (GET, HEAD, and the OPTIONS a browser may preflight) outside MinIO's
+  # own /minio/ paths; writes come from the API over the compose network. The
+  # console is switched off, so there is no port 9001 to route by mistake.
+  # Administer with `docker compose -p injishi exec minio mc`.
+  minio:
+    image: minio/minio:RELEASE.2025-09-07T16-13-09Z
+    restart: unless-stopped
+    command: ["server", "/data"]
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER:-injishi}
+      # Root answers on the public storage host, so there is no default.
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:?set MINIO_ROOT_PASSWORD, root answers on the public storage host}
+      # <key-name>:<base64 of 32 random bytes>. It encrypts every object: lose it
+      # or change it and everything stored is unreadable. Back it up off the host.
+      MINIO_KMS_SECRET_KEY: ${MINIO_KMS_SECRET_KEY:?set MINIO_KMS_SECRET_KEY, see dokploy.env.example}
+      MINIO_BROWSER: "off"
+    expose:
+      - "9000"
+    volumes:
+      - minio-data:/data
+    healthcheck:
+      # The image carries mc but no curl; `local` is its alias for this server.
+      test: ["CMD", "mc", "ready", "local"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    labels:
+      - traefik.enable=true
+      - traefik.docker.network=dokploy-network
+      - traefik.http.services.injishi-production-storage.loadbalancer.server.port=9000
+      - traefik.http.routers.injishi-production-storage-http.rule=Host(`${STORAGE_HOST:-storage.injishi.com}`)
+      - traefik.http.routers.injishi-production-storage-http.entrypoints=web
+      - traefik.http.routers.injishi-production-storage-http.middlewares=redirect-to-https@file
+      - traefik.http.routers.injishi-production-storage-http.service=injishi-production-storage
+      - traefik.http.routers.injishi-production-storage.rule=Host(`${STORAGE_HOST:-storage.injishi.com}`) && (Method(`GET`) || Method(`HEAD`) || Method(`OPTIONS`)) && !PathPrefix(`/minio/`)
+      - traefik.http.routers.injishi-production-storage.entrypoints=websecure
+      - traefik.http.routers.injishi-production-storage.tls.certresolver=letsencrypt
+      - traefik.http.routers.injishi-production-storage.service=injishi-production-storage
+    networks:
+      default:
+        # The name the API and minio-init use. See STORAGE_S3_ENDPOINT above.
+        aliases:
+          - injishi-minio
+      dokploy-network: {}
+
+  # One shot, on every `up`: makes the bucket private and encrypted and creates
+  # the API's own MinIO user, limited to what the storage adapter needs
+  # (minio/provision.sh, idempotent). The API and the worker start only once it
+  # has exited 0, so neither boots against a bucket that is not there.
+  minio-init:
+    image: minio/mc:RELEASE.2025-08-13T08-35-41Z
+    restart: "no"
+    entrypoint: ["/bin/sh", "/provision.sh"]
+    environment:
+      MINIO_ENDPOINT: http://injishi-minio:9000
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER:-injishi}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD}
+      # The same name the API is given, so it verifies what was provisioned.
+      STORAGE_BUCKET: ${STORAGE_BUCKET:-injishi}
+      STORAGE_S3_ACCESS_KEY: ${STORAGE_S3_ACCESS_KEY}
+      STORAGE_S3_SECRET_KEY: ${STORAGE_S3_SECRET_KEY}
+      STORAGE_ENCRYPT: "on"
+    volumes:
+      - ./minio/provision.sh:/provision.sh:ro
+    depends_on:
+      minio:
+        condition: service_healthy
+    networks:
+      - default
+
+  api:
+    image: injishi-api:production
+    build:
+      context: ../..
+      dockerfile: infra/docker/Dockerfile.api
+      args:
+        INJISHI_COMMIT: ${INJISHI_COMMIT:-}
+    restart: unless-stopped
+    # Image WORKDIR is /app. Repo-root spelling of the same step:
+    # node server/api/scripts/migrate.mjs
+    command: ["sh", "-c", "node scripts/migrate.mjs && node dist/main.js"]
+    environment:
+      <<: *api-env
+      INJISHI_PROCESS: http
+    expose:
+      - "8000"
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "node",
+          "-e",
+          "fetch('http://127.0.0.1:'+(process.env.PORT||8000)+'/api/v1/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))",
+        ]
+      interval: 10s
+      timeout: 5s
+      start_period: 60s
+      retries: 5
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      minio-init:
+        condition: service_completed_successfully
+    labels:
+      - traefik.enable=true
+      - traefik.docker.network=dokploy-network
+      - traefik.http.services.injishi-production-api.loadbalancer.server.port=8000
+      - traefik.http.routers.injishi-production-api-http.rule=Host(`${API_HOST:-api.injishi.com}`)
+      - traefik.http.routers.injishi-production-api-http.entrypoints=web
+      - traefik.http.routers.injishi-production-api-http.middlewares=redirect-to-https@file
+      - traefik.http.routers.injishi-production-api-http.service=injishi-production-api
+      - traefik.http.routers.injishi-production-api.rule=Host(`${API_HOST:-api.injishi.com}`)
+      - traefik.http.routers.injishi-production-api.entrypoints=websecure
+      - traefik.http.routers.injishi-production-api.tls.certresolver=letsencrypt
+      - traefik.http.routers.injishi-production-api.service=injishi-production-api
+    networks:
+      - default
+      - dokploy-network
+
+  # Same image as api. INJISHI_PROCESS=worker boots the queue process, on the
+  # same database and Redis, under the same pinned platform.
+  worker:
+    image: injishi-api:production
+    build:
+      context: ../..
+      dockerfile: infra/docker/Dockerfile.api
+      args:
+        INJISHI_COMMIT: ${INJISHI_COMMIT:-}
+    restart: unless-stopped
+    environment:
+      <<: *api-env
+      INJISHI_PROCESS: worker
+    healthcheck:
+      disable: true
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      minio-init:
+        condition: service_completed_successfully
+      api:
+        condition: service_healthy
+    networks:
+      - default
+
+  # The public origin and the zone front. The apex and app.* hosts land here
+  # too, and Traefik redirects them to www (app.* to the operator zone).
+  web:
+    image: injishi-web:production
+    build:
+      context: ../..
+      dockerfile: infra/docker/Dockerfile.web
+      args:
+        <<: *production-public
+        OPERATOR_APP_URL: http://app:3002
+    restart: unless-stopped
+    environment:
+      <<: *production-public
+      NODE_ENV: production
+      PORT: "3000"
+      OPERATOR_APP_URL: http://app:3002
+    expose:
+      - "3000"
+    depends_on:
+      api:
+        condition: service_healthy
+      app:
+        condition: service_started
+    labels:
+      - traefik.enable=true
+      - traefik.docker.network=dokploy-network
+      - traefik.http.services.injishi-production-web.loadbalancer.server.port=3000
+      - traefik.http.routers.injishi-production-web-http.rule=Host(`${WEB_HOST:-www.injishi.com}`) || Host(`${APEX_HOST:-injishi.com}`) || Host(`${APP_HOST:-app.injishi.com}`)
+      - traefik.http.routers.injishi-production-web-http.entrypoints=web
+      - traefik.http.routers.injishi-production-web-http.middlewares=redirect-to-https@file
+      - traefik.http.routers.injishi-production-web-http.service=injishi-production-web
+      - traefik.http.routers.injishi-production-web.rule=Host(`${WEB_HOST:-www.injishi.com}`)
+      - traefik.http.routers.injishi-production-web.entrypoints=websecure
+      - traefik.http.routers.injishi-production-web.tls.certresolver=letsencrypt
+      - traefik.http.routers.injishi-production-web.service=injishi-production-web
+      # The apex answers with a permanent redirect to www, path kept.
+      - traefik.http.routers.injishi-production-apex.rule=Host(`${APEX_HOST:-injishi.com}`)
+      - traefik.http.routers.injishi-production-apex.entrypoints=websecure
+      - traefik.http.routers.injishi-production-apex.tls.certresolver=letsencrypt
+      - traefik.http.routers.injishi-production-apex.middlewares=injishi-production-apex-to-web
+      - traefik.http.routers.injishi-production-apex.service=injishi-production-web
+      - traefik.http.middlewares.injishi-production-apex-to-web.redirectregex.regex=^https?://[^/]+/(.*)
+      - traefik.http.middlewares.injishi-production-apex-to-web.redirectregex.replacement=https://${WEB_HOST:-www.injishi.com}/$${1}
+      - traefik.http.middlewares.injishi-production-apex-to-web.redirectregex.permanent=true
+      # app.* is the operator zone's old address. Its root goes to /w, and any
+      # other path keeps its path, since the zone's routes are the same paths.
+      - traefik.http.routers.injishi-production-app-root.rule=Host(`${APP_HOST:-app.injishi.com}`) && Path(`/`)
+      - traefik.http.routers.injishi-production-app-root.entrypoints=websecure
+      - traefik.http.routers.injishi-production-app-root.tls.certresolver=letsencrypt
+      - traefik.http.routers.injishi-production-app-root.middlewares=injishi-production-app-root-to-zone
+      - traefik.http.routers.injishi-production-app-root.service=injishi-production-web
+      - traefik.http.middlewares.injishi-production-app-root-to-zone.redirectregex.regex=^https?://[^/]+/?$$
+      - traefik.http.middlewares.injishi-production-app-root-to-zone.redirectregex.replacement=https://${WEB_HOST:-www.injishi.com}/w
+      - traefik.http.middlewares.injishi-production-app-root-to-zone.redirectregex.permanent=true
+      - traefik.http.routers.injishi-production-app.rule=Host(`${APP_HOST:-app.injishi.com}`)
+      - traefik.http.routers.injishi-production-app.entrypoints=websecure
+      - traefik.http.routers.injishi-production-app.tls.certresolver=letsencrypt
+      - traefik.http.routers.injishi-production-app.middlewares=injishi-production-app-to-zone
+      - traefik.http.routers.injishi-production-app.service=injishi-production-web
+      - traefik.http.middlewares.injishi-production-app-to-zone.redirectregex.regex=^https?://[^/]+/(.*)
+      - traefik.http.middlewares.injishi-production-app-to-zone.redirectregex.replacement=https://${WEB_HOST:-www.injishi.com}/$${1}
+      - traefik.http.middlewares.injishi-production-app-to-zone.redirectregex.permanent=true
+    networks:
+      - default
+      - dokploy-network
+
+  # The operator zone behind web. Compose network only: no public hostname.
+  app:
+    image: injishi-app:production
+    build:
+      context: ../..
+      dockerfile: infra/docker/Dockerfile.app
+      args:
+        <<: *production-public
+        OPERATOR_ASSET_PREFIX: /operator-static
+    restart: unless-stopped
+    environment:
+      <<: *production-public
+      NODE_ENV: production
+      PORT: "3002"
+      OPERATOR_ASSET_PREFIX: /operator-static
+    expose:
+      - "3002"
+    depends_on:
+      api:
+        condition: service_healthy
+    networks:
+      - default
+
+  # The staff console. Traefik refuses every IP outside ADMIN_ALLOWED_IPS before
+  # the console's own session gate runs. Unset, the list is loopback only, so a
+  # missing setting closes the console rather than opening it.
+  admin:
+    image: injishi-admin:production
+    build:
+      context: ../..
+      dockerfile: infra/docker/Dockerfile.admin
+      args:
+        <<: *production-public
+    restart: unless-stopped
+    environment:
+      <<: *production-public
+      NODE_ENV: production
+      PORT: "3001"
+    expose:
+      - "3001"
+    depends_on:
+      api:
+        condition: service_healthy
+    labels:
+      - traefik.enable=true
+      - traefik.docker.network=dokploy-network
+      - traefik.http.services.injishi-production-admin.loadbalancer.server.port=3001
+      - traefik.http.middlewares.injishi-production-admin-allow.ipallowlist.sourcerange=${ADMIN_ALLOWED_IPS:-127.0.0.1/32}
+      - traefik.http.routers.injishi-production-admin-http.rule=Host(`${ADMIN_HOST:-admin.injishi.com}`)
+      - traefik.http.routers.injishi-production-admin-http.entrypoints=web
+      - traefik.http.routers.injishi-production-admin-http.middlewares=redirect-to-https@file
+      - traefik.http.routers.injishi-production-admin-http.service=injishi-production-admin
+      - traefik.http.routers.injishi-production-admin.rule=Host(`${ADMIN_HOST:-admin.injishi.com}`)
+      - traefik.http.routers.injishi-production-admin.entrypoints=websecure
+      - traefik.http.routers.injishi-production-admin.tls.certresolver=letsencrypt
+      - traefik.http.routers.injishi-production-admin.middlewares=injishi-production-admin-allow
+      - traefik.http.routers.injishi-production-admin.service=injishi-production-admin
+    networks:
+      - default
+      - dokploy-network

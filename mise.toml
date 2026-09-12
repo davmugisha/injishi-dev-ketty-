@@ -1,0 +1,13 @@
+# Tool versions for the Railpack build (Railway) and for anyone running mise.
+#
+# Railpack resolves Node from RAILPACK_NODE_VERSION, then package.json, then a
+# version file, then "current LTS". The root package.json says `>=20.19`, which
+# is a floor and not a choice — under it the builder is free to move to a new
+# major between two deploys of the same commit. Pin it here instead.
+#
+# pnpm matches `packageManager` in the root package.json. The two must agree:
+# a different pnpm can rewrite pnpm-lock.yaml, and `--frozen-lockfile` then
+# fails the build on a lockfile nobody edited.
+[tools]
+node = "22.23.2"
+pnpm = "10.33.2"

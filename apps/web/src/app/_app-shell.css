@@ -1,0 +1,145 @@
+/* App shell styling — the sidebar surface, nav items and collapsed states.
+ *
+ * These rules used to live as a JS string array inside
+ * public/shared/js/injishi-web-shell.js and were injected into <head> at
+ * runtime; gen-app-css.mjs extracted them so the server-rendered sidebar would
+ * not flash unstyled. Now that the shell is real React (components/app/AppShell)
+ * the JS is deleted and this is the hand-owned source of truth.
+ *
+ * The sidebar follows the theme (light surface in Light, ramp-1 navy in Dark)
+ * and shares one vocabulary with the admin shell — DESIGN.md §Layout.
+ */
+
+/* Sidebar roles. Each is an alias onto a role the HeroUI sheet already defines
+ * and already inverts, so there is no `.dark` block here any more (ADR-037
+ * call 3). The two hex blocks this replaced were a second dark mode: a sidebar
+ * that measured its own contrast against its own ink. */
+:root {
+  --sb: var(--surface);
+  --sb-fg: var(--foreground);
+  --sb-muted: var(--muted);
+  --sb-faint: var(--muted);
+  --sb-border: var(--border);
+  --sb-hover: var(--surface-secondary);
+  --sb-active: var(--surface-tertiary);
+}
+
+#sidebar {
+  background: var(--sb);
+  color: var(--sb-fg);
+  border-color: var(--sb-border);
+}
+
+.nav-item {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  border-radius: var(--radius);
+  padding: 0.625rem 0.75rem;
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: color-mix(in srgb, var(--sb-fg) 78%, transparent);
+}
+.nav-item:hover {
+  background: var(--sb-hover);
+  color: var(--sb-fg);
+}
+.nav-active {
+  background: var(--sb-active);
+  color: var(--sb-fg);
+  font-weight: 600;
+}
+
+.sb-group {
+  padding: 0.75rem 0.75rem 0.25rem;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--sb-faint);
+}
+
+.sb-count {
+  margin-left: auto;
+  border-radius: 9999px;
+  background: var(--surface-tertiary);
+  padding: 0.125rem 0.5rem;
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--foreground);
+}
+
+.sb-switch {
+  display: flex;
+  width: 100%;
+  align-items: center;
+  gap: 0.75rem;
+  border-radius: var(--radius-card);
+  border: 1px solid var(--sb-border);
+  background: var(--sb-hover);
+  padding: 0.75rem;
+  text-align: left;
+}
+.sb-switch:hover {
+  background: var(--sb-active);
+}
+
+/* The workspace's one primary action, directly under the switcher. It is the
+ * shared `Button` now (ADR-037 call 3); this rule only carries the gap above it
+ * and the collapsed state below. */
+.sb-cta {
+  margin-top: 0.5rem;
+}
+
+#sidebar.collapsed {
+  width: 5rem;
+}
+#sidebar.collapsed .sb-label {
+  display: none;
+}
+#sidebar.collapsed .sb-group {
+  display: none;
+}
+#sidebar.collapsed .sb-logo-short {
+  display: block;
+}
+#sidebar.collapsed .nav-item {
+  justify-content: center;
+}
+#sidebar.collapsed .sb-switch {
+  justify-content: center;
+  padding: 0.625rem;
+}
+#sidebar.collapsed .sb-cta {
+  justify-content: center;
+  padding: 0.625rem;
+}
+
+/*
+ * Touch sizing (2026-08-06): the account shell was sized for a mouse — nav rows
+ * and the icon actions in the header measured 36-40px against a 44px minimum,
+ * and the marketing menu toggle came in at 28x18. Keyed to `pointer: coarse`
+ * so the desktop shell keeps its density; the concern is the input device, not
+ * the viewport width.
+ */
+@media (pointer: coarse) {
+  .nav-item,
+  .sb-cta,
+  .sb-switch,
+  .app-canvas button,
+  .app-canvas [role="button"],
+  .app-canvas a[href],
+  .app-canvas summary {
+    min-height: 44px;
+  }
+  .app-canvas button:not(:has(span, p, div)),
+  .app-canvas [role="button"]:not(:has(span, p, div)) {
+    min-width: 44px;
+  }
+  /* Inline links inside prose keep their natural size — padding them to 44px
+     would break the line box, and they are not tap targets in the same sense. */
+  .app-canvas p a[href],
+  .app-canvas li a[href] {
+    min-height: 0;
+  }
+}

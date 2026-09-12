@@ -1,0 +1,93 @@
+# Local stack: the backing services local development leans on (Postgres,
+# Redis, MinIO, Mailpit). Local only — docker-compose.dokploy.yml is production
+# and demo, docker-compose.staging.yml is staging.
+#
+# One command, from `injishi/`, brings up Postgres and Redis on the ports the
+# API's own .env names, migrates, and seeds:
+#
+#   pnpm dev:stack           # up + migrate + seed (idempotent)
+#   pnpm dev:stack:down      # stop, keep the data
+#   pnpm dev:stack:reset     # drop the volumes, then up + migrate + seed
+#
+# See README.md beside this file. The API and the apps run ON THE HOST
+# (`pnpm api:dev`, `pnpm web:dev`, ...), not in here.
+#
+# WHY THE PORTS ARE VARIABLES. They used to be hard-coded to 5432 and 6379
+# while server/api/.env pointed at 5434 and 6381, so `up db redis` followed by
+# `pnpm api:dev` could never connect. scripts/dev-stack.mjs now parses the ports
+# (and the Postgres credentials) out of that .env and passes them in here, so
+# the two cannot disagree again. The defaults below only apply to a bare
+# `docker compose up` and match server/api/.env.example.
+#
+# Every port is bound to 127.0.0.1: a database with password `injishi` has no
+# business listening on the office network.
+#
+# WHY THERE IS NO `api` OR `web` SERVICE ANY MORE. They built the production
+# images (Dockerfile.api / Dockerfile.web) and were wrong for local dev in ways
+# that cannot be fixed with environment variables alone:
+#   - the image bakes NODE_ENV=production and ships production dependencies
+#     only. Under production, OTP_DEBUG_LOG is forced off and no demo host
+#     exists, so nobody can sign in without a live mail provider; SmsModule
+#     refuses to boot on its mock adapter the moment it is wired in; and
+#     switching to NODE_ENV=development crashes the logger, because pino-pretty
+#     is a devDependency the image does not carry;
+#   - it published 4000 while the API listens on PORT (8000), and passed
+#     SESSION_SECRET, which the API never reads (it reads BETTER_AUTH_SECRET and
+#     COOKIE_SECRET), and gave it no Redis at all.
+# The image-built stack is docker-compose.staging.yml. Local development runs
+# the API on the host with hot reload against the db and redis below.
+
+services:
+  db:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_USER: ${INJISHI_DB_USER:-injishi}
+      POSTGRES_PASSWORD: ${INJISHI_DB_PASSWORD:-injishi}
+      POSTGRES_DB: ${INJISHI_DB_NAME:-injishi}
+    ports:
+      - "127.0.0.1:${INJISHI_DB_PORT:-5432}:5432"
+    volumes:
+      - db-data:/var/lib/postgresql/data
+    healthcheck:
+      # Over TCP on purpose. During first-time init the entrypoint runs a
+      # temporary server on the unix socket only, and a socket check reports
+      # "ready" before the real server is up.
+      test: ["CMD-SHELL", "pg_isready -h 127.0.0.1 -U \"$${POSTGRES_USER}\" -d \"$${POSTGRES_DB}\""]
+      interval: 3s
+      timeout: 5s
+      retries: 30
+      start_period: 10s
+
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "127.0.0.1:${INJISHI_REDIS_PORT:-6379}:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 3s
+      timeout: 3s
+      retries: 20
+
+  # In-country S3-compatible object storage stand-in (Law 058/2021).
+  minio:
+    image: minio/minio:latest
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: injishi
+      MINIO_ROOT_PASSWORD: injishi-dev
+    ports:
+      - "127.0.0.1:${INJISHI_MINIO_PORT:-9000}:9000"
+      - "127.0.0.1:${INJISHI_MINIO_CONSOLE_PORT:-9001}:9001"
+    volumes:
+      - minio-data:/data
+
+  # SMTP catcher for transactional email in dev. UI on :8025.
+  mailpit:
+    image: axllent/mailpit:latest
+    ports:
+      - "127.0.0.1:${INJISHI_SMTP_PORT:-1025}:1025"
+      - "127.0.0.1:${INJISHI_MAILPIT_PORT:-8025}:8025"
+
+volumes:
+  db-data:
+  minio-data:

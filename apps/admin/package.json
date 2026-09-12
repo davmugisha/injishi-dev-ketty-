@@ -1,0 +1,36 @@
+{
+  "name": "@injishi/admin",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev --port 3001",
+    "build": "next build",
+    "start": "next start --port 3001",
+    "typecheck": "tsc --noEmit",
+    "lint": "eslint \"src/**/*.{ts,tsx}\""
+  },
+  "dependencies": {
+    "@heroui/react": "3.2.4",
+    "@injishi/auth": "workspace:*",
+    "@injishi/contracts": "workspace:*",
+    "@injishi/design-tokens": "workspace:*",
+    "@injishi/ui": "workspace:*",
+    "@injishi/utils": "workspace:*",
+    "lucide-react": "1.23.0",
+    "next": "15.5.4",
+    "react": "19.1.0",
+    "react-dom": "19.1.0",
+    "zustand": "5.0.14"
+  },
+  "devDependencies": {
+    "@next/eslint-plugin-next": "^16.3.3",
+    "@tailwindcss/postcss": "4.3.2",
+    "@types/node": "22.15.29",
+    "@types/react": "19.1.6",
+    "@types/react-dom": "19.1.5",
+    "@typescript-eslint/parser": "^8.68.0",
+    "eslint": "^10.9.1",
+    "tailwindcss": "4.3.2",
+    "typescript": "5.8.3"
+  }
+}

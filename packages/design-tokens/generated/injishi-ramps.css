@@ -1,0 +1,28 @@
+/* AUTO-GENERATED from @injishi/design-tokens — do not edit by hand.
+ * Regenerate: pnpm --filter @injishi/design-tokens generate:css
+ * Single source: packages/design-tokens/src/{ramps,semantic,heroui}.ts */
+
+:root {
+  --ink-50: #F2FBFF;
+  --ink-100: #E6F4FB;
+  --ink-200: #CFE7F4;
+  --ink-300: #B3D8EB;
+  --ink-400: #6DA7C4;
+  --ink-500: #428AAA;
+  --ink-600: #287291;
+  --ink-700: #145A76;
+  --ink-800: #09465D;
+  --ink-900: #093344;
+  --ink-950: #042330;
+  --green-50: #EFFDEC;
+  --green-100: #E1F8DD;
+  --green-200: #C7EFC1;
+  --green-300: #A4E49B;
+  --green-400: #6FD762;
+  --green-500: #42C42F;
+  --green-600: #22AD01;
+  --green-700: #1B9101;
+  --green-800: #147900;
+  --green-900: #18610D;
+  --green-950: #174D0F;
+}

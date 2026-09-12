@@ -1,0 +1,1040 @@
+/* AUTO-GENERATED — DO NOT EDIT BY HAND.
+ * Generator: scripts/gen-app-css.mjs (pnpm --filter @injishi/web css:app).
+ * Token layer extracted verbatim from public/shared/js/injishi-theme.js — edit
+ * tokens there (or via pnpm tokens:sync), then regenerate. Compiled at build
+ * time by @tailwindcss/postcss and imported in the one (app) root layout,
+ * replacing the runtime shared/vendor/tailwind-browser.js path. */
+@import "tailwindcss" source(none);
+@import "@injishi/ui/styles.css";
+@import "@heroui/styles";
+
+@source "./(app)";
+@source "../components/app";
+@source "../components/auth";
+@source "../components/shared";
+@source "../components/icons";
+
+@custom-variant dark (&:where(.dark, .dark *));
+
+:root {
+  /* injishi-tokens:ramps:start (generated from @injishi/design-tokens — run `pnpm --filter @injishi/web tokens:sync`; do not hand-edit) */
+  --ink-50: #F2FBFF;
+  --ink-100: #E6F4FB;
+  --ink-200: #CFE7F4;
+  --ink-300: #B3D8EB;
+  --ink-400: #6DA7C4;
+  --ink-500: #428AAA;
+  --ink-600: #287291;
+  --ink-700: #145A76;
+  --ink-800: #09465D;
+  --ink-900: #093344;
+  --ink-950: #042330;
+  --green-50: #EFFDEC;
+  --green-100: #E1F8DD;
+  --green-200: #C7EFC1;
+  --green-300: #A4E49B;
+  --green-400: #6FD762;
+  --green-500: #42C42F;
+  --green-600: #22AD01;
+  --green-700: #1B9101;
+  --green-800: #147900;
+  --green-900: #18610D;
+  --green-950: #174D0F;
+  /* injishi-tokens:ramps:end */
+  /* Surfaces — light theme: white canvas, ink text */
+  --background: #FFFFFF;
+  --foreground: var(--ink-950);
+  --card: #FFFFFF;
+  --card-foreground: var(--ink-950);
+  --popover: #FFFFFF;
+  --popover-foreground: var(--ink-950);
+  /* Primary — brand ink */
+  --primary: var(--ink-950);
+  --primary-hover: var(--ink-800);
+  --primary-foreground: #FFFFFF;
+  /* Accent — brand green. Ink text, never white (AA).
+     ADR-010 call 1b: the accent* names are the real ones @injishi/ui
+     reads; the accent-brand* trio stays as-is for the 13 uses already
+     in apps/web. Both resolve to the same value. */
+  --accent: var(--green-600);
+  /* NO --accent-hover here. @heroui/styles derives it from --accent with
+     color-mix, and the HeroUI palette block this file is folded in FRONT of
+     never re-declares it, so a value written here is the one that survives.
+     It used to be green-700 and stayed green after the theme moved to amber:
+     an amber button with a green hover. Leave the derivation alone. */
+  --accent-foreground: var(--ink-950);
+  --accent-brand: var(--green-600);
+  --accent-brand-hover: var(--green-700);
+  --accent-brand-foreground: var(--ink-950);
+  --accent-text: var(--green-800);
+  --secondary: var(--ink-50);
+  --secondary-foreground: var(--ink-950);
+  --muted: var(--ink-50);
+  --muted-foreground: var(--ink-600);
+  /* Crimson, not the stock red: the stock red and the brand green are
+     the same colour to a deuteranope. ADR-010 call 4. */
+  --destructive: #b3123c;
+  --destructive-foreground: #FFFFFF;
+  --success: var(--green-700);
+  --success-foreground: #FFFFFF;
+  --success-text: var(--green-800);
+  --warning: #A26001;
+  --warning-foreground: #FFFFFF;
+  --info: #0379A1;
+  --info-foreground: #FFFFFF;
+  --border: rgba(4, 35, 48, 0.14);
+  --input: rgba(4, 35, 48, 0.22);
+  --field: #FFFFFF;
+  --ring: var(--green-700);
+  --radius: 0.5rem;
+}
+
+.dark {
+  /* Surfaces — dark theme: ink canvas, raised ink surfaces (ADR-019).
+     ink-950 canvas -> ink-900 card -> ink-800 overlay. Replaced the
+     inverted card, under which every secondary text role inside a card
+     measured under 2.5:1 — muted-foreground was 1.44:1. */
+  --background: var(--ink-950);
+  --foreground: var(--ink-100);
+  --card: var(--ink-900);
+  --card-foreground: var(--ink-100);
+  --popover: var(--ink-800);
+  --popover-foreground: var(--ink-100);
+  /* Primary — paper button on ink */
+  --primary: var(--ink-100);
+  --primary-hover: var(--ink-200);
+  --primary-foreground: var(--ink-950);
+  --accent: var(--green-600);
+  /* NO --accent-hover here. @heroui/styles derives it from --accent with
+     color-mix, and the HeroUI palette block this file is folded in FRONT of
+     never re-declares it, so a value written here is the one that survives.
+     It used to be green-700 and stayed green after the theme moved to amber:
+     an amber button with a green hover. Leave the derivation alone. */
+  --accent-foreground: var(--ink-950);
+  --accent-brand: var(--green-600);
+  --accent-brand-hover: var(--green-500);
+  --accent-brand-foreground: var(--ink-950);
+  --accent-text: var(--green-300);
+  /* The light crimson is 2.38:1 on the navy page, so dark steps up the
+     same hue and takes ink rather than white. ADR-010 call 4 picked the
+     hue; ADR-019 set the step, measuring it against ink-800 (the
+     lightest dark surface) where #ff7098 was 3.92:1. */
+  --destructive: #FF96B4;
+  --destructive-foreground: var(--ink-950);
+  --secondary: rgba(230, 244, 251, 0.08);
+  --secondary-foreground: var(--ink-100);
+  --muted: rgba(230, 244, 251, 0.08);
+  --muted-foreground: var(--ink-300);
+  /* ADR-019: the hairline read as nothing at 0.18 (1.69:1), and --input
+     is a control boundary owing 3:1 on all three dark surfaces. */
+  --border: rgba(230, 244, 251, 0.34);
+  --input: rgba(230, 244, 251, 0.48);
+  --field: rgba(230, 244, 251, 0.06);
+  --ring: var(--green-400);
+}
+
+@theme inline {
+  /* Pure black is banned platform-wide — black utilities resolve to ink. */
+  --color-black: var(--ink-950);
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-hover: var(--primary-hover);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-accent: var(--accent);
+  --color-accent-hover: var(--accent-hover);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-accent-brand: var(--accent-brand);
+  --color-accent-brand-hover: var(--accent-brand-hover);
+  --color-accent-brand-foreground: var(--accent-brand-foreground);
+  --color-accent-text: var(--accent-text);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-success: var(--success);
+  --color-success-foreground: var(--success-foreground);
+  --color-warning: var(--warning);
+  --color-warning-foreground: var(--warning-foreground);
+  --color-info: var(--info);
+  --color-info-foreground: var(--info-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-field: var(--field);
+  --color-ring: var(--ring);
+  /* Full ramps addressable as utilities (bg-ink-900, text-green-800, …) */
+  --color-ink-50: var(--ink-50);
+  --color-ink-100: var(--ink-100);
+  --color-ink-200: var(--ink-200);
+  --color-ink-300: var(--ink-300);
+  --color-ink-400: var(--ink-400);
+  --color-ink-500: var(--ink-500);
+  --color-ink-600: var(--ink-600);
+  --color-ink-700: var(--ink-700);
+  --color-ink-800: var(--ink-800);
+  --color-ink-900: var(--ink-900);
+  --color-ink-950: var(--ink-950);
+  --color-green-50: var(--green-50);
+  --color-green-100: var(--green-100);
+  --color-green-200: var(--green-200);
+  --color-green-300: var(--green-300);
+  --color-green-400: var(--green-400);
+  --color-green-500: var(--green-500);
+  --color-green-600: var(--green-600);
+  --color-green-700: var(--green-700);
+  --color-green-800: var(--green-800);
+  --color-green-900: var(--green-900);
+  --color-green-950: var(--green-950);
+  /* Legacy six-step ramp aliases mapped onto the ink ramp so a fixed step
+     keeps working (e.g. the ink site header is ramp-1 in BOTH themes). */
+  --color-ramp-1: var(--ink-950);
+  --color-ramp-2: var(--ink-800);
+  --color-ramp-3: var(--ink-600);
+  --color-ramp-4: var(--ink-300);
+  --color-ramp-5: var(--ink-100);
+  --color-ramp-6: var(--ink-50);
+  /* The family is named through a variable with the literal as its
+     fallback. The (app) root layout sets --font-figtree and --font-spectral
+     from next/font/local and ships no @font-face of its own, so every
+     screen in the signed-in layer resolves to the self-hosted faces with no
+     second request. The fallback literal is what the deleted
+     /shared/css/injishi-fonts.css link used to supply for (onboarding);
+     ADR-021 removed that link with the group, and the literal is now the
+     safety net rather than a live path. Dropping the var() breaks the whole
+     layer silently, back to Arial, because @theme inline writes this value
+     verbatim into .font-sans and there is no --font-sans to override. */
+  --font-sans: var(--font-figtree, "Figtree"), ui-sans-serif, system-ui, sans-serif;
+  --font-display: var(--font-spectral, "Spectral"), ui-serif, Georgia, serif;
+  --font-mono: var(--font-figtree, "Figtree"), ui-sans-serif, system-ui, sans-serif;
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+  --radius-2xl: calc(var(--radius) + 8px);
+  --radius-3xl: calc(var(--radius) + 16px);
+  /* ADR-025: 1rem, = --radius-2xl. The HeroUI block inlined below sets the */
+  /* same value and wins on order; they are kept equal so the legacy   */
+  /* block is not a second, disagreeing answer.                        */
+  --radius-card: 1rem;
+  --shadow-control: 0 2px 8px rgba(4, 35, 48, 0.25);
+}
+
+@layer base {
+  body {
+    background-color: var(--background);
+    color: var(--foreground);
+    font-family: "Figtree", ui-sans-serif, system-ui, sans-serif;
+    -webkit-font-smoothing: antialiased;
+  }
+  :focus-visible {
+    outline: 2px solid var(--ring);
+    outline-offset: 2px;
+  }
+  /* Reduced motion asks us to remove movement, not feedback. Killing every
+     transition to 0.01ms also removes the colour and opacity changes that
+     tell someone a control is hovered, focused, selected or disabled — so
+     the interface gets harder to read, not calmer. Drop travel and looping
+     animation; keep the non-vestibular state changes, just quicker. */
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after {
+      animation-duration: 1ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 120ms !important;
+      transition-property: color, background-color, border-color,
+        outline-color, text-decoration-color, fill, stroke, opacity,
+        box-shadow !important;
+      scroll-behavior: auto !important;
+    }
+  }
+}
+
+@layer components {
+  /* The `.btn` and `.badge` class systems that used to sit here are deleted
+     (ADR-037 call 2). They were a second button and badge vocabulary beside
+     `@injishi/ui`, with their own height, size and fill: `.btn-primary` read
+     `--primary`, which the HeroUI sheet aliases onto `--foreground`, so the
+     signed in layer's main action was black while the marketplace's was teal.
+     Every former call site renders `Button` or `Badge` from the package. */
+
+  /* Form fields.
+
+     NOTHING in apps/web wears this class any more: the wizard inputs are
+     HeroUI Input, the textarea is HeroUI TextArea and the nine native
+     selects are HeroUI Select. It is kept because the values below are the
+     right ones for a bare form control and a screen that grows one before
+     it grows a HeroUI field should land on them rather than invent a box.
+     Three values do that work:
+       --field-radius      the theme is extra-small (0.125rem). This rule
+                           used to say --radius-lg (0.5rem), so the wizard
+                           drew rounder boxes than the rest of the app.
+       --field-background  the field surface role HeroUI paints with.
+       --field-placeholder the placeholder role, rather than borrowing
+                           --muted-foreground, which is body text. */
+  .field {
+    width: 100%; border-radius: var(--field-radius, 0.125rem);
+    border: 1px solid var(--input); background: var(--field-background);
+    color: var(--field-foreground, var(--foreground));
+    padding: 0.625rem 0.875rem; font-size: 0.9375rem;
+  }
+  .field::placeholder { color: var(--field-placeholder, var(--muted-foreground)); }
+
+  /* Money / numerics — Figtree with tabular figures (no mono family) */
+  .money { font-family: "Figtree", ui-sans-serif, system-ui, sans-serif; font-variant-numeric: tabular-nums; letter-spacing: -0.01em; }
+}
+
+/* --- HeroUI palette, inlined from @injishi/design-tokens/heroui.css.
+   Inlined, not imported, so it lands AFTER the token block above and wins
+   the roles the two share. Regenerate the source with
+   `pnpm --filter @injishi/design-tokens generate:css`. --- */
+/* AUTO-GENERATED from @injishi/design-tokens — do not edit by hand.
+ * Regenerate: pnpm --filter @injishi/design-tokens generate:css
+ * Single source: packages/design-tokens/src/{ramps,semantic,heroui}.ts */
+
+:root,
+.light,
+.default,
+[data-theme="light"],
+[data-theme="default"] {
+  /* fixed - one value in both themes (ADR-010 call 2) */
+  --ink: oklch(21.03% 0.0059 208.00);
+  --white: #FFFFFF;
+  --black: var(--ink);
+  --slate-line: oklch(51.50% 0.0199 208.00);
+  --surface-tint: oklch(95.24% 0.0080 208.00);
+  --canvas: oklch(97.02% 0.0100 208.00);
+  --control-wash: oklch(51.50% 0.0199 208.00);
+  --placeholder-dim: oklch(51.50% 0.0199 208.00);
+  --accent-ink: oklch(49.00% 0.1100 208.00);
+
+  /* HeroUI roles (light) */
+  --accent: oklch(65.00% 0.1100 208.00);
+  --accent-foreground: oklch(21.03% 0.0059 208.00);
+  --background: oklch(97.02% 0.0100 208.00);
+  --border: oklch(90.00% 0.0100 208.00);
+  --danger: oklch(58.00% 0.2374 20.24);
+  --danger-foreground: oklch(99.11% 0 0);
+  --default: oklch(94.00% 0.0100 208.00);
+  --default-foreground: oklch(21.03% 0.0059 208.00);
+  --field-background: oklch(100.00% 0.0050 208.00);
+  --field-border: transparent;
+  --field-foreground: oklch(21.03% 0.0100 208.00);
+  --field-placeholder: oklch(51.50% 0.0199 208.00);
+  --focus: oklch(59.00% 0.1100 208.00);
+  --foreground: oklch(21.03% 0.0100 208.00);
+  --muted: oklch(51.50% 0.0199 208.00);
+  --overlay: oklch(100.00% 0.0030 208.00);
+  --overlay-foreground: oklch(21.03% 0.0100 208.00);
+  --scrollbar: oklch(87.10% 0.0100 208.00);
+  --segment: oklch(100.00% 0.0100 208.00);
+  --segment-foreground: oklch(21.03% 0.0100 208.00);
+  --separator: oklch(92.00% 0.0100 208.00);
+  --success: oklch(73.29% 0.1974 145.31);
+  --success-foreground: oklch(21.03% 0.0059 145.31);
+  --surface: oklch(100.00% 0.0050 208.00);
+  --surface-foreground: oklch(21.03% 0.0100 208.00);
+  --surface-secondary: oklch(95.24% 0.0080 208.00);
+  --surface-secondary-foreground: oklch(21.03% 0.0100 208.00);
+  --surface-tertiary: oklch(93.73% 0.0080 208.00);
+  --surface-tertiary-foreground: oklch(21.03% 0.0100 208.00);
+  --warning: oklch(78.19% 0.1617 66.83);
+  --warning-foreground: oklch(21.03% 0.0059 66.83);
+  --accent-text: oklch(49.00% 0.1100 208.00);
+  --success-text: oklch(45.00% 0.1400 145.31);
+  --info: oklch(52.50% 0.1600 285.00);
+  --foreground-hover: oklch(32.00% 0.0100 208.00);
+  --field-outline: oklch(60.00% 0.0199 208.00);
+
+  /* legacy Injishi role names, aliased onto the HeroUI roles */
+  --card: var(--surface);
+  --card-foreground: var(--surface-foreground);
+  --popover: var(--overlay);
+  --popover-foreground: var(--overlay-foreground);
+  --primary: var(--foreground);
+  --primary-hover: var(--foreground-hover);
+  --primary-foreground: var(--background);
+  --secondary: var(--surface-secondary);
+  --secondary-foreground: var(--surface-secondary-foreground);
+  --muted-foreground: var(--muted);
+  --destructive: var(--danger);
+  --destructive-foreground: var(--danger-foreground);
+  --input: var(--field-outline);
+  --field: var(--field-background);
+  --ring: var(--focus);
+  --accent-brand: var(--accent);
+  --accent-brand-hover: var(--accent-hover);
+  --accent-brand-foreground: var(--accent-foreground);
+  --scrollbar-thumb: var(--scrollbar);
+
+  /* non-color */
+  --radius: 0.5rem;
+  --field-radius: 0;
+  /* The card corner as a RUNTIME variable too (ADR-037 call 3). The
+     theme inline entry below registers rounded-card as a utility and inlines
+     its value, so it never emits a custom property; a hand written rule or an
+     inline style reading var(--radius-card) got nothing. */
+  --radius-card: 1rem;
+}
+
+.dark,
+[data-theme="dark"] {
+  color-scheme: dark;
+
+  /* fixed - repeated verbatim so a dark scope cannot invert them */
+  --ink: oklch(21.03% 0.0059 208.00);
+  --white: #FFFFFF;
+  --black: var(--ink);
+  --slate-line: oklch(51.50% 0.0199 208.00);
+  --surface-tint: oklch(95.24% 0.0080 208.00);
+  --canvas: oklch(97.02% 0.0100 208.00);
+  --control-wash: oklch(51.50% 0.0199 208.00);
+  --placeholder-dim: oklch(51.50% 0.0199 208.00);
+  --accent-ink: oklch(49.00% 0.1100 208.00);
+
+  /* HeroUI roles (dark) */
+  --accent: oklch(65.00% 0.1100 208.00);
+  --accent-foreground: oklch(21.03% 0.0059 208.00);
+  --background: oklch(12.00% 0.0100 208.00);
+  --border: oklch(28.00% 0.0100 208.00);
+  --danger: oklch(57.50% 0.2006 19.13);
+  --danger-foreground: oklch(99.11% 0 0);
+  --default: oklch(27.40% 0.0100 208.00);
+  --default-foreground: oklch(99.11% 0.0059 208.00);
+  --field-background: oklch(21.03% 0.0199 208.00);
+  --field-border: transparent;
+  --field-foreground: oklch(99.11% 0.0100 208.00);
+  --field-placeholder: oklch(70.50% 0.0199 208.00);
+  --focus: oklch(65.00% 0.1100 208.00);
+  --foreground: oklch(99.11% 0.0100 208.00);
+  --muted: oklch(70.50% 0.0199 208.00);
+  --overlay: oklch(21.03% 0.0199 208.00);
+  --overlay-foreground: oklch(99.11% 0.0100 208.00);
+  --scrollbar: oklch(70.50% 0.0100 208.00);
+  --segment: oklch(39.64% 0.0100 208.00);
+  --segment-foreground: oklch(99.11% 0.0100 208.00);
+  --separator: oklch(25.00% 0.0100 208.00);
+  --success: oklch(73.29% 0.1974 145.31);
+  --success-foreground: oklch(21.03% 0.0059 145.31);
+  --surface: oklch(21.03% 0.0199 208.00);
+  --surface-foreground: oklch(99.11% 0.0100 208.00);
+  --surface-secondary: oklch(25.70% 0.0149 208.00);
+  --surface-secondary-foreground: oklch(99.11% 0.0100 208.00);
+  --surface-tertiary: oklch(27.21% 0.0149 208.00);
+  --surface-tertiary-foreground: oklch(99.11% 0.0100 208.00);
+  --warning: oklch(82.03% 0.1416 70.84);
+  --warning-foreground: oklch(21.03% 0.0059 70.84);
+  --accent-text: oklch(72.00% 0.1100 208.00);
+  --success-text: oklch(80.00% 0.1974 145.31);
+  --info: oklch(67.00% 0.1600 285.00);
+  --foreground-hover: oklch(88.00% 0.0100 208.00);
+  --field-outline: oklch(56.00% 0.0199 208.00);
+
+  /* legacy Injishi role names, aliased onto the HeroUI roles */
+  --card: var(--surface);
+  --card-foreground: var(--surface-foreground);
+  --popover: var(--overlay);
+  --popover-foreground: var(--overlay-foreground);
+  --primary: var(--foreground);
+  --primary-hover: var(--foreground-hover);
+  --primary-foreground: var(--background);
+  --secondary: var(--surface-secondary);
+  --secondary-foreground: var(--surface-secondary-foreground);
+  --muted-foreground: var(--muted);
+  --destructive: var(--danger);
+  --destructive-foreground: var(--danger-foreground);
+  --input: var(--field-outline);
+  --field: var(--field-background);
+  --ring: var(--focus);
+  --accent-brand: var(--accent);
+  --accent-brand-hover: var(--accent-hover);
+  --accent-brand-foreground: var(--accent-foreground);
+  --scrollbar-thumb: var(--scrollbar);
+}
+
+/* ── ADR-028: fixed grounds re-pin the theme block inside themselves ─────── */
+.bg-canvas,
+.bg-white,
+.bg-surface-tint {
+  color-scheme: light;
+  --accent: oklch(65.00% 0.1100 208.00);
+  --accent-foreground: oklch(21.03% 0.0059 208.00);
+  --background: oklch(97.02% 0.0100 208.00);
+  --border: oklch(90.00% 0.0100 208.00);
+  --danger: oklch(58.00% 0.2374 20.24);
+  --danger-foreground: oklch(99.11% 0 0);
+  --default: oklch(94.00% 0.0100 208.00);
+  --default-foreground: oklch(21.03% 0.0059 208.00);
+  --field-background: oklch(100.00% 0.0050 208.00);
+  --field-border: transparent;
+  --field-foreground: oklch(21.03% 0.0100 208.00);
+  --field-placeholder: oklch(51.50% 0.0199 208.00);
+  --focus: oklch(59.00% 0.1100 208.00);
+  --foreground: oklch(21.03% 0.0100 208.00);
+  --muted: oklch(51.50% 0.0199 208.00);
+  --overlay: oklch(100.00% 0.0030 208.00);
+  --overlay-foreground: oklch(21.03% 0.0100 208.00);
+  --scrollbar: oklch(87.10% 0.0100 208.00);
+  --segment: oklch(100.00% 0.0100 208.00);
+  --segment-foreground: oklch(21.03% 0.0100 208.00);
+  --separator: oklch(92.00% 0.0100 208.00);
+  --success: oklch(73.29% 0.1974 145.31);
+  --success-foreground: oklch(21.03% 0.0059 145.31);
+  --surface: oklch(100.00% 0.0050 208.00);
+  --surface-foreground: oklch(21.03% 0.0100 208.00);
+  --surface-secondary: oklch(95.24% 0.0080 208.00);
+  --surface-secondary-foreground: oklch(21.03% 0.0100 208.00);
+  --surface-tertiary: oklch(93.73% 0.0080 208.00);
+  --surface-tertiary-foreground: oklch(21.03% 0.0100 208.00);
+  --warning: oklch(78.19% 0.1617 66.83);
+  --warning-foreground: oklch(21.03% 0.0059 66.83);
+  --accent-text: oklch(49.00% 0.1100 208.00);
+  --success-text: oklch(45.00% 0.1400 145.31);
+  --info: oklch(52.50% 0.1600 285.00);
+  --foreground-hover: oklch(32.00% 0.0100 208.00);
+  --field-outline: oklch(60.00% 0.0199 208.00);
+  --card: var(--surface);
+  --card-foreground: var(--surface-foreground);
+  --popover: var(--overlay);
+  --popover-foreground: var(--overlay-foreground);
+  --primary: var(--foreground);
+  --primary-hover: var(--foreground-hover);
+  --primary-foreground: var(--background);
+  --secondary: var(--surface-secondary);
+  --secondary-foreground: var(--surface-secondary-foreground);
+  --muted-foreground: var(--muted);
+  --destructive: var(--danger);
+  --destructive-foreground: var(--danger-foreground);
+  --input: var(--field-outline);
+  --field: var(--field-background);
+  --ring: var(--focus);
+  --accent-brand: var(--accent);
+  --accent-brand-hover: var(--accent-hover);
+  --accent-brand-foreground: var(--accent-foreground);
+  --scrollbar-thumb: var(--scrollbar);
+}
+
+.bg-ink,
+.bg-black,
+.bg-control-wash {
+  color-scheme: dark;
+  --accent: oklch(65.00% 0.1100 208.00);
+  --accent-foreground: oklch(21.03% 0.0059 208.00);
+  --background: oklch(12.00% 0.0100 208.00);
+  --border: oklch(28.00% 0.0100 208.00);
+  --danger: oklch(57.50% 0.2006 19.13);
+  --danger-foreground: oklch(99.11% 0 0);
+  --default: oklch(27.40% 0.0100 208.00);
+  --default-foreground: oklch(99.11% 0.0059 208.00);
+  --field-background: oklch(21.03% 0.0199 208.00);
+  --field-border: transparent;
+  --field-foreground: oklch(99.11% 0.0100 208.00);
+  --field-placeholder: oklch(70.50% 0.0199 208.00);
+  --focus: oklch(65.00% 0.1100 208.00);
+  --foreground: oklch(99.11% 0.0100 208.00);
+  --muted: oklch(70.50% 0.0199 208.00);
+  --overlay: oklch(21.03% 0.0199 208.00);
+  --overlay-foreground: oklch(99.11% 0.0100 208.00);
+  --scrollbar: oklch(70.50% 0.0100 208.00);
+  --segment: oklch(39.64% 0.0100 208.00);
+  --segment-foreground: oklch(99.11% 0.0100 208.00);
+  --separator: oklch(25.00% 0.0100 208.00);
+  --success: oklch(73.29% 0.1974 145.31);
+  --success-foreground: oklch(21.03% 0.0059 145.31);
+  --surface: oklch(21.03% 0.0199 208.00);
+  --surface-foreground: oklch(99.11% 0.0100 208.00);
+  --surface-secondary: oklch(25.70% 0.0149 208.00);
+  --surface-secondary-foreground: oklch(99.11% 0.0100 208.00);
+  --surface-tertiary: oklch(27.21% 0.0149 208.00);
+  --surface-tertiary-foreground: oklch(99.11% 0.0100 208.00);
+  --warning: oklch(82.03% 0.1416 70.84);
+  --warning-foreground: oklch(21.03% 0.0059 70.84);
+  --accent-text: oklch(72.00% 0.1100 208.00);
+  --success-text: oklch(80.00% 0.1974 145.31);
+  --info: oklch(67.00% 0.1600 285.00);
+  --foreground-hover: oklch(88.00% 0.0100 208.00);
+  --field-outline: oklch(56.00% 0.0199 208.00);
+  --card: var(--surface);
+  --card-foreground: var(--surface-foreground);
+  --popover: var(--overlay);
+  --popover-foreground: var(--overlay-foreground);
+  --primary: var(--foreground);
+  --primary-hover: var(--foreground-hover);
+  --primary-foreground: var(--background);
+  --secondary: var(--surface-secondary);
+  --secondary-foreground: var(--surface-secondary-foreground);
+  --muted-foreground: var(--muted);
+  --destructive: var(--danger);
+  --destructive-foreground: var(--danger-foreground);
+  --input: var(--field-outline);
+  --field: var(--field-background);
+  --ring: var(--focus);
+  --accent-brand: var(--accent);
+  --accent-brand-hover: var(--accent-hover);
+  --accent-brand-foreground: var(--accent-foreground);
+  --scrollbar-thumb: var(--scrollbar);
+}
+
+/* The one opt-out: follow the PAGE again, inside a fixed ground. */
+.dark .ground-theme,
+[data-theme="dark"] .ground-theme,
+.th-dark .ground-theme {
+  color-scheme: dark;
+  --accent: oklch(65.00% 0.1100 208.00);
+  --accent-foreground: oklch(21.03% 0.0059 208.00);
+  --background: oklch(12.00% 0.0100 208.00);
+  --border: oklch(28.00% 0.0100 208.00);
+  --danger: oklch(57.50% 0.2006 19.13);
+  --danger-foreground: oklch(99.11% 0 0);
+  --default: oklch(27.40% 0.0100 208.00);
+  --default-foreground: oklch(99.11% 0.0059 208.00);
+  --field-background: oklch(21.03% 0.0199 208.00);
+  --field-border: transparent;
+  --field-foreground: oklch(99.11% 0.0100 208.00);
+  --field-placeholder: oklch(70.50% 0.0199 208.00);
+  --focus: oklch(65.00% 0.1100 208.00);
+  --foreground: oklch(99.11% 0.0100 208.00);
+  --muted: oklch(70.50% 0.0199 208.00);
+  --overlay: oklch(21.03% 0.0199 208.00);
+  --overlay-foreground: oklch(99.11% 0.0100 208.00);
+  --scrollbar: oklch(70.50% 0.0100 208.00);
+  --segment: oklch(39.64% 0.0100 208.00);
+  --segment-foreground: oklch(99.11% 0.0100 208.00);
+  --separator: oklch(25.00% 0.0100 208.00);
+  --success: oklch(73.29% 0.1974 145.31);
+  --success-foreground: oklch(21.03% 0.0059 145.31);
+  --surface: oklch(21.03% 0.0199 208.00);
+  --surface-foreground: oklch(99.11% 0.0100 208.00);
+  --surface-secondary: oklch(25.70% 0.0149 208.00);
+  --surface-secondary-foreground: oklch(99.11% 0.0100 208.00);
+  --surface-tertiary: oklch(27.21% 0.0149 208.00);
+  --surface-tertiary-foreground: oklch(99.11% 0.0100 208.00);
+  --warning: oklch(82.03% 0.1416 70.84);
+  --warning-foreground: oklch(21.03% 0.0059 70.84);
+  --accent-text: oklch(72.00% 0.1100 208.00);
+  --success-text: oklch(80.00% 0.1974 145.31);
+  --info: oklch(67.00% 0.1600 285.00);
+  --foreground-hover: oklch(88.00% 0.0100 208.00);
+  --field-outline: oklch(56.00% 0.0199 208.00);
+  --card: var(--surface);
+  --card-foreground: var(--surface-foreground);
+  --popover: var(--overlay);
+  --popover-foreground: var(--overlay-foreground);
+  --primary: var(--foreground);
+  --primary-hover: var(--foreground-hover);
+  --primary-foreground: var(--background);
+  --secondary: var(--surface-secondary);
+  --secondary-foreground: var(--surface-secondary-foreground);
+  --muted-foreground: var(--muted);
+  --destructive: var(--danger);
+  --destructive-foreground: var(--danger-foreground);
+  --input: var(--field-outline);
+  --field: var(--field-background);
+  --ring: var(--focus);
+  --accent-brand: var(--accent);
+  --accent-brand-hover: var(--accent-hover);
+  --accent-brand-foreground: var(--accent-foreground);
+  --scrollbar-thumb: var(--scrollbar);
+}
+
+:where(:root:not(.dark)) .ground-theme,
+.light .ground-theme,
+[data-theme="light"] .ground-theme,
+.th-light .ground-theme {
+  color-scheme: light;
+  --accent: oklch(65.00% 0.1100 208.00);
+  --accent-foreground: oklch(21.03% 0.0059 208.00);
+  --background: oklch(97.02% 0.0100 208.00);
+  --border: oklch(90.00% 0.0100 208.00);
+  --danger: oklch(58.00% 0.2374 20.24);
+  --danger-foreground: oklch(99.11% 0 0);
+  --default: oklch(94.00% 0.0100 208.00);
+  --default-foreground: oklch(21.03% 0.0059 208.00);
+  --field-background: oklch(100.00% 0.0050 208.00);
+  --field-border: transparent;
+  --field-foreground: oklch(21.03% 0.0100 208.00);
+  --field-placeholder: oklch(51.50% 0.0199 208.00);
+  --focus: oklch(59.00% 0.1100 208.00);
+  --foreground: oklch(21.03% 0.0100 208.00);
+  --muted: oklch(51.50% 0.0199 208.00);
+  --overlay: oklch(100.00% 0.0030 208.00);
+  --overlay-foreground: oklch(21.03% 0.0100 208.00);
+  --scrollbar: oklch(87.10% 0.0100 208.00);
+  --segment: oklch(100.00% 0.0100 208.00);
+  --segment-foreground: oklch(21.03% 0.0100 208.00);
+  --separator: oklch(92.00% 0.0100 208.00);
+  --success: oklch(73.29% 0.1974 145.31);
+  --success-foreground: oklch(21.03% 0.0059 145.31);
+  --surface: oklch(100.00% 0.0050 208.00);
+  --surface-foreground: oklch(21.03% 0.0100 208.00);
+  --surface-secondary: oklch(95.24% 0.0080 208.00);
+  --surface-secondary-foreground: oklch(21.03% 0.0100 208.00);
+  --surface-tertiary: oklch(93.73% 0.0080 208.00);
+  --surface-tertiary-foreground: oklch(21.03% 0.0100 208.00);
+  --warning: oklch(78.19% 0.1617 66.83);
+  --warning-foreground: oklch(21.03% 0.0059 66.83);
+  --accent-text: oklch(49.00% 0.1100 208.00);
+  --success-text: oklch(45.00% 0.1400 145.31);
+  --info: oklch(52.50% 0.1600 285.00);
+  --foreground-hover: oklch(32.00% 0.0100 208.00);
+  --field-outline: oklch(60.00% 0.0199 208.00);
+  --card: var(--surface);
+  --card-foreground: var(--surface-foreground);
+  --popover: var(--overlay);
+  --popover-foreground: var(--overlay-foreground);
+  --primary: var(--foreground);
+  --primary-hover: var(--foreground-hover);
+  --primary-foreground: var(--background);
+  --secondary: var(--surface-secondary);
+  --secondary-foreground: var(--surface-secondary-foreground);
+  --muted-foreground: var(--muted);
+  --destructive: var(--danger);
+  --destructive-foreground: var(--danger-foreground);
+  --input: var(--field-outline);
+  --field: var(--field-background);
+  --ring: var(--focus);
+  --accent-brand: var(--accent);
+  --accent-brand-hover: var(--accent-hover);
+  --accent-brand-foreground: var(--accent-foreground);
+  --scrollbar-thumb: var(--scrollbar);
+}
+
+/* The DOCUMENT's own scrollbar.
+ *
+ * HeroUI ships a complete scrollbar system - the 'scrollbar', 'scrollbar-thin'
+ * and 'scrollbar-none' utilities, and the [data-scrollbar] ancestor modes - but
+ * it applies NONE of it globally: base/base.css carries the universal rule
+ * commented out, because '*' also matched .modal__backdrop and swallowed the
+ * click that closes an overlay. Its own note says each scroll container is
+ * expected to opt in with an @apply of that utility, and every container in
+ * this workspace now does.
+ *
+ * A page cannot: nothing in an app renders <html>, so the one bar a reader sees
+ * on every screen would have stayed the platform's. This rule is that opt-in,
+ * scoped to the document element alone rather than to '*', so it cannot reach a
+ * backdrop and cannot reintroduce the bug HeroUI disabled the rule for.
+ *
+ * The three declarations are the 'scrollbar' utility verbatim. They are written
+ * out rather than @applied because this sheet is also inlined by consumers that
+ * paste it in ahead of the Tailwind entry, where an @apply has no utility to
+ * resolve. The VALUES stay HeroUI's own variables, so there is still one
+ * source: retheme the bar by moving the token, never by editing this rule. */
+html {
+  scrollbar-width: var(--scrollbar-width);
+  scrollbar-color: var(--scrollbar-color);
+  scrollbar-gutter: var(--scrollbar-gutter);
+}
+
+/* Tailwind v4: one utility per role, so bg-surface, text-muted,
+   border-separator and the legacy text-muted-foreground all compile. */
+@theme inline {
+  --color-ink: var(--ink);
+  --color-white: var(--white);
+  --color-black: var(--black);
+  --color-slate-line: var(--slate-line);
+  --color-surface-tint: var(--surface-tint);
+  --color-canvas: var(--canvas);
+  --color-control-wash: var(--control-wash);
+  --color-placeholder-dim: var(--placeholder-dim);
+  --color-accent-ink: var(--accent-ink);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-background: var(--background);
+  --color-border: var(--border);
+  --color-danger: var(--danger);
+  --color-danger-foreground: var(--danger-foreground);
+  --color-default: var(--default);
+  --color-default-foreground: var(--default-foreground);
+  --color-field-background: var(--field-background);
+  --color-field-border: var(--field-border);
+  --color-field-foreground: var(--field-foreground);
+  --color-field-placeholder: var(--field-placeholder);
+  --color-focus: var(--focus);
+  --color-foreground: var(--foreground);
+  --color-muted: var(--muted);
+  --color-overlay: var(--overlay);
+  --color-overlay-foreground: var(--overlay-foreground);
+  --color-scrollbar: var(--scrollbar);
+  --color-segment: var(--segment);
+  --color-segment-foreground: var(--segment-foreground);
+  --color-separator: var(--separator);
+  --color-success: var(--success);
+  --color-success-foreground: var(--success-foreground);
+  --color-surface: var(--surface);
+  --color-surface-foreground: var(--surface-foreground);
+  --color-surface-secondary: var(--surface-secondary);
+  --color-surface-secondary-foreground: var(--surface-secondary-foreground);
+  --color-surface-tertiary: var(--surface-tertiary);
+  --color-surface-tertiary-foreground: var(--surface-tertiary-foreground);
+  --color-warning: var(--warning);
+  --color-warning-foreground: var(--warning-foreground);
+  --color-accent-text: var(--accent-text);
+  --color-success-text: var(--success-text);
+  --color-info: var(--info);
+  --color-foreground-hover: var(--foreground-hover);
+  --color-field-outline: var(--field-outline);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-hover: var(--primary-hover);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-input: var(--input);
+  --color-field: var(--field);
+  --color-ring: var(--ring);
+  --color-accent-brand: var(--accent-brand);
+  --color-accent-brand-hover: var(--accent-brand-hover);
+  --color-accent-brand-foreground: var(--accent-brand-foreground);
+  --color-scrollbar-thumb: var(--scrollbar-thumb);
+  /* The DERIVED hover, mapped so it has a utility.
+     Nothing declares --accent-hover here or anywhere else in this workspace:
+     @heroui/styles derives it from --accent with color-mix, which is the one
+     hover convention and the reason no *-hover value is authored in heroui.ts.
+     But a derived VARIABLE is not a CLASS. Without this line hover:bg-accent-hover
+     compiles to nothing, silently, and the four call sites that wear it just
+     stop changing on hover - which is what they were doing in the marketplace
+     stylesheet before ADR-027 measured it. Mapping the name costs nothing and
+     authors no value: move --accent and this moves with it. */
+  --color-accent-hover: var(--accent-hover);
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+  --radius-2xl: calc(var(--radius) + 8px);
+  --radius-3xl: calc(var(--radius) + 16px);
+  --radius-field: 0;
+  --radius-card: 1rem;
+  --shadow-control: 0 2px 8px rgba(4, 35, 48, 0.25);
+}
+
+/* The LAYOUT scale (ADR-027): one type scale, one container scale, one spacing
+   rhythm. Authored in src/layout.ts.
+
+   A plain "@theme", not "@theme inline", and the difference matters. These are
+   LITERAL values with nothing to point at, so inline would buy nothing, and a
+   plain block additionally emits each name as a :root custom property - which
+   is what makes the paren form "max-w-(--container-page)" resolve for the rare
+   case that needs a raw reference. The colour blocks above are inline for the
+   opposite reason: their values ARE var() references to the role variables
+   declared in the theme selectors, and inlining is what stops a utility
+   resolving through two hops.
+
+   The named utility is always preferred over the paren form: "max-w-page", not
+   "max-w-(--container-page)". Note that the v3 spelling of that paren form,
+   with square brackets, is WRONG on Tailwind 4 and fails SILENTLY rather than
+   erroring, which is why it appears nowhere in this workspace. */
+@theme {
+  /* --radius is ALSO declared as a plain custom property in the two theme
+     selectors above, and that is not a duplicate - the two do different jobs
+     and both are needed.
+
+     The plain declaration is what a hand-written rule reads. THIS one is what
+     registers the name with Tailwind, and only a registered token reaches the
+     bare "rounded" utility. Without this line "rounded" compiles to Tailwind's
+     own literal 0.25rem and quietly disagrees with "rounded-lg", which does
+     resolve to --radius through the inline block. That is exactly the kind of
+     silent second answer ADR-027 exists to remove, and it was found by
+     compiling the utilities rather than by reading the spec.
+
+     The value is herouiRadius, the same constant the plain declaration uses, so
+     there is still one authored source. */
+  --radius: 0.5rem;
+
+  --text-2xs: 0.6875rem;
+  --text-2xs--line-height: 1.4;
+  --text-display-sm: 2rem;
+  --text-display-sm--line-height: 1.2;
+  --text-display-md: 2.75rem;
+  --text-display-md--line-height: 1.1;
+  --text-display-lg: 3.5rem;
+  --text-display-lg--line-height: 1.05;
+
+  --container-page: 70rem;
+  --container-wide: 52.5rem;
+  --container-read: 42rem;
+  --container-narrow: 32rem;
+  --container-form: 28rem;
+  --container-tile: 25rem;
+
+  --spacing-band: 4rem;
+  --spacing-block: 1.5rem;
+  --spacing-inset: 1rem;
+}
+
+/* Motion scale (motion.ts): five durations named for what they are for,
+   four curves named for how a thing moves. duration-settle, ease-settle. */
+@theme {
+  --transition-duration-instant: 120ms;
+  --transition-duration-quick: 180ms;
+  --transition-duration-settle: 240ms;
+  --transition-duration-travel: 320ms;
+  --transition-duration-arrive: 480ms;
+
+  --ease-settle: cubic-bezier(0.22, 1, 0.36, 1);
+  --ease-leave: cubic-bezier(0.5, 0, 0.75, 0);
+  --ease-move: cubic-bezier(0.65, 0, 0.35, 1);
+  --ease-spring: cubic-bezier(0.34, 1.4, 0.64, 1);
+
+  --default-transition-duration: 180ms;
+  --default-transition-timing-function: cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+
+/* --- app shell styling, inlined from src/app/_app-shell.css (hand-owned).
+   Served at build time so the server-rendered sidebar is styled on first paint. --- */
+/* App shell styling — the sidebar surface, nav items and collapsed states.
+ *
+ * These rules used to live as a JS string array inside
+ * public/shared/js/injishi-web-shell.js and were injected into <head> at
+ * runtime; gen-app-css.mjs extracted them so the server-rendered sidebar would
+ * not flash unstyled. Now that the shell is real React (components/app/AppShell)
+ * the JS is deleted and this is the hand-owned source of truth.
+ *
+ * The sidebar follows the theme (light surface in Light, ramp-1 navy in Dark)
+ * and shares one vocabulary with the admin shell — DESIGN.md §Layout.
+ */
+
+/* Sidebar roles. Each is an alias onto a role the HeroUI sheet already defines
+ * and already inverts, so there is no `.dark` block here any more (ADR-037
+ * call 3). The two hex blocks this replaced were a second dark mode: a sidebar
+ * that measured its own contrast against its own ink. */
+:root {
+  --sb: var(--surface);
+  --sb-fg: var(--foreground);
+  --sb-muted: var(--muted);
+  --sb-faint: var(--muted);
+  --sb-border: var(--border);
+  --sb-hover: var(--surface-secondary);
+  --sb-active: var(--surface-tertiary);
+}
+
+#sidebar {
+  background: var(--sb);
+  color: var(--sb-fg);
+  border-color: var(--sb-border);
+}
+
+.nav-item {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  border-radius: var(--radius);
+  padding: 0.625rem 0.75rem;
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: color-mix(in srgb, var(--sb-fg) 78%, transparent);
+}
+.nav-item:hover {
+  background: var(--sb-hover);
+  color: var(--sb-fg);
+}
+.nav-active {
+  background: var(--sb-active);
+  color: var(--sb-fg);
+  font-weight: 600;
+}
+
+.sb-group {
+  padding: 0.75rem 0.75rem 0.25rem;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--sb-faint);
+}
+
+.sb-count {
+  margin-left: auto;
+  border-radius: 9999px;
+  background: var(--surface-tertiary);
+  padding: 0.125rem 0.5rem;
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--foreground);
+}
+
+.sb-switch {
+  display: flex;
+  width: 100%;
+  align-items: center;
+  gap: 0.75rem;
+  border-radius: var(--radius-card);
+  border: 1px solid var(--sb-border);
+  background: var(--sb-hover);
+  padding: 0.75rem;
+  text-align: left;
+}
+.sb-switch:hover {
+  background: var(--sb-active);
+}
+
+/* The workspace's one primary action, directly under the switcher. It is the
+ * shared `Button` now (ADR-037 call 3); this rule only carries the gap above it
+ * and the collapsed state below. */
+.sb-cta {
+  margin-top: 0.5rem;
+}
+
+#sidebar.collapsed {
+  width: 5rem;
+}
+#sidebar.collapsed .sb-label {
+  display: none;
+}
+#sidebar.collapsed .sb-group {
+  display: none;
+}
+#sidebar.collapsed .sb-logo-short {
+  display: block;
+}
+#sidebar.collapsed .nav-item {
+  justify-content: center;
+}
+#sidebar.collapsed .sb-switch {
+  justify-content: center;
+  padding: 0.625rem;
+}
+#sidebar.collapsed .sb-cta {
+  justify-content: center;
+  padding: 0.625rem;
+}
+
+/*
+ * Touch sizing (2026-08-06): the account shell was sized for a mouse — nav rows
+ * and the icon actions in the header measured 36-40px against a 44px minimum,
+ * and the marketing menu toggle came in at 28x18. Keyed to `pointer: coarse`
+ * so the desktop shell keeps its density; the concern is the input device, not
+ * the viewport width.
+ */
+@media (pointer: coarse) {
+  .nav-item,
+  .sb-cta,
+  .sb-switch,
+  .app-canvas button,
+  .app-canvas [role="button"],
+  .app-canvas a[href],
+  .app-canvas summary {
+    min-height: 44px;
+  }
+  .app-canvas button:not(:has(span, p, div)),
+  .app-canvas [role="button"]:not(:has(span, p, div)) {
+    min-width: 44px;
+  }
+  /* Inline links inside prose keep their natural size — padding them to 44px
+     would break the line box, and they are not tap targets in the same sense. */
+  .app-canvas p a[href],
+  .app-canvas li a[href] {
+    min-height: 0;
+  }
+}
+

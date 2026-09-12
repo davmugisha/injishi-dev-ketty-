@@ -1,0 +1,298 @@
+/**
+ * §6 HOSPITALITY.
+ *
+ * Carved out of the single 3,956-line `schema.ts` along the section headers
+ * that file already carried. Every declaration below is byte-identical to the
+ * one it replaced; only the import lines are new. `schema.ts` re-exports this
+ * module, so `drizzle.config.ts`, every migration and every importer still see
+ * one schema at one path.
+ */
+import { sql } from 'drizzle-orm';
+import {
+  bigint,
+  boolean,
+  check,
+  date,
+  index,
+  integer,
+  pgTable,
+  primaryKey,
+  smallint,
+  text,
+  timestamp,
+  unique,
+  uniqueIndex,
+  uuid,
+} from 'drizzle-orm/pg-core';
+import { users } from './auth';
+import { amount, currency, timestamps } from './columns';
+import { bookingModeEnum, bookingStatusEnum, cancellationTierEnum, checkInModeEnum, claimStatusEnum, collectionVisibilityEnum, declineReasonEnum, documentTypeEnum, paymentStatusEnum, reviewSideEnum, stayLifecycleEnum, storedObjectKindEnum } from './enums';
+import { properties, ratePlans, roomTypes, rooms } from './inventory';
+import { workspaces } from './org';
+
+export const bookings = pgTable(
+  'bookings',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    reference: text('reference').notNull(),
+    roomTypeId: uuid('room_type_id')
+      .notNull()
+      .references(() => roomTypes.id),
+    /**
+     * The product half: which rate plan was booked (F-L03). NULLABLE during the
+     * expand phase because real bookings predate rate plans; the contract phase
+     * backfills every row to its room type's seeded "Standard rate" and then
+     * sets NOT NULL.
+     *
+     * Note the locked_* columns below do NOT move: D8 already snapshots rate,
+     * tier and terms onto the booking, so historical correctness survives the
+     * model change for free and no commercial backfill is needed.
+     */
+    ratePlanId: uuid('rate_plan_id').references(() => ratePlans.id),
+    guestUserId: uuid('guest_user_id').references(() => users.id),
+    workspaceId: uuid('workspace_id')
+      .notNull()
+      .references(() => workspaces.id),
+    checkIn: date('check_in').notNull(),
+    checkOut: date('check_out').notNull(),
+    guestCount: integer('guest_count').notNull().default(1),
+    status: bookingStatusEnum('status').notNull(),
+    bookingMode: bookingModeEnum('booking_mode').notNull(),
+    lockedNightlyRateRwf: amount('locked_nightly_rate_rwf'),
+    lockedCancellationTier: cancellationTierEnum('locked_cancellation_tier'),
+    nonrefundable: boolean('nonrefundable').notNull().default(false),
+    grossRwf: amount('gross_rwf'),
+    currency: currency(),
+    paymentStatus: paymentStatusEnum('payment_status'),
+    declineReason: declineReasonEnum('decline_reason'),
+    approvalExpiresAt: timestamp('approval_expires_at', { withTimezone: true }),
+    confirmedAt: timestamp('confirmed_at', { withTimezone: true }),
+    /**
+     * Until when an expiry sweep owns this row (review 2.4). A sweep claims a
+     * bounded batch by stamping this a few minutes ahead, so a second worker
+     * running the same sweep skips it instead of asking the provider to
+     * release the same hold twice. Null, or in the past, means unclaimed.
+     */
+    sweepClaimedUntil: timestamp('sweep_claimed_until', { withTimezone: true }),
+    ...timestamps,
+  },
+  (t) => [
+    unique('bookings_reference_uk').on(t.reference),
+    index('bookings_guest_idx').on(t.guestUserId),
+    index('bookings_workspace_status_idx').on(t.workspaceId, t.status, t.checkIn),
+    /**
+     * The availability hold (BookingRepository.create step 2) counts overlapping
+     * bookings by `(room_type_id, status, check_in, check_out)` while holding a
+     * row lock on the Room type — so its cost is serialised latency on the
+     * booking path, not just IO. Partial on the two holding statuses: cancelled,
+     * declined and no_show rows accumulate forever and are never counted, so
+     * keeping them out holds the index at the size of *live* inventory.
+     * Supersedes the room_type-only index, which this one prefixes.
+     */
+    index('bookings_hold_overlap_idx')
+      .on(t.roomTypeId, t.checkIn, t.checkOut)
+      .where(sql`${t.status} IN ('pending_approval', 'confirmed')`),
+    /**
+     * The auto-decline sweep (expireStaleRequests) runs every 5 minutes and
+     * scans for `pending_approval` rows past their window. Without this it is a
+     * full scan of `bookings` 288 times a day, growing with total booking
+     * history. Partial + ordered by the column it ranges on, so the sweep costs
+     * the size of its own result set.
+     */
+    index('bookings_pending_expiry_idx')
+      .on(t.approvalExpiresAt)
+      .where(
+        sql`${t.status} = 'pending_approval' AND ${t.approvalExpiresAt} IS NOT NULL`,
+      ),
+  ],
+);
+
+
+export const guestStays = pgTable(
+  'guest_stays',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    bookingId: uuid('booking_id').references(() => bookings.id),
+    guestUserId: uuid('guest_user_id').references(() => users.id),
+    /**
+     * The guest's name when there is no account to read it from (ADR-035).
+     *
+     * A WALK IN has no booking and no `users` row, so every read that took the
+     * name from `users.name` returned null and the desk saw "Unnamed guest" for
+     * the person standing in front of them. The alternative was creating a
+     * shell `users` row per walk in, which mints an account nobody asked for
+     * and collides with the real sign up when that person later joins.
+     *
+     * NULL for a stay that HAS an account: the account is the better source and
+     * it stays current when the person renames themselves. Readers prefer
+     * `users.name` and fall back to this.
+     */
+    guestName: text('guest_name'),
+    roomId: uuid('room_id')
+      .notNull()
+      .references(() => rooms.id),
+    workspaceId: uuid('workspace_id')
+      .notNull()
+      .references(() => workspaces.id),
+    checkInMode: checkInModeEnum('check_in_mode').notNull(),
+    isVerified: boolean('is_verified').notNull().default(false),
+    entryAt: timestamp('entry_at', { withTimezone: true }).notNull(),
+    plannedExitAt: timestamp('planned_exit_at', { withTimezone: true }),
+    actualExitAt: timestamp('actual_exit_at', { withTimezone: true }),
+    priceRwf: amount('price_rwf'),
+    currency: currency(),
+    lifecycle: stayLifecycleEnum('lifecycle').notNull().default('open'),
+    claimCode: text('claim_code'),
+    claimStatus: claimStatusEnum('claim_status').notNull().default('unclaimed'),
+    claimedByUserId: uuid('claimed_by_user_id').references(() => users.id),
+    ...timestamps,
+  },
+  (t) => [
+    uniqueIndex('guest_stays_claim_code_uk')
+      .on(t.claimCode)
+      .where(sql`${t.claimCode} IS NOT NULL`),
+    index('guest_stays_workspace_idx').on(t.workspaceId),
+    index('guest_stays_room_idx').on(t.roomId),
+  ],
+);
+
+
+export const storedObjects = pgTable('stored_objects', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  objectKey: text('object_key').notNull().unique(),
+  kind: storedObjectKindEnum('kind').notNull(),
+  mime: text('mime'),
+  sizeBytes: bigint('size_bytes', { mode: 'number' }),
+  uploadedByUserId: uuid('uploaded_by_user_id').references(() => users.id),
+  workspaceId: uuid('workspace_id').references(() => workspaces.id),
+  legalHold: boolean('legal_hold').notNull().default(false),
+  retentionUntil: timestamp('retention_until', { withTimezone: true }),
+  ...timestamps,
+});
+
+
+export const stayIdentities = pgTable('stay_identities', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  guestStayId: uuid('guest_stay_id')
+    .notNull()
+    .unique()
+    .references(() => guestStays.id, { onDelete: 'cascade' }),
+  fullName: text('full_name'),
+  idNumber: text('id_number'),
+  documentType: documentTypeEnum('document_type'),
+  idPhotoObjectId: uuid('id_photo_object_id').references(() => storedObjects.id),
+  addressText: text('address_text'),
+  capturedAt: timestamp('captured_at', { withTimezone: true })
+    .notNull()
+    .defaultNow(),
+});
+
+
+export const reviews = pgTable(
+  'reviews',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    stayId: uuid('stay_id')
+      .notNull()
+      .references(() => guestStays.id, { onDelete: 'cascade' }),
+    side: reviewSideEnum('side').notNull(),
+    workspaceId: uuid('workspace_id').references(() => workspaces.id),
+    overallRating: smallint('overall_rating'),
+    cleanliness: smallint('cleanliness'),
+    accuracy: smallint('accuracy'),
+    checkIn: smallint('check_in'),
+    communication: smallint('communication'),
+    location: smallint('location'),
+    value: smallint('value'),
+    comment: text('comment'),
+    moderationState: text('moderation_state').notNull().default('visible'),
+    publishedAt: timestamp('published_at', { withTimezone: true }),
+    ...timestamps,
+  },
+  (t) => [
+    unique('reviews_stay_side_uk').on(t.stayId, t.side),
+    check(
+      'reviews_side_shape',
+      sql`(${t.side} = 'guest_to_host')
+          OR (${t.cleanliness} IS NULL AND ${t.accuracy} IS NULL AND ${t.checkIn} IS NULL
+              AND ${t.communication} IS NULL AND ${t.location} IS NULL AND ${t.value} IS NULL)`,
+    ),
+  ],
+);
+
+
+export const collections = pgTable(
+  'collections',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    userId: uuid('user_id')
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    workspaceId: uuid('workspace_id').references(() => workspaces.id),
+    name: text('name').notNull(),
+    shareToken: text('share_token'),
+    visibility: collectionVisibilityEnum('visibility')
+      .notNull()
+      .default('private'),
+    /**
+     * ADR-032. The one list `/me/saved` writes into, created lazily on a
+     * person's first save.
+     *
+     * A flag rather than a name or an age, because F-B16 explicitly permits
+     * duplicate collection names, so the name cannot identify the default list,
+     * and age stops working the day somebody deletes their oldest list.
+     */
+    isDefault: boolean('is_default').notNull().default(false),
+    ...timestamps,
+  },
+  (t) => [
+    /**
+     * At most one default list per person, enforced by the database.
+     *
+     * This is load bearing, not tidiness. Without it two hearts tapped in the
+     * same instant each find no default, each create one, and the person
+     * quietly ends up with two Saved lists holding half their saves each. With
+     * it the loser of the race takes a unique violation and retries into the
+     * winner's row.
+     */
+    uniqueIndex('collections_one_default_per_user_uk')
+      .on(t.userId)
+      .where(sql`${t.isDefault}`),
+  ],
+);
+
+
+export const collectionItems = pgTable(
+  'collection_items',
+  {
+    collectionId: uuid('collection_id')
+      .notNull()
+      .references(() => collections.id, { onDelete: 'cascade' }),
+    propertyId: uuid('property_id')
+      .notNull()
+      .references(() => properties.id, { onDelete: 'cascade' }),
+    createdAt: timestamp('created_at', { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (t) => [primaryKey({ columns: [t.collectionId, t.propertyId] })],
+);
+
+
+export const arrivalGuides = pgTable('arrival_guides', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  propertyId: uuid('property_id')
+    .notNull()
+    .unique()
+    .references(() => properties.id, { onDelete: 'cascade' }),
+  wifi: text('wifi'),
+  lockCode: text('lock_code'),
+  directions: text('directions'),
+  houseManual: text('house_manual'),
+  revealOnStaffed: boolean('reveal_on_staffed').notNull().default(false),
+  ...timestamps,
+});
+
+// ===========================================================================
+// §7  RESIDENCE  (leases + lifecycle + broker channel)
+// ===========================================================================

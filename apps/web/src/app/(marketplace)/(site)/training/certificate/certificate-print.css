@@ -1,0 +1,139 @@
+/*
+ * The half of the certificate's print rules that has to reach outside the
+ * document.
+ *
+ * A PLAIN stylesheet, not a CSS Module, and the distinction is forced rather
+ * than chosen: Next compiles `*.module.css` with pure-selector enforcement, so
+ * a rule whose selectors are all global — `html`, `body`, `body *` — is a build
+ * error there, not a global rule. `html` and `body` are ANCESTORS of the
+ * certificate, so no local class can anchor them either. Everything the
+ * document itself owns stays in `certificate.module.css`; only the page around
+ * it is here.
+ *
+ * It is imported by `certificate-screen.tsx`, which is legal for any component
+ * in the App Router and keeps the whole of this behaviour inside the route
+ * directory. It therefore loads on `/training/certificate` and nowhere else.
+ *
+ * WHY IT IS NEEDED. The marketplace chrome — the floating header, the full
+ * site footer, the mobile tab bar, the breadcrumbs, the toolbar with the print
+ * button in it, the delivery note — is all page furniture, and every one of
+ * them would print. A certificate arriving on paper under a navigation bar is
+ * not a certificate anybody frames.
+ *
+ * Hiding everything under `body` and then revealing the certificate's own
+ * subtree — which `certificate.module.css` does, from a `.paper` selector that
+ * out-ranks `body *` on specificity in any load order — does that WITHOUT
+ * naming a single component of the site chrome. That matters: this route does
+ * not own the header or the footer, and a print rule that hardcoded their class
+ * names would break silently the day they were renamed.
+ *
+ * It is done in TWO passes, and the second exists because the first is not
+ * enough on its own: `visibility: hidden` stops a box painting but still lets
+ * it occupy space, so the header left the top third of the sheet blank and
+ * pushed the certificate onto a second page. The `:has()` pass then collapses
+ * those boxes outright. The order matters — see the comment on that rule for
+ * what each pass is worth when the other cannot run.
+ *
+ * This is the same technique, for the same reasons, as
+ * `src/components/receipt/receipt-print.css`. It is copied rather than shared
+ * because that file is owned by the EBM receipt and states its rules in terms
+ * of the signed-in application shell; a shared version would have to be true of
+ * both shells at once, and neither feature could then change its own printing
+ * without touching the other's.
+ */
+
+@media print {
+  html,
+  body {
+    height: auto !important;
+    max-height: none !important;
+    overflow: visible !important;
+    /*
+     * Nothing is painted. The page ground when printing is the sheet in the
+     * tray, and flooding it with the app's theme colour would send a dark
+     * rectangle to the printer for anyone reading in dark mode. `transparent`
+     * is both the correct answer and the one that needs no colour at all.
+     */
+    background: transparent !important;
+  }
+
+  /*
+   * Release every scroll container and height cap between the document and the
+   * certificate. Deliberately broad: the alternative is naming the marketplace
+   * layout's own classes from this file, which is the thing this stylesheet
+   * exists to avoid.
+   */
+  body * {
+    overflow: visible !important;
+    max-height: none !important;
+  }
+
+  /*
+   * NOTHING PAINTS A GROUND. Clearing `html` and `body` above is not enough:
+   * `<main>` and the page column are ANCESTORS of the certificate, so they
+   * survive every hiding rule here by design — and in dark mode they carry
+   * `--background`, which is near-black. A reader in dark mode pressing print
+   * would get a black sheet with the certificate's ink invisible on it.
+   *
+   * Killing every background colour is the right blunt instrument for a printed
+   * document, and it is what a printer's own "no background graphics" setting
+   * does anyway. It costs the certificate nothing: the paper is meant to be
+   * unpainted here, and both of the seal's rings are BORDERS drawn in the
+   * accent token, which is why neither of them is a box-shadow.
+   */
+  body,
+  body * {
+    background-color: transparent !important;
+    background-image: none !important;
+    box-shadow: none !important;
+  }
+
+  body *,
+  body::before,
+  body::after {
+    visibility: hidden !important;
+  }
+
+  /*
+   * The `visibility` pass above hides the chrome but does not COLLAPSE it: a
+   * hidden box still occupies its space, so the site header and the breadcrumb
+   * band leave most of the first sheet blank above the certificate and push it
+   * onto a second page.
+   *
+   * This second pass removes it. `:has()` selects the ancestors of the
+   * certificate — the only elements that must survive — and everything else
+   * under `body` that is neither an ancestor, nor the paper, nor inside it is
+   * taken out of flow entirely.
+   *
+   * WHY THE FIRST PASS STAYS. A browser that does not understand `:has()`
+   * discards this whole rule as invalid, and then the `visibility` pass is
+   * still standing: the printout keeps its blank band and is otherwise correct.
+   * Replacing the first pass with this one would mean the whole marketplace
+   * chrome printing on such a browser, which is a much worse failure than a
+   * gap. Two passes, degrading in the safe direction.
+   *
+   * `.injishi-certificate-paper` is a plain global class carried by the
+   * document alongside its hashed module class, and it exists solely so this
+   * file can name the certificate from outside the module. It carries no
+   * styles.
+   */
+  body
+    *:not(:has(.injishi-certificate-paper)):not(.injishi-certificate-paper):not(
+      .injishi-certificate-paper *
+    ) {
+    display: none !important;
+  }
+
+}
+
+@page {
+  /*
+   * LANDSCAPE, named rather than left to `auto`. The document is an A4
+   * landscape sheet by construction — `aspect-ratio: 297 / 210` in the module —
+   * and printed onto a portrait page it is scaled to the width of the paper and
+   * leaves two thirds of the sheet empty. This is the one thing a certificate
+   * needs from `@page` that a receipt does not.
+   */
+  size: A4 landscape;
+  margin: 10mm;
+}

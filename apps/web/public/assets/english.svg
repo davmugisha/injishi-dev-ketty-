@@ -1,0 +1,11 @@
+﻿<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512" role="img" aria-label="Flag of Rwanda">
+  <rect width="512" height="256" fill="#00A1DE"></rect>
+  <rect y="256" width="512" height="128" fill="#FAD201"></rect>
+  <rect y="384" width="512" height="128" fill="#20603D"></rect>
+  <g transform="translate(396 86)">
+    <g fill="#E5BE01">
+      <path d="M0-52 7.3-16.6 30.6-42.1 16.6-7.3 52 0 16.6 7.3 42.1 30.6 7.3 16.6 0 52-7.3 16.6-30.6 42.1-16.6 7.3-52 0-16.6-7.3-42.1-30.6-7.3-16.6z"></path>
+      <circle r="27"></circle>
+    </g>
+  </g>
+</svg>

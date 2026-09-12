@@ -1,0 +1,70 @@
+/* Storybook's stylesheet: the stack a consuming app loads, in the order it
+ * loads it (`apps/app/src/app/globals.css` is the model). Skipping any line
+ * here would hide exactly the class of bug it exists to catch:
+ *
+ *   styles.css        the package's `@source` — without it Tailwind never scans
+ *                     `src/` and a component renders missing the classes only it
+ *                     spells (AGENTS.md, "A consumer must import the package
+ *                     stylesheet").
+ *   @heroui/styles    the BEM classes that paint Button, Badge, Checkbox and
+ *                     the other HeroUI adapters.
+ *   heroui.css        the live Injishi palette. It must land AFTER HeroUI, or
+ *                     every surface renders HeroUI's stock blue.
+ *
+ * What this file must NOT do is add a token, a role or a component rule of its
+ * own. A story that only looks right because of something defined here is a
+ * story that lies about what the apps will render. */
+@import "tailwindcss" source(none);
+@import "../src/styles.css";
+@import "@heroui/styles";
+@import "@injishi/design-tokens/heroui.css";
+
+/* The theme class the toolbar stamps on <html>, the same line all three apps
+ * carry. Without it `dark:` follows the operating system, not the toolbar. */
+@custom-variant dark (&:where(.dark, .dark *));
+
+/* The stories, and this directory: the ground toolbar in preview.tsx spells
+ * `bg-canvas` and nothing else does, so without the second line the Canvas
+ * ground compiled to nothing and rendered transparent. */
+@source "../stories";
+@source "./";
+
+/* Families, not tokens: the token package deliberately emits no font family
+ * (a family is an app's fact). These mirror `apps/web/src/lib/fonts.ts` and
+ * `_injishi-public.css` exactly, reading the same binaries through the
+ * `staticDirs` entry in main.ts. */
+@font-face {
+  font-family: "Figtree";
+  src: url("/fonts/Figtree-Variable.woff2") format("woff2");
+  font-weight: 300 900;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: "Spectral";
+  src: url("/fonts/Spectral-Medium.woff2") format("woff2");
+  font-weight: 500;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: "Spectral";
+  src: url("/fonts/Spectral-Bold.woff2") format("woff2");
+  font-weight: 700;
+  font-style: normal;
+  font-display: swap;
+}
+
+:root {
+  --font-figtree: "Figtree";
+  --font-spectral: "Spectral";
+}
+
+@theme inline {
+  --font-sans: var(--font-figtree), ui-sans-serif, system-ui, sans-serif;
+  --font-display: var(--font-spectral), ui-serif, Georgia, serif;
+}
+
+body {
+  font-family: var(--font-sans);
+}

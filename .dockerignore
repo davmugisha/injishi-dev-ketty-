@@ -1,0 +1,51 @@
+# Build context for infra/docker/Dockerfile.* — the context is the repo root.
+#
+# Everything here is either rebuilt inside the image or has no business in it.
+# Left out, the context is hundreds of megabytes of Next build caches and
+# installed node_modules, and Railway uploads all of it on every deploy.
+#
+# NOTE: packages/ is NOT excluded. It is the committed source of the shared
+# packages' build output, and `workspace:*` resolves to it. Without it the
+# install fails.
+
+**/node_modules
+.git
+.gitignore
+
+# Build output.
+#
+# NEVER add a bare `**/dist` rule here. packages/*/dist IS the built package —
+# `main` and `types` point straight into it — and excluding it is not a smaller
+# image, it is 90 TS2307 errors on `@injishi/auth` and `@injishi/contracts` at
+# `nest build`. Every rule below is scoped to a workspace directory, the same
+# way .gitignore scopes its own, so packages/ is never swept up.
+apps/*/dist
+server/*/dist
+apps/*/.next
+apps/*/.next-prod
+apps/*/.next-build
+apps/*/.turbo
+apps/*/.expo
+apps/*/out
+apps/*/build
+**/*.tsbuildinfo
+
+# Local state and secrets
+**/.env
+**/.env.*
+!**/.env.example
+**/.vercel
+.pnpm-store
+**/coverage
+
+# Editor / AI context
+.claude
+.claude.json
+.cursor
+.vscode
+.idea
+CLAUDE.md
+AGENTS.md
+
+# Docs that no image needs
+docs

@@ -1,0 +1,4 @@
+# provision.sh runs under /bin/sh in the minio/mc container. A Windows checkout
+# with core.autocrlf would otherwise hand it CRLF endings, and sh reads the \r
+# as part of every command.
+*.sh text eol=lf

@@ -1,0 +1,3 @@
+DROP INDEX "bookings_room_type_idx";--> statement-breakpoint
+CREATE INDEX "bookings_hold_overlap_idx" ON "bookings" USING btree ("room_type_id","check_in","check_out") WHERE "bookings"."status" IN ('pending_approval', 'confirmed');--> statement-breakpoint
+CREATE INDEX "bookings_pending_expiry_idx" ON "bookings" USING btree ("approval_expires_at") WHERE "bookings"."status" = 'pending_approval' AND "bookings"."approval_expires_at" IS NOT NULL;

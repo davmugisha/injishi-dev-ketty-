@@ -1,0 +1,84 @@
+# Build and run apps/web (public origin; operator routes rewrite to the app zone).
+#
+# Built from the repository ROOT so workspace packages resolve:
+#   docker build -f infra/docker/Dockerfile.web -t injishi-web .
+#
+# packages/* is the source of the shared packages (ADR-034). There is no
+# vendor/ tree and no packages/config member. pnpm-workspace.yaml globs
+# apps/*, server/*, packages/* — every member's package.json is copied so
+# `pnpm install --frozen-lockfile` matches the lockfile.
+#
+# OPERATOR_APP_URL and NEXT_PUBLIC_* are ARG/ENV on the build stage because
+# next.config.ts rewrites() and Next inlining bake them at compile time.
+# Default OPERATOR_APP_URL is the compose service name, not localhost.
+FROM node:22-alpine AS base
+ENV PNPM_HOME=/pnpm
+ENV PATH=$PNPM_HOME:$PATH
+ENV COREPACK_ENABLE_DOWNLOAD_PROMPT=0
+RUN corepack enable
+WORKDIR /repo
+
+# ---- dependencies ----------------------------------------------------------
+# Manifests only, so a source edit does not re-run the install.
+FROM base AS deps
+COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
+COPY apps/web/package.json ./apps/web/
+COPY apps/app/package.json ./apps/app/
+COPY apps/admin/package.json ./apps/admin/
+COPY apps/mobile/package.json ./apps/mobile/
+COPY server/api/package.json ./server/api/
+COPY packages/auth/package.json ./packages/auth/
+COPY packages/contracts/package.json ./packages/contracts/
+COPY packages/design-tokens/package.json ./packages/design-tokens/
+COPY packages/ui/package.json ./packages/ui/
+COPY packages/ui-contract/package.json ./packages/ui-contract/
+COPY packages/utils/package.json ./packages/utils/
+RUN --mount=type=cache,id=pnpm,target=/pnpm/store \
+    pnpm install --frozen-lockfile --filter @injishi/web...
+
+# ---- build -----------------------------------------------------------------
+FROM base AS build
+COPY --from=deps /repo ./
+COPY packages ./packages
+COPY apps/web ./apps/web
+# Standalone output is opt-in; see apps/web/next.config.ts.
+ARG OPERATOR_APP_URL=http://app:3002
+ARG NEXT_PUBLIC_SITE_URL=https://www.injishi.com
+ARG NEXT_PUBLIC_WEB_URL=https://www.injishi.com
+ARG NEXT_PUBLIC_API_URL=https://api.injishi.com
+# Public operator origin is the web origin (the zone), not the app service.
+ARG NEXT_PUBLIC_PMS_URL=https://www.injishi.com
+# The admin console's origin. Web's sign-in screen sends a signed-in staffer
+# back only to an origin on its allowlist (src/lib/redirect.ts), and that list
+# is inlined here, so an image built without it strands admin at `/`.
+ARG NEXT_PUBLIC_ADMIN_URL=https://admin.injishi.com
+# `demo` for the demo stack's image and nothing else (ADR-043, AC-14). It turns
+# on the middleware's strip of production's session cookies and decides nothing
+# on any screen. Empty means production, which never strips.
+ARG NEXT_PUBLIC_INJISHI_ENVIRONMENT=
+ENV NEXT_TELEMETRY_DISABLED=1 \
+    BUILD_STANDALONE=1 \
+    NEXT_PUBLIC_INJISHI_ENVIRONMENT=$NEXT_PUBLIC_INJISHI_ENVIRONMENT \
+    OPERATOR_APP_URL=$OPERATOR_APP_URL \
+    NEXT_PUBLIC_SITE_URL=$NEXT_PUBLIC_SITE_URL \
+    NEXT_PUBLIC_WEB_URL=$NEXT_PUBLIC_WEB_URL \
+    NEXT_PUBLIC_API_URL=$NEXT_PUBLIC_API_URL \
+    NEXT_PUBLIC_PMS_URL=$NEXT_PUBLIC_PMS_URL \
+    NEXT_PUBLIC_ADMIN_URL=$NEXT_PUBLIC_ADMIN_URL
+RUN pnpm --filter @injishi/web build
+
+# ---- run -------------------------------------------------------------------
+FROM base AS runner
+ENV NODE_ENV=production NEXT_TELEMETRY_DISABLED=1 PORT=3000 HOSTNAME=0.0.0.0
+RUN addgroup -g 1001 -S nodejs && adduser -S nextjs -u 1001
+
+COPY --from=build --chown=nextjs:nodejs /repo/apps/web/.next/standalone ./
+COPY --from=build --chown=nextjs:nodejs /repo/apps/web/.next/static ./apps/web/.next/static
+COPY --from=build --chown=nextjs:nodejs /repo/apps/web/public ./apps/web/public
+
+USER nextjs
+EXPOSE 3000
+HEALTHCHECK --interval=30s --timeout=5s --start-period=20s \
+  CMD node -e "fetch('http://127.0.0.1:3000/').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"
+
+CMD ["node", "apps/web/server.js"]

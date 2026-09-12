@@ -1,0 +1,464 @@
+"use client";
+
+import { ChevronDown, Flag } from "lucide-react";
+import Link from "next/link";
+import { useSearchParams } from "next/navigation";
+import { useEffect, useMemo, useState } from "react";
+import type { DateRange } from "react-day-picker";
+import { Button, Popover, PopoverContent, PopoverTrigger } from "@injishi/ui";
+import { formatPrice, nightsBetween, pluralize } from "@injishi/utils";
+import { BookingGuestPicker } from "@/components/property/booking-guest-picker";
+import { StayDatePicker } from "@/components/search/stay-date-picker";
+import { computeQuote } from "@/lib/booking";
+import {
+  bookHref,
+  isDated,
+  parseIntent,
+  toParamDate,
+  type GuestCounts,
+  type StayIntent,
+} from "@/lib/search-params";
+import { fromIntent, guestSummary, toDateRange } from "@/lib/stay-search";
+import {
+  fetchBookingCalendar,
+  rangeProblem,
+  type BookingCalendar,
+} from "@/data/availability";
+import { fetchPropertyRooms, type PropertyRooms } from "@/data/property-rooms";
+import type { ApiResult } from "@/lib/api";
+import type { PropertyDetail } from "@/data/properties";
+
+/**
+ * The booking widget.
+ *
+ * Everything it shows is a preview. The server re-derives every amount from
+ * the room's own rate when the booking is created and ignores what the client
+ * sends, so a drift here changes the quote, never the charge.
+ *
+ * **It opens on what the guest already said.** The dates and the party arrive
+ * in the URL from the hero search and from the explore grid, and this card
+ * seeds itself from them. It used to open empty on every visit and ask both
+ * questions a second time, which is the defect the search contract in
+ * `lib/search-params.ts` exists to close. `useSearchParams` keeps the property
+ * page itself statically generated: the params are read in the browser, so the
+ * page needs no `searchParams` prop and stays on `generateStaticParams`.
+ *
+ * The three controls sit inside one bordered box divided by hairlines rather
+ * than as three separate boxes. That is not decoration: it is what makes the
+ * dates and the party read as a single question the card is asking, and it is
+ * the detail that separates a booking card from a stack of form fields.
+ *
+ * The primary action is never disabled. An undated card cannot price a stay,
+ * but a greyed-out button reads as breakage; instead the button stays live and
+ * opens the picker that unblocks it.
+ */
+export function BookingWidget({ property }: { property: PropertyDetail }) {
+  const params = useSearchParams();
+  const arrived = useMemo(() => parseIntent(params), [params]);
+
+  // The URL seeds the card; edits after that belong to the card. A related
+  // stay carries the same intent forward, so a remount lands on the same
+  // answer rather than resetting the guest to nothing.
+  const [range, setRange] = useState<DateRange | undefined>(() =>
+    toDateRange(fromIntent(arrived)),
+  );
+  const [guests, setGuests] = useState<GuestCounts>(() => arrived.guests);
+  const [datesOpen, setDatesOpen] = useState(false);
+  const [guestsOpen, setGuestsOpen] = useState(false);
+
+  const nights = range?.from && range?.to ? nightsBetween(range.from, range.to) : 0;
+
+  /**
+   * Carried, not offered.
+   *
+   * The card used to own a non-refundable checkbox. Whether that rate exists is
+   * `nonrefundableEligible` on the ROOM TYPE (F-B05 Path A), and this card
+   * never reads a room type, so it was offering a 10% discount on every
+   * property in the catalogue. The server drops the flag for a room type that
+   * is not eligible, so a guest could tick it, watch the total fall, and be
+   * charged the full rate (ADR-014 AC-7).
+   *
+   * The choice moved to the checkout, which reads the real room type and knows
+   * the real answer. The value is still read out of the URL and carried onward,
+   * so a link that already carries it keeps working.
+   */
+  const nonRefundable = params.get("nonRefundable") === "1";
+
+  /*
+   * The real inventory behind this page, or the honest absence of it.
+   *
+   * Read in the browser rather than on the server so this page stays statically
+   * generated — the same reason `useSearchParams` is used above. A 404 is the
+   * ordinary answer for most of the catalogue and is not a failure state: it
+   * means this business has not published rooms on Injishi.
+   */
+  const [rooms, setRooms] = useState<ApiResult<PropertyRooms> | null>(null);
+  useEffect(() => {
+    let cancelled = false;
+    void (async () => {
+      const result = await fetchPropertyRooms(property.slug);
+      if (!cancelled) setRooms(result);
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [property.slug]);
+
+  const bookable = rooms?.status === "ok" ? rooms.data.bookable : null;
+  const bookableRoomTypeId = bookable?.id ?? null;
+
+  /*
+   * What is left to sell (ADR-047 wave E).
+   *
+   * Fetched once the room is known, so the calendar can grey out nights that
+   * are already taken instead of pricing them and letting the API refuse the
+   * booking at the last click. A failure leaves `calendar` null, which offers
+   * every night: the server re-checks under a row lock at purchase, so an
+   * optimistic calendar is safe and a pessimistic one loses bookings.
+   */
+  const [calendar, setCalendar] = useState<BookingCalendar | null>(null);
+  useEffect(() => {
+    if (!bookableRoomTypeId) {
+      setCalendar(null);
+      return;
+    }
+    let cancelled = false;
+    void (async () => {
+      const result = await fetchBookingCalendar(bookableRoomTypeId);
+      if (!cancelled) setCalendar(result);
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [bookableRoomTypeId]);
+
+  /*
+   * ONE rate, and the server's wins.
+   *
+   * `property.nightlyRateRwf` is the rack rate this business publishes, which
+   * is what a directory quotes for a place it does not sell. Where Injishi DOES
+   * sell the room, the rate that matters is the one the API will charge, and
+   * quoting the other one is how a preview comes to disagree with a charge —
+   * the exact defect `lib/booking.ts` exists to prevent one layer down.
+   */
+  const quotedRateRwf = bookable?.nightlyRateRwf ?? property.nightlyRateRwf;
+  const showingRackRate = bookable === null && property.nightlyRateRwf !== null;
+
+  const quote = useMemo(
+    () =>
+      quotedRateRwf === null
+        ? null
+        : computeQuote({
+            nightlyRateRwf: quotedRateRwf,
+            nights,
+            nonRefundable,
+          }),
+    [quotedRateRwf, nights, nonRefundable],
+  );
+
+  /**
+   * The checkout link, or null.
+   *
+   * `bookHref` takes a `DatedIntent`, so the type system refuses a checkout URL
+   * with no range in it. The old card hand-concatenated five parameters into a
+   * template string and tested the two dates by eye at the call site.
+   */
+  const outgoing: StayIntent = {
+    ...arrived,
+    checkIn: toParamDate(range?.from),
+    checkOut: range?.from ? toParamDate(range?.to) : null,
+    guests,
+  };
+  /*
+   * The server's own rules, asked BEFORE the guest commits to anything.
+   *
+   * `MAX_NIGHTS` and the minimum stay were enforced only at `POST /bookings`,
+   * so a 120-night range or a two-night stay in a three-night-minimum room was
+   * accepted by this card, priced, carried through checkout, and refused at the
+   * final press. The API still enforces every one of these — this only stops
+   * the guest finding out last.
+   */
+  const dateProblem = isDated(outgoing)
+    ? rangeProblem(outgoing.checkIn, outgoing.checkOut, calendar)
+    : null;
+
+  const checkoutHref =
+    quote && bookableRoomTypeId && !dateProblem && isDated(outgoing)
+      ? bookHref(property.slug, outgoing, {
+          nonRefundable,
+          // ONE id now, and it is the room's. The checkout resolves the
+          // property from it server-side (`GET /api/v1/bookable/:roomTypeId`),
+          // so a link can no longer name a room and a property that disagree —
+          // and `data/demo-listing.ts`, which lent one seeded room to every
+          // property in the catalogue, is deleted rather than switched off.
+          roomTypeId: bookableRoomTypeId,
+        })
+      : null;
+
+  return (
+    <div className="flex h-max flex-col lg:sticky lg:top-24">
+      <aside
+        id="booking"
+        className="flex flex-col rounded-card border border-input bg-card p-6 shadow-[0_6px_16px_rgba(4,35,48,0.12)]"
+      >
+        <h2 className="mb-5 text-xl font-semibold leading-tight text-page-fg">
+          {quote ? (
+            <>
+              <span className="underline underline-offset-4">
+                {formatPrice(quote.grossRwf)}
+              </span>{" "}
+              <span className="font-normal">for {pluralize(nights, "night")}</span>
+            </>
+          ) : (
+            "Add dates for prices"
+          )}
+        </h2>
+
+        {/* One box, three cells, hairlines between. See the note above. */}
+        <div className="overflow-hidden rounded border border-input">
+          <div className="flex">
+            <Popover open={datesOpen} onOpenChange={setDatesOpen}>
+              <PopoverTrigger asChild>
+                <FieldButton
+                  label="Check-in"
+                  value={range?.from ? formatCell(range.from) : "Add date"}
+                  muted={!range?.from}
+                />
+              </PopoverTrigger>
+              {/*
+                Radix does not shrink an over-tall panel on its own, so without
+                a cap the calendar ran off the bottom of short viewports and the
+                footer buttons were simply cut off. Capping to the space Radix
+                measures, and padding the collision box, keeps it on screen.
+              */}
+              <PopoverContent
+                align="end"
+                collisionPadding={16}
+                className="max-h-[var(--radix-popover-content-available-height)] w-auto scrollbar overflow-y-auto p-0"
+              >
+                <StayDatePicker
+                  variant="booking"
+                  calendar={calendar}
+                  range={range}
+                  onChange={setRange}
+                  onDone={() => setDatesOpen(false)}
+                  doneLabel="Close"
+                />
+              </PopoverContent>
+            </Popover>
+
+            <span aria-hidden className="w-px self-stretch bg-input" />
+
+            <FieldButton
+              label="Checkout"
+              value={range?.to ? formatCell(range.to) : "Add date"}
+              muted={!range?.to}
+              onClick={() => setDatesOpen(true)}
+            />
+          </div>
+
+          <span aria-hidden className="block h-px w-full bg-input" />
+
+          <Popover open={guestsOpen} onOpenChange={setGuestsOpen}>
+            <PopoverTrigger asChild>
+              <FieldButton
+                label="Guests"
+                value={guestSummary(guests)}
+                full
+                chevron={guestsOpen ? "up" : "down"}
+              />
+            </PopoverTrigger>
+            <PopoverContent
+              align="end"
+              collisionPadding={16}
+              className="max-h-[var(--radix-popover-content-available-height)] w-auto scrollbar overflow-y-auto p-0"
+            >
+              <BookingGuestPicker
+                guests={guests}
+                onChange={setGuests}
+                onClose={() => setGuestsOpen(false)}
+                maxGuests={property.maxGuests}
+              />
+            </PopoverContent>
+          </Popover>
+        </div>
+
+        {/*
+          The fields run straight into the button. The rate option used to sit
+          between them, which broke the one path the card exists to offer and
+          asked a pricing question before there were any dates to price.
+        */}
+        {/*
+          The label used to read "Request to book" on every property in the
+          catalogue. That is a booking MODE, it is a per-room-type fact
+          (F-B03), and nothing here knows it: a property whose rooms are
+          instant_book was being told its guest would wait for a host who
+          never has to answer. Where the mode is unknown the wording promises
+          nothing and describes only what the button does (ADR-014 call 7 and
+          AC-10). The checkout, which reads the real room type, is where the
+          mode is finally named.
+        */}
+        {/*
+          Three states, not two, because "we have no rooms here" and "you have
+          not picked dates" are different problems and only one of them is the
+          guest's to fix. The primary action is still never disabled where the
+          guest CAN act — a greyed-out button reads as breakage — but a property
+          Injishi does not sell gets a truthful sentence instead of a button
+          that opens a date picker leading nowhere.
+        */}
+        {/* The reason a chosen range cannot be booked, where the guest chose it. */}
+        {dateProblem ? (
+          <p role="alert" className="mt-4 text-sm text-danger-text">
+            {dateProblem}
+          </p>
+        ) : null}
+
+        {checkoutHref ? (
+          <Button asChild size="lg" className="mt-4 h-12 w-full rounded text-base">
+            <Link href={checkoutHref}>Review this stay</Link>
+          </Button>
+        ) : dateProblem ? (
+          <Button
+            size="lg"
+            className="mt-4 h-12 w-full rounded text-base"
+            onClick={() => setDatesOpen(true)}
+          >
+            Pick different dates
+          </Button>
+        ) : rooms !== null && bookable === null ? (
+          <p className="mt-4 rounded border border-input p-3 text-center text-sm text-page-fg">
+            Not open for online booking yet.{" "}
+            <Link href="/support" className="underline underline-offset-4">
+              Ask us about this stay
+            </Link>
+          </p>
+        ) : (
+          <Button
+            size="lg"
+            className="mt-4 h-12 w-full rounded text-base"
+            onClick={() => setDatesOpen(true)}
+          >
+            Book Now
+          </Button>
+        )}
+
+        {/* One reassurance line, not two stacked at two different sizes. */}
+        <p className="mt-4 text-center text-sm text-page-fg-70">
+          {bookable
+            ? "You will not be charged yet. Payment is held in escrow until check-in."
+            : showingRackRate
+              ? "Indicative rate published by the property. Injishi is not selling this stay."
+              : "You will not be charged yet. Payment is held in escrow until check-in."}
+        </p>
+
+        {quote ? (
+          <>
+            <ul className="m-0 mt-4 flex list-none flex-col gap-3 p-0 text-base">
+              {quote.lines.map((line) => (
+                <li key={line.label} className="flex items-start justify-between gap-4">
+                  <span className="text-page-fg underline underline-offset-4">
+                    {line.label}
+                  </span>
+                  <span className="shrink-0 text-page-fg">
+                    {line.amountRwf < 0 ? "-" : ""}
+                    {formatPrice(Math.abs(line.amountRwf))}
+                  </span>
+                </li>
+              ))}
+            </ul>
+
+            <div className="mt-4 flex items-center justify-between border-t border-input pt-4">
+              <b className="text-base text-page-fg">Total</b>
+              <b className="text-base text-page-fg">{formatPrice(quote.grossRwf)}</b>
+            </div>
+          </>
+        ) : null}
+      </aside>
+
+      <Link
+        href="/support"
+        className="mt-5 flex items-center justify-center gap-2 text-sm text-page-fg-70 underline underline-offset-4 transition-colors hover:text-page-fg"
+      >
+        <Flag width={14} height={14} strokeWidth={1.3} aria-hidden />
+        Report this listing
+      </Link>
+    </div>
+  );
+}
+
+/**
+ * The card, before the browser has read the URL.
+ *
+ * A `Suspense` fallback rather than a spinner: the widget is 420px of sticky
+ * column, and collapsing it to nothing while the params resolve moves every
+ * paragraph beside it. The shape is the shape of the loaded card.
+ */
+export function BookingWidgetSkeleton() {
+  return (
+    <div className="flex h-max flex-col lg:sticky lg:top-24" aria-hidden>
+      <div className="flex flex-col gap-4 rounded-card border border-input bg-card p-6">
+        <div className="h-7 w-2/3 animate-pulse rounded bg-surface-secondary" />
+        <div className="h-[104px] animate-pulse rounded bg-surface-secondary" />
+        <div className="h-12 animate-pulse rounded bg-surface-secondary" />
+        <div className="mx-auto h-4 w-4/5 animate-pulse rounded bg-surface-secondary" />
+      </div>
+    </div>
+  );
+}
+
+/** "14/8/2026" - the numeric form the reference prints in its date cells. */
+function formatCell(date: Date): string {
+  return `${date.getDate()}/${date.getMonth() + 1}/${date.getFullYear()}`;
+}
+
+function FieldButton({
+  label,
+  value,
+  muted = false,
+  full = false,
+  chevron,
+  onClick,
+  ...rest
+}: {
+  label: string;
+  value: string;
+  muted?: boolean;
+  full?: boolean;
+  chevron?: "up" | "down";
+  onClick?: () => void;
+} & React.ButtonHTMLAttributes<HTMLButtonElement>) {
+  return (
+    <Button
+      variant="ghost"
+      shape="square"
+      onClick={onClick}
+      /* `--button-bg`, not a `bg-*` class. HeroUI's `.button--*` rules declare
+         `background-color: var(--button-bg)` unlayered, and unlayered beats
+         Tailwind's `@layer utilities`, so a colour class here never lands.
+         The hover wash is ink at alpha; pure black is banned platform wide. */
+      className={`${full ? "w-full" : "flex-1"} h-auto justify-between gap-2 px-3 py-2.5 text-left font-normal [--button-bg:transparent] [--button-bg-hover:var(--surface-secondary)]`}
+      {...rest}
+    >
+      <span className="min-w-0">
+        <span className="block text-2xs font-semibold uppercase tracking-[0.04em] text-page-fg">
+          {label}
+        </span>
+        <span
+          className={`block truncate text-sm ${muted ? "text-page-fg-70" : "text-page-fg"}`}
+        >
+          {value}
+        </span>
+      </span>
+
+      {chevron ? (
+        <ChevronDown
+          width={14}
+          height={14}
+          strokeWidth={1.6}
+          aria-hidden
+          className={`shrink-0 text-page-fg transition-transform ${chevron === "up" ? "rotate-180" : ""}`}
+        />
+      ) : null}
+    </Button>
+  );
+}

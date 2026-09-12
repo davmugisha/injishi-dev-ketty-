@@ -1,0 +1,337 @@
+/* AUTO-GENERATED from @injishi/design-tokens — do not edit by hand.
+ * Regenerate: pnpm --filter @injishi/design-tokens generate:css
+ * Single source: packages/design-tokens/src/{ramps,semantic,heroui}.ts */
+
+:root {
+  --ink-50: #F2FBFF;
+  --ink-100: #E6F4FB;
+  --ink-200: #CFE7F4;
+  --ink-300: #B3D8EB;
+  --ink-400: #6DA7C4;
+  --ink-500: #428AAA;
+  --ink-600: #287291;
+  --ink-700: #145A76;
+  --ink-800: #09465D;
+  --ink-900: #093344;
+  --ink-950: #042330;
+  --green-50: #EFFDEC;
+  --green-100: #E1F8DD;
+  --green-200: #C7EFC1;
+  --green-300: #A4E49B;
+  --green-400: #6FD762;
+  --green-500: #42C42F;
+  --green-600: #22AD01;
+  --green-700: #1B9101;
+  --green-800: #147900;
+  --green-900: #18610D;
+  --green-950: #174D0F;
+
+  /* fixed — one value in both themes (ADR-010 call 2) */
+  --ink: #042330;
+  --white: #FFFFFF;
+  --black: var(--ink-950);
+  --slate-line: #858D9A;
+  --surface-tint: #E6E9F2;
+  --canvas: #F7FAFB;
+  --control-wash: #696D78;
+  --placeholder-dim: #878787;
+
+  /* semantic (light) */
+  --background: #FFFFFF;
+  --foreground: var(--ink-950);
+  --card: #FFFFFF;
+  --card-foreground: var(--ink-950);
+  --popover: #FFFFFF;
+  --popover-foreground: var(--ink-950);
+  --primary: var(--ink-950);
+  --primary-hover: var(--ink-800);
+  --primary-foreground: #FFFFFF;
+  --secondary: var(--ink-50);
+  --secondary-foreground: var(--ink-950);
+  --muted: var(--ink-50);
+  --muted-foreground: var(--ink-600);
+  --accent: var(--green-600);
+  --accent-hover: var(--green-700);
+  --accent-foreground: var(--ink-950);
+  --accent-text: var(--green-800);
+  --destructive: #b3123c;
+  --destructive-foreground: #FFFFFF;
+  --success: var(--green-700);
+  --warning: #A26001;
+  --info: #0379A1;
+  --border: rgba(4, 35, 48, 0.14);
+  --input: rgba(4, 35, 48, 0.22);
+  --field: #FFFFFF;
+  --ring: var(--green-700);
+
+  /* aliases */
+  --accent-brand: var(--accent);
+  --accent-brand-hover: var(--accent-hover);
+  --accent-brand-foreground: var(--accent-foreground);
+
+  /* non-color */
+  --radius: 0.5rem;
+}
+
+:root.dark,
+.dark {
+  /* fixed — repeated verbatim so a dark scope cannot invert them */
+  --ink: #042330;
+  --white: #FFFFFF;
+  --black: var(--ink-950);
+  --slate-line: #858D9A;
+  --surface-tint: #E6E9F2;
+  --canvas: #F7FAFB;
+  --control-wash: #696D78;
+  --placeholder-dim: #878787;
+
+  /* semantic (dark) — inverted-card */
+  --background: var(--ink-950);
+  --foreground: var(--ink-100);
+  --card: var(--ink-900);
+  --card-foreground: var(--ink-100);
+  --popover: var(--ink-800);
+  --popover-foreground: var(--ink-100);
+  --primary: var(--ink-100);
+  --primary-hover: var(--ink-200);
+  --primary-foreground: var(--ink-950);
+  --secondary: rgba(230, 244, 251, 0.08);
+  --secondary-foreground: var(--ink-100);
+  --muted: rgba(230, 244, 251, 0.08);
+  --muted-foreground: var(--ink-300);
+  --accent: var(--green-600);
+  --accent-hover: var(--green-500);
+  --accent-foreground: var(--ink-950);
+  --accent-text: var(--green-300);
+  --destructive: #FF96B4;
+  --destructive-foreground: var(--ink-950);
+  --success: var(--green-400);
+  --warning: #E0A85C;
+  --info: #70C0DC;
+  --border: rgba(230, 244, 251, 0.34);
+  --input: rgba(230, 244, 251, 0.48);
+  --field: rgba(230, 244, 251, 0.06);
+  --ring: var(--green-400);
+
+  /* aliases */
+  --accent-brand: var(--accent);
+  --accent-brand-hover: var(--accent-hover);
+  --accent-brand-foreground: var(--accent-foreground);
+}
+
+/* ── ADR-028: fixed grounds re-pin the theme block inside themselves ─────── */
+.bg-canvas,
+.bg-white,
+.bg-surface-tint {
+  color-scheme: light;
+  --background: #FFFFFF;
+  --foreground: var(--ink-950);
+  --card: #FFFFFF;
+  --card-foreground: var(--ink-950);
+  --popover: #FFFFFF;
+  --popover-foreground: var(--ink-950);
+  --primary: var(--ink-950);
+  --primary-hover: var(--ink-800);
+  --primary-foreground: #FFFFFF;
+  --secondary: var(--ink-50);
+  --secondary-foreground: var(--ink-950);
+  --muted: var(--ink-50);
+  --muted-foreground: var(--ink-600);
+  --accent: var(--green-600);
+  --accent-hover: var(--green-700);
+  --accent-foreground: var(--ink-950);
+  --accent-text: var(--green-800);
+  --destructive: #b3123c;
+  --destructive-foreground: #FFFFFF;
+  --success: var(--green-700);
+  --warning: #A26001;
+  --info: #0379A1;
+  --border: rgba(4, 35, 48, 0.14);
+  --input: rgba(4, 35, 48, 0.22);
+  --field: #FFFFFF;
+  --ring: var(--green-700);
+  --accent-brand: var(--accent);
+  --accent-brand-hover: var(--accent-hover);
+  --accent-brand-foreground: var(--accent-foreground);
+}
+
+.bg-ink,
+.bg-black,
+.bg-control-wash {
+  color-scheme: dark;
+  --background: var(--ink-950);
+  --foreground: var(--ink-100);
+  --card: var(--ink-900);
+  --card-foreground: var(--ink-100);
+  --popover: var(--ink-800);
+  --popover-foreground: var(--ink-100);
+  --primary: var(--ink-100);
+  --primary-hover: var(--ink-200);
+  --primary-foreground: var(--ink-950);
+  --secondary: rgba(230, 244, 251, 0.08);
+  --secondary-foreground: var(--ink-100);
+  --muted: rgba(230, 244, 251, 0.08);
+  --muted-foreground: var(--ink-300);
+  --accent: var(--green-600);
+  --accent-hover: var(--green-500);
+  --accent-foreground: var(--ink-950);
+  --accent-text: var(--green-300);
+  --destructive: #FF96B4;
+  --destructive-foreground: var(--ink-950);
+  --success: var(--green-400);
+  --warning: #E0A85C;
+  --info: #70C0DC;
+  --border: rgba(230, 244, 251, 0.34);
+  --input: rgba(230, 244, 251, 0.48);
+  --field: rgba(230, 244, 251, 0.06);
+  --ring: var(--green-400);
+  --accent-brand: var(--accent);
+  --accent-brand-hover: var(--accent-hover);
+  --accent-brand-foreground: var(--accent-foreground);
+}
+
+/* The one opt-out: follow the PAGE again, inside a fixed ground. */
+.dark .ground-theme,
+[data-theme="dark"] .ground-theme,
+.th-dark .ground-theme {
+  color-scheme: dark;
+  --background: var(--ink-950);
+  --foreground: var(--ink-100);
+  --card: var(--ink-900);
+  --card-foreground: var(--ink-100);
+  --popover: var(--ink-800);
+  --popover-foreground: var(--ink-100);
+  --primary: var(--ink-100);
+  --primary-hover: var(--ink-200);
+  --primary-foreground: var(--ink-950);
+  --secondary: rgba(230, 244, 251, 0.08);
+  --secondary-foreground: var(--ink-100);
+  --muted: rgba(230, 244, 251, 0.08);
+  --muted-foreground: var(--ink-300);
+  --accent: var(--green-600);
+  --accent-hover: var(--green-500);
+  --accent-foreground: var(--ink-950);
+  --accent-text: var(--green-300);
+  --destructive: #FF96B4;
+  --destructive-foreground: var(--ink-950);
+  --success: var(--green-400);
+  --warning: #E0A85C;
+  --info: #70C0DC;
+  --border: rgba(230, 244, 251, 0.34);
+  --input: rgba(230, 244, 251, 0.48);
+  --field: rgba(230, 244, 251, 0.06);
+  --ring: var(--green-400);
+  --accent-brand: var(--accent);
+  --accent-brand-hover: var(--accent-hover);
+  --accent-brand-foreground: var(--accent-foreground);
+}
+
+:where(:root:not(.dark)) .ground-theme,
+.light .ground-theme,
+[data-theme="light"] .ground-theme,
+.th-light .ground-theme {
+  color-scheme: light;
+  --background: #FFFFFF;
+  --foreground: var(--ink-950);
+  --card: #FFFFFF;
+  --card-foreground: var(--ink-950);
+  --popover: #FFFFFF;
+  --popover-foreground: var(--ink-950);
+  --primary: var(--ink-950);
+  --primary-hover: var(--ink-800);
+  --primary-foreground: #FFFFFF;
+  --secondary: var(--ink-50);
+  --secondary-foreground: var(--ink-950);
+  --muted: var(--ink-50);
+  --muted-foreground: var(--ink-600);
+  --accent: var(--green-600);
+  --accent-hover: var(--green-700);
+  --accent-foreground: var(--ink-950);
+  --accent-text: var(--green-800);
+  --destructive: #b3123c;
+  --destructive-foreground: #FFFFFF;
+  --success: var(--green-700);
+  --warning: #A26001;
+  --info: #0379A1;
+  --border: rgba(4, 35, 48, 0.14);
+  --input: rgba(4, 35, 48, 0.22);
+  --field: #FFFFFF;
+  --ring: var(--green-700);
+  --accent-brand: var(--accent);
+  --accent-brand-hover: var(--accent-hover);
+  --accent-brand-foreground: var(--accent-foreground);
+}
+
+/* Tailwind v4: map every token to a utility (bg-primary, text-muted-foreground,
+   bg-ink, border-slate-line, rounded-card, shadow-control, ...) */
+@theme inline {
+  --color-ink: var(--ink);
+  --color-white: var(--white);
+  --color-black: var(--black);
+  --color-slate-line: var(--slate-line);
+  --color-surface-tint: var(--surface-tint);
+  --color-canvas: var(--canvas);
+  --color-control-wash: var(--control-wash);
+  --color-placeholder-dim: var(--placeholder-dim);
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-hover: var(--primary-hover);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-hover: var(--accent-hover);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-accent-text: var(--accent-text);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-success: var(--success);
+  --color-warning: var(--warning);
+  --color-info: var(--info);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-field: var(--field);
+  --color-ring: var(--ring);
+  --color-accent-brand: var(--accent-brand);
+  --color-accent-brand-hover: var(--accent-brand-hover);
+  --color-accent-brand-foreground: var(--accent-brand-foreground);
+  --color-ink-50: var(--ink-50);
+  --color-ink-100: var(--ink-100);
+  --color-ink-200: var(--ink-200);
+  --color-ink-300: var(--ink-300);
+  --color-ink-400: var(--ink-400);
+  --color-ink-500: var(--ink-500);
+  --color-ink-600: var(--ink-600);
+  --color-ink-700: var(--ink-700);
+  --color-ink-800: var(--ink-800);
+  --color-ink-900: var(--ink-900);
+  --color-ink-950: var(--ink-950);
+  --color-green-50: var(--green-50);
+  --color-green-100: var(--green-100);
+  --color-green-200: var(--green-200);
+  --color-green-300: var(--green-300);
+  --color-green-400: var(--green-400);
+  --color-green-500: var(--green-500);
+  --color-green-600: var(--green-600);
+  --color-green-700: var(--green-700);
+  --color-green-800: var(--green-800);
+  --color-green-900: var(--green-900);
+  --color-green-950: var(--green-950);
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+  --radius-2xl: calc(var(--radius) + 8px);
+  --radius-3xl: calc(var(--radius) + 16px);
+  /* Literal, not a var() pointing at the same name: a theme key whose value
+     references itself is circular. Tailwind emits the :root variable here. */
+  --radius-card: 1rem;
+  --shadow-control: 0 2px 8px rgba(4, 35, 48, 0.25);
+}

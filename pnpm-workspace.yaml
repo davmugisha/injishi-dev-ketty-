@@ -1,0 +1,16 @@
+# Standalone workspace for the injishi product repo.
+#
+# `packages/*` holds the five shared packages, and globbing them here is what
+# lets apps keep `workspace:*`.
+#
+# It was called `vendor/` and was a build-output mirror of `injishi.managed`.
+# That repository is deleted, these are the only copies, and ADR-034 renamed the
+# directory to say so: a directory called `vendor` is a directory nobody edits,
+# which is the wrong instruction to leave on the only copy of a design system.
+#
+# `server/*` is globbed because the api lives in this repo. Dropping any of
+# the three breaks the standalone build: apps stop resolving `workspace:*`.
+packages:
+  - apps/*
+  - server/*
+  - packages/*
