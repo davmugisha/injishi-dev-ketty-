@@ -1,0 +1,22 @@
+{
+  "extends": "expo/tsconfig.base",
+  "compilerOptions": {
+    "strict": true,
+    // pnpm symlinks every package under node_modules/@types, and TypeScript's
+    // automatic @types scan does not enumerate those symlinks, so the jest
+    // globals went missing and every *.test.* file reported "Cannot find name
+    // 'describe'". Naming the package restores them. Types reached through an
+    // import, expo-env.d.ts and .expo/types are unaffected: they arrive via
+    // "include", not this list.
+    "types": ["jest"],
+    "paths": {
+      "@/*": ["./src/*"]
+    }
+  },
+  "include": [
+    "**/*.ts",
+    "**/*.tsx",
+    ".expo/types/**/*.ts",
+    "expo-env.d.ts"
+  ]
+}

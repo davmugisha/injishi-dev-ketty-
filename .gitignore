@@ -46,6 +46,10 @@ apps/*/.next-build/
 apps/*/.next-*/
 apps/*/.turbo/
 apps/*/.expo/
+# `apps/mobile` carries its Expo cache one level deeper than the rule above
+# reaches, so `devices.json` and the generated router types kept showing up as
+# untracked. Match `.expo/` at any depth under `apps/`.
+apps/**/.expo/
 apps/*/out/
 # `storybook build` output (ADR-045). Scoped to the one package that runs it.
 packages/ui/storybook-static/

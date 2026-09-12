@@ -1,0 +1,54 @@
+{
+  "expo": {
+    "name": "Injishi",
+    "slug": "injishi-mobile",
+    "owner": "rayaniraguha",
+    "version": "0.1.0",
+    "orientation": "portrait",
+    "scheme": "injishi",
+    "userInterfaceStyle": "automatic",
+    "backgroundColor": "#EEF7F9",
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "rw.injishi.mobile"
+    },
+    "android": {
+      "package": "rw.injishi.mobile",
+      "adaptiveIcon": {
+        "backgroundColor": "#EEF7F9"
+      }
+    },
+    "web": {
+      "bundler": "metro",
+      "output": "single"
+    },
+    "plugins": [
+      "expo-router",
+      [
+        "expo-splash-screen",
+        {
+          "image": "./assets/brand/injishi-short-1024.png",
+          "imageWidth": 200,
+          "resizeMode": "contain",
+          "backgroundColor": "#EEF7F9",
+          "dark": {
+            "image": "./assets/brand/injishi-short-white-1024.png",
+            "backgroundColor": "#030707"
+          }
+        }
+      ],
+      "expo-font",
+      "expo-localization",
+      "expo-secure-store"
+    ],
+    "experiments": {
+      "typedRoutes": true
+    },
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "db86eb15-d1d3-4152-a9a4-fe3879ea7d91"
+      }
+    }
+  }
+}
