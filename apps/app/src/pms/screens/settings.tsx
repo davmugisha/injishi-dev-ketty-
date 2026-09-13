@@ -12,21 +12,24 @@
  * billing is the business's subscription, which stays the owner's: hidden from
  * a manager's lenses and refused when its URL is typed, because the nav only
  * guards the `settings` segment, not the lens beneath it.
+ *
+ * "The owner's" is read from the grant, not from a role name (ADR-049, AC-A1,
+ * ruled 2026-09-13): `team.manage` is the one power the owner holds and a
+ * manager does not, so it stands for the business's own decisions here.
  */
 
 import { EmptyState } from "../components/ui";
 import { LensPage, type LensLink } from "../components/lens-page";
 import { Placeholder } from "../components/placeholder";
-import { useWorkspaceId } from "../data/capability";
+import { useCapability, useWorkspaceId } from "../data/capability";
 import { workspaceBase } from "../lib/nav";
-import { usePms } from "../store";
 import { EbmIntegration } from "./ebm-integration";
 
 export function Settings({ lens }: { lens: string }) {
   const workspaceId = useWorkspaceId();
-  const { state } = usePms();
+  const { can } = useCapability();
   const base = `${workspaceBase(workspaceId)}/settings`;
-  const owner = state.role === "owner";
+  const owner = can("team.manage");
 
   const lenses: LensLink[] = [
     { key: "property", label: "Property", href: base },

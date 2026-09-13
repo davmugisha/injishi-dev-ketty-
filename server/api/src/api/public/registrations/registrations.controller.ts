@@ -1,4 +1,5 @@
 import {
+  AcceptContractRequest,
   type BrokerRegistrationSummary,
   CreateBrokerRegistrationRequest,
   CreateRegistrationRequest,
@@ -14,6 +15,7 @@ import {
   Body,
   Controller,
   Get,
+  HttpCode,
   Param,
   ParseUUIDPipe,
   Post,
@@ -102,11 +104,37 @@ export class RegistrationsController {
   }
 
   /**
+   * Accept the operator contract, after creating and before paying (ADR-049,
+   * AC-R8).
+   *
+   * Its own call because the contract quotes the registration reference and
+   * the invoiced amount, and neither exists until the business does. The wizard
+   * puts the step between create and pay; `/pay` refusing without it is the
+   * control. Membership and the refusal order are the service's.
+   */
+  @Post(':id/contract')
+  @HttpCode(200)
+  @UseGuards(SessionGuard)
+  acceptContract(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body(new ZodValidationPipe(AcceptContractRequest))
+    body: AcceptContractRequest,
+    @CurrentUser() user: SessionUser,
+  ): Promise<RegistrationSummary> {
+    return this.registrations.acceptContract(id, user.id, body.contractVersion);
+  }
+
+  /**
    * Settle the registration fee, which is what enqueues the RRA check.
    *
    * A stand-in for the payment provider callback until F-S08 lands a real one.
    * It is idempotent by construction: the repository's conditional update means
    * a second call advances nothing and bills nothing.
+   *
+   * Refused with 409 `contract_not_accepted` while the operator contract is
+   * open (ADR-049, AC-R13). Settling is the only door into `submitted`, so this
+   * is what keeps a business without an accepted contract out of every
+   * officer's queue.
    */
   @Post(':id/pay')
   @UseGuards(SessionGuard)
@@ -118,7 +146,7 @@ export class RegistrationsController {
     // could not double-charge anyone — but they could confirm that a given
     // registration exists, and that is not theirs to learn.
     await this.registrations.assertOwns(id, user.id);
-    return this.registrations.settleFeeAndVerify(id);
+    return this.registrations.settleFeeAndVerify(id, user.id);
   }
 
   /**

@@ -80,7 +80,7 @@ const STAFF_STEP_UP_REFUSAL: {
  * It deliberately does NOT answer "may they see this particular org's row".
  * Row-level scope is a property of a TARGET, and a list route resolves scope as
  * a `WHERE` clause rather than as a predicate — the same reasoning that keeps
- * `withinScope` out of `OversightGuard`.
+ * region scope out of `OversightGuard`.
  *
  * THE STEP-UP, AND WHY IT IS TWO CALLS. Staff, of all people, must not be the
  * population exempt from F-S02, and until now they were: this header recorded

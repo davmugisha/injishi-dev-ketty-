@@ -33,7 +33,7 @@ export function ConsoleShell({ title, children }: { title: string; children: Rea
   const sections = oversightNav(officer, oversight);
   const toasts = useShownToasts(state.toasts);
   /*
-   * WHO IS ACTING IS THE SIGNED-IN PERSON, not the officer fixture.
+   * WHO IS ACTING IS THE SIGNED-IN PERSON, and the POSTING is the server's answer.
    *
    * This panel used to print `officer.name` — "Jean-Bosco Nkurunziza" or
    * "Claudine Mukamana", two names from `data/oversight.ts` — beside a sign-out
@@ -42,8 +42,11 @@ export function ConsoleShell({ title, children }: { title: string; children: Rea
    * decisions. The profile is the same one the operator sidebar shows, and
    * where it has no name it says so rather than inventing one.
    *
-   * The FUNCTION and the issuing body stay from the officer table: those follow
-   * from which console is open, which the server decided.
+   * ADR-049 closed the other half. The issuing body, the officer's own job title
+   * and the REGION now come from `GET /api/v1/me/oversight`, so there is no
+   * fixture left in this panel at all — and the district, which this shell
+   * deliberately refused to print while it could only be read off a fixture, is
+   * printed.
    */
   const { me } = usePms();
 
@@ -76,11 +79,15 @@ export function ConsoleShell({ title, children }: { title: string; children: Rea
           />
         </div>
 
-        {/* Who is acting, and under which body. The seal colour is the issuing
-            body's, so two officers from two bodies do not read as the same
-            person. The DISTRICT is not printed here: the API scopes the queue
-            but does not tell the console which jurisdiction it scoped it to,
-            and a district read off a fixture is worse than none. */}
+        {/* Who is acting, under which body, and over which region. The seal
+            colour is the issuing body's, so two officers from two bodies do not
+            read as the same person.
+
+            THE REGION IS PRINTED because the server now says what it is. An
+            officer who cannot see which district they cover cannot tell whether a
+            business missing from their queue is out of scope or a bug — and while
+            the only available answer came from a fixture, printing it would have
+            been worse than printing nothing. */}
         <div
           style={{
             display: "flex",
@@ -123,8 +130,15 @@ export function ConsoleShell({ title, children }: { title: string; children: Rea
             >
               {me.name}
             </span>
+            {/* The officer's OWN title, as their institution words it, and the
+                institution's own name — not the enum and not the body code. The
+                three layers of name ADR-049 keeps apart: the database's, the
+                console's label, and the employer's. */}
             <span style={{ display: "block", fontSize: 11.5, color: "var(--sb-muted)" }}>
-              {officer.fnLabel} · {officer.body}
+              {officer.title}
+            </span>
+            <span style={{ display: "block", fontSize: 11.5, color: "var(--sb-muted)" }}>
+              {officer.bodyName} · {officer.scope}
             </span>
           </span>
           {/*

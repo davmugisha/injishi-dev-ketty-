@@ -14,7 +14,7 @@ import {
   propertyHasDining,
 } from "@/data/dining";
 import { formatRwf } from "@/lib/money";
-import { propertyMetadata, propertyStaticParams } from "@/lib/property-route";
+import { propertyStaticParams } from "@/lib/property-route";
 import {
   DemoDataNotice,
   PROPERTY_DINING_DEMO_DETAIL,
@@ -61,10 +61,16 @@ export async function generateMetadata({
 }: {
   params: Promise<{ slug: string }>;
 }): Promise<Metadata> {
-  return propertyMetadata(params, (property) => ({
+  // The catalogue alone, like the page below: dining exists for curated
+  // properties only, so the API-first read the property page makes has nothing
+  // to add here.
+  const { slug } = await params;
+  const property = findCatalogueProperty(slug);
+  if (!property) return {};
+  return {
     title: `${property.name} bar and restaurant`,
     description: `The bar and restaurant card at ${property.name} in ${property.location}, with prices in Rwandan francs.`,
-  }));
+  };
 }
 
 export default async function PropertyMenuPage({

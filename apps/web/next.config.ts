@@ -93,6 +93,12 @@ const nextConfig: NextConfig = {
     // A barrel import of @injishi/ui would otherwise pull all 16 of its client
     // components into a server page that wanted one Button (ADR-008).
     optimizePackageImports: ["@injishi/ui", "lucide-react"],
+    // The rewrite proxy to the operator zone gives up after 30s by default. In
+    // development the zone compiles a page on its first request, and
+    // `/w/[workspaceId]` alone took 29.8s cold, so web answered 500 ("socket
+    // hang up") while the zone was still finishing a 200. Production serves a
+    // prebuilt zone, so it keeps the default.
+    proxyTimeout: process.env.NODE_ENV === "development" ? 180_000 : undefined,
   },
   /**
    * The operator app is a ZONE under this origin (one product, one sign-in,
@@ -195,6 +201,17 @@ const nextConfig: NextConfig = {
         // and /shared/ path above.
         source: "/sw.js",
         headers: [{ key: "Cache-Control", value: "public, max-age=0, must-revalidate" }],
+      },
+      {
+        // The owner claim link carries its token in the query (ADR-049). The page
+        // lifts it out of the address bar on load, and this stops every resource
+        // the page loads from learning the URL it came from. `no-store` keeps the
+        // tokened document out of any shared cache.
+        source: "/claim-org",
+        headers: [
+          { key: "Referrer-Policy", value: "no-referrer" },
+          { key: "Cache-Control", value: "private, no-store" },
+        ],
       },
     ];
   },

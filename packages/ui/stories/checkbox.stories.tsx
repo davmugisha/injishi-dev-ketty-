@@ -4,8 +4,8 @@ import { Checkbox } from "../src/components/checkbox";
 
 /**
  * A whole field, control plus label, on HeroUI (React Aria). Pass the label as
- * children; a separate `<Label htmlFor>` beside it leaves everything but the
- * box inert. State props are React Aria's: `isSelected` / `onChange`.
+ * children; the adapter composes the pressable row, the box and its tick around
+ * them. State props are React Aria's: `isSelected` / `onChange`.
  */
 const meta = {
   title: "Primitives/Checkbox",
@@ -50,10 +50,18 @@ export const Controlled: Story = {
   },
 };
 
-/** A two-line label: the whole row toggles, not just the 20px box. */
+/**
+ * A two-line label: the whole row toggles, not just the 16px box. `className`
+ * styles the pressable row, so a full-width row says `w-full`; `mt-0.5` on the
+ * box keeps it on the first line of an `items-start` label.
+ */
 export const WithDescription: Story = {
   render: (args) => (
-    <Checkbox {...args} className="flex items-start gap-3">
+    <Checkbox
+      {...args}
+      className="flex w-full items-start gap-3 rounded border border-border p-4 font-normal"
+      controlClassName="mt-0.5"
+    >
       <span className="block">
         <span className="block text-base leading-tight">I’m travelling with pets</span>
         <span className="block text-sm leading-tight text-muted-foreground">

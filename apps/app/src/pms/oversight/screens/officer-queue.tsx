@@ -191,15 +191,25 @@ export function OfficerQueue() {
                 <Button variant="ghost"
                   key={o.id}
                   onClick={() => setSelId(o.id)}
+                  // `h-auto` and `whitespace-normal`: the shared button carries a
+                  // fixed control height, and a queue row is two lines of text,
+                  // so without them the second line spilled onto the next row.
+                  // `rounded-none`: a row is a band of a table, not a control.
                   className={cn(
-                    "grid w-full items-center gap-2.5 px-[18px] py-3 text-left transition-colors hover:bg-hover",
+                    "grid h-auto w-full items-center gap-2.5 whitespace-normal rounded-none px-[18px] py-3 text-left transition-colors hover:bg-hover",
                     i === 0 ? "border-t border-transparent" : "border-t border-line",
                   )}
                   style={{ gridTemplateColumns: COLS }}
                 >
                   <span className="min-w-0">
                     <span className="block truncate text-sm font-semibold text-ink">{o.biz}</span>
-                    <span className="block truncate text-2xs text-muted-foreground">{o.owner ?? "You"}</span>
+                    {/* The queue's wire item names no owner, so a missing name is
+                        said plainly, as the file sheet says it. It used to read
+                        "You", which told an officer they owned every business in
+                        their queue. */}
+                    <span className="block truncate text-2xs text-muted-foreground">
+                      {o.owner ?? "Owner not on this file"}
+                    </span>
                   </span>
                   <span>
                     <Badge intent={o.type === "host" ? "accent" : "info"}>

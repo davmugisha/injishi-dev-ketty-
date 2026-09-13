@@ -3,22 +3,43 @@ import type {
   UpdatePropertyRequest,
 } from '@injishi/contracts';
 import { Inject, Injectable } from '@nestjs/common';
-import { and, eq, sql } from 'drizzle-orm';
+import { and, eq, inArray, isNotNull, sql } from 'drizzle-orm';
 
 import {
   districts,
   listings,
   properties,
+  propertyPhotos,
   provinces,
+  ratePlans,
   roomTypes,
   rooms,
   sectors,
 } from '../../../database/drizzle/schema';
+import {
+  randomSlugSuffix,
+  slugCandidates,
+  slugStemFor,
+} from '../domain/slug';
+import type { PublishFacts } from '../domain/publish-eligibility';
 import { seedPropertyDepartments } from '../../operations/domain/usali-departments';
 import {
   DRIZZLE,
   type Database,
 } from '../../../shared/database/database.module';
+
+/**
+ * Postgres `unique_violation`. Narrowed here rather than inline, so a caller
+ * cannot accidentally swallow a different error while retrying a slug.
+ */
+function isUniqueViolation(error: unknown): boolean {
+  return (
+    typeof error === 'object' &&
+    error !== null &&
+    'code' in error &&
+    (error as { code?: unknown }).code === '23505'
+  );
+}
 
 /** The shape the service reads back, before it is parsed into a contract. */
 export interface PropertyRow {
@@ -39,7 +60,7 @@ export interface PropertyRow {
   houseRules: string | null;
   locationPrivacy: boolean;
   timezone: string;
-  photoObjectKeys: unknown;
+  slug: string | null;
   listingStatus: 'draft' | 'published';
   publishedAt: Date | null;
 }
@@ -67,7 +88,7 @@ const PROPERTY_COLUMNS = {
   houseRules: properties.houseRules,
   locationPrivacy: properties.locationPrivacy,
   timezone: properties.timezone,
-  photoObjectKeys: properties.photoObjectKeys,
+  slug: properties.slug,
   listingStatus: listings.status,
   publishedAt: listings.publishedAt,
 };
@@ -129,10 +150,9 @@ export class InventoryRepository {
           checkOutTime: r.checkOutTime ?? null,
           houseRules: r.houseRules ?? null,
           locationPrivacy: r.locationPrivacy ?? false,
-          // F-S09 is unbuilt, so there is no source for a photo key. Written as
-          // an empty array rather than left null, so a reader never has to tell
-          // "no photos" from "we never looked" (ADR-009 AC-13).
-          photoObjectKeys: [],
+          // No photo column any more. ADR-049 moved photographs into
+          // `property_photos`, so a property is created with none and the
+          // attach route adds them; "no photos" is now the absence of rows.
         })
         .returning({ id: properties.id });
       if (!property) throw new Error('Property insert returned no row.');
@@ -309,6 +329,236 @@ export class InventoryRepository {
           sellableRoomCount: Number(r.sellableRoomCount),
         },
       ]),
+    );
+  }
+
+  /**
+   * The three facts publishing is decided on (ADR-049, AC-I4).
+   *
+   * One round trip rather than three, and counted in the database rather than by
+   * loading rows, because the only thing the caller needs is whether each count
+   * is zero.
+   *
+   * "Priced" means the room type's DEFAULT rate plan carries a price. Not any
+   * plan: the default is the one a guest is quoted, so a priced non-default plan
+   * on an otherwise free room type is not a sellable listing.
+   */
+  async publishFactsFor(propertyId: string): Promise<PublishFacts | null> {
+    return this.readPublishFacts(this.db, propertyId);
+  }
+
+  /**
+   * Publish, behind a row lock, idempotently (ADR-049, AC-I5, AC-I10).
+   *
+   * The lock is on the LISTING row, and it is what makes a double press safe:
+   * the second press blocks until the first commits, then finds the listing
+   * already `published` and returns without minting a second slug or moving
+   * `published_at`. One press and two presses are indistinguishable to the
+   * caller, which is the same idempotency shape `POST /bookings` already uses.
+   *
+   * The eligibility facts are re-read INSIDE the lock by the callback, so a
+   * property that lost its last photograph between the check and the write is
+   * refused rather than published on a stale answer.
+   *
+   * Returns the blockers when it refused, so the service can name the condition
+   * without a second round trip.
+   */
+  async publish(
+    propertyId: string,
+    blockersFor: (facts: PublishFacts) => string[],
+  ): Promise<{ published: boolean; blockers: string[] }> {
+    return this.db.transaction(async (tx) => {
+      const [listing] = await tx
+        .select({ id: listings.id, status: listings.status })
+        .from(listings)
+        .where(eq(listings.propertyId, propertyId))
+        .for('update')
+        .limit(1);
+      if (!listing) return { published: false, blockers: [] };
+
+      // Already live. Not an error and not a second publish: the caller asked for
+      // this property to be published and it is.
+      if (listing.status === 'published') {
+        return { published: true, blockers: [] };
+      }
+
+      const facts = await this.readPublishFacts(tx, propertyId);
+      if (!facts) return { published: false, blockers: [] };
+      const blockers = blockersFor(facts);
+      if (blockers.length > 0) return { published: false, blockers };
+
+      await this.mintSlugWithin(tx, propertyId);
+      await tx
+        .update(listings)
+        .set({
+          status: 'published',
+          publishedAt: new Date(),
+          updatedAt: new Date(),
+        })
+        .where(eq(listings.id, listing.id));
+
+      return { published: true, blockers: [] };
+    });
+  }
+
+  /**
+   * Back to draft, KEEPING the slug (ADR-049, AC-I6).
+   *
+   * The address survives on purpose. An operator who pauses for a week and
+   * republishes keeps every bookmark, every inbound link and every search result
+   * that already points at them; freeing the slug would rot all of it to save a
+   * row in a unique index.
+   *
+   * `published_at` is left alone too: it records the most recent publish, which
+   * is still true.
+   */
+  async unpublish(propertyId: string): Promise<boolean> {
+    const rows = await this.db
+      .update(listings)
+      .set({ status: 'draft', updatedAt: new Date() })
+      .where(eq(listings.propertyId, propertyId))
+      .returning({ id: listings.id });
+    return rows.length > 0;
+  }
+
+  /**
+   * The three publish facts, on the pool or on a transaction handle.
+   *
+   * ## Four small queries, and NOT one with correlated subqueries
+   *
+   * The obvious shape for this is one `select` over `properties` with three
+   * `select count(*)` subqueries in the select list. **That shape is silently
+   * wrong in Drizzle and it cost a debugging session**, so it is written down
+   * here rather than rediscovered:
+   *
+   * Drizzle qualifies the select list with table names only when the query has
+   * JOINS. A single-table query renders bare column names, so
+   * `where ${roomTypes.propertyId} = ${properties.id}` comes out as
+   * `where "property_id" = "id"` — and inside `select … from "room_types"` both
+   * names resolve to `room_types`' own columns. It compares a row to itself,
+   * matches nothing, and returns zero without error. Publishing then refuses a
+   * property that has four priced room types.
+   *
+   * The same idiom IS correct in `api/admin/orgs/orgs.service.ts`, because that
+   * query carries joins. It is correct in a `where` clause too, which is always
+   * qualified. It is only the select list of a join-free query that bites.
+   *
+   * Four typed queries cannot express the bug at all, and a publish happens once
+   * per listing.
+   */
+  private async readPublishFacts(
+    handle: Database,
+    propertyId: string,
+  ): Promise<PublishFacts | null> {
+    const [property] = await handle
+      .select({ sectorId: properties.sectorId })
+      .from(properties)
+      .where(eq(properties.id, propertyId))
+      .limit(1);
+    if (!property) return null;
+
+    const [active] = await handle
+      .select({ count: sql<number>`count(*)` })
+      .from(roomTypes)
+      .where(
+        and(
+          eq(roomTypes.propertyId, propertyId),
+          eq(roomTypes.status, 'active'),
+        ),
+      );
+
+    // "Priced" means the DEFAULT plan carries a price. Not any plan: the default
+    // is the one a guest is quoted, so a priced non-default plan on an otherwise
+    // free room type is not a sellable listing. The `exists` sits in a WHERE
+    // clause, which Drizzle qualifies correctly.
+    const [priced] = await handle
+      .select({ count: sql<number>`count(*)` })
+      .from(roomTypes)
+      .where(
+        and(
+          eq(roomTypes.propertyId, propertyId),
+          eq(roomTypes.status, 'active'),
+          sql`exists (
+            select 1 from ${ratePlans}
+            where ${ratePlans.roomTypeId} = ${roomTypes.id}
+              and ${ratePlans.isDefault}
+              and ${ratePlans.basePriceRwf} is not null
+          )`,
+        ),
+      );
+
+    const [photos] = await handle
+      .select({ count: sql<number>`count(*)` })
+      .from(propertyPhotos)
+      .where(eq(propertyPhotos.propertyId, propertyId));
+
+    return {
+      sectorId: property.sectorId,
+      activeRoomTypeCount: Number(active?.count ?? 0),
+      pricedRoomTypeCount: Number(priced?.count ?? 0),
+      photoCount: Number(photos?.count ?? 0),
+    };
+  }
+
+  /**
+   * Give the property an address, once.
+   *
+   * A property that already has a slug keeps it — that is what makes a republish
+   * return to the same public address.
+   *
+   * The candidates are probed in one query and then written. A concurrent publish
+   * of a DIFFERENT property can still take the chosen slug between the probe and
+   * the write (our lock is on our own listing row, not on the unique index), so
+   * the write is attempted inside a savepoint and a unique violation falls
+   * through to the next candidate rather than failing the publish.
+   */
+  private async mintSlugWithin(tx: Database, propertyId: string): Promise<void> {
+    const [row] = await tx
+      .select({ id: properties.id, name: properties.name, slug: properties.slug })
+      .from(properties)
+      .where(eq(properties.id, propertyId))
+      .limit(1);
+    if (!row || row.slug !== null) return;
+
+    const stem = slugStemFor({ name: row.name, id: row.id });
+    const candidates = slugCandidates(stem);
+
+    const taken = new Set(
+      (
+        await tx
+          .select({ slug: properties.slug })
+          .from(properties)
+          .where(
+            and(isNotNull(properties.slug), inArray(properties.slug, candidates)),
+          )
+      ).map((r) => r.slug),
+    );
+
+    const free = candidates.filter((c) => !taken.has(c));
+    // Past ten collisions, stop counting and start guessing: a linear search is
+    // unbounded work for a property named "Hotel", and a six character suffix is
+    // one probe instead of n.
+    const attempts = [
+      ...free,
+      ...Array.from({ length: 5 }, () => `${stem}-${randomSlugSuffix()}`),
+    ];
+
+    for (const candidate of attempts) {
+      try {
+        await tx.transaction(async (savepoint) => {
+          await savepoint
+            .update(properties)
+            .set({ slug: candidate, updatedAt: new Date() })
+            .where(eq(properties.id, propertyId));
+        });
+        return;
+      } catch (error) {
+        if (!isUniqueViolation(error)) throw error;
+      }
+    }
+
+    throw new Error(
+      `Could not mint a unique slug for property ${propertyId} from stem "${stem}".`,
     );
   }
 

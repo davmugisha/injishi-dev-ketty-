@@ -12,7 +12,15 @@ const ROLE_ICONS = {
   wallet: Wallet,
 } as const;
 
-/** Staff-role lens — previews what route guards hide from each role. */
+/**
+ * Staff-role lens — which of the staff roles this console is labelled with.
+ *
+ * IT NO LONGER PREVIEWS A ROLE (ADR-049, ruled 2026-09-13). The sidebar reads the
+ * `permissions[]` the server resolved for this account, and a preview of another
+ * role would mean turning that role into powers in the browser, a second copy of
+ * the staff matrix that contract rule 3 forbids. A true preview needs the server
+ * to answer for a role, which does not exist.
+ */
 export function RoleLensDialog() {
   const open = useAdminUi((s) => s.roleLensOpen);
   const close = useAdminUi((s) => s.closeRoleLens);
@@ -24,8 +32,8 @@ export function RoleLensDialog() {
       <div className="p-6">
         <h2 className="font-display text-2xl font-bold">Staff-role lens</h2>
         <p className="mt-1 text-sm text-muted-foreground">
-          Route guards hide what a role cannot reach — a Support staffer cannot see the Finance
-          override screen at all. Preview each lens.
+          The sidebar always shows the sections your own permissions reach. Choosing a lens
+          changes the label, not what you can open.
         </p>
         <div className="mt-5 space-y-2">
           {STAFF_ROLES.map((role) => {
@@ -38,14 +46,12 @@ export function RoleLensDialog() {
                 onClick={() => {
                   setRoleLens(role.key, `${role.label} · 2FA on`);
                   close();
-                  // A preview of the sidebar, not an access control. There is no
-                  // per-section route guard in this console: a hidden section
-                  // still renders when its url is typed, and the API refuses
-                  // the reads behind it by permission. The old wording said
-                  // "hidden by route guards", which described a control that
-                  // does not exist — and a staffer testing what a colleague
-                  // can reach would have trusted it.
-                  toast(`Previewing ${role.label} — sections this role cannot use are hidden from the sidebar only`);
+                  // A label, not a preview and not an access control. The sidebar
+                  // and each section's refusal follow this account's own
+                  // permissions whatever the lens says (ADR-049), and the API
+                  // refuses by permission on its own. Saying so here keeps a
+                  // staffer from believing they are seeing a colleague's view.
+                  toast(`Labelled ${role.label}. The sidebar still shows what your own account can open.`);
                 }}
               >
                 <span

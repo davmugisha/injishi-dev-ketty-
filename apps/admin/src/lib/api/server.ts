@@ -95,7 +95,18 @@ export type ApiWriteFailure = ApiFailure | "conflict" | "rejected";
 
 export type ApiWriteResult<T> =
   | { ok: true; data: T }
-  | { ok: false; reason: ApiWriteFailure };
+  | {
+      ok: false;
+      reason: ApiWriteFailure;
+      /**
+       * The platform's own sentence, when a refusal carried one written for a
+       * person. A 409 overlap on an officer appointment and a 422 past-dated fee
+       * are decisions with reasons, and "that isn't possible from the record's
+       * current state" throws the reason away. Framework defaults ("Conflict",
+       * "Validation failed") are never kept here.
+       */
+      message?: string;
+    };
 
 export type ApiResult<T> =
   | { ok: true; data: T }
@@ -212,6 +223,47 @@ async function refusalFor(res: Response): Promise<ApiWriteFailure | null> {
   return null;
 }
 
+/** Nest's and Fastify's own words for a status. Never shown to a staffer. */
+const FRAMEWORK_WORDS = new Set([
+  "Bad Request",
+  "Conflict",
+  "Forbidden",
+  "Forbidden resource",
+  "Not Found",
+  "Unprocessable Entity",
+  "Unauthorized",
+  "Validation failed",
+  "Internal server error",
+]);
+
+/**
+ * The refusal's `message`, when it is a sentence somebody wrote for a person.
+ *
+ * Kept strict for the reason the operator app's twin is: a sentence mistaken for
+ * machinery costs a vaguer toast, while machinery mistaken for a sentence puts a
+ * schema path in front of a staffer. A 5xx body is never read, because a server
+ * error's message is as likely to be a developer's assertion as a decision.
+ */
+async function personSentence(res: Response): Promise<string | undefined> {
+  if (res.status >= 500) return undefined;
+  try {
+    const body = (await res.clone().json()) as { message?: unknown };
+    const raw = Array.isArray(body?.message)
+      ? body.message.length === 1
+        ? body.message[0]
+        : undefined
+      : body?.message;
+    if (typeof raw !== "string") return undefined;
+    const text = raw.trim();
+    if (text.length < 12 || text.length > 400 || FRAMEWORK_WORDS.has(text)) return undefined;
+    if (!/^[A-Z“"']/.test(text) || !/[.!?”"]$/.test(text)) return undefined;
+    if (/Exception|Guard|undefined|Cannot (GET|POST|PATCH|DELETE)/.test(text)) return undefined;
+    return text;
+  } catch {
+    return undefined;
+  }
+}
+
 /**
  * One bounded, cookie-forwarding round trip, parsed against its contract.
  *
@@ -220,7 +272,7 @@ async function refusalFor(res: Response): Promise<ApiWriteFailure | null> {
  * exists to prevent.
  */
 async function send<T>(
-  method: "GET" | "POST",
+  method: "GET" | "POST" | "PATCH" | "DELETE",
   path: string,
   schema: ResponseSchema<T>,
   query?: Record<string, QueryValue>,
@@ -251,7 +303,10 @@ async function send<T>(
     }
 
     const refusal = await refusalFor(res);
-    if (refusal) return { ok: false, reason: refusal };
+    if (refusal) {
+      const message = await personSentence(res);
+      return message ? { ok: false, reason: refusal, message } : { ok: false, reason: refusal };
+    }
 
     let parsed: unknown;
     try {
@@ -325,6 +380,27 @@ export function apiPost<T>(
   body?: unknown,
 ): Promise<ApiWriteResult<T>> {
   return send("POST", path, schema, undefined, body ?? {});
+}
+
+/** A partial edit, as the signed-in staffer. Same outcomes as `apiPost`. */
+export function apiPatch<T>(
+  path: string,
+  schema: ResponseSchema<T>,
+  body: unknown,
+): Promise<ApiWriteResult<T>> {
+  return send("PATCH", path, schema, undefined, body);
+}
+
+/**
+ * A removal, as the signed-in staffer. A `DELETE` carries no body, because not
+ * every proxy forwards one; routes that need a reason take it on the query.
+ */
+export function apiDelete<T>(
+  path: string,
+  schema: ResponseSchema<T>,
+  query?: Record<string, QueryValue>,
+): Promise<ApiWriteResult<T>> {
+  return send("DELETE", path, schema, query);
 }
 
 /**

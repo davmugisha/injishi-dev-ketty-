@@ -11,9 +11,12 @@
  * anyone searches for.
  */
 
+import { useSearchParams } from "next/navigation";
+
 import { LensPage, type LensLink } from "../components/lens-page";
 import { Offer } from "./offer";
 import { RatePlans } from "./rate-plans";
+import { propertyQuery } from "./inventory-property";
 import { RoomsRates } from "./rooms-rates";
 import { useWorkspaceId } from "../data/capability";
 import { workspaceBase } from "../lib/nav";
@@ -21,10 +24,12 @@ import { workspaceBase } from "../lib/nav";
 export function Inventory({ lens }: { lens: string }) {
   const workspaceId = useWorkspaceId();
   const base = `${workspaceBase(workspaceId)}/inventory`;
+  // The property in view rides along, so Room types and Rate plans agree on it.
+  const property = propertyQuery(useSearchParams().get("property"));
 
   const lenses: LensLink[] = [
-    { key: "room-types", label: "Room types", href: base },
-    { key: "rate-plans", label: "Rate plans", href: `${base}/rate-plans` },
+    { key: "room-types", label: "Room types", href: `${base}${property}` },
+    { key: "rate-plans", label: "Rate plans", href: `${base}/rate-plans${property}` },
     { key: "amenities", label: "Amenities", href: `${base}/amenities` },
   ];
 

@@ -15,40 +15,18 @@
  * Content owner: mfp-demo.md § Registration pipeline.
  */
 
-import type { Officer, OfficerKey, OversightData, PerfRow, RegOrg, RejectReason } from "./types";
+import type { OversightData, PerfRow, RegOrg, RejectReason } from "./types";
 
-export const OFFICERS: Record<OfficerKey, Officer> = {
-  verifier: {
-    key: "verifier",
-    name: "Jean-Bosco Nkurunziza",
-    ini: "JN",
-    fn: "business_field_verifier",
-    fnLabel: "Field Verifier",
-    act: "Field-verify this business",
-    body: "PSF",
-    bodyName: "Private Sector Federation",
-    title: "Business Registration Officer",
-    scopeLevel: "district",
-    scope: "Gasabo",
-    actsOn: "tin_verified",
-    seal: "#036A8E",
-  },
-  approver: {
-    key: "approver",
-    name: "Claudine Mukamana",
-    ini: "CM",
-    fn: "business_approver",
-    fnLabel: "Approver",
-    act: "Approve to go live",
-    body: "MINALOC",
-    bodyName: "Ministry of Local Government",
-    title: "BDO — Business Development Officer",
-    scopeLevel: "district",
-    scope: "Gasabo",
-    actsOn: "field_verified",
-    seal: "#8A5300",
-  },
-};
+/*
+ * `OFFICERS` USED TO BE HERE, AND IS DELETED (ADR-049, AC-G5).
+ *
+ * It was two invented officers — a name, an issuing body, a job title and a
+ * district each — rendered onto a government console above a queue of real
+ * businesses. `GET /api/v1/me/oversight` returns all of that now, and
+ * `data/officer.ts` builds the officer from the grant. Do not reintroduce a
+ * table of people here: the only identity this console may show is whoever is
+ * signed in.
+ */
 
 /** Reason codes the API accepts (`RegistrationRejectionReason`). */
 export const REJECT_REASONS: RejectReason[] = [
@@ -187,7 +165,6 @@ function perf(): PerfRow[] {
 
 export function oversight(): OversightData {
   return {
-    officers: OFFICERS,
     orgs: orgs(),
     perf: perf(),
     rejectReasons: REJECT_REASONS,

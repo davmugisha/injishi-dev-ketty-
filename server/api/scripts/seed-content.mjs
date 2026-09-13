@@ -201,8 +201,8 @@ async function main() {
     await client.query(
       `insert into properties (id, org_id, workspace_id, name, description, district_id,
                                latitude, longitude, location_privacy, check_in_time,
-                               check_out_time, house_rules, photo_object_keys)
-       values ($1, $2, $3, $4, $5, $6, $7, $8, false, $9, $10, $11, $12)
+                               check_out_time, house_rules)
+       values ($1, $2, $3, $4, $5, $6, $7, $8, false, $9, $10, $11)
        on conflict (id) do nothing`,
       [
         IDS.property,
@@ -220,10 +220,11 @@ async function main() {
         '14:00',
         '11:00',
         'No smoking indoors. Quiet hours after 22:00. Valid ID required at check-in.',
-        JSON.stringify([
-          '/assets/rwanda-apartment-interior.webp',
-          '/assets/rwanda-kigali-hero.webp',
-        ]),
+        // The two `/assets/...webp` paths that used to sit here were NOT object
+        // keys. They were front end asset paths written into a column that was
+        // supposed to hold `stored_objects` keys, which is why migration 0033 had
+        // to skip them when photographs became rows with a foreign key. Nothing
+        // replaces them: this seed has no bytes to put in the bucket.
       ],
     );
 
@@ -608,8 +609,8 @@ async function main() {
         await client.query(
           `insert into properties (id, org_id, workspace_id, name, description, district_id,
                                    latitude, longitude, location_privacy, check_in_time,
-                                   check_out_time, house_rules, photo_object_keys)
-           values ($1, $2, $3, $4, $5, $6, -1.9520, 30.0930, false, null, null, $7, $8)
+                                   check_out_time, house_rules)
+           values ($1, $2, $3, $4, $5, $6, -1.9520, 30.0930, false, null, null, $7)
            on conflict (id) do nothing`,
           [
             IDS.residenceProperty,
@@ -620,7 +621,6 @@ async function main() {
               'on twelve month terms.',
             101,
             'No subletting. Rent is due on the first of the month. Notice is one month.',
-            JSON.stringify([]),
           ],
         );
 

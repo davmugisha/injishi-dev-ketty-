@@ -12,7 +12,7 @@ import { presentAdapters } from "@/lib/present/overview";
 export const metadata = { title: "Environments & adapters" };
 
 /** The permission `GET /api/v1/admin/environments` declares. */
-const PERMISSION = "admin.environment.manage";
+const PERMISSION = "admin.environment.view";
 
 const STATE_TONE = {
   up: "text-success",

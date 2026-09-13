@@ -14,7 +14,7 @@ import {
   getOrgTimeline,
 } from "@/lib/api/orgs";
 import { apiFailureMessage, failureHeading, type ApiFailure } from "@/lib/api/server";
-import { EMPTY, count, date } from "@/lib/present/format";
+import { EMPTY, count, date, elapsed } from "@/lib/present/format";
 import {
   presentInvoice,
   presentLedgerEntry,
@@ -61,11 +61,11 @@ const PEOPLE_READ_REASON =
  * lens is a separate read, so a staffer who may see the record but not its
  * money gets the header and a refusal in the body — not a blank page.
  *
- * WHAT IT STILL DOES NOT DO. There is no per-section route guard in this app:
- * `roleCanSee` filters the sidebar and nothing refuses a typed URL. The API
- * guards do refuse — a lens whose permission the caller lacks answers 403 and
- * lands in `denied` below — which is the boundary. This page does not add a
- * second one and must not be read as having one.
+ * WHAT IT STILL DOES NOT DO. The Businesses section's layout refuses a staffer
+ * without `admin.business.view` (ADR-049, AC-A4), but a LENS is not a section:
+ * a staffer who may see the record and not its money reaches the money lens,
+ * and the API refuses that read with a 403 that lands in `denied` below. The
+ * API is the boundary; this page does not add a second one.
  */
 export async function OrgRecord({
   orgId,
@@ -109,6 +109,11 @@ export async function OrgRecord({
           <h1 className="truncate text-2xl font-bold tracking-tight">{org.name}</h1>
           <p className="mt-0.5 text-sm text-muted-foreground">
             {org.type} · {org.district} · TIN {org.tin}
+            {/* Time in the current stage, from the event log (ADR-049, AC-R7).
+                The review queue never lists `pending_payment` or `suspended`, so
+                this is the one place those waits are read. No log entry, no wait
+                shown, rather than a guessed one. */}
+            {detail.stageEnteredAt ? ` · in stage ${elapsed(detail.stageEnteredAt)}` : null}
           </p>
         </div>
         <Badge variant={org.state.intent}>{org.state.text}</Badge>

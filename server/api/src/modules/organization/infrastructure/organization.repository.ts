@@ -5,26 +5,48 @@ import type {
   RegistrationRejectionReason,
 } from '@injishi/contracts';
 import { Inject, Injectable } from '@nestjs/common';
-import { and, desc, eq, inArray, lte } from 'drizzle-orm';
+import {
+  and,
+  desc,
+  eq,
+  inArray,
+  isNotNull,
+  isNull,
+  lte,
+  sql,
+} from 'drizzle-orm';
 
 import {
   auditEvents,
   districts,
   oboRegistrations,
   orgCertificates,
+  orgInvitations,
   orgRegistrationReviews,
   orgMemberships,
   orgs,
+  recordAccessLogs,
   registrationFees,
   sectors,
   subscriptionInvoices,
   tinVerifications,
+  users,
+  verifiedIdentities,
   workspaces,
 } from '../../../database/drizzle/schema';
+import {
+  claimInvitationExpiresAt,
+  newClaimToken,
+} from '../domain/owner-claim';
 import {
   DRIZZLE,
   type Database,
 } from '../../../shared/database/database.module';
+import {
+  recordRegistrationEvent,
+  type RegistrationMover,
+} from './registration-events';
+import { pendingTinAttemptsSql } from './tin-recheck.sql';
 
 /** A TIN that already belongs to another org (KYB dedup, F-S03 §9). */
 export class DuplicateTinError extends Error {
@@ -39,6 +61,9 @@ export class MissingFeeError extends Error {
     super(`No registration fee is configured for ${businessType}.`);
   }
 }
+
+/** Rolls a settle back when the org moved but no invoice was pending. */
+class NothingToSettle extends Error {}
 
 export interface CreateOrgRow {
   legalName: string;
@@ -86,6 +111,19 @@ export interface CreatedOrg {
   workspaceId: string;
   invoiceId: string;
   amountDueRwf: number;
+  /** True when this registration was made on behalf of someone (FL02). */
+  obo: boolean;
+  /**
+   * The claim invitation written in the create transaction, for the caller to
+   * mail AFTER it commits (ADR-049). Null for an owner registration, and for an
+   * OBO one that gave no owner email, because there is nowhere to send it.
+   */
+  claimInvitation: {
+    email: string;
+    token: string;
+    expiresAt: Date;
+    intendedOwnerName: string;
+  } | null;
 }
 
 /**
@@ -169,6 +207,16 @@ export class OrganizationRepository {
         .returning({ id: orgs.id });
       if (!org) throw new Error('Org insert returned no row.');
 
+      // The FIRST event, and the only one with no `from` (ADR-049, AC-R6). It is
+      // what bounds the `pending_payment` wait, which nothing could measure
+      // before because nothing recorded when the business arrived.
+      await recordRegistrationEvent(tx, {
+        orgId: org.id,
+        from: null,
+        to: 'pending_payment',
+        mover: { trigger: 'registrant', actorUserId: input.ownerUserId },
+      });
+
       // The workspace exists from the first moment, pending and powerless: the
       // registrant opens it to watch the pipeline (F-S03 §6). Permissions come
       // from `permissionsForWorkspace`, which returns nothing until `active`.
@@ -190,7 +238,41 @@ export class OrganizationRepository {
         );
       }
 
+      let claimInvitation: CreatedOrg['claimInvitation'] = null;
       if (input.obo) {
+        // The claim invitation, in the create transaction (ADR-049, AC-R1). A
+        // registration that exists always has the invitation that lets its
+        // owner reach it, and one that rolled back has none. It is MAILED by the
+        // caller after commit, so a mail that fails cannot undo a registration.
+        //
+        // No email, no invitation: there is nowhere to send one. Such a
+        // registration cannot be claimed until one is issued by hand.
+        let claimInvitationId: string | null = null;
+        const email = input.obo.intendedOwnerEmail;
+        if (email) {
+          const token = newClaimToken();
+          const expiresAt = claimInvitationExpiresAt(new Date());
+          const [invitation] = await tx
+            .insert(orgInvitations)
+            .values({
+              orgId: org.id,
+              email,
+              orgRole: 'owner',
+              purpose: 'obo_claim',
+              token,
+              expiresAt,
+            })
+            .returning({ id: orgInvitations.id });
+          if (!invitation) throw new Error('Invitation insert returned no row.');
+          claimInvitationId = invitation.id;
+          claimInvitation = {
+            email,
+            token,
+            expiresAt,
+            intendedOwnerName: input.obo.intendedOwnerName,
+          };
+        }
+
         // `payout_locked` and `claim_status` take their defaults on purpose:
         // registrant_held and locked is what an unclaimed OBO registration IS,
         // and restating a default here is a second place for it to drift.
@@ -200,6 +282,7 @@ export class OrganizationRepository {
           intendedOwnerName: input.obo.intendedOwnerName,
           intendedOwnerNationalId: input.obo.intendedOwnerNationalId,
           intendedOwnerEmail: input.obo.intendedOwnerEmail,
+          claimInvitationId,
         });
       }
 
@@ -221,45 +304,171 @@ export class OrganizationRepository {
         workspaceId: workspace.id,
         invoiceId: invoice.id,
         amountDueRwf,
+        obo: input.obo !== null,
+        claimInvitation,
       };
     });
   }
 
   /**
+   * The name to show for a person: their verified legal name, else the name on
+   * their account, else null. Never a document number or an email.
+   */
+  async displayNameFor(userId: string): Promise<string | null> {
+    const [row] = await this.db
+      .select({
+        legalFullName: verifiedIdentities.legalFullName,
+        name: users.name,
+      })
+      .from(users)
+      .leftJoin(verifiedIdentities, eq(verifiedIdentities.userId, users.id))
+      .where(eq(users.id, userId))
+      .limit(1);
+    return row?.legalFullName?.trim() || row?.name?.trim() || null;
+  }
+
+  /**
    * Settle the registration fee and advance the org, in one transaction.
    *
-   * Conditional on BOTH the invoice still being pending and the org still being
-   * at `pending_payment`, so a duplicated payment callback cannot advance an org
-   * twice or bill it twice. Returns false when the guard did not match, which
-   * the caller reads as "already done", not as a failure.
+   * Conditional on the org still being at `pending_payment` WITH an accepted
+   * operator contract, and on the invoice still being pending, so a duplicated
+   * payment callback cannot advance an org twice or bill it twice. Returns false
+   * when a guard did not match, which the caller reads as "already done" or, when
+   * the contract is still open, as the refusal it is.
+   *
+   * The contract condition is inside the statement rather than only checked
+   * beforehand (ADR-049, AC-R13). Settling is the only door into `submitted`, so
+   * this is what makes an officer's queue unreachable without an accepted
+   * contract; a check before the write could lose a race to nothing, but a
+   * condition on the write cannot.
+   *
+   * The org moves FIRST and the invoice second. The other way round, an org
+   * refused on its contract would still have committed a paid invoice, because
+   * returning from a transaction commits whatever it already wrote.
    */
-  async settleRegistrationFee(orgId: string): Promise<boolean> {
-    return this.db.transaction(async (tx) => {
-      const paid = await tx
-        .update(subscriptionInvoices)
-        .set({ status: 'paid', updatedAt: new Date() })
-        .where(
-          and(
-            eq(subscriptionInvoices.orgId, orgId),
-            eq(subscriptionInvoices.invoiceKind, 'registration_fee'),
-            eq(subscriptionInvoices.status, 'pending'),
-          ),
-        )
-        .returning({ id: subscriptionInvoices.id });
-      if (paid.length === 0) return false;
+  async settleRegistrationFee(
+    orgId: string,
+    actorUserId: string,
+  ): Promise<boolean> {
+    try {
+      return await this.db.transaction(async (tx) => {
+        const advanced = await tx
+          .update(orgs)
+          .set({ registrationStatus: 'submitted', updatedAt: new Date() })
+          .where(
+            and(
+              eq(orgs.id, orgId),
+              eq(orgs.registrationStatus, 'pending_payment'),
+              isNotNull(orgs.contractVersion),
+            ),
+          )
+          .returning({ id: orgs.id });
+        if (advanced.length === 0) return false;
 
-      const advanced = await tx
-        .update(orgs)
-        .set({ registrationStatus: 'submitted', updatedAt: new Date() })
-        .where(
-          and(
-            eq(orgs.id, orgId),
-            eq(orgs.registrationStatus, 'pending_payment'),
-          ),
-        )
-        .returning({ id: orgs.id });
-      return advanced.length > 0;
-    });
+        const paid = await tx
+          .update(subscriptionInvoices)
+          .set({ status: 'paid', updatedAt: new Date() })
+          .where(
+            and(
+              eq(subscriptionInvoices.orgId, orgId),
+              eq(subscriptionInvoices.invoiceKind, 'registration_fee'),
+              eq(subscriptionInvoices.status, 'pending'),
+            ),
+          )
+          .returning({ id: subscriptionInvoices.id });
+        // An org at `pending_payment` with no pending invoice is not a state any
+        // writer produces. Undo the move rather than submit a business nobody paid
+        // for.
+        if (paid.length === 0) throw new NothingToSettle();
+
+        // The registrant paying is what moved it. When a real payment callback
+        // replaces this stand in, the mover becomes `system` in the same line.
+        await recordRegistrationEvent(tx, {
+          orgId,
+          from: 'pending_payment',
+          to: 'submitted',
+          mover: { trigger: 'registrant', actorUserId },
+        });
+        return true;
+      });
+    } catch (error) {
+      if (error instanceof NothingToSettle) return false;
+      throw error;
+    }
+  }
+
+  /**
+   * Record the operator contract acceptance, once (ADR-049, AC-R8).
+   *
+   * One conditional update: it writes only while no acceptance is recorded and
+   * the org is still at `pending_payment`. So a double press, a retried request
+   * or a press that lands after paying cannot move `contract_accepted_at`, and
+   * the first acceptance is the one that stands. Returns whether this call wrote.
+   */
+  async acceptContract(input: {
+    orgId: string;
+    userId: string;
+    contractVersion: string;
+  }): Promise<boolean> {
+    const rows = await this.db
+      .update(orgs)
+      .set({
+        contractVersion: input.contractVersion,
+        contractAcceptedAt: new Date(),
+        contractAcceptedByUserId: input.userId,
+        updatedAt: new Date(),
+      })
+      .where(
+        and(
+          eq(orgs.id, input.orgId),
+          eq(orgs.registrationStatus, 'pending_payment'),
+          isNull(orgs.contractVersion),
+        ),
+      )
+      .returning({ id: orgs.id });
+    return rows.length > 0;
+  }
+
+  /**
+   * Whether this org's payouts are locked on an unclaimed or unverified owner.
+   * Null when nobody registered it on behalf of anyone (ADR-049, AC-R1).
+   */
+  async payoutLockedFor(orgId: string): Promise<boolean | null> {
+    const [row] = await this.db
+      .select({ payoutLocked: oboRegistrations.payoutLocked })
+      .from(oboRegistrations)
+      .where(eq(oboRegistrations.orgId, orgId))
+      .limit(1);
+    return row?.payoutLocked ?? null;
+  }
+
+  /**
+   * Every business held on an unanswered RRA check, and its attempt count
+   * (ADR-049, AC-R5). Read through `pendingTinAttemptsSql`, the one definition
+   * admin's stalled flag also reads.
+   */
+  async pendingTinRechecks(): Promise<
+    { orgId: string; attempts: number; lastCheckedAt: Date | null }[]
+  > {
+    type Row = {
+      org_id: string;
+      attempts: number;
+      last_checked_at: string | Date | null;
+    };
+    const result = await this.db.execute<Row>(
+      sql`select * from (${pendingTinAttemptsSql()}) as pending`,
+    );
+    // node-postgres puts the rows on `.rows`; some drivers return the array.
+    const rows: Row[] = Array.isArray(result)
+      ? result
+      : ((result as { rows?: Row[] }).rows ?? []);
+
+    return rows.map((r) => ({
+      orgId: r.org_id,
+      attempts: Number(r.attempts),
+      lastCheckedAt:
+        r.last_checked_at === null ? null : new Date(r.last_checked_at),
+    }));
   }
 
   /** Record one RRA check. Append-only: a retry is a new row, never an update. */
@@ -292,13 +501,22 @@ export class OrganizationRepository {
     orgId: string,
     from: OrgRegistrationStatus,
     to: OrgRegistrationStatus,
+    mover: RegistrationMover,
   ): Promise<boolean> {
-    const rows = await this.db
-      .update(orgs)
-      .set({ registrationStatus: to, updatedAt: new Date() })
-      .where(and(eq(orgs.id, orgId), eq(orgs.registrationStatus, from)))
-      .returning({ id: orgs.id });
-    return rows.length > 0;
+    // A transaction now, where it used to be one bare UPDATE: the move and its
+    // event row are one act (ADR-049, AC-R6), and a crash between two separate
+    // statements would leave a status nobody can say how long it has held.
+    return this.db.transaction(async (tx) => {
+      const rows = await tx
+        .update(orgs)
+        .set({ registrationStatus: to, updatedAt: new Date() })
+        .where(and(eq(orgs.id, orgId), eq(orgs.registrationStatus, from)))
+        .returning({ id: orgs.id });
+      if (rows.length === 0) return false;
+
+      await recordRegistrationEvent(tx, { orgId, from, to, mover });
+      return true;
+    });
   }
 
   async findById(orgId: string): Promise<
@@ -313,6 +531,8 @@ export class OrganizationRepository {
         workspaceId: string | null;
         amountDueRwf: number | null;
         invoiceId: string | null;
+        contractVersion: string | null;
+        contractAcceptedAt: Date | null;
         createdAt: Date;
       }
     | null
@@ -329,6 +549,8 @@ export class OrganizationRepository {
         workspaceId: workspaces.id,
         amountDueRwf: subscriptionInvoices.amountRwf,
         invoiceId: subscriptionInvoices.id,
+        contractVersion: orgs.contractVersion,
+        contractAcceptedAt: orgs.contractAcceptedAt,
         createdAt: orgs.createdAt,
       })
       .from(orgs)
@@ -397,6 +619,13 @@ export class OrganizationRepository {
         .returning({ id: orgs.id });
       if (moved.length === 0) return false;
 
+      await recordRegistrationEvent(tx, {
+        orgId: input.orgId,
+        from: input.stage,
+        to: input.to,
+        mover: { trigger: 'officer', actorUserId: input.decidedByUserId },
+      });
+
       await tx.insert(orgRegistrationReviews).values({
         orgId: input.orgId,
         stage: input.stage,
@@ -430,12 +659,24 @@ export class OrganizationRepository {
       });
 
       if (input.thenActivate && input.to === 'approved') {
-        await tx
+        const activated = await tx
           .update(orgs)
           .set({ registrationStatus: 'active', updatedAt: new Date() })
           .where(
             and(eq(orgs.id, input.orgId), eq(orgs.registrationStatus, 'approved')),
-          );
+          )
+          .returning({ id: orgs.id });
+        // Two moves, two rows. The approver's decision is what activates the
+        // business, so the second row names the same officer rather than the
+        // system: nothing automatic happened in between.
+        if (activated.length > 0) {
+          await recordRegistrationEvent(tx, {
+            orgId: input.orgId,
+            from: 'approved',
+            to: 'active',
+            mover: { trigger: 'officer', actorUserId: input.decidedByUserId },
+          });
+        }
       }
 
       return true;
@@ -537,6 +778,33 @@ export class OrganizationRepository {
    * business is approved, but the person holding it is not its owner, so it
    * waits payout-locked until the owner claims.
    */
+  /**
+   * Does this person hold a live role in this business? (ADR-049, AC-G3)
+   *
+   * The act-time half of the conflict of interest rule. The grant-time check
+   * refuses an appointment to somebody who already holds an org role inside the
+   * scope, and it CANNOT cover this direction: a person granted first can acquire
+   * the role afterwards, by being added to a business a week later.
+   *
+   * Asked regardless of scope. An officer may not gate their own business even if
+   * it somehow sits outside the region they cover, because the objection is the
+   * interest, not the geography.
+   */
+  async holdsOrgRole(orgId: string, userId: string): Promise<boolean> {
+    const [row] = await this.db
+      .select({ id: orgMemberships.id })
+      .from(orgMemberships)
+      .where(
+        and(
+          eq(orgMemberships.orgId, orgId),
+          eq(orgMemberships.userId, userId),
+          eq(orgMemberships.status, 'active'),
+        ),
+      )
+      .limit(1);
+    return row !== undefined;
+  }
+
   async isAwaitingOwnerClaim(orgId: string): Promise<boolean> {
     const [row] = await this.db
       .select({ id: oboRegistrations.id })
@@ -609,22 +877,96 @@ export class OrganizationRepository {
     return rows;
   }
 
-  /** The districts inside a province, for a province-scoped grant. */
-  async districtIdsInProvince(provinceId: number): Promise<number[]> {
+  /**
+   * The districts of each named province, in one read, for
+   * `districtScopeOf` (ADR-049, AC-G8). An empty list asks nothing.
+   */
+  async districtsByProvince(
+    provinceIds: readonly number[],
+  ): Promise<Map<number, number[]>> {
+    const out = new Map<number, number[]>();
+    if (provinceIds.length === 0) return out;
     const rows = await this.db
-      .select({ id: districts.id })
+      .select({ id: districts.id, provinceId: districts.provinceId })
       .from(districts)
-      .where(eq(districts.provinceId, provinceId));
-    return rows.map((r) => r.id);
+      .where(inArray(districts.provinceId, [...provinceIds]));
+    for (const r of rows) {
+      out.set(r.provinceId, [...(out.get(r.provinceId) ?? []), r.id]);
+    }
+    return out;
   }
 
-  /** The province a district sits in, for a scope check on a single org. */
-  async provinceIdForDistrict(districtId: number): Promise<number | null> {
-    const [row] = await this.db
-      .select({ provinceId: districts.provinceId })
-      .from(districts)
-      .where(eq(districts.id, districtId))
-      .limit(1);
-    return row?.provinceId ?? null;
+  /**
+   * One officer's own decisions, newest first, keyset paged on
+   * (decided_at, id) (ADR-049, AC-G6).
+   *
+   * The body and title are the review row's own columns, copied when the
+   * decision was recorded, and deliberately not joined from the assignment: a
+   * revoked posting must not rewrite what was decided under it.
+   */
+  async decisionsBy(input: {
+    userId: string;
+    before: { decidedAt: Date; id: string } | undefined;
+    limit: number;
+  }): Promise<{
+    rows: {
+      id: string;
+      orgId: string;
+      legalName: string;
+      stage: 'tin_verified' | 'field_verified';
+      decision: 'passed' | 'rejected';
+      reasonCode: RegistrationRejectionReason | null;
+      notes: string | null;
+      governmentBodyCode: string;
+      governmentTitle: string | null;
+      decidedAt: Date;
+    }[];
+    more: boolean;
+  }> {
+    const rows = await this.db
+      .select({
+        id: orgRegistrationReviews.id,
+        orgId: orgRegistrationReviews.orgId,
+        legalName: orgs.legalName,
+        stage: orgRegistrationReviews.stage,
+        decision: orgRegistrationReviews.decision,
+        reasonCode: orgRegistrationReviews.reasonCode,
+        notes: orgRegistrationReviews.notes,
+        governmentBodyCode: orgRegistrationReviews.governmentBodyCode,
+        governmentTitle: orgRegistrationReviews.governmentTitle,
+        decidedAt: orgRegistrationReviews.decidedAt,
+      })
+      .from(orgRegistrationReviews)
+      .innerJoin(orgs, eq(orgs.id, orgRegistrationReviews.orgId))
+      .where(
+        and(
+          eq(orgRegistrationReviews.decidedByUserId, input.userId),
+          input.before
+            ? sql`(${orgRegistrationReviews.decidedAt}, ${orgRegistrationReviews.id}) < (${input.before.decidedAt}, ${input.before.id}::uuid)`
+            : undefined,
+        ),
+      )
+      .orderBy(desc(orgRegistrationReviews.decidedAt), desc(orgRegistrationReviews.id))
+      .limit(input.limit + 1);
+    return {
+      rows: rows.slice(0, input.limit) as never,
+      more: rows.length > input.limit,
+    };
+  }
+
+  /**
+   * Record that an officer read their decision log. The subject is the log
+   * itself, not one business, so `subject_ref` is null: a row per business on
+   * the page would bury the reads that matter under paging.
+   */
+  async logDecisionLogRead(actorUserId: string): Promise<void> {
+    await this.db.insert(recordAccessLogs).values({
+      actorUserId,
+      subjectUserId: actorUserId,
+      subjectRef: null,
+      // Registration decisions and the notes written on a business's file.
+      dataClass: 'contract',
+      reason: 'oversight decision log',
+    });
   }
 }

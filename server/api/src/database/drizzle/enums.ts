@@ -70,6 +70,30 @@ export const orgRegistrationStatusEnum = pgEnum('org_registration_status', [
   'suspended',
 ]);
 
+/**
+ * Who moved a registration (ADR-049, AC-R6).
+ *
+ * The calling SURFACE, not a person's role: a registrant route writes
+ * `registrant`, an oversight route `officer`, an admin route `staff`, and the
+ * TIN adapter and its retry sweep `system` with no actor at all.
+ */
+export const registrationTransitionTriggerEnum = pgEnum(
+  'registration_transition_trigger',
+  ['registrant', 'officer', 'staff', 'system'],
+);
+
+/**
+ * A membership's lifecycle (ADR-049, AC-R10).
+ *
+ * It was free `text` carrying these two words, the only lifecycle column on the
+ * registration path that the database did not enumerate, so a typo in a write
+ * produced a membership that was neither active nor removed.
+ */
+export const orgMembershipStatusEnum = pgEnum('org_membership_status', [
+  'active',
+  'removed',
+]);
+
 /** sent | accepted | expired | revoked - reused by org_invitations & lease_invitations. */
 export const invitationStatusEnum = pgEnum('invitation_status', [
   'sent',

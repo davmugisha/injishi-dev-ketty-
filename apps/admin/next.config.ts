@@ -21,6 +21,14 @@ const nextConfig: NextConfig = {
    */
   outputFileTracingRoot: path.join(path.dirname(fileURLToPath(import.meta.url)), "../.."),
   /**
+   * Two Next processes sharing one `.next` corrupt each other's manifests.
+   * Setting NEXT_DIST_DIR gives a second process (a build or a verification
+   * server beside a live dev server) its own folder, exactly as `apps/web` and
+   * `apps/app` already allow. Unset, which is the normal case, this is the
+   * default.
+   */
+  distDir: process.env.NEXT_DIST_DIR || ".next",
+  /**
    * Traced server bundle, which is what infra/docker/Dockerfile.admin copies.
    *
    * Opt-in rather than always on, for the reason apps/web records: the trace

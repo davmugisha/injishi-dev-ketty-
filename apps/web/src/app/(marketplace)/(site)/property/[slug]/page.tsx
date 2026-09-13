@@ -10,6 +10,7 @@ import {
   RelatedStays,
   RelatedStaysSkeleton,
 } from "@/components/property/related-stays";
+import { DatabaseProperty } from "@/components/property/database-property";
 import { PropertyGallery } from "@/components/property/property-gallery";
 import {
   PropertySubtitle,
@@ -18,21 +19,36 @@ import {
 import { SectionHeading } from "@/components/shared/section-heading";
 import { LISTINGS } from "@/data/listings";
 import type { Amenity } from "@/data/properties";
-import { findCatalogueProperty } from "@/data/catalogue";
-import { propertyMetadata, propertyStaticParams } from "@/lib/property-route";
+import { propertyMetadata, resolvePropertyPage } from "@/lib/property-route";
+import { propertyUrl } from "@/lib/web-url";
 
-export function generateStaticParams() {
-  return propertyStaticParams();
-}
+/**
+ * Rendered on request and kept for 30 seconds, not prerendered at build
+ * (ADR-049, owner ruling of 2026-09-13).
+ *
+ * The page reads the API first, and a suspension or an unpublish has to reach it
+ * without a rebuild, so this is the ceiling on how long a page can outlive that
+ * change. It mirrors `PUBLIC_PROPERTY_REVALIDATE_SECONDS` as a literal because
+ * Next reads a route's `revalidate` statically. A property's photographs stop
+ * loading sooner than that: the photo route refuses on the very next request.
+ */
+export const revalidate = 30;
 
 export async function generateMetadata({
   params,
 }: {
   params: Promise<{ slug: string }>;
 }): Promise<Metadata> {
-  return propertyMetadata(params, (property) => ({
-    title: property.name,
-    description: property.about[0],
+  return propertyMetadata(params, (source, slug) => ({
+    title: source.property.name,
+    description:
+      source.kind === "database"
+        ? (source.property.description ?? undefined)
+        : source.property.about[0],
+    // The one address a search engine should credit, built from the slug and
+    // web's own origin (ADR-049, AC-I9) — never from whatever host or query the
+    // page happened to be reached on.
+    alternates: { canonical: propertyUrl(slug) },
   }));
 }
 
@@ -42,8 +58,12 @@ export default async function PropertyPage({
   params: Promise<{ slug: string }>;
 }) {
   const { slug } = await params;
-  const property = findCatalogueProperty(slug);
-  if (!property) notFound();
+  const source = await resolvePropertyPage(slug);
+  if (!source) notFound();
+  if (source.kind === "database") {
+    return <DatabaseProperty property={source.property} slug={slug} />;
+  }
+  const property = source.property;
 
   const related = LISTINGS.filter((listing) => listing.slug !== slug).slice(0, 3);
 
@@ -104,7 +124,7 @@ export default async function PropertyPage({
 
         {/* Suspense, not a `searchParams` prop. The widget reads the guest's
             dates and party from the URL in the browser, which is what lets
-            this page stay statically generated for all thirty properties. */}
+            this page stay cacheable rather than rendering per query string. */}
         <Suspense fallback={<BookingWidgetSkeleton />}>
           <BookingWidget property={property} />
         </Suspense>

@@ -31,7 +31,8 @@ import {
   isOperational,
   permissionsForWorkspace,
   violatesSeparationOfDuties,
-  withinScope,
+  districtScopeOf,
+  scopeCoversDistrict,
 } from '@injishi/contracts';
 
 const url = process.env.DATABASE_URL;
@@ -312,14 +313,17 @@ async function main() {
       provinceId: jb.province_id,
       districtId: jb.district_id,
     };
+    // The one definition of region scope (ADR-049, AC-G8). No province map is
+    // needed for a district grant; an empty one proves it is not consulted.
+    const jbScope = districtScopeOf([jbGrant], new Map());
     check(
       'Jean-Bosco reaches a Gasabo business',
-      withinScope(jbGrant, { provinceId: null, districtId: gasabo }),
+      scopeCoversDistrict(jbScope, gasabo),
       true,
     );
     check(
       'Jean-Bosco CANNOT reach a Karongi business',
-      withinScope(jbGrant, { provinceId: null, districtId: karongi }),
+      scopeCoversDistrict(jbScope, karongi),
       false,
     );
     check(

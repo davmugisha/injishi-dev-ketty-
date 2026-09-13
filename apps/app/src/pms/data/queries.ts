@@ -92,6 +92,9 @@ export const queryKeys = {
     ["inventory", "rate-plans", workspaceId] as const,
   property: (workspaceId: string | null, propertyId: string | null) =>
     ["inventory", "properties", workspaceId, propertyId] as const,
+  /** Under the property key, so a write that invalidates the property refreshes these too. */
+  roomTypes: (workspaceId: string | null, propertyId: string | null) =>
+    ["inventory", "properties", workspaceId, propertyId, "room-types"] as const,
   folios: (workspaceId: string | null) => ["ops", "folios", workspaceId] as const,
   folio: (workspaceId: string | null, folioId: string | null) =>
     ["ops", "folios", workspaceId, folioId] as const,

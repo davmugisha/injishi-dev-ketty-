@@ -31,29 +31,30 @@ import { apiFetch, type ApiResult } from "@/lib/api";
  * different total is how a quote comes to disagree with a charge.
  */
 
-/** The cheapest bookable room on a property, and the room list behind it. */
+/** The rooms a property can sell, and the room list behind them. */
 export interface PropertyRooms {
   propertyId: string;
   /** Every active room type, cheapest first, as the API ordered them. */
   roomTypes: RoomTypeSummary[];
   /**
-   * The room a "Review this stay" press would sell.
+   * Every room type a guest can actually buy, cheapest first.
    *
-   * The cheapest PRICED, hospitality room type — the same "from" price a
-   * directory quotes. Null when the property has published rooms but none of
-   * them can be sold (residence-only inventory, or no rate set), which is a
-   * different fact from having no listing and reads the same to a guest.
+   * PRICED, hospitality, with a booking mode and at least one unit. Empty when
+   * the property has published rooms but none of them can be sold
+   * (residence-only inventory, or no rate set), which is a different fact from
+   * having no listing and reads the same to a guest.
    */
-  bookable: RoomTypeSummary | null;
+  sellable: RoomTypeSummary[];
 }
 
 /**
  * Read a property's real inventory by its public slug.
  *
- * `refused` with a 404 is the ordinary answer for most of the catalogue today
- * and is NOT an error state: it means this business has not published rooms.
- * The caller says "not open for online booking yet" rather than showing a
- * failure, because nothing has failed.
+ * `refused` with a 404 means the API holds no public property at this slug:
+ * never published, unpublished, or its business suspended. That is NOT a
+ * failure, and the caller says the stay cannot be booked. `failed` is the
+ * opposite case — we could not ask — and must never be worded as the first,
+ * because an outage would then tell every guest that every property is closed.
  */
 export async function fetchPropertyRooms(
   slug: string,
@@ -70,31 +71,59 @@ export async function fetchPropertyRooms(
     data: {
       propertyId: result.data.id,
       roomTypes,
-      bookable: pickBookable(roomTypes),
+      sellable: roomTypes.filter(isSellable),
     },
   };
 }
 
 /**
- * The room a guest is offered first.
+ * Whether a guest can buy this room type at all.
  *
  * `domain === "hospitality"` is load bearing: a residence unit is never
  * bookable as a stay (FL06 §5C), and the API refuses one at `POST /bookings`.
  * Offering it here would put a button on the page whose only outcome is a
  * refusal the guest cannot act on.
  *
- * The API already returns room types cheapest first, so this takes the first
- * that qualifies rather than sorting again — one ordering, and it is the
- * server's.
+ * `filter` keeps the API's order, which is cheapest first — one ordering, and
+ * it is the server's.
  */
-function pickBookable(roomTypes: RoomTypeSummary[]): RoomTypeSummary | null {
+function isSellable(room: RoomTypeSummary): boolean {
   return (
-    roomTypes.find(
-      (room) =>
-        room.domain === "hospitality" &&
-        room.nightlyRateRwf !== null &&
-        room.bookingMode !== null &&
-        room.roomCount > 0,
-    ) ?? null
+    room.domain === "hospitality" &&
+    room.nightlyRateRwf !== null &&
+    room.bookingMode !== null &&
+    room.roomCount > 0
   );
+}
+
+/**
+ * The room a "Review this stay" press sells: the cheapest one the party fits.
+ *
+ * It used to be the cheapest room, whatever the party. A family of four who
+ * arrived from search at a hotel whose cheapest room sleeps two was priced for
+ * that room, carried through checkout, and refused at the last screen with
+ * "That room type sleeps at most 2" — while the Family Room beside it was on
+ * sale. A room with no stated capacity takes any party; the API's own capacity
+ * check is the backstop.
+ *
+ * Null when nothing sellable fits, which the caller words as a party too large
+ * rather than as a property that cannot be booked.
+ */
+export function roomForParty(
+  sellable: RoomTypeSummary[],
+  party: number,
+): RoomTypeSummary | null {
+  return sellable.find((room) => room.capacity === null || room.capacity >= party) ?? null;
+}
+
+/**
+ * The most guests any sellable room here takes, or null when one takes any.
+ *
+ * This is the guest picker's ceiling once the rooms are known. A catalogue
+ * record's own `maxGuests` is an editorial figure and can disagree with the
+ * inventory in either direction; the rooms are what checkout will enforce.
+ */
+export function largestParty(sellable: RoomTypeSummary[]): number | null {
+  if (sellable.some((room) => room.capacity === null)) return null;
+  return sellable.reduce((most, room) => Math.max(most, room.capacity ?? 0), 0) || null;
 }

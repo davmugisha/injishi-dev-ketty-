@@ -27,7 +27,7 @@ import {
 } from 'drizzle-orm/pg-core';
 import { users } from './auth';
 import { timestamps } from './columns';
-import { adapterModeEnum, documentTypeEnum, domainKindEnum, genderEnum, globalRoleEnum, identityDocumentStatusEnum, invitationPurposeEnum, invitationStatusEnum, kycStatusEnum, oboClaimStatusEnum, orgCertificateKindEnum, orgRegistrationStatusEnum, orgRoleEnum, oversightRoleEnum, oversightScopeLevelEnum, rdbClassificationKindEnum, registrationRejectionReasonEnum, registrationReviewDecisionEnum, tinVerificationResultEnum, workspaceKindEnum } from './enums';
+import { adapterModeEnum, documentTypeEnum, domainKindEnum, genderEnum, globalRoleEnum, identityDocumentStatusEnum, invitationPurposeEnum, invitationStatusEnum, kycStatusEnum, oboClaimStatusEnum, orgCertificateKindEnum, orgMembershipStatusEnum, orgRegistrationStatusEnum, orgRoleEnum, oversightRoleEnum, oversightScopeLevelEnum, rdbClassificationKindEnum, registrationRejectionReasonEnum, registrationReviewDecisionEnum, registrationTransitionTriggerEnum, tinVerificationResultEnum, workspaceKindEnum } from './enums';
 import { districts, provinces, sectors, villages } from './geography';
 import { storedObjects } from './hospitality';
 
@@ -90,6 +90,20 @@ export const orgs = pgTable(
     sectorId: integer('sector_id').references(() => sectors.id),
     villageId: integer('village_id').references(() => villages.id),
     addressText: text('address_text'),
+    /**
+     * The operator contract this business accepted (ADR-049, AC-R8).
+     *
+     * A date string from `OPERATOR_CONTRACT_VERSION`, because the document is
+     * rendered from code and a version stored anywhere else can drift from the
+     * document it names. Nullable, and all three columns move together
+     * (`orgs_contract_shape`), so every business registered before this existed
+     * validates with no backfill. There is no re acceptance flow; see ADR-049.
+     */
+    contractVersion: text('contract_version'),
+    contractAcceptedAt: timestamp('contract_accepted_at', { withTimezone: true }),
+    contractAcceptedByUserId: uuid('contract_accepted_by_user_id').references(
+      () => users.id,
+    ),
     ...timestamps,
   },
   (t) => [
@@ -117,6 +131,13 @@ export const orgs = pgTable(
     check(
       'orgs_eac_star_grade_range',
       sql`${t.eacStarGrade} IS NULL OR (${t.eacStarGrade} BETWEEN 1 AND 5)`,
+    ),
+    // An acceptance is a version, a moment and a person, or it is nothing. Half
+    // of one is a record nobody can stand behind.
+    check(
+      'orgs_contract_shape',
+      sql`(${t.contractVersion} IS NULL AND ${t.contractAcceptedAt} IS NULL AND ${t.contractAcceptedByUserId} IS NULL)
+          OR (${t.contractVersion} IS NOT NULL AND ${t.contractAcceptedAt} IS NOT NULL AND ${t.contractAcceptedByUserId} IS NOT NULL)`,
     ),
   ],
 );
@@ -294,7 +315,7 @@ export const orgMemberships = pgTable(
       .notNull()
       .references(() => users.id),
     orgRole: orgRoleEnum('org_role').notNull(),
-    status: text('status').notNull().default('active'), // active | removed
+    status: orgMembershipStatusEnum('status').notNull().default('active'),
     invitedByUserId: uuid('invited_by_user_id').references(() => users.id),
     removedAt: timestamp('removed_at', { withTimezone: true }),
     ...timestamps,
@@ -548,6 +569,49 @@ export const orgRegistrationReviews = pgTable(
   ],
 );
 
+
+/**
+ * Every move a registration makes (ADR-049, AC-R6, AC-R7).
+ *
+ * Append only, one row per status change, written in the SAME transaction as
+ * the change. The same shape as `tin_verifications` and
+ * `org_registration_reviews`: `orgs.registration_status` is the current state
+ * and these three tables explain how it got there.
+ *
+ * Preferred over timestamp columns on `orgs` because a rejected registration
+ * resubmits, and columns would overwrite the record of the first wait — and the
+ * slowest cases, the ones worth measuring, are exactly the resubmitted ones.
+ *
+ * `from_status` is null on the creation row and no other, which is what makes a
+ * business's first event findable and bounds the `pending_payment` wait nothing
+ * could measure before.
+ */
+export const orgRegistrationEvents = pgTable(
+  'org_registration_events',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    orgId: uuid('org_id')
+      .notNull()
+      .references(() => orgs.id, { onDelete: 'cascade' }),
+    fromStatus: orgRegistrationStatusEnum('from_status'),
+    toStatus: orgRegistrationStatusEnum('to_status').notNull(),
+    trigger: registrationTransitionTriggerEnum('trigger').notNull(),
+    actorUserId: uuid('actor_user_id').references(() => users.id),
+    occurredAt: timestamp('occurred_at', { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (t) => [
+    index('org_registration_events_org_idx').on(t.orgId, t.occurredAt),
+    // A person moved it, or the system did. Never a person-shaped trigger with
+    // nobody behind it, and never a system move that claims an actor.
+    check(
+      'org_registration_events_actor_shape',
+      sql`(${t.trigger} = 'system' AND ${t.actorUserId} IS NULL)
+          OR (${t.trigger} <> 'system' AND ${t.actorUserId} IS NOT NULL)`,
+    ),
+  ],
+);
 
 export const tinVerifications = pgTable('tin_verifications', {
   id: uuid('id').primaryKey().defaultRandom(),

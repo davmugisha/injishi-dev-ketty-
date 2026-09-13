@@ -77,6 +77,7 @@ function presentOversight(
   grant: NonNullable<AdminUserRow["oversight"]>,
 ): OversightAssignment {
   return {
+    id: grant.id,
     role: grant.oversightRole,
     bodyCode: grant.governmentBodyCode,
     // The government's own free-text title. Absent is common — the grant is

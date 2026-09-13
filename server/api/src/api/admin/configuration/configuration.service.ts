@@ -1,11 +1,18 @@
 import {
   AdminConfiguration,
   AdminFeeSchedule,
+  AdminRegistrationFee,
+  type AppendRegistrationFeeRequest,
 } from '@injishi/contracts';
-import { Inject, Injectable } from '@nestjs/common';
+import {
+  Inject,
+  Injectable,
+  UnprocessableEntityException,
+} from '@nestjs/common';
 import { asc, desc, eq, sql } from 'drizzle-orm';
 
 import {
+  auditEvents,
   configEntries,
   districts,
   featureFlags,
@@ -31,10 +38,8 @@ import {
  * cannot answer "what was the rate in March", which is the only question anyone
  * asks a fee catalog under dispute.
  *
- * Reads only. `admin.config.edit` and `admin.fee.edit` are the permissions the
- * routes declare because they are the permissions the SECTION is gated on in
- * `staff-authz.ts` — the write endpoints those names promise are not built, and
- * naming a `.view` permission that does not exist would be inventing one.
+ * Both reads sit behind `admin.config.view` (ADR-049), which every staff role
+ * holds. The one write here, the fee append, is `admin.fee.edit`.
  */
 @Injectable()
 export class ConfigurationAdminService {
@@ -147,6 +152,84 @@ export class ConfigurationAdminService {
    * as a number without the cast is how a total silently becomes `"0"` and
    * fails the contract's `z.number()`.
    */
+  /**
+   * Append a registration fee, and record who did it (ADR-049, AC-R9, AC-G10).
+   *
+   * **An insert, never an update.** The catalogue is effective dated so that a
+   * price change is a NEW row: `currentFee` reads the newest row whose moment has
+   * passed, and every registration already created keeps the amount locked on
+   * its invoice. Editing a row in place would silently re-date a price somebody
+   * was already quoted.
+   *
+   * **A moment in the past is refused with 422**, against the server clock. A
+   * retroactive fee would make an invoice already issued disagree with the
+   * catalogue that produced it. Sending no `effectiveFrom` means now, which is
+   * also how a caller avoids being refused by the milliseconds its own request
+   * took to arrive.
+   *
+   * The fee row and its audit row are one transaction: a price that changed with
+   * nobody's name on it is the one kind of catalogue edit nobody can explain.
+   */
+  async appendRegistrationFee(input: {
+    actorUserId: string;
+    request: AppendRegistrationFeeRequest;
+  }): Promise<AdminRegistrationFee> {
+    const now = new Date();
+    const effectiveFrom = input.request.effectiveFrom
+      ? new Date(input.request.effectiveFrom)
+      : now;
+    if (effectiveFrom.getTime() < now.getTime()) {
+      throw new UnprocessableEntityException({
+        code: 'effective_from_in_past',
+        message:
+          'A fee cannot take effect in the past. Choose a moment from now on, or leave it empty to start now.',
+      });
+    }
+
+    return this.db.transaction(async (tx) => {
+      const [fee] = await tx
+        .insert(registrationFees)
+        .values({
+          businessType: input.request.businessType,
+          amountRwf: input.request.amountRwf,
+          effectiveFrom,
+        })
+        .returning({
+          id: registrationFees.id,
+          businessType: registrationFees.businessType,
+          amountRwf: registrationFees.amountRwf,
+          currency: registrationFees.currency,
+          effectiveFrom: registrationFees.effectiveFrom,
+          active: registrationFees.active,
+        });
+      if (!fee) throw new Error('Registration fee insert returned no row.');
+
+      await tx.insert(auditEvents).values({
+        actorUserId: input.actorUserId,
+        subjectType: 'config',
+        subjectId: fee.id,
+        eventType: 'admin.fee.appended',
+        payloadDiff: {
+          registrationFee: {
+            businessType: fee.businessType,
+            amountRwf: Number(fee.amountRwf),
+            effectiveFrom: fee.effectiveFrom.toISOString(),
+          },
+        } as never,
+        reason: input.request.reason,
+      });
+
+      return AdminRegistrationFee.parse({
+        id: fee.id,
+        businessType: fee.businessType,
+        amountRwf: Number(fee.amountRwf),
+        currency: fee.currency,
+        effectiveFrom: fee.effectiveFrom.toISOString(),
+        active: fee.active,
+      });
+    });
+  }
+
   async fees(): Promise<AdminFeeSchedule> {
     const fees = await this.db
       .select({

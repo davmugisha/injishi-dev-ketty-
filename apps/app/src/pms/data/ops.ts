@@ -744,31 +744,15 @@ export function useVoidCharge(
  * view", because a workspace can hold several and nothing on the grant says.
  * This read is where that list comes from when those screens are wired.
  */
-/**
- * WHY THE WORKSPACE IS SENT TWICE.
- *
- * The inventory routes validate a `workspaceId` QUERY parameter and then throw
- * it away: the handler binds it to `_query` and reads the real workspace from
- * `@CurrentWorkspace()`, which `WorkspaceGuard` resolved from the
- * `x-workspace-id` header. So the header is authoritative and the parameter is
- * a validation-only requirement.
- *
- * It is sent anyway rather than argued with, because the contract
- * (`PropertyQuery`, ADR-009) says a request carries it and a client that
- * omitted it would be refused with a validation error that reads like a bug in
- * this app. The redundancy is recorded in ADR-035 as owed cleanup on the API
- * side; removing it is a server change, not a client one.
- */
-function withWorkspace(path: string, workspaceId: string | null): string {
-  return `${path}?workspaceId=${encodeURIComponent(workspaceId ?? "")}`;
-}
-
+// The workspace travels in the `x-workspace-id` header `useOpsQuery` sends, and
+// nowhere else. The inventory reads used to demand it a second time as a query
+// parameter they then discarded; ADR-049 task 18 removed that from the API.
 export function useProperties(
   workspaceId: string | null,
 ): UseQueryResult<OperatorPropertyList> {
   return useOpsQuery(
     queryKeys.properties(workspaceId),
-    withWorkspace("/inventory/properties", workspaceId),
+    "/inventory/properties",
     workspaceId,
     OperatorPropertyList,
   );
@@ -801,7 +785,7 @@ export function useProperty(
     queryKey: queryKeys.property(workspaceId, propertyId),
     queryFn: () =>
       read(
-        withWorkspace(`/inventory/properties/${propertyId as string}`, workspaceId),
+        `/inventory/properties/${propertyId as string}`,
         workspaceId as string,
         OperatorProperty,
       ),

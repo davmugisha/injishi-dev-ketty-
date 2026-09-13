@@ -30,6 +30,7 @@ import { users } from './auth';
 import { amount, currency, timestamps } from './columns';
 import { approvalPolicyEnum, bookingModeEnum, cancellationTierEnum, checkInMethodEnum, domainKindEnum, housekeepingStatusEnum, listingStatusEnum, rateDerivationKindEnum, ratePlanStatusEnum, roomStatusEnum, roomTypeStatusEnum } from './enums';
 import { districts, sectors, villages } from './geography';
+import { storedObjects } from './hospitality';
 import { departments } from './operations';
 import { orgs, workspaces } from './org';
 
@@ -78,7 +79,6 @@ export const properties = pgTable(
     checkInTime: time('check_in_time'),
     checkOutTime: time('check_out_time'),
     houseRules: text('house_rules'),
-    photoObjectKeys: jsonb('photo_object_keys'),
     ...timestamps,
   },
   (t) => [
@@ -90,6 +90,50 @@ export const properties = pgTable(
     // the properties that HAVE a public address and leaves the pipeline alone.
     // It is also the index `GET /properties/slug/:slug` reads on.
     uniqueIndex('properties_slug_uk').on(t.slug),
+  ],
+);
+
+/**
+ * A property's photographs (ADR-049).
+ *
+ * **This replaced `properties.photo_object_keys`, a `jsonb` array of keys.** The
+ * array was fine while photographs were decoration. ADR-049 made at least one a
+ * condition of publishing, which makes them load bearing, and an array cannot
+ * carry a cover flag, an order that survives an edit, or a caption — and a key
+ * sitting in a `jsonb` blob is invisible to retention and legal hold.
+ *
+ * A row inherits all of that through `stored_objects`, which is the same
+ * reasoning that put certificates in `org_certificates` rather than in columns
+ * on `orgs`.
+ */
+export const propertyPhotos = pgTable(
+  'property_photos',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    propertyId: uuid('property_id')
+      .notNull()
+      .references(() => properties.id, { onDelete: 'cascade' }),
+    objectKey: text('object_key')
+      .notNull()
+      .references((): AnyPgColumn => storedObjects.objectKey),
+    /** 0 based and dense. The operator's chosen order, not an upload order. */
+    position: integer('position').notNull(),
+    isCover: boolean('is_cover').notNull().default(false),
+    caption: text('caption'),
+    createdAt: timestamp('created_at', { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (t) => [
+    index('property_photos_property_idx').on(t.propertyId),
+    // One photograph per slot, so a reorder cannot leave two rows claiming the
+    // same place and a reader cannot have to break the tie arbitrarily.
+    uniqueIndex('property_photos_position_uk').on(t.propertyId, t.position),
+    // Exactly one cover. PARTIAL, because `is_cover = false` is the ordinary case
+    // and constraining those would allow only one non-cover photograph.
+    uniqueIndex('property_photos_cover_uk')
+      .on(t.propertyId)
+      .where(sql`${t.isCover}`),
   ],
 );
 

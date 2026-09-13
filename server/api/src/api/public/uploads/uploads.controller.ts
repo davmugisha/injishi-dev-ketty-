@@ -9,6 +9,8 @@ import {
   UseGuards,
 } from '@nestjs/common';
 
+import type { UploadedPropertyPhoto } from '@injishi/contracts';
+
 import {
   StorageService,
   type AttachmentView,
@@ -214,6 +216,58 @@ export class UploadsController {
       mime: uploaded.mimetype ?? 'application/octet-stream',
       filename: uploaded.filename ?? 'certificate',
       uploadedByUserId: user.id,
+    });
+  }
+
+  /**
+   * Store one property photograph and return the key to attach it by
+   * (ADR-049, AC-I3).
+   *
+   * Shaped like the certificate route above rather than the generic attachment
+   * route, deliberately. The attachment route is built for a PHONE with an offline
+   * queue, so it demands an `attemptToken` to make a replayed flush idempotent.
+   * This comes from an operator pressing a button in a browser: no queue, no
+   * replay, and making the browser invent a token would buy nothing.
+   *
+   * No workspace guard, like its neighbours, and for the same reason: the bytes go
+   * up BEFORE the write that gives them a home, and it is the attach call — which
+   * does run behind `WorkspaceGuard` and `listing.manage` — that knows which
+   * property they belong to. The object is also checked to really be a property
+   * photograph at attach time, so a stray key cannot be hung on a listing.
+   */
+  @Post('property-photo')
+  @UseGuards(SessionGuard)
+  async propertyPhoto(
+    @Req() request: MultipartRequest,
+    @CurrentUser() user: SessionUser,
+  ): Promise<UploadedPropertyPhoto> {
+    if (typeof request.isMultipart !== 'function' || !request.isMultipart()) {
+      throw new BadRequestException('Send the file as multipart/form-data.');
+    }
+    if (typeof request.file !== 'function') {
+      throw new BadRequestException('Send the file as multipart/form-data.');
+    }
+
+    // The ceiling is enforced by the PARSER, before the bytes are buffered, for
+    // the same reason the certificate route does it there.
+    const uploaded = await request.file({
+      limits: { fileSize: MAX_ATTACHMENT_BYTES },
+    });
+    if (!uploaded) throw new BadRequestException('No file was sent.');
+
+    const body = await uploaded.toBuffer();
+    if (uploaded.file?.truncated) {
+      throw new BadRequestException('A photograph must be 8 MB or smaller.');
+    }
+
+    return this.storage.putPropertyPhoto({
+      body,
+      mime: uploaded.mimetype ?? 'application/octet-stream',
+      filename: uploaded.filename ?? 'photo',
+      uploadedByUserId: user.id,
+      // Not claimed here. The attach call is what knows the property, and
+      // therefore the workspace; guessing one now would be guessing.
+      workspaceId: null,
     });
   }
 

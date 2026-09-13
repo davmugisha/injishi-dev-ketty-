@@ -626,17 +626,17 @@ async function seedProperty(c, pr) {
   await c.query(
     `INSERT INTO properties
        (id, org_id, workspace_id, name, description, sector_id, district_id,
-        address_text, check_in_time, check_out_time, house_rules, photo_object_keys)
-     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12::jsonb)
+        address_text, check_in_time, check_out_time, house_rules)
+     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
      ON CONFLICT (id) DO NOTHING`,
     [
       pr.id, pr.orgId, pr.workspaceId, pr.name, pr.description,
       await sectorId(c, pr.district, pr.sector),
       await districtId(c, pr.district),
       pr.street, pr.checkIn, pr.checkOut, pr.houseRules,
-      // Written as an empty array rather than left null, so a reader never has
-      // to tell "no photos" from "we never looked" (ADR-009 AC-13).
-      JSON.stringify([]),
+      // No photo column: ADR-049 moved photographs into `property_photos`, so a
+      // seeded property has NO photograph and therefore cannot be published
+      // until one is attached through the operator app.
     ],
   );
 }
@@ -768,14 +768,31 @@ async function seedMessage(c, m) {
   );
 }
 
+/**
+ * The money a seeded booking already holds, as the mock adapter would have
+ * recorded capturing it.
+ *
+ * `adapter_ref` is what every later money move names as the original: a host's
+ * decline releases it, a cancellation refunds it. Seeded without one, both
+ * `BK-DEMO-001` and `002` could never be declined through either door, which
+ * answered 503 because there was no capture to release (ADR-049 J27). The value
+ * is the one `MockPaymentAdapter` mints for a capture, `mock_escrow_capture_`
+ * plus the idempotency key, so the adapter reads it as its own.
+ *
+ * A re run fills a reference an older seed left null and changes nothing else,
+ * so a sample database seeded before this fix is repaired by running it again.
+ */
 async function seedEscrow(c, e) {
+  const idempotencyKey = `seed-demo:${e.id}`;
   await c.query(
     `INSERT INTO escrows
-       (id, workspace_id, source, booking_id, amount_rwf, status, adapter_mode, idempotency_key)
-     VALUES ($1, $2, 'booking', $3, $4, $5, 'mock', $6) ON CONFLICT (id) DO NOTHING`,
+       (id, workspace_id, source, booking_id, amount_rwf, status, adapter_ref, adapter_mode, idempotency_key)
+     VALUES ($1, $2, 'booking', $3, $4, $5, $6, 'mock', $7)
+     ON CONFLICT (id) DO UPDATE SET adapter_ref = EXCLUDED.adapter_ref
+       WHERE escrows.adapter_ref IS NULL`,
     // The key is derived from the row id rather than random, so re running
     // cannot trip the unique index with a second key for the same escrow.
-    [e.id, W(1), e.bookingId, e.amountRwf, e.status, `seed-demo:${e.id}`],
+    [e.id, W(1), e.bookingId, e.amountRwf, e.status, `mock_escrow_capture_${idempotencyKey}`, idempotencyKey],
   );
 }
 
@@ -919,16 +936,14 @@ async function seedResidenceRentRoll(c) {
   const p = RESIDENCE_PROPERTY;
   await c.query(
     `INSERT INTO properties
-       (id, org_id, workspace_id, name, sector_id, district_id, address_text,
-        photo_object_keys)
-     VALUES ($1, $2, $3, $4, $5, $6, $7, $8::jsonb)
+       (id, org_id, workspace_id, name, sector_id, district_id, address_text)
+     VALUES ($1, $2, $3, $4, $5, $6, $7)
      ON CONFLICT (id) DO NOTHING`,
     [
       p.id, p.orgId, p.workspaceId, p.name,
       await sectorId(c, p.district, p.sector),
       await districtId(c, p.district),
       p.street,
-      JSON.stringify([]),
     ],
   );
 

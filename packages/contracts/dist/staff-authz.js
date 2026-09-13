@@ -60,11 +60,18 @@ exports.StaffPermission = zod_1.z.enum([
     "admin.compliance.view",
     "admin.dsr.action",
     "admin.audit.read",
-    // Platform — configuration, environments, and what reaches users.
+    // Platform — configuration, environments, and what reaches users. Each area
+    // has a read of its own (ADR-049): five sections used to gate their READ on
+    // the write, so only `super_admin` could look at them at all.
+    "admin.config.view",
     "admin.config.edit",
+    "admin.environment.view",
     "admin.environment.manage",
+    "admin.announcement.view",
     "admin.announcement.publish",
+    "admin.moderation.view",
     "admin.moderation.act",
+    "admin.localization.view",
     "admin.localization.edit",
 ]);
 const ALL_STAFF = exports.StaffPermission.options;
@@ -89,6 +96,13 @@ const OBSERVE = [
  * `finance` sees money and edits the fee catalog and payouts. It does NOT hold
  * `admin.money.override`, which needs a second signer regardless of who holds
  * it, so handing it out by role would only make the refusal later and stranger.
+ *
+ * THE FIVE READS (ADR-049). Every role reads configuration, because it is the
+ * one area all four need context from and the fee amounts live there. `ops`
+ * reads all five areas it already acts in or runs beside; `compliance` reads
+ * configuration, moderation and localization; `finance` reads configuration.
+ * Nobody gained a write they did not hold. 25 permissions became 30: `ops` 13 to
+ * 18, `compliance` 7 to 10, `finance` 6 to 7.
  */
 const STAFF_ROLE_PERMISSIONS = {
     super_admin: new Set(ALL_STAFF),
@@ -102,7 +116,12 @@ const STAFF_ROLE_PERMISSIONS = {
         "admin.user.session.revoke",
         "admin.broker.view",
         "admin.broker.approve",
+        "admin.config.view",
+        "admin.environment.view",
+        "admin.announcement.view",
+        "admin.moderation.view",
         "admin.moderation.act",
+        "admin.localization.view",
         "admin.localization.edit",
     ]),
     compliance: new Set([
@@ -111,12 +130,16 @@ const STAFF_ROLE_PERMISSIONS = {
         "admin.compliance.view",
         "admin.dsr.action",
         "admin.audit.read",
+        "admin.config.view",
+        "admin.moderation.view",
+        "admin.localization.view",
     ]),
     finance: new Set([
         ...OBSERVE,
         "admin.finance.view",
         "admin.fee.edit",
         "admin.payout.release",
+        "admin.config.view",
     ]),
 };
 /**
@@ -162,10 +185,15 @@ exports.STAFF_PERMISSION_LABEL = {
     "admin.compliance.view": "view compliance",
     "admin.dsr.action": "action a data subject request",
     "admin.audit.read": "read the audit log",
+    "admin.config.view": "view configuration",
     "admin.config.edit": "change configuration",
+    "admin.environment.view": "view environments and adapters",
     "admin.environment.manage": "manage environments and adapters",
+    "admin.announcement.view": "view announcements",
     "admin.announcement.publish": "publish an announcement",
+    "admin.moderation.view": "view moderation and support",
     "admin.moderation.act": "moderate content",
+    "admin.localization.view": "view translations",
     "admin.localization.edit": "edit translations",
 };
 /**

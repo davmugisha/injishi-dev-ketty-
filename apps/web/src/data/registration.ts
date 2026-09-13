@@ -1,5 +1,6 @@
 import {
   BrokerRegistrationSummary,
+  ClaimPreview,
   type CreateBrokerRegistrationRequest,
   type CreateRegistrationRequest,
   MyProfile,
@@ -154,11 +155,29 @@ export async function createRegistration(
 }
 
 /**
+ * Accept the operator contract, between creating and paying (ADR-049, AC-R8).
+ *
+ * `contractVersion` is the version the page rendered. The server refuses one
+ * that is not current (409 `contract_version_stale`) and stores its own
+ * constant, never this value. Accepting twice returns the first acceptance.
+ */
+export async function acceptRegistrationContract(
+  orgId: string,
+  contractVersion: string,
+): Promise<ApiResult<RegistrationSummary>> {
+  return summaryCall(`/api/v1/registrations/${orgId}/contract`, "POST", {
+    contractVersion,
+  });
+}
+
+/**
  * Settle the registration fee, which is what enqueues the RRA check.
  *
  * Stands in for the payment provider callback until F-S08 lands a real one, so
  * this is the whole "pay" step today. It is idempotent server-side: pressing it
  * twice advances nothing twice and bills nothing twice.
+ *
+ * Refused with 409 `contract_not_accepted` while the contract is open.
  */
 export async function payRegistrationFee(
   orgId: string,
@@ -184,6 +203,41 @@ export async function resubmitRegistration(
   orgId: string,
 ): Promise<ApiResult<RegistrationSummary>> {
   return summaryCall(`/api/v1/registrations/${orgId}/resubmit`, "POST");
+}
+
+/**
+ * What `/claim-org` shows before the owner commits (FL02, ADR-049, AC-R3).
+ *
+ * A POST with the token in the body, so the token never lands in the API's
+ * access log. Any token that is not live for this org is a 404, worded the same
+ * whatever the reason.
+ */
+export async function previewOrgClaim(
+  orgId: string,
+  token: string,
+): Promise<ApiResult<ClaimPreview>> {
+  const res = await apiFetch<unknown>(
+    `/api/v1/orgs/${encodeURIComponent(orgId)}/claim/preview`,
+    { method: "POST", body: { token } },
+  );
+  if (res.status !== "ok") return res;
+  const parsed = ClaimPreview.safeParse(res.data);
+  return parsed.success ? { status: "ok", data: parsed.data } : { status: "failed" };
+}
+
+/**
+ * Claim the business (AC-R1, AC-R11). The same 404 as the preview for every
+ * refusal, a document that does not match included.
+ */
+export async function claimOrg(
+  orgId: string,
+  token: string,
+): Promise<ApiResult<RegistrationSummary>> {
+  return summaryCall(
+    `/api/v1/orgs/${encodeURIComponent(orgId)}/claim`,
+    "POST",
+    { token },
+  );
 }
 
 async function summaryCall(

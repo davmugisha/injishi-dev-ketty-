@@ -1,5 +1,4 @@
-import type { DepartmentCategory } from "@injishi/contracts";
-
+import { permissionsOf, type CapabilityView } from "../store/helpers";
 import type { NavContext } from "./nav";
 
 /**
@@ -26,9 +25,7 @@ import type { NavContext } from "./nav";
 
 /** The store slice a nav is built from. */
 interface NavSource {
-  state: Pick<NavContext, "ws" | "role" | "workspaceId"> & {
-    grants: readonly { workspaceId: string | null; departments: DepartmentCategory[] }[] | null;
-  };
+  state: CapabilityView;
 }
 
 export function navContextOf(
@@ -45,10 +42,18 @@ export function navContextOf(
 
   return {
     ws: pms.state.ws,
-    // From the URL, never from the store (ADR-018, invariant 1). Passed in
-    // rather than read here so this file keeps importing no runtime module.
+    // From the URL, never from the store (ADR-018, invariant 1). Passed in by
+    // the caller, which reads it from the route.
     workspaceId,
-    role: pms.state.role,
+    // The permission array the server resolved for THIS workspace, read through
+    // `permissionsOf`, the same answer every button's `can` reads (ADR-049,
+    // AC-A1). The nav and the buttons cannot disagree about what a person may
+    // do, and no role name decides a section. Before the API has answered it is
+    // the demo stand in, exactly as it is for the buttons.
+    permissions: permissionsOf({
+      ...pms.state,
+      workspaceId: workspaceId ?? pms.state.workspaceId,
+    }),
     departments: grant?.departments ?? [],
     // No counts yet. Every pill stays absent until a live query answers it
     // (ADR-035, D-a); a fixture supplied number is not a count.

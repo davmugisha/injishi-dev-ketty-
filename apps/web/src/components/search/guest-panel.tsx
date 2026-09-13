@@ -101,7 +101,8 @@ export function GuestPanel({
       <Checkbox
         isSelected={guests.pets}
         onChange={(isSelected) => onChange({ ...guests, pets: isSelected })}
-        className="flex items-start gap-3 border-t border-black/5 px-6 py-4 font-normal"
+        className="flex w-full items-start gap-3 border-t border-black/5 px-6 py-4 font-normal"
+        controlClassName="mt-0.5"
       >
         <span className="block">
           <span className="block text-base leading-tight text-ink">

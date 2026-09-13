@@ -210,7 +210,12 @@ export function presentOrgRow(row: AdminOrgRow | AdminOrgDetail): OrgRow {
  * warning where a reviewer refused, a flag where the business is suspended.
  */
 export function presentReviewItem(item: AdminOrgReviewItem): OrgReviewItem {
-  const waiting = item.submittedAt ? elapsed(item.submittedAt) : null;
+  // TIME IN THE CURRENT STAGE, from the event log (ADR-049, AC-R7). It used to
+  // be "waiting since submission", derived from a review that may not exist
+  // yet, which is the figure that could not tell a business stuck at the RRA
+  // check from one stuck at an officer. A business that reached its stage before
+  // the log existed has no entry, and shows no wait rather than a guessed one.
+  const inStage = item.stageEnteredAt ? elapsed(item.stageEnteredAt) : null;
   const decision = item.lastDecision;
   const icon = reviewIcon(item);
 
@@ -224,7 +229,13 @@ export function presentReviewItem(item: AdminOrgReviewItem): OrgReviewItem {
       !item.tinVerified && "TIN not verified",
       decision?.reasonCode && REJECTION_REASON_LABEL[decision.reasonCode],
       decision && `decided ${date(decision.decidedAt)}`,
-      waiting && `waiting ${waiting}`,
+      inStage && `in stage ${inStage}`,
+      // Every automatic RRA retry used (AC-R5). Named on the row, because the
+      // point of the ceiling is that a human looks now.
+      item.stalled && "RRA check stalled, needs a person",
+      // Nobody is appointed to take this stage here (ADR-049, AC-G9). A business
+      // stuck for want of an officer must not look like one under slow review.
+      item.coverage === "uncovered" && "No officer appointed for this stage and district",
     ),
     badge: {
       text: REGISTRATION_LABEL[item.registrationStatus],

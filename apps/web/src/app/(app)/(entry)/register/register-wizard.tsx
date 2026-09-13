@@ -4,6 +4,8 @@ import {
   ACCOMMODATION_CLASS_LABEL,
   BusinessDetails,
   CreateRegistrationRequest,
+  IntendedOwner,
+  OPERATOR_CONTRACT_VERSION,
   PersonalDetails,
   type BrokerRegistrationSummary,
   type MyProfile,
@@ -26,6 +28,7 @@ import {
   type RegistrationStepId,
 } from "@/components/shared/registration-step-rail";
 import {
+  acceptRegistrationContract,
   createRegistration,
   fetchMyProfile,
   fetchRegistration,
@@ -35,12 +38,7 @@ import {
 } from "@/data/registration";
 import { apiResultMessage } from "@/lib/api";
 import { formatRwf } from "@/lib/money";
-import {
-  readSignedContract,
-  writeSignedContract,
-  type ContractSignature,
-  type RegistrationContractInput,
-} from "@/lib/registration-contract";
+import { type RegistrationContractInput } from "@/lib/registration-contract";
 import { formatNationalId, nationalIdError } from "@/lib/rwanda-id";
 import { upiError } from "@/lib/upi";
 
@@ -96,18 +94,23 @@ type Phase =
   | "documents"
   | "pay"
   /**
-   * The operator agreement, signed after the fee has settled and before the
-   * pipeline screen (C24, C25).
+   * The operator agreement, accepted BETWEEN creating the registration and
+   * paying for it (ADR-049, AC-R8):
    *
-   * It sits AFTER `pay` rather than between `documents` and `pay` because the
-   * two figures the contract binds — the registration reference and the amount
-   * actually charged — only exist once the server has raised the org and
-   * settled its invoice. A contract signed a step earlier would have to quote a
-   * price from the catalog and a reference that did not exist yet.
+   *   place → about → business → documents → create → contract → pay → pipeline
    *
-   * It is also why this phase has no node on `RegistrationStepRail`: like
-   * `pipeline` and `broker_done` it is what happens after the five-step form,
-   * not a sixth field to fill in.
+   * Not earlier, because the two figures it binds — the registration reference
+   * and the invoiced amount — exist only once the server has raised the org and
+   * its bill. Not later, because paying is what puts a business in front of an
+   * officer, and it used to get there without an accepted contract. The server
+   * now refuses to settle until the acceptance is recorded, so this ordering is
+   * the affordance and `/pay` is the control.
+   *
+   * `pay` is entered twice: once to create (the first press on the review step)
+   * and once, after this, to settle.
+   *
+   * It has no node on `RegistrationStepRail`, like `pipeline` and
+   * `broker_done`: it is a document to accept, not a sixth form to fill in.
    */
   | "contract"
   | "pipeline"
@@ -134,8 +137,8 @@ const EMPTY_BUSINESS: BusinessDraft = {
   tin: "",
   upi: "",
   tourismLicenseNumber: "",
-  chamberOfTourismMember: false,
-  psfMember: false,
+  chamberOfTourismMember: null,
+  psfMember: null,
   eacStarGrade: "",
   address: { ...EMPTY_ADDRESS },
 };
@@ -191,16 +194,11 @@ export default function RegisterWizard({
   const [broker, setBroker] = useState<BrokerRegistrationSummary | null>(null);
   const [pending, setPending] = useState<LabelledWorkspace[]>([]);
   /**
-   * What the fee actually came to, kept because the server stops reporting it.
-   *
-   * `RegistrationSummary.amountDueRwf` is set only while the invoice is
-   * outstanding, so the summary returned BY the payment call already has it as
-   * null. Reading it there and putting that in the contract would print a
-   * signed agreement with no figure in the clause about the fee, on the one
-   * screen whose job is to record what was agreed.
+   * True when the registration on screen was opened from the resume panel, so
+   * no draft of it exists in this browser. The pay step then shows the bill
+   * alone rather than a review of answers nobody typed here.
    */
-  const [charged, setCharged] = useState<number | null>(null);
-  const [signature, setSignature] = useState<ContractSignature | null>(null);
+  const [resumed, setResumed] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [formError, setFormError] = useState("");
   const [busy, setBusy] = useState(false);
@@ -268,18 +266,17 @@ export default function RegisterWizard({
       return;
     }
     setSummary(res.data);
-    // A registration whose fee has settled but which was never signed is one a
-    // person walked away from mid-signature. Sending them straight to the
-    // pipeline would leave the agreement permanently unsigned with nothing on
-    // any screen offering it again, so the contract is what they land on and
-    // the pipeline is one press further.
-    const already = readSignedContract(res.data.orgId);
-    setSignature(already);
-    setCharged(res.data.amountDueRwf);
+    setResumed(true);
+    // Where to resume is read from the SERVER, never from this browser: a
+    // registrant who accepted on another device, or cleared their storage, is
+    // exactly as far along as the business says they are (AC-R8). Unpaid and
+    // unaccepted lands on the contract; unpaid and accepted lands on the bill.
     setPhase(
-      already === null && res.data.status !== "pending_payment"
-        ? "contract"
-        : "pipeline",
+      res.data.status !== "pending_payment"
+        ? "pipeline"
+        : res.data.contractAcceptedAt === null
+          ? "contract"
+          : "pay",
     );
   }, []);
 
@@ -348,9 +345,24 @@ export default function RegisterWizard({
         return;
       }
     }
-    if (capacity === "on_behalf_of" && intendedOwner.name.trim().length < 2) {
-      setErrors({ "intendedOwner.name": "Tell us who you are registering for." });
-      return;
+    // The owner's name, National ID and email, checked with the contract's own
+    // `IntendedOwner` before this step is left (ADR-049 J25). All three are
+    // required: no email means no claim invitation, and no National ID means
+    // the owner can never be matched when they claim. A mistyped ID is named in
+    // the field's own words, the ones it already shows as you type.
+    if (capacity === "on_behalf_of") {
+      const parsed = IntendedOwner.safeParse(intendedOwner);
+      if (!parsed.success) {
+        const local = prefix("intendedOwner", issuesToErrors(parsed.error.issues));
+        const idProblem =
+          intendedOwner.nationalId.trim() === ""
+            ? null
+            : nationalIdError(intendedOwner.nationalId);
+        if (idProblem !== null) local["intendedOwner.nationalId"] = idProblem;
+        setErrors(local);
+        setFormError("Tell us who owns this business before you continue.");
+        return;
+      }
     }
 
     // A broker's registration is complete at this point: there is no business
@@ -400,8 +412,22 @@ export default function RegisterWizard({
     }
 
     const parsed = BusinessDetails.safeParse(businessCandidate(business, role, kind, []));
-    if (!parsed.success) {
-      setErrors(prefix("business", issuesToErrors(parsed.error.issues)));
+    // Both memberships ANSWERED, for a host (ADR-026 assumption 5, AC-6). The
+    // contract accepts an absent answer as false, which is exactly why the form
+    // has to ask: the officer reads this answer, and "the registrant never said"
+    // must not reach them as "No".
+    const unanswered: Record<string, string> = {};
+    if (role === "host" && business.chamberOfTourismMember === null) {
+      unanswered["business.chamberOfTourismMember"] = "Answer Yes or No.";
+    }
+    if (role === "host" && business.psfMember === null) {
+      unanswered["business.psfMember"] = "Answer Yes or No.";
+    }
+    if (!parsed.success || Object.keys(unanswered).length > 0) {
+      setErrors({
+        ...(parsed.success ? {} : prefix("business", issuesToErrors(parsed.error.issues))),
+        ...unanswered,
+      });
       setFormError("Some of your business details need fixing.");
       return;
     }
@@ -424,12 +450,8 @@ export default function RegisterWizard({
         ? {
             intendedOwner: {
               name: intendedOwner.name.trim(),
-              ...(intendedOwner.nationalId.trim()
-                ? { nationalId: intendedOwner.nationalId }
-                : {}),
-              ...(intendedOwner.email.trim()
-                ? { email: intendedOwner.email.trim() }
-                : {}),
+              nationalId: intendedOwner.nationalId,
+              email: intendedOwner.email.trim(),
             },
           }
         : {}),
@@ -450,31 +472,58 @@ export default function RegisterWizard({
       return;
     }
     setSummary(res.data);
+    setPhase("contract");
+  };
+
+  /**
+   * Record the acceptance on the server (AC-R8). Resolves null once recorded,
+   * or the sentence the contract step shows.
+   *
+   * The drawn signature is NOT sent: only the version on screen is, and the
+   * server stores its own constant. The mark stays in memory for the download.
+   */
+  const acceptContract = async (): Promise<string | null> => {
+    if (!summary) {
+      return "This registration is no longer open. Reload to see where it stands.";
+    }
+    const res = await acceptRegistrationContract(
+      summary.orgId,
+      OPERATOR_CONTRACT_VERSION,
+    );
+    if (res.status === "ok") {
+      setSummary(res.data);
+      return null;
+    }
+    if (res.status === "refused" && res.code === "contract_not_open") {
+      // It already moved past the bill, most likely paid from another tab.
+      const now = await fetchRegistration(summary.orgId);
+      if (now.status === "ok") {
+        setSummary(now.data);
+        setPhase("pipeline");
+        return null;
+      }
+    }
+    return apiResultMessage(res);
   };
 
   const pay = async () => {
     if (!summary) return;
     setBusy(true);
     setFormError("");
-    // Read the amount from the summary that still HAS one, before the paid
-    // response replaces it with null. See the `charged` state above.
-    const amount = summary.amountDueRwf ?? quote?.amountRwf ?? null;
     const res = await payRegistrationFee(summary.orgId);
     setBusy(false);
     if (res.status !== "ok") {
+      // The server refusing to settle an unaccepted contract (AC-R13) sends the
+      // registrant to the one screen that can fix it, with the server's words.
+      if (res.status === "refused" && res.code === "contract_not_accepted") {
+        setSummary({ ...summary, contractAcceptedAt: null, contractVersion: null });
+        setPhase("contract");
+      }
       setFormError(apiResultMessage(res));
       return;
     }
-    setCharged(amount);
     setSummary(res.data);
-    setSignature(readSignedContract(res.data.orgId));
-    setPhase("contract");
-  };
-
-  /** Record the signature against this registration and keep it for a return visit. */
-  const recordSignature = (next: ContractSignature) => {
-    setSignature(next);
-    if (summary) writeSignedContract(summary.orgId, next);
+    setPhase("pipeline");
   };
 
   // --- render ---------------------------------------------------------------
@@ -488,11 +537,12 @@ export default function RegisterWizard({
           business,
           profile,
           editingProfile,
-          charged,
         })}
-        existing={signature}
-        onSigned={recordSignature}
-        onContinue={() => setPhase("pipeline")}
+        onAccept={acceptContract}
+        onContinue={() => {
+          setFormError("");
+          setPhase("pay");
+        }}
       />
     );
   }
@@ -593,10 +643,12 @@ export default function RegisterWizard({
             profile={profile}
             editingProfile={editingProfile}
             capacity={capacity}
+            intendedOwner={intendedOwner}
             business={business}
             certificates={certificates}
             quote={quote}
             summary={summary}
+            resumed={resumed}
             busy={busy}
             error={formError}
             onCreate={() => void createAndShowBill()}
@@ -814,8 +866,8 @@ function businessCandidate(
     ...(d.tourismLicenseNumber
       ? { tourismLicenseNumber: d.tourismLicenseNumber }
       : {}),
-    chamberOfTourismMember: d.chamberOfTourismMember,
-    psfMember: d.psfMember,
+    ...(d.chamberOfTourismMember === null ? {} : { chamberOfTourismMember: d.chamberOfTourismMember }),
+    ...(d.psfMember === null ? {} : { psfMember: d.psfMember }),
     ...(d.eacStarGrade ? { eacStarGrade: Number(d.eacStarGrade) } : {}),
     address,
     certificates: wire,
@@ -832,8 +884,8 @@ function businessCandidate(
  * proofreading the review screen and a person reading the signed contract are
  * looking at the same characters in the same grouping.
  *
- * THE NULLS ARE REAL ANSWERS. A registrant resuming a paid registration has no
- * business draft in memory: the server returns a legal name, a domain and a
+ * THE NULLS ARE REAL ANSWERS. A registrant resuming an unpaid registration has
+ * no business draft in memory: the server returns a legal name, a domain and a
  * status, and nothing about the TIN or the street. Those rows are omitted from
  * the contract rather than printed as an em dash, because a document that says
  * "TIN —" states something false about what was agreed.
@@ -845,7 +897,6 @@ function contractInputFor({
   business,
   profile,
   editingProfile,
-  charged,
 }: {
   summary: RegistrationSummary;
   kind: RegistrationKind | null;
@@ -853,7 +904,6 @@ function contractInputFor({
   business: BusinessDraft;
   profile: MyProfile | null;
   editingProfile: boolean;
-  charged: number | null;
 }): RegistrationContractInput {
   // The same test the review step makes: a returning registrant who confirmed
   // stored details never retyped them, so the profile is the truth about them.
@@ -913,8 +963,12 @@ function contractInputFor({
     businessKindLabel: kindLabel,
     businessIdLabel,
     businessAddressLabel: street || null,
-    feeLabel: charged === null ? null : formatRwf(charged),
+    // The invoiced amount. The contract is accepted while the invoice is
+    // outstanding, which is exactly when the server reports it.
+    feeLabel:
+      summary.amountDueRwf === null ? null : formatRwf(summary.amountDueRwf),
     reference: summary.orgId,
+    contractVersion: OPERATOR_CONTRACT_VERSION,
   };
 }
 

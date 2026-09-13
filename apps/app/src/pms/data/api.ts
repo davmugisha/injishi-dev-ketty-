@@ -41,6 +41,12 @@ export class ApiError extends Error {
   constructor(
     readonly status: number,
     message: string,
+    /**
+     * The refusal's parsed body, when it had one. `message` is already the
+     * sentence to show; this is for a screen that needs a refusal's machine
+     * readable detail as well, such as the `blockers` a publish refusal lists.
+     */
+    readonly body: unknown = null,
   ) {
     super(message);
     this.name = "ApiError";
@@ -186,14 +192,48 @@ export function humanError(error: unknown): string {
 }
 
 /** Nest sends `message` as a string or an array of them. Read both. */
-async function readMessage(res: Response): Promise<string> {
+async function readRefusal(res: Response): Promise<ApiError> {
+  let body: ErrorBody | null = null;
   try {
-    return humanMessage(res.status, (await res.json()) as ErrorBody);
+    body = (await res.json()) as ErrorBody;
   } catch {
     // A non JSON error body is not worth failing over.
-    return humanMessage(res.status, null);
+  }
+  return new ApiError(res.status, humanMessage(res.status, body), body);
+}
+
+/**
+ * Send one file as multipart/form-data, and read the answer.
+ *
+ * A sibling of `command` rather than an option on it: an upload carries no
+ * workspace (the bytes go up before the write that gives them a home, which is
+ * the call that names the workspace), no JSON body, and a longer ceiling,
+ * because a photograph from a phone camera is megabytes, not a form.
+ */
+export async function upload<T>(path: string, file: File): Promise<T> {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), UPLOAD_TIMEOUT_MS);
+  const form = new FormData();
+  form.append("file", file, file.name);
+  try {
+    const res = await fetch(`${API_BASE}/api/v1${path}`, {
+      method: "POST",
+      credentials: "include",
+      body: form,
+      signal: controller.signal,
+    });
+    if (!res.ok) throw await readRefusal(res);
+    return (await res.json()) as T;
+  } catch (error) {
+    if (error instanceof ApiError) throw error;
+    throw new ApiError(0, humanMessage(0, null));
+  } finally {
+    clearTimeout(timer);
   }
 }
+
+/** How long one upload may take before it is treated as unconfirmed. */
+const UPLOAD_TIMEOUT_MS = 60_000;
 
 /**
  * The three outcomes of a read that does not throw.
@@ -299,7 +339,7 @@ export async function command<T>(
       signal: controller.signal,
     });
     if (!res.ok) {
-      throw new ApiError(res.status, await readMessage(res));
+      throw await readRefusal(res);
     }
     if (res.status === 204) return undefined as T;
     return (await res.json()) as T;

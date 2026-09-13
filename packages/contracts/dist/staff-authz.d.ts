@@ -22,7 +22,7 @@ import { StaffRole } from "./primitives";
  * resolved from roles, exactly as the org side resolves its 21.
  */
 /** What an admin action needs. A permission absent from the union is denied. */
-export declare const StaffPermission: z.ZodEnum<["admin.overview.view", "admin.analytics.view", "admin.system.view", "admin.business.view", "admin.business.review", "admin.business.suspend", "admin.business.reinstate", "admin.user.view", "admin.user.role.grant", "admin.user.session.revoke", "admin.user.impersonate", "admin.broker.view", "admin.broker.approve", "admin.finance.view", "admin.fee.edit", "admin.payout.release", "admin.money.override", "admin.compliance.view", "admin.dsr.action", "admin.audit.read", "admin.config.edit", "admin.environment.manage", "admin.announcement.publish", "admin.moderation.act", "admin.localization.edit"]>;
+export declare const StaffPermission: z.ZodEnum<["admin.overview.view", "admin.analytics.view", "admin.system.view", "admin.business.view", "admin.business.review", "admin.business.suspend", "admin.business.reinstate", "admin.user.view", "admin.user.role.grant", "admin.user.session.revoke", "admin.user.impersonate", "admin.broker.view", "admin.broker.approve", "admin.finance.view", "admin.fee.edit", "admin.payout.release", "admin.money.override", "admin.compliance.view", "admin.dsr.action", "admin.audit.read", "admin.config.view", "admin.config.edit", "admin.environment.view", "admin.environment.manage", "admin.announcement.view", "admin.announcement.publish", "admin.moderation.view", "admin.moderation.act", "admin.localization.view", "admin.localization.edit"]>;
 export type StaffPermission = z.infer<typeof StaffPermission>;
 /**
  * Every permission a set of staff roles holds, as a stable sorted list.
@@ -99,7 +99,7 @@ export declare const StaffAccess: z.ZodObject<{
     /** The roles held. Empty for everyone who is not staff. */
     roles: z.ZodArray<z.ZodEnum<["super_admin", "ops", "compliance", "finance"]>, "many">;
     /** The union of those roles' powers, already resolved. Empty for non-staff. */
-    permissions: z.ZodArray<z.ZodEnum<["admin.overview.view", "admin.analytics.view", "admin.system.view", "admin.business.view", "admin.business.review", "admin.business.suspend", "admin.business.reinstate", "admin.user.view", "admin.user.role.grant", "admin.user.session.revoke", "admin.user.impersonate", "admin.broker.view", "admin.broker.approve", "admin.finance.view", "admin.fee.edit", "admin.payout.release", "admin.money.override", "admin.compliance.view", "admin.dsr.action", "admin.audit.read", "admin.config.edit", "admin.environment.manage", "admin.announcement.publish", "admin.moderation.act", "admin.localization.edit"]>, "many">;
+    permissions: z.ZodArray<z.ZodEnum<["admin.overview.view", "admin.analytics.view", "admin.system.view", "admin.business.view", "admin.business.review", "admin.business.suspend", "admin.business.reinstate", "admin.user.view", "admin.user.role.grant", "admin.user.session.revoke", "admin.user.impersonate", "admin.broker.view", "admin.broker.approve", "admin.finance.view", "admin.fee.edit", "admin.payout.release", "admin.money.override", "admin.compliance.view", "admin.dsr.action", "admin.audit.read", "admin.config.view", "admin.config.edit", "admin.environment.view", "admin.environment.manage", "admin.announcement.view", "admin.announcement.publish", "admin.moderation.view", "admin.moderation.act", "admin.localization.view", "admin.localization.edit"]>, "many">;
     /**
      * The step-up, as `GET /api/v1/me/staff` reports it, so the console can send
      * a staffer to the code screen BEFORE it renders rather than after a page's
@@ -129,7 +129,7 @@ export declare const StaffAccess: z.ZodObject<{
         required: boolean;
     }>>;
 }, "strip", z.ZodTypeAny, {
-    permissions: ("admin.overview.view" | "admin.analytics.view" | "admin.system.view" | "admin.business.view" | "admin.business.review" | "admin.business.suspend" | "admin.business.reinstate" | "admin.user.view" | "admin.user.role.grant" | "admin.user.session.revoke" | "admin.user.impersonate" | "admin.broker.view" | "admin.broker.approve" | "admin.finance.view" | "admin.fee.edit" | "admin.payout.release" | "admin.money.override" | "admin.compliance.view" | "admin.dsr.action" | "admin.audit.read" | "admin.config.edit" | "admin.environment.manage" | "admin.announcement.publish" | "admin.moderation.act" | "admin.localization.edit")[];
+    permissions: ("admin.overview.view" | "admin.analytics.view" | "admin.system.view" | "admin.business.view" | "admin.business.review" | "admin.business.suspend" | "admin.business.reinstate" | "admin.user.view" | "admin.user.role.grant" | "admin.user.session.revoke" | "admin.user.impersonate" | "admin.broker.view" | "admin.broker.approve" | "admin.finance.view" | "admin.fee.edit" | "admin.payout.release" | "admin.money.override" | "admin.compliance.view" | "admin.dsr.action" | "admin.audit.read" | "admin.config.view" | "admin.config.edit" | "admin.environment.view" | "admin.environment.manage" | "admin.announcement.view" | "admin.announcement.publish" | "admin.moderation.view" | "admin.moderation.act" | "admin.localization.view" | "admin.localization.edit")[];
     isStaff: boolean;
     roles: ("super_admin" | "ops" | "compliance" | "finance")[];
     twoFactor?: {
@@ -137,7 +137,7 @@ export declare const StaffAccess: z.ZodObject<{
         required: boolean;
     } | undefined;
 }, {
-    permissions: ("admin.overview.view" | "admin.analytics.view" | "admin.system.view" | "admin.business.view" | "admin.business.review" | "admin.business.suspend" | "admin.business.reinstate" | "admin.user.view" | "admin.user.role.grant" | "admin.user.session.revoke" | "admin.user.impersonate" | "admin.broker.view" | "admin.broker.approve" | "admin.finance.view" | "admin.fee.edit" | "admin.payout.release" | "admin.money.override" | "admin.compliance.view" | "admin.dsr.action" | "admin.audit.read" | "admin.config.edit" | "admin.environment.manage" | "admin.announcement.publish" | "admin.moderation.act" | "admin.localization.edit")[];
+    permissions: ("admin.overview.view" | "admin.analytics.view" | "admin.system.view" | "admin.business.view" | "admin.business.review" | "admin.business.suspend" | "admin.business.reinstate" | "admin.user.view" | "admin.user.role.grant" | "admin.user.session.revoke" | "admin.user.impersonate" | "admin.broker.view" | "admin.broker.approve" | "admin.finance.view" | "admin.fee.edit" | "admin.payout.release" | "admin.money.override" | "admin.compliance.view" | "admin.dsr.action" | "admin.audit.read" | "admin.config.view" | "admin.config.edit" | "admin.environment.view" | "admin.environment.manage" | "admin.announcement.view" | "admin.announcement.publish" | "admin.moderation.view" | "admin.moderation.act" | "admin.localization.view" | "admin.localization.edit")[];
     isStaff: boolean;
     roles: ("super_admin" | "ops" | "compliance" | "finance")[];
     twoFactor?: {

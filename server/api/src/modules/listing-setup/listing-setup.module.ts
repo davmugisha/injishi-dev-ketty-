@@ -1,13 +1,18 @@
 import { Module } from '@nestjs/common';
 
+import { StorageModule } from '../storage/storage.module';
 import { InventoryService } from './application/inventory.service';
+import { PropertyPhotosService } from './application/property-photos.service';
 import { RatePlansService } from './application/rate-plans.service';
+import { RoomTypesService } from './application/room-types.service';
 import { InventoryRepository } from './infrastructure/inventory.repository';
+import { PropertyPhotosRepository } from './infrastructure/property-photos.repository';
 import { RatePlansRepository } from './infrastructure/rate-plans.repository';
+import { RoomTypesRepository } from './infrastructure/room-types.repository';
 
 /**
- * Inventory authoring (ADR-009) — the operator write path for properties, room
- * types, rooms, rates and publishing.
+ * Inventory authoring (ADR-009, extended by ADR-049) — the operator write path
+ * for properties, room types, rates, photographs and publishing.
  *
  * Named `listing-setup` because that is what the module map in
  * `architecture.md` already calls it. Kept apart from `ListingModule`, which
@@ -15,21 +20,36 @@ import { RatePlansRepository } from './infrastructure/rate-plans.repository';
  * folding an authenticated write surface into it would make that untrue of the
  * whole module.
  *
- * Layering matches every other module: domain/ (the containment rule, later the
- * publish rules and the label generator) — application/ (use cases) —
- * infrastructure/ (Drizzle). `InventoryService` is the only export, so nothing
- * outside can reach the repository and skip the containment check.
+ * Layering matches every other module: domain/ (the containment rule, the slug
+ * mint, the publish conditions) — application/ (use cases) — infrastructure/
+ * (Drizzle). Only the SERVICES are exported, so nothing outside can reach a
+ * repository and skip the containment check.
+ *
+ * `StorageModule` is imported for `StorageService`, because a photograph's signed
+ * URL and the check that a key really is a property photograph both live there.
+ * The AWS SDK stays inside `modules/storage/infrastructure/` and is not reachable
+ * from here, which is the one wiring point ADR-049 leaves alone.
  */
 @Module({
+  imports: [StorageModule],
   // Rate plans sit here rather than in `operations`: a plan is inventory
   // SETUP — the terms a room type sells on — not something that happens at
   // the desk today.
   providers: [
     InventoryRepository,
     InventoryService,
+    PropertyPhotosRepository,
+    PropertyPhotosService,
     RatePlansRepository,
     RatePlansService,
+    RoomTypesRepository,
+    RoomTypesService,
   ],
-  exports: [InventoryService, RatePlansService],
+  exports: [
+    InventoryService,
+    PropertyPhotosService,
+    RatePlansService,
+    RoomTypesService,
+  ],
 })
 export class ListingSetupModule {}

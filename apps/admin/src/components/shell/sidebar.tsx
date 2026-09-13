@@ -7,8 +7,9 @@ import { Button } from "@injishi/ui";
 import { ArrowUpRight, ChevronsUpDown, PanelLeft } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { WEB_URL } from "@/lib/sign-in-url";
-import { NAV, roleCanSee } from "@/lib/nav";
+import { NAV, staffCanSee } from "@/lib/nav";
 import { useAdminUi } from "@/lib/store";
+import { useStaffPermissions } from "./staff-access-provider";
 
 export function Sidebar({
   mobileOpen,
@@ -19,7 +20,10 @@ export function Sidebar({
 }) {
   const pathname = usePathname();
   const [collapsed, setCollapsed] = useState(false);
-  const roleLens = useAdminUi((s) => s.roleLens);
+  // What this staffer's own permissions reach, from the server (ADR-049, AC-A3).
+  // The role lens no longer filters anything: turning a role into powers in the
+  // browser is the second model contract rule 3 forbids, so the lens is a label.
+  const permissions = useStaffPermissions();
   const roleLensLabel = useAdminUi((s) => s.roleLensLabel);
   const openRoleLens = useAdminUi((s) => s.openRoleLens);
 
@@ -100,7 +104,7 @@ export function Sidebar({
 
         <nav className="mt-2 grow scrollbar overflow-y-auto px-3 pb-4" aria-label="Admin sections">
           {NAV.map((group) => {
-            const visible = group.items.filter((item) => roleCanSee(roleLens, item));
+            const visible = group.items.filter((item) => staffCanSee(permissions, item));
             if (visible.length === 0) return null;
             return (
               <div key={group.group}>

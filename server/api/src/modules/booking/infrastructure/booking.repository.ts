@@ -15,12 +15,10 @@ import {
   bookings,
   escrows,
   guestStays,
-  orgMemberships,
   rooms,
   roomTypes,
   threads,
   users,
-  workspaces,
 } from '../../../database/drizzle/schema';
 import type { PaymentReceipt } from '../../payments/domain/payment-port';
 import {
@@ -133,13 +131,6 @@ export interface ExpiredRequest {
   reference: string;
 }
 
-/** A booking the current host may act on, with just enough state to decide. */
-export interface ManageableBooking {
-  id: string;
-  reference: string;
-  status: BookingStatus;
-}
-
 /**
  * A booking row identified only well enough to prove who owns it (ADR-012,
  * AC-3).
@@ -185,9 +176,6 @@ export interface ApprovalOutcome {
   escrowStatus: 'held' | 'refunded_full';
   confirmedAt: Date | null;
 }
-
-/** Org roles that may manage bookings (F-B06: Host = Owner, Manager). */
-const BOOKING_MANAGER_ROLES = ['owner', 'manager'] as const;
 
 /**
  * This attempt token has already been settled (ADR-020 D-c).
@@ -681,39 +669,6 @@ export class BookingRepository {
 
       return expired;
     });
-  }
-
-  /**
-   * Load a booking only if `userId` is an active Owner/Manager of the org that
-   * owns it (F-B06 authorization): booking → workspace → org → membership. The
-   * inner joins make "not found" and "not yours" the same null result, so a
-   * caller can't enumerate other orgs' bookings by reference.
-   */
-  async findManageableBooking(
-    bookingId: string,
-    userId: string,
-  ): Promise<ManageableBooking | null> {
-    const [row] = await this.db
-      .select({
-        id: bookings.id,
-        reference: bookings.reference,
-        status: bookings.status,
-      })
-      .from(bookings)
-      .innerJoin(workspaces, eq(workspaces.id, bookings.workspaceId))
-      .innerJoin(
-        orgMemberships,
-        and(
-          eq(orgMemberships.orgId, workspaces.orgId),
-          eq(orgMemberships.userId, userId),
-          eq(orgMemberships.status, 'active'),
-          inArray(orgMemberships.orgRole, [...BOOKING_MANAGER_ROLES]),
-        ),
-      )
-      .where(eq(bookings.id, bookingId))
-      .limit(1);
-
-    return row ?? null;
   }
 
   /**

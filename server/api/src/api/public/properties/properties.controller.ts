@@ -1,5 +1,16 @@
-import { BookableRoom, PropertyDetail } from '@injishi/contracts';
-import { Controller, Get, Param, ParseUUIDPipe } from '@nestjs/common';
+import {
+  BookableRoom,
+  PropertyDetail,
+  type SitemapProperty,
+} from '@injishi/contracts';
+import {
+  Controller,
+  Get,
+  Header,
+  Param,
+  ParseUUIDPipe,
+  Redirect,
+} from '@nestjs/common';
 
 import { ListingService } from '../../../modules/listing/application/listing.service';
 
@@ -15,6 +26,49 @@ import { ListingService } from '../../../modules/listing/application/listing.ser
 @Controller({ path: 'properties', version: '1' })
 export class PropertiesController {
   constructor(private readonly listings: ListingService) {}
+
+  /**
+   * Every publicly sellable property's address → web's `/sitemap.xml`
+   * (ADR-049, AC-I9). Same visibility rule as the page, so a suspended or
+   * unpublished property is in neither. Declared above `:id` for the reason
+   * above.
+   */
+  @Get('sitemap')
+  sitemap(): Promise<SitemapProperty[]> {
+    return this.listings.sitemapProperties();
+  }
+
+  /**
+   * One public photograph → a fresh signed URL (ADR-049, owner ruling of
+   * 2026-09-13).
+   *
+   * 302 to a short lived signed URL on the storage host when the photograph's
+   * property is publicly visible, and a bare 404 otherwise, including for an id
+   * that is not a uuid: a 400 there would tell a prober which ids are shaped
+   * right. The redirect is `no-store` because its target expires in minutes;
+   * the URL a page holds is this route's, which never does.
+   *
+   * No bytes pass through the API, so an image costs it one query and a
+   * signature, and a suspension cuts every image on the very next request.
+   *
+   * `Cross-Origin-Resource-Policy: cross-origin` overrides helmet's
+   * `same-origin` for this one route. The image is embedded by web, which is a
+   * different origin from the API everywhere (`www.` and `api.` in
+   * production), and a browser refuses to render a same-origin resource there:
+   * every photograph arrived and drew nothing. A public photograph of a public
+   * property is exactly the thing any page may embed; the route still refuses
+   * one that is not public.
+   */
+  @Get('photos/:photoId')
+  @Header('Cache-Control', 'no-store')
+  @Header('Cross-Origin-Resource-Policy', 'cross-origin')
+  @Redirect()
+  async photo(
+    @Param('photoId') photoId: string,
+  ): Promise<{ url: string; statusCode: number }> {
+    const url = await this.listings.publicPhotoUrl(photoId);
+    return { url, statusCode: 302 };
+  }
 
   @Get('slug/:slug')
   getBySlug(@Param('slug') slug: string): Promise<PropertyDetail> {

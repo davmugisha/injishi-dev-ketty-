@@ -1,5 +1,4 @@
 import {
-  BookingApprovalResult,
   CreateBookingInput,
   CreateBookingOutcome,
   type PaymentAttemptStatus,
@@ -10,13 +9,11 @@ import {
   Controller,
   Get,
   Param,
-  ParseUUIDPipe,
   Post,
   UseGuards,
 } from '@nestjs/common';
 import { Throttle } from '@nestjs/throttler';
 
-import { BookingApprovalService } from '../../../modules/booking/application/booking-approval.service';
 import { BookingService } from '../../../modules/booking/application/booking.service';
 import { PaymentAttemptService } from '../../../modules/booking/application/payment-attempt.service';
 import { EbmReceiptService } from '../../../modules/ebm/application/ebm-receipt.service';
@@ -41,7 +38,6 @@ import { ZodValidationPipe } from '../../../shared/validation/zod-validation.pip
 export class BookingsController {
   constructor(
     private readonly bookings: BookingService,
-    private readonly approvals: BookingApprovalService,
     private readonly receipts: EbmReceiptService,
     private readonly attempts: PaymentAttemptService,
   ) {}
@@ -110,19 +106,7 @@ export class BookingsController {
     return this.receipts.receiptForGuest(reference, user.id);
   }
 
-  @Post(':id/approve')
-  approve(
-    @Param('id', ParseUUIDPipe) id: string,
-    @CurrentUser() user: SessionUser,
-  ): Promise<BookingApprovalResult> {
-    return this.approvals.approve(id, user.id);
-  }
-
-  @Post(':id/decline')
-  decline(
-    @Param('id', ParseUUIDPipe) id: string,
-    @CurrentUser() user: SessionUser,
-  ): Promise<BookingApprovalResult> {
-    return this.approvals.decline(id, user.id);
-  }
+  // The host's approve and decline moved to `BookingDecisionsController`
+  // (ADR-049, AC-A5): they act for a business, so they run `WorkspaceGuard`,
+  // which this guest controller cannot.
 }

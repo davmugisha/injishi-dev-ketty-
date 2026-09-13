@@ -271,8 +271,8 @@ async function main() {
       await client.query(
         `insert into properties (id, org_id, workspace_id, slug, name, description,
                                  district_id, latitude, longitude, location_privacy,
-                                 check_in_time, check_out_time, photo_object_keys)
-         values ($1, $2, $3, $4, $5, $6, $7, $8, $9, false, '14:00', '11:00', $10)
+                                 check_in_time, check_out_time)
+         values ($1, $2, $3, $4, $5, $6, $7, $8, $9, false, '14:00', '11:00')
          on conflict (id) do update set slug = excluded.slug, name = excluded.name`,
         [
           propertyId,
@@ -284,7 +284,6 @@ async function main() {
           districtId,
           row.latitude === null ? null : String(row.latitude),
           row.longitude === null ? null : String(row.longitude),
-          JSON.stringify([]),
         ],
       );
 

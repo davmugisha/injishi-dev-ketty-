@@ -22,10 +22,16 @@ const OVERSIGHT_ROLE_KEY = 'oversight:role';
  * approver at MINALOC and one at a district office are the same function to
  * this pipeline, which is exactly why `oversight_role` is an enum and the body
  * is a catalog (D19).
+ *
+ * A gate route names exactly one. A route that serves more than one function
+ * with the same answer for each, the officer's own decision log (ADR-049,
+ * AC-G6), names every function it serves; the guard then passes a caller who
+ * holds any of them, and hands on only those grants. It never widens to "any
+ * assignment": a function a route does not name is still refused.
  */
 export const RequireOversight = (
-  role: OversightRole,
-): ReturnType<typeof SetMetadata> => SetMetadata(OVERSIGHT_ROLE_KEY, role);
+  ...roles: [OversightRole, ...OversightRole[]]
+): ReturnType<typeof SetMetadata> => SetMetadata(OVERSIGHT_ROLE_KEY, roles);
 
 /** The grants this caller actually holds for the route's function. */
 export const CurrentOversight = createParamDecorator(
@@ -55,8 +61,8 @@ export const CurrentOversight = createParamDecorator(
  * a property of a TARGET, and the target is a row the service has to load
  * anyway; checking it here would mean loading the org twice and would leave the
  * check absent on a list route, where scope is a WHERE clause rather than a
- * predicate. The service applies `withinScope` from `@injishi/contracts`, which
- * is the one definition both uses share.
+ * predicate. The service applies `districtScopeOf` from `@injishi/contracts`,
+ * the one definition both uses share (ADR-049, AC-G8).
  */
 @Injectable()
 export class OversightGuard implements CanActivate {
@@ -67,11 +73,11 @@ export class OversightGuard implements CanActivate {
   ) {}
 
   async canActivate(context: ExecutionContext): Promise<boolean> {
-    const required = this.reflector.getAllAndOverride<OversightRole>(
+    const required = this.reflector.getAllAndOverride<OversightRole[]>(
       OVERSIGHT_ROLE_KEY,
       [context.getHandler(), context.getClass()],
     );
-    if (!required) {
+    if (!required || required.length === 0) {
       // A guarded route that declares no function is a mistake, not a public
       // route. Failing loudly beats letting any signed-in person through.
       throw new InternalServerErrorException(
@@ -99,7 +105,7 @@ export class OversightGuard implements CanActivate {
     }
 
     const grants = await this.workspaces.oversightGrantsForUser(request.user.id);
-    const forRole = grants.filter((g) => g.oversightRole === required);
+    const forRole = grants.filter((g) => required.includes(g.oversightRole));
     if (forRole.length === 0) {
       throw new ForbiddenException(
         'You do not hold an oversight assignment for this console.',

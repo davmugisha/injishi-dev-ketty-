@@ -1,33 +1,22 @@
 "use client";
 
-import { Checkbox, Input } from "@heroui/react";
-import {
-  Badge,
-  Button,
-  NativeDialog,
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@injishi/ui";
+import { Input } from "@heroui/react";
+import type { District, GovernmentBody, Province } from "@injishi/contracts";
+import { Badge, Button, Checkbox, NativeDialog } from "@injishi/ui";
 import { Landmark, Shield } from "lucide-react";
+import { useRouter } from "next/navigation";
 import { useState } from "react";
 
+import { useStaffPermissions } from "@/components/shell/staff-access-provider";
+import { revokeAppointment } from "@/lib/actions/oversight";
 import { revokeUserSessions } from "@/lib/actions/users";
 import { ReasonDialog } from "@/lib/actions/reason-dialog";
 import { useAdminUi, useStubAction } from "@/lib/store";
 import { EMPTY } from "@/lib/present/format";
-import type {
-  BadgeIntent,
-  GlobalRole,
-  OrgMembership,
-  OversightRole,
-  OversightScopeLevel,
-  StaffRole,
-  UserRow,
-} from "@/lib/types";
+import type { BadgeIntent, GlobalRole, OrgMembership, StaffRole, UserRow } from "@/lib/types";
 import { notBuilt } from "@/lib/not-built";
+
+import { AppointOfficerDialog } from "./appoint-officer-dialog";
 
 /* ---- Presentation maps for the layered identity model (F-S01) ---- */
 
@@ -51,21 +40,12 @@ const STAFF_ROLE_OPTIONS: { key: StaffRole; label: string }[] = [
   { key: "finance", label: "Finance" },
 ];
 
-/** Government bodies — mirrors the admin-managed `government_bodies` catalog. */
-const GOV_BODIES = ["RRA", "PSF", "MINALOC"] as const;
-
-const OVERSIGHT_FUNCTIONS: { key: OversightRole; label: string; hint: string }[] = [
-  { key: "tax_compliance_officer", label: "Tax compliance officer", hint: "reviews tax data" },
-  { key: "business_field_verifier", label: "Business field verifier", hint: "on-site check · district-scoped" },
-  { key: "business_approver", label: "Business approver", hint: "approves a field-verified business" },
-];
-
-const SCOPE_LEVELS: OversightScopeLevel[] = ["country", "province", "district"];
-
-const DISTRICTS = ["Gasabo", "Kicukiro", "Nyarugenge", "Musanze", "Rubavu", "Huye"];
-
-/** Grantable global roles — guest is the implicit default and is never granted. */
-type GrantRole = Exclude<GlobalRole, "guest">;
+/**
+ * Global roles this editor still stages — guest is the implicit default and is
+ * never granted, and `gov_oversight` is not a checkbox any more: a person becomes
+ * an officer through an appointment (`AppointOfficerDialog`), which is real.
+ */
+type GrantRole = Exclude<GlobalRole, "guest" | "gov_oversight">;
 
 /**
  * One directory row: the presented person, plus the identifiers the API already
@@ -107,13 +87,39 @@ export interface UserDirectoryRow {
 export function UserDirectory({
   rows,
   total,
+  searched,
+  bodies,
+  provinces,
+  districts,
 }: {
   rows: UserDirectoryRow[];
   total: number;
+  /** The platform-side search this page was read with (`?q=`), or empty. */
+  searched: string;
+  bodies: GovernmentBody[];
+  provinces: Province[];
+  districts: District[];
 }) {
   const toast = useAdminUi((s) => s.toast);
   const stubAction = useStubAction();
-  const [query, setQuery] = useState("");
+  const router = useRouter();
+  const permissions = useStaffPermissions();
+  const mayAppoint = permissions.includes("admin.user.role.grant");
+  const [query, setQuery] = useState(searched);
+
+  // Officer appointments are real writes (ADR-049, AC-G1): the appointment dialog
+  // posts one, and the revoke asks why, then deletes it. Both re-read the page so
+  // the row shows what the platform now holds, not what was pressed.
+  const [appointing, setAppointing] = useState<{ id: string; name: string } | null>(null);
+  const [unappointing, setUnappointing] = useState<{ id: string; name: string; assignmentId: string } | null>(null);
+
+  async function confirmUnappoint(reason: string): Promise<boolean> {
+    if (!unappointing) return true;
+    const out = await revokeAppointment(unappointing.id, unappointing.assignmentId, reason);
+    toast(`${unappointing.name}: ${out.message}`, out.tone);
+    if (out.ok) router.refresh();
+    return out.ok || out.reason !== "bad_input";
+  }
 
   // "Sign out all" is a real write now: it asks why, then calls
   // `POST /admin/users/:userId/revoke-sessions`. The toast is the platform's
@@ -134,7 +140,6 @@ export function UserDirectory({
   const [activeUser, setActiveUser] = useState<UserRow | null>(null);
   const [grants, setGrants] = useState<Record<GrantRole, boolean>>({
     broker: false,
-    gov_oversight: false,
     admin: false,
   });
   const [staffRoles, setStaffRoles] = useState<Record<StaffRole, boolean>>({
@@ -143,14 +148,11 @@ export function UserDirectory({
     compliance: false,
     finance: false,
   });
-  const [oversightFn, setOversightFn] = useState<OversightRole>("business_approver");
-  const [scopeLevel, setScopeLevel] = useState<OversightScopeLevel>("district");
 
   function openEditor(user: UserRow) {
     setActiveUser(user);
     setGrants({
       broker: user.globalRoles.includes("broker"),
-      gov_oversight: user.globalRoles.includes("gov_oversight"),
       admin: user.globalRoles.includes("admin"),
     });
     setStaffRoles({
@@ -159,8 +161,6 @@ export function UserDirectory({
       compliance: user.staffRoles?.includes("compliance") ?? false,
       finance: user.staffRoles?.includes("finance") ?? false,
     });
-    setOversightFn(user.oversight?.role ?? "business_approver");
-    setScopeLevel(user.oversight?.scopeLevel ?? "district");
     setRoleOpen(true);
   }
 
@@ -175,7 +175,18 @@ export function UserDirectory({
         <h2 className="text-sm font-bold uppercase tracking-wider text-muted-foreground">
           Directory — the single identity (F-S01)
         </h2>
-        <div className="flex items-center gap-2">
+        {/* Enter searches the PLATFORM (`?q=`, read again behind the page's stated
+            reason); typing filters the people already loaded. A person on page
+            twelve can be found, which appointing an officer depends on. */}
+        <form
+          className="flex items-center gap-2"
+          role="search"
+          onSubmit={(e) => {
+            e.preventDefault();
+            const q = query.trim();
+            router.push(q ? `/users?q=${encodeURIComponent(q)}` : "/users");
+          }}
+        >
           <label className="sr-only" htmlFor="user-search">
             Search users
           </label>
@@ -186,7 +197,7 @@ export function UserDirectory({
             value={query}
             onChange={(e) => setQuery(e.target.value)}
           />
-        </div>
+        </form>
       </div>
 
       {rows.length === 0 ? (
@@ -207,7 +218,7 @@ export function UserDirectory({
                   <th className="p-4">Roles &amp; grants</th>
                   <th className="p-4">Workspaces</th>
                   <th className="p-4">Joined</th>
-                  <th className="p-4">
+                  <th className="sticky right-0 bg-field p-4">
                     <span className="sr-only">Actions</span>
                   </th>
                 </tr>
@@ -282,17 +293,36 @@ export function UserDirectory({
                       </span>
                     </td>
                     <td className="money p-4 text-xs">{row.joined}</td>
-                    <td className="p-4 text-right">
+                    <td className="sticky right-0 bg-field p-4">
+                      {/* Stacked and pinned to the scroller's right edge, so a person's
+                          actions stay in view however wide the other columns are. */}
+                      <div className="flex flex-col items-end gap-1">
                       {row.actions.includes("roles") && (
                         <Button variant="ghost" size="sm" onClick={() => openEditor(row)}>
                           Roles…
+                        </Button>
+                      )}
+                      {mayAppoint && (
+                        <Button variant="ghost" size="sm" onClick={() => setAppointing({ id, name: row.name || row.email })}>
+                          Appoint officer…
+                        </Button>
+                      )}
+                      {mayAppoint && row.oversight && (
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() =>
+                            setUnappointing({ id, name: row.name || row.email, assignmentId: row.oversight!.id })
+                          }
+                        >
+                          Revoke appointment…
                         </Button>
                       )}
                       {row.actions.includes("signout") && (
                         <Button
                           variant="ghost"
                           size="sm"
-                          onClick={() => setRevoking({ id, name: row.name })}
+                          onClick={() => setRevoking({ id, name: row.name || row.email })}
                         >
                           Sign out all
                         </Button>
@@ -308,6 +338,7 @@ export function UserDirectory({
                           Assist 2FA
                         </Button>
                       )}
+                      </div>
                     </td>
                   </tr>
                 ))}
@@ -357,10 +388,33 @@ export function UserDirectory({
         }
       />
 
-      {/* Grant / revoke editor — the layered model (GlobalRole · staff_roles[] · oversight).
-          Still `notBuilt` on save, and it must stay so until a two-signer route exists:
-          role and admin grants need a second super_admin (ADR-012), so they can never be
-          one of the single-signer writes this console now makes. */}
+      <AppointOfficerDialog
+        person={appointing}
+        bodies={bodies}
+        provinces={provinces}
+        districts={districts}
+        onClose={() => setAppointing(null)}
+      />
+
+      <ReasonDialog
+        open={unappointing !== null}
+        onClose={() => setUnappointing(null)}
+        onConfirm={confirmUnappoint}
+        tone="danger"
+        title={`Revoke ${unappointing?.name ?? "this person"}'s appointment?`}
+        confirmLabel="Revoke appointment"
+        pendingLabel="Revoking the appointment…"
+        body={
+          <p>
+            Their oversight console refuses them from the next request. Decisions they already
+            took keep the body and title they held when they took them.
+          </p>
+        }
+      />
+
+      {/* Grant editor for the global roles and staff roles that still wait on a
+          second signer (ADR-012), so it still says `notBuilt` on save. Officer
+          appointments left this dialog for `AppointOfficerDialog`, which is real. */}
       <NativeDialog
         open={roleOpen}
         onClose={() => setRoleOpen(false)}
@@ -374,10 +428,6 @@ export function UserDirectory({
             setRoleOpen(false);
             if (grants.admin) {
               toast(notBuilt("Requesting an admin grant"));
-            } else if (grants.gov_oversight) {
-              toast(
-                notBuilt("Assigning an oversight role"),
-              );
             } else {
               toast(notBuilt("Updating a user's grants"));
             }
@@ -427,7 +477,8 @@ export function UserDirectory({
               <Checkbox
                 isSelected={grants.broker}
                 onChange={(isSelected) => setGrants((g) => ({ ...g, broker: isSelected }))}
-                className="flex items-start gap-2.5 rounded border border-border p-2.5 text-sm"
+                className="flex w-full items-start gap-2.5 rounded border border-border p-2.5 text-sm font-normal"
+                controlClassName="mt-0.5"
               >
                 <span>
                   <span className="font-semibold">broker</span>
@@ -437,21 +488,10 @@ export function UserDirectory({
                 </span>
               </Checkbox>
               <Checkbox
-                isSelected={grants.gov_oversight}
-                onChange={(isSelected) => setGrants((g) => ({ ...g, gov_oversight: isSelected }))}
-                className="flex items-start gap-2.5 rounded border border-border p-2.5 text-sm"
-              >
-                <span>
-                  <span className="font-semibold">gov_oversight</span>
-                  <span className="block text-xs text-muted-foreground">
-                    government console seat — configure the assignment below
-                  </span>
-                </span>
-              </Checkbox>
-              <Checkbox
                 isSelected={grants.admin}
                 onChange={(isSelected) => setGrants((g) => ({ ...g, admin: isSelected }))}
-                className="flex items-start gap-2.5 rounded border border-border p-2.5 text-sm"
+                className="flex w-full items-start gap-2.5 rounded border border-border p-2.5 text-sm font-normal"
+                controlClassName="mt-0.5"
               >
                 <span>
                   <span className="font-semibold">admin</span>
@@ -463,100 +503,12 @@ export function UserDirectory({
             </div>
           </fieldset>
 
-          {/* Government oversight assignment — function · body · title · region */}
-          {grants.gov_oversight && (
-            <fieldset className="mt-4 rounded-card bg-muted p-3.5">
-              <legend className="flex items-center gap-1.5 px-1 text-sm font-semibold">
-                <Landmark className="h-4 w-4" aria-hidden /> Oversight assignment
-              </legend>
-              <div className="space-y-3">
-                <label className="block">
-                  <span className="text-sm font-semibold">Function</span>
-                  <Select
-                    value={oversightFn}
-                    onValueChange={(v) => setOversightFn(v as OversightRole)}
-                  >
-                    <SelectTrigger aria-label="Function" className="mt-1">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {OVERSIGHT_FUNCTIONS.map((f) => (
-                        <SelectItem key={f.key} value={f.key}>
-                          {f.label} — {f.hint}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </label>
-                <div className="grid grid-cols-2 gap-3">
-                  <label className="block">
-                    <span className="text-sm font-semibold">Government body</span>
-                    <Select defaultValue={activeUser?.oversight?.bodyCode ?? "MINALOC"}>
-                      <SelectTrigger aria-label="Government body" className="mt-1">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {GOV_BODIES.map((b) => (
-                          <SelectItem key={b} value={b}>
-                            {b}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </label>
-                  <label className="block">
-                    <span className="text-sm font-semibold">Government title</span>
-                    <Input
-                      className="w-full mt-1"
-                      placeholder="e.g. BDO"
-                      defaultValue={activeUser?.oversight?.title ?? ""}
-                    />
-                  </label>
-                </div>
-                <div className="grid grid-cols-2 gap-3">
-                  <label className="block">
-                    <span className="text-sm font-semibold">Scope level</span>
-                    <Select
-                      value={scopeLevel}
-                      onValueChange={(v) => setScopeLevel(v as OversightScopeLevel)}
-                    >
-                      <SelectTrigger aria-label="Scope level" className="mt-1">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {SCOPE_LEVELS.map((s) => (
-                          <SelectItem key={s} value={s}>
-                            {s}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </label>
-                  {scopeLevel !== "country" && (
-                    <label className="block">
-                      <span className="text-sm font-semibold">Region</span>
-                      <Select defaultValue={activeUser?.oversight?.scopeLabel ?? "Huye"}>
-                        <SelectTrigger aria-label="Region" className="mt-1">
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {DISTRICTS.map((d) => (
-                            <SelectItem key={d} value={d}>
-                              {d}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </label>
-                  )}
-                </div>
-                <p className="text-xs text-muted-foreground">
-                  Separation of duties: a field verifier cannot also approve the same scope. The
-                  officer acts only in the oversight console — never here.
-                </p>
-              </div>
-            </fieldset>
-          )}
+          <p className="mt-4 flex items-start gap-1.5 rounded-card bg-muted p-3 text-xs text-muted-foreground">
+            <Landmark className="mt-0.5 h-3.5 w-3.5 shrink-0" aria-hidden />
+            A government officer is appointed with Appoint officer… on the person&apos;s row, which
+            chooses the body, title and region and is refused where the separation of duties
+            forbids it.
+          </p>
 
           {/* Platform staff roles — admin_users.staff_roles[] (multiple allowed) */}
           {grants.admin && (
@@ -576,7 +528,7 @@ export function UserDirectory({
                     onChange={(isSelected) =>
                       setStaffRoles((s) => ({ ...s, [sr.key]: isSelected }))
                     }
-                    className="flex items-center gap-2 rounded border border-border bg-background p-2.5 text-sm"
+                    className="flex w-full items-center gap-2 rounded border border-border bg-background p-2.5 text-sm font-normal"
                   >
                     <span className="font-semibold">{sr.label}</span>
                   </Checkbox>

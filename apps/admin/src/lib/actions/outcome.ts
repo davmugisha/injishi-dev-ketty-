@@ -75,7 +75,13 @@ export function outcomeOf<T>(
   return {
     ok: false,
     reason: result.reason,
-    message: failureMessage(result.reason, spec),
+    // A decision the platform explained (a 409 overlap, a 422 past date, a 404
+    // with a sentence) is shown in its own words, plus what did not happen. The
+    // generic wording stays for everything the platform did not explain.
+    message:
+      result.message && (result.reason === "conflict" || result.reason === "rejected" || result.reason === "missing")
+        ? `${result.message} Nothing changed.`
+        : failureMessage(result.reason, spec),
     tone: failureTone(result.reason),
   };
 }

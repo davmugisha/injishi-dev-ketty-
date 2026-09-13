@@ -120,12 +120,9 @@ console.log(`Finding a bookable room (as ${OPERATOR})`);
 const operator = await sessionFor(OPERATOR);
 check('the operator holds a business workspace', Boolean(operator.workspaceId));
 
-// `PropertyQuery` is `WorkspaceScoped`, so the id goes in the query string as
-// well as in the header — the guard reads the header, the contract reads the query.
-const propsRes = await get(
-  operator,
-  `/inventory/properties?workspaceId=${operator.workspaceId}`,
-);
+// The workspace rides in the header `get` sends; the inventory reads no longer
+// demand it again in the query string (ADR-049 task 18).
+const propsRes = await get(operator, '/inventory/properties');
 const propsBody = await propsRes.json().catch(() => ({}));
 const property = (propsBody.properties ?? [])[0];
 check('GET /inventory/properties answers with a property', Boolean(property), `got ${propsRes.status}`);

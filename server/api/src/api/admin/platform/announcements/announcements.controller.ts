@@ -9,11 +9,10 @@ import { AdminAnnouncementsService } from './announcements.service';
 /**
  * Announcements → `GET /api/v1/admin/announcements` (INTERFACE.md §12).
  *
- * `admin.announcement.publish` on a read, deliberately. The list carries
- * unpublished drafts — text nobody has decided to say yet — so the people who
- * may see it are exactly the people who may publish it. There is no separate
- * view permission in `staff-authz.ts` and inventing one here would be a new
- * entry in a model this file does not own.
+ * `admin.announcement.view` on the read (ADR-049), held by `super_admin` and
+ * `ops`. The list carries unpublished drafts, so the read is still narrower than
+ * every staffer; publishing keeps `admin.announcement.publish`. It used to
+ * borrow the publish permission because no view permission existed.
  */
 @Controller({ path: 'admin/announcements', version: '1' })
 @UseGuards(SessionGuard, StaffGuard)
@@ -21,7 +20,7 @@ export class AdminAnnouncementsController {
   constructor(private readonly announcements: AdminAnnouncementsService) {}
 
   @Get()
-  @RequireStaffPermission('admin.announcement.publish')
+  @RequireStaffPermission('admin.announcement.view')
   list(): Promise<AdminAnnouncementResponse> {
     return this.announcements.list();
   }

@@ -5,6 +5,7 @@ import { Button } from "@injishi/ui";
 
 import { RetryButton } from "@/components/failure/retry-button";
 import { RoleLensSeed } from "@/components/shell/role-lens-seed";
+import { StaffAccessProvider } from "@/components/shell/staff-access-provider";
 import { RETURN_HEADER, returnUrl } from "@/lib/return-path";
 import { ADMIN_URL, signInUrl, twoFactorUrl } from "@/lib/sign-in-url";
 import { readStaffAccess } from "@/lib/staff";
@@ -114,11 +115,13 @@ export async function StaffBoundary({
     );
   }
 
+  // The resolved access goes to the client chrome as a prop, so the sidebar's
+  // first frame is already filtered on the server's `permissions[]` (ADR-049).
   return (
-    <>
+    <StaffAccessProvider access={access}>
       <RoleLensSeed roles={access.roles} />
       {children}
-    </>
+    </StaffAccessProvider>
   );
 }
 

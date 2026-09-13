@@ -184,7 +184,7 @@ function Unavailable({ reason }: { reason: ApiFailure }) {
     <div className="mx-auto max-w-page px-4 py-6 sm:px-6">
       <div className="animate-arrive rounded-card border border-border bg-field p-6 sm:p-7">
         <p className="text-base font-semibold">
-          {failureHeading(reason, "admin.moderation.act")}
+          {failureHeading(reason, "admin.moderation.view")}
         </p>
         <p className="mt-2 max-w-[60ch] text-sm leading-relaxed text-muted-foreground">
           {apiFailureMessage(reason)}

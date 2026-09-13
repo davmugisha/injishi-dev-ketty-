@@ -109,15 +109,6 @@ export declare const UpdatePropertyRequest: z.ZodObject<{
     street?: string | undefined;
 }>;
 export type UpdatePropertyRequest = z.infer<typeof UpdatePropertyRequest>;
-/** Reading is the same question, asked with a query string. */
-export declare const PropertyQuery: z.ZodObject<{
-    workspaceId: z.ZodString;
-}, "strip", z.ZodTypeAny, {
-    workspaceId: string;
-}, {
-    workspaceId: string;
-}>;
-export type PropertyQuery = z.infer<typeof PropertyQuery>;
 /**
  * The resolved address, sent with names as well as ids.
  *
@@ -156,6 +147,14 @@ export type PropertyAddress = z.infer<typeof PropertyAddress>;
 export declare const OperatorPropertySummary: z.ZodObject<{
     id: z.ZodString;
     name: z.ZodString;
+    /**
+     * The public address, minted at publish and never by a reader (ADR-049).
+     *
+     * Null until the first publish. It SURVIVES an unpublish on purpose, so a
+     * republished property keeps the address every bookmark and search result
+     * already points at (AC-I6).
+     */
+    slug: z.ZodNullable<z.ZodString>;
     address: z.ZodObject<{
         provinceId: z.ZodNullable<z.ZodNumber>;
         provinceName: z.ZodNullable<z.ZodString>;
@@ -190,6 +189,8 @@ export declare const OperatorPropertySummary: z.ZodObject<{
     id: string;
     name: string;
     roomTypeCount: number;
+    slug: string | null;
+    publishedAt: string | null;
     address: {
         districtId: number | null;
         districtName: string | null;
@@ -200,12 +201,13 @@ export declare const OperatorPropertySummary: z.ZodObject<{
         provinceName: string | null;
     };
     listingStatus: "draft" | "published";
-    publishedAt: string | null;
     sellableRoomCount: number;
 }, {
     id: string;
     name: string;
     roomTypeCount: number;
+    slug: string | null;
+    publishedAt: string | null;
     address: {
         districtId: number | null;
         districtName: string | null;
@@ -216,20 +218,65 @@ export declare const OperatorPropertySummary: z.ZodObject<{
         provinceName: string | null;
     };
     listingStatus: "draft" | "published";
-    publishedAt: string | null;
     sellableRoomCount: number;
 }>;
 export type OperatorPropertySummary = z.infer<typeof OperatorPropertySummary>;
 /**
+ * One photograph of a property (ADR-049).
+ *
+ * A ROW, not an entry in a `jsonb` array, and the difference is the whole
+ * reason the migration exists. A row can carry an order that survives an edit,
+ * a cover flag, and a caption, and it rides `stored_objects` so it inherits
+ * retention and legal hold like every other stored object.
+ *
+ * `url` is a SHORT LIVED read, not a permanent address. The bucket is private,
+ * so there is no public URL to hand out; this is signed at read time and
+ * expires. A caller that needs to show the picture again later asks again.
+ */
+export declare const PropertyPhoto: z.ZodObject<{
+    id: z.ZodString;
+    objectKey: z.ZodString;
+    /** 0 based, dense, and the order the operator chose. */
+    position: z.ZodNumber;
+    /** Exactly one per property, which a partial unique index enforces. */
+    isCover: z.ZodBoolean;
+    caption: z.ZodNullable<z.ZodString>;
+    url: z.ZodString;
+}, "strip", z.ZodTypeAny, {
+    id: string;
+    objectKey: string;
+    position: number;
+    isCover: boolean;
+    caption: string | null;
+    url: string;
+}, {
+    id: string;
+    objectKey: string;
+    position: number;
+    isCover: boolean;
+    caption: string | null;
+    url: string;
+}>;
+export type PropertyPhoto = z.infer<typeof PropertyPhoto>;
+/**
  * One property in full, as its owner sees it.
  *
- * `photos` is always empty today and says so: object storage is unbuilt
- * (F-S09), so the field exists to be honest about the gap rather than to be
- * filled (ADR-009 AC-13).
+ * `photos` carries real rows since ADR-049. It used to be permanently empty
+ * with a comment saying object storage was unbuilt; F-S09 landed, photos became
+ * a publish condition, and a `jsonb` array of keys could not carry a cover flag
+ * or an order, so they became rows.
  */
 export declare const OperatorProperty: z.ZodObject<{
     id: z.ZodString;
     name: z.ZodString;
+    /**
+     * The public address, minted at publish and never by a reader (ADR-049).
+     *
+     * Null until the first publish. It SURVIVES an unpublish on purpose, so a
+     * republished property keeps the address every bookmark and search result
+     * already points at (AC-I6).
+     */
+    slug: z.ZodNullable<z.ZodString>;
     address: z.ZodObject<{
         provinceId: z.ZodNullable<z.ZodNumber>;
         provinceName: z.ZodNullable<z.ZodString>;
@@ -267,7 +314,30 @@ export declare const OperatorProperty: z.ZodObject<{
     houseRules: z.ZodNullable<z.ZodString>;
     locationPrivacy: z.ZodBoolean;
     timezone: z.ZodString;
-    photos: z.ZodArray<z.ZodString, "many">;
+    photos: z.ZodArray<z.ZodObject<{
+        id: z.ZodString;
+        objectKey: z.ZodString;
+        /** 0 based, dense, and the order the operator chose. */
+        position: z.ZodNumber;
+        /** Exactly one per property, which a partial unique index enforces. */
+        isCover: z.ZodBoolean;
+        caption: z.ZodNullable<z.ZodString>;
+        url: z.ZodString;
+    }, "strip", z.ZodTypeAny, {
+        id: string;
+        objectKey: string;
+        position: number;
+        isCover: boolean;
+        caption: string | null;
+        url: string;
+    }, {
+        id: string;
+        objectKey: string;
+        position: number;
+        isCover: boolean;
+        caption: string | null;
+        url: string;
+    }>, "many">;
     /**
      * Empty until feature 2 builds the room type write path. An empty array is a
      * real answer here: a property with no room types is exactly what a newly
@@ -299,12 +369,21 @@ export declare const OperatorProperty: z.ZodObject<{
     id: string;
     name: string;
     roomTypeCount: number;
+    slug: string | null;
+    publishedAt: string | null;
     description: string | null;
     locationPrivacy: boolean;
     checkInTime: string | null;
     checkOutTime: string | null;
     houseRules: string | null;
-    photos: string[];
+    photos: {
+        id: string;
+        objectKey: string;
+        position: number;
+        isCover: boolean;
+        caption: string | null;
+        url: string;
+    }[];
     roomTypes: {
         status: "active" | "archived";
         id: string;
@@ -323,19 +402,27 @@ export declare const OperatorProperty: z.ZodObject<{
         provinceName: string | null;
     };
     listingStatus: "draft" | "published";
-    publishedAt: string | null;
     sellableRoomCount: number;
     timezone: string;
 }, {
     id: string;
     name: string;
     roomTypeCount: number;
+    slug: string | null;
+    publishedAt: string | null;
     description: string | null;
     locationPrivacy: boolean;
     checkInTime: string | null;
     checkOutTime: string | null;
     houseRules: string | null;
-    photos: string[];
+    photos: {
+        id: string;
+        objectKey: string;
+        position: number;
+        isCover: boolean;
+        caption: string | null;
+        url: string;
+    }[];
     roomTypes: {
         status: "active" | "archived";
         id: string;
@@ -354,7 +441,6 @@ export declare const OperatorProperty: z.ZodObject<{
         provinceName: string | null;
     };
     listingStatus: "draft" | "published";
-    publishedAt: string | null;
     sellableRoomCount: number;
     timezone: string;
 }>;
@@ -560,6 +646,14 @@ export declare const OperatorPropertyList: z.ZodObject<{
     properties: z.ZodArray<z.ZodObject<{
         id: z.ZodString;
         name: z.ZodString;
+        /**
+         * The public address, minted at publish and never by a reader (ADR-049).
+         *
+         * Null until the first publish. It SURVIVES an unpublish on purpose, so a
+         * republished property keeps the address every bookmark and search result
+         * already points at (AC-I6).
+         */
+        slug: z.ZodNullable<z.ZodString>;
         address: z.ZodObject<{
             provinceId: z.ZodNullable<z.ZodNumber>;
             provinceName: z.ZodNullable<z.ZodString>;
@@ -594,6 +688,8 @@ export declare const OperatorPropertyList: z.ZodObject<{
         id: string;
         name: string;
         roomTypeCount: number;
+        slug: string | null;
+        publishedAt: string | null;
         address: {
             districtId: number | null;
             districtName: string | null;
@@ -604,12 +700,13 @@ export declare const OperatorPropertyList: z.ZodObject<{
             provinceName: string | null;
         };
         listingStatus: "draft" | "published";
-        publishedAt: string | null;
         sellableRoomCount: number;
     }, {
         id: string;
         name: string;
         roomTypeCount: number;
+        slug: string | null;
+        publishedAt: string | null;
         address: {
             districtId: number | null;
             districtName: string | null;
@@ -620,7 +717,6 @@ export declare const OperatorPropertyList: z.ZodObject<{
             provinceName: string | null;
         };
         listingStatus: "draft" | "published";
-        publishedAt: string | null;
         sellableRoomCount: number;
     }>, "many">;
 }, "strip", z.ZodTypeAny, {
@@ -628,6 +724,8 @@ export declare const OperatorPropertyList: z.ZodObject<{
         id: string;
         name: string;
         roomTypeCount: number;
+        slug: string | null;
+        publishedAt: string | null;
         address: {
             districtId: number | null;
             districtName: string | null;
@@ -638,7 +736,6 @@ export declare const OperatorPropertyList: z.ZodObject<{
             provinceName: string | null;
         };
         listingStatus: "draft" | "published";
-        publishedAt: string | null;
         sellableRoomCount: number;
     }[];
 }, {
@@ -646,6 +743,8 @@ export declare const OperatorPropertyList: z.ZodObject<{
         id: string;
         name: string;
         roomTypeCount: number;
+        slug: string | null;
+        publishedAt: string | null;
         address: {
             districtId: number | null;
             districtName: string | null;
@@ -656,7 +755,6 @@ export declare const OperatorPropertyList: z.ZodObject<{
             provinceName: string | null;
         };
         listingStatus: "draft" | "published";
-        publishedAt: string | null;
         sellableRoomCount: number;
     }[];
 }>;
@@ -669,9 +767,412 @@ export type OperatorPropertyList = z.infer<typeof OperatorPropertyList>;
  * Defined now, with the property level reasons already usable, so feature 3 adds
  * cases to an enum that exists rather than inventing one late.
  */
-export declare const PublishBlocker: z.ZodEnum<["org_not_active", "missing_name", "missing_sector", "no_active_room_type", "no_priced_room_type", "no_sellable_room"]>;
+export declare const PublishBlocker: z.ZodEnum<["org_not_active", "missing_name", "missing_sector", "no_active_room_type", "no_priced_room_type", "no_sellable_room", "no_photo"]>;
 export type PublishBlocker = z.infer<typeof PublishBlocker>;
 export declare const PUBLISH_BLOCKER_LABEL: Readonly<Record<PublishBlocker, string>>;
 /** Which screen a blocker sends the operator back to. */
-export declare function stepForPublishBlocker(blocker: PublishBlocker): "registration" | "property" | "room_types";
+export declare function stepForPublishBlocker(blocker: PublishBlocker): "registration" | "property" | "room_types" | "photos";
+export declare const CreateRoomTypeRequest: z.ZodObject<{
+    workspaceId: z.ZodString;
+} & {
+    name: z.ZodString;
+    /**
+     * How many people the room physically sleeps.
+     *
+     * Deliberately NOT the rate plan's `baseOccupancy`, which is commercial: how
+     * many the base price covers. The gap between the two is what extra person
+     * pricing bridges (F-L05).
+     */
+    maxGuests: z.ZodNumber;
+    /** RWF, whole units. The currency is `RWF` everywhere and is not asked. */
+    basePriceRwf: z.ZodNullable<z.ZodNumber>;
+    bookingMode: z.ZodOptional<z.ZodEnum<["instant_book", "request_to_book"]>>;
+    cancellationTier: z.ZodOptional<z.ZodEnum<["flexible", "moderate", "limited", "firm", "strict_extended_stay"]>>;
+    /** How many rooms of this type exist. Seeds nothing; `rooms` is the truth. */
+    roomCount: z.ZodOptional<z.ZodNumber>;
+}, "strip", z.ZodTypeAny, {
+    name: string;
+    workspaceId: string;
+    basePriceRwf: number | null;
+    maxGuests: number;
+    roomCount?: number | undefined;
+    bookingMode?: "instant_book" | "request_to_book" | undefined;
+    cancellationTier?: "flexible" | "moderate" | "limited" | "firm" | "strict_extended_stay" | undefined;
+}, {
+    name: string;
+    workspaceId: string;
+    basePriceRwf: number | null;
+    maxGuests: number;
+    roomCount?: number | undefined;
+    bookingMode?: "instant_book" | "request_to_book" | undefined;
+    cancellationTier?: "flexible" | "moderate" | "limited" | "firm" | "strict_extended_stay" | undefined;
+}>;
+export type CreateRoomTypeRequest = z.infer<typeof CreateRoomTypeRequest>;
+/**
+ * Editing a room type replaces only the fields sent, like every other operator
+ * edit here, and adds the one field a create cannot send: archiving it.
+ */
+export declare const UpdateRoomTypeRequest: z.ZodObject<{
+    workspaceId: z.ZodString;
+} & {
+    status: z.ZodOptional<z.ZodEnum<["active", "archived"]>>;
+    name: z.ZodOptional<z.ZodString>;
+    maxGuests: z.ZodOptional<z.ZodNumber>;
+    basePriceRwf: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
+    bookingMode: z.ZodOptional<z.ZodOptional<z.ZodEnum<["instant_book", "request_to_book"]>>>;
+    cancellationTier: z.ZodOptional<z.ZodOptional<z.ZodEnum<["flexible", "moderate", "limited", "firm", "strict_extended_stay"]>>>;
+    roomCount: z.ZodOptional<z.ZodOptional<z.ZodNumber>>;
+}, "strip", z.ZodTypeAny, {
+    workspaceId: string;
+    status?: "active" | "archived" | undefined;
+    name?: string | undefined;
+    roomCount?: number | undefined;
+    bookingMode?: "instant_book" | "request_to_book" | undefined;
+    cancellationTier?: "flexible" | "moderate" | "limited" | "firm" | "strict_extended_stay" | undefined;
+    basePriceRwf?: number | null | undefined;
+    maxGuests?: number | undefined;
+}, {
+    workspaceId: string;
+    status?: "active" | "archived" | undefined;
+    name?: string | undefined;
+    roomCount?: number | undefined;
+    bookingMode?: "instant_book" | "request_to_book" | undefined;
+    cancellationTier?: "flexible" | "moderate" | "limited" | "firm" | "strict_extended_stay" | undefined;
+    basePriceRwf?: number | null | undefined;
+    maxGuests?: number | undefined;
+}>;
+export type UpdateRoomTypeRequest = z.infer<typeof UpdateRoomTypeRequest>;
+/** A room type, as its owner sees it. */
+export declare const OperatorRoomType: z.ZodObject<{
+    id: z.ZodString;
+    propertyId: z.ZodString;
+    name: z.ZodString;
+    domain: z.ZodEnum<["hospitality", "residence"]>;
+    status: z.ZodEnum<["active", "archived"]>;
+    maxGuests: z.ZodNullable<z.ZodNumber>;
+    basePriceRwf: z.ZodNullable<z.ZodNumber>;
+    bookingMode: z.ZodNullable<z.ZodEnum<["instant_book", "request_to_book"]>>;
+    cancellationTier: z.ZodNullable<z.ZodEnum<["flexible", "moderate", "limited", "firm", "strict_extended_stay"]>>;
+    roomCount: z.ZodNumber;
+    sellableRoomCount: z.ZodNumber;
+    /** The plan this type sells on by default. Exactly one, always. */
+    defaultRatePlanId: z.ZodNullable<z.ZodString>;
+}, "strip", z.ZodTypeAny, {
+    status: "active" | "archived";
+    id: string;
+    domain: "hospitality" | "residence";
+    name: string;
+    roomCount: number;
+    bookingMode: "instant_book" | "request_to_book" | null;
+    cancellationTier: "flexible" | "moderate" | "limited" | "firm" | "strict_extended_stay" | null;
+    propertyId: string;
+    sellableRoomCount: number;
+    basePriceRwf: number | null;
+    maxGuests: number | null;
+    defaultRatePlanId: string | null;
+}, {
+    status: "active" | "archived";
+    id: string;
+    domain: "hospitality" | "residence";
+    name: string;
+    roomCount: number;
+    bookingMode: "instant_book" | "request_to_book" | null;
+    cancellationTier: "flexible" | "moderate" | "limited" | "firm" | "strict_extended_stay" | null;
+    propertyId: string;
+    sellableRoomCount: number;
+    basePriceRwf: number | null;
+    maxGuests: number | null;
+    defaultRatePlanId: string | null;
+}>;
+export type OperatorRoomType = z.infer<typeof OperatorRoomType>;
+export declare const OperatorRoomTypeList: z.ZodObject<{
+    roomTypes: z.ZodArray<z.ZodObject<{
+        id: z.ZodString;
+        propertyId: z.ZodString;
+        name: z.ZodString;
+        domain: z.ZodEnum<["hospitality", "residence"]>;
+        status: z.ZodEnum<["active", "archived"]>;
+        maxGuests: z.ZodNullable<z.ZodNumber>;
+        basePriceRwf: z.ZodNullable<z.ZodNumber>;
+        bookingMode: z.ZodNullable<z.ZodEnum<["instant_book", "request_to_book"]>>;
+        cancellationTier: z.ZodNullable<z.ZodEnum<["flexible", "moderate", "limited", "firm", "strict_extended_stay"]>>;
+        roomCount: z.ZodNumber;
+        sellableRoomCount: z.ZodNumber;
+        /** The plan this type sells on by default. Exactly one, always. */
+        defaultRatePlanId: z.ZodNullable<z.ZodString>;
+    }, "strip", z.ZodTypeAny, {
+        status: "active" | "archived";
+        id: string;
+        domain: "hospitality" | "residence";
+        name: string;
+        roomCount: number;
+        bookingMode: "instant_book" | "request_to_book" | null;
+        cancellationTier: "flexible" | "moderate" | "limited" | "firm" | "strict_extended_stay" | null;
+        propertyId: string;
+        sellableRoomCount: number;
+        basePriceRwf: number | null;
+        maxGuests: number | null;
+        defaultRatePlanId: string | null;
+    }, {
+        status: "active" | "archived";
+        id: string;
+        domain: "hospitality" | "residence";
+        name: string;
+        roomCount: number;
+        bookingMode: "instant_book" | "request_to_book" | null;
+        cancellationTier: "flexible" | "moderate" | "limited" | "firm" | "strict_extended_stay" | null;
+        propertyId: string;
+        sellableRoomCount: number;
+        basePriceRwf: number | null;
+        maxGuests: number | null;
+        defaultRatePlanId: string | null;
+    }>, "many">;
+}, "strip", z.ZodTypeAny, {
+    roomTypes: {
+        status: "active" | "archived";
+        id: string;
+        domain: "hospitality" | "residence";
+        name: string;
+        roomCount: number;
+        bookingMode: "instant_book" | "request_to_book" | null;
+        cancellationTier: "flexible" | "moderate" | "limited" | "firm" | "strict_extended_stay" | null;
+        propertyId: string;
+        sellableRoomCount: number;
+        basePriceRwf: number | null;
+        maxGuests: number | null;
+        defaultRatePlanId: string | null;
+    }[];
+}, {
+    roomTypes: {
+        status: "active" | "archived";
+        id: string;
+        domain: "hospitality" | "residence";
+        name: string;
+        roomCount: number;
+        bookingMode: "instant_book" | "request_to_book" | null;
+        cancellationTier: "flexible" | "moderate" | "limited" | "firm" | "strict_extended_stay" | null;
+        propertyId: string;
+        sellableRoomCount: number;
+        basePriceRwf: number | null;
+        maxGuests: number | null;
+        defaultRatePlanId: string | null;
+    }[];
+}>;
+export type OperatorRoomTypeList = z.infer<typeof OperatorRoomTypeList>;
+export declare const CreateRatePlanRequest: z.ZodObject<{
+    workspaceId: z.ZodString;
+} & {
+    name: z.ZodString;
+    basePriceRwf: z.ZodNullable<z.ZodNumber>;
+    /** How many people the base price covers. Commercial, not physical. */
+    baseOccupancy: z.ZodOptional<z.ZodNumber>;
+    cancellationTier: z.ZodOptional<z.ZodEnum<["flexible", "moderate", "limited", "firm", "strict_extended_stay"]>>;
+    nonRefundable: z.ZodOptional<z.ZodBoolean>;
+    bookingMode: z.ZodOptional<z.ZodEnum<["instant_book", "request_to_book"]>>;
+    isDefault: z.ZodOptional<z.ZodBoolean>;
+}, "strip", z.ZodTypeAny, {
+    name: string;
+    workspaceId: string;
+    basePriceRwf: number | null;
+    bookingMode?: "instant_book" | "request_to_book" | undefined;
+    cancellationTier?: "flexible" | "moderate" | "limited" | "firm" | "strict_extended_stay" | undefined;
+    nonRefundable?: boolean | undefined;
+    isDefault?: boolean | undefined;
+    baseOccupancy?: number | undefined;
+}, {
+    name: string;
+    workspaceId: string;
+    basePriceRwf: number | null;
+    bookingMode?: "instant_book" | "request_to_book" | undefined;
+    cancellationTier?: "flexible" | "moderate" | "limited" | "firm" | "strict_extended_stay" | undefined;
+    nonRefundable?: boolean | undefined;
+    isDefault?: boolean | undefined;
+    baseOccupancy?: number | undefined;
+}>;
+export type CreateRatePlanRequest = z.infer<typeof CreateRatePlanRequest>;
+export declare const UpdateRatePlanRequest: z.ZodObject<{
+    workspaceId: z.ZodString;
+} & {
+    status: z.ZodOptional<z.ZodEnum<["active", "archived"]>>;
+    name: z.ZodOptional<z.ZodString>;
+    basePriceRwf: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
+    baseOccupancy: z.ZodOptional<z.ZodOptional<z.ZodNumber>>;
+    cancellationTier: z.ZodOptional<z.ZodOptional<z.ZodEnum<["flexible", "moderate", "limited", "firm", "strict_extended_stay"]>>>;
+    nonRefundable: z.ZodOptional<z.ZodOptional<z.ZodBoolean>>;
+    bookingMode: z.ZodOptional<z.ZodOptional<z.ZodEnum<["instant_book", "request_to_book"]>>>;
+    isDefault: z.ZodOptional<z.ZodOptional<z.ZodBoolean>>;
+}, "strip", z.ZodTypeAny, {
+    workspaceId: string;
+    status?: "active" | "archived" | undefined;
+    name?: string | undefined;
+    bookingMode?: "instant_book" | "request_to_book" | undefined;
+    cancellationTier?: "flexible" | "moderate" | "limited" | "firm" | "strict_extended_stay" | undefined;
+    nonRefundable?: boolean | undefined;
+    basePriceRwf?: number | null | undefined;
+    isDefault?: boolean | undefined;
+    baseOccupancy?: number | undefined;
+}, {
+    workspaceId: string;
+    status?: "active" | "archived" | undefined;
+    name?: string | undefined;
+    bookingMode?: "instant_book" | "request_to_book" | undefined;
+    cancellationTier?: "flexible" | "moderate" | "limited" | "firm" | "strict_extended_stay" | undefined;
+    nonRefundable?: boolean | undefined;
+    basePriceRwf?: number | null | undefined;
+    isDefault?: boolean | undefined;
+    baseOccupancy?: number | undefined;
+}>;
+export type UpdateRatePlanRequest = z.infer<typeof UpdateRatePlanRequest>;
+/**
+ * Attach an already uploaded object to a property (ADR-049, AC-I3).
+ *
+ * The bytes went up first, at `POST /api/v1/uploads/property-photo`, and this
+ * call carries the KEY. Two steps rather than one, for the reason the
+ * certificate path already splits them: a large upload has no business inside a
+ * transaction, and a failed attach can be retried without sending the file again.
+ */
+export declare const AttachPropertyPhotoRequest: z.ZodObject<{
+    workspaceId: z.ZodString;
+} & {
+    objectKey: z.ZodString;
+    /** Appended last when absent, which is what an operator adding one expects. */
+    position: z.ZodOptional<z.ZodNumber>;
+    /** The first photograph on a property becomes the cover whatever this says. */
+    isCover: z.ZodOptional<z.ZodBoolean>;
+    caption: z.ZodOptional<z.ZodString>;
+}, "strip", z.ZodTypeAny, {
+    workspaceId: string;
+    objectKey: string;
+    position?: number | undefined;
+    isCover?: boolean | undefined;
+    caption?: string | undefined;
+}, {
+    workspaceId: string;
+    objectKey: string;
+    position?: number | undefined;
+    isCover?: boolean | undefined;
+    caption?: string | undefined;
+}>;
+export type AttachPropertyPhotoRequest = z.infer<typeof AttachPropertyPhotoRequest>;
+/**
+ * Reorder, re caption, or move the cover, in one call.
+ *
+ * One call rather than a PATCH per photograph because reordering is ONE act: a
+ * drag that lands renumbers several rows at once, and applying that as five
+ * requests leaves the order half written when the fourth one fails.
+ */
+export declare const ReorderPropertyPhotosRequest: z.ZodObject<{
+    workspaceId: z.ZodString;
+} & {
+    photos: z.ZodArray<z.ZodObject<{
+        id: z.ZodString;
+        position: z.ZodNumber;
+        isCover: z.ZodOptional<z.ZodBoolean>;
+        caption: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    }, "strip", z.ZodTypeAny, {
+        id: string;
+        position: number;
+        isCover?: boolean | undefined;
+        caption?: string | null | undefined;
+    }, {
+        id: string;
+        position: number;
+        isCover?: boolean | undefined;
+        caption?: string | null | undefined;
+    }>, "many">;
+}, "strip", z.ZodTypeAny, {
+    workspaceId: string;
+    photos: {
+        id: string;
+        position: number;
+        isCover?: boolean | undefined;
+        caption?: string | null | undefined;
+    }[];
+}, {
+    workspaceId: string;
+    photos: {
+        id: string;
+        position: number;
+        isCover?: boolean | undefined;
+        caption?: string | null | undefined;
+    }[];
+}>;
+export type ReorderPropertyPhotosRequest = z.infer<typeof ReorderPropertyPhotosRequest>;
+export declare const PropertyPhotoList: z.ZodObject<{
+    photos: z.ZodArray<z.ZodObject<{
+        id: z.ZodString;
+        objectKey: z.ZodString;
+        /** 0 based, dense, and the order the operator chose. */
+        position: z.ZodNumber;
+        /** Exactly one per property, which a partial unique index enforces. */
+        isCover: z.ZodBoolean;
+        caption: z.ZodNullable<z.ZodString>;
+        url: z.ZodString;
+    }, "strip", z.ZodTypeAny, {
+        id: string;
+        objectKey: string;
+        position: number;
+        isCover: boolean;
+        caption: string | null;
+        url: string;
+    }, {
+        id: string;
+        objectKey: string;
+        position: number;
+        isCover: boolean;
+        caption: string | null;
+        url: string;
+    }>, "many">;
+}, "strip", z.ZodTypeAny, {
+    photos: {
+        id: string;
+        objectKey: string;
+        position: number;
+        isCover: boolean;
+        caption: string | null;
+        url: string;
+    }[];
+}, {
+    photos: {
+        id: string;
+        objectKey: string;
+        position: number;
+        isCover: boolean;
+        caption: string | null;
+        url: string;
+    }[];
+}>;
+export type PropertyPhotoList = z.infer<typeof PropertyPhotoList>;
+/**
+ * A stored property photograph, as the upload route reports it back.
+ *
+ * A sibling of `UploadedObject` rather than a widening of it: that shape pins
+ * `kind` to the literal `certificate`, and the registration wizard parses
+ * against it. Loosening it to an enum would weaken a check that is already doing
+ * its job, to save declaring five fields.
+ */
+export declare const UploadedPropertyPhoto: z.ZodObject<{
+    objectKey: z.ZodString;
+    kind: z.ZodLiteral<"property_photo">;
+    mime: z.ZodString;
+    sizeBytes: z.ZodNumber;
+    filename: z.ZodString;
+    /** A short lived signed read, so the operator sees the picture immediately. */
+    url: z.ZodString;
+}, "strip", z.ZodTypeAny, {
+    kind: "property_photo";
+    objectKey: string;
+    mime: string;
+    sizeBytes: number;
+    filename: string;
+    url: string;
+}, {
+    kind: "property_photo";
+    objectKey: string;
+    mime: string;
+    sizeBytes: number;
+    filename: string;
+    url: string;
+}>;
+export type UploadedPropertyPhoto = z.infer<typeof UploadedPropertyPhoto>;
 //# sourceMappingURL=inventory.d.ts.map

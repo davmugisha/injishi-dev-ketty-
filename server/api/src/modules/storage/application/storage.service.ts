@@ -50,6 +50,18 @@ export interface AttachmentView {
 }
 
 /**
+ * The same shape with `kind` pinned to the literal (ADR-049).
+ *
+ * Narrow rather than wide on purpose: the uploads route declares
+ * `UploadedPropertyPhoto` from `@injishi/contracts`, which pins `kind` to
+ * `property_photo`, and the wide `AttachmentKind` would not satisfy it. The same
+ * reasoning `StoredObjectView` already records for `certificate`.
+ */
+export interface PropertyPhotoUpload extends Omit<AttachmentView, 'kind'> {
+  kind: 'property_photo';
+}
+
+/**
  * Writing bytes and recording that they exist, as one act (F-S09, ADR-026).
  *
  * The two halves are inseparable and that is why they live behind one method:
@@ -226,6 +238,94 @@ export class StorageService {
       filename: input.filename,
       url: await this.signedUrl(put.objectKey),
     };
+  }
+
+  /**
+   * Store one property photograph and record it (ADR-049, AC-I3).
+   *
+   * Shaped like `putCertificate` rather than `putAttachment`, deliberately. The
+   * attachment route is built for a PHONE with an offline queue, so it demands an
+   * `attemptToken` to make a replayed flush idempotent. This upload comes from an
+   * operator pressing a button in a browser: there is no queue, no replay, and
+   * demanding a token the browser would have to invent buys nothing.
+   *
+   * Images only, and the same narrow allowlist attachments use. A PDF here would
+   * mean something other than the flow that is meant to be happening.
+   */
+  async putPropertyPhoto(input: {
+    body: Buffer;
+    mime: string;
+    filename: string;
+    uploadedByUserId: string;
+    workspaceId: string | null;
+  }): Promise<PropertyPhotoUpload> {
+    const mime = input.mime.split(';')[0].trim().toLowerCase();
+    if (!ATTACHMENT_MIME_TYPES.includes(mime)) {
+      throw new BadRequestException(
+        'A photograph must be a JPEG, PNG, WebP or HEIC image.',
+      );
+    }
+    if (input.body.byteLength === 0) {
+      throw new BadRequestException('That file is empty.');
+    }
+    if (input.body.byteLength > MAX_ATTACHMENT_BYTES) {
+      throw new BadRequestException('A photograph must be 8 MB or smaller.');
+    }
+
+    const kind = 'property_photo' as const;
+    const put = await this.storage.put({
+      body: input.body,
+      mime,
+      filename: input.filename,
+      kind,
+    });
+
+    await this.db.insert(storedObjects).values({
+      objectKey: put.objectKey,
+      kind,
+      mime,
+      sizeBytes: put.sizeBytes,
+      uploadedByUserId: input.uploadedByUserId,
+      workspaceId: input.workspaceId,
+    });
+
+    return {
+      objectKey: put.objectKey,
+      kind,
+      mime,
+      sizeBytes: put.sizeBytes,
+      filename: input.filename,
+      // Returned straight away so the operator sees the picture they just sent,
+      // without a second round trip to ask for it.
+      url: await this.signedUrl(put.objectKey),
+    };
+  }
+
+  /**
+   * What kind of object is this key? (ADR-049)
+   *
+   * An attach call carries a key the caller chose, so the thing it points at has
+   * to be checked before it is hung on a property. Without this, a property could
+   * be pointed at a certificate's key and then published, which would publish a
+   * scan of somebody's tax clearance as a photograph of a hotel.
+   */
+  async describe(objectKey: string): Promise<{
+    objectKey: string;
+    kind: string;
+    mime: string | null;
+    uploadedByUserId: string | null;
+  } | null> {
+    const [row] = await this.db
+      .select({
+        objectKey: storedObjects.objectKey,
+        kind: storedObjects.kind,
+        mime: storedObjects.mime,
+        uploadedByUserId: storedObjects.uploadedByUserId,
+      })
+      .from(storedObjects)
+      .where(eq(storedObjects.objectKey, objectKey))
+      .limit(1);
+    return row ?? null;
   }
 
   /** A short-lived read, for showing back what was attached. */

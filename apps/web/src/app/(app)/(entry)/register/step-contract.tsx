@@ -8,7 +8,6 @@ import { SignaturePad, type SignatureCapture } from "@/components/register/signa
 import {
   CONTRACT_OPERATOR,
   CONTRACT_TITLE,
-  CONTRACT_VERSION,
   contractDocumentHtml,
   contractFileName,
   registrationContractClauses,
@@ -27,16 +26,23 @@ import {
 } from "./wizard-ui";
 
 /**
- * The last screen of registration — read the agreement, sign it, take a copy.
+ * Read the agreement, sign it, take a copy — between creating the registration
+ * and paying for it (ADR-049, AC-R8).
  *
- * IT COMES AFTER THE FEE HAS SETTLED, not before, and that ordering is the
- * point rather than an accident of where there was room. Until the payment goes
- * through there is no registration to bind: the server raises the org and its
- * invoice on `POST /registrations` and only `POST /registrations/:id/pay` moves
- * it into the pipeline, so a contract signed a step earlier would name a
- * reference that might never exist and quote a fee that had not been charged.
- * Signing here means every figure in the document is the figure the server
- * actually recorded.
+ * THE ORDER IS THE POINT. It cannot come earlier: the contract quotes the
+ * registration reference and the invoiced amount, and neither exists until
+ * `POST /registrations` raises the org and its bill. It must not come later:
+ * paying is what moves a business in front of officers, and a registrant who
+ * paid and closed the tab used to put a business in that queue without ever
+ * accepting the contract. So it sits here, and `POST /registrations/:id/pay`
+ * refuses until it is accepted. This screen is the affordance; that refusal is
+ * the control.
+ *
+ * WHAT IS SENT. Only the fact: the version on screen, to
+ * `POST /registrations/:id/contract`, which records it against the account and
+ * the time. The drawn signature stays in this browser for the downloaded copy,
+ * because a signature image is personal data that would need its own retention
+ * for no added evidence.
  *
  * ONE MARK, TWO RENDERINGS. `SignaturePad` hands back a PNG drawn in document
  * ink on a transparent ground — never the pixels that were on screen, which
@@ -51,24 +57,26 @@ import {
  */
 export function StepContract({
   input,
-  existing,
-  onSigned,
+  onAccept,
   onContinue,
 }: {
   input: RegistrationContractInput;
-  /** A signature already recorded for this registration, on the resume path. */
-  existing: ContractSignature | null;
-  onSigned: (signature: ContractSignature) => void;
+  /**
+   * Record the acceptance on the server. Resolves null once it is recorded, or
+   * the sentence to show when it was refused.
+   */
+  onAccept: (signature: ContractSignature) => Promise<string | null>;
   onContinue: () => void;
 }) {
   const [capture, setCapture] = useState<SignatureCapture | null>(null);
   const [signedName, setSignedName] = useState(input.registrantName);
-  const [signed, setSigned] = useState<ContractSignature | null>(existing);
+  const [signed, setSigned] = useState<ContractSignature | null>(null);
   const [error, setError] = useState("");
+  const [busy, setBusy] = useState(false);
 
   const clauses = registrationContractClauses(input);
 
-  const sign = () => {
+  const sign = async () => {
     if (capture === null) {
       setError("Draw your signature in the box above before you sign.");
       return;
@@ -87,8 +95,14 @@ export function StepContract({
       signedName: signedName.trim(),
       signedAt: new Date().toISOString(),
     };
+    setBusy(true);
+    const refusal = await onAccept(record);
+    setBusy(false);
+    if (refusal !== null) {
+      setError(refusal);
+      return;
+    }
     setSigned(record);
-    onSigned(record);
   };
 
   /**
@@ -132,21 +146,21 @@ export function StepContract({
       </h2>
       <p className="mt-1 text-sm text-muted-foreground">
         {signed === null
-          ? `Your fee has settled and ${input.businessName} is in the queue. This is the agreement that covers what happens next.`
-          : `Keep a copy. ${input.businessName} carries on through the review either way.`}
+          ? `${input.businessName} is created. Read the agreement and sign it, then pay the registration fee.`
+          : `Accepted. Keep a copy, then pay the registration fee to send ${input.businessName} for review.`}
       </p>
 
       <div className="mt-6 space-y-4">
         <Notice tone="warning">
           <b>This is a demonstration build.</b> Nothing signed here is filed with
           RDB, RRA or a district office, no officer receives it, and{" "}
-          {CONTRACT_OPERATOR} does not counter-sign it. The copy you download is
-          built in this browser from what you typed and the signature you drew,
-          and it is kept nowhere else. Clause 9 says the same inside the document
-          itself.
+          {CONTRACT_OPERATOR} does not counter-sign it. Injishi records that you
+          accepted this version and when, and nothing else: the copy you download
+          is built in this browser from what you typed and the signature you
+          drew. Clause 9 says the same inside the document itself.
         </Notice>
 
-        <SummaryCard title={`${CONTRACT_TITLE} · ${CONTRACT_VERSION}`}>
+        <SummaryCard title={`${CONTRACT_TITLE} · Version ${input.contractVersion}`}>
           <SummaryRow label="Registration" value={input.reference} />
           <SummaryRow label="Business" value={input.businessName} />
           <SummaryRow label="Kind" value={input.businessKindLabel} />
@@ -161,7 +175,7 @@ export function StepContract({
             <SummaryRow label="ID" value={input.registrantIdLabel} />
           ) : null}
           {input.feeLabel ? (
-            <SummaryRow label="Fee charged" value={input.feeLabel} />
+            <SummaryRow label="Registration fee" value={input.feeLabel} />
           ) : null}
         </SummaryCard>
 
@@ -228,8 +242,9 @@ export function StepContract({
             {error ? <Notice tone="danger">{error}</Notice> : null}
 
             <StepActions
-              onNext={sign}
-              nextLabel="Sign this contract"
+              onNext={() => void sign()}
+              nextLabel="Sign and accept"
+              busy={busy}
               disabled={capture === null}
             />
           </>
@@ -281,15 +296,7 @@ export function StepContract({
               </span>
             </div>
 
-            <StepActions
-              onBack={() => {
-                setSigned(null);
-                setCapture(null);
-              }}
-              backLabel="Sign it again"
-              onNext={onContinue}
-              nextLabel="See where your registration is"
-            />
+            <StepActions onNext={onContinue} nextLabel="Continue to payment" />
           </>
         )}
       </div>

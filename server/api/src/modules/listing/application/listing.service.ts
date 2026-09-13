@@ -2,10 +2,26 @@ import type {
   BookableRoom,
   PropertyDetail,
   RoomTypeSummary,
+  SitemapProperty,
 } from '@injishi/contracts';
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Inject, Injectable, NotFoundException } from '@nestjs/common';
 
-import { ListingRepository } from '../infrastructure/listing.repository';
+import { StorageService } from '../../storage/application/storage.service';
+import {
+  PHOTO_SIGNED_URL_TTL_SECONDS,
+  isPhotoId,
+  photoRouteUrl,
+} from '../domain/photo-route';
+import {
+  ListingRepository,
+  type PublicPropertyRecord,
+} from '../infrastructure/listing.repository';
+
+/**
+ * The API's public origin, which photo route URLs are built on. Provided by
+ * `ListingModule` from `BETTER_AUTH_URL`; see `apiPublicOrigin`.
+ */
+export const API_PUBLIC_ORIGIN = Symbol('API_PUBLIC_ORIGIN');
 
 /**
  * The Room type as another module sees it: enough to price and validate a
@@ -29,7 +45,11 @@ export interface BookableRoomType extends RoomTypeSummary {
  */
 @Injectable()
 export class ListingService {
-  constructor(private readonly listings: ListingRepository) {}
+  constructor(
+    private readonly listings: ListingRepository,
+    private readonly storage: StorageService,
+    @Inject(API_PUBLIC_ORIGIN) private readonly origin: string,
+  ) {}
 
   async getPublishedProperty(propertyId: string): Promise<PropertyDetail> {
     const property = await this.listings.findPublishedProperty(propertyId);
@@ -37,7 +57,16 @@ export class ListingService {
       // Unpublished, residence-only, or unknown all read as absent (FL06 §5C).
       throw new NotFoundException('Property not found.');
     }
-    return property;
+    return this.toWire(property);
+  }
+
+  /** Every publicly sellable property's address, for the sitemap (AC-I9). */
+  async sitemapProperties(): Promise<SitemapProperty[]> {
+    const rows = await this.listings.findSitemapProperties();
+    return rows.map((r) => ({
+      slug: r.slug,
+      publishedAt: r.publishedAt?.toISOString() ?? null,
+    }));
   }
 
   /** The same property, addressed by its public slug rather than its uuid. */
@@ -46,7 +75,27 @@ export class ListingService {
     if (!property) {
       throw new NotFoundException('Property not found.');
     }
-    return property;
+    return this.toWire(property);
+  }
+
+  /**
+   * Where one public photograph can be read right now: a signed URL, valid for a
+   * few minutes, for the photo route to redirect to (ADR-049, owner ruling of
+   * 2026-09-13).
+   *
+   * One 404 for every refusal: an id that is not a uuid, a photograph that does
+   * not exist, and one whose property is not publicly visible. Telling them apart
+   * would let a stranger probe for other businesses' unpublished inventory, the
+   * same reason `getBookableRoom` collapses its four cases.
+   */
+  async publicPhotoUrl(photoId: string): Promise<string> {
+    const objectKey = isPhotoId(photoId)
+      ? await this.listings.findPublicPhotoKey(photoId)
+      : null;
+    if (!objectKey) {
+      throw new NotFoundException();
+    }
+    return this.storage.signedUrl(objectKey, PHOTO_SIGNED_URL_TTL_SECONDS);
   }
 
   /**
@@ -62,7 +111,14 @@ export class ListingService {
     if (!room) {
       throw new NotFoundException('That room is no longer offered.');
     }
-    return room;
+    const { coverPhotoId, ...property } = room.property;
+    return {
+      property: {
+        ...property,
+        photo: coverPhotoId ? photoRouteUrl(this.origin, coverPhotoId) : null,
+      },
+      roomType: room.roomType,
+    };
   }
 
   /**
@@ -75,5 +131,14 @@ export class ListingService {
     roomTypeId: string,
   ): Promise<BookableRoomType | null> {
     return this.listings.findRoomTypeForBooking(roomTypeId);
+  }
+
+  /** Photograph ids become their stable public URLs; nothing else changes. */
+  private toWire(record: PublicPropertyRecord): PropertyDetail {
+    const { photoIds, ...property } = record;
+    return {
+      ...property,
+      photos: photoIds.map((id) => photoRouteUrl(this.origin, id)),
+    };
   }
 }

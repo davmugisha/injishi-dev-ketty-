@@ -3,6 +3,7 @@ import {
   staffStepUpOwed,
   type StaffAccess,
 } from "@injishi/contracts";
+import { cache } from "react";
 
 import { getStaffAccess } from "@/lib/api/me";
 
@@ -69,8 +70,15 @@ export interface StaffState {
  * `unreachable` rather than on `denied`. Both are "no data", but only one of
  * them may be worded as a statement about this person, and a shape we cannot
  * vouch for says nothing about them at all.
+ *
+ * ONCE PER REQUEST (React `cache`). `StaffBoundary` asks at the root and each
+ * section's `SectionGate` asks again (ADR-049, AC-A4); both read this one answer,
+ * so a page costs one call to `/me/staff`, not two, and the two cannot see
+ * different answers mid render.
  */
-export async function readStaffAccess(): Promise<StaffState> {
+export const readStaffAccess = cache(readStaffAccessUncached);
+
+async function readStaffAccessUncached(): Promise<StaffState> {
   const result = await getStaffAccess();
 
   if (!result.ok) {

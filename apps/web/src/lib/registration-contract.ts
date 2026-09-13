@@ -14,7 +14,9 @@
  *
  * WHAT THIS IS NOT. Nothing here is filed with RDB, RRA or a district office,
  * nobody counter-signs it on Injishi's behalf, and no copy of it leaves the
- * browser that generated it. Clause 9 says so inside the document itself rather
+ * browser that generated it. What DOES leave is the fact of acceptance: the
+ * wizard sends the version accepted, and the server records it with the
+ * accepting account and the time (ADR-049, AC-R8). The drawn mark never leaves. Clause 9 says so inside the document itself rather
  * than only on the screen, because the download is the artifact that outlives
  * the screen — a person who keeps the file and reads it a month later must find
  * the disclaimer in the file, not remember a notice they scrolled past.
@@ -28,8 +30,9 @@
  * Everything the contract names about this particular registration.
  *
  * The nullable fields are the ones a RESUMING registrant may not have retyped:
- * somebody who paid last week and came back to sign has a legal name and a
- * reference from the server, and no business draft in memory. A row whose value
+ * somebody who created a registration last week and came back to sign has a
+ * legal name, a reference and the invoiced amount from the server, and no
+ * business draft in memory. A row whose value
  * is null is omitted from the document rather than printed as an em dash,
  * because a contract that names "TIN —" states something false about what was
  * agreed, while a contract that does not mention the TIN simply does not.
@@ -51,16 +54,21 @@ export interface RegistrationContractInput {
   /**
    * The fee actually invoiced, through `formatRwf`.
    *
-   * Nullable because `RegistrationSummary.amountDueRwf` is set only while the
-   * invoice is outstanding: the moment the fee settles the server stops
-   * reporting it, so a registrant who paid last week and came back to sign has
-   * no figure to quote. Printing the current published price instead would put
-   * a number in a contract that nobody was ever charged, so the clause says the
-   * fee was charged and names no amount.
+   * The contract is signed BEFORE paying (ADR-049), which is exactly while
+   * `RegistrationSummary.amountDueRwf` is reported, so this is the amount the
+   * registrant is about to be charged. Still nullable, for an invoice the server
+   * could not name; then the clause names no amount rather than quoting a
+   * published price nobody was billed.
    */
   feeLabel: string | null;
   /** The registration this agreement belongs to. */
   reference: string;
+  /**
+   * `OPERATOR_CONTRACT_VERSION` from `@injishi/contracts`, passed in rather than
+   * imported so this module keeps importing nothing. It is the version the
+   * server is told was accepted and the one printed on the document.
+   */
+  contractVersion: string;
 }
 
 export interface ContractClause {
@@ -86,14 +94,6 @@ export interface ContractSignature {
 }
 
 export const CONTRACT_TITLE = "Injishi Operator Registration Agreement";
-
-/**
- * Bumped whenever a clause changes, and printed on the document.
- *
- * A signature is only meaningful against a known text, so a downloaded copy has
- * to say which text was on screen when it was signed.
- */
-export const CONTRACT_VERSION = "Revision A";
 
 /** The counterparty, named the way the footer names it. */
 export const CONTRACT_OPERATOR = "Injishi, operated by Hangaa Softwares";
@@ -125,8 +125,8 @@ export function registrationContractClauses(
       heading: "The registration fee, and what it buys",
       body: [
         input.feeLabel === null
-          ? "The registration fee for this business has already been charged, and it is charged once."
-          : `The registration fee for this business is ${input.feeLabel}, charged once.`,
+          ? "The registration fee for this business is the amount on its invoice, charged once."
+          : `The registration fee for this business is ${input.feeLabel}, charged once, and you pay it after accepting this agreement.`,
         "It pays for the review that follows rather than for the outcome of that review, so settling it buys your application a place in the queue and buys nothing else, and no amount of it is a deposit against future earnings.",
         "If a verifier or an approver decides against you, the fee is not refunded. If you then correct what they asked you to correct and send the registration back for another look, you are not charged a second time, however many rounds that takes.",
       ],
@@ -188,6 +188,7 @@ export function registrationContractClauses(
       heading: "What this document is",
       body: [
         "This is a demonstration build of Injishi. Nothing signed here is filed with any registry, no district officer has received it, and nobody has counter-signed it on Injishi's behalf, so it does not bind anyone and it should not be presented as though it did.",
+        "Injishi records that your account accepted this version of the agreement, and when. It does not keep the signature you drew.",
         "The copy you download is generated in your own browser from what you typed and the signature you drew. It never leaves this device unless you send it somewhere yourself, and it is yours to keep as a record of what the finished product would ask you to agree to.",
       ],
     },
@@ -305,7 +306,7 @@ export function contractDocumentHtml(
 <body>
   <header>
     <h1>${escapeHtml(CONTRACT_TITLE)}</h1>
-    <p class="meta">${escapeHtml(CONTRACT_VERSION)} · Registration ${escapeHtml(input.reference)} · Signed ${escapeHtml(signedOn)}</p>
+    <p class="meta">Version ${escapeHtml(input.contractVersion)} · Registration ${escapeHtml(input.reference)} · Signed ${escapeHtml(signedOn)}</p>
   </header>
 
   <table>
@@ -340,56 +341,6 @@ export function contractFileName(
   const day = signedAtIso.slice(0, 10);
   const stem = slugify(input.businessName) || "registration";
   return `injishi-registration-contract-${stem}-${day}.html`;
-}
-
-// ---------------------------------------------------------------------------
-// Remembering that it was signed
-// ---------------------------------------------------------------------------
-
-const STORE_KEY = "injishi.registration-contract.v1";
-
-/**
- * A signed contract, kept in this browser against the registration it belongs
- * to.
- *
- * WHY LOCALLY. There is no endpoint that accepts a signature and no column that
- * would hold one — the registration API is `create`, `pay`, `read` and
- * `resubmit`, and this work does not add to it. Keeping the record here is what
- * lets a registrant who signed yesterday come back to the pipeline screen
- * instead of being handed the same contract twice, which is the only behaviour
- * the absence of a server actually costs.
- *
- * Every access is wrapped: a browser with site data blocked throws on the
- * accessor itself, and a registration screen must not white-screen because
- * somebody hardened their browser.
- */
-export function readSignedContract(reference: string): ContractSignature | null {
-  if (typeof window === "undefined") return null;
-  try {
-    const raw = window.localStorage.getItem(STORE_KEY);
-    if (!raw) return null;
-    const all = JSON.parse(raw) as Record<string, ContractSignature>;
-    const found = all[reference];
-    return found && typeof found.dataUrl === "string" ? found : null;
-  } catch {
-    return null;
-  }
-}
-
-export function writeSignedContract(
-  reference: string,
-  signature: ContractSignature,
-): void {
-  if (typeof window === "undefined") return;
-  try {
-    const raw = window.localStorage.getItem(STORE_KEY);
-    const all = raw ? (JSON.parse(raw) as Record<string, ContractSignature>) : {};
-    all[reference] = signature;
-    window.localStorage.setItem(STORE_KEY, JSON.stringify(all));
-  } catch {
-    // A signature we cannot remember is a contract shown once more. That is a
-    // recoverable annoyance and not a reason to fail the step.
-  }
 }
 
 // ---------------------------------------------------------------------------

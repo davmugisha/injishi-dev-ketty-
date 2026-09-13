@@ -1,26 +1,38 @@
 import {
+  AttachPropertyPhotoRequest,
   CreatePropertyRequest,
+  CreateRatePlanRequest,
+  CreateRoomTypeRequest,
   type OperatorProperty,
   type OperatorPropertyList,
+  type OperatorRatePlan,
   type OperatorRatePlanList,
-  PropertyQuery,
+  type OperatorRoomType,
+  type OperatorRoomTypeList,
+  type PropertyPhotoList,
+  ReorderPropertyPhotosRequest,
   UpdatePropertyRequest,
+  UpdateRatePlanRequest,
+  UpdateRoomTypeRequest,
   type WorkspaceAccess,
 } from '@injishi/contracts';
 import {
   Body,
   Controller,
+  Delete,
   Get,
+  HttpCode,
   Param,
   ParseUUIDPipe,
   Patch,
   Post,
-  Query,
   UseGuards,
 } from '@nestjs/common';
 
 import { InventoryService } from '../../../modules/listing-setup/application/inventory.service';
+import { PropertyPhotosService } from '../../../modules/listing-setup/application/property-photos.service';
 import { RatePlansService } from '../../../modules/listing-setup/application/rate-plans.service';
+import { RoomTypesService } from '../../../modules/listing-setup/application/room-types.service';
 import { SessionGuard } from '../../../shared/auth/session.guard';
 import {
   CurrentWorkspace,
@@ -51,6 +63,8 @@ export class InventoryController {
   constructor(
     private readonly inventory: InventoryService,
     private readonly ratePlans: RatePlansService,
+    private readonly roomTypes: RoomTypesService,
+    private readonly photos: PropertyPhotosService,
   ) {}
 
   /**
@@ -59,11 +73,10 @@ export class InventoryController {
    * **This route did not exist**, which is why the Rate plans lens was a
    * placeholder while `rate_plans` sat there fully specified.
    *
-   * It takes NO `workspaceId` query parameter, unlike its neighbours on this
-   * controller. Theirs is validated and then discarded — the header is what
-   * `WorkspaceGuard` actually reads — and repeating that here would be
-   * copying a defect forward. The redundancy on the others is recorded as
-   * owed rather than spread.
+   * It takes NO `workspaceId` query parameter, and since ADR-049 task 18 no
+   * route on this controller does. Its neighbours used to validate one and
+   * throw it away while `WorkspaceGuard` resolved the real workspace from the
+   * header, so a client had to send the same fact twice for nothing.
    */
   @Get('rate-plans')
   listRatePlans(
@@ -75,7 +88,6 @@ export class InventoryController {
   /** Every property in this workspace, with its listing state. */
   @Get('properties')
   async listProperties(
-    @Query(new ZodValidationPipe(PropertyQuery)) _query: PropertyQuery,
     @CurrentWorkspace() workspace: WorkspaceAccess,
   ): Promise<OperatorPropertyList> {
     return { properties: await this.inventory.listProperties(workspace) };
@@ -101,7 +113,6 @@ export class InventoryController {
   @Get('properties/:id')
   getProperty(
     @Param('id', ParseUUIDPipe) id: string,
-    @Query(new ZodValidationPipe(PropertyQuery)) _query: PropertyQuery,
     @CurrentWorkspace() workspace: WorkspaceAccess,
   ): Promise<OperatorProperty> {
     return this.inventory.getProperty(workspace, id);
@@ -116,5 +127,164 @@ export class InventoryController {
     @CurrentWorkspace() workspace: WorkspaceAccess,
   ): Promise<OperatorProperty> {
     return this.inventory.updateProperty(workspace, id, body);
+  }
+
+  // -------------------------------------------------------------------------
+  // Room types (ADR-049, AC-I1)
+  // -------------------------------------------------------------------------
+
+  /** Every room type on a property, archived ones included. */
+  @Get('properties/:id/room-types')
+  async listRoomTypes(
+    @Param('id', ParseUUIDPipe) id: string,
+    @CurrentWorkspace() workspace: WorkspaceAccess,
+  ): Promise<OperatorRoomTypeList> {
+    return { roomTypes: await this.roomTypes.list(workspace, id) };
+  }
+
+  /**
+   * Create a room type, and the default rate plan it sells on.
+   *
+   * Both, always. `rate_plans` is what a quote is built from, so a room type with
+   * no plan cannot be sold and publishing would refuse for a reason the operator
+   * did nothing to cause.
+   */
+  @Post('properties/:id/room-types')
+  createRoomType(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body(new ZodValidationPipe(CreateRoomTypeRequest))
+    body: CreateRoomTypeRequest,
+    @CurrentWorkspace() workspace: WorkspaceAccess,
+  ): Promise<OperatorRoomType> {
+    return this.roomTypes.create(workspace, id, body);
+  }
+
+  /**
+   * Edit a room type.
+   *
+   * Addressed by the room type alone rather than nested under its property: the
+   * screen editing it holds its id, and carrying the property id as well would let
+   * a request name a pair that disagrees.
+   */
+  @Patch('room-types/:id')
+  updateRoomType(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body(new ZodValidationPipe(UpdateRoomTypeRequest))
+    body: UpdateRoomTypeRequest,
+    @CurrentWorkspace() workspace: WorkspaceAccess,
+  ): Promise<OperatorRoomType> {
+    return this.roomTypes.update(workspace, id, body);
+  }
+
+  // -------------------------------------------------------------------------
+  // Rate plans (ADR-049, AC-I2)
+  // -------------------------------------------------------------------------
+
+  /** Add a plan to a room type. */
+  @Post('room-types/:id/rate-plans')
+  createRatePlan(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body(new ZodValidationPipe(CreateRatePlanRequest))
+    body: CreateRatePlanRequest,
+    @CurrentWorkspace() workspace: WorkspaceAccess,
+  ): Promise<OperatorRatePlan> {
+    return this.ratePlans.create(workspace, id, body);
+  }
+
+  /** Edit a plan. Making it the default moves the flag off the old one. */
+  @Patch('rate-plans/:id')
+  updateRatePlan(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body(new ZodValidationPipe(UpdateRatePlanRequest))
+    body: UpdateRatePlanRequest,
+    @CurrentWorkspace() workspace: WorkspaceAccess,
+  ): Promise<OperatorRatePlan> {
+    return this.ratePlans.update(workspace, id, body);
+  }
+
+  // -------------------------------------------------------------------------
+  // Photographs (ADR-049, AC-I3)
+  // -------------------------------------------------------------------------
+
+  /** Every photograph on a property, in the operator's order. */
+  @Get('properties/:id/photos')
+  async listPhotos(
+    @Param('id', ParseUUIDPipe) id: string,
+    @CurrentWorkspace() workspace: WorkspaceAccess,
+  ): Promise<PropertyPhotoList> {
+    return { photos: await this.photos.list(workspace, id) };
+  }
+
+  /**
+   * Attach an already uploaded object.
+   *
+   * The bytes went up at `POST /api/v1/uploads/property-photo` and this carries
+   * the key. The first photograph on a property becomes its cover whatever the
+   * body says, because nobody chooses "photographs but no cover".
+   */
+  @Post('properties/:id/photos')
+  async attachPhoto(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body(new ZodValidationPipe(AttachPropertyPhotoRequest))
+    body: AttachPropertyPhotoRequest,
+    @CurrentWorkspace() workspace: WorkspaceAccess,
+  ): Promise<PropertyPhotoList> {
+    return { photos: await this.photos.attach(workspace, id, body) };
+  }
+
+  /**
+   * Reorder, re caption, and move the cover, in one call.
+   *
+   * One call because reordering is ONE act: a drag that lands renumbers several
+   * rows, and five requests leave the order half written when the fourth fails.
+   */
+  @Patch('properties/:id/photos')
+  async reorderPhotos(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body(new ZodValidationPipe(ReorderPropertyPhotosRequest))
+    body: ReorderPropertyPhotosRequest,
+    @CurrentWorkspace() workspace: WorkspaceAccess,
+  ): Promise<PropertyPhotoList> {
+    return { photos: await this.photos.reorder(workspace, id, body) };
+  }
+
+  /** Remove a photograph. Refused when it is the last one on a live listing. */
+  @Delete('properties/:id/photos/:photoId')
+  async removePhoto(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Param('photoId', ParseUUIDPipe) photoId: string,
+    @CurrentWorkspace() workspace: WorkspaceAccess,
+  ): Promise<PropertyPhotoList> {
+    return { photos: await this.photos.remove(workspace, id, photoId) };
+  }
+
+  // -------------------------------------------------------------------------
+  // Publishing (ADR-049, AC-I4 to AC-I6, AC-I10)
+  // -------------------------------------------------------------------------
+
+  /**
+   * Put the property on the marketplace.
+   *
+   * `200` rather than `201`: nothing is created, a listing moves. Pressing it
+   * twice is safe — the second press finds the listing already published and
+   * returns the same body, so one press and two are indistinguishable.
+   */
+  @Post('properties/:id/publish')
+  @HttpCode(200)
+  publish(
+    @Param('id', ParseUUIDPipe) id: string,
+    @CurrentWorkspace() workspace: WorkspaceAccess,
+  ): Promise<OperatorProperty> {
+    return this.inventory.publish(workspace, id);
+  }
+
+  /** Take it back off, keeping the public address for a later republish. */
+  @Post('properties/:id/unpublish')
+  @HttpCode(200)
+  unpublish(
+    @Param('id', ParseUUIDPipe) id: string,
+    @CurrentWorkspace() workspace: WorkspaceAccess,
+  ): Promise<OperatorProperty> {
+    return this.inventory.unpublish(workspace, id);
   }
 }

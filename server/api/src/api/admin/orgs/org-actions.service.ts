@@ -14,6 +14,7 @@ import { and, desc, eq } from 'drizzle-orm';
 import { auditEvents } from '../../../database/drizzle/governance';
 import { orgs, tinVerifications } from '../../../database/drizzle/org';
 import { RegistrationService } from '../../../modules/organization/application/registration.service';
+import { recordRegistrationEvent } from '../../../modules/organization/infrastructure/registration-events';
 import {
   DRIZZLE,
   type Database,
@@ -95,6 +96,16 @@ export class AdminOrgActionsService {
               : `Only an active business can be suspended; this one is ${current.status}.`,
         });
       }
+
+      // The pair ADR-049 names as easy to miss: it lives outside the
+      // organization module, and a suspension with no event row reads in admin's
+      // queue as a business that has been in its previous stage forever.
+      await recordRegistrationEvent(tx, {
+        orgId,
+        from: edge.from,
+        to: edge.to,
+        mover: { trigger: 'staff', actorUserId },
+      });
 
       const [audit] = await tx
         .insert(auditEvents)

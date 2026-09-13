@@ -1,8 +1,8 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.AdminPayout = exports.AdminOrgSubscription = exports.AdminInvoice = exports.AdminOrgPropertiesResponse = exports.AdminOrgProperty = exports.AdminOrgPeopleResponse = exports.AdminOrgMember = exports.AdminOrgDetail = exports.AdminOboListResponse = exports.AdminOboRow = exports.AdminOrgReviewQueueResponse = exports.AdminOrgReviewItem = exports.AdminOrgListResponse = exports.AdminOrgListQuery = exports.AdminOrgRow = exports.AdminOverview = exports.AdminQueueHealth = exports.AdminAdapterHealth = exports.AdminWorkQueueItem = exports.AdminDistrictDensity = exports.AdminRevenueLine = exports.AdminKpi = exports.AdminListMeta = exports.AdminKycState = exports.AdminTranslationStatus = exports.AdminAnnouncementState = exports.AdminEscalationState = exports.AdminEscalationType = exports.AdminEscalationSubjectType = exports.AdminSupportTicketState = exports.AdminDsrState = exports.AdminDsrRequestType = exports.AdminComplianceArtifactType = exports.AdminFlagScope = exports.AdminLedgerTxnKind = exports.AdminPlanBillingPeriod = exports.AdminPayoutStatus = exports.AdminInvoiceKind = exports.AdminInvoiceStatus = exports.AdminSubscriptionStatus = exports.AdminRegistrationBusinessType = exports.AdminRegistrationRejectionReason = exports.AdminRegistrationReviewDecision = exports.AdminOboClaimStatus = exports.AdminPlacementStatus = exports.AdminBrokerStatus = exports.AdminRecordDataClass = exports.AdminAuditSubjectType = exports.AdminAdapterStatus = exports.AdminAdapterName = void 0;
-exports.AdminEmailTemplate = exports.AdminTranslationEntry = exports.AdminAnalytics = exports.AdminSavedScope = exports.AdminAnalyticsSeries = exports.AdminAnnouncementResponse = exports.AdminAnnouncement = exports.AdminModeration = exports.AdminEscalation = exports.AdminSupportTicket = exports.AdminModeratedReview = exports.AdminEnvironments = exports.AdminSystemHealth = exports.AdminCompliance = exports.AdminDsrRow = exports.AdminComplianceArtifact = exports.AdminFeeSchedule = exports.AdminSubscriptionPlan = exports.AdminRegistrationFee = exports.AdminConfiguration = exports.AdminFeatureFlag = exports.AdminConfigEntry = exports.AdminReconRunResponse = exports.AdminReconRun = exports.AdminFailedChargeResponse = exports.AdminFailedCharge = exports.AdminPayoutResponse = exports.AdminPayoutQuery = exports.AdminLedgerResponse = exports.AdminRevealListResponse = exports.AdminRevealEvent = exports.AdminBrokerListResponse = exports.AdminBrokerRow = exports.AdminUnclaimedStaysResponse = exports.AdminUnclaimedStay = exports.AdminUserListResponse = exports.AdminUserListQuery = exports.AdminUserRow = exports.AdminOversightGrant = exports.AdminUserMembership = exports.AdminOboAuditResponse = exports.AdminAccessLogResponse = exports.AdminAccessLogRow = exports.AdminAuditResponse = exports.AdminAuditQuery = exports.AdminAuditRow = exports.AdminOrgTimelineResponse = exports.AdminTimelineEvent = exports.AdminOrgMoney = exports.AdminLedgerRow = void 0;
-exports.AdminClaimCodeReissued = exports.AdminSessionsRevoked = exports.AdminBrokerStatusChange = exports.AdminTinRecheckResult = exports.AdminOrgStatusChange = exports.AdminClaimCode = exports.AdminTinCheckResult = exports.AdminActionRequest = exports.AdminPagedReasonQuery = exports.AdminReasonQuery = exports.AdminLocalization = void 0;
+exports.AdminOrgSubscription = exports.AdminInvoice = exports.AdminOrgPropertiesResponse = exports.AdminOrgProperty = exports.AdminOrgPeopleResponse = exports.AdminOrgMember = exports.AdminOrgDetail = exports.AdminOboListResponse = exports.AdminOboRow = exports.AdminOrgReviewQueueResponse = exports.AdminOrgReviewItem = exports.ReviewCoverage = exports.AdminOrgListResponse = exports.AdminOrgListQuery = exports.AdminOrgRow = exports.AdminOverview = exports.AdminQueueHealth = exports.AdminAdapterHealth = exports.AdminWorkQueueItem = exports.AdminDistrictDensity = exports.AdminRevenueLine = exports.AdminKpi = exports.AdminListMeta = exports.AdminKycState = exports.AdminTranslationStatus = exports.AdminAnnouncementState = exports.AdminEscalationState = exports.AdminEscalationType = exports.AdminEscalationSubjectType = exports.AdminSupportTicketState = exports.AdminDsrState = exports.AdminDsrRequestType = exports.AdminComplianceArtifactType = exports.AdminFlagScope = exports.AdminLedgerTxnKind = exports.AdminPlanBillingPeriod = exports.AdminPayoutStatus = exports.AdminInvoiceKind = exports.AdminInvoiceStatus = exports.AdminSubscriptionStatus = exports.AdminRegistrationBusinessType = exports.AdminRegistrationRejectionReason = exports.AdminRegistrationReviewDecision = exports.AdminOboClaimStatus = exports.AdminPlacementStatus = exports.AdminBrokerStatus = exports.AdminRecordDataClass = exports.AdminAuditSubjectType = exports.AdminAdapterStatus = exports.AdminAdapterName = void 0;
+exports.AdminAnalytics = exports.AdminSavedScope = exports.AdminAnalyticsSeries = exports.AdminAnnouncementResponse = exports.AdminAnnouncement = exports.AdminModeration = exports.AdminEscalation = exports.AdminSupportTicket = exports.AdminModeratedReview = exports.AdminEnvironments = exports.AdminSystemHealth = exports.AdminCompliance = exports.AdminDsrRow = exports.AdminComplianceArtifact = exports.AdminFeeSchedule = exports.AdminSubscriptionPlan = exports.AdminRegistrationFee = exports.AdminConfiguration = exports.AdminFeatureFlag = exports.AdminConfigEntry = exports.AdminReconRunResponse = exports.AdminReconRun = exports.AdminFailedChargeResponse = exports.AdminFailedCharge = exports.AdminPayoutResponse = exports.AdminPayoutQuery = exports.AdminLedgerResponse = exports.AdminRevealListResponse = exports.AdminRevealEvent = exports.AdminBrokerListResponse = exports.AdminBrokerRow = exports.AdminUnclaimedStaysResponse = exports.AdminUnclaimedStay = exports.AdminUserListResponse = exports.AdminUserListQuery = exports.AdminUserRow = exports.CreateOversightGrantRequest = exports.AdminOversightGrant = exports.AdminUserMembership = exports.AdminOboAuditResponse = exports.AdminAccessLogResponse = exports.AdminAccessLogRow = exports.AdminAuditResponse = exports.AdminAuditQuery = exports.AdminAuditRow = exports.AdminOrgTimelineResponse = exports.AdminTimelineEvent = exports.AdminOrgMoney = exports.AdminLedgerRow = exports.AdminPayout = void 0;
+exports.AdminClaimCodeReissued = exports.AdminSessionsRevoked = exports.AdminBrokerStatusChange = exports.AdminTinRecheckResult = exports.AdminOrgStatusChange = exports.AdminClaimCode = exports.AdminTinCheckResult = exports.UpdateGovernmentBodyRequest = exports.CreateGovernmentBodyRequest = exports.GovernmentBody = exports.AppendRegistrationFeeRequest = exports.AdminActionRequest = exports.AdminPagedReasonQuery = exports.AdminReasonQuery = exports.AdminLocalization = exports.AdminEmailTemplate = exports.AdminTranslationEntry = void 0;
 const zod_1 = require("zod");
 const primitives_1 = require("./primitives");
 const rdb_1 = require("./rdb");
@@ -399,6 +399,21 @@ exports.AdminOrgListQuery = zod_1.z.object({
 });
 exports.AdminOrgListResponse = listOf(exports.AdminOrgRow);
 /**
+ * Is anyone appointed to take this business's current stage? (ADR-049, AC-G9)
+ *
+ * Three states, because only two of the four statuses in the review queue wait
+ * on an officer. `tin_verified` waits on a `business_field_verifier` and
+ * `field_verified` on a `business_approver`: each is `covered` when a live
+ * assignment for that function reaches the business's district and `uncovered`
+ * when none does. `submitted` waits on the RRA check and `approved` on the
+ * owner's claim, so both are `not_applicable`; reporting them uncovered would
+ * send a staffer hunting for an officer nobody needs.
+ *
+ * Computed when the queue is read, from `oversight_assignments`. Revoking the
+ * last covering grant flips a business to `uncovered` with no job run.
+ */
+exports.ReviewCoverage = zod_1.z.enum(["covered", "uncovered", "not_applicable"]);
+/**
  * One business waiting at a registration gate.
  *
  * `lastDecision` is the newest `org_registration_reviews` row, nullable because
@@ -424,6 +439,29 @@ exports.AdminOrgReviewItem = zod_1.z.object({
         .nullable(),
     /** True once a `tin_verifications` row for this org came back `verified`. */
     tinVerified: zod_1.z.boolean(),
+    /**
+     * When the business entered the stage it is in NOW (ADR-049, AC-R7).
+     *
+     * The newest `org_registration_events` row whose `to_status` is the current
+     * status. Null for a business that reached its status before the event log
+     * existed, which is a real answer ("we did not record it") rather than a
+     * guess; the console shows no wait rather than an invented one.
+     */
+    stageEnteredAt: zod_1.z.string().nullable(),
+    /**
+     * Held at `submitted` on an RRA check that never answered, with every
+     * automatic retry used (ADR-049, AC-R5).
+     *
+     * Computed when the queue is read, not stored. A stored flag would have to be
+     * cleared by a later success, a resubmit and an admin recheck, and one missed
+     * clear would leave a healthy business flagged forever.
+     */
+    stalled: zod_1.z.boolean(),
+    /**
+     * Whether an officer can take this business's CURRENT stage (ADR-049, AC-G9).
+     * See `ReviewCoverage`.
+     */
+    coverage: exports.ReviewCoverage,
 });
 exports.AdminOrgReviewQueueResponse = listOf(exports.AdminOrgReviewItem);
 /**
@@ -458,6 +496,12 @@ exports.AdminOboListResponse = listOf(exports.AdminOboRow);
  * a join nobody wants on a 25-row page.
  */
 exports.AdminOrgDetail = exports.AdminOrgRow.extend({
+    /**
+     * When the business entered its current stage, for EVERY stage (ADR-049,
+     * AC-R7), `pending_payment` and `suspended` included, neither of which the
+     * review queue lists. Null before the event log existed.
+     */
+    stageEnteredAt: zod_1.z.string().nullable(),
     addressText: zod_1.z.string().nullable(),
     sectorId: zod_1.z.number().int().positive().nullable(),
     villageId: zod_1.z.number().int().positive().nullable(),
@@ -468,17 +512,17 @@ exports.AdminOrgDetail = exports.AdminOrgRow.extend({
 /**
  * One person inside a business.
  *
- * `status` is a plain string, not an enum, because `org_memberships.status` is
- * a `text` column carrying `active | removed` by convention rather than by a
- * `pgEnum`. Promising more here than the database enforces would make this
- * contract reject a row Postgres was happy to store.
+ * `status` is the enum the database now enforces. It used to be `z.string()`,
+ * correctly, while `org_memberships.status` was free `text`; ADR-049 made the
+ * column `org_membership_status` (AC-R10), so the contract promises exactly what
+ * Postgres refuses to store otherwise, no more and no less.
  */
 exports.AdminOrgMember = zod_1.z.object({
     userId: primitives_1.Uuid,
     name: zod_1.z.string().nullable(),
     email: zod_1.z.string(),
     orgRole: primitives_1.OrgRole,
-    status: zod_1.z.string(),
+    status: zod_1.z.enum(["active", "removed"]),
     joinedAt: zod_1.z.string(),
     removedAt: zod_1.z.string().nullable(),
 });
@@ -701,11 +745,84 @@ exports.AdminUserMembership = zod_1.z.object({
  * name, null for a country-level grant, which names no region at all.
  */
 exports.AdminOversightGrant = zod_1.z.object({
+    /**
+     * The assignment row. Added by ADR-049, because a grant that can be revoked
+     * has to be nameable: `DELETE /admin/users/:userId/oversight/:assignmentId`
+     * addresses this, and a revoke keyed on role plus scope would be guessing
+     * which of two grants was meant.
+     */
+    id: primitives_1.Uuid,
     oversightRole: primitives_1.OversightRole,
     governmentBodyCode: zod_1.z.string(),
+    /** `government_bodies.name_en`, joined on the code. The words a citizen knows. */
+    governmentBodyName: zod_1.z.string().nullable(),
     governmentTitle: zod_1.z.string().nullable(),
     scopeLevel: primitives_1.OversightScopeLevel,
     scopeLabel: zod_1.z.string().nullable(),
+});
+/**
+ * Appoint a government officer (ADR-049, AC-G1).
+ *
+ * Four things are named and none is derivable from another: the FUNCTION the
+ * pipeline branches on, the BODY that appointed them, that body's OWN job title
+ * for the post, and the REGION. Three layers of name coexist here on purpose —
+ * the enum is the database's, the console renders a label, and
+ * `governmentTitle` is what the officer's employer calls them — and collapsing
+ * them loses the only one a citizen would recognise.
+ *
+ * The scope shape is checked here as well as by the table's CHECK constraint, so
+ * a mismatched pair is a 422 naming the field rather than a 500 from Postgres.
+ */
+exports.CreateOversightGrantRequest = zod_1.z
+    .object({
+    oversightRole: primitives_1.OversightRole,
+    governmentBodyCode: zod_1.z.string().trim().min(1, "Name the government body."),
+    governmentTitle: zod_1.z
+        .string()
+        .trim()
+        .min(2, "Give the officer the title their institution uses.")
+        .max(200, "That title is too long for our records."),
+    scopeLevel: primitives_1.OversightScopeLevel,
+    provinceId: zod_1.z.number().int().positive().nullable().optional(),
+    districtId: zod_1.z.number().int().positive().nullable().optional(),
+})
+    .superRefine((value, ctx) => {
+    // Mirrors `oversight_assignments_scope_shape`. A country grant names no
+    // region at all; the other two name exactly their own level.
+    if (value.scopeLevel === "country") {
+        if (value.provinceId != null || value.districtId != null) {
+            ctx.addIssue({
+                code: zod_1.z.ZodIssueCode.custom,
+                path: ["scopeLevel"],
+                message: "A country scope names no province or district.",
+            });
+        }
+        return;
+    }
+    if (value.scopeLevel === "province") {
+        if (value.provinceId == null) {
+            ctx.addIssue({
+                code: zod_1.z.ZodIssueCode.custom,
+                path: ["provinceId"],
+                message: "Choose the province this officer covers.",
+            });
+        }
+        if (value.districtId != null) {
+            ctx.addIssue({
+                code: zod_1.z.ZodIssueCode.custom,
+                path: ["districtId"],
+                message: "A province scope names no district.",
+            });
+        }
+        return;
+    }
+    if (value.districtId == null) {
+        ctx.addIssue({
+            code: zod_1.z.ZodIssueCode.custom,
+            path: ["districtId"],
+            message: "Choose the district this officer covers.",
+        });
+    }
 });
 /**
  * One person, with every authority they hold gathered in one place.
@@ -1280,6 +1397,67 @@ exports.AdminPagedReasonQuery = exports.AdminReasonQuery.extend({
 exports.AdminActionRequest = zod_1.z.object({
     reason: exports.AdminReasonQuery.shape.reason,
 });
+/**
+ * Append a registration fee (ADR-049, AC-R9).
+ *
+ * APPEND, never edit: a new row with its own `effectiveFrom`. `currentFee` reads
+ * the newest row whose moment has passed, and a registration already created
+ * keeps the amount locked on its invoice, so a price change never moves money
+ * that was already quoted.
+ *
+ * `effectiveFrom` is a moment, because the column is `timestamptz`. A moment in
+ * the PAST is refused (422, by the route, against the server clock): a
+ * retroactive price would make an invoice already issued disagree with the
+ * catalogue that produced it. Omitting it means "from now".
+ *
+ * Built on `AdminActionRequest`, so the `reason` follows the one rule every admin
+ * write shares, and it is what the `audit_events` row records (AC-G10).
+ */
+exports.AppendRegistrationFeeRequest = exports.AdminActionRequest.extend({
+    businessType: exports.AdminRegistrationBusinessType,
+    amountRwf: zod_1.z
+        .number()
+        .int("A fee is whole francs.")
+        .nonnegative("A fee cannot be negative.")
+        .max(100000000, "That fee is outside what we can record."),
+    effectiveFrom: zod_1.z.string().datetime({ offset: true }).optional(),
+});
+/**
+ * A government body in the catalogue (D24, ADR-049 AC-G4).
+ *
+ * A catalogue rather than an enum, because the legally defined set is open:
+ * adding RDB or RURA is a row, not a deployment. `code` is the primary key and is
+ * never edited, since every grant and every recorded decision points at it.
+ * Nothing is deleted: a soft retired body (`active: false`) is no longer offered
+ * for a new grant, and every existing grant and decision keeps naming it.
+ */
+exports.GovernmentBody = zod_1.z.object({
+    code: zod_1.z.string(),
+    nameEn: zod_1.z.string(),
+    nameRw: zod_1.z.string(),
+    abbreviation: zod_1.z.string().nullable(),
+    active: zod_1.z.boolean(),
+});
+/** `POST /api/v1/admin/government-bodies`. The code is fixed for good once written. */
+exports.CreateGovernmentBodyRequest = exports.AdminActionRequest.extend({
+    code: zod_1.z
+        .string()
+        .trim()
+        .regex(/^[A-Z][A-Z0-9_]{1,15}$/, "A body code is 2 to 16 capital letters, digits or underscores, starting with a letter."),
+    nameEn: zod_1.z.string().trim().min(2).max(200),
+    nameRw: zod_1.z.string().trim().min(2).max(200),
+    abbreviation: zod_1.z.string().trim().min(1).max(20).optional(),
+});
+/**
+ * `PATCH /api/v1/admin/government-bodies/:code`: rename, or retire and restore.
+ * The code is not here, because it is not editable.
+ */
+exports.UpdateGovernmentBodyRequest = exports.AdminActionRequest.extend({
+    nameEn: zod_1.z.string().trim().min(2).max(200).optional(),
+    nameRw: zod_1.z.string().trim().min(2).max(200).optional(),
+    abbreviation: zod_1.z.string().trim().min(1).max(20).nullable().optional(),
+    active: zod_1.z.boolean().optional(),
+}).refine((v) => v.nameEn !== undefined || v.nameRw !== undefined || v.abbreviation !== undefined || v.active !== undefined, { message: "Change at least one of the names, the abbreviation or whether the body is active." });
 /**
  * `tin_verification_result`. `pending` is RRA being unreachable, never a
  * rejection — the org holds at `submitted` and can be retried.

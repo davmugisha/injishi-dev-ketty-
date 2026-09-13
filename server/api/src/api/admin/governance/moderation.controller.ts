@@ -13,12 +13,10 @@ import { AdminModerationService } from './moderation.service';
  * 500 rather than treating the request as anonymous when the session guard did
  * not run first.
  *
- * GATED ON `admin.moderation.act` FOR A READ, which looks stricter than it
- * needs to be and is not. The queue is a list of complaints about named people
- * and the words they wrote; the only reason to open it is to act on it, and
- * `staff-authz.ts` defines no separate view permission for this section. Using
- * the act permission for the read follows the seam rather than inventing a
- * `admin.moderation.view` that the one permission model does not have.
+ * GATED ON `admin.moderation.view` (ADR-049), which `super_admin`, `ops` and
+ * `compliance` hold. It used to borrow `admin.moderation.act` for the read
+ * because no view permission existed, so only the roles that act could look.
+ * The act keeps its own permission.
  */
 @Controller({ path: 'admin/moderation', version: '1' })
 @UseGuards(SessionGuard, StaffGuard)
@@ -26,7 +24,7 @@ export class AdminModerationController {
   constructor(private readonly moderation: AdminModerationService) {}
 
   @Get()
-  @RequireStaffPermission('admin.moderation.act')
+  @RequireStaffPermission('admin.moderation.view')
   read(): Promise<AdminModeration> {
     return this.moderation.read();
   }

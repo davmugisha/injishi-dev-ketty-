@@ -232,6 +232,20 @@
       "when": 1789176037702,
       "tag": "0032_payment_attempts",
       "breakpoints": true
+    },
+    {
+      "idx": 33,
+      "version": "7",
+      "when": 1789217385034,
+      "tag": "0033_material_whiplash",
+      "breakpoints": true
+    },
+    {
+      "idx": 34,
+      "version": "7",
+      "when": 1789242913234,
+      "tag": "0034_perfect_thanos",
+      "breakpoints": true
     }
   ]
 }

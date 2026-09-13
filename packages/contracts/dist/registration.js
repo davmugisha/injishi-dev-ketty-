@@ -1,6 +1,6 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.CERTIFICATE_KIND_LABEL = exports.UploadedObject = exports.BrokerRegistrationSummary = exports.BrokerStatus = exports.CreateBrokerRegistrationRequest = exports.MyProfile = exports.MyProfileDocument = exports.RegistrationFeeQuote = exports.RegistrationSummary = exports.OversightQueueItem = exports.RejectRegistrationRequest = exports.PassGateRequest = exports.RegistrationReview = exports.RegistrationReviewDecision = exports.RegistrationReviewStage = exports.REJECTION_REASON_LABEL = exports.RegistrationRejectionReason = exports.CreateRegistrationRequest = exports.BusinessDetails = exports.ResidenceBusiness = exports.HospitalityBusiness = exports.CertificateInput = exports.PersonalDetails = exports.Upi = exports.Tin = exports.Address = exports.InternationalAddress = exports.RwandanAddress = exports.IdentityDocumentInput = exports.PassportNumber = exports.RwandanNationalId = exports.CountryCode = exports.AccountDocumentType = exports.Gender = exports.RegistrantCapacity = exports.RegistrationBusinessType = exports.RegistrantRole = void 0;
+exports.CERTIFICATE_KIND_LABEL = exports.UploadedObject = exports.BrokerRegistrationSummary = exports.BrokerStatus = exports.CreateBrokerRegistrationRequest = exports.MyProfile = exports.MyProfileDocument = exports.RegistrationFeeQuote = exports.ClaimPreview = exports.ClaimOrgRequest = exports.RegistrationConflictCode = exports.AcceptContractRequest = exports.OPERATOR_CONTRACT_VERSION = exports.RegistrationSummary = exports.OversightDecisionQuery = exports.OversightDecisionPage = exports.OversightDecision = exports.OversightQueueItem = exports.RejectRegistrationRequest = exports.PassGateRequest = exports.RegistrationReview = exports.RegistrationReviewDecision = exports.RegistrationReviewStage = exports.REJECTION_REASON_LABEL = exports.RegistrationRejectionReason = exports.CreateRegistrationRequest = exports.IntendedOwner = exports.BusinessDetails = exports.ResidenceBusiness = exports.HospitalityBusiness = exports.CertificateInput = exports.PersonalDetails = exports.Upi = exports.Tin = exports.Address = exports.InternationalAddress = exports.RwandanAddress = exports.IdentityDocumentInput = exports.PassportNumber = exports.RwandanNationalId = exports.CountryCode = exports.AccountDocumentType = exports.Gender = exports.RegistrantCapacity = exports.RegistrationBusinessType = exports.RegistrantRole = void 0;
 exports.businessTypeFor = businessTypeFor;
 exports.isRwandanAddress = isRwandanAddress;
 exports.stepForRejectionReason = stepForRejectionReason;
@@ -283,6 +283,38 @@ exports.BusinessDetails = zod_1.z
         });
     }
 });
+/**
+ * The owner an on behalf of registration is made for (FL02).
+ *
+ * All three are required (owner ruling 2026-09-13, ADR-049 J25). They used to be
+ * optional, and each missing one strands the business: no email means no claim
+ * invitation is ever sent, and no national id means no claimant can ever match,
+ * so the real owner is refused their own business. Exported on its own so the
+ * register wizard checks the block with this schema before it leaves the step
+ * that asks for it, rather than restating the rule.
+ */
+exports.IntendedOwner = zod_1.z
+    .object({
+    name: zod_1.z
+        .string({ required_error: "Tell us the owner's full name." })
+        .trim()
+        .min(2, "Tell us the owner's full name.")
+        .max(160, "That name is too long for our records."),
+    nationalId: zod_1.z
+        .string({
+        required_error: "Tell us the owner's National ID. It is how we match them when they claim.",
+    })
+        .trim()
+        .min(1, "Tell us the owner's National ID. It is how we match them when they claim.")
+        .pipe(exports.RwandanNationalId),
+    email: zod_1.z
+        .string({
+        required_error: "Tell us the owner's email. We send their claim invitation there.",
+    })
+        .trim()
+        .min(1, "Tell us the owner's email. We send their claim invitation there.")
+        .email("That email address does not look right."),
+});
 // ---------------------------------------------------------------------------
 // The request
 // ---------------------------------------------------------------------------
@@ -297,18 +329,8 @@ exports.CreateRegistrationRequest = zod_1.z
      */
     personal: exports.PersonalDetails.optional(),
     business: exports.BusinessDetails,
-    /** Captured when `capacity` is `on_behalf_of` (FL02). */
-    intendedOwner: zod_1.z
-        .object({
-        name: zod_1.z
-            .string()
-            .trim()
-            .min(2, "Tell us the owner's full name.")
-            .max(160, "That name is too long for our records."),
-        nationalId: exports.RwandanNationalId.optional(),
-        email: zod_1.z.string().trim().email().optional(),
-    })
-        .optional(),
+    /** Captured when `capacity` is `on_behalf_of`. See `IntendedOwner`. */
+    intendedOwner: exports.IntendedOwner.optional(),
 })
     .superRefine((value, ctx) => {
     const expected = value.role === "landlord" ? "residence" : "hospitality";
@@ -440,6 +462,37 @@ exports.OversightQueueItem = zod_1.z.object({
      */
     blockedBySeparationOfDuties: zod_1.z.boolean(),
 });
+/**
+ * One decision in an officer's own log: `GET /api/v1/oversight/decisions`
+ * (ADR-049, AC-G6).
+ *
+ * The body and the title are the REVIEW ROW'S OWN COPIES, taken when the
+ * decision was recorded, never re joined from the officer's assignment. A
+ * revoked or re scoped posting must not rewrite a decision already taken, and
+ * this log is the first screen that depends on that.
+ */
+exports.OversightDecision = zod_1.z.object({
+    reviewId: primitives_1.Uuid,
+    orgId: primitives_1.Uuid,
+    legalName: zod_1.z.string(),
+    /** The gate decided: `tin_verified` is field verification, `field_verified` approval. */
+    stage: zod_1.z.enum(["tin_verified", "field_verified"]),
+    decision: zod_1.z.enum(["passed", "rejected"]),
+    reasonCode: exports.RegistrationRejectionReason.nullable(),
+    notes: zod_1.z.string().nullable(),
+    governmentBodyCode: zod_1.z.string(),
+    governmentTitle: zod_1.z.string().nullable(),
+    decidedAt: zod_1.z.string(),
+});
+/** A page of the log, newest first. `nextCursor` is null on the last page. */
+exports.OversightDecisionPage = zod_1.z.object({
+    items: exports.OversightDecision.array(),
+    nextCursor: zod_1.z.string().nullable(),
+});
+/** The page to read. No cursor is the newest page; a malformed one is too. */
+exports.OversightDecisionQuery = zod_1.z.object({
+    cursor: zod_1.z.string().trim().max(200).optional(),
+});
 // ---------------------------------------------------------------------------
 // The response
 // ---------------------------------------------------------------------------
@@ -460,6 +513,73 @@ exports.RegistrationSummary = zod_1.z.object({
     /** The reviewing officer's own words, when they left any. */
     rejectionNotes: zod_1.z.string().nullable(),
     submittedAt: zod_1.z.string().nullable(),
+    /**
+     * The operator contract this business accepted, and when (ADR-049, AC-R8).
+     *
+     * Read from the server so a registrant who comes back to the wizard resumes
+     * at the right step, never from the browser. Both null until accepted, and
+     * both stay null for a business that paid before acceptance was recorded.
+     */
+    contractVersion: zod_1.z.string().nullable(),
+    contractAcceptedAt: zod_1.z.string().nullable(),
+    /**
+     * Whether payouts wait on the owner's identity being verified (ADR-049,
+     * AC-R1). Null for a business nobody registered on behalf of anyone else.
+     */
+    payoutLocked: zod_1.z.boolean().nullable(),
+});
+/**
+ * The operator contract's version: the date its terms last changed (ADR-049).
+ *
+ * The document is rendered from code, so the version lives in code too. A
+ * version stored anywhere else can drift from the document it names. Change
+ * this in the same commit as the clause copy, and only then.
+ */
+exports.OPERATOR_CONTRACT_VERSION = "2026-09-12";
+/**
+ * `POST /api/v1/registrations/:id/contract`. The version the page rendered.
+ *
+ * The server refuses anything but `OPERATOR_CONTRACT_VERSION` and stores the
+ * constant, never this value, so a stale tab cannot bind anyone to old terms.
+ */
+exports.AcceptContractRequest = zod_1.z.object({
+    contractVersion: zod_1.z.string().trim().min(1).max(40),
+});
+/**
+ * Why a registrant action on the contract or the fee was refused (409).
+ *
+ * `contract_not_accepted` is pay's refusal, `contract_not_open` and
+ * `contract_version_stale` are accept's. Sent as `code` on the error body so a
+ * page can word the refusal without matching on English.
+ */
+exports.RegistrationConflictCode = zod_1.z.enum([
+    "contract_not_accepted",
+    "contract_not_open",
+    "contract_version_stale",
+]);
+// ---------------------------------------------------------------------------
+// The owner claim (FL02, ADR-049)
+// ---------------------------------------------------------------------------
+/**
+ * `POST /api/v1/orgs/:orgId/claim/preview` and `/claim`. The token from the
+ * invitation mail, in the body so it never lands in the API's access log.
+ */
+exports.ClaimOrgRequest = zod_1.z.object({
+    token: zod_1.z.string().trim().min(1).max(200),
+});
+/**
+ * What `/claim-org` shows before the owner commits.
+ *
+ * Only what the invitation mail already told whoever holds the token: the
+ * business, where it is, where it got to and who registered it. Never the
+ * national id, an email or the TIN.
+ */
+exports.ClaimPreview = zod_1.z.object({
+    orgId: primitives_1.Uuid,
+    legalName: zod_1.z.string(),
+    districtName: zod_1.z.string().nullable(),
+    registrationStatus: primitives_1.OrgRegistrationStatus,
+    registrantName: zod_1.z.string().nullable(),
 });
 /** The fee a registrant is quoted, read from the effective-dated catalog. */
 exports.RegistrationFeeQuote = zod_1.z.object({

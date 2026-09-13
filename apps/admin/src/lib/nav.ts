@@ -14,10 +14,21 @@ import {
   Users,
   Wallet,
 } from "lucide-react";
+import { staffAllows, type StaffPermission } from "@injishi/contracts";
+
 import type { NavGroup, NavItem, NavKey, StaffRole } from "./types";
 
 /**
  * Nav model — admin-prd.md §3, 13 sections (from injishi-admin-shell.js).
+ *
+ * EACH SECTION DECLARES THE PERMISSION ITS READ DECLARES (ADR-049, AC-A3). The
+ * sidebar filters on the `permissions[]` the server resolved, and each
+ * section's layout refuses a staffer whose array lacks it (AC-A4). There is no
+ * second staff matrix here any more: the `roles` arrays and `roleCanSee` this
+ * replaced never read `StaffPermission`, and had already drifted from
+ * `STAFF_ROLE_PERMISSIONS`. Overview, Analytics and System health are not a
+ * special "all" case either; they declare the observe permissions every role
+ * holds.
  *
  * NO COUNTS, ALERTS OR CHIPS, on purpose. The prototype carried Businesses 7,
  * Finance 5, a red Compliance 5 and a "degraded" chip on System health, all
@@ -30,30 +41,30 @@ export const NAV: NavGroup[] = [
   {
     group: "Operate",
     items: [
-      { key: "overview", label: "Overview", icon: LayoutDashboard, roles: "all" },
-      { key: "businesses", label: "Businesses", icon: Building, roles: ["ops", "compliance"] },
-      { key: "users", label: "Users", icon: Users, roles: ["ops"] },
-      { key: "brokers", label: "Brokers", icon: Briefcase, roles: ["ops"] },
+      { key: "overview", label: "Overview", icon: LayoutDashboard, permission: "admin.overview.view" },
+      { key: "businesses", label: "Businesses", icon: Building, permission: "admin.business.view" },
+      { key: "users", label: "Users", icon: Users, permission: "admin.user.view" },
+      { key: "brokers", label: "Brokers", icon: Briefcase, permission: "admin.broker.view" },
     ],
   },
   {
     group: "Money & compliance",
     items: [
-      { key: "finance", label: "Finance", icon: Wallet, roles: ["finance"] },
-      { key: "compliance", label: "Compliance", icon: ShieldCheck, roles: ["compliance"] },
-      { key: "audit", label: "Audit & data protection", icon: ScrollText, roles: ["compliance", "super_admin"] },
+      { key: "finance", label: "Finance", icon: Wallet, permission: "admin.finance.view" },
+      { key: "compliance", label: "Compliance", icon: ShieldCheck, permission: "admin.compliance.view" },
+      { key: "audit", label: "Audit & data protection", icon: ScrollText, permission: "admin.audit.read" },
     ],
   },
   {
     group: "Platform",
     items: [
-      { key: "system-health", label: "System health", icon: Activity, roles: "all" },
-      { key: "configuration", label: "Configuration", icon: Settings, roles: ["super_admin"] },
-      { key: "environments", label: "Environments & adapters", icon: Server, roles: ["super_admin"] },
-      { key: "moderation", label: "Moderation & support", icon: Flag, roles: ["ops"] },
-      { key: "announcements", label: "Announcements", icon: Megaphone, roles: ["super_admin"] },
-      { key: "analytics", label: "Analytics & insights", icon: ChartColumn, roles: "all" },
-      { key: "localization", label: "Localization", icon: Languages, roles: ["super_admin", "ops"] },
+      { key: "system-health", label: "System health", icon: Activity, permission: "admin.system.view" },
+      { key: "configuration", label: "Configuration", icon: Settings, permission: "admin.config.view" },
+      { key: "environments", label: "Environments & adapters", icon: Server, permission: "admin.environment.view" },
+      { key: "moderation", label: "Moderation & support", icon: Flag, permission: "admin.moderation.view" },
+      { key: "announcements", label: "Announcements", icon: Megaphone, permission: "admin.announcement.view" },
+      { key: "analytics", label: "Analytics & insights", icon: ChartColumn, permission: "admin.analytics.view" },
+      { key: "localization", label: "Localization", icon: Languages, permission: "admin.localization.view" },
     ],
   },
 ];
@@ -90,12 +101,35 @@ export const CONFIGURATION_SUBNAV: {
     label: "Registration fees",
     detail: "The one-time fee, per accommodation type",
   },
+  {
+    href: "/configuration/government-bodies",
+    label: "Government bodies",
+    detail: "The institutions officers are appointed from",
+  },
 ];
 
-/** Route guards hide what a role cannot reach (Super Admin sees everything). */
-export function roleCanSee(role: StaffRole, item: NavItem): boolean {
-  if (role === "super_admin" || item.roles === "all") return true;
-  return item.roles.includes(role);
+/**
+ * May a staffer holding these permissions see this section? The one predicate
+ * the sidebar and every section's layout call, so the two cannot disagree.
+ *
+ * The permissions are the server's answer from `GET /api/v1/me/staff`, never
+ * resolved here from a role: a console that turns a role into powers holds its
+ * own copy of the table, which is the bug this replaced. Neither the sidebar
+ * nor the section refusal is the boundary; `StaffGuard` refuses every
+ * `/api/v1/admin/*` call on its own.
+ */
+export function staffCanSee(
+  permissions: readonly StaffPermission[],
+  item: Pick<NavItem, "permission">,
+): boolean {
+  return staffAllows(permissions, item.permission);
+}
+
+/** The nav entry for a section key. Every key in `NavKey` has exactly one. */
+export function navItemFor(key: NavKey): NavItem {
+  const item = NAV_ITEMS.find((i) => i.key === key);
+  if (!item) throw new Error(`No nav entry for section "${key}".`);
+  return item;
 }
 
 export const STAFF_ROLES: {

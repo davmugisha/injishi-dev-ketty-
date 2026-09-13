@@ -230,8 +230,10 @@ function toOversightGrant(row: AdminUserOversightRow): AdminOversightGrant {
         : null;
 
   return {
+    id: row.id,
     oversightRole: row.oversightRole,
     governmentBodyCode: row.governmentBodyCode,
+    governmentBodyName: row.governmentBodyName,
     governmentTitle: row.governmentTitle,
     scopeLevel: row.scopeLevel,
     scopeLabel: scopeLabel ?? null,

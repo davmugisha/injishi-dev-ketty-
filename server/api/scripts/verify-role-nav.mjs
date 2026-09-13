@@ -47,14 +47,17 @@ function jar(res) {
 
 /** Sign in for real and return the business grant, or null. */
 async function grantFor(email) {
+  // Better Auth refuses a request with no Origin (403 MISSING_OR_NULL_ORIGIN)
+  // before it looks at the code, which reads exactly like a broken account.
+  const origin = process.env.VERIFY_WEB_ORIGIN || 'http://localhost:3000';
   await fetch(`${API}/api/auth/email-otp/send-verification-otp`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: { 'Content-Type': 'application/json', origin },
     body: JSON.stringify({ email, type: 'sign-in' }),
   });
   const res = await fetch(`${API}/api/auth/sign-in/email-otp`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: { 'Content-Type': 'application/json', origin },
     body: JSON.stringify({ email, otp: OTP }),
   });
   if (!res.ok) throw new Error(`${email}: sign-in ${res.status}`);
@@ -77,6 +80,12 @@ async function grantFor(email) {
 /**
  * What each seeded operator must see. Screens are sorted, so a new leaf shows
  * up as a diff rather than passing quietly.
+ *
+ * SINCE ADR-049 THE NAV READS NO ROLE. Each leaf declares the permission it
+ * needs and `navFor` filters on the grant's `permissions[]`; a leaf that gates
+ * no capability (Today, Calendar, the tenancy lists) is offered to every member.
+ * So the role below is checked only as the server's own label for the grant,
+ * and the screens follow from the permission count beside it.
  */
 const EXPECTED = [
   {
@@ -92,13 +101,15 @@ const EXPECTED = [
   {
     email: 'manager@injishi.rw',
     role: 'manager',
-    permissions: 23,
-    // The owner's surface, Settings included: a manager holds `ebm.manage` and
-    // Settings → Integrations is where it is used. Plan and billing, the one
-    // owner-only lens, is refused inside the screen, not by the nav.
+    // 22 since `team.manage` became the owner's alone (2026-09-12). This row
+    // said 23 and listed People until ADR-049 corrected it: a stale expectation
+    // that would have passed a manager a door that refuses them.
+    permissions: 22,
+    // The owner's surface without People. Settings stays: a manager holds
+    // `ebm.manage` and Settings → Integrations is where it is used.
     screens: [
       'calendar', 'finance', 'housekeeping', 'inbox', 'inventory', 'maintenance',
-      'people', 'reservations', 'rooms', 'services', 'settings', 'stays', 'today',
+      'reservations', 'rooms', 'services', 'settings', 'stays', 'today',
     ],
   },
   {
@@ -106,18 +117,45 @@ const EXPECTED = [
     role: 'receptionist',
     permissions: 8,
     // Front desk and taking service orders. No Rooms, no Money, no admin.
+    // Services because the leaf declares `order.advance` (ADR-049, ruled
+    // 2026-09-13): it opens on Live orders, which a receptionist works.
     screens: ['calendar', 'inbox', 'reservations', 'services', 'stays', 'today'],
   },
   {
     email: 'housekeeper@injishi.rw',
     role: 'housekeeper',
     permissions: 2,
-    // Room status and maintenance tickets, matching the two permissions.
-    screens: ['housekeeping', 'maintenance', 'rooms'],
+    // Room status and maintenance tickets, matching the two permissions, plus
+    // Today and Calendar, which gate no capability and so reach every member
+    // (ADR-049). `AppShell` still renders the phone surface for a housekeeper.
+    screens: ['calendar', 'housekeeping', 'maintenance', 'rooms', 'today'],
+  },
+  {
+    email: 'landlord@injishi.rw',
+    role: 'owner',
+    permissions: 23,
+    screens: [
+      'finance', 'inbox', 'leases', 'listing', 'maintenance', 'move-outs',
+      'people', 'rent-roll', 'settings', 'units',
+    ],
+  },
+  {
+    email: 'resident-manager@injishi.rw',
+    role: 'manager',
+    permissions: 22,
+    // The landlord's surface without People, the same `team.manage` line as on
+    // the hotel side. The residence nav used to offer People to every role.
+    screens: [
+      'finance', 'inbox', 'leases', 'listing', 'maintenance', 'move-outs',
+      'rent-roll', 'settings', 'units',
+    ],
   },
 ];
 
 console.log(`Verifying role surfaces against ${API}\n`);
+
+/** The grant each account was handed, kept for the checks that reuse it. */
+const grants = {};
 
 for (const want of EXPECTED) {
   console.log(`${want.email}`);
@@ -135,10 +173,38 @@ for (const want of EXPECTED) {
   const sections = navFor({
     ws: grant.domain === 'residence' ? 'landlord' : 'host',
     workspaceId: grant.workspaceId,
-    role: grant.orgRole,
+    permissions: grant.permissions,
     departments: grant.departments,
   });
   check('screens the nav grants', [...allowedSegments(sections)].sort(), want.screens);
+  grants[want.email] = grant;
+}
+
+/*
+ * AC-A2: a role's reachable screens are a function of its permission array and
+ * NOTHING else. Driven by handing `navFor` the receptionist's real grant with
+ * one permission added and one removed, which is what editing the role in
+ * `@injishi/contracts` does to the array the server sends. No other input moves,
+ * so if the screens move, no second file could have been involved.
+ */
+console.log('\nThe nav follows the permission array alone (AC-A2)');
+{
+  const reception = grants['reception@injishi.rw'];
+  if (reception) {
+    const base = {
+      ws: 'host',
+      workspaceId: reception.workspaceId,
+      departments: reception.departments,
+    };
+    const withMoney = allowedSegments(navFor({ ...base, permissions: [...reception.permissions, 'money.view'] }));
+    check('adding money.view opens Finance', withMoney.has('finance'), true);
+    const withoutInbox = allowedSegments(
+      navFor({ ...base, permissions: reception.permissions.filter((p) => p !== 'message.send') }),
+    );
+    check('removing message.send closes the Inbox', withoutInbox.has('inbox'), false);
+    const none = [...allowedSegments(navFor({ ...base, permissions: [] }))].sort();
+    check('an empty array (a business not active) leaves only the undeclared leaves', none, ['calendar', 'today']);
+  }
 }
 
 /*
@@ -150,7 +216,8 @@ for (const want of EXPECTED) {
  * optional section. A nav has to fail closed.
  */
 console.log('\nSections follow the department list');
-const owner = { ws: 'host', workspaceId: 'ws', role: 'owner' };
+// The owner's real permission array, so this varies departments and nothing else.
+const owner = { ws: 'host', workspaceId: 'ws', permissions: grants['host@injishi.rw']?.permissions ?? [] };
 for (const [label, departments, services, maintenance] of [
   ['all eleven', ['rooms', 'fnb', 'spa_recreation', 'engineering'], true, true],
   ['no fnb, spa or engineering', ['rooms', 'admin_general'], false, false],

@@ -12,6 +12,7 @@ import { StorageModule } from '../../modules/storage/storage.module';
 import { UserModule } from '../../modules/user/user.module';
 import { TwoFactorService } from '../../shared/auth/two-factor.service';
 import { WorkspaceService } from '../../shared/auth/workspace.service';
+import { BookingDecisionsController } from './bookings/booking-decisions.controller';
 import { BookingsController } from './bookings/bookings.controller';
 import { DemoPersonasController } from './demo/personas.controller';
 import { EbmOauthController } from './ebm/ebm-oauth.controller';
@@ -51,6 +52,7 @@ import { OpsThreadsController } from './ops/threads.controller';
 import { OpsStaysController } from './ops/stays.controller';
 import { OversightController } from './oversight/oversight.controller';
 import { PlatformController } from './platform/platform.controller';
+import { OrgClaimsController } from './registrations/org-claims.controller';
 import { RegistrationsController } from './registrations/registrations.controller';
 import { UploadsController } from './uploads/uploads.controller';
 import { SupportModule } from './support/support.module';
@@ -93,7 +95,11 @@ import { SupportModule } from './support/support.module';
     // What is left to sell, per night (ADR-047 wave E).
     AvailabilityController,
     BookingsController,
+    // The host's approve and decline, behind WorkspaceGuard (ADR-049, AC-A5).
+    BookingDecisionsController,
     RegistrationsController,
+    // The owner claim: the end an OBO registration could never reach (ADR-049).
+    OrgClaimsController,
     UploadsController,
     InventoryController,
     OpsReservationsController,

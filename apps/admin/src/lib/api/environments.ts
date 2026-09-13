@@ -5,7 +5,7 @@ import { apiGet, type ApiResult } from "./server";
 /**
  * Environments (F-A11) — `GET /api/v1/admin/environments`.
  *
- * P: `admin.environment.manage`.
+ * P: `admin.environment.view`.
  *
  * The adapter modes come from the same config the modules themselves read. The
  * console must never be a second source of truth for which adapter is live: a

@@ -16,9 +16,11 @@ import {
   readFeeOverrides,
   type RegistrationFeeOverrides,
 } from "@/data/registration-fees";
+import { fetchDistricts, fetchProvinces, fetchSectors } from "@/data/geography";
 import { resolveRegistrationFee } from "@/data/registration";
 import { formatNationalId } from "@/lib/rwanda-id";
 
+import type { AddressDraft } from "./address-picker";
 import type { CertificateDraft } from "./step-documents";
 import type { BusinessDraft } from "./step-business";
 import { composeFullName, type PersonalDraft } from "./step-about-you";
@@ -43,9 +45,10 @@ import {
  * So this reads it all back first, with a Change link per block that lands on
  * the step that asked. Then the bill.
  *
- * TWO PRESSES, NOT ONE, and that part is unchanged. The first creates the
- * registration and shows the real bill the server raised; the second settles
- * it. Collapsing them would mean quoting a price from the catalog and charging
+ * TWO VISITS, NOT ONE. The first press creates the registration and the wizard
+ * moves on to the operator contract, which quotes the real bill the server
+ * raised; after accepting it the registrant comes back here and the second
+ * press settles it (ADR-049, AC-R8). Collapsing them would mean quoting a price from the catalog and charging
  * whatever the server decided, and those are allowed to differ — the amount is
  * LOCKED onto the invoice at creation (D8), so the bill is the only figure
  * worth showing once one exists.
@@ -57,10 +60,12 @@ export function StepReviewPay({
   profile,
   editingProfile,
   capacity,
+  intendedOwner,
   business,
   certificates,
   quote,
   summary,
+  resumed,
   busy,
   error,
   onCreate,
@@ -73,10 +78,17 @@ export function StepReviewPay({
   profile: MyProfile | null;
   editingProfile: boolean;
   capacity: RegistrantCapacity;
+  /** Read back when registering for someone else: the claim binds to these three. */
+  intendedOwner: { name: string; nationalId: string; email: string };
   business: BusinessDraft;
   certificates: CertificateDraft[];
   quote: RegistrationFeeQuote | null;
   summary: RegistrationSummary | null;
+  /**
+   * Opened from the resume panel, so nothing was typed in this browser. The
+   * read back cards would be a column of dashes; the bill is shown alone.
+   */
+  resumed: boolean;
   busy: boolean;
   error: string;
   onCreate: () => void;
@@ -129,6 +141,7 @@ export function StepReviewPay({
   // reached this screen with the field somehow blank — two ways to show the
   // wrong half of the summary. `registrationForKind` is the one derivation.
   const isHospitality = kind !== null && registrationForKind(kind).role === "host";
+  const where = useAddressLine(business.address);
 
   // A returning registrant confirming stored details never retyped them, so
   // the profile is what to show back. An editing one typed a fresh block, and
@@ -158,14 +171,17 @@ export function StepReviewPay({
   return (
     <section aria-labelledby="step-pay">
       <h2 id="step-pay" className="text-xl font-semibold tracking-tight">
-        Check it, then pay
+        {resumed && summary ? `Pay for ${summary.legalName}` : "Check it, then pay"}
       </h2>
       <p className="mt-1 text-sm text-muted-foreground">
-        Read this back before anything is charged. A wrong number here comes back
-        as a rejection later.
+        {resumed && summary
+          ? "Your contract is accepted. Paying the registration fee sends the business for review."
+          : "Read this back before anything is charged. A wrong number here comes back as a rejection later."}
       </p>
 
       <div className="mt-6 space-y-4">
+        {resumed ? null : (
+        <>
         <SummaryCard title="What you are registering">
           <SummaryRow
             label="Kind"
@@ -198,23 +214,49 @@ export function StepReviewPay({
                 onEdit={() => onEditStep("business")}
               />
               <SummaryRow
+                label="Tourism licence"
+                value={business.tourismLicenseNumber || "Not given"}
+                onEdit={() => onEditStep("business")}
+              />
+              <SummaryRow
+                label="EAC star grade"
+                value={business.eacStarGrade ? `${business.eacStarGrade} star` : "Not graded"}
+                onEdit={() => onEditStep("business")}
+              />
+              <SummaryRow
                 label="Chamber of Tourism"
-                value={business.chamberOfTourismMember ? "Yes" : "No"}
+                value={answer(business.chamberOfTourismMember)}
                 onEdit={() => onEditStep("business")}
               />
               <SummaryRow
                 label="PSF"
-                value={business.psfMember ? "Yes" : "No"}
+                value={answer(business.psfMember)}
                 onEdit={() => onEditStep("business")}
               />
             </>
           ) : (
-            <SummaryRow
-              label="UPI"
-              value={business.upi || "—"}
-              onEdit={() => onEditStep("business")}
-            />
+            <>
+              <SummaryRow
+                label="Holding"
+                value={
+                  business.residenceClass === "residential_property_manager"
+                    ? "I manage it for the owner"
+                    : "I am the landlord"
+                }
+                onEdit={() => onEditStep("business")}
+              />
+              <SummaryRow
+                label="UPI"
+                value={business.upi || "—"}
+                onEdit={() => onEditStep("business")}
+              />
+            </>
           )}
+          <SummaryRow
+            label="Where"
+            value={where ?? "—"}
+            onEdit={() => onEditStep("business")}
+          />
         </SummaryCard>
 
         <SummaryCard title="Who you are">
@@ -240,6 +282,29 @@ export function StepReviewPay({
           />
         </SummaryCard>
 
+        {/* The owner's details are answers too (ADR-026 AC-9), and the ones worth
+            proofreading most: the claim mail goes to this email, and the claim is
+            refused unless the owner's document matches this national id. */}
+        {capacity === "owner" ? null : (
+          <SummaryCard title="Who owns it">
+            <SummaryRow
+              label="Name"
+              value={intendedOwner.name.trim() || "—"}
+              onEdit={() => onEditStep("about")}
+            />
+            <SummaryRow
+              label="National ID"
+              value={formatNationalId(intendedOwner.nationalId) || "—"}
+              onEdit={() => onEditStep("about")}
+            />
+            <SummaryRow
+              label="Email"
+              value={intendedOwner.email.trim() || "—"}
+              onEdit={() => onEditStep("about")}
+            />
+          </SummaryCard>
+        )}
+
         <SummaryCard title="Documents">
           {certificates.length === 0 ? (
             <SummaryRow
@@ -263,6 +328,8 @@ export function StepReviewPay({
             ))
           )}
         </SummaryCard>
+        </>
+        )}
 
         {/* The bill. Its own surface rather than another summary card: it is
             the one block on this page that is about to take money, and it
@@ -281,9 +348,13 @@ export function StepReviewPay({
               say which type it is the figure FOR. A lone amount invites the
               reader to assume it is the same for everyone, which is the exact
               belief this feature exists to correct. */}
-          {feeLabel === null ? null : (
+          {/* Only the offline demo prices by accommodation type (`data/registration-fees.ts`).
+              The platform's fee is one catalogue row per business type (ADR-026,
+              ratified in ADR-049), so saying "the hotel rate" over a real quote
+              would describe a pricing model the platform does not have. */}
+          {feeLabel === null || fee.source !== "configured" ? null : (
             <p className="mt-1 text-sm text-muted-foreground">
-              The {feeLabel} rate — registration is priced by accommodation type.
+              The {feeLabel} rate in this offline demonstration.
             </p>
           )}
           <p className="mt-2 text-xs text-muted-foreground">
@@ -370,7 +441,9 @@ export function StepReviewPay({
       ) : (
         <div className="mt-8 flex flex-wrap items-center gap-3">
           <span className="text-sm text-muted-foreground">
-            {summary.legalName} is created and waiting for payment.
+            {summary.contractAcceptedAt === null
+              ? `${summary.legalName} is created. Accept the contract before paying.`
+              : `${summary.legalName} is created, its contract is accepted, and it is waiting for payment.`}
           </span>
           <span className="grow" />
           <Button
@@ -385,4 +458,55 @@ export function StepReviewPay({
       )}
     </section>
   );
+}
+
+/** A membership answer as read back: never "No" for a question nobody answered. */
+function answer(value: boolean | null): string {
+  return value === null ? "Not answered" : value ? "Yes" : "No";
+}
+
+/**
+ * The business address as a line a person can check: street, sector, district,
+ * province, in words (AC-9).
+ *
+ * The draft holds ids, because that is what the picker selects and what is sent,
+ * so the names are read from the same geography the picker read them from. Each
+ * list is small and the picker has usually just fetched it. An id that no longer
+ * resolves reads as absent rather than as a number nobody can check.
+ */
+function useAddressLine(address: AddressDraft): string | null {
+  const [line, setLine] = useState<string | null>(null);
+  const { country, provinceId, districtId, sectorId, street, addressText } = address;
+
+  useEffect(() => {
+    let cancelled = false;
+    if (country !== "RW") {
+      setLine(addressText.trim() || null);
+      return;
+    }
+    void (async () => {
+      const [provinces, districts, sectors] = await Promise.all([
+        fetchProvinces(),
+        provinceId ? fetchDistricts(Number(provinceId)) : Promise.resolve(null),
+        districtId ? fetchSectors(Number(districtId)) : Promise.resolve(null),
+      ]);
+      const nameIn = (
+        res: Awaited<ReturnType<typeof fetchProvinces>> | null,
+        id: string,
+      ): string | null =>
+        res && res.status === "ok" ? (res.data.find((x) => String(x.id) === id)?.name ?? null) : null;
+      const parts = [
+        street.trim() || null,
+        nameIn(sectors, sectorId),
+        nameIn(districts, districtId),
+        nameIn(provinces, provinceId),
+      ].filter((p): p is string => Boolean(p));
+      if (!cancelled) setLine(parts.length > 0 ? parts.join(", ") : null);
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [country, provinceId, districtId, sectorId, street, addressText]);
+
+  return line;
 }

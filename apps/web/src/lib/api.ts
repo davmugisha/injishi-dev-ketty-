@@ -33,8 +33,12 @@ export type ApiResult<T> =
   | { status: "ok"; data: T }
   /** The session is missing or expired. */
   | { status: "unauthenticated" }
-  /** The server refused, with a message meant for a person. */
-  | { status: "refused"; message: string; httpStatus: number }
+  /**
+   * The server refused, with a message meant for a person. `code` is the
+   * machine readable reason when the API sent one (`contract_not_accepted`),
+   * so a screen can act on a refusal without matching on its English.
+   */
+  | { status: "refused"; message: string; httpStatus: number; code?: string }
   /** Unreachable, timed out, or an answer we could not read. */
   | { status: "failed" };
 
@@ -77,6 +81,15 @@ function messageOf(body: unknown, httpStatus: number): string {
   return fallbackFor(httpStatus);
 }
 
+/** The refusal's machine readable `code`, when the body carries one. */
+function codeOf(body: unknown): { code?: string } {
+  if (body && typeof body === "object" && "code" in body) {
+    const c = (body as { code?: unknown }).code;
+    if (typeof c === "string" && c) return { code: c };
+  }
+  return {};
+}
+
 /**
  * Call the API and come back with an outcome rather than an exception.
  *
@@ -114,6 +127,7 @@ export async function apiFetch<T>(
       status: "refused",
       httpStatus: res.status,
       message: messageOf(body, res.status),
+      ...codeOf(body),
     };
   }
   return { status: "ok", data: body as T };

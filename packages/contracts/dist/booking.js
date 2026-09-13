@@ -1,6 +1,6 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.BookingApprovalResult = exports.PAYMENT_PROMPT_TTL_SECONDS = exports.CreateBookingOutcome = exports.PaymentAttemptStatus = exports.PaymentAttemptState = exports.BookingResult = exports.GUEST_SERVICE_FEE_RATE = exports.NON_REFUNDABLE_DISCOUNT = exports.MoneyBreakdown = exports.CreateBookingInput = exports.PaymentInstrument = exports.NationalMsisdn = exports.NETWORK_PREFIXES = exports.MobileMoneyNetwork = exports.RoomAvailability = exports.NightAvailability = exports.PROPERTY_TIME_ZONE = exports.DEFAULT_CAPACITY = exports.MAX_HORIZON_DAYS = exports.MAX_NIGHTS = exports.BookableRoom = exports.BookablePropertySummary = exports.PropertyDetail = exports.RoomTypeSummary = exports.IsoDate = exports.EscrowStatus = exports.DeclineReason = exports.PaymentStatus = exports.BookingStatus = exports.CancellationTier = exports.ApprovalPolicy = exports.BookingMode = void 0;
+exports.BookingApprovalResult = exports.PAYMENT_PROMPT_TTL_SECONDS = exports.CreateBookingOutcome = exports.PaymentAttemptStatus = exports.PaymentAttemptState = exports.BookingResult = exports.GUEST_SERVICE_FEE_RATE = exports.NON_REFUNDABLE_DISCOUNT = exports.MoneyBreakdown = exports.CreateBookingInput = exports.PaymentInstrument = exports.NationalMsisdn = exports.NETWORK_PREFIXES = exports.MobileMoneyNetwork = exports.RoomAvailability = exports.NightAvailability = exports.PROPERTY_TIME_ZONE = exports.DEFAULT_CAPACITY = exports.MAX_HORIZON_DAYS = exports.MAX_NIGHTS = exports.BookableRoom = exports.BookablePropertySummary = exports.PropertyDetail = exports.SitemapProperty = exports.RoomTypeSummary = exports.IsoDate = exports.EscrowStatus = exports.DeclineReason = exports.PaymentStatus = exports.BookingStatus = exports.CancellationTier = exports.ApprovalPolicy = exports.BookingMode = void 0;
 exports.soldOutNights = soldOutNights;
 exports.networkForMsisdn = networkForMsisdn;
 exports.instrumentProblem = instrumentProblem;
@@ -74,6 +74,18 @@ exports.RoomTypeSummary = zod_1.z.object({
      */
     minStay: zod_1.z.number().int().positive().nullable(),
 });
+/**
+ * One entry in the marketplace sitemap: `GET /api/v1/properties/sitemap`
+ * (ADR-049, AC-I9).
+ *
+ * Read through the same visibility rule as a property page, so an unpublished or
+ * suspended property is in neither. `publishedAt` is the most recent publish, a
+ * crawler's `lastmod` hint and nothing more.
+ */
+exports.SitemapProperty = zod_1.z.object({
+    slug: zod_1.z.string().min(1),
+    publishedAt: zod_1.z.string().nullable(),
+});
 exports.PropertyDetail = zod_1.z.object({
     id: zod_1.z.string().uuid(),
     /**
@@ -94,7 +106,15 @@ exports.PropertyDetail = zod_1.z.object({
     checkInTime: zod_1.z.string().nullable(),
     checkOutTime: zod_1.z.string().nullable(),
     houseRules: zod_1.z.string().nullable(),
-    photos: zod_1.z.array(zod_1.z.string()),
+    /**
+     * One absolute URL per photograph, in the operator's order, the cover first.
+     *
+     * Each is the API's photo route (`/api/v1/properties/photos/:photoId`), which
+     * answers 302 to a fresh signed URL while the property is public and 404 once
+     * it is not (ADR-049, owner ruling of 2026-09-13). Never an object key, and
+     * never a signed URL itself, so a cached page cannot hold one that expires.
+     */
+    photos: zod_1.z.array(zod_1.z.string().url()),
     roomTypes: zod_1.z.array(exports.RoomTypeSummary),
 });
 // --- Read: one bookable room, with just enough of its property -------------
@@ -114,8 +134,11 @@ exports.BookablePropertySummary = zod_1.z.object({
     districtName: zod_1.z.string().nullable(),
     checkInTime: zod_1.z.string().nullable(),
     checkOutTime: zod_1.z.string().nullable(),
-    /** First photo only — the checkout shows one thumbnail, never a gallery. */
-    photo: zod_1.z.string().nullable(),
+    /**
+     * The cover's photo route URL, or null — the checkout shows one thumbnail,
+     * never a gallery. The same kind of URL `PropertyDetail.photos` carries.
+     */
+    photo: zod_1.z.string().url().nullable(),
 });
 /**
  * What `GET /api/v1/bookable/:roomTypeId` answers (ADR-020, checkout).

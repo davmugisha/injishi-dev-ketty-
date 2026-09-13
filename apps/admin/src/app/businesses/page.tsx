@@ -44,12 +44,21 @@ const OBO_READ_REASON =
  * businesses are active" for the price of one row — where counting the loaded
  * page would have reported a slice as the whole platform.
  */
-export default async function Page() {
+export default async function Page({
+  searchParams,
+}: {
+  searchParams: Promise<{ queue?: string }>;
+}) {
+  // The review queue pages through `?queue=`. It is worked oldest first, so the
+  // newest arrivals sit on its LAST page; without paging, everything past the
+  // first page could never be reached from this screen at all.
+  const { queue } = await searchParams;
+  const queuePage = Math.max(1, Math.floor(Number(queue)) || 1);
   const [directory, active, suspended, review, obo] = await Promise.all([
     listOrgs(),
     listOrgs({ registrationStatus: "active", pageSize: 1 }),
     listOrgs({ registrationStatus: "suspended", pageSize: 1 }),
-    listOrgReviewQueue(),
+    listOrgReviewQueue({ page: queuePage }),
     listObo(OBO_READ_REASON),
   ]);
 
@@ -86,6 +95,7 @@ export default async function Page() {
             id: item.orgId,
             item: presentReviewItem(item),
           }))}
+          meta={review.data.meta}
         />
       ) : (
         <Unavailable title="Review queue" reason={review.reason} permission="admin.business.review" />

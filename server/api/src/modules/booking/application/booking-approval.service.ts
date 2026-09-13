@@ -1,6 +1,11 @@
-import type { BookingApprovalResult, BookingStatus } from '@injishi/contracts';
-import { ConflictException, Injectable, NotFoundException } from '@nestjs/common';
+import type {
+  BookingApprovalResult,
+  BookingStatus,
+  WorkspaceAccess,
+} from '@injishi/contracts';
+import { ConflictException, Injectable } from '@nestjs/common';
 
+import { assertOwned } from '../../../shared/auth/assert-owned';
 import {
   type ApprovalOutcome,
   BookingRepository,
@@ -8,12 +13,19 @@ import {
 import { BookingDecisionService } from './booking-decision.service';
 
 /**
- * A host (org owner or manager) answering a request-to-book (F-B06).
+ * A host answering a request-to-book through `/bookings/:id/approve` and
+ * `/decline` (F-B06).
  *
- * Authorises by org membership, then hands the transition itself to
- * `BookingDecisionService`, which is the only implementation of it (review
- * 1.1). This class owns nothing about money any more; it owns "may this person
- * decide this booking" and "how does the answer read to a host".
+ * WHO MAY IS THE GUARD'S QUESTION NOW (ADR-049, AC-A5). The routes run behind
+ * `WorkspaceGuard` and declare `reservation.approve`, the same permission the
+ * `/ops/reservations` door declares, so a receptionist may decide through both
+ * doors and a business that is not `active` through neither. This used to join
+ * a hardcoded `['owner', 'manager']` onto the membership, which refused a
+ * receptionist the permission says may act and never asked about the
+ * registration gate at all: a suspended business could still approve bookings.
+ *
+ * What is left here is containment and the state check. The transition itself
+ * is `BookingDecisionService`, the only implementation of it (review 1.1).
  */
 @Injectable()
 export class BookingApprovalService {
@@ -24,43 +36,42 @@ export class BookingApprovalService {
 
   async approve(
     bookingId: string,
-    userId: string,
+    ws: WorkspaceAccess,
   ): Promise<BookingApprovalResult> {
-    await this.assertPendingAndAuthorized(bookingId, userId);
+    await this.assertOwnedAndPending(bookingId, ws);
     return this.present(
       await this.decisions.approve(bookingId, {
         kind: 'guest_host',
-        workspaceId: null,
+        workspaceId: ws.workspaceId,
       }),
     );
   }
 
   async decline(
     bookingId: string,
-    userId: string,
+    ws: WorkspaceAccess,
   ): Promise<BookingApprovalResult> {
-    await this.assertPendingAndAuthorized(bookingId, userId);
+    await this.assertOwnedAndPending(bookingId, ws);
     return this.present(
       await this.decisions.decline(bookingId, {
         kind: 'guest_host',
-        workspaceId: null,
+        workspaceId: ws.workspaceId,
       }),
     );
   }
 
   /**
-   * 404 for a booking this person cannot manage, never 403: a refusal that
-   * says "exists, not yours" confirms a booking id to whoever guessed it.
+   * The booking must sit in the workspace the caller named, and still be
+   * pending. `assertOwned` answers 404 rather than 403 for a booking in another
+   * workspace, because "exists, not yours" confirms a booking id to whoever
+   * guessed it; the same helper the `/ops` door uses, so the two cannot differ.
    */
-  private async assertPendingAndAuthorized(
+  private async assertOwnedAndPending(
     bookingId: string,
-    userId: string,
+    ws: WorkspaceAccess,
   ): Promise<void> {
-    const booking = await this.bookings.findManageableBooking(
-      bookingId,
-      userId,
-    );
-    if (!booking) throw new NotFoundException('Booking not found.');
+    const owner = await this.bookings.findReservationOwner(bookingId);
+    const booking = assertOwned(owner, ws);
     if (booking.status !== 'pending_approval') {
       throw new ConflictException(this.resolvedMessage(booking.status));
     }

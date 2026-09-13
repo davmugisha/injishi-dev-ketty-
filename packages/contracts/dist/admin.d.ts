@@ -765,6 +765,22 @@ export declare const AdminOrgListResponse: z.ZodObject<{
 }>;
 export type AdminOrgListResponse = z.infer<typeof AdminOrgListResponse>;
 /**
+ * Is anyone appointed to take this business's current stage? (ADR-049, AC-G9)
+ *
+ * Three states, because only two of the four statuses in the review queue wait
+ * on an officer. `tin_verified` waits on a `business_field_verifier` and
+ * `field_verified` on a `business_approver`: each is `covered` when a live
+ * assignment for that function reaches the business's district and `uncovered`
+ * when none does. `submitted` waits on the RRA check and `approved` on the
+ * owner's claim, so both are `not_applicable`; reporting them uncovered would
+ * send a staffer hunting for an officer nobody needs.
+ *
+ * Computed when the queue is read, from `oversight_assignments`. Revoking the
+ * last covering grant flips a business to `uncovered` with no job run.
+ */
+export declare const ReviewCoverage: z.ZodEnum<["covered", "uncovered", "not_applicable"]>;
+export type ReviewCoverage = z.infer<typeof ReviewCoverage>;
+/**
  * One business waiting at a registration gate.
  *
  * `lastDecision` is the newest `org_registration_reviews` row, nullable because
@@ -798,6 +814,29 @@ export declare const AdminOrgReviewItem: z.ZodObject<{
     }>>;
     /** True once a `tin_verifications` row for this org came back `verified`. */
     tinVerified: z.ZodBoolean;
+    /**
+     * When the business entered the stage it is in NOW (ADR-049, AC-R7).
+     *
+     * The newest `org_registration_events` row whose `to_status` is the current
+     * status. Null for a business that reached its status before the event log
+     * existed, which is a real answer ("we did not record it") rather than a
+     * guess; the console shows no wait rather than an invented one.
+     */
+    stageEnteredAt: z.ZodNullable<z.ZodString>;
+    /**
+     * Held at `submitted` on an RRA check that never answered, with every
+     * automatic retry used (ADR-049, AC-R5).
+     *
+     * Computed when the queue is read, not stored. A stored flag would have to be
+     * cleared by a later success, a resubmit and an admin recheck, and one missed
+     * clear would leave a healthy business flagged forever.
+     */
+    stalled: z.ZodBoolean;
+    /**
+     * Whether an officer can take this business's CURRENT stage (ADR-049, AC-G9).
+     * See `ReviewCoverage`.
+     */
+    coverage: z.ZodEnum<["covered", "uncovered", "not_applicable"]>;
 }, "strip", z.ZodTypeAny, {
     districtName: string | null;
     legalName: string;
@@ -812,6 +851,9 @@ export declare const AdminOrgReviewItem: z.ZodObject<{
         oversightRole: "tax_compliance_officer" | "business_field_verifier" | "business_approver" | null;
     } | null;
     tinVerified: boolean;
+    stageEnteredAt: string | null;
+    stalled: boolean;
+    coverage: "covered" | "uncovered" | "not_applicable";
 }, {
     districtName: string | null;
     legalName: string;
@@ -826,6 +868,9 @@ export declare const AdminOrgReviewItem: z.ZodObject<{
         oversightRole: "tax_compliance_officer" | "business_field_verifier" | "business_approver" | null;
     } | null;
     tinVerified: boolean;
+    stageEnteredAt: string | null;
+    stalled: boolean;
+    coverage: "covered" | "uncovered" | "not_applicable";
 }>;
 export type AdminOrgReviewItem = z.infer<typeof AdminOrgReviewItem>;
 export declare const AdminOrgReviewQueueResponse: z.ZodObject<{
@@ -854,6 +899,29 @@ export declare const AdminOrgReviewQueueResponse: z.ZodObject<{
         }>>;
         /** True once a `tin_verifications` row for this org came back `verified`. */
         tinVerified: z.ZodBoolean;
+        /**
+         * When the business entered the stage it is in NOW (ADR-049, AC-R7).
+         *
+         * The newest `org_registration_events` row whose `to_status` is the current
+         * status. Null for a business that reached its status before the event log
+         * existed, which is a real answer ("we did not record it") rather than a
+         * guess; the console shows no wait rather than an invented one.
+         */
+        stageEnteredAt: z.ZodNullable<z.ZodString>;
+        /**
+         * Held at `submitted` on an RRA check that never answered, with every
+         * automatic retry used (ADR-049, AC-R5).
+         *
+         * Computed when the queue is read, not stored. A stored flag would have to be
+         * cleared by a later success, a resubmit and an admin recheck, and one missed
+         * clear would leave a healthy business flagged forever.
+         */
+        stalled: z.ZodBoolean;
+        /**
+         * Whether an officer can take this business's CURRENT stage (ADR-049, AC-G9).
+         * See `ReviewCoverage`.
+         */
+        coverage: z.ZodEnum<["covered", "uncovered", "not_applicable"]>;
     }, "strip", z.ZodTypeAny, {
         districtName: string | null;
         legalName: string;
@@ -868,6 +936,9 @@ export declare const AdminOrgReviewQueueResponse: z.ZodObject<{
             oversightRole: "tax_compliance_officer" | "business_field_verifier" | "business_approver" | null;
         } | null;
         tinVerified: boolean;
+        stageEnteredAt: string | null;
+        stalled: boolean;
+        coverage: "covered" | "uncovered" | "not_applicable";
     }, {
         districtName: string | null;
         legalName: string;
@@ -882,6 +953,9 @@ export declare const AdminOrgReviewQueueResponse: z.ZodObject<{
             oversightRole: "tax_compliance_officer" | "business_field_verifier" | "business_approver" | null;
         } | null;
         tinVerified: boolean;
+        stageEnteredAt: string | null;
+        stalled: boolean;
+        coverage: "covered" | "uncovered" | "not_applicable";
     }>, "many">;
     meta: z.ZodObject<{
         total: z.ZodNumber;
@@ -911,6 +985,9 @@ export declare const AdminOrgReviewQueueResponse: z.ZodObject<{
             oversightRole: "tax_compliance_officer" | "business_field_verifier" | "business_approver" | null;
         } | null;
         tinVerified: boolean;
+        stageEnteredAt: string | null;
+        stalled: boolean;
+        coverage: "covered" | "uncovered" | "not_applicable";
     }[];
     meta: {
         total: number;
@@ -932,6 +1009,9 @@ export declare const AdminOrgReviewQueueResponse: z.ZodObject<{
             oversightRole: "tax_compliance_officer" | "business_field_verifier" | "business_approver" | null;
         } | null;
         tinVerified: boolean;
+        stageEnteredAt: string | null;
+        stalled: boolean;
+        coverage: "covered" | "uncovered" | "not_applicable";
     }[];
     meta: {
         total: number;
@@ -1107,6 +1187,12 @@ export declare const AdminOrgDetail: z.ZodObject<{
     subscriptionPlanName: z.ZodNullable<z.ZodString>;
     createdAt: z.ZodString;
 } & {
+    /**
+     * When the business entered its current stage, for EVERY stage (ADR-049,
+     * AC-R7), `pending_payment` and `suspended` included, neither of which the
+     * review queue lists. Null before the event log existed.
+     */
+    stageEnteredAt: z.ZodNullable<z.ZodString>;
     addressText: z.ZodNullable<z.ZodString>;
     sectorId: z.ZodNullable<z.ZodNumber>;
     villageId: z.ZodNullable<z.ZodNumber>;
@@ -1133,6 +1219,7 @@ export declare const AdminOrgDetail: z.ZodObject<{
     subscriptionStatus: "active" | "suspended" | "trialing" | "past_due" | "canceled" | null;
     subscriptionPlanName: string | null;
     createdAt: string;
+    stageEnteredAt: string | null;
     addressText: string | null;
     sectorId: number | null;
     villageId: number | null;
@@ -1159,6 +1246,7 @@ export declare const AdminOrgDetail: z.ZodObject<{
     subscriptionStatus: "active" | "suspended" | "trialing" | "past_due" | "canceled" | null;
     subscriptionPlanName: string | null;
     createdAt: string;
+    stageEnteredAt: string | null;
     addressText: string | null;
     sectorId: number | null;
     villageId: number | null;
@@ -1170,21 +1258,21 @@ export type AdminOrgDetail = z.infer<typeof AdminOrgDetail>;
 /**
  * One person inside a business.
  *
- * `status` is a plain string, not an enum, because `org_memberships.status` is
- * a `text` column carrying `active | removed` by convention rather than by a
- * `pgEnum`. Promising more here than the database enforces would make this
- * contract reject a row Postgres was happy to store.
+ * `status` is the enum the database now enforces. It used to be `z.string()`,
+ * correctly, while `org_memberships.status` was free `text`; ADR-049 made the
+ * column `org_membership_status` (AC-R10), so the contract promises exactly what
+ * Postgres refuses to store otherwise, no more and no less.
  */
 export declare const AdminOrgMember: z.ZodObject<{
     userId: z.ZodString;
     name: z.ZodNullable<z.ZodString>;
     email: z.ZodString;
     orgRole: z.ZodEnum<["owner", "manager", "receptionist", "housekeeper"]>;
-    status: z.ZodString;
+    status: z.ZodEnum<["active", "removed"]>;
     joinedAt: z.ZodString;
     removedAt: z.ZodNullable<z.ZodString>;
 }, "strip", z.ZodTypeAny, {
-    status: string;
+    status: "active" | "removed";
     userId: string;
     name: string | null;
     email: string;
@@ -1192,7 +1280,7 @@ export declare const AdminOrgMember: z.ZodObject<{
     joinedAt: string;
     removedAt: string | null;
 }, {
-    status: string;
+    status: "active" | "removed";
     userId: string;
     name: string | null;
     email: string;
@@ -1207,11 +1295,11 @@ export declare const AdminOrgPeopleResponse: z.ZodObject<{
         name: z.ZodNullable<z.ZodString>;
         email: z.ZodString;
         orgRole: z.ZodEnum<["owner", "manager", "receptionist", "housekeeper"]>;
-        status: z.ZodString;
+        status: z.ZodEnum<["active", "removed"]>;
         joinedAt: z.ZodString;
         removedAt: z.ZodNullable<z.ZodString>;
     }, "strip", z.ZodTypeAny, {
-        status: string;
+        status: "active" | "removed";
         userId: string;
         name: string | null;
         email: string;
@@ -1219,7 +1307,7 @@ export declare const AdminOrgPeopleResponse: z.ZodObject<{
         joinedAt: string;
         removedAt: string | null;
     }, {
-        status: string;
+        status: "active" | "removed";
         userId: string;
         name: string | null;
         email: string;
@@ -1242,7 +1330,7 @@ export declare const AdminOrgPeopleResponse: z.ZodObject<{
     }>;
 }, "strip", z.ZodTypeAny, {
     items: {
-        status: string;
+        status: "active" | "removed";
         userId: string;
         name: string | null;
         email: string;
@@ -1257,7 +1345,7 @@ export declare const AdminOrgPeopleResponse: z.ZodObject<{
     };
 }, {
     items: {
-        status: string;
+        status: "active" | "removed";
         userId: string;
         name: string | null;
         email: string;
@@ -2330,25 +2418,88 @@ export type AdminUserMembership = z.infer<typeof AdminUserMembership>;
  * name, null for a country-level grant, which names no region at all.
  */
 export declare const AdminOversightGrant: z.ZodObject<{
+    /**
+     * The assignment row. Added by ADR-049, because a grant that can be revoked
+     * has to be nameable: `DELETE /admin/users/:userId/oversight/:assignmentId`
+     * addresses this, and a revoke keyed on role plus scope would be guessing
+     * which of two grants was meant.
+     */
+    id: z.ZodString;
     oversightRole: z.ZodEnum<["tax_compliance_officer", "business_field_verifier", "business_approver"]>;
     governmentBodyCode: z.ZodString;
+    /** `government_bodies.name_en`, joined on the code. The words a citizen knows. */
+    governmentBodyName: z.ZodNullable<z.ZodString>;
     governmentTitle: z.ZodNullable<z.ZodString>;
     scopeLevel: z.ZodEnum<["country", "province", "district"]>;
     scopeLabel: z.ZodNullable<z.ZodString>;
 }, "strip", z.ZodTypeAny, {
+    id: string;
     oversightRole: "tax_compliance_officer" | "business_field_verifier" | "business_approver";
     governmentBodyCode: string;
+    governmentBodyName: string | null;
     governmentTitle: string | null;
     scopeLevel: "country" | "province" | "district";
     scopeLabel: string | null;
 }, {
+    id: string;
     oversightRole: "tax_compliance_officer" | "business_field_verifier" | "business_approver";
     governmentBodyCode: string;
+    governmentBodyName: string | null;
     governmentTitle: string | null;
     scopeLevel: "country" | "province" | "district";
     scopeLabel: string | null;
 }>;
 export type AdminOversightGrant = z.infer<typeof AdminOversightGrant>;
+/**
+ * Appoint a government officer (ADR-049, AC-G1).
+ *
+ * Four things are named and none is derivable from another: the FUNCTION the
+ * pipeline branches on, the BODY that appointed them, that body's OWN job title
+ * for the post, and the REGION. Three layers of name coexist here on purpose —
+ * the enum is the database's, the console renders a label, and
+ * `governmentTitle` is what the officer's employer calls them — and collapsing
+ * them loses the only one a citizen would recognise.
+ *
+ * The scope shape is checked here as well as by the table's CHECK constraint, so
+ * a mismatched pair is a 422 naming the field rather than a 500 from Postgres.
+ */
+export declare const CreateOversightGrantRequest: z.ZodEffects<z.ZodObject<{
+    oversightRole: z.ZodEnum<["tax_compliance_officer", "business_field_verifier", "business_approver"]>;
+    governmentBodyCode: z.ZodString;
+    governmentTitle: z.ZodString;
+    scopeLevel: z.ZodEnum<["country", "province", "district"]>;
+    provinceId: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
+    districtId: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
+}, "strip", z.ZodTypeAny, {
+    oversightRole: "tax_compliance_officer" | "business_field_verifier" | "business_approver";
+    governmentBodyCode: string;
+    governmentTitle: string;
+    scopeLevel: "country" | "province" | "district";
+    districtId?: number | null | undefined;
+    provinceId?: number | null | undefined;
+}, {
+    oversightRole: "tax_compliance_officer" | "business_field_verifier" | "business_approver";
+    governmentBodyCode: string;
+    governmentTitle: string;
+    scopeLevel: "country" | "province" | "district";
+    districtId?: number | null | undefined;
+    provinceId?: number | null | undefined;
+}>, {
+    oversightRole: "tax_compliance_officer" | "business_field_verifier" | "business_approver";
+    governmentBodyCode: string;
+    governmentTitle: string;
+    scopeLevel: "country" | "province" | "district";
+    districtId?: number | null | undefined;
+    provinceId?: number | null | undefined;
+}, {
+    oversightRole: "tax_compliance_officer" | "business_field_verifier" | "business_approver";
+    governmentBodyCode: string;
+    governmentTitle: string;
+    scopeLevel: "country" | "province" | "district";
+    districtId?: number | null | undefined;
+    provinceId?: number | null | undefined;
+}>;
+export type CreateOversightGrantRequest = z.infer<typeof CreateOversightGrantRequest>;
 /**
  * One person, with every authority they hold gathered in one place.
  *
@@ -2398,20 +2549,33 @@ export declare const AdminUserRow: z.ZodObject<{
     }>, "many">;
     staffRoles: z.ZodArray<z.ZodEnum<["super_admin", "ops", "compliance", "finance"]>, "many">;
     oversight: z.ZodNullable<z.ZodObject<{
+        /**
+         * The assignment row. Added by ADR-049, because a grant that can be revoked
+         * has to be nameable: `DELETE /admin/users/:userId/oversight/:assignmentId`
+         * addresses this, and a revoke keyed on role plus scope would be guessing
+         * which of two grants was meant.
+         */
+        id: z.ZodString;
         oversightRole: z.ZodEnum<["tax_compliance_officer", "business_field_verifier", "business_approver"]>;
         governmentBodyCode: z.ZodString;
+        /** `government_bodies.name_en`, joined on the code. The words a citizen knows. */
+        governmentBodyName: z.ZodNullable<z.ZodString>;
         governmentTitle: z.ZodNullable<z.ZodString>;
         scopeLevel: z.ZodEnum<["country", "province", "district"]>;
         scopeLabel: z.ZodNullable<z.ZodString>;
     }, "strip", z.ZodTypeAny, {
+        id: string;
         oversightRole: "tax_compliance_officer" | "business_field_verifier" | "business_approver";
         governmentBodyCode: string;
+        governmentBodyName: string | null;
         governmentTitle: string | null;
         scopeLevel: "country" | "province" | "district";
         scopeLabel: string | null;
     }, {
+        id: string;
         oversightRole: "tax_compliance_officer" | "business_field_verifier" | "business_approver";
         governmentBodyCode: string;
+        governmentBodyName: string | null;
         governmentTitle: string | null;
         scopeLevel: "country" | "province" | "district";
         scopeLabel: string | null;
@@ -2437,8 +2601,10 @@ export declare const AdminUserRow: z.ZodObject<{
     }[];
     staffRoles: ("super_admin" | "ops" | "compliance" | "finance")[];
     oversight: {
+        id: string;
         oversightRole: "tax_compliance_officer" | "business_field_verifier" | "business_approver";
         governmentBodyCode: string;
+        governmentBodyName: string | null;
         governmentTitle: string | null;
         scopeLevel: "country" | "province" | "district";
         scopeLabel: string | null;
@@ -2463,8 +2629,10 @@ export declare const AdminUserRow: z.ZodObject<{
     }[];
     staffRoles: ("super_admin" | "ops" | "compliance" | "finance")[];
     oversight: {
+        id: string;
         oversightRole: "tax_compliance_officer" | "business_field_verifier" | "business_approver";
         governmentBodyCode: string;
+        governmentBodyName: string | null;
         governmentTitle: string | null;
         scopeLevel: "country" | "province" | "district";
         scopeLabel: string | null;
@@ -2530,20 +2698,33 @@ export declare const AdminUserListResponse: z.ZodObject<{
         }>, "many">;
         staffRoles: z.ZodArray<z.ZodEnum<["super_admin", "ops", "compliance", "finance"]>, "many">;
         oversight: z.ZodNullable<z.ZodObject<{
+            /**
+             * The assignment row. Added by ADR-049, because a grant that can be revoked
+             * has to be nameable: `DELETE /admin/users/:userId/oversight/:assignmentId`
+             * addresses this, and a revoke keyed on role plus scope would be guessing
+             * which of two grants was meant.
+             */
+            id: z.ZodString;
             oversightRole: z.ZodEnum<["tax_compliance_officer", "business_field_verifier", "business_approver"]>;
             governmentBodyCode: z.ZodString;
+            /** `government_bodies.name_en`, joined on the code. The words a citizen knows. */
+            governmentBodyName: z.ZodNullable<z.ZodString>;
             governmentTitle: z.ZodNullable<z.ZodString>;
             scopeLevel: z.ZodEnum<["country", "province", "district"]>;
             scopeLabel: z.ZodNullable<z.ZodString>;
         }, "strip", z.ZodTypeAny, {
+            id: string;
             oversightRole: "tax_compliance_officer" | "business_field_verifier" | "business_approver";
             governmentBodyCode: string;
+            governmentBodyName: string | null;
             governmentTitle: string | null;
             scopeLevel: "country" | "province" | "district";
             scopeLabel: string | null;
         }, {
+            id: string;
             oversightRole: "tax_compliance_officer" | "business_field_verifier" | "business_approver";
             governmentBodyCode: string;
+            governmentBodyName: string | null;
             governmentTitle: string | null;
             scopeLevel: "country" | "province" | "district";
             scopeLabel: string | null;
@@ -2569,8 +2750,10 @@ export declare const AdminUserListResponse: z.ZodObject<{
         }[];
         staffRoles: ("super_admin" | "ops" | "compliance" | "finance")[];
         oversight: {
+            id: string;
             oversightRole: "tax_compliance_officer" | "business_field_verifier" | "business_approver";
             governmentBodyCode: string;
+            governmentBodyName: string | null;
             governmentTitle: string | null;
             scopeLevel: "country" | "province" | "district";
             scopeLabel: string | null;
@@ -2595,8 +2778,10 @@ export declare const AdminUserListResponse: z.ZodObject<{
         }[];
         staffRoles: ("super_admin" | "ops" | "compliance" | "finance")[];
         oversight: {
+            id: string;
             oversightRole: "tax_compliance_officer" | "business_field_verifier" | "business_approver";
             governmentBodyCode: string;
+            governmentBodyName: string | null;
             governmentTitle: string | null;
             scopeLevel: "country" | "province" | "district";
             scopeLabel: string | null;
@@ -2636,8 +2821,10 @@ export declare const AdminUserListResponse: z.ZodObject<{
         }[];
         staffRoles: ("super_admin" | "ops" | "compliance" | "finance")[];
         oversight: {
+            id: string;
             oversightRole: "tax_compliance_officer" | "business_field_verifier" | "business_approver";
             governmentBodyCode: string;
+            governmentBodyName: string | null;
             governmentTitle: string | null;
             scopeLevel: "country" | "province" | "district";
             scopeLabel: string | null;
@@ -2669,8 +2856,10 @@ export declare const AdminUserListResponse: z.ZodObject<{
         }[];
         staffRoles: ("super_admin" | "ops" | "compliance" | "finance")[];
         oversight: {
+            id: string;
             oversightRole: "tax_compliance_officer" | "business_field_verifier" | "business_approver";
             governmentBodyCode: string;
+            governmentBodyName: string | null;
             governmentTitle: string | null;
             scopeLevel: "country" | "province" | "district";
             scopeLabel: string | null;
@@ -4968,6 +5157,12 @@ export declare const AdminLocalization: z.ZodObject<{
         valueEn: string | null;
         valueRw: string | null;
     }[];
+    coverage: {
+        translated: number;
+        missing: number;
+        total: number;
+        stale: number;
+    };
     templates: {
         id: string;
         version: number;
@@ -4976,12 +5171,6 @@ export declare const AdminLocalization: z.ZodObject<{
         subjectRw: string | null;
         isTransactional: boolean;
     }[];
-    coverage: {
-        translated: number;
-        missing: number;
-        total: number;
-        stale: number;
-    };
 }, {
     entries: {
         status: "translated" | "missing" | "needs_review";
@@ -4991,6 +5180,12 @@ export declare const AdminLocalization: z.ZodObject<{
         valueEn: string | null;
         valueRw: string | null;
     }[];
+    coverage: {
+        translated: number;
+        missing: number;
+        total: number;
+        stale: number;
+    };
     templates: {
         id: string;
         version: number;
@@ -4999,12 +5194,6 @@ export declare const AdminLocalization: z.ZodObject<{
         subjectRw: string | null;
         isTransactional: boolean;
     }[];
-    coverage: {
-        translated: number;
-        missing: number;
-        total: number;
-        stale: number;
-    };
 }>;
 export type AdminLocalization = z.infer<typeof AdminLocalization>;
 /**
@@ -5073,6 +5262,128 @@ export declare const AdminActionRequest: z.ZodObject<{
     reason: string;
 }>;
 export type AdminActionRequest = z.infer<typeof AdminActionRequest>;
+/**
+ * Append a registration fee (ADR-049, AC-R9).
+ *
+ * APPEND, never edit: a new row with its own `effectiveFrom`. `currentFee` reads
+ * the newest row whose moment has passed, and a registration already created
+ * keeps the amount locked on its invoice, so a price change never moves money
+ * that was already quoted.
+ *
+ * `effectiveFrom` is a moment, because the column is `timestamptz`. A moment in
+ * the PAST is refused (422, by the route, against the server clock): a
+ * retroactive price would make an invoice already issued disagree with the
+ * catalogue that produced it. Omitting it means "from now".
+ *
+ * Built on `AdminActionRequest`, so the `reason` follows the one rule every admin
+ * write shares, and it is what the `audit_events` row records (AC-G10).
+ */
+export declare const AppendRegistrationFeeRequest: z.ZodObject<{
+    reason: z.ZodString;
+} & {
+    businessType: z.ZodEnum<["hospitality", "residence", "broker"]>;
+    amountRwf: z.ZodNumber;
+    effectiveFrom: z.ZodOptional<z.ZodString>;
+}, "strip", z.ZodTypeAny, {
+    amountRwf: number;
+    reason: string;
+    businessType: "hospitality" | "residence" | "broker";
+    effectiveFrom?: string | undefined;
+}, {
+    amountRwf: number;
+    reason: string;
+    businessType: "hospitality" | "residence" | "broker";
+    effectiveFrom?: string | undefined;
+}>;
+export type AppendRegistrationFeeRequest = z.infer<typeof AppendRegistrationFeeRequest>;
+/**
+ * A government body in the catalogue (D24, ADR-049 AC-G4).
+ *
+ * A catalogue rather than an enum, because the legally defined set is open:
+ * adding RDB or RURA is a row, not a deployment. `code` is the primary key and is
+ * never edited, since every grant and every recorded decision points at it.
+ * Nothing is deleted: a soft retired body (`active: false`) is no longer offered
+ * for a new grant, and every existing grant and decision keeps naming it.
+ */
+export declare const GovernmentBody: z.ZodObject<{
+    code: z.ZodString;
+    nameEn: z.ZodString;
+    nameRw: z.ZodString;
+    abbreviation: z.ZodNullable<z.ZodString>;
+    active: z.ZodBoolean;
+}, "strip", z.ZodTypeAny, {
+    code: string;
+    active: boolean;
+    nameEn: string;
+    nameRw: string;
+    abbreviation: string | null;
+}, {
+    code: string;
+    active: boolean;
+    nameEn: string;
+    nameRw: string;
+    abbreviation: string | null;
+}>;
+export type GovernmentBody = z.infer<typeof GovernmentBody>;
+/** `POST /api/v1/admin/government-bodies`. The code is fixed for good once written. */
+export declare const CreateGovernmentBodyRequest: z.ZodObject<{
+    reason: z.ZodString;
+} & {
+    code: z.ZodString;
+    nameEn: z.ZodString;
+    nameRw: z.ZodString;
+    abbreviation: z.ZodOptional<z.ZodString>;
+}, "strip", z.ZodTypeAny, {
+    code: string;
+    reason: string;
+    nameEn: string;
+    nameRw: string;
+    abbreviation?: string | undefined;
+}, {
+    code: string;
+    reason: string;
+    nameEn: string;
+    nameRw: string;
+    abbreviation?: string | undefined;
+}>;
+export type CreateGovernmentBodyRequest = z.infer<typeof CreateGovernmentBodyRequest>;
+/**
+ * `PATCH /api/v1/admin/government-bodies/:code`: rename, or retire and restore.
+ * The code is not here, because it is not editable.
+ */
+export declare const UpdateGovernmentBodyRequest: z.ZodEffects<z.ZodObject<{
+    reason: z.ZodString;
+} & {
+    nameEn: z.ZodOptional<z.ZodString>;
+    nameRw: z.ZodOptional<z.ZodString>;
+    abbreviation: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    active: z.ZodOptional<z.ZodBoolean>;
+}, "strip", z.ZodTypeAny, {
+    reason: string;
+    active?: boolean | undefined;
+    nameEn?: string | undefined;
+    nameRw?: string | undefined;
+    abbreviation?: string | null | undefined;
+}, {
+    reason: string;
+    active?: boolean | undefined;
+    nameEn?: string | undefined;
+    nameRw?: string | undefined;
+    abbreviation?: string | null | undefined;
+}>, {
+    reason: string;
+    active?: boolean | undefined;
+    nameEn?: string | undefined;
+    nameRw?: string | undefined;
+    abbreviation?: string | null | undefined;
+}, {
+    reason: string;
+    active?: boolean | undefined;
+    nameEn?: string | undefined;
+    nameRw?: string | undefined;
+    abbreviation?: string | null | undefined;
+}>;
+export type UpdateGovernmentBodyRequest = z.infer<typeof UpdateGovernmentBodyRequest>;
 /**
  * `tin_verification_result`. `pending` is RRA being unreachable, never a
  * rejection — the org holds at `submitted` and can be retried.

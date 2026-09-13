@@ -1,4 +1,4 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
 
 /**
  * RRA TIN verification (F-S03, EXT). Mocked until RRA grants API access.
@@ -18,32 +18,22 @@ export type TinCheckOutcome =
   | { result: 'failed'; reason: string; latencyMs: number; adapterMode: 'mock' | 'live'; raw: unknown }
   | { result: 'pending'; reason: 'adapter_unavailable'; latencyMs: number; adapterMode: 'mock' | 'live'; raw: unknown };
 
+/**
+ * The MOCK adapter. The only one that exists.
+ *
+ * **It used to carry a `live` branch that called nothing** and answered
+ * `pending` with a logged warning (ADR-049, AC-R4). That made
+ * `RRA_TIN_ADAPTER_MODE=live` a silent no op: a deployment could switch it on and
+ * every registration would stop at `submitted` with nobody told. The mode is now
+ * resolved once, at boot, in `organization.module.ts`, and `live` with no live
+ * adapter registered refuses to boot, exactly as `PAYMENT_ADAPTER_MODE` does
+ * (ADR-020). When RRA grants API access, the real adapter is a class of its own
+ * registered there, not a branch in here.
+ */
 @Injectable()
 export class RraTinAdapter {
-  private readonly log = new Logger(RraTinAdapter.name);
-
-  /** `live` only once a real endpoint is configured; absent means mock. */
-  private get mode(): 'mock' | 'live' {
-    return process.env.RRA_TIN_ADAPTER_MODE === 'live' ? 'live' : 'mock';
-  }
-
   async verify(tin: string): Promise<TinCheckOutcome> {
     const startedAt = Date.now();
-
-    if (this.mode === 'live') {
-      // Intentionally unimplemented rather than faked: returning `verified`
-      // from a "live" adapter that called nothing would put an unverified
-      // business into the pipeline wearing a verified badge. Once RRA grants
-      // API access the real call goes HERE, and only the `live` branch changes.
-      this.log.warn('RRA_TIN_ADAPTER_MODE=live but no endpoint is wired.');
-      return {
-        result: 'pending',
-        reason: 'adapter_unavailable',
-        latencyMs: Date.now() - startedAt,
-        adapterMode: 'live',
-        raw: { note: 'live adapter not implemented' },
-      };
-    }
 
     // DEMO RULE: the mock always verifies.
     //

@@ -290,6 +290,39 @@ export const BusinessDetails = z
     }
 });
 export type BusinessDetails = z.infer<typeof BusinessDetails>;
+/**
+ * The owner an on behalf of registration is made for (FL02).
+ *
+ * All three are required (owner ruling 2026-09-13, ADR-049 J25). They used to be
+ * optional, and each missing one strands the business: no email means no claim
+ * invitation is ever sent, and no national id means no claimant can ever match,
+ * so the real owner is refused their own business. Exported on its own so the
+ * register wizard checks the block with this schema before it leaves the step
+ * that asks for it, rather than restating the rule.
+ */
+export const IntendedOwner = z
+    .object({
+    name: z
+        .string({ required_error: "Tell us the owner's full name." })
+        .trim()
+        .min(2, "Tell us the owner's full name.")
+        .max(160, "That name is too long for our records."),
+    nationalId: z
+        .string({
+        required_error: "Tell us the owner's National ID. It is how we match them when they claim.",
+    })
+        .trim()
+        .min(1, "Tell us the owner's National ID. It is how we match them when they claim.")
+        .pipe(RwandanNationalId),
+    email: z
+        .string({
+        required_error: "Tell us the owner's email. We send their claim invitation there.",
+    })
+        .trim()
+        .min(1, "Tell us the owner's email. We send their claim invitation there.")
+        .email("That email address does not look right."),
+});
+export type IntendedOwner = z.infer<typeof IntendedOwner>;
 // ---------------------------------------------------------------------------
 // The request
 // ---------------------------------------------------------------------------
@@ -304,18 +337,8 @@ export const CreateRegistrationRequest = z
      */
     personal: PersonalDetails.optional(),
     business: BusinessDetails,
-    /** Captured when `capacity` is `on_behalf_of` (FL02). */
-    intendedOwner: z
-        .object({
-        name: z
-            .string()
-            .trim()
-            .min(2, "Tell us the owner's full name.")
-            .max(160, "That name is too long for our records."),
-        nationalId: RwandanNationalId.optional(),
-        email: z.string().trim().email().optional(),
-    })
-        .optional(),
+    /** Captured when `capacity` is `on_behalf_of`. See `IntendedOwner`. */
+    intendedOwner: IntendedOwner.optional(),
 })
     .superRefine((value, ctx) => {
     const expected = value.role === "landlord" ? "residence" : "hospitality";
@@ -455,6 +478,40 @@ export const OversightQueueItem = z.object({
     blockedBySeparationOfDuties: z.boolean(),
 });
 export type OversightQueueItem = z.infer<typeof OversightQueueItem>;
+/**
+ * One decision in an officer's own log: `GET /api/v1/oversight/decisions`
+ * (ADR-049, AC-G6).
+ *
+ * The body and the title are the REVIEW ROW'S OWN COPIES, taken when the
+ * decision was recorded, never re joined from the officer's assignment. A
+ * revoked or re scoped posting must not rewrite a decision already taken, and
+ * this log is the first screen that depends on that.
+ */
+export const OversightDecision = z.object({
+    reviewId: Uuid,
+    orgId: Uuid,
+    legalName: z.string(),
+    /** The gate decided: `tin_verified` is field verification, `field_verified` approval. */
+    stage: z.enum(["tin_verified", "field_verified"]),
+    decision: z.enum(["passed", "rejected"]),
+    reasonCode: RegistrationRejectionReason.nullable(),
+    notes: z.string().nullable(),
+    governmentBodyCode: z.string(),
+    governmentTitle: z.string().nullable(),
+    decidedAt: z.string(),
+});
+export type OversightDecision = z.infer<typeof OversightDecision>;
+/** A page of the log, newest first. `nextCursor` is null on the last page. */
+export const OversightDecisionPage = z.object({
+    items: OversightDecision.array(),
+    nextCursor: z.string().nullable(),
+});
+export type OversightDecisionPage = z.infer<typeof OversightDecisionPage>;
+/** The page to read. No cursor is the newest page; a malformed one is too. */
+export const OversightDecisionQuery = z.object({
+    cursor: z.string().trim().max(200).optional(),
+});
+export type OversightDecisionQuery = z.infer<typeof OversightDecisionQuery>;
 // ---------------------------------------------------------------------------
 // The response
 // ---------------------------------------------------------------------------
@@ -475,8 +532,79 @@ export const RegistrationSummary = z.object({
     /** The reviewing officer's own words, when they left any. */
     rejectionNotes: z.string().nullable(),
     submittedAt: z.string().nullable(),
+    /**
+     * The operator contract this business accepted, and when (ADR-049, AC-R8).
+     *
+     * Read from the server so a registrant who comes back to the wizard resumes
+     * at the right step, never from the browser. Both null until accepted, and
+     * both stay null for a business that paid before acceptance was recorded.
+     */
+    contractVersion: z.string().nullable(),
+    contractAcceptedAt: z.string().nullable(),
+    /**
+     * Whether payouts wait on the owner's identity being verified (ADR-049,
+     * AC-R1). Null for a business nobody registered on behalf of anyone else.
+     */
+    payoutLocked: z.boolean().nullable(),
 });
 export type RegistrationSummary = z.infer<typeof RegistrationSummary>;
+/**
+ * The operator contract's version: the date its terms last changed (ADR-049).
+ *
+ * The document is rendered from code, so the version lives in code too. A
+ * version stored anywhere else can drift from the document it names. Change
+ * this in the same commit as the clause copy, and only then.
+ */
+export const OPERATOR_CONTRACT_VERSION = "2026-09-12";
+/**
+ * `POST /api/v1/registrations/:id/contract`. The version the page rendered.
+ *
+ * The server refuses anything but `OPERATOR_CONTRACT_VERSION` and stores the
+ * constant, never this value, so a stale tab cannot bind anyone to old terms.
+ */
+export const AcceptContractRequest = z.object({
+    contractVersion: z.string().trim().min(1).max(40),
+});
+export type AcceptContractRequest = z.infer<typeof AcceptContractRequest>;
+/**
+ * Why a registrant action on the contract or the fee was refused (409).
+ *
+ * `contract_not_accepted` is pay's refusal, `contract_not_open` and
+ * `contract_version_stale` are accept's. Sent as `code` on the error body so a
+ * page can word the refusal without matching on English.
+ */
+export const RegistrationConflictCode = z.enum([
+    "contract_not_accepted",
+    "contract_not_open",
+    "contract_version_stale",
+]);
+export type RegistrationConflictCode = z.infer<typeof RegistrationConflictCode>;
+// ---------------------------------------------------------------------------
+// The owner claim (FL02, ADR-049)
+// ---------------------------------------------------------------------------
+/**
+ * `POST /api/v1/orgs/:orgId/claim/preview` and `/claim`. The token from the
+ * invitation mail, in the body so it never lands in the API's access log.
+ */
+export const ClaimOrgRequest = z.object({
+    token: z.string().trim().min(1).max(200),
+});
+export type ClaimOrgRequest = z.infer<typeof ClaimOrgRequest>;
+/**
+ * What `/claim-org` shows before the owner commits.
+ *
+ * Only what the invitation mail already told whoever holds the token: the
+ * business, where it is, where it got to and who registered it. Never the
+ * national id, an email or the TIN.
+ */
+export const ClaimPreview = z.object({
+    orgId: Uuid,
+    legalName: z.string(),
+    districtName: z.string().nullable(),
+    registrationStatus: OrgRegistrationStatus,
+    registrantName: z.string().nullable(),
+});
+export type ClaimPreview = z.infer<typeof ClaimPreview>;
 /** The fee a registrant is quoted, read from the effective-dated catalog. */
 export const RegistrationFeeQuote = z.object({
     businessType: RegistrationBusinessType,

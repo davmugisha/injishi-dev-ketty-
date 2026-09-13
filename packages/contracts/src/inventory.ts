@@ -78,9 +78,6 @@ export type CreatePropertyRequest = z.infer<typeof CreatePropertyRequest>;
  */
 export const UpdatePropertyRequest = WorkspaceScoped.extend(z.object(propertyFields).partial().shape);
 export type UpdatePropertyRequest = z.infer<typeof UpdatePropertyRequest>;
-/** Reading is the same question, asked with a query string. */
-export const PropertyQuery = WorkspaceScoped;
-export type PropertyQuery = z.infer<typeof PropertyQuery>;
 // ---------------------------------------------------------------------------
 // Reading a property back
 // ---------------------------------------------------------------------------
@@ -106,6 +103,14 @@ export type PropertyAddress = z.infer<typeof PropertyAddress>;
 export const OperatorPropertySummary = z.object({
     id: Uuid,
     name: z.string(),
+    /**
+     * The public address, minted at publish and never by a reader (ADR-049).
+     *
+     * Null until the first publish. It SURVIVES an unpublish on purpose, so a
+     * republished property keeps the address every bookmark and search result
+     * already points at (AC-I6).
+     */
+    slug: z.string().nullable(),
     address: PropertyAddress,
     listingStatus: ListingStatus,
     publishedAt: z.string().nullable(),
@@ -115,11 +120,35 @@ export const OperatorPropertySummary = z.object({
 });
 export type OperatorPropertySummary = z.infer<typeof OperatorPropertySummary>;
 /**
+ * One photograph of a property (ADR-049).
+ *
+ * A ROW, not an entry in a `jsonb` array, and the difference is the whole
+ * reason the migration exists. A row can carry an order that survives an edit,
+ * a cover flag, and a caption, and it rides `stored_objects` so it inherits
+ * retention and legal hold like every other stored object.
+ *
+ * `url` is a SHORT LIVED read, not a permanent address. The bucket is private,
+ * so there is no public URL to hand out; this is signed at read time and
+ * expires. A caller that needs to show the picture again later asks again.
+ */
+export const PropertyPhoto = z.object({
+    id: Uuid,
+    objectKey: z.string().min(1),
+    /** 0 based, dense, and the order the operator chose. */
+    position: z.number().int().nonnegative(),
+    /** Exactly one per property, which a partial unique index enforces. */
+    isCover: z.boolean(),
+    caption: z.string().nullable(),
+    url: z.string(),
+});
+export type PropertyPhoto = z.infer<typeof PropertyPhoto>;
+/**
  * One property in full, as its owner sees it.
  *
- * `photos` is always empty today and says so: object storage is unbuilt
- * (F-S09), so the field exists to be honest about the gap rather than to be
- * filled (ADR-009 AC-13).
+ * `photos` carries real rows since ADR-049. It used to be permanently empty
+ * with a comment saying object storage was unbuilt; F-S09 landed, photos became
+ * a publish condition, and a `jsonb` array of keys could not carry a cover flag
+ * or an order, so they became rows.
  */
 export const OperatorProperty = OperatorPropertySummary.extend({
     description: z.string().nullable(),
@@ -128,7 +157,7 @@ export const OperatorProperty = OperatorPropertySummary.extend({
     houseRules: z.string().nullable(),
     locationPrivacy: z.boolean(),
     timezone: z.string(),
-    photos: z.array(z.string()),
+    photos: z.array(PropertyPhoto),
     /**
      * Empty until feature 2 builds the room type write path. An empty array is a
      * real answer here: a property with no room types is exactly what a newly
@@ -217,6 +246,12 @@ export const PublishBlocker = z.enum([
     "no_active_room_type",
     "no_priced_room_type",
     "no_sellable_room",
+    /**
+     * ADR-049. ADR-009's follow up said photos become required to publish once
+     * F-S09 landed, and to revisit then. It landed, and the answer is yes: a
+     * listing nobody can see is not a listing.
+     */
+    "no_photo",
 ]);
 export type PublishBlocker = z.infer<typeof PublishBlocker>;
 export const PUBLISH_BLOCKER_LABEL: Readonly<Record<PublishBlocker, string>> = {
@@ -226,9 +261,10 @@ export const PUBLISH_BLOCKER_LABEL: Readonly<Record<PublishBlocker, string>> = {
     no_active_room_type: "Add at least one room type.",
     no_priced_room_type: "At least one room type needs a price.",
     no_sellable_room: "At least one room has to be available to sell.",
+    no_photo: "Add at least one photograph of the property.",
 };
 /** Which screen a blocker sends the operator back to. */
-export function stepForPublishBlocker(blocker: PublishBlocker): "registration" | "property" | "room_types" {
+export function stepForPublishBlocker(blocker: PublishBlocker): "registration" | "property" | "room_types" | "photos" {
     switch (blocker) {
         case "org_not_active":
             return "registration";
@@ -239,5 +275,181 @@ export function stepForPublishBlocker(blocker: PublishBlocker): "registration" |
         case "no_priced_room_type":
         case "no_sellable_room":
             return "room_types";
+        case "no_photo":
+            return "photos";
     }
 }
+// ---------------------------------------------------------------------------
+// Writing a room type
+// ---------------------------------------------------------------------------
+/**
+ * The room type write path (ADR-049, AC-I1).
+ *
+ * **A room type is WHAT THE GUEST GETS; a rate plan is THE TERMS IT SELLS ON.**
+ * That distinction is `OperatorRatePlan`'s to teach, and this shape stays on the
+ * near side of it: a name, how many people fit, and the one price that seeds the
+ * default plan.
+ *
+ * `basePriceRwf` is written TWICE, to the deprecated `room_types` column and to
+ * the default `rate_plans` row, because every current reader still reads the
+ * column. ADR-009's contract phase moves them and is deferred again, on purpose,
+ * rather than swallowed here.
+ */
+const roomTypeFields = {
+    name: z
+        .string()
+        .trim()
+        .min(2, "Give the room type a name guests will recognise.")
+        .max(200, "That name is too long for our records."),
+    /**
+     * How many people the room physically sleeps.
+     *
+     * Deliberately NOT the rate plan's `baseOccupancy`, which is commercial: how
+     * many the base price covers. The gap between the two is what extra person
+     * pricing bridges (F-L05).
+     */
+    maxGuests: z
+        .number()
+        .int()
+        .positive("A room sleeps at least one person.")
+        .max(50, "That is more people than a room type should hold."),
+    /** RWF, whole units. The currency is `RWF` everywhere and is not asked. */
+    basePriceRwf: z
+        .number()
+        .int()
+        .nonnegative("A price cannot be negative.")
+        .max(100_000_000, "That price is outside what we can record.")
+        .nullable(),
+    bookingMode: BookingMode.optional(),
+    cancellationTier: CancellationTier.optional(),
+    /** How many rooms of this type exist. Seeds nothing; `rooms` is the truth. */
+    roomCount: z.number().int().positive().max(10_000).optional(),
+};
+export const CreateRoomTypeRequest = WorkspaceScoped.extend(roomTypeFields);
+export type CreateRoomTypeRequest = z.infer<typeof CreateRoomTypeRequest>;
+/**
+ * Editing a room type replaces only the fields sent, like every other operator
+ * edit here, and adds the one field a create cannot send: archiving it.
+ */
+export const UpdateRoomTypeRequest = WorkspaceScoped.extend(z.object({
+    ...roomTypeFields,
+    status: z.enum(["active", "archived"]),
+}).partial().shape);
+export type UpdateRoomTypeRequest = z.infer<typeof UpdateRoomTypeRequest>;
+/** A room type, as its owner sees it. */
+export const OperatorRoomType = z.object({
+    id: Uuid,
+    propertyId: Uuid,
+    name: z.string(),
+    domain: Domain,
+    status: z.enum(["active", "archived"]),
+    maxGuests: z.number().int().nullable(),
+    basePriceRwf: z.number().int().nullable(),
+    bookingMode: BookingMode.nullable(),
+    cancellationTier: CancellationTier.nullable(),
+    roomCount: z.number().int(),
+    sellableRoomCount: z.number().int(),
+    /** The plan this type sells on by default. Exactly one, always. */
+    defaultRatePlanId: Uuid.nullable(),
+});
+export type OperatorRoomType = z.infer<typeof OperatorRoomType>;
+export const OperatorRoomTypeList = z.object({
+    roomTypes: z.array(OperatorRoomType),
+});
+export type OperatorRoomTypeList = z.infer<typeof OperatorRoomTypeList>;
+// ---------------------------------------------------------------------------
+// Writing a rate plan
+// ---------------------------------------------------------------------------
+/**
+ * The rate plan write path (ADR-049, AC-I2).
+ *
+ * `isDefault` is accepted and MOVES the flag rather than failing: an operator
+ * changing which plan sells by default is an ordinary act, not an error, and the
+ * partial unique index would otherwise turn it into one.
+ */
+const ratePlanFields = {
+    name: z
+        .string()
+        .trim()
+        .min(2, "Give the rate plan a name.")
+        .max(200, "That name is too long for our records."),
+    basePriceRwf: z
+        .number()
+        .int()
+        .nonnegative("A price cannot be negative.")
+        .max(100_000_000, "That price is outside what we can record.")
+        .nullable(),
+    /** How many people the base price covers. Commercial, not physical. */
+    baseOccupancy: z.number().int().positive().max(50).optional(),
+    cancellationTier: CancellationTier.optional(),
+    nonRefundable: z.boolean().optional(),
+    bookingMode: BookingMode.optional(),
+    isDefault: z.boolean().optional(),
+};
+export const CreateRatePlanRequest = WorkspaceScoped.extend(ratePlanFields);
+export type CreateRatePlanRequest = z.infer<typeof CreateRatePlanRequest>;
+export const UpdateRatePlanRequest = WorkspaceScoped.extend(z.object({
+    ...ratePlanFields,
+    status: z.enum(["active", "archived"]),
+}).partial().shape);
+export type UpdateRatePlanRequest = z.infer<typeof UpdateRatePlanRequest>;
+// ---------------------------------------------------------------------------
+// Attaching a photograph
+// ---------------------------------------------------------------------------
+/**
+ * Attach an already uploaded object to a property (ADR-049, AC-I3).
+ *
+ * The bytes went up first, at `POST /api/v1/uploads/property-photo`, and this
+ * call carries the KEY. Two steps rather than one, for the reason the
+ * certificate path already splits them: a large upload has no business inside a
+ * transaction, and a failed attach can be retried without sending the file again.
+ */
+export const AttachPropertyPhotoRequest = WorkspaceScoped.extend({
+    objectKey: z.string().min(1),
+    /** Appended last when absent, which is what an operator adding one expects. */
+    position: z.number().int().nonnegative().optional(),
+    /** The first photograph on a property becomes the cover whatever this says. */
+    isCover: z.boolean().optional(),
+    caption: z.string().trim().max(300).optional(),
+});
+export type AttachPropertyPhotoRequest = z.infer<typeof AttachPropertyPhotoRequest>;
+/**
+ * Reorder, re caption, or move the cover, in one call.
+ *
+ * One call rather than a PATCH per photograph because reordering is ONE act: a
+ * drag that lands renumbers several rows at once, and applying that as five
+ * requests leaves the order half written when the fourth one fails.
+ */
+export const ReorderPropertyPhotosRequest = WorkspaceScoped.extend({
+    photos: z
+        .array(z.object({
+            id: Uuid,
+            position: z.number().int().nonnegative(),
+            isCover: z.boolean().optional(),
+            caption: z.string().trim().max(300).nullable().optional(),
+        }))
+        .min(1, "Name at least one photograph."),
+});
+export type ReorderPropertyPhotosRequest = z.infer<typeof ReorderPropertyPhotosRequest>;
+export const PropertyPhotoList = z.object({
+    photos: z.array(PropertyPhoto),
+});
+export type PropertyPhotoList = z.infer<typeof PropertyPhotoList>;
+/**
+ * A stored property photograph, as the upload route reports it back.
+ *
+ * A sibling of `UploadedObject` rather than a widening of it: that shape pins
+ * `kind` to the literal `certificate`, and the registration wizard parses
+ * against it. Loosening it to an enum would weaken a check that is already doing
+ * its job, to save declaring five fields.
+ */
+export const UploadedPropertyPhoto = z.object({
+    objectKey: z.string().min(1),
+    kind: z.literal("property_photo"),
+    mime: z.string(),
+    sizeBytes: z.number().int().nonnegative(),
+    filename: z.string(),
+    /** A short lived signed read, so the operator sees the picture immediately. */
+    url: z.string(),
+});
+export type UploadedPropertyPhoto = z.infer<typeof UploadedPropertyPhoto>;

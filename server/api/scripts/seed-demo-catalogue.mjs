@@ -1011,12 +1011,14 @@ async function seed(client) {
       [workspaceId, orgId],
     );
 
-    // 5. Property. `photo_object_keys` is deliberately empty — see the header.
+    // 5. Property. No photograph: ADR-049 moved them into `property_photos`, and
+    //    this seed has no bytes to put in the bucket. So a catalogue property
+    //    cannot be published until one is attached — see the header.
     await client.query(
       `insert into properties (id, org_id, workspace_id, name, description, district_id,
                                latitude, longitude, location_privacy, check_in_time,
-                               check_out_time, house_rules, photo_object_keys, address_text)
-       values ($1, $2, $3, $4, $5, $6, $7, $8, false, '14:00', '11:00', $9, '[]'::jsonb, $10)
+                               check_out_time, house_rules, address_text)
+       values ($1, $2, $3, $4, $5, $6, $7, $8, false, '14:00', '11:00', $9, $10)
        on conflict (id) do update
          set name = excluded.name,
              description = excluded.description,
@@ -1039,6 +1041,33 @@ async function seed(client) {
         `DEMO SAMPLE — ${entry.address}`,
       ],
     );
+
+    // 5b. The public address. `GET /properties/slug/:slug` is how web finds a
+    //     property's rooms (ADR-049), and this seed predates the column, so for
+    //     as long as it wrote none every one of the 52 pages read a 404 and
+    //     told the guest the stay was "not open for online booking yet". The
+    //     catalogue slug, not one minted from the name: the name carries
+    //     ` (demo)`, and web's page and this row must agree on one address.
+    //
+    //     Claimed only while nobody else holds it. `properties_slug_uk` would
+    //     otherwise abort the whole transaction over one collision (a host who
+    //     published under the same name, or `seed-catalogue.mjs` run into the
+    //     same database), and that is a fact to report, not a reason to seed
+    //     nothing.
+    const claimed = await client.query(
+      `update properties set slug = $1, updated_at = now()
+        where id = $2
+          and slug is distinct from $1
+          and not exists (select 1 from properties o where o.slug = $1 and o.id <> $2)`,
+      [entry.slug, propertyId],
+    );
+    const held = await client.query('select slug from properties where id = $1', [propertyId]);
+    if (claimed.rowCount === 0 && held.rows[0]?.slug !== entry.slug) {
+      console.warn(
+        `! ${entry.slug}: another property already holds this slug, so web's page ` +
+          'for it cannot reach these rooms.',
+      );
+    }
 
     // 6. Room types, their default rate plan, and one `rooms` row per unit.
     //

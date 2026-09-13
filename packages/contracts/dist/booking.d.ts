@@ -72,6 +72,25 @@ export declare const RoomTypeSummary: z.ZodObject<{
     minStay: number | null;
 }>;
 export type RoomTypeSummary = z.infer<typeof RoomTypeSummary>;
+/**
+ * One entry in the marketplace sitemap: `GET /api/v1/properties/sitemap`
+ * (ADR-049, AC-I9).
+ *
+ * Read through the same visibility rule as a property page, so an unpublished or
+ * suspended property is in neither. `publishedAt` is the most recent publish, a
+ * crawler's `lastmod` hint and nothing more.
+ */
+export declare const SitemapProperty: z.ZodObject<{
+    slug: z.ZodString;
+    publishedAt: z.ZodNullable<z.ZodString>;
+}, "strip", z.ZodTypeAny, {
+    slug: string;
+    publishedAt: string | null;
+}, {
+    slug: string;
+    publishedAt: string | null;
+}>;
+export type SitemapProperty = z.infer<typeof SitemapProperty>;
 export declare const PropertyDetail: z.ZodObject<{
     id: z.ZodString;
     /**
@@ -92,6 +111,14 @@ export declare const PropertyDetail: z.ZodObject<{
     checkInTime: z.ZodNullable<z.ZodString>;
     checkOutTime: z.ZodNullable<z.ZodString>;
     houseRules: z.ZodNullable<z.ZodString>;
+    /**
+     * One absolute URL per photograph, in the operator's order, the cover first.
+     *
+     * Each is the API's photo route (`/api/v1/properties/photos/:photoId`), which
+     * answers 302 to a fresh signed URL while the property is public and 404 once
+     * it is not (ADR-049, owner ruling of 2026-09-13). Never an object key, and
+     * never a signed URL itself, so a cached page cannot hold one that expires.
+     */
     photos: z.ZodArray<z.ZodString, "many">;
     roomTypes: z.ZodArray<z.ZodObject<{
         id: z.ZodString;
@@ -209,7 +236,10 @@ export declare const BookablePropertySummary: z.ZodObject<{
     districtName: z.ZodNullable<z.ZodString>;
     checkInTime: z.ZodNullable<z.ZodString>;
     checkOutTime: z.ZodNullable<z.ZodString>;
-    /** First photo only — the checkout shows one thumbnail, never a gallery. */
+    /**
+     * The cover's photo route URL, or null — the checkout shows one thumbnail,
+     * never a gallery. The same kind of URL `PropertyDetail.photos` carries.
+     */
     photo: z.ZodNullable<z.ZodString>;
 }, "strip", z.ZodTypeAny, {
     districtName: string | null;
@@ -249,7 +279,10 @@ export declare const BookableRoom: z.ZodObject<{
         districtName: z.ZodNullable<z.ZodString>;
         checkInTime: z.ZodNullable<z.ZodString>;
         checkOutTime: z.ZodNullable<z.ZodString>;
-        /** First photo only — the checkout shows one thumbnail, never a gallery. */
+        /**
+         * The cover's photo route URL, or null — the checkout shows one thumbnail,
+         * never a gallery. The same kind of URL `PropertyDetail.photos` carries.
+         */
         photo: z.ZodNullable<z.ZodString>;
     }, "strip", z.ZodTypeAny, {
         districtName: string | null;

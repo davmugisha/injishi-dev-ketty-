@@ -2,12 +2,15 @@ import { Inject, Injectable } from '@nestjs/common';
 import { and, asc, eq, inArray, isNull, sql } from 'drizzle-orm';
 import {
   NO_STAFF_ACCESS,
+  OVERSIGHT_COUNTRY_SCOPE_LABEL,
   type DepartmentCategory,
+  type OversightConsoleGrant,
   type OversightGrant,
   type Permission,
   type StaffAccess,
   type WorkspaceAccess,
   mayElevate,
+  oversightConsoleFor,
   permissionsForWorkspace,
   staffPermissionsForRoles,
 } from '@injishi/contracts';
@@ -16,11 +19,14 @@ import { DRIZZLE, type Database } from '../database/database.module';
 import {
   adminUsers,
   departments,
+  districts,
+  governmentBodies,
   identityDocuments,
   orgMemberships,
   orgs,
   oversightAssignments,
   properties,
+  provinces,
   sessions,
   verifiedIdentities,
   workspaces,
@@ -225,6 +231,70 @@ export class WorkspaceService {
         ),
       );
     return rows;
+  }
+
+  /**
+   * The same grants, with the words the OFFICER'S CONSOLE renders (ADR-049, AC-G5).
+   *
+   * A separate method from `oversightGrantsForUser` above rather than a widening
+   * of it, because that one feeds `OversightGuard` and a scope check: three joins
+   * for display names on the hot path of every guarded oversight request would be
+   * paid on every call to buy nothing the guard asks about.
+   *
+   * `government_bodies` is joined INNER, as it is everywhere else a grant is read:
+   * a grant naming a body that no longer exists should not read as a seat.
+   */
+  async oversightConsoleGrantsForUser(
+    userId: string,
+  ): Promise<OversightConsoleGrant[]> {
+    const rows = await this.db
+      .select({
+        assignmentId: oversightAssignments.id,
+        oversightRole: oversightAssignments.oversightRole,
+        bodyCode: oversightAssignments.governmentBodyCode,
+        bodyName: governmentBodies.nameEn,
+        title: oversightAssignments.governmentTitle,
+        scopeLevel: oversightAssignments.scopeLevel,
+        provinceId: oversightAssignments.provinceId,
+        districtId: oversightAssignments.districtId,
+        provinceName: provinces.name,
+        districtName: districts.name,
+      })
+      .from(oversightAssignments)
+      .innerJoin(
+        governmentBodies,
+        eq(governmentBodies.code, oversightAssignments.governmentBodyCode),
+      )
+      .leftJoin(provinces, eq(provinces.id, oversightAssignments.provinceId))
+      .leftJoin(districts, eq(districts.id, oversightAssignments.districtId))
+      .where(
+        and(
+          eq(oversightAssignments.userId, userId),
+          isNull(oversightAssignments.revokedAt),
+        ),
+      );
+
+    return rows.map((row) => ({
+      assignmentId: row.assignmentId,
+      console: oversightConsoleFor(row.oversightRole),
+      oversightRole: row.oversightRole,
+      bodyCode: row.bodyCode,
+      bodyName: row.bodyName,
+      title: row.title,
+      scopeLevel: row.scopeLevel,
+      provinceId: row.provinceId,
+      districtId: row.districtId,
+      // A region an officer can READ. A country grant says Rwanda rather than
+      // nothing, because "no region shown" and "every region" look identical on a
+      // screen and only one of them is a bug. A name that failed to resolve falls
+      // back to the level itself rather than to an empty string.
+      scopeLabel:
+        row.scopeLevel === 'country'
+          ? OVERSIGHT_COUNTRY_SCOPE_LABEL
+          : row.scopeLevel === 'province'
+            ? (row.provinceName ?? 'Province')
+            : (row.districtName ?? 'District'),
+    }));
   }
 
   /**

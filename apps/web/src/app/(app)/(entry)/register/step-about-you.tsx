@@ -211,13 +211,13 @@ export function StepAboutYou({
                 }
               />
             </Field>
-            {/* Optional, but not "optional therefore unchecked". A wrong ID
-                here is worse than none: it is what the claim is matched on, so
-                a typo hands the business to nobody and the real owner is told
-                their own ID does not match. Checked only once typed. */}
+            {/* Required (ADR-049 J25): it is what the claim is matched on, so
+                without it nobody can ever claim the business, and a typo hands
+                it to nobody. Checked as you type once something is typed. */}
             <Field
               label="Their National ID"
-              hint="Optional, but it is how we match the owner when they claim. 16 digits."
+              required
+              hint="It is how we match the owner when they claim. 16 digits."
               error={
                 errors["intendedOwner.nationalId"] ??
                 (intendedOwner.nationalId.trim() !== ""
@@ -240,7 +240,8 @@ export function StepAboutYou({
             </Field>
             <Field
               label="Their email"
-              hint="Optional. We send the claim invitation here."
+              required
+              hint="We send their claim invitation here."
               error={errors["intendedOwner.email"]}
             >
               <TextInput

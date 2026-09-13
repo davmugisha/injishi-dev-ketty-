@@ -1,17 +1,26 @@
-import type {
-  CreatePropertyRequest,
-  OperatorProperty,
-  OperatorPropertySummary,
-  UpdatePropertyRequest,
-  WorkspaceAccess,
+import {
+  type CreatePropertyRequest,
+  type OperatorProperty,
+  type OperatorPropertySummary,
+  PUBLISH_BLOCKER_LABEL,
+  type PublishBlocker,
+  type UpdatePropertyRequest,
+  type WorkspaceAccess,
 } from '@injishi/contracts';
-import { BadRequestException, Injectable } from '@nestjs/common';
+import {
+  BadRequestException,
+  ConflictException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 
 import { assertContained } from '../domain/containment';
+import { publishBlockersFor } from '../domain/publish-eligibility';
 import {
   InventoryRepository,
   type PropertyRow,
 } from '../infrastructure/inventory.repository';
+import { PropertyPhotosService } from './property-photos.service';
 
 /**
  * Inventory authoring (ADR-009), the write path an approved business finally
@@ -34,7 +43,10 @@ import {
  */
 @Injectable()
 export class InventoryService {
-  constructor(private readonly repo: InventoryRepository) {}
+  constructor(
+    private readonly repo: InventoryRepository,
+    private readonly photos: PropertyPhotosService,
+  ) {}
 
   /** Every property in the caller's workspace. */
   async listProperties(
@@ -105,7 +117,12 @@ export class InventoryService {
     const row = await this.repo.findProperty(propertyId);
     assertContained(row, workspace.workspaceId, 'Property');
 
-    const roomTypes = await this.repo.findRoomTypeSummaries(propertyId);
+    const [roomTypes, photos] = await Promise.all([
+      this.repo.findRoomTypeSummaries(propertyId),
+      // Containment is proven on the line above, so this takes the path that does
+      // not re-read the property to ask again.
+      this.photos.photosFor(propertyId),
+    ]);
     const sellableRoomCount = roomTypes.reduce(
       (n, t) => n + t.sellableRoomCount,
       0,
@@ -122,11 +139,84 @@ export class InventoryService {
       houseRules: (row as PropertyRow).houseRules,
       locationPrivacy: (row as PropertyRow).locationPrivacy,
       timezone: (row as PropertyRow).timezone,
-      // Always empty until F-S09. Kept as a field so the operator screen can say
-      // so, rather than showing a control that cannot work (ADR-009 AC-13).
-      photos: [],
+      photos,
       roomTypes,
     };
+  }
+
+  /**
+   * Put a property on the marketplace (ADR-049, AC-I4, AC-I5, AC-I10).
+   *
+   * Eligibility is checked TWICE: once here, so an ineligible property is refused
+   * without opening a transaction, and again inside the row lock by the
+   * repository, so a property that lost its last photograph in between is refused
+   * rather than published on a stale answer.
+   *
+   * The refusal names the condition that failed, in the operator's words rather
+   * than a column name. A refusal that says only "cannot publish" sends somebody
+   * hunting, which is the whole reason `PublishBlocker` is a code with a label
+   * rather than a sentence built here.
+   *
+   * A second press is NOT an error. The lock serialises them and the second finds
+   * the listing already published, so one press and two are indistinguishable to
+   * the caller.
+   */
+  async publish(
+    workspace: WorkspaceAccess,
+    propertyId: string,
+  ): Promise<OperatorProperty> {
+    const existing = await this.repo.findProperty(propertyId);
+    assertContained(existing, workspace.workspaceId, 'Property');
+
+    const facts = await this.repo.publishFactsFor(propertyId);
+    if (!facts) throw new NotFoundException('No such property.');
+    const early = publishBlockersFor(facts);
+    if (early.length > 0) throw this.publishRefusal(early);
+
+    const result = await this.repo.publish(propertyId, (inLock) =>
+      publishBlockersFor(inLock),
+    );
+    if (!result.published) {
+      if (result.blockers.length === 0) {
+        throw new NotFoundException('No such property.');
+      }
+      throw this.publishRefusal(result.blockers as PublishBlocker[]);
+    }
+
+    return this.getProperty(workspace, propertyId);
+  }
+
+  /**
+   * Take it back off the marketplace, keeping the address (ADR-049, AC-I6).
+   *
+   * The slug survives, so a republished property keeps every bookmark and search
+   * result already pointing at it. Nothing is checked beyond containment: an
+   * operator may always withdraw their own listing.
+   */
+  async unpublish(
+    workspace: WorkspaceAccess,
+    propertyId: string,
+  ): Promise<OperatorProperty> {
+    const existing = await this.repo.findProperty(propertyId);
+    assertContained(existing, workspace.workspaceId, 'Property');
+
+    const done = await this.repo.unpublish(propertyId);
+    if (!done) throw new NotFoundException('No such property.');
+    return this.getProperty(workspace, propertyId);
+  }
+
+  /**
+   * A 409 that says which condition failed, and carries the rest.
+   *
+   * The first blocker is the message, because a toast shows one sentence. All of
+   * them ride in `blockers` so the screen can mark every section that needs work
+   * instead of revealing them one press at a time.
+   */
+  private publishRefusal(blockers: PublishBlocker[]): ConflictException {
+    return new ConflictException({
+      message: PUBLISH_BLOCKER_LABEL[blockers[0]],
+      blockers,
+    });
   }
 
   /** Refuse an address that points at a sector we do not have. */
@@ -147,6 +237,7 @@ export class InventoryService {
     return {
       id: row.id,
       name: row.name,
+      slug: row.slug,
       address: {
         provinceId: row.provinceId,
         provinceName: row.provinceName,

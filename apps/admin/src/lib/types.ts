@@ -13,6 +13,7 @@ import type {
   EacStarGrade,
   GlobalRole,
   OrgRole,
+  StaffPermission,
   StaffRole,
   OversightRole,
   OversightScopeLevel,
@@ -62,8 +63,14 @@ export interface NavItem {
   key: NavKey;
   label: string;
   icon: LucideIcon;
-  /** Which staff-role lenses can reach this section ("all" or a role list). */
-  roles: "all" | StaffRole[];
+  /**
+   * The staff permission this section's read declares on the API (ADR-049,
+   * AC-A3). The sidebar offers the section, and its layout renders it, only when
+   * `GET /api/v1/me/staff` returned this permission. It replaced a hand written
+   * `roles` array that never consulted the permission model and had drifted
+   * from it.
+   */
+  permission: StaffPermission;
   count?: number;
   alert?: boolean;
   chip?: string;
@@ -225,6 +232,8 @@ export interface OrgMembership {
  * and the region scope. Drives the SEPARATE government console, never this app.
  */
 export interface OversightAssignment {
+  /** The `oversight_assignments` row, which a revoke names. */
+  id: string;
   role: OversightRole;
   /** `government_bodies` catalog code, e.g. RRA / PSF / MINALOC. */
   bodyCode: string;

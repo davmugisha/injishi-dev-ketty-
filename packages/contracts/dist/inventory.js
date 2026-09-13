@@ -1,6 +1,6 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.PUBLISH_BLOCKER_LABEL = exports.PublishBlocker = exports.OperatorPropertyList = exports.OperatorRatePlanList = exports.OperatorRatePlan = exports.OperatorProperty = exports.OperatorPropertySummary = exports.PropertyAddress = exports.PropertyQuery = exports.UpdatePropertyRequest = exports.CreatePropertyRequest = exports.WorkspaceScoped = exports.ListingStatus = void 0;
+exports.UploadedPropertyPhoto = exports.PropertyPhotoList = exports.ReorderPropertyPhotosRequest = exports.AttachPropertyPhotoRequest = exports.UpdateRatePlanRequest = exports.CreateRatePlanRequest = exports.OperatorRoomTypeList = exports.OperatorRoomType = exports.UpdateRoomTypeRequest = exports.CreateRoomTypeRequest = exports.PUBLISH_BLOCKER_LABEL = exports.PublishBlocker = exports.OperatorPropertyList = exports.OperatorRatePlanList = exports.OperatorRatePlan = exports.OperatorProperty = exports.PropertyPhoto = exports.OperatorPropertySummary = exports.PropertyAddress = exports.UpdatePropertyRequest = exports.CreatePropertyRequest = exports.WorkspaceScoped = exports.ListingStatus = void 0;
 exports.stepForPublishBlocker = stepForPublishBlocker;
 const zod_1 = require("zod");
 const booking_1 = require("./booking");
@@ -78,8 +78,6 @@ exports.CreatePropertyRequest = exports.WorkspaceScoped.extend(propertyFields);
  * clear itself.
  */
 exports.UpdatePropertyRequest = exports.WorkspaceScoped.extend(zod_1.z.object(propertyFields).partial().shape);
-/** Reading is the same question, asked with a query string. */
-exports.PropertyQuery = exports.WorkspaceScoped;
 // ---------------------------------------------------------------------------
 // Reading a property back
 // ---------------------------------------------------------------------------
@@ -104,6 +102,14 @@ exports.PropertyAddress = zod_1.z.object({
 exports.OperatorPropertySummary = zod_1.z.object({
     id: primitives_1.Uuid,
     name: zod_1.z.string(),
+    /**
+     * The public address, minted at publish and never by a reader (ADR-049).
+     *
+     * Null until the first publish. It SURVIVES an unpublish on purpose, so a
+     * republished property keeps the address every bookmark and search result
+     * already points at (AC-I6).
+     */
+    slug: zod_1.z.string().nullable(),
     address: exports.PropertyAddress,
     listingStatus: exports.ListingStatus,
     publishedAt: zod_1.z.string().nullable(),
@@ -112,11 +118,34 @@ exports.OperatorPropertySummary = zod_1.z.object({
     sellableRoomCount: zod_1.z.number().int(),
 });
 /**
+ * One photograph of a property (ADR-049).
+ *
+ * A ROW, not an entry in a `jsonb` array, and the difference is the whole
+ * reason the migration exists. A row can carry an order that survives an edit,
+ * a cover flag, and a caption, and it rides `stored_objects` so it inherits
+ * retention and legal hold like every other stored object.
+ *
+ * `url` is a SHORT LIVED read, not a permanent address. The bucket is private,
+ * so there is no public URL to hand out; this is signed at read time and
+ * expires. A caller that needs to show the picture again later asks again.
+ */
+exports.PropertyPhoto = zod_1.z.object({
+    id: primitives_1.Uuid,
+    objectKey: zod_1.z.string().min(1),
+    /** 0 based, dense, and the order the operator chose. */
+    position: zod_1.z.number().int().nonnegative(),
+    /** Exactly one per property, which a partial unique index enforces. */
+    isCover: zod_1.z.boolean(),
+    caption: zod_1.z.string().nullable(),
+    url: zod_1.z.string(),
+});
+/**
  * One property in full, as its owner sees it.
  *
- * `photos` is always empty today and says so: object storage is unbuilt
- * (F-S09), so the field exists to be honest about the gap rather than to be
- * filled (ADR-009 AC-13).
+ * `photos` carries real rows since ADR-049. It used to be permanently empty
+ * with a comment saying object storage was unbuilt; F-S09 landed, photos became
+ * a publish condition, and a `jsonb` array of keys could not carry a cover flag
+ * or an order, so they became rows.
  */
 exports.OperatorProperty = exports.OperatorPropertySummary.extend({
     description: zod_1.z.string().nullable(),
@@ -125,7 +154,7 @@ exports.OperatorProperty = exports.OperatorPropertySummary.extend({
     houseRules: zod_1.z.string().nullable(),
     locationPrivacy: zod_1.z.boolean(),
     timezone: zod_1.z.string(),
-    photos: zod_1.z.array(zod_1.z.string()),
+    photos: zod_1.z.array(exports.PropertyPhoto),
     /**
      * Empty until feature 2 builds the room type write path. An empty array is a
      * real answer here: a property with no room types is exactly what a newly
@@ -210,6 +239,12 @@ exports.PublishBlocker = zod_1.z.enum([
     "no_active_room_type",
     "no_priced_room_type",
     "no_sellable_room",
+    /**
+     * ADR-049. ADR-009's follow up said photos become required to publish once
+     * F-S09 landed, and to revisit then. It landed, and the answer is yes: a
+     * listing nobody can see is not a listing.
+     */
+    "no_photo",
 ]);
 exports.PUBLISH_BLOCKER_LABEL = {
     org_not_active: "This business is not approved yet.",
@@ -218,6 +253,7 @@ exports.PUBLISH_BLOCKER_LABEL = {
     no_active_room_type: "Add at least one room type.",
     no_priced_room_type: "At least one room type needs a price.",
     no_sellable_room: "At least one room has to be available to sell.",
+    no_photo: "Add at least one photograph of the property.",
 };
 /** Which screen a blocker sends the operator back to. */
 function stepForPublishBlocker(blocker) {
@@ -231,6 +267,172 @@ function stepForPublishBlocker(blocker) {
         case "no_priced_room_type":
         case "no_sellable_room":
             return "room_types";
+        case "no_photo":
+            return "photos";
     }
 }
+// ---------------------------------------------------------------------------
+// Writing a room type
+// ---------------------------------------------------------------------------
+/**
+ * The room type write path (ADR-049, AC-I1).
+ *
+ * **A room type is WHAT THE GUEST GETS; a rate plan is THE TERMS IT SELLS ON.**
+ * That distinction is `OperatorRatePlan`'s to teach, and this shape stays on the
+ * near side of it: a name, how many people fit, and the one price that seeds the
+ * default plan.
+ *
+ * `basePriceRwf` is written TWICE, to the deprecated `room_types` column and to
+ * the default `rate_plans` row, because every current reader still reads the
+ * column. ADR-009's contract phase moves them and is deferred again, on purpose,
+ * rather than swallowed here.
+ */
+const roomTypeFields = {
+    name: zod_1.z
+        .string()
+        .trim()
+        .min(2, "Give the room type a name guests will recognise.")
+        .max(200, "That name is too long for our records."),
+    /**
+     * How many people the room physically sleeps.
+     *
+     * Deliberately NOT the rate plan's `baseOccupancy`, which is commercial: how
+     * many the base price covers. The gap between the two is what extra person
+     * pricing bridges (F-L05).
+     */
+    maxGuests: zod_1.z
+        .number()
+        .int()
+        .positive("A room sleeps at least one person.")
+        .max(50, "That is more people than a room type should hold."),
+    /** RWF, whole units. The currency is `RWF` everywhere and is not asked. */
+    basePriceRwf: zod_1.z
+        .number()
+        .int()
+        .nonnegative("A price cannot be negative.")
+        .max(100000000, "That price is outside what we can record.")
+        .nullable(),
+    bookingMode: booking_1.BookingMode.optional(),
+    cancellationTier: booking_1.CancellationTier.optional(),
+    /** How many rooms of this type exist. Seeds nothing; `rooms` is the truth. */
+    roomCount: zod_1.z.number().int().positive().max(10000).optional(),
+};
+exports.CreateRoomTypeRequest = exports.WorkspaceScoped.extend(roomTypeFields);
+/**
+ * Editing a room type replaces only the fields sent, like every other operator
+ * edit here, and adds the one field a create cannot send: archiving it.
+ */
+exports.UpdateRoomTypeRequest = exports.WorkspaceScoped.extend(zod_1.z.object({
+    ...roomTypeFields,
+    status: zod_1.z.enum(["active", "archived"]),
+}).partial().shape);
+/** A room type, as its owner sees it. */
+exports.OperatorRoomType = zod_1.z.object({
+    id: primitives_1.Uuid,
+    propertyId: primitives_1.Uuid,
+    name: zod_1.z.string(),
+    domain: primitives_1.Domain,
+    status: zod_1.z.enum(["active", "archived"]),
+    maxGuests: zod_1.z.number().int().nullable(),
+    basePriceRwf: zod_1.z.number().int().nullable(),
+    bookingMode: booking_1.BookingMode.nullable(),
+    cancellationTier: booking_1.CancellationTier.nullable(),
+    roomCount: zod_1.z.number().int(),
+    sellableRoomCount: zod_1.z.number().int(),
+    /** The plan this type sells on by default. Exactly one, always. */
+    defaultRatePlanId: primitives_1.Uuid.nullable(),
+});
+exports.OperatorRoomTypeList = zod_1.z.object({
+    roomTypes: zod_1.z.array(exports.OperatorRoomType),
+});
+// ---------------------------------------------------------------------------
+// Writing a rate plan
+// ---------------------------------------------------------------------------
+/**
+ * The rate plan write path (ADR-049, AC-I2).
+ *
+ * `isDefault` is accepted and MOVES the flag rather than failing: an operator
+ * changing which plan sells by default is an ordinary act, not an error, and the
+ * partial unique index would otherwise turn it into one.
+ */
+const ratePlanFields = {
+    name: zod_1.z
+        .string()
+        .trim()
+        .min(2, "Give the rate plan a name.")
+        .max(200, "That name is too long for our records."),
+    basePriceRwf: zod_1.z
+        .number()
+        .int()
+        .nonnegative("A price cannot be negative.")
+        .max(100000000, "That price is outside what we can record.")
+        .nullable(),
+    /** How many people the base price covers. Commercial, not physical. */
+    baseOccupancy: zod_1.z.number().int().positive().max(50).optional(),
+    cancellationTier: booking_1.CancellationTier.optional(),
+    nonRefundable: zod_1.z.boolean().optional(),
+    bookingMode: booking_1.BookingMode.optional(),
+    isDefault: zod_1.z.boolean().optional(),
+};
+exports.CreateRatePlanRequest = exports.WorkspaceScoped.extend(ratePlanFields);
+exports.UpdateRatePlanRequest = exports.WorkspaceScoped.extend(zod_1.z.object({
+    ...ratePlanFields,
+    status: zod_1.z.enum(["active", "archived"]),
+}).partial().shape);
+// ---------------------------------------------------------------------------
+// Attaching a photograph
+// ---------------------------------------------------------------------------
+/**
+ * Attach an already uploaded object to a property (ADR-049, AC-I3).
+ *
+ * The bytes went up first, at `POST /api/v1/uploads/property-photo`, and this
+ * call carries the KEY. Two steps rather than one, for the reason the
+ * certificate path already splits them: a large upload has no business inside a
+ * transaction, and a failed attach can be retried without sending the file again.
+ */
+exports.AttachPropertyPhotoRequest = exports.WorkspaceScoped.extend({
+    objectKey: zod_1.z.string().min(1),
+    /** Appended last when absent, which is what an operator adding one expects. */
+    position: zod_1.z.number().int().nonnegative().optional(),
+    /** The first photograph on a property becomes the cover whatever this says. */
+    isCover: zod_1.z.boolean().optional(),
+    caption: zod_1.z.string().trim().max(300).optional(),
+});
+/**
+ * Reorder, re caption, or move the cover, in one call.
+ *
+ * One call rather than a PATCH per photograph because reordering is ONE act: a
+ * drag that lands renumbers several rows at once, and applying that as five
+ * requests leaves the order half written when the fourth one fails.
+ */
+exports.ReorderPropertyPhotosRequest = exports.WorkspaceScoped.extend({
+    photos: zod_1.z
+        .array(zod_1.z.object({
+        id: primitives_1.Uuid,
+        position: zod_1.z.number().int().nonnegative(),
+        isCover: zod_1.z.boolean().optional(),
+        caption: zod_1.z.string().trim().max(300).nullable().optional(),
+    }))
+        .min(1, "Name at least one photograph."),
+});
+exports.PropertyPhotoList = zod_1.z.object({
+    photos: zod_1.z.array(exports.PropertyPhoto),
+});
+/**
+ * A stored property photograph, as the upload route reports it back.
+ *
+ * A sibling of `UploadedObject` rather than a widening of it: that shape pins
+ * `kind` to the literal `certificate`, and the registration wizard parses
+ * against it. Loosening it to an enum would weaken a check that is already doing
+ * its job, to save declaring five fields.
+ */
+exports.UploadedPropertyPhoto = zod_1.z.object({
+    objectKey: zod_1.z.string().min(1),
+    kind: zod_1.z.literal("property_photo"),
+    mime: zod_1.z.string(),
+    sizeBytes: zod_1.z.number().int().nonnegative(),
+    filename: zod_1.z.string(),
+    /** A short lived signed read, so the operator sees the picture immediately. */
+    url: zod_1.z.string(),
+});
 //# sourceMappingURL=inventory.js.map

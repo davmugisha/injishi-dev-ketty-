@@ -32,6 +32,14 @@ export const QUEUES = {
    * send that timed out can declare a stay twice.
    */
   ebmEmission: 'EbmEmission',
+  /**
+   * ADR-049, AC-R5: re checks a registration held at `submitted` on an
+   * unanswered RRA TIN check, on a backoff, up to a ceiling. Its own queue
+   * rather than a borrowed one, because retry policy, backoff and job id
+   * semantics are per queue, and a sweep chasing a third party outage shares
+   * none of them with an email send or a booking tick.
+   */
+  registrationTinRecheck: 'RegistrationTinRecheck',
 } as const;
 
 @Global()

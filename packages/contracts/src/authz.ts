@@ -138,7 +138,7 @@ export const PERMISSION_LABEL: Readonly<Record<Permission, string>> = {
     "lease.advance": "advance leases",
     "deposit.return": "return deposits",
     "unit.manage": "change unit rents",
-    "listing.manage": "list units to brokers",
+    "listing.manage": "manage listings and inventory",
     "message.send": "reply to messages",
     "task.assign": "assign cleaning tasks",
     "amenity.manage": "change what the property offers",
@@ -295,6 +295,52 @@ export const OversightGrant = z.object({
     districtId: z.number().int().nullable(),
 });
 export type OversightGrant = z.infer<typeof OversightGrant>;
+/**
+ * A grant as the OFFICER'S OWN CONSOLE renders it (ADR-049, AC-G5).
+ *
+ * `OversightGrant` above is the authority: the few fields a guard and a scope
+ * check need. This is the same seat with the words a person reads attached, and
+ * it exists because the console used to render all of them from a static fixture
+ * — two hardcoded officers with invented names, bodies and districts.
+ *
+ * **Three layers of name coexist here on purpose.** `oversightRole` is the
+ * database's name and what the pipeline branches on. `bodyName` is the
+ * institution as a citizen knows it. `title` is what that institution actually
+ * calls the post. Collapsing any two of them loses the only one the officer would
+ * recognise as their job.
+ *
+ * `scopeLabel` is the region IN WORDS, and `country` reads as Rwanda rather than
+ * as null: an officer who cannot see which district they cover cannot tell whether
+ * a missing business is out of scope or a bug. (The ADMIN console's
+ * `AdminOversightGrant.scopeLabel` is null for a country grant instead, because
+ * there it sits in a column of region names and "Rwanda" would read as a region.)
+ */
+export const OversightConsoleGrant = z.object({
+    /** The assignment row, so a console can name the seat it is rendering. */
+    assignmentId: Uuid,
+    console: z.enum(["verification", "approval", "tax"]),
+    oversightRole: OversightRole,
+    bodyCode: z.string(),
+    bodyName: z.string().nullable(),
+    title: z.string().nullable(),
+    scopeLevel: OversightScopeLevel,
+    provinceId: z.number().int().nullable(),
+    districtId: z.number().int().nullable(),
+    scopeLabel: z.string(),
+});
+export type OversightConsoleGrant = z.infer<typeof OversightConsoleGrant>;
+/** How a country-level scope reads on the officer's own console. */
+export const OVERSIGHT_COUNTRY_SCOPE_LABEL = "Rwanda";
+/**
+ * The honest refusal for a posting whose console is not built (ADR-049, AC-G7).
+ *
+ * A tax compliance officer used to be shown an empty queue that answered 403 to
+ * every action, which reads as "your access is broken" rather than "this does not
+ * exist yet". Recording the posting is still right — it is real information and
+ * admin should be able to enter it — so the grant stays and the screen says so.
+ */
+export const OVERSIGHT_CONSOLE_NOT_BUILT_MESSAGE: string = "Your appointment is recorded, and the console for it is not built yet. " +
+    "Tax compliance review is not available in this release.";
 /** Which console a function opens. */
 export function oversightConsoleFor(role: OversightRole): "verification" | "approval" | "tax" {
     switch (role) {
@@ -307,25 +353,110 @@ export function oversightConsoleFor(role: OversightRole): "verification" | "appr
     }
 }
 /**
- * Is a business inside this grant's region?
+ * Every district a province holds, as the caller read it from `districts`.
+ *
+ * Passed in rather than known here, because the geography is rows in a database
+ * and this package reads none. Only the provinces a set of grants names need to
+ * be present.
+ */
+export type ProvinceDistricts = ReadonlyMap<number, readonly number[]>;
+/**
+ * The districts a set of grants covers: THE one definition of oversight region
+ * scope (ADR-049, AC-G8).
+ *
+ * `null` means everywhere, and it is not "none": a country grant adds no
+ * predicate at all, and collapsing that to an empty list would hide every
+ * business from the officer who can see the most. A province grant covers that
+ * province's districts, and a district grant covers that district.
+ *
+ * Both halves of scope read this. The queue lists what is inside the set, and a
+ * gate act on one business asks `scopeCoversDistrict` of the same set. They used
+ * to be two pieces of code, `withinScope` for the single record and a hand rolled
+ * expansion for the list, which is one boundary written twice.
+ */
+export function districtScopeOf(grants: readonly Pick<OversightGrant, "scopeLevel" | "provinceId" | "districtId">[], provinceDistricts: ProvinceDistricts): number[] | null {
+    if (grants.some((g) => g.scopeLevel === "country"))
+        return null;
+    const ids = new Set<number>();
+    for (const g of grants) {
+        if (g.scopeLevel === "district" && g.districtId !== null)
+            ids.add(g.districtId);
+        if (g.scopeLevel === "province" && g.provinceId !== null) {
+            for (const id of provinceDistricts.get(g.provinceId) ?? [])
+                ids.add(id);
+        }
+    }
+    return [...ids].sort((a, b) => a - b);
+}
+/**
+ * Is a business in this district inside that scope?
  *
  * Scope is a BOUNDARY, not a display filter: an out of region business must be
- * unreachable, not merely unlisted. Callers apply this at the query, and use
- * this predicate as the second line for a single record.
+ * unreachable, not merely unlisted. A business with no district is inside only a
+ * country scope, because no narrower grant can be shown to cover it.
  */
-export function withinScope(grant: Pick<OversightGrant, "scopeLevel" | "provinceId" | "districtId">, target: {
+export function scopeCoversDistrict(scope: readonly number[] | null, districtId: number | null): boolean {
+    if (scope === null)
+        return true;
+    return districtId !== null && scope.includes(districtId);
+}
+/**
+ * A grant's region, with a district grant's province resolved alongside it.
+ *
+ * The province is REQUIRED on a district scope and the caller reads it from
+ * `districts.province_id`, because containment cannot be decided without it: a
+ * province grant contains a district grant exactly when the district sits in
+ * that province, and the grant row itself only records the district.
+ */
+export interface OversightScope {
+    scopeLevel: OversightScopeLevel;
     provinceId: number | null;
     districtId: number | null;
-}): boolean {
-    switch (grant.scopeLevel) {
-        case "country":
-            return true;
-        case "province":
-            return grant.provinceId !== null && grant.provinceId === target.provinceId;
-        case "district":
-            return grant.districtId !== null && grant.districtId === target.districtId;
+}
+/**
+ * Do two grants cover any of the same ground? (ADR-049, AC-G2)
+ *
+ * Separation of duties is a SCOPE question, not an equality one. A person
+ * holding `business_field_verifier` over the whole country and
+ * `business_approver` in Gasabo can field verify a Gasabo business and then
+ * approve their own work, and the two rows look nothing alike. The partial unique
+ * index on the table catches only the identical case and its own comment concedes
+ * this, which is why the rule lives here and the index stays as the backstop.
+ *
+ * Containment runs in BOTH directions on purpose: country contains every
+ * province and district, a province contains its districts, and a district
+ * contains itself.
+ */
+export function oversightScopesOverlap(a: OversightScope, b: OversightScope): boolean {
+    // A country grant covers the whole map, so it meets everything.
+    if (a.scopeLevel === "country" || b.scopeLevel === "country") return true;
+    if (a.scopeLevel === "province" && b.scopeLevel === "province")
+        return a.provinceId !== null && a.provinceId === b.provinceId;
+    if (a.scopeLevel === "district" && b.scopeLevel === "district")
+        return a.districtId !== null && a.districtId === b.districtId;
+    // One province, one district: they meet when the district is in the province.
+    const province = a.scopeLevel === "province" ? a : b;
+    const district = a.scopeLevel === "province" ? b : a;
+    return province.provinceId !== null && province.provinceId === district.provinceId;
+}
+/** The opposing gate role, the one a person may not also hold in the same place. */
+export function opposingGateRole(role: OversightRole): OversightRole | null {
+    switch (role) {
+        case "business_field_verifier":
+            return "business_approver";
+        case "business_approver":
+            return "business_field_verifier";
+        // A tax compliance posting gates nothing in the registration pipeline, so
+        // it opposes nothing. Holding it alongside either gate role is fine.
+        case "tax_compliance_officer":
+            return null;
     }
 }
+export const OVERSIGHT_SCOPE_CONFLICT_MESSAGE: string = "This person already holds the opposing role somewhere inside this region. " +
+    "One person cannot both field-verify and approve the same business.";
+export const OVERSIGHT_ORG_ROLE_CONFLICT_MESSAGE: string = "This person holds a role in a business inside this region. " +
+    "An officer cannot gate the registration of their own competitors.";
+export const OVERSIGHT_OWN_BUSINESS_MESSAGE: string = "You hold a role in this business, so you cannot decide its registration.";
 /**
  * Separation of duties: an officer may not approve a business they field
  * verified themselves. The database carries the same rule as a CHECK; this is

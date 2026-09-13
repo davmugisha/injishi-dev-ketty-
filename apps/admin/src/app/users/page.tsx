@@ -1,6 +1,7 @@
 import { Card, CardDescription, CardTitle } from "@injishi/ui";
 import { FailureNextStep } from "@/components/failure/failure-next-step";
 import { apiFailureMessage, failureHeading, type ApiFailure } from "@/lib/api/server";
+import { listDistricts, listGovernmentBodies, listProvinces } from "@/lib/api/government-bodies";
 import { listUnclaimedStays, listUsers } from "@/lib/api/users";
 import { EMPTY, count } from "@/lib/present/format";
 import { presentUnclaimedStay, presentUserRow } from "@/lib/present/users";
@@ -37,10 +38,23 @@ const DIRECTORY_READ_REASON =
  * The stays read carries no reason and needs none — a stay reference and a
  * property name are booking data, not the guest's identity record.
  */
-export default async function Page() {
-  const [users, stays] = await Promise.all([
-    listUsers(DIRECTORY_READ_REASON),
+export default async function Page({
+  searchParams,
+}: {
+  searchParams: Promise<{ q?: string }>;
+}) {
+  const { q } = await searchParams;
+  const searched = typeof q === "string" ? q.trim().slice(0, 200) : "";
+  // The appointment dialog's choices are read with the directory: the live
+  // government bodies and the regions an officer can cover. A failed read of
+  // either leaves the dialog with nothing to choose, which the API would refuse
+  // anyway; it never falls back to a hardcoded list.
+  const [users, stays, bodies, provinces, districts] = await Promise.all([
+    listUsers(DIRECTORY_READ_REASON, searched ? { q: searched } : {}),
     listUnclaimedStays(),
+    listGovernmentBodies(),
+    listProvinces(),
+    listDistricts(),
   ]);
 
   const listed = users.ok ? users.data.items : [];
@@ -89,6 +103,10 @@ export default async function Page() {
             nationalIdMasked: u.nationalIdMasked,
           }))}
           total={users.data.meta.total}
+          searched={searched}
+          bodies={bodies.ok ? bodies.data : []}
+          provinces={provinces.ok ? provinces.data : []}
+          districts={districts.ok ? districts.data : []}
         />
       ) : (
         <Unavailable title="Directory — the single identity (F-S01)" reason={users.reason} />

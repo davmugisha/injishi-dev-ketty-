@@ -27,11 +27,20 @@
  * through the officers' door" is a question nothing asks any more.
  */
 
-import { useCallback, useEffect, useState, type ReactNode } from "react";
+import {
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useState,
+  type ReactNode,
+} from "react";
 
 import { ActionButton } from "../../components/ui";
 import { useSignOut } from "../../data/sign-out";
 import { signInUrl, twoFactorUrl } from "../../lib/sign-in-url";
+import { OVERSIGHT_CONSOLE_NOT_BUILT_MESSAGE } from "@injishi/contracts";
+
 import { fetchMyConsoles, type OfficerAccess } from "../data/me";
 import type { OfficerKey } from "../data/types";
 
@@ -46,6 +55,8 @@ export function OfficerBoundary({
   const [access, setAccess] = useState<OfficerAccess>({
     status: "loading",
     consoles: [],
+    grants: [],
+    unbuiltConsoles: [],
     twoFactor: null,
   });
 
@@ -112,6 +123,28 @@ export function OfficerBoundary({
     );
   }
 
+  /*
+   * A POSTING WE RECORDED AND DID NOT BUILD (ADR-049, AC-G7).
+   *
+   * `tax_compliance_officer` is a real appointment: admin can enter an RRA tax
+   * compliance posting, and recording it is right. The console for it does not
+   * exist, and before this the holder was shown the "no console yet" screen below
+   * — which says they hold no assignment, when they do. That reads as "your access
+   * is broken" and sends somebody to support over a feature nobody has written.
+   *
+   * Checked BEFORE the empty case, because it is a more specific answer to the
+   * same situation.
+   */
+  if (access.consoles.length === 0 && access.unbuiltConsoles.length > 0) {
+    return (
+      <Centered
+        title="Console not built yet"
+        body={OVERSIGHT_CONSOLE_NOT_BUILT_MESSAGE}
+        showSignOut
+      />
+    );
+  }
+
   if (access.consoles.length === 0) {
     return (
       <Centered
@@ -143,7 +176,32 @@ export function OfficerBoundary({
     );
   }
 
-  return <>{children}</>;
+  return (
+    <OfficerAccessContext.Provider value={access}>
+      {children}
+    </OfficerAccessContext.Provider>
+  );
+}
+
+/**
+ * The resolved grants, for the store that renders inside this gate (ADR-049).
+ *
+ * Published rather than fetched a second time. This component has ALREADY asked
+ * `/api/v1/me/oversight` and refused every answer that is not a console, so by the
+ * time children render the grant is known; asking again from the store would be a
+ * second request for a fact already in hand, and a second chance for the two
+ * copies to disagree about which seat is open.
+ */
+const OfficerAccessContext = createContext<OfficerAccess | null>(null);
+
+/**
+ * The grants this console was opened with.
+ *
+ * Null outside the gate, which callers must treat as "not known yet" rather than
+ * as "no access": only `OfficerBoundary` decides the second one.
+ */
+export function useOfficerAccess(): OfficerAccess | null {
+  return useContext(OfficerAccessContext);
 }
 
 /**

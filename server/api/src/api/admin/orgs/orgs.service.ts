@@ -11,6 +11,7 @@ import {
   AdminOrgReviewQueueResponse,
   AdminOrgSubscription,
   AdminOrgTimelineResponse,
+  type ReviewCoverage,
 } from '@injishi/contracts';
 import { Inject, Injectable, NotFoundException } from '@nestjs/common';
 import { and, desc, eq, ilike, inArray, or, sql, type SQL } from 'drizzle-orm';
@@ -40,11 +41,15 @@ import {
   oboRegistrations,
   orgCertificates,
   orgMemberships,
+  orgRegistrationEvents,
   orgRegistrationReviews,
   orgs,
+  oversightAssignments,
   tinVerifications,
   workspaces,
 } from '../../../database/drizzle/org';
+import { TIN_RECHECK_CEILING } from '../../../modules/organization/domain/tin-recheck';
+import { pendingTinAttemptsSql } from '../../../modules/organization/infrastructure/tin-recheck.sql';
 import {
   DRIZZLE,
   type Database,
@@ -177,23 +182,52 @@ export class AdminOrgsService {
         domain: orgs.domain,
         registrationStatus: orgs.registrationStatus,
         /*
-         * `submittedAt` is DERIVED, because `orgs` has no `submitted_at`
-         * column — the registration pipeline that would write one is not built.
+         * `submittedAt` is the newest move INTO `submitted` (ADR-049, AC-R7).
          *
-         * The earliest review decision is the closest true bound the database
-         * holds: a business cannot be reviewed before it was submitted. When
-         * nobody has reviewed it there is no such row, and `orgs.created_at` is
-         * the fallback — on the ordinary path an org is created by the wizard
-         * and submitted minutes later. Both readings are read off real columns;
-         * neither is invented. Replace this the day the pipeline writes a real
-         * timestamp, and do not let the console compute its own version in the
-         * meantime.
+         * This comment used to say the value was derived from the earliest
+         * review decision because nothing recorded a submission, and to replace
+         * it the day the pipeline wrote a real timestamp. `org_registration_events`
+         * is that day. The old derivation stays only as the fallback for a
+         * business that was submitted before the event log existed, where it is
+         * still the closest true bound the database holds.
+         *
+         * Every subquery here sits in the select list of a query WITH JOINS, which
+         * is what makes Drizzle qualify the column names. In a join free query the
+         * same template would silently compare a table to itself; see
+         * `listing-setup/infrastructure/inventory.repository.ts`.
          */
         submittedAt: sql<Date | string | null>`coalesce(
+          (select max(${orgRegistrationEvents.occurredAt})
+             from ${orgRegistrationEvents}
+            where ${orgRegistrationEvents.orgId} = ${orgs.id}
+              and ${orgRegistrationEvents.toStatus} = 'submitted'),
           (select min(${orgRegistrationReviews.decidedAt})
              from ${orgRegistrationReviews}
             where ${orgRegistrationReviews.orgId} = ${orgs.id}),
           ${orgs.createdAt}
+        )`,
+        /**
+         * When it entered the stage it is in NOW. Null before the event log, and
+         * deliberately NOT given the fallback above: a wait in a stage is exactly
+         * the figure ADR-049 exists to make measurable, and an estimate shown as
+         * a measurement would be the thing it was built to replace.
+         */
+        stageEnteredAt: sql<Date | string | null>`(
+          select max(${orgRegistrationEvents.occurredAt})
+            from ${orgRegistrationEvents}
+           where ${orgRegistrationEvents.orgId} = ${orgs.id}
+             and ${orgRegistrationEvents.toStatus} = ${orgs.registrationStatus}
+        )`,
+        /**
+         * Every automatic RRA retry used, and still no answer (AC-R5). Read
+         * through `pendingTinAttemptsSql`, the same definition the sweep uses to
+         * decide what to retry, so the two can never disagree about a business.
+         */
+        stalled: sql<boolean>`exists (
+          select 1
+            from (${pendingTinAttemptsSql()}) as pending
+           where pending.org_id = ${orgs.id}
+             and pending.attempts >= ${TIN_RECHECK_CEILING}
         )`,
         /**
          * `tin_verifications` is the RRA outcome and the only place it lands —
@@ -205,6 +239,34 @@ export class AdminOrgsService {
            where ${tinVerifications.orgId} = ${orgs.id}
              and ${tinVerifications.result} = 'verified'
         )`,
+        /**
+         * Can an officer take this business's CURRENT stage? (ADR-049, AC-G9)
+         *
+         * `tin_verified` waits on a field verifier and `field_verified` on an
+         * approver; each is covered when a live assignment for that function
+         * reaches the business's district, where a country grant reaches every
+         * district and a province grant its own districts, the rule
+         * `districtScopeOf` states in `@injishi/contracts`. `submitted` waits on
+         * RRA and `approved` on the owner's claim, so neither is owed an officer.
+         *
+         * Computed here at read time rather than by a sweep, so a revoke is
+         * reflected on the next read with no job to run. This query joins
+         * `districts`, which is what lets the template name its province.
+         */
+        coverage: sql<ReviewCoverage>`case
+          when ${orgs.registrationStatus} in ('tin_verified', 'field_verified') then
+            case when exists (
+              select 1 from ${oversightAssignments} oa
+               where oa.revoked_at is null
+                 and oa.oversight_role = (case when ${orgs.registrationStatus} = 'tin_verified'
+                                               then 'business_field_verifier'
+                                               else 'business_approver' end)::oversight_role
+                 and (oa.scope_level = 'country'
+                      or (oa.scope_level = 'province' and oa.province_id = ${districts.provinceId})
+                      or (oa.scope_level = 'district' and oa.district_id = ${orgs.districtId}))
+            ) then 'covered' else 'uncovered' end
+          else 'not_applicable'
+        end`,
       })
       .from(orgs)
       .leftJoin(districts, eq(districts.id, orgs.districtId))
@@ -252,6 +314,11 @@ export class AdminOrgsService {
           domain: r.domain,
           registrationStatus: r.registrationStatus,
           submittedAt: r.submittedAt ? iso(new Date(r.submittedAt)) : null,
+          stageEnteredAt: r.stageEnteredAt
+            ? iso(new Date(r.stageEnteredAt))
+            : null,
+          stalled: Boolean(r.stalled),
+          coverage: r.coverage,
           lastDecision: last
             ? {
                 decision: last.decision,
@@ -353,6 +420,14 @@ export class AdminOrgsService {
         addressText: orgs.addressText,
         sectorId: orgs.sectorId,
         villageId: orgs.villageId,
+        // Every stage, `pending_payment` and `suspended` included (AC-R7). The
+        // query has joins, so this subquery's column names are qualified.
+        stageEnteredAt: sql<Date | string | null>`(
+          select max(${orgRegistrationEvents.occurredAt})
+            from ${orgRegistrationEvents}
+           where ${orgRegistrationEvents.orgId} = ${orgs.id}
+             and ${orgRegistrationEvents.toStatus} = ${orgs.registrationStatus}
+        )`,
       })
       .from(orgs)
       .leftJoin(districts, eq(districts.id, orgs.districtId))
@@ -385,6 +460,9 @@ export class AdminOrgsService {
 
     return AdminOrgDetail.parse({
       ...toOrgRow(row),
+      stageEnteredAt: row.stageEnteredAt
+        ? iso(new Date(row.stageEnteredAt))
+        : null,
       addressText: row.addressText,
       sectorId: row.sectorId,
       villageId: row.villageId,
@@ -403,12 +481,9 @@ export class AdminOrgsService {
    *
    * A removed member is still listed, because the question staff ask on this
    * screen is "who had access to this business", and a row that vanishes on
-   * removal cannot answer it. `status` crosses as the plain text the column
-   * holds: `org_memberships.status` is a `text` column carrying
-   * `active | removed` by convention rather than a `pgEnum`, and
-   * `AdminOrgMember.status` is `z.string()` for exactly that reason. Promising
-   * an enum here would make the response parse reject a row Postgres was happy
-   * to store.
+   * removal cannot answer it. `status` crosses as the `org_membership_status`
+   * enum the column has carried since ADR-049 (AC-R10); `AdminOrgMember.status`
+   * promises the same two values the database enforces.
    */
   async orgPeople(
     orgId: string,

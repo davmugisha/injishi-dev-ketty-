@@ -4,6 +4,7 @@ import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 
 import { signInUrl, twoFactorUrl } from "@/pms/lib/sign-in-url";
+import { OVERSIGHT_CONSOLE_NOT_BUILT_MESSAGE } from "@injishi/contracts";
 import { fetchMyConsoles, type OfficerAccess } from "@/pms/oversight/data/me";
 import { consoleHome } from "@/pms/oversight/lib/nav";
 
@@ -30,6 +31,8 @@ export default function Page() {
   const [access, setAccess] = useState<OfficerAccess>({
     status: "loading",
     consoles: [],
+    grants: [],
+    unbuiltConsoles: [],
     twoFactor: null,
   });
 
@@ -62,6 +65,19 @@ export default function Page() {
     if (first) router.replace(consoleHome(first));
   }, [access, router]);
 
+  /*
+   * A POSTING WE RECORDED AND DID NOT BUILD (ADR-049, AC-G7).
+   *
+   * A `tax_compliance_officer` holds a real appointment and has no console here.
+   * Before this they landed on "No console yet", which says they hold no
+   * assignment when they hold one — it reads as broken access and sends somebody
+   * to support over a feature nobody has written.
+   */
+  const unbuiltOnly =
+    access.status === "resolved" &&
+    access.consoles.length === 0 &&
+    access.unbuiltConsoles.length > 0;
+
   return (
     <div
       style={{
@@ -77,11 +93,17 @@ export default function Page() {
         <p style={{ fontSize: "1.05rem", fontWeight: 600, margin: 0 }}>
           {access.status === "unreachable"
             ? "We can't reach the service"
-            : access.status === "resolved" && access.consoles.length === 0
-              ? "No console yet"
-              : "Opening your console…"}
+            : unbuiltOnly
+              ? "Console not built yet"
+              : access.status === "resolved" && access.consoles.length === 0
+                ? "No console yet"
+                : "Opening your console…"}
         </p>
-        {access.status === "resolved" && access.consoles.length === 0 ? (
+        {unbuiltOnly ? (
+          <p style={{ marginTop: 10, fontSize: "0.9rem", lineHeight: 1.55, opacity: 0.72 }}>
+            {OVERSIGHT_CONSOLE_NOT_BUILT_MESSAGE}
+          </p>
+        ) : access.status === "resolved" && access.consoles.length === 0 ? (
           <p style={{ marginTop: 10, fontSize: "0.9rem", lineHeight: 1.55, opacity: 0.72 }}>
             You&apos;re signed in, but you don&apos;t hold a government oversight
             assignment on this account.

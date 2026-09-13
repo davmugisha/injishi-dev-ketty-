@@ -81,9 +81,13 @@ export interface AdminUserStaffRow {
 }
 
 export interface AdminUserOversightRow {
+  /** The assignment row, so a grant can be revoked by name (ADR-049, AC-G1). */
+  id: string;
   userId: string;
   oversightRole: OversightRole;
   governmentBodyCode: string;
+  /** `government_bodies.name_en`. The words a citizen knows the body by. */
+  governmentBodyName: string | null;
   governmentTitle: string | null;
   scopeLevel: OversightScopeLevel;
   provinceName: string | null;
@@ -309,18 +313,22 @@ export class AdminUsersRepository {
     if (userIds.length === 0) return Promise.resolve([]);
     return this.db
       .select({
+        id: oversightAssignments.id,
         userId: oversightAssignments.userId,
         oversightRole: oversightAssignments.oversightRole,
         governmentBodyCode: oversightAssignments.governmentBodyCode,
+        governmentBodyName: governmentBodies.nameEn,
         governmentTitle: oversightAssignments.governmentTitle,
         scopeLevel: oversightAssignments.scopeLevel,
         provinceName: provinces.name,
         districtName: districts.name,
       })
       .from(oversightAssignments)
-      // Joined but not selected from: the FK to `government_bodies` is what
-      // makes the code on a grant a real institution rather than a typo, and a
-      // grant naming a body that no longer exists should not read as a seat.
+      // The FK to `government_bodies` is what makes the code on a grant a real
+      // institution rather than a typo, and a grant naming a body that no longer
+      // exists should not read as a seat. ADR-049 also SELECTS its display name,
+      // because a console that shows "PSF" where it should say "Private Sector
+      // Federation" is showing a database value to a citizen.
       .innerJoin(
         governmentBodies,
         eq(governmentBodies.code, oversightAssignments.governmentBodyCode),

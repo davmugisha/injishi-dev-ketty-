@@ -35,7 +35,7 @@ import { useEffect, useMemo, useRef } from "react";
 import { cn } from "@/lib/utils";
 import { workspaces as demoWorkspaces } from "../data/demo";
 import type { PropertyKey, WorkspaceRef } from "../data/types";
-import { useWorkspaceId } from "../data/capability";
+import { useCapability, useWorkspaceId } from "../data/capability";
 import { useSignOut } from "../data/sign-out";
 import { leafFor, navFor, screenSegment, workspaceHome, type NavSection } from "../lib/nav";
 import { navContextOf } from "../lib/nav-context";
@@ -162,6 +162,7 @@ export function Sidebar() {
   const isHost = state.ws === "host";
   // The workspace this screen acts in, from the address bar (ADR-018).
   const workspaceId = useWorkspaceId();
+  const capability = useCapability();
 
   /*
    * What the switcher offers: the workspaces this person actually holds.
@@ -211,8 +212,10 @@ export function Sidebar() {
   // the href prefix alone left no leaf active on `/stays/*`.
   const activeKey = leafFor(sections, screenSegment(pathname))?.item.key;
 
-  // Only someone who works across the portfolio can switch property.
-  const canSwitchProperty = isHost && (state.role === "owner" || state.role === "manager");
+  // Only someone who works across the portfolio can switch property: whoever
+  // holds `property.switch`, read from the grant rather than from a role name
+  // (ADR-049, AC-A1). Today that is exactly the owner and the manager.
+  const canSwitchProperty = isHost && capability.can("property.switch");
 
   const propertyMeta = (key: PropertyKey) => {
     const p = state.db[key];

@@ -1,5 +1,10 @@
-import type { OversightGrant, OversightQueueItem } from '@injishi/contracts';
-import { Controller, Get, UseGuards } from '@nestjs/common';
+import {
+  type OversightDecisionPage,
+  type OversightGrant,
+  OversightDecisionQuery,
+  type OversightQueueItem,
+} from '@injishi/contracts';
+import { Controller, Get, Query, UseGuards } from '@nestjs/common';
 
 import { RegistrationService } from '../../../modules/organization/application/registration.service';
 import {
@@ -12,6 +17,7 @@ import {
   OversightGuard,
   RequireOversight,
 } from '../../../shared/auth/oversight.guard';
+import { ZodValidationPipe } from '../../../shared/validation/zod-validation.pipe';
 
 /**
  * The government console's read side → /api/v1/oversight/* (F-S03 §6, D25).
@@ -56,5 +62,24 @@ export class OversightController {
     @CurrentOversight() grants: OversightGrant[],
   ): Promise<OversightQueueItem[]> {
     return this.registrations.queueFor(user.id, grants);
+  }
+
+  /**
+   * The officer's own decisions, newest first, cursor paged (ADR-049, AC-G6).
+   *
+   * Guarded per function exactly as the queues are: a field verifier or an
+   * approver reads it, and a tax compliance officer, who decides no gate, is
+   * refused. The answer does not depend on which grant let them in, because it
+   * is keyed on the person who decided, so one route serves both functions.
+   */
+  @Get('decisions')
+  @UseGuards(SessionGuard, OversightGuard)
+  @RequireOversight('business_field_verifier', 'business_approver')
+  decisions(
+    @CurrentUser() user: SessionUser,
+    @Query(new ZodValidationPipe(OversightDecisionQuery))
+    query: OversightDecisionQuery,
+  ): Promise<OversightDecisionPage> {
+    return this.registrations.decisionsFor(user.id, query.cursor);
   }
 }

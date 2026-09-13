@@ -1,6 +1,7 @@
 import {
   Body,
   Controller,
+  Delete,
   Get,
   HttpCode,
   Param,
@@ -12,12 +13,15 @@ import {
 import {
   AdminActionRequest,
   type AdminClaimCodeReissued,
+  type AdminOversightGrant,
   AdminReasonQuery,
   type AdminSessionsRevoked,
   AdminUserListQuery,
   type AdminUnclaimedStaysResponse,
   type AdminUserListResponse,
+  CreateOversightGrantRequest,
 } from '@injishi/contracts';
+import { z } from 'zod';
 
 import { CurrentUser, SessionGuard } from '../../../shared/auth/session.guard';
 import type { SessionUser } from '../../../shared/auth/session.guard';
@@ -25,7 +29,17 @@ import { RequireStaffPermission } from '../../../shared/auth/require-staff-permi
 import { StaffGuard } from '../../../shared/auth/staff.guard';
 import { ZodValidationPipe } from '../../../shared/validation/zod-validation.pipe';
 import { AdminUsersService } from './admin-users.service';
+import { OversightGrantsService } from './oversight-grants.service';
 import { AdminUserActionsService } from './user-actions.service';
+
+/**
+ * An appointment carries its reason on the body, like every other admin write
+ * here. The reason is what the `audit_events` row records, and a grant with no
+ * stated reason is the one kind of appointment a compliance scope cannot explain
+ * afterwards.
+ */
+const GrantOversightBody = CreateOversightGrantRequest.and(AdminActionRequest);
+type GrantOversightBody = z.infer<typeof GrantOversightBody>;
 
 /**
  * The people directory -> `GET /api/v1/admin/users` (INTERFACE.md §3).
@@ -46,6 +60,7 @@ export class AdminUsersController {
   constructor(
     private readonly users: AdminUsersService,
     private readonly actions: AdminUserActionsService,
+    private readonly oversight: OversightGrantsService,
   ) {}
 
   /**
@@ -150,5 +165,61 @@ export class AdminUsersController {
     @CurrentUser() user: SessionUser,
   ): Promise<AdminSessionsRevoked> {
     return this.actions.revokeSessions(userId, user.id, body.reason);
+  }
+
+  /**
+   * Appoint a government officer (ADR-049, AC-G1).
+   *
+   * **Nothing could create an officer before this route.** The table and the guard
+   * existed; the only way to staff MINALOC or PSF was a seed script, so a real
+   * deployment could not appoint anybody without a release.
+   *
+   * `admin.user.role.grant`, which only `super_admin` holds. It is one of the two
+   * `TWO_PERSON_STAFF_PERMISSIONS` and `needsSecondSigner` is still implemented by
+   * nothing: this is a SINGLE SIGNER action by decision, and ADR-049 records the
+   * risk rather than hiding it. The one thing bounding the exposure is that no
+   * other staff role holds the permission at all.
+   */
+  @Post(':userId/oversight')
+  @HttpCode(201)
+  @RequireStaffPermission('admin.user.role.grant')
+  grantOversight(
+    @Param('userId', ParseUUIDPipe) userId: string,
+    @Body(new ZodValidationPipe(GrantOversightBody)) body: GrantOversightBody,
+    @CurrentUser() user: SessionUser,
+  ): Promise<AdminOversightGrant> {
+    return this.oversight.grant({
+      actorUserId: user.id,
+      userId,
+      request: body,
+      reason: body.reason,
+    });
+  }
+
+  /**
+   * Revoke an appointment (ADR-049, AC-G1).
+   *
+   * `204`, and `revoked_at` rather than a delete: a revoked posting has to keep
+   * explaining a decision already taken.
+   *
+   * The reason rides on the QUERY rather than the body, because a `DELETE` with a
+   * body is not reliably forwarded by every proxy between the console and here.
+   * `AdminReasonQuery` is the shape the other reason-bearing reads already use.
+   */
+  @Delete(':userId/oversight/:assignmentId')
+  @HttpCode(204)
+  @RequireStaffPermission('admin.user.role.grant')
+  async revokeOversight(
+    @Param('userId', ParseUUIDPipe) userId: string,
+    @Param('assignmentId', ParseUUIDPipe) assignmentId: string,
+    @Query(new ZodValidationPipe(AdminReasonQuery)) query: AdminReasonQuery,
+    @CurrentUser() user: SessionUser,
+  ): Promise<void> {
+    await this.oversight.revoke({
+      actorUserId: user.id,
+      userId,
+      assignmentId,
+      reason: query.reason,
+    });
   }
 }

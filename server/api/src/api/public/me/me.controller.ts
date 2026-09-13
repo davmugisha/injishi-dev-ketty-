@@ -16,7 +16,7 @@ import type {
   MyProfile,
   MyThreads,
   MyTrips,
-  OversightGrant,
+  OversightConsoleGrant,
   StaffAccess,
   WorkspaceAccess,
 } from '@injishi/contracts';
@@ -24,7 +24,6 @@ import {
   MessagePageQuery,
   PersonalDetails,
   SendGuestMessageInput,
-  oversightConsoleFor,
   staffRequiresStepUp,
   workspaceLabel,
 } from '@injishi/contracts';
@@ -229,30 +228,24 @@ export class MeController {
     @CurrentUser() user: SessionUser,
     @CurrentSession() session: SessionRecord,
   ): Promise<{
-    consoles: (Omit<OversightGrant, 'governmentBodyCode' | 'governmentTitle'> & {
-      console: ReturnType<typeof oversightConsoleFor>;
-      body: string;
-      title: string | null;
-    })[];
+    /**
+     * Every seat this person holds, with the words their console renders
+     * (ADR-049, AC-G5).
+     *
+     * It used to return the body CODE and nothing else resolvable, so the console
+     * rendered the officer's name, institution, title and district from a static
+     * fixture of two invented officers. Those are all here now, read from the
+     * database, and the fixture is deleted.
+     */
+    consoles: OversightConsoleGrant[];
     /** Same answer as `/me/workspaces` carries, for the console's own gate. */
     twoFactor: TwoFactorStatus;
   }> {
-    const [grants, twoFactor] = await Promise.all([
-      this.workspaces.oversightGrantsForUser(user.id),
+    const [consoles, twoFactor] = await Promise.all([
+      this.workspaces.oversightConsoleGrantsForUser(user.id),
       this.twoFactor.statusFor(user.id, session.id),
     ]);
-    return {
-      twoFactor,
-      consoles: grants.map((g) => ({
-        console: oversightConsoleFor(g.oversightRole),
-        oversightRole: g.oversightRole,
-        body: g.governmentBodyCode,
-        title: g.governmentTitle,
-        scopeLevel: g.scopeLevel,
-        districtId: g.districtId,
-        provinceId: g.provinceId,
-      })),
-    };
+    return { twoFactor, consoles };
   }
 
   /**

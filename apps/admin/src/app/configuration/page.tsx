@@ -13,7 +13,7 @@ import { count } from "@/lib/present/format";
 export const metadata = { title: "Configuration" };
 
 /** The permission `GET /api/v1/admin/configuration` declares. */
-const PERMISSION = "admin.config.edit";
+const PERMISSION = "admin.config.view";
 
 /**
  * Configuration (F-A07) — versioned entries and feature flags, from the API.
@@ -27,10 +27,9 @@ const PERMISSION = "admin.config.edit";
  * printed as `[object Object]` is worse than one showing only its key, scope
  * and version — which are the three things this response can prove.
  *
- * Note that both lists are read behind an `.edit` permission. That is the
- * contract's choice and not a slip: an entry carries `lockedOnUse` and
- * `reversible`, so knowing which levers are already welded shut is itself
- * operational knowledge.
+ * Both lists are read behind `admin.config.view` (ADR-049), which every staff
+ * role holds; they used to borrow `admin.config.edit` because no view
+ * permission existed, so only a Super Admin could look.
  */
 export default async function Page() {
   const result = await getConfiguration();

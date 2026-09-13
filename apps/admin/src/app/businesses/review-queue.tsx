@@ -1,7 +1,8 @@
 "use client";
 
 import { Badge, Button } from "@injishi/ui";
-import { Check, Clock, Flag, RefreshCw, TriangleAlert } from "lucide-react";
+import { Check, ChevronLeft, ChevronRight, Clock, Flag, RefreshCw, TriangleAlert } from "lucide-react";
+import Link from "next/link";
 import { useState } from "react";
 
 import { recheckTin, suspendOrg } from "@/lib/actions/orgs";
@@ -53,8 +54,19 @@ const CHECK_RESULT_LABEL = {
  * asking for the reason the audit row records. A row only shows "re-checked"
  * once the platform has confirmed it; the old "retry queued" badge appeared on
  * click, before anything had been asked of anyone.
+ *
+ * IT PAGES. The queue is read one API page at a time, oldest first, so the
+ * newest arrivals are on the LAST page. The count line says which slice is on
+ * screen and Previous / Next move through `?queue=` — a first page shown alone
+ * used to hide every business past it, however long the queue grew.
  */
-export function ReviewQueue({ rows }: { rows: ReviewQueueRow[] }) {
+export function ReviewQueue({
+  rows,
+  meta,
+}: {
+  rows: ReviewQueueRow[];
+  meta: { total: number; page: number; pageSize: number };
+}) {
   const toast = useAdminUi((s) => s.toast);
   const stubAction = useStubAction();
   // What the platform CONFIRMED for each row, kept locally rather than by
@@ -72,6 +84,11 @@ export function ReviewQueue({ rows }: { rows: ReviewQueueRow[] }) {
   // a time, so "Waiting for the platform…" alone could sit there for a minute
   // with no sign it was getting anywhere.
   const [progress, setProgress] = useState(0);
+
+  const first = (meta.page - 1) * meta.pageSize + 1;
+  const last = first + rows.length - 1;
+  const pages = Math.max(1, Math.ceil(meta.total / meta.pageSize));
+  const pageHref = (page: number) => (page <= 1 ? "/businesses" : `/businesses?queue=${page}`);
 
   const retryable = rows.filter(
     (r) => r.item.action.kind === "retry-tin" && !checked.has(r.id),
@@ -141,7 +158,15 @@ export function ReviewQueue({ rows }: { rows: ReviewQueueRow[] }) {
           </Button>
         )}
       </div>
-      {rows.length === 0 ? (
+      {rows.length === 0 && meta.total > 0 ? (
+        <div className="mt-3 rounded-card border border-dashed border-border px-5 py-4 text-sm text-muted-foreground">
+          This page is past the end of the queue, which holds {meta.total}{" "}
+          {meta.total === 1 ? "business" : "businesses"}.{" "}
+          <Link href={pageHref(1)} className="font-semibold text-accent-text hover:underline">
+            Back to the first page
+          </Link>
+        </div>
+      ) : rows.length === 0 ? (
         <div className="mt-3 rounded-card border border-dashed border-border px-5 py-4 text-sm text-muted-foreground">
           No business is waiting on a decision. Registrations that clear their
           TIN check never reach this queue — an empty one means every applicant
@@ -216,6 +241,36 @@ export function ReviewQueue({ rows }: { rows: ReviewQueueRow[] }) {
             );
           })}
         </div>
+      )}
+
+      {rows.length > 0 && (
+        <nav
+          aria-label="Review queue pages"
+          className="mt-3 flex flex-wrap items-center justify-between gap-3 text-xs text-muted-foreground"
+        >
+          <p>
+            Showing {first}–{last} of {meta.total}, oldest first
+            {pages > 1 ? ` · page ${meta.page} of ${pages}` : ""}.
+          </p>
+          {pages > 1 && (
+            <span className="flex gap-2">
+              {meta.page > 1 && (
+                <Button asChild variant="outline" size="sm">
+                  <Link href={pageHref(meta.page - 1)}>
+                    <ChevronLeft className="h-4 w-4" aria-hidden /> Previous
+                  </Link>
+                </Button>
+              )}
+              {meta.page < pages && (
+                <Button asChild variant="outline" size="sm">
+                  <Link href={pageHref(meta.page + 1)}>
+                    Next <ChevronRight className="h-4 w-4" aria-hidden />
+                  </Link>
+                </Button>
+              )}
+            </span>
+          )}
+        </nav>
       )}
 
       <ReasonDialog

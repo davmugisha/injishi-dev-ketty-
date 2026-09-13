@@ -13,7 +13,7 @@ import {
 export const metadata = { title: "Localization" };
 
 /** The permission `GET /api/v1/admin/localization` declares. */
-const PERMISSION = "admin.localization.edit";
+const PERMISSION = "admin.localization.view";
 
 /**
  * Localization (F-A15) — translations and email templates, from the API.

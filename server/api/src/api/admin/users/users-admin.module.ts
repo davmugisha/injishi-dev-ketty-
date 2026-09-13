@@ -6,10 +6,13 @@ import { AdminAuditController } from '../governance/audit.controller';
 import { AdminAuditService } from '../governance/audit.service';
 import { AdminComplianceController } from '../governance/compliance.controller';
 import { AdminComplianceService } from '../governance/compliance.service';
+import { AdminGovernmentBodiesController } from '../governance/government-bodies.controller';
+import { GovernmentBodiesService } from '../governance/government-bodies.service';
 import { AdminModerationController } from '../governance/moderation.controller';
 import { AdminModerationService } from '../governance/moderation.service';
 import { AdminUsersRepository } from './admin-users.repository';
 import { AdminUsersService } from './admin-users.service';
+import { OversightGrantsService } from './oversight-grants.service';
 import { RecordAccessService } from './record-access.service';
 import { AdminUserActionsService } from './user-actions.service';
 import { AdminUsersController } from './users.controller';
@@ -51,6 +54,9 @@ import { AdminUsersController } from './users.controller';
     AdminComplianceController,
     AdminAuditController,
     AdminModerationController,
+    // The government body catalogue (ADR-049, AC-G4). Here, beside the grants
+    // that choose a body, because a retired body is refused at grant time.
+    AdminGovernmentBodiesController,
   ],
   providers: [
     AdminUsersRepository,
@@ -59,11 +65,17 @@ import { AdminUsersController } from './users.controller';
     // from the PII reader so each successful write's audit row lives in one
     // short file rather than among the reads.
     AdminUserActionsService,
+    // The oversight grant and revoke writes (ADR-049). Its own service rather
+    // than a third method on `AdminUserActionsService`, because the two scope
+    // conflict rules it enforces are the longest reasoning in this area and do
+    // not belong among the session and claim-code writes.
+    OversightGrantsService,
     RecordAccessService,
     AdminGovernanceRepository,
     AdminComplianceService,
     AdminAuditService,
     AdminModerationService,
+    GovernmentBodiesService,
   ],
 })
 export class UsersAdminModule {}

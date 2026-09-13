@@ -3,15 +3,17 @@
  * how the platform is built (blueprint §3.2).
  *
  * Two things shape what renders:
- *  - the person's role (a receptionist never sees Money or Property admin),
+ *  - the permissions the grant carries (a receptionist holds no `money.view`, so
+ *    never sees Money), each leaf declaring the one it needs (ADR-049),
  *  - the property's departments, which are config (F-P01) — so a 2-department
  *    guesthouse gets a shorter nav than a 5-department hotel with no code change.
  *
- * **Both now come from the SERVER** (ADR-035, D-a). The role has come from the
- * grant since ADR-012; the departments used to be read out of `data/demo.ts`,
- * which meant a 622 line fixture decided which sections a real hotel had. They
- * arrive on the same grant row as the role and the permission array, so the
- * three can never be resolved from different reads.
+ * **Both come from the SERVER** (ADR-035, D-a; ADR-049). The departments used to
+ * be read out of `data/demo.ts`, which meant a 622 line fixture decided which
+ * sections a real hotel had, and the sections used to branch on the ROLE, a
+ * hand copy of the permission table. Both now arrive on the one grant row, so
+ * they can never be resolved from different reads and a permission change
+ * reaches the nav with no second file edited.
  *
  * COUNT PILLS ARE DIFFERENT, and the difference is the point. A count is an
  * affordance and may be stale or absent; a SECTION is a door, and
@@ -24,14 +26,14 @@
  * on the API refuses the request.
  */
 
-import type { DepartmentCategory } from "@injishi/contracts";
+import type { DepartmentCategory, Permission } from "@injishi/contracts";
 
 // No property, lease or thread type is imported any more, and that absence is
 // the change (ADR-035, D-a). This module used to take a `HospitalityProperty`,
 // a `ResidenceProperty` and a `BrokerData` — all of them demo fixtures — and
-// read the doors out of them. It takes a role, a department list and some
-// optional counts now, none of which it can invent.
-import type { OrgRole, WorkspaceKey } from "../data/types";
+// read the doors out of them. It takes the grant's permission array, a
+// department list and some optional counts now, none of which it can invent.
+import type { WorkspaceKey } from "../data/types";
 
 export interface NavItem {
   key: string;
@@ -42,6 +44,13 @@ export interface NavItem {
   count?: number | null;
   /** False while the screen is still a placeholder. */
   built?: boolean;
+  /**
+   * The permission this leaf gates, or absent when it gates none (ADR-049,
+   * AC-A1). Absent is a decision, not a gap: such a leaf is offered to every
+   * member of the workspace. The outer gate still holds, because a business
+   * that is not `active` holds no permissions and its app is closed anyway.
+   */
+  permission?: Permission;
   /**
    * Object routes this leaf opens (ADR-018, move 3).
    *
@@ -151,9 +160,43 @@ function pill(n: number | null | undefined): number | null {
   return typeof n === "number" && n > 0 ? n : null;
 }
 
+/**
+ * Keep the leaves this grant reaches (ADR-049, AC-A1).
+ *
+ * A leaf that declares a permission is kept when the grant holds it. A leaf that
+ * declares NONE is kept for every member of the workspace, and that is the rule
+ * rather than an omission: Today, Calendar and the tenancy lists gate no
+ * capability, and inventing a permission for each would refuse nobody.
+ *
+ * No branch in this file reads a role name any more. The role used to decide
+ * People, Settings and the receptionist's and housekeeper's surfaces, as hand
+ * mirrors of `team.manage`, `ebm.manage` and the rest, so a permission change
+ * had to be made twice and the second edit was the one that got forgotten. The
+ * permission array is the server's answer, already resolved; this only reads it.
+ */
+function reachable(
+  items: readonly NavItem[],
+  permissions: readonly Permission[],
+): NavItem[] {
+  return items.filter(
+    (item) => item.permission === undefined || permissions.includes(item.permission),
+  );
+}
+
+/** A section with the leaves this grant reaches, or nothing when it reaches none. */
+function sectionOf(
+  label: string,
+  items: readonly NavItem[],
+  permissions: readonly Permission[],
+): NavSection[] {
+  const kept = reachable(items, permissions);
+  // A header with nothing under it reads as a broken screen, not as an absent power.
+  return kept.length > 0 ? [{ label, items: kept }] : [];
+}
+
 export function hostNav(
   departments: readonly DepartmentCategory[],
-  role: OrgRole,
+  permissions: readonly Permission[],
   base: string,
   counts: NavCounts = {},
 ): NavSection[] {
@@ -166,146 +209,74 @@ export function hostNav(
   const ordersLive = pill(counts.ordersLive);
   const unread = pill(counts.unreadThreads);
 
-  /**
-   * The maintenance leaf, which two roles reach and only one department earns.
-   *
-   * Built once because the housekeeper branch below needs the same item, and a
-   * second copy is how the two would drift.
-   */
-  const maintenance: NavItem[] = has("engineering")
-    ? [
-        {
-          key: "maintenance",
-          // The same word and the same screen the residence side already used.
-          label: "Maintenance",
-          icon: "wrench",
-          href: `${base}/maintenance`,
-          count: ticketsOpen,
-          built: true,
-        },
-      ]
-    : [];
-
-  /*
-   * A HOUSEKEEPER's whole surface, and it stops here (ADR-035, D-a).
-   *
-   * They hold exactly two permissions, `housekeeping.set` and `ticket.advance`,
-   * and this is the nav that matches them. Before this branch existed the only
-   * role gate in this function was `role !== "receptionist"`, so a housekeeper
-   * fell through it and was handed the MANAGER's nav: twelve screens including
-   * Finance, Inventory and People, against two permissions.
-   *
-   * It was invisible in the app because `AppShell` short-circuits a housekeeper
-   * to `HousekeeperPhone` and never renders this sidebar. But the nav is not
-   * only the sidebar — `allowedSegments(navFor(...))` IS the route guard's
-   * whole input, and `CommandBar` reads the same list. So the allowed set said
-   * a housekeeper could open Finance, and the only thing standing in the way
-   * was a render branch rather than a check. Found by running this function
-   * against a real grant for every seeded role.
-   *
-   * Returning early rather than adding another `role !== ...` to each block: a
-   * role whose surface is a short list should say so in one place, not be
-   * spelled out as four separate exclusions that the next edit can forget.
-   */
-  if (role === "housekeeper") {
-    return [
-      {
-        label: "Rooms",
-        items: [
-          { key: "rooms", label: "Room status", icon: "bed-double", href: `${base}/rooms`, built: true },
-          { key: "housekeeping", label: "Housekeeping", icon: "sparkles", href: `${base}/housekeeping`, count: hkOpen, built: true },
-          ...maintenance,
-        ],
-      },
-    ];
-  }
-
-  const sections: NavSection[] = [
-    {
-      label: "Front desk",
-      items: [
+  return [
+    ...sectionOf(
+      "Front desk",
+      [
         { key: "today", label: "Today", icon: "layout-dashboard", href: `${base}/today`, built: true },
-        { key: "reservations", label: "Reservations", icon: "book-marked", href: `${base}/reservations`, count: pending, built: true, grants: ["stays"] },
+        { key: "reservations", label: "Reservations", icon: "book-marked", href: `${base}/reservations`, count: pending, built: true, grants: ["stays"], permission: "reservation.approve" },
         // Was `grid`, `availability` and the rate calendar inside `rooms-rates`:
         // three entries over one question, which is what is sellable, when, at
         // what price. One route, three views (ADR-018, move 5).
         { key: "calendar", label: "Calendar", icon: "calendar-days", href: `${base}/calendar`, built: true },
-        { key: "inbox", label: "Inbox", icon: "message-square", href: `${base}/inbox`, count: unread, built: true },
+        { key: "inbox", label: "Inbox", icon: "message-square", href: `${base}/inbox`, count: unread, built: true, permission: "message.send" },
       ],
-    },
-  ];
-
-  // A receptionist's surface stops at the front desk + taking orders. This gate
-  // predates the merge and must survive it: a nav rewrite is exactly where a
-  // role boundary gets dropped.
-  if (role !== "receptionist") {
-    sections.push({
-      label: "Rooms",
-      items: [
+      permissions,
+    ),
+    ...sectionOf(
+      "Rooms",
+      [
         // Room status is TODAY's operations. Inventory below is setup. The two
         // used to be one word apart, `rooms` and `rooms-rates`, and the names
         // did not say which was which.
-        { key: "rooms", label: "Room status", icon: "bed-double", href: `${base}/rooms`, built: true },
-        { key: "housekeeping", label: "Housekeeping", icon: "sparkles", href: `${base}/housekeeping`, count: hkOpen, built: true },
-        ...maintenance,
+        { key: "rooms", label: "Room status", icon: "bed-double", href: `${base}/rooms`, built: true, permission: "housekeeping.set" },
+        { key: "housekeeping", label: "Housekeeping", icon: "sparkles", href: `${base}/housekeeping`, count: hkOpen, built: true, permission: "housekeeping.set" },
+        // Only where an engineering department exists, and to whoever advances a
+        // ticket: the owner, the manager and the housekeeper, exactly the three
+        // roles the old branches let through.
+        ...(has("engineering")
+          ? [{ key: "maintenance", label: "Maintenance", icon: "wrench", href: `${base}/maintenance`, count: ticketsOpen, built: true, permission: "ticket.advance" } satisfies NavItem]
+          : []),
       ],
-    });
-  }
-
-  // Only where a service department exists. The conditional is older than the
-  // merge and the merge keeps it: a two department guesthouse gets no Services.
-  if (has("fnb") || has("spa_recreation")) {
-    sections.push({
-      label: "Services",
-      items: [
-        { key: "services", label: "Services", icon: "bell-ring", href: `${base}/services`, count: ordersLive, built: true },
-      ],
-    });
-  }
-
-  if (role !== "receptionist") {
-    sections.push({
-      label: "Property",
-      items: [
-        { key: "inventory", label: "Inventory", icon: "building-2", href: `${base}/inventory`, built: true },
-      ],
-    });
-
+      permissions,
+    ),
+    // Only where a service department exists: a two department guesthouse gets
+    // no Services. `order.advance` rather than `menu.manage`, because the leaf
+    // opens on Live orders, which a receptionist works; the Menu lens refuses
+    // editing inside the screen (ADR-049, ruled 2026-09-13).
+    ...(has("fnb") || has("spa_recreation")
+      ? sectionOf(
+          "Services",
+          [{ key: "services", label: "Services", icon: "bell-ring", href: `${base}/services`, count: ordersLive, built: true, permission: "order.advance" }],
+          permissions,
+        )
+      : []),
+    ...sectionOf(
+      "Property",
+      [{ key: "inventory", label: "Inventory", icon: "building-2", href: `${base}/inventory`, built: true, permission: "listing.manage" }],
+      permissions,
+    ),
     // Four leaves used to sit here — bills, payouts, invoices, revenue — and
     // "why is this month short" crossed all four and was answered by none. One
     // route, four lenses, so the question has somewhere to be asked.
-    sections.push({
-      label: "Money",
-      items: [
-        { key: "finance", label: "Finance", icon: "receipt", href: `${base}/finance`, built: true },
+    ...sectionOf(
+      "Money",
+      [{ key: "finance", label: "Finance", icon: "receipt", href: `${base}/finance`, built: true, permission: "money.view" }],
+      permissions,
+    ),
+    ...sectionOf(
+      "Property admin",
+      [
+        // People is behind `team.manage`, the owner's alone since 2026-09-12.
+        { key: "people", label: "People", icon: "users", href: `${base}/people`, built: true, permission: "team.manage" },
+        // Settings is behind `ebm.manage`, because Integrations is where the RRA
+        // EBM account is connected (ADR-041, D-o). Plan and billing stays the
+        // owner's: `Settings` hides that lens and refuses it by URL.
+        { key: "settings", label: "Settings", icon: "settings", href: `${base}/settings`, built: true, permission: "ebm.manage" },
       ],
-    });
-
-    const admin: NavItem[] = [];
-    // People is the owner's, because `team.manage` is (ADR-035 follow-up,
-    // 2026-09-12). It used to be pushed unconditionally, so a manager saw the
-    // leaf, opened it, and `team.tsx` answered with a refusal EmptyState — a
-    // door that exists to say no. The permission and the leaf move together.
-    if (role === "owner") {
-      admin.push({ key: "people", label: "People", icon: "users", href: `${base}/people`, built: true });
-    }
-    if (role === "owner" || role === "manager") {
-      // Owner AND manager, because Integrations is where the RRA EBM account is
-      // connected and `ebm.manage` is held by both (ADR-041, D-o). Owner only,
-      // this leaf left a manager holding a permission with no door to it.
-      // Plan and billing stays the owner's: `Settings` hides that lens from a
-      // manager and refuses it by URL.
-      admin.push({ key: "settings", label: "Settings", icon: "settings", href: `${base}/settings`, built: true });
-    }
-    // Only when it holds something. No role reaches here empty today — a
-    // housekeeper returns early above and a receptionist never enters this
-    // block — so this is a guard against the NEXT leaf becoming conditional,
-    // not a live case. A section header with nothing under it reads as a
-    // broken screen rather than as an absent power.
-    if (admin.length > 0) sections.push({ label: "Property admin", items: admin });
-  }
-
-  return sections;
+      permissions,
+    ),
+  ];
 }
 
 /** Counts for the residence pills. Same rule: absent means no pill. */
@@ -318,7 +289,7 @@ export interface ResidenceNavCounts {
 }
 
 export function landlordNav(
-  role: OrgRole,
+  permissions: readonly Permission[],
   base: string,
   counts: ResidenceNavCounts = {},
 ): NavSection[] {
@@ -330,52 +301,50 @@ export function landlordNav(
   const depositReview = pill(counts.depositsToReturn);
 
   return [
-    {
-      label: "Tenancies",
-      items: [
+    ...sectionOf(
+      "Tenancies",
+      [
         { key: "rent-roll", label: "Rent roll", icon: "wallet", href: `${base}/rent-roll`, count: overdue, built: true },
         { key: "leases", label: "Leases", icon: "file-text", href: `${base}/leases`, count: awaiting, built: true },
         { key: "move-outs", label: "Move-outs & deposits", icon: "log-out", href: `${base}/move-outs`, count: depositReview, built: true },
       ],
-    },
-    {
-      label: "Property",
-      items: [
-        { key: "units", label: "Units & rents", icon: "building-2", href: `${base}/units`, built: true },
-        { key: "maintenance", label: "Maintenance", icon: "wrench", href: `${base}/maintenance`, count: ticketsOpen, built: true },
+      permissions,
+    ),
+    ...sectionOf(
+      "Property",
+      [
+        // `unit.manage` stops being a declared but unenforced permission here:
+        // these are exactly the leaves it was written for (ADR-049).
+        { key: "units", label: "Units & rents", icon: "building-2", href: `${base}/units`, built: true, permission: "unit.manage" },
+        { key: "maintenance", label: "Maintenance", icon: "wrench", href: `${base}/maintenance`, count: ticketsOpen, built: true, permission: "ticket.advance" },
         // Was `directory`, the same word the broker uses for the opposite job:
         // this one PUBLISHES your units, theirs browses everyone else's.
-        { key: "listing", label: "Listing", icon: "globe", href: `${base}/listing`, built: true },
+        { key: "listing", label: "Listing", icon: "globe", href: `${base}/listing`, built: true, permission: "unit.manage" },
       ],
-    },
-    {
-      label: "People",
-      items: [
-        { key: "inbox", label: "Inbox", icon: "message-square", href: `${base}/inbox`, count: tenantUnread, built: true },
-        { key: "people", label: "People", icon: "users", href: `${base}/people`, built: true },
+      permissions,
+    ),
+    ...sectionOf(
+      "People",
+      [
+        { key: "inbox", label: "Inbox", icon: "message-square", href: `${base}/inbox`, count: tenantUnread, built: true, permission: "message.send" },
+        { key: "people", label: "People", icon: "users", href: `${base}/people`, built: true, permission: "team.manage" },
       ],
-    },
-    {
-      // `compliance` is gone as a leaf. Half of it is the `filing` lens on the
-      // lease it describes (move 3); half is the portfolio monitor, which is a
-      // Finance lens. It named a regime rather than something you do.
-      label: "Money",
-      items: [
-        { key: "finance", label: "Finance", icon: "receipt", href: `${base}/finance`, built: true },
-      ],
-    },
-    // Owner and manager, as on the hotel side: Integrations is behind
-    // `ebm.manage`, which both hold (ADR-041, D-o).
-    ...(role === "owner" || role === "manager"
-      ? [
-          {
-            label: "Business",
-            items: [
-              { key: "settings", label: "Settings", icon: "settings", href: `${base}/settings`, built: true },
-            ],
-          },
-        ]
-      : []),
+      permissions,
+    ),
+    // `compliance` is gone as a leaf. Half of it is the `filing` lens on the
+    // lease it describes (move 3); half is the portfolio monitor, which is a
+    // Finance lens. It named a regime rather than something you do.
+    ...sectionOf(
+      "Money",
+      [{ key: "finance", label: "Finance", icon: "receipt", href: `${base}/finance`, built: true, permission: "money.view" }],
+      permissions,
+    ),
+    // Integrations is behind `ebm.manage`, as on the hotel side (ADR-041, D-o).
+    ...sectionOf(
+      "Business",
+      [{ key: "settings", label: "Settings", icon: "settings", href: `${base}/settings`, built: true, permission: "ebm.manage" }],
+      permissions,
+    ),
   ];
 }
 
@@ -567,7 +536,11 @@ export interface NavContext {
   ws: WorkspaceKey;
   /** The workspace every link in this nav is addressed inside. */
   workspaceId: string | null;
-  role: OrgRole;
+  /**
+   * The grant's `permissions[]`, resolved by the server (ADR-049, AC-A1). The
+   * only input that decides which leaves a person reaches; no role is read.
+   */
+  permissions: readonly Permission[];
   /**
    * From the GRANT (ADR-035, D-a). This is what decides which optional
    * sections exist, so it must never be derived from a fixture again.
@@ -578,6 +551,26 @@ export interface NavContext {
    * honest state before a live query has answered.
    */
   counts?: NavCounts & ResidenceNavCounts & { placementsAwaiting?: number | null };
+}
+
+/**
+ * Whether this workspace opens on the housekeeper's phone surface (F-P04) instead
+ * of the desktop shell.
+ *
+ * Decided by the grant's permission shape, never by a role name (ADR-049, AC-A1,
+ * ruled with the owner on 2026-09-13): a hotel grant that can set room status
+ * and holds no front desk power. That is exactly the housekeeper today, and a
+ * change to a role's permissions moves its surface with no second edit. A grant
+ * at a business that is not `active` holds nothing, so it gets the shell, whose
+ * screens word the registration stage.
+ */
+export function opensOnPhoneSurface(ctx: Pick<NavContext, "ws" | "permissions">): boolean {
+  return (
+    ctx.ws === "host" &&
+    ctx.permissions.includes("housekeeping.set") &&
+    !ctx.permissions.includes("reservation.approve") &&
+    !ctx.permissions.includes("message.send")
+  );
 }
 
 /**
@@ -649,9 +642,9 @@ export function navFor(ctx: NavContext): NavSection[] {
   const counts = ctx.counts ?? {};
   switch (ctx.ws) {
     case "host":
-      return hostNav(ctx.departments, ctx.role, base, counts);
+      return hostNav(ctx.departments, ctx.permissions, base, counts);
     case "landlord":
-      return landlordNav(ctx.role, base, counts);
+      return landlordNav(ctx.permissions, base, counts);
     case "broker":
       return brokerNav(base, counts.placementsAwaiting);
   }

@@ -841,6 +841,30 @@ export declare const BusinessDetails: z.ZodEffects<z.ZodDiscriminatedUnion<"doma
     }[] | undefined;
 }>;
 export type BusinessDetails = z.infer<typeof BusinessDetails>;
+/**
+ * The owner an on behalf of registration is made for (FL02).
+ *
+ * All three are required (owner ruling 2026-09-13, ADR-049 J25). They used to be
+ * optional, and each missing one strands the business: no email means no claim
+ * invitation is ever sent, and no national id means no claimant can ever match,
+ * so the real owner is refused their own business. Exported on its own so the
+ * register wizard checks the block with this schema before it leaves the step
+ * that asks for it, rather than restating the rule.
+ */
+export declare const IntendedOwner: z.ZodObject<{
+    name: z.ZodString;
+    nationalId: z.ZodPipeline<z.ZodString, z.ZodPipeline<z.ZodEffects<z.ZodString, string, string>, z.ZodString>>;
+    email: z.ZodString;
+}, "strip", z.ZodTypeAny, {
+    name: string;
+    email: string;
+    nationalId: string;
+}, {
+    name: string;
+    email: string;
+    nationalId: string;
+}>;
+export type IntendedOwner = z.infer<typeof IntendedOwner>;
 export declare const CreateRegistrationRequest: z.ZodEffects<z.ZodObject<{
     role: z.ZodEnum<["host", "landlord", "broker"]>;
     capacity: z.ZodDefault<z.ZodEnum<["owner", "on_behalf_of"]>>;
@@ -1273,19 +1297,19 @@ export declare const CreateRegistrationRequest: z.ZodEffects<z.ZodObject<{
             expiresOn?: string | undefined;
         }[] | undefined;
     }>;
-    /** Captured when `capacity` is `on_behalf_of` (FL02). */
+    /** Captured when `capacity` is `on_behalf_of`. See `IntendedOwner`. */
     intendedOwner: z.ZodOptional<z.ZodObject<{
         name: z.ZodString;
-        nationalId: z.ZodOptional<z.ZodPipeline<z.ZodEffects<z.ZodString, string, string>, z.ZodString>>;
-        email: z.ZodOptional<z.ZodString>;
+        nationalId: z.ZodPipeline<z.ZodString, z.ZodPipeline<z.ZodEffects<z.ZodString, string, string>, z.ZodString>>;
+        email: z.ZodString;
     }, "strip", z.ZodTypeAny, {
         name: string;
-        email?: string | undefined;
-        nationalId?: string | undefined;
+        email: string;
+        nationalId: string;
     }, {
         name: string;
-        email?: string | undefined;
-        nationalId?: string | undefined;
+        email: string;
+        nationalId: string;
     }>>;
 }, "strip", z.ZodTypeAny, {
     business: {
@@ -1367,8 +1391,8 @@ export declare const CreateRegistrationRequest: z.ZodEffects<z.ZodObject<{
     } | undefined;
     intendedOwner?: {
         name: string;
-        email?: string | undefined;
-        nationalId?: string | undefined;
+        email: string;
+        nationalId: string;
     } | undefined;
 }, {
     business: {
@@ -1450,8 +1474,8 @@ export declare const CreateRegistrationRequest: z.ZodEffects<z.ZodObject<{
     capacity?: "owner" | "on_behalf_of" | undefined;
     intendedOwner?: {
         name: string;
-        email?: string | undefined;
-        nationalId?: string | undefined;
+        email: string;
+        nationalId: string;
     } | undefined;
 }>, {
     business: {
@@ -1533,8 +1557,8 @@ export declare const CreateRegistrationRequest: z.ZodEffects<z.ZodObject<{
     } | undefined;
     intendedOwner?: {
         name: string;
-        email?: string | undefined;
-        nationalId?: string | undefined;
+        email: string;
+        nationalId: string;
     } | undefined;
 }, {
     business: {
@@ -1616,8 +1640,8 @@ export declare const CreateRegistrationRequest: z.ZodEffects<z.ZodObject<{
     capacity?: "owner" | "on_behalf_of" | undefined;
     intendedOwner?: {
         name: string;
-        email?: string | undefined;
-        nationalId?: string | undefined;
+        email: string;
+        nationalId: string;
     } | undefined;
 }>;
 export type CreateRegistrationRequest = z.infer<typeof CreateRegistrationRequest>;
@@ -1752,6 +1776,128 @@ export declare const OversightQueueItem: z.ZodObject<{
     blockedBySeparationOfDuties: boolean;
 }>;
 export type OversightQueueItem = z.infer<typeof OversightQueueItem>;
+/**
+ * One decision in an officer's own log: `GET /api/v1/oversight/decisions`
+ * (ADR-049, AC-G6).
+ *
+ * The body and the title are the REVIEW ROW'S OWN COPIES, taken when the
+ * decision was recorded, never re joined from the officer's assignment. A
+ * revoked or re scoped posting must not rewrite a decision already taken, and
+ * this log is the first screen that depends on that.
+ */
+export declare const OversightDecision: z.ZodObject<{
+    reviewId: z.ZodString;
+    orgId: z.ZodString;
+    legalName: z.ZodString;
+    /** The gate decided: `tin_verified` is field verification, `field_verified` approval. */
+    stage: z.ZodEnum<["tin_verified", "field_verified"]>;
+    decision: z.ZodEnum<["passed", "rejected"]>;
+    reasonCode: z.ZodNullable<z.ZodEnum<["tin_not_found", "tin_mismatch", "premises_not_found", "documents_invalid", "documents_expired", "not_operating", "ownership_unclear", "duplicate_business", "other"]>>;
+    notes: z.ZodNullable<z.ZodString>;
+    governmentBodyCode: z.ZodString;
+    governmentTitle: z.ZodNullable<z.ZodString>;
+    decidedAt: z.ZodString;
+}, "strip", z.ZodTypeAny, {
+    legalName: string;
+    orgId: string;
+    decision: "rejected" | "passed";
+    reasonCode: "other" | "tin_not_found" | "tin_mismatch" | "premises_not_found" | "documents_invalid" | "documents_expired" | "not_operating" | "ownership_unclear" | "duplicate_business" | null;
+    decidedAt: string;
+    governmentBodyCode: string;
+    governmentTitle: string | null;
+    stage: "tin_verified" | "field_verified";
+    notes: string | null;
+    reviewId: string;
+}, {
+    legalName: string;
+    orgId: string;
+    decision: "rejected" | "passed";
+    reasonCode: "other" | "tin_not_found" | "tin_mismatch" | "premises_not_found" | "documents_invalid" | "documents_expired" | "not_operating" | "ownership_unclear" | "duplicate_business" | null;
+    decidedAt: string;
+    governmentBodyCode: string;
+    governmentTitle: string | null;
+    stage: "tin_verified" | "field_verified";
+    notes: string | null;
+    reviewId: string;
+}>;
+export type OversightDecision = z.infer<typeof OversightDecision>;
+/** A page of the log, newest first. `nextCursor` is null on the last page. */
+export declare const OversightDecisionPage: z.ZodObject<{
+    items: z.ZodArray<z.ZodObject<{
+        reviewId: z.ZodString;
+        orgId: z.ZodString;
+        legalName: z.ZodString;
+        /** The gate decided: `tin_verified` is field verification, `field_verified` approval. */
+        stage: z.ZodEnum<["tin_verified", "field_verified"]>;
+        decision: z.ZodEnum<["passed", "rejected"]>;
+        reasonCode: z.ZodNullable<z.ZodEnum<["tin_not_found", "tin_mismatch", "premises_not_found", "documents_invalid", "documents_expired", "not_operating", "ownership_unclear", "duplicate_business", "other"]>>;
+        notes: z.ZodNullable<z.ZodString>;
+        governmentBodyCode: z.ZodString;
+        governmentTitle: z.ZodNullable<z.ZodString>;
+        decidedAt: z.ZodString;
+    }, "strip", z.ZodTypeAny, {
+        legalName: string;
+        orgId: string;
+        decision: "rejected" | "passed";
+        reasonCode: "other" | "tin_not_found" | "tin_mismatch" | "premises_not_found" | "documents_invalid" | "documents_expired" | "not_operating" | "ownership_unclear" | "duplicate_business" | null;
+        decidedAt: string;
+        governmentBodyCode: string;
+        governmentTitle: string | null;
+        stage: "tin_verified" | "field_verified";
+        notes: string | null;
+        reviewId: string;
+    }, {
+        legalName: string;
+        orgId: string;
+        decision: "rejected" | "passed";
+        reasonCode: "other" | "tin_not_found" | "tin_mismatch" | "premises_not_found" | "documents_invalid" | "documents_expired" | "not_operating" | "ownership_unclear" | "duplicate_business" | null;
+        decidedAt: string;
+        governmentBodyCode: string;
+        governmentTitle: string | null;
+        stage: "tin_verified" | "field_verified";
+        notes: string | null;
+        reviewId: string;
+    }>, "many">;
+    nextCursor: z.ZodNullable<z.ZodString>;
+}, "strip", z.ZodTypeAny, {
+    items: {
+        legalName: string;
+        orgId: string;
+        decision: "rejected" | "passed";
+        reasonCode: "other" | "tin_not_found" | "tin_mismatch" | "premises_not_found" | "documents_invalid" | "documents_expired" | "not_operating" | "ownership_unclear" | "duplicate_business" | null;
+        decidedAt: string;
+        governmentBodyCode: string;
+        governmentTitle: string | null;
+        stage: "tin_verified" | "field_verified";
+        notes: string | null;
+        reviewId: string;
+    }[];
+    nextCursor: string | null;
+}, {
+    items: {
+        legalName: string;
+        orgId: string;
+        decision: "rejected" | "passed";
+        reasonCode: "other" | "tin_not_found" | "tin_mismatch" | "premises_not_found" | "documents_invalid" | "documents_expired" | "not_operating" | "ownership_unclear" | "duplicate_business" | null;
+        decidedAt: string;
+        governmentBodyCode: string;
+        governmentTitle: string | null;
+        stage: "tin_verified" | "field_verified";
+        notes: string | null;
+        reviewId: string;
+    }[];
+    nextCursor: string | null;
+}>;
+export type OversightDecisionPage = z.infer<typeof OversightDecisionPage>;
+/** The page to read. No cursor is the newest page; a malformed one is too. */
+export declare const OversightDecisionQuery: z.ZodObject<{
+    cursor: z.ZodOptional<z.ZodString>;
+}, "strip", z.ZodTypeAny, {
+    cursor?: string | undefined;
+}, {
+    cursor?: string | undefined;
+}>;
+export type OversightDecisionQuery = z.infer<typeof OversightDecisionQuery>;
 /** What the pending workspace renders: the stage, and what is owed. */
 export declare const RegistrationSummary: z.ZodObject<{
     orgId: z.ZodString;
@@ -1769,6 +1915,20 @@ export declare const RegistrationSummary: z.ZodObject<{
     /** The reviewing officer's own words, when they left any. */
     rejectionNotes: z.ZodNullable<z.ZodString>;
     submittedAt: z.ZodNullable<z.ZodString>;
+    /**
+     * The operator contract this business accepted, and when (ADR-049, AC-R8).
+     *
+     * Read from the server so a registrant who comes back to the wizard resumes
+     * at the right step, never from the browser. Both null until accepted, and
+     * both stay null for a business that paid before acceptance was recorded.
+     */
+    contractVersion: z.ZodNullable<z.ZodString>;
+    contractAcceptedAt: z.ZodNullable<z.ZodString>;
+    /**
+     * Whether payouts wait on the owner's identity being verified (ADR-049,
+     * AC-R1). Null for a business nobody registered on behalf of anyone else.
+     */
+    payoutLocked: z.ZodNullable<z.ZodBoolean>;
 }, "strip", z.ZodTypeAny, {
     status: "pending_payment" | "submitted" | "tin_verified" | "field_verified" | "approved" | "active" | "rejected" | "suspended";
     legalName: string;
@@ -1776,11 +1936,14 @@ export declare const RegistrationSummary: z.ZodObject<{
     accommodationClass: "other" | "hotel" | "motel" | "tented_camp" | "guest_house" | "apartment" | "lodge" | "villa" | "town_hotel" | "vacation_hotel_resort" | "serviced_apartment" | "cottage" | null;
     orgId: string;
     submittedAt: string | null;
+    payoutLocked: boolean | null;
     workspaceId: string;
     invoiceId: string | null;
     amountDueRwf: number | null;
     rejectionReason: "other" | "tin_not_found" | "tin_mismatch" | "premises_not_found" | "documents_invalid" | "documents_expired" | "not_operating" | "ownership_unclear" | "duplicate_business" | null;
     rejectionNotes: string | null;
+    contractVersion: string | null;
+    contractAcceptedAt: string | null;
 }, {
     status: "pending_payment" | "submitted" | "tin_verified" | "field_verified" | "approved" | "active" | "rejected" | "suspended";
     legalName: string;
@@ -1788,13 +1951,86 @@ export declare const RegistrationSummary: z.ZodObject<{
     accommodationClass: "other" | "hotel" | "motel" | "tented_camp" | "guest_house" | "apartment" | "lodge" | "villa" | "town_hotel" | "vacation_hotel_resort" | "serviced_apartment" | "cottage" | null;
     orgId: string;
     submittedAt: string | null;
+    payoutLocked: boolean | null;
     workspaceId: string;
     invoiceId: string | null;
     amountDueRwf: number | null;
     rejectionReason: "other" | "tin_not_found" | "tin_mismatch" | "premises_not_found" | "documents_invalid" | "documents_expired" | "not_operating" | "ownership_unclear" | "duplicate_business" | null;
     rejectionNotes: string | null;
+    contractVersion: string | null;
+    contractAcceptedAt: string | null;
 }>;
 export type RegistrationSummary = z.infer<typeof RegistrationSummary>;
+/**
+ * The operator contract's version: the date its terms last changed (ADR-049).
+ *
+ * The document is rendered from code, so the version lives in code too. A
+ * version stored anywhere else can drift from the document it names. Change
+ * this in the same commit as the clause copy, and only then.
+ */
+export declare const OPERATOR_CONTRACT_VERSION = "2026-09-12";
+/**
+ * `POST /api/v1/registrations/:id/contract`. The version the page rendered.
+ *
+ * The server refuses anything but `OPERATOR_CONTRACT_VERSION` and stores the
+ * constant, never this value, so a stale tab cannot bind anyone to old terms.
+ */
+export declare const AcceptContractRequest: z.ZodObject<{
+    contractVersion: z.ZodString;
+}, "strip", z.ZodTypeAny, {
+    contractVersion: string;
+}, {
+    contractVersion: string;
+}>;
+export type AcceptContractRequest = z.infer<typeof AcceptContractRequest>;
+/**
+ * Why a registrant action on the contract or the fee was refused (409).
+ *
+ * `contract_not_accepted` is pay's refusal, `contract_not_open` and
+ * `contract_version_stale` are accept's. Sent as `code` on the error body so a
+ * page can word the refusal without matching on English.
+ */
+export declare const RegistrationConflictCode: z.ZodEnum<["contract_not_accepted", "contract_not_open", "contract_version_stale"]>;
+export type RegistrationConflictCode = z.infer<typeof RegistrationConflictCode>;
+/**
+ * `POST /api/v1/orgs/:orgId/claim/preview` and `/claim`. The token from the
+ * invitation mail, in the body so it never lands in the API's access log.
+ */
+export declare const ClaimOrgRequest: z.ZodObject<{
+    token: z.ZodString;
+}, "strip", z.ZodTypeAny, {
+    token: string;
+}, {
+    token: string;
+}>;
+export type ClaimOrgRequest = z.infer<typeof ClaimOrgRequest>;
+/**
+ * What `/claim-org` shows before the owner commits.
+ *
+ * Only what the invitation mail already told whoever holds the token: the
+ * business, where it is, where it got to and who registered it. Never the
+ * national id, an email or the TIN.
+ */
+export declare const ClaimPreview: z.ZodObject<{
+    orgId: z.ZodString;
+    legalName: z.ZodString;
+    districtName: z.ZodNullable<z.ZodString>;
+    registrationStatus: z.ZodEnum<["pending_payment", "submitted", "tin_verified", "field_verified", "approved", "active", "rejected", "suspended"]>;
+    registrantName: z.ZodNullable<z.ZodString>;
+}, "strip", z.ZodTypeAny, {
+    districtName: string | null;
+    legalName: string;
+    registrationStatus: "pending_payment" | "submitted" | "tin_verified" | "field_verified" | "approved" | "active" | "rejected" | "suspended";
+    orgId: string;
+    registrantName: string | null;
+}, {
+    districtName: string | null;
+    legalName: string;
+    registrationStatus: "pending_payment" | "submitted" | "tin_verified" | "field_verified" | "approved" | "active" | "rejected" | "suspended";
+    orgId: string;
+    registrantName: string | null;
+}>;
+export type ClaimPreview = z.infer<typeof ClaimPreview>;
 /** The fee a registrant is quoted, read from the effective-dated catalog. */
 export declare const RegistrationFeeQuote: z.ZodObject<{
     businessType: z.ZodEnum<["hospitality", "residence", "broker"]>;

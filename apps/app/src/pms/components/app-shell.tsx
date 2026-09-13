@@ -4,9 +4,10 @@
  * The operator shell: the floating panel on a tinted canvas gutter that carries
  * the Injishi identity (blueprint §1.8 — keep the skin, fix the IA).
  *
- * A housekeeper is a different user on a different device, so `role=housekeeper`
- * renders the phone PWA instead of the desktop shell (blueprint §3.3). Everyone
- * else gets sidebar + topbar + the screen.
+ * A housekeeper is a different user on a different device, so a grant shaped
+ * like one (room status and no front desk power, `opensOnPhoneSurface`) renders
+ * the phone PWA instead of the desktop shell (blueprint §3.3). No role name
+ * decides it (ADR-049, AC-A1). Everyone else gets sidebar + topbar + the screen.
  */
 
 import Link from "next/link";
@@ -14,7 +15,7 @@ import { usePathname } from "next/navigation";
 import { Button, Toaster } from "@injishi/ui";
 import { useEffect, useMemo, type ReactNode } from "react";
 import { useWorkspaceId } from "../data/capability";
-import { allowedSegments, navFor, workspaceHome } from "../lib/nav";
+import { allowedSegments, navFor, opensOnPhoneSurface, workspaceHome } from "../lib/nav";
 import { navContextOf } from "../lib/nav-context";
 import { usePms } from "../store";
 import { usePmsUi } from "../ui-store";
@@ -136,8 +137,20 @@ export function AppShell({ title, children }: { title: string; children: ReactNo
     setNavOpen(false);
   }, [pathname, setNavOpen]);
 
+  // Route-access authz: a grant may open only the screens its own nav grants.
+  // This is the enforcement behind the nav hiding — a receptionist typing
+  // /host/revenue is refused, not just un-linked.
+  // Built once per store change. `navFor` walks every reservation, room,
+  // ticket, order and thread for its count pills, and this shell re-renders on
+  // every pathname and drawer change, none of which move a count. Computed
+  // before the phone surface's early return, so the hooks run in the same order
+  // on every render whichever surface a grant opens.
+  const navContext = useMemo(() => navContextOf(pms, workspaceId), [pms, workspaceId]);
+  const sections = useMemo(() => navFor(navContext), [navContext]);
+  const allowed = useMemo(() => allowedSegments(sections), [sections]);
+
   // The housekeeper surface is its own thing — no desktop chrome.
-  if (state.ws === "host" && state.role === "housekeeper") {
+  if (opensOnPhoneSurface(navContext)) {
     return (
       <div className="pms-root">
         <HousekeeperPhone />
@@ -146,14 +159,6 @@ export function AppShell({ title, children }: { title: string; children: ReactNo
     );
   }
 
-  // Route-access authz: a role may open only the screens its own nav grants.
-  // This is the enforcement behind the nav hiding — a receptionist typing
-  // /host/revenue is refused, not just un-linked.
-  // Built once per store change. `navFor` walks every reservation, room,
-  // ticket, order and thread for its count pills, and this shell re-renders on
-  // every pathname and drawer change, none of which move a count.
-  const sections = useMemo(() => navFor(navContextOf(pms, workspaceId)), [pms, workspaceId]);
-  const allowed = useMemo(() => allowedSegments(sections), [sections]);
   // The screen segment. Every route this app serves is `/w/<id>/<seg>` now
   // (ADR-018, AC-1), so the segment always sits at the same depth.
   const parts = pathname.split("/").filter(Boolean);

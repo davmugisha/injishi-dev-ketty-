@@ -5,7 +5,7 @@ import { apiGet, type ApiResult, type PageQuery } from "./server";
 /**
  * Announcements (F-A13) — `GET /api/v1/admin/announcements`.
  *
- * P: `admin.announcement.publish`. Drafts and published notices arrive in the
+ * P: `admin.announcement.view`. Drafts and published notices arrive in the
  * same list, separated by `state`, so nobody can publish something twice by
  * looking at the wrong screen.
  *

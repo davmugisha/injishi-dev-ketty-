@@ -38,7 +38,8 @@ const {
   workspaceAllows,
   isOperational,
   oversightConsoleFor,
-  withinScope,
+  districtScopeOf,
+  scopeCoversDistrict,
   violatesSeparationOfDuties,
   mayElevate,
 } = authz;
@@ -265,36 +266,54 @@ describe("every refusal can be worded", () => {
   });
 });
 
-describe("oversight scope is a boundary", () => {
-  test("a country grant reaches everywhere", () => {
+describe("oversight scope is a boundary, stated once (ADR-049, AC-G8)", () => {
+  // Two provinces, as `districts` would be read: 1 holds 101 and 102, 2 holds 201.
+  const PROVINCES = new Map([[1, [101, 102]], [2, [201]]]);
+  const reach = (grants, districtId) =>
+    scopeCoversDistrict(districtScopeOf(grants, PROVINCES), districtId);
+
+  test("a country grant reaches everywhere, as no predicate rather than an empty list", () => {
     const grant = { scopeLevel: "country", provinceId: null, districtId: null };
-    assert.equal(withinScope(grant, { provinceId: 1, districtId: 101 }), true);
-    assert.equal(withinScope(grant, { provinceId: 5, districtId: 999 }), true);
+    assert.equal(districtScopeOf([grant], PROVINCES), null);
+    assert.equal(reach([grant], 101), true);
+    assert.equal(reach([grant], 999), true);
+    assert.equal(reach([grant], null), true);
   });
 
   test("a district grant reaches its district and no other", () => {
     const grant = { scopeLevel: "district", provinceId: null, districtId: 101 };
-    assert.equal(withinScope(grant, { provinceId: null, districtId: 101 }), true);
-    assert.equal(withinScope(grant, { provinceId: null, districtId: 102 }), false);
+    assert.deepEqual(districtScopeOf([grant], PROVINCES), [101]);
+    assert.equal(reach([grant], 101), true);
+    assert.equal(reach([grant], 102), false);
   });
 
-  test("a province grant reaches its province and no other", () => {
+  test("a province grant reaches its districts and no other", () => {
     const grant = { scopeLevel: "province", provinceId: 1, districtId: null };
-    assert.equal(withinScope(grant, { provinceId: 1, districtId: 101 }), true);
-    assert.equal(withinScope(grant, { provinceId: 2, districtId: 201 }), false);
+    assert.deepEqual(districtScopeOf([grant], PROVINCES), [101, 102]);
+    assert.equal(reach([grant], 102), true);
+    assert.equal(reach([grant], 201), false);
   });
 
-  test("a grant with no id of its own reaches nothing", () => {
+  test("several grants are the union of their districts", () => {
+    const grants = [
+      { scopeLevel: "district", provinceId: null, districtId: 201 },
+      { scopeLevel: "province", provinceId: 1, districtId: null },
+    ];
+    assert.deepEqual(districtScopeOf(grants, PROVINCES), [101, 102, 201]);
+  });
+
+  test("a grant with no id of its own reaches nothing, and a business with no district is inside only a country scope", () => {
     // null === null must not read as a match, or an unscoped grant would
     // silently become a national one.
-    assert.equal(
-      withinScope({ scopeLevel: "district", provinceId: null, districtId: null }, { provinceId: null, districtId: null }),
-      false,
+    assert.deepEqual(
+      districtScopeOf([{ scopeLevel: "district", provinceId: null, districtId: null }], PROVINCES),
+      [],
     );
-    assert.equal(
-      withinScope({ scopeLevel: "province", provinceId: null, districtId: null }, { provinceId: null, districtId: null }),
-      false,
+    assert.deepEqual(
+      districtScopeOf([{ scopeLevel: "province", provinceId: null, districtId: null }], PROVINCES),
+      [],
     );
+    assert.equal(scopeCoversDistrict([101], null), false);
   });
 
   test("each oversight role opens exactly one console", () => {

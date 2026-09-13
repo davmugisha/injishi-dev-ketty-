@@ -11,6 +11,7 @@ import { BookingGuestPicker } from "@/components/property/booking-guest-picker";
 import { StayDatePicker } from "@/components/search/stay-date-picker";
 import { computeQuote } from "@/lib/booking";
 import {
+  billableGuests,
   bookHref,
   isDated,
   parseIntent,
@@ -24,7 +25,12 @@ import {
   rangeProblem,
   type BookingCalendar,
 } from "@/data/availability";
-import { fetchPropertyRooms, type PropertyRooms } from "@/data/property-rooms";
+import {
+  fetchPropertyRooms,
+  largestParty,
+  roomForParty,
+  type PropertyRooms,
+} from "@/data/property-rooms";
 import type { ApiResult } from "@/lib/api";
 import type { PropertyDetail } from "@/data/properties";
 
@@ -52,7 +58,16 @@ import type { PropertyDetail } from "@/data/properties";
  * but a greyed-out button reads as breakage; instead the button stays live and
  * opens the picker that unblocks it.
  */
-export function BookingWidget({ property }: { property: PropertyDetail }) {
+/**
+ * The three facts the card reads about a property, and no more.
+ *
+ * Narrow on purpose, so a published database property (ADR-049) can be sold from
+ * the same card as a catalogue record: its slug addresses the real rooms, it has
+ * no rack rate to quote, and its guest ceiling is its largest room type.
+ */
+export type BookingWidgetProperty = Pick<PropertyDetail, "slug" | "nightlyRateRwf" | "maxGuests">;
+
+export function BookingWidget({ property }: { property: BookingWidgetProperty }) {
   const params = useSearchParams();
   const arrived = useMemo(() => parseIntent(params), [params]);
 
@@ -88,13 +103,18 @@ export function BookingWidget({ property }: { property: PropertyDetail }) {
    * The real inventory behind this page, or the honest absence of it.
    *
    * Read in the browser rather than on the server so this page stays statically
-   * generated — the same reason `useSearchParams` is used above. A 404 is the
-   * ordinary answer for most of the catalogue and is not a failure state: it
-   * means this business has not published rooms on Injishi.
+   * generated — the same reason `useSearchParams` is used above. A 404 means
+   * the API holds no public property at this slug; a failed read means we
+   * could not ask, and the two are worded apart below.
+   *
+   * `attempt` is the retry: bumping it re-runs the read without a reload, so a
+   * guest who met a blip keeps the dates and party they had already chosen.
    */
   const [rooms, setRooms] = useState<ApiResult<PropertyRooms> | null>(null);
+  const [attempt, setAttempt] = useState(0);
   useEffect(() => {
     let cancelled = false;
+    setRooms(null);
     void (async () => {
       const result = await fetchPropertyRooms(property.slug);
       if (!cancelled) setRooms(result);
@@ -102,10 +122,28 @@ export function BookingWidget({ property }: { property: PropertyDetail }) {
     return () => {
       cancelled = true;
     };
-  }, [property.slug]);
+  }, [property.slug, attempt]);
 
-  const bookable = rooms?.status === "ok" ? rooms.data.bookable : null;
+  const sellable = rooms?.status === "ok" ? rooms.data.sellable : [];
+  /** The API answered and holds nothing a guest can buy here. */
+  const notSold =
+    (rooms?.status === "ok" && sellable.length === 0) ||
+    (rooms?.status === "refused" && rooms.httpStatus === 404);
+  /** We could not ask. Never worded as `notSold`. */
+  const unreadable = rooms !== null && rooms.status !== "ok" && !notSold;
+
+  const party = billableGuests(guests);
+  const bookable = roomForParty(sellable, party);
   const bookableRoomTypeId = bookable?.id ?? null;
+  /*
+   * The picker's ceiling is what the rooms take once they are known, so a guest
+   * cannot choose a party checkout will refuse. Until then it is the property's
+   * own figure, which is all there is to go on.
+   */
+  const ceiling = largestParty(sellable);
+  const maxGuests = sellable.length > 0 ? (ceiling ?? property.maxGuests) : property.maxGuests;
+  /** Rooms are on sale, but none sleeps this many. The guest can fix this one. */
+  const partyTooLarge = sellable.length > 0 && bookable === null;
 
   /*
    * What is left to sell (ADR-047 wave E).
@@ -141,8 +179,9 @@ export function BookingWidget({ property }: { property: PropertyDetail }) {
    * quoting the other one is how a preview comes to disagree with a charge —
    * the exact defect `lib/booking.ts` exists to prevent one layer down.
    */
-  const quotedRateRwf = bookable?.nightlyRateRwf ?? property.nightlyRateRwf;
-  const showingRackRate = bookable === null && property.nightlyRateRwf !== null;
+  const quotedRateRwf =
+    (bookable ?? sellable[0] ?? null)?.nightlyRateRwf ?? property.nightlyRateRwf;
+  const showingRackRate = notSold && property.nightlyRateRwf !== null;
 
   const quote = useMemo(
     () =>
@@ -277,7 +316,7 @@ export function BookingWidget({ property }: { property: PropertyDetail }) {
                 guests={guests}
                 onChange={setGuests}
                 onClose={() => setGuestsOpen(false)}
-                maxGuests={property.maxGuests}
+                maxGuests={maxGuests}
               />
             </PopoverContent>
           </Popover>
@@ -299,17 +338,28 @@ export function BookingWidget({ property }: { property: PropertyDetail }) {
           mode is finally named.
         */}
         {/*
-          Three states, not two, because "we have no rooms here" and "you have
-          not picked dates" are different problems and only one of them is the
-          guest's to fix. The primary action is still never disabled where the
-          guest CAN act — a greyed-out button reads as breakage — but a property
-          Injishi does not sell gets a truthful sentence instead of a button
-          that opens a date picker leading nowhere.
+          The states are kept apart because they are different problems, and
+          most of them are the guest's to fix: dates, a party no room sleeps, a
+          read that failed. Each of those keeps a live button that fixes it — a
+          greyed-out button reads as breakage. Only a property the API really
+          holds nothing to sell for gets a sentence instead of a button, and an
+          outage is never worded as that: it used to be, so a blip in the API
+          told a guest the property was closed.
         */}
-        {/* The reason a chosen range cannot be booked, where the guest chose it. */}
+        {/* The reason a chosen range or party cannot be booked, where the guest chose it. */}
         {dateProblem ? (
           <p role="alert" className="mt-4 text-sm text-danger-text">
             {dateProblem}
+          </p>
+        ) : partyTooLarge ? (
+          <p role="alert" className="mt-4 text-sm text-danger-text">
+            No room here sleeps {party}. The largest takes {pluralize(maxGuests, "guest")},
+            not counting infants.
+          </p>
+        ) : unreadable ? (
+          <p role="alert" className="mt-4 text-sm text-danger-text">
+            We couldn&apos;t load the rooms for this stay just now. Your dates and
+            guests are kept.
           </p>
         ) : null}
 
@@ -325,11 +375,27 @@ export function BookingWidget({ property }: { property: PropertyDetail }) {
           >
             Pick different dates
           </Button>
-        ) : rooms !== null && bookable === null ? (
+        ) : partyTooLarge ? (
+          <Button
+            size="lg"
+            className="mt-4 h-12 w-full rounded text-base"
+            onClick={() => setGuestsOpen(true)}
+          >
+            Change guests
+          </Button>
+        ) : unreadable ? (
+          <Button
+            size="lg"
+            className="mt-4 h-12 w-full rounded text-base"
+            onClick={() => setAttempt((n) => n + 1)}
+          >
+            Try again
+          </Button>
+        ) : notSold ? (
           <p className="mt-4 rounded border border-input p-3 text-center text-sm text-page-fg">
-            Not open for online booking yet.{" "}
+            This stay can&apos;t be booked online right now.{" "}
             <Link href="/support" className="underline underline-offset-4">
-              Ask us about this stay
+              Ask us about it
             </Link>
           </p>
         ) : (

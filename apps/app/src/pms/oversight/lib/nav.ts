@@ -70,7 +70,10 @@ export function oversightNav(officer: Officer, O: OversightData): NavSection[] {
           label: "Decision log",
           icon: "scroll-text",
           href: `${base}/log`,
-          count: O.decisions.length || null,
+          // No pill. The log is paged, so a count of the rows loaded would read
+          // "25" to an officer with sixty decisions, and a record of what was
+          // done is not work waiting on anyone (ADR-049).
+          count: null,
         },
       ],
     },

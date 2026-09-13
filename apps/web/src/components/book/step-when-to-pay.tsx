@@ -72,7 +72,8 @@ export function StepWhenToPay({
           <Checkbox
             isSelected={nonRefundable}
             onChange={onToggleNonRefundable}
-            className="flex cursor-pointer items-start gap-3 text-sm text-page-fg"
+            className="flex w-full items-start gap-3 text-sm font-normal text-page-fg"
+            controlClassName="mt-0.5"
           >
             <span>
               Non-refundable rate

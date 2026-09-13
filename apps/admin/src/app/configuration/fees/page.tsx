@@ -8,21 +8,22 @@ import {
   presentRegistrationFeeRow,
   presentSubscriptionPlan,
 } from "@/lib/present/configuration";
+import { FeeAppend } from "./fee-append";
 import { FeeSchedule } from "./fee-schedule";
 
 export const metadata = { title: "Registration fees" };
 
 /** The permission `GET /api/v1/admin/configuration/fees` declares. */
-const PERMISSION = "admin.fee.edit";
+const PERMISSION = "admin.config.view";
 
 /**
  * Configuration → Fee schedule (F-A07 / F-A10).
  *
  * A page of its own rather than a fourth block on the Configuration overview:
- * this is the money schedule and it sits behind `admin.fee.edit`, a different
- * permission from the `admin.config.edit` that opens the flags. Changing what a
- * registration costs is not the same power as flipping a flag, so the console
- * does not offer them together.
+ * this is the money schedule. Reading it is `admin.config.view`, which every
+ * staff role holds (ADR-049); CHANGING it is `admin.fee.edit`, a different power
+ * from the `admin.config.edit` that changes the flags, so the console does not
+ * offer the two together.
  *
  * IT IS PRICED BY BUSINESS TYPE, not by accommodation class. The screen this
  * replaces said otherwise and priced ten hotel-and-guest-house tiles, which is
@@ -69,6 +70,10 @@ export default async function Page() {
               a superseded row stays beside the one that replaced it.
             </p>
           </section>
+
+          <div className="mt-6">
+            <FeeAppend />
+          </div>
 
           <div className="mt-6">
             <FeeSchedule

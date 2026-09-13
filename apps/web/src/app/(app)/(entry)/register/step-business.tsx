@@ -44,8 +44,13 @@ export interface BusinessDraft {
   tin: string;
   upi: string;
   tourismLicenseNumber: string;
-  chamberOfTourismMember: boolean;
-  psfMember: boolean;
+  /**
+   * `null` until answered (ADR-026 assumption 5, AC-6). An unanswered question
+   * and an answered No are different acts, and the answer goes to an officer who
+   * checks it, so neither may start as No.
+   */
+  chamberOfTourismMember: boolean | null;
+  psfMember: boolean | null;
   eacStarGrade: string;
   address: AddressDraft;
 }
@@ -237,6 +242,7 @@ export function StepBusiness({
                   legend="Are you a member of the Chamber of Tourism?"
                   hint="The tourism chamber of the Private Sector Federation."
                   value={draft.chamberOfTourismMember}
+                  error={errors["business.chamberOfTourismMember"]}
                   onChange={(v) =>
                     onChange({ ...draft, chamberOfTourismMember: v })
                   }
@@ -246,6 +252,7 @@ export function StepBusiness({
                   legend="Are you a member of the Private Sector Federation (PSF)?"
                   hint="Rwanda's private sector body. Not the same as the tourism chamber above."
                   value={draft.psfMember}
+                  error={errors["business.psfMember"]}
                   onChange={(v) => onChange({ ...draft, psfMember: v })}
                 />
               </div>

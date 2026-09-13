@@ -1,19 +1,24 @@
 import type {
   CreateRegistrationRequest,
   OrgRegistrationStatus,
+  OversightDecisionPage,
   OversightGrant,
   OversightQueueItem,
   OversightRole,
   RegistrationBusinessType,
+  RegistrationConflictCode,
   RegistrationFeeQuote,
   RegistrationRejectionReason,
   RegistrationSummary,
 } from '@injishi/contracts';
 import {
+  OPERATOR_CONTRACT_VERSION,
   SEPARATION_OF_DUTIES_MESSAGE,
   businessTypeFor,
+  OVERSIGHT_OWN_BUSINESS_MESSAGE,
+  districtScopeOf,
+  scopeCoversDistrict,
   violatesSeparationOfDuties,
-  withinScope,
 } from '@injishi/contracts';
 import {
   BadRequestException,
@@ -33,6 +38,9 @@ import {
   MissingFeeError,
   OrganizationRepository,
 } from '../infrastructure/organization.repository';
+import { ClaimInvitationMailer } from '../infrastructure/claim-invitation.mailer';
+import { SYSTEM_MOVER } from '../infrastructure/registration-events';
+import { tinRecheckDue, tinRecheckStalled } from '../domain/tin-recheck';
 import { RraTinAdapter } from '../infrastructure/rra-tin.adapter';
 import { ProfileService } from '../../user/application/profile.service';
 
@@ -69,6 +77,7 @@ export class RegistrationService {
     private readonly orgs: OrganizationRepository,
     private readonly tin: RraTinAdapter,
     private readonly profiles: ProfileService,
+    private readonly claimMailer: ClaimInvitationMailer,
   ) {}
 
   /** What this registration will cost, before anyone commits to it. */
@@ -161,13 +170,14 @@ export class RegistrationService {
         // FL02: an OBO registration is held by the registrant and payout-locked
         // until the intended owner claims it. Captured here or it is captured
         // nowhere — the contract validates the block and nothing else read it.
+        // The contract requires all three (ADR-049 J25), so a registration
+        // created here can always be invited and always be matched.
         obo:
           request.capacity === 'on_behalf_of' && request.intendedOwner
             ? {
                 intendedOwnerName: request.intendedOwner.name,
-                intendedOwnerNationalId:
-                  request.intendedOwner.nationalId ?? null,
-                intendedOwnerEmail: request.intendedOwner.email ?? null,
+                intendedOwnerNationalId: request.intendedOwner.nationalId,
+                intendedOwnerEmail: request.intendedOwner.email,
               }
             : null,
         certificates: b.certificates.map((c) => ({
@@ -180,6 +190,21 @@ export class RegistrationService {
           expiresOn: c.expiresOn ?? null,
         })),
       });
+
+      // Mailed AFTER the create transaction committed (ADR-049), so a relay
+      // failing cannot undo a registration that already exists. `send` never
+      // throws; a failure is logged and the invitation row stands.
+      if (created.claimInvitation) {
+        await this.claimMailer.send({
+          orgId: created.orgId,
+          email: created.claimInvitation.email,
+          token: created.claimInvitation.token,
+          expiresAt: created.claimInvitation.expiresAt,
+          legalName: b.legalName,
+          intendedOwnerName: created.claimInvitation.intendedOwnerName,
+          registrantName: await this.orgs.displayNameFor(registrantUserId),
+        });
+      }
 
       return {
         orgId: created.orgId,
@@ -194,6 +219,10 @@ export class RegistrationService {
         rejectionReason: null,
         rejectionNotes: null,
         submittedAt: null,
+        contractVersion: null,
+        contractAcceptedAt: null,
+        // An OBO registration is born locked (FL02); nobody else's is.
+        payoutLocked: created.obo ? true : null,
       };
     } catch (err) {
       if (err instanceof DuplicateTinError) {
@@ -216,21 +245,93 @@ export class RegistrationService {
    * the RRA call that follows is the only part that can be slow or fail, and
    * failing it leaves the org safely at `submitted` for a retry.
    */
-  async settleFeeAndVerify(orgId: string): Promise<RegistrationSummary> {
+  async settleFeeAndVerify(
+    orgId: string,
+    actorUserId: string,
+  ): Promise<RegistrationSummary> {
     const before = await this.orgs.findById(orgId);
     if (!before) throw new NotFoundException('Registration not found.');
 
     if (awaitsRegistrationFee(before.status)) {
-      const settled = await this.orgs.settleRegistrationFee(orgId);
+      const settled = await this.orgs.settleRegistrationFee(orgId, actorUserId);
       if (!settled) {
-        // Lost the race to a concurrent callback. Not an error: the org has
-        // already moved on, and re-reading is the honest answer.
+        // Two reasons a settle writes nothing, and they need opposite answers.
+        // Still at `pending_payment` with no contract is the refusal (ADR-049,
+        // AC-R13), read AFTER the attempt so an accept that landed in between is
+        // honoured rather than refused. Anything else lost the race to a
+        // concurrent callback, which is not an error: re-reading is the answer.
+        const after = await this.orgs.findById(orgId);
+        if (
+          after &&
+          awaitsRegistrationFee(after.status) &&
+          after.contractVersion === null
+        ) {
+          throw new ConflictException({
+            code: 'contract_not_accepted' satisfies RegistrationConflictCode,
+            message:
+              'Accept the operator contract before paying the registration fee.',
+          });
+        }
         this.log.log(`Registration fee for ${orgId} was already settled.`);
       }
       await this.runTinCheck(orgId);
     }
 
     return this.summary(orgId);
+  }
+
+  /**
+   * Accept the operator contract, between creating the business and paying for
+   * it (ADR-049, AC-R8).
+   *
+   * Refusals run in a fixed order so two that apply at once always answer the
+   * same way: not a member (404), past `pending_payment` (409
+   * `contract_not_open`), then a version that is not the current document (409
+   * `contract_version_stale`). The stored version is always the constant, never
+   * the request's, so the request can only ever confirm it.
+   *
+   * Accepting twice returns the first acceptance unchanged.
+   */
+  async acceptContract(
+    orgId: string,
+    actorUserId: string,
+    contractVersion: string,
+  ): Promise<RegistrationSummary> {
+    await this.assertOwns(orgId, actorUserId);
+    const org = await this.orgs.findById(orgId);
+    if (!org) throw new NotFoundException('Registration not found.');
+
+    if (!awaitsRegistrationFee(org.status)) {
+      throw this.contractNotOpen();
+    }
+    if (contractVersion !== OPERATOR_CONTRACT_VERSION) {
+      throw new ConflictException({
+        code: 'contract_version_stale' satisfies RegistrationConflictCode,
+        message:
+          'The contract has changed since this page loaded. Reload it and read the current terms.',
+      });
+    }
+
+    const wrote = await this.orgs.acceptContract({
+      orgId,
+      userId: actorUserId,
+      contractVersion: OPERATOR_CONTRACT_VERSION,
+    });
+    if (!wrote) {
+      // Either it was already accepted, which is the idempotent answer, or the
+      // business moved past `pending_payment` between the read and the write.
+      const now = await this.orgs.findById(orgId);
+      if (!now?.contractVersion) throw this.contractNotOpen();
+    }
+    return this.summary(orgId);
+  }
+
+  private contractNotOpen(): ConflictException {
+    return new ConflictException({
+      code: 'contract_not_open' satisfies RegistrationConflictCode,
+      message:
+        'The contract is accepted while the registration fee is still owed, and this registration is past that step.',
+    });
   }
 
   /**
@@ -249,7 +350,7 @@ export class RegistrationService {
       // A residence has no TIN to check, so the automatic gate does not apply
       // and it goes straight to the human ones.
       const to = nextStatus('submitted', 'tin_verified');
-      if (to) await this.orgs.advance(orgId, 'submitted', to);
+      if (to) await this.orgs.advance(orgId, 'submitted', to, SYSTEM_MOVER);
       return;
     }
 
@@ -265,17 +366,60 @@ export class RegistrationService {
 
     if (outcome.result === 'verified') {
       const to = nextStatus('submitted', 'tin_verified');
-      if (to) await this.orgs.advance(orgId, 'submitted', to);
+      if (to) await this.orgs.advance(orgId, 'submitted', to, SYSTEM_MOVER);
       return;
     }
     if (outcome.result === 'failed') {
       const to = nextStatus('submitted', 'rejected');
-      if (to) await this.orgs.advance(orgId, 'submitted', to);
+      if (to) await this.orgs.advance(orgId, 'submitted', to, SYSTEM_MOVER);
       return;
     }
     // `pending` is RRA being unreachable, never a rejection. The org holds at
     // `submitted` and is retried; telling a real business it failed a check
     // that never ran would be the worse error (F-S03 §8).
+  }
+
+  /**
+   * Try again every business whose RRA check came back unanswered and is due
+   * (ADR-049, AC-R5). Called by the repeatable sweep, never by a request.
+   *
+   * Each attempt goes through `runTinCheck`, the same path submission takes, so
+   * a retry writes its own `tin_verifications` row and, on an answer, moves the
+   * business with a `system` event exactly as the first attempt would have.
+   *
+   * At the ceiling nothing happens here, on purpose. The business stays at
+   * `submitted` and admin's review queue flags it stalled, because the ceiling
+   * is where a human decides. It is never auto rejected.
+   *
+   * One business failing does not stop the rest: an adapter that throws for one
+   * TIN is not a reason to leave every other paying business waiting.
+   */
+  async recheckPendingTins(
+    now: Date = new Date(),
+  ): Promise<{ due: number; rechecked: number; stalled: number }> {
+    const pending = await this.orgs.pendingTinRechecks();
+    let due = 0;
+    let rechecked = 0;
+    let stalled = 0;
+
+    for (const org of pending) {
+      if (tinRecheckStalled(org.attempts)) {
+        stalled += 1;
+        continue;
+      }
+      if (!tinRecheckDue(org.attempts, org.lastCheckedAt, now)) continue;
+      due += 1;
+      try {
+        await this.runTinCheck(org.orgId);
+        rechecked += 1;
+      } catch (error) {
+        this.log.error(
+          `TIN recheck failed for ${org.orgId}: ${(error as Error).message}`,
+        );
+      }
+    }
+
+    return { due, rechecked, stalled };
   }
 
   /** What the pending workspace renders. */
@@ -290,6 +434,7 @@ export class RegistrationService {
     // off for something they have already corrected.
     const rejection =
       org.status === 'rejected' ? await this.orgs.latestRejection(orgId) : null;
+    const payoutLocked = await this.orgs.payoutLockedFor(orgId);
     return {
       orgId: org.id,
       workspaceId: org.workspaceId,
@@ -307,6 +452,9 @@ export class RegistrationService {
       rejectionReason: rejection?.reasonCode ?? null,
       rejectionNotes: rejection?.notes ?? null,
       submittedAt: org.createdAt.toISOString(),
+      contractVersion: org.contractVersion,
+      contractAcceptedAt: org.contractAcceptedAt?.toISOString() ?? null,
+      payoutLocked,
     };
   }
 
@@ -327,6 +475,8 @@ export class RegistrationService {
     const stage = STAGE_FOR_ROLE[role];
     if (!stage) return [];
 
+    // The one definition of region scope (ADR-049, AC-G8): the list reads the
+    // same district set the single record gate below asks about.
     const districtIds = await this.districtScopeFor(grants);
     const rows = await this.orgs.findQueue({ stage, districtIds });
 
@@ -372,7 +522,7 @@ export class RegistrationService {
     grants: OversightGrant[],
     notes: string | null,
   ): Promise<RegistrationSummary> {
-    const grant = await this.grantCovering(orgId, grants);
+    const grant = await this.grantCovering(orgId, grants, actorUserId);
     await this.decide({
       orgId,
       stage: 'tin_verified',
@@ -401,7 +551,7 @@ export class RegistrationService {
     grants: OversightGrant[],
     notes: string | null,
   ): Promise<RegistrationSummary> {
-    const grant = await this.grantCovering(orgId, grants);
+    const grant = await this.grantCovering(orgId, grants, actorUserId);
 
     // Separation of duties, re-checked HERE and not only at grant time: an
     // officer can legitimately hold both functions in different scopes, so the
@@ -445,7 +595,7 @@ export class RegistrationService {
     reasonCode: RegistrationRejectionReason,
     notes: string | null,
   ): Promise<RegistrationSummary> {
-    const grant = await this.grantCovering(orgId, grants);
+    const grant = await this.grantCovering(orgId, grants, actorUserId);
     const stage = STAGE_FOR_ROLE[grant.oversightRole];
     if (!stage) {
       throw new ForbiddenException('That console does not decide registrations.');
@@ -481,7 +631,10 @@ export class RegistrationService {
         'Only a rejected registration can be resubmitted.',
       );
     }
-    const moved = await this.orgs.advance(orgId, org.status, to);
+    const moved = await this.orgs.advance(orgId, org.status, to, {
+      trigger: 'registrant',
+      actorUserId,
+    });
     if (moved) await this.runTinCheck(orgId);
     return this.summary(orgId);
   }
@@ -505,19 +658,36 @@ export class RegistrationService {
   private async grantCovering(
     orgId: string,
     grants: OversightGrant[],
+    actorUserId: string,
   ): Promise<OversightGrant> {
     const org = await this.orgs.findById(orgId);
     if (!org) throw new NotFoundException('Registration not found.');
 
-    const districtId = org.districtId;
-    const provinceId =
-      districtId === null
-        ? null
-        : await this.orgs.provinceIdForDistrict(districtId);
+    // Conflict of interest, the act-time half (ADR-049, AC-G3). Checked BEFORE
+    // scope, because an officer gating their own business is a worse answer than
+    // one gating a business in the wrong district, and it is refused whatever
+    // their region: the objection is the interest, not the geography.
+    //
+    // The grant-time check cannot cover this direction. A person appointed first
+    // can be added to a business afterwards, and nothing revisits their grant when
+    // that happens.
+    if (await this.orgs.holdsOrgRole(orgId, actorUserId)) {
+      throw new ForbiddenException(OVERSIGHT_OWN_BUSINESS_MESSAGE);
+    }
 
-    const covering = grants.find((g) =>
-      withinScope(g, { provinceId, districtId }),
-    );
+    // The SAME set the queue lists from (ADR-049, AC-G8), asked of one business.
+    // The gate is the whole set; the covering grant is the one whose own share of
+    // that set holds the district, and it is only needed for the body and title
+    // the review row copies.
+    const provinces = await this.provinceDistrictsFor(grants);
+    const covering = scopeCoversDistrict(
+      districtScopeOf(grants, provinces),
+      org.districtId,
+    )
+      ? grants.find((g) =>
+          scopeCoversDistrict(districtScopeOf([g], provinces), org.districtId),
+        )
+      : undefined;
     if (!covering) {
       throw new ForbiddenException(
         'That business is outside the region you are assigned to.',
@@ -572,27 +742,90 @@ export class RegistrationService {
   }
 
   /**
-   * Which districts an officer's grants reach, or null for "everywhere".
+   * The officer's own decisions, newest first (ADR-049, AC-G6).
    *
-   * Null is not "none": a country-scoped grant adds no predicate at all, and
-   * collapsing that to an empty list would silently hide every business from
-   * the officer who can see the most.
+   * Their OWN only: this is their record of what they decided and why, and a
+   * colleague's decisions are somebody else's record that no role has asked to
+   * read. Every read writes a `record_access_logs` row, like every other
+   * oversight read of registration data.
+   */
+  async decisionsFor(
+    actorUserId: string,
+    cursor: string | undefined,
+  ): Promise<OversightDecisionPage> {
+    const page = await this.orgs.decisionsBy({
+      userId: actorUserId,
+      before: decodeDecisionCursor(cursor),
+      limit: DECISION_PAGE_SIZE,
+    });
+    await this.orgs.logDecisionLogRead(actorUserId);
+    const last = page.rows.at(-1);
+    return {
+      items: page.rows.map((r) => ({
+        reviewId: r.id,
+        orgId: r.orgId,
+        legalName: r.legalName,
+        stage: r.stage,
+        decision: r.decision,
+        reasonCode: r.reasonCode,
+        notes: r.notes,
+        governmentBodyCode: r.governmentBodyCode,
+        governmentTitle: r.governmentTitle,
+        decidedAt: r.decidedAt.toISOString(),
+      })),
+      nextCursor:
+        page.more && last ? encodeDecisionCursor(last.decidedAt, last.id) : null,
+    };
+  }
+
+  /**
+   * Which districts an officer's grants reach, or null for "everywhere", read
+   * through `districtScopeOf` in `@injishi/contracts`, the one definition.
+   * Only the geography lookup is here, because the package reads no rows.
    */
   private async districtScopeFor(
     grants: OversightGrant[],
   ): Promise<number[] | null> {
-    if (grants.some((g) => g.scopeLevel === 'country')) return null;
-    const ids = new Set<number>();
-    for (const g of grants) {
-      if (g.scopeLevel === 'district' && g.districtId !== null) {
-        ids.add(g.districtId);
-      }
-      if (g.scopeLevel === 'province' && g.provinceId !== null) {
-        for (const id of await this.orgs.districtIdsInProvince(g.provinceId)) {
-          ids.add(id);
-        }
-      }
-    }
-    return [...ids];
+    return districtScopeOf(grants, await this.provinceDistrictsFor(grants));
   }
+
+  /** The districts of every province these grants name, and no others. */
+  private async provinceDistrictsFor(
+    grants: OversightGrant[],
+  ): Promise<Map<number, number[]>> {
+    const provinceIds = [
+      ...new Set(
+        grants
+          .filter((g) => g.scopeLevel === 'province' && g.provinceId !== null)
+          .map((g) => g.provinceId as number),
+      ),
+    ];
+    return this.orgs.districtsByProvince(provinceIds);
+  }
+}
+
+/** How many decisions one page of the log carries. */
+const DECISION_PAGE_SIZE = 25;
+
+/**
+ * An opaque cursor over (decided_at, id): the time alone cannot break a tie
+ * between two decisions recorded in the same millisecond, which would skip or
+ * repeat a row at a page boundary. base64url so nobody builds one by hand.
+ */
+function encodeDecisionCursor(decidedAt: Date, id: string): string {
+  return Buffer.from(`${decidedAt.toISOString()}|${id}`, 'utf8').toString(
+    'base64url',
+  );
+}
+
+/** A malformed cursor reads as no cursor (the newest page), never a 400. */
+function decodeDecisionCursor(
+  cursor: string | undefined,
+): { decidedAt: Date; id: string } | undefined {
+  if (!cursor) return undefined;
+  const [at, id] = Buffer.from(cursor, 'base64url').toString('utf8').split('|');
+  const decidedAt = at ? new Date(at) : null;
+  if (!decidedAt || Number.isNaN(decidedAt.getTime()) || !id) return undefined;
+  if (!/^[0-9a-f-]{36}$/i.test(id)) return undefined;
+  return { decidedAt, id };
 }

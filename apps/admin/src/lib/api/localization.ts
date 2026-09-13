@@ -5,7 +5,7 @@ import { apiGet, type ApiResult } from "./server";
 /**
  * Localization (F-A15) — `GET /api/v1/admin/localization`.
  *
- * P: `admin.localization.edit`. Translation entries, email templates, and the
+ * P: `admin.localization.view`. Translation entries, email templates, and the
  * coverage counts.
  *
  * Coverage is computed server-side and sent, rather than counted here from

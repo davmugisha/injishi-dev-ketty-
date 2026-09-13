@@ -9,12 +9,9 @@ import { AdminEnvironmentsService } from './environments.service';
 /**
  * Environments & adapters → `GET /api/v1/admin/environments` (INTERFACE.md §10).
  *
- * `admin.environment.manage` guards a route that only READS. The permission is
- * named for the section rather than the verb, and this is the section a
- * super-admin uses to decide whether to flip a seam to live — knowing which
- * modes are set is itself the sensitive half of that. `staff-authz.ts` grants
- * it to `super_admin` alone; a wider `.view` permission does not exist and must
- * not be invented here.
+ * `admin.environment.view` on the read (ADR-049), held by `super_admin` and
+ * `ops`. Flipping a seam keeps `admin.environment.manage`, `super_admin` alone.
+ * It used to borrow the manage permission because no view permission existed.
  */
 @Controller({ path: 'admin/environments', version: '1' })
 @UseGuards(SessionGuard, StaffGuard)
@@ -22,7 +19,7 @@ export class AdminEnvironmentsController {
   constructor(private readonly environments: AdminEnvironmentsService) {}
 
   @Get()
-  @RequireStaffPermission('admin.environment.manage')
+  @RequireStaffPermission('admin.environment.view')
   read(): Promise<AdminEnvironments> {
     return this.environments.read();
   }

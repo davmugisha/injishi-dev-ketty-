@@ -33,7 +33,13 @@ export interface Officer {
   body: string;
   bodyName: string;
   title: string;
-  scopeLevel: "district";
+  /**
+   * All three levels, since ADR-049. It was `"district"` because the fixture only
+   * ever described district officers; a country or province appointment is a real
+   * grant the admin console can now make.
+   */
+  scopeLevel: "country" | "province" | "district";
+  /** The region IN WORDS, from the server. A country grant reads as Rwanda. */
   scope: string;
   actsOn: RegStage;
   /** The officer's seal colour, used for their identity square only. */
@@ -81,15 +87,19 @@ export interface RegOrg {
   blockedBySeparationOfDuties?: boolean;
 }
 
-/** One entry in an officer's decision log. Append-only. */
+/** One entry in an officer's decision log. Append-only (ADR-049, AC-G6). */
 export interface Decision {
-  id: number;
+  /** The review row. */
+  id: string;
   orgId: string;
   biz: string;
   action: string;
   reason?: string;
   note?: string;
-  by: string;
+  /** The government title AS RECORDED on the decision, not the posting today. */
+  title: string | null;
+  /** The body code as recorded on the decision. */
+  body: string;
   ts: string;
 }
 
@@ -111,10 +121,9 @@ export interface PerfRow {
 }
 
 export interface OversightData {
-  officers: Record<OfficerKey, Officer>;
   orgs: RegOrg[];
   perf: PerfRow[];
   rejectReasons: RejectReason[];
-  /** Decisions taken this session — the log starts empty and fills as they act. */
+  /** This officer's own decisions, newest first, from the server. */
   decisions: Decision[];
 }

@@ -12,7 +12,7 @@ import { count } from "@/lib/present/format";
 export const metadata = { title: "Announcements" };
 
 /** The permission `GET /api/v1/admin/announcements` declares. */
-const PERMISSION = "admin.announcement.publish";
+const PERMISSION = "admin.announcement.view";
 
 /**
  * Announcements (F-A13) — drafts and published notices, from the API.

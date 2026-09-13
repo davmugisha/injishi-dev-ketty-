@@ -422,12 +422,15 @@ export function YesNoField({
   value,
   onChange,
   name,
+  error,
 }: {
   legend: string;
   hint?: ReactNode;
   value: boolean | null;
   onChange: (next: boolean) => void;
   name: string;
+  /** Why this question cannot be left as it is, shown under the question. */
+  error?: string;
 }) {
   return (
     <fieldset className="flex flex-wrap items-center justify-between gap-3 rounded-card border border-border p-4">
@@ -436,6 +439,11 @@ export function YesNoField({
         {hint ? (
           <span className="mt-0.5 block text-xs text-muted-foreground">
             {hint}
+          </span>
+        ) : null}
+        {error ? (
+          <span className="mt-1 block text-sm text-destructive" role="alert">
+            {error}
           </span>
         ) : null}
       </span>
