@@ -31,7 +31,7 @@
 //   H. Hammering the preview from one account answers 429.
 //
 // WHAT IT LEAVES BEHIND: throwaway accounts `adr053-registrant@`,
-// `adr053-owner@`, `adr053-owner2@` and `adr053-other@injishi.rw`, their
+// `adr053-owner@`, `adr053-owner2@` and `adr053-other@injishi.com`, their
 // profiles, and a handful of "ADR-053 Verify …" registrations. `adr053-owner2@`
 // is marked KYC verified by this script, on purpose and only on that account.
 //
@@ -53,10 +53,10 @@ const EXPECTED_WEB_URL = process.env.WEB_URL || "http://localhost:3000";
 const OPERATOR_CONTRACT_VERSION = "2026-09-12";
 const GASABO = { country: "RW", provinceId: 1, districtId: 102, sectorId: 10201 };
 
-const REGISTRANT = "adr053-registrant@injishi.rw";
-const OWNER = "adr053-owner@injishi.rw";
-const OWNER2 = "adr053-owner2@injishi.rw";
-const OTHER = "adr053-other@injishi.rw";
+const REGISTRANT = "adr053-registrant@injishi.com";
+const OWNER = "adr053-owner@injishi.com";
+const OWNER2 = "adr053-owner2@injishi.com";
+const OTHER = "adr053-other@injishi.com";
 const NID = {
   [REGISTRANT]: "1199900000049049",
   [OWNER]: "1199900000049050",
@@ -217,8 +217,8 @@ const main = async () => {
   const owner = await signIn(OWNER);
   const owner2 = await signIn(OWNER2);
   const other = await signIn(OTHER);
-  const verifier = await signIn("jeanbosco@demo.injishi.rw");
-  const approver = await signIn("claudine@demo.injishi.rw");
+  const verifier = await signIn("jeanbosco@demo.injishi.com");
+  const approver = await signIn("claudine@demo.injishi.com");
   await ensureProfile(host, REGISTRANT, "ADR-053 Verify Registrant");
   await ensureProfile(owner, OWNER, "ADR-053 Verify Owner");
   await ensureProfile(owner2, OWNER2, "ADR-053 Verify Verified Owner");

@@ -20,7 +20,7 @@
 //      `submitted` and `approved` (AC-G9).
 //
 // WHAT IT LEAVES BEHIND: throwaway officers `adr053-prov@`, `adr053-dist@`,
-// `adr053-country@`, `adr053-approver@` and `adr053-tax@injishi.rw`, whose grants
+// `adr053-country@`, `adr053-approver@` and `adr053-tax@injishi.com`, whose grants
 // are all REVOKED by the end, so no seeded officer's queue or coverage changes;
 // a government body `V049_…` that ends retired; and a handful of "ADR-053 Verify
 // Scope …" registrations owned by `adr053-registrant@`.
@@ -187,8 +187,8 @@ async function coverageOf(orgId) {
 }
 
 const main = async () => {
-  admin = await signIn("admin@injishi.rw");
-  const host = await signIn("adr053-registrant@injishi.rw");
+  admin = await signIn("admin@injishi.com");
+  const host = await signIn("adr053-registrant@injishi.com");
 
   // -------------------------------------------------------------------------
   console.log("\n=== A. One definition of region scope (AC-G8) ===");
@@ -196,14 +196,14 @@ const main = async () => {
   const nyanza = await registrationAt(host, "nyanza", "Nyanza");
   const gasabo = await registrationAt(host, "gasabo", "Gasabo");
 
-  const provG = await grant("adr053-prov@injishi.rw", { oversightRole: "business_field_verifier", governmentBodyCode: "PSF", governmentTitle: "ADR-053 Province Officer", scopeLevel: "province", provinceId: 3 });
-  const distG = await grant("adr053-dist@injishi.rw", { oversightRole: "business_field_verifier", governmentBodyCode: "PSF", governmentTitle: "ADR-053 District Officer", scopeLevel: "district", districtId: 201 });
-  const countryG = await grant("adr053-country@injishi.rw", { oversightRole: "business_field_verifier", governmentBodyCode: "MINALOC", governmentTitle: "ADR-053 Country Officer v1", scopeLevel: "country" });
+  const provG = await grant("adr053-prov@injishi.com", { oversightRole: "business_field_verifier", governmentBodyCode: "PSF", governmentTitle: "ADR-053 Province Officer", scopeLevel: "province", provinceId: 3 });
+  const distG = await grant("adr053-dist@injishi.com", { oversightRole: "business_field_verifier", governmentBodyCode: "PSF", governmentTitle: "ADR-053 District Officer", scopeLevel: "district", districtId: 201 });
+  const countryG = await grant("adr053-country@injishi.com", { oversightRole: "business_field_verifier", governmentBodyCode: "MINALOC", governmentTitle: "ADR-053 Country Officer v1", scopeLevel: "country" });
   check("grant a province, a district and a country verifier", [provG, distG, countryG].every((g) => g.status === 201), [provG, distG, countryG].map((g) => `${g.status} ${g.text.slice(0, 80)}`).join(" | "));
 
-  const prov = await signIn("adr053-prov@injishi.rw");
-  const dist = await signIn("adr053-dist@injishi.rw");
-  const country = await signIn("adr053-country@injishi.rw");
+  const prov = await signIn("adr053-prov@injishi.com");
+  const dist = await signIn("adr053-dist@injishi.com");
+  const country = await signIn("adr053-country@injishi.com");
 
   const provQ = await queueIds(prov, "verification-queue");
   const distQ = await queueIds(dist, "verification-queue");
@@ -252,7 +252,7 @@ const main = async () => {
   check("a malformed cursor reads the newest page rather than failing", junk.status === 200 && junk.json?.items?.[0]?.orgId === gasabo);
 
   const rev = await revoke({ userId: countryG.userId, id: countryG.json.id });
-  const countryV2 = await grant("adr053-country@injishi.rw", { oversightRole: "business_field_verifier", governmentBodyCode: "MINALOC", governmentTitle: "ADR-053 Country Officer v2", scopeLevel: "country" });
+  const countryV2 = await grant("adr053-country@injishi.com", { oversightRole: "business_field_verifier", governmentBodyCode: "MINALOC", governmentTitle: "ADR-053 Country Officer v2", scopeLevel: "country" });
   const relog = (await call(country, "GET", "/api/v1/oversight/decisions")).json?.items ?? [];
   check(
     "after the posting is revoked and re granted with a new title, old decisions keep the title they were taken under",
@@ -260,8 +260,8 @@ const main = async () => {
     JSON.stringify(relog.slice(0, 2).map((i) => i.governmentTitle)),
   );
 
-  const taxG = await grant("adr053-tax@injishi.rw", { oversightRole: "tax_compliance_officer", governmentBodyCode: "MINALOC", governmentTitle: "ADR-053 Tax Officer", scopeLevel: "country" });
-  const tax = await signIn("adr053-tax@injishi.rw");
+  const taxG = await grant("adr053-tax@injishi.com", { oversightRole: "tax_compliance_officer", governmentBodyCode: "MINALOC", governmentTitle: "ADR-053 Tax Officer", scopeLevel: "country" });
+  const tax = await signIn("adr053-tax@injishi.com");
   const taxMe = await call(tax, "GET", "/api/v1/me/oversight");
   const taxLog = await call(tax, "GET", "/api/v1/oversight/decisions");
   check("AC-G7 a tax compliance officer's grant opens the tax console, reported as such", taxG.status === 201 && taxMe.json?.consoles?.some((c) => c.console === "tax"), JSON.stringify(taxMe.json?.consoles));
@@ -270,28 +270,28 @@ const main = async () => {
   // -------------------------------------------------------------------------
   console.log("\n=== C. The government body catalogue (AC-G4, AC-G10) ===");
   const code = `V049_${Date.now().toString(36).toUpperCase().slice(-6)}`;
-  const adminId = await userId("admin@injishi.rw");
+  const adminId = await userId("admin@injishi.com");
   const created = await call(admin, "POST", "/api/v1/admin/government-bodies", { code, nameEn: "ADR-053 Verify Board", nameRw: "Ikigo cya ADR-053", abbreviation: "V49", reason: REASON });
   check("a staffer with admin.config.edit creates a body", created.status === 201 && created.json?.code === code && created.json.active === true, `${created.status} ${created.text.slice(0, 160)}`);
   const dup = await call(admin, "POST", "/api/v1/admin/government-bodies", { code, nameEn: "Again", nameRw: "Again", reason: REASON });
   check("the same code again is refused with 409", dup.status === 409, `status ${dup.status}`);
-  const bodyGrant = await grant("adr053-approver@injishi.rw", { oversightRole: "business_approver", governmentBodyCode: code, governmentTitle: "ADR-053 Board Approver", scopeLevel: "district", districtId: 201 });
+  const bodyGrant = await grant("adr053-approver@injishi.com", { oversightRole: "business_approver", governmentBodyCode: code, governmentTitle: "ADR-053 Board Approver", scopeLevel: "district", districtId: 201 });
   check("an officer is appointed under the new body", bodyGrant.status === 201, `${bodyGrant.status} ${bodyGrant.text.slice(0, 120)}`);
   const renamed = await call(admin, "PATCH", `/api/v1/admin/government-bodies/${code}`, { nameEn: "ADR-053 Verify Board Renamed", reason: REASON });
   check("rename it", renamed.status === 200 && renamed.json?.nameEn === "ADR-053 Verify Board Renamed" && renamed.json.code === code, `${renamed.status} ${renamed.text.slice(0, 120)}`);
-  const approver = await signIn("adr053-approver@injishi.rw");
+  const approver = await signIn("adr053-approver@injishi.com");
   const approverMe = await call(approver, "GET", "/api/v1/me/oversight");
   check("the officer's console shows the new name at once", approverMe.json?.consoles?.[0]?.bodyName === "ADR-053 Verify Board Renamed", JSON.stringify(approverMe.json?.consoles?.[0]));
   const retired = await call(admin, "PATCH", `/api/v1/admin/government-bodies/${code}`, { active: false, reason: REASON });
   check("soft retire it", retired.status === 200 && retired.json?.active === false, `${retired.status}`);
-  const refusedGrant = await grant("adr053-prov@injishi.rw", { oversightRole: "business_approver", governmentBodyCode: code, governmentTitle: "Should be refused", scopeLevel: "district", districtId: 202 });
+  const refusedGrant = await grant("adr053-prov@injishi.com", { oversightRole: "business_approver", governmentBodyCode: code, governmentTitle: "Should be refused", scopeLevel: "district", districtId: 202 });
   check("a retired body is refused for a new grant (409)", refusedGrant.status === 409 && /retired/i.test(refusedGrant.text), `${refusedGrant.status} ${refusedGrant.text.slice(0, 120)}`);
   const stillNamed = await q(`select government_body_code from oversight_assignments where id = $1 and revoked_at is null`, [bodyGrant.json?.id]);
   check("and the existing grant still names it", stillNamed[0]?.government_body_code === code, JSON.stringify(stillNamed));
   const listed = await call(admin, "GET", "/api/v1/admin/government-bodies");
   check("the list keeps the retired body, inactive", listed.status === 200 && listed.json?.some((b) => b.code === code && b.active === false), `status ${listed.status}`);
 
-  const finance = await signIn("adr053-finance@injishi.rw");
+  const finance = await signIn("adr053-finance@injishi.com");
   const fRead = await call(finance, "GET", "/api/v1/admin/government-bodies");
   const fCreate = await call(finance, "POST", "/api/v1/admin/government-bodies", { code: `${code}X`, nameEn: "No", nameRw: "Oya", reason: REASON });
   const fPatch = await call(finance, "PATCH", `/api/v1/admin/government-bodies/${code}`, { nameEn: "No", reason: REASON });
@@ -323,7 +323,7 @@ const main = async () => {
   // Rubavu is at field_verified since section B. Its approver would have to cover
   // province 3; the only board approver is in Nyanza.
   check("a business at field_verified with no approver in reach reads uncovered", (await coverageOf(rubavu)) === "uncovered");
-  const countryApprover = await grant("adr053-approver@injishi.rw", { oversightRole: "business_approver", governmentBodyCode: "MINALOC", governmentTitle: "ADR-053 Country Approver", scopeLevel: "country" });
+  const countryApprover = await grant("adr053-approver@injishi.com", { oversightRole: "business_approver", governmentBodyCode: "MINALOC", governmentTitle: "ADR-053 Country Approver", scopeLevel: "country" });
   check("grant a country approver and it reads covered", countryApprover.status === 201 && (await coverageOf(rubavu)) === "covered", `${countryApprover.status} ${countryApprover.text.slice(0, 120)}`);
   // `submitted` and `approved` are staged on two throwaway rows, the way the slice
   // 2 script stages an RRA outage: the mock adapter never leaves a business there.

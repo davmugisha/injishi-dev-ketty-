@@ -7,14 +7,16 @@
 //   B. `GET /api/v1/properties/sitemap` lists a published property, drops it when
 //      it is unpublished, drops it when its business is suspended and restores it
 //      on reinstatement with no republish: the same predicate as the page (AC-I9).
-//   C. Web's `/sitemap.xml` says the same thing, on web's own origin (AC-I9).
+//   C. Web's `/sitemap.xml` holds ADR-048's rule while the waitlist gate stands: it
+//      lists `/waitlist` and no property page, because `robots.ts` disallows the
+//      marketplace. The launch sitemap reads B (`apps/web/WAITLIST-REMOVAL.md`).
 //   D. A property page carries a canonical link built from web's origin and the
 //      slug (AC-I9).
 //   E. The inventory reads answer with the workspace in the header alone: the
 //      discarded `workspaceId` query parameter is gone (task 18).
 //
 // WHAT IT LEAVES BEHIND: one property named "ADR-053 Verify Discovery …" on the
-// business `host@injishi.rw` owns, unpublished at the end. The business is
+// business `host@injishi.com` owns, unpublished at the end. The business is
 // suspended and reinstated during B; the finally block reinstates it if a step
 // fails in between.
 //
@@ -126,11 +128,11 @@ let suspendedOrgId = null;
 let admin = null;
 
 const main = async () => {
-  admin = await signIn("admin@injishi.rw");
-  const host = await signIn("host@injishi.rw");
+  admin = await signIn("admin@injishi.com");
+  const host = await signIn("host@injishi.com");
   const ws = await call(host, "GET", "/api/v1/me/workspaces");
   const business = (ws.json?.workspaces ?? []).find((w) => w.kind === "business" && w.permissions?.includes("listing.manage"));
-  if (!business) throw new Error("host@injishi.rw holds no business workspace with listing.manage");
+  if (!business) throw new Error("host@injishi.com holds no business workspace with listing.manage");
   const wsId = business.workspaceId;
   const H = { "x-workspace-id": wsId };
 
@@ -183,11 +185,12 @@ const main = async () => {
   const entry = (stillPublished.json ?? []).find((e) => e.slug === slug);
   check("with its publish time as lastmod", typeof entry?.publishedAt === "string", JSON.stringify(entry));
 
-  let web = await webSitemap();
+  const web = await webSitemap();
   const expectedUrl = `${WEB_URL}/property/${slug}`;
-  console.log("\n=== C. Web's /sitemap.xml (AC-I9) ===");
+  console.log("\n=== C. Web's /sitemap.xml while the waitlist gate stands (ADR-048) ===");
   check("web serves /sitemap.xml as XML", web.status === 200 && /xml/.test(String(web.type)), `status ${web.status} ${web.type}`);
-  check("it lists the property at web's origin, /property/, the slug", web.text.includes(`<loc>${expectedUrl}</loc>`), web.text.slice(0, 400));
+  check("it lists /waitlist", /<loc>[^<]*\/waitlist<\/loc>/.test(web.text), web.text.slice(0, 400));
+  check("and no property page, the published one included", !web.text.includes("/property/") && !web.text.includes(expectedUrl), web.text.slice(0, 400));
 
   console.log("\n--- suspend the business, then reinstate it ---");
   const orgId = business.orgId;
@@ -195,8 +198,6 @@ const main = async () => {
   suspendedOrgId = [200, 201].includes(sus.status) ? orgId : null;
   check("suspend", [200, 201].includes(sus.status), `status ${sus.status} ${sus.text.slice(0, 160)}`);
   check("a suspended business's property leaves the API sitemap", !(await inSitemap(slug)).listed);
-  web = await webSitemap();
-  check("and web's sitemap, with no second write", web.status === 200 && !web.text.includes(expectedUrl));
   const rei = await call(admin, "POST", `/api/v1/admin/orgs/${orgId}/reinstate`, { reason: REASON });
   if ([200, 201].includes(rei.status)) suspendedOrgId = null;
   check("reinstate", [200, 201].includes(rei.status), `status ${rei.status}`);
@@ -207,8 +208,6 @@ const main = async () => {
   const unpub = await call(host, "POST", `/api/v1/inventory/properties/${pid}/unpublish`, undefined, H);
   check("unpublish", unpub.status === 200 && unpub.json?.listingStatus === "draft", `status ${unpub.status}`);
   check("an unpublished property leaves the API sitemap", !(await inSitemap(slug)).listed);
-  web = await webSitemap();
-  check("and web's sitemap", web.status === 200 && !web.text.includes(expectedUrl));
   const archiveDraft = await call(host, "PATCH", `/api/v1/inventory/room-types/${rtId}`, { workspaceId: wsId, status: "archived" }, H);
   check("AC-I7 on the draft, archiving the room type is allowed", archiveDraft.status === 200, `status ${archiveDraft.status} ${archiveDraft.text.slice(0, 160)}`);
   const removeDraft = await call(host, "DELETE", `/api/v1/inventory/properties/${pid}/photos/${photoId}`, undefined, H);

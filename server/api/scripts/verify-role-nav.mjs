@@ -91,8 +91,8 @@ const EXPECTED = [
   {
     email: 'host@injishi.com',
     role: 'owner',
-    // 23 since `ebm.manage` (ADR-041, D-o).
-    permissions: 23,
+    // 23 since `ebm.manage` (ADR-041, D-o); 26 since `folio.close`, `ebm.refund` and `outlet.manage` (ADR-050).
+    permissions: 26,
     screens: [
       'calendar', 'finance', 'housekeeping', 'inbox', 'inventory', 'maintenance',
       'people', 'reservations', 'rooms', 'services', 'settings', 'stays', 'today',
@@ -104,7 +104,7 @@ const EXPECTED = [
     // 22 since `team.manage` became the owner's alone (2026-09-12). This row
     // said 23 and listed People until ADR-053 corrected it: a stale expectation
     // that would have passed a manager a door that refuses them.
-    permissions: 22,
+    permissions: 25,
     // The owner's surface without People. Settings stays: a manager holds
     // `ebm.manage` and Settings → Integrations is where it is used.
     screens: [
@@ -115,7 +115,7 @@ const EXPECTED = [
   {
     email: 'reception@injishi.com',
     role: 'receptionist',
-    permissions: 8,
+    permissions: 9,
     // Front desk and taking service orders. No Rooms, no Money, no admin.
     // Services because the leaf declares `order.advance` (ADR-053, ruled
     // 2026-09-13): it opens on Live orders, which a receptionist works.
@@ -131,18 +131,18 @@ const EXPECTED = [
     screens: ['calendar', 'housekeeping', 'maintenance', 'rooms', 'today'],
   },
   {
-    email: 'landlord@injishi.rw',
+    email: 'landlord@injishi.com',
     role: 'owner',
-    permissions: 23,
+    permissions: 26,
     screens: [
       'finance', 'inbox', 'leases', 'listing', 'maintenance', 'move-outs',
       'people', 'rent-roll', 'settings', 'units',
     ],
   },
   {
-    email: 'resident-manager@injishi.rw',
+    email: 'resident-manager@injishi.com',
     role: 'manager',
-    permissions: 22,
+    permissions: 25,
     // The landlord's surface without People, the same `team.manage` line as on
     // the hotel side. The residence nav used to offer People to every role.
     screens: [
@@ -189,7 +189,7 @@ for (const want of EXPECTED) {
  */
 console.log('\nThe nav follows the permission array alone (AC-A2)');
 {
-  const reception = grants['reception@injishi.rw'];
+  const reception = grants['reception@injishi.com'];
   if (reception) {
     const base = {
       ws: 'host',
@@ -217,7 +217,7 @@ console.log('\nThe nav follows the permission array alone (AC-A2)');
  */
 console.log('\nSections follow the department list');
 // The owner's real permission array, so this varies departments and nothing else.
-const owner = { ws: 'host', workspaceId: 'ws', permissions: grants['host@injishi.rw']?.permissions ?? [] };
+const owner = { ws: 'host', workspaceId: 'ws', permissions: grants['host@injishi.com']?.permissions ?? [] };
 for (const [label, departments, services, maintenance] of [
   ['all eleven', ['rooms', 'fnb', 'spa_recreation', 'engineering'], true, true],
   ['no fnb, spa or engineering', ['rooms', 'admin_general'], false, false],

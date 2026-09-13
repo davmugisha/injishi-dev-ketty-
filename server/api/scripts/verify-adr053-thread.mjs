@@ -168,7 +168,7 @@ async function signIn(email) {
 
 const main = async () => {
   console.log("\n=== A. Appoint an officer (AC-G1, AC-G2, AC-G3, AC-G10) ===");
-  const admin = await signIn("admin@injishi.rw");
+  const admin = await signIn("admin@injishi.com");
 
   const dir = await call(
     admin,
@@ -178,9 +178,9 @@ const main = async () => {
   check("admin directory reads", dir.status === 200, `status ${dir.status}`);
   const people = dir.json?.items ?? [];
   const byEmail = new Map(people.map((u) => [u.email, u]));
-  const guest = byEmail.get("guest@injishi.rw");
-  const host = byEmail.get("host@injishi.rw");
-  const localgov = byEmail.get("localgov@injishi.rw");
+  const guest = byEmail.get("guest@injishi.com");
+  const host = byEmail.get("host@injishi.com");
+  const localgov = byEmail.get("localgov@injishi.com");
   check(
     "found guest, host and localgov in the directory",
     Boolean(guest && host && localgov),
@@ -292,7 +292,7 @@ const main = async () => {
   );
 
   console.log("\n=== B. The officer sees their own posting (AC-G5) ===");
-  const guestSession = await signIn("guest@injishi.rw");
+  const guestSession = await signIn("guest@injishi.com");
   const mine = await call(guestSession, "GET", "/api/v1/me/oversight");
   check("me/oversight reads", mine.status === 200, `status ${mine.status}`);
   const seat = mine.json?.consoles?.[0];
@@ -306,7 +306,7 @@ const main = async () => {
   );
 
   console.log("\n=== C. Author inventory and publish (AC-I1 to AC-I6, AC-I10) ===");
-  const hostSession = await signIn("host@injishi.rw");
+  const hostSession = await signIn("host@injishi.com");
   const ws = await call(hostSession, "GET", "/api/v1/me/workspaces");
   const business = (ws.json?.workspaces ?? []).find(
     (w) => w.kind === "business" && w.permissions?.includes("listing.manage"),

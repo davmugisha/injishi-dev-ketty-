@@ -201,9 +201,9 @@ async function main() {
     await client.query(
       `insert into properties (id, org_id, workspace_id, name, description, district_id,
                                latitude, longitude, location_privacy, check_in_time,
-                               check_out_time, house_rules)
-       values ($1, $2, $3, $4, $5, $6, $7, $8, false, $9, $10, $11)
-       on conflict (id) do nothing`,
+                               check_out_time, house_rules, slug)
+       values ($1, $2, $3, $4, $5, $6, $7, $8, false, $9, $10, $11, $12)
+       on conflict (id) do update set slug = coalesce(properties.slug, excluded.slug)`,
       [
         IDS.property,
         IDS.org,
@@ -225,6 +225,15 @@ async function main() {
         // supposed to hold `stored_objects` keys, which is why migration 0040 had
         // to skip them when photographs became rows with a foreign key. Nothing
         // replaces them: this seed has no bytes to put in the bucket.
+        //
+        // The slug, because step 7 writes this listing `published`, and a
+        // published listing always has an address: publishing mints one (ADR-053,
+        // AC-I5), and nothing else may write a published row without it. A
+        // database migrated before this seed ran got it from migration 0031's
+        // backfill; one seeded after its migrations never did, so the sitemap
+        // skipped the hotel and a publish press found it already live with no
+        // address to return. `coalesce` keeps an address already minted.
+        'umurage-guesthouse',
       ],
     );
 

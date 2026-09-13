@@ -15,7 +15,7 @@
 // itself is `packages/contracts/tests/staff-authz.test.mjs` (AC-A7).
 //
 // WHAT IT LEAVES BEHIND: two throwaway staff accounts, `adr053-compliance@` and
-// `adr053-finance@injishi.rw`, holding one staff role each; and three CLONES of
+// `adr053-finance@injishi.com`, holding one staff role each; and three CLONES of
 // the seeded request `BK-DEMO-001` (references `BK-A049-…`), decided during the
 // run. The seeded requests themselves are never touched. Amahoro Hospitality
 // Group is suspended and reinstated; the finally block reinstates it if a step
@@ -166,13 +166,13 @@ let suspendedOrgId = null;
 let admin = null;
 
 const main = async () => {
-  admin = await signIn("admin@injishi.rw");
+  admin = await signIn("admin@injishi.com");
 
   // -------------------------------------------------------------------------
   console.log("\n=== A. Five read permissions (AC-A6) ===");
-  const ops = await signIn("ops@demo.injishi.rw");
-  const compliance = await makeStaff("adr053-compliance@injishi.rw", "compliance");
-  const finance = await makeStaff("adr053-finance@injishi.rw", "finance");
+  const ops = await signIn("ops@demo.injishi.com");
+  const compliance = await makeStaff("adr053-compliance@injishi.com", "compliance");
+  const finance = await makeStaff("adr053-finance@injishi.com", "finance");
 
   const READS = {
     configuration: "/api/v1/admin/configuration",
@@ -223,9 +223,9 @@ const main = async () => {
 
   // -------------------------------------------------------------------------
   console.log("\n=== B. The host booking doors join the model (AC-A5) ===");
-  const denise = await signIn("denise@demo.injishi.rw");
-  const beatha = await signIn("beatha@demo.injishi.rw");
-  const host = await signIn("host@injishi.rw");
+  const denise = await signIn("denise@demo.injishi.com");
+  const beatha = await signIn("beatha@demo.injishi.com");
+  const host = await signIn("host@injishi.com");
   const [first, second, third, fourth] = [
     await clonePendingRequest(),
     await clonePendingRequest(),

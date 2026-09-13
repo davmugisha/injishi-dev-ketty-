@@ -25,7 +25,7 @@
 //      the sweep re checks a due one and moves it on with a `system` event
 //      (AC-R5). With no worker the sweep step is reported as skipped, not passed.
 //
-// WHAT IT LEAVES BEHIND: a throwaway account, `adr053-registrant@injishi.rw`,
+// WHAT IT LEAVES BEHIND: a throwaway account, `adr053-registrant@injishi.com`,
 // owning two registrations named "ADR-053 Verify …", and a registration fee for
 // hospitality effective in 2099, chosen so it never becomes the price on a
 // working sample database. The registrant is a NEW account on purpose: every
@@ -47,7 +47,7 @@ const BASE = process.env.API_BASE || "http://127.0.0.1:8000";
 const WEB_ORIGIN = process.env.WEB_ORIGIN || "http://localhost:3000";
 const GASABO = { country: "RW", provinceId: 1, districtId: 102, sectorId: 10201 };
 const REASON = "ADR-053 slice 2 verification";
-const REGISTRANT = "adr053-registrant@injishi.rw";
+const REGISTRANT = "adr053-registrant@injishi.com";
 
 /**
  * Step 1 of registration, for the throwaway registrant.
@@ -201,14 +201,14 @@ const userId = async (email) =>
   (await q(`select id from users where lower(email) = lower($1)`, [email]))[0]?.id;
 
 const main = async () => {
-  const admin = await signIn("admin@injishi.rw");
+  const admin = await signIn("admin@injishi.com");
   const host = await signIn(REGISTRANT);
-  const verifier = await signIn("jeanbosco@demo.injishi.rw");
-  const approver = await signIn("claudine@demo.injishi.rw");
+  const verifier = await signIn("jeanbosco@demo.injishi.com");
+  const approver = await signIn("claudine@demo.injishi.com");
   const hostId = await userId(REGISTRANT);
-  const verifierId = await userId("jeanbosco@demo.injishi.rw");
-  const approverId = await userId("claudine@demo.injishi.rw");
-  const adminId = await userId("admin@injishi.rw");
+  const verifierId = await userId("jeanbosco@demo.injishi.com");
+  const approverId = await userId("claudine@demo.injishi.com");
+  const adminId = await userId("admin@injishi.com");
 
   // -------------------------------------------------------------------------
   console.log("\n=== A. The fee catalogue appends (AC-R9, AC-G10) ===");
