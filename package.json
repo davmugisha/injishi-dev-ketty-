@@ -19,7 +19,10 @@
   "scripts": {
     "typecheck": "pnpm -r typecheck",
     "lint": "pnpm -r lint",
+    "test": "pnpm -r --workspace-concurrency=1 test",
     "build": "pnpm --filter @injishi/web --filter @injishi/app --filter @injishi/admin --filter @injishi/api build",
+    "check:manifests": "node scripts/check-workspace-manifests.mjs",
+    "lint:ratchet": "node scripts/lint-ratchet.mjs",
     "dev": "pnpm --filter @injishi/web dev",
     "dev:all": "pnpm --parallel --filter @injishi/web --filter @injishi/app dev",
     "web:dev": "pnpm --filter @injishi/web dev",

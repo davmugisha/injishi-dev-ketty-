@@ -16,7 +16,8 @@
   "sideEffects": false,
   "scripts": {
     "lint": "eslint \"src/**/*.ts\"",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "test": "node ../../scripts/no-tests.mjs"
   },
   "devDependencies": {
     "@typescript-eslint/parser": "^8.68.0",

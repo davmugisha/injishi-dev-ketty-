@@ -1,0 +1,18 @@
+{
+  "//": "ESLint warning counts per workspace member, the ADR-048 AC-3 ratchet baseline.",
+  "//how": "A count that RISES above its entry fails CI. Regenerate with: node scripts/lint-ratchet.mjs --update",
+  "//when": "Update this in the commit that FIXES warnings, never to make a failing run pass.",
+  "//zero": "When a count reaches 0, flip that rule to `error` in the app config and drop the row.",
+  "//taken": "Counted 2026-09-12 while another session had uncommitted work in apps/web. @injishi/web measured 46 then and 44 an hour later, from the same rule (injishi/no-arbitrary-motion), because that work removed two. 46 is kept on purpose: a ceiling slightly ABOVE reality can only ever pass, while one below it fails a pull request that changed nothing. Regenerate on the commit that actually lands: node scripts/lint-ratchet.mjs --update",
+  "@injishi/admin": 0,
+  "@injishi/app": 0,
+  "@injishi/mobile": 0,
+  "@injishi/web": 46,
+  "@injishi/auth": 0,
+  "@injishi/contracts": 0,
+  "@injishi/design-tokens": 0,
+  "@injishi/ui": 0,
+  "@injishi/ui-contract": 0,
+  "@injishi/utils": 0,
+  "@injishi/api": 0
+}

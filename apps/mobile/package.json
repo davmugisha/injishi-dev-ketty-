@@ -12,7 +12,7 @@
     "web": "expo start --web",
     "typecheck": "tsc --noEmit",
     "palette:check": "node scripts/derive-palette.mjs --check",
-    "lint": "node scripts/derive-palette.mjs --check && eslint \"app/**/*.{ts,tsx}\" \"src/**/*.{ts,tsx}\"",
+    "lint": "eslint \"app/**/*.{ts,tsx}\" \"src/**/*.{ts,tsx}\"",
     "test": "jest"
   },
   "expo": {

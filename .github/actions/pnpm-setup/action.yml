@@ -1,0 +1,50 @@
+name: pnpm setup
+description: >-
+  Node, pnpm and an installed workspace, with both versions read from the files
+  that already pin them rather than retyped into a workflow.
+
+# ADR-048 Value sourcing: the Node version comes from `mise.toml` and the pnpm
+# version from `packageManager` in the root package.json. Neither is written
+# down here. They must not drift: a different pnpm can rewrite pnpm-lock.yaml,
+# and `--frozen-lockfile` then fails the build on a lockfile nobody edited.
+#
+# This is a LOCAL composite action, not a published one. Ten jobs need the same
+# five steps, and the alternative to sharing them is ten copies that drift.
+
+inputs:
+  install:
+    description: Run `pnpm install --frozen-lockfile`. Set to 'false' for a job that only needs the toolchain.
+    required: false
+    default: 'true'
+
+runs:
+  using: composite
+  steps:
+    - name: Read the Node version from mise.toml
+      id: node-version
+      shell: bash
+      run: |
+        set -euo pipefail
+        version="$(sed -n 's/^[[:space:]]*node[[:space:]]*=[[:space:]]*"\([^"]*\)".*/\1/p' mise.toml | head -n1)"
+        if [ -z "$version" ]; then
+          echo "::error file=mise.toml::No node version pin found in mise.toml. ADR-048 requires the Node version to be READ from mise.toml, never retyped into a workflow."
+          exit 1
+        fi
+        echo "version=$version" >> "$GITHUB_OUTPUT"
+        echo "Node $version, from mise.toml"
+
+    # Before setup-node on purpose: `cache: pnpm` needs pnpm on PATH to locate
+    # the store it is being asked to cache.
+    - name: Install pnpm
+      uses: pnpm/action-setup@v6
+
+    - name: Install Node
+      uses: actions/setup-node@v7
+      with:
+        node-version: ${{ steps.node-version.outputs.version }}
+        cache: pnpm
+
+    - name: Install the workspace
+      if: inputs.install == 'true'
+      shell: bash
+      run: pnpm install --frozen-lockfile

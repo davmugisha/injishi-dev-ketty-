@@ -1,0 +1,24 @@
+{
+  "//": "Import cycles the API had when the ADR-048 AC-5 ratchet was adopted. A cycle NOT listed here fails CI.",
+  "//how": "Regenerate with: node scripts/api-cycles-ratchet.mjs --update",
+  "//when": "Update this in the commit that REMOVES a cycle, never to make a failing run pass.",
+  "cycles": [
+    "../../../packages/auth/dist/phone.d.ts > ../../../packages/auth/dist/server.d.ts",
+    "database/drizzle/auth.ts > database/drizzle/org.ts",
+    "database/drizzle/auth.ts > database/drizzle/org.ts > database/drizzle/hospitality.ts",
+    "database/drizzle/auth.ts > database/drizzle/org.ts > database/drizzle/hospitality.ts > database/drizzle/inventory.ts",
+    "database/drizzle/auth.ts > database/drizzle/org.ts > database/drizzle/hospitality.ts > database/drizzle/inventory.ts > database/drizzle/operations.ts",
+    "database/drizzle/auth.ts > database/drizzle/org.ts > database/drizzle/hospitality.ts > database/drizzle/inventory.ts > database/drizzle/operations.ts > database/drizzle/residence.ts",
+    "database/drizzle/hospitality.ts > database/drizzle/inventory.ts",
+    "database/drizzle/hospitality.ts > database/drizzle/inventory.ts > database/drizzle/operations.ts",
+    "database/drizzle/hospitality.ts > database/drizzle/inventory.ts > database/drizzle/operations.ts > database/drizzle/org.ts",
+    "database/drizzle/hospitality.ts > database/drizzle/inventory.ts > database/drizzle/operations.ts > database/drizzle/residence.ts",
+    "database/drizzle/hospitality.ts > database/drizzle/inventory.ts > database/drizzle/operations.ts > database/drizzle/residence.ts > database/drizzle/org.ts",
+    "database/drizzle/hospitality.ts > database/drizzle/inventory.ts > database/drizzle/org.ts",
+    "database/drizzle/hospitality.ts > database/drizzle/org.ts",
+    "database/drizzle/inventory.ts > database/drizzle/operations.ts",
+    "database/drizzle/inventory.ts > database/drizzle/operations.ts > database/drizzle/residence.ts",
+    "database/drizzle/operations.ts > database/drizzle/residence.ts",
+    "modules/booking/application/booking.service.ts > modules/booking/application/payment-attempt.service.ts"
+  ]
+}

@@ -1,0 +1,270 @@
+name: ci
+
+# ADR-048. The verification matrix: every pull request against `main`, and every
+# push to `main`.
+#
+# Two properties this file must keep:
+#
+# 1. It runs ONLY on GitHub hosted runners. The deploy runner label
+#    (`injishi-vps`) must never appear here, because a pull request runs the
+#    workflow file from its own branch and this repository requires zero
+#    approvals. `workflow-guard` below fails the run if anyone changes that,
+#    and a CODEOWNERS entry requires an approval to merge such a change.
+# 2. `ci-complete` always runs and aggregates everything else, so branch
+#    protection has ONE status to require that is never skipped. Path filtering
+#    means most jobs skip on most changes, and a skipped job reports no status
+#    at all, which is why requiring the individual jobs would not work.
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+
+# A superseded pull request run is cancelled; a push to `main` is never
+# cancelled, because `image` and `deploy-staging` chain off its result.
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+permissions:
+  contents: read
+
+jobs:
+  # AC-17b. Runs first and on every change, not only when a workflow file is
+  # touched: the point is that the answer is on the record for every run.
+  workflow-guard:
+    name: workflow guard
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v5
+      - uses: ./.github/actions/pnpm-setup
+        with:
+          install: 'false'
+      - name: No pull request may reach the deploy runner
+        run: node scripts/check-workflow-triggers.mjs
+
+  # AC-1. Decides which of the jobs below have anything to do. The answer is
+  # computed from the workspace dependency graph, not from globs kept by hand.
+  changes:
+    name: changed paths
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      typecheck: ${{ steps.filter.outputs.typecheck }}
+      lint: ${{ steps.filter.outputs.lint }}
+      test_unit: ${{ steps.filter.outputs.test_unit }}
+      build_web: ${{ steps.filter.outputs.build_web }}
+      build_app: ${{ steps.filter.outputs.build_app }}
+      build_admin: ${{ steps.filter.outputs.build_admin }}
+      build_api: ${{ steps.filter.outputs.build_api }}
+      mobile: ${{ steps.filter.outputs.mobile }}
+      tokens: ${{ steps.filter.outputs.tokens }}
+      cycles: ${{ steps.filter.outputs.cycles }}
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0 # the base commit must be present for `git diff`
+      - uses: ./.github/actions/pnpm-setup
+        with:
+          install: 'false'
+      - name: Work out what changed
+        id: filter
+        # Values reach the script through the environment rather than through
+        # `${{ }}` interpolation inside the script body. These two are SHAs and
+        # would be harmless either way; the habit is what matters.
+        env:
+          BASE_SHA: ${{ github.event_name == 'pull_request' && github.event.pull_request.base.sha || github.event.before }}
+          HEAD_SHA: ${{ github.sha }}
+        run: |
+          set -euo pipefail
+          base="$BASE_SHA"
+          # A first push to a branch reports an all zero "before". Unknown base
+          # means run everything, which the script does when given none.
+          if [ "$base" = "0000000000000000000000000000000000000000" ]; then base=""; fi
+          node scripts/ci-changes.mjs "$base" "$HEAD_SHA"
+
+  # AC-2. `pnpm -r typecheck` now reaches every one of the eleven members;
+  # `check:manifests` is what stops a twelfth from quietly not being reached.
+  typecheck:
+    name: typecheck
+    needs: changes
+    if: needs.changes.outputs.typecheck == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v5
+      - uses: ./.github/actions/pnpm-setup
+      - name: Every workspace member declares typecheck, lint and test
+        run: node scripts/check-workspace-manifests.mjs
+      # @injishi/contracts and @injishi/design-tokens are COMPILED: consumers
+      # read dist/. Their dist/ is committed, so this is not strictly needed for
+      # a checkout to resolve, and it is run anyway so that a source change is
+      # typechecked against what that source actually produces rather than
+      # against a dist somebody forgot to rebuild.
+      - name: Build the compiled packages
+        run: pnpm --filter @injishi/contracts --filter @injishi/design-tokens build
+      - name: Typecheck the workspace
+        run: pnpm -r typecheck
+
+  # AC-3. Errors fail here; warnings are counted and compared to the committed
+  # baseline. `pnpm -r lint` runs first because its human readable output is
+  # what you actually read when this fails; the ratchet re-runs eslint with
+  # `--format json` because a count must never come from parsing that output.
+  lint:
+    name: lint
+    needs: changes
+    if: needs.changes.outputs.lint == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v5
+      - uses: ./.github/actions/pnpm-setup
+      - name: Lint the workspace
+        run: pnpm -r lint
+      - name: Warning ratchet
+        run: node scripts/lint-ratchet.mjs
+
+  test-unit:
+    name: unit tests
+    needs: changes
+    if: needs.changes.outputs.test_unit == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v5
+      - uses: ./.github/actions/pnpm-setup
+      - name: Build the compiled packages
+        run: pnpm --filter @injishi/contracts --filter @injishi/design-tokens build
+      # The root script, not a bare `pnpm -r test`, because that script pins
+      # `--workspace-concurrency=1`. Run in parallel, web's and mobile's suites
+      # fail under contention on a machine with few cores, and a hosted runner
+      # has two to four. A test job that fails for want of CPU teaches people to
+      # rerun it until it passes, which is worse than having no test job.
+      - name: Run every suite
+        run: pnpm test
+
+  build-web:
+    name: build web
+    needs: changes
+    if: needs.changes.outputs.build_web == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v5
+      - uses: ./.github/actions/pnpm-setup
+      - run: pnpm --filter @injishi/contracts --filter @injishi/design-tokens build
+      - run: pnpm --filter @injishi/web build
+
+  build-app:
+    name: build app
+    needs: changes
+    if: needs.changes.outputs.build_app == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v5
+      - uses: ./.github/actions/pnpm-setup
+      - run: pnpm --filter @injishi/contracts --filter @injishi/design-tokens build
+      - run: pnpm --filter @injishi/app build
+
+  build-admin:
+    name: build admin
+    needs: changes
+    if: needs.changes.outputs.build_admin == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v5
+      - uses: ./.github/actions/pnpm-setup
+      - run: pnpm --filter @injishi/contracts --filter @injishi/design-tokens build
+      - run: pnpm --filter @injishi/admin build
+
+  build-api:
+    name: build api
+    needs: changes
+    if: needs.changes.outputs.build_api == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v5
+      - uses: ./.github/actions/pnpm-setup
+      - run: pnpm --filter @injishi/contracts --filter @injishi/design-tokens build
+      - run: pnpm --filter @injishi/api build
+
+  # AC-6. Mobile is NOT in the root `build` filter and has no `build` script:
+  # it is an Expo export, not a `next build`, so these four checks are what
+  # standing behind a mobile change means. ADR-048 settles that deliberately.
+  mobile:
+    name: mobile
+    needs: changes
+    if: needs.changes.outputs.mobile == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v5
+      - uses: ./.github/actions/pnpm-setup
+      - run: pnpm --filter @injishi/design-tokens build
+      - name: Palette matches the tokens
+        run: pnpm --filter @injishi/mobile palette:check
+      - run: pnpm --filter @injishi/mobile typecheck
+      - run: pnpm --filter @injishi/mobile lint
+      - run: pnpm --filter @injishi/mobile test
+
+  # AC-4. Fails when dist/ or a generated stylesheet disagrees with src/.
+  tokens:
+    name: token drift
+    needs: changes
+    if: needs.changes.outputs.tokens == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v5
+      - uses: ./.github/actions/pnpm-setup
+      - run: pnpm --filter @injishi/design-tokens check
+
+  # AC-5. A NEW import cycle in the API fails the run. Bare `madge --circular`
+  # exits 1 on ANY cycle and the API already had some, so the job compares
+  # against .github/api-cycles-baseline.json instead. See the script header.
+  cycles:
+    name: api import cycles
+    needs: changes
+    if: needs.changes.outputs.cycles == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v5
+      - uses: ./.github/actions/pnpm-setup
+      - name: No new import cycle
+        run: node scripts/api-cycles-ratchet.mjs
+
+  # AC-1. The one status branch protection requires. It ALWAYS runs, so it
+  # always reports, including on a change where every job above was skipped.
+  #
+  # `skipped` is a pass: that is what path filtering is for. `failure` and
+  # `cancelled` are not.
+  ci-complete:
+    name: ci-complete
+    if: always()
+    needs:
+      - workflow-guard
+      - changes
+      - typecheck
+      - lint
+      - test-unit
+      - build-web
+      - build-app
+      - build-admin
+      - build-api
+      - mobile
+      - tokens
+      - cycles
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v5
+      - name: Report
+        env:
+          CI_NEEDS: ${{ toJSON(needs) }}
+        run: node scripts/ci-complete.mjs

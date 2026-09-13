@@ -1,0 +1,57 @@
+name: mobile-release
+
+# ADR-048 AC-21. An EAS build starts on a `mobile-v*` tag and on nothing else.
+#
+# EAS build minutes are metered and a build is slow, so this belongs on a
+# deliberate release rather than on every merge. Tagging is the deliberate act.
+#
+# Mobile is outside `pnpm build` and has no `build` script: it is an Expo
+# export, not a `next build`. What standing behind a mobile change means on a
+# pull request is the four checks in `ci.yml`'s `mobile` job (typecheck, lint,
+# palette drift and its jest suite), and this workflow is what turns a tagged
+# commit into an artifact.
+
+on:
+  push:
+    tags:
+      - 'mobile-v*'
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    name: EAS build
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v5
+      - uses: ./.github/actions/pnpm-setup
+
+      # Mobile consumes the tokens and the vocabulary contract, and the tokens
+      # are compiled, so the palette check needs dist/ to exist.
+      - name: Build the compiled packages
+        run: pnpm --filter @injishi/design-tokens build
+
+      # Fail here rather than 20 minutes into an EAS build. These are the same
+      # checks ci.yml runs; a tag can point at any commit, including one that
+      # never went through a pull request.
+      - name: Check before spending build minutes
+        run: |
+          set -euo pipefail
+          pnpm --filter @injishi/mobile palette:check
+          pnpm --filter @injishi/mobile typecheck
+          pnpm --filter @injishi/mobile lint
+          pnpm --filter @injishi/mobile test
+
+      - uses: expo/expo-github-action@v8
+        with:
+          eas-version: latest
+          token: ${{ secrets.EXPO_TOKEN }}
+
+      - name: Start the build
+        working-directory: apps/mobile
+        # The `production` profile in eas.json. Derived from the tag rather than
+        # taken as an input: `mobile-v*` means a release, and a release builds
+        # the release profile.
+        run: eas build --non-interactive --no-wait --platform all --profile production

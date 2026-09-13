@@ -1,0 +1,24 @@
+{
+  // This package ships TypeScript SOURCE (ADR-008): the consuming Next app
+  // compiles it through `transpilePackages`, so nothing here emits. The config
+  // exists so the package can be typechecked ON ITS OWN, which is what ADR-048
+  // AC-2 asks for. Before it, `pnpm -r typecheck` skipped this package and the
+  // only thing that ever type-checked these helpers was whichever app imported
+  // them.
+  //
+  // Deliberately mirrors @injishi/ui, the other source-shipped package, rather
+  // than @injishi/contracts, which is compiled and emits to dist/.
+  "compilerOptions": {
+    "target": "ES2022",
+    "lib": ["ES2022", "DOM", "DOM.Iterable"],
+    "module": "ESNext",
+    "moduleResolution": "bundler",
+    "strict": true,
+    "noEmit": true,
+    "esModuleInterop": true,
+    "forceConsistentCasingInFileNames": true,
+    "skipLibCheck": true,
+    "isolatedModules": true
+  },
+  "include": ["src/**/*.ts"]
+}

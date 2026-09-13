@@ -17,7 +17,7 @@ import { resetFixtures, readFixture, writeFixture } from '@/data/use-fixture-mut
 import { DEFAULT_SEARCH, SEARCH_KEY } from '@/data/search';
 import { draftKey } from '@/data/booking-draft';
 import { getStayDetail } from '@/data/property-detail';
-import { TRIPS_KEY, type Trip } from '@/data/trips';
+import { TRIPS, TRIPS_KEY, type Trip } from '@/data/trips';
 import { bookDraftKey, quoteSignature, type BookDraft } from './book-draft';
 // The attempt journal is module-level and outlives a test on purpose — that is
 // what "survives backgrounding and app kill" means — so a test file clears it,
@@ -62,6 +62,16 @@ const GARDEN = UMURAGE.rooms.find((r) => r.summary.bookingMode === 'instant_book
 const REQUEST = UMURAGE.rooms.find((r) => r.summary.bookingMode === 'request_to_book')!;
 
 const DATES = { checkIn: '2026-09-04', checkOut: '2026-09-07' };
+
+/**
+ * Trips this test booked, never the seeded ones. The seeds are dated relative
+ * to today (`offsetDays`), so matching on `DATES.checkIn` found a seed on the
+ * one day its offset landed there: on 2026-09-13, `BK-4402` at minus nine days
+ * read as a second booking. Excluding seeds by id holds on every date.
+ */
+const SEEDED_TRIP_IDS = new Set(TRIPS.map((trip) => trip.id));
+const bookedTrips = () =>
+  readFixture<Trip[]>(TRIPS_KEY, []).filter((trip) => !SEEDED_TRIP_IDS.has(trip.id));
 
 beforeEach(() => {
   pushed.length = 0;
@@ -324,9 +334,7 @@ describe('confirming', () => {
       expect(screen.getByText(en['pay.checkYourPhone'])).toBeTruthy();
       // And no Trip yet: a booking written before the money settled is a
       // reservation nobody paid for.
-      expect(
-        readFixture<Trip[]>(TRIPS_KEY, []).find((x) => x.checkInDay === DATES.checkIn),
-      ).toBeUndefined();
+      expect(bookedTrips()).toHaveLength(0);
     } finally {
       jest.useRealTimers();
     }
@@ -389,9 +397,7 @@ describe('confirming', () => {
       // is one. Every terminal state carries its next action as a button.
       expect(screen.getByText(en['pay.tryAgain'])).toBeTruthy();
       // And nothing was booked.
-      expect(
-        readFixture<Trip[]>(TRIPS_KEY, []).find((x) => x.checkInDay === DATES.checkIn),
-      ).toBeUndefined();
+      expect(bookedTrips()).toHaveLength(0);
     } finally {
       jest.useRealTimers();
     }
@@ -448,9 +454,7 @@ describe('confirming', () => {
       // One token, therefore one attempt, therefore one Trip. Two tokens here
       // would be two charges, which is what ADR-020 D-c exists to prevent.
       expect(draftOf(GARDEN.summary.id).attemptToken).toBe(TOKENS.confirmed);
-      const trips = readFixture<Trip[]>(TRIPS_KEY, []);
-      const mine = trips.filter((trip) => trip.checkInDay === DATES.checkIn);
-      expect(mine).toHaveLength(1);
+      expect(bookedTrips()).toHaveLength(1);
     } finally {
       jest.useRealTimers();
     }

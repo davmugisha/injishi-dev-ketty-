@@ -7,10 +7,12 @@
     "build": "next build",
     "start": "next start --port 3001",
     "typecheck": "tsc --noEmit",
-    "lint": "eslint \"src/**/*.{ts,tsx}\""
+    "lint": "eslint \"src/**/*.{ts,tsx}\"",
+    "test": "node ../../scripts/no-tests.mjs"
   },
   "dependencies": {
     "@heroui/react": "3.2.4",
+    "@heroui/styles": "3.2.4",
     "@injishi/auth": "workspace:*",
     "@injishi/contracts": "workspace:*",
     "@injishi/design-tokens": "workspace:*",

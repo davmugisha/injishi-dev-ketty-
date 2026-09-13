@@ -1,0 +1,89 @@
+name: schema-capture
+
+# ADR-048 AC-8's other half. Publish production's schema, ROWS EXCLUDED, so a
+# pull request can replay its migrations against the shape they will really
+# meet.
+#
+# Published as a GHCR artifact rather than an Actions artifact, because a pull
+# request's run cannot read another workflow run's artifacts. It can pull an
+# image by tag, so the schema travels as a tiny image with one file in it.
+#
+# Rows are excluded by `--schema-only`. What is published is still a description
+# of production's structure, so it goes to the same private registry as the API
+# image and nowhere else.
+#
+# NOT RUNNABLE UNTIL THE DOKPLOY CUTOVER: there is no production on the VPS to
+# capture yet. Until it runs once, `integration.yml`'s replay job says so and
+# skips, rather than failing every pull request on the absence of a thing that
+# does not exist.
+
+on:
+  schedule:
+    # 02:30 UTC, after the nightly demo rebuild's window and before a working day.
+    - cron: '30 2 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  packages: write
+
+concurrency:
+  group: schema-capture
+  cancel-in-progress: false
+
+jobs:
+  capture:
+    name: capture and publish
+    runs-on: [self-hosted, injishi-vps]
+    timeout-minutes: 20
+    steps:
+      - name: Dump the schema
+        run: |
+          set -euo pipefail
+          work="$(mktemp -d)"
+          echo "work=$work" >> "$GITHUB_ENV"
+
+          # Dumped from INSIDE the running db container, so this job needs no
+          # database credential of its own: the container already holds one.
+          # --schema-only is what keeps rows out; --no-owner and --no-privileges
+          # keep the dump restorable into a throwaway CI database that has
+          # neither production's roles nor its grants.
+          docker compose -p injishi -f /opt/injishi/src/infra/docker/docker-compose.dokploy.yml \
+            --env-file /opt/injishi/.env \
+            exec -T db pg_dump --schema-only --no-owner --no-privileges -U injishi injishi \
+            > "$work/schema.sql"
+
+          if ! grep -q "CREATE TABLE" "$work/schema.sql"; then
+            echo "::error::The dump contains no CREATE TABLE. Refusing to publish a schema that would make the replay job pass by checking nothing."
+            exit 1
+          fi
+          wc -l "$work/schema.sql"
+
+      - name: Refuse to publish anything that looks like a row
+        run: |
+          set -euo pipefail
+          # --schema-only should make this impossible. It is checked anyway,
+          # because the cost of being wrong is publishing personal data to a
+          # registry, and the cost of the check is one grep.
+          if grep -qE '^(COPY |INSERT INTO )' "$work/schema.sql"; then
+            echo "::error::The dump contains row data. Not publishing."
+            exit 1
+          fi
+          echo "No COPY or INSERT statements: schema only, as intended."
+
+      - name: Publish it to GHCR
+        env:
+          SCHEMA_IMAGE: ghcr.io/${{ github.repository_owner }}/injishi-schema
+        run: |
+          set -euo pipefail
+          cd "$work"
+          printf 'FROM scratch\nCOPY schema.sql /schema.sql\n' > Dockerfile
+          echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u "${{ github.actor }}" --password-stdin
+          docker build -t "$SCHEMA_IMAGE:latest" -t "$SCHEMA_IMAGE:$(date -u +%Y%m%d)" .
+          docker push "$SCHEMA_IMAGE:latest"
+          docker push "$SCHEMA_IMAGE:$(date -u +%Y%m%d)"
+          docker logout ghcr.io
+
+      - name: Tidy up
+        if: always()
+        run: rm -rf "$work" || true

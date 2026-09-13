@@ -1,0 +1,40 @@
+# Code owners.
+#
+# ADR-048 AC-17b. This file exists for ONE path, and for a specific reason.
+#
+# The control that matters in ADR-048's security model is that branch code
+# never reaches the self hosted runner on the VPS. Branch protection gives that
+# control no teeth on its own: a same repository pull request runs the workflow
+# YAML from its OWN branch, and this repository requires zero approvals, so a
+# pull request that added `runs-on: injishi-vps` to a `pull_request` triggered
+# job would reach the production host before anybody merged it.
+#
+# Two things close that, and both are required because they act at different
+# moments. `scripts/check-workflow-triggers.mjs` runs as the `workflow-guard`
+# job and fails such a pull request BEFORE it can merge. The rule below makes a
+# workflow file the one path in this repository that cannot change without an
+# approval, which is what stops the guard itself from being edited away in the
+# same change.
+#
+# For the rule to bite, "Require review from Code Owners" must be on for `main`
+# in the repository's branch protection settings. Without that, GitHub treats
+# this file as a suggestion.
+
+# Everything that defines, or could disable, the pipeline.
+/.github/                     @sshami
+/.github/workflows/           @sshami
+/.github/actions/             @sshami
+
+# The scripts the workflows call. A check is only as trustworthy as the file it
+# runs, so the guard, the manifest check and the ratchet are owned too.
+/scripts/check-workflow-triggers.mjs   @sshami
+/scripts/check-workspace-manifests.mjs @sshami
+/scripts/lint-ratchet.mjs              @sshami
+/scripts/workspace-members.mjs         @sshami
+/scripts/ci-changes.mjs                @sshami
+/scripts/ci-complete.mjs               @sshami
+/.github/lint-baseline.json            @sshami
+
+# What a deploy actually runs on the host.
+/infra/docker/deploy-stack.sh  @sshami
+/infra/docker/demo-nightly.sh  @sshami

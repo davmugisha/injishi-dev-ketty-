@@ -1,0 +1,96 @@
+name: deploy-staging
+
+# ADR-048 AC-11, AC-12, AC-18. Every green commit on `main` reaches staging with
+# no human step, because staging is the thing production is promoted FROM: if a
+# person can skip it, "staging ran this commit" is not a fact production can be
+# gated on.
+#
+# This runs on the self hosted runner ON the VPS (`injishi-vps`). That label
+# must never appear in a workflow triggered by a pull request: a pull request
+# runs the workflow file from its own branch, so that would put unmerged branch
+# code on the production host. `scripts/check-workflow-triggers.mjs` fails the
+# run if anyone changes that, and CODEOWNERS requires an approval to merge it.
+#
+# Every green commit deploys, including one that changed only documentation or
+# only mobile. That burns host CPU on rebuilds that change nothing served, and
+# it is chosen deliberately: "staging is exactly `main`" is a simpler rule to
+# trust than a path filter nobody re-reads.
+
+on:
+  # After `image`, so the API image this deploy pulls by sha already exists.
+  workflow_run:
+    workflows: [image]
+    types: [completed]
+    branches: [main]
+  # AC-13. Proves the dispatch mechanism `deploy-production.yml` uses, against
+  # a stack where getting it wrong is cheap.
+  workflow_dispatch:
+    inputs:
+      commit:
+        description: The commit to deploy. Must already have an API image in GHCR.
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+# One deploy to this stack at a time. Queued rather than cancelled: a half
+# finished deploy that is cancelled leaves the stack in a state nobody chose.
+concurrency:
+  group: deploy-staging
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    name: deploy staging
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      github.event.workflow_run.conclusion == 'success'
+    runs-on: [self-hosted, injishi-vps]
+    timeout-minutes: 90
+    steps:
+      - name: Resolve the commit to deploy
+        id: target
+        env:
+          # `workflow_run` does NOT check out or report the triggering commit by
+          # default: its ref is the default branch. Resolving head_sha
+          # explicitly is what stops two commits landing close together from
+          # deploying the wrong one.
+          DISPATCH_COMMIT: ${{ inputs.commit }}
+          RUN_SHA: ${{ github.event.workflow_run.head_sha }}
+        run: |
+          set -euo pipefail
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            commit="$DISPATCH_COMMIT"
+          else
+            commit="$RUN_SHA"
+          fi
+          case "$commit" in
+            *[!0-9a-f]* | "") echo "::error::'$commit' is not a git sha."; exit 1 ;;
+          esac
+          echo "commit=$commit" >> "$GITHUB_OUTPUT"
+          echo "Deploying $commit to staging"
+
+      # No `actions/checkout`. This job does not work in the runner's workspace:
+      # it deploys the stack that lives at /opt/injishi-staging, and the deploy
+      # script is the one in THAT checkout, at the commit being deployed.
+      - name: Deploy
+        env:
+          DEPLOY_HEALTH_TIMEOUT: ${{ vars.DEPLOY_HEALTH_TIMEOUT || '600' }}
+          DEPLOY_LOCK_TIMEOUT: ${{ vars.DEPLOY_LOCK_TIMEOUT || '1800' }}
+          COMMIT: ${{ steps.target.outputs.commit }}
+        run: |
+          set -euo pipefail
+          src=/opt/injishi-staging/src
+          # Update the checkout first so the deploy script itself is the version
+          # that belongs to the commit being deployed.
+          git -C "$src" fetch --quiet origin
+          git -C "$src" checkout --quiet --force "$COMMIT"
+          bash "$src/infra/docker/deploy-stack.sh" --stack staging --commit "$COMMIT"
+
+      - name: What is serving now
+        if: always()
+        run: |
+          set +e
+          echo "checkout: $(git -C /opt/injishi-staging/src rev-parse HEAD)"
+          docker compose -p injishi-staging ps

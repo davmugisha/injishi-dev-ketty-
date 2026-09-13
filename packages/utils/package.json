@@ -14,8 +14,18 @@
   "files": [
     "src"
   ],
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "lint": "eslint \"src/**/*.ts\"",
+    "test": "node ../../scripts/no-tests.mjs"
+  },
   "dependencies": {
     "clsx": "2.1.1",
     "tailwind-merge": "3.6.0"
+  },
+  "devDependencies": {
+    "@typescript-eslint/parser": "^8.68.0",
+    "eslint": "^10.9.1",
+    "typescript": "5.8.3"
   }
 }
