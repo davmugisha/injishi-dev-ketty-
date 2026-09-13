@@ -396,7 +396,9 @@ if (failures.length) {
 }
 
 const check = process.argv.includes('--check');
-const existing = existsSync(OUT) ? readFileSync(OUT, 'utf8') : null;
+// Line endings are not drift: a Windows checkout with core.autocrlf holds CRLF
+// while the script emits LF, and a byte comparison called that STALE.
+const existing = existsSync(OUT) ? readFileSync(OUT, 'utf8').replace(/\r\n/g, '\n') : null;
 if (check) {
   if (existing !== file) {
     // This runs as the first half of `pnpm lint`, so a failure here is one of

@@ -419,7 +419,10 @@ let stale = 0;
 for (const [name, body] of Object.entries(SHEETS)) {
   const path = join(OUT, name);
   const existing = existsSync(path) ? readFileSync(path, 'utf8') : null;
-  if (existing === body) {
+  // Compare without line endings. The sheets are emitted with CRLF, git stores
+  // them with LF, and a Linux checkout (CI) keeps LF, so a byte comparison
+  // reported every sheet STALE there while nothing had moved.
+  if (existing !== null && existing.replace(/\r\n/g, '\n') === body.replace(/\r\n/g, '\n')) {
     console.log(`ok    generated/${name} up to date`);
     continue;
   }
