@@ -163,6 +163,9 @@ export class OutletsRepository {
     status: outlets.status,
   };
 
+  // The joined select builder's type is drizzle's to spell, and every caller
+  // narrows it to OutletRow; writing it out by hand would only restate drizzle.
+  // eslint-disable-next-line @typescript-eslint/explicit-function-return-type
   private selectOutlets() {
     return this.db
       .select(this.outletColumns)

@@ -12,7 +12,7 @@ import type { BookingNotificationsService } from './booking-notifications.servic
  */
 describe('BookingCancellationService', () => {
   const GUEST = '66666666-6666-6666-6666-666666666666';
-  const daysAhead = (days: number) =>
+  const daysAhead = (days: number): string =>
     new Date(Date.now() + days * 86_400_000).toISOString().slice(0, 10);
 
   const booking = (over: Partial<CancellableBooking> = {}): CancellableBooking => ({
@@ -36,14 +36,22 @@ describe('BookingCancellationService', () => {
     ...over,
   });
 
-  function build(row: CancellableBooking | null, opts: { providerDown?: boolean; recorded?: boolean } = {}) {
+  function build(
+    row: CancellableBooking | null,
+    opts: { providerDown?: boolean; recorded?: boolean } = {},
+  ): {
+    service: BookingCancellationService;
+    repo: { findForCancellation: jest.Mock; recordCancellation: jest.Mock };
+    payments: { releaseEscrow: jest.Mock; refund: jest.Mock };
+    notifications: { notify: jest.Mock };
+  } {
     const repo = {
       findForCancellation: jest.fn().mockResolvedValue(row),
       recordCancellation: jest
         .fn()
         .mockResolvedValue(opts.recorded === false ? null : { id: row?.bookingId, reference: row?.reference }),
     };
-    const fail = () => Promise.reject(new PaymentUnavailableError('down', 'k'));
+    const fail = (): Promise<never> => Promise.reject(new PaymentUnavailableError('down', 'k'));
     const payments = {
       releaseEscrow: jest.fn(opts.providerDown ? fail : () => Promise.resolve({})),
       refund: jest.fn(opts.providerDown ? fail : () => Promise.resolve({})),

@@ -4,6 +4,7 @@ import { ConflictException, Injectable, NotFoundException } from '@nestjs/common
 import {
   type ApprovalOutcome,
   BookingRepository,
+  type ManageableBooking,
 } from '../infrastructure/booking.repository';
 import { BookingDecisionService } from './booking-decision.service';
 
@@ -27,7 +28,7 @@ export class BookingApprovalService {
    * found" and "not yours" alike. A host cancellation authorises through this,
    * the same rule approve and decline use.
    */
-  findManageable(bookingId: string, userId: string) {
+  findManageable(bookingId: string, userId: string): Promise<ManageableBooking | null> {
     return this.bookings.findManageableBooking(bookingId, userId);
   }
 

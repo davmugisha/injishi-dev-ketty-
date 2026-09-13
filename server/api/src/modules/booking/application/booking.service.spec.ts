@@ -112,7 +112,7 @@ describe('BookingService money ordering', () => {
   }
 
   /** The hold: claimed before any capture, released when no money moved. */
-  function holdDouble(soldOut: boolean, order: string[]) {
+  function holdDouble(soldOut: boolean, order: string[]): Harness['attempts'] {
     const hold = { id: 'hold-1', attemptToken: 'tok', adapterRef: null };
     return {
       claimHold: jest.fn(async () => {

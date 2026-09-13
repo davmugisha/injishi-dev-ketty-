@@ -400,7 +400,7 @@ export class OutletsService {
     ws: WorkspaceAccess,
     departmentId: string,
     propertyId: string | null,
-  ) {
+  ): Promise<NonNullable<Awaited<ReturnType<OutletsRepository['findDepartment']>>>> {
     const department = await this.outlets.findDepartment(departmentId);
     if (!department || department.workspaceId !== ws.workspaceId) {
       throw new UnprocessableEntityException('That department is not one of this business\'s departments.');

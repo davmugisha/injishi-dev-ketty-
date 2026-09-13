@@ -101,7 +101,7 @@ describe('the money alarms, from their call sites', () => {
   });
   afterAll(() => setErrorReporter(INERT_REPORTER));
 
-  function compensationService(opts: { insertRejects?: boolean; queueRejects?: boolean }) {
+  function compensationService(opts: { insertRejects?: boolean; queueRejects?: boolean }): PaymentCompensationService {
     const queue = {
       add: opts.queueRejects ? jest.fn().mockRejectedValue(new Error('Custom Id cannot contain :')) : jest.fn(),
     };
