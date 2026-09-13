@@ -288,6 +288,13 @@
       "when": 1789314536081,
       "tag": "0040_property_photos_and_registration_events",
       "breakpoints": true
+    },
+    {
+      "idx": 41,
+      "version": "7",
+      "when": 1789332441986,
+      "tag": "0041_property_setup_contacts",
+      "breakpoints": true
     }
   ]
 }

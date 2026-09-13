@@ -14,6 +14,7 @@ export * from "./countries";
 export * from "./geography";
 export * from "./registration";
 export * from "./inventory";
+export * from "./setup-steps";
 export * from "./booking";
 export * from "./trips";
 export * from "./inbox";

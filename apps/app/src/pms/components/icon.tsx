@@ -60,6 +60,8 @@ import {
   Menu,
   ScrollText,
   UserRound,
+  ListChecks,
+  Phone,
   type LucideIcon,
 } from "lucide-react";
 
@@ -115,6 +117,8 @@ const ICONS: Record<string, LucideIcon> = {
   menu: Menu,
   "scroll-text": ScrollText,
   "user-round": UserRound,
+  "list-checks": ListChecks,
+  phone: Phone,
 };
 
 export function Icon({

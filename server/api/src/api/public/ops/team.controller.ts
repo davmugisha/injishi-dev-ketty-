@@ -1,13 +1,34 @@
-import type { OperatorTeamList, WorkspaceAccess } from '@injishi/contracts';
-import { Controller, Get, UseGuards } from '@nestjs/common';
+import {
+  InviteStaffRequest,
+  type OperatorStaffInvitation,
+  type OperatorStaffInvitationList,
+  type OperatorTeamList,
+  type WorkspaceAccess,
+} from '@injishi/contracts';
+import {
+  Body,
+  Controller,
+  Get,
+  HttpCode,
+  Param,
+  ParseUUIDPipe,
+  Post,
+  UseGuards,
+} from '@nestjs/common';
 
+import { StaffInvitationService } from '../../../modules/organization/application/staff-invitation.service';
 import { TeamService } from '../../../modules/organization/application/team.service';
-import { SessionGuard } from '../../../shared/auth/session.guard';
+import {
+  CurrentUser,
+  SessionGuard,
+  type SessionUser,
+} from '../../../shared/auth/session.guard';
 import {
   CurrentWorkspace,
   RequirePermission,
   WorkspaceGuard,
 } from '../../../shared/auth/workspace.guard';
+import { ZodValidationPipe } from '../../../shared/validation/zod-validation.pipe';
 
 /**
  * The staff roster -> `GET /api/v1/ops/team` (ADR-035, wave 2 follow-up).
@@ -23,19 +44,54 @@ import {
  * reason: some lists are not operational data, they are information about
  * people.
  *
- * NO WRITE ROUTE. Adding somebody is an invitation and an invitation is its own
- * flow with its own decisions; a bare "add member" that wrote an
- * `org_memberships` row would skip all of them. Recorded as owed rather than
- * half built.
+ * Adding somebody is an INVITATION, never a bare membership write: the owner
+ * names an address and a role, the mail carries a single use link, and the
+ * membership is written only when that address signs in and accepts
+ * (`/api/v1/orgs/:orgId/staff-invitation`). Every route here sits behind
+ * `team.manage`, so none of it opens before the business is approved (D20).
  */
 @Controller({ path: 'ops/team', version: '1' })
 @UseGuards(SessionGuard, WorkspaceGuard)
 export class OpsTeamController {
-  constructor(private readonly team: TeamService) {}
+  constructor(
+    private readonly team: TeamService,
+    private readonly invitations: StaffInvitationService,
+  ) {}
 
   @Get()
   @RequirePermission('team.manage')
   list(@CurrentWorkspace() workspace: WorkspaceAccess): Promise<OperatorTeamList> {
     return this.team.list(workspace);
+  }
+
+  /** Every staff invitation this business has sent, newest first. */
+  @Get('invitations')
+  @RequirePermission('team.manage')
+  async listInvitations(
+    @CurrentWorkspace() workspace: WorkspaceAccess,
+  ): Promise<OperatorStaffInvitationList> {
+    return { invitations: await this.invitations.list(workspace) };
+  }
+
+  /** Invite somebody by email into a role. Mails them a single use link. */
+  @Post('invitations')
+  @RequirePermission('team.manage')
+  invite(
+    @Body(new ZodValidationPipe(InviteStaffRequest)) body: InviteStaffRequest,
+    @CurrentWorkspace() workspace: WorkspaceAccess,
+    @CurrentUser() user: SessionUser,
+  ): Promise<OperatorStaffInvitation> {
+    return this.invitations.invite(workspace, user.id, body);
+  }
+
+  /** Withdraw an invitation nobody has accepted yet. */
+  @Post('invitations/:id/revoke')
+  @HttpCode(204)
+  @RequirePermission('team.manage')
+  async revoke(
+    @Param('id', ParseUUIDPipe) id: string,
+    @CurrentWorkspace() workspace: WorkspaceAccess,
+  ): Promise<void> {
+    await this.invitations.revoke(workspace, id);
   }
 }

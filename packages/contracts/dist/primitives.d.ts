@@ -74,4 +74,14 @@ export type Currency = z.infer<typeof Currency>;
 /** UUID identifier used for every entity except geography. */
 export declare const Uuid: z.ZodString;
 export type Uuid = z.infer<typeof Uuid>;
+/**
+ * A telephone number on a contact card: a property's front desk, a head of
+ * department. As a person types it, `+250 788 123 456` or `0788123456`.
+ *
+ * Loose on purpose, and NOT `RwPhoneNumber` (phone.ts), which is a Rwandan
+ * mobile that a sign-in code is texted to. Nothing dials or verifies this one,
+ * so the rule is only "digits a person could call", spacing kept as typed.
+ */
+export declare const ContactPhone: z.ZodString;
+export type ContactPhone = z.infer<typeof ContactPhone>;
 //# sourceMappingURL=primitives.d.ts.map

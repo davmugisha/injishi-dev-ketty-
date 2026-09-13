@@ -46,6 +46,9 @@ export interface DepartmentRow {
   guestRequestable: boolean;
   sortOrder: number;
   status: DepartmentStatus;
+  headName: string | null;
+  headPhone: string | null;
+  phone: string | null;
 }
 
 /**
@@ -70,6 +73,9 @@ export class DepartmentsRepository {
     guestRequestable: departments.guestRequestable,
     sortOrder: departments.sortOrder,
     status: departments.status,
+    headName: departments.headName,
+    headPhone: departments.headPhone,
+    phone: departments.phone,
   };
 
   async list(workspaceId: string): Promise<DepartmentRow[]> {
@@ -141,6 +147,9 @@ export class DepartmentsRepository {
         isRevenueCenter: r.departmentType === 'operated',
         guestRequestable: r.guestRequestable ?? false,
         sortOrder: r.sortOrder ?? 500,
+        headName: r.headName?.trim() || null,
+        headPhone: r.headPhone ?? null,
+        phone: r.phone ?? null,
       })
       // The property already has one department per category. A duplicate is a
       // conflict rather than an error, and the service turns the empty result
@@ -158,6 +167,12 @@ export class DepartmentsRepository {
     }
     if (request.sortOrder !== undefined) patch.sortOrder = request.sortOrder;
     if (request.status !== undefined) patch.status = request.status;
+    // The contact card. ull clears a field; an empty name is no name.
+    if (request.headName !== undefined) {
+      patch.headName = request.headName?.trim() || null;
+    }
+    if (request.headPhone !== undefined) patch.headPhone = request.headPhone;
+    if (request.phone !== undefined) patch.phone = request.phone;
 
     await this.db
       .update(departments)

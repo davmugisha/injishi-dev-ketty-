@@ -225,6 +225,9 @@ export class DepartmentsService {
       guestRequestable: row.guestRequestable,
       sortOrder: row.sortOrder,
       status: row.status,
+      headName: row.headName,
+      headPhone: row.headPhone,
+      phone: row.phone,
     };
   }
 

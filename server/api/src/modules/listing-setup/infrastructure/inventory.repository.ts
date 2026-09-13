@@ -60,6 +60,8 @@ export interface PropertyRow {
   houseRules: string | null;
   locationPrivacy: boolean;
   timezone: string;
+  contactPhone: string | null;
+  contactEmail: string | null;
   slug: string | null;
   listingStatus: 'draft' | 'published';
   publishedAt: Date | null;
@@ -88,6 +90,8 @@ const PROPERTY_COLUMNS = {
   houseRules: properties.houseRules,
   locationPrivacy: properties.locationPrivacy,
   timezone: properties.timezone,
+  contactPhone: properties.contactPhone,
+  contactEmail: properties.contactEmail,
   slug: properties.slug,
   listingStatus: listings.status,
   publishedAt: listings.publishedAt,
@@ -150,6 +154,8 @@ export class InventoryRepository {
           checkOutTime: r.checkOutTime ?? null,
           houseRules: r.houseRules ?? null,
           locationPrivacy: r.locationPrivacy ?? false,
+          contactPhone: r.contactPhone ?? null,
+          contactEmail: r.contactEmail ?? null,
           // No photo column any more. ADR-053 moved photographs into
           // `property_photos`, so a property is created with none and the
           // attach route adds them; "no photos" is now the absence of rows.
@@ -203,6 +209,8 @@ export class InventoryRepository {
     if (r.locationPrivacy !== undefined) {
       patch.locationPrivacy = r.locationPrivacy;
     }
+    if (r.contactPhone !== undefined) patch.contactPhone = r.contactPhone;
+    if (r.contactEmail !== undefined) patch.contactEmail = r.contactEmail;
     if (r.sectorId !== undefined) {
       patch.sectorId = r.sectorId;
       patch.districtId = input.districtId;

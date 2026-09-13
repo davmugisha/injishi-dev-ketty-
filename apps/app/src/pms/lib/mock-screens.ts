@@ -132,9 +132,18 @@ export const LIVE_SCREENS: ReadonlySet<string> = new Set([
    * account (ADR-041). It reads `GET /ops/ebm/connection` and, once connected,
    * the taxpayer's own catalog and customers, and commands connect, mapping and
    * disconnect. Property, Policies and Plan are `Placeholder`s — no data, not
-   * invented data — the same line `people` and `calendar` joined on.
+   * invented data — the same line `people` and `calendar` joined on. Property is
+   * live since 2026-09-13: the property profile and its contact card.
    */
   "settings",
+
+  /*
+   * Setup after approval (2026-09-13). `setup` reads GET /inventory/setup and
+   * links every step to a live screen. `units` left the demo store in the same
+   * change: it reads the property's unit types and rooms from /inventory.
+   */
+  "setup",
+  "units",
 ]);
 
 /** Is this screen reading real server data yet? */

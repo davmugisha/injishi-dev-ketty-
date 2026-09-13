@@ -15,6 +15,7 @@
  * today" list, not a ledger, and the ledger is its own screen.
  */
 
+import { SetupBanner } from "../components/setup-banner";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { useWorkspaceHref } from "../lib/workspace-href";
@@ -143,6 +144,7 @@ export function RentRoll() {
 
   return (
     <div className="pms-enter" style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+      <SetupBanner />
       <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
         {chips.map((c) => (
           <Chip key={c.key} label={c.label} n={c.n} active={filter === c.key} onClick={() => setFilter(c.key)} />

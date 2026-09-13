@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { OrgRole } from "./primitives";
 /**
  * The operator command surface (ADR-012, `/api/v1/ops/*`).
  *
@@ -1539,6 +1540,14 @@ export declare const OperatorDepartment: z.ZodObject<{
     guestRequestable: z.ZodBoolean;
     sortOrder: z.ZodNumber;
     status: z.ZodEnum<["active", "archived"]>;
+    /**
+     * The department's contact card: who heads it, their number, and the
+     * department's own line. Text rather than a roster row, because a head of
+     * department often has no account on the day a property is set up.
+     */
+    headName: z.ZodNullable<z.ZodString>;
+    headPhone: z.ZodNullable<z.ZodString>;
+    phone: z.ZodNullable<z.ZodString>;
 }, "strip", z.ZodTypeAny, {
     status: "active" | "archived";
     id: string;
@@ -1549,6 +1558,9 @@ export declare const OperatorDepartment: z.ZodObject<{
     isRevenueCenter: boolean;
     guestRequestable: boolean;
     sortOrder: number;
+    headName: string | null;
+    headPhone: string | null;
+    phone: string | null;
 }, {
     status: "active" | "archived";
     id: string;
@@ -1559,6 +1571,9 @@ export declare const OperatorDepartment: z.ZodObject<{
     isRevenueCenter: boolean;
     guestRequestable: boolean;
     sortOrder: number;
+    headName: string | null;
+    headPhone: string | null;
+    phone: string | null;
 }>;
 export type OperatorDepartment = z.infer<typeof OperatorDepartment>;
 export declare const OperatorDepartmentList: z.ZodObject<{
@@ -1572,6 +1587,14 @@ export declare const OperatorDepartmentList: z.ZodObject<{
         guestRequestable: z.ZodBoolean;
         sortOrder: z.ZodNumber;
         status: z.ZodEnum<["active", "archived"]>;
+        /**
+         * The department's contact card: who heads it, their number, and the
+         * department's own line. Text rather than a roster row, because a head of
+         * department often has no account on the day a property is set up.
+         */
+        headName: z.ZodNullable<z.ZodString>;
+        headPhone: z.ZodNullable<z.ZodString>;
+        phone: z.ZodNullable<z.ZodString>;
     }, "strip", z.ZodTypeAny, {
         status: "active" | "archived";
         id: string;
@@ -1582,6 +1605,9 @@ export declare const OperatorDepartmentList: z.ZodObject<{
         isRevenueCenter: boolean;
         guestRequestable: boolean;
         sortOrder: number;
+        headName: string | null;
+        headPhone: string | null;
+        phone: string | null;
     }, {
         status: "active" | "archived";
         id: string;
@@ -1592,6 +1618,9 @@ export declare const OperatorDepartmentList: z.ZodObject<{
         isRevenueCenter: boolean;
         guestRequestable: boolean;
         sortOrder: number;
+        headName: string | null;
+        headPhone: string | null;
+        phone: string | null;
     }>, "many">;
 }, "strip", z.ZodTypeAny, {
     departments: {
@@ -1604,6 +1633,9 @@ export declare const OperatorDepartmentList: z.ZodObject<{
         isRevenueCenter: boolean;
         guestRequestable: boolean;
         sortOrder: number;
+        headName: string | null;
+        headPhone: string | null;
+        phone: string | null;
     }[];
 }, {
     departments: {
@@ -1616,6 +1648,9 @@ export declare const OperatorDepartmentList: z.ZodObject<{
         isRevenueCenter: boolean;
         guestRequestable: boolean;
         sortOrder: number;
+        headName: string | null;
+        headPhone: string | null;
+        phone: string | null;
     }[];
 }>;
 export type OperatorDepartmentList = z.infer<typeof OperatorDepartmentList>;
@@ -1626,6 +1661,9 @@ export type OperatorDepartmentList = z.infer<typeof OperatorDepartmentList>;
  * centre that takes revenue is a contradiction the database also refuses.
  */
 export declare const CreateDepartmentRequest: z.ZodObject<{
+    headName: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    headPhone: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    phone: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     propertyId: z.ZodString;
     name: z.ZodString;
     departmentType: z.ZodEnum<["operated", "undistributed"]>;
@@ -1639,6 +1677,9 @@ export declare const CreateDepartmentRequest: z.ZodObject<{
     departmentCategory: "rooms" | "fnb" | "spa_recreation" | "other_operated" | "misc_income" | "admin_general" | "sales_marketing" | "it" | "engineering" | "utilities" | "hr";
     guestRequestable?: boolean | undefined;
     sortOrder?: number | undefined;
+    headName?: string | null | undefined;
+    headPhone?: string | null | undefined;
+    phone?: string | null | undefined;
 }, {
     name: string;
     propertyId: string;
@@ -1646,6 +1687,9 @@ export declare const CreateDepartmentRequest: z.ZodObject<{
     departmentCategory: "rooms" | "fnb" | "spa_recreation" | "other_operated" | "misc_income" | "admin_general" | "sales_marketing" | "it" | "engineering" | "utilities" | "hr";
     guestRequestable?: boolean | undefined;
     sortOrder?: number | undefined;
+    headName?: string | null | undefined;
+    headPhone?: string | null | undefined;
+    phone?: string | null | undefined;
 }>;
 export type CreateDepartmentRequest = z.infer<typeof CreateDepartmentRequest>;
 /**
@@ -1656,6 +1700,9 @@ export type CreateDepartmentRequest = z.infer<typeof CreateDepartmentRequest>;
  * booked against the department.
  */
 export declare const UpdateDepartmentRequest: z.ZodEffects<z.ZodObject<{
+    headName: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    headPhone: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    phone: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     name: z.ZodOptional<z.ZodString>;
     guestRequestable: z.ZodOptional<z.ZodBoolean>;
     sortOrder: z.ZodOptional<z.ZodNumber>;
@@ -1665,21 +1712,33 @@ export declare const UpdateDepartmentRequest: z.ZodEffects<z.ZodObject<{
     name?: string | undefined;
     guestRequestable?: boolean | undefined;
     sortOrder?: number | undefined;
+    headName?: string | null | undefined;
+    headPhone?: string | null | undefined;
+    phone?: string | null | undefined;
 }, {
     status?: "active" | "archived" | undefined;
     name?: string | undefined;
     guestRequestable?: boolean | undefined;
     sortOrder?: number | undefined;
+    headName?: string | null | undefined;
+    headPhone?: string | null | undefined;
+    phone?: string | null | undefined;
 }>, {
     status?: "active" | "archived" | undefined;
     name?: string | undefined;
     guestRequestable?: boolean | undefined;
     sortOrder?: number | undefined;
+    headName?: string | null | undefined;
+    headPhone?: string | null | undefined;
+    phone?: string | null | undefined;
 }, {
     status?: "active" | "archived" | undefined;
     name?: string | undefined;
     guestRequestable?: boolean | undefined;
     sortOrder?: number | undefined;
+    headName?: string | null | undefined;
+    headPhone?: string | null | undefined;
+    phone?: string | null | undefined;
 }>;
 export type UpdateDepartmentRequest = z.infer<typeof UpdateDepartmentRequest>;
 export declare const FolioType: z.ZodEnum<["guest", "master", "group", "house"]>;
@@ -2840,6 +2899,144 @@ export declare const OperatorTeamList: z.ZodObject<{
     }[];
 }>;
 export type OperatorTeamList = z.infer<typeof OperatorTeamList>;
+/**
+ * The roles an owner or manager may invite somebody into.
+ *
+ * `owner` is not offered. Ownership changes hands through the owner claim
+ * (FL02), which checks an identity document; an emailed link that could make
+ * somebody an owner would be a way round that check.
+ */
+export declare const InvitableOrgRole: z.ZodEnum<["manager", "receptionist", "housekeeper"]>;
+export type InvitableOrgRole = z.infer<typeof InvitableOrgRole>;
+/** What a role is called on screens and in the invitation mail. */
+export declare const ORG_ROLE_LABEL: Readonly<Record<OrgRole, string>>;
+export declare const InviteStaffRequest: z.ZodObject<{
+    email: z.ZodString;
+    orgRole: z.ZodEnum<["manager", "receptionist", "housekeeper"]>;
+}, "strip", z.ZodTypeAny, {
+    email: string;
+    orgRole: "manager" | "receptionist" | "housekeeper";
+}, {
+    email: string;
+    orgRole: "manager" | "receptionist" | "housekeeper";
+}>;
+export type InviteStaffRequest = z.infer<typeof InviteStaffRequest>;
+export declare const StaffInvitationStatus: z.ZodEnum<["sent", "accepted", "revoked", "expired"]>;
+export type StaffInvitationStatus = z.infer<typeof StaffInvitationStatus>;
+/**
+ * One invitation, as the business that sent it sees it.
+ *
+ * The TOKEN is never on this shape. It travels once, in the mail, and a list
+ * that carried it would turn anybody who can read the People screen into
+ * somebody who can accept every pending invitation themselves.
+ */
+export declare const OperatorStaffInvitation: z.ZodObject<{
+    id: z.ZodString;
+    email: z.ZodString;
+    orgRole: z.ZodEnum<["owner", "manager", "receptionist", "housekeeper"]>;
+    /** `expired` is derived at read time from `expiresAt`, not stored. */
+    status: z.ZodEnum<["sent", "accepted", "revoked", "expired"]>;
+    expiresAt: z.ZodString;
+    createdAt: z.ZodString;
+}, "strip", z.ZodTypeAny, {
+    status: "expired" | "sent" | "accepted" | "revoked";
+    id: string;
+    createdAt: string;
+    email: string;
+    orgRole: "owner" | "manager" | "receptionist" | "housekeeper";
+    expiresAt: string;
+}, {
+    status: "expired" | "sent" | "accepted" | "revoked";
+    id: string;
+    createdAt: string;
+    email: string;
+    orgRole: "owner" | "manager" | "receptionist" | "housekeeper";
+    expiresAt: string;
+}>;
+export type OperatorStaffInvitation = z.infer<typeof OperatorStaffInvitation>;
+export declare const OperatorStaffInvitationList: z.ZodObject<{
+    invitations: z.ZodArray<z.ZodObject<{
+        id: z.ZodString;
+        email: z.ZodString;
+        orgRole: z.ZodEnum<["owner", "manager", "receptionist", "housekeeper"]>;
+        /** `expired` is derived at read time from `expiresAt`, not stored. */
+        status: z.ZodEnum<["sent", "accepted", "revoked", "expired"]>;
+        expiresAt: z.ZodString;
+        createdAt: z.ZodString;
+    }, "strip", z.ZodTypeAny, {
+        status: "expired" | "sent" | "accepted" | "revoked";
+        id: string;
+        createdAt: string;
+        email: string;
+        orgRole: "owner" | "manager" | "receptionist" | "housekeeper";
+        expiresAt: string;
+    }, {
+        status: "expired" | "sent" | "accepted" | "revoked";
+        id: string;
+        createdAt: string;
+        email: string;
+        orgRole: "owner" | "manager" | "receptionist" | "housekeeper";
+        expiresAt: string;
+    }>, "many">;
+}, "strip", z.ZodTypeAny, {
+    invitations: {
+        status: "expired" | "sent" | "accepted" | "revoked";
+        id: string;
+        createdAt: string;
+        email: string;
+        orgRole: "owner" | "manager" | "receptionist" | "housekeeper";
+        expiresAt: string;
+    }[];
+}, {
+    invitations: {
+        status: "expired" | "sent" | "accepted" | "revoked";
+        id: string;
+        createdAt: string;
+        email: string;
+        orgRole: "owner" | "manager" | "receptionist" | "housekeeper";
+        expiresAt: string;
+    }[];
+}>;
+export type OperatorStaffInvitationList = z.infer<typeof OperatorStaffInvitationList>;
+/** The token from the mail. POSTed in a body, never put in a query string. */
+export declare const StaffInvitationTokenRequest: z.ZodObject<{
+    token: z.ZodString;
+}, "strip", z.ZodTypeAny, {
+    token: string;
+}, {
+    token: string;
+}>;
+export type StaffInvitationTokenRequest = z.infer<typeof StaffInvitationTokenRequest>;
+/** What the join page shows before somebody accepts. */
+export declare const StaffInvitationPreview: z.ZodObject<{
+    legalName: z.ZodString;
+    orgRole: z.ZodEnum<["owner", "manager", "receptionist", "housekeeper"]>;
+    /** The address it was sent to, so a person signed in as someone else sees why it refuses. */
+    email: z.ZodString;
+}, "strip", z.ZodTypeAny, {
+    legalName: string;
+    email: string;
+    orgRole: "owner" | "manager" | "receptionist" | "housekeeper";
+}, {
+    legalName: string;
+    email: string;
+    orgRole: "owner" | "manager" | "receptionist" | "housekeeper";
+}>;
+export type StaffInvitationPreview = z.infer<typeof StaffInvitationPreview>;
+export declare const AcceptedStaffInvitation: z.ZodObject<{
+    orgId: z.ZodString;
+    workspaceId: z.ZodString;
+    orgRole: z.ZodEnum<["owner", "manager", "receptionist", "housekeeper"]>;
+}, "strip", z.ZodTypeAny, {
+    orgId: string;
+    orgRole: "owner" | "manager" | "receptionist" | "housekeeper";
+    workspaceId: string;
+}, {
+    orgId: string;
+    orgRole: "owner" | "manager" | "receptionist" | "housekeeper";
+    workspaceId: string;
+}>;
+export type AcceptedStaffInvitation = z.infer<typeof AcceptedStaffInvitation>;
 export declare const HousekeepingTaskType: z.ZodEnum<["checkout_clean", "stayover_clean", "inspection", "deep_clean", "turndown"]>;
 export type HousekeepingTaskType = z.infer<typeof HousekeepingTaskType>;
 /**

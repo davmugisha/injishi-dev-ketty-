@@ -144,6 +144,17 @@ export const departments = pgTable(
     guestRequestable: boolean('guest_requestable').notNull().default(false),
     sortOrder: integer('sort_order').notNull().default(0),
     status: departmentStatusEnum('status').notNull().default('active'),
+    /**
+     * Who runs this department and how to reach them, and the department's own
+     * line (the restaurant's extension, the front desk's number).
+     *
+     * Text, not a `department_members` row. A head of department often has no
+     * account yet on the day a property is set up, and the roster row needs
+     * one; this is the contact card, the roster is who may work the board.
+     */
+    headName: text('head_name'),
+    headPhone: text('head_phone'),
+    phone: text('phone'),
     ...timestamps,
   },
   (t) => [

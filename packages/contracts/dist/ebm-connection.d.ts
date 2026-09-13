@@ -300,7 +300,7 @@ export declare const EbmConnection: z.ZodObject<{
      */
     heldSaleCount: z.ZodNumber;
 }, "strip", z.ZodTypeAny, {
-    status: "not_connected" | "connected" | "revoked";
+    status: "revoked" | "not_connected" | "connected";
     mode: "mock" | "live";
     tin: string | null;
     accountName: string | null;
@@ -317,7 +317,7 @@ export declare const EbmConnection: z.ZodObject<{
     isReady: boolean;
     heldSaleCount: number;
 }, {
-    status: "not_connected" | "connected" | "revoked";
+    status: "revoked" | "not_connected" | "connected";
     mode: "mock" | "live";
     tin: string | null;
     accountName: string | null;

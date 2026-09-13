@@ -25,6 +25,7 @@ import {
   orgRegistrationReviews,
   orgMemberships,
   orgs,
+  oversightAssignments,
   recordAccessLogs,
   registrationFees,
   sectors,
@@ -968,5 +969,118 @@ export class OrganizationRepository {
       dataClass: 'contract',
       reason: 'oversight decision log',
     });
+  }
+
+  // -------------------------------------------------------------------------
+  // Registration mail recipients and facts. Read at send time, after the move
+  // committed, so a mail describes the business as it now is.
+  // -------------------------------------------------------------------------
+
+  /** What a registration mail names: the business, where it is, its workspace. */
+  async registrationMailFacts(orgId: string): Promise<{
+    legalName: string;
+    tin: string | null;
+    districtId: number | null;
+    districtName: string | null;
+    sectorName: string | null;
+    workspaceId: string | null;
+  } | null> {
+    const [row] = await this.db
+      .select({
+        legalName: orgs.legalName,
+        tin: orgs.tin,
+        districtId: orgs.districtId,
+        districtName: districts.name,
+        sectorName: sectors.name,
+        workspaceId: workspaces.id,
+      })
+      .from(orgs)
+      .leftJoin(districts, eq(districts.id, orgs.districtId))
+      .leftJoin(sectors, eq(sectors.id, orgs.sectorId))
+      .leftJoin(workspaces, eq(workspaces.orgId, orgs.id))
+      .where(eq(orgs.id, orgId))
+      .limit(1);
+    return row ?? null;
+  }
+
+  /**
+   * Every live owner of this business and the address to mail them at. For an
+   * OBO registration that is the registrant, who holds the owner membership
+   * until the claim.
+   */
+  async activeOwnerRecipients(
+    orgId: string,
+  ): Promise<{ userId: string; email: string; name: string | null }[]> {
+    const rows = await this.db
+      .select({
+        userId: users.id,
+        email: users.email,
+        legalFullName: verifiedIdentities.legalFullName,
+        name: users.name,
+      })
+      .from(orgMemberships)
+      .innerJoin(users, eq(users.id, orgMemberships.userId))
+      .leftJoin(verifiedIdentities, eq(verifiedIdentities.userId, users.id))
+      .where(
+        and(
+          eq(orgMemberships.orgId, orgId),
+          eq(orgMemberships.orgRole, 'owner'),
+          eq(orgMemberships.status, 'active'),
+          isNull(orgMemberships.removedAt),
+        ),
+      );
+    return rows
+      .filter((r) => Boolean(r.email))
+      .map((r) => ({
+        userId: r.userId,
+        email: r.email,
+        name: r.legalFullName?.trim() || r.name?.trim() || null,
+      }));
+  }
+
+  /**
+   * Every unrevoked assignment for one oversight function, with its officer.
+   * Region is NOT applied here: the caller reads it through `districtScopeOf`,
+   * the one definition, exactly as the gate does.
+   */
+  async activeOversightAssignments(
+    role: 'business_field_verifier' | 'business_approver',
+  ): Promise<{
+    userId: string;
+    email: string;
+    name: string | null;
+    scopeLevel: 'country' | 'province' | 'district';
+    provinceId: number | null;
+    districtId: number | null;
+  }[]> {
+    const rows = await this.db
+      .select({
+        userId: oversightAssignments.userId,
+        email: users.email,
+        legalFullName: verifiedIdentities.legalFullName,
+        name: users.name,
+        scopeLevel: oversightAssignments.scopeLevel,
+        provinceId: oversightAssignments.provinceId,
+        districtId: oversightAssignments.districtId,
+      })
+      .from(oversightAssignments)
+      .innerJoin(users, eq(users.id, oversightAssignments.userId))
+      .leftJoin(verifiedIdentities, eq(verifiedIdentities.userId, users.id))
+      .where(
+        and(
+          eq(oversightAssignments.oversightRole, role),
+          isNull(oversightAssignments.revokedAt),
+        ),
+      );
+    return rows
+      .filter((r) => Boolean(r.email))
+      .map((r) => ({
+        userId: r.userId,
+        email: r.email,
+        name: r.legalFullName?.trim() || r.name?.trim() || null,
+        scopeLevel: r.scopeLevel,
+        provinceId: r.provinceId,
+        districtId: r.districtId,
+      }));
   }
 }

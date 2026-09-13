@@ -253,7 +253,13 @@ export function hostNav(
       : []),
     ...sectionOf(
       "Property",
-      [{ key: "inventory", label: "Inventory", icon: "building-2", href: `${base}/inventory`, built: true, permission: "listing.manage" }],
+      [
+        // The setup checklist an approved business lands on (2026-09-13). It
+        // opens nothing of its own: every step links to the leaf that edits it,
+        // so it is gated like Inventory and adds no second door.
+        { key: "setup", label: "Setup", icon: "list-checks", href: `${base}/setup`, built: true, permission: "listing.manage" },
+        { key: "inventory", label: "Inventory", icon: "building-2", href: `${base}/inventory`, built: true, permission: "listing.manage" },
+      ],
       permissions,
     ),
     // Four leaves used to sit here — bills, payouts, invoices, revenue — and
@@ -315,7 +321,11 @@ export function landlordNav(
       [
         // `unit.manage` stops being a declared but unenforced permission here:
         // these are exactly the leaves it was written for (ADR-053).
-        { key: "units", label: "Units & rents", icon: "building-2", href: `${base}/units`, built: true, permission: "unit.manage" },
+        { key: "setup", label: "Setup", icon: "list-checks", href: `${base}/setup`, built: true, permission: "listing.manage" },
+        // Units is the landlord's inventory: the building, unit types, units,
+        // photos and publishing. It grants `inventory` so the amenities lens
+        // it links to opens under the one screen mechanism (invariant 6).
+        { key: "units", label: "Units & rents", icon: "building-2", href: `${base}/units`, built: true, permission: "unit.manage", grants: ["inventory"] },
         { key: "maintenance", label: "Maintenance", icon: "wrench", href: `${base}/maintenance`, count: ticketsOpen, built: true, permission: "ticket.advance" },
         // Was `directory`, the same word the broker uses for the opposite job:
         // this one PUBLISHES your units, theirs browses everyone else's.

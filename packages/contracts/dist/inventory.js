@@ -1,9 +1,10 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.UploadedPropertyPhoto = exports.PropertyPhotoList = exports.ReorderPropertyPhotosRequest = exports.AttachPropertyPhotoRequest = exports.UpdateRatePlanRequest = exports.CreateRatePlanRequest = exports.OperatorRoomTypeList = exports.OperatorRoomType = exports.UpdateRoomTypeRequest = exports.CreateRoomTypeRequest = exports.PUBLISH_BLOCKER_LABEL = exports.PublishBlocker = exports.OperatorPropertyList = exports.OperatorRatePlanList = exports.OperatorRatePlan = exports.OperatorProperty = exports.PropertyPhoto = exports.OperatorPropertySummary = exports.PropertyAddress = exports.UpdatePropertyRequest = exports.CreatePropertyRequest = exports.WorkspaceScoped = exports.ListingStatus = void 0;
+exports.PropertySetupProgress = exports.PropertySetupCounts = exports.UpdateRoomRequest = exports.CreateRoomsRequest = exports.InventoryRoomList = exports.InventoryRoom = exports.UploadedPropertyPhoto = exports.PropertyPhotoList = exports.ReorderPropertyPhotosRequest = exports.AttachPropertyPhotoRequest = exports.UpdateRatePlanRequest = exports.CreateRatePlanRequest = exports.OperatorRoomTypeList = exports.OperatorRoomType = exports.UpdateRoomTypeRequest = exports.CreateRoomTypeRequest = exports.RoomLabel = exports.PUBLISH_BLOCKER_LABEL = exports.PublishBlocker = exports.OperatorPropertyList = exports.OperatorRatePlanList = exports.OperatorRatePlan = exports.OperatorProperty = exports.PropertyPhoto = exports.OperatorPropertySummary = exports.PropertyAddress = exports.UpdatePropertyRequest = exports.CreatePropertyRequest = exports.WorkspaceScoped = exports.ListingStatus = void 0;
 exports.stepForPublishBlocker = stepForPublishBlocker;
 const zod_1 = require("zod");
 const booking_1 = require("./booking");
+const ops_1 = require("./ops");
 const primitives_1 = require("./primitives");
 /**
  * The operator write path for inventory (ADR-009).
@@ -68,6 +69,18 @@ const propertyFields = {
      * respected by the public read path, so this is a real toggle, not a stub.
      */
     locationPrivacy: zod_1.z.boolean().optional(),
+    /**
+     * How a guest, a tenant or an officer reaches the property itself, which is
+     * not always its owner: a group runs several front desks. `null` clears it.
+     */
+    contactPhone: primitives_1.ContactPhone.nullable().optional(),
+    contactEmail: zod_1.z
+        .string()
+        .trim()
+        .email("Use an email address like frontdesk@example.com.")
+        .max(200)
+        .nullable()
+        .optional(),
 };
 exports.CreatePropertyRequest = exports.WorkspaceScoped.extend(propertyFields);
 /**
@@ -154,6 +167,8 @@ exports.OperatorProperty = exports.OperatorPropertySummary.extend({
     houseRules: zod_1.z.string().nullable(),
     locationPrivacy: zod_1.z.boolean(),
     timezone: zod_1.z.string(),
+    contactPhone: zod_1.z.string().nullable(),
+    contactEmail: zod_1.z.string().nullable(),
     photos: zod_1.z.array(exports.PropertyPhoto),
     /**
      * Empty until feature 2 builds the room type write path. An empty array is a
@@ -317,7 +332,29 @@ const roomTypeFields = {
     /** How many rooms of this type exist. Seeds nothing; `rooms` is the truth. */
     roomCount: zod_1.z.number().int().positive().max(10000).optional(),
 };
-exports.CreateRoomTypeRequest = exports.WorkspaceScoped.extend(roomTypeFields);
+/**
+ * What one physical room or unit is called on the door: `101`, `Tent 4`,
+ * `Apartment B2`. Unique within its property, which the service enforces.
+ */
+exports.RoomLabel = zod_1.z
+    .string()
+    .trim()
+    .min(1, "Give every room a number or a name.")
+    .max(60, "That room name is too long.");
+/**
+ * Creating a room type may name its rooms in the same call.
+ *
+ * `roomLabels` is how a new property gets SELLABLE rooms at all: `roomCount`
+ * alone seeds nothing, so a property set up without rooms could never publish
+ * and its room status board stayed empty. When labels are sent they win and
+ * `roomCount` follows them; when only a count is sent, that many rooms are
+ * created with numbered labels. Create only — an edit adds rooms through the
+ * rooms route, where each one can be named.
+ */
+exports.CreateRoomTypeRequest = exports.WorkspaceScoped.extend({
+    ...roomTypeFields,
+    roomLabels: zod_1.z.array(exports.RoomLabel).max(500, "Add at most 500 rooms at once.").optional(),
+});
 /**
  * Editing a room type replaces only the fields sent, like every other operator
  * edit here, and adds the one field a create cannot send: archiving it.
@@ -434,5 +471,84 @@ exports.UploadedPropertyPhoto = zod_1.z.object({
     filename: zod_1.z.string(),
     /** A short lived signed read, so the operator sees the picture immediately. */
     url: zod_1.z.string(),
+});
+// ---------------------------------------------------------------------------
+// Rooms and units: the physical inventory
+// ---------------------------------------------------------------------------
+/**
+ * One physical room, tent, villa or rental unit, as its owner sets it up.
+ *
+ * A hotel room and a residence unit are the SAME row (`rooms`): a lease names a
+ * room, a stay names a room, and a room type is what either one is sold as. The
+ * operator app words it per business ("Room 101", "Unit B2"), the wire does not.
+ *
+ * Not `OperatorRoom` (ops.ts), which is TODAY's board: who is in it and whether
+ * it is clean. This is setup, so it carries what setup edits.
+ */
+exports.InventoryRoom = zod_1.z.object({
+    id: primitives_1.Uuid,
+    roomTypeId: primitives_1.Uuid,
+    label: zod_1.z.string().nullable(),
+    status: ops_1.RoomStatus,
+    /** New rooms are `clean`, the column default: nobody has slept in them. */
+    housekeeping: ops_1.HousekeepingStatus,
+});
+exports.InventoryRoomList = zod_1.z.object({
+    rooms: zod_1.z.array(exports.InventoryRoom),
+});
+/** Add rooms to a room type, each with the label on its door. */
+exports.CreateRoomsRequest = exports.WorkspaceScoped.extend({
+    labels: zod_1.z
+        .array(exports.RoomLabel)
+        .min(1, "Add at least one room.")
+        .max(500, "Add at most 500 rooms at once."),
+});
+/**
+ * Renumber a room, or take it out of what can be sold.
+ *
+ * `status` is the SALES state (available, maintenance, out of service). Whether
+ * it is clean stays housekeeping's, on `POST /ops/rooms/:id/housekeeping`.
+ */
+exports.UpdateRoomRequest = exports.WorkspaceScoped.extend({
+    label: exports.RoomLabel.optional(),
+    status: ops_1.RoomStatus.optional(),
+});
+// ---------------------------------------------------------------------------
+// Setting a business up after approval
+// ---------------------------------------------------------------------------
+/**
+ * How far an approved business has got with setting up its property.
+ *
+ * COUNTS, not booleans, so the checklist can say "3 room types, 42 rooms"
+ * rather than a tick, and so the step definitions in `setup-steps.ts` decide
+ * what "done" means in one place instead of the API and the app each deciding.
+ *
+ * `propertyId` is the property the counts are about: the one asked for, or the
+ * first one on the business, or null when there is none yet — which is exactly
+ * the state a business is in on the day it is approved.
+ */
+exports.PropertySetupCounts = zod_1.z.object({
+    properties: zod_1.z.number().int(),
+    contactDetails: zod_1.z.number().int(),
+    departments: zod_1.z.number().int(),
+    departmentHeads: zod_1.z.number().int(),
+    roomTypes: zod_1.z.number().int(),
+    pricedRoomTypes: zod_1.z.number().int(),
+    rooms: zod_1.z.number().int(),
+    photos: zod_1.z.number().int(),
+    amenities: zod_1.z.number().int(),
+    outlets: zod_1.z.number().int(),
+    /** Members other than owners, plus invitations still waiting to be accepted. */
+    staff: zod_1.z.number().int(),
+    published: zod_1.z.number().int(),
+});
+exports.PropertySetupProgress = zod_1.z.object({
+    orgId: primitives_1.Uuid,
+    legalName: zod_1.z.string(),
+    domain: primitives_1.Domain,
+    accommodationClass: zod_1.z.string().nullable(),
+    propertyId: primitives_1.Uuid.nullable(),
+    propertyName: zod_1.z.string().nullable(),
+    counts: exports.PropertySetupCounts,
 });
 //# sourceMappingURL=inventory.js.map

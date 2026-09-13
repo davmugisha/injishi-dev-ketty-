@@ -16,6 +16,7 @@ import {
   DRIZZLE,
   type Database,
 } from '../../../shared/database/database.module';
+import { insertRooms } from './rooms.repository';
 
 /** One room type, with the counts and the default plan a caller needs. */
 export interface RoomTypeRow {
@@ -168,6 +169,12 @@ export class RoomTypesRepository {
     workspaceId: string;
     domain: 'hospitality' | 'residence';
     request: CreateRoomTypeRequest;
+    /**
+     * The rooms this type starts with, already checked for collisions by the
+     * service. Written in the same transaction, so a room type never commits
+     * without the rooms that make it sellable.
+     */
+    roomLabels: readonly string[];
   }): Promise<string> {
     const r = input.request;
     return this.db.transaction(async (tx) => {
@@ -201,6 +208,13 @@ export class RoomTypesRepository {
         baseOccupancy: r.maxGuests,
         cancellationTier: r.cancellationTier ?? null,
         bookingMode: r.bookingMode ?? null,
+      });
+
+      await insertRooms(tx, {
+        roomTypeId: roomType.id,
+        propertyId: input.propertyId,
+        workspaceId: input.workspaceId,
+        labels: input.roomLabels,
       });
 
       return roomType.id;

@@ -75,6 +75,9 @@ const PROTECTED_PREFIXES = [
   "/inbox",
   "/account",
   "/claim-org",
+  // Accepting a staff invitation writes a membership for the signed-in
+  // account, so it needs one (2026-09-13).
+  "/join-team",
   // The post-sign-in resolver and the second-factor screens need a session
   // and nothing more (F-S02). The operator zone (/w, /oversight) is gated by
   // its own middleware on the app server the rewrite forwards to.

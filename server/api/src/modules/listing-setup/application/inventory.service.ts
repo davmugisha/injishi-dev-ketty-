@@ -139,6 +139,8 @@ export class InventoryService {
       houseRules: (row as PropertyRow).houseRules,
       locationPrivacy: (row as PropertyRow).locationPrivacy,
       timezone: (row as PropertyRow).timezone,
+      contactPhone: (row as PropertyRow).contactPhone,
+      contactEmail: (row as PropertyRow).contactEmail,
       photos,
       roomTypes,
     };

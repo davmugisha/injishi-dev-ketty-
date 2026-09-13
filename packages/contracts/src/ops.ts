@@ -1,6 +1,6 @@
 import { z } from "zod";
 import { BookingStatus } from "./booking";
-import { OrgRole, Uuid } from "./primitives";
+import { ContactPhone, OrgRole, Uuid } from "./primitives";
 import { Tin } from "./registration";
 /**
  * The operator command surface (ADR-012, `/api/v1/ops/*`).
@@ -615,8 +615,22 @@ export const OperatorDepartment = z.object({
     guestRequestable: z.boolean(),
     sortOrder: z.number().int(),
     status: DepartmentStatus,
+    /**
+     * The department's contact card: who heads it, their number, and the
+     * department's own line. Text rather than a roster row, because a head of
+     * department often has no account on the day a property is set up.
+     */
+    headName: z.string().nullable(),
+    headPhone: z.string().nullable(),
+    phone: z.string().nullable(),
 });
 export type OperatorDepartment = z.infer<typeof OperatorDepartment>;
+/** The contact card fields, shared by create and update. `null` clears one. */
+const departmentContactFields = {
+    headName: z.string().trim().max(120, "That name is too long.").nullable().optional(),
+    headPhone: ContactPhone.nullable().optional(),
+    phone: ContactPhone.nullable().optional(),
+};
 export const OperatorDepartmentList = z.object({
     departments: z.array(OperatorDepartment),
 });
@@ -634,6 +648,7 @@ export const CreateDepartmentRequest = z.object({
     departmentCategory: DepartmentCategory,
     guestRequestable: z.boolean().optional(),
     sortOrder: z.number().int().min(0).max(9999).optional(),
+    ...departmentContactFields,
 });
 export type CreateDepartmentRequest = z.infer<typeof CreateDepartmentRequest>;
 /**
@@ -649,6 +664,7 @@ export const UpdateDepartmentRequest = z
     guestRequestable: z.boolean().optional(),
     sortOrder: z.number().int().min(0).max(9999).optional(),
     status: DepartmentStatus.optional(),
+    ...departmentContactFields,
 })
     .refine((v) => Object.keys(v).length > 0, {
     message: "Say what to change.",
@@ -996,6 +1012,77 @@ export const OperatorTeamList = z.object({
     members: z.array(OperatorTeamMember),
 });
 export type OperatorTeamList = z.infer<typeof OperatorTeamList>;
+// ---------------------------------------------------------------------------
+// Inviting staff
+// ---------------------------------------------------------------------------
+/**
+ * The roles an owner or manager may invite somebody into.
+ *
+ * `owner` is not offered. Ownership changes hands through the owner claim
+ * (FL02), which checks an identity document; an emailed link that could make
+ * somebody an owner would be a way round that check.
+ */
+export const InvitableOrgRole = OrgRole.exclude(["owner"]);
+export type InvitableOrgRole = z.infer<typeof InvitableOrgRole>;
+/** What a role is called on screens and in the invitation mail. */
+export const ORG_ROLE_LABEL: Readonly<Record<OrgRole, string>> = {
+    owner: "Owner",
+    manager: "Manager",
+    receptionist: "Front office / Receptionist",
+    housekeeper: "Housekeeper",
+};
+export const InviteStaffRequest = z.object({
+    email: z
+        .string()
+        .trim()
+        .toLowerCase()
+        .email("Use an email address like name@example.com.")
+        .max(200),
+    orgRole: InvitableOrgRole,
+});
+export type InviteStaffRequest = z.infer<typeof InviteStaffRequest>;
+export const StaffInvitationStatus = z.enum(["sent", "accepted", "revoked", "expired"]);
+export type StaffInvitationStatus = z.infer<typeof StaffInvitationStatus>;
+/**
+ * One invitation, as the business that sent it sees it.
+ *
+ * The TOKEN is never on this shape. It travels once, in the mail, and a list
+ * that carried it would turn anybody who can read the People screen into
+ * somebody who can accept every pending invitation themselves.
+ */
+export const OperatorStaffInvitation = z.object({
+    id: Uuid,
+    email: z.string(),
+    orgRole: OrgRole,
+    /** `expired` is derived at read time from `expiresAt`, not stored. */
+    status: StaffInvitationStatus,
+    expiresAt: z.string(),
+    createdAt: z.string(),
+});
+export type OperatorStaffInvitation = z.infer<typeof OperatorStaffInvitation>;
+export const OperatorStaffInvitationList = z.object({
+    invitations: z.array(OperatorStaffInvitation),
+});
+export type OperatorStaffInvitationList = z.infer<typeof OperatorStaffInvitationList>;
+/** The token from the mail. POSTed in a body, never put in a query string. */
+export const StaffInvitationTokenRequest = z.object({
+    token: z.string().min(16).max(200),
+});
+export type StaffInvitationTokenRequest = z.infer<typeof StaffInvitationTokenRequest>;
+/** What the join page shows before somebody accepts. */
+export const StaffInvitationPreview = z.object({
+    legalName: z.string(),
+    orgRole: OrgRole,
+    /** The address it was sent to, so a person signed in as someone else sees why it refuses. */
+    email: z.string(),
+});
+export type StaffInvitationPreview = z.infer<typeof StaffInvitationPreview>;
+export const AcceptedStaffInvitation = z.object({
+    orgId: Uuid,
+    workspaceId: Uuid,
+    orgRole: OrgRole,
+});
+export type AcceptedStaffInvitation = z.infer<typeof AcceptedStaffInvitation>;
 // ---------------------------------------------------------------------------
 // Housekeeping tasks
 // ---------------------------------------------------------------------------

@@ -22,6 +22,11 @@
  * accounting category is not — which is exactly the split `code-standards`
  * calls "an editable catalog over a stable vocabulary" (D14).
  *
+ * **Each department carries a contact card** (2026-09-13): who heads it, their
+ * phone number and the department's own line. A setup checklist asks for it,
+ * and a head of department often has no account yet, so it is text on the
+ * department rather than a roster row.
+ *
  * **There is no "Add a department" here yet.** `CreateDepartmentRequest`
  * requires a `propertyId`, and nothing on a workspace grant yet says which
  * property is in view; a workspace can hold several. That is the same blocker
@@ -67,7 +72,14 @@ const CATEGORY_NOTE: Record<string, string> = {
   hr: "Human resources. A cost centre.",
 };
 
-const COLS = "minmax(190px,1.6fr) minmax(150px,1.4fr) minmax(120px,.9fr) auto";
+const COLS = "minmax(170px,1.3fr) minmax(170px,1.3fr) minmax(150px,1.2fr) minmax(110px,.8fr) auto";
+
+interface ContactDraft {
+  name: string;
+  headName: string;
+  headPhone: string;
+  phone: string;
+}
 
 export function Departments() {
   const { toast, toastError } = usePms();
@@ -76,26 +88,42 @@ export function Departments() {
   const query = useDepartments(workspaceId);
   const update = useUpdateDepartment(workspaceId);
 
-  /** The row being renamed, and what has been typed. */
+  /** The row being edited, and what has been typed. */
   const [editing, setEditing] = useState<string | null>(null);
-  const [name, setName] = useState("");
+  const [draft, setDraft] = useState<ContactDraft>({ name: "", headName: "", headPhone: "", phone: "" });
 
   const mayManage = can("department.manage");
   const denied = mayManage ? undefined : reasonFor("department.manage");
 
-  function rename(d: OperatorDepartment) {
-    const next = name.trim();
-    // The server refuses an empty name and an unchanged one is not a command.
-    if (!next || next === d.name) {
+  function startEdit(d: OperatorDepartment) {
+    setEditing(d.id);
+    setDraft({
+      name: d.name,
+      headName: d.headName ?? "",
+      headPhone: d.headPhone ?? "",
+      phone: d.phone ?? "",
+    });
+  }
+
+  function save(d: OperatorDepartment) {
+    const next = draft.name.trim();
+    // The server refuses an empty name.
+    if (!next) {
       setEditing(null);
       return;
     }
     update.mutate(
-      { departmentId: d.id, name: next },
+      {
+        departmentId: d.id,
+        name: next,
+        headName: draft.headName.trim() || null,
+        headPhone: draft.headPhone.trim() || null,
+        phone: draft.phone.trim() || null,
+      },
       {
         onSuccess: () => {
           setEditing(null);
-          toast(`Renamed to ${next}`, "ok");
+          toast(`${next} saved`, "ok");
         },
         onError: toastError,
       },
@@ -155,27 +183,71 @@ export function Departments() {
         )}
         style={{ gridTemplateColumns: COLS }}
       >
-        <span className="min-w-0">
+        <span className="flex min-w-0 flex-col gap-0.5">
           {open ? (
             <Input
               autoFocus
-              value={name}
-              onChange={(e) => setName(e.target.value)}
+              value={draft.name}
+              onChange={(e) => setDraft({ ...draft, name: e.target.value })}
               onKeyDown={(e) => {
-                if (e.key === "Enter") rename(d);
+                if (e.key === "Enter") save(d);
                 if (e.key === "Escape") setEditing(null);
               }}
-              aria-label={`Rename ${d.name}`}
+              aria-label={`Name of ${d.name}`}
               maxLength={120}
               className="h-9 rounded border-line2 bg-card text-sm"
             />
           ) : (
             <span className="block truncate text-sm font-semibold text-ink">{d.name}</span>
           )}
+          <span className="text-2xs text-muted-foreground">
+            {CATEGORY_NOTE[d.departmentCategory] ?? d.departmentCategory}
+          </span>
         </span>
 
-        <span className="min-w-0 text-2xs text-muted-foreground">
-          {CATEGORY_NOTE[d.departmentCategory] ?? d.departmentCategory}
+        <span className="flex min-w-0 flex-col gap-1" data-department-head={d.headName ?? ""}>
+          {open ? (
+            <>
+              <Input
+                value={draft.headName}
+                onChange={(e) => setDraft({ ...draft, headName: e.target.value })}
+                aria-label={`Head of ${d.name}`}
+                placeholder="Head of department"
+                maxLength={120}
+                className="h-9 rounded border-line2 bg-card text-sm"
+              />
+              <Input
+                value={draft.headPhone}
+                onChange={(e) => setDraft({ ...draft, headPhone: e.target.value })}
+                aria-label={`Phone of the head of ${d.name}`}
+                placeholder="Head's phone"
+                inputMode="tel"
+                className="h-9 rounded border-line2 bg-card text-sm"
+              />
+            </>
+          ) : d.headName ? (
+            <>
+              <span className="truncate text-sm text-ink">{d.headName}</span>
+              {d.headPhone && <span className="pms-num text-2xs text-muted-foreground">{d.headPhone}</span>}
+            </>
+          ) : (
+            <span className="text-2xs text-muted-foreground">No head named yet</span>
+          )}
+        </span>
+
+        <span className="min-w-0">
+          {open ? (
+            <Input
+              value={draft.phone}
+              onChange={(e) => setDraft({ ...draft, phone: e.target.value })}
+              aria-label={`Phone line of ${d.name}`}
+              placeholder="Department line"
+              inputMode="tel"
+              className="h-9 rounded border-line2 bg-card text-sm"
+            />
+          ) : (
+            <span className="pms-num text-sm text-ink2">{d.phone ?? "—"}</span>
+          )}
         </span>
 
         <span className="flex flex-wrap gap-1.5">
@@ -190,18 +262,15 @@ export function Departments() {
             <ActionButton
               disabled={Boolean(denied) || busy}
               title={denied}
-              onClick={() => {
-                setEditing(d.id);
-                setName(d.name);
-              }}
+              onClick={() => startEdit(d)}
             >
-              Rename
+              Edit
             </ActionButton>
           )}
           {open && (
             <>
               <ActionButton onClick={() => setEditing(null)}>Cancel</ActionButton>
-              <ActionButton variant="primary" pending={busy} onClick={() => rename(d)}>
+              <ActionButton variant="primary" pending={busy} onClick={() => save(d)}>
                 {busy ? "Saving" : "Save"}
               </ActionButton>
             </>
@@ -222,6 +291,16 @@ export function Departments() {
 
   return (
     <div className="pms-enter flex flex-col gap-4">
+      <div
+        className="grid gap-2.5 px-[18px] text-2xs font-bold tracking-[0.05em] uppercase text-[var(--muted2)] max-md:hidden"
+        style={{ gridTemplateColumns: COLS }}
+      >
+        <span>Department</span>
+        <span>Head of department</span>
+        <span>Department line</span>
+        <span />
+        <span />
+      </div>
       <span className="text-xs text-muted-foreground">
         A department decides where revenue is reported and where an order routes. Retiring
         one closes the section of the nav it opens — its history is kept either way.
@@ -235,7 +314,7 @@ export function Departments() {
           </EmptyState>
         ) : (
           <div className={cn(surfaceClass, "mt-2.5 scrollbar overflow-x-auto")}>
-            <div className="min-w-[720px]">{running.map((d, i) => row(d, i, true))}</div>
+            <div className="min-w-[860px]">{running.map((d, i) => row(d, i, true))}</div>
           </div>
         )}
       </section>
@@ -244,7 +323,7 @@ export function Departments() {
         <section>
           <SectionHeading n={retired.length}>Retired</SectionHeading>
           <div className={cn(surfaceClass, "mt-2.5 scrollbar overflow-x-auto")}>
-            <div className="min-w-[720px]">{retired.map((d, i) => row(d, i, false))}</div>
+            <div className="min-w-[860px]">{retired.map((d, i) => row(d, i, false))}</div>
           </div>
         </section>
       )}

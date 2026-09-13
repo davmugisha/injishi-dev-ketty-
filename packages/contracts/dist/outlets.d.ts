@@ -93,9 +93,9 @@ export declare const OutletParty: z.ZodObject<{
     legalName: string;
     tin: string | null;
     orgId: string | null;
-    contactName: string | null;
     contactPhone: string | null;
     contactEmail: string | null;
+    contactName: string | null;
     isOwnOrg: boolean;
 }, {
     status: "active" | "archived";
@@ -103,9 +103,9 @@ export declare const OutletParty: z.ZodObject<{
     legalName: string;
     tin: string | null;
     orgId: string | null;
-    contactName: string | null;
     contactPhone: string | null;
     contactEmail: string | null;
+    contactName: string | null;
     isOwnOrg: boolean;
 }>;
 export type OutletParty = z.infer<typeof OutletParty>;
@@ -128,9 +128,9 @@ export declare const OutletPartyList: z.ZodObject<{
         legalName: string;
         tin: string | null;
         orgId: string | null;
-        contactName: string | null;
         contactPhone: string | null;
         contactEmail: string | null;
+        contactName: string | null;
         isOwnOrg: boolean;
     }, {
         status: "active" | "archived";
@@ -138,9 +138,9 @@ export declare const OutletPartyList: z.ZodObject<{
         legalName: string;
         tin: string | null;
         orgId: string | null;
-        contactName: string | null;
         contactPhone: string | null;
         contactEmail: string | null;
+        contactName: string | null;
         isOwnOrg: boolean;
     }>, "many">;
 }, "strip", z.ZodTypeAny, {
@@ -150,9 +150,9 @@ export declare const OutletPartyList: z.ZodObject<{
         legalName: string;
         tin: string | null;
         orgId: string | null;
-        contactName: string | null;
         contactPhone: string | null;
         contactEmail: string | null;
+        contactName: string | null;
         isOwnOrg: boolean;
     }[];
 }, {
@@ -162,9 +162,9 @@ export declare const OutletPartyList: z.ZodObject<{
         legalName: string;
         tin: string | null;
         orgId: string | null;
-        contactName: string | null;
         contactPhone: string | null;
         contactEmail: string | null;
+        contactName: string | null;
         isOwnOrg: boolean;
     }[];
 }>;
@@ -181,16 +181,16 @@ export declare const CreateOutletPartyRequest: z.ZodObject<{
     legalName: string;
     tin?: string | undefined;
     orgId?: string | undefined;
-    contactName?: string | undefined;
     contactPhone?: string | undefined;
     contactEmail?: string | undefined;
+    contactName?: string | undefined;
 }, {
     legalName: string;
     tin?: string | undefined;
     orgId?: string | undefined;
-    contactName?: string | undefined;
     contactPhone?: string | undefined;
     contactEmail?: string | undefined;
+    contactName?: string | undefined;
 }>;
 export type CreateOutletPartyRequest = z.infer<typeof CreateOutletPartyRequest>;
 export declare const UpdateOutletPartyRequest: z.ZodEffects<z.ZodObject<{
@@ -206,33 +206,33 @@ export declare const UpdateOutletPartyRequest: z.ZodEffects<z.ZodObject<{
     legalName?: string | undefined;
     tin?: string | undefined;
     orgId?: string | undefined;
-    contactName?: string | undefined;
     contactPhone?: string | undefined;
     contactEmail?: string | undefined;
+    contactName?: string | undefined;
 }, {
     status?: "active" | "archived" | undefined;
     legalName?: string | undefined;
     tin?: string | undefined;
     orgId?: string | undefined;
-    contactName?: string | undefined;
     contactPhone?: string | undefined;
     contactEmail?: string | undefined;
+    contactName?: string | undefined;
 }>, {
     status?: "active" | "archived" | undefined;
     legalName?: string | undefined;
     tin?: string | undefined;
     orgId?: string | undefined;
-    contactName?: string | undefined;
     contactPhone?: string | undefined;
     contactEmail?: string | undefined;
+    contactName?: string | undefined;
 }, {
     status?: "active" | "archived" | undefined;
     legalName?: string | undefined;
     tin?: string | undefined;
     orgId?: string | undefined;
-    contactName?: string | undefined;
     contactPhone?: string | undefined;
     contactEmail?: string | undefined;
+    contactName?: string | undefined;
 }>;
 export type UpdateOutletPartyRequest = z.infer<typeof UpdateOutletPartyRequest>;
 /** A party as an outlet row names it. */

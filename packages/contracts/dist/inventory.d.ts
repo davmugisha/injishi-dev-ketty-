@@ -47,6 +47,12 @@ export declare const CreatePropertyRequest: z.ZodObject<{
      * respected by the public read path, so this is a real toggle, not a stub.
      */
     locationPrivacy: z.ZodOptional<z.ZodBoolean>;
+    /**
+     * How a guest, a tenant or an officer reaches the property itself, which is
+     * not always its owner: a group runs several front desks. `null` clears it.
+     */
+    contactPhone: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    contactEmail: z.ZodOptional<z.ZodNullable<z.ZodString>>;
 }, "strip", z.ZodTypeAny, {
     sectorId: number;
     name: string;
@@ -57,6 +63,8 @@ export declare const CreatePropertyRequest: z.ZodObject<{
     description?: string | undefined;
     houseRules?: string | undefined;
     locationPrivacy?: boolean | undefined;
+    contactPhone?: string | null | undefined;
+    contactEmail?: string | null | undefined;
 }, {
     sectorId: number;
     name: string;
@@ -67,6 +75,8 @@ export declare const CreatePropertyRequest: z.ZodObject<{
     description?: string | undefined;
     houseRules?: string | undefined;
     locationPrivacy?: boolean | undefined;
+    contactPhone?: string | null | undefined;
+    contactEmail?: string | null | undefined;
 }>;
 export type CreatePropertyRequest = z.infer<typeof CreatePropertyRequest>;
 /**
@@ -87,6 +97,8 @@ export declare const UpdatePropertyRequest: z.ZodObject<{
     checkOutTime: z.ZodOptional<z.ZodOptional<z.ZodString>>;
     houseRules: z.ZodOptional<z.ZodOptional<z.ZodString>>;
     locationPrivacy: z.ZodOptional<z.ZodOptional<z.ZodBoolean>>;
+    contactPhone: z.ZodOptional<z.ZodOptional<z.ZodNullable<z.ZodString>>>;
+    contactEmail: z.ZodOptional<z.ZodOptional<z.ZodNullable<z.ZodString>>>;
 }, "strip", z.ZodTypeAny, {
     workspaceId: string;
     sectorId?: number | undefined;
@@ -97,6 +109,8 @@ export declare const UpdatePropertyRequest: z.ZodObject<{
     description?: string | undefined;
     houseRules?: string | undefined;
     locationPrivacy?: boolean | undefined;
+    contactPhone?: string | null | undefined;
+    contactEmail?: string | null | undefined;
 }, {
     workspaceId: string;
     sectorId?: number | undefined;
@@ -107,6 +121,8 @@ export declare const UpdatePropertyRequest: z.ZodObject<{
     description?: string | undefined;
     houseRules?: string | undefined;
     locationPrivacy?: boolean | undefined;
+    contactPhone?: string | null | undefined;
+    contactEmail?: string | null | undefined;
 }>;
 export type UpdatePropertyRequest = z.infer<typeof UpdatePropertyRequest>;
 /**
@@ -314,6 +330,8 @@ export declare const OperatorProperty: z.ZodObject<{
     houseRules: z.ZodNullable<z.ZodString>;
     locationPrivacy: z.ZodBoolean;
     timezone: z.ZodString;
+    contactPhone: z.ZodNullable<z.ZodString>;
+    contactEmail: z.ZodNullable<z.ZodString>;
     photos: z.ZodArray<z.ZodObject<{
         id: z.ZodString;
         objectKey: z.ZodString;
@@ -385,6 +403,8 @@ export declare const OperatorProperty: z.ZodObject<{
     description: string | null;
     houseRules: string | null;
     locationPrivacy: boolean;
+    contactPhone: string | null;
+    contactEmail: string | null;
     listingStatus: "draft" | "published";
     sellableRoomCount: number;
     timezone: string;
@@ -424,6 +444,8 @@ export declare const OperatorProperty: z.ZodObject<{
     description: string | null;
     houseRules: string | null;
     locationPrivacy: boolean;
+    contactPhone: string | null;
+    contactEmail: string | null;
     listingStatus: "draft" | "published";
     sellableRoomCount: number;
     timezone: string;
@@ -772,9 +794,26 @@ export type PublishBlocker = z.infer<typeof PublishBlocker>;
 export declare const PUBLISH_BLOCKER_LABEL: Readonly<Record<PublishBlocker, string>>;
 /** Which screen a blocker sends the operator back to. */
 export declare function stepForPublishBlocker(blocker: PublishBlocker): "registration" | "property" | "room_types" | "photos";
+/**
+ * What one physical room or unit is called on the door: `101`, `Tent 4`,
+ * `Apartment B2`. Unique within its property, which the service enforces.
+ */
+export declare const RoomLabel: z.ZodString;
+export type RoomLabel = z.infer<typeof RoomLabel>;
+/**
+ * Creating a room type may name its rooms in the same call.
+ *
+ * `roomLabels` is how a new property gets SELLABLE rooms at all: `roomCount`
+ * alone seeds nothing, so a property set up without rooms could never publish
+ * and its room status board stayed empty. When labels are sent they win and
+ * `roomCount` follows them; when only a count is sent, that many rooms are
+ * created with numbered labels. Create only — an edit adds rooms through the
+ * rooms route, where each one can be named.
+ */
 export declare const CreateRoomTypeRequest: z.ZodObject<{
     workspaceId: z.ZodString;
 } & {
+    roomLabels: z.ZodOptional<z.ZodArray<z.ZodString, "many">>;
     name: z.ZodString;
     /**
      * How many people the room physically sleeps.
@@ -798,6 +837,7 @@ export declare const CreateRoomTypeRequest: z.ZodObject<{
     roomCount?: number | undefined;
     bookingMode?: "instant_book" | "request_to_book" | undefined;
     cancellationTier?: "flexible" | "moderate" | "limited" | "firm" | "strict_extended_stay" | undefined;
+    roomLabels?: string[] | undefined;
 }, {
     name: string;
     workspaceId: string;
@@ -806,6 +846,7 @@ export declare const CreateRoomTypeRequest: z.ZodObject<{
     roomCount?: number | undefined;
     bookingMode?: "instant_book" | "request_to_book" | undefined;
     cancellationTier?: "flexible" | "moderate" | "limited" | "firm" | "strict_extended_stay" | undefined;
+    roomLabels?: string[] | undefined;
 }>;
 export type CreateRoomTypeRequest = z.infer<typeof CreateRoomTypeRequest>;
 /**
@@ -1175,4 +1216,253 @@ export declare const UploadedPropertyPhoto: z.ZodObject<{
     url: string;
 }>;
 export type UploadedPropertyPhoto = z.infer<typeof UploadedPropertyPhoto>;
+/**
+ * One physical room, tent, villa or rental unit, as its owner sets it up.
+ *
+ * A hotel room and a residence unit are the SAME row (`rooms`): a lease names a
+ * room, a stay names a room, and a room type is what either one is sold as. The
+ * operator app words it per business ("Room 101", "Unit B2"), the wire does not.
+ *
+ * Not `OperatorRoom` (ops.ts), which is TODAY's board: who is in it and whether
+ * it is clean. This is setup, so it carries what setup edits.
+ */
+export declare const InventoryRoom: z.ZodObject<{
+    id: z.ZodString;
+    roomTypeId: z.ZodString;
+    label: z.ZodNullable<z.ZodString>;
+    status: z.ZodEnum<["available", "maintenance", "out_of_service"]>;
+    /** New rooms are `clean`, the column default: nobody has slept in them. */
+    housekeeping: z.ZodEnum<["clean", "dirty", "inspected", "out_of_order"]>;
+}, "strip", z.ZodTypeAny, {
+    status: "available" | "maintenance" | "out_of_service";
+    label: string | null;
+    id: string;
+    roomTypeId: string;
+    housekeeping: "dirty" | "clean" | "inspected" | "out_of_order";
+}, {
+    status: "available" | "maintenance" | "out_of_service";
+    label: string | null;
+    id: string;
+    roomTypeId: string;
+    housekeeping: "dirty" | "clean" | "inspected" | "out_of_order";
+}>;
+export type InventoryRoom = z.infer<typeof InventoryRoom>;
+export declare const InventoryRoomList: z.ZodObject<{
+    rooms: z.ZodArray<z.ZodObject<{
+        id: z.ZodString;
+        roomTypeId: z.ZodString;
+        label: z.ZodNullable<z.ZodString>;
+        status: z.ZodEnum<["available", "maintenance", "out_of_service"]>;
+        /** New rooms are `clean`, the column default: nobody has slept in them. */
+        housekeeping: z.ZodEnum<["clean", "dirty", "inspected", "out_of_order"]>;
+    }, "strip", z.ZodTypeAny, {
+        status: "available" | "maintenance" | "out_of_service";
+        label: string | null;
+        id: string;
+        roomTypeId: string;
+        housekeeping: "dirty" | "clean" | "inspected" | "out_of_order";
+    }, {
+        status: "available" | "maintenance" | "out_of_service";
+        label: string | null;
+        id: string;
+        roomTypeId: string;
+        housekeeping: "dirty" | "clean" | "inspected" | "out_of_order";
+    }>, "many">;
+}, "strip", z.ZodTypeAny, {
+    rooms: {
+        status: "available" | "maintenance" | "out_of_service";
+        label: string | null;
+        id: string;
+        roomTypeId: string;
+        housekeeping: "dirty" | "clean" | "inspected" | "out_of_order";
+    }[];
+}, {
+    rooms: {
+        status: "available" | "maintenance" | "out_of_service";
+        label: string | null;
+        id: string;
+        roomTypeId: string;
+        housekeeping: "dirty" | "clean" | "inspected" | "out_of_order";
+    }[];
+}>;
+export type InventoryRoomList = z.infer<typeof InventoryRoomList>;
+/** Add rooms to a room type, each with the label on its door. */
+export declare const CreateRoomsRequest: z.ZodObject<{
+    workspaceId: z.ZodString;
+} & {
+    labels: z.ZodArray<z.ZodString, "many">;
+}, "strip", z.ZodTypeAny, {
+    workspaceId: string;
+    labels: string[];
+}, {
+    workspaceId: string;
+    labels: string[];
+}>;
+export type CreateRoomsRequest = z.infer<typeof CreateRoomsRequest>;
+/**
+ * Renumber a room, or take it out of what can be sold.
+ *
+ * `status` is the SALES state (available, maintenance, out of service). Whether
+ * it is clean stays housekeeping's, on `POST /ops/rooms/:id/housekeeping`.
+ */
+export declare const UpdateRoomRequest: z.ZodObject<{
+    workspaceId: z.ZodString;
+} & {
+    label: z.ZodOptional<z.ZodString>;
+    status: z.ZodOptional<z.ZodEnum<["available", "maintenance", "out_of_service"]>>;
+}, "strip", z.ZodTypeAny, {
+    workspaceId: string;
+    status?: "available" | "maintenance" | "out_of_service" | undefined;
+    label?: string | undefined;
+}, {
+    workspaceId: string;
+    status?: "available" | "maintenance" | "out_of_service" | undefined;
+    label?: string | undefined;
+}>;
+export type UpdateRoomRequest = z.infer<typeof UpdateRoomRequest>;
+/**
+ * How far an approved business has got with setting up its property.
+ *
+ * COUNTS, not booleans, so the checklist can say "3 room types, 42 rooms"
+ * rather than a tick, and so the step definitions in `setup-steps.ts` decide
+ * what "done" means in one place instead of the API and the app each deciding.
+ *
+ * `propertyId` is the property the counts are about: the one asked for, or the
+ * first one on the business, or null when there is none yet — which is exactly
+ * the state a business is in on the day it is approved.
+ */
+export declare const PropertySetupCounts: z.ZodObject<{
+    properties: z.ZodNumber;
+    contactDetails: z.ZodNumber;
+    departments: z.ZodNumber;
+    departmentHeads: z.ZodNumber;
+    roomTypes: z.ZodNumber;
+    pricedRoomTypes: z.ZodNumber;
+    rooms: z.ZodNumber;
+    photos: z.ZodNumber;
+    amenities: z.ZodNumber;
+    outlets: z.ZodNumber;
+    /** Members other than owners, plus invitations still waiting to be accepted. */
+    staff: z.ZodNumber;
+    published: z.ZodNumber;
+}, "strip", z.ZodTypeAny, {
+    published: number;
+    rooms: number;
+    amenities: number;
+    departments: number;
+    staff: number;
+    photos: number;
+    roomTypes: number;
+    properties: number;
+    contactDetails: number;
+    departmentHeads: number;
+    pricedRoomTypes: number;
+    outlets: number;
+}, {
+    published: number;
+    rooms: number;
+    amenities: number;
+    departments: number;
+    staff: number;
+    photos: number;
+    roomTypes: number;
+    properties: number;
+    contactDetails: number;
+    departmentHeads: number;
+    pricedRoomTypes: number;
+    outlets: number;
+}>;
+export type PropertySetupCounts = z.infer<typeof PropertySetupCounts>;
+export declare const PropertySetupProgress: z.ZodObject<{
+    orgId: z.ZodString;
+    legalName: z.ZodString;
+    domain: z.ZodEnum<["hospitality", "residence"]>;
+    accommodationClass: z.ZodNullable<z.ZodString>;
+    propertyId: z.ZodNullable<z.ZodString>;
+    propertyName: z.ZodNullable<z.ZodString>;
+    counts: z.ZodObject<{
+        properties: z.ZodNumber;
+        contactDetails: z.ZodNumber;
+        departments: z.ZodNumber;
+        departmentHeads: z.ZodNumber;
+        roomTypes: z.ZodNumber;
+        pricedRoomTypes: z.ZodNumber;
+        rooms: z.ZodNumber;
+        photos: z.ZodNumber;
+        amenities: z.ZodNumber;
+        outlets: z.ZodNumber;
+        /** Members other than owners, plus invitations still waiting to be accepted. */
+        staff: z.ZodNumber;
+        published: z.ZodNumber;
+    }, "strip", z.ZodTypeAny, {
+        published: number;
+        rooms: number;
+        amenities: number;
+        departments: number;
+        staff: number;
+        photos: number;
+        roomTypes: number;
+        properties: number;
+        contactDetails: number;
+        departmentHeads: number;
+        pricedRoomTypes: number;
+        outlets: number;
+    }, {
+        published: number;
+        rooms: number;
+        amenities: number;
+        departments: number;
+        staff: number;
+        photos: number;
+        roomTypes: number;
+        properties: number;
+        contactDetails: number;
+        departmentHeads: number;
+        pricedRoomTypes: number;
+        outlets: number;
+    }>;
+}, "strip", z.ZodTypeAny, {
+    legalName: string;
+    domain: "hospitality" | "residence";
+    accommodationClass: string | null;
+    orgId: string;
+    propertyName: string | null;
+    propertyId: string | null;
+    counts: {
+        published: number;
+        rooms: number;
+        amenities: number;
+        departments: number;
+        staff: number;
+        photos: number;
+        roomTypes: number;
+        properties: number;
+        contactDetails: number;
+        departmentHeads: number;
+        pricedRoomTypes: number;
+        outlets: number;
+    };
+}, {
+    legalName: string;
+    domain: "hospitality" | "residence";
+    accommodationClass: string | null;
+    orgId: string;
+    propertyName: string | null;
+    propertyId: string | null;
+    counts: {
+        published: number;
+        rooms: number;
+        amenities: number;
+        departments: number;
+        staff: number;
+        photos: number;
+        roomTypes: number;
+        properties: number;
+        contactDetails: number;
+        departmentHeads: number;
+        pricedRoomTypes: number;
+        outlets: number;
+    };
+}>;
+export type PropertySetupProgress = z.infer<typeof PropertySetupProgress>;
 //# sourceMappingURL=inventory.d.ts.map

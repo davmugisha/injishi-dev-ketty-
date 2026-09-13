@@ -101,10 +101,13 @@ export function RoomsRates() {
 
       <RoomTypesSection workspaceId={workspaceId} propertyId={current.id} />
 
-      <p className="text-xs text-muted-foreground">
-        A room type is what the guest gets. A rate plan is the terms it sells on; the price
-        set here seeds its default plan, and the rest lives under Rate plans.
-      </p>
+      {/* A landlord's units have no rate plans lens; the sentence is the hotel's. */}
+      {detail.data?.roomTypes.every((rt) => rt.domain !== "residence") !== false && (
+        <p className="text-xs text-muted-foreground">
+          A room type is what the guest gets. A rate plan is the terms it sells on; the price
+          set here seeds its default plan, and the rest lives under Rate plans.
+        </p>
+      )}
     </div>
   );
 }

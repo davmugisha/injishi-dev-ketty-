@@ -1,4 +1,5 @@
 import { z } from "zod";
+import type { OversightRole, StaffRole } from "./primitives";
 /**
  * `GET /api/v1/platform`: which platform a deployment is (ADR-043, AC-16).
  *
@@ -39,51 +40,120 @@ export type PlatformInfo = z.infer<typeof PlatformInfo>;
  * a 404 everywhere else, so a client reads a 404 as "no picker here".
  *
  * The seats come from the same resolver `/me/workspaces` answers from, plus a
- * `staff` seat for platform staff, and are never flattened: a persona who
- * holds five seats is listed with five.
+ * `staff` seat for platform staff and an `oversight` seat per active government
+ * assignment, and are never flattened: a persona who holds five seats is listed
+ * with five. A person who is ONLY a government officer holds no workspace, so
+ * without the `oversight` seat they would drop off the roster entirely.
  */
-export declare const DemoSurface: z.ZodEnum<["personal", "landlord", "broker", "work", "host", "staff"]>;
+export declare const DemoSurface: z.ZodEnum<["personal", "landlord", "broker", "work", "host", "staff", "oversight"]>;
 export type DemoSurface = z.infer<typeof DemoSurface>;
 export declare const DemoSeat: z.ZodObject<{
-    /** What the person reads: the org name, `Personal`, or the staff roles. */
+    /**
+     * WHERE the seat is: the org name, `Personal`, `Brokerage`, the admin
+     * console, or the government body and region an officer covers.
+     */
     label: z.ZodString;
-    surface: z.ZodEnum<["personal", "landlord", "broker", "work", "host", "staff"]>;
+    surface: z.ZodEnum<["personal", "landlord", "broker", "work", "host", "staff", "oversight"]>;
+    /**
+     * WHAT the person is in that seat, as they would say it: `Owner`,
+     * `Front office · Receptionist`, `Field verifier`, `Platform staff · Ops`,
+     * `Guest / tenant`. Worded by the API so every picker reads the same words.
+     */
+    role: z.ZodString;
+    /**
+     * The same role as a stable key a client may branch or sort on: the
+     * `OrgRole` or `OversightRole` value, or `staff`, `personal`, `broker`.
+     */
+    roleKey: z.ZodString;
+    /**
+     * An optional finer line: the government's own title for the post, or a
+     * department position such as `Head of Front Office`. Null when there is
+     * nothing more to say.
+     */
+    detail: z.ZodNullable<z.ZodString>;
 }, "strip", z.ZodTypeAny, {
     label: string;
-    surface: "broker" | "personal" | "host" | "landlord" | "staff" | "work";
+    detail: string | null;
+    role: string;
+    surface: "broker" | "personal" | "oversight" | "host" | "landlord" | "staff" | "work";
+    roleKey: string;
 }, {
     label: string;
-    surface: "broker" | "personal" | "host" | "landlord" | "staff" | "work";
+    detail: string | null;
+    role: string;
+    surface: "broker" | "personal" | "oversight" | "host" | "landlord" | "staff" | "work";
+    roleKey: string;
 }>;
 export type DemoSeat = z.infer<typeof DemoSeat>;
 export declare const DemoPersona: z.ZodObject<{
     email: z.ZodString;
     name: z.ZodString;
     seats: z.ZodArray<z.ZodObject<{
-        /** What the person reads: the org name, `Personal`, or the staff roles. */
+        /**
+         * WHERE the seat is: the org name, `Personal`, `Brokerage`, the admin
+         * console, or the government body and region an officer covers.
+         */
         label: z.ZodString;
-        surface: z.ZodEnum<["personal", "landlord", "broker", "work", "host", "staff"]>;
+        surface: z.ZodEnum<["personal", "landlord", "broker", "work", "host", "staff", "oversight"]>;
+        /**
+         * WHAT the person is in that seat, as they would say it: `Owner`,
+         * `Front office · Receptionist`, `Field verifier`, `Platform staff · Ops`,
+         * `Guest / tenant`. Worded by the API so every picker reads the same words.
+         */
+        role: z.ZodString;
+        /**
+         * The same role as a stable key a client may branch or sort on: the
+         * `OrgRole` or `OversightRole` value, or `staff`, `personal`, `broker`.
+         */
+        roleKey: z.ZodString;
+        /**
+         * An optional finer line: the government's own title for the post, or a
+         * department position such as `Head of Front Office`. Null when there is
+         * nothing more to say.
+         */
+        detail: z.ZodNullable<z.ZodString>;
     }, "strip", z.ZodTypeAny, {
         label: string;
-        surface: "broker" | "personal" | "host" | "landlord" | "staff" | "work";
+        detail: string | null;
+        role: string;
+        surface: "broker" | "personal" | "oversight" | "host" | "landlord" | "staff" | "work";
+        roleKey: string;
     }, {
         label: string;
-        surface: "broker" | "personal" | "host" | "landlord" | "staff" | "work";
+        detail: string | null;
+        role: string;
+        surface: "broker" | "personal" | "oversight" | "host" | "landlord" | "staff" | "work";
+        roleKey: string;
     }>, "many">;
 }, "strip", z.ZodTypeAny, {
     name: string;
     email: string;
     seats: {
         label: string;
-        surface: "broker" | "personal" | "host" | "landlord" | "staff" | "work";
+        detail: string | null;
+        role: string;
+        surface: "broker" | "personal" | "oversight" | "host" | "landlord" | "staff" | "work";
+        roleKey: string;
     }[];
 }, {
     name: string;
     email: string;
     seats: {
         label: string;
-        surface: "broker" | "personal" | "host" | "landlord" | "staff" | "work";
+        detail: string | null;
+        role: string;
+        surface: "broker" | "personal" | "oversight" | "host" | "landlord" | "staff" | "work";
+        roleKey: string;
     }[];
 }>;
 export type DemoPersona = z.infer<typeof DemoPersona>;
+/**
+ * The short words an oversight role is read in, as a badge. The admin
+ * console's appoint dialog words the same three with a description attached;
+ * this is the name alone. (The org role's words are `ORG_ROLE_LABEL` in
+ * `ops.ts`.)
+ */
+export declare const OVERSIGHT_ROLE_LABEL: Readonly<Record<OversightRole, string>>;
+/** The short words a platform staff role is read in. */
+export declare const STAFF_ROLE_LABEL: Readonly<Record<StaffRole, string>>;
 //# sourceMappingURL=platform.d.ts.map

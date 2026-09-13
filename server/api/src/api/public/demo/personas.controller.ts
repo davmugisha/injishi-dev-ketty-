@@ -1,8 +1,19 @@
 import { Controller, Get, Inject, NotFoundException } from '@nestjs/common';
-import type { DemoPersona, DemoSeat, DemoSurface } from '@injishi/contracts';
-import { sql } from 'drizzle-orm';
+import {
+  ORG_ROLE_LABEL,
+  OVERSIGHT_ROLE_LABEL,
+  STAFF_ROLE_LABEL,
+  type DemoPersona,
+  type DemoSeat,
+  type DemoSurface,
+  type OversightConsoleGrant,
+  type StaffRole,
+  type WorkspaceAccess,
+} from '@injishi/contracts';
+import { and, eq, sql } from 'drizzle-orm';
 
 import { users } from '../../../database/drizzle/auth';
+import { departmentMembers, departments } from '../../../database/drizzle/operations';
 import { WorkspaceService } from '../../../shared/auth/workspace.service';
 import { PLATFORM, type Platform } from '../../../shared/config/platform';
 import { DRIZZLE, type Database } from '../../../shared/database/database.module';
@@ -34,19 +45,25 @@ import { DRIZZLE, type Database } from '../../../shared/database/database.module
  *
  * ## What it does and does not expose
  *
- * An email address and a display label, for accounts that exist only in a demo
- * database. No password, no token, and **not the sign-in code** — the client
- * knows `123456` because the demo environment publishes it, which is already
- * true of the web app. Adding it to this answer would put a live credential in
- * a response body for no gain.
+ * An email address, a display label and the ROLE each seat carries, for
+ * accounts that exist only in a demo database. No password, no token, and
+ * **not the sign-in code** — the client knows `123456` because the demo
+ * environment publishes it, which is already true of the web app. Adding it to
+ * this answer would put a live credential in a response body for no gain.
+ *
+ * The role is on the answer because the demo is used to PRESENT access control:
+ * a roster that reads "Beatha Mukeshimana, Amahoro Hospitality Group" does not
+ * tell the room that Beatha is the housekeeper, which is the whole point of
+ * signing in as her.
  */
 
 /*
  * The response shape is `DemoPersona` in `@injishi/contracts` (ADR-043), one
  * definition for this route, web's picker and mobile's. Every seat is listed,
  * never flattened: Samuel holds five and is the persona the picker most needs
- * to get right. `staff` is the admin console seat (AC-20), a staff grant rather
- * than a workspace, so it is not in the ADR-038 derivation table below.
+ * to get right. `staff` is the admin console seat (AC-20) and `oversight` a
+ * government assignment; neither is a workspace, so neither is in the ADR-038
+ * derivation table below.
  */
 
 /**
@@ -85,6 +102,128 @@ function surfaceFor(seat: {
   return 'personal';
 }
 
+/*
+ * The words a role is read in come from `@injishi/contracts` (`ORG_ROLE_LABEL`,
+ * `OVERSIGHT_ROLE_LABEL`, `STAFF_ROLE_LABEL`), the same words the team screen
+ * and the invitation mail use. This route is the only producer of
+ * `DemoSeat.role`, and every picker (web, mobile) renders the string as given.
+ */
+
+/**
+ * The order seats are listed in inside one persona: government, then business
+ * roles by authority, then platform staff, then the personal and broker seats
+ * every account can hold. So Samuel reads "Owner, Owner, Housekeeper, Guest,
+ * Broker" rather than in whatever order the joins returned.
+ */
+const ROLE_RANK: readonly string[] = [
+  'business_approver',
+  'business_field_verifier',
+  'tax_compliance_officer',
+  'owner',
+  'manager',
+  'receptionist',
+  'housekeeper',
+  'staff',
+  'personal',
+  'broker',
+];
+
+function rankOf(seat: DemoSeat): number {
+  const i = ROLE_RANK.indexOf(seat.roleKey);
+  return i === -1 ? ROLE_RANK.length : i;
+}
+
+/** `KIGALI` reads as `Kigali`: the geography seed stores province names upper case. */
+function titleCase(value: string): string {
+  return value
+    .toLowerCase()
+    .replace(/(^|[\s-])(\p{L})/gu, (_, sep: string, ch: string) => sep + ch.toUpperCase());
+}
+
+/**
+ * A workspace seat with its role.
+ *
+ * `detail` carries what the role alone does not say: a department position
+ * when the person holds one, and the registration gate when the business is
+ * not yet active — an owner of an org still in the pipeline holds the role and
+ * none of its powers (D20, D23), which a presenter must not discover on stage.
+ */
+function workspaceSeat(seat: WorkspaceAccess, positions: readonly string[]): DemoSeat {
+  const surface = surfaceFor(seat);
+  if (seat.kind === 'personal') {
+    return { label: 'Personal', surface, role: 'Guest / tenant', roleKey: 'personal', detail: null };
+  }
+  if (seat.kind === 'broker') {
+    return { label: 'Brokerage', surface, role: 'Broker', roleKey: 'broker', detail: null };
+  }
+
+  const notes = [...positions];
+  if (seat.registrationStatus && seat.registrationStatus !== 'active') {
+    notes.push(`Not yet approved (${seat.registrationStatus.replace(/_/g, ' ')})`);
+  }
+  return {
+    label: seat.orgName ?? 'Business',
+    surface,
+    role: seat.orgRole ? ORG_ROLE_LABEL[seat.orgRole] : 'Member',
+    roleKey: seat.orgRole ?? 'member',
+    detail: notes.length > 0 ? notes.join(' · ') : null,
+  };
+}
+
+/**
+ * One seat per ACTIVE oversight assignment (revoked grants are already absent
+ * from the service's answer).
+ *
+ * Identical role, body, title and region collapse to one seat: two rows that
+ * read the same would look like a rendering bug, and they grant nothing more.
+ * The label is WHERE the officer sits (body and region), the detail the
+ * government's own title for the post.
+ */
+function oversightSeats(grants: readonly OversightConsoleGrant[]): DemoSeat[] {
+  const seen = new Set<string>();
+  const seats: DemoSeat[] = [];
+  for (const grant of grants) {
+    const key = [
+      grant.oversightRole,
+      grant.bodyCode,
+      grant.title ?? '',
+      grant.scopeLevel,
+      grant.provinceId ?? '',
+      grant.districtId ?? '',
+    ].join('|');
+    if (seen.has(key)) continue;
+    seen.add(key);
+
+    const region =
+      grant.scopeLevel === 'district' && grant.districtId !== null
+        ? `${titleCase(grant.scopeLabel)} district`
+        : grant.scopeLevel === 'province' && grant.provinceId !== null
+          ? `${titleCase(grant.scopeLabel)} province`
+          : titleCase(grant.scopeLabel);
+
+    seats.push({
+      label: `${grant.bodyCode} · ${region}`,
+      surface: 'oversight',
+      role: OVERSIGHT_ROLE_LABEL[grant.oversightRole],
+      roleKey: grant.oversightRole,
+      detail: grant.title ?? grant.bodyName ?? null,
+    });
+  }
+  return seats;
+}
+
+/** The admin console seat: a staff grant, listed with the roles it carries. */
+function staffSeat(roles: readonly StaffRole[]): DemoSeat {
+  const worded = roles.map((r) => STAFF_ROLE_LABEL[r] ?? r).join(', ');
+  return {
+    label: 'Admin console',
+    surface: 'staff',
+    role: worded ? `Platform staff · ${worded}` : 'Platform staff',
+    roleKey: 'staff',
+    detail: null,
+  };
+}
+
 @Controller('demo/personas')
 export class DemoPersonasController {
   constructor(
@@ -118,23 +257,72 @@ export class DemoPersonasController {
     const personas: DemoPersona[] = [];
     for (const person of roster) {
       const held = await this.workspaces.listForUser(person.id);
-      const staff = await this.workspaces.staffAccessForUser(person.id);
-      const seats: DemoSeat[] = held.map((seat) => ({
-        label: seat.orgName ?? 'Personal',
-        surface: surfaceFor(seat),
-      }));
+      const positions = held.some((seat) => seat.kind === 'business')
+        ? await this.positionsByWorkspace(person.id)
+        : new Map<string, string[]>();
+      const seats: DemoSeat[] = held.map((seat) =>
+        workspaceSeat(seat, positions.get(seat.workspaceId) ?? []),
+      );
+
+      // A government officer holds no workspace, so an officer read only
+      // through `listForUser` had no seat and dropped off the roster — the
+      // approver and every field verifier were missing from the demo.
+      const grants = await this.workspaces.oversightConsoleGrantsForUser(person.id);
+      seats.push(...oversightSeats(grants));
+
       // The admin console is a staff grant, not a workspace, so it is read from
       // the same answer `GET /api/v1/me/staff` gives and listed as a seat of
       // its own. Without it the staff persona would have no seat and drop out.
-      if (staff.isStaff) {
-        seats.push({ label: `Injishi staff · ${staff.roles.join(', ')}`, surface: 'staff' });
-      }
+      const staff = await this.workspaces.staffAccessForUser(person.id);
+      if (staff.isStaff) seats.push(staffSeat(staff.roles));
+
+      // Stable sort: equal ranks keep the resolver's order.
+      seats.sort((a, b) => rankOf(a) - rankOf(b));
       personas.push({ email: person.email, name: person.name ?? person.email, seats });
     }
 
     // A persona with no seat at all cannot demonstrate anything and would read
     // as a broken row on the picker, so it is left out rather than shown empty.
     return personas.filter((p) => p.seats.length > 0);
+  }
+
+  /**
+   * Department positions per workspace, worded: `Head of Front Office`,
+   * `Supervisor · Housekeeping`, or the department name for a plain member.
+   * Board placement only — it never decides a permission (D17) — so it is
+   * `detail`, never the role.
+   */
+  private async positionsByWorkspace(userId: string): Promise<Map<string, string[]>> {
+    const rows = await this.db
+      .select({
+        workspaceId: departmentMembers.workspaceId,
+        position: departmentMembers.departmentPosition,
+        department: departments.name,
+      })
+      .from(departmentMembers)
+      .innerJoin(departments, eq(departments.id, departmentMembers.departmentId))
+      .where(
+        and(
+          eq(departmentMembers.userId, userId),
+          eq(departmentMembers.status, 'active'),
+          eq(departments.status, 'active'),
+        ),
+      )
+      .orderBy(departments.name);
+
+    const byWorkspace = new Map<string, string[]>();
+    for (const row of rows) {
+      const worded =
+        row.position === 'department_head'
+          ? `Head of ${row.department}`
+          : row.position === 'supervisor'
+            ? `Supervisor · ${row.department}`
+            : row.department;
+      const list = byWorkspace.get(row.workspaceId) ?? [];
+      list.push(worded);
+      byWorkspace.set(row.workspaceId, list);
+    }
+    return byWorkspace;
   }
 }
 
@@ -143,4 +331,10 @@ export class DemoPersonasController {
  * `surfaceFor()` in `apps/mobile/src/domain.tsx` still agree on every row of
  * the parent's table. Two copies of one table is the drift worth a test.
  */
-export const __testing = { surfaceFor, SEED_ID_PREFIX };
+export const __testing = {
+  surfaceFor,
+  SEED_ID_PREFIX,
+  workspaceSeat,
+  oversightSeats,
+  staffSeat,
+};

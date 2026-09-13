@@ -35,6 +35,7 @@ import { SessionProvider, useSession, type ResolvedSession } from '@/session';
 import { DomainProvider, useDomain } from '@/domain';
 import { Text, ToastProvider } from '@/components';
 import type { ColorScheme } from '@/theme/palette';
+import type { DemoPersona } from '@/queries/demo';
 import { SignInScreen } from './sign-in';
 import { VerifyOtpScreen } from './verify-otp';
 import { ActivateScreen } from './activate';
@@ -324,20 +325,29 @@ describe('sign in, the demo persona picker (AC-S10)', () => {
     {
       email: 'josephine@demo.injishi.com',
       name: 'Josephine Uwimana',
-      seats: [{ label: 'Kayitare Court', surface: 'landlord' }],
+      seats: [{ label: 'Kayitare Court', surface: 'landlord', role: 'Owner', roleKey: 'owner', detail: null }],
     },
     {
       email: 'samuel@demo.injishi.com',
       name: 'Samuel Kayitare',
       seats: [
-        { label: 'Personal', surface: 'personal' },
-        { label: 'Kayitare Court', surface: 'landlord' },
-        { label: 'Aline K. Brokerage', surface: 'broker' },
-        { label: 'Kivu Crest Hotel', surface: 'work' },
-        { label: 'Umurage Guesthouse', surface: 'host' },
+        { label: 'Personal', surface: 'personal', role: 'Guest / tenant', roleKey: 'personal', detail: null },
+        { label: 'Kayitare Court', surface: 'landlord', role: 'Owner', roleKey: 'owner', detail: null },
+        { label: 'Aline K. Brokerage', surface: 'broker', role: 'Broker', roleKey: 'broker', detail: null },
+        { label: 'Kivu Crest Hotel', surface: 'work', role: 'Housekeeper', roleKey: 'housekeeper', detail: null },
+        { label: 'Umurage Guesthouse', surface: 'host', role: 'Owner', roleKey: 'owner', detail: null },
       ],
     },
-  ];
+    {
+      email: 'claudine@demo.injishi.com',
+      name: 'Claudine Mukamana',
+      // A government officer holds no workspace; the oversight seat is what
+      // puts her on the roster at all.
+      seats: [
+        { label: 'MINALOC · Gasabo district', surface: 'oversight', role: 'Approver', roleKey: 'business_approver', detail: 'BDO' },
+      ],
+    },
+  ] satisfies DemoPersona[];
 
   it('is ABSENT on a non-demo host, not hidden', () => {
     renderAuth(<SignInScreen />, scheme);
@@ -369,9 +379,18 @@ describe('sign in, the demo persona picker (AC-S10)', () => {
     // account the picker most needs to get right.
     expect(
       screen.getByText(
-        `${en['auth.demoPersonaSeats'].replace('{count}', '5')} · Personal · Kayitare Court · Aline K. Brokerage · Kivu Crest Hotel · Umurage Guesthouse`,
+        `${en['auth.demoPersonaSeats'].replace('{count}', '5')} · Guest / tenant, Personal · Owner, Kayitare Court · Broker, Aline K. Brokerage · Housekeeper, Kivu Crest Hotel · Owner, Umurage Guesthouse`,
       ),
     ).toBeTruthy();
+  });
+
+  it('names the role in each seat, and lists a government officer', () => {
+    mockDemo = { personas: PERSONAS, isDemoHost: true };
+    renderAuth(<SignInScreen />, scheme);
+
+    expect(screen.getByText('Owner, Kayitare Court')).toBeTruthy();
+    expect(screen.getByText('Claudine Mukamana')).toBeTruthy();
+    expect(screen.getByText('Approver, MINALOC · Gasabo district')).toBeTruthy();
   });
 
   it('fills the address, so Continue is the second tap', () => {

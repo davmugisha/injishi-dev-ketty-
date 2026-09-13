@@ -1,6 +1,6 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.Uuid = exports.Currency = exports.RwfAmount = exports.OversightScopeLevel = exports.OversightRole = exports.DocumentType = exports.IdentityDocumentStatus = exports.KycStatus = exports.OrgRegistrationStatus = exports.StaffRole = exports.GlobalRole = exports.OrgRole = exports.WorkspaceKind = exports.AdapterMode = exports.Domain = void 0;
+exports.ContactPhone = exports.Uuid = exports.Currency = exports.RwfAmount = exports.OversightScopeLevel = exports.OversightRole = exports.DocumentType = exports.IdentityDocumentStatus = exports.KycStatus = exports.OrgRegistrationStatus = exports.StaffRole = exports.GlobalRole = exports.OrgRole = exports.WorkspaceKind = exports.AdapterMode = exports.Domain = void 0;
 const zod_1 = require("zod");
 /**
  * Cross-domain primitives shared by every app and the backend.
@@ -95,4 +95,17 @@ exports.RwfAmount = zod_1.z.number().int().nonnegative();
 exports.Currency = zod_1.z.literal("RWF");
 /** UUID identifier used for every entity except geography. */
 exports.Uuid = zod_1.z.string().uuid();
+/**
+ * A telephone number on a contact card: a property's front desk, a head of
+ * department. As a person types it, `+250 788 123 456` or `0788123456`.
+ *
+ * Loose on purpose, and NOT `RwPhoneNumber` (phone.ts), which is a Rwandan
+ * mobile that a sign-in code is texted to. Nothing dials or verifies this one,
+ * so the rule is only "digits a person could call", spacing kept as typed.
+ */
+exports.ContactPhone = zod_1.z
+    .string()
+    .trim()
+    .max(40, "That phone number is too long.")
+    .regex(/^\+?[0-9][0-9 ()-]{5,}$/, "Use a phone number like +250 788 123 456.");
 //# sourceMappingURL=primitives.js.map

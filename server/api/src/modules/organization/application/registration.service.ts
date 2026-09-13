@@ -39,6 +39,7 @@ import {
   OrganizationRepository,
 } from '../infrastructure/organization.repository';
 import { ClaimInvitationMailer } from '../infrastructure/claim-invitation.mailer';
+import { RegistrationMailer } from '../infrastructure/registration.mailer';
 import { SYSTEM_MOVER } from '../infrastructure/registration-events';
 import { tinRecheckDue, tinRecheckStalled } from '../domain/tin-recheck';
 import { RraTinAdapter } from '../infrastructure/rra-tin.adapter';
@@ -78,6 +79,12 @@ export class RegistrationService {
     private readonly tin: RraTinAdapter,
     private readonly profiles: ProfileService,
     private readonly claimMailer: ClaimInvitationMailer,
+    /**
+     * Registration mail (F-S03). Every call sits AFTER the move it describes has
+     * committed, and none of them throws, so a mail can neither undo nor fail a
+     * registration step.
+     */
+    private readonly mail: RegistrationMailer,
   ) {}
 
   /** What this registration will cost, before anyone commits to it. */
@@ -205,6 +212,7 @@ export class RegistrationService {
           registrantName: await this.orgs.displayNameFor(registrantUserId),
         });
       }
+      await this.mail.received(created.orgId, created.amountDueRwf);
 
       return {
         orgId: created.orgId,
@@ -273,6 +281,9 @@ export class RegistrationService {
           });
         }
         this.log.log(`Registration fee for ${orgId} was already settled.`);
+      } else {
+        // Only the call that settled mails, so a repeated callback is silent.
+        await this.mail.submitted(orgId, false);
       }
       await this.runTinCheck(orgId);
     }
@@ -350,7 +361,9 @@ export class RegistrationService {
       // A residence has no TIN to check, so the automatic gate does not apply
       // and it goes straight to the human ones.
       const to = nextStatus('submitted', 'tin_verified');
-      if (to) await this.orgs.advance(orgId, 'submitted', to, SYSTEM_MOVER);
+      if (to && (await this.orgs.advance(orgId, 'submitted', to, SYSTEM_MOVER))) {
+        await this.mail.queueEntered(orgId, 'business_field_verifier');
+      }
       return;
     }
 
@@ -364,14 +377,24 @@ export class RegistrationService {
       raw: outcome.raw,
     });
 
+    // Mail only when THIS call moved the business: the `from` guard makes a
+    // concurrent sweep and request race harmlessly, and the loser stays silent.
     if (outcome.result === 'verified') {
       const to = nextStatus('submitted', 'tin_verified');
-      if (to) await this.orgs.advance(orgId, 'submitted', to, SYSTEM_MOVER);
+      if (to && (await this.orgs.advance(orgId, 'submitted', to, SYSTEM_MOVER))) {
+        await this.mail.queueEntered(orgId, 'business_field_verifier');
+      }
       return;
     }
     if (outcome.result === 'failed') {
       const to = nextStatus('submitted', 'rejected');
-      if (to) await this.orgs.advance(orgId, 'submitted', to, SYSTEM_MOVER);
+      if (to && (await this.orgs.advance(orgId, 'submitted', to, SYSTEM_MOVER))) {
+        await this.mail.rejected(orgId, {
+          gate: 'tin_check',
+          reasonCode: null,
+          notes: null,
+        });
+      }
       return;
     }
     // `pending` is RRA being unreachable, never a rejection. The org holds at
@@ -533,6 +556,8 @@ export class RegistrationService {
       reasonCode: null,
       notes,
     });
+    await this.mail.fieldVerified(orgId);
+    await this.mail.queueEntered(orgId, 'business_approver');
     return this.summary(orgId);
   }
 
@@ -573,6 +598,7 @@ export class RegistrationService {
       notes,
       thenActivate: !awaitingClaim,
     });
+    await this.mail.approved(orgId, awaitingClaim);
     if (awaitingClaim) {
       this.log.log(
         `Org ${orgId} is approved and held for an owner claim (OBO); it stays payout-locked.`,
@@ -610,6 +636,7 @@ export class RegistrationService {
       reasonCode,
       notes,
     });
+    await this.mail.rejected(orgId, { gate: stage, reasonCode, notes });
     return this.summary(orgId);
   }
 
@@ -635,7 +662,10 @@ export class RegistrationService {
       trigger: 'registrant',
       actorUserId,
     });
-    if (moved) await this.runTinCheck(orgId);
+    if (moved) {
+      await this.mail.submitted(orgId, true);
+      await this.runTinCheck(orgId);
+    }
     return this.summary(orgId);
   }
 

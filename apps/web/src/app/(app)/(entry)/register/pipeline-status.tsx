@@ -199,10 +199,9 @@ export function PipelineStatus({
         </Button>
         {summary.status === "active" ? (
           <UiButton asChild variant="primary">
-            {/* `/personal-trips` was never a route, so the reward for being
-                approved was a 404. `/start` is the screen that knows where a
-                person belongs and takes them there. */}
-            <a href="/start">Go to your workspace</a>
+            {/* Straight into setting the property up (2026-09-13); the
+                approval mail links the same checklist. */}
+            <a href={`/w/${summary.workspaceId}/setup`}>Set up your property</a>
           </UiButton>
         ) : null}
       </div>

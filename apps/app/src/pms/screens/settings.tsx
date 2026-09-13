@@ -24,6 +24,7 @@ import { Placeholder } from "../components/placeholder";
 import { useCapability, useWorkspaceId } from "../data/capability";
 import { workspaceBase } from "../lib/nav";
 import { EbmIntegration } from "./ebm-integration";
+import { PropertyProfile } from "./property-profile";
 
 export function Settings({ lens }: { lens: string }) {
   const workspaceId = useWorkspaceId();
@@ -47,6 +48,8 @@ export function Settings({ lens }: { lens: string }) {
       */}
       {lens === "integrations" ? (
         <EbmIntegration />
+      ) : lens === "property" ? (
+        <PropertyProfile />
       ) : lens === "plan" && !owner ? (
         <EmptyState style={{ padding: 26, fontSize: 13.5 }}>
           Plan and billing is the owner&apos;s. Ask the owner to change the subscription or payment method.

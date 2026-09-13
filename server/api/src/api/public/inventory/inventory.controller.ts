@@ -2,7 +2,12 @@ import {
   AttachPropertyPhotoRequest,
   CreatePropertyRequest,
   CreateRatePlanRequest,
+  CreateRoomsRequest,
   CreateRoomTypeRequest,
+  type InventoryRoom,
+  type InventoryRoomList,
+  type PropertySetupProgress,
+  UpdateRoomRequest,
   type OperatorProperty,
   type OperatorPropertyList,
   type OperatorRatePlan,
@@ -26,6 +31,7 @@ import {
   ParseUUIDPipe,
   Patch,
   Post,
+  Query,
   UseGuards,
 } from '@nestjs/common';
 
@@ -33,6 +39,8 @@ import { InventoryService } from '../../../modules/listing-setup/application/inv
 import { PropertyPhotosService } from '../../../modules/listing-setup/application/property-photos.service';
 import { RatePlansService } from '../../../modules/listing-setup/application/rate-plans.service';
 import { RoomTypesService } from '../../../modules/listing-setup/application/room-types.service';
+import { RoomsService } from '../../../modules/listing-setup/application/rooms.service';
+import { SetupProgressService } from '../../../modules/listing-setup/application/setup-progress.service';
 import { SessionGuard } from '../../../shared/auth/session.guard';
 import {
   CurrentWorkspace,
@@ -65,6 +73,8 @@ export class InventoryController {
     private readonly ratePlans: RatePlansService,
     private readonly roomTypes: RoomTypesService,
     private readonly photos: PropertyPhotosService,
+    private readonly rooms: RoomsService,
+    private readonly setup: SetupProgressService,
   ) {}
 
   /**
@@ -174,6 +184,67 @@ export class InventoryController {
     @CurrentWorkspace() workspace: WorkspaceAccess,
   ): Promise<OperatorRoomType> {
     return this.roomTypes.update(workspace, id, body);
+  }
+
+  // -------------------------------------------------------------------------
+  // Rooms and units (setup after approval, 2026-09-13)
+  // -------------------------------------------------------------------------
+
+  /** Every room of a room type, with whether it can be sold and is clean. */
+  @Get('room-types/:id/rooms')
+  async listRooms(
+    @Param('id', ParseUUIDPipe) id: string,
+    @CurrentWorkspace() workspace: WorkspaceAccess,
+  ): Promise<InventoryRoomList> {
+    return { rooms: await this.rooms.list(workspace, id) };
+  }
+
+  /**
+   * Add rooms to a room type, each by the label on its door.
+   *
+   * The only write that makes a property SELLABLE: publishing, the room status
+   * board, a booking and a lease all need a real `rooms` row, and nothing wrote
+   * one outside the seeds until this route.
+   */
+  @Post('room-types/:id/rooms')
+  async addRooms(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body(new ZodValidationPipe(CreateRoomsRequest))
+    body: CreateRoomsRequest,
+    @CurrentWorkspace() workspace: WorkspaceAccess,
+  ): Promise<InventoryRoomList> {
+    return { rooms: await this.rooms.add(workspace, id, body) };
+  }
+
+  /** Renumber a room, or take it out of sale. */
+  @Patch('rooms/:id')
+  updateRoom(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body(new ZodValidationPipe(UpdateRoomRequest))
+    body: UpdateRoomRequest,
+    @CurrentWorkspace() workspace: WorkspaceAccess,
+  ): Promise<InventoryRoom> {
+    return this.rooms.update(workspace, id, body);
+  }
+
+  // -------------------------------------------------------------------------
+  // The setup checklist (setup after approval, 2026-09-13)
+  // -------------------------------------------------------------------------
+
+  /**
+   * The counts the setup checklist is judged against, for one property.
+   *
+   * Behind `listing.manage` with the rest of this controller, so a business the
+   * approver has not activated gets the registration gate's refusal, never a
+   * checklist it cannot act on.
+   */
+  @Get('setup')
+  setupProgress(
+    @Query('propertyId', new ParseUUIDPipe({ optional: true }))
+    propertyId: string | undefined,
+    @CurrentWorkspace() workspace: WorkspaceAccess,
+  ): Promise<PropertySetupProgress> {
+    return this.setup.progress(workspace, propertyId);
   }
 
   // -------------------------------------------------------------------------

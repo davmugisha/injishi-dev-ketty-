@@ -41,7 +41,7 @@ import withSerwistInit from "@serwist/next";
  * `(app)/(entry)`. Adding a name here without a route under it is the bug this
  * comment exists to stop.
  */
-const webAppScreens = ["activate", "claim-org", "register", "sign-in", "verify-otp"];
+const webAppScreens = ["activate", "claim-org", "join-team", "register", "sign-in", "verify-otp"];
 
 const nextConfig: NextConfig = {
   /**
@@ -208,6 +208,14 @@ const nextConfig: NextConfig = {
         // the page loads from learning the URL it came from. `no-store` keeps the
         // tokened document out of any shared cache.
         source: "/claim-org",
+        headers: [
+          { key: "Referrer-Policy", value: "no-referrer" },
+          { key: "Cache-Control", value: "private, no-store" },
+        ],
+      },
+      {
+        // The staff invitation link carries its token the same way (2026-09-13).
+        source: "/join-team",
         headers: [
           { key: "Referrer-Policy", value: "no-referrer" },
           { key: "Cache-Control", value: "private, no-store" },

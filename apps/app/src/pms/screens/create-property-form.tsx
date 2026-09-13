@@ -23,6 +23,8 @@ export function CreatePropertyForm({ workspaceId }: { workspaceId: string }) {
   const create = useCreateProperty(workspaceId);
   const [name, setName] = useState("");
   const [street, setStreet] = useState("");
+  const [contactPhone, setContactPhone] = useState("");
+  const [contactEmail, setContactEmail] = useState("");
   const [provinces, setProvinces] = useState<Province[]>([]);
   const [districts, setDistricts] = useState<District[]>([]);
   const [sectors, setSectors] = useState<Sector[]>([]);
@@ -112,12 +114,14 @@ export function CreatePropertyForm({ workspaceId }: { workspaceId: string }) {
         name: trimmed,
         sectorId,
         street: street.trim() || undefined,
+        contactPhone: contactPhone.trim() || undefined,
+        contactEmail: contactEmail.trim() || undefined,
       },
       {
         // The form disappears when the list refetches, which reads as the
         // screen changing its mind rather than as a property being created.
         // Say what now exists, and what it needs next.
-        onSuccess: () => toast(`${trimmed} is on your business. Add its room types next.`, "ok"),
+        onSuccess: () => toast(`${trimmed} is on your business. Add what you sell, and its rooms, next.`, "ok"),
         onError: (err) => setError(humanError(err)),
       },
     );
@@ -131,7 +135,7 @@ export function CreatePropertyForm({ workspaceId }: { workspaceId: string }) {
             No property on this business yet
           </div>
           <p className="mt-1 text-sm text-muted-foreground">
-            Inventory begins with one. Add the place guests will book.
+            Everything else — what you sell, the rooms or units, photos and your team — hangs on it.
           </p>
         </div>
 
@@ -155,6 +159,31 @@ export function CreatePropertyForm({ workspaceId }: { workspaceId: string }) {
               placeholder="KG 11 Ave"
             />
           </label>
+
+          <div className="grid gap-3 sm:grid-cols-2">
+            <label className="flex flex-col gap-1.5 text-sm">
+              <span className="font-semibold text-ink">Front desk phone</span>
+              <input
+                aria-label="Front desk phone"
+                inputMode="tel"
+                value={contactPhone}
+                onChange={(e) => setContactPhone(e.target.value)}
+                className="h-10 rounded border border-line2 bg-field px-3 text-sm text-foreground"
+                placeholder="+250 788 123 456"
+              />
+            </label>
+            <label className="flex flex-col gap-1.5 text-sm">
+              <span className="font-semibold text-ink">Contact email</span>
+              <input
+                aria-label="Contact email"
+                type="email"
+                value={contactEmail}
+                onChange={(e) => setContactEmail(e.target.value)}
+                className="h-10 rounded border border-line2 bg-field px-3 text-sm text-foreground"
+                placeholder="frontdesk@example.com"
+              />
+            </label>
+          </div>
 
           <div className="grid gap-3 sm:grid-cols-3">
             <label className="flex flex-col gap-1.5 text-sm">

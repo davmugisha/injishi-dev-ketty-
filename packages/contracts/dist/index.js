@@ -30,6 +30,7 @@ __exportStar(require("./countries"), exports);
 __exportStar(require("./geography"), exports);
 __exportStar(require("./registration"), exports);
 __exportStar(require("./inventory"), exports);
+__exportStar(require("./setup-steps"), exports);
 __exportStar(require("./booking"), exports);
 __exportStar(require("./trips"), exports);
 __exportStar(require("./inbox"), exports);

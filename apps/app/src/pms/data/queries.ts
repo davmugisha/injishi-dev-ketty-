@@ -95,6 +95,15 @@ export const queryKeys = {
   /** Under the property key, so a write that invalidates the property refreshes these too. */
   roomTypes: (workspaceId: string | null, propertyId: string | null) =>
     ["inventory", "properties", workspaceId, propertyId, "room-types"] as const,
+  /** The rooms behind one room type. Under `inventory`, so any inventory write refreshes them. */
+  inventoryRooms: (workspaceId: string | null, roomTypeId: string | null) =>
+    ["inventory", "rooms", workspaceId, roomTypeId] as const,
+  /** The setup checklist's counts (setup after approval, 2026-09-13). */
+  setupProgress: (workspaceId: string | null, propertyId: string | null) =>
+    ["inventory", "setup", workspaceId, propertyId] as const,
+  /** Staff invitations. `team.manage`, like the roster beside it. */
+  staffInvitations: (workspaceId: string | null) =>
+    ["ops", "team", workspaceId, "invitations"] as const,
   folios: (workspaceId: string | null) => ["ops", "folios", workspaceId] as const,
   folio: (workspaceId: string | null, folioId: string | null) =>
     ["ops", "folios", workspaceId, folioId] as const,

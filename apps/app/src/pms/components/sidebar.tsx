@@ -42,6 +42,7 @@ import { navContextOf } from "../lib/nav-context";
 import { usePms } from "../store";
 import { usePmsUi } from "../ui-store";
 import { Icon } from "./icon";
+import { LivePropertySwitcher } from "./live-property-switcher";
 
 /**
  * A switcher's trigger is the menu's own button, styled here, rather than the
@@ -216,6 +217,9 @@ export function Sidebar() {
   // holds `property.switch`, read from the grant rather than from a role name
   // (ADR-053, AC-A1). Today that is exactly the owner and the manager.
   const canSwitchProperty = isHost && capability.can("property.switch");
+  // A workspace the server answered for shows ITS properties; the fixture card
+  // below is only for the standalone demo with no API behind it (2026-09-13).
+  const liveWorkspace = Boolean(state.grants && state.grants.length > 0 && workspaceId);
 
   const propertyMeta = (key: PropertyKey) => {
     const p = state.db[key];
@@ -323,7 +327,10 @@ export function Sidebar() {
       </DropdownMenu>
 
       {/* ── Property switcher ──────────────────────────────────────────── */}
-      {canSwitchProperty && host && (
+      {liveWorkspace && workspaceId && capability.can("listing.manage") && (
+        <LivePropertySwitcher workspaceId={workspaceId} unitWord={isHost ? "rooms" : "units"} />
+      )}
+      {!liveWorkspace && canSwitchProperty && host && (
         <DropdownMenu>
           <DropdownMenuTrigger className={cn(SWITCH_TRIGGER, "mt-2 border-border hover:bg-hover")}>
             <SwitchMark swatch={host.sq} small>

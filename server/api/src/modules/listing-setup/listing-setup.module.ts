@@ -5,10 +5,14 @@ import { InventoryService } from './application/inventory.service';
 import { PropertyPhotosService } from './application/property-photos.service';
 import { RatePlansService } from './application/rate-plans.service';
 import { RoomTypesService } from './application/room-types.service';
+import { RoomsService } from './application/rooms.service';
+import { SetupProgressService } from './application/setup-progress.service';
 import { InventoryRepository } from './infrastructure/inventory.repository';
 import { PropertyPhotosRepository } from './infrastructure/property-photos.repository';
 import { RatePlansRepository } from './infrastructure/rate-plans.repository';
 import { RoomTypesRepository } from './infrastructure/room-types.repository';
+import { RoomsRepository } from './infrastructure/rooms.repository';
+import { SetupProgressRepository } from './infrastructure/setup-progress.repository';
 
 /**
  * Inventory authoring (ADR-009, extended by ADR-053) — the operator write path
@@ -44,12 +48,20 @@ import { RoomTypesRepository } from './infrastructure/room-types.repository';
     RatePlansService,
     RoomTypesRepository,
     RoomTypesService,
+    // The physical rooms and units, and the setup checklist's counts
+    // (setup after approval, 2026-09-13).
+    RoomsRepository,
+    RoomsService,
+    SetupProgressRepository,
+    SetupProgressService,
   ],
   exports: [
     InventoryService,
     PropertyPhotosService,
     RatePlansService,
     RoomTypesService,
+    RoomsService,
+    SetupProgressService,
   ],
 })
 export class ListingSetupModule {}

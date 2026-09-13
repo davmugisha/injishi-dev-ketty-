@@ -40,6 +40,7 @@
  * receptionist nobody is coming when in fact nobody asked.
  */
 
+import { SetupBanner } from "../components/setup-banner";
 import { Button } from "@injishi/ui";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
@@ -229,6 +230,7 @@ export function Today() {
 
   return (
     <div className="pms-enter" style={{ display: "flex", flexDirection: "column", gap: 20 }}>
+      <SetupBanner />
       <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
         {chips.map((c) => {
           const on = chip === c.key;

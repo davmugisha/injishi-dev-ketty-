@@ -79,6 +79,11 @@ export const properties = pgTable(
     checkInTime: time('check_in_time'),
     checkOutTime: time('check_out_time'),
     houseRules: text('house_rules'),
+    // How a guest or an officer reaches the property itself, which is not
+    // always how they reach its owner: a group runs several front desks.
+    // Nullable, because every property that predates the setup screen has none.
+    contactPhone: text('contact_phone'),
+    contactEmail: text('contact_email'),
     ...timestamps,
   },
   (t) => [

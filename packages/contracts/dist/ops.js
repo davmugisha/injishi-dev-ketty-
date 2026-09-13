@@ -1,8 +1,8 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.FolioType = exports.UpdateDepartmentRequest = exports.CreateDepartmentRequest = exports.OperatorDepartmentList = exports.OperatorDepartment = exports.DepartmentStatus = exports.DepartmentType = exports.DepartmentCategory = exports.PropertyScopedQuery = exports.AddAmenityRequest = exports.OperatorAmenityList = exports.OperatorAmenity = exports.ReturnDepositRequest = exports.OperatorDepositList = exports.OperatorDeposit = exports.RecordRentRequest = exports.OperatorRentRoll = exports.OperatorRentCharge = exports.AdvanceLeaseRequest = exports.OperatorLeaseList = exports.OperatorLease = exports.AdvanceTicketRequest = exports.OperatorTicketList = exports.OperatorTicket = exports.MaintenancePriority = exports.MaintenanceCategory = exports.SendMessageRequest = exports.OperatorMessageList = exports.OperatorMessage = exports.OperatorThreadList = exports.OperatorThread = exports.SetHousekeepingRequest = exports.CheckOutRequest = exports.WalkInRequest = exports.CheckInRequest = exports.OperatorStayList = exports.OperatorStay = exports.OperatorRoomList = exports.OperatorRoom = exports.CautionStatus = exports.RentStatus = exports.LeaseStatus = exports.MaintenanceStatus = exports.HousekeepingStatus = exports.RoomStatus = exports.ReservationDecisionResult = exports.OperatorReservationQuery = exports.OperatorReservationList = exports.OperatorReservation = exports.OperatorReservationState = void 0;
-exports.UpdateServiceCategoryRequest = exports.CreateServiceCategoryRequest = exports.OperatorServiceCatalog = exports.OperatorServiceCategory = exports.OperatorServiceItem = exports.RraItemField = exports.SelectedOptionSnapshot = exports.SelectedOption = exports.ServiceItemOptions = exports.ServiceItemOption = exports.RraUnitCode = exports.RraClassificationCode = exports.RraItemTypeCode = exports.OrderContext = exports.ServiceOrderStatus = exports.ServiceOrderChannel = exports.FulfillmentType = exports.ServiceCatalogStatus = exports.RaiseTicketRequest = exports.AdvanceHousekeepingTaskRequest = exports.CreateHousekeepingTaskRequest = exports.OperatorHousekeepingTaskList = exports.OperatorHousekeepingTask = exports.HousekeepingTaskStatus = exports.HousekeepingTaskType = exports.OperatorTeamList = exports.OperatorTeamMember = exports.RoomAssignmentWindowQuery = exports.AssignRoomRequest = exports.OperatorRoomAssignmentList = exports.OperatorRoomAssignment = exports.RoomAssignmentStatus = exports.OperatorRevenue = exports.OperatorRevenueDepartment = exports.OperatorRevenueQuery = exports.CloseFolioResult = exports.FolioDeclaration = exports.CloseFolioRequest = exports.VoidChargeRequest = exports.TakePaymentRequest = exports.PostChargeResult = exports.PostChargeRequest = exports.OperatorFolioDetail = exports.OperatorFolioCharge = exports.OperatorFolioList = exports.OperatorFolio = exports.PaymentMethod = exports.TaxCode = exports.ChargeType = exports.FolioStatus = void 0;
-exports.AssignDepartmentMemberRequest = exports.OperatorDepartmentMemberList = exports.OperatorDepartmentMember = exports.DepartmentPosition = exports.UpdateServiceItemRequest = exports.AdvanceServiceOrderRequest = exports.MarkOrderPaidCashResult = exports.MarkOrderPaidCashRequest = exports.CreateServiceOrderRequest = exports.OperatorServiceOrderList = exports.OperatorServiceOrder = exports.OperatorServiceOrderItem = exports.RraClassificationList = exports.RraClassificationSearch = exports.RraClassification = exports.UpsertServiceItemRequest = void 0;
+exports.ServiceItemOption = exports.RraUnitCode = exports.RraClassificationCode = exports.RraItemTypeCode = exports.OrderContext = exports.ServiceOrderStatus = exports.ServiceOrderChannel = exports.FulfillmentType = exports.ServiceCatalogStatus = exports.RaiseTicketRequest = exports.AdvanceHousekeepingTaskRequest = exports.CreateHousekeepingTaskRequest = exports.OperatorHousekeepingTaskList = exports.OperatorHousekeepingTask = exports.HousekeepingTaskStatus = exports.HousekeepingTaskType = exports.AcceptedStaffInvitation = exports.StaffInvitationPreview = exports.StaffInvitationTokenRequest = exports.OperatorStaffInvitationList = exports.OperatorStaffInvitation = exports.StaffInvitationStatus = exports.InviteStaffRequest = exports.ORG_ROLE_LABEL = exports.InvitableOrgRole = exports.OperatorTeamList = exports.OperatorTeamMember = exports.RoomAssignmentWindowQuery = exports.AssignRoomRequest = exports.OperatorRoomAssignmentList = exports.OperatorRoomAssignment = exports.RoomAssignmentStatus = exports.OperatorRevenue = exports.OperatorRevenueDepartment = exports.OperatorRevenueQuery = exports.CloseFolioResult = exports.FolioDeclaration = exports.CloseFolioRequest = exports.VoidChargeRequest = exports.TakePaymentRequest = exports.PostChargeResult = exports.PostChargeRequest = exports.OperatorFolioDetail = exports.OperatorFolioCharge = exports.OperatorFolioList = exports.OperatorFolio = exports.PaymentMethod = exports.TaxCode = exports.ChargeType = exports.FolioStatus = void 0;
+exports.AssignDepartmentMemberRequest = exports.OperatorDepartmentMemberList = exports.OperatorDepartmentMember = exports.DepartmentPosition = exports.UpdateServiceItemRequest = exports.AdvanceServiceOrderRequest = exports.MarkOrderPaidCashResult = exports.MarkOrderPaidCashRequest = exports.CreateServiceOrderRequest = exports.OperatorServiceOrderList = exports.OperatorServiceOrder = exports.OperatorServiceOrderItem = exports.RraClassificationList = exports.RraClassificationSearch = exports.RraClassification = exports.UpsertServiceItemRequest = exports.UpdateServiceCategoryRequest = exports.CreateServiceCategoryRequest = exports.OperatorServiceCatalog = exports.OperatorServiceCategory = exports.OperatorServiceItem = exports.RraItemField = exports.SelectedOptionSnapshot = exports.SelectedOption = exports.ServiceItemOptions = void 0;
 const zod_1 = require("zod");
 const booking_1 = require("./booking");
 const primitives_1 = require("./primitives");
@@ -575,7 +575,21 @@ exports.OperatorDepartment = zod_1.z.object({
     guestRequestable: zod_1.z.boolean(),
     sortOrder: zod_1.z.number().int(),
     status: exports.DepartmentStatus,
+    /**
+     * The department's contact card: who heads it, their number, and the
+     * department's own line. Text rather than a roster row, because a head of
+     * department often has no account on the day a property is set up.
+     */
+    headName: zod_1.z.string().nullable(),
+    headPhone: zod_1.z.string().nullable(),
+    phone: zod_1.z.string().nullable(),
 });
+/** The contact card fields, shared by create and update. `null` clears one. */
+const departmentContactFields = {
+    headName: zod_1.z.string().trim().max(120, "That name is too long.").nullable().optional(),
+    headPhone: primitives_1.ContactPhone.nullable().optional(),
+    phone: primitives_1.ContactPhone.nullable().optional(),
+};
 exports.OperatorDepartmentList = zod_1.z.object({
     departments: zod_1.z.array(exports.OperatorDepartment),
 });
@@ -592,6 +606,7 @@ exports.CreateDepartmentRequest = zod_1.z.object({
     departmentCategory: exports.DepartmentCategory,
     guestRequestable: zod_1.z.boolean().optional(),
     sortOrder: zod_1.z.number().int().min(0).max(9999).optional(),
+    ...departmentContactFields,
 });
 /**
  * Rename, reorder, or retire a department.
@@ -606,6 +621,7 @@ exports.UpdateDepartmentRequest = zod_1.z
     guestRequestable: zod_1.z.boolean().optional(),
     sortOrder: zod_1.z.number().int().min(0).max(9999).optional(),
     status: exports.DepartmentStatus.optional(),
+    ...departmentContactFields,
 })
     .refine((v) => Object.keys(v).length > 0, {
     message: "Say what to change.",
@@ -925,6 +941,69 @@ exports.OperatorTeamMember = zod_1.z.object({
 });
 exports.OperatorTeamList = zod_1.z.object({
     members: zod_1.z.array(exports.OperatorTeamMember),
+});
+// ---------------------------------------------------------------------------
+// Inviting staff
+// ---------------------------------------------------------------------------
+/**
+ * The roles an owner or manager may invite somebody into.
+ *
+ * `owner` is not offered. Ownership changes hands through the owner claim
+ * (FL02), which checks an identity document; an emailed link that could make
+ * somebody an owner would be a way round that check.
+ */
+exports.InvitableOrgRole = primitives_1.OrgRole.exclude(["owner"]);
+/** What a role is called on screens and in the invitation mail. */
+exports.ORG_ROLE_LABEL = {
+    owner: "Owner",
+    manager: "Manager",
+    receptionist: "Front office / Receptionist",
+    housekeeper: "Housekeeper",
+};
+exports.InviteStaffRequest = zod_1.z.object({
+    email: zod_1.z
+        .string()
+        .trim()
+        .toLowerCase()
+        .email("Use an email address like name@example.com.")
+        .max(200),
+    orgRole: exports.InvitableOrgRole,
+});
+exports.StaffInvitationStatus = zod_1.z.enum(["sent", "accepted", "revoked", "expired"]);
+/**
+ * One invitation, as the business that sent it sees it.
+ *
+ * The TOKEN is never on this shape. It travels once, in the mail, and a list
+ * that carried it would turn anybody who can read the People screen into
+ * somebody who can accept every pending invitation themselves.
+ */
+exports.OperatorStaffInvitation = zod_1.z.object({
+    id: primitives_1.Uuid,
+    email: zod_1.z.string(),
+    orgRole: primitives_1.OrgRole,
+    /** `expired` is derived at read time from `expiresAt`, not stored. */
+    status: exports.StaffInvitationStatus,
+    expiresAt: zod_1.z.string(),
+    createdAt: zod_1.z.string(),
+});
+exports.OperatorStaffInvitationList = zod_1.z.object({
+    invitations: zod_1.z.array(exports.OperatorStaffInvitation),
+});
+/** The token from the mail. POSTed in a body, never put in a query string. */
+exports.StaffInvitationTokenRequest = zod_1.z.object({
+    token: zod_1.z.string().min(16).max(200),
+});
+/** What the join page shows before somebody accepts. */
+exports.StaffInvitationPreview = zod_1.z.object({
+    legalName: zod_1.z.string(),
+    orgRole: primitives_1.OrgRole,
+    /** The address it was sent to, so a person signed in as someone else sees why it refuses. */
+    email: zod_1.z.string(),
+});
+exports.AcceptedStaffInvitation = zod_1.z.object({
+    orgId: primitives_1.Uuid,
+    workspaceId: primitives_1.Uuid,
+    orgRole: primitives_1.OrgRole,
 });
 // ---------------------------------------------------------------------------
 // Housekeeping tasks

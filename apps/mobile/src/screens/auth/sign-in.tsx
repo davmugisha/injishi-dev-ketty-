@@ -348,7 +348,9 @@ function DemoPersonas({
         }}
       >
         {personas.map((persona, i) => {
-          const seats = persona.seats.map((s) => s.label).join(' · ');
+          // The role leads each seat ("Owner, Umurage Guesthouse"): the demo is
+          // where access control is shown, and a bare org name hides it.
+          const seats = persona.seats.map((s) => `${s.role}, ${s.label}`).join(' · ');
           return (
             <ListRow
               key={persona.email}

@@ -8,8 +8,8 @@
  */
 
 import { LensPage, type LensLink } from "../components/lens-page";
-import { Placeholder } from "../components/placeholder";
 import { Departments } from "./departments";
+import { Invites } from "./invites";
 import { Team } from "./team";
 import { useWorkspaceId } from "../data/capability";
 import { workspaceBase } from "../lib/nav";
@@ -36,7 +36,7 @@ export function People({ lens }: { lens: string }) {
       {lens === "departments" ? (
         <Departments />
       ) : lens === "invites" ? (
-        <Placeholder screenKey="invites" />
+        <Invites landlord={landlord} />
       ) : (
         <Team landlord={landlord} />
       )}

@@ -69,9 +69,9 @@ export function Topbar({ title }: { title: string }) {
   // the read is in flight, so the app still runs standalone.
   const place =
     state.ws === "landlord"
-      ? (served ?? state.db.residence.name)
+      ? (served ?? (state.grants && state.grants.length > 0 ? "No property yet" : state.db.residence.name))
       : state.ws === "host"
-        ? (served ?? host?.name ?? ws.name)
+        ? (served ?? (state.grants && state.grants.length > 0 ? "No property yet" : (host?.name ?? ws.name)))
         : ws.role;
   // The workspace, first, on every screen (ADR-018, AC-14). The address no
   // longer says which business you are in — `/w/<id>/today` is an id, not a

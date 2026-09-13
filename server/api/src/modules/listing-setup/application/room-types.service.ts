@@ -12,7 +12,9 @@ import {
 } from '@nestjs/common';
 
 import { assertContained } from '../domain/containment';
+import { collidingLabels, numberedLabels } from '../domain/room-labels';
 import { InventoryRepository } from '../infrastructure/inventory.repository';
+import { RoomsRepository } from '../infrastructure/rooms.repository';
 import {
   RoomTypesRepository,
   type RoomTypeRow,
@@ -35,6 +37,7 @@ export class RoomTypesService {
   constructor(
     private readonly repo: RoomTypesRepository,
     private readonly properties: InventoryRepository,
+    private readonly rooms: RoomsRepository,
   ) {}
 
   /** Every room type on one of the caller's properties. */
@@ -70,11 +73,29 @@ export class RoomTypesService {
       );
     }
 
+    // The rooms it starts with: the ones named, or `roomCount` numbered after
+    // the type. A room type created with neither gets one room, which is what
+    // the column default always claimed and never delivered.
+    const roomLabels =
+      request.roomLabels && request.roomLabels.length > 0
+        ? request.roomLabels.map((l) => l.trim())
+        : numberedLabels(request.name, request.roomCount ?? 1);
+    const clashes = collidingLabels(
+      roomLabels,
+      await this.rooms.labelsOnProperty(propertyId),
+    );
+    if (clashes.length > 0) {
+      throw new ConflictException(
+        `These ${clashes.length === 1 ? 'name is' : 'names are'} already used on this property: ${clashes.join(', ')}. Every room needs its own.`,
+      );
+    }
+
     const roomTypeId = await this.repo.create({
       propertyId,
       workspaceId: workspace.workspaceId,
       domain,
       request,
+      roomLabels,
     });
     return this.read(roomTypeId);
   }

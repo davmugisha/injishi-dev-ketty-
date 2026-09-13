@@ -57,6 +57,7 @@ import { OversightController } from './oversight/oversight.controller';
 import { PlatformController } from './platform/platform.controller';
 import { OrgClaimsController } from './registrations/org-claims.controller';
 import { RegistrationsController } from './registrations/registrations.controller';
+import { StaffInvitationsController } from './registrations/staff-invitations.controller';
 import { UploadsController } from './uploads/uploads.controller';
 import { SupportModule } from './support/support.module';
 import { TrainingPublicModule } from './training/training.module';
@@ -113,6 +114,8 @@ import { WaitlistModule } from './waitlist/waitlist.module';
     RegistrationsController,
     // The owner claim: the end an OBO registration could never reach (ADR-053).
     OrgClaimsController,
+    // Accepting a staff invitation, before the invitee holds the workspace.
+    StaffInvitationsController,
     UploadsController,
     InventoryController,
     OpsReservationsController,

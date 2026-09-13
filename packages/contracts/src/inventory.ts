@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { BookingMode, CancellationTier } from "./booking";
-import { Domain, Uuid } from "./primitives";
+import { HousekeepingStatus, RoomStatus } from "./ops";
+import { ContactPhone, Domain, Uuid } from "./primitives";
 /**
  * The operator write path for inventory (ADR-009).
  *
@@ -66,6 +67,18 @@ const propertyFields = {
      * respected by the public read path, so this is a real toggle, not a stub.
      */
     locationPrivacy: z.boolean().optional(),
+    /**
+     * How a guest, a tenant or an officer reaches the property itself, which is
+     * not always its owner: a group runs several front desks. `null` clears it.
+     */
+    contactPhone: ContactPhone.nullable().optional(),
+    contactEmail: z
+        .string()
+        .trim()
+        .email("Use an email address like frontdesk@example.com.")
+        .max(200)
+        .nullable()
+        .optional(),
 };
 export const CreatePropertyRequest = WorkspaceScoped.extend(propertyFields);
 export type CreatePropertyRequest = z.infer<typeof CreatePropertyRequest>;
@@ -157,6 +170,8 @@ export const OperatorProperty = OperatorPropertySummary.extend({
     houseRules: z.string().nullable(),
     locationPrivacy: z.boolean(),
     timezone: z.string(),
+    contactPhone: z.string().nullable(),
+    contactEmail: z.string().nullable(),
     photos: z.array(PropertyPhoto),
     /**
      * Empty until feature 2 builds the room type write path. An empty array is a
@@ -325,7 +340,30 @@ const roomTypeFields = {
     /** How many rooms of this type exist. Seeds nothing; `rooms` is the truth. */
     roomCount: z.number().int().positive().max(10_000).optional(),
 };
-export const CreateRoomTypeRequest = WorkspaceScoped.extend(roomTypeFields);
+/**
+ * What one physical room or unit is called on the door: `101`, `Tent 4`,
+ * `Apartment B2`. Unique within its property, which the service enforces.
+ */
+export const RoomLabel = z
+    .string()
+    .trim()
+    .min(1, "Give every room a number or a name.")
+    .max(60, "That room name is too long.");
+export type RoomLabel = z.infer<typeof RoomLabel>;
+/**
+ * Creating a room type may name its rooms in the same call.
+ *
+ * `roomLabels` is how a new property gets SELLABLE rooms at all: `roomCount`
+ * alone seeds nothing, so a property set up without rooms could never publish
+ * and its room status board stayed empty. When labels are sent they win and
+ * `roomCount` follows them; when only a count is sent, that many rooms are
+ * created with numbered labels. Create only — an edit adds rooms through the
+ * rooms route, where each one can be named.
+ */
+export const CreateRoomTypeRequest = WorkspaceScoped.extend({
+    ...roomTypeFields,
+    roomLabels: z.array(RoomLabel).max(500, "Add at most 500 rooms at once.").optional(),
+});
 export type CreateRoomTypeRequest = z.infer<typeof CreateRoomTypeRequest>;
 /**
  * Editing a room type replaces only the fields sent, like every other operator
@@ -453,3 +491,88 @@ export const UploadedPropertyPhoto = z.object({
     url: z.string(),
 });
 export type UploadedPropertyPhoto = z.infer<typeof UploadedPropertyPhoto>;
+// ---------------------------------------------------------------------------
+// Rooms and units: the physical inventory
+// ---------------------------------------------------------------------------
+/**
+ * One physical room, tent, villa or rental unit, as its owner sets it up.
+ *
+ * A hotel room and a residence unit are the SAME row (`rooms`): a lease names a
+ * room, a stay names a room, and a room type is what either one is sold as. The
+ * operator app words it per business ("Room 101", "Unit B2"), the wire does not.
+ *
+ * Not `OperatorRoom` (ops.ts), which is TODAY's board: who is in it and whether
+ * it is clean. This is setup, so it carries what setup edits.
+ */
+export const InventoryRoom = z.object({
+    id: Uuid,
+    roomTypeId: Uuid,
+    label: z.string().nullable(),
+    status: RoomStatus,
+    /** New rooms are `clean`, the column default: nobody has slept in them. */
+    housekeeping: HousekeepingStatus,
+});
+export type InventoryRoom = z.infer<typeof InventoryRoom>;
+export const InventoryRoomList = z.object({
+    rooms: z.array(InventoryRoom),
+});
+export type InventoryRoomList = z.infer<typeof InventoryRoomList>;
+/** Add rooms to a room type, each with the label on its door. */
+export const CreateRoomsRequest = WorkspaceScoped.extend({
+    labels: z
+        .array(RoomLabel)
+        .min(1, "Add at least one room.")
+        .max(500, "Add at most 500 rooms at once."),
+});
+export type CreateRoomsRequest = z.infer<typeof CreateRoomsRequest>;
+/**
+ * Renumber a room, or take it out of what can be sold.
+ *
+ * `status` is the SALES state (available, maintenance, out of service). Whether
+ * it is clean stays housekeeping's, on `POST /ops/rooms/:id/housekeeping`.
+ */
+export const UpdateRoomRequest = WorkspaceScoped.extend({
+    label: RoomLabel.optional(),
+    status: RoomStatus.optional(),
+});
+export type UpdateRoomRequest = z.infer<typeof UpdateRoomRequest>;
+// ---------------------------------------------------------------------------
+// Setting a business up after approval
+// ---------------------------------------------------------------------------
+/**
+ * How far an approved business has got with setting up its property.
+ *
+ * COUNTS, not booleans, so the checklist can say "3 room types, 42 rooms"
+ * rather than a tick, and so the step definitions in `setup-steps.ts` decide
+ * what "done" means in one place instead of the API and the app each deciding.
+ *
+ * `propertyId` is the property the counts are about: the one asked for, or the
+ * first one on the business, or null when there is none yet — which is exactly
+ * the state a business is in on the day it is approved.
+ */
+export const PropertySetupCounts = z.object({
+    properties: z.number().int(),
+    contactDetails: z.number().int(),
+    departments: z.number().int(),
+    departmentHeads: z.number().int(),
+    roomTypes: z.number().int(),
+    pricedRoomTypes: z.number().int(),
+    rooms: z.number().int(),
+    photos: z.number().int(),
+    amenities: z.number().int(),
+    outlets: z.number().int(),
+    /** Members other than owners, plus invitations still waiting to be accepted. */
+    staff: z.number().int(),
+    published: z.number().int(),
+});
+export type PropertySetupCounts = z.infer<typeof PropertySetupCounts>;
+export const PropertySetupProgress = z.object({
+    orgId: Uuid,
+    legalName: z.string(),
+    domain: Domain,
+    accommodationClass: z.string().nullable(),
+    propertyId: Uuid.nullable(),
+    propertyName: z.string().nullable(),
+    counts: PropertySetupCounts,
+});
+export type PropertySetupProgress = z.infer<typeof PropertySetupProgress>;
