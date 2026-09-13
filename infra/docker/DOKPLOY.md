@@ -152,8 +152,21 @@ Every environment's API logs redact `cookie`, `authorization` and `set-cookie`.
 03:00 Africa/Kigali (01:00 UTC; Rwanda keeps no daylight saving):
 
 ```cron
-0 1 * * * /opt/injishi-demo/src/infra/docker/demo-nightly.sh >> /var/log/injishi-demo-nightly.log 2>&1
+MAILTO=<the maintainer>
+0 1 * * * /opt/injishi-demo/src/infra/docker/demo-nightly.sh >> /var/log/injishi-demo-nightly.log
 ```
+
+**The `MAILTO`, and the missing `2>&1`, are both load bearing** (ADR-048
+AC-22b). This is host cron, not a GitHub Actions run, so GitHub cannot report
+it: the one failure that most needs to surface is the one the pipeline cannot
+see. cron mails whatever a job writes, so the script sends progress to stdout
+and every failure to stderr, the line sends stdout to the log, and stderr is
+left alone. A good night is silent; a failure, or a give up waiting for the
+lock, arrives as mail. The old line ended `2>&1`, which put the failures in
+the log file alongside everything else and mailed nothing.
+
+Address it through the same relay `SMTP_URL` names, so there is one mail path
+out of this host rather than two.
 
 In order, stopping at the first failure: check out staging's commit in
 `/opt/injishi-demo/src`; build every demo image as `:demo-next`; create
@@ -291,6 +304,15 @@ allowed to send for `MAIL_FROM`'s domain. The URL carries the relay's password,
 so it lives only in `/opt/injishi/.env`. Staging and the demo send only to their
 own Mailpit.
 
+**A mail that links to web takes its origin from `WEB_URL`** (ADR-049). The owner
+claim invitation is the first such mail. Each compose file sets it from the same
+host its frontends' `NEXT_PUBLIC_WEB_URL` is built from, so nothing extra goes in
+an env file: production `https://${WEB_HOST:-www.injishi.com}`, demo
+`https://${WEB_HOST:-www-demo.injishi.com}`, staging
+`https://www.${STAGING_DOMAIN}`. It must be an origin with no path. The API
+refuses to boot under `NODE_ENV=production` without it, exactly as it does
+without `SMTP_URL`.
+
 ## Admin network gate
 
 `admin`, `admin-demo` and the demo's `mail-demo` inbox answer only to
@@ -359,19 +381,61 @@ it is ever set. Never set `OTP_DEBUG_LOG` on this host.
 
 ## Releasing
 
-Frontend images differ per stack, so an image is never promoted from staging to
-production. The **git commit** is:
+**This is a pipeline now, not an SSH session** ([ADR-048](../../../injishi.context/dox/adrs/048-ci-cd-pipeline/index.md)).
+The steps below describe what the workflows do; you trigger the last one.
 
-1. Check out the commit in `/opt/injishi-staging/src` and bring staging up.
-2. Test it there.
-3. Check out the same commit in `/opt/injishi/src` and bring production up. That
-   rebuilds the production images from exactly what was tested.
+**The API image is promoted; the frontend images are not.** One API image is
+built per green commit on `main` by `.github/workflows/image.yml` and pushed to
+`ghcr.io/hangaasoftwares/injishi-api:<short sha>`. Production and staging pull
+it by that tag, so the binary staging ran is the binary production runs. The
+three frontends bake `NEXT_PUBLIC_*` and `OPERATOR_APP_URL` at image build time,
+so their images belong to one stack and are built here, on the host, from that
+stack's own compose file.
+
+1. Merge to `main`. `ci` must be green: it is the required status.
+2. `image` pushes `injishi-api:<sha>` to GHCR.
+3. `deploy-staging` runs on this host with no human step, checks that sha out in
+   `/opt/injishi-staging/src`, pulls the API image, builds the three frontends
+   and waits for `api` and `web` to report healthy.
+4. Test it on staging.
+5. Dispatch `deploy-production` with that sha. It refuses unless staging is
+   running exactly that commit and a `backup` run has succeeded within
+   `BACKUP_MAX_AGE_HOURS`, then does the same sequence against `/opt/injishi`.
+   If the stack does not become healthy it puts the previous images back and
+   exits non zero.
+
+Both deploys run [`deploy-stack.sh`](deploy-stack.sh), which is also how you do
+it by hand:
+
+```bash
+bash /opt/injishi-staging/src/infra/docker/deploy-stack.sh --stack staging --commit <sha>
+```
+
+**`INJISHI_API_TAG` has no default, on purpose.** The `api` and `worker` services
+name `ghcr.io/hangaasoftwares/injishi-api:${INJISHI_API_TAG:?...}`, so a bare
+`docker compose up` fails with a message naming the variable rather than
+quietly starting something nobody chose. `deploy-stack.sh` sets it from the
+commit being deployed. Running compose by hand means exporting it first:
+
+```bash
+INJISHI_API_TAG=<short sha> docker compose -p injishi -f infra/docker/docker-compose.dokploy.yml --env-file /opt/injishi/.env ps
+```
+
+**A rollback restores images, not schema.** Any migration the failed release
+applied is still applied, so the restored image runs against a newer schema than
+it shipped with. That makes a rule on the code, which nothing enforces: a
+migration shipped beside a risky change stays backward compatible with the
+release before it. Add the column, do not rename it; drop it a release later.
 
 The demo follows staging on its own: the night after staging moves, the demo
-runs staging's commit. Nothing in a production release touches it.
+runs staging's commit. Nothing in a production release touches it, and it is
+still built here rather than pulled, which is why its compose file is the one
+that did not move to GHCR.
 
 A build compiles three Next apps per stack. Build one stack at a time on this
-host; the demo's nightly job runs at 01:00 UTC for that reason.
+host; the demo's nightly job runs at 01:00 UTC for that reason, and every deploy
+takes the same `/var/lock/injishi-demo-nightly.lock` so the two queue instead of
+colliding.
 
 ## Cutover from the current host state
 
@@ -410,7 +474,14 @@ to these files:
 ## DNS
 
 Public DNS still points at **Vercel** (web / app) and **Railway** (API) until
-cutover. These names must resolve to this VPS, DNS only (not proxied):
+cutover. Neither is a deployment path any more: ADR-048 deleted `railway.json`,
+`railpack.json` and `.railwayignore`, so nothing in this repository configures
+either one, and the pipeline in `.github/workflows/` deploys only to this VPS.
+What is still true is the DNS, and only until these names resolve here. The
+running Railway service is unaffected; `server/api/RAILWAY.md` keeps the record
+of what it was.
+
+These names must resolve to this VPS, DNS only (not proxied):
 
 | Name | Type | Target |
 | --- | --- | --- |
@@ -430,13 +501,67 @@ cutover. These names must resolve to this VPS, DNS only (not proxied):
 
 TLS is Traefik's, per host, once a record reaches this host.
 
+## Restoring from a backup
+
+`.github/workflows/backup.yml` ships two encrypted files per run to
+`BACKUP_DESTINATION`: a `pg_dump` custom format dump of the database, and a tar
+of the `minio-data` volume. The tool chain is fixed by ADR-048 so that the
+backup and this restore cannot disagree: `pg_dump`/`pg_restore`, `tar`, `age`,
+`rclone`.
+
+**Three keys, and none of them lives only on this VPS.** Losing any one of them
+makes the copies useless, which is the whole point of keeping them elsewhere:
+
+| Key | What it opens | Where it is kept |
+| --- | --- | --- |
+| the `age` identity | the two copies | off the VPS, with the destination credentials |
+| `MINIO_KMS_SECRET_KEY` | every object in the restored bucket | off the VPS, **beside the copies** |
+| `BACKUP_ENCRYPTION_RECIPIENT` | nothing; it is the public half | the deploy user's environment |
+
+The VPS holds the recipient only, so it can write a backup it cannot read.
+
+Restore into a **scratch stack**, never over the running one:
+
+```bash
+# 1. Fetch one night's pair.
+rclone copy "$BACKUP_DESTINATION/2026/09" ./restore --include 'injishi-2026*'
+
+# 2. Decrypt with the identity kept off this host.
+age --decrypt --identity ~/age-identity.txt --output injishi.dump injishi-<stamp>.dump.age
+age --decrypt --identity ~/age-identity.txt --output minio.tar.gz  minio-<stamp>.tar.gz.age
+
+# 3. Bring a scratch stack up on its own project name and .env, with
+#    MINIO_KMS_SECRET_KEY set to the value that was current when the backup ran.
+docker compose -p injishi-restore -f infra/docker/docker-compose.staging.yml --env-file /opt/injishi-restore/.env up -d db minio
+
+# 4. The database. --clean --if-exists so a repeat run is not a new failure.
+docker compose -p injishi-restore ... exec -T db \
+  pg_restore --clean --if-exists --no-owner --no-privileges -U injishi -d injishi < injishi.dump
+
+# 5. The objects, back onto the volume.
+docker run --rm -v injishi-restore_minio-data:/data -v "$PWD":/in alpine:3 \
+  tar -xzf /in/minio.tar.gz -C /data
+
+# 6. Bring the rest up and sign in as a seeded account.
+docker compose -p injishi-restore ... up -d
+```
+
+**It is not a backup until you have restored it.** AC-20 asks for exactly one
+proven restore: a scratch stack, brought up from these copies, serving a signed
+in session, with an object referenced by `stored_objects` actually resolving.
+Record the date of the last proven restore here when you do it:
+
+> Last proven restore: **never**. Do this before real data depends on it.
+
 ## Known gaps
 
-- **No backups.** Nothing dumps production's `db` or copies its `minio-data`
-  volume off this host. Schedule both off-host, keep `MINIO_KMS_SECRET_KEY` with
-  them (objects restored without it are unreadable), and test a restore before
-  real data depends on it. Staging and the demo need none: they are rebuilt
-  from the recipe.
+- **Backups exist but have never run, and no restore has been proven.**
+  `.github/workflows/backup.yml` is written and scheduled, and
+  `deploy-production.yml` refuses to release when its newest successful run is
+  older than `BACKUP_MAX_AGE_HOURS`. Neither has run: production does not serve
+  from this VPS yet. Until one does, the production deploy gate will refuse
+  every dispatch, which is the correct direction to fail in. Staging and the
+  demo need no backup: they are rebuilt from the recipe.
 - **MinIO gets no more security fixes.** `minio/minio:RELEASE.2025-09-07T16-13-09Z`
   is the last community release: upstream publishes no further community builds,
   so a vulnerability found after it stays open here, in all three stacks. The

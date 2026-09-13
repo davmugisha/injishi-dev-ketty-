@@ -36,13 +36,22 @@ Point the builder at `server/api` and the install fails on the first dependency.
 Three files drove the Railway build. Nothing else needed setting in the
 dashboard:
 
-- [`railway.json`](../../railway.json) — builder, health check, the pre-deploy
-  migration, restart policy.
-- [`railpack.json`](../../railpack.json) — the build command and the start
-  command. Railpack detects the pnpm workspace and writes the install step
-  itself; only the build is overridden, because the root `build` script builds
-  the two Next apps as well and this service needs neither.
-- [`mise.toml`](../../mise.toml) — pins Node and pnpm.
+- `railway.json` — builder, health check, the pre-deploy migration, restart
+  policy. **Deleted** by [ADR-048](../../../injishi.context/dox/adrs/048-ci-cd-pipeline/index.md) (AC-23).
+- `railpack.json` — the build command and the start command. Railpack detected
+  the pnpm workspace and wrote the install step itself; only the build was
+  overridden, because the root `build` script builds the Next apps as well and
+  this service needs none of them. **Deleted** by ADR-048 (AC-23).
+- [`mise.toml`](../../mise.toml) — pins Node and pnpm. Still present, and now
+  read by CI as well: `.github/actions/pnpm-setup` takes the Node version from
+  it rather than retyping one into a workflow.
+
+**Two of the three are gone, and that is the point of this note.** They were the
+only record in this repository of the configuration that is, today, still
+serving `api.injishi.com`. Until the DNS cutover, a Railway redeploy would have
+no configuration to read. The RUNNING service is unaffected: nothing here
+reaches into Railway's dashboard. If you need those files back before cutover,
+they are in git history, at the commit before ADR-048 landed.
 
 ## 2. Variables
 

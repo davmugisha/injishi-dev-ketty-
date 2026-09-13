@@ -70,6 +70,9 @@ x-api-env: &api-env
   # real person, so there is no relay credential to leak or to spend.
   SMTP_URL: smtp://injishi-mailpit:1025
   MAIL_FROM: "Injishi Staging <no-reply@${STAGING_DOMAIN}>"
+  # Web's public origin, for a mail that links to a page on web (ADR-049). The
+  # same host NEXT_PUBLIC_WEB_URL uses, so staging mail links to staging web.
+  WEB_URL: https://www.${STAGING_DOMAIN}
   LOG_LEVEL: ${LOG_LEVEL:-debug}
 
 x-staging-public: &staging-public
@@ -250,12 +253,20 @@ services:
       dokploy-network: {}
 
   api:
-    image: injishi-api:staging
-    build:
-      context: ../..
-      dockerfile: infra/docker/Dockerfile.api
-      args:
-        INJISHI_COMMIT: ${INJISHI_COMMIT:-}
+    # ADR-048 AC-9. Built ONCE per green commit by .github/workflows/image.yml
+    # and PULLED here by short sha. It is never built on this host, so the
+    # artifact staging ran is byte for byte the artifact production runs, and
+    # "staging tested this commit" becomes a statement about a binary rather
+    # than about a rebuild that happened to start from the same source.
+    #
+    # INJISHI_API_TAG is set by infra/docker/deploy-stack.sh from the commit
+    # being deployed. It has no default on purpose: a stack must name the
+    # commit it runs, and a floating tag would quietly make that unanswerable.
+    #
+    # The three FRONTEND services below keep their build: blocks. They bake
+    # NEXT_PUBLIC_* and OPERATOR_APP_URL at image build time, so their images
+    # belong to exactly one stack and cannot be promoted (AC-10).
+    image: ghcr.io/hangaasoftwares/injishi-api:${INJISHI_API_TAG:?set by deploy-stack.sh to the commit being deployed}
     restart: unless-stopped
     # Image WORKDIR is /app. Repo-root spelling: node server/api/scripts/migrate.mjs
     command: ["sh", "-c", "node scripts/migrate.mjs && node dist/main.js"]
@@ -303,12 +314,9 @@ services:
       - dokploy-network
 
   worker:
-    image: injishi-api:staging
-    build:
-      context: ../..
-      dockerfile: infra/docker/Dockerfile.api
-      args:
-        INJISHI_COMMIT: ${INJISHI_COMMIT:-}
+    # The same image as api, by the same tag: one API image, two processes, so a
+    # queue can never run code the HTTP process did not ship.
+    image: ghcr.io/hangaasoftwares/injishi-api:${INJISHI_API_TAG:?set by deploy-stack.sh to the commit being deployed}
     restart: unless-stopped
     environment:
       <<: *api-env

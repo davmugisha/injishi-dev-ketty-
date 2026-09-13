@@ -78,6 +78,9 @@ x-api-env: &api-env
   # is no relay credential in this stack to leak or to spend (AC-4).
   SMTP_URL: smtp://injishi-mailpit:1025
   MAIL_FROM: "Injishi Demo <no-reply@injishi.com>"
+  # Web's public origin, for a mail that links to a page on web (ADR-049). The
+  # same host NEXT_PUBLIC_WEB_URL uses, so demo mail links to demo web.
+  WEB_URL: https://${WEB_HOST:-www-demo.injishi.com}
   LOG_LEVEL: ${LOG_LEVEL:-info}
 
 x-demo-public: &demo-public
@@ -252,6 +255,13 @@ services:
       dokploy-network: {}
 
   api:
+    # DELIBERATELY NOT on GHCR, unlike production and staging (ADR-048 task 19).
+    # The demo is built by demo-nightly.sh, from staging's commit, as
+    # :demo-next, and swapped in only once it is proved healthy. That script
+    # owns its own build, lock, swap and rollback, and ADR-048 changes it only
+    # to share the build lock. Pointing this at a registry would break the one
+    # step the nightly is built around, and nothing promotes a demo image
+    # anywhere, so there is nothing to gain by it.
     image: injishi-api:${DEMO_IMAGE_TAG:-demo}
     build:
       context: ../..

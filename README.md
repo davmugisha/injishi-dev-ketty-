@@ -319,15 +319,26 @@ These are enforced, not suggested. The plugin lives in `tools/eslint-rules/`.
 
 ## Deployment
 
-The API deploys on Railway. `railway.json` and `railpack.json` define it:
+Three stacks run on one VPS: production, staging and demo. Every deploy fact —
+hosts, process order, cookie and CORS values, DNS, the cutover — lives in
+[`infra/docker/DOKPLOY.md`](infra/docker/DOKPLOY.md), and the container images
+are in [`infra/docker/`](infra/docker/).
 
-- Build: `pnpm --filter @injishi/api build`
-- Pre-deploy: `node server/api/scripts/migrate.mjs` — migrations run before
-  the new version takes traffic
-- Start: `node server/api/dist/main.js`
-- Health check: `/api/v1/health`, 120 s timeout, restart on failure
+The pipeline is in [`.github/workflows/`](.github/workflows/):
 
-Container images for self-hosting are in `infra/docker/`.
+- **Every pull request** runs `ci`: typecheck, lint with a warning ratchet, unit
+  tests and a build for each workspace member the change touches, plus
+  `integration` against a real Postgres and Redis when it touches the API. One
+  aggregating status, `ci-complete`, is what branch protection requires.
+- **Every green commit on `main`** builds one API image, pushed to GHCR tagged
+  with its short sha, and deploys itself to staging. The three frontends are
+  built on the host, because they bake per stack values and cannot be promoted.
+- **Production is a button**: a `workflow_dispatch` naming a commit, refused
+  unless staging is already running that commit and a recent backup succeeded,
+  and rolled back automatically if the new release does not become healthy.
+
+Railway and Vercel are retired as deployment paths. Public DNS still points at
+them until the cutover; `server/api/RAILWAY.md` keeps the historical record.
 
 ---
 

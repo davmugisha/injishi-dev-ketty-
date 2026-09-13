@@ -37,11 +37,25 @@
 #   DEMO_ROOT        /opt/injishi-demo          the demo's home (.env, src/)
 #   STAGING_SRC      /opt/injishi-staging/src   staging's checkout
 #   HEALTH_TIMEOUT   600                        seconds to wait at the confirm
+#   NIGHTLY_LOCK_RETRY_MINUTES  90              how long to wait for the lock
+#
+# Output is split on purpose (ADR-048 AC-22b). Progress goes to stdout, every
+# failure goes to stderr, and the cron line sends stdout to the log while
+# leaving stderr alone:
+#
+#   MAILTO=<the maintainer>
+#   0 1 * * * .../demo-nightly.sh >> /var/log/injishi-demo-nightly.log
+#
+# cron mails whatever a job writes and nothing else, so that line mails a
+# failure and stays silent on a good night. Redirecting stderr into the log as
+# well (`2>&1`) is what made this job the one failure nobody could see: it is a
+# host cron job, so GitHub cannot report it.
 set -Eeuo pipefail
 
 DEMO_ROOT=${DEMO_ROOT:-/opt/injishi-demo}
 STAGING_SRC=${STAGING_SRC:-/opt/injishi-staging/src}
 HEALTH_TIMEOUT=${HEALTH_TIMEOUT:-600}
+NIGHTLY_LOCK_RETRY_MINUTES=${NIGHTLY_LOCK_RETRY_MINUTES:-90}
 DEMO_SRC="$DEMO_ROOT/src"
 ENV_FILE="$DEMO_ROOT/.env"
 PROJECT=injishi-demo
@@ -54,7 +68,7 @@ NEXT_DB=injishi_demo_next
 PREV_DB=injishi_demo_prev
 
 log() { printf '%s demo-nightly: %s\n' "$(date -u +%FT%TZ)" "$*"; }
-die() { log "FAILED: $*"; exit 1; }
+die() { log "FAILED: $*" >&2; exit 1; }
 
 # Step 1 rewrites this very file (it lives in the checkout it updates), and
 # bash reads a script as it runs. So run from a private copy.
@@ -67,8 +81,20 @@ trap 'rm -f "$DEMO_NIGHTLY_COPY"' EXIT
 
 # One run at a time. A slow build overlapping the next night's run would swap
 # twice over one database.
+#
+# The lock is shared with the GitHub Actions deploy jobs (ADR-048 AC-18): one
+# host cannot build two stacks at once. It used to be taken with `flock -n`,
+# which dies on the first attempt, so a deploy that happened to hold it at 01:00
+# UTC would cancel that night's rebuild outright. It waits now, and gives up
+# only after NIGHTLY_LOCK_RETRY_MINUTES, because a rebuild that starts an hour
+# late is worth far more than one that never ran (AC-18b).
 exec 9>/var/lock/injishi-demo-nightly.lock
-flock -n 9 || die "another run holds /var/lock/injishi-demo-nightly.lock"
+lock_wait=$(( NIGHTLY_LOCK_RETRY_MINUTES * 60 ))
+if ! flock -n 9; then
+  log "/var/lock/injishi-demo-nightly.lock is held; waiting up to ${NIGHTLY_LOCK_RETRY_MINUTES}m for it"
+  flock -w "$lock_wait" 9 || die "gave up after ${NIGHTLY_LOCK_RETRY_MINUTES}m waiting for /var/lock/injishi-demo-nightly.lock; a deploy or another run held it the whole time"
+  log "took the lock after waiting"
+fi
 
 [[ -f $ENV_FILE ]] || die "$ENV_FILE is missing (copy infra/docker/dokploy-demo.env.example)"
 [[ -d $DEMO_SRC/.git ]] || die "$DEMO_SRC is not a git checkout of the injishi repo"
@@ -101,7 +127,7 @@ on_error() {
   if [[ $phase == prepare ]]; then
     cleanup_candidate
   fi
-  log "FAILED in phase '$phase' (exit $status)"
+  log "FAILED in phase '$phase' (exit $status)" >&2
   exit "$status"
 }
 trap on_error ERR
