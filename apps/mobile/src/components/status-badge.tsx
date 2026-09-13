@@ -66,6 +66,17 @@ const MAP: Record<string, Record<string, Entry>> = {
     filed: ['success', 'status.filing.filed'],
     failed: ['danger', 'status.filing.failed'],
   },
+  /* ADR-050 slice 1: a guest's order, read from the API's `service_order_status`. */
+  order: {
+    submitted: ['neutral', 'status.order.submitted'],
+    acknowledged: ['brand', 'status.order.acknowledged'],
+    in_progress: ['brand', 'status.order.in_progress'],
+    ready: ['success', 'status.order.ready'],
+    delivered: ['success', 'status.order.delivered'],
+    completed: ['neutral', 'status.order.completed'],
+    cancelled: ['danger', 'status.order.cancelled'],
+    rejected: ['danger', 'status.order.rejected'],
+  },
   /* Added by Session 0, from the prototype's interactive twin. */
   task: {
     pending: ['warning', 'status.task.pending'],

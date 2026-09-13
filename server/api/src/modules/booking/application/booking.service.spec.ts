@@ -84,7 +84,6 @@ describe('BookingService money ordering', () => {
     service: BookingService;
     ebm: { saleConfirmed: jest.Mock };
     repo: {
-      freeUnits: jest.Mock;
       create: jest.Mock;
       findByAttemptKey: jest.Mock;
     };
@@ -101,11 +100,35 @@ describe('BookingService money ordering', () => {
     };
     listings: { findBookableRoomType: jest.Mock };
     compensations: { enqueue: jest.Mock };
-    attempts: { begin: jest.Mock };
+    attempts: {
+      claimHold: jest.Mock;
+      attachCapture: jest.Mock;
+      releaseHold: jest.Mock;
+      markBooked: jest.Mock;
+      markRefunded: jest.Mock;
+      statusOf: jest.Mock;
+    };
+    order: string[];
+  }
+
+  /** The hold: claimed before any capture, released when no money moved. */
+  function holdDouble(soldOut: boolean, order: string[]) {
+    const hold = { id: 'hold-1', attemptToken: 'tok', adapterRef: null };
+    return {
+      claimHold: jest.fn(async () => {
+        order.push('hold');
+        return soldOut ? { kind: 'sold_out' } : { kind: 'held', row: hold };
+      }),
+      attachCapture: jest.fn(async (row: object, r: PaymentReceipt) => ({ ...row, adapterRef: r.adapterRef })),
+      releaseHold: jest.fn().mockResolvedValue(undefined),
+      markBooked: jest.fn().mockResolvedValue(undefined),
+      markRefunded: jest.fn().mockResolvedValue(undefined),
+      statusOf: jest.fn(() => ({ state: 'prompting' })),
+    };
   }
 
   function build(overrides: {
-    freeUnits?: number;
+    soldOut?: boolean;
     createRejects?: Error;
     captureRejects?: Error;
     refundRejects?: Error;
@@ -113,6 +136,7 @@ describe('BookingService money ordering', () => {
     settledAttempt?: SettledAttempt | null;
     createdStatus?: 'confirmed' | 'pending_approval';
   } = {}): Harness {
+    const order: string[] = [];
     const payments = {
       mode: 'mock' as const,
       captureEscrow: overrides.captureRejects
@@ -130,7 +154,6 @@ describe('BookingService money ordering', () => {
     };
 
     const repo = {
-      freeUnits: jest.fn().mockResolvedValue(overrides.freeUnits ?? 2),
       findByAttemptKey: jest
         .fn()
         .mockResolvedValue(overrides.settledAttempt ?? null),
@@ -159,9 +182,13 @@ describe('BookingService money ordering', () => {
 
     // ADR-047 D-j: where a pending capture goes. A recording double, so a test
     // can assert the wait was BEGUN rather than the charge voided.
-    const attempts = {
-      begin: jest.fn().mockResolvedValue({ state: 'prompting' }),
-    };
+    const attempts = holdDouble(overrides.soldOut ?? false, order);
+    payments.captureEscrow.mockImplementation(async (...args: unknown[]) => {
+      order.push('capture');
+      if (overrides.captureRejects) throw overrides.captureRejects;
+      void args;
+      return overrides.captureReceipt ?? receipt;
+    });
     const service = new BookingService(
       repo as unknown as BookingRepository,
       listings as unknown as ListingService,
@@ -177,7 +204,7 @@ describe('BookingService money ordering', () => {
       attempts as unknown as PaymentAttemptService,
     );
 
-    return { service, ebm, repo, payments, listings, compensations, attempts };
+    return { service, ebm, repo, payments, listings, compensations, attempts, order };
   }
 
   /**
@@ -269,7 +296,7 @@ describe('BookingService money ordering', () => {
 
   /** AC-6: nobody is charged for a room that was already gone. */
   it('refuses a sold-out stay without attempting a capture', async () => {
-    const { service, payments, repo } = build({ freeUnits: 0 });
+    const { service, payments, repo } = build({ soldOut: true });
 
     await expect(service.create(input, GUEST_ID)).rejects.toBeInstanceOf(
       ConflictException,
@@ -308,8 +335,8 @@ describe('BookingService money ordering', () => {
     expect(refund.amountRwf).toBe(receipt.amountRwf);
   });
 
-  it('refunds and answers 409 when the last unit goes between the pre-check and the lock', async () => {
-    const { service, payments } = build({
+  it('refunds and answers 409 when the last unit goes between the hold and the lock', async () => {
+    const { service, payments, attempts } = build({
       createRejects: new NoAvailabilityError(),
     });
 
@@ -317,6 +344,41 @@ describe('BookingService money ordering', () => {
       ConflictException,
     );
     expect(payments.refund).toHaveBeenCalledTimes(1);
+    // The hold records that the guest was refunded, rather than spinning.
+    expect(attempts.markRefunded).toHaveBeenCalledTimes(1);
+  });
+
+  /* --- The inventory hold (booking audit, 2026-09-13) ----------------------- */
+
+  it('holds a unit BEFORE the capture, so the last room cannot be charged twice', async () => {
+    const { service, order } = build();
+
+    await service.create(input, GUEST_ID);
+
+    expect(order.slice(0, 2)).toEqual(['hold', 'capture']);
+  });
+
+  it('gives the unit back when the payment is declined', async () => {
+    const { service, attempts } = build({
+      captureRejects: new PaymentDeclinedError('insufficient funds', 'k'),
+    });
+
+    await expect(service.create(input, GUEST_ID)).rejects.toBeInstanceOf(BadRequestException);
+    expect(attempts.releaseHold).toHaveBeenCalledTimes(1);
+    expect(attempts.attachCapture).not.toHaveBeenCalled();
+  });
+
+  it('marks the hold booked when a card settles inside the request', async () => {
+    const { service, attempts } = build({
+      captureReceipt: receipt,
+    });
+
+    const result = await service.create(input, GUEST_ID);
+
+    expect(attempts.markBooked).toHaveBeenCalledWith(
+      expect.objectContaining({ adapterRef: receipt.adapterRef }),
+      bookingOf(result).id,
+    );
   });
 
   /**
@@ -344,7 +406,6 @@ describe('BookingService money ordering', () => {
     const refundSpy = jest.spyOn(adapter, 'refund');
 
     const repo = {
-      freeUnits: jest.fn().mockResolvedValue(2),
       findByAttemptKey: jest.fn().mockResolvedValue(null),
       create: jest.fn().mockRejectedValue(new Error('database is on fire')),
     };
@@ -365,9 +426,7 @@ describe('BookingService money ordering', () => {
       // ADR-047 D-j: where a pending capture goes. These tests are about the
       // money ORDERING and every one of them settles inside the request, so
       // this is never reached — it is here so the graph is complete.
-      {
-        begin: jest.fn().mockResolvedValue({ state: 'prompting' }),
-      } as unknown as PaymentAttemptService,
+      holdDouble(false, []) as unknown as PaymentAttemptService,
     );
 
     /*
@@ -493,7 +552,8 @@ describe('BookingService money ordering', () => {
 
     await service.create(input, GUEST_ID);
 
-    expect(attempts.begin).toHaveBeenCalledTimes(1);
+    expect(attempts.attachCapture).toHaveBeenCalledTimes(1);
+    expect(attempts.statusOf).toHaveBeenCalledTimes(1);
     expect(compensations.enqueue).not.toHaveBeenCalled();
   });
 

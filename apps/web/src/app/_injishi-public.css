@@ -43,6 +43,11 @@
 @source "../components/collections";
 @source "../components/guides";
 @source "../components/support";
+/* The waitlist bands, form, header and footer (ADR-048). Missing from this
+ * list since the feature landed: the page rendered only the classes some other
+ * listed directory happened to spell too, so the hero headline, the photo
+ * frames and every grid on it compiled to nothing. */
+@source "../components/waitlist";
 
 @custom-variant dark (&:where(.dark, .dark *));
 

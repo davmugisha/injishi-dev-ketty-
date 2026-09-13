@@ -74,7 +74,7 @@ export function PropertyGallery({ property }: { property: PropertyDetail }) {
             <Frame
               frame={frame}
               priority={index === 0}
-              className="h-full w-full transition-[filter] duration-200 group-hover:brightness-90"
+              className="h-full w-full transition-[filter] duration-quick group-hover:brightness-90"
             />
           </Link>
         ))}
@@ -107,10 +107,11 @@ function Frame({
 }) {
   return (
     <picture>
-      <source type="image/avif" srcSet={`/assets/${frame.stem}.avif`} />
+      {/* An uploaded photo (`src`) is served as it is; only bundled assets come in two formats. */}
+      {frame.src ? null : <source type="image/avif" srcSet={`/assets/${frame.stem}.avif`} />}
       {/* Art-directed pair: next/image emits one format and cannot express this. */}
       <img
-        src={`/assets/${frame.stem}.jpg`}
+        src={frame.src ?? `/assets/${frame.stem}.jpg`}
         alt={frame.alt}
         width={1120}
         height={560}

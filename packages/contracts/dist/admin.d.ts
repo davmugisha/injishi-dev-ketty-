@@ -51,7 +51,7 @@ export type AdminAdapterStatus = z.infer<typeof AdminAdapterStatus>;
  * exists. The API's typecheck is what caught the gap: the query's row type
  * gained the two values and this contract had not.
  */
-export declare const AdminAuditSubjectType: z.ZodEnum<["user", "org", "lease", "booking", "payment", "config", "property", "broker", "guest_stay"]>;
+export declare const AdminAuditSubjectType: z.ZodEnum<["user", "org", "lease", "booking", "payment", "config", "property", "broker", "guest_stay", "training_certificate"]>;
 export type AdminAuditSubjectType = z.infer<typeof AdminAuditSubjectType>;
 /**
  * `record_data_class`. What class of another person's data a staff member read.
@@ -1824,7 +1824,7 @@ export type AdminOrgMoney = z.infer<typeof AdminOrgMoney>;
 export declare const AdminTimelineEvent: z.ZodObject<{
     id: z.ZodString;
     eventType: z.ZodString;
-    subjectType: z.ZodNullable<z.ZodEnum<["user", "org", "lease", "booking", "payment", "config", "property", "broker", "guest_stay"]>>;
+    subjectType: z.ZodNullable<z.ZodEnum<["user", "org", "lease", "booking", "payment", "config", "property", "broker", "guest_stay", "training_certificate"]>>;
     actorUserId: z.ZodNullable<z.ZodString>;
     actorName: z.ZodNullable<z.ZodString>;
     reason: z.ZodNullable<z.ZodString>;
@@ -1833,7 +1833,7 @@ export declare const AdminTimelineEvent: z.ZodObject<{
     id: string;
     occurredAt: string;
     eventType: string;
-    subjectType: "broker" | "payment" | "user" | "org" | "lease" | "booking" | "config" | "property" | "guest_stay" | null;
+    subjectType: "broker" | "payment" | "user" | "org" | "lease" | "booking" | "config" | "property" | "guest_stay" | "training_certificate" | null;
     actorUserId: string | null;
     actorName: string | null;
     reason: string | null;
@@ -1841,7 +1841,7 @@ export declare const AdminTimelineEvent: z.ZodObject<{
     id: string;
     occurredAt: string;
     eventType: string;
-    subjectType: "broker" | "payment" | "user" | "org" | "lease" | "booking" | "config" | "property" | "guest_stay" | null;
+    subjectType: "broker" | "payment" | "user" | "org" | "lease" | "booking" | "config" | "property" | "guest_stay" | "training_certificate" | null;
     actorUserId: string | null;
     actorName: string | null;
     reason: string | null;
@@ -1851,7 +1851,7 @@ export declare const AdminOrgTimelineResponse: z.ZodObject<{
     items: z.ZodArray<z.ZodObject<{
         id: z.ZodString;
         eventType: z.ZodString;
-        subjectType: z.ZodNullable<z.ZodEnum<["user", "org", "lease", "booking", "payment", "config", "property", "broker", "guest_stay"]>>;
+        subjectType: z.ZodNullable<z.ZodEnum<["user", "org", "lease", "booking", "payment", "config", "property", "broker", "guest_stay", "training_certificate"]>>;
         actorUserId: z.ZodNullable<z.ZodString>;
         actorName: z.ZodNullable<z.ZodString>;
         reason: z.ZodNullable<z.ZodString>;
@@ -1860,7 +1860,7 @@ export declare const AdminOrgTimelineResponse: z.ZodObject<{
         id: string;
         occurredAt: string;
         eventType: string;
-        subjectType: "broker" | "payment" | "user" | "org" | "lease" | "booking" | "config" | "property" | "guest_stay" | null;
+        subjectType: "broker" | "payment" | "user" | "org" | "lease" | "booking" | "config" | "property" | "guest_stay" | "training_certificate" | null;
         actorUserId: string | null;
         actorName: string | null;
         reason: string | null;
@@ -1868,7 +1868,7 @@ export declare const AdminOrgTimelineResponse: z.ZodObject<{
         id: string;
         occurredAt: string;
         eventType: string;
-        subjectType: "broker" | "payment" | "user" | "org" | "lease" | "booking" | "config" | "property" | "guest_stay" | null;
+        subjectType: "broker" | "payment" | "user" | "org" | "lease" | "booking" | "config" | "property" | "guest_stay" | "training_certificate" | null;
         actorUserId: string | null;
         actorName: string | null;
         reason: string | null;
@@ -1891,7 +1891,7 @@ export declare const AdminOrgTimelineResponse: z.ZodObject<{
         id: string;
         occurredAt: string;
         eventType: string;
-        subjectType: "broker" | "payment" | "user" | "org" | "lease" | "booking" | "config" | "property" | "guest_stay" | null;
+        subjectType: "broker" | "payment" | "user" | "org" | "lease" | "booking" | "config" | "property" | "guest_stay" | "training_certificate" | null;
         actorUserId: string | null;
         actorName: string | null;
         reason: string | null;
@@ -1906,7 +1906,7 @@ export declare const AdminOrgTimelineResponse: z.ZodObject<{
         id: string;
         occurredAt: string;
         eventType: string;
-        subjectType: "broker" | "payment" | "user" | "org" | "lease" | "booking" | "config" | "property" | "guest_stay" | null;
+        subjectType: "broker" | "payment" | "user" | "org" | "lease" | "booking" | "config" | "property" | "guest_stay" | "training_certificate" | null;
         actorUserId: string | null;
         actorName: string | null;
         reason: string | null;
@@ -1930,7 +1930,7 @@ export declare const AdminAuditRow: z.ZodObject<{
      * the audit trail exists to record.
      */
     impersonatedUserId: z.ZodNullable<z.ZodString>;
-    subjectType: z.ZodNullable<z.ZodEnum<["user", "org", "lease", "booking", "payment", "config", "property", "broker", "guest_stay"]>>;
+    subjectType: z.ZodNullable<z.ZodEnum<["user", "org", "lease", "booking", "payment", "config", "property", "broker", "guest_stay", "training_certificate"]>>;
     subjectId: z.ZodNullable<z.ZodString>;
     eventType: z.ZodString;
     reason: z.ZodNullable<z.ZodString>;
@@ -1941,7 +1941,7 @@ export declare const AdminAuditRow: z.ZodObject<{
     id: string;
     occurredAt: string;
     eventType: string;
-    subjectType: "broker" | "payment" | "user" | "org" | "lease" | "booking" | "config" | "property" | "guest_stay" | null;
+    subjectType: "broker" | "payment" | "user" | "org" | "lease" | "booking" | "config" | "property" | "guest_stay" | "training_certificate" | null;
     actorUserId: string | null;
     actorName: string | null;
     reason: string | null;
@@ -1952,7 +1952,7 @@ export declare const AdminAuditRow: z.ZodObject<{
     id: string;
     occurredAt: string;
     eventType: string;
-    subjectType: "broker" | "payment" | "user" | "org" | "lease" | "booking" | "config" | "property" | "guest_stay" | null;
+    subjectType: "broker" | "payment" | "user" | "org" | "lease" | "booking" | "config" | "property" | "guest_stay" | "training_certificate" | null;
     actorUserId: string | null;
     actorName: string | null;
     reason: string | null;
@@ -1966,19 +1966,19 @@ export declare const AdminAuditQuery: z.ZodObject<{
     pageSize: z.ZodOptional<z.ZodNumber>;
     /** Free text over the event type and the reason. */
     q: z.ZodOptional<z.ZodString>;
-    subjectType: z.ZodOptional<z.ZodEnum<["user", "org", "lease", "booking", "payment", "config", "property", "broker", "guest_stay"]>>;
+    subjectType: z.ZodOptional<z.ZodEnum<["user", "org", "lease", "booking", "payment", "config", "property", "broker", "guest_stay", "training_certificate"]>>;
     actorUserId: z.ZodOptional<z.ZodString>;
 }, "strip", z.ZodTypeAny, {
     page?: number | undefined;
     pageSize?: number | undefined;
     q?: string | undefined;
-    subjectType?: "broker" | "payment" | "user" | "org" | "lease" | "booking" | "config" | "property" | "guest_stay" | undefined;
+    subjectType?: "broker" | "payment" | "user" | "org" | "lease" | "booking" | "config" | "property" | "guest_stay" | "training_certificate" | undefined;
     actorUserId?: string | undefined;
 }, {
     page?: number | undefined;
     pageSize?: number | undefined;
     q?: string | undefined;
-    subjectType?: "broker" | "payment" | "user" | "org" | "lease" | "booking" | "config" | "property" | "guest_stay" | undefined;
+    subjectType?: "broker" | "payment" | "user" | "org" | "lease" | "booking" | "config" | "property" | "guest_stay" | "training_certificate" | undefined;
     actorUserId?: string | undefined;
 }>;
 export type AdminAuditQuery = z.infer<typeof AdminAuditQuery>;
@@ -1994,7 +1994,7 @@ export declare const AdminAuditResponse: z.ZodObject<{
          * the audit trail exists to record.
          */
         impersonatedUserId: z.ZodNullable<z.ZodString>;
-        subjectType: z.ZodNullable<z.ZodEnum<["user", "org", "lease", "booking", "payment", "config", "property", "broker", "guest_stay"]>>;
+        subjectType: z.ZodNullable<z.ZodEnum<["user", "org", "lease", "booking", "payment", "config", "property", "broker", "guest_stay", "training_certificate"]>>;
         subjectId: z.ZodNullable<z.ZodString>;
         eventType: z.ZodString;
         reason: z.ZodNullable<z.ZodString>;
@@ -2005,7 +2005,7 @@ export declare const AdminAuditResponse: z.ZodObject<{
         id: string;
         occurredAt: string;
         eventType: string;
-        subjectType: "broker" | "payment" | "user" | "org" | "lease" | "booking" | "config" | "property" | "guest_stay" | null;
+        subjectType: "broker" | "payment" | "user" | "org" | "lease" | "booking" | "config" | "property" | "guest_stay" | "training_certificate" | null;
         actorUserId: string | null;
         actorName: string | null;
         reason: string | null;
@@ -2016,7 +2016,7 @@ export declare const AdminAuditResponse: z.ZodObject<{
         id: string;
         occurredAt: string;
         eventType: string;
-        subjectType: "broker" | "payment" | "user" | "org" | "lease" | "booking" | "config" | "property" | "guest_stay" | null;
+        subjectType: "broker" | "payment" | "user" | "org" | "lease" | "booking" | "config" | "property" | "guest_stay" | "training_certificate" | null;
         actorUserId: string | null;
         actorName: string | null;
         reason: string | null;
@@ -2042,7 +2042,7 @@ export declare const AdminAuditResponse: z.ZodObject<{
         id: string;
         occurredAt: string;
         eventType: string;
-        subjectType: "broker" | "payment" | "user" | "org" | "lease" | "booking" | "config" | "property" | "guest_stay" | null;
+        subjectType: "broker" | "payment" | "user" | "org" | "lease" | "booking" | "config" | "property" | "guest_stay" | "training_certificate" | null;
         actorUserId: string | null;
         actorName: string | null;
         reason: string | null;
@@ -2060,7 +2060,7 @@ export declare const AdminAuditResponse: z.ZodObject<{
         id: string;
         occurredAt: string;
         eventType: string;
-        subjectType: "broker" | "payment" | "user" | "org" | "lease" | "booking" | "config" | "property" | "guest_stay" | null;
+        subjectType: "broker" | "payment" | "user" | "org" | "lease" | "booking" | "config" | "property" | "guest_stay" | "training_certificate" | null;
         actorUserId: string | null;
         actorName: string | null;
         reason: string | null;
@@ -2200,7 +2200,7 @@ export declare const AdminOboAuditResponse: z.ZodObject<{
     events: z.ZodArray<z.ZodObject<{
         id: z.ZodString;
         eventType: z.ZodString;
-        subjectType: z.ZodNullable<z.ZodEnum<["user", "org", "lease", "booking", "payment", "config", "property", "broker", "guest_stay"]>>;
+        subjectType: z.ZodNullable<z.ZodEnum<["user", "org", "lease", "booking", "payment", "config", "property", "broker", "guest_stay", "training_certificate"]>>;
         actorUserId: z.ZodNullable<z.ZodString>;
         actorName: z.ZodNullable<z.ZodString>;
         reason: z.ZodNullable<z.ZodString>;
@@ -2209,7 +2209,7 @@ export declare const AdminOboAuditResponse: z.ZodObject<{
         id: string;
         occurredAt: string;
         eventType: string;
-        subjectType: "broker" | "payment" | "user" | "org" | "lease" | "booking" | "config" | "property" | "guest_stay" | null;
+        subjectType: "broker" | "payment" | "user" | "org" | "lease" | "booking" | "config" | "property" | "guest_stay" | "training_certificate" | null;
         actorUserId: string | null;
         actorName: string | null;
         reason: string | null;
@@ -2217,7 +2217,7 @@ export declare const AdminOboAuditResponse: z.ZodObject<{
         id: string;
         occurredAt: string;
         eventType: string;
-        subjectType: "broker" | "payment" | "user" | "org" | "lease" | "booking" | "config" | "property" | "guest_stay" | null;
+        subjectType: "broker" | "payment" | "user" | "org" | "lease" | "booking" | "config" | "property" | "guest_stay" | "training_certificate" | null;
         actorUserId: string | null;
         actorName: string | null;
         reason: string | null;
@@ -2255,7 +2255,7 @@ export declare const AdminOboAuditResponse: z.ZodObject<{
         id: string;
         occurredAt: string;
         eventType: string;
-        subjectType: "broker" | "payment" | "user" | "org" | "lease" | "booking" | "config" | "property" | "guest_stay" | null;
+        subjectType: "broker" | "payment" | "user" | "org" | "lease" | "booking" | "config" | "property" | "guest_stay" | "training_certificate" | null;
         actorUserId: string | null;
         actorName: string | null;
         reason: string | null;
@@ -2275,7 +2275,7 @@ export declare const AdminOboAuditResponse: z.ZodObject<{
         id: string;
         occurredAt: string;
         eventType: string;
-        subjectType: "broker" | "payment" | "user" | "org" | "lease" | "booking" | "config" | "property" | "guest_stay" | null;
+        subjectType: "broker" | "payment" | "user" | "org" | "lease" | "booking" | "config" | "property" | "guest_stay" | "training_certificate" | null;
         actorUserId: string | null;
         actorName: string | null;
         reason: string | null;
@@ -2396,7 +2396,7 @@ export declare const AdminUserRow: z.ZodObject<{
         payoutLocked: boolean;
         orgRole: "owner" | "manager" | "receptionist" | "housekeeper";
     }>, "many">;
-    staffRoles: z.ZodArray<z.ZodEnum<["super_admin", "ops", "compliance", "finance"]>, "many">;
+    staffRoles: z.ZodArray<z.ZodEnum<["super_admin", "ops", "compliance", "finance", "trainer"]>, "many">;
     oversight: z.ZodNullable<z.ZodObject<{
         oversightRole: z.ZodEnum<["tax_compliance_officer", "business_field_verifier", "business_approver"]>;
         governmentBodyCode: z.ZodString;
@@ -2435,7 +2435,7 @@ export declare const AdminUserRow: z.ZodObject<{
         payoutLocked: boolean;
         orgRole: "owner" | "manager" | "receptionist" | "housekeeper";
     }[];
-    staffRoles: ("super_admin" | "ops" | "compliance" | "finance")[];
+    staffRoles: ("super_admin" | "ops" | "compliance" | "finance" | "trainer")[];
     oversight: {
         oversightRole: "tax_compliance_officer" | "business_field_verifier" | "business_approver";
         governmentBodyCode: string;
@@ -2461,7 +2461,7 @@ export declare const AdminUserRow: z.ZodObject<{
         payoutLocked: boolean;
         orgRole: "owner" | "manager" | "receptionist" | "housekeeper";
     }[];
-    staffRoles: ("super_admin" | "ops" | "compliance" | "finance")[];
+    staffRoles: ("super_admin" | "ops" | "compliance" | "finance" | "trainer")[];
     oversight: {
         oversightRole: "tax_compliance_officer" | "business_field_verifier" | "business_approver";
         governmentBodyCode: string;
@@ -2528,7 +2528,7 @@ export declare const AdminUserListResponse: z.ZodObject<{
             payoutLocked: boolean;
             orgRole: "owner" | "manager" | "receptionist" | "housekeeper";
         }>, "many">;
-        staffRoles: z.ZodArray<z.ZodEnum<["super_admin", "ops", "compliance", "finance"]>, "many">;
+        staffRoles: z.ZodArray<z.ZodEnum<["super_admin", "ops", "compliance", "finance", "trainer"]>, "many">;
         oversight: z.ZodNullable<z.ZodObject<{
             oversightRole: z.ZodEnum<["tax_compliance_officer", "business_field_verifier", "business_approver"]>;
             governmentBodyCode: z.ZodString;
@@ -2567,7 +2567,7 @@ export declare const AdminUserListResponse: z.ZodObject<{
             payoutLocked: boolean;
             orgRole: "owner" | "manager" | "receptionist" | "housekeeper";
         }[];
-        staffRoles: ("super_admin" | "ops" | "compliance" | "finance")[];
+        staffRoles: ("super_admin" | "ops" | "compliance" | "finance" | "trainer")[];
         oversight: {
             oversightRole: "tax_compliance_officer" | "business_field_verifier" | "business_approver";
             governmentBodyCode: string;
@@ -2593,7 +2593,7 @@ export declare const AdminUserListResponse: z.ZodObject<{
             payoutLocked: boolean;
             orgRole: "owner" | "manager" | "receptionist" | "housekeeper";
         }[];
-        staffRoles: ("super_admin" | "ops" | "compliance" | "finance")[];
+        staffRoles: ("super_admin" | "ops" | "compliance" | "finance" | "trainer")[];
         oversight: {
             oversightRole: "tax_compliance_officer" | "business_field_verifier" | "business_approver";
             governmentBodyCode: string;
@@ -2634,7 +2634,7 @@ export declare const AdminUserListResponse: z.ZodObject<{
             payoutLocked: boolean;
             orgRole: "owner" | "manager" | "receptionist" | "housekeeper";
         }[];
-        staffRoles: ("super_admin" | "ops" | "compliance" | "finance")[];
+        staffRoles: ("super_admin" | "ops" | "compliance" | "finance" | "trainer")[];
         oversight: {
             oversightRole: "tax_compliance_officer" | "business_field_verifier" | "business_approver";
             governmentBodyCode: string;
@@ -2667,7 +2667,7 @@ export declare const AdminUserListResponse: z.ZodObject<{
             payoutLocked: boolean;
             orgRole: "owner" | "manager" | "receptionist" | "housekeeper";
         }[];
-        staffRoles: ("super_admin" | "ops" | "compliance" | "finance")[];
+        staffRoles: ("super_admin" | "ops" | "compliance" | "finance" | "trainer")[];
         oversight: {
             oversightRole: "tax_compliance_officer" | "business_field_verifier" | "business_approver";
             governmentBodyCode: string;

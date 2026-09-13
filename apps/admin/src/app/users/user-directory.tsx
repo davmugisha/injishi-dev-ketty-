@@ -1,9 +1,10 @@
 "use client";
 
-import { Checkbox, Input } from "@heroui/react";
+import { Input } from "@heroui/react";
 import {
   Badge,
   Button,
+  Checkbox,
   NativeDialog,
   Select,
   SelectContent,
@@ -44,11 +45,26 @@ function membershipLabel(m: OrgMembership): string {
   return "Staff";
 }
 
+/**
+ * The staff roles this editor can grant.
+ *
+ * `trainer` (ADR-049) is the narrowest of them: four `training.*` powers and no
+ * `admin.*` power at all, so somebody holding only this role can reach the
+ * Training section and nothing else in the console. The label says so, because
+ * "Trainer" alone reads like a seniority rather than a scope.
+ *
+ * ADDING A ROLE TO `StaffRole` MAKES THIS LIST FAIL TO COMPILE, by design: the
+ * two `Record<StaffRole, boolean>` states below are keyed on the full union, so
+ * a sixth role cannot be added to the contract without this screen learning
+ * about it. That is how `trainer` was caught here rather than shipping a grant
+ * editor that could not grant it.
+ */
 const STAFF_ROLE_OPTIONS: { key: StaffRole; label: string }[] = [
   { key: "super_admin", label: "Super Admin" },
   { key: "ops", label: "Ops / Support" },
   { key: "compliance", label: "Compliance" },
   { key: "finance", label: "Finance" },
+  { key: "trainer", label: "Trainer (training only)" },
 ];
 
 /** Government bodies — mirrors the admin-managed `government_bodies` catalog. */
@@ -142,6 +158,7 @@ export function UserDirectory({
     ops: false,
     compliance: false,
     finance: false,
+    trainer: false,
   });
   const [oversightFn, setOversightFn] = useState<OversightRole>("business_approver");
   const [scopeLevel, setScopeLevel] = useState<OversightScopeLevel>("district");
@@ -153,12 +170,18 @@ export function UserDirectory({
       gov_oversight: user.globalRoles.includes("gov_oversight"),
       admin: user.globalRoles.includes("admin"),
     });
-    setStaffRoles({
-      super_admin: user.staffRoles?.includes("super_admin") ?? false,
-      ops: user.staffRoles?.includes("ops") ?? false,
-      compliance: user.staffRoles?.includes("compliance") ?? false,
-      finance: user.staffRoles?.includes("finance") ?? false,
-    });
+    // Built from `STAFF_ROLE_OPTIONS` rather than listed by hand, so a role
+    // added to the contract is picked up here the moment it is added to that
+    // list. The hand-written version silently defaulted a new role to false for
+    // a user who held it, which would have shown a granted role as ungranted.
+    setStaffRoles(
+      Object.fromEntries(
+        STAFF_ROLE_OPTIONS.map((option) => [
+          option.key,
+          user.staffRoles?.includes(option.key) ?? false,
+        ]),
+      ) as Record<StaffRole, boolean>,
+    );
     setOversightFn(user.oversight?.role ?? "business_approver");
     setScopeLevel(user.oversight?.scopeLevel ?? "district");
     setRoleOpen(true);
@@ -427,7 +450,7 @@ export function UserDirectory({
               <Checkbox
                 isSelected={grants.broker}
                 onChange={(isSelected) => setGrants((g) => ({ ...g, broker: isSelected }))}
-                className="flex items-start gap-2.5 rounded border border-border p-2.5 text-sm"
+                className="flex w-full items-start gap-2.5 rounded border border-border p-2.5 text-sm"
               >
                 <span>
                   <span className="font-semibold">broker</span>
@@ -439,7 +462,7 @@ export function UserDirectory({
               <Checkbox
                 isSelected={grants.gov_oversight}
                 onChange={(isSelected) => setGrants((g) => ({ ...g, gov_oversight: isSelected }))}
-                className="flex items-start gap-2.5 rounded border border-border p-2.5 text-sm"
+                className="flex w-full items-start gap-2.5 rounded border border-border p-2.5 text-sm"
               >
                 <span>
                   <span className="font-semibold">gov_oversight</span>
@@ -451,7 +474,7 @@ export function UserDirectory({
               <Checkbox
                 isSelected={grants.admin}
                 onChange={(isSelected) => setGrants((g) => ({ ...g, admin: isSelected }))}
-                className="flex items-start gap-2.5 rounded border border-border p-2.5 text-sm"
+                className="flex w-full items-start gap-2.5 rounded border border-border p-2.5 text-sm"
               >
                 <span>
                   <span className="font-semibold">admin</span>
@@ -576,7 +599,7 @@ export function UserDirectory({
                     onChange={(isSelected) =>
                       setStaffRoles((s) => ({ ...s, [sr.key]: isSelected }))
                     }
-                    className="flex items-center gap-2 rounded border border-border bg-background p-2.5 text-sm"
+                    className="flex w-full items-center gap-2 rounded border border-border bg-background p-2.5 text-sm"
                   >
                     <span className="font-semibold">{sr.label}</span>
                   </Checkbox>

@@ -8,8 +8,8 @@ const primitives_1 = require("./primitives");
 /**
  * The operator write path for inventory (ADR-009).
  *
- * The public read shapes live in `booking.ts` (`PropertyDetail`,
- * `RoomTypeSummary`) and answer a guest's question: what can I book? These
+ * The public read shapes live in `property-detail.ts` (`PropertyDetail`) and
+ * `booking.ts` (`RoomTypeSummary`) and answer a guest's question: what can I book? These
  * answer an operator's: what do I have, and is it live? Two different questions,
  * two different shapes, so a draft property never accidentally serialises
  * through a public contract.

@@ -40,6 +40,17 @@ const CONTROL_CHARACTER = /\p{Cc}/u;
 const BARE_ADDRESS = /^[^\s@<>(),;:"[\]\\]+@[^\s@<>(),;:"[\]\\]+$/u;
 
 /**
+ * Either path separator in an attachment filename.
+ *
+ * Named rather than inline, because the inline form of this class is one
+ * backslash away from not being a regex at all: `[/\]` escapes the closing
+ * bracket, so the class never closes and the literal runs to end of line. That
+ * is a parse error, not a wrong match, and it took the whole API build down
+ * once. `\\` is the literal backslash, exactly as in `BARE_ADDRESS` above.
+ */
+const PATH_SEPARATOR = /[/\\]/;
+
+/**
  * The SMTP side of the mailer seam, on nodemailer.
  *
  * One transport per process, built at boot from `SMTP_URL`. Not pooled: a code
@@ -81,6 +92,19 @@ export class SmtpMailerAdapter implements MailerPort, OnModuleDestroy {
     if (CONTROL_CHARACTER.test(message.subject)) {
       throw new Error('mail subject must be a single line');
     }
+    // A filename is a header value too, and it is the one attachment field a
+    // caller builds from data rather than typing. A path separator in it is a
+    // claim about somebody else's disk; a control character is the same header
+    // injection the two checks above refuse.
+    for (const file of message.attachments ?? []) {
+      if (
+        file.filename.length === 0 ||
+        CONTROL_CHARACTER.test(file.filename) ||
+        PATH_SEPARATOR.test(file.filename)
+      ) {
+        throw new Error('mail attachment filename must be one plain file name');
+      }
+    }
 
     try {
       await this.transport.sendMail({
@@ -89,6 +113,19 @@ export class SmtpMailerAdapter implements MailerPort, OnModuleDestroy {
         subject: message.subject,
         text: message.text,
         ...(message.html === undefined ? {} : { html: message.html }),
+        // Nodemailer's own attachment shape, built here and nowhere else: the
+        // seam hands over bytes and a name, and this is the one file allowed
+        // to know what the transport calls them (library-docs: nodemailer is
+        // imported in this file only).
+        ...(message.attachments?.length
+          ? {
+              attachments: message.attachments.map((file) => ({
+                filename: file.filename,
+                content: file.content,
+                contentType: file.contentType,
+              })),
+            }
+          : {}),
       });
     } catch (cause) {
       // Re-raised as a plain Error carrying only a scrubbed message. Nodemailer's

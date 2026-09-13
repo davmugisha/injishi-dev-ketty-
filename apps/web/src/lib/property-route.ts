@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import type { PropertyDetail } from "@/data/properties";
-import { catalogueStaticParams, findCatalogueProperty } from "@/data/catalogue";
+import { catalogueStaticParams } from "@/data/catalogue";
+import { findDiscoverableProperty } from "@/data/discovery";
 
 /**
  * The two things every `/property/[slug]` route has to do before it can render.
@@ -37,7 +38,8 @@ export async function propertyMetadata(
   build: (property: PropertyDetail) => Metadata,
 ): Promise<Metadata> {
   const { slug } = await params;
-  const property = findCatalogueProperty(slug);
+  // The same lookup the page makes, so a database property gets its title too.
+  const property = await findDiscoverableProperty(slug);
   if (!property) return {};
   return build(property);
 }

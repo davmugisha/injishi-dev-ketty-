@@ -80,7 +80,7 @@ async function grantFor(email) {
  */
 const EXPECTED = [
   {
-    email: 'host@injishi.rw',
+    email: 'host@injishi.com',
     role: 'owner',
     // 23 since `ebm.manage` (ADR-041, D-o).
     permissions: 23,
@@ -90,7 +90,7 @@ const EXPECTED = [
     ],
   },
   {
-    email: 'manager@injishi.rw',
+    email: 'manager@injishi.com',
     role: 'manager',
     permissions: 23,
     // The owner's surface, Settings included: a manager holds `ebm.manage` and
@@ -102,14 +102,14 @@ const EXPECTED = [
     ],
   },
   {
-    email: 'reception@injishi.rw',
+    email: 'reception@injishi.com',
     role: 'receptionist',
     permissions: 8,
     // Front desk and taking service orders. No Rooms, no Money, no admin.
     screens: ['calendar', 'inbox', 'reservations', 'services', 'stays', 'today'],
   },
   {
-    email: 'housekeeper@injishi.rw',
+    email: 'housekeeper@injishi.com',
     role: 'housekeeper',
     permissions: 2,
     // Room status and maintenance tickets, matching the two permissions.

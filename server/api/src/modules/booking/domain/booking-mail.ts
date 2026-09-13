@@ -28,7 +28,14 @@
  * queued is read as declined when the job finally runs.
  */
 
-/** The five moments a guest hears from us about one booking. */
+/**
+ * The moments a guest, or the property, hears from us about one booking.
+ *
+ * The first six go to the guest. The two `host_*` events go to every active
+ * owner and manager of the property's organisation: until the booking audit of
+ * 2026-09-13 nothing told a host that a request was waiting on them, so a
+ * request could sit for its whole approval window and auto-decline unseen.
+ */
 export const BOOKING_MAIL_EVENTS = [
   /** Instant-book: the room is held and the money is in escrow. */
   'confirmed',
@@ -40,7 +47,16 @@ export const BOOKING_MAIL_EVENTS = [
   'declined',
   /** Nobody answered inside the window. Refunded in full. */
   'expired',
+  /** The booking was cancelled, by either side, with its refund (F-B11). */
+  'cancelled',
+  /** To the property: a request is waiting for an answer. */
+  'host_request',
+  /** To the property: the guest cancelled. */
+  'host_guest_cancelled',
 ] as const;
+
+/** Events addressed to the property's managers rather than to the guest. */
+export const HOST_MAIL_EVENTS: ReadonlySet<BookingMailEvent> = new Set(['host_request', 'host_guest_cancelled']);
 
 export type BookingMailEvent = (typeof BOOKING_MAIL_EVENTS)[number];
 

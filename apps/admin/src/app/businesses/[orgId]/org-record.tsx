@@ -61,11 +61,14 @@ const PEOPLE_READ_REASON =
  * lens is a separate read, so a staffer who may see the record but not its
  * money gets the header and a refusal in the body — not a blank page.
  *
- * WHAT IT STILL DOES NOT DO. There is no per-section route guard in this app:
- * `roleCanSee` filters the sidebar and nothing refuses a typed URL. The API
- * guards do refuse — a lens whose permission the caller lacks answers 403 and
- * lands in `denied` below — which is the boundary. This page does not add a
- * second one and must not be read as having one.
+ * WHAT GUARDS WHAT, because this page adds nothing of its own. A per-section
+ * route guard now stands in front of Businesses like every other section
+ * (ADR-049 AC-25, `components/shell/section-boundary.tsx`): a staffer without
+ * `admin.business.view` never reaches this file. That guard is per SECTION and
+ * not per LENS, so a caller who may see the record but not its money still
+ * arrives here and is refused by the API — 403, landing in `denied` below.
+ * The API is the boundary for both. This page does not add a third control and
+ * must not be read as having one.
  */
 export async function OrgRecord({
   orgId,

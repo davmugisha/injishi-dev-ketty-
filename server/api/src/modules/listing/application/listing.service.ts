@@ -1,5 +1,6 @@
 import type {
   BookableRoom,
+  PropertyCard,
   PropertyDetail,
   RoomTypeSummary,
 } from '@injishi/contracts';
@@ -38,6 +39,11 @@ export class ListingService {
       throw new NotFoundException('Property not found.');
     }
     return property;
+  }
+
+  /** Every published property with a public address, for discovery. */
+  listPublishedProperties(): Promise<PropertyCard[]> {
+    return this.listings.findPublishedCards();
   }
 
   /** The same property, addressed by its public slug rather than its uuid. */

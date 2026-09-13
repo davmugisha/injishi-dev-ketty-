@@ -11,10 +11,12 @@ import {
   BadRequestException,
   ConflictException,
   Injectable,
+  Logger,
 } from '@nestjs/common';
 
 import { assertOwned } from '../../../shared/auth/assert-owned';
 import { FolioRepository } from '../infrastructure/folio.repository';
+import { FolioService } from './folio.service';
 import {
   type RoomRow,
   type StayRow,
@@ -39,10 +41,13 @@ import { RoomAssignmentService } from './room-assignment.service';
  */
 @Injectable()
 export class FrontDeskService {
+  private readonly log = new Logger(FrontDeskService.name);
+
   constructor(
     private readonly rooms: FrontDeskRepository,
     private readonly assignments: RoomAssignmentService,
     private readonly folios: FolioRepository,
+    private readonly bills: FolioService,
   ) {}
 
   /** Every room in this workspace, with who is in it. */
@@ -291,9 +296,41 @@ export class FrontDeskService {
       return this.presentStay(now);
     }
 
+    await this.settleOnDeparture(ws, stay.id);
+
     const updated = await this.rooms.findStay(stayId);
     if (!updated) throw this.vanished();
     return this.presentStay(updated);
+  }
+
+  /**
+   * CHECK OUT IS WHAT SIGNS (ADR-050 D-a, D-b, AC-4).
+   *
+   * Once the stay has closed, a bill that is settled to zero is closed too,
+   * which raises its one `NS`. Three rules shape this and none is negotiable:
+   *
+   * - **It runs AFTER the stay closes.** The guest leaving, the room going
+   *   dirty and the cleaning task are the desk's facts, and nothing fiscal is
+   *   allowed to be what un-checks-out a guest.
+   * - **It never throws.** A VSDC outage, a missing EBM connection, a line
+   *   nobody declared: each leaves the bill for a person on the Bills screen
+   *   and is logged, and the check out still answers 200. The `no_connection`
+   *   case does not even reach here as a failure; the close writes it itself.
+   * - **A bill still owing money is left open.** Nothing in this slice says
+   *   check out refuses a balance, so it does not start now. The bill stays on
+   *   the Bills list, and closing it there signs it.
+   */
+  private async settleOnDeparture(ws: WorkspaceAccess, stayId: string): Promise<void> {
+    try {
+      const folio = await this.folios.findFolioForStay(stayId);
+      if (!folio || folio.status === 'closed' || folio.balanceRwf !== 0) return;
+      await this.bills.close(ws, folio.id);
+    } catch (error) {
+      this.log.error(
+        `Stay ${stayId} checked out, but its bill was not signed; it waits on the Bills screen: ` +
+          (error instanceof Error ? error.message : String(error)),
+      );
+    }
   }
 
   private presentRoom(row: RoomRow): Omit<OperatorRoom, 'occupiedBy'> {

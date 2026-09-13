@@ -84,7 +84,8 @@ export interface Listing {
   gallery: GalleryImage[];
 }
 
-function toListing(property: PropertyDetail): Listing {
+/** One property as an Explore card. Exported for the database half of discovery (`data/discovery.ts`). */
+export function listingFor(property: PropertyDetail): Listing {
   return {
     slug: property.slug,
     nameLead: property.cardName.lead,
@@ -125,7 +126,7 @@ function dedupeByStem(images: GalleryImage[]): GalleryImage[] {
  * per itinerary. Sorting them to the end keeps the list readable without
  * inventing a number for them.
  */
-export const LISTINGS: Listing[] = ALL_PROPERTIES.map(toListing).sort((a, b) => {
+export const LISTINGS: Listing[] = ALL_PROPERTIES.map(listingFor).sort((a, b) => {
   if (a.nightlyRateRwf === null && b.nightlyRateRwf === null) return 0;
   if (a.nightlyRateRwf === null) return 1;
   if (b.nightlyRateRwf === null) return -1;

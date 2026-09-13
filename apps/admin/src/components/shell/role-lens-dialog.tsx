@@ -12,7 +12,16 @@ const ROLE_ICONS = {
   wallet: Wallet,
 } as const;
 
-/** Staff-role lens — previews what route guards hide from each role. */
+/**
+ * Staff-role lens — previews what each role can reach.
+ *
+ * The sentence this used to carry ("previews what route guards hide") was
+ * true of the words and not of the code: nothing refused a typed URL. It is
+ * true now (ADR-049 AC-25, `section-boundary.tsx`), and the lens previews the
+ * SIDEBAR rather than the guard — the guard reads the permissions the server
+ * resolved for the real account, because a lens is a way of looking, never an
+ * identity.
+ */
 export function RoleLensDialog() {
   const open = useAdminUi((s) => s.roleLensOpen);
   const close = useAdminUi((s) => s.closeRoleLens);
@@ -24,8 +33,8 @@ export function RoleLensDialog() {
       <div className="p-6">
         <h2 className="font-display text-2xl font-bold">Staff-role lens</h2>
         <p className="mt-1 text-sm text-muted-foreground">
-          Route guards hide what a role cannot reach — a Support staffer cannot see the Finance
-          override screen at all. Preview each lens.
+          Each role reaches its own sections — a Support staffer cannot open Finance at all.
+          Preview what each one sees. Your own access does not change.
         </p>
         <div className="mt-5 space-y-2">
           {STAFF_ROLES.map((role) => {
@@ -38,14 +47,14 @@ export function RoleLensDialog() {
                 onClick={() => {
                   setRoleLens(role.key, `${role.label} · 2FA on`);
                   close();
-                  // A preview of the sidebar, not an access control. There is no
-                  // per-section route guard in this console: a hidden section
-                  // still renders when its url is typed, and the API refuses
-                  // the reads behind it by permission. The old wording said
-                  // "hidden by route guards", which described a control that
-                  // does not exist — and a staffer testing what a colleague
-                  // can reach would have trusted it.
-                  toast(`Previewing ${role.label} — sections this role cannot use are hidden from the sidebar only`);
+                  // A preview of the sidebar, not an access control. The
+                  // per-section route guard exists now (ADR-049 AC-25), but it
+                  // reads the permissions the server resolved for the REAL
+                  // account, never this lens — so a Super Admin previewing
+                  // Support can still type /finance and open it. The toast says
+                  // so, because a staffer testing what a colleague can reach
+                  // would otherwise trust the preview as the guard.
+                  toast(`Previewing ${role.label} — hidden from the sidebar only. Your own access is unchanged`);
                 }}
               >
                 <span

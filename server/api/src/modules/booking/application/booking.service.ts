@@ -25,6 +25,7 @@ import { createHash, randomUUID } from 'node:crypto';
 // Cross-module dependency goes through ListingModule's application service —
 // never its repository (architecture.md invariant).
 import { EbmSaleTrigger } from '../../ebm/application/ebm-sale-trigger.service';
+import { reportAlarm } from '../../../shared/observability/error-reporter';
 import { BookingNotificationsService } from './booking-notifications.service';
 import { PaymentAttemptService } from './payment-attempt.service';
 import {
@@ -125,6 +126,13 @@ function instrumentFingerprint(instrument: PaymentInstrument): string {
     ? `${instrument.network}:${instrument.msisdn}`
     : `card:${createHash('sha256').update(instrument.token).digest('hex').slice(0, 16)}`;
 }
+
+/**
+ * The room was taken after this guest's money was captured, and the money has
+ * been refunded. A 409 to a direct caller; a `refused` attempt with the refund
+ * sentence to a guest waiting on a poll (`PaymentAttemptService.complete`).
+ */
+export class SoldOutAfterCaptureError extends ConflictException {}
 
 /**
  * Book a Room + capture into Escrow (F-B05 / FL07).
@@ -295,21 +303,29 @@ export class BookingService {
       return { status: 'confirmed', booking: this.presentSettled(already, nights) };
     }
 
-    // --- Phase 1b: is there anything to sell, before anyone is charged -------
+    // --- Phase 1b: HOLD a unit before anyone is charged (F-B05) --------------
     //
-    // Advisory only. `bookings.create` holds the lock and is the authority. The
-    // point is that an ordinarily sold-out stay is refused here, so a guest is
-    // not charged and refunded for a room that was already gone when they
-    // pressed the button.
-    const free = await this.bookings.freeUnits(
-      roomType.id,
-      input.checkIn,
-      input.checkOut,
-      roomType.roomCount,
-    );
-    if (free <= 0) {
+    // This used to be an advisory count of bookings, and then the capture. A
+    // mobile money prompt writes no booking for up to three minutes, so two
+    // guests could both pass it for the last unit and both be charged (booking
+    // audit, 2026-09-13). The claim is authoritative instead: under the room
+    // type's row lock it counts bookings AND every other live hold, and writes
+    // this press's hold, so the second guest is refused here with nothing taken.
+    const claim = await this.attempts.claimHold({
+      input,
+      guestUserId,
+      roomType,
+      idempotencyKey,
+      fingerprint,
+      amountRwf: breakdown.grossRwf,
+      nonRefundable,
+    });
+    if (claim.kind === 'sold_out') {
       throw new ConflictException(new NoAvailabilityError().message);
     }
+    // This press already ended without a booking; say how, rather than charge again.
+    if (claim.kind === 'ended') return { status: 'awaiting_payment', attempt: claim.status };
+    let hold = claim.row;
 
     const now = new Date();
     const status = statusForMode(roomType.bookingMode);
@@ -320,13 +336,22 @@ export class BookingService {
     );
 
     // --- Phase 2: capture, outside every transaction ------------------------
-    const receipt = await this.capture({
-      idempotencyKey,
-      amountRwf: breakdown.grossRwf,
-      workspaceId: roomType.workspaceId,
-      reference: input.roomTypeId,
-      instrument: input.instrument,
-    });
+    let receipt: PaymentReceipt;
+    try {
+      receipt = await this.capture({
+        idempotencyKey,
+        amountRwf: breakdown.grossRwf,
+        workspaceId: roomType.workspaceId,
+        reference: input.roomTypeId,
+        instrument: input.instrument,
+      });
+    } catch (err) {
+      // Declined, or the provider could not be reached: no money moved on our
+      // word, so the unit goes back for the next guest.
+      await this.attempts.releaseHold(hold);
+      throw err;
+    }
+    hold = await this.attempts.attachCapture(hold, receipt);
 
     // --- Phase 2a: a replayed, now-settled capture may have a void queued --
     //
@@ -348,25 +373,13 @@ export class BookingService {
     // durable thing: the attempt is written down, the guest is handed something
     // to watch, and the provider's answer completes it.
     if (receipt.settlement === 'pending') {
-      return {
-        status: 'awaiting_payment',
-        attempt: await this.attempts.begin({
-          input,
-          guestUserId,
-          roomType,
-          receipt,
-          idempotencyKey,
-          fingerprint,
-          amountRwf: breakdown.grossRwf,
-          nonRefundable,
-        }),
-      };
+      return { status: 'awaiting_payment', attempt: this.attempts.statusOf(hold) };
     }
 
     // --- Phases 3 to 6: write the reservation the money paid for -----------
-    return {
-      status: 'confirmed',
-      booking: await this.writeBooking({
+    let booking: BookingResult;
+    try {
+      booking = await this.writeBooking({
         input,
         guestUserId,
         roomType,
@@ -383,8 +396,32 @@ export class BookingService {
         nonRefundable,
         status,
         expiresAt,
-      }),
-    };
+      });
+    } catch (err) {
+      // Refunded inside `writeBooking`; the hold records why it ended. A plain
+      // conflict is a key another guest's booking already holds: nothing was
+      // compensated for it, so nothing is said about a refund.
+      if (err instanceof SoldOutAfterCaptureError || !(err instanceof ConflictException)) {
+        await this.attempts.markRefunded(hold);
+      }
+      throw err;
+    }
+    await this.attempts.markBooked(hold, booking.id);
+    return { status: 'confirmed', booking };
+  }
+
+  /**
+   * The reservation one press produced, for a poll that finds its attempt
+   * already confirmed. Guest scoped, exactly as the replay read in `create`.
+   */
+  async settledForAttempt(
+    idempotencyKey: string,
+    guestUserId: string,
+  ): Promise<BookingResult | null> {
+    const settled = await this.bookings.findByAttemptKey(idempotencyKey, guestUserId);
+    return settled
+      ? this.presentSettled(settled, nightsBetween(settled.checkIn, settled.checkOut))
+      : null;
   }
 
   /**
@@ -475,9 +512,10 @@ export class BookingService {
       await this.compensate(receipt, idempotencyKey, roomType.workspaceId);
 
       if (err instanceof NoAvailabilityError) {
-        // The last unit went to someone else between the pre-check and the
-        // lock. Refunded above, so the guest is out nothing.
-        throw new ConflictException(err.message);
+        // The last unit went to someone else: a hold that lapsed before this
+        // money landed. Refunded above, so the guest is out nothing, and the
+        // async path answers that in words rather than as this 409.
+        throw new SoldOutAfterCaptureError(err.message);
       }
       throw err;
     }
@@ -508,6 +546,11 @@ export class BookingService {
       created.id,
       created.status === 'confirmed' ? 'confirmed' : 'request_sent',
     );
+    // And the host, who has a window to answer a request and used to be told
+    // nothing at all (booking audit, 2026-09-13).
+    if (created.status === 'pending_approval') {
+      await this.notifications.notify(created.id, 'host_request');
+    }
 
     return {
       id: created.id,
@@ -704,6 +747,12 @@ export class BookingService {
           'compensating refund failed. Queued for retry on the refund key; ' +
           'a human should confirm it landed.',
         refundErr instanceof Error ? refundErr.stack : undefined,
+      );
+      reportAlarm(
+        'STUCK_MONEY',
+        'A capture was taken, the booking was not written, and the compensating refund failed.',
+        { adapterRef: receipt.adapterRef, amountRwf: receipt.amountRwf, captureKey, refundKey, workspaceId },
+        refundErr,
       );
     }
   }

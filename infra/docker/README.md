@@ -121,9 +121,9 @@ pnpm dev:stack
 |---|---|
 | `seed-geography.mjs` | provinces → villages (other tables point at it) |
 | `seed-content.mjs` | reference data, the seeded hotel |
-| `seed-users.mjs` | the `@injishi.rw` sign-in accounts, their workspaces and grants, the residence org |
+| `seed-users.mjs` | the `@injishi.com` sign-in accounts, their workspaces and grants, the residence org |
 | `seed-content.mjs` (second pass) | the residence building, units and leases, which need the org `seed-users` creates. Every insert is `ON CONFLICT DO NOTHING`, so the second pass only adds what the first skipped |
-| `seed-demo.mjs` | the demo roster (`*@demo.injishi.rw`, the staff persona included) and the rows it trades on |
+| `seed-demo.mjs` | the demo roster (`*@demo.injishi.com`, the staff persona included) and the rows it trades on |
 | `seed-demo-catalogue.mjs` | the 52 catalogue properties the web app links to, each one marked as demo data |
 
 Every seed refuses, as its first act, a database without the sample marker.
@@ -141,8 +141,8 @@ pnpm app:dev                       # operator  http://localhost:3002
 pnpm --filter @injishi/admin dev   # admin     http://localhost:3001
 ```
 
-Sign in at <http://localhost:3000/sign-in> with `host@injishi.rw` (the owner of
-the seeded hotel), `admin@injishi.rw` (admin console), `guest@injishi.rw`, or
+Sign in at <http://localhost:3000/sign-in> with `host@injishi.com` (the owner of
+the seeded hotel), `admin@injishi.com` (admin console), `guest@injishi.com`, or
 pick a demo persona from the list the sign in screen shows. With
 `INJISHI_ENVIRONMENT` unset the API runs as the demo, so every code is
 `123456`, and every mail also lands in Mailpit at <http://localhost:8025>.

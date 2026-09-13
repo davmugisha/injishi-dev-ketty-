@@ -103,6 +103,12 @@ describe('EbmEmissionService', () => {
         ? null
         : ({
             id: ROW_ID,
+            // What every real row carries: these columns are NOT NULL with
+            // defaults since ADR-050 Migration A.
+            source: 'booking',
+            receiptType: 'normal',
+            transactionType: 'sale',
+            receiptLabel: 'NS',
             bookingId: 'b0000000-0000-0000-0000-000000000001',
             orgId: ORG,
             status: 'failed',
@@ -240,6 +246,28 @@ describe('EbmEmissionService', () => {
     expect(retryDelayMs(2)).toBe(120_000);
     expect(retryDelayMs(4)).toBe(480_000);
     expect(retryDelayMs(50)).toBe(3_600_000);
+  });
+
+  /**
+   * ADR-050, slice 1. The provider's `createInvoice` can certify only a normal
+   * sale of catalog items, so anything else is parked for a person and NEVER
+   * sent: a proforma sent through it would be certified as a sale.
+   */
+  it('parks a proforma rather than certifying it as a sale', async () => {
+    const h = harness({ row: { receiptType: 'proforma', receiptLabel: 'PS' } });
+    expect(await h.service.emit(ROW_ID)).toBe('parked');
+    const [, failed] = h.emissions.markFailed.mock.calls[0] as unknown as [string, { retryAt: Date | null; reason: string }];
+    expect(failed.retryAt).toBeNull();
+    expect(failed.reason).toMatch(/PS cannot be sent/);
+    expect(h.client.createInvoice).not.toHaveBeenCalled();
+  });
+
+  it('parks a folio sale, whose lines the provider has no item for', async () => {
+    const h = harness({ row: { source: 'folio', bookingId: null, folioId: 'f0000000-0000-0000-0000-000000000001' } });
+    expect(await h.service.emit(ROW_ID)).toBe('parked');
+    const [, failed] = h.emissions.markFailed.mock.calls[0] as unknown as [string, { reason: string }];
+    expect(failed.reason).toMatch(/folio sale cannot be sent/);
+    expect(h.client.createInvoice).not.toHaveBeenCalled();
   });
 
   it('does not retry an unknown outcome', async () => {

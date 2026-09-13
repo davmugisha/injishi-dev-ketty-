@@ -31,6 +31,9 @@ export const meKeys = {
   workspaces: () => ['me', 'workspaces'] as const,
   profile: () => ['me', 'profile'] as const,
   twoFactor: () => ['me', 'two-factor'] as const,
+  orderable: () => ['me', 'orderable'] as const,
+  /** A placed order, seeded from the `POST` answer: there is no read route yet. */
+  order: (id: string) => ['me', 'order', id] as const,
 } as const;
 
 /** The demo persona list. Person scoped, and only exists on a demo host. */

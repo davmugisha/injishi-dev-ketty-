@@ -1,7 +1,10 @@
 import {
+  CloseFolioRequest,
+  type CloseFolioResult,
   type OperatorFolioDetail,
   type OperatorFolioList,
   PostChargeRequest,
+  type PostChargeResult,
   TakePaymentRequest,
   VoidChargeRequest,
   type WorkspaceAccess,
@@ -78,7 +81,8 @@ export class OpsFoliosController {
    *
    * `amountRwf` is tax exclusive. The tax is read from the rate effective right
    * now and posted as its own line, so an invoice never has to pull the two
-   * apart again.
+   * apart again. A charge aimed at a signed bill lands on the stay's next one,
+   * and `openedFolioId` says so (ADR-050 D-c).
    */
   @Post(':id/charges')
   @RequirePermission('folio.charge')
@@ -88,7 +92,7 @@ export class OpsFoliosController {
     @CurrentWorkspace() workspace: WorkspaceAccess,
     @CurrentUser() user: SessionUser,
     @IdempotencyKey() key: string,
-  ): Promise<OperatorFolioDetail> {
+  ): Promise<PostChargeResult> {
     return this.folios.postCharge(workspace, id, body, user.id, key);
   }
 
@@ -127,18 +131,22 @@ export class OpsFoliosController {
   }
 
   /**
-   * Close a bill. Refuses a non zero balance.
+   * Close a bill, which SIGNS ITS SALE with RRA (ADR-050 D-a). Refuses a non
+   * zero balance.
    *
-   * `folio.payment` rather than `folio.charge`: closing is the last act of
-   * settling, and the person who takes the money is the person who says the
-   * bill is finished.
+   * `folio.close`, not `folio.payment` as it was: closing now declares
+   * turnover, and a fiscal act must be nameable in an audit rather than ride on
+   * a permission granted for taking money (ADR-050 D-t, AC-8). The body is
+   * optional; most guests are not businesses.
    */
   @Post(':id/close')
-  @RequirePermission('folio.payment')
+  @RequirePermission('folio.close')
   close(
     @Param('id', ParseUUIDPipe) id: string,
     @CurrentWorkspace() workspace: WorkspaceAccess,
-  ): Promise<OperatorFolioDetail> {
-    return this.folios.close(workspace, id);
+    @Body(new ZodValidationPipe(CloseFolioRequest.optional()))
+    body: CloseFolioRequest | undefined,
+  ): Promise<CloseFolioResult> {
+    return this.folios.close(workspace, id, body ?? {});
   }
 }

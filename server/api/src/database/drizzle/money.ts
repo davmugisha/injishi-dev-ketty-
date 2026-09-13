@@ -17,6 +17,7 @@ import {
   jsonb,
   numeric,
   pgTable,
+  primaryKey,
   text,
   timestamp,
   unique,
@@ -26,8 +27,9 @@ import {
 } from 'drizzle-orm/pg-core';
 import { users } from './auth';
 import { amount, currency, timestamps } from './columns';
-import { adapterModeEnum, ebmConnectionStatusEnum, ebmSourceEnum, ebmStatusEnum, invoiceKindEnum, ledgerAccountTypeEnum, ledgerTxnKindEnum, moneyOverrideActionEnum, moneyOverrideStateEnum, payoutDestinationEnum, payoutPayeeTypeEnum, payoutSourceEnum, payoutStatusEnum, placementFeeStatusEnum, planBillingPeriodEnum, reconciliationStatusEnum, registrationBusinessTypeEnum, subscriptionInvoiceStatusEnum, subscriptionStatusEnum, taxCodeEnum, tinTypeEnum } from './enums';
+import { adapterModeEnum, ebmConnectionStatusEnum, ebmReceiptTypeEnum, ebmSourceEnum, ebmStatusEnum, ebmTransactionTypeEnum, invoiceKindEnum, ledgerAccountTypeEnum, ledgerTxnKindEnum, moneyOverrideActionEnum, moneyOverrideStateEnum, payoutDestinationEnum, payoutPayeeTypeEnum, payoutSourceEnum, payoutStatusEnum, placementFeeStatusEnum, planBillingPeriodEnum, reconciliationStatusEnum, registrationBusinessTypeEnum, subscriptionInvoiceStatusEnum, subscriptionStatusEnum, taxCodeEnum, tinTypeEnum } from './enums';
 import { bookings } from './hospitality';
+import { folioCharges, folios, outlets, serviceOrderItems, serviceOrders } from './operations';
 import { orgs, workspaces } from './org';
 import { brokers, leases } from './residence';
 
@@ -273,8 +275,70 @@ export const ebmInvoices = pgTable(
     subscriptionInvoiceId: uuid('subscription_invoice_id').references(
       () => subscriptionInvoices.id,
     ),
+    /**
+     * The stay's bill this document declares. Set only when `source = folio`
+     * (ADR-050 D-a). One `NS` per folio, covering the host's own undeclared
+     * lines.
+     */
+    folioId: uuid('folio_id').references((): AnyPgColumn => folios.id),
+    /**
+     * The order this document declares. Set only when `source = outlet_order`:
+     * a pay now sale, or a tenant outlet's own `NS` raised at fulfilment.
+     */
+    serviceOrderId: uuid('service_order_id').references(
+      (): AnyPgColumn => serviceOrders.id,
+    ),
+    /** The branch the sale belongs to, for `rra_branch_id` and the reports. */
+    outletId: uuid('outlet_id').references((): AnyPgColumn => outlets.id),
     tin: text('tin'),
     tinType: tinTypeEnum('tin_type').notNull(),
+    /**
+     * §15's receipt type. `proforma` is the specification's own advance
+     * receipt, which is what a confirmed booking now raises instead of
+     * declaring the room as a sale weeks before the guest arrives.
+     */
+    receiptType: ebmReceiptTypeEnum('receipt_type').notNull().default('normal'),
+    transactionType: ebmTransactionTypeEnum('transaction_type')
+      .notNull()
+      .default('sale'),
+    /**
+     * `NS`, `NR`, `TS`, `TR` or `PS`, GENERATED from the two columns above so
+     * the three can never disagree. `CS` and `CR` are render time labels for a
+     * copy and are never stored here, because a copy has no VSDC answer of its
+     * own (D-e).
+     */
+    receiptLabel: text('receipt_label')
+      .notNull()
+      .generatedAlwaysAs(
+        sql`CASE
+              WHEN "transaction_type" = 'refund' AND "receipt_type" = 'normal' THEN 'NR'
+              WHEN "transaction_type" = 'refund' AND "receipt_type" = 'training' THEN 'TR'
+              WHEN "receipt_type" = 'normal' THEN 'NS'
+              WHEN "receipt_type" = 'training' THEN 'TS'
+              ELSE 'PS'
+            END`,
+      ),
+    /**
+     * The original this refund withdraws (§7.17). Required when
+     * `transaction_type = refund`, and an original may be cancelled only once,
+     * which `ebm_refund_log`'s unique enforces in slice 2.
+     */
+    refundOfInvoiceId: uuid('refund_of_invoice_id').references(
+      (): AnyPgColumn => ebmInvoices.id,
+    ),
+    /** `bhfId`. A taxpayer's branches each count their own receipts. */
+    rraBranchId: text('rra_branch_id').notNull().default('00'),
+    /**
+     * The `RNum` Injishi minted (AC-9, §7.25). Ascending per receipt label per
+     * taxpayer per branch, NEVER reused, and deliberately not gapless: a
+     * transaction that rolls back after minting burns a number, which the Z
+     * report counts as an incomplete sale (§19.1.20). Avoiding that would mean
+     * holding one counter row for the length of a VSDC call, which serializes
+     * every close for a busy taxpayer behind a single row.
+     *
+     * Nullable because rows written before ADR-050 have none.
+     */
+    cisReceiptNo: integer('cis_receipt_no'),
     status: ebmStatusEnum('status').notNull().default('held'),
     adapterMode: adapterModeEnum('adapter_mode').notNull().default('mock'),
     payload: jsonb('payload'),
@@ -302,6 +366,44 @@ export const ebmInvoices = pgTable(
      */
     nextAttemptAt: timestamp('next_attempt_at', { withTimezone: true }),
     emittedAt: timestamp('emitted_at', { withTimezone: true }),
+    /**
+     * THE DEVICE'S OWN ANSWER, promoted out of `payload` into columns (D-f).
+     *
+     * §18 and §19 aggregate the X and Z reports by receipt type, tax rate and
+     * means of payment, and a jsonb payload cannot be indexed for that at
+     * volume. `payload` stays as the raw provider answer, for audit.
+     *
+     * The QR is NOT stored: it is derived at render from these values in the
+     * §7.24.7 order, and a render refuses rather than printing a QR with a
+     * blank segment (ADR-041 D-j).
+     */
+    sdcId: text('sdc_id'),
+    /** The `A` of §7.25: the device's per type counter. */
+    sdcReceiptNo: integer('sdc_receipt_no'),
+    /** The `B` of §7.25: the device's total counter. */
+    totalReceiptNo: integer('total_receipt_no'),
+    internalData: text('internal_data'),
+    receiptSignature: text('receipt_signature'),
+    /** The VSDC's own clock, not ours. */
+    vsdcReceiptDate: timestamp('vsdc_receipt_date', { withTimezone: true }),
+    mrc: text('mrc'),
+    /**
+     * §6.5 and §7.14: the complete receipt in text form, written the instant it
+     * is produced. This is the journal a certified system is obliged to keep.
+     */
+    journalText: text('journal_text'),
+    /**
+     * When the ONE original was rendered (§7.18, D-e). Set at most once. Every
+     * render after this is a copy: `CS` or `CR`, watermarked, and logged in
+     * `ebm_receipt_copies` so the X and Z can count them.
+     */
+    originalRenderedAt: timestamp('original_rendered_at', {
+      withTimezone: true,
+    }),
+    /** §4 d and e: the client named on the receipt, taken from the folio. */
+    customerTin: text('customer_tin'),
+    customerPhone: text('customer_phone'),
+    customerName: text('customer_name'),
     ...timestamps,
   },
   (t) => [
@@ -318,12 +420,86 @@ export const ebmInvoices = pgTable(
       'ebm_invoices_emitted_shape',
       sql`${t.status} <> 'emitted' OR (${t.emittedAt} IS NOT NULL AND ${t.externalInvoiceId} IS NOT NULL)`,
     ),
-    // invariant 4: EBM only from booking (host TIN) or subscription (Injishi TIN); never a lease.
+    /** The reports read by branch and label; the counter is minted per both. */
+    index('ebm_invoices_report_idx').on(
+      t.orgId,
+      t.rraBranchId,
+      t.receiptLabel,
+      t.emittedAt,
+    ),
+    index('ebm_invoices_folio_idx').on(t.folioId),
+    /**
+     * invariant 4, widened by ADR-050: a fiscal document comes from exactly one
+     * subject, and each source names ITS OWN reference column and no other. A
+     * row that named two subjects would be two declarations wearing one id.
+     */
     check(
       'ebm_invoices_source_shape',
-      sql`(${t.source} = 'booking' AND ${t.bookingId} IS NOT NULL AND ${t.subscriptionInvoiceId} IS NULL)
-          OR (${t.source} = 'subscription' AND ${t.subscriptionInvoiceId} IS NOT NULL AND ${t.bookingId} IS NULL)`,
+      sql`(${t.source} = 'booking' AND ${t.bookingId} IS NOT NULL AND ${t.subscriptionInvoiceId} IS NULL AND ${t.folioId} IS NULL AND ${t.serviceOrderId} IS NULL)
+          OR (${t.source} = 'subscription' AND ${t.subscriptionInvoiceId} IS NOT NULL AND ${t.bookingId} IS NULL AND ${t.folioId} IS NULL AND ${t.serviceOrderId} IS NULL)
+          OR (${t.source} = 'folio' AND ${t.folioId} IS NOT NULL AND ${t.bookingId} IS NULL AND ${t.subscriptionInvoiceId} IS NULL AND ${t.serviceOrderId} IS NULL)
+          OR (${t.source} = 'outlet_order' AND ${t.serviceOrderId} IS NOT NULL AND ${t.bookingId} IS NULL AND ${t.subscriptionInvoiceId} IS NULL AND ${t.folioId} IS NULL)`,
     ),
+    /**
+     * §14: a refund names the original it withdraws, and only a refund does.
+     * A sale carrying a `refund_of_invoice_id` would be a withdrawal filed as
+     * turnover.
+     */
+    check(
+      'ebm_invoices_refund_shape',
+      sql`(${t.transactionType} = 'refund' AND ${t.refundOfInvoiceId} IS NOT NULL)
+          OR (${t.transactionType} = 'sale' AND ${t.refundOfInvoiceId} IS NULL)`,
+    ),
+    /**
+     * There is no such document as a proforma refund: a proforma declares
+     * nothing, so there is nothing to withdraw. Forbidding the pair is also
+     * what makes `receipt_label`'s CASE exhaustive.
+     */
+    check(
+      'ebm_invoices_no_proforma_refund',
+      sql`NOT (${t.receiptType} = 'proforma' AND ${t.transactionType} = 'refund')`,
+    ),
+    /**
+     * A counter series is per taxpayer, per branch, per label (§7.25). Two
+     * documents sharing a number in one series is the one thing AC-9 forbids.
+     */
+    uniqueIndex('ebm_invoices_cis_receipt_no_uk')
+      .on(t.orgId, t.rraBranchId, t.receiptLabel, t.cisReceiptNo)
+      .where(sql`${t.cisReceiptNo} IS NOT NULL`),
+  ],
+);
+
+
+/**
+ * One ascending receipt series per taxpayer, per branch, per receipt label
+ * (ADR-050 D-f, §7.25).
+ *
+ * Keyed by branch as well as taxpayer because §7.25's `A`/`B` counters are the
+ * VSDC DEVICE's own, and a taxpayer's branches each have a device. A series
+ * keyed by taxpayer alone would count differently from what the device counts.
+ *
+ * The number is minted as the LAST STATEMENT BEFORE COMMIT, never held across a
+ * VSDC call: holding this row for the length of a folio close would serialize
+ * every close for a busy taxpayer behind one row.
+ */
+export const ebmReceiptCounters = pgTable(
+  'ebm_receipt_counters',
+  {
+    orgId: uuid('org_id')
+      .notNull()
+      .references(() => orgs.id),
+    rraBranchId: text('rra_branch_id').notNull().default('00'),
+    receiptLabel: text('receipt_label').notNull(),
+    lastNumber: integer('last_number').notNull().default(0),
+    updatedAt: timestamp('updated_at', { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (t) => [
+    primaryKey({
+      name: 'ebm_receipt_counters_pk',
+      columns: [t.orgId, t.rraBranchId, t.receiptLabel],
+    }),
   ],
 );
 
@@ -425,13 +601,39 @@ export const ebmInvoiceLines = pgTable('ebm_invoice_lines', {
   ebmInvoiceId: uuid('ebm_invoice_id')
     .notNull()
     .references(() => ebmInvoices.id, { onDelete: 'cascade' }),
+  /**
+   * WHICH LINE OF THE BILL THIS IS (ADR-050 D-d, G19).
+   *
+   * The table carried description, quantity, price and tax and nothing linking
+   * it back, which is not enough to name a line in a partial refund: §7.17
+   * limits how many times an original may be cancelled, not how much of it, so
+   * `lines[]` has to be able to select one.
+   */
+  folioChargeId: uuid('folio_charge_id').references(
+    (): AnyPgColumn => folioCharges.id,
+  ),
+  serviceOrderItemId: uuid('service_order_item_id').references(
+    (): AnyPgColumn => serviceOrderItems.id,
+  ),
   description: text('description'),
   quantity: integer('quantity').notNull().default(1),
+  /** TAX INCLUSIVE, because the VSDC's `prc` is. The folio is not (D-f). */
   unitPriceRwf: amount('unit_price_rwf'),
   taxCode: taxCodeEnum('tax_code').notNull(),
   taxRate: numeric('tax_rate'),
   lineTotalRwf: amount('line_total_rwf'),
   currency: currency(),
+  /**
+   * The Authority's own four codes for the thing sold, copied from the
+   * `service_item` at sign time. A receipt line that cannot describe what was
+   * sold is refused by the Authority.
+   */
+  rraItemClsCd: text('rra_item_cls_cd'),
+  rraItemCd: text('rra_item_cd'),
+  rraPkgUnitCd: text('rra_pkg_unit_cd'),
+  rraQtyUnitCd: text('rra_qty_unit_cd'),
+  /** The `taxTyCd` actually sent, kept beside the code it was derived from. */
+  taxTypeCode: text('tax_type_code'),
 });
 
 

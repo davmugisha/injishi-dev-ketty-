@@ -73,8 +73,8 @@ export declare const GuestTrip: z.ZodObject<{
     nonRefundable: boolean;
     grossRwf: number | null;
     paymentStatus: "captured" | "refunded_full" | "refunded_partial" | "forfeited" | "paid_out" | null;
-    roomTypeName: string;
     stage: "cancelled" | "in_progress" | "upcoming" | "past";
+    roomTypeName: string;
     timezone: string;
     propertySlug: string | null;
     bookedAt: string;
@@ -92,8 +92,8 @@ export declare const GuestTrip: z.ZodObject<{
     nonRefundable: boolean;
     grossRwf: number | null;
     paymentStatus: "captured" | "refunded_full" | "refunded_partial" | "forfeited" | "paid_out" | null;
-    roomTypeName: string;
     stage: "cancelled" | "in_progress" | "upcoming" | "past";
+    roomTypeName: string;
     timezone: string;
     propertySlug: string | null;
     bookedAt: string;
@@ -149,8 +149,8 @@ export declare const MyTrips: z.ZodObject<{
         nonRefundable: boolean;
         grossRwf: number | null;
         paymentStatus: "captured" | "refunded_full" | "refunded_partial" | "forfeited" | "paid_out" | null;
-        roomTypeName: string;
         stage: "cancelled" | "in_progress" | "upcoming" | "past";
+        roomTypeName: string;
         timezone: string;
         propertySlug: string | null;
         bookedAt: string;
@@ -168,8 +168,8 @@ export declare const MyTrips: z.ZodObject<{
         nonRefundable: boolean;
         grossRwf: number | null;
         paymentStatus: "captured" | "refunded_full" | "refunded_partial" | "forfeited" | "paid_out" | null;
-        roomTypeName: string;
         stage: "cancelled" | "in_progress" | "upcoming" | "past";
+        roomTypeName: string;
         timezone: string;
         propertySlug: string | null;
         bookedAt: string;
@@ -189,8 +189,8 @@ export declare const MyTrips: z.ZodObject<{
         nonRefundable: boolean;
         grossRwf: number | null;
         paymentStatus: "captured" | "refunded_full" | "refunded_partial" | "forfeited" | "paid_out" | null;
-        roomTypeName: string;
         stage: "cancelled" | "in_progress" | "upcoming" | "past";
+        roomTypeName: string;
         timezone: string;
         propertySlug: string | null;
         bookedAt: string;
@@ -210,8 +210,8 @@ export declare const MyTrips: z.ZodObject<{
         nonRefundable: boolean;
         grossRwf: number | null;
         paymentStatus: "captured" | "refunded_full" | "refunded_partial" | "forfeited" | "paid_out" | null;
-        roomTypeName: string;
         stage: "cancelled" | "in_progress" | "upcoming" | "past";
+        roomTypeName: string;
         timezone: string;
         propertySlug: string | null;
         bookedAt: string;

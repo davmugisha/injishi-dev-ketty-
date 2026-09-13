@@ -24,14 +24,17 @@ import {
   unique,
   uniqueIndex,
   uuid,
+  type AnyPgColumn,
 } from 'drizzle-orm/pg-core';
 import { users } from './auth';
 import { amount, currency, timestamps } from './columns';
 import { taxCodeEnum } from './enums';
 import { bookings, guestStays } from './hospitality';
-import { properties, rooms } from './inventory';
+import { amenities, properties, rooms } from './inventory';
+import { ebmInvoices } from './money';
 import { orgMemberships, orgs, workspaces } from './org';
-import { leases } from './residence';
+import { threads } from './messaging';
+import { leases, paymentAttempts } from './residence';
 
 // --- §14.2 departments and outlets -----------------------------------------
 
@@ -171,6 +174,141 @@ export const departments = pgTable(
  * loss line. A charge may name an outlet, and always also names the parent
  * department, so departmental revenue never depends on outlets existing.
  */
+/**
+ * Who may order from an outlet (ADR-050 D-o, AC-19).
+ *
+ * A host's control, not a presentation choice, so it is enforced in the order
+ * service before anything is written and never only in the listing. The
+ * default is `in_house_only`: an outlet that nobody has opened to the street
+ * must not become orderable by strangers the day this column appears.
+ */
+export const outletOrderingAccessEnum = pgEnum('outlet_ordering_access', [
+  'in_house_only',
+  'walk_in_only',
+  'both',
+]);
+
+/**
+ * The arrangement between an outlet's operator and the hotel it sits in
+ * (ADR-050 D-i). An enum because the vocabulary is stable; WHICH outlet kinds
+ * may carry which value is data, the `outlets.allowed_relationships` row in
+ * `config_entries`, so allowing a spa to be a tenant later is no migration.
+ */
+export const outletRelationshipTypeEnum = pgEnum('outlet_relationship_type', [
+  'hotel_operated',
+  'third_party_managed',
+  'leased_tenant',
+  'concession',
+  'franchise',
+  'revenue_share',
+]);
+
+export const outletPartyStatusEnum = pgEnum('outlet_party_status', [
+  'active',
+  'archived',
+]);
+
+/**
+ * A tenancy's life (ADR-050 D-l): `invited` or `requested` becomes `active`
+ * when the other side accepts; either may go straight to `ended` (declined);
+ * nothing comes back from `ended`.
+ */
+export const outletTenancyStatusEnum = pgEnum('outlet_tenancy_status', [
+  'invited',
+  'requested',
+  'active',
+  'ended',
+]);
+
+export const revenueShareBasisEnum = pgEnum('revenue_share_basis', [
+  'gross',
+  'net',
+]);
+
+/**
+ * An operator or an owner of an outlet (ADR-050 D-h).
+ *
+ * `org_id` is set when the party is a business registered on Injishi, and null
+ * when it is only on record (a concessionaire the hotel lists before that
+ * business exists here). Only a party with an org may OPERATE an outlet that is
+ * not `hotel_operated`, because only an org holds a TIN and an EBM connection.
+ * A hotel operated outlet points both its operator and its owner at the one
+ * party row for the hotel's own org, created once per org.
+ */
+export const outletParties = pgTable(
+  'outlet_parties',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    /** Who recorded it. */
+    workspaceId: uuid('workspace_id')
+      .notNull()
+      .references(() => workspaces.id),
+    orgId: uuid('org_id').references(() => orgs.id),
+    legalName: text('legal_name').notNull(),
+    tin: text('tin'),
+    contactName: text('contact_name'),
+    contactPhone: text('contact_phone'),
+    contactEmail: text('contact_email'),
+    status: outletPartyStatusEnum('status').notNull().default('active'),
+    ...timestamps,
+  },
+  (t) => [
+    /** One party per registered business, so a hotel's own row is found, never duplicated. */
+    uniqueIndex('outlet_parties_org_uk')
+      .on(t.orgId)
+      .where(sql`${t.orgId} IS NOT NULL`),
+    index('outlet_parties_workspace_idx').on(t.workspaceId),
+  ],
+);
+
+/**
+ * A hotel's consent that a tenant's outlet appears on its property
+ * (ADR-050 D-l), plus the commercial terms on record.
+ *
+ * The revenue share columns are a RECORD, not a settlement: nothing computes or
+ * moves money from them in v1 (scope Feature 34 carries that).
+ */
+export const outletTenancies = pgTable(
+  'outlet_tenancies',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    outletId: uuid('outlet_id')
+      .notNull()
+      .references((): AnyPgColumn => outlets.id),
+    hostPropertyId: uuid('host_property_id')
+      .notNull()
+      .references(() => properties.id),
+    hostOrgId: uuid('host_org_id')
+      .notNull()
+      .references(() => orgs.id),
+    tenantOrgId: uuid('tenant_org_id')
+      .notNull()
+      .references(() => orgs.id),
+    status: outletTenancyStatusEnum('status').notNull(),
+    invitedByUserId: uuid('invited_by_user_id').references(() => users.id),
+    invitedAt: timestamp('invited_at', { withTimezone: true }),
+    acceptedAt: timestamp('accepted_at', { withTimezone: true }),
+    endedAt: timestamp('ended_at', { withTimezone: true }),
+    endedReason: text('ended_reason'),
+    revenueShareBps: integer('revenue_share_bps'),
+    revenueShareBasis: revenueShareBasisEnum('revenue_share_basis'),
+    ...timestamps,
+  },
+  (t) => [
+    /** At most one active tenancy per outlet. */
+    uniqueIndex('outlet_tenancies_active_uk')
+      .on(t.outletId)
+      .where(sql`${t.status} = 'active'`),
+    index('outlet_tenancies_host_property_idx').on(t.hostPropertyId, t.status),
+    index('outlet_tenancies_tenant_org_idx').on(t.tenantOrgId),
+    check(
+      'outlet_tenancies_share_bps_range',
+      sql`${t.revenueShareBps} IS NULL OR (${t.revenueShareBps} >= 0 AND ${t.revenueShareBps} <= 10000)`,
+    ),
+  ],
+);
+
+
 export const outlets = pgTable(
   'outlets',
   {
@@ -178,15 +316,57 @@ export const outlets = pgTable(
     departmentId: uuid('department_id')
       .notNull()
       .references(() => departments.id, { onDelete: 'cascade' }),
-    propertyId: uuid('property_id')
-      .notNull()
-      .references(() => properties.id, { onDelete: 'cascade' }),
+    /**
+     * Null for a standalone restaurant or bar with no hotel (ADR-050 D-l), the
+     * same choice `departments.property_id` already made. A tenant inside a
+     * hotel carries the HOST's property here, and its own workspace below.
+     */
+    propertyId: uuid('property_id').references(() => properties.id, {
+      onDelete: 'cascade',
+    }),
+    /** The OPERATOR's workspace: a tenant owns its row and reaches it through its own workspace. */
     workspaceId: uuid('workspace_id')
       .notNull()
       .references(() => workspaces.id),
+    operatorPartyId: uuid('operator_party_id').references(
+      (): AnyPgColumn => outletParties.id,
+    ),
+    ownerPartyId: uuid('owner_party_id').references(
+      (): AnyPgColumn => outletParties.id,
+    ),
+    relationshipType: outletRelationshipTypeEnum('relationship_type')
+      .notNull()
+      .default('hotel_operated'),
+    /**
+     * The amenity this outlet also is (ADR-050 D-k), so a pool listed as an
+     * amenity and sold as day passes renders once. The service requires the
+     * pair to exist in `property_amenities`.
+     */
+    amenityCode: text('amenity_code').references(() => amenities.code),
+    rraBranchId: text('rra_branch_id').notNull().default('00'),
+    guestVisible: boolean('guest_visible').notNull().default(true),
+    /** Minted from the name for a standalone outlet, suffixed `-2`, `-3` on collision. */
+    slug: text('slug'),
+    /** `{ street, district, lat, lng, timeZone }`. Required when there is no property to borrow them from. */
+    address: jsonb('address'),
+    /**
+     * Whose TIN signs a sale made here (ADR-050, cross child contract 1).
+     *
+     * THE one answer to that question. Every `folio_charge` and every
+     * `service_order` copies it at write time, and nothing derives it a second
+     * way. Backfilled from the outlet's property's org, which is what every
+     * outlet on disk is today: a hotel selling under its own TIN. Slice 4 lets
+     * it differ, which is what makes a tenant restaurant possible.
+     */
+    taxEntityOrgId: uuid('tax_entity_org_id')
+      .notNull()
+      .references(() => orgs.id),
     name: text('name').notNull(),
     outletKind: outletKindEnum('outlet_kind').notNull().default('other'),
-    /** Service windows, e.g. `{"mon":["07:00","22:00"]}`. */
+    orderingAccess: outletOrderingAccessEnum('ordering_access')
+      .notNull()
+      .default('in_house_only'),
+    /** Service windows, e.g. `{"mon":["07:00","22:00"]}`. Null means always open. */
     hours: jsonb('hours'),
     sortOrder: integer('sort_order').notNull().default(0),
     status: departmentStatusEnum('status').notNull().default('active'),
@@ -195,6 +375,19 @@ export const outlets = pgTable(
   (t) => [
     index('outlets_department_idx').on(t.departmentId),
     index('outlets_workspace_idx').on(t.workspaceId),
+    index('outlets_property_idx').on(t.propertyId),
+    /** D-h: an outlet run by anyone but the hotel names who runs it. */
+    check(
+      'outlets_operator_named',
+      sql`${t.relationshipType} = 'hotel_operated' OR ${t.operatorPartyId} IS NOT NULL`,
+    ),
+    /** D-k: one amenity has at most one outlet face, so the facility dedupe has no tie to break. */
+    uniqueIndex('outlets_property_amenity_uk')
+      .on(t.propertyId, t.amenityCode)
+      .where(sql`${t.amenityCode} IS NOT NULL`),
+    uniqueIndex('outlets_slug_uk')
+      .on(t.slug)
+      .where(sql`${t.slug} IS NOT NULL`),
   ],
 );
 
@@ -320,6 +513,24 @@ export const folios = pgTable(
     guestUserId: uuid('guest_user_id').references(() => users.id),
     folioType: folioTypeEnum('folio_type').notNull().default('guest'),
     status: folioStatusEnum('status').notNull().default('open'),
+    /**
+     * Which bill of the stay this is (ADR-050 D-c).
+     *
+     * Signing locks a folio, and §7.17 allows an original to be cancelled only
+     * once, so a minibar charge read the morning after departure must not spend
+     * that one cancellation. It opens the next folio instead. `folio_number`
+     * for a sequence above 1 is the original's with `-<sequence>` appended, so
+     * the global unique on the number still holds.
+     */
+    folioSequence: integer('folio_sequence').notNull().default(1),
+    /**
+     * When the `NS` was raised over this folio. Never cleared. A folio with
+     * this set accepts no new charge (D-c).
+     */
+    lockedAt: timestamp('locked_at', { withTimezone: true }),
+    /** §4 d and e: the client identified on the receipt, captured at close. */
+    customerTin: text('customer_tin'),
+    customerName: text('customer_name'),
     currency: currency(),
     /**
      * A derived cache of the sum of this folio's charges (D13, D-l).
@@ -338,6 +549,14 @@ export const folios = pgTable(
   },
   (t) => [
     unique('folios_number_uk').on(t.folioNumber),
+    /**
+     * ADR-050 D-c drops the one folio per stay assumption: a locked folio's
+     * late charge opens the next sequence. One row per (stay, sequence) is what
+     * replaces it, partial because a `house` or `master` folio has no stay.
+     */
+    uniqueIndex('folios_stay_sequence_uk')
+      .on(t.guestStayId, t.folioSequence)
+      .where(sql`${t.guestStayId} IS NOT NULL`),
     index('folios_workspace_status_idx').on(t.workspaceId, t.status),
     index('folios_stay_idx').on(t.guestStayId),
     index('folios_booking_idx').on(t.bookingId),
@@ -397,6 +616,39 @@ export const folioCharges = pgTable(
      */
     departmentId: uuid('department_id').references(() => departments.id),
     outletId: uuid('outlet_id').references(() => outlets.id),
+    /**
+     * The taxpayer this line's turnover belongs to (ADR-050, contract 1).
+     *
+     * Copied from the outlet at write time, never inferred later. A revenue
+     * line takes its outlet's; a non revenue line (tax, discount, adjustment,
+     * payment, deposit, refund) takes it from the line its `source_ref_id`
+     * names, and otherwise from the folio's property's org. That keeps a
+     * discount against a tenant's meal on the tenant's side of the ledger
+     * rather than quietly reducing the host's declared turnover.
+     */
+    taxEntityOrgId: uuid('tax_entity_org_id')
+      .notNull()
+      .references(() => orgs.id),
+    /**
+     * The fiscal document that already declared this line, if one has.
+     *
+     * Set at post time for a tenant outlet's line (the tenant signs at
+     * fulfilment) and at close for the host's own. NOT NULL means declared,
+     * and there is no second rule: the host's close covers exactly the charges
+     * whose tax entity is its own AND whose invoice id is still null.
+     */
+    ebmInvoiceId: uuid('ebm_invoice_id').references(
+      (): AnyPgColumn => ebmInvoices.id,
+    ),
+    /**
+     * The RRA means of payment code (`01` cash, `02` credit, `05` card,
+     * `06` mobile money). REQUIRED on a `payment` or `deposit` line, which §4 k
+     * and the `SEND_RECEIPT` payload both need and no column carried. Left null
+     * on rows written before ADR-050 and required only on new ones, so the
+     * close refuses a payment line with no code rather than a migration
+     * refusing every historical folio.
+     */
+    paymentMethodCode: text('payment_method_code'),
     chargeType: chargeTypeEnum('charge_type').notNull(),
     description: text('description'),
     quantity: integer('quantity').notNull().default(1),
@@ -676,6 +928,10 @@ export const serviceOrderChannelEnum = pgEnum('service_order_channel', [
 /**
  * `submitted -> acknowledged -> in_progress -> ready -> delivered -> completed`,
  * plus `submitted -> rejected`, and anything before `delivered` to `cancelled`.
+ *
+ * A pay now order starts earlier (ADR-050 D-n): `pending_payment -> submitted`
+ * when its money settles, or `pending_payment -> payment_failed` when it is
+ * refused or expires. The kitchen never sees either of the two new states.
  */
 export const serviceOrderStatusEnum = pgEnum('service_order_status', [
   'submitted',
@@ -686,7 +942,46 @@ export const serviceOrderStatusEnum = pgEnum('service_order_status', [
   'completed',
   'cancelled',
   'rejected',
+  'pending_payment',
+  'payment_failed',
 ]);
+
+
+/**
+ * When an order's money moves (ADR-050 D-n). One order model, two contexts:
+ * `in_house_folio` posts to the guest's bill on `delivered`; `pay_now` settles
+ * before the kitchen sees it and never touches a folio.
+ */
+export const serviceOrderContextEnum = pgEnum('service_order_context', [
+  'in_house_folio',
+  'pay_now',
+]);
+
+
+/**
+ * RRA's item classification list, the `itemClsCd` behind every receipt line
+ * (ADR-050 D-m, VSDC v1.0.5 §3.3.2).
+ *
+ * Reference data the Authority owns. It is written ONLY by
+ * `scripts/sync-rra-classifications.mjs` from `RRA_CLASSIFICATION_SOURCE`, and
+ * nothing edits it by hand: a code a person typed in is a receipt the Authority
+ * refuses. A code RRA withdraws is kept and marked inactive, because an item
+ * sold under it last month still names it.
+ */
+export const rraItemClassifications = pgTable(
+  'rra_item_classifications',
+  {
+    code: text('code').primaryKey(),
+    name: text('name').notNull(),
+    parentCode: text('parent_code'),
+    level: integer('level').notNull(),
+    active: boolean('active').notNull().default(true),
+    syncedAt: timestamp('synced_at', { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (t) => [index('rra_item_classifications_parent_idx').on(t.parentCode)],
+);
 
 
 /** Groups items within a department or outlet. `guest_visible` gates the app. */
@@ -710,9 +1005,24 @@ export const serviceCategories = pgTable(
     sortOrder: integer('sort_order').notNull().default(0),
     guestVisible: boolean('guest_visible').notNull().default(true),
     status: departmentStatusEnum('status').notNull().default('active'),
+    /**
+     * What a new item on this menu starts with (ADR-050 D-m). A PREFILL, never
+     * a rule: the item is the source of truth and may override every one.
+     */
+    defaultRraItemClsCd: text('default_rra_item_cls_cd').references(
+      () => rraItemClassifications.code,
+    ),
+    defaultRraItemTyCd: text('default_rra_item_ty_cd'),
+    defaultRraPkgUnitCd: text('default_rra_pkg_unit_cd'),
+    defaultRraQtyUnitCd: text('default_rra_qty_unit_cd'),
+    defaultTaxCode: taxCodeEnum('default_tax_code'),
     ...timestamps,
   },
   (t) => [
+    check(
+      'service_categories_default_item_ty_cd',
+      sql`${t.defaultRraItemTyCd} IS NULL OR ${t.defaultRraItemTyCd} IN ('1', '2', '3')`,
+    ),
     index('service_categories_department_idx').on(t.departmentId),
     index('service_categories_workspace_idx').on(t.workspaceId),
   ],
@@ -765,9 +1075,44 @@ export const serviceItems = pgTable(
     /** Null means unlimited, which is the normal case for a service. */
     stockQty: integer('stock_qty'),
     status: serviceCatalogStatusEnum('status').notNull().default('active'),
+    /*
+     * THE AUTHORITY'S OWN CODES FOR THIS THING (ADR-050 D-m, amended). An item
+     * without all of them, and a tax code, is never sold on any channel. The
+     * rule is the SERVICE's, not a check here: every item on sale when these
+     * columns arrived had none, and a check would have failed the migration or
+     * switched every one of them off.
+     */
+    /** `itemClsCd`, from RRA's list. */
+    rraItemClsCd: text('rra_item_cls_cd').references(
+      () => rraItemClassifications.code,
+    ),
+    /** `itemTyCd`, VSDC §4.3: `1` raw material, `2` finished product, `3` service. */
+    rraItemTyCd: text('rra_item_ty_cd'),
+    /**
+     * `itemCd`, VSDC §4.17, minted once by the service and never re minted, so
+     * a renamed dish keeps its code: origin, product type, packaging unit,
+     * quantity unit, then a 7 digit serial per org.
+     */
+    rraItemCd: text('rra_item_cd'),
+    /** `pkgUnitCd`, VSDC §4.5. */
+    rraPkgUnitCd: text('rra_pkg_unit_cd'),
+    /** `qtyUnitCd`, VSDC §4.6. */
+    rraQtyUnitCd: text('rra_qty_unit_cd'),
     ...timestamps,
   },
   (t) => [
+    check(
+      'service_items_rra_item_ty_cd',
+      sql`${t.rraItemTyCd} IS NULL OR ${t.rraItemTyCd} IN ('1', '2', '3')`,
+    ),
+    /**
+     * `itemCd` is unique per taxpayer. The serial is minted per org under a
+     * lock; this is the backstop inside one workspace, which is as far as a
+     * constraint on this table can see.
+     */
+    uniqueIndex('service_items_workspace_item_cd_uk')
+      .on(t.workspaceId, t.rraItemCd)
+      .where(sql`${t.rraItemCd} IS NOT NULL`),
     index('service_items_category_idx').on(t.serviceCategoryId),
     index('service_items_department_idx').on(t.departmentId),
     index('service_items_workspace_idx').on(t.workspaceId),
@@ -782,8 +1127,9 @@ export const serviceItems = pgTable(
  * department's board answers, which is why a shift change does not strand an
  * order.
  *
- * On `delivered` or `completed` the order posts one `folio_charges` line in the
- * same transaction, so the single folio invariant holds without a sweep.
+ * An `in_house_folio` order posts one `folio_charges` line on `delivered`, in
+ * the same transaction. A `pay_now` order never touches a folio: its money
+ * settles first and it raises its own `NS` then (ADR-050 D-n).
  */
 export const serviceOrders = pgTable(
   'service_orders',
@@ -793,9 +1139,37 @@ export const serviceOrders = pgTable(
     workspaceId: uuid('workspace_id')
       .notNull()
       .references(() => workspaces.id),
-    propertyId: uuid('property_id')
+    /**
+     * Nullable since ADR-050 Migration C: a standalone outlet's order has no
+     * property. `service_orders_property_or_outlet` keeps one of them set.
+     */
+    propertyId: uuid('property_id').references(() => properties.id, {
+      onDelete: 'cascade',
+    }),
+    orderContext: serviceOrderContextEnum('order_context')
       .notNull()
-      .references(() => properties.id, { onDelete: 'cascade' }),
+      .default('in_house_folio'),
+    /**
+     * Whose TIN signs this sale (ADR-050, cross child contract 1). Copied from
+     * the outlet at write time, or the property's org for an order with no
+     * outlet, and never derived again.
+     */
+    taxEntityOrgId: uuid('tax_entity_org_id')
+      .notNull()
+      .references(() => orgs.id),
+    /** The pay now attempt currently in flight, for mobile money. A retry replaces it. */
+    paymentAttemptId: uuid('payment_attempt_id').references(
+      (): AnyPgColumn => paymentAttempts.id,
+    ),
+    paidAt: timestamp('paid_at', { withTimezone: true }),
+    /** RRA means of payment, VSDC §4.10: `01` cash, `06` mobile money. */
+    paymentMethod: text('payment_method'),
+    /** Who took the cash, because a staff entered money field needs a name on it (AC-24). */
+    paidMarkedByUserId: uuid('paid_marked_by_user_id').references(() => users.id),
+    /** The conversation this order was raised in (chat child). Never a thread of its own. */
+    threadId: uuid('thread_id').references((): AnyPgColumn => threads.id),
+    /** A walk in who is signed in and holds no stay. */
+    customerUserId: uuid('customer_user_id').references(() => users.id),
     departmentId: uuid('department_id')
       .notNull()
       .references(() => departments.id),
@@ -826,6 +1200,16 @@ export const serviceOrders = pgTable(
     ...timestamps,
   },
   (t) => [
+    /** A bill order has a bill; a pay now order never has one (D-n). */
+    check(
+      'service_orders_context_folio',
+      sql`(${t.orderContext} = 'in_house_folio' AND ${t.folioId} IS NOT NULL)
+        OR (${t.orderContext} = 'pay_now' AND ${t.folioId} IS NULL)`,
+    ),
+    check(
+      'service_orders_property_or_outlet',
+      sql`${t.propertyId} IS NOT NULL OR ${t.outletId} IS NOT NULL`,
+    ),
     unique('service_orders_number_uk').on(t.orderNumber),
     unique('service_orders_idempotency_key_uk').on(t.idempotencyKey),
     index('service_orders_board_idx').on(t.departmentId, t.status),

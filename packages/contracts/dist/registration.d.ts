@@ -230,16 +230,6 @@ export declare const PersonalDetails: z.ZodObject<{
         addressText: string;
     }>]>;
 }, "strip", z.ZodTypeAny, {
-    address: {
-        country: "RW";
-        districtId: number;
-        sectorId: number;
-        provinceId: number;
-        street?: string | undefined;
-    } | {
-        country: string;
-        addressText: string;
-    };
     fullName: string;
     document: {
         documentType: "national_id";
@@ -252,8 +242,6 @@ export declare const PersonalDetails: z.ZodObject<{
     };
     dateOfBirth: string;
     phoneE164: string;
-    gender?: "other" | "female" | "male" | "prefer_not_to_say" | undefined;
-}, {
     address: {
         country: "RW";
         districtId: number;
@@ -264,6 +252,8 @@ export declare const PersonalDetails: z.ZodObject<{
         country: string;
         addressText: string;
     };
+    gender?: "other" | "female" | "male" | "prefer_not_to_say" | undefined;
+}, {
     fullName: string;
     document: {
         documentType: "national_id";
@@ -276,6 +266,16 @@ export declare const PersonalDetails: z.ZodObject<{
     };
     dateOfBirth: string;
     phoneE164: string;
+    address: {
+        country: "RW";
+        districtId: number;
+        sectorId: number;
+        provinceId: number;
+        street?: string | undefined;
+    } | {
+        country: string;
+        addressText: string;
+    };
     gender?: "other" | "female" | "male" | "prefer_not_to_say" | undefined;
 }>;
 export type PersonalDetails = z.infer<typeof PersonalDetails>;
@@ -913,16 +913,6 @@ export declare const CreateRegistrationRequest: z.ZodEffects<z.ZodObject<{
             addressText: string;
         }>]>;
     }, "strip", z.ZodTypeAny, {
-        address: {
-            country: "RW";
-            districtId: number;
-            sectorId: number;
-            provinceId: number;
-            street?: string | undefined;
-        } | {
-            country: string;
-            addressText: string;
-        };
         fullName: string;
         document: {
             documentType: "national_id";
@@ -935,8 +925,6 @@ export declare const CreateRegistrationRequest: z.ZodEffects<z.ZodObject<{
         };
         dateOfBirth: string;
         phoneE164: string;
-        gender?: "other" | "female" | "male" | "prefer_not_to_say" | undefined;
-    }, {
         address: {
             country: "RW";
             districtId: number;
@@ -947,6 +935,8 @@ export declare const CreateRegistrationRequest: z.ZodEffects<z.ZodObject<{
             country: string;
             addressText: string;
         };
+        gender?: "other" | "female" | "male" | "prefer_not_to_say" | undefined;
+    }, {
         fullName: string;
         document: {
             documentType: "national_id";
@@ -959,6 +949,16 @@ export declare const CreateRegistrationRequest: z.ZodEffects<z.ZodObject<{
         };
         dateOfBirth: string;
         phoneE164: string;
+        address: {
+            country: "RW";
+            districtId: number;
+            sectorId: number;
+            provinceId: number;
+            street?: string | undefined;
+        } | {
+            country: string;
+            addressText: string;
+        };
         gender?: "other" | "female" | "male" | "prefer_not_to_say" | undefined;
     }>>;
     business: z.ZodEffects<z.ZodDiscriminatedUnion<"domain", [z.ZodObject<{
@@ -1341,16 +1341,6 @@ export declare const CreateRegistrationRequest: z.ZodEffects<z.ZodObject<{
     capacity: "owner" | "on_behalf_of";
     role: "broker" | "host" | "landlord";
     personal?: {
-        address: {
-            country: "RW";
-            districtId: number;
-            sectorId: number;
-            provinceId: number;
-            street?: string | undefined;
-        } | {
-            country: string;
-            addressText: string;
-        };
         fullName: string;
         document: {
             documentType: "national_id";
@@ -1363,6 +1353,16 @@ export declare const CreateRegistrationRequest: z.ZodEffects<z.ZodObject<{
         };
         dateOfBirth: string;
         phoneE164: string;
+        address: {
+            country: "RW";
+            districtId: number;
+            sectorId: number;
+            provinceId: number;
+            street?: string | undefined;
+        } | {
+            country: string;
+            addressText: string;
+        };
         gender?: "other" | "female" | "male" | "prefer_not_to_say" | undefined;
     } | undefined;
     intendedOwner?: {
@@ -1423,16 +1423,6 @@ export declare const CreateRegistrationRequest: z.ZodEffects<z.ZodObject<{
     };
     role: "broker" | "host" | "landlord";
     personal?: {
-        address: {
-            country: "RW";
-            districtId: number;
-            sectorId: number;
-            provinceId: number;
-            street?: string | undefined;
-        } | {
-            country: string;
-            addressText: string;
-        };
         fullName: string;
         document: {
             documentType: "national_id";
@@ -1445,6 +1435,16 @@ export declare const CreateRegistrationRequest: z.ZodEffects<z.ZodObject<{
         };
         dateOfBirth: string;
         phoneE164: string;
+        address: {
+            country: "RW";
+            districtId: number;
+            sectorId: number;
+            provinceId: number;
+            street?: string | undefined;
+        } | {
+            country: string;
+            addressText: string;
+        };
         gender?: "other" | "female" | "male" | "prefer_not_to_say" | undefined;
     } | undefined;
     capacity?: "owner" | "on_behalf_of" | undefined;
@@ -1507,16 +1507,6 @@ export declare const CreateRegistrationRequest: z.ZodEffects<z.ZodObject<{
     capacity: "owner" | "on_behalf_of";
     role: "broker" | "host" | "landlord";
     personal?: {
-        address: {
-            country: "RW";
-            districtId: number;
-            sectorId: number;
-            provinceId: number;
-            street?: string | undefined;
-        } | {
-            country: string;
-            addressText: string;
-        };
         fullName: string;
         document: {
             documentType: "national_id";
@@ -1529,6 +1519,16 @@ export declare const CreateRegistrationRequest: z.ZodEffects<z.ZodObject<{
         };
         dateOfBirth: string;
         phoneE164: string;
+        address: {
+            country: "RW";
+            districtId: number;
+            sectorId: number;
+            provinceId: number;
+            street?: string | undefined;
+        } | {
+            country: string;
+            addressText: string;
+        };
         gender?: "other" | "female" | "male" | "prefer_not_to_say" | undefined;
     } | undefined;
     intendedOwner?: {
@@ -1589,16 +1589,6 @@ export declare const CreateRegistrationRequest: z.ZodEffects<z.ZodObject<{
     };
     role: "broker" | "host" | "landlord";
     personal?: {
-        address: {
-            country: "RW";
-            districtId: number;
-            sectorId: number;
-            provinceId: number;
-            street?: string | undefined;
-        } | {
-            country: string;
-            addressText: string;
-        };
         fullName: string;
         document: {
             documentType: "national_id";
@@ -1611,6 +1601,16 @@ export declare const CreateRegistrationRequest: z.ZodEffects<z.ZodObject<{
         };
         dateOfBirth: string;
         phoneE164: string;
+        address: {
+            country: "RW";
+            districtId: number;
+            sectorId: number;
+            provinceId: number;
+            street?: string | undefined;
+        } | {
+            country: string;
+            addressText: string;
+        };
         gender?: "other" | "female" | "male" | "prefer_not_to_say" | undefined;
     } | undefined;
     capacity?: "owner" | "on_behalf_of" | undefined;
@@ -1894,6 +1894,15 @@ export declare const MyProfile: z.ZodObject<{
      */
     complete: z.ZodBoolean;
 }, "strip", z.ZodTypeAny, {
+    fullName: string | null;
+    document: {
+        documentType: "national_id" | "passport";
+        issuingCountry: string;
+        documentNumberMasked: string;
+    } | null;
+    gender: "other" | "female" | "male" | "prefer_not_to_say" | null;
+    dateOfBirth: string | null;
+    phoneE164: string | null;
     address: {
         country: "RW";
         districtId: number;
@@ -1904,17 +1913,17 @@ export declare const MyProfile: z.ZodObject<{
         country: string;
         addressText: string;
     } | null;
-    fullName: string | null;
-    document: {
-        documentType: "national_id" | "passport";
-        issuingCountry: string;
-        documentNumberMasked: string;
-    } | null;
-    gender: "other" | "female" | "male" | "prefer_not_to_say" | null;
-    dateOfBirth: string | null;
-    phoneE164: string | null;
     complete: boolean;
 }, {
+    fullName: string | null;
+    document: {
+        documentType: "national_id" | "passport";
+        issuingCountry: string;
+        documentNumberMasked: string;
+    } | null;
+    gender: "other" | "female" | "male" | "prefer_not_to_say" | null;
+    dateOfBirth: string | null;
+    phoneE164: string | null;
     address: {
         country: "RW";
         districtId: number;
@@ -1925,15 +1934,6 @@ export declare const MyProfile: z.ZodObject<{
         country: string;
         addressText: string;
     } | null;
-    fullName: string | null;
-    document: {
-        documentType: "national_id" | "passport";
-        issuingCountry: string;
-        documentNumberMasked: string;
-    } | null;
-    gender: "other" | "female" | "male" | "prefer_not_to_say" | null;
-    dateOfBirth: string | null;
-    phoneE164: string | null;
     complete: boolean;
 }>;
 export type MyProfile = z.infer<typeof MyProfile>;
@@ -2016,16 +2016,6 @@ export declare const CreateBrokerRegistrationRequest: z.ZodObject<{
             addressText: string;
         }>]>;
     }, "strip", z.ZodTypeAny, {
-        address: {
-            country: "RW";
-            districtId: number;
-            sectorId: number;
-            provinceId: number;
-            street?: string | undefined;
-        } | {
-            country: string;
-            addressText: string;
-        };
         fullName: string;
         document: {
             documentType: "national_id";
@@ -2038,8 +2028,6 @@ export declare const CreateBrokerRegistrationRequest: z.ZodObject<{
         };
         dateOfBirth: string;
         phoneE164: string;
-        gender?: "other" | "female" | "male" | "prefer_not_to_say" | undefined;
-    }, {
         address: {
             country: "RW";
             districtId: number;
@@ -2050,6 +2038,8 @@ export declare const CreateBrokerRegistrationRequest: z.ZodObject<{
             country: string;
             addressText: string;
         };
+        gender?: "other" | "female" | "male" | "prefer_not_to_say" | undefined;
+    }, {
         fullName: string;
         document: {
             documentType: "national_id";
@@ -2062,20 +2052,20 @@ export declare const CreateBrokerRegistrationRequest: z.ZodObject<{
         };
         dateOfBirth: string;
         phoneE164: string;
+        address: {
+            country: "RW";
+            districtId: number;
+            sectorId: number;
+            provinceId: number;
+            street?: string | undefined;
+        } | {
+            country: string;
+            addressText: string;
+        };
         gender?: "other" | "female" | "male" | "prefer_not_to_say" | undefined;
     }>>;
 }, "strip", z.ZodTypeAny, {
     personal?: {
-        address: {
-            country: "RW";
-            districtId: number;
-            sectorId: number;
-            provinceId: number;
-            street?: string | undefined;
-        } | {
-            country: string;
-            addressText: string;
-        };
         fullName: string;
         document: {
             documentType: "national_id";
@@ -2088,10 +2078,6 @@ export declare const CreateBrokerRegistrationRequest: z.ZodObject<{
         };
         dateOfBirth: string;
         phoneE164: string;
-        gender?: "other" | "female" | "male" | "prefer_not_to_say" | undefined;
-    } | undefined;
-}, {
-    personal?: {
         address: {
             country: "RW";
             districtId: number;
@@ -2102,6 +2088,10 @@ export declare const CreateBrokerRegistrationRequest: z.ZodObject<{
             country: string;
             addressText: string;
         };
+        gender?: "other" | "female" | "male" | "prefer_not_to_say" | undefined;
+    } | undefined;
+}, {
+    personal?: {
         fullName: string;
         document: {
             documentType: "national_id";
@@ -2114,6 +2104,16 @@ export declare const CreateBrokerRegistrationRequest: z.ZodObject<{
         };
         dateOfBirth: string;
         phoneE164: string;
+        address: {
+            country: "RW";
+            districtId: number;
+            sectorId: number;
+            provinceId: number;
+            street?: string | undefined;
+        } | {
+            country: string;
+            addressText: string;
+        };
         gender?: "other" | "female" | "male" | "prefer_not_to_say" | undefined;
     } | undefined;
 }>;

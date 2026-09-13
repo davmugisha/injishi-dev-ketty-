@@ -72,6 +72,29 @@ exports.Permission = zod_1.z.enum([
      * never be able to re-point where that booking is taxed.
      */
     "ebm.manage",
+    /**
+     * Close a bill, which SIGNS ITS SALE with RRA (ADR-050 D-t, AC-8).
+     *
+     * Owner, manager and receptionist. Signing a correct sale at the desk is the
+     * desk's job, and a hotel cannot wake a manager per departure. Check out
+     * requires it alongside `stay.checkout`, because check out is what signs:
+     * gating only the close route would leave the fiscal act reachable through
+     * a permission the receptionist already held.
+     */
+    "folio.close",
+    /**
+     * Withdraw a signed sale with an `NR` refund receipt (ADR-050 D-t, AC-8).
+     *
+     * Owner and manager only. Creating a declaration is routine; withdrawing one
+     * reduces declared turnover, and §14 wants a named person's justification.
+     */
+    "ebm.refund",
+    /**
+     * Decide an outlet's operator, owner, relationship and tax entity
+     * (ADR-050 D-t). Owner and manager only, because those decide who is taxed
+     * for what.
+     */
+    "outlet.manage",
 ]);
 const ALL = exports.Permission.options;
 /**
@@ -118,6 +141,7 @@ const ROLE_PERMISSIONS = {
         "stay.checkout",
         "folio.charge",
         "folio.payment",
+        "folio.close",
         "order.advance",
         "message.send",
     ]),
@@ -156,6 +180,9 @@ exports.PERMISSION_LABEL = {
     "amenity.manage": "change what the property offers",
     "department.manage": "manage departments",
     "ebm.manage": "connect the RRA EBM account",
+    "folio.close": "close a bill and sign its receipt",
+    "ebm.refund": "refund a signed receipt",
+    "outlet.manage": "manage outlets",
 };
 // ---------------------------------------------------------------------------
 // Workspace access

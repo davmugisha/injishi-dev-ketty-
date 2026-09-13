@@ -68,11 +68,19 @@ Each compose file pins two values as literals in its API and worker
 `environment:` block, never from its env file, so a mistyped line in an env
 file cannot change what a stack is:
 
-| Stack | `INJISHI_ENVIRONMENT` | `INJISHI_DATABASE_KIND` | Frontend build `NEXT_PUBLIC_INJISHI_ENVIRONMENT` |
-| --- | --- | --- | --- |
-| Production | `production` | `real` | `production` |
-| Staging | `production` | `sample` | `production` |
-| Demo | `demo` | `sample` | `demo` |
+| Stack | `INJISHI_ENVIRONMENT` | `INJISHI_DATABASE_KIND` | `PAYMENT_ADAPTER_MODE` | Frontend build `NEXT_PUBLIC_INJISHI_ENVIRONMENT` |
+| --- | --- | --- | --- | --- |
+| Production | `production` | `real` | `off` | `production` |
+| Staging | `production` | `sample` | unset (mock) | `production` |
+| Demo | `demo` | `sample` | `mock` | `demo` |
+
+**Production takes no payments.** No provider is chosen and there are no
+credentials, so production pins `PAYMENT_ADAPTER_MODE=off`: every charge is
+refused and the checkout says nothing was charged. The API refuses to boot with
+`INJISHI_DATABASE_KIND=real` and a payment mode of `mock` or unset, because an
+unset mode means mock and a real database must never record imaginary money as
+captured. `live` is the only other value it accepts there, and `live` refuses to
+boot until a live adapter is registered in `payments.module.ts`.
 
 `INJISHI_DATABASE_KIND` is checked against the database itself at boot. A
 database is `sample` when its `database_identity` table holds the one row
@@ -124,7 +132,7 @@ links into the zone.
 rebuilt from scratch every night, on sample data (the one recipe
 `seed-sample.mjs` staging and a laptop also run). Anyone may sign in as any
 seeded persona with the code `123456`, which the sign in screens state; the
-roster includes the staff persona `ops@demo.injishi.rw` (`StaffRole` `ops`),
+roster includes the staff persona `ops@demo.injishi.com` (`StaffRole` `ops`),
 which opens `admin-demo` after the step up.
 
 **How it is kept apart from production.**
@@ -138,7 +146,7 @@ which opens `admin-demo` after the step up.
 | Mail | the relay in `SMTP_URL` | its own `mailpit`, no volume, emptied nightly; no relay credential in its env file |
 | Session secret | `BETTER_AUTH_SECRET` | its own `BETTER_AUTH_SECRET` |
 | Session cookie name | `better-auth.session_token` | `injishi-demo.session_token` (and `injishi-oversight-demo.*` for the console) |
-| Adapters | as configured | pinned to mock; a `demo` process refuses live payments or live EBM at boot |
+| Adapters | payments pinned `off`; the rest as configured | pinned to mock; a `demo` process refuses live payments or live EBM at boot |
 | Code it runs | the released commit | staging's commit, nightly |
 
 **One thing still crosses: production's cookie.** Both stacks set cookies on
@@ -432,6 +440,10 @@ TLS is Traefik's, per host, once a record reaches this host.
 
 ## Known gaps
 
+- **Production cannot take a booking payment.** `PAYMENT_ADAPTER_MODE=off` until
+  an MTN MoMo or Airtel Money provider is chosen, contracted and given
+  credentials, and a live adapter is registered behind the payment seam. Until
+  then every guest checkout on production answers "nothing has been charged".
 - **No backups.** Nothing dumps production's `db` or copies its `minio-data`
   volume off this host. Schedule both off-host, keep `MINIO_KMS_SECRET_KEY` with
   them (objects restored without it are unreadable), and test a restore before

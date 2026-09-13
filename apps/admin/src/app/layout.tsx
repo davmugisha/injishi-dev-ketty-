@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import localFont from "next/font/local";
 import { AdminShell } from "@/components/shell/admin-shell";
+import { SectionBoundary } from "@/components/shell/section-boundary";
 import { StaffBoundary } from "@/components/shell/staff-boundary";
 import "./globals.css";
 
@@ -59,7 +60,20 @@ export default function RootLayout({
          * who is not staff. See `staff-boundary.tsx` for why that matters.
          */}
         <StaffBoundary>
-          <AdminShell>{children}</AdminShell>
+          <AdminShell>
+            {/*
+             * And the section gate is INSIDE the chrome (ADR-049 AC-25).
+             *
+             * The two gates refuse different people, which is why they sit on
+             * different sides of the shell. `StaffBoundary` refuses somebody
+             * who is not staff, and for them the sidebar itself is the
+             * disclosure, so it never renders. `SectionBoundary` refuses a
+             * staffer who does not hold THIS section — they are entitled to
+             * the console they are already looking at, and taking it away
+             * would leave a trainer who mistyped an address with no way back.
+             */}
+            <SectionBoundary>{children}</SectionBoundary>
+          </AdminShell>
         </StaffBoundary>
       </body>
     </html>

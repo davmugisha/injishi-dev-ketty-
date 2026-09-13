@@ -33,8 +33,19 @@ export type OrgRole = z.infer<typeof OrgRole>;
 export const GlobalRole = z.enum(["admin", "guest", "broker", "gov_oversight"]);
 export type GlobalRole = z.infer<typeof GlobalRole>;
 /** Backend staff role (schema `staff_role`). The admin UI "lens" uses a
- *  shortened label set for display; map at the UI edge, not here. */
-export const StaffRole = z.enum(["super_admin", "ops", "compliance", "finance"]);
+ *  shortened label set for display; map at the UI edge, not here.
+ *
+ *  `trainer` (ADR-049) is the narrowest role in the set and the reason the
+ *  admin console finally needs a per-section route guard: it holds four
+ *  training powers and no `admin.*` power at all, so a trainer who types
+ *  `/finance` must be refused rather than merely find the link missing. */
+export const StaffRole = z.enum([
+    "super_admin",
+    "ops",
+    "compliance",
+    "finance",
+    "trainer",
+]);
 export type StaffRole = z.infer<typeof StaffRole>;
 export const OrgRegistrationStatus = z.enum([
     // D23: the entry state. The one-time registration fee settling is the only

@@ -34,9 +34,14 @@ __exportStar(require("./booking"), exports);
 __exportStar(require("./trips"), exports);
 __exportStar(require("./inbox"), exports);
 __exportStar(require("./ops"), exports);
+__exportStar(require("./ordering"), exports);
+__exportStar(require("./outlets"), exports);
+__exportStar(require("./property-detail"), exports);
 __exportStar(require("./ebm"), exports);
 __exportStar(require("./ebm-connection"), exports);
 __exportStar(require("./admin"), exports);
 __exportStar(require("./support"), exports);
+__exportStar(require("./waitlist"), exports);
 __exportStar(require("./platform"), exports);
+__exportStar(require("./training"), exports);
 //# sourceMappingURL=index.js.map

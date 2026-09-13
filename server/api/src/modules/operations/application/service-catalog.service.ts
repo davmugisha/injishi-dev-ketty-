@@ -2,10 +2,15 @@ import type {
   AdvanceServiceOrderRequest,
   CreateServiceCategoryRequest,
   CreateServiceOrderRequest,
+  MarkOrderPaidCashRequest,
+  MarkOrderPaidCashResult,
   OperatorServiceCatalog,
   OperatorServiceItem,
   OperatorServiceOrder,
+  RraClassificationList,
   ServiceOrderStatus,
+  UpdateServiceCategoryRequest,
+  UpdateServiceItemRequest,
   UpsertServiceItemRequest,
   WorkspaceAccess,
 } from '@injishi/contracts';
@@ -18,6 +23,14 @@ import {
 
 import { assertOwned } from '../../../shared/auth/assert-owned';
 import {
+  isSellable,
+  missingRra,
+  priceLine,
+  readOptions,
+  snapshotsOf,
+  unclassifiedSentence,
+} from '../domain/sellable-item';
+import {
   type ChargeDraft,
   FolioRepository,
 } from '../infrastructure/folio.repository';
@@ -25,14 +38,20 @@ import { accountCodeFor } from '../infrastructure/ledger-posting';
 import {
   type ItemRow,
   type OrderItemRow,
+  type OrderLineDraft,
   type OrderRow,
   ServiceCatalogRepository,
 } from '../infrastructure/service-catalog.repository';
+import { OrderPaymentService } from './order-payment.service';
 
 /**
  * `submitted -> acknowledged -> in_progress -> ready -> delivered ->
  * completed`, plus `submitted -> rejected`, and anything before `delivered` to
  * `cancelled` (§14.7).
+ *
+ * A pay now order waiting for its money may only be cancelled from the board.
+ * It reaches `submitted` by being PAID, through the cash mark or a settled
+ * mobile money prompt, and never by a status move somebody typed.
  */
 const ORDER_TRANSITIONS: Readonly<
   Record<ServiceOrderStatus, ServiceOrderStatus[]>
@@ -45,28 +64,35 @@ const ORDER_TRANSITIONS: Readonly<
   completed: [],
   cancelled: [],
   rejected: [],
+  pending_payment: ['cancelled'],
+  payment_failed: ['cancelled'],
 };
 
 /** Reaching either of these puts the order on the bill. */
 const FULFILLED = new Set<ServiceOrderStatus>(['delivered', 'completed']);
 
 /**
- * The menu and the orders placed against it (ADR-016 slice 7).
+ * The menu and the orders placed against it (ADR-016 slice 7, ADR-050 slice 3).
  *
- * Two things here are worth reading twice:
+ * Three things here are worth reading twice:
  *
- * 1. **An order snapshots its prices** (D8). The name, the unit price and the
- *    tax code are copied onto the order line at the moment it is placed, so
- *    editing the menu never rewrites a bill that was already run.
+ * 1. **An order snapshots its prices** (D8, AC-23). The name, the unit price,
+ *    the chosen modifiers and the tax code are copied onto the order line at
+ *    the moment it is placed, so editing the menu never rewrites a bill.
  * 2. **Fulfilment posts the folio charge in the same transaction** as the
  *    status move (§14.7). Splitting them is how a delivered order ends up with
  *    nothing on the bill, and nobody notices until the guest checks out.
+ * 3. **Nothing sells without its RRA codes, on any channel** (ADR-050 D-m,
+ *    amended). Refused when an item is turned orderable, and again when any
+ *    order names it, because an item on sale before the codes existed is still
+ *    flagged orderable and must not reach a receipt the Authority refuses.
  */
 @Injectable()
 export class ServiceCatalogService {
   constructor(
     private readonly catalog: ServiceCatalogRepository,
     private readonly folios: FolioRepository,
+    private readonly payments: OrderPaymentService,
   ) {}
 
   /** The whole menu, grouped, which is the only way anyone reads it. */
@@ -78,15 +104,26 @@ export class ServiceCatalogService {
         id: c.id,
         departmentId: c.departmentId,
         departmentName: c.departmentName,
+        outletId: c.outletId,
         name: c.name,
         sortOrder: c.sortOrder,
         guestVisible: c.guestVisible,
         status: c.status,
+        defaultRraItemClsCd: c.defaultRraItemClsCd,
+        defaultRraItemTyCd: c.defaultRraItemTyCd,
+        defaultRraPkgUnitCd: c.defaultRraPkgUnitCd,
+        defaultRraQtyUnitCd: c.defaultRraQtyUnitCd,
+        defaultTaxCode: c.defaultTaxCode,
         items: items
           .filter((i) => i.serviceCategoryId === c.id)
           .map((i) => this.presentItem(i)),
       })),
     };
+  }
+
+  /** The menu's classification picker (ADR-050 D-m). */
+  async classifications(q: string): Promise<RraClassificationList> {
+    return { classifications: await this.catalog.searchClassifications(q) };
   }
 
   async createCategory(
@@ -102,14 +139,53 @@ export class ServiceCatalogService {
         'A menu belongs to a revenue centre. That department is a cost centre.',
       );
     }
+    if (department.propertyId && department.propertyId !== body.propertyId) {
+      throw new UnprocessableEntityException('That department belongs to a different property.');
+    }
+    const outletId = await this.resolveOutlet(ws, body.outletId, body.propertyId);
+    await this.assertClassification(body.defaultRraItemClsCd);
+
     const id = await this.catalog.createCategory({
       workspaceId: ws.workspaceId,
-      request: body,
+      propertyId: body.propertyId,
+      departmentId: body.departmentId,
+      outletId,
+      name: body.name,
+      guestVisible: body.guestVisible ?? true,
+      sortOrder: body.sortOrder ?? 500,
+      defaultRraItemClsCd: body.defaultRraItemClsCd ?? null,
+      defaultRraItemTyCd: body.defaultRraItemTyCd ?? null,
+      defaultRraPkgUnitCd: body.defaultRraPkgUnitCd ?? null,
+      defaultRraQtyUnitCd: body.defaultRraQtyUnitCd ?? null,
+      defaultTaxCode: body.defaultTaxCode ?? null,
     });
     if (!id) throw this.vanished();
     return this.menu(ws);
   }
 
+  async updateCategory(
+    ws: WorkspaceAccess,
+    id: string,
+    patch: UpdateServiceCategoryRequest,
+  ): Promise<OperatorServiceCatalog> {
+    const category = assertOwned(await this.catalog.findCategory(id), ws);
+    const outletId =
+      patch.outletId === undefined
+        ? undefined
+        : await this.resolveOutlet(ws, patch.outletId, category.propertyId);
+    await this.assertClassification(patch.defaultRraItemClsCd);
+    await this.catalog.updateCategory(category.id, { ...patch, outletId });
+    return this.menu(ws);
+  }
+
+  /**
+   * Add an item (ADR-050 D-m).
+   *
+   * The RRA values it leaves out are prefilled from its category. Turning it
+   * orderable without every one is refused; left unsaid, it is orderable
+   * exactly when it can be sold. Its `itemCd` is minted as soon as it holds a
+   * product type and both units.
+   */
   async createItem(
     ws: WorkspaceAccess,
     body: UpsertServiceItemRequest,
@@ -128,23 +204,72 @@ export class ServiceCatalogService {
       );
     }
 
+    const codes = {
+      rraItemClsCd: body.rraItemClsCd ?? category.defaultRraItemClsCd,
+      rraItemTyCd: body.rraItemTyCd ?? category.defaultRraItemTyCd,
+      rraPkgUnitCd: body.rraPkgUnitCd ?? category.defaultRraPkgUnitCd,
+      rraQtyUnitCd: body.rraQtyUnitCd ?? category.defaultRraQtyUnitCd,
+    };
+    await this.assertClassification(codes.rraItemClsCd ?? undefined);
+    // The code is minted after insert, so "could be sold" counts it as coming.
+    const couldSell = isSellable({ ...codes, rraItemCd: mintable(codes) ? 'pending' : null });
+    if (body.guestOrderable === true && !couldSell) {
+      throw this.notSellable(body.name, { ...codes, rraItemCd: null });
+    }
+
     const id = await this.catalog.createItem({
       workspaceId: ws.workspaceId,
+      serviceCategoryId: category.id,
       departmentId: category.departmentId,
       propertyId: department.propertyId,
-      request: body,
+      name: body.name,
+      description: body.description ?? null,
+      priceRwf: body.priceRwf,
+      taxCode: body.taxCode ?? category.defaultTaxCode ?? 'TAX_B',
+      fulfillmentType: body.fulfillmentType ?? 'in_room_delivery',
+      prepTimeMinutes: body.prepTimeMinutes ?? null,
+      guestOrderable: body.guestOrderable ?? couldSell,
+      stockQty: body.stockQty ?? null,
+      status: body.status ?? 'active',
+      options: body.options ?? [],
+      ...codes,
     });
     if (!id) throw this.vanished();
+    await this.catalog.mintItemCode(id);
     return this.menu(ws);
   }
 
+  /**
+   * Change an item. Refused with 422 when the change would leave it orderable
+   * without its RRA values, which covers turning it on and nothing else: an
+   * item already on sale without them stays flagged, and is refused where it
+   * is ordered instead.
+   */
   async updateItem(
     ws: WorkspaceAccess,
     id: string,
-    patch: Partial<UpsertServiceItemRequest>,
+    patch: UpdateServiceItemRequest,
   ): Promise<OperatorServiceCatalog> {
     const item = assertOwned(await this.catalog.findItem(id), ws);
+    await this.assertClassification(patch.rraItemClsCd);
+
+    const next = {
+      rraItemClsCd: patch.rraItemClsCd ?? item.rraItemClsCd,
+      rraItemTyCd: patch.rraItemTyCd ?? item.rraItemTyCd,
+      rraPkgUnitCd: patch.rraPkgUnitCd ?? item.rraPkgUnitCd,
+      rraQtyUnitCd: patch.rraQtyUnitCd ?? item.rraQtyUnitCd,
+      rraItemCd: item.rraItemCd,
+    };
+    const couldSell = isSellable({
+      ...next,
+      rraItemCd: next.rraItemCd ?? (mintable(next) ? 'pending' : null),
+    });
+    if (patch.guestOrderable === true && !couldSell) {
+      throw this.notSellable(patch.name ?? item.name, next);
+    }
+
     await this.catalog.updateItem(item.id, patch);
+    await this.catalog.mintItemCode(item.id);
     return this.menu(ws);
   }
 
@@ -157,13 +282,13 @@ export class ServiceCatalogService {
   }
 
   /**
-   * Place an order against a stay.
+   * Place an order on a guest's behalf.
    *
    * The DEPARTMENT is not asked for: it comes from the items, because an item
    * carries its own department and a caller who could choose would eventually
    * route a club sandwich to Engineering. Every item on one order has to belong
-   * to the same department, which is what "an order routes to a department"
-   * means in practice.
+   * to the same department, and a pay now order to the same outlet as well,
+   * because an outlet is whose TIN signs it.
    */
   async createOrder(
     ws: WorkspaceAccess,
@@ -179,10 +304,10 @@ export class ServiceCatalogService {
       }
     }
 
-    const stay = assertOwned(
-      await this.catalog.folioForStay(body.guestStayId),
-      ws,
-    );
+    const stay =
+      body.context === 'in_house_folio' && body.guestStayId
+        ? assertOwned(await this.catalog.folioForStay(body.guestStayId), ws)
+        : null;
 
     const rates = await this.folios.effectiveTaxRates(new Date());
     if (!rates) {
@@ -191,13 +316,10 @@ export class ServiceCatalogService {
       );
     }
 
-    const lines: Parameters<ServiceCatalogRepository['createOrder']>[0]['lines'] =
-      [];
-    let departmentId: string | null = null;
+    const lines: OrderLineDraft[] = [];
+    let first: ItemRow | null = null;
     let subtotalRwf = 0;
     let taxRwf = 0;
-    let fulfillmentType: OperatorServiceOrder['fulfillmentType'] =
-      'in_room_delivery';
 
     for (const requested of body.items) {
       const item = assertOwned(
@@ -207,13 +329,21 @@ export class ServiceCatalogService {
       if (item.status !== 'active') {
         throw new ConflictException(`${item.name} is not available right now.`);
       }
-      departmentId ??= item.departmentId;
-      if (departmentId !== item.departmentId) {
+      if (!isSellable(item)) {
+        throw new UnprocessableEntityException(unclassifiedSentence(item.name));
+      }
+      first ??= item;
+      if (first.departmentId !== item.departmentId) {
         throw new UnprocessableEntityException(
           'Everything on one order has to come from the same department. Split it.',
         );
       }
-      fulfillmentType = item.fulfillmentType;
+      // One order, one taxpayer (contract 1), so one outlet.
+      if (first.outletId !== item.outletId) {
+        throw new UnprocessableEntityException(
+          'Everything on one order has to come from the same outlet. Split it.',
+        );
+      }
 
       const rate = rates[item.taxCode];
       if (typeof rate !== 'number') {
@@ -221,35 +351,46 @@ export class ServiceCatalogService {
           `The effective tax rates do not cover ${item.taxCode}.`,
         );
       }
-      const lineTotalRwf = item.priceRwf * requested.quantity;
-      subtotalRwf += lineTotalRwf;
-      taxRwf += Math.round(lineTotalRwf * rate);
+      const priced = priceLine(item, requested.quantity, requested.selectedOptions);
+      if (!priced.ok) throw new UnprocessableEntityException(priced.problem);
+      subtotalRwf += priced.lineTotalRwf;
+      taxRwf += Math.round(priced.lineTotalRwf * rate);
 
       lines.push({
         serviceItemId: item.id,
         // Locked at order time. The menu may change tomorrow; this bill may not.
         nameSnapshot: item.name,
         quantity: requested.quantity,
-        unitPriceRwf: item.priceRwf,
-        lineTotalRwf,
+        unitPriceRwf: priced.unitPriceRwf,
+        lineTotalRwf: priced.lineTotalRwf,
         taxCode: item.taxCode,
         taxRate: String(rate),
+        selectedOptions: priced.selectedOptions,
         note: requested.note ?? null,
       });
     }
-    if (!departmentId) {
+    if (!first) {
       throw new UnprocessableEntityException('An order needs at least one item.');
     }
 
+    const propertyId = stay?.propertyId ?? first.propertyId;
+    // The outlet the items sell from, which is whose TIN signs the order.
+    const outletId = first.outletId;
+    const taxEntityOrgId = await this.catalog.taxEntityFor({ outletId, propertyId });
+    if (!taxEntityOrgId) throw this.vanished();
+
     const id = await this.catalog.createOrder({
       workspaceId: ws.workspaceId,
-      propertyId: stay.propertyId,
-      departmentId,
-      folioId: stay.folioId,
-      guestStayId: body.guestStayId,
-      roomId: stay.roomId,
+      propertyId,
+      departmentId: first.departmentId,
+      orderContext: body.context,
+      folioId: stay?.folioId ?? null,
+      guestStayId: stay ? body.guestStayId! : null,
+      roomId: stay?.roomId ?? null,
+      taxEntityOrgId,
+      outletId,
       channel: body.channel ?? 'front_desk',
-      fulfillmentType,
+      fulfillmentType: first.fulfillmentType,
       guestNote: body.guestNote ?? null,
       idempotencyKey: key,
       subtotalRwf,
@@ -269,7 +410,7 @@ export class ServiceCatalogService {
    * Reaching `delivered` posts the bill line, in the same transaction, once.
    * Moving on to `completed` posts nothing further: the charge went on at
    * delivery and posting again would bill the guest twice for one club
-   * sandwich.
+   * sandwich. A pay now order has no bill and posts nothing.
    */
   async advanceOrder(
     ws: WorkspaceAccess,
@@ -280,6 +421,11 @@ export class ServiceCatalogService {
     const order = assertOwned(await this.catalog.findOrder(id), ws);
     if (order.status === body.to) {
       return this.presentOrder(order, await this.catalog.listOrderItems([id]));
+    }
+    if (order.status === 'pending_payment' && body.to !== 'cancelled') {
+      throw new ConflictException(
+        'This order has not been paid for yet. Mark it paid in cash, or wait for the mobile money payment.',
+      );
     }
     if (!ORDER_TRANSITIONS[order.status].includes(body.to)) {
       throw new ConflictException(
@@ -293,7 +439,7 @@ export class ServiceCatalogService {
       drafts: ChargeDraft[];
     } | null = null;
 
-    if (FULFILLED.has(body.to) && order.folioId) {
+    if (FULFILLED.has(body.to) && order.orderContext === 'in_house_folio' && order.folioId) {
       const alreadyCharged = await this.catalog.isAlreadyCharged(order.id);
       if (!alreadyCharged) {
         charge = await this.buildOrderCharge(ws, order);
@@ -312,6 +458,55 @@ export class ServiceCatalogService {
     const updated = await this.catalog.findOrder(id);
     if (!updated) throw this.vanished();
     return this.presentOrder(updated, await this.catalog.listOrderItems([id]));
+  }
+
+  /**
+   * Mark a pay now order paid in CASH (ADR-050 D-p, AC-24).
+   *
+   * The amount must be exactly the order's total: the person holding the cash
+   * confirms the number they took, and a mismatch is refused rather than
+   * recorded. Records who took it and RRA means of payment `01`, moves the order
+   * to the board and raises its `NS`, all in one transaction.
+   *
+   * A repeat of a cash mark that already landed answers with the first,
+   * whatever key it carries, because both describe the one payment: the replay
+   * is decided by the order's own state and the `NS` key, so the route requires
+   * an `Idempotency-Key` like every command here that moves money and this
+   * method needs nothing from it.
+   */
+  async markPaidCash(
+    ws: WorkspaceAccess,
+    id: string,
+    body: MarkOrderPaidCashRequest,
+    actorUserId: string,
+  ): Promise<MarkOrderPaidCashResult> {
+    const order = assertOwned(await this.catalog.findOrder(id), ws);
+    if (order.orderContext !== 'pay_now') {
+      throw new ConflictException('This order is charged to a room. Take the payment on the bill.');
+    }
+    if (body.amountRwf !== order.totalRwf) {
+      throw new UnprocessableEntityException(
+        `This order comes to ${order.totalRwf.toLocaleString('en-RW')} RWF, not ${body.amountRwf.toLocaleString('en-RW')} RWF. Take exactly the total.`,
+      );
+    }
+
+    const outcome = await this.payments.settle(order.id, {
+      method: '01',
+      markedByUserId: actorUserId,
+      paymentAttemptId: null,
+    });
+    if (outcome.kind === 'not_pending') {
+      throw new ConflictException(
+        `This order is ${outcome.status.replace('_', ' ')}, so it cannot be marked paid.`,
+      );
+    }
+
+    const updated = await this.catalog.findOrder(id);
+    if (!updated) throw this.vanished();
+    return {
+      ...this.presentOrder(updated, await this.catalog.listOrderItems([id])),
+      emissionId: outcome.emissionId,
+    };
   }
 
   /**
@@ -342,6 +537,11 @@ export class ServiceCatalogService {
         chargeType: 'service_order',
         description: `Order ${order.orderNumber}`,
         departmentId: order.departmentId,
+        // The outlet is THE answer to whose TIN this line belongs to (ADR-050,
+        // contract 1); the charge resolver reads its tax entity from here, and
+        // the order's own copy of it names the same org.
+        outletId: order.outletId,
+        taxEntityOrgId: order.taxEntityOrgId,
         quantity: 1,
         unitPriceRwf: order.subtotalRwf,
         amountRwf: order.subtotalRwf,
@@ -362,6 +562,10 @@ export class ServiceCatalogService {
         chargeType: 'tax',
         description: `Tax on order ${order.orderNumber}`,
         departmentId: null,
+        // Its `source_ref_id` names the ORDER, not a charge, so the resolver
+        // could not inherit through it; the order carries the taxpayer instead.
+        outletId: order.outletId,
+        taxEntityOrgId: order.taxEntityOrgId,
         quantity: 1,
         unitPriceRwf: order.taxRwf,
         amountRwf: order.taxRwf,
@@ -380,6 +584,46 @@ export class ServiceCatalogService {
     return { folioId: order.folioId, workspaceId: ws.workspaceId, drafts };
   }
 
+  /** An outlet this workspace holds, at this property, or a 422 naming why not. */
+  private async resolveOutlet(
+    ws: WorkspaceAccess,
+    outletId: string | null | undefined,
+    propertyId: string,
+  ): Promise<string | null> {
+    if (!outletId) return null;
+    const outlet = assertOwned(await this.catalog.findOutlet(outletId), ws);
+    if (outlet.propertyId !== propertyId) {
+      throw new UnprocessableEntityException('That outlet belongs to a different property.');
+    }
+    return outlet.id;
+  }
+
+  /** A classification code must be on RRA's list and still in use. */
+  private async assertClassification(code: string | null | undefined): Promise<void> {
+    if (!code) return;
+    if (!(await this.catalog.classificationIsActive(code))) {
+      throw new UnprocessableEntityException(
+        `${code} is not an active code on RRA's classification list. Pick one from the list.`,
+      );
+    }
+  }
+
+  private notSellable(
+    name: string,
+    codes: Parameters<typeof missingRra>[0],
+  ): UnprocessableEntityException {
+    const missing = missingRra(codes).filter((f) => f !== 'itemCode');
+    const words: Record<string, string> = {
+      classification: 'a classification',
+      productType: 'a product type',
+      packagingUnit: 'a packaging unit',
+      quantityUnit: 'a quantity unit',
+    };
+    return new UnprocessableEntityException(
+      `${name} cannot be put on sale without ${missing.map((f) => words[f]).join(', ')}. A receipt the Authority accepts needs every one.`,
+    );
+  }
+
   private presentItem(row: ItemRow): OperatorServiceItem {
     return {
       id: row.id,
@@ -394,6 +638,14 @@ export class ServiceCatalogService {
       guestOrderable: row.guestOrderable,
       stockQty: row.stockQty,
       status: row.status,
+      options: readOptions(row.options),
+      rraItemClsCd: row.rraItemClsCd,
+      rraItemClsName: row.rraItemClsName,
+      rraItemTyCd: row.rraItemTyCd,
+      rraItemCd: row.rraItemCd,
+      rraPkgUnitCd: row.rraPkgUnitCd,
+      rraQtyUnitCd: row.rraQtyUnitCd,
+      missingRra: missingRra(row),
     };
   }
 
@@ -406,15 +658,19 @@ export class ServiceCatalogService {
       orderNumber: row.orderNumber,
       departmentId: row.departmentId,
       departmentName: row.departmentName,
+      outletId: row.outletId,
       folioId: row.folioId,
       roomId: row.roomId,
       roomLabel: row.roomLabel,
       channel: row.channel,
       status: row.status,
+      orderContext: row.orderContext,
       fulfillmentType: row.fulfillmentType,
       subtotalRwf: row.subtotalRwf,
       taxRwf: row.taxRwf,
       totalRwf: row.totalRwf,
+      paidAt: row.paidAt?.toISOString() ?? null,
+      paymentMethod: row.paymentMethod,
       guestNote: row.guestNote,
       createdAt: row.createdAt.toISOString(),
       items: lines
@@ -428,6 +684,7 @@ export class ServiceCatalogService {
           lineTotalRwf: l.lineTotalRwf,
           taxCode: l.taxCode,
           note: l.note,
+          selectedOptions: snapshotsOf(l.selectedOptions),
         })),
     };
   }
@@ -437,4 +694,9 @@ export class ServiceCatalogService {
       'That record changed while we were writing it. Refresh and try again.',
     );
   }
+}
+
+/** Whether an item's code can be minted: it holds a product type and both units. */
+function mintable(codes: { rraItemTyCd: string | null; rraPkgUnitCd: string | null; rraQtyUnitCd: string | null }): boolean {
+  return Boolean(codes.rraItemTyCd && codes.rraPkgUnitCd && codes.rraQtyUnitCd);
 }

@@ -1,3 +1,4 @@
+import { PAYMENT_PROMPT_TTL_SECONDS } from '@injishi/contracts';
 import { Injectable, Logger } from '@nestjs/common';
 
 import {
@@ -63,10 +64,12 @@ import {
  * payer number ending `0000` is DECLINED, so the refusal path is walkable
  * without editing code.
  *
- * Its memory is per process and disappears on restart. That is correct for a
- * mock: durable money state belongs in the database, which is where the
- * `escrows` and `ledger_transactions` rows already are. This object stands in
- * for the PROVIDER's memory, not ours.
+ * Its idempotency memory is per process and disappears on restart. That is
+ * correct for a mock: durable money state belongs in the database, which is
+ * where the `escrows` and `ledger_transactions` rows already are. This object
+ * stands in for the PROVIDER's memory, not ours. The one fact every process
+ * must agree on, whether a capture has settled, travels in its reference
+ * instead (`encodeCaptureRef`).
  */
 /**
  * How long the imaginary customer takes to approve the prompt.
@@ -75,14 +78,54 @@ import {
  * looked at, short enough that walking the flow is not a chore. `0` settles on
  * the first poll, which is what the tests set.
  */
-function approvalDelayMs(): number {
+function approvalDelayMs(msisdn: string): number {
+  // The slow approver: approves just AFTER the prompt window. It is what lets a
+  // lapsed hold, and the guest who loses the room to it, be walked end to end.
+  if (msisdn.endsWith(LATE_APPROVER_SUFFIX)) {
+    const raw = Number(process.env.MOCK_MOMO_LATE_APPROVAL_MS ?? (PAYMENT_PROMPT_TTL_SECONDS + 20) * 1_000);
+    return Number.isFinite(raw) && raw >= 0 ? raw : (PAYMENT_PROMPT_TTL_SECONDS + 20) * 1_000;
+  }
   const raw = Number(process.env.MOCK_MOMO_APPROVAL_MS ?? 6_000);
   return Number.isFinite(raw) && raw >= 0 ? raw : 6_000;
 }
 
-/** `mock_escrow_capture_<key>` → `<key>`. The inverse of how a ref is minted. */
-function keyFromRef(adapterRef: string): string {
-  return adapterRef.replace(/^mock_escrow_capture_/, '');
+/** A payer number ending in this approves after the prompt window has closed. */
+export const LATE_APPROVER_SUFFIX = '9999';
+
+const CAPTURE_REF_PREFIX = 'mock_escrow_capture_';
+
+/**
+ * What a capture reference carries, so any process can read it back.
+ *
+ * The API runs as two processes, HTTP and worker, and each holds its own
+ * instance of this adapter. A capture made by the HTTP process used to be
+ * unknown to the worker, so the worker's sweep read every guest's pending
+ * payment as "no such transaction" (booking audit, 2026-09-13). A real
+ * provider's record is shared by every caller; the mock gets the same property
+ * by writing what it would have remembered INTO the reference it hands out:
+ * the key, the workspace, when the imaginary customer approves, and the amount.
+ * `~` appears in none of them.
+ */
+interface CaptureRef {
+  key: string;
+  workspaceId: string;
+  settlesAt: number;
+  amountRwf: number;
+}
+
+export function encodeCaptureRef(ref: CaptureRef): string {
+  return `${CAPTURE_REF_PREFIX}${ref.key}~${ref.workspaceId}~${ref.settlesAt}~${ref.amountRwf}`;
+}
+
+export function decodeCaptureRef(adapterRef: string): CaptureRef | null {
+  if (!adapterRef.startsWith(CAPTURE_REF_PREFIX)) return null;
+  const parts = adapterRef.slice(CAPTURE_REF_PREFIX.length).split('~');
+  if (parts.length !== 4) return null;
+  const [key, workspaceId, settlesAt, amountRwf] = parts as [string, string, string, string];
+  const at = Number(settlesAt);
+  const amount = Number(amountRwf);
+  if (!key || !workspaceId || !Number.isFinite(at) || !Number.isInteger(amount)) return null;
+  return { key, workspaceId, settlesAt: at, amountRwf: amount };
 }
 
 @Injectable()
@@ -111,23 +154,19 @@ export class MockPaymentAdapter implements PaymentPort {
   >();
 
   /**
-   * When a pending capture becomes settled, keyed by the provider's reference.
-   *
-   * This is the imaginary customer reaching for their phone. `fetchTransaction`
-   * compares it against the clock, so nothing here needs a timer — a poll that
-   * arrives after the moment reads settled, and one that arrives before does
-   * not. No `setTimeout` to leak, and it behaves identically under a test that
-   * fakes time.
-   */
-  private readonly settlesAt = new Map<string, number>();
-
-  /**
    * A mobile money capture waits on a handset; everything else settles now.
    *
    * The decline hook is the payer's own number: one ending `0000` is refused,
    * so the "your payment was declined" path can be walked from the checkout
    * without touching code or config. Real providers publish test numbers that
-   * work exactly this way.
+   * work exactly this way. One ending `9999` approves only after the prompt
+   * window, which is the other path worth walking.
+   *
+   * The moment the imaginary customer approves is written into the reference
+   * (see `encodeCaptureRef`), so `fetchTransaction` compares it against the
+   * clock: no timer to leak, identical under a test that fakes time, and the
+   * same answer from every process. A replay returns the original receipt and
+   * so never restarts the customer's clock.
    */
   async captureEscrow(command: CaptureEscrowCommand): Promise<PaymentReceipt> {
     const { instrument } = command;
@@ -139,14 +178,7 @@ export class MockPaymentAdapter implements PaymentPort {
           command.idempotencyKey,
         );
       }
-
-      const receipt = await this.settle(command, 'pending');
-      // A replay must not restart the customer's clock, or a client polling
-      // once a second would keep a prompt pending for ever.
-      if (!receipt.replayed && !this.settlesAt.has(receipt.adapterRef)) {
-        this.settlesAt.set(receipt.adapterRef, Date.now() + approvalDelayMs());
-      }
-      return receipt;
+      return this.settle(command, 'pending', Date.now() + approvalDelayMs(instrument.msisdn));
     }
 
     return this.settle(command);
@@ -191,28 +223,38 @@ export class MockPaymentAdapter implements PaymentPort {
     workspaceId: string,
     adapterRef: string,
   ): Promise<PaymentReceipt | null> {
+    const decoded = decodeCaptureRef(adapterRef);
     const entry = this.byRef.get(adapterRef);
-    if (!entry || entry.workspaceId !== workspaceId) return null;
+
+    if (!entry) {
+      // Not made by THIS process. A capture reference carries what the
+      // provider would have remembered, so it is read from the reference, still
+      // workspace scoped. Anything else this process never issued is unknown.
+      if (!decoded || decoded.workspaceId !== workspaceId) return null;
+      return {
+        adapterRef,
+        mode: this.mode,
+        replayed: false,
+        amountRwf: decoded.amountRwf,
+        currency: 'RWF',
+        occurredAt: new Date(decoded.settlesAt),
+        settlement: Date.now() >= decoded.settlesAt ? 'settled' : 'pending',
+      };
+    }
+    if (entry.workspaceId !== workspaceId) return null;
 
     /*
      * The imaginary customer approving on their handset.
-     *
-     * Resolved by comparing a stored moment against the clock rather than by a
-     * timer, so there is nothing to leak, a restart simply forgets the whole
-     * provider's memory (which is correct for a mock), and a test that controls
-     * time controls this too.
      *
      * The settled receipt REPLACES the pending one in both maps, so a later
      * replay of the capture also reads settled — which is what a real provider
      * does, and what stops the booking path seeing a payment flip back to
      * pending after it has completed.
      */
-    const due = this.settlesAt.get(adapterRef);
-    if (entry.receipt.settlement === 'pending' && due !== undefined && Date.now() >= due) {
+    if (entry.receipt.settlement === 'pending' && decoded && Date.now() >= decoded.settlesAt) {
       const settled: PaymentReceipt = { ...entry.receipt, settlement: 'settled' };
       this.byRef.set(adapterRef, { ...entry, receipt: settled });
-      this.seen.set(`escrow_capture:${keyFromRef(adapterRef)}`, settled);
-      this.settlesAt.delete(adapterRef);
+      this.seen.set(`escrow_capture:${decoded.key}`, settled);
       this.log.debug(`mock handset approved ${adapterRef}`);
       return settled;
     }
@@ -235,6 +277,7 @@ export class MockPaymentAdapter implements PaymentPort {
   private async settle(
     command: PaymentCommand,
     settlement: PaymentReceipt['settlement'] = 'settled',
+    settlesAt: number = Date.now(),
   ): Promise<PaymentReceipt> {
     const { idempotencyKey, amountRwf } = command;
 
@@ -274,7 +317,10 @@ export class MockPaymentAdapter implements PaymentPort {
     }
 
     const receipt: PaymentReceipt = {
-      adapterRef: `mock_${command.kind}_${idempotencyKey}`,
+      adapterRef:
+        command.kind === 'escrow_capture'
+          ? encodeCaptureRef({ key: idempotencyKey, workspaceId: command.workspaceId, settlesAt, amountRwf })
+          : `mock_${command.kind}_${idempotencyKey}`,
       mode: this.mode,
       replayed: false,
       amountRwf,

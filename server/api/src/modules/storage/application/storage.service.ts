@@ -228,9 +228,80 @@ export class StorageService {
     };
   }
 
+  /**
+   * Store a training certificate PDF the PLATFORM generated (ADR-049, AC-13).
+   *
+   * It lives here rather than in the training module because this service owns
+   * the invariant in the class header: bytes and their `stored_objects` row are
+   * written as one act. A second writer of that table is how an object without
+   * a row eventually exists, and an object without a row is outside retention
+   * and outside legal hold.
+   *
+   * WHY IT IS NOT `putCertificate`. That method takes an UPLOAD: a scan or a
+   * photograph a person chose, so it checks a mime allowlist and a size
+   * ceiling, and neither check means anything here. These bytes were produced
+   * by `PdfCertificateRenderer` moments ago and are a PDF by construction. A
+   * mime allowlist exists to distrust a client, and there is no client.
+   *
+   * `keyHint` is the SERIAL, so re-rendering a certificate converges on the
+   * same key instead of orphaning the previous file in the store. A serial is
+   * unique and never reissued, which is exactly the property a stable key
+   * needs, and `stored_objects.object_key` being unique turns the second write
+   * into a no-op rather than a duplicate row.
+   */
+  async putTrainingCertificate(input: {
+    body: Buffer;
+    serial: string;
+    issuedByUserId: string;
+  }): Promise<string> {
+    const kind = 'training_certificate' as const;
+    const mime = 'application/pdf';
+
+    const put = await this.storage.put({
+      body: input.body,
+      mime,
+      filename: `${input.serial}.pdf`,
+      kind,
+      keyHint: input.serial.replace(/[^A-Za-z0-9]/g, ''),
+    });
+
+    await this.db
+      .insert(storedObjects)
+      .values({
+        objectKey: put.objectKey,
+        kind,
+        mime,
+        sizeBytes: put.sizeBytes,
+        // The trainer who ticked the roster. There is no uploader, and
+        // recording who caused the file to exist is the useful answer.
+        uploadedByUserId: input.issuedByUserId,
+        // No workspace. A certificate belongs to a PERSON, not to a business,
+        // which is also why the holder's business name is recorded on the
+        // certificate row and never printed.
+        workspaceId: null,
+      })
+      .onConflictDoNothing({ target: storedObjects.objectKey });
+
+    return put.objectKey;
+  }
+
   /** A short-lived read, for showing back what was attached. */
   signedUrl(objectKey: string, ttlSeconds = 300): Promise<string> {
     return this.storage.signedUrl(objectKey, ttlSeconds);
+  }
+
+  /**
+   * The bytes themselves, for a sender inside this process (ADR-049 AC-20).
+   *
+   * The one caller attaches an issued certificate to the mail announcing it.
+   * It reads the stored file rather than re-rendering, so the PDF in somebody's
+   * inbox is byte for byte the PDF a verifier can be shown.
+   *
+   * Never for a browser: that is `signedUrl`, and the short TTL on it is a
+   * security property rather than a convenience.
+   */
+  readBytes(objectKey: string): Promise<Buffer> {
+    return this.storage.get(objectKey);
   }
 
   /**

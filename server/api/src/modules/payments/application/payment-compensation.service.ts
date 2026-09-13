@@ -5,6 +5,8 @@ import { and, eq, isNull, lte, sql } from 'drizzle-orm';
 
 import { paymentCompensations } from '../../../database/drizzle/schema';
 import { DRIZZLE, type Database } from '../../../shared/database/database.module';
+import { reportAlarm } from '../../../shared/observability/error-reporter';
+import { queueJobId } from '../../../shared/queues/job-id';
 import { QUEUES } from '../../../shared/queues/queues.module';
 
 export type CompensationJob =
@@ -92,6 +94,12 @@ export class PaymentCompensationService {
           `workspace ${job.workspaceId}). Replay the operation on that key.`,
         err instanceof Error ? err.stack : undefined,
       );
+      reportAlarm(
+        'UNRECORDED_COMPENSATION',
+        'The database refused the row that records money that must move. Replay the operation on its key.',
+        { kind: job.kind, idempotencyKey: job.idempotencyKey, originalRef: job.originalRef, amountRwf: job.amountRwf, workspaceId: job.workspaceId },
+        err,
+      );
     }
 
     // 2. Then the wake-up. Failing here costs at most one drain interval.
@@ -118,7 +126,7 @@ export class PaymentCompensationService {
         ),
       );
     try {
-      const job = await this.queue.getJob(idempotencyKey);
+      const job = await this.queue.getJob(queueJobId(idempotencyKey));
       if (job) await job.remove();
     } catch {
       // Already running or already gone; the processor's escrow check is
@@ -180,7 +188,9 @@ export class PaymentCompensationService {
   private async wake(job: CompensationJob): Promise<boolean> {
     try {
       await this.queue.add(job.kind, job, {
-        jobId: job.idempotencyKey,
+        // Never the raw key: BullMQ refuses our four part keys as ids, which
+        // is how every void and refund used to be dropped (see queueJobId).
+        jobId: queueJobId(job.idempotencyKey),
         attempts: ATTEMPTS,
         backoff: { type: 'exponential', delay: BACKOFF_MS },
         removeOnComplete: false,
@@ -196,6 +206,14 @@ export class PaymentCompensationService {
         `Could not wake ${job.kind} on key ${job.idempotencyKey}; the row is ` +
           'recorded and the drain will retry. ' +
           (err instanceof Error ? err.message : String(err)),
+      );
+      // A warning, not a page: the row is durable. But a queue that refuses
+      // every wake (how the colon job ids failed for weeks) must be SEEN.
+      reportAlarm(
+        'QUEUE_WAKE_REFUSED',
+        'The queue refused to wake a recorded compensation; the drain will retry it.',
+        { kind: job.kind, idempotencyKey: job.idempotencyKey, workspaceId: job.workspaceId },
+        err,
       );
       return false;
     }

@@ -4,8 +4,10 @@ import {
   Building,
   ChartColumn,
   Flag,
+  GraduationCap,
   Languages,
   LayoutDashboard,
+  ClipboardList,
   Megaphone,
   ScrollText,
   Server,
@@ -14,6 +16,12 @@ import {
   Users,
   Wallet,
 } from "lucide-react";
+import {
+  staffAllows,
+  staffPermissionsForRoles,
+  type StaffPermission,
+} from "@injishi/contracts";
+
 import type { NavGroup, NavItem, NavKey, StaffRole } from "./types";
 
 /**
@@ -34,6 +42,16 @@ export const NAV: NavGroup[] = [
       { key: "businesses", label: "Businesses", icon: Building, roles: ["ops", "compliance"] },
       { key: "users", label: "Users", icon: Users, roles: ["ops"] },
       { key: "brokers", label: "Brokers", icon: Briefcase, roles: ["ops"] },
+      // ADR-049. In Operate because running a session is day-to-day work, not
+      // platform configuration.
+      //
+      // `roles: ["trainer"]` AND NOTHING ELSE, which makes this the first row
+      // in the register that `ops` cannot see. That is deliberate: only
+      // `trainer` and `super_admin` hold `training.view`, and `roleCanSee`
+      // already lets `super_admin` through every row. A `finance` staffer
+      // typing the URL is refused by the API, which is the control; this line
+      // is the affordance.
+      { key: "training", label: "Training", icon: GraduationCap, roles: ["trainer"] },
     ],
   },
   {
@@ -52,6 +70,10 @@ export const NAV: NavGroup[] = [
       { key: "environments", label: "Environments & adapters", icon: Server, roles: ["super_admin"] },
       { key: "moderation", label: "Moderation & support", icon: Flag, roles: ["ops"] },
       { key: "announcements", label: "Announcements", icon: Megaphone, roles: ["super_admin"] },
+      // ADR-048. Beside Announcements because it is the other thing staff
+      // reach for when they are about to tell a lot of people something at
+      // once. Deleted at launch along with the section behind it.
+      { key: "waitlist", label: "Waitlist", icon: ClipboardList, roles: ["super_admin", "ops"] },
       { key: "analytics", label: "Analytics & insights", icon: ChartColumn, roles: "all" },
       { key: "localization", label: "Localization", icon: Languages, roles: ["super_admin", "ops"] },
     ],
@@ -92,8 +114,105 @@ export const CONFIGURATION_SUBNAV: {
   },
 ];
 
-/** Route guards hide what a role cannot reach (Super Admin sees everything). */
+/**
+ * The permission each console section needs to be reached at all (ADR-049
+ * AC-25).
+ *
+ * THE ONE REGISTER. `section-boundary.tsx` refuses a route from this map and
+ * `roleCanSee` below hides a sidebar row from the same map, so the sidebar can
+ * never offer a row the route then refuses. The parallel `SCREEN_PERMISSION`
+ * map that `apps/app` deleted (Spec 0002, D-e) is the shape to avoid: two
+ * registers of one fact drift, and the one that drifts is always the one
+ * nothing enforces.
+ *
+ * Every value here is the permission the API ALREADY declares on that
+ * section's controller, never a new invention — the console must not be wider
+ * than the boundary, and a console narrower than the boundary is a section a
+ * staffer is entitled to and cannot open.
+ *
+ * Two entries are worth reading twice:
+ *
+ * `waitlist` borrows `admin.overview.view`, exactly as
+ * `waitlist-admin.controller.ts` does, and for the reason recorded there:
+ * ADR-048 defined no waitlist permission, and `admin.overview.view` sits in
+ * `OBSERVE`, which every PLATFORM staff role holds. So the route admits any
+ * platform staffer, which is what the API admits. The sidebar still shows the
+ * row to `super_admin` and `ops` only; that narrowing is the affordance the
+ * controller already calls an affordance, and narrowing is always safe.
+ *
+ * `training` is the one row keyed on a `training.*` power rather than an
+ * `admin.*` one, which is what makes `trainer` the first staff role that
+ * reaches exactly one section. It is also why the three rows this console used
+ * to mark `roles: "all"` are NOT reachable by a trainer: `all` meant "all four
+ * platform roles" when it was written, and a trainer holds no `admin.*`
+ * permission at all (ADR-049 AC-24).
+ *
+ * ADR-049 says fourteen sections. There are SIXTEEN: `waitlist` arrived with
+ * ADR-048 and `training` with ADR-049 itself, both after that sentence was
+ * written. The guard covers what is on disk, not what the count says.
+ *
+ * Nothing has to remember to add the seventeenth row, and that is by
+ * construction rather than by discipline: `Record<NavKey, StaffPermission>` is
+ * exhaustive, so a new `NavKey` fails the typecheck until it has a permission
+ * here, and a section directory added under `app/` with no `NavKey` at all is
+ * a `notFound()` from `section-boundary.tsx` on its first visit. Both ends
+ * fail closed, which is the only reason this map can be the only register.
+ */
+export const SECTION_PERMISSION: Readonly<Record<NavKey, StaffPermission>> = {
+  overview: "admin.overview.view",
+  businesses: "admin.business.view",
+  users: "admin.user.view",
+  brokers: "admin.broker.view",
+  training: "training.view",
+  finance: "admin.finance.view",
+  compliance: "admin.compliance.view",
+  audit: "admin.audit.read",
+  "system-health": "admin.system.view",
+  configuration: "admin.config.edit",
+  environments: "admin.environment.manage",
+  moderation: "admin.moderation.act",
+  announcements: "admin.announcement.publish",
+  waitlist: "admin.overview.view",
+  analytics: "admin.analytics.view",
+  localization: "admin.localization.edit",
+};
+
+/** The label the refusal screen names the section by. One register, again. */
+export function sectionLabel(key: NavKey): string {
+  return NAV_ITEMS.find((item) => item.key === key)?.label ?? key;
+}
+
+/**
+ * May this resolved permission set open this section?
+ *
+ * Takes the permissions the SERVER resolved (`StaffAccess.permissions`), never
+ * a role: a client that turns a role into powers holds its own copy of the
+ * table and drifts from the server's, which is the bug ADR-012 removed on the
+ * org side. `roleCanSee` below is the one place a role is expanded, and it
+ * expands it for a SIDEBAR, which is an affordance.
+ */
+export function sectionAllows(
+  permissions: readonly StaffPermission[],
+  key: NavKey,
+): boolean {
+  return staffAllows(permissions, SECTION_PERMISSION[key]);
+}
+
+/**
+ * Which sidebar rows a role lens draws.
+ *
+ * TWO tests, and the order matters. The permission decides whether the section
+ * can be reached at all, from the same map the route guard reads — so a row
+ * that would refuse on click is never drawn. The `roles` list may then narrow
+ * further, and only narrow: it is the affordance, and `waitlist` is the one row
+ * that uses it (see `SECTION_PERMISSION`).
+ *
+ * `super_admin` skips the second test because it holds every permission and the
+ * lens exists so that it can look at the console as somebody else; it is not
+ * skipped on the first, because it passes that one anyway.
+ */
 export function roleCanSee(role: StaffRole, item: NavItem): boolean {
+  if (!sectionAllows(staffPermissionsForRoles([role]), item.key)) return false;
   if (role === "super_admin" || item.roles === "all") return true;
   return item.roles.includes(role);
 }

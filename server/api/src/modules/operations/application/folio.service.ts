@@ -1,8 +1,11 @@
 import type {
+  CloseFolioRequest,
+  CloseFolioResult,
   OperatorFolio,
   OperatorFolioCharge,
   OperatorFolioDetail,
   PostChargeRequest,
+  PostChargeResult,
   TakePaymentRequest,
   TaxCode,
   VoidChargeRequest,
@@ -16,9 +19,12 @@ import {
 } from '@nestjs/common';
 
 import { assertOwned } from '../../../shared/auth/assert-owned';
+import { EbmSaleTrigger } from '../../ebm/application/ebm-sale-trigger.service';
+import { DeclarationPlanService } from './declaration-plan.service';
 import {
   type ChargeDraft,
   type ChargeRow,
+  type CloseDeclarationPlan,
   type FolioRow,
   FolioRepository,
 } from '../infrastructure/folio.repository';
@@ -45,7 +51,11 @@ const DEFAULT_TAX_CODE: TaxCode = 'TAX_B';
  */
 @Injectable()
 export class FolioService {
-  constructor(private readonly folios: FolioRepository) {}
+  constructor(
+    private readonly folios: FolioRepository,
+    private readonly sales: EbmSaleTrigger,
+    private readonly plans: DeclarationPlanService,
+  ) {}
 
   /**
    * Open the pre-arrival folio for a booking that has just been confirmed
@@ -114,19 +124,32 @@ export class FolioService {
     body: PostChargeRequest,
     userId: string,
     clientKey: string,
-  ): Promise<OperatorFolioDetail> {
+  ): Promise<PostChargeResult> {
     const key = this.scopedKey(ws, clientKey);
     const replay = await this.folios.findChargeByIdempotencyKey(key);
     if (replay) {
+      // A late charge that already moved to the stay's next bill is still the
+      // same command: compare it against the bill it actually landed on.
+      const asked = assertOwned(await this.folios.findFolio(folioId), ws);
+      const landed = await this.folios.findFolio(replay.folioId);
+      const sameStay =
+        replay.folioId !== folioId &&
+        asked.guestStayId !== null &&
+        landed?.guestStayId === asked.guestStayId;
       this.assertSameCommand(replay, {
-        folioId,
+        folioId: sameStay ? replay.folioId : folioId,
         chargeType: body.chargeType,
         amountRwf: body.amountRwf,
       });
-      return this.detail(ws, replay.folioId);
+      return {
+        ...(await this.detail(ws, replay.folioId)),
+        openedFolioId: sameStay ? replay.folioId : null,
+      };
     }
 
-    const folio = this.openFolio(assertOwned(await this.folios.findFolio(folioId), ws));
+    const folio = this.lateChargeTarget(
+      assertOwned(await this.folios.findFolio(folioId), ws),
+    );
 
     const departmentId = await this.resolveDepartment(ws, body, folio);
     const departmentCategory = departmentId
@@ -167,23 +190,27 @@ export class FolioService {
       },
     ];
 
-    await this.folios.postCharges({
+    // A signed bill sends the charge to the stay's next one (ADR-050 D-c).
+    const posted = await this.folios.postCharges({
       folioId: folio.id,
       workspaceId: ws.workspaceId,
       drafts,
+      onLocked: 'open_next',
     });
 
     // The tax line is posted as its own charge, in its own transaction, so it
     // carries its own ledger entry against TAX_PAYABLE (AC-4) and can be
     // reversed with its parent. Zero rated codes raise no line at all rather
-    // than a line worth nothing.
+    // than a line worth nothing. It follows its parent onto whichever bill the
+    // parent landed on.
     if (taxAmountRwf !== 0) {
       const parentId = (
         await this.folios.findChargeByIdempotencyKey(key)
       )?.id ?? null;
       await this.folios.postCharges({
-        folioId: folio.id,
+        folioId: posted.folioId,
         workspaceId: ws.workspaceId,
+        onLocked: 'open_next',
         drafts: [
           {
             chargeType: 'tax',
@@ -206,7 +233,10 @@ export class FolioService {
       });
     }
 
-    return this.detail(ws, folio.id);
+    return {
+      ...(await this.detail(ws, posted.folioId)),
+      openedFolioId: posted.movedToFolioId,
+    };
   }
 
   /**
@@ -405,17 +435,78 @@ export class FolioService {
     return this.detail(ws, folio.id);
   }
 
-  /** Close a bill. Refuses a non zero balance, in the service and the database. */
-  async close(ws: WorkspaceAccess, folioId: string): Promise<OperatorFolioDetail> {
+  /**
+   * Close a bill, which SIGNS ITS SALE (ADR-050 D-a, AC-2, AC-6).
+   *
+   * One `NS` over the host's own undeclared lines, raised in the same
+   * transaction that locks the bill. What the business's fiscal setup is (the
+   * environment, the adapter mode, whether it has connected its EBM account) is
+   * resolved here, because the repository must not know about any of it.
+   *
+   * A replay answers with what the first close raised. A missing connection is
+   * never a refusal: the declaration is written `failed` with reason
+   * `no_connection` and the bill still closes (D-b).
+   */
+  async close(
+    ws: WorkspaceAccess,
+    folioId: string,
+    body: CloseFolioRequest = {},
+  ): Promise<CloseFolioResult> {
     const folio = assertOwned(await this.folios.findFolio(folioId), ws);
-    if (folio.status === 'closed') return this.detail(ws, folio.id);
+    const outcome = await this.folios.closeAndDeclare(
+      folio.id,
+      await this.declarationPlan(folio.propertyId, body),
+    );
 
-    if (!(await this.folios.closeFolio(folio.id))) {
-      throw new ConflictException(
-        `This bill still owes ${folio.balanceRwf.toLocaleString()} RWF. Take the payment before closing it.`,
-      );
+    switch (outcome.kind) {
+      case 'balance_owed':
+        throw new ConflictException(
+          `This bill still owes ${outcome.balanceRwf.toLocaleString()} RWF. Take the payment before closing it.`,
+        );
+      case 'foreign_undeclared':
+        throw new UnprocessableEntityException(
+          'A line on this bill belongs to another business and has not been declared by it yet, so this bill cannot be signed under your TIN. Ask that business to confirm its order was delivered.',
+        );
+      case 'payment_without_code':
+        throw new UnprocessableEntityException(
+          'A payment on this bill does not say how it was paid, and the receipt has to. Void it and take the payment again.',
+        );
+      case 'closed':
+        break;
     }
-    return this.detail(ws, folio.id);
+
+    // Best effort, after commit: a lost wake-up costs one drain interval.
+    if (outcome.wake && outcome.emissionId) {
+      await this.sales.wake(outcome.emissionId, 0);
+    }
+
+    return {
+      ...(await this.detail(ws, folio.id)),
+      lockedAt: outcome.lockedAt?.toISOString() ?? null,
+      declaration: {
+        emissionId: outcome.emissionId,
+        status: outcome.status,
+        reason: outcome.reason,
+        excludedChargeIds: outcome.excludedChargeIds,
+      },
+    };
+  }
+
+  /**
+   * Who signs, and whether they can (ADR-050 D-b, value sourcing "which EBM
+   * connection signs"): the folio's property's org, through its own
+   * connection, as `DeclarationPlanService` answers it for every sale.
+   */
+  private async declarationPlan(
+    propertyId: string,
+    body: CloseFolioRequest,
+  ): Promise<CloseDeclarationPlan> {
+    const plan = await this.plans.forOrg(await this.folios.orgOfProperty(propertyId));
+    return {
+      ...plan,
+      customerTin: body.customerTin ?? null,
+      customerName: body.customerName ?? null,
+    };
   }
 
   // --- Internals -----------------------------------------------------------
@@ -460,6 +551,19 @@ export class FolioService {
       );
     }
     return folio;
+  }
+
+  /**
+   * A bill a CHARGE may be aimed at (ADR-050 D-c).
+   *
+   * Everything `openFolio` allows, plus a guest bill that was closed by signing
+   * it: the charge goes to the stay's next bill. A bill closed before ADR-050
+   * (closed, never locked) and a house or master bill (no stay to follow) stay
+   * refused, because neither has a next bill that means anything.
+   */
+  private lateChargeTarget(folio: FolioRow): FolioRow {
+    if (folio.status === 'closed' && folio.lockedAt && folio.guestStayId) return folio;
+    return this.openFolio(folio);
   }
 
   /**
@@ -552,6 +656,8 @@ export class FolioService {
       guestName: row.guestName,
       roomLabel: row.roomLabel,
       balanceRwf: row.balanceRwf,
+      folioSequence: row.folioSequence,
+      lockedAt: row.lockedAt?.toISOString() ?? null,
       openedAt: row.openedAt.toISOString(),
       closedAt: row.closedAt?.toISOString() ?? null,
     };

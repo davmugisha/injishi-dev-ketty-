@@ -3,6 +3,7 @@ import { Suspense } from "react";
 import { Skeleton } from "@injishi/ui";
 import { ExploreShell } from "@/components/explore/explore-shell";
 import { Breadcrumbs } from "@/components/shared/breadcrumbs";
+import { databaseListings } from "@/data/discovery";
 
 export const metadata: Metadata = {
   title: "Find your perfect stay",
@@ -10,7 +11,11 @@ export const metadata: Metadata = {
     "Browse verified guesthouses, lodges and serviced apartments across Rwanda. Filter by type, budget, district and size.",
 };
 
-export default function ExplorePage() {
+export default async function ExplorePage() {
+  // Inventory published in the operator app, beside the catalogue (booking
+  // audit, 2026-09-13). Revalidated every minute; an unreachable API lists none.
+  const fromDatabase = await databaseListings();
+
   return (
     // `pt-5`, tighter than `.page-y`'s shared 2.5rem. This route opens on a
     // breadcrumb and then straight into the search strip, and the reference
@@ -36,7 +41,7 @@ export default function ExplorePage() {
 
       {/* useSearchParams needs a Suspense boundary to keep the route static. */}
       <Suspense fallback={<ResultsSkeleton />}>
-        <ExploreShell />
+        <ExploreShell databaseListings={fromDatabase} />
       </Suspense>
     </div>
   );

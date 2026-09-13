@@ -197,6 +197,24 @@ export function TripDetail({ id }: { id: string | undefined }) {
             />
           </Card>
 
+          {/* ADR-050 slice 1. Offered only while the guest is checked in, which is
+              when a room can be charged; the server decides the rest, and an
+              outlet that is closed or sold out is simply not on the next screen. */}
+          {trip.state === 'checked_in' ? (
+            <>
+              <SectionLabel>{t('order.title')}</SectionLabel>
+              <Card variant="flat" bodyStyle={{ paddingVertical: 6 }}>
+                <ListRow
+                  title={t('order.title')}
+                  subtitle={t('order.subtitle', { property: trip.property })}
+                  icon="bell"
+                  chevron
+                  onPress={() => router.push('/order')}
+                />
+              </Card>
+            </>
+          ) : null}
+
           <SectionLabel>{t('trip.gettingThere')}</SectionLabel>
           <Card>
             <View style={{ gap: space[3] }}>

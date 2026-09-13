@@ -134,6 +134,28 @@ export function resolvePlatform(input: PlatformInputs): Platform {
     );
   }
 
+  /*
+   * No imaginary money on a real database (booking audit, 2026-09-13).
+   *
+   * `PAYMENT_ADAPTER_MODE` unset means mock. The production compose file
+   * declared `INJISHI_DATABASE_KIND=real` and no payment mode, so production
+   * would have booked real guests against a mock provider: a confirmed stay,
+   * an escrow row reading `captured`, and no money anywhere. A stack that says
+   * its database is real must say how it takes money: `live`, or `off` until a
+   * provider exists. Local development leaves the kind unset and is unaffected.
+   */
+  if (expectedKind === 'real') {
+    const payment = (input.paymentAdapterMode ?? '').trim().toLowerCase();
+    if (payment !== 'live' && payment !== 'off') {
+      throw new PlatformBootRefusal(
+        `INJISHI_DATABASE_KIND is "real" but PAYMENT_ADAPTER_MODE is ` +
+          `${payment === '' ? 'unset (which means mock)' : `"${payment}"`}. A real database ` +
+          'must never record mock payments as captured money. Set PAYMENT_ADAPTER_MODE=off ' +
+          'until a live payment adapter is registered, or live once one is.',
+      );
+    }
+  }
+
   if (environment === 'demo') {
     const live = [
       isLive(input.paymentAdapterMode) ? 'PAYMENT_ADAPTER_MODE=live' : null,

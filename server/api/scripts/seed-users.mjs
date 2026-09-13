@@ -17,7 +17,7 @@
 //
 // NOT A COPY OF THE DEMO ROSTER. `seed-demo.mjs` owns that, refuses to run
 // against DATABASE_URL, and stays that way — this is a small, separate set of
-// `@injishi.rw` logins for driving the real apps, one per shape of access.
+// `@injishi.com` logins for driving the real apps, one per shape of access.
 //
 // Idempotent throughout: every write checks first or uses ON CONFLICT, so
 // re-running changes nothing. Matches users on lower(email).
@@ -60,21 +60,21 @@ const ORG_HOSPITALITY_TIN = '100000001';
  */
 const USERS = [
   {
-    email: 'admin@injishi.rw',
+    email: 'admin@injishi.com',
     name: 'Injishi Admin',
     roles: ['admin', 'guest'],
     // The only account that opens the control tower at :3001.
     grants: { personal: true, staffRoles: ['super_admin'] },
   },
   {
-    email: 'host@injishi.rw',
+    email: 'host@injishi.com',
     name: 'Aline Uwase',
     roles: ['guest'], // Host is an OrgRole; global identity stays Guest.
     // Owner of the seeded hospitality business → the Host workspace in PMS.
     grants: { personal: true, org: 'hospitality', orgRole: 'owner' },
   },
   {
-    email: 'landlord@injishi.rw',
+    email: 'landlord@injishi.com',
     name: 'Jean Bosco Habimana',
     roles: ['guest'], // Landlord is an OrgRole too.
     // Owner of a RESIDENCE business. Host and Landlord are the same kind of
@@ -112,25 +112,25 @@ const USERS = [
    * enforced nowhere is how the two came to differ in name only.
    */
   {
-    email: 'manager@injishi.rw',
+    email: 'manager@injishi.com',
     name: 'Patrick Nsengimana',
     roles: ['guest'],
     grants: { personal: true, org: 'hospitality', orgRole: 'manager' },
   },
   {
-    email: 'reception@injishi.rw',
+    email: 'reception@injishi.com',
     name: 'Diane Ingabire',
     roles: ['guest'],
     grants: { personal: true, org: 'hospitality', orgRole: 'receptionist' },
   },
   {
-    email: 'housekeeper@injishi.rw',
+    email: 'housekeeper@injishi.com',
     name: 'Beatha Mukandayisenga',
     roles: ['guest'],
     grants: { personal: true, org: 'hospitality', orgRole: 'housekeeper' },
   },
   {
-    email: 'resident-manager@injishi.rw',
+    email: 'resident-manager@injishi.com',
     name: 'Solange Uwimana',
     roles: ['guest'],
     // The residence side needs a non-owner too: the landlord nav drops its
@@ -138,20 +138,20 @@ const USERS = [
     grants: { personal: true, org: 'residence', orgRole: 'manager' },
   },
   {
-    email: 'broker@injishi.rw',
+    email: 'broker@injishi.com',
     name: 'Claudine Mukamana',
     roles: ['broker', 'guest'],
     grants: { personal: true, broker: true },
   },
   {
-    email: 'guest@injishi.rw',
+    email: 'guest@injishi.com',
     name: 'Eric Niyonzima',
     roles: ['guest'],
     // Holds nothing but a personal workspace: the plain-marketplace case.
     grants: { personal: true },
   },
   {
-    email: 'localgov@injishi.rw',
+    email: 'localgov@injishi.com',
     name: 'Nyarugenge District Office',
     roles: ['gov_oversight', 'guest'],
     districtId: 101, // Nyarugenge (Kigali) — seeded geography.
@@ -169,10 +169,10 @@ const USERS = [
      * A field verifier alone cannot demonstrate the oversight surface, because
      * the two consoles refuse different people and the separation of duties
      * check needs TWO officers to have anything to compare. With only
-     * `localgov@injishi.rw` seeded, `violatesSeparationOfDuties` had no case
+     * `localgov@injishi.com` seeded, `violatesSeparationOfDuties` had no case
      * where it should pass and no case where it should refuse.
      */
-    email: 'approver@injishi.rw',
+    email: 'approver@injishi.com',
     name: 'Nyarugenge District Approver',
     roles: ['gov_oversight', 'guest'],
     districtId: 101,
@@ -196,7 +196,7 @@ const USERS = [
      * who can do nothing makes a terrible first run. It needed to be a separate
      * person, and nobody had written one.
      */
-    email: 'pending@injishi.rw',
+    email: 'pending@injishi.com',
     name: 'Chantal Mukamurenzi',
     roles: ['guest'],
     grants: { personal: true, org: 'pending', orgRole: 'owner' },
@@ -221,7 +221,7 @@ const USERS = [
      * one; and an approver rather than a verifier, so it pairs with
      * `localgov@` for the separation-of-duties check.
      */
-    email: 'dualhat@injishi.rw',
+    email: 'dualhat@injishi.com',
     name: 'Emmanuel Rwigema',
     roles: ['gov_oversight', 'guest'],
     districtId: 101,
@@ -267,7 +267,7 @@ const RESIDENCE_ORG = {
 };
 
 /**
- * The business in the registration pipeline, for `pending@injishi.rw`.
+ * The business in the registration pipeline, for `pending@injishi.com`.
  *
  * Hospitality rather than residence so it carries a `tin`
  * (`orgs_identifier_shape`) and an `accommodation_class`

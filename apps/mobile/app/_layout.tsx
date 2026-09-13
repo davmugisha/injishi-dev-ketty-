@@ -468,6 +468,8 @@ function Shell() {
         <Stack.Screen name="trip/[id]/index" options={{ presentation: 'card' }} />
         <Stack.Screen name="trip/[id]/arrival-guide" options={{ presentation: 'card' }} />
         <Stack.Screen name="trip/[id]/review" options={FORM_SHEET} />
+        <Stack.Screen name="order" options={{ presentation: 'card' }} />
+        <Stack.Screen name="order-placed" options={{ presentation: 'card' }} />
         <Stack.Screen name="self-check-in/[bookingId]" options={{ presentation: 'card' }} />
         <Stack.Screen name="thread/[threadId]" options={{ presentation: 'card' }} />
 

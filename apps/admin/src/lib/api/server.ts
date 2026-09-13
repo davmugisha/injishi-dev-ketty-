@@ -93,9 +93,21 @@ export type ApiFailure =
  */
 export type ApiWriteFailure = ApiFailure | "conflict" | "rejected";
 
+/**
+ * `detail` is the API's own sentence for a `conflict`, `rejected` or `denied`
+ * refusal, when the body carried one as a plain string. A 403 is included
+ * because not every one is about a missing permission: ADR-049's
+ * `assertMayManage` answers "That is not one of your sessions." to a trainer
+ * who holds the permission and is not on that session. Nest's `ConflictException` and
+ * `UnprocessableEntityException` bodies are written for a person ("That venue
+ * is retired. Pick one that is still in use."), and a write whose refusals are
+ * business rules rather than contract bugs can word itself from it. It is
+ * never set for a Zod rejection, whose `message` is "Validation failed" plus an
+ * `issues` array: that is a contract disagreement and keeps the bug wording.
+ */
 export type ApiWriteResult<T> =
   | { ok: true; data: T }
-  | { ok: false; reason: ApiWriteFailure };
+  | { ok: false; reason: ApiWriteFailure; detail?: string };
 
 export type ApiResult<T> =
   | { ok: true; data: T }
@@ -213,6 +225,25 @@ async function refusalFor(res: Response): Promise<ApiWriteFailure | null> {
 }
 
 /**
+ * The API's sentence for a 403, 409 or 422, when there is exactly one.
+ *
+ * A string `message` only. An array (class-validator) or the Zod pipe's
+ * "Validation failed" is a contract disagreement, not a rule a staffer broke,
+ * and must keep reading as a bug on our side.
+ */
+async function refusalDetail(res: Response): Promise<string | undefined> {
+  try {
+    const body = (await res.clone().json()) as { message?: unknown };
+    const message = body?.message;
+    if (typeof message !== "string") return undefined;
+    if (message.length === 0 || message === "Validation failed") return undefined;
+    return message;
+  } catch {
+    return undefined;
+  }
+}
+
+/**
  * One bounded, cookie-forwarding round trip, parsed against its contract.
  *
  * Shared by reads and writes so the five outcomes are decided in one place.
@@ -220,7 +251,7 @@ async function refusalFor(res: Response): Promise<ApiWriteFailure | null> {
  * exists to prevent.
  */
 async function send<T>(
-  method: "GET" | "POST",
+  method: "GET" | "POST" | "PATCH",
   path: string,
   schema: ResponseSchema<T>,
   query?: Record<string, QueryValue>,
@@ -251,6 +282,9 @@ async function send<T>(
     }
 
     const refusal = await refusalFor(res);
+    if (refusal === "conflict" || refusal === "rejected" || refusal === "denied") {
+      return { ok: false, reason: refusal, detail: await refusalDetail(res) };
+    }
     if (refusal) return { ok: false, reason: refusal };
 
     let parsed: unknown;
@@ -325,6 +359,21 @@ export function apiPost<T>(
   body?: unknown,
 ): Promise<ApiWriteResult<T>> {
   return send("POST", path, schema, undefined, body ?? {});
+}
+
+/**
+ * A partial edit (`PATCH`), with the same five outcomes as `apiPost`.
+ *
+ * Separate rather than a `method` argument on `apiPost`, so a call site says
+ * which verb it is at a glance: the API's edit routes (ADR-049 courses, venues
+ * and sessions) are PATCH, and a POST to them is a 404.
+ */
+export function apiPatch<T>(
+  path: string,
+  schema: ResponseSchema<T>,
+  body: unknown,
+): Promise<ApiWriteResult<T>> {
+  return send("PATCH", path, schema, undefined, body);
 }
 
 /**

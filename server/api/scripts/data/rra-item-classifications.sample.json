@@ -1,0 +1,13 @@
+{
+  "_about": "SAMPLE, NOT THE AUTHORITY'S LIST. Every code here is printed in VSDC SPECIFICATION DOCUMENT v1.0.5 (2023-05-16): the first three in the §3.3.2.2 selectItemsClass response sample, with their names as printed; the last two on the sample restaurant items in the §3.3.4 item list response, where no name is printed. It exists so a sample database can classify a menu item and exercise ADR-050 D-m end to end. scripts/sync-rra-classifications.mjs refuses to load a *.sample.json into a database that carries no sample marker. The real list comes from the VSDC's /itemClass/selectItemsClass and is set as RRA_CLASSIFICATION_SOURCE.",
+  "resultCd": "000",
+  "data": {
+    "itemClsList": [
+      { "itemClsCd": "14111400", "itemClsNm": "Paper products no use", "itemClsLvl": 3, "taxTyCd": null, "useYn": "Y" },
+      { "itemClsCd": "14111401", "itemClsNm": "Paper products no use Commodity", "itemClsLvl": 4, "taxTyCd": null, "useYn": "Y" },
+      { "itemClsCd": "3133130600", "itemClsNm": "Non metallic sonic welded structural assemblies", "itemClsLvl": 5, "taxTyCd": "B", "useYn": "Y" },
+      { "itemClsCd": "1110160600", "itemClsNm": "(VSDC v1.0.5 sample code on a restaurant item, name not printed)", "itemClsLvl": 5, "taxTyCd": null, "useYn": "Y" },
+      { "itemClsCd": "1110170400", "itemClsNm": "(VSDC v1.0.5 sample code on a drink item, name not printed)", "itemClsLvl": 5, "taxTyCd": null, "useYn": "Y" }
+    ]
+  }
+}

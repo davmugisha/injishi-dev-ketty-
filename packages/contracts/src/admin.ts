@@ -88,6 +88,14 @@ export const AdminAuditSubjectType = z.enum([
     "property",
     "broker",
     "guest_stay",
+    // `training_certificate` arrived with migration 0035 (ADR-049), and the
+    // same typecheck described above caught it the same way, which is worth
+    // recording as evidence that the mechanism actually works. Issuing and
+    // withdrawing a certificate are audited, and they are filed under a subject
+    // type of their own rather than under `user` with the holder's id, so
+    // "every audit row about this certificate" stays a query rather than a
+    // search through payloads.
+    "training_certificate",
 ]);
 export type AdminAuditSubjectType = z.infer<typeof AdminAuditSubjectType>;
 /**

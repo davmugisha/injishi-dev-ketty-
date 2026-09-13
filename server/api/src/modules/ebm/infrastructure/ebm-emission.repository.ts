@@ -1,13 +1,149 @@
 import { Inject, Injectable } from '@nestjs/common';
 import { and, asc, eq, inArray, lte, sql } from 'drizzle-orm';
 
-import { bookings, ebmInvoices } from '../../../database/drizzle/schema';
+import {
+  bookings,
+  ebmInvoices,
+  ebmReceiptCounters,
+} from '../../../database/drizzle/schema';
 import {
   DRIZZLE,
   type Database,
 } from '../../../shared/database/database.module';
 
 export type EbmEmissionRow = typeof ebmInvoices.$inferSelect;
+
+/** The transaction handle Drizzle hands a `db.transaction` callback. */
+type Tx = Parameters<Parameters<Database['transaction']>[0]>[0];
+
+/**
+ * One fiscal document to raise (ADR-041, widened by ADR-050).
+ *
+ * `source` decides which subject column is set, and the `ebm_invoices_source_shape`
+ * CHECK refuses a row that names two. `receiptType` decides the label: a
+ * confirmed booking under the new rule raises `proforma` (`PS`), a folio close
+ * raises `normal` (`NS`).
+ */
+export interface HeldEmissionInput {
+  source: 'booking' | 'folio' | 'outlet_order';
+  bookingId?: string | null;
+  folioId?: string | null;
+  serviceOrderId?: string | null;
+  outletId?: string | null;
+  orgId: string;
+  tin: string | null;
+  receiptType?: 'normal' | 'training' | 'proforma';
+  rraBranchId?: string;
+  adapterMode?: 'mock' | 'live';
+  customerTin?: string | null;
+  customerName?: string | null;
+  customerPhone?: string | null;
+  idempotencyKey: string;
+  /** NULL means "do not retry automatically" — a row waiting for a person. */
+  dueAt: Date | null;
+  /** Set when the row is born already refused, e.g. `no_connection` (D-b). */
+  status?: 'held' | 'failed';
+  lastError?: string | null;
+}
+
+/**
+ * Write the held row, INSIDE a transaction the caller owns.
+ *
+ * Exported as a function rather than kept as a repository method for the same
+ * reason `postChargesTx` is: a folio close has to raise its `NS`, stamp the
+ * charges it covers and lock the bill in ONE transaction (ADR-050 D-a). Two
+ * transactions there means a crash between them leaves a locked bill with no
+ * declaration behind it, or a declaration covering charges that are still
+ * marked undeclared.
+ *
+ * The idempotency key is what makes a retried close a no-op rather than a
+ * second declaration of the same stay.
+ */
+export async function insertHeldTx(
+  db: Database | Tx,
+  input: HeldEmissionInput,
+): Promise<{ id: string; created: boolean }> {
+  const [created] = await db
+    .insert(ebmInvoices)
+    .values({
+      source: input.source,
+      bookingId: input.bookingId ?? null,
+      folioId: input.folioId ?? null,
+      serviceOrderId: input.serviceOrderId ?? null,
+      outletId: input.outletId ?? null,
+      orgId: input.orgId,
+      tin: input.tin,
+      tinType: 'host',
+      receiptType: input.receiptType ?? 'normal',
+      transactionType: 'sale',
+      rraBranchId: input.rraBranchId ?? '00',
+      customerTin: input.customerTin ?? null,
+      customerName: input.customerName ?? null,
+      customerPhone: input.customerPhone ?? null,
+      status: input.status ?? 'held',
+      lastError: input.lastError ?? null,
+      adapterMode: input.adapterMode ?? 'live',
+      idempotencyKey: input.idempotencyKey,
+      nextAttemptAt: input.dueAt,
+    })
+    .onConflictDoNothing({ target: ebmInvoices.idempotencyKey })
+    .returning({ id: ebmInvoices.id });
+  if (created) return { id: created.id, created: true };
+
+  const [existing] = await db
+    .select({ id: ebmInvoices.id })
+    .from(ebmInvoices)
+    .where(eq(ebmInvoices.idempotencyKey, input.idempotencyKey))
+    .limit(1);
+  if (!existing) {
+    throw new Error(
+      `ebm_invoices refused ${input.idempotencyKey} and holds no row for it`,
+    );
+  }
+  return { id: existing.id, created: false };
+}
+
+/**
+ * Mint the next receipt number in one series (AC-9, §7.25).
+ *
+ * Called as the LAST STATEMENT BEFORE COMMIT, never before a VSDC call: holding
+ * this row for the length of a close would serialize every close for a busy
+ * taxpayer behind one row. The upsert takes the row lock only for the duration
+ * of the increment itself.
+ *
+ * The number is NEVER REUSED and deliberately not gapless. A transaction that
+ * rolls back after this statement burns a number, and no design avoids that
+ * without the serialization above. A burnt number is an INCOMPLETE SALE, which
+ * §19.1.20 requires the Z report to count anyway, so every number is either a
+ * receipt or an explainable incomplete sale.
+ */
+export async function mintReceiptNumberTx(
+  db: Database | Tx,
+  key: { orgId: string; rraBranchId: string; receiptLabel: string },
+): Promise<number> {
+  const [row] = await db
+    .insert(ebmReceiptCounters)
+    .values({
+      orgId: key.orgId,
+      rraBranchId: key.rraBranchId,
+      receiptLabel: key.receiptLabel,
+      lastNumber: 1,
+    })
+    .onConflictDoUpdate({
+      target: [
+        ebmReceiptCounters.orgId,
+        ebmReceiptCounters.rraBranchId,
+        ebmReceiptCounters.receiptLabel,
+      ],
+      set: {
+        lastNumber: sql`${ebmReceiptCounters.lastNumber} + 1`,
+        updatedAt: new Date(),
+      },
+    })
+    .returning({ lastNumber: ebmReceiptCounters.lastNumber });
+  if (!row) throw new Error('Receipt counter returned no row.');
+  return row.lastNumber;
+}
 
 /**
  * What an emission row's `payload` holds once it has been sent (ADR-041).
@@ -53,41 +189,10 @@ export class EbmEmissionRepository {
    * A sale that must be certified, written once per booking. The key makes a
    * second call — a retried request, a second approval click — a no-op.
    */
-  async insertHeld(input: {
-    bookingId: string;
-    orgId: string;
-    tin: string | null;
-    idempotencyKey: string;
-    dueAt: Date;
-  }): Promise<{ id: string; created: boolean }> {
-    const [created] = await this.db
-      .insert(ebmInvoices)
-      .values({
-        source: 'booking',
-        bookingId: input.bookingId,
-        orgId: input.orgId,
-        tin: input.tin,
-        tinType: 'host',
-        status: 'held',
-        adapterMode: 'live',
-        idempotencyKey: input.idempotencyKey,
-        nextAttemptAt: input.dueAt,
-      })
-      .onConflictDoNothing({ target: ebmInvoices.idempotencyKey })
-      .returning({ id: ebmInvoices.id });
-    if (created) return { id: created.id, created: true };
-
-    const [existing] = await this.db
-      .select({ id: ebmInvoices.id })
-      .from(ebmInvoices)
-      .where(eq(ebmInvoices.idempotencyKey, input.idempotencyKey))
-      .limit(1);
-    if (!existing) {
-      throw new Error(
-        `ebm_invoices refused ${input.idempotencyKey} and holds no row for it`,
-      );
-    }
-    return { id: existing.id, created: false };
+  async insertHeld(
+    input: HeldEmissionInput,
+  ): Promise<{ id: string; created: boolean }> {
+    return insertHeldTx(this.db, input);
   }
 
   async findById(id: string): Promise<EbmEmissionRow | null> {

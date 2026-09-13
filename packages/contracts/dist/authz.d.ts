@@ -13,7 +13,7 @@ import { Domain, OrgRegistrationStatus, OrgRole, OversightRole, WorkspaceKind } 
  * authentication only.
  */
 /** What an action needs. A permission absent from a role's set is denied. */
-export declare const Permission: z.ZodEnum<["reservation.approve", "reservation.assign", "stay.checkin", "stay.checkout", "folio.charge", "folio.payment", "housekeeping.set", "ticket.advance", "order.advance", "menu.manage", "team.manage", "money.view", "property.switch", "rent.record", "lease.advance", "deposit.return", "unit.manage", "listing.manage", "message.send", "task.assign", "amenity.manage", "department.manage", "ebm.manage"]>;
+export declare const Permission: z.ZodEnum<["reservation.approve", "reservation.assign", "stay.checkin", "stay.checkout", "folio.charge", "folio.payment", "housekeeping.set", "ticket.advance", "order.advance", "menu.manage", "team.manage", "money.view", "property.switch", "rent.record", "lease.advance", "deposit.return", "unit.manage", "listing.manage", "message.send", "task.assign", "amenity.manage", "department.manage", "ebm.manage", "folio.close", "ebm.refund", "outlet.manage"]>;
 export type Permission = z.infer<typeof Permission>;
 /** Does this role hold this permission? The single predicate both sides use. */
 export declare function can(role: OrgRole, permission: Permission): boolean;
@@ -47,7 +47,7 @@ export declare const WorkspaceAccess: z.ZodObject<{
      */
     registrationStatus: z.ZodNullable<z.ZodEnum<["pending_payment", "submitted", "tin_verified", "field_verified", "approved", "active", "rejected", "suspended"]>>;
     /** Resolved for this workspace, never global to the person. */
-    permissions: z.ZodArray<z.ZodEnum<["reservation.approve", "reservation.assign", "stay.checkin", "stay.checkout", "folio.charge", "folio.payment", "housekeeping.set", "ticket.advance", "order.advance", "menu.manage", "team.manage", "money.view", "property.switch", "rent.record", "lease.advance", "deposit.return", "unit.manage", "listing.manage", "message.send", "task.assign", "amenity.manage", "department.manage", "ebm.manage"]>, "many">;
+    permissions: z.ZodArray<z.ZodEnum<["reservation.approve", "reservation.assign", "stay.checkin", "stay.checkout", "folio.charge", "folio.payment", "housekeeping.set", "ticket.advance", "order.advance", "menu.manage", "team.manage", "money.view", "property.switch", "rent.record", "lease.advance", "deposit.return", "unit.manage", "listing.manage", "message.send", "task.assign", "amenity.manage", "department.manage", "ebm.manage", "folio.close", "ebm.refund", "outlet.manage"]>, "many">;
     /**
      * The USALI categories this business actually runs (ADR-035, D-a).
      *
@@ -93,7 +93,7 @@ export declare const WorkspaceAccess: z.ZodObject<{
     kind: "business" | "broker" | "personal";
     propertyName: string | null;
     departments: ("rooms" | "fnb" | "spa_recreation" | "other_operated" | "misc_income" | "admin_general" | "sales_marketing" | "it" | "engineering" | "utilities" | "hr")[];
-    permissions: ("reservation.approve" | "reservation.assign" | "stay.checkin" | "stay.checkout" | "folio.charge" | "folio.payment" | "housekeeping.set" | "ticket.advance" | "order.advance" | "menu.manage" | "team.manage" | "money.view" | "property.switch" | "rent.record" | "lease.advance" | "deposit.return" | "unit.manage" | "listing.manage" | "message.send" | "task.assign" | "amenity.manage" | "department.manage" | "ebm.manage")[];
+    permissions: ("reservation.approve" | "reservation.assign" | "stay.checkin" | "stay.checkout" | "folio.charge" | "folio.payment" | "housekeeping.set" | "ticket.advance" | "order.advance" | "menu.manage" | "team.manage" | "money.view" | "property.switch" | "rent.record" | "lease.advance" | "deposit.return" | "unit.manage" | "listing.manage" | "message.send" | "task.assign" | "amenity.manage" | "department.manage" | "ebm.manage" | "folio.close" | "ebm.refund" | "outlet.manage")[];
 }, {
     domain: "hospitality" | "residence" | null;
     registrationStatus: "pending_payment" | "submitted" | "tin_verified" | "field_verified" | "approved" | "active" | "rejected" | "suspended" | null;
@@ -104,7 +104,7 @@ export declare const WorkspaceAccess: z.ZodObject<{
     kind: "business" | "broker" | "personal";
     propertyName: string | null;
     departments: ("rooms" | "fnb" | "spa_recreation" | "other_operated" | "misc_income" | "admin_general" | "sales_marketing" | "it" | "engineering" | "utilities" | "hr")[];
-    permissions: ("reservation.approve" | "reservation.assign" | "stay.checkin" | "stay.checkout" | "folio.charge" | "folio.payment" | "housekeeping.set" | "ticket.advance" | "order.advance" | "menu.manage" | "team.manage" | "money.view" | "property.switch" | "rent.record" | "lease.advance" | "deposit.return" | "unit.manage" | "listing.manage" | "message.send" | "task.assign" | "amenity.manage" | "department.manage" | "ebm.manage")[];
+    permissions: ("reservation.approve" | "reservation.assign" | "stay.checkin" | "stay.checkout" | "folio.charge" | "folio.payment" | "housekeeping.set" | "ticket.advance" | "order.advance" | "menu.manage" | "team.manage" | "money.view" | "property.switch" | "rent.record" | "lease.advance" | "deposit.return" | "unit.manage" | "listing.manage" | "message.send" | "task.assign" | "amenity.manage" | "department.manage" | "ebm.manage" | "folio.close" | "ebm.refund" | "outlet.manage")[];
 }>;
 export type WorkspaceAccess = z.infer<typeof WorkspaceAccess>;
 /**

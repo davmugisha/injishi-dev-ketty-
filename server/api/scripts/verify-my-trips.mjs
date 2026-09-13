@@ -29,11 +29,11 @@ const API = process.env.VERIFY_API_URL || 'http://localhost:8000';
 const OTP = process.env.VERIFY_OTP_CODE || '123456';
 
 /** The guest who books. */
-const GUEST = process.env.VERIFY_GUEST_EMAIL || 'guest@injishi.rw';
+const GUEST = process.env.VERIFY_GUEST_EMAIL || 'guest@injishi.com';
 /** Somebody else entirely, who must never see the booking above. */
-const OTHER = process.env.VERIFY_OTHER_EMAIL || 'broker@injishi.rw';
+const OTHER = process.env.VERIFY_OTHER_EMAIL || 'broker@injishi.com';
 /** An operator, used only to find a room that is actually on sale. */
-const OPERATOR = process.env.VERIFY_OPERATOR_EMAIL || 'host@injishi.rw';
+const OPERATOR = process.env.VERIFY_OPERATOR_EMAIL || 'host@injishi.com';
 
 let failures = 0;
 function check(label, ok, detail) {
@@ -155,20 +155,53 @@ check('GET /me/trips answers 200', before.status === 200, `got ${before.status}`
 check('it answers with a list', Array.isArray(before.list));
 
 console.log('\nThe guest books the room, through the real booking route');
-const checkIn = day(21);
-const checkOut = day(24);
-const created = await post(guest, '/bookings', {
-  roomTypeId: room.id,
-  checkIn,
-  checkOut,
-  guests: 2,
-  nonRefundable: false,
-  attemptToken: crypto.randomUUID(),
-  instrument: { kind: 'mobile_money', network: 'mtn_momo', msisdn: '788123456' },
-});
-const booking = await created.json().catch(() => ({}));
-check('POST /bookings answers 201', created.status === 201, `got ${created.status} ${JSON.stringify(booking).slice(0, 200)}`);
+/*
+ * The first free three-night window from three weeks out. A room type may have
+ * a single unit, and an earlier run of this script (which never deletes its
+ * booking) holds it, so a 409 moves the stay along rather than failing.
+ *
+ * And the answer is a PAYMENT, not yet a booking (ADR-047 D-j): a mobile money
+ * capture comes back `awaiting_payment` and the reservation is written when the
+ * money settles. So the attempt is polled, as the checkout polls it, until it
+ * is confirmed and carries the booking.
+ */
+let checkIn;
+let checkOut;
+let created;
+let outcome = {};
+for (let offset = 21; offset < 21 + 3 * 12; offset += 3) {
+  checkIn = day(offset);
+  checkOut = day(offset + 3);
+  created = await post(guest, '/bookings', {
+    roomTypeId: room.id,
+    checkIn,
+    checkOut,
+    guests: 2,
+    nonRefundable: false,
+    attemptToken: crypto.randomUUID(),
+    instrument: { kind: 'mobile_money', network: 'mtn_momo', msisdn: '788123456' },
+  });
+  outcome = await created.json().catch(() => ({}));
+  if (created.status !== 409) break;
+}
+check('POST /bookings answers 201', created.status === 201, `got ${created.status} ${JSON.stringify(outcome).slice(0, 200)}`);
 if (created.status !== 201) {
+  console.log(`\n${failures} check(s) failed.`);
+  process.exit(1);
+}
+let booking = outcome.status === 'confirmed' ? outcome.booking : null;
+if (outcome.status === 'awaiting_payment') {
+  const deadline = Date.now() + 60_000;
+  while (!booking && Date.now() < deadline) {
+    await new Promise((r) => setTimeout(r, 2_000));
+    const polled = await get(guest, `/bookings/attempts/${outcome.attempt.attemptToken}`);
+    const attempt = await polled.json().catch(() => ({}));
+    if (attempt.state === 'confirmed') booking = attempt.booking;
+    else if (attempt.state === 'refused' || attempt.state === 'expired') break;
+  }
+}
+check('the payment settles into a booking', Boolean(booking?.reference), `outcome ${outcome.status}`);
+if (!booking?.reference) {
   console.log(`\n${failures} check(s) failed.`);
   process.exit(1);
 }

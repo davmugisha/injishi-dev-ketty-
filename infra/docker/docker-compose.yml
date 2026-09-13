@@ -84,6 +84,12 @@ services:
   # SMTP catcher for transactional email in dev. UI on :8025.
   mailpit:
     image: axllent/mailpit:latest
+    environment:
+      # Mailpit looks up the client's reverse DNS before its 220 greeting, and
+      # under Docker Desktop that lookup stalls ~8s. The API's SMTP adapter
+      # abandons a send after 5s of silence (`SMTP_TIMEOUTS.greetingTimeout`),
+      # so without this EVERY local mail fails, and a queued mail only retries.
+      MP_SMTP_DISABLE_RDNS: "true"
     ports:
       - "127.0.0.1:${INJISHI_SMTP_PORT:-1025}:1025"
       - "127.0.0.1:${INJISHI_MAILPIT_PORT:-8025}:8025"

@@ -42,6 +42,15 @@ x-api-env: &api-env
   # boot and refuses to start when the database disagrees.
   INJISHI_ENVIRONMENT: production
   INJISHI_DATABASE_KIND: real
+  # Payments OFF: no provider is chosen and there are no credentials, so every
+  # charge is refused with "nothing has been charged". Pinned, not from the env
+  # file. Unset meant mock, which on this real database recorded imaginary money
+  # as captured; the API now refuses to boot on `real` with mock or unset
+  # (booking audit, 2026-09-13). `live` only once a live adapter is registered.
+  PAYMENT_ADAPTER_MODE: "off"
+  # Money alarms (STUCK MONEY, UNRECORDED COMPENSATION, a refused queue wake)
+  # go to Sentry when this is set, and nowhere but the log when it is not.
+  SENTRY_DSN: ${SENTRY_DSN:-}
   NODE_ENV: production
   PORT: "8000"
   DATABASE_URL: ${DATABASE_URL}

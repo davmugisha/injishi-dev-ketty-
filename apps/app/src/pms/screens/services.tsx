@@ -4,7 +4,8 @@
  * Services: one department's job, in one place (ADR-018, AC-12).
  *
  * `orders` and `menu` were two leaves for the same department. They are lenses
- * now, with Departments beside them.
+ * now, with Departments and Outlets beside them. Outlets (ADR-050 slice 4)
+ * sits here because an outlet is where a department sells from.
  *
  * The nav still shows this only where a service department exists, exactly as
  * `hostNav` already decided. A two department guesthouse gets no Services, and
@@ -15,6 +16,7 @@ import { LensPage, type LensLink } from "../components/lens-page";
 import { Departments } from "./departments";
 import { Menu } from "./menu";
 import { Orders } from "./orders";
+import { Outlets } from "./outlets";
 import { useWorkspaceId } from "../data/capability";
 import { workspaceBase } from "../lib/nav";
 
@@ -26,6 +28,7 @@ export function Services({ lens }: { lens: string }) {
     { key: "orders", label: "Live orders", href: base },
     { key: "menu", label: "Menu & pricing", href: `${base}/menu` },
     { key: "departments", label: "Departments", href: `${base}/departments` },
+    { key: "outlets", label: "Outlets", href: `${base}/outlets` },
   ];
 
   return (
@@ -34,6 +37,8 @@ export function Services({ lens }: { lens: string }) {
         <Menu />
       ) : lens === "departments" ? (
         <Departments />
+      ) : lens === "outlets" ? (
+        <Outlets />
       ) : (
         <Orders />
       )}

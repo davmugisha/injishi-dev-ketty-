@@ -1,21 +1,31 @@
 import type {
   BookableRoom,
+  PropertyCard,
   PropertyDetail,
   RoomTypeSummary,
 } from '@injishi/contracts';
 import { Inject, Injectable } from '@nestjs/common';
-import { and, eq } from 'drizzle-orm';
+import { and, asc, eq, exists, isNotNull, or, sql } from 'drizzle-orm';
+import { alias } from 'drizzle-orm/pg-core';
 
 import {
+  amenities,
   districts,
   listings,
+  outletParties,
+  outletTenancies,
+  outlets,
   properties,
+  propertyAmenities,
   roomTypes,
 } from '../../../database/drizzle/schema';
 import {
   DRIZZLE,
   type Database,
 } from '../../../shared/database/database.module';
+import { buildFacilities } from '../domain/facilities';
+
+const operatorParty = alias(outletParties, 'operator_party');
 
 /**
  * Infrastructure layer: the only place that touches Drizzle for listings.
@@ -35,6 +45,7 @@ export class ListingRepository {
     const [row] = await this.db
       .select({
         id: properties.id,
+        workspaceId: properties.workspaceId,
         slug: properties.slug,
         name: properties.name,
         description: properties.description,
@@ -57,7 +68,10 @@ export class ListingRepository {
 
     if (!row) return null;
 
-    const types = await this.findRoomTypes(propertyId);
+    const [types, facilities] = await Promise.all([
+      this.findRoomTypes(propertyId),
+      this.findFacilities(row.id, row.workspaceId),
+    ]);
 
     return {
       id: row.id,
@@ -76,7 +90,79 @@ export class ListingRepository {
         ? (row.photoObjectKeys as string[])
         : [],
       roomTypes: types,
+      facilities,
     };
+  }
+
+  /**
+   * What the property offers, amenities and outlets deduped into one list
+   * (ADR-050 D-k, AC-16).
+   *
+   * Visibility is decided HERE, in the query, because this read is public: only
+   * active, guest visible outlets at this property, and an outlet run from
+   * another workspace (a tenant, D-l) only while a tenancy for this property is
+   * `active` (AC-18). Ending the tenancy removes it with no other write.
+   */
+  async findFacilities(
+    propertyId: string,
+    propertyWorkspaceId: string,
+  ): Promise<PropertyDetail['facilities']> {
+    const [amenityRows, outletRows] = await Promise.all([
+      this.db
+        .select({
+          code: amenities.code,
+          label: amenities.labelEn,
+          category: amenities.category,
+        })
+        .from(propertyAmenities)
+        .innerJoin(amenities, eq(amenities.code, propertyAmenities.amenityCode))
+        .where(
+          and(
+            eq(propertyAmenities.propertyId, propertyId),
+            eq(amenities.active, true),
+          ),
+        )
+        .orderBy(sql`${amenities.category} NULLS LAST`, asc(amenities.labelEn)),
+      this.db
+        .select({
+          id: outlets.id,
+          name: outlets.name,
+          outletKind: outlets.outletKind,
+          orderingAccess: outlets.orderingAccess,
+          hours: outlets.hours,
+          amenityCode: outlets.amenityCode,
+          relationshipType: outlets.relationshipType,
+          operatorLegalName: operatorParty.legalName,
+          sortOrder: outlets.sortOrder,
+        })
+        .from(outlets)
+        .leftJoin(operatorParty, eq(operatorParty.id, outlets.operatorPartyId))
+        .where(
+          and(
+            eq(outlets.propertyId, propertyId),
+            eq(outlets.status, 'active'),
+            eq(outlets.guestVisible, true),
+            or(
+              eq(outlets.workspaceId, propertyWorkspaceId),
+              exists(
+                this.db
+                  .select({ one: sql`1` })
+                  .from(outletTenancies)
+                  .where(
+                    and(
+                      eq(outletTenancies.outletId, outlets.id),
+                      eq(outletTenancies.hostPropertyId, propertyId),
+                      eq(outletTenancies.status, 'active'),
+                    ),
+                  ),
+              ),
+            ),
+          ),
+        )
+        .orderBy(asc(outlets.sortOrder), asc(outlets.name)),
+    ]);
+
+    return buildFacilities(amenityRows, outletRows);
   }
 
   /**
@@ -98,6 +184,48 @@ export class ListingRepository {
       .limit(1);
 
     return row ? this.findPublishedProperty(row.id) : null;
+  }
+
+  /**
+   * Every published property with a public address, as discovery lists them
+   * (booking audit, 2026-09-13). Same visibility rule as the detail reads: a
+   * listing that is not `published` is absent. Bounded, and ordered by name so
+   * the list is stable between requests.
+   */
+  async findPublishedCards(limit = 500): Promise<PropertyCard[]> {
+    const rows = await this.db
+      .select({
+        id: properties.id,
+        slug: properties.slug,
+        name: properties.name,
+        description: properties.description,
+        districtName: districts.name,
+        photoObjectKeys: properties.photoObjectKeys,
+        fromNightlyRateRwf: sql<number | null>`min(${roomTypes.basePriceRwf}) filter (where ${roomTypes.status} = 'active' and ${roomTypes.domain} = 'hospitality')`,
+        maxGuests: sql<number | null>`max(${roomTypes.capacity}) filter (where ${roomTypes.status} = 'active')`,
+        roomTypeCount: sql<number>`count(${roomTypes.id}) filter (where ${roomTypes.status} = 'active')::int`,
+      })
+      .from(properties)
+      .innerJoin(listings, eq(listings.propertyId, properties.id))
+      .leftJoin(districts, eq(districts.id, properties.districtId))
+      .leftJoin(roomTypes, eq(roomTypes.propertyId, properties.id))
+      .where(and(eq(listings.status, 'published'), isNotNull(properties.slug)))
+      .groupBy(properties.id, districts.name)
+      .orderBy(asc(properties.name))
+      .limit(limit);
+
+    return rows.map((row) => ({
+      id: row.id,
+      slug: row.slug as string,
+      name: row.name,
+      description: row.description ?? null,
+      districtName: row.districtName ?? null,
+      photos: Array.isArray(row.photoObjectKeys) ? (row.photoObjectKeys as string[]).slice(0, 5) : [],
+      // Aggregates over bigint come back as strings from pg.
+      fromNightlyRateRwf: row.fromNightlyRateRwf === null ? null : Number(row.fromNightlyRateRwf),
+      maxGuests: row.maxGuests === null ? null : Number(row.maxGuests),
+      roomTypeCount: Number(row.roomTypeCount),
+    }));
   }
 
   /**

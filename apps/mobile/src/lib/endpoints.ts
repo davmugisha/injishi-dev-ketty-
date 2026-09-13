@@ -70,6 +70,11 @@ export const ENDPOINTS = {
   meTwoFactorSend: apiPath('/me/two-factor/send'),
   /** `POST` — verify it. */
   meTwoFactorVerify: apiPath('/me/two-factor/verify'),
+  /** `GET` — every outlet this guest may order from right now, with its live
+   *  menu, resolved on the server from their open stays (ADR-050 D-o). */
+  meOrderable: apiPath('/me/orderable'),
+  /** `POST` — place an order charged to the room. Needs an `Idempotency-Key`. */
+  meOrders: apiPath('/me/orders'),
 
   /** `GET` — which platform the API is: demo or production, sample data, last
    *  reset (ADR-043). Public; the app's one demo signal, see `queries/platform.ts`. */

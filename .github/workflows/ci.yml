@@ -1,0 +1,67 @@
+# Continuous integration for the injishi workspace.
+#
+# Every push and pull request typechecks and lints every package and app, and
+# runs the API's unit suites and the contracts tests. Nothing here needs a
+# database, Redis or a network service: the API suites are unit tests, and the
+# live verifiers under server/api/scripts are run against a running stack, not
+# here.
+#
+# The compiled packages (@injishi/contracts, @injishi/design-tokens) are rebuilt
+# first, so a change to their source is what the apps are checked against, not
+# whatever `dist/` last held.
+name: ci
+
+on:
+  push:
+  pull_request:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      # No step may reach a real payment provider, mail relay or database.
+      NODE_ENV: test
+      PAYMENT_ADAPTER_MODE: mock
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10.33.2
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Install
+        run: pnpm install --frozen-lockfile
+
+      - name: Build the compiled packages
+        run: |
+          pnpm --filter @injishi/contracts build
+          pnpm --filter @injishi/design-tokens build
+
+      - name: Design tokens are in sync with their source
+        run: pnpm --filter @injishi/design-tokens check
+
+      - name: Typecheck
+        run: pnpm typecheck
+
+      - name: Lint
+        run: pnpm lint
+
+      - name: API unit tests
+        # Jest reads the CI variable GitHub sets, so no --ci flag is passed.
+        run: pnpm --filter @injishi/api test
+
+      - name: Contracts tests
+        run: pnpm --filter @injishi/contracts test

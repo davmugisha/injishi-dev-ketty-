@@ -73,6 +73,11 @@ export class LocalDiskStorageAdapter implements StoragePort {
     return `data:${mime};base64,${bytes.toString('base64')}`;
   }
 
+  /** Straight off the disk. `pathFor` refuses a key that escapes the root. */
+  async get(objectKey: string): Promise<Buffer> {
+    return readFile(this.pathFor(objectKey));
+  }
+
   async remove(objectKey: string): Promise<void> {
     await rm(this.pathFor(objectKey), { force: true });
   }

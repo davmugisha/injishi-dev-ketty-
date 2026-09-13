@@ -1,5 +1,7 @@
 import {
   BookingApprovalResult,
+  type BookingCancellationResult,
+  type CancellationQuote,
   CreateBookingInput,
   CreateBookingOutcome,
   type PaymentAttemptStatus,
@@ -9,6 +11,7 @@ import {
   Body,
   Controller,
   Get,
+  NotFoundException,
   Param,
   ParseUUIDPipe,
   Post,
@@ -17,6 +20,7 @@ import {
 import { Throttle } from '@nestjs/throttler';
 
 import { BookingApprovalService } from '../../../modules/booking/application/booking-approval.service';
+import { BookingCancellationService } from '../../../modules/booking/application/booking-cancellation.service';
 import { BookingService } from '../../../modules/booking/application/booking.service';
 import { PaymentAttemptService } from '../../../modules/booking/application/payment-attempt.service';
 import { EbmReceiptService } from '../../../modules/ebm/application/ebm-receipt.service';
@@ -27,6 +31,9 @@ import {
 } from '../../../shared/auth/session.guard';
 import { UserThrottlerGuard } from '../../../shared/http/user-throttler.guard';
 import { ZodValidationPipe } from '../../../shared/validation/zod-validation.pipe';
+
+/** How often one person may poll a payment attempt. The checkout polls every 2s. */
+export const POLL_LIMIT_PER_MINUTE = 120;
 
 /**
  * The guest's side of a stay (F-B05, F-B06, C9).
@@ -44,6 +51,7 @@ export class BookingsController {
     private readonly approvals: BookingApprovalService,
     private readonly receipts: EbmReceiptService,
     private readonly attempts: PaymentAttemptService,
+    private readonly cancellations: BookingCancellationService,
   ) {}
 
   @Post()
@@ -93,8 +101,16 @@ export class BookingsController {
    * idempotent through the escrow constraint underneath it. It keeps the
    * class's `UserThrottlerGuard`, so a client polling far too fast is slowed
    * rather than allowed to hammer a payment provider through us.
+   *
+   * BUT NOT AT THE CHARGE'S RATE. It inherited the `money` bucket's five a
+   * minute, and the checkout polls every two seconds, so the third poll of an
+   * ordinary payment was answered 429 while the guest watched a spinner
+   * (booking audit, 2026-09-13). The throttler counts per handler, so this
+   * limit is the poll's own: two a second per person, comfortably above any
+   * honest client and still a ceiling on a looping one.
    */
   @Get('attempts/:attemptToken')
+  @Throttle({ money: { limit: POLL_LIMIT_PER_MINUTE, ttl: 60_000 } })
   attempt(
     @Param('attemptToken') attemptToken: string,
     @CurrentUser() user: SessionUser,
@@ -108,6 +124,47 @@ export class BookingsController {
     @CurrentUser() user: SessionUser,
   ): Promise<EbmReceipt> {
     return this.receipts.receiptForGuest(reference, user.id);
+  }
+
+  /**
+   * What cancelling would refund, before the guest commits (F-B11, ADR-051).
+   * Guest scoped exactly as the receipt route above is: a reference that is not
+   * the caller's is the same 404 as one that does not exist.
+   */
+  @Get(':reference/cancellation')
+  @Throttle({ money: { limit: 30, ttl: 60_000 } })
+  cancellationQuote(
+    @Param('reference') reference: string,
+    @CurrentUser() user: SessionUser,
+  ): Promise<CancellationQuote> {
+    return this.cancellations.quoteForGuest(reference, user.id);
+  }
+
+  /**
+   * The guest cancels their own booking, refunded on the tier it locked. A
+   * money movement, so it keeps the class's five a minute.
+   */
+  @Post(':reference/cancel')
+  cancel(
+    @Param('reference') reference: string,
+    @CurrentUser() user: SessionUser,
+  ): Promise<BookingCancellationResult> {
+    return this.cancellations.cancelByGuest(reference, user.id);
+  }
+
+  /**
+   * The property cancels a booking: always a full refund. Authorised as
+   * approve and decline are, by active owner or manager membership of the
+   * booking's org, with not-yours and not-found the same 404.
+   */
+  @Post(':id/host-cancel')
+  async hostCancel(
+    @Param('id', ParseUUIDPipe) id: string,
+    @CurrentUser() user: SessionUser,
+  ): Promise<BookingCancellationResult> {
+    const manageable = await this.approvals.findManageable(id, user.id);
+    if (!manageable) throw new NotFoundException('Booking not found.');
+    return this.cancellations.cancelByHost(id);
   }
 
   @Post(':id/approve')

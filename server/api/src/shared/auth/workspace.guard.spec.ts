@@ -83,7 +83,7 @@ describe('WorkspaceGuard', () => {
     };
   }
 
-  const signedIn = { id: 'user-1', email: 'samuel@demo.injishi.rw' };
+  const signedIn = { id: 'user-1', email: 'samuel@demo.injishi.com' };
 
   describe('refuses a workspace the caller does not hold (AC-4)', () => {
     it('throws Forbidden when the workspace resolves to nothing', async () => {

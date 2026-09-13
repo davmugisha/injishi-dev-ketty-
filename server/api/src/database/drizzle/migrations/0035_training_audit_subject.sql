@@ -1,0 +1,12 @@
+-- ADR-049 - the audit subject type for a training certificate.
+--
+-- ITS OWN MIGRATION, AND NOT PART OF 0034, only because 0034 was already
+-- applied when this gap was found. `audit_subject_type` had no value for a
+-- certificate, and AC-22 audits both issue and revocation. Editing an applied
+-- migration changes its hash and breaks the ledger in `__drizzle_migrations`,
+-- so the correct repair is a new file.
+--
+-- The plain `ADD VALUE` is safe for the reason 0005 records: nothing in this
+-- migration writes the literal, so Postgres never has to use a value added in
+-- the transaction that is still adding it.
+ALTER TYPE "public"."audit_subject_type" ADD VALUE 'training_certificate';

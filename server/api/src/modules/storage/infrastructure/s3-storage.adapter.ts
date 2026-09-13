@@ -160,6 +160,35 @@ export class S3StorageAdapter implements StoragePort {
     );
   }
 
+  /**
+   * Read the bytes back, for a server-side sender (ADR-049 AC-20).
+   *
+   * NOT the way to hand a file to a browser — `signedUrl` is, and this exists
+   * beside it rather than instead of it. The body is collected into one buffer
+   * because the one caller attaches it to an email, which needs the whole file
+   * anyway; anything large enough for that to matter does not belong in a mail.
+   */
+  async get(objectKey: string): Promise<Buffer> {
+    assertObjectKey(objectKey);
+    try {
+      const result = await this.clients.client.send(
+        new GetObjectCommand({ Bucket: this.bucket, Key: objectKey }),
+        withDeadline(this.clients.timeouts.operationMs),
+      );
+      if (!result.Body) {
+        throw new Error('the store returned no body');
+      }
+      // The SDK's own collector, so the stream is drained the way this runtime
+      // expects rather than by a hand-rolled chunk loop.
+      return Buffer.from(await result.Body.transformToByteArray());
+    } catch (error) {
+      throw new Error(
+        `Reading ${objectKey} from bucket "${this.bucket}" failed: ${describeS3Error(error)}`,
+        { cause: error },
+      );
+    }
+  }
+
   /** Idempotent: removing what is already gone is success, as S3 itself says. */
   async remove(objectKey: string): Promise<void> {
     assertObjectKey(objectKey);

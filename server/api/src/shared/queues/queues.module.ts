@@ -32,6 +32,34 @@ export const QUEUES = {
    * send that timed out can declare a stay twice.
    */
   ebmEmission: 'EbmEmission',
+  /**
+   * ADR-048: the waitlist welcome note.
+   *
+   * ITS OWN QUEUE, NOT `email`, and that is a correctness matter rather than
+   * tidiness. `BookingMailProcessor` is the only consumer of `email` and it
+   * returns early for any job name it does not know. A second consumer on the
+   * same queue would mean the two workers compete for every job, so a waitlist
+   * job drawn by the booking worker would be marked complete without ever
+   * being sent, and roughly half of all signups would silently never be
+   * emailed. A queue per concern is what the four below already do.
+   */
+  waitlistEmail: 'WaitlistEmail',
+  /**
+   * ADR-049: everything a learner is told about a training session, and the
+   * delayed reminder that fans out into it.
+   *
+   * ITS OWN QUEUE, for the reason the waitlist note above gives in full: a
+   * second consumer on `email` would compete with `BookingMailProcessor` for
+   * every job, and the loser is marked complete without being sent. A queue
+   * per concern is the rule here, not the exception.
+   *
+   * It carries two kinds of job and one processor owns both. The reminder
+   * SCHEDULER job is delayed until 24 hours before a session and, when it
+   * runs, queues one ordinary mail job per live registration — so the roster
+   * it fans out to is the roster at send time, and a delayed job never has to
+   * be edited when somebody withdraws.
+   */
+  trainingEmail: 'TrainingEmail',
 } as const;
 
 @Global()

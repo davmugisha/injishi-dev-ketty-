@@ -228,7 +228,7 @@ describe('sign in, the email field', () => {
 
   it('carries the address to verify trimmed but NOT lowercased (AC-E4, AC-E5)', async () => {
     renderAuth(<SignInScreen />, scheme);
-    fireEvent.changeText(screen.getByTestId('email-field'), '  Rayan@Demo.Injishi.RW ');
+    fireEvent.changeText(screen.getByTestId('email-field'), '  Rayan@Demo.Injishi.COM ');
     fireEvent.press(button(en['auth.continue']));
 
     await waitFor(() => expect(mockPush).toHaveBeenCalled());
@@ -239,9 +239,9 @@ describe('sign in, the email field', () => {
     // two spellings reach one account.
     expect(mockPush).toHaveBeenCalledWith({
       pathname: '/(auth)/verify-otp',
-      params: { email: 'Rayan@Demo.Injishi.RW' },
+      params: { email: 'Rayan@Demo.Injishi.COM' },
     });
-    expect(mockRequestSignInCode).toHaveBeenCalledWith('  Rayan@Demo.Injishi.RW ');
+    expect(mockRequestSignInCode).toHaveBeenCalledWith('  Rayan@Demo.Injishi.COM ');
   });
 
   it('behaves identically for an address the system has never seen (AC-E3)', async () => {
@@ -322,12 +322,12 @@ describe('sign in, the demo persona picker (AC-S10)', () => {
 
   const PERSONAS = [
     {
-      email: 'josephine@demo.injishi.rw',
+      email: 'josephine@demo.injishi.com',
       name: 'Josephine Uwimana',
       seats: [{ label: 'Kayitare Court', surface: 'landlord' }],
     },
     {
-      email: 'samuel@demo.injishi.rw',
+      email: 'samuel@demo.injishi.com',
       name: 'Samuel Kayitare',
       seats: [
         { label: 'Personal', surface: 'personal' },
@@ -378,9 +378,9 @@ describe('sign in, the demo persona picker (AC-S10)', () => {
     mockDemo = { personas: PERSONAS, isDemoHost: true };
     renderAuth(<SignInScreen />, scheme);
 
-    fireEvent.press(screen.getByLabelText('Samuel Kayitare, samuel@demo.injishi.rw'));
+    fireEvent.press(screen.getByLabelText('Samuel Kayitare, samuel@demo.injishi.com'));
 
-    expect(screen.getByTestId('email-field').props.value).toBe('samuel@demo.injishi.rw');
+    expect(screen.getByTestId('email-field').props.value).toBe('samuel@demo.injishi.com');
     expect(isDisabled(en['auth.continue'])).toBe(false);
   });
 });
@@ -389,13 +389,13 @@ describe('sign in, the demo persona picker (AC-S10)', () => {
 
 describe.each(SCHEMES)('verify code, frame X2, %s scheme', (scheme) => {
   it('names the address the code went to, unmasked and as typed (AC-E5)', () => {
-    mockParams = { email: 'Rayan@Demo.Injishi.RW' };
+    mockParams = { email: 'Rayan@Demo.Injishi.COM' };
     renderAuth(<VerifyOtpScreen />, scheme);
 
     // Unmasked on purpose. The person typed it ten seconds ago: masking their
     // own input hides nothing from an attacker and hides the typo from them.
     expect(
-      screen.getByText(en['auth.verifyBody'].replace('{email}', 'Rayan@Demo.Injishi.RW')),
+      screen.getByText(en['auth.verifyBody'].replace('{email}', 'Rayan@Demo.Injishi.COM')),
     ).toBeTruthy();
     expect(screen.getByText(en['auth.rateLimit'])).toBeTruthy();
   });

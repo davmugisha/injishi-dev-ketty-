@@ -1,4 +1,4 @@
-import { encodeQr } from "./qr-encode";
+import { encodeQr } from "@injishi/qr";
 
 /**
  * The clause 7.24.7 QR code, as an inline SVG.

@@ -3,7 +3,9 @@ import { Module } from '@nestjs/common';
 import { FinanceAdminModule } from './finance/finance-admin.module';
 import { OrgsAdminModule } from './orgs/orgs-admin.module';
 import { PlatformAdminModule } from './platform/platform-admin.module';
+import { TrainingAdminModule } from './training/training-admin.module';
 import { UsersAdminModule } from './users/users-admin.module';
+import { WaitlistAdminModule } from './waitlist/waitlist-admin.module';
 
 /**
  * Admin API. May cross module boundaries, but only through application
@@ -49,6 +51,11 @@ import { UsersAdminModule } from './users/users-admin.module';
     UsersAdminModule,
     FinanceAdminModule,
     PlatformAdminModule,
+    // ADR-048, deleted whole at launch.
+    WaitlistAdminModule,
+    // ADR-049. The first area whose routes a NON-platform staff role reaches:
+    // `trainer` holds `training.*` and no `admin.*` power at all.
+    TrainingAdminModule,
   ],
 })
 export class AdminApiModule {}

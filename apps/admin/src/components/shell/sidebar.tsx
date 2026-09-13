@@ -9,6 +9,7 @@ import { useEffect, useRef, useState } from "react";
 import { WEB_URL } from "@/lib/sign-in-url";
 import { NAV, roleCanSee } from "@/lib/nav";
 import { useAdminUi } from "@/lib/store";
+import { useRoleLens } from "@/components/shell/role-lens-seed";
 
 export function Sidebar({
   mobileOpen,
@@ -19,8 +20,7 @@ export function Sidebar({
 }) {
   const pathname = usePathname();
   const [collapsed, setCollapsed] = useState(false);
-  const roleLens = useAdminUi((s) => s.roleLens);
-  const roleLensLabel = useAdminUi((s) => s.roleLensLabel);
+  const { role: roleLens, label: roleLensLabel } = useRoleLens();
   const openRoleLens = useAdminUi((s) => s.openRoleLens);
 
   const label = (cls = "") => (collapsed ? "hidden" : cls);
@@ -100,7 +100,7 @@ export function Sidebar({
 
         <nav className="mt-2 grow scrollbar overflow-y-auto px-3 pb-4" aria-label="Admin sections">
           {NAV.map((group) => {
-            const visible = group.items.filter((item) => roleCanSee(roleLens, item));
+            const visible = roleLens ? group.items.filter((item) => roleCanSee(roleLens, item)) : [];
             if (visible.length === 0) return null;
             return (
               <div key={group.group}>

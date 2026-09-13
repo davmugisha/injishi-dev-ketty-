@@ -26,7 +26,17 @@ export type StoredObjectKind =
   | 'avatar'
   | 'property_photo'
   | 'filing_copy'
-  | 'certificate';
+  | 'certificate'
+  /**
+   * A training certificate PDF the platform ISSUED (ADR-049).
+   *
+   * Separate from `certificate`, which is a document a business uploads about
+   * itself. This one is never uploaded by anybody, is about a person rather
+   * than an org, and is reachable only by its holder or by staff through a
+   * signed url. One kind for both would put them under one access rule and one
+   * retention rule, and they share neither.
+   */
+  | 'training_certificate';
 
 export interface PutObjectInput {
   /** The raw bytes. Callers must size-check BEFORE reading a stream to here. */
@@ -71,9 +81,23 @@ export interface PutObjectResult {
 /**
  * What every store must do.
  *
- * Deliberately three operations and not a filesystem: `put` writes bytes and
- * names them, `signedUrl` hands out a short-lived read, and `remove` deletes.
- * A caller that wants anything else is reaching past the seam.
+ * Deliberately four operations and not a filesystem: `put` writes bytes and
+ * names them, `signedUrl` hands out a short-lived read, `get` reads bytes back
+ * into this process, and `remove` deletes. A caller that wants anything else is
+ * reaching past the seam.
+ *
+ * IT WAS THREE, and `get` is the one addition, so the reason is worth keeping.
+ * ADR-049 attaches an issued certificate to the mail that announces it, and its
+ * Value sourcing table names this seam as where those bytes come from, "so a
+ * resend always matches what was issued". Re-rendering the PDF in the mailer
+ * instead would have been a second renderer of the same document: it would
+ * agree today and diverge the first time the layout changed, and the file a
+ * person was emailed would stop being the file a verifier can be shown.
+ *
+ * `get` is for a SERVER-side reader with bytes to do something with — a mail
+ * attachment, today. It is never the way to hand a file to a browser:
+ * `signedUrl` is, and it stays that way because a short-lived signed read is a
+ * security property (F-S09 §10), not a convenience.
  */
 export interface StoragePort {
   put(input: PutObjectInput): Promise<PutObjectResult>;
@@ -82,6 +106,14 @@ export interface StoragePort {
    * never raise: F-S09 §10 makes the short TTL a security property.
    */
   signedUrl(objectKey: string, ttlSeconds: number): Promise<string>;
+  /**
+   * The object's bytes, in this process.
+   *
+   * Throws when the key names nothing. A missing object is not an empty one,
+   * and returning an empty buffer would let a caller attach a zero-byte PDF to
+   * a mail and call it sent.
+   */
+  get(objectKey: string): Promise<Buffer>;
   remove(objectKey: string): Promise<void>;
 }
 

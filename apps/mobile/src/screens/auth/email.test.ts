@@ -12,7 +12,7 @@ import { isPlausibleEmail, normaliseEmail, trimEmail } from './email';
 describe('isPlausibleEmail', () => {
   it('accepts the ordinary case', () => {
     expect(isPlausibleEmail('samuel@kayitare.rw')).toBe(true);
-    expect(isPlausibleEmail('josephine@demo.injishi.rw')).toBe(true);
+    expect(isPlausibleEmail('josephine@demo.injishi.com')).toBe(true);
   });
 
   it('accepts the unusual-but-valid addresses a stricter pattern would refuse', () => {
@@ -65,14 +65,14 @@ describe('normaliseEmail', () => {
     // The database is what actually guarantees this — `users_email_lower_uk`
     // is UNIQUE on `lower(email)` — and the client folds to match rather than
     // to decide.
-    expect(normaliseEmail(' Rayan@Demo.Injishi.RW ')).toBe('rayan@demo.injishi.rw');
-    expect(normaliseEmail('rayan@demo.injishi.rw')).toBe('rayan@demo.injishi.rw');
+    expect(normaliseEmail(' Rayan@Demo.Injishi.COM ')).toBe('rayan@demo.injishi.com');
+    expect(normaliseEmail('rayan@demo.injishi.com')).toBe('rayan@demo.injishi.com');
   });
 });
 
 describe('trimEmail', () => {
   it('trims without folding, which is what verify prints back', () => {
     // Verify shows what the person actually typed, so the mistake is visible.
-    expect(trimEmail('  Rayan@Demo.Injishi.RW ')).toBe('Rayan@Demo.Injishi.RW');
+    expect(trimEmail('  Rayan@Demo.Injishi.COM ')).toBe('Rayan@Demo.Injishi.COM');
   });
 });

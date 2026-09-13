@@ -2,7 +2,7 @@ import { ChevronLeft } from "lucide-react";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { findCatalogueProperty } from "@/data/catalogue";
+import { findDiscoverableProperty } from "@/data/discovery";
 import { propertyMetadata, propertyStaticParams } from "@/lib/property-route";
 
 /**
@@ -34,7 +34,7 @@ export default async function PropertyGalleryPage({
   params: Promise<{ slug: string }>;
 }) {
   const { slug } = await params;
-  const property = findCatalogueProperty(slug);
+  const property = await findDiscoverableProperty(slug);
   if (!property) notFound();
 
   return (

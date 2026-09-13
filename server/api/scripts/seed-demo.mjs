@@ -117,28 +117,28 @@ const MS = (n) => `de300000-0000-4000-8000-0000000016${String(n).padStart(2, '0'
 // which is the deliberate "cannot elevate" case.
 
 const PEOPLE = [
-  { id: U(1),  email: 'yves@demo.injishi.rw',      name: 'Yves Rutayisire',       kyc: 'verified',   nid: '1198080012345601' },
-  { id: U(2),  email: 'solange@demo.injishi.rw',   name: 'Solange Uwera',         kyc: 'verified',   nid: '1198580012345602' },
-  { id: U(3),  email: 'denise@demo.injishi.rw',    name: 'Denise Iribagiza',      kyc: 'verified',   nid: '1199080012345603' },
-  { id: U(4),  email: 'beatha@demo.injishi.rw',    name: 'Beatha Mukeshimana',    kyc: 'verified',   nid: '1199280012345604' },
-  { id: U(5),  email: 'josephine@demo.injishi.rw', name: 'Josephine Uwimana',     kyc: 'verified',   nid: '1197580012345605' },
-  { id: U(6),  email: 'samuel@demo.injishi.rw',    name: 'Samuel Kayitare',       kyc: 'verified',   nid: '1198280012345606', roles: ['broker'] },
-  { id: U(7),  email: 'jeanbosco@demo.injishi.rw', name: 'Jean-Bosco Nkurunziza', kyc: 'verified',   nid: '1198080012345607', roles: ['gov_oversight'] },
-  { id: U(8),  email: 'claudine@demo.injishi.rw',  name: 'Claudine Mukamana',     kyc: 'verified',   nid: '1198380012345608', roles: ['gov_oversight'] },
-  { id: U(9),  email: 'yvette@demo.injishi.rw',    name: 'Yvette Mukamana',       kyc: 'verified',   nid: '1198480012345609', roles: ['gov_oversight'] },
-  { id: U(10), email: 'alice@demo.injishi.rw',     name: 'Alice Uwimana',         kyc: 'verified',   nid: '1198680012345610', roles: ['gov_oversight'] },
-  { id: U(11), email: 'rayan@demo.injishi.rw',     name: 'Rayan Iraguha',         kyc: 'verified',   nid: '1199080123456789' },
+  { id: U(1),  email: 'yves@demo.injishi.com',      name: 'Yves Rutayisire',       kyc: 'verified',   nid: '1198080012345601' },
+  { id: U(2),  email: 'solange@demo.injishi.com',   name: 'Solange Uwera',         kyc: 'verified',   nid: '1198580012345602' },
+  { id: U(3),  email: 'denise@demo.injishi.com',    name: 'Denise Iribagiza',      kyc: 'verified',   nid: '1199080012345603' },
+  { id: U(4),  email: 'beatha@demo.injishi.com',    name: 'Beatha Mukeshimana',    kyc: 'verified',   nid: '1199280012345604' },
+  { id: U(5),  email: 'josephine@demo.injishi.com', name: 'Josephine Uwimana',     kyc: 'verified',   nid: '1197580012345605' },
+  { id: U(6),  email: 'samuel@demo.injishi.com',    name: 'Samuel Kayitare',       kyc: 'verified',   nid: '1198280012345606', roles: ['broker'] },
+  { id: U(7),  email: 'jeanbosco@demo.injishi.com', name: 'Jean-Bosco Nkurunziza', kyc: 'verified',   nid: '1198080012345607', roles: ['gov_oversight'] },
+  { id: U(8),  email: 'claudine@demo.injishi.com',  name: 'Claudine Mukamana',     kyc: 'verified',   nid: '1198380012345608', roles: ['gov_oversight'] },
+  { id: U(9),  email: 'yvette@demo.injishi.com',    name: 'Yvette Mukamana',       kyc: 'verified',   nid: '1198480012345609', roles: ['gov_oversight'] },
+  { id: U(10), email: 'alice@demo.injishi.com',     name: 'Alice Uwimana',         kyc: 'verified',   nid: '1198680012345610', roles: ['gov_oversight'] },
+  { id: U(11), email: 'rayan@demo.injishi.com',     name: 'Rayan Iraguha',         kyc: 'verified',   nid: '1199080123456789' },
   // Books with no document at all: the demand side stays email OTP only.
-  { id: U(12), email: 'grace@demo.injishi.rw',     name: 'Grace Kwizera',         kyc: 'unverified', nid: null },
+  { id: U(12), email: 'grace@demo.injishi.com',     name: 'Grace Kwizera',         kyc: 'unverified', nid: null },
   // Tries to become a Host and is refused: no active identity document.
-  { id: U(13), email: 'theoneste@demo.injishi.rw', name: 'Theoneste Bimenyimana', kyc: 'unverified', nid: null },
+  { id: U(13), email: 'theoneste@demo.injishi.com', name: 'Theoneste Bimenyimana', kyc: 'unverified', nid: null },
   // Held an oversight grant; it was revoked. Signs in, gets no console.
-  { id: U(14), email: 'fidele@demo.injishi.rw',    name: 'Fidele Nkurikiyimana',  kyc: 'verified',   nid: '1198780012345614', roles: ['gov_oversight'] },
+  { id: U(14), email: 'fidele@demo.injishi.com',    name: 'Fidele Nkurikiyimana',  kyc: 'verified',   nid: '1198780012345614', roles: ['gov_oversight'] },
   // Platform staff, so a presenter can open the admin console on the demo
   // (ADR-043, AC-20). `ops`, not `super_admin`: the demo signs anyone in with a
   // published code, so its staff persona holds the narrowest lens that still
   // shows the console working.
-  { id: U(15), email: 'ops@demo.injishi.rw',       name: 'Olivier Habimana',      kyc: 'verified',   nid: '1198880012345615', roles: ['admin'], staffRoles: ['ops'] },
+  { id: U(15), email: 'ops@demo.injishi.com',       name: 'Olivier Habimana',      kyc: 'verified',   nid: '1198880012345615', roles: ['admin'], staffRoles: ['ops'] },
 ];
 
 const ORGS = [
@@ -1300,7 +1300,7 @@ async function main() {
     );
     console.log('\nAmahoro reservations desk:');
     for (const d of desk) console.log(`  ${d.status.padEnd(18)} ${d.n}`);
-    console.log('\nSign in as yves@demo.injishi.rw (code 123456) and open /host/reservations.');
+    console.log('\nSign in as yves@demo.injishi.com (code 123456) and open /host/reservations.');
     console.log('Two requests are pending; Approve and Decline both act on real rows.');
   } finally {
     await client.end();

@@ -50,3 +50,5 @@ export * from './events';
 export * from './governance';
 export * from './operations';
 export * from './platform';
+export * from './waitlist';
+export * from './training';

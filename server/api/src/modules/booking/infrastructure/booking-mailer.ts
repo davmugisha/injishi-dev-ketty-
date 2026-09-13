@@ -44,16 +44,28 @@ export interface BookingMailFacts {
   nonRefundable: boolean;
   /** When a `request_to_book` auto-declines, for the request mail. */
   approvalExpiresAt: Date | null;
+  /** On a cancelled booking: who cancelled, and what went back. */
+  cancelledBy?: string | null;
+  refundRwf?: number | null;
 }
 
 @Injectable()
 export class BookingMailer {
   constructor(@Inject(MAILER_PORT) private readonly mailer: MailerPort) {}
 
-  async send(event: BookingMailEvent, facts: BookingMailFacts): Promise<void> {
-    const { subject, body } = compose(event, facts);
+  /**
+   * `to` is the guest unless given. A `host_*` event is sent once per manager
+   * of the property, each with their own address, and never copies the guest's.
+   */
+  async send(
+    event: BookingMailEvent,
+    facts: BookingMailFacts,
+    to: string = facts.guestEmail,
+    recipientName: string | null = facts.guestName,
+  ): Promise<void> {
+    const { subject, body } = compose(event, { ...facts, guestName: recipientName }, facts.guestName);
     await this.mailer.send({
-      to: facts.guestEmail,
+      to,
       subject,
       text: body,
     });
@@ -97,6 +109,7 @@ function stayBlock(f: BookingMailFacts): string {
 function compose(
   event: BookingMailEvent,
   f: BookingMailFacts,
+  guestName: string | null = f.guestName,
 ): { subject: string; body: string } {
   const hi = greeting(f.guestName);
   const stay = stayBlock(f);
@@ -192,6 +205,70 @@ function compose(
           'Refunds reach a mobile money account within a few minutes and a card within a few working days, depending on your bank.',
           '',
           'Those dates may still be available elsewhere — you can search again on Injishi.',
+        ].join('\n'),
+      };
+
+    case 'cancelled': {
+      const refunded = f.refundRwf ?? 0;
+      const byHost = f.cancelledBy === 'host';
+      return {
+        subject: `${byHost ? `${f.propertyName} cancelled your booking` : 'Booking cancelled'} — ${f.reference}`,
+        body: [
+          hi,
+          '',
+          refunded > 0
+            ? `${money(refunded)} is being refunded to you${f.grossRwf !== null && refunded >= f.grossRwf ? ' in full' : ''}.`
+            : 'No refund is due under the cancellation terms of this booking.',
+          f.grossRwf !== null && refunded < f.grossRwf
+            ? `${money(f.grossRwf - refunded)} is kept under the terms you booked on.`
+            : '',
+          '',
+          byHost
+            ? `${f.propertyName} cancelled this booking. When the property cancels, you are always refunded in full.`
+            : 'You cancelled this booking.',
+          '',
+          stay,
+          '',
+          refunded > 0
+            ? 'Refunds reach a mobile money account within a few minutes and a card within a few working days, depending on your bank.'
+            : '',
+        ]
+          .filter((line, i, all) => line !== '' || (all[i - 1] ?? '') !== '')
+          .join('\n'),
+      };
+    }
+
+    case 'host_request':
+      return {
+        subject: `New booking request to answer — ${f.reference}`,
+        body: [
+          hi,
+          '',
+          `${guestName ?? 'A guest'} has asked to stay at ${f.propertyName}. ${money(f.grossRwf)} is already held in escrow.`,
+          '',
+          stay,
+          '',
+          f.approvalExpiresAt
+            ? `Accept or decline it by ${day(f.approvalExpiresAt.toISOString().slice(0, 10))}. If nobody answers by then, the request is declined automatically and the guest is refunded in full.`
+            : 'If nobody answers in time, the request is declined automatically and the guest is refunded in full.',
+          '',
+          'Answer it from Reservations in the Injishi operator app.',
+        ].join('\n'),
+      };
+
+    case 'host_guest_cancelled':
+      return {
+        subject: `A guest cancelled — ${f.reference}`,
+        body: [
+          hi,
+          '',
+          `${guestName ?? 'The guest'} cancelled their booking at ${f.propertyName}. The room is available again for those dates.`,
+          '',
+          stay,
+          '',
+          f.grossRwf !== null && (f.refundRwf ?? 0) < f.grossRwf
+            ? `Under the booking's cancellation terms, ${money(f.grossRwf - (f.refundRwf ?? 0))} stays in escrow for the property.`
+            : 'The guest was refunded in full under the booking\'s cancellation terms.',
         ].join('\n'),
       };
   }

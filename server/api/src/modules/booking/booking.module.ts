@@ -10,6 +10,7 @@ import { AvailabilityService } from './application/availability.service';
 import { PaymentAttemptService } from './application/payment-attempt.service';
 import { PaymentAttemptRepository } from './infrastructure/payment-attempt.repository';
 import { BookingApprovalService } from './application/booking-approval.service';
+import { BookingCancellationService } from './application/booking-cancellation.service';
 import { BookingDecisionService } from './application/booking-decision.service';
 import { BookingLifecycleService } from './application/booking-lifecycle.service';
 import { BookingNotificationsService } from './application/booking-notifications.service';
@@ -67,6 +68,7 @@ import { PaymentCompensationProcessor } from './infrastructure/payment-compensat
     // and the operator services delegate to it.
     BookingDecisionService,
     BookingApprovalService,
+    BookingCancellationService,
     BookingLifecycleService,
     OperatorReservationsService,
     // The guest's own read of their own bookings. Its own repository, so the
@@ -109,6 +111,7 @@ import { PaymentCompensationProcessor } from './infrastructure/payment-compensat
     // Exported for `BookingsController`, which serves the guest's poll.
     PaymentAttemptService,
     BookingApprovalService,
+    BookingCancellationService,
     OperatorReservationsService,
     // Exported for `MeController`, which is the only caller and lives in
     // `PublicApiModule`.

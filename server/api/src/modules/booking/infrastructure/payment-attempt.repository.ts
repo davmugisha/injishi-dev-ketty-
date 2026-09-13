@@ -1,8 +1,8 @@
 import type { MobileMoneyNetwork, PaymentAttemptState } from '@injishi/contracts';
 import { Inject, Injectable } from '@nestjs/common';
-import { and, eq, lt, sql } from 'drizzle-orm';
+import { and, eq, isNull, lt, sql } from 'drizzle-orm';
 
-import { paymentAttempts } from '../../../database/drizzle/schema';
+import { bookings, paymentAttempts, roomTypes } from '../../../database/drizzle/schema';
 import {
   DRIZZLE,
   type Database,
@@ -29,10 +29,15 @@ export interface PaymentAttemptRow {
   guestUserId: string;
   workspaceId: string;
   state: PaymentAttemptState;
-  roomTypeId: string;
-  checkIn: string;
-  checkOut: string;
-  guests: number;
+  /** What it pays for (ADR-050 catalog child, amended). Completion branches on it. */
+  purpose: 'booking' | 'service_order';
+  /** Set on a `service_order` attempt: the pay now order it settles. */
+  serviceOrderId: string | null;
+  /** The stay, on a `booking` attempt only; null on an order's. */
+  roomTypeId: string | null;
+  checkIn: string | null;
+  checkOut: string | null;
+  guests: number | null;
   nonRefundable: boolean;
   attemptFingerprint: string;
   amountRwf: number | null;
@@ -42,18 +47,15 @@ export interface PaymentAttemptRow {
   expiresAt: Date;
   bookingId: string | null;
   failureReason: string | null;
+  createdAt: Date;
 }
 
-export interface RecordAttemptInput {
+/** What every attempt records, whatever it pays for. */
+interface RecordAttemptCommon {
   attemptToken: string;
   idempotencyKey: string;
   guestUserId: string;
   workspaceId: string;
-  roomTypeId: string;
-  checkIn: string;
-  checkOut: string;
-  guests: number;
-  nonRefundable: boolean;
   attemptFingerprint: string;
   amountRwf: number;
   adapterRef: string;
@@ -63,6 +65,24 @@ export interface RecordAttemptInput {
   payerMasked: string | null;
   expiresAt: Date;
 }
+
+/**
+ * A union, so the compiler holds what `payment_attempts_purpose_shape` holds in
+ * the database: a booking attempt cannot be written without its stay, nor an
+ * order attempt without its order.
+ */
+export type RecordAttemptInput = RecordAttemptCommon &
+  (
+    | {
+        purpose?: 'booking';
+        roomTypeId: string;
+        checkIn: string;
+        checkOut: string;
+        guests: number;
+        nonRefundable: boolean;
+      }
+    | { purpose: 'service_order'; serviceOrderId: string }
+  );
 
 @Injectable()
 export class PaymentAttemptRepository {
@@ -77,19 +97,26 @@ export class PaymentAttemptRepository {
    * not resurrect an attempt that has already been answered, which is what the
    * `where` clause protects. A settled or expired attempt is final.
    */
-  async record(input: RecordAttemptInput): Promise<void> {
-    await this.db
+  async record(input: RecordAttemptInput): Promise<string> {
+    const subject =
+      input.purpose === 'service_order'
+        ? { purpose: 'service_order' as const, serviceOrderId: input.serviceOrderId }
+        : {
+            purpose: 'booking' as const,
+            roomTypeId: input.roomTypeId,
+            checkIn: input.checkIn,
+            checkOut: input.checkOut,
+            guestCount: input.guests,
+            nonrefundable: input.nonRefundable,
+          };
+    const [row] = await this.db
       .insert(paymentAttempts)
       .values({
         attemptToken: input.attemptToken,
         idempotencyKey: input.idempotencyKey,
         guestUserId: input.guestUserId,
         workspaceId: input.workspaceId,
-        roomTypeId: input.roomTypeId,
-        checkIn: input.checkIn,
-        checkOut: input.checkOut,
-        guestCount: input.guests,
-        nonrefundable: input.nonRefundable,
+        ...subject,
         attemptFingerprint: input.attemptFingerprint,
         amountRwf: input.amountRwf,
         adapterRef: input.adapterRef,
@@ -107,7 +134,29 @@ export class PaymentAttemptRepository {
           updatedAt: new Date(),
         },
         where: eq(paymentAttempts.state, 'prompting'),
-      });
+      })
+      .returning({ id: paymentAttempts.id });
+    if (row) return row.id;
+
+    // An attempt already answered: the conflict's `where` refused to touch it,
+    // so nothing came back. It is still the row this press belongs to.
+    const [existing] = await this.db
+      .select({ id: paymentAttempts.id })
+      .from(paymentAttempts)
+      .where(eq(paymentAttempts.idempotencyKey, input.idempotencyKey))
+      .limit(1);
+    if (!existing) throw new Error(`payment_attempts refused ${input.idempotencyKey} and holds no row for it`);
+    return existing.id;
+  }
+
+  /** One attempt, by its idempotency key, whatever state it reached. */
+  async findByKey(idempotencyKey: string): Promise<PaymentAttemptRow | null> {
+    const [row] = await this.db
+      .select()
+      .from(paymentAttempts)
+      .where(eq(paymentAttempts.idempotencyKey, idempotencyKey))
+      .limit(1);
+    return row ? shape(row) : null;
   }
 
   /**
@@ -121,6 +170,7 @@ export class PaymentAttemptRepository {
   async findForGuest(
     attemptToken: string,
     guestUserId: string,
+    purpose: 'booking' | 'service_order' = 'booking',
   ): Promise<PaymentAttemptRow | null> {
     const [row] = await this.db
       .select()
@@ -129,6 +179,9 @@ export class PaymentAttemptRepository {
         and(
           eq(paymentAttempts.attemptToken, attemptToken),
           eq(paymentAttempts.guestUserId, guestUserId),
+          // The purpose is part of the address: a booking poll never answers
+          // with an order's attempt, nor an order poll with a booking's.
+          eq(paymentAttempts.purpose, purpose),
         ),
       )
       .limit(1);
@@ -136,47 +189,188 @@ export class PaymentAttemptRepository {
     return row ? shape(row) : null;
   }
 
-  /** Mark an attempt settled, and tie it to the reservation it produced. */
-  async markConfirmed(id: string, bookingId: string): Promise<void> {
+  /**
+   * Mark an attempt settled. A booking attempt names the reservation it
+   * produced; an order attempt already names its order, so passes null.
+   */
+  async markConfirmed(id: string, bookingId: string | null): Promise<void> {
     await this.db
       .update(paymentAttempts)
       .set({ state: 'confirmed', bookingId, settledAt: new Date(), updatedAt: new Date() })
       .where(eq(paymentAttempts.id, id));
   }
 
-  /** Mark an attempt over, with a sentence the guest can read. */
+  /**
+   * Mark an attempt over, with a sentence the guest can read.
+   *
+   * Guarded on `prompting`, and it says whether it moved anything. A poll and
+   * the sweep can reach the same attempt at the same moment; only the one whose
+   * update changed the row may queue the void, or one expiry becomes two
+   * reversals. Never overwrites an attempt that already completed.
+   */
   async markEnded(
     id: string,
     state: 'refused' | 'expired',
     failureReason: string,
-  ): Promise<void> {
-    await this.db
+  ): Promise<boolean> {
+    const moved = await this.db
       .update(paymentAttempts)
       .set({ state, failureReason, updatedAt: new Date() })
-      .where(eq(paymentAttempts.id, id));
+      .where(and(eq(paymentAttempts.id, id), eq(paymentAttempts.state, 'prompting')))
+      .returning({ id: paymentAttempts.id });
+    return moved.length > 0;
   }
 
   /**
-   * Prompts nobody answered, for the sweep.
+   * Every prompt still waiting, for the sweep (booking audit, 2026-09-13).
    *
-   * Bounded, and it reads only `prompting` rows past their deadline — the
-   * partial index is exactly this query. Ordered oldest first so a backlog
-   * drains in the order it built up rather than starving the earliest guest.
+   * Not only the expired ones. A guest who approved on their handset and then
+   * closed the tab has a settled payment and no poll coming, so the sweep has to
+   * ask about live prompts too and complete the ones that landed. Rows younger
+   * than `minAgeMs` are left to the request that is still writing them.
+   *
+   * Bounded, and oldest first, so a backlog drains in the order it built up
+   * rather than starving the earliest guest.
    */
-  async findExpired(now: Date, limit = 100): Promise<PaymentAttemptRow[]> {
+  async findPrompting(now: Date, minAgeMs: number, limit = 100): Promise<PaymentAttemptRow[]> {
     const rows = await this.db
       .select()
       .from(paymentAttempts)
       .where(
         and(
           eq(paymentAttempts.state, 'prompting'),
-          lt(paymentAttempts.expiresAt, now),
+          lt(paymentAttempts.createdAt, new Date(now.getTime() - minAgeMs)),
         ),
       )
-      .orderBy(paymentAttempts.expiresAt)
+      .orderBy(paymentAttempts.createdAt)
       .limit(limit);
 
     return rows.map(shape);
+  }
+
+  /**
+   * HOLD THE ROOM BEFORE ANYBODY IS CHARGED (F-B05, booking audit 2026-09-13).
+   *
+   * The booking path used to pre-check `bookings` and then capture. A prompt
+   * sits on a handset for up to three minutes and writes no booking until it
+   * settles, so two guests could both pass the pre-check for the last unit, both
+   * be charged, and one of them be refunded. The attempt row IS the hold now:
+   * written before the capture, counted by every later claim until it expires.
+   *
+   * One transaction that locks the room type row, the same lock
+   * `BookingRepository.create` takes, so a claim and a booking write serialise.
+   * Units taken are the holding bookings plus every OTHER unexpired prompting
+   * booking attempt for an overlapping stay. This press's own key is excluded,
+   * so a retried press re-claims its own hold instead of being refused by it.
+   *
+   * Answers `sold_out` without writing, `claimed` with the row (new, or this
+   * press's existing one), or `ended` when this press already reached a final
+   * state that is not a booking.
+   */
+  async claimBookingHold(
+    input: Omit<RecordAttemptCommon, 'adapterRef' | 'adapterMode'> & {
+      roomTypeId: string;
+      checkIn: string;
+      checkOut: string;
+      guests: number;
+      nonRefundable: boolean;
+      roomCount: number;
+      now: Date;
+    },
+  ): Promise<
+    | { kind: 'sold_out' }
+    | { kind: 'claimed'; row: PaymentAttemptRow }
+    | { kind: 'ended'; row: PaymentAttemptRow }
+  > {
+    return this.db.transaction(async (tx) => {
+      await tx
+        .select({ id: roomTypes.id })
+        .from(roomTypes)
+        .where(eq(roomTypes.id, input.roomTypeId))
+        .for('update');
+
+      const [existing] = await tx
+        .select()
+        .from(paymentAttempts)
+        .where(eq(paymentAttempts.idempotencyKey, input.idempotencyKey))
+        .limit(1);
+      if (existing && existing.state === 'prompting') return { kind: 'claimed' as const, row: shape(existing) };
+      if (existing) return { kind: 'ended' as const, row: shape(existing) };
+
+      const [taken] = await tx.execute<{ held: number }>(sql`
+        select
+          (select count(*) from ${bookings} b
+            where b.room_type_id = ${input.roomTypeId}
+              and b.status in ('pending_approval', 'confirmed')
+              and b.check_in < ${input.checkOut}
+              and b.check_out > ${input.checkIn})
+          +
+          (select count(*) from ${paymentAttempts} a
+            where a.purpose = 'booking'
+              and a.room_type_id = ${input.roomTypeId}
+              and a.state = 'prompting'
+              and a.expires_at > ${input.now}
+              and a.idempotency_key <> ${input.idempotencyKey}
+              and a.check_in < ${input.checkOut}
+              and a.check_out > ${input.checkIn})
+          as held
+      `).then((r) => r.rows);
+      if (Number(taken?.held ?? 0) >= input.roomCount) return { kind: 'sold_out' as const };
+
+      const [row] = await tx
+        .insert(paymentAttempts)
+        .values({
+          attemptToken: input.attemptToken,
+          idempotencyKey: input.idempotencyKey,
+          guestUserId: input.guestUserId,
+          workspaceId: input.workspaceId,
+          purpose: 'booking',
+          roomTypeId: input.roomTypeId,
+          checkIn: input.checkIn,
+          checkOut: input.checkOut,
+          guestCount: input.guests,
+          nonrefundable: input.nonRefundable,
+          attemptFingerprint: input.attemptFingerprint,
+          amountRwf: input.amountRwf,
+          // No reference yet: the capture has not been asked for. It is attached
+          // the moment the provider answers (`attachCapture`).
+          adapterRef: null,
+          instrumentKind: input.instrumentKind,
+          network: input.network,
+          payerMasked: input.payerMasked,
+          expiresAt: input.expiresAt,
+          state: 'prompting',
+        })
+        .returning();
+      if (!row) throw new Error(`payment_attempts refused the hold for ${input.idempotencyKey}`);
+      return { kind: 'claimed' as const, row: shape(row) };
+    });
+  }
+
+  /** The provider answered the capture: record its reference on the hold. */
+  async attachCapture(id: string, adapterRef: string, adapterMode: 'mock' | 'live'): Promise<void> {
+    await this.db
+      .update(paymentAttempts)
+      .set({ adapterRef, adapterMode, updatedAt: new Date() })
+      .where(eq(paymentAttempts.id, id));
+  }
+
+  /**
+   * Give the room back when no money moved: the provider declined, or could not
+   * be reached. Deleted rather than ended, because the row never stood for a
+   * payment, and a retried press must be able to claim afresh exactly as it
+   * could before holds existed. Only a hold with no reference is ever removed.
+   */
+  async releaseHold(id: string): Promise<void> {
+    await this.db
+      .delete(paymentAttempts)
+      .where(
+        and(
+          eq(paymentAttempts.id, id),
+          eq(paymentAttempts.state, 'prompting'),
+          isNull(paymentAttempts.adapterRef),
+        ),
+      );
   }
 
   /** How many prompts are in flight right now, for the health surface. */
@@ -198,10 +392,12 @@ function shape(row: typeof paymentAttempts.$inferSelect): PaymentAttemptRow {
     guestUserId: row.guestUserId,
     workspaceId: row.workspaceId,
     state: row.state,
-    roomTypeId: row.roomTypeId,
-    checkIn: row.checkIn,
-    checkOut: row.checkOut,
-    guests: row.guestCount,
+    purpose: row.purpose,
+    serviceOrderId: row.serviceOrderId ?? null,
+    roomTypeId: row.roomTypeId ?? null,
+    checkIn: row.checkIn ?? null,
+    checkOut: row.checkOut ?? null,
+    guests: row.guestCount ?? null,
     nonRefundable: row.nonrefundable,
     attemptFingerprint: row.attemptFingerprint,
     amountRwf: row.amountRwf ?? null,
@@ -211,5 +407,6 @@ function shape(row: typeof paymentAttempts.$inferSelect): PaymentAttemptRow {
     expiresAt: row.expiresAt,
     bookingId: row.bookingId ?? null,
     failureReason: row.failureReason ?? null,
+    createdAt: row.createdAt,
   };
 }

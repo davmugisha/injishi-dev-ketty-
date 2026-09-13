@@ -232,6 +232,55 @@
       "when": 1789176037702,
       "tag": "0032_payment_attempts",
       "breakpoints": true
+    },
+    {
+      "idx": 33,
+      "version": "7",
+      "when": 1789210800735,
+      "tag": "0033_waitlist_signups",
+      "breakpoints": true
+    },
+    {
+      "idx": 34,
+      "version": "7",
+      "when": 1789223720136,
+      "tag": "0034_training_and_certification",
+      "breakpoints": true
+    },
+    {
+      "idx": 35,
+      "version": "7",
+      "when": 1789223982397,
+      "tag": "0035_training_audit_subject",
+      "breakpoints": true
+    },
+    {
+      "idx": 36,
+      "version": "7",
+      "when": 1789232115477,
+      "tag": "0036_outlets_ordering_and_fiscal_receipt",
+      "breakpoints": true
+    },
+    {
+      "idx": 37,
+      "version": "7",
+      "when": 1789247000448,
+      "tag": "0037_catalog_can_be_sold",
+      "breakpoints": true
+    },
+    {
+      "idx": 38,
+      "version": "7",
+      "when": 1789258697593,
+      "tag": "0038_outlets_grow_parties",
+      "breakpoints": true
+    },
+    {
+      "idx": 39,
+      "version": "7",
+      "when": 1789277828861,
+      "tag": "0039_booking_cancellation",
+      "breakpoints": true
     }
   ]
 }

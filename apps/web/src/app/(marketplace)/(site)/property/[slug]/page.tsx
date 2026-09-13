@@ -1,6 +1,5 @@
 import { Suspense } from "react";
 import type { Metadata } from "next";
-import Image from "next/image";
 import { notFound } from "next/navigation";
 import {
   BookingWidget,
@@ -10,6 +9,7 @@ import {
   RelatedStays,
   RelatedStaysSkeleton,
 } from "@/components/property/related-stays";
+import { PropertyFacilities } from "@/components/property/property-facilities";
 import { PropertyGallery } from "@/components/property/property-gallery";
 import {
   PropertySubtitle,
@@ -17,13 +17,21 @@ import {
 } from "@/components/property/property-title";
 import { SectionHeading } from "@/components/shared/section-heading";
 import { LISTINGS } from "@/data/listings";
-import type { Amenity } from "@/data/properties";
-import { findCatalogueProperty } from "@/data/catalogue";
+import { findDiscoverableProperty } from "@/data/discovery";
 import { propertyMetadata, propertyStaticParams } from "@/lib/property-route";
 
 export function generateStaticParams() {
   return propertyStaticParams();
 }
+
+/*
+ * A slug outside the catalogue is rendered on first request and revalidated,
+ * rather than refused: a property published from the operator app exists only
+ * in the database, and Next must not answer it 404 for lacking a static page
+ * (booking audit, 2026-09-13). `true` is Next's default; it is stated because
+ * this route depends on it.
+ */
+export const dynamicParams = true;
 
 export async function generateMetadata({
   params,
@@ -42,7 +50,8 @@ export default async function PropertyPage({
   params: Promise<{ slug: string }>;
 }) {
   const { slug } = await params;
-  const property = findCatalogueProperty(slug);
+  // The catalogue first, then a property published in the database.
+  const property = await findDiscoverableProperty(slug);
   if (!property) notFound();
 
   const related = LISTINGS.filter((listing) => listing.slug !== slug).slice(0, 3);
@@ -98,8 +107,10 @@ export default async function PropertyPage({
             </dl>
           </section>
 
-          <AmenitySection title="Amenities" items={property.amenities} />
-
+          {/* The API's facilities when this business is on Injishi; the
+              catalogue's amenities otherwise, and while the API is asked.
+              Read in the browser, so this page stays static (ADR-050 D-k). */}
+          <PropertyFacilities slug={property.slug} amenities={property.amenities} />
         </div>
 
         {/* Suspense, not a `searchParams` prop. The widget reads the guest's
@@ -122,52 +133,5 @@ export default async function PropertyPage({
         </Suspense>
       </section>
     </div>
-  );
-}
-
-/**
- * Every amenity, and no "more" link (ADR-044, D-a).
- *
- * This section ended in `<Link href="#">More amenities</Link>`, sitting under a
- * separator that existed to set it apart. The list above it is not truncated —
- * it maps the whole of `property.amenities` — so the link offered a second
- * copy of what the guest was already reading, and `href="#"` meant it did not
- * even offer that. There is no amenities detail route to point it at, so the
- * link goes rather than moves. Add one back only when this list starts
- * cutting itself short and something else holds the rest.
- */
-function AmenitySection({ title, items }: { title: string; items: Amenity[] }) {
-  return (
-    <section>
-      <SectionHeading lead={title} className="mb-6" />
-      <ul className="m-0 grid list-none grid-cols-2 gap-4 p-0 md:grid-cols-3 lg:grid-cols-4">
-        {items.map((item) => {
-          // `available: false` means the house does not have it. Striking it
-          // through rather than dropping it is what the reference does, and it
-          // answers the question a guest actually came with.
-          const unavailable = item.available === false;
-          return (
-            <li key={item.label} className="flex items-center gap-3">
-              <Image
-                src={`/assets/${item.icon}.svg`}
-                alt=""
-                width={24}
-                height={24}
-                className={`size-6 shrink-0 ${unavailable ? "opacity-40" : "opacity-70"}`}
-              />
-              <span
-                className={
-                  unavailable
-                    ? "text-sm text-page-fg-70 line-through"
-                    : "text-sm text-page-fg"
-                }
-              >
-                {item.label}
-              </span>
-            </li>
-          );
-        })}
-      </ul>
-    </section>
   );
 }

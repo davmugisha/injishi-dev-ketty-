@@ -454,6 +454,10 @@ function detailFor(seed: Seed): StayDetail | undefined {
     houseRules: seed.houseRules.join('\n'),
     photos: [stay.photos.cover, ...stay.photos.gallery],
     roomTypes,
+    // The fixture's amenities travel beside the property (`amenities` below),
+    // in the richer shape this screen renders. The wire's deduped facility list
+    // (ADR-050 AC-16) has no fixture yet, and an empty list is its honest value.
+    facilities: [],
   };
 
   return {

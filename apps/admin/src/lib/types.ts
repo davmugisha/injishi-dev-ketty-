@@ -36,7 +36,13 @@ export type {
 /* ---------- Staff & shell ---------- */
 
 /**
- * Staff-role lens (admin-prd.md §3) — route guards hide unreachable sections.
+ * Staff-role lens (admin-prd.md §3) — a way of looking, never an identity.
+ *
+ * The route guard it used to describe exists now: `SECTION_PERMISSION` in
+ * `lib/nav.ts` names the permission each section needs and
+ * `components/shell/section-boundary.tsx` refuses a typed URL without it. That
+ * guard reads the permissions the SERVER resolved, not this lens.
+ *
  * `StaffRole` now comes from `@injishi/contracts` (the `staff_role` Postgres
  * enum: `super_admin | ops | compliance | finance`) so the admin lens and the
  * `admin_users.staff_roles[]` it manages speak the same values.
@@ -55,8 +61,13 @@ export type NavKey =
   | "environments"
   | "moderation"
   | "announcements"
+  // ADR-048, pre-launch only. Removed with the section at launch.
+  | "waitlist"
   | "analytics"
-  | "localization";
+  | "localization"
+  // ADR-049. The only section a NON-platform staff role reaches: `trainer`
+  // holds four `training.*` powers and no `admin.*` power at all.
+  | "training";
 
 export interface NavItem {
   key: NavKey;

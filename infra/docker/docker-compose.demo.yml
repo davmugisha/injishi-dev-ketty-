@@ -422,7 +422,7 @@ services:
       - default
 
   # The staff console, behind ADMIN_ALLOWED_IPS like production's (AC-3). The
-  # staff persona (`ops@demo.injishi.rw`) opens it after the step up.
+  # staff persona (`ops@demo.injishi.com`) opens it after the step up.
   admin:
     image: injishi-admin:${DEMO_IMAGE_TAG:-demo}
     build:

@@ -13,7 +13,7 @@ import {
   ResultsToolbar,
   stayTabId,
 } from "@/components/explore/results-toolbar";
-import { LISTINGS } from "@/data/listings";
+import { LISTINGS, type Listing } from "@/data/listings";
 import { PROMO_PAIR } from "@/data/promotions";
 import { filterListings } from "@/lib/filter-listings";
 import {
@@ -42,8 +42,18 @@ import { intentDateSummary, guestSummary } from "@/lib/stay-search";
  * the result column, and a narrow ad rail — and collapses to the result
  * column alone below it, with the rail moved into `FilterSheet`.
  */
-export function ExploreShell() {
+export function ExploreShell({
+  databaseListings = [],
+}: {
+  /**
+   * Published properties from the database that the catalogue does not
+   * describe, read by the page on the server (`data/discovery.ts`). Listed
+   * first: they are the stays a guest can actually book through Injishi.
+   */
+  databaseListings?: Listing[];
+} = {}) {
   const router = useRouter();
+  const listings = useMemo(() => [...databaseListings, ...LISTINGS], [databaseListings]);
   const searchParams = useSearchParams();
 
   const urlIntent = useMemo(() => parseIntent(searchParams), [searchParams]);
@@ -54,8 +64,8 @@ export function ExploreShell() {
   const [sheetOpen, setSheetOpen] = useState(false);
 
   const results = useMemo(
-    () => filterListings(LISTINGS, intent, refinement),
-    [intent, refinement],
+    () => filterListings(listings, intent, refinement),
+    [listings, intent, refinement],
   );
 
   const commit = useCallback(
@@ -122,7 +132,7 @@ export function ExploreShell() {
 
       <div className="container mt-6 flex items-start gap-6 xl:gap-7">
         <ExploreFilterRail
-          listings={LISTINGS}
+          listings={listings}
           intent={intent}
           refinement={refinement}
           onIntentChange={onIntentChange}
@@ -132,7 +142,7 @@ export function ExploreShell() {
         <div className="min-w-0 flex-1">
           <ResultsToolbar
             count={results.length}
-            totalCatalogue={LISTINGS.length}
+            totalCatalogue={listings.length}
             stayType={refinement.stayType}
             onStayTypeChange={(stayType) => onRefinementChange({ stayType })}
             sort={refinement.sort}
@@ -180,7 +190,7 @@ export function ExploreShell() {
       <FilterSheet
         open={sheetOpen}
         onOpenChange={setSheetOpen}
-        listings={LISTINGS}
+        listings={listings}
         intent={intent}
         refinement={refinement}
         onIntentChange={onIntentChange}

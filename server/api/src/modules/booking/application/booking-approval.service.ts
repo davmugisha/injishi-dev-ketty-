@@ -22,6 +22,15 @@ export class BookingApprovalService {
     private readonly decisions: BookingDecisionService,
   ) {}
 
+  /**
+   * The booking, only if `userId` may manage it (F-B06). Null means "not
+   * found" and "not yours" alike. A host cancellation authorises through this,
+   * the same rule approve and decline use.
+   */
+  findManageable(bookingId: string, userId: string) {
+    return this.bookings.findManageableBooking(bookingId, userId);
+  }
+
   async approve(
     bookingId: string,
     userId: string,

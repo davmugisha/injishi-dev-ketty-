@@ -26,10 +26,10 @@ import {
 } from 'drizzle-orm/pg-core';
 import { users } from './auth';
 import { amount, currency, timestamps } from './columns';
-import { adapterModeEnum, brokerStatusEnum, paymentAttemptStateEnum, cautionStatusEnum, escrowSourceEnum, escrowStatusEnum, filingStatusEnum, invitationStatusEnum, leaseStatusEnum, maintenanceCategoryEnum, maintenancePriorityEnum, maintenanceRaisedByRoleEnum, maintenanceStatusEnum, placementStatusEnum, renewalStatusEnum, rentStatusEnum, signerRoleEnum } from './enums';
+import { adapterModeEnum, brokerStatusEnum, paymentAttemptPurposeEnum, paymentAttemptStateEnum, cautionStatusEnum, escrowSourceEnum, escrowStatusEnum, filingStatusEnum, invitationStatusEnum, leaseStatusEnum, maintenanceCategoryEnum, maintenancePriorityEnum, maintenanceRaisedByRoleEnum, maintenanceStatusEnum, placementStatusEnum, renewalStatusEnum, rentStatusEnum, signerRoleEnum } from './enums';
 import { bookings, guestStays, storedObjects } from './hospitality';
 import { listings, properties, rooms, spaces } from './inventory';
-import { departments } from './operations';
+import { departments, serviceOrders } from './operations';
 import { orgs, workspaces } from './org';
 
 export const brokers = pgTable(
@@ -275,11 +275,23 @@ export const paymentAttempts = pgTable(
       .notNull()
       .references(() => workspaces.id),
 
+    /**
+     * What this attempt pays for (ADR-050 catalog child, D-n amended). A
+     * `booking` carries the stay below; a `service_order` carries the order it
+     * settles and none of the stay. `payment_attempts_purpose_shape` holds it.
+     */
+    purpose: paymentAttemptPurposeEnum('purpose').notNull().default('booking'),
+    /** The pay now order this attempt settles. */
+    serviceOrderId: uuid('service_order_id').references(
+      (): AnyPgColumn => serviceOrders.id,
+    ),
+
     // --- the stay this attempt is for, because no booking exists yet ---
-    roomTypeId: uuid('room_type_id').notNull(),
-    checkIn: date('check_in').notNull(),
-    checkOut: date('check_out').notNull(),
-    guestCount: integer('guest_count').notNull(),
+    // Null on a `service_order` attempt, which has no stay.
+    roomTypeId: uuid('room_type_id'),
+    checkIn: date('check_in'),
+    checkOut: date('check_out'),
+    guestCount: integer('guest_count'),
     nonrefundable: boolean('nonrefundable').notNull().default(false),
     attemptFingerprint: text('attempt_fingerprint').notNull(),
 
@@ -322,6 +334,18 @@ export const paymentAttempts = pgTable(
     index('payment_attempts_expiry_idx')
       .on(t.expiresAt)
       .where(sql`${t.state} = 'prompting'`),
+    /** Each purpose carries its own inputs and none of the other's. */
+    check(
+      'payment_attempts_purpose_shape',
+      sql`(${t.purpose} = 'booking'
+            AND ${t.roomTypeId} IS NOT NULL AND ${t.checkIn} IS NOT NULL
+            AND ${t.checkOut} IS NOT NULL AND ${t.guestCount} IS NOT NULL
+            AND ${t.serviceOrderId} IS NULL)
+        OR (${t.purpose} = 'service_order'
+            AND ${t.serviceOrderId} IS NOT NULL
+            AND ${t.roomTypeId} IS NULL AND ${t.checkIn} IS NULL
+            AND ${t.checkOut} IS NULL AND ${t.guestCount} IS NULL)`,
+    ),
   ],
 );
 

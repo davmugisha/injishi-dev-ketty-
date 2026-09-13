@@ -28,7 +28,7 @@
  *
  * ## The address is masked here, unlike verify
  *
- * `sentTo` arrives from the server already masked — `jo••••••@demo.injishi.rw`
+ * `sentTo` arrives from the server already masked — `jo••••••@demo.injishi.com`
  * — and it stays that way. The person did not type it on this screen, so
  * masking hides something real: a shoulder-surfer on a shared operator handset
  * learns nothing. On the sign-in verify screen the opposite is true, because

@@ -45,6 +45,21 @@ export interface WriteSpec<T> {
    * not good: a TIN re-check RRA never answered is recorded, not resolved.
    */
   successTone?: (data: T) => ToastTone;
+  /**
+   * Words for a 409 or 422 that is a BUSINESS RULE rather than a contract bug,
+   * given the API's own sentence when it sent one (`detail`). Return
+   * `undefined` to fall back to the generic wording.
+   *
+   * Opt-in, because for most writes in this console a 422 can only mean the
+   * console sent a malformed body. Training is the exception (ADR-049): "that
+   * venue is retired", "a session has to end after it starts" and "that session
+   * is cancelled" are refusals a staffer causes and can fix, and "a bug on our
+   * side" would send them looking in the wrong place.
+   */
+  refusal?: (
+    reason: "conflict" | "rejected" | "denied",
+    detail: string | undefined,
+  ) => string | undefined;
 }
 
 /**
@@ -72,10 +87,17 @@ export function outcomeOf<T>(
       tone: spec.successTone?.(result.data) ?? "success",
     };
   }
+  const worded =
+    (result.reason === "conflict" ||
+      result.reason === "rejected" ||
+      result.reason === "denied") &&
+    spec.refusal
+      ? spec.refusal(result.reason, result.detail)
+      : undefined;
   return {
     ok: false,
     reason: result.reason,
-    message: failureMessage(result.reason, spec),
+    message: worded ?? failureMessage(result.reason, spec),
     tone: failureTone(result.reason),
   };
 }

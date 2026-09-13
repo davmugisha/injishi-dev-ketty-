@@ -2,9 +2,14 @@ import {
   AdvanceServiceOrderRequest,
   CreateServiceCategoryRequest,
   CreateServiceOrderRequest,
+  MarkOrderPaidCashRequest,
+  type MarkOrderPaidCashResult,
   type OperatorServiceCatalog,
   type OperatorServiceOrder,
   type OperatorServiceOrderList,
+  RraClassificationSearch,
+  type RraClassificationList,
+  UpdateServiceCategoryRequest,
   UpdateServiceItemRequest,
   UpsertServiceItemRequest,
   type WorkspaceAccess,
@@ -18,10 +23,12 @@ import {
   ParseUUIDPipe,
   Patch,
   Post,
+  Query,
   UseGuards,
 } from '@nestjs/common';
 
 import { ServiceCatalogService } from '../../../modules/operations/application/service-catalog.service';
+import { IdempotencyKey } from '../../../shared/http/idempotency-key';
 import {
   CurrentUser,
   SessionGuard,
@@ -66,6 +73,18 @@ export class OpsServiceCatalogController {
     return this.catalog.createCategory(workspace, body);
   }
 
+  /** Rename a menu, hide it from guests, point it at an outlet, change its RRA prefills. */
+  @Patch('categories/:id')
+  @RequirePermission('menu.manage')
+  updateCategory(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body(new ZodValidationPipe(UpdateServiceCategoryRequest))
+    body: UpdateServiceCategoryRequest,
+    @CurrentWorkspace() workspace: WorkspaceAccess,
+  ): Promise<OperatorServiceCatalog> {
+    return this.catalog.updateCategory(workspace, id, body);
+  }
+
   @Post('items')
   @RequirePermission('menu.manage')
   createItem(
@@ -77,11 +96,13 @@ export class OpsServiceCatalogController {
   }
 
   /**
-   * Change a price, take something off the menu, mark it out of stock.
+   * Change a price, take something off the menu, mark it out of stock, add its
+   * RRA codes.
    *
    * Never rewrites a placed order: an order snapshots the name, the price and
    * the tax code at the moment it was placed, so last week's bill still says
-   * what last week's menu said.
+   * what last week's menu said. Turning an item orderable without every RRA
+   * value is a 422 (ADR-050 D-m, AC-20).
    */
   @Patch('items/:id')
   @RequirePermission('menu.manage')
@@ -139,5 +160,49 @@ export class OpsServiceOrdersController {
     @CurrentUser() user: SessionUser,
   ): Promise<OperatorServiceOrder> {
     return this.catalog.advanceOrder(workspace, id, body, user.id);
+  }
+
+  /**
+   * Mark a pay now order paid in CASH (ADR-050 D-p, AC-24).
+   *
+   * `folio.payment`, the permission that takes money at the desk, and an
+   * `Idempotency-Key` like every command here that moves money. Moves the
+   * order to the board and raises its `NS` with means of payment `01`.
+   */
+  @Post(':id/paid-cash')
+  @RequirePermission('folio.payment')
+  markPaidCash(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body(new ZodValidationPipe(MarkOrderPaidCashRequest))
+    body: MarkOrderPaidCashRequest,
+    @CurrentWorkspace() workspace: WorkspaceAccess,
+    @CurrentUser() user: SessionUser,
+    // Required, and refused when missing or malformed, before anything runs.
+    // Its value is not needed: the replay is the order's own state and NS key.
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    @IdempotencyKey() _key: string,
+  ): Promise<MarkOrderPaidCashResult> {
+    return this.catalog.markPaidCash(workspace, id, body, user.id);
+  }
+}
+
+/**
+ * RRA's item classification list -> /api/v1/ops/rra/classifications
+ * (ADR-050 D-m).
+ *
+ * Behind `menu.manage`, because the list is large and a public read of it
+ * serves nobody: the only person who needs it is the one classifying a menu.
+ */
+@Controller({ path: 'ops/rra', version: '1' })
+@UseGuards(SessionGuard, WorkspaceGuard)
+export class OpsRraController {
+  constructor(private readonly catalog: ServiceCatalogService) {}
+
+  @Get('classifications')
+  @RequirePermission('menu.manage')
+  classifications(
+    @Query(new ZodValidationPipe(RraClassificationSearch)) query: RraClassificationSearch,
+  ): Promise<RraClassificationList> {
+    return this.catalog.classifications(query.q);
   }
 }

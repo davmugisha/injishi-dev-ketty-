@@ -92,10 +92,10 @@ const READS = [
 
 console.log(`Verifying operator reads against ${API}\n`);
 
-const owner = await sessionFor('host@injishi.rw');
+const owner = await sessionFor('host@injishi.com');
 if (!owner.workspaceId) throw new Error('the owner holds no business workspace');
 
-console.log(`host@injishi.rw (${owner.role}) — every screen's read answers`);
+console.log(`host@injishi.com (${owner.role}) — every screen's read answers`);
 for (const [screen, path, key] of READS) {
   const res = await fetch(`${API}/api/v1${path.replace("WORKSPACE", owner.workspaceId)}`, {
     headers: { cookie: owner.cookie, 'x-workspace-id': owner.workspaceId },
@@ -117,8 +117,8 @@ for (const [screen, path, key] of READS) {
  * control that stops a receptionist reaching Finance is the nav-derived route
  * guard (verify-role-nav.mjs) plus the permission on each COMMAND, not the read.
  */
-console.log('\nreception@injishi.rw — reads answer, because the guard is on the workspace');
-const reception = await sessionFor('reception@injishi.rw');
+console.log('\nreception@injishi.com — reads answer, because the guard is on the workspace');
+const reception = await sessionFor('reception@injishi.com');
 for (const [screen, path, key] of READS.slice(0, 9)) {
   const res = await fetch(`${API}/api/v1${path}`, {
     headers: { cookie: reception.cookie, 'x-workspace-id': reception.workspaceId },

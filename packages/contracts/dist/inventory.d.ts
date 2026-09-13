@@ -2,8 +2,8 @@ import { z } from "zod";
 /**
  * The operator write path for inventory (ADR-009).
  *
- * The public read shapes live in `booking.ts` (`PropertyDetail`,
- * `RoomTypeSummary`) and answer a guest's question: what can I book? These
+ * The public read shapes live in `property-detail.ts` (`PropertyDetail`) and
+ * `booking.ts` (`RoomTypeSummary`) and answer a guest's question: what can I book? These
  * answer an operator's: what do I have, and is it live? Two different questions,
  * two different shapes, so a draft property never accidentally serialises
  * through a public contract.
@@ -51,22 +51,22 @@ export declare const CreatePropertyRequest: z.ZodObject<{
     sectorId: number;
     name: string;
     workspaceId: string;
-    description?: string | undefined;
-    locationPrivacy?: boolean | undefined;
     checkInTime?: string | undefined;
     checkOutTime?: string | undefined;
-    houseRules?: string | undefined;
     street?: string | undefined;
+    description?: string | undefined;
+    houseRules?: string | undefined;
+    locationPrivacy?: boolean | undefined;
 }, {
     sectorId: number;
     name: string;
     workspaceId: string;
-    description?: string | undefined;
-    locationPrivacy?: boolean | undefined;
     checkInTime?: string | undefined;
     checkOutTime?: string | undefined;
-    houseRules?: string | undefined;
     street?: string | undefined;
+    description?: string | undefined;
+    houseRules?: string | undefined;
+    locationPrivacy?: boolean | undefined;
 }>;
 export type CreatePropertyRequest = z.infer<typeof CreatePropertyRequest>;
 /**
@@ -91,22 +91,22 @@ export declare const UpdatePropertyRequest: z.ZodObject<{
     workspaceId: string;
     sectorId?: number | undefined;
     name?: string | undefined;
-    description?: string | undefined;
-    locationPrivacy?: boolean | undefined;
     checkInTime?: string | undefined;
     checkOutTime?: string | undefined;
-    houseRules?: string | undefined;
     street?: string | undefined;
+    description?: string | undefined;
+    houseRules?: string | undefined;
+    locationPrivacy?: boolean | undefined;
 }, {
     workspaceId: string;
     sectorId?: number | undefined;
     name?: string | undefined;
-    description?: string | undefined;
-    locationPrivacy?: boolean | undefined;
     checkInTime?: string | undefined;
     checkOutTime?: string | undefined;
-    houseRules?: string | undefined;
     street?: string | undefined;
+    description?: string | undefined;
+    houseRules?: string | undefined;
+    locationPrivacy?: boolean | undefined;
 }>;
 export type UpdatePropertyRequest = z.infer<typeof UpdatePropertyRequest>;
 /** Reading is the same question, asked with a query string. */
@@ -299,20 +299,8 @@ export declare const OperatorProperty: z.ZodObject<{
     id: string;
     name: string;
     roomTypeCount: number;
-    description: string | null;
-    locationPrivacy: boolean;
     checkInTime: string | null;
     checkOutTime: string | null;
-    houseRules: string | null;
-    photos: string[];
-    roomTypes: {
-        status: "active" | "archived";
-        id: string;
-        domain: "hospitality" | "residence";
-        name: string;
-        sellableRoomCount: number;
-        basePriceRwf: number | null;
-    }[];
     address: {
         districtId: number | null;
         districtName: string | null;
@@ -322,28 +310,28 @@ export declare const OperatorProperty: z.ZodObject<{
         sectorName: string | null;
         provinceName: string | null;
     };
+    description: string | null;
+    houseRules: string | null;
+    locationPrivacy: boolean;
     listingStatus: "draft" | "published";
     publishedAt: string | null;
     sellableRoomCount: number;
     timezone: string;
+    photos: string[];
+    roomTypes: {
+        status: "active" | "archived";
+        id: string;
+        domain: "hospitality" | "residence";
+        name: string;
+        sellableRoomCount: number;
+        basePriceRwf: number | null;
+    }[];
 }, {
     id: string;
     name: string;
     roomTypeCount: number;
-    description: string | null;
-    locationPrivacy: boolean;
     checkInTime: string | null;
     checkOutTime: string | null;
-    houseRules: string | null;
-    photos: string[];
-    roomTypes: {
-        status: "active" | "archived";
-        id: string;
-        domain: "hospitality" | "residence";
-        name: string;
-        sellableRoomCount: number;
-        basePriceRwf: number | null;
-    }[];
     address: {
         districtId: number | null;
         districtName: string | null;
@@ -353,10 +341,22 @@ export declare const OperatorProperty: z.ZodObject<{
         sectorName: string | null;
         provinceName: string | null;
     };
+    description: string | null;
+    houseRules: string | null;
+    locationPrivacy: boolean;
     listingStatus: "draft" | "published";
     publishedAt: string | null;
     sellableRoomCount: number;
     timezone: string;
+    photos: string[];
+    roomTypes: {
+        status: "active" | "archived";
+        id: string;
+        domain: "hospitality" | "residence";
+        name: string;
+        sellableRoomCount: number;
+        basePriceRwf: number | null;
+    }[];
 }>;
 export type OperatorProperty = z.infer<typeof OperatorProperty>;
 /**

@@ -106,9 +106,12 @@ export class OpsStaysController {
    * Dirties the room in the same transaction. A checkout that did not is how
    * housekeeping walks past a room that needs them, and two separate calls mean
    * a dropped connection between them loses the second.
+   *
+   * Needs `folio.close` as well as `stay.checkout`, because check out is what
+   * signs the stay's sale (ADR-050 D-t, AC-8).
    */
   @Post(':id/checkout')
-  @RequirePermission('stay.checkout')
+  @RequirePermission('stay.checkout', 'folio.close')
   checkOut(
     @Param('id', ParseUUIDPipe) id: string,
     @CurrentWorkspace() workspace: WorkspaceAccess,

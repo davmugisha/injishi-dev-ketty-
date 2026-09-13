@@ -115,10 +115,7 @@ export async function StaffBoundary({
   }
 
   return (
-    <>
-      <RoleLensSeed roles={access.roles} />
-      {children}
-    </>
+    <RoleLensSeed roles={access.roles}>{children}</RoleLensSeed>
   );
 }
 

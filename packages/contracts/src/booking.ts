@@ -76,30 +76,8 @@ export const RoomTypeSummary = z.object({
     minStay: z.number().int().positive().nullable(),
 });
 export type RoomTypeSummary = z.infer<typeof RoomTypeSummary>;
-export const PropertyDetail = z.object({
-    id: z.string().uuid(),
-    /**
-     * The property's public address on the marketplace, or null.
-     *
-     * Null while a property is in the registration pipeline: it has no public
-     * page yet, and minting an address for one would publish a business nobody
-     * has approved. A consumer that needs to link to the property must handle
-     * the null rather than assume one exists.
-     */
-    slug: z.string().min(1).nullable(),
-    name: z.string().min(1),
-    description: z.string().nullable(),
-    districtName: z.string().nullable(),
-    latitude: z.number().nullable(),
-    longitude: z.number().nullable(),
-    locationPrivacy: z.boolean(),
-    checkInTime: z.string().nullable(),
-    checkOutTime: z.string().nullable(),
-    houseRules: z.string().nullable(),
-    photos: z.array(z.string()),
-    roomTypes: z.array(RoomTypeSummary),
-});
-export type PropertyDetail = z.infer<typeof PropertyDetail>;
+// PropertyDetail moved to property-detail.ts (ADR-050 slice 4): it now carries
+// facilities, whose outlet face imports ordering.ts, which imports this file.
 // --- Read: one bookable room, with just enough of its property -------------
 /**
  * The property, as the CHECKOUT needs to name it. Not a second PropertyDetail.
@@ -502,3 +480,113 @@ export const BookingApprovalResult = z.object({
     confirmedAt: z.string().nullable(),
 });
 export type BookingApprovalResult = z.infer<typeof BookingApprovalResult>;
+// --- Cancellation and refund tiers (F-B11, ADR-051) --------------------------
+/**
+ * What each tier refunds a GUEST who cancels a confirmed booking, by how long
+ * before check-in they cancel.
+ *
+ * The only statement of these numbers before ADR-051 was the checkout copy in
+ * `apps/web/src/lib/booking.ts`, which guests had already been shown when they
+ * paid, so that copy IS the policy and this table is it in figures:
+ *
+ * - flexible: 100% up to 24 hours before check-in; nothing after.
+ * - moderate: 100% up to 5 days before; 50% after.
+ * - limited: 50% up to 7 days before; nothing after.
+ * - firm: 50% up to 30 days before; nothing after.
+ * - strict_extended_stay: 50% up to 30 days before; nothing after.
+ *
+ * `windowHours` is the cut-off; `before` applies at or beyond it, `after` inside
+ * it. The guest service fee is refunded in the same proportion as the stay.
+ */
+export const CANCELLATION_TIERS: Record<CancellationTier, {
+    windowHours: number;
+    beforePercent: number;
+    afterPercent: number;
+}> = {
+    flexible: { windowHours: 24, beforePercent: 100, afterPercent: 0 },
+    moderate: { windowHours: 5 * 24, beforePercent: 100, afterPercent: 50 },
+    limited: { windowHours: 7 * 24, beforePercent: 50, afterPercent: 0 },
+    firm: { windowHours: 30 * 24, beforePercent: 50, afterPercent: 0 },
+    strict_extended_stay: { windowHours: 30 * 24, beforePercent: 50, afterPercent: 0 },
+};
+/** Who cancelled. A host cancellation always refunds in full (F-B11). */
+export const CancellationParty = z.enum(["guest", "host"]);
+export type CancellationParty = z.infer<typeof CancellationParty>;
+export interface CancellationRefund {
+    /** 0 to 100. */
+    percent: number;
+    refundRwf: number;
+    /** What the guest does not get back. Stays in escrow for the host. */
+    forfeitRwf: number;
+    /** The rule that decided it, in a sentence meant for the guest. */
+    rule: string;
+}
+/**
+ * THE REFUND FOR ONE CANCELLATION, and the only place it is computed.
+ *
+ * In order, the first that applies wins:
+ * 1. The host cancels: 100%, always.
+ * 2. The request was never accepted (`pending_approval`): 100%, no contract.
+ * 3. The guest chose the non-refundable rate: 0%, whatever the tier.
+ * 4. The tier, by hours before check-in. A booking that locked no tier is read
+ *    as `flexible`, the most generous one, rather than refused.
+ *
+ * Rounded DOWN to the franc on the refund, so a partial refund can never pay
+ * out more than was captured and the forfeit is the exact remainder.
+ */
+export function cancellationRefund(input: {
+    party: CancellationParty;
+    status: BookingStatus;
+    tier: CancellationTier | null;
+    nonRefundable: boolean;
+    grossRwf: number;
+    hoursBeforeCheckIn: number;
+}): CancellationRefund {
+    const gross = Math.max(0, Math.floor(input.grossRwf));
+    const at = (percent: number, rule: string): CancellationRefund => {
+        const refundRwf = Math.floor((gross * percent) / 100);
+        return { percent, refundRwf, forfeitRwf: gross - refundRwf, rule };
+    };
+    if (input.party === "host") {
+        return at(100, "The property cancelled, so you are refunded in full.");
+    }
+    if (input.status === "pending_approval") {
+        return at(100, "The host had not accepted your request yet, so you are refunded in full.");
+    }
+    if (input.nonRefundable) {
+        return at(0, "You booked the non-refundable rate, so nothing is refunded.");
+    }
+    const tier = input.tier ?? "flexible";
+    const rule = CANCELLATION_TIERS[tier];
+    const days = rule.windowHours % 24 === 0 && rule.windowHours >= 48
+        ? `${rule.windowHours / 24} days`
+        : `${rule.windowHours} hours`;
+    return input.hoursBeforeCheckIn >= rule.windowHours
+        ? at(rule.beforePercent, `Cancelled at least ${days} before check-in: ${rule.beforePercent}% refunded.`)
+        : at(rule.afterPercent, `Cancelled less than ${days} before check-in: ${rule.afterPercent}% refunded.`);
+}
+/** What `GET /api/v1/bookings/:reference/cancellation` answers: the refund, before committing. */
+export const CancellationQuote = z.object({
+    reference: z.string().min(1),
+    cancellable: z.boolean(),
+    /** Why it cannot be cancelled, when it cannot. */
+    refusal: z.string().nullable(),
+    percent: z.number().int().min(0).max(100),
+    refundRwf: RwfAmount,
+    forfeitRwf: RwfAmount,
+    rule: z.string(),
+});
+export type CancellationQuote = z.infer<typeof CancellationQuote>;
+/** What a cancellation answers once it is done. */
+export const BookingCancellationResult = z.object({
+    id: z.string().uuid(),
+    reference: z.string().min(1),
+    status: BookingStatus,
+    cancelledBy: CancellationParty,
+    paymentStatus: PaymentStatus.nullable(),
+    escrowStatus: EscrowStatus.nullable(),
+    refundRwf: RwfAmount,
+    forfeitRwf: RwfAmount,
+    rule: z.string(),
+});
+export type BookingCancellationResult = z.infer<typeof BookingCancellationResult>;
