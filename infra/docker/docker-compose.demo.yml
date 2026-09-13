@@ -164,7 +164,7 @@ services:
   # key and credentials (AC-4). Its S3 port answers on storage-demo, public like
   # the demo, for reads only and never MinIO's own /minio/ paths.
   minio:
-    image: minio/minio:RELEASE.2025-09-07T16-13-09Z
+    image: quay.io/minio/minio:RELEASE.2025-09-07T16-13-09Z
     restart: unless-stopped
     command: ["server", "/data"]
     environment:
@@ -204,7 +204,7 @@ services:
   # One shot, on every `up`: the one bucket private and encrypted, and the
   # API's own scoped user (minio/provision.sh).
   minio-init:
-    image: minio/mc:RELEASE.2025-08-13T08-35-41Z
+    image: quay.io/minio/mc:RELEASE.2025-08-13T08-35-41Z
     restart: "no"
     entrypoint: ["/bin/sh", "/provision.sh"]
     environment:

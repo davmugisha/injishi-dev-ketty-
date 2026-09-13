@@ -574,7 +574,7 @@ Record the date of the last proven restore here when you do it:
   from this VPS yet. Until one does, the production deploy gate will refuse
   every dispatch, which is the correct direction to fail in. Staging and the
   demo need no backup: they are rebuilt from the recipe.
-- **MinIO gets no more security fixes.** `minio/minio:RELEASE.2025-09-07T16-13-09Z`
+- **MinIO gets no more security fixes, and is pulled from quay.io.** `quay.io/minio/minio:RELEASE.2025-09-07T16-13-09Z`
   is the last community release: upstream publishes no further community builds,
   so a vulnerability found after it stays open here, in all three stacks. The
   exposure is kept small (reads only on the public hosts, console off, the API on

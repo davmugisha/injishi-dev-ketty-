@@ -156,7 +156,7 @@ services:
   # console is switched off, so there is no port 9001 to route by mistake.
   # Administer with `docker compose -p injishi exec minio mc`.
   minio:
-    image: minio/minio:RELEASE.2025-09-07T16-13-09Z
+    image: quay.io/minio/minio:RELEASE.2025-09-07T16-13-09Z
     restart: unless-stopped
     command: ["server", "/data"]
     environment:
@@ -201,7 +201,7 @@ services:
   # (minio/provision.sh, idempotent). The API and the worker start only once it
   # has exited 0, so neither boots against a bucket that is not there.
   minio-init:
-    image: minio/mc:RELEASE.2025-08-13T08-35-41Z
+    image: quay.io/minio/mc:RELEASE.2025-08-13T08-35-41Z
     restart: "no"
     entrypoint: ["/bin/sh", "/provision.sh"]
     environment:
