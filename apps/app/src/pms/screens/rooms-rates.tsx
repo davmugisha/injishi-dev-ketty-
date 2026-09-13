@@ -1,9 +1,9 @@
 "use client";
 
 /**
- * Room types (F-P01): the property in view, set up end to end (ADR-049).
+ * Room types (F-P01): the property in view, set up end to end (ADR-053).
  *
- * **On real data** (ADR-035, D-f wave 2), and since ADR-049 **writable**. An
+ * **On real data** (ADR-035, D-f wave 2), and since ADR-053 **writable**. An
  * owner used to be able to create a property here and then do nothing with it:
  * every inventory write existed on the API and none had a control. This screen
  * is now where a property becomes sellable, in the order publishing asks for it:

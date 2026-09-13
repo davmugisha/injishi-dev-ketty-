@@ -203,7 +203,7 @@ const nextConfig: NextConfig = {
         headers: [{ key: "Cache-Control", value: "public, max-age=0, must-revalidate" }],
       },
       {
-        // The owner claim link carries its token in the query (ADR-049). The page
+        // The owner claim link carries its token in the query (ADR-053). The page
         // lifts it out of the address bar on load, and this stops every resource
         // the page loads from learning the URL it came from. `no-store` keeps the
         // tokened document out of any shared cache.

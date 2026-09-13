@@ -13,7 +13,7 @@
  * a manager's lenses and refused when its URL is typed, because the nav only
  * guards the `settings` segment, not the lens beneath it.
  *
- * "The owner's" is read from the grant, not from a role name (ADR-049, AC-A1,
+ * "The owner's" is read from the grant, not from a role name (ADR-053, AC-A1,
  * ruled 2026-09-13): `team.manage` is the one power the owner holds and a
  * manager does not, so it stands for the business's own decisions here.
  */

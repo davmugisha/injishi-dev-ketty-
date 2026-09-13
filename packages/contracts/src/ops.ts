@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { BookingStatus } from "./booking";
 import { OrgRole, Uuid } from "./primitives";
+import { Tin } from "./registration";
 /**
  * The operator command surface (ADR-012, `/api/v1/ops/*`).
  *
@@ -700,6 +701,13 @@ export const OperatorFolio = z.object({
     guestName: z.string().nullable(),
     roomLabel: z.string().nullable(),
     balanceRwf: z.number().int(),
+    /**
+     * Which bill of the stay this is (ADR-050 D-c). A charge arriving after a
+     * bill was signed opens the next sequence, so a stay can hold several.
+     */
+    folioSequence: z.number().int().positive(),
+    /** When the bill was signed. A locked bill takes no new line. */
+    lockedAt: z.string().nullable(),
     openedAt: z.string(),
     closedAt: z.string().nullable(),
 });
@@ -773,6 +781,17 @@ export const PostChargeRequest = z.object({
 });
 export type PostChargeRequest = z.infer<typeof PostChargeRequest>;
 /**
+ * The bill a charge landed on (ADR-050 D-c).
+ *
+ * `openedFolioId` is set when the bill asked for had already been signed, so
+ * the charge went to the stay's next bill instead; the rest of the answer is
+ * THAT bill. Null for every ordinary charge.
+ */
+export const PostChargeResult = OperatorFolioDetail.extend({
+    openedFolioId: Uuid.nullable(),
+});
+export type PostChargeResult = z.infer<typeof PostChargeResult>;
+/**
  * Take a payment against a bill.
  *
  * Posts a negative `payment` line and one cash ledger entry. It never posts
@@ -796,6 +815,39 @@ export const VoidChargeRequest = z.object({
     reason: z.string().trim().min(1, "Say why.").max(500),
 });
 export type VoidChargeRequest = z.infer<typeof VoidChargeRequest>;
+/**
+ * Close a bill, which signs its sale (ADR-050 D-a).
+ *
+ * Both fields are optional: most guests are not businesses. A guest who wants
+ * the receipt made out to their company gives its TIN and name here, and §4 d
+ * and e put them on the receipt.
+ */
+export const CloseFolioRequest = z.object({
+    customerTin: Tin.optional(),
+    customerName: z.string().trim().min(1).max(200).optional(),
+});
+export type CloseFolioRequest = z.infer<typeof CloseFolioRequest>;
+/**
+ * What closing a bill declared, and what it deliberately did not.
+ *
+ * `emissionId` is null only where nothing may be declared at all (the demo
+ * environment). `status` is `failed` with a `reason` when the business has no
+ * EBM connection: the close still succeeds, because a missing connection must
+ * never strand a front desk (D-b). `excludedChargeIds` are lines another
+ * taxpayer already declared, which this receipt must not cover again.
+ */
+export const FolioDeclaration = z.object({
+    emissionId: Uuid.nullable(),
+    status: z.enum(["held", "failed", "emitted"]).nullable(),
+    reason: z.string().nullable(),
+    excludedChargeIds: z.array(Uuid),
+});
+export type FolioDeclaration = z.infer<typeof FolioDeclaration>;
+export const CloseFolioResult = OperatorFolioDetail.extend({
+    lockedAt: z.string().nullable(),
+    declaration: FolioDeclaration,
+});
+export type CloseFolioResult = z.infer<typeof CloseFolioResult>;
 // ---------------------------------------------------------------------------
 // Departmental revenue
 // ---------------------------------------------------------------------------
@@ -1059,6 +1111,10 @@ export type ServiceOrderChannel = z.infer<typeof ServiceOrderChannel>;
  * `submitted -> acknowledged -> in_progress -> ready -> delivered ->
  * completed`, plus `submitted -> rejected`, and anything before `delivered` to
  * `cancelled`.
+ *
+ * A pay now order starts before the board sees it (ADR-050 D-n):
+ * `pending_payment -> submitted` when its money settles, or
+ * `pending_payment -> payment_failed` when it is refused or expires.
  */
 export const ServiceOrderStatus = z.enum([
     "submitted",
@@ -1069,8 +1125,77 @@ export const ServiceOrderStatus = z.enum([
     "completed",
     "cancelled",
     "rejected",
+    "pending_payment",
+    "payment_failed",
 ]);
 export type ServiceOrderStatus = z.infer<typeof ServiceOrderStatus>;
+/**
+ * When an order's money moves (ADR-050 D-n). `in_house_folio` posts to the
+ * guest's bill on `delivered`; `pay_now` settles first and never touches a bill.
+ */
+export const OrderContext = z.enum(["in_house_folio", "pay_now"]);
+export type OrderContext = z.infer<typeof OrderContext>;
+// --- RRA item codes (ADR-050 D-m) ------------------------------------------
+/** `itemTyCd`, VSDC v1.0.5 §4.3: `1` raw material, `2` finished product, `3` service. */
+export const RraItemTypeCode = z.enum(["1", "2", "3"]);
+export type RraItemTypeCode = z.infer<typeof RraItemTypeCode>;
+/** `itemClsCd`, a code from RRA's classification list (§3.3.2.2). Digits, CHAR 10 on an item. */
+export const RraClassificationCode = z
+    .string()
+    .trim()
+    .regex(/^\d{1,10}$/, "A classification code is up to ten digits from RRA's list.");
+/** `pkgUnitCd` (§4.5) or `qtyUnitCd` (§4.6): the Authority's own unit code, CHAR 5. */
+export const RraUnitCode = z
+    .string()
+    .trim()
+    .toUpperCase()
+    .regex(/^[A-Z0-9]{1,5}$/, "A unit code is one to five letters or digits from RRA's list.");
+/**
+ * One modifier on an item: a size, an extra, a choice of side (ADR-050 D-m).
+ *
+ * A chosen modifier is SNAPSHOTTED onto the order line with its price delta, so
+ * changing the menu never changes a placed order.
+ */
+export const ServiceItemOption = z.object({
+    name: z.string().trim().min(1).max(80),
+    required: z.boolean().default(false),
+    maxChoices: z.number().int().min(1).max(20).default(1),
+    choices: z
+        .array(z.object({
+        label: z.string().trim().min(1).max(80),
+        /** Tax exclusive, like the item's own price. May be zero or negative. */
+        priceDeltaRwf: z.number().int().min(-10_000_000).max(10_000_000).default(0),
+    }))
+        .min(1)
+        .max(30),
+});
+export type ServiceItemOption = z.infer<typeof ServiceItemOption>;
+export const ServiceItemOptions = z.array(ServiceItemOption).max(20);
+export type ServiceItemOptions = z.infer<typeof ServiceItemOptions>;
+/** What a guest or a waiter picked for one option, by label. */
+export const SelectedOption = z.object({
+    name: z.string().trim().min(1).max(80),
+    choices: z.array(z.string().trim().min(1).max(80)).min(1).max(20),
+});
+export type SelectedOption = z.infer<typeof SelectedOption>;
+/** A chosen option as the order line stores it: the labels AND the deltas, locked. */
+export const SelectedOptionSnapshot = z.object({
+    name: z.string(),
+    choices: z.array(z.object({ label: z.string(), priceDeltaRwf: z.number().int() })),
+});
+export type SelectedOptionSnapshot = z.infer<typeof SelectedOptionSnapshot>;
+/**
+ * The RRA values an item still lacks before it may be sold, by name. Empty
+ * means it may be sold. The server computes it; a screen only shows it.
+ */
+export const RraItemField = z.enum([
+    "classification",
+    "productType",
+    "itemCode",
+    "packagingUnit",
+    "quantityUnit",
+]);
+export type RraItemField = z.infer<typeof RraItemField>;
 export const OperatorServiceItem = z.object({
     id: Uuid,
     serviceCategoryId: Uuid,
@@ -1084,16 +1209,37 @@ export const OperatorServiceItem = z.object({
     guestOrderable: z.boolean(),
     stockQty: z.number().int().nullable(),
     status: ServiceCatalogStatus,
+    options: ServiceItemOptions,
+    rraItemClsCd: z.string().nullable(),
+    /** The classification's name, for a screen to show beside the code. */
+    rraItemClsName: z.string().nullable(),
+    rraItemTyCd: RraItemTypeCode.nullable(),
+    /** Minted by the server once, and never changed. */
+    rraItemCd: z.string().nullable(),
+    rraPkgUnitCd: z.string().nullable(),
+    rraQtyUnitCd: z.string().nullable(),
+    /**
+     * What still stops this item selling (ADR-050 D-m). An item flagged
+     * `guestOrderable` with anything listed here is refused on every channel.
+     */
+    missingRra: z.array(RraItemField),
 });
 export type OperatorServiceItem = z.infer<typeof OperatorServiceItem>;
 export const OperatorServiceCategory = z.object({
     id: Uuid,
     departmentId: Uuid,
     departmentName: z.string().nullable(),
+    outletId: Uuid.nullable(),
     name: z.string(),
     sortOrder: z.number().int(),
     guestVisible: z.boolean(),
     status: DepartmentStatus,
+    /** Prefills for a new item on this menu. Never a rule. */
+    defaultRraItemClsCd: z.string().nullable(),
+    defaultRraItemTyCd: RraItemTypeCode.nullable(),
+    defaultRraPkgUnitCd: z.string().nullable(),
+    defaultRraQtyUnitCd: z.string().nullable(),
+    defaultTaxCode: TaxCode.nullable(),
     items: z.array(OperatorServiceItem),
 });
 export type OperatorServiceCategory = z.infer<typeof OperatorServiceCategory>;
@@ -1105,17 +1251,40 @@ export type OperatorServiceCatalog = z.infer<typeof OperatorServiceCatalog>;
 export const CreateServiceCategoryRequest = z.object({
     propertyId: Uuid,
     departmentId: Uuid,
+    /** The outlet this menu sells from. Its items are listed to guests under it. */
+    outletId: Uuid.optional(),
     name: z.string().trim().min(1).max(120),
     guestVisible: z.boolean().optional(),
     sortOrder: z.number().int().min(0).max(9999).optional(),
+    defaultRraItemClsCd: RraClassificationCode.optional(),
+    defaultRraItemTyCd: RraItemTypeCode.optional(),
+    defaultRraPkgUnitCd: RraUnitCode.optional(),
+    defaultRraQtyUnitCd: RraUnitCode.optional(),
+    defaultTaxCode: TaxCode.optional(),
 });
 export type CreateServiceCategoryRequest = z.infer<typeof CreateServiceCategoryRequest>;
+/**
+ * Change a menu's name, visibility, order or prefills. The department and the
+ * property are absent on purpose, for the reason an item cannot change menus.
+ */
+export const UpdateServiceCategoryRequest = CreateServiceCategoryRequest.omit({
+    propertyId: true,
+    departmentId: true,
+})
+    .partial()
+    .refine((v) => Object.keys(v).length > 0, { message: "Say what to change." });
+export type UpdateServiceCategoryRequest = z.infer<typeof UpdateServiceCategoryRequest>;
 /**
  * Add or change a menu item.
  *
  * Editing one never rewrites a placed order: an order snapshots the name, the
  * price and the tax code at order time (D8), so last week's bill still says
  * what last week's menu said.
+ *
+ * The four RRA values are the item's own (ADR-050 D-m): on create, any left
+ * out are prefilled from the category. `rraItemCd` is never accepted, because
+ * the server mints it. Turning `guestOrderable` on without every RRA value is
+ * refused with 422; left out on create, it is on exactly when they are all set.
  */
 export const UpsertServiceItemRequest = z.object({
     serviceCategoryId: Uuid,
@@ -1126,10 +1295,30 @@ export const UpsertServiceItemRequest = z.object({
     fulfillmentType: FulfillmentType.optional(),
     prepTimeMinutes: z.number().int().min(0).max(1440).optional(),
     guestOrderable: z.boolean().optional(),
-    stockQty: z.number().int().min(0).optional(),
+    stockQty: z.number().int().min(0).nullable().optional(),
     status: ServiceCatalogStatus.optional(),
+    options: ServiceItemOptions.optional(),
+    rraItemClsCd: RraClassificationCode.optional(),
+    rraItemTyCd: RraItemTypeCode.optional(),
+    rraPkgUnitCd: RraUnitCode.optional(),
+    rraQtyUnitCd: RraUnitCode.optional(),
 });
 export type UpsertServiceItemRequest = z.infer<typeof UpsertServiceItemRequest>;
+/** One row of RRA's classification list, for the menu's picker. */
+export const RraClassification = z.object({
+    code: z.string(),
+    name: z.string(),
+    level: z.number().int(),
+});
+export type RraClassification = z.infer<typeof RraClassification>;
+export const RraClassificationSearch = z.object({
+    q: z.string().trim().max(80).default(""),
+});
+export type RraClassificationSearch = z.infer<typeof RraClassificationSearch>;
+export const RraClassificationList = z.object({
+    classifications: z.array(RraClassification),
+});
+export type RraClassificationList = z.infer<typeof RraClassificationList>;
 export const OperatorServiceOrderItem = z.object({
     id: Uuid,
     serviceItemId: Uuid.nullable(),
@@ -1139,6 +1328,8 @@ export const OperatorServiceOrderItem = z.object({
     lineTotalRwf: z.number().int(),
     taxCode: TaxCode.nullable(),
     note: z.string().nullable(),
+    /** The modifiers chosen, with the deltas locked when the order was placed. */
+    selectedOptions: z.array(SelectedOptionSnapshot),
 });
 export type OperatorServiceOrderItem = z.infer<typeof OperatorServiceOrderItem>;
 export const OperatorServiceOrder = z.object({
@@ -1146,15 +1337,20 @@ export const OperatorServiceOrder = z.object({
     orderNumber: z.string(),
     departmentId: Uuid,
     departmentName: z.string().nullable(),
+    outletId: Uuid.nullable(),
     folioId: Uuid.nullable(),
     roomId: Uuid.nullable(),
     roomLabel: z.string().nullable(),
     channel: ServiceOrderChannel,
     status: ServiceOrderStatus,
+    orderContext: OrderContext,
     fulfillmentType: FulfillmentType,
     subtotalRwf: z.number().int(),
     taxRwf: z.number().int(),
     totalRwf: z.number().int(),
+    /** Pay now only: when its money settled, and the RRA means of payment (`01` cash, `06` mobile money). */
+    paidAt: z.string().nullable(),
+    paymentMethod: z.string().nullable(),
     guestNote: z.string().nullable(),
     createdAt: z.string(),
     items: z.array(OperatorServiceOrderItem),
@@ -1165,14 +1361,20 @@ export const OperatorServiceOrderList = z.object({
 });
 export type OperatorServiceOrderList = z.infer<typeof OperatorServiceOrderList>;
 /**
- * Place an order against a stay.
+ * Place an order on a guest's behalf.
  *
  * The department is NOT asked for: it comes from the items, because an item
  * carries its own department and a caller who could choose would eventually
  * route a club sandwich to Engineering.
+ *
+ * `in_house_folio`, the default, charges a stay's bill and needs `guestStayId`.
+ * `pay_now` is a walk in at the counter (ADR-050 D-n): no stay and no bill, it
+ * waits `pending_payment` until someone marks it paid in cash.
  */
-export const CreateServiceOrderRequest = z.object({
-    guestStayId: Uuid,
+export const CreateServiceOrderRequest = z
+    .object({
+    context: OrderContext.default("in_house_folio"),
+    guestStayId: Uuid.optional(),
     channel: ServiceOrderChannel.optional(),
     guestNote: z.string().trim().max(1000).optional(),
     items: z
@@ -1180,10 +1382,36 @@ export const CreateServiceOrderRequest = z.object({
         serviceItemId: Uuid,
         quantity: z.number().int().positive().max(99),
         note: z.string().trim().max(300).optional(),
+        selectedOptions: z.array(SelectedOption).max(20).optional(),
     }))
         .min(1, "An order needs at least one item."),
+})
+    .refine((v) => v.context === "pay_now" || Boolean(v.guestStayId), {
+    message: "Name the stay this order is charged to.",
+    path: ["guestStayId"],
+})
+    .refine((v) => v.context === "in_house_folio" || !v.guestStayId, {
+    message: "A pay now order is not charged to a stay.",
+    path: ["guestStayId"],
 });
 export type CreateServiceOrderRequest = z.infer<typeof CreateServiceOrderRequest>;
+/**
+ * Mark a pay now order paid in cash (ADR-050 D-p, AC-24).
+ *
+ * `amountRwf` must be exactly the order's total. It is asked for rather than
+ * read, so the person holding the cash confirms the number they took, and a
+ * mismatch is refused instead of recorded.
+ */
+export const MarkOrderPaidCashRequest = z.object({
+    amountRwf: z.number().int().positive(),
+});
+export type MarkOrderPaidCashRequest = z.infer<typeof MarkOrderPaidCashRequest>;
+/** What marking cash raised: the order, now `submitted`, and its `NS` emission. */
+export const MarkOrderPaidCashResult = OperatorServiceOrder.extend({
+    /** Null in the demo environment, where nothing is declared. */
+    emissionId: Uuid.nullable(),
+});
+export type MarkOrderPaidCashResult = z.infer<typeof MarkOrderPaidCashResult>;
 /**
  * Move an order along its board.
  *

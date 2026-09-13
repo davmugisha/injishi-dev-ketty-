@@ -4,8 +4,10 @@ import {
   Building,
   ChartColumn,
   Flag,
+  GraduationCap,
   Languages,
   LayoutDashboard,
+  ClipboardList,
   Megaphone,
   ScrollText,
   Server,
@@ -21,14 +23,15 @@ import type { NavGroup, NavItem, NavKey, StaffRole } from "./types";
 /**
  * Nav model — admin-prd.md §3, 13 sections (from injishi-admin-shell.js).
  *
- * EACH SECTION DECLARES THE PERMISSION ITS READ DECLARES (ADR-049, AC-A3). The
- * sidebar filters on the `permissions[]` the server resolved, and each
- * section's layout refuses a staffer whose array lacks it (AC-A4). There is no
+ * EACH SECTION DECLARES THE PERMISSION ITS READ DECLARES (ADR-053, AC-A3). The
+ * sidebar filters on the `permissions[]` the server resolved, and
+ * `components/shell/section-boundary.tsx` refuses a typed URL whose section
+ * the array lacks (AC-A4). There is no
  * second staff matrix here any more: the `roles` arrays and `roleCanSee` this
  * replaced never read `StaffPermission`, and had already drifted from
  * `STAFF_ROLE_PERMISSIONS`. Overview, Analytics and System health are not a
- * special "all" case either; they declare the observe permissions every role
- * holds.
+ * special "all" case either; they declare the observe permissions every
+ * PLATFORM role holds, which a `trainer` does not.
  *
  * NO COUNTS, ALERTS OR CHIPS, on purpose. The prototype carried Businesses 7,
  * Finance 5, a red Compliance 5 and a "degraded" chip on System health, all
@@ -45,6 +48,11 @@ export const NAV: NavGroup[] = [
       { key: "businesses", label: "Businesses", icon: Building, permission: "admin.business.view" },
       { key: "users", label: "Users", icon: Users, permission: "admin.user.view" },
       { key: "brokers", label: "Brokers", icon: Briefcase, permission: "admin.broker.view" },
+      // ADR-049 (training). In Operate because running a session is day-to-day
+      // work, not platform configuration. `training.view` is held by `trainer`
+      // and `super_admin` only, so this is the first row `ops` cannot see, and
+      // the only section a trainer, who holds no `admin.*` power, reaches.
+      { key: "training", label: "Training", icon: GraduationCap, permission: "training.view" },
     ],
   },
   {
@@ -63,6 +71,12 @@ export const NAV: NavGroup[] = [
       { key: "environments", label: "Environments & adapters", icon: Server, permission: "admin.environment.view" },
       { key: "moderation", label: "Moderation & support", icon: Flag, permission: "admin.moderation.view" },
       { key: "announcements", label: "Announcements", icon: Megaphone, permission: "admin.announcement.view" },
+      // ADR-048. Beside Announcements because it is the other thing staff reach
+      // for when they are about to tell a lot of people something at once. It
+      // borrows `admin.overview.view`, exactly as `waitlist-admin.controller.ts`
+      // does: ADR-048 defined no waitlist permission. Deleted at launch along
+      // with the section behind it.
+      { key: "waitlist", label: "Waitlist", icon: ClipboardList, permission: "admin.overview.view" },
       { key: "analytics", label: "Analytics & insights", icon: ChartColumn, permission: "admin.analytics.view" },
       { key: "localization", label: "Localization", icon: Languages, permission: "admin.localization.view" },
     ],
@@ -130,6 +144,28 @@ export function navItemFor(key: NavKey): NavItem {
   const item = NAV_ITEMS.find((i) => i.key === key);
   if (!item) throw new Error(`No nav entry for section "${key}".`);
   return item;
+}
+
+/**
+ * May this resolved permission set open this section? What
+ * `section-boundary.tsx` asks of a typed URL, through the same `permission` the
+ * sidebar filters on, so the sidebar can never offer a row the route refuses.
+ */
+export function sectionAllows(
+  permissions: readonly StaffPermission[],
+  key: NavKey,
+): boolean {
+  return staffCanSee(permissions, navItemFor(key));
+}
+
+/** Whether a first path segment names a console section at all. */
+export function isNavKey(segment: string): segment is NavKey {
+  return NAV_ITEMS.some((item) => item.key === segment);
+}
+
+/** The label the refusal screen names the section by. One register, again. */
+export function sectionLabel(key: NavKey): string {
+  return navItemFor(key).label;
 }
 
 export const STAFF_ROLES: {

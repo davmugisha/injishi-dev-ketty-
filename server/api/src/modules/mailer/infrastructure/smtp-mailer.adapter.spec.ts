@@ -97,6 +97,49 @@ describe('SmtpMailerAdapter · send', () => {
   });
 });
 
+// REGRESSION. The attachment filename guard shipped with no test at all, and
+// the one it needed was not a subtle one: its path-separator class was written
+// `[/\]`, where `\]` escapes the closing bracket, so the class never closed and
+// the regex literal ran to end of line. That is a PARSE error, TS1161, and it
+// took `tsc --noEmit` down for the whole API, which is how it was found rather
+// than by anything here. These cases exist so the guard's intent is pinned and
+// not merely its syntax: both separators refused, a plain name sent.
+describe('SmtpMailerAdapter · attachment filenames', () => {
+  const PDF = { content: Buffer.from('%PDF-1.7'), contentType: 'application/pdf' };
+
+  it.each([
+    ['a forward slash', 'a/b.pdf'],
+    ['a backslash', 'a\\b.pdf'],
+    ['a traversal in either form', '../../etc/passwd'],
+    ['a Windows traversal', '..\\..\\secrets.pdf'],
+    ['a control character', 'certificate\r\n.pdf'],
+    ['nothing at all', ''],
+  ])('refuses a filename carrying %s, without sending', async (_label, filename) => {
+    await expect(
+      new SmtpMailerAdapter('smtp://mailpit:1025', FROM).send({
+        ...MESSAGE,
+        attachments: [{ filename, ...PDF }],
+      }),
+    ).rejects.toThrow('mail attachment filename must be one plain file name');
+    expect(mockSendMail).not.toHaveBeenCalled();
+  });
+
+  it('sends a plain filename through to the transport', async () => {
+    await new SmtpMailerAdapter('smtp://mailpit:1025', FROM).send({
+      ...MESSAGE,
+      attachments: [{ filename: 'certificate.pdf', ...PDF }],
+    });
+    expect(mockSendMail.mock.calls[0][0].attachments).toEqual([
+      { filename: 'certificate.pdf', content: PDF.content, contentType: PDF.contentType },
+    ]);
+  });
+
+  it('omits the attachments field entirely when there are none', async () => {
+    await new SmtpMailerAdapter('smtp://mailpit:1025', FROM).send(MESSAGE);
+    expect(mockSendMail.mock.calls[0][0]).not.toHaveProperty('attachments');
+  });
+});
+
 describe('SmtpMailerAdapter · failure', () => {
   it('rejects with a plain error that carries only the reason', async () => {
     const cause = Object.assign(new Error('Greeting never received'), {

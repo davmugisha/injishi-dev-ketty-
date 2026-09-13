@@ -5,7 +5,7 @@ import { orgRegistrationEvents } from '../../../database/drizzle/schema';
 import type { Database } from '../../../shared/database/database.module';
 
 /**
- * Who moved a registration, as the calling surface names it (ADR-049, AC-R6).
+ * Who moved a registration, as the calling surface names it (ADR-053, AC-R6).
  *
  * A union rather than two loose arguments, so a `system` move cannot be written
  * with an actor and a person's move cannot be written without one. The table's
@@ -35,7 +35,7 @@ export const SYSTEM_MOVER: RegistrationMover = {
  * `seedPropertyDepartments` gives: there is nothing stateful here, and the admin
  * suspend and reinstate pair in `api/admin/orgs/org-actions.service.ts` lives
  * outside this module and still has to write the same row inside its own
- * transaction. That pair is the one ADR-049 names as easy to miss.
+ * transaction. That pair is the one ADR-053 names as easy to miss.
  */
 export async function recordRegistrationEvent(
   tx: Database,

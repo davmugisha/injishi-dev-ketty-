@@ -15,8 +15,9 @@ type Toast = UiToast;
 
 interface AdminUiState {
   district: DistrictKey;
-  roleLens: StaffRole;
-  roleLensLabel: string;
+  /** A preview somebody CHOSE in the lens dialog; `null` follows the server's role (`useRoleLens`). */
+  roleLens: StaffRole | null;
+  roleLensLabel: string | null;
   viewAs: string | null;
   overrideOpen: boolean;
   roleLensOpen: boolean;
@@ -39,8 +40,9 @@ let toastSeq = 0;
 
 export const useAdminUi = create<AdminUiState>((set, get) => ({
   district: "all",
-  roleLens: "super_admin",
-  roleLensLabel: "Super Admin · 2FA on",
+  // Never a role by default: a default rendered on the server gave a trainer the Super Admin sidebar.
+  roleLens: null,
+  roleLensLabel: null,
   viewAs: null,
   overrideOpen: false,
   roleLensOpen: false,

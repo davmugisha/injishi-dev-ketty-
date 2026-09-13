@@ -5,16 +5,16 @@ import type { Queue } from 'bullmq';
 import { PLATFORM, type Platform } from '../../../shared/config/platform';
 import { QUEUES } from '../../../shared/queues/queues.module';
 import { EBM_LIVE, type EbmLive } from '../domain/ebm-live';
+import { emissionKeyFor } from '../domain/emission-keys';
+import { EBM_SIGN_POINT, type SignPoint } from '../domain/sign-point';
 import { EbmBookingRepository } from '../infrastructure/ebm-booking.repository';
 import { EbmEmissionRepository } from '../infrastructure/ebm-emission.repository';
 
 /** The job the worker runs for one sale. */
 export const EMIT_JOB = 'emit';
 
-/** One sale per booking, one key per sale. `NS` because only sales exist yet. */
-export function emissionKeyFor(bookingId: string): string {
-  return `ebm:booking:${bookingId}:NS`;
-}
+/** Re-exported: the keys live in the domain, where the folio close mints them too. */
+export { emissionKeyFor, folioEmissionKeyFor } from '../domain/emission-keys';
 
 /**
  * The job id for one ATTEMPT at a row. Per attempt rather than per row, so a
@@ -59,10 +59,29 @@ export class EbmSaleTrigger {
     @InjectQueue(QUEUES.ebmEmission) private readonly queue: Queue,
     @Inject(PLATFORM) private readonly platform: Platform,
     @Inject(EBM_LIVE) private readonly live: EbmLive | null,
+    @Inject(EBM_SIGN_POINT) private readonly signPoint: SignPoint,
   ) {}
 
   /** Never throws. */
   async saleConfirmed(bookingId: string): Promise<void> {
+    /**
+     * STAMP FIRST, and in every mode (ADR-050 D-a).
+     *
+     * The stamp records which fiscal RULE this booking was confirmed under, not
+     * whether anything was declared, so it is not the adapter's business. A
+     * booking confirmed in mock and closed after a switch to live still has to
+     * know which rule it was made under, and `FolioService.close` reads only
+     * this column.
+     */
+    try {
+      await this.bookings.stampSignPoint(bookingId, this.signPoint);
+    } catch (error) {
+      this.log.error(
+        `Booking ${bookingId} could not be stamped with the EBM sign point: ` +
+          (error instanceof Error ? error.message : String(error)),
+      );
+    }
+
     // Mock mode keeps its existing shape — a receipt signed on read — and
     // writes nothing: a mock row in `ebm_invoices` would be a record of a
     // declaration that was never made.
@@ -98,11 +117,34 @@ export class EbmSaleTrigger {
       this.log.warn(`Booking ${bookingId} has no business behind it; no EBM sale recorded`);
       return null;
     }
+
+    /**
+     * WHICH DOCUMENT A CONFIRMATION RAISES (ADR-050 D-a, AC-1).
+     *
+     * Under `checkout` a confirmed booking raises a PROFORMA. It carries the
+     * accommodation total at the locked rate and the payment the platform took,
+     * it has no receipt signature (§6.3.6) and it prints
+     * `THIS IS NOT AN OFFICIAL RECEIPT` (§11). The sale itself is declared once,
+     * when the bill is closed, because signing the room at confirmation AND the
+     * folio at settlement declares the room twice.
+     *
+     * Both paths stay live during the cutover, which is what makes the switch
+     * reversible.
+     *
+     * Read from the booking's STAMP, not from `this.signPoint`. The reconcile
+     * sweep calls this long after confirmation for a booking whose first write
+     * failed, and if the flag was flipped in between, the flag would pick the
+     * wrong document. An absent stamp reads `booking`.
+     */
+    const proforma = (await this.bookings.signPointFor(bookingId)) === 'checkout';
     return this.emissions.insertHeld({
+      source: 'booking',
       bookingId,
       orgId: booking.orgId,
       tin: booking.sellerTin,
-      idempotencyKey: emissionKeyFor(bookingId),
+      receiptType: proforma ? 'proforma' : 'normal',
+      customerName: null,
+      idempotencyKey: emissionKeyFor(bookingId, proforma ? 'PS' : 'NS'),
       dueAt: new Date(),
     });
   }

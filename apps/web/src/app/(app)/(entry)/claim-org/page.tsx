@@ -1,6 +1,6 @@
 "use client";
 
-/* The owner claim (FL02, ADR-049): the end an on behalf of registration could
+/* The owner claim (FL02, ADR-053): the end an on behalf of registration could
  * never reach. An agent registers a business; the named owner claims it here;
  * only then is it theirs.
  *

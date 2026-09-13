@@ -15,7 +15,7 @@ import injishi from '../../tools/eslint-rules/index.mjs';
  * `generated/` is not linted either. It is build output, and
  * `pnpm -F @injishi/design-tokens check` is what guards it against drift.
  *
- * ADR-048 AC-2 is what this file exists for: the package declared `typecheck`
+ * ADR-052 AC-2 is what this file exists for: the package declared `typecheck`
  * and `check` but no `lint`, so `pnpm -r lint` skipped it.
  */
 export default [

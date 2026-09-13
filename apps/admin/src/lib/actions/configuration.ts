@@ -7,7 +7,7 @@ import { apiPost } from "@/lib/api/server";
 import { badInput, outcomeOf, type WriteOutcome, type WriteSpec } from "./outcome";
 
 /**
- * Append a registration fee (ADR-049, AC-R9) — `POST
+ * Append a registration fee (ADR-053, AC-R9) — `POST
  * /api/v1/admin/configuration/fees`.
  *
  * `admin.fee.edit`, which `finance` and `super_admin` hold. APPEND, never edit:

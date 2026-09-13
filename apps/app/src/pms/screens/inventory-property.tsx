@@ -1,7 +1,7 @@
 "use client";
 
 /**
- * Which property Inventory is looking at, shared by its lenses (ADR-049).
+ * Which property Inventory is looking at, shared by its lenses (ADR-053).
  *
  * A business can hold several properties, and room types, photographs, rate
  * plans and publishing all belong to one of them. The choice lives in the URL

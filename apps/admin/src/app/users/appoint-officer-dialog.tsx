@@ -10,7 +10,7 @@ import { appointOfficer } from "@/lib/actions/oversight";
 import { useAdminUi } from "@/lib/store";
 
 /**
- * Appoint a person as a government officer (ADR-049, AC-G1, A1 and A2).
+ * Appoint a person as a government officer (ADR-053, AC-G1, A1 and A2).
  *
  * This replaced the oversight half of the directory's grant editor, which listed
  * three hardcoded bodies and six districts and ended in "isn't built yet". The

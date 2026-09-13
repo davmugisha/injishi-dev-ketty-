@@ -1,9 +1,9 @@
 /**
  * Generate the photo credits page data from the image manifest.
  *
- * Twenty-four of the twenty-five photographs the site ships are CC BY or
- * CC BY-SA, which oblige us to name the author and the licence wherever the
- * work appears. Shipping them uncredited would be a licence breach, so the
+ * Nearly every photograph the site ships is CC BY or CC BY-SA (the script
+ * prints the exact count), which oblige us to name the author and the licence
+ * wherever the work appears. Shipping them uncredited would be a licence breach, so the
  * credit list is generated from the same manifest the encoder reads — there is
  * no way to add a photograph to the site without it appearing here.
  *
@@ -34,6 +34,11 @@ const esc = (s) =>
     .trim()
     .replace(/\\/g, "\\\\")
     .replace(/"/g, '\\"');
+
+// Counted here, before the template, so the prose in the generated file and
+// the summary line below can never disagree with the manifest they describe.
+const needing = entries.filter((e) => e.attribution_required).length;
+const standIns = entries.filter((e) => !e.depicts_actual_property).length;
 
 const rows = entries
   .slice()
@@ -69,7 +74,7 @@ export interface PhotoCredit {
   /**
    * Whether this photograph shows the property it illustrates.
    *
-   * False for 22 of the 25: they are Rwandan landscape and city photography
+   * False for ${standIns} of the ${entries.length}: they are Rwandan landscape and city photography
    * standing in for a stay whose own pictures we do not hold. A card that shows
    * one without saying so implies the guest is looking at the place they would
    * book. So a photograph with this flag false carries a VISIBLE credit where
@@ -86,8 +91,6 @@ ${rows}
 mkdirSync(path.dirname(OUT), { recursive: true });
 writeFileSync(OUT, file);
 
-const needing = entries.filter((e) => e.attribution_required).length;
-const standIns = entries.filter((e) => !e.depicts_actual_property).length;
 console.log(
   `${entries.length} credits written (${needing} require attribution, ` +
     `${standIns} do not depict the property they illustrate).`,

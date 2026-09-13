@@ -2,7 +2,7 @@
 /**
  * The `test` script for a workspace member that has no test suite yet.
  *
- * ADR-048 AC-2b requires every workspace manifest to declare `typecheck`,
+ * ADR-052 AC-2b requires every workspace manifest to declare `typecheck`,
  * `lint` and `test`, because `pnpm -r` skips a member with no script SILENTLY.
  * A silent skip is the exact failure that made a green run mean less than it
  * looked like: four members were being skipped and nothing said so.
@@ -28,4 +28,4 @@ try {
   // script is that the line is printed at all.
 }
 
-console.log(`${name}: no test suite yet. Declared so \`pnpm -r test\` does not skip it in silence (ADR-048 AC-2b).`);
+console.log(`${name}: no test suite yet. Declared so \`pnpm -r test\` does not skip it in silence (ADR-052 AC-2b).`);

@@ -39,7 +39,7 @@
 #   HEALTH_TIMEOUT   600                        seconds to wait at the confirm
 #   NIGHTLY_LOCK_RETRY_MINUTES  90              how long to wait for the lock
 #
-# Output is split on purpose (ADR-048 AC-22b). Progress goes to stdout, every
+# Output is split on purpose (ADR-052 AC-22b). Progress goes to stdout, every
 # failure goes to stderr, and the cron line sends stdout to the log while
 # leaving stderr alone:
 #
@@ -82,7 +82,7 @@ trap 'rm -f "$DEMO_NIGHTLY_COPY"' EXIT
 # One run at a time. A slow build overlapping the next night's run would swap
 # twice over one database.
 #
-# The lock is shared with the GitHub Actions deploy jobs (ADR-048 AC-18): one
+# The lock is shared with the GitHub Actions deploy jobs (ADR-052 AC-18): one
 # host cannot build two stacks at once. It used to be taken with `flock -n`,
 # which dies on the first attempt, so a deploy that happened to hold it at 01:00
 # UTC would cancel that night's rebuild outright. It waits now, and gives up

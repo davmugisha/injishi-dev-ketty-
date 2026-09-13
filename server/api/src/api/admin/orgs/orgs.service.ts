@@ -182,7 +182,7 @@ export class AdminOrgsService {
         domain: orgs.domain,
         registrationStatus: orgs.registrationStatus,
         /*
-         * `submittedAt` is the newest move INTO `submitted` (ADR-049, AC-R7).
+         * `submittedAt` is the newest move INTO `submitted` (ADR-053, AC-R7).
          *
          * This comment used to say the value was derived from the earliest
          * review decision because nothing recorded a submission, and to replace
@@ -209,7 +209,7 @@ export class AdminOrgsService {
         /**
          * When it entered the stage it is in NOW. Null before the event log, and
          * deliberately NOT given the fallback above: a wait in a stage is exactly
-         * the figure ADR-049 exists to make measurable, and an estimate shown as
+         * the figure ADR-053 exists to make measurable, and an estimate shown as
          * a measurement would be the thing it was built to replace.
          */
         stageEnteredAt: sql<Date | string | null>`(
@@ -240,7 +240,7 @@ export class AdminOrgsService {
              and ${tinVerifications.result} = 'verified'
         )`,
         /**
-         * Can an officer take this business's CURRENT stage? (ADR-049, AC-G9)
+         * Can an officer take this business's CURRENT stage? (ADR-053, AC-G9)
          *
          * `tin_verified` waits on a field verifier and `field_verified` on an
          * approver; each is covered when a live assignment for that function
@@ -482,7 +482,7 @@ export class AdminOrgsService {
    * A removed member is still listed, because the question staff ask on this
    * screen is "who had access to this business", and a row that vanishes on
    * removal cannot answer it. `status` crosses as the `org_membership_status`
-   * enum the column has carried since ADR-049 (AC-R10); `AdminOrgMember.status`
+   * enum the column has carried since ADR-053 (AC-R10); `AdminOrgMember.status`
    * promises the same two values the database enforces.
    */
   async orgPeople(

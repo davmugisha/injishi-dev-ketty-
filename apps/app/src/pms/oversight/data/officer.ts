@@ -3,7 +3,7 @@ import type { OversightConsoleGrant } from "@injishi/contracts";
 import type { Officer, OfficerKey } from "./types";
 
 /**
- * An officer, built from the grant the SERVER returned (ADR-049, AC-G5).
+ * An officer, built from the grant the SERVER returned (ADR-053, AC-G5).
  *
  * ## What this replaced
  *
@@ -20,7 +20,7 @@ import type { Officer, OfficerKey } from "./types";
  * The VOCABULARY each function speaks: what its queue is called, what the verb on
  * its primary button is, which stage it acts on, and its seal colour. None of
  * that is identity, and none of it varies by officer — it follows from the
- * function, which the server decided. ADR-049 names this layer explicitly: the
+ * function, which the server decided. ADR-053 names this layer explicitly: the
  * enum value stays the database's name, the console renders a stable label, and
  * the officer's own title comes from their institution. This is the middle one.
  */

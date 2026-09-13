@@ -61,7 +61,7 @@ exports.StaffPermission = zod_1.z.enum([
     "admin.dsr.action",
     "admin.audit.read",
     // Platform — configuration, environments, and what reaches users. Each area
-    // has a read of its own (ADR-049): five sections used to gate their READ on
+    // has a read of its own (ADR-053): five sections used to gate their READ on
     // the write, so only `super_admin` could look at them at all.
     "admin.config.view",
     "admin.config.edit",
@@ -73,6 +73,23 @@ exports.StaffPermission = zod_1.z.enum([
     "admin.moderation.act",
     "admin.localization.view",
     "admin.localization.edit",
+    // Training (ADR-049). The only permissions in this union that a role
+    // outside the four platform roles holds, which is why they carry their own
+    // prefix: `admin.*` is "a power over the platform", `training.*` is "a
+    // power over a course, a session, a roster or a certificate".
+    //
+    // Split three ways on purpose. Reading and running a session belongs to
+    // whoever teaches it; deciding that a course exists, that a venue is a
+    // place training may happen, and that a session is open for registration
+    // belongs to the company. A trainer who could publish their own session
+    // could put the credential anywhere at any price.
+    "training.view",
+    "training.session.manage",
+    "training.attendance.mark",
+    "training.certificate.revoke",
+    "training.course.manage",
+    "training.venue.manage",
+    "training.session.publish",
 ]);
 const ALL_STAFF = exports.StaffPermission.options;
 const OBSERVE = [
@@ -97,7 +114,7 @@ const OBSERVE = [
  * `admin.money.override`, which needs a second signer regardless of who holds
  * it, so handing it out by role would only make the refusal later and stranger.
  *
- * THE FIVE READS (ADR-049). Every role reads configuration, because it is the
+ * THE FIVE READS (ADR-053). Every role reads configuration, because it is the
  * one area all four need context from and the fee amounts live there. `ops`
  * reads all five areas it already acts in or runs beside; `compliance` reads
  * configuration, moderation and localization; `finance` reads configuration.
@@ -140,6 +157,33 @@ const STAFF_ROLE_PERMISSIONS = {
         "admin.fee.edit",
         "admin.payout.release",
         "admin.config.view",
+    ]),
+    /**
+     * `trainer` (ADR-049) teaches, and that is the whole of it.
+     *
+     * It holds NO `admin.*` permission, not even the OBSERVE three every other
+     * staff role carries. A trainer is a contractor who runs a room for a day,
+     * not a member of platform operations, and the console reads every business
+     * and every payout — so "staff" in their case means "may reach the Training
+     * section", never "may reach the console".
+     *
+     * The four it holds are the four verbs a session actually needs: see it,
+     * draft and edit it, tick the roster, and withdraw a certificate they
+     * issued in error. Publishing a session, creating a course and setting a
+     * venue are deliberately absent (ADR-049 AC-24): the company decides where
+     * training happens and what it is worth, the trainer decides when.
+     *
+     * NOTE on ADR-049 AC-24, which says "the five training permissions a
+     * trainer needs". It is four. The ADR's own security model enumerates these
+     * four by name and then names the other three as platform-admin-only, and
+     * four plus three is the seven it also states. Two independent enumerations
+     * agree and only the count disagrees, so the count is the typo.
+     */
+    trainer: new Set([
+        "training.view",
+        "training.session.manage",
+        "training.attendance.mark",
+        "training.certificate.revoke",
     ]),
 };
 /**
@@ -195,6 +239,13 @@ exports.STAFF_PERMISSION_LABEL = {
     "admin.moderation.act": "moderate content",
     "admin.localization.view": "view translations",
     "admin.localization.edit": "edit translations",
+    "training.view": "view training",
+    "training.session.manage": "draft and edit a training session",
+    "training.attendance.mark": "mark who attended a training session",
+    "training.certificate.revoke": "withdraw a training certificate",
+    "training.course.manage": "create and publish a training course",
+    "training.venue.manage": "set where training may happen",
+    "training.session.publish": "publish a training session",
 };
 /**
  * The two powers that cannot be completed by one person (ADR-012, D-h).

@@ -214,7 +214,7 @@ export function Sidebar() {
 
   // Only someone who works across the portfolio can switch property: whoever
   // holds `property.switch`, read from the grant rather than from a role name
-  // (ADR-049, AC-A1). Today that is exactly the owner and the manager.
+  // (ADR-053, AC-A1). Today that is exactly the owner and the manager.
   const canSwitchProperty = isHost && capability.can("property.switch");
 
   const propertyMeta = (key: PropertyKey) => {

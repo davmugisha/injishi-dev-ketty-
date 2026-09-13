@@ -3,7 +3,7 @@ import { District, GovernmentBody, Province } from "@injishi/contracts";
 import { apiGet, type ApiResult } from "./server";
 
 /**
- * The government body catalogue and the regions an officer can cover (ADR-049,
+ * The government body catalogue and the regions an officer can cover (ADR-053,
  * AC-G4) — `GET /api/v1/admin/government-bodies` and the public geography reads.
  *
  * The catalogue read is `admin.config.view`, which every staff role holds, so

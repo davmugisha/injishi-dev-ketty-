@@ -210,6 +210,10 @@ const WHITE_HEADER_ROUTES = [
   // the dark variant. It now opens with the title above a photo mosaic on a
   // white ground, which left the header's white content invisible.
   "/property",
+  // ADR-049's training pages and the public certificate check open on a white
+  // ground with no photograph, so the dark variant painted white ink on white.
+  "/training",
+  "/verify",
 ];
 
 export function headerVariantFor(pathname: string): "dark" | "white" {
@@ -248,6 +252,11 @@ export const FOOTER_COLUMNS: NavGroup[] = [
       { label: "About", href: "/about" },
       { label: "Hosting", href: "/host" },
       { label: "Become a host", href: "/host/start" },
+      // ADR-049, and the answer to ADR-044's open question 2. `/training`
+      // existed for months with nothing in the product linking to it, which is
+      // most of why that ADR had to ask whether it shipped at all. It ships, so
+      // it gets a way in.
+      { label: "Training", href: "/training" },
       { label: "Support", href: "/support" },
     ],
   },

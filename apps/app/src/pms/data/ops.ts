@@ -70,7 +70,13 @@ import {
   type SetHousekeepingRequest,
   type TakePaymentRequest,
   type UpdateDepartmentRequest,
+  type UpdateServiceCategoryRequest,
   type UpdateServiceItemRequest,
+  type UpsertServiceItemRequest,
+  type CreateServiceCategoryRequest,
+  type MarkOrderPaidCashRequest,
+  type MarkOrderPaidCashResult,
+  RraClassificationList,
   type VoidChargeRequest,
   type CreatePropertyRequest,
 } from "@injishi/contracts";
@@ -555,6 +561,119 @@ export function useUpdateServiceItem(
   });
 }
 
+/**
+ * Add a menu (ADR-050 D-m). A menu may carry RRA prefills, which every item
+ * added to it starts with, and may name the outlet its items sell from.
+ * Answers with the whole catalog, which is what the cache is replaced with.
+ */
+export function useCreateServiceCategory(
+  workspaceId: string | null,
+): UseMutationResult<OperatorServiceCatalog, Error, CreateServiceCategoryRequest> {
+  const client = useQueryClient();
+  return useMutation({
+    mutationFn: (body) =>
+      command<OperatorServiceCatalog>("/ops/service-catalog/categories", {
+        workspaceId: workspaceId as string,
+        body,
+      }),
+    onSuccess: (catalog) => {
+      client.setQueryData(queryKeys.serviceCatalog(workspaceId), catalog);
+    },
+  });
+}
+
+/** Rename a menu, hide it from guests, or change its RRA prefills. */
+export function useUpdateServiceCategory(
+  workspaceId: string | null,
+): UseMutationResult<
+  OperatorServiceCatalog,
+  Error,
+  { categoryId: string } & UpdateServiceCategoryRequest
+> {
+  const client = useQueryClient();
+  return useMutation({
+    mutationFn: ({ categoryId, ...body }) =>
+      command<OperatorServiceCatalog>(`/ops/service-catalog/categories/${categoryId}`, {
+        workspaceId: workspaceId as string,
+        body,
+        method: "PATCH",
+      }),
+    onSuccess: (catalog) => {
+      client.setQueryData(queryKeys.serviceCatalog(workspaceId), catalog);
+    },
+  });
+}
+
+/**
+ * Add an item (ADR-050 D-m). RRA values it leaves out are prefilled from its
+ * menu; the server mints its item code, and refuses to put it on sale without
+ * every value a receipt needs.
+ */
+export function useCreateServiceItem(
+  workspaceId: string | null,
+): UseMutationResult<OperatorServiceCatalog, Error, UpsertServiceItemRequest> {
+  const client = useQueryClient();
+  return useMutation({
+    mutationFn: (body) =>
+      command<OperatorServiceCatalog>("/ops/service-catalog/items", {
+        workspaceId: workspaceId as string,
+        body,
+      }),
+    onSuccess: (catalog) => {
+      client.setQueryData(queryKeys.serviceCatalog(workspaceId), catalog);
+    },
+  });
+}
+
+/**
+ * Search RRA's classification list for the menu's picker. Nothing is asked for
+ * until the owner types, and a short term waits for a second letter: the list
+ * runs to thousands of rows.
+ */
+export function useRraClassifications(
+  workspaceId: string | null,
+  q: string,
+): UseQueryResult<RraClassificationList> {
+  const term = q.trim();
+  return useQuery({
+    queryKey: queryKeys.rraClassifications(workspaceId, term),
+    queryFn: () =>
+      read(
+        `/ops/rra/classifications?q=${encodeURIComponent(term)}`,
+        workspaceId as string,
+        RraClassificationList,
+      ),
+    enabled: workspaceId !== null && term.length >= 2,
+    staleTime: 5 * 60 * 1000,
+  });
+}
+
+/**
+ * Mark a pay now order paid in cash (ADR-050 D-p, AC-24). Moves money, so it
+ * sends an `Idempotency-Key`, generated once per press. The amount is the total
+ * the person holding the cash confirms; the server refuses anything else.
+ */
+export function useMarkOrderPaidCash(
+  workspaceId: string | null,
+): UseMutationResult<
+  MarkOrderPaidCashResult,
+  Error,
+  { orderId: string } & MarkOrderPaidCashRequest
+> {
+  const client = useQueryClient();
+  return useMutation({
+    mutationFn: ({ orderId, ...body }) =>
+      command<MarkOrderPaidCashResult>(`/ops/service-orders/${orderId}/paid-cash`, {
+        workspaceId: workspaceId as string,
+        body,
+        idempotencyKey: newIdempotencyKey(),
+      }),
+    onSuccess: () => {
+      void client.invalidateQueries({ queryKey: queryKeys.serviceOrders(workspaceId) });
+    },
+  });
+}
+
 export function useServiceOrders(
   workspaceId: string | null,
 ): UseQueryResult<OperatorServiceOrderList> {
@@ -746,7 +865,7 @@ export function useVoidCharge(
  */
 // The workspace travels in the `x-workspace-id` header `useOpsQuery` sends, and
 // nowhere else. The inventory reads used to demand it a second time as a query
-// parameter they then discarded; ADR-049 task 18 removed that from the API.
+// parameter they then discarded; ADR-053 task 18 removed that from the API.
 export function useProperties(
   workspaceId: string | null,
 ): UseQueryResult<OperatorPropertyList> {

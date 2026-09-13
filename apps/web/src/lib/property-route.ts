@@ -29,7 +29,7 @@ export type PropertyPageSource =
   | { kind: "catalogue"; property: PropertyDetail };
 
 /**
- * The catalogue record where one exists, then the API, then nothing (ADR-049,
+ * The catalogue record where one exists, then the API, then nothing (ADR-053,
  * owner ruling of 2026-09-13, amended the same day).
  *
  * **The amendment.** The ruling read the API first, so a slug with both a

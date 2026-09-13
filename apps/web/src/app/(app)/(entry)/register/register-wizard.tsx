@@ -95,7 +95,7 @@ type Phase =
   | "pay"
   /**
    * The operator agreement, accepted BETWEEN creating the registration and
-   * paying for it (ADR-049, AC-R8):
+   * paying for it (ADR-053, AC-R8):
    *
    *   place → about → business → documents → create → contract → pay → pipeline
    *
@@ -346,7 +346,7 @@ export default function RegisterWizard({
       }
     }
     // The owner's name, National ID and email, checked with the contract's own
-    // `IntendedOwner` before this step is left (ADR-049 J25). All three are
+    // `IntendedOwner` before this step is left (ADR-053 J25). All three are
     // required: no email means no claim invitation, and no National ID means
     // the owner can never be matched when they claim. A mistyped ID is named in
     // the field's own words, the ones it already shows as you type.

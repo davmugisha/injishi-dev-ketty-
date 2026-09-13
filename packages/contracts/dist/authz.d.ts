@@ -13,7 +13,7 @@ import { Domain, OrgRegistrationStatus, OrgRole, OversightRole, OversightScopeLe
  * authentication only.
  */
 /** What an action needs. A permission absent from a role's set is denied. */
-export declare const Permission: z.ZodEnum<["reservation.approve", "reservation.assign", "stay.checkin", "stay.checkout", "folio.charge", "folio.payment", "housekeeping.set", "ticket.advance", "order.advance", "menu.manage", "team.manage", "money.view", "property.switch", "rent.record", "lease.advance", "deposit.return", "unit.manage", "listing.manage", "message.send", "task.assign", "amenity.manage", "department.manage", "ebm.manage"]>;
+export declare const Permission: z.ZodEnum<["reservation.approve", "reservation.assign", "stay.checkin", "stay.checkout", "folio.charge", "folio.payment", "housekeeping.set", "ticket.advance", "order.advance", "menu.manage", "team.manage", "money.view", "property.switch", "rent.record", "lease.advance", "deposit.return", "unit.manage", "listing.manage", "message.send", "task.assign", "amenity.manage", "department.manage", "ebm.manage", "folio.close", "ebm.refund", "outlet.manage"]>;
 export type Permission = z.infer<typeof Permission>;
 /** Does this role hold this permission? The single predicate both sides use. */
 export declare function can(role: OrgRole, permission: Permission): boolean;
@@ -47,7 +47,7 @@ export declare const WorkspaceAccess: z.ZodObject<{
      */
     registrationStatus: z.ZodNullable<z.ZodEnum<["pending_payment", "submitted", "tin_verified", "field_verified", "approved", "active", "rejected", "suspended"]>>;
     /** Resolved for this workspace, never global to the person. */
-    permissions: z.ZodArray<z.ZodEnum<["reservation.approve", "reservation.assign", "stay.checkin", "stay.checkout", "folio.charge", "folio.payment", "housekeeping.set", "ticket.advance", "order.advance", "menu.manage", "team.manage", "money.view", "property.switch", "rent.record", "lease.advance", "deposit.return", "unit.manage", "listing.manage", "message.send", "task.assign", "amenity.manage", "department.manage", "ebm.manage"]>, "many">;
+    permissions: z.ZodArray<z.ZodEnum<["reservation.approve", "reservation.assign", "stay.checkin", "stay.checkout", "folio.charge", "folio.payment", "housekeeping.set", "ticket.advance", "order.advance", "menu.manage", "team.manage", "money.view", "property.switch", "rent.record", "lease.advance", "deposit.return", "unit.manage", "listing.manage", "message.send", "task.assign", "amenity.manage", "department.manage", "ebm.manage", "folio.close", "ebm.refund", "outlet.manage"]>, "many">;
     /**
      * The USALI categories this business actually runs (ADR-035, D-a).
      *
@@ -93,7 +93,7 @@ export declare const WorkspaceAccess: z.ZodObject<{
     kind: "business" | "broker" | "personal";
     propertyName: string | null;
     departments: ("rooms" | "fnb" | "spa_recreation" | "other_operated" | "misc_income" | "admin_general" | "sales_marketing" | "it" | "engineering" | "utilities" | "hr")[];
-    permissions: ("reservation.approve" | "reservation.assign" | "stay.checkin" | "stay.checkout" | "folio.charge" | "folio.payment" | "housekeeping.set" | "ticket.advance" | "order.advance" | "menu.manage" | "team.manage" | "money.view" | "property.switch" | "rent.record" | "lease.advance" | "deposit.return" | "unit.manage" | "listing.manage" | "message.send" | "task.assign" | "amenity.manage" | "department.manage" | "ebm.manage")[];
+    permissions: ("reservation.approve" | "reservation.assign" | "stay.checkin" | "stay.checkout" | "folio.charge" | "folio.payment" | "housekeeping.set" | "ticket.advance" | "order.advance" | "menu.manage" | "team.manage" | "money.view" | "property.switch" | "rent.record" | "lease.advance" | "deposit.return" | "unit.manage" | "listing.manage" | "message.send" | "task.assign" | "amenity.manage" | "department.manage" | "ebm.manage" | "folio.close" | "ebm.refund" | "outlet.manage")[];
 }, {
     domain: "hospitality" | "residence" | null;
     registrationStatus: "pending_payment" | "submitted" | "tin_verified" | "field_verified" | "approved" | "active" | "rejected" | "suspended" | null;
@@ -104,7 +104,7 @@ export declare const WorkspaceAccess: z.ZodObject<{
     kind: "business" | "broker" | "personal";
     propertyName: string | null;
     departments: ("rooms" | "fnb" | "spa_recreation" | "other_operated" | "misc_income" | "admin_general" | "sales_marketing" | "it" | "engineering" | "utilities" | "hr")[];
-    permissions: ("reservation.approve" | "reservation.assign" | "stay.checkin" | "stay.checkout" | "folio.charge" | "folio.payment" | "housekeeping.set" | "ticket.advance" | "order.advance" | "menu.manage" | "team.manage" | "money.view" | "property.switch" | "rent.record" | "lease.advance" | "deposit.return" | "unit.manage" | "listing.manage" | "message.send" | "task.assign" | "amenity.manage" | "department.manage" | "ebm.manage")[];
+    permissions: ("reservation.approve" | "reservation.assign" | "stay.checkin" | "stay.checkout" | "folio.charge" | "folio.payment" | "housekeeping.set" | "ticket.advance" | "order.advance" | "menu.manage" | "team.manage" | "money.view" | "property.switch" | "rent.record" | "lease.advance" | "deposit.return" | "unit.manage" | "listing.manage" | "message.send" | "task.assign" | "amenity.manage" | "department.manage" | "ebm.manage" | "folio.close" | "ebm.refund" | "outlet.manage")[];
 }>;
 export type WorkspaceAccess = z.infer<typeof WorkspaceAccess>;
 /**
@@ -177,7 +177,7 @@ export declare const OversightGrant: z.ZodObject<{
 }>;
 export type OversightGrant = z.infer<typeof OversightGrant>;
 /**
- * A grant as the OFFICER'S OWN CONSOLE renders it (ADR-049, AC-G5).
+ * A grant as the OFFICER'S OWN CONSOLE renders it (ADR-053, AC-G5).
  *
  * `OversightGrant` above is the authority: the few fields a guard and a scope
  * check need. This is the same seat with the words a person reads attached, and
@@ -235,7 +235,7 @@ export type OversightConsoleGrant = z.infer<typeof OversightConsoleGrant>;
 /** How a country-level scope reads on the officer's own console. */
 export declare const OVERSIGHT_COUNTRY_SCOPE_LABEL = "Rwanda";
 /**
- * The honest refusal for a posting whose console is not built (ADR-049, AC-G7).
+ * The honest refusal for a posting whose console is not built (ADR-053, AC-G7).
  *
  * A tax compliance officer used to be shown an empty queue that answered 403 to
  * every action, which reads as "your access is broken" rather than "this does not
@@ -255,7 +255,7 @@ export declare function oversightConsoleFor(role: OversightRole): "verification"
 export type ProvinceDistricts = ReadonlyMap<number, readonly number[]>;
 /**
  * The districts a set of grants covers: THE one definition of oversight region
- * scope (ADR-049, AC-G8).
+ * scope (ADR-053, AC-G8).
  *
  * `null` means everywhere, and it is not "none": a country grant adds no
  * predicate at all, and collapsing that to an empty list would hide every
@@ -290,7 +290,7 @@ export interface OversightScope {
     districtId: number | null;
 }
 /**
- * Do two grants cover any of the same ground? (ADR-049, AC-G2)
+ * Do two grants cover any of the same ground? (ADR-053, AC-G2)
  *
  * Separation of duties is a SCOPE question, not an equality one. A person
  * holding `business_field_verifier` over the whole country and

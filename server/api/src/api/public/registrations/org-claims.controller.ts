@@ -24,7 +24,7 @@ import { UserThrottlerGuard } from '../../../shared/http/user-throttler.guard';
 import { ZodValidationPipe } from '../../../shared/validation/zod-validation.pipe';
 
 /**
- * The owner claim → /api/v1/orgs/:orgId/claim (FL02, ADR-049).
+ * The owner claim → /api/v1/orgs/:orgId/claim (FL02, ADR-053).
  *
  * Behind `SessionGuard` and NOT `WorkspaceGuard`, deliberately: the caller holds
  * no workspace yet, which is the entire point of claiming. The token is the

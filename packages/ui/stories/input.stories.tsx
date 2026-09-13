@@ -52,7 +52,7 @@ export const Sizes: Story = {
 };
 
 export const Disabled: Story = {
-  args: { disabled: true, defaultValue: "host@injishi.rw" },
+  args: { disabled: true, defaultValue: "host@injishi.com" },
 };
 
 /** The error pairs `aria-invalid` with a described message; colour alone is never the signal. */

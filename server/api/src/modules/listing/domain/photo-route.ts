@@ -1,5 +1,5 @@
 /**
- * How a public property photograph is addressed (ADR-049, owner ruling of
+ * How a public property photograph is addressed (ADR-053, owner ruling of
  * 2026-09-13).
  *
  * The bucket is private and an object key never leaves the API. A public read

@@ -76,6 +76,14 @@ exports.AdminAuditSubjectType = zod_1.z.enum([
     "property",
     "broker",
     "guest_stay",
+    // `training_certificate` arrived with migration 0035 (ADR-049), and the
+    // same typecheck described above caught it the same way, which is worth
+    // recording as evidence that the mechanism actually works. Issuing and
+    // withdrawing a certificate are audited, and they are filed under a subject
+    // type of their own rather than under `user` with the holder's id, so
+    // "every audit row about this certificate" stays a query rather than a
+    // search through payloads.
+    "training_certificate",
 ]);
 /**
  * `record_data_class`. What class of another person's data a staff member read.
@@ -399,7 +407,7 @@ exports.AdminOrgListQuery = zod_1.z.object({
 });
 exports.AdminOrgListResponse = listOf(exports.AdminOrgRow);
 /**
- * Is anyone appointed to take this business's current stage? (ADR-049, AC-G9)
+ * Is anyone appointed to take this business's current stage? (ADR-053, AC-G9)
  *
  * Three states, because only two of the four statuses in the review queue wait
  * on an officer. `tin_verified` waits on a `business_field_verifier` and
@@ -440,7 +448,7 @@ exports.AdminOrgReviewItem = zod_1.z.object({
     /** True once a `tin_verifications` row for this org came back `verified`. */
     tinVerified: zod_1.z.boolean(),
     /**
-     * When the business entered the stage it is in NOW (ADR-049, AC-R7).
+     * When the business entered the stage it is in NOW (ADR-053, AC-R7).
      *
      * The newest `org_registration_events` row whose `to_status` is the current
      * status. Null for a business that reached its status before the event log
@@ -450,7 +458,7 @@ exports.AdminOrgReviewItem = zod_1.z.object({
     stageEnteredAt: zod_1.z.string().nullable(),
     /**
      * Held at `submitted` on an RRA check that never answered, with every
-     * automatic retry used (ADR-049, AC-R5).
+     * automatic retry used (ADR-053, AC-R5).
      *
      * Computed when the queue is read, not stored. A stored flag would have to be
      * cleared by a later success, a resubmit and an admin recheck, and one missed
@@ -458,7 +466,7 @@ exports.AdminOrgReviewItem = zod_1.z.object({
      */
     stalled: zod_1.z.boolean(),
     /**
-     * Whether an officer can take this business's CURRENT stage (ADR-049, AC-G9).
+     * Whether an officer can take this business's CURRENT stage (ADR-053, AC-G9).
      * See `ReviewCoverage`.
      */
     coverage: exports.ReviewCoverage,
@@ -497,7 +505,7 @@ exports.AdminOboListResponse = listOf(exports.AdminOboRow);
  */
 exports.AdminOrgDetail = exports.AdminOrgRow.extend({
     /**
-     * When the business entered its current stage, for EVERY stage (ADR-049,
+     * When the business entered its current stage, for EVERY stage (ADR-053,
      * AC-R7), `pending_payment` and `suspended` included, neither of which the
      * review queue lists. Null before the event log existed.
      */
@@ -513,7 +521,7 @@ exports.AdminOrgDetail = exports.AdminOrgRow.extend({
  * One person inside a business.
  *
  * `status` is the enum the database now enforces. It used to be `z.string()`,
- * correctly, while `org_memberships.status` was free `text`; ADR-049 made the
+ * correctly, while `org_memberships.status` was free `text`; ADR-053 made the
  * column `org_membership_status` (AC-R10), so the contract promises exactly what
  * Postgres refuses to store otherwise, no more and no less.
  */
@@ -746,7 +754,7 @@ exports.AdminUserMembership = zod_1.z.object({
  */
 exports.AdminOversightGrant = zod_1.z.object({
     /**
-     * The assignment row. Added by ADR-049, because a grant that can be revoked
+     * The assignment row. Added by ADR-053, because a grant that can be revoked
      * has to be nameable: `DELETE /admin/users/:userId/oversight/:assignmentId`
      * addresses this, and a revoke keyed on role plus scope would be guessing
      * which of two grants was meant.
@@ -761,7 +769,7 @@ exports.AdminOversightGrant = zod_1.z.object({
     scopeLabel: zod_1.z.string().nullable(),
 });
 /**
- * Appoint a government officer (ADR-049, AC-G1).
+ * Appoint a government officer (ADR-053, AC-G1).
  *
  * Four things are named and none is derivable from another: the FUNCTION the
  * pipeline branches on, the BODY that appointed them, that body's OWN job title
@@ -1398,7 +1406,7 @@ exports.AdminActionRequest = zod_1.z.object({
     reason: exports.AdminReasonQuery.shape.reason,
 });
 /**
- * Append a registration fee (ADR-049, AC-R9).
+ * Append a registration fee (ADR-053, AC-R9).
  *
  * APPEND, never edit: a new row with its own `effectiveFrom`. `currentFee` reads
  * the newest row whose moment has passed, and a registration already created
@@ -1423,7 +1431,7 @@ exports.AppendRegistrationFeeRequest = exports.AdminActionRequest.extend({
     effectiveFrom: zod_1.z.string().datetime({ offset: true }).optional(),
 });
 /**
- * A government body in the catalogue (D24, ADR-049 AC-G4).
+ * A government body in the catalogue (D24, ADR-053 AC-G4).
  *
  * A catalogue rather than an enum, because the legally defined set is open:
  * adding RDB or RURA is a row, not a deployment. `code` is the primary key and is

@@ -51,6 +51,8 @@ export function PaymentPrompt({
 }) {
   const [secondsLeft, setSecondsLeft] = useState(() => remaining(attempt.expiresAt));
   const [checking, setChecking] = useState(false);
+  /** The last poll did not get an answer (a 429, a dropped network, a timeout). */
+  const [unanswered, setUnanswered] = useState(false);
 
   /*
    * The callbacks change identity on every render of the parent, and this
@@ -64,18 +66,38 @@ export function PaymentPrompt({
 
   useEffect(() => {
     let stopped = false;
+    let timer: ReturnType<typeof setTimeout> | undefined;
 
     /*
-     * Every two seconds, and never faster.
+     * Every two seconds while the server answers, and never faster.
      *
-     * Each poll asks the API, which asks the payment provider. A tighter loop
-     * would put a payment gateway under one guest's browser, and the route
-     * keeps a per-person throttle for exactly that reason.
+     * Each poll asks the API, which asks the payment provider, and the route
+     * keeps a per-person throttle for that reason. A poll that gets NO answer —
+     * a 429, a dropped connection, a timeout — is not a verdict on the payment:
+     * the money may be landing right now. So it is read as "still checking",
+     * and the next poll backs off (4s, 8s, up to 30s) instead of hammering a
+     * route that just asked us to slow down. The first real answer resets it.
+     *
+     * The poll does NOT stop at the countdown. The server asks the provider
+     * before it believes the clock, so an approval that landed in time but is
+     * read late still becomes a booking, and this screen has to be there to
+     * show it (booking audit, 2026-09-13).
      */
-    const tick = async () => {
+    const schedule = (delayMs: number) => {
+      if (!stopped) timer = setTimeout(() => void tick(delayMs), delayMs);
+    };
+
+    const tick = async (lastDelayMs: number) => {
       if (stopped) return;
       const result = await fetchPaymentAttempt(attempt.attemptToken);
-      if (stopped || result.status !== "ok") return;
+      if (stopped) return;
+
+      if (result.status !== "ok") {
+        setUnanswered(true);
+        schedule(Math.min(MAX_POLL_MS, Math.max(POLL_MS, lastDelayMs) * 2));
+        return;
+      }
+      setUnanswered(false);
 
       const next = result.data;
       if (next.state === "confirmed") {
@@ -84,17 +106,19 @@ export function PaymentPrompt({
       } else if (next.state === "refused" || next.state === "expired") {
         stopped = true;
         ended.current(next);
+      } else {
+        schedule(POLL_MS);
       }
     };
 
-    const poll = setInterval(() => void tick(), 2_000);
+    schedule(POLL_MS);
     const clock = setInterval(() => {
       setSecondsLeft(remaining(attempt.expiresAt));
     }, 1_000);
 
     return () => {
       stopped = true;
-      clearInterval(poll);
+      if (timer) clearTimeout(timer);
       clearInterval(clock);
     };
   }, [attempt.attemptToken, attempt.expiresAt]);
@@ -106,7 +130,11 @@ export function PaymentPrompt({
     setChecking(true);
     const result = await fetchPaymentAttempt(attempt.attemptToken);
     setChecking(false);
-    if (result.status !== "ok") return;
+    if (result.status !== "ok") {
+      setUnanswered(true);
+      return;
+    }
+    setUnanswered(false);
     if (result.data.state === "confirmed") onSettled(result.data);
     else if (result.data.state !== "prompting") onEnded(result.data);
   };
@@ -145,9 +173,17 @@ export function PaymentPrompt({
             <b className="tabular-nums">{formatClock(secondsLeft)}</b> left.
           </>
         ) : (
-          "That request has timed out. Nothing has been charged."
+          // Not "timed out, nothing charged": an approval can land right at the
+          // end, and only the server's next answer may say which it was.
+          `Confirming with ${label}. If you approved in time, your booking will appear here.`
         )}
       </p>
+
+      {unanswered ? (
+        <p className="mt-2 text-sm text-page-fg-70">
+          Still checking your payment. This can take a moment; you will not be charged twice.
+        </p>
+      ) : null}
 
       <p className="mt-2 text-xs text-page-fg-70">
         Nothing is taken until you approve it. If you dismissed the prompt by
@@ -172,6 +208,11 @@ export function PaymentPrompt({
     </div>
   );
 }
+
+/** The steady poll interval while the server is answering. */
+const POLL_MS = 2_000;
+/** The longest a poll waits after unanswered ones. */
+const MAX_POLL_MS = 30_000;
 
 /** Whole seconds until `iso`, never negative. */
 function remaining(iso: string): number {

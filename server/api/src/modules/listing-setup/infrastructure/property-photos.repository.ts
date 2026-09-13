@@ -18,7 +18,7 @@ export interface PropertyPhotoRow {
 }
 
 /**
- * A property's photographs (ADR-049, AC-I3).
+ * A property's photographs (ADR-053, AC-I3).
  *
  * ## Two invariants live here, and both are database constraints first
  *

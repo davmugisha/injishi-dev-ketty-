@@ -70,7 +70,7 @@ x-api-env: &api-env
   # real person, so there is no relay credential to leak or to spend.
   SMTP_URL: smtp://injishi-mailpit:1025
   MAIL_FROM: "Injishi Staging <no-reply@${STAGING_DOMAIN}>"
-  # Web's public origin, for a mail that links to a page on web (ADR-049). The
+  # Web's public origin, for a mail that links to a page on web (ADR-053). The
   # same host NEXT_PUBLIC_WEB_URL uses, so staging mail links to staging web.
   WEB_URL: https://www.${STAGING_DOMAIN}
   LOG_LEVEL: ${LOG_LEVEL:-debug}
@@ -253,7 +253,7 @@ services:
       dokploy-network: {}
 
   api:
-    # ADR-048 AC-9. Built ONCE per green commit by .github/workflows/image.yml
+    # ADR-052 AC-9. Built ONCE per green commit by .github/workflows/image.yml
     # and PULLED here by short sha. It is never built on this host, so the
     # artifact staging ran is byte for byte the artifact production runs, and
     # "staging tested this commit" becomes a statement about a binary rather

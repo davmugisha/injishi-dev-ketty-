@@ -59,6 +59,29 @@ export const Permission = z.enum([
      * never be able to re-point where that booking is taxed.
      */
     "ebm.manage",
+    /**
+     * Close a bill, which SIGNS ITS SALE with RRA (ADR-050 D-t, AC-8).
+     *
+     * Owner, manager and receptionist. Signing a correct sale at the desk is the
+     * desk's job, and a hotel cannot wake a manager per departure. Check out
+     * requires it alongside `stay.checkout`, because check out is what signs:
+     * gating only the close route would leave the fiscal act reachable through
+     * a permission the receptionist already held.
+     */
+    "folio.close",
+    /**
+     * Withdraw a signed sale with an `NR` refund receipt (ADR-050 D-t, AC-8).
+     *
+     * Owner and manager only. Creating a declaration is routine; withdrawing one
+     * reduces declared turnover, and §14 wants a named person's justification.
+     */
+    "ebm.refund",
+    /**
+     * Decide an outlet's operator, owner, relationship and tax entity
+     * (ADR-050 D-t). Owner and manager only, because those decide who is taxed
+     * for what.
+     */
+    "outlet.manage",
 ]);
 export type Permission = z.infer<typeof Permission>;
 const ALL = Permission.options;
@@ -106,6 +129,7 @@ const ROLE_PERMISSIONS = {
         "stay.checkout",
         "folio.charge",
         "folio.payment",
+        "folio.close",
         "order.advance",
         "message.send",
     ]),
@@ -144,6 +168,9 @@ export const PERMISSION_LABEL: Readonly<Record<Permission, string>> = {
     "amenity.manage": "change what the property offers",
     "department.manage": "manage departments",
     "ebm.manage": "connect the RRA EBM account",
+    "folio.close": "close a bill and sign its receipt",
+    "ebm.refund": "refund a signed receipt",
+    "outlet.manage": "manage outlets",
 };
 // ---------------------------------------------------------------------------
 // Workspace access
@@ -296,7 +323,7 @@ export const OversightGrant = z.object({
 });
 export type OversightGrant = z.infer<typeof OversightGrant>;
 /**
- * A grant as the OFFICER'S OWN CONSOLE renders it (ADR-049, AC-G5).
+ * A grant as the OFFICER'S OWN CONSOLE renders it (ADR-053, AC-G5).
  *
  * `OversightGrant` above is the authority: the few fields a guard and a scope
  * check need. This is the same seat with the words a person reads attached, and
@@ -332,7 +359,7 @@ export type OversightConsoleGrant = z.infer<typeof OversightConsoleGrant>;
 /** How a country-level scope reads on the officer's own console. */
 export const OVERSIGHT_COUNTRY_SCOPE_LABEL = "Rwanda";
 /**
- * The honest refusal for a posting whose console is not built (ADR-049, AC-G7).
+ * The honest refusal for a posting whose console is not built (ADR-053, AC-G7).
  *
  * A tax compliance officer used to be shown an empty queue that answered 403 to
  * every action, which reads as "your access is broken" rather than "this does not
@@ -362,7 +389,7 @@ export function oversightConsoleFor(role: OversightRole): "verification" | "appr
 export type ProvinceDistricts = ReadonlyMap<number, readonly number[]>;
 /**
  * The districts a set of grants covers: THE one definition of oversight region
- * scope (ADR-049, AC-G8).
+ * scope (ADR-053, AC-G8).
  *
  * `null` means everywhere, and it is not "none": a country grant adds no
  * predicate at all, and collapsing that to an empty list would hide every
@@ -414,7 +441,7 @@ export interface OversightScope {
     districtId: number | null;
 }
 /**
- * Do two grants cover any of the same ground? (ADR-049, AC-G2)
+ * Do two grants cover any of the same ground? (ADR-053, AC-G2)
  *
  * Separation of duties is a SCOPE question, not an equality one. A person
  * holding `business_field_verifier` over the whole country and

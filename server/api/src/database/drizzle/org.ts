@@ -91,13 +91,13 @@ export const orgs = pgTable(
     villageId: integer('village_id').references(() => villages.id),
     addressText: text('address_text'),
     /**
-     * The operator contract this business accepted (ADR-049, AC-R8).
+     * The operator contract this business accepted (ADR-053, AC-R8).
      *
      * A date string from `OPERATOR_CONTRACT_VERSION`, because the document is
      * rendered from code and a version stored anywhere else can drift from the
      * document it names. Nullable, and all three columns move together
      * (`orgs_contract_shape`), so every business registered before this existed
-     * validates with no backfill. There is no re acceptance flow; see ADR-049.
+     * validates with no backfill. There is no re acceptance flow; see ADR-053.
      */
     contractVersion: text('contract_version'),
     contractAcceptedAt: timestamp('contract_accepted_at', { withTimezone: true }),
@@ -571,7 +571,7 @@ export const orgRegistrationReviews = pgTable(
 
 
 /**
- * Every move a registration makes (ADR-049, AC-R6, AC-R7).
+ * Every move a registration makes (ADR-053, AC-R6, AC-R7).
  *
  * Append only, one row per status change, written in the SAME transaction as
  * the change. The same shape as `tin_verifications` and

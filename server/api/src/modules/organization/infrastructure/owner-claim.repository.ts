@@ -30,7 +30,7 @@ export interface ClaimOutcome {
 }
 
 /**
- * The owner claim's reads and its one transaction (FL02, ADR-049).
+ * The owner claim's reads and its one transaction (FL02, ADR-053).
  *
  * Every refusal here collapses to "no such invitation" at the service. The
  * distinctions (`why`) exist for the log and for a reader of this file, never

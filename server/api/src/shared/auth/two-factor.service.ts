@@ -57,7 +57,7 @@ export type TwoFactorRefusal = 'two_factor_required';
 /** A resend before this has elapsed is refused, so the mailbox is not flooded. */
 export const RESEND_COOLDOWN_SECONDS = 30;
 
-/** `samuel@injishi.rw` → `sa••••@injishi.rw`, for "we sent a code to …". */
+/** `samuel@injishi.com` → `sa••••@injishi.com`, for "we sent a code to …". */
 export function maskEmail(email: string): string {
   const at = email.lastIndexOf('@');
   if (at <= 0) return email;

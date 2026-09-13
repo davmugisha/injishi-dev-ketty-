@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Deploy one stack to the commit it is told to run.
 #
-# ADR-048. Called by `.github/workflows/deploy-staging.yml` and
+# ADR-052. Called by `.github/workflows/deploy-staging.yml` and
 # `deploy-production.yml`, both of which run on the self hosted runner ON this
 # VPS. The logic lives here rather than in the workflow YAML for the same reason
 # demo-nightly.sh exists: a deploy is a sequence with a rollback, and a sequence

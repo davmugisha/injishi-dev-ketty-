@@ -51,7 +51,7 @@ export type AdminAdapterStatus = z.infer<typeof AdminAdapterStatus>;
  * exists. The API's typecheck is what caught the gap: the query's row type
  * gained the two values and this contract had not.
  */
-export declare const AdminAuditSubjectType: z.ZodEnum<["user", "org", "lease", "booking", "payment", "config", "property", "broker", "guest_stay"]>;
+export declare const AdminAuditSubjectType: z.ZodEnum<["user", "org", "lease", "booking", "payment", "config", "property", "broker", "guest_stay", "training_certificate"]>;
 export type AdminAuditSubjectType = z.infer<typeof AdminAuditSubjectType>;
 /**
  * `record_data_class`. What class of another person's data a staff member read.
@@ -765,7 +765,7 @@ export declare const AdminOrgListResponse: z.ZodObject<{
 }>;
 export type AdminOrgListResponse = z.infer<typeof AdminOrgListResponse>;
 /**
- * Is anyone appointed to take this business's current stage? (ADR-049, AC-G9)
+ * Is anyone appointed to take this business's current stage? (ADR-053, AC-G9)
  *
  * Three states, because only two of the four statuses in the review queue wait
  * on an officer. `tin_verified` waits on a `business_field_verifier` and
@@ -815,7 +815,7 @@ export declare const AdminOrgReviewItem: z.ZodObject<{
     /** True once a `tin_verifications` row for this org came back `verified`. */
     tinVerified: z.ZodBoolean;
     /**
-     * When the business entered the stage it is in NOW (ADR-049, AC-R7).
+     * When the business entered the stage it is in NOW (ADR-053, AC-R7).
      *
      * The newest `org_registration_events` row whose `to_status` is the current
      * status. Null for a business that reached its status before the event log
@@ -825,7 +825,7 @@ export declare const AdminOrgReviewItem: z.ZodObject<{
     stageEnteredAt: z.ZodNullable<z.ZodString>;
     /**
      * Held at `submitted` on an RRA check that never answered, with every
-     * automatic retry used (ADR-049, AC-R5).
+     * automatic retry used (ADR-053, AC-R5).
      *
      * Computed when the queue is read, not stored. A stored flag would have to be
      * cleared by a later success, a resubmit and an admin recheck, and one missed
@@ -833,7 +833,7 @@ export declare const AdminOrgReviewItem: z.ZodObject<{
      */
     stalled: z.ZodBoolean;
     /**
-     * Whether an officer can take this business's CURRENT stage (ADR-049, AC-G9).
+     * Whether an officer can take this business's CURRENT stage (ADR-053, AC-G9).
      * See `ReviewCoverage`.
      */
     coverage: z.ZodEnum<["covered", "uncovered", "not_applicable"]>;
@@ -900,7 +900,7 @@ export declare const AdminOrgReviewQueueResponse: z.ZodObject<{
         /** True once a `tin_verifications` row for this org came back `verified`. */
         tinVerified: z.ZodBoolean;
         /**
-         * When the business entered the stage it is in NOW (ADR-049, AC-R7).
+         * When the business entered the stage it is in NOW (ADR-053, AC-R7).
          *
          * The newest `org_registration_events` row whose `to_status` is the current
          * status. Null for a business that reached its status before the event log
@@ -910,7 +910,7 @@ export declare const AdminOrgReviewQueueResponse: z.ZodObject<{
         stageEnteredAt: z.ZodNullable<z.ZodString>;
         /**
          * Held at `submitted` on an RRA check that never answered, with every
-         * automatic retry used (ADR-049, AC-R5).
+         * automatic retry used (ADR-053, AC-R5).
          *
          * Computed when the queue is read, not stored. A stored flag would have to be
          * cleared by a later success, a resubmit and an admin recheck, and one missed
@@ -918,7 +918,7 @@ export declare const AdminOrgReviewQueueResponse: z.ZodObject<{
          */
         stalled: z.ZodBoolean;
         /**
-         * Whether an officer can take this business's CURRENT stage (ADR-049, AC-G9).
+         * Whether an officer can take this business's CURRENT stage (ADR-053, AC-G9).
          * See `ReviewCoverage`.
          */
         coverage: z.ZodEnum<["covered", "uncovered", "not_applicable"]>;
@@ -1188,7 +1188,7 @@ export declare const AdminOrgDetail: z.ZodObject<{
     createdAt: z.ZodString;
 } & {
     /**
-     * When the business entered its current stage, for EVERY stage (ADR-049,
+     * When the business entered its current stage, for EVERY stage (ADR-053,
      * AC-R7), `pending_payment` and `suspended` included, neither of which the
      * review queue lists. Null before the event log existed.
      */
@@ -1259,7 +1259,7 @@ export type AdminOrgDetail = z.infer<typeof AdminOrgDetail>;
  * One person inside a business.
  *
  * `status` is the enum the database now enforces. It used to be `z.string()`,
- * correctly, while `org_memberships.status` was free `text`; ADR-049 made the
+ * correctly, while `org_memberships.status` was free `text`; ADR-053 made the
  * column `org_membership_status` (AC-R10), so the contract promises exactly what
  * Postgres refuses to store otherwise, no more and no less.
  */
@@ -1912,7 +1912,7 @@ export type AdminOrgMoney = z.infer<typeof AdminOrgMoney>;
 export declare const AdminTimelineEvent: z.ZodObject<{
     id: z.ZodString;
     eventType: z.ZodString;
-    subjectType: z.ZodNullable<z.ZodEnum<["user", "org", "lease", "booking", "payment", "config", "property", "broker", "guest_stay"]>>;
+    subjectType: z.ZodNullable<z.ZodEnum<["user", "org", "lease", "booking", "payment", "config", "property", "broker", "guest_stay", "training_certificate"]>>;
     actorUserId: z.ZodNullable<z.ZodString>;
     actorName: z.ZodNullable<z.ZodString>;
     reason: z.ZodNullable<z.ZodString>;
@@ -1921,7 +1921,7 @@ export declare const AdminTimelineEvent: z.ZodObject<{
     id: string;
     occurredAt: string;
     eventType: string;
-    subjectType: "broker" | "payment" | "user" | "org" | "lease" | "booking" | "config" | "property" | "guest_stay" | null;
+    subjectType: "broker" | "payment" | "user" | "org" | "lease" | "booking" | "config" | "property" | "guest_stay" | "training_certificate" | null;
     actorUserId: string | null;
     actorName: string | null;
     reason: string | null;
@@ -1929,7 +1929,7 @@ export declare const AdminTimelineEvent: z.ZodObject<{
     id: string;
     occurredAt: string;
     eventType: string;
-    subjectType: "broker" | "payment" | "user" | "org" | "lease" | "booking" | "config" | "property" | "guest_stay" | null;
+    subjectType: "broker" | "payment" | "user" | "org" | "lease" | "booking" | "config" | "property" | "guest_stay" | "training_certificate" | null;
     actorUserId: string | null;
     actorName: string | null;
     reason: string | null;
@@ -1939,7 +1939,7 @@ export declare const AdminOrgTimelineResponse: z.ZodObject<{
     items: z.ZodArray<z.ZodObject<{
         id: z.ZodString;
         eventType: z.ZodString;
-        subjectType: z.ZodNullable<z.ZodEnum<["user", "org", "lease", "booking", "payment", "config", "property", "broker", "guest_stay"]>>;
+        subjectType: z.ZodNullable<z.ZodEnum<["user", "org", "lease", "booking", "payment", "config", "property", "broker", "guest_stay", "training_certificate"]>>;
         actorUserId: z.ZodNullable<z.ZodString>;
         actorName: z.ZodNullable<z.ZodString>;
         reason: z.ZodNullable<z.ZodString>;
@@ -1948,7 +1948,7 @@ export declare const AdminOrgTimelineResponse: z.ZodObject<{
         id: string;
         occurredAt: string;
         eventType: string;
-        subjectType: "broker" | "payment" | "user" | "org" | "lease" | "booking" | "config" | "property" | "guest_stay" | null;
+        subjectType: "broker" | "payment" | "user" | "org" | "lease" | "booking" | "config" | "property" | "guest_stay" | "training_certificate" | null;
         actorUserId: string | null;
         actorName: string | null;
         reason: string | null;
@@ -1956,7 +1956,7 @@ export declare const AdminOrgTimelineResponse: z.ZodObject<{
         id: string;
         occurredAt: string;
         eventType: string;
-        subjectType: "broker" | "payment" | "user" | "org" | "lease" | "booking" | "config" | "property" | "guest_stay" | null;
+        subjectType: "broker" | "payment" | "user" | "org" | "lease" | "booking" | "config" | "property" | "guest_stay" | "training_certificate" | null;
         actorUserId: string | null;
         actorName: string | null;
         reason: string | null;
@@ -1979,7 +1979,7 @@ export declare const AdminOrgTimelineResponse: z.ZodObject<{
         id: string;
         occurredAt: string;
         eventType: string;
-        subjectType: "broker" | "payment" | "user" | "org" | "lease" | "booking" | "config" | "property" | "guest_stay" | null;
+        subjectType: "broker" | "payment" | "user" | "org" | "lease" | "booking" | "config" | "property" | "guest_stay" | "training_certificate" | null;
         actorUserId: string | null;
         actorName: string | null;
         reason: string | null;
@@ -1994,7 +1994,7 @@ export declare const AdminOrgTimelineResponse: z.ZodObject<{
         id: string;
         occurredAt: string;
         eventType: string;
-        subjectType: "broker" | "payment" | "user" | "org" | "lease" | "booking" | "config" | "property" | "guest_stay" | null;
+        subjectType: "broker" | "payment" | "user" | "org" | "lease" | "booking" | "config" | "property" | "guest_stay" | "training_certificate" | null;
         actorUserId: string | null;
         actorName: string | null;
         reason: string | null;
@@ -2018,7 +2018,7 @@ export declare const AdminAuditRow: z.ZodObject<{
      * the audit trail exists to record.
      */
     impersonatedUserId: z.ZodNullable<z.ZodString>;
-    subjectType: z.ZodNullable<z.ZodEnum<["user", "org", "lease", "booking", "payment", "config", "property", "broker", "guest_stay"]>>;
+    subjectType: z.ZodNullable<z.ZodEnum<["user", "org", "lease", "booking", "payment", "config", "property", "broker", "guest_stay", "training_certificate"]>>;
     subjectId: z.ZodNullable<z.ZodString>;
     eventType: z.ZodString;
     reason: z.ZodNullable<z.ZodString>;
@@ -2029,7 +2029,7 @@ export declare const AdminAuditRow: z.ZodObject<{
     id: string;
     occurredAt: string;
     eventType: string;
-    subjectType: "broker" | "payment" | "user" | "org" | "lease" | "booking" | "config" | "property" | "guest_stay" | null;
+    subjectType: "broker" | "payment" | "user" | "org" | "lease" | "booking" | "config" | "property" | "guest_stay" | "training_certificate" | null;
     actorUserId: string | null;
     actorName: string | null;
     reason: string | null;
@@ -2040,7 +2040,7 @@ export declare const AdminAuditRow: z.ZodObject<{
     id: string;
     occurredAt: string;
     eventType: string;
-    subjectType: "broker" | "payment" | "user" | "org" | "lease" | "booking" | "config" | "property" | "guest_stay" | null;
+    subjectType: "broker" | "payment" | "user" | "org" | "lease" | "booking" | "config" | "property" | "guest_stay" | "training_certificate" | null;
     actorUserId: string | null;
     actorName: string | null;
     reason: string | null;
@@ -2054,19 +2054,19 @@ export declare const AdminAuditQuery: z.ZodObject<{
     pageSize: z.ZodOptional<z.ZodNumber>;
     /** Free text over the event type and the reason. */
     q: z.ZodOptional<z.ZodString>;
-    subjectType: z.ZodOptional<z.ZodEnum<["user", "org", "lease", "booking", "payment", "config", "property", "broker", "guest_stay"]>>;
+    subjectType: z.ZodOptional<z.ZodEnum<["user", "org", "lease", "booking", "payment", "config", "property", "broker", "guest_stay", "training_certificate"]>>;
     actorUserId: z.ZodOptional<z.ZodString>;
 }, "strip", z.ZodTypeAny, {
     page?: number | undefined;
     pageSize?: number | undefined;
     q?: string | undefined;
-    subjectType?: "broker" | "payment" | "user" | "org" | "lease" | "booking" | "config" | "property" | "guest_stay" | undefined;
+    subjectType?: "broker" | "payment" | "user" | "org" | "lease" | "booking" | "config" | "property" | "guest_stay" | "training_certificate" | undefined;
     actorUserId?: string | undefined;
 }, {
     page?: number | undefined;
     pageSize?: number | undefined;
     q?: string | undefined;
-    subjectType?: "broker" | "payment" | "user" | "org" | "lease" | "booking" | "config" | "property" | "guest_stay" | undefined;
+    subjectType?: "broker" | "payment" | "user" | "org" | "lease" | "booking" | "config" | "property" | "guest_stay" | "training_certificate" | undefined;
     actorUserId?: string | undefined;
 }>;
 export type AdminAuditQuery = z.infer<typeof AdminAuditQuery>;
@@ -2082,7 +2082,7 @@ export declare const AdminAuditResponse: z.ZodObject<{
          * the audit trail exists to record.
          */
         impersonatedUserId: z.ZodNullable<z.ZodString>;
-        subjectType: z.ZodNullable<z.ZodEnum<["user", "org", "lease", "booking", "payment", "config", "property", "broker", "guest_stay"]>>;
+        subjectType: z.ZodNullable<z.ZodEnum<["user", "org", "lease", "booking", "payment", "config", "property", "broker", "guest_stay", "training_certificate"]>>;
         subjectId: z.ZodNullable<z.ZodString>;
         eventType: z.ZodString;
         reason: z.ZodNullable<z.ZodString>;
@@ -2093,7 +2093,7 @@ export declare const AdminAuditResponse: z.ZodObject<{
         id: string;
         occurredAt: string;
         eventType: string;
-        subjectType: "broker" | "payment" | "user" | "org" | "lease" | "booking" | "config" | "property" | "guest_stay" | null;
+        subjectType: "broker" | "payment" | "user" | "org" | "lease" | "booking" | "config" | "property" | "guest_stay" | "training_certificate" | null;
         actorUserId: string | null;
         actorName: string | null;
         reason: string | null;
@@ -2104,7 +2104,7 @@ export declare const AdminAuditResponse: z.ZodObject<{
         id: string;
         occurredAt: string;
         eventType: string;
-        subjectType: "broker" | "payment" | "user" | "org" | "lease" | "booking" | "config" | "property" | "guest_stay" | null;
+        subjectType: "broker" | "payment" | "user" | "org" | "lease" | "booking" | "config" | "property" | "guest_stay" | "training_certificate" | null;
         actorUserId: string | null;
         actorName: string | null;
         reason: string | null;
@@ -2130,7 +2130,7 @@ export declare const AdminAuditResponse: z.ZodObject<{
         id: string;
         occurredAt: string;
         eventType: string;
-        subjectType: "broker" | "payment" | "user" | "org" | "lease" | "booking" | "config" | "property" | "guest_stay" | null;
+        subjectType: "broker" | "payment" | "user" | "org" | "lease" | "booking" | "config" | "property" | "guest_stay" | "training_certificate" | null;
         actorUserId: string | null;
         actorName: string | null;
         reason: string | null;
@@ -2148,7 +2148,7 @@ export declare const AdminAuditResponse: z.ZodObject<{
         id: string;
         occurredAt: string;
         eventType: string;
-        subjectType: "broker" | "payment" | "user" | "org" | "lease" | "booking" | "config" | "property" | "guest_stay" | null;
+        subjectType: "broker" | "payment" | "user" | "org" | "lease" | "booking" | "config" | "property" | "guest_stay" | "training_certificate" | null;
         actorUserId: string | null;
         actorName: string | null;
         reason: string | null;
@@ -2288,7 +2288,7 @@ export declare const AdminOboAuditResponse: z.ZodObject<{
     events: z.ZodArray<z.ZodObject<{
         id: z.ZodString;
         eventType: z.ZodString;
-        subjectType: z.ZodNullable<z.ZodEnum<["user", "org", "lease", "booking", "payment", "config", "property", "broker", "guest_stay"]>>;
+        subjectType: z.ZodNullable<z.ZodEnum<["user", "org", "lease", "booking", "payment", "config", "property", "broker", "guest_stay", "training_certificate"]>>;
         actorUserId: z.ZodNullable<z.ZodString>;
         actorName: z.ZodNullable<z.ZodString>;
         reason: z.ZodNullable<z.ZodString>;
@@ -2297,7 +2297,7 @@ export declare const AdminOboAuditResponse: z.ZodObject<{
         id: string;
         occurredAt: string;
         eventType: string;
-        subjectType: "broker" | "payment" | "user" | "org" | "lease" | "booking" | "config" | "property" | "guest_stay" | null;
+        subjectType: "broker" | "payment" | "user" | "org" | "lease" | "booking" | "config" | "property" | "guest_stay" | "training_certificate" | null;
         actorUserId: string | null;
         actorName: string | null;
         reason: string | null;
@@ -2305,7 +2305,7 @@ export declare const AdminOboAuditResponse: z.ZodObject<{
         id: string;
         occurredAt: string;
         eventType: string;
-        subjectType: "broker" | "payment" | "user" | "org" | "lease" | "booking" | "config" | "property" | "guest_stay" | null;
+        subjectType: "broker" | "payment" | "user" | "org" | "lease" | "booking" | "config" | "property" | "guest_stay" | "training_certificate" | null;
         actorUserId: string | null;
         actorName: string | null;
         reason: string | null;
@@ -2343,7 +2343,7 @@ export declare const AdminOboAuditResponse: z.ZodObject<{
         id: string;
         occurredAt: string;
         eventType: string;
-        subjectType: "broker" | "payment" | "user" | "org" | "lease" | "booking" | "config" | "property" | "guest_stay" | null;
+        subjectType: "broker" | "payment" | "user" | "org" | "lease" | "booking" | "config" | "property" | "guest_stay" | "training_certificate" | null;
         actorUserId: string | null;
         actorName: string | null;
         reason: string | null;
@@ -2363,7 +2363,7 @@ export declare const AdminOboAuditResponse: z.ZodObject<{
         id: string;
         occurredAt: string;
         eventType: string;
-        subjectType: "broker" | "payment" | "user" | "org" | "lease" | "booking" | "config" | "property" | "guest_stay" | null;
+        subjectType: "broker" | "payment" | "user" | "org" | "lease" | "booking" | "config" | "property" | "guest_stay" | "training_certificate" | null;
         actorUserId: string | null;
         actorName: string | null;
         reason: string | null;
@@ -2419,7 +2419,7 @@ export type AdminUserMembership = z.infer<typeof AdminUserMembership>;
  */
 export declare const AdminOversightGrant: z.ZodObject<{
     /**
-     * The assignment row. Added by ADR-049, because a grant that can be revoked
+     * The assignment row. Added by ADR-053, because a grant that can be revoked
      * has to be nameable: `DELETE /admin/users/:userId/oversight/:assignmentId`
      * addresses this, and a revoke keyed on role plus scope would be guessing
      * which of two grants was meant.
@@ -2451,7 +2451,7 @@ export declare const AdminOversightGrant: z.ZodObject<{
 }>;
 export type AdminOversightGrant = z.infer<typeof AdminOversightGrant>;
 /**
- * Appoint a government officer (ADR-049, AC-G1).
+ * Appoint a government officer (ADR-053, AC-G1).
  *
  * Four things are named and none is derivable from another: the FUNCTION the
  * pipeline branches on, the BODY that appointed them, that body's OWN job title
@@ -2547,10 +2547,10 @@ export declare const AdminUserRow: z.ZodObject<{
         payoutLocked: boolean;
         orgRole: "owner" | "manager" | "receptionist" | "housekeeper";
     }>, "many">;
-    staffRoles: z.ZodArray<z.ZodEnum<["super_admin", "ops", "compliance", "finance"]>, "many">;
+    staffRoles: z.ZodArray<z.ZodEnum<["super_admin", "ops", "compliance", "finance", "trainer"]>, "many">;
     oversight: z.ZodNullable<z.ZodObject<{
         /**
-         * The assignment row. Added by ADR-049, because a grant that can be revoked
+         * The assignment row. Added by ADR-053, because a grant that can be revoked
          * has to be nameable: `DELETE /admin/users/:userId/oversight/:assignmentId`
          * addresses this, and a revoke keyed on role plus scope would be guessing
          * which of two grants was meant.
@@ -2599,7 +2599,7 @@ export declare const AdminUserRow: z.ZodObject<{
         payoutLocked: boolean;
         orgRole: "owner" | "manager" | "receptionist" | "housekeeper";
     }[];
-    staffRoles: ("super_admin" | "ops" | "compliance" | "finance")[];
+    staffRoles: ("super_admin" | "ops" | "compliance" | "finance" | "trainer")[];
     oversight: {
         id: string;
         oversightRole: "tax_compliance_officer" | "business_field_verifier" | "business_approver";
@@ -2627,7 +2627,7 @@ export declare const AdminUserRow: z.ZodObject<{
         payoutLocked: boolean;
         orgRole: "owner" | "manager" | "receptionist" | "housekeeper";
     }[];
-    staffRoles: ("super_admin" | "ops" | "compliance" | "finance")[];
+    staffRoles: ("super_admin" | "ops" | "compliance" | "finance" | "trainer")[];
     oversight: {
         id: string;
         oversightRole: "tax_compliance_officer" | "business_field_verifier" | "business_approver";
@@ -2696,10 +2696,10 @@ export declare const AdminUserListResponse: z.ZodObject<{
             payoutLocked: boolean;
             orgRole: "owner" | "manager" | "receptionist" | "housekeeper";
         }>, "many">;
-        staffRoles: z.ZodArray<z.ZodEnum<["super_admin", "ops", "compliance", "finance"]>, "many">;
+        staffRoles: z.ZodArray<z.ZodEnum<["super_admin", "ops", "compliance", "finance", "trainer"]>, "many">;
         oversight: z.ZodNullable<z.ZodObject<{
             /**
-             * The assignment row. Added by ADR-049, because a grant that can be revoked
+             * The assignment row. Added by ADR-053, because a grant that can be revoked
              * has to be nameable: `DELETE /admin/users/:userId/oversight/:assignmentId`
              * addresses this, and a revoke keyed on role plus scope would be guessing
              * which of two grants was meant.
@@ -2748,7 +2748,7 @@ export declare const AdminUserListResponse: z.ZodObject<{
             payoutLocked: boolean;
             orgRole: "owner" | "manager" | "receptionist" | "housekeeper";
         }[];
-        staffRoles: ("super_admin" | "ops" | "compliance" | "finance")[];
+        staffRoles: ("super_admin" | "ops" | "compliance" | "finance" | "trainer")[];
         oversight: {
             id: string;
             oversightRole: "tax_compliance_officer" | "business_field_verifier" | "business_approver";
@@ -2776,7 +2776,7 @@ export declare const AdminUserListResponse: z.ZodObject<{
             payoutLocked: boolean;
             orgRole: "owner" | "manager" | "receptionist" | "housekeeper";
         }[];
-        staffRoles: ("super_admin" | "ops" | "compliance" | "finance")[];
+        staffRoles: ("super_admin" | "ops" | "compliance" | "finance" | "trainer")[];
         oversight: {
             id: string;
             oversightRole: "tax_compliance_officer" | "business_field_verifier" | "business_approver";
@@ -2819,7 +2819,7 @@ export declare const AdminUserListResponse: z.ZodObject<{
             payoutLocked: boolean;
             orgRole: "owner" | "manager" | "receptionist" | "housekeeper";
         }[];
-        staffRoles: ("super_admin" | "ops" | "compliance" | "finance")[];
+        staffRoles: ("super_admin" | "ops" | "compliance" | "finance" | "trainer")[];
         oversight: {
             id: string;
             oversightRole: "tax_compliance_officer" | "business_field_verifier" | "business_approver";
@@ -2854,7 +2854,7 @@ export declare const AdminUserListResponse: z.ZodObject<{
             payoutLocked: boolean;
             orgRole: "owner" | "manager" | "receptionist" | "housekeeper";
         }[];
-        staffRoles: ("super_admin" | "ops" | "compliance" | "finance")[];
+        staffRoles: ("super_admin" | "ops" | "compliance" | "finance" | "trainer")[];
         oversight: {
             id: string;
             oversightRole: "tax_compliance_officer" | "business_field_verifier" | "business_approver";
@@ -5263,7 +5263,7 @@ export declare const AdminActionRequest: z.ZodObject<{
 }>;
 export type AdminActionRequest = z.infer<typeof AdminActionRequest>;
 /**
- * Append a registration fee (ADR-049, AC-R9).
+ * Append a registration fee (ADR-053, AC-R9).
  *
  * APPEND, never edit: a new row with its own `effectiveFrom`. `currentFee` reads
  * the newest row whose moment has passed, and a registration already created
@@ -5297,7 +5297,7 @@ export declare const AppendRegistrationFeeRequest: z.ZodObject<{
 }>;
 export type AppendRegistrationFeeRequest = z.infer<typeof AppendRegistrationFeeRequest>;
 /**
- * A government body in the catalogue (D24, ADR-049 AC-G4).
+ * A government body in the catalogue (D24, ADR-053 AC-G4).
  *
  * A catalogue rather than an enum, because the legally defined set is open:
  * adding RDB or RURA is a row, not a deployment. `code` is the primary key and is

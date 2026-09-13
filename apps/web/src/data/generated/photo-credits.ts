@@ -16,7 +16,7 @@ export interface PhotoCredit {
   /**
    * Whether this photograph shows the property it illustrates.
    *
-   * False for 22 of the 25: they are Rwandan landscape and city photography
+   * False for 31 of the 34: they are Rwandan landscape and city photography
    * standing in for a stay whose own pictures we do not hold. A card that shows
    * one without saying so implies the guest is looking at the place they would
    * book. So a photograph with this flag false carries a VISIBLE credit where
@@ -26,6 +26,24 @@ export interface PhotoCredit {
 }
 
 export const PHOTO_CREDITS: PhotoCredit[] = [
+  {
+    stem: "waitlist-traveller",
+    subject: "A guest room at Forest of Hope Guest House",
+    author: "Rasse2",
+    licence: "CC BY-SA 4.0",
+    sourceUrl: "https://commons.wikimedia.org/wiki/File:Forest_Of_Hope_Guest_House.jpg",
+    attributionRequired: true,
+    depictsActualProperty: false,
+  },
+  {
+    stem: "waitlist-owner",
+    subject: "A hotel building in Kigali",
+    author: "UWIMPUHWE Va",
+    licence: "CC0",
+    sourceUrl: "https://commons.wikimedia.org/wiki/File:Five_to_Five_hotel_building.jpg",
+    attributionRequired: false,
+    depictsActualProperty: false,
+  },
   {
     stem: "kigali-parliament-aerial-01",
     subject: "Aerial view of Kimihurura, Kigali with the Parliament building",
@@ -72,11 +90,29 @@ export const PHOTO_CREDITS: PhotoCredit[] = [
     depictsActualProperty: false,
   },
   {
+    stem: "waitlist-district-nyarugenge",
+    subject: "Central Kigali, Nyarugenge",
+    author: "Hanay",
+    licence: "CC BY-SA 3.0",
+    sourceUrl: "https://commons.wikimedia.org/wiki/File:%D7%9E%D7%A8%D7%90%D7%94_%D7%9B%D7%9C%D7%9C%D7%99_%D7%A9%D7%9C_%D7%A7%D7%99%D7%92%D7%90%D7%9C%D7%99_%D7%91%D7%99%D7%A8%D7%AA_%D7%A8%D7%95%D7%90%D7%A0%D7%93%D7%94_04.jpg",
+    attributionRequired: true,
+    depictsActualProperty: false,
+  },
+  {
     stem: "kigali-city-street-01",
     subject: "High angle view of a Kigali city street",
     author: "Emmanuelkwizera",
     licence: "CC BY-SA 4.0",
     sourceUrl: "https://commons.wikimedia.org/wiki/File:High_Angle_View_Of_Kigali_City_Street_on_November_29,_2018._Emmanuel_Kwizera.jpg",
+    attributionRequired: true,
+    depictsActualProperty: false,
+  },
+  {
+    stem: "waitlist-hero",
+    subject: "Hills above Karongi, Western Province",
+    author: "Ericnkurunziza",
+    licence: "CC BY-SA 4.0",
+    sourceUrl: "https://commons.wikimedia.org/wiki/File:Karongi_in_Rwanda.jpg",
     attributionRequired: true,
     depictsActualProperty: false,
   },
@@ -126,6 +162,15 @@ export const PHOTO_CREDITS: PhotoCredit[] = [
     depictsActualProperty: false,
   },
   {
+    stem: "waitlist-district-gasabo",
+    subject: "Kigali Convention Centre from the air, Gasabo",
+    author: "Emmanuelkwizera",
+    licence: "CC BY-SA 4.0",
+    sourceUrl: "https://commons.wikimedia.org/wiki/File:An_aerial_of_Kigali_Convention_Center_on_June_19,_2019._Photo_by_Emmanuel_Kwizera.jpg",
+    attributionRequired: true,
+    depictsActualProperty: false,
+  },
+  {
     stem: "kigali-convention-centre-02",
     subject: "Kigali Convention Centre: the Radisson Blu site",
     author: "Emmanuelkwizera",
@@ -133,6 +178,15 @@ export const PHOTO_CREDITS: PhotoCredit[] = [
     sourceUrl: "https://commons.wikimedia.org/wiki/File:An_aerial_of_Kigali_Convention_Center_on_June_19,_2019._Photo_by_Emmanuel_Kwizera.jpg",
     attributionRequired: true,
     depictsActualProperty: true,
+  },
+  {
+    stem: "waitlist-district-kicukiro",
+    subject: "Kigali International Airport, Kicukiro",
+    author: "SteveRwanda",
+    licence: "CC BY-SA 3.0",
+    sourceUrl: "https://commons.wikimedia.org/wiki/File:KigaliAirport.jpg",
+    attributionRequired: true,
+    depictsActualProperty: false,
   },
   {
     stem: "kigali-skyline-01",
@@ -171,6 +225,24 @@ export const PHOTO_CREDITS: PhotoCredit[] = [
     depictsActualProperty: false,
   },
   {
+    stem: "waitlist-district-rusizi",
+    subject: "Lake Kivu at Kamembe, Rusizi",
+    author: "Davyimage",
+    licence: "CC BY-SA 4.0",
+    sourceUrl: "https://commons.wikimedia.org/wiki/File:Rwanda,_Rusizi_kamembe.jpg",
+    attributionRequired: true,
+    depictsActualProperty: false,
+  },
+  {
+    stem: "waitlist-district-rubavu",
+    subject: "Lake Kivu from the Rubona peninsula, Rubavu",
+    author: "Maurice Yap",
+    licence: "CC BY-SA 4.0",
+    sourceUrl: "https://commons.wikimedia.org/wiki/File:View_of_Lake_Kivu_from_Rubona_peninsula,_Gisenyi,_Rwanda_(170552).jpg",
+    attributionRequired: true,
+    depictsActualProperty: false,
+  },
+  {
     stem: "mountain-gorilla-01",
     subject: "Mountain gorillas, Volcanoes National Park",
     author: "Charles J. Sharp",
@@ -185,6 +257,15 @@ export const PHOTO_CREDITS: PhotoCredit[] = [
     author: "Charles J. Sharp",
     licence: "CC BY-SA 4.0",
     sourceUrl: "https://commons.wikimedia.org/wiki/File:Mountain_gorilla_(Gorilla_beringei_beringei)_eyes.jpg",
+    attributionRequired: true,
+    depictsActualProperty: false,
+  },
+  {
+    stem: "waitlist-district-musanze",
+    subject: "Musanze town and the Virunga volcanoes",
+    author: "Andrew Moore from Johannesburg, South Africa",
+    licence: "CC BY-SA 2.0",
+    sourceUrl: "https://commons.wikimedia.org/wiki/File:Musanze_(Ruhengeri),_2018.jpg",
     attributionRequired: true,
     depictsActualProperty: false,
   },

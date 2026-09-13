@@ -26,7 +26,11 @@ import type { DistrictSlug } from "@/data/search-options";
 
 export interface SpecRow { label: string; value: string }
 export interface Amenity { icon: string; label: string; available?: boolean; group?: string }
-export interface GalleryImage { stem: string; alt: string }
+/**
+ * A photograph. `stem` names a bundled asset under `/assets`; `src`, when set, is
+ * the image itself (a property uploaded from the operator app), and wins.
+ */
+export interface GalleryImage { stem: string; alt: string; src?: string }
 
 export interface Highlight {
   icon: "location" | "checkin" | "workspace" | "kitchen" | "calendar" | "sparkle";

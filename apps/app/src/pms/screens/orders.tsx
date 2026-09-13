@@ -23,19 +23,23 @@
 import { Button } from "@injishi/ui";
 import type { OperatorServiceOrder, ServiceOrderStatus } from "@injishi/contracts";
 import { useState } from "react";
-import { Badge, EmptyState, LoadFailed, Skeleton } from "../components/ui";
+import { ActionButton, Badge, EmptyState, LoadFailed, Skeleton } from "../components/ui";
 import { useCapability, useWorkspaceId } from "../data/capability";
-import { useAdvanceServiceOrder, useServiceOrders } from "../data/ops";
+import { useAdvanceServiceOrder, useMarkOrderPaidCash, useServiceOrders } from "../data/ops";
 import { fmt } from "../lib/format";
 import { usePms } from "../store";
 
 /**
- * The four columns of the board, and where the other four statuses land.
+ * The five columns of the board, and where the other statuses land.
  *
- * `ServiceOrderStatus` has eight values. `completed` sits with `delivered`
- * because to a desk they are the same answer. `cancelled` and `rejected` are
- * off the board: an order that was refused is not a stage of preparing it, and
- * leaving it in a column would have somebody try to deliver it.
+ * `completed` sits with `delivered` because to a desk they are the same
+ * answer. `cancelled`, `rejected` and `payment_failed` are off the board: an
+ * order that was refused, or whose money never came, is not a stage of
+ * preparing it, and leaving it in a column would have somebody try to deliver it.
+ *
+ * **Awaiting payment comes first** (ADR-050 D-n). A pay now order does not
+ * reach the kitchen until its money settles: by mobile money on its own, or in
+ * cash, which somebody at the counter marks here.
  */
 const COLUMNS: {
   key: string;
@@ -43,6 +47,12 @@ const COLUMNS: {
   holds: ServiceOrderStatus[];
   empty: string;
 }[] = [
+  {
+    key: "unpaid",
+    label: "Awaiting payment",
+    holds: ["pending_payment"],
+    empty: "Nothing waiting to be paid. A walk in order that pays at the counter waits here.",
+  },
   {
     key: "new",
     label: "New",
@@ -89,10 +99,12 @@ export function Orders() {
   const { can, reasonFor } = useCapability();
   const query = useServiceOrders(workspaceId);
   const advance = useAdvanceServiceOrder(workspaceId);
+  const markCash = useMarkOrderPaidCash(workspaceId);
   const [dept, setDept] = useState("all");
 
   const mayAdvance = can("order.advance");
   const denied = mayAdvance ? undefined : reasonFor("order.advance");
+  const cashDenied = can("folio.payment") ? undefined : reasonFor("folio.payment");
 
   function move(order: OperatorServiceOrder, to: ServiceOrderStatus) {
     // "Room 12" where there is a room, the order number otherwise — the same
@@ -104,10 +116,28 @@ export function Orders() {
         onSuccess: () =>
           toast(
             to === "delivered"
-              ? `${where} is delivered. ${fmt(order.totalRwf)} is on the guest's bill.`
+              ? order.orderContext === "pay_now"
+                ? `${where} is delivered. It was already paid.`
+                : `${where} is delivered. ${fmt(order.totalRwf)} is on the guest's bill.`
               : (ARRIVED[to]?.(where) ?? `${where}'s order has moved on.`),
             "ok",
           ),
+        onError: toastError,
+      },
+    );
+  }
+
+  /**
+   * Cash at the counter (ADR-050 D-p, AC-24). The total is sent as the amount
+   * taken, which the server checks to the franc, and the server records who
+   * pressed this. It is the one button on the board that declares a sale.
+   */
+  function paidInCash(order: OperatorServiceOrder) {
+    markCash.mutate(
+      { orderId: order.id, amountRwf: order.totalRwf },
+      {
+        onSuccess: () =>
+          toast(`${order.orderNumber} is paid, ${fmt(order.totalRwf)} in cash. It is with the kitchen now.`, "ok"),
         onError: toastError,
       },
     );
@@ -273,10 +303,32 @@ export function Orders() {
                         </div>
                       )}
 
-                      <div style={{ marginTop: 8, display: "flex", alignItems: "center", gap: 6 }}>
+                      <div style={{ marginTop: 8, display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
                         <Badge intent={col.key === "done" ? "ok" : "info"}>{fmt(o.totalRwf)}</Badge>
+                        {o.orderContext === "pay_now" && (
+                          <Badge intent={o.paidAt ? "ok" : "warn"}>
+                            {o.paidAt
+                              ? o.paymentMethod === "01"
+                                ? "Paid in cash"
+                                : "Paid by mobile money"
+                              : "Pay now"}
+                          </Badge>
+                        )}
                         <span style={{ flex: 1 }} />
                       </div>
+
+                      {o.status === "pending_payment" && (
+                        <ActionButton
+                          variant="primary"
+                          deniedReason={cashDenied}
+                          pending={markCash.isPending && markCash.variables?.orderId === o.id}
+                          onClick={() => paidInCash(o)}
+                          className="mt-2 w-full"
+                          aria-label={`Mark ${o.orderNumber} paid in cash, ${fmt(o.totalRwf)}`}
+                        >
+                          Paid in cash · {fmt(o.totalRwf)}
+                        </ActionButton>
+                      )}
 
                       {next && (
                         <Button
@@ -299,7 +351,9 @@ export function Orders() {
                             opacity: denied ? 0.5 : 1,
                           }}
                         >
-                          {next.label}
+                          {next.to === "delivered" && o.orderContext === "pay_now"
+                            ? "Delivered"
+                            : next.label}
                         </Button>
                       )}
                     </div>

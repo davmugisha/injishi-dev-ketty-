@@ -68,7 +68,7 @@ describe("the four org roles", () => {
    */
   test("owner holds every permission there is", () => {
     assert.deepEqual(permissionsForRole("owner"), Permission.options);
-    assert.equal(permissionsForRole("owner").length, 23);
+    assert.equal(permissionsForRole("owner").length, 26);
   });
 
   test("manager holds everything except team.manage", () => {
@@ -76,7 +76,7 @@ describe("the four org roles", () => {
       permissionsForRole("manager"),
       Permission.options.filter((p) => p !== "team.manage"),
     );
-    assert.equal(permissionsForRole("manager").length, 22);
+    assert.equal(permissionsForRole("manager").length, 25);
   });
 
   test("receptionist works the front desk and takes orders", () => {
@@ -89,6 +89,8 @@ describe("the four org roles", () => {
       "folio.payment",
       "order.advance",
       "message.send",
+      // ADR-050 D-t: signing a correct sale at the desk is the desk's job.
+      "folio.close",
     ]);
   });
 
@@ -135,6 +137,19 @@ describe("owner and manager are different roles", () => {
     assert.equal(can("owner", "ebm.manage"), true);
     assert.equal(can("manager", "ebm.manage"), true);
     assert.equal(can("receptionist", "ebm.manage"), false);
+  });
+
+  test("a receptionist may sign a sale and may not withdraw one (ADR-050 AC-8)", () => {
+    // The asymmetry that matches the risk: creating a declaration is routine,
+    // withdrawing one reduces declared turnover and needs a manager.
+    assert.equal(can("receptionist", "folio.close"), true);
+    assert.equal(can("receptionist", "ebm.refund"), false);
+    assert.equal(can("receptionist", "outlet.manage"), false);
+    assert.equal(can("manager", "ebm.refund"), true);
+    assert.equal(can("manager", "outlet.manage"), true);
+    for (const p of ["folio.close", "ebm.refund", "outlet.manage"]) {
+      assert.equal(can("housekeeper", p), false, `housekeeper must not hold ${p}`);
+    }
   });
 
   test("the money and team boundary below manager holds", () => {
@@ -266,7 +281,7 @@ describe("every refusal can be worded", () => {
   });
 });
 
-describe("oversight scope is a boundary, stated once (ADR-049, AC-G8)", () => {
+describe("oversight scope is a boundary, stated once (ADR-053, AC-G8)", () => {
   // Two provinces, as `districts` would be read: 1 holds 101 and 102, 2 holds 201.
   const PROVINCES = new Map([[1, [101, 102]], [2, [201]]]);
   const reach = (grants, districtId) =>

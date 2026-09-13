@@ -9,7 +9,7 @@ import type { SectionRow, SectionStat } from "@/lib/types";
  * what the registration wizard quoted on that one machine and nowhere else. It
  * was honest about being a prototype, but it was still a second source of truth
  * for a price, and `GET /api/v1/admin/configuration/fees` is now the first one.
- * `POST /api/v1/admin/configuration/fees` appends a fee (ADR-049, AC-R9), and
+ * `POST /api/v1/admin/configuration/fees` appends a fee (ADR-053, AC-R9), and
  * its control is `fee-append.tsx` above this table, shown only to a staffer who
  * holds `admin.fee.edit`. This component stays a read of what the platform holds.
  *

@@ -221,7 +221,7 @@ export class UploadsController {
 
   /**
    * Store one property photograph and return the key to attach it by
-   * (ADR-049, AC-I3).
+   * (ADR-053, AC-I3).
    *
    * Shaped like the certificate route above rather than the generic attachment
    * route, deliberately. The attachment route is built for a PHONE with an offline

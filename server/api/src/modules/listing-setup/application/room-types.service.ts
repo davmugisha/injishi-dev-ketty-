@@ -19,7 +19,7 @@ import {
 } from '../infrastructure/room-types.repository';
 
 /**
- * Room type authoring (ADR-049, AC-I1, AC-I7).
+ * Room type authoring (ADR-053, AC-I1, AC-I7).
  *
  * The same two controls that front every method in `InventoryService` front these:
  * `WorkspaceGuard` proves the caller holds the workspace and that it grants

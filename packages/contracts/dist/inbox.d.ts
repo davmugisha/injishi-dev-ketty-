@@ -256,6 +256,7 @@ export declare const GuestMessagePage: z.ZodObject<{
     /** Opaque. Pass it back as `?cursor=` for the next older page; null at the end. */
     nextCursor: z.ZodNullable<z.ZodString>;
 }, "strip", z.ZodTypeAny, {
+    nextCursor: string | null;
     messages: {
         id: string;
         createdAt: string;
@@ -267,8 +268,8 @@ export declare const GuestMessagePage: z.ZodObject<{
         bodyType: "text" | "image" | "voice";
         voiceDurationS: number | null;
     }[];
-    nextCursor: string | null;
 }, {
+    nextCursor: string | null;
     messages: {
         id: string;
         createdAt: string;
@@ -280,7 +281,6 @@ export declare const GuestMessagePage: z.ZodObject<{
         bodyType: "text" | "image" | "voice";
         voiceDurationS: number | null;
     }[];
-    nextCursor: string | null;
 }>;
 export type GuestMessagePage = z.infer<typeof GuestMessagePage>;
 export declare const MessagePageQuery: z.ZodObject<{

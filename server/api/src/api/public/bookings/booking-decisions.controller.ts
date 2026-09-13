@@ -1,5 +1,6 @@
 import type {
   BookingApprovalResult,
+  BookingCancellationResult,
   WorkspaceAccess,
 } from '@injishi/contracts';
 import {
@@ -11,6 +12,7 @@ import {
 } from '@nestjs/common';
 
 import { BookingApprovalService } from '../../../modules/booking/application/booking-approval.service';
+import { BookingCancellationService } from '../../../modules/booking/application/booking-cancellation.service';
 import { SessionGuard } from '../../../shared/auth/session.guard';
 import {
   CurrentWorkspace,
@@ -19,8 +21,8 @@ import {
 } from '../../../shared/auth/workspace.guard';
 
 /**
- * The host's two decisions on a request to book → `/api/v1/bookings/:id/approve`
- * and `/decline` (F-B06, ADR-049 AC-A5).
+ * The host's decisions on a booking → `/api/v1/bookings/:id/approve`, `/decline`
+ * (F-B06, ADR-053 AC-A5) and `/host-cancel` (F-B11, ADR-051).
  *
  * ITS OWN CONTROLLER, because its guards are not the guest's. `BookingsController`
  * is the guest's side of a stay and runs `SessionGuard` plus the per person
@@ -38,7 +40,10 @@ import {
 @Controller({ path: 'bookings', version: '1' })
 @UseGuards(SessionGuard, WorkspaceGuard)
 export class BookingDecisionsController {
-  constructor(private readonly approvals: BookingApprovalService) {}
+  constructor(
+    private readonly approvals: BookingApprovalService,
+    private readonly cancellations: BookingCancellationService,
+  ) {}
 
   @Post(':id/approve')
   @RequirePermission('reservation.approve')
@@ -57,5 +62,20 @@ export class BookingDecisionsController {
     @CurrentWorkspace() workspace: WorkspaceAccess,
   ): Promise<BookingApprovalResult> {
     return this.approvals.decline(id, workspace);
+  }
+
+  /**
+   * The property cancels a booking: always a full refund. The same permission
+   * as approve and decline, because it is the same authority over the same
+   * booking, and the same containment: a booking outside the named workspace is
+   * a 404, never a 403.
+   */
+  @Post(':id/host-cancel')
+  @RequirePermission('reservation.approve')
+  hostCancel(
+    @Param('id', ParseUUIDPipe) id: string,
+    @CurrentWorkspace() workspace: WorkspaceAccess,
+  ): Promise<BookingCancellationResult> {
+    return this.cancellations.cancelByHost(id, workspace);
   }
 }

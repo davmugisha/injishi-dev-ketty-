@@ -1,6 +1,6 @@
 name: deploy-production
 
-# ADR-048 AC-13 to AC-16.
+# ADR-052 AC-13 to AC-16.
 #
 # Production changes only when a person decides it should. `workflow_dispatch`
 # is the ONLY trigger: no push, no merge and no schedule reaches this file.

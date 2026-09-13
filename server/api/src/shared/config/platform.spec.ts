@@ -104,7 +104,7 @@ describe('resolvePlatform · the boot table (AC-11)', () => {
 
   it('runs production on a real database and staging on a sample one', () => {
     expect(
-      resolvePlatform({ environment: 'production', expectedKind: 'real', marker: 'real' }),
+      resolvePlatform({ environment: 'production', expectedKind: 'real', marker: 'real', paymentAdapterMode: 'off' }),
     ).toEqual({ environment: 'production', sampleData: false });
     expect(
       resolvePlatform({ environment: 'production', expectedKind: 'sample', marker: 'sample' }),
@@ -139,6 +139,35 @@ describe('resolvePlatform · live adapters on the demo (AC-13)', () => {
         vsdcAdapterMode: 'live',
       }),
     ).not.toThrow();
+  });
+});
+
+describe('resolvePlatform · no mock money on a real database (booking audit, 2026-09-13)', () => {
+  const production = { environment: 'production', expectedKind: 'real', marker: 'real' } as const;
+
+  it('refuses a real database with the payment mode unset, because unset means mock', () => {
+    expect(() => resolvePlatform(production)).toThrow(
+      /INJISHI_DATABASE_KIND is "real" but PAYMENT_ADAPTER_MODE is unset \(which means mock\)/,
+    );
+  });
+
+  it('refuses a real database with mock payments, naming the fix', () => {
+    expect(() => resolvePlatform({ ...production, paymentAdapterMode: ' Mock ' })).toThrow(
+      /PAYMENT_ADAPTER_MODE is "mock".*PAYMENT_ADAPTER_MODE=off/s,
+    );
+  });
+
+  it('runs a real database with payments off or live', () => {
+    expect(() => resolvePlatform({ ...production, paymentAdapterMode: 'off' })).not.toThrow();
+    expect(() => resolvePlatform({ ...production, paymentAdapterMode: 'live' })).not.toThrow();
+  });
+
+  it('leaves staging, the demo and a laptop on mock', () => {
+    expect(() =>
+      resolvePlatform({ environment: 'production', expectedKind: 'sample', marker: 'sample', paymentAdapterMode: 'mock' }),
+    ).not.toThrow();
+    expect(() => resolvePlatform({ environment: 'demo', expectedKind: 'sample', marker: 'sample' })).not.toThrow();
+    expect(() => resolvePlatform({ environment: 'production', expectedKind: null, marker: 'real' })).not.toThrow();
   });
 });
 
@@ -185,6 +214,7 @@ describe('bootPlatform', () => {
         NODE_ENV: 'production',
         INJISHI_ENVIRONMENT: 'production',
         INJISHI_DATABASE_KIND: 'real',
+        PAYMENT_ADAPTER_MODE: 'off',
       }),
     ).resolves.toEqual({ environment: 'production', sampleData: false });
   });

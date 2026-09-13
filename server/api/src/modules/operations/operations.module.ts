@@ -12,6 +12,10 @@ import { ResidenceService } from './application/residence.service';
 import { RevenueService } from './application/revenue.service';
 import { RoomAssignmentService } from './application/room-assignment.service';
 import { ServiceCatalogService } from './application/service-catalog.service';
+import { GuestOrderingService } from './application/guest-ordering.service';
+import { DeclarationPlanService } from './application/declaration-plan.service';
+import { OrderPaymentService } from './application/order-payment.service';
+import { OutletsService } from './application/outlets.service';
 import { AmenitiesRepository } from './infrastructure/amenities.repository';
 import { DepartmentsRepository } from './infrastructure/departments.repository';
 import { FolioRepository } from './infrastructure/folio.repository';
@@ -23,6 +27,8 @@ import { ResidenceRepository } from './infrastructure/residence.repository';
 import { RevenueRepository } from './infrastructure/revenue.repository';
 import { RoomAssignmentRepository } from './infrastructure/room-assignment.repository';
 import { ServiceCatalogRepository } from './infrastructure/service-catalog.repository';
+import { GuestOrderingRepository } from './infrastructure/guest-ordering.repository';
+import { OutletsRepository } from './infrastructure/outlets.repository';
 
 /**
  * The operator command surface behind `/api/v1/ops/*` (ADR-012 steps 4 and 5).
@@ -59,6 +65,8 @@ import { ServiceCatalogRepository } from './infrastructure/service-catalog.repos
     RoomAssignmentRepository,
     HousekeepingRepository,
     ServiceCatalogRepository,
+    GuestOrderingRepository,
+    OutletsRepository,
     FrontDeskService,
     MessagingService,
     ResidenceService,
@@ -69,10 +77,16 @@ import { ServiceCatalogRepository } from './infrastructure/service-catalog.repos
     RoomAssignmentService,
     HousekeepingService,
     ServiceCatalogService,
+    GuestOrderingService,
+    DeclarationPlanService,
+    OrderPaymentService,
+    OutletsService,
     NightAuditService,
     ...(isWorkerProcess() ? [NightAuditProcessor] : []),
   ],
   exports: [
+    // The booking module settles a pay now order's mobile money through it.
+    OrderPaymentService,
     FrontDeskService,
     MessagingService,
     ResidenceService,
@@ -83,6 +97,8 @@ import { ServiceCatalogRepository } from './infrastructure/service-catalog.repos
     RoomAssignmentService,
     HousekeepingService,
     ServiceCatalogService,
+    GuestOrderingService,
+    OutletsService,
     NightAuditService,
   ],
 })

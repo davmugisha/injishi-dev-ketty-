@@ -20,7 +20,7 @@ import { ListingRepository } from './infrastructure/listing.repository';
  * this module, so no other module can be coupled to the inventory tables' shape.
  *
  * `StorageModule` is imported for `StorageService.signedUrl`, which the public
- * photo route redirects to (ADR-049). The origin photo URLs are built on is read
+ * photo route redirects to (ADR-053). The origin photo URLs are built on is read
  * once, here, from the same variable Better Auth builds its links on.
  */
 @Module({

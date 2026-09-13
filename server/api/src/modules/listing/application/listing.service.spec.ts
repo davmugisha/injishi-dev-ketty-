@@ -9,12 +9,13 @@ import {
 import type {
   BookableRoomRecord,
   ListingRepository,
+  PublicPropertyCardRecord,
   PublicPropertyRecord,
 } from '../infrastructure/listing.repository';
 import { ListingService } from './listing.service';
 
 /**
- * Public photographs through the photo route (ADR-049, owner ruling of
+ * Public photographs through the photo route (ADR-053, owner ruling of
  * 2026-09-13).
  *
  * What this pins is the half of the rule that lives in the service: an object
@@ -25,7 +26,7 @@ import { ListingService } from './listing.service';
  * The visibility predicate itself is SQL in `findPublicPhotoKey`, the same
  * `PUBLICLY_VISIBLE` every public read uses. A mocked repository cannot prove
  * SQL, so the suspension and unpublish cases are proven against a running API
- * by the ADR-049 verification checks; here the repository's null is taken as
+ * by the ADR-053 verification checks; here the repository's null is taken as
  * that predicate's answer and the service is held to what it does with it.
  */
 describe('ListingService, public photographs', () => {
@@ -48,6 +49,7 @@ describe('ListingService, public photographs', () => {
     houseRules: null,
     photoIds: [PHOTO_A, PHOTO_B],
     roomTypes: [],
+    facilities: [],
   };
 
   function build(repo: Partial<Record<keyof ListingRepository, jest.Mock>>): {
@@ -72,6 +74,24 @@ describe('ListingService, public photographs', () => {
     ]);
     expect(detail).not.toHaveProperty('photoIds');
     expect(JSON.stringify(detail)).not.toContain('property_photo/');
+  });
+
+  it('puts photo route URLs on the discovery cards too, and no key', async () => {
+    const card: PublicPropertyCardRecord = {
+      id: record.id,
+      slug: 'umurage-guesthouse',
+      name: record.name,
+      description: null,
+      districtName: record.districtName,
+      photoIds: [PHOTO_B],
+      fromNightlyRateRwf: 45_000,
+      maxGuests: 2,
+      roomTypeCount: 1,
+    };
+    const { service } = build({ findPublishedCards: jest.fn().mockResolvedValue([card]) });
+    const [listed] = await service.listPublishedProperties();
+    expect(listed.photos).toEqual([photoRouteUrl(ORIGIN, PHOTO_B)]);
+    expect(listed).not.toHaveProperty('photoIds');
   });
 
   it("puts the cover's photo route URL on the checkout read, or null without a photo", async () => {

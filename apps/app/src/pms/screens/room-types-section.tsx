@@ -1,7 +1,7 @@
 "use client";
 
 /**
- * Room types on the property in view: add, edit, archive, restore (ADR-049,
+ * Room types on the property in view: add, edit, archive, restore (ADR-053,
  * AC-I1, AC-I7).
  *
  * **A room type is what the guest gets.** The form asks for exactly that: a

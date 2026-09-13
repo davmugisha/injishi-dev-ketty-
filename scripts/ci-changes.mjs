@@ -2,7 +2,7 @@
 /**
  * Decide which CI jobs a change needs to run.
  *
- * ADR-048's job matrix selects each job by changed path, and says a build job
+ * ADR-052's job matrix selects each job by changed path, and says a build job
  * runs when "that app, or any package it consumes" changes. That second half is
  * the reason this is a script rather than a list of globs in the workflow: the
  * set of packages an app consumes is a fact the manifests already hold, and a

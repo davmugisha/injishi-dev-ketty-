@@ -170,7 +170,7 @@ export class RegistrationService {
         // FL02: an OBO registration is held by the registrant and payout-locked
         // until the intended owner claims it. Captured here or it is captured
         // nowhere — the contract validates the block and nothing else read it.
-        // The contract requires all three (ADR-049 J25), so a registration
+        // The contract requires all three (ADR-053 J25), so a registration
         // created here can always be invited and always be matched.
         obo:
           request.capacity === 'on_behalf_of' && request.intendedOwner
@@ -191,7 +191,7 @@ export class RegistrationService {
         })),
       });
 
-      // Mailed AFTER the create transaction committed (ADR-049), so a relay
+      // Mailed AFTER the create transaction committed (ADR-053), so a relay
       // failing cannot undo a registration that already exists. `send` never
       // throws; a failure is logged and the invitation row stands.
       if (created.claimInvitation) {
@@ -256,7 +256,7 @@ export class RegistrationService {
       const settled = await this.orgs.settleRegistrationFee(orgId, actorUserId);
       if (!settled) {
         // Two reasons a settle writes nothing, and they need opposite answers.
-        // Still at `pending_payment` with no contract is the refusal (ADR-049,
+        // Still at `pending_payment` with no contract is the refusal (ADR-053,
         // AC-R13), read AFTER the attempt so an accept that landed in between is
         // honoured rather than refused. Anything else lost the race to a
         // concurrent callback, which is not an error: re-reading is the answer.
@@ -282,7 +282,7 @@ export class RegistrationService {
 
   /**
    * Accept the operator contract, between creating the business and paying for
-   * it (ADR-049, AC-R8).
+   * it (ADR-053, AC-R8).
    *
    * Refusals run in a fixed order so two that apply at once always answer the
    * same way: not a member (404), past `pending_payment` (409
@@ -381,7 +381,7 @@ export class RegistrationService {
 
   /**
    * Try again every business whose RRA check came back unanswered and is due
-   * (ADR-049, AC-R5). Called by the repeatable sweep, never by a request.
+   * (ADR-053, AC-R5). Called by the repeatable sweep, never by a request.
    *
    * Each attempt goes through `runTinCheck`, the same path submission takes, so
    * a retry writes its own `tin_verifications` row and, on an answer, moves the
@@ -475,7 +475,7 @@ export class RegistrationService {
     const stage = STAGE_FOR_ROLE[role];
     if (!stage) return [];
 
-    // The one definition of region scope (ADR-049, AC-G8): the list reads the
+    // The one definition of region scope (ADR-053, AC-G8): the list reads the
     // same district set the single record gate below asks about.
     const districtIds = await this.districtScopeFor(grants);
     const rows = await this.orgs.findQueue({ stage, districtIds });
@@ -663,7 +663,7 @@ export class RegistrationService {
     const org = await this.orgs.findById(orgId);
     if (!org) throw new NotFoundException('Registration not found.');
 
-    // Conflict of interest, the act-time half (ADR-049, AC-G3). Checked BEFORE
+    // Conflict of interest, the act-time half (ADR-053, AC-G3). Checked BEFORE
     // scope, because an officer gating their own business is a worse answer than
     // one gating a business in the wrong district, and it is refused whatever
     // their region: the objection is the interest, not the geography.
@@ -675,7 +675,7 @@ export class RegistrationService {
       throw new ForbiddenException(OVERSIGHT_OWN_BUSINESS_MESSAGE);
     }
 
-    // The SAME set the queue lists from (ADR-049, AC-G8), asked of one business.
+    // The SAME set the queue lists from (ADR-053, AC-G8), asked of one business.
     // The gate is the whole set; the covering grant is the one whose own share of
     // that set holds the district, and it is only needed for the body and title
     // the review row copies.
@@ -742,7 +742,7 @@ export class RegistrationService {
   }
 
   /**
-   * The officer's own decisions, newest first (ADR-049, AC-G6).
+   * The officer's own decisions, newest first (ADR-053, AC-G6).
    *
    * Their OWN only: this is their record of what they decided and why, and a
    * colleague's decisions are somebody else's record that no role has asked to

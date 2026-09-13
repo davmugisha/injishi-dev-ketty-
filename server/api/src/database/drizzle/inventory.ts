@@ -94,10 +94,10 @@ export const properties = pgTable(
 );
 
 /**
- * A property's photographs (ADR-049).
+ * A property's photographs (ADR-053).
  *
  * **This replaced `properties.photo_object_keys`, a `jsonb` array of keys.** The
- * array was fine while photographs were decoration. ADR-049 made at least one a
+ * array was fine while photographs were decoration. ADR-053 made at least one a
  * condition of publishing, which makes them load bearing, and an array cannot
  * carry a cover flag, an order that survives an edit, or a caption — and a key
  * sitting in a `jsonb` blob is invisible to retention and legal hold.

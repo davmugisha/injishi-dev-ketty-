@@ -27,7 +27,7 @@ import {
 
 /**
  * Read the agreement, sign it, take a copy — between creating the registration
- * and paying for it (ADR-049, AC-R8).
+ * and paying for it (ADR-053, AC-R8).
  *
  * THE ORDER IS THE POINT. It cannot come earlier: the contract quotes the
  * registration reference and the invoiced amount, and neither exists until

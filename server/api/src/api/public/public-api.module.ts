@@ -32,7 +32,10 @@ import { OpsEbmController } from './ops/ebm.controller';
 import { OpsTeamController } from './ops/team.controller';
 import { OpsFoliosController } from './ops/folios.controller';
 import { OpsHousekeepingController } from './ops/housekeeping.controller';
+import { OpsOutletPartiesController } from './ops/outlet-parties.controller';
+import { OpsOutletsController } from './ops/outlets.controller';
 import {
+  OpsRraController,
   OpsServiceCatalogController,
   OpsServiceOrdersController,
 } from './ops/service-catalog.controller';
@@ -56,6 +59,8 @@ import { OrgClaimsController } from './registrations/org-claims.controller';
 import { RegistrationsController } from './registrations/registrations.controller';
 import { UploadsController } from './uploads/uploads.controller';
 import { SupportModule } from './support/support.module';
+import { TrainingPublicModule } from './training/training.module';
+import { WaitlistModule } from './waitlist/waitlist.module';
 
 /**
  * Public API (/api/v1). Controllers here compose application services from the
@@ -83,6 +88,14 @@ import { SupportModule } from './support/support.module';
     // POST /support/tickets, the public support intake; limits and caps are
     // in its own folder.
     SupportModule,
+    // POST /waitlist/signups and the unsubscribe route, the pre-launch
+    // waitlist (ADR-048). Deleted whole at launch.
+    WaitlistModule,
+    // ADR-049. Its catalogue routes are the only unguarded READS this module
+    // adds: `/training` must render with no cookie at all (AC-1), and
+    // `/api/v1/verify/:token` must answer a stranger holding a printed
+    // certificate.
+    TrainingPublicModule,
   ],
   controllers: [
     HealthController,
@@ -95,10 +108,10 @@ import { SupportModule } from './support/support.module';
     // What is left to sell, per night (ADR-047 wave E).
     AvailabilityController,
     BookingsController,
-    // The host's approve and decline, behind WorkspaceGuard (ADR-049, AC-A5).
+    // The host's approve and decline, behind WorkspaceGuard (ADR-053, AC-A5).
     BookingDecisionsController,
     RegistrationsController,
-    // The owner claim: the end an OBO registration could never reach (ADR-049).
+    // The owner claim: the end an OBO registration could never reach (ADR-053).
     OrgClaimsController,
     UploadsController,
     InventoryController,
@@ -106,12 +119,16 @@ import { SupportModule } from './support/support.module';
     OpsRoomAssignmentsController,
     OpsRoomsController,
     OpsDepartmentsController,
+    // Outlets and who runs them (ADR-050 slice 4).
+    OpsOutletsController,
+    OpsOutletPartiesController,
     OpsTeamController,
     OpsFoliosController,
     OpsRevenueController,
     OpsHousekeepingController,
     OpsServiceCatalogController,
     OpsServiceOrdersController,
+    OpsRraController,
     OpsStaysController,
     OpsThreadsController,
     OpsLeasesController,

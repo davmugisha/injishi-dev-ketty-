@@ -22,10 +22,15 @@ export async function fetchProvinces(): Promise<GeographyList<Province>> {
 }
 
 export async function fetchDistricts(
-  provinceId: number,
+  provinceId?: number,
 ): Promise<GeographyList<District>> {
+  // The province filter is optional on the endpoint and optional here: the
+  // registration wizard narrows by province, the waitlist form offers all
+  // thirty districts at once.
   const res = await apiFetch<unknown>(
-    `/api/v1/geography/districts?provinceId=${provinceId}`,
+    provinceId === undefined
+      ? `/api/v1/geography/districts`
+      : `/api/v1/geography/districts?provinceId=${provinceId}`,
   );
   return parseList(res, District);
 }

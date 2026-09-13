@@ -103,6 +103,9 @@ export const queryKeys = {
     ["ops", "revenue", workspaceId, month] as const,
   serviceCatalog: (workspaceId: string | null) =>
     ["ops", "service-catalog", workspaceId] as const,
+  /** RRA's classification list, by search term (ADR-050 D-m). */
+  rraClassifications: (workspaceId: string | null, q: string) =>
+    ["ops", "rra-classifications", workspaceId, q] as const,
   serviceOrders: (workspaceId: string | null) =>
     ["ops", "service-orders", workspaceId] as const,
   /** Keyed by PROPERTY as well: a workspace can hold several. */

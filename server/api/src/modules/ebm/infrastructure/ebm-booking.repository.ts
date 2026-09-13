@@ -4,7 +4,7 @@ import type {
   PaymentStatus,
 } from '@injishi/contracts';
 import { Inject, Injectable } from '@nestjs/common';
-import { and, desc, eq } from 'drizzle-orm';
+import { and, desc, eq, isNull } from 'drizzle-orm';
 
 import {
   bookings,
@@ -19,6 +19,7 @@ import {
   DRIZZLE,
   type Database,
 } from '../../../shared/database/database.module';
+import { signPointOf, type SignPoint } from '../domain/sign-point';
 
 /** Everything a receipt needs about one booking, in one read. */
 export interface BookingForReceipt {
@@ -94,6 +95,32 @@ export class EbmBookingRepository {
    */
   async findForEmission(bookingId: string): Promise<BookingForReceipt | null> {
     return this.findOne(eq(bookings.id, bookingId));
+  }
+
+  /**
+   * Record WHICH FISCAL RULE this booking was confirmed under (ADR-050 D-a).
+   *
+   * Written once, at confirmation, and never again: the `IS NULL` guard means a
+   * second confirm attempt, a retry or a replay cannot re-stamp a booking under
+   * a rule that changed in between. Whatever the flag says later, this booking
+   * keeps the rule it was made under, which is the whole point of stamping
+   * rather than reading the variable again at close.
+   */
+  async stampSignPoint(bookingId: string, signPoint: SignPoint): Promise<void> {
+    await this.db
+      .update(bookings)
+      .set({ ebmSignAt: signPoint })
+      .where(and(eq(bookings.id, bookingId), isNull(bookings.ebmSignAt)));
+  }
+
+  /** The rule this booking was confirmed under. Absent reads as `booking`. */
+  async signPointFor(bookingId: string): Promise<SignPoint> {
+    const [row] = await this.db
+      .select({ stamp: bookings.ebmSignAt })
+      .from(bookings)
+      .where(eq(bookings.id, bookingId))
+      .limit(1);
+    return signPointOf(row?.stamp);
   }
 
   private async findOne(

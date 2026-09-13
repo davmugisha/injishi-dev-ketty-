@@ -27,7 +27,7 @@ describe('RraTinAdapter (the mock)', () => {
 });
 
 /**
- * Which adapter is bound, decided once, at boot (ADR-049, AC-R4).
+ * Which adapter is bound, decided once, at boot (ADR-053, AC-R4).
  *
  * This used to test a `live` branch inside the adapter that answered `pending`
  * without calling anything. That branch is gone: it made `live` a silent no op,

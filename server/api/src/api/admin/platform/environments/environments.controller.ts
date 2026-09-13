@@ -9,7 +9,7 @@ import { AdminEnvironmentsService } from './environments.service';
 /**
  * Environments & adapters → `GET /api/v1/admin/environments` (INTERFACE.md §10).
  *
- * `admin.environment.view` on the read (ADR-049), held by `super_admin` and
+ * `admin.environment.view` on the read (ADR-053), held by `super_admin` and
  * `ops`. Flipping a seam keeps `admin.environment.manage`, `super_admin` alone.
  * It used to borrow the manage permission because no view permission existed.
  */

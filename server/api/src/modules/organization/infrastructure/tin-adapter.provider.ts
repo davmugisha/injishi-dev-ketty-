@@ -4,7 +4,7 @@ import { RraTinAdapter } from './rra-tin.adapter';
 
 /**
  * The live RRA TIN adapter, once RRA grants API access. Null until then, and
- * `live` refuses to boot (ADR-049, AC-R4).
+ * `live` refuses to boot (ADR-053, AC-R4).
  *
  * Typed to the mock's shape so a live adapter drops in with no caller changing:
  * `RegistrationService` injects `RraTinAdapter` and never asks which one it got.

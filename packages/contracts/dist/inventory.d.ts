@@ -2,8 +2,8 @@ import { z } from "zod";
 /**
  * The operator write path for inventory (ADR-009).
  *
- * The public read shapes live in `booking.ts` (`PropertyDetail`,
- * `RoomTypeSummary`) and answer a guest's question: what can I book? These
+ * The public read shapes live in `property-detail.ts` (`PropertyDetail`) and
+ * `booking.ts` (`RoomTypeSummary`) and answer a guest's question: what can I book? These
  * answer an operator's: what do I have, and is it live? Two different questions,
  * two different shapes, so a draft property never accidentally serialises
  * through a public contract.
@@ -51,22 +51,22 @@ export declare const CreatePropertyRequest: z.ZodObject<{
     sectorId: number;
     name: string;
     workspaceId: string;
-    description?: string | undefined;
-    locationPrivacy?: boolean | undefined;
     checkInTime?: string | undefined;
     checkOutTime?: string | undefined;
-    houseRules?: string | undefined;
     street?: string | undefined;
+    description?: string | undefined;
+    houseRules?: string | undefined;
+    locationPrivacy?: boolean | undefined;
 }, {
     sectorId: number;
     name: string;
     workspaceId: string;
-    description?: string | undefined;
-    locationPrivacy?: boolean | undefined;
     checkInTime?: string | undefined;
     checkOutTime?: string | undefined;
-    houseRules?: string | undefined;
     street?: string | undefined;
+    description?: string | undefined;
+    houseRules?: string | undefined;
+    locationPrivacy?: boolean | undefined;
 }>;
 export type CreatePropertyRequest = z.infer<typeof CreatePropertyRequest>;
 /**
@@ -91,22 +91,22 @@ export declare const UpdatePropertyRequest: z.ZodObject<{
     workspaceId: string;
     sectorId?: number | undefined;
     name?: string | undefined;
-    description?: string | undefined;
-    locationPrivacy?: boolean | undefined;
     checkInTime?: string | undefined;
     checkOutTime?: string | undefined;
-    houseRules?: string | undefined;
     street?: string | undefined;
+    description?: string | undefined;
+    houseRules?: string | undefined;
+    locationPrivacy?: boolean | undefined;
 }, {
     workspaceId: string;
     sectorId?: number | undefined;
     name?: string | undefined;
-    description?: string | undefined;
-    locationPrivacy?: boolean | undefined;
     checkInTime?: string | undefined;
     checkOutTime?: string | undefined;
-    houseRules?: string | undefined;
     street?: string | undefined;
+    description?: string | undefined;
+    houseRules?: string | undefined;
+    locationPrivacy?: boolean | undefined;
 }>;
 export type UpdatePropertyRequest = z.infer<typeof UpdatePropertyRequest>;
 /**
@@ -148,7 +148,7 @@ export declare const OperatorPropertySummary: z.ZodObject<{
     id: z.ZodString;
     name: z.ZodString;
     /**
-     * The public address, minted at publish and never by a reader (ADR-049).
+     * The public address, minted at publish and never by a reader (ADR-053).
      *
      * Null until the first publish. It SURVIVES an unpublish on purpose, so a
      * republished property keeps the address every bookmark and search result
@@ -222,7 +222,7 @@ export declare const OperatorPropertySummary: z.ZodObject<{
 }>;
 export type OperatorPropertySummary = z.infer<typeof OperatorPropertySummary>;
 /**
- * One photograph of a property (ADR-049).
+ * One photograph of a property (ADR-053).
  *
  * A ROW, not an entry in a `jsonb` array, and the difference is the whole
  * reason the migration exists. A row can carry an order that survives an edit,
@@ -261,7 +261,7 @@ export type PropertyPhoto = z.infer<typeof PropertyPhoto>;
 /**
  * One property in full, as its owner sees it.
  *
- * `photos` carries real rows since ADR-049. It used to be permanently empty
+ * `photos` carries real rows since ADR-053. It used to be permanently empty
  * with a comment saying object storage was unbuilt; F-S09 landed, photos became
  * a publish condition, and a `jsonb` array of keys could not carry a cover flag
  * or an order, so they became rows.
@@ -270,7 +270,7 @@ export declare const OperatorProperty: z.ZodObject<{
     id: z.ZodString;
     name: z.ZodString;
     /**
-     * The public address, minted at publish and never by a reader (ADR-049).
+     * The public address, minted at publish and never by a reader (ADR-053).
      *
      * Null until the first publish. It SURVIVES an unpublish on purpose, so a
      * republished property keeps the address every bookmark and search result
@@ -371,11 +371,23 @@ export declare const OperatorProperty: z.ZodObject<{
     roomTypeCount: number;
     slug: string | null;
     publishedAt: string | null;
-    description: string | null;
-    locationPrivacy: boolean;
     checkInTime: string | null;
     checkOutTime: string | null;
+    address: {
+        districtId: number | null;
+        districtName: string | null;
+        sectorId: number | null;
+        provinceId: number | null;
+        street: string | null;
+        sectorName: string | null;
+        provinceName: string | null;
+    };
+    description: string | null;
     houseRules: string | null;
+    locationPrivacy: boolean;
+    listingStatus: "draft" | "published";
+    sellableRoomCount: number;
+    timezone: string;
     photos: {
         id: string;
         objectKey: string;
@@ -392,29 +404,29 @@ export declare const OperatorProperty: z.ZodObject<{
         sellableRoomCount: number;
         basePriceRwf: number | null;
     }[];
-    address: {
-        districtId: number | null;
-        districtName: string | null;
-        sectorId: number | null;
-        provinceId: number | null;
-        street: string | null;
-        sectorName: string | null;
-        provinceName: string | null;
-    };
-    listingStatus: "draft" | "published";
-    sellableRoomCount: number;
-    timezone: string;
 }, {
     id: string;
     name: string;
     roomTypeCount: number;
     slug: string | null;
     publishedAt: string | null;
-    description: string | null;
-    locationPrivacy: boolean;
     checkInTime: string | null;
     checkOutTime: string | null;
+    address: {
+        districtId: number | null;
+        districtName: string | null;
+        sectorId: number | null;
+        provinceId: number | null;
+        street: string | null;
+        sectorName: string | null;
+        provinceName: string | null;
+    };
+    description: string | null;
     houseRules: string | null;
+    locationPrivacy: boolean;
+    listingStatus: "draft" | "published";
+    sellableRoomCount: number;
+    timezone: string;
     photos: {
         id: string;
         objectKey: string;
@@ -431,18 +443,6 @@ export declare const OperatorProperty: z.ZodObject<{
         sellableRoomCount: number;
         basePriceRwf: number | null;
     }[];
-    address: {
-        districtId: number | null;
-        districtName: string | null;
-        sectorId: number | null;
-        provinceId: number | null;
-        street: string | null;
-        sectorName: string | null;
-        provinceName: string | null;
-    };
-    listingStatus: "draft" | "published";
-    sellableRoomCount: number;
-    timezone: string;
 }>;
 export type OperatorProperty = z.infer<typeof OperatorProperty>;
 /**
@@ -647,7 +647,7 @@ export declare const OperatorPropertyList: z.ZodObject<{
         id: z.ZodString;
         name: z.ZodString;
         /**
-         * The public address, minted at publish and never by a reader (ADR-049).
+         * The public address, minted at publish and never by a reader (ADR-053).
          *
          * Null until the first publish. It SURVIVES an unpublish on purpose, so a
          * republished property keeps the address every bookmark and search result
@@ -1024,7 +1024,7 @@ export declare const UpdateRatePlanRequest: z.ZodObject<{
 }>;
 export type UpdateRatePlanRequest = z.infer<typeof UpdateRatePlanRequest>;
 /**
- * Attach an already uploaded object to a property (ADR-049, AC-I3).
+ * Attach an already uploaded object to a property (ADR-053, AC-I3).
  *
  * The bytes went up first, at `POST /api/v1/uploads/property-photo`, and this
  * call carries the KEY. Two steps rather than one, for the reason the

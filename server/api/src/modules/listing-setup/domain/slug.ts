@@ -1,7 +1,7 @@
 import { randomBytes } from 'node:crypto';
 
 /**
- * Minting a property's public address (ADR-049, AC-I5).
+ * Minting a property's public address (ADR-053, AC-I5).
  *
  * A slug is a COLUMN rather than something a client derives, because
  * `/property/[slug]` is a page strangers and search engines read: two clients

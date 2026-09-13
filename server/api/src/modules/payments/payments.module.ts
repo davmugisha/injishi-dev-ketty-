@@ -4,6 +4,7 @@ import { PaymentCompensationService } from './application/payment-compensation.s
 import { type AdapterMode, PAYMENT_PORT, type PaymentPort } from './domain/payment-port';
 import { GuardedPaymentPort } from './infrastructure/guarded-payment.port';
 import { MockPaymentAdapter } from './infrastructure/mock-payment.adapter';
+import { OffPaymentAdapter } from './infrastructure/off-payment.adapter';
 
 /**
  * The payment seam (F-S08, ADR-020).
@@ -16,20 +17,32 @@ import { MockPaymentAdapter } from './infrastructure/mock-payment.adapter';
 /** The live adapter, once one exists. Null until then, and boot refuses. */
 const LIVE_ADAPTER: (new () => PaymentPort) | null = null;
 
-function resolveMode(): AdapterMode {
-  const raw = (process.env.PAYMENT_ADAPTER_MODE ?? 'mock').trim().toLowerCase();
-  if (raw === 'live') return 'live';
-  if (raw === 'mock') return 'mock';
+/**
+ * What `PAYMENT_ADAPTER_MODE` may say. `off` is not an adapter mode a receipt
+ * can carry, because it never produces a receipt: it refuses every charge.
+ */
+export type PaymentAdapterSetting = AdapterMode | 'off';
+
+export function resolveMode(raw: string | undefined): PaymentAdapterSetting {
+  const mode = (raw ?? 'mock').trim().toLowerCase();
+  if (mode === 'live' || mode === 'mock' || mode === 'off') return mode;
   // An unreadable mode is not defaulted quietly. "PAYMENT_ADAPTER_MODE=Live "
   // silently falling back to mock is a production deployment taking imaginary
   // money while every screen says it worked.
   throw new Error(
-    `PAYMENT_ADAPTER_MODE must be "mock" or "live", got "${raw}".`,
+    `PAYMENT_ADAPTER_MODE must be "mock", "live" or "off", got "${mode}".`,
   );
 }
 
 function adapterClass(): new () => PaymentPort {
-  const mode = resolveMode();
+  const mode = resolveMode(process.env.PAYMENT_ADAPTER_MODE);
+  if (mode === 'off') {
+    // Production until a provider is signed (booking audit, 2026-09-13): the
+    // compose file used to leave this unset, which meant mock, which meant a
+    // real database recording imaginary money as captured.
+    new Logger('PaymentsModule').warn('Payment adapter: OFF, every charge is refused');
+    return OffPaymentAdapter;
+  }
   if (mode === 'live') {
     if (!LIVE_ADAPTER) {
       // Fails at boot, not at the first booking (ADR-020 AC-7). A service that

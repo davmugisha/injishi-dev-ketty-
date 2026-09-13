@@ -1011,7 +1011,7 @@ async function seed(client) {
       [workspaceId, orgId],
     );
 
-    // 5. Property. No photograph: ADR-049 moved them into `property_photos`, and
+    // 5. Property. No photograph: ADR-053 moved them into `property_photos`, and
     //    this seed has no bytes to put in the bucket. So a catalogue property
     //    cannot be published until one is attached — see the header.
     await client.query(
@@ -1043,7 +1043,7 @@ async function seed(client) {
     );
 
     // 5b. The public address. `GET /properties/slug/:slug` is how web finds a
-    //     property's rooms (ADR-049), and this seed predates the column, so for
+    //     property's rooms (ADR-053), and this seed predates the column, so for
     //     as long as it wrote none every one of the 52 pages read a 404 and
     //     told the guest the stay was "not open for online booking yet". The
     //     catalogue slug, not one minted from the name: the name carries

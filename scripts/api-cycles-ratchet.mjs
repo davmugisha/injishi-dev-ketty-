@@ -2,7 +2,7 @@
 /**
  * The API import cycle ratchet.
  *
- * ADR-048 AC-5 says a NEW import cycle in the API fails the run. The job used
+ * ADR-052 AC-5 says a NEW import cycle in the API fails the run. The job used
  * to run bare `madge --circular`, which exits 1 on ANY cycle, and the API
  * already had cycles when the job was written (the drizzle schema files import
  * each other's tables, `booking.service` and `payment-attempt.service` import
@@ -80,7 +80,7 @@ const current = [...new Set(madgeCycles().map(keyOf))].sort();
 
 if (update) {
   const body = {
-    '//': 'Import cycles the API had when the ADR-048 AC-5 ratchet was adopted. A cycle NOT listed here fails CI.',
+    '//': 'Import cycles the API had when the ADR-052 AC-5 ratchet was adopted. A cycle NOT listed here fails CI.',
     '//how': 'Regenerate with: node scripts/api-cycles-ratchet.mjs --update',
     '//when': 'Update this in the commit that REMOVES a cycle, never to make a failing run pass.',
     cycles: current,

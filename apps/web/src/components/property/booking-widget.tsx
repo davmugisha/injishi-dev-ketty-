@@ -61,7 +61,7 @@ import type { PropertyDetail } from "@/data/properties";
 /**
  * The three facts the card reads about a property, and no more.
  *
- * Narrow on purpose, so a published database property (ADR-049) can be sold from
+ * Narrow on purpose, so a published database property (ADR-053) can be sold from
  * the same card as a catalogue record: its slug addresses the real rooms, it has
  * no rack rate to quote, and its guest ceiling is its largest room type.
  */

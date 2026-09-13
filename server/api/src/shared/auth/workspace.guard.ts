@@ -25,11 +25,17 @@ export const REQUIRE_PERMISSION = 'require_permission';
 /**
  * The permission this route needs inside the active workspace.
  * Omit it to require only that the caller holds the workspace at all.
+ *
+ * Several may be named, and then EVERY one is required. That exists for one
+ * act that is two acts at once: check out closes the stay AND signs its sale,
+ * so it needs `stay.checkout` and `folio.close` (ADR-050 D-t, AC-8). Gating it
+ * on the first alone would leave the fiscal act reachable through a permission
+ * granted for something else.
  */
 export const RequirePermission = (
-  permission: Permission,
+  ...permissions: [Permission, ...Permission[]]
 ): ReturnType<typeof SetMetadata> =>
-  SetMetadata(REQUIRE_PERMISSION, permission);
+  SetMetadata(REQUIRE_PERMISSION, permissions);
 
 interface RequestWithWorkspace {
   headers: Record<string, string | string[] | undefined>;
@@ -147,13 +153,16 @@ export class WorkspaceGuard implements CanActivate {
       throw new ForbiddenException('That workspace is not available to you.');
     }
 
-    const required = this.reflector.getAllAndOverride<Permission | undefined>(
-      REQUIRE_PERMISSION,
-      [context.getHandler(), context.getClass()],
-    );
+    const declared = this.reflector.getAllAndOverride<
+      Permission | readonly Permission[] | undefined
+    >(REQUIRE_PERMISSION, [context.getHandler(), context.getClass()]);
+    const required: readonly Permission[] =
+      declared === undefined ? [] : typeof declared === 'string' ? [declared] : declared;
 
-    if (required && !access.permissions.includes(required)) {
-      throw new ForbiddenException(refusalFor(access, required));
+    // Refused on the FIRST missing one, so the sentence names a real gap.
+    const missing = required.find((p) => !access.permissions.includes(p));
+    if (missing) {
+      throw new ForbiddenException(refusalFor(access, missing));
     }
 
     request.workspace = access;

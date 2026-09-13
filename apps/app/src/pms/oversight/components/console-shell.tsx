@@ -42,7 +42,7 @@ export function ConsoleShell({ title, children }: { title: string; children: Rea
    * decisions. The profile is the same one the operator sidebar shows, and
    * where it has no name it says so rather than inventing one.
    *
-   * ADR-049 closed the other half. The issuing body, the officer's own job title
+   * ADR-053 closed the other half. The issuing body, the officer's own job title
    * and the REGION now come from `GET /api/v1/me/oversight`, so there is no
    * fixture left in this panel at all — and the district, which this shell
    * deliberately refused to print while it could only be read off a fixture, is
@@ -132,7 +132,7 @@ export function ConsoleShell({ title, children }: { title: string; children: Rea
             </span>
             {/* The officer's OWN title, as their institution words it, and the
                 institution's own name — not the enum and not the body code. The
-                three layers of name ADR-049 keeps apart: the database's, the
+                three layers of name ADR-053 keeps apart: the database's, the
                 console's label, and the employer's. */}
             <span style={{ display: "block", fontSize: 11.5, color: "var(--sb-muted)" }}>
               {officer.title}

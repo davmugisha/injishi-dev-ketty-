@@ -18,9 +18,14 @@ export * from "./booking";
 export * from "./trips";
 export * from "./inbox";
 export * from "./ops";
+export * from "./ordering";
+export * from "./outlets";
+export * from "./property-detail";
 export * from "./ebm";
 export * from "./ebm-connection";
 export * from "./admin";
 export * from "./support";
+export * from "./waitlist";
 export * from "./platform";
+export * from "./training";
 //# sourceMappingURL=index.d.ts.map

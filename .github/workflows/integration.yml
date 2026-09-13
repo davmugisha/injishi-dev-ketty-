@@ -1,6 +1,6 @@
 name: integration
 
-# ADR-048 AC-7, AC-7b, AC-8. The checks that need a real database.
+# ADR-052 AC-7, AC-7b, AC-8. The checks that need a real database.
 #
 # `progress-tracker.md` names the runtime gap as the one thing that would make
 # the booking flow believable. This workflow is what closes it on every pull
@@ -82,7 +82,7 @@ jobs:
       CORS_ORIGINS: http://127.0.0.1:3000
       LOG_LEVEL: warn
 
-      # No MinIO service container: ADR-048 names Postgres and Redis only, and
+      # No MinIO service container: ADR-052 names Postgres and Redis only, and
       # `local` writes to disk, which is all these scripts need.
       STORAGE_ADAPTER_MODE: local
 

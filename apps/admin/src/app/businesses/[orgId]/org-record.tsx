@@ -61,11 +61,14 @@ const PEOPLE_READ_REASON =
  * lens is a separate read, so a staffer who may see the record but not its
  * money gets the header and a refusal in the body — not a blank page.
  *
- * WHAT IT STILL DOES NOT DO. The Businesses section's layout refuses a staffer
- * without `admin.business.view` (ADR-049, AC-A4), but a LENS is not a section:
- * a staffer who may see the record and not its money reaches the money lens,
- * and the API refuses that read with a 403 that lands in `denied` below. The
- * API is the boundary; this page does not add a second one.
+ * WHAT GUARDS WHAT, because this page adds nothing of its own. A per-section
+ * route guard now stands in front of Businesses like every other section
+ * (ADR-049 AC-25, `components/shell/section-boundary.tsx`): a staffer without
+ * `admin.business.view` never reaches this file. That guard is per SECTION and
+ * not per LENS, so a caller who may see the record but not its money still
+ * arrives here and is refused by the API — 403, landing in `denied` below.
+ * The API is the boundary for both. This page does not add a third control and
+ * must not be read as having one.
  */
 export async function OrgRecord({
   orgId,
@@ -109,7 +112,7 @@ export async function OrgRecord({
           <h1 className="truncate text-2xl font-bold tracking-tight">{org.name}</h1>
           <p className="mt-0.5 text-sm text-muted-foreground">
             {org.type} · {org.district} · TIN {org.tin}
-            {/* Time in the current stage, from the event log (ADR-049, AC-R7).
+            {/* Time in the current stage, from the event log (ADR-053, AC-R7).
                 The review queue never lists `pending_payment` or `suspended`, so
                 this is the one place those waits are read. No log entry, no wait
                 shown, rather than a guessed one. */}

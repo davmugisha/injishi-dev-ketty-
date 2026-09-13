@@ -1,6 +1,5 @@
 import { Suspense } from "react";
 import type { Metadata } from "next";
-import Image from "next/image";
 import { notFound } from "next/navigation";
 import {
   BookingWidget,
@@ -11,6 +10,7 @@ import {
   RelatedStaysSkeleton,
 } from "@/components/property/related-stays";
 import { DatabaseProperty } from "@/components/property/database-property";
+import { PropertyFacilities } from "@/components/property/property-facilities";
 import { PropertyGallery } from "@/components/property/property-gallery";
 import {
   PropertySubtitle,
@@ -18,13 +18,12 @@ import {
 } from "@/components/property/property-title";
 import { SectionHeading } from "@/components/shared/section-heading";
 import { LISTINGS } from "@/data/listings";
-import type { Amenity } from "@/data/properties";
 import { propertyMetadata, resolvePropertyPage } from "@/lib/property-route";
 import { propertyUrl } from "@/lib/web-url";
 
 /**
  * Rendered on request and kept for 30 seconds, not prerendered at build
- * (ADR-049, owner ruling of 2026-09-13).
+ * (ADR-053, owner ruling of 2026-09-13).
  *
  * The page reads the API first, and a suspension or an unpublish has to reach it
  * without a rebuild, so this is the ceiling on how long a page can outlive that
@@ -33,6 +32,15 @@ import { propertyUrl } from "@/lib/web-url";
  * loading sooner than that: the photo route refuses on the very next request.
  */
 export const revalidate = 30;
+
+/*
+ * A slug outside the catalogue is rendered on first request and revalidated,
+ * rather than refused: a property published from the operator app exists only
+ * in the database, and Next must not answer it 404 for lacking a static page
+ * (booking audit, 2026-09-13). `true` is Next's default; it is stated because
+ * this route depends on it.
+ */
+export const dynamicParams = true;
 
 export async function generateMetadata({
   params,
@@ -46,7 +54,7 @@ export async function generateMetadata({
         ? (source.property.description ?? undefined)
         : source.property.about[0],
     // The one address a search engine should credit, built from the slug and
-    // web's own origin (ADR-049, AC-I9) — never from whatever host or query the
+    // web's own origin (ADR-053, AC-I9) — never from whatever host or query the
     // page happened to be reached on.
     alternates: { canonical: propertyUrl(slug) },
   }));
@@ -118,8 +126,10 @@ export default async function PropertyPage({
             </dl>
           </section>
 
-          <AmenitySection title="Amenities" items={property.amenities} />
-
+          {/* The API's facilities when this business is on Injishi; the
+              catalogue's amenities otherwise, and while the API is asked.
+              Read in the browser, so this page stays static (ADR-050 D-k). */}
+          <PropertyFacilities slug={property.slug} amenities={property.amenities} />
         </div>
 
         {/* Suspense, not a `searchParams` prop. The widget reads the guest's
@@ -142,52 +152,5 @@ export default async function PropertyPage({
         </Suspense>
       </section>
     </div>
-  );
-}
-
-/**
- * Every amenity, and no "more" link (ADR-044, D-a).
- *
- * This section ended in `<Link href="#">More amenities</Link>`, sitting under a
- * separator that existed to set it apart. The list above it is not truncated —
- * it maps the whole of `property.amenities` — so the link offered a second
- * copy of what the guest was already reading, and `href="#"` meant it did not
- * even offer that. There is no amenities detail route to point it at, so the
- * link goes rather than moves. Add one back only when this list starts
- * cutting itself short and something else holds the rest.
- */
-function AmenitySection({ title, items }: { title: string; items: Amenity[] }) {
-  return (
-    <section>
-      <SectionHeading lead={title} className="mb-6" />
-      <ul className="m-0 grid list-none grid-cols-2 gap-4 p-0 md:grid-cols-3 lg:grid-cols-4">
-        {items.map((item) => {
-          // `available: false` means the house does not have it. Striking it
-          // through rather than dropping it is what the reference does, and it
-          // answers the question a guest actually came with.
-          const unavailable = item.available === false;
-          return (
-            <li key={item.label} className="flex items-center gap-3">
-              <Image
-                src={`/assets/${item.icon}.svg`}
-                alt=""
-                width={24}
-                height={24}
-                className={`size-6 shrink-0 ${unavailable ? "opacity-40" : "opacity-70"}`}
-              />
-              <span
-                className={
-                  unavailable
-                    ? "text-sm text-page-fg-70 line-through"
-                    : "text-sm text-page-fg"
-                }
-              >
-                {item.label}
-              </span>
-            </li>
-          );
-        })}
-      </ul>
-    </section>
   );
 }

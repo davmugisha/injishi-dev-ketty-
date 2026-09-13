@@ -1,6 +1,6 @@
 name: ci
 
-# ADR-048. The verification matrix: every pull request against `main`, and every
+# ADR-052. The verification matrix: every pull request against `main`, and every
 # push to `main`.
 #
 # Two properties this file must keep:
@@ -195,7 +195,7 @@ jobs:
 
   # AC-6. Mobile is NOT in the root `build` filter and has no `build` script:
   # it is an Expo export, not a `next build`, so these four checks are what
-  # standing behind a mobile change means. ADR-048 settles that deliberately.
+  # standing behind a mobile change means. ADR-052 settles that deliberately.
   mobile:
     name: mobile
     needs: changes

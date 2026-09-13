@@ -18,7 +18,7 @@
 import type { OversightData, PerfRow, RegOrg, RejectReason } from "./types";
 
 /*
- * `OFFICERS` USED TO BE HERE, AND IS DELETED (ADR-049, AC-G5).
+ * `OFFICERS` USED TO BE HERE, AND IS DELETED (ADR-053, AC-G5).
  *
  * It was two invented officers — a name, an issuing body, a job title and a
  * district each — rendered onto a government console above a queue of real

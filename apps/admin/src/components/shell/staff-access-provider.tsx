@@ -5,7 +5,7 @@ import { createContext, useContext } from "react";
 import { NO_STAFF_ACCESS, type StaffAccess } from "@injishi/contracts";
 
 /**
- * The staff access the SERVER resolved, carried to the client chrome (ADR-049,
+ * The staff access the SERVER resolved, carried to the client chrome (ADR-053,
  * AC-A3).
  *
  * `StaffBoundary` reads `GET /api/v1/me/staff` on the server and renders this

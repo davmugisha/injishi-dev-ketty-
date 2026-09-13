@@ -97,7 +97,7 @@ export class AdminOrgActionsService {
         });
       }
 
-      // The pair ADR-049 names as easy to miss: it lives outside the
+      // The pair ADR-053 names as easy to miss: it lives outside the
       // organization module, and a suspension with no event row reads in admin's
       // queue as a business that has been in its previous stage forever.
       await recordRegistrationEvent(tx, {

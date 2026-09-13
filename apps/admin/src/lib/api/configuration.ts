@@ -5,7 +5,7 @@ import { apiGet, type ApiResult } from "./server";
 /**
  * Configuration (F-A07) — `GET /api/v1/admin/configuration/**`.
  *
- * Both reads are `admin.config.view` (ADR-049), which every staff role holds.
+ * Both reads are `admin.config.view` (ADR-053), which every staff role holds.
  * The powers to CHANGE them stay apart: `admin.fee.edit` appends a fee and
  * `admin.config.edit` changes a setting, because changing what a registration
  * costs is not the same power as flipping a flag.

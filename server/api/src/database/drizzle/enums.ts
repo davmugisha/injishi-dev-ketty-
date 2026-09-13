@@ -71,7 +71,7 @@ export const orgRegistrationStatusEnum = pgEnum('org_registration_status', [
 ]);
 
 /**
- * Who moved a registration (ADR-049, AC-R6).
+ * Who moved a registration (ADR-053, AC-R6).
  *
  * The calling SURFACE, not a person's role: a registrant route writes
  * `registrant`, an oversight route `officer`, an admin route `staff`, and the
@@ -83,7 +83,7 @@ export const registrationTransitionTriggerEnum = pgEnum(
 );
 
 /**
- * A membership's lifecycle (ADR-049, AC-R10).
+ * A membership's lifecycle (ADR-053, AC-R10).
  *
  * It was free `text` carrying these two words, the only lifecycle column on the
  * registration path that the database did not enumerate, so a typo in a write
@@ -141,6 +141,18 @@ export const paymentAttemptStateEnum = pgEnum('payment_attempt_state', [
   'refused',
   /** Nobody answered inside the window. Voided or refunded. */
   'expired',
+]);
+
+/**
+ * What a payment attempt pays for (ADR-050 catalog child, D-n amended).
+ *
+ * The table was built for bookings, and a pay now order waits on a handset in
+ * exactly the same way. One table with a purpose rather than a sibling, because
+ * two copies of the poll and the sweep would drift. Completion branches on it.
+ */
+export const paymentAttemptPurposeEnum = pgEnum('payment_attempt_purpose', [
+  'booking',
+  'service_order',
 ]);
 
 export const tinVerificationResultEnum = pgEnum('tin_verification_result', [
@@ -386,6 +398,13 @@ export const storedObjectKindEnum = pgEnum('stored_object_kind', [
   // D24: an org's registration documents ride the same retention and legal-hold
   // machinery as every other stored object rather than a private upload path.
   'certificate',
+  // ADR-049: a training certificate PDF. A SEPARATE kind from 'certificate',
+  // which is a document a business uploads ABOUT itself. This one is a document
+  // the platform issues about a person, is never uploaded by anybody, and is
+  // reachable only by its holder or by staff through a signed url. Sharing one
+  // kind would put the two under one retention rule and one access rule, and
+  // they need neither in common.
+  'training_certificate',
 ]);
 
 
@@ -574,7 +593,39 @@ export const placementFeeStatusEnum = pgEnum('placement_fee_status', [
   'disbursed',
 ]);
 
-export const ebmSourceEnum = pgEnum('ebm_source', ['booking', 'subscription']);
+/**
+ * Where a fiscal document comes from (ADR-050 D-a).
+ *
+ * `booking` is the prepayment, which under `EBM_SIGN_AT=checkout` raises a
+ * proforma rather than a sale. `folio` is the stay's bill, signed once at
+ * close. `outlet_order` is a sale that stands on its own: a pay now order, or a
+ * tenant outlet declaring its own turnover at fulfilment.
+ */
+export const ebmSourceEnum = pgEnum('ebm_source', [
+  'booking',
+  'subscription',
+  'folio',
+  'outlet_order',
+]);
+
+/**
+ * §15's receipt types (ADR-050 D-e).
+ *
+ * There is deliberately NO `copy` value. A copy has no VSDC answer of its own,
+ * so a row for one could never reach `emitted`. `CS` and `CR` are render time
+ * labels, counted in `ebm_receipt_copies`, never rows here.
+ */
+export const ebmReceiptTypeEnum = pgEnum('ebm_receipt_type', [
+  'normal',
+  'training',
+  'proforma',
+]);
+
+/** Sale or refund. Immutable after insert (ADR-050 D-d). */
+export const ebmTransactionTypeEnum = pgEnum('ebm_transaction_type', [
+  'sale',
+  'refund',
+]);
 
 export const tinTypeEnum = pgEnum('tin_type', ['host', 'injishi']);
 
@@ -645,6 +696,19 @@ export const domainEventTypeEnum = pgEnum('domain_event_type', [
   'lease_signing_invitation',
   'lease_move_out_notice',
   'lease_renewal_decision',
+  /**
+   * ADR-050 D-v. The realtime gateway's six event names, dotted because the
+   * name IS the channel a client subscribes to. Every one is written to
+   * `outbox_events` in the same transaction as the change it reports; nothing
+   * publishes to Redis directly, so a client that misses a frame re-reads and
+   * is correct.
+   */
+  'order.status',
+  'thread.message',
+  'housekeeping.task',
+  'folio.balance',
+  'ebm.health',
+  'ebm.sale',
 ]);
 
 export const notificationCategoryEnum = pgEnum('notification_category', [
@@ -684,6 +748,11 @@ export const staffRoleEnum = pgEnum('staff_role', [
   'ops',
   'compliance',
   'finance',
+  // ADR-049: the narrowest staff role in the system. A trainer holds four
+  // training powers and no `admin.*` power at all, which is exactly why the
+  // console needed a per-section route guard: sidebar hiding was enough while
+  // every staff role could safely see every section.
+  'trainer',
 ]);
 
 export const auditSubjectTypeEnum = pgEnum('audit_subject_type', [
@@ -705,6 +774,13 @@ export const auditSubjectTypeEnum = pgEnum('audit_subject_type', [
   // log, not a trail.
   'broker',
   'guest_stay',
+  // ADR-049: issuing and withdrawing a training certificate are both audited
+  // (AC-22), and they need a subject type of their own. Filing them as `user`
+  // with the holder's id is precisely the mistake the paragraph above records
+  // for brokers: "every audit row about this certificate" would then only be
+  // answerable by reading payloads. The subject is the certificate, so the
+  // subject type names one.
+  'training_certificate',
 ]);
 
 export const recordDataClassEnum = pgEnum('record_data_class', [
@@ -806,3 +882,93 @@ export const phoneLinkStageEnum = pgEnum('phone_link_stage', [
   'phone_proved',
   'email_sent',
 ]);
+
+// ===========================================================================
+// §11  WAITLIST  (ADR-048; pre-launch only, deleted at launch)
+// ===========================================================================
+
+/** Which side of the marketplace a signup came from. */
+export const waitlistAudienceEnum = pgEnum('waitlist_audience', [
+  'traveller',
+  'owner',
+]);
+
+/**
+ * The kinds of property an owner can name on the waitlist form.
+ *
+ * Deliberately NOT the listing module's taxonomy, which does not exist yet.
+ * The name carries the surface it serves so that a pre-launch dropdown cannot
+ * quietly become the product's data model (ADR-048, Consequences).
+ */
+export const waitlistPropertyTypeEnum = pgEnum('waitlist_property_type', [
+  'hotel',
+  'guest_house',
+  'apartment',
+  'lodge',
+  'villa',
+  'hostel',
+  'homestay',
+  'campsite',
+]);
+
+/** How many rooms an owner says they run. Bands, because nobody counts exactly. */
+export const waitlistSizeBandEnum = pgEnum('waitlist_size_band', [
+  '1_5',
+  '6_20',
+  '21_50',
+  '50_plus',
+]);
+
+// ===========================================================================
+// ADR-049  TRAINING, LIVE ATTENDANCE AND THE DIGITAL CERTIFICATE
+// ===========================================================================
+
+/**
+ * A session's life.
+ *
+ * `draft` is a trainer's proposal and never appears publicly. `published` is
+ * the only state `/training` shows, and only a platform admin holding
+ * `training.session.publish` reaches it. `cancelled` is terminal. `completed`
+ * is what closing the roster leaves behind.
+ *
+ * There is deliberately NO value for an online session, here or anywhere: a
+ * session is a time, a venue and a trainer, and making one joinable over a link
+ * would be a migration and a decision rather than a field somebody slips in.
+ */
+export const trainingSessionStatusEnum = pgEnum('training_session_status', [
+  'draft',
+  'published',
+  'cancelled',
+  'completed',
+]);
+
+/**
+ * A registration's life.
+ *
+ * `withdrawn` and `released` are separate values on purpose: the first is the
+ * learner pulling out, the second is the company cancelling the session under
+ * them. Collapsing them would tell somebody they changed their mind when they
+ * did not.
+ */
+export const trainingRegistrationStatusEnum = pgEnum(
+  'training_registration_status',
+  ['registered', 'attended', 'absent', 'withdrawn', 'released'],
+);
+
+/** Whether a person registered themselves or a trainer added them in the room. */
+export const trainingRegistrationSourceEnum = pgEnum(
+  'training_registration_source',
+  ['self', 'walk_in'],
+);
+
+/**
+ * One trainer's decision about one registrant.
+ *
+ * Two values and no `unknown`: a registrant nobody has decided about has no
+ * row, which is a different fact from a row that says nothing. Closing the
+ * roster is what turns every missing row into an `absent` one.
+ */
+export const trainingAttendanceDecisionEnum = pgEnum(
+  'training_attendance_decision',
+  ['present', 'absent'],
+);

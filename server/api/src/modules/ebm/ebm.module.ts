@@ -6,6 +6,7 @@ import { EbmEmissionService } from './application/ebm-emission.service';
 import { EbmReceiptService } from './application/ebm-receipt.service';
 import { EbmSaleTrigger } from './application/ebm-sale-trigger.service';
 import { EBM_LIVE, type EbmLive } from './domain/ebm-live';
+import { EBM_SIGN_POINT, resolveSignPoint } from './domain/sign-point';
 import { VSDC_PORT } from './domain/vsdc-port';
 import { EbmApiClient } from './infrastructure/ebm-api.client';
 import { EbmBookingRepository } from './infrastructure/ebm-booking.repository';
@@ -61,6 +62,17 @@ export function buildEbmProviders(
   env: Record<string, string | undefined> = process.env,
   worker: boolean = isWorkerProcess(),
 ): Provider[] {
+  /**
+   * Read ONCE, here, and never again (ADR-050 D-a). Every later step reads the
+   * stamp `EbmSaleTrigger` writes onto the booking, not this value, so flipping
+   * the flag back cannot strand a booking that was confirmed under the new rule
+   * with no sale ever declared.
+   */
+  const signPoint: Provider = {
+    provide: EBM_SIGN_POINT,
+    useValue: resolveSignPoint(env),
+  };
+
   if (resolveMode(env) === 'live') {
     const config = resolveEbmLiveConfig(env);
     const live: EbmLive = { config, client: new EbmApiClient(config.api) };
@@ -68,6 +80,7 @@ export function buildEbmProviders(
       `VSDC adapter: LIVE via ${config.api.baseUrl}; sales confirmed from ${config.liveSince.toISOString()} are certified with RRA.`,
     );
     return [
+      signPoint,
       { provide: EBM_LIVE, useValue: live },
       { provide: VSDC_PORT, useClass: LiveVsdcSigner },
       ...(worker ? [EbmEmissionProcessor] : []),
@@ -78,6 +91,7 @@ export function buildEbmProviders(
     'VSDC adapter: MOCK. Receipts carry fabricated SDC signatures and are NOT fiscal documents.',
   );
   return [
+    signPoint,
     { provide: EBM_LIVE, useValue: null },
     { provide: VSDC_PORT, useClass: MockVsdcSigner },
   ];
@@ -107,8 +121,11 @@ export function buildEbmProviders(
     EbmReceiptService,
     EbmConnectionService,
     EbmSaleTrigger,
+    EbmEmissionRepository,
+    EbmConnectionRepository,
     VSDC_PORT,
     EBM_LIVE,
+    EBM_SIGN_POINT,
   ],
 })
 export class EbmModule {}

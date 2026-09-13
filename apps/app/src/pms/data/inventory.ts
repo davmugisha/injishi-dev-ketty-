@@ -1,7 +1,7 @@
 "use client";
 
 /**
- * The inventory WRITE path, as the operator app calls it (ADR-049, AC-I1 to
+ * The inventory WRITE path, as the operator app calls it (ADR-053, AC-I1 to
  * AC-I7).
  *
  * Every one of these routes existed and was proven over HTTP before this file:

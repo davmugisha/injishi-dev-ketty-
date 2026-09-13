@@ -1,6 +1,6 @@
 name: schema-capture
 
-# ADR-048 AC-8's other half. Publish production's schema, ROWS EXCLUDED, so a
+# ADR-052 AC-8's other half. Publish production's schema, ROWS EXCLUDED, so a
 # pull request can replay its migrations against the shape they will really
 # meet.
 #

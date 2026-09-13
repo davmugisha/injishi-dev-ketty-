@@ -26,7 +26,7 @@ import { GovernmentBodiesService } from './government-bodies.service';
 
 /**
  * The government body catalogue → `/api/v1/admin/government-bodies`
- * (ADR-049, AC-G4).
+ * (ADR-053, AC-G4).
  *
  * `@UseGuards(SessionGuard, StaffGuard)` in that order: `StaffGuard` throws a 500
  * rather than treating a request as anonymous when the session guard did not

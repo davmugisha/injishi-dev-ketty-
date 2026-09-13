@@ -15,6 +15,8 @@ import {
   bookings,
   escrows,
   guestStays,
+  paymentAttempts,
+  properties,
   rooms,
   roomTypes,
   threads,
@@ -177,6 +179,29 @@ export interface ApprovalOutcome {
   confirmedAt: Date | null;
 }
 
+/** One booking as a cancellation reads it (F-B11, ADR-051). */
+export interface CancellableBooking {
+  bookingId: string;
+  reference: string;
+  workspaceId: string;
+  status: BookingStatus;
+  checkIn: string;
+  checkOut: string;
+  grossRwf: number | null;
+  nonRefundable: boolean;
+  tier: CancellationTier | null;
+  paymentStatus: PaymentStatus | null;
+  /** The property's check-in time, `HH:MM:SS`, or null for the default. */
+  checkInTime: string | null;
+  escrowId: string | null;
+  escrowStatus: EscrowStatus | null;
+  adapterRef: string | null;
+  escrowAmountRwf: number | null;
+  idempotencyKey: string | null;
+  /** Guest stays opened against it. Any at all means the guest has arrived. */
+  stays: number;
+}
+
 /**
  * This attempt token has already been settled (ADR-020 D-c).
  *
@@ -244,35 +269,9 @@ export class NoAvailabilityError extends Error {
 export class BookingRepository {
   constructor(@Inject(DRIZZLE) private readonly db: Database) {}
 
-  /**
-   * Units of this Room type still free for those dates, WITHOUT taking a lock.
-   *
-   * A cheap look before any money moves (ADR-020 A1 phase 1). It is explicitly
-   * NOT the correctness control: two requests can both read "one left" and both
-   * pass. `create` holds the row lock and is the only authority. This exists so
-   * that the ordinary sold-out case is refused before a guest is charged and
-   * refunded, leaving the compensating path for the genuine race.
-   */
-  async freeUnits(
-    roomTypeId: string,
-    checkIn: string,
-    checkOut: string,
-    roomCount: number,
-  ): Promise<number> {
-    const [held] = await this.db
-      .select({ count: sql<number>`count(*)::int` })
-      .from(bookings)
-      .where(
-        and(
-          eq(bookings.roomTypeId, roomTypeId),
-          inArray(bookings.status, [...HOLDING_STATUSES]),
-          lt(bookings.checkIn, checkOut),
-          gt(bookings.checkOut, checkIn),
-        ),
-      );
-
-    return Math.max(0, roomCount - (held?.count ?? 0));
-  }
+  // (`freeUnits`, the unlocked pre-check, is gone: `PaymentAttemptRepository.
+  // claimBookingHold` counts bookings and holds under the lock before any
+  // capture, which is the check this used to only approximate.)
 
   /**
    * Create, retrying only a reference collision (review 3.5).
@@ -302,6 +301,20 @@ export class BookingRepository {
         .from(roomTypes)
         .where(eq(roomTypes.id, input.roomTypeId))
         .for('update');
+
+      // 1b. Has this press already been booked? Checked UNDER the lock and
+      //     BEFORE the count. A poll and the sweep can complete the same settled
+      //     attempt at once; the second arrives here after the first committed.
+      //     Counted first, the last unit reads as sold out, the second writer
+      //     goes down the compensating path, and the refund lands on the money
+      //     behind the booking the first one just wrote (booking audit,
+      //     2026-09-13). A duplicate is answered as a duplicate instead.
+      const [already] = await tx
+        .select({ id: escrows.id })
+        .from(escrows)
+        .where(eq(escrows.idempotencyKey, input.idempotencyKey))
+        .limit(1);
+      if (already) throw new DuplicateAttemptError(input.idempotencyKey);
 
       // 2. Units already held for any overlapping stay.
       //    Overlap: existing.checkIn < new.checkOut AND existing.checkOut > new.checkIn.
@@ -472,21 +485,33 @@ export class BookingRepository {
     to: string,
     roomCount: number,
   ): Promise<{ night: string; freeUnits: number }[]> {
+    // Held = bookings that occupy the night PLUS live payment holds for it
+    // (booking audit, 2026-09-13). A unit held by a prompt on somebody's
+    // handset cannot be claimed, so a calendar that showed it free would offer
+    // a night the checkout then refuses.
     const rows = await this.db.execute<{ night: string; held: number }>(sql`
       select
         to_char(d, 'YYYY-MM-DD') as night,
-        count(b.id)::int as held
+        (
+          (select count(*) from ${bookings} b
+            where b.room_type_id = ${roomTypeId}
+              and b.status in ('pending_approval', 'confirmed')
+              and b.check_in <= d::date
+              and b.check_out > d::date)
+          +
+          (select count(*) from ${paymentAttempts} a
+            where a.purpose = 'booking'
+              and a.room_type_id = ${roomTypeId}
+              and a.state = 'prompting'
+              and a.expires_at > now()
+              and a.check_in <= d::date
+              and a.check_out > d::date)
+        )::int as held
       from generate_series(
         ${from}::date,
         ${to}::date - interval '1 day',
         interval '1 day'
       ) as d
-      left join ${bookings} b
-        on b.room_type_id = ${roomTypeId}
-       and b.status in ('pending_approval', 'confirmed')
-       and b.check_in <= d::date
-       and b.check_out > d::date
-      group by d
       order by d
     `);
 
@@ -812,6 +837,100 @@ export class BookingRepository {
         escrowStatus: 'refunded_full' as const,
         confirmedAt: null,
       };
+    });
+  }
+
+  // -------------------------------------------------------------------------
+  // Cancellation (F-B11, ADR-051)
+  // -------------------------------------------------------------------------
+
+  /**
+   * Everything a cancellation decides on, for ONE booking, read before any
+   * money moves. By reference and scoped to the guest, or by id for a host
+   * whose authority the caller has already proved.
+   *
+   * The escrow is joined whatever its state, so the service can refuse a
+   * booking whose money already moved rather than find nothing and 404.
+   */
+  async findForCancellation(
+    where: { reference: string; guestUserId: string } | { bookingId: string },
+  ): Promise<CancellableBooking | null> {
+    const [row] = await this.db
+      .select({
+        bookingId: bookings.id,
+        reference: bookings.reference,
+        workspaceId: bookings.workspaceId,
+        status: bookings.status,
+        checkIn: bookings.checkIn,
+        checkOut: bookings.checkOut,
+        grossRwf: bookings.grossRwf,
+        nonRefundable: bookings.nonrefundable,
+        tier: bookings.lockedCancellationTier,
+        paymentStatus: bookings.paymentStatus,
+        checkInTime: properties.checkInTime,
+        escrowId: escrows.id,
+        escrowStatus: escrows.status,
+        adapterRef: escrows.adapterRef,
+        escrowAmountRwf: escrows.amountRwf,
+        idempotencyKey: escrows.idempotencyKey,
+        stays: sql<number>`(select count(*)::int from ${guestStays} gs where gs.booking_id = ${bookings.id})`,
+      })
+      .from(bookings)
+      .innerJoin(roomTypes, eq(roomTypes.id, bookings.roomTypeId))
+      .innerJoin(properties, eq(properties.id, roomTypes.propertyId))
+      .leftJoin(escrows, and(eq(escrows.bookingId, bookings.id), eq(escrows.source, 'booking')))
+      .where(
+        'bookingId' in where
+          ? eq(bookings.id, where.bookingId)
+          : and(eq(bookings.reference, where.reference), eq(bookings.guestUserId, where.guestUserId)),
+      )
+      .limit(1);
+    return row ?? null;
+  }
+
+  /**
+   * Record a cancellation the provider already carried out, in ONE transaction:
+   * the booking, and its escrow. Guarded on the two states a cancellation moves
+   * out of, so a second press, or a host and a guest at once, records nothing
+   * the second time and the caller answers 409.
+   */
+  async recordCancellation(input: {
+    bookingId: string;
+    party: 'guest' | 'host';
+    refundRwf: number;
+    outcome: 'refunded_full' | 'refunded_partial' | 'forfeited';
+  }): Promise<{ id: string; reference: string } | null> {
+    return this.db.transaction(async (tx) => {
+      const [updated] = await tx
+        .update(bookings)
+        .set({
+          status: 'cancelled',
+          paymentStatus: input.outcome,
+          cancelledAt: new Date(),
+          cancelledBy: input.party,
+          refundRwf: input.refundRwf,
+          updatedAt: new Date(),
+        })
+        .where(
+          and(
+            eq(bookings.id, input.bookingId),
+            inArray(bookings.status, [...HOLDING_STATUSES]),
+          ),
+        )
+        .returning({ id: bookings.id, reference: bookings.reference });
+      if (!updated) return null;
+
+      await tx
+        .update(escrows)
+        .set({ status: input.outcome, updatedAt: new Date() })
+        .where(
+          and(
+            eq(escrows.bookingId, input.bookingId),
+            eq(escrows.source, 'booking'),
+            eq(escrows.status, 'held'),
+          ),
+        );
+      return updated;
     });
   }
 

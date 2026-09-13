@@ -162,7 +162,7 @@ export default async function PropertyMenuPage({
                       <div className="flex flex-col gap-1">
                         <div className="flex flex-wrap items-center gap-2">
                           {/* Struck rather than dropped, the same treatment
-                              `AmenitySection` gives a facility the house does
+                              `AmenityList` gives a facility the house does
                               not have: a reader who came for the goat
                               brochettes is answered, and a menu that silently
                               omits them leaves them asking at the desk. */}

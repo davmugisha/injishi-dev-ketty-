@@ -1,5 +1,5 @@
 /**
- * The officer's own decision log: `GET /api/v1/oversight/decisions` (ADR-049,
+ * The officer's own decision log: `GET /api/v1/oversight/decisions` (ADR-053,
  * AC-G6).
  *
  * The one client for it, beside `queue.ts`, so the console holds no second copy

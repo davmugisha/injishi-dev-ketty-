@@ -6,7 +6,7 @@ import {
 } from './tin-recheck';
 
 /**
- * ADR-049, AC-R5: a `pending` RRA check is retried on a backoff and stops at a
+ * ADR-053, AC-R5: a `pending` RRA check is retried on a backoff and stops at a
  * ceiling. These pin the table itself, because a wrong wait is invisible in
  * production until a business has been left waiting a day it was never meant to.
  */

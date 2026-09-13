@@ -21,7 +21,7 @@ export const RECHECK_PENDING_TINS = 'recheck-pending-tins';
 const SWEEP_EVERY_MS = 60_000;
 
 /**
- * The RRA TIN retry sweep (ADR-049, AC-R5).
+ * The RRA TIN retry sweep (ADR-053, AC-R5).
  *
  * Registered only in the worker process, like `NightAuditProcessor`, so the HTTP
  * process serves requests and never consumes jobs. The scheduler is upserted by

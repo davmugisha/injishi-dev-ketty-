@@ -116,11 +116,10 @@ export async function StaffBoundary({
   }
 
   // The resolved access goes to the client chrome as a prop, so the sidebar's
-  // first frame is already filtered on the server's `permissions[]` (ADR-049).
+  // first frame is already filtered on the server's `permissions[]` (ADR-053).
   return (
     <StaffAccessProvider access={access}>
-      <RoleLensSeed roles={access.roles} />
-      {children}
+      <RoleLensSeed roles={access.roles}>{children}</RoleLensSeed>
     </StaffAccessProvider>
   );
 }

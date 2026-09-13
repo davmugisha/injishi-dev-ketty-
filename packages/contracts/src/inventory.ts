@@ -4,8 +4,8 @@ import { Domain, Uuid } from "./primitives";
 /**
  * The operator write path for inventory (ADR-009).
  *
- * The public read shapes live in `booking.ts` (`PropertyDetail`,
- * `RoomTypeSummary`) and answer a guest's question: what can I book? These
+ * The public read shapes live in `property-detail.ts` (`PropertyDetail`) and
+ * `booking.ts` (`RoomTypeSummary`) and answer a guest's question: what can I book? These
  * answer an operator's: what do I have, and is it live? Two different questions,
  * two different shapes, so a draft property never accidentally serialises
  * through a public contract.
@@ -104,7 +104,7 @@ export const OperatorPropertySummary = z.object({
     id: Uuid,
     name: z.string(),
     /**
-     * The public address, minted at publish and never by a reader (ADR-049).
+     * The public address, minted at publish and never by a reader (ADR-053).
      *
      * Null until the first publish. It SURVIVES an unpublish on purpose, so a
      * republished property keeps the address every bookmark and search result
@@ -120,7 +120,7 @@ export const OperatorPropertySummary = z.object({
 });
 export type OperatorPropertySummary = z.infer<typeof OperatorPropertySummary>;
 /**
- * One photograph of a property (ADR-049).
+ * One photograph of a property (ADR-053).
  *
  * A ROW, not an entry in a `jsonb` array, and the difference is the whole
  * reason the migration exists. A row can carry an order that survives an edit,
@@ -145,7 +145,7 @@ export type PropertyPhoto = z.infer<typeof PropertyPhoto>;
 /**
  * One property in full, as its owner sees it.
  *
- * `photos` carries real rows since ADR-049. It used to be permanently empty
+ * `photos` carries real rows since ADR-053. It used to be permanently empty
  * with a comment saying object storage was unbuilt; F-S09 landed, photos became
  * a publish condition, and a `jsonb` array of keys could not carry a cover flag
  * or an order, so they became rows.
@@ -247,7 +247,7 @@ export const PublishBlocker = z.enum([
     "no_priced_room_type",
     "no_sellable_room",
     /**
-     * ADR-049. ADR-009's follow up said photos become required to publish once
+     * ADR-053. ADR-009's follow up said photos become required to publish once
      * F-S09 landed, and to revisit then. It landed, and the answer is yes: a
      * listing nobody can see is not a listing.
      */
@@ -283,7 +283,7 @@ export function stepForPublishBlocker(blocker: PublishBlocker): "registration" |
 // Writing a room type
 // ---------------------------------------------------------------------------
 /**
- * The room type write path (ADR-049, AC-I1).
+ * The room type write path (ADR-053, AC-I1).
  *
  * **A room type is WHAT THE GUEST GETS; a rate plan is THE TERMS IT SELLS ON.**
  * That distinction is `OperatorRatePlan`'s to teach, and this shape stays on the
@@ -361,7 +361,7 @@ export type OperatorRoomTypeList = z.infer<typeof OperatorRoomTypeList>;
 // Writing a rate plan
 // ---------------------------------------------------------------------------
 /**
- * The rate plan write path (ADR-049, AC-I2).
+ * The rate plan write path (ADR-053, AC-I2).
  *
  * `isDefault` is accepted and MOVES the flag rather than failing: an operator
  * changing which plan sells by default is an ordinary act, not an error, and the
@@ -397,7 +397,7 @@ export type UpdateRatePlanRequest = z.infer<typeof UpdateRatePlanRequest>;
 // Attaching a photograph
 // ---------------------------------------------------------------------------
 /**
- * Attach an already uploaded object to a property (ADR-049, AC-I3).
+ * Attach an already uploaded object to a property (ADR-053, AC-I3).
  *
  * The bytes went up first, at `POST /api/v1/uploads/property-photo`, and this
  * call carries the KEY. Two steps rather than one, for the reason the

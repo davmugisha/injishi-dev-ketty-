@@ -234,7 +234,7 @@ export class WorkspaceService {
   }
 
   /**
-   * The same grants, with the words the OFFICER'S CONSOLE renders (ADR-049, AC-G5).
+   * The same grants, with the words the OFFICER'S CONSOLE renders (ADR-053, AC-G5).
    *
    * A separate method from `oversightGrantsForUser` above rather than a widening
    * of it, because that one feeds `OversightGuard` and a scope check: three joins

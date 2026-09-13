@@ -1,6 +1,6 @@
 name: image
 
-# ADR-048 AC-9. Build the API image ONCE per green commit on `main` and push it
+# ADR-052 AC-9. Build the API image ONCE per green commit on `main` and push it
 # to GHCR tagged with that commit's short sha.
 #
 # Only the API. The three frontend Dockerfiles bake `NEXT_PUBLIC_*` and

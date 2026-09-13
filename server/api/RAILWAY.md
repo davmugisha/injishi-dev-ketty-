@@ -37,11 +37,11 @@ Three files drove the Railway build. Nothing else needed setting in the
 dashboard:
 
 - `railway.json` — builder, health check, the pre-deploy migration, restart
-  policy. **Deleted** by [ADR-048](../../../injishi.context/dox/adrs/048-ci-cd-pipeline/index.md) (AC-23).
+  policy. **Deleted** by [ADR-052](../../../injishi.context/dox/adrs/052-ci-cd-pipeline/index.md) (AC-23).
 - `railpack.json` — the build command and the start command. Railpack detected
   the pnpm workspace and wrote the install step itself; only the build was
   overridden, because the root `build` script builds the Next apps as well and
-  this service needs none of them. **Deleted** by ADR-048 (AC-23).
+  this service needs none of them. **Deleted** by ADR-052 (AC-23).
 - [`mise.toml`](../../mise.toml) — pins Node and pnpm. Still present, and now
   read by CI as well: `.github/actions/pnpm-setup` takes the Node version from
   it rather than retyping one into a workflow.
@@ -51,7 +51,7 @@ only record in this repository of the configuration that is, today, still
 serving `api.injishi.com`. Until the DNS cutover, a Railway redeploy would have
 no configuration to read. The RUNNING service is unaffected: nothing here
 reaches into Railway's dashboard. If you need those files back before cutover,
-they are in git history, at the commit before ADR-048 landed.
+they are in git history, at the commit before ADR-052 landed.
 
 ## 2. Variables
 
@@ -262,8 +262,8 @@ railway ssh --service api sh -c 'DATABASE_URL="$DEMO_DATABASE_URL" node server/a
 Order matters, and only the last one says so. `seed-users.mjs` grants the Host
 workspace by looking up the hospitality org that `seed-content.mjs` creates,
 and files the oversight assignment against a district that `seed-geography.mjs`
-creates. Run it first and it still succeeds — with `host@injishi.rw` and
-`localgov@injishi.rw` holding nothing, which is indistinguishable from a
+creates. Run it first and it still succeeds — with `host@injishi.com` and
+`localgov@injishi.com` holding nothing, which is indistinguishable from a
 broken sign-in until you read the log.
 
 ## 5. Health check
@@ -340,9 +340,9 @@ All six sign in with `123456`. Seeded by §4b, in that order.
 
 | Email | What it opens |
 | --- | --- |
-| `admin@injishi.rw` | personal + platform staff (super_admin) |
-| `host@injishi.rw` | personal + Umurage Hospitality Ltd (owner) |
-| `landlord@injishi.rw` | personal + Kigali Heights Residences (owner) |
-| `broker@injishi.rw` | personal + broker |
-| `guest@injishi.rw` | personal only |
-| `localgov@injishi.rw` | personal + district oversight assignment |
+| `admin@injishi.com` | personal + platform staff (super_admin) |
+| `host@injishi.com` | personal + Umurage Hospitality Ltd (owner) |
+| `landlord@injishi.com` | personal + Kigali Heights Residences (owner) |
+| `broker@injishi.com` | personal + broker |
+| `guest@injishi.com` | personal only |
+| `localgov@injishi.com` | personal + district oversight assignment |

@@ -31,7 +31,7 @@ import { tinAdapterProvider } from './infrastructure/tin-adapter.provider';
   // Step 1 of registration is a USER fact, not an ORG fact. This module
   // composes the user application service rather than writing `user_profiles`
   // itself, so the uniqueness rule on `identity_documents` has one owner.
-  // MailerModule for the owner claim invitation (ADR-049), mailed through the
+  // MailerModule for the owner claim invitation (ADR-053), mailed through the
   // same seam as every sign-in code.
   imports: [UserModule, MailerModule],
   providers: [
@@ -40,7 +40,7 @@ import { tinAdapterProvider } from './infrastructure/tin-adapter.provider';
     tinAdapterProvider(),
     RegistrationService,
     BrokerRegistrationService,
-    // The owner claim (FL02, ADR-049). The mailer resolves `WEB_URL` when it is
+    // The owner claim (FL02, ADR-053). The mailer resolves `WEB_URL` when it is
     // built, which is what makes a production boot without it a refusal.
     OwnerClaimRepository,
     OwnerClaimService,
@@ -50,7 +50,7 @@ import { tinAdapterProvider } from './infrastructure/tin-adapter.provider';
     // business, not what happened on the desk today.
     TeamRepository,
     TeamService,
-    // The RRA TIN retry sweep (ADR-049, AC-R5). Worker only, like the night
+    // The RRA TIN retry sweep (ADR-053, AC-R5). Worker only, like the night
     // audit, so an HTTP replica never consumes a job.
     ...(isWorkerProcess() ? [RegistrationTinRecheckProcessor] : []),
   ],

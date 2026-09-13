@@ -1,6 +1,6 @@
 name: deploy-staging
 
-# ADR-048 AC-11, AC-12, AC-18. Every green commit on `main` reaches staging with
+# ADR-052 AC-11, AC-12, AC-18. Every green commit on `main` reaches staging with
 # no human step, because staging is the thing production is promoted FROM: if a
 # person can skip it, "staging ran this commit" is not a fact production can be
 # gated on.

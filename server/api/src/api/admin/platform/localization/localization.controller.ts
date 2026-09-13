@@ -9,7 +9,7 @@ import { AdminLocalizationService } from './localization.service';
 /**
  * Localization → `GET /api/v1/admin/localization` (INTERFACE.md §14).
  *
- * `admin.localization.view` on the read (ADR-049), held by `super_admin`, `ops`
+ * `admin.localization.view` on the read (ADR-053), held by `super_admin`, `ops`
  * and `compliance`. Editing keeps `admin.localization.edit`. It used to borrow
  * the edit permission because no view permission existed.
  */

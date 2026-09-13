@@ -879,11 +879,11 @@ export declare const OperatorTicket: z.ZodObject<{
     createdAt: string;
     category: "other" | "plumbing" | "electrical" | "hvac" | "appliance" | "furniture" | "it_tech" | "safety" | null;
     resolvedAt: string | null;
-    description: string | null;
     roomId: string | null;
     leaseId: string | null;
     unitLabel: string | null;
     raisedByName: string | null;
+    description: string | null;
     priority: "low" | "normal" | "high" | "urgent";
     noteCount: number;
 }, {
@@ -893,11 +893,11 @@ export declare const OperatorTicket: z.ZodObject<{
     createdAt: string;
     category: "other" | "plumbing" | "electrical" | "hvac" | "appliance" | "furniture" | "it_tech" | "safety" | null;
     resolvedAt: string | null;
-    description: string | null;
     roomId: string | null;
     leaseId: string | null;
     unitLabel: string | null;
     raisedByName: string | null;
+    description: string | null;
     priority: "low" | "normal" | "high" | "urgent";
     noteCount: number;
 }>;
@@ -925,11 +925,11 @@ export declare const OperatorTicketList: z.ZodObject<{
         createdAt: string;
         category: "other" | "plumbing" | "electrical" | "hvac" | "appliance" | "furniture" | "it_tech" | "safety" | null;
         resolvedAt: string | null;
-        description: string | null;
         roomId: string | null;
         leaseId: string | null;
         unitLabel: string | null;
         raisedByName: string | null;
+        description: string | null;
         priority: "low" | "normal" | "high" | "urgent";
         noteCount: number;
     }, {
@@ -939,11 +939,11 @@ export declare const OperatorTicketList: z.ZodObject<{
         createdAt: string;
         category: "other" | "plumbing" | "electrical" | "hvac" | "appliance" | "furniture" | "it_tech" | "safety" | null;
         resolvedAt: string | null;
-        description: string | null;
         roomId: string | null;
         leaseId: string | null;
         unitLabel: string | null;
         raisedByName: string | null;
+        description: string | null;
         priority: "low" | "normal" | "high" | "urgent";
         noteCount: number;
     }>, "many">;
@@ -955,11 +955,11 @@ export declare const OperatorTicketList: z.ZodObject<{
         createdAt: string;
         category: "other" | "plumbing" | "electrical" | "hvac" | "appliance" | "furniture" | "it_tech" | "safety" | null;
         resolvedAt: string | null;
-        description: string | null;
         roomId: string | null;
         leaseId: string | null;
         unitLabel: string | null;
         raisedByName: string | null;
+        description: string | null;
         priority: "low" | "normal" | "high" | "urgent";
         noteCount: number;
     }[];
@@ -971,11 +971,11 @@ export declare const OperatorTicketList: z.ZodObject<{
         createdAt: string;
         category: "other" | "plumbing" | "electrical" | "hvac" | "appliance" | "furniture" | "it_tech" | "safety" | null;
         resolvedAt: string | null;
-        description: string | null;
         roomId: string | null;
         leaseId: string | null;
         unitLabel: string | null;
         raisedByName: string | null;
+        description: string | null;
         priority: "low" | "normal" | "high" | "urgent";
         noteCount: number;
     }[];
@@ -1715,6 +1715,13 @@ export declare const OperatorFolio: z.ZodObject<{
     guestName: z.ZodNullable<z.ZodString>;
     roomLabel: z.ZodNullable<z.ZodString>;
     balanceRwf: z.ZodNumber;
+    /**
+     * Which bill of the stay this is (ADR-050 D-c). A charge arriving after a
+     * bill was signed opens the next sequence, so a stay can hold several.
+     */
+    folioSequence: z.ZodNumber;
+    /** When the bill was signed. A locked bill takes no new line. */
+    lockedAt: z.ZodNullable<z.ZodString>;
     openedAt: z.ZodString;
     closedAt: z.ZodNullable<z.ZodString>;
 }, "strip", z.ZodTypeAny, {
@@ -1727,6 +1734,8 @@ export declare const OperatorFolio: z.ZodObject<{
     folioType: "guest" | "master" | "group" | "house";
     guestStayId: string | null;
     balanceRwf: number;
+    folioSequence: number;
+    lockedAt: string | null;
     openedAt: string;
     closedAt: string | null;
 }, {
@@ -1739,6 +1748,8 @@ export declare const OperatorFolio: z.ZodObject<{
     folioType: "guest" | "master" | "group" | "house";
     guestStayId: string | null;
     balanceRwf: number;
+    folioSequence: number;
+    lockedAt: string | null;
     openedAt: string;
     closedAt: string | null;
 }>;
@@ -1754,6 +1765,13 @@ export declare const OperatorFolioList: z.ZodObject<{
         guestName: z.ZodNullable<z.ZodString>;
         roomLabel: z.ZodNullable<z.ZodString>;
         balanceRwf: z.ZodNumber;
+        /**
+         * Which bill of the stay this is (ADR-050 D-c). A charge arriving after a
+         * bill was signed opens the next sequence, so a stay can hold several.
+         */
+        folioSequence: z.ZodNumber;
+        /** When the bill was signed. A locked bill takes no new line. */
+        lockedAt: z.ZodNullable<z.ZodString>;
         openedAt: z.ZodString;
         closedAt: z.ZodNullable<z.ZodString>;
     }, "strip", z.ZodTypeAny, {
@@ -1766,6 +1784,8 @@ export declare const OperatorFolioList: z.ZodObject<{
         folioType: "guest" | "master" | "group" | "house";
         guestStayId: string | null;
         balanceRwf: number;
+        folioSequence: number;
+        lockedAt: string | null;
         openedAt: string;
         closedAt: string | null;
     }, {
@@ -1778,6 +1798,8 @@ export declare const OperatorFolioList: z.ZodObject<{
         folioType: "guest" | "master" | "group" | "house";
         guestStayId: string | null;
         balanceRwf: number;
+        folioSequence: number;
+        lockedAt: string | null;
         openedAt: string;
         closedAt: string | null;
     }>, "many">;
@@ -1792,6 +1814,8 @@ export declare const OperatorFolioList: z.ZodObject<{
         folioType: "guest" | "master" | "group" | "house";
         guestStayId: string | null;
         balanceRwf: number;
+        folioSequence: number;
+        lockedAt: string | null;
         openedAt: string;
         closedAt: string | null;
     }[];
@@ -1806,6 +1830,8 @@ export declare const OperatorFolioList: z.ZodObject<{
         folioType: "guest" | "master" | "group" | "house";
         guestStayId: string | null;
         balanceRwf: number;
+        folioSequence: number;
+        lockedAt: string | null;
         openedAt: string;
         closedAt: string | null;
     }[];
@@ -1888,6 +1914,13 @@ export declare const OperatorFolioDetail: z.ZodObject<{
     guestName: z.ZodNullable<z.ZodString>;
     roomLabel: z.ZodNullable<z.ZodString>;
     balanceRwf: z.ZodNumber;
+    /**
+     * Which bill of the stay this is (ADR-050 D-c). A charge arriving after a
+     * bill was signed opens the next sequence, so a stay can hold several.
+     */
+    folioSequence: z.ZodNumber;
+    /** When the bill was signed. A locked bill takes no new line. */
+    lockedAt: z.ZodNullable<z.ZodString>;
     openedAt: z.ZodString;
     closedAt: z.ZodNullable<z.ZodString>;
 } & {
@@ -1978,6 +2011,8 @@ export declare const OperatorFolioDetail: z.ZodObject<{
     folioType: "guest" | "master" | "group" | "house";
     guestStayId: string | null;
     balanceRwf: number;
+    folioSequence: number;
+    lockedAt: string | null;
     openedAt: string;
     closedAt: string | null;
 }, {
@@ -2009,6 +2044,8 @@ export declare const OperatorFolioDetail: z.ZodObject<{
     folioType: "guest" | "master" | "group" | "house";
     guestStayId: string | null;
     balanceRwf: number;
+    folioSequence: number;
+    lockedAt: string | null;
     openedAt: string;
     closedAt: string | null;
 }>;
@@ -2052,6 +2089,163 @@ export declare const PostChargeRequest: z.ZodObject<{
 }>;
 export type PostChargeRequest = z.infer<typeof PostChargeRequest>;
 /**
+ * The bill a charge landed on (ADR-050 D-c).
+ *
+ * `openedFolioId` is set when the bill asked for had already been signed, so
+ * the charge went to the stay's next bill instead; the rest of the answer is
+ * THAT bill. Null for every ordinary charge.
+ */
+export declare const PostChargeResult: z.ZodObject<{
+    id: z.ZodString;
+    folioNumber: z.ZodString;
+    folioType: z.ZodEnum<["guest", "master", "group", "house"]>;
+    status: z.ZodEnum<["open", "settled", "closed", "disputed"]>;
+    guestStayId: z.ZodNullable<z.ZodString>;
+    bookingId: z.ZodNullable<z.ZodString>;
+    guestName: z.ZodNullable<z.ZodString>;
+    roomLabel: z.ZodNullable<z.ZodString>;
+    balanceRwf: z.ZodNumber;
+    /**
+     * Which bill of the stay this is (ADR-050 D-c). A charge arriving after a
+     * bill was signed opens the next sequence, so a stay can hold several.
+     */
+    folioSequence: z.ZodNumber;
+    /** When the bill was signed. A locked bill takes no new line. */
+    lockedAt: z.ZodNullable<z.ZodString>;
+    openedAt: z.ZodString;
+    closedAt: z.ZodNullable<z.ZodString>;
+} & {
+    charges: z.ZodArray<z.ZodObject<{
+        id: z.ZodString;
+        chargeType: z.ZodEnum<["room", "service_order", "pos", "tax", "service_charge", "adjustment", "discount", "deposit", "payment", "refund"]>;
+        description: z.ZodNullable<z.ZodString>;
+        departmentId: z.ZodNullable<z.ZodString>;
+        departmentName: z.ZodNullable<z.ZodString>;
+        quantity: z.ZodNumber;
+        unitPriceRwf: z.ZodNullable<z.ZodNumber>;
+        /** Signed, and tax exclusive. Tax is its own line. */
+        amountRwf: z.ZodNumber;
+        taxCode: z.ZodNullable<z.ZodEnum<["TAX_A", "TAX_B", "TAX_C", "TAX_D"]>>;
+        taxRate: z.ZodNullable<z.ZodNumber>;
+        taxAmountRwf: z.ZodNullable<z.ZodNumber>;
+        /** `manual`, `night_audit`, `service_order`, `external_pos`, or `void`. */
+        sourceRefType: z.ZodNullable<z.ZodString>;
+        sourceRefId: z.ZodNullable<z.ZodString>;
+        /** Set when another line reverses this one. */
+        voidedByChargeId: z.ZodNullable<z.ZodString>;
+        postedByUserId: z.ZodNullable<z.ZodString>;
+        businessDate: z.ZodNullable<z.ZodString>;
+        postedAt: z.ZodString;
+    }, "strip", z.ZodTypeAny, {
+        amountRwf: number;
+        id: string;
+        description: string | null;
+        chargeType: "payment" | "refund" | "room" | "service_order" | "pos" | "tax" | "service_charge" | "adjustment" | "discount" | "deposit";
+        departmentId: string | null;
+        departmentName: string | null;
+        quantity: number;
+        unitPriceRwf: number | null;
+        taxCode: "TAX_A" | "TAX_B" | "TAX_C" | "TAX_D" | null;
+        taxRate: number | null;
+        taxAmountRwf: number | null;
+        sourceRefType: string | null;
+        sourceRefId: string | null;
+        voidedByChargeId: string | null;
+        postedByUserId: string | null;
+        businessDate: string | null;
+        postedAt: string;
+    }, {
+        amountRwf: number;
+        id: string;
+        description: string | null;
+        chargeType: "payment" | "refund" | "room" | "service_order" | "pos" | "tax" | "service_charge" | "adjustment" | "discount" | "deposit";
+        departmentId: string | null;
+        departmentName: string | null;
+        quantity: number;
+        unitPriceRwf: number | null;
+        taxCode: "TAX_A" | "TAX_B" | "TAX_C" | "TAX_D" | null;
+        taxRate: number | null;
+        taxAmountRwf: number | null;
+        sourceRefType: string | null;
+        sourceRefId: string | null;
+        voidedByChargeId: string | null;
+        postedByUserId: string | null;
+        businessDate: string | null;
+        postedAt: string;
+    }>, "many">;
+} & {
+    openedFolioId: z.ZodNullable<z.ZodString>;
+}, "strip", z.ZodTypeAny, {
+    status: "open" | "closed" | "settled" | "disputed";
+    id: string;
+    guestName: string | null;
+    bookingId: string | null;
+    roomLabel: string | null;
+    charges: {
+        amountRwf: number;
+        id: string;
+        description: string | null;
+        chargeType: "payment" | "refund" | "room" | "service_order" | "pos" | "tax" | "service_charge" | "adjustment" | "discount" | "deposit";
+        departmentId: string | null;
+        departmentName: string | null;
+        quantity: number;
+        unitPriceRwf: number | null;
+        taxCode: "TAX_A" | "TAX_B" | "TAX_C" | "TAX_D" | null;
+        taxRate: number | null;
+        taxAmountRwf: number | null;
+        sourceRefType: string | null;
+        sourceRefId: string | null;
+        voidedByChargeId: string | null;
+        postedByUserId: string | null;
+        businessDate: string | null;
+        postedAt: string;
+    }[];
+    folioNumber: string;
+    folioType: "guest" | "master" | "group" | "house";
+    guestStayId: string | null;
+    balanceRwf: number;
+    folioSequence: number;
+    lockedAt: string | null;
+    openedAt: string;
+    closedAt: string | null;
+    openedFolioId: string | null;
+}, {
+    status: "open" | "closed" | "settled" | "disputed";
+    id: string;
+    guestName: string | null;
+    bookingId: string | null;
+    roomLabel: string | null;
+    charges: {
+        amountRwf: number;
+        id: string;
+        description: string | null;
+        chargeType: "payment" | "refund" | "room" | "service_order" | "pos" | "tax" | "service_charge" | "adjustment" | "discount" | "deposit";
+        departmentId: string | null;
+        departmentName: string | null;
+        quantity: number;
+        unitPriceRwf: number | null;
+        taxCode: "TAX_A" | "TAX_B" | "TAX_C" | "TAX_D" | null;
+        taxRate: number | null;
+        taxAmountRwf: number | null;
+        sourceRefType: string | null;
+        sourceRefId: string | null;
+        voidedByChargeId: string | null;
+        postedByUserId: string | null;
+        businessDate: string | null;
+        postedAt: string;
+    }[];
+    folioNumber: string;
+    folioType: "guest" | "master" | "group" | "house";
+    guestStayId: string | null;
+    balanceRwf: number;
+    folioSequence: number;
+    lockedAt: string | null;
+    openedAt: string;
+    closedAt: string | null;
+    openedFolioId: string | null;
+}>;
+export type PostChargeResult = z.infer<typeof PostChargeResult>;
+/**
  * Take a payment against a bill.
  *
  * Posts a negative `payment` line and one cash ledger entry. It never posts
@@ -2087,6 +2281,219 @@ export declare const VoidChargeRequest: z.ZodObject<{
     reason: string;
 }>;
 export type VoidChargeRequest = z.infer<typeof VoidChargeRequest>;
+/**
+ * Close a bill, which signs its sale (ADR-050 D-a).
+ *
+ * Both fields are optional: most guests are not businesses. A guest who wants
+ * the receipt made out to their company gives its TIN and name here, and §4 d
+ * and e put them on the receipt.
+ */
+export declare const CloseFolioRequest: z.ZodObject<{
+    customerTin: z.ZodOptional<z.ZodPipeline<z.ZodEffects<z.ZodString, string, string>, z.ZodString>>;
+    customerName: z.ZodOptional<z.ZodString>;
+}, "strip", z.ZodTypeAny, {
+    customerTin?: string | undefined;
+    customerName?: string | undefined;
+}, {
+    customerTin?: string | undefined;
+    customerName?: string | undefined;
+}>;
+export type CloseFolioRequest = z.infer<typeof CloseFolioRequest>;
+/**
+ * What closing a bill declared, and what it deliberately did not.
+ *
+ * `emissionId` is null only where nothing may be declared at all (the demo
+ * environment). `status` is `failed` with a `reason` when the business has no
+ * EBM connection: the close still succeeds, because a missing connection must
+ * never strand a front desk (D-b). `excludedChargeIds` are lines another
+ * taxpayer already declared, which this receipt must not cover again.
+ */
+export declare const FolioDeclaration: z.ZodObject<{
+    emissionId: z.ZodNullable<z.ZodString>;
+    status: z.ZodNullable<z.ZodEnum<["held", "failed", "emitted"]>>;
+    reason: z.ZodNullable<z.ZodString>;
+    excludedChargeIds: z.ZodArray<z.ZodString, "many">;
+}, "strip", z.ZodTypeAny, {
+    status: "failed" | "held" | "emitted" | null;
+    reason: string | null;
+    emissionId: string | null;
+    excludedChargeIds: string[];
+}, {
+    status: "failed" | "held" | "emitted" | null;
+    reason: string | null;
+    emissionId: string | null;
+    excludedChargeIds: string[];
+}>;
+export type FolioDeclaration = z.infer<typeof FolioDeclaration>;
+export declare const CloseFolioResult: z.ZodObject<{
+    id: z.ZodString;
+    folioNumber: z.ZodString;
+    folioType: z.ZodEnum<["guest", "master", "group", "house"]>;
+    status: z.ZodEnum<["open", "settled", "closed", "disputed"]>;
+    guestStayId: z.ZodNullable<z.ZodString>;
+    bookingId: z.ZodNullable<z.ZodString>;
+    guestName: z.ZodNullable<z.ZodString>;
+    roomLabel: z.ZodNullable<z.ZodString>;
+    balanceRwf: z.ZodNumber;
+    folioSequence: z.ZodNumber;
+    openedAt: z.ZodString;
+    closedAt: z.ZodNullable<z.ZodString>;
+    charges: z.ZodArray<z.ZodObject<{
+        id: z.ZodString;
+        chargeType: z.ZodEnum<["room", "service_order", "pos", "tax", "service_charge", "adjustment", "discount", "deposit", "payment", "refund"]>;
+        description: z.ZodNullable<z.ZodString>;
+        departmentId: z.ZodNullable<z.ZodString>;
+        departmentName: z.ZodNullable<z.ZodString>;
+        quantity: z.ZodNumber;
+        unitPriceRwf: z.ZodNullable<z.ZodNumber>;
+        /** Signed, and tax exclusive. Tax is its own line. */
+        amountRwf: z.ZodNumber;
+        taxCode: z.ZodNullable<z.ZodEnum<["TAX_A", "TAX_B", "TAX_C", "TAX_D"]>>;
+        taxRate: z.ZodNullable<z.ZodNumber>;
+        taxAmountRwf: z.ZodNullable<z.ZodNumber>;
+        /** `manual`, `night_audit`, `service_order`, `external_pos`, or `void`. */
+        sourceRefType: z.ZodNullable<z.ZodString>;
+        sourceRefId: z.ZodNullable<z.ZodString>;
+        /** Set when another line reverses this one. */
+        voidedByChargeId: z.ZodNullable<z.ZodString>;
+        postedByUserId: z.ZodNullable<z.ZodString>;
+        businessDate: z.ZodNullable<z.ZodString>;
+        postedAt: z.ZodString;
+    }, "strip", z.ZodTypeAny, {
+        amountRwf: number;
+        id: string;
+        description: string | null;
+        chargeType: "payment" | "refund" | "room" | "service_order" | "pos" | "tax" | "service_charge" | "adjustment" | "discount" | "deposit";
+        departmentId: string | null;
+        departmentName: string | null;
+        quantity: number;
+        unitPriceRwf: number | null;
+        taxCode: "TAX_A" | "TAX_B" | "TAX_C" | "TAX_D" | null;
+        taxRate: number | null;
+        taxAmountRwf: number | null;
+        sourceRefType: string | null;
+        sourceRefId: string | null;
+        voidedByChargeId: string | null;
+        postedByUserId: string | null;
+        businessDate: string | null;
+        postedAt: string;
+    }, {
+        amountRwf: number;
+        id: string;
+        description: string | null;
+        chargeType: "payment" | "refund" | "room" | "service_order" | "pos" | "tax" | "service_charge" | "adjustment" | "discount" | "deposit";
+        departmentId: string | null;
+        departmentName: string | null;
+        quantity: number;
+        unitPriceRwf: number | null;
+        taxCode: "TAX_A" | "TAX_B" | "TAX_C" | "TAX_D" | null;
+        taxRate: number | null;
+        taxAmountRwf: number | null;
+        sourceRefType: string | null;
+        sourceRefId: string | null;
+        voidedByChargeId: string | null;
+        postedByUserId: string | null;
+        businessDate: string | null;
+        postedAt: string;
+    }>, "many">;
+} & {
+    lockedAt: z.ZodNullable<z.ZodString>;
+    declaration: z.ZodObject<{
+        emissionId: z.ZodNullable<z.ZodString>;
+        status: z.ZodNullable<z.ZodEnum<["held", "failed", "emitted"]>>;
+        reason: z.ZodNullable<z.ZodString>;
+        excludedChargeIds: z.ZodArray<z.ZodString, "many">;
+    }, "strip", z.ZodTypeAny, {
+        status: "failed" | "held" | "emitted" | null;
+        reason: string | null;
+        emissionId: string | null;
+        excludedChargeIds: string[];
+    }, {
+        status: "failed" | "held" | "emitted" | null;
+        reason: string | null;
+        emissionId: string | null;
+        excludedChargeIds: string[];
+    }>;
+}, "strip", z.ZodTypeAny, {
+    status: "open" | "closed" | "settled" | "disputed";
+    id: string;
+    guestName: string | null;
+    bookingId: string | null;
+    roomLabel: string | null;
+    charges: {
+        amountRwf: number;
+        id: string;
+        description: string | null;
+        chargeType: "payment" | "refund" | "room" | "service_order" | "pos" | "tax" | "service_charge" | "adjustment" | "discount" | "deposit";
+        departmentId: string | null;
+        departmentName: string | null;
+        quantity: number;
+        unitPriceRwf: number | null;
+        taxCode: "TAX_A" | "TAX_B" | "TAX_C" | "TAX_D" | null;
+        taxRate: number | null;
+        taxAmountRwf: number | null;
+        sourceRefType: string | null;
+        sourceRefId: string | null;
+        voidedByChargeId: string | null;
+        postedByUserId: string | null;
+        businessDate: string | null;
+        postedAt: string;
+    }[];
+    folioNumber: string;
+    folioType: "guest" | "master" | "group" | "house";
+    guestStayId: string | null;
+    balanceRwf: number;
+    folioSequence: number;
+    lockedAt: string | null;
+    openedAt: string;
+    closedAt: string | null;
+    declaration: {
+        status: "failed" | "held" | "emitted" | null;
+        reason: string | null;
+        emissionId: string | null;
+        excludedChargeIds: string[];
+    };
+}, {
+    status: "open" | "closed" | "settled" | "disputed";
+    id: string;
+    guestName: string | null;
+    bookingId: string | null;
+    roomLabel: string | null;
+    charges: {
+        amountRwf: number;
+        id: string;
+        description: string | null;
+        chargeType: "payment" | "refund" | "room" | "service_order" | "pos" | "tax" | "service_charge" | "adjustment" | "discount" | "deposit";
+        departmentId: string | null;
+        departmentName: string | null;
+        quantity: number;
+        unitPriceRwf: number | null;
+        taxCode: "TAX_A" | "TAX_B" | "TAX_C" | "TAX_D" | null;
+        taxRate: number | null;
+        taxAmountRwf: number | null;
+        sourceRefType: string | null;
+        sourceRefId: string | null;
+        voidedByChargeId: string | null;
+        postedByUserId: string | null;
+        businessDate: string | null;
+        postedAt: string;
+    }[];
+    folioNumber: string;
+    folioType: "guest" | "master" | "group" | "house";
+    guestStayId: string | null;
+    balanceRwf: number;
+    folioSequence: number;
+    lockedAt: string | null;
+    openedAt: string;
+    closedAt: string | null;
+    declaration: {
+        status: "failed" | "held" | "emitted" | null;
+        reason: string | null;
+        emissionId: string | null;
+        excludedChargeIds: string[];
+    };
+}>;
+export type CloseFolioResult = z.infer<typeof CloseFolioResult>;
 /**
  * Which month of revenue to roll up. The property's current month when absent.
  *
@@ -2611,30 +3018,30 @@ export declare const RaiseTicketRequest: z.ZodEffects<z.ZodObject<{
 }, "strip", z.ZodTypeAny, {
     title: string;
     category?: "other" | "plumbing" | "electrical" | "hvac" | "appliance" | "furniture" | "it_tech" | "safety" | undefined;
-    description?: string | undefined;
     roomId?: string | undefined;
     leaseId?: string | undefined;
+    description?: string | undefined;
     priority?: "low" | "normal" | "high" | "urgent" | undefined;
 }, {
     title: string;
     category?: "other" | "plumbing" | "electrical" | "hvac" | "appliance" | "furniture" | "it_tech" | "safety" | undefined;
-    description?: string | undefined;
     roomId?: string | undefined;
     leaseId?: string | undefined;
+    description?: string | undefined;
     priority?: "low" | "normal" | "high" | "urgent" | undefined;
 }>, {
     title: string;
     category?: "other" | "plumbing" | "electrical" | "hvac" | "appliance" | "furniture" | "it_tech" | "safety" | undefined;
-    description?: string | undefined;
     roomId?: string | undefined;
     leaseId?: string | undefined;
+    description?: string | undefined;
     priority?: "low" | "normal" | "high" | "urgent" | undefined;
 }, {
     title: string;
     category?: "other" | "plumbing" | "electrical" | "hvac" | "appliance" | "furniture" | "it_tech" | "safety" | undefined;
-    description?: string | undefined;
     roomId?: string | undefined;
     leaseId?: string | undefined;
+    description?: string | undefined;
     priority?: "low" | "normal" | "high" | "urgent" | undefined;
 }>;
 export type RaiseTicketRequest = z.infer<typeof RaiseTicketRequest>;
@@ -2648,9 +3055,143 @@ export type ServiceOrderChannel = z.infer<typeof ServiceOrderChannel>;
  * `submitted -> acknowledged -> in_progress -> ready -> delivered ->
  * completed`, plus `submitted -> rejected`, and anything before `delivered` to
  * `cancelled`.
+ *
+ * A pay now order starts before the board sees it (ADR-050 D-n):
+ * `pending_payment -> submitted` when its money settles, or
+ * `pending_payment -> payment_failed` when it is refused or expires.
  */
-export declare const ServiceOrderStatus: z.ZodEnum<["submitted", "acknowledged", "in_progress", "ready", "delivered", "completed", "cancelled", "rejected"]>;
+export declare const ServiceOrderStatus: z.ZodEnum<["submitted", "acknowledged", "in_progress", "ready", "delivered", "completed", "cancelled", "rejected", "pending_payment", "payment_failed"]>;
 export type ServiceOrderStatus = z.infer<typeof ServiceOrderStatus>;
+/**
+ * When an order's money moves (ADR-050 D-n). `in_house_folio` posts to the
+ * guest's bill on `delivered`; `pay_now` settles first and never touches a bill.
+ */
+export declare const OrderContext: z.ZodEnum<["in_house_folio", "pay_now"]>;
+export type OrderContext = z.infer<typeof OrderContext>;
+/** `itemTyCd`, VSDC v1.0.5 §4.3: `1` raw material, `2` finished product, `3` service. */
+export declare const RraItemTypeCode: z.ZodEnum<["1", "2", "3"]>;
+export type RraItemTypeCode = z.infer<typeof RraItemTypeCode>;
+/** `itemClsCd`, a code from RRA's classification list (§3.3.2.2). Digits, CHAR 10 on an item. */
+export declare const RraClassificationCode: z.ZodString;
+/** `pkgUnitCd` (§4.5) or `qtyUnitCd` (§4.6): the Authority's own unit code, CHAR 5. */
+export declare const RraUnitCode: z.ZodString;
+/**
+ * One modifier on an item: a size, an extra, a choice of side (ADR-050 D-m).
+ *
+ * A chosen modifier is SNAPSHOTTED onto the order line with its price delta, so
+ * changing the menu never changes a placed order.
+ */
+export declare const ServiceItemOption: z.ZodObject<{
+    name: z.ZodString;
+    required: z.ZodDefault<z.ZodBoolean>;
+    maxChoices: z.ZodDefault<z.ZodNumber>;
+    choices: z.ZodArray<z.ZodObject<{
+        label: z.ZodString;
+        /** Tax exclusive, like the item's own price. May be zero or negative. */
+        priceDeltaRwf: z.ZodDefault<z.ZodNumber>;
+    }, "strip", z.ZodTypeAny, {
+        label: string;
+        priceDeltaRwf: number;
+    }, {
+        label: string;
+        priceDeltaRwf?: number | undefined;
+    }>, "many">;
+}, "strip", z.ZodTypeAny, {
+    name: string;
+    required: boolean;
+    maxChoices: number;
+    choices: {
+        label: string;
+        priceDeltaRwf: number;
+    }[];
+}, {
+    name: string;
+    choices: {
+        label: string;
+        priceDeltaRwf?: number | undefined;
+    }[];
+    required?: boolean | undefined;
+    maxChoices?: number | undefined;
+}>;
+export type ServiceItemOption = z.infer<typeof ServiceItemOption>;
+export declare const ServiceItemOptions: z.ZodArray<z.ZodObject<{
+    name: z.ZodString;
+    required: z.ZodDefault<z.ZodBoolean>;
+    maxChoices: z.ZodDefault<z.ZodNumber>;
+    choices: z.ZodArray<z.ZodObject<{
+        label: z.ZodString;
+        /** Tax exclusive, like the item's own price. May be zero or negative. */
+        priceDeltaRwf: z.ZodDefault<z.ZodNumber>;
+    }, "strip", z.ZodTypeAny, {
+        label: string;
+        priceDeltaRwf: number;
+    }, {
+        label: string;
+        priceDeltaRwf?: number | undefined;
+    }>, "many">;
+}, "strip", z.ZodTypeAny, {
+    name: string;
+    required: boolean;
+    maxChoices: number;
+    choices: {
+        label: string;
+        priceDeltaRwf: number;
+    }[];
+}, {
+    name: string;
+    choices: {
+        label: string;
+        priceDeltaRwf?: number | undefined;
+    }[];
+    required?: boolean | undefined;
+    maxChoices?: number | undefined;
+}>, "many">;
+export type ServiceItemOptions = z.infer<typeof ServiceItemOptions>;
+/** What a guest or a waiter picked for one option, by label. */
+export declare const SelectedOption: z.ZodObject<{
+    name: z.ZodString;
+    choices: z.ZodArray<z.ZodString, "many">;
+}, "strip", z.ZodTypeAny, {
+    name: string;
+    choices: string[];
+}, {
+    name: string;
+    choices: string[];
+}>;
+export type SelectedOption = z.infer<typeof SelectedOption>;
+/** A chosen option as the order line stores it: the labels AND the deltas, locked. */
+export declare const SelectedOptionSnapshot: z.ZodObject<{
+    name: z.ZodString;
+    choices: z.ZodArray<z.ZodObject<{
+        label: z.ZodString;
+        priceDeltaRwf: z.ZodNumber;
+    }, "strip", z.ZodTypeAny, {
+        label: string;
+        priceDeltaRwf: number;
+    }, {
+        label: string;
+        priceDeltaRwf: number;
+    }>, "many">;
+}, "strip", z.ZodTypeAny, {
+    name: string;
+    choices: {
+        label: string;
+        priceDeltaRwf: number;
+    }[];
+}, {
+    name: string;
+    choices: {
+        label: string;
+        priceDeltaRwf: number;
+    }[];
+}>;
+export type SelectedOptionSnapshot = z.infer<typeof SelectedOptionSnapshot>;
+/**
+ * The RRA values an item still lacks before it may be sold, by name. Empty
+ * means it may be sold. The server computes it; a screen only shows it.
+ */
+export declare const RraItemField: z.ZodEnum<["classification", "productType", "itemCode", "packagingUnit", "quantityUnit"]>;
+export type RraItemField = z.infer<typeof RraItemField>;
 export declare const OperatorServiceItem: z.ZodObject<{
     id: z.ZodString;
     serviceCategoryId: z.ZodString;
@@ -2664,7 +3205,61 @@ export declare const OperatorServiceItem: z.ZodObject<{
     guestOrderable: z.ZodBoolean;
     stockQty: z.ZodNullable<z.ZodNumber>;
     status: z.ZodEnum<["active", "out_of_stock", "archived"]>;
+    options: z.ZodArray<z.ZodObject<{
+        name: z.ZodString;
+        required: z.ZodDefault<z.ZodBoolean>;
+        maxChoices: z.ZodDefault<z.ZodNumber>;
+        choices: z.ZodArray<z.ZodObject<{
+            label: z.ZodString;
+            /** Tax exclusive, like the item's own price. May be zero or negative. */
+            priceDeltaRwf: z.ZodDefault<z.ZodNumber>;
+        }, "strip", z.ZodTypeAny, {
+            label: string;
+            priceDeltaRwf: number;
+        }, {
+            label: string;
+            priceDeltaRwf?: number | undefined;
+        }>, "many">;
+    }, "strip", z.ZodTypeAny, {
+        name: string;
+        required: boolean;
+        maxChoices: number;
+        choices: {
+            label: string;
+            priceDeltaRwf: number;
+        }[];
+    }, {
+        name: string;
+        choices: {
+            label: string;
+            priceDeltaRwf?: number | undefined;
+        }[];
+        required?: boolean | undefined;
+        maxChoices?: number | undefined;
+    }>, "many">;
+    rraItemClsCd: z.ZodNullable<z.ZodString>;
+    /** The classification's name, for a screen to show beside the code. */
+    rraItemClsName: z.ZodNullable<z.ZodString>;
+    rraItemTyCd: z.ZodNullable<z.ZodEnum<["1", "2", "3"]>>;
+    /** Minted by the server once, and never changed. */
+    rraItemCd: z.ZodNullable<z.ZodString>;
+    rraPkgUnitCd: z.ZodNullable<z.ZodString>;
+    rraQtyUnitCd: z.ZodNullable<z.ZodString>;
+    /**
+     * What still stops this item selling (ADR-050 D-m). An item flagged
+     * `guestOrderable` with anything listed here is refused on every channel.
+     */
+    missingRra: z.ZodArray<z.ZodEnum<["classification", "productType", "itemCode", "packagingUnit", "quantityUnit"]>, "many">;
 }, "strip", z.ZodTypeAny, {
+    options: {
+        name: string;
+        required: boolean;
+        maxChoices: number;
+        choices: {
+            label: string;
+            priceDeltaRwf: number;
+        }[];
+    }[];
     status: "active" | "archived" | "out_of_stock";
     id: string;
     name: string;
@@ -2677,7 +3272,23 @@ export declare const OperatorServiceItem: z.ZodObject<{
     prepTimeMinutes: number | null;
     guestOrderable: boolean;
     stockQty: number | null;
+    rraItemClsCd: string | null;
+    rraItemClsName: string | null;
+    rraItemTyCd: "1" | "2" | "3" | null;
+    rraItemCd: string | null;
+    rraPkgUnitCd: string | null;
+    rraQtyUnitCd: string | null;
+    missingRra: ("classification" | "productType" | "itemCode" | "packagingUnit" | "quantityUnit")[];
 }, {
+    options: {
+        name: string;
+        choices: {
+            label: string;
+            priceDeltaRwf?: number | undefined;
+        }[];
+        required?: boolean | undefined;
+        maxChoices?: number | undefined;
+    }[];
     status: "active" | "archived" | "out_of_stock";
     id: string;
     name: string;
@@ -2690,16 +3301,30 @@ export declare const OperatorServiceItem: z.ZodObject<{
     prepTimeMinutes: number | null;
     guestOrderable: boolean;
     stockQty: number | null;
+    rraItemClsCd: string | null;
+    rraItemClsName: string | null;
+    rraItemTyCd: "1" | "2" | "3" | null;
+    rraItemCd: string | null;
+    rraPkgUnitCd: string | null;
+    rraQtyUnitCd: string | null;
+    missingRra: ("classification" | "productType" | "itemCode" | "packagingUnit" | "quantityUnit")[];
 }>;
 export type OperatorServiceItem = z.infer<typeof OperatorServiceItem>;
 export declare const OperatorServiceCategory: z.ZodObject<{
     id: z.ZodString;
     departmentId: z.ZodString;
     departmentName: z.ZodNullable<z.ZodString>;
+    outletId: z.ZodNullable<z.ZodString>;
     name: z.ZodString;
     sortOrder: z.ZodNumber;
     guestVisible: z.ZodBoolean;
     status: z.ZodEnum<["active", "archived"]>;
+    /** Prefills for a new item on this menu. Never a rule. */
+    defaultRraItemClsCd: z.ZodNullable<z.ZodString>;
+    defaultRraItemTyCd: z.ZodNullable<z.ZodEnum<["1", "2", "3"]>>;
+    defaultRraPkgUnitCd: z.ZodNullable<z.ZodString>;
+    defaultRraQtyUnitCd: z.ZodNullable<z.ZodString>;
+    defaultTaxCode: z.ZodNullable<z.ZodEnum<["TAX_A", "TAX_B", "TAX_C", "TAX_D"]>>;
     items: z.ZodArray<z.ZodObject<{
         id: z.ZodString;
         serviceCategoryId: z.ZodString;
@@ -2713,7 +3338,61 @@ export declare const OperatorServiceCategory: z.ZodObject<{
         guestOrderable: z.ZodBoolean;
         stockQty: z.ZodNullable<z.ZodNumber>;
         status: z.ZodEnum<["active", "out_of_stock", "archived"]>;
+        options: z.ZodArray<z.ZodObject<{
+            name: z.ZodString;
+            required: z.ZodDefault<z.ZodBoolean>;
+            maxChoices: z.ZodDefault<z.ZodNumber>;
+            choices: z.ZodArray<z.ZodObject<{
+                label: z.ZodString;
+                /** Tax exclusive, like the item's own price. May be zero or negative. */
+                priceDeltaRwf: z.ZodDefault<z.ZodNumber>;
+            }, "strip", z.ZodTypeAny, {
+                label: string;
+                priceDeltaRwf: number;
+            }, {
+                label: string;
+                priceDeltaRwf?: number | undefined;
+            }>, "many">;
+        }, "strip", z.ZodTypeAny, {
+            name: string;
+            required: boolean;
+            maxChoices: number;
+            choices: {
+                label: string;
+                priceDeltaRwf: number;
+            }[];
+        }, {
+            name: string;
+            choices: {
+                label: string;
+                priceDeltaRwf?: number | undefined;
+            }[];
+            required?: boolean | undefined;
+            maxChoices?: number | undefined;
+        }>, "many">;
+        rraItemClsCd: z.ZodNullable<z.ZodString>;
+        /** The classification's name, for a screen to show beside the code. */
+        rraItemClsName: z.ZodNullable<z.ZodString>;
+        rraItemTyCd: z.ZodNullable<z.ZodEnum<["1", "2", "3"]>>;
+        /** Minted by the server once, and never changed. */
+        rraItemCd: z.ZodNullable<z.ZodString>;
+        rraPkgUnitCd: z.ZodNullable<z.ZodString>;
+        rraQtyUnitCd: z.ZodNullable<z.ZodString>;
+        /**
+         * What still stops this item selling (ADR-050 D-m). An item flagged
+         * `guestOrderable` with anything listed here is refused on every channel.
+         */
+        missingRra: z.ZodArray<z.ZodEnum<["classification", "productType", "itemCode", "packagingUnit", "quantityUnit"]>, "many">;
     }, "strip", z.ZodTypeAny, {
+        options: {
+            name: string;
+            required: boolean;
+            maxChoices: number;
+            choices: {
+                label: string;
+                priceDeltaRwf: number;
+            }[];
+        }[];
         status: "active" | "archived" | "out_of_stock";
         id: string;
         name: string;
@@ -2726,7 +3405,23 @@ export declare const OperatorServiceCategory: z.ZodObject<{
         prepTimeMinutes: number | null;
         guestOrderable: boolean;
         stockQty: number | null;
+        rraItemClsCd: string | null;
+        rraItemClsName: string | null;
+        rraItemTyCd: "1" | "2" | "3" | null;
+        rraItemCd: string | null;
+        rraPkgUnitCd: string | null;
+        rraQtyUnitCd: string | null;
+        missingRra: ("classification" | "productType" | "itemCode" | "packagingUnit" | "quantityUnit")[];
     }, {
+        options: {
+            name: string;
+            choices: {
+                label: string;
+                priceDeltaRwf?: number | undefined;
+            }[];
+            required?: boolean | undefined;
+            maxChoices?: number | undefined;
+        }[];
         status: "active" | "archived" | "out_of_stock";
         id: string;
         name: string;
@@ -2739,11 +3434,27 @@ export declare const OperatorServiceCategory: z.ZodObject<{
         prepTimeMinutes: number | null;
         guestOrderable: boolean;
         stockQty: number | null;
+        rraItemClsCd: string | null;
+        rraItemClsName: string | null;
+        rraItemTyCd: "1" | "2" | "3" | null;
+        rraItemCd: string | null;
+        rraPkgUnitCd: string | null;
+        rraQtyUnitCd: string | null;
+        missingRra: ("classification" | "productType" | "itemCode" | "packagingUnit" | "quantityUnit")[];
     }>, "many">;
 }, "strip", z.ZodTypeAny, {
     status: "active" | "archived";
     id: string;
     items: {
+        options: {
+            name: string;
+            required: boolean;
+            maxChoices: number;
+            choices: {
+                label: string;
+                priceDeltaRwf: number;
+            }[];
+        }[];
         status: "active" | "archived" | "out_of_stock";
         id: string;
         name: string;
@@ -2756,16 +3467,38 @@ export declare const OperatorServiceCategory: z.ZodObject<{
         prepTimeMinutes: number | null;
         guestOrderable: boolean;
         stockQty: number | null;
+        rraItemClsCd: string | null;
+        rraItemClsName: string | null;
+        rraItemTyCd: "1" | "2" | "3" | null;
+        rraItemCd: string | null;
+        rraPkgUnitCd: string | null;
+        rraQtyUnitCd: string | null;
+        missingRra: ("classification" | "productType" | "itemCode" | "packagingUnit" | "quantityUnit")[];
     }[];
     name: string;
     sortOrder: number;
     departmentId: string;
     departmentName: string | null;
+    outletId: string | null;
     guestVisible: boolean;
+    defaultRraItemClsCd: string | null;
+    defaultRraItemTyCd: "1" | "2" | "3" | null;
+    defaultRraPkgUnitCd: string | null;
+    defaultRraQtyUnitCd: string | null;
+    defaultTaxCode: "TAX_A" | "TAX_B" | "TAX_C" | "TAX_D" | null;
 }, {
     status: "active" | "archived";
     id: string;
     items: {
+        options: {
+            name: string;
+            choices: {
+                label: string;
+                priceDeltaRwf?: number | undefined;
+            }[];
+            required?: boolean | undefined;
+            maxChoices?: number | undefined;
+        }[];
         status: "active" | "archived" | "out_of_stock";
         id: string;
         name: string;
@@ -2778,12 +3511,25 @@ export declare const OperatorServiceCategory: z.ZodObject<{
         prepTimeMinutes: number | null;
         guestOrderable: boolean;
         stockQty: number | null;
+        rraItemClsCd: string | null;
+        rraItemClsName: string | null;
+        rraItemTyCd: "1" | "2" | "3" | null;
+        rraItemCd: string | null;
+        rraPkgUnitCd: string | null;
+        rraQtyUnitCd: string | null;
+        missingRra: ("classification" | "productType" | "itemCode" | "packagingUnit" | "quantityUnit")[];
     }[];
     name: string;
     sortOrder: number;
     departmentId: string;
     departmentName: string | null;
+    outletId: string | null;
     guestVisible: boolean;
+    defaultRraItemClsCd: string | null;
+    defaultRraItemTyCd: "1" | "2" | "3" | null;
+    defaultRraPkgUnitCd: string | null;
+    defaultRraQtyUnitCd: string | null;
+    defaultTaxCode: "TAX_A" | "TAX_B" | "TAX_C" | "TAX_D" | null;
 }>;
 export type OperatorServiceCategory = z.infer<typeof OperatorServiceCategory>;
 /** The whole menu, grouped, which is the only way anyone reads it. */
@@ -2792,10 +3538,17 @@ export declare const OperatorServiceCatalog: z.ZodObject<{
         id: z.ZodString;
         departmentId: z.ZodString;
         departmentName: z.ZodNullable<z.ZodString>;
+        outletId: z.ZodNullable<z.ZodString>;
         name: z.ZodString;
         sortOrder: z.ZodNumber;
         guestVisible: z.ZodBoolean;
         status: z.ZodEnum<["active", "archived"]>;
+        /** Prefills for a new item on this menu. Never a rule. */
+        defaultRraItemClsCd: z.ZodNullable<z.ZodString>;
+        defaultRraItemTyCd: z.ZodNullable<z.ZodEnum<["1", "2", "3"]>>;
+        defaultRraPkgUnitCd: z.ZodNullable<z.ZodString>;
+        defaultRraQtyUnitCd: z.ZodNullable<z.ZodString>;
+        defaultTaxCode: z.ZodNullable<z.ZodEnum<["TAX_A", "TAX_B", "TAX_C", "TAX_D"]>>;
         items: z.ZodArray<z.ZodObject<{
             id: z.ZodString;
             serviceCategoryId: z.ZodString;
@@ -2809,7 +3562,61 @@ export declare const OperatorServiceCatalog: z.ZodObject<{
             guestOrderable: z.ZodBoolean;
             stockQty: z.ZodNullable<z.ZodNumber>;
             status: z.ZodEnum<["active", "out_of_stock", "archived"]>;
+            options: z.ZodArray<z.ZodObject<{
+                name: z.ZodString;
+                required: z.ZodDefault<z.ZodBoolean>;
+                maxChoices: z.ZodDefault<z.ZodNumber>;
+                choices: z.ZodArray<z.ZodObject<{
+                    label: z.ZodString;
+                    /** Tax exclusive, like the item's own price. May be zero or negative. */
+                    priceDeltaRwf: z.ZodDefault<z.ZodNumber>;
+                }, "strip", z.ZodTypeAny, {
+                    label: string;
+                    priceDeltaRwf: number;
+                }, {
+                    label: string;
+                    priceDeltaRwf?: number | undefined;
+                }>, "many">;
+            }, "strip", z.ZodTypeAny, {
+                name: string;
+                required: boolean;
+                maxChoices: number;
+                choices: {
+                    label: string;
+                    priceDeltaRwf: number;
+                }[];
+            }, {
+                name: string;
+                choices: {
+                    label: string;
+                    priceDeltaRwf?: number | undefined;
+                }[];
+                required?: boolean | undefined;
+                maxChoices?: number | undefined;
+            }>, "many">;
+            rraItemClsCd: z.ZodNullable<z.ZodString>;
+            /** The classification's name, for a screen to show beside the code. */
+            rraItemClsName: z.ZodNullable<z.ZodString>;
+            rraItemTyCd: z.ZodNullable<z.ZodEnum<["1", "2", "3"]>>;
+            /** Minted by the server once, and never changed. */
+            rraItemCd: z.ZodNullable<z.ZodString>;
+            rraPkgUnitCd: z.ZodNullable<z.ZodString>;
+            rraQtyUnitCd: z.ZodNullable<z.ZodString>;
+            /**
+             * What still stops this item selling (ADR-050 D-m). An item flagged
+             * `guestOrderable` with anything listed here is refused on every channel.
+             */
+            missingRra: z.ZodArray<z.ZodEnum<["classification", "productType", "itemCode", "packagingUnit", "quantityUnit"]>, "many">;
         }, "strip", z.ZodTypeAny, {
+            options: {
+                name: string;
+                required: boolean;
+                maxChoices: number;
+                choices: {
+                    label: string;
+                    priceDeltaRwf: number;
+                }[];
+            }[];
             status: "active" | "archived" | "out_of_stock";
             id: string;
             name: string;
@@ -2822,7 +3629,23 @@ export declare const OperatorServiceCatalog: z.ZodObject<{
             prepTimeMinutes: number | null;
             guestOrderable: boolean;
             stockQty: number | null;
+            rraItemClsCd: string | null;
+            rraItemClsName: string | null;
+            rraItemTyCd: "1" | "2" | "3" | null;
+            rraItemCd: string | null;
+            rraPkgUnitCd: string | null;
+            rraQtyUnitCd: string | null;
+            missingRra: ("classification" | "productType" | "itemCode" | "packagingUnit" | "quantityUnit")[];
         }, {
+            options: {
+                name: string;
+                choices: {
+                    label: string;
+                    priceDeltaRwf?: number | undefined;
+                }[];
+                required?: boolean | undefined;
+                maxChoices?: number | undefined;
+            }[];
             status: "active" | "archived" | "out_of_stock";
             id: string;
             name: string;
@@ -2835,11 +3658,27 @@ export declare const OperatorServiceCatalog: z.ZodObject<{
             prepTimeMinutes: number | null;
             guestOrderable: boolean;
             stockQty: number | null;
+            rraItemClsCd: string | null;
+            rraItemClsName: string | null;
+            rraItemTyCd: "1" | "2" | "3" | null;
+            rraItemCd: string | null;
+            rraPkgUnitCd: string | null;
+            rraQtyUnitCd: string | null;
+            missingRra: ("classification" | "productType" | "itemCode" | "packagingUnit" | "quantityUnit")[];
         }>, "many">;
     }, "strip", z.ZodTypeAny, {
         status: "active" | "archived";
         id: string;
         items: {
+            options: {
+                name: string;
+                required: boolean;
+                maxChoices: number;
+                choices: {
+                    label: string;
+                    priceDeltaRwf: number;
+                }[];
+            }[];
             status: "active" | "archived" | "out_of_stock";
             id: string;
             name: string;
@@ -2852,16 +3691,38 @@ export declare const OperatorServiceCatalog: z.ZodObject<{
             prepTimeMinutes: number | null;
             guestOrderable: boolean;
             stockQty: number | null;
+            rraItemClsCd: string | null;
+            rraItemClsName: string | null;
+            rraItemTyCd: "1" | "2" | "3" | null;
+            rraItemCd: string | null;
+            rraPkgUnitCd: string | null;
+            rraQtyUnitCd: string | null;
+            missingRra: ("classification" | "productType" | "itemCode" | "packagingUnit" | "quantityUnit")[];
         }[];
         name: string;
         sortOrder: number;
         departmentId: string;
         departmentName: string | null;
+        outletId: string | null;
         guestVisible: boolean;
+        defaultRraItemClsCd: string | null;
+        defaultRraItemTyCd: "1" | "2" | "3" | null;
+        defaultRraPkgUnitCd: string | null;
+        defaultRraQtyUnitCd: string | null;
+        defaultTaxCode: "TAX_A" | "TAX_B" | "TAX_C" | "TAX_D" | null;
     }, {
         status: "active" | "archived";
         id: string;
         items: {
+            options: {
+                name: string;
+                choices: {
+                    label: string;
+                    priceDeltaRwf?: number | undefined;
+                }[];
+                required?: boolean | undefined;
+                maxChoices?: number | undefined;
+            }[];
             status: "active" | "archived" | "out_of_stock";
             id: string;
             name: string;
@@ -2874,18 +3735,40 @@ export declare const OperatorServiceCatalog: z.ZodObject<{
             prepTimeMinutes: number | null;
             guestOrderable: boolean;
             stockQty: number | null;
+            rraItemClsCd: string | null;
+            rraItemClsName: string | null;
+            rraItemTyCd: "1" | "2" | "3" | null;
+            rraItemCd: string | null;
+            rraPkgUnitCd: string | null;
+            rraQtyUnitCd: string | null;
+            missingRra: ("classification" | "productType" | "itemCode" | "packagingUnit" | "quantityUnit")[];
         }[];
         name: string;
         sortOrder: number;
         departmentId: string;
         departmentName: string | null;
+        outletId: string | null;
         guestVisible: boolean;
+        defaultRraItemClsCd: string | null;
+        defaultRraItemTyCd: "1" | "2" | "3" | null;
+        defaultRraPkgUnitCd: string | null;
+        defaultRraQtyUnitCd: string | null;
+        defaultTaxCode: "TAX_A" | "TAX_B" | "TAX_C" | "TAX_D" | null;
     }>, "many">;
 }, "strip", z.ZodTypeAny, {
     categories: {
         status: "active" | "archived";
         id: string;
         items: {
+            options: {
+                name: string;
+                required: boolean;
+                maxChoices: number;
+                choices: {
+                    label: string;
+                    priceDeltaRwf: number;
+                }[];
+            }[];
             status: "active" | "archived" | "out_of_stock";
             id: string;
             name: string;
@@ -2898,18 +3781,40 @@ export declare const OperatorServiceCatalog: z.ZodObject<{
             prepTimeMinutes: number | null;
             guestOrderable: boolean;
             stockQty: number | null;
+            rraItemClsCd: string | null;
+            rraItemClsName: string | null;
+            rraItemTyCd: "1" | "2" | "3" | null;
+            rraItemCd: string | null;
+            rraPkgUnitCd: string | null;
+            rraQtyUnitCd: string | null;
+            missingRra: ("classification" | "productType" | "itemCode" | "packagingUnit" | "quantityUnit")[];
         }[];
         name: string;
         sortOrder: number;
         departmentId: string;
         departmentName: string | null;
+        outletId: string | null;
         guestVisible: boolean;
+        defaultRraItemClsCd: string | null;
+        defaultRraItemTyCd: "1" | "2" | "3" | null;
+        defaultRraPkgUnitCd: string | null;
+        defaultRraQtyUnitCd: string | null;
+        defaultTaxCode: "TAX_A" | "TAX_B" | "TAX_C" | "TAX_D" | null;
     }[];
 }, {
     categories: {
         status: "active" | "archived";
         id: string;
         items: {
+            options: {
+                name: string;
+                choices: {
+                    label: string;
+                    priceDeltaRwf?: number | undefined;
+                }[];
+                required?: boolean | undefined;
+                maxChoices?: number | undefined;
+            }[];
             status: "active" | "archived" | "out_of_stock";
             id: string;
             name: string;
@@ -2922,41 +3827,134 @@ export declare const OperatorServiceCatalog: z.ZodObject<{
             prepTimeMinutes: number | null;
             guestOrderable: boolean;
             stockQty: number | null;
+            rraItemClsCd: string | null;
+            rraItemClsName: string | null;
+            rraItemTyCd: "1" | "2" | "3" | null;
+            rraItemCd: string | null;
+            rraPkgUnitCd: string | null;
+            rraQtyUnitCd: string | null;
+            missingRra: ("classification" | "productType" | "itemCode" | "packagingUnit" | "quantityUnit")[];
         }[];
         name: string;
         sortOrder: number;
         departmentId: string;
         departmentName: string | null;
+        outletId: string | null;
         guestVisible: boolean;
+        defaultRraItemClsCd: string | null;
+        defaultRraItemTyCd: "1" | "2" | "3" | null;
+        defaultRraPkgUnitCd: string | null;
+        defaultRraQtyUnitCd: string | null;
+        defaultTaxCode: "TAX_A" | "TAX_B" | "TAX_C" | "TAX_D" | null;
     }[];
 }>;
 export type OperatorServiceCatalog = z.infer<typeof OperatorServiceCatalog>;
 export declare const CreateServiceCategoryRequest: z.ZodObject<{
     propertyId: z.ZodString;
     departmentId: z.ZodString;
+    /** The outlet this menu sells from. Its items are listed to guests under it. */
+    outletId: z.ZodOptional<z.ZodString>;
     name: z.ZodString;
     guestVisible: z.ZodOptional<z.ZodBoolean>;
     sortOrder: z.ZodOptional<z.ZodNumber>;
+    defaultRraItemClsCd: z.ZodOptional<z.ZodString>;
+    defaultRraItemTyCd: z.ZodOptional<z.ZodEnum<["1", "2", "3"]>>;
+    defaultRraPkgUnitCd: z.ZodOptional<z.ZodString>;
+    defaultRraQtyUnitCd: z.ZodOptional<z.ZodString>;
+    defaultTaxCode: z.ZodOptional<z.ZodEnum<["TAX_A", "TAX_B", "TAX_C", "TAX_D"]>>;
 }, "strip", z.ZodTypeAny, {
     name: string;
     propertyId: string;
     departmentId: string;
     sortOrder?: number | undefined;
+    outletId?: string | undefined;
     guestVisible?: boolean | undefined;
+    defaultRraItemClsCd?: string | undefined;
+    defaultRraItemTyCd?: "1" | "2" | "3" | undefined;
+    defaultRraPkgUnitCd?: string | undefined;
+    defaultRraQtyUnitCd?: string | undefined;
+    defaultTaxCode?: "TAX_A" | "TAX_B" | "TAX_C" | "TAX_D" | undefined;
 }, {
     name: string;
     propertyId: string;
     departmentId: string;
     sortOrder?: number | undefined;
+    outletId?: string | undefined;
     guestVisible?: boolean | undefined;
+    defaultRraItemClsCd?: string | undefined;
+    defaultRraItemTyCd?: "1" | "2" | "3" | undefined;
+    defaultRraPkgUnitCd?: string | undefined;
+    defaultRraQtyUnitCd?: string | undefined;
+    defaultTaxCode?: "TAX_A" | "TAX_B" | "TAX_C" | "TAX_D" | undefined;
 }>;
 export type CreateServiceCategoryRequest = z.infer<typeof CreateServiceCategoryRequest>;
+/**
+ * Change a menu's name, visibility, order or prefills. The department and the
+ * property are absent on purpose, for the reason an item cannot change menus.
+ */
+export declare const UpdateServiceCategoryRequest: z.ZodEffects<z.ZodObject<{
+    name: z.ZodOptional<z.ZodString>;
+    sortOrder: z.ZodOptional<z.ZodOptional<z.ZodNumber>>;
+    outletId: z.ZodOptional<z.ZodOptional<z.ZodString>>;
+    guestVisible: z.ZodOptional<z.ZodOptional<z.ZodBoolean>>;
+    defaultRraItemClsCd: z.ZodOptional<z.ZodOptional<z.ZodString>>;
+    defaultRraItemTyCd: z.ZodOptional<z.ZodOptional<z.ZodEnum<["1", "2", "3"]>>>;
+    defaultRraPkgUnitCd: z.ZodOptional<z.ZodOptional<z.ZodString>>;
+    defaultRraQtyUnitCd: z.ZodOptional<z.ZodOptional<z.ZodString>>;
+    defaultTaxCode: z.ZodOptional<z.ZodOptional<z.ZodEnum<["TAX_A", "TAX_B", "TAX_C", "TAX_D"]>>>;
+}, "strip", z.ZodTypeAny, {
+    name?: string | undefined;
+    sortOrder?: number | undefined;
+    outletId?: string | undefined;
+    guestVisible?: boolean | undefined;
+    defaultRraItemClsCd?: string | undefined;
+    defaultRraItemTyCd?: "1" | "2" | "3" | undefined;
+    defaultRraPkgUnitCd?: string | undefined;
+    defaultRraQtyUnitCd?: string | undefined;
+    defaultTaxCode?: "TAX_A" | "TAX_B" | "TAX_C" | "TAX_D" | undefined;
+}, {
+    name?: string | undefined;
+    sortOrder?: number | undefined;
+    outletId?: string | undefined;
+    guestVisible?: boolean | undefined;
+    defaultRraItemClsCd?: string | undefined;
+    defaultRraItemTyCd?: "1" | "2" | "3" | undefined;
+    defaultRraPkgUnitCd?: string | undefined;
+    defaultRraQtyUnitCd?: string | undefined;
+    defaultTaxCode?: "TAX_A" | "TAX_B" | "TAX_C" | "TAX_D" | undefined;
+}>, {
+    name?: string | undefined;
+    sortOrder?: number | undefined;
+    outletId?: string | undefined;
+    guestVisible?: boolean | undefined;
+    defaultRraItemClsCd?: string | undefined;
+    defaultRraItemTyCd?: "1" | "2" | "3" | undefined;
+    defaultRraPkgUnitCd?: string | undefined;
+    defaultRraQtyUnitCd?: string | undefined;
+    defaultTaxCode?: "TAX_A" | "TAX_B" | "TAX_C" | "TAX_D" | undefined;
+}, {
+    name?: string | undefined;
+    sortOrder?: number | undefined;
+    outletId?: string | undefined;
+    guestVisible?: boolean | undefined;
+    defaultRraItemClsCd?: string | undefined;
+    defaultRraItemTyCd?: "1" | "2" | "3" | undefined;
+    defaultRraPkgUnitCd?: string | undefined;
+    defaultRraQtyUnitCd?: string | undefined;
+    defaultTaxCode?: "TAX_A" | "TAX_B" | "TAX_C" | "TAX_D" | undefined;
+}>;
+export type UpdateServiceCategoryRequest = z.infer<typeof UpdateServiceCategoryRequest>;
 /**
  * Add or change a menu item.
  *
  * Editing one never rewrites a placed order: an order snapshots the name, the
  * price and the tax code at order time (D8), so last week's bill still says
  * what last week's menu said.
+ *
+ * The four RRA values are the item's own (ADR-050 D-m): on create, any left
+ * out are prefilled from the category. `rraItemCd` is never accepted, because
+ * the server mints it. Turning `guestOrderable` on without every RRA value is
+ * refused with 422; left out on create, it is on exactly when they are all set.
  */
 export declare const UpsertServiceItemRequest: z.ZodObject<{
     serviceCategoryId: z.ZodString;
@@ -2967,32 +3965,145 @@ export declare const UpsertServiceItemRequest: z.ZodObject<{
     fulfillmentType: z.ZodOptional<z.ZodEnum<["in_room_delivery", "pickup", "appointment", "onsite", "instant"]>>;
     prepTimeMinutes: z.ZodOptional<z.ZodNumber>;
     guestOrderable: z.ZodOptional<z.ZodBoolean>;
-    stockQty: z.ZodOptional<z.ZodNumber>;
+    stockQty: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
     status: z.ZodOptional<z.ZodEnum<["active", "out_of_stock", "archived"]>>;
+    options: z.ZodOptional<z.ZodArray<z.ZodObject<{
+        name: z.ZodString;
+        required: z.ZodDefault<z.ZodBoolean>;
+        maxChoices: z.ZodDefault<z.ZodNumber>;
+        choices: z.ZodArray<z.ZodObject<{
+            label: z.ZodString;
+            /** Tax exclusive, like the item's own price. May be zero or negative. */
+            priceDeltaRwf: z.ZodDefault<z.ZodNumber>;
+        }, "strip", z.ZodTypeAny, {
+            label: string;
+            priceDeltaRwf: number;
+        }, {
+            label: string;
+            priceDeltaRwf?: number | undefined;
+        }>, "many">;
+    }, "strip", z.ZodTypeAny, {
+        name: string;
+        required: boolean;
+        maxChoices: number;
+        choices: {
+            label: string;
+            priceDeltaRwf: number;
+        }[];
+    }, {
+        name: string;
+        choices: {
+            label: string;
+            priceDeltaRwf?: number | undefined;
+        }[];
+        required?: boolean | undefined;
+        maxChoices?: number | undefined;
+    }>, "many">>;
+    rraItemClsCd: z.ZodOptional<z.ZodString>;
+    rraItemTyCd: z.ZodOptional<z.ZodEnum<["1", "2", "3"]>>;
+    rraPkgUnitCd: z.ZodOptional<z.ZodString>;
+    rraQtyUnitCd: z.ZodOptional<z.ZodString>;
 }, "strip", z.ZodTypeAny, {
     name: string;
     priceRwf: number;
     serviceCategoryId: string;
+    options?: {
+        name: string;
+        required: boolean;
+        maxChoices: number;
+        choices: {
+            label: string;
+            priceDeltaRwf: number;
+        }[];
+    }[] | undefined;
     status?: "active" | "archived" | "out_of_stock" | undefined;
     description?: string | undefined;
     taxCode?: "TAX_A" | "TAX_B" | "TAX_C" | "TAX_D" | undefined;
     fulfillmentType?: "in_room_delivery" | "pickup" | "appointment" | "onsite" | "instant" | undefined;
     prepTimeMinutes?: number | undefined;
     guestOrderable?: boolean | undefined;
-    stockQty?: number | undefined;
+    stockQty?: number | null | undefined;
+    rraItemClsCd?: string | undefined;
+    rraItemTyCd?: "1" | "2" | "3" | undefined;
+    rraPkgUnitCd?: string | undefined;
+    rraQtyUnitCd?: string | undefined;
 }, {
     name: string;
     priceRwf: number;
     serviceCategoryId: string;
+    options?: {
+        name: string;
+        choices: {
+            label: string;
+            priceDeltaRwf?: number | undefined;
+        }[];
+        required?: boolean | undefined;
+        maxChoices?: number | undefined;
+    }[] | undefined;
     status?: "active" | "archived" | "out_of_stock" | undefined;
     description?: string | undefined;
     taxCode?: "TAX_A" | "TAX_B" | "TAX_C" | "TAX_D" | undefined;
     fulfillmentType?: "in_room_delivery" | "pickup" | "appointment" | "onsite" | "instant" | undefined;
     prepTimeMinutes?: number | undefined;
     guestOrderable?: boolean | undefined;
-    stockQty?: number | undefined;
+    stockQty?: number | null | undefined;
+    rraItemClsCd?: string | undefined;
+    rraItemTyCd?: "1" | "2" | "3" | undefined;
+    rraPkgUnitCd?: string | undefined;
+    rraQtyUnitCd?: string | undefined;
 }>;
 export type UpsertServiceItemRequest = z.infer<typeof UpsertServiceItemRequest>;
+/** One row of RRA's classification list, for the menu's picker. */
+export declare const RraClassification: z.ZodObject<{
+    code: z.ZodString;
+    name: z.ZodString;
+    level: z.ZodNumber;
+}, "strip", z.ZodTypeAny, {
+    code: string;
+    name: string;
+    level: number;
+}, {
+    code: string;
+    name: string;
+    level: number;
+}>;
+export type RraClassification = z.infer<typeof RraClassification>;
+export declare const RraClassificationSearch: z.ZodObject<{
+    q: z.ZodDefault<z.ZodString>;
+}, "strip", z.ZodTypeAny, {
+    q: string;
+}, {
+    q?: string | undefined;
+}>;
+export type RraClassificationSearch = z.infer<typeof RraClassificationSearch>;
+export declare const RraClassificationList: z.ZodObject<{
+    classifications: z.ZodArray<z.ZodObject<{
+        code: z.ZodString;
+        name: z.ZodString;
+        level: z.ZodNumber;
+    }, "strip", z.ZodTypeAny, {
+        code: string;
+        name: string;
+        level: number;
+    }, {
+        code: string;
+        name: string;
+        level: number;
+    }>, "many">;
+}, "strip", z.ZodTypeAny, {
+    classifications: {
+        code: string;
+        name: string;
+        level: number;
+    }[];
+}, {
+    classifications: {
+        code: string;
+        name: string;
+        level: number;
+    }[];
+}>;
+export type RraClassificationList = z.infer<typeof RraClassificationList>;
 export declare const OperatorServiceOrderItem: z.ZodObject<{
     id: z.ZodString;
     serviceItemId: z.ZodNullable<z.ZodString>;
@@ -3002,6 +4113,32 @@ export declare const OperatorServiceOrderItem: z.ZodObject<{
     lineTotalRwf: z.ZodNumber;
     taxCode: z.ZodNullable<z.ZodEnum<["TAX_A", "TAX_B", "TAX_C", "TAX_D"]>>;
     note: z.ZodNullable<z.ZodString>;
+    /** The modifiers chosen, with the deltas locked when the order was placed. */
+    selectedOptions: z.ZodArray<z.ZodObject<{
+        name: z.ZodString;
+        choices: z.ZodArray<z.ZodObject<{
+            label: z.ZodString;
+            priceDeltaRwf: z.ZodNumber;
+        }, "strip", z.ZodTypeAny, {
+            label: string;
+            priceDeltaRwf: number;
+        }, {
+            label: string;
+            priceDeltaRwf: number;
+        }>, "many">;
+    }, "strip", z.ZodTypeAny, {
+        name: string;
+        choices: {
+            label: string;
+            priceDeltaRwf: number;
+        }[];
+    }, {
+        name: string;
+        choices: {
+            label: string;
+            priceDeltaRwf: number;
+        }[];
+    }>, "many">;
 }, "strip", z.ZodTypeAny, {
     id: string;
     note: string | null;
@@ -3011,6 +4148,13 @@ export declare const OperatorServiceOrderItem: z.ZodObject<{
     serviceItemId: string | null;
     nameSnapshot: string;
     lineTotalRwf: number;
+    selectedOptions: {
+        name: string;
+        choices: {
+            label: string;
+            priceDeltaRwf: number;
+        }[];
+    }[];
 }, {
     id: string;
     note: string | null;
@@ -3020,6 +4164,13 @@ export declare const OperatorServiceOrderItem: z.ZodObject<{
     serviceItemId: string | null;
     nameSnapshot: string;
     lineTotalRwf: number;
+    selectedOptions: {
+        name: string;
+        choices: {
+            label: string;
+            priceDeltaRwf: number;
+        }[];
+    }[];
 }>;
 export type OperatorServiceOrderItem = z.infer<typeof OperatorServiceOrderItem>;
 export declare const OperatorServiceOrder: z.ZodObject<{
@@ -3027,15 +4178,20 @@ export declare const OperatorServiceOrder: z.ZodObject<{
     orderNumber: z.ZodString;
     departmentId: z.ZodString;
     departmentName: z.ZodNullable<z.ZodString>;
+    outletId: z.ZodNullable<z.ZodString>;
     folioId: z.ZodNullable<z.ZodString>;
     roomId: z.ZodNullable<z.ZodString>;
     roomLabel: z.ZodNullable<z.ZodString>;
     channel: z.ZodEnum<["guest_app", "in_room_device", "front_desk", "staff", "api"]>;
-    status: z.ZodEnum<["submitted", "acknowledged", "in_progress", "ready", "delivered", "completed", "cancelled", "rejected"]>;
+    status: z.ZodEnum<["submitted", "acknowledged", "in_progress", "ready", "delivered", "completed", "cancelled", "rejected", "pending_payment", "payment_failed"]>;
+    orderContext: z.ZodEnum<["in_house_folio", "pay_now"]>;
     fulfillmentType: z.ZodEnum<["in_room_delivery", "pickup", "appointment", "onsite", "instant"]>;
     subtotalRwf: z.ZodNumber;
     taxRwf: z.ZodNumber;
     totalRwf: z.ZodNumber;
+    /** Pay now only: when its money settled, and the RRA means of payment (`01` cash, `06` mobile money). */
+    paidAt: z.ZodNullable<z.ZodString>;
+    paymentMethod: z.ZodNullable<z.ZodString>;
     guestNote: z.ZodNullable<z.ZodString>;
     createdAt: z.ZodString;
     items: z.ZodArray<z.ZodObject<{
@@ -3047,6 +4203,32 @@ export declare const OperatorServiceOrder: z.ZodObject<{
         lineTotalRwf: z.ZodNumber;
         taxCode: z.ZodNullable<z.ZodEnum<["TAX_A", "TAX_B", "TAX_C", "TAX_D"]>>;
         note: z.ZodNullable<z.ZodString>;
+        /** The modifiers chosen, with the deltas locked when the order was placed. */
+        selectedOptions: z.ZodArray<z.ZodObject<{
+            name: z.ZodString;
+            choices: z.ZodArray<z.ZodObject<{
+                label: z.ZodString;
+                priceDeltaRwf: z.ZodNumber;
+            }, "strip", z.ZodTypeAny, {
+                label: string;
+                priceDeltaRwf: number;
+            }, {
+                label: string;
+                priceDeltaRwf: number;
+            }>, "many">;
+        }, "strip", z.ZodTypeAny, {
+            name: string;
+            choices: {
+                label: string;
+                priceDeltaRwf: number;
+            }[];
+        }, {
+            name: string;
+            choices: {
+                label: string;
+                priceDeltaRwf: number;
+            }[];
+        }>, "many">;
     }, "strip", z.ZodTypeAny, {
         id: string;
         note: string | null;
@@ -3056,6 +4238,13 @@ export declare const OperatorServiceOrder: z.ZodObject<{
         serviceItemId: string | null;
         nameSnapshot: string;
         lineTotalRwf: number;
+        selectedOptions: {
+            name: string;
+            choices: {
+                label: string;
+                priceDeltaRwf: number;
+            }[];
+        }[];
     }, {
         id: string;
         note: string | null;
@@ -3065,9 +4254,16 @@ export declare const OperatorServiceOrder: z.ZodObject<{
         serviceItemId: string | null;
         nameSnapshot: string;
         lineTotalRwf: number;
+        selectedOptions: {
+            name: string;
+            choices: {
+                label: string;
+                priceDeltaRwf: number;
+            }[];
+        }[];
     }>, "many">;
 }, "strip", z.ZodTypeAny, {
-    status: "submitted" | "rejected" | "cancelled" | "in_progress" | "acknowledged" | "ready" | "delivered" | "completed";
+    status: "pending_payment" | "submitted" | "rejected" | "cancelled" | "in_progress" | "acknowledged" | "ready" | "delivered" | "completed" | "payment_failed";
     id: string;
     createdAt: string;
     items: {
@@ -3079,21 +4275,32 @@ export declare const OperatorServiceOrder: z.ZodObject<{
         serviceItemId: string | null;
         nameSnapshot: string;
         lineTotalRwf: number;
+        selectedOptions: {
+            name: string;
+            choices: {
+                label: string;
+                priceDeltaRwf: number;
+            }[];
+        }[];
     }[];
     totalRwf: number;
     roomId: string | null;
     roomLabel: string | null;
+    paidAt: string | null;
     departmentId: string;
     departmentName: string | null;
+    outletId: string | null;
     fulfillmentType: "in_room_delivery" | "pickup" | "appointment" | "onsite" | "instant";
     orderNumber: string;
     folioId: string | null;
     channel: "guest_app" | "in_room_device" | "front_desk" | "staff" | "api";
+    orderContext: "in_house_folio" | "pay_now";
     subtotalRwf: number;
     taxRwf: number;
+    paymentMethod: string | null;
     guestNote: string | null;
 }, {
-    status: "submitted" | "rejected" | "cancelled" | "in_progress" | "acknowledged" | "ready" | "delivered" | "completed";
+    status: "pending_payment" | "submitted" | "rejected" | "cancelled" | "in_progress" | "acknowledged" | "ready" | "delivered" | "completed" | "payment_failed";
     id: string;
     createdAt: string;
     items: {
@@ -3105,18 +4312,29 @@ export declare const OperatorServiceOrder: z.ZodObject<{
         serviceItemId: string | null;
         nameSnapshot: string;
         lineTotalRwf: number;
+        selectedOptions: {
+            name: string;
+            choices: {
+                label: string;
+                priceDeltaRwf: number;
+            }[];
+        }[];
     }[];
     totalRwf: number;
     roomId: string | null;
     roomLabel: string | null;
+    paidAt: string | null;
     departmentId: string;
     departmentName: string | null;
+    outletId: string | null;
     fulfillmentType: "in_room_delivery" | "pickup" | "appointment" | "onsite" | "instant";
     orderNumber: string;
     folioId: string | null;
     channel: "guest_app" | "in_room_device" | "front_desk" | "staff" | "api";
+    orderContext: "in_house_folio" | "pay_now";
     subtotalRwf: number;
     taxRwf: number;
+    paymentMethod: string | null;
     guestNote: string | null;
 }>;
 export type OperatorServiceOrder = z.infer<typeof OperatorServiceOrder>;
@@ -3126,15 +4344,20 @@ export declare const OperatorServiceOrderList: z.ZodObject<{
         orderNumber: z.ZodString;
         departmentId: z.ZodString;
         departmentName: z.ZodNullable<z.ZodString>;
+        outletId: z.ZodNullable<z.ZodString>;
         folioId: z.ZodNullable<z.ZodString>;
         roomId: z.ZodNullable<z.ZodString>;
         roomLabel: z.ZodNullable<z.ZodString>;
         channel: z.ZodEnum<["guest_app", "in_room_device", "front_desk", "staff", "api"]>;
-        status: z.ZodEnum<["submitted", "acknowledged", "in_progress", "ready", "delivered", "completed", "cancelled", "rejected"]>;
+        status: z.ZodEnum<["submitted", "acknowledged", "in_progress", "ready", "delivered", "completed", "cancelled", "rejected", "pending_payment", "payment_failed"]>;
+        orderContext: z.ZodEnum<["in_house_folio", "pay_now"]>;
         fulfillmentType: z.ZodEnum<["in_room_delivery", "pickup", "appointment", "onsite", "instant"]>;
         subtotalRwf: z.ZodNumber;
         taxRwf: z.ZodNumber;
         totalRwf: z.ZodNumber;
+        /** Pay now only: when its money settled, and the RRA means of payment (`01` cash, `06` mobile money). */
+        paidAt: z.ZodNullable<z.ZodString>;
+        paymentMethod: z.ZodNullable<z.ZodString>;
         guestNote: z.ZodNullable<z.ZodString>;
         createdAt: z.ZodString;
         items: z.ZodArray<z.ZodObject<{
@@ -3146,6 +4369,32 @@ export declare const OperatorServiceOrderList: z.ZodObject<{
             lineTotalRwf: z.ZodNumber;
             taxCode: z.ZodNullable<z.ZodEnum<["TAX_A", "TAX_B", "TAX_C", "TAX_D"]>>;
             note: z.ZodNullable<z.ZodString>;
+            /** The modifiers chosen, with the deltas locked when the order was placed. */
+            selectedOptions: z.ZodArray<z.ZodObject<{
+                name: z.ZodString;
+                choices: z.ZodArray<z.ZodObject<{
+                    label: z.ZodString;
+                    priceDeltaRwf: z.ZodNumber;
+                }, "strip", z.ZodTypeAny, {
+                    label: string;
+                    priceDeltaRwf: number;
+                }, {
+                    label: string;
+                    priceDeltaRwf: number;
+                }>, "many">;
+            }, "strip", z.ZodTypeAny, {
+                name: string;
+                choices: {
+                    label: string;
+                    priceDeltaRwf: number;
+                }[];
+            }, {
+                name: string;
+                choices: {
+                    label: string;
+                    priceDeltaRwf: number;
+                }[];
+            }>, "many">;
         }, "strip", z.ZodTypeAny, {
             id: string;
             note: string | null;
@@ -3155,6 +4404,13 @@ export declare const OperatorServiceOrderList: z.ZodObject<{
             serviceItemId: string | null;
             nameSnapshot: string;
             lineTotalRwf: number;
+            selectedOptions: {
+                name: string;
+                choices: {
+                    label: string;
+                    priceDeltaRwf: number;
+                }[];
+            }[];
         }, {
             id: string;
             note: string | null;
@@ -3164,9 +4420,16 @@ export declare const OperatorServiceOrderList: z.ZodObject<{
             serviceItemId: string | null;
             nameSnapshot: string;
             lineTotalRwf: number;
+            selectedOptions: {
+                name: string;
+                choices: {
+                    label: string;
+                    priceDeltaRwf: number;
+                }[];
+            }[];
         }>, "many">;
     }, "strip", z.ZodTypeAny, {
-        status: "submitted" | "rejected" | "cancelled" | "in_progress" | "acknowledged" | "ready" | "delivered" | "completed";
+        status: "pending_payment" | "submitted" | "rejected" | "cancelled" | "in_progress" | "acknowledged" | "ready" | "delivered" | "completed" | "payment_failed";
         id: string;
         createdAt: string;
         items: {
@@ -3178,21 +4441,32 @@ export declare const OperatorServiceOrderList: z.ZodObject<{
             serviceItemId: string | null;
             nameSnapshot: string;
             lineTotalRwf: number;
+            selectedOptions: {
+                name: string;
+                choices: {
+                    label: string;
+                    priceDeltaRwf: number;
+                }[];
+            }[];
         }[];
         totalRwf: number;
         roomId: string | null;
         roomLabel: string | null;
+        paidAt: string | null;
         departmentId: string;
         departmentName: string | null;
+        outletId: string | null;
         fulfillmentType: "in_room_delivery" | "pickup" | "appointment" | "onsite" | "instant";
         orderNumber: string;
         folioId: string | null;
         channel: "guest_app" | "in_room_device" | "front_desk" | "staff" | "api";
+        orderContext: "in_house_folio" | "pay_now";
         subtotalRwf: number;
         taxRwf: number;
+        paymentMethod: string | null;
         guestNote: string | null;
     }, {
-        status: "submitted" | "rejected" | "cancelled" | "in_progress" | "acknowledged" | "ready" | "delivered" | "completed";
+        status: "pending_payment" | "submitted" | "rejected" | "cancelled" | "in_progress" | "acknowledged" | "ready" | "delivered" | "completed" | "payment_failed";
         id: string;
         createdAt: string;
         items: {
@@ -3204,23 +4478,34 @@ export declare const OperatorServiceOrderList: z.ZodObject<{
             serviceItemId: string | null;
             nameSnapshot: string;
             lineTotalRwf: number;
+            selectedOptions: {
+                name: string;
+                choices: {
+                    label: string;
+                    priceDeltaRwf: number;
+                }[];
+            }[];
         }[];
         totalRwf: number;
         roomId: string | null;
         roomLabel: string | null;
+        paidAt: string | null;
         departmentId: string;
         departmentName: string | null;
+        outletId: string | null;
         fulfillmentType: "in_room_delivery" | "pickup" | "appointment" | "onsite" | "instant";
         orderNumber: string;
         folioId: string | null;
         channel: "guest_app" | "in_room_device" | "front_desk" | "staff" | "api";
+        orderContext: "in_house_folio" | "pay_now";
         subtotalRwf: number;
         taxRwf: number;
+        paymentMethod: string | null;
         guestNote: string | null;
     }>, "many">;
 }, "strip", z.ZodTypeAny, {
     orders: {
-        status: "submitted" | "rejected" | "cancelled" | "in_progress" | "acknowledged" | "ready" | "delivered" | "completed";
+        status: "pending_payment" | "submitted" | "rejected" | "cancelled" | "in_progress" | "acknowledged" | "ready" | "delivered" | "completed" | "payment_failed";
         id: string;
         createdAt: string;
         items: {
@@ -3232,23 +4517,34 @@ export declare const OperatorServiceOrderList: z.ZodObject<{
             serviceItemId: string | null;
             nameSnapshot: string;
             lineTotalRwf: number;
+            selectedOptions: {
+                name: string;
+                choices: {
+                    label: string;
+                    priceDeltaRwf: number;
+                }[];
+            }[];
         }[];
         totalRwf: number;
         roomId: string | null;
         roomLabel: string | null;
+        paidAt: string | null;
         departmentId: string;
         departmentName: string | null;
+        outletId: string | null;
         fulfillmentType: "in_room_delivery" | "pickup" | "appointment" | "onsite" | "instant";
         orderNumber: string;
         folioId: string | null;
         channel: "guest_app" | "in_room_device" | "front_desk" | "staff" | "api";
+        orderContext: "in_house_folio" | "pay_now";
         subtotalRwf: number;
         taxRwf: number;
+        paymentMethod: string | null;
         guestNote: string | null;
     }[];
 }, {
     orders: {
-        status: "submitted" | "rejected" | "cancelled" | "in_progress" | "acknowledged" | "ready" | "delivered" | "completed";
+        status: "pending_payment" | "submitted" | "rejected" | "cancelled" | "in_progress" | "acknowledged" | "ready" | "delivered" | "completed" | "payment_failed";
         id: string;
         createdAt: string;
         items: {
@@ -3260,53 +4556,92 @@ export declare const OperatorServiceOrderList: z.ZodObject<{
             serviceItemId: string | null;
             nameSnapshot: string;
             lineTotalRwf: number;
+            selectedOptions: {
+                name: string;
+                choices: {
+                    label: string;
+                    priceDeltaRwf: number;
+                }[];
+            }[];
         }[];
         totalRwf: number;
         roomId: string | null;
         roomLabel: string | null;
+        paidAt: string | null;
         departmentId: string;
         departmentName: string | null;
+        outletId: string | null;
         fulfillmentType: "in_room_delivery" | "pickup" | "appointment" | "onsite" | "instant";
         orderNumber: string;
         folioId: string | null;
         channel: "guest_app" | "in_room_device" | "front_desk" | "staff" | "api";
+        orderContext: "in_house_folio" | "pay_now";
         subtotalRwf: number;
         taxRwf: number;
+        paymentMethod: string | null;
         guestNote: string | null;
     }[];
 }>;
 export type OperatorServiceOrderList = z.infer<typeof OperatorServiceOrderList>;
 /**
- * Place an order against a stay.
+ * Place an order on a guest's behalf.
  *
  * The department is NOT asked for: it comes from the items, because an item
  * carries its own department and a caller who could choose would eventually
  * route a club sandwich to Engineering.
+ *
+ * `in_house_folio`, the default, charges a stay's bill and needs `guestStayId`.
+ * `pay_now` is a walk in at the counter (ADR-050 D-n): no stay and no bill, it
+ * waits `pending_payment` until someone marks it paid in cash.
  */
-export declare const CreateServiceOrderRequest: z.ZodObject<{
-    guestStayId: z.ZodString;
+export declare const CreateServiceOrderRequest: z.ZodEffects<z.ZodEffects<z.ZodObject<{
+    context: z.ZodDefault<z.ZodEnum<["in_house_folio", "pay_now"]>>;
+    guestStayId: z.ZodOptional<z.ZodString>;
     channel: z.ZodOptional<z.ZodEnum<["guest_app", "in_room_device", "front_desk", "staff", "api"]>>;
     guestNote: z.ZodOptional<z.ZodString>;
     items: z.ZodArray<z.ZodObject<{
         serviceItemId: z.ZodString;
         quantity: z.ZodNumber;
         note: z.ZodOptional<z.ZodString>;
+        selectedOptions: z.ZodOptional<z.ZodArray<z.ZodObject<{
+            name: z.ZodString;
+            choices: z.ZodArray<z.ZodString, "many">;
+        }, "strip", z.ZodTypeAny, {
+            name: string;
+            choices: string[];
+        }, {
+            name: string;
+            choices: string[];
+        }>, "many">>;
     }, "strip", z.ZodTypeAny, {
         quantity: number;
         serviceItemId: string;
         note?: string | undefined;
+        selectedOptions?: {
+            name: string;
+            choices: string[];
+        }[] | undefined;
     }, {
         quantity: number;
         serviceItemId: string;
         note?: string | undefined;
+        selectedOptions?: {
+            name: string;
+            choices: string[];
+        }[] | undefined;
     }>, "many">;
 }, "strip", z.ZodTypeAny, {
     items: {
         quantity: number;
         serviceItemId: string;
         note?: string | undefined;
+        selectedOptions?: {
+            name: string;
+            choices: string[];
+        }[] | undefined;
     }[];
-    guestStayId: string;
+    context: "in_house_folio" | "pay_now";
+    guestStayId?: string | undefined;
     channel?: "guest_app" | "in_room_device" | "front_desk" | "staff" | "api" | undefined;
     guestNote?: string | undefined;
 }, {
@@ -3314,12 +4649,259 @@ export declare const CreateServiceOrderRequest: z.ZodObject<{
         quantity: number;
         serviceItemId: string;
         note?: string | undefined;
+        selectedOptions?: {
+            name: string;
+            choices: string[];
+        }[] | undefined;
     }[];
-    guestStayId: string;
+    guestStayId?: string | undefined;
     channel?: "guest_app" | "in_room_device" | "front_desk" | "staff" | "api" | undefined;
     guestNote?: string | undefined;
+    context?: "in_house_folio" | "pay_now" | undefined;
+}>, {
+    items: {
+        quantity: number;
+        serviceItemId: string;
+        note?: string | undefined;
+        selectedOptions?: {
+            name: string;
+            choices: string[];
+        }[] | undefined;
+    }[];
+    context: "in_house_folio" | "pay_now";
+    guestStayId?: string | undefined;
+    channel?: "guest_app" | "in_room_device" | "front_desk" | "staff" | "api" | undefined;
+    guestNote?: string | undefined;
+}, {
+    items: {
+        quantity: number;
+        serviceItemId: string;
+        note?: string | undefined;
+        selectedOptions?: {
+            name: string;
+            choices: string[];
+        }[] | undefined;
+    }[];
+    guestStayId?: string | undefined;
+    channel?: "guest_app" | "in_room_device" | "front_desk" | "staff" | "api" | undefined;
+    guestNote?: string | undefined;
+    context?: "in_house_folio" | "pay_now" | undefined;
+}>, {
+    items: {
+        quantity: number;
+        serviceItemId: string;
+        note?: string | undefined;
+        selectedOptions?: {
+            name: string;
+            choices: string[];
+        }[] | undefined;
+    }[];
+    context: "in_house_folio" | "pay_now";
+    guestStayId?: string | undefined;
+    channel?: "guest_app" | "in_room_device" | "front_desk" | "staff" | "api" | undefined;
+    guestNote?: string | undefined;
+}, {
+    items: {
+        quantity: number;
+        serviceItemId: string;
+        note?: string | undefined;
+        selectedOptions?: {
+            name: string;
+            choices: string[];
+        }[] | undefined;
+    }[];
+    guestStayId?: string | undefined;
+    channel?: "guest_app" | "in_room_device" | "front_desk" | "staff" | "api" | undefined;
+    guestNote?: string | undefined;
+    context?: "in_house_folio" | "pay_now" | undefined;
 }>;
 export type CreateServiceOrderRequest = z.infer<typeof CreateServiceOrderRequest>;
+/**
+ * Mark a pay now order paid in cash (ADR-050 D-p, AC-24).
+ *
+ * `amountRwf` must be exactly the order's total. It is asked for rather than
+ * read, so the person holding the cash confirms the number they took, and a
+ * mismatch is refused instead of recorded.
+ */
+export declare const MarkOrderPaidCashRequest: z.ZodObject<{
+    amountRwf: z.ZodNumber;
+}, "strip", z.ZodTypeAny, {
+    amountRwf: number;
+}, {
+    amountRwf: number;
+}>;
+export type MarkOrderPaidCashRequest = z.infer<typeof MarkOrderPaidCashRequest>;
+/** What marking cash raised: the order, now `submitted`, and its `NS` emission. */
+export declare const MarkOrderPaidCashResult: z.ZodObject<{
+    id: z.ZodString;
+    orderNumber: z.ZodString;
+    departmentId: z.ZodString;
+    departmentName: z.ZodNullable<z.ZodString>;
+    outletId: z.ZodNullable<z.ZodString>;
+    folioId: z.ZodNullable<z.ZodString>;
+    roomId: z.ZodNullable<z.ZodString>;
+    roomLabel: z.ZodNullable<z.ZodString>;
+    channel: z.ZodEnum<["guest_app", "in_room_device", "front_desk", "staff", "api"]>;
+    status: z.ZodEnum<["submitted", "acknowledged", "in_progress", "ready", "delivered", "completed", "cancelled", "rejected", "pending_payment", "payment_failed"]>;
+    orderContext: z.ZodEnum<["in_house_folio", "pay_now"]>;
+    fulfillmentType: z.ZodEnum<["in_room_delivery", "pickup", "appointment", "onsite", "instant"]>;
+    subtotalRwf: z.ZodNumber;
+    taxRwf: z.ZodNumber;
+    totalRwf: z.ZodNumber;
+    /** Pay now only: when its money settled, and the RRA means of payment (`01` cash, `06` mobile money). */
+    paidAt: z.ZodNullable<z.ZodString>;
+    paymentMethod: z.ZodNullable<z.ZodString>;
+    guestNote: z.ZodNullable<z.ZodString>;
+    createdAt: z.ZodString;
+    items: z.ZodArray<z.ZodObject<{
+        id: z.ZodString;
+        serviceItemId: z.ZodNullable<z.ZodString>;
+        nameSnapshot: z.ZodString;
+        quantity: z.ZodNumber;
+        unitPriceRwf: z.ZodNumber;
+        lineTotalRwf: z.ZodNumber;
+        taxCode: z.ZodNullable<z.ZodEnum<["TAX_A", "TAX_B", "TAX_C", "TAX_D"]>>;
+        note: z.ZodNullable<z.ZodString>;
+        /** The modifiers chosen, with the deltas locked when the order was placed. */
+        selectedOptions: z.ZodArray<z.ZodObject<{
+            name: z.ZodString;
+            choices: z.ZodArray<z.ZodObject<{
+                label: z.ZodString;
+                priceDeltaRwf: z.ZodNumber;
+            }, "strip", z.ZodTypeAny, {
+                label: string;
+                priceDeltaRwf: number;
+            }, {
+                label: string;
+                priceDeltaRwf: number;
+            }>, "many">;
+        }, "strip", z.ZodTypeAny, {
+            name: string;
+            choices: {
+                label: string;
+                priceDeltaRwf: number;
+            }[];
+        }, {
+            name: string;
+            choices: {
+                label: string;
+                priceDeltaRwf: number;
+            }[];
+        }>, "many">;
+    }, "strip", z.ZodTypeAny, {
+        id: string;
+        note: string | null;
+        quantity: number;
+        unitPriceRwf: number;
+        taxCode: "TAX_A" | "TAX_B" | "TAX_C" | "TAX_D" | null;
+        serviceItemId: string | null;
+        nameSnapshot: string;
+        lineTotalRwf: number;
+        selectedOptions: {
+            name: string;
+            choices: {
+                label: string;
+                priceDeltaRwf: number;
+            }[];
+        }[];
+    }, {
+        id: string;
+        note: string | null;
+        quantity: number;
+        unitPriceRwf: number;
+        taxCode: "TAX_A" | "TAX_B" | "TAX_C" | "TAX_D" | null;
+        serviceItemId: string | null;
+        nameSnapshot: string;
+        lineTotalRwf: number;
+        selectedOptions: {
+            name: string;
+            choices: {
+                label: string;
+                priceDeltaRwf: number;
+            }[];
+        }[];
+    }>, "many">;
+} & {
+    /** Null in the demo environment, where nothing is declared. */
+    emissionId: z.ZodNullable<z.ZodString>;
+}, "strip", z.ZodTypeAny, {
+    status: "pending_payment" | "submitted" | "rejected" | "cancelled" | "in_progress" | "acknowledged" | "ready" | "delivered" | "completed" | "payment_failed";
+    id: string;
+    createdAt: string;
+    items: {
+        id: string;
+        note: string | null;
+        quantity: number;
+        unitPriceRwf: number;
+        taxCode: "TAX_A" | "TAX_B" | "TAX_C" | "TAX_D" | null;
+        serviceItemId: string | null;
+        nameSnapshot: string;
+        lineTotalRwf: number;
+        selectedOptions: {
+            name: string;
+            choices: {
+                label: string;
+                priceDeltaRwf: number;
+            }[];
+        }[];
+    }[];
+    totalRwf: number;
+    roomId: string | null;
+    roomLabel: string | null;
+    paidAt: string | null;
+    departmentId: string;
+    departmentName: string | null;
+    outletId: string | null;
+    emissionId: string | null;
+    fulfillmentType: "in_room_delivery" | "pickup" | "appointment" | "onsite" | "instant";
+    orderNumber: string;
+    folioId: string | null;
+    channel: "guest_app" | "in_room_device" | "front_desk" | "staff" | "api";
+    orderContext: "in_house_folio" | "pay_now";
+    subtotalRwf: number;
+    taxRwf: number;
+    paymentMethod: string | null;
+    guestNote: string | null;
+}, {
+    status: "pending_payment" | "submitted" | "rejected" | "cancelled" | "in_progress" | "acknowledged" | "ready" | "delivered" | "completed" | "payment_failed";
+    id: string;
+    createdAt: string;
+    items: {
+        id: string;
+        note: string | null;
+        quantity: number;
+        unitPriceRwf: number;
+        taxCode: "TAX_A" | "TAX_B" | "TAX_C" | "TAX_D" | null;
+        serviceItemId: string | null;
+        nameSnapshot: string;
+        lineTotalRwf: number;
+        selectedOptions: {
+            name: string;
+            choices: {
+                label: string;
+                priceDeltaRwf: number;
+            }[];
+        }[];
+    }[];
+    totalRwf: number;
+    roomId: string | null;
+    roomLabel: string | null;
+    paidAt: string | null;
+    departmentId: string;
+    departmentName: string | null;
+    outletId: string | null;
+    emissionId: string | null;
+    fulfillmentType: "in_room_delivery" | "pickup" | "appointment" | "onsite" | "instant";
+    orderNumber: string;
+    folioId: string | null;
+    channel: "guest_app" | "in_room_device" | "front_desk" | "staff" | "api";
+    orderContext: "in_house_folio" | "pay_now";
+    subtotalRwf: number;
+    taxRwf: number;
+    paymentMethod: string | null;
+    guestNote: string | null;
+}>;
+export type MarkOrderPaidCashResult = z.infer<typeof MarkOrderPaidCashResult>;
 /**
  * Move an order along its board.
  *
@@ -3327,13 +4909,13 @@ export type CreateServiceOrderRequest = z.infer<typeof CreateServiceOrderRequest
  * transaction, so the bill can never disagree with the board.
  */
 export declare const AdvanceServiceOrderRequest: z.ZodObject<{
-    to: z.ZodEnum<["submitted", "acknowledged", "in_progress", "ready", "delivered", "completed", "cancelled", "rejected"]>;
+    to: z.ZodEnum<["submitted", "acknowledged", "in_progress", "ready", "delivered", "completed", "cancelled", "rejected", "pending_payment", "payment_failed"]>;
     note: z.ZodOptional<z.ZodString>;
 }, "strip", z.ZodTypeAny, {
-    to: "submitted" | "rejected" | "cancelled" | "in_progress" | "acknowledged" | "ready" | "delivered" | "completed";
+    to: "pending_payment" | "submitted" | "rejected" | "cancelled" | "in_progress" | "acknowledged" | "ready" | "delivered" | "completed" | "payment_failed";
     note?: string | undefined;
 }, {
-    to: "submitted" | "rejected" | "cancelled" | "in_progress" | "acknowledged" | "ready" | "delivered" | "completed";
+    to: "pending_payment" | "submitted" | "rejected" | "cancelled" | "in_progress" | "acknowledged" | "ready" | "delivered" | "completed" | "payment_failed";
     note?: string | undefined;
 }>;
 export type AdvanceServiceOrderRequest = z.infer<typeof AdvanceServiceOrderRequest>;
@@ -3345,6 +4927,38 @@ export type AdvanceServiceOrderRequest = z.infer<typeof AdvanceServiceOrderReque
  * one would then disagree with the new one. Archive it and add a new one.
  */
 export declare const UpdateServiceItemRequest: z.ZodEffects<z.ZodObject<{
+    options: z.ZodOptional<z.ZodOptional<z.ZodArray<z.ZodObject<{
+        name: z.ZodString;
+        required: z.ZodDefault<z.ZodBoolean>;
+        maxChoices: z.ZodDefault<z.ZodNumber>;
+        choices: z.ZodArray<z.ZodObject<{
+            label: z.ZodString;
+            /** Tax exclusive, like the item's own price. May be zero or negative. */
+            priceDeltaRwf: z.ZodDefault<z.ZodNumber>;
+        }, "strip", z.ZodTypeAny, {
+            label: string;
+            priceDeltaRwf: number;
+        }, {
+            label: string;
+            priceDeltaRwf?: number | undefined;
+        }>, "many">;
+    }, "strip", z.ZodTypeAny, {
+        name: string;
+        required: boolean;
+        maxChoices: number;
+        choices: {
+            label: string;
+            priceDeltaRwf: number;
+        }[];
+    }, {
+        name: string;
+        choices: {
+            label: string;
+            priceDeltaRwf?: number | undefined;
+        }[];
+        required?: boolean | undefined;
+        maxChoices?: number | undefined;
+    }>, "many">>>;
     status: z.ZodOptional<z.ZodOptional<z.ZodEnum<["active", "out_of_stock", "archived"]>>>;
     name: z.ZodOptional<z.ZodString>;
     priceRwf: z.ZodOptional<z.ZodNumber>;
@@ -3353,8 +4967,21 @@ export declare const UpdateServiceItemRequest: z.ZodEffects<z.ZodObject<{
     fulfillmentType: z.ZodOptional<z.ZodOptional<z.ZodEnum<["in_room_delivery", "pickup", "appointment", "onsite", "instant"]>>>;
     prepTimeMinutes: z.ZodOptional<z.ZodOptional<z.ZodNumber>>;
     guestOrderable: z.ZodOptional<z.ZodOptional<z.ZodBoolean>>;
-    stockQty: z.ZodOptional<z.ZodOptional<z.ZodNumber>>;
+    stockQty: z.ZodOptional<z.ZodOptional<z.ZodNullable<z.ZodNumber>>>;
+    rraItemClsCd: z.ZodOptional<z.ZodOptional<z.ZodString>>;
+    rraItemTyCd: z.ZodOptional<z.ZodOptional<z.ZodEnum<["1", "2", "3"]>>>;
+    rraPkgUnitCd: z.ZodOptional<z.ZodOptional<z.ZodString>>;
+    rraQtyUnitCd: z.ZodOptional<z.ZodOptional<z.ZodString>>;
 }, "strip", z.ZodTypeAny, {
+    options?: {
+        name: string;
+        required: boolean;
+        maxChoices: number;
+        choices: {
+            label: string;
+            priceDeltaRwf: number;
+        }[];
+    }[] | undefined;
     status?: "active" | "archived" | "out_of_stock" | undefined;
     name?: string | undefined;
     priceRwf?: number | undefined;
@@ -3363,8 +4990,21 @@ export declare const UpdateServiceItemRequest: z.ZodEffects<z.ZodObject<{
     fulfillmentType?: "in_room_delivery" | "pickup" | "appointment" | "onsite" | "instant" | undefined;
     prepTimeMinutes?: number | undefined;
     guestOrderable?: boolean | undefined;
-    stockQty?: number | undefined;
+    stockQty?: number | null | undefined;
+    rraItemClsCd?: string | undefined;
+    rraItemTyCd?: "1" | "2" | "3" | undefined;
+    rraPkgUnitCd?: string | undefined;
+    rraQtyUnitCd?: string | undefined;
 }, {
+    options?: {
+        name: string;
+        choices: {
+            label: string;
+            priceDeltaRwf?: number | undefined;
+        }[];
+        required?: boolean | undefined;
+        maxChoices?: number | undefined;
+    }[] | undefined;
     status?: "active" | "archived" | "out_of_stock" | undefined;
     name?: string | undefined;
     priceRwf?: number | undefined;
@@ -3373,8 +5013,21 @@ export declare const UpdateServiceItemRequest: z.ZodEffects<z.ZodObject<{
     fulfillmentType?: "in_room_delivery" | "pickup" | "appointment" | "onsite" | "instant" | undefined;
     prepTimeMinutes?: number | undefined;
     guestOrderable?: boolean | undefined;
-    stockQty?: number | undefined;
+    stockQty?: number | null | undefined;
+    rraItemClsCd?: string | undefined;
+    rraItemTyCd?: "1" | "2" | "3" | undefined;
+    rraPkgUnitCd?: string | undefined;
+    rraQtyUnitCd?: string | undefined;
 }>, {
+    options?: {
+        name: string;
+        required: boolean;
+        maxChoices: number;
+        choices: {
+            label: string;
+            priceDeltaRwf: number;
+        }[];
+    }[] | undefined;
     status?: "active" | "archived" | "out_of_stock" | undefined;
     name?: string | undefined;
     priceRwf?: number | undefined;
@@ -3383,8 +5036,21 @@ export declare const UpdateServiceItemRequest: z.ZodEffects<z.ZodObject<{
     fulfillmentType?: "in_room_delivery" | "pickup" | "appointment" | "onsite" | "instant" | undefined;
     prepTimeMinutes?: number | undefined;
     guestOrderable?: boolean | undefined;
-    stockQty?: number | undefined;
+    stockQty?: number | null | undefined;
+    rraItemClsCd?: string | undefined;
+    rraItemTyCd?: "1" | "2" | "3" | undefined;
+    rraPkgUnitCd?: string | undefined;
+    rraQtyUnitCd?: string | undefined;
 }, {
+    options?: {
+        name: string;
+        choices: {
+            label: string;
+            priceDeltaRwf?: number | undefined;
+        }[];
+        required?: boolean | undefined;
+        maxChoices?: number | undefined;
+    }[] | undefined;
     status?: "active" | "archived" | "out_of_stock" | undefined;
     name?: string | undefined;
     priceRwf?: number | undefined;
@@ -3393,7 +5059,11 @@ export declare const UpdateServiceItemRequest: z.ZodEffects<z.ZodObject<{
     fulfillmentType?: "in_room_delivery" | "pickup" | "appointment" | "onsite" | "instant" | undefined;
     prepTimeMinutes?: number | undefined;
     guestOrderable?: boolean | undefined;
-    stockQty?: number | undefined;
+    stockQty?: number | null | undefined;
+    rraItemClsCd?: string | undefined;
+    rraItemTyCd?: "1" | "2" | "3" | undefined;
+    rraPkgUnitCd?: string | undefined;
+    rraQtyUnitCd?: string | undefined;
 }>;
 export type UpdateServiceItemRequest = z.infer<typeof UpdateServiceItemRequest>;
 /**

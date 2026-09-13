@@ -16,7 +16,7 @@
  * nobody counter-signs it on Injishi's behalf, and no copy of it leaves the
  * browser that generated it. What DOES leave is the fact of acceptance: the
  * wizard sends the version accepted, and the server records it with the
- * accepting account and the time (ADR-049, AC-R8). The drawn mark never leaves. Clause 9 says so inside the document itself rather
+ * accepting account and the time (ADR-053, AC-R8). The drawn mark never leaves. Clause 9 says so inside the document itself rather
  * than only on the screen, because the download is the artifact that outlives
  * the screen — a person who keeps the file and reads it a month later must find
  * the disclaimer in the file, not remember a notice they scrolled past.
@@ -54,7 +54,7 @@ export interface RegistrationContractInput {
   /**
    * The fee actually invoiced, through `formatRwf`.
    *
-   * The contract is signed BEFORE paying (ADR-049), which is exactly while
+   * The contract is signed BEFORE paying (ADR-053), which is exactly while
    * `RegistrationSummary.amountDueRwf` is reported, so this is the amount the
    * registrant is about to be charged. Still nullable, for an invoice the server
    * could not name; then the clause names no amount rather than quoting a

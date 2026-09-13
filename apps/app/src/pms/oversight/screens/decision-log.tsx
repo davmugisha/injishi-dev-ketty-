@@ -1,7 +1,7 @@
 "use client";
 
 /**
- * Decision log — what this officer has decided, newest first (ADR-049, AC-G6).
+ * Decision log — what this officer has decided, newest first (ADR-053, AC-G6).
  *
  * Read from `GET /api/v1/oversight/decisions`: this officer's OWN decisions and
  * nobody else's, each naming the business, what was done at which gate, the

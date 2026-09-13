@@ -25,7 +25,7 @@ import { ConfigurationAdminService } from './configuration.service';
  * anonymous when the session guard did not run first, so a wiring mistake is
  * noisy instead of looking like a working control.
  *
- * READING AND CHANGING ARE TWO PERMISSIONS (ADR-049). Both reads, the settings
+ * READING AND CHANGING ARE TWO PERMISSIONS (ADR-053). Both reads, the settings
  * with their flags and the fee catalog, sit behind `admin.config.view`, which
  * every staff role holds: configuration is the one area all four need context
  * from, and the fee amounts live here. The writes keep their own powers,
@@ -51,7 +51,7 @@ export class AdminConfigurationController {
   }
 
   /**
-   * Append a registration fee (ADR-049, AC-R9).
+   * Append a registration fee (ADR-053, AC-R9).
    *
    * Behind `admin.fee.edit`, which `finance` and `super_admin` hold; the read
    * above is `admin.config.view`. `201`: a row is created, and it is appended

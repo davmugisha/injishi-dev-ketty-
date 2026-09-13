@@ -54,7 +54,7 @@ import { DRIZZLE, type Database } from '../../../shared/database/database.module
  *
  * `seed-demo.mjs` mints every id it writes under this prefix precisely so
  * `--reset` can find exactly what it owns; this is the read half of that same
- * rule. Matching on the id rather than on the `@demo.injishi.rw` email domain
+ * rule. Matching on the id rather than on the `@demo.injishi.com` email domain
  * keeps the answer to "rows the seed wrote", which is the honest question, and
  * does not accidentally include a person who signed up with that domain.
  */

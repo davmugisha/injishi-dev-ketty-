@@ -1,5 +1,7 @@
+import { PAYMENT_PROMPT_TTL_SECONDS } from '@injishi/contracts';
+
 import { PaymentDeclinedError, type CaptureEscrowCommand } from '../domain/payment-port';
-import { MockPaymentAdapter } from './mock-payment.adapter';
+import { MockPaymentAdapter, decodeCaptureRef } from './mock-payment.adapter';
 
 /**
  * The mock behaving like a handset rail (ADR-047 D-j).
@@ -125,6 +127,43 @@ describe('MockPaymentAdapter — the mobile money rail', () => {
         }),
       ),
     ).rejects.toBeInstanceOf(PaymentDeclinedError);
+  });
+
+  /*
+   * The API is two processes with an adapter each. The worker's sweep asks
+   * about captures the HTTP process made, and used to be told they did not
+   * exist (booking audit, 2026-09-13).
+   */
+  it('lets another process read a capture it never made, settled on the same clock', async () => {
+    process.env.MOCK_MOMO_APPROVAL_MS = '40';
+    const http = new MockPaymentAdapter();
+    const worker = new MockPaymentAdapter();
+    const pending = await http.captureEscrow(capture());
+
+    expect((await worker.fetchTransaction(WORKSPACE, pending.adapterRef))?.settlement).toBe('pending');
+    await new Promise((r) => setTimeout(r, 60));
+    expect(await worker.fetchTransaction(WORKSPACE, pending.adapterRef)).toMatchObject({
+      settlement: 'settled',
+      amountRwf: 94_500,
+      adapterRef: pending.adapterRef,
+    });
+  });
+
+  it('keeps that cross process read scoped to the workspace in the reference', async () => {
+    const pending = await new MockPaymentAdapter().captureEscrow(capture());
+    expect(
+      await new MockPaymentAdapter().fetchTransaction('99999999-9999-9999-9999-999999999999', pending.adapterRef),
+    ).toBeNull();
+  });
+
+  it('has a slow approver who answers only after the prompt window', async () => {
+    delete process.env.MOCK_MOMO_APPROVAL_MS;
+    const adapter = new MockPaymentAdapter();
+    const pending = await adapter.captureEscrow(
+      capture({ instrument: { kind: 'mobile_money', network: 'mtn_momo', msisdn: '788129999' } }),
+    );
+    const settlesAt = decodeCaptureRef(pending.adapterRef)!.settlesAt;
+    expect(settlesAt - Date.now()).toBeGreaterThan(PAYMENT_PROMPT_TTL_SECONDS * 1_000);
   });
 
   it('keeps a pending capture scoped to its workspace', async () => {

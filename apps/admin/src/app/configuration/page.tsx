@@ -27,7 +27,7 @@ const PERMISSION = "admin.config.view";
  * printed as `[object Object]` is worse than one showing only its key, scope
  * and version — which are the three things this response can prove.
  *
- * Both lists are read behind `admin.config.view` (ADR-049), which every staff
+ * Both lists are read behind `admin.config.view` (ADR-053), which every staff
  * role holds; they used to borrow `admin.config.edit` because no view
  * permission existed, so only a Super Admin could look.
  */

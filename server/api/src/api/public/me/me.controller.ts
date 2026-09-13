@@ -11,6 +11,10 @@ import {
   UseGuards,
 } from '@nestjs/common';
 import type {
+  GuestOrderDetail,
+  GuestOrderList,
+  OrderPaymentAttemptStatus,
+  OrderableList,
   GuestMessage,
   GuestMessagePage,
   MyProfile,
@@ -22,6 +26,9 @@ import type {
 } from '@injishi/contracts';
 import {
   MessagePageQuery,
+  OrderableQuery,
+  PlaceOrderRequest,
+  PlaceOrderResult,
   PersonalDetails,
   SendGuestMessageInput,
   staffRequiresStepUp,
@@ -29,7 +36,10 @@ import {
 } from '@injishi/contracts';
 
 import { GuestTripsService } from '../../../modules/booking/application/guest-trips.service';
+import { PaymentAttemptService } from '../../../modules/booking/application/payment-attempt.service';
+import { GuestOrderingService } from '../../../modules/operations/application/guest-ordering.service';
 import { MessagingService } from '../../../modules/operations/application/messaging.service';
+import { IdempotencyKey } from '../../../shared/http/idempotency-key';
 import { ProfileService } from '../../../modules/user/application/profile.service';
 import { ZodValidationPipe } from '../../../shared/validation/zod-validation.pipe';
 
@@ -67,7 +77,104 @@ export class MeController {
     private readonly twoFactor: TwoFactorService,
     private readonly trips: GuestTripsService,
     private readonly messaging: MessagingService,
+    private readonly ordering: GuestOrderingService,
+    private readonly attempts: PaymentAttemptService,
   ) {}
+
+  /**
+   * Every outlet the caller may order from RIGHT NOW, with its live menu
+   * (ADR-050 D-o, AC-22).
+   *
+   * Session only, like every route here. Resolved on the server from the
+   * caller's open stays, each outlet's ordering policy, its hours and its
+   * stock, because the policy is the host's control and a filter in the client
+   * is not one. A guest staying nowhere gets an empty list, not a refusal.
+   */
+  @Get('orderable')
+  orderable(
+    @CurrentUser() user: SessionUser,
+    @Query(new ZodValidationPipe(OrderableQuery)) query: OrderableQuery,
+  ): Promise<OrderableList> {
+    return this.ordering.orderable(user.id, query);
+  }
+
+  /**
+   * Place an order (ADR-050 D-n, AC-19, AC-21).
+   *
+   * Charged to the caller's room, or paid now. The policy is enforced again
+   * here, before anything is written, whether or not the client hid the button.
+   * An `Idempotency-Key` is required: a phone on hotel wifi retries, and a
+   * retried order is two coffees on the bill.
+   *
+   * A pay now order on mobile money comes back with the attempt to poll, the
+   * way `POST /bookings` does; one waiting for cash comes back with none. The
+   * route composes the two because neither module should know the other's
+   * half: operations writes the order, booking owns the attempt.
+   */
+  @Post('orders')
+  async placeOrder(
+    @CurrentUser() user: SessionUser,
+    @Body(new ZodValidationPipe(PlaceOrderRequest)) body: PlaceOrderRequest,
+    @IdempotencyKey() key: string,
+  ): Promise<PlaceOrderResult> {
+    const placed = await this.ordering.place(user.id, body, key);
+    if (!placed.awaitingPayment || body.instrument?.kind !== 'mobile_money') {
+      return { ...placed.order, attempt: null };
+    }
+    const attempt = await this.attempts.beginForOrder({
+      orderId: placed.order.id,
+      workspaceId: placed.workspaceId,
+      guestUserId: user.id,
+      amountRwf: placed.order.totalRwf,
+      orderNumber: placed.order.orderNumber,
+      instrument: body.instrument,
+      clientKey: key,
+    });
+    // Re-read: settling at once, or a refusal, has moved the order since. The
+    // trail stays on `GET /me/orders/:id`; this answer is the order and its wait.
+    const order = await this.ordering.detail(user.id, placed.order.id);
+    return { ...PlaceOrderResult.omit({ attempt: true }).parse(order), attempt };
+  }
+
+  /** The caller's own orders, newest first, with status and payment state. */
+  @Get('orders')
+  myOrders(@CurrentUser() user: SessionUser): Promise<GuestOrderList> {
+    return this.ordering.list(user.id);
+  }
+
+  /**
+   * Where a pay now order's mobile money prompt got to (ADR-047 D-j shape).
+   * Declared before `orders/:id` so the literal segment is never read as an id.
+   */
+  @Get('orders/attempts/:token')
+  orderAttempt(
+    @CurrentUser() user: SessionUser,
+    @Param('token') token: string,
+  ): Promise<OrderPaymentAttemptStatus> {
+    return this.attempts.pollOrder(token, user.id);
+  }
+
+  /** One of the caller's own orders with its trail. 404 for anyone else's. */
+  @Get('orders/:id')
+  myOrder(
+    @CurrentUser() user: SessionUser,
+    @Param('id', ParseUUIDPipe) id: string,
+  ): Promise<GuestOrderDetail> {
+    return this.ordering.detail(user.id, id);
+  }
+
+  /**
+   * Cancel one of the caller's own orders, before money moves. A paid order is
+   * refused with a sentence sending them to the outlet: that is a refund.
+   */
+  @Post('orders/:id/cancel')
+  @HttpCode(200)
+  cancelOrder(
+    @CurrentUser() user: SessionUser,
+    @Param('id', ParseUUIDPipe) id: string,
+  ): Promise<GuestOrderDetail> {
+    return this.ordering.cancel(user.id, id);
+  }
 
   /**
    * The caller's own stays — every booking they hold, newest first.
@@ -230,7 +337,7 @@ export class MeController {
   ): Promise<{
     /**
      * Every seat this person holds, with the words their console renders
-     * (ADR-049, AC-G5).
+     * (ADR-053, AC-G5).
      *
      * It used to return the body CODE and nothing else resolvable, so the console
      * rendered the officer's name, institution, title and district from a static

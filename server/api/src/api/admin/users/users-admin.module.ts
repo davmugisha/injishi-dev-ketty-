@@ -54,7 +54,7 @@ import { AdminUsersController } from './users.controller';
     AdminComplianceController,
     AdminAuditController,
     AdminModerationController,
-    // The government body catalogue (ADR-049, AC-G4). Here, beside the grants
+    // The government body catalogue (ADR-053, AC-G4). Here, beside the grants
     // that choose a body, because a retired body is refused at grant time.
     AdminGovernmentBodiesController,
   ],
@@ -65,7 +65,7 @@ import { AdminUsersController } from './users.controller';
     // from the PII reader so each successful write's audit row lives in one
     // short file rather than among the reads.
     AdminUserActionsService,
-    // The oversight grant and revoke writes (ADR-049). Its own service rather
+    // The oversight grant and revoke writes (ADR-053). Its own service rather
     // than a third method on `AdminUserActionsService`, because the two scope
     // conflict rules it enforces are the longest reasoning in this area and do
     // not belong among the session and claim-code writes.

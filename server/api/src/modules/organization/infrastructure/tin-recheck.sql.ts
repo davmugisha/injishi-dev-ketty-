@@ -8,7 +8,7 @@ import {
 
 /**
  * The businesses held on an unanswered RRA check, with how many attempts they
- * have had (ADR-049, AC-R5).
+ * have had (ADR-053, AC-R5).
  *
  * ONE definition, read by two callers: the retry sweep, to decide what is due,
  * and admin's review queue, to flag what has stalled. Two copies of "how many

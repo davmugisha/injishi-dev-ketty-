@@ -1,6 +1,6 @@
 {
-  "id": "ee4a1083-ef1e-42fb-9917-82ee8a5b4508",
-  "prevId": "38f0e6a2-801e-422b-ad1c-7858745f59d0",
+  "id": "66fc9fc1-7503-4906-a498-234fb07f0411",
+  "prevId": "21c4c04f-8e69-4913-82a2-3789d7903ac3",
   "version": "7",
   "dialect": "postgresql",
   "tables": {
@@ -1659,8 +1659,7 @@
         },
         "status": {
           "name": "status",
-          "type": "org_membership_status",
-          "typeSchema": "public",
+          "type": "text",
           "primaryKey": false,
           "notNull": true,
           "default": "'active'"
@@ -1763,120 +1762,6 @@
       },
       "policies": {},
       "checkConstraints": {},
-      "isRLSEnabled": false
-    },
-    "public.org_registration_events": {
-      "name": "org_registration_events",
-      "schema": "",
-      "columns": {
-        "id": {
-          "name": "id",
-          "type": "uuid",
-          "primaryKey": true,
-          "notNull": true,
-          "default": "gen_random_uuid()"
-        },
-        "org_id": {
-          "name": "org_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "from_status": {
-          "name": "from_status",
-          "type": "org_registration_status",
-          "typeSchema": "public",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "to_status": {
-          "name": "to_status",
-          "type": "org_registration_status",
-          "typeSchema": "public",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "trigger": {
-          "name": "trigger",
-          "type": "registration_transition_trigger",
-          "typeSchema": "public",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "actor_user_id": {
-          "name": "actor_user_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "occurred_at": {
-          "name": "occurred_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "now()"
-        }
-      },
-      "indexes": {
-        "org_registration_events_org_idx": {
-          "name": "org_registration_events_org_idx",
-          "columns": [
-            {
-              "expression": "org_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            },
-            {
-              "expression": "occurred_at",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        }
-      },
-      "foreignKeys": {
-        "org_registration_events_org_id_orgs_id_fk": {
-          "name": "org_registration_events_org_id_orgs_id_fk",
-          "tableFrom": "org_registration_events",
-          "tableTo": "orgs",
-          "columnsFrom": [
-            "org_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
-        },
-        "org_registration_events_actor_user_id_users_id_fk": {
-          "name": "org_registration_events_actor_user_id_users_id_fk",
-          "tableFrom": "org_registration_events",
-          "tableTo": "users",
-          "columnsFrom": [
-            "actor_user_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "no action",
-          "onUpdate": "no action"
-        }
-      },
-      "compositePrimaryKeys": {},
-      "uniqueConstraints": {},
-      "policies": {},
-      "checkConstraints": {
-        "org_registration_events_actor_shape": {
-          "name": "org_registration_events_actor_shape",
-          "value": "(\"org_registration_events\".\"trigger\" = 'system' AND \"org_registration_events\".\"actor_user_id\" IS NULL)\n          OR (\"org_registration_events\".\"trigger\" <> 'system' AND \"org_registration_events\".\"actor_user_id\" IS NOT NULL)"
-        }
-      },
       "isRLSEnabled": false
     },
     "public.org_registration_reviews": {
@@ -2184,24 +2069,6 @@
           "primaryKey": false,
           "notNull": false
         },
-        "contract_version": {
-          "name": "contract_version",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "contract_accepted_at": {
-          "name": "contract_accepted_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "contract_accepted_by_user_id": {
-          "name": "contract_accepted_by_user_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": false
-        },
         "created_at": {
           "name": "created_at",
           "type": "timestamp with time zone",
@@ -2327,19 +2194,6 @@
           ],
           "onDelete": "no action",
           "onUpdate": "no action"
-        },
-        "orgs_contract_accepted_by_user_id_users_id_fk": {
-          "name": "orgs_contract_accepted_by_user_id_users_id_fk",
-          "tableFrom": "orgs",
-          "tableTo": "users",
-          "columnsFrom": [
-            "contract_accepted_by_user_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "no action",
-          "onUpdate": "no action"
         }
       },
       "compositePrimaryKeys": {},
@@ -2369,10 +2223,6 @@
         "orgs_eac_star_grade_range": {
           "name": "orgs_eac_star_grade_range",
           "value": "\"orgs\".\"eac_star_grade\" IS NULL OR (\"orgs\".\"eac_star_grade\" BETWEEN 1 AND 5)"
-        },
-        "orgs_contract_shape": {
-          "name": "orgs_contract_shape",
-          "value": "(\"orgs\".\"contract_version\" IS NULL AND \"orgs\".\"contract_accepted_at\" IS NULL AND \"orgs\".\"contract_accepted_by_user_id\" IS NULL)\n          OR (\"orgs\".\"contract_version\" IS NOT NULL AND \"orgs\".\"contract_accepted_at\" IS NOT NULL AND \"orgs\".\"contract_accepted_by_user_id\" IS NOT NULL)"
         }
       },
       "isRLSEnabled": false
@@ -4023,6 +3873,12 @@
           "primaryKey": false,
           "notNull": false
         },
+        "photo_object_keys": {
+          "name": "photo_object_keys",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": false
+        },
         "created_at": {
           "name": "created_at",
           "type": "timestamp with time zone",
@@ -4249,144 +4105,6 @@
           ]
         }
       },
-      "uniqueConstraints": {},
-      "policies": {},
-      "checkConstraints": {},
-      "isRLSEnabled": false
-    },
-    "public.property_photos": {
-      "name": "property_photos",
-      "schema": "",
-      "columns": {
-        "id": {
-          "name": "id",
-          "type": "uuid",
-          "primaryKey": true,
-          "notNull": true,
-          "default": "gen_random_uuid()"
-        },
-        "property_id": {
-          "name": "property_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "object_key": {
-          "name": "object_key",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "position": {
-          "name": "position",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "is_cover": {
-          "name": "is_cover",
-          "type": "boolean",
-          "primaryKey": false,
-          "notNull": true,
-          "default": false
-        },
-        "caption": {
-          "name": "caption",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "created_at": {
-          "name": "created_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "now()"
-        }
-      },
-      "indexes": {
-        "property_photos_property_idx": {
-          "name": "property_photos_property_idx",
-          "columns": [
-            {
-              "expression": "property_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        },
-        "property_photos_position_uk": {
-          "name": "property_photos_position_uk",
-          "columns": [
-            {
-              "expression": "property_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            },
-            {
-              "expression": "position",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": true,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        },
-        "property_photos_cover_uk": {
-          "name": "property_photos_cover_uk",
-          "columns": [
-            {
-              "expression": "property_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": true,
-          "where": "\"property_photos\".\"is_cover\"",
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        }
-      },
-      "foreignKeys": {
-        "property_photos_property_id_properties_id_fk": {
-          "name": "property_photos_property_id_properties_id_fk",
-          "tableFrom": "property_photos",
-          "tableTo": "properties",
-          "columnsFrom": [
-            "property_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
-        },
-        "property_photos_object_key_stored_objects_object_key_fk": {
-          "name": "property_photos_object_key_stored_objects_object_key_fk",
-          "tableFrom": "property_photos",
-          "tableTo": "stored_objects",
-          "columnsFrom": [
-            "object_key"
-          ],
-          "columnsTo": [
-            "object_key"
-          ],
-          "onDelete": "no action",
-          "onUpdate": "no action"
-        }
-      },
-      "compositePrimaryKeys": {},
       "uniqueConstraints": {},
       "policies": {},
       "checkConstraints": {},
@@ -16293,6 +16011,1429 @@
         }
       },
       "isRLSEnabled": false
+    },
+    "public.waitlist_signups": {
+      "name": "waitlist_signups",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "audience": {
+          "name": "audience",
+          "type": "waitlist_audience",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "email": {
+          "name": "email",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "full_name": {
+          "name": "full_name",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "phone": {
+          "name": "phone",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "business_name": {
+          "name": "business_name",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "district_id": {
+          "name": "district_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "property_type": {
+          "name": "property_type",
+          "type": "waitlist_property_type",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "size_band": {
+          "name": "size_band",
+          "type": "waitlist_size_band",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "marketing_opt_in": {
+          "name": "marketing_opt_in",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "default": false
+        },
+        "unsubscribe_token": {
+          "name": "unsubscribe_token",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "invited_at": {
+          "name": "invited_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "unsubscribed_at": {
+          "name": "unsubscribed_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "waitlist_signups_email_uk": {
+          "name": "waitlist_signups_email_uk",
+          "columns": [
+            {
+              "expression": "lower(\"email\")",
+              "asc": true,
+              "isExpression": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "waitlist_signups_unsubscribe_token_uk": {
+          "name": "waitlist_signups_unsubscribe_token_uk",
+          "columns": [
+            {
+              "expression": "unsubscribe_token",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "waitlist_signups_created_at_idx": {
+          "name": "waitlist_signups_created_at_idx",
+          "columns": [
+            {
+              "expression": "created_at",
+              "isExpression": false,
+              "asc": false,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "waitlist_signups_district_idx": {
+          "name": "waitlist_signups_district_idx",
+          "columns": [
+            {
+              "expression": "district_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "waitlist_signups_district_id_districts_id_fk": {
+          "name": "waitlist_signups_district_id_districts_id_fk",
+          "tableFrom": "waitlist_signups",
+          "tableTo": "districts",
+          "columnsFrom": [
+            "district_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {
+        "waitlist_owner_complete": {
+          "name": "waitlist_owner_complete",
+          "value": "(\"waitlist_signups\".\"audience\" <> 'owner') OR (\n        \"waitlist_signups\".\"phone\" IS NOT NULL\n        AND \"waitlist_signups\".\"business_name\" IS NOT NULL\n        AND \"waitlist_signups\".\"district_id\" IS NOT NULL\n        AND \"waitlist_signups\".\"property_type\" IS NOT NULL\n        AND \"waitlist_signups\".\"size_band\" IS NOT NULL\n      )"
+        },
+        "waitlist_owner_phone_rw": {
+          "name": "waitlist_owner_phone_rw",
+          "value": "(\"waitlist_signups\".\"audience\" <> 'owner') OR (\"waitlist_signups\".\"phone\" ~ '^[+]250(72|73|78|79)[0-9]{7}$')"
+        }
+      },
+      "isRLSEnabled": false
+    },
+    "public.training_attendance_decisions": {
+      "name": "training_attendance_decisions",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "registration_id": {
+          "name": "registration_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "session_id": {
+          "name": "session_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "decision": {
+          "name": "decision",
+          "type": "training_attendance_decision",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "decided_by": {
+          "name": "decided_by",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "decided_at": {
+          "name": "decided_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "reason": {
+          "name": "reason",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "idempotency_key": {
+          "name": "idempotency_key",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "training_attendance_decisions_registration_idx": {
+          "name": "training_attendance_decisions_registration_idx",
+          "columns": [
+            {
+              "expression": "registration_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "decided_at",
+              "isExpression": false,
+              "asc": false,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "training_attendance_decisions_session_idx": {
+          "name": "training_attendance_decisions_session_idx",
+          "columns": [
+            {
+              "expression": "session_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "training_attendance_decisions_registration_id_training_registrations_id_fk": {
+          "name": "training_attendance_decisions_registration_id_training_registrations_id_fk",
+          "tableFrom": "training_attendance_decisions",
+          "tableTo": "training_registrations",
+          "columnsFrom": [
+            "registration_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "training_attendance_decisions_session_id_training_sessions_id_fk": {
+          "name": "training_attendance_decisions_session_id_training_sessions_id_fk",
+          "tableFrom": "training_attendance_decisions",
+          "tableTo": "training_sessions",
+          "columnsFrom": [
+            "session_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "training_attendance_decisions_decided_by_users_id_fk": {
+          "name": "training_attendance_decisions_decided_by_users_id_fk",
+          "tableFrom": "training_attendance_decisions",
+          "tableTo": "users",
+          "columnsFrom": [
+            "decided_by"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {
+        "training_attendance_decisions_idempotency_uk": {
+          "name": "training_attendance_decisions_idempotency_uk",
+          "nullsNotDistinct": false,
+          "columns": [
+            "idempotency_key"
+          ]
+        }
+      },
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.training_certificates": {
+      "name": "training_certificates",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "registration_id": {
+          "name": "registration_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "course_id": {
+          "name": "course_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "course_version": {
+          "name": "course_version",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "serial": {
+          "name": "serial",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "verify_token": {
+          "name": "verify_token",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "holder_name": {
+          "name": "holder_name",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "holder_org_id": {
+          "name": "holder_org_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "holder_business_name": {
+          "name": "holder_business_name",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "session_date": {
+          "name": "session_date",
+          "type": "date",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "venue_name": {
+          "name": "venue_name",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "district_name": {
+          "name": "district_name",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "lead_trainer_name": {
+          "name": "lead_trainer_name",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "issued_at": {
+          "name": "issued_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "issued_by": {
+          "name": "issued_by",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "pdf_object_key": {
+          "name": "pdf_object_key",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "revoked_at": {
+          "name": "revoked_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "revoked_by": {
+          "name": "revoked_by",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "revocation_reason": {
+          "name": "revocation_reason",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "training_certificates_course_idx": {
+          "name": "training_certificates_course_idx",
+          "columns": [
+            {
+              "expression": "course_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "training_certificates_issued_at_idx": {
+          "name": "training_certificates_issued_at_idx",
+          "columns": [
+            {
+              "expression": "issued_at",
+              "isExpression": false,
+              "asc": false,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "training_certificates_registration_id_training_registrations_id_fk": {
+          "name": "training_certificates_registration_id_training_registrations_id_fk",
+          "tableFrom": "training_certificates",
+          "tableTo": "training_registrations",
+          "columnsFrom": [
+            "registration_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "training_certificates_course_id_training_courses_id_fk": {
+          "name": "training_certificates_course_id_training_courses_id_fk",
+          "tableFrom": "training_certificates",
+          "tableTo": "training_courses",
+          "columnsFrom": [
+            "course_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "training_certificates_holder_org_id_orgs_id_fk": {
+          "name": "training_certificates_holder_org_id_orgs_id_fk",
+          "tableFrom": "training_certificates",
+          "tableTo": "orgs",
+          "columnsFrom": [
+            "holder_org_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "training_certificates_issued_by_users_id_fk": {
+          "name": "training_certificates_issued_by_users_id_fk",
+          "tableFrom": "training_certificates",
+          "tableTo": "users",
+          "columnsFrom": [
+            "issued_by"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "training_certificates_revoked_by_users_id_fk": {
+          "name": "training_certificates_revoked_by_users_id_fk",
+          "tableFrom": "training_certificates",
+          "tableTo": "users",
+          "columnsFrom": [
+            "revoked_by"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {
+        "training_certificates_registration_uk": {
+          "name": "training_certificates_registration_uk",
+          "nullsNotDistinct": false,
+          "columns": [
+            "registration_id"
+          ]
+        },
+        "training_certificates_serial_uk": {
+          "name": "training_certificates_serial_uk",
+          "nullsNotDistinct": false,
+          "columns": [
+            "serial"
+          ]
+        },
+        "training_certificates_verify_token_uk": {
+          "name": "training_certificates_verify_token_uk",
+          "nullsNotDistinct": false,
+          "columns": [
+            "verify_token"
+          ]
+        }
+      },
+      "policies": {},
+      "checkConstraints": {
+        "training_certificates_revocation_shape": {
+          "name": "training_certificates_revocation_shape",
+          "value": "(\"training_certificates\".\"revoked_at\" IS NULL AND \"training_certificates\".\"revoked_by\" IS NULL AND \"training_certificates\".\"revocation_reason\" IS NULL)\n          OR (\"training_certificates\".\"revoked_at\" IS NOT NULL AND \"training_certificates\".\"revoked_by\" IS NOT NULL AND \"training_certificates\".\"revocation_reason\" IS NOT NULL)"
+        },
+        "training_certificates_course_version": {
+          "name": "training_certificates_course_version",
+          "value": "\"training_certificates\".\"course_version\" >= 1"
+        }
+      },
+      "isRLSEnabled": false
+    },
+    "public.training_courses": {
+      "name": "training_courses",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "slug": {
+          "name": "slug",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "title": {
+          "name": "title",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "summary": {
+          "name": "summary",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "version": {
+          "name": "version",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "default": 1
+        },
+        "is_published": {
+          "name": "is_published",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "default": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "training_courses_published_idx": {
+          "name": "training_courses_published_idx",
+          "columns": [
+            {
+              "expression": "is_published",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {
+        "training_courses_slug_uk": {
+          "name": "training_courses_slug_uk",
+          "nullsNotDistinct": false,
+          "columns": [
+            "slug"
+          ]
+        }
+      },
+      "policies": {},
+      "checkConstraints": {
+        "training_courses_version_positive": {
+          "name": "training_courses_version_positive",
+          "value": "\"training_courses\".\"version\" >= 1"
+        }
+      },
+      "isRLSEnabled": false
+    },
+    "public.training_registrations": {
+      "name": "training_registrations",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "session_id": {
+          "name": "session_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "user_id": {
+          "name": "user_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "status": {
+          "name": "status",
+          "type": "training_registration_status",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'registered'"
+        },
+        "source": {
+          "name": "source",
+          "type": "training_registration_source",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'self'"
+        },
+        "full_name": {
+          "name": "full_name",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "email": {
+          "name": "email",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "phone": {
+          "name": "phone",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "org_id": {
+          "name": "org_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "business_name": {
+          "name": "business_name",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "fee_rwf": {
+          "name": "fee_rwf",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": true,
+          "default": 0
+        },
+        "currency": {
+          "name": "currency",
+          "type": "char(3)",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'RWF'"
+        },
+        "paid_at": {
+          "name": "paid_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "registered_at": {
+          "name": "registered_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "training_registrations_session_status_idx": {
+          "name": "training_registrations_session_status_idx",
+          "columns": [
+            {
+              "expression": "session_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "status",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "training_registrations_user_idx": {
+          "name": "training_registrations_user_idx",
+          "columns": [
+            {
+              "expression": "user_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "training_registrations_session_email_uk": {
+          "name": "training_registrations_session_email_uk",
+          "columns": [
+            {
+              "expression": "session_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "lower(\"email\")",
+              "asc": true,
+              "isExpression": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "training_registrations_session_id_training_sessions_id_fk": {
+          "name": "training_registrations_session_id_training_sessions_id_fk",
+          "tableFrom": "training_registrations",
+          "tableTo": "training_sessions",
+          "columnsFrom": [
+            "session_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "training_registrations_user_id_users_id_fk": {
+          "name": "training_registrations_user_id_users_id_fk",
+          "tableFrom": "training_registrations",
+          "tableTo": "users",
+          "columnsFrom": [
+            "user_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "training_registrations_org_id_orgs_id_fk": {
+          "name": "training_registrations_org_id_orgs_id_fk",
+          "tableFrom": "training_registrations",
+          "tableTo": "orgs",
+          "columnsFrom": [
+            "org_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {
+        "training_registrations_session_user_uk": {
+          "name": "training_registrations_session_user_uk",
+          "nullsNotDistinct": false,
+          "columns": [
+            "session_id",
+            "user_id"
+          ]
+        }
+      },
+      "policies": {},
+      "checkConstraints": {
+        "training_registrations_business_shape": {
+          "name": "training_registrations_business_shape",
+          "value": "(\"training_registrations\".\"org_id\" IS NOT NULL AND \"training_registrations\".\"business_name\" IS NULL)\n          OR (\"training_registrations\".\"org_id\" IS NULL AND \"training_registrations\".\"business_name\" IS NOT NULL)"
+        },
+        "training_registrations_fee_nonnegative": {
+          "name": "training_registrations_fee_nonnegative",
+          "value": "\"training_registrations\".\"fee_rwf\" >= 0"
+        }
+      },
+      "isRLSEnabled": false
+    },
+    "public.training_session_trainers": {
+      "name": "training_session_trainers",
+      "schema": "",
+      "columns": {
+        "session_id": {
+          "name": "session_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "user_id": {
+          "name": "user_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "is_lead": {
+          "name": "is_lead",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "default": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "training_session_trainers_lead_uk": {
+          "name": "training_session_trainers_lead_uk",
+          "columns": [
+            {
+              "expression": "session_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "where": "\"training_session_trainers\".\"is_lead\"",
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "training_session_trainers_user_idx": {
+          "name": "training_session_trainers_user_idx",
+          "columns": [
+            {
+              "expression": "user_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "training_session_trainers_session_id_training_sessions_id_fk": {
+          "name": "training_session_trainers_session_id_training_sessions_id_fk",
+          "tableFrom": "training_session_trainers",
+          "tableTo": "training_sessions",
+          "columnsFrom": [
+            "session_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "training_session_trainers_user_id_users_id_fk": {
+          "name": "training_session_trainers_user_id_users_id_fk",
+          "tableFrom": "training_session_trainers",
+          "tableTo": "users",
+          "columnsFrom": [
+            "user_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {
+        "training_session_trainers_pk": {
+          "name": "training_session_trainers_pk",
+          "columns": [
+            "session_id",
+            "user_id"
+          ]
+        }
+      },
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.training_sessions": {
+      "name": "training_sessions",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "course_id": {
+          "name": "course_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "status": {
+          "name": "status",
+          "type": "training_session_status",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'draft'"
+        },
+        "starts_at": {
+          "name": "starts_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "ends_at": {
+          "name": "ends_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "venue_id": {
+          "name": "venue_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "fee_rwf": {
+          "name": "fee_rwf",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": true,
+          "default": 0
+        },
+        "currency": {
+          "name": "currency",
+          "type": "char(3)",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'RWF'"
+        },
+        "seat_count": {
+          "name": "seat_count",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "published_at": {
+          "name": "published_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "published_by": {
+          "name": "published_by",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "cancelled_at": {
+          "name": "cancelled_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "cancellation_reason": {
+          "name": "cancellation_reason",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "rescheduled_from": {
+          "name": "rescheduled_from",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "roster_closed_at": {
+          "name": "roster_closed_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "created_by": {
+          "name": "created_by",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "training_sessions_course_idx": {
+          "name": "training_sessions_course_idx",
+          "columns": [
+            {
+              "expression": "course_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "training_sessions_venue_idx": {
+          "name": "training_sessions_venue_idx",
+          "columns": [
+            {
+              "expression": "venue_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "training_sessions_status_starts_idx": {
+          "name": "training_sessions_status_starts_idx",
+          "columns": [
+            {
+              "expression": "status",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "starts_at",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "training_sessions_course_id_training_courses_id_fk": {
+          "name": "training_sessions_course_id_training_courses_id_fk",
+          "tableFrom": "training_sessions",
+          "tableTo": "training_courses",
+          "columnsFrom": [
+            "course_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "training_sessions_venue_id_training_venues_id_fk": {
+          "name": "training_sessions_venue_id_training_venues_id_fk",
+          "tableFrom": "training_sessions",
+          "tableTo": "training_venues",
+          "columnsFrom": [
+            "venue_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "training_sessions_published_by_users_id_fk": {
+          "name": "training_sessions_published_by_users_id_fk",
+          "tableFrom": "training_sessions",
+          "tableTo": "users",
+          "columnsFrom": [
+            "published_by"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "training_sessions_created_by_users_id_fk": {
+          "name": "training_sessions_created_by_users_id_fk",
+          "tableFrom": "training_sessions",
+          "tableTo": "users",
+          "columnsFrom": [
+            "created_by"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {
+        "training_sessions_window": {
+          "name": "training_sessions_window",
+          "value": "\"training_sessions\".\"ends_at\" > \"training_sessions\".\"starts_at\""
+        },
+        "training_sessions_seat_count": {
+          "name": "training_sessions_seat_count",
+          "value": "\"training_sessions\".\"seat_count\" >= 0"
+        },
+        "training_sessions_fee_nonnegative": {
+          "name": "training_sessions_fee_nonnegative",
+          "value": "\"training_sessions\".\"fee_rwf\" >= 0"
+        },
+        "training_sessions_cancellation_shape": {
+          "name": "training_sessions_cancellation_shape",
+          "value": "(\"training_sessions\".\"cancelled_at\" IS NULL AND \"training_sessions\".\"cancellation_reason\" IS NULL)\n          OR (\"training_sessions\".\"cancelled_at\" IS NOT NULL AND \"training_sessions\".\"cancellation_reason\" IS NOT NULL)"
+        },
+        "training_sessions_publication_shape": {
+          "name": "training_sessions_publication_shape",
+          "value": "(\"training_sessions\".\"published_at\" IS NULL AND \"training_sessions\".\"published_by\" IS NULL)\n          OR (\"training_sessions\".\"published_at\" IS NOT NULL AND \"training_sessions\".\"published_by\" IS NOT NULL)"
+        }
+      },
+      "isRLSEnabled": false
+    },
+    "public.training_venues": {
+      "name": "training_venues",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "name": {
+          "name": "name",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "address": {
+          "name": "address",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "district_id": {
+          "name": "district_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "is_office": {
+          "name": "is_office",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "default": false
+        },
+        "retired_at": {
+          "name": "retired_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "training_venues_district_idx": {
+          "name": "training_venues_district_idx",
+          "columns": [
+            {
+              "expression": "district_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "training_venues_active_idx": {
+          "name": "training_venues_active_idx",
+          "columns": [
+            {
+              "expression": "name",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "where": "\"training_venues\".\"retired_at\" IS NULL",
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "training_venues_district_id_districts_id_fk": {
+          "name": "training_venues_district_id_districts_id_fk",
+          "tableFrom": "training_venues",
+          "tableTo": "districts",
+          "columnsFrom": [
+            "district_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
     }
   },
   "enums": {
@@ -16862,14 +18003,6 @@
         "other"
       ]
     },
-    "public.org_membership_status": {
-      "name": "org_membership_status",
-      "schema": "public",
-      "values": [
-        "active",
-        "removed"
-      ]
-    },
     "public.org_registration_status": {
       "name": "org_registration_status",
       "schema": "public",
@@ -17096,16 +18229,6 @@
         "rejected"
       ]
     },
-    "public.registration_transition_trigger": {
-      "name": "registration_transition_trigger",
-      "schema": "public",
-      "values": [
-        "registrant",
-        "officer",
-        "staff",
-        "system"
-      ]
-    },
     "public.renewal_status": {
       "name": "renewal_status",
       "schema": "public",
@@ -17164,7 +18287,8 @@
         "super_admin",
         "ops",
         "compliance",
-        "finance"
+        "finance",
+        "trainer"
       ]
     },
     "public.stay_lifecycle": {
@@ -17185,7 +18309,8 @@
         "avatar",
         "property_photo",
         "filing_copy",
-        "certificate"
+        "certificate",
+        "training_certificate"
       ]
     },
     "public.subscription_invoice_status": {
@@ -17262,6 +18387,43 @@
         "failed"
       ]
     },
+    "public.training_attendance_decision": {
+      "name": "training_attendance_decision",
+      "schema": "public",
+      "values": [
+        "present",
+        "absent"
+      ]
+    },
+    "public.training_registration_source": {
+      "name": "training_registration_source",
+      "schema": "public",
+      "values": [
+        "self",
+        "walk_in"
+      ]
+    },
+    "public.training_registration_status": {
+      "name": "training_registration_status",
+      "schema": "public",
+      "values": [
+        "registered",
+        "attended",
+        "absent",
+        "withdrawn",
+        "released"
+      ]
+    },
+    "public.training_session_status": {
+      "name": "training_session_status",
+      "schema": "public",
+      "values": [
+        "draft",
+        "published",
+        "cancelled",
+        "completed"
+      ]
+    },
     "public.translation_status": {
       "name": "translation_status",
       "schema": "public",
@@ -17269,6 +18431,38 @@
         "translated",
         "missing",
         "needs_review"
+      ]
+    },
+    "public.waitlist_audience": {
+      "name": "waitlist_audience",
+      "schema": "public",
+      "values": [
+        "traveller",
+        "owner"
+      ]
+    },
+    "public.waitlist_property_type": {
+      "name": "waitlist_property_type",
+      "schema": "public",
+      "values": [
+        "hotel",
+        "guest_house",
+        "apartment",
+        "lodge",
+        "villa",
+        "hostel",
+        "homestay",
+        "campsite"
+      ]
+    },
+    "public.waitlist_size_band": {
+      "name": "waitlist_size_band",
+      "schema": "public",
+      "values": [
+        "1_5",
+        "6_20",
+        "21_50",
+        "50_plus"
       ]
     },
     "public.workspace_kind": {
@@ -17462,7 +18656,18 @@
     }
   },
   "schemas": {},
-  "sequences": {},
+  "sequences": {
+    "public.training_certificate_serial_seq": {
+      "name": "training_certificate_serial_seq",
+      "schema": "public",
+      "increment": "1",
+      "startWith": "1",
+      "minValue": "1",
+      "maxValue": "9223372036854775807",
+      "cache": "1",
+      "cycle": false
+    }
+  },
   "roles": {},
   "policies": {},
   "views": {},

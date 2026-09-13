@@ -2,7 +2,7 @@
 /**
  * Fail when a workspace member declares no `typecheck`, `lint` or `test`.
  *
- * ADR-048 AC-2b. This exists because of HOW `pnpm -r` fails: a member with no
+ * ADR-052 AC-2b. This exists because of HOW `pnpm -r` fails: a member with no
  * script is SKIPPED, in silence, with a zero exit code. Four members were being
  * skipped that way when this was written, which is what made "the run is green"
  * mean less than it looked like. Closing that hole once is not enough, because
@@ -49,6 +49,6 @@ if (failures.length > 0) {
   console.error('');
   console.error('Add the missing script. A package with no tests declares');
   console.error('  "test": "node ../../scripts/no-tests.mjs"');
-  console.error('which states the absence out loud instead of being passed over (ADR-048 AC-2b).');
+  console.error('which states the absence out loud instead of being passed over (ADR-052 AC-2b).');
   process.exit(1);
 }

@@ -12,7 +12,7 @@ import injishi from '../../tools/eslint-rules/index.mjs';
  * fragments, which the colour and size rules would misread exactly the way
  * `ui-contract` records for component names.
  *
- * ADR-048 AC-2 is what this file exists for: `pnpm -r lint` used to skip this
+ * ADR-052 AC-2 is what this file exists for: `pnpm -r lint` used to skip this
  * package entirely, because it declared no scripts at all.
  */
 export default [

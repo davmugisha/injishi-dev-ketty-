@@ -4,7 +4,7 @@ import { API_URL } from "@/lib/api";
 
 /**
  * A published database property, read by the SERVER for its public page
- * (ADR-049, owner ruling of 2026-09-13, amended the same day).
+ * (ADR-053, owner ruling of 2026-09-13, amended the same day).
  *
  * `/property/[slug]` renders a curated catalogue record where one exists and asks
  * this only when none does (see `resolvePropertyPage`). The question has three

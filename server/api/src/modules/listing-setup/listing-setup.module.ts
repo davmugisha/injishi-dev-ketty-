@@ -11,7 +11,7 @@ import { RatePlansRepository } from './infrastructure/rate-plans.repository';
 import { RoomTypesRepository } from './infrastructure/room-types.repository';
 
 /**
- * Inventory authoring (ADR-009, extended by ADR-049) — the operator write path
+ * Inventory authoring (ADR-009, extended by ADR-053) — the operator write path
  * for properties, room types, rates, photographs and publishing.
  *
  * Named `listing-setup` because that is what the module map in
@@ -28,7 +28,7 @@ import { RoomTypesRepository } from './infrastructure/room-types.repository';
  * `StorageModule` is imported for `StorageService`, because a photograph's signed
  * URL and the check that a key really is a property photograph both live there.
  * The AWS SDK stays inside `modules/storage/infrastructure/` and is not reachable
- * from here, which is the one wiring point ADR-049 leaves alone.
+ * from here, which is the one wiring point ADR-053 leaves alone.
  */
 @Module({
   imports: [StorageModule],

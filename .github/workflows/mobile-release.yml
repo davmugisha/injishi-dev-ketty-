@@ -1,6 +1,6 @@
 name: mobile-release
 
-# ADR-048 AC-21. An EAS build starts on a `mobile-v*` tag and on nothing else.
+# ADR-052 AC-21. An EAS build starts on a `mobile-v*` tag and on nothing else.
 #
 # EAS build minutes are metered and a build is slow, so this belongs on a
 # deliberate release rather than on every merge. Tagging is the deliberate act.

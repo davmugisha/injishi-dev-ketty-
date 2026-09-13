@@ -21,7 +21,7 @@ import { RoomTypesRepository } from '../infrastructure/room-types.repository';
  * same rooms sell several ways at once, which is why a plan names its room type
  * rather than the other way round.
  *
- * **It was read only, and ADR-049 gave it the writes it names below.** The
+ * **It was read only, and ADR-053 gave it the writes it names below.** The
  * reasoning recorded here — that a plan carries occupancy anchors, derivation
  * rules, meal plans, stay limits and discount curves, and that authoring all of
  * that is a pricing screen with its own rules (F-L03, F-L05) — still holds for

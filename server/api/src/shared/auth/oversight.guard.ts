@@ -24,7 +24,7 @@ const OVERSIGHT_ROLE_KEY = 'oversight:role';
  * is a catalog (D19).
  *
  * A gate route names exactly one. A route that serves more than one function
- * with the same answer for each, the officer's own decision log (ADR-049,
+ * with the same answer for each, the officer's own decision log (ADR-053,
  * AC-G6), names every function it serves; the guard then passes a caller who
  * holds any of them, and hands on only those grants. It never widens to "any
  * assignment": a function a route does not name is still refused.
@@ -62,7 +62,7 @@ export const CurrentOversight = createParamDecorator(
  * anyway; checking it here would mean loading the org twice and would leave the
  * check absent on a list route, where scope is a WHERE clause rather than a
  * predicate. The service applies `districtScopeOf` from `@injishi/contracts`,
- * the one definition both uses share (ADR-049, AC-G8).
+ * the one definition both uses share (ADR-053, AC-G8).
  */
 @Injectable()
 export class OversightGuard implements CanActivate {

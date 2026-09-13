@@ -1,7 +1,7 @@
 import { type PublishBlocker } from '@injishi/contracts';
 
 /**
- * May this property go on the marketplace? (ADR-049, AC-I4)
+ * May this property go on the marketplace? (ADR-053, AC-I4)
  *
  * Three conditions, fixed by the record and not negotiable here: an address, one
  * priced thing to sell, and one photograph. A pure function over facts the
@@ -15,7 +15,7 @@ import { type PublishBlocker } from '@injishi/contracts';
  * `listing.manage` at all, so `WorkspaceGuard` closes this whole surface before
  * a request reaches here, and `WorkspaceGuard` words the refusal from the
  * registration stage. Checking it again would be a second gate on the one rule
- * ADR-049's contract says has exactly one (rule 2, D20). The blocker code stays
+ * ADR-053's contract says has exactly one (rule 2, D20). The blocker code stays
  * declared for the operator screen that reads a registration refusal.
  *
  * **`no_sellable_room`.** Condition 2 is a priced, active ROOM TYPE, which is

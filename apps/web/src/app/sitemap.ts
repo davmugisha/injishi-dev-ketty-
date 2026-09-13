@@ -1,51 +1,29 @@
-import { SitemapProperty } from "@injishi/contracts";
 import type { MetadataRoute } from "next";
 
-import { API_URL } from "@/lib/api";
-import { WEB_URL, propertyUrl } from "@/lib/web-url";
-
 /**
- * `/sitemap.xml` (ADR-049, AC-I9).
+ * The sitemap while the gate is up (ADR-048 AC-16).
  *
- * Publishing is the one moment a page becomes indexable, so the sitemap lists
- * exactly what the API says is publicly sellable: a `published` listing whose
- * business is `active`, read through `GET /api/v1/properties/sitemap`, which is
- * the same predicate a property page answers with. An unpublished or suspended
- * property is in neither.
+ * ONE URL, because one URL is all a stranger can reach. Listing `/explore` or a
+ * property page here while the middleware redirects both to `/waitlist` would
+ * be asking search engines to crawl a wall.
  *
- * RENDERED ON EVERY REQUEST, NOT CACHED. Contract rule 1 is that both halves are
- * checked on every public read with no cached third answer, and a sitemap
- * revalidated hourly would keep advertising a suspended business for up to an
- * hour. A crawler fetches this rarely, so exactness costs almost nothing.
+ * THIS FILE IS NET NEW, like `robots.ts`, and like it, launch day REPLACES its
+ * contents rather than deleting the file.
  *
- * An API that cannot be reached yields the site root alone rather than an
- * error: a sitemap that 500s teaches a crawler to stop asking, and one that is
- * briefly short is corrected on the next fetch.
+ * `lastModified` is deliberately absent. Every other value on this surface
+ * refuses to be a date for the same reason (ADR-048: "No value this feature
+ * produces is a date"), and a build timestamp here would tell crawlers the page
+ * changed every time the image was rebuilt, which is not true and is the kind
+ * of signal that gets a site trusted less rather than more.
  */
-export const dynamic = "force-dynamic";
-
-export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
-  const root: MetadataRoute.Sitemap = [{ url: `${WEB_URL}/` }];
-
-  let entries: SitemapProperty[] = [];
-  try {
-    const res = await fetch(`${API_URL}/api/v1/properties/sitemap`, {
-      cache: "no-store",
-      signal: AbortSignal.timeout(10_000),
-    });
-    if (res.ok) {
-      const parsed = SitemapProperty.array().safeParse(await res.json());
-      if (parsed.success) entries = parsed.data;
-    }
-  } catch {
-    // Unreachable or timed out: the root alone, as above.
-  }
+export default function sitemap(): MetadataRoute.Sitemap {
+  const base = process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000";
 
   return [
-    ...root,
-    ...entries.map((p) => ({
-      url: propertyUrl(p.slug),
-      ...(p.publishedAt ? { lastModified: p.publishedAt } : {}),
-    })),
+    {
+      url: `${base}/waitlist`,
+      changeFrequency: "weekly",
+      priority: 1,
+    },
   ];
 }

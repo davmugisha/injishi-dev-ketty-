@@ -168,7 +168,7 @@ export class AdminUsersController {
   }
 
   /**
-   * Appoint a government officer (ADR-049, AC-G1).
+   * Appoint a government officer (ADR-053, AC-G1).
    *
    * **Nothing could create an officer before this route.** The table and the guard
    * existed; the only way to staff MINALOC or PSF was a seed script, so a real
@@ -176,7 +176,7 @@ export class AdminUsersController {
    *
    * `admin.user.role.grant`, which only `super_admin` holds. It is one of the two
    * `TWO_PERSON_STAFF_PERMISSIONS` and `needsSecondSigner` is still implemented by
-   * nothing: this is a SINGLE SIGNER action by decision, and ADR-049 records the
+   * nothing: this is a SINGLE SIGNER action by decision, and ADR-053 records the
    * risk rather than hiding it. The one thing bounding the exposure is that no
    * other staff role holds the permission at all.
    */
@@ -197,7 +197,7 @@ export class AdminUsersController {
   }
 
   /**
-   * Revoke an appointment (ADR-049, AC-G1).
+   * Revoke an appointment (ADR-053, AC-G1).
    *
    * `204`, and `revoked_at` rather than a delete: a revoked posting has to keep
    * explaining a decision already taken.

@@ -68,14 +68,16 @@ export function ResultGallery({
         {images.map((image, index) => (
           <CarouselItem key={image.stem} index={index} className="h-full basis-full pl-0">
             <picture className="block h-full w-full">
-              <source
-                type="image/avif"
-                sizes="(max-width: 768px) 100vw, 720px"
-                srcSet={`/assets/${image.stem}.avif`}
-              />
+              {image.src ? null : (
+                <source
+                  type="image/avif"
+                  sizes="(max-width: 768px) 100vw, 720px"
+                  srcSet={`/assets/${image.stem}.avif`}
+                />
+              )}
               <img
                 data-gallery-image={image.stem}
-                src={`/assets/${image.stem}.jpg`}
+                src={image.src ?? `/assets/${image.stem}.jpg`}
                 sizes="(max-width: 768px) 100vw, 720px"
                 width={720}
                 height={450}

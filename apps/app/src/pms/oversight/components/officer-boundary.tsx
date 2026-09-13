@@ -124,7 +124,7 @@ export function OfficerBoundary({
   }
 
   /*
-   * A POSTING WE RECORDED AND DID NOT BUILD (ADR-049, AC-G7).
+   * A POSTING WE RECORDED AND DID NOT BUILD (ADR-053, AC-G7).
    *
    * `tax_compliance_officer` is a real appointment: admin can enter an RRA tax
    * compliance posting, and recording it is right. The console for it does not
@@ -184,7 +184,7 @@ export function OfficerBoundary({
 }
 
 /**
- * The resolved grants, for the store that renders inside this gate (ADR-049).
+ * The resolved grants, for the store that renders inside this gate (ADR-053).
  *
  * Published rather than fetched a second time. This component has ALREADY asked
  * `/api/v1/me/oversight` and refused every answer that is not a console, so by the

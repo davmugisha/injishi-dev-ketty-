@@ -6,7 +6,7 @@
  * THE DATA IS LIVE NOW. Queues come from `/api/v1/oversight/*` and gate verbs
  * post to `/api/v1/registrations/:id/*`.
  *
- * **AND SO IS THE OFFICER (ADR-049, AC-G5).** Their issuing body, their own job
+ * **AND SO IS THE OFFICER (ADR-053, AC-G5).** Their issuing body, their own job
  * title and their region come from the grant `OfficerBoundary` resolved, not from
  * a table of two invented officers. What is still derived locally is the
  * VOCABULARY of the function — the queue's name, the verb on the button, the seal
@@ -149,7 +149,7 @@ export function ConsoleProvider({
     queryFn: () => fetchQueue(officerKey),
   });
 
-  // The decision log, from the server (ADR-049, AC-G6). It used to be an array
+  // The decision log, from the server (ADR-053, AC-G6). It used to be an array
   // hardcoded empty here, behind a screen explaining that it was not connected.
   const decisionPages = useInfiniteQuery({
     queryKey: DECISIONS_KEY,

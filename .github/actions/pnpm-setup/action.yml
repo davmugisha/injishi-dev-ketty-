@@ -3,7 +3,7 @@ description: >-
   Node, pnpm and an installed workspace, with both versions read from the files
   that already pin them rather than retyped into a workflow.
 
-# ADR-048 Value sourcing: the Node version comes from `mise.toml` and the pnpm
+# ADR-052 Value sourcing: the Node version comes from `mise.toml` and the pnpm
 # version from `packageManager` in the root package.json. Neither is written
 # down here. They must not drift: a different pnpm can rewrite pnpm-lock.yaml,
 # and `--frozen-lockfile` then fails the build on a lockfile nobody edited.
@@ -27,7 +27,7 @@ runs:
         set -euo pipefail
         version="$(sed -n 's/^[[:space:]]*node[[:space:]]*=[[:space:]]*"\([^"]*\)".*/\1/p' mise.toml | head -n1)"
         if [ -z "$version" ]; then
-          echo "::error file=mise.toml::No node version pin found in mise.toml. ADR-048 requires the Node version to be READ from mise.toml, never retyped into a workflow."
+          echo "::error file=mise.toml::No node version pin found in mise.toml. ADR-052 requires the Node version to be READ from mise.toml, never retyped into a workflow."
           exit 1
         fi
         echo "version=$version" >> "$GITHUB_OUTPUT"

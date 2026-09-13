@@ -83,7 +83,7 @@ const ROOM_TYPE_GROUP_BY = [
 ] as const;
 
 /**
- * The room type write path (ADR-049, AC-I1).
+ * The room type write path (ADR-053, AC-I1).
  *
  * ## Both shapes, on purpose
  *
@@ -91,7 +91,7 @@ const ROOM_TYPE_GROUP_BY = [
  * `room_types`, and a default `rate_plans` row. That is not belt and braces, it
  * is the deprecation being honest — every current reader (booking, pricing, the
  * public read) still reads the columns, and moving them is
- * [ADR-009](../../../../..)'s contract phase, which ADR-049 deliberately defers
+ * [ADR-009](../../../../..)'s contract phase, which ADR-053 deliberately defers
  * rather than swallows. Writing one and not the other would leave a room type
  * that the operator can see and a guest cannot book.
  *

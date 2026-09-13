@@ -1,6 +1,6 @@
 name: backup
 
-# ADR-048 AC-19. Production gets backups, because making it cheaper to change a
+# ADR-052 AC-19. Production gets backups, because making it cheaper to change a
 # system you cannot restore is the wrong order to do things in.
 #
 # THE RUN'S OWN SUCCESS IS THE RECORD. `deploy-production.yml` reads the newest
@@ -54,7 +54,7 @@ jobs:
             if [ -z "$(printenv "$name" || true)" ]; then missing="$missing $name"; fi
           done
           if [ -n "$missing" ]; then
-            echo "::error::Missing on the host:$missing. See ADR-048 'Configuration required'."
+            echo "::error::Missing on the host:$missing. See ADR-052 'Configuration required'."
             exit 1
           fi
           for tool in pg_dump age rclone tar; do

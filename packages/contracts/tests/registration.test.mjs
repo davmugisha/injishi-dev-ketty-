@@ -1,7 +1,7 @@
 /**
  * An on behalf of registration names its owner well enough to be claimed.
  *
- * Owner ruling 2026-09-13 (ADR-049 J25). The intended owner's email and national
+ * Owner ruling 2026-09-13 (ADR-053 J25). The intended owner's email and national
  * id used to be optional, and each one missing stranded the business: no email
  * means no claim invitation is sent, and no national id means no claimant can
  * ever match. The API validates against this schema, so these assertions are the

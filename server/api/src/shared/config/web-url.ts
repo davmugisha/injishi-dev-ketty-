@@ -2,7 +2,7 @@ import { isProduction } from './security.config';
 
 /**
  * Web's public origin, for a mail the API sends that links to a page on web
- * (ADR-049, AC-R14). The owner claim invitation is the first; a staff invitation
+ * (ADR-053, AC-R14). The owner claim invitation is the first; a staff invitation
  * will be the next, which is why this is an origin and not a claim template.
  *
  * Read in one place. The API had no other source for it: `NEXT_PUBLIC_WEB_URL`

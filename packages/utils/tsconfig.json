@@ -1,7 +1,7 @@
 {
   // This package ships TypeScript SOURCE (ADR-008): the consuming Next app
   // compiles it through `transpilePackages`, so nothing here emits. The config
-  // exists so the package can be typechecked ON ITS OWN, which is what ADR-048
+  // exists so the package can be typechecked ON ITS OWN, which is what ADR-052
   // AC-2 asks for. Before it, `pnpm -r typecheck` skipped this package and the
   // only thing that ever type-checked these helpers was whichever app imported
   // them.

@@ -68,16 +68,46 @@ export const bookings = pgTable(
     approvalExpiresAt: timestamp('approval_expires_at', { withTimezone: true }),
     confirmedAt: timestamp('confirmed_at', { withTimezone: true }),
     /**
+     * Which fiscal rule this booking was confirmed under (ADR-050 D-a):
+     * `booking` (the sale was signed at confirmation) or `checkout` (a proforma
+     * was, and the sale is signed when the folio closes).
+     *
+     * STAMPED at confirmation from `EBM_SIGN_AT`, and read from here forever
+     * after. Reading the variable again at close would mean a booking confirmed
+     * under `checkout` (a `PS`, no `NS`) and checked out after a rollback
+     * produces no `NS` ever: money taken, nothing declared. The stamp makes the
+     * rule travel with the booking, which is why this column outlives the flag.
+     */
+    ebmSignAt: text('ebm_sign_at'),
+    /**
      * Until when an expiry sweep owns this row (review 2.4). A sweep claims a
      * bounded batch by stamping this a few minutes ahead, so a second worker
      * running the same sweep skips it instead of asking the provider to
      * release the same hold twice. Null, or in the past, means unclaimed.
      */
     sweepClaimedUntil: timestamp('sweep_claimed_until', { withTimezone: true }),
+    /**
+     * A cancellation, as it was decided (F-B11, ADR-051). Written once, with
+     * the status, in the transaction that records what the provider already
+     * confirmed, so a trip and a desk read the refund the guest was actually
+     * given rather than recomputing it from a tier and a clock that have moved.
+     */
+    cancelledAt: timestamp('cancelled_at', { withTimezone: true }),
+    /** `guest` or `host`. */
+    cancelledBy: text('cancelled_by'),
+    /** What went back to the guest; the rest of `gross_rwf` stays with the host. */
+    refundRwf: amount('refund_rwf'),
     ...timestamps,
   },
   (t) => [
     unique('bookings_reference_uk').on(t.reference),
+    // A recorded cancellation is whole: cancelled, by a party, with its refund.
+    // One direction only, because rows cancelled before this column existed
+    // (seeds, fixtures) carry no record and inventing one would be worse.
+    check(
+      'bookings_cancellation_shape',
+      sql`${t.cancelledAt} IS NULL OR (${t.status} = 'cancelled' AND ${t.cancelledBy} IN ('guest', 'host') AND ${t.refundRwf} IS NOT NULL)`,
+    ),
     index('bookings_guest_idx').on(t.guestUserId),
     index('bookings_workspace_status_idx').on(t.workspaceId, t.status, t.checkIn),
     /**

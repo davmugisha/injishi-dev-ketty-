@@ -1,7 +1,7 @@
 "use client";
 
 /**
- * A property's photographs: add, order, choose the cover, remove (ADR-049,
+ * A property's photographs: add, order, choose the cover, remove (ADR-053,
  * AC-I3, AC-I7).
  *
  * **Order is buttons, not dragging.** "Move earlier" and "Move later" work from

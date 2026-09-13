@@ -4,11 +4,11 @@
  *
  * Two things shape what renders:
  *  - the permissions the grant carries (a receptionist holds no `money.view`, so
- *    never sees Money), each leaf declaring the one it needs (ADR-049),
+ *    never sees Money), each leaf declaring the one it needs (ADR-053),
  *  - the property's departments, which are config (F-P01) — so a 2-department
  *    guesthouse gets a shorter nav than a 5-department hotel with no code change.
  *
- * **Both come from the SERVER** (ADR-035, D-a; ADR-049). The departments used to
+ * **Both come from the SERVER** (ADR-035, D-a; ADR-053). The departments used to
  * be read out of `data/demo.ts`, which meant a 622 line fixture decided which
  * sections a real hotel had, and the sections used to branch on the ROLE, a
  * hand copy of the permission table. Both now arrive on the one grant row, so
@@ -45,7 +45,7 @@ export interface NavItem {
   /** False while the screen is still a placeholder. */
   built?: boolean;
   /**
-   * The permission this leaf gates, or absent when it gates none (ADR-049,
+   * The permission this leaf gates, or absent when it gates none (ADR-053,
    * AC-A1). Absent is a decision, not a gap: such a leaf is offered to every
    * member of the workspace. The outer gate still holds, because a business
    * that is not `active` holds no permissions and its app is closed anyway.
@@ -161,7 +161,7 @@ function pill(n: number | null | undefined): number | null {
 }
 
 /**
- * Keep the leaves this grant reaches (ADR-049, AC-A1).
+ * Keep the leaves this grant reaches (ADR-053, AC-A1).
  *
  * A leaf that declares a permission is kept when the grant holds it. A leaf that
  * declares NONE is kept for every member of the workspace, and that is the rule
@@ -243,7 +243,7 @@ export function hostNav(
     // Only where a service department exists: a two department guesthouse gets
     // no Services. `order.advance` rather than `menu.manage`, because the leaf
     // opens on Live orders, which a receptionist works; the Menu lens refuses
-    // editing inside the screen (ADR-049, ruled 2026-09-13).
+    // editing inside the screen (ADR-053, ruled 2026-09-13).
     ...(has("fnb") || has("spa_recreation")
       ? sectionOf(
           "Services",
@@ -314,7 +314,7 @@ export function landlordNav(
       "Property",
       [
         // `unit.manage` stops being a declared but unenforced permission here:
-        // these are exactly the leaves it was written for (ADR-049).
+        // these are exactly the leaves it was written for (ADR-053).
         { key: "units", label: "Units & rents", icon: "building-2", href: `${base}/units`, built: true, permission: "unit.manage" },
         { key: "maintenance", label: "Maintenance", icon: "wrench", href: `${base}/maintenance`, count: ticketsOpen, built: true, permission: "ticket.advance" },
         // Was `directory`, the same word the broker uses for the opposite job:
@@ -537,7 +537,7 @@ export interface NavContext {
   /** The workspace every link in this nav is addressed inside. */
   workspaceId: string | null;
   /**
-   * The grant's `permissions[]`, resolved by the server (ADR-049, AC-A1). The
+   * The grant's `permissions[]`, resolved by the server (ADR-053, AC-A1). The
    * only input that decides which leaves a person reaches; no role is read.
    */
   permissions: readonly Permission[];
@@ -557,7 +557,7 @@ export interface NavContext {
  * Whether this workspace opens on the housekeeper's phone surface (F-P04) instead
  * of the desktop shell.
  *
- * Decided by the grant's permission shape, never by a role name (ADR-049, AC-A1,
+ * Decided by the grant's permission shape, never by a role name (ADR-053, AC-A1,
  * ruled with the owner on 2026-09-13): a hotel grant that can set room status
  * and holds no front desk power. That is exactly the housekeeper today, and a
  * change to a role's permissions moves its surface with no second edit. A grant

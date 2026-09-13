@@ -13,7 +13,7 @@ import { AdminModerationService } from './moderation.service';
  * 500 rather than treating the request as anonymous when the session guard did
  * not run first.
  *
- * GATED ON `admin.moderation.view` (ADR-049), which `super_admin`, `ops` and
+ * GATED ON `admin.moderation.view` (ADR-053), which `super_admin`, `ops` and
  * `compliance` hold. It used to borrow `admin.moderation.act` for the read
  * because no view permission existed, so only the roles that act could look.
  * The act keeps its own permission.

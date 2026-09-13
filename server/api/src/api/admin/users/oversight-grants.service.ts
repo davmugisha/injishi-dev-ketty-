@@ -32,7 +32,7 @@ import {
 } from '../../../shared/database/database.module';
 
 /**
- * Appointing and revoking a government officer (ADR-049, AC-G1 to AC-G3, AC-G10).
+ * Appointing and revoking a government officer (ADR-053, AC-G1 to AC-G3, AC-G10).
  *
  * **Nothing wrote `oversight_assignments` before this.** The table, its enums and
  * its scope CHECK all existed, the guard read it, and the only way to create an
@@ -63,7 +63,7 @@ import {
  * `admin.user.role.grant` is held by `super_admin` only and is one of the two
  * `TWO_PERSON_STAFF_PERMISSIONS`, with `needsSecondSigner` declared and nothing
  * implementing it. That stays true after this service: the owner chose single
- * signer over building the second signer flow, and ADR-049 records the risk.
+ * signer over building the second signer flow, and ADR-053 records the risk.
  */
 @Injectable()
 export class OversightGrantsService {

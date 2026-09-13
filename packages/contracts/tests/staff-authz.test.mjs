@@ -1,8 +1,8 @@
 /**
- * The staff authorization model, pinned (ADR-049, AC-A7).
+ * The staff authorization model, pinned (ADR-053, AC-A7).
  *
  * The org half has had `authz.test.mjs` since ADR-035. The staff half had
- * nothing, while ADR-049 changed it: five read permissions arrived and three of
+ * nothing, while ADR-053 changed it: five read permissions arrived and three of
  * the four roles gained reads. This is the copy of those facts that needs no
  * database, no API and no OTP budget, so it runs on every change. The two
  * `verify-authz*` scripts stay the live proof.
@@ -35,14 +35,24 @@ const {
 
 const OBSERVE = ["admin.overview.view", "admin.analytics.view", "admin.system.view"];
 
-describe("the four staff roles", () => {
+describe("the five staff roles", () => {
   /*
    * Exact membership, in canonical order, never a count alone. A count catches a
    * permission being dropped and misses one being SWAPPED, and a swap is what
    * actually moves a boundary.
    */
-  test("the matrix holds thirty permissions", () => {
-    assert.equal(StaffPermission.options.length, 30);
+  test("the matrix holds thirty seven permissions", () => {
+    // Thirty platform powers (ADR-053) and seven `training.*` powers (ADR-049).
+    assert.equal(StaffPermission.options.length, 37);
+  });
+
+  test("trainer holds four training powers and no platform power (ADR-049)", () => {
+    assert.deepEqual(staffPermissionsForRoles(["trainer"]), [
+      "training.view",
+      "training.session.manage",
+      "training.attendance.mark",
+      "training.certificate.revoke",
+    ]);
   });
 
   test("super_admin holds every permission there is", () => {
@@ -97,7 +107,7 @@ describe("the four staff roles", () => {
   });
 });
 
-describe("the five read permissions (ADR-049)", () => {
+describe("the five read permissions (ADR-053)", () => {
   test("every role reads configuration", () => {
     for (const role of ["super_admin", "ops", "compliance", "finance"]) {
       assert.ok(staffAllows(staffPermissionsForRoles([role]), "admin.config.view"), role);
@@ -198,7 +208,7 @@ describe("labels", () => {
  *
  * Why each is here:
  *   property.switch             every role holds it, and `POST /me/active-workspace`
- *                               is deliberately exempt (ADR-049 access control child)
+ *                               is deliberately exempt (ADR-053 access control child)
  *   admin.user.impersonate      F-A13, not built
  *   admin.payout.release        F-A06, not built
  *   admin.dsr.action            F-A08, not built
@@ -206,7 +216,7 @@ describe("labels", () => {
  *   admin.environment.manage, admin.announcement.publish, admin.moderation.act,
  *   admin.localization.edit
  *                               four WRITES whose sections are read only. Each used
- *                               to guard its section's read; ADR-049 moved the reads
+ *                               to guard its section's read; ADR-053 moved the reads
  *                               onto a view permission, which is what exposed that
  *                               none of these writes exists yet. The fifth,
  *                               admin.config.edit, left this list when the
@@ -222,6 +232,10 @@ const UNENFORCED = [
   "admin.announcement.publish",
   "admin.moderation.act",
   "admin.localization.edit",
+  // ADR-050: declared for the `NR` refund of a signed receipt, whose route is a
+  // later slice. `guest-ordering.service.ts` names it as the power that route will
+  // require.
+  "ebm.refund",
 ];
 
 describe("the unenforced permissions", () => {

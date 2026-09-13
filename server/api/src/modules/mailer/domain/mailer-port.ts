@@ -15,6 +15,27 @@
 /** Nest injection token. Everything depends on the interface, not a class. */
 export const MAILER_PORT = 'MAILER_PORT';
 
+/**
+ * A file carried by the message (ADR-049 AC-20).
+ *
+ * ONE shape, and `content` is bytes rather than a path or a URL. A path would
+ * make the mailer a reader of the host's filesystem, and a URL would make it a
+ * fetcher — both are ways for a caller to talk the transport into reading
+ * something it was never handed. The sender reads the bytes itself, through
+ * whatever seam owns them, and passes them here.
+ */
+export interface MailAttachment {
+  /**
+   * What the recipient's client calls the file. A single line with no path
+   * separators: the adapter refuses anything else, because a filename is a
+   * header value and a `/` in one is a claim about somebody else's disk.
+   */
+  filename: string;
+  content: Buffer;
+  /** The MIME type, e.g. `application/pdf`. Stated, never sniffed. */
+  contentType: string;
+}
+
 /** One email to send. */
 export interface MailMessage {
   /**
@@ -30,6 +51,15 @@ export interface MailMessage {
   text: string;
   /** Optional HTML alternative to `text`. */
   html?: string;
+  /**
+   * Files to attach. Absent on almost every message this platform sends.
+   *
+   * The one sender today is the training certificate mail (ADR-049 AC-20),
+   * which attaches the PDF a trainer's tick issued. It is optional so that the
+   * OTP path, which must never grow an attachment, is unchanged by its
+   * existence.
+   */
+  attachments?: readonly MailAttachment[];
 }
 
 export interface MailerPort {

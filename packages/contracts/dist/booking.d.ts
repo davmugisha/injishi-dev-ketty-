@@ -74,7 +74,7 @@ export declare const RoomTypeSummary: z.ZodObject<{
 export type RoomTypeSummary = z.infer<typeof RoomTypeSummary>;
 /**
  * One entry in the marketplace sitemap: `GET /api/v1/properties/sitemap`
- * (ADR-049, AC-I9).
+ * (ADR-053, AC-I9).
  *
  * Read through the same visibility rule as a property page, so an unpublished or
  * suspended property is in neither. `publishedAt` is the most recent publish, a
@@ -91,135 +91,6 @@ export declare const SitemapProperty: z.ZodObject<{
     publishedAt: string | null;
 }>;
 export type SitemapProperty = z.infer<typeof SitemapProperty>;
-export declare const PropertyDetail: z.ZodObject<{
-    id: z.ZodString;
-    /**
-     * The property's public address on the marketplace, or null.
-     *
-     * Null while a property is in the registration pipeline: it has no public
-     * page yet, and minting an address for one would publish a business nobody
-     * has approved. A consumer that needs to link to the property must handle
-     * the null rather than assume one exists.
-     */
-    slug: z.ZodNullable<z.ZodString>;
-    name: z.ZodString;
-    description: z.ZodNullable<z.ZodString>;
-    districtName: z.ZodNullable<z.ZodString>;
-    latitude: z.ZodNullable<z.ZodNumber>;
-    longitude: z.ZodNullable<z.ZodNumber>;
-    locationPrivacy: z.ZodBoolean;
-    checkInTime: z.ZodNullable<z.ZodString>;
-    checkOutTime: z.ZodNullable<z.ZodString>;
-    houseRules: z.ZodNullable<z.ZodString>;
-    /**
-     * One absolute URL per photograph, in the operator's order, the cover first.
-     *
-     * Each is the API's photo route (`/api/v1/properties/photos/:photoId`), which
-     * answers 302 to a fresh signed URL while the property is public and 404 once
-     * it is not (ADR-049, owner ruling of 2026-09-13). Never an object key, and
-     * never a signed URL itself, so a cached page cannot hold one that expires.
-     */
-    photos: z.ZodArray<z.ZodString, "many">;
-    roomTypes: z.ZodArray<z.ZodObject<{
-        id: z.ZodString;
-        name: z.ZodString;
-        domain: z.ZodEnum<["hospitality", "residence"]>;
-        capacity: z.ZodNullable<z.ZodNumber>;
-        /** Bookable units of this Room type (the atomic-hold denominator). */
-        roomCount: z.ZodNumber;
-        nightlyRateRwf: z.ZodNullable<z.ZodNumber>;
-        bookingMode: z.ZodNullable<z.ZodEnum<["instant_book", "request_to_book"]>>;
-        approvalPolicy: z.ZodNullable<z.ZodEnum<["approve_all", "approve_first_three"]>>;
-        cancellationTier: z.ZodNullable<z.ZodEnum<["flexible", "moderate", "limited", "firm", "strict_extended_stay"]>>;
-        nonrefundableEligible: z.ZodBoolean;
-        /**
-         * The shortest stay this room accepts (ARI, F-L08).
-         *
-         * The column has always existed and no client read it, so a room with a
-         * three-night minimum was offered for one night and refused later. Nullable
-         * on the wire because a host may not have set one; a consumer reads an
-         * absent minimum as 1 rather than inventing a longer one.
-         */
-        minStay: z.ZodNullable<z.ZodNumber>;
-    }, "strip", z.ZodTypeAny, {
-        id: string;
-        domain: "hospitality" | "residence";
-        name: string;
-        roomCount: number;
-        capacity: number | null;
-        nightlyRateRwf: number | null;
-        bookingMode: "instant_book" | "request_to_book" | null;
-        approvalPolicy: "approve_all" | "approve_first_three" | null;
-        cancellationTier: "flexible" | "moderate" | "limited" | "firm" | "strict_extended_stay" | null;
-        nonrefundableEligible: boolean;
-        minStay: number | null;
-    }, {
-        id: string;
-        domain: "hospitality" | "residence";
-        name: string;
-        roomCount: number;
-        capacity: number | null;
-        nightlyRateRwf: number | null;
-        bookingMode: "instant_book" | "request_to_book" | null;
-        approvalPolicy: "approve_all" | "approve_first_three" | null;
-        cancellationTier: "flexible" | "moderate" | "limited" | "firm" | "strict_extended_stay" | null;
-        nonrefundableEligible: boolean;
-        minStay: number | null;
-    }>, "many">;
-}, "strip", z.ZodTypeAny, {
-    districtName: string | null;
-    id: string;
-    name: string;
-    slug: string | null;
-    description: string | null;
-    latitude: number | null;
-    longitude: number | null;
-    locationPrivacy: boolean;
-    checkInTime: string | null;
-    checkOutTime: string | null;
-    houseRules: string | null;
-    photos: string[];
-    roomTypes: {
-        id: string;
-        domain: "hospitality" | "residence";
-        name: string;
-        roomCount: number;
-        capacity: number | null;
-        nightlyRateRwf: number | null;
-        bookingMode: "instant_book" | "request_to_book" | null;
-        approvalPolicy: "approve_all" | "approve_first_three" | null;
-        cancellationTier: "flexible" | "moderate" | "limited" | "firm" | "strict_extended_stay" | null;
-        nonrefundableEligible: boolean;
-        minStay: number | null;
-    }[];
-}, {
-    districtName: string | null;
-    id: string;
-    name: string;
-    slug: string | null;
-    description: string | null;
-    latitude: number | null;
-    longitude: number | null;
-    locationPrivacy: boolean;
-    checkInTime: string | null;
-    checkOutTime: string | null;
-    houseRules: string | null;
-    photos: string[];
-    roomTypes: {
-        id: string;
-        domain: "hospitality" | "residence";
-        name: string;
-        roomCount: number;
-        capacity: number | null;
-        nightlyRateRwf: number | null;
-        bookingMode: "instant_book" | "request_to_book" | null;
-        approvalPolicy: "approve_all" | "approve_first_three" | null;
-        cancellationTier: "flexible" | "moderate" | "limited" | "firm" | "strict_extended_stay" | null;
-        nonrefundableEligible: boolean;
-        minStay: number | null;
-    }[];
-}>;
-export type PropertyDetail = z.infer<typeof PropertyDetail>;
 /**
  * The property, as the CHECKOUT needs to name it. Not a second PropertyDetail.
  *
@@ -1389,4 +1260,120 @@ export declare const BookingApprovalResult: z.ZodObject<{
     confirmedAt: string | null;
 }>;
 export type BookingApprovalResult = z.infer<typeof BookingApprovalResult>;
+/**
+ * What each tier refunds a GUEST who cancels a confirmed booking, by how long
+ * before check-in they cancel.
+ *
+ * The only statement of these numbers before ADR-051 was the checkout copy in
+ * `apps/web/src/lib/booking.ts`, which guests had already been shown when they
+ * paid, so that copy IS the policy and this table is it in figures:
+ *
+ * - flexible: 100% up to 24 hours before check-in; nothing after.
+ * - moderate: 100% up to 5 days before; 50% after.
+ * - limited: 50% up to 7 days before; nothing after.
+ * - firm: 50% up to 30 days before; nothing after.
+ * - strict_extended_stay: 50% up to 30 days before; nothing after.
+ *
+ * `windowHours` is the cut-off; `before` applies at or beyond it, `after` inside
+ * it. The guest service fee is refunded in the same proportion as the stay.
+ */
+export declare const CANCELLATION_TIERS: Record<CancellationTier, {
+    windowHours: number;
+    beforePercent: number;
+    afterPercent: number;
+}>;
+/** Who cancelled. A host cancellation always refunds in full (F-B11). */
+export declare const CancellationParty: z.ZodEnum<["guest", "host"]>;
+export type CancellationParty = z.infer<typeof CancellationParty>;
+export interface CancellationRefund {
+    /** 0 to 100. */
+    percent: number;
+    refundRwf: number;
+    /** What the guest does not get back. Stays in escrow for the host. */
+    forfeitRwf: number;
+    /** The rule that decided it, in a sentence meant for the guest. */
+    rule: string;
+}
+/**
+ * THE REFUND FOR ONE CANCELLATION, and the only place it is computed.
+ *
+ * In order, the first that applies wins:
+ * 1. The host cancels: 100%, always.
+ * 2. The request was never accepted (`pending_approval`): 100%, no contract.
+ * 3. The guest chose the non-refundable rate: 0%, whatever the tier.
+ * 4. The tier, by hours before check-in. A booking that locked no tier is read
+ *    as `flexible`, the most generous one, rather than refused.
+ *
+ * Rounded DOWN to the franc on the refund, so a partial refund can never pay
+ * out more than was captured and the forfeit is the exact remainder.
+ */
+export declare function cancellationRefund(input: {
+    party: CancellationParty;
+    status: BookingStatus;
+    tier: CancellationTier | null;
+    nonRefundable: boolean;
+    grossRwf: number;
+    hoursBeforeCheckIn: number;
+}): CancellationRefund;
+/** What `GET /api/v1/bookings/:reference/cancellation` answers: the refund, before committing. */
+export declare const CancellationQuote: z.ZodObject<{
+    reference: z.ZodString;
+    cancellable: z.ZodBoolean;
+    /** Why it cannot be cancelled, when it cannot. */
+    refusal: z.ZodNullable<z.ZodString>;
+    percent: z.ZodNumber;
+    refundRwf: z.ZodNumber;
+    forfeitRwf: z.ZodNumber;
+    rule: z.ZodString;
+}, "strip", z.ZodTypeAny, {
+    percent: number;
+    reference: string;
+    cancellable: boolean;
+    refusal: string | null;
+    refundRwf: number;
+    forfeitRwf: number;
+    rule: string;
+}, {
+    percent: number;
+    reference: string;
+    cancellable: boolean;
+    refusal: string | null;
+    refundRwf: number;
+    forfeitRwf: number;
+    rule: string;
+}>;
+export type CancellationQuote = z.infer<typeof CancellationQuote>;
+/** What a cancellation answers once it is done. */
+export declare const BookingCancellationResult: z.ZodObject<{
+    id: z.ZodString;
+    reference: z.ZodString;
+    status: z.ZodEnum<["pending_approval", "confirmed", "declined", "cancelled", "no_show"]>;
+    cancelledBy: z.ZodEnum<["guest", "host"]>;
+    paymentStatus: z.ZodNullable<z.ZodEnum<["captured", "refunded_full", "refunded_partial", "forfeited", "paid_out"]>>;
+    escrowStatus: z.ZodNullable<z.ZodEnum<["held", "released", "refunded_full", "refunded_partial", "forfeited"]>>;
+    refundRwf: z.ZodNumber;
+    forfeitRwf: z.ZodNumber;
+    rule: z.ZodString;
+}, "strip", z.ZodTypeAny, {
+    status: "pending_approval" | "confirmed" | "declined" | "cancelled" | "no_show";
+    id: string;
+    reference: string;
+    paymentStatus: "captured" | "refunded_full" | "refunded_partial" | "forfeited" | "paid_out" | null;
+    escrowStatus: "held" | "refunded_full" | "refunded_partial" | "forfeited" | "released" | null;
+    refundRwf: number;
+    forfeitRwf: number;
+    rule: string;
+    cancelledBy: "guest" | "host";
+}, {
+    status: "pending_approval" | "confirmed" | "declined" | "cancelled" | "no_show";
+    id: string;
+    reference: string;
+    paymentStatus: "captured" | "refunded_full" | "refunded_partial" | "forfeited" | "paid_out" | null;
+    escrowStatus: "held" | "refunded_full" | "refunded_partial" | "forfeited" | "released" | null;
+    refundRwf: number;
+    forfeitRwf: number;
+    rule: string;
+    cancelledBy: "guest" | "host";
+}>;
+export type BookingCancellationResult = z.infer<typeof BookingCancellationResult>;
 //# sourceMappingURL=booking.d.ts.map

@@ -50,10 +50,10 @@ export declare const DemoSeat: z.ZodObject<{
     surface: z.ZodEnum<["personal", "landlord", "broker", "work", "host", "staff"]>;
 }, "strip", z.ZodTypeAny, {
     label: string;
-    surface: "broker" | "personal" | "staff" | "host" | "landlord" | "work";
+    surface: "broker" | "personal" | "host" | "landlord" | "staff" | "work";
 }, {
     label: string;
-    surface: "broker" | "personal" | "staff" | "host" | "landlord" | "work";
+    surface: "broker" | "personal" | "host" | "landlord" | "staff" | "work";
 }>;
 export type DemoSeat = z.infer<typeof DemoSeat>;
 export declare const DemoPersona: z.ZodObject<{
@@ -65,24 +65,24 @@ export declare const DemoPersona: z.ZodObject<{
         surface: z.ZodEnum<["personal", "landlord", "broker", "work", "host", "staff"]>;
     }, "strip", z.ZodTypeAny, {
         label: string;
-        surface: "broker" | "personal" | "staff" | "host" | "landlord" | "work";
+        surface: "broker" | "personal" | "host" | "landlord" | "staff" | "work";
     }, {
         label: string;
-        surface: "broker" | "personal" | "staff" | "host" | "landlord" | "work";
+        surface: "broker" | "personal" | "host" | "landlord" | "staff" | "work";
     }>, "many">;
 }, "strip", z.ZodTypeAny, {
     name: string;
     email: string;
     seats: {
         label: string;
-        surface: "broker" | "personal" | "staff" | "host" | "landlord" | "work";
+        surface: "broker" | "personal" | "host" | "landlord" | "staff" | "work";
     }[];
 }, {
     name: string;
     email: string;
     seats: {
         label: string;
-        surface: "broker" | "personal" | "staff" | "host" | "landlord" | "work";
+        surface: "broker" | "personal" | "host" | "landlord" | "staff" | "work";
     }[];
 }>;
 export type DemoPersona = z.infer<typeof DemoPersona>;

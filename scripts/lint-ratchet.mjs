@@ -2,7 +2,7 @@
 /**
  * The ESLint warning ratchet.
  *
- * ADR-048 AC-3. Errors fail the run; warnings are counted per workspace member
+ * ADR-052 AC-3. Errors fail the run; warnings are counted per workspace member
  * and compared against `.github/lint-baseline.json`. A count that RISES fails.
  * A count that falls passes and says so.
  *
@@ -134,7 +134,7 @@ if (update) {
   }
   const counts = Object.fromEntries(results.map((r) => [r.member.name, r.warningCount]));
   const file = {
-    '//': 'ESLint warning counts per workspace member, the ADR-048 AC-3 ratchet baseline.',
+    '//': 'ESLint warning counts per workspace member, the ADR-052 AC-3 ratchet baseline.',
     '//how': 'A count that RISES above its entry fails CI. Regenerate with: node scripts/lint-ratchet.mjs --update',
     '//when': 'Update this in the commit that FIXES warnings, never to make a failing run pass.',
     '//zero': 'When a count reaches 0, flip that rule to `error` in the app config and drop the row.',

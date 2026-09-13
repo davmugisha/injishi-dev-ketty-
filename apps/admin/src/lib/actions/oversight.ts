@@ -12,7 +12,7 @@ import { apiDelete, apiPost, type ResponseSchema } from "@/lib/api/server";
 import { badInput, outcomeOf, type WriteOutcome, type WriteSpec } from "./outcome";
 
 /**
- * Officer appointments (ADR-049, AC-G1) — `POST` and `DELETE
+ * Officer appointments (ADR-053, AC-G1) — `POST` and `DELETE
  * /api/v1/admin/users/:userId/oversight`.
  *
  * Nothing could appoint a government officer from the console before this: the
@@ -21,7 +21,7 @@ import { badInput, outcomeOf, type WriteOutcome, type WriteSpec } from "./outcom
  * which only `super_admin` holds.
  *
  * **Single signer, by decision.** ADR-012 asked for a second `super_admin` on
- * role grants and `needsSecondSigner` is implemented by nothing; ADR-049 records
+ * role grants and `needsSecondSigner` is implemented by nothing; ADR-053 records
  * that an oversight appointment ships as a single signer action and names the
  * exposure (no other staff role holds the permission at all). The admin grant
  * and the staff role changes the same dialog shows still wait for the second

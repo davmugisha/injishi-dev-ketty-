@@ -22,7 +22,7 @@ export type TinCheckOutcome =
  * The MOCK adapter. The only one that exists.
  *
  * **It used to carry a `live` branch that called nothing** and answered
- * `pending` with a logged warning (ADR-049, AC-R4). That made
+ * `pending` with a logged warning (ADR-053, AC-R4). That made
  * `RRA_TIN_ADAPTER_MODE=live` a silent no op: a deployment could switch it on and
  * every registration would stop at `submitted` with nobody told. The mode is now
  * resolved once, at boot, in `organization.module.ts`, and `live` with no live

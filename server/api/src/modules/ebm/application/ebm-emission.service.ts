@@ -171,6 +171,29 @@ export class EbmEmissionService {
       // reaching here is a deployment that switched mode with sales queued.
       return this.park(row.id, 'RRA invoicing was switched to mock mode with this sale still queued');
     }
+    /**
+     * ONLY A BOOKING'S NORMAL SALE CAN BE SENT (ADR-050, slice 1).
+     *
+     * The provider's `createInvoice` takes a customer, a means of payment and
+     * catalog item ids, and nothing else: it has no receipt type, no RRA item
+     * codes and no `refId`. So a proforma sent through it would be certified AS
+     * A SALE, declaring the room weeks early under a label that says it is not
+     * one, and a folio's lines have no provider item to name. Both are parked,
+     * visibly, until ADR-050 settles whether Injishi is the certified system
+     * (and so talks to the VSDC itself) or a client of this provider.
+     */
+    if (row.receiptType !== 'normal' || row.transactionType !== 'sale') {
+      return this.park(
+        row.id,
+        `a ${row.receiptLabel} cannot be sent: the EBM provider API can only certify a normal sale (ADR-050 follow up)`,
+      );
+    }
+    if (row.source !== 'booking') {
+      return this.park(
+        row.id,
+        `a ${row.source} sale cannot be sent yet: the EBM provider API has no item for its lines (ADR-050 follow up)`,
+      );
+    }
     if (!row.bookingId || !row.orgId) {
       return this.park(row.id, 'this emission row names no booking or no org');
     }

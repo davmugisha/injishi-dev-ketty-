@@ -20,7 +20,7 @@ import {
 } from '../infrastructure/property-photos.repository';
 
 /**
- * A property's photographs (ADR-049, AC-I3, AC-I7).
+ * A property's photographs (ADR-053, AC-I3, AC-I7).
  *
  * Two steps, not one: the bytes went up at
  * `POST /api/v1/uploads/property-photo` and this attaches the KEY. That split is

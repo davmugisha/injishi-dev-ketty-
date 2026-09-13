@@ -33,11 +33,26 @@ function membershipLabel(m: OrgMembership): string {
   return "Staff";
 }
 
+/**
+ * The staff roles this editor can grant.
+ *
+ * `trainer` (ADR-049) is the narrowest of them: four `training.*` powers and no
+ * `admin.*` power at all, so somebody holding only this role can reach the
+ * Training section and nothing else in the console. The label says so, because
+ * "Trainer" alone reads like a seniority rather than a scope.
+ *
+ * ADDING A ROLE TO `StaffRole` MAKES THIS LIST FAIL TO COMPILE, by design: the
+ * two `Record<StaffRole, boolean>` states below are keyed on the full union, so
+ * a sixth role cannot be added to the contract without this screen learning
+ * about it. That is how `trainer` was caught here rather than shipping a grant
+ * editor that could not grant it.
+ */
 const STAFF_ROLE_OPTIONS: { key: StaffRole; label: string }[] = [
   { key: "super_admin", label: "Super Admin" },
   { key: "ops", label: "Ops / Support" },
   { key: "compliance", label: "Compliance" },
   { key: "finance", label: "Finance" },
+  { key: "trainer", label: "Trainer (training only)" },
 ];
 
 /**
@@ -107,7 +122,7 @@ export function UserDirectory({
   const mayAppoint = permissions.includes("admin.user.role.grant");
   const [query, setQuery] = useState(searched);
 
-  // Officer appointments are real writes (ADR-049, AC-G1): the appointment dialog
+  // Officer appointments are real writes (ADR-053, AC-G1): the appointment dialog
   // posts one, and the revoke asks why, then deletes it. Both re-read the page so
   // the row shows what the platform now holds, not what was pressed.
   const [appointing, setAppointing] = useState<{ id: string; name: string } | null>(null);
@@ -147,6 +162,7 @@ export function UserDirectory({
     ops: false,
     compliance: false,
     finance: false,
+    trainer: false,
   });
 
   function openEditor(user: UserRow) {
@@ -155,12 +171,18 @@ export function UserDirectory({
       broker: user.globalRoles.includes("broker"),
       admin: user.globalRoles.includes("admin"),
     });
-    setStaffRoles({
-      super_admin: user.staffRoles?.includes("super_admin") ?? false,
-      ops: user.staffRoles?.includes("ops") ?? false,
-      compliance: user.staffRoles?.includes("compliance") ?? false,
-      finance: user.staffRoles?.includes("finance") ?? false,
-    });
+    // Built from `STAFF_ROLE_OPTIONS` rather than listed by hand, so a role
+    // added to the contract is picked up here the moment it is added to that
+    // list. The hand-written version silently defaulted a new role to false for
+    // a user who held it, which would have shown a granted role as ungranted.
+    setStaffRoles(
+      Object.fromEntries(
+        STAFF_ROLE_OPTIONS.map((option) => [
+          option.key,
+          user.staffRoles?.includes(option.key) ?? false,
+        ]),
+      ) as Record<StaffRole, boolean>,
+    );
     setRoleOpen(true);
   }
 

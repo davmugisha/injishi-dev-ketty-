@@ -21,7 +21,7 @@ const PERMISSION = "admin.config.view";
  *
  * A page of its own rather than a fourth block on the Configuration overview:
  * this is the money schedule. Reading it is `admin.config.view`, which every
- * staff role holds (ADR-049); CHANGING it is `admin.fee.edit`, a different power
+ * staff role holds (ADR-053); CHANGING it is `admin.fee.edit`, a different power
  * from the `admin.config.edit` that changes the flags, so the console does not
  * offer the two together.
  *

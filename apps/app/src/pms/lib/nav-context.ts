@@ -46,7 +46,7 @@ export function navContextOf(
     // the caller, which reads it from the route.
     workspaceId,
     // The permission array the server resolved for THIS workspace, read through
-    // `permissionsOf`, the same answer every button's `can` reads (ADR-049,
+    // `permissionsOf`, the same answer every button's `can` reads (ADR-053,
     // AC-A1). The nav and the buttons cannot disagree about what a person may
     // do, and no role name decides a section. Before the API has answered it is
     // the demo stand in, exactly as it is for the buttons.

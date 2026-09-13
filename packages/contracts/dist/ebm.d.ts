@@ -251,12 +251,12 @@ export declare const EbmSeller: z.ZodObject<{
     tin: z.ZodString;
 }, "strip", z.ZodTypeAny, {
     tin: string;
-    tradeName: string;
     address: string;
+    tradeName: string;
 }, {
     tin: string;
-    tradeName: string;
     address: string;
+    tradeName: string;
 }>;
 export type EbmSeller = z.infer<typeof EbmSeller>;
 /** How the sale was settled (7.13, printed above `ITEMS NUMBER`). */
@@ -299,12 +299,12 @@ export declare const EbmReceipt: z.ZodObject<{
         tin: z.ZodString;
     }, "strip", z.ZodTypeAny, {
         tin: string;
-        tradeName: string;
         address: string;
+        tradeName: string;
     }, {
         tin: string;
-        tradeName: string;
         address: string;
+        tradeName: string;
     }>;
     /** Free text printed under the header, e.g. "Welcome to our shop". */
     commercialMessage: z.ZodString;
@@ -469,8 +469,8 @@ export declare const EbmReceipt: z.ZodObject<{
     transaction: "SALE" | "REFUND";
     seller: {
         tin: string;
-        tradeName: string;
         address: string;
+        tradeName: string;
     };
     commercialMessage: string;
     clientId: string | null;
@@ -521,8 +521,8 @@ export declare const EbmReceipt: z.ZodObject<{
     transaction: "SALE" | "REFUND";
     seller: {
         tin: string;
-        tradeName: string;
         address: string;
+        tradeName: string;
     };
     commercialMessage: string;
     clientId: string | null;

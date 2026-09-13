@@ -1,5 +1,6 @@
 import type {
   BookableRoom,
+  PropertyCard,
   PropertyDetail,
   RoomTypeSummary,
   SitemapProperty,
@@ -69,6 +70,18 @@ export class ListingService {
     }));
   }
 
+  /**
+   * Every publicly sellable property with a public address, for discovery. Its
+   * photographs leave as photo route URLs, as the detail read's do.
+   */
+  async listPublishedProperties(): Promise<PropertyCard[]> {
+    const cards = await this.listings.findPublishedCards();
+    return cards.map(({ photoIds, ...card }) => ({
+      ...card,
+      photos: photoIds.map((id) => photoRouteUrl(this.origin, id)),
+    }));
+  }
+
   /** The same property, addressed by its public slug rather than its uuid. */
   async getPublishedPropertyBySlug(slug: string): Promise<PropertyDetail> {
     const property = await this.listings.findPublishedPropertyBySlug(slug);
@@ -80,7 +93,7 @@ export class ListingService {
 
   /**
    * Where one public photograph can be read right now: a signed URL, valid for a
-   * few minutes, for the photo route to redirect to (ADR-049, owner ruling of
+   * few minutes, for the photo route to redirect to (ADR-053, owner ruling of
    * 2026-09-13).
    *
    * One 404 for every refusal: an id that is not a uuid, a photograph that does

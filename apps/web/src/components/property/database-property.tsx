@@ -12,7 +12,7 @@ import type { PublicProperty } from "@/data/public-property";
 
 /**
  * A published property the API holds, rendered from its database fields only
- * (ADR-049, owner ruling of 2026-09-13).
+ * (ADR-053, owner ruling of 2026-09-13).
  *
  * The catalogue page beside this is written for a curated record: a guest score
  * from a named source, a property type, specifications and an amenity list. The

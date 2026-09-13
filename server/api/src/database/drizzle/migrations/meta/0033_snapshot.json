@@ -1,5 +1,5 @@
 {
-  "id": "38f0e6a2-801e-422b-ad1c-7858745f59d0",
+  "id": "21c4c04f-8e69-4913-82a2-3789d7903ac3",
   "prevId": "5a168000-3e93-4110-86b0-317627b9fdc4",
   "version": "7",
   "dialect": "postgresql",
@@ -3873,6 +3873,12 @@
           "primaryKey": false,
           "notNull": false
         },
+        "photo_object_keys": {
+          "name": "photo_object_keys",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": false
+        },
         "created_at": {
           "name": "created_at",
           "type": "timestamp with time zone",
@@ -4099,144 +4105,6 @@
           ]
         }
       },
-      "uniqueConstraints": {},
-      "policies": {},
-      "checkConstraints": {},
-      "isRLSEnabled": false
-    },
-    "public.property_photos": {
-      "name": "property_photos",
-      "schema": "",
-      "columns": {
-        "id": {
-          "name": "id",
-          "type": "uuid",
-          "primaryKey": true,
-          "notNull": true,
-          "default": "gen_random_uuid()"
-        },
-        "property_id": {
-          "name": "property_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "object_key": {
-          "name": "object_key",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "position": {
-          "name": "position",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "is_cover": {
-          "name": "is_cover",
-          "type": "boolean",
-          "primaryKey": false,
-          "notNull": true,
-          "default": false
-        },
-        "caption": {
-          "name": "caption",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "created_at": {
-          "name": "created_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "now()"
-        }
-      },
-      "indexes": {
-        "property_photos_property_idx": {
-          "name": "property_photos_property_idx",
-          "columns": [
-            {
-              "expression": "property_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        },
-        "property_photos_position_uk": {
-          "name": "property_photos_position_uk",
-          "columns": [
-            {
-              "expression": "property_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            },
-            {
-              "expression": "position",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": true,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        },
-        "property_photos_cover_uk": {
-          "name": "property_photos_cover_uk",
-          "columns": [
-            {
-              "expression": "property_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": true,
-          "where": "\"property_photos\".\"is_cover\"",
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        }
-      },
-      "foreignKeys": {
-        "property_photos_property_id_properties_id_fk": {
-          "name": "property_photos_property_id_properties_id_fk",
-          "tableFrom": "property_photos",
-          "tableTo": "properties",
-          "columnsFrom": [
-            "property_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
-        },
-        "property_photos_object_key_stored_objects_object_key_fk": {
-          "name": "property_photos_object_key_stored_objects_object_key_fk",
-          "tableFrom": "property_photos",
-          "tableTo": "stored_objects",
-          "columnsFrom": [
-            "object_key"
-          ],
-          "columnsTo": [
-            "object_key"
-          ],
-          "onDelete": "no action",
-          "onUpdate": "no action"
-        }
-      },
-      "compositePrimaryKeys": {},
       "uniqueConstraints": {},
       "policies": {},
       "checkConstraints": {},
@@ -16143,6 +16011,201 @@
         }
       },
       "isRLSEnabled": false
+    },
+    "public.waitlist_signups": {
+      "name": "waitlist_signups",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "audience": {
+          "name": "audience",
+          "type": "waitlist_audience",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "email": {
+          "name": "email",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "full_name": {
+          "name": "full_name",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "phone": {
+          "name": "phone",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "business_name": {
+          "name": "business_name",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "district_id": {
+          "name": "district_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "property_type": {
+          "name": "property_type",
+          "type": "waitlist_property_type",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "size_band": {
+          "name": "size_band",
+          "type": "waitlist_size_band",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "marketing_opt_in": {
+          "name": "marketing_opt_in",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "default": false
+        },
+        "unsubscribe_token": {
+          "name": "unsubscribe_token",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "invited_at": {
+          "name": "invited_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "unsubscribed_at": {
+          "name": "unsubscribed_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "waitlist_signups_email_uk": {
+          "name": "waitlist_signups_email_uk",
+          "columns": [
+            {
+              "expression": "lower(\"email\")",
+              "asc": true,
+              "isExpression": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "waitlist_signups_unsubscribe_token_uk": {
+          "name": "waitlist_signups_unsubscribe_token_uk",
+          "columns": [
+            {
+              "expression": "unsubscribe_token",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "waitlist_signups_created_at_idx": {
+          "name": "waitlist_signups_created_at_idx",
+          "columns": [
+            {
+              "expression": "created_at",
+              "isExpression": false,
+              "asc": false,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "waitlist_signups_district_idx": {
+          "name": "waitlist_signups_district_idx",
+          "columns": [
+            {
+              "expression": "district_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "waitlist_signups_district_id_districts_id_fk": {
+          "name": "waitlist_signups_district_id_districts_id_fk",
+          "tableFrom": "waitlist_signups",
+          "tableTo": "districts",
+          "columnsFrom": [
+            "district_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {
+        "waitlist_owner_complete": {
+          "name": "waitlist_owner_complete",
+          "value": "(\"waitlist_signups\".\"audience\" <> 'owner') OR (\n        \"waitlist_signups\".\"phone\" IS NOT NULL\n        AND \"waitlist_signups\".\"business_name\" IS NOT NULL\n        AND \"waitlist_signups\".\"district_id\" IS NOT NULL\n        AND \"waitlist_signups\".\"property_type\" IS NOT NULL\n        AND \"waitlist_signups\".\"size_band\" IS NOT NULL\n      )"
+        },
+        "waitlist_owner_phone_rw": {
+          "name": "waitlist_owner_phone_rw",
+          "value": "(\"waitlist_signups\".\"audience\" <> 'owner') OR (\"waitlist_signups\".\"phone\" ~ '^[+]250(72|73|78|79)[0-9]{7}$')"
+        }
+      },
+      "isRLSEnabled": false
     }
   },
   "enums": {
@@ -17101,6 +17164,38 @@
         "translated",
         "missing",
         "needs_review"
+      ]
+    },
+    "public.waitlist_audience": {
+      "name": "waitlist_audience",
+      "schema": "public",
+      "values": [
+        "traveller",
+        "owner"
+      ]
+    },
+    "public.waitlist_property_type": {
+      "name": "waitlist_property_type",
+      "schema": "public",
+      "values": [
+        "hotel",
+        "guest_house",
+        "apartment",
+        "lodge",
+        "villa",
+        "hostel",
+        "homestay",
+        "campsite"
+      ]
+    },
+    "public.waitlist_size_band": {
+      "name": "waitlist_size_band",
+      "schema": "public",
+      "values": [
+        "1_5",
+        "6_20",
+        "21_50",
+        "50_plus"
       ]
     },
     "public.workspace_kind": {

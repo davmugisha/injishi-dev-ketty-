@@ -73,7 +73,7 @@ export class InventoryController {
    * **This route did not exist**, which is why the Rate plans lens was a
    * placeholder while `rate_plans` sat there fully specified.
    *
-   * It takes NO `workspaceId` query parameter, and since ADR-049 task 18 no
+   * It takes NO `workspaceId` query parameter, and since ADR-053 task 18 no
    * route on this controller does. Its neighbours used to validate one and
    * throw it away while `WorkspaceGuard` resolved the real workspace from the
    * header, so a client had to send the same fact twice for nothing.
@@ -130,7 +130,7 @@ export class InventoryController {
   }
 
   // -------------------------------------------------------------------------
-  // Room types (ADR-049, AC-I1)
+  // Room types (ADR-053, AC-I1)
   // -------------------------------------------------------------------------
 
   /** Every room type on a property, archived ones included. */
@@ -177,7 +177,7 @@ export class InventoryController {
   }
 
   // -------------------------------------------------------------------------
-  // Rate plans (ADR-049, AC-I2)
+  // Rate plans (ADR-053, AC-I2)
   // -------------------------------------------------------------------------
 
   /** Add a plan to a room type. */
@@ -203,7 +203,7 @@ export class InventoryController {
   }
 
   // -------------------------------------------------------------------------
-  // Photographs (ADR-049, AC-I3)
+  // Photographs (ADR-053, AC-I3)
   // -------------------------------------------------------------------------
 
   /** Every photograph on a property, in the operator's order. */
@@ -259,7 +259,7 @@ export class InventoryController {
   }
 
   // -------------------------------------------------------------------------
-  // Publishing (ADR-049, AC-I4 to AC-I6, AC-I10)
+  // Publishing (ADR-053, AC-I4 to AC-I6, AC-I10)
   // -------------------------------------------------------------------------
 
   /**

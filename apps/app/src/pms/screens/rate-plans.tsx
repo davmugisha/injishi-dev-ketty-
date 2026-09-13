@@ -3,7 +3,7 @@
 /**
  * Rate plans (F-L03) — the terms each room type sells on.
  *
- * **On real data** (ADR-035, D-f wave 2), and since ADR-049 **writable** for
+ * **On real data** (ADR-035, D-f wave 2), and since ADR-053 **writable** for
  * the acts an owner needs to sell: add a plan, make a plan the default, archive
  * or restore one. Reads `GET /api/v1/inventory/rate-plans` and shows the plans
  * of the property in view (`usePropertyInView`), grouped under their room type.

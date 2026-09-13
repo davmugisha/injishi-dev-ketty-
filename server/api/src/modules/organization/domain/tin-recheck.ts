@@ -1,5 +1,5 @@
 /**
- * When a `pending` RRA check is tried again (ADR-049, AC-R5).
+ * When a `pending` RRA check is tried again (ADR-053, AC-R5).
  *
  * `pending` is RRA being unreachable, never a verdict. FL01 promises the check is
  * retried automatically, and until this existed no code kept that promise: a
@@ -12,7 +12,7 @@
 /**
  * How long to wait AFTER attempt n before attempt n + 1.
  *
- * Attempt 1 is the check made at submission. The table is ADR-049's:
+ * Attempt 1 is the check made at submission. The table is ADR-053's:
  *
  * | Attempts made | Wait before the next |
  * |---|---|

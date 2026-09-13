@@ -1,10 +1,12 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.FolioType = exports.UpdateDepartmentRequest = exports.CreateDepartmentRequest = exports.OperatorDepartmentList = exports.OperatorDepartment = exports.DepartmentStatus = exports.DepartmentType = exports.DepartmentCategory = exports.PropertyScopedQuery = exports.AddAmenityRequest = exports.OperatorAmenityList = exports.OperatorAmenity = exports.ReturnDepositRequest = exports.OperatorDepositList = exports.OperatorDeposit = exports.RecordRentRequest = exports.OperatorRentRoll = exports.OperatorRentCharge = exports.AdvanceLeaseRequest = exports.OperatorLeaseList = exports.OperatorLease = exports.AdvanceTicketRequest = exports.OperatorTicketList = exports.OperatorTicket = exports.MaintenancePriority = exports.MaintenanceCategory = exports.SendMessageRequest = exports.OperatorMessageList = exports.OperatorMessage = exports.OperatorThreadList = exports.OperatorThread = exports.SetHousekeepingRequest = exports.CheckOutRequest = exports.WalkInRequest = exports.CheckInRequest = exports.OperatorStayList = exports.OperatorStay = exports.OperatorRoomList = exports.OperatorRoom = exports.CautionStatus = exports.RentStatus = exports.LeaseStatus = exports.MaintenanceStatus = exports.HousekeepingStatus = exports.RoomStatus = exports.ReservationDecisionResult = exports.OperatorReservationQuery = exports.OperatorReservationList = exports.OperatorReservation = exports.OperatorReservationState = void 0;
-exports.AssignDepartmentMemberRequest = exports.OperatorDepartmentMemberList = exports.OperatorDepartmentMember = exports.DepartmentPosition = exports.UpdateServiceItemRequest = exports.AdvanceServiceOrderRequest = exports.CreateServiceOrderRequest = exports.OperatorServiceOrderList = exports.OperatorServiceOrder = exports.OperatorServiceOrderItem = exports.UpsertServiceItemRequest = exports.CreateServiceCategoryRequest = exports.OperatorServiceCatalog = exports.OperatorServiceCategory = exports.OperatorServiceItem = exports.ServiceOrderStatus = exports.ServiceOrderChannel = exports.FulfillmentType = exports.ServiceCatalogStatus = exports.RaiseTicketRequest = exports.AdvanceHousekeepingTaskRequest = exports.CreateHousekeepingTaskRequest = exports.OperatorHousekeepingTaskList = exports.OperatorHousekeepingTask = exports.HousekeepingTaskStatus = exports.HousekeepingTaskType = exports.OperatorTeamList = exports.OperatorTeamMember = exports.RoomAssignmentWindowQuery = exports.AssignRoomRequest = exports.OperatorRoomAssignmentList = exports.OperatorRoomAssignment = exports.RoomAssignmentStatus = exports.OperatorRevenue = exports.OperatorRevenueDepartment = exports.OperatorRevenueQuery = exports.VoidChargeRequest = exports.TakePaymentRequest = exports.PostChargeRequest = exports.OperatorFolioDetail = exports.OperatorFolioCharge = exports.OperatorFolioList = exports.OperatorFolio = exports.PaymentMethod = exports.TaxCode = exports.ChargeType = exports.FolioStatus = void 0;
+exports.UpdateServiceCategoryRequest = exports.CreateServiceCategoryRequest = exports.OperatorServiceCatalog = exports.OperatorServiceCategory = exports.OperatorServiceItem = exports.RraItemField = exports.SelectedOptionSnapshot = exports.SelectedOption = exports.ServiceItemOptions = exports.ServiceItemOption = exports.RraUnitCode = exports.RraClassificationCode = exports.RraItemTypeCode = exports.OrderContext = exports.ServiceOrderStatus = exports.ServiceOrderChannel = exports.FulfillmentType = exports.ServiceCatalogStatus = exports.RaiseTicketRequest = exports.AdvanceHousekeepingTaskRequest = exports.CreateHousekeepingTaskRequest = exports.OperatorHousekeepingTaskList = exports.OperatorHousekeepingTask = exports.HousekeepingTaskStatus = exports.HousekeepingTaskType = exports.OperatorTeamList = exports.OperatorTeamMember = exports.RoomAssignmentWindowQuery = exports.AssignRoomRequest = exports.OperatorRoomAssignmentList = exports.OperatorRoomAssignment = exports.RoomAssignmentStatus = exports.OperatorRevenue = exports.OperatorRevenueDepartment = exports.OperatorRevenueQuery = exports.CloseFolioResult = exports.FolioDeclaration = exports.CloseFolioRequest = exports.VoidChargeRequest = exports.TakePaymentRequest = exports.PostChargeResult = exports.PostChargeRequest = exports.OperatorFolioDetail = exports.OperatorFolioCharge = exports.OperatorFolioList = exports.OperatorFolio = exports.PaymentMethod = exports.TaxCode = exports.ChargeType = exports.FolioStatus = void 0;
+exports.AssignDepartmentMemberRequest = exports.OperatorDepartmentMemberList = exports.OperatorDepartmentMember = exports.DepartmentPosition = exports.UpdateServiceItemRequest = exports.AdvanceServiceOrderRequest = exports.MarkOrderPaidCashResult = exports.MarkOrderPaidCashRequest = exports.CreateServiceOrderRequest = exports.OperatorServiceOrderList = exports.OperatorServiceOrder = exports.OperatorServiceOrderItem = exports.RraClassificationList = exports.RraClassificationSearch = exports.RraClassification = exports.UpsertServiceItemRequest = void 0;
 const zod_1 = require("zod");
 const booking_1 = require("./booking");
 const primitives_1 = require("./primitives");
+const registration_1 = require("./registration");
 /**
  * The operator command surface (ADR-012, `/api/v1/ops/*`).
  *
@@ -650,6 +652,13 @@ exports.OperatorFolio = zod_1.z.object({
     guestName: zod_1.z.string().nullable(),
     roomLabel: zod_1.z.string().nullable(),
     balanceRwf: zod_1.z.number().int(),
+    /**
+     * Which bill of the stay this is (ADR-050 D-c). A charge arriving after a
+     * bill was signed opens the next sequence, so a stay can hold several.
+     */
+    folioSequence: zod_1.z.number().int().positive(),
+    /** When the bill was signed. A locked bill takes no new line. */
+    lockedAt: zod_1.z.string().nullable(),
     openedAt: zod_1.z.string(),
     closedAt: zod_1.z.string().nullable(),
 });
@@ -718,6 +727,16 @@ exports.PostChargeRequest = zod_1.z.object({
     taxCode: exports.TaxCode.optional(),
 });
 /**
+ * The bill a charge landed on (ADR-050 D-c).
+ *
+ * `openedFolioId` is set when the bill asked for had already been signed, so
+ * the charge went to the stay's next bill instead; the rest of the answer is
+ * THAT bill. Null for every ordinary charge.
+ */
+exports.PostChargeResult = exports.OperatorFolioDetail.extend({
+    openedFolioId: primitives_1.Uuid.nullable(),
+});
+/**
  * Take a payment against a bill.
  *
  * Posts a negative `payment` line and one cash ledger entry. It never posts
@@ -738,6 +757,36 @@ exports.TakePaymentRequest = zod_1.z.object({
  */
 exports.VoidChargeRequest = zod_1.z.object({
     reason: zod_1.z.string().trim().min(1, "Say why.").max(500),
+});
+/**
+ * Close a bill, which signs its sale (ADR-050 D-a).
+ *
+ * Both fields are optional: most guests are not businesses. A guest who wants
+ * the receipt made out to their company gives its TIN and name here, and §4 d
+ * and e put them on the receipt.
+ */
+exports.CloseFolioRequest = zod_1.z.object({
+    customerTin: registration_1.Tin.optional(),
+    customerName: zod_1.z.string().trim().min(1).max(200).optional(),
+});
+/**
+ * What closing a bill declared, and what it deliberately did not.
+ *
+ * `emissionId` is null only where nothing may be declared at all (the demo
+ * environment). `status` is `failed` with a `reason` when the business has no
+ * EBM connection: the close still succeeds, because a missing connection must
+ * never strand a front desk (D-b). `excludedChargeIds` are lines another
+ * taxpayer already declared, which this receipt must not cover again.
+ */
+exports.FolioDeclaration = zod_1.z.object({
+    emissionId: primitives_1.Uuid.nullable(),
+    status: zod_1.z.enum(["held", "failed", "emitted"]).nullable(),
+    reason: zod_1.z.string().nullable(),
+    excludedChargeIds: zod_1.z.array(primitives_1.Uuid),
+});
+exports.CloseFolioResult = exports.OperatorFolioDetail.extend({
+    lockedAt: zod_1.z.string().nullable(),
+    declaration: exports.FolioDeclaration,
 });
 // ---------------------------------------------------------------------------
 // Departmental revenue
@@ -982,6 +1031,10 @@ exports.ServiceOrderChannel = zod_1.z.enum([
  * `submitted -> acknowledged -> in_progress -> ready -> delivered ->
  * completed`, plus `submitted -> rejected`, and anything before `delivered` to
  * `cancelled`.
+ *
+ * A pay now order starts before the board sees it (ADR-050 D-n):
+ * `pending_payment -> submitted` when its money settles, or
+ * `pending_payment -> payment_failed` when it is refused or expires.
  */
 exports.ServiceOrderStatus = zod_1.z.enum([
     "submitted",
@@ -992,6 +1045,68 @@ exports.ServiceOrderStatus = zod_1.z.enum([
     "completed",
     "cancelled",
     "rejected",
+    "pending_payment",
+    "payment_failed",
+]);
+/**
+ * When an order's money moves (ADR-050 D-n). `in_house_folio` posts to the
+ * guest's bill on `delivered`; `pay_now` settles first and never touches a bill.
+ */
+exports.OrderContext = zod_1.z.enum(["in_house_folio", "pay_now"]);
+// --- RRA item codes (ADR-050 D-m) ------------------------------------------
+/** `itemTyCd`, VSDC v1.0.5 §4.3: `1` raw material, `2` finished product, `3` service. */
+exports.RraItemTypeCode = zod_1.z.enum(["1", "2", "3"]);
+/** `itemClsCd`, a code from RRA's classification list (§3.3.2.2). Digits, CHAR 10 on an item. */
+exports.RraClassificationCode = zod_1.z
+    .string()
+    .trim()
+    .regex(/^\d{1,10}$/, "A classification code is up to ten digits from RRA's list.");
+/** `pkgUnitCd` (§4.5) or `qtyUnitCd` (§4.6): the Authority's own unit code, CHAR 5. */
+exports.RraUnitCode = zod_1.z
+    .string()
+    .trim()
+    .toUpperCase()
+    .regex(/^[A-Z0-9]{1,5}$/, "A unit code is one to five letters or digits from RRA's list.");
+/**
+ * One modifier on an item: a size, an extra, a choice of side (ADR-050 D-m).
+ *
+ * A chosen modifier is SNAPSHOTTED onto the order line with its price delta, so
+ * changing the menu never changes a placed order.
+ */
+exports.ServiceItemOption = zod_1.z.object({
+    name: zod_1.z.string().trim().min(1).max(80),
+    required: zod_1.z.boolean().default(false),
+    maxChoices: zod_1.z.number().int().min(1).max(20).default(1),
+    choices: zod_1.z
+        .array(zod_1.z.object({
+        label: zod_1.z.string().trim().min(1).max(80),
+        /** Tax exclusive, like the item's own price. May be zero or negative. */
+        priceDeltaRwf: zod_1.z.number().int().min(-10000000).max(10000000).default(0),
+    }))
+        .min(1)
+        .max(30),
+});
+exports.ServiceItemOptions = zod_1.z.array(exports.ServiceItemOption).max(20);
+/** What a guest or a waiter picked for one option, by label. */
+exports.SelectedOption = zod_1.z.object({
+    name: zod_1.z.string().trim().min(1).max(80),
+    choices: zod_1.z.array(zod_1.z.string().trim().min(1).max(80)).min(1).max(20),
+});
+/** A chosen option as the order line stores it: the labels AND the deltas, locked. */
+exports.SelectedOptionSnapshot = zod_1.z.object({
+    name: zod_1.z.string(),
+    choices: zod_1.z.array(zod_1.z.object({ label: zod_1.z.string(), priceDeltaRwf: zod_1.z.number().int() })),
+});
+/**
+ * The RRA values an item still lacks before it may be sold, by name. Empty
+ * means it may be sold. The server computes it; a screen only shows it.
+ */
+exports.RraItemField = zod_1.z.enum([
+    "classification",
+    "productType",
+    "itemCode",
+    "packagingUnit",
+    "quantityUnit",
 ]);
 exports.OperatorServiceItem = zod_1.z.object({
     id: primitives_1.Uuid,
@@ -1006,15 +1121,36 @@ exports.OperatorServiceItem = zod_1.z.object({
     guestOrderable: zod_1.z.boolean(),
     stockQty: zod_1.z.number().int().nullable(),
     status: exports.ServiceCatalogStatus,
+    options: exports.ServiceItemOptions,
+    rraItemClsCd: zod_1.z.string().nullable(),
+    /** The classification's name, for a screen to show beside the code. */
+    rraItemClsName: zod_1.z.string().nullable(),
+    rraItemTyCd: exports.RraItemTypeCode.nullable(),
+    /** Minted by the server once, and never changed. */
+    rraItemCd: zod_1.z.string().nullable(),
+    rraPkgUnitCd: zod_1.z.string().nullable(),
+    rraQtyUnitCd: zod_1.z.string().nullable(),
+    /**
+     * What still stops this item selling (ADR-050 D-m). An item flagged
+     * `guestOrderable` with anything listed here is refused on every channel.
+     */
+    missingRra: zod_1.z.array(exports.RraItemField),
 });
 exports.OperatorServiceCategory = zod_1.z.object({
     id: primitives_1.Uuid,
     departmentId: primitives_1.Uuid,
     departmentName: zod_1.z.string().nullable(),
+    outletId: primitives_1.Uuid.nullable(),
     name: zod_1.z.string(),
     sortOrder: zod_1.z.number().int(),
     guestVisible: zod_1.z.boolean(),
     status: exports.DepartmentStatus,
+    /** Prefills for a new item on this menu. Never a rule. */
+    defaultRraItemClsCd: zod_1.z.string().nullable(),
+    defaultRraItemTyCd: exports.RraItemTypeCode.nullable(),
+    defaultRraPkgUnitCd: zod_1.z.string().nullable(),
+    defaultRraQtyUnitCd: zod_1.z.string().nullable(),
+    defaultTaxCode: exports.TaxCode.nullable(),
     items: zod_1.z.array(exports.OperatorServiceItem),
 });
 /** The whole menu, grouped, which is the only way anyone reads it. */
@@ -1024,16 +1160,38 @@ exports.OperatorServiceCatalog = zod_1.z.object({
 exports.CreateServiceCategoryRequest = zod_1.z.object({
     propertyId: primitives_1.Uuid,
     departmentId: primitives_1.Uuid,
+    /** The outlet this menu sells from. Its items are listed to guests under it. */
+    outletId: primitives_1.Uuid.optional(),
     name: zod_1.z.string().trim().min(1).max(120),
     guestVisible: zod_1.z.boolean().optional(),
     sortOrder: zod_1.z.number().int().min(0).max(9999).optional(),
+    defaultRraItemClsCd: exports.RraClassificationCode.optional(),
+    defaultRraItemTyCd: exports.RraItemTypeCode.optional(),
+    defaultRraPkgUnitCd: exports.RraUnitCode.optional(),
+    defaultRraQtyUnitCd: exports.RraUnitCode.optional(),
+    defaultTaxCode: exports.TaxCode.optional(),
 });
+/**
+ * Change a menu's name, visibility, order or prefills. The department and the
+ * property are absent on purpose, for the reason an item cannot change menus.
+ */
+exports.UpdateServiceCategoryRequest = exports.CreateServiceCategoryRequest.omit({
+    propertyId: true,
+    departmentId: true,
+})
+    .partial()
+    .refine((v) => Object.keys(v).length > 0, { message: "Say what to change." });
 /**
  * Add or change a menu item.
  *
  * Editing one never rewrites a placed order: an order snapshots the name, the
  * price and the tax code at order time (D8), so last week's bill still says
  * what last week's menu said.
+ *
+ * The four RRA values are the item's own (ADR-050 D-m): on create, any left
+ * out are prefilled from the category. `rraItemCd` is never accepted, because
+ * the server mints it. Turning `guestOrderable` on without every RRA value is
+ * refused with 422; left out on create, it is on exactly when they are all set.
  */
 exports.UpsertServiceItemRequest = zod_1.z.object({
     serviceCategoryId: primitives_1.Uuid,
@@ -1044,8 +1202,25 @@ exports.UpsertServiceItemRequest = zod_1.z.object({
     fulfillmentType: exports.FulfillmentType.optional(),
     prepTimeMinutes: zod_1.z.number().int().min(0).max(1440).optional(),
     guestOrderable: zod_1.z.boolean().optional(),
-    stockQty: zod_1.z.number().int().min(0).optional(),
+    stockQty: zod_1.z.number().int().min(0).nullable().optional(),
     status: exports.ServiceCatalogStatus.optional(),
+    options: exports.ServiceItemOptions.optional(),
+    rraItemClsCd: exports.RraClassificationCode.optional(),
+    rraItemTyCd: exports.RraItemTypeCode.optional(),
+    rraPkgUnitCd: exports.RraUnitCode.optional(),
+    rraQtyUnitCd: exports.RraUnitCode.optional(),
+});
+/** One row of RRA's classification list, for the menu's picker. */
+exports.RraClassification = zod_1.z.object({
+    code: zod_1.z.string(),
+    name: zod_1.z.string(),
+    level: zod_1.z.number().int(),
+});
+exports.RraClassificationSearch = zod_1.z.object({
+    q: zod_1.z.string().trim().max(80).default(""),
+});
+exports.RraClassificationList = zod_1.z.object({
+    classifications: zod_1.z.array(exports.RraClassification),
 });
 exports.OperatorServiceOrderItem = zod_1.z.object({
     id: primitives_1.Uuid,
@@ -1056,21 +1231,28 @@ exports.OperatorServiceOrderItem = zod_1.z.object({
     lineTotalRwf: zod_1.z.number().int(),
     taxCode: exports.TaxCode.nullable(),
     note: zod_1.z.string().nullable(),
+    /** The modifiers chosen, with the deltas locked when the order was placed. */
+    selectedOptions: zod_1.z.array(exports.SelectedOptionSnapshot),
 });
 exports.OperatorServiceOrder = zod_1.z.object({
     id: primitives_1.Uuid,
     orderNumber: zod_1.z.string(),
     departmentId: primitives_1.Uuid,
     departmentName: zod_1.z.string().nullable(),
+    outletId: primitives_1.Uuid.nullable(),
     folioId: primitives_1.Uuid.nullable(),
     roomId: primitives_1.Uuid.nullable(),
     roomLabel: zod_1.z.string().nullable(),
     channel: exports.ServiceOrderChannel,
     status: exports.ServiceOrderStatus,
+    orderContext: exports.OrderContext,
     fulfillmentType: exports.FulfillmentType,
     subtotalRwf: zod_1.z.number().int(),
     taxRwf: zod_1.z.number().int(),
     totalRwf: zod_1.z.number().int(),
+    /** Pay now only: when its money settled, and the RRA means of payment (`01` cash, `06` mobile money). */
+    paidAt: zod_1.z.string().nullable(),
+    paymentMethod: zod_1.z.string().nullable(),
     guestNote: zod_1.z.string().nullable(),
     createdAt: zod_1.z.string(),
     items: zod_1.z.array(exports.OperatorServiceOrderItem),
@@ -1079,14 +1261,20 @@ exports.OperatorServiceOrderList = zod_1.z.object({
     orders: zod_1.z.array(exports.OperatorServiceOrder),
 });
 /**
- * Place an order against a stay.
+ * Place an order on a guest's behalf.
  *
  * The department is NOT asked for: it comes from the items, because an item
  * carries its own department and a caller who could choose would eventually
  * route a club sandwich to Engineering.
+ *
+ * `in_house_folio`, the default, charges a stay's bill and needs `guestStayId`.
+ * `pay_now` is a walk in at the counter (ADR-050 D-n): no stay and no bill, it
+ * waits `pending_payment` until someone marks it paid in cash.
  */
-exports.CreateServiceOrderRequest = zod_1.z.object({
-    guestStayId: primitives_1.Uuid,
+exports.CreateServiceOrderRequest = zod_1.z
+    .object({
+    context: exports.OrderContext.default("in_house_folio"),
+    guestStayId: primitives_1.Uuid.optional(),
     channel: exports.ServiceOrderChannel.optional(),
     guestNote: zod_1.z.string().trim().max(1000).optional(),
     items: zod_1.z
@@ -1094,8 +1282,32 @@ exports.CreateServiceOrderRequest = zod_1.z.object({
         serviceItemId: primitives_1.Uuid,
         quantity: zod_1.z.number().int().positive().max(99),
         note: zod_1.z.string().trim().max(300).optional(),
+        selectedOptions: zod_1.z.array(exports.SelectedOption).max(20).optional(),
     }))
         .min(1, "An order needs at least one item."),
+})
+    .refine((v) => v.context === "pay_now" || Boolean(v.guestStayId), {
+    message: "Name the stay this order is charged to.",
+    path: ["guestStayId"],
+})
+    .refine((v) => v.context === "in_house_folio" || !v.guestStayId, {
+    message: "A pay now order is not charged to a stay.",
+    path: ["guestStayId"],
+});
+/**
+ * Mark a pay now order paid in cash (ADR-050 D-p, AC-24).
+ *
+ * `amountRwf` must be exactly the order's total. It is asked for rather than
+ * read, so the person holding the cash confirms the number they took, and a
+ * mismatch is refused instead of recorded.
+ */
+exports.MarkOrderPaidCashRequest = zod_1.z.object({
+    amountRwf: zod_1.z.number().int().positive(),
+});
+/** What marking cash raised: the order, now `submitted`, and its `NS` emission. */
+exports.MarkOrderPaidCashResult = exports.OperatorServiceOrder.extend({
+    /** Null in the demo environment, where nothing is declared. */
+    emissionId: primitives_1.Uuid.nullable(),
 });
 /**
  * Move an order along its board.

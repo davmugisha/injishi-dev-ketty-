@@ -22,7 +22,7 @@
 //   2. It asserted `owner has all 21`. There are 23: `department.manage`
 //      (ADR-016) and `ebm.manage` (ADR-041) were added after it was written.
 //
-// It also read only the `@demo.injishi.rw` roster, so the eleven `@injishi.rw`
+// It also read only the `@demo.injishi.com` roster, so the eleven `@injishi.com`
 // accounts the apps are actually driven with — the ones `seed-users.mjs` seeds
 // one per shape of access — were never checked at all. Both rosters are now.
 import pg from 'pg';
@@ -135,9 +135,9 @@ async function main() {
     console.log('\n=== The four org roles, from @injishi/contracts alone ===');
     const forRole = (role) =>
       permissionsForWorkspace({ kind: 'business', orgRole: role, registrationStatus: 'active' });
-    check('owner holds all 23', forRole('owner').length, 23);
-    check('manager holds 22', forRole('manager').length, 22);
-    check('receptionist holds 8', forRole('receptionist').length, 8);
+    check('owner holds all 26', forRole('owner').length, 26);
+    check('manager holds 25', forRole('manager').length, 25);
+    check('receptionist holds 9', forRole('receptionist').length, 9);
     check('housekeeper holds 2', forRole('housekeeper').length, 2);
 
     console.log('\n=== owner and manager are no longer the same role ===');
@@ -151,16 +151,16 @@ async function main() {
     check('manager KEEPS the EBM account (ADR-041 D-o)', can('manager', 'ebm.manage'), true);
 
     // ---------------------------------------------------------------------
-    // The @injishi.rw roster: the accounts the apps are driven with.
+    // The @injishi.com roster: the accounts the apps are driven with.
     // ---------------------------------------------------------------------
     console.log('\n=== The driving roster: one account per shape of access ===');
     const EXPECTED = [
-      ['host@injishi.rw', 'owner', 23, 'hospitality'],
-      ['manager@injishi.rw', 'manager', 22, 'hospitality'],
-      ['reception@injishi.rw', 'receptionist', 8, 'hospitality'],
-      ['housekeeper@injishi.rw', 'housekeeper', 2, 'hospitality'],
-      ['landlord@injishi.rw', 'owner', 23, 'residence'],
-      ['resident-manager@injishi.rw', 'manager', 22, 'residence'],
+      ['host@injishi.com', 'owner', 26, 'hospitality'],
+      ['manager@injishi.com', 'manager', 25, 'hospitality'],
+      ['reception@injishi.com', 'receptionist', 9, 'hospitality'],
+      ['housekeeper@injishi.com', 'housekeeper', 2, 'hospitality'],
+      ['landlord@injishi.com', 'owner', 26, 'residence'],
+      ['resident-manager@injishi.com', 'manager', 25, 'residence'],
     ];
     for (const [email, role, count, domain] of EXPECTED) {
       const w = await businessOf(c, email);
@@ -172,22 +172,22 @@ async function main() {
     }
 
     console.log('\n=== The accounts that hold no business ===');
-    const broker = await listForUser(c, await byEmail(c, 'broker@injishi.rw'));
+    const broker = await listForUser(c, await byEmail(c, 'broker@injishi.com'));
     check(
       'broker@ holds a broker workspace and a personal one',
       broker.map((w) => w.kind).sort(),
       ['broker', 'personal'],
     );
-    const guest = await listForUser(c, await byEmail(c, 'guest@injishi.rw'));
+    const guest = await listForUser(c, await byEmail(c, 'guest@injishi.com'));
     check('guest@ holds personal only', guest.map((w) => w.kind), ['personal']);
 
     // ---------------------------------------------------------------------
     // The registration gate (D20, D23). Added 2026-09-12 with `pending@`.
     // ---------------------------------------------------------------------
     console.log('\n=== The registration gate: a role with none of its powers ===');
-    const pending = await businessOf(c, 'pending@injishi.rw');
+    const pending = await businessOf(c, 'pending@injishi.com');
     if (!pending) {
-      check('pending@injishi.rw holds a business workspace', false, true);
+      check('pending@injishi.com holds a business workspace', false, true);
     } else {
       check('the business is NOT active', isOperational(pending.registrationStatus), false);
       check('its stage is submitted', pending.registrationStatus, 'submitted');
@@ -203,11 +203,11 @@ async function main() {
     // Both hats at once (ADR-029). Added 2026-09-12 with `dualhat@`.
     // ---------------------------------------------------------------------
     console.log('\n=== One person, an operator role AND an oversight console ===');
-    const dualId = await byEmail(c, 'dualhat@injishi.rw');
+    const dualId = await byEmail(c, 'dualhat@injishi.com');
     const dualWs = await listForUser(c, dualId);
     const dualBiz = dualWs.find((w) => w.kind === 'business');
     check('holds a business workspace as manager', dualBiz?.orgRole ?? null, 'manager');
-    check('with a manager permission set', dualBiz?.permissions.length ?? 0, 22);
+    check('with a manager permission set', dualBiz?.permissions.length ?? 0, 25);
     const { rows: dualGrants } = await c.query(
       `SELECT oversight_role FROM oversight_assignments
         WHERE user_id = $1 AND revoked_at IS NULL`,
@@ -243,12 +243,12 @@ async function main() {
       // node-postgres ships no parser for one — it hands back the literal
       // `{super_admin}` rather than an array. Parsed here rather than
       // registered globally, because this script's only job is to read.
-      parsePgArray(staff.find((s) => s.email === 'admin@injishi.rw')?.staff_roles),
+      parsePgArray(staff.find((s) => s.email === 'admin@injishi.com')?.staff_roles),
       ['super_admin'],
     );
     check(
       'admin@ holds NO business workspace',
-      (await businessOf(c, 'admin@injishi.rw')) ?? null,
+      (await businessOf(c, 'admin@injishi.com')) ?? null,
       null,
     );
 
@@ -256,7 +256,7 @@ async function main() {
     // The demo roster. These were the script's original checks; they stay.
     // ---------------------------------------------------------------------
     console.log('\n=== Samuel Kayitare: one human, five seats ===');
-    const his = await listForUser(c, await byEmail(c, 'samuel@demo.injishi.rw'));
+    const his = await listForUser(c, await byEmail(c, 'samuel@demo.injishi.com'));
     // FIVE, not three. This assertion said 3 until 2026-09-12 and was simply
     // wrong: `seed-demo.mjs` prints "workspaces=2 memberships=3" and its own
     // note spells the switcher out — Personal, Kayitare Court, Broker, Kivu
@@ -282,20 +282,20 @@ async function main() {
     );
 
     console.log('\n=== The receptionist is refused money, by the model ===');
-    const desk = await businessOf(c, 'denise@demo.injishi.rw');
+    const desk = await businessOf(c, 'denise@demo.injishi.com');
     check('may check a guest in', desk.permissions.includes('stay.checkin'), true);
     check('may NOT view money', desk.permissions.includes('money.view'), false);
     check('may NOT manage the team', desk.permissions.includes('team.manage'), false);
 
     console.log('\n=== The housekeeper is the phone, not a trimmed desk ===');
-    const hk = await businessOf(c, 'beatha@demo.injishi.rw');
+    const hk = await businessOf(c, 'beatha@demo.injishi.com');
     check('exactly two permissions', hk.permissions.length, 2);
     check('may set room status', can('housekeeper', 'housekeeping.set'), true);
     check('may NOT check a guest in', can('housekeeper', 'stay.checkin'), false);
 
     console.log('\n=== The owner holds everything ===');
-    const owner = await businessOf(c, 'yves@demo.injishi.rw');
-    check('owner has all 23', owner.permissions.length, 23);
+    const owner = await businessOf(c, 'yves@demo.injishi.com');
+    check('owner has all 26', owner.permissions.length, 26);
     check('and it is the hospitality domain', owner.domain, 'hospitality');
 
     console.log('\n=== Oversight: scope is a boundary ===');
@@ -307,13 +307,13 @@ async function main() {
     const gasabo = (await c.query("SELECT id FROM districts WHERE name='Gasabo'")).rows[0].id;
     const karongi = (await c.query("SELECT id FROM districts WHERE name='Karongi'")).rows[0].id;
 
-    const jb = grants.find((g) => g.email === 'jeanbosco@demo.injishi.rw');
+    const jb = grants.find((g) => g.email === 'jeanbosco@demo.injishi.com');
     const jbGrant = {
       scopeLevel: jb.scope_level,
       provinceId: jb.province_id,
       districtId: jb.district_id,
     };
-    // The one definition of region scope (ADR-049, AC-G8). No province map is
+    // The one definition of region scope (ADR-053, AC-G8). No province map is
     // needed for a district grant; an empty one proves it is not consulted.
     const jbScope = districtScopeOf([jbGrant], new Map());
     check(
@@ -328,12 +328,12 @@ async function main() {
     );
     check(
       'the revoked officer has no active grant at all',
-      grants.some((g) => g.email === 'fidele@demo.injishi.rw'),
+      grants.some((g) => g.email === 'fidele@demo.injishi.com'),
       false,
     );
 
     console.log('\n=== Separation of duties ===');
-    const claudine = await byEmail(c, 'claudine@demo.injishi.rw');
+    const claudine = await byEmail(c, 'claudine@demo.injishi.com');
     check(
       'Claudine may not approve what she field-verified',
       violatesSeparationOfDuties({
@@ -346,7 +346,7 @@ async function main() {
       'but may approve what someone else verified',
       violatesSeparationOfDuties({
         actorUserId: claudine,
-        fieldVerifiedByUserId: await byEmail(c, 'jeanbosco@demo.injishi.rw'),
+        fieldVerifiedByUserId: await byEmail(c, 'jeanbosco@demo.injishi.com'),
       }),
       false,
     );

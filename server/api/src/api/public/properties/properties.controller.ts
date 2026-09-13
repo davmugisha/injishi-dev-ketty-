@@ -1,5 +1,6 @@
 import {
   BookableRoom,
+  type PropertyCard,
   PropertyDetail,
   type SitemapProperty,
 } from '@injishi/contracts';
@@ -10,9 +11,11 @@ import {
   Param,
   ParseUUIDPipe,
   Redirect,
+  UseGuards,
 } from '@nestjs/common';
 
 import { ListingService } from '../../../modules/listing/application/listing.service';
+import { PreLaunchGuard } from '../../../shared/pre-launch/pre-launch.guard';
 
 /**
  * Public API for property detail → /api/v1/properties/:id (F-B15).
@@ -23,13 +26,18 @@ import { ListingService } from '../../../modules/listing/application/listing.ser
  * `:id` deliberately: Nest matches routes in declaration order, and a literal
  * segment registered after a parameter segment is shadowed by it.
  */
+// PRE-LAUNCH (ADR-048): answers 404 on the production API host, and passes
+// everything through on every other host. The website puts a waitlist in front
+// of the marketplace, and leaving the catalogue readable as JSON here would be
+// a wall with a door beside it. Removed at launch, per apps/web/WAITLIST-REMOVAL.md.
+@UseGuards(PreLaunchGuard)
 @Controller({ path: 'properties', version: '1' })
 export class PropertiesController {
   constructor(private readonly listings: ListingService) {}
 
   /**
    * Every publicly sellable property's address → web's `/sitemap.xml`
-   * (ADR-049, AC-I9). Same visibility rule as the page, so a suspended or
+   * (ADR-053, AC-I9). Same visibility rule as the page, so a suspended or
    * unpublished property is in neither. Declared above `:id` for the reason
    * above.
    */
@@ -39,7 +47,7 @@ export class PropertiesController {
   }
 
   /**
-   * One public photograph → a fresh signed URL (ADR-049, owner ruling of
+   * One public photograph → a fresh signed URL (ADR-053, owner ruling of
    * 2026-09-13).
    *
    * 302 to a short lived signed URL on the storage host when the photograph's
@@ -70,6 +78,17 @@ export class PropertiesController {
     return { url, statusCode: 302 };
   }
 
+  /**
+   * Every published property with a public address, for Explore (booking
+   * audit, 2026-09-13). Explore was built only from the web app's own
+   * catalogue, so inventory created and published in the operator app could
+   * not be found by anyone who did not already hold its link.
+   */
+  @Get()
+  list(): Promise<PropertyCard[]> {
+    return this.listings.listPublishedProperties();
+  }
+
   @Get('slug/:slug')
   getBySlug(@Param('slug') slug: string): Promise<PropertyDetail> {
     return this.listings.getPublishedPropertyBySlug(slug);
@@ -95,6 +114,11 @@ export class PropertiesController {
  * Unauthenticated, like the rest of browse: a guest prices a stay before they
  * sign in, and the gate fires when they press confirm.
  */
+// PRE-LAUNCH (ADR-048): answers 404 on the production API host, and passes
+// everything through on every other host. The website puts a waitlist in front
+// of the marketplace, and leaving the catalogue readable as JSON here would be
+// a wall with a door beside it. Removed at launch, per apps/web/WAITLIST-REMOVAL.md.
+@UseGuards(PreLaunchGuard)
 @Controller({ path: 'bookable', version: '1' })
 export class BookableController {
   constructor(private readonly listings: ListingService) {}

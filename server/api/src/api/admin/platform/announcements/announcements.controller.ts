@@ -9,7 +9,7 @@ import { AdminAnnouncementsService } from './announcements.service';
 /**
  * Announcements → `GET /api/v1/admin/announcements` (INTERFACE.md §12).
  *
- * `admin.announcement.view` on the read (ADR-049), held by `super_admin` and
+ * `admin.announcement.view` on the read (ADR-053), held by `super_admin` and
  * `ops`. The list carries unpublished drafts, so the read is still narrower than
  * every staffer; publishing keeps `admin.announcement.publish`. It used to
  * borrow the publish permission because no view permission existed.

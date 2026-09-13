@@ -115,7 +115,7 @@ export interface CreatedOrg {
   obo: boolean;
   /**
    * The claim invitation written in the create transaction, for the caller to
-   * mail AFTER it commits (ADR-049). Null for an owner registration, and for an
+   * mail AFTER it commits (ADR-053). Null for an owner registration, and for an
    * OBO one that gave no owner email, because there is nowhere to send it.
    */
   claimInvitation: {
@@ -207,7 +207,7 @@ export class OrganizationRepository {
         .returning({ id: orgs.id });
       if (!org) throw new Error('Org insert returned no row.');
 
-      // The FIRST event, and the only one with no `from` (ADR-049, AC-R6). It is
+      // The FIRST event, and the only one with no `from` (ADR-053, AC-R6). It is
       // what bounds the `pending_payment` wait, which nothing could measure
       // before because nothing recorded when the business arrived.
       await recordRegistrationEvent(tx, {
@@ -240,7 +240,7 @@ export class OrganizationRepository {
 
       let claimInvitation: CreatedOrg['claimInvitation'] = null;
       if (input.obo) {
-        // The claim invitation, in the create transaction (ADR-049, AC-R1). A
+        // The claim invitation, in the create transaction (ADR-053, AC-R1). A
         // registration that exists always has the invitation that lets its
         // owner reach it, and one that rolled back has none. It is MAILED by the
         // caller after commit, so a mail that fails cannot undo a registration.
@@ -337,7 +337,7 @@ export class OrganizationRepository {
    * the contract is still open, as the refusal it is.
    *
    * The contract condition is inside the statement rather than only checked
-   * beforehand (ADR-049, AC-R13). Settling is the only door into `submitted`, so
+   * beforehand (ADR-053, AC-R13). Settling is the only door into `submitted`, so
    * this is what makes an officer's queue unreachable without an accepted
    * contract; a check before the write could lose a race to nothing, but a
    * condition on the write cannot.
@@ -398,7 +398,7 @@ export class OrganizationRepository {
   }
 
   /**
-   * Record the operator contract acceptance, once (ADR-049, AC-R8).
+   * Record the operator contract acceptance, once (ADR-053, AC-R8).
    *
    * One conditional update: it writes only while no acceptance is recorded and
    * the org is still at `pending_payment`. So a double press, a retried request
@@ -431,7 +431,7 @@ export class OrganizationRepository {
 
   /**
    * Whether this org's payouts are locked on an unclaimed or unverified owner.
-   * Null when nobody registered it on behalf of anyone (ADR-049, AC-R1).
+   * Null when nobody registered it on behalf of anyone (ADR-053, AC-R1).
    */
   async payoutLockedFor(orgId: string): Promise<boolean | null> {
     const [row] = await this.db
@@ -444,7 +444,7 @@ export class OrganizationRepository {
 
   /**
    * Every business held on an unanswered RRA check, and its attempt count
-   * (ADR-049, AC-R5). Read through `pendingTinAttemptsSql`, the one definition
+   * (ADR-053, AC-R5). Read through `pendingTinAttemptsSql`, the one definition
    * admin's stalled flag also reads.
    */
   async pendingTinRechecks(): Promise<
@@ -504,7 +504,7 @@ export class OrganizationRepository {
     mover: RegistrationMover,
   ): Promise<boolean> {
     // A transaction now, where it used to be one bare UPDATE: the move and its
-    // event row are one act (ADR-049, AC-R6), and a crash between two separate
+    // event row are one act (ADR-053, AC-R6), and a crash between two separate
     // statements would leave a status nobody can say how long it has held.
     return this.db.transaction(async (tx) => {
       const rows = await tx
@@ -779,7 +779,7 @@ export class OrganizationRepository {
    * waits payout-locked until the owner claims.
    */
   /**
-   * Does this person hold a live role in this business? (ADR-049, AC-G3)
+   * Does this person hold a live role in this business? (ADR-053, AC-G3)
    *
    * The act-time half of the conflict of interest rule. The grant-time check
    * refuses an appointment to somebody who already holds an org role inside the
@@ -879,7 +879,7 @@ export class OrganizationRepository {
 
   /**
    * The districts of each named province, in one read, for
-   * `districtScopeOf` (ADR-049, AC-G8). An empty list asks nothing.
+   * `districtScopeOf` (ADR-053, AC-G8). An empty list asks nothing.
    */
   async districtsByProvince(
     provinceIds: readonly number[],
@@ -898,7 +898,7 @@ export class OrganizationRepository {
 
   /**
    * One officer's own decisions, newest first, keyset paged on
-   * (decided_at, id) (ADR-049, AC-G6).
+   * (decided_at, id) (ADR-053, AC-G6).
    *
    * The body and title are the review row's own columns, copied when the
    * decision was recorded, and deliberately not joined from the assignment: a

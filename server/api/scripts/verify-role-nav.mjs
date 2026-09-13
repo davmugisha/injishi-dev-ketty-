@@ -81,7 +81,7 @@ async function grantFor(email) {
  * What each seeded operator must see. Screens are sorted, so a new leaf shows
  * up as a diff rather than passing quietly.
  *
- * SINCE ADR-049 THE NAV READS NO ROLE. Each leaf declares the permission it
+ * SINCE ADR-053 THE NAV READS NO ROLE. Each leaf declares the permission it
  * needs and `navFor` filters on the grant's `permissions[]`; a leaf that gates
  * no capability (Today, Calendar, the tenancy lists) is offered to every member.
  * So the role below is checked only as the server's own label for the grant,
@@ -89,7 +89,7 @@ async function grantFor(email) {
  */
 const EXPECTED = [
   {
-    email: 'host@injishi.rw',
+    email: 'host@injishi.com',
     role: 'owner',
     // 23 since `ebm.manage` (ADR-041, D-o).
     permissions: 23,
@@ -99,10 +99,10 @@ const EXPECTED = [
     ],
   },
   {
-    email: 'manager@injishi.rw',
+    email: 'manager@injishi.com',
     role: 'manager',
     // 22 since `team.manage` became the owner's alone (2026-09-12). This row
-    // said 23 and listed People until ADR-049 corrected it: a stale expectation
+    // said 23 and listed People until ADR-053 corrected it: a stale expectation
     // that would have passed a manager a door that refuses them.
     permissions: 22,
     // The owner's surface without People. Settings stays: a manager holds
@@ -113,21 +113,21 @@ const EXPECTED = [
     ],
   },
   {
-    email: 'reception@injishi.rw',
+    email: 'reception@injishi.com',
     role: 'receptionist',
     permissions: 8,
     // Front desk and taking service orders. No Rooms, no Money, no admin.
-    // Services because the leaf declares `order.advance` (ADR-049, ruled
+    // Services because the leaf declares `order.advance` (ADR-053, ruled
     // 2026-09-13): it opens on Live orders, which a receptionist works.
     screens: ['calendar', 'inbox', 'reservations', 'services', 'stays', 'today'],
   },
   {
-    email: 'housekeeper@injishi.rw',
+    email: 'housekeeper@injishi.com',
     role: 'housekeeper',
     permissions: 2,
     // Room status and maintenance tickets, matching the two permissions, plus
     // Today and Calendar, which gate no capability and so reach every member
-    // (ADR-049). `AppShell` still renders the phone surface for a housekeeper.
+    // (ADR-053). `AppShell` still renders the phone surface for a housekeeper.
     screens: ['calendar', 'housekeeping', 'maintenance', 'rooms', 'today'],
   },
   {

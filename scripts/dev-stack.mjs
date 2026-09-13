@@ -523,11 +523,11 @@ Start what you need, each in its own terminal, from injishi/:
   pnpm --filter @injishi/api worker:dev   BullMQ worker (only for queued jobs)
 
 Sign in at http://localhost:3000/sign-in with a seeded account, or pick one of
-the demo personas listed there (*@demo.injishi.rw):
-  host@injishi.rw      owner of the seeded hotel (operator app)
-  landlord@injishi.rw  owner of the seeded residence
-  admin@injishi.rw     platform super_admin (admin console, :3001)
-  guest@injishi.rw     marketplace only
+the demo personas listed there (*@demo.injishi.com):
+  host@injishi.com      owner of the seeded hotel (operator app)
+  landlord@injishi.com  owner of the seeded residence
+  admin@injishi.com     platform super_admin (admin console, :3001)
+  guest@injishi.com     marketplace only
 ${
   fixedCode
     ? '  Code: 123456. The API runs as the demo (INJISHI_ENVIRONMENT unset), and every\n' +

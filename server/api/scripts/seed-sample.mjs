@@ -9,7 +9,7 @@
  *
  *   seed-geography.mjs        provinces → villages (FK target for everything)
  *   seed-content.mjs          reference data, the hospitality org and its hotel
- *   seed-users.mjs            the @injishi.rw sign in accounts and their grants,
+ *   seed-users.mjs            the @injishi.com sign in accounts and their grants,
  *                             and the residence org their landlord owns
  *   seed-content.mjs (again)  the residence side (building, units, leases). It
  *                             skips that block while the residence org does not
@@ -44,6 +44,11 @@ const here = path.dirname(fileURLToPath(import.meta.url));
 const STEPS = [
   { script: 'seed-geography.mjs', what: 'geography (provinces → villages)' },
   { script: 'seed-content.mjs', what: 'reference data and the seeded hotel' },
+  {
+    script: 'sync-rra-classifications.mjs',
+    what: 'RRA item classifications: the VSDC specification sample codes (ADR-050 D-m)',
+    env: { RRA_CLASSIFICATION_SOURCE: path.join(here, 'data', 'rra-item-classifications.sample.json') },
+  },
   { script: 'seed-users.mjs', what: 'sign in accounts and their grants' },
   { script: 'seed-content.mjs', what: 'second pass: the residence side seed-users unlocked' },
   { script: 'seed-demo.mjs', what: 'the demo roster and the rows it trades on' },
@@ -88,7 +93,7 @@ for (const [i, step] of STEPS.entries()) {
   console.log(`\n→ ${i + 1}/${STEPS.length} ${step.script}: ${step.what}`);
   const result = spawnSync(process.execPath, [path.join(here, step.script)], {
     cwd: path.join(here, '..'),
-    env: process.env,
+    env: { ...process.env, ...step.env },
     encoding: 'utf8',
     maxBuffer: 64 * 1024 * 1024,
     stdio: step.stopAt ? ['ignore', 'pipe', 'inherit'] : 'inherit',

@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 /**
  * Issue a claim invitation to every OBO registration that predates them
- * (ADR-049, AC-R1). Run once at the deploy that ships the owner claim.
+ * (ADR-053, AC-R1). Run once at the deploy that ships the owner claim.
  *
  * Invitations are written only by the create transaction, so a business
  * registered on behalf of its owner BEFORE that transaction wrote one has no

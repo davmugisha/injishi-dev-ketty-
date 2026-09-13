@@ -145,7 +145,7 @@ export class InventoryService {
   }
 
   /**
-   * Put a property on the marketplace (ADR-049, AC-I4, AC-I5, AC-I10).
+   * Put a property on the marketplace (ADR-053, AC-I4, AC-I5, AC-I10).
    *
    * Eligibility is checked TWICE: once here, so an ineligible property is refused
    * without opening a transaction, and again inside the row lock by the
@@ -187,7 +187,7 @@ export class InventoryService {
   }
 
   /**
-   * Take it back off the marketplace, keeping the address (ADR-049, AC-I6).
+   * Take it back off the marketplace, keeping the address (ADR-053, AC-I6).
    *
    * The slug survives, so a republished property keeps every bookmark and search
    * result already pointing at it. Nothing is checked beyond containment: an

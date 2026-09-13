@@ -16,7 +16,7 @@ import { useAdminUi } from "@/lib/store";
 
 /**
  * The government body catalogue, with its writes for a staffer who may make
- * them (ADR-049, AC-G4).
+ * them (ADR-053, AC-G4).
  *
  * Every write asks why, like every console write, and a refusal the platform
  * explained (a duplicate code, say) stays in the dialog in its own words so the

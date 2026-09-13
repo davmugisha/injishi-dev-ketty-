@@ -155,6 +155,13 @@ export interface ApiCallOptions {
    * not sit under `/me/`. Rare, and named so it is visible at the call site.
    */
   withoutWorkspace?: boolean;
+  /**
+   * Sent as `Idempotency-Key`, for a command the API refuses without one (an
+   * order, a payment). Mint it ONCE per intent and reuse it on every retry of
+   * that intent: a fresh key per attempt is exactly the double order it exists
+   * to prevent.
+   */
+  idempotencyKey?: string;
 }
 
 /**
@@ -184,10 +191,11 @@ export async function api<T>(
   path: ApiPath,
   options: ApiCallOptions = {},
 ): Promise<ApiResult<T>> {
-  const { method = 'GET', body, formData, signal, withoutWorkspace } = options;
+  const { method = 'GET', body, formData, signal, withoutWorkspace, idempotencyKey } = options;
   const url = `${API_BASE}${path}`;
 
   const headers: Record<string, string> = { ...authHeaders() };
+  if (idempotencyKey) headers['Idempotency-Key'] = idempotencyKey;
 
   // Never set Content-Type for multipart: fetch has to write the boundary, and
   // a hand-written header without one makes the body unparseable.

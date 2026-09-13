@@ -150,7 +150,7 @@ export class InventoryRepository {
           checkOutTime: r.checkOutTime ?? null,
           houseRules: r.houseRules ?? null,
           locationPrivacy: r.locationPrivacy ?? false,
-          // No photo column any more. ADR-049 moved photographs into
+          // No photo column any more. ADR-053 moved photographs into
           // `property_photos`, so a property is created with none and the
           // attach route adds them; "no photos" is now the absence of rows.
         })
@@ -333,7 +333,7 @@ export class InventoryRepository {
   }
 
   /**
-   * The three facts publishing is decided on (ADR-049, AC-I4).
+   * The three facts publishing is decided on (ADR-053, AC-I4).
    *
    * One round trip rather than three, and counted in the database rather than by
    * loading rows, because the only thing the caller needs is whether each count
@@ -348,7 +348,7 @@ export class InventoryRepository {
   }
 
   /**
-   * Publish, behind a row lock, idempotently (ADR-049, AC-I5, AC-I10).
+   * Publish, behind a row lock, idempotently (ADR-053, AC-I5, AC-I10).
    *
    * The lock is on the LISTING row, and it is what makes a double press safe:
    * the second press blocks until the first commits, then finds the listing
@@ -402,7 +402,7 @@ export class InventoryRepository {
   }
 
   /**
-   * Back to draft, KEEPING the slug (ADR-049, AC-I6).
+   * Back to draft, KEEPING the slug (ADR-053, AC-I6).
    *
    * The address survives on purpose. An operator who pauses for a week and
    * republishes keeps every bookmark, every inbound link and every search result

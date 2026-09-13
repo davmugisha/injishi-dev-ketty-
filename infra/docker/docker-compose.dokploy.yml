@@ -42,6 +42,15 @@ x-api-env: &api-env
   # boot and refuses to start when the database disagrees.
   INJISHI_ENVIRONMENT: production
   INJISHI_DATABASE_KIND: real
+  # Payments OFF: no provider is chosen and there are no credentials, so every
+  # charge is refused with "nothing has been charged". Pinned, not from the env
+  # file. Unset meant mock, which on this real database recorded imaginary money
+  # as captured; the API now refuses to boot on `real` with mock or unset
+  # (booking audit, 2026-09-13). `live` only once a live adapter is registered.
+  PAYMENT_ADAPTER_MODE: "off"
+  # Money alarms (STUCK MONEY, UNRECORDED COMPENSATION, a refused queue wake)
+  # go to Sentry when this is set, and nowhere but the log when it is not.
+  SENTRY_DSN: ${SENTRY_DSN:-}
   NODE_ENV: production
   PORT: "8000"
   DATABASE_URL: ${DATABASE_URL}
@@ -77,7 +86,7 @@ x-api-env: &api-env
   SMTP_URL: ${SMTP_URL:?set SMTP_URL to the production SMTP relay}
   MAIL_FROM: "${MAIL_FROM:-Injishi <no-reply@injishi.com>}"
   # Web's public origin, for a mail that links to a page on web (the owner claim
-  # invitation, ADR-049). The same host NEXT_PUBLIC_WEB_URL is built from below,
+  # invitation, ADR-053). The same host NEXT_PUBLIC_WEB_URL is built from below,
   # so a mail and a page agree. Production refuses to boot without it.
   WEB_URL: https://${WEB_HOST:-www.injishi.com}
   LOG_LEVEL: ${LOG_LEVEL:-info}
@@ -213,7 +222,7 @@ services:
       - default
 
   api:
-    # ADR-048 AC-9. Built ONCE per green commit by .github/workflows/image.yml
+    # ADR-052 AC-9. Built ONCE per green commit by .github/workflows/image.yml
     # and PULLED here by short sha. It is never built on this host, so the
     # artifact staging ran is byte for byte the artifact production runs, and
     # "staging tested this commit" becomes a statement about a binary rather

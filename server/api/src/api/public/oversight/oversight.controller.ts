@@ -65,7 +65,7 @@ export class OversightController {
   }
 
   /**
-   * The officer's own decisions, newest first, cursor paged (ADR-049, AC-G6).
+   * The officer's own decisions, newest first, cursor paged (ADR-053, AC-G6).
    *
    * Guarded per function exactly as the queues are: a field verifier or an
    * approver reads it, and a tax compliance officer, who decides no gate, is

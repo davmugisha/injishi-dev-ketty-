@@ -1,7 +1,7 @@
 /**
  * The one enumeration of this workspace's members.
  *
- * Two ADR-048 checks depend on knowing every member: the manifest meta check
+ * Two ADR-052 checks depend on knowing every member: the manifest meta check
  * (AC-2b) and the lint ratchet (AC-3). Both would be wrong in the same
  * direction if they carried their own list and it went stale, so they share
  * this one, and this one reads `pnpm-workspace.yaml` rather than restating it.
@@ -47,7 +47,7 @@ function expand(glob) {
     throw new Error(
       `pnpm-workspace.yaml: glob "${glob}" is a shape this enumeration does not handle. ` +
         `Teach it the shape rather than dropping the glob: an unhandled glob silently ` +
-        `narrows what the ADR-048 checks cover, which is the failure they exist to stop.`,
+        `narrows what the ADR-052 checks cover, which is the failure they exist to stop.`,
     );
   }
   const parent = join(REPO_ROOT, match[1]);

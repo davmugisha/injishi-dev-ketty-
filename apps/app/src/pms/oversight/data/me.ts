@@ -68,7 +68,7 @@ export interface OfficerAccess {
   /** The consoles this person may open. Empty is a real answer, not an error. */
   consoles: OfficerKey[];
   /**
-   * The grants themselves (ADR-049, AC-G5).
+   * The grants themselves (ADR-053, AC-G5).
    *
    * This used to be thrown away — the response was read for its `console` field
    * and nothing else, so the officer's body, title and region came from a fixture

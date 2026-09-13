@@ -155,7 +155,7 @@ export async function createRegistration(
 }
 
 /**
- * Accept the operator contract, between creating and paying (ADR-049, AC-R8).
+ * Accept the operator contract, between creating and paying (ADR-053, AC-R8).
  *
  * `contractVersion` is the version the page rendered. The server refuses one
  * that is not current (409 `contract_version_stale`) and stores its own
@@ -206,7 +206,7 @@ export async function resubmitRegistration(
 }
 
 /**
- * What `/claim-org` shows before the owner commits (FL02, ADR-049, AC-R3).
+ * What `/claim-org` shows before the owner commits (FL02, ADR-053, AC-R3).
  *
  * A POST with the token in the body, so the token never lands in the API's
  * access log. Any token that is not live for this org is a 404, worded the same

@@ -48,7 +48,7 @@ import {
  * TWO VISITS, NOT ONE. The first press creates the registration and the wizard
  * moves on to the operator contract, which quotes the real bill the server
  * raised; after accepting it the registrant comes back here and the second
- * press settles it (ADR-049, AC-R8). Collapsing them would mean quoting a price from the catalog and charging
+ * press settles it (ADR-053, AC-R8). Collapsing them would mean quoting a price from the catalog and charging
  * whatever the server decided, and those are allowed to differ — the amount is
  * LOCKED onto the invoice at creation (D8), so the bill is the only figure
  * worth showing once one exists.
@@ -350,7 +350,7 @@ export function StepReviewPay({
               belief this feature exists to correct. */}
           {/* Only the offline demo prices by accommodation type (`data/registration-fees.ts`).
               The platform's fee is one catalogue row per business type (ADR-026,
-              ratified in ADR-049), so saying "the hotel rate" over a real quote
+              ratified in ADR-053), so saying "the hotel rate" over a real quote
               would describe a pricing model the platform does not have. */}
           {feeLabel === null || fee.source !== "configured" ? null : (
             <p className="mt-1 text-sm text-muted-foreground">

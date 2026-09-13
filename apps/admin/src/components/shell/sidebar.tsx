@@ -9,6 +9,7 @@ import { useEffect, useRef, useState } from "react";
 import { WEB_URL } from "@/lib/sign-in-url";
 import { NAV, staffCanSee } from "@/lib/nav";
 import { useAdminUi } from "@/lib/store";
+import { useRoleLens } from "@/components/shell/role-lens-seed";
 import { useStaffPermissions } from "./staff-access-provider";
 
 export function Sidebar({
@@ -20,11 +21,12 @@ export function Sidebar({
 }) {
   const pathname = usePathname();
   const [collapsed, setCollapsed] = useState(false);
-  // What this staffer's own permissions reach, from the server (ADR-049, AC-A3).
+  // What this staffer's own permissions reach, from the server (ADR-053, AC-A3).
   // The role lens no longer filters anything: turning a role into powers in the
-  // browser is the second model contract rule 3 forbids, so the lens is a label.
+  // browser is the second model contract rule 3 forbids, so the lens is a label,
+  // seeded from the server's role in the same render.
   const permissions = useStaffPermissions();
-  const roleLensLabel = useAdminUi((s) => s.roleLensLabel);
+  const { label: roleLensLabel } = useRoleLens();
   const openRoleLens = useAdminUi((s) => s.openRoleLens);
 
   const label = (cls = "") => (collapsed ? "hidden" : cls);

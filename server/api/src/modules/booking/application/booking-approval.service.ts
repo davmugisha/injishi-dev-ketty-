@@ -16,7 +16,7 @@ import { BookingDecisionService } from './booking-decision.service';
  * A host answering a request-to-book through `/bookings/:id/approve` and
  * `/decline` (F-B06).
  *
- * WHO MAY IS THE GUARD'S QUESTION NOW (ADR-049, AC-A5). The routes run behind
+ * WHO MAY IS THE GUARD'S QUESTION NOW (ADR-053, AC-A5). The routes run behind
  * `WorkspaceGuard` and declare `reservation.approve`, the same permission the
  * `/ops/reservations` door declares, so a receptionist may decide through both
  * doors and a business that is not `active` through neither. This used to join

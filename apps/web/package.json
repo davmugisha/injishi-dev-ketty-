@@ -26,6 +26,7 @@
     "@heroui/styles": "^3.2.4",
     "@injishi/auth": "workspace:*",
     "@injishi/contracts": "workspace:*",
+    "@injishi/qr": "workspace:*",
     "@injishi/ui": "workspace:*",
     "@injishi/utils": "workspace:*",
     "@paper-design/shaders-react": "^0.0.80",

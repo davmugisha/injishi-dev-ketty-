@@ -1,6 +1,6 @@
 /**
  * Web's own public origin, for an absolute URL this app hands to somebody else:
- * a sitemap entry, a canonical link (ADR-049, AC-I9).
+ * a sitemap entry, a canonical link (ADR-053, AC-I9).
  *
  * `NEXT_PUBLIC_WEB_URL`, the value every deploy compose file bakes into this
  * image from `WEB_HOST`, and the one `lib/redirect.ts` already trusts. `||` and

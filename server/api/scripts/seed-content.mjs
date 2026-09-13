@@ -222,7 +222,7 @@ async function main() {
         'No smoking indoors. Quiet hours after 22:00. Valid ID required at check-in.',
         // The two `/assets/...webp` paths that used to sit here were NOT object
         // keys. They were front end asset paths written into a column that was
-        // supposed to hold `stored_objects` keys, which is why migration 0033 had
+        // supposed to hold `stored_objects` keys, which is why migration 0040 had
         // to skip them when photographs became rows with a foreign key. Nothing
         // replaces them: this seed has no bytes to put in the bucket.
       ],

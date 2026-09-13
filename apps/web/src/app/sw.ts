@@ -15,7 +15,29 @@ declare const self: ServiceWorkerGlobalScope;
 const serwist = new Serwist({
   // Hashed Next build assets, injected at build time.
   precacheEntries: self.__SW_MANIFEST,
-  skipWaiting: false, // wait; Task 8 surfaces a soft "reload" prompt
+  /*
+   * TAKE OVER IMMEDIATELY (ADR-048 AC-18), AND THIS IS AN EDIT THIS FEATURE
+   * DOES NOT OWN, so it is on `WAITLIST-REMOVAL.md` by name.
+   *
+   * It was `false`, paired with the soft "reload" prompt in
+   * `register-service-worker.tsx`, which is the right trade in normal life: a
+   * returning visitor keeps the page they are reading until they choose to
+   * take the new one.
+   *
+   * It is the wrong trade the day a gate goes up. A visitor who has been here
+   * before holds a precached shell of the unfinished marketplace, and with the
+   * old worker waiting they would be served it for as long as they kept
+   * browsing — which is the exact thing the gate exists to stop, showing to the
+   * exact people most likely to come back. `true` caps that at one navigation.
+   *
+   * The prompt still works: `register-service-worker.tsx` listens for a waiting
+   * worker and posts `SKIP_WAITING` itself, so it degrades to never having
+   * anything to prompt about rather than breaking.
+   *
+   * AT LAUNCH, PUT THIS BACK TO `false` in the same change that deletes the
+   * gate. Leaving it on is how a deliberate choice quietly becomes an accident.
+   */
+  skipWaiting: true,
   clientsClaim: true,
   navigationPreload: false,
   /*

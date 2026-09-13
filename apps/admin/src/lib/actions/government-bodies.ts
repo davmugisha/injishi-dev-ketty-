@@ -11,7 +11,7 @@ import { apiPatch, apiPost } from "@/lib/api/server";
 import { badInput, outcomeOf, type WriteOutcome, type WriteSpec } from "./outcome";
 
 /**
- * The government body catalogue writes (ADR-049, AC-G4) — `POST` and `PATCH
+ * The government body catalogue writes (ADR-053, AC-G4) — `POST` and `PATCH
  * /api/v1/admin/government-bodies`.
  *
  * `admin.config.edit`, which only `super_admin` holds. A body is never deleted:

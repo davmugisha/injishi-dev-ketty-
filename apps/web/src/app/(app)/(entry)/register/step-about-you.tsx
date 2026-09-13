@@ -211,7 +211,7 @@ export function StepAboutYou({
                 }
               />
             </Field>
-            {/* Required (ADR-049 J25): it is what the claim is matched on, so
+            {/* Required (ADR-053 J25): it is what the claim is matched on, so
                 without it nobody can ever claim the business, and a typo hands
                 it to nobody. Checked as you type once something is typed. */}
             <Field

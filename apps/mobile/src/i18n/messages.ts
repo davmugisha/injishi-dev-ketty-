@@ -46,6 +46,7 @@ import * as guest from './messages/guest';
 import * as host from './messages/host';
 import * as inbox from './messages/inbox';
 import * as landlord from './messages/landlord';
+import * as order from './messages/order';
 import * as oversight from './messages/oversight';
 import * as pay from './messages/pay';
 import * as saved from './messages/saved';
@@ -64,6 +65,7 @@ export const en = {
   ...host.en,
   ...inbox.en,
   ...landlord.en,
+  ...order.en,
   ...oversight.en,
   ...pay.en,
   ...saved.en,
@@ -85,6 +87,7 @@ export const rw: Record<MessageKey, string> = {
   ...host.rw,
   ...inbox.rw,
   ...landlord.rw,
+  ...order.rw,
   ...oversight.rw,
   ...pay.rw,
   ...saved.rw,

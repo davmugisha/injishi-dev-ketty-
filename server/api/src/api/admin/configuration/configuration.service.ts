@@ -38,7 +38,7 @@ import {
  * cannot answer "what was the rate in March", which is the only question anyone
  * asks a fee catalog under dispute.
  *
- * Both reads sit behind `admin.config.view` (ADR-049), which every staff role
+ * Both reads sit behind `admin.config.view` (ADR-053), which every staff role
  * holds. The one write here, the fee append, is `admin.fee.edit`.
  */
 @Injectable()
@@ -153,7 +153,7 @@ export class ConfigurationAdminService {
    * fails the contract's `z.number()`.
    */
   /**
-   * Append a registration fee, and record who did it (ADR-049, AC-R9, AC-G10).
+   * Append a registration fee, and record who did it (ADR-053, AC-R9, AC-G10).
    *
    * **An insert, never an update.** The catalogue is effective dated so that a
    * price change is a NEW row: `currentFee` reads the newest row whose moment has

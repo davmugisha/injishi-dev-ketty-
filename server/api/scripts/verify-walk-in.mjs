@@ -84,7 +84,7 @@ console.log(`Verifying the walk in command against ${API}\n`);
 
 // The receptionist, deliberately, rather than the owner. `stay.checkin` is a
 // front desk permission and the desk is who does this.
-const desk = await sessionFor('reception@injishi.rw');
+const desk = await sessionFor('reception@injishi.com');
 if (!desk.workspaceId) throw new Error('the receptionist holds no business workspace');
 
 const roomsRes = await get(desk, '/ops/rooms');

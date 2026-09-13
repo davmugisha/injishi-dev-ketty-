@@ -9,7 +9,7 @@ import {
 import { claimInvitationMail, claimLink } from '../domain/owner-claim';
 
 /**
- * Mails an owner claim invitation through the mailer seam (FL02, ADR-049).
+ * Mails an owner claim invitation through the mailer seam (FL02, ADR-053).
  *
  * `WEB_URL` is resolved in the constructor, which Nest runs once at boot, so an
  * API started with `NODE_ENV=production` and no `WEB_URL` refuses to start
@@ -18,7 +18,7 @@ import { claimInvitationMail, claimLink } from '../domain/owner-claim';
  * A send never throws. It runs after the registration has committed, and a
  * registration that exists must not be reported as failed because a relay was
  * slow: the invitation row stands, the failure is logged, and resending is the
- * follow up ADR-049 enrols.
+ * follow up ADR-053 enrols.
  */
 @Injectable()
 export class ClaimInvitationMailer {

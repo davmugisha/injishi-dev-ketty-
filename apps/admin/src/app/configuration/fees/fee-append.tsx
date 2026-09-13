@@ -9,7 +9,7 @@ import { appendRegistrationFee } from "@/lib/actions/configuration";
 import { useAdminUi } from "@/lib/store";
 
 /**
- * Append a registration fee (ADR-049, AC-R9, C11).
+ * Append a registration fee (ADR-053, AC-R9, C11).
  *
  * The route existed and was proven; this screen had no control for it, so a
  * price change still needed a developer (I12). Shown only to a staffer whose

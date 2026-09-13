@@ -1,6 +1,7 @@
 import type { Queue } from 'bullmq';
 
 import type { Database } from '../../../shared/database/database.module';
+import { queueJobId } from '../../../shared/queues/job-id';
 import {
   PaymentCompensationService,
   type CompensationJob,
@@ -64,15 +65,25 @@ describe('PaymentCompensationService', () => {
     expect(queue.add).toHaveBeenCalledWith(
       job.kind,
       job,
-      expect.objectContaining({ jobId: job.idempotencyKey }),
+      expect.objectContaining({ jobId: queueJobId(job.idempotencyKey) }),
     );
   });
 
-  it('withdraws a cancelled job by its idempotency key', async () => {
+  it('never hands BullMQ the raw four part key as a job id', async () => {
+    const { service, queue } = build();
+
+    await service.enqueue(job);
+
+    const { jobId } = queue.add.mock.calls[0]![2] as { jobId: string };
+    expect(jobId).not.toContain(':');
+    expect(jobId).not.toBe(job.idempotencyKey);
+  });
+
+  it('withdraws a cancelled job by the id it was queued under', async () => {
     const { service, queue } = build();
 
     await service.cancel(job.idempotencyKey);
 
-    expect(queue.getJob).toHaveBeenCalledWith(job.idempotencyKey);
+    expect(queue.getJob).toHaveBeenCalledWith(queueJobId(job.idempotencyKey));
   });
 });

@@ -31,8 +31,19 @@ exports.OrgRole = zod_1.z.enum([
  */
 exports.GlobalRole = zod_1.z.enum(["admin", "guest", "broker", "gov_oversight"]);
 /** Backend staff role (schema `staff_role`). The admin UI "lens" uses a
- *  shortened label set for display; map at the UI edge, not here. */
-exports.StaffRole = zod_1.z.enum(["super_admin", "ops", "compliance", "finance"]);
+ *  shortened label set for display; map at the UI edge, not here.
+ *
+ *  `trainer` (ADR-049) is the narrowest role in the set and the reason the
+ *  admin console finally needs a per-section route guard: it holds four
+ *  training powers and no `admin.*` power at all, so a trainer who types
+ *  `/finance` must be refused rather than merely find the link missing. */
+exports.StaffRole = zod_1.z.enum([
+    "super_admin",
+    "ops",
+    "compliance",
+    "finance",
+    "trainer",
+]);
 exports.OrgRegistrationStatus = zod_1.z.enum([
     // D23: the entry state. The one-time registration fee settling is the only
     // exit, so nothing unpaid ever reaches a government officer's queue.

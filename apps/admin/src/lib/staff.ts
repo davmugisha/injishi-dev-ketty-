@@ -71,14 +71,19 @@ export interface StaffState {
  * them may be worded as a statement about this person, and a shape we cannot
  * vouch for says nothing about them at all.
  *
- * ONCE PER REQUEST (React `cache`). `StaffBoundary` asks at the root and each
- * section's `SectionGate` asks again (ADR-049, AC-A4); both read this one answer,
- * so a page costs one call to `/me/staff`, not two, and the two cannot see
- * different answers mid render.
+ * MEMOISED FOR THE REQUEST, and that is what makes a second gate free.
+ *
+ * Two server components ask this question while one page renders:
+ * `StaffBoundary` asks whether the caller is staff at all, and
+ * `SectionBoundary` asks whether they hold this section (ADR-049 AC-25).
+ * Without `cache` that is two round trips to `/me/staff` on every console
+ * navigation, and worse, two answers — an API that blinks between them would
+ * have the console refuse a section it had just admitted the person to.
+ *
+ * `cache` is per render pass, so nothing is held between requests and no
+ * staffer ever reads another's answer.
  */
-export const readStaffAccess = cache(readStaffAccessUncached);
-
-async function readStaffAccessUncached(): Promise<StaffState> {
+export const readStaffAccess = cache(async function readStaffAccess(): Promise<StaffState> {
   const result = await getStaffAccess();
 
   if (!result.ok) {
@@ -121,4 +126,4 @@ async function readStaffAccessUncached(): Promise<StaffState> {
     status: result.data.isStaff ? "staff" : "denied",
     access: result.data,
   };
-}
+});

@@ -12,7 +12,7 @@ export const metadata = { title: "Government bodies" };
 const PERMISSION = "admin.config.view";
 
 /**
- * Configuration → Government bodies (ADR-049, AC-G4, E5).
+ * Configuration → Government bodies (ADR-053, AC-G4, E5).
  *
  * The institutions an officer is appointed from (MINALOC, PSF, RRA and whatever
  * the platform adds). Before this screen the catalogue could only be changed over

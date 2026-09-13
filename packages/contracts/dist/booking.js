@@ -1,10 +1,11 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.BookingApprovalResult = exports.PAYMENT_PROMPT_TTL_SECONDS = exports.CreateBookingOutcome = exports.PaymentAttemptStatus = exports.PaymentAttemptState = exports.BookingResult = exports.GUEST_SERVICE_FEE_RATE = exports.NON_REFUNDABLE_DISCOUNT = exports.MoneyBreakdown = exports.CreateBookingInput = exports.PaymentInstrument = exports.NationalMsisdn = exports.NETWORK_PREFIXES = exports.MobileMoneyNetwork = exports.RoomAvailability = exports.NightAvailability = exports.PROPERTY_TIME_ZONE = exports.DEFAULT_CAPACITY = exports.MAX_HORIZON_DAYS = exports.MAX_NIGHTS = exports.BookableRoom = exports.BookablePropertySummary = exports.PropertyDetail = exports.SitemapProperty = exports.RoomTypeSummary = exports.IsoDate = exports.EscrowStatus = exports.DeclineReason = exports.PaymentStatus = exports.BookingStatus = exports.CancellationTier = exports.ApprovalPolicy = exports.BookingMode = void 0;
+exports.BookingCancellationResult = exports.CancellationQuote = exports.CancellationParty = exports.CANCELLATION_TIERS = exports.BookingApprovalResult = exports.PAYMENT_PROMPT_TTL_SECONDS = exports.CreateBookingOutcome = exports.PaymentAttemptStatus = exports.PaymentAttemptState = exports.BookingResult = exports.GUEST_SERVICE_FEE_RATE = exports.NON_REFUNDABLE_DISCOUNT = exports.MoneyBreakdown = exports.CreateBookingInput = exports.PaymentInstrument = exports.NationalMsisdn = exports.NETWORK_PREFIXES = exports.MobileMoneyNetwork = exports.RoomAvailability = exports.NightAvailability = exports.PROPERTY_TIME_ZONE = exports.DEFAULT_CAPACITY = exports.MAX_HORIZON_DAYS = exports.MAX_NIGHTS = exports.BookableRoom = exports.BookablePropertySummary = exports.SitemapProperty = exports.RoomTypeSummary = exports.IsoDate = exports.EscrowStatus = exports.DeclineReason = exports.PaymentStatus = exports.BookingStatus = exports.CancellationTier = exports.ApprovalPolicy = exports.BookingMode = void 0;
 exports.soldOutNights = soldOutNights;
 exports.networkForMsisdn = networkForMsisdn;
 exports.instrumentProblem = instrumentProblem;
 exports.computeBreakdown = computeBreakdown;
+exports.cancellationRefund = cancellationRefund;
 const zod_1 = require("zod");
 const primitives_1 = require("./primitives");
 /**
@@ -76,7 +77,7 @@ exports.RoomTypeSummary = zod_1.z.object({
 });
 /**
  * One entry in the marketplace sitemap: `GET /api/v1/properties/sitemap`
- * (ADR-049, AC-I9).
+ * (ADR-053, AC-I9).
  *
  * Read through the same visibility rule as a property page, so an unpublished or
  * suspended property is in neither. `publishedAt` is the most recent publish, a
@@ -86,37 +87,8 @@ exports.SitemapProperty = zod_1.z.object({
     slug: zod_1.z.string().min(1),
     publishedAt: zod_1.z.string().nullable(),
 });
-exports.PropertyDetail = zod_1.z.object({
-    id: zod_1.z.string().uuid(),
-    /**
-     * The property's public address on the marketplace, or null.
-     *
-     * Null while a property is in the registration pipeline: it has no public
-     * page yet, and minting an address for one would publish a business nobody
-     * has approved. A consumer that needs to link to the property must handle
-     * the null rather than assume one exists.
-     */
-    slug: zod_1.z.string().min(1).nullable(),
-    name: zod_1.z.string().min(1),
-    description: zod_1.z.string().nullable(),
-    districtName: zod_1.z.string().nullable(),
-    latitude: zod_1.z.number().nullable(),
-    longitude: zod_1.z.number().nullable(),
-    locationPrivacy: zod_1.z.boolean(),
-    checkInTime: zod_1.z.string().nullable(),
-    checkOutTime: zod_1.z.string().nullable(),
-    houseRules: zod_1.z.string().nullable(),
-    /**
-     * One absolute URL per photograph, in the operator's order, the cover first.
-     *
-     * Each is the API's photo route (`/api/v1/properties/photos/:photoId`), which
-     * answers 302 to a fresh signed URL while the property is public and 404 once
-     * it is not (ADR-049, owner ruling of 2026-09-13). Never an object key, and
-     * never a signed URL itself, so a cached page cannot hold one that expires.
-     */
-    photos: zod_1.z.array(zod_1.z.string().url()),
-    roomTypes: zod_1.z.array(exports.RoomTypeSummary),
-});
+// PropertyDetail moved to property-detail.ts (ADR-050 slice 4): it now carries
+// facilities, whose outlet face imports ordering.ts, which imports this file.
 // --- Read: one bookable room, with just enough of its property -------------
 /**
  * The property, as the CHECKOUT needs to name it. Not a second PropertyDetail.
@@ -506,5 +478,92 @@ exports.BookingApprovalResult = zod_1.z.object({
     paymentStatus: exports.PaymentStatus.nullable(),
     escrowStatus: exports.EscrowStatus.nullable(),
     confirmedAt: zod_1.z.string().nullable(),
+});
+// --- Cancellation and refund tiers (F-B11, ADR-051) --------------------------
+/**
+ * What each tier refunds a GUEST who cancels a confirmed booking, by how long
+ * before check-in they cancel.
+ *
+ * The only statement of these numbers before ADR-051 was the checkout copy in
+ * `apps/web/src/lib/booking.ts`, which guests had already been shown when they
+ * paid, so that copy IS the policy and this table is it in figures:
+ *
+ * - flexible: 100% up to 24 hours before check-in; nothing after.
+ * - moderate: 100% up to 5 days before; 50% after.
+ * - limited: 50% up to 7 days before; nothing after.
+ * - firm: 50% up to 30 days before; nothing after.
+ * - strict_extended_stay: 50% up to 30 days before; nothing after.
+ *
+ * `windowHours` is the cut-off; `before` applies at or beyond it, `after` inside
+ * it. The guest service fee is refunded in the same proportion as the stay.
+ */
+exports.CANCELLATION_TIERS = {
+    flexible: { windowHours: 24, beforePercent: 100, afterPercent: 0 },
+    moderate: { windowHours: 5 * 24, beforePercent: 100, afterPercent: 50 },
+    limited: { windowHours: 7 * 24, beforePercent: 50, afterPercent: 0 },
+    firm: { windowHours: 30 * 24, beforePercent: 50, afterPercent: 0 },
+    strict_extended_stay: { windowHours: 30 * 24, beforePercent: 50, afterPercent: 0 },
+};
+/** Who cancelled. A host cancellation always refunds in full (F-B11). */
+exports.CancellationParty = zod_1.z.enum(["guest", "host"]);
+/**
+ * THE REFUND FOR ONE CANCELLATION, and the only place it is computed.
+ *
+ * In order, the first that applies wins:
+ * 1. The host cancels: 100%, always.
+ * 2. The request was never accepted (`pending_approval`): 100%, no contract.
+ * 3. The guest chose the non-refundable rate: 0%, whatever the tier.
+ * 4. The tier, by hours before check-in. A booking that locked no tier is read
+ *    as `flexible`, the most generous one, rather than refused.
+ *
+ * Rounded DOWN to the franc on the refund, so a partial refund can never pay
+ * out more than was captured and the forfeit is the exact remainder.
+ */
+function cancellationRefund(input) {
+    const gross = Math.max(0, Math.floor(input.grossRwf));
+    const at = (percent, rule) => {
+        const refundRwf = Math.floor((gross * percent) / 100);
+        return { percent, refundRwf, forfeitRwf: gross - refundRwf, rule };
+    };
+    if (input.party === "host") {
+        return at(100, "The property cancelled, so you are refunded in full.");
+    }
+    if (input.status === "pending_approval") {
+        return at(100, "The host had not accepted your request yet, so you are refunded in full.");
+    }
+    if (input.nonRefundable) {
+        return at(0, "You booked the non-refundable rate, so nothing is refunded.");
+    }
+    const tier = input.tier ?? "flexible";
+    const rule = exports.CANCELLATION_TIERS[tier];
+    const days = rule.windowHours % 24 === 0 && rule.windowHours >= 48
+        ? `${rule.windowHours / 24} days`
+        : `${rule.windowHours} hours`;
+    return input.hoursBeforeCheckIn >= rule.windowHours
+        ? at(rule.beforePercent, `Cancelled at least ${days} before check-in: ${rule.beforePercent}% refunded.`)
+        : at(rule.afterPercent, `Cancelled less than ${days} before check-in: ${rule.afterPercent}% refunded.`);
+}
+/** What `GET /api/v1/bookings/:reference/cancellation` answers: the refund, before committing. */
+exports.CancellationQuote = zod_1.z.object({
+    reference: zod_1.z.string().min(1),
+    cancellable: zod_1.z.boolean(),
+    /** Why it cannot be cancelled, when it cannot. */
+    refusal: zod_1.z.string().nullable(),
+    percent: zod_1.z.number().int().min(0).max(100),
+    refundRwf: primitives_1.RwfAmount,
+    forfeitRwf: primitives_1.RwfAmount,
+    rule: zod_1.z.string(),
+});
+/** What a cancellation answers once it is done. */
+exports.BookingCancellationResult = zod_1.z.object({
+    id: zod_1.z.string().uuid(),
+    reference: zod_1.z.string().min(1),
+    status: exports.BookingStatus,
+    cancelledBy: exports.CancellationParty,
+    paymentStatus: exports.PaymentStatus.nullable(),
+    escrowStatus: exports.EscrowStatus.nullable(),
+    refundRwf: primitives_1.RwfAmount,
+    forfeitRwf: primitives_1.RwfAmount,
+    rule: zod_1.z.string(),
 });
 //# sourceMappingURL=booking.js.map

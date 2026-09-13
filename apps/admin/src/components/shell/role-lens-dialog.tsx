@@ -15,7 +15,7 @@ const ROLE_ICONS = {
 /**
  * Staff-role lens — which of the staff roles this console is labelled with.
  *
- * IT NO LONGER PREVIEWS A ROLE (ADR-049, ruled 2026-09-13). The sidebar reads the
+ * IT NO LONGER PREVIEWS A ROLE (ADR-053, ruled 2026-09-13). The sidebar reads the
  * `permissions[]` the server resolved for this account, and a preview of another
  * role would mean turning that role into powers in the browser, a second copy of
  * the staff matrix that contract rule 3 forbids. A true preview needs the server
@@ -48,7 +48,7 @@ export function RoleLensDialog() {
                   close();
                   // A label, not a preview and not an access control. The sidebar
                   // and each section's refusal follow this account's own
-                  // permissions whatever the lens says (ADR-049), and the API
+                  // permissions whatever the lens says (ADR-053), and the API
                   // refuses by permission on its own. Saying so here keeps a
                   // staffer from believing they are seeing a colleague's view.
                   toast(`Labelled ${role.label}. The sidebar still shows what your own account can open.`);

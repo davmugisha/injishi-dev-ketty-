@@ -20,7 +20,7 @@ import type { EbmSaleTrigger } from '../../ebm/application/ebm-sale-trigger.serv
 /**
  * Unit scope: containment + state-guard mapping (404 / 409 / success) around a
  * mocked repository. WHO may decide is `WorkspaceGuard` and
- * `reservation.approve` on the route since ADR-049 (AC-A5); this service is
+ * `reservation.approve` on the route since ADR-053 (AC-A5); this service is
  * handed the workspace the guard resolved and proves the booking sits in it.
  * The transactional refund is the repository's job and needs a DB-backed test.
  */

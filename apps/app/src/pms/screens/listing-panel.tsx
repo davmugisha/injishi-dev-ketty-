@@ -2,7 +2,7 @@
 
 /**
  * The property's listing: what it is, whether guests can find it, and the one
- * control that changes that (ADR-049, AC-I4 to AC-I6).
+ * control that changes that (ADR-053, AC-I4 to AC-I6).
  *
  * **A refused publish lists EVERY reason, in words.** The API refuses with a
  * code list and a sentence for the first code. An operator shown only the first

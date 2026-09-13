@@ -17,13 +17,16 @@ type CheckboxProps = Omit<React.ComponentProps<typeof HeroCheckbox>, "children">
 /**
  * The checkbox, on HeroUI 3.
  *
+ * Pass the label as children rather than putting a separate `<Label>` beside
+ * it: a click on the label toggles the box and a screen reader reads the pair.
+ *
  * HeroUI's checkbox is a FIELD, and its root is not the thing a person presses.
  * In 3.2 the root is React Aria's `CheckboxField`: it holds the state and draws
  * nothing. The pressable row is `Checkbox.Content` (a `CheckboxButton`), and the
  * visible box is `Checkbox.Control` > `Checkbox.Indicator`. A root with plain
  * children renders the label text, no box, and ignores every press, with no
  * error and a clean typecheck. Three web screens shipped exactly that until
- * this adapter composed the parts itself (ADR-049 J26).
+ * this adapter composed the parts itself (ADR-053 J26).
  *
  * So pass the label as children and style the ROW through `className`: it lands
  * on `Checkbox.Content`, the element that takes the press. A full-width row

@@ -21,7 +21,7 @@ import {
 } from '../../../shared/database/database.module';
 
 /**
- * The government body catalogue (D24, ADR-049 AC-G4, AC-G10).
+ * The government body catalogue (D24, ADR-053 AC-G4, AC-G10).
  *
  * A catalogue rather than an enum, because the legally defined set is open:
  * adding RDB or RURA used to be a deployment and is now a row. Mirrors

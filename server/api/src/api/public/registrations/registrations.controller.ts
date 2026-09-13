@@ -104,7 +104,7 @@ export class RegistrationsController {
   }
 
   /**
-   * Accept the operator contract, after creating and before paying (ADR-049,
+   * Accept the operator contract, after creating and before paying (ADR-053,
    * AC-R8).
    *
    * Its own call because the contract quotes the registration reference and
@@ -132,7 +132,7 @@ export class RegistrationsController {
    * a second call advances nothing and bills nothing.
    *
    * Refused with 409 `contract_not_accepted` while the operator contract is
-   * open (ADR-049, AC-R13). Settling is the only door into `submitted`, so this
+   * open (ADR-053, AC-R13). Settling is the only door into `submitted`, so this
    * is what keeps a business without an accepted contract out of every
    * officer's queue.
    */

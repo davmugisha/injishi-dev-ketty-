@@ -7,7 +7,7 @@
  * A housekeeper is a different user on a different device, so a grant shaped
  * like one (room status and no front desk power, `opensOnPhoneSurface`) renders
  * the phone PWA instead of the desktop shell (blueprint §3.3). No role name
- * decides it (ADR-049, AC-A1). Everyone else gets sidebar + topbar + the screen.
+ * decides it (ADR-053, AC-A1). Everyone else gets sidebar + topbar + the screen.
  */
 
 import Link from "next/link";

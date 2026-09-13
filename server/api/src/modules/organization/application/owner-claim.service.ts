@@ -9,7 +9,7 @@ import {
 import { RegistrationService } from './registration.service';
 
 /**
- * The owner claim (FL02, ADR-049): the end of the pipeline an OBO registration
+ * The owner claim (FL02, ADR-053): the end of the pipeline an OBO registration
  * could never reach.
  *
  * **Every refusal is the same 404**, worded the same way: an expired token, a

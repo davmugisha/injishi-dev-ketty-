@@ -1,0 +1,26 @@
+{
+  "private": true,
+  "name": "@injishi/qr",
+  "version": "0.1.0",
+  "description": "Injishi QR encoder: one ISO/IEC 18004 implementation, shared by the RRA receipt and the training certificate.",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "files": ["dist"],
+  "scripts": {
+    "build": "tsc",
+    "typecheck": "tsc --noEmit",
+    "lint": "eslint \"src/**/*.ts\"",
+    "test": "node ../../scripts/no-tests.mjs"
+  },
+  "devDependencies": {
+    "@typescript-eslint/parser": "^8.68.0",
+    "eslint": "^10.9.1",
+    "typescript": "~6.0.3"
+  }
+}

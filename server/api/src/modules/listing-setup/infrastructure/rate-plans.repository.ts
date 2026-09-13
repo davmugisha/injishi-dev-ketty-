@@ -55,7 +55,7 @@ export class RatePlansRepository {
   constructor(@Inject(DRIZZLE) private readonly db: Database) {}
 
   /**
-   * Create a plan on a room type (ADR-049, AC-I2).
+   * Create a plan on a room type (ADR-053, AC-I2).
    *
    * **A new default MOVES the flag rather than failing.** An operator changing
    * which plan sells by default is an ordinary act, and

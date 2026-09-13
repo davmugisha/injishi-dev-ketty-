@@ -2,7 +2,7 @@ import { randomBytes } from 'node:crypto';
 
 /**
  * The owner claim's fixed facts: the token, its lifetime, the link and the mail
- * (FL02, ADR-049).
+ * (FL02, ADR-053).
  *
  * **Runs under Node's type stripping as well as under Nest.** The one time
  * script `scripts/issue-obo-claim-invitations.mjs` imports this file directly,

@@ -34,7 +34,7 @@ export interface Officer {
   bodyName: string;
   title: string;
   /**
-   * All three levels, since ADR-049. It was `"district"` because the fixture only
+   * All three levels, since ADR-053. It was `"district"` because the fixture only
    * ever described district officers; a country or province appointment is a real
    * grant the admin console can now make.
    */
@@ -87,7 +87,7 @@ export interface RegOrg {
   blockedBySeparationOfDuties?: boolean;
 }
 
-/** One entry in an officer's decision log. Append-only (ADR-049, AC-G6). */
+/** One entry in an officer's decision log. Append-only (ADR-053, AC-G6). */
 export interface Decision {
   /** The review row. */
   id: string;

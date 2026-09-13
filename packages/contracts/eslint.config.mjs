@@ -15,7 +15,7 @@ import injishi from '../../tools/eslint-rules/index.mjs';
  * `can` or `permissionsForRole`; this package is where both are defined, so
  * enabling it here would fail the definition rather than a misuse.
  *
- * ADR-048 AC-2 is what this file exists for: the package declared `typecheck`
+ * ADR-052 AC-2 is what this file exists for: the package declared `typecheck`
  * and `test` but no `lint`, so `pnpm -r lint` skipped it.
  */
 export default [

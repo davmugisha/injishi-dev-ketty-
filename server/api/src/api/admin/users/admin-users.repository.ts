@@ -81,7 +81,7 @@ export interface AdminUserStaffRow {
 }
 
 export interface AdminUserOversightRow {
-  /** The assignment row, so a grant can be revoked by name (ADR-049, AC-G1). */
+  /** The assignment row, so a grant can be revoked by name (ADR-053, AC-G1). */
   id: string;
   userId: string;
   oversightRole: OversightRole;
@@ -326,7 +326,7 @@ export class AdminUsersRepository {
       .from(oversightAssignments)
       // The FK to `government_bodies` is what makes the code on a grant a real
       // institution rather than a typo, and a grant naming a body that no longer
-      // exists should not read as a seat. ADR-049 also SELECTS its display name,
+      // exists should not read as a seat. ADR-053 also SELECTS its display name,
       // because a console that shows "PSF" where it should say "Private Sector
       // Federation" is showing a database value to a citizen.
       .innerJoin(

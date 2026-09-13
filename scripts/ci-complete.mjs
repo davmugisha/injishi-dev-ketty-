@@ -2,7 +2,7 @@
 /**
  * The aggregating verdict branch protection requires.
  *
- * ADR-048 AC-1. Every other CI job is selected by changed path, and a job that
+ * ADR-052 AC-1. Every other CI job is selected by changed path, and a job that
  * is skipped reports NO status at all. Requiring those jobs individually would
  * therefore block every pull request that legitimately skipped one. So one job
  * always runs, depends on all of them, and reports the verdict here.

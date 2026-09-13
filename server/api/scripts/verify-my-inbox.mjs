@@ -28,9 +28,9 @@
 const API = process.env.VERIFY_API_URL || 'http://localhost:8000';
 const OTP = process.env.VERIFY_OTP_CODE || '123456';
 
-const GUEST = process.env.VERIFY_GUEST_EMAIL || 'guest@injishi.rw';
-const OTHER = process.env.VERIFY_OTHER_EMAIL || 'broker@injishi.rw';
-const OPERATOR = process.env.VERIFY_OPERATOR_EMAIL || 'host@injishi.rw';
+const GUEST = process.env.VERIFY_GUEST_EMAIL || 'guest@injishi.com';
+const OTHER = process.env.VERIFY_OTHER_EMAIL || 'broker@injishi.com';
+const OPERATOR = process.env.VERIFY_OPERATOR_EMAIL || 'host@injishi.com';
 
 let failures = 0;
 function check(label, ok, detail) {

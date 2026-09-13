@@ -2,7 +2,7 @@
 /**
  * Refuse a workflow that could put branch code on the deploy runner.
  *
- * ADR-048 AC-17b. The control that matters in that ADR's security model is the
+ * ADR-052 AC-17b. The control that matters in that ADR's security model is the
  * first row of its table: branch code never reaches the VPS. Branch protection
  * gives that control no teeth on its own, because a same repo pull request runs
  * the workflow YAML FROM ITS OWN BRANCH, and this project requires zero
@@ -96,7 +96,7 @@ for (const file of files) {
   if (pullRequestTarget) {
     failures.push(
       `${file}: uses \`pull_request_target\`, which runs with this repository's secrets against a ` +
-        `pull request's code. Nothing here needs it (ADR-048 security model).`,
+        `pull request's code. Nothing here needs it (ADR-052 security model).`,
     );
   }
 
@@ -104,7 +104,7 @@ for (const file of files) {
     failures.push(
       `${file}: names the deploy runner \`${DEPLOY_LABEL}\` AND is triggered by a pull request. ` +
         `A pull request runs the workflow file from its own branch, so this would put unmerged ` +
-        `branch code on the production VPS (ADR-048 AC-17, AC-17b).`,
+        `branch code on the production VPS (ADR-052 AC-17, AC-17b).`,
     );
   }
 
