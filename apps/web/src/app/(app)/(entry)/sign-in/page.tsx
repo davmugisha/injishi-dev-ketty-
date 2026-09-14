@@ -155,7 +155,12 @@ export default async function Page({
               </p>
 
               <div className="flex flex-col gap-2">
-                <GoogleButton redirectTo={redirectTo} bounced={bounced} />
+                {/* Not on the demo: it signs in with the persona picker and a
+                    fixed code, and has no Google client of its own, so the
+                    button could only ever end in "couldn't start". */}
+                {demo ? null : (
+                  <GoogleButton redirectTo={redirectTo} bounced={bounced} />
+                )}
 
                 <Button
                   variant="secondary"
