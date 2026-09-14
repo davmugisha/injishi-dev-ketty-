@@ -129,7 +129,10 @@ function cardToProperty(card: PropertyCard): PropertyDetail {
     nightlyRateRwf: rate,
     rating: null,
     operator: null,
-    cardName: { lead: lead ?? card.name, rest: rest.length > 0 ? ` ${rest.join(" ")}` : "" },
+    // No leading space on `rest`: the cards add the gap themselves, as they do for
+    // catalogue records, and search joins lead and rest with one. A space here
+    // doubled it, so "Kivu Crest" never matched a database property.
+    cardName: { lead: lead ?? card.name, rest: rest.join(" ") },
     summary: about[0] ?? `${card.name} in ${district}.`,
     cardImage: images[0]!,
     about: about.length > 0 ? about : [`${card.name} is on Injishi. Choose your dates to see what is available.`],
