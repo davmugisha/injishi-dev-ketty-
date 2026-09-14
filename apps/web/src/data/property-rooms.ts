@@ -6,16 +6,15 @@ import { apiFetch, type ApiResult } from "@/lib/api";
  *
  * ## Why this exists
  *
- * `data/properties.ts` is a curated directory of real, operating Rwandan
- * businesses: their addresses, their photographs, their published rack rates,
- * their sources. It is editorial content and it is honest about that. What it
+ * `data/properties.ts` is a curated directory of fictional demo stays: their
+ * neighbourhoods, their photographs, their demo rates. It is editorial content and it is honest about that. What it
  * is NOT, and was being used as, is a statement that any of them has inventory
  * on this platform.
  *
  * The gap was papered over by `data/demo-listing.ts`, which lent ONE seeded
  * room — Umurage Guesthouse's cheapest — to every property in the catalogue
  * whenever a build flag was set. Its own header said what that meant: opening
- * checkout from the Kigali Marriott priced and reserved a room in Umurage. With
+ * checkout from the Copperleaf Grand priced and reserved a room in Umurage. With
  * the flag off, which is what `.env.production` sets, no property in the
  * catalogue was bookable at all.
  *

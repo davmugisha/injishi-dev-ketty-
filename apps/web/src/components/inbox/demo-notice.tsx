@@ -6,8 +6,8 @@ import { Icon } from "@/components/app/icon";
  * The line that stops this screen from being a lie.
  *
  * Contract row C31. `data/dining.ts` attaches an INVENTED menu, invented prices
- * and invented staff to hotels that exist and are named — the Kigali Serena, the
- * Radisson Blu — because the rule the product owes ("a listing under a hotel is
+ * and invented staff to named catalogue hotels — the Lanternhouse, the
+ * Amberhill, fictional since 2026-09-14 — because the rule the product owes ("a listing under a hotel is
  * available to that hotel's guests and to nobody else") cannot be demonstrated
  * against a made-up property. The safeguard for that trade is not in the fixture,
  * it is here: every screen that renders the fabrication says so where the reader

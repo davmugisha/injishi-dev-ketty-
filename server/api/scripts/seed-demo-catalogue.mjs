@@ -11,93 +11,53 @@
 // booking yet" for every one of them. The single seeded room in
 // `seed-content.mjs` (Umurage Guesthouse) was lent to all thirty by
 // `apps/web/src/data/demo-listing.ts` whenever `NEXT_PUBLIC_DEMO_LISTING=1`,
-// which meant opening checkout from "Kigali Marriott Hotel" reserved a room in
+// which meant opening checkout from "Copperleaf Grand Hotel" reserved a room in
 // a guesthouse in Kacyiru. This script replaces that loan with inventory each
 // property owns, and `demo-listing.ts` is retired in the same change.
 //
 // ## THE ROWS THIS WRITES ARE MARKED DEMO DATA, EVERY ONE OF THEM
 //
-// The names in the catalogue are real, named, operating Rwandan businesses.
-// Seeding inventory under those names asserts things about someone's actual
-// company, so every row this script owns carries the marking in the DATABASE
-// itself rather than only in a comment here:
+// EVERY BUSINESS HERE IS FICTIONAL (2026-09-14). Thirty of these rows used to
+// carry the names, street addresses and coordinates of real, operating Rwandan
+// businesses, marked "not the real business". The demo publishes a sign in
+// code and anyone can book these rooms, so a disclaimer was not enough: they
+// were renamed to invented businesses (the web fixture `data/properties.ts`
+// changed in the same commit), their addresses cut to the neighbourhood and
+// their coordinates dropped. Do not add a real business back.
+//
+// The marking stays in the DATABASE itself rather than only in this comment:
 //
 //  1. `properties.name` ends in ` (demo)`, and that is the string the API
 //     returns and the checkout screen renders.
-//  2. `properties.description` opens with `DEMO SAMPLE DATA` and states that
-//     the row is not operated by, affiliated with or endorsed by the business
-//     whose name it carries.
-//  3. `orgs.legal_name` ends in ` (Injishi demo seed — not the real business)`.
-//  4. `orgs.tin` is drawn from a reserved `999......` block. RRA issues nine
-//     digit TINs and the seeded ones keep that shape so a receipt still
-//     formats, but no issued TIN begins `999`, so none of these can collide
+//  2. `properties.description` opens with `DEMO SAMPLE DATA`, says
+//     `FICTIONAL BUSINESS` and `SYNTHETIC RATE`.
+//  3. `orgs.legal_name` ends in ` (Injishi demo seed — a fictional business)`.
+//  4. `orgs.tin` is drawn from a reserved `999......` block, so none can collide
 //     with a real taxpayer.
 //  5. `orgs.tourism_license_number` is `DEMO-SEED-nnnn`, not a licence number.
 //  6. `properties.address_text` and `house_rules` are prefixed `DEMO SAMPLE`.
-//  7. Every row's PRIMARY KEY begins `de300000-`, which is the reserved uuid
-//     namespace this script owns. That is what makes the marking checkable in
-//     one query and `--reset` exact:
+//  7. Every row's PRIMARY KEY begins `de300000-`, the reserved uuid namespace
+//     this script owns, which is what makes the marking checkable in one query
+//     and `--reset` exact:
 //
 //        select id, name from properties where id::text like 'de300000-%';
 //
-// Nothing here claims membership of anything (`chamber_of_tourism_member` and
-// `psf_member` stay false) and no photograph is attached: an image of a real
-// hotel filed under a demo row would be the one claim the name suffix cannot
-// undo. Gallery images stay in the web fixture, which is where they were
-// sourced.
+// No photograph is attached; gallery images stay in the web fixture.
 //
-// ## Which rates are real and which are invented
+// ## The rates are invented, all fifty-two
 //
-// All FIFTY-TWO catalogue entries are seeded — the thirty real businesses in
-// `apps/web/src/data/properties.ts` and the twenty-two fictional stays in
-// `apps/web/src/data/filler-properties.ts`, which `catalogue.ts` joins into the
-// `ALL_PROPERTIES` that explore and `generateStaticParams` actually read. Both
-// fixtures point every record at its own rows, so nothing in the catalogue
-// reaches a dead end any more.
+// Every figure is a demo rate, so every row carries the three rate markers:
+// `SYNTHETIC RATE` in the description, a rate plan named `Flexible (demo rate —
+// not published by the business)`, and a room type name ending ` (demo rate)`,
+// which is the marker that reaches the checkout screen. The three arrays below
+// keep their historical split only because `index` is part of every id; the
+// split no longer means anything about where a name or a rate came from.
 //
-// They split three ways and MUST STAY DISTINGUISHABLE:
+// The price the card shows and the price checkout charges are the same figure:
+// both fixtures carry the number this script seeds.
 //
-//  - TWENTY name a real business and carry the published "from" rate its
-//    sources already state (`SOURCED_RATE_CATALOGUE`). Their description says
-//    `Reference rate ... taken from the public listing the web catalogue
-//    cites`.
-//  - TEN name a real business that publishes no rate anywhere
-//    (`SYNTHETIC_RATE_CATALOGUE`). Their rate was INVENTED.
-//  - TWENTY-TWO name nobody at all (`FICTIONAL_CATALOGUE`). Both the name and
-//    the rate are invented, so they carry the rate markers AND their org name
-//    ends ` (Injishi demo seed — a fictional business)` where the thirty above
-//    end ` (Injishi demo seed — not the real business)`.
-//
-//    Fictional does NOT excuse dropping the rate marking. A number nobody
-//    published is a number nobody published, so all thirty-two synthetic rows
-//    carry the same three markers: `SYNTHETIC RATE` in the description, a rate
-//    plan named `Flexible (demo rate — not published by the business)`, and a
-//    room type name ending ` (demo rate)` — which is the marker that reaches
-//    the checkout screen. One query separates rate origin:
-//
-//      select name,
-//             case when description like '%SYNTHETIC RATE%'
-//                  then 'invented' else 'published' end as rate_origin
-//        from properties where id::text like 'de300000-%' order by 2, 1;
-//
-// Inventing those rates was an explicit instruction ("even if everything is
-// mock data like demo") and the alternative was worse — `booking-widget.tsx`
-// gates the checkout link on `property.nightlyRateRwf`, so a record with no
-// rate had no reachable paywall at all. What is NOT acceptable is letting an
-// invented price pass as a sourced one, which is why the marking above is
-// triplicated rather than left to a comment in this file.
-//
-// Either way the price the card shows and the price checkout charges are the
-// same figure: both fixtures carry the same number this script seeds, and
-// `price.basis` gains a ` (demo rate)` suffix on every synthetic row so the
-// marking is visible next to the figure everywhere the UI prints it.
-// `filler-properties.ts` applies that suffix in its BUILDER rather than in its
-// seed data, so a stay added later cannot be born unmarked.
-//
-// Each property gets ONE room type, at that rate. A second, dearer tier would
-// be a price nobody published even for the sourced twenty. The one exception is
-// Lake Kivu Serena Hotel, whose own site publishes a three room ladder
-// (Superior, Family, Suite), so it is seeded with three — which is also what
+// Each property gets ONE room type, at that rate. The one exception is Sunbird
+// Bay Hotel, which is seeded with a three room ladder (Superior, Family, Suite) — which is also what
 // makes "the catalogue points at the CHEAPEST room type" a real choice rather
 // than a tautology.
 //
@@ -180,49 +140,39 @@ function databaseUrl() {
 }
 
 /**
- * The catalogue whose rates ARE published, as inventory.
+ * The first thirty stays, part one (indexes 1 to 20).
  *
- * One entry per `apps/web/src/data/properties.ts` record whose sources publish
- * a "from" rate. Every `rateRwf` below is that published number, so the price
- * the card shows and the price checkout charges are the same figure rather than
- * two guesses.
+ * These used to be real businesses with published rates; every one is now a
+ * fictional business at a demo rate (see the header). The name is historical.
  *
  * `index` is fixed forever: it is the middle group of every id this row owns,
- * so REORDERING THIS ARRAY IS SAFE but renumbering it is not — the ids in the
- * web fixture would stop resolving.
+ * so REORDERING THIS ARRAY IS SAFE but renumbering it is not.
  *
- * `district` is the real Rwandan district. The fixture's own `district` field
- * is a coarse search facet (`kigali` covers three districts, `nyagatare` covers
- * the whole Akagera side), so every entry is resolved from the neighbourhood in
- * its `location` line instead.
- *
- * `roomCount` is capped at six units per room type. It is a demo depth, not a
- * claim about how large the real hotel is: `rooms` rows exist so the atomic
- * availability count has something to count, and six is enough to book against
- * without writing 292 rows for one property.
+ * `district` is the Rwandan district the neighbourhood sits in. `roomCount` is
+ * capped at six units per room type: a demo depth, enough to book against.
  */
 const SOURCED_RATE_CATALOGUE = [
   {
     index: 1,
-    slug: 'radisson-blu-hotel-and-convention-centre-kigali',
-    name: 'Radisson Blu Hotel & Convention Centre, Kigali',
+    slug: 'amberhill-convention-hotel',
+    name: 'Amberhill Convention Hotel',
     accommodationClass: 'hotel',
     starGrade: 5,
     district: 'Gasabo',
-    address: 'KG 2 Roundabout, Highway KN 5, Kimihurura',
-    latitude: '-1.95472',
-    longitude: '30.09389',
+    address: 'Kimihurura, Kigali',
+    latitude: null,
+    longitude: null,
     basis: 'per room, per night',
     roomTypes: [{ name: 'Standard Room', rateRwf: 187_500, capacity: 2, roomCount: 6 }],
   },
   {
     index: 2,
-    slug: 'kigali-marriott-hotel',
-    name: 'Kigali Marriott Hotel',
+    slug: 'copperleaf-grand-hotel',
+    name: 'Copperleaf Grand Hotel',
     accommodationClass: 'hotel',
     starGrade: 5,
     district: 'Nyarugenge',
-    address: 'KN 3 Ave, Nyarugenge',
+    address: 'Nyarugenge, Kigali',
     latitude: null,
     longitude: null,
     basis: 'per room, per night',
@@ -230,12 +180,12 @@ const SOURCED_RATE_CATALOGUE = [
   },
   {
     index: 3,
-    slug: 'kigali-serena-hotel',
-    name: 'Kigali Serena Hotel',
+    slug: 'lanternhouse-hotel-kiyovu',
+    name: 'Lanternhouse Hotel Kiyovu',
     accommodationClass: 'hotel',
     starGrade: 5,
     district: 'Nyarugenge',
-    address: 'KN 3 Avenue, Kiyovu',
+    address: 'Kiyovu, Kigali',
     latitude: null,
     longitude: null,
     basis: 'per room, per night',
@@ -243,25 +193,25 @@ const SOURCED_RATE_CATALOGUE = [
   },
   {
     index: 4,
-    slug: 'hotel-des-mille-collines',
-    name: 'Hôtel des Mille Collines',
+    slug: 'hotel-des-sept-sentiers',
+    name: 'Hôtel des Sept Sentiers',
     accommodationClass: 'hotel',
     starGrade: null,
     district: 'Nyarugenge',
-    address: '2 KN 6 Ave, Kiyovu',
-    latitude: '-1.9469',
-    longitude: '30.0619',
+    address: 'Kiyovu, Kigali',
+    latitude: null,
+    longitude: null,
     basis: 'per room, per night',
     roomTypes: [{ name: 'Standard Room', rateRwf: 200_500, capacity: 2, roomCount: 6 }],
   },
   {
     index: 5,
-    slug: 'park-inn-by-radisson-kigali',
-    name: 'Park Inn by Radisson, Kigali',
+    slug: 'juniper-yard-hotel',
+    name: 'Juniper Yard Hotel',
     accommodationClass: 'hotel',
     starGrade: 4,
     district: 'Nyarugenge',
-    address: 'Avenue de Kiyovu & Res des Parcs, Kiyovu',
+    address: 'Kiyovu, Kigali',
     latitude: null,
     longitude: null,
     basis: 'per room, per night',
@@ -269,12 +219,12 @@ const SOURCED_RATE_CATALOGUE = [
   },
   {
     index: 6,
-    slug: 'grand-legacy-hotel',
-    name: 'Grand Legacy Hotel',
+    slug: 'bluefinch-hotel-remera',
+    name: 'Bluefinch Hotel Remera',
     accommodationClass: 'hotel',
     starGrade: 4,
     district: 'Gasabo',
-    address: 'KN 3 Rd, Remera',
+    address: 'Remera, Kigali',
     latitude: null,
     longitude: null,
     basis: 'per room, per night',
@@ -282,12 +232,12 @@ const SOURCED_RATE_CATALOGUE = [
   },
   {
     index: 7,
-    slug: 'gorillas-golf-hotel',
-    name: 'Gorillas Golf Hotel',
+    slug: 'fairway-crest-hotel',
+    name: 'Fairway Crest Hotel',
     accommodationClass: 'hotel',
     starGrade: 4,
     district: 'Gasabo',
-    address: 'KG 274 St, Nyarutarama',
+    address: 'Nyarutarama, Kigali',
     latitude: null,
     longitude: null,
     basis: 'per room, per night',
@@ -295,12 +245,12 @@ const SOURCED_RATE_CATALOGUE = [
   },
   {
     index: 8,
-    slug: 'hotel-villa-portofino-kigali',
-    name: 'Hotel Villa Portofino Kigali',
+    slug: 'villa-marigold-kacyiru',
+    name: 'Villa Marigold Kacyiru',
     accommodationClass: 'hotel',
     starGrade: 3,
     district: 'Gasabo',
-    address: 'House No. 119, KG 9 Ave, Kacyiru',
+    address: 'Kacyiru, Kigali',
     latitude: null,
     longitude: null,
     basis: 'per room, per night',
@@ -308,12 +258,12 @@ const SOURCED_RATE_CATALOGUE = [
   },
   {
     index: 9,
-    slug: 'dmall-hotel',
-    name: 'Dmall Hotel',
+    slug: 'quillstone-hotel',
+    name: 'Quillstone Hotel',
     accommodationClass: 'hotel',
     starGrade: 3,
     district: 'Gasabo',
-    address: 'Remera',
+    address: 'Remera, Kigali',
     latitude: null,
     longitude: null,
     basis: 'per room, per night',
@@ -321,12 +271,12 @@ const SOURCED_RATE_CATALOGUE = [
   },
   {
     index: 10,
-    slug: 'serene-crest-apartments',
-    name: 'Serene Crest Apartments',
+    slug: 'willowbank-apartments-gacuriro',
+    name: 'Willowbank Apartments Gacuriro',
     accommodationClass: 'apartment',
     starGrade: null,
     district: 'Gasabo',
-    address: 'KG 297 St, Gacuriro',
+    address: 'Gacuriro, Kigali',
     latitude: null,
     longitude: null,
     basis: 'per apartment, per night',
@@ -336,12 +286,12 @@ const SOURCED_RATE_CATALOGUE = [
   },
   {
     index: 11,
-    slug: 'kigali-village-suites',
-    name: 'Kigali Village Suites',
+    slug: 'orchard-row-suites',
+    name: 'Orchard Row Suites',
     accommodationClass: 'apartment',
     starGrade: null,
     district: 'Gasabo',
-    address: 'Nyarutarama',
+    address: 'Nyarutarama, Kigali',
     latitude: null,
     longitude: null,
     basis: 'per apartment, per night',
@@ -351,12 +301,12 @@ const SOURCED_RATE_CATALOGUE = [
   },
   {
     index: 12,
-    slug: 'white-lantana-apartments',
-    name: 'White Lantana Apartments',
+    slug: 'paperbark-apartments',
+    name: 'Paperbark Apartments',
     accommodationClass: 'apartment',
     starGrade: null,
     district: 'Gasabo',
-    address: 'Kacyiru',
+    address: 'Kacyiru, Kigali',
     latitude: null,
     longitude: null,
     basis: 'per apartment, per night',
@@ -366,21 +316,21 @@ const SOURCED_RATE_CATALOGUE = [
   },
   {
     index: 13,
-    slug: 'wilderness-bisate',
-    name: 'Wilderness Bisate',
+    slug: 'mistridge-lodge',
+    name: 'Mistridge Lodge',
     accommodationClass: 'lodge',
     starGrade: null,
     district: 'Musanze',
     address: 'Kinigi, Volcanoes National Park',
-    latitude: '-1.444003',
-    longitude: '29.525967',
+    latitude: null,
+    longitude: null,
     basis: 'per person, per night, all inclusive',
     roomTypes: [{ name: 'Lodge Room', rateRwf: 3_788_000, capacity: 2, roomCount: 6 }],
   },
   {
     index: 14,
-    slug: 'wilderness-bisate-reserve',
-    name: 'Wilderness Bisate Reserve',
+    slug: 'mistridge-reserve-villas',
+    name: 'Mistridge Reserve Villas',
     accommodationClass: 'villa',
     starGrade: null,
     district: 'Musanze',
@@ -392,21 +342,21 @@ const SOURCED_RATE_CATALOGUE = [
   },
   {
     index: 15,
-    slug: 'wilderness-sabyinyo',
-    name: 'Wilderness Sabyinyo',
+    slug: 'bamboo-saddle-lodge',
+    name: 'Bamboo Saddle Lodge',
     accommodationClass: 'lodge',
     starGrade: null,
     district: 'Musanze',
     address: 'Kinigi, Volcanoes National Park',
-    latitude: '-1.4167652',
-    longitude: '29.565666',
+    latitude: null,
+    longitude: null,
     basis: 'per person, per night, all inclusive',
     roomTypes: [{ name: 'Lodge Room', rateRwf: 2_242_500, capacity: 2, roomCount: 6 }],
   },
   {
     index: 16,
-    slug: 'virunga-lodge',
-    name: 'Virunga Lodge',
+    slug: 'cloudline-lodge',
+    name: 'Cloudline Lodge',
     accommodationClass: 'lodge',
     starGrade: null,
     district: 'Musanze',
@@ -418,8 +368,8 @@ const SOURCED_RATE_CATALOGUE = [
   },
   {
     index: 17,
-    slug: 'singita-kwitonda-lodge',
-    name: 'Singita Kwitonda Lodge',
+    slug: 'silverback-hollow-lodge',
+    name: 'Silverback Hollow Lodge',
     accommodationClass: 'lodge',
     starGrade: null,
     district: 'Musanze',
@@ -431,8 +381,8 @@ const SOURCED_RATE_CATALOGUE = [
   },
   {
     index: 18,
-    slug: 'wilderness-magashi',
-    name: 'Wilderness Magashi',
+    slug: 'papyrus-shore-camp',
+    name: 'Papyrus Shore Camp',
     accommodationClass: 'tented_camp',
     starGrade: null,
     district: 'Nyagatare',
@@ -444,8 +394,8 @@ const SOURCED_RATE_CATALOGUE = [
   },
   {
     index: 19,
-    slug: 'one-and-only-nyungwe-house',
-    name: "One&Only Nyungwe House",
+    slug: 'mossgrove-forest-house',
+    name: "Mossgrove Forest House",
     accommodationClass: 'lodge',
     starGrade: null,
     district: 'Rusizi',
@@ -463,8 +413,8 @@ const SOURCED_RATE_CATALOGUE = [
     // tiers, so nothing here is invented, and the cheapest-wins rule that picks
     // the fixture's default has something to decide.
     index: 20,
-    slug: 'lake-kivu-serena-hotel',
-    name: 'Lake Kivu Serena Hotel',
+    slug: 'sunbird-bay-hotel',
+    name: 'Sunbird Bay Hotel',
     accommodationClass: 'hotel',
     starGrade: null,
     district: 'Rubavu',
@@ -481,52 +431,15 @@ const SOURCED_RATE_CATALOGUE = [
 ];
 
 /**
- * The catalogue whose rates are INVENTED, as inventory.
- *
- * These ten businesses publish no rate anywhere the fixture could cite — most
- * of them quote on request — so unlike every entry above, `rateRwf` here is a
- * NUMBER SOMEBODY MADE UP. The user's brief authorised exactly that ("even if
- * everything is mock data like demo") and the alternative was worse: a reviewer
- * clicking one of these ten landed on "not open for online booking yet", which
- * is the dead end this whole scope exists to remove. `booking-widget.tsx` gates
- * the checkout link on `property.nightlyRateRwf`, so no `listing` id alone
- * could have opened it — the number had to exist.
- *
- * ## HOW A READER TELLS THESE APART FROM THE TWENTY ABOVE
- *
- * Three markers, in the database, all of them text and all of them greppable:
- *
- *  1. `properties.description` carries a `SYNTHETIC RATE` paragraph naming the
- *     figure as invented. The sourced twenty carry `Reference rate ... taken
- *     from the public listing the web catalogue cites` instead. So:
- *
- *       select name,
- *              case when description like '%SYNTHETIC RATE%'
- *                   then 'invented' else 'published' end as rate_origin
- *         from properties where id::text like 'de300000-%';
- *
- *  2. `rate_plans.name` is `Flexible (demo rate — not published by the
- *     business)` rather than plain `Flexible`.
- *  3. `room_types.name` ends ` (demo rate)`, which is the one marker that also
- *     reaches the screen: it is the room name the checkout prints, so a person
- *     looking at the paywall sees that this price was invented without opening
- *     the database at all.
- *
- * Losing that distinction would be worse than the dead end was. A made up price
- * that is indistinguishable from a sourced one is how a demo turns into a claim
- * about someone's business.
- *
- * `rateNote` records WHERE each figure came from — always a comparable already
- * in the sourced set, never a number pulled out of the air — so the guess is at
- * least reviewable. Every one is deliberately round to the nearest 5,000, which
- * is a second, softer signal: the sourced rates are converted from USD and land
- * on odd figures like 187,500 and 141,500.
+ * The first thirty stays, part two (indexes 21 to 30). Fictional businesses at
+ * demo rates, like part one; the name is historical. `rateNote` is written into
+ * each description's `SYNTHETIC RATE` sentence.
  */
 const SYNTHETIC_RATE_CATALOGUE = [
   {
     index: 21,
-    slug: 'ubumwe-grande-hotel',
-    name: 'Ubumwe Grande Hotel',
+    slug: 'cobalt-tower-hotel',
+    name: 'Cobalt Tower Hotel',
     accommodationClass: 'hotel',
     starGrade: 4,
     district: 'Nyarugenge',
@@ -534,13 +447,13 @@ const SYNTHETIC_RATE_CATALOGUE = [
     latitude: null,
     longitude: null,
     basis: 'per room, per night',
-    rateNote: 'between the two sourced 4-star Kigali hotels, Gorillas Golf (132,500) and Grand Legacy (166,500)',
+    rateNote: 'as a round demo figure for a stay of this class and area',
     roomTypes: [{ name: 'Standard Room', rateRwf: 150_000, capacity: 2, roomCount: 4 }],
   },
   {
     index: 22,
-    slug: 'onomo-hotel-kigali',
-    name: 'Onomo Hotel Kigali',
+    slug: 'saffron-terrace-hotel',
+    name: 'Saffron Terrace Hotel',
     accommodationClass: 'hotel',
     starGrade: 4,
     district: 'Gasabo',
@@ -548,13 +461,13 @@ const SYNTHETIC_RATE_CATALOGUE = [
     latitude: null,
     longitude: null,
     basis: 'per room, per night',
-    rateNote: 'a shade under the sourced 4-star Kigali band (132,500 to 166,500), as a business hotel',
+    rateNote: 'as a round demo figure for a stay of this class and area',
     roomTypes: [{ name: 'Standard Room', rateRwf: 140_000, capacity: 2, roomCount: 4 }],
   },
   {
     index: 23,
-    slug: 'heaven-boutique-hotel',
-    name: 'Heaven Boutique Hotel',
+    slug: 'hummingbird-house-hotel',
+    name: 'Hummingbird House Hotel',
     accommodationClass: 'hotel',
     starGrade: null,
     district: 'Nyarugenge',
@@ -562,13 +475,13 @@ const SYNTHETIC_RATE_CATALOGUE = [
     latitude: null,
     longitude: null,
     basis: 'per room, per night',
-    rateNote: 'between sourced Villa Portofino (66,500, 3-star) and Park Inn (127,000, 4-star), as a small boutique house',
+    rateNote: 'as a round demo figure for a stay of this class and area',
     roomTypes: [{ name: 'Standard Room', rateRwf: 110_000, capacity: 2, roomCount: 4 }],
   },
   {
     index: 24,
-    slug: 'five-to-five-hotel',
-    name: 'Five To Five Hotel',
+    slug: 'dawn-and-dusk-hotel',
+    name: 'Dawn and Dusk Hotel',
     accommodationClass: 'hotel',
     starGrade: 3,
     district: 'Gasabo',
@@ -576,13 +489,13 @@ const SYNTHETIC_RATE_CATALOGUE = [
     latitude: null,
     longitude: null,
     basis: 'per room, per night',
-    rateNote: 'between the two sourced 3-star Kigali hotels, Villa Portofino (66,500) and Dmall (141,500)',
+    rateNote: 'as a round demo figure for a stay of this class and area',
     roomTypes: [{ name: 'Standard Room', rateRwf: 95_000, capacity: 2, roomCount: 4 }],
   },
   {
     index: 25,
-    slug: 'one-and-only-gorillas-nest',
-    name: "One&Only Gorilla's Nest",
+    slug: 'treefern-nest-lodge',
+    name: "Treefern Nest Lodge",
     accommodationClass: 'lodge',
     starGrade: null,
     district: 'Musanze',
@@ -590,13 +503,13 @@ const SYNTHETIC_RATE_CATALOGUE = [
     latitude: null,
     longitude: null,
     basis: 'per person, per night',
-    rateNote: "inside the sourced Volcanoes luxury band: Bisate (3,788,000) to Singita Kwitonda (4,010,500); its sibling One&Only Nyungwe House is 4,423,500",
+    rateNote: 'as a round demo figure for a stay of this class and area',
     roomTypes: [{ name: 'Lodge Room', rateRwf: 4_000_000, capacity: 2, roomCount: 4 }],
   },
   {
     index: 26,
-    slug: 'five-volcanoes-boutique-hotel',
-    name: 'Five Volcanoes Boutique Hotel',
+    slug: 'seven-craters-boutique-hotel',
+    name: 'Seven Craters Boutique Hotel',
     accommodationClass: 'hotel',
     starGrade: null,
     district: 'Musanze',
@@ -604,13 +517,13 @@ const SYNTHETIC_RATE_CATALOGUE = [
     latitude: null,
     longitude: null,
     basis: 'per room, per night',
-    rateNote: 'well above the sourced Kigali 3-star band (66,500 to 141,500) and far below the Volcanoes lodges, as a full-board Musanze town hotel',
+    rateNote: 'as a round demo figure for a stay of this class and area',
     roomTypes: [{ name: 'Standard Room', rateRwf: 250_000, capacity: 2, roomCount: 6 }],
   },
   {
     index: 27,
-    slug: 'ruzizi-tented-lodge',
-    name: 'Ruzizi Tented Lodge',
+    slug: 'hippo-bend-tented-lodge',
+    name: 'Hippo Bend Tented Lodge',
     accommodationClass: 'tented_camp',
     starGrade: null,
     district: 'Kayonza',
@@ -618,13 +531,13 @@ const SYNTHETIC_RATE_CATALOGUE = [
     latitude: null,
     longitude: null,
     basis: 'per person, per night',
-    rateNote: 'roughly a quarter of sourced Wilderness Magashi (1,421,500), the other Akagera camp, which is a luxury property where this is an African Parks eco-camp',
+    rateNote: 'as a round demo figure for a stay of this class and area',
     roomTypes: [{ name: 'Tented Suite', rateRwf: 400_000, capacity: 2, roomCount: 6 }],
   },
   {
     index: 28,
-    slug: 'mantis-akagera-game-lodge',
-    name: 'Mantis Akagera Game Lodge',
+    slug: 'acacia-horizon-game-lodge',
+    name: 'Acacia Horizon Game Lodge',
     accommodationClass: 'lodge',
     starGrade: null,
     district: 'Kayonza',
@@ -632,13 +545,13 @@ const SYNTHETIC_RATE_CATALOGUE = [
     latitude: null,
     longitude: null,
     basis: 'per room, per night',
-    rateNote: 'a per-room bed-and-breakfast figure above the sourced Kigali band, well under the per-person Akagera camps',
+    rateNote: 'as a round demo figure for a stay of this class and area',
     roomTypes: [{ name: 'Lodge Room', rateRwf: 300_000, capacity: 2, roomCount: 6 }],
   },
   {
     index: 29,
-    slug: 'nyungwe-top-view-hill-hotel',
-    name: 'Nyungwe Top View Hill Hotel',
+    slug: 'colobus-ridge-hotel',
+    name: 'Colobus Ridge Hotel',
     accommodationClass: 'hotel',
     starGrade: 3,
     district: 'Rusizi',
@@ -646,13 +559,13 @@ const SYNTHETIC_RATE_CATALOGUE = [
     latitude: null,
     longitude: null,
     basis: 'per room, per night',
-    rateNote: 'at the sourced Kigali 3-star level (Dmall 141,500, Villa Portofino 66,500), as the budget option at Nyungwe',
+    rateNote: 'as a round demo figure for a stay of this class and area',
     roomTypes: [{ name: 'Standard Room', rateRwf: 120_000, capacity: 2, roomCount: 6 }],
   },
   {
     index: 30,
-    slug: 'cormoran-lodge',
-    name: 'Cormoran Lodge',
+    slug: 'heronstone-lodge',
+    name: 'Heronstone Lodge',
     accommodationClass: 'lodge',
     starGrade: null,
     district: 'Karongi',
@@ -660,7 +573,7 @@ const SYNTHETIC_RATE_CATALOGUE = [
     latitude: null,
     longitude: null,
     basis: 'per person, per night',
-    rateNote: 'above sourced Lake Kivu Serena (280,000 per room) because this one quotes per person, and far below the national-park lodges',
+    rateNote: 'as a round demo figure for a stay of this class and area',
     roomTypes: [{ name: 'Lodge Room', rateRwf: 350_000, capacity: 2, roomCount: 5 }],
   },
 ];
@@ -717,14 +630,14 @@ const FICTIONAL_CATALOGUE = [
     // No rate in the fixture. Anchored to the other Akagera camp in the same
     // file, akagera-riverside-camp (134,000 per person), and nudged up for the
     // twice-daily game drives its `includes` line carries.
-    rateNote: 'at the level of the other Akagera camp in the same fixture, akagera-riverside-camp (134,000 per person)',
+    rateNote: 'as a round demo figure for a stay of this class and area',
     roomTypes: [{ name: 'Tented Suite', rateRwf: 150_000, capacity: 2, roomCount: 6 }],
   },
   { index: 36, slug: 'gisenyi-bay-apartments', name: 'Gisenyi Bay Apartments', accommodationClass: 'apartment', starGrade: 3, district: 'Rubavu', address: 'Rubavu town, Rubavu', basis: 'per apartment, per night', roomTypes: [{ name: 'Three-bedroom Apartment', rateRwf: 72_000, capacity: 6, roomCount: 6 }] },
   { index: 37, slug: 'nyungwe-canopy-retreat', name: 'Nyungwe Canopy Retreat', accommodationClass: 'lodge', starGrade: 4, district: 'Rusizi', address: 'Gisakura, Rusizi', basis: 'per person, per night', roomTypes: [{ name: 'Lodge Room', rateRwf: 245_000, capacity: 2, roomCount: 6 }] },
   { index: 38, slug: 'kimironko-market-rooms', name: 'Kimironko Market Rooms', accommodationClass: 'guest_house', starGrade: 2, district: 'Gasabo', address: 'Kimironko, Kigali', basis: 'per room, per night', roomTypes: [{ name: 'Guest Room', rateRwf: 24_000, capacity: 2, roomCount: 6 }] },
   { index: 39, slug: 'lake-muhazi-boathouse', name: 'Lake Muhazi Boathouse', accommodationClass: 'guest_house', starGrade: 3, district: 'Nyagatare', address: 'Rwesero, Nyagatare', basis: 'per room, per night', roomTypes: [{ name: 'Guest Room', rateRwf: 54_000, capacity: 4, roomCount: 6 }] },
-  { index: 40, slug: 'kigali-heights-serviced-flats', name: 'Kigali Heights Serviced Flats', accommodationClass: 'apartment', starGrade: 5, district: 'Gasabo', address: 'Kimihurura, Kigali', basis: 'per apartment, per night', roomTypes: [{ name: 'Two-bedroom Apartment', rateRwf: 164_000, capacity: 4, roomCount: 6 }] },
+  { index: 40, slug: 'ridgeview-loft-serviced-flats', name: 'Ridgeview Loft Serviced Flats', accommodationClass: 'apartment', starGrade: 5, district: 'Gasabo', address: 'Kimihurura, Kigali', basis: 'per apartment, per night', roomTypes: [{ name: 'Two-bedroom Apartment', rateRwf: 164_000, capacity: 4, roomCount: 6 }] },
   { index: 41, slug: 'musanze-farmstead-guesthouse', name: 'Musanze Farmstead Guesthouse', accommodationClass: 'guest_house', starGrade: 3, district: 'Musanze', address: 'Musanze town, Musanze', basis: 'per room, per night', roomTypes: [{ name: 'Guest Room', rateRwf: 46_000, capacity: 5, roomCount: 6 }] },
   { index: 42, slug: 'rusizi-border-hotel', name: 'Rusizi Border Hotel', accommodationClass: 'hotel', starGrade: 4, district: 'Rusizi', address: 'Kamembe, Rusizi', basis: 'per room, per night', roomTypes: [{ name: 'Standard Room', rateRwf: 88_000, capacity: 2, roomCount: 6 }] },
   { index: 43, slug: 'karongi-hillside-villas', name: 'Karongi Hillside Villas', accommodationClass: 'villa', starGrade: null, district: 'Karongi', address: 'Bwishyura, Karongi', basis: 'per villa, per night', roomTypes: [{ name: 'Private Villa', rateRwf: 218_000, capacity: 8, roomCount: 6 }] },
@@ -741,7 +654,7 @@ const FICTIONAL_CATALOGUE = [
     // No rate in the fixture. Anchored to virunga-ridge-cottages (412,000 per
     // person), the other all-inclusive Musanze stay in the same file, a little
     // under it because that one is the 5-star of the pair.
-    rateNote: 'a little under virunga-ridge-cottages (412,000 per person), the other all-inclusive Musanze stay in the same fixture',
+    rateNote: 'as a round demo figure for a stay of this class and area',
     roomTypes: [{ name: 'Tented Suite', rateRwf: 380_000, capacity: 2, roomCount: 6 }],
   },
   { index: 46, slug: 'rubavu-beach-hotel', name: 'Rubavu Beach Hotel', accommodationClass: 'hotel', starGrade: 4, district: 'Rubavu', address: 'Gisenyi shore, Rubavu', basis: 'per room, per night', roomTypes: [{ name: 'Standard Room', rateRwf: 112_000, capacity: 3, roomCount: 6 }] },
@@ -768,14 +681,17 @@ const FICTIONAL_CATALOGUE = [
  * a fourth array rather than a flag.
  */
 const CATALOGUE = [
+  // Every business is fictional and every rate invented (see the header), so
+  // all three arrays carry the same provenance.
   ...SOURCED_RATE_CATALOGUE.map((e) => ({
     ...e,
-    nameProvenance: 'real',
-    rateProvenance: 'published',
+    nameProvenance: 'fictional',
+    rateProvenance: 'synthetic',
+    rateNote: 'as the figure the web fixture already carried for this invented stay',
   })),
   ...SYNTHETIC_RATE_CATALOGUE.map((e) => ({
     ...e,
-    nameProvenance: 'real',
+    nameProvenance: 'fictional',
     rateProvenance: 'synthetic',
   })),
   ...FICTIONAL_CATALOGUE.map((e) => ({
@@ -1218,8 +1134,7 @@ async function main() {
     console.log('Seeded the demo catalogue. Row counts:', counts);
     console.log(
       '\nEvery row above is marked demo data: property names end " (demo)", ' +
-        'org names end " (Injishi demo seed — not the real business)" or ' +
-        '" (Injishi demo seed — a fictional business)", and every ' +
+        'org names end " (Injishi demo seed — a fictional business)", and every ' +
         `id begins "${ID_PREFIX}-". Check with:\n` +
         `  select id, name from properties where id::text like '${ID_PREFIX}-%';\n` +
         `  select count(*) from orgs where id::text like '${ID_PREFIX}-%'\n` +

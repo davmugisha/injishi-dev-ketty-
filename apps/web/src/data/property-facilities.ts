@@ -23,7 +23,7 @@ import { apiFetch, type ApiResult } from "@/lib/api";
  *
  * ## Why the catalogue stays the fallback
  *
- * `data/properties.ts` is editorial: the amenities a real business advertises,
+ * `data/properties.ts` is editorial: the amenities a catalogue stay advertises,
  * written down by us. For a property the API does not serve — most of the
  * catalogue, today — that is the only honest list there is, so the page keeps
  * it. A 404 from the API is therefore the ORDINARY answer, not a failure: it

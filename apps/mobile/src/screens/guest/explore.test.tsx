@@ -196,7 +196,7 @@ describe.each(SCHEMES)('Explore in the %s scheme', (scheme) => {
     );
     expect(mockPush).toHaveBeenCalledWith({
       pathname: '/listing/[id]',
-      params: { id: 'kivu-serena-suite' },
+      params: { id: 'kivu-sunbird-suite' },
     });
   });
 

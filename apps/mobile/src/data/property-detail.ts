@@ -220,7 +220,7 @@ const SEEDS: readonly Seed[] = [
     ],
   },
   {
-    stayId: 'kivu-serena-suite',
+    stayId: 'kivu-sunbird-suite',
     address: 'KN 3 Rd, lakeside gate, Rubavu',
     locationPrivacy: false,
     checkInTime: '14:00',
@@ -236,7 +236,7 @@ const SEEDS: readonly Seed[] = [
   {
     // A serviced apartment in a residential block: the exact door is shared on
     // confirmation and the pin sits on the district until then.
-    stayId: 'kigali-heights-apartment',
+    stayId: 'lavender-hill-apartment',
     address: 'KG 7 Ave, Kimihurura, Kigali',
     locationPrivacy: true,
     checkInTime: '15:00',

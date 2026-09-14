@@ -12,8 +12,8 @@ import { Icon } from "@/components/app/icon";
  * visible to the next person opening the folder.
  *
  * WHY IT EXISTS. That fixture attaches invented outlets, invented dishes and
- * invented prices to NAMED REAL HOTELS — the Kigali Serena, the Mille Collines,
- * the Radisson. `data/properties.ts` refuses to fabricate reviews or host
+ * invented prices to NAMED CATALOGUE HOTELS — the Lanternhouse, the Sept
+ * Sentiers, the Amberhill (fictional since 2026-09-14). `data/properties.ts` refuses to fabricate reviews or host
  * profiles for a named business for exactly that reason, and the dining
  * catalogue crosses the line on purpose, because the rule it demonstrates ("a
  * product tied to a hotel shows to that hotel's guests") is untestable without

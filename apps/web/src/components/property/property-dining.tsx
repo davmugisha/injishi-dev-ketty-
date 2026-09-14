@@ -14,7 +14,7 @@ import { formatRwf } from "@/lib/money";
  *
  * Six is two full rows on the two-column tablet step and fits the narrow left
  * column of the property page without pushing "Similar stays" below a second
- * screen. The Kigali Serena sells eleven, so the cut is real rather than
+ * screen. The Lanternhouse sells eleven, so the cut is real rather than
  * theoretical, and the count in the footer link says how many were held back —
  * a taster that does not admit it is a taster reads as the whole menu.
  */

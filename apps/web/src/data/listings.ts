@@ -19,8 +19,8 @@ import { facetsFor, type StayFacets } from "@/data/stay-facets";
  * page, because the card is built from the page's own record.
  *
  * TWO SOURCES, and the split is a policy rather than a convenience.
- * `PROPERTIES` holds thirty real, operating businesses and every fact in it was
- * read from a published source. `FILLER_PROPERTIES` holds twenty-two openly
+ * `PROPERTIES` holds thirty fictional demo stays (renamed from real businesses on
+ * 2026-09-14). `FILLER_PROPERTIES` holds twenty-two openly
  * fictional stays, added so the rebuilt search page's twenty-block filter rail
  * has enough stock to show a working count against each facet. Read
  * `data/filler-properties.ts` before treating any listing as a real business.

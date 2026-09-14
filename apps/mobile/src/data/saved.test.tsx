@@ -27,10 +27,10 @@ function TwoScreens() {
 
   return (
     <View>
-      <RNText testID="explore">{explore.isSaved('kivu-serena-suite') ? 'on' : 'off'}</RNText>
-      <RNText testID="detail">{detail.isSaved('kivu-serena-suite') ? 'on' : 'off'}</RNText>
+      <RNText testID="explore">{explore.isSaved('kivu-sunbird-suite') ? 'on' : 'off'}</RNText>
+      <RNText testID="detail">{detail.isSaved('kivu-sunbird-suite') ? 'on' : 'off'}</RNText>
       <RNText testID="ids">{explore.ids.join(',')}</RNText>
-      <RNText testID="toggle" onPress={() => detail.toggle('kivu-serena-suite')}>
+      <RNText testID="toggle" onPress={() => detail.toggle('kivu-sunbird-suite')}>
         toggle
       </RNText>
     </View>
@@ -47,13 +47,13 @@ describe('the saved set', () => {
 
   /**
    * Session 6 gave the set a seed. The two assertions below used to read
-   * `'kivu-serena-suite'` and `''`, which were the whole store when it started
+   * `'kivu-sunbird-suite'` and `''`, which were the whole store when it started
    * empty; they are now the seed plus or minus that one id, which is the same
    * claim written against a store that has something in it. The seed itself is
    * asserted here rather than inlined into each, so adding a stay to
    * `SEEDED_SAVED` does not fail three tests.
    */
-  const withKivu = [...SEEDED_SAVED, 'kivu-serena-suite'].join(',');
+  const withKivu = [...SEEDED_SAVED, 'kivu-sunbird-suite'].join(',');
   const seeded = SEEDED_SAVED.join(',');
 
   it('opens with the seeded set, including the unpublished stay AC-10 needs', () => {
@@ -62,7 +62,7 @@ describe('the saved set', () => {
     expect(SEEDED_SAVED).toContain('virunga-tea-retreat');
     // The three ids this file toggles must never be seeded, or a save here
     // would silently become an unsave.
-    expect(SEEDED_SAVED).not.toContain('kivu-serena-suite');
+    expect(SEEDED_SAVED).not.toContain('kivu-sunbird-suite');
     expect(SEEDED_SAVED).not.toContain('kigali-cbd-loft');
     expect(SEEDED_SAVED).not.toContain('musanze-volcano-cabin');
   });

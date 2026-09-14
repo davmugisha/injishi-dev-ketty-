@@ -245,7 +245,7 @@ const GOV_BODY = {
 /** The residence business, so the Landlord workspace has something to be. */
 const RESIDENCE_ORG = {
   id: ORG_RESIDENCE,
-  legalName: 'Kigali Heights Residences Ltd',
+  legalName: 'Lavender Hill Residences Ltd',
   domain: 'residence',
   // Required by the `orgs_domain_shape` check: a residence org must name a
   // residence_class (and must NOT carry a tourism licence), exactly as a

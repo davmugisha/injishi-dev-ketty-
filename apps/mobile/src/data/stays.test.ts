@@ -35,8 +35,8 @@ describe('the catalogue', () => {
     // The trip seeds in `./trips` join on these for the photograph, the
     // coordinates and the property's own check-in time.
     for (const id of [
-      'kivu-serena-suite',
-      'kigali-heights-apartment',
+      'kivu-sunbird-suite',
+      'lavender-hill-apartment',
       'nyungwe-forest-lodge',
       'musanze-volcano-cabin',
       'akagera-tented-camp',

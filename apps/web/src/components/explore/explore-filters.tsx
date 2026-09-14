@@ -257,7 +257,7 @@ function RailShortcuts({
           data-rail-name-search
           value={name}
           onChange={(event) => onNameChange(event.currentTarget.value)}
-          placeholder="e.g. Radisson Blu"
+          placeholder="e.g. Amberhill"
           className="w-full"
         />
       </div>

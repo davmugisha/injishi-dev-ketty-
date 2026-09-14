@@ -161,7 +161,7 @@ const TRIP_SEEDS: TripSeed[] = [
     // The hero. Arrives today, self check-in, inside the window: this is the
     // trip the walkthrough runs and the only one with a live countdown.
     id: 'BK-4821',
-    stayId: 'kivu-serena-suite',
+    stayId: 'kivu-sunbird-suite',
     offsetDays: 0,
     nights: 3,
     guests: 2,
@@ -201,7 +201,7 @@ const TRIP_SEEDS: TripSeed[] = [
     // Confirmed but outside the window: the countdown runs in days and the CTA
     // carries the reason it is not live yet.
     id: 'BK-4790',
-    stayId: 'kigali-heights-apartment',
+    stayId: 'lavender-hill-apartment',
     offsetDays: 12,
     nights: 3,
     guests: 1,

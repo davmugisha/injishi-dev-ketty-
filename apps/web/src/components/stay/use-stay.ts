@@ -61,8 +61,8 @@ export interface OrdersRead {
  * The orders placed from one property, newest first.
  *
  * Scoped by property rather than returning everything, because a presenter who
- * demoed the Serena this morning and the Radisson this afternoon must not find
- * the Serena's brochettes listed under a Radisson room number.
+ * demoed the Lanternhouse this morning and the Amberhill this afternoon must not find
+ * the Lanternhouse's brochettes listed under a Amberhill room number.
  *
  * A `null` slug means the stay has not been read yet, and answers empty — not
  * "every order in the browser".

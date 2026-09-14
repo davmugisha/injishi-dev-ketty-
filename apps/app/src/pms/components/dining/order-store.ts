@@ -403,7 +403,7 @@ interface SeedOrder {
  * catalogue exists to demonstrate.
  */
 const SEED_ORDERS: Record<string, SeedOrder[]> = {
-  "kigali-serena-hotel": [
+  "lanternhouse-hotel-kiyovu": [
     {
       id: "ORD-DEMO-K312",
       room: "312",
@@ -491,7 +491,7 @@ const SEED_ORDERS: Record<string, SeedOrder[]> = {
       stateAt: SEED_AT("18:11"),
     },
   ],
-  "lake-kivu-serena-hotel": [
+  "sunbird-bay-hotel": [
     {
       id: "ORD-DEMO-L003",
       room: "3",

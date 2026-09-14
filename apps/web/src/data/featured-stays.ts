@@ -76,7 +76,7 @@ export interface FeaturedStay {
  * X barely moves any of them and the choice of photograph matters far more than
  * the choice of offset:
  *
- *   radisson    0%   the hotel's crescent block sits at the far left of the
+ *   amberhill   0%   the hotel's crescent block sits at the far left of the
  *                    frame; even a small centre bias slices it.
  *   bisate     40%   holds the silverback's head and chest whole.
  *   kivu       60%Y  native portrait, so here it is Y that bites; 60% trims sky
@@ -99,32 +99,32 @@ export interface FeaturedStay {
  *                       five daylight ones, so the set does not key together.
  *                       `kigali-skyline-01` is the same city in daylight.
  *
- * Kigali Serena is still the weak card of the six and no value here fixes it:
+ * Lanternhouse is still the weak card of the six and no value here fixes it:
  * every photograph in its gallery is a view of Kigali rather than of the hotel.
  * That is a sourcing gap, not a layout one, and it wants a photograph of the
  * building.
  */
 const DECK_IMAGE: Record<string, { stem?: string; alt?: string; position: string }> = {
-  "radisson-blu-hotel-and-convention-centre-kigali": { position: "0% 50%" },
-  "wilderness-bisate": { position: "40% 50%" },
-  "hotel-des-mille-collines": {
+  "amberhill-convention-hotel": { position: "0% 50%" },
+  "mistridge-lodge": { position: "40% 50%" },
+  "hotel-des-sept-sentiers": {
     stem: "mille-collines-01",
-    alt: "Hôtel des Mille Collines, Kiyovu: the front portico at dusk",
+    alt: "Hôtel des Sept Sentiers, Kiyovu: the front portico at dusk",
     position: "50% 50%",
   },
-  "kigali-serena-hotel": {
+  "lanternhouse-hotel-kiyovu": {
     stem: "kigali-skyline-01",
-    alt: "Kigali Serena Hotel, Kiyovu: the Kigali hills above the city",
+    alt: "Lanternhouse Hotel Kiyovu, Kiyovu: the Kigali hills above the city",
     position: "40% 50%",
   },
-  "lake-kivu-serena-hotel": {
+  "sunbird-bay-hotel": {
     stem: "rwanda-district-rubavu",
-    alt: "Lake Kivu Serena Hotel, Gisenyi: the lake shore at Rubavu",
+    alt: "Sunbird Bay Hotel, Gisenyi: the lake shore at Rubavu",
     position: "50% 60%",
   },
-  "one-and-only-nyungwe-house": {
+  "mossgrove-forest-house": {
     stem: "rwanda-tea-02",
-    alt: "One&Only Nyungwe House: the tea terraces at Gisakura",
+    alt: "Mossgrove Forest House: the tea terraces at Gisakura",
     position: "50% 50%",
   },
 };

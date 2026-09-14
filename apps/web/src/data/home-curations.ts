@@ -293,7 +293,7 @@ export const TRIP_STYLES: TripStyle[] = [
         tag: "Convention district",
         image: {
           stem: "kigali-convention-centre-02",
-          alt: "The Kigali Convention Centre dome",
+          alt: "The Amberhill convention wing dome",
         },
         district: "kigali",
       },

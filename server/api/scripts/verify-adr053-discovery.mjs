@@ -35,7 +35,7 @@ const WEB_BASE = process.env.WEB_BASE || "http://localhost:3000";
 const WEB_URL = process.env.WEB_URL || "http://localhost:3000";
 const WEB_ORIGIN = "http://localhost:3000";
 const GASABO_SECTOR = 10201;
-const FIXTURE_SLUG = "kigali-serena-hotel";
+const FIXTURE_SLUG = "lanternhouse-hotel-kiyovu";
 const REASON = "ADR-053 slice 3 verification";
 
 let pass = 0;

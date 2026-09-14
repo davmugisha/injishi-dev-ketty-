@@ -9,18 +9,16 @@
  * quoted to a guest, screenshotted for a pitch, or read as a product claim.
  *
  * The one thing that is NOT invented is `propertySlug`. Every non-null value
- * there is the slug of a real, operating business already carried by
+ * there is the slug of a fictional demo hotel already carried by
  * `data/properties.ts`, because the whole point of this fixture is the rule the
  * product owes: a listing that works under a dedicated hotel is available to
  * that hotel's checked-in guests and to nobody else. A fabricated property slug
- * would make that rule untestable, which is the only reason it is real.
+ * would make that rule untestable, which is the only reason it points at a catalogue property.
  *
  * That pairing is also the file's sharpest edge, so it is stated plainly: these
- * outlets are attached to named real hotels and those hotels did not write
- * them. `data/properties.ts` refuses to invent reviews or host profiles for a
- * named business for exactly this reason, and this file sits one step past that
- * line on purpose — under a demo notice, for a presentation, and never in front
- * of a guest. `propertySlug: null` means an independent outlet that belongs to
+ * outlets are attached to named catalogue hotels. Those hotels have been
+ * fictional since 2026-09-14 (they were real businesses before), and the file
+ * still sits under a demo notice, for a presentation, never in front of a guest. `propertySlug: null` means an independent outlet that belongs to
  * no hotel at all; it is the control case that proves the scoping helpers
  * actually filter.
  *
@@ -96,7 +94,7 @@ export const DINING_OUTLETS: DiningOutlet[] = [
     slug: "umuganura-grill",
     name: "Umuganura Grill",
     kind: "restaurant",
-    propertySlug: "kigali-serena-hotel",
+    propertySlug: "lanternhouse-hotel-kiyovu",
     blurb:
       "Charcoal grill and a short Rwandan menu, served in the garden until the light goes. Brochettes are turned to order, so allow twenty minutes at dinner.",
     image: "stay-07",
@@ -106,7 +104,7 @@ export const DINING_OUTLETS: DiningOutlet[] = [
     slug: "kiyovu-terrace-bar",
     name: "Kiyovu Terrace Bar",
     kind: "bar",
-    propertySlug: "kigali-serena-hotel",
+    propertySlug: "lanternhouse-hotel-kiyovu",
     blurb:
       "The long terrace above Kiyovu. Cold beer, a short cocktail list built on Rwandan gin, and the city coming on below you after seven.",
     image: "kigali-night-panorama-02",
@@ -116,7 +114,7 @@ export const DINING_OUTLETS: DiningOutlet[] = [
     slug: "poolside-cafe-kiyovu",
     name: "Poolside Café",
     kind: "cafe",
-    propertySlug: "hotel-des-mille-collines",
+    propertySlug: "hotel-des-sept-sentiers",
     blurb:
       "All-day coffee, tea and light plates by the water. The quiet place to work between meetings, and the only outlet still serving between lunch and dinner.",
     image: "mille-collines-02",
@@ -126,7 +124,7 @@ export const DINING_OUTLETS: DiningOutlet[] = [
     slug: "convention-brasserie",
     name: "Convention Brasserie",
     kind: "restaurant",
-    propertySlug: "radisson-blu-hotel-and-convention-centre-kigali",
+    propertySlug: "amberhill-convention-hotel",
     blurb:
       "Built for a full conference floor: a hot buffet at midday, an à la carte card in the evening, and a kitchen that keeps serving while a session overruns.",
     image: "kigali-convention-centre-02",
@@ -136,7 +134,7 @@ export const DINING_OUTLETS: DiningOutlet[] = [
     slug: "kivu-shore-fish-house",
     name: "Kivu Shore Fish House",
     kind: "restaurant",
-    propertySlug: "lake-kivu-serena-hotel",
+    propertySlug: "sunbird-bay-hotel",
     blurb:
       "Tilapia and sambaza from the boats that land at Gisenyi in the morning, grilled over charcoal a few metres from the water.",
     image: "lake-kivu-02",
@@ -146,7 +144,7 @@ export const DINING_OUTLETS: DiningOutlet[] = [
     slug: "ubumwe-sky-bar",
     name: "Ubumwe Sky Bar",
     kind: "bar",
-    propertySlug: "ubumwe-grande-hotel",
+    propertySlug: "cobalt-tower-hotel",
     blurb:
       "Rooftop bar over Nyarugenge with the whole of central Kigali in front of it. Bar snacks until close, and the kitchen sends anything hot up from the fifth floor.",
     image: "kigali-skyline-01",
@@ -201,7 +199,7 @@ export const DINING_PRODUCTS: DiningProduct[] = [
     slug: "beef-brochettes",
     name: "Beef brochettes",
     outletSlug: "umuganura-grill",
-    propertySlug: "kigali-serena-hotel",
+    propertySlug: "lanternhouse-hotel-kiyovu",
     category: "From the grill",
     priceRwf: 9500,
     description:
@@ -213,7 +211,7 @@ export const DINING_PRODUCTS: DiningProduct[] = [
     slug: "goat-brochettes",
     name: "Goat brochettes",
     outletSlug: "umuganura-grill",
-    propertySlug: "kigali-serena-hotel",
+    propertySlug: "lanternhouse-hotel-kiyovu",
     category: "From the grill",
     priceRwf: 10500,
     description:
@@ -225,7 +223,7 @@ export const DINING_PRODUCTS: DiningProduct[] = [
     slug: "isombe-na-ubugali",
     name: "Isombe na ubugali",
     outletSlug: "umuganura-grill",
-    propertySlug: "kigali-serena-hotel",
+    propertySlug: "lanternhouse-hotel-kiyovu",
     category: "Main courses",
     priceRwf: 7500,
     description:
@@ -237,7 +235,7 @@ export const DINING_PRODUCTS: DiningProduct[] = [
     slug: "agatogo-plantain-stew",
     name: "Agatogo",
     outletSlug: "umuganura-grill",
-    propertySlug: "kigali-serena-hotel",
+    propertySlug: "lanternhouse-hotel-kiyovu",
     category: "Main courses",
     priceRwf: 8000,
     description:
@@ -249,7 +247,7 @@ export const DINING_PRODUCTS: DiningProduct[] = [
     slug: "ibihaza-pumpkin-soup",
     name: "Ibihaza soup",
     outletSlug: "umuganura-grill",
-    propertySlug: "kigali-serena-hotel",
+    propertySlug: "lanternhouse-hotel-kiyovu",
     category: "Starters",
     priceRwf: 4500,
     description: "Pumpkin and sweetcorn soup, finished with ginger, with bread.",
@@ -260,7 +258,7 @@ export const DINING_PRODUCTS: DiningProduct[] = [
     slug: "grilled-vegetable-plate",
     name: "Grilled vegetable plate",
     outletSlug: "umuganura-grill",
-    propertySlug: "kigali-serena-hotel",
+    propertySlug: "lanternhouse-hotel-kiyovu",
     category: "Main courses",
     priceRwf: 8500,
     description:
@@ -274,7 +272,7 @@ export const DINING_PRODUCTS: DiningProduct[] = [
     slug: "primus-lager-500",
     name: "Primus lager, 500 ml",
     outletSlug: "kiyovu-terrace-bar",
-    propertySlug: "kigali-serena-hotel",
+    propertySlug: "lanternhouse-hotel-kiyovu",
     category: "Beers",
     priceRwf: 2000,
     description: "The big green bottle, served cold. Rwanda's oldest lager.",
@@ -285,7 +283,7 @@ export const DINING_PRODUCTS: DiningProduct[] = [
     slug: "mutzig-lager-500",
     name: "Mützig lager, 500 ml",
     outletSlug: "kiyovu-terrace-bar",
-    propertySlug: "kigali-serena-hotel",
+    propertySlug: "lanternhouse-hotel-kiyovu",
     category: "Beers",
     priceRwf: 2200,
     description: "A shade stronger than Primus and a shade drier. Cold from the crate.",
@@ -296,7 +294,7 @@ export const DINING_PRODUCTS: DiningProduct[] = [
     slug: "skol-lager-330",
     name: "Skol lager, 330 ml",
     outletSlug: "kiyovu-terrace-bar",
-    propertySlug: "kigali-serena-hotel",
+    propertySlug: "lanternhouse-hotel-kiyovu",
     category: "Beers",
     priceRwf: 1800,
     description: "The small bottle, for when one large one is too much.",
@@ -307,7 +305,7 @@ export const DINING_PRODUCTS: DiningProduct[] = [
     slug: "virunga-gin-and-tonic",
     name: "Virunga gin & tonic",
     outletSlug: "kiyovu-terrace-bar",
-    propertySlug: "kigali-serena-hotel",
+    propertySlug: "lanternhouse-hotel-kiyovu",
     category: "Wine & cocktails",
     priceRwf: 7500,
     description:
@@ -319,7 +317,7 @@ export const DINING_PRODUCTS: DiningProduct[] = [
     slug: "inyange-passion-juice",
     name: "Inyange passion fruit juice",
     outletSlug: "kiyovu-terrace-bar",
-    propertySlug: "kigali-serena-hotel",
+    propertySlug: "lanternhouse-hotel-kiyovu",
     category: "Soft drinks",
     priceRwf: 1800,
     description: "One litre carton, poured over ice.",
@@ -332,7 +330,7 @@ export const DINING_PRODUCTS: DiningProduct[] = [
     slug: "rwandan-single-origin-coffee",
     name: "Rwandan single-origin coffee",
     outletSlug: "poolside-cafe-kiyovu",
-    propertySlug: "hotel-des-mille-collines",
+    propertySlug: "hotel-des-sept-sentiers",
     category: "Coffee & tea",
     priceRwf: 2500,
     description:
@@ -344,7 +342,7 @@ export const DINING_PRODUCTS: DiningProduct[] = [
     slug: "icyayi-cyamata-milk-tea",
     name: "Icyayi cy'amata",
     outletSlug: "poolside-cafe-kiyovu",
-    propertySlug: "hotel-des-mille-collines",
+    propertySlug: "hotel-des-sept-sentiers",
     category: "Coffee & tea",
     priceRwf: 2000,
     description: "Black tea brewed in milk with ginger, sweetened at the pot.",
@@ -355,7 +353,7 @@ export const DINING_PRODUCTS: DiningProduct[] = [
     slug: "club-sandwich-and-chips",
     name: "Club sandwich & chips",
     outletSlug: "poolside-cafe-kiyovu",
-    propertySlug: "hotel-des-mille-collines",
+    propertySlug: "hotel-des-sept-sentiers",
     category: "Light plates",
     priceRwf: 9000,
     description: "Chicken, bacon, egg and tomato on toasted bread, with hand-cut chips.",
@@ -366,7 +364,7 @@ export const DINING_PRODUCTS: DiningProduct[] = [
     slug: "mandazi-basket",
     name: "Basket of mandazi",
     outletSlug: "poolside-cafe-kiyovu",
-    propertySlug: "hotel-des-mille-collines",
+    propertySlug: "hotel-des-sept-sentiers",
     category: "Desserts",
     priceRwf: 3000,
     description: "Six, fried to order, dusted with sugar. Made in batches, so there can be a wait.",
@@ -379,7 +377,7 @@ export const DINING_PRODUCTS: DiningProduct[] = [
     slug: "conference-buffet-plate",
     name: "Conference buffet plate",
     outletSlug: "convention-brasserie",
-    propertySlug: "radisson-blu-hotel-and-convention-centre-kigali",
+    propertySlug: "amberhill-convention-hotel",
     category: "Main courses",
     priceRwf: 18000,
     description:
@@ -391,7 +389,7 @@ export const DINING_PRODUCTS: DiningProduct[] = [
     slug: "beef-fillet-and-potatoes",
     name: "Beef fillet & potatoes",
     outletSlug: "convention-brasserie",
-    propertySlug: "radisson-blu-hotel-and-convention-centre-kigali",
+    propertySlug: "amberhill-convention-hotel",
     category: "Main courses",
     priceRwf: 17500,
     description: "Fillet cooked to order, gratin potatoes, a pepper sauce served alongside.",
@@ -402,7 +400,7 @@ export const DINING_PRODUCTS: DiningProduct[] = [
     slug: "chicken-peri-peri-half",
     name: "Half chicken peri-peri",
     outletSlug: "convention-brasserie",
-    propertySlug: "radisson-blu-hotel-and-convention-centre-kigali",
+    propertySlug: "amberhill-convention-hotel",
     category: "From the grill",
     priceRwf: 13500,
     description: "Marinated overnight, grilled hard, with chips and a green salad.",
@@ -413,7 +411,7 @@ export const DINING_PRODUCTS: DiningProduct[] = [
     slug: "kigali-breakfast-plate",
     name: "Kigali breakfast plate",
     outletSlug: "convention-brasserie",
-    propertySlug: "radisson-blu-hotel-and-convention-centre-kigali",
+    propertySlug: "amberhill-convention-hotel",
     category: "Light plates",
     priceRwf: 11000,
     description:
@@ -427,7 +425,7 @@ export const DINING_PRODUCTS: DiningProduct[] = [
     slug: "whole-grilled-tilapia",
     name: "Whole grilled tilapia",
     outletSlug: "kivu-shore-fish-house",
-    propertySlug: "lake-kivu-serena-hotel",
+    propertySlug: "sunbird-bay-hotel",
     category: "From the lake",
     priceRwf: 14000,
     description:
@@ -439,7 +437,7 @@ export const DINING_PRODUCTS: DiningProduct[] = [
     slug: "sambaza-fry",
     name: "Crisp-fried sambaza",
     outletSlug: "kivu-shore-fish-house",
-    propertySlug: "lake-kivu-serena-hotel",
+    propertySlug: "sunbird-bay-hotel",
     category: "From the lake",
     priceRwf: 6500,
     description:
@@ -451,7 +449,7 @@ export const DINING_PRODUCTS: DiningProduct[] = [
     slug: "tilapia-fillet-in-tomato",
     name: "Tilapia fillet in tomato",
     outletSlug: "kivu-shore-fish-house",
-    propertySlug: "lake-kivu-serena-hotel",
+    propertySlug: "sunbird-bay-hotel",
     category: "From the lake",
     priceRwf: 12500,
     description: "Filleted and braised in tomato, onion and green pepper, with rice.",
@@ -462,7 +460,7 @@ export const DINING_PRODUCTS: DiningProduct[] = [
     slug: "ikivuguto-fresh",
     name: "Ikivuguto",
     outletSlug: "kivu-shore-fish-house",
-    propertySlug: "lake-kivu-serena-hotel",
+    propertySlug: "sunbird-bay-hotel",
     category: "Soft drinks",
     priceRwf: 1500,
     description: "Cultured milk, served cold in a clay cup. Not sweetened.",
@@ -475,7 +473,7 @@ export const DINING_PRODUCTS: DiningProduct[] = [
     slug: "turbo-king-stout-500",
     name: "Turbo King stout, 500 ml",
     outletSlug: "ubumwe-sky-bar",
-    propertySlug: "ubumwe-grande-hotel",
+    propertySlug: "cobalt-tower-hotel",
     category: "Beers",
     priceRwf: 2500,
     description: "Dark, sweet and heavier than it looks. One is usually enough.",
@@ -486,7 +484,7 @@ export const DINING_PRODUCTS: DiningProduct[] = [
     slug: "house-red-wine-glass",
     name: "House red, by the glass",
     outletSlug: "ubumwe-sky-bar",
-    propertySlug: "ubumwe-grande-hotel",
+    propertySlug: "cobalt-tower-hotel",
     category: "Wine & cocktails",
     priceRwf: 6000,
     description: "A South African blend, poured at 175 ml. The bottle is on the card as well.",
@@ -497,7 +495,7 @@ export const DINING_PRODUCTS: DiningProduct[] = [
     slug: "akabanga-chicken-wings",
     name: "Akabanga chicken wings",
     outletSlug: "ubumwe-sky-bar",
-    propertySlug: "ubumwe-grande-hotel",
+    propertySlug: "cobalt-tower-hotel",
     category: "Starters",
     priceRwf: 8500,
     description:

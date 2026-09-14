@@ -12,11 +12,10 @@
  * First, there is no Services module. Nothing in the API stores an amenity, no
  * table prices one, and no booking flow reserves one. Every figure below —
  * every `priceRwf`, every `capacity`, every line of `features` — was invented
- * for this fixture. The properties they hang off ARE real, operating
- * businesses, and each one really does have the amenity named: `data/properties.ts`
- * lists the pool at the Mille Collines, the convention centre at the Radisson
- * Blu and the parking at White Lantana, and those records carry the sources
- * they were read from. What is fabricated is the COMMERCE — the rate, the
+ * for this fixture. The properties they hang off are FICTIONAL demo businesses
+ * (`data/properties.ts`, renamed from real ones on 2026-09-14): the pool at the
+ * Sept Sentiers, the convention wing at the Amberhill and the parking at
+ * Paperbark Apartments exist only in this demo. What is fabricated is also the COMMERCE — the rate, the
  * inclusions and the head count. Those must not be quoted to a guest,
  * screenshotted for a pitch, or read as a price any of these businesses
  * charges. The rates are plausible for Kigali and the lake in 2026; that is all
@@ -126,12 +125,12 @@ export const SERVICE_LISTINGS: ServiceListing[] = [
     slug: "swimming-pool",
     name: "Swimming Pool Day Pass",
     kind: "pool",
-    propertySlug: "hotel-des-mille-collines",
-    propertyName: "Hôtel des Mille Collines",
+    propertySlug: "hotel-des-sept-sentiers",
+    propertyName: "Hôtel des Sept Sentiers",
     blurb:
       "The Kiyovu pool, open to non-residents from seven in the morning until dusk.",
     about: [
-      "The best-known pool in Kigali sits in the courtyard at the Mille Collines, ringed by loungers and shaded on the western side by the hotel's own terrace. A day pass buys the water, a lounger and a towel from opening at 07:00 until the deck closes at 18:30.",
+      "The best-known pool in Kigali sits in the courtyard at the Sept Sentiers, ringed by loungers and shaded on the western side by the hotel's own terrace. A day pass buys the water, a lounger and a towel from opening at 07:00 until the deck closes at 18:30.",
       "It is a working hotel pool rather than a leisure centre, so it is quietest before ten and after four. Weekends fill from midday, and the hotel caps the deck rather than let it get uncomfortable — book the day before if you are coming as a group.",
       "Children under twelve swim free with a paying adult. There is no lifeguard on the deck outside 09:00 to 17:00, and children must be with an adult at all times.",
     ],
@@ -141,11 +140,11 @@ export const SERVICE_LISTINGS: ServiceListing[] = [
     gallery: [
       {
         stem: "mille-collines-01",
-        alt: "Hôtel des Mille Collines seen from its garden side",
+        alt: "Hôtel des Sept Sentiers seen from its garden side",
       },
       {
         stem: "mille-collines-02",
-        alt: "The Mille Collines building above the Kiyovu treeline",
+        alt: "The Sept Sentiers building above the Kiyovu treeline",
       },
       {
         stem: "kigali-hills-view-01",
@@ -164,11 +163,11 @@ export const SERVICE_LISTINGS: ServiceListing[] = [
     slug: "lake-kivu-pool-day-pass",
     name: "Lakeside Pool Day Pass",
     kind: "pool",
-    propertySlug: "lake-kivu-serena-hotel",
-    propertyName: "Lake Kivu Serena Hotel",
+    propertySlug: "sunbird-bay-hotel",
+    propertyName: "Sunbird Bay Hotel",
     blurb: "Swim, then walk twenty metres onto the Gisenyi beach.",
     about: [
-      "The pool at the Lake Kivu Serena sits between the palm gardens and the private beach, so a day pass is really two things: the pool deck, and the stretch of sand the hotel keeps raked in front of it.",
+      "The pool at the Sunbird Bay sits between the palm gardens and the private beach, so a day pass is really two things: the pool deck, and the stretch of sand the hotel keeps raked in front of it.",
       "Gisenyi is warm all year and the lake never gets cold, which is why this is the one day pass on Injishi that sells better on a Tuesday than a Saturday — the Kigali crowd arrives at the weekend, the town uses it during the week.",
       "The rate covers the deck and the beach. Kayaks and the boat jetty are the hotel's watersports desk, booked and paid for separately at the desk.",
     ],
@@ -189,15 +188,15 @@ export const SERVICE_LISTINGS: ServiceListing[] = [
     ],
   },
   {
-    slug: "radisson-pool-and-health-club",
+    slug: "amberhill-pool-and-health-club",
     name: "Pool and Health Club Day Pass",
     kind: "pool",
-    propertySlug: "radisson-blu-hotel-and-convention-centre-kigali",
-    propertyName: "Radisson Blu Hotel & Convention Centre, Kigali",
+    propertySlug: "amberhill-convention-hotel",
+    propertyName: "Amberhill Convention Hotel",
     blurb:
       "Heated outdoor pool, gym and steam room on the Kimihurura convention campus.",
     about: [
-      "The Radisson Blu's pool is heated and open year round, which in Kigali matters mostly in the wet months when the evenings turn cold. The day pass bundles it with the health club — the gym floor, the sauna and the steam room — rather than selling the water on its own.",
+      "The Amberhill's pool is heated and open year round, which in Kigali matters mostly in the wet months when the evenings turn cold. The day pass bundles it with the health club — the gym floor, the sauna and the steam room — rather than selling the water on its own.",
       "It is the pass business travellers buy between meetings, so it is busiest at lunchtime and again after six. The hotel holds a quota back for people who are not staying, which is what makes a same-day booking usually possible.",
       "A towel, a locker and a bottle of water are included. The spa treatment rooms are a separate business and are booked with the spa directly.",
     ],
@@ -207,7 +206,7 @@ export const SERVICE_LISTINGS: ServiceListing[] = [
     gallery: [
       {
         stem: "kigali-convention-centre-02",
-        alt: "The Kigali Convention Centre dome lit at night, next door to the hotel",
+        alt: "The Amberhill convention wing dome lit at night, next door to the hotel",
       },
       {
         stem: "kigali-cbd-buildings-01",
@@ -229,11 +228,11 @@ export const SERVICE_LISTINGS: ServiceListing[] = [
 
   // ---------------------------------------------------------------- halls
   {
-    slug: "kigali-convention-hall",
-    name: "Kigali Convention Hall",
+    slug: "amberhill-convention-hall",
+    name: "Amberhill Convention Hall",
     kind: "hall",
-    propertySlug: "radisson-blu-hotel-and-convention-centre-kigali",
-    propertyName: "Radisson Blu Hotel & Convention Centre, Kigali",
+    propertySlug: "amberhill-convention-hotel",
+    propertyName: "Amberhill Convention Hotel",
     blurb: "The 2,600-seat auditorium, hired by the day with the crew that runs it.",
     about: [
       "This is the room Rwanda holds its summits in: a tiered auditorium under the dome at Kimihurura, seating 2,600 theatre-style, with simultaneous interpretation booths, a full stage and a control room behind the back row.",
@@ -246,7 +245,7 @@ export const SERVICE_LISTINGS: ServiceListing[] = [
     gallery: [
       {
         stem: "kigali-convention-centre-02",
-        alt: "The Kigali Convention Centre dome lit at night",
+        alt: "The Amberhill convention wing dome lit at night",
       },
       {
         stem: "kigali-parliament-aerial-01",
@@ -263,14 +262,14 @@ export const SERVICE_LISTINGS: ServiceListing[] = [
     ],
   },
   {
-    slug: "serena-banquet-hall",
-    name: "Serena Banquet Hall",
+    slug: "lanternhouse-banquet-hall",
+    name: "Lanternhouse Banquet Hall",
     kind: "hall",
-    propertySlug: "kigali-serena-hotel",
-    propertyName: "Kigali Serena Hotel",
+    propertySlug: "lanternhouse-hotel-kiyovu",
+    propertyName: "Lanternhouse Hotel Kiyovu",
     blurb: "The Kiyovu ballroom, the room Kigali holds its weddings in.",
     about: [
-      "A pillarless ballroom off the Serena's main lobby, dressed for weddings most Saturdays and for launches and awards the rest of the week. It divides into two with an acoustic wall, so a 200-guest dinner does not have to sit in a room built for 450.",
+      "A pillarless ballroom off the Lanternhouse's main lobby, dressed for weddings most Saturdays and for launches and awards the rest of the week. It divides into two with an acoustic wall, so a 200-guest dinner does not have to sit in a room built for 450.",
       "The event rate covers eight hours in the room, the tables, the chairs, linen, a staged head table and the house sound. Catering is the hotel's own kitchen and is quoted per head; outside caterers are not permitted.",
       "Kigali's wedding season runs June to September and the Saturdays go a year ahead. Weekday events are usually available inside a month.",
     ],
@@ -294,11 +293,11 @@ export const SERVICE_LISTINGS: ServiceListing[] = [
     slug: "lake-kivu-conference-hall",
     name: "Lake Kivu Conference Hall",
     kind: "hall",
-    propertySlug: "lake-kivu-serena-hotel",
-    propertyName: "Lake Kivu Serena Hotel",
+    propertySlug: "sunbird-bay-hotel",
+    propertyName: "Sunbird Bay Hotel",
     blurb: "A lakeside conference room for a retreat that does not want Kigali.",
     about: [
-      "The conference centre at the Lake Kivu Serena is a single room with the lake on one long side, which is the whole reason organisations bring a retreat to Gisenyi rather than book a hall in town.",
+      "The conference centre at the Sunbird Bay is a single room with the lake on one long side, which is the whole reason organisations bring a retreat to Gisenyi rather than book a hall in town.",
       "The day rate is the room, the projector and screen, the flip charts and unlimited tea and coffee through the day. Lunch on the terrace is quoted per head and is what most bookings add.",
       "The room takes 180 theatre-style, 90 in a U-shape and 60 around a boardroom table. The hotel resets it between configurations at no charge if it has the night to do it.",
     ],
@@ -324,11 +323,11 @@ export const SERVICE_LISTINGS: ServiceListing[] = [
     slug: "poolside-lawn",
     name: "Poolside Lawn",
     kind: "outdoor",
-    propertySlug: "grand-legacy-hotel",
-    propertyName: "Grand Legacy Hotel",
+    propertySlug: "bluefinch-hotel-remera",
+    propertyName: "Bluefinch Hotel Remera",
     blurb: "The Remera lawn beside the pool, hired whole for an evening.",
     about: [
-      "A flat, walled lawn between the Grand Legacy's pool and its spa wing, hired as an empty space for the events that do not belong indoors: engagement parties, product launches, staff parties, the Sunday end of a wedding weekend.",
+      "A flat, walled lawn between the Bluefinch's pool and its spa wing, hired as an empty space for the events that do not belong indoors: engagement parties, product launches, staff parties, the Sunday end of a wedding weekend.",
       "It comes empty on purpose. The hotel supplies power, lighting and the bar; furniture, staging and a marquee are hired on top, and the marquee listings on this page will pitch on it.",
       "Kigali's rain arrives in the afternoon in March and April and again in November. The hotel holds an indoor room in reserve for lawn bookings in those months, released back if the evening is dry.",
     ],
@@ -352,8 +351,8 @@ export const SERVICE_LISTINGS: ServiceListing[] = [
     slug: "volcano-view-terrace",
     name: "Volcano View Terrace",
     kind: "outdoor",
-    propertySlug: "five-volcanoes-boutique-hotel",
-    propertyName: "Five Volcanoes Boutique Hotel",
+    propertySlug: "seven-craters-boutique-hotel",
+    propertyName: "Seven Craters Boutique Hotel",
     blurb: "A lava-stone terrace in Musanze facing the Virunga chain.",
     about: [
       "The terrace runs the length of the restaurant on the north side of the hotel, looking straight at the volcanoes. On a clear morning you can pick out Sabyinyo and Gahinga from a table; by six the light goes and the terrace turns into the best-placed drinks reception in Musanze.",
@@ -385,8 +384,8 @@ export const SERVICE_LISTINGS: ServiceListing[] = [
     slug: "garden-marquee-tent",
     name: "Garden Marquee",
     kind: "tents",
-    propertySlug: "gorillas-golf-hotel",
-    propertyName: "Gorillas Golf Hotel",
+    propertySlug: "fairway-crest-hotel",
+    propertyName: "Fairway Crest Hotel",
     blurb: "A 10 by 20 metre marquee, delivered, pitched and struck.",
     about: [
       "A clear-span marquee the hotel keeps for its own lawn and hires out with it. Ten metres by twenty, no internal poles, walls that come off panel by panel so the sides can be opened as the day warms up.",
@@ -419,8 +418,8 @@ export const SERVICE_LISTINGS: ServiceListing[] = [
     slug: "akagera-safari-tent",
     name: "Akagera Safari Tent",
     kind: "tents",
-    propertySlug: "mantis-akagera-game-lodge",
-    propertyName: "Mantis Akagera Game Lodge",
+    propertySlug: "acacia-horizon-game-lodge",
+    propertyName: "Acacia Horizon Game Lodge",
     blurb: "A pitched twin tent on the lodge camp site, inside the park gate.",
     about: [
       "A canvas safari tent, already pitched on a cleared and fenced camp site below the lodge, with the escarpment on one side and Lake Ihema in the distance on the other. Two camp beds, real mattresses, a groundsheet and a storm fly.",
@@ -452,11 +451,11 @@ export const SERVICE_LISTINGS: ServiceListing[] = [
     slug: "secure-parking-nyarutarama",
     name: "Secure Parking, Nyarutarama",
     kind: "parking",
-    propertySlug: "kigali-village-suites",
-    propertyName: "Kigali Village Suites",
+    propertySlug: "orchard-row-suites",
+    propertyName: "Orchard Row Suites",
     blurb: "A guarded bay in Nyarutarama by the night, whether you stay or not.",
     about: [
-      "Kigali Village Suites has more parking than its own guests use, and Nyarutarama has almost no street parking anyone would leave a car on overnight. The bays are sold by the night to whoever wants them.",
+      "Orchard Row Suites has more parking than its own guests use, and Nyarutarama has almost no street parking anyone would leave a car on overnight. The bays are sold by the night to whoever wants them.",
       "The yard is inside the property gate, lit, and watched by the same guard who covers the building. Four of the thirty-six bays are under cover, which is worth having in the wet months and is allocated first come, first served.",
       "It is booked most often by people flying out of Kigali for a week and by upcountry visitors who would rather leave the car and take a moto into town.",
     ],
@@ -466,7 +465,7 @@ export const SERVICE_LISTINGS: ServiceListing[] = [
     gallery: [
       {
         stem: "rwanda-apartment-interior",
-        alt: "A serviced apartment interior at Kigali Village Suites",
+        alt: "A serviced apartment interior at Orchard Row Suites",
       },
       { stem: "kigali-hills-view-01", alt: "Kigali from the Nyarutarama hills" },
       {
@@ -486,11 +485,11 @@ export const SERVICE_LISTINGS: ServiceListing[] = [
     slug: "covered-parking-kacyiru",
     name: "Covered Parking, Kacyiru",
     kind: "parking",
-    propertySlug: "white-lantana-apartments",
-    propertyName: "White Lantana Apartments",
+    propertySlug: "paperbark-apartments",
+    propertyName: "Paperbark Apartments",
     blurb: "Eighteen covered bays a short walk from the Kacyiru ministries.",
     about: [
-      "White Lantana sits among the ministries and embassies in Kacyiru, where daytime parking is the constraint and overnight parking is the one people pay for. All eighteen bays here are under a roof.",
+      "Paperbark Apartments sits among the ministries and embassies in Kacyiru, where daytime parking is the constraint and overnight parking is the one people pay for. All eighteen bays here are under a roof.",
       "The rate is per vehicle per night, and a bay booked for a night is yours for the whole twenty-four hours rather than until check-out. Monthly rates are agreed at the desk and are meaningfully cheaper.",
       "One bay is marked accessible and sits beside the lift lobby. It is held back rather than sold on rotation, so it is worth asking for it rather than assuming it has gone.",
     ],
@@ -500,7 +499,7 @@ export const SERVICE_LISTINGS: ServiceListing[] = [
     gallery: [
       {
         stem: "rwanda-apartment-interior",
-        alt: "An apartment interior at White Lantana",
+        alt: "An apartment interior at Paperbark Apartments",
       },
       {
         stem: "kigali-parliament-aerial-01",

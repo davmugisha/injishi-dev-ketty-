@@ -38,7 +38,7 @@ export interface GuestStay {
    *
    * Separate from the presence of the record on purpose. A stay that has ended
    * is still worth holding — it is what lets the app say "your stay at the
-   * Serena ended on Friday" instead of forgetting the guest entirely — so
+   * Lanternhouse ended on Friday" instead of forgetting the guest entirely — so
    * checking out flips this false rather than deleting the row.
    */
   checkedIn: boolean;
@@ -72,24 +72,24 @@ export const GUEST_STAY_CHANGE_EVENT = "injishi:guest-stay-change";
  */
 export const DEMO_STAYS: GuestStay[] = [
   {
-    propertySlug: "kigali-serena-hotel",
-    propertyName: "Kigali Serena Hotel",
+    propertySlug: "lanternhouse-hotel-kiyovu",
+    propertyName: "Lanternhouse Hotel Kiyovu",
     room: "412",
     checkedIn: true,
     checkIn: "2026-09-06",
     checkOut: "2026-09-11",
   },
   {
-    propertySlug: "lake-kivu-serena-hotel",
-    propertyName: "Lake Kivu Serena Hotel",
+    propertySlug: "sunbird-bay-hotel",
+    propertyName: "Sunbird Bay Hotel",
     room: "108",
     checkedIn: true,
     checkIn: "2026-09-07",
     checkOut: "2026-09-10",
   },
   {
-    propertySlug: "radisson-blu-hotel-and-convention-centre-kigali",
-    propertyName: "Radisson Blu Hotel & Convention Centre, Kigali",
+    propertySlug: "amberhill-convention-hotel",
+    propertyName: "Amberhill Convention Hotel",
     room: "1207",
     checkedIn: true,
     checkIn: "2026-09-08",
@@ -213,14 +213,14 @@ export function isCheckedIn(stay: GuestStay | null): boolean {
  *
  * The gate every dining and chat surface asks. Kept here rather than written
  * inline at each call site, because "checked in" and "checked in HERE" are
- * different questions and inlining them is how a guest at the Serena came to
- * see the Radisson's room-service menu.
+ * different questions and inlining them is how a guest at the Lanternhouse came to
+ * see the Amberhill's room-service menu.
  */
 export function isCheckedInAt(stay: GuestStay | null, propertySlug: string): boolean {
   return isCheckedIn(stay) && stay?.propertySlug === propertySlug;
 }
 
-/** "Room 412 · Kigali Serena Hotel" — the one way this pair is worded. */
+/** "Room 412 · Lanternhouse Hotel Kiyovu" — the one way this pair is worded. */
 export function stayLabel(stay: GuestStay): string {
   return `Room ${stay.room} · ${stay.propertyName}`;
 }

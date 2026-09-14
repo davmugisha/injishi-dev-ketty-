@@ -33,7 +33,7 @@ jest.mock('expo-router', () => ({
 }));
 
 /** A stay with several room types, one of them instant-book. */
-const KIVU = 'kivu-serena-suite';
+const KIVU = 'kivu-sunbird-suite';
 /** Umurage: the canvas property, whose cheapest room is request-to-book. */
 const UMURAGE = 'umurage-guesthouse';
 
@@ -226,7 +226,7 @@ describe('the sheets and the saved set', () => {
     await open(KIVU, scheme);
     const showAll = screen.getByRole('button', { name: 'Show all 8' });
     act(() => showAll.props.onClick?.());
-    expect(pushed).toEqual(['/listing/kivu-serena-suite/amenities']);
+    expect(pushed).toEqual(['/listing/kivu-sunbird-suite/amenities']);
   });
 
   it('opens the policy sheet from the cancellation row', async () => {
@@ -235,7 +235,7 @@ describe('the sheets and the saved set', () => {
       `${en['listing.policy']}, ${en['listing.tier.none']}. ${en['listing.tierBody.none']}`,
     );
     act(() => row.props.onClick?.());
-    expect(pushed).toEqual(['/listing/kivu-serena-suite/policy']);
+    expect(pushed).toEqual(['/listing/kivu-sunbird-suite/policy']);
   });
 
   it('names the chosen room’s tier on the policy row', async () => {

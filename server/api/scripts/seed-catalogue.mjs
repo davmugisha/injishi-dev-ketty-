@@ -15,7 +15,7 @@
  * block — while the marketplace showed fifty-two. The gap was bridged by
  * `apps/web/src/data/demo-listing.ts`, which lent Umurage's cheapest room to
  * every property in the catalogue behind a build flag, so a checkout opened
- * from the Kigali Marriott reserved a room in a guesthouse two kilometres away.
+ * from the Copperleaf Grand reserved a room in a guesthouse two kilometres away.
  * With the flag off — which is what `.env.production` set — nothing in the
  * catalogue was bookable at all.
  *
@@ -32,13 +32,12 @@
  * **Two honesty rules, and neither is negotiable.**
  *
  * Every org this writes carries a TIN in the reserved `999` block, the same
- * marker `seed-demo-catalogue.mjs` uses. These are real, operating businesses
- * and their actual TINs are not ours to know or to guess; a plausible-looking
- * TIN against a real company name is a fabricated tax identity sitting in a
- * database nobody can later untangle.
+ * marker `seed-demo-catalogue.mjs` uses, so a plausible-looking TIN can never
+ * collide with a real taxpayer.
  *
- * A FICTIONAL entry — the twenty-two sample stays — additionally gets `(sample)`
- * appended to its legal name, so the row says what it is from inside the row.
+ * Every entry is FICTIONAL. Thirty were real businesses until 2026-09-14, when
+ * the web catalogue renamed them, so every org now gets `(sample)` appended to
+ * its legal name and the row says what it is from inside the row.
  *
  * ## What it does NOT write
  *
@@ -244,7 +243,8 @@ async function main() {
       const listingId = idFor(row.slug, 'listing');
       const districtId = districtBySlug.get(row.district) ?? null;
 
-      const legalName = row.sample ? `${row.name} (sample)` : row.name;
+      // Every catalogue entry is fictional (see the header), not only `sample` ones.
+      const legalName = `${row.name} (sample)`;
 
       await client.query(
         `insert into orgs (id, legal_name, domain, rdb_entity_group, accommodation_class,

@@ -1,36 +1,36 @@
 {
   "generatedBy": "apps/web/scripts/export-catalogue.mjs",
-  "generatedAt": "2026-09-12",
+  "generatedAt": "2026-09-14",
   "note": "Regenerate after editing src/data/properties.ts or filler-properties.ts.",
   "properties": [
     {
-      "slug": "radisson-blu-hotel-and-convention-centre-kigali",
-      "name": "Radisson Blu Hotel & Convention Centre, Kigali",
+      "slug": "amberhill-convention-hotel",
+      "name": "Amberhill Convention Hotel",
       "kind": "hotel",
       "district": "kigali",
       "summary": "Hotel • 5-star • Room only",
       "addressLines": [
-        "KG 2 Roundabout, Highway KN 5",
+        "Kimihurura",
         "Kigali, Rwanda"
       ],
-      "latitude": -1.95472,
-      "longitude": 30.09389,
+      "latitude": null,
+      "longitude": null,
       "maxGuests": 2,
       "bedrooms": 1,
       "roomCount": 292,
       "nightlyRateRwf": 187500,
       "starClass": 5,
-      "operator": "Radisson Blu Hotel & Convention Centre, Kigali",
+      "operator": null,
       "sample": false
     },
     {
-      "slug": "kigali-marriott-hotel",
-      "name": "Kigali Marriott Hotel",
+      "slug": "copperleaf-grand-hotel",
+      "name": "Copperleaf Grand Hotel",
       "kind": "hotel",
       "district": "kigali",
       "summary": "Hotel • 5-star • Room only",
       "addressLines": [
-        "KN 3 Ave",
+        "Nyarugenge",
         "Kigali, Rwanda"
       ],
       "latitude": null,
@@ -40,17 +40,17 @@
       "roomCount": null,
       "nightlyRateRwf": 233000,
       "starClass": 5,
-      "operator": "Kigali Marriott Hotel",
+      "operator": null,
       "sample": false
     },
     {
-      "slug": "kigali-serena-hotel",
-      "name": "Kigali Serena Hotel",
+      "slug": "lanternhouse-hotel-kiyovu",
+      "name": "Lanternhouse Hotel Kiyovu",
       "kind": "hotel",
       "district": "kigali",
       "summary": "Hotel • 5-star • Room only",
       "addressLines": [
-        "KN 3 Avenue",
+        "Kiyovu",
         "Kigali, Rwanda"
       ],
       "latitude": null,
@@ -60,37 +60,37 @@
       "roomCount": 173,
       "nightlyRateRwf": 196000,
       "starClass": 5,
-      "operator": "Kigali Serena Hotel",
+      "operator": null,
       "sample": false
     },
     {
-      "slug": "hotel-des-mille-collines",
-      "name": "Hôtel des Mille Collines",
+      "slug": "hotel-des-sept-sentiers",
+      "name": "Hôtel des Sept Sentiers",
       "kind": "hotel",
       "district": "kigali",
       "summary": "Hotel • Room only",
       "addressLines": [
-        "2 KN 6 Ave",
+        "Kiyovu",
         "Kigali, Rwanda"
       ],
-      "latitude": -1.9469,
-      "longitude": 30.0619,
+      "latitude": null,
+      "longitude": null,
       "maxGuests": 2,
       "bedrooms": 1,
       "roomCount": 112,
       "nightlyRateRwf": 200500,
       "starClass": null,
-      "operator": "Hôtel des Mille Collines",
+      "operator": null,
       "sample": false
     },
     {
-      "slug": "park-inn-by-radisson-kigali",
-      "name": "Park Inn by Radisson, Kigali",
+      "slug": "juniper-yard-hotel",
+      "name": "Juniper Yard Hotel",
       "kind": "hotel",
       "district": "kigali",
       "summary": "Hotel • 4-star • Breakfast buffet",
       "addressLines": [
-        "Avenue de Kiyovu & Res des Parcs",
+        "Kiyovu",
         "Kigali, Rwanda"
       ],
       "latitude": null,
@@ -100,17 +100,17 @@
       "roomCount": null,
       "nightlyRateRwf": 127000,
       "starClass": 4,
-      "operator": "Park Inn by Radisson, Kigali",
+      "operator": null,
       "sample": false
     },
     {
-      "slug": "grand-legacy-hotel",
-      "name": "Grand Legacy Hotel",
+      "slug": "bluefinch-hotel-remera",
+      "name": "Bluefinch Hotel Remera",
       "kind": "hotel",
       "district": "kigali",
       "summary": "Hotel • 4-star • Breakfast",
       "addressLines": [
-        "KN 3 Rd",
+        "Remera",
         "Kigali, Rwanda"
       ],
       "latitude": null,
@@ -124,13 +124,13 @@
       "sample": false
     },
     {
-      "slug": "gorillas-golf-hotel",
-      "name": "Gorillas Golf Hotel",
+      "slug": "fairway-crest-hotel",
+      "name": "Fairway Crest Hotel",
       "kind": "hotel",
       "district": "kigali",
       "summary": "Hotel • 4-star • Breakfast",
       "addressLines": [
-        "KG 274 St",
+        "Nyarutarama",
         "Kigali, Rwanda"
       ],
       "latitude": null,
@@ -144,13 +144,13 @@
       "sample": false
     },
     {
-      "slug": "hotel-villa-portofino-kigali",
-      "name": "Hotel Villa Portofino Kigali",
+      "slug": "villa-marigold-kacyiru",
+      "name": "Villa Marigold Kacyiru",
       "kind": "hotel",
       "district": "kigali",
       "summary": "Hotel • 3-star • À la carte breakfast",
       "addressLines": [
-        "House No. 119, KG 9 Ave",
+        "Kacyiru",
         "Kigali, Rwanda"
       ],
       "latitude": null,
@@ -164,8 +164,8 @@
       "sample": false
     },
     {
-      "slug": "dmall-hotel",
-      "name": "Dmall Hotel",
+      "slug": "quillstone-hotel",
+      "name": "Quillstone Hotel",
       "kind": "hotel",
       "district": "kigali",
       "summary": "Hotel • 3-star • Room only",
@@ -184,13 +184,13 @@
       "sample": false
     },
     {
-      "slug": "serene-crest-apartments",
-      "name": "Serene Crest Apartments",
+      "slug": "willowbank-apartments-gacuriro",
+      "name": "Willowbank Apartments Gacuriro",
       "kind": "apartment",
       "district": "kigali",
       "summary": "Serviced apartment • Complimentary breakfast",
       "addressLines": [
-        "KG 297 St",
+        "Gacuriro",
         "Kigali, Rwanda"
       ],
       "latitude": null,
@@ -204,8 +204,8 @@
       "sample": false
     },
     {
-      "slug": "kigali-village-suites",
-      "name": "Kigali Village Suites",
+      "slug": "orchard-row-suites",
+      "name": "Orchard Row Suites",
       "kind": "apartment",
       "district": "kigali",
       "summary": "Serviced apartment • Room only",
@@ -224,8 +224,8 @@
       "sample": false
     },
     {
-      "slug": "white-lantana-apartments",
-      "name": "White Lantana Apartments",
+      "slug": "paperbark-apartments",
+      "name": "Paperbark Apartments",
       "kind": "apartment",
       "district": "kigali",
       "summary": "Serviced apartment • Room only",
@@ -244,8 +244,8 @@
       "sample": false
     },
     {
-      "slug": "ubumwe-grande-hotel",
-      "name": "Ubumwe Grande Hotel",
+      "slug": "cobalt-tower-hotel",
+      "name": "Cobalt Tower Hotel",
       "kind": "hotel",
       "district": "kigali",
       "summary": "Hotel • 4-star • Room only",
@@ -264,8 +264,8 @@
       "sample": false
     },
     {
-      "slug": "onomo-hotel-kigali",
-      "name": "Onomo Hotel Kigali",
+      "slug": "saffron-terrace-hotel",
+      "name": "Saffron Terrace Hotel",
       "kind": "hotel",
       "district": "kigali",
       "summary": "Hotel • 4-star • Room only",
@@ -284,8 +284,8 @@
       "sample": false
     },
     {
-      "slug": "heaven-boutique-hotel",
-      "name": "Heaven Boutique Hotel",
+      "slug": "hummingbird-house-hotel",
+      "name": "Hummingbird House Hotel",
       "kind": "hotel",
       "district": "kigali",
       "summary": "Boutique hotel • Breakfast",
@@ -304,8 +304,8 @@
       "sample": false
     },
     {
-      "slug": "five-to-five-hotel",
-      "name": "Five To Five Hotel",
+      "slug": "dawn-and-dusk-hotel",
+      "name": "Dawn and Dusk Hotel",
       "kind": "hotel",
       "district": "kigali",
       "summary": "Hotel • 3-star • Breakfast",
@@ -324,8 +324,8 @@
       "sample": false
     },
     {
-      "slug": "wilderness-bisate",
-      "name": "Wilderness Bisate",
+      "slug": "mistridge-lodge",
+      "name": "Mistridge Lodge",
       "kind": "lodge",
       "district": "musanze",
       "summary": "Lodge • luxury • all-inclusive",
@@ -333,19 +333,19 @@
         "Kinigi",
         "Volcanoes National Park, Rwanda"
       ],
-      "latitude": -1.444003,
-      "longitude": 29.525967,
+      "latitude": null,
+      "longitude": null,
       "maxGuests": 2,
       "bedrooms": 1,
       "roomCount": 6,
       "nightlyRateRwf": 3788000,
       "starClass": null,
-      "operator": "Wilderness Bisate",
+      "operator": null,
       "sample": false
     },
     {
-      "slug": "wilderness-bisate-reserve",
-      "name": "Wilderness Bisate Reserve",
+      "slug": "mistridge-reserve-villas",
+      "name": "Mistridge Reserve Villas",
       "kind": "villa",
       "district": "musanze",
       "summary": "Villa • luxury • all-inclusive",
@@ -360,12 +360,12 @@
       "roomCount": 4,
       "nightlyRateRwf": 4894000,
       "starClass": null,
-      "operator": "Wilderness Bisate Reserve",
+      "operator": null,
       "sample": false
     },
     {
-      "slug": "wilderness-sabyinyo",
-      "name": "Wilderness Sabyinyo",
+      "slug": "bamboo-saddle-lodge",
+      "name": "Bamboo Saddle Lodge",
       "kind": "lodge",
       "district": "musanze",
       "summary": "Lodge • luxury • all-inclusive",
@@ -373,19 +373,19 @@
         "Kinigi",
         "Volcanoes National Park, Rwanda"
       ],
-      "latitude": -1.4167652,
-      "longitude": 29.565666,
+      "latitude": null,
+      "longitude": null,
       "maxGuests": 2,
       "bedrooms": 1,
       "roomCount": 9,
       "nightlyRateRwf": 2242500,
       "starClass": null,
-      "operator": "Wilderness Sabyinyo",
+      "operator": null,
       "sample": false
     },
     {
-      "slug": "virunga-lodge",
-      "name": "Virunga Lodge",
+      "slug": "cloudline-lodge",
+      "name": "Cloudline Lodge",
       "kind": "lodge",
       "district": "musanze",
       "summary": "Lodge • luxury • all-inclusive",
@@ -400,18 +400,18 @@
       "roomCount": 12,
       "nightlyRateRwf": 1799000,
       "starClass": null,
-      "operator": "Virunga Lodge",
+      "operator": null,
       "sample": false
     },
     {
-      "slug": "singita-kwitonda-lodge",
-      "name": "Singita Kwitonda Lodge",
+      "slug": "silverback-hollow-lodge",
+      "name": "Silverback Hollow Lodge",
       "kind": "lodge",
       "district": "musanze",
       "summary": "Lodge • luxury • all-inclusive",
       "addressLines": [
-        "Kinigi, Musanze",
-        "Volcanoes National Park, Rwanda"
+        "Kinigi",
+        "Musanze, Volcanoes National Park, Rwanda"
       ],
       "latitude": null,
       "longitude": null,
@@ -420,12 +420,12 @@
       "roomCount": 11,
       "nightlyRateRwf": 4010500,
       "starClass": null,
-      "operator": "Singita Kwitonda Lodge",
+      "operator": null,
       "sample": false
     },
     {
-      "slug": "one-and-only-gorillas-nest",
-      "name": "One&Only Gorilla's Nest",
+      "slug": "treefern-nest-lodge",
+      "name": "Treefern Nest Lodge",
       "kind": "lodge",
       "district": "musanze",
       "summary": "Lodge • luxury • all-inclusive",
@@ -440,12 +440,12 @@
       "roomCount": null,
       "nightlyRateRwf": null,
       "starClass": null,
-      "operator": "One&Only Gorilla's Nest",
+      "operator": null,
       "sample": false
     },
     {
-      "slug": "five-volcanoes-boutique-hotel",
-      "name": "Five Volcanoes Boutique Hotel",
+      "slug": "seven-craters-boutique-hotel",
+      "name": "Seven Craters Boutique Hotel",
       "kind": "hotel",
       "district": "musanze",
       "summary": "Hotel • mid range",
@@ -460,12 +460,12 @@
       "roomCount": 13,
       "nightlyRateRwf": null,
       "starClass": null,
-      "operator": "Five Volcanoes Boutique Hotel",
+      "operator": null,
       "sample": false
     },
     {
-      "slug": "wilderness-magashi",
-      "name": "Wilderness Magashi",
+      "slug": "papyrus-shore-camp",
+      "name": "Papyrus Shore Camp",
       "kind": "tented_camp",
       "district": "nyagatare",
       "summary": "Tented camp • luxury • all-inclusive",
@@ -480,12 +480,12 @@
       "roomCount": 8,
       "nightlyRateRwf": 1421500,
       "starClass": null,
-      "operator": "Wilderness Magashi",
+      "operator": null,
       "sample": false
     },
     {
-      "slug": "ruzizi-tented-lodge",
-      "name": "Ruzizi Tented Lodge",
+      "slug": "hippo-bend-tented-lodge",
+      "name": "Hippo Bend Tented Lodge",
       "kind": "tented_camp",
       "district": "nyagatare",
       "summary": "Tented camp • mid range • all-inclusive",
@@ -493,19 +493,19 @@
         "Kayonza",
         "Akagera National Park, Rwanda"
       ],
-      "latitude": -1.584792,
-      "longitude": 30.638825,
+      "latitude": null,
+      "longitude": null,
       "maxGuests": 2,
       "bedrooms": 1,
       "roomCount": 9,
       "nightlyRateRwf": null,
       "starClass": null,
-      "operator": "Ruzizi Tented Lodge",
+      "operator": null,
       "sample": false
     },
     {
-      "slug": "mantis-akagera-game-lodge",
-      "name": "Mantis Akagera Game Lodge",
+      "slug": "acacia-horizon-game-lodge",
+      "name": "Acacia Horizon Game Lodge",
       "kind": "lodge",
       "district": "nyagatare",
       "summary": "Lodge • mid range",
@@ -520,12 +520,12 @@
       "roomCount": 60,
       "nightlyRateRwf": null,
       "starClass": null,
-      "operator": "Mantis Akagera Game Lodge",
+      "operator": null,
       "sample": false
     },
     {
-      "slug": "one-and-only-nyungwe-house",
-      "name": "One&Only Nyungwe House",
+      "slug": "mossgrove-forest-house",
+      "name": "Mossgrove Forest House",
       "kind": "lodge",
       "district": "rusizi",
       "summary": "Lodge • luxury • all-inclusive",
@@ -540,12 +540,12 @@
       "roomCount": 22,
       "nightlyRateRwf": 4423500,
       "starClass": null,
-      "operator": "One&Only Nyungwe House",
+      "operator": null,
       "sample": false
     },
     {
-      "slug": "nyungwe-top-view-hill-hotel",
-      "name": "Nyungwe Top View Hill Hotel",
+      "slug": "colobus-ridge-hotel",
+      "name": "Colobus Ridge Hotel",
       "kind": "hotel",
       "district": "rusizi",
       "summary": "Hotel • budget",
@@ -560,12 +560,12 @@
       "roomCount": 12,
       "nightlyRateRwf": null,
       "starClass": 3,
-      "operator": "Nyungwe Top View Hill Hotel",
+      "operator": null,
       "sample": false
     },
     {
-      "slug": "cormoran-lodge",
-      "name": "Cormoran Lodge",
+      "slug": "heronstone-lodge",
+      "name": "Heronstone Lodge",
       "kind": "lodge",
       "district": "karongi",
       "summary": "Lodge • mid range • all-inclusive",
@@ -584,8 +584,8 @@
       "sample": false
     },
     {
-      "slug": "lake-kivu-serena-hotel",
-      "name": "Lake Kivu Serena Hotel",
+      "slug": "sunbird-bay-hotel",
+      "name": "Sunbird Bay Hotel",
       "kind": "hotel",
       "district": "rubavu",
       "summary": "Hotel • mid range",
@@ -600,7 +600,7 @@
       "roomCount": 66,
       "nightlyRateRwf": 280000,
       "starClass": null,
-      "operator": "Lake Kivu Serena Hotel",
+      "operator": null,
       "sample": false
     },
     {
@@ -784,8 +784,8 @@
       "sample": true
     },
     {
-      "slug": "kigali-heights-serviced-flats",
-      "name": "Kigali Heights Serviced Flats",
+      "slug": "ridgeview-loft-serviced-flats",
+      "name": "Lavender Hill Serviced Flats",
       "kind": "apartment",
       "district": "kigali",
       "summary": "5-star • Breakfast included",

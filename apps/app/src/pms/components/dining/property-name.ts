@@ -2,14 +2,14 @@
  * The marketplace listing a demo workspace's outlets hang off, said in words.
  *
  * `DEMO_PMS_PROPERTY_SLUG` gives the four operator screens a slug and nothing
- * else, and a slug on screen ("kigali-serena-hotel") reads as a bug. Derived
+ * else, and a slug on screen ("lanternhouse-hotel-kiyovu") reads as a bug. Derived
  * from the slug rather than kept as a second table, because a table would be
  * one more place the two halves could disagree about what a property is called
  * — and the guest app already renders the listing's real name from its own
  * catalogue.
  *
- * The small-word list is what stops "Hotel des Mille Collines" from being
- * shouted as "Hotel Des Mille Collines". It is presentation, not data: nothing
+ * The small-word list is what stops "Hotel des Sept Sentiers" from being
+ * shouted as "Hotel Des Sept Sentiers". It is presentation, not data: nothing
  * routes on the output.
  */
 

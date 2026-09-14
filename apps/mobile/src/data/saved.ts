@@ -57,7 +57,7 @@ export const SAVED_KEY = 'guest.saved';
  * Order is the order they were saved, oldest first; the Saved grid reverses it,
  * because `collection_items.created_at` descending is the ADR's ordering.
  *
- * `kivu-serena-suite`, `kigali-cbd-loft` and `musanze-volcano-cabin` are
+ * `kivu-sunbird-suite`, `kigali-cbd-loft` and `musanze-volcano-cabin` are
  * deliberately NOT here: `./saved.test.tsx` toggles them, and a seeded id would
  * turn each of those saves into an unsave.
  */
@@ -67,7 +67,7 @@ export const SEEDED_SAVED: readonly string[] = [
   // The unpublished one. See above: without it, AC-10 has no fixture.
   'virunga-tea-retreat',
   'karongi-lake-house',
-  'kigali-heights-apartment',
+  'lavender-hill-apartment',
 ];
 
 export interface SavedStays {

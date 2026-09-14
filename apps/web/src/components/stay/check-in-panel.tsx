@@ -27,10 +27,10 @@ import { formatStayRange, nightsBetween } from "./stay-format";
  * themselves is never misled into thinking a reservation system answered.
  *
  * WHY A PICKER AND NOT ONE BUTTON. `checkInDemoGuest()` would put everyone in
- * the Kigali Serena, which has the longest menu and no sold-out line on it. The
+ * the Lanternhouse, which has the longest menu and no sold-out line on it. The
  * three stays here are the three `DEMO_STAYS` fixtures, and the counts beside
  * each are MEASURED from `data/dining.ts` rather than typed, so a presenter can
- * pick the Radisson deliberately to show a guest meeting an item the kitchen
+ * pick the Amberhill deliberately to show a guest meeting an item the kitchen
  * has stopped serving. Choosing the hotel is also what demonstrates the scoping
  * rule: the menu that appears afterwards is that hotel's and nobody else's.
  */

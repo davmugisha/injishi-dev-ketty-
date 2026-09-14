@@ -304,20 +304,47 @@ function hoursFromNow(offset) {
   return new Date(Date.now() + offset * 3600 * 1000);
 }
 
+// Every persona business that trades stays owns a PUBLISHED property with a
+// slug, so each one is on the marketplace: the home page, Explore and its own
+// page (2026-09-14). A property with no slug is invisible to discovery however
+// published its listing is, which is how Amahoro sat off the marketplace.
 const PROPERTIES = [
   {
-    id: PR(1), orgId: O(1), workspaceId: W(1),
+    id: PR(1), orgId: O(1), workspaceId: W(1), slug: 'amahoro-boutique-hotel',
     name: 'Amahoro Boutique Hotel',
     description: 'Twenty rooms off the Remera roundabout, run by the group that owns it.',
     district: 'Gasabo', sector: 'Remera', street: 'KG 11 Ave',
     checkIn: '14:00', checkOut: '11:00',
     houseRules: 'No smoking indoors. Quiet hours from 22:00.',
   },
+  {
+    // Samuel's work seat (housekeeper). The org existed with nothing to clean.
+    id: PR(2), orgId: SO(2), workspaceId: SW(2), slug: 'kivu-crest-hotel',
+    name: 'Kivu Crest Hotel',
+    description: 'A fictional demo hotel: fourteen rooms on the hill above the Gisenyi shore, a short walk to Lake Kivu.',
+    district: 'Rubavu', sector: 'Gisenyi', street: 'Gisenyi lakeshore',
+    checkIn: '14:00', checkOut: '10:30',
+    houseRules: 'No smoking indoors. Quiet hours from 22:00. Valid ID required at check-in.',
+  },
+  {
+    // Samuel's parked host seat. Named for its town because the catalogue's own
+    // Umurage Guesthouse (seed-content.mjs, Gasabo) already holds the plain slug.
+    id: PR(3), orgId: SO(3), workspaceId: SW(3), slug: 'umurage-guesthouse-musanze',
+    name: 'Umurage Guesthouse Musanze',
+    description: 'A fictional demo guest house: six garden rooms in Musanze town, an hour from the Volcanoes park gate.',
+    district: 'Musanze', sector: 'Muhoza', street: 'Musanze town centre',
+    checkIn: '13:00', checkOut: '10:00',
+    houseRules: 'Breakfast from 06:00 for trekking days. Quiet hours from 21:30.',
+  },
 ];
 
 // Published, because a draft is what the listing wizard produces and this one is
 // meant to be a business already trading.
-const LISTINGS = [{ id: LS(1), propertyId: PR(1), workspaceId: W(1), status: 'published' }];
+const LISTINGS = [
+  { id: LS(1), propertyId: PR(1), workspaceId: W(1), status: 'published' },
+  { id: LS(2), propertyId: PR(2), workspaceId: SW(2), status: 'published' },
+  { id: LS(3), propertyId: PR(3), workspaceId: SW(3), status: 'published' },
+];
 
 const ROOM_TYPES = [
   {
@@ -335,13 +362,23 @@ const ROOM_TYPES = [
     // `pending_approval` booking is there to approve.
     bookingMode: 'request_to_book', approvalPolicy: 'approve_all', cancellationTier: 'moderate',
   },
+  {
+    id: RT(3), propertyId: PR(2), workspaceId: SW(2), name: 'Lake View Double',
+    maxGuests: 2, capacity: 2, roomCount: 2, priceRwf: 85000,
+    bookingMode: 'instant_book', approvalPolicy: null, cancellationTier: 'flexible',
+  },
+  {
+    id: RT(4), propertyId: PR(3), workspaceId: SW(3), name: 'Garden Room',
+    maxGuests: 2, capacity: 2, roomCount: 2, priceRwf: 42000,
+    bookingMode: 'instant_book', approvalPolicy: null, cancellationTier: 'flexible',
+  },
 ];
 
 // One "Standard rate" per room type, carrying the same values verbatim (F-L03).
 // The room type columns are deprecated but the booking engine still reads them,
 // so both sides are written and they agree.
 const RATE_PLANS = ROOM_TYPES.map((rt, i) => ({
-  id: RP(i + 1), roomTypeId: rt.id, workspaceId: W(1), name: 'Standard rate',
+  id: RP(i + 1), roomTypeId: rt.id, workspaceId: rt.workspaceId, name: 'Standard rate',
   priceRwf: rt.priceRwf, baseOccupancy: 2,
   bookingMode: rt.bookingMode, approvalPolicy: rt.approvalPolicy,
   cancellationTier: rt.cancellationTier,
@@ -352,6 +389,10 @@ const ROOMS = [
   { id: RM(2), roomTypeId: RT(1), label: '102', housekeeping: 'dirty' },
   { id: RM(3), roomTypeId: RT(2), label: '201', housekeeping: 'clean' },
   { id: RM(4), roomTypeId: RT(2), label: '202', housekeeping: 'inspected' },
+  { id: RM(5), roomTypeId: RT(3), label: '11', housekeeping: 'clean' },
+  { id: RM(6), roomTypeId: RT(3), label: '12', housekeeping: 'clean' },
+  { id: RM(7), roomTypeId: RT(4), label: 'G1', housekeeping: 'clean' },
+  { id: RM(8), roomTypeId: RT(4), label: 'G2', housekeeping: 'clean' },
 ];
 
 /**
@@ -626,14 +667,14 @@ async function seedProperty(c, pr) {
   await c.query(
     `INSERT INTO properties
        (id, org_id, workspace_id, name, description, sector_id, district_id,
-        address_text, check_in_time, check_out_time, house_rules)
-     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
-     ON CONFLICT (id) DO NOTHING`,
+        address_text, check_in_time, check_out_time, house_rules, slug)
+     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
+     ON CONFLICT (id) DO UPDATE SET slug = coalesce(properties.slug, excluded.slug)`,
     [
       pr.id, pr.orgId, pr.workspaceId, pr.name, pr.description,
       await sectorId(c, pr.district, pr.sector),
       await districtId(c, pr.district),
-      pr.street, pr.checkIn, pr.checkOut, pr.houseRules,
+      pr.street, pr.checkIn, pr.checkOut, pr.houseRules, pr.slug,
       // No photo column: ADR-053 moved photographs into `property_photos`, so a
       // seeded property has NO photograph and therefore cannot be published
       // until one is attached through the operator app.
@@ -677,12 +718,19 @@ async function seedRatePlan(c, rp) {
   );
 }
 
+function roomTypeOf(rm) {
+  const rt = ROOM_TYPES.find((t) => t.id === rm.roomTypeId);
+  if (!rt) throw new Error(`room ${rm.id} names an unknown room type`);
+  return rt;
+}
+
 async function seedRoom(c, rm) {
   await c.query(
     `INSERT INTO rooms
        (id, room_type_id, property_id, workspace_id, label, status, housekeeping_status)
      VALUES ($1, $2, $3, $4, $5, 'available', $6) ON CONFLICT (id) DO NOTHING`,
-    [rm.id, rm.roomTypeId, PR(1), W(1), rm.label, rm.housekeeping],
+    // The room's property and workspace are its room type's, never assumed.
+    [rm.id, rm.roomTypeId, roomTypeOf(rm).propertyId, roomTypeOf(rm).workspaceId, rm.label, rm.housekeeping],
   );
 }
 
@@ -810,6 +858,7 @@ async function reset(c) {
   await c.query('DELETE FROM leases WHERE id = ANY($1::uuid[])', [RESIDENCE_LEASES.map((l) => l.id)]);
   await c.query('DELETE FROM rooms WHERE id = ANY($1::uuid[])', [RESIDENCE_UNITS.map((u) => u.id)]);
   await c.query('DELETE FROM room_types WHERE id = $1', [RESIDENCE_ROOM_TYPE.id]);
+  await c.query('DELETE FROM listings WHERE id = $1', [RESIDENCE_PROPERTY.listingId]);
   await c.query('DELETE FROM properties WHERE id = $1', [RESIDENCE_PROPERTY.id]);
 
   // Messages before threads, threads before the bookings they point at.
@@ -859,6 +908,10 @@ async function reset(c) {
 
 const RESIDENCE_PROPERTY = {
   id: RR(1),
+  slug: 'ingoro-apartments',
+  // Published, so the landlord's building is on the marketplace with the rest
+  // of the personas' properties (2026-09-14). Family 05, after the stays' 1-3.
+  listingId: LS(4),
   orgId: O(2),
   workspaceId: W(2),
   name: 'Ingoro Apartments',
@@ -936,16 +989,17 @@ async function seedResidenceRentRoll(c) {
   const p = RESIDENCE_PROPERTY;
   await c.query(
     `INSERT INTO properties
-       (id, org_id, workspace_id, name, sector_id, district_id, address_text)
-     VALUES ($1, $2, $3, $4, $5, $6, $7)
-     ON CONFLICT (id) DO NOTHING`,
+       (id, org_id, workspace_id, name, sector_id, district_id, address_text, slug)
+     VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+     ON CONFLICT (id) DO UPDATE SET slug = coalesce(properties.slug, excluded.slug)`,
     [
       p.id, p.orgId, p.workspaceId, p.name,
       await sectorId(c, p.district, p.sector),
       await districtId(c, p.district),
-      p.street,
+      p.street, p.slug,
     ],
   );
+  await seedListing(c, { id: p.listingId, propertyId: p.id, workspaceId: p.workspaceId, status: 'published' });
 
   const rt = RESIDENCE_ROOM_TYPE;
   await c.query(

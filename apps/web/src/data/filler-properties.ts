@@ -1,9 +1,8 @@
 // EVERY INVENTED PROPERTY, IN ONE FILE. Nothing here is a real business.
 //
-// `data/properties.ts` holds thirty REAL, operating Rwandan businesses, and its
-// header states the policy that makes it trustworthy: every fact in it was read
-// from a source, and a field the sources did not publish is null rather than
-// guessed. That policy is why nothing invented may be added to it.
+// `data/properties.ts` holds thirty more fictional stays. They were real,
+// operating Rwandan businesses until 2026-09-14, when the demo renamed them;
+// this file predates that and keeps its own twenty-two.
 //
 // The explore page was rebuilt as a dense search-results surface, and the brief
 // asked for more stock where the page reads thin. Thirty listings over a
@@ -219,8 +218,8 @@ const SEEDS: FillerSeed[] = [
     stems: ["stay-06", "stay-16", "akagera-np-03", "stay-21"],
   },
   {
-    slug: "kigali-heights-serviced-flats",
-    lead: "Kigali Heights",
+    slug: "ridgeview-loft-serviced-flats",
+    lead: "Lavender Hill",
     rest: "Serviced Flats",
     location: "Kimihurura, Kigali",
     district: "kigali",

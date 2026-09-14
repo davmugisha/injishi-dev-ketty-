@@ -28,7 +28,7 @@ jest.mock('expo-router', () => ({
   useLocalSearchParams: () => ({}),
 }));
 
-const KIVU = 'kivu-serena-suite';
+const KIVU = 'kivu-sunbird-suite';
 const RUSIZI = 'rusizi-river-lodge';
 const DATES = { start: '2026-09-04', end: '2026-09-07' };
 

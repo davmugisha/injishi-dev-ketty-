@@ -16,7 +16,7 @@ import {
 } from './registration-mail';
 
 const WEB = 'https://www.injishi.com';
-const NAME = 'Hotel des Mille Collines Ltd';
+const NAME = 'Hotel des Sept Sentiers Ltd';
 const WS = '5b0b8f0e-2f7a-4c36-9d7e-0e7a3c1d2b11';
 
 /** A subject reaches a header, so it must never carry a line break. */

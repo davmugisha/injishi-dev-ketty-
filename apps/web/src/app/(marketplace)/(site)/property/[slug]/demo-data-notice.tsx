@@ -19,8 +19,8 @@ import { Info } from "lucide-react";
  * kept in step by the words below, not by a shared module.
  *
  * WHY IT EXISTS. `data/dining.ts` attaches invented outlets, invented dishes
- * and invented francs to NAMED REAL HOTELS — the Kigali Serena, the Mille
- * Collines, the Radisson Blu. `data/properties.ts` refuses to fabricate reviews
+ * and invented francs to NAMED CATALOGUE HOTELS — the Lanternhouse, the Sept
+ * Sentiers, the Amberhill (fictional since 2026-09-14). `data/properties.ts` refuses to fabricate reviews
  * or host profiles for a named business for exactly that reason; the dining
  * catalogue crosses that line on purpose, because the rule it demonstrates ("a
  * product tied to a hotel shows to that hotel's guests") is untestable without

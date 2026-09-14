@@ -2,7 +2,7 @@ import { PROPERTIES, type PropertyDetail } from "@/data/properties";
 import { FILLER_PROPERTIES, FILLER_SLUGS } from "@/data/filler-properties";
 
 /**
- * The whole catalogue: the real properties, then the sample ones.
+ * The whole catalogue: the thirty full records, then the twenty-two sample seeds.
  *
  * This module exists to be the ONE place the two halves are joined. Both
  * `data/listings.ts` (which builds the explore cards) and
@@ -11,8 +11,9 @@ import { FILLER_PROPERTIES, FILLER_SLUGS } from "@/data/filler-properties";
  * exactly how the rail came to offer districts no property was in — the bug
  * `search-options.ts` was rewritten to make impossible.
  *
- * Real records come first, so a surface that shows the top of the catalogue
- * without sorting shows real businesses rather than fixtures.
+ * The thirty fuller records come first, so a surface that shows the top of the
+ * catalogue without sorting shows the most complete pages. All fifty-two are
+ * fictional.
  */
 export const ALL_PROPERTIES: PropertyDetail[] = [...PROPERTIES, ...FILLER_PROPERTIES];
 

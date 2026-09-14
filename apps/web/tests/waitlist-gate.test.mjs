@@ -132,7 +132,7 @@ describe("the allowlist gates the unfinished marketplace", () => {
   const gated = [
     "/",
     "/explore",
-    "/property/kigali-serena-hotel",
+    "/property/lanternhouse-hotel-kiyovu",
     "/register",
     "/activate",
     "/claim-org",

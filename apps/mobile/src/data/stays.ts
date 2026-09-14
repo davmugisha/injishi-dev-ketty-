@@ -137,7 +137,7 @@ const STAY_SEEDS: StaySeed[] = [
     },
   },
   {
-    id: 'kivu-serena-suite',
+    id: 'kivu-sunbird-suite',
     title: 'Lake Kivu Suite',
     location: 'Rubavu, Western Province',
     place: 'Rubavu',
@@ -163,8 +163,8 @@ const STAY_SEEDS: StaySeed[] = [
     },
   },
   {
-    id: 'kigali-heights-apartment',
-    title: 'Kigali Heights Apartment',
+    id: 'lavender-hill-apartment',
+    title: 'Lavender Hill Apartment',
     location: 'Kimihurura, Kigali',
     place: 'Kimihurura, Gasabo',
     district: 'kigali',

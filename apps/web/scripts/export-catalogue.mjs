@@ -6,9 +6,9 @@
  *
  * ## Why this exists
  *
- * `src/data/properties.ts` is 31 real, operating Rwandan businesses, each
- * carrying the source URLs it was read from, and `src/data/filler-properties.ts`
- * is 24 clearly-marked samples beside them. That is the best inventory content
+ * `src/data/properties.ts` is thirty fictional demo stays (real, operating
+ * Rwandan businesses until they were renamed on 2026-09-14), and
+ * `src/data/filler-properties.ts` is twenty-two clearly-marked samples beside them. That is the best inventory content
  * this project has, and until now it existed ONLY as a TypeScript module in a
  * browser bundle — so the marketplace could show a property it could not sell,
  * and the database held two rows while the catalogue showed fifty-five.
@@ -16,8 +16,8 @@
  * This is the bridge. It writes `server/api/scripts/data/catalogue.json`, which
  * `seed-catalogue.mjs` turns into orgs, workspaces, properties, room types,
  * rooms and published listings — with the SAME slugs the web pages are
- * addressed by, so `/property/kigali-serena-hotel` and
- * `GET /api/v1/properties/slug/kigali-serena-hotel` are the same property.
+ * addressed by, so `/property/lanternhouse-hotel-kiyovu` and
+ * `GET /api/v1/properties/slug/lanternhouse-hotel-kiyovu` are the same property.
  *
  * ## Why it transpiles rather than imports
  *

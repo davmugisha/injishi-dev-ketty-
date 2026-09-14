@@ -17,7 +17,7 @@ import { DEPARTMENT_ICON } from "./department-desk";
  * refusal.
  *
  * A department thread is not a feature of the app, it is a feature of a STAY:
- * housekeeping at the Kigali Serena will not take a message from somebody who
+ * housekeeping at the Lanternhouse will not take a message from somebody who
  * is not in a room there, and inventing a thread for a person with no stay
  * would be inventing a relationship with a named hotel. So the honest answer to
  * "who do I talk to" without a stay is "nobody yet", and this screen says that
@@ -31,8 +31,8 @@ import { DEPARTMENT_ICON } from "./department-desk";
  * call the stay screens use, so checking in here lands the guest in exactly the
  * state room service expects.
  *
- * The three stays are the fixture's own (`DEMO_STAYS`): real, operating hotels
- * with a fabricated room number, which is the trade `data/dining.ts` documents
+ * The three stays are the fixture's own (`DEMO_STAYS`): fictional catalogue
+ * hotels with a fabricated room number, which is the trade `data/dining.ts` documents
  * at length and which the demo notice above this component discloses.
  */
 export function CheckInInvite() {

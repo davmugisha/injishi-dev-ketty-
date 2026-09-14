@@ -57,7 +57,7 @@ describe('every stay has a property detail behind it', () => {
   });
 
   it('resolves a Room type by its id, and nothing by a bad one', () => {
-    expect(getRoomType('kivu-lake-suite')?.stayId).toBe('kivu-serena-suite');
+    expect(getRoomType('kivu-lake-suite')?.stayId).toBe('kivu-sunbird-suite');
     expect(getRoomType('no-such-room')).toBeUndefined();
   });
 });

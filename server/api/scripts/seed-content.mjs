@@ -49,6 +49,7 @@ export const IDS = {
   residenceOrg: '0f9a1b00-0002-4000-8000-000000000001',
   residenceProperty: '0f9a1b00-0002-4000-8000-000000000301',
   residenceUnitType: '0f9a1b00-0002-4000-8000-000000000302',
+  residenceListing: '0f9a1b00-0002-4000-8000-000000000304',
   leaseActive: '0f9a1b00-0002-4000-8000-000000000401',
   leaseEnding: '0f9a1b00-0002-4000-8000-000000000402',
   leaseAwaiting: '0f9a1b00-0002-4000-8000-000000000403',
@@ -209,11 +210,8 @@ async function main() {
         IDS.org,
         IDS.workspace,
         'Umurage Guesthouse',
-        'Umurage Guesthouse, launched in 2025, redefines the high-performance ' +
-          'guesthouse experience in Kacyiru. Its open-plan lounge features a chic ' +
-          'sitting area, a stylish dining section, a breakfast room, and an elegant ' +
-          'garden. Outside: a courtyard, a shared breakfast terrace and a rooftop ' +
-          'terrace. Enjoy a brand-new guesthouse in the heart of Kigali.',
+        'A fictional demo guest house in Kacyiru: an open-plan lounge, a ' +
+          'breakfast room and a garden, with a courtyard and a rooftop terrace.',
         districtId,
         '-1.9441',
         '30.0619',
@@ -618,19 +616,29 @@ async function main() {
         await client.query(
           `insert into properties (id, org_id, workspace_id, name, description, district_id,
                                    latitude, longitude, location_privacy, check_in_time,
-                                   check_out_time, house_rules)
-           values ($1, $2, $3, $4, $5, $6, -1.9520, 30.0930, false, null, null, $7)
-           on conflict (id) do nothing`,
+                                   check_out_time, house_rules, slug)
+           values ($1, $2, $3, $4, $5, $6, -1.9520, 30.0930, false, null, null, $7, $8)
+           on conflict (id) do update set slug = coalesce(properties.slug, excluded.slug)`,
           [
             IDS.residenceProperty,
             IDS.residenceOrg,
             residenceWorkspace,
-            'Kigali Heights Residences',
+            'Lavender Hill Residences',
             'Nine long-let apartments on two floors in Kimihurura, let unfurnished ' +
               'on twelve month terms.',
             101,
             'No subletting. Rent is due on the first of the month. Notice is one month.',
+            'lavender-hill-residences',
           ],
+        );
+
+        // Published, so the landlord's building is on the marketplace beside the
+        // hotel (2026-09-14). The slug above is written for the same reason.
+        await client.query(
+          `insert into listings (id, property_id, workspace_id, status, published_at, version)
+           values ($1, $2, $3, 'published', now(), 1)
+           on conflict (id) do nothing`,
+          [IDS.residenceListing, IDS.residenceProperty, residenceWorkspace],
         );
 
         /*

@@ -146,7 +146,7 @@ export function CreatePropertyForm({ workspaceId }: { workspaceId: string }) {
               value={name}
               onChange={(e) => setName(e.target.value)}
               className="h-10 rounded border border-line2 bg-field px-3 text-sm text-foreground"
-              placeholder="e.g. Kigali Heights Hotel"
+              placeholder="e.g. Lavender Hill Hotel"
             />
           </label>
 
