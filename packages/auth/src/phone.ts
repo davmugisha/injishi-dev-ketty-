@@ -387,8 +387,15 @@ async function settlePhoneOnAccount(
  * It hooks the SEND paths rather than wrapping `sendVerificationOTP`, because
  * Better Auth may run that callback in the background, where a throw would never
  * reach the person and they would be told a code was sent that never was.
+ *
+ * `enforce: false` is for the DEMO instance, and only because its code is fixed.
+ * Its personas are public, shared addresses, so a budget keyed on one of them is
+ * spent by every visitor at once and locks the persona for all of them — while
+ * guarding nothing, because the code is published and a deployed demo mails
+ * none. The plugin stays installed either way: the ledger model is declared
+ * here and `injishiPhone` reads it through the merged schema.
  */
-export function otpSendCap(): BetterAuthPlugin {
+export function otpSendCap({ enforce = true }: { enforce?: boolean } = {}): BetterAuthPlugin {
   return {
     id: "injishi-otp-send-cap",
     schema: {
@@ -419,6 +426,7 @@ export function otpSendCap(): BetterAuthPlugin {
             ctx.path === "/email-otp/request-email-change" ||
             ctx.path === "/forget-password/email-otp",
           handler: createAuthMiddleware(async (ctx) => {
+            if (!enforce) return;
             const body = (ctx.body ?? {}) as { email?: unknown; newEmail?: unknown };
             const raw = typeof body.email === "string" ? body.email : body.newEmail;
             // No address to key a budget on. Let the endpoint's own validation

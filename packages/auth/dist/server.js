@@ -133,7 +133,9 @@ export function createAuth(config) {
             }),
             // The OTP send cap (AC-12). Always installed: it protects the EMAIL
             // budget too, which is the hole F-S01 §9 recorded and nothing closed.
-            otpSendCap(),
+            // Counted everywhere but the demo, whose fixed code and shared
+            // personas make a per-address budget a lockout with nothing behind it.
+            otpSendCap({ enforce: !config.demoOtpCode }),
             // Phone sign in, only where a handset can actually be reached.
             ...(config.sendSms && config.sendPhoneRemovedNotice
                 ? [

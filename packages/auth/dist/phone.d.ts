@@ -50,8 +50,17 @@ export interface InjishiPhoneOptions {
  * It hooks the SEND paths rather than wrapping `sendVerificationOTP`, because
  * Better Auth may run that callback in the background, where a throw would never
  * reach the person and they would be told a code was sent that never was.
+ *
+ * `enforce: false` is for the DEMO instance, and only because its code is fixed.
+ * Its personas are public, shared addresses, so a budget keyed on one of them is
+ * spent by every visitor at once and locks the persona for all of them — while
+ * guarding nothing, because the code is published and a deployed demo mails
+ * none. The plugin stays installed either way: the ledger model is declared
+ * here and `injishiPhone` reads it through the merged schema.
  */
-export declare function otpSendCap(): BetterAuthPlugin;
+export declare function otpSendCap({ enforce }?: {
+    enforce?: boolean;
+}): BetterAuthPlugin;
 /**
  * The phone sign in plugin. Mounted under `AUTH_BASE_PATH`, so its endpoints are
  * `/api/auth/injishi-phone/*`.
