@@ -1,5 +1,6 @@
 "use server";
 
+import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 
 import { AUTH_BASE_PATH } from "@injishi/auth/client";
@@ -54,7 +55,30 @@ import {
  * 3. `redirect()` sits OUTSIDE the try/catch. Next implements it by throwing a
  *    NEXT_REDIRECT control error, so a catch wrapped around both the fetch and
  *    the redirect swallows it and the navigation silently never happens.
+ *
+ * 4. The call carries the VISITOR's address, not this server's. Every send cap
+ *    the API holds is keyed on the calling IP (Better Auth's limiter, three sends
+ *    a minute, and `otpSendCap`'s thirty an hour). Sent through the public API
+ *    host, this action reached them as the host's own address, so every visitor
+ *    on earth shared one budget and the fourth sign-in of a minute was refused.
+ *    The edge sets `x-forwarded-for` on the request that reached us and strips
+ *    whatever a client sent, so its first entry is the visitor.
+ *
+ *    That is only worth forwarding over the compose network: the edge would
+ *    strip it again on the public host. So `INTERNAL_API_URL` (server only,
+ *    read at runtime) names the API inside the stack, and the public URL stays
+ *    the fallback for a laptop, where web calls the API directly anyway.
  */
+
+/** Where this server reaches the API. Inside a stack, never through the edge. */
+const SERVER_API_URL = process.env.INTERNAL_API_URL || API_URL;
+
+/** The visitor's address as the edge recorded it, or nothing to forward. */
+async function visitorIp(): Promise<string | null> {
+  const h = await headers();
+  const first = h.get("x-forwarded-for")?.split(",")[0]?.trim();
+  return first || h.get("x-real-ip")?.trim() || null;
+}
 
 /**
  * `attempt` counts refusals so the form can re-announce and re-animate a
@@ -88,12 +112,16 @@ export async function sendCodeAction(
   }
 
   let mode: OtpMode;
+  const ip = await visitorIp();
 
   try {
     const res = await withTimeout(
-      fetch(`${API_URL}${AUTH_BASE_PATH}/email-otp/send-verification-otp`, {
+      fetch(`${SERVER_API_URL}${AUTH_BASE_PATH}/email-otp/send-verification-otp`, {
         method: "POST",
-        headers: { "content-type": "application/json" },
+        headers: {
+          "content-type": "application/json",
+          ...(ip ? { "x-forwarded-for": ip } : {}),
+        },
         cache: "no-store",
         body: JSON.stringify({ email, type: "sign-in" }),
       }),
