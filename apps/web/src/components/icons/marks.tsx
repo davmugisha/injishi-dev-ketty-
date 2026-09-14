@@ -1,4 +1,4 @@
-import type { SVGProps } from "react";
+import { useId, type SVGProps } from "react";
 import { Info, SquareArrowOutUpRight } from "lucide-react";
 
 /** The boxed diagonal arrow that ends every "see all" link. */
@@ -48,51 +48,46 @@ export function AppleMark(props: SVGProps<SVGSVGElement>) {
 }
 
 /**
- * MTN's yellow disc, with MTN's own brand yellow.
+ * A network's own logo file, drawn inside an `<svg>` so it keeps the same
+ * `SVGProps` shape as every other mark here: the checkout maps key MTN, Airtel
+ * and `CardMark` to one component type, and a call site sizes all three with
+ * `width`/`height` alone.
  *
- * Falls under the same AC-7 exemption as `GoogleMark` above, for the same
- * reason: `#FFCC00` is prescribed by the network and can never become an
- * Injishi role. Kept here, in the one file the hex sweep skips.
+ * The files are the operators' official artwork, copied byte for byte from
+ * `injishi.context/doc/` into `public/assets/payments/`. They replace two
+ * hand-drawn stand-ins (an "MTN" text disc and a red disc with a guessed
+ * swoosh) that neither network would recognise as its mark. The corner is
+ * clipped to the rounded square both brands publish their app icons in.
  */
-export function MtnMark(props: SVGProps<SVGSVGElement>) {
+function NetworkLogo({
+  href,
+  ...props
+}: SVGProps<SVGSVGElement> & { href: string }) {
+  const clip = useId();
   return (
     <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" aria-hidden {...props}>
-      <circle cx="12" cy="12" r="12" fill="#FFCC00" />
-      <text
-        x="12"
-        y="15.5"
-        textAnchor="middle"
-        fontSize="8.5"
-        fontWeight="700"
-        fontFamily="Arial, sans-serif"
-        letterSpacing="-0.3"
-        fill="#111"
-      >
-        MTN
-      </text>
+      <clipPath id={clip}>
+        <rect width="24" height="24" rx="5" />
+      </clipPath>
+      <image
+        href={href}
+        width="24"
+        height="24"
+        preserveAspectRatio="xMidYMid slice"
+        clipPath={`url(#${clip})`}
+      />
     </svg>
   );
 }
 
-/**
- * Airtel's red disc with the brand's own wordmark red.
- *
- * `#ED1C24` is Airtel's prescribed brand red — the same AC-7 exemption as the
- * mark above.
- */
+/** MTN MoMo's official logo. */
+export function MtnMark(props: SVGProps<SVGSVGElement>) {
+  return <NetworkLogo href="/assets/payments/mtn-momo.jpg" {...props} />;
+}
+
+/** Airtel's official logo. */
 export function AirtelMark(props: SVGProps<SVGSVGElement>) {
-  return (
-    <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" aria-hidden {...props}>
-      <circle cx="12" cy="12" r="12" fill="#ED1C24" />
-      <path
-        d="M6.3 15.4C8.3 10 10.3 7.4 12 7.4c1.2 0 1.9 1 1.9 2.4 0 .5-.1 1.1-.3 1.8"
-        fill="none"
-        stroke="#fff"
-        strokeWidth="1.7"
-        strokeLinecap="round"
-      />
-    </svg>
-  );
+  return <NetworkLogo href="/assets/payments/airtel-money.png" {...props} />;
 }
 
 /**

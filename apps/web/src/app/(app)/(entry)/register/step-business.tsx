@@ -241,6 +241,11 @@ export function StepBusiness({
                   name="chamberOfTourism"
                   legend="Are you a member of the Chamber of Tourism?"
                   hint="The tourism chamber of the Private Sector Federation."
+                  logo={{
+                    src: "/assets/partners/chamber-of-tourism-rwanda.png",
+                    width: 2918,
+                    height: 1244,
+                  }}
                   value={draft.chamberOfTourismMember}
                   error={errors["business.chamberOfTourismMember"]}
                   onChange={(v) =>
@@ -251,6 +256,7 @@ export function StepBusiness({
                   name="psf"
                   legend="Are you a member of the Private Sector Federation (PSF)?"
                   hint="Rwanda's private sector body. Not the same as the tourism chamber above."
+                  logo={{ src: "/assets/partners/psf.png", width: 674, height: 930 }}
                   value={draft.psfMember}
                   error={errors["business.psfMember"]}
                   onChange={(v) => onChange({ ...draft, psfMember: v })}

@@ -1,6 +1,7 @@
 "use client";
 
 import type { ReactNode } from "react";
+import Image from "next/image";
 import {
   Button,
   Input,
@@ -415,6 +416,13 @@ export function TileCard({
  *
  * Both stay OPTIONAL in the contract, where each defaults to `false`. What
  * changed is the act, not the requirement.
+ *
+ * `logo` puts the body's own mark beside the question, so a registrant who
+ * knows the chamber by its logo rather than its full name recognises it. The
+ * tile is a fixed white ground (`bg-white`, ADR-028) because the artwork is
+ * published for a light background: the Chamber of Tourism ring is near-black
+ * and would vanish on the dark theme. The image is decorative (`alt=""`); the
+ * legend beside it already names the body.
  */
 export function YesNoField({
   legend,
@@ -423,6 +431,7 @@ export function YesNoField({
   onChange,
   name,
   error,
+  logo,
 }: {
   legend: string;
   hint?: ReactNode;
@@ -431,9 +440,23 @@ export function YesNoField({
   name: string;
   /** Why this question cannot be left as it is, shown under the question. */
   error?: string;
+  /** The body's official logo, served from `public/`, with its pixel size. */
+  logo?: { src: string; width: number; height: number };
 }) {
   return (
     <fieldset className="flex flex-wrap items-center justify-between gap-3 rounded-card border border-border p-4">
+      {logo ? (
+        <span className="flex h-16 w-24 shrink-0 items-center justify-center rounded border border-border bg-white p-1.5">
+          <Image
+            src={logo.src}
+            width={logo.width}
+            height={logo.height}
+            alt=""
+            sizes="96px"
+            className="h-full w-auto max-w-full object-contain"
+          />
+        </span>
+      ) : null}
       <span className="min-w-[12rem] flex-1">
         <legend className="text-sm font-semibold">{legend}</legend>
         {hint ? (
