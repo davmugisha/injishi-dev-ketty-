@@ -75,6 +75,11 @@ const PROTECTED_PREFIXES = [
   "/inbox",
   "/account",
   "/claim-org",
+  // The guest's own stay and the room service cart. Both sit in the signed-in
+  // shell and the property menu page links here on the promise that a reader
+  // with no session meets sign in, which it did not (platform audit
+  // 2026-09-14, H7).
+  "/stay",
   // Accepting a staff invitation writes a membership for the signed-in
   // account, so it needs one (2026-09-13).
   "/join-team",

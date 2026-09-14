@@ -1,0 +1,1 @@
+CREATE UNIQUE INDEX "guest_stays_one_open_per_room_uk" ON "guest_stays" USING btree ("room_id") WHERE "guest_stays"."lifecycle" = 'open';

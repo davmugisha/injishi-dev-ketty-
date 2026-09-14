@@ -31,17 +31,8 @@
   "include": [
     "**/*.ts",
     "**/*.tsx",
-    ".next-build/types/**/*.ts",
-    ".next-dead/types/**/*.ts",
-    ".next-demo/types/**/*.ts",
-    ".next-leaf141/types/**/*.ts",
-    ".next-motion/types/**/*.ts",
-    ".next-prod/types/**/*.ts",
-    ".next-qa/types/**/*.ts",
-    ".next-verify/types/**/*.ts",
     ".next/types/**/*.ts",
-    "next-env.d.ts",
-    ".next-inbox/types/**/*.ts"
+    "next-env.d.ts"
   ],
   "exclude": [
     "node_modules"

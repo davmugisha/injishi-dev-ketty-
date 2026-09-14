@@ -23,7 +23,7 @@
  * A failure stops the release step, so the new API never takes traffic on a
  * schema it was not built for.
  */
-import { existsSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -31,6 +31,7 @@ import { drizzle } from 'drizzle-orm/node-postgres';
 import { migrate } from 'drizzle-orm/node-postgres/migrator';
 import pg from 'pg';
 
+import { skippedMigrations } from './migration-gaps.mjs';
 import { migrationTargets } from './migration-targets.mjs';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
@@ -54,10 +55,37 @@ if (!existsSync(migrationsFolder)) {
   process.exit(1);
 }
 
+const { entries: journal } = JSON.parse(
+  readFileSync(path.join(migrationsFolder, 'meta', '_journal.json'), 'utf8'),
+);
+
+/**
+ * Refuse a database where Drizzle would silently skip a migration (see
+ * migration-gaps.mjs). Migrating anyway would print "up to date" over a schema
+ * missing tables the code queries, so the API would boot and fail per request.
+ * The fix is by hand, once: apply each named file, then record it.
+ */
+async function assertNoSkippedMigrations(pool, label) {
+  const { rows: table } = await pool.query(
+    `select to_regclass('drizzle.__drizzle_migrations') as t`,
+  );
+  if (!table[0]?.t) return;
+  const { rows } = await pool.query(
+    'select created_at from drizzle.__drizzle_migrations',
+  );
+  const skipped = skippedMigrations(journal, rows.map((r) => r.created_at));
+  if (skipped.length > 0) {
+    throw new Error(
+      `${label}: ${skipped.length} migration(s) sit below the newest applied one and were never applied, so Drizzle would skip them forever: ${skipped.join(', ')}. Apply each by hand and insert its row into drizzle.__drizzle_migrations before migrating.`,
+    );
+  }
+}
+
 console.log(`Applying migrations from ${migrationsFolder}`);
 for (const { label, url } of targets) {
   const pool = new pg.Pool({ connectionString: url, max: 1 });
   try {
+    await assertNoSkippedMigrations(pool, label);
     await migrate(drizzle(pool), { migrationsFolder });
     console.log(`Migrations up to date (${label}).`);
   } catch (error) {

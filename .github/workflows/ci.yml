@@ -98,6 +98,8 @@ jobs:
       - uses: ./.github/actions/pnpm-setup
       - name: Every workspace member declares typecheck, lint and test
         run: node scripts/check-workspace-manifests.mjs
+      - name: Next tsconfigs list no scratch build types
+        run: node scripts/check-tsconfig-includes.mjs
       # @injishi/contracts and @injishi/design-tokens are COMPILED: consumers
       # read dist/. Their dist/ is committed, so this is not strictly needed for
       # a checkout to resolve, and it is run anyway so that a source change is

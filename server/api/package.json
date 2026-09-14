@@ -11,7 +11,7 @@
     "worker:dev": "cross-env INJISHI_PROCESS=worker nest start --watch",
     "typecheck": "tsc --noEmit",
     "lint": "eslint \"src/**/*.ts\"",
-    "test": "jest",
+    "test": "jest && node --test \"scripts/*.test.mjs\"",
     "madge": "madge --circular --extensions ts src",
     "drizzle:generate": "drizzle-kit generate",
     "drizzle:migrate": "drizzle-kit migrate",

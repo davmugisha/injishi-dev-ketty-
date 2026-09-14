@@ -15,6 +15,15 @@ import {
 } from '../../../shared/database/database.module';
 import { enqueueCheckoutClean } from './housekeeping.repository';
 
+const OPEN_STAY_PER_ROOM = 'guest_stays_one_open_per_room_uk';
+
+/** A 23505 raised by the one-open-stay-per-room index, directly or wrapped by drizzle. */
+export function isOpenStayCollision(error: unknown): boolean {
+  const e = error as { code?: string; constraint?: string; cause?: unknown };
+  const inner = e?.code === '23505' ? e : (e?.cause as typeof e | undefined);
+  return inner?.code === '23505' && inner.constraint === OPEN_STAY_PER_ROOM;
+}
+
 /** A room plus the two statuses that are never the same question. */
 export interface RoomRow {
   id: string;
@@ -257,6 +266,21 @@ export class FrontDeskRepository {
     plannedExitAt: Date | null;
     priceRwf: number | null;
   }): Promise<string | null> {
+    try {
+      return await this.insertOpenStay(input);
+    } catch (error) {
+      // The re-check below locks open stays, and a free room has none to lock,
+      // so two desks can both pass it. The partial unique index
+      // `guest_stays_one_open_per_room_uk` is what actually refuses the second
+      // insert; it answers exactly as the re-check does, with null.
+      if (isOpenStayCollision(error)) return null;
+      throw error;
+    }
+  }
+
+  private insertOpenStay(
+    input: Parameters<FrontDeskRepository['openStay']>[0],
+  ): Promise<string | null> {
     return this.db.transaction(async (tx) => {
       // Re-check occupancy INSIDE the transaction. Checking outside it proves
       // only that the room was free a moment ago.

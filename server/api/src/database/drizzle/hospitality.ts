@@ -183,6 +183,14 @@ export const guestStays = pgTable(
       .where(sql`${t.claimCode} IS NOT NULL`),
     index('guest_stays_workspace_idx').on(t.workspaceId),
     index('guest_stays_room_idx').on(t.roomId),
+    // One open stay per room, enforced where a race cannot reach it. The walk
+    // in re-check selects open stays FOR UPDATE, and on a free room that locks
+    // no row, so two desks admitting guests at once both saw "free" and both
+    // inserted (platform audit 2026-09-14, H2). A losing insert now fails with
+    // 23505 and is answered as an occupied room.
+    uniqueIndex('guest_stays_one_open_per_room_uk')
+      .on(t.roomId)
+      .where(sql`${t.lifecycle} = 'open'`),
   ],
 );
 

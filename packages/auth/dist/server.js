@@ -1,6 +1,6 @@
 import { betterAuth } from "better-auth";
 import { drizzleAdapter } from "better-auth/adapters/drizzle";
-import { emailOTP } from "better-auth/plugins";
+import { bearer, emailOTP } from "better-auth/plugins";
 import { AUTH_BASE_PATH, OTP_EXPIRY_SECONDS, OTP_LENGTH, OTP_MAX_ATTEMPTS, } from "./options.js";
 import { injishiPhone, otpSendCap, } from "./phone.js";
 /**
@@ -136,6 +136,14 @@ export function createAuth(config) {
             // Counted everywhere but the demo, whose fixed code and shared
             // personas make a per-address budget a lockout with nothing behind it.
             otpSendCap({ enforce: !config.demoOtpCode }),
+            // The native app's session (ADR-038). A phone keeps no cookie jar, so
+            // it reads the signed session token from the `set-auth-token` response
+            // header this plugin adds, and sends it back as `Authorization:
+            // Bearer`. Without it every signed in mobile call is a 401. The
+            // browser apps never send that header and keep using the cookie.
+            // `requireSignature` refuses a bare session id: only the signed value
+            // the header carried is accepted.
+            bearer({ requireSignature: true }),
             // Phone sign in, only where a handset can actually be reached.
             ...(config.sendSms && config.sendPhoneRemovedNotice
                 ? [
