@@ -122,7 +122,8 @@ exports.OperatorOutlet = zod_1.z.object({
     taxEntityOrgId: primitives_1.Uuid,
     orderingAccess: ordering_1.OrderingAccess,
     amenityCode: zod_1.z.string().nullable(),
-    rraBranchId: zod_1.z.string(),
+    /** Null means the outlet declares under its branch's RRA id (ADR-054 AC-F1). */
+    rraBranchId: zod_1.z.string().nullable(),
     guestVisible: zod_1.z.boolean(),
     slug: zod_1.z.string().nullable(),
     address: exports.OutletAddress.nullable(),
@@ -179,7 +180,8 @@ exports.UpdateOutletRequest = zod_1.z
     amenityCode: zod_1.z.string().trim().min(1).max(64).nullable(),
     hours: exports.OutletHoursInput,
     address: exports.OutletAddress.nullable(),
-    rraBranchId: RraBranchId,
+    /** Null clears it, so the outlet declares under its branch again. */
+    rraBranchId: RraBranchId.nullable(),
     guestVisible: zod_1.z.boolean(),
     sortOrder: zod_1.z.number().int().min(0).max(9999),
 })

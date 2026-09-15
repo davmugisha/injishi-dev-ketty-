@@ -70,7 +70,7 @@ export interface OutletRow {
   taxEntityOrgId: string;
   orderingAccess: OrderingAccess;
   amenityCode: string | null;
-  rraBranchId: string;
+  rraBranchId: string | null;
   guestVisible: boolean;
   slug: string | null;
   address: unknown;
@@ -99,7 +99,7 @@ export interface OutletValues {
   taxEntityOrgId: string;
   orderingAccess: OrderingAccess;
   amenityCode: string | null;
-  rraBranchId: string;
+  rraBranchId: string | null;
   guestVisible: boolean;
   slug: string | null;
   address: unknown;

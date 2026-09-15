@@ -967,13 +967,24 @@ export function useTeam(workspaceId: string | null): UseQueryResult<OperatorTeam
 // Messaging
 // ---------------------------------------------------------------------------
 
+/**
+ * How often an open inbox asks for new lines (demo-comms, 2026-09-14).
+ *
+ * There is no push channel, and the app-wide defaults (no refetch on focus, a
+ * 60 second stale time) meant a guest's message reached the desk only after a
+ * reload. Polling runs only while the tab is in the foreground, which is
+ * TanStack Query's default for `refetchInterval`.
+ */
+const THREAD_LIST_POLL_MS = 15_000;
+const THREAD_MESSAGES_POLL_MS = 5_000;
+
 export function useThreads(workspaceId: string | null): UseQueryResult<OperatorThreadList> {
-  return useOpsQuery(
-    queryKeys.threads(workspaceId),
-    "/ops/threads",
-    workspaceId,
-    OperatorThreadList,
-  );
+  return useQuery({
+    queryKey: queryKeys.threads(workspaceId),
+    queryFn: () => read("/ops/threads", workspaceId as string, OperatorThreadList),
+    enabled: workspaceId !== null,
+    refetchInterval: THREAD_LIST_POLL_MS,
+  });
 }
 
 export function useThreadMessages(
@@ -989,6 +1000,7 @@ export function useThreadMessages(
         OperatorMessageList,
       ),
     enabled: workspaceId !== null && threadId !== null,
+    refetchInterval: THREAD_MESSAGES_POLL_MS,
   });
 }
 

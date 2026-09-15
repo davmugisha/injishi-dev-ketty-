@@ -248,3 +248,49 @@ export function AddressPicker({
     </div>
   );
 }
+
+/**
+ * An address as a line a person can check: street, sector, district,
+ * province, in words (AC-9).
+ *
+ * The draft holds ids, because that is what the picker selects and what is sent,
+ * so the names are read from the same geography the picker read them from. Each
+ * list is small and the picker has usually just fetched it. An id that no longer
+ * resolves reads as absent rather than as a number nobody can check.
+ */
+export function useAddressLine(address: AddressDraft): string | null {
+  const [line, setLine] = useState<string | null>(null);
+  const { country, provinceId, districtId, sectorId, street, addressText } = address;
+
+  useEffect(() => {
+    let cancelled = false;
+    if (country !== "RW") {
+      setLine(addressText.trim() || null);
+      return;
+    }
+    void (async () => {
+      const [provinces, districts, sectors] = await Promise.all([
+        fetchProvinces(),
+        provinceId ? fetchDistricts(Number(provinceId)) : Promise.resolve(null),
+        districtId ? fetchSectors(Number(districtId)) : Promise.resolve(null),
+      ]);
+      const nameIn = (
+        res: Awaited<ReturnType<typeof fetchProvinces>> | null,
+        id: string,
+      ): string | null =>
+        res && res.status === "ok" ? (res.data.find((x) => String(x.id) === id)?.name ?? null) : null;
+      const parts = [
+        street.trim() || null,
+        nameIn(sectors, sectorId),
+        nameIn(districts, districtId),
+        nameIn(provinces, provinceId),
+      ].filter((p): p is string => Boolean(p));
+      if (!cancelled) setLine(parts.length > 0 ? parts.join(", ") : null);
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [country, provinceId, districtId, sectorId, street, addressText]);
+
+  return line;
+}

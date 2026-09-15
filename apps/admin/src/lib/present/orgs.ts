@@ -351,23 +351,28 @@ export function presentOrgMember(member: AdminOrgMember): SectionRow {
 }
 
 /**
- * One property this business operates.
+ * One property, which is one branch, of this business (ADR-054 AC-R4).
  *
  * `published` is the only colour here, because it is the only fact on the row
  * that has a right and a wrong side: an unpublished property earns no bookings.
+ * An archived branch reads as archived rather than as a draft, because it was
+ * retired on purpose and will not be published again as it stands.
  */
 export function presentOrgProperty(property: AdminOrgProperty): SectionRow {
   return {
     ref: property.id,
     subject: property.name,
     context: detail(
+      property.isHeadOffice ? "head office" : "branch",
       humanise(property.domain),
       property.districtName,
+      property.rraBranchId ? `RRA branch ${property.rraBranchId}` : null,
       `${count(property.roomCount)} rooms`,
       `${count(property.roomTypeCount)} room types`,
       `${count(property.listingCount)} listings`,
+      property.archivedAt ? `archived ${date(property.archivedAt)}` : null,
     ),
-    state: property.published ? "published" : "draft",
-    intent: property.published ? "success" : "default",
+    state: property.archivedAt ? "archived" : property.published ? "published" : "draft",
+    intent: property.published && !property.archivedAt ? "success" : "default",
   };
 }

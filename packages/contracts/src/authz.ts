@@ -182,6 +182,17 @@ export const PERMISSION_LABEL: Readonly<Record<Permission, string>> = {
  * Landlord are both `business`, told apart by the org's domain. This shape is
  * what `GET /api/v1/me/workspaces` returns.
  */
+/** Whether a member covers every branch of their business or only some (ADR-054). */
+export const BranchCoverage = z.enum(["all", "limited"]);
+export type BranchCoverage = z.infer<typeof BranchCoverage>;
+/** One branch a member covers, as the grant carries it (ADR-054 AC-S3). */
+export const WorkspaceBranch = z.object({
+    id: Uuid,
+    name: z.string(),
+    districtName: z.string().nullable(),
+    isHeadOffice: z.boolean(),
+});
+export type WorkspaceBranch = z.infer<typeof WorkspaceBranch>;
 export const WorkspaceAccess = z.object({
     workspaceId: Uuid,
     kind: WorkspaceKind,
@@ -229,14 +240,25 @@ export const WorkspaceAccess = z.object({
      * — who may not manage listings — was getting a 403 on every page load for a
      * name. Identity is not a listing operation.
      *
-     * THE FIRST property, because nothing yet says which one is in view and a
-     * workspace may hold several. The guess is made ONCE, here, rather than
-     * differently in each screen that needs it.
+     * The head office's name when this member covers it, else the first covered
+     * branch by name (ADR-054 AC-S3). Made ONCE, here, rather than differently
+     * in each screen that needs it.
      *
      * Null for `broker` and `personal`, which have no property, and for a
      * business that has not created one yet.
      */
     propertyName: z.string().nullable(),
+    /**
+     * The active branches this member covers, head office first then by name
+     * (ADR-054 AC-S3). Every branch when `branchCoverage` is `all`. Empty for
+     * `broker` and `personal`, and for a business with no property yet.
+     *
+     * Seeing a branch is COVERAGE, not a permission: the switcher reads this,
+     * and the API narrows rows by the same list.
+     */
+    branches: z.array(WorkspaceBranch),
+    /** `limited` when the member is limited to some branches. Null outside `business`. */
+    branchCoverage: BranchCoverage.nullable(),
 });
 export type WorkspaceAccess = z.infer<typeof WorkspaceAccess>;
 /**

@@ -1,3 +1,4 @@
+import type { WorkspaceAccess } from '@injishi/contracts';
 import { ConflictException, NotFoundException } from '@nestjs/common';
 
 import {
@@ -295,5 +296,97 @@ describe('MessagingService (guest)', () => {
       expect(userId).toBe(GUEST);
       expect(at.getTime()).toBeGreaterThanOrEqual(before);
     });
+  });
+});
+
+/**
+ * The DESK's siding (demo-comms, 2026-09-14).
+ *
+ * The desk is a team: a line a colleague wrote is the property's, not the
+ * guest's. Sided from the reader, Denise's seeded reply sat on the guest's side
+ * of Solange's screen.
+ */
+describe('MessagingService (desk)', () => {
+  const WORKSPACE = '55555555-5555-5555-5555-555555555555';
+  const THREAD = '33333333-3333-3333-3333-333333333333';
+  const GUEST = '22222222-2222-2222-2222-222222222222';
+  const MANAGER = '44444444-4444-4444-4444-444444444444';
+  const RECEPTIONIST = '88888888-8888-8888-8888-888888888888';
+  const ws = { workspaceId: WORKSPACE } as unknown as WorkspaceAccess;
+
+  const line = (id: string, senderUserId: string | null): MessageRow => ({
+    id,
+    threadId: THREAD,
+    senderUserId,
+    senderName: null,
+    bodyType: 'text',
+    body: 'hello',
+    voiceDurationS: null,
+    createdAt: new Date('2026-09-14T08:00:00.000Z'),
+  });
+
+  function desk(
+    counterpart: string | null,
+    rows: MessageRow[],
+  ): { service: MessagingService; repo: Record<string, jest.Mock> } {
+    const repo = {
+      findThread: jest.fn().mockResolvedValue({
+        id: THREAD,
+        workspaceId: WORKSPACE,
+        bookingId: '66666666-6666-6666-6666-666666666666',
+        guestStayId: null,
+        leaseId: null,
+        status: 'active',
+      }),
+      listMessages: jest.fn().mockResolvedValue(rows),
+      counterpartUserId: jest.fn().mockResolvedValue(counterpart),
+      sendMessage: jest.fn().mockResolvedValue(rows[0]?.id),
+      findMessage: jest.fn().mockResolvedValue(rows[0]),
+    };
+    return { service: new MessagingService(repo as unknown as MessagingRepository), repo };
+  }
+
+  it("sides a colleague's reply as the property's, and the guest's line as theirs", async () => {
+    const { service } = desk(GUEST, [
+      line('a', GUEST),
+      line('b', RECEPTIONIST),
+      line('c', MANAGER),
+    ]);
+
+    const messages = await service.listMessages(ws, THREAD, MANAGER);
+
+    expect(messages.map((m) => m.fromUs)).toEqual([false, true, true]);
+  });
+
+  it('keeps a system note (no sender) nobody’s', async () => {
+    const { service } = desk(GUEST, [line('a', null)]);
+
+    const [note] = await service.listMessages(ws, THREAD, MANAGER);
+
+    expect(note?.fromUs).toBe(false);
+  });
+
+  it('falls back to the reader when the other side has no account', async () => {
+    const { service } = desk(null, [line('a', RECEPTIONIST), line('b', MANAGER)]);
+
+    const messages = await service.listMessages(ws, THREAD, MANAGER);
+
+    expect(messages.map((m) => m.fromUs)).toEqual([false, true]);
+  });
+
+  it('returns a sent line sided as ours', async () => {
+    const { service } = desk(GUEST, [line('a', RECEPTIONIST)]);
+
+    const sent = await service.sendMessage(ws, THREAD, { body: 'On its way' }, RECEPTIONIST);
+
+    expect(sent.fromUs).toBe(true);
+  });
+
+  it('proves the thread belongs to the workspace before reading a line', async () => {
+    const { service, repo } = desk(GUEST, [line('a', GUEST)]);
+    repo.findThread.mockResolvedValue({ id: THREAD, workspaceId: 'someone-else', bookingId: 'x', guestStayId: null, leaseId: null, status: 'active' });
+
+    await expect(service.listMessages(ws, THREAD, MANAGER)).rejects.toBeInstanceOf(NotFoundException);
+    expect(repo.listMessages).not.toHaveBeenCalled();
   });
 });

@@ -5,7 +5,6 @@ import type {
   OperatorStayList,
   SetHousekeepingRequest,
   WalkInRequest,
-  WorkspaceAccess,
 } from '@injishi/contracts';
 import {
   BadRequestException,
@@ -15,6 +14,10 @@ import {
 } from '@nestjs/common';
 
 import { assertOwned } from '../../../shared/auth/assert-owned';
+import {
+  assertInBranchScope,
+  type ScopedWorkspace,
+} from '../../../shared/auth/branch-scope';
 import { FolioRepository } from '../infrastructure/folio.repository';
 import { FolioService } from './folio.service';
 import {
@@ -51,8 +54,8 @@ export class FrontDeskService {
   ) {}
 
   /** Every room in this workspace, with who is in it. */
-  async listRooms(ws: WorkspaceAccess): Promise<OperatorRoom[]> {
-    const rows = await this.rooms.listRooms(ws.workspaceId);
+  async listRooms(ws: ScopedWorkspace): Promise<OperatorRoom[]> {
+    const rows = await this.rooms.listRooms(ws.workspaceId, ws.branchScope);
     const occupancy = await this.rooms.occupancyFor(rows.map((r) => r.id));
 
     return rows.map((row) => {
@@ -74,12 +77,13 @@ export class FrontDeskService {
    * of service room quietly goes back on sale.
    */
   async setHousekeeping(
-    ws: WorkspaceAccess,
+    ws: ScopedWorkspace,
     roomId: string,
     body: SetHousekeepingRequest,
     byUserId: string,
   ): Promise<OperatorRoom> {
     const room = assertOwned(await this.rooms.findRoom(roomId), ws);
+    assertInBranchScope(ws, room.propertyId);
     await this.rooms.setHousekeeping(room.id, body.housekeeping, byUserId);
 
     const updated = await this.rooms.findRoom(roomId);
@@ -106,7 +110,7 @@ export class FrontDeskService {
    * wrong because the workspace they named is genuinely theirs.
    */
   async checkIn(
-    ws: WorkspaceAccess,
+    ws: ScopedWorkspace,
     bookingId: string,
     body: CheckInRequest,
   ): Promise<OperatorStay> {
@@ -114,6 +118,8 @@ export class FrontDeskService {
       await this.rooms.findCheckInSubject(bookingId),
       ws,
     );
+    // A booking of another branch reads as absent (ADR-054 AC-T2).
+    assertInBranchScope(ws, booking.propertyId);
     if (booking.status !== 'confirmed') {
       throw new ConflictException(
         booking.status === 'pending_approval'
@@ -143,6 +149,7 @@ export class FrontDeskService {
     }
 
     const room = assertOwned(await this.rooms.findRoom(roomId), ws);
+    assertInBranchScope(ws, room.propertyId);
     if (room.status !== 'available') {
       throw new ConflictException(
         `Room ${room.label ?? ''} is ${room.status.replace('_', ' ')} and cannot take a guest.`.trim(),
@@ -211,8 +218,9 @@ export class FrontDeskService {
    * nobody could charge, which is most of what a walk in is: somebody who pays
    * at the counter.
    */
-  async walkIn(ws: WorkspaceAccess, body: WalkInRequest): Promise<OperatorStay> {
+  async walkIn(ws: ScopedWorkspace, body: WalkInRequest): Promise<OperatorStay> {
     const room = assertOwned(await this.rooms.findRoom(body.roomId), ws);
+    assertInBranchScope(ws, room.propertyId);
     if (room.status !== 'available') {
       throw new ConflictException(
         `Room ${room.label ?? ''} is ${room.status.replace('_', ' ')} and cannot take a guest.`.trim(),
@@ -271,8 +279,10 @@ export class FrontDeskService {
    * stay as it already stands rather than moving an exit time that was already
    * recorded.
    */
-  async checkOut(ws: WorkspaceAccess, stayId: string): Promise<OperatorStay> {
+  async checkOut(ws: ScopedWorkspace, stayId: string): Promise<OperatorStay> {
     const stay = assertOwned(await this.rooms.findStay(stayId), ws);
+    // Through the room, never the booking: a walk in has none (ADR-054).
+    assertInBranchScope(ws, stay.propertyId);
     if (stay.lifecycle === 'closed') return this.presentStay(stay);
 
     const closed = await this.rooms.closeStay({
@@ -320,7 +330,7 @@ export class FrontDeskService {
    *   check out refuses a balance, so it does not start now. The bill stays on
    *   the Bills list, and closing it there signs it.
    */
-  private async settleOnDeparture(ws: WorkspaceAccess, stayId: string): Promise<void> {
+  private async settleOnDeparture(ws: ScopedWorkspace, stayId: string): Promise<void> {
     try {
       const folio = await this.folios.findFolioForStay(stayId);
       if (!folio || folio.status === 'closed' || folio.balanceRwf !== 0) return;
@@ -351,8 +361,8 @@ export class FrontDeskService {
    * and rooms reads: a receptionist has to open a stay to do the job, and
    * the FOLIO behind it is separately gated on `folio.charge` anyway.
    */
-  async listStays(ws: WorkspaceAccess): Promise<OperatorStayList> {
-    const rows = await this.rooms.listStays(ws.workspaceId);
+  async listStays(ws: ScopedWorkspace): Promise<OperatorStayList> {
+    const rows = await this.rooms.listStays(ws.workspaceId, ws.branchScope);
     return { stays: rows.map((row) => this.presentStay(row)) };
   }
 

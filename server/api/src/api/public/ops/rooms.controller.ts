@@ -2,7 +2,6 @@ import {
   type OperatorRoom,
   type OperatorRoomList,
   SetHousekeepingRequest,
-  type WorkspaceAccess,
 } from '@injishi/contracts';
 import {
   Body,
@@ -25,6 +24,7 @@ import {
   RequirePermission,
   WorkspaceGuard,
 } from '../../../shared/auth/workspace.guard';
+import type { ScopedWorkspace } from '../../../shared/auth/branch-scope';
 import { ZodValidationPipe } from '../../../shared/validation/zod-validation.pipe';
 
 /**
@@ -44,7 +44,7 @@ export class OpsRoomsController {
   /** Every room on this property, with who is in it right now. */
   @Get()
   async list(
-    @CurrentWorkspace() workspace: WorkspaceAccess,
+    @CurrentWorkspace() workspace: ScopedWorkspace,
   ): Promise<OperatorRoomList> {
     return { rooms: await this.frontDesk.listRooms(workspace) };
   }
@@ -62,7 +62,7 @@ export class OpsRoomsController {
     @Param('id', ParseUUIDPipe) id: string,
     @Body(new ZodValidationPipe(SetHousekeepingRequest))
     body: SetHousekeepingRequest,
-    @CurrentWorkspace() workspace: WorkspaceAccess,
+    @CurrentWorkspace() workspace: ScopedWorkspace,
     @CurrentUser() user: SessionUser,
   ): Promise<OperatorRoom> {
     return this.frontDesk.setHousekeeping(workspace, id, body, user.id);

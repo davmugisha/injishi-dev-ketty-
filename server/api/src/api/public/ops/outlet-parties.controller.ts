@@ -3,7 +3,6 @@ import {
   type OutletParty,
   type OutletPartyList,
   UpdateOutletPartyRequest,
-  type WorkspaceAccess,
 } from '@injishi/contracts';
 import {
   Body,
@@ -23,6 +22,7 @@ import {
   RequirePermission,
   WorkspaceGuard,
 } from '../../../shared/auth/workspace.guard';
+import type { ScopedWorkspace } from '../../../shared/auth/branch-scope';
 import { ZodValidationPipe } from '../../../shared/validation/zod-validation.pipe';
 
 /**
@@ -39,7 +39,7 @@ export class OpsOutletPartiesController {
 
   @Get()
   @RequirePermission('outlet.manage')
-  list(@CurrentWorkspace() workspace: WorkspaceAccess): Promise<OutletPartyList> {
+  list(@CurrentWorkspace() workspace: ScopedWorkspace): Promise<OutletPartyList> {
     return this.outlets.listParties(workspace);
   }
 
@@ -47,7 +47,7 @@ export class OpsOutletPartiesController {
   @RequirePermission('outlet.manage')
   create(
     @Body(new ZodValidationPipe(CreateOutletPartyRequest)) body: CreateOutletPartyRequest,
-    @CurrentWorkspace() workspace: WorkspaceAccess,
+    @CurrentWorkspace() workspace: ScopedWorkspace,
   ): Promise<OutletParty> {
     return this.outlets.createParty(workspace, body);
   }
@@ -57,7 +57,7 @@ export class OpsOutletPartiesController {
   update(
     @Param('id', ParseUUIDPipe) id: string,
     @Body(new ZodValidationPipe(UpdateOutletPartyRequest)) body: UpdateOutletPartyRequest,
-    @CurrentWorkspace() workspace: WorkspaceAccess,
+    @CurrentWorkspace() workspace: ScopedWorkspace,
   ): Promise<OutletParty> {
     return this.outlets.updateParty(workspace, id, body);
   }

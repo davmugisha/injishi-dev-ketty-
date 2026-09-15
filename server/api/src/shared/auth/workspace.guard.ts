@@ -16,6 +16,7 @@ import {
   type WorkspaceAccess,
 } from '@injishi/contracts';
 
+import { resolveBranchScope, type ScopedWorkspace } from './branch-scope';
 import { TwoFactorService } from './two-factor.service';
 import { WorkspaceService } from './workspace.service';
 import type { SessionRecord, SessionUser } from './session.guard';
@@ -44,7 +45,7 @@ interface RequestWithWorkspace {
   body?: Record<string, unknown>;
   user?: SessionUser;
   session?: SessionRecord;
-  workspace?: WorkspaceAccess;
+  workspace?: ScopedWorkspace;
 }
 
 /**
@@ -165,7 +166,14 @@ export class WorkspaceGuard implements CanActivate {
       throw new ForbiddenException(refusalFor(access, missing));
     }
 
-    request.workspace = access;
+    // The branch in view, after the permission check so a refused route says
+    // why it was refused rather than which branch it could not find (AC-S2).
+    const branchScope = resolveBranchScope(
+      await this.workspaces.propertyIdsForWorkspace(access.workspaceId),
+      request.headers['x-branch-id'],
+    );
+
+    request.workspace = { ...access, branchScope };
     return true;
   }
 }
@@ -175,7 +183,7 @@ export class WorkspaceGuard implements CanActivate {
  * mirroring `@CurrentUser()` so the same class of mistake fails the same way.
  */
 export const CurrentWorkspace = createParamDecorator(
-  (_data: unknown, context: ExecutionContext): WorkspaceAccess => {
+  (_data: unknown, context: ExecutionContext): ScopedWorkspace => {
     const request = context
       .switchToHttp()
       .getRequest<RequestWithWorkspace>();

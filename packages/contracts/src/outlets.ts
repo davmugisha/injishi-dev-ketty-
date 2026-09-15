@@ -130,7 +130,8 @@ export const OperatorOutlet = z.object({
     taxEntityOrgId: Uuid,
     orderingAccess: OrderingAccess,
     amenityCode: z.string().nullable(),
-    rraBranchId: z.string(),
+    /** Null means the outlet declares under its branch's RRA id (ADR-054 AC-F1). */
+    rraBranchId: z.string().nullable(),
     guestVisible: z.boolean(),
     slug: z.string().nullable(),
     address: OutletAddress.nullable(),
@@ -190,7 +191,8 @@ export const UpdateOutletRequest = z
     amenityCode: z.string().trim().min(1).max(64).nullable(),
     hours: OutletHoursInput,
     address: OutletAddress.nullable(),
-    rraBranchId: RraBranchId,
+    /** Null clears it, so the outlet declares under its branch again. */
+    rraBranchId: RraBranchId.nullable(),
     guestVisible: z.boolean(),
     sortOrder: z.number().int().min(0).max(9999),
 })

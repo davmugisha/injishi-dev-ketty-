@@ -114,7 +114,7 @@ export class OutletsService {
       taxEntityOrgId,
       orderingAccess: body.orderingAccess,
       amenityCode: body.amenityCode ?? null,
-      rraBranchId: body.rraBranchId ?? '00',
+      rraBranchId: body.rraBranchId ?? null,
       guestVisible: body.guestVisible ?? true,
       address: body.address ?? null,
       hours: body.hours ?? null,

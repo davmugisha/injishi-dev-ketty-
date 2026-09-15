@@ -124,8 +124,11 @@ export class MessagingService {
     viewerUserId: string,
   ): Promise<OperatorMessage[]> {
     const thread = assertOwned(await this.messaging.findThread(threadId), ws);
-    const rows = await this.messaging.listMessages(thread.id);
-    return rows.map((row) => this.presentMessage(row, viewerUserId));
+    const [rows, counterpart] = await Promise.all([
+      this.messaging.listMessages(thread.id),
+      this.messaging.counterpartUserId(thread),
+    ]);
+    return rows.map((row) => this.presentDeskMessage(row, counterpart, viewerUserId));
   }
 
   /**
@@ -158,7 +161,8 @@ export class MessagingService {
     if (!created) {
       throw new BadRequestException('That message could not be sent. Try again.');
     }
-    return this.presentMessage(created, senderUserId);
+    const counterpart = await this.messaging.counterpartUserId(thread);
+    return this.presentDeskMessage(created, counterpart, senderUserId);
   }
 
   /* ------------------------------------------------------ the guest's side */
@@ -336,5 +340,26 @@ export class MessagingService {
       voiceDurationS: row.voiceDurationS,
       createdAt: row.createdAt.toISOString(),
     };
+  }
+
+  /**
+   * A message as the DESK reads it (demo-comms, 2026-09-14).
+   *
+   * The desk is a team, so "ours" is every line not written by the person on
+   * the other side of the thread. Sided from the reader instead, Denise's reply
+   * sat on the guest's side of Solange's screen, as if the guest had written it.
+   *
+   * When the counterpart has no account (a walk-in, a tenant typed in by name)
+   * nobody in the thread can be them, so the reader rule is the fallback rather
+   * than calling every line the property's.
+   */
+  private presentDeskMessage(
+    row: MessageRow,
+    counterpartUserId: string | null,
+    viewerUserId: string,
+  ): OperatorMessage {
+    const presented = this.presentMessage(row, viewerUserId);
+    if (counterpartUserId === null || row.senderUserId === null) return presented;
+    return { ...presented, fromUs: row.senderUserId !== counterpartUserId };
   }
 }

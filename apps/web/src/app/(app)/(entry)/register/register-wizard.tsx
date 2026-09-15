@@ -24,6 +24,7 @@ import { fetchMyWorkspaces, type LabelledWorkspace } from "@/data/me";
 import {
   BROKER_STEPS,
   REGISTRATION_STEPS,
+  RESIDENCE_STEPS,
   RegistrationStepRail,
   type RegistrationStepId,
 } from "@/components/shared/registration-step-rail";
@@ -56,6 +57,7 @@ import {
   splitFullName,
   type PersonalDraft,
 } from "./step-about-you";
+import { StepBranches, type BranchDraft } from "./step-branches";
 import { StepBusiness, type BusinessDraft } from "./step-business";
 import { StepDocuments, type CertificateDraft } from "./step-documents";
 import { StepPlace } from "./step-place";
@@ -91,6 +93,8 @@ type Phase =
   | "place"
   | "about"
   | "business"
+  /** Hospitality only (ADR-054 AC-R1). A residence goes from business to documents. */
+  | "branches"
   | "documents"
   | "pay"
   /**
@@ -186,6 +190,11 @@ export default function RegisterWizard({
         }
       : {}),
   }));
+  /**
+   * The locations beyond the head office (ADR-054). Kept when the registrant
+   * goes back to the Business step, and sent only for a hospitality business.
+   */
+  const [branches, setBranches] = useState<BranchDraft[]>([]);
   const [certificates, setCertificates] = useState<CertificateDraft[]>([]);
   const [profile, setProfile] = useState<MyProfile | null>(null);
   const [editingProfile, setEditingProfile] = useState(false);
@@ -411,7 +420,7 @@ export default function RegisterWizard({
       }
     }
 
-    const parsed = BusinessDetails.safeParse(businessCandidate(business, role, kind, []));
+    const parsed = BusinessDetails.safeParse(businessCandidate(business, role, kind, [], []));
     // Both memberships ANSWERED, for a host (ADR-026 assumption 5, AC-6). The
     // contract accepts an absent answer as false, which is exactly why the form
     // has to ask: the officer reads this answer, and "the registrant never said"
@@ -431,6 +440,27 @@ export default function RegisterWizard({
       setFormError("Some of your business details need fixing.");
       return;
     }
+    // A hospitality business lists its other locations next; a residence has
+    // none to list (ADR-054 AC-R1).
+    setPhase(role === "host" ? "branches" : "documents");
+  };
+
+  // --- step 4, hospitality only: your branches (ADR-054) --------------------
+  const submitBranches = () => {
+    setErrors({});
+    setFormError("");
+    // Checked with the same contract the server validates with, so a duplicate
+    // name or a branch with no sector is named on this step rather than after
+    // the review. The business block is valid already: the step before refused
+    // to be left otherwise, so every issue here is a branch's.
+    const parsed = BusinessDetails.safeParse(
+      businessCandidate(business, role, kind, [], branches),
+    );
+    if (!parsed.success) {
+      setErrors(prefix("business", issuesToErrors(parsed.error.issues)));
+      setFormError("Some of your branches need fixing.");
+      return;
+    }
     setPhase("documents");
   };
 
@@ -445,7 +475,7 @@ export default function RegisterWizard({
       role,
       capacity,
       ...(sendPersonal ? { personal: personalCandidate(personal) } : {}),
-      business: businessCandidate(business, role, kind, certificates),
+      business: businessCandidate(business, role, kind, certificates, branches),
       ...(capacity === "on_behalf_of"
         ? {
             intendedOwner: {
@@ -571,7 +601,13 @@ export default function RegisterWizard({
     <>
       <RegistrationStepRail
         active={stepRailActive(phase)}
-        steps={role === "broker" ? BROKER_STEPS : REGISTRATION_STEPS}
+        steps={
+          role === "broker"
+            ? BROKER_STEPS
+            : role === "landlord"
+              ? RESIDENCE_STEPS
+              : REGISTRATION_STEPS
+        }
       />
       <div className="mt-8">
         {phase === "place" ? (
@@ -625,13 +661,28 @@ export default function RegisterWizard({
           />
         ) : null}
 
+        {phase === "branches" && role === "host" ? (
+          <StepBranches
+            legalName={business.legalName}
+            headOfficeAddress={business.address}
+            drafts={branches}
+            onChange={setBranches}
+            errors={errors}
+            formError={formError}
+            busy={busy}
+            onBack={() => setPhase("business")}
+            onNext={submitBranches}
+            onEditBusiness={() => setPhase("business")}
+          />
+        ) : null}
+
         {phase === "documents" && role && role !== "broker" ? (
           <StepDocuments
             role={role}
             drafts={certificates}
             onChange={setCertificates}
             busy={busy}
-            onBack={() => setPhase("business")}
+            onBack={() => setPhase(role === "host" ? "branches" : "business")}
             onNext={() => setPhase("pay")}
           />
         ) : null}
@@ -645,6 +696,7 @@ export default function RegisterWizard({
             capacity={capacity}
             intendedOwner={intendedOwner}
             business={business}
+            branches={branches}
             certificates={certificates}
             quote={quote}
             summary={summary}
@@ -766,12 +818,13 @@ function ResumePanel({
   );
 }
 
-/** Where you are, out of five — the same rail `/host/start` previews. */
+/** Where you are on the rail — the same rail `/host/start` previews. */
 function stepRailActive(phase: Phase): RegistrationStepId | null {
   switch (phase) {
     case "place":
     case "about":
     case "business":
+    case "branches":
     case "documents":
     case "pay":
       return phase;
@@ -826,6 +879,7 @@ function businessCandidate(
   role: RegistrantRole | null,
   kind: RegistrationKind | null,
   certificates: CertificateDraft[],
+  branches: BranchDraft[],
 ): unknown {
   const address = addressFromDraft(d.address);
   const wire = certificates.map((c) => ({
@@ -871,6 +925,12 @@ function businessCandidate(
     ...(d.eacStarGrade ? { eacStarGrade: Number(d.eacStarGrade) } : {}),
     address,
     certificates: wire,
+    // ADR-054: the other locations, hospitality only. The name is trimmed by
+    // the contract, which is also where two equal names are refused.
+    branches: branches.map((b) => ({
+      name: b.name,
+      address: addressFromDraft(b.address),
+    })),
   };
 }
 

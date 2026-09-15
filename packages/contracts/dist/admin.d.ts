@@ -1378,6 +1378,10 @@ export declare const AdminOrgProperty: z.ZodObject<{
     roomCount: z.ZodNumber;
     listingCount: z.ZodNumber;
     published: z.ZodBoolean;
+    /** ADR-054 AC-R4: which branch is the head office. */
+    isHeadOffice: z.ZodBoolean;
+    rraBranchId: z.ZodNullable<z.ZodString>;
+    archivedAt: z.ZodNullable<z.ZodString>;
 }, "strip", z.ZodTypeAny, {
     published: boolean;
     districtName: string | null;
@@ -1387,6 +1391,9 @@ export declare const AdminOrgProperty: z.ZodObject<{
     roomTypeCount: number;
     roomCount: number;
     listingCount: number;
+    isHeadOffice: boolean;
+    rraBranchId: string | null;
+    archivedAt: string | null;
 }, {
     published: boolean;
     districtName: string | null;
@@ -1396,6 +1403,9 @@ export declare const AdminOrgProperty: z.ZodObject<{
     roomTypeCount: number;
     roomCount: number;
     listingCount: number;
+    isHeadOffice: boolean;
+    rraBranchId: string | null;
+    archivedAt: string | null;
 }>;
 export type AdminOrgProperty = z.infer<typeof AdminOrgProperty>;
 export declare const AdminOrgPropertiesResponse: z.ZodObject<{
@@ -1408,6 +1418,10 @@ export declare const AdminOrgPropertiesResponse: z.ZodObject<{
         roomCount: z.ZodNumber;
         listingCount: z.ZodNumber;
         published: z.ZodBoolean;
+        /** ADR-054 AC-R4: which branch is the head office. */
+        isHeadOffice: z.ZodBoolean;
+        rraBranchId: z.ZodNullable<z.ZodString>;
+        archivedAt: z.ZodNullable<z.ZodString>;
     }, "strip", z.ZodTypeAny, {
         published: boolean;
         districtName: string | null;
@@ -1417,6 +1431,9 @@ export declare const AdminOrgPropertiesResponse: z.ZodObject<{
         roomTypeCount: number;
         roomCount: number;
         listingCount: number;
+        isHeadOffice: boolean;
+        rraBranchId: string | null;
+        archivedAt: string | null;
     }, {
         published: boolean;
         districtName: string | null;
@@ -1426,6 +1443,9 @@ export declare const AdminOrgPropertiesResponse: z.ZodObject<{
         roomTypeCount: number;
         roomCount: number;
         listingCount: number;
+        isHeadOffice: boolean;
+        rraBranchId: string | null;
+        archivedAt: string | null;
     }>, "many">;
     meta: z.ZodObject<{
         total: z.ZodNumber;
@@ -1450,6 +1470,9 @@ export declare const AdminOrgPropertiesResponse: z.ZodObject<{
         roomTypeCount: number;
         roomCount: number;
         listingCount: number;
+        isHeadOffice: boolean;
+        rraBranchId: string | null;
+        archivedAt: string | null;
     }[];
     meta: {
         total: number;
@@ -1466,6 +1489,9 @@ export declare const AdminOrgPropertiesResponse: z.ZodObject<{
         roomTypeCount: number;
         roomCount: number;
         listingCount: number;
+        isHeadOffice: boolean;
+        rraBranchId: string | null;
+        archivedAt: string | null;
     }[];
     meta: {
         total: number;
@@ -4522,6 +4548,62 @@ export declare const AdminSupportTicket: z.ZodObject<{
     csat: number | null;
 }>;
 export type AdminSupportTicket = z.infer<typeof AdminSupportTicket>;
+/**
+ * `GET /api/v1/admin/moderation/tickets/:ticketId?reason=` — one ticket with
+ * what the person WROTE and how to answer them. Kept off `AdminSupportTicket`
+ * on purpose: the list is a backlog anybody on the desk can scan, while the
+ * message and the contact details are somebody's words and address, so they
+ * cross only on this read, which states a reason and writes a
+ * `record_access_logs` row naming the ticket before it answers.
+ */
+export declare const AdminSupportTicketDetail: z.ZodObject<{
+    id: z.ZodString;
+    requesterUserId: z.ZodNullable<z.ZodString>;
+    category: z.ZodNullable<z.ZodString>;
+    state: z.ZodEnum<["open", "resolved", "reopened", "closed"]>;
+    domain: z.ZodNullable<z.ZodEnum<["hospitality", "residence"]>>;
+    districtId: z.ZodNullable<z.ZodNumber>;
+    firstResponseAt: z.ZodNullable<z.ZodString>;
+    resolvedAt: z.ZodNullable<z.ZodString>;
+    csat: z.ZodNullable<z.ZodNumber>;
+    createdAt: z.ZodString;
+} & {
+    message: z.ZodNullable<z.ZodString>;
+    contactEmail: z.ZodNullable<z.ZodString>;
+    contactName: z.ZodNullable<z.ZodString>;
+    contactPhone: z.ZodNullable<z.ZodString>;
+}, "strip", z.ZodTypeAny, {
+    message: string | null;
+    districtId: number | null;
+    id: string;
+    domain: "hospitality" | "residence" | null;
+    createdAt: string;
+    state: "open" | "resolved" | "reopened" | "closed";
+    requesterUserId: string | null;
+    category: string | null;
+    firstResponseAt: string | null;
+    resolvedAt: string | null;
+    csat: number | null;
+    contactEmail: string | null;
+    contactName: string | null;
+    contactPhone: string | null;
+}, {
+    message: string | null;
+    districtId: number | null;
+    id: string;
+    domain: "hospitality" | "residence" | null;
+    createdAt: string;
+    state: "open" | "resolved" | "reopened" | "closed";
+    requesterUserId: string | null;
+    category: string | null;
+    firstResponseAt: string | null;
+    resolvedAt: string | null;
+    csat: number | null;
+    contactEmail: string | null;
+    contactName: string | null;
+    contactPhone: string | null;
+}>;
+export type AdminSupportTicketDetail = z.infer<typeof AdminSupportTicketDetail>;
 /**
  * One escalation. The subject is a (type, id) pair rather than a set of
  * nullable foreign keys, because an escalation can point at any of eight

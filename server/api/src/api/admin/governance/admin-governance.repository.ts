@@ -104,6 +104,13 @@ export interface AdminTicketRow {
   createdAt: Date;
 }
 
+export interface AdminTicketDetailRow extends AdminTicketRow {
+  message: string | null;
+  contactEmail: string | null;
+  contactName: string | null;
+  contactPhone: string | null;
+}
+
 export interface AdminEscalationRow {
   id: string;
   subjectType: AdminEscalationSubjectType | null;
@@ -368,6 +375,51 @@ export class AdminGovernanceRepository {
       .from(supportTickets)
       .orderBy(desc(supportTickets.createdAt), supportTickets.id)
       .limit(limit);
+  }
+
+  /** One ticket with what the person wrote and how to answer them, or null. */
+  async findSupportTicket(ticketId: string): Promise<AdminTicketDetailRow | null> {
+    const [row] = await this.db
+      .select({
+        id: supportTickets.id,
+        requesterUserId: supportTickets.requesterUserId,
+        category: supportTickets.category,
+        state: supportTickets.state,
+        domain: supportTickets.domain,
+        districtId: supportTickets.districtId,
+        firstResponseAt: supportTickets.firstResponseAt,
+        resolvedAt: supportTickets.resolvedAt,
+        csat: supportTickets.csat,
+        createdAt: supportTickets.createdAt,
+        message: supportTickets.message,
+        contactEmail: supportTickets.contactEmail,
+        contactName: supportTickets.contactName,
+        contactPhone: supportTickets.contactPhone,
+      })
+      .from(supportTickets)
+      .where(eq(supportTickets.id, ticketId))
+      .limit(1);
+    return row ?? null;
+  }
+
+  /**
+   * The access log row for one ticket read: `contact`, because a name, an
+   * address and a phone number are what the read discloses. The ticket is the
+   * `subject_ref`; the requester, when signed in, the subject.
+   */
+  async logSupportTicketRead(input: {
+    actorUserId: string;
+    ticketId: string;
+    subjectUserId: string | null;
+    reason: string;
+  }): Promise<void> {
+    await this.db.insert(recordAccessLogs).values({
+      actorUserId: input.actorUserId,
+      subjectUserId: input.subjectUserId,
+      subjectRef: input.ticketId,
+      dataClass: 'contact',
+      reason: input.reason,
+    });
   }
 
   listEscalations(limit: number): Promise<AdminEscalationRow[]> {

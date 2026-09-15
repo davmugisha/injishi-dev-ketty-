@@ -1,4 +1,4 @@
-import { AdminModeration } from "@injishi/contracts";
+import { AdminModeration, AdminSupportTicketDetail } from "@injishi/contracts";
 
 import { apiGet, type ApiResult } from "./server";
 
@@ -15,4 +15,23 @@ import { apiGet, type ApiResult } from "./server";
  */
 export function getModeration(): Promise<ApiResult<AdminModeration>> {
   return apiGet("/api/v1/admin/moderation", AdminModeration);
+}
+
+/**
+ * One support ticket with the message and the contact details —
+ * `GET /api/v1/admin/moderation/tickets/:ticketId`.
+ *
+ * P: `admin.moderation.view`. PII: `reason` is a required argument, for the
+ * reason `listUsers` gives: the route writes a `record_access_logs` row naming
+ * the ticket, and a reason supplied here would make every row identical.
+ */
+export function getSupportTicket(
+  ticketId: string,
+  reason: string,
+): Promise<ApiResult<AdminSupportTicketDetail>> {
+  return apiGet(
+    `/api/v1/admin/moderation/tickets/${encodeURIComponent(ticketId)}`,
+    AdminSupportTicketDetail,
+    { reason },
+  );
 }

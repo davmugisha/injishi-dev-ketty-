@@ -2,7 +2,6 @@ import {
   AddAmenityRequest,
   type OperatorAmenityList,
   PropertyScopedQuery,
-  type WorkspaceAccess,
 } from '@injishi/contracts';
 import {
   Body,
@@ -22,6 +21,7 @@ import {
   RequirePermission,
   WorkspaceGuard,
 } from '../../../shared/auth/workspace.guard';
+import type { ScopedWorkspace } from '../../../shared/auth/branch-scope';
 import { ZodValidationPipe } from '../../../shared/validation/zod-validation.pipe';
 
 /**
@@ -47,7 +47,7 @@ export class OpsAmenitiesController {
   async list(
     @Query(new ZodValidationPipe(PropertyScopedQuery))
     query: PropertyScopedQuery,
-    @CurrentWorkspace() workspace: WorkspaceAccess,
+    @CurrentWorkspace() workspace: ScopedWorkspace,
   ): Promise<OperatorAmenityList> {
     return {
       amenities: await this.amenities.list(workspace, query.propertyId),
@@ -59,7 +59,7 @@ export class OpsAmenitiesController {
   @RequirePermission('amenity.manage')
   async add(
     @Body(new ZodValidationPipe(AddAmenityRequest)) body: AddAmenityRequest,
-    @CurrentWorkspace() workspace: WorkspaceAccess,
+    @CurrentWorkspace() workspace: ScopedWorkspace,
   ): Promise<OperatorAmenityList> {
     return { amenities: await this.amenities.add(workspace, body) };
   }
@@ -71,7 +71,7 @@ export class OpsAmenitiesController {
     @Param('code') code: string,
     @Query(new ZodValidationPipe(PropertyScopedQuery))
     query: PropertyScopedQuery,
-    @CurrentWorkspace() workspace: WorkspaceAccess,
+    @CurrentWorkspace() workspace: ScopedWorkspace,
   ): Promise<OperatorAmenityList> {
     return {
       amenities: await this.amenities.remove(workspace, query.propertyId, code),

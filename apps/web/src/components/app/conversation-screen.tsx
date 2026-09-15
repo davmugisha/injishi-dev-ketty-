@@ -17,6 +17,9 @@ import {
 } from "@/data/inbox";
 import { apiResultMessage } from "@/lib/api";
 
+/** How often an open conversation asks for new lines. */
+const CONVERSATION_POLL_MS = 5_000;
+
 /**
  * One conversation with a property (ADR-032).
  *
@@ -174,6 +177,39 @@ function Conversation({
     foot.current?.scrollIntoView({ block: "end" });
   }, []);
 
+  // The property's replies arrive on their own. There is no push channel, so
+  // the newest page is asked for every few seconds while the tab is visible
+  // and merged BY ID: a line already on screen, including one this person just
+  // sent, is never shown twice, and earlier pages already loaded are kept.
+  const onScreen = useRef(messages);
+  useEffect(() => {
+    onScreen.current = messages;
+  }, [messages]);
+
+  useEffect(() => {
+    if (thread.status === "archived") return;
+    const timer = window.setInterval(() => {
+      if (document.visibilityState !== "visible") return;
+      void (async () => {
+        const page = await fetchThreadMessages(thread.id);
+        if (page.status !== "ok") return;
+        const shown = new Set(onScreen.current.map((m) => m.id));
+        if (page.data.messages.every((m) => shown.has(m.id))) return;
+        setMessages((prev) => {
+          const seen = new Set(prev.map((m) => m.id));
+          const fresh = page.data.messages.filter((m) => !seen.has(m.id));
+          if (fresh.length === 0) return prev;
+          return [...prev, ...fresh].sort((a, b) =>
+            a.createdAt === b.createdAt ? a.id.localeCompare(b.id) : a.createdAt.localeCompare(b.createdAt),
+          );
+        });
+        void markThreadRead(thread.id);
+        requestAnimationFrame(() => foot.current?.scrollIntoView({ block: "end", behavior: "smooth" }));
+      })();
+    }, CONVERSATION_POLL_MS);
+    return () => window.clearInterval(timer);
+  }, [thread.id, thread.status]);
+
   async function loadOlder() {
     if (!older) return;
     setLoadingOlder(true);
@@ -198,7 +234,9 @@ function Conversation({
       setSendError(apiResultMessage(sent));
       return;
     }
-    setMessages((prev) => [...prev, sent.data]);
+    // A poll may have fetched this line in the moment between the send and its
+    // answer, so it is appended only if it is not already there.
+    setMessages((prev) => (prev.some((m) => m.id === sent.data.id) ? prev : [...prev, sent.data]));
     setDraft("");
     requestAnimationFrame(() => foot.current?.scrollIntoView({ block: "end", behavior: "smooth" }));
   }

@@ -35,6 +35,7 @@ import { Button, Input } from "@injishi/ui";
 import { cn } from "@/lib/utils";
 import { ScrollShadow } from "@heroui/react";
 import type { OperatorMessage, OperatorThread } from "@injishi/contracts";
+import { useParams } from "next/navigation";
 import { useState } from "react";
 import {
   ActionButton,
@@ -97,14 +98,18 @@ export function Conversation({ listLabel, scopeNote, placeholder, quick }: Conve
   const workspaceId = useWorkspaceId();
   const { can, reasonFor } = useCapability();
 
-  const [selId, setSelId] = useState<string | null>(null);
+  // `/w/:id/inbox/:threadId` names a thread, and that is the one it opens: a
+  // link a colleague sends has to land on the conversation it points at.
+  const params = useParams<{ threadId?: string | string[] }>();
+  const linked = typeof params.threadId === "string" ? params.threadId : null;
+  const [selId, setSelId] = useState<string | null>(linked);
   const [text, setText] = useState("");
 
   const threadsQuery = useThreads(workspaceId);
   const threads = threadsQuery.data?.threads ?? [];
-  // The route does not name a thread, so the first one stands in until the
-  // operator picks. Derived rather than stored, so a refetch that drops the
-  // selected thread lands on a real one instead of an empty pane.
+  // With no thread in the address, the first one stands in until the operator
+  // picks. Derived rather than stored, so a refetch that drops the selected
+  // thread lands on a real one instead of an empty pane.
   const sel = threads.find((t) => t.id === selId) ?? threads[0] ?? null;
 
   const messagesQuery = useThreadMessages(workspaceId, sel?.id ?? null);
@@ -179,8 +184,12 @@ export function Conversation({ listLabel, scopeNote, placeholder, quick }: Conve
                 variant="ghost"
                 key={t.id}
                 onClick={() => setSelId(t.id)}
+                // `h-auto` and `whitespace-normal`, as the officer queue does: the
+                // shared button carries a fixed control height and a thread row is
+                // three lines, so each preview drew over the next row's name.
+                // `rounded-none`: a row is a band of the list, not a control.
                 className={cn(
-                  "flex w-full items-start gap-2.5 border-b border-line px-4 py-3 text-left transition-colors",
+                  "flex h-auto w-full items-start justify-start gap-2.5 whitespace-normal rounded-none border-b border-line px-4 py-3 text-left transition-colors",
                   on ? "bg-hover" : "hover:bg-hover",
                 )}
               >

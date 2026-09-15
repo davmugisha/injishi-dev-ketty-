@@ -53,6 +53,8 @@ const base: Omit<WorkspaceAccess, 'workspaceId' | 'kind'> = {
   // catches a screen reading a field the server does not send.
   departments: [],
   registrationStatus: null,
+  branches: [],
+  branchCoverage: null,
 };
 
 /** Samuel's five seats, in switcher order. */

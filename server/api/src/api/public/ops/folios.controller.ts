@@ -7,7 +7,6 @@ import {
   type PostChargeResult,
   TakePaymentRequest,
   VoidChargeRequest,
-  type WorkspaceAccess,
 } from '@injishi/contracts';
 import {
   Body,
@@ -31,6 +30,7 @@ import {
   RequirePermission,
   WorkspaceGuard,
 } from '../../../shared/auth/workspace.guard';
+import type { ScopedWorkspace } from '../../../shared/auth/branch-scope';
 import { ZodValidationPipe } from '../../../shared/validation/zod-validation.pipe';
 
 /**
@@ -61,7 +61,7 @@ export class OpsFoliosController {
   @Get()
   @RequirePermission('folio.charge')
   async list(
-    @CurrentWorkspace() workspace: WorkspaceAccess,
+    @CurrentWorkspace() workspace: ScopedWorkspace,
   ): Promise<OperatorFolioList> {
     return { folios: await this.folios.list(workspace) };
   }
@@ -71,7 +71,7 @@ export class OpsFoliosController {
   @RequirePermission('folio.charge')
   detail(
     @Param('id', ParseUUIDPipe) id: string,
-    @CurrentWorkspace() workspace: WorkspaceAccess,
+    @CurrentWorkspace() workspace: ScopedWorkspace,
   ): Promise<OperatorFolioDetail> {
     return this.folios.detail(workspace, id);
   }
@@ -89,7 +89,7 @@ export class OpsFoliosController {
   postCharge(
     @Param('id', ParseUUIDPipe) id: string,
     @Body(new ZodValidationPipe(PostChargeRequest)) body: PostChargeRequest,
-    @CurrentWorkspace() workspace: WorkspaceAccess,
+    @CurrentWorkspace() workspace: ScopedWorkspace,
     @CurrentUser() user: SessionUser,
     @IdempotencyKey() key: string,
   ): Promise<PostChargeResult> {
@@ -104,7 +104,7 @@ export class OpsFoliosController {
   takePayment(
     @Param('id', ParseUUIDPipe) id: string,
     @Body(new ZodValidationPipe(TakePaymentRequest)) body: TakePaymentRequest,
-    @CurrentWorkspace() workspace: WorkspaceAccess,
+    @CurrentWorkspace() workspace: ScopedWorkspace,
     @CurrentUser() user: SessionUser,
     @IdempotencyKey() key: string,
   ): Promise<OperatorFolioDetail> {
@@ -123,7 +123,7 @@ export class OpsFoliosController {
     @Param('id', ParseUUIDPipe) id: string,
     @Param('chargeId', ParseUUIDPipe) chargeId: string,
     @Body(new ZodValidationPipe(VoidChargeRequest)) body: VoidChargeRequest,
-    @CurrentWorkspace() workspace: WorkspaceAccess,
+    @CurrentWorkspace() workspace: ScopedWorkspace,
     @CurrentUser() user: SessionUser,
     @IdempotencyKey() key: string,
   ): Promise<OperatorFolioDetail> {
@@ -143,7 +143,7 @@ export class OpsFoliosController {
   @RequirePermission('folio.close')
   close(
     @Param('id', ParseUUIDPipe) id: string,
-    @CurrentWorkspace() workspace: WorkspaceAccess,
+    @CurrentWorkspace() workspace: ScopedWorkspace,
     @Body(new ZodValidationPipe(CloseFolioRequest.optional()))
     body: CloseFolioRequest | undefined,
   ): Promise<CloseFolioResult> {

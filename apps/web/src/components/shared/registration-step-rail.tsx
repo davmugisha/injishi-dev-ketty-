@@ -9,7 +9,8 @@ import { cn } from "@injishi/utils";
  * on `/host/start` does not open a different page so much as continue the
  * object already on screen.
  *
- * It carries FIVE steps now, not three (ADR-026). The three were "You",
+ * A hospitality business walks SIX steps since ADR-054 added Branches, and a
+ * residence five. It used to carry three (ADR-026). The three were "You",
  * "Business", "Pay", which described the form and not the journey: the first
  * thing that actually happens is choosing what you are registering, and
  * attaching documents is a step a person prepares for rather than a field they
@@ -25,6 +26,7 @@ export type RegistrationStepId =
   | "place"
   | "about"
   | "business"
+  | "branches"
   | "documents"
   | "pay";
 
@@ -33,13 +35,23 @@ export interface RegistrationStep {
   label: string;
 }
 
+/**
+ * A hospitality business's path. Branches sits after Business and before
+ * Documents (ADR-054 AC-R1): the business is described, then its other
+ * locations under the same TIN, then what proves it.
+ */
 export const REGISTRATION_STEPS: ReadonlyArray<RegistrationStep> = [
   { id: "place", label: "Place" },
   { id: "about", label: "You" },
   { id: "business", label: "Business" },
+  { id: "branches", label: "Branches" },
   { id: "documents", label: "Documents" },
   { id: "pay", label: "Pay" },
 ];
+
+/** A residence registers without branches, so its rail never shows the step. */
+export const RESIDENCE_STEPS: ReadonlyArray<RegistrationStep> =
+  REGISTRATION_STEPS.filter((s) => s.id !== "branches");
 
 /** A broker registers a person, not a business — two steps and no fee. */
 export const BROKER_STEPS: ReadonlyArray<RegistrationStep> = [

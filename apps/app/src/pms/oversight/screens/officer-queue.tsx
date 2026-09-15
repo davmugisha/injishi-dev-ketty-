@@ -218,7 +218,10 @@ export function OfficerQueue() {
                   </span>
                   <span className="min-w-0">
                     <span className="block truncate text-sm text-ink2">{o.sector}</span>
-                    <span className="block text-2xs text-muted-foreground">{o.district} District</span>
+                    <span className="block text-2xs text-muted-foreground">
+                      {o.district} District
+                      {(o.branches?.length ?? 0) > 1 ? ` · ${o.branches!.length} branches` : ""}
+                    </span>
                   </span>
                   <span className="flex flex-wrap items-center gap-1.5">
                     <Badge intent={o.tinOk ? "ok" : "bad"}>{o.tinOk ? "Verified" : "Mismatch"}</Badge>
@@ -314,6 +317,34 @@ export function OfficerQueue() {
                   {sel.type === "landlord" && <Fact k="Land plot (UPI)" v={sel.upi ?? "—"} />}
                   <Fact k="Address" v={`${sel.address}, ${sel.sector}, ${sel.district}`} />
                 </section>
+
+                {/* What the officer approves, as declared (ADR-054 AC-R4). Listed so
+                    it is visible, not so each is visited: only the head office's
+                    district verifies, and the pipeline is unchanged. */}
+                {sel.branches && sel.branches.length > 0 && (
+                  <section>
+                    <div className="text-2xs font-bold tracking-[0.09em] uppercase text-[var(--muted2)]">
+                      Branches
+                    </div>
+                    <div className="mt-2 flex flex-col gap-2">
+                      {sel.branches.map((b) => (
+                        <div
+                          key={b.name}
+                          className="flex items-center gap-2.5 rounded border border-line2 bg-field px-3 py-2.5"
+                        >
+                          <Icon name="map-pin" size={17} />
+                          <span className="min-w-0 flex-1">
+                            <span className="block text-sm font-semibold text-ink">{b.name}</span>
+                            <span className="block text-2xs text-muted-foreground">
+                              {b.district ? `${b.district} District` : "District not recorded"}
+                            </span>
+                          </span>
+                          {b.isHeadOffice && <Badge intent="accent">Head office</Badge>}
+                        </div>
+                      ))}
+                    </div>
+                  </section>
+                )}
 
                 <section>
                   <div className="text-2xs font-bold tracking-[0.09em] uppercase text-[var(--muted2)]">

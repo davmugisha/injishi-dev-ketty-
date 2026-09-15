@@ -32,6 +32,10 @@ import {
   DRIZZLE,
   type Database,
 } from '../../../shared/database/database.module';
+import {
+  inBranchScope,
+  type BranchScope,
+} from '../../../shared/auth/branch-scope';
 import { writeOutboxTx } from '../../../shared/outbox/outbox';
 import { signPointOf } from '../../ebm/domain/sign-point';
 import { rraPaymentCode } from '../../ebm/domain/rra-payment-codes';
@@ -598,8 +602,10 @@ export class FolioRepository {
 
   // --- Reads ---------------------------------------------------------------
 
-  async listFolios(workspaceId: string): Promise<FolioRow[]> {
-    return this.selectFolios(eq(folios.workspaceId, workspaceId));
+  async listFolios(workspaceId: string, scope: BranchScope): Promise<FolioRow[]> {
+    return this.selectFolios(
+      and(eq(folios.workspaceId, workspaceId), inBranchScope(folios.propertyId, scope)) as SQL,
+    );
   }
 
   /** The taxpayer a property sells under: whose EBM account signs its bills. */

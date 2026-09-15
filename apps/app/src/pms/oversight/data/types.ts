@@ -49,6 +49,13 @@ export interface Officer {
 /** [display name, what it is]. */
 export type RegDoc = [string, string];
 
+/** One location a business declared at registration (ADR-054 AC-R4). */
+export interface RegBranch {
+  name: string;
+  district: string | null;
+  isHeadOffice: boolean;
+}
+
 export interface RegOrg {
   id: string;
   biz: string;
@@ -67,6 +74,11 @@ export interface RegOrg {
   sector: string;
   address: string;
   docs: RegDoc[];
+  /**
+   * Every location the business declared, head office first (ADR-054 AC-R4).
+   * Absent on a fixture that predates branches; the live queue always sends it.
+   */
+  branches?: RegBranch[];
   stage: RegStage;
   /** Hours in the queue. Past 48 the row reads as overdue. */
   ageH: number;

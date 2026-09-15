@@ -3,7 +3,6 @@ import {
   type OperatorOutlet,
   type OperatorOutletList,
   UpdateOutletRequest,
-  type WorkspaceAccess,
 } from '@injishi/contracts';
 import {
   Body,
@@ -24,6 +23,7 @@ import {
   RequirePermission,
   WorkspaceGuard,
 } from '../../../shared/auth/workspace.guard';
+import type { ScopedWorkspace } from '../../../shared/auth/branch-scope';
 import { ZodValidationPipe } from '../../../shared/validation/zod-validation.pipe';
 
 /**
@@ -39,7 +39,7 @@ export class OpsOutletsController {
   constructor(private readonly outlets: OutletsService) {}
 
   @Get()
-  list(@CurrentWorkspace() workspace: WorkspaceAccess): Promise<OperatorOutletList> {
+  list(@CurrentWorkspace() workspace: ScopedWorkspace): Promise<OperatorOutletList> {
     return this.outlets.list(workspace);
   }
 
@@ -47,7 +47,7 @@ export class OpsOutletsController {
   @RequirePermission('outlet.manage')
   create(
     @Body(new ZodValidationPipe(CreateOutletRequest)) body: CreateOutletRequest,
-    @CurrentWorkspace() workspace: WorkspaceAccess,
+    @CurrentWorkspace() workspace: ScopedWorkspace,
   ): Promise<OperatorOutlet> {
     return this.outlets.create(workspace, body);
   }
@@ -57,7 +57,7 @@ export class OpsOutletsController {
   update(
     @Param('id', ParseUUIDPipe) id: string,
     @Body(new ZodValidationPipe(UpdateOutletRequest)) body: UpdateOutletRequest,
-    @CurrentWorkspace() workspace: WorkspaceAccess,
+    @CurrentWorkspace() workspace: ScopedWorkspace,
   ): Promise<OperatorOutlet> {
     return this.outlets.update(workspace, id, body);
   }
@@ -68,7 +68,7 @@ export class OpsOutletsController {
   @RequirePermission('outlet.manage')
   archive(
     @Param('id', ParseUUIDPipe) id: string,
-    @CurrentWorkspace() workspace: WorkspaceAccess,
+    @CurrentWorkspace() workspace: ScopedWorkspace,
   ): Promise<OperatorOutlet> {
     return this.outlets.archive(workspace, id);
   }

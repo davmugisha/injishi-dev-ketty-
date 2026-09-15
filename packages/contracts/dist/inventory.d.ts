@@ -57,26 +57,26 @@ export declare const CreatePropertyRequest: z.ZodObject<{
     sectorId: number;
     name: string;
     workspaceId: string;
+    contactEmail?: string | null | undefined;
+    contactPhone?: string | null | undefined;
     checkInTime?: string | undefined;
     checkOutTime?: string | undefined;
     street?: string | undefined;
     description?: string | undefined;
     houseRules?: string | undefined;
     locationPrivacy?: boolean | undefined;
-    contactPhone?: string | null | undefined;
-    contactEmail?: string | null | undefined;
 }, {
     sectorId: number;
     name: string;
     workspaceId: string;
+    contactEmail?: string | null | undefined;
+    contactPhone?: string | null | undefined;
     checkInTime?: string | undefined;
     checkOutTime?: string | undefined;
     street?: string | undefined;
     description?: string | undefined;
     houseRules?: string | undefined;
     locationPrivacy?: boolean | undefined;
-    contactPhone?: string | null | undefined;
-    contactEmail?: string | null | undefined;
 }>;
 export type CreatePropertyRequest = z.infer<typeof CreatePropertyRequest>;
 /**
@@ -99,32 +99,91 @@ export declare const UpdatePropertyRequest: z.ZodObject<{
     locationPrivacy: z.ZodOptional<z.ZodOptional<z.ZodBoolean>>;
     contactPhone: z.ZodOptional<z.ZodOptional<z.ZodNullable<z.ZodString>>>;
     contactEmail: z.ZodOptional<z.ZodOptional<z.ZodNullable<z.ZodString>>>;
+} & {
+    /**
+     * The two digit branch id RRA issued for this location (ADR-054 AC-M2).
+     * Edit only, never on create: setting it also needs `ebm.manage`, and it is
+     * unique within the org forever, archived branches included. `null` clears it.
+     */
+    rraBranchId: z.ZodOptional<z.ZodNullable<z.ZodString>>;
 }, "strip", z.ZodTypeAny, {
     workspaceId: string;
     sectorId?: number | undefined;
     name?: string | undefined;
+    rraBranchId?: string | null | undefined;
+    contactEmail?: string | null | undefined;
+    contactPhone?: string | null | undefined;
     checkInTime?: string | undefined;
     checkOutTime?: string | undefined;
     street?: string | undefined;
     description?: string | undefined;
     houseRules?: string | undefined;
     locationPrivacy?: boolean | undefined;
-    contactPhone?: string | null | undefined;
-    contactEmail?: string | null | undefined;
 }, {
     workspaceId: string;
     sectorId?: number | undefined;
     name?: string | undefined;
+    rraBranchId?: string | null | undefined;
+    contactEmail?: string | null | undefined;
+    contactPhone?: string | null | undefined;
     checkInTime?: string | undefined;
     checkOutTime?: string | undefined;
     street?: string | undefined;
     description?: string | undefined;
     houseRules?: string | undefined;
     locationPrivacy?: boolean | undefined;
-    contactPhone?: string | null | undefined;
-    contactEmail?: string | null | undefined;
 }>;
 export type UpdatePropertyRequest = z.infer<typeof UpdatePropertyRequest>;
+/**
+ * Why a branch cannot be archived (AC-M3). A code, so the screen can list every
+ * reason at once; the label is the operator's words.
+ */
+export declare const BranchArchiveBlocker: z.ZodEnum<["head_office", "guest_in_house", "upcoming_booking", "open_folio", "last_branch_of_member"]>;
+export type BranchArchiveBlocker = z.infer<typeof BranchArchiveBlocker>;
+export declare const BRANCH_ARCHIVE_BLOCKER_LABEL: Readonly<Record<BranchArchiveBlocker, string>>;
+/** One reason, with the people it names when it is about the team. */
+export declare const BranchArchiveReason: z.ZodObject<{
+    code: z.ZodEnum<["head_office", "guest_in_house", "upcoming_booking", "open_folio", "last_branch_of_member"]>;
+    /** Names of the members limited to this branch alone. Set for `last_branch_of_member`. */
+    members: z.ZodOptional<z.ZodArray<z.ZodString, "many">>;
+}, "strip", z.ZodTypeAny, {
+    code: "head_office" | "guest_in_house" | "upcoming_booking" | "open_folio" | "last_branch_of_member";
+    members?: string[] | undefined;
+}, {
+    code: "head_office" | "guest_in_house" | "upcoming_booking" | "open_folio" | "last_branch_of_member";
+    members?: string[] | undefined;
+}>;
+export type BranchArchiveReason = z.infer<typeof BranchArchiveReason>;
+/** The 409 body an archive refusal carries: `message` is the first reason. */
+export declare const BranchArchiveRefusal: z.ZodObject<{
+    message: z.ZodString;
+    reasons: z.ZodArray<z.ZodObject<{
+        code: z.ZodEnum<["head_office", "guest_in_house", "upcoming_booking", "open_folio", "last_branch_of_member"]>;
+        /** Names of the members limited to this branch alone. Set for `last_branch_of_member`. */
+        members: z.ZodOptional<z.ZodArray<z.ZodString, "many">>;
+    }, "strip", z.ZodTypeAny, {
+        code: "head_office" | "guest_in_house" | "upcoming_booking" | "open_folio" | "last_branch_of_member";
+        members?: string[] | undefined;
+    }, {
+        code: "head_office" | "guest_in_house" | "upcoming_booking" | "open_folio" | "last_branch_of_member";
+        members?: string[] | undefined;
+    }>, "many">;
+}, "strip", z.ZodTypeAny, {
+    message: string;
+    reasons: {
+        code: "head_office" | "guest_in_house" | "upcoming_booking" | "open_folio" | "last_branch_of_member";
+        members?: string[] | undefined;
+    }[];
+}, {
+    message: string;
+    reasons: {
+        code: "head_office" | "guest_in_house" | "upcoming_booking" | "open_folio" | "last_branch_of_member";
+        members?: string[] | undefined;
+    }[];
+}>;
+export type BranchArchiveRefusal = z.infer<typeof BranchArchiveRefusal>;
+/** The words a member limited to some branches is refused with (AC-M6). */
+export declare const NEEDS_EVERY_BRANCH_MESSAGE = "This needs access to every branch.";
 /**
  * The resolved address, sent with names as well as ids.
  *
@@ -201,10 +260,19 @@ export declare const OperatorPropertySummary: z.ZodObject<{
     roomTypeCount: z.ZodNumber;
     /** Sellable rooms across every active room type. The inventory truth. */
     sellableRoomCount: z.ZodNumber;
+    /** ADR-054: exactly one active branch of a hospitality business is its head office. */
+    isHeadOffice: z.ZodBoolean;
+    /** The two digit branch id RRA issued for this location, or null. */
+    rraBranchId: z.ZodNullable<z.ZodString>;
+    /** Set when the branch is archived; its history stays readable. */
+    archivedAt: z.ZodNullable<z.ZodString>;
 }, "strip", z.ZodTypeAny, {
     id: string;
     name: string;
     roomTypeCount: number;
+    isHeadOffice: boolean;
+    rraBranchId: string | null;
+    archivedAt: string | null;
     slug: string | null;
     publishedAt: string | null;
     address: {
@@ -222,6 +290,9 @@ export declare const OperatorPropertySummary: z.ZodObject<{
     id: string;
     name: string;
     roomTypeCount: number;
+    isHeadOffice: boolean;
+    rraBranchId: string | null;
+    archivedAt: string | null;
     slug: string | null;
     publishedAt: string | null;
     address: {
@@ -323,6 +394,12 @@ export declare const OperatorProperty: z.ZodObject<{
     roomTypeCount: z.ZodNumber;
     /** Sellable rooms across every active room type. The inventory truth. */
     sellableRoomCount: z.ZodNumber;
+    /** ADR-054: exactly one active branch of a hospitality business is its head office. */
+    isHeadOffice: z.ZodBoolean;
+    /** The two digit branch id RRA issued for this location, or null. */
+    rraBranchId: z.ZodNullable<z.ZodString>;
+    /** Set when the branch is archived; its history stays readable. */
+    archivedAt: z.ZodNullable<z.ZodString>;
 } & {
     description: z.ZodNullable<z.ZodString>;
     checkInTime: z.ZodNullable<z.ZodString>;
@@ -387,6 +464,11 @@ export declare const OperatorProperty: z.ZodObject<{
     id: string;
     name: string;
     roomTypeCount: number;
+    isHeadOffice: boolean;
+    rraBranchId: string | null;
+    archivedAt: string | null;
+    contactEmail: string | null;
+    contactPhone: string | null;
     slug: string | null;
     publishedAt: string | null;
     checkInTime: string | null;
@@ -403,8 +485,6 @@ export declare const OperatorProperty: z.ZodObject<{
     description: string | null;
     houseRules: string | null;
     locationPrivacy: boolean;
-    contactPhone: string | null;
-    contactEmail: string | null;
     listingStatus: "draft" | "published";
     sellableRoomCount: number;
     timezone: string;
@@ -428,6 +508,11 @@ export declare const OperatorProperty: z.ZodObject<{
     id: string;
     name: string;
     roomTypeCount: number;
+    isHeadOffice: boolean;
+    rraBranchId: string | null;
+    archivedAt: string | null;
+    contactEmail: string | null;
+    contactPhone: string | null;
     slug: string | null;
     publishedAt: string | null;
     checkInTime: string | null;
@@ -444,8 +529,6 @@ export declare const OperatorProperty: z.ZodObject<{
     description: string | null;
     houseRules: string | null;
     locationPrivacy: boolean;
-    contactPhone: string | null;
-    contactEmail: string | null;
     listingStatus: "draft" | "published";
     sellableRoomCount: number;
     timezone: string;
@@ -706,10 +789,19 @@ export declare const OperatorPropertyList: z.ZodObject<{
         roomTypeCount: z.ZodNumber;
         /** Sellable rooms across every active room type. The inventory truth. */
         sellableRoomCount: z.ZodNumber;
+        /** ADR-054: exactly one active branch of a hospitality business is its head office. */
+        isHeadOffice: z.ZodBoolean;
+        /** The two digit branch id RRA issued for this location, or null. */
+        rraBranchId: z.ZodNullable<z.ZodString>;
+        /** Set when the branch is archived; its history stays readable. */
+        archivedAt: z.ZodNullable<z.ZodString>;
     }, "strip", z.ZodTypeAny, {
         id: string;
         name: string;
         roomTypeCount: number;
+        isHeadOffice: boolean;
+        rraBranchId: string | null;
+        archivedAt: string | null;
         slug: string | null;
         publishedAt: string | null;
         address: {
@@ -727,6 +819,9 @@ export declare const OperatorPropertyList: z.ZodObject<{
         id: string;
         name: string;
         roomTypeCount: number;
+        isHeadOffice: boolean;
+        rraBranchId: string | null;
+        archivedAt: string | null;
         slug: string | null;
         publishedAt: string | null;
         address: {
@@ -746,6 +841,9 @@ export declare const OperatorPropertyList: z.ZodObject<{
         id: string;
         name: string;
         roomTypeCount: number;
+        isHeadOffice: boolean;
+        rraBranchId: string | null;
+        archivedAt: string | null;
         slug: string | null;
         publishedAt: string | null;
         address: {
@@ -765,6 +863,9 @@ export declare const OperatorPropertyList: z.ZodObject<{
         id: string;
         name: string;
         roomTypeCount: number;
+        isHeadOffice: boolean;
+        rraBranchId: string | null;
+        archivedAt: string | null;
         slug: string | null;
         publishedAt: string | null;
         address: {

@@ -309,6 +309,60 @@ export declare const CertificateInput: z.ZodObject<{
 }>;
 export type CertificateInput = z.infer<typeof CertificateInput>;
 /**
+ * How many branches a registration may declare beyond its head office (ADR-054).
+ * The schema and the wizard's Branches step both read this one constant.
+ */
+export declare const MAX_REGISTRATION_BRANCHES = 20;
+/**
+ * One more location of a hospitality business, declared under the same TIN
+ * (ADR-054 AC-R1). The head office is NOT one of these: it is the business
+ * itself, named with its legal name at its own address.
+ */
+export declare const RegistrationBranch: z.ZodObject<{
+    name: z.ZodString;
+    address: z.ZodObject<{
+        country: z.ZodLiteral<"RW">;
+        provinceId: z.ZodNumber;
+        districtId: z.ZodNumber;
+        sectorId: z.ZodNumber;
+        /** Street line, e.g. "KG 11 Ave". Optional: not every plot has one. */
+        street: z.ZodOptional<z.ZodString>;
+    }, "strip", z.ZodTypeAny, {
+        country: "RW";
+        districtId: number;
+        sectorId: number;
+        provinceId: number;
+        street?: string | undefined;
+    }, {
+        country: "RW";
+        districtId: number;
+        sectorId: number;
+        provinceId: number;
+        street?: string | undefined;
+    }>;
+}, "strip", z.ZodTypeAny, {
+    name: string;
+    address: {
+        country: "RW";
+        districtId: number;
+        sectorId: number;
+        provinceId: number;
+        street?: string | undefined;
+    };
+}, {
+    name: string;
+    address: {
+        country: "RW";
+        districtId: number;
+        sectorId: number;
+        provinceId: number;
+        street?: string | undefined;
+    };
+}>;
+export type RegistrationBranch = z.infer<typeof RegistrationBranch>;
+/** The comparison two branch names are equal under: trimmed, case ignored. */
+export declare function branchNameKey(name: string): string;
+/**
  * A hospitality business. Carries a TIN, never a UPI-only identity, and is the
  * only branch that may hold a tourism licence, a grade, or a PSF membership.
  */
@@ -374,6 +428,48 @@ export declare const HospitalityBusiness: z.ZodObject<{
     /** Optional, and hospitality only. Not the PSF oversight body (D24). */
     psfMember: z.ZodDefault<z.ZodBoolean>;
     eacStarGrade: z.ZodOptional<z.ZodNumber>;
+    /** The locations beyond the head office (ADR-054). Empty for a single site business. */
+    branches: z.ZodDefault<z.ZodArray<z.ZodObject<{
+        name: z.ZodString;
+        address: z.ZodObject<{
+            country: z.ZodLiteral<"RW">;
+            provinceId: z.ZodNumber;
+            districtId: z.ZodNumber;
+            sectorId: z.ZodNumber;
+            /** Street line, e.g. "KG 11 Ave". Optional: not every plot has one. */
+            street: z.ZodOptional<z.ZodString>;
+        }, "strip", z.ZodTypeAny, {
+            country: "RW";
+            districtId: number;
+            sectorId: number;
+            provinceId: number;
+            street?: string | undefined;
+        }, {
+            country: "RW";
+            districtId: number;
+            sectorId: number;
+            provinceId: number;
+            street?: string | undefined;
+        }>;
+    }, "strip", z.ZodTypeAny, {
+        name: string;
+        address: {
+            country: "RW";
+            districtId: number;
+            sectorId: number;
+            provinceId: number;
+            street?: string | undefined;
+        };
+    }, {
+        name: string;
+        address: {
+            country: "RW";
+            districtId: number;
+            sectorId: number;
+            provinceId: number;
+            street?: string | undefined;
+        };
+    }>, "many">>;
 }, "strip", z.ZodTypeAny, {
     legalName: string;
     domain: "hospitality";
@@ -398,6 +494,16 @@ export declare const HospitalityBusiness: z.ZodObject<{
         expiresOn?: string | undefined;
     }[];
     entityGroup: "accommodation" | "restaurant_bar_nightclub" | "travel_services" | "tourism_information_center" | "cultural_tourism";
+    branches: {
+        name: string;
+        address: {
+            country: "RW";
+            districtId: number;
+            sectorId: number;
+            provinceId: number;
+            street?: string | undefined;
+        };
+    }[];
     tourismLicenseNumber?: string | undefined;
     eacStarGrade?: number | undefined;
     upi?: string | undefined;
@@ -430,6 +536,16 @@ export declare const HospitalityBusiness: z.ZodObject<{
     }[] | undefined;
     entityGroup?: "accommodation" | "restaurant_bar_nightclub" | "travel_services" | "tourism_information_center" | "cultural_tourism" | undefined;
     accommodationClassOther?: string | undefined;
+    branches?: {
+        name: string;
+        address: {
+            country: "RW";
+            districtId: number;
+            sectorId: number;
+            provinceId: number;
+            street?: string | undefined;
+        };
+    }[] | undefined;
 }>;
 /** A residence. Carries a UPI, and none of the tourism apparatus. */
 export declare const ResidenceBusiness: z.ZodObject<{
@@ -485,6 +601,12 @@ export declare const ResidenceBusiness: z.ZodObject<{
     domain: z.ZodLiteral<"residence">;
     residenceClass: z.ZodEnum<["residential_landlord", "residential_property_manager"]>;
     upi: z.ZodPipeline<z.ZodEffects<z.ZodString, string, string>, z.ZodString>;
+    /**
+     * Refused rather than left out (ADR-054 AC-R3). An unknown key would be
+     * stripped silently, and a landlord who sent branches would believe they
+     * had been recorded.
+     */
+    branches: z.ZodOptional<z.ZodArray<z.ZodUnknown, "many">>;
 }, "strip", z.ZodTypeAny, {
     legalName: string;
     domain: "residence";
@@ -506,6 +628,7 @@ export declare const ResidenceBusiness: z.ZodObject<{
         issuedOn?: string | undefined;
         expiresOn?: string | undefined;
     }[];
+    branches?: unknown[] | undefined;
 }, {
     legalName: string;
     domain: "residence";
@@ -527,6 +650,7 @@ export declare const ResidenceBusiness: z.ZodObject<{
         issuedOn?: string | undefined;
         expiresOn?: string | undefined;
     }[] | undefined;
+    branches?: unknown[] | undefined;
 }>;
 export declare const BusinessDetails: z.ZodEffects<z.ZodDiscriminatedUnion<"domain", [z.ZodObject<{
     legalName: z.ZodString;
@@ -590,6 +714,48 @@ export declare const BusinessDetails: z.ZodEffects<z.ZodDiscriminatedUnion<"doma
     /** Optional, and hospitality only. Not the PSF oversight body (D24). */
     psfMember: z.ZodDefault<z.ZodBoolean>;
     eacStarGrade: z.ZodOptional<z.ZodNumber>;
+    /** The locations beyond the head office (ADR-054). Empty for a single site business. */
+    branches: z.ZodDefault<z.ZodArray<z.ZodObject<{
+        name: z.ZodString;
+        address: z.ZodObject<{
+            country: z.ZodLiteral<"RW">;
+            provinceId: z.ZodNumber;
+            districtId: z.ZodNumber;
+            sectorId: z.ZodNumber;
+            /** Street line, e.g. "KG 11 Ave". Optional: not every plot has one. */
+            street: z.ZodOptional<z.ZodString>;
+        }, "strip", z.ZodTypeAny, {
+            country: "RW";
+            districtId: number;
+            sectorId: number;
+            provinceId: number;
+            street?: string | undefined;
+        }, {
+            country: "RW";
+            districtId: number;
+            sectorId: number;
+            provinceId: number;
+            street?: string | undefined;
+        }>;
+    }, "strip", z.ZodTypeAny, {
+        name: string;
+        address: {
+            country: "RW";
+            districtId: number;
+            sectorId: number;
+            provinceId: number;
+            street?: string | undefined;
+        };
+    }, {
+        name: string;
+        address: {
+            country: "RW";
+            districtId: number;
+            sectorId: number;
+            provinceId: number;
+            street?: string | undefined;
+        };
+    }>, "many">>;
 }, "strip", z.ZodTypeAny, {
     legalName: string;
     domain: "hospitality";
@@ -614,6 +780,16 @@ export declare const BusinessDetails: z.ZodEffects<z.ZodDiscriminatedUnion<"doma
         expiresOn?: string | undefined;
     }[];
     entityGroup: "accommodation" | "restaurant_bar_nightclub" | "travel_services" | "tourism_information_center" | "cultural_tourism";
+    branches: {
+        name: string;
+        address: {
+            country: "RW";
+            districtId: number;
+            sectorId: number;
+            provinceId: number;
+            street?: string | undefined;
+        };
+    }[];
     tourismLicenseNumber?: string | undefined;
     eacStarGrade?: number | undefined;
     upi?: string | undefined;
@@ -646,6 +822,16 @@ export declare const BusinessDetails: z.ZodEffects<z.ZodDiscriminatedUnion<"doma
     }[] | undefined;
     entityGroup?: "accommodation" | "restaurant_bar_nightclub" | "travel_services" | "tourism_information_center" | "cultural_tourism" | undefined;
     accommodationClassOther?: string | undefined;
+    branches?: {
+        name: string;
+        address: {
+            country: "RW";
+            districtId: number;
+            sectorId: number;
+            provinceId: number;
+            street?: string | undefined;
+        };
+    }[] | undefined;
 }>, z.ZodObject<{
     legalName: z.ZodString;
     address: z.ZodObject<{
@@ -699,6 +885,12 @@ export declare const BusinessDetails: z.ZodEffects<z.ZodDiscriminatedUnion<"doma
     domain: z.ZodLiteral<"residence">;
     residenceClass: z.ZodEnum<["residential_landlord", "residential_property_manager"]>;
     upi: z.ZodPipeline<z.ZodEffects<z.ZodString, string, string>, z.ZodString>;
+    /**
+     * Refused rather than left out (ADR-054 AC-R3). An unknown key would be
+     * stripped silently, and a landlord who sent branches would believe they
+     * had been recorded.
+     */
+    branches: z.ZodOptional<z.ZodArray<z.ZodUnknown, "many">>;
 }, "strip", z.ZodTypeAny, {
     legalName: string;
     domain: "residence";
@@ -720,6 +912,7 @@ export declare const BusinessDetails: z.ZodEffects<z.ZodDiscriminatedUnion<"doma
         issuedOn?: string | undefined;
         expiresOn?: string | undefined;
     }[];
+    branches?: unknown[] | undefined;
 }, {
     legalName: string;
     domain: "residence";
@@ -741,6 +934,7 @@ export declare const BusinessDetails: z.ZodEffects<z.ZodDiscriminatedUnion<"doma
         issuedOn?: string | undefined;
         expiresOn?: string | undefined;
     }[] | undefined;
+    branches?: unknown[] | undefined;
 }>]>, {
     legalName: string;
     domain: "hospitality";
@@ -765,6 +959,16 @@ export declare const BusinessDetails: z.ZodEffects<z.ZodDiscriminatedUnion<"doma
         expiresOn?: string | undefined;
     }[];
     entityGroup: "accommodation" | "restaurant_bar_nightclub" | "travel_services" | "tourism_information_center" | "cultural_tourism";
+    branches: {
+        name: string;
+        address: {
+            country: "RW";
+            districtId: number;
+            sectorId: number;
+            provinceId: number;
+            street?: string | undefined;
+        };
+    }[];
     tourismLicenseNumber?: string | undefined;
     eacStarGrade?: number | undefined;
     upi?: string | undefined;
@@ -790,6 +994,7 @@ export declare const BusinessDetails: z.ZodEffects<z.ZodDiscriminatedUnion<"doma
         issuedOn?: string | undefined;
         expiresOn?: string | undefined;
     }[];
+    branches?: unknown[] | undefined;
 }, {
     legalName: string;
     domain: "hospitality";
@@ -818,6 +1023,16 @@ export declare const BusinessDetails: z.ZodEffects<z.ZodDiscriminatedUnion<"doma
     }[] | undefined;
     entityGroup?: "accommodation" | "restaurant_bar_nightclub" | "travel_services" | "tourism_information_center" | "cultural_tourism" | undefined;
     accommodationClassOther?: string | undefined;
+    branches?: {
+        name: string;
+        address: {
+            country: "RW";
+            districtId: number;
+            sectorId: number;
+            provinceId: number;
+            street?: string | undefined;
+        };
+    }[] | undefined;
 } | {
     legalName: string;
     domain: "residence";
@@ -839,6 +1054,7 @@ export declare const BusinessDetails: z.ZodEffects<z.ZodDiscriminatedUnion<"doma
         issuedOn?: string | undefined;
         expiresOn?: string | undefined;
     }[] | undefined;
+    branches?: unknown[] | undefined;
 }>;
 export type BusinessDetails = z.infer<typeof BusinessDetails>;
 /**
@@ -1047,6 +1263,48 @@ export declare const CreateRegistrationRequest: z.ZodEffects<z.ZodObject<{
         /** Optional, and hospitality only. Not the PSF oversight body (D24). */
         psfMember: z.ZodDefault<z.ZodBoolean>;
         eacStarGrade: z.ZodOptional<z.ZodNumber>;
+        /** The locations beyond the head office (ADR-054). Empty for a single site business. */
+        branches: z.ZodDefault<z.ZodArray<z.ZodObject<{
+            name: z.ZodString;
+            address: z.ZodObject<{
+                country: z.ZodLiteral<"RW">;
+                provinceId: z.ZodNumber;
+                districtId: z.ZodNumber;
+                sectorId: z.ZodNumber;
+                /** Street line, e.g. "KG 11 Ave". Optional: not every plot has one. */
+                street: z.ZodOptional<z.ZodString>;
+            }, "strip", z.ZodTypeAny, {
+                country: "RW";
+                districtId: number;
+                sectorId: number;
+                provinceId: number;
+                street?: string | undefined;
+            }, {
+                country: "RW";
+                districtId: number;
+                sectorId: number;
+                provinceId: number;
+                street?: string | undefined;
+            }>;
+        }, "strip", z.ZodTypeAny, {
+            name: string;
+            address: {
+                country: "RW";
+                districtId: number;
+                sectorId: number;
+                provinceId: number;
+                street?: string | undefined;
+            };
+        }, {
+            name: string;
+            address: {
+                country: "RW";
+                districtId: number;
+                sectorId: number;
+                provinceId: number;
+                street?: string | undefined;
+            };
+        }>, "many">>;
     }, "strip", z.ZodTypeAny, {
         legalName: string;
         domain: "hospitality";
@@ -1071,6 +1329,16 @@ export declare const CreateRegistrationRequest: z.ZodEffects<z.ZodObject<{
             expiresOn?: string | undefined;
         }[];
         entityGroup: "accommodation" | "restaurant_bar_nightclub" | "travel_services" | "tourism_information_center" | "cultural_tourism";
+        branches: {
+            name: string;
+            address: {
+                country: "RW";
+                districtId: number;
+                sectorId: number;
+                provinceId: number;
+                street?: string | undefined;
+            };
+        }[];
         tourismLicenseNumber?: string | undefined;
         eacStarGrade?: number | undefined;
         upi?: string | undefined;
@@ -1103,6 +1371,16 @@ export declare const CreateRegistrationRequest: z.ZodEffects<z.ZodObject<{
         }[] | undefined;
         entityGroup?: "accommodation" | "restaurant_bar_nightclub" | "travel_services" | "tourism_information_center" | "cultural_tourism" | undefined;
         accommodationClassOther?: string | undefined;
+        branches?: {
+            name: string;
+            address: {
+                country: "RW";
+                districtId: number;
+                sectorId: number;
+                provinceId: number;
+                street?: string | undefined;
+            };
+        }[] | undefined;
     }>, z.ZodObject<{
         legalName: z.ZodString;
         address: z.ZodObject<{
@@ -1156,6 +1434,12 @@ export declare const CreateRegistrationRequest: z.ZodEffects<z.ZodObject<{
         domain: z.ZodLiteral<"residence">;
         residenceClass: z.ZodEnum<["residential_landlord", "residential_property_manager"]>;
         upi: z.ZodPipeline<z.ZodEffects<z.ZodString, string, string>, z.ZodString>;
+        /**
+         * Refused rather than left out (ADR-054 AC-R3). An unknown key would be
+         * stripped silently, and a landlord who sent branches would believe they
+         * had been recorded.
+         */
+        branches: z.ZodOptional<z.ZodArray<z.ZodUnknown, "many">>;
     }, "strip", z.ZodTypeAny, {
         legalName: string;
         domain: "residence";
@@ -1177,6 +1461,7 @@ export declare const CreateRegistrationRequest: z.ZodEffects<z.ZodObject<{
             issuedOn?: string | undefined;
             expiresOn?: string | undefined;
         }[];
+        branches?: unknown[] | undefined;
     }, {
         legalName: string;
         domain: "residence";
@@ -1198,6 +1483,7 @@ export declare const CreateRegistrationRequest: z.ZodEffects<z.ZodObject<{
             issuedOn?: string | undefined;
             expiresOn?: string | undefined;
         }[] | undefined;
+        branches?: unknown[] | undefined;
     }>]>, {
         legalName: string;
         domain: "hospitality";
@@ -1222,6 +1508,16 @@ export declare const CreateRegistrationRequest: z.ZodEffects<z.ZodObject<{
             expiresOn?: string | undefined;
         }[];
         entityGroup: "accommodation" | "restaurant_bar_nightclub" | "travel_services" | "tourism_information_center" | "cultural_tourism";
+        branches: {
+            name: string;
+            address: {
+                country: "RW";
+                districtId: number;
+                sectorId: number;
+                provinceId: number;
+                street?: string | undefined;
+            };
+        }[];
         tourismLicenseNumber?: string | undefined;
         eacStarGrade?: number | undefined;
         upi?: string | undefined;
@@ -1247,6 +1543,7 @@ export declare const CreateRegistrationRequest: z.ZodEffects<z.ZodObject<{
             issuedOn?: string | undefined;
             expiresOn?: string | undefined;
         }[];
+        branches?: unknown[] | undefined;
     }, {
         legalName: string;
         domain: "hospitality";
@@ -1275,6 +1572,16 @@ export declare const CreateRegistrationRequest: z.ZodEffects<z.ZodObject<{
         }[] | undefined;
         entityGroup?: "accommodation" | "restaurant_bar_nightclub" | "travel_services" | "tourism_information_center" | "cultural_tourism" | undefined;
         accommodationClassOther?: string | undefined;
+        branches?: {
+            name: string;
+            address: {
+                country: "RW";
+                districtId: number;
+                sectorId: number;
+                provinceId: number;
+                street?: string | undefined;
+            };
+        }[] | undefined;
     } | {
         legalName: string;
         domain: "residence";
@@ -1296,6 +1603,7 @@ export declare const CreateRegistrationRequest: z.ZodEffects<z.ZodObject<{
             issuedOn?: string | undefined;
             expiresOn?: string | undefined;
         }[] | undefined;
+        branches?: unknown[] | undefined;
     }>;
     /** Captured when `capacity` is `on_behalf_of`. See `IntendedOwner`. */
     intendedOwner: z.ZodOptional<z.ZodObject<{
@@ -1336,6 +1644,16 @@ export declare const CreateRegistrationRequest: z.ZodEffects<z.ZodObject<{
             expiresOn?: string | undefined;
         }[];
         entityGroup: "accommodation" | "restaurant_bar_nightclub" | "travel_services" | "tourism_information_center" | "cultural_tourism";
+        branches: {
+            name: string;
+            address: {
+                country: "RW";
+                districtId: number;
+                sectorId: number;
+                provinceId: number;
+                street?: string | undefined;
+            };
+        }[];
         tourismLicenseNumber?: string | undefined;
         eacStarGrade?: number | undefined;
         upi?: string | undefined;
@@ -1361,6 +1679,7 @@ export declare const CreateRegistrationRequest: z.ZodEffects<z.ZodObject<{
             issuedOn?: string | undefined;
             expiresOn?: string | undefined;
         }[];
+        branches?: unknown[] | undefined;
     };
     capacity: "owner" | "on_behalf_of";
     role: "broker" | "host" | "landlord";
@@ -1423,6 +1742,16 @@ export declare const CreateRegistrationRequest: z.ZodEffects<z.ZodObject<{
         }[] | undefined;
         entityGroup?: "accommodation" | "restaurant_bar_nightclub" | "travel_services" | "tourism_information_center" | "cultural_tourism" | undefined;
         accommodationClassOther?: string | undefined;
+        branches?: {
+            name: string;
+            address: {
+                country: "RW";
+                districtId: number;
+                sectorId: number;
+                provinceId: number;
+                street?: string | undefined;
+            };
+        }[] | undefined;
     } | {
         legalName: string;
         domain: "residence";
@@ -1444,6 +1773,7 @@ export declare const CreateRegistrationRequest: z.ZodEffects<z.ZodObject<{
             issuedOn?: string | undefined;
             expiresOn?: string | undefined;
         }[] | undefined;
+        branches?: unknown[] | undefined;
     };
     role: "broker" | "host" | "landlord";
     personal?: {
@@ -1502,6 +1832,16 @@ export declare const CreateRegistrationRequest: z.ZodEffects<z.ZodObject<{
             expiresOn?: string | undefined;
         }[];
         entityGroup: "accommodation" | "restaurant_bar_nightclub" | "travel_services" | "tourism_information_center" | "cultural_tourism";
+        branches: {
+            name: string;
+            address: {
+                country: "RW";
+                districtId: number;
+                sectorId: number;
+                provinceId: number;
+                street?: string | undefined;
+            };
+        }[];
         tourismLicenseNumber?: string | undefined;
         eacStarGrade?: number | undefined;
         upi?: string | undefined;
@@ -1527,6 +1867,7 @@ export declare const CreateRegistrationRequest: z.ZodEffects<z.ZodObject<{
             issuedOn?: string | undefined;
             expiresOn?: string | undefined;
         }[];
+        branches?: unknown[] | undefined;
     };
     capacity: "owner" | "on_behalf_of";
     role: "broker" | "host" | "landlord";
@@ -1589,6 +1930,16 @@ export declare const CreateRegistrationRequest: z.ZodEffects<z.ZodObject<{
         }[] | undefined;
         entityGroup?: "accommodation" | "restaurant_bar_nightclub" | "travel_services" | "tourism_information_center" | "cultural_tourism" | undefined;
         accommodationClassOther?: string | undefined;
+        branches?: {
+            name: string;
+            address: {
+                country: "RW";
+                districtId: number;
+                sectorId: number;
+                provinceId: number;
+                street?: string | undefined;
+            };
+        }[] | undefined;
     } | {
         legalName: string;
         domain: "residence";
@@ -1610,6 +1961,7 @@ export declare const CreateRegistrationRequest: z.ZodEffects<z.ZodObject<{
             issuedOn?: string | undefined;
             expiresOn?: string | undefined;
         }[] | undefined;
+        branches?: unknown[] | undefined;
     };
     role: "broker" | "host" | "landlord";
     personal?: {
@@ -1746,6 +2098,24 @@ export declare const OversightQueueItem: z.ZodObject<{
      * than only refusing the click (separation of duties, F-S03 §9).
      */
     blockedBySeparationOfDuties: z.ZodBoolean;
+    /**
+     * The locations the business declared, head office first then by name
+     * (ADR-054 AC-R4). Listed so the officer knows what they approve; no
+     * branch district is asked to verify.
+     */
+    branches: z.ZodArray<z.ZodObject<{
+        name: z.ZodString;
+        districtName: z.ZodNullable<z.ZodString>;
+        isHeadOffice: z.ZodBoolean;
+    }, "strip", z.ZodTypeAny, {
+        districtName: string | null;
+        name: string;
+        isHeadOffice: boolean;
+    }, {
+        districtName: string | null;
+        name: string;
+        isHeadOffice: boolean;
+    }>, "many">;
 }, "strip", z.ZodTypeAny, {
     status: "pending_payment" | "submitted" | "tin_verified" | "field_verified" | "approved" | "active" | "rejected" | "suspended";
     districtId: number | null;
@@ -1757,6 +2127,11 @@ export declare const OversightQueueItem: z.ZodObject<{
     upi: string | null;
     orgId: string;
     addressText: string | null;
+    branches: {
+        districtName: string | null;
+        name: string;
+        isHeadOffice: boolean;
+    }[];
     sectorName: string | null;
     waitingSince: string;
     blockedBySeparationOfDuties: boolean;
@@ -1771,6 +2146,11 @@ export declare const OversightQueueItem: z.ZodObject<{
     upi: string | null;
     orgId: string;
     addressText: string | null;
+    branches: {
+        districtName: string | null;
+        name: string;
+        isHeadOffice: boolean;
+    }[];
     sectorName: string | null;
     waitingSince: string;
     blockedBySeparationOfDuties: boolean;

@@ -3,7 +3,6 @@ import type {
   CreateHousekeepingTaskRequest,
   HousekeepingTaskStatus,
   OperatorHousekeepingTask,
-  WorkspaceAccess,
 } from '@injishi/contracts';
 import {
   BadRequestException,
@@ -12,6 +11,10 @@ import {
 } from '@nestjs/common';
 
 import { assertOwned } from '../../../shared/auth/assert-owned';
+import {
+  assertInBranchScope,
+  type ScopedWorkspace,
+} from '../../../shared/auth/branch-scope';
 import {
   type HousekeepingTaskRow,
   HousekeepingRepository,
@@ -52,23 +55,27 @@ const ALLOWED: Readonly<Record<HousekeepingTaskStatus, HousekeepingTaskStatus[]>
 export class HousekeepingService {
   constructor(private readonly tasks: HousekeepingRepository) {}
 
-  async list(ws: WorkspaceAccess): Promise<OperatorHousekeepingTask[]> {
-    const rows = await this.tasks.list(ws.workspaceId);
+  async list(ws: ScopedWorkspace): Promise<OperatorHousekeepingTask[]> {
+    const rows = await this.tasks.list(ws.workspaceId, ws.branchScope);
     return rows.map((row) => this.present(row));
   }
 
   async create(
-    ws: WorkspaceAccess,
+    ws: ScopedWorkspace,
     body: CreateHousekeepingTaskRequest,
     clientKey: string | null,
   ): Promise<OperatorHousekeepingTask> {
     const key = clientKey ? `${ws.workspaceId}:${clientKey}` : null;
     if (key) {
       const replay = await this.tasks.findByIdempotencyKey(key);
-      if (replay) return this.present(replay);
+      if (replay) {
+        assertInBranchScope(ws, replay.propertyId);
+        return this.present(replay);
+      }
     }
 
     const room = assertOwned(await this.tasks.findRoom(body.roomId), ws);
+    assertInBranchScope(ws, room.propertyId);
     const id = await this.tasks.create({
       roomId: room.id,
       propertyId: room.propertyId,
@@ -94,11 +101,12 @@ export class HousekeepingService {
    * housekeeper who taps twice has not done anything wrong.
    */
   async advance(
-    ws: WorkspaceAccess,
+    ws: ScopedWorkspace,
     id: string,
     body: AdvanceHousekeepingTaskRequest,
   ): Promise<OperatorHousekeepingTask> {
     const task = assertOwned(await this.tasks.find(id), ws);
+    assertInBranchScope(ws, task.propertyId);
     if (task.status === body.to) return this.present(task);
 
     if (!ALLOWED[task.status].includes(body.to)) {

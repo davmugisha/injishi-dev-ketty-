@@ -32,8 +32,13 @@ const DEFAULT_CACHE_TTL_SECONDS = 60;
 
 export function readTrainingConfig(config: ConfigService): TrainingConfig {
   return {
+    // `WEB_URL` before `NEXT_PUBLIC_WEB_URL` (demo-comms, 2026-09-14). The
+    // deployed API and worker are given `WEB_URL` and never the frontend's
+    // public variable, so a demo certificate's QR and verify link pointed at
+    // http://localhost:3000.
     verifyBaseUrl:
       config.get<string>('TRAINING_VERIFY_BASE_URL')?.trim() ||
+      config.get<string>('WEB_URL')?.trim() ||
       config.get<string>('NEXT_PUBLIC_WEB_URL')?.trim() ||
       DEFAULT_VERIFY_BASE_URL,
     verifyRateLimit: positiveInt(

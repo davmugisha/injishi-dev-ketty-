@@ -89,8 +89,56 @@ export type CreatePropertyRequest = z.infer<typeof CreatePropertyRequest>;
  * card at a time, and a full replace would make an untouched section silently
  * clear itself.
  */
-export const UpdatePropertyRequest = WorkspaceScoped.extend(z.object(propertyFields).partial().shape);
+export const UpdatePropertyRequest = WorkspaceScoped.extend(z.object(propertyFields).partial().shape).extend({
+    /**
+     * The two digit branch id RRA issued for this location (ADR-054 AC-M2).
+     * Edit only, never on create: setting it also needs `ebm.manage`, and it is
+     * unique within the org forever, archived branches included. `null` clears it.
+     */
+    rraBranchId: z
+        .string()
+        .regex(/^[0-9]{2}$/, "Use the two digit branch id RRA gave you, like 01.")
+        .nullable()
+        .optional(),
+});
 export type UpdatePropertyRequest = z.infer<typeof UpdatePropertyRequest>;
+// ---------------------------------------------------------------------------
+// Branches (ADR-054)
+// ---------------------------------------------------------------------------
+/**
+ * Why a branch cannot be archived (AC-M3). A code, so the screen can list every
+ * reason at once; the label is the operator's words.
+ */
+export const BranchArchiveBlocker = z.enum([
+    "head_office",
+    "guest_in_house",
+    "upcoming_booking",
+    "open_folio",
+    "last_branch_of_member",
+]);
+export type BranchArchiveBlocker = z.infer<typeof BranchArchiveBlocker>;
+export const BRANCH_ARCHIVE_BLOCKER_LABEL: Readonly<Record<BranchArchiveBlocker, string>> = {
+    head_office: "It is the head office. Make another branch the head office first.",
+    guest_in_house: "A guest is staying there now.",
+    upcoming_booking: "A booking is due to arrive there today or later.",
+    open_folio: "A bill there is still open.",
+    last_branch_of_member: "It is the only branch some of your team can work at.",
+};
+/** One reason, with the people it names when it is about the team. */
+export const BranchArchiveReason = z.object({
+    code: BranchArchiveBlocker,
+    /** Names of the members limited to this branch alone. Set for `last_branch_of_member`. */
+    members: z.array(z.string()).optional(),
+});
+export type BranchArchiveReason = z.infer<typeof BranchArchiveReason>;
+/** The 409 body an archive refusal carries: `message` is the first reason. */
+export const BranchArchiveRefusal = z.object({
+    message: z.string(),
+    reasons: z.array(BranchArchiveReason),
+});
+export type BranchArchiveRefusal = z.infer<typeof BranchArchiveRefusal>;
+/** The words a member limited to some branches is refused with (AC-M6). */
+export const NEEDS_EVERY_BRANCH_MESSAGE = "This needs access to every branch.";
 // ---------------------------------------------------------------------------
 // Reading a property back
 // ---------------------------------------------------------------------------
@@ -130,6 +178,12 @@ export const OperatorPropertySummary = z.object({
     roomTypeCount: z.number().int(),
     /** Sellable rooms across every active room type. The inventory truth. */
     sellableRoomCount: z.number().int(),
+    /** ADR-054: exactly one active branch of a hospitality business is its head office. */
+    isHeadOffice: z.boolean(),
+    /** The two digit branch id RRA issued for this location, or null. */
+    rraBranchId: z.string().nullable(),
+    /** Set when the branch is archived; its history stays readable. */
+    archivedAt: z.string().nullable(),
 });
 export type OperatorPropertySummary = z.infer<typeof OperatorPropertySummary>;
 /**

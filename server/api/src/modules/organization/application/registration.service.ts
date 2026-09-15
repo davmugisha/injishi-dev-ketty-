@@ -145,6 +145,7 @@ export class RegistrationService {
 
     const b = request.business;
     const address = b.address;
+    const branches = await this.branchRowsFor(b);
 
     try {
       const created = await this.orgs.createRegistration({
@@ -196,6 +197,7 @@ export class RegistrationService {
           issuedOn: c.issuedOn ?? null,
           expiresOn: c.expiresOn ?? null,
         })),
+        branches,
       });
 
       // Mailed AFTER the create transaction committed (ADR-053), so a relay
@@ -243,6 +245,76 @@ export class RegistrationService {
       }
       throw err;
     }
+  }
+
+  /**
+   * The `properties` rows a registration writes (ADR-054 AC-R2, Value sourcing).
+   *
+   * A hospitality business gets its head office, named with its legal name at
+   * its own address, then one row per declared branch. A residence gets none:
+   * branches are hospitality only, and a residence's buildings wait on its own
+   * inventory model.
+   *
+   * The district of every row is DERIVED from its sector, as `properties`
+   * always does. A sector that does not exist, or a district on the request
+   * that disagrees with the sector's, is refused naming the field, before
+   * anything is written. The shape of the refusal is the one the validation
+   * pipe gives, so the wizard reads both the same way.
+   */
+  private async branchRowsFor(
+    b: CreateRegistrationRequest['business'],
+  ): Promise<
+    {
+      name: string;
+      sectorId: number;
+      districtId: number;
+      street: string | null;
+      isHeadOffice: boolean;
+    }[]
+  > {
+    if (b.domain !== 'hospitality') return [];
+
+    const locations = [
+      { path: ['business', 'address'], name: b.legalName, address: b.address, isHeadOffice: true },
+      ...b.branches.map((branch, index) => ({
+        path: ['business', 'branches', index, 'address'],
+        name: branch.name,
+        address: branch.address,
+        isHeadOffice: false,
+      })),
+    ];
+    const districtOf = await this.orgs.districtsForSectors(
+      locations.map((l) => l.address.sectorId),
+    );
+
+    const issues: { code: 'custom'; path: (string | number)[]; message: string }[] = [];
+    for (const l of locations) {
+      const districtId = districtOf.get(l.address.sectorId);
+      if (districtId === undefined) {
+        issues.push({
+          code: 'custom',
+          path: [...l.path, 'sectorId'],
+          message: 'That sector does not exist. Pick one from the list.',
+        });
+      } else if (districtId !== l.address.districtId) {
+        issues.push({
+          code: 'custom',
+          path: [...l.path, 'districtId'],
+          message: 'That sector is not in the district you chose.',
+        });
+      }
+    }
+    if (issues.length > 0) {
+      throw new BadRequestException({ message: 'Validation failed', issues });
+    }
+
+    return locations.map((l) => ({
+      name: l.name,
+      sectorId: l.address.sectorId,
+      districtId: districtOf.get(l.address.sectorId)!,
+      street: l.address.street ?? null,
+      isHeadOffice: l.isHeadOffice,
+    }));
   }
 
   /**
@@ -502,6 +574,7 @@ export class RegistrationService {
     // same district set the single record gate below asks about.
     const districtIds = await this.districtScopeFor(grants);
     const rows = await this.orgs.findQueue({ stage, districtIds });
+    const branches = await this.orgs.branchesForOrgs(rows.map((r) => r.orgId));
 
     // Only the approval queue can be blocked this way, and only per row: an
     // approver may hold a mixed queue where they verified some of it.
@@ -528,6 +601,7 @@ export class RegistrationService {
                   await this.orgs.latestFieldVerifierId(r.orgId),
               })
             : false,
+        branches: branches.get(r.orgId) ?? [],
       })),
     );
     return items;

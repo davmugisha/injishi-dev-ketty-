@@ -3,7 +3,6 @@ import {
   type OperatorStaffInvitation,
   type OperatorStaffInvitationList,
   type OperatorTeamList,
-  type WorkspaceAccess,
 } from '@injishi/contracts';
 import {
   Body,
@@ -28,6 +27,7 @@ import {
   RequirePermission,
   WorkspaceGuard,
 } from '../../../shared/auth/workspace.guard';
+import type { ScopedWorkspace } from '../../../shared/auth/branch-scope';
 import { ZodValidationPipe } from '../../../shared/validation/zod-validation.pipe';
 
 /**
@@ -60,7 +60,7 @@ export class OpsTeamController {
 
   @Get()
   @RequirePermission('team.manage')
-  list(@CurrentWorkspace() workspace: WorkspaceAccess): Promise<OperatorTeamList> {
+  list(@CurrentWorkspace() workspace: ScopedWorkspace): Promise<OperatorTeamList> {
     return this.team.list(workspace);
   }
 
@@ -68,7 +68,7 @@ export class OpsTeamController {
   @Get('invitations')
   @RequirePermission('team.manage')
   async listInvitations(
-    @CurrentWorkspace() workspace: WorkspaceAccess,
+    @CurrentWorkspace() workspace: ScopedWorkspace,
   ): Promise<OperatorStaffInvitationList> {
     return { invitations: await this.invitations.list(workspace) };
   }
@@ -78,7 +78,7 @@ export class OpsTeamController {
   @RequirePermission('team.manage')
   invite(
     @Body(new ZodValidationPipe(InviteStaffRequest)) body: InviteStaffRequest,
-    @CurrentWorkspace() workspace: WorkspaceAccess,
+    @CurrentWorkspace() workspace: ScopedWorkspace,
     @CurrentUser() user: SessionUser,
   ): Promise<OperatorStaffInvitation> {
     return this.invitations.invite(workspace, user.id, body);
@@ -90,7 +90,7 @@ export class OpsTeamController {
   @RequirePermission('team.manage')
   async revoke(
     @Param('id', ParseUUIDPipe) id: string,
-    @CurrentWorkspace() workspace: WorkspaceAccess,
+    @CurrentWorkspace() workspace: ScopedWorkspace,
   ): Promise<void> {
     await this.invitations.revoke(workspace, id);
   }

@@ -7,6 +7,7 @@ import { RatePlansService } from './application/rate-plans.service';
 import { RoomTypesService } from './application/room-types.service';
 import { RoomsService } from './application/rooms.service';
 import { SetupProgressService } from './application/setup-progress.service';
+import { BranchesRepository } from './infrastructure/branches.repository';
 import { InventoryRepository } from './infrastructure/inventory.repository';
 import { PropertyPhotosRepository } from './infrastructure/property-photos.repository';
 import { RatePlansRepository } from './infrastructure/rate-plans.repository';
@@ -40,6 +41,8 @@ import { SetupProgressRepository } from './infrastructure/setup-progress.reposit
   // SETUP — the terms a room type sells on — not something that happens at
   // the desk today.
   providers: [
+    // Archive, restore and the head office move (ADR-054).
+    BranchesRepository,
     InventoryRepository,
     InventoryService,
     PropertyPhotosRepository,

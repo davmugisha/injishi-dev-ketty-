@@ -23,6 +23,7 @@ import { LensPage, type LensLink } from "../components/lens-page";
 import { Placeholder } from "../components/placeholder";
 import { useCapability, useWorkspaceId } from "../data/capability";
 import { workspaceBase } from "../lib/nav";
+import { Branches } from "./branches";
 import { EbmIntegration } from "./ebm-integration";
 import { PropertyProfile } from "./property-profile";
 
@@ -34,6 +35,9 @@ export function Settings({ lens }: { lens: string }) {
 
   const lenses: LensLink[] = [
     { key: "property", label: "Property", href: base },
+    // ADR-054: every location under the business's TIN. Behind `listing.manage`,
+    // the power the branch routes declare; the screen refuses without it too.
+    ...(can("listing.manage") ? [{ key: "branches", label: "Branches", href: `${base}/branches` }] : []),
     { key: "policies", label: "Policies", href: `${base}/policies` },
     ...(owner ? [{ key: "plan", label: "Plan and billing", href: `${base}/plan` }] : []),
     { key: "integrations", label: "Integrations", href: `${base}/integrations` },
@@ -50,6 +54,8 @@ export function Settings({ lens }: { lens: string }) {
         <EbmIntegration />
       ) : lens === "property" ? (
         <PropertyProfile />
+      ) : lens === "branches" ? (
+        <Branches />
       ) : lens === "plan" && !owner ? (
         <EmptyState style={{ padding: 26, fontSize: 13.5 }}>
           Plan and billing is the owner&apos;s. Ask the owner to change the subscription or payment method.

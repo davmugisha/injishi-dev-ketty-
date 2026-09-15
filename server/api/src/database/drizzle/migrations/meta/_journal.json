@@ -302,6 +302,13 @@
       "when": 1789421757760,
       "tag": "0042_guest_stays_one_open_per_room",
       "breakpoints": true
+    },
+    {
+      "idx": 43,
+      "version": "7",
+      "when": 1789429121727,
+      "tag": "0043_business_branches",
+      "breakpoints": true
     }
   ]
 }

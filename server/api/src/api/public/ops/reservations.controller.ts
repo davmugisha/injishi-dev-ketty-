@@ -6,7 +6,6 @@ import {
   type OperatorRoomAssignment,
   type OperatorRoomAssignmentList,
   RoomAssignmentWindowQuery,
-  type WorkspaceAccess,
 } from '@injishi/contracts';
 import {
   Body,
@@ -32,6 +31,7 @@ import {
   RequirePermission,
   WorkspaceGuard,
 } from '../../../shared/auth/workspace.guard';
+import type { ScopedWorkspace } from '../../../shared/auth/branch-scope';
 import { ZodValidationPipe } from '../../../shared/validation/zod-validation.pipe';
 
 /**
@@ -79,7 +79,7 @@ export class OpsReservationsController {
   async list(
     @Query(new ZodValidationPipe(OperatorReservationQuery))
     query: OperatorReservationQuery,
-    @CurrentWorkspace() workspace: WorkspaceAccess,
+    @CurrentWorkspace() workspace: ScopedWorkspace,
   ): Promise<OperatorReservationList> {
     // The query is honoured now (review 4.3): a state narrows the desk, and
     // the read is windowed and capped either way (review 2.5).
@@ -97,7 +97,7 @@ export class OpsReservationsController {
   @RequirePermission('reservation.approve')
   approve(
     @Param('id', ParseUUIDPipe) id: string,
-    @CurrentWorkspace() workspace: WorkspaceAccess,
+    @CurrentWorkspace() workspace: ScopedWorkspace,
   ): Promise<OperatorReservation> {
     return this.reservations.approve(workspace, id);
   }
@@ -112,7 +112,7 @@ export class OpsReservationsController {
   @RequirePermission('reservation.approve')
   decline(
     @Param('id', ParseUUIDPipe) id: string,
-    @CurrentWorkspace() workspace: WorkspaceAccess,
+    @CurrentWorkspace() workspace: ScopedWorkspace,
   ): Promise<OperatorReservation> {
     return this.reservations.decline(workspace, id);
   }
@@ -128,7 +128,7 @@ export class OpsReservationsController {
   @Get(':id/assignments')
   async listAssignments(
     @Param('id', ParseUUIDPipe) id: string,
-    @CurrentWorkspace() workspace: WorkspaceAccess,
+    @CurrentWorkspace() workspace: ScopedWorkspace,
   ): Promise<OperatorRoomAssignmentList> {
     return {
       assignments: await this.assignments.listForBooking(workspace, id),
@@ -147,7 +147,7 @@ export class OpsReservationsController {
   assign(
     @Param('id', ParseUUIDPipe) id: string,
     @Body(new ZodValidationPipe(AssignRoomRequest)) body: AssignRoomRequest,
-    @CurrentWorkspace() workspace: WorkspaceAccess,
+    @CurrentWorkspace() workspace: ScopedWorkspace,
     @CurrentUser() user: SessionUser,
   ): Promise<OperatorRoomAssignment> {
     return this.assignments.assign(workspace, id, body, user.id);
@@ -164,7 +164,7 @@ export class OpsReservationsController {
   release(
     @Param('id', ParseUUIDPipe) id: string,
     @Param('assignmentId', ParseUUIDPipe) assignmentId: string,
-    @CurrentWorkspace() workspace: WorkspaceAccess,
+    @CurrentWorkspace() workspace: ScopedWorkspace,
   ): Promise<OperatorRoomAssignment> {
     return this.assignments.release(workspace, id, assignmentId);
   }
@@ -190,7 +190,7 @@ export class OpsRoomAssignmentsController {
   async list(
     @Query(new ZodValidationPipe(RoomAssignmentWindowQuery))
     query: RoomAssignmentWindowQuery,
-    @CurrentWorkspace() workspace: WorkspaceAccess,
+    @CurrentWorkspace() workspace: ScopedWorkspace,
   ): Promise<OperatorRoomAssignmentList> {
     return {
       assignments: await this.assignments.listForWindow(workspace, query),

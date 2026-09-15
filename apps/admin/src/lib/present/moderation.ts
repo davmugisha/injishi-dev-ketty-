@@ -3,11 +3,12 @@ import type {
   AdminModeratedReview,
   AdminModeration,
   AdminSupportTicket,
+  AdminSupportTicketDetail,
 } from "@injishi/contracts";
 
 import type { BadgeIntent, SectionModel, SectionRow, SectionStat } from "@/lib/types";
 
-import { EMPTY, count, date, detail, elapsed, humanise } from "./format";
+import { EMPTY, count, date, dateTime, detail, elapsed, humanise } from "./format";
 
 /**
  * Moderation (F-A12) — reviews, tickets and escalations, one backlog.
@@ -50,13 +51,16 @@ function reviewIntent(state: string): BadgeIntent {
  * `reopened` is red too: a ticket that came back is a ticket that was closed
  * wrongly, and it must not sit in the same grey as a fresh one.
  */
-export function presentSupportTicket(ticket: AdminSupportTicket): SectionRow {
+export function presentSupportTicket(ticket: AdminSupportTicket): SectionRow & { href: string } {
   const unanswered = ticket.firstResponseAt === null;
   const live = ticket.state === "open" || ticket.state === "reopened";
 
   return {
+    // The row opens the ticket, which is the one place the message is read:
+    // behind a stated reason and an access log row (demo-comms, 2026-09-14).
+    href: supportTicketHref(ticket.id),
     ref: date(ticket.createdAt),
-    subject: ticket.category ?? "uncategorised",
+    subject: ticket.category ? humanise(ticket.category) : "uncategorised",
     context: detail(
       ticket.domain && humanise(ticket.domain),
       unanswered
@@ -154,4 +158,25 @@ export function presentModerationPrimary(
     note: oldest ? `oldest waiting ${elapsed(oldest)}` : EMPTY,
     intent: openEscalations > 0 ? "danger" : "success",
   };
+}
+
+/** Where one support ticket is read. */
+export function supportTicketHref(ticketId: string): string {
+  return `/moderation/tickets/${ticketId}`;
+}
+
+/**
+ * The response clock of one ticket, in words, for the detail page.
+ *
+ * The same reading the list row gives, so the row and the record never tell a
+ * staffer two different things about whether somebody has been answered.
+ */
+export function presentTicketClock(ticket: AdminSupportTicketDetail): string {
+  return detail(
+    ticket.firstResponseAt === null
+      ? `no reply · waiting ${elapsed(ticket.createdAt)}`
+      : `first reply ${dateTime(ticket.firstResponseAt)}`,
+    ticket.resolvedAt ? `resolved ${dateTime(ticket.resolvedAt)}` : null,
+    ticket.csat !== null ? `CSAT ${ticket.csat}` : null,
+  );
 }

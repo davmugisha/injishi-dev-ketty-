@@ -40,8 +40,14 @@ export class WaitlistWelcomeMailer {
   ) {}
 
   async send(welcome: WaitlistWelcome): Promise<void> {
-    const webUrl =
-      this.config.get<string>('NEXT_PUBLIC_WEB_URL') ?? 'http://localhost:3000';
+    // `WEB_URL` first: it is the variable the deployed API and worker are
+    // given, so reading only the frontend's `NEXT_PUBLIC_WEB_URL` sent a deployed
+    // unsubscribe link to localhost (demo-comms, 2026-09-14).
+    const webUrl = (
+      this.config.get<string>('WEB_URL')?.trim() ||
+      this.config.get<string>('NEXT_PUBLIC_WEB_URL')?.trim() ||
+      'http://localhost:3000'
+    ).replace(/\/+$/, '');
     const unsubscribe = `${webUrl}/waitlist/unsubscribe/${welcome.unsubscribeToken}`;
 
     await this.mailer.send({
