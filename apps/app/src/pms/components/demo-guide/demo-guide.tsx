@@ -51,10 +51,18 @@ import { useDemoPersona } from "./use-demo-persona";
 const STORAGE_KEY = "injishi-demo-guide";
 
 type Mode = "open" | "closed";
+type Placement = "corner" | "raised";
 
-function readMode(): Mode | null {
+/**
+ * One remembered state per placement. The housekeeper's phone is its own surface:
+ * a card someone opened beside the desk's screens must not open over the phone's
+ * task buttons the next time that browser shows it.
+ */
+const storageKey = (placement: Placement) => (placement === "raised" ? `${STORAGE_KEY}:phone` : STORAGE_KEY);
+
+function readMode(placement: Placement): Mode | null {
   try {
-    const v = window.localStorage.getItem(STORAGE_KEY);
+    const v = window.localStorage.getItem(storageKey(placement));
     return v === "open" || v === "closed" ? v : null;
   } catch {
     // Private window, blocked storage: fall back to the default below.
@@ -62,9 +70,9 @@ function readMode(): Mode | null {
   }
 }
 
-function writeMode(mode: Mode) {
+function writeMode(placement: Placement, mode: Mode) {
   try {
-    window.localStorage.setItem(STORAGE_KEY, mode);
+    window.localStorage.setItem(storageKey(placement), mode);
   } catch {
     // Not remembered; the guide still works for this page.
   }
@@ -73,8 +81,11 @@ function writeMode(mode: Mode) {
 /**
  * The first visit: open on a desk-sized screen, where the card fits beside the
  * work; minimised on a phone, where it would cover the screen being presented.
+ * The housekeeper's phone surface always starts minimised, whatever the window
+ * width, because an open card there sits on top of the task buttons.
  */
-function defaultMode(): Mode {
+function defaultMode(placement: Placement): Mode {
+  if (placement === "raised") return "closed";
   try {
     return window.matchMedia("(min-width: 1024px)").matches ? "open" : "closed";
   } catch {
@@ -108,8 +119,8 @@ export function DemoGuide({ surface, placement = "corner" }: DemoGuideProps) {
 
   const [mode, setMode] = useState<Mode | null>(null);
   useEffect(() => {
-    setMode(readMode() ?? defaultMode());
-  }, []);
+    setMode(readMode(placement) ?? defaultMode(placement));
+  }, [placement]);
 
   // Focus follows a person's own open or close, never the first render: a
   // guide that grabbed focus on page load would pull a keyboard user out of
@@ -127,7 +138,7 @@ export function DemoGuide({ surface, placement = "corner" }: DemoGuideProps) {
   const change = useCallback((next: Mode) => {
     focusNext.current = next === "open" ? "panel" : "pill";
     setMode(next);
-    writeMode(next);
+    writeMode(placement, next);
   }, []);
 
   const ids = useId();
