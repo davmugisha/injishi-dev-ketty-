@@ -45,7 +45,11 @@ export function CancelBooking({
   size = "sm",
 }: {
   reference: string;
-  /** Called once the booking is cancelled, so the caller can refresh its list. */
+  /**
+   * Called once the booking is cancelled and the guest has closed the dialog,
+   * so the caller can refresh its list. Not before: a caller that reloads
+   * unmounts this dialog, and the guest would lose the refund they were reading.
+   */
   onCancelled?: (result: BookingCancellationResult) => void;
   size?: "sm" | "md";
 }) {
@@ -77,7 +81,6 @@ export function CancelBooking({
     setBusy(false);
     if (result.status === "ok") {
       setDone(result.data);
-      onCancelled?.(result.data);
       return;
     }
     setProblem(cancellationProblem(result, "cancel"));
@@ -85,13 +88,19 @@ export function CancelBooking({
 
   const loading = quote === null && problem === null && done === null;
 
+  const changeOpen = (next: boolean) => {
+    if (busy) return;
+    setOpen(next);
+    if (!next && done) onCancelled?.(done);
+  };
+
   return (
     <>
       <Button size={size} variant="ghost" onClick={openDialog}>
         Cancel booking
       </Button>
 
-      <Dialog open={open} onOpenChange={(next) => (busy ? undefined : setOpen(next))}>
+      <Dialog open={open} onOpenChange={changeOpen}>
         <DialogContent>
           <DialogHeader>
             <DialogTitle>
@@ -170,10 +179,10 @@ export function CancelBooking({
 
           <DialogFooter className="mt-6">
             {done ? (
-              <Button onClick={() => setOpen(false)}>Done</Button>
+              <Button onClick={() => changeOpen(false)}>Done</Button>
             ) : (
               <>
-                <Button variant="outline" disabled={busy} onClick={() => setOpen(false)}>
+                <Button variant="outline" disabled={busy} onClick={() => changeOpen(false)}>
                   Keep booking
                 </Button>
                 {quote === null && problem !== null ? (
