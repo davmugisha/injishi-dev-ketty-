@@ -26,6 +26,7 @@
 import { notFound, useParams } from "next/navigation";
 import { useEffect, type ReactNode } from "react";
 
+import { BranchScope } from "@/pms/components/branch-scope";
 import { Centered } from "@/pms/components/workspace-boundary";
 import { setActiveWorkspace } from "@/pms/data/me";
 import { usePms } from "@/pms/store";
@@ -89,5 +90,11 @@ export default function WorkspaceLayout({ children }: { children: ReactNode }) {
     return <Centered title={`Opening ${grant.propertyName ?? "your workspace"}`} />;
   }
 
-  return <>{children}</>;
+  // The branch in view, from `?branch=` (ADR-054 AC-S1). Inside the workspace,
+  // because a branch belongs to one.
+  return (
+    <BranchScope workspaceId={workspaceId} branches={grant.branches} coverage={grant.branchCoverage}>
+      {children}
+    </BranchScope>
+  );
 }

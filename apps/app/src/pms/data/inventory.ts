@@ -249,7 +249,10 @@ export function useBranches(workspaceId: string | null): UseQueryResult<Operator
   return useQuery({
     queryKey: ["inventory", "branches", workspaceId] as const,
     queryFn: () =>
-      read("/inventory/properties?includeArchived=true", workspaceId as string, OperatorPropertyList),
+      // Every branch, whichever one the switcher shows: this screen manages them all.
+      read("/inventory/properties?includeArchived=true", workspaceId as string, OperatorPropertyList, {
+        allBranches: true,
+      }),
     enabled: workspaceId !== null && mayRead,
   });
 }
@@ -269,6 +272,7 @@ export function useUpdateBranch(
         workspaceId: workspaceId as string,
         method: "PATCH",
         body: { ...body, workspaceId },
+        allBranches: true,
       }),
     onSuccess: invalidate,
   });
@@ -289,6 +293,7 @@ export function useMoveBranch(
     mutationFn: ({ propertyId, move }) =>
       command<unknown>(`/inventory/properties/${propertyId}/${move}`, {
         workspaceId: workspaceId as string,
+        allBranches: true,
       }),
     onSettled: () => {
       invalidate();

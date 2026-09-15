@@ -2,7 +2,6 @@ import {
   type AttachPropertyPhotoRequest,
   type PropertyPhoto,
   type ReorderPropertyPhotosRequest,
-  type WorkspaceAccess,
 } from '@injishi/contracts';
 import {
   BadRequestException,
@@ -11,6 +10,10 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 
+import {
+  assertInBranchScope,
+  type ScopedWorkspace,
+} from '../../../shared/auth/branch-scope';
 import { StorageService } from '../../storage/application/storage.service';
 import { assertContained } from '../domain/containment';
 import { InventoryRepository } from '../infrastructure/inventory.repository';
@@ -42,7 +45,7 @@ export class PropertyPhotosService {
 
   /** Every photograph on one of the caller's properties. */
   async list(
-    workspace: WorkspaceAccess,
+    workspace: ScopedWorkspace,
     propertyId: string,
   ): Promise<PropertyPhoto[]> {
     await this.assertOwnProperty(workspace, propertyId);
@@ -63,7 +66,7 @@ export class PropertyPhotosService {
 
   /** Attach an uploaded object. The first one on a property becomes the cover. */
   async attach(
-    workspace: WorkspaceAccess,
+    workspace: ScopedWorkspace,
     propertyId: string,
     request: AttachPropertyPhotoRequest,
   ): Promise<PropertyPhoto[]> {
@@ -90,7 +93,7 @@ export class PropertyPhotosService {
 
   /** Apply a new order, captions, and the cover, in one call. */
   async reorder(
-    workspace: WorkspaceAccess,
+    workspace: ScopedWorkspace,
     propertyId: string,
     request: ReorderPropertyPhotosRequest,
   ): Promise<PropertyPhoto[]> {
@@ -127,7 +130,7 @@ export class PropertyPhotosService {
    * by refusing the write, never by a sweep afterwards.
    */
   async remove(
-    workspace: WorkspaceAccess,
+    workspace: ScopedWorkspace,
     propertyId: string,
     photoId: string,
   ): Promise<PropertyPhoto[]> {
@@ -155,11 +158,12 @@ export class PropertyPhotosService {
 
   /** The property, proven to be the caller's, and its listing state with it. */
   private async assertOwnProperty(
-    workspace: WorkspaceAccess,
+    workspace: ScopedWorkspace,
     propertyId: string,
   ): Promise<{ listingStatus: 'draft' | 'published' }> {
     const property = await this.properties.findProperty(propertyId);
     assertContained(property, workspace.workspaceId, 'Property');
+    assertInBranchScope(workspace, property.id, 'Property');
     return { listingStatus: property!.listingStatus };
   }
 

@@ -4,7 +4,6 @@ import type {
   OperatorDepartment,
   OperatorDepartmentMember,
   UpdateDepartmentRequest,
-  WorkspaceAccess,
 } from '@injishi/contracts';
 import {
   BadRequestException,
@@ -13,6 +12,10 @@ import {
 } from '@nestjs/common';
 
 import { assertOwned } from '../../../shared/auth/assert-owned';
+import {
+  assertInBranchScope,
+  type ScopedWorkspace,
+} from '../../../shared/auth/branch-scope';
 import {
   type DepartmentMemberRow,
   type DepartmentRow,
@@ -43,19 +46,20 @@ export class DepartmentsService {
    * department picker before anybody can post anything, and gating the read on
    * `department.manage` would leave a receptionist with an empty list.
    */
-  async list(ws: WorkspaceAccess): Promise<OperatorDepartment[]> {
-    const rows = await this.departments.list(ws.workspaceId);
+  async list(ws: ScopedWorkspace): Promise<OperatorDepartment[]> {
+    const rows = await this.departments.list(ws.workspaceId, ws.branchScope);
     return rows.map((row) => this.present(row));
   }
 
   async create(
-    ws: WorkspaceAccess,
+    ws: ScopedWorkspace,
     body: CreateDepartmentRequest,
   ): Promise<OperatorDepartment> {
     const property = assertOwned(
       await this.departments.findProperty(body.propertyId),
       ws,
     );
+    assertInBranchScope(ws, body.propertyId);
 
     const id = await this.departments.create({
       orgId: property.orgId,
@@ -81,11 +85,11 @@ export class DepartmentsService {
    * silently re-attribute every shilling already booked here.
    */
   async update(
-    ws: WorkspaceAccess,
+    ws: ScopedWorkspace,
     id: string,
     body: UpdateDepartmentRequest,
   ): Promise<OperatorDepartment> {
-    const department = assertOwned(await this.departments.find(id), ws);
+    const department = this.ownDepartment(ws, await this.departments.find(id));
     await this.departments.update(department.id, body);
 
     const updated = await this.departments.find(id);
@@ -100,6 +104,16 @@ export class DepartmentsService {
    * no department in the request: the guest bought a room, so the department is
    * a fact about the property rather than a choice the desk makes.
    */
+  /**
+   * The department a route named, proved to be this workspace's AND on a branch
+   * in scope. A corporate department (no property) needs every branch (AC-T3).
+   */
+  private ownDepartment(ws: ScopedWorkspace, row: DepartmentRow | null): DepartmentRow {
+    const department = assertOwned(row, ws);
+    assertInBranchScope(ws, department.propertyId);
+    return department;
+  }
+
   async roomsDepartmentFor(propertyId: string): Promise<DepartmentRow> {
     const row = await this.departments.findRoomsDepartment(propertyId);
     if (!row) {
@@ -120,13 +134,10 @@ export class DepartmentsService {
    * the thing a soft removal exists to keep.
    */
   async listMembers(
-    ws: WorkspaceAccess,
+    ws: ScopedWorkspace,
     departmentId: string,
   ): Promise<OperatorDepartmentMember[]> {
-    const department = assertOwned(
-      await this.departments.find(departmentId),
-      ws,
-    );
+    const department = this.ownDepartment(ws, await this.departments.find(departmentId));
     const rows = await this.departments.listMembers(department.id);
     return rows.map((row) => this.presentMember(row));
   }
@@ -139,14 +150,11 @@ export class DepartmentsService {
    * head with a receptionist's role still cannot move money (D17).
    */
   async assignMember(
-    ws: WorkspaceAccess,
+    ws: ScopedWorkspace,
     departmentId: string,
     body: AssignDepartmentMemberRequest,
   ): Promise<OperatorDepartmentMember> {
-    const department = assertOwned(
-      await this.departments.find(departmentId),
-      ws,
-    );
+    const department = this.ownDepartment(ws, await this.departments.find(departmentId));
     if (!ws.orgId) {
       throw new ConflictException(
         'Only a business workspace has departments to staff.',
@@ -179,14 +187,11 @@ export class DepartmentsService {
 
   /** Take somebody off the roster. Soft, so the history survives. */
   async removeMember(
-    ws: WorkspaceAccess,
+    ws: ScopedWorkspace,
     departmentId: string,
     memberId: string,
   ): Promise<OperatorDepartmentMember> {
-    const department = assertOwned(
-      await this.departments.find(departmentId),
-      ws,
-    );
+    const department = this.ownDepartment(ws, await this.departments.find(departmentId));
     const member = assertOwned(await this.departments.findMember(memberId), ws);
     if (member.departmentId !== department.id) {
       throw new ConflictException('That person is not on this department.');

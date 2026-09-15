@@ -4,6 +4,7 @@ import { PaymentUnavailableError, type PaymentPort } from '../../payments/domain
 import type { BookingRepository, CancellableBooking } from '../infrastructure/booking.repository';
 import { BookingCancellationService, hoursUntilCheckIn } from './booking-cancellation.service';
 import type { BookingNotificationsService } from './booking-notifications.service';
+import { everyBranch } from '../../../shared/auth/branch-scope.fixture';
 
 /**
  * Cancellation and refund tiers (F-B11, ADR-051). The provider is told before
@@ -19,6 +20,7 @@ describe('BookingCancellationService', () => {
     bookingId: '88888888-8888-8888-8888-888888888888',
     reference: 'BK-ABCD-1234',
     workspaceId: '55555555-5555-5555-5555-555555555555',
+    propertyId: 'prop-1',
     status: 'confirmed',
     checkIn: daysAhead(40),
     checkOut: daysAhead(42),
@@ -116,6 +118,7 @@ describe('BookingCancellationService', () => {
 
     const result = await service.cancelByHost('88888888-8888-8888-8888-888888888888', {
       workspaceId: '55555555-5555-5555-5555-555555555555',
+      branchScope: everyBranch('prop-1'),
     });
 
     expect(result).toMatchObject({ cancelledBy: 'host', refundRwf: 100_000 });
@@ -130,6 +133,7 @@ describe('BookingCancellationService', () => {
     await expect(
       service.cancelByHost('88888888-8888-8888-8888-888888888888', {
         workspaceId: '66666666-6666-6666-6666-666666666666',
+        branchScope: everyBranch('prop-1'),
       }),
     ).rejects.toThrow(NotFoundException);
     expect(payments.releaseEscrow).not.toHaveBeenCalled();

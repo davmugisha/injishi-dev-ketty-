@@ -1,11 +1,14 @@
 import type {
   AddAmenityRequest,
   OperatorAmenity,
-  WorkspaceAccess,
 } from '@injishi/contracts';
 import { BadRequestException, Injectable } from '@nestjs/common';
 
 import { assertOwned } from '../../../shared/auth/assert-owned';
+import {
+  assertInBranchScope,
+  type ScopedWorkspace,
+} from '../../../shared/auth/branch-scope';
 import { AmenitiesRepository } from '../infrastructure/amenities.repository';
 
 /**
@@ -22,24 +25,26 @@ export class AmenitiesService {
   constructor(private readonly amenities: AmenitiesRepository) {}
 
   async list(
-    ws: WorkspaceAccess,
+    ws: ScopedWorkspace,
     propertyId: string,
   ): Promise<OperatorAmenity[]> {
     const property = assertOwned(
       await this.amenities.findProperty(propertyId),
       ws,
     );
+    assertInBranchScope(ws, property.id);
     return this.amenities.listForProperty(property.id);
   }
 
   async add(
-    ws: WorkspaceAccess,
+    ws: ScopedWorkspace,
     body: AddAmenityRequest,
   ): Promise<OperatorAmenity[]> {
     const property = assertOwned(
       await this.amenities.findProperty(body.propertyId),
       ws,
     );
+    assertInBranchScope(ws, property.id);
 
     // Checked against the catalog before the insert so the refusal names the
     // problem. The foreign key would also stop it, with a message about a
@@ -62,7 +67,7 @@ export class AmenitiesService {
    * dropped connection look like a mistake.
    */
   async remove(
-    ws: WorkspaceAccess,
+    ws: ScopedWorkspace,
     propertyId: string,
     amenityCode: string,
   ): Promise<OperatorAmenity[]> {
@@ -70,6 +75,7 @@ export class AmenitiesService {
       await this.amenities.findProperty(propertyId),
       ws,
     );
+    assertInBranchScope(ws, property.id);
     await this.amenities.remove(property.id, amenityCode);
     return this.amenities.listForProperty(property.id);
   }

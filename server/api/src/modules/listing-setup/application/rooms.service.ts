@@ -2,7 +2,6 @@ import type {
   CreateRoomsRequest,
   InventoryRoom,
   UpdateRoomRequest,
-  WorkspaceAccess,
 } from '@injishi/contracts';
 import {
   ConflictException,
@@ -10,6 +9,10 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 
+import {
+  assertInBranchScope,
+  type ScopedWorkspace,
+} from '../../../shared/auth/branch-scope';
 import { assertContained } from '../domain/containment';
 import { collidingLabels, isRoomLabelCollision } from '../domain/room-labels';
 import {
@@ -37,23 +40,25 @@ export class RoomsService {
   ) {}
 
   async list(
-    workspace: WorkspaceAccess,
+    workspace: ScopedWorkspace,
     roomTypeId: string,
   ): Promise<InventoryRoom[]> {
     const roomType = await this.roomTypes.find(roomTypeId);
     assertContained(roomType, workspace.workspaceId, 'Room type');
+    assertInBranchScope(workspace, roomType.propertyId, 'Room type');
     const rows = await this.rooms.listForRoomType(roomTypeId);
     return rows.map(present);
   }
 
   /** Add rooms, each by the label on its door. */
   async add(
-    workspace: WorkspaceAccess,
+    workspace: ScopedWorkspace,
     roomTypeId: string,
     request: CreateRoomsRequest,
   ): Promise<InventoryRoom[]> {
     const roomType = await this.roomTypes.find(roomTypeId);
     assertContained(roomType, workspace.workspaceId, 'Room type');
+    assertInBranchScope(workspace, roomType.propertyId, 'Room type');
     if (roomType.status === 'archived') {
       throw new ConflictException(
         'That room type is archived. Restore it before adding rooms to it.',
@@ -82,12 +87,13 @@ export class RoomsService {
 
   /** Renumber a room, or change whether it can be sold. */
   async update(
-    workspace: WorkspaceAccess,
+    workspace: ScopedWorkspace,
     roomId: string,
     request: UpdateRoomRequest,
   ): Promise<InventoryRoom> {
     const room = await this.rooms.find(roomId);
     assertContained(room, workspace.workspaceId, 'Room');
+    assertInBranchScope(workspace, room.propertyId, 'Room');
 
     if (request.label !== undefined) {
       this.refuseCollisions(

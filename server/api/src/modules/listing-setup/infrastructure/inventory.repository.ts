@@ -29,6 +29,7 @@ import {
   DRIZZLE,
   type Database,
 } from '../../../shared/database/database.module';
+import { inBranchScope, type BranchScope } from '../../../shared/auth/branch-scope';
 
 /**
  * Postgres `unique_violation`. Narrowed here rather than inline, so a caller
@@ -334,6 +335,7 @@ export class InventoryRepository {
    */
   async findPropertiesInWorkspace(
     workspaceId: string,
+    scope: BranchScope,
     includeArchived = false,
   ): Promise<PropertyRow[]> {
     const rows = await this.db
@@ -344,12 +346,12 @@ export class InventoryRepository {
       .leftJoin(districts, eq(districts.id, properties.districtId))
       .leftJoin(provinces, eq(provinces.id, districts.provinceId))
       .where(
-        includeArchived
-          ? eq(properties.workspaceId, workspaceId)
-          : and(
-              eq(properties.workspaceId, workspaceId),
-              isNull(properties.archivedAt),
-            ),
+        and(
+          eq(properties.workspaceId, workspaceId),
+          // A property IS a branch, so the scope filters it directly (ADR-054).
+          inBranchScope(properties.id, scope),
+          includeArchived ? undefined : isNull(properties.archivedAt),
+        ),
       )
       .orderBy(properties.createdAt);
     return rows.map((r) => this.normalise(r));

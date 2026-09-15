@@ -11,7 +11,6 @@ import type {
   SendMessageRequest,
   StayDepartment,
   StayDepartments,
-  WorkspaceAccess,
 } from '@injishi/contracts';
 import { GUEST_MESSAGE_PAGE, GUEST_MESSAGE_PAGE_MAX } from '@injishi/contracts';
 import {
@@ -22,6 +21,10 @@ import {
 } from '@nestjs/common';
 
 import { assertOwned } from '../../../shared/auth/assert-owned';
+import {
+  assertInBranchScope,
+  type ScopedWorkspace,
+} from '../../../shared/auth/branch-scope';
 import { scrubPhoneNumbers } from './scrub';
 import {
   type GuestThreadRow,
@@ -95,8 +98,8 @@ function assertWritable(status: 'active' | 'archived'): void {
 export class MessagingService {
   constructor(private readonly messaging: MessagingRepository) {}
 
-  async listThreads(ws: WorkspaceAccess): Promise<OperatorThread[]> {
-    const rows = await this.messaging.listThreads(ws.workspaceId);
+  async listThreads(ws: ScopedWorkspace): Promise<OperatorThread[]> {
+    const rows = await this.messaging.listThreads(ws.workspaceId, ws.branchScope);
     const summaries = await this.messaging.summarise(rows.map((r) => r.id));
     const counterparts = await this.messaging.counterparts(rows);
 
@@ -125,11 +128,11 @@ export class MessagingService {
    * memory, which is the same leak one refactor later.
    */
   async listMessages(
-    ws: WorkspaceAccess,
+    ws: ScopedWorkspace,
     threadId: string,
     viewerUserId: string,
   ): Promise<OperatorMessage[]> {
-    const thread = assertOwned(await this.messaging.findThread(threadId), ws);
+    const thread = this.ownThread(ws, await this.messaging.findThread(threadId));
     const [rows, counterpart] = await Promise.all([
       this.messaging.listMessages(thread.id),
       this.messaging.counterpartUserId(thread),
@@ -146,12 +149,12 @@ export class MessagingService {
    * permanent.
    */
   async sendMessage(
-    ws: WorkspaceAccess,
+    ws: ScopedWorkspace,
     threadId: string,
     body: SendMessageRequest,
     senderUserId: string,
   ): Promise<OperatorMessage> {
-    const thread = assertOwned(await this.messaging.findThread(threadId), ws);
+    const thread = this.ownThread(ws, await this.messaging.findThread(threadId));
     assertWritable(thread.status);
 
     const messageId = await this.messaging.sendMessage(
@@ -169,6 +172,17 @@ export class MessagingService {
     }
     const counterpart = await this.messaging.counterpartUserId(thread);
     return this.presentDeskMessage(created, counterpart, senderUserId);
+  }
+
+  /**
+   * The thread a route named, proved to be this workspace's and on a branch in
+   * scope (ADR-054 AC-T2, AC-T3). A lease thread is unscoped: residence orgs
+   * have no branches.
+   */
+  private ownThread(ws: ScopedWorkspace, row: ThreadRow | null): ThreadRow {
+    const thread = assertOwned(row, ws);
+    if (!thread.leaseId) assertInBranchScope(ws, thread.branchPropertyId);
+    return thread;
   }
 
   /* ------------------------------------------------------ the guest's side */
@@ -412,7 +426,7 @@ export class MessagingService {
   }
 
   private presentThread(
-    row: ThreadRow,
+    row: Omit<ThreadRow, 'branchPropertyId'>,
   ): Omit<
     OperatorThread,
     'counterpartName' | 'lastMessageAt' | 'lastMessagePreview' | 'messageCount'

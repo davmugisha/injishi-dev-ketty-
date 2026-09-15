@@ -1,4 +1,4 @@
-import type { WorkspaceAccess } from '@injishi/contracts';
+import type { ScopedWorkspace } from '../../../shared/auth/branch-scope';
 
 import type {
   RevenueDepartmentRow,
@@ -6,7 +6,15 @@ import type {
 } from '../infrastructure/revenue.repository';
 import { RevenueService } from './revenue.service';
 
-const ws = { workspaceId: 'ws-1' } as WorkspaceAccess;
+const ws = {
+  workspaceId: 'ws-1',
+  branchScope: {
+    coverage: 'all',
+    selectedPropertyId: null,
+    propertyIds: [],
+    includesUnbranched: true,
+  },
+} as unknown as ScopedWorkspace;
 
 function department(
   id: string,
@@ -28,7 +36,7 @@ function build(
 ): { service: RevenueService; calls: { from: string; to: string }[] } {
   const calls: { from: string; to: string }[] = [];
   const repo = {
-    revenueByDepartment: async (_ws: string, from: string, to: string) => {
+    revenueByDepartment: async (_ws: string, _scope: unknown, from: string, to: string) => {
       calls.push({ from, to });
       return new Map(Object.entries(earned));
     },

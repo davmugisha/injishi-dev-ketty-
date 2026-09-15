@@ -1,5 +1,4 @@
 import { ConflictException, ServiceUnavailableException } from '@nestjs/common';
-import type { WorkspaceAccess } from '@injishi/contracts';
 
 import type { FolioService } from '../../operations/application/folio.service';
 import type { PaymentPort } from '../../payments/domain/payment-port';
@@ -7,6 +6,8 @@ import type { BookingRepository } from '../infrastructure/booking.repository';
 import { BookingDecisionService } from './booking-decision.service';
 import { BookingNotificationsService } from './booking-notifications.service';
 import { OperatorReservationsService } from './operator-reservations.service';
+import { everyBranch } from '../../../shared/auth/branch-scope.fixture';
+import type { ScopedWorkspace } from '../../../shared/auth/branch-scope';
 import type { EbmSaleTrigger } from '../../ebm/application/ebm-sale-trigger.service';
 
 /**
@@ -23,7 +24,8 @@ describe('OperatorReservationsService', () => {
     kind: 'business',
     orgId: 'org-1',
     permissions: ['reservation.approve'],
-  } as unknown as WorkspaceAccess;
+    branchScope: everyBranch('prop-1'),
+  } as unknown as ScopedWorkspace;
 
   const heldEscrow = {
     bookingId: 'bk-1',
@@ -62,7 +64,7 @@ describe('OperatorReservationsService', () => {
     const repo = {
       findReservationOwner: jest
         .fn()
-        .mockResolvedValue({ id: 'bk-1', workspaceId: 'ws-1', status: 'pending_approval' }),
+        .mockResolvedValue({ id: 'bk-1', workspaceId: 'ws-1', propertyId: 'prop-1', status: 'pending_approval' }),
       findHeldEscrow: jest
         .fn()
         .mockResolvedValue(overrides.heldEscrow === null ? null : heldEscrow),

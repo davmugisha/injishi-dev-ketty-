@@ -17,6 +17,7 @@ import { useWorkspaceHref } from "../lib/workspace-href";
 import { currentGrant, workspaceName } from "../store/helpers";
 import { usePms } from "../store";
 import { usePmsUi } from "../ui-store";
+import { useBranchInView } from "./branch-scope";
 import { Icon } from "./icon";
 
 export function Topbar({ title }: { title: string }) {
@@ -62,7 +63,14 @@ export function Topbar({ title }: { title: string }) {
    * permissions, so everyone who can open the workspace can read what it is
    * called.
    */
-  const served = currentGrant(state)?.propertyName ?? null;
+  //
+  // With several branches it names the one in view (ADR-054 AC-S1): the chosen
+  // branch, or All branches. The head office's name over every branch's rows
+  // would say the wrong place.
+  const { branchId, branches } = useBranchInView();
+  const inView = branches.find((b) => b.id === branchId)?.name;
+  const served =
+    inView ?? (branches.length > 1 ? "All branches" : (currentGrant(state)?.propertyName ?? null));
 
   // What "where you are" means changes by workspace: a property for an
   // operator, the person themselves otherwise. The fixture stands in only while

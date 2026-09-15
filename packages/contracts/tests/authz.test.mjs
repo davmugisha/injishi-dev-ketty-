@@ -68,7 +68,8 @@ describe("the four org roles", () => {
    */
   test("owner holds every permission there is", () => {
     assert.deepEqual(permissionsForRole("owner"), Permission.options);
-    assert.equal(permissionsForRole("owner").length, 28);
+    // 27: ADR-054 removed `property.switch` (AC-S4) from the 28 origin carried.
+    assert.equal(permissionsForRole("owner").length, 27);
   });
 
   test("manager holds everything except team.manage", () => {
@@ -76,7 +77,7 @@ describe("the four org roles", () => {
       permissionsForRole("manager"),
       Permission.options.filter((p) => p !== "team.manage"),
     );
-    assert.equal(permissionsForRole("manager").length, 27);
+    assert.equal(permissionsForRole("manager").length, 26);
   });
 
   test("receptionist works the front desk and takes orders", () => {

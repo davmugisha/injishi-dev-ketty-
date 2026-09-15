@@ -46,7 +46,8 @@ exports.Permission = zod_1.z.enum([
     "menu.manage",
     "team.manage",
     "money.view",
-    "property.switch",
+    // `property.switch` was here. Seeing a branch is coverage, not a capability:
+    // the switcher reads `branches` from the grant (ADR-054 AC-S4).
     "rent.record",
     "lease.advance",
     "deposit.return",
@@ -197,7 +198,6 @@ exports.PERMISSION_LABEL = {
     "menu.manage": "edit the menu",
     "team.manage": "manage the team",
     "money.view": "view money",
-    "property.switch": "switch property",
     "rent.record": "record rent",
     "lease.advance": "advance leases",
     "deposit.return": "return deposits",

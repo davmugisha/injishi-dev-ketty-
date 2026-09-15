@@ -21,6 +21,10 @@ import {
 
 import { assertOwned } from '../../../shared/auth/assert-owned';
 import {
+  assertInBranchScope,
+  type ScopedWorkspace,
+} from '../../../shared/auth/branch-scope';
+import {
   allowedRelationshipsFor,
   disallowedPairSentence,
   firstFreeSlug,
@@ -60,9 +64,9 @@ export class OutletsService {
 
   // --- Outlets ---------------------------------------------------------------
 
-  async list(ws: WorkspaceAccess): Promise<OperatorOutletList> {
+  async list(ws: ScopedWorkspace): Promise<OperatorOutletList> {
     const [rows, policy] = await Promise.all([
-      this.outlets.listOutlets(ws.workspaceId),
+      this.outlets.listOutlets(ws.workspaceId, ws.branchScope),
       this.policy(),
     ]);
     const tenancies = await this.outlets.openTenancies(rows.map((r) => r.id));
@@ -73,11 +77,14 @@ export class OutletsService {
     };
   }
 
-  async create(ws: WorkspaceAccess, body: CreateOutletRequest): Promise<OperatorOutlet> {
+  async create(ws: ScopedWorkspace, body: CreateOutletRequest): Promise<OperatorOutlet> {
     const orgId = this.businessOrg(ws);
     const property = body.propertyId
       ? assertOwned(await this.outlets.findProperty(body.propertyId), ws)
       : null;
+    // A standalone outlet belongs to no branch, so only a member covering
+    // every branch may open one (ADR-054 AC-T3).
+    assertInBranchScope(ws, property?.id ?? null);
     await this.ownedDepartment(ws, body.departmentId, property?.id ?? null);
     if (!property && !body.address) {
       throw new UnprocessableEntityException(
@@ -126,12 +133,13 @@ export class OutletsService {
   }
 
   async update(
-    ws: WorkspaceAccess,
+    ws: ScopedWorkspace,
     id: string,
     patch: UpdateOutletRequest,
   ): Promise<OperatorOutlet> {
     const orgId = this.businessOrg(ws);
     const current = assertOwned(await this.outlets.findOutlet(id), ws);
+    assertInBranchScope(ws, current.propertyId);
     if (current.status === 'archived') {
       throw new ConflictException('That outlet is archived. Create a new one instead of changing it.');
     }
@@ -219,8 +227,9 @@ export class OutletsService {
    * Refused while a tenancy is active, because the host's page lists it and
    * guests may be charging it to a room. End the tenancy first.
    */
-  async archive(ws: WorkspaceAccess, id: string): Promise<OperatorOutlet> {
+  async archive(ws: ScopedWorkspace, id: string): Promise<OperatorOutlet> {
     const current = assertOwned(await this.outlets.findOutlet(id), ws);
+    assertInBranchScope(ws, current.propertyId);
     if (current.status !== 'archived') {
       if (await this.outlets.hasActiveTenancy(current.id)) {
         throw new ConflictException(
