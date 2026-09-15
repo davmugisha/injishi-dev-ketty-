@@ -1112,6 +1112,60 @@ async function seedEscrow(c, e) {
   );
 }
 
+/**
+ * Put back a seeded request the auto decline sweep let expire.
+ *
+ * `BK-DEMO-001` and `002` are the approve and decline beats, and they carry a
+ * real 24 hour window, so any worker running a day after the seed declines them
+ * as `expired` and refunds the escrow. Every insert above is ON CONFLICT, so a
+ * re run used to leave them declined, and the only way back was `--reset`,
+ * which deletes the demo roster and everything anybody booked as a persona.
+ *
+ * So a re run (and `--refresh`) revives exactly that case: a seeded
+ * `pending_approval` booking now `declined` with reason `expired`, with nothing
+ * attached to it. It goes back to pending, captured, escrow held, a fresh
+ * window, and dates re-anchored to today by the seed's own offsets. A request a
+ * HOST declined, or one anything hangs off, is left as it is.
+ */
+async function reviveExpiredRequests(c) {
+  const requests = BOOKINGS.filter((b) => b.status === 'pending_approval');
+  let revived = 0;
+  await c.query('BEGIN');
+  try {
+    for (const b of requests) {
+      const { rowCount } = await c.query(
+        `UPDATE bookings SET
+           status = 'pending_approval', payment_status = 'captured',
+           decline_reason = NULL, approval_expires_at = $2,
+           sweep_claimed_until = NULL, ebm_sign_at = NULL,
+           check_in = $3, check_out = $4, updated_at = now()
+         WHERE id = $1 AND status = 'declined' AND decline_reason = 'expired'
+           AND NOT EXISTS (SELECT 1 FROM guest_stays WHERE booking_id = $1)
+           AND NOT EXISTS (SELECT 1 FROM room_assignments WHERE booking_id = $1)
+           AND NOT EXISTS (SELECT 1 FROM service_orders WHERE booking_id = $1)
+           AND NOT EXISTS (SELECT 1 FROM folios WHERE booking_id = $1)
+           AND NOT EXISTS (SELECT 1 FROM ebm_invoices WHERE booking_id = $1)
+           AND NOT EXISTS (SELECT 1 FROM payment_attempts WHERE booking_id = $1)
+           AND NOT EXISTS (SELECT 1 FROM payment_compensations WHERE booking_id = $1)`,
+        [b.id, hoursFromNow(24), day(b.in), day(b.in + b.nights)],
+      );
+      if (rowCount === 0) continue;
+      await c.query(
+        `UPDATE escrows SET status = 'held', updated_at = now()
+          WHERE booking_id = $1 AND source = 'booking' AND status = 'refunded_full'`,
+        [b.id],
+      );
+      revived += 1;
+      console.log(`revived ${b.ref}: pending again, window open for 24 hours`);
+    }
+    await c.query('COMMIT');
+  } catch (err) {
+    await c.query('ROLLBACK');
+    throw err;
+  }
+  return revived;
+}
+
 /** Delete only what this script owns, by deterministic id. Never truncates. */
 async function reset(c) {
   const users = PEOPLE.map((p) => p.id);
@@ -1589,6 +1643,7 @@ async function main() {
     // that did not happen.
     if (REFRESH) {
       await refresh(client);
+      await reviveExpiredRequests(client);
       await assertNoSelfLease(client);
       return;
     }
@@ -1617,6 +1672,7 @@ async function main() {
     }
     for (const st of [...STAYS, ...BRANCH_STAYS]) await seedStay(client, st);
     for (const e of ESCROWS) await seedEscrow(client, e);
+    await reviveExpiredRequests(client);
     for (const iv of PENDING_INVOICES) await seedPaidRegistrationFee(client, iv);
 
     // The residence half: the units, leases and rent charges the Landlord rent
