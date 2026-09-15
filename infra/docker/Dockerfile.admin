@@ -48,11 +48,14 @@ COPY --from=deps /repo ./
 COPY packages ./packages
 COPY apps/admin ./apps/admin
 # Standalone output is opt-in; see apps/admin/next.config.ts.
-ARG NEXT_PUBLIC_API_URL=https://api.injishi.com
+# The public origins have NO default: a default of production's origins let a
+# staging or demo build that forgot one ship a console calling production. Each
+# compose file passes all three; the RUN below refuses a build missing one.
+ARG NEXT_PUBLIC_API_URL
 # Where sign-in lives. The console has no sign-in screen of its own.
-ARG NEXT_PUBLIC_WEB_URL=https://www.injishi.com
+ARG NEXT_PUBLIC_WEB_URL
 # This console's own public origin, for the round trip back from sign-in.
-ARG NEXT_PUBLIC_ADMIN_URL=https://admin.injishi.com
+ARG NEXT_PUBLIC_ADMIN_URL
 # `demo` for the demo stack's image and nothing else (ADR-043, AC-14): the
 # middleware's strip of production's session cookies. Empty means production.
 ARG NEXT_PUBLIC_INJISHI_ENVIRONMENT=
@@ -62,6 +65,9 @@ ENV NEXT_TELEMETRY_DISABLED=1 \
     NEXT_PUBLIC_API_URL=$NEXT_PUBLIC_API_URL \
     NEXT_PUBLIC_WEB_URL=$NEXT_PUBLIC_WEB_URL \
     NEXT_PUBLIC_ADMIN_URL=$NEXT_PUBLIC_ADMIN_URL
+RUN : "${NEXT_PUBLIC_API_URL:?build arg NEXT_PUBLIC_API_URL is required (API public origin)}" \
+ && : "${NEXT_PUBLIC_WEB_URL:?build arg NEXT_PUBLIC_WEB_URL is required (web public origin, where sign-in lives)}" \
+ && : "${NEXT_PUBLIC_ADMIN_URL:?build arg NEXT_PUBLIC_ADMIN_URL is required (this console's public origin)}"
 RUN pnpm --filter @injishi/admin build
 
 # ---- run -------------------------------------------------------------------

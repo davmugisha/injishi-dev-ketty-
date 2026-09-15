@@ -53,6 +53,12 @@ x-api-env: &api-env
   SENTRY_DSN: ${SENTRY_DSN:-}
   NODE_ENV: production
   PORT: "8000"
+  # One trusted hop: Dokploy's Traefik, the only thing that routes to api
+  # (port 8000 is `expose`d, never published). Traefik appends the address it
+  # saw to X-Forwarded-For, and that entry becomes request.ip; anything a caller
+  # wrote to the left of it is ignored. Pinned, not from the env file. Put a
+  # proxying CDN in front (DOKPLOY.md, Admin network gate) and this becomes 2.
+  TRUST_PROXY: "1"
   DATABASE_URL: ${DATABASE_URL}
   REDIS_URL: ${REDIS_URL}
   COOKIE_SECRET: ${COOKIE_SECRET}
@@ -120,7 +126,7 @@ services:
     restart: unless-stopped
     environment:
       POSTGRES_USER: ${POSTGRES_USER:-injishi}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-change-me}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD}
       POSTGRES_DB: ${POSTGRES_DB:-injishi}
     volumes:
       - db-data:/var/lib/postgresql/data

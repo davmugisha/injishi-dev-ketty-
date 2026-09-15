@@ -34,8 +34,8 @@ interface RawReply {
  * controls a public write needs, in this order:
  *
  * - `WaitlistThrottlerGuard` runs FIRST, so a flood is refused before it costs
- *   a database write. Its two buckets and the reason the client one reads the
- *   forwarded header are in that file.
+ *   a database write. Its two buckets, and why the client one trusts
+ *   `req.ip` rather than the forwarded header, are in that file.
  * - The body is then parsed by the `@injishi/contracts` schema the form is
  *   typed against, which caps every string, closes all three enums, and makes
  *   an owner's five extra fields required as a matter of type rather than of

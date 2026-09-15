@@ -39,10 +39,10 @@ import {
  * TWO CAVEATS A DEPLOY MUST KNOW, both inherited and both already recorded on
  * the support guard:
  *
- * - The address is `req.ip`, and the Fastify adapter is built without
- *   `trustProxy`. Behind a reverse proxy every visitor shares the proxy's
- *   address and this becomes ONE bucket for everybody, which would refuse real
- *   scans. Set `trustProxy` for the real proxy before this sits behind one.
+ * - The address is `req.ip`, which the adapter resolves through `TRUST_PROXY`
+ *   (`shared/config/trust-proxy.ts`). Behind a reverse proxy with that unset,
+ *   every visitor shares the proxy's address and this becomes ONE bucket for
+ *   everybody, which would refuse real scans.
  * - Storage is the throttler's default, in this process's memory, so each API
  *   instance counts on its own and two instances double the limit.
  */

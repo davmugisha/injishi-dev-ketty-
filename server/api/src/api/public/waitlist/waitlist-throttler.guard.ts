@@ -4,8 +4,7 @@ import { ThrottlerGuard, type ThrottlerOptions } from '@nestjs/throttler';
 /**
  * Rate limits for the public waitlist intake (ADR-048 AC-13).
  *
- * Built on the shape `SupportThrottlerGuard` proved, with one deliberate
- * difference that matters more here than anywhere else in the app.
+ * Built on the shape `SupportThrottlerGuard` proved.
  *
  * - PER CLIENT (address): 5 an hour. A launch page is a single form; nobody
  *   legitimately joins a waitlist five times in an hour, and a shared address
@@ -15,21 +14,13 @@ import { ThrottlerGuard, type ThrottlerOptions } from '@nestjs/throttler';
  *   that tradeoff knowingly: the throttle narrows the hole, it does not close
  *   it.
  *
- * THE CLIENT KEY IS THE FORWARDED HEADER, NOT `req.ip`, and that is the whole
- * point of this file existing rather than reusing support's guard. The Fastify
- * adapter is built without `trustProxy`, so deployed behind Traefik every
- * request on earth carries the proxy's address: a tracker keyed on `req.ip`
- * collapses every visitor into ONE bucket and caps the entire launch page at
- * five signups an hour. Reading the leftmost `X-Forwarded-For` entry counts
- * people instead of counting Traefik.
- *
- * What that costs, stated plainly: a caller can forge `X-Forwarded-For` and
- * mint themselves a fresh client bucket. The mailbox bucket still holds, and
- * the contract still refuses a malformed body. The real fix is `trustProxy` on
- * the adapter, which is a repo-wide change with its own security question
- * (trusting a forwarded header from a source that is not the proxy), so it is
- * enrolled as its own feature rather than smuggled in here. `support-throttler.guard.ts`
- * still keys on `req.ip` and still has the defect this one routes around.
+ * THE CLIENT KEY IS `req.ip`, and nothing here reads `X-Forwarded-For` by hand.
+ * This guard used to take the LEFTMOST forwarded entry, because the adapter
+ * trusted no proxy and behind Traefik every visitor shared one address. The
+ * leftmost entry is the one the CALLER writes, so any client could mint itself
+ * a fresh bucket per request. The adapter now resolves `req.ip` through
+ * `TRUST_PROXY` (`shared/config/trust-proxy.ts`), which believes only the hops
+ * the deploy names, so the address here is the one Traefik saw.
  *
  * Storage is the throttler's default, in process memory, so each API instance
  * counts on its own. At pre-launch volume that does not matter; it is recorded
@@ -41,23 +32,16 @@ const HOUR_MS = 60 * 60_000;
 /** The part of the request the trackers read. Guards run before pipes, so the body is raw. */
 interface RawRequest {
   ip?: string;
-  headers?: Record<string, string | string[] | undefined>;
   body?: unknown;
 }
 
 /**
- * The address this request came from, as far as it can be known.
- *
- * `X-Forwarded-For` is a comma-separated chain appended to by each hop, so the
- * LEFTMOST entry is the original client. Taking the last one would name the
- * proxy, which is the bug this function exists to avoid.
+ * The address this request came from, as Fastify resolved it under
+ * `TRUST_PROXY`. Never re-derived from the forwarded header here: that would
+ * undo the trust decision the adapter made.
  */
 function clientOf(req: RawRequest): string {
-  const raw = req.headers?.['x-forwarded-for'];
-  const chain = Array.isArray(raw) ? raw[0] : raw;
-  const first = chain?.split(',')[0]?.trim();
-  if (first) return first;
-  return req.ip ?? 'unknown';
+  return req.ip || 'unknown';
 }
 
 /**

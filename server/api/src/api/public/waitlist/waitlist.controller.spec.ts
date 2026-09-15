@@ -7,6 +7,7 @@ import {
 import { Test } from '@nestjs/testing';
 import { ThrottlerModule } from '@nestjs/throttler';
 
+import { resolveTrustProxy } from '../../../shared/config/trust-proxy';
 import { WaitlistController } from './waitlist.controller';
 import { WaitlistService } from './waitlist.service';
 
@@ -59,7 +60,11 @@ describe('WaitlistController', () => {
       providers: [{ provide: WaitlistService, useValue: { join, unsubscribe } }],
     }).compile();
 
-    app = moduleRef.createNestApplication<NestFastifyApplication>(new FastifyAdapter());
+    // Trusting one hop, as every deploy compose file does: the socket is the
+    // proxy and the address it appended is the client.
+    app = moduleRef.createNestApplication<NestFastifyApplication>(
+      new FastifyAdapter({ trustProxy: resolveTrustProxy('1') }),
+    );
     app.setGlobalPrefix('api');
     app.enableVersioning({ type: VersioningType.URI, defaultVersion: '1' });
     await app.init();
@@ -70,16 +75,22 @@ describe('WaitlistController', () => {
     await app.close();
   });
 
-  /** One signup from one client address, the way Traefik forwards it. */
+  /**
+   * One signup from one client address, the way Traefik forwards it: whatever
+   * the caller sent in X-Forwarded-For, with the address Traefik saw appended.
+   */
   function signup(
     payload: object,
     client = '203.0.113.10',
+    callerWrote?: string,
   ): ReturnType<NestFastifyApplication['inject']> {
     return app.inject({
       method: 'POST',
       url: SIGNUPS,
       payload,
-      headers: { 'x-forwarded-for': `${client}, 10.0.0.2` },
+      headers: {
+        'x-forwarded-for': callerWrote ? `${callerWrote}, ${client}` : client,
+      },
     });
   }
 
@@ -167,7 +178,21 @@ describe('WaitlistController', () => {
       expect(join).toHaveBeenCalledTimes(5);
     });
 
-    it('counts people by the leftmost forwarded address, not the proxy (covers: AC-13)', async () => {
+    it('cannot be walked around by forging a new X-Forwarded-For entry per request (covers: AC-13)', async () => {
+      for (let i = 1; i <= 5; i += 1) {
+        await signup({ ...TRAVELLER, email: `guest${i}@example.com` }, '203.0.113.10', `198.51.100.${i}`);
+      }
+
+      const sixth = await signup(
+        { ...TRAVELLER, email: 'guest6@example.com' },
+        '203.0.113.10',
+        '198.51.100.6',
+      );
+
+      expect(sixth.statusCode).toBe(429);
+    });
+
+    it('counts people by the address the proxy saw, not the proxy (covers: AC-13)', async () => {
       for (let i = 1; i <= 5; i += 1) {
         await signup({ ...TRAVELLER, email: `guest${i}@example.com` }, '203.0.113.10');
       }
