@@ -152,6 +152,28 @@ export function createAuth(config: CreateAuthConfig): AuthInstance {
         baseURL: config.baseURL,
         basePath: AUTH_BASE_PATH,
         trustedOrigins: config.trustedOrigins,
+        /*
+         * The per-IP backstop, sized for a shared network rather than one person.
+         *
+         * Better Auth's email-OTP plugin allows THREE requests a minute per IP on
+         * each code path, and counts the successful ones. The key is the client
+         * IP, and a whole office, a demo room or a mobile carrier's NAT is one
+         * IP: the fourth person to sign in inside a minute was refused with
+         * "That's a lot of tries in a short time", and so was everyone after
+         * them. On 2026-09-15 that locked real people out of the demo.
+         *
+         * The IP count was never the brute-force control, so raising it gives
+         * nothing away. A code dies after `OTP_MAX_ATTEMPTS` wrong guesses and
+         * expires in `OTP_EXPIRY_SECONDS`, and `otpSendCap` budgets sends per
+         * address. What stays here is a ceiling on one IP hammering the API.
+         */
+        rateLimit: {
+            customRules: {
+                "/sign-in/email-otp": { window: 60, max: 100 },
+                "/email-otp/check-verification-otp": { window: 60, max: 100 },
+                "/email-otp/send-verification-otp": { window: 60, max: 30 },
+            },
+        },
         database: drizzleAdapter(config.db, {
             provider: "pg",
             // Tables are plural (`users`, `sessions`, ...); map the singular models.
