@@ -118,9 +118,30 @@ jest.mock('@/queries/landlord', () => ({
   fetchRentRoll: jest.fn(async () => {
     const { readFixture } = require('@/data/use-fixture-mutation');
     const { RENT_ROLL_KEY, seedRentRoll } = require('@/data/landlord');
-    return readFixture(RENT_ROLL_KEY, seedRentRoll());
+    // `periodMonth` is what an API row carries and the record sheet needs.
+    return readFixture(RENT_ROLL_KEY, seedRentRoll()).map((r: { periodMonth?: string }) => ({
+      ...r,
+      periodMonth: r.periodMonth ?? '2026-08-01',
+    }));
+  }),
+  /**
+   * Stands where `POST /ops/leases/:id/rent` is. It writes the store the
+   * mocked roll reads, so "the row moved" is still asserted on the roll's own
+   * source rather than on a toast.
+   */
+  recordPaymentHandler: jest.fn(async (intent: { leaseId: string }) => {
+    const { readFixture, writeFixture } = require('@/data/use-fixture-mutation');
+    const { RENT_ROLL_KEY, seedRentRoll, applyRecordPayment } = require('@/data/landlord');
+    writeFixture(
+      RENT_ROLL_KEY,
+      applyRecordPayment(readFixture(RENT_ROLL_KEY, seedRentRoll()), { leaseId: intent.leaseId, on: 'Aug 04' }),
+    );
+    return { status: 'ok' };
   }),
 }));
+
+const recordPaymentHandler = jest.requireMock('@/queries/landlord')
+  .recordPaymentHandler as jest.Mock;
 
 /**
  * Both providers are real. Every landlord screen reads the active workspace for
@@ -277,46 +298,21 @@ describe.each(SCHEMES)('Rent roll in the %s scheme', (scheme) => {
 
 describe('Recording a payment', () => {
   /**
-   * Put the roll in the store before the sheet writes to it.
+   * Put the roll in the store before the sheet reads it.
    *
-   * These two used to pass without this, because the rent roll screen read
-   * through `useFixture`, which WARMS a key on first read — so by the time this
-   * block ran, some earlier test had seeded the store as a side effect. Since
-   * ADR-038 child 0 task 9 the roll comes from the API instead, that side effect
-   * is gone, and the tests were relying on it: both fail on their own at the
-   * commit before this one too, which is how the dependency came to light.
-   *
-   * Setting it up explicitly is the fix rather than the workaround. A test that
-   * asserts a write moved a row should be the thing that decides what the row
-   * was, instead of inheriting it from whichever test happened to run first.
+   * The sheet reads the rent roll's own query now, and the mocked query reads
+   * this store. A test that asserts a write moved a row should be the thing
+   * that decides what the row was, instead of inheriting it from whichever
+   * test happened to run first.
    */
   beforeEach(() => {
     writeFixture(RENT_ROLL_KEY, seedRentRoll());
+    recordPaymentHandler.mockClear();
   });
 
-  /**
-   * Wait for the sheet to know which row it is about.
-   *
-   * `RecordPayment` still reads through `useFixture`, which resolves after
-   * `FIXTURE_LATENCY_MS` unless the key is already warm — and `useFixture`
-   * keeps its OWN warm set, which `writeFixture` above does not touch. Until it
-   * settles, `row` is undefined and confirming records a payment against
-   * nothing, silently.
-   *
-   * The roll used to warm that key as a side effect of an earlier test
-   * rendering it. Task 9 moved the roll onto the API, so nothing warms it any
-   * more and the wait has to be stated. Both of these tests fail on their own
-   * at the commit before this one too, for the same reason.
-   */
-  const rowLoaded = () =>
-    act(async () => {
-      await new Promise((resolve) => setTimeout(resolve, FIXTURE_LATENCY_MS + 40));
-    });
-
-  it('stamps the row mock, in the store and not only on the screen', async () => {
+  it('records the outstanding amount for the named month, with one UUID key', async () => {
     renderInScheme(asLandlord(<RecordPayment leaseId={OVERDUE.leaseId} />), 'light');
-    await waitFor(() => expect(screen.getByText(en['landlord.record.confirm'])).toBeTruthy());
-    await rowLoaded();
+    await waitFor(() => expect(screen.getByText(new RegExp(OVERDUE.name))).toBeTruthy());
 
     // The disclosure is on the sheet before the button is.
     expect(screen.getByText(en['landlord.record.warnTitle'])).toBeTruthy();
@@ -324,17 +320,41 @@ describe('Recording a payment', () => {
 
     await act(async () => {
       fireEvent.press(screen.getByText(en['landlord.record.confirm']));
-      await new Promise((resolve) => setTimeout(resolve, MUTATION_LATENCY_MS + 40));
     });
 
+    await waitFor(() => expect(mockBack).toHaveBeenCalled());
+    expect(recordPaymentHandler).toHaveBeenCalledTimes(1);
+    const [intent, context] = recordPaymentHandler.mock.calls[0];
+    expect(intent).toEqual({
+      workspaceId: 'de300000-0000-4000-8000-000000000202',
+      leaseId: OVERDUE.leaseId,
+      periodMonth: '2026-08-01',
+      amountRwf: OVERDUE.amount,
+    });
+    // The server refuses anything but a UUID Idempotency-Key.
+    expect(context.id).toMatch(/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/);
+
     const rows = readFixture<RentRow[]>(RENT_ROLL_KEY, seedRentRoll());
-    const row = rows.find((r) => r.leaseId === OVERDUE.leaseId);
-    expect(row?.state).toBe('paid');
-    expect(row?.mock).toBe(true);
-    expect(mockBack).toHaveBeenCalled();
+    expect(rows.find((r) => r.leaseId === OVERDUE.leaseId)?.state).toBe('paid');
   });
 
-  it('reads back on the roll as “Paid · mock”, never as a settled payment', async () => {
+  it('shows the server\'s refusal and stays open rather than claiming success', async () => {
+    recordPaymentHandler.mockImplementationOnce(async () => ({
+      status: 'refused',
+      message: 'That month is already settled.',
+    }));
+    renderInScheme(asLandlord(<RecordPayment leaseId={OVERDUE.leaseId} />), 'light');
+    await waitFor(() => expect(screen.getByText(new RegExp(OVERDUE.name))).toBeTruthy());
+
+    await act(async () => {
+      fireEvent.press(screen.getByText(en['landlord.record.confirm']));
+    });
+
+    await waitFor(() => expect(screen.getByText('That month is already settled.')).toBeTruthy());
+    expect(mockBack).not.toHaveBeenCalled();
+  });
+
+  it('reads back on the roll as paid once the write has landed', async () => {
     writeFixture(
       RENT_ROLL_KEY,
       seedRentRoll().map((r) =>
@@ -349,6 +369,7 @@ describe('Recording a payment', () => {
   it('says so rather than writing to nothing when the row has gone', async () => {
     renderInScheme(asLandlord(<RecordPayment leaseId="not-a-lease" />), 'light');
     await waitFor(() => expect(screen.getByText(en['landlord.record.goneTitle'])).toBeTruthy());
+    expect(recordPaymentHandler).not.toHaveBeenCalled();
   });
 });
 
@@ -501,9 +522,14 @@ describe.each(SCHEMES)('Lease detail, landlord seat, in the %s scheme', (scheme)
   it('prints this month’s real standing rather than a next-due it does not hold', async () => {
     renderInScheme(asLandlord(<LandlordLeaseDetail id={ERIC.id} />), scheme);
     await settled();
-    expect(
-      screen.getByText(`${RENT_PERIOD} · ${fill('landlord.rent.chipPaid', { date: 'Aug 01' })}`),
-    ).toBeTruthy();
+    // Waited for, not read straight away: the roll is its own cold fixture
+    // read, and it used to be warm only because the record-payment sheet read
+    // the same key earlier in this file. That sheet reads the API query now.
+    await waitFor(() =>
+      expect(
+        screen.getByText(`${RENT_PERIOD} · ${fill('landlord.rent.chipPaid', { date: 'Aug 01' })}`),
+      ).toBeTruthy(),
+    );
   });
 
   it('opens the tenant’s visitor log read only, and says which seat is asking', async () => {

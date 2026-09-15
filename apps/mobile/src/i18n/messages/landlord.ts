@@ -96,14 +96,14 @@ export const en = {
   /* ── R1's sheet · Record a payment ──────────────────────────────────── */
   'landlord.record.title': 'Record a payment',
   'landlord.record.who': '{name} · {unit}',
-  'landlord.record.warnTitle': 'This is the mock payments adapter',
+  'landlord.record.warnTitle': 'This records cash you have already received',
   'landlord.record.warnBody':
-    'Recording here marks the month collected in the prototype and stamps the row mock. It moves no money and it is not a settled payment.',
-  'landlord.record.amount': 'Owed for {month}',
-  'landlord.record.confirm': 'Record as paid (mock)',
+    'It marks the month paid on the rent roll for everyone in this workspace. It moves no money, and it cannot be undone from this phone.',
+  'landlord.record.amount': 'Outstanding for {month}',
+  'landlord.record.confirm': 'Record as paid',
   'landlord.record.working': 'Recording…',
   'landlord.record.cancel': 'Cancel',
-  'landlord.record.done': 'Recorded as paid — stamped mock, not settled',
+  'landlord.record.done': 'Recorded as paid',
   'landlord.record.goneTitle': 'That line has moved',
   'landlord.record.goneBody':
     'This rent line is no longer on the roll for this month. Close this and open it again from the row.',
@@ -446,14 +446,14 @@ export const rw: Record<keyof typeof en, string> = {
   /* ── R1's sheet · Record a payment ──────────────────────────────────── */
   'landlord.record.title': 'Andika ubwishyu',
   'landlord.record.who': '{name} · {unit}',
-  'landlord.record.warnTitle': 'Iri ni igerageza ry’ubwishyu',
+  'landlord.record.warnTitle': 'Ibi byandika amafaranga wamaze kwakira',
   'landlord.record.warnBody':
-    'Kwandika hano bishyira ukwezi nk’ukwakiriwe mu cyitegererezo kandi bishyira ku murongo ikimenyetso cy’igerageza. Nta mafaranga bigenda kandi si ubwishyu bwarangiye.',
-  'landlord.record.amount': 'Byasabwe muri {month}',
-  'landlord.record.confirm': 'Andika nk’ubwishyuwe (igerageza)',
+    'Bishyira ukwezi nk’ukwishyuwe ku rutonde rw’ubukode kuri buri wese ukorera hano. Nta mafaranga bigenda, kandi ntibishobora gusubizwaho kuri iyi telefoni.',
+  'landlord.record.amount': 'Bisigaye muri {month}',
+  'landlord.record.confirm': 'Andika nk’ubwishyuwe',
   'landlord.record.working': 'Birandikwa…',
   'landlord.record.cancel': 'Reka',
-  'landlord.record.done': 'Byanditswe nk’ubwishyuwe — ni igerageza, si ubwarangiye',
+  'landlord.record.done': 'Byanditswe nk’ubwishyuwe',
   'landlord.record.goneTitle': 'Uwo murongo wimutse',
   'landlord.record.goneBody':
     'Uyu murongo w’ubukode ntukiri ku rutonde rw’uku kwezi. Funga hanyuma uwufungurire ku murongo.',

@@ -209,6 +209,8 @@ let queue: QueuedWrite[] = [];
 let hydrated = false;
 const listeners = new Set<() => void>();
 const handlers = new Map<WriteKind, WriteHandler>();
+/** Kinds whose handler lands only in the fixture store. See `registerHandler`. */
+const fixtureBacked = new Set<WriteKind>();
 
 function emit(): void {
   for (const listener of listeners) listener();
@@ -241,9 +243,15 @@ export async function hydrate(): Promise<QueuedWrite[]> {
       const parsed = JSON.parse(raw) as QueuedWrite[];
       // Anything caught mid-send by a kill is owed again, not lost and not
       // assumed delivered. `sending` is a state only this process can be in.
-      queue = parsed.map((item) =>
+      const restored = parsed.map((item) =>
         item.state === 'sending' ? { ...item, state: 'queued' as const } : item,
       );
+      // Anything enqueued in THIS process before the read finished is kept,
+      // after what the previous process left, and the journal rewritten to hold
+      // both. Replacing the queue outright would drop a press made during boot.
+      const early = queue.filter((item) => !restored.some((r) => r.id === item.id));
+      queue = [...restored, ...early];
+      if (early.length > 0) void persist();
     }
   } catch {
     queue = [];
@@ -257,11 +265,32 @@ export async function hydrate(): Promise<QueuedWrite[]> {
  * Register what a kind actually does.
  *
  * The handler lives with the feature that owns the write rather than here, so
- * this file never learns what a fault report is. Today they wrap the fixture
- * store; when the API lands they wrap `api.ts` and nothing else moves.
+ * this file never learns what a fault report is. Some wrap the fixture store,
+ * `recordPayment` wraps `api.ts`.
+ *
+ * **Every kind is registered once, at module level, by `write-handlers.ts`**,
+ * which the root layout imports. A handler registered only while its screen is
+ * mounted is a handler a cold-start drain cannot find, and the queue would mark
+ * a person's persisted intent `queue.noHandler` for no reason but import order.
+ *
+ * `fixtureBacked` marks a handler that writes to the in-memory fixture store
+ * and nowhere else. Its attachments are never sent to `POST /uploads`: bytes
+ * uploaded for a write that no server will ever reference are storage cost and
+ * a privacy leak (a check-in photograph of an ID) with nothing to show for it.
  */
-export function registerHandler<T>(kind: WriteKind, handler: WriteHandler<T>): void {
+export function registerHandler<T>(
+  kind: WriteKind,
+  handler: WriteHandler<T>,
+  options: { fixtureBacked?: boolean } = {},
+): void {
   handlers.set(kind, handler as WriteHandler);
+  if (options.fixtureBacked) fixtureBacked.add(kind);
+  else fixtureBacked.delete(kind);
+}
+
+/** Whether a kind already has a handler. The hook uses it as a fallback only. */
+export function hasHandler(kind: WriteKind): boolean {
+  return handlers.has(kind);
 }
 
 /**
@@ -425,8 +454,10 @@ export async function drain(): Promise<void> {
   for (const item of owed) {
     const handler = handlers.get(item.kind);
     if (!handler) {
-      // Nothing can ever send this. Retryable, because the handler is
-      // registered by a screen and the screen may simply not be mounted yet.
+      // Nothing can send this in this build. Retryable rather than refused:
+      // `write-handlers.ts` registers every kind at startup, so reaching here
+      // means a kind was added without a handler, and a build that adds one
+      // should still find the intent waiting.
       patch(item.id, { state: 'failed-retryable', error: 'queue.noHandler' });
       continue;
     }
@@ -437,8 +468,11 @@ export async function drain(): Promise<void> {
     // write that references them cannot be sent before the bytes it points at
     // exist (task 17). A retry after a partial upload resumes rather than
     // starting the bytes again.
+    //
+    // Not for a fixture-backed kind: nothing on a server will ever reference
+    // those keys, so the bytes would be uploaded for nobody.
     let objectKeys = item.objectKeys ?? [];
-    if ((item.attachments?.length ?? 0) > objectKeys.length) {
+    if (!fixtureBacked.has(item.kind) && (item.attachments?.length ?? 0) > objectKeys.length) {
       const upload = await uploadPending(item);
       if (upload.status !== 'ok') {
         patch(item.id, {
@@ -509,6 +543,7 @@ export function resetQueue(): void {
   queue = [];
   hydrated = false;
   handlers.clear();
+  fixtureBacked.clear();
   emit();
   void persist();
 }

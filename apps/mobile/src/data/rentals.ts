@@ -430,6 +430,103 @@ export interface Tenancy {
   renewal?: RenewalRequest;
 }
 
+/* ------------------------------------------------ dates relative to today */
+
+/**
+ * The running tenancies' dates, relative to the day the module loads.
+ *
+ * They used to be literals shifted onto one fixed "today" (2026-09-06). The
+ * screens compare them with the REAL today — the Rent hero's "due in 4 weeks",
+ * Lease detail's due caption, the visitor log's "This month" — so each literal
+ * went stale the day after it was written: the log's this-month group emptied,
+ * the next charge slid into the past, and a lease drawn as ending in December
+ * eventually read as ended. `trips.ts` solved the same problem with
+ * `offsetDays`; this is the same idea for a calendar of months.
+ *
+ * The story each tenancy tells is fixed, only the calendar moves:
+ *
+ *   - Ingoro A2 is paid up to this month, the next charge falls on the first
+ *     of next month, it ends on the last day of the month three months out,
+ *     and it has two visitors this month and one last month.
+ *   - Nyamirambo Flat 1 owes this month and has ONE overdue charge, last month.
+ *   - Kimironko Flat 3 starts on the first of next month, a 24 month term.
+ *
+ * Local calendar day, as `todayIso()` in `@/components` reads it. Not
+ * imported from there: this module is data and must not pull in the kit.
+ */
+const MONTH_LONG = [
+  'January', 'February', 'March', 'April', 'May', 'June',
+  'July', 'August', 'September', 'October', 'November', 'December',
+];
+const MONTH_SHORT = MONTH_LONG.map((m) => m.slice(0, 3));
+
+const NOW = new Date();
+
+/** `YYYY-MM-DD` for a UTC date built from parts. */
+function isoOf(d: Date): string {
+  return `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, '0')}-${String(d.getUTCDate()).padStart(2, '0')}`;
+}
+
+/** Day `day` of the month `offset` months from this one. `0` is its last day. */
+function monthDay(offset: number, day: number): string {
+  // `Date.UTC` rolls day 0 back to the last day of the previous month, which
+  // is why the last day is asked for as day 0 of the month after.
+  return day === 0
+    ? isoOf(new Date(Date.UTC(NOW.getFullYear(), NOW.getMonth() + offset + 1, 0, 12)))
+    : isoOf(new Date(Date.UTC(NOW.getFullYear(), NOW.getMonth() + offset, day, 12)));
+}
+
+/** Today shifted by `n` days. */
+function todayPlus(n: number): string {
+  return isoOf(new Date(Date.UTC(NOW.getFullYear(), NOW.getMonth(), NOW.getDate() + n, 12)));
+}
+
+/** `2026-09-01` → `September 2026`: the ledger's month key. */
+function monthLabel(iso: string): string {
+  return `${MONTH_LONG[Number(iso.slice(5, 7)) - 1]} ${iso.slice(0, 4)}`;
+}
+
+/** `2026-09-01` → `1 Sep 2026`: the display twin of an `...On` field. */
+function shortDay(iso: string): string {
+  return `${Number(iso.slice(8, 10))} ${MONTH_SHORT[Number(iso.slice(5, 7)) - 1]} ${iso.slice(0, 4)}`;
+}
+
+/** A ledger period for the month `offset` months from this one. */
+function period(
+  offset: number,
+  amount: number,
+  status: RentState,
+  paid?: { day: number; method: PayMethod },
+): RentPeriod {
+  const dueOn = monthDay(offset, 1);
+  return {
+    month: monthLabel(dueOn),
+    amount,
+    status,
+    dueOn,
+    ...(paid ? { paidOn: monthDay(offset, paid.day), method: paid.method } : null),
+  };
+}
+
+/**
+ * A day inside THIS month, `back` days before today where that is still this
+ * month, otherwise the first. Keeps a this-month visitor in this month on the
+ * 1st and never in the future.
+ */
+function earlierThisMonth(back: number): string {
+  const candidate = todayPlus(-back);
+  const first = monthDay(0, 1);
+  return candidate < first ? first : candidate;
+}
+
+const A2_START = monthDay(-8, 1);
+const A2_END = monthDay(3, 0);
+const A2_SIGNED = isoOf(new Date(Date.UTC(+A2_START.slice(0, 4), +A2_START.slice(5, 7) - 1, 1 - 14, 12)));
+const NYAM_START = monthDay(-19, 1);
+const NYAM_END = monthDay(5, 1);
+const KIMI_START = monthDay(1, 1);
+const KIMI_END = monthDay(25, 1);
+
 export const TENANCIES: Tenancy[] = [
   /**
    * **The lease frames R11, R12 and R15 all draw**: Ingoro Apartments, Unit A2,
@@ -443,9 +540,9 @@ export const TENANCIES: Tenancy[] = [
    * the invite has somewhere better to point — see `kimironko-flat-3` below and
    * `src/screens/auth/invite.ts`.
    *
-   * The ledger is frame R12's own HISTORY, shifted onto the fixtures' today
-   * (2026-09-06) so the hero card reads as the frame draws it: the next charge
-   * is 1 October, which is "in 4 weeks".
+   * The ledger is frame R12's own HISTORY, laid onto today's calendar (see the
+   * helpers above TENANCIES) so the hero card reads as the frame draws it: this
+   * month is paid and the next charge is the first of next month.
    */
   {
     id: 'ingoro-apartments-a2',
@@ -454,8 +551,8 @@ export const TENANCIES: Tenancy[] = [
     // Clause 5 of this contract says thirty days, not fourteen. Frame R17's
     // banner reads this number, which is why it is per lease.
     noticeDays: 30,
-    startOn: '2026-01-01',
-    endOn: '2026-12-31',
+    startOn: A2_START,
+    endOn: A2_END,
     unit: 'Unit A2',
     address: 'KG 9 Ave, Kimihurura, Kigali',
     landlord: 'Jean Bosco Habimana',
@@ -464,56 +561,21 @@ export const TENANCIES: Tenancy[] = [
     caution: 310000,
     cautionState: 'held',
     leaseState: 'active',
-    startDate: '1 Jan 2026',
-    endDate: '31 Dec 2026',
-    signedOn: '2025-12-18',
+    startDate: shortDay(A2_START),
+    endDate: shortDay(A2_END),
+    signedOn: A2_SIGNED,
     filing: 'filed',
     tax: 'compliant',
     history: [
-      { month: 'October 2026', amount: 310000, status: 'due', dueOn: '2026-10-01' },
-      {
-        month: 'September 2026',
-        amount: 310000,
-        status: 'paid',
-        dueOn: '2026-09-01',
-        paidOn: '2026-09-01',
-        method: 'mtn_momo',
-      },
-      {
-        month: 'August 2026',
-        amount: 310000,
-        status: 'paid',
-        dueOn: '2026-08-01',
-        paidOn: '2026-08-01',
-        method: 'mtn_momo',
-      },
-      {
-        month: 'July 2026',
-        amount: 310000,
-        status: 'paid',
-        dueOn: '2026-07-01',
-        paidOn: '2026-07-01',
-        method: 'mtn_momo',
-      },
-      {
-        month: 'June 2026',
-        amount: 310000,
-        status: 'paid',
-        dueOn: '2026-06-01',
-        paidOn: '2026-06-02',
-        method: 'mtn_momo',
-      },
-      {
-        month: 'May 2026',
-        amount: 310000,
-        status: 'paid',
-        dueOn: '2026-05-01',
-        paidOn: '2026-05-01',
-        method: 'airtel_money',
-      },
+      period(1, 310000, 'due'),
+      period(0, 310000, 'paid', { day: 1, method: 'mtn_momo' }),
+      period(-1, 310000, 'paid', { day: 1, method: 'mtn_momo' }),
+      period(-2, 310000, 'paid', { day: 1, method: 'mtn_momo' }),
+      period(-3, 310000, 'paid', { day: 2, method: 'mtn_momo' }),
+      period(-4, 310000, 'paid', { day: 1, method: 'airtel_money' }),
     ],
     documents: [
-      { label: 'Lease contract', meta: 'PDF · 229 KB · signed 18 Dec 2025' },
+      { label: 'Lease contract', meta: `PDF · 229 KB · signed ${shortDay(A2_SIGNED)}` },
       { label: 'Caution receipt', meta: 'PDF · 84 KB' },
     ],
     terms: [
@@ -542,23 +604,23 @@ export const TENANCIES: Tenancy[] = [
         name: 'Marie Keza',
         relation: 'family',
         stay: 'overnight',
-        arrivedOn: '2026-09-05',
+        arrivedOn: todayPlus(0),
       },
       {
         id: 'v-a2-2',
         name: 'Patrick Nsengiyumva',
         relation: 'guest',
         stay: 'day',
-        arrivedOn: '2026-09-03',
-        leftOn: '2026-09-03',
+        arrivedOn: earlierThisMonth(2),
+        leftOn: earlierThisMonth(2),
       },
       {
         id: 'v-a2-1',
         name: 'Josiane Mukamana',
         relation: 'family',
         stay: 'overnight',
-        arrivedOn: '2026-08-28',
-        leftOn: '2026-08-30',
+        arrivedOn: monthDay(-1, 26),
+        leftOn: monthDay(-1, 28),
       },
     ],
     photos: {
@@ -573,8 +635,8 @@ export const TENANCIES: Tenancy[] = [
     tenure: 'long_term',
     // Clause 5 of `terms` below says fourteen days, and this is that number.
     noticeDays: 14,
-    startOn: '2025-02-01',
-    endOn: '2027-02-01',
+    startOn: NYAM_START,
+    endOn: NYAM_END,
     unit: 'Nyamirambo Flat 1',
     address: 'KN 8 Ave, Nyamirambo, Kigali',
     landlord: 'Alice Uwase',
@@ -583,48 +645,21 @@ export const TENANCIES: Tenancy[] = [
     caution: 900000,
     cautionState: 'held',
     leaseState: 'active',
-    startDate: '1 Feb 2025',
-    endDate: '1 Feb 2027',
+    startDate: shortDay(NYAM_START),
+    endDate: shortDay(NYAM_END),
     filing: 'filed',
     tax: 'compliant',
     history: [
-      { month: 'September 2026', amount: 450000, status: 'due', dueOn: '2026-09-01' },
-      { month: 'August 2026', amount: 450000, status: 'overdue', dueOn: '2026-08-01' },
-      {
-        month: 'July 2026',
-        amount: 450000,
-        status: 'paid',
-        dueOn: '2026-07-01',
-        paidOn: '2026-07-01',
-        method: 'mtn_momo',
-      },
-      {
-        month: 'June 2026',
-        amount: 450000,
-        status: 'paid',
-        dueOn: '2026-06-01',
-        paidOn: '2026-06-02',
-        method: 'mtn_momo',
-      },
-      {
-        month: 'May 2026',
-        amount: 450000,
-        status: 'paid',
-        dueOn: '2026-05-01',
-        paidOn: '2026-05-01',
-        method: 'airtel_money',
-      },
-      {
-        month: 'April 2026',
-        amount: 450000,
-        status: 'paid',
-        dueOn: '2026-04-01',
-        paidOn: '2026-04-03',
-        method: 'mtn_momo',
-      },
+      period(0, 450000, 'due'),
+      // The one overdue charge in the tenant fixtures: last month.
+      period(-1, 450000, 'overdue'),
+      period(-2, 450000, 'paid', { day: 1, method: 'mtn_momo' }),
+      period(-3, 450000, 'paid', { day: 2, method: 'mtn_momo' }),
+      period(-4, 450000, 'paid', { day: 1, method: 'airtel_money' }),
+      period(-5, 450000, 'paid', { day: 3, method: 'mtn_momo' }),
     ],
     documents: [
-      { label: 'Lease contract', meta: 'PDF · 244 KB · signed 1 Feb 2025' },
+      { label: 'Lease contract', meta: `PDF · 244 KB · signed ${shortDay(NYAM_START)}` },
       { label: 'Caution receipt', meta: 'PDF · 88 KB' },
     ],
     terms: [
@@ -651,8 +686,8 @@ export const TENANCIES: Tenancy[] = [
         name: 'Alphonse Rwigema',
         relation: 'work',
         stay: 'day',
-        arrivedOn: '2026-08-19',
-        leftOn: '2026-08-19',
+        arrivedOn: monthDay(-1, 19),
+        leftOn: monthDay(-1, 19),
       },
     ],
     photos: {
@@ -683,8 +718,8 @@ export const TENANCIES: Tenancy[] = [
     ref: 'L-0163',
     tenure: 'long_term',
     noticeDays: 14,
-    startOn: '2026-10-01',
-    endOn: '2028-10-01',
+    startOn: KIMI_START,
+    endOn: KIMI_END,
     unit: 'Kimironko Flat 3',
     address: 'KG 11 Ave, Kimironko, Kigali',
     landlord: 'Jean Bosco Niyonzima',
@@ -693,8 +728,8 @@ export const TENANCIES: Tenancy[] = [
     caution: 820000,
     cautionState: 'held',
     leaseState: 'pending_signature',
-    startDate: '1 Oct 2026',
-    endDate: '1 Oct 2028',
+    startDate: shortDay(KIMI_START),
+    endDate: shortDay(KIMI_END),
     filing: 'pending',
     tax: 'compliant',
     history: [],

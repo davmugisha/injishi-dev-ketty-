@@ -30,8 +30,8 @@
  *
  * A queued item outlives the screen that queued it — that is the point — so
  * `drain()` cannot call a closure from an unmounted component. Each kind
- * registers its handler once, and the handler takes only the serialised
- * payload. That constraint is load-bearing: it forces the payload to be
+ * registers its handler once, at module level in `write-handlers.ts`, and the
+ * handler takes only the serialised payload. That constraint is load-bearing: it forces the payload to be
  * something that survives a process kill, which is exactly what a queued
  * intent has to be.
  */
@@ -41,6 +41,7 @@ import { useOffline } from '@/components/offline-banner';
 import {
   drain,
   enqueue,
+  hasHandler,
   mintWriteId,
   registerHandler,
   useQueuedWrite,
@@ -140,9 +141,14 @@ export function useOfflineSubmit<T>({
   const attachmentsRef = useRef(attachmentsFor);
   attachmentsRef.current = attachmentsFor;
 
-  // Registered once per kind. `drain` calls THIS, long after the screen that
-  // queued the item has unmounted, which is why it reads the ref.
+  // A FALLBACK only. Every kind is registered at module level by
+  // `write-handlers.ts`, imported from the root layout, because a drain after a
+  // cold start runs before any screen mounts. This covers a render that never
+  // imported that module (a screen test), and never replaces a handler that is
+  // already there. It reads the ref so an unmounted screen's closure still
+  // points at current code.
   useEffect(() => {
+    if (hasHandler(kind)) return;
     registerHandler<T>(kind, (payload, context) => handlerRef.current(payload, context));
   }, [kind]);
 

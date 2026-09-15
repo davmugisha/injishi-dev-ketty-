@@ -67,11 +67,13 @@ describe('applySignature', () => {
       signedOn: '2026-08-20',
     });
     expect(lease.history).toHaveLength(1);
+    // Derived from the fixture: its dates are relative to today.
+    const startOn = base(UNSIGNED).startOn;
     expect(lease.history[0]).toMatchObject({
-      month: 'October 2026',
+      month: monthKeyOf(startOn),
       amount: 410000,
       status: 'due',
-      dueOn: '2026-10-01',
+      dueOn: startOn,
     });
   });
 
@@ -121,8 +123,22 @@ describe('applyRentPayment', () => {
       method: 'mtn_momo',
     })[0];
 
+  /**
+   * The months are read off the fixture rather than typed: its ledger is laid
+   * onto today's calendar, so a literal month here would be a test that fails
+   * the month after it was written.
+   */
+  const monthWith = (status: 'paid' | 'due' | 'overdue') => {
+    const found = base(RUNNING).history.find((p) => p.status === status);
+    if (!found) throw new Error(`fixture ${RUNNING} has no ${status} period`);
+    return found.month;
+  };
+  const OVERDUE = monthWith('overdue');
+  const DUE = monthWith('due');
+  const PAID = monthWith('paid');
+
   it('settles the named period and records how', () => {
-    const period = pay('August 2026').history.find((p) => p.month === 'August 2026');
+    const period = pay(OVERDUE).history.find((p) => p.month === OVERDUE);
     expect(period).toMatchObject({
       status: 'paid',
       paidOn: '2026-09-06',
@@ -132,19 +148,19 @@ describe('applyRentPayment', () => {
 
   /** ui-rules.md: a mocked success must never look like a real one. */
   it('stamps the row mock, so every screen that draws it says so', () => {
-    expect(pay('August 2026').history.find((p) => p.month === 'August 2026')?.mock).toBe(true);
+    expect(pay(OVERDUE).history.find((p) => p.month === OVERDUE)?.mock).toBe(true);
   });
 
   it('does not touch the other periods', () => {
-    const lease = pay('August 2026');
-    expect(lease.history.find((p) => p.month === 'September 2026')?.status).toBe('due');
-    expect(lease.history.find((p) => p.month === 'July 2026')?.mock).toBeUndefined();
+    const lease = pay(OVERDUE);
+    expect(lease.history.find((p) => p.month === DUE)?.status).toBe('due');
+    expect(lease.history.find((p) => p.month === PAID)?.mock).toBeUndefined();
   });
 
   /** Paying an already-settled month must not re-stamp a real payment as mock. */
   it('leaves a period that is already paid exactly as it was', () => {
-    const before = base(RUNNING).history.find((p) => p.month === 'July 2026');
-    expect(pay('July 2026').history.find((p) => p.month === 'July 2026')).toEqual(before);
+    const before = base(RUNNING).history.find((p) => p.month === PAID);
+    expect(pay(PAID).history.find((p) => p.month === PAID)).toEqual(before);
   });
 });
 

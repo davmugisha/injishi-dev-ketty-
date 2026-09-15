@@ -469,7 +469,8 @@ export function RentRoll() {
         </>
       }
       data={shown}
-      keyExtractor={(r) => r.leaseId}
+      // The API returns every charge, so one lease can hold a row per month.
+      keyExtractor={(r) => `${r.leaseId}:${r.periodMonth ?? ''}`}
       renderItem={({ item }) => (
         <RentRowCard
           row={item}
@@ -481,7 +482,12 @@ export function RentRoll() {
             toast.show(t('landlord.rent.reminderSent', { name: item.name }), 'warning')
           }
           onRecord={() =>
-            router.push({ pathname: '/record-payment', params: { leaseId: item.leaseId } })
+            router.push({
+              pathname: '/record-payment',
+              params: item.periodMonth
+                ? { leaseId: item.leaseId, periodMonth: item.periodMonth }
+                : { leaseId: item.leaseId },
+            })
           }
         />
       )}

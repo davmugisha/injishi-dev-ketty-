@@ -24,6 +24,8 @@ import { act, fireEvent, screen, waitFor } from '@testing-library/react-native';
 import { ToastProvider } from '@/components';
 import { SCHEMES, renderInScheme } from '@/test-utils';
 import { en } from '@/i18n/messages';
+import { translate } from '@/i18n/i18n';
+import { addDays, addMonths, formatFullDay } from './dates';
 import { resetFixtures, readFixture } from '@/data/use-fixture-mutation';
 // The attempt journal is module-level and outlives a test on purpose — that is
 // what "survives backgrounding and app kill" means. So a test file has to clear
@@ -78,6 +80,14 @@ const UNSIGNED = 'kimironko-flat-3';
 const CLOSED = 'gikondo-garden-flat';
 
 const lease = (id: string): Tenancy => TENANCIES.find((x) => x.id === id)!;
+
+/**
+ * The running lease's months, read off the fixture. Its ledger is laid onto
+ * today's calendar, so a typed month would fail the month after it was written.
+ */
+const NEXT_DUE = lease(RUNNING).history.find((p) => p.status === 'due')!.month;
+/** A settled period two back, so it is not the one the hero card also prints. */
+const SETTLED = lease(RUNNING).history.filter((p) => p.status === 'paid')[2];
 
 beforeEach(() => {
   mockPushed.length = 0;
@@ -198,8 +208,10 @@ describe.each(SCHEMES)('R12 Rent in the %s scheme', (scheme) => {
 
   it('lists the ledger with the day each period was paid', async () => {
     await open(<Rent />, scheme, en['rent.nextPayment']);
-    expect(screen.getByText('July 2026')).toBeTruthy();
-    expect(screen.getByText(en['rent.paidOn'].replace('{date}', '1 July 2026'))).toBeTruthy();
+    expect(screen.getByText(SETTLED.month)).toBeTruthy();
+    // `4 September 2026`: the day of `paidOn`, then the month key it sits under.
+    const paidDay = `${Number(SETTLED.paidOn!.slice(8, 10))} ${SETTLED.month}`;
+    expect(screen.getByText(en['rent.paidOn'].replace('{date}', paidDay))).toBeTruthy();
   });
 });
 
@@ -209,7 +221,7 @@ describe('R12 Rent, paying', () => {
     fireEvent.press(screen.getByText(en['rent.payRent']));
     expect(mockPushed[0]).toEqual({
       pathname: '/pay-rent',
-      params: { leaseId: RUNNING, month: 'October 2026' },
+      params: { leaseId: RUNNING, month: NEXT_DUE },
     });
   });
 });
@@ -218,14 +230,14 @@ describe('R12 Rent, paying', () => {
 
 describe.each(SCHEMES)('the pay-rent sheet in the %s scheme', (scheme) => {
   it('offers the three rails in the order they answer in', async () => {
-    mockParams = { leaseId: RUNNING, month: 'October 2026' };
+    mockParams = { leaseId: RUNNING, month: NEXT_DUE };
     await open(<PayRent />, scheme, en['payRent.mtn']);
     expect(screen.getByText(en['payRent.airtel'])).toBeTruthy();
     expect(screen.getByText(en['payRent.card'])).toBeTruthy();
   });
 
   it('says nothing leaves the account before the button that pays', async () => {
-    mockParams = { leaseId: RUNNING, month: 'October 2026' };
+    mockParams = { leaseId: RUNNING, month: NEXT_DUE };
     await open(<PayRent />, scheme, en['payRent.mockTitle']);
     expect(screen.getByText(en['payRent.mockBody'])).toBeTruthy();
   });
@@ -246,7 +258,7 @@ describe.each(SCHEMES)('the pay-rent sheet in the %s scheme', (scheme) => {
  */
 describe('the pay-rent sheet, settling', () => {
   it('asks where the prompt should go before it will take a payment', async () => {
-    mockParams = { leaseId: RUNNING, month: 'October 2026' };
+    mockParams = { leaseId: RUNNING, month: NEXT_DUE };
     await open(<PayRent />, 'light', en['payRent.action']);
     expect(screen.getByTestId('pay-rent-handset')).toBeTruthy();
     // Nothing is charged until there is a handset to charge.
@@ -254,12 +266,12 @@ describe('the pay-rent sheet, settling', () => {
     const stored = readFixture<Tenancy[]>(TENANCIES_KEY, []);
     const period = stored
       .find((x) => x.id === RUNNING)
-      ?.history.find((p) => p.month === 'October 2026');
+      ?.history.find((p) => p.month === NEXT_DUE);
     expect(period?.status).not.toBe('paid');
   });
 
   it('sends the prompt to the handset and says so, rather than spinning', async () => {
-    mockParams = { leaseId: RUNNING, month: 'October 2026' };
+    mockParams = { leaseId: RUNNING, month: NEXT_DUE };
     await open(<PayRent />, 'light', en['payRent.action']);
     fireEvent.changeText(screen.getByTestId('pay-rent-handset'), '788123456');
     fireEvent.press(screen.getByText(en['payRent.action']));
@@ -277,7 +289,7 @@ describe('the pay-rent sheet, settling', () => {
   it('keeps the obligation on screen while the rail has not answered', async () => {
     // A refusal that also hid the debt would be a screen that made the problem
     // go away for the wrong person.
-    mockParams = { leaseId: RUNNING, month: 'October 2026' };
+    mockParams = { leaseId: RUNNING, month: NEXT_DUE };
     await open(<PayRent />, 'light', en['payRent.action']);
     fireEvent.changeText(screen.getByTestId('pay-rent-handset'), '788123456');
     fireEvent.press(screen.getByText(en['payRent.action']));
@@ -474,7 +486,12 @@ describe('R18 Renew, sending', () => {
     // card body is what distinguishes them, so that is what is asserted.
     const sent = en['renew.sentBody']
       .replace('{landlord}', lease(RUNNING).landlord)
-      .replace('{date}', '31 December 2027');
+      // A 12 month term from the day after the current end, the default the
+      // screen offers, printed the way `formatFullDay` prints it.
+      .replace(
+        '{date}',
+        formatFullDay(addDays(addMonths(addDays(lease(RUNNING).endOn, 1), 12), -1), translate),
+      );
     await waitFor(() => expect(screen.getByText(sent)).toBeTruthy());
     expect(screen.queryByText(en['renew.pendingTitle'])).toBeNull();
   });

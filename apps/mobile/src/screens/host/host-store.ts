@@ -34,6 +34,7 @@ import {
   writeFixture,
 } from '@/data/use-fixture-mutation';
 import { useOfflineSubmit } from '@/data/offline-submit';
+import type { WriteOutcome } from '@/data/write-queue';
 import {
   ROOMS_KEY,
   TASKS_KEY,
@@ -343,6 +344,29 @@ export interface HostActions {
   saving: boolean;
 }
 
+/**
+ * The `checkIn` write. Module level so `write-handlers.ts` can register it
+ * before any screen mounts, which is what a drain after a cold start needs.
+ */
+export function checkInHandler(capture: CheckInCapture): WriteOutcome {
+  const captures = readFixture<CaptureMap>(HOST_CAPTURES_KEY, {});
+  writeFixture<CaptureMap>(HOST_CAPTURES_KEY, { ...captures, [capture.bookingId]: capture });
+  writeFixture<HostBooking[]>(
+    HOST_BOOKINGS_KEY,
+    applyBookingChange(readFixture<HostBooking[]>(HOST_BOOKINGS_KEY, [...HOST_BOOKINGS]), {
+      op: 'check-in',
+      id: capture.bookingId,
+      room: capture.room,
+      at: capture.at,
+    }),
+  );
+  // The fixture store cannot refuse and cannot be unreachable, so this
+  // is always `ok`. The surface child that puts a real mutation here
+  // (ADR-038 children 1 to 7) is where `refused` and `failed` start
+  // being answered for real.
+  return { status: 'ok' };
+}
+
 export function useHostActions(): HostActions {
   const { mutate, status } = useFixtureMutation<HostBooking[], BookingChange>(
     HOST_BOOKINGS_KEY,
@@ -371,24 +395,7 @@ export function useHostActions(): HostActions {
    */
   const queued = useOfflineSubmit<CheckInCapture>({
     kind: 'checkIn',
-    handler: (capture) => {
-      const captures = readFixture<CaptureMap>(HOST_CAPTURES_KEY, {});
-      writeFixture<CaptureMap>(HOST_CAPTURES_KEY, { ...captures, [capture.bookingId]: capture });
-      writeFixture<HostBooking[]>(
-        HOST_BOOKINGS_KEY,
-        applyBookingChange(readFixture<HostBooking[]>(HOST_BOOKINGS_KEY, [...HOST_BOOKINGS]), {
-          op: 'check-in',
-          id: capture.bookingId,
-          room: capture.room,
-          at: capture.at,
-        }),
-      );
-      // The fixture store cannot refuse and cannot be unreachable, so this
-      // is always `ok`. The surface child that puts a real mutation here
-      // (ADR-038 children 1 to 7) is where `refused` and `failed` start
-      // being answered for real.
-      return { status: 'ok' as const };
-    },
+    handler: checkInHandler,
     label: (capture) => capture.fullName,
     idFor: (capture) => `checkIn-${capture.bookingId}`,
   });

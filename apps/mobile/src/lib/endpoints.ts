@@ -91,6 +91,10 @@ export const ENDPOINTS = {
 
   /** `GET` — every rent charge on the active workspace. */
   opsRentRoll: apiPath('/ops/rent-roll'),
+  /** `POST` — record rent received for one named month of lease `:p`. Needs a
+   *  UUID `Idempotency-Key` and the `rent.record` permission. */
+  opsLeaseRent: (leaseId: string) =>
+    apiPath(`/ops/leases/${encodeURIComponent(leaseId)}/rent`),
 
   /* -- Uploads. Multipart, so `api.ts` sets no Content-Type. --------------- */
 
