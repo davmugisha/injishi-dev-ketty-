@@ -15,6 +15,7 @@ import { and, eq, sql } from 'drizzle-orm';
 import { users } from '../../../database/drizzle/auth';
 import { departmentMembers, departments } from '../../../database/drizzle/operations';
 import { WorkspaceService } from '../../../shared/auth/workspace.service';
+import { storyFor } from './persona-stories';
 import { PLATFORM, type Platform } from '../../../shared/config/platform';
 import { DRIZZLE, type Database } from '../../../shared/database/database.module';
 
@@ -278,7 +279,12 @@ export class DemoPersonasController {
 
       // Stable sort: equal ranks keep the resolver's order.
       seats.sort((a, b) => rankOf(a) - rankOf(b));
-      personas.push({ email: person.email, name: person.name ?? person.email, seats });
+      personas.push({
+        email: person.email,
+        name: person.name ?? person.email,
+        seats,
+        story: storyFor(person.email),
+      });
     }
 
     // A persona with no seat at all cannot demonstrate anything and would read

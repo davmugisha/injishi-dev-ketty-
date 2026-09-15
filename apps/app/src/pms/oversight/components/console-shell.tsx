@@ -19,6 +19,7 @@ import type { ReactNode } from "react";
 
 import { Toaster } from "@injishi/ui";
 
+import { DemoGuide } from "../../components/demo-guide/demo-guide";
 import { useSignOut } from "../../data/sign-out";
 import { useShownToasts } from "../../lib/toast-queue";
 import { usePms } from "../../store";
@@ -275,6 +276,9 @@ export function ConsoleShell({ title, children }: { title: string; children: Rea
           {children}
         </main>
       </div>
+
+      {/* The demo persona's story, on the demo only (see the component). */}
+      <DemoGuide surface="oversight" />
 
       <Toaster toasts={toasts} />
     </div>

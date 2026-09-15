@@ -25,6 +25,14 @@
  *
  * Only an arrival's hold moves. A guest already in the building is in a room by
  * way of their STAY, and nothing moves a stay yet either.
+ *
+ * **`?booking=<id>` OPENS THE GRID ON ONE BOOKING** (2026-09-15). Reservations
+ * sends "Assign room" and "On the grid" here with it. The window moves so the
+ * booking's arrival is in view, its bar is outlined and scrolled to, and a panel
+ * above the chart names the rooms it may hold and holds one in a press. Dragging
+ * is a pointer gesture and cannot be the only way to assign a room: a keyboard
+ * or a phone had no way in, and the desk arriving from a list row should not
+ * have to find the booking a second time in the tray.
  */
 
 import type {
@@ -34,8 +42,9 @@ import type {
   OperatorStay,
 } from "@injishi/contracts";
 import { Button } from "@injishi/ui";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 import { ActionButton, Badge, EmptyState, LoadFailed, Skeleton, surface } from "../components/ui";
 import { Icon } from "../components/icon";
@@ -216,7 +225,7 @@ function buildBars(
   return bars;
 }
 
-export function RoomGrid() {
+export function RoomGrid({ focusBookingId = null }: { focusBookingId?: string | null } = {}) {
   const { toast, toastError } = usePms();
   const { openCheckIn } = usePmsUi();
   const router = useRouter();
@@ -226,13 +235,26 @@ export function RoomGrid() {
   const { can, reasonFor } = useCapability();
 
   const today = todayIso();
-  const windowFrom = addDaysIso(today, -PAST);
-  const windowTo = addDaysIso(today, DAYS - PAST);
-
   const rooms = useRooms(workspaceId);
   const reservations = useReservations(workspaceId);
   const stays = useStays(workspaceId);
-  const holds = useRoomAssignments(workspaceId, windowFrom, windowTo);
+
+  /*
+   * The window. Two days of history and twelve ahead, unless a focused booking
+   * arrives outside that, in which case the window starts two days before its
+   * arrival instead. Waiting for the reservations read before asking for holds
+   * keeps the grid from fetching one window and then another.
+   */
+  const focusRes = focusBookingId
+    ? (reservations.data?.reservations.find((r) => r.id === focusBookingId) ?? null)
+    : null;
+  const homeFrom = addDaysIso(today, -PAST);
+  const homeTo = addDaysIso(today, DAYS - PAST);
+  const shifted = focusRes !== null && (focusRes.checkIn < homeFrom || focusRes.checkIn >= homeTo);
+  const windowFrom = shifted && focusRes ? addDaysIso(focusRes.checkIn, -PAST) : homeFrom;
+  const windowTo = addDaysIso(windowFrom, DAYS);
+  const holdsReady = !focusBookingId || !reservations.isPending;
+  const holds = useRoomAssignments(holdsReady ? workspaceId : null, windowFrom, windowTo);
   const holdRoom = useHoldRoom(workspaceId);
   const releaseRoom = useReleaseRoom(workspaceId);
 
@@ -246,6 +268,31 @@ export function RoomGrid() {
   const [ghost, setGhostState] = useState<Ghost | null>(null);
   const [dragging, setDragging] = useState<OperatorReservation | null>(null);
   const [pop, setPop] = useState<{ key: string; x: number; y: number } | null>(null);
+  const [pickedRoom, setPickedRoom] = useState<string>("");
+  const chartRef = useRef<HTMLDivElement>(null);
+  const scrolledFor = useRef<string | null>(null);
+
+  const settled = [rooms, reservations, stays, holds].every((q) => q.isSuccess);
+
+  /*
+   * Bring the focused booking's bar into view once, when everything it is drawn
+   * from has answered. Once per booking id, so a refetch after holding a room
+   * does not yank the chart back while the desk is looking elsewhere.
+   */
+  useEffect(() => {
+    if (!focusBookingId || !settled || scrolledFor.current === focusBookingId) return;
+    const box = chartRef.current;
+    if (!box) return;
+    scrolledFor.current = focusBookingId;
+    const bar = box.querySelector<HTMLElement>("[data-focus-bar]");
+    if (!bar) return;
+    const b = box.getBoundingClientRect();
+    const e = bar.getBoundingClientRect();
+    box.scrollBy({
+      left: e.left - b.left - LABEL_W - COL,
+      top: e.top - b.top - HEADER_H - ROW_H,
+    });
+  }, [focusBookingId, settled]);
 
   const setGhost = (g: Ghost | null) => {
     ghostRef.current = g;
@@ -411,9 +458,76 @@ export function RoomGrid() {
   const mayCheckIn = popBar?.kind === "reserved" && popRes?.state === "confirmed" && popRes.checkIn === today;
 
   const assignReason = mayAssign ? undefined : reasonFor("reservation.assign");
+  const todayCol = daysBetweenIso(windowFrom, today);
+
+  /* The focused booking: what it holds now, and where it may go. */
+  const focusHolds = focusRes ? (holds.data?.assignments ?? []).filter((h) => h.bookingId === focusRes.id) : [];
+  const focusStay = focusRes
+    ? (stays.data?.stays ?? []).find((st) => st.bookingId === focusRes.id && st.lifecycle === "open")
+    : undefined;
+  // One hold can be moved in place. A split stay has a leg per room, and which
+  // leg to move is a question for the bars, where each leg is drawn.
+  const movableHold = focusHolds.length === 1 ? focusHolds[0] : undefined;
+  const focusBar = movableHold ? bars.find((b) => b.hold?.id === movableHold.id) : undefined;
+  const canPlaceFocus =
+    focusRes !== null && focusRes.state === "confirmed" && focusRes.checkOut > today && focusHolds.length <= 1;
+  const eligible =
+    canPlaceFocus && focusRes
+      ? roomList.filter(
+          (rm) =>
+            rm.id !== movableHold?.roomId &&
+            refusalFor(
+              focusRes,
+              rm,
+              movableHold?.from ?? focusRes.checkIn,
+              movableHold?.to ?? focusRes.checkOut,
+              focusBar ?? null,
+            ) === null,
+        )
+      : [];
+  const picked = eligible.find((rm) => rm.id === pickedRoom) ?? eligible[0];
+
+  const placeFocus = () => {
+    if (!focusRes || !picked) return;
+    const guest = focusRes.guestName ?? focusRes.reference;
+    holdRoom.mutate(
+      {
+        bookingId: focusRes.id,
+        roomId: picked.id,
+        from: movableHold?.from,
+        to: movableHold?.to,
+        releaseAssignmentId: movableHold?.id,
+      },
+      {
+        onSuccess: () => {
+          setPickedRoom("");
+          toast(`${guest} now holds ${roomName(picked)}.`, "ok");
+        },
+        onError: toastError,
+      },
+    );
+  };
 
   return (
     <div className="pms-enter" style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+      {focusBookingId && (
+        <FocusPanel
+          reservation={focusRes}
+          heldRooms={focusHolds.map((h) => roomName(roomById.get(h.roomId)))}
+          stayRoom={focusStay ? roomName(roomById.get(focusStay.roomId)) : null}
+          canPlace={canPlaceFocus}
+          moving={movableHold !== undefined}
+          eligible={eligible}
+          picked={picked}
+          onPick={setPickedRoom}
+          onPlace={placeFocus}
+          placing={holdRoom.isPending}
+          assignReason={assignReason}
+          recordHref={focusRes ? href(`/reservations/${focusRes.id}`) : href("/reservations")}
+          homeHref={shifted ? href("/calendar") : null}
+        />
+      )}
+
       {/* Legend */}
       <div style={{ display: "flex", alignItems: "center", gap: 16, flexWrap: "wrap" }}>
         <LegendKey kind="inhouse" />
@@ -439,7 +553,8 @@ export function RoomGrid() {
               key={r.id}
               onPointerDown={mayAssign ? (e) => startDrag(r, null, e) : undefined}
               title={mayAssign ? undefined : assignReason}
-              style={{ display: "inline-flex", alignItems: "center", gap: 8, border: "1.5px dashed var(--info)", background: "var(--info-bg)", color: "var(--foreground)", borderRadius: 999, padding: "7px 14px", fontSize: 12.5, fontWeight: 600, cursor: mayAssign ? "grab" : "default", touchAction: "none", userSelect: "none", whiteSpace: "nowrap" }}
+              data-focus-bar={r.id === focusBookingId ? "tray" : undefined}
+              style={{ display: "inline-flex", alignItems: "center", gap: 8, border: r.id === focusBookingId ? "2px solid var(--accent-text)" : "1.5px dashed var(--info)", background: "var(--info-bg)", color: "var(--foreground)", borderRadius: 999, padding: "7px 14px", fontSize: 12.5, fontWeight: 600, cursor: mayAssign ? "grab" : "default", touchAction: "none", userSelect: "none", whiteSpace: "nowrap" }}
             >
               {mayAssign && <Icon name="grip-vertical" size={13} strokeWidth={2} color="var(--info)" />}
               <span>{r.guestName ?? r.reference}</span>
@@ -460,7 +575,7 @@ export function RoomGrid() {
         </EmptyState>
       ) : (
         /* The chart */
-        <div style={{ border: "1px solid var(--panel-bd)", borderRadius: "var(--radius-surface)", background: "var(--card)", overflow: "auto", maxHeight: "calc(100dvh - 322px)", minHeight: 340, position: "relative", overscrollBehavior: "contain" }}>
+        <div ref={chartRef} style={{ border: "1px solid var(--panel-bd)", borderRadius: "var(--radius-surface)", background: "var(--card)", overflow: "auto", maxHeight: "calc(100dvh - 322px)", minHeight: 340, position: "relative", overscrollBehavior: "contain" }}>
           {/* Grows to hold an open popover that fits neither above nor below,
               so the box scrolls to it rather than clipping it. */}
           <div style={{ width: GRID_W, position: "relative", minHeight: pop ? pop.y + POP_H : undefined }}>
@@ -486,8 +601,10 @@ export function RoomGrid() {
               {days.filter((d) => d.weekend && !d.today).map((d) => (
                 <div key={`w${d.i}`} style={{ position: "absolute", top: 0, bottom: 0, left: LABEL_W + d.i * COL, width: COL, background: "var(--wk)" }} />
               ))}
-              {/* Today band */}
-              <div style={{ position: "absolute", top: 0, bottom: 0, left: LABEL_W + PAST * COL, width: COL, background: "var(--td)", borderLeft: "2px solid var(--accent2)" }} />
+              {/* Today band, when today is inside the window at all */}
+              {todayCol >= 0 && todayCol < DAYS && (
+                <div style={{ position: "absolute", top: 0, bottom: 0, left: LABEL_W + todayCol * COL, width: COL, background: "var(--td)", borderLeft: "2px solid var(--accent2)" }} />
+              )}
 
               {roomList.map((rm) => {
                 const rowBars = bars.filter((b) => b.roomId === rm.id && overlaps(b.from, b.to, windowFrom, windowTo));
@@ -525,6 +642,7 @@ export function RoomGrid() {
                         const clipR = end > DAYS;
                         const rad = clipL && clipR ? "0" : clipL ? "0 8px 8px 0" : clipR ? "8px 0 0 8px" : "8px";
                         const movable = mayAssign && b.hold !== null && b.reservation !== null;
+                        const focused = focusBookingId !== null && b.reservation?.id === focusBookingId;
                         return (
                           // A button to the keyboard as well as the pointer:
                           // Tab reaches every bar and Enter opens the same
@@ -545,7 +663,8 @@ export function RoomGrid() {
                               openPop(b);
                             }}
                             title={`${c.label} · ${b.guest} · ${dateRangeIso(b.from, b.to)}`}
-                            style={{ position: "absolute", left: gs * COL + 2, width: Math.max(24, (ge - gs) * COL - 4), top: 5, height: 33, borderRadius: rad, background: c.bg, border: `1.5px solid ${c.bd}`, display: "flex", alignItems: "center", gap: 5, padding: "0 9px", cursor: movable ? "grab" : "pointer", touchAction: "none", userSelect: "none", overflow: "hidden", zIndex: 2, opacity: dragRef.current?.bar?.key === b.key && ghost ? 0.5 : 1 }}
+                            data-focus-bar={focused ? "bar" : undefined}
+                            style={{ boxShadow: focused ? "0 0 0 2px var(--accent-text)" : undefined, position: "absolute", left: gs * COL + 2, width: Math.max(24, (ge - gs) * COL - 4), top: 5, height: 33, borderRadius: rad, background: c.bg, border: `1.5px solid ${c.bd}`, display: "flex", alignItems: "center", gap: 5, padding: "0 9px", cursor: movable ? "grab" : "pointer", touchAction: "none", userSelect: "none", overflow: "hidden", zIndex: 2, opacity: dragRef.current?.bar?.key === b.key && ghost ? 0.5 : 1 }}
                           >
                             <Icon name={c.icon} size={12} strokeWidth={2} color={b.kind === "out" ? c.fg : c.bd} />
                             <span style={{ fontSize: 11.5, fontWeight: 600, color: c.fg, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{b.guest}</span>
@@ -627,6 +746,117 @@ export function RoomGrid() {
           </div>
         </div>
       )}
+    </div>
+  );
+}
+
+/**
+ * The booking the grid was opened on, and a keyboard way to give it a room.
+ *
+ * Offers only rooms the grid itself would accept on a drop: the booked room
+ * type, available, and free across the booking's nights. The server still
+ * decides; a refusal comes back in its own words through the toast.
+ */
+function FocusPanel({
+  reservation,
+  heldRooms,
+  stayRoom,
+  canPlace,
+  moving,
+  eligible,
+  picked,
+  onPick,
+  onPlace,
+  placing,
+  assignReason,
+  recordHref,
+  homeHref,
+}: {
+  reservation: OperatorReservation | null;
+  heldRooms: string[];
+  stayRoom: string | null;
+  canPlace: boolean;
+  moving: boolean;
+  eligible: OperatorRoom[];
+  picked: OperatorRoom | undefined;
+  onPick: (roomId: string) => void;
+  onPlace: () => void;
+  placing: boolean;
+  assignReason: string | undefined;
+  recordHref: string;
+  homeHref: string | null;
+}) {
+  if (!reservation) {
+    return (
+      <div data-focus-panel="missing" style={{ ...surface, padding: "12px 16px", fontSize: 13, color: "var(--ink2)" }}>
+        That booking isn&apos;t on this property&apos;s list any more.{" "}
+        <Link href={recordHref} className="font-semibold underline underline-offset-2">
+          Back to Reservations
+        </Link>
+      </div>
+    );
+  }
+
+  const guest = reservation.guestName ?? "Guest";
+  const where = stayRoom
+    ? `In ${stayRoom}`
+    : heldRooms.length > 0
+      ? `Holds ${heldRooms.join(", ")}`
+      : reservation.state === "confirmed"
+        ? "No room held yet"
+        : null;
+
+  return (
+    <div
+      data-focus-panel={reservation.id}
+      style={{ ...surface, padding: "12px 16px", display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }}
+    >
+      <span style={{ minWidth: 0, flex: "1 1 220px" }}>
+        <span style={{ display: "block", fontSize: 14, fontWeight: 700, color: "var(--foreground)" }}>{guest}</span>
+        <span className="pms-num" style={{ display: "block", fontSize: 12, color: "var(--muted)" }}>
+          {`${reservation.reference} · ${dateRangeIso(reservation.checkIn, reservation.checkOut)} · ${reservation.nights}n`}
+          {where ? ` · ${where}` : ""}
+        </span>
+      </span>
+
+      {canPlace &&
+        (eligible.length > 0 && picked ? (
+          <span style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+            <select
+              aria-label={moving ? `Move ${guest} to room` : `Room for ${guest}`}
+              value={picked.id}
+              onChange={(e) => onPick(e.target.value)}
+              disabled={assignReason !== undefined}
+              className="h-10 min-w-0 max-w-full rounded border border-line2 bg-field px-2 text-sm text-foreground"
+            >
+              {eligible.map((rm) => (
+                <option key={rm.id} value={rm.id}>
+                  {roomName(rm)}
+                </option>
+              ))}
+            </select>
+            <ActionButton variant="primary" onClick={onPlace} pending={placing} deniedReason={assignReason}>
+              {moving ? "Move here" : "Hold this room"}
+            </ActionButton>
+          </span>
+        ) : (
+          <span style={{ fontSize: 12.5, color: "var(--muted)" }}>
+            {moving
+              ? "No other room of this type is free for these nights."
+              : "No room of the booked type is free for these nights."}
+          </span>
+        ))}
+
+      <span style={{ display: "flex", alignItems: "center", gap: 12 }}>
+        {homeHref && (
+          <Link href={homeHref} className="text-sm underline underline-offset-2">
+            Back to today
+          </Link>
+        )}
+        <Link href={recordHref} className="text-sm font-semibold underline underline-offset-2">
+          Open booking
+        </Link>
+      </span>
     </div>
   );
 }

@@ -19,6 +19,12 @@
  *   seed-demo.mjs             the demo roster (the personas the sign in picker
  *                             lists) and the rows they trade on
  *   seed-demo-catalogue.mjs   the 52 catalogue properties, every row marked demo
+ *   seed-demo-hotel.mjs       Amahoro as a working hotel: 20 rooms, departments,
+ *                             outlets, a month of stays and bills, today's desk,
+ *                             housekeeping, repairs and orders
+ *   seed-demo-portfolio.mjs   the landlord's full rent roll, the district
+ *                             registration pipeline, and the admin console's
+ *                             reviews and support tickets
  *
  * then records the finish in `database_identity.seeded_at`, which
  * `GET /api/v1/platform` reports as the last reset time.
@@ -60,6 +66,9 @@ const STEPS = [
     // Useful when editing the web fixture, noise here; shown in full on failure.
     stopAt: 'listing ids for',
   },
+  // Both read rows seed-demo.mjs writes, so they run after it.
+  { script: 'seed-demo-hotel.mjs', what: 'Amahoro as a working hotel: the hotel personas\' day' },
+  { script: 'seed-demo-portfolio.mjs', what: 'rent roll, registration pipeline, reviews and support' },
 ];
 
 function fail(message) {

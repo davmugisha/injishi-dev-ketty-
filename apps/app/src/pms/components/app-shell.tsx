@@ -21,6 +21,7 @@ import { usePms } from "../store";
 import { usePmsUi } from "../ui-store";
 import { CheckInDrawer } from "./check-in-drawer";
 import { CommandBar } from "./command-bar";
+import { DemoGuide } from "./demo-guide/demo-guide";
 import { HousekeeperPhone } from "./housekeeper-phone";
 import { applyTheme } from "../lib/theme";
 import { Icon } from "./icon";
@@ -154,6 +155,8 @@ export function AppShell({ title, children }: { title: string; children: ReactNo
     return (
       <div className="pms-root">
         <HousekeeperPhone />
+        {/* Above the phone's bottom tab bar on a real handset. */}
+        <DemoGuide surface="operator" placement="raised" />
         <ShellToasts />
       </div>
     );
@@ -201,6 +204,9 @@ export function AppShell({ title, children }: { title: string; children: ReactNo
       {/* Check-in / walk-in is a hospitality-only flow — the drawer reads the
           host property, which the landlord workspace does not have. */}
       {state.ws === "host" && <CheckInDrawer />}
+      {/* Who this demo persona is and what to show next. Renders nothing off
+          the demo, and nothing for an account the demo has no story for. */}
+      <DemoGuide surface="operator" />
       <ShellToasts />
     </div>
   );
