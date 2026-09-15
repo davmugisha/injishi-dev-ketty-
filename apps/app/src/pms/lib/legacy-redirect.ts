@@ -315,6 +315,7 @@ export const WORKSPACE_ROUTES: readonly string[] = [
   "services/menu",
   "services/outlets",
   "settings",
+  "settings/branches",
   "settings/integrations",
   "settings/plan",
   "settings/policies",
