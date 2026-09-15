@@ -58,15 +58,29 @@ for (const [label, overrides, net] of [
     assert.equal(refused, 0, `the IP limiter refused ${refused} of 20 sign-ins from one shared IP`);
   });
 
-  test(`${label}: the IP backstop is still armed on sign-in`, async () => {
-    const auth = build(overrides);
-    const refused = await burst(
-      auth,
-      "/sign-in/email-otp",
-      { email: "someone@example.com", otp: "000000" },
-      105,
-      `203.0.113.${net + 1}`,
-    );
-    assert.ok(refused > 0, "105 sign-ins in a minute from one IP were never refused: the limiter is off");
-  });
 }
+
+test("production: the IP backstop is still armed on sign-in", async () => {
+  const auth = build();
+  const refused = await burst(
+    auth,
+    "/sign-in/email-otp",
+    { email: "someone@example.com", otp: "000000" },
+    105,
+    "203.0.113.11",
+  );
+  assert.ok(refused > 0, "105 sign-ins in a minute from one IP were never refused: the limiter is off");
+});
+
+// The demo's code is fixed and published, so it has no IP limiter at all.
+test("demo: no IP limiter, even at 105 sign-ins a minute", async () => {
+  const auth = build({ demoOtpCode: "123456" });
+  const refused = await burst(
+    auth,
+    "/sign-in/email-otp",
+    { email: "someone@example.com", otp: "000000" },
+    105,
+    "203.0.113.21",
+  );
+  assert.equal(refused, 0, `the demo refused ${refused} of 105 sign-ins: its limiter is still on`);
+});

@@ -128,6 +128,16 @@ export function createAuth(config) {
                 }
                 : {}),
         },
+        /*
+         * NO RATE LIMITS ON THE DEMO INSTANCE, for the reason
+         * `otpSendCap({ enforce })` below gives: its code is fixed and published,
+         * so a limit guards nothing. It did lock people out: the email-OTP plugin
+         * allows 3 sign-ins and 3 sends a MINUTE per IP, and a room of people
+         * trying the demo from one office or one carrier NAT shares an IP, so the
+         * fourth person read "That's a lot of tries in a short time".
+         * Production passes no `demoOtpCode` and keeps every limit.
+         */
+        ...(config.demoOtpCode ? { rateLimit: { enabled: false } } : {}),
         // Passwordless by default (F-S01 §6): password is an optional add-on,
         // never prompted at signup, so email+password sign-in stays off.
         emailAndPassword: { enabled: false },
@@ -136,7 +146,12 @@ export function createAuth(config) {
             emailOTP({
                 otpLength: OTP_LENGTH,
                 expiresIn: OTP_EXPIRY_SECONDS,
-                allowedAttempts: OTP_MAX_ATTEMPTS,
+                // A wrong guess burns a code after OTP_MAX_ATTEMPTS, except on the
+                // demo, where the code is published and a burnt one only strands
+                // the visitor who mistyped it.
+                allowedAttempts: config.demoOtpCode
+                    ? Number.MAX_SAFE_INTEGER
+                    : OTP_MAX_ATTEMPTS,
                 // Better Auth stores OTPs in plaintext by default. A live sign-in code
                 // sitting in `verifications.value` turns any read of that table (a
                 // backup, a support query, an injection) into account takeover on any
