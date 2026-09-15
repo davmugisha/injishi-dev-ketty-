@@ -32,7 +32,7 @@ import {
 } from "@tanstack/react-query";
 
 import { command } from "./api";
-import { read } from "./ops";
+import { read, useMayRead } from "./ops";
 import { queryKeys } from "./queries";
 
 function useInvalidateInventory(): () => void {
@@ -49,6 +49,7 @@ export function useSetupProgress(
   workspaceId: string | null,
   propertyId: string | null = null,
 ): UseQueryResult<PropertySetupProgress> {
+  const mayRead = useMayRead(["listing.manage"]);
   return useQuery({
     queryKey: queryKeys.setupProgress(workspaceId, propertyId),
     queryFn: () =>
@@ -59,7 +60,9 @@ export function useSetupProgress(
         workspaceId as string,
         PropertySetupProgress,
       ),
-    enabled: workspaceId !== null,
+    // Every /inventory read is `listing.manage` on the server (class guard);
+    // a refusal invalidates me.workspaces, so a caller without it never asks.
+    enabled: workspaceId !== null && mayRead,
   });
 }
 
@@ -68,11 +71,12 @@ export function useInventoryRooms(
   workspaceId: string | null,
   roomTypeId: string | null,
 ): UseQueryResult<InventoryRoomList> {
+  const mayRead = useMayRead(["listing.manage"]);
   return useQuery({
     queryKey: queryKeys.inventoryRooms(workspaceId, roomTypeId),
     queryFn: () =>
       read(`/inventory/room-types/${roomTypeId as string}/rooms`, workspaceId as string, InventoryRoomList),
-    enabled: workspaceId !== null && roomTypeId !== null,
+    enabled: workspaceId !== null && roomTypeId !== null && mayRead,
   });
 }
 
@@ -111,10 +115,11 @@ export function useUpdateRoom(
 export function useStaffInvitations(
   workspaceId: string | null,
 ): UseQueryResult<OperatorStaffInvitationList> {
+  const mayRead = useMayRead(["team.manage"]);
   return useQuery({
     queryKey: queryKeys.staffInvitations(workspaceId),
     queryFn: () => read("/ops/team/invitations", workspaceId as string, OperatorStaffInvitationList),
-    enabled: workspaceId !== null,
+    enabled: workspaceId !== null && mayRead,
   });
 }
 

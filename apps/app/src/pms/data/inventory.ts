@@ -46,7 +46,7 @@ import {
 } from "@tanstack/react-query";
 
 import { ApiError, command, upload } from "./api";
-import { read } from "./ops";
+import { read, useMayRead } from "./ops";
 import { queryKeys } from "./queries";
 
 type Body<T> = Omit<T, "workspaceId">;
@@ -63,6 +63,8 @@ export function useRoomTypes(
   workspaceId: string | null,
   propertyId: string | null,
 ): UseQueryResult<OperatorRoomTypeList> {
+  // Every /inventory read is `listing.manage` on the server (class guard).
+  const mayRead = useMayRead(["listing.manage"]);
   return useQuery({
     queryKey: queryKeys.roomTypes(workspaceId, propertyId),
     queryFn: () =>
@@ -71,7 +73,7 @@ export function useRoomTypes(
         workspaceId as string,
         OperatorRoomTypeList,
       ),
-    enabled: workspaceId !== null && propertyId !== null,
+    enabled: workspaceId !== null && propertyId !== null && mayRead,
   });
 }
 
@@ -243,11 +245,12 @@ export function useSetListing(
  * list the other screens read stays free of archived rows.
  */
 export function useBranches(workspaceId: string | null): UseQueryResult<OperatorPropertyList> {
+  const mayRead = useMayRead(["listing.manage"]);
   return useQuery({
     queryKey: ["inventory", "branches", workspaceId] as const,
     queryFn: () =>
       read("/inventory/properties?includeArchived=true", workspaceId as string, OperatorPropertyList),
-    enabled: workspaceId !== null,
+    enabled: workspaceId !== null && mayRead,
   });
 }
 
