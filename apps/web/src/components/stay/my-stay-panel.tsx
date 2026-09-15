@@ -241,7 +241,8 @@ function StaySummary({ stay }: { stay: MyStay }) {
  * existed since ADR-016 with nothing reading it, because no guest surface could
  * start a conversation at all.
  */
-function DesksPanel({ stay }: { stay: MyStay }) {
+/** Exported for `/inbox`, which offers the same desks above the conversations. */
+export function DesksPanel({ stay }: { stay: MyStay }) {
   const [desks, setDesks] = useState<StayDepartment[] | null>(null);
   const [openFor, setOpenFor] = useState<string | null>(null);
   const [body, setBody] = useState("");

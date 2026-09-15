@@ -59,6 +59,7 @@ import {
 import type { DeclarationPlan } from '../application/declaration-plan.service';
 import { MAX_ITEM_SERIAL, itemCode, serialOf } from '../domain/sellable-item';
 import { NO_CONNECTION, type ChargeDraft, postChargesTx } from './folio.repository';
+import { writeOrderThreadLineTx } from './order-thread-lines';
 
 export interface CategoryRow {
   id: string;
@@ -616,6 +617,8 @@ export class ServiceCatalogRepository {
     /** A signed in walk in with no stay, who pays now. */
     customerUserId?: string | null;
     requestedForAt?: Date | null;
+    /** The conversation it was placed from (ADR-050 D-s), already proved the guest's. */
+    threadId?: string | null;
     subtotalRwf: number;
     taxRwf: number;
     lines: OrderLineDraft[];
@@ -645,6 +648,7 @@ export class ServiceCatalogRepository {
           orderedByUserId: input.orderedByUserId ?? null,
           customerUserId: input.customerUserId ?? null,
           requestedForAt: input.requestedForAt ?? null,
+          threadId: input.threadId ?? null,
           subtotalRwf: input.subtotalRwf,
           taxRwf: input.taxRwf,
           totalRwf: input.subtotalRwf + input.taxRwf,
@@ -670,6 +674,7 @@ export class ServiceCatalogRepository {
       await tx
         .insert(serviceOrderEvents)
         .values({ serviceOrderId: order.id, status, actorUserId: input.orderedByUserId ?? null });
+      await writeOrderThreadLineTx(tx, order.id, status);
 
       await writeOutboxTx(tx, {
         eventType: 'order.status',
@@ -751,6 +756,7 @@ export class ServiceCatalogRepository {
         actorUserId: input.actorUserId,
         note: input.note,
       });
+      await writeOrderThreadLineTx(tx, input.orderId, input.to);
 
       if (input.charge) {
         // An order delivered after its bill was signed goes on the stay's next
@@ -871,6 +877,7 @@ export class ServiceCatalogRepository {
         actorUserId: input.markedByUserId,
         note: input.paymentMethod === '01' ? 'Paid in cash' : 'Paid by mobile money',
       });
+      await writeOrderThreadLineTx(tx, order.id, 'submitted');
       await writeOutboxTx(tx, {
         eventType: 'order.status',
         aggregateType: 'service_order',
@@ -1057,6 +1064,7 @@ export class ServiceCatalogRepository {
       await tx
         .insert(serviceOrderEvents)
         .values({ serviceOrderId: moved.id, status: to, actorUserId, note });
+      await writeOrderThreadLineTx(tx, moved.id, to);
       await writeOutboxTx(tx, {
         eventType: 'order.status',
         aggregateType: 'service_order',

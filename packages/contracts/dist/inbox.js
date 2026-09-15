@@ -78,8 +78,11 @@ exports.GuestMessage = zod_1.z.object({
     senderName: zod_1.z.string().nullable(),
     /** True when the READER sent it, so a screen can side the bubble. */
     fromUs: zod_1.z.boolean(),
-    bodyType: zod_1.z.enum(["text", "image", "voice"]),
+    /** `system` is a line the platform wrote, such as an order's status (ADR-050 D-s). */
+    bodyType: zod_1.z.enum(["text", "image", "voice", "system"]),
     body: zod_1.z.string().nullable(),
+    /** The order a `system` line reports on; read it from `GET /me/orders/:id`. */
+    serviceOrderId: primitives_1.Uuid.nullable(),
     voiceDurationS: zod_1.z.number().int().nullable(),
     createdAt: zod_1.z.string(),
 });

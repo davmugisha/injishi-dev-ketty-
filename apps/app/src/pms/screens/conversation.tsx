@@ -86,6 +86,7 @@ function initialsOf(name: string | null): string {
  */
 function bodyText(m: OperatorMessage): string {
   if (m.bodyType === "image") return "📷 Photo";
+  if (m.bodyType === "system") return m.body ?? "";
   if (m.bodyType === "voice") {
     const s = m.voiceDurationS;
     return s ? `🎙 Voice note · ${s}s` : "🎙 Voice note";
@@ -204,6 +205,7 @@ export function Conversation({ listLabel, scopeNote, placeholder, quick }: Conve
                     </span>
                   </span>
                   <span className="mt-px block truncate text-2xs text-muted-foreground">
+                    {t.departmentName ? `To ${t.departmentName} · ` : ""}
                     {ABOUT[t.scope]}
                     {t.status === "archived" ? " · archived" : ""}
                   </span>
@@ -227,6 +229,7 @@ export function Conversation({ listLabel, scopeNote, placeholder, quick }: Conve
                 {sel.counterpartName ?? "Unnamed"}
               </span>
               <span className="block truncate text-2xs text-muted-foreground">
+                {sel.departmentName ? `To ${sel.departmentName} · ` : ""}
                 {ABOUT[sel.scope]}
               </span>
             </span>
@@ -255,7 +258,19 @@ export function Conversation({ listLabel, scopeNote, placeholder, quick }: Conve
               </LoadFailed>
             )}
 
-            {(messagesQuery.data?.messages ?? []).map((m) => (
+            {(messagesQuery.data?.messages ?? []).map((m) =>
+              m.bodyType === "system" ? (
+                // A line the platform wrote about an order raised in this
+                // conversation (ADR-050 D-s): nobody's bubble, and it never
+                // reads as the guest or a colleague speaking.
+                <div
+                  key={m.id}
+                  data-system-line
+                  className="self-center rounded-full bg-field px-3 py-1 text-center text-2xs text-muted-foreground"
+                >
+                  {bodyText(m)} · <span className="pms-num">{dshortIso(m.createdAt)}</span>
+                </div>
+              ) : (
               <div key={m.id} className={cn("flex", m.fromUs ? "justify-end" : "justify-start")}>
                 <div className="max-w-[76%]">
                   <div
@@ -279,7 +294,8 @@ export function Conversation({ listLabel, scopeNote, placeholder, quick }: Conve
                   </div>
                 </div>
               </div>
-            ))}
+              ),
+            )}
           </ScrollShadow>
 
           <div className="border-t border-line px-[18px] py-3">

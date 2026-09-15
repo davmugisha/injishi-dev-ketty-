@@ -389,6 +389,11 @@ exports.OperatorThread = zod_1.z.object({
     subjectId: primitives_1.Uuid,
     /** Who the operator is talking to, when we can resolve a name. */
     counterpartName: zod_1.z.string().nullable(),
+    /**
+     * The department the guest opened this conversation with (ADR-050 D-q),
+     * or null for the reservation thread every booking gets at sale.
+     */
+    departmentName: zod_1.z.string().nullable(),
     status: zod_1.z.enum(["active", "archived"]),
     lastMessageAt: zod_1.z.string().nullable(),
     lastMessagePreview: zod_1.z.string().nullable(),
@@ -404,8 +409,11 @@ exports.OperatorMessage = zod_1.z.object({
     senderName: zod_1.z.string().nullable(),
     /** True when this workspace sent it, so a screen can side the bubble. */
     fromUs: zod_1.z.boolean(),
-    bodyType: zod_1.z.enum(["text", "image", "voice"]),
+    /** `system` is a line the platform wrote, such as an order's status (ADR-050 D-s). */
+    bodyType: zod_1.z.enum(["text", "image", "voice", "system"]),
     body: zod_1.z.string().nullable(),
+    /** The order a `system` line reports on, so a screen can draw its card. */
+    serviceOrderId: primitives_1.Uuid.nullable(),
     voiceDurationS: zod_1.z.number().int().nullable(),
     createdAt: zod_1.z.string(),
 });

@@ -386,6 +386,9 @@ export const messageBodyTypeEnum = pgEnum('message_body_type', [
   'text',
   'image',
   'voice',
+  // ADR-050 D-s: a line the platform writes, such as an order's status change.
+  // It has no sender and never counts as a staff reply.
+  'system',
 ]);
 
 export const storedObjectKindEnum = pgEnum('stored_object_kind', [

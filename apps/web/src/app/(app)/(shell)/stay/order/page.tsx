@@ -19,6 +19,17 @@ export const metadata: Metadata = {
  * the reads run in the browser, and `metadata` cannot come out of a client
  * component. The public property menu page links here.
  */
-export default function Page() {
-  return <OrderScreen />;
+/**
+ * `?thread=<id>` places the order FROM that conversation (ADR-050 D-s): the
+ * server checks the thread is the guest's own, and the conversation then
+ * carries the order's card and a line for every status change.
+ */
+export default async function Page({
+  searchParams,
+}: {
+  searchParams: Promise<{ thread?: string | string[] }>;
+}) {
+  const { thread } = await searchParams;
+  const threadId = typeof thread === "string" && /^[0-9a-f-]{36}$/i.test(thread) ? thread : undefined;
+  return <OrderScreen threadId={threadId} />;
 }

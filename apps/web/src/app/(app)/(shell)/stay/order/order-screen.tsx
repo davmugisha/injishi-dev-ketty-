@@ -61,7 +61,7 @@ type SettlementChoice = "room" | "mobile_money" | "counter";
  * `Idempotency-Key` is minted once per cart and settlement and survives a retry
  * of the same press, so a timeout pressed again is one order, not two.
  */
-export function OrderScreen() {
+export function OrderScreen({ threadId }: { threadId?: string } = {}) {
   const router = useRouter();
   const [orderable, setOrderable] = useState<ApiResult<OrderableList> | null>(null);
   const [outletId, setOutletId] = useState<string | null>(null);
@@ -138,7 +138,12 @@ export function OrderScreen() {
   };
 
   const finish = (orderId: string) => {
-    router.push(`/stay?placed=${encodeURIComponent(orderId)}`);
+    // An order placed from a conversation goes back to it, where its card is.
+    router.push(
+      threadId
+        ? `/inbox/${encodeURIComponent(threadId)}`
+        : `/stay?placed=${encodeURIComponent(orderId)}`,
+    );
   };
 
   const submit = async () => {
@@ -148,7 +153,10 @@ export function OrderScreen() {
     }
     setBusy(true);
     setRefusal(null);
-    const answer = await placeOrder(orderRequest(cart, outlet, settlement, note), key.current.value);
+    const answer = await placeOrder(
+      { ...orderRequest(cart, outlet, settlement, note), ...(threadId ? { threadId } : {}) },
+      key.current.value,
+    );
     setBusy(false);
 
     if (answer.status === "ok") {

@@ -27,6 +27,7 @@ import {
   unclassifiedSentence,
 } from '../domain/sellable-item';
 import { FolioRepository } from '../infrastructure/folio.repository';
+import { MessagingService } from './messaging.service';
 import {
   GuestOrderingRepository,
   type InHouseStay,
@@ -70,6 +71,7 @@ export class GuestOrderingService {
     private readonly guests: GuestOrderingRepository,
     private readonly catalog: ServiceCatalogRepository,
     private readonly folios: FolioRepository,
+    private readonly messaging: MessagingService,
   ) {}
 
   protected now(): Date {
@@ -174,6 +176,11 @@ export class GuestOrderingService {
 
     const stay = this.stayFor(await this.guests.inHouseStays(userId), outlet);
     this.assertPolicy(outlet, stay, body);
+    // Ordering from inside a conversation (ADR-050 D-s): the thread must be the
+    // caller's own, still open, and at this outlet's property.
+    if (body.threadId) {
+      await this.messaging.assertOrderableThread(userId, body.threadId, outlet.propertyId);
+    }
     if (!isOutletOpen(outlet.hours, this.now(), PROPERTY_TIME_ZONE)) {
       throw new ConflictException(`${outlet.name} is closed right now.`);
     }
@@ -263,6 +270,7 @@ export class GuestOrderingService {
       orderedByUserId: userId,
       customerUserId: inHouse ? null : userId,
       requestedForAt: body.requestedForAt ? new Date(body.requestedForAt) : null,
+      threadId: body.threadId ?? null,
       subtotalRwf,
       taxRwf,
       lines,

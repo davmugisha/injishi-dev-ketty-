@@ -412,6 +412,11 @@ export const OperatorThread = z.object({
     subjectId: Uuid,
     /** Who the operator is talking to, when we can resolve a name. */
     counterpartName: z.string().nullable(),
+    /**
+     * The department the guest opened this conversation with (ADR-050 D-q),
+     * or null for the reservation thread every booking gets at sale.
+     */
+    departmentName: z.string().nullable(),
     status: z.enum(["active", "archived"]),
     lastMessageAt: z.string().nullable(),
     lastMessagePreview: z.string().nullable(),
@@ -429,8 +434,11 @@ export const OperatorMessage = z.object({
     senderName: z.string().nullable(),
     /** True when this workspace sent it, so a screen can side the bubble. */
     fromUs: z.boolean(),
-    bodyType: z.enum(["text", "image", "voice"]),
+    /** `system` is a line the platform wrote, such as an order's status (ADR-050 D-s). */
+    bodyType: z.enum(["text", "image", "voice", "system"]),
     body: z.string().nullable(),
+    /** The order a `system` line reports on, so a screen can draw its card. */
+    serviceOrderId: Uuid.nullable(),
     voiceDurationS: z.number().int().nullable(),
     createdAt: z.string(),
 });

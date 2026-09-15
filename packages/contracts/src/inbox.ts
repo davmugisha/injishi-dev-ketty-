@@ -87,8 +87,11 @@ export const GuestMessage = z.object({
   senderName: z.string().nullable(),
   /** True when the READER sent it, so a screen can side the bubble. */
   fromUs: z.boolean(),
-  bodyType: z.enum(["text", "image", "voice"]),
+  /** `system` is a line the platform wrote, such as an order's status (ADR-050 D-s). */
+  bodyType: z.enum(["text", "image", "voice", "system"]),
   body: z.string().nullable(),
+  /** The order a `system` line reports on; read it from `GET /me/orders/:id`. */
+  serviceOrderId: Uuid.nullable(),
   voiceDurationS: z.number().int().nullable(),
   createdAt: z.string(),
 });
