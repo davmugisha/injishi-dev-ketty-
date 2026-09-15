@@ -166,7 +166,8 @@ async function resolveTarget(kind: LegacyKind): Promise<Resolution> {
  * Resolve an old path and leave. Never returns.
  *
  * @param kind the workspace kind the old first segment named
- * @param rest everything after it, kept intact so a deep link stays deep
+ * @param rest everything after it, renamed through `legacyScreenPath` so a
+ *   deep link stays deep where its screen still exists
  */
 export async function redirectLegacyPath(
   kind: LegacyKind,
@@ -197,9 +198,175 @@ export async function redirectLegacyPath(
   // The tail only survives when the destination is the same kind of workspace.
   // Carrying `/leases` onto a hotel would land on a screen that hotel's nav
   // does not grant, which reads as a refusal rather than as a moved address.
-  const target = resolved.sameKind && tail.length > 0
-    ? `${workspaceBase(resolved.workspaceId)}/${tail.join("/")}`
+  // Even then it is RENAMED before it is joined, never copied: `/host/bills/x`
+  // copied verbatim became `/w/<id>/bills/x`, and no such route exists.
+  const screen = resolved.sameKind ? legacyScreenPath(kind, tail) : null;
+  const target = screen
+    ? `${workspaceBase(resolved.workspaceId)}${screen}`
     : workspaceHome(kind, resolved.workspaceId);
 
   redirect(target);
+}
+
+/**
+ * Where each old screen segment lives now (ADR-018, move 5).
+ *
+ * Only segments that MOVED are listed. A segment that kept its name (`today`,
+ * `reservations`, `leases`, …) passes through unchanged and is then checked
+ * against `WORKSPACE_ROUTES` like everything else. The `from` column is the
+ * pre-move route table in `Product-v1.0-MFP/mfp-fe.md`; the `to` column is the
+ * route tree under `src/app/w/[workspaceId]/`.
+ *
+ * A value is a path of segments, so a rename can land inside a lens
+ * (`revenue` → `finance/revenue`).
+ */
+const LEGACY_RENAMES: Readonly<Record<string, readonly string[]>> = {
+  // Finance: four leaves became one route with four lenses. `bills` is the
+  // default lens, so `/finance` IS the bills list and `bills/<id>` keeps its
+  // record segment under it.
+  bills: ["finance", "bills"],
+  payouts: ["finance", "payouts"],
+  invoices: ["finance", "invoices"],
+  revenue: ["finance", "revenue"],
+  // Landlord compliance: the portfolio half is the filings lens in Finance.
+  compliance: ["finance", "filings"],
+  // Calendar: one route, three views over what used to be three screens.
+  grid: ["calendar"],
+  availability: ["calendar"],
+  // Inventory: the room-type catalogue and "what you offer".
+  "rooms-rates": ["inventory"],
+  offer: ["inventory", "amenities"],
+  // Services: live orders is the default lens, the menu its own.
+  orders: ["services"],
+  menu: ["services", "menu"],
+  // One inbox per workspace, whatever the old thread list was called.
+  messages: ["inbox"],
+  "tenant-messages": ["inbox"],
+  cleaning: ["housekeeping"],
+  tickets: ["maintenance"],
+  // People took over Team, with departments and invites as lenses.
+  team: ["people"],
+  // Settings absorbed Plan and billing.
+  plan: ["settings", "plan"],
+};
+
+/**
+ * Renames that depend on which KIND the old path named.
+ *
+ * `directory` meant opposite jobs: a landlord publishing units, and a broker
+ * browsing them. The landlord's became Listing; the broker kept the word.
+ */
+const LEGACY_KIND_RENAMES: Readonly<
+  Record<LegacyKind, Readonly<Record<string, readonly string[]>>>
+> = {
+  host: {},
+  landlord: { directory: ["listing"] },
+  broker: {},
+};
+
+/**
+ * Every screen under `/w/<id>/`, as segment patterns. `*` is a dynamic
+ * segment. `legacy-redirect.test.mjs` fails when this list and the route tree
+ * on disk disagree, so a new or deleted screen cannot silently change where an
+ * old link lands.
+ */
+export const WORKSPACE_ROUTES: readonly string[] = [
+  "account",
+  "calendar",
+  "directory",
+  "earnings",
+  "finance",
+  "finance/bills/*",
+  "finance/filings",
+  "finance/invoices",
+  "finance/payouts",
+  "finance/revenue",
+  "housekeeping",
+  "inbox",
+  "inbox/*",
+  "inventory",
+  "inventory/amenities",
+  "inventory/rate-plans",
+  "leases",
+  "leases/*",
+  "leases/*/caution",
+  "leases/*/contract",
+  "leases/*/filing",
+  "leases/*/move-out",
+  "leases/*/rent",
+  "leases/*/visitors",
+  "listing",
+  "maintenance",
+  "move-outs",
+  "people",
+  "people/departments",
+  "people/invites",
+  "placements",
+  "rent-roll",
+  "reservations",
+  "reservations/*",
+  "reservations/*/guests",
+  "reservations/*/history",
+  "reservations/*/messages",
+  "reservations/*/payment",
+  "rooms",
+  "services",
+  "services/departments",
+  "services/menu",
+  "services/outlets",
+  "settings",
+  "settings/integrations",
+  "settings/plan",
+  "settings/policies",
+  "setup",
+  "stays/*",
+  "stays/*/documents",
+  "stays/*/folio",
+  "stays/*/guests",
+  "stays/*/notes",
+  "today",
+  "units",
+];
+
+function isWorkspaceRoute(segments: readonly string[]): boolean {
+  return WORKSPACE_ROUTES.some((route) => {
+    const pattern = route.split("/");
+    return (
+      pattern.length === segments.length &&
+      pattern.every((part, i) => part === "*" || part === segments[i])
+    );
+  });
+}
+
+/**
+ * The new screen path, inside a workspace, for an old kind-prefixed tail.
+ *
+ * Pure, so it can be tested without Next. The first segment is renamed through
+ * the maps above; the result is then cut back to the LONGEST prefix that is a
+ * real route, so `/host/bills` (no index page) lands on `/finance` and a deep
+ * link past the end of a record lands on the record. `null` means no prefix is
+ * a screen at all, and the caller sends the person to the workspace's home
+ * rather than to a 404.
+ *
+ * @returns a path beginning with `/`, to append to `workspaceBase`, or `null`
+ */
+export function legacyScreenPath(
+  kind: LegacyKind,
+  tail: readonly string[],
+): string | null {
+  const parts = tail.filter((segment) => segment.length > 0);
+  if (parts.length === 0) return null;
+
+  const [head, ...rest] = parts;
+  const renamed =
+    LEGACY_KIND_RENAMES[kind][head] ?? LEGACY_RENAMES[head] ?? [head];
+  const mapped = [...renamed, ...rest];
+
+  for (let length = mapped.length; length > 0; length--) {
+    const candidate = mapped.slice(0, length);
+    if (isWorkspaceRoute(candidate)) {
+      return `/${candidate.map((segment) => encodeURIComponent(segment)).join("/")}`;
+    }
+  }
+  return null;
 }

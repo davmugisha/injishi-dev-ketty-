@@ -52,6 +52,10 @@ export const NAV: NavSection[] = [
   {
     label: "My stays",
     items: [
+      // `/stay` is the ONE stay a person is checked into right now, and
+      // `/trips` every stay they have booked. Without this item the shell
+      // resolved `/stay` to nothing: a blank topbar and no highlighted row.
+      { href: "/stay", label: "My stay", icon: "door-open" },
       { href: "/trips", label: "Trips", icon: "map-pin" },
       { href: "/saved", label: "Saved", icon: "heart" },
     ],
@@ -108,6 +112,21 @@ export const PERSONAL = {
  * their own — so its `<main>` is a flex row that does NOT scroll.
  */
 const DEFAULT_MAIN = "min-h-0 grow overflow-y-auto";
+
+/**
+ * Titles for shell routes that are RECORDS rather than sections.
+ *
+ * A receipt is reached from a trip or a stay, never from the nav, so it has no
+ * `NavItem` to borrow a label from, and the topbar printed an empty heading
+ * over it. These name the page without highlighting a row, because a receipt
+ * belongs to no one section of the nav.
+ */
+const RECORD_TITLE: Record<string, string> = {
+  "/receipt": "Receipt",
+};
+
+/** The last resort, so the topbar is never blank on a route nobody listed. */
+const FALLBACK_TITLE = "Personal";
 const MAIN_CLASS: Record<string, string> = {
   "/inbox": "flex min-h-0 grow",
 };
@@ -117,7 +136,9 @@ const MAIN_CLASS: Record<string, string> = {
  *
  * The URL stays the single source of truth, so no page declares its own shell
  * props. A nested address such as `/inbox/<threadId>` resolves to its parent,
- * because a record is not a different section of the app.
+ * because a record is not a different section of the app. A record with no
+ * parent in the nav (`/receipt/<ref>`) takes its title from `RECORD_TITLE`,
+ * and anything else from `FALLBACK_TITLE`: the title is never empty.
  */
 export function resolveRoute(pathname: string): {
   active: string;
@@ -129,9 +150,12 @@ export function resolveRoute(pathname: string): {
       pathname === candidate.href || pathname.startsWith(`${candidate.href}/`),
   );
   const active = item?.href ?? "";
+  const record = Object.keys(RECORD_TITLE).find(
+    (prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`),
+  );
   return {
     active,
-    title: item?.label ?? "",
+    title: item?.label ?? (record ? RECORD_TITLE[record] : FALLBACK_TITLE),
     mainClass: MAIN_CLASS[active] ?? DEFAULT_MAIN,
   };
 }

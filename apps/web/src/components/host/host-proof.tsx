@@ -40,7 +40,7 @@ export function HostProof() {
           {/* The reference's text link, kept as text. Anything heavier here
               would compete with the closing CTA two sections down. */}
           <Link
-            href="/services#escrow"
+            href="/how-it-works#escrow"
             className="w-max text-page-fg underline underline-offset-[4px]"
           >
             How escrow and payouts work

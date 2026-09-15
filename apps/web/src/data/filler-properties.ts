@@ -576,7 +576,7 @@ function toProperty(seed: FillerSeed): PropertyDetail {
           "Payment is held in escrow until check-in",
           "Released to the host only once you have arrived",
         ],
-        learnMoreHref: "/services",
+        learnMoreHref: "/how-it-works#escrow",
       },
       {
         title: "Cancellation",

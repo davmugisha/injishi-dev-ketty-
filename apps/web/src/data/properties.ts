@@ -211,7 +211,7 @@ export const PROPERTIES: PropertyDetail[] = [
           "Released to the host only once you have arrived",
           "Rates shown exclude taxes unless the accommodation states otherwise",
         ],
-        learnMoreHref: "/services",
+        learnMoreHref: "/how-it-works#escrow",
       },
       {
         title: "Cancellation",
@@ -307,7 +307,7 @@ export const PROPERTIES: PropertyDetail[] = [
           "Released to the host only once you have arrived",
           "Rates shown exclude taxes unless the accommodation states otherwise",
         ],
-        learnMoreHref: "/services",
+        learnMoreHref: "/how-it-works#escrow",
       },
       {
         title: "Cancellation",
@@ -405,7 +405,7 @@ export const PROPERTIES: PropertyDetail[] = [
           "Released to the host only once you have arrived",
           "Rates shown exclude taxes unless the accommodation states otherwise",
         ],
-        learnMoreHref: "/services",
+        learnMoreHref: "/how-it-works#escrow",
       },
       {
         title: "Cancellation",
@@ -500,7 +500,7 @@ export const PROPERTIES: PropertyDetail[] = [
           "Released to the host only once you have arrived",
           "Rates shown exclude taxes unless the accommodation states otherwise",
         ],
-        learnMoreHref: "/services",
+        learnMoreHref: "/how-it-works#escrow",
       },
       {
         title: "Cancellation",
@@ -595,7 +595,7 @@ export const PROPERTIES: PropertyDetail[] = [
           "Released to the host only once you have arrived",
           "Rates shown exclude taxes unless the accommodation states otherwise",
         ],
-        learnMoreHref: "/services",
+        learnMoreHref: "/how-it-works#escrow",
       },
       {
         title: "Cancellation",
@@ -692,7 +692,7 @@ export const PROPERTIES: PropertyDetail[] = [
           "Released to the host only once you have arrived",
           "Rates shown exclude taxes unless the accommodation states otherwise",
         ],
-        learnMoreHref: "/services",
+        learnMoreHref: "/how-it-works#escrow",
       },
       {
         title: "Cancellation",
@@ -787,7 +787,7 @@ export const PROPERTIES: PropertyDetail[] = [
           "Released to the host only once you have arrived",
           "Rates shown exclude taxes unless the accommodation states otherwise",
         ],
-        learnMoreHref: "/services",
+        learnMoreHref: "/how-it-works#escrow",
       },
       {
         title: "Cancellation",
@@ -882,7 +882,7 @@ export const PROPERTIES: PropertyDetail[] = [
           "Released to the host only once you have arrived",
           "Rates shown exclude taxes unless the accommodation states otherwise",
         ],
-        learnMoreHref: "/services",
+        learnMoreHref: "/how-it-works#escrow",
       },
       {
         title: "Cancellation",
@@ -975,7 +975,7 @@ export const PROPERTIES: PropertyDetail[] = [
           "Released to the host only once you have arrived",
           "Rates shown exclude taxes unless the accommodation states otherwise",
         ],
-        learnMoreHref: "/services",
+        learnMoreHref: "/how-it-works#escrow",
       },
       {
         title: "Cancellation",
@@ -1068,7 +1068,7 @@ export const PROPERTIES: PropertyDetail[] = [
           "Released to the host only once you have arrived",
           "Rates shown exclude taxes unless the accommodation states otherwise",
         ],
-        learnMoreHref: "/services",
+        learnMoreHref: "/how-it-works#escrow",
       },
       {
         title: "Cancellation",
@@ -1159,7 +1159,7 @@ export const PROPERTIES: PropertyDetail[] = [
           "Released to the host only once you have arrived",
           "Rates shown exclude taxes unless the accommodation states otherwise",
         ],
-        learnMoreHref: "/services",
+        learnMoreHref: "/how-it-works#escrow",
       },
       {
         title: "Cancellation",
@@ -1250,7 +1250,7 @@ export const PROPERTIES: PropertyDetail[] = [
           "Released to the host only once you have arrived",
           "Rates shown exclude taxes unless the accommodation states otherwise",
         ],
-        learnMoreHref: "/services",
+        learnMoreHref: "/how-it-works#escrow",
       },
       {
         title: "Cancellation",
@@ -1343,7 +1343,7 @@ export const PROPERTIES: PropertyDetail[] = [
           "Released to the host only once you have arrived",
           "Rates shown exclude taxes unless the accommodation states otherwise",
         ],
-        learnMoreHref: "/services",
+        learnMoreHref: "/how-it-works#escrow",
       },
       {
         title: "Cancellation",
@@ -1437,7 +1437,7 @@ export const PROPERTIES: PropertyDetail[] = [
           "Released to the host only once you have arrived",
           "Rates shown exclude taxes unless the accommodation states otherwise",
         ],
-        learnMoreHref: "/services",
+        learnMoreHref: "/how-it-works#escrow",
       },
       {
         title: "Cancellation",
@@ -1530,7 +1530,7 @@ export const PROPERTIES: PropertyDetail[] = [
           "Released to the host only once you have arrived",
           "Rates shown exclude taxes unless the accommodation states otherwise",
         ],
-        learnMoreHref: "/services",
+        learnMoreHref: "/how-it-works#escrow",
       },
       {
         title: "Cancellation",
@@ -1625,7 +1625,7 @@ export const PROPERTIES: PropertyDetail[] = [
           "Released to the host only once you have arrived",
           "Rates shown exclude taxes unless the accommodation states otherwise",
         ],
-        learnMoreHref: "/services",
+        learnMoreHref: "/how-it-works#escrow",
       },
       {
         title: "Cancellation",
@@ -1733,7 +1733,7 @@ export const PROPERTIES: PropertyDetail[] = [
           "Released to the host only once you have arrived",
           "Rates shown exclude taxes unless the accommodation states otherwise",
         ],
-        learnMoreHref: "/services",
+        learnMoreHref: "/how-it-works#escrow",
       },
       {
         title: "Cancellation",
@@ -1838,7 +1838,7 @@ export const PROPERTIES: PropertyDetail[] = [
           "Released to the host only once you have arrived",
           "Rates shown exclude taxes unless the accommodation states otherwise",
         ],
-        learnMoreHref: "/services",
+        learnMoreHref: "/how-it-works#escrow",
       },
       {
         title: "Cancellation",
@@ -1945,7 +1945,7 @@ export const PROPERTIES: PropertyDetail[] = [
           "Released to the host only once you have arrived",
           "Rates shown exclude taxes unless the accommodation states otherwise",
         ],
-        learnMoreHref: "/services",
+        learnMoreHref: "/how-it-works#escrow",
       },
       {
         title: "Cancellation",
@@ -2052,7 +2052,7 @@ export const PROPERTIES: PropertyDetail[] = [
           "Released to the host only once you have arrived",
           "Rates shown exclude taxes unless the accommodation states otherwise",
         ],
-        learnMoreHref: "/services",
+        learnMoreHref: "/how-it-works#escrow",
       },
       {
         title: "Cancellation",
@@ -2145,7 +2145,7 @@ export const PROPERTIES: PropertyDetail[] = [
           "Released to the host only once you have arrived",
           "Rates shown exclude taxes unless the accommodation states otherwise",
         ],
-        learnMoreHref: "/services",
+        learnMoreHref: "/how-it-works#escrow",
       },
       {
         title: "Cancellation",
@@ -2236,7 +2236,7 @@ export const PROPERTIES: PropertyDetail[] = [
           "Released to the host only once you have arrived",
           "Rates shown exclude taxes unless the accommodation states otherwise",
         ],
-        learnMoreHref: "/services",
+        learnMoreHref: "/how-it-works#escrow",
       },
       {
         title: "Cancellation",
@@ -2337,7 +2337,7 @@ export const PROPERTIES: PropertyDetail[] = [
           "Released to the host only once you have arrived",
           "Rates shown exclude taxes unless the accommodation states otherwise",
         ],
-        learnMoreHref: "/services",
+        learnMoreHref: "/how-it-works#escrow",
       },
       {
         title: "Cancellation",
@@ -2443,7 +2443,7 @@ export const PROPERTIES: PropertyDetail[] = [
           "Released to the host only once you have arrived",
           "Rates shown exclude taxes unless the accommodation states otherwise",
         ],
-        learnMoreHref: "/services",
+        learnMoreHref: "/how-it-works#escrow",
       },
       {
         title: "Cancellation",
@@ -2538,7 +2538,7 @@ export const PROPERTIES: PropertyDetail[] = [
           "Released to the host only once you have arrived",
           "Rates shown exclude taxes unless the accommodation states otherwise",
         ],
-        learnMoreHref: "/services",
+        learnMoreHref: "/how-it-works#escrow",
       },
       {
         title: "Cancellation",
@@ -2639,7 +2639,7 @@ export const PROPERTIES: PropertyDetail[] = [
           "Released to the host only once you have arrived",
           "Rates shown exclude taxes unless the accommodation states otherwise",
         ],
-        learnMoreHref: "/services",
+        learnMoreHref: "/how-it-works#escrow",
       },
       {
         title: "Cancellation",
@@ -2746,7 +2746,7 @@ export const PROPERTIES: PropertyDetail[] = [
           "Released to the host only once you have arrived",
           "Rates shown exclude taxes unless the accommodation states otherwise",
         ],
-        learnMoreHref: "/services",
+        learnMoreHref: "/how-it-works#escrow",
       },
       {
         title: "Cancellation",
@@ -2840,7 +2840,7 @@ export const PROPERTIES: PropertyDetail[] = [
           "Released to the host only once you have arrived",
           "Rates shown exclude taxes unless the accommodation states otherwise",
         ],
-        learnMoreHref: "/services",
+        learnMoreHref: "/how-it-works#escrow",
       },
       {
         title: "Cancellation",
@@ -2933,7 +2933,7 @@ export const PROPERTIES: PropertyDetail[] = [
           "Released to the host only once you have arrived",
           "Rates shown exclude taxes unless the accommodation states otherwise",
         ],
-        learnMoreHref: "/services",
+        learnMoreHref: "/how-it-works#escrow",
       },
       {
         title: "Cancellation",
@@ -3029,7 +3029,7 @@ export const PROPERTIES: PropertyDetail[] = [
           "Released to the host only once you have arrived",
           "Rates shown exclude taxes unless the accommodation states otherwise",
         ],
-        learnMoreHref: "/services",
+        learnMoreHref: "/how-it-works#escrow",
       },
       {
         title: "Cancellation",

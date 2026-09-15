@@ -32,7 +32,7 @@ const PROMISES: Promise[] = [
     icon: "/assets/01KGDE5AV6Q0RPMMNVPY1912SF.svg",
     lead: "Escrow-backed ",
     rest: "booking",
-    href: "/services#escrow",
+    href: "/how-it-works#escrow",
     image: {
       stem: "rwanda-kigali-hero",
       alt: "Kigali, Rwanda skyline",
@@ -43,7 +43,7 @@ const PROMISES: Promise[] = [
     icon: "/assets/01KDKH0VE3BG5GZEH2JZG79825.svg",
     lead: "Self ",
     rest: "check-in",
-    href: "/services#self-check-in",
+    href: "/how-it-works#self-check-in",
     image: {
       stem: "rwanda-apartment-interior",
       alt: "Serviced apartment interior in Rwanda",
@@ -58,7 +58,7 @@ const PROMISES: Promise[] = [
        lives. */
     lead: "Tax ",
     rest: "included",
-    href: "/services#rra-compliance",
+    href: "/how-it-works#rra-compliance",
     image: {
       stem: "rwanda-lake-kivu",
       alt: "Lake Kivu, Rwanda",
