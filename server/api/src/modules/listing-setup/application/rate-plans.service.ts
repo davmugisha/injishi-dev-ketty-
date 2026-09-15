@@ -3,10 +3,13 @@ import type {
   OperatorRatePlan,
   OperatorRatePlanList,
   UpdateRatePlanRequest,
-  WorkspaceAccess,
 } from '@injishi/contracts';
 import { Injectable, NotFoundException } from '@nestjs/common';
 
+import {
+  assertInBranchScope,
+  type ScopedWorkspace,
+} from '../../../shared/auth/branch-scope';
 import { assertContained } from '../domain/containment';
 import {
   type RatePlanRow,
@@ -39,12 +42,13 @@ export class RatePlansService {
 
   /** Add a plan to one of the caller's room types. */
   async create(
-    workspace: WorkspaceAccess,
+    workspace: ScopedWorkspace,
     roomTypeId: string,
     request: CreateRatePlanRequest,
   ): Promise<OperatorRatePlan> {
     const roomType = await this.roomTypes.find(roomTypeId);
     assertContained(roomType, workspace.workspaceId, 'Room type');
+    assertInBranchScope(workspace, roomType.propertyId, 'Room type');
 
     const ratePlanId = await this.ratePlans.create({
       roomTypeId,
@@ -56,7 +60,7 @@ export class RatePlansService {
 
   /** Edit a plan. Making it the default moves the flag off the old one. */
   async update(
-    workspace: WorkspaceAccess,
+    workspace: ScopedWorkspace,
     ratePlanId: string,
     request: UpdateRatePlanRequest,
   ): Promise<OperatorRatePlan> {
@@ -68,6 +72,7 @@ export class RatePlansService {
       workspace.workspaceId,
       'Rate plan',
     );
+    assertInBranchScope(workspace, (existing as RatePlanRow).propertyId, 'Rate plan');
 
     await this.ratePlans.update({
       ratePlanId,
@@ -87,8 +92,8 @@ export class RatePlansService {
     return this.present(row, new Map());
   }
 
-  async list(ws: WorkspaceAccess): Promise<OperatorRatePlanList> {
-    const rows = await this.ratePlans.listForWorkspace(ws.workspaceId);
+  async list(ws: ScopedWorkspace): Promise<OperatorRatePlanList> {
+    const rows = await this.ratePlans.listForWorkspace(ws.workspaceId, ws.branchScope);
     /*
      * THE PARENT NAME IS RESOLVED HERE, not by a self join in the repository.
      * Every plan in the workspace is already in this array and a parent is

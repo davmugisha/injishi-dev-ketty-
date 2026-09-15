@@ -88,6 +88,7 @@ import {
   type UseQueryResult,
 } from "@tanstack/react-query";
 import { API_BASE, ApiError, REQUEST_TIMEOUT_MS, command } from "./api";
+import { branchHeader } from "./branch";
 import { queryKeys } from "./queries";
 
 /**
@@ -113,13 +114,15 @@ export async function read<T>(
   path: string,
   workspaceId: string,
   schema: Parser<T>,
+  /** Read the whole business, ignoring the branch in view (ADR-054). */
+  { allBranches = false }: { allBranches?: boolean } = {},
 ): Promise<T> {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
   try {
     const res = await fetch(`${API_BASE}/api/v1${path}`, {
       credentials: "include",
-      headers: { "x-workspace-id": workspaceId },
+      headers: { "x-workspace-id": workspaceId, ...branchHeader(allBranches) },
       signal: controller.signal,
     });
     if (!res.ok) throw new ApiError(res.status, "We couldn't load that.");
@@ -932,6 +935,9 @@ export function useCreateProperty(
       command<OperatorProperty>("/inventory/properties", {
         workspaceId: workspaceId as string,
         body: { ...body, workspaceId: workspaceId as string },
+        // A new branch is outside whichever branch is in view, so the read back
+        // the API answers with would 404 under that header (ADR-054).
+        allBranches: true,
       }),
     onSuccess: () => {
       void client.invalidateQueries({

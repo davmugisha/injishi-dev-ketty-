@@ -2,11 +2,14 @@ import type {
   OperatorReservation,
   OperatorReservationQuery,
   OperatorReservationState,
-  WorkspaceAccess,
 } from '@injishi/contracts';
 import { ConflictException, Injectable } from '@nestjs/common';
 
 import { assertOwned } from '../../../shared/auth/assert-owned';
+import {
+  assertInBranchScope,
+  type ScopedWorkspace,
+} from '../../../shared/auth/branch-scope';
 import { localToday, nightsBetween } from '../domain/pricing';
 import {
   DESK_WINDOW_DAYS,
@@ -34,11 +37,12 @@ export class OperatorReservationsService {
   ) {}
 
   async list(
-    ws: WorkspaceAccess,
+    ws: ScopedWorkspace,
     query: OperatorReservationQuery = {},
   ): Promise<OperatorReservation[]> {
     const rows = await this.bookings.listOperatorReservations(
       ws.workspaceId,
+      ws.branchScope,
       deskFilterFor(query),
     );
     const presented = rows.map((row) => this.present(row));
@@ -50,7 +54,7 @@ export class OperatorReservationsService {
   }
 
   async approve(
-    ws: WorkspaceAccess,
+    ws: ScopedWorkspace,
     bookingId: string,
   ): Promise<OperatorReservation> {
     await this.assertOwnedAndPending(ws, bookingId);
@@ -62,7 +66,7 @@ export class OperatorReservationsService {
   }
 
   async decline(
-    ws: WorkspaceAccess,
+    ws: ScopedWorkspace,
     bookingId: string,
   ): Promise<OperatorReservation> {
     await this.assertOwnedAndPending(ws, bookingId);
@@ -74,11 +78,12 @@ export class OperatorReservationsService {
   }
 
   private async assertOwnedAndPending(
-    ws: WorkspaceAccess,
+    ws: ScopedWorkspace,
     bookingId: string,
   ): Promise<void> {
     const owner = await this.bookings.findReservationOwner(bookingId);
     const row = assertOwned(owner, ws);
+    assertInBranchScope(ws, row.propertyId);
     if (row.status !== 'pending_approval') {
       throw new ConflictException(this.resolvedMessage(row.status));
     }

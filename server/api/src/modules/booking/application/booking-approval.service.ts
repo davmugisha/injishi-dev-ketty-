@@ -1,11 +1,14 @@
 import type {
   BookingApprovalResult,
   BookingStatus,
-  WorkspaceAccess,
 } from '@injishi/contracts';
 import { ConflictException, Injectable } from '@nestjs/common';
 
 import { assertOwned } from '../../../shared/auth/assert-owned';
+import {
+  assertInBranchScope,
+  type ScopedWorkspace,
+} from '../../../shared/auth/branch-scope';
 import {
   type ApprovalOutcome,
   BookingRepository,
@@ -36,7 +39,7 @@ export class BookingApprovalService {
 
   async approve(
     bookingId: string,
-    ws: WorkspaceAccess,
+    ws: ScopedWorkspace,
   ): Promise<BookingApprovalResult> {
     await this.assertOwnedAndPending(bookingId, ws);
     return this.present(
@@ -49,7 +52,7 @@ export class BookingApprovalService {
 
   async decline(
     bookingId: string,
-    ws: WorkspaceAccess,
+    ws: ScopedWorkspace,
   ): Promise<BookingApprovalResult> {
     await this.assertOwnedAndPending(bookingId, ws);
     return this.present(
@@ -68,10 +71,11 @@ export class BookingApprovalService {
    */
   private async assertOwnedAndPending(
     bookingId: string,
-    ws: WorkspaceAccess,
+    ws: ScopedWorkspace,
   ): Promise<void> {
     const owner = await this.bookings.findReservationOwner(bookingId);
     const booking = assertOwned(owner, ws);
+    assertInBranchScope(ws, booking.propertyId);
     if (booking.status !== 'pending_approval') {
       throw new ConflictException(this.resolvedMessage(booking.status));
     }

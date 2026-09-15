@@ -1,4 +1,5 @@
-import type { WorkspaceAccess } from '@injishi/contracts';
+import { everyBranch } from '../../../shared/auth/branch-scope.fixture';
+import type { ScopedWorkspace } from '../../../shared/auth/branch-scope';
 import { ConflictException, NotFoundException } from '@nestjs/common';
 
 import {
@@ -29,7 +30,11 @@ describe('BookingApprovalService', () => {
 
   const WORKSPACE_ID = '55555555-5555-5555-5555-555555555555';
   /** The workspace `WorkspaceGuard` resolved; only its id is read here. */
-  const WS = { workspaceId: WORKSPACE_ID } as WorkspaceAccess;
+  const PROPERTY_ID = '77777777-7777-4777-8777-777777777777';
+  const WS = {
+    workspaceId: WORKSPACE_ID,
+    branchScope: everyBranch(PROPERTY_ID),
+  } as unknown as ScopedWorkspace;
 
   /** The held escrow behind the pending request, as the repository reads it. */
   const heldEscrow: HeldEscrow = {
@@ -104,6 +109,7 @@ describe('BookingApprovalService', () => {
   const pending: ReservationOwner = {
     id: BOOKING_ID,
     workspaceId: WORKSPACE_ID,
+    propertyId: PROPERTY_ID,
     status: 'pending_approval',
   };
 
@@ -156,6 +162,17 @@ describe('BookingApprovalService', () => {
       NotFoundException,
     );
     expect(repo.decline).not.toHaveBeenCalled();
+  });
+
+  it('rejects a booking on a branch outside the scope with the same 404 (ADR-054 AC-T2)', async () => {
+    const { repo, service } = build({
+      owner: { ...pending, propertyId: '88888888-8888-4888-8888-888888888888' },
+    });
+
+    await expect(service.approve(BOOKING_ID, WS)).rejects.toBeInstanceOf(
+      NotFoundException,
+    );
+    expect(repo.approve).not.toHaveBeenCalled();
   });
 
   it('rejects an already-resolved request with 409 and does not transition', async () => {

@@ -34,6 +34,7 @@ import {
 import type { PlatformInfo } from "@injishi/contracts";
 
 import { isForbidden } from "./api";
+import { branchQueryKeyHash } from "./branch";
 import { fetchMyWorkspaces, type MeState } from "./me";
 import { fetchPlatform } from "./platform";
 
@@ -167,6 +168,8 @@ export function makeQueryClient(): QueryClient {
     queryCache,
     defaultOptions: {
       queries: {
+        // The branch in view is part of every cache entry (ADR-054 AC-S1).
+        queryKeyHashFn: branchQueryKeyHash,
         staleTime: CAPABILITY_STALE_MS,
         // Off by default across the app: a room grid refetching every time the
         // window regains focus is noise. `me.workspaces` turns it back on for

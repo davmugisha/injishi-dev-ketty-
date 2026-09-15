@@ -8,7 +8,6 @@ import {
   PUBLISH_BLOCKER_LABEL,
   type PublishBlocker,
   type UpdatePropertyRequest,
-  type WorkspaceAccess,
 } from '@injishi/contracts';
 import {
   BadRequestException,
@@ -18,6 +17,10 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 
+import {
+  assertInBranchScope,
+  type ScopedWorkspace,
+} from '../../../shared/auth/branch-scope';
 import { assertContained } from '../domain/containment';
 import {
   BranchesRepository,
@@ -62,11 +65,15 @@ export class InventoryService {
    * for, because only the Branches screen shows them (ADR-054).
    */
   async listProperties(
-    workspace: WorkspaceAccess,
+    workspace: ScopedWorkspace,
     includeArchived = false,
   ): Promise<OperatorPropertySummary[]> {
     const [rows, counts] = await Promise.all([
-      this.repo.findPropertiesInWorkspace(workspace.workspaceId, includeArchived),
+      this.repo.findPropertiesInWorkspace(
+        workspace.workspaceId,
+        workspace.branchScope,
+        includeArchived,
+      ),
       this.repo.countsForWorkspace(workspace.workspaceId),
     ]);
     return rows.map((row) => this.toSummary(row, counts.get(row.id)));
@@ -80,7 +87,7 @@ export class InventoryService {
    * else's org.
    */
   async createProperty(
-    workspace: WorkspaceAccess,
+    workspace: ScopedWorkspace,
     request: CreatePropertyRequest,
     actorUserId: string,
   ): Promise<OperatorProperty> {
@@ -118,13 +125,14 @@ export class InventoryService {
    * same id (ADR-054 AC-M2, invariant 3).
    */
   async updateProperty(
-    workspace: WorkspaceAccess,
+    workspace: ScopedWorkspace,
     propertyId: string,
     request: UpdatePropertyRequest,
     actorUserId: string,
   ): Promise<OperatorProperty> {
     const existing = await this.repo.findProperty(propertyId);
     assertContained(existing, workspace.workspaceId, 'Property');
+    assertInBranchScope(workspace, existing.id, 'Property');
 
     if (request.rraBranchId !== undefined) {
       if (!workspace.permissions.includes('ebm.manage')) {
@@ -168,7 +176,7 @@ export class InventoryService {
    * is the first, because a toast shows one sentence.
    */
   async archiveBranch(
-    workspace: WorkspaceAccess,
+    workspace: ScopedWorkspace,
     propertyId: string,
     actorUserId: string,
   ): Promise<OperatorProperty> {
@@ -180,7 +188,7 @@ export class InventoryService {
 
   /** Bring an archived branch back. Its listing stays a draft (AC-M4). */
   async restoreBranch(
-    workspace: WorkspaceAccess,
+    workspace: ScopedWorkspace,
     propertyId: string,
     actorUserId: string,
   ): Promise<OperatorProperty> {
@@ -195,7 +203,7 @@ export class InventoryService {
    * because two rows changed and the screen redraws both.
    */
   async makeHeadOffice(
-    workspace: WorkspaceAccess,
+    workspace: ScopedWorkspace,
     propertyId: string,
     actorUserId: string,
   ): Promise<OperatorPropertySummary[]> {
@@ -210,11 +218,12 @@ export class InventoryService {
 
   /** The org wide moves need every branch (AC-M6), and the row must be ours. */
   private async containedBranch(
-    workspace: WorkspaceAccess,
+    workspace: ScopedWorkspace,
     propertyId: string,
   ): Promise<void> {
     const existing = await this.repo.findProperty(propertyId);
     assertContained(existing, workspace.workspaceId, 'Property');
+    assertInBranchScope(workspace, existing.id, 'Property');
     this.assertCoversEveryBranch(workspace);
   }
 
@@ -226,7 +235,7 @@ export class InventoryService {
    * from the grant `WorkspaceGuard` resolved, so it narrows the moment branch
    * limits are read there (slice 4), with nothing to change here.
    */
-  private assertCoversEveryBranch(workspace: WorkspaceAccess): void {
+  private assertCoversEveryBranch(workspace: ScopedWorkspace): void {
     if (workspace.branchCoverage === 'limited') {
       throw new ForbiddenException(NEEDS_EVERY_BRANCH_MESSAGE);
     }
@@ -271,11 +280,12 @@ export class InventoryService {
 
   /** One property in full, draft or published. */
   async getProperty(
-    workspace: WorkspaceAccess,
+    workspace: ScopedWorkspace,
     propertyId: string,
   ): Promise<OperatorProperty> {
     const row = await this.repo.findProperty(propertyId);
     assertContained(row, workspace.workspaceId, 'Property');
+    assertInBranchScope(workspace, row.id, 'Property');
 
     const [roomTypes, photos] = await Promise.all([
       this.repo.findRoomTypeSummaries(propertyId),
@@ -324,11 +334,12 @@ export class InventoryService {
    * the caller.
    */
   async publish(
-    workspace: WorkspaceAccess,
+    workspace: ScopedWorkspace,
     propertyId: string,
   ): Promise<OperatorProperty> {
     const existing = await this.repo.findProperty(propertyId);
     assertContained(existing, workspace.workspaceId, 'Property');
+    assertInBranchScope(workspace, existing.id, 'Property');
 
     const facts = await this.repo.publishFactsFor(propertyId);
     if (!facts) throw new NotFoundException('No such property.');
@@ -356,11 +367,12 @@ export class InventoryService {
    * operator may always withdraw their own listing.
    */
   async unpublish(
-    workspace: WorkspaceAccess,
+    workspace: ScopedWorkspace,
     propertyId: string,
   ): Promise<OperatorProperty> {
     const existing = await this.repo.findProperty(propertyId);
     assertContained(existing, workspace.workspaceId, 'Property');
+    assertInBranchScope(workspace, existing.id, 'Property');
 
     const done = await this.repo.unpublish(propertyId);
     if (!done) throw new NotFoundException('No such property.');

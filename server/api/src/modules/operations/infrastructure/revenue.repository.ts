@@ -2,7 +2,11 @@ import type { DepartmentCategory, DepartmentStatus } from '@injishi/contracts';
 import { Inject, Injectable } from '@nestjs/common';
 import { and, asc, eq, inArray, isNotNull, sql } from 'drizzle-orm';
 
-import { departments, folioCharges } from '../../../database/drizzle/schema';
+import { departments, folioCharges, folios } from '../../../database/drizzle/schema';
+import {
+  inBranchScope,
+  type BranchScope,
+} from '../../../shared/auth/branch-scope';
 import {
   DRIZZLE,
   type Database,
@@ -44,6 +48,7 @@ export class RevenueRepository {
    */
   async revenueByDepartment(
     workspaceId: string,
+    scope: BranchScope,
     from: string,
     to: string,
   ): Promise<Map<string, number>> {
@@ -54,9 +59,12 @@ export class RevenueRepository {
         total: sql<string>`coalesce(sum(${folioCharges.amountRwf}), 0)::bigint`,
       })
       .from(folioCharges)
+      // A charge reaches its branch through its bill (ADR-054).
+      .innerJoin(folios, eq(folios.id, folioCharges.folioId))
       .where(
         and(
           eq(folioCharges.workspaceId, workspaceId),
+          inBranchScope(folios.propertyId, scope),
           inArray(folioCharges.chargeType, [...REVENUE_CHARGE_TYPES]),
           isNotNull(folioCharges.departmentId),
           sql`${earnedOn} >= ${from}::date`,
@@ -73,7 +81,7 @@ export class RevenueRepository {
   }
 
   /** Every department in the workspace, in the operator's own order. */
-  async listDepartments(workspaceId: string): Promise<RevenueDepartmentRow[]> {
+  async listDepartments(workspaceId: string, scope: BranchScope): Promise<RevenueDepartmentRow[]> {
     return this.db
       .select({
         id: departments.id,
@@ -83,7 +91,7 @@ export class RevenueRepository {
         status: departments.status,
       })
       .from(departments)
-      .where(eq(departments.workspaceId, workspaceId))
+      .where(and(eq(departments.workspaceId, workspaceId), inBranchScope(departments.propertyId, scope)))
       .orderBy(asc(departments.sortOrder), asc(departments.name));
   }
 }

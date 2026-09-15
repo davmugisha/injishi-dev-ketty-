@@ -21,6 +21,10 @@ import {
   DRIZZLE,
   type Database,
 } from '../../../shared/database/database.module';
+import {
+  inBranchScope,
+  type BranchScope,
+} from '../../../shared/auth/branch-scope';
 import { seedPropertyDepartments } from '../domain/usali-departments';
 
 export interface DepartmentMemberRow {
@@ -78,11 +82,12 @@ export class DepartmentsRepository {
     phone: departments.phone,
   };
 
-  async list(workspaceId: string): Promise<DepartmentRow[]> {
+  async list(workspaceId: string, scope: BranchScope): Promise<DepartmentRow[]> {
+    // A corporate department (no property) follows AC-T3 through the null arm.
     return this.db
       .select(this.columns)
       .from(departments)
-      .where(eq(departments.workspaceId, workspaceId))
+      .where(and(eq(departments.workspaceId, workspaceId), inBranchScope(departments.propertyId, scope)))
       .orderBy(asc(departments.sortOrder), asc(departments.name));
   }
 

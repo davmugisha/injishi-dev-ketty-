@@ -6,6 +6,7 @@ import {
   eq,
   gt,
   inArray,
+  isNotNull,
   isNull,
   lt,
   ne,
@@ -30,6 +31,26 @@ import {
   DRIZZLE,
   type Database,
 } from '../../../shared/database/database.module';
+import {
+  inBranchScope,
+  type BranchScope,
+} from '../../../shared/auth/branch-scope';
+
+/**
+ * A thread's branch (ADR-054): its booking's, else its stay's room's (a walk in
+ * has no booking), else its department's. Null for a thread tied to none of
+ * them, which only a member covering every branch sees (AC-T3).
+ *
+ * Raw SQL with its own aliases, on purpose. In a select from `threads` alone,
+ * drizzle renders a column in the projection WITHOUT its table name, so
+ * `${bookings.id}` came out as a bare `"id"` inside the subquery and Postgres
+ * refused it as ambiguous. Every name here is written out in full instead.
+ */
+const THREAD_BRANCH = sql<string | null>`coalesce(
+  (select tb_rt.property_id from bookings tb_b inner join room_types tb_rt on tb_rt.id = tb_b.room_type_id where tb_b.id = "threads"."booking_id"),
+  (select tb_r.property_id from guest_stays tb_gs inner join rooms tb_r on tb_r.id = tb_gs.room_id where tb_gs.id = "threads"."guest_stay_id"),
+  (select tb_d.property_id from departments tb_d where tb_d.id = "threads"."department_id")
+)`;
 
 export interface ThreadRow {
   id: string;
@@ -37,6 +58,8 @@ export interface ThreadRow {
   bookingId: string | null;
   guestStayId: string | null;
   leaseId: string | null;
+  /** The branch the thread belongs to, see `THREAD_BRANCH`. */
+  branchPropertyId: string | null;
   status: 'active' | 'archived';
 }
 
@@ -77,7 +100,8 @@ function toDate(value: string | Date | null): Date | null {
  * reads it by — which property they are talking to, and which department, once
  * the property has routed the conversation to one.
  */
-export interface GuestThreadRow extends ThreadRow {
+/** A guest reads their own threads by person, never by branch, so no branch. */
+export interface GuestThreadRow extends Omit<ThreadRow, 'branchPropertyId'> {
   kind: 'reservation' | 'department_request' | 'dispute';
   propertyName: string | null;
   departmentName: string | null;
@@ -100,7 +124,7 @@ export interface GuestThreadRow extends ThreadRow {
 export class MessagingRepository {
   constructor(@Inject(DRIZZLE) private readonly db: Database) {}
 
-  async listThreads(workspaceId: string): Promise<ThreadRow[]> {
+  async listThreads(workspaceId: string, scope: BranchScope): Promise<ThreadRow[]> {
     return this.db
       .select({
         id: threads.id,
@@ -108,10 +132,17 @@ export class MessagingRepository {
         bookingId: threads.bookingId,
         guestStayId: threads.guestStayId,
         leaseId: threads.leaseId,
+        branchPropertyId: THREAD_BRANCH,
         status: threads.status,
       })
       .from(threads)
-      .where(eq(threads.workspaceId, workspaceId))
+      .where(
+        and(
+          eq(threads.workspaceId, workspaceId),
+          // A lease thread belongs to a residence org and is unscoped (ADR-054).
+          or(isNotNull(threads.leaseId), inBranchScope(THREAD_BRANCH, scope)),
+        ),
+      )
       .orderBy(desc(threads.updatedAt));
   }
 
@@ -123,6 +154,7 @@ export class MessagingRepository {
         bookingId: threads.bookingId,
         guestStayId: threads.guestStayId,
         leaseId: threads.leaseId,
+        branchPropertyId: THREAD_BRANCH,
         status: threads.status,
       })
       .from(threads)

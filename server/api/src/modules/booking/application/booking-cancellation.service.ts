@@ -1,6 +1,5 @@
 import {
   cancellationRefund,
-  type WorkspaceAccess,
   type BookingCancellationResult,
   type CancellationParty,
   type CancellationQuote,
@@ -16,6 +15,10 @@ import {
 } from '@nestjs/common';
 
 import { assertOwned } from '../../../shared/auth/assert-owned';
+import {
+  assertInBranchScope,
+  type ScopedWorkspace,
+} from '../../../shared/auth/branch-scope';
 import { releaseKeyFor } from '../../payments/domain/keys';
 import { PAYMENT_PORT, type PaymentPort } from '../../payments/domain/payment-port';
 import { localToday } from '../domain/pricing';
@@ -99,10 +102,11 @@ export class BookingCancellationService {
    */
   async cancelByHost(
     bookingId: string,
-    ws: Pick<WorkspaceAccess, 'workspaceId'>,
+    ws: Pick<ScopedWorkspace, 'workspaceId' | 'branchScope'>,
   ): Promise<BookingCancellationResult> {
-    const row = await this.bookings.findForCancellation({ bookingId });
-    return this.cancel(assertOwned(row, ws), 'host');
+    const row = assertOwned(await this.bookings.findForCancellation({ bookingId }), ws);
+    assertInBranchScope(ws, row.propertyId);
+    return this.cancel(row, 'host');
   }
 
   private async guestBooking(reference: string, guestUserId: string): Promise<CancellableBooking> {

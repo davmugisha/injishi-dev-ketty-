@@ -35,6 +35,10 @@ import {
   propertyAmenities,
 } from '../../../database/drizzle/schema';
 import {
+  inBranchScope,
+  type BranchScope,
+} from '../../../shared/auth/branch-scope';
+import {
   DRIZZLE,
   type Database,
 } from '../../../shared/database/database.module';
@@ -176,9 +180,10 @@ export class OutletsRepository {
       .leftJoin(owner, eq(owner.id, outlets.ownerPartyId));
   }
 
-  async listOutlets(workspaceId: string): Promise<OutletRow[]> {
+  async listOutlets(workspaceId: string, scope: BranchScope): Promise<OutletRow[]> {
+    // A standalone outlet (no property) follows AC-T3 through the null arm.
     return this.selectOutlets()
-      .where(eq(outlets.workspaceId, workspaceId))
+      .where(and(eq(outlets.workspaceId, workspaceId), inBranchScope(outlets.propertyId, scope)))
       .orderBy(asc(outlets.status), asc(outlets.sortOrder), asc(outlets.name));
   }
 

@@ -34,6 +34,7 @@ import {
 } from "@tanstack/react-query";
 
 import { API_BASE, ApiError, REQUEST_TIMEOUT_MS, command } from "./api";
+import { branchHeader } from "./branch";
 import { queryKeys } from "./queries";
 
 /**
@@ -54,7 +55,7 @@ async function readReservations(
       credentials: "include",
       // The guard reads the workspace from the header first. Sending it here
       // too, on a read, would be a second source of truth for the same fact.
-      headers: { "x-workspace-id": workspaceId },
+      headers: { "x-workspace-id": workspaceId, ...branchHeader() },
       signal: controller.signal,
     });
     if (!res.ok) {

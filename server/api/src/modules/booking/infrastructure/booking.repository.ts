@@ -27,6 +27,10 @@ import {
   DRIZZLE,
   type Database,
 } from '../../../shared/database/database.module';
+import {
+  inBranchScope,
+  type BranchScope,
+} from '../../../shared/auth/branch-scope';
 
 /** Booking statuses that still hold inventory (F-B05 atomic hold). */
 const HOLDING_STATUSES = ['pending_approval', 'confirmed'] as const;
@@ -145,6 +149,8 @@ export interface ExpiredRequest {
 export interface ReservationOwner {
   id: string;
   workspaceId: string;
+  /** Through the room type: the branch of the reservation (ADR-054). */
+  propertyId: string | null;
   status: BookingStatus;
 }
 
@@ -184,6 +190,8 @@ export interface CancellableBooking {
   bookingId: string;
   reference: string;
   workspaceId: string;
+  /** The branch of the reservation (ADR-054). */
+  propertyId: string;
   status: BookingStatus;
   checkIn: string;
   checkOut: string;
@@ -860,6 +868,7 @@ export class BookingRepository {
         bookingId: bookings.id,
         reference: bookings.reference,
         workspaceId: bookings.workspaceId,
+        propertyId: roomTypes.propertyId,
         status: bookings.status,
         checkIn: bookings.checkIn,
         checkOut: bookings.checkOut,
@@ -953,9 +962,11 @@ export class BookingRepository {
       .select({
         id: bookings.id,
         workspaceId: bookings.workspaceId,
+        propertyId: roomTypes.propertyId,
         status: bookings.status,
       })
       .from(bookings)
+      .leftJoin(roomTypes, eq(roomTypes.id, bookings.roomTypeId))
       .where(eq(bookings.id, bookingId))
       .limit(1);
 
@@ -974,6 +985,7 @@ export class BookingRepository {
    */
   async listOperatorReservations(
     workspaceId: string,
+    scope: BranchScope,
     filter: DeskFilter,
   ): Promise<OperatorReservationRow[]> {
     const rows = await this.db
@@ -992,9 +1004,12 @@ export class BookingRepository {
       })
       .from(bookings)
       .leftJoin(users, eq(users.id, bookings.guestUserId))
+      .leftJoin(roomTypes, eq(roomTypes.id, bookings.roomTypeId))
       .where(
         and(
           eq(bookings.workspaceId, workspaceId),
+          // A reservation reaches its branch through its room type (ADR-054).
+          inBranchScope(roomTypes.propertyId, scope),
           // A window and a ceiling (review 2.5): the desk shows what is still
           // relevant, not every booking the workspace has ever had.
           gte(bookings.checkOut, filter.since),

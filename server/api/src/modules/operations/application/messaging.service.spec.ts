@@ -1,4 +1,3 @@
-import type { WorkspaceAccess } from '@injishi/contracts';
 import { ConflictException, NotFoundException } from '@nestjs/common';
 
 import {
@@ -6,6 +5,7 @@ import {
   type MessageRow,
   MessagingRepository,
 } from '../infrastructure/messaging.repository';
+import type { ScopedWorkspace } from '../../../shared/auth/branch-scope';
 import { MessagingService } from './messaging.service';
 
 /**
@@ -312,7 +312,16 @@ describe('MessagingService (desk)', () => {
   const GUEST = '22222222-2222-2222-2222-222222222222';
   const MANAGER = '44444444-4444-4444-4444-444444444444';
   const RECEPTIONIST = '88888888-8888-8888-8888-888888888888';
-  const ws = { workspaceId: WORKSPACE } as unknown as WorkspaceAccess;
+  const BRANCH = '77777777-7777-4777-8777-777777777777';
+  const ws = {
+    workspaceId: WORKSPACE,
+    branchScope: {
+      coverage: 'all',
+      selectedPropertyId: null,
+      propertyIds: [BRANCH],
+      includesUnbranched: true,
+    },
+  } as unknown as ScopedWorkspace;
 
   const line = (id: string, senderUserId: string | null): MessageRow => ({
     id,
@@ -336,6 +345,7 @@ describe('MessagingService (desk)', () => {
         bookingId: '66666666-6666-6666-6666-666666666666',
         guestStayId: null,
         leaseId: null,
+        branchPropertyId: BRANCH,
         status: 'active',
       }),
       listMessages: jest.fn().mockResolvedValue(rows),
