@@ -35,6 +35,7 @@ import {
 } from '../../../shared/auth/session.guard';
 import {
   CurrentWorkspace,
+  RequireAnyPermission,
   RequirePermission,
   WorkspaceGuard,
 } from '../../../shared/auth/workspace.guard';
@@ -48,8 +49,9 @@ import { ZodValidationPipe } from '../../../shared/validation/zod-validation.pip
  * out of its scope because `service_items` did not exist, and the permission
  * has been sitting in the contracts unused ever since.
  *
- * The read is ungated beyond the workspace, because a receptionist takes orders
- * and has to see the menu to do it. Editing it is `menu.manage`.
+ * The read is open to `order.advance` as well as `menu.manage`, because a
+ * receptionist takes orders and has to see the menu to do it. Editing it is
+ * `menu.manage`.
  */
 @Controller({ path: 'ops/service-catalog', version: '1' })
 @UseGuards(SessionGuard, WorkspaceGuard)
@@ -57,6 +59,7 @@ export class OpsServiceCatalogController {
   constructor(private readonly catalog: ServiceCatalogService) {}
 
   @Get()
+  @RequireAnyPermission('order.advance', 'menu.manage')
   menu(
     @CurrentWorkspace() workspace: ScopedWorkspace,
   ): Promise<OperatorServiceCatalog> {
@@ -132,7 +135,9 @@ export class OpsServiceCatalogController {
 export class OpsServiceOrdersController {
   constructor(private readonly catalog: ServiceCatalogService) {}
 
+  // Live orders, the Services leaf's first lens.
   @Get()
+  @RequirePermission('order.advance')
   async list(
     @CurrentWorkspace() workspace: ScopedWorkspace,
   ): Promise<OperatorServiceOrderList> {

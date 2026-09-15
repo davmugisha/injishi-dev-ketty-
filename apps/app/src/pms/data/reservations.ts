@@ -34,6 +34,7 @@ import {
 } from "@tanstack/react-query";
 
 import { API_BASE, ApiError, REQUEST_TIMEOUT_MS, command } from "./api";
+import { OPS_READ, useMayRead } from "./ops";
 import { queryKeys } from "./queries";
 
 /**
@@ -82,10 +83,14 @@ async function readReservations(
 export function useReservations(
   workspaceId: string | null,
 ): UseQueryResult<OperatorReservationList> {
+  // Not asked on behalf of a role the server refuses (audit H1): the command
+  // bar and the calendar call this for whoever is signed in, and a 403 would
+  // invalidate the grant on every visit.
+  const mayRead = useMayRead(OPS_READ.reservations);
   return useQuery({
     queryKey: queryKeys.reservations(workspaceId),
     queryFn: () => readReservations(workspaceId as string),
-    enabled: workspaceId !== null,
+    enabled: workspaceId !== null && mayRead,
   });
 }
 

@@ -20,6 +20,7 @@ import { OutletsService } from '../../../modules/operations/application/outlets.
 import { SessionGuard } from '../../../shared/auth/session.guard';
 import {
   CurrentWorkspace,
+  RequireAnyPermission,
   RequirePermission,
   WorkspaceGuard,
 } from '../../../shared/auth/workspace.guard';
@@ -29,9 +30,11 @@ import { ZodValidationPipe } from '../../../shared/validation/zod-validation.pip
 /**
  * Outlets -> /api/v1/ops/outlets (ADR-050 slice 4, task 21).
  *
- * The read needs only the workspace, for the reason the department list does:
- * a menu or an order screen names an outlet before anybody manages one. Every
- * write carries `outlet.manage`, owner and manager only (AC-31).
+ * The read is open beyond `outlet.manage`, for the reason the department list
+ * is: a menu or an order screen names an outlet before anybody manages one, and
+ * the Outlets lens sits under Services, which a receptionist opens
+ * (`order.advance`). Every write carries `outlet.manage`, owner and manager
+ * only (AC-31).
  */
 @Controller({ path: 'ops/outlets', version: '1' })
 @UseGuards(SessionGuard, WorkspaceGuard)
@@ -39,6 +42,7 @@ export class OpsOutletsController {
   constructor(private readonly outlets: OutletsService) {}
 
   @Get()
+  @RequireAnyPermission('outlet.manage', 'order.advance', 'menu.manage')
   list(@CurrentWorkspace() workspace: ScopedWorkspace): Promise<OperatorOutletList> {
     return this.outlets.list(workspace);
   }

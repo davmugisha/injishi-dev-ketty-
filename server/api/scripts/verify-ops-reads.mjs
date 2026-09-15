@@ -109,22 +109,70 @@ for (const [screen, path, key] of READS) {
 }
 
 /*
- * The same reads, as somebody who should not have them.
+ * The same reads, as roles that hold less.
  *
- * A read is not permission gated the way a command is — `WorkspaceGuard`
- * refuses on the WORKSPACE, and every seeded operator holds this one — so these
- * are expected to answer. That is worth stating rather than assuming: the
- * control that stops a receptionist reaching Finance is the nav-derived route
- * guard (verify-role-nav.mjs) plus the permission on each COMMAND, not the read.
+ * Every read declares who may make it (platform audit, H1). This used to
+ * assert the opposite — that a receptionist could read every list because
+ * `WorkspaceGuard` refused only on the workspace — and that was the hole: a
+ * housekeeper read the rent roll, and an owner whose business is still in the
+ * registration pipeline, holding NO permission, read everything. Each role
+ * below keeps exactly the reads its screens make, and is refused the rest.
+ * `ops-read-permissions.spec.ts` pins the same table against the role model;
+ * this proves it against a running API.
  */
-console.log('\nreception@injishi.com — reads answer, because the guard is on the workspace');
-const reception = await sessionFor('reception@injishi.com');
-for (const [screen, path, key] of READS.slice(0, 9)) {
-  const res = await fetch(`${API}/api/v1${path}`, {
-    headers: { cookie: reception.cookie, 'x-workspace-id': reception.workspaceId },
+const OK = 'ok';
+const REFUSED = 'HTTP 403';
+
+async function readAs(session, path, key) {
+  const res = await fetch(`${API}/api/v1${path.replace('WORKSPACE', session.workspaceId)}`, {
+    headers: { cookie: session.cookie, 'x-workspace-id': session.workspaceId },
   });
-  const body = res.ok ? await res.json() : null;
-  check(`${screen.padEnd(22)} GET ${path}`, res.ok && Array.isArray(body?.[key]) ? 'ok' : `HTTP ${res.status}`, 'ok');
+  if (!res.ok) return `HTTP ${res.status}`;
+  const body = await res.json();
+  return Array.isArray(body?.[key]) ? OK : `missing "${key}" array`;
+}
+
+async function expectReads(session, expected) {
+  for (const [screen, path, key] of READS) {
+    const want = expected[path] ?? REFUSED;
+    check(`${screen.padEnd(22)} GET ${path}`, await readAs(session, path, key), want);
+  }
+}
+
+console.log('\nreception@injishi.com — the desk\'s reads answer, the rest are refused');
+const reception = await sessionFor('reception@injishi.com');
+await expectReads(reception, {
+  '/ops/threads': OK,
+  '/ops/departments': OK,
+  '/ops/service-catalog': OK,
+  '/ops/service-orders': OK,
+  '/ops/folios': OK,
+  '/ops/stays': OK,
+  '/ops/reservations': OK,
+  '/ops/rooms': OK,
+});
+
+console.log('\nhousekeeper@injishi.com — rooms, the cleaning board and tickets only');
+const housekeeper = await sessionFor('housekeeper@injishi.com');
+await expectReads(housekeeper, {
+  '/ops/housekeeping-tasks': OK,
+  '/ops/tickets': OK,
+  '/ops/rooms': OK,
+});
+
+/*
+ * The registration gate, on reads.
+ *
+ * The owner of a business still in the pipeline holds the owner role and an
+ * EMPTY permission set. The workspace is still listed — the pipeline is
+ * rendered from the grant — but no operator list is readable from it.
+ */
+console.log('\npending@injishi.com — a business in the registration pipeline reads nothing');
+const pending = await sessionFor('pending@injishi.com');
+if (!pending.workspaceId) {
+  check('pending@injishi.com holds a business workspace', 'none', 'one');
+} else {
+  await expectReads(pending, {});
 }
 
 /*

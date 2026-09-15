@@ -12,7 +12,11 @@ import type { WorkspaceAccess } from '@injishi/contracts';
 // `@injishi/auth` package, which is ESM and outside what ts-jest transforms.
 jest.mock('./two-factor.service', () => ({ TwoFactorService: class {} }));
 
-import { WorkspaceGuard } from './workspace.guard';
+import {
+  REQUIRE_ANY_PERMISSION,
+  REQUIRE_PERMISSION,
+  WorkspaceGuard,
+} from './workspace.guard';
 import type { TwoFactorService } from './two-factor.service';
 import type { WorkspaceService } from './workspace.service';
 
@@ -71,14 +75,21 @@ describe('WorkspaceGuard', () => {
 
   function guardWith(
     resolved: WorkspaceAccess | null,
-    requiredPermission?: string,
+    requiredPermission?: string | string[],
+    anyOfPermissions?: string[],
   ): { guard: WorkspaceGuard; workspaces: WorkspaceService } {
     const workspaces = {
       resolveForUser: jest.fn().mockResolvedValue(resolved),
       propertyIdsForWorkspace: jest.fn().mockResolvedValue([REMERA, RUBAVU]),
     } as unknown as WorkspaceService;
+    // Answers per metadata key, the way Nest's reflector does: the all-of and
+    // the any-of declarations are two separate keys on the same handler.
+    const metadata: Record<string, unknown> = {
+      [REQUIRE_PERMISSION]: requiredPermission,
+      [REQUIRE_ANY_PERMISSION]: anyOfPermissions,
+    };
     const reflector = {
-      getAllAndOverride: jest.fn().mockReturnValue(requiredPermission),
+      getAllAndOverride: jest.fn((key: string) => metadata[key]),
     } as unknown as Reflector;
     // The second factor is satisfied in every case here; it has its own spec.
     const twoFactor = {
@@ -218,6 +229,8 @@ describe('WorkspaceGuard', () => {
     });
 
     it('allows any held workspace when the route declares no permission', async () => {
+      // Membership alone. The lint rule admits this shape only for a route
+      // named in its `allow` option, `POST /me/active-workspace` today.
       const { guard } = guardWith(RECEPTIONIST_ACCESS, undefined);
       const context = contextFor({
         headers: { host: 'demo.localhost', 'x-workspace-id': 'ws-owned' },
@@ -225,6 +238,143 @@ describe('WorkspaceGuard', () => {
       });
 
       await expect(guard.canActivate(context)).resolves.toBe(true);
+    });
+
+    it('lets an undeclared route through for a pending business, which is why it is allowlisted', async () => {
+      // Switching into your own pending workspace to watch the pipeline is the
+      // one act whose whole check is membership. Everything else declares.
+      const pending: WorkspaceAccess = {
+        ...OWNER_ACCESS,
+        registrationStatus: 'submitted',
+        permissions: [],
+      };
+      const { guard } = guardWith(pending, undefined, undefined);
+      const context = contextFor({
+        headers: { host: 'demo.localhost', 'x-workspace-id': 'ws-owned' },
+        user: signedIn,
+      });
+
+      await expect(guard.canActivate(context)).resolves.toBe(true);
+    });
+  });
+
+  describe('all-of: every named permission is required', () => {
+    const MANAGER_ACCESS: WorkspaceAccess = {
+      ...OWNER_ACCESS,
+      orgRole: 'manager',
+      permissions: ['stay.checkout', 'folio.close'],
+    };
+
+    it('allows a caller holding every one', async () => {
+      const { guard } = guardWith(MANAGER_ACCESS, ['stay.checkout', 'folio.close']);
+      const context = contextFor({
+        headers: { host: 'demo.localhost', 'x-workspace-id': 'ws-owned' },
+        user: signedIn,
+      });
+
+      await expect(guard.canActivate(context)).resolves.toBe(true);
+    });
+
+    it('refuses a caller missing one, naming the one missing', async () => {
+      const partial: WorkspaceAccess = {
+        ...MANAGER_ACCESS,
+        permissions: ['stay.checkout'],
+      };
+      const { guard } = guardWith(partial, ['stay.checkout', 'folio.close']);
+      const context = contextFor({
+        headers: { host: 'demo.localhost', 'x-workspace-id': 'ws-owned' },
+        user: signedIn,
+      });
+
+      await expect(guard.canActivate(context)).rejects.toThrow(
+        'Your role cannot close a bill and sign its receipt in this workspace.',
+      );
+    });
+  });
+
+  describe('any-of: one of the named permissions is enough (audit H1)', () => {
+    const HOUSEKEEPER_ACCESS: WorkspaceAccess = {
+      ...OWNER_ACCESS,
+      orgRole: 'housekeeper',
+      permissions: ['housekeeping.set', 'ticket.advance'],
+    };
+    const ROOMS_READ = ['stay.checkin', 'housekeeping.set', 'listing.manage'];
+
+    function context(): ExecutionContext {
+      return contextFor({
+        headers: { host: 'demo.localhost', 'x-workspace-id': 'ws-owned' },
+        user: signedIn,
+      });
+    }
+
+    it('allows the desk through on the first candidate', async () => {
+      const { guard } = guardWith(RECEPTIONIST_ACCESS, undefined, ROOMS_READ);
+      await expect(guard.canActivate(context())).resolves.toBe(true);
+    });
+
+    it('allows housekeeping through on a later candidate', async () => {
+      const { guard } = guardWith(HOUSEKEEPER_ACCESS, undefined, ROOMS_READ);
+      await expect(guard.canActivate(context())).resolves.toBe(true);
+    });
+
+    it('refuses a role holding none, worded from the first candidate', async () => {
+      // A housekeeper reading the rent roll: the read the audit found open.
+      const { guard } = guardWith(HOUSEKEEPER_ACCESS, undefined, [
+        'rent.record',
+        'money.view',
+      ]);
+      await expect(guard.canActivate(context())).rejects.toThrow(
+        'Your role cannot record rent in this workspace.',
+      );
+    });
+
+    it('refuses an EMPTY permission set, and names the registration stage', async () => {
+      // The registration gate. The owner of a business still at `submitted`
+      // holds the role and none of its powers, so no candidate is held.
+      const pending: WorkspaceAccess = {
+        ...OWNER_ACCESS,
+        registrationStatus: 'submitted',
+        permissions: [],
+      };
+      const { guard } = guardWith(pending, undefined, ROOMS_READ);
+      await expect(guard.canActivate(context())).rejects.toThrow(
+        "We're checking your TIN with RRA. This usually takes seconds.",
+      );
+    });
+
+    it('refuses an empty set on an active org too, by capability', async () => {
+      const nothing: WorkspaceAccess = { ...OWNER_ACCESS, permissions: [] };
+      const { guard } = guardWith(nothing, undefined, ROOMS_READ);
+      await expect(guard.canActivate(context())).rejects.toThrow(
+        'Your role cannot check guests in in this workspace.',
+      );
+    });
+
+    it('composes with all-of: both must be satisfied', async () => {
+      // Holds an any-of candidate but not the all-of permission.
+      const { guard } = guardWith(HOUSEKEEPER_ACCESS, 'money.view', ROOMS_READ);
+      await expect(guard.canActivate(context())).rejects.toThrow(
+        'Your role cannot view money in this workspace.',
+      );
+
+      const both: WorkspaceAccess = {
+        ...HOUSEKEEPER_ACCESS,
+        permissions: ['housekeeping.set', 'money.view'],
+      };
+      const { guard: second } = guardWith(both, 'money.view', ROOMS_READ);
+      await expect(second.canActivate(context())).resolves.toBe(true);
+    });
+
+    it('does not attach the workspace when it refuses', async () => {
+      const { guard } = guardWith(HOUSEKEEPER_ACCESS, undefined, ['money.view']);
+      const request: FakeRequest = {
+        headers: { host: 'demo.localhost', 'x-workspace-id': 'ws-owned' },
+        user: signedIn,
+      };
+      await expect(guard.canActivate(contextFor(request))).rejects.toThrow(
+        ForbiddenException,
+      );
+      expect(request.workspace).toBeUndefined();
     });
   });
 

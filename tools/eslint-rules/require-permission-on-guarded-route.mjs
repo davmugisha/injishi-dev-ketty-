@@ -1,6 +1,6 @@
 /**
- * `injishi/require-permission-on-guarded-route` — a guarded command must say
- * what power it needs.
+ * `injishi/require-permission-on-guarded-route` — a guarded route must say
+ * what power it needs, reads included.
  *
  * ADR-012, AC-1. This is the enforcement that matters most, because the failure
  * it catches is silent. A `@Post` sitting under `@UseGuards(SessionGuard,
@@ -11,12 +11,15 @@
  *
  * What is checked, and what is not:
  *
- *   - **Mutations only** (`@Post`, `@Put`, `@Patch`, `@Delete`). Operator reads
- *     carry `WorkspaceGuard` and no permission beyond holding the workspace,
- *     which is the ADR's own API surface rule — a desk that cannot see its own
- *     reservations cannot work. A read may still declare a permission
- *     (`GET /revenue` declares `money.view`); this rule simply does not demand
- *     one. AC-1 is worded about COMMAND endpoints, and that is the line.
+ *   - **Every verb** (`@Get`, `@Head`, `@Options`, `@All`, `@Post`, `@Put`,
+ *     `@Patch`, `@Delete`). Reads used to be exempt, on the ADR's reasoning
+ *     that a desk that cannot see its own reservations cannot work. The
+ *     exemption was the hole the platform audit found (H1): with no declaration
+ *     `WorkspaceGuard` admits every member, so a housekeeper read the rent roll
+ *     and the owner of a business still in the registration pipeline, whose
+ *     permission set is EMPTY, read every operator list. The desk still reads
+ *     its reservations — because the read now names the powers the desk holds,
+ *     usually as `@RequireAnyPermission(...)`, not because it names none.
  *   - **Only routes reached through a permission-bearing guard.**
  *     `WorkspaceGuard` and `StaffGuard` are the two that resolve a
  *     permission. `SessionGuard` alone proves an identity and `OversightGuard`
@@ -27,9 +30,13 @@
  *     covers every handler under it, which is how `InventoryController` is
  *     written.
  *
- * The `allow` option names the deliberate exceptions as `Class.method`, so a
- * fifth one cannot appear by accident: it has to be typed into a config file
- * where a reviewer sees it.
+ * The `allow` option names the deliberate exceptions as `Class.method`, so one
+ * cannot appear by accident: it has to be typed into a config file where a
+ * reviewer sees it. It is the ONLY escape hatch, for reads as for writes, and it
+ * is meant for a route whose whole check genuinely is "holds this workspace"
+ * (`MeController.setActiveWorkspace` is the one today). A read that merely
+ * seems harmless is not that: an empty permission set must still be refused it,
+ * and only a declaration does that. Every entry carries a comment saying why.
  */
 
 /** The decorators that put a request through a permission-resolving guard. */
@@ -38,11 +45,21 @@ const PERMISSION_GUARDS = new Set(['WorkspaceGuard', 'StaffGuard']);
 /** The decorators that declare which power a route needs. */
 const PERMISSION_DECLARATIONS = new Set([
   'RequirePermission',
+  'RequireAnyPermission',
   'RequireStaffPermission',
 ]);
 
-/** HTTP verbs that change something. A read is exempt; see the note above. */
-const MUTATION_METHODS = new Set(['Post', 'Put', 'Patch', 'Delete']);
+/** Every Nest route decorator. No verb is exempt; see the note above. */
+const ROUTE_METHODS = new Set([
+  'Get',
+  'Head',
+  'Options',
+  'All',
+  'Post',
+  'Put',
+  'Patch',
+  'Delete',
+]);
 
 /** The name a decorator invokes, whether or not it is called with arguments. */
 function decoratorName(decorator) {
@@ -84,7 +101,7 @@ function httpMethodsOn(node) {
   const methods = new Set();
   for (const decorator of node.decorators ?? []) {
     const name = decoratorName(decorator);
-    if (name && MUTATION_METHODS.has(name)) methods.add(name);
+    if (name && ROUTE_METHODS.has(name)) methods.add(name);
   }
   return methods;
 }
@@ -108,7 +125,7 @@ const rule = {
     type: 'problem',
     docs: {
       description:
-        'Require an explicit permission declaration on every mutating route that runs behind WorkspaceGuard or StaffGuard.',
+        'Require an explicit permission declaration on every route, reads included, that runs behind WorkspaceGuard or StaffGuard.',
     },
     schema: [
       {
@@ -126,7 +143,7 @@ const rule = {
     ],
     messages: {
       missing:
-        '`{{route}}` runs behind {{guard}} but declares no permission, so every member of the workspace may run it (ADR-012, AC-1). Add `@{{declaration}}(...)` to the handler or its controller. If it is meant to need only workspace membership, name it in this rule\'s `allow` option so the exception is visible.',
+        '`{{route}}` runs behind {{guard}} but declares no permission, so every member of the workspace may reach it, including one whose permission set is empty (ADR-012, AC-1; audit H1). Add `@{{declaration}}(...)` to the handler or its controller. If it is genuinely meant to need only workspace membership, name it in this rule\'s `allow` option with a comment saying why.',
     },
   },
 

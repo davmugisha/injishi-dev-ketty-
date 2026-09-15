@@ -23,6 +23,7 @@ import { DepartmentsService } from '../../../modules/operations/application/depa
 import { SessionGuard } from '../../../shared/auth/session.guard';
 import {
   CurrentWorkspace,
+  RequireAnyPermission,
   RequirePermission,
   WorkspaceGuard,
 } from '../../../shared/auth/workspace.guard';
@@ -32,11 +33,12 @@ import { ZodValidationPipe } from '../../../shared/validation/zod-validation.pip
 /**
  * Departments -> /api/v1/ops/departments (ADR-016 slice 1).
  *
- * The read carries NO permission beyond holding the workspace, and that is
- * deliberate rather than an oversight. A charge screen shows the department
- * picker before anybody posts anything, so gating the list on
- * `department.manage` would hand a receptionist an empty dropdown and no way to
- * charge a minibar.
+ * The read is open to everyone who uses a department, not only to whoever may
+ * edit one. A charge screen shows the department picker before anybody posts
+ * anything, so gating the list on `department.manage` alone would hand a
+ * receptionist an empty dropdown and no way to charge a minibar. It is still
+ * declared (audit H1): a housekeeper, and a business still in the registration
+ * pipeline, hold none of the candidates and are refused.
  *
  * The two commands carry `department.manage`, the twenty second permission
  * (D-p), held by owner and manager only.
@@ -46,7 +48,18 @@ import { ZodValidationPipe } from '../../../shared/validation/zod-validation.pip
 export class OpsDepartmentsController {
   constructor(private readonly departments: DepartmentsService) {}
 
+  /**
+   * Consumers: the Departments lens (`department.manage`), the bill's charge
+   * picker (`folio.charge`), and the Services lenses a receptionist opens,
+   * Outlets among them (`order.advance`, `outlet.manage`).
+   */
   @Get()
+  @RequireAnyPermission(
+    'department.manage',
+    'folio.charge',
+    'order.advance',
+    'outlet.manage',
+  )
   async list(
     @CurrentWorkspace() workspace: ScopedWorkspace,
   ): Promise<OperatorDepartmentList> {
@@ -91,6 +104,8 @@ export class OpsDepartmentsController {
    * department is the same act as staffing the business.
    */
   @Get(':id/members')
+  // Names colleagues, so it belongs to whoever staffs or runs departments.
+  @RequireAnyPermission('team.manage', 'department.manage')
   async listMembers(
     @Param('id', ParseUUIDPipe) id: string,
     @CurrentWorkspace() workspace: ScopedWorkspace,

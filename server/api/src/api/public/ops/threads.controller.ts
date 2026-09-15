@@ -41,8 +41,12 @@ import { ZodValidationPipe } from '../../../shared/validation/zod-validation.pip
 export class OpsThreadsController {
   constructor(private readonly messaging: MessagingService) {}
 
-  /** Every conversation on this desk, newest activity first. */
+  /**
+   * Every conversation on this desk, newest activity first. The Inbox leaf,
+   * on both navs, is behind `message.send`.
+   */
   @Get()
+  @RequirePermission('message.send')
   async list(
     @CurrentWorkspace() workspace: ScopedWorkspace,
   ): Promise<OperatorThreadList> {
@@ -51,6 +55,7 @@ export class OpsThreadsController {
 
   /** One conversation in full. */
   @Get(':id/messages')
+  @RequirePermission('message.send')
   async messages(
     @Param('id', ParseUUIDPipe) id: string,
     @CurrentWorkspace() workspace: ScopedWorkspace,

@@ -22,6 +22,7 @@ import type { ScopedWorkspace } from '../../../shared/auth/branch-scope';
 import { SessionGuard } from '../../../shared/auth/session.guard';
 import {
   CurrentWorkspace,
+  RequireAnyPermission,
   RequirePermission,
   WorkspaceGuard,
 } from '../../../shared/auth/workspace.guard';
@@ -66,8 +67,13 @@ export class OpsStaysController {
    * **This route did not exist**, and its absence is what kept the stay
    * record page on fixtures: this controller could check a guest in and out
    * and never read one back (ADR-035, wave 2 follow-up).
+   *
+   * Names guests, so it is the desk's: Today, Reservations, the stay record, the
+   * calendar and the command bar, all read by whoever checks guests in or out
+   * or charges their bill.
    */
   @Get()
+  @RequireAnyPermission('stay.checkin', 'stay.checkout', 'folio.charge')
   list(@CurrentWorkspace() workspace: ScopedWorkspace): Promise<OperatorStayList> {
     return this.frontDesk.listStays(workspace);
   }
