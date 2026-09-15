@@ -227,7 +227,7 @@ await section('personas', async () => {
   const r = await fetch(`${API}/api/v1/demo/personas`, { headers: { origin: ORIGIN } });
   const personas = r.ok ? await r.json() : [];
   check(S, 'P1 the roster answers', r.ok && personas.length >= 10, `status ${r.status}`);
-  const want = ['yves', 'solange', 'denise', 'beatha', 'josephine', 'jeanbosco', 'claudine', 'ops', 'rayan'];
+  const want = ['yves', 'solange', 'denise', 'beatha', 'josephine', 'aimable', 'jeanbosco', 'claudine', 'ops', 'rayan'];
   for (const who of want) {
     const p = personas.find((x) => x.email.startsWith(`${who}@`));
     const story = p?.story;

@@ -211,6 +211,32 @@ const STORIES: Readonly<Record<string, DemoStory>> = {
     ],
   },
 
+  aimable: {
+    headline: 'Owner of a hotel group waiting for approval',
+    summary:
+      'Aimable registered Inzozi Hotels Ltd, a head office in Kigali with branches in Huye and Karongi. He has paid the fee and his TIN has been checked, but no government officer has visited yet. Instead of travelling to the district office to ask where his file is, he opens one screen and sees which stage it is at and who holds it. Until the business is approved it cannot list a room.',
+    tryThis: [
+      {
+        title: 'See where the registration stands',
+        detail:
+          'The registration screen shows each stage, which ones are done, and who holds the next one: the field visit by the district verifier.',
+        href: '/register',
+      },
+      {
+        title: 'Try to open the business before approval',
+        detail:
+          'The workspace is listed, but every action is refused, and the refusal names the registration stage rather than a missing permission.',
+        href: '/w/de300000-0000-4000-8000-000000000209',
+      },
+      {
+        title: 'Watch the file from the other side',
+        detail:
+          'Sign in as Jean-Bosco, the PSF verifier for Gasabo: Inzozi Hotels Ltd is in his verification queue, waiting for his visit.',
+        href: null,
+      },
+    ],
+  },
+
   samuel: {
     headline: 'One person with five seats',
     summary:
