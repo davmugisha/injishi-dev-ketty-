@@ -48,7 +48,10 @@ import { ZodValidationPipe } from '../../../shared/validation/zod-validation.pip
 export class OpsOffersController {
   constructor(private readonly offers: OffersService) {}
 
+  // The same power that writes offers reads them (audit H1): no desk screen
+  // lists offers, and a guest sees theirs through /me/stays.
   @Get()
+  @RequirePermission('offer.manage')
   list(
     @CurrentWorkspace() workspace: ScopedWorkspace,
     @Query('propertyId') propertyId: string | undefined,

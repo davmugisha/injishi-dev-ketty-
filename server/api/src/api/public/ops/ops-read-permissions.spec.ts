@@ -22,8 +22,10 @@ import { OpsDepartmentsController } from './departments.controller';
 import { OpsEbmController } from './ebm.controller';
 import { OpsFoliosController } from './folios.controller';
 import { OpsHousekeepingController } from './housekeeping.controller';
+import { OpsOffersController } from './offers.controller';
 import { OpsOutletPartiesController } from './outlet-parties.controller';
 import { OpsOutletsController } from './outlets.controller';
+import { OpsRefundRequestsController } from './refunds.controller';
 import { OpsReservationsController, OpsRoomAssignmentsController } from './reservations.controller';
 import {
   OpsDepositsController,
@@ -65,6 +67,8 @@ const CONTROLLERS: Ctor[] = [
   OpsEbmController,
   OpsFoliosController,
   OpsHousekeepingController,
+  OpsOffersController,
+  OpsRefundRequestsController,
   OpsOutletPartiesController,
   OpsOutletsController,
   OpsReservationsController,
@@ -165,6 +169,11 @@ const EXPECTED: Record<string, readonly OrgRole[]> = {
   '/ops/service-orders': ['owner', 'manager', 'receptionist'],
   '/ops/rra/classifications': ['owner', 'manager'],
   '/ops/stays': ['owner', 'manager', 'receptionist'],
+  // Guest stay surface (6718d11): the desk re-sends a claim code; managers
+  // price offers and decide refund requests.
+  '/ops/stays/:id/claim-invite': ['owner', 'manager', 'receptionist'],
+  '/ops/offers': ['owner', 'manager'],
+  '/ops/refund-requests': ['owner', 'manager'],
   '/ops/team': ['owner'],
   '/ops/team/invitations': ['owner'],
   '/ops/threads': ['owner', 'manager', 'receptionist'],
