@@ -69,6 +69,7 @@ import { buildFolio } from "../lib/folio";
 import { addDaysIso, dateRange, dateRangeIso, fmt, todayIso } from "../lib/format";
 import { ActionButton, Badge, Chip, EmptyState, LoadFailed, Skeleton, surface, tableHeadStyle } from "../components/ui";
 import { ConfirmAction } from "../components/confirm-action";
+import { HostCancelAction } from "../components/reservations/host-cancel-action";
 // The wording of a decision lives with Today, so the two screens cannot tell
 // an operator two different things about the same command.
 import { decisionToast } from "./today";
@@ -362,6 +363,13 @@ export function Reservations() {
                   >
                     {r.room || heldBookings.has(r.id) ? "On the grid" : "Assign room"}
                   </ActionButton>
+                )}
+                {r.bucket === "confirmed" && r.source === "live" && (
+                  /* The host's cancel (audit H8). Confirmed bookings only: a
+                     pending one already has Decline, which is the same refund.
+                     The component gates on `reservation.approve`, confirms
+                     before it calls, and hides itself once the guest is in. */
+                  <HostCancelAction reservation={query.data?.reservations.find((x) => x.id === r.id)} />
                 )}
                 {r.bucket === "inhouse" && (
                   /* THE BILL HANGS OFF THE STAY, NOT THE BOOKING, which is why
