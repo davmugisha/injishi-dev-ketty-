@@ -1,207 +1,284 @@
 "use client";
 
-import { Button } from "@injishi/ui";
+import { useCallback, useEffect, useState } from "react";
+import Link from "next/link";
+import type { GuestOrder, GuestTrip, OrderableOutlet } from "@injishi/contracts";
+import { Badge, Button, Skeleton } from "@injishi/ui";
+import { EmptyPanel } from "@/components/app/empty-panel";
 import { Icon } from "@/components/app/icon";
-import { outletsForProperty, productsForProperty } from "@/data/dining";
-import { checkOutGuest, clearGuestStay, isCheckedIn } from "@/lib/guest-stay";
-import { isTerminalOrderState } from "@/lib/order-store";
-import { CheckInPanel } from "@/components/stay/check-in-panel";
+import { fetchMyOrders, fetchOrderable, orderTone } from "@/data/ordering";
+import { fetchMyTrips } from "@/data/trips";
+import { apiResultMessage, type ApiResult } from "@/lib/api";
 import { MyStayPanel } from "@/components/stay/my-stay-panel";
-import { DINING_DEMO_DETAIL, DemoDataNotice } from "./demo-data-notice";
-import { OrderCard } from "@/components/stay/order-card";
-import { OutletStrip } from "@/components/stay/outlet-strip";
-import { StayHeader } from "@/components/stay/stay-header";
-import { useGuestStay, useRoomOrders } from "@/components/stay/use-stay";
+import { OrderList } from "./order-list";
 
-/**
- * The whole of `/stay`, in the browser.
- *
- * THREE STATES, AND ALL THREE ARE RENDERED. Until the effect has run we have
- * not looked in storage yet, and saying "you are not checked in" during that
- * window is a lie that flashes on every navigation — so `ready` gates the
- * decision and the waiting state is a quiet line rather than a spinner. After
- * that it is either a guest in a room or a person who is not, and the second is
- * a first-class screen here (see `CheckInPanel`), not a failure.
- *
- * WHAT THE HUB IS FOR. Two things a guest does from a hotel room, and they are
- * the two large controls: order something, or say something. Everything else on
- * the screen — the outlets, the open orders, the dates — is context for one of
- * those two. `/inbox` is the department chat another part of this build owns;
- * this screen links to it rather than growing a second conversation surface.
- *
- * ORDERS ARE READ THROUGH `useRoomOrders`, which subscribes to the store, so an
- * order advanced by the operator app in another tab moves on this screen
- * without a reload. That is the demo's best moment and it costs one hook.
- */
-export function StayScreen() {
-  const { stay, ready, refresh } = useGuestStay();
-  const { orders } = useRoomOrders(stay === null ? null : stay.propertySlug);
+/** How often the hub re-reads the orders while one of them is still moving. */
+const OPEN_ORDER_POLL_MS = 15_000;
 
-  if (!ready) {
-    return (
-      <div className="mx-auto max-w-page px-4 py-8 sm:px-6">
-        <MyStayPanel />
-      </div>
-    );
-  }
-
-  if (!isCheckedIn(stay)) {
-    return (
-      <div className="mx-auto max-w-page space-y-8 px-4 py-8 sm:px-6">
-        {/*
-          §6.8. The REAL stay comes first, and on its own when there is one.
-          Everything below this line is the room-service demo: an outlet list
-          and an order store that live in `localStorage`, written by the
-          check-in control on this page. That was the only thing this screen
-          could show while no endpoint could answer "which stay am I in", and
-          it is kept — clearly labelled — until the guest ordering API behind
-          `/me/orderable` is wired to this surface.
-        */}
-        <MyStayPanel />
-        <NotCheckedIn onCheckedIn={refresh} />
-      </div>
-    );
-  }
-
-  // `isCheckedIn` has already refused null; this narrows it for TypeScript
-  // without a non-null assertion, which this codebase does not use.
-  if (stay === null) return null;
-
-  const outlets = outletsForProperty(stay.propertySlug);
-  const menuSize = productsForProperty(stay.propertySlug).length;
-  // Counted off the subscribed array rather than by calling `readOpenOrders`
-  // here: a second read during render would answer from storage while the list
-  // beside it answers from state, and the two would disagree for exactly as
-  // long as it takes a change event to land.
-  const open = orders.filter((order) => !isTerminalOrderState(order.state)).length;
-
-  return (
-    <div className="mx-auto max-w-page space-y-6 px-4 py-8 sm:px-6">
-      <header>
-        <h1 className="font-display text-2xl font-bold tracking-tight">My stay</h1>
-        <p className="mt-1 text-sm text-muted-foreground">
-          Everything for the room you are in tonight.
-        </p>
-      </header>
-
-      {/* The real stay, from the API. The demo hub follows it. */}
-      <MyStayPanel />
-
-      <StayHeader stay={stay} />
-
-      <DemoDataNotice detail={DINING_DEMO_DETAIL} />
-
-      <section className="grid gap-4 sm:grid-cols-2">
-        <ActionTile
-          href="/stay/order"
-          icon="bed"
-          title="Order food and drink"
-          body={`${menuSize} items from ${outlets.length} ${
-            outlets.length === 1 ? "outlet" : "outlets"
-          } in this hotel, delivered to room ${stay.room}.`}
-          cta="Open room service"
-          primary
-        />
-        <ActionTile
-          href="/inbox"
-          icon="message-square"
-          title="Message the hotel"
-          body="Front desk, housekeeping, the kitchen, maintenance and security — each desk is its own conversation, and your orders report into the kitchen one."
-          cta="Open my messages"
-        />
-      </section>
-
-      <section>
-        <div className="flex flex-wrap items-baseline justify-between gap-2">
-          <h2 className="font-display text-lg font-bold tracking-tight">
-            Your room orders
-          </h2>
-          <p className="money text-xs text-muted-foreground">
-            {orders.length === 0
-              ? "Nothing ordered yet"
-              : `${orders.length} in total · ${open} still open`}
-          </p>
-        </div>
-
-        {orders.length === 0 ? (
-          <div className="mt-3 rounded-card border border-dashed border-input bg-card p-6">
-            <p className="max-w-read text-sm text-muted-foreground">
-              Anything you order from the room-service card appears here with the
-              state it is in — accepted, being prepared, on its way up — and in
-              the kitchen conversation at the same time.
-            </p>
-            <Button asChild variant="primary" size="sm" className="mt-4">
-              <a href="/stay/order">See the menu</a>
-            </Button>
-          </div>
-        ) : (
-          <ul className="mt-3 space-y-4">
-            {orders.map((order) => (
-              <OrderCard key={order.id} order={order} />
-            ))}
-          </ul>
-        )}
-      </section>
-
-      {outlets.length > 0 ? (
-        <section>
-          <h2 className="font-display text-lg font-bold tracking-tight">
-            Eating and drinking here
-          </h2>
-          <p className="mt-1 text-sm text-muted-foreground">
-            What this hotel runs, and when each place is open.
-          </p>
-          <div className="mt-3">
-            <OutletStrip outlets={outlets} />
-          </div>
-        </section>
-      ) : null}
-
-      <DemoStayControls onChanged={refresh} />
-    </div>
-  );
+interface StayData {
+  /** Booked stays whose dates include today, by the property's calendar. */
+  current: GuestTrip[];
+  /** Every outlet the server says this guest may order from right now. */
+  outlets: OrderableOutlet[];
+  orders: GuestOrder[];
 }
 
 /**
- * The screen for somebody who is not in a hotel room.
+ * Read the three things the hub is made of, or the first thing that failed.
  *
- * It leads with what the address is FOR rather than with what is missing. "No
- * stay found" tells a person nothing they can act on; a description of what
- * appears here once they are in a room tells them whether to come back.
+ * All three are the API's: `/me/trips` for the stay, `/me/orderable` for where
+ * the guest may order and how they may settle, `/me/orders` for what they have
+ * ordered. There is no browser-held stay any more. The old hub read a
+ * "checked in" flag a demo button wrote into localStorage.
  */
-function NotCheckedIn({ onCheckedIn }: { onCheckedIn: () => void }) {
+async function loadStay(): Promise<ApiResult<StayData>> {
+  const [trips, orderable, orders] = await Promise.all([
+    fetchMyTrips(),
+    fetchOrderable(),
+    fetchMyOrders(),
+  ]);
+  if (trips.status !== "ok") return trips;
+  if (orderable.status !== "ok") return orderable;
+  if (orders.status !== "ok") return orders;
+  return {
+    status: "ok",
+    data: {
+      current: trips.data.filter((t) => t.stage === "in_progress"),
+      outlets: orderable.data.outlets,
+      orders: orders.data,
+    },
+  };
+}
+
+/**
+ * The whole of `/stay`, in the browser (the API session cookie belongs to the
+ * API origin, so a server component would ask as nobody).
+ *
+ * WHAT IT DOES NOT SHOW, AND WHY. The room number: no guest route serves it,
+ * and the old hub's "Room 412" was a fixture. Printing a number nobody
+ * assigned is how a tray goes to the wrong door, so the card names the booking
+ * and the room TYPE, which the API does serve, and stops there.
+ */
+export function StayScreen({ placedOrderId }: { placedOrderId: string | null }) {
+  const [result, setResult] = useState<ApiResult<StayData> | null>(null);
+
+  const load = useCallback((quiet = false) => {
+    if (!quiet) setResult(null);
+    let cancelled = false;
+    void (async () => {
+      const next = await loadStay();
+      if (!cancelled) setResult(next);
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  useEffect(() => load(), [load]);
+
+  // An order still moving is re-read on a slow interval, so "Being prepared"
+  // turns into "Delivered" without a reload. Nothing polls once all are settled.
+  const hasOpenOrder =
+    result?.status === "ok" && result.data.orders.some((o) => orderTone(o.status) === "open");
+  useEffect(() => {
+    if (!hasOpenOrder) return;
+    const timer = setInterval(() => load(true), OPEN_ORDER_POLL_MS);
+    return () => clearInterval(timer);
+  }, [hasOpenOrder, load]);
+
+  if (result === null) return <StayLoading />;
+
+  if (result.status === "unauthenticated") {
+    return (
+      <EmptyPanel
+        icon="lock"
+        title="Sign in to see your stay"
+        action={{ label: "Sign in", href: "/sign-in?redirect=%2Fstay" }}
+      >
+        Your stay, and anything you order during it, only ever opens for you.
+      </EmptyPanel>
+    );
+  }
+
+  if (result.status !== "ok") {
+    return (
+      <div className="mx-auto flex max-w-narrow animate-arrive flex-col items-center gap-3 px-4 py-16 text-center">
+        <span className="flex size-14 items-center justify-center rounded-card bg-secondary text-muted-foreground">
+          <Icon name="triangle-alert" className="size-6" />
+        </span>
+        <h2 className="font-display text-xl font-bold tracking-tight">
+          We couldn&apos;t load your stay
+        </h2>
+        <p className="text-sm leading-relaxed text-muted-foreground">
+          {apiResultMessage(result)}
+        </p>
+        <Button className="mt-2" onClick={() => load()}>
+          Try again
+        </Button>
+      </div>
+    );
+  }
+
+  const { current, outlets, orders } = result.data;
+  const nothingHere = current.length === 0 && outlets.length === 0;
+
   return (
-    <div className="mx-auto max-w-page space-y-6 px-4 py-8 sm:px-6">
+    <div className="mx-auto flex w-full max-w-page animate-arrive flex-col gap-block px-4 py-8 sm:px-6">
       <header>
         <h1 className="font-display text-2xl font-bold tracking-tight">My stay</h1>
         <p className="mt-1 max-w-read text-sm text-muted-foreground">
-          This is where the hotel you are currently in appears: your room number,
-          your dates, the room-service card for that hotel, and the desks you can
-          message. It fills in when you check in at reception.
+          The stay you are in today, what you can order during it, and what you
+          have already ordered.
         </p>
       </header>
 
-      <DemoDataNotice detail={DINING_DEMO_DETAIL} />
+      {/*
+        The stay the desk registered (`/me/stays`): its summary, the desks the
+        guest can message, offers and refunds, or the prompt to claim it with
+        the emailed code. A walk-in has no booking, so it never appears in
+        `/me/trips` below; this panel is where that guest's stay lives.
+      */}
+      <MyStayPanel />
 
-      <CheckInPanel
-        heading="You are not checked in anywhere"
-        intro="Nothing is wrong. Room service and the department chat both belong to a hotel you are standing in, so they stay closed until a stay is on this account. Your booked stays are under Trips."
-        onCheckedIn={onCheckedIn}
-      />
+      {nothingHere ? (
+        <section className="rounded-card border border-dashed border-input bg-card p-6">
+          <h2 className="font-display text-lg font-bold tracking-tight">
+            No booking is under way today
+          </h2>
+          <p className="mt-2 max-w-read text-sm text-muted-foreground">
+            No booking on your account is under way today, and no outlet is taking
+            orders from you. If a front desk checked you in, claim that stay above. Ordering to your room opens once a front desk checks
+            you in. Stays you have booked are under Trips.
+          </p>
+          <div className="mt-4 flex flex-wrap gap-2">
+            <Button asChild variant="outline" size="sm">
+              <Link href="/trips">See my trips</Link>
+            </Button>
+            <Button asChild variant="ghost" size="sm">
+              <Link href="/explore">Explore stays</Link>
+            </Button>
+          </div>
+        </section>
+      ) : (
+        <>
+          {current.map((trip) => (
+            <CurrentStayCard key={trip.id} trip={trip} />
+          ))}
 
-      <div className="flex flex-wrap gap-2">
-        <Button asChild variant="outline">
-          <a href="/trips">See my trips</a>
-        </Button>
-        <Button asChild variant="ghost">
-          <a href="/explore">Explore stays</a>
-        </Button>
-      </div>
+          <section className="grid gap-4 sm:grid-cols-2">
+            {outlets.length > 0 ? (
+              <ActionTile
+                href="/stay/order"
+                icon="coffee"
+                title="Order food and drink"
+                body={orderTileBody(outlets)}
+                cta="See what's on"
+                primary
+              />
+            ) : (
+              <div className="flex flex-col rounded-card border border-dashed border-input bg-card p-5">
+                <span className="flex size-10 items-center justify-center rounded-card bg-secondary text-muted-foreground">
+                  <Icon name="coffee" className="size-5" />
+                </span>
+                <h2 className="mt-4 font-display text-lg font-bold tracking-tight">
+                  Nothing to order yet
+                </h2>
+                <p className="mt-1 text-sm leading-relaxed text-muted-foreground">
+                  No outlet is taking orders from you right now. Ordering to your
+                  room opens once the front desk has checked you in, and an outlet
+                  that is closed does not appear until it opens.
+                </p>
+              </div>
+            )}
+            <ActionTile
+              href="/inbox"
+              icon="message-square"
+              title="Message the property"
+              body="Your conversations with the places you have booked, in one inbox."
+              cta="Open my messages"
+            />
+          </section>
+        </>
+      )}
+
+      {orders.length > 0 ? (
+        <section>
+          <div className="mb-3 flex flex-wrap items-baseline justify-between gap-2">
+            <h2 className="font-display text-lg font-bold tracking-tight">Your orders</h2>
+            <Button size="sm" variant="ghost" onClick={() => load(true)}>
+              <Icon name="refresh-cw" className="size-4" />
+              Refresh
+            </Button>
+          </div>
+          <OrderList orders={orders} onChanged={() => load(true)} highlightId={placedOrderId} />
+        </section>
+      ) : null}
     </div>
   );
 }
 
-/** One of the two things a guest does from a room, as a tile. */
+/** Where the guest can order, in one sentence built from the server's list. */
+function orderTileBody(outlets: OrderableOutlet[]): string {
+  const names = outlets.slice(0, 3).map((o) => o.name);
+  const more = outlets.length > 3 ? ` and ${outlets.length - 3} more` : "";
+  const room = outlets.some((o) => o.chargeToRoom);
+  return `${names.join(", ")}${more}. ${
+    room ? "Charge it to your room, or pay now where the outlet allows." : "Pay when you order."
+  }`;
+}
+
+const DAY_MONTH_YEAR = new Intl.DateTimeFormat("en-GB", {
+  day: "numeric",
+  month: "short",
+  year: "numeric",
+});
+
+/** Parsed at midday, so a `yyyy-mm-dd` never prints as the day before. */
+function day(iso: string): string {
+  return DAY_MONTH_YEAR.format(new Date(`${iso}T12:00:00`));
+}
+
+/**
+ * A booked stay whose dates include today.
+ *
+ * It says "under way", not "checked in": the booking's dates are the API's
+ * fact, and whether the front desk has handed over a key is not something any
+ * guest route reports.
+ */
+function CurrentStayCard({ trip }: { trip: GuestTrip }) {
+  return (
+    <section className="rounded-card border border-border bg-card p-6">
+      <div className="flex flex-wrap items-center gap-2">
+        <Badge variant="success" size="sm">
+          Under way
+        </Badge>
+        <span className="money text-xs text-muted-foreground">Reference {trip.reference}</span>
+      </div>
+      <h2 className="mt-3 font-display text-2xl font-bold tracking-tight">
+        {trip.propertySlug ? (
+          <Link href={`/property/${trip.propertySlug}`} className="hover:underline">
+            {trip.propertyName}
+          </Link>
+        ) : (
+          trip.propertyName
+        )}
+      </h2>
+      <p className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-muted-foreground">
+        <span className="inline-flex items-center gap-1.5">
+          <Icon name="calendar-days" className="size-4" />
+          <span className="money">
+            {day(trip.checkIn)} to {day(trip.checkOut)}
+          </span>
+        </span>
+        <span className="inline-flex items-center gap-1.5">
+          <Icon name="bed" className="size-4" />
+          {trip.roomTypeName}
+        </span>
+      </p>
+    </section>
+  );
+}
+
 function ActionTile({
   href,
   icon,
@@ -218,12 +295,12 @@ function ActionTile({
   primary?: boolean;
 }) {
   return (
-    <a
+    <Link
       href={href}
       className="flex flex-col rounded-card border border-border bg-card p-5 transition-colors hover:border-accent-brand"
     >
-      <span className="flex h-10 w-10 items-center justify-center rounded-card bg-secondary text-secondary-foreground">
-        <Icon name={icon} className="h-5 w-5" />
+      <span className="flex size-10 items-center justify-center rounded-card bg-secondary text-secondary-foreground">
+        <Icon name={icon} className="size-5" />
       </span>
       <h2 className="mt-4 font-display text-lg font-bold tracking-tight">{title}</h2>
       <p className="mt-1 grow text-sm leading-relaxed text-muted-foreground">{body}</p>
@@ -233,60 +310,24 @@ function ActionTile({
         }`}
       >
         {cta}
-        <Icon name="arrow-right" className="h-4 w-4" />
+        <Icon name="arrow-right" className="size-4" />
       </span>
-    </a>
+    </Link>
   );
 }
 
-/**
- * The presenter's reset, kept where a presenter can find it and a guest cannot
- * mistake it for hotel machinery.
- *
- * Two controls, because they do different things and conflating them is how an
- * earlier draft wiped a rehearsed order history on check-out. "Check out" ends
- * the stay and keeps the record, which is what lets the app still name where
- * the guest was. "Forget the stay" removes it entirely and is what a presenter
- * runs between two demonstrations.
- */
-function DemoStayControls({ onChanged }: { onChanged: () => void }) {
+function StayLoading() {
   return (
-    <section className="rounded-card border border-dashed border-input p-5">
-      <h2 className="text-2xs font-bold uppercase tracking-[0.08em] text-muted-foreground">
-        Demo controls
-      </h2>
-      <p className="mt-2 max-w-read text-xs text-muted-foreground">
-        This stay was written into this browser, not by a front desk. These two
-        controls exist so a demonstration can be run again from the beginning;
-        neither reaches the hotel.
-      </p>
-      <div className="mt-4 flex flex-wrap gap-2">
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={() => {
-            checkOutGuest();
-            onChanged();
-          }}
-        >
-          Check out (demo)
-        </Button>
-        <Button
-          variant="ghost"
-          size="sm"
-          onClick={() => {
-            clearGuestStay();
-            onChanged();
-          }}
-        >
-          Forget this stay
-        </Button>
+    <div className="mx-auto flex w-full max-w-page flex-col gap-4 px-4 py-8 sm:px-6">
+      <span className="sr-only" role="status">
+        Looking up your stay
+      </span>
+      <Skeleton className="h-8 w-40 rounded" />
+      <Skeleton className="h-32 rounded-card" />
+      <div className="grid gap-4 sm:grid-cols-2">
+        <Skeleton className="h-40 rounded-card" />
+        <Skeleton className="h-40 rounded-card" />
       </div>
-      <p className="mt-3 text-xs text-muted-foreground">
-        Orders already placed survive both: they belong to the order store, not
-        to the stay, and checking out of a hotel does not unsay what you ordered
-        from it.
-      </p>
-    </section>
+    </div>
   );
 }
