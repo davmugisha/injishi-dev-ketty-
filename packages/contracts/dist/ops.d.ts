@@ -440,6 +440,103 @@ export declare const OperatorRoomList: z.ZodObject<{
     }[];
 }>;
 export type OperatorRoomList = z.infer<typeof OperatorRoomList>;
+/**
+ * What the desk writes on the registration card (§6.4 `stay_identities`).
+ *
+ * Every field is optional EXCEPT in the sense that a property regulated in
+ * Rwanda is required to record the identity of whoever sleeps in the building —
+ * so this is optional in the schema and expected in practice, and the desk app
+ * is what insists. A required field here would break the walk in at 23:00 whose
+ * passport is in a bag upstairs, and a stay nobody could open is worse than a
+ * stay with a name and no document number.
+ */
+export declare const StayRegistrationDetails: z.ZodObject<{
+    /** As printed on the document, which is not always the name on the booking. */
+    fullName: z.ZodOptional<z.ZodString>;
+    documentType: z.ZodOptional<z.ZodEnum<["national_id", "passport", "other"]>>;
+    idNumber: z.ZodOptional<z.ZodString>;
+    /** Home address, free text: Rwandan and foreign addresses do not share a shape. */
+    addressText: z.ZodOptional<z.ZodString>;
+    /**
+     * Where the "continue in the app" mail goes. The ONE address this stay's
+     * claim invitation is ever sent to, which is why it is captured here at the
+     * counter with the guest watching, and never supplied later by a caller.
+     */
+    email: z.ZodOptional<z.ZodString>;
+    phone: z.ZodOptional<z.ZodString>;
+    /**
+     * Send the claim invitation now. Default true when an address was given:
+     * a desk that captured an address meant to invite them, and making the
+     * invitation a second deliberate step is how it never gets sent.
+     */
+    invite: z.ZodOptional<z.ZodBoolean>;
+}, "strict", z.ZodTypeAny, {
+    addressText?: string | undefined;
+    email?: string | undefined;
+    documentType?: "national_id" | "passport" | "other" | undefined;
+    fullName?: string | undefined;
+    idNumber?: string | undefined;
+    phone?: string | undefined;
+    invite?: boolean | undefined;
+}, {
+    addressText?: string | undefined;
+    email?: string | undefined;
+    documentType?: "national_id" | "passport" | "other" | undefined;
+    fullName?: string | undefined;
+    idNumber?: string | undefined;
+    phone?: string | undefined;
+    invite?: boolean | undefined;
+}>;
+export type StayRegistrationDetails = z.infer<typeof StayRegistrationDetails>;
+/** The shape of a claim code as it is printed: four letters, a dash, four digits. */
+export declare const CLAIM_CODE_PATTERN: RegExp;
+/**
+ * What the desk gets back after registering somebody: the code on the slip, and
+ * whether the mail actually left.
+ *
+ * `invitationSent` is false rather than an error when the transport refused.
+ * The stay is real and the code is printed on the slip in the guest's hand;
+ * failing the check in because an SMTP relay was down would put a guest back on
+ * the street over an email.
+ */
+export declare const StayClaimInvite: z.ZodObject<{
+    stayId: z.ZodString;
+    /** Null when the stay is already claimed — there is nothing left to hand out. */
+    claimCode: z.ZodNullable<z.ZodString>;
+    email: z.ZodNullable<z.ZodString>;
+    invitationSent: z.ZodBoolean;
+    invitedAt: z.ZodNullable<z.ZodString>;
+}, "strip", z.ZodTypeAny, {
+    email: string | null;
+    stayId: string;
+    claimCode: string | null;
+    invitationSent: boolean;
+    invitedAt: string | null;
+}, {
+    email: string | null;
+    stayId: string;
+    claimCode: string | null;
+    invitationSent: boolean;
+    invitedAt: string | null;
+}>;
+export type StayClaimInvite = z.infer<typeof StayClaimInvite>;
+/** Re-send the invitation, or send a first one to an address captured late. */
+export declare const IssueStayClaimInviteRequest: z.ZodObject<{
+    /** Absent keeps the address already on the stay. */
+    email: z.ZodOptional<z.ZodString>;
+    /**
+     * Mint a NEW code, invalidating the old slip. For the guest who says the
+     * code does not work, or the one who left the slip in the taxi.
+     */
+    reissue: z.ZodOptional<z.ZodBoolean>;
+}, "strict", z.ZodTypeAny, {
+    email?: string | undefined;
+    reissue?: boolean | undefined;
+}, {
+    email?: string | undefined;
+    reissue?: boolean | undefined;
+}>;
+export type IssueStayClaimInviteRequest = z.infer<typeof IssueStayClaimInviteRequest>;
 /** A guest in the building, or one who has left. */
 export declare const OperatorStay: z.ZodObject<{
     id: z.ZodString;
@@ -567,10 +664,73 @@ export declare const CheckInRequest: z.ZodObject<{
      * the one that must not be overwritten by a blank field.
      */
     nightlyRateRwf: z.ZodOptional<z.ZodNumber>;
+    /**
+     * The registration card, and the invitation that follows it (§6.8).
+     *
+     * OPTIONAL, because a booked guest already has an account and an address
+     * and the desk usually types nothing. Present, it records the identity
+     * against the stay and mails the guest a claim code so they can carry on
+     * in the app. Absent, check in behaves exactly as it did.
+     */
+    guest: z.ZodOptional<z.ZodObject<{
+        /** As printed on the document, which is not always the name on the booking. */
+        fullName: z.ZodOptional<z.ZodString>;
+        documentType: z.ZodOptional<z.ZodEnum<["national_id", "passport", "other"]>>;
+        idNumber: z.ZodOptional<z.ZodString>;
+        /** Home address, free text: Rwandan and foreign addresses do not share a shape. */
+        addressText: z.ZodOptional<z.ZodString>;
+        /**
+         * Where the "continue in the app" mail goes. The ONE address this stay's
+         * claim invitation is ever sent to, which is why it is captured here at the
+         * counter with the guest watching, and never supplied later by a caller.
+         */
+        email: z.ZodOptional<z.ZodString>;
+        phone: z.ZodOptional<z.ZodString>;
+        /**
+         * Send the claim invitation now. Default true when an address was given:
+         * a desk that captured an address meant to invite them, and making the
+         * invitation a second deliberate step is how it never gets sent.
+         */
+        invite: z.ZodOptional<z.ZodBoolean>;
+    }, "strict", z.ZodTypeAny, {
+        addressText?: string | undefined;
+        email?: string | undefined;
+        documentType?: "national_id" | "passport" | "other" | undefined;
+        fullName?: string | undefined;
+        idNumber?: string | undefined;
+        phone?: string | undefined;
+        invite?: boolean | undefined;
+    }, {
+        addressText?: string | undefined;
+        email?: string | undefined;
+        documentType?: "national_id" | "passport" | "other" | undefined;
+        fullName?: string | undefined;
+        idNumber?: string | undefined;
+        phone?: string | undefined;
+        invite?: boolean | undefined;
+    }>>;
 }, "strip", z.ZodTypeAny, {
+    guest?: {
+        addressText?: string | undefined;
+        email?: string | undefined;
+        documentType?: "national_id" | "passport" | "other" | undefined;
+        fullName?: string | undefined;
+        idNumber?: string | undefined;
+        phone?: string | undefined;
+        invite?: boolean | undefined;
+    } | undefined;
     nightlyRateRwf?: number | undefined;
     roomId?: string | undefined;
 }, {
+    guest?: {
+        addressText?: string | undefined;
+        email?: string | undefined;
+        documentType?: "national_id" | "passport" | "other" | undefined;
+        fullName?: string | undefined;
+        idNumber?: string | undefined;
+        phone?: string | undefined;
+        invite?: boolean | undefined;
+    } | undefined;
     nightlyRateRwf?: number | undefined;
     roomId?: string | undefined;
 }>;
@@ -605,14 +765,78 @@ export declare const WalkInRequest: z.ZodObject<{
     plannedExitAt: z.ZodOptional<z.ZodString>;
     /** The nightly rate agreed at the counter. */
     nightlyRateRwf: z.ZodOptional<z.ZodNumber>;
+    /**
+     * The registration card, and the invitation that follows it (§6.8).
+     *
+     * THIS IS THE CASE IT WAS BUILT FOR. A walk in has no account, so the only
+     * record of who they are is what the desk types here, and the only way they
+     * ever reach the app is the claim code this mails them. Without it a walk in
+     * is a room number and a first name, and every guest-facing surface this
+     * platform has is closed to them for the whole of their stay.
+     */
+    guest: z.ZodOptional<z.ZodObject<{
+        /** As printed on the document, which is not always the name on the booking. */
+        fullName: z.ZodOptional<z.ZodString>;
+        documentType: z.ZodOptional<z.ZodEnum<["national_id", "passport", "other"]>>;
+        idNumber: z.ZodOptional<z.ZodString>;
+        /** Home address, free text: Rwandan and foreign addresses do not share a shape. */
+        addressText: z.ZodOptional<z.ZodString>;
+        /**
+         * Where the "continue in the app" mail goes. The ONE address this stay's
+         * claim invitation is ever sent to, which is why it is captured here at the
+         * counter with the guest watching, and never supplied later by a caller.
+         */
+        email: z.ZodOptional<z.ZodString>;
+        phone: z.ZodOptional<z.ZodString>;
+        /**
+         * Send the claim invitation now. Default true when an address was given:
+         * a desk that captured an address meant to invite them, and making the
+         * invitation a second deliberate step is how it never gets sent.
+         */
+        invite: z.ZodOptional<z.ZodBoolean>;
+    }, "strict", z.ZodTypeAny, {
+        addressText?: string | undefined;
+        email?: string | undefined;
+        documentType?: "national_id" | "passport" | "other" | undefined;
+        fullName?: string | undefined;
+        idNumber?: string | undefined;
+        phone?: string | undefined;
+        invite?: boolean | undefined;
+    }, {
+        addressText?: string | undefined;
+        email?: string | undefined;
+        documentType?: "national_id" | "passport" | "other" | undefined;
+        fullName?: string | undefined;
+        idNumber?: string | undefined;
+        phone?: string | undefined;
+        invite?: boolean | undefined;
+    }>>;
 }, "strip", z.ZodTypeAny, {
     guestName: string;
     roomId: string;
+    guest?: {
+        addressText?: string | undefined;
+        email?: string | undefined;
+        documentType?: "national_id" | "passport" | "other" | undefined;
+        fullName?: string | undefined;
+        idNumber?: string | undefined;
+        phone?: string | undefined;
+        invite?: boolean | undefined;
+    } | undefined;
     nightlyRateRwf?: number | undefined;
     plannedExitAt?: string | undefined;
 }, {
     guestName: string;
     roomId: string;
+    guest?: {
+        addressText?: string | undefined;
+        email?: string | undefined;
+        documentType?: "national_id" | "passport" | "other" | undefined;
+        fullName?: string | undefined;
+        idNumber?: string | undefined;
+        phone?: string | undefined;
+        invite?: boolean | undefined;
+    } | undefined;
     nightlyRateRwf?: number | undefined;
     plannedExitAt?: string | undefined;
 }>;
@@ -1552,6 +1776,7 @@ export declare const OperatorDepartment: z.ZodObject<{
     status: "active" | "archived";
     id: string;
     name: string;
+    phone: string | null;
     propertyId: string | null;
     departmentType: "operated" | "undistributed";
     departmentCategory: "rooms" | "fnb" | "spa_recreation" | "other_operated" | "misc_income" | "admin_general" | "sales_marketing" | "it" | "engineering" | "utilities" | "hr";
@@ -1560,11 +1785,11 @@ export declare const OperatorDepartment: z.ZodObject<{
     sortOrder: number;
     headName: string | null;
     headPhone: string | null;
-    phone: string | null;
 }, {
     status: "active" | "archived";
     id: string;
     name: string;
+    phone: string | null;
     propertyId: string | null;
     departmentType: "operated" | "undistributed";
     departmentCategory: "rooms" | "fnb" | "spa_recreation" | "other_operated" | "misc_income" | "admin_general" | "sales_marketing" | "it" | "engineering" | "utilities" | "hr";
@@ -1573,7 +1798,6 @@ export declare const OperatorDepartment: z.ZodObject<{
     sortOrder: number;
     headName: string | null;
     headPhone: string | null;
-    phone: string | null;
 }>;
 export type OperatorDepartment = z.infer<typeof OperatorDepartment>;
 export declare const OperatorDepartmentList: z.ZodObject<{
@@ -1599,6 +1823,7 @@ export declare const OperatorDepartmentList: z.ZodObject<{
         status: "active" | "archived";
         id: string;
         name: string;
+        phone: string | null;
         propertyId: string | null;
         departmentType: "operated" | "undistributed";
         departmentCategory: "rooms" | "fnb" | "spa_recreation" | "other_operated" | "misc_income" | "admin_general" | "sales_marketing" | "it" | "engineering" | "utilities" | "hr";
@@ -1607,11 +1832,11 @@ export declare const OperatorDepartmentList: z.ZodObject<{
         sortOrder: number;
         headName: string | null;
         headPhone: string | null;
-        phone: string | null;
     }, {
         status: "active" | "archived";
         id: string;
         name: string;
+        phone: string | null;
         propertyId: string | null;
         departmentType: "operated" | "undistributed";
         departmentCategory: "rooms" | "fnb" | "spa_recreation" | "other_operated" | "misc_income" | "admin_general" | "sales_marketing" | "it" | "engineering" | "utilities" | "hr";
@@ -1620,13 +1845,13 @@ export declare const OperatorDepartmentList: z.ZodObject<{
         sortOrder: number;
         headName: string | null;
         headPhone: string | null;
-        phone: string | null;
     }>, "many">;
 }, "strip", z.ZodTypeAny, {
     departments: {
         status: "active" | "archived";
         id: string;
         name: string;
+        phone: string | null;
         propertyId: string | null;
         departmentType: "operated" | "undistributed";
         departmentCategory: "rooms" | "fnb" | "spa_recreation" | "other_operated" | "misc_income" | "admin_general" | "sales_marketing" | "it" | "engineering" | "utilities" | "hr";
@@ -1635,13 +1860,13 @@ export declare const OperatorDepartmentList: z.ZodObject<{
         sortOrder: number;
         headName: string | null;
         headPhone: string | null;
-        phone: string | null;
     }[];
 }, {
     departments: {
         status: "active" | "archived";
         id: string;
         name: string;
+        phone: string | null;
         propertyId: string | null;
         departmentType: "operated" | "undistributed";
         departmentCategory: "rooms" | "fnb" | "spa_recreation" | "other_operated" | "misc_income" | "admin_general" | "sales_marketing" | "it" | "engineering" | "utilities" | "hr";
@@ -1650,7 +1875,6 @@ export declare const OperatorDepartmentList: z.ZodObject<{
         sortOrder: number;
         headName: string | null;
         headPhone: string | null;
-        phone: string | null;
     }[];
 }>;
 export type OperatorDepartmentList = z.infer<typeof OperatorDepartmentList>;
@@ -1675,21 +1899,21 @@ export declare const CreateDepartmentRequest: z.ZodObject<{
     propertyId: string;
     departmentType: "operated" | "undistributed";
     departmentCategory: "rooms" | "fnb" | "spa_recreation" | "other_operated" | "misc_income" | "admin_general" | "sales_marketing" | "it" | "engineering" | "utilities" | "hr";
+    phone?: string | null | undefined;
     guestRequestable?: boolean | undefined;
     sortOrder?: number | undefined;
     headName?: string | null | undefined;
     headPhone?: string | null | undefined;
-    phone?: string | null | undefined;
 }, {
     name: string;
     propertyId: string;
     departmentType: "operated" | "undistributed";
     departmentCategory: "rooms" | "fnb" | "spa_recreation" | "other_operated" | "misc_income" | "admin_general" | "sales_marketing" | "it" | "engineering" | "utilities" | "hr";
+    phone?: string | null | undefined;
     guestRequestable?: boolean | undefined;
     sortOrder?: number | undefined;
     headName?: string | null | undefined;
     headPhone?: string | null | undefined;
-    phone?: string | null | undefined;
 }>;
 export type CreateDepartmentRequest = z.infer<typeof CreateDepartmentRequest>;
 /**
@@ -1710,35 +1934,35 @@ export declare const UpdateDepartmentRequest: z.ZodEffects<z.ZodObject<{
 }, "strip", z.ZodTypeAny, {
     status?: "active" | "archived" | undefined;
     name?: string | undefined;
+    phone?: string | null | undefined;
     guestRequestable?: boolean | undefined;
     sortOrder?: number | undefined;
     headName?: string | null | undefined;
     headPhone?: string | null | undefined;
-    phone?: string | null | undefined;
 }, {
     status?: "active" | "archived" | undefined;
     name?: string | undefined;
+    phone?: string | null | undefined;
     guestRequestable?: boolean | undefined;
     sortOrder?: number | undefined;
     headName?: string | null | undefined;
     headPhone?: string | null | undefined;
-    phone?: string | null | undefined;
 }>, {
     status?: "active" | "archived" | undefined;
     name?: string | undefined;
+    phone?: string | null | undefined;
     guestRequestable?: boolean | undefined;
     sortOrder?: number | undefined;
     headName?: string | null | undefined;
     headPhone?: string | null | undefined;
-    phone?: string | null | undefined;
 }, {
     status?: "active" | "archived" | undefined;
     name?: string | undefined;
+    phone?: string | null | undefined;
     guestRequestable?: boolean | undefined;
     sortOrder?: number | undefined;
     headName?: string | null | undefined;
     headPhone?: string | null | undefined;
-    phone?: string | null | undefined;
 }>;
 export type UpdateDepartmentRequest = z.infer<typeof UpdateDepartmentRequest>;
 export declare const FolioType: z.ZodEnum<["guest", "master", "group", "house"]>;

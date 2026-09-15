@@ -377,7 +377,7 @@ export class PaymentAttemptService {
   async claimHold(args: {
     input: CreateBookingInput;
     guestUserId: string;
-    roomType: { id: string; workspaceId: string; roomCount: number };
+    roomType: { id: string; workspaceId: string };
     idempotencyKey: string;
     fingerprint: string;
     amountRwf: number;
@@ -411,7 +411,6 @@ export class PaymentAttemptService {
       // a person to an attempt; never enough to charge anybody.
       payerMasked: instrument.kind === 'mobile_money' ? maskDestination(instrument.msisdn) : null,
       expiresAt: new Date(now.getTime() + PAYMENT_PROMPT_TTL_SECONDS * 1_000),
-      roomCount: args.roomType.roomCount,
       now,
     });
 

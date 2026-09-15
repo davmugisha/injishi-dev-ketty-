@@ -5,25 +5,27 @@ import { StayScreen } from "./stay-screen";
 export const metadata: Metadata = {
   title: "My stay",
   description:
-    "The hotel you are checked into: your room, your dates, room service and the desks you can message.",
+    "The stay you are in today, the outlets you can order from, and the orders you have placed.",
 };
 
 /**
  * The in-house guest's hub.
  *
- * It sits in the authenticated shell beside Trips and Saved, and the split
- * between the three is worth stating because it is not obvious from the names.
- * `/trips` is every stay a person has ever booked, past and future. `/stay` is
- * the ONE they are standing in right now, and it exists as its own address
- * because what a guest wants at 21:40 on the second night — the room number,
- * the menu, the front desk — has almost nothing in common with what they want
- * when planning a trip.
+ * It sits in the authenticated shell beside Trips and Saved. `/trips` is every
+ * stay a person has ever booked, past and future. `/stay` is the one under way
+ * today, and what the guest can order during it.
  *
- * A SERVER COMPONENT WITH A CLIENT CHILD, and that shape is forced. The stay
- * and the orders both live in `localStorage`, so the screen itself has to be a
- * client component; `metadata` cannot be exported from one. The two files are
- * the smallest way to have both, and the same split is used at `/stay/order`.
+ * A SERVER COMPONENT WITH A CLIENT CHILD. Everything on the screen comes from
+ * `/api/v1/me/*`, guarded by the session cookie on the API origin, so the
+ * screen reads in the browser; `metadata` cannot be exported from a client
+ * component. `?placed=<order id>` is how the order screen hands over the order
+ * it just placed, so the hub can mark it in the list.
  */
-export default function Page() {
-  return <StayScreen />;
+export default async function Page({
+  searchParams,
+}: {
+  searchParams: Promise<{ placed?: string | string[] }>;
+}) {
+  const { placed } = await searchParams;
+  return <StayScreen placedOrderId={typeof placed === "string" ? placed : null} />;
 }

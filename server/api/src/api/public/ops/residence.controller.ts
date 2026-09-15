@@ -31,6 +31,7 @@ import {
 } from '../../../shared/auth/session.guard';
 import {
   CurrentWorkspace,
+  RequireAnyPermission,
   RequirePermission,
   WorkspaceGuard,
 } from '../../../shared/auth/workspace.guard';
@@ -50,7 +51,10 @@ import { ZodValidationPipe } from '../../../shared/validation/zod-validation.pip
 export class OpsLeasesController {
   constructor(private readonly residence: ResidenceService) {}
 
+  // Leases, the lease record and Move-outs: whoever advances a lease, records
+  // its rent or returns its deposit.
   @Get()
+  @RequireAnyPermission('lease.advance', 'rent.record', 'deposit.return')
   async list(
     @CurrentWorkspace() workspace: ScopedWorkspace,
   ): Promise<OperatorLeaseList> {
@@ -105,7 +109,10 @@ export class OpsLeasesController {
 export class OpsRentRollController {
   constructor(private readonly residence: ResidenceService) {}
 
+  // Money owed by named tenants: whoever records rent, or reads the money.
+  // The landlord's mobile app reads it as the owner.
   @Get()
+  @RequireAnyPermission('rent.record', 'money.view')
   async list(
     @CurrentWorkspace() workspace: ScopedWorkspace,
   ): Promise<OperatorRentRoll> {
@@ -126,7 +133,9 @@ export class OpsRentRollController {
 export class OpsTicketsController {
   constructor(private readonly residence: ResidenceService) {}
 
+  // The Maintenance leaf, on both navs, is behind `ticket.advance`.
   @Get()
+  @RequirePermission('ticket.advance')
   async list(
     @CurrentWorkspace() workspace: ScopedWorkspace,
   ): Promise<OperatorTicketList> {
@@ -186,7 +195,9 @@ export class OpsTicketsController {
 export class OpsDepositsController {
   constructor(private readonly residence: ResidenceService) {}
 
+  // Move-outs, the rent roll's deposit column and the lease record.
   @Get()
+  @RequireAnyPermission('deposit.return', 'lease.advance', 'money.view')
   async list(
     @CurrentWorkspace() workspace: ScopedWorkspace,
   ): Promise<OperatorDepositList> {

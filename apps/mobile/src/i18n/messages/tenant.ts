@@ -308,7 +308,7 @@ export const en = {
   'issue.toast': '{ref} filed. {org} sees it now.',
   'issue.filedTitle': 'Ticket {ref} filed',
   'issue.filedBody':
-    '{org} sees it on their Repairs tab. You get a message here when someone is assigned to it.',
+    '{org} sees it on their Maintenance tab. You get a message here when someone is assigned to it.',
   'issue.notWired':
     'Not yet wired to the backend, so the photographs stay on this device and the ticket lives in this session.',
   'issue.done': 'Done',

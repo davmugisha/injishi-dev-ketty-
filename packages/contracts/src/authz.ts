@@ -83,6 +83,31 @@ export const Permission = z.enum([
      * for what.
      */
     "outlet.manage",
+    /**
+     * Answer a guest's request for money back on a stay that has already begun
+     * (§6.8).
+     *
+     * OWNER AND MANAGER, never the desk. A booking cancellation is arithmetic —
+     * `cancellationRefund` reads a locked tier and a clock, and nobody exercises
+     * judgement — but this is the opposite: the entitlement the rules compute is
+     * a SUGGESTION, and the person deciding may approve more than it (goodwill)
+     * or refuse what it owed by citing a rule the engine cannot see. That is a
+     * discretionary spend of the business's money in front of an unhappy guest,
+     * which is exactly the decision a receptionist must be able to escalate
+     * rather than be pressed into making at the counter.
+     */
+    "refund.decide",
+    /**
+     * Create and retire the property's offers, which is setting prices
+     * downwards (§6.8).
+     *
+     * OWNER AND MANAGER, for the reason `menu.manage` is: a discount is a price,
+     * and whoever can write "50% off, no end date, unlimited redemptions" can
+     * give the property's revenue away without anyone approving a single
+     * transaction. Redeeming one is the guest's own action and carries no
+     * permission at all.
+     */
+    "offer.manage",
 ]);
 export type Permission = z.infer<typeof Permission>;
 const ALL = Permission.options;
@@ -171,6 +196,8 @@ export const PERMISSION_LABEL: Readonly<Record<Permission, string>> = {
     "folio.close": "close a bill and sign its receipt",
     "ebm.refund": "refund a signed receipt",
     "outlet.manage": "manage outlets",
+    "refund.decide": "answer a guest's refund request",
+    "offer.manage": "create and retire offers",
 };
 // ---------------------------------------------------------------------------
 // Workspace access

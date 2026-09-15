@@ -58,10 +58,16 @@ export const bookings = pgTable(
     guestCount: integer('guest_count').notNull().default(1),
     status: bookingStatusEnum('status').notNull(),
     bookingMode: bookingModeEnum('booking_mode').notNull(),
-    lockedNightlyRateRwf: amount('locked_nightly_rate_rwf'),
+    /**
+     * NOT NULL since migration 0043 (platform audit step 3). The one API insert
+     * (`BookingRepository.create`) always wrote it from the quote, and every
+     * seed does; a booking with no locked rate is a booking nobody can refund.
+     */
+    lockedNightlyRateRwf: amount('locked_nightly_rate_rwf').notNull(),
     lockedCancellationTier: cancellationTierEnum('locked_cancellation_tier'),
     nonrefundable: boolean('nonrefundable').notNull().default(false),
-    grossRwf: amount('gross_rwf'),
+    /** NOT NULL since migration 0043, for the reason `locked_nightly_rate_rwf` is. */
+    grossRwf: amount('gross_rwf').notNull(),
     currency: currency(),
     paymentStatus: paymentStatusEnum('payment_status'),
     declineReason: declineReasonEnum('decline_reason'),
@@ -107,6 +113,15 @@ export const bookings = pgTable(
     check(
       'bookings_cancellation_shape',
       sql`${t.cancelledAt} IS NULL OR (${t.status} = 'cancelled' AND ${t.cancelledBy} IN ('guest', 'host') AND ${t.refundRwf} IS NOT NULL)`,
+    ),
+    // What the code has always assumed, now held where no path can skip it
+    // (platform audit step 3). Half open stays: a zero night booking holds no
+    // night and prices to nothing, so it is refused rather than stored.
+    check('bookings_dates_ordered', sql`${t.checkOut} > ${t.checkIn}`),
+    check('bookings_guest_count_positive', sql`${t.guestCount} > 0`),
+    check(
+      'bookings_amounts_non_negative',
+      sql`${t.lockedNightlyRateRwf} >= 0 AND ${t.grossRwf} >= 0 AND (${t.refundRwf} IS NULL OR ${t.refundRwf} >= 0)`,
     ),
     index('bookings_guest_idx').on(t.guestUserId),
     index('bookings_workspace_status_idx').on(t.workspaceId, t.status, t.checkIn),
@@ -158,6 +173,33 @@ export const guestStays = pgTable(
      * `users.name` and fall back to this.
      */
     guestName: text('guest_name'),
+    /**
+     * Where the "continue in the app" mail goes, captured at the desk.
+     *
+     * A WALK IN HAS NO ACCOUNT, which is what a walk in means, so there is no
+     * `users.email` to read. The desk types this on the registration card and
+     * it is the ONLY address this stay's claim invitation is ever sent to: the
+     * claim binds a stay to whoever holds the code, so an address a caller
+     * could supply later would be a way to have somebody else's stay mailed to
+     * you.
+     *
+     * NULL for a stay that has an account. The account is the better source and
+     * stays current when the person changes their address; readers prefer
+     * `users.email` and fall back to this.
+     */
+    guestEmail: text('guest_email'),
+    /** The number on the registration card. Not a sign-in channel; a contact. */
+    guestPhone: text('guest_phone'),
+    /**
+     * When the claim invitation was last handed to the mailer.
+     *
+     * Recorded so a second press at the desk is visible rather than silent, and
+     * so the resend cap has something to count. It says the mail was SENT, not
+     * that it arrived — the mailer seam never promises delivery.
+     */
+    claimInvitedAt: timestamp('claim_invited_at', { withTimezone: true }),
+    /** When the stay was bound to an account. Set with `claim_status`. */
+    claimedAt: timestamp('claimed_at', { withTimezone: true }),
     roomId: uuid('room_id')
       .notNull()
       .references(() => rooms.id),
@@ -183,6 +225,7 @@ export const guestStays = pgTable(
       .where(sql`${t.claimCode} IS NOT NULL`),
     index('guest_stays_workspace_idx').on(t.workspaceId),
     index('guest_stays_room_idx').on(t.roomId),
+    index('guest_stays_booking_idx').on(t.bookingId),
     // One open stay per room, enforced where a race cannot reach it. The walk
     // in re-check selects open stays FOR UPDATE, and on a free room that locks
     // no row, so two desks admitting guests at once both saw "free" and both
@@ -191,6 +234,23 @@ export const guestStays = pgTable(
     uniqueIndex('guest_stays_one_open_per_room_uk')
       .on(t.roomId)
       .where(sql`${t.lifecycle} = 'open'`),
+    // A claimed stay names WHO claimed it and WHEN. Without this the three
+    // columns can disagree — a stay marked claimed with nobody attached is a
+    // record the guest cannot reach and the desk cannot re-issue a code for,
+    // because re-issuing refuses a claimed stay. Nothing writes `claimed`
+    // today, so the check is safe to state in both directions.
+    check(
+      'guest_stays_claim_shape',
+      sql`${t.claimStatus} = 'unclaimed'
+           OR (${t.claimedByUserId} IS NOT NULL AND ${t.claimedAt} IS NOT NULL)`,
+    ),
+    // The claim lands by GUEST first: "is there a stay waiting for me" is
+    // answered off the address the desk typed, and without this it is a scan of
+    // every stay the platform has ever recorded. Partial, because a stay that
+    // is already claimed is never a candidate again.
+    index('guest_stays_unclaimed_email_idx')
+      .on(t.guestEmail)
+      .where(sql`${t.claimStatus} = 'unclaimed' AND ${t.guestEmail} IS NOT NULL`),
   ],
 );
 
@@ -209,12 +269,17 @@ export const storedObjects = pgTable('stored_objects', {
 });
 
 
+/**
+ * The identity a guest showed at check in. Personal data under retention and
+ * legal hold rules, so deleting a stay must never take it silently: RESTRICT
+ * since migration 0043 (platform audit step 3). It used to cascade.
+ */
 export const stayIdentities = pgTable('stay_identities', {
   id: uuid('id').primaryKey().defaultRandom(),
   guestStayId: uuid('guest_stay_id')
     .notNull()
     .unique()
-    .references(() => guestStays.id, { onDelete: 'cascade' }),
+    .references(() => guestStays.id, { onDelete: 'restrict' }),
   fullName: text('full_name'),
   idNumber: text('id_number'),
   documentType: documentTypeEnum('document_type'),

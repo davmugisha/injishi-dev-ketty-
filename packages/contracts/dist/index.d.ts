@@ -17,6 +17,8 @@ export * from "./inventory";
 export * from "./setup-steps";
 export * from "./booking";
 export * from "./trips";
+export * from "./stay";
+export * from "./offers";
 export * from "./inbox";
 export * from "./ops";
 export * from "./ordering";

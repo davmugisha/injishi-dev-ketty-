@@ -28,10 +28,10 @@ import { ThrottlerGuard, type ThrottlerOptions } from '@nestjs/throttler';
  * mechanism does: the same storage, the same 429, the same headers.
  *
  * Two caveats a deploy must know about:
- * - The address is `req.ip`. The Fastify adapter is built without `trustProxy`,
- *   so behind a reverse proxy every visitor shares the proxy's address and the
- *   per-client bucket becomes ONE bucket for everybody. Set `trustProxy` for
- *   the real proxy before this sits behind one.
+ * - The address is `req.ip`, which the adapter resolves through `TRUST_PROXY`
+ *   (`shared/config/trust-proxy.ts`). Behind a reverse proxy with that unset,
+ *   every visitor shares the proxy's address and the per-client bucket becomes
+ *   ONE bucket for everybody; each deploy compose file sets it for its chain.
  * - Storage is the throttler's default, in process memory, so each API
  *   instance counts on its own. Two instances double both limits.
  */

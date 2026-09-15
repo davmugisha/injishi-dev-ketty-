@@ -21,6 +21,7 @@ import {
 } from '../../../shared/auth/session.guard';
 import {
   CurrentWorkspace,
+  RequireAnyPermission,
   RequirePermission,
   WorkspaceGuard,
 } from '../../../shared/auth/workspace.guard';
@@ -30,9 +31,11 @@ import { ZodValidationPipe } from '../../../shared/validation/zod-validation.pip
 /**
  * Rooms → /api/v1/ops/rooms (ADR-012 step 4).
  *
- * The read carries no permission beyond holding the workspace, which is the
- * ADR's rule for operator reads: a desk that cannot see its own rooms cannot
- * work at all. Setting housekeeping is a command and declares `housekeeping.set`
+ * The read is open to every role that works a room: the desk checking a guest
+ * in (`stay.checkin`) or holding one on the grid (`reservation.assign`),
+ * housekeeping (`housekeeping.set`) and inventory (`listing.manage`). A
+ * business still in the registration pipeline holds none of them (audit H1).
+ * Setting housekeeping is a command and declares `housekeeping.set`
  * — the one permission a housekeeper holds, which is exactly why the two are
  * separated.
  */
@@ -43,6 +46,12 @@ export class OpsRoomsController {
 
   /** Every room on this property, with who is in it right now. */
   @Get()
+  @RequireAnyPermission(
+    'stay.checkin',
+    'housekeeping.set',
+    'reservation.assign',
+    'listing.manage',
+  )
   async list(
     @CurrentWorkspace() workspace: ScopedWorkspace,
   ): Promise<OperatorRoomList> {

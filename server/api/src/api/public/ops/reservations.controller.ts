@@ -28,6 +28,7 @@ import {
 } from '../../../shared/auth/session.guard';
 import {
   CurrentWorkspace,
+  RequireAnyPermission,
   RequirePermission,
   WorkspaceGuard,
 } from '../../../shared/auth/workspace.guard';
@@ -45,8 +46,8 @@ import { ZodValidationPipe } from '../../../shared/validation/zod-validation.pip
  *    permission, and the guard never reads a body to learn what is being asked.
  * 2. **The class carries the guards, the handler carries the permission.**
  *    `@RequirePermission` sits on each command rather than on the class,
- *    because the read below needs none and a class-wide declaration would
- *    quietly demand one of it.
+ *    because the reads below are open to several powers and a class-wide
+ *    declaration would quietly demand every command's power of them.
  * 3. **The guard is not the whole check.** `WorkspaceGuard` proves the caller
  *    HOLDS the workspace they named; it never reads the row, so it cannot know
  *    whether `:id` belongs there. `OperatorReservationsService` proves that
@@ -54,8 +55,9 @@ import { ZodValidationPipe } from '../../../shared/validation/zod-validation.pip
  *
  * A caller whose business is not `active` holds no permissions at all (D20), so
  * both commands are closed to them and the refusal names the registration stage
- * instead of the missing power (AC-2). The read stays open to them on purpose:
- * watching your own pipeline is the reason the workspace is listed at all.
+ * instead of the missing power (AC-2). The reads are closed to them too (audit
+ * H1): the pipeline is rendered from `registrationStatus` on the grant, so
+ * watching it needs no reservation list.
  *
  * `injishi/require-permission-on-guarded-route` fails the build if a command
  * here ever loses its `@RequirePermission` (AC-1).
@@ -71,11 +73,12 @@ export class OpsReservationsController {
   /**
    * Every reservation on this desk.
    *
-   * No permission beyond holding the workspace, which is the ADR's rule for
-   * operator reads: the powers are on the commands, and a desk that cannot see
-   * its own reservations cannot work at all.
+   * Anyone who works the desk: Reservations (`reservation.approve`), the
+   * calendar grid (`reservation.assign`) and Today (`stay.checkin`). A
+   * housekeeper holds none of them and is refused.
    */
   @Get()
+  @RequireAnyPermission('reservation.approve', 'reservation.assign', 'stay.checkin')
   async list(
     @Query(new ZodValidationPipe(OperatorReservationQuery))
     query: OperatorReservationQuery,
@@ -126,6 +129,7 @@ export class OpsReservationsController {
    * the release below names the assignment rather than the reservation.
    */
   @Get(':id/assignments')
+  @RequireAnyPermission('reservation.assign', 'reservation.approve', 'stay.checkin')
   async listAssignments(
     @Param('id', ParseUUIDPipe) id: string,
     @CurrentWorkspace() workspace: ScopedWorkspace,
@@ -178,8 +182,9 @@ export class OpsReservationsController {
  * names no reservation: it answers "which rooms are held on these dates", and
  * `:id/assignments` above answers "which rooms does this one booking hold".
  *
- * No permission beyond holding the workspace, the ADR's rule for operator
- * reads. The commands that change a hold stay behind `reservation.assign`.
+ * Open to the desk that reads the grid (`reservation.assign`,
+ * `reservation.approve`, `stay.checkin`). The commands that change a hold stay
+ * behind `reservation.assign`.
  */
 @Controller({ path: 'ops/room-assignments', version: '1' })
 @UseGuards(SessionGuard, WorkspaceGuard)
@@ -187,6 +192,7 @@ export class OpsRoomAssignmentsController {
   constructor(private readonly assignments: RoomAssignmentService) {}
 
   @Get()
+  @RequireAnyPermission('reservation.assign', 'reservation.approve', 'stay.checkin')
   async list(
     @Query(new ZodValidationPipe(RoomAssignmentWindowQuery))
     query: RoomAssignmentWindowQuery,

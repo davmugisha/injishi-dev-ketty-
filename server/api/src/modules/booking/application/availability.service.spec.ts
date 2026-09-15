@@ -75,7 +75,7 @@ describe('AvailabilityService', () => {
     // Three nights: the 10th, 11th and 12th. `to` is the morning after the
     // last night, the same shape as a check-out — so the room is free again on
     // that date for the next guest's arrival.
-    expect(freeUnitsByNight).toHaveBeenCalledWith(ROOM_TYPE, from, to, 3);
+    expect(freeUnitsByNight).toHaveBeenCalledWith(ROOM_TYPE, from, to);
   });
 
   it('reports a minimum stay of 1 when the host set none', async () => {

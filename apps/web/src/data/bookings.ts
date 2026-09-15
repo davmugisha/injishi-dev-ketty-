@@ -1,10 +1,10 @@
-import type {
+import {
   BookableRoom,
-  CreateBookingInput,
   CreateBookingOutcome,
   PaymentAttemptStatus,
+  type CreateBookingInput,
 } from "@injishi/contracts";
-import { apiFetch, type ApiResult } from "@/lib/api";
+import { apiFetchParsed, type ApiResult } from "@/lib/api";
 
 /**
  * The client for the two calls checkout makes (F-B05 / FL07, ADR-020).
@@ -21,6 +21,11 @@ import { apiFetch, type ApiResult } from "@/lib/api";
  * not have: `credentials: "include"`, without which the session cookie stays on
  * the API origin and a signed-in guest is answered 401, and a timeout, without
  * which a hung request leaves the confirm button spinning for ever.
+ *
+ * Every answer is PARSED against its contract schema, not cast (platform audit,
+ * step 4). These three reads carry the price, the charge outcome and the payment
+ * state; a body that has drifted from the contract is reported as `failed` and
+ * rendered as "we could not load this", never as a half-drawn total.
  */
 
 /**
@@ -54,7 +59,7 @@ import { apiFetch, type ApiResult } from "@/lib/api";
 export function fetchBookableRoom(
   roomTypeId: string,
 ): Promise<ApiResult<BookableRoom>> {
-  return apiFetch<BookableRoom>(`/api/v1/bookable/${roomTypeId}`);
+  return apiFetchParsed(BookableRoom, `/api/v1/bookable/${roomTypeId}`);
 }
 
 /**
@@ -72,7 +77,7 @@ export function fetchBookableRoom(
 export function createBooking(
   input: CreateBookingInput,
 ): Promise<ApiResult<CreateBookingOutcome>> {
-  return apiFetch<CreateBookingOutcome>("/api/v1/bookings", {
+  return apiFetchParsed(CreateBookingOutcome, "/api/v1/bookings", {
     method: "POST",
     body: input,
   });
@@ -94,7 +99,8 @@ export function createBooking(
 export function fetchPaymentAttempt(
   attemptToken: string,
 ): Promise<ApiResult<PaymentAttemptStatus>> {
-  return apiFetch<PaymentAttemptStatus>(
+  return apiFetchParsed(
+    PaymentAttemptStatus,
     `/api/v1/bookings/attempts/${encodeURIComponent(attemptToken)}`,
   );
 }

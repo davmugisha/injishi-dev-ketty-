@@ -1,30 +1,47 @@
 "use client";
 
 /**
- * /activate (F-B10), rebuilt on React state by ADR-017 slice 3.
+ * /activate (F-B10) — claiming a stay the front desk registered for you.
  *
- * The markup came from a prototype capture and kept the capture's binding
- * points: `#code-form`, `#claim-code` and a `#code-error` paragraph rendered
- * with `hidden` for a script to unhide. No such script was ever written for
- * this route, so the error line could not appear, the claim buttons did
- * nothing at all, and the submit button reloaded the page with the code in the
- * query string. The state is React's now, so the error shows when it should
- * and the form stops navigating.
+ * ## What changed, and why the old page could not have worked
  *
- * WHAT IS DELIBERATELY NOT BUILT HERE. Claiming a stay needs an API that does
- * not exist — no endpoint binds a walk-in stay to a User. ADR-017 is a page
- * refactor and does not add one. The two claim actions therefore say so out
- * loud through the same `toast` affordance the QR button in this file already
- * used, rather than looking like they worked. The matched stay below is
- * fixture content for the same reason.
+ * ADR-017 rebuilt this screen on React state and said, in this comment block,
+ * exactly what was missing: *"Claiming a stay needs an API that does not exist
+ * — no endpoint binds a walk-in stay to a User."* So both claim buttons raised
+ * a toast apologising to the guest, and the "matched stay" card underneath them
+ * was a picture of a hotel nobody was staying at.
+ *
+ * §6.8 built that endpoint. `POST /api/v1/me/stays/claim` spends a claim code
+ * and binds the stay, and this screen now does the thing it has always looked
+ * like it did.
+ *
+ * ## The auto-matched card is gone, deliberately
+ *
+ * It showed a stay "matched on your email" with a Claim button. Nothing matches
+ * stays by email and nothing should: an address is not a credential, and a
+ * screen that offers you somebody's room number because you both use the same
+ * mailbox provider is a screen that hands out room numbers. The code is the
+ * proof, so the code is the whole form.
+ *
+ * ## The code arrives in the link
+ *
+ * The invitation mail links to `/activate?code=UMWE-7241`, so the field
+ * prefills and the guest presses one button. It is read from
+ * `window.location` in an effect rather than through `useSearchParams`, which
+ * would force this route under a Suspense boundary for a value that is a
+ * convenience: a guest who typed the address by hand gets an empty field and
+ * the same form.
  */
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Button, Input } from "@heroui/react";
 import { Badge } from "@injishi/ui";
+import { CLAIM_CODE_PATTERN } from "@injishi/contracts";
 import BrandLogo from "@/components/app/brand-logo";
 import ThemeToggleButton from "@/components/app/theme-toggle-button";
 import { Icon } from "@/components/app/icon";
 import { toast } from "@/components/app/toast";
+import { claimStay } from "@/data/my-stay";
+import { apiResultMessage } from "@/lib/api";
 import { useSessionUser } from "@/lib/session";
 
 export default function Page() {
@@ -37,23 +54,44 @@ export default function Page() {
 
   const [claimCode, setClaimCode] = useState("");
   const [codeError, setCodeError] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
 
-  /** A claim code is printed on the check-in slip as four letters, a dash, four digits. */
-  const CLAIM_CODE_RE = /^[A-Z]{4}-\d{4}$/;
+  // The code from the invitation link. Uppercased on the way in, because the
+  // field is uppercase and a guest who copied a lowercase link should not be
+  // told their own code is malformed.
+  useEffect(() => {
+    const fromLink = new URLSearchParams(window.location.search).get("code");
+    if (fromLink) setClaimCode(fromLink.trim().toUpperCase());
+  }, []);
 
-  function bindByCode(e: React.FormEvent<HTMLFormElement>) {
+  async function bindByCode(e: React.FormEvent<HTMLFormElement>) {
     // Without this the form navigates and puts the code in the address bar.
     e.preventDefault();
     const code = claimCode.trim().toUpperCase();
-    if (!CLAIM_CODE_RE.test(code)) {
+    if (!CLAIM_CODE_PATTERN.test(code)) {
       setCodeError("That code doesn't match a stay. Check the slip and try again.");
       return;
     }
     setCodeError(null);
-    // Guest language, and no feature id. It said "Claiming by code is not wired
-    // up yet (F-B10)" — a sentence about our backlog, handed to somebody who
-    // just wants their stay. What they need to know is that nothing is lost.
-    toast("Claiming a stay online isn't ready yet. Your stay is safe on record — the front desk can pull it up.");
+    setBusy(true);
+
+    const result = await claimStay(code);
+    setBusy(false);
+
+    if (result.status === "ok") {
+      const where = result.data.stay.propertyName ?? "your stay";
+      toast(`Claimed. ${where} is on your account now.`);
+      // A full navigation rather than a router push: claiming changes what the
+      // session owns, and every screen behind `/stay` reads that from the
+      // server. Coming back with a fresh load is the honest version.
+      window.location.assign("/stay");
+      return;
+    }
+
+    // Every failure lands in the field, next to the thing the guest can change.
+    // A refused claim is almost always a mistyped code, and a toast that
+    // disappears is the wrong place for a message about a form.
+    setCodeError(apiResultMessage(result));
   }
 
   return (
@@ -89,7 +127,7 @@ export default function Page() {
               <ThemeToggleButton />
             </div>
             <h1 className={"mt-6 font-display text-3xl font-bold tracking-tight"}>
-              {"Activate your account"}
+              {"Claim your stay"}
             </h1>
             <p className={"mt-2 text-sm text-muted-foreground"}>
               {signedInAs ? (
@@ -98,52 +136,19 @@ export default function Page() {
                   <span className={"money font-semibold text-foreground"}>
                     {signedInAs}
                   </span>
-                  {". We found a stay waiting to be claimed."}
+                  {". Enter the code from your check-in slip or email."}
                 </>
               ) : (
-                "We found a stay waiting to be claimed."
+                "Enter the code from your check-in slip or email."
               )}
             </p>
-            {/* Auto-matched stay */}
-            <div className={"mt-6 rounded-card border border-border bg-card p-5 text-card-foreground"}>
-              <div className={"flex items-start gap-3"}>
-                <picture><source type={"image/avif"} srcSet={"/assets/stay-01.avif"} /><img src={"/assets/stay-01.jpg"} alt={""} className={"h-16 w-20 shrink-0 rounded-card object-cover"} /></picture>
-                <div className={"min-w-0 grow"}>
-                  <div className={"flex flex-wrap items-center gap-2"}>
-                    <h2 className={"font-display text-lg font-bold"}>
-                      {"Umurage Guesthouse"}
-                    </h2>
-                    <Badge variant="warning" size="sm">{"unclaimed"}</Badge>
-                  </div>
-                  <p className={"mt-0.5 text-xs text-card-foreground/70"}>
-                    {"Walk-in stay"}
-                    <span className={"money"}>
-                      {"#S-1093"}
-                    </span>
-                    {"· Room 2"}
-                  </p>
-                  <p className={"money mt-1 text-xs text-card-foreground/70"}>
-                    {"Jul 02 – 04 · matched on your email"}
-                  </p>
-                </div>
-              </div>
-              <Button variant="primary" fullWidth className="mt-4" onPress={() => toast("Claiming a stay online isn't ready yet. Your stay is safe on record — the front desk can pull it up.")}>
-                <Icon name="badge-check" className="h-4 w-4" />
-                {"Claim this stay"}
-              </Button>
-            </div>
-            {/* Claim-code fallback */}
-            <div className={"my-6 flex items-center gap-3 text-xs text-muted-foreground"} aria-hidden={"true"}>
-              <span className={"h-px grow bg-border"}></span>
-              {"or use a claim code"}
-              <span className={"h-px grow bg-border"}></span>
-            </div>
-            <form noValidate onSubmit={bindByCode}>
+
+            <form noValidate onSubmit={bindByCode} className={"mt-6"}>
               <label htmlFor={"claim-code"} className={"block text-sm font-semibold"}>
                 {"Claim code"}
               </label>
               <p className={"mt-0.5 text-xs text-muted-foreground"}>
-                {"Printed on your check-in slip, or scan the QR the front desk gave you."}
+                {"Four letters, a dash and four digits — printed on your slip and in the email the front desk sent you."}
               </p>
               <div className={"mt-2 flex gap-2"}>
                 <Input
@@ -167,10 +172,23 @@ export default function Page() {
                   {codeError}
                 </p>
               ) : null}
-              <Button type="submit" variant="outline" fullWidth className="mt-4">
-                {"Bind stay by code"}
+              <Button type="submit" variant="primary" fullWidth className="mt-4" isDisabled={busy}>
+                {busy ? "Claiming…" : "Claim this stay"}
               </Button>
             </form>
+
+            <div className={"mt-6 rounded-card border border-border bg-card p-5 text-card-foreground"}>
+              <h2 className={"font-display text-sm font-bold"}>
+                {"What claiming gets you"}
+              </h2>
+              <ul className={"mt-2 space-y-1.5 text-xs text-card-foreground/75"}>
+                <li>{"Message the front desk, housekeeping or any other desk in the building"}</li>
+                <li>{"Order food and drink to your room"}</li>
+                <li>{"See what is on your bill as it happens"}</li>
+                <li>{"Raise a problem, or ask for money back, and get an answer in writing"}</li>
+              </ul>
+            </div>
+
             <p className={"mt-6 text-xs text-muted-foreground"}>
               <Icon name="info" className="mr-1 inline h-3.5 w-3.5 align-[-2px]" />
               {/* `/personal-trips` has not existed since ADR-018 move 4 renamed

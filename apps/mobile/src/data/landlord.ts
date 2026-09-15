@@ -421,6 +421,14 @@ export interface RentRow {
    * success must never look like a real one (design brief §4.3).
    */
   mock?: boolean;
+  /**
+   * `YYYY-MM-DD`, the first of the month this charge covers. Set only on a row
+   * read from the API, because `POST /ops/leases/:id/rent` has to name the
+   * month it settles; the fixture rows all belong to `RENT_PERIOD`.
+   */
+  periodMonth?: string;
+  /** What has already been recorded against this month, in RWF. API rows only. */
+  paidAmount?: number;
 }
 
 /**

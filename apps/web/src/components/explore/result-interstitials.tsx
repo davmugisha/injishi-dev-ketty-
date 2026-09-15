@@ -80,7 +80,7 @@ export function EditorialCard() {
         </h3>
         <p className="text-sm text-muted-foreground">{pillar.body}</p>
         <Link
-          href="/services"
+          href={`/how-it-works#${pillar.id}`}
           className="mt-1 flex w-max items-center gap-1.5 text-sm font-bold text-accent-text hover:underline"
         >
           Learn more

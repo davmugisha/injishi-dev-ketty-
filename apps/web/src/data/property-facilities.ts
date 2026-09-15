@@ -1,11 +1,11 @@
-import type {
-  FacilityOutlet,
-  OrderingAccess,
-  OutletKind,
+import {
   PropertyDetail,
-  PropertyFacility,
+  type FacilityOutlet,
+  type OrderingAccess,
+  type OutletKind,
+  type PropertyFacility,
 } from "@injishi/contracts";
-import { apiFetch, type ApiResult } from "@/lib/api";
+import { apiFetchParsed, type ApiResult } from "@/lib/api";
 
 /**
  * What a property on the platform says it offers, read from the API
@@ -38,14 +38,15 @@ import { apiFetch, type ApiResult } from "@/lib/api";
 export async function fetchPropertyFacilities(
   slug: string,
 ): Promise<ApiResult<PropertyFacility[]>> {
-  const result = await apiFetch<PropertyDetail>(
+  // Parsed against the contract. A body that does not match (an older API
+  // that predates slice 4 and sends no `facilities`, among others) is
+  // `failed`, which `facilitiesToShow` reads as "keep the editorial amenities".
+  const result = await apiFetchParsed(
+    PropertyDetail,
     `/api/v1/properties/slug/${encodeURIComponent(slug)}`,
   );
   if (result.status !== "ok") return result;
-  // An older API that predates slice 4 answers without the field. Reading it as
-  // "nothing listed" keeps the editorial amenities on screen instead of
-  // throwing on `undefined.length` in the render.
-  return { status: "ok", data: result.data.facilities ?? [] };
+  return { status: "ok", data: result.data.facilities };
 }
 
 /**

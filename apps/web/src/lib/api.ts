@@ -98,10 +98,22 @@ function codeOf(body: unknown): { code?: string } {
  */
 export async function apiFetch<T>(
   path: string,
-  init?: { method?: string; body?: unknown },
+  init?: {
+    method?: string;
+    body?: unknown;
+    /**
+     * Sent as `Idempotency-Key`, for a command the API refuses without one (a
+     * guest order). Mint it ONCE per intent and reuse it on every retry of that
+     * intent: a fresh key per attempt is exactly the double order it prevents.
+     */
+    idempotencyKey?: string;
+  },
 ): Promise<ApiResult<T>> {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), API_TIMEOUT_MS);
+  const headers: Record<string, string> = {};
+  if (init?.body) headers["content-type"] = "application/json";
+  if (init?.idempotencyKey) headers["idempotency-key"] = init.idempotencyKey;
   let res: Response;
   try {
     res = await fetch(`${API_URL}${path}`, {
@@ -109,7 +121,7 @@ export async function apiFetch<T>(
       credentials: "include",
       cache: "no-store",
       signal: controller.signal,
-      headers: init?.body ? { "content-type": "application/json" } : undefined,
+      headers: Object.keys(headers).length > 0 ? headers : undefined,
       body: init?.body ? JSON.stringify(init.body) : undefined,
     });
   } catch {
@@ -131,6 +143,29 @@ export async function apiFetch<T>(
     };
   }
   return { status: "ok", data: body as T };
+}
+
+/**
+ * The same call, with the answer checked against a contract schema.
+ *
+ * `apiFetch<T>` only CASTS: it tells TypeScript what the body is without asking
+ * the body. On a read that carries money a cast is how an API drift renders as
+ * `NaN RWF` or an `undefined` reference instead of an honest failure. A body
+ * that does not match the schema is reported as `failed`, the branch every
+ * screen already renders as "we couldn't load this", and never thrown.
+ *
+ * The schema is taken structurally (anything with `safeParse`) so this file
+ * does not import zod for the sake of one type.
+ */
+export async function apiFetchParsed<T>(
+  schema: { safeParse(input: unknown): { success: true; data: T } | { success: false } },
+  path: string,
+  init?: Parameters<typeof apiFetch>[1],
+): Promise<ApiResult<T>> {
+  const result = await apiFetch<unknown>(path, init);
+  if (result.status !== "ok") return result;
+  const parsed = schema.safeParse(result.data);
+  return parsed.success ? { status: "ok", data: parsed.data } : { status: "failed" };
 }
 
 /** One sentence for the branches that carry no server message of their own. */

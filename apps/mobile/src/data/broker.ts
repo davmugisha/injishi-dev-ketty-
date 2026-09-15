@@ -42,6 +42,7 @@ import {
   writeFixture,
 } from './use-fixture-mutation';
 import { useOfflineSubmit } from './offline-submit';
+import type { WriteOutcome } from './write-queue';
 
 /* ------------------------------------------------------------ time helpers */
 
@@ -810,6 +811,27 @@ export interface RevealMutation {
   reset: () => void;
 }
 
+/**
+ * The `reveal` write. Module level so `write-handlers.ts` can register it before
+ * any screen mounts, which is what a drain after a cold start needs.
+ */
+export function revealHandler(u: DirectoryUnit): WriteOutcome {
+  const day = todayIso();
+  const already = readFixture<Reveal[]>(REVEALS_KEY, SEED_REVEALS).some((r) => r.unitId === u.id);
+  if (!already) {
+    writeFixture<number>(CREDITS_KEY, Math.max(0, readFixture<number>(CREDITS_KEY, SEED_CREDITS) - 1));
+  }
+  writeFixture<Reveal[]>(REVEALS_KEY, [
+    { unitId: u.id, day },
+    ...readFixture<Reveal[]>(REVEALS_KEY, SEED_REVEALS).filter((r) => r.unitId !== u.id),
+  ]);
+  // The fixture store cannot refuse and cannot be unreachable, so this
+  // is always `ok`. The surface child that puts a real mutation here
+  // (ADR-038 children 1 to 7) is where `refused` and `failed` start
+  // being answered for real.
+  return { status: 'ok' };
+}
+
 export function useReveal(): RevealMutation {
   /**
    * The credit spend, made IDEMPOTENT per unit (gaps.md §5.2, P1).
@@ -862,25 +884,7 @@ export function useReveal(): RevealMutation {
    */
   const queued = useOfflineSubmit<DirectoryUnit>({
     kind: 'reveal',
-    handler: (u) => {
-      const day = todayIso();
-      const already = readFixture<Reveal[]>(REVEALS_KEY, SEED_REVEALS).some((r) => r.unitId === u.id);
-      if (!already) {
-        writeFixture<number>(
-          CREDITS_KEY,
-          Math.max(0, readFixture<number>(CREDITS_KEY, SEED_CREDITS) - 1),
-        );
-      }
-      writeFixture<Reveal[]>(REVEALS_KEY, [
-        { unitId: u.id, day },
-        ...readFixture<Reveal[]>(REVEALS_KEY, SEED_REVEALS).filter((r) => r.unitId !== u.id),
-      ]);
-      // The fixture store cannot refuse and cannot be unreachable, so this
-      // is always `ok`. The surface child that puts a real mutation here
-      // (ADR-038 children 1 to 7) is where `refused` and `failed` start
-      // being answered for real.
-      return { status: 'ok' as const };
-    },
+    handler: revealHandler,
     label: (u) => u.title,
     idFor: (u) => `reveal-${u.id}`,
   });

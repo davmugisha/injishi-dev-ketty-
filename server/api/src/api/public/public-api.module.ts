@@ -19,6 +19,7 @@ import { EbmOauthController } from './ebm/ebm-oauth.controller';
 import { GeographyController } from './geography/geography.controller';
 import { HealthController } from './health/health.controller';
 import { MeController } from './me/me.controller';
+import { MeStaysController } from './me/stays.controller';
 import { TwoFactorController } from './me/two-factor.controller';
 import { AvailabilityController } from './properties/availability.controller';
 import {
@@ -43,6 +44,8 @@ import {
   OpsReservationsController,
   OpsRoomAssignmentsController,
 } from './ops/reservations.controller';
+import { OpsOffersController } from './ops/offers.controller';
+import { OpsRefundRequestsController } from './ops/refunds.controller';
 import { OpsRevenueController } from './ops/revenue.controller';
 import {
   OpsDepositsController,
@@ -127,6 +130,10 @@ import { WaitlistModule } from './waitlist/waitlist.module';
     OpsOutletPartiesController,
     OpsTeamController,
     OpsFoliosController,
+    // §6.8. Answering a guest who asked for money back, and the offers a
+    // property writes. Both behind `WorkspaceGuard` with their own permissions.
+    OpsRefundRequestsController,
+    OpsOffersController,
     OpsRevenueController,
     OpsHousekeepingController,
     OpsServiceCatalogController,
@@ -145,6 +152,13 @@ import { WaitlistModule } from './waitlist/waitlist.module';
     EbmOauthController,
     OversightController,
     MeController,
+    /*
+     * §6.8. The in-house guest's own surface: claim the stay a desk typed,
+     * message a department, ask for money back, take an offer. Session guarded
+     * only — a stay's workspace is the PROPERTY's, so ownership is what
+     * authorizes, proved per route.
+     */
+    MeStaysController,
     TwoFactorController,
     // Answers only in a demo process; 404 everywhere else (AC-S10, ADR-043).
     DemoPersonasController,

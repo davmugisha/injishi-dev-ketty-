@@ -27,13 +27,31 @@
 // one per shape of access — were never checked at all. Both rosters are now.
 import pg from 'pg';
 import {
+  Permission,
   can,
   isOperational,
   permissionsForWorkspace,
   violatesSeparationOfDuties,
   districtScopeOf,
   scopeCoversDistrict,
+  permissionsForRole,
 } from '@injishi/contracts';
+
+/**
+ * Owner and manager are DERIVED, not typed out.
+ *
+ * They were literals — 26 and 25 — and adding two permissions (§6.8's
+ * `refund.decide` and `offer.manage`) failed eight checks in this script while
+ * the model itself was correct. "Owner holds everything" is a definition, not a
+ * number: the number is whatever the contract's enum currently has in it, and
+ * pinning it here just means every future permission breaks integration on a
+ * count nobody meant to assert.
+ *
+ * Receptionist and housekeeper stay literal below, deliberately. Those two sets
+ * are narrow ON PURPOSE, so a set that grew is the bug this script is for.
+ */
+const OWNER_ALL = permissionsForRole('owner').length;
+const MANAGER_ALL = permissionsForRole('manager').length;
 
 const url = process.env.DATABASE_URL;
 if (!url) {
@@ -135,8 +153,12 @@ async function main() {
     console.log('\n=== The four org roles, from @injishi/contracts alone ===');
     const forRole = (role) =>
       permissionsForWorkspace({ kind: 'business', orgRole: role, registrationStatus: 'active' });
-    check('owner holds all 26', forRole('owner').length, 26);
-    check('manager holds 25', forRole('manager').length, 25);
+    check(`owner holds all ${OWNER_ALL}`, forRole('owner').length, OWNER_ALL);
+    check(`manager holds ${MANAGER_ALL}`, forRole('manager').length, MANAGER_ALL);
+    // The definition behind the two numbers above, which is what actually
+    // matters: owner is the whole enum, and manager is that minus team.manage.
+    check('owner is the whole permission enum', OWNER_ALL, Permission.options.length);
+    check('manager is the owner minus exactly one', OWNER_ALL - MANAGER_ALL, 1);
     check('receptionist holds 9', forRole('receptionist').length, 9);
     check('housekeeper holds 2', forRole('housekeeper').length, 2);
 
@@ -155,12 +177,12 @@ async function main() {
     // ---------------------------------------------------------------------
     console.log('\n=== The driving roster: one account per shape of access ===');
     const EXPECTED = [
-      ['host@injishi.com', 'owner', 26, 'hospitality'],
-      ['manager@injishi.com', 'manager', 25, 'hospitality'],
+      ['host@injishi.com', 'owner', OWNER_ALL, 'hospitality'],
+      ['manager@injishi.com', 'manager', MANAGER_ALL, 'hospitality'],
       ['reception@injishi.com', 'receptionist', 9, 'hospitality'],
       ['housekeeper@injishi.com', 'housekeeper', 2, 'hospitality'],
-      ['landlord@injishi.com', 'owner', 26, 'residence'],
-      ['resident-manager@injishi.com', 'manager', 25, 'residence'],
+      ['landlord@injishi.com', 'owner', OWNER_ALL, 'residence'],
+      ['resident-manager@injishi.com', 'manager', MANAGER_ALL, 'residence'],
     ];
     for (const [email, role, count, domain] of EXPECTED) {
       const w = await businessOf(c, email);
@@ -207,7 +229,7 @@ async function main() {
     const dualWs = await listForUser(c, dualId);
     const dualBiz = dualWs.find((w) => w.kind === 'business');
     check('holds a business workspace as manager', dualBiz?.orgRole ?? null, 'manager');
-    check('with a manager permission set', dualBiz?.permissions.length ?? 0, 25);
+    check('with a manager permission set', dualBiz?.permissions.length ?? 0, MANAGER_ALL);
     const { rows: dualGrants } = await c.query(
       `SELECT oversight_role FROM oversight_assignments
         WHERE user_id = $1 AND revoked_at IS NULL`,
@@ -295,7 +317,7 @@ async function main() {
 
     console.log('\n=== The owner holds everything ===');
     const owner = await businessOf(c, 'yves@demo.injishi.com');
-    check('owner has all 26', owner.permissions.length, 26);
+    check(`owner has all ${OWNER_ALL}`, owner.permissions.length, OWNER_ALL);
     check('and it is the hospitality domain', owner.domain, 'hospitality');
 
     console.log('\n=== Oversight: scope is a boundary ===');

@@ -19,7 +19,9 @@ export interface NavGroup {
 /**
  * The three links in the middle of the site header.
  *
- * `/services` replaced `/support`, which is not orphaned — it is in
+ * `/services` is the amenities index (pool passes, halls, marquees), not the
+ * old marketing pillars: those live at `/how-it-works`, which is what every
+ * "How it works" label below points at. `/services` replaced `/support`, which is not orphaned — it is in
  * `FOOTER_LINKS` and in `MOBILE_NAV_GROUPS` under "COMPANY". Help is a thing
  * you go looking for; the bar's three slots name things you come here to do.
  *
@@ -51,6 +53,12 @@ export const FEATURED_STAYS: NavLink[] = [
     label: `${stay.nameLead}${stay.nameRest ? ` ${stay.nameRest}` : ""}`,
     href: `/property/${stay.slug}`,
   })),
+  // Akagera National Park spans Kayonza and Nyagatare, and its headquarters
+  // are in Kayonza. The link still filters to Nyagatare on purpose: the
+  // explore filter offers only districts that hold a listing
+  // (`SEARCH_DISTRICTS`), no listing sits in Kayonza, and the Akagera camps
+  // in the catalogue are all filed under Nyagatare. `?district=kayonza` would
+  // open on an empty grid.
   { label: "Akagera", href: "/explore?district=nyagatare" },
 ];
 
@@ -64,10 +72,9 @@ export const POPULAR_DISTRICTS: NavLink[] = [
 
 export const PRODUCT_AND_COMPANY: NavLink[] = [
   { label: "About", href: "/about" },
-  { label: "For hosts", href: "/explore" },
-  { label: "How it works", href: "/services" },
+  { label: "For hosts", href: "/host" },
+  { label: "How it works", href: "/how-it-works" },
   { label: "Blog", href: "/guides" },
-  { label: "Reviews", href: "/explore" },
 ];
 
 /** Footer columns, left to right. */
@@ -91,14 +98,13 @@ export const MOBILE_NAV_GROUPS: NavGroup[] = [
   {
     title: "HOW IT WORKS",
     links: [
-      { label: "How it works", href: "/services" },
-      { label: "Reviews", href: "/explore" },
+      { label: "How it works", href: "/how-it-works" },
     ],
   },
   {
     title: "COMPANY",
     links: [
-      { label: "For hosts", href: "/explore" },
+      { label: "For hosts", href: "/host" },
       { label: "About", href: "/about" },
       { label: "FAQ", href: "/support" },
     ],
@@ -155,7 +161,7 @@ export const SOCIAL_LINKS = [
 export const FOOTER_LINKS: NavLink[] = [
   { label: "Explore", href: "/explore" },
   { label: "Guides", href: "/guides" },
-  { label: "How it works", href: "/services" },
+  { label: "How it works", href: "/how-it-works" },
   { label: "Hosting", href: "/host" },
   { label: "Instagram", href: "https://instagram.com/injishi" },
   { label: "X", href: "https://twitter.com/injishi" },
@@ -243,7 +249,7 @@ export const FOOTER_COLUMNS: NavGroup[] = [
     links: [
       { label: "All stays", href: "/explore" },
       { label: "Guides", href: "/guides" },
-      { label: "How it works", href: "/services" },
+      { label: "How it works", href: "/how-it-works" },
     ],
   },
   {

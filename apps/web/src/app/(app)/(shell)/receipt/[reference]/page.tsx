@@ -1,4 +1,5 @@
 import { ReceiptScreen } from "@/components/receipt/receipt-screen";
+import { ReceiptCancel } from "./receipt-cancel";
 
 /**
  * `/receipt/<booking reference>` — the RRA EBM receipt for one stay (C8, C9).
@@ -33,5 +34,10 @@ export default async function Page({
   params: Promise<{ reference: string }>;
 }) {
   const { reference } = await params;
-  return <ReceiptScreen reference={reference} />;
+  return (
+    <>
+      <ReceiptScreen reference={reference} />
+      <ReceiptCancel reference={reference} />
+    </>
+  );
 }

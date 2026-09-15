@@ -1,7 +1,6 @@
 import type { Metadata } from "next";
 import localFont from "next/font/local";
 import { AdminShell } from "@/components/shell/admin-shell";
-import { SectionBoundary } from "@/components/shell/section-boundary";
 import { StaffBoundary } from "@/components/shell/staff-boundary";
 import "./globals.css";
 
@@ -62,7 +61,15 @@ export default function RootLayout({
         <StaffBoundary>
           <AdminShell>
             {/*
-             * And the section gate is INSIDE the chrome (ADR-049 AC-25).
+             * And the section gate is INSIDE the chrome (ADR-049 AC-25), but
+             * it is NOT mounted here: each section's own `layout.tsx` mounts
+             * `SectionBoundary` with its key.
+             *
+             * It used to sit on this line, and this layout does not render on
+             * a soft navigation, so a `next/link` into a section the staffer
+             * does not hold walked straight past it (platform audit H5).
+             * `section-boundary.tsx` records why, and
+             * `test/section-gates.test.mjs` fails when a section lacks one.
              *
              * The two gates refuse different people, which is why they sit on
              * different sides of the shell. `StaffBoundary` refuses somebody
@@ -72,7 +79,7 @@ export default function RootLayout({
              * the console they are already looking at, and taking it away
              * would leave a trainer who mistyped an address with no way back.
              */}
-            <SectionBoundary>{children}</SectionBoundary>
+            {children}
           </AdminShell>
         </StaffBoundary>
       </body>

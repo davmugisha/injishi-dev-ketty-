@@ -762,13 +762,13 @@ export declare const TrainingRegistrationResult: z.ZodObject<{
     feeRwf: z.ZodNumber;
     currency: z.ZodLiteral<"RWF">;
 }, "strip", z.ZodTypeAny, {
-    status: "released" | "registered" | "attended" | "absent" | "withdrawn";
+    status: "released" | "withdrawn" | "registered" | "attended" | "absent";
     currency: "RWF";
     feeRwf: number;
     registrationId: string;
     alreadyRegistered: boolean;
 }, {
-    status: "released" | "registered" | "attended" | "absent" | "withdrawn";
+    status: "released" | "withdrawn" | "registered" | "attended" | "absent";
     currency: "RWF";
     feeRwf: number;
     registrationId: string;
@@ -864,7 +864,7 @@ export declare const TrainingMyRegistration: z.ZodObject<{
     /** Set only once a trainer ticked them present. */
     certificateId: z.ZodNullable<z.ZodString>;
 }, "strip", z.ZodTypeAny, {
-    status: "released" | "registered" | "attended" | "absent" | "withdrawn";
+    status: "released" | "withdrawn" | "registered" | "attended" | "absent";
     currency: "RWF";
     id: string;
     feeRwf: number;
@@ -893,7 +893,7 @@ export declare const TrainingMyRegistration: z.ZodObject<{
     };
     certificateId: string | null;
 }, {
-    status: "released" | "registered" | "attended" | "absent" | "withdrawn";
+    status: "released" | "withdrawn" | "registered" | "attended" | "absent";
     currency: "RWF";
     id: string;
     feeRwf: number;
@@ -1082,7 +1082,7 @@ export declare const TrainingMeResponse: z.ZodObject<{
             /** Set only once a trainer ticked them present. */
             certificateId: z.ZodNullable<z.ZodString>;
         }, "strip", z.ZodTypeAny, {
-            status: "released" | "registered" | "attended" | "absent" | "withdrawn";
+            status: "released" | "withdrawn" | "registered" | "attended" | "absent";
             currency: "RWF";
             id: string;
             feeRwf: number;
@@ -1111,7 +1111,7 @@ export declare const TrainingMeResponse: z.ZodObject<{
             };
             certificateId: string | null;
         }, {
-            status: "released" | "registered" | "attended" | "absent" | "withdrawn";
+            status: "released" | "withdrawn" | "registered" | "attended" | "absent";
             currency: "RWF";
             id: string;
             feeRwf: number;
@@ -1155,7 +1155,7 @@ export declare const TrainingMeResponse: z.ZodObject<{
         }>;
     }, "strip", z.ZodTypeAny, {
         items: {
-            status: "released" | "registered" | "attended" | "absent" | "withdrawn";
+            status: "released" | "withdrawn" | "registered" | "attended" | "absent";
             currency: "RWF";
             id: string;
             feeRwf: number;
@@ -1191,7 +1191,7 @@ export declare const TrainingMeResponse: z.ZodObject<{
         };
     }, {
         items: {
-            status: "released" | "registered" | "attended" | "absent" | "withdrawn";
+            status: "released" | "withdrawn" | "registered" | "attended" | "absent";
             currency: "RWF";
             id: string;
             feeRwf: number;
@@ -1359,7 +1359,7 @@ export declare const TrainingMeResponse: z.ZodObject<{
     };
     registrations: {
         items: {
-            status: "released" | "registered" | "attended" | "absent" | "withdrawn";
+            status: "released" | "withdrawn" | "registered" | "attended" | "absent";
             currency: "RWF";
             id: string;
             feeRwf: number;
@@ -1420,7 +1420,7 @@ export declare const TrainingMeResponse: z.ZodObject<{
     };
     registrations: {
         items: {
-            status: "released" | "registered" | "attended" | "absent" | "withdrawn";
+            status: "released" | "withdrawn" | "registered" | "attended" | "absent";
             currency: "RWF";
             id: string;
             feeRwf: number;
@@ -2932,7 +2932,7 @@ export declare const TrainingRosterEntry: z.ZodObject<{
     certificateSerial: z.ZodNullable<z.ZodString>;
     certificateRevokedAt: z.ZodNullable<z.ZodString>;
 }, "strip", z.ZodTypeAny, {
-    status: "released" | "registered" | "attended" | "absent" | "withdrawn";
+    status: "released" | "withdrawn" | "registered" | "attended" | "absent";
     orgId: string | null;
     userId: string;
     email: string;
@@ -2949,7 +2949,7 @@ export declare const TrainingRosterEntry: z.ZodObject<{
     certificateSerial: string | null;
     certificateRevokedAt: string | null;
 }, {
-    status: "released" | "registered" | "attended" | "absent" | "withdrawn";
+    status: "released" | "withdrawn" | "registered" | "attended" | "absent";
     orgId: string | null;
     userId: string;
     email: string;
@@ -2998,7 +2998,7 @@ export declare const TrainingRosterResponse: z.ZodObject<{
         certificateSerial: z.ZodNullable<z.ZodString>;
         certificateRevokedAt: z.ZodNullable<z.ZodString>;
     }, "strip", z.ZodTypeAny, {
-        status: "released" | "registered" | "attended" | "absent" | "withdrawn";
+        status: "released" | "withdrawn" | "registered" | "attended" | "absent";
         orgId: string | null;
         userId: string;
         email: string;
@@ -3015,7 +3015,7 @@ export declare const TrainingRosterResponse: z.ZodObject<{
         certificateSerial: string | null;
         certificateRevokedAt: string | null;
     }, {
-        status: "released" | "registered" | "attended" | "absent" | "withdrawn";
+        status: "released" | "withdrawn" | "registered" | "attended" | "absent";
         orgId: string | null;
         userId: string;
         email: string;
@@ -3047,7 +3047,7 @@ export declare const TrainingRosterResponse: z.ZodObject<{
     }>;
 }, "strip", z.ZodTypeAny, {
     items: {
-        status: "released" | "registered" | "attended" | "absent" | "withdrawn";
+        status: "released" | "withdrawn" | "registered" | "attended" | "absent";
         orgId: string | null;
         userId: string;
         email: string;
@@ -3071,7 +3071,7 @@ export declare const TrainingRosterResponse: z.ZodObject<{
     };
 }, {
     items: {
-        status: "released" | "registered" | "attended" | "absent" | "withdrawn";
+        status: "released" | "withdrawn" | "registered" | "attended" | "absent";
         orgId: string | null;
         userId: string;
         email: string;
@@ -3189,13 +3189,13 @@ export declare const RecordTrainingAttendanceResult: z.ZodObject<{
     certificateSerial: z.ZodNullable<z.ZodString>;
     issuedNow: z.ZodBoolean;
 }, "strip", z.ZodTypeAny, {
-    registrationStatus: "released" | "registered" | "attended" | "absent" | "withdrawn";
+    registrationStatus: "released" | "withdrawn" | "registered" | "attended" | "absent";
     certificateId: string | null;
     certificateSerial: string | null;
     decisionId: string;
     issuedNow: boolean;
 }, {
-    registrationStatus: "released" | "registered" | "attended" | "absent" | "withdrawn";
+    registrationStatus: "released" | "withdrawn" | "registered" | "attended" | "absent";
     certificateId: string | null;
     certificateSerial: string | null;
     decisionId: string;

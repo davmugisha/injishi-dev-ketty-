@@ -42,9 +42,12 @@ COPY . .
 # NEXT_PUBLIC_PMS_URL is the public web origin: this process is a zone under
 # web, so absolute "self" links must not name a second public host.
 ARG OPERATOR_ASSET_PREFIX=/operator-static
-ARG NEXT_PUBLIC_API_URL=https://api.injishi.com
-ARG NEXT_PUBLIC_WEB_URL=https://www.injishi.com
-ARG NEXT_PUBLIC_PMS_URL=https://www.injishi.com
+# The public origins have NO default: a default of production's origins let a
+# staging or demo build that forgot one ship a zone calling production. Each
+# compose file passes all three; the RUN below refuses a build missing one.
+ARG NEXT_PUBLIC_API_URL
+ARG NEXT_PUBLIC_WEB_URL
+ARG NEXT_PUBLIC_PMS_URL
 # `demo` for the demo stack's image and nothing else (ADR-043, AC-14): the
 # middleware's strip of production's session cookies. Empty means production.
 ARG NEXT_PUBLIC_INJISHI_ENVIRONMENT=
@@ -55,6 +58,9 @@ ENV NEXT_TELEMETRY_DISABLED=1 \
     NEXT_PUBLIC_API_URL=$NEXT_PUBLIC_API_URL \
     NEXT_PUBLIC_WEB_URL=$NEXT_PUBLIC_WEB_URL \
     NEXT_PUBLIC_PMS_URL=$NEXT_PUBLIC_PMS_URL
+RUN : "${NEXT_PUBLIC_API_URL:?build arg NEXT_PUBLIC_API_URL is required (API public origin)}" \
+ && : "${NEXT_PUBLIC_WEB_URL:?build arg NEXT_PUBLIC_WEB_URL is required (web public origin)}" \
+ && : "${NEXT_PUBLIC_PMS_URL:?build arg NEXT_PUBLIC_PMS_URL is required (operator zone origin, which is web's)}"
 RUN pnpm --filter @injishi/app build
 
 # ---- run -------------------------------------------------------------------

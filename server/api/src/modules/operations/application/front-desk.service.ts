@@ -26,6 +26,7 @@ import {
   FrontDeskRepository,
 } from '../infrastructure/front-desk.repository';
 import { RoomAssignmentService } from './room-assignment.service';
+import { StayClaimService } from './stay-claim.service';
 
 /**
  * The hospitality front desk: rooms, check in, check out (ADR-012 step 4).
@@ -51,6 +52,12 @@ export class FrontDeskService {
     private readonly assignments: RoomAssignmentService,
     private readonly folios: FolioRepository,
     private readonly bills: FolioService,
+    /**
+     * §6.8. The registration card, the claim code and the mail that carries it.
+     * Injected rather than inlined so that the one rule that matters — none of
+     * it may fail a check in — lives in one place with the reason written down.
+     */
+    private readonly onboarding: StayClaimService,
   ) {}
 
   /** Every room in this workspace, with who is in it. */
@@ -191,6 +198,11 @@ export class FrontDeskService {
     });
     if (folioId) await this.folios.bindToStay(folioId, created.id);
 
+    // §6.8. Last, and never able to fail the check in: the registration card,
+    // the claim code and the "continue in the app" mail. A booked guest usually
+    // sends nothing here and nothing happens.
+    await this.onboarding.registerAndInvite(created.id, body.guest);
+
     return this.presentStay(created);
   }
 
@@ -268,6 +280,22 @@ export class FrontDeskService {
         guestUserId: null,
       });
     }
+
+    /*
+     * §6.8, AND THIS IS THE CASE IT WAS BUILT FOR.
+     *
+     * A walk in has no account, so what the desk types here is the ONLY record
+     * of who is sleeping in the building, and the claim code this mails is the
+     * only way that person ever reaches the app. Without it a walk in stays a
+     * room number and a first name for the whole of their stay: they cannot
+     * message a department, order to the room, read their own bill or raise a
+     * problem, because every one of those resolves ownership from a
+     * `guest_user_id` that nothing would ever set.
+     *
+     * It still cannot fail the check in. The stay and the bill are written; the
+     * invitation is best effort and the desk can send it again.
+     */
+    await this.onboarding.registerAndInvite(created.id, body.guest);
 
     return this.presentStay(created);
   }

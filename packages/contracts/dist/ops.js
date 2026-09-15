@@ -1,8 +1,8 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.FolioType = exports.UpdateDepartmentRequest = exports.CreateDepartmentRequest = exports.OperatorDepartmentList = exports.OperatorDepartment = exports.DepartmentStatus = exports.DepartmentType = exports.DepartmentCategory = exports.PropertyScopedQuery = exports.AddAmenityRequest = exports.OperatorAmenityList = exports.OperatorAmenity = exports.ReturnDepositRequest = exports.OperatorDepositList = exports.OperatorDeposit = exports.RecordRentRequest = exports.OperatorRentRoll = exports.OperatorRentCharge = exports.AdvanceLeaseRequest = exports.OperatorLeaseList = exports.OperatorLease = exports.AdvanceTicketRequest = exports.OperatorTicketList = exports.OperatorTicket = exports.MaintenancePriority = exports.MaintenanceCategory = exports.SendMessageRequest = exports.OperatorMessageList = exports.OperatorMessage = exports.OperatorThreadList = exports.OperatorThread = exports.SetHousekeepingRequest = exports.CheckOutRequest = exports.WalkInRequest = exports.CheckInRequest = exports.OperatorStayList = exports.OperatorStay = exports.OperatorRoomList = exports.OperatorRoom = exports.CautionStatus = exports.RentStatus = exports.LeaseStatus = exports.MaintenanceStatus = exports.HousekeepingStatus = exports.RoomStatus = exports.ReservationDecisionResult = exports.OperatorReservationQuery = exports.OperatorReservationList = exports.OperatorReservation = exports.OperatorReservationState = void 0;
-exports.ServiceItemOption = exports.RraUnitCode = exports.RraClassificationCode = exports.RraItemTypeCode = exports.OrderContext = exports.ServiceOrderStatus = exports.ServiceOrderChannel = exports.FulfillmentType = exports.ServiceCatalogStatus = exports.RaiseTicketRequest = exports.AdvanceHousekeepingTaskRequest = exports.CreateHousekeepingTaskRequest = exports.OperatorHousekeepingTaskList = exports.OperatorHousekeepingTask = exports.HousekeepingTaskStatus = exports.HousekeepingTaskType = exports.AcceptedStaffInvitation = exports.StaffInvitationPreview = exports.StaffInvitationTokenRequest = exports.OperatorStaffInvitationList = exports.OperatorStaffInvitation = exports.StaffInvitationStatus = exports.InviteStaffRequest = exports.ORG_ROLE_LABEL = exports.InvitableOrgRole = exports.OperatorTeamList = exports.OperatorTeamMember = exports.RoomAssignmentWindowQuery = exports.AssignRoomRequest = exports.OperatorRoomAssignmentList = exports.OperatorRoomAssignment = exports.RoomAssignmentStatus = exports.OperatorRevenue = exports.OperatorRevenueDepartment = exports.OperatorRevenueQuery = exports.CloseFolioResult = exports.FolioDeclaration = exports.CloseFolioRequest = exports.VoidChargeRequest = exports.TakePaymentRequest = exports.PostChargeResult = exports.PostChargeRequest = exports.OperatorFolioDetail = exports.OperatorFolioCharge = exports.OperatorFolioList = exports.OperatorFolio = exports.PaymentMethod = exports.TaxCode = exports.ChargeType = exports.FolioStatus = void 0;
-exports.AssignDepartmentMemberRequest = exports.OperatorDepartmentMemberList = exports.OperatorDepartmentMember = exports.DepartmentPosition = exports.UpdateServiceItemRequest = exports.AdvanceServiceOrderRequest = exports.MarkOrderPaidCashResult = exports.MarkOrderPaidCashRequest = exports.CreateServiceOrderRequest = exports.OperatorServiceOrderList = exports.OperatorServiceOrder = exports.OperatorServiceOrderItem = exports.RraClassificationList = exports.RraClassificationSearch = exports.RraClassification = exports.UpsertServiceItemRequest = exports.UpdateServiceCategoryRequest = exports.CreateServiceCategoryRequest = exports.OperatorServiceCatalog = exports.OperatorServiceCategory = exports.OperatorServiceItem = exports.RraItemField = exports.SelectedOptionSnapshot = exports.SelectedOption = exports.ServiceItemOptions = void 0;
+exports.OperatorDepartment = exports.DepartmentStatus = exports.DepartmentType = exports.DepartmentCategory = exports.PropertyScopedQuery = exports.AddAmenityRequest = exports.OperatorAmenityList = exports.OperatorAmenity = exports.ReturnDepositRequest = exports.OperatorDepositList = exports.OperatorDeposit = exports.RecordRentRequest = exports.OperatorRentRoll = exports.OperatorRentCharge = exports.AdvanceLeaseRequest = exports.OperatorLeaseList = exports.OperatorLease = exports.AdvanceTicketRequest = exports.OperatorTicketList = exports.OperatorTicket = exports.MaintenancePriority = exports.MaintenanceCategory = exports.SendMessageRequest = exports.OperatorMessageList = exports.OperatorMessage = exports.OperatorThreadList = exports.OperatorThread = exports.SetHousekeepingRequest = exports.CheckOutRequest = exports.WalkInRequest = exports.CheckInRequest = exports.OperatorStayList = exports.OperatorStay = exports.IssueStayClaimInviteRequest = exports.StayClaimInvite = exports.CLAIM_CODE_PATTERN = exports.StayRegistrationDetails = exports.OperatorRoomList = exports.OperatorRoom = exports.CautionStatus = exports.RentStatus = exports.LeaseStatus = exports.MaintenanceStatus = exports.HousekeepingStatus = exports.RoomStatus = exports.ReservationDecisionResult = exports.OperatorReservationQuery = exports.OperatorReservationList = exports.OperatorReservation = exports.OperatorReservationState = void 0;
+exports.OrderContext = exports.ServiceOrderStatus = exports.ServiceOrderChannel = exports.FulfillmentType = exports.ServiceCatalogStatus = exports.RaiseTicketRequest = exports.AdvanceHousekeepingTaskRequest = exports.CreateHousekeepingTaskRequest = exports.OperatorHousekeepingTaskList = exports.OperatorHousekeepingTask = exports.HousekeepingTaskStatus = exports.HousekeepingTaskType = exports.AcceptedStaffInvitation = exports.StaffInvitationPreview = exports.StaffInvitationTokenRequest = exports.OperatorStaffInvitationList = exports.OperatorStaffInvitation = exports.StaffInvitationStatus = exports.InviteStaffRequest = exports.ORG_ROLE_LABEL = exports.InvitableOrgRole = exports.OperatorTeamList = exports.OperatorTeamMember = exports.RoomAssignmentWindowQuery = exports.AssignRoomRequest = exports.OperatorRoomAssignmentList = exports.OperatorRoomAssignment = exports.RoomAssignmentStatus = exports.OperatorRevenue = exports.OperatorRevenueDepartment = exports.OperatorRevenueQuery = exports.CloseFolioResult = exports.FolioDeclaration = exports.CloseFolioRequest = exports.VoidChargeRequest = exports.TakePaymentRequest = exports.PostChargeResult = exports.PostChargeRequest = exports.OperatorFolioDetail = exports.OperatorFolioCharge = exports.OperatorFolioList = exports.OperatorFolio = exports.PaymentMethod = exports.TaxCode = exports.ChargeType = exports.FolioStatus = exports.FolioType = exports.UpdateDepartmentRequest = exports.CreateDepartmentRequest = exports.OperatorDepartmentList = void 0;
+exports.AssignDepartmentMemberRequest = exports.OperatorDepartmentMemberList = exports.OperatorDepartmentMember = exports.DepartmentPosition = exports.UpdateServiceItemRequest = exports.AdvanceServiceOrderRequest = exports.MarkOrderPaidCashResult = exports.MarkOrderPaidCashRequest = exports.CreateServiceOrderRequest = exports.OperatorServiceOrderList = exports.OperatorServiceOrder = exports.OperatorServiceOrderItem = exports.RraClassificationList = exports.RraClassificationSearch = exports.RraClassification = exports.UpsertServiceItemRequest = exports.UpdateServiceCategoryRequest = exports.CreateServiceCategoryRequest = exports.OperatorServiceCatalog = exports.OperatorServiceCategory = exports.OperatorServiceItem = exports.RraItemField = exports.SelectedOptionSnapshot = exports.SelectedOption = exports.ServiceItemOptions = exports.ServiceItemOption = exports.RraUnitCode = exports.RraClassificationCode = exports.RraItemTypeCode = void 0;
 const zod_1 = require("zod");
 const booking_1 = require("./booking");
 const primitives_1 = require("./primitives");
@@ -185,6 +185,79 @@ exports.OperatorRoom = zod_1.z.object({
         .nullable(),
 });
 exports.OperatorRoomList = zod_1.z.object({ rooms: zod_1.z.array(exports.OperatorRoom) });
+// ===========================================================================
+// §6.8  Registering a guest at the desk
+// ===========================================================================
+// The desk's half of the claim story. The guest's half — claiming, the
+// departments, the refund request — is in `stay.ts`, which imports
+// `DepartmentCategory` from this file and therefore cannot be imported back.
+// ---------------------------------------------------------------------------
+// Registering a guest at the desk
+// ---------------------------------------------------------------------------
+/**
+ * What the desk writes on the registration card (§6.4 `stay_identities`).
+ *
+ * Every field is optional EXCEPT in the sense that a property regulated in
+ * Rwanda is required to record the identity of whoever sleeps in the building —
+ * so this is optional in the schema and expected in practice, and the desk app
+ * is what insists. A required field here would break the walk in at 23:00 whose
+ * passport is in a bag upstairs, and a stay nobody could open is worse than a
+ * stay with a name and no document number.
+ */
+exports.StayRegistrationDetails = zod_1.z
+    .object({
+    /** As printed on the document, which is not always the name on the booking. */
+    fullName: zod_1.z.string().trim().min(1).max(200).optional(),
+    documentType: zod_1.z.enum(["national_id", "passport", "other"]).optional(),
+    idNumber: zod_1.z.string().trim().min(1).max(64).optional(),
+    /** Home address, free text: Rwandan and foreign addresses do not share a shape. */
+    addressText: zod_1.z.string().trim().min(1).max(500).optional(),
+    /**
+     * Where the "continue in the app" mail goes. The ONE address this stay's
+     * claim invitation is ever sent to, which is why it is captured here at the
+     * counter with the guest watching, and never supplied later by a caller.
+     */
+    email: zod_1.z.string().trim().email().max(254).optional(),
+    phone: zod_1.z.string().trim().min(6).max(32).optional(),
+    /**
+     * Send the claim invitation now. Default true when an address was given:
+     * a desk that captured an address meant to invite them, and making the
+     * invitation a second deliberate step is how it never gets sent.
+     */
+    invite: zod_1.z.boolean().optional(),
+})
+    .strict();
+/** The shape of a claim code as it is printed: four letters, a dash, four digits. */
+exports.CLAIM_CODE_PATTERN = /^[A-Z]{4}-\d{4}$/;
+/**
+ * What the desk gets back after registering somebody: the code on the slip, and
+ * whether the mail actually left.
+ *
+ * `invitationSent` is false rather than an error when the transport refused.
+ * The stay is real and the code is printed on the slip in the guest's hand;
+ * failing the check in because an SMTP relay was down would put a guest back on
+ * the street over an email.
+ */
+exports.StayClaimInvite = zod_1.z.object({
+    stayId: primitives_1.Uuid,
+    /** Null when the stay is already claimed — there is nothing left to hand out. */
+    claimCode: zod_1.z.string().nullable(),
+    email: zod_1.z.string().nullable(),
+    invitationSent: zod_1.z.boolean(),
+    invitedAt: zod_1.z.string().nullable(),
+});
+/** Re-send the invitation, or send a first one to an address captured late. */
+exports.IssueStayClaimInviteRequest = zod_1.z
+    .object({
+    /** Absent keeps the address already on the stay. */
+    email: zod_1.z.string().trim().email().max(254).optional(),
+    /**
+     * Mint a NEW code, invalidating the old slip. For the guest who says the
+     * code does not work, or the one who left the slip in the taxi.
+     */
+    reissue: zod_1.z.boolean().optional(),
+})
+    .strict();
 /** A guest in the building, or one who has left. */
 exports.OperatorStay = zod_1.z.object({
     id: primitives_1.Uuid,
@@ -234,6 +307,15 @@ exports.CheckInRequest = zod_1.z.object({
      * the one that must not be overwritten by a blank field.
      */
     nightlyRateRwf: zod_1.z.number().int().positive().optional(),
+    /**
+     * The registration card, and the invitation that follows it (§6.8).
+     *
+     * OPTIONAL, because a booked guest already has an account and an address
+     * and the desk usually types nothing. Present, it records the identity
+     * against the stay and mails the guest a claim code so they can carry on
+     * in the app. Absent, check in behaves exactly as it did.
+     */
+    guest: exports.StayRegistrationDetails.optional(),
 });
 /**
  * Check a WALK IN in — somebody at the counter with no booking (ADR-035).
@@ -265,6 +347,16 @@ exports.WalkInRequest = zod_1.z.object({
     plannedExitAt: zod_1.z.string().optional(),
     /** The nightly rate agreed at the counter. */
     nightlyRateRwf: zod_1.z.number().int().positive().optional(),
+    /**
+     * The registration card, and the invitation that follows it (§6.8).
+     *
+     * THIS IS THE CASE IT WAS BUILT FOR. A walk in has no account, so the only
+     * record of who they are is what the desk types here, and the only way they
+     * ever reach the app is the claim code this mails them. Without it a walk in
+     * is a room number and a first name, and every guest-facing surface this
+     * platform has is closed to them for the whole of their stay.
+     */
+    guest: exports.StayRegistrationDetails.optional(),
 });
 /**
  * Close an open stay.

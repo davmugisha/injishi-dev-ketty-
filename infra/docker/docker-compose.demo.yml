@@ -46,6 +46,10 @@ x-api-env: &api-env
   INJISHI_DATABASE_KIND: sample
   NODE_ENV: production
   PORT: "8000"
+  # One trusted hop, as production: Dokploy's Traefik is the only route to api
+  # (8000 is `expose`d, never published), and the address it appends to
+  # X-Forwarded-For becomes request.ip, so every demo visitor is not one bucket.
+  TRUST_PROXY: "1"
   DATABASE_URL: ${DATABASE_URL:?set DATABASE_URL to this stack's own db, database injishi_demo}
   REDIS_URL: redis://redis:6379
   COOKIE_SECRET: ${COOKIE_SECRET}
@@ -131,7 +135,7 @@ services:
     restart: unless-stopped
     environment:
       POSTGRES_USER: ${POSTGRES_USER:-injishi}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-change-me}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD}
       # The live database's name. The nightly job renames around it.
       POSTGRES_DB: injishi_demo
     volumes:

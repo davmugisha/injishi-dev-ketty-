@@ -1,7 +1,4 @@
-import type {
-  AccommodationClass,
-  PropertyCard,
-} from "@injishi/contracts";
+import { PropertyCard, type AccommodationClass } from "@injishi/contracts";
 import { formatPrice } from "@injishi/utils";
 import { findCatalogueProperty } from "@/data/catalogue";
 import { listingFor, type Listing } from "@/data/listings";
@@ -31,28 +28,36 @@ import { API_URL } from "@/lib/api";
  * components already render as "not stated".
  *
  * Revalidated every minute and bounded by a timeout. An API that is down makes
- * discovery show the catalogue alone, never an error page.
+ * discovery show the catalogue alone, never an error page. So does an answer
+ * that does not match the contract: it is PARSED against `PropertyCard`, not
+ * cast, because a card built from a drifted body prints a price it cannot back.
  */
 
 const REVALIDATE_SECONDS = 60;
 const TIMEOUT_MS = 6_000;
 
-async function readApi<T>(path: string): Promise<T | null> {
+async function readApi<T>(
+  schema: { safeParse(input: unknown): { success: true; data: T } | { success: false } },
+  path: string,
+): Promise<T | null> {
   try {
     const res = await fetch(`${API_URL}${path}`, {
       next: { revalidate: REVALIDATE_SECONDS },
       signal: AbortSignal.timeout(TIMEOUT_MS),
     });
     if (!res.ok) return null;
-    return (await res.json()) as T;
+    const parsed = schema.safeParse(await res.json());
+    return parsed.success ? parsed.data : null;
   } catch {
     return null;
   }
 }
 
+const PropertyCards = PropertyCard.array();
+
 /** Published database properties the catalogue does not already describe, as Explore cards. */
 export async function databaseListings(): Promise<Listing[]> {
-  const cards = (await readApi<PropertyCard[]>("/api/v1/properties")) ?? [];
+  const cards = (await readApi(PropertyCards, "/api/v1/properties")) ?? [];
   return cards
     .filter((card) => !findCatalogueProperty(card.slug))
     .map((card) => listingFor(cardToProperty(card)));

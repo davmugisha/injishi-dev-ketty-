@@ -45,6 +45,11 @@ x-api-env: &api-env
   INJISHI_DATABASE_KIND: sample
   NODE_ENV: production
   PORT: "8000"
+  # One trusted hop, as production: Dokploy's Traefik is the only route to api
+  # (8000 is `expose`d, never published), and the address it appends to
+  # X-Forwarded-For becomes request.ip. The frontends' server side calls reach
+  # the API through its public address, so they arrive through Traefik too.
+  TRUST_PROXY: "1"
   DATABASE_URL: ${DATABASE_URL}
   REDIS_URL: ${REDIS_URL}
   COOKIE_SECRET: ${COOKIE_SECRET}
@@ -119,7 +124,7 @@ services:
     restart: unless-stopped
     environment:
       POSTGRES_USER: ${POSTGRES_USER:-injishi}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-change-me}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD}
       POSTGRES_DB: ${POSTGRES_DB:-injishi}
     volumes:
       - db-data:/var/lib/postgresql/data

@@ -52,3 +52,26 @@ export function collidingLabels(
   }
   return [...clashes.values()];
 }
+
+/** The unique index behind the rule, for the race the read above cannot see. */
+export const ROOM_LABEL_UNIQUE = 'rooms_property_label_uk';
+
+/**
+ * Did a rooms write lose a race for a label (platform audit step 3)?
+ *
+ * `collidingLabels` is read before the write, so two concurrent adds of the
+ * same label both pass it; `rooms_property_label_uk` then refuses the second
+ * with a 23505. That is the same collision and gets the same refusal, never a
+ * 500. Only that constraint: any other unique violation is not a label clash.
+ * Drizzle may wrap the driver error, so its `cause` is read too.
+ */
+export function isRoomLabelCollision(err: unknown): boolean {
+  const candidates = [err, (err as { cause?: unknown } | null)?.cause];
+  return candidates.some(
+    (e) =>
+      typeof e === 'object' &&
+      e !== null &&
+      (e as { code?: string }).code === '23505' &&
+      (e as { constraint?: string }).constraint === ROOM_LABEL_UNIQUE,
+  );
+}

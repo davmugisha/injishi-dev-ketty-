@@ -44,15 +44,19 @@ COPY packages ./packages
 COPY apps/web ./apps/web
 # Standalone output is opt-in; see apps/web/next.config.ts.
 ARG OPERATOR_APP_URL=http://app:3002
-ARG NEXT_PUBLIC_SITE_URL=https://www.injishi.com
-ARG NEXT_PUBLIC_WEB_URL=https://www.injishi.com
-ARG NEXT_PUBLIC_API_URL=https://api.injishi.com
+# The public origins have NO default. They used to default to production's, so
+# a staging or demo build that forgot one silently shipped a bundle calling
+# production. Each compose file passes all of them; the RUN below refuses a
+# build that is missing one.
+ARG NEXT_PUBLIC_SITE_URL
+ARG NEXT_PUBLIC_WEB_URL
+ARG NEXT_PUBLIC_API_URL
 # Public operator origin is the web origin (the zone), not the app service.
-ARG NEXT_PUBLIC_PMS_URL=https://www.injishi.com
+ARG NEXT_PUBLIC_PMS_URL
 # The admin console's origin. Web's sign-in screen sends a signed-in staffer
 # back only to an origin on its allowlist (src/lib/redirect.ts), and that list
 # is inlined here, so an image built without it strands admin at `/`.
-ARG NEXT_PUBLIC_ADMIN_URL=https://admin.injishi.com
+ARG NEXT_PUBLIC_ADMIN_URL
 # `demo` for the demo stack's image and nothing else (ADR-043, AC-14). It turns
 # on the middleware's strip of production's session cookies and decides nothing
 # on any screen. Empty means production, which never strips.
@@ -66,6 +70,11 @@ ENV NEXT_TELEMETRY_DISABLED=1 \
     NEXT_PUBLIC_API_URL=$NEXT_PUBLIC_API_URL \
     NEXT_PUBLIC_PMS_URL=$NEXT_PUBLIC_PMS_URL \
     NEXT_PUBLIC_ADMIN_URL=$NEXT_PUBLIC_ADMIN_URL
+RUN : "${NEXT_PUBLIC_SITE_URL:?build arg NEXT_PUBLIC_SITE_URL is required (web public origin)}" \
+ && : "${NEXT_PUBLIC_WEB_URL:?build arg NEXT_PUBLIC_WEB_URL is required (web public origin)}" \
+ && : "${NEXT_PUBLIC_API_URL:?build arg NEXT_PUBLIC_API_URL is required (API public origin)}" \
+ && : "${NEXT_PUBLIC_PMS_URL:?build arg NEXT_PUBLIC_PMS_URL is required (operator zone origin, which is web's)}" \
+ && : "${NEXT_PUBLIC_ADMIN_URL:?build arg NEXT_PUBLIC_ADMIN_URL is required (admin console origin)}"
 RUN pnpm --filter @injishi/web build
 
 # ---- run -------------------------------------------------------------------

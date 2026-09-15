@@ -99,7 +99,6 @@ export class AvailabilityService {
             roomTypeId,
             start,
             to,
-            room.roomType.roomCount,
           );
 
     const past: { night: string; freeUnits: number }[] = [];

@@ -29,7 +29,7 @@ export const en = {
   /* ------------------------------------------------------------ the shell */
   'host.today': 'Today',
   'host.todayGreeting': 'Front desk',
-  'host.bookings': 'Bookings',
+  'host.bookings': 'Reservations',
   'host.bookingsGreeting': 'Every booking',
   'host.timezone': '{date} · Africa/Kigali',
   'host.desk': '{property} · front desk',
@@ -41,13 +41,13 @@ export const en = {
   'host.groupInHouse': 'In house tonight',
   'host.emptyRequests':
     'No requests waiting. A new booking request appears here the moment it arrives.',
-  'host.emptyArriving': 'Nobody is arriving today. Tomorrow’s arrivals are under Bookings.',
+  'host.emptyArriving': 'Nobody is arriving today. Tomorrow’s arrivals are under Reservations.',
   'host.emptyDeparting': 'Nobody is leaving today.',
   'host.emptyInHouse': 'No guests in house tonight.',
   'host.emptyToday': 'Nothing needs you today',
   'host.emptyTodayBody':
-    'No requests, no arrivals, no departures and nobody in house. Bookings has the whole book.',
-  'host.emptyTodayAction': 'Open Bookings',
+    'No requests, no arrivals, no departures and nobody in house. Reservations has the whole book.',
+  'host.emptyTodayAction': 'Open Reservations',
   'host.errorTitle': 'The desk would not load',
   'host.errorBody':
     'This is a connection problem, not an empty desk. Your bookings are still there.',
@@ -77,7 +77,7 @@ export const en = {
   'host.clearSearch': 'Clear the search',
   'host.searchLabel': 'Search bookings',
   'host.searchPlaceholder': 'Guest, reference or room',
-  'host.listLabel': 'Bookings',
+  'host.listLabel': 'Reservations',
   'host.resultCount': '{count} bookings',
   'host.resultOne': '1 booking',
 
@@ -137,7 +137,7 @@ export const en = {
   'host.notFoundTitle': 'That booking is not on this desk',
   'host.notFoundBody':
     'The reference belongs to another property, or the booking has been removed.',
-  'host.notFoundAction': 'Back to Bookings',
+  'host.notFoundAction': 'Back to Reservations',
   'host.stay': 'The stay',
   'host.factGuest': 'Guest',
   'host.factReference': 'Reference',
@@ -236,7 +236,7 @@ export const en = {
   'host.checkedInToast': '{guest} is in room {room}. The stay is open.',
   'host.checkInClosedTitle': 'There is nothing to check in',
   'host.checkInClosedBody':
-    'This booking is not a confirmed stay waiting at the door. Bookings has the current state.',
+    'This booking is not a confirmed stay waiting at the door. Reservations has the current state.',
 
   /* -------------------------------------------------------------- checkout */
   'host.checkOut': 'Check out',

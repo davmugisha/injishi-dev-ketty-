@@ -27,6 +27,7 @@ import {
 import { IdempotencyKey } from '../../../shared/http/idempotency-key';
 import {
   CurrentWorkspace,
+  RequireAnyPermission,
   RequirePermission,
   WorkspaceGuard,
 } from '../../../shared/auth/workspace.guard';
@@ -57,18 +58,21 @@ import { ZodValidationPipe } from '../../../shared/validation/zod-validation.pip
 export class OpsFoliosController {
   constructor(private readonly folios: FolioService) {}
 
-  /** The Bills list. */
+  /**
+   * The Bills list. The desk works it (`folio.charge`); Finance reads the
+   * same bills under `money.view`.
+   */
   @Get()
-  @RequirePermission('folio.charge')
+  @RequireAnyPermission('folio.charge', 'money.view')
   async list(
     @CurrentWorkspace() workspace: ScopedWorkspace,
   ): Promise<OperatorFolioList> {
     return { folios: await this.folios.list(workspace) };
   }
 
-  /** One bill, with its lines. */
+  /** One bill, with its lines. The desk's bill, and Finance's bill lens. */
   @Get(':id')
-  @RequirePermission('folio.charge')
+  @RequireAnyPermission('folio.charge', 'money.view')
   detail(
     @Param('id', ParseUUIDPipe) id: string,
     @CurrentWorkspace() workspace: ScopedWorkspace,

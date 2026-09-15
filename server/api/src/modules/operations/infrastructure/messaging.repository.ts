@@ -108,6 +108,26 @@ export interface GuestThreadRow extends Omit<ThreadRow, 'branchPropertyId'> {
   updatedAt: Date;
 }
 
+/** A desk a guest may write to, as the property configured it. */
+export interface RequestableDepartmentRow {
+  id: string;
+  name: string;
+  departmentCategory: string;
+  phone: string | null;
+  threadId: string | null;
+  lastMessageAt: Date | null;
+}
+
+/** Is this a collision on the one-thread-per-stay-per-department index? */
+function isDepartmentThreadCollision(error: unknown): boolean {
+  const e = error as { code?: string; constraint?: string; cause?: unknown };
+  const inner = e?.code === '23505' ? e : (e?.cause as typeof e | undefined);
+  return (
+    inner?.code === '23505' &&
+    inner.constraint === 'threads_stay_department_request_uk'
+  );
+}
+
 /**
  * Threads and messages for the operator (ADR-012 step 4, `message.send`).
  *
@@ -579,6 +599,198 @@ export class MessagingRepository {
       )
       .orderBy(desc(messages.createdAt), desc(messages.id))
       .limit(limit + 1);
+  }
+
+  /**
+   * The desks at one property a GUEST may write to (§6.8).
+   *
+   * `guest_requestable` is the filter, and it has existed since ADR-016 with
+   * nothing reading it: no guest surface could start a conversation at all, so
+   * every department was equally unreachable and the flag was decoration. It is
+   * the property's own control over which of its internal desks take messages
+   * from guests, and Accounting is not one of them.
+   *
+   * Archived departments are excluded. A retired desk keeps its revenue history
+   * and its old threads; it does not keep the right to be messaged.
+   */
+  async requestableDepartments(
+    propertyId: string,
+    guestStayId: string,
+  ): Promise<RequestableDepartmentRow[]> {
+    return this.db
+      .select({
+        id: departments.id,
+        name: departments.name,
+        departmentCategory: departments.departmentCategory,
+        phone: departments.phone,
+        threadId: threads.id,
+        lastMessageAt: threads.updatedAt,
+      })
+      .from(departments)
+      .leftJoin(
+        threads,
+        and(
+          eq(threads.departmentId, departments.id),
+          eq(threads.guestStayId, guestStayId),
+          eq(threads.threadKind, 'department_request'),
+        ),
+      )
+      .where(
+        and(
+          eq(departments.propertyId, propertyId),
+          eq(departments.status, 'active'),
+          eq(departments.guestRequestable, true),
+        ),
+      )
+      .orderBy(asc(departments.sortOrder), asc(departments.name));
+  }
+
+  /** Does this property own this department, and may a guest write to it? */
+  async findRequestableDepartment(
+    departmentId: string,
+    propertyId: string,
+  ): Promise<{ id: string; name: string; workspaceId: string } | null> {
+    const [row] = await this.db
+      .select({
+        id: departments.id,
+        name: departments.name,
+        workspaceId: departments.workspaceId,
+      })
+      .from(departments)
+      .where(
+        and(
+          eq(departments.id, departmentId),
+          eq(departments.propertyId, propertyId),
+          eq(departments.status, 'active'),
+          eq(departments.guestRequestable, true),
+        ),
+      )
+      .limit(1);
+    return row ?? null;
+  }
+
+  /**
+   * OPEN THE CONVERSATION WITH ONE DESK AND SAY SOMETHING, in ONE transaction
+   * (§6.8).
+   *
+   * ## Why the thread and the first message are written together
+   *
+   * A thread with no message in it is a row the desk reads as "a guest wanted
+   * something and did not say what". Two calls mean a dropped connection
+   * between them leaves exactly that, and the guest sees a conversation they
+   * believe they sent.
+   *
+   * ## Why the existing thread is reused rather than a second one opened
+   *
+   * A guest tapping Housekeeping on Monday and again on Wednesday is having one
+   * conversation with housekeeping, and splitting it would leave half of it in a
+   * thread the desk has stopped looking at. The read-then-insert below is
+   * exactly the check two simultaneous taps both pass, so
+   * `threads_stay_department_request_uk` is what actually refuses the loser —
+   * and the loser retries into the winner's row rather than failing in front of
+   * the guest.
+   */
+  async openDepartmentThread(input: {
+    workspaceId: string;
+    guestStayId: string;
+    departmentId: string;
+    subject: string | null;
+    body: string;
+    senderUserId: string;
+  }): Promise<{ threadId: string; created: boolean } | null> {
+    try {
+      return await this.insertDepartmentThread(input);
+    } catch (error) {
+      if (!isDepartmentThreadCollision(error)) throw error;
+      // Somebody else's tap won the race. Append to what they created.
+      const existing = await this.findDepartmentThread(
+        input.guestStayId,
+        input.departmentId,
+      );
+      if (!existing) throw error;
+      const messageId = await this.sendMessage(
+        existing.id,
+        input.senderUserId,
+        input.body,
+      );
+      return messageId ? { threadId: existing.id, created: false } : null;
+    }
+  }
+
+  private insertDepartmentThread(
+    input: Parameters<MessagingRepository['openDepartmentThread']>[0],
+  ): Promise<{ threadId: string; created: boolean } | null> {
+    return this.db.transaction(async (tx) => {
+      const [existing] = await tx
+        .select({ id: threads.id, status: threads.status })
+        .from(threads)
+        .where(
+          and(
+            eq(threads.guestStayId, input.guestStayId),
+            eq(threads.departmentId, input.departmentId),
+            eq(threads.threadKind, 'department_request'),
+          ),
+        )
+        .limit(1);
+
+      const threadId =
+        existing?.id ??
+        (
+          await tx
+            .insert(threads)
+            .values({
+              workspaceId: input.workspaceId,
+              guestStayId: input.guestStayId,
+              departmentId: input.departmentId,
+              threadKind: 'department_request',
+              subject: input.subject,
+            })
+            .returning({ id: threads.id })
+        )[0]?.id;
+      if (!threadId) return null;
+
+      // An archived thread takes no writes, guest or operator (ADR-032 AC-19).
+      // Reopening it here would be a guest un-archiving a conversation the
+      // property closed, which is the property's decision and not theirs.
+      if (existing && existing.status === 'archived') return null;
+
+      const [created] = await tx
+        .insert(messages)
+        .values({
+          threadId,
+          senderUserId: input.senderUserId,
+          bodyType: 'text',
+          body: input.body,
+        })
+        .returning({ id: messages.id });
+      if (!created) return null;
+
+      await tx
+        .update(threads)
+        .set({ updatedAt: new Date() })
+        .where(eq(threads.id, threadId));
+
+      return { threadId, created: existing === undefined };
+    });
+  }
+
+  /** The conversation this stay already has with this desk, if any. */
+  async findDepartmentThread(
+    guestStayId: string,
+    departmentId: string,
+  ): Promise<{ id: string } | null> {
+    const [row] = await this.db
+      .select({ id: threads.id })
+      .from(threads)
+      .where(
+        and(
+          eq(threads.guestStayId, guestStayId),
+          eq(threads.departmentId, departmentId),
+          eq(threads.threadKind, 'department_request'),
+        ),
+      )
+      .limit(1);
+    return row ?? null;
   }
 
   /**

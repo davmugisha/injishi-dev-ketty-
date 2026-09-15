@@ -87,6 +87,7 @@ export const ledgerEntries = pgTable(
     index('ledger_entries_transaction_idx').on(t.transactionId),
     index('ledger_entries_account_idx').on(t.accountId),
     index('ledger_entries_related_idx').on(t.relatedType, t.relatedId),
+    index('ledger_entries_workspace_idx').on(t.workspaceId),
   ],
 );
 
@@ -530,9 +531,15 @@ export const ebmConnections = pgTable(
     accountName: text('account_name'),
     /**
      * The EBM account's own approval state at the provider (`submitted`,
-     * `approved`, `disabled`), as last read. Text rather than an enum because
-     * it is the provider's vocabulary and may grow; only `approved` may
-     * invoice, and the code that decides that names the value it tests.
+     * `approved`, `disabled`), as last read. Only `approved` may invoice, and
+     * the code that decides that names the value it tests.
+     *
+     * Text with a CHECK rather than an enum, because it is the provider's
+     * vocabulary and may grow: widening a CHECK is one statement, widening a
+     * Postgres enum is not reversible. The repository stores a value outside
+     * the three as null ("not known"), which is what every reader already made
+     * of it (`toAccountStatus`), so a new provider word can never fail a
+     * connect on this constraint (platform audit step 3).
      */
     accountStatus: text('account_status'),
     branchId: text('branch_id'),
@@ -561,6 +568,10 @@ export const ebmConnections = pgTable(
     check(
       'ebm_connections_revoked_shape',
       sql`(${t.status} = 'revoked') = (${t.revokedAt} IS NOT NULL)`,
+    ),
+    check(
+      'ebm_connections_account_status_known',
+      sql`${t.accountStatus} IS NULL OR ${t.accountStatus} IN ('submitted', 'approved', 'disabled')`,
     ),
   ],
 );
@@ -598,9 +609,14 @@ export const ebmOauthStates = pgTable(
 
 export const ebmInvoiceLines = pgTable('ebm_invoice_lines', {
   id: uuid('id').primaryKey().defaultRandom(),
+  /**
+   * RESTRICT since migration 0043 (platform audit step 3). A signed invoice's
+   * lines are what the Authority was told; deleting the header used to take
+   * them with it silently.
+   */
   ebmInvoiceId: uuid('ebm_invoice_id')
     .notNull()
-    .references(() => ebmInvoices.id, { onDelete: 'cascade' }),
+    .references(() => ebmInvoices.id, { onDelete: 'restrict' }),
   /**
    * WHICH LINE OF THE BILL THIS IS (ADR-050 D-d, G19).
    *
@@ -634,7 +650,7 @@ export const ebmInvoiceLines = pgTable('ebm_invoice_lines', {
   rraQtyUnitCd: text('rra_qty_unit_cd'),
   /** The `taxTyCd` actually sent, kept beside the code it was derived from. */
   taxTypeCode: text('tax_type_code'),
-});
+}, (t) => [index('ebm_invoice_lines_invoice_idx').on(t.ebmInvoiceId)]);
 
 
 export const reconciliationRuns = pgTable('reconciliation_runs', {

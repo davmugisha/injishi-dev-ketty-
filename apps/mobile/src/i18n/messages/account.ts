@@ -88,7 +88,7 @@ export const en = {
   'account.payoutHint': 'Where money owed to this workspace is sent.',
   'account.rowOrganisation': 'Organisation profile',
   'account.organisationHint': 'Legal name, TIN and where the business is registered.',
-  'account.rowStaff': 'Staff & invites',
+  'account.rowStaff': 'People',
   'account.staffHint': 'Who can act inside this workspace.',
   'account.rowSubscription': 'Subscription',
   'account.subscriptionHint': 'You are on {plan}.',
@@ -156,7 +156,7 @@ export const en = {
   'org.editToast': 'Business details are re-verified on the web, not on the phone.',
 
   /* ------------------------------------------------------------- Staff */
-  'staff.title': 'Staff & invites',
+  'staff.title': 'People',
   'staff.label': 'the staff list',
   'staff.cardTitle': 'Who can act here',
   'staff.cardBody': '{count} working now',

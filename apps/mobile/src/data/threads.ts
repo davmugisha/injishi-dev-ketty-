@@ -54,7 +54,7 @@ import {
   type MutationStatus,
 } from './use-fixture-mutation';
 import { useOfflineSubmit } from './offline-submit';
-import { cancel as cancelWrite } from './write-queue';
+import { cancel as cancelWrite, type WriteOutcome } from './write-queue';
 import { TRIPS, type Trip } from './trips';
 import { TENANCIES, type Surface, type Tenancy } from './rentals';
 
@@ -662,6 +662,25 @@ function appendMessage(current: SentMessages, input: SendInput): SentMessages {
   return { ...current, [input.threadId]: [...(current[input.threadId] ?? []), next] };
 }
 
+/**
+ * The `message` write. Module level so `write-handlers.ts` can register it
+ * before any screen mounts, which is what a drain after a cold start needs.
+ *
+ * A missing or archived thread THROWS, which the queue treats as retryable
+ * rather than refused: it is a fixture inconsistency, not an answer.
+ */
+export function sendMessageHandler(input: SendInput): WriteOutcome {
+  const thread = getThread(input.threadId);
+  if (!thread) throw new Error(`no thread ${input.threadId}`);
+  if (thread.status === 'archived') throw new Error('thread archived');
+  writeFixture<SentMessages>(THREADS_KEY, appendMessage(readFixture<SentMessages>(THREADS_KEY, {}), input));
+  // The fixture store cannot refuse and cannot be unreachable, so this
+  // is always `ok`. The surface child that puts a real mutation here
+  // (ADR-038 children 1 to 7) is where `refused` and `failed` start
+  // being answered for real.
+  return { status: 'ok' };
+}
+
 export interface SendMessage {
   /** Resolves when the store holds the message. Rejects on an archived thread. */
   send: (threadId: string, body: string) => Promise<void>;
@@ -712,20 +731,7 @@ export function useSendMessage(): SendMessage {
    */
   const queued = useOfflineSubmit<SendInput>({
     kind: 'message',
-    handler: (input) => {
-      const thread = getThread(input.threadId);
-      if (!thread) throw new Error(`no thread ${input.threadId}`);
-      if (thread.status === 'archived') throw new Error('thread archived');
-      writeFixture<SentMessages>(
-        THREADS_KEY,
-        appendMessage(readFixture<SentMessages>(THREADS_KEY, {}), input),
-      );
-      // The fixture store cannot refuse and cannot be unreachable, so this
-      // is always `ok`. The surface child that puts a real mutation here
-      // (ADR-038 children 1 to 7) is where `refused` and `failed` start
-      // being answered for real.
-      return { status: 'ok' as const };
-    },
+    handler: sendMessageHandler,
     label: (input) => input.body.slice(0, 40),
     idFor: (input) => input.id,
   });
