@@ -106,6 +106,16 @@ export function createAuth(config) {
                 }
                 : {}),
         },
+        /*
+         * Better Auth's own limiter, keyed by IP: 3 sign-ins and 3 sends a minute
+         * on the OTP paths, on whenever NODE_ENV is production — the demo image
+         * included. A training room signs a whole class in from one NAT address,
+         * so the fourth trainee in a minute got a 429. On the DEMO instance only
+         * it is switched off: the code is published, its accounts are sample
+         * rows, and the send cap is already off there for the same reason.
+         * Production omits the key, so Better Auth's default stands untouched.
+         */
+        ...(config.demoOtpCode ? { rateLimit: { enabled: false } } : {}),
         // Passwordless by default (F-S01 §6): password is an optional add-on,
         // never prompted at signup, so email+password sign-in stays off.
         emailAndPassword: { enabled: false },
