@@ -281,6 +281,44 @@ export class MessagingRepository {
     return found;
   }
 
+  /**
+   * The ACCOUNT on the other side of one thread: the booking's guest, the
+   * stay's guest or the lease's tenant. Null when that person has no account
+   * (a walk-in, a tenant typed in by name), in which case nobody in the thread
+   * can be them.
+   *
+   * What the desk needs to side a bubble. On the desk every line NOT written by
+   * this person is the property's, whichever colleague typed it, so the desk
+   * cannot side from the reader the way the guest does (demo-comms, 2026-09-14).
+   */
+  async counterpartUserId(row: ThreadRow): Promise<string | null> {
+    if (row.bookingId) {
+      const [found] = await this.db
+        .select({ userId: bookings.guestUserId })
+        .from(bookings)
+        .where(eq(bookings.id, row.bookingId))
+        .limit(1);
+      return found?.userId ?? null;
+    }
+    if (row.guestStayId) {
+      const [found] = await this.db
+        .select({ userId: guestStays.guestUserId })
+        .from(guestStays)
+        .where(eq(guestStays.id, row.guestStayId))
+        .limit(1);
+      return found?.userId ?? null;
+    }
+    if (row.leaseId) {
+      const [found] = await this.db
+        .select({ userId: leases.tenantUserId })
+        .from(leases)
+        .where(eq(leases.id, row.leaseId))
+        .limit(1);
+      return found?.userId ?? null;
+    }
+    return null;
+  }
+
   async listMessages(threadId: string): Promise<MessageRow[]> {
     return this.db
       .select({

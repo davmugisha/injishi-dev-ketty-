@@ -1,9 +1,14 @@
-import { Injectable } from '@nestjs/common';
-import { AdminModeration } from '@injishi/contracts';
+import { Injectable, NotFoundException } from '@nestjs/common';
+import {
+  AdminModeration,
+  type AdminSupportTicket,
+  AdminSupportTicketDetail,
+} from '@injishi/contracts';
 
 import {
   AdminGovernanceRepository,
   type AdminReviewRow,
+  type AdminTicketRow,
 } from './admin-governance.repository';
 
 /**
@@ -28,6 +33,40 @@ const LIST_LIMIT = 100;
 export class AdminModerationService {
   constructor(private readonly repo: AdminGovernanceRepository) {}
 
+  /**
+   * One ticket, with the message and the contact details (demo-comms,
+   * 2026-09-14).
+   *
+   * The access log row is written BEFORE the answer, for the reason
+   * `RecordAccessService` gives: a request that died between the read and a
+   * later write would have disclosed the message and left no trace. A ticket
+   * that does not exist writes nothing, because nothing was disclosed and the
+   * `subject_ref` would name a row that is not there.
+   */
+  async readTicket(
+    ticketId: string,
+    actorUserId: string,
+    reason: string,
+  ): Promise<AdminSupportTicketDetail> {
+    const row = await this.repo.findSupportTicket(ticketId);
+    if (!row) throw new NotFoundException('No support ticket has that id.');
+
+    await this.repo.logSupportTicketRead({
+      actorUserId,
+      ticketId: row.id,
+      subjectUserId: row.requesterUserId,
+      reason,
+    });
+
+    return AdminSupportTicketDetail.parse({
+      ...presentTicket(row),
+      message: row.message,
+      contactEmail: row.contactEmail,
+      contactName: row.contactName,
+      contactPhone: row.contactPhone,
+    });
+  }
+
   async read(): Promise<AdminModeration> {
     const [reviews, tickets, escalations] = await Promise.all([
       this.repo.listModeratedReviews(LIST_LIMIT),
@@ -50,23 +89,7 @@ export class AdminModerationService {
         state: row.state,
         createdAt: row.createdAt.toISOString(),
       })),
-      tickets: tickets.map((row) => ({
-        id: row.id,
-        requesterUserId: row.requesterUserId,
-        category: row.category,
-        state: row.state,
-        domain: row.domain,
-        districtId: row.districtId,
-        // Both timestamps raw, so the console never has to agree with the
-        // server about how a response time is measured.
-        firstResponseAt: row.firstResponseAt
-          ? row.firstResponseAt.toISOString()
-          : null,
-        resolvedAt: row.resolvedAt ? row.resolvedAt.toISOString() : null,
-        // Null until the requester scores it, which is not the same as zero.
-        csat: row.csat,
-        createdAt: row.createdAt.toISOString(),
-      })),
+      tickets: tickets.map(presentTicket),
       escalations: escalations.map((row) => ({
         id: row.id,
         subjectType: row.subjectType,
@@ -80,6 +103,25 @@ export class AdminModerationService {
       })),
     });
   }
+}
+
+/** One ticket as the list shows it; the detail read adds the message to this. */
+function presentTicket(row: AdminTicketRow): AdminSupportTicket {
+  return {
+    id: row.id,
+    requesterUserId: row.requesterUserId,
+    category: row.category,
+    state: row.state,
+    domain: row.domain,
+    districtId: row.districtId,
+    // Both timestamps raw, so the console never has to agree with the server
+    // about how a response time is measured.
+    firstResponseAt: row.firstResponseAt ? row.firstResponseAt.toISOString() : null,
+    resolvedAt: row.resolvedAt ? row.resolvedAt.toISOString() : null,
+    // Null until the requester scores it, which is not the same as zero.
+    csat: row.csat,
+    createdAt: row.createdAt.toISOString(),
+  };
 }
 
 /**

@@ -9,7 +9,6 @@ import type {
   TakePaymentRequest,
   TaxCode,
   VoidChargeRequest,
-  WorkspaceAccess,
 } from '@injishi/contracts';
 import {
   BadRequestException,
@@ -19,6 +18,10 @@ import {
 } from '@nestjs/common';
 
 import { assertOwned } from '../../../shared/auth/assert-owned';
+import {
+  assertInBranchScope,
+  type ScopedWorkspace,
+} from '../../../shared/auth/branch-scope';
 import { EbmSaleTrigger } from '../../ebm/application/ebm-sale-trigger.service';
 import { DeclarationPlanService } from './declaration-plan.service';
 import {
@@ -89,14 +92,14 @@ export class FolioService {
   }
 
   /** The Bills list. */
-  async list(ws: WorkspaceAccess): Promise<OperatorFolio[]> {
-    const rows = await this.folios.listFolios(ws.workspaceId);
+  async list(ws: ScopedWorkspace): Promise<OperatorFolio[]> {
+    const rows = await this.folios.listFolios(ws.workspaceId, ws.branchScope);
     return rows.map((row) => this.presentFolio(row));
   }
 
   /** The bill, with its lines. */
-  async detail(ws: WorkspaceAccess, id: string): Promise<OperatorFolioDetail> {
-    const folio = assertOwned(await this.folios.findFolio(id), ws);
+  async detail(ws: ScopedWorkspace, id: string): Promise<OperatorFolioDetail> {
+    const folio = this.ownFolio(ws, await this.folios.findFolio(id));
     const charges = await this.folios.listCharges(folio.id);
     const reversedIds = new Map<string, string>();
     for (const c of charges) {
@@ -119,7 +122,7 @@ export class FolioService {
    * for an unrelated reason.
    */
   async postCharge(
-    ws: WorkspaceAccess,
+    ws: ScopedWorkspace,
     folioId: string,
     body: PostChargeRequest,
     userId: string,
@@ -130,7 +133,7 @@ export class FolioService {
     if (replay) {
       // A late charge that already moved to the stay's next bill is still the
       // same command: compare it against the bill it actually landed on.
-      const asked = assertOwned(await this.folios.findFolio(folioId), ws);
+      const asked = this.ownFolio(ws, await this.folios.findFolio(folioId));
       const landed = await this.folios.findFolio(replay.folioId);
       const sameStay =
         replay.folioId !== folioId &&
@@ -148,7 +151,7 @@ export class FolioService {
     }
 
     const folio = this.lateChargeTarget(
-      assertOwned(await this.folios.findFolio(folioId), ws),
+      this.ownFolio(ws, await this.folios.findFolio(folioId)),
     );
 
     const departmentId = await this.resolveDepartment(ws, body, folio);
@@ -247,7 +250,7 @@ export class FolioService {
    * when they posted (D-f).
    */
   async takePayment(
-    ws: WorkspaceAccess,
+    ws: ScopedWorkspace,
     folioId: string,
     body: TakePaymentRequest,
     userId: string,
@@ -264,7 +267,7 @@ export class FolioService {
       return this.detail(ws, replay.folioId);
     }
 
-    const folio = this.openFolio(assertOwned(await this.folios.findFolio(folioId), ws));
+    const folio = this.openFolio(this.ownFolio(ws, await this.folios.findFolio(folioId)));
 
     const accountCode = accountCodeFor({
       chargeType: 'payment',
@@ -321,7 +324,7 @@ export class FolioService {
    * were one act, and reversing half of one leaves a bill nobody can explain.
    */
   async voidCharge(
-    ws: WorkspaceAccess,
+    ws: ScopedWorkspace,
     folioId: string,
     chargeId: string,
     body: VoidChargeRequest,
@@ -339,7 +342,7 @@ export class FolioService {
       return this.detail(ws, replay.folioId);
     }
 
-    const folio = assertOwned(await this.folios.findFolio(folioId), ws);
+    const folio = this.ownFolio(ws, await this.folios.findFolio(folioId));
     if (folio.status === 'closed') {
       throw new ConflictException(
         'This bill is closed. Reopen it before voiding anything on it.',
@@ -448,11 +451,11 @@ export class FolioService {
    * `no_connection` and the bill still closes (D-b).
    */
   async close(
-    ws: WorkspaceAccess,
+    ws: ScopedWorkspace,
     folioId: string,
     body: CloseFolioRequest = {},
   ): Promise<CloseFolioResult> {
-    const folio = assertOwned(await this.folios.findFolio(folioId), ws);
+    const folio = this.ownFolio(ws, await this.folios.findFolio(folioId));
     const outcome = await this.folios.closeAndDeclare(
       folio.id,
       await this.declarationPlan(folio.propertyId, body),
@@ -519,7 +522,17 @@ export class FolioService {
    * receives the first one's result, which on a money command is the worst
    * possible outcome.
    */
-  private scopedKey(ws: WorkspaceAccess, clientKey: string): string {
+  /**
+   * The folio a route named, proved to be this workspace's AND on a branch in
+   * scope. A bill of another branch reads as absent (ADR-054 AC-T2).
+   */
+  private ownFolio(ws: ScopedWorkspace, row: FolioRow | null): FolioRow {
+    const folio = assertOwned(row, ws);
+    assertInBranchScope(ws, folio.propertyId);
+    return folio;
+  }
+
+  private scopedKey(ws: ScopedWorkspace, clientKey: string): string {
     return `${ws.workspaceId}:${clientKey}`;
   }
 
@@ -575,7 +588,7 @@ export class FolioService {
    * Engineering would put restaurant takings in the maintenance budget forever.
    */
   private async resolveDepartment(
-    ws: WorkspaceAccess,
+    ws: ScopedWorkspace,
     body: PostChargeRequest,
     folio: FolioRow,
   ): Promise<string | null> {

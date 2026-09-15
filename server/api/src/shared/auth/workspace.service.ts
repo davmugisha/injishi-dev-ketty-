@@ -1,8 +1,9 @@
 import { Inject, Injectable } from '@nestjs/common';
-import { and, asc, eq, inArray, isNull, sql } from 'drizzle-orm';
+import { and, asc, desc, eq, inArray, isNull, sql } from 'drizzle-orm';
 import {
   NO_STAFF_ACCESS,
   OVERSIGHT_COUNTRY_SCOPE_LABEL,
+  type WorkspaceBranch,
   type DepartmentCategory,
   type OversightConsoleGrant,
   type OversightGrant,
@@ -128,31 +129,40 @@ export class WorkspaceService {
     }
 
     /*
-     * What each business workspace's property is CALLED (ADR-035).
+     * The branches each business workspace's member covers (ADR-054 AC-S3).
      *
      * On the grant for the same reason `departments` is: the topbar names the
-     * property on every screen, and reading it from `/inventory/properties`
+     * branch on every screen, and reading it from `/inventory/properties`
      * meant a receptionist — who may not manage listings — took a 403 on every
      * page load for a name. Identity is not a listing operation.
      *
-     * THE FIRST property by name, which is a guess, but it is made ONCE here
-     * rather than differently in each screen. When a workspace grows a "current
-     * property", this is the field that gains it.
+     * Active branches only, head office first then by name. Coverage is `all`
+     * for every member until branch limits are read (ADR-054 slice 4), so the
+     * list is every active branch of the org.
      */
-    const propertyByWorkspace = new Map<string, string>();
+    const branchesByWorkspace = new Map<string, WorkspaceBranch[]>();
     if (businessWorkspaceIds.length > 0) {
       const rows = await this.db
         .select({
           workspaceId: properties.workspaceId,
+          id: properties.id,
           name: properties.name,
+          districtName: districts.name,
+          isHeadOffice: properties.isHeadOffice,
         })
         .from(properties)
-        .where(inArray(properties.workspaceId, businessWorkspaceIds))
-        .orderBy(asc(properties.name));
-      for (const row of rows) {
-        if (!propertyByWorkspace.has(row.workspaceId)) {
-          propertyByWorkspace.set(row.workspaceId, row.name);
-        }
+        .leftJoin(districts, eq(districts.id, properties.districtId))
+        .where(
+          and(
+            inArray(properties.workspaceId, businessWorkspaceIds),
+            isNull(properties.archivedAt),
+          ),
+        )
+        .orderBy(desc(properties.isHeadOffice), asc(properties.name));
+      for (const { workspaceId, ...branch } of rows) {
+        const list = branchesByWorkspace.get(workspaceId) ?? [];
+        list.push(branch);
+        branchesByWorkspace.set(workspaceId, list);
       }
     }
 
@@ -171,26 +181,35 @@ export class WorkspaceService {
       }),
       // Broker and Personal run no departments. Empty, never absent.
       departments: [],
-      // And no property. Null, never absent.
+      // And no property, so no branch. Null and empty, never absent.
       propertyName: null,
+      branches: [],
+      branchCoverage: null,
     }));
 
-    const fromOrg: WorkspaceAccess[] = viaOrg.map((w) => ({
-      workspaceId: w.workspaceId,
-      kind: w.kind,
-      orgId: w.orgId,
-      orgName: w.orgName,
-      domain: w.domain,
-      orgRole: w.orgRole,
-      registrationStatus: w.registrationStatus,
-      permissions: permissionsForWorkspace({
+    const fromOrg: WorkspaceAccess[] = viaOrg.map((w) => {
+      const branches = branchesByWorkspace.get(w.workspaceId) ?? [];
+      return {
+        workspaceId: w.workspaceId,
         kind: w.kind,
+        orgId: w.orgId,
+        orgName: w.orgName,
+        domain: w.domain,
         orgRole: w.orgRole,
         registrationStatus: w.registrationStatus,
-      }),
-      departments: departmentsByWorkspace.get(w.workspaceId) ?? [],
-      propertyName: propertyByWorkspace.get(w.workspaceId) ?? null,
-    }));
+        permissions: permissionsForWorkspace({
+          kind: w.kind,
+          orgRole: w.orgRole,
+          registrationStatus: w.registrationStatus,
+        }),
+        departments: departmentsByWorkspace.get(w.workspaceId) ?? [],
+        // Head office first, then by name, so the first covered branch is
+        // the head office when covered and else the first by name (AC-S3).
+        propertyName: branches[0]?.name ?? null,
+        branches,
+        branchCoverage: 'all' as const,
+      };
+    });
 
     return [...fromOwn, ...fromOrg];
   }
@@ -207,6 +226,19 @@ export class WorkspaceService {
   ): Promise<WorkspaceAccess | null> {
     const all = await this.listForUser(userId);
     return all.find((w) => w.workspaceId === workspaceId) ?? null;
+  }
+
+  /**
+   * Every property of a workspace, archived ones included, for the branch
+   * scope `WorkspaceGuard` resolves (ADR-054). Archived branches stay in it so
+   * their history is still readable; the switcher offers only `branches`.
+   */
+  async propertyIdsForWorkspace(workspaceId: string): Promise<string[]> {
+    const rows = await this.db
+      .select({ id: properties.id })
+      .from(properties)
+      .where(eq(properties.workspaceId, workspaceId));
+    return rows.map((r) => r.id);
   }
 
   /**

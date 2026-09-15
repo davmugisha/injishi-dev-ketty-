@@ -1,6 +1,6 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.PropertySetupProgress = exports.PropertySetupCounts = exports.UpdateRoomRequest = exports.CreateRoomsRequest = exports.InventoryRoomList = exports.InventoryRoom = exports.UploadedPropertyPhoto = exports.PropertyPhotoList = exports.ReorderPropertyPhotosRequest = exports.AttachPropertyPhotoRequest = exports.UpdateRatePlanRequest = exports.CreateRatePlanRequest = exports.OperatorRoomTypeList = exports.OperatorRoomType = exports.UpdateRoomTypeRequest = exports.CreateRoomTypeRequest = exports.RoomLabel = exports.PUBLISH_BLOCKER_LABEL = exports.PublishBlocker = exports.OperatorPropertyList = exports.OperatorRatePlanList = exports.OperatorRatePlan = exports.OperatorProperty = exports.PropertyPhoto = exports.OperatorPropertySummary = exports.PropertyAddress = exports.UpdatePropertyRequest = exports.CreatePropertyRequest = exports.WorkspaceScoped = exports.ListingStatus = void 0;
+exports.PropertySetupProgress = exports.PropertySetupCounts = exports.UpdateRoomRequest = exports.CreateRoomsRequest = exports.InventoryRoomList = exports.InventoryRoom = exports.UploadedPropertyPhoto = exports.PropertyPhotoList = exports.ReorderPropertyPhotosRequest = exports.AttachPropertyPhotoRequest = exports.UpdateRatePlanRequest = exports.CreateRatePlanRequest = exports.OperatorRoomTypeList = exports.OperatorRoomType = exports.UpdateRoomTypeRequest = exports.CreateRoomTypeRequest = exports.RoomLabel = exports.PUBLISH_BLOCKER_LABEL = exports.PublishBlocker = exports.OperatorPropertyList = exports.OperatorRatePlanList = exports.OperatorRatePlan = exports.OperatorProperty = exports.PropertyPhoto = exports.OperatorPropertySummary = exports.PropertyAddress = exports.NEEDS_EVERY_BRANCH_MESSAGE = exports.BranchArchiveRefusal = exports.BranchArchiveReason = exports.BRANCH_ARCHIVE_BLOCKER_LABEL = exports.BranchArchiveBlocker = exports.UpdatePropertyRequest = exports.CreatePropertyRequest = exports.WorkspaceScoped = exports.ListingStatus = void 0;
 exports.stepForPublishBlocker = stepForPublishBlocker;
 const zod_1 = require("zod");
 const booking_1 = require("./booking");
@@ -90,7 +90,52 @@ exports.CreatePropertyRequest = exports.WorkspaceScoped.extend(propertyFields);
  * card at a time, and a full replace would make an untouched section silently
  * clear itself.
  */
-exports.UpdatePropertyRequest = exports.WorkspaceScoped.extend(zod_1.z.object(propertyFields).partial().shape);
+exports.UpdatePropertyRequest = exports.WorkspaceScoped.extend(zod_1.z.object(propertyFields).partial().shape).extend({
+    /**
+     * The two digit branch id RRA issued for this location (ADR-054 AC-M2).
+     * Edit only, never on create: setting it also needs `ebm.manage`, and it is
+     * unique within the org forever, archived branches included. `null` clears it.
+     */
+    rraBranchId: zod_1.z
+        .string()
+        .regex(/^[0-9]{2}$/, "Use the two digit branch id RRA gave you, like 01.")
+        .nullable()
+        .optional(),
+});
+// ---------------------------------------------------------------------------
+// Branches (ADR-054)
+// ---------------------------------------------------------------------------
+/**
+ * Why a branch cannot be archived (AC-M3). A code, so the screen can list every
+ * reason at once; the label is the operator's words.
+ */
+exports.BranchArchiveBlocker = zod_1.z.enum([
+    "head_office",
+    "guest_in_house",
+    "upcoming_booking",
+    "open_folio",
+    "last_branch_of_member",
+]);
+exports.BRANCH_ARCHIVE_BLOCKER_LABEL = {
+    head_office: "It is the head office. Make another branch the head office first.",
+    guest_in_house: "A guest is staying there now.",
+    upcoming_booking: "A booking is due to arrive there today or later.",
+    open_folio: "A bill there is still open.",
+    last_branch_of_member: "It is the only branch some of your team can work at.",
+};
+/** One reason, with the people it names when it is about the team. */
+exports.BranchArchiveReason = zod_1.z.object({
+    code: exports.BranchArchiveBlocker,
+    /** Names of the members limited to this branch alone. Set for `last_branch_of_member`. */
+    members: zod_1.z.array(zod_1.z.string()).optional(),
+});
+/** The 409 body an archive refusal carries: `message` is the first reason. */
+exports.BranchArchiveRefusal = zod_1.z.object({
+    message: zod_1.z.string(),
+    reasons: zod_1.z.array(exports.BranchArchiveReason),
+});
+/** The words a member limited to some branches is refused with (AC-M6). */
+exports.NEEDS_EVERY_BRANCH_MESSAGE = "This needs access to every branch.";
 // ---------------------------------------------------------------------------
 // Reading a property back
 // ---------------------------------------------------------------------------
@@ -129,6 +174,12 @@ exports.OperatorPropertySummary = zod_1.z.object({
     roomTypeCount: zod_1.z.number().int(),
     /** Sellable rooms across every active room type. The inventory truth. */
     sellableRoomCount: zod_1.z.number().int(),
+    /** ADR-054: exactly one active branch of a hospitality business is its head office. */
+    isHeadOffice: zod_1.z.boolean(),
+    /** The two digit branch id RRA issued for this location, or null. */
+    rraBranchId: zod_1.z.string().nullable(),
+    /** Set when the branch is archived; its history stays readable. */
+    archivedAt: zod_1.z.string().nullable(),
 });
 /**
  * One photograph of a property (ADR-053).

@@ -9,6 +9,9 @@ import { Icon } from "@/components/app/icon";
 import { fetchMyThreads, threadTitle } from "@/data/inbox";
 import { apiResultMessage, type ApiResult } from "@/lib/api";
 
+/** How often the conversation list asks for new lines. */
+const INBOX_POLL_MS = 15_000;
+
 /**
  * The guest's conversations, from `GET /api/v1/me/threads` (ADR-032).
  *
@@ -44,6 +47,20 @@ export function InboxScreen() {
   }, []);
 
   useEffect(load, [load]);
+
+  // New lines and unread counts arrive without a reload. Quietly: a refresh
+  // that fails keeps the list already on screen rather than replacing it with
+  // an error, and nothing flashes back to the loading shimmer.
+  useEffect(() => {
+    const timer = window.setInterval(() => {
+      if (document.visibilityState !== "visible") return;
+      void (async () => {
+        const next = await fetchMyThreads();
+        if (next.status === "ok") setResult(next);
+      })();
+    }, INBOX_POLL_MS);
+    return () => window.clearInterval(timer);
+  }, []);
 
   if (result === null) return <InboxLoading />;
 

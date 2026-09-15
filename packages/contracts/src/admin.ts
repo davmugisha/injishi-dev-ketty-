@@ -622,6 +622,10 @@ export const AdminOrgProperty = z.object({
     roomCount: z.number().int().nonnegative(),
     listingCount: z.number().int().nonnegative(),
     published: z.boolean(),
+    /** ADR-054 AC-R4: which branch is the head office. */
+    isHeadOffice: z.boolean(),
+    rraBranchId: z.string().nullable(),
+    archivedAt: z.string().nullable(),
 });
 export type AdminOrgProperty = z.infer<typeof AdminOrgProperty>;
 export const AdminOrgPropertiesResponse = listOf(AdminOrgProperty);
@@ -1345,6 +1349,21 @@ export const AdminSupportTicket = z.object({
     createdAt: z.string(),
 });
 export type AdminSupportTicket = z.infer<typeof AdminSupportTicket>;
+/**
+ * `GET /api/v1/admin/moderation/tickets/:ticketId?reason=` — one ticket with
+ * what the person WROTE and how to answer them. Kept off `AdminSupportTicket`
+ * on purpose: the list is a backlog anybody on the desk can scan, while the
+ * message and the contact details are somebody's words and address, so they
+ * cross only on this read, which states a reason and writes a
+ * `record_access_logs` row naming the ticket before it answers.
+ */
+export const AdminSupportTicketDetail = AdminSupportTicket.extend({
+    message: z.string().nullable(),
+    contactEmail: z.string().nullable(),
+    contactName: z.string().nullable(),
+    contactPhone: z.string().nullable(),
+});
+export type AdminSupportTicketDetail = z.infer<typeof AdminSupportTicketDetail>;
 /**
  * One escalation. The subject is a (type, id) pair rather than a set of
  * nullable foreign keys, because an escalation can point at any of eight

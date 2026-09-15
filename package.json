@@ -37,6 +37,7 @@
     "api:build": "pnpm --filter @injishi/api build",
     "api:start": "pnpm --filter @injishi/api start",
     "api:worker": "pnpm --filter @injishi/api worker",
+    "api:worker:dev": "pnpm --filter @injishi/api worker:dev",
     "db:seed": "pnpm --filter @injishi/api db:seed",
     "dev:stack": "node scripts/dev-stack.mjs",
     "dev:stack:down": "node scripts/dev-stack.mjs --down",

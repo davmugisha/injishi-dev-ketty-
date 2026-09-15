@@ -19,7 +19,6 @@ import {
   UpdatePropertyRequest,
   UpdateRatePlanRequest,
   UpdateRoomTypeRequest,
-  type WorkspaceAccess,
 } from '@injishi/contracts';
 import {
   Body,
@@ -41,12 +40,17 @@ import { RatePlansService } from '../../../modules/listing-setup/application/rat
 import { RoomTypesService } from '../../../modules/listing-setup/application/room-types.service';
 import { RoomsService } from '../../../modules/listing-setup/application/rooms.service';
 import { SetupProgressService } from '../../../modules/listing-setup/application/setup-progress.service';
-import { SessionGuard } from '../../../shared/auth/session.guard';
+import {
+  CurrentUser,
+  SessionGuard,
+  type SessionUser,
+} from '../../../shared/auth/session.guard';
 import {
   CurrentWorkspace,
   RequirePermission,
   WorkspaceGuard,
 } from '../../../shared/auth/workspace.guard';
+import type { ScopedWorkspace } from '../../../shared/auth/branch-scope';
 import { ZodValidationPipe } from '../../../shared/validation/zod-validation.pipe';
 
 /**
@@ -90,17 +94,28 @@ export class InventoryController {
    */
   @Get('rate-plans')
   listRatePlans(
-    @CurrentWorkspace() workspace: WorkspaceAccess,
+    @CurrentWorkspace() workspace: ScopedWorkspace,
   ): Promise<OperatorRatePlanList> {
     return this.ratePlans.list(workspace);
   }
 
-  /** Every property in this workspace, with its listing state. */
+  /**
+   * Every property in this workspace, with its listing state.
+   *
+   * `includeArchived=true` adds the archived branches, for the Branches screen
+   * (ADR-054). Anything else leaves them out.
+   */
   @Get('properties')
   async listProperties(
-    @CurrentWorkspace() workspace: WorkspaceAccess,
+    @Query('includeArchived') includeArchived: string | undefined,
+    @CurrentWorkspace() workspace: ScopedWorkspace,
   ): Promise<OperatorPropertyList> {
-    return { properties: await this.inventory.listProperties(workspace) };
+    return {
+      properties: await this.inventory.listProperties(
+        workspace,
+        includeArchived === 'true',
+      ),
+    };
   }
 
   /**
@@ -109,34 +124,84 @@ export class InventoryController {
    * Draft is the only state it can be created in: publishing is a separate act
    * with its own rules, and a property that arrived already visible would have
    * skipped every one of them.
+   *
+   * On a business that already has one, this is how a branch is added (ADR-054
+   * AC-M1): the same door, with a check that the caller covers every branch.
    */
   @Post('properties')
   createProperty(
     @Body(new ZodValidationPipe(CreatePropertyRequest))
     body: CreatePropertyRequest,
-    @CurrentWorkspace() workspace: WorkspaceAccess,
+    @CurrentWorkspace() workspace: ScopedWorkspace,
+    @CurrentUser() user: SessionUser,
   ): Promise<OperatorProperty> {
-    return this.inventory.createProperty(workspace, body);
+    return this.inventory.createProperty(workspace, body, user.id);
   }
 
   /** One property in full, draft or published. */
   @Get('properties/:id')
   getProperty(
     @Param('id', ParseUUIDPipe) id: string,
-    @CurrentWorkspace() workspace: WorkspaceAccess,
+    @CurrentWorkspace() workspace: ScopedWorkspace,
   ): Promise<OperatorProperty> {
     return this.inventory.getProperty(workspace, id);
   }
 
-  /** Edit a property. Only the fields sent are replaced. */
+  /**
+   * Edit a property. Only the fields sent are replaced. Sending `rraBranchId`
+   * also needs `ebm.manage`, checked in the service (ADR-054 AC-M2).
+   */
   @Patch('properties/:id')
   updateProperty(
     @Param('id', ParseUUIDPipe) id: string,
     @Body(new ZodValidationPipe(UpdatePropertyRequest))
     body: UpdatePropertyRequest,
-    @CurrentWorkspace() workspace: WorkspaceAccess,
+    @CurrentWorkspace() workspace: ScopedWorkspace,
+    @CurrentUser() user: SessionUser,
   ): Promise<OperatorProperty> {
-    return this.inventory.updateProperty(workspace, id, body);
+    return this.inventory.updateProperty(workspace, id, body, user.id);
+  }
+
+  // -------------------------------------------------------------------------
+  // Branches (ADR-054, AC-M3 to AC-M6)
+  // -------------------------------------------------------------------------
+
+  /**
+   * Archive a branch. `200`: nothing is created, a branch moves. A 409 names
+   * every reason it cannot move in `reasons`.
+   */
+  @Post('properties/:id/archive')
+  @HttpCode(200)
+  archiveBranch(
+    @Param('id', ParseUUIDPipe) id: string,
+    @CurrentWorkspace() workspace: ScopedWorkspace,
+    @CurrentUser() user: SessionUser,
+  ): Promise<OperatorProperty> {
+    return this.inventory.archiveBranch(workspace, id, user.id);
+  }
+
+  /** Restore an archived branch. Its listing stays a draft until published again. */
+  @Post('properties/:id/restore')
+  @HttpCode(200)
+  restoreBranch(
+    @Param('id', ParseUUIDPipe) id: string,
+    @CurrentWorkspace() workspace: ScopedWorkspace,
+    @CurrentUser() user: SessionUser,
+  ): Promise<OperatorProperty> {
+    return this.inventory.restoreBranch(workspace, id, user.id);
+  }
+
+  /** Make this branch the head office. Answers with every active branch. */
+  @Post('properties/:id/head-office')
+  @HttpCode(200)
+  async makeHeadOffice(
+    @Param('id', ParseUUIDPipe) id: string,
+    @CurrentWorkspace() workspace: ScopedWorkspace,
+    @CurrentUser() user: SessionUser,
+  ): Promise<OperatorPropertyList> {
+    return {
+      properties: await this.inventory.makeHeadOffice(workspace, id, user.id),
+    };
   }
 
   // -------------------------------------------------------------------------
@@ -147,7 +212,7 @@ export class InventoryController {
   @Get('properties/:id/room-types')
   async listRoomTypes(
     @Param('id', ParseUUIDPipe) id: string,
-    @CurrentWorkspace() workspace: WorkspaceAccess,
+    @CurrentWorkspace() workspace: ScopedWorkspace,
   ): Promise<OperatorRoomTypeList> {
     return { roomTypes: await this.roomTypes.list(workspace, id) };
   }
@@ -164,7 +229,7 @@ export class InventoryController {
     @Param('id', ParseUUIDPipe) id: string,
     @Body(new ZodValidationPipe(CreateRoomTypeRequest))
     body: CreateRoomTypeRequest,
-    @CurrentWorkspace() workspace: WorkspaceAccess,
+    @CurrentWorkspace() workspace: ScopedWorkspace,
   ): Promise<OperatorRoomType> {
     return this.roomTypes.create(workspace, id, body);
   }
@@ -181,7 +246,7 @@ export class InventoryController {
     @Param('id', ParseUUIDPipe) id: string,
     @Body(new ZodValidationPipe(UpdateRoomTypeRequest))
     body: UpdateRoomTypeRequest,
-    @CurrentWorkspace() workspace: WorkspaceAccess,
+    @CurrentWorkspace() workspace: ScopedWorkspace,
   ): Promise<OperatorRoomType> {
     return this.roomTypes.update(workspace, id, body);
   }
@@ -194,7 +259,7 @@ export class InventoryController {
   @Get('room-types/:id/rooms')
   async listRooms(
     @Param('id', ParseUUIDPipe) id: string,
-    @CurrentWorkspace() workspace: WorkspaceAccess,
+    @CurrentWorkspace() workspace: ScopedWorkspace,
   ): Promise<InventoryRoomList> {
     return { rooms: await this.rooms.list(workspace, id) };
   }
@@ -211,7 +276,7 @@ export class InventoryController {
     @Param('id', ParseUUIDPipe) id: string,
     @Body(new ZodValidationPipe(CreateRoomsRequest))
     body: CreateRoomsRequest,
-    @CurrentWorkspace() workspace: WorkspaceAccess,
+    @CurrentWorkspace() workspace: ScopedWorkspace,
   ): Promise<InventoryRoomList> {
     return { rooms: await this.rooms.add(workspace, id, body) };
   }
@@ -222,7 +287,7 @@ export class InventoryController {
     @Param('id', ParseUUIDPipe) id: string,
     @Body(new ZodValidationPipe(UpdateRoomRequest))
     body: UpdateRoomRequest,
-    @CurrentWorkspace() workspace: WorkspaceAccess,
+    @CurrentWorkspace() workspace: ScopedWorkspace,
   ): Promise<InventoryRoom> {
     return this.rooms.update(workspace, id, body);
   }
@@ -242,7 +307,7 @@ export class InventoryController {
   setupProgress(
     @Query('propertyId', new ParseUUIDPipe({ optional: true }))
     propertyId: string | undefined,
-    @CurrentWorkspace() workspace: WorkspaceAccess,
+    @CurrentWorkspace() workspace: ScopedWorkspace,
   ): Promise<PropertySetupProgress> {
     return this.setup.progress(workspace, propertyId);
   }
@@ -257,7 +322,7 @@ export class InventoryController {
     @Param('id', ParseUUIDPipe) id: string,
     @Body(new ZodValidationPipe(CreateRatePlanRequest))
     body: CreateRatePlanRequest,
-    @CurrentWorkspace() workspace: WorkspaceAccess,
+    @CurrentWorkspace() workspace: ScopedWorkspace,
   ): Promise<OperatorRatePlan> {
     return this.ratePlans.create(workspace, id, body);
   }
@@ -268,7 +333,7 @@ export class InventoryController {
     @Param('id', ParseUUIDPipe) id: string,
     @Body(new ZodValidationPipe(UpdateRatePlanRequest))
     body: UpdateRatePlanRequest,
-    @CurrentWorkspace() workspace: WorkspaceAccess,
+    @CurrentWorkspace() workspace: ScopedWorkspace,
   ): Promise<OperatorRatePlan> {
     return this.ratePlans.update(workspace, id, body);
   }
@@ -281,7 +346,7 @@ export class InventoryController {
   @Get('properties/:id/photos')
   async listPhotos(
     @Param('id', ParseUUIDPipe) id: string,
-    @CurrentWorkspace() workspace: WorkspaceAccess,
+    @CurrentWorkspace() workspace: ScopedWorkspace,
   ): Promise<PropertyPhotoList> {
     return { photos: await this.photos.list(workspace, id) };
   }
@@ -298,7 +363,7 @@ export class InventoryController {
     @Param('id', ParseUUIDPipe) id: string,
     @Body(new ZodValidationPipe(AttachPropertyPhotoRequest))
     body: AttachPropertyPhotoRequest,
-    @CurrentWorkspace() workspace: WorkspaceAccess,
+    @CurrentWorkspace() workspace: ScopedWorkspace,
   ): Promise<PropertyPhotoList> {
     return { photos: await this.photos.attach(workspace, id, body) };
   }
@@ -314,7 +379,7 @@ export class InventoryController {
     @Param('id', ParseUUIDPipe) id: string,
     @Body(new ZodValidationPipe(ReorderPropertyPhotosRequest))
     body: ReorderPropertyPhotosRequest,
-    @CurrentWorkspace() workspace: WorkspaceAccess,
+    @CurrentWorkspace() workspace: ScopedWorkspace,
   ): Promise<PropertyPhotoList> {
     return { photos: await this.photos.reorder(workspace, id, body) };
   }
@@ -324,7 +389,7 @@ export class InventoryController {
   async removePhoto(
     @Param('id', ParseUUIDPipe) id: string,
     @Param('photoId', ParseUUIDPipe) photoId: string,
-    @CurrentWorkspace() workspace: WorkspaceAccess,
+    @CurrentWorkspace() workspace: ScopedWorkspace,
   ): Promise<PropertyPhotoList> {
     return { photos: await this.photos.remove(workspace, id, photoId) };
   }
@@ -344,7 +409,7 @@ export class InventoryController {
   @HttpCode(200)
   publish(
     @Param('id', ParseUUIDPipe) id: string,
-    @CurrentWorkspace() workspace: WorkspaceAccess,
+    @CurrentWorkspace() workspace: ScopedWorkspace,
   ): Promise<OperatorProperty> {
     return this.inventory.publish(workspace, id);
   }
@@ -354,7 +419,7 @@ export class InventoryController {
   @HttpCode(200)
   unpublish(
     @Param('id', ParseUUIDPipe) id: string,
-    @CurrentWorkspace() workspace: WorkspaceAccess,
+    @CurrentWorkspace() workspace: ScopedWorkspace,
   ): Promise<OperatorProperty> {
     return this.inventory.unpublish(workspace, id);
   }

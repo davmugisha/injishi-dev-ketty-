@@ -43,6 +43,10 @@ import {
   workspaces,
 } from '../../../database/drizzle/schema';
 import {
+  inBranchScope,
+  type BranchScope,
+} from '../../../shared/auth/branch-scope';
+import {
   DRIZZLE,
   type Database,
 } from '../../../shared/database/database.module';
@@ -104,6 +108,12 @@ export interface OrderRow {
   id: string;
   workspaceId: string;
   propertyId: string | null;
+  /**
+   * The branch the order belongs to (ADR-054): its own property, else its
+   * outlet's. Null for a standalone outlet order, which only a member
+   * covering every branch sees (AC-T3).
+   */
+  branchPropertyId: string | null;
   /** The outlet it was ordered from, whose taxpayer its charge belongs to. */
   outletId: string | null;
   orderedByUserId: string | null;
@@ -129,6 +139,9 @@ export interface OrderRow {
   guestNote: string | null;
   createdAt: Date;
 }
+
+/** An order's branch: its own property, else its outlet's (ADR-054). */
+const ORDER_BRANCH = sql<string | null>`coalesce(${serviceOrders.propertyId}, ${outlets.propertyId})`;
 
 export interface OrderItemRow {
   id: string;
@@ -205,8 +218,13 @@ export class ServiceCatalogRepository {
 
   // --- The menu ------------------------------------------------------------
 
-  async listCategories(workspaceId: string): Promise<CategoryRow[]> {
-    return this.selectCategories(eq(serviceCategories.workspaceId, workspaceId));
+  async listCategories(workspaceId: string, scope: BranchScope): Promise<CategoryRow[]> {
+    return this.selectCategories(
+      and(
+        eq(serviceCategories.workspaceId, workspaceId),
+        inBranchScope(serviceCategories.propertyId, scope),
+      ) as SQL,
+    );
   }
 
   async listItems(categoryIds: string[]): Promise<ItemRow[]> {
@@ -459,8 +477,13 @@ export class ServiceCatalogRepository {
 
   // --- Orders --------------------------------------------------------------
 
-  async listOrders(workspaceId: string): Promise<OrderRow[]> {
-    return this.selectOrders(eq(serviceOrders.workspaceId, workspaceId));
+  async listOrders(workspaceId: string, scope: BranchScope): Promise<OrderRow[]> {
+    return this.selectOrders(
+      and(
+        eq(serviceOrders.workspaceId, workspaceId),
+        inBranchScope(ORDER_BRANCH, scope),
+      ) as SQL,
+    );
   }
 
   /**
@@ -1142,6 +1165,7 @@ export class ServiceCatalogRepository {
         id: serviceOrders.id,
         workspaceId: serviceOrders.workspaceId,
         propertyId: serviceOrders.propertyId,
+        branchPropertyId: ORDER_BRANCH,
         outletId: serviceOrders.outletId,
         orderedByUserId: serviceOrders.orderedByUserId,
         customerUserId: serviceOrders.customerUserId,
@@ -1169,6 +1193,7 @@ export class ServiceCatalogRepository {
       .from(serviceOrders)
       .leftJoin(departments, eq(departments.id, serviceOrders.departmentId))
       .leftJoin(rooms, eq(rooms.id, serviceOrders.roomId))
+      .leftJoin(outlets, eq(outlets.id, serviceOrders.outletId))
       .where(where)
       .orderBy(desc(serviceOrders.createdAt));
   }

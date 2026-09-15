@@ -3,7 +3,6 @@ import {
   type OperatorMessageList,
   type OperatorThreadList,
   SendMessageRequest,
-  type WorkspaceAccess,
 } from '@injishi/contracts';
 import {
   Body,
@@ -26,6 +25,7 @@ import {
   RequirePermission,
   WorkspaceGuard,
 } from '../../../shared/auth/workspace.guard';
+import type { ScopedWorkspace } from '../../../shared/auth/branch-scope';
 import { ZodValidationPipe } from '../../../shared/validation/zod-validation.pipe';
 
 /**
@@ -44,7 +44,7 @@ export class OpsThreadsController {
   /** Every conversation on this desk, newest activity first. */
   @Get()
   async list(
-    @CurrentWorkspace() workspace: WorkspaceAccess,
+    @CurrentWorkspace() workspace: ScopedWorkspace,
   ): Promise<OperatorThreadList> {
     return { threads: await this.messaging.listThreads(workspace) };
   }
@@ -53,7 +53,7 @@ export class OpsThreadsController {
   @Get(':id/messages')
   async messages(
     @Param('id', ParseUUIDPipe) id: string,
-    @CurrentWorkspace() workspace: WorkspaceAccess,
+    @CurrentWorkspace() workspace: ScopedWorkspace,
     @CurrentUser() user: SessionUser,
   ): Promise<OperatorMessageList> {
     return {
@@ -74,7 +74,7 @@ export class OpsThreadsController {
   send(
     @Param('id', ParseUUIDPipe) id: string,
     @Body(new ZodValidationPipe(SendMessageRequest)) body: SendMessageRequest,
-    @CurrentWorkspace() workspace: WorkspaceAccess,
+    @CurrentWorkspace() workspace: ScopedWorkspace,
     @CurrentUser() user: SessionUser,
   ): Promise<OperatorMessage> {
     return this.messaging.sendMessage(workspace, id, body, user.id);

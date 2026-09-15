@@ -2,7 +2,6 @@ import type {
   StayRefundRequestList,
   StayRefundRequestView,
   StayRefundState,
-  WorkspaceAccess,
 } from '@injishi/contracts';
 import { DecideStayRefundRequest, StayRefundState as StayRefundStateSchema } from '@injishi/contracts';
 import {
@@ -17,6 +16,7 @@ import {
 } from '@nestjs/common';
 
 import { StayRefundService } from '../../../modules/operations/application/stay-refund.service';
+import type { ScopedWorkspace } from '../../../shared/auth/branch-scope';
 import {
   CurrentUser,
   SessionGuard,
@@ -66,7 +66,7 @@ export class OpsRefundRequestsController {
   @Get()
   @RequirePermission('refund.decide')
   list(
-    @CurrentWorkspace() workspace: WorkspaceAccess,
+    @CurrentWorkspace() workspace: ScopedWorkspace,
     @Query('state') state: string | undefined,
   ): Promise<StayRefundRequestList> {
     const states = parseStates(state);
@@ -86,7 +86,7 @@ export class OpsRefundRequestsController {
     @Param('id', new ParseUUIDPipe()) requestId: string,
     @Body(new ZodValidationPipe(DecideStayRefundRequest))
     body: DecideStayRefundRequest,
-    @CurrentWorkspace() workspace: WorkspaceAccess,
+    @CurrentWorkspace() workspace: ScopedWorkspace,
     @CurrentUser() user: SessionUser,
   ): Promise<StayRefundRequestView> {
     return this.refunds.decide(workspace, requestId, body, user.id);

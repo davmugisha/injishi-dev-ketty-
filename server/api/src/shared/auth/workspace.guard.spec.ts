@@ -1,6 +1,7 @@
 import {
   ForbiddenException,
   InternalServerErrorException,
+  NotFoundException,
 } from '@nestjs/common';
 import type { ExecutionContext } from '@nestjs/common';
 import type { Reflector } from '@nestjs/core';
@@ -38,7 +39,12 @@ describe('WorkspaceGuard', () => {
     // fixture missing a field is a fixture that has already drifted.
     departments: ['rooms', 'fnb'],
     propertyName: 'Kivu Crest Hotel',
+    branches: [],
+    branchCoverage: 'all',
   };
+
+  const REMERA = '11111111-1111-4111-8111-111111111111';
+  const RUBAVU = '22222222-2222-4222-8222-222222222222';
 
   const RECEPTIONIST_ACCESS: WorkspaceAccess = {
     ...OWNER_ACCESS,
@@ -52,7 +58,7 @@ describe('WorkspaceGuard', () => {
     query?: Record<string, unknown>;
     params?: Record<string, string>;
     user?: { id: string; email: string };
-    workspace?: WorkspaceAccess;
+    workspace?: WorkspaceAccess & { branchScope?: unknown };
   }
 
   function contextFor(request: FakeRequest): ExecutionContext {
@@ -69,6 +75,7 @@ describe('WorkspaceGuard', () => {
   ): { guard: WorkspaceGuard; workspaces: WorkspaceService } {
     const workspaces = {
       resolveForUser: jest.fn().mockResolvedValue(resolved),
+      propertyIdsForWorkspace: jest.fn().mockResolvedValue([REMERA, RUBAVU]),
     } as unknown as WorkspaceService;
     const reflector = {
       getAllAndOverride: jest.fn().mockReturnValue(requiredPermission),
@@ -186,6 +193,8 @@ describe('WorkspaceGuard', () => {
         // A broker runs no departments.
         departments: [],
         propertyName: null,
+        branches: [],
+        branchCoverage: null,
       };
       const { guard } = guardWith(broker, 'money.view');
       const context = contextFor({
@@ -341,6 +350,44 @@ describe('WorkspaceGuard', () => {
 
     await guard.canActivate(contextFor(request));
 
-    expect(request.workspace).toEqual(OWNER_ACCESS);
+    // With no x-branch-id, every property of the workspace (ADR-054 AC-S2).
+    expect(request.workspace).toEqual({
+      ...OWNER_ACCESS,
+      branchScope: {
+        coverage: 'all',
+        selectedPropertyId: null,
+        propertyIds: [REMERA, RUBAVU],
+        includesUnbranched: true,
+      },
+    });
+  });
+
+  describe('the branch in view (ADR-054 AC-S2)', () => {
+    const withBranch = (branch: string): FakeRequest => ({
+      headers: { host: 'd', 'x-workspace-id': 'ws-owned', 'x-branch-id': branch },
+      user: signedIn,
+    });
+
+    it('narrows the scope to the one branch the header names', async () => {
+      const { guard } = guardWith(OWNER_ACCESS);
+      const request = withBranch(RUBAVU);
+      await guard.canActivate(contextFor(request));
+      expect(request.workspace?.branchScope).toEqual({
+        coverage: 'all',
+        selectedPropertyId: RUBAVU,
+        propertyIds: [RUBAVU],
+        includesUnbranched: false,
+      });
+    });
+
+    it.each([
+      ['a malformed id', 'not-a-uuid'],
+      ['a branch of another workspace', '33333333-3333-4333-8333-333333333333'],
+    ])('answers 404 for %s', async (_label, branch) => {
+      const { guard } = guardWith(OWNER_ACCESS);
+      await expect(guard.canActivate(contextFor(withBranch(branch)))).rejects.toThrow(
+        NotFoundException,
+      );
+    });
   });
 });

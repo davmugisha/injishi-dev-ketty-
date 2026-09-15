@@ -54,6 +54,7 @@ import {
   CurrentWorkspace,
   WorkspaceGuard,
 } from '../../../shared/auth/workspace.guard';
+import type { ScopedWorkspace } from '../../../shared/auth/branch-scope';
 import {
   TwoFactorService,
   type TwoFactorStatus,
@@ -415,7 +416,7 @@ export class MeController {
   @UseGuards(WorkspaceGuard)
   async setActiveWorkspace(
     @CurrentSession() session: SessionRecord,
-    @CurrentWorkspace() workspace: WorkspaceAccess,
+    @CurrentWorkspace() workspace: ScopedWorkspace,
   ): Promise<{
     activeWorkspace: WorkspaceAccess & { label: string };
     persisted: boolean;

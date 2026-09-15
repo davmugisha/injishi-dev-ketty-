@@ -4,7 +4,6 @@ import type {
   MyStays,
   StayClaimInvite,
   StayRegistrationDetails,
-  WorkspaceAccess,
 } from '@injishi/contracts';
 import { ClaimStayResult } from '@injishi/contracts';
 import {
@@ -15,6 +14,10 @@ import {
 } from '@nestjs/common';
 
 import { assertOwned } from '../../../shared/auth/assert-owned';
+import {
+  assertInBranchScope,
+  type ScopedWorkspace,
+} from '../../../shared/auth/branch-scope';
 import { FrontDeskRepository } from '../infrastructure/front-desk.repository';
 import {
   type MyStayRow,
@@ -115,11 +118,15 @@ export class StayClaimService {
    * code.
    */
   async issueInvite(
-    ws: WorkspaceAccess,
+    ws: ScopedWorkspace,
     stayId: string,
     body: IssueStayClaimInviteRequest,
   ): Promise<StayClaimInvite> {
     const stay = assertOwned(await this.stays.findStay(stayId), ws);
+    // ADR-054. Holding the workspace is not enough: a manager viewing one
+    // branch must not be able to print another branch's claim code, which is a
+    // key to that stay and to the identity captured on it.
+    assertInBranchScope(ws, stay.propertyId);
 
     if (body.email) {
       await this.claims.recordRegistration({ stayId: stay.id, email: body.email });
@@ -144,10 +151,11 @@ export class StayClaimService {
    * opened the stay record would be a surprising side effect on a read.
    */
   async currentInvite(
-    ws: WorkspaceAccess,
+    ws: ScopedWorkspace,
     stayId: string,
   ): Promise<StayClaimInvite> {
     const stay = assertOwned(await this.stays.findStay(stayId), ws);
+    assertInBranchScope(ws, stay.propertyId);
     const facts = await this.claims.invitationFacts(stay.id);
     if (!facts) throw new NotFoundException('That stay is not on this property.');
     return {

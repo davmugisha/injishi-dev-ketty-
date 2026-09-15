@@ -139,6 +139,10 @@ const PEOPLE = [
   // published code, so its staff persona holds the narrowest lens that still
   // shows the console working.
   { id: U(15), email: 'ops@demo.injishi.com',       name: 'Olivier Habimana',      kyc: 'verified',   nid: '1198880012345615', roles: ['admin'], staffRoles: ['ops'] },
+  // ADR-054 AC-D2: registered a hotel group with two branches, now waiting in
+  // Jean-Bosco's verification queue, so a presenter can show the branches an
+  // officer sees without typing a registration first.
+  { id: U(16), email: 'aimable@demo.injishi.com',   name: 'Aimable Ntwari',        kyc: 'verified',   nid: '1198980012345616' },
 ];
 
 const ORGS = [
@@ -155,6 +159,13 @@ const ORGS = [
     residenceClass: 'residential_landlord',
     registrationStatus: 'active', district: 'Gasabo',
   },
+  {
+    // ADR-054 AC-D2. Paid and TIN checked, so it sits at `tin_verified` in
+    // Gasabo, which is Jean-Bosco's district. Its branches are PR(7) to PR(9).
+    id: O(3), legalName: 'Inzozi Hotels Ltd', domain: 'hospitality',
+    tin: '102938004', entityGroup: 'accommodation', accommodationClass: 'hotel',
+    registrationStatus: 'tin_verified', district: 'Gasabo',
+  },
 ];
 
 const MEMBERSHIPS = [
@@ -163,6 +174,7 @@ const MEMBERSHIPS = [
   { orgId: O(1), userId: U(3), role: 'receptionist' },
   { orgId: O(1), userId: U(4), role: 'housekeeper' },
   { orgId: O(2), userId: U(5), role: 'owner' },
+  { orgId: O(3), userId: U(16), role: 'owner' },
   // **Samuel's Green Hills hat was REMOVED (ADR-038 child 0, task 14).**
   //
   // It was here to give him a landlord seat before he had a building of his
@@ -184,6 +196,8 @@ const WORKSPACES = [
   { id: W(6), kind: 'personal', userId: U(12) },
   { id: W(7), kind: 'personal', userId: U(13) },
   { id: W(8), kind: 'personal', userId: U(14) },
+  // The pending registration's workspace, pending and powerless (D20).
+  { id: W(9), kind: 'business', orgId: O(3) },
 ];
 
 /* ── Samuel's five seats (ADR-038 child 0, task 14, AC-S11) ────────────────
@@ -311,6 +325,9 @@ function hoursFromNow(offset) {
 const PROPERTIES = [
   {
     id: PR(1), orgId: O(1), workspaceId: W(1), slug: 'amahoro-boutique-hotel',
+    // ADR-054 AC-D1: the head office, in Remera. Set here rather than left to
+    // the head office pass, because the demo walks depend on which one it is.
+    isHeadOffice: true,
     name: 'Amahoro Boutique Hotel',
     description: 'Twenty rooms off the Remera roundabout, run by the group that owns it.',
     district: 'Gasabo', sector: 'Remera', street: 'KG 11 Ave',
@@ -319,7 +336,7 @@ const PROPERTIES = [
   },
   {
     // Samuel's work seat (housekeeper). The org existed with nothing to clean.
-    id: PR(2), orgId: SO(2), workspaceId: SW(2), slug: 'kivu-crest-hotel',
+    id: PR(2), orgId: SO(2), workspaceId: SW(2), slug: 'kivu-crest-hotel', isHeadOffice: true,
     name: 'Kivu Crest Hotel',
     description: 'A fictional demo hotel: fourteen rooms on the hill above the Gisenyi shore, a short walk to Lake Kivu.',
     district: 'Rubavu', sector: 'Gisenyi', street: 'Gisenyi lakeshore',
@@ -329,12 +346,64 @@ const PROPERTIES = [
   {
     // Samuel's parked host seat. Named for its town because the catalogue's own
     // Umurage Guesthouse (seed-content.mjs, Gasabo) already holds the plain slug.
-    id: PR(3), orgId: SO(3), workspaceId: SW(3), slug: 'umurage-guesthouse-musanze',
+    id: PR(3), orgId: SO(3), workspaceId: SW(3), slug: 'umurage-guesthouse-musanze', isHeadOffice: true,
     name: 'Umurage Guesthouse Musanze',
     description: 'A fictional demo guest house: six garden rooms in Musanze town, an hour from the Volcanoes park gate.',
     district: 'Musanze', sector: 'Muhoza', street: 'Musanze town centre',
     checkIn: '13:00', checkOut: '10:00',
     houseRules: 'Breakfast from 06:00 for trekking days. Quiet hours from 21:30.',
+  },
+  /* ── Amahoro's other branches (ADR-054 AC-D1) ────────────────────────────
+   *
+   * One TIN, one workspace, several locations. Musanze and Rubavu trade, each
+   * with its own RRA branch id; Kicukiro was retired, so it is archived with
+   * its listing back at draft and its slug kept, and one past stay proves its
+   * history stays readable.
+   */
+  {
+    id: PR(4), orgId: O(1), workspaceId: W(1), slug: 'amahoro-musanze', rraBranchId: '02',
+    name: 'Amahoro Musanze',
+    description: 'A fictional demo branch: ten rooms in Musanze town for trekkers heading to the Volcanoes park.',
+    district: 'Musanze', sector: 'Muhoza', street: 'NM 14 St',
+    checkIn: '13:00', checkOut: '10:00',
+    houseRules: 'Breakfast from 05:30 on trekking days. Quiet hours from 21:30.',
+  },
+  {
+    id: PR(5), orgId: O(1), workspaceId: W(1), slug: 'amahoro-rubavu', rraBranchId: '01',
+    name: 'Amahoro Rubavu',
+    description: 'A fictional demo branch: twelve rooms a street back from the Gisenyi lakeshore.',
+    district: 'Rubavu', sector: 'Gisenyi', street: 'Avenue de la Cooperation',
+    checkIn: '14:00', checkOut: '11:00',
+    houseRules: 'No smoking indoors. Quiet hours from 22:00.',
+  },
+  {
+    id: PR(6), orgId: O(1), workspaceId: W(1), slug: 'amahoro-kicukiro', archived: true,
+    name: 'Amahoro Kicukiro',
+    description: 'A fictional demo branch Amahoro closed. Archived, so it is off the marketplace.',
+    district: 'Kicukiro', sector: 'Kagarama', street: 'KK 31 Ave',
+    checkIn: '14:00', checkOut: '11:00',
+    houseRules: null,
+  },
+  // Inzozi Hotels Ltd, still in review (AC-D2). The head office and the two
+  // branches it declared, exactly as registration writes them: draft listings,
+  // no room types, nothing on the marketplace until approval.
+  {
+    id: PR(7), orgId: O(3), workspaceId: W(9), slug: null, isHeadOffice: true,
+    name: 'Inzozi Hotels Ltd', description: null,
+    district: 'Gasabo', sector: 'Kimironko', street: 'KG 180 St',
+    checkIn: null, checkOut: null, houseRules: null,
+  },
+  {
+    id: PR(8), orgId: O(3), workspaceId: W(9), slug: null,
+    name: 'Inzozi Huye', description: null,
+    district: 'Huye', sector: 'Ngoma', street: 'Huye town centre',
+    checkIn: null, checkOut: null, houseRules: null,
+  },
+  {
+    id: PR(9), orgId: O(3), workspaceId: W(9), slug: null,
+    name: 'Inzozi Karongi', description: null,
+    district: 'Karongi', sector: 'Bwishyura', street: 'Kibuye lakeshore',
+    checkIn: null, checkOut: null, houseRules: null,
   },
 ];
 
@@ -344,6 +413,14 @@ const LISTINGS = [
   { id: LS(1), propertyId: PR(1), workspaceId: W(1), status: 'published' },
   { id: LS(2), propertyId: PR(2), workspaceId: SW(2), status: 'published' },
   { id: LS(3), propertyId: PR(3), workspaceId: SW(3), status: 'published' },
+  // ADR-054. LS(4) is the residence building's, further down.
+  { id: LS(5), propertyId: PR(4), workspaceId: W(1), status: 'published' },
+  { id: LS(6), propertyId: PR(5), workspaceId: W(1), status: 'published' },
+  // Archiving returns a listing to draft (AC-M3).
+  { id: LS(7), propertyId: PR(6), workspaceId: W(1), status: 'draft' },
+  { id: LS(8), propertyId: PR(7), workspaceId: W(9), status: 'draft' },
+  { id: LS(9), propertyId: PR(8), workspaceId: W(9), status: 'draft' },
+  { id: LS(10), propertyId: PR(9), workspaceId: W(9), status: 'draft' },
 ];
 
 const ROOM_TYPES = [
@@ -372,6 +449,22 @@ const ROOM_TYPES = [
     maxGuests: 2, capacity: 2, roomCount: 2, priceRwf: 42000,
     bookingMode: 'instant_book', approvalPolicy: null, cancellationTier: 'flexible',
   },
+  // Amahoro's branches (ADR-054 AC-D1).
+  {
+    id: RT(5), propertyId: PR(4), workspaceId: W(1), name: 'Volcano View Double',
+    maxGuests: 2, capacity: 2, roomCount: 2, priceRwf: 65000,
+    bookingMode: 'instant_book', approvalPolicy: null, cancellationTier: 'flexible',
+  },
+  {
+    id: RT(6), propertyId: PR(5), workspaceId: W(1), name: 'Lakeside Double',
+    maxGuests: 2, capacity: 2, roomCount: 2, priceRwf: 70000,
+    bookingMode: 'instant_book', approvalPolicy: null, cancellationTier: 'flexible',
+  },
+  {
+    id: RT(7), propertyId: PR(6), workspaceId: W(1), name: 'Standard Double',
+    maxGuests: 2, capacity: 2, roomCount: 1, priceRwf: 40000,
+    bookingMode: 'instant_book', approvalPolicy: null, cancellationTier: 'flexible',
+  },
 ];
 
 // One "Standard rate" per room type, carrying the same values verbatim (F-L03).
@@ -393,6 +486,11 @@ const ROOMS = [
   { id: RM(6), roomTypeId: RT(3), label: '12', housekeeping: 'clean' },
   { id: RM(7), roomTypeId: RT(4), label: 'G1', housekeeping: 'clean' },
   { id: RM(8), roomTypeId: RT(4), label: 'G2', housekeeping: 'clean' },
+  { id: RM(9), roomTypeId: RT(5), label: 'M1', housekeeping: 'clean' },
+  { id: RM(10), roomTypeId: RT(5), label: 'M2', housekeeping: 'clean' },
+  { id: RM(11), roomTypeId: RT(6), label: 'R1', housekeeping: 'clean' },
+  { id: RM(12), roomTypeId: RT(6), label: 'R2', housekeeping: 'dirty' },
+  { id: RM(13), roomTypeId: RT(7), label: 'K1', housekeeping: 'clean' },
 ];
 
 /**
@@ -467,6 +565,45 @@ const MESSAGES = [
   // A closed conversation on an archived thread, so the read-only state is real.
   { id: MS(6), thread: TH(8), from: U(13), minutesAgo: 2880, body: 'I need to cancel this booking, I am sorry.' },
   { id: MS(7), thread: TH(8), from: U(2), minutesAgo: 2860, body: 'Cancelled and refunded in full. You are welcome back any time.' },
+  // Grace's request still waits on the desk, so her question is the last line
+  // and the thread reads as one the desk owes an answer to.
+  { id: MS(8), thread: TH(2), from: U(12), minutesAgo: 45, body: 'Hi, is there parking at the hotel? I will be driving from Huye.' },
+  // Arriving today: the guest gives a time, which is what the desk plans around.
+  { id: MS(9), thread: TH(4), from: U(14), minutesAgo: 30, body: 'Good morning, I should reach you around 14:00 today.' },
+  // The residence half (demo-comms, 2026-09-14). Without these the Landlord
+  // inbox opened to "No conversations yet", because nothing else ever makes a
+  // lease thread. Josephine (U5) owns Green Hills and answers her own tenants.
+  { id: MS(10), thread: TH(9),  from: U(11), minutesAgo: 1500, body: 'Hello Josephine, the kitchen tap in C1 is dripping again.' },
+  { id: MS(11), thread: TH(9),  from: U(5),  minutesAgo: 1440, body: 'Thanks Rayan, the caretaker will come tomorrow morning.' },
+  { id: MS(12), thread: TH(9),  from: U(11), minutesAgo: 60,   body: 'Fixed, thank you. Rent for this month is paid.' },
+  { id: MS(13), thread: TH(10), from: U(12), minutesAgo: 240,  body: 'Could I pay this month in two parts, on the 5th and the 20th?' },
+];
+
+/**
+ * One thread per tenancy that has an account behind it (demo-comms,
+ * 2026-09-14). A lease whose tenant has no account has nobody to write to, so
+ * only RR(30) and RR(31) get one. After the leases, because each hangs off one.
+ */
+const LEASE_THREADS = [
+  { id: TH(9),  leaseId: RR(30) },
+  { id: TH(10), leaseId: RR(31) },
+];
+
+/**
+ * Support tickets a moderator can open (demo-comms, 2026-09-14). The contact
+ * form is the only other thing that writes one, so a fresh demo opened the
+ * moderation desk to an empty list. Marked as demo in the message itself, like
+ * the catalogue seed marks its rows. Family `..19NN`, clear of 17 and 18, which
+ * ADR-038 reserves.
+ */
+const ST = (n) => `de300000-0000-4000-8000-0000000019${String(n).padStart(2, '0')}`; // support tickets
+const SUPPORT_TICKETS = [
+  { id: ST(1), requester: U(12), category: 'booking', minutesAgo: 95, email: 'grace@demo.injishi.com', name: 'Grace Kwizera', phone: null,
+    message: 'My request to book at Amahoro has been pending since yesterday. Will I be charged if the hotel declines? (demo sample)' },
+  { id: ST(2), requester: null, category: 'listing', minutesAgo: 400, email: 'claude.hakizimana@example.com', name: 'Claude Hakizimana', phone: '+250 788 000 111',
+    message: 'I run a guesthouse in Rubavu and want to list it. Which documents do I need for registration? (demo sample)' },
+  { id: ST(3), requester: U(11), category: 'payment', minutesAgo: 2000, email: 'rayan@demo.injishi.com', name: 'Rayan Iraguha', phone: null,
+    message: 'I paid for BK-DEMO-006 with MoMo twice by mistake. Please refund the second payment. (demo sample)', resolved: true },
 ];
 
 const STAYS = [
@@ -474,11 +611,52 @@ const STAYS = [
   { id: GS(2), bookingId: BK(6), roomId: RM(3), guest: U(11), lifecycle: 'closed', entryHours: -120, exitHours: -48 },
 ];
 
+/**
+ * Amahoro's branches trade too (ADR-054 AC-D1): each active branch has a guest
+ * arriving today and one in house, and the archived Kicukiro branch keeps one
+ * past stay, so a branch limited receptionist has a real desk to look at.
+ *
+ * A separate list rather than more rows in `BOOKINGS`, because that list mints
+ * its threads and escrows from its index, and `TH(9)` and `TH(10)` already
+ * belong to the lease conversations. These start at 21 in both families.
+ */
+const BRANCH_BOOKINGS = [
+  { id: BK(9),  ref: 'BK-DEMO-009', roomType: RT(5), guest: U(5),  status: 'confirmed', in: 0,   nights: 2, gross: 130000, thread: TH(21), escrow: ES(21) },
+  { id: BK(10), ref: 'BK-DEMO-010', roomType: RT(5), guest: U(12), status: 'confirmed', in: -1,  nights: 3, gross: 195000, thread: TH(22), escrow: ES(22) },
+  { id: BK(11), ref: 'BK-DEMO-011', roomType: RT(6), guest: U(11), status: 'confirmed', in: 0,   nights: 2, gross: 140000, thread: TH(23), escrow: ES(23) },
+  { id: BK(12), ref: 'BK-DEMO-012', roomType: RT(6), guest: U(13), status: 'confirmed', in: -2,  nights: 4, gross: 280000, thread: TH(24), escrow: ES(24) },
+  { id: BK(13), ref: 'BK-DEMO-013', roomType: RT(7), guest: U(11), status: 'confirmed', in: -40, nights: 2, gross: 80000,  thread: TH(25), escrow: ES(25) },
+];
+
+const BRANCH_THREADS = BRANCH_BOOKINGS.map((b) => ({ id: b.thread, bookingId: b.id, status: 'active' }));
+
+const BRANCH_STAYS = [
+  { id: GS(3), bookingId: BK(10), roomId: RM(9),  guest: U(12), lifecycle: 'open',   entryHours: -20,  exitHours: 50 },
+  { id: GS(4), bookingId: BK(12), roomId: RM(11), guest: U(13), lifecycle: 'open',   entryHours: -44,  exitHours: 52 },
+  { id: GS(5), bookingId: BK(13), roomId: RM(13), guest: U(11), lifecycle: 'closed', entryHours: -960, exitHours: -912 },
+];
+
 /** Money already taken. A refused or cancelled request is refunded in full. */
-const ESCROWS = BOOKINGS.map((b, i) => ({
-  id: ES(i + 1), bookingId: b.id, amountRwf: b.gross,
-  status: b.status === 'declined' || b.status === 'cancelled' ? 'refunded_full' : 'held',
-}));
+const ESCROWS = [
+  ...BOOKINGS.map((b, i) => ({
+    id: ES(i + 1), bookingId: b.id, amountRwf: b.gross,
+    status: b.status === 'declined' || b.status === 'cancelled' ? 'refunded_full' : 'held',
+  })),
+  // The past Kicukiro stay's money was released long ago; the rest is held.
+  ...BRANCH_BOOKINGS.map((b) => ({
+    id: b.escrow, bookingId: b.id, amountRwf: b.gross,
+    status: b.in + b.nights < 0 ? 'released' : 'held',
+  })),
+];
+
+/**
+ * The pending registration's one fee, paid (ADR-054 AC-D2, invariant 7). One
+ * invoice whatever the branch count. Family `..20NN`, clear of 17 to 19.
+ */
+const IV = (n) => `de300000-0000-4000-8000-0000000020${String(n).padStart(2, '0')}`; // invoices
+const PENDING_INVOICES = [
+  { id: IV(1), orgId: O(3), amountRwf: 100000 },
+];
 
 // --- Preconditions -----------------------------------------------------------
 
@@ -667,18 +845,38 @@ async function seedProperty(c, pr) {
   await c.query(
     `INSERT INTO properties
        (id, org_id, workspace_id, name, description, sector_id, district_id,
-        address_text, check_in_time, check_out_time, house_rules, slug)
-     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
-     ON CONFLICT (id) DO UPDATE SET slug = coalesce(properties.slug, excluded.slug)`,
+        address_text, check_in_time, check_out_time, house_rules, slug,
+        is_head_office, rra_branch_id, archived_at, archived_by_user_id)
+     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16)
+     ON CONFLICT (id) DO UPDATE
+       SET slug = coalesce(properties.slug, excluded.slug),
+           rra_branch_id = coalesce(properties.rra_branch_id, excluded.rra_branch_id)`,
     [
       pr.id, pr.orgId, pr.workspaceId, pr.name, pr.description,
       await sectorId(c, pr.district, pr.sector),
       await districtId(c, pr.district),
       pr.street, pr.checkIn, pr.checkOut, pr.houseRules, pr.slug,
+      // ADR-054. A branch is a property: the head office flag, the RRA branch
+      // id a receipt declares under, and when it was archived and by whom (the
+      // owner, Yves, for Amahoro's Kicukiro).
+      pr.isHeadOffice ?? false,
+      pr.rraBranchId ?? null,
+      pr.archived ? hoursFromNow(-24 * 20) : null,
+      pr.archived ? U(1) : null,
       // No photo column: ADR-053 moved photographs into `property_photos`, so a
       // seeded property has NO photograph and therefore cannot be published
       // until one is attached through the operator app.
     ],
+  );
+}
+
+/** A registration fee already settled (ADR-054 AC-D2). */
+async function seedPaidRegistrationFee(c, iv) {
+  await c.query(
+    `INSERT INTO subscription_invoices (id, org_id, invoice_kind, amount_rwf, status, idempotency_key)
+     VALUES ($1, $2, 'registration_fee', $3, 'paid', $4)
+     ON CONFLICT (id) DO NOTHING`,
+    [iv.id, iv.orgId, iv.amountRwf, `registration_fee:${iv.orgId}`],
   );
 }
 
@@ -808,6 +1006,41 @@ async function seedThread(c, t) {
   );
 }
 
+/** A tenancy's conversation, sorted by its newest line like a booking's. */
+async function seedLeaseThread(c, t) {
+  const newest = MESSAGES.filter((m) => m.thread === t.id).reduce(
+    (min, m) => Math.min(min, m.minutesAgo),
+    Number.POSITIVE_INFINITY,
+  );
+  const touched = Number.isFinite(newest) ? hoursFromNow(-newest / 60) : new Date();
+
+  await c.query(
+    `INSERT INTO threads (id, workspace_id, lease_id, thread_kind, status, updated_at)
+     VALUES ($1, $2, $3, 'reservation', 'active', $4)
+     ON CONFLICT (id) DO NOTHING`,
+    [t.id, W(2), t.leaseId, touched],
+  );
+}
+
+async function seedSupportTicket(c, t) {
+  const at = hoursFromNow(-t.minutesAgo / 60);
+  await c.query(
+    `INSERT INTO support_tickets
+       (id, requester_user_id, category, state, message, contact_email,
+        contact_name, contact_phone, first_response_at, resolved_at,
+        created_at, updated_at)
+     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $11)
+     ON CONFLICT (id) DO NOTHING`,
+    [
+      t.id, t.requester, t.category, t.resolved ? 'resolved' : 'open',
+      t.message, t.email, t.name, t.phone,
+      t.resolved ? hoursFromNow(-(t.minutesAgo - 30) / 60) : null,
+      t.resolved ? hoursFromNow(-(t.minutesAgo - 90) / 60) : null,
+      at,
+    ],
+  );
+}
+
 async function seedMessage(c, m) {
   await c.query(
     `INSERT INTO messages (id, thread_id, sender_user_id, body_type, body, created_at)
@@ -847,6 +1080,14 @@ async function seedEscrow(c, e) {
 /** Delete only what this script owns, by deterministic id. Never truncates. */
 async function reset(c) {
   const users = PEOPLE.map((p) => p.id);
+  // Conversations before anything they hang off: a lease thread points at a
+  // lease deleted just below, and a booking thread at a booking. Messages
+  // before threads. Support tickets point at the roster.
+  const threadIds = [...THREADS, ...LEASE_THREADS, ...BRANCH_THREADS].map((t) => t.id);
+  await c.query('DELETE FROM support_tickets WHERE id = ANY($1::uuid[])', [SUPPORT_TICKETS.map((t) => t.id)]);
+  await c.query('DELETE FROM messages WHERE id = ANY($1::uuid[])', [MESSAGES.map((m) => m.id)]);
+  await c.query('DELETE FROM thread_reads WHERE thread_id = ANY($1::uuid[])', [threadIds]);
+  await c.query('DELETE FROM threads WHERE id = ANY($1::uuid[])', [threadIds]);
   // Operational rows FIRST. `bookings` and `guest_stays` reference `workspaces`
   // with no cascade, so deleting the roster before them fails on a foreign key.
   // The residence rent roll first of all, and this was MISSING until task 15
@@ -861,19 +1102,16 @@ async function reset(c) {
   await c.query('DELETE FROM listings WHERE id = $1', [RESIDENCE_PROPERTY.listingId]);
   await c.query('DELETE FROM properties WHERE id = $1', [RESIDENCE_PROPERTY.id]);
 
-  // Messages before threads, threads before the bookings they point at.
-  await c.query('DELETE FROM messages WHERE id = ANY($1::uuid[])', [MESSAGES.map((m) => m.id)]);
-  await c.query('DELETE FROM thread_reads WHERE thread_id = ANY($1::uuid[])', [THREADS.map((t) => t.id)]);
-  await c.query('DELETE FROM threads WHERE id = ANY($1::uuid[])', [THREADS.map((t) => t.id)]);
   await c.query('DELETE FROM escrows WHERE id = ANY($1::uuid[])', [ESCROWS.map((e) => e.id)]);
-  await c.query('DELETE FROM guest_stays WHERE id = ANY($1::uuid[])', [STAYS.map((g) => g.id)]);
-  await c.query('DELETE FROM bookings WHERE id = ANY($1::uuid[])', [BOOKINGS.map((b) => b.id)]);
+  await c.query('DELETE FROM guest_stays WHERE id = ANY($1::uuid[])', [[...STAYS, ...BRANCH_STAYS].map((g) => g.id)]);
+  await c.query('DELETE FROM bookings WHERE id = ANY($1::uuid[])', [[...BOOKINGS, ...BRANCH_BOOKINGS].map((b) => b.id)]);
   await c.query('DELETE FROM rooms WHERE id = ANY($1::uuid[])', [ROOMS.map((r) => r.id)]);
   await c.query('DELETE FROM rate_plans WHERE id = ANY($1::uuid[])', [RATE_PLANS.map((r) => r.id)]);
   await c.query('DELETE FROM room_types WHERE id = ANY($1::uuid[])', [ROOM_TYPES.map((r) => r.id)]);
   await c.query('DELETE FROM listings WHERE id = ANY($1::uuid[])', [LISTINGS.map((l) => l.id)]);
   await c.query('DELETE FROM properties WHERE id = ANY($1::uuid[])', [PROPERTIES.map((r) => r.id)]);
   await c.query('DELETE FROM oversight_assignments WHERE id = ANY($1::uuid[])', [ASSIGNMENTS.map((a) => a.id)]);
+  await c.query('DELETE FROM subscription_invoices WHERE id = ANY($1::uuid[])', [PENDING_INVOICES.map((i) => i.id)]);
   // Samuel's three business seats go with the rest. Listed as one array per
   // table so a seat added above and forgotten here cannot leave a row that
   // `--reset` is unable to clear.
@@ -1130,6 +1368,13 @@ const REFRESHABLE = [
   { table: 'escrows', key: 'id' },
   { table: 'leases', key: 'id' },
   { table: 'rent_charges', key: 'id' },
+  // Conversations and support tickets (demo-comms, 2026-09-14): without these a
+  // refreshed demo showed today's bookings beside messages from last week.
+  { table: 'threads', key: 'id' },
+  { table: 'messages', key: 'id' },
+  { table: 'support_tickets', key: 'id' },
+  // ADR-054: the pending registration's settled fee.
+  { table: 'subscription_invoices', key: 'id' },
 ];
 
 /**
@@ -1328,17 +1573,28 @@ async function main() {
     for (const rt of ROOM_TYPES) await seedRoomType(client, rt);
     for (const rp of RATE_PLANS) await seedRatePlan(client, rp);
     for (const rm of ROOMS) await seedRoom(client, rm);
-    for (const b of BOOKINGS) await seedBooking(client, b);
+    for (const b of [...BOOKINGS, ...BRANCH_BOOKINGS]) await seedBooking(client, b);
     // One thread per booking, then the lines in them. Threads before messages,
     // and both after the bookings they hang off.
-    for (const t of THREADS) await seedThread(client, t);
-    for (const m of MESSAGES) await seedMessage(client, m);
-    for (const st of STAYS) await seedStay(client, st);
+    for (const t of [...THREADS, ...BRANCH_THREADS]) await seedThread(client, t);
+    for (const m of MESSAGES.filter((x) => THREADS.some((t) => t.id === x.thread))) {
+      await seedMessage(client, m);
+    }
+    for (const st of [...STAYS, ...BRANCH_STAYS]) await seedStay(client, st);
     for (const e of ESCROWS) await seedEscrow(client, e);
+    for (const iv of PENDING_INVOICES) await seedPaidRegistrationFee(client, iv);
 
     // The residence half: the units, leases and rent charges the Landlord rent
     // roll reads. After the workspaces, because every row hangs off W(2).
     await seedResidenceRentRoll(client);
+    // Tenancy conversations after the leases, then their lines. The booking
+    // loop above writes only booking-thread lines, because a lease thread does
+    // not exist until this point and its lines would fail the foreign key.
+    for (const t of LEASE_THREADS) await seedLeaseThread(client, t);
+    for (const m of MESSAGES.filter((x) => LEASE_THREADS.some((t) => t.id === x.thread))) {
+      await seedMessage(client, m);
+    }
+    for (const t of SUPPORT_TICKETS) await seedSupportTicket(client, t);
 
     // Before anything is reported as seeded, not after.
     await assertNoSelfLease(client);
@@ -1369,6 +1625,21 @@ async function main() {
     );
     console.log('\nAmahoro reservations desk:');
     for (const d of desk) console.log(`  ${d.status.padEnd(18)} ${d.n}`);
+    // ADR-054: the branches, as the operator app's grant will read them back.
+    const { rows: branches } = await client.query(
+      `SELECT o.legal_name, p.name, p.is_head_office, p.rra_branch_id, p.archived_at IS NOT NULL AS archived
+         FROM properties p JOIN orgs o ON o.id = p.org_id
+        WHERE p.org_id = ANY($1::uuid[])
+        ORDER BY o.legal_name, p.is_head_office DESC, p.name`,
+      [[O(1), O(3)]],
+    );
+    console.log('\nBranches (ADR-054):');
+    for (const b of branches) {
+      const marks = [b.is_head_office && 'head office', b.rra_branch_id && `RRA ${b.rra_branch_id}`, b.archived && 'archived']
+        .filter(Boolean).join(', ');
+      console.log(`  ${b.legal_name.padEnd(26)} ${b.name.padEnd(24)} ${marks}`);
+    }
+
     console.log('\nSign in as yves@demo.injishi.com (code 123456) and open /host/reservations.');
     console.log('Two requests are pending; Approve and Decline both act on real rows.');
   } finally {

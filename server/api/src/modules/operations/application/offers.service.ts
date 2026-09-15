@@ -9,7 +9,6 @@ import type {
   RedeemOfferRequest,
   RedeemOfferResult,
   UpdateOfferRequest,
-  WorkspaceAccess,
 } from '@injishi/contracts';
 import { PROPERTY_TIME_ZONE, offerEligibility } from '@injishi/contracts';
 import {
@@ -21,6 +20,10 @@ import {
 } from '@nestjs/common';
 
 import { assertOwned } from '../../../shared/auth/assert-owned';
+import {
+  assertInBranchScope,
+  type ScopedWorkspace,
+} from '../../../shared/auth/branch-scope';
 import { FolioRepository } from '../infrastructure/folio.repository';
 import {
   isOfferCodeCollision,
@@ -81,8 +84,12 @@ export class OffersService {
 
   /* --------------------------------------------------- the property's side */
 
-  async list(ws: WorkspaceAccess, propertyId?: string): Promise<OfferList> {
-    const rows = await this.offers.listForWorkspace(ws.workspaceId, propertyId);
+  async list(ws: ScopedWorkspace, propertyId?: string): Promise<OfferList> {
+    const rows = await this.offers.listForWorkspace(
+      ws.workspaceId,
+      ws.branchScope,
+      propertyId,
+    );
     const counts = await this.offers.redemptionCounts(rows.map((r) => r.id));
     return {
       offers: rows.map((row) => this.present(row, counts.get(row.id) ?? 0)),
@@ -90,7 +97,7 @@ export class OffersService {
   }
 
   async create(
-    ws: WorkspaceAccess,
+    ws: ScopedWorkspace,
     body: CreateOfferRequest,
     actorUserId: string,
   ): Promise<Offer> {
@@ -108,6 +115,9 @@ export class OffersService {
     if (!property || property.workspaceId !== ws.workspaceId) {
       throw new NotFoundException('That property is not on this workspace.');
     }
+    // ADR-054. Writing a price for a branch the caller is not covering is the
+    // same act as reading one, and answers the same 404.
+    assertInBranchScope(ws, body.propertyId, 'That property is');
 
     if (body.departmentId) {
       const department = await this.folios.findDepartment(body.departmentId);
@@ -159,11 +169,12 @@ export class OffersService {
   }
 
   async update(
-    ws: WorkspaceAccess,
+    ws: ScopedWorkspace,
     offerId: string,
     body: UpdateOfferRequest,
   ): Promise<Offer> {
     const offer = assertOwned(await this.offers.find(offerId), ws);
+    assertInBranchScope(ws, offer.propertyId, 'That offer is');
 
     // A percentage is 1 to 100 and the database says so too. Checked here
     // as well because the kind may be changing in the same call, and a

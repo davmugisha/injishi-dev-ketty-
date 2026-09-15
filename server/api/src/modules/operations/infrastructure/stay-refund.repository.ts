@@ -17,6 +17,10 @@ import {
   users,
 } from '../../../database/drizzle/schema';
 import {
+  inBranchScope,
+  type BranchScope,
+} from '../../../shared/auth/branch-scope';
+import {
   DRIZZLE,
   type Database,
 } from '../../../shared/database/database.module';
@@ -30,6 +34,8 @@ export interface RefundRequestRow {
   folioId: string | null;
   bookingId: string | null;
   raisedByUserId: string;
+  /** The branch this request belongs to, through the stay's room (ADR-054). */
+  propertyId: string | null;
   propertyName: string | null;
   roomLabel: string | null;
   guestName: string | null;
@@ -154,19 +160,29 @@ export class StayRefundRepository {
     return this.rows(eq(stayRefundRequests.raisedByUserId, userId));
   }
 
-  /** The property's queue. `states` narrows it; absent means all of them. */
+  /**
+   * The property's queue, inside the caller's branch scope (ADR-054).
+   * `states` narrows it further; absent means all of them.
+   *
+   * A request reaches its branch through the stay's ROOM, which is the same
+   * path `listStays` takes. `rooms.property_id` is NOT NULL, so the scope's
+   * unbranched arm matches nothing here — a refund request always belongs to
+   * whichever branch the guest slept in.
+   */
   async listForWorkspace(
     workspaceId: string,
+    scope: BranchScope,
     states?: StayRefundState[],
   ): Promise<RefundRequestRow[]> {
-    const where =
+    const scoped = and(
+      eq(stayRefundRequests.workspaceId, workspaceId),
+      inBranchScope(rooms.propertyId, scope),
+    );
+    return this.rows(
       states && states.length > 0
-        ? and(
-            eq(stayRefundRequests.workspaceId, workspaceId),
-            inArray(stayRefundRequests.state, states),
-          )
-        : eq(stayRefundRequests.workspaceId, workspaceId);
-    return this.rows(where);
+        ? and(scoped, inArray(stayRefundRequests.state, states))
+        : scoped,
+    );
   }
 
   /**
@@ -246,6 +262,7 @@ export class StayRefundRepository {
         folioId: stayRefundRequests.folioId,
         bookingId: stayRefundRequests.bookingId,
         raisedByUserId: stayRefundRequests.raisedByUserId,
+        propertyId: rooms.propertyId,
         propertyName: properties.name,
         roomLabel: rooms.label,
         guestName: sql<

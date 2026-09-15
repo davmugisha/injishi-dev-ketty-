@@ -1,7 +1,6 @@
 import type {
   BookingApprovalResult,
   BookingCancellationResult,
-  WorkspaceAccess,
 } from '@injishi/contracts';
 import {
   Controller,
@@ -19,6 +18,7 @@ import {
   RequirePermission,
   WorkspaceGuard,
 } from '../../../shared/auth/workspace.guard';
+import type { ScopedWorkspace } from '../../../shared/auth/branch-scope';
 
 /**
  * The host's decisions on a booking → `/api/v1/bookings/:id/approve`, `/decline`
@@ -49,7 +49,7 @@ export class BookingDecisionsController {
   @RequirePermission('reservation.approve')
   approve(
     @Param('id', ParseUUIDPipe) id: string,
-    @CurrentWorkspace() workspace: WorkspaceAccess,
+    @CurrentWorkspace() workspace: ScopedWorkspace,
   ): Promise<BookingApprovalResult> {
     return this.approvals.approve(id, workspace);
   }
@@ -59,7 +59,7 @@ export class BookingDecisionsController {
   @RequirePermission('reservation.approve')
   decline(
     @Param('id', ParseUUIDPipe) id: string,
-    @CurrentWorkspace() workspace: WorkspaceAccess,
+    @CurrentWorkspace() workspace: ScopedWorkspace,
   ): Promise<BookingApprovalResult> {
     return this.approvals.decline(id, workspace);
   }
@@ -74,7 +74,7 @@ export class BookingDecisionsController {
   @RequirePermission('reservation.approve')
   hostCancel(
     @Param('id', ParseUUIDPipe) id: string,
-    @CurrentWorkspace() workspace: WorkspaceAccess,
+    @CurrentWorkspace() workspace: ScopedWorkspace,
   ): Promise<BookingCancellationResult> {
     return this.cancellations.cancelByHost(id, workspace);
   }

@@ -82,9 +82,12 @@ export function OrderPlaced({
 
       <div className="mt-6 flex flex-wrap gap-2">
         <Button asChild variant="primary">
-          <a href={`/inbox/${order.threadId}`}>
+          {/* The list, not the order's own thread: an order's thread id is a
+              local `slug--department` key, not a conversation the API knows, so
+              that link opened "We couldn't open this conversation" (demo-comms). */}
+          <a href="/inbox">
             <Icon name="message-square" className="h-4 w-4" />
-            Track it in the kitchen chat
+            Message the property
           </a>
         </Button>
         <Button variant="outline" onClick={onOrderMore}>

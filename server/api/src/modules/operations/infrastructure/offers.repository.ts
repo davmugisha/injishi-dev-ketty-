@@ -14,6 +14,10 @@ import {
   properties,
 } from '../../../database/drizzle/schema';
 import {
+  inBranchScope,
+  type BranchScope,
+} from '../../../shared/auth/branch-scope';
+import {
   DRIZZLE,
   type Database,
 } from '../../../shared/database/database.module';
@@ -72,18 +76,27 @@ export function isOfferCodeCollision(error: unknown): boolean {
 export class OffersRepository {
   constructor(@Inject(DRIZZLE) private readonly db: Database) {}
 
-  /** Every offer this property has ever written, newest first. */
+  /**
+   * Every offer this workspace has written, inside the caller's branch scope
+   * (ADR-054).
+   *
+   * `offers.property_id` is NOT NULL, so an offer always belongs to exactly one
+   * branch and there are no unbranched rows for the scope to admit. Filtering
+   * here rather than after the read is the point: a list that fetched every
+   * branch and dropped some in JavaScript is one refactor away from not
+   * dropping them.
+   */
   async listForWorkspace(
     workspaceId: string,
+    scope: BranchScope,
     propertyId?: string,
   ): Promise<OfferRow[]> {
+    const scoped = and(
+      eq(offers.workspaceId, workspaceId),
+      inBranchScope(offers.propertyId, scope),
+    );
     return this.rows(
-      propertyId
-        ? and(
-            eq(offers.workspaceId, workspaceId),
-            eq(offers.propertyId, propertyId),
-          )
-        : eq(offers.workspaceId, workspaceId),
+      propertyId ? and(scoped, eq(offers.propertyId, propertyId)) : scoped,
     );
   }
 

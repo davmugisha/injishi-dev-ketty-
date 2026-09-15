@@ -7,7 +7,6 @@ import type {
   StayRefundRequestList,
   StayRefundRequestView,
   StayRefundState,
-  WorkspaceAccess,
 } from '@injishi/contracts';
 import {
   CANCELLATION_TIERS,
@@ -24,6 +23,10 @@ import {
   ServiceUnavailableException,
 } from '@nestjs/common';
 
+import {
+  assertInBranchScope,
+  type ScopedWorkspace,
+} from '../../../shared/auth/branch-scope';
 import {
   PAYMENT_PORT,
   type PaymentPort,
@@ -234,10 +237,14 @@ export class StayRefundService {
   /* --------------------------------------------------- the property's side */
 
   async listForWorkspace(
-    ws: WorkspaceAccess,
+    ws: ScopedWorkspace,
     states?: StayRefundState[],
   ): Promise<StayRefundRequestList> {
-    const rows = await this.requests.listForWorkspace(ws.workspaceId, states);
+    const rows = await this.requests.listForWorkspace(
+      ws.workspaceId,
+      ws.branchScope,
+      states,
+    );
     return { requests: rows.map((row) => this.present(row)) };
   }
 
@@ -263,7 +270,7 @@ export class StayRefundService {
    * that was never taken, or take it out of the wrong pocket.
    */
   async decide(
-    ws: WorkspaceAccess,
+    ws: ScopedWorkspace,
     requestId: string,
     body: DecideStayRefundRequest,
     actorUserId: string,
@@ -274,6 +281,9 @@ export class StayRefundService {
     if (!row || row.workspaceId !== ws.workspaceId) {
       throw new NotFoundException('That request is not on this property.');
     }
+    // ADR-054, and it is the same 404 for the same reason: a manager covering
+    // one branch must not answer — or refuse — another branch's guest.
+    assertInBranchScope(ws, row.propertyId, 'That request is');
     if (row.state !== 'submitted') {
       throw new ConflictException(
         `That request has already been ${row.state}. Refresh to see where it stands.`,

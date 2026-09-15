@@ -230,6 +230,12 @@ services:
   mailpit:
     image: axllent/mailpit:v1.31.1
     restart: unless-stopped
+    environment:
+      # The same setting the local compose carries. Mailpit looks up the client's
+      # reverse DNS before its 220 greeting; where that lookup stalls past the
+      # API's 5s greeting timeout every demo sign-in code fails with a 500,
+      # because NODE_ENV=production turns the log fallback off (demo-comms).
+      MP_SMTP_DISABLE_RDNS: "true"
     expose:
       - "1025"
       - "8025"

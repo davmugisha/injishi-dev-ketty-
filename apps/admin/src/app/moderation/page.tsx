@@ -1,4 +1,5 @@
 import { Flag } from "lucide-react";
+import Link from "next/link";
 
 import { Badge } from "@injishi/ui";
 import { getModeration } from "@/lib/api/moderation";
@@ -127,7 +128,7 @@ function RowTable({
 }: {
   heading: string;
   caption: string;
-  rows: SectionRow[];
+  rows: (SectionRow & { href?: string })[];
   empty: string;
 }) {
   return (
@@ -155,7 +156,15 @@ function RowTable({
               {rows.map((row, i) => (
                 <tr key={`${row.ref}-${row.subject}-${i}`}>
                   <td className="money p-4 text-xs font-semibold">{row.ref}</td>
-                  <td className="p-4">{row.subject}</td>
+                  <td className="p-4">
+                    {row.href ? (
+                      <Link href={row.href} className="font-semibold text-accent-text hover:underline">
+                        {row.subject}
+                      </Link>
+                    ) : (
+                      row.subject
+                    )}
+                  </td>
                   <td className="p-4 text-muted-foreground">{row.context}</td>
                   <td className="p-4">
                     <Badge variant={row.intent}>{row.state}</Badge>

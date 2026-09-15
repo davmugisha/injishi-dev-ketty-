@@ -12,7 +12,6 @@ import {
   UpdateServiceCategoryRequest,
   UpdateServiceItemRequest,
   UpsertServiceItemRequest,
-  type WorkspaceAccess,
 } from '@injishi/contracts';
 import {
   Body,
@@ -39,6 +38,7 @@ import {
   RequirePermission,
   WorkspaceGuard,
 } from '../../../shared/auth/workspace.guard';
+import type { ScopedWorkspace } from '../../../shared/auth/branch-scope';
 import { ZodValidationPipe } from '../../../shared/validation/zod-validation.pipe';
 
 /**
@@ -58,7 +58,7 @@ export class OpsServiceCatalogController {
 
   @Get()
   menu(
-    @CurrentWorkspace() workspace: WorkspaceAccess,
+    @CurrentWorkspace() workspace: ScopedWorkspace,
   ): Promise<OperatorServiceCatalog> {
     return this.catalog.menu(workspace);
   }
@@ -68,7 +68,7 @@ export class OpsServiceCatalogController {
   createCategory(
     @Body(new ZodValidationPipe(CreateServiceCategoryRequest))
     body: CreateServiceCategoryRequest,
-    @CurrentWorkspace() workspace: WorkspaceAccess,
+    @CurrentWorkspace() workspace: ScopedWorkspace,
   ): Promise<OperatorServiceCatalog> {
     return this.catalog.createCategory(workspace, body);
   }
@@ -80,7 +80,7 @@ export class OpsServiceCatalogController {
     @Param('id', ParseUUIDPipe) id: string,
     @Body(new ZodValidationPipe(UpdateServiceCategoryRequest))
     body: UpdateServiceCategoryRequest,
-    @CurrentWorkspace() workspace: WorkspaceAccess,
+    @CurrentWorkspace() workspace: ScopedWorkspace,
   ): Promise<OperatorServiceCatalog> {
     return this.catalog.updateCategory(workspace, id, body);
   }
@@ -90,7 +90,7 @@ export class OpsServiceCatalogController {
   createItem(
     @Body(new ZodValidationPipe(UpsertServiceItemRequest))
     body: UpsertServiceItemRequest,
-    @CurrentWorkspace() workspace: WorkspaceAccess,
+    @CurrentWorkspace() workspace: ScopedWorkspace,
   ): Promise<OperatorServiceCatalog> {
     return this.catalog.createItem(workspace, body);
   }
@@ -110,7 +110,7 @@ export class OpsServiceCatalogController {
     @Param('id', ParseUUIDPipe) id: string,
     @Body(new ZodValidationPipe(UpdateServiceItemRequest))
     body: UpdateServiceItemRequest,
-    @CurrentWorkspace() workspace: WorkspaceAccess,
+    @CurrentWorkspace() workspace: ScopedWorkspace,
   ): Promise<OperatorServiceCatalog> {
     return this.catalog.updateItem(workspace, id, body);
   }
@@ -134,7 +134,7 @@ export class OpsServiceOrdersController {
 
   @Get()
   async list(
-    @CurrentWorkspace() workspace: WorkspaceAccess,
+    @CurrentWorkspace() workspace: ScopedWorkspace,
   ): Promise<OperatorServiceOrderList> {
     return { orders: await this.catalog.listOrders(workspace) };
   }
@@ -144,7 +144,7 @@ export class OpsServiceOrdersController {
   create(
     @Body(new ZodValidationPipe(CreateServiceOrderRequest))
     body: CreateServiceOrderRequest,
-    @CurrentWorkspace() workspace: WorkspaceAccess,
+    @CurrentWorkspace() workspace: ScopedWorkspace,
     @Headers('idempotency-key') key: string | undefined,
   ): Promise<OperatorServiceOrder> {
     return this.catalog.createOrder(workspace, body, key ?? null);
@@ -156,7 +156,7 @@ export class OpsServiceOrdersController {
     @Param('id', ParseUUIDPipe) id: string,
     @Body(new ZodValidationPipe(AdvanceServiceOrderRequest))
     body: AdvanceServiceOrderRequest,
-    @CurrentWorkspace() workspace: WorkspaceAccess,
+    @CurrentWorkspace() workspace: ScopedWorkspace,
     @CurrentUser() user: SessionUser,
   ): Promise<OperatorServiceOrder> {
     return this.catalog.advanceOrder(workspace, id, body, user.id);
@@ -175,7 +175,7 @@ export class OpsServiceOrdersController {
     @Param('id', ParseUUIDPipe) id: string,
     @Body(new ZodValidationPipe(MarkOrderPaidCashRequest))
     body: MarkOrderPaidCashRequest,
-    @CurrentWorkspace() workspace: WorkspaceAccess,
+    @CurrentWorkspace() workspace: ScopedWorkspace,
     @CurrentUser() user: SessionUser,
     // Required, and refused when missing or malformed, before anything runs.
     // Its value is not needed: the replay is the order's own state and NS key.

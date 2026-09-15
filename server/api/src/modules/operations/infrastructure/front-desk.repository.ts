@@ -13,6 +13,10 @@ import {
   DRIZZLE,
   type Database,
 } from '../../../shared/database/database.module';
+import {
+  inBranchScope,
+  type BranchScope,
+} from '../../../shared/auth/branch-scope';
 import { enqueueCheckoutClean } from './housekeeping.repository';
 
 const OPEN_STAY_PER_ROOM = 'guest_stays_one_open_per_room_uk';
@@ -48,6 +52,8 @@ export interface OccupancyRow {
 export interface CheckInSubject {
   id: string;
   workspaceId: string;
+  /** Through the room type: the branch this reservation belongs to (ADR-054). */
+  propertyId: string | null;
   status: string;
   guestUserId: string | null;
   checkOut: string;
@@ -86,7 +92,7 @@ export class FrontDeskRepository {
 
   // --- Rooms ---------------------------------------------------------------
 
-  async listRooms(workspaceId: string): Promise<RoomRow[]> {
+  async listRooms(workspaceId: string, scope: BranchScope): Promise<RoomRow[]> {
     return this.db
       .select({
         id: rooms.id,
@@ -100,7 +106,7 @@ export class FrontDeskRepository {
       })
       .from(rooms)
       .innerJoin(roomTypes, eq(roomTypes.id, rooms.roomTypeId))
-      .where(eq(rooms.workspaceId, workspaceId))
+      .where(and(eq(rooms.workspaceId, workspaceId), inBranchScope(rooms.propertyId, scope)))
       .orderBy(rooms.label);
   }
 
@@ -193,12 +199,14 @@ export class FrontDeskRepository {
       .select({
         id: bookings.id,
         workspaceId: bookings.workspaceId,
+        propertyId: roomTypes.propertyId,
         status: bookings.status,
         guestUserId: bookings.guestUserId,
         checkOut: bookings.checkOut,
         lockedNightlyRateRwf: bookings.lockedNightlyRateRwf,
       })
       .from(bookings)
+      .leftJoin(roomTypes, eq(roomTypes.id, bookings.roomTypeId))
       .where(eq(bookings.id, bookingId))
       .limit(1);
 
@@ -227,8 +235,11 @@ export class FrontDeskRepository {
    * Closed stays are included. A guest disputing a charge three nights after
    * checking out is the case the record page exists for.
    */
-  async listStays(workspaceId: string): Promise<StayRow[]> {
-    return this.findStays(eq(guestStays.workspaceId, workspaceId));
+  async listStays(workspaceId: string, scope: BranchScope): Promise<StayRow[]> {
+    // Through the room, never the booking: a walk in has none (ADR-054).
+    return this.findStays(
+      and(eq(guestStays.workspaceId, workspaceId), inBranchScope(rooms.propertyId, scope)) as SQL,
+    );
   }
 
   async findStay(stayId: string): Promise<StayRow | null> {

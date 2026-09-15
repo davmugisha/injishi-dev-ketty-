@@ -1,5 +1,6 @@
 import { WorkspaceAccess, workspaceLabel } from "@injishi/contracts";
 import type {
+  BranchCoverage,
   DepartmentCategory,
   OrgRegistrationStatus,
   Permission,
@@ -79,6 +80,12 @@ export interface MyWorkspace {
    * property yet.
    */
   propertyName: string | null;
+  /**
+   * Whether this member covers every branch of the business, or only some
+   * (ADR-054). The Branches screen hides the org wide moves from a `limited`
+   * member; the API refuses them either way. Null outside a business workspace.
+   */
+  branchCoverage: BranchCoverage | null;
 }
 
 /**
@@ -207,6 +214,7 @@ export async function fetchMyWorkspaces(): Promise<MeState> {
       workspaceId: w.workspaceId,
       departments: w.departments,
       propertyName: w.propertyName,
+      branchCoverage: w.branchCoverage,
     });
   }
 

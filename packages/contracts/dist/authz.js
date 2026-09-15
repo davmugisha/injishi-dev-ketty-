@@ -1,6 +1,6 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.ELEVATION_REFUSED_MESSAGE = exports.SEPARATION_OF_DUTIES_MESSAGE = exports.OVERSIGHT_OWN_BUSINESS_MESSAGE = exports.OVERSIGHT_ORG_ROLE_CONFLICT_MESSAGE = exports.OVERSIGHT_SCOPE_CONFLICT_MESSAGE = exports.OVERSIGHT_CONSOLE_NOT_BUILT_MESSAGE = exports.OVERSIGHT_COUNTRY_SCOPE_LABEL = exports.OversightConsoleGrant = exports.OversightGrant = exports.REGISTRATION_STAGE_MESSAGE = exports.WorkspaceAccess = exports.PERMISSION_LABEL = exports.Permission = void 0;
+exports.ELEVATION_REFUSED_MESSAGE = exports.SEPARATION_OF_DUTIES_MESSAGE = exports.OVERSIGHT_OWN_BUSINESS_MESSAGE = exports.OVERSIGHT_ORG_ROLE_CONFLICT_MESSAGE = exports.OVERSIGHT_SCOPE_CONFLICT_MESSAGE = exports.OVERSIGHT_CONSOLE_NOT_BUILT_MESSAGE = exports.OVERSIGHT_COUNTRY_SCOPE_LABEL = exports.OversightConsoleGrant = exports.OversightGrant = exports.REGISTRATION_STAGE_MESSAGE = exports.WorkspaceAccess = exports.WorkspaceBranch = exports.BranchCoverage = exports.PERMISSION_LABEL = exports.Permission = void 0;
 exports.can = can;
 exports.permissionsForRole = permissionsForRole;
 exports.isOperational = isOperational;
@@ -224,6 +224,15 @@ exports.PERMISSION_LABEL = {
  * Landlord are both `business`, told apart by the org's domain. This shape is
  * what `GET /api/v1/me/workspaces` returns.
  */
+/** Whether a member covers every branch of their business or only some (ADR-054). */
+exports.BranchCoverage = zod_1.z.enum(["all", "limited"]);
+/** One branch a member covers, as the grant carries it (ADR-054 AC-S3). */
+exports.WorkspaceBranch = zod_1.z.object({
+    id: primitives_1.Uuid,
+    name: zod_1.z.string(),
+    districtName: zod_1.z.string().nullable(),
+    isHeadOffice: zod_1.z.boolean(),
+});
 exports.WorkspaceAccess = zod_1.z.object({
     workspaceId: primitives_1.Uuid,
     kind: primitives_1.WorkspaceKind,
@@ -271,14 +280,25 @@ exports.WorkspaceAccess = zod_1.z.object({
      * — who may not manage listings — was getting a 403 on every page load for a
      * name. Identity is not a listing operation.
      *
-     * THE FIRST property, because nothing yet says which one is in view and a
-     * workspace may hold several. The guess is made ONCE, here, rather than
-     * differently in each screen that needs it.
+     * The head office's name when this member covers it, else the first covered
+     * branch by name (ADR-054 AC-S3). Made ONCE, here, rather than differently
+     * in each screen that needs it.
      *
      * Null for `broker` and `personal`, which have no property, and for a
      * business that has not created one yet.
      */
     propertyName: zod_1.z.string().nullable(),
+    /**
+     * The active branches this member covers, head office first then by name
+     * (ADR-054 AC-S3). Every branch when `branchCoverage` is `all`. Empty for
+     * `broker` and `personal`, and for a business with no property yet.
+     *
+     * Seeing a branch is COVERAGE, not a permission: the switcher reads this,
+     * and the API narrows rows by the same list.
+     */
+    branches: zod_1.z.array(exports.WorkspaceBranch),
+    /** `limited` when the member is limited to some branches. Null outside `business`. */
+    branchCoverage: exports.BranchCoverage.nullable(),
 });
 /**
  * May this org's workspace actually DO anything yet?

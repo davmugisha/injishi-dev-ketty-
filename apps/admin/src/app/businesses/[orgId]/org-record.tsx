@@ -252,7 +252,7 @@ async function PropertiesLens({ orgId }: { orgId: string }) {
   if (!result.ok) return <Unavailable reason={result.reason} permission="admin.business.view" />;
   return (
     <RowTable
-      caption="Properties this business operates"
+      caption="Branches this business operates, head office first"
       rows={result.data.items.map(presentOrgProperty)}
       empty="This business operates no property yet. Rooms, units and listings appear here as its inventory is built."
     />

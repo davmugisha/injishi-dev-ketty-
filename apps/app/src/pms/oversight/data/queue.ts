@@ -62,6 +62,11 @@ export function queueItemToRegOrg(item: OversightQueueItem): RegOrg {
     sector: item.sectorName ?? "—",
     address: item.addressText ?? "—",
     docs: [],
+    branches: item.branches.map((b) => ({
+      name: b.name,
+      district: b.districtName,
+      isHeadOffice: b.isHeadOffice,
+    })),
     stage: item.status as RegStage,
     ageH: ageHours(item.waitingSince),
     submittedTs: item.waitingSince,

@@ -1,8 +1,9 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.CERTIFICATE_KIND_LABEL = exports.UploadedObject = exports.BrokerRegistrationSummary = exports.BrokerStatus = exports.CreateBrokerRegistrationRequest = exports.MyProfile = exports.MyProfileDocument = exports.RegistrationFeeQuote = exports.ClaimPreview = exports.ClaimOrgRequest = exports.RegistrationConflictCode = exports.AcceptContractRequest = exports.OPERATOR_CONTRACT_VERSION = exports.RegistrationSummary = exports.OversightDecisionQuery = exports.OversightDecisionPage = exports.OversightDecision = exports.OversightQueueItem = exports.RejectRegistrationRequest = exports.PassGateRequest = exports.RegistrationReview = exports.RegistrationReviewDecision = exports.RegistrationReviewStage = exports.REJECTION_REASON_LABEL = exports.RegistrationRejectionReason = exports.CreateRegistrationRequest = exports.IntendedOwner = exports.BusinessDetails = exports.ResidenceBusiness = exports.HospitalityBusiness = exports.CertificateInput = exports.PersonalDetails = exports.Upi = exports.Tin = exports.Address = exports.InternationalAddress = exports.RwandanAddress = exports.IdentityDocumentInput = exports.PassportNumber = exports.RwandanNationalId = exports.CountryCode = exports.AccountDocumentType = exports.Gender = exports.RegistrantCapacity = exports.RegistrationBusinessType = exports.RegistrantRole = void 0;
+exports.CERTIFICATE_KIND_LABEL = exports.UploadedObject = exports.BrokerRegistrationSummary = exports.BrokerStatus = exports.CreateBrokerRegistrationRequest = exports.MyProfile = exports.MyProfileDocument = exports.RegistrationFeeQuote = exports.ClaimPreview = exports.ClaimOrgRequest = exports.RegistrationConflictCode = exports.AcceptContractRequest = exports.OPERATOR_CONTRACT_VERSION = exports.RegistrationSummary = exports.OversightDecisionQuery = exports.OversightDecisionPage = exports.OversightDecision = exports.OversightQueueItem = exports.RejectRegistrationRequest = exports.PassGateRequest = exports.RegistrationReview = exports.RegistrationReviewDecision = exports.RegistrationReviewStage = exports.REJECTION_REASON_LABEL = exports.RegistrationRejectionReason = exports.CreateRegistrationRequest = exports.IntendedOwner = exports.BusinessDetails = exports.ResidenceBusiness = exports.HospitalityBusiness = exports.RegistrationBranch = exports.MAX_REGISTRATION_BRANCHES = exports.CertificateInput = exports.PersonalDetails = exports.Upi = exports.Tin = exports.Address = exports.InternationalAddress = exports.RwandanAddress = exports.IdentityDocumentInput = exports.PassportNumber = exports.RwandanNationalId = exports.CountryCode = exports.AccountDocumentType = exports.Gender = exports.RegistrantCapacity = exports.RegistrationBusinessType = exports.RegistrantRole = void 0;
 exports.businessTypeFor = businessTypeFor;
 exports.isRwandanAddress = isRwandanAddress;
+exports.branchNameKey = branchNameKey;
 exports.stepForRejectionReason = stepForRejectionReason;
 const zod_1 = require("zod");
 const countries_1 = require("./countries");
@@ -227,6 +228,28 @@ exports.CertificateInput = zod_1.z.object({
     issuedOn: zod_1.z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
     expiresOn: zod_1.z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
 });
+/**
+ * How many branches a registration may declare beyond its head office (ADR-054).
+ * The schema and the wizard's Branches step both read this one constant.
+ */
+exports.MAX_REGISTRATION_BRANCHES = 20;
+/**
+ * One more location of a hospitality business, declared under the same TIN
+ * (ADR-054 AC-R1). The head office is NOT one of these: it is the business
+ * itself, named with its legal name at its own address.
+ */
+exports.RegistrationBranch = zod_1.z.object({
+    name: zod_1.z
+        .string()
+        .trim()
+        .min(1, "Give this branch a name.")
+        .max(120, "That name is too long for our records."),
+    address: exports.RwandanAddress,
+});
+/** The comparison two branch names are equal under: trimmed, case ignored. */
+function branchNameKey(name) {
+    return name.trim().toLocaleLowerCase("en");
+}
 const businessBase = zod_1.z.object({
     legalName: zod_1.z
         .string()
@@ -253,12 +276,26 @@ exports.HospitalityBusiness = businessBase.extend({
     /** Optional, and hospitality only. Not the PSF oversight body (D24). */
     psfMember: zod_1.z.boolean().default(false),
     eacStarGrade: zod_1.z.number().int().min(1).max(5).optional(),
+    /** The locations beyond the head office (ADR-054). Empty for a single site business. */
+    branches: zod_1.z
+        .array(exports.RegistrationBranch)
+        .max(exports.MAX_REGISTRATION_BRANCHES, `A business can list up to ${exports.MAX_REGISTRATION_BRANCHES} branches when it registers. Add more after approval.`)
+        .default([]),
 });
 /** A residence. Carries a UPI, and none of the tourism apparatus. */
 exports.ResidenceBusiness = businessBase.extend({
     domain: zod_1.z.literal("residence"),
     residenceClass: rdb_1.ResidenceClass,
     upi: exports.Upi,
+    /**
+     * Refused rather than left out (ADR-054 AC-R3). An unknown key would be
+     * stripped silently, and a landlord who sent branches would believe they
+     * had been recorded.
+     */
+    branches: zod_1.z
+        .array(zod_1.z.unknown())
+        .max(0, "A residence registers without branches.")
+        .optional(),
 });
 exports.BusinessDetails = zod_1.z
     .discriminatedUnion("domain", [exports.HospitalityBusiness, exports.ResidenceBusiness])
@@ -282,6 +319,20 @@ exports.BusinessDetails = zod_1.z
             message: "Only fill this in when you pick Other.",
         });
     }
+    // ADR-054 AC-R3: no two branch names equal after trimming and ignoring
+    // case, the head office included, which is named with the legal name.
+    const seen = new Set([branchNameKey(value.legalName)]);
+    value.branches.forEach((branch, index) => {
+        const key = branchNameKey(branch.name);
+        if (seen.has(key)) {
+            ctx.addIssue({
+                code: zod_1.z.ZodIssueCode.custom,
+                path: ["branches", index, "name"],
+                message: "Another branch already has this name.",
+            });
+        }
+        seen.add(key);
+    });
 });
 /**
  * The owner an on behalf of registration is made for (FL02).
@@ -461,6 +512,16 @@ exports.OversightQueueItem = zod_1.z.object({
      * than only refusing the click (separation of duties, F-S03 §9).
      */
     blockedBySeparationOfDuties: zod_1.z.boolean(),
+    /**
+     * The locations the business declared, head office first then by name
+     * (ADR-054 AC-R4). Listed so the officer knows what they approve; no
+     * branch district is asked to verify.
+     */
+    branches: zod_1.z.array(zod_1.z.object({
+        name: zod_1.z.string(),
+        districtName: zod_1.z.string().nullable(),
+        isHeadOffice: zod_1.z.boolean(),
+    })),
 });
 /**
  * One decision in an officer's own log: `GET /api/v1/oversight/decisions`

@@ -5,7 +5,6 @@ import {
   type OperatorStayList,
   type StayClaimInvite,
   WalkInRequest,
-  type WorkspaceAccess,
 } from '@injishi/contracts';
 import {
   Body,
@@ -19,6 +18,7 @@ import {
 
 import { FrontDeskService } from '../../../modules/operations/application/front-desk.service';
 import { StayClaimService } from '../../../modules/operations/application/stay-claim.service';
+import type { ScopedWorkspace } from '../../../shared/auth/branch-scope';
 import { SessionGuard } from '../../../shared/auth/session.guard';
 import {
   CurrentWorkspace,
@@ -68,7 +68,7 @@ export class OpsStaysController {
    * and never read one back (ADR-035, wave 2 follow-up).
    */
   @Get()
-  list(@CurrentWorkspace() workspace: WorkspaceAccess): Promise<OperatorStayList> {
+  list(@CurrentWorkspace() workspace: ScopedWorkspace): Promise<OperatorStayList> {
     return this.frontDesk.listStays(workspace);
   }
 
@@ -91,7 +91,7 @@ export class OpsStaysController {
   @RequirePermission('stay.checkin')
   walkIn(
     @Body(new ZodValidationPipe(WalkInRequest)) body: WalkInRequest,
-    @CurrentWorkspace() workspace: WorkspaceAccess,
+    @CurrentWorkspace() workspace: ScopedWorkspace,
   ): Promise<OperatorStay> {
     return this.frontDesk.walkIn(workspace, body);
   }
@@ -101,7 +101,7 @@ export class OpsStaysController {
   checkIn(
     @Param('id', ParseUUIDPipe) id: string,
     @Body(new ZodValidationPipe(CheckInRequest)) body: CheckInRequest,
-    @CurrentWorkspace() workspace: WorkspaceAccess,
+    @CurrentWorkspace() workspace: ScopedWorkspace,
   ): Promise<OperatorStay> {
     return this.frontDesk.checkIn(workspace, id, body);
   }
@@ -120,7 +120,7 @@ export class OpsStaysController {
   @RequirePermission('stay.checkout', 'folio.close')
   checkOut(
     @Param('id', ParseUUIDPipe) id: string,
-    @CurrentWorkspace() workspace: WorkspaceAccess,
+    @CurrentWorkspace() workspace: ScopedWorkspace,
   ): Promise<OperatorStay> {
     return this.frontDesk.checkOut(workspace, id);
   }
@@ -143,7 +143,7 @@ export class OpsStaysController {
   @RequirePermission('stay.checkin')
   claimInvite(
     @Param('id', ParseUUIDPipe) id: string,
-    @CurrentWorkspace() workspace: WorkspaceAccess,
+    @CurrentWorkspace() workspace: ScopedWorkspace,
   ): Promise<StayClaimInvite> {
     return this.onboarding.currentInvite(workspace, id);
   }
@@ -167,7 +167,7 @@ export class OpsStaysController {
     @Param('id', ParseUUIDPipe) id: string,
     @Body(new ZodValidationPipe(IssueStayClaimInviteRequest))
     body: IssueStayClaimInviteRequest,
-    @CurrentWorkspace() workspace: WorkspaceAccess,
+    @CurrentWorkspace() workspace: ScopedWorkspace,
   ): Promise<StayClaimInvite> {
     return this.onboarding.issueInvite(workspace, id, body);
   }

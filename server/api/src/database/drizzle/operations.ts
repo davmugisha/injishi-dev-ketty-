@@ -354,7 +354,13 @@ export const outlets = pgTable(
      * pair to exist in `property_amenities`.
      */
     amenityCode: text('amenity_code').references(() => amenities.code),
-    rraBranchId: text('rra_branch_id').notNull().default('00'),
+    /**
+     * The RRA branch this outlet declares under, when it differs from its
+     * branch's (ADR-054 AC-F1). Null means "use the branch's". It used to be
+     * NOT NULL with a `'00'` default that nothing ever read, so migration 0042
+     * turned every `'00'` into null.
+     */
+    rraBranchId: text('rra_branch_id'),
     guestVisible: boolean('guest_visible').notNull().default(true),
     /** Minted from the name for a standalone outlet, suffixed `-2`, `-3` on collision. */
     slug: text('slug'),

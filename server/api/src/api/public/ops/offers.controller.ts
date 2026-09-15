@@ -1,4 +1,4 @@
-import type { Offer, OfferList, WorkspaceAccess } from '@injishi/contracts';
+import type { Offer, OfferList } from '@injishi/contracts';
 import { CreateOfferRequest, UpdateOfferRequest } from '@injishi/contracts';
 import {
   Body,
@@ -13,6 +13,7 @@ import {
 } from '@nestjs/common';
 
 import { OffersService } from '../../../modules/operations/application/offers.service';
+import type { ScopedWorkspace } from '../../../shared/auth/branch-scope';
 import {
   CurrentUser,
   SessionGuard,
@@ -49,7 +50,7 @@ export class OpsOffersController {
 
   @Get()
   list(
-    @CurrentWorkspace() workspace: WorkspaceAccess,
+    @CurrentWorkspace() workspace: ScopedWorkspace,
     @Query('propertyId') propertyId: string | undefined,
   ): Promise<OfferList> {
     return this.offers.list(workspace, propertyId);
@@ -59,7 +60,7 @@ export class OpsOffersController {
   @RequirePermission('offer.manage')
   create(
     @Body(new ZodValidationPipe(CreateOfferRequest)) body: CreateOfferRequest,
-    @CurrentWorkspace() workspace: WorkspaceAccess,
+    @CurrentWorkspace() workspace: ScopedWorkspace,
     @CurrentUser() user: SessionUser,
   ): Promise<Offer> {
     return this.offers.create(workspace, body, user.id);
@@ -79,7 +80,7 @@ export class OpsOffersController {
   update(
     @Param('id', new ParseUUIDPipe()) offerId: string,
     @Body(new ZodValidationPipe(UpdateOfferRequest)) body: UpdateOfferRequest,
-    @CurrentWorkspace() workspace: WorkspaceAccess,
+    @CurrentWorkspace() workspace: ScopedWorkspace,
   ): Promise<Offer> {
     return this.offers.update(workspace, offerId, body);
   }

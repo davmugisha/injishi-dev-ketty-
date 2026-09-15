@@ -6,7 +6,6 @@ import {
   type OperatorDepartmentMember,
   type OperatorDepartmentMemberList,
   UpdateDepartmentRequest,
-  type WorkspaceAccess,
 } from '@injishi/contracts';
 import {
   Body,
@@ -27,6 +26,7 @@ import {
   RequirePermission,
   WorkspaceGuard,
 } from '../../../shared/auth/workspace.guard';
+import type { ScopedWorkspace } from '../../../shared/auth/branch-scope';
 import { ZodValidationPipe } from '../../../shared/validation/zod-validation.pipe';
 
 /**
@@ -48,7 +48,7 @@ export class OpsDepartmentsController {
 
   @Get()
   async list(
-    @CurrentWorkspace() workspace: WorkspaceAccess,
+    @CurrentWorkspace() workspace: ScopedWorkspace,
   ): Promise<OperatorDepartmentList> {
     return { departments: await this.departments.list(workspace) };
   }
@@ -58,7 +58,7 @@ export class OpsDepartmentsController {
   create(
     @Body(new ZodValidationPipe(CreateDepartmentRequest))
     body: CreateDepartmentRequest,
-    @CurrentWorkspace() workspace: WorkspaceAccess,
+    @CurrentWorkspace() workspace: ScopedWorkspace,
   ): Promise<OperatorDepartment> {
     return this.departments.create(workspace, body);
   }
@@ -77,7 +77,7 @@ export class OpsDepartmentsController {
     @Param('id', ParseUUIDPipe) id: string,
     @Body(new ZodValidationPipe(UpdateDepartmentRequest))
     body: UpdateDepartmentRequest,
-    @CurrentWorkspace() workspace: WorkspaceAccess,
+    @CurrentWorkspace() workspace: ScopedWorkspace,
   ): Promise<OperatorDepartment> {
     return this.departments.update(workspace, id, body);
   }
@@ -93,7 +93,7 @@ export class OpsDepartmentsController {
   @Get(':id/members')
   async listMembers(
     @Param('id', ParseUUIDPipe) id: string,
-    @CurrentWorkspace() workspace: WorkspaceAccess,
+    @CurrentWorkspace() workspace: ScopedWorkspace,
   ): Promise<OperatorDepartmentMemberList> {
     return { members: await this.departments.listMembers(workspace, id) };
   }
@@ -104,7 +104,7 @@ export class OpsDepartmentsController {
     @Param('id', ParseUUIDPipe) id: string,
     @Body(new ZodValidationPipe(AssignDepartmentMemberRequest))
     body: AssignDepartmentMemberRequest,
-    @CurrentWorkspace() workspace: WorkspaceAccess,
+    @CurrentWorkspace() workspace: ScopedWorkspace,
   ): Promise<OperatorDepartmentMember> {
     return this.departments.assignMember(workspace, id, body);
   }
@@ -115,7 +115,7 @@ export class OpsDepartmentsController {
   removeMember(
     @Param('id', ParseUUIDPipe) id: string,
     @Param('memberId', ParseUUIDPipe) memberId: string,
-    @CurrentWorkspace() workspace: WorkspaceAccess,
+    @CurrentWorkspace() workspace: ScopedWorkspace,
   ): Promise<OperatorDepartmentMember> {
     return this.departments.removeMember(workspace, id, memberId);
   }

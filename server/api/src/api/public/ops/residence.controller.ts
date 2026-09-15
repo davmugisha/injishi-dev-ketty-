@@ -12,7 +12,6 @@ import {
   type OperatorTicketList,
   RecordRentRequest,
   ReturnDepositRequest,
-  type WorkspaceAccess,
 } from '@injishi/contracts';
 import {
   Body,
@@ -35,6 +34,7 @@ import {
   RequirePermission,
   WorkspaceGuard,
 } from '../../../shared/auth/workspace.guard';
+import type { ScopedWorkspace } from '../../../shared/auth/branch-scope';
 import { IdempotencyKey } from '../../../shared/http/idempotency-key';
 import { ZodValidationPipe } from '../../../shared/validation/zod-validation.pipe';
 
@@ -52,7 +52,7 @@ export class OpsLeasesController {
 
   @Get()
   async list(
-    @CurrentWorkspace() workspace: WorkspaceAccess,
+    @CurrentWorkspace() workspace: ScopedWorkspace,
   ): Promise<OperatorLeaseList> {
     return { leases: await this.residence.listLeases(workspace) };
   }
@@ -69,7 +69,7 @@ export class OpsLeasesController {
   advance(
     @Param('id', ParseUUIDPipe) id: string,
     @Body(new ZodValidationPipe(AdvanceLeaseRequest)) body: AdvanceLeaseRequest,
-    @CurrentWorkspace() workspace: WorkspaceAccess,
+    @CurrentWorkspace() workspace: ScopedWorkspace,
   ): Promise<OperatorLease> {
     return this.residence.advanceLease(workspace, id, body);
   }
@@ -86,7 +86,7 @@ export class OpsLeasesController {
   recordRent(
     @Param('id', ParseUUIDPipe) id: string,
     @Body(new ZodValidationPipe(RecordRentRequest)) body: RecordRentRequest,
-    @CurrentWorkspace() workspace: WorkspaceAccess,
+    @CurrentWorkspace() workspace: ScopedWorkspace,
     @IdempotencyKey() key: string,
   ): Promise<OperatorRentCharge> {
     return this.residence.recordRent(workspace, id, body, key);
@@ -107,7 +107,7 @@ export class OpsRentRollController {
 
   @Get()
   async list(
-    @CurrentWorkspace() workspace: WorkspaceAccess,
+    @CurrentWorkspace() workspace: ScopedWorkspace,
   ): Promise<OperatorRentRoll> {
     return { charges: await this.residence.listRentRoll(workspace) };
   }
@@ -128,7 +128,7 @@ export class OpsTicketsController {
 
   @Get()
   async list(
-    @CurrentWorkspace() workspace: WorkspaceAccess,
+    @CurrentWorkspace() workspace: ScopedWorkspace,
   ): Promise<OperatorTicketList> {
     return { tickets: await this.residence.listTickets(workspace) };
   }
@@ -150,7 +150,7 @@ export class OpsTicketsController {
     @Param('id', ParseUUIDPipe) id: string,
     @Body(new ZodValidationPipe(AdvanceTicketRequest))
     body: AdvanceTicketRequest,
-    @CurrentWorkspace() workspace: WorkspaceAccess,
+    @CurrentWorkspace() workspace: ScopedWorkspace,
     @CurrentUser() user: SessionUser,
   ): Promise<OperatorTicket> {
     return this.residence.advanceTicket(workspace, id, body, user.id);
@@ -171,7 +171,7 @@ export class OpsTicketsController {
   @RequirePermission('ticket.advance')
   raise(
     @Body(new ZodValidationPipe(RaiseTicketRequest)) body: RaiseTicketRequest,
-    @CurrentWorkspace() workspace: WorkspaceAccess,
+    @CurrentWorkspace() workspace: ScopedWorkspace,
     @CurrentUser() user: SessionUser,
   ): Promise<OperatorTicket> {
     return this.residence.raiseTicket(workspace, body, user.id);
@@ -188,7 +188,7 @@ export class OpsDepositsController {
 
   @Get()
   async list(
-    @CurrentWorkspace() workspace: WorkspaceAccess,
+    @CurrentWorkspace() workspace: ScopedWorkspace,
   ): Promise<OperatorDepositList> {
     return { deposits: await this.residence.listDeposits(workspace) };
   }
@@ -206,7 +206,7 @@ export class OpsDepositsController {
     @Param('id', ParseUUIDPipe) id: string,
     @Body(new ZodValidationPipe(ReturnDepositRequest))
     body: ReturnDepositRequest,
-    @CurrentWorkspace() workspace: WorkspaceAccess,
+    @CurrentWorkspace() workspace: ScopedWorkspace,
     @IdempotencyKey() key: string,
   ): Promise<OperatorDeposit> {
     return this.residence.returnDeposit(workspace, id, body, key);

@@ -3,7 +3,6 @@ import {
   CreateHousekeepingTaskRequest,
   type OperatorHousekeepingTask,
   type OperatorHousekeepingTaskList,
-  type WorkspaceAccess,
 } from '@injishi/contracts';
 import {
   Body,
@@ -23,6 +22,7 @@ import {
   RequirePermission,
   WorkspaceGuard,
 } from '../../../shared/auth/workspace.guard';
+import type { ScopedWorkspace } from '../../../shared/auth/branch-scope';
 import { ZodValidationPipe } from '../../../shared/validation/zod-validation.pipe';
 
 /**
@@ -48,7 +48,7 @@ export class OpsHousekeepingController {
 
   @Get()
   async list(
-    @CurrentWorkspace() workspace: WorkspaceAccess,
+    @CurrentWorkspace() workspace: ScopedWorkspace,
   ): Promise<OperatorHousekeepingTaskList> {
     return { tasks: await this.housekeeping.list(workspace) };
   }
@@ -58,7 +58,7 @@ export class OpsHousekeepingController {
   create(
     @Body(new ZodValidationPipe(CreateHousekeepingTaskRequest))
     body: CreateHousekeepingTaskRequest,
-    @CurrentWorkspace() workspace: WorkspaceAccess,
+    @CurrentWorkspace() workspace: ScopedWorkspace,
     @Headers('idempotency-key') key: string | undefined,
   ): Promise<OperatorHousekeepingTask> {
     return this.housekeeping.create(workspace, body, key ?? null);
@@ -70,7 +70,7 @@ export class OpsHousekeepingController {
     @Param('id', ParseUUIDPipe) id: string,
     @Body(new ZodValidationPipe(AdvanceHousekeepingTaskRequest))
     body: AdvanceHousekeepingTaskRequest,
-    @CurrentWorkspace() workspace: WorkspaceAccess,
+    @CurrentWorkspace() workspace: ScopedWorkspace,
   ): Promise<OperatorHousekeepingTask> {
     return this.housekeeping.advance(workspace, id, body);
   }
