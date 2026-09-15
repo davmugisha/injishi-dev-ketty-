@@ -64,6 +64,7 @@ import {
   OperatorThreadList,
   OperatorTicketList,
   type PostChargeRequest,
+  type RaiseTicketRequest,
   type RecordRentRequest,
   type ReturnDepositRequest,
   type SendMessageRequest,
@@ -1112,6 +1113,30 @@ export function useSendMessage(
 // Residence
 // ---------------------------------------------------------------------------
 
+/**
+ * Send a line into a thread named at call time rather than at hook time.
+ *
+ * `useSendMessage` binds its thread when the hook is created, which fits a
+ * conversation screen and not a list: the rent roll reminds whichever tenant's
+ * row was pressed, so the thread travels with the call.
+ */
+export function useSendToThread(
+  workspaceId: string | null,
+): UseMutationResult<OperatorMessage, Error, { threadId: string } & SendMessageRequest> {
+  const client = useQueryClient();
+  return useMutation({
+    mutationFn: ({ threadId, ...body }) =>
+      command<OperatorMessage>(`/ops/threads/${threadId}/messages`, {
+        workspaceId: workspaceId as string,
+        body,
+      }),
+    onSuccess: (_message, { threadId }) => {
+      void client.invalidateQueries({ queryKey: queryKeys.threadMessages(workspaceId, threadId) });
+      void client.invalidateQueries({ queryKey: queryKeys.threads(workspaceId) });
+    },
+  });
+}
+
 export function useLeases(workspaceId: string | null): UseQueryResult<OperatorLeaseList> {
   return useOpsQuery(
     queryKeys.leases(workspaceId),
@@ -1222,6 +1247,30 @@ export function useAdvanceTicket(
   return useMutation({
     mutationFn: ({ ticketId, ...body }) =>
       command<OperatorTicket>(`/ops/tickets/${ticketId}/advance`, {
+        workspaceId: workspaceId as string,
+        body,
+      }),
+    onSuccess: () => {
+      void client.invalidateQueries({ queryKey: queryKeys.tickets(workspaceId) });
+    },
+  });
+}
+
+/**
+ * Report a fault (ADR-016 slice 6, AC-11).
+ *
+ * `POST /ops/tickets` has existed since the work order slice, and nothing in
+ * the app called it: a landlord could advance a ticket but never open one, so
+ * a fault phoned in by a tenant had nowhere to go. Name the lease on a
+ * residence and the room on a hotel; the server refuses a ticket naming neither.
+ */
+export function useRaiseTicket(
+  workspaceId: string | null,
+): UseMutationResult<OperatorTicket, Error, RaiseTicketRequest> {
+  const client = useQueryClient();
+  return useMutation({
+    mutationFn: (body: RaiseTicketRequest) =>
+      command<OperatorTicket>("/ops/tickets", {
         workspaceId: workspaceId as string,
         body,
       }),

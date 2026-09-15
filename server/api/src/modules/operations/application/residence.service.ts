@@ -19,6 +19,7 @@ import {
 } from '@nestjs/common';
 
 import { assertOwned } from '../../../shared/auth/assert-owned';
+import { firstRentCharge, kigaliToday } from './first-rent-charge';
 import {
   type DepositRow,
   type LeaseRow,
@@ -71,6 +72,11 @@ const TICKET_TRANSITIONS: Readonly<
 export class ResidenceService {
   constructor(private readonly residence: ResidenceRepository) {}
 
+  /** The clock, as a method so a test can pin the day rent falls due. */
+  protected now(): Date {
+    return new Date();
+  }
+
   // --- Leases --------------------------------------------------------------
 
   async listLeases(ws: WorkspaceAccess): Promise<OperatorLease[]> {
@@ -114,7 +120,16 @@ export class ResidenceService {
       );
     }
 
-    const moved = await this.residence.advanceLease(lease.id, lease.status, body.to);
+    // Going active raises the first month of rent in the same write, so the
+    // tenancy is on the rent roll the moment it is live.
+    const firstCharge =
+      body.to === 'active' ? firstRentCharge(lease, kigaliToday(this.now())) : null;
+    const moved = await this.residence.advanceLease(
+      lease.id,
+      lease.status,
+      body.to,
+      firstCharge,
+    );
     if (!moved) {
       throw new ConflictException(
         'This lease was just changed by someone else. Refresh to see where it stands.',

@@ -1185,6 +1185,9 @@ async function reset(c) {
   }
   const { purgeHotel } = await import('./seed-demo-hotel.mjs');
   await purgeHotel(c);
+  // Both buildings' tenancies and everything hanging off them, before the
+  // roster and orgs they point at.
+  await resetLandlordRows(c);
   // Conversations before anything they hang off: a lease thread points at a
   // lease deleted just below, and a booking thread at a booking. Messages
   // before threads. Support tickets point at the roster.
@@ -1469,6 +1472,347 @@ async function seedResidenceRentRoll(c) {
       ],
     );
   }
+}
+
+/* ── Kayitare Court (2026-09-15) ────────────────────────────────────────────
+ *
+ * Samuel's landlord seat was an org and a workspace with NOTHING behind it: no
+ * building, no units, no leases. Every landlord screen opened empty for the one
+ * persona a presenter uses to show the switcher, so the rent roll at
+ * `/w/<SW(1)>/rent-roll` looked broken on the demo.
+ *
+ * This building is written to put every state a landlord screen can render on
+ * screen at once, because an empty column on a board reads as a missing feature:
+ *
+ *   | Board            | What is here                                              |
+ *   |------------------|-----------------------------------------------------------|
+ *   | Rent roll        | paid, due, overdue, and a part payment still overdue       |
+ *   | Leases           | a draft, a SIGNED lease ready to activate, active, ending, |
+ *   |                  | ended                                                      |
+ *   | Move-outs        | a lease on notice, an ended lease whose deposit is waiting |
+ *   |                  | to be settled, and one settled with its reason             |
+ *   | Maintenance      | open, in progress and resolved work orders                 |
+ *   | Inbox            | two tenants with accounts, each with a conversation        |
+ *   | Units / Listing  | three unit types, ten units, four of them vacant           |
+ *
+ * The signed lease sits on a unit no active lease holds, so "Mark signed —
+ * activate" succeeds on stage instead of tripping `leases_active_room_uk`.
+ *
+ * Tenants with accounts are Theoneste (U13) and Fidele (U14): neither holds a
+ * seat in this org, so `assertNoSelfLease` stays true. Everyone else is a name
+ * on the lease with no account, which is the common case in Kigali.
+ *
+ * Family `..21NN`, clear of 17 and 18 (reserved) and 19 and 20 (used).
+ */
+
+const KC = (n) => `de300000-0000-4000-8000-0000000021${String(n).padStart(2, '0')}`; // Kayitare Court
+
+const KAYITARE_PROPERTY = {
+  id: KC(1), listingId: KC(2), orgId: SO(1), workspaceId: SW(1),
+  slug: 'kayitare-court', name: 'Kayitare Court',
+  district: 'Kicukiro', sector: 'Kagarama', street: 'KK 31 Ave, Kagarama',
+};
+
+const KAYITARE_UNIT_TYPES = [
+  { id: KC(3), name: 'Studio', capacity: 1, rent: 250_000 },
+  { id: KC(4), name: 'One bedroom apartment', capacity: 2, rent: 350_000 },
+  { id: KC(5), name: 'Two bedroom apartment', capacity: 4, rent: 520_000 },
+];
+
+const KAYITARE_UNITS = [
+  { id: KC(10), type: KC(3), label: 'S1' },
+  { id: KC(11), type: KC(3), label: 'S2' },
+  { id: KC(12), type: KC(3), label: 'S3' },
+  { id: KC(13), type: KC(4), label: 'A1' },
+  { id: KC(14), type: KC(4), label: 'A2' },
+  { id: KC(15), type: KC(4), label: 'A3' },
+  { id: KC(16), type: KC(4), label: 'A4' },
+  { id: KC(17), type: KC(5), label: 'B1' },
+  { id: KC(18), type: KC(5), label: 'B2' },
+  { id: KC(19), type: KC(5), label: 'B3' },
+];
+
+/**
+ * `start` and `end` are month offsets from this month; `signed` says whether
+ * both sides have signed. `current` is the state of THIS month's charge on a
+ * live lease, and `paidNow` what has been paid against it.
+ */
+const KAYITARE_LEASES = [
+  { id: KC(20), unit: KC(10), rent: 250_000, tenantUserId: U(13), tenant: 'Theoneste Bimenyimana', phone: '+250 788 210 101',
+    status: 'active', start: -14, signed: true, current: 'paid' },
+  { id: KC(21), unit: KC(11), rent: 250_000, tenantUserId: U(14), tenant: 'Fidele Nkurikiyimana', phone: '+250 788 210 102',
+    status: 'active', start: -9, signed: true, current: 'overdue', paidNow: 100_000 },
+  { id: KC(22), unit: KC(13), rent: 350_000, tenant: 'Diane Mukeshimana', phone: '+250 788 210 103',
+    status: 'active', start: -20, signed: true, current: 'due' },
+  { id: KC(23), unit: KC(14), rent: 350_000, tenant: 'Patrick Nshimiyimana', phone: '+250 788 210 104',
+    status: 'active', start: -6, signed: true, current: 'overdue' },
+  { id: KC(24), unit: KC(17), rent: 520_000, tenant: 'Olive Umutoni', phone: '+250 788 210 105',
+    status: 'active', start: -26, signed: true, current: 'paid' },
+  // On notice: leaves at the end of next month.
+  { id: KC(25), unit: KC(18), rent: 520_000, tenant: 'Jean Paul Habiyaremye', phone: '+250 788 210 106',
+    status: 'ending', start: -18, end: 1, signed: true, current: 'paid' },
+  // Moved out last month. The deposit is still held: that is the Move-outs job.
+  { id: KC(26), unit: KC(15), rent: 350_000, tenant: 'Aline Mutesi', phone: '+250 788 210 107',
+    status: 'ended', start: -13, end: -1, signed: true },
+  // Moved out in spring and settled, so the board shows what a finished one looks like.
+  { id: KC(27), unit: KC(16), rent: 350_000, tenant: 'Innocent Mugisha', phone: '+250 788 210 108',
+    status: 'ended', start: -30, end: -6, signed: true },
+  // Both sides have signed; activating it on stage raises its first month.
+  { id: KC(28), unit: KC(12), rent: 250_000, tenant: 'Sandrine Ingabire', phone: '+250 788 210 109',
+    status: 'pending_signature', start: 0, signed: true },
+  { id: KC(29), unit: KC(19), rent: 520_000, tenant: 'Kevin Ishimwe', phone: '+250 788 210 110',
+    status: 'draft', start: 1, signed: false },
+];
+
+/** First day of the month `offset` months from this one, as YYYY-MM-DD. */
+function monthStart(offset) {
+  const now = new Date();
+  return new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() + offset, 1)).toISOString().slice(0, 10);
+}
+
+/** Last day of the month `offset` months from this one. */
+function monthEnd(offset) {
+  const now = new Date();
+  return new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() + offset + 1, 0)).toISOString().slice(0, 10);
+}
+
+/** A YYYY-MM-DD `days` from `iso`. */
+function addDays(iso, days) {
+  const d = new Date(`${iso}T00:00:00Z`);
+  d.setUTCDate(d.getUTCDate() + days);
+  return d.toISOString().slice(0, 10);
+}
+
+/**
+ * Three months of rent on every lease that was live in them.
+ *
+ * The two earlier months are settled on the 3rd. This month follows the
+ * lease's `current`, and its due date is placed relative to TODAY rather than
+ * pinned to a day of the month: a "due" row is due in five days and an overdue
+ * one fell due nine days ago, whatever day the nightly job happens to run.
+ */
+function kayitareCharges() {
+  const today = new Date().toISOString().slice(0, 10);
+  const rows = [];
+  let n = 30;
+  for (const lease of KAYITARE_LEASES) {
+    if (lease.status === 'draft' || lease.status === 'pending_signature') continue;
+    for (const offset of [-2, -1, 0]) {
+      if (offset < lease.start) continue;
+      if (lease.end !== undefined && offset > lease.end) continue;
+      const period = monthStart(offset);
+      const settledEarlier = offset < 0 || lease.current === 'paid' || lease.current === undefined;
+      if (settledEarlier) {
+        rows.push({ id: KC(n++), leaseId: lease.id, period, amount: lease.rent, paid: lease.rent,
+          status: 'paid', due: addDays(period, 4), paidAt: addDays(period, 2) });
+        continue;
+      }
+      rows.push({
+        id: KC(n++), leaseId: lease.id, period, amount: lease.rent, paid: lease.paidNow ?? 0,
+        status: lease.current,
+        due: lease.current === 'due' ? addDays(today, 5) : addDays(today, -9),
+        paidAt: null,
+      });
+    }
+  }
+  if (n > 60) throw new Error('Kayitare Court charges overran their id block');
+  return rows;
+}
+
+const KAYITARE_HOLDS = [
+  ...KAYITARE_LEASES.filter((l) => ['active', 'ending', 'ended'].includes(l.status)).map((l, i) => ({
+    id: KC(60 + i), leaseId: l.id, amount: l.rent * 2,
+    status: l.id === KC(27) ? 'refunded' : 'held',
+    heldDaysAgo: Math.max(30, -l.start * 30),
+  })),
+];
+
+const KAYITARE_SETTLEMENTS = [
+  { id: KC(70), holdId: KAYITARE_HOLDS.find((h) => h.leaseId === KC(27)).id, leaseId: KC(27),
+    refunded: 700_000, forfeited: 0, daysAgo: 150,
+    reason: 'Unit handed back clean with all keys. Full caution returned.' },
+];
+
+const KAYITARE_TICKETS = [
+  { id: KC(75), leaseId: KC(21), title: 'Water heater not working', category: 'plumbing', priority: 'high',
+    status: 'open', raisedBy: U(14), role: 'tenant', hoursAgo: 3,
+    description: 'No hot water since this morning in S2.' },
+  { id: KC(76), leaseId: KC(22), title: 'Corridor light flickering outside A1', category: 'electrical', priority: 'normal',
+    status: 'in_progress', raisedBy: U(6), role: 'staff', hoursAgo: 30,
+    description: 'The ceiling light in the first floor corridor flickers after dark.',
+    notes: [{ id: KC(80), by: U(6), hoursAgo: 20, note: 'Electrician booked for tomorrow at 10:00.' }] },
+  { id: KC(77), leaseId: KC(20), title: 'Fridge door seal torn', category: 'appliance', priority: 'low',
+    status: 'resolved', raisedBy: U(13), role: 'tenant', hoursAgo: 120, resolvedHoursAgo: 48,
+    description: 'The seal on the fridge door is torn and it will not stay cold.',
+    notes: [{ id: KC(81), by: U(6), hoursAgo: 48, note: 'Seal replaced by the supplier under warranty.' }] },
+  { id: KC(78), leaseId: KC(25), title: 'Repaint the living room before move-out', category: 'other', priority: 'low',
+    status: 'open', raisedBy: U(6), role: 'staff', hoursAgo: 50,
+    description: 'Tenant leaves next month. Scuffed walls in the living room.' },
+];
+
+const KAYITARE_THREADS = [
+  { id: KC(85), leaseId: KC(20) },
+  { id: KC(86), leaseId: KC(21) },
+];
+
+const KAYITARE_MESSAGES = [
+  { id: KC(90), thread: KC(85), from: U(13), minutesAgo: 7300, body: 'Hello, the fridge door seal is torn and it will not stay cold.' },
+  { id: KC(91), thread: KC(85), from: U(6),  minutesAgo: 7200, body: 'Thanks Theoneste, I have logged it and called the supplier.' },
+  { id: KC(92), thread: KC(85), from: U(13), minutesAgo: 2800, body: 'All fixed now, thank you. This month is paid.' },
+  { id: KC(93), thread: KC(86), from: U(14), minutesAgo: 190,  body: 'Good morning, there is no hot water in S2 since this morning.' },
+  { id: KC(94), thread: KC(86), from: U(14), minutesAgo: 185,  body: 'Also, I paid 100,000 of this month. The rest comes on Friday.' },
+];
+
+async function seedCautionHold(c, h) {
+  await c.query(
+    `INSERT INTO caution_holds (id, lease_id, amount_rwf, status, held_at)
+     VALUES ($1, $2, $3, $4, $5) ON CONFLICT (id) DO NOTHING`,
+    [h.id, h.leaseId, h.amount, h.status, hoursFromNow(-24 * h.heldDaysAgo)],
+  );
+}
+
+async function seedMaintenanceTicket(c, t) {
+  await c.query(
+    `INSERT INTO maintenance_tickets
+       (id, lease_id, property_id, org_id, workspace_id, raised_by_user_id,
+        raised_by_role, title, description, category, priority, status,
+        resolved_at, created_at, updated_at)
+     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $14)
+     ON CONFLICT (id) DO NOTHING`,
+    [
+      t.id, t.leaseId, t.propertyId, t.orgId, t.workspaceId, t.raisedBy, t.role,
+      t.title, t.description, t.category, t.priority, t.status,
+      t.resolvedHoursAgo === undefined ? null : hoursFromNow(-t.resolvedHoursAgo),
+      hoursFromNow(-t.hoursAgo),
+    ],
+  );
+  for (const note of t.notes ?? []) {
+    await c.query(
+      `INSERT INTO maintenance_events (id, ticket_id, author_user_id, note, created_at)
+       VALUES ($1, $2, $3, $4, $5) ON CONFLICT (id) DO NOTHING`,
+      [note.id, t.id, note.by, note.note, hoursFromNow(-note.hoursAgo)],
+    );
+  }
+}
+
+async function seedKayitareCourt(c) {
+  const p = KAYITARE_PROPERTY;
+  await c.query(
+    `INSERT INTO properties
+       (id, org_id, workspace_id, name, description, sector_id, district_id, address_text, slug)
+     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+     ON CONFLICT (id) DO UPDATE SET slug = coalesce(properties.slug, excluded.slug)`,
+    [
+      p.id, p.orgId, p.workspaceId, p.name,
+      'A fictional demo apartment block: ten studios and flats off KK 31 Ave in Kagarama.',
+      await sectorId(c, p.district, p.sector),
+      await districtId(c, p.district),
+      p.street, p.slug,
+    ],
+  );
+  await seedListing(c, { id: p.listingId, propertyId: p.id, workspaceId: p.workspaceId, status: 'published' });
+
+  for (const t of KAYITARE_UNIT_TYPES) {
+    await c.query(
+      `INSERT INTO room_types
+         (id, property_id, workspace_id, name, domain, capacity, room_count,
+          base_price_rwf, caution_rwf)
+       VALUES ($1, $2, $3, $4, 'residence', $5, $6, $7, $8)
+       ON CONFLICT (id) DO NOTHING`,
+      [t.id, p.id, p.workspaceId, t.name, t.capacity,
+        KAYITARE_UNITS.filter((u) => u.type === t.id).length, t.rent, t.rent * 2],
+    );
+  }
+  for (const u of KAYITARE_UNITS) {
+    await c.query(
+      `INSERT INTO rooms
+         (id, room_type_id, property_id, workspace_id, label, status, housekeeping_status)
+       VALUES ($1, $2, $3, $4, $5, 'available', 'clean')
+       ON CONFLICT (id) DO NOTHING`,
+      [u.id, u.type, p.id, p.workspaceId, u.label],
+    );
+  }
+
+  for (const l of KAYITARE_LEASES) {
+    const startDate = monthStart(l.start);
+    // A signature a week before the tenancy began, never in the future.
+    const signedAt = l.signed ? hoursFromNow(-24 * Math.max(3, 7 - l.start * 30)) : null;
+    await c.query(
+      `INSERT INTO leases
+         (id, room_id, org_id, workspace_id, tenant_user_id, tenant_name, tenant_phone,
+          monthly_rent_rwf, caution_rwf, status, start_date, end_date,
+          landlord_signed_at, tenant_signed_at)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $13)
+       ON CONFLICT (id) DO NOTHING`,
+      [
+        l.id, l.unit, p.orgId, p.workspaceId, l.tenantUserId ?? null, l.tenant, l.phone,
+        l.rent, l.rent * 2, l.status, startDate,
+        l.end === undefined ? null : monthEnd(l.end),
+        signedAt,
+      ],
+    );
+  }
+
+  for (const ch of kayitareCharges()) {
+    await c.query(
+      `INSERT INTO rent_charges
+         (id, lease_id, period_month, amount_rwf, paid_amount_rwf, status, due_date, paid_at)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+       ON CONFLICT (id) DO NOTHING`,
+      [ch.id, ch.leaseId, ch.period, ch.amount, ch.paid, ch.status, ch.due, ch.paidAt],
+    );
+  }
+
+  for (const h of KAYITARE_HOLDS) await seedCautionHold(c, h);
+  for (const s of KAYITARE_SETTLEMENTS) {
+    await c.query(
+      `INSERT INTO caution_settlements
+         (id, lease_id, caution_hold_id, refunded_rwf, forfeited_rwf, reason, settled_at, idempotency_key)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8) ON CONFLICT (id) DO NOTHING`,
+      [s.id, s.leaseId, s.holdId, s.refunded, s.forfeited, s.reason,
+        hoursFromNow(-24 * s.daysAgo), `seed-demo:${s.id}`],
+    );
+  }
+
+  for (const t of KAYITARE_TICKETS) {
+    await seedMaintenanceTicket(c, { ...t, propertyId: p.id, orgId: p.orgId, workspaceId: p.workspaceId });
+  }
+
+  for (const t of KAYITARE_THREADS) {
+    const newest = Math.min(...KAYITARE_MESSAGES.filter((m) => m.thread === t.id).map((m) => m.minutesAgo));
+    await c.query(
+      `INSERT INTO threads (id, workspace_id, lease_id, thread_kind, status, updated_at)
+       VALUES ($1, $2, $3, 'reservation', 'active', $4) ON CONFLICT (id) DO NOTHING`,
+      [t.id, p.workspaceId, t.leaseId, hoursFromNow(-newest / 60)],
+    );
+  }
+  for (const m of KAYITARE_MESSAGES) await seedMessage(c, m);
+}
+
+/**
+ * Delete the landlord rows `seed-demo` owns, child to parent.
+ *
+ * Keyed on the LEASES and THREADS rather than on each row's own id, so a rent
+ * payment, a settlement, a work order or a message a presenter made during a
+ * demo (random ids, pointing at a seeded lease) goes too instead of failing the
+ * reset on a foreign key.
+ */
+async function resetLandlordRows(c) {
+  const leaseIds = [...RESIDENCE_LEASES.map((l) => l.id), ...KAYITARE_LEASES.map((l) => l.id)];
+  const threadIds = [...LEASE_THREADS, ...KAYITARE_THREADS].map((t) => t.id);
+  await c.query('DELETE FROM messages WHERE thread_id = ANY($1::uuid[])', [threadIds]);
+  await c.query('DELETE FROM thread_reads WHERE thread_id = ANY($1::uuid[])', [threadIds]);
+  await c.query('DELETE FROM threads WHERE id = ANY($1::uuid[]) OR lease_id = ANY($2::uuid[])', [threadIds, leaseIds]);
+  await c.query('DELETE FROM maintenance_tickets WHERE lease_id = ANY($1::uuid[])', [leaseIds]);
+  await c.query('DELETE FROM caution_settlements WHERE lease_id = ANY($1::uuid[])', [leaseIds]);
+  await c.query('DELETE FROM caution_holds WHERE lease_id = ANY($1::uuid[])', [leaseIds]);
+  await c.query('DELETE FROM rent_charges WHERE lease_id = ANY($1::uuid[])', [leaseIds]);
+  await c.query('DELETE FROM leases WHERE id = ANY($1::uuid[])', [leaseIds]);
+  const p = KAYITARE_PROPERTY;
+  await c.query('DELETE FROM rooms WHERE property_id = $1', [p.id]);
+  await c.query('DELETE FROM room_types WHERE property_id = $1', [p.id]);
+  await c.query('DELETE FROM listings WHERE property_id = $1', [p.id]);
+  await c.query('DELETE FROM properties WHERE id = $1', [p.id]);
 }
 
 /* ── `--refresh`: make today today again (task 15, AC-S12) ─────────────────
@@ -1829,6 +2173,8 @@ async function main() {
     for (const m of MESSAGES.filter((x) => LEASE_THREADS.some((t) => t.id === x.thread))) {
       await seedMessage(client, m);
     }
+    // Samuel's landlord seat, which used to be an org with no building.
+    await seedKayitareCourt(client);
     for (const t of SUPPORT_TICKETS) await seedSupportTicket(client, t);
 
     // Before anything is reported as seeded, not after.

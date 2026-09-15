@@ -74,6 +74,14 @@ const ARRIVED: Record<string, (tenant: string) => string> = {
   ended: (t) => `${t}'s tenancy has ended. Their deposit is waiting on the Move-outs board.`,
 };
 
+/** Who has not signed yet, in the words the board uses. */
+function unsignedSides(lease: OperatorLease): string[] {
+  return [
+    lease.landlordSignedAt ? null : "the landlord",
+    lease.tenantSignedAt ? null : "the tenant",
+  ].filter((side): side is string => side !== null);
+}
+
 /** A date the operator can act on, or a dash. Never an invented one. */
 function day(iso: string | null): string {
   return iso ? iso.slice(0, 10) : "—";
@@ -93,6 +101,16 @@ export function Leases() {
 
   function move(lease: OperatorLease, to: LeaseStatus) {
     const tenant = lease.tenantName ?? "This tenant";
+    // The server refuses to activate a lease one side has not signed. Saying so
+    // here names WHICH side, where a 409 only said "both".
+    const unsigned = unsignedSides(lease);
+    if (to === "active" && unsigned.length > 0) {
+      toast(
+        `Both sides have to sign before ${tenant}'s lease can go active. Still to sign: ${unsigned.join(" and ")}.`,
+        "neutral",
+      );
+      return;
+    }
     advance.mutate(
       { leaseId: lease.id, to },
       {

@@ -121,7 +121,8 @@ export function Conversation({ listLabel, scopeNote, placeholder, quick }: Conve
 
   function submit(value: string) {
     const body = value.trim();
-    if (!sel || !body || denied) return;
+    // A press while the last send is still on the wire would post it twice.
+    if (!sel || !body || denied || send.isPending) return;
     send.mutate(
       { body },
       {

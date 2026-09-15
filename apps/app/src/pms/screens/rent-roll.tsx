@@ -23,7 +23,7 @@ import { usePms } from "../store";
 import type { OperatorRentCharge } from "@injishi/contracts";
 import type { RentState } from "../data/types";
 import { useCapability, useWorkspaceId } from "../data/capability";
-import { useDeposits, useRecordRent, useRentRoll } from "../data/ops";
+import { useDeposits, useRecordRent, useRentRoll, useSendToThread, useThreads } from "../data/ops";
 import { dshortIso, fmt } from "../lib/format";
 import { ActionButton, Badge, Chip, EmptyState, LoadFailed, Skeleton, StatCard } from "../components/ui";
 import { ConfirmAction } from "../components/confirm-action";
@@ -40,6 +40,8 @@ interface RollRow {
   tenant: string;
   subtitle: string;
   rentRwf: number;
+  /** What has actually come in against this month, part payments included. */
+  paidRwf: number;
   depositRwf: number;
   pay: RentState;
   payLine: string;
@@ -66,9 +68,19 @@ export function RentRoll() {
   const rentRoll = useRentRoll(workspaceId);
   const deposits = useDeposits(workspaceId);
   const recordRent = useRecordRent(workspaceId);
+  const mayMessage = can("message.send");
+  const threads = useThreads(mayMessage ? workspaceId : null);
+  const remind = useSendToThread(workspaceId);
 
   const live = workspaceId !== null;
   const denied = can("rent.record") ? undefined : reasonFor("rent.record");
+
+  // A tenant can be written to only when they have an account and so a thread.
+  const threadByLease = new Map(
+    (threads.data?.threads ?? [])
+      .filter((t) => t.scope === "lease" && t.status === "active")
+      .map((t) => [t.subjectId, t.id]),
+  );
 
   const heldByLease = new Map(
     (deposits.data?.deposits ?? [])
@@ -84,7 +96,9 @@ export function RentRoll() {
 
   const paid = rows.filter((r) => r.pay === "paid");
   const overdue = rows.filter((r) => r.pay === "overdue");
-  const collected = paid.reduce((a, r) => a + r.rentRwf, 0);
+  // What came in, not what the settled rows were worth: a part payment on an
+  // overdue month is money in the bank, and leaving it out understated the month.
+  const collected = rows.reduce((a, r) => a + r.paidRwf, 0);
   const expected = rows.reduce((a, r) => a + r.rentRwf, 0);
   const depositsHeld = rows.reduce((a, r) => a + r.depositRwf, 0);
 
@@ -98,6 +112,35 @@ export function RentRoll() {
   const list = rows
     .filter((r) => filter === "all" || r.pay === filter)
     .sort((a, b) => RANK[a.pay] - RANK[b.pay]);
+
+  /**
+   * Chase an overdue month in the tenant's own conversation.
+   *
+   * "Remind" used to toast "Reminder sent by SMS" and send nothing, then a
+   * notice that SMS was not connected. The tenancy's thread IS connected: the
+   * message lands in the tenant's app and in this workspace's Inbox, where the
+   * reply comes back. A tenant with no account has no thread, and the screen
+   * says so and opens the lease, where their phone number is.
+   */
+  function sendReminder(row: RollRow) {
+    const threadId = threadByLease.get(row.leaseId);
+    if (!threadId || !mayMessage) {
+      toast(`${row.tenant} has no Injishi account to message. Their phone number is on the lease.`, "neutral");
+      router.push(href(`/leases/${row.leaseId}`));
+      return;
+    }
+    const month = row.periodMonth ? dshortIso(row.periodMonth) : "this month";
+    remind.mutate(
+      {
+        threadId,
+        body: `Hello ${row.tenant}, a reminder that ${fmt(row.outstandingRwf)} of rent for ${month} is overdue. Please pay as soon as you can, or reply here if something is wrong.`,
+      },
+      {
+        onSuccess: () => toast(`Reminder sent to ${row.tenant}. Their reply will come to your Inbox.`, "ok"),
+        onError: toastError,
+      },
+    );
+  }
 
   function record(row: RollRow) {
     if (row.source === "demo") {
@@ -197,20 +240,13 @@ export function RentRoll() {
                     <ActionButton onClick={() => router.push(href(`/leases/${r.leaseId}`))} style={{ minWidth: 118 }}>View lease</ActionButton>
                   ) : (
                     <>
-                      {/* "Remind" used to toast "Reminder sent by SMS" and send
-                          nothing at all — no SMS adapter is wired to this
-                          screen — so a landlord could believe a tenant had been
-                          chased for weeks. It says what is true instead, and
-                          the lease is one press away for chasing by hand. */}
+                      {/* Overdue rows chase the tenant in their thread; see
+                          `sendReminder`. Everything else opens the lease. */}
                       <ActionButton
                         onClick={() =>
-                          r.pay === "overdue"
-                            ? toast(
-                                `SMS reminders aren't connected yet — nothing was sent to ${r.tenant}. Their number is on the lease.`,
-                                "neutral",
-                              )
-                            : router.push(href(`/leases/${r.leaseId}`))
+                          r.pay === "overdue" ? sendReminder(r) : router.push(href(`/leases/${r.leaseId}`))
                         }
+                        pending={remind.isPending && remind.variables?.threadId === threadByLease.get(r.leaseId)}
                       >
                         {r.pay === "overdue" ? "Remind" : "View lease"}
                       </ActionButton>
@@ -286,6 +322,7 @@ function fromServer(c: OperatorRentCharge, depositRwf: number): RollRow {
     tenant: c.tenantName ?? "Tenant",
     subtitle: dshortIso(c.periodMonth),
     rentRwf: owed,
+    paidRwf: paidSoFar,
     depositRwf,
     pay,
     payLine,
@@ -306,6 +343,7 @@ function fromDemoStore(P: ReturnType<typeof usePms>["state"]["db"]["residence"])
       tenant: l.tenant,
       subtitle: P.units.find((x) => x.id === l.unit)?.type ?? "",
       rentRwf: l.rent,
+      paidRwf: l.pay === "paid" ? l.rent : 0,
       depositRwf: l.rent,
       pay: (l.pay ?? "due") as RentState,
       payLine: l.payLine ?? "",
