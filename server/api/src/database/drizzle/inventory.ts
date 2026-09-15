@@ -278,6 +278,7 @@ export const roomTypes = pgTable(
   },
   (t) => [
     index('room_types_property_idx').on(t.propertyId),
+    index('room_types_workspace_idx').on(t.workspaceId),
     index('room_types_department_idx').on(t.departmentId),
     index('room_types_domain_idx').on(t.domain),
     check(
@@ -328,6 +329,18 @@ export const rooms = pgTable(
   (t) => [
     index('rooms_room_type_idx').on(t.roomTypeId),
     index('rooms_housekeeping_idx').on(t.propertyId, t.housekeepingStatus),
+    index('rooms_workspace_idx').on(t.workspaceId),
+    /**
+     * One door, one label, per property (platform audit step 3). The service
+     * refuses a collision first and more strictly (case and spacing
+     * insensitive, `domain/room-labels.ts`); this is the backstop for two
+     * concurrent adds that both passed that read. Its 23505 is answered with
+     * the same refusal. Partial, because an unlabelled room collides with
+     * nothing.
+     */
+    uniqueIndex('rooms_property_label_uk')
+      .on(t.propertyId, t.label)
+      .where(sql`${t.label} IS NOT NULL`),
   ],
 );
 
@@ -498,6 +511,7 @@ export const ratePlans = pgTable(
   },
   (t) => [
     index('rate_plans_room_type_idx').on(t.roomTypeId),
+    index('rate_plans_workspace_idx').on(t.workspaceId),
     // Mirrors the room_types check: approval policy is meaningful only for
     // request_to_book.
     check(
@@ -609,7 +623,10 @@ export const listings = pgTable(
     version: integer('version').notNull().default(0),
     ...timestamps,
   },
-  (t) => [unique('listings_property_uk').on(t.propertyId)],
+  (t) => [
+    unique('listings_property_uk').on(t.propertyId),
+    index('listings_workspace_idx').on(t.workspaceId),
+  ],
 );
 
 

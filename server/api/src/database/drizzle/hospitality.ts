@@ -58,10 +58,16 @@ export const bookings = pgTable(
     guestCount: integer('guest_count').notNull().default(1),
     status: bookingStatusEnum('status').notNull(),
     bookingMode: bookingModeEnum('booking_mode').notNull(),
-    lockedNightlyRateRwf: amount('locked_nightly_rate_rwf'),
+    /**
+     * NOT NULL since migration 0043 (platform audit step 3). The one API insert
+     * (`BookingRepository.create`) always wrote it from the quote, and every
+     * seed does; a booking with no locked rate is a booking nobody can refund.
+     */
+    lockedNightlyRateRwf: amount('locked_nightly_rate_rwf').notNull(),
     lockedCancellationTier: cancellationTierEnum('locked_cancellation_tier'),
     nonrefundable: boolean('nonrefundable').notNull().default(false),
-    grossRwf: amount('gross_rwf'),
+    /** NOT NULL since migration 0043, for the reason `locked_nightly_rate_rwf` is. */
+    grossRwf: amount('gross_rwf').notNull(),
     currency: currency(),
     paymentStatus: paymentStatusEnum('payment_status'),
     declineReason: declineReasonEnum('decline_reason'),
@@ -107,6 +113,15 @@ export const bookings = pgTable(
     check(
       'bookings_cancellation_shape',
       sql`${t.cancelledAt} IS NULL OR (${t.status} = 'cancelled' AND ${t.cancelledBy} IN ('guest', 'host') AND ${t.refundRwf} IS NOT NULL)`,
+    ),
+    // What the code has always assumed, now held where no path can skip it
+    // (platform audit step 3). Half open stays: a zero night booking holds no
+    // night and prices to nothing, so it is refused rather than stored.
+    check('bookings_dates_ordered', sql`${t.checkOut} > ${t.checkIn}`),
+    check('bookings_guest_count_positive', sql`${t.guestCount} > 0`),
+    check(
+      'bookings_amounts_non_negative',
+      sql`${t.lockedNightlyRateRwf} >= 0 AND ${t.grossRwf} >= 0 AND (${t.refundRwf} IS NULL OR ${t.refundRwf} >= 0)`,
     ),
     index('bookings_guest_idx').on(t.guestUserId),
     index('bookings_workspace_status_idx').on(t.workspaceId, t.status, t.checkIn),
@@ -210,6 +225,7 @@ export const guestStays = pgTable(
       .where(sql`${t.claimCode} IS NOT NULL`),
     index('guest_stays_workspace_idx').on(t.workspaceId),
     index('guest_stays_room_idx').on(t.roomId),
+    index('guest_stays_booking_idx').on(t.bookingId),
     // One open stay per room, enforced where a race cannot reach it. The walk
     // in re-check selects open stays FOR UPDATE, and on a free room that locks
     // no row, so two desks admitting guests at once both saw "free" and both
@@ -253,12 +269,17 @@ export const storedObjects = pgTable('stored_objects', {
 });
 
 
+/**
+ * The identity a guest showed at check in. Personal data under retention and
+ * legal hold rules, so deleting a stay must never take it silently: RESTRICT
+ * since migration 0043 (platform audit step 3). It used to cascade.
+ */
 export const stayIdentities = pgTable('stay_identities', {
   id: uuid('id').primaryKey().defaultRandom(),
   guestStayId: uuid('guest_stay_id')
     .notNull()
     .unique()
-    .references(() => guestStays.id, { onDelete: 'cascade' }),
+    .references(() => guestStays.id, { onDelete: 'restrict' }),
   fullName: text('full_name'),
   idNumber: text('id_number'),
   documentType: documentTypeEnum('document_type'),

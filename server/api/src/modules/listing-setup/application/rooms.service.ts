@@ -11,7 +11,7 @@ import {
 } from '@nestjs/common';
 
 import { assertContained } from '../domain/containment';
-import { collidingLabels } from '../domain/room-labels';
+import { collidingLabels, isRoomLabelCollision } from '../domain/room-labels';
 import {
   type RoomRow,
   RoomsRepository,
@@ -65,12 +65,18 @@ export class RoomsService {
       collidingLabels(labels, await this.rooms.labelsOnProperty(roomType.propertyId)),
     );
 
-    await this.rooms.add({
-      roomTypeId,
-      propertyId: roomType.propertyId,
-      workspaceId: workspace.workspaceId,
-      labels,
-    });
+    try {
+      await this.rooms.add({
+        roomTypeId,
+        propertyId: roomType.propertyId,
+        workspaceId: workspace.workspaceId,
+        labels,
+      });
+    } catch (err) {
+      // Another add took one of these labels after the read above.
+      if (isRoomLabelCollision(err)) this.refuseCollisions(labels);
+      throw err;
+    }
     return this.list(workspace, roomTypeId);
   }
 
@@ -92,10 +98,17 @@ export class RoomsService {
       );
     }
 
-    await this.rooms.update(roomId, {
-      label: request.label,
-      status: request.status,
-    });
+    try {
+      await this.rooms.update(roomId, {
+        label: request.label,
+        status: request.status,
+      });
+    } catch (err) {
+      if (isRoomLabelCollision(err) && request.label !== undefined) {
+        this.refuseCollisions([request.label.trim()]);
+      }
+      throw err;
+    }
     const updated = await this.rooms.find(roomId);
     if (!updated) throw new NotFoundException('Room not found.');
     return present(updated);

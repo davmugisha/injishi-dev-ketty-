@@ -16,6 +16,21 @@ import {
 
 export type EbmConnectionRow = typeof ebmConnections.$inferSelect;
 
+/** The provider account states `ebm_connections_account_status_known` allows. */
+const KNOWN_ACCOUNT_STATUSES: ReadonlySet<string> = new Set(['submitted', 'approved', 'disabled']);
+
+/**
+ * The provider's account state as it may be stored (platform audit step 3).
+ *
+ * A word outside the three is stored as null, "not known", which is what
+ * every reader already made of it (`toAccountStatus`): it is not `approved`,
+ * so it still cannot invoice. Storing the raw word would now fail the CHECK
+ * and turn a provider adding a state into a failed connect.
+ */
+export function storableAccountStatus(value: string | null | undefined): string | null {
+  return value != null && KNOWN_ACCOUNT_STATUSES.has(value) ? value : null;
+}
+
 /** The token half of a connection, sealed. Never plaintext past this line. */
 export interface SealedTokens {
   accessTokenCiphertext: string;
@@ -97,7 +112,7 @@ export class EbmConnectionRepository {
       status: 'connected' as const,
       tin: input.account.tin,
       accountName: input.account.accountName,
-      accountStatus: input.account.accountStatus,
+      accountStatus: storableAccountStatus(input.account.accountStatus),
       branchId: input.account.branchId,
       vatRegistered: input.account.vatRegistered,
       scopes: input.account.scopes,
@@ -126,7 +141,7 @@ export class EbmConnectionRepository {
   async saveAccountStatus(orgId: string, accountStatus: string | null): Promise<void> {
     await this.db
       .update(ebmConnections)
-      .set({ accountStatus, updatedAt: new Date() })
+      .set({ accountStatus: storableAccountStatus(accountStatus), updatedAt: new Date() })
       .where(eq(ebmConnections.orgId, orgId));
   }
 

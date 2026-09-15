@@ -61,6 +61,7 @@ export const threads = pgTable(
   (t) => [
     index('threads_workspace_idx').on(t.workspaceId),
     index('threads_department_idx').on(t.departmentId),
+    index('threads_booking_idx').on(t.bookingId),
     check(
       'threads_scope_exactly_one',
       sql`(CASE WHEN ${t.bookingId} IS NOT NULL THEN 1 ELSE 0 END
@@ -155,15 +156,19 @@ export const threadReads = pgTable(
   (t) => [primaryKey({ columns: [t.threadId, t.userId] })],
 );
 
-export const messageAttachments = pgTable('message_attachments', {
-  id: uuid('id').primaryKey().defaultRandom(),
-  messageId: uuid('message_id')
-    .notNull()
-    .references(() => messages.id, { onDelete: 'cascade' }),
-  storedObjectId: uuid('stored_object_id')
-    .notNull()
-    .references(() => storedObjects.id),
-});
+export const messageAttachments = pgTable(
+  'message_attachments',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    messageId: uuid('message_id')
+      .notNull()
+      .references(() => messages.id, { onDelete: 'cascade' }),
+    storedObjectId: uuid('stored_object_id')
+      .notNull()
+      .references(() => storedObjects.id),
+  },
+  (t) => [index('message_attachments_message_idx').on(t.messageId)],
+);
 
 // ===========================================================================
 // §8  MONEY  (ledger is truth; domain money objects post to it)

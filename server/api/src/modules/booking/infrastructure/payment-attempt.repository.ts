@@ -2,11 +2,14 @@ import type { MobileMoneyNetwork, PaymentAttemptState } from '@injishi/contracts
 import { Inject, Injectable } from '@nestjs/common';
 import { and, eq, isNull, lt, sql } from 'drizzle-orm';
 
-import { bookings, paymentAttempts, roomTypes } from '../../../database/drizzle/schema';
+import { hasFreeUnitEveryNight } from '../domain/sellable-capacity';
+
+import { paymentAttempts, roomTypes } from '../../../database/drizzle/schema';
 import {
   DRIZZLE,
   type Database,
 } from '../../../shared/database/database.module';
+import { readNightlyCapacity } from './sellable-capacity.query';
 
 /**
  * One press of confirm on a rail that answers later (ADR-047 D-j).
@@ -274,7 +277,6 @@ export class PaymentAttemptRepository {
       checkOut: string;
       guests: number;
       nonRefundable: boolean;
-      roomCount: number;
       now: Date;
     },
   ): Promise<
@@ -297,25 +299,19 @@ export class PaymentAttemptRepository {
       if (existing && existing.state === 'prompting') return { kind: 'claimed' as const, row: shape(existing) };
       if (existing) return { kind: 'ended' as const, row: shape(existing) };
 
-      const [taken] = await tx.execute<{ held: number }>(sql`
-        select
-          (select count(*) from ${bookings} b
-            where b.room_type_id = ${input.roomTypeId}
-              and b.status in ('pending_approval', 'confirmed')
-              and b.check_in < ${input.checkOut}
-              and b.check_out > ${input.checkIn})
-          +
-          (select count(*) from ${paymentAttempts} a
-            where a.purpose = 'booking'
-              and a.room_type_id = ${input.roomTypeId}
-              and a.state = 'prompting'
-              and a.expires_at > ${input.now}
-              and a.idempotency_key <> ${input.idempotencyKey}
-              and a.check_in < ${input.checkOut}
-              and a.check_out > ${input.checkIn})
-          as held
-      `).then((r) => r.rows);
-      if (Number(taken?.held ?? 0) >= input.roomCount) return { kind: 'sold_out' as const };
+      // Sellable capacity on every night, read UNDER the lock (platform audit
+      // step 3): available rooms less walk ins already in them, or the declared
+      // count for a type with no rooms, and zero on a stop sold night. Held =
+      // holding bookings plus every OTHER live hold; this press's own key is
+      // excluded so a retry re-claims rather than being refused by itself.
+      const nights = await readNightlyCapacity(tx, {
+        roomTypeId: input.roomTypeId,
+        from: input.checkIn,
+        to: input.checkOut,
+        now: input.now,
+        excludeAttemptKey: input.idempotencyKey,
+      });
+      if (!hasFreeUnitEveryNight(nights)) return { kind: 'sold_out' as const };
 
       const [row] = await tx
         .insert(paymentAttempts)

@@ -1,4 +1,9 @@
-import { collidingLabels, labelKey, numberedLabels } from './room-labels';
+import {
+  collidingLabels,
+  isRoomLabelCollision,
+  labelKey,
+  numberedLabels,
+} from './room-labels';
 
 describe('room labels', () => {
   it('compares labels the way a person reads a door', () => {
@@ -25,5 +30,16 @@ describe('room labels', () => {
 
   it('passes a clean set', () => {
     expect(collidingLabels(['101', '102'], ['201', null])).toEqual([]);
+  });
+  it('reads a lost race on rooms_property_label_uk as a label collision, wrapped or not', () => {
+    const driver = { code: '23505', constraint: 'rooms_property_label_uk' };
+    expect(isRoomLabelCollision(driver)).toBe(true);
+    expect(isRoomLabelCollision(Object.assign(new Error('query failed'), { cause: driver }))).toBe(true);
+  });
+
+  it('does not read any other unique violation as a label collision', () => {
+    expect(isRoomLabelCollision({ code: '23505', constraint: 'rooms_pkey' })).toBe(false);
+    expect(isRoomLabelCollision({ code: '23503', constraint: 'rooms_property_label_uk' })).toBe(false);
+    expect(isRoomLabelCollision(null)).toBe(false);
   });
 });

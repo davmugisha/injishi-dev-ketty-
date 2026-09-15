@@ -12,7 +12,11 @@ import {
 } from '@nestjs/common';
 
 import { assertContained } from '../domain/containment';
-import { collidingLabels, numberedLabels } from '../domain/room-labels';
+import {
+  collidingLabels,
+  isRoomLabelCollision,
+  numberedLabels,
+} from '../domain/room-labels';
 import { InventoryRepository } from '../infrastructure/inventory.repository';
 import { RoomsRepository } from '../infrastructure/rooms.repository';
 import {
@@ -90,13 +94,25 @@ export class RoomTypesService {
       );
     }
 
-    const roomTypeId = await this.repo.create({
-      propertyId,
-      workspaceId: workspace.workspaceId,
-      domain,
-      request,
-      roomLabels,
-    });
+    let roomTypeId: string;
+    try {
+      roomTypeId = await this.repo.create({
+        propertyId,
+        workspaceId: workspace.workspaceId,
+        domain,
+        request,
+        roomLabels,
+      });
+    } catch (err) {
+      // A concurrent write took one of these labels after the read above
+      // (`rooms_property_label_uk`); the same refusal, not a 500.
+      if (isRoomLabelCollision(err)) {
+        throw new ConflictException(
+          `These names are already used on this property: ${roomLabels.join(', ')}. Every room needs its own.`,
+        );
+      }
+      throw err;
+    }
     return this.read(roomTypeId);
   }
 
