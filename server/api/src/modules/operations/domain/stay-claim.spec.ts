@@ -1,6 +1,6 @@
 import { AdminClaimCode } from '@injishi/contracts';
 
-import { mintClaimCode } from './user-actions.service';
+import { mintClaimCode } from './stay-claim';
 
 /**
  * The reissued code is read aloud to a guest and typed into web's claim form,

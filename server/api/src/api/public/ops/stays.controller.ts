@@ -1,7 +1,9 @@
 import {
   CheckInRequest,
+  IssueStayClaimInviteRequest,
   type OperatorStay,
   type OperatorStayList,
+  type StayClaimInvite,
   WalkInRequest,
   type WorkspaceAccess,
 } from '@injishi/contracts';
@@ -16,6 +18,7 @@ import {
 } from '@nestjs/common';
 
 import { FrontDeskService } from '../../../modules/operations/application/front-desk.service';
+import { StayClaimService } from '../../../modules/operations/application/stay-claim.service';
 import { SessionGuard } from '../../../shared/auth/session.guard';
 import {
   CurrentWorkspace,
@@ -44,7 +47,10 @@ import { ZodValidationPipe } from '../../../shared/validation/zod-validation.pip
 @Controller({ path: 'ops/stays', version: '1' })
 @UseGuards(SessionGuard, WorkspaceGuard)
 export class OpsStaysController {
-  constructor(private readonly frontDesk: FrontDeskService) {}
+  constructor(
+    private readonly frontDesk: FrontDeskService,
+    private readonly onboarding: StayClaimService,
+  ) {}
 
   /**
    * Check a confirmed reservation in, into a named room.
@@ -117,5 +123,52 @@ export class OpsStaysController {
     @CurrentWorkspace() workspace: WorkspaceAccess,
   ): Promise<OperatorStay> {
     return this.frontDesk.checkOut(workspace, id);
+  }
+
+  /**
+   * The claim code on this stay's slip, and whether the guest has been mailed
+   * it (§6.8).
+   *
+   * A READ, and it sends nothing. The desk needs the code to print at the
+   * moment of check in, and a GET that mailed the guest every time somebody
+   * opened the stay record would be a surprising side effect on a read — and
+   * would spam a guest whose record the desk is simply looking at.
+   *
+   * `stay.checkin` rather than a permission of its own. The code is a key to
+   * the stay, and whoever may create the stay may hand out its key; inventing a
+   * twenty-ninth permission for the slip that comes out of the same act would
+   * give a receptionist a check in they could not complete.
+   */
+  @Get(':id/claim-invite')
+  @RequirePermission('stay.checkin')
+  claimInvite(
+    @Param('id', ParseUUIDPipe) id: string,
+    @CurrentWorkspace() workspace: WorkspaceAccess,
+  ): Promise<StayClaimInvite> {
+    return this.onboarding.currentInvite(workspace, id);
+  }
+
+  /**
+   * Send it, or send it again.
+   *
+   * For the guest who gave their address after check in, the one who never got
+   * the mail, and — with `reissue` — the one who lost the slip. A reissue mints
+   * a fresh code and invalidates the printed one, which is why it is a flag the
+   * desk sets deliberately rather than what every re-send does.
+   *
+   * The address is optional and, when absent, the one already on the stay
+   * stands. What it can never do is redirect an invitation somewhere else and
+   * leave: an address given here is RECORDED on the stay first, so the record
+   * always says where this stay's code was sent.
+   */
+  @Post(':id/claim-invite')
+  @RequirePermission('stay.checkin')
+  sendClaimInvite(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body(new ZodValidationPipe(IssueStayClaimInviteRequest))
+    body: IssueStayClaimInviteRequest,
+    @CurrentWorkspace() workspace: WorkspaceAccess,
+  ): Promise<StayClaimInvite> {
+    return this.onboarding.issueInvite(workspace, id, body);
   }
 }

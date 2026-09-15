@@ -1,11 +1,16 @@
 import type {
+  DepartmentCategory,
   GuestMessage,
   GuestMessagePage,
   GuestThread,
   OperatorMessage,
+  OpenDepartmentRequest,
+  OpenDepartmentResult,
   OperatorThread,
   SendGuestMessageInput,
   SendMessageRequest,
+  StayDepartment,
+  StayDepartments,
   WorkspaceAccess,
 } from '@injishi/contracts';
 import { GUEST_MESSAGE_PAGE, GUEST_MESSAGE_PAGE_MAX } from '@injishi/contracts';
@@ -24,6 +29,7 @@ import {
   type ThreadRow,
   MessagingRepository,
 } from '../infrastructure/messaging.repository';
+import type { MyStayRow } from '../infrastructure/stay-claim.repository';
 
 /**
  * The page cursor: a message's `(created_at, id)`, base64url so it reads as
@@ -270,6 +276,116 @@ export class MessagingService {
   async markGuestRead(userId: string, threadId: string): Promise<void> {
     await this.assertMine(threadId, userId);
     await this.messaging.markRead(threadId, userId, new Date());
+  }
+
+  /* ------------------------------------- the guest's side: the departments */
+
+  /**
+   * THE DESKS A GUEST MAY WRITE TO, for one stay of theirs (§6.8).
+   *
+   * The ownership of the stay is proved by the CALLER — the route resolves it
+   * through `StayClaimService.mine`, which answers 404 for a stay that is not
+   * this person's — and the row is passed in rather than re-read here. One
+   * ownership check per request, at the top, is the arrangement every route on
+   * this surface uses; a second check in here would be a second answer to the
+   * same question and eventually a different one.
+   *
+   * A stay with no property resolves to no departments rather than to an error.
+   * That happens on a stay whose room has been deleted, and a guest who cannot
+   * work out who to message is better served by "no desks here" than by a 500.
+   */
+  async departmentsForStay(
+    userId: string,
+    stay: MyStayRow,
+  ): Promise<StayDepartments> {
+    if (!stay.propertyId) return { stayId: stay.id, departments: [] };
+
+    const rows = await this.messaging.requestableDepartments(
+      stay.propertyId,
+      stay.id,
+    );
+    const threadIds = rows
+      .map((r) => r.threadId)
+      .filter((id): id is string => id !== null);
+    const unread = await this.messaging.unreadCounts(threadIds, userId);
+
+    const departments: StayDepartment[] = rows.map((row) => ({
+      id: row.id,
+      name: row.name,
+      departmentCategory: row.departmentCategory as DepartmentCategory,
+      phone: row.phone,
+      threadId: row.threadId,
+      unreadCount: row.threadId ? (unread.get(row.threadId) ?? 0) : 0,
+      lastMessageAt: row.threadId
+        ? (row.lastMessageAt?.toISOString() ?? null)
+        : null,
+    }));
+    return { stayId: stay.id, departments };
+  }
+
+  /**
+   * Say something to one desk, opening the conversation if it is the first
+   * time (§6.8).
+   *
+   * ## What is refused, and why each one
+   *
+   * - **A stay that has closed.** A guest who left yesterday messaging
+   *   housekeeping is not a request anybody can act on; the record of the stay
+   *   stays readable and a complaint about it goes through the refund request,
+   *   which is built to be answered after the fact.
+   * - **A department this property did not open to guests.** The
+   *   `guest_requestable` flag is the property's control, and a body naming a
+   *   department id is exactly the way round a list that simply did not show it.
+   * - **A department belonging to another property.** Checked against the
+   *   stay's own property, not against the workspace: a chain running two hotels
+   *   holds one workspace, and "the caller's workspace owns this department"
+   *   would let a guest in the Kigali hotel message the Musanze kitchen.
+   */
+  async openDepartmentRequest(
+    userId: string,
+    stay: MyStayRow,
+    body: OpenDepartmentRequest,
+  ): Promise<OpenDepartmentResult> {
+    if (stay.lifecycle === 'closed') {
+      throw new ConflictException(
+        'This stay has ended, so its desks are closed. If something went wrong, ask for a refund and the property will answer in writing.',
+      );
+    }
+    if (!stay.propertyId) {
+      throw new NotFoundException('That desk is not at this property.');
+    }
+
+    const department = await this.messaging.findRequestableDepartment(
+      body.departmentId,
+      stay.propertyId,
+    );
+    if (!department) {
+      // 404 rather than 403: a department that does not take guest messages is
+      // not a department this guest has, and saying "exists but refuses you"
+      // maps the property's internal structure for anybody who asks.
+      throw new NotFoundException('That desk is not taking messages here.');
+    }
+
+    const opened = await this.messaging.openDepartmentThread({
+      workspaceId: stay.workspaceId,
+      guestStayId: stay.id,
+      departmentId: department.id,
+      subject: body.subject ?? null,
+      body: body.body,
+      senderUserId: userId,
+    });
+    if (!opened) {
+      throw new ConflictException(
+        'That conversation is closed. Ask the front desk to reopen it.',
+      );
+    }
+
+    return {
+      threadId: opened.threadId,
+      departmentId: department.id,
+      departmentName: department.name,
+      created: opened.created,
+    };
   }
 
   /**

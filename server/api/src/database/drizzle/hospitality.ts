@@ -158,6 +158,33 @@ export const guestStays = pgTable(
      * `users.name` and fall back to this.
      */
     guestName: text('guest_name'),
+    /**
+     * Where the "continue in the app" mail goes, captured at the desk.
+     *
+     * A WALK IN HAS NO ACCOUNT, which is what a walk in means, so there is no
+     * `users.email` to read. The desk types this on the registration card and
+     * it is the ONLY address this stay's claim invitation is ever sent to: the
+     * claim binds a stay to whoever holds the code, so an address a caller
+     * could supply later would be a way to have somebody else's stay mailed to
+     * you.
+     *
+     * NULL for a stay that has an account. The account is the better source and
+     * stays current when the person changes their address; readers prefer
+     * `users.email` and fall back to this.
+     */
+    guestEmail: text('guest_email'),
+    /** The number on the registration card. Not a sign-in channel; a contact. */
+    guestPhone: text('guest_phone'),
+    /**
+     * When the claim invitation was last handed to the mailer.
+     *
+     * Recorded so a second press at the desk is visible rather than silent, and
+     * so the resend cap has something to count. It says the mail was SENT, not
+     * that it arrived — the mailer seam never promises delivery.
+     */
+    claimInvitedAt: timestamp('claim_invited_at', { withTimezone: true }),
+    /** When the stay was bound to an account. Set with `claim_status`. */
+    claimedAt: timestamp('claimed_at', { withTimezone: true }),
     roomId: uuid('room_id')
       .notNull()
       .references(() => rooms.id),
@@ -191,6 +218,23 @@ export const guestStays = pgTable(
     uniqueIndex('guest_stays_one_open_per_room_uk')
       .on(t.roomId)
       .where(sql`${t.lifecycle} = 'open'`),
+    // A claimed stay names WHO claimed it and WHEN. Without this the three
+    // columns can disagree — a stay marked claimed with nobody attached is a
+    // record the guest cannot reach and the desk cannot re-issue a code for,
+    // because re-issuing refuses a claimed stay. Nothing writes `claimed`
+    // today, so the check is safe to state in both directions.
+    check(
+      'guest_stays_claim_shape',
+      sql`${t.claimStatus} = 'unclaimed'
+           OR (${t.claimedByUserId} IS NOT NULL AND ${t.claimedAt} IS NOT NULL)`,
+    ),
+    // The claim lands by GUEST first: "is there a stay waiting for me" is
+    // answered off the address the desk typed, and without this it is a scan of
+    // every stay the platform has ever recorded. Partial, because a stay that
+    // is already claimed is never a candidate again.
+    index('guest_stays_unclaimed_email_idx')
+      .on(t.guestEmail)
+      .where(sql`${t.claimStatus} = 'unclaimed' AND ${t.guestEmail} IS NOT NULL`),
   ],
 );
 

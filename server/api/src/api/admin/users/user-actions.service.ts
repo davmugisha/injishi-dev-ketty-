@@ -1,5 +1,3 @@
-import { randomInt } from 'node:crypto';
-
 import {
   AdminClaimCodeReissued,
   AdminSessionsRevoked,
@@ -24,44 +22,17 @@ import {
   DRIZZLE,
   type Database,
 } from '../../../shared/database/database.module';
-
-/** Fresh draws allowed when a minted claim code collides with a live one. */
-const CLAIM_CODE_RETRIES = 3;
-
-/**
- * Letters for a claim code, without `I` and `O`.
- *
- * A claim code is read aloud by a staffer to a guest on the phone, and `I`/`O`
- * are the two letters that get heard as `1`/`0` — which the code also
- * contains. Dropping them costs a sliver of entropy and saves the call where a
- * correct code is typed wrong. The printed shape (`AAAA-9999`) is unchanged.
+/*
+ * §6.8 moved these three into the operations domain. Check in now mints the
+ * FIRST code at the counter, so this console is no longer the only caller, and
+ * two copies of a bearer-credential generator is two places for one of them to
+ * quietly become `Math.random`.
  */
-const CLAIM_LETTERS = 'ABCDEFGHJKLMNPQRSTUVWXYZ';
-
-/**
- * A new claim code in the printed shape, from the CSPRNG.
- *
- * `randomInt`, never `Math.random`: the code is a bearer credential that binds
- * a stay — and the identity captured on it — to whoever types it first.
- */
-export function mintClaimCode(): string {
-  let letters = '';
-  for (let i = 0; i < 4; i++) letters += CLAIM_LETTERS[randomInt(CLAIM_LETTERS.length)];
-  const digits = String(randomInt(10_000)).padStart(4, '0');
-  return `${letters}-${digits}`;
-}
-
-/** Was this a collision on the claim-code index, and nothing else? */
-function isClaimCodeCollision(err: unknown): boolean {
-  const candidates = [err, (err as { cause?: unknown })?.cause];
-  return candidates.some(
-    (e) =>
-      typeof e === 'object' &&
-      e !== null &&
-      (e as { code?: string }).code === '23505' &&
-      (e as { constraint?: string }).constraint === 'guest_stays_claim_code_uk',
-  );
-}
+import {
+  CLAIM_CODE_RETRIES,
+  isClaimCodeCollision,
+  mintClaimCode,
+} from '../../../modules/operations/domain/stay-claim';
 
 /**
  * The two Users-section writes: end every session a person holds, and give an

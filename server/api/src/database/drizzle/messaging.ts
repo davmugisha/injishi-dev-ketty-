@@ -16,6 +16,7 @@ import {
   primaryKey,
   text,
   timestamp,
+  uniqueIndex,
   uuid,
   type AnyPgColumn,
 } from 'drizzle-orm/pg-core';
@@ -66,6 +67,27 @@ export const threads = pgTable(
            + CASE WHEN ${t.guestStayId} IS NOT NULL THEN 1 ELSE 0 END
            + CASE WHEN ${t.leaseId} IS NOT NULL THEN 1 ELSE 0 END) = 1`,
     ),
+    /**
+     * ONE conversation per stay per department, enforced where a race cannot
+     * reach it.
+     *
+     * A guest opening housekeeping twice — two taps, two tabs, a retried
+     * request — must land in the conversation they already have, not in a
+     * second one that splits the history and leaves half their messages in a
+     * thread the desk has stopped looking at. The service reads-then-inserts,
+     * which is exactly the check two concurrent taps both pass, so the index is
+     * what actually refuses the loser; it retries into the winner's row.
+     *
+     * Partial on the kind, because a `dispute` raised about the same stay and
+     * routed to the same department is a genuinely separate conversation.
+     */
+    uniqueIndex('threads_stay_department_request_uk')
+      .on(t.guestStayId, t.departmentId)
+      .where(
+        sql`${t.threadKind} = 'department_request'
+             AND ${t.guestStayId} IS NOT NULL
+             AND ${t.departmentId} IS NOT NULL`,
+      ),
   ],
 );
 

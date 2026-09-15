@@ -6,6 +6,7 @@ import { outletsForProperty, productsForProperty } from "@/data/dining";
 import { checkOutGuest, clearGuestStay, isCheckedIn } from "@/lib/guest-stay";
 import { isTerminalOrderState } from "@/lib/order-store";
 import { CheckInPanel } from "@/components/stay/check-in-panel";
+import { MyStayPanel } from "@/components/stay/my-stay-panel";
 import { DINING_DEMO_DETAIL, DemoDataNotice } from "./demo-data-notice";
 import { OrderCard } from "@/components/stay/order-card";
 import { OutletStrip } from "@/components/stay/outlet-strip";
@@ -39,13 +40,27 @@ export function StayScreen() {
   if (!ready) {
     return (
       <div className="mx-auto max-w-page px-4 py-8 sm:px-6">
-        <p className="text-sm text-muted-foreground">Looking up your stay…</p>
+        <MyStayPanel />
       </div>
     );
   }
 
   if (!isCheckedIn(stay)) {
-    return <NotCheckedIn onCheckedIn={refresh} />;
+    return (
+      <div className="mx-auto max-w-page space-y-8 px-4 py-8 sm:px-6">
+        {/*
+          §6.8. The REAL stay comes first, and on its own when there is one.
+          Everything below this line is the room-service demo: an outlet list
+          and an order store that live in `localStorage`, written by the
+          check-in control on this page. That was the only thing this screen
+          could show while no endpoint could answer "which stay am I in", and
+          it is kept — clearly labelled — until the guest ordering API behind
+          `/me/orderable` is wired to this surface.
+        */}
+        <MyStayPanel />
+        <NotCheckedIn onCheckedIn={refresh} />
+      </div>
+    );
   }
 
   // `isCheckedIn` has already refused null; this narrows it for TypeScript
@@ -68,6 +83,9 @@ export function StayScreen() {
           Everything for the room you are in tonight.
         </p>
       </header>
+
+      {/* The real stay, from the API. The demo hub follows it. */}
+      <MyStayPanel />
 
       <StayHeader stay={stay} />
 

@@ -68,7 +68,7 @@ describe("the four org roles", () => {
    */
   test("owner holds every permission there is", () => {
     assert.deepEqual(permissionsForRole("owner"), Permission.options);
-    assert.equal(permissionsForRole("owner").length, 26);
+    assert.equal(permissionsForRole("owner").length, 28);
   });
 
   test("manager holds everything except team.manage", () => {
@@ -76,7 +76,7 @@ describe("the four org roles", () => {
       permissionsForRole("manager"),
       Permission.options.filter((p) => p !== "team.manage"),
     );
-    assert.equal(permissionsForRole("manager").length, 25);
+    assert.equal(permissionsForRole("manager").length, 27);
   });
 
   test("receptionist works the front desk and takes orders", () => {
@@ -92,6 +92,17 @@ describe("the four org roles", () => {
       // ADR-050 D-t: signing a correct sale at the desk is the desk's job.
       "folio.close",
     ]);
+  });
+
+  test("the desk may not answer a refund request or write an offer", () => {
+    // §6.8. Both are discretionary spends of the business's money decided in
+    // front of an unhappy or a bargaining guest, which is exactly the pressure
+    // a receptionist has to be able to escalate rather than absorb.
+    assert.equal(can("receptionist", "refund.decide"), false);
+    assert.equal(can("receptionist", "offer.manage"), false);
+    assert.equal(can("housekeeper", "refund.decide"), false);
+    assert.equal(can("manager", "refund.decide"), true);
+    assert.equal(can("manager", "offer.manage"), true);
   });
 
   test("housekeeper is the phone: room status and tickets, nothing else", () => {
