@@ -236,6 +236,14 @@ export function CheckoutConfirmed({ booking }: { booking: BookingResult }) {
           <Link href={`/receipt/${encodeURIComponent(booking.reference)}`}>See your receipt</Link>
         </Button>
         <Button asChild variant="outline">
+          <Link href="/trips">See your trips</Link>
+        </Button>
+        {awaitingHost ? null : (
+          <Button asChild variant="outline">
+            <Link href="/inbox">Message the hotel</Link>
+          </Button>
+        )}
+        <Button asChild variant="ghost">
           <Link href="/explore">Keep exploring</Link>
         </Button>
       </div>

@@ -8,10 +8,12 @@ import {
   type OversightConsoleGrant,
   type OversightGrant,
   type Permission,
+  type RolePermissionOverride,
   type StaffAccess,
   type WorkspaceAccess,
   mayElevate,
   oversightConsoleFor,
+  parseRolePermissionOverride,
   permissionsForWorkspace,
   staffPermissionsForRoles,
 } from '@injishi/contracts';
@@ -26,6 +28,7 @@ import {
   identityDocuments,
   orgMembershipBranches,
   orgMemberships,
+  orgRolePermissions,
   orgs,
   oversightAssignments,
   properties,
@@ -190,6 +193,51 @@ export class WorkspaceService {
       branchCoverage: null,
     }));
 
+    /*
+     * What each business decided its own staff roles mean (ADR-055).
+     *
+     * A DELTA table: one row per permission a business moved on or off one of
+     * its roles. A role nothing names still resolves from the platform default,
+     * so the common case — a business that has never opened the Roles screen —
+     * reads zero rows and behaves exactly as it did before this existed.
+     *
+     * One extra query covering every business workspace at once, and keyed by
+     * ORG rather than by workspace: the policy belongs to the business, so an
+     * org with two workspaces must not be able to hold two answers. Skipped
+     * entirely when the caller holds no business workspace, which is the common
+     * case for a guest or a broker.
+     *
+     * ROWS THAT DO NOT NARROW ARE DROPPED, through the same helper the service
+     * that writes them uses, so the read path and the write path cannot disagree
+     * about what a row means. `permissionsForWorkspace` then applies them INSIDE the
+     * registration gate, so a business still in the pipeline cannot grant its
+     * way past its own approval.
+     */
+    const orgIds = [
+      ...new Set(
+        viaOrg.map((w) => w.orgId).filter((id): id is string => Boolean(id)),
+      ),
+    ];
+    const overridesByOrg = new Map<string, RolePermissionOverride[]>();
+    if (orgIds.length > 0) {
+      const rows = await this.db
+        .select({
+          orgId: orgRolePermissions.orgId,
+          orgRole: orgRolePermissions.orgRole,
+          permission: orgRolePermissions.permission,
+          granted: orgRolePermissions.granted,
+        })
+        .from(orgRolePermissions)
+        .where(inArray(orgRolePermissions.orgId, orgIds));
+      for (const row of rows) {
+        const parsed = parseRolePermissionOverride(row);
+        if (!parsed) continue;
+        const list = overridesByOrg.get(row.orgId) ?? [];
+        list.push(parsed);
+        overridesByOrg.set(row.orgId, list);
+      }
+    }
+
     const fromOrg: WorkspaceAccess[] = viaOrg.map((w) => {
       const limit = limits.get(w.membershipId);
       const branches = (branchesByWorkspace.get(w.workspaceId) ?? []).filter(
@@ -207,6 +255,7 @@ export class WorkspaceService {
           kind: w.kind,
           orgRole: w.orgRole,
           registrationStatus: w.registrationStatus,
+          roleOverrides: w.orgId ? (overridesByOrg.get(w.orgId) ?? []) : [],
         }),
         departments: departmentsByWorkspace.get(w.workspaceId) ?? [],
         // Head office first, then by name, so the first covered branch is

@@ -10,7 +10,7 @@ import { People } from "@/pms/screens/people";
  */
 export default function Page() {
   return (
-    <AppShell title="People">
+    <AppShell title="Team & Departments">
       <People lens="invites" />
     </AppShell>
   );

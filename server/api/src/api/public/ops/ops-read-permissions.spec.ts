@@ -157,6 +157,9 @@ const EXPECTED: Record<string, readonly OrgRole[]> = {
   '/ops/outlet-parties': ['owner', 'manager'],
   '/ops/outlets': ['owner', 'manager', 'receptionist'],
   '/ops/reservations': ['owner', 'manager', 'receptionist'],
+  // The RECORD read. Exactly the list's consumers: opening one booking by id
+  // must never be easier than seeing it on the desk it came from.
+  '/ops/reservations/:id': ['owner', 'manager', 'receptionist'],
   '/ops/reservations/:id/assignments': ['owner', 'manager', 'receptionist'],
   '/ops/room-assignments': ['owner', 'manager', 'receptionist'],
   '/ops/leases': ['owner', 'manager'],
@@ -169,6 +172,8 @@ const EXPECTED: Record<string, readonly OrgRole[]> = {
   '/ops/service-orders': ['owner', 'manager', 'receptionist'],
   '/ops/rra/classifications': ['owner', 'manager'],
   '/ops/stays': ['owner', 'manager', 'receptionist'],
+  // The RECORD read, same consumers as the list, for the same reason.
+  '/ops/stays/:id': ['owner', 'manager', 'receptionist'],
   // Guest stay surface (6718d11): the desk re-sends a claim code; managers
   // price offers and decide refund requests.
   '/ops/stays/:id/claim-invite': ['owner', 'manager', 'receptionist'],

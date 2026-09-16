@@ -23,6 +23,14 @@
  * already said no. `isOperational` is the predicate that tells the two kinds of
  * refusal apart. None of the three can grant anything.
  *
+ * **`permissionsForWorkspace` is re-exported and NOTHING CALLS IT — keep it that
+ * way** (ADR-055). Since a business can move a permission on or off its own
+ * roles, that function only gives the right answer when it is handed the
+ * business's overrides, and a screen has no way to know them: the server has
+ * already resolved the array and put it on the grant. A component that called
+ * this with a role and a status would quietly disagree with the API for exactly
+ * the businesses that had customised anything. Read the grant.
+ *
  * Two things still worth stating about how this app uses the model:
  *
  *  - PERMISSIONS are enforced at the one choke point that matters here, the

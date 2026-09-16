@@ -103,6 +103,13 @@ export const messages = pgTable(
     senderUserId: uuid('sender_user_id').references(() => users.id),
     bodyType: messageBodyTypeEnum('body_type').notNull().default('text'),
     body: text('body'),
+    /**
+     * ADR-050 D-s: the order a `system` line reports on. The order itself
+     * stays one record; this is only what lets a conversation draw its card.
+     */
+    serviceOrderId: uuid('service_order_id').references(
+      (): AnyPgColumn => serviceOrders.id,
+    ),
     voiceDurationS: integer('voice_duration_s'),
     createdAt: timestamp('created_at', { withTimezone: true })
       .notNull()

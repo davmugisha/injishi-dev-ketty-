@@ -24,6 +24,7 @@ import {
   DRIZZLE,
   type Database,
 } from '../../../shared/database/database.module';
+import type { FirstRentCharge } from '../application/first-rent-charge';
 
 /** The same `rooms` table, joined a second time through the lease. */
 const leaseRooms = alias(rooms, 'lease_rooms');
@@ -126,19 +127,45 @@ export class ResidenceRepository {
    *
    * Guarded on `from`, so two clicks cannot walk a lease two steps: the second
    * finds the row already moved and writes nothing.
+   *
+   * Moving to active also raises the lease's first month of rent.
+   *
+   * One transaction, so a lease is never active without the charge the rent
+   * roll reads, and a charge is never raised for a move that lost the race.
+   * The charge insert yields to `rent_charges_lease_period_uk`: a month already
+   * raised by anything else is left exactly as it is.
    */
   async advanceLease(
     leaseId: string,
     from: LeaseStatus,
     to: LeaseStatus,
+    firstCharge: FirstRentCharge | null = null,
   ): Promise<boolean> {
-    const [updated] = await this.db
-      .update(leases)
-      .set({ status: to, updatedAt: new Date() })
-      .where(and(eq(leases.id, leaseId), eq(leases.status, from)))
-      .returning({ id: leases.id });
+    return this.db.transaction(async (tx) => {
+      const [updated] = await tx
+        .update(leases)
+        .set({ status: to, updatedAt: new Date() })
+        .where(and(eq(leases.id, leaseId), eq(leases.status, from)))
+        .returning({ id: leases.id });
 
-    return Boolean(updated);
+      if (!updated) return false;
+
+      if (to === 'active' && firstCharge) {
+        await tx
+          .insert(rentCharges)
+          .values({
+            leaseId,
+            periodMonth: firstCharge.periodMonth,
+            amountRwf: firstCharge.amountRwf,
+            paidAmountRwf: 0,
+            status: 'due',
+            dueDate: firstCharge.dueDate,
+          })
+          .onConflictDoNothing();
+      }
+
+      return true;
+    });
   }
 
   // --- Tickets -------------------------------------------------------------

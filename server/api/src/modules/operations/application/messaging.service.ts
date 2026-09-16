@@ -108,6 +108,7 @@ export class MessagingService {
       return {
         ...this.presentThread(row),
         counterpartName: counterparts.get(row.id) ?? null,
+        departmentName: row.departmentName,
         lastMessageAt: summary?.lastMessageAt?.toISOString() ?? null,
         // The preview is a message body leaving the API, so it redacts too.
         // ADR-032 describes the call site as `presentMessage()`, which the
@@ -240,7 +241,7 @@ export class MessagingService {
     threadId: string,
     page: { cursor?: string; limit?: number } = {},
   ): Promise<GuestMessagePage> {
-    await this.assertMine(threadId, userId);
+    const thread = await this.assertMine(threadId, userId);
 
     const limit = Math.min(
       page.limit ?? GUEST_MESSAGE_PAGE,
@@ -259,7 +260,7 @@ export class MessagingService {
     const last = window[window.length - 1];
 
     return {
-      messages: window.map((row) => this.presentMessage(row, userId)),
+      messages: window.map((row) => this.presentToGuest(row, userId, thread.departmentName)),
       nextCursor: hasOlder && last ? encodeCursor(last.createdAt, last.id) : null,
     };
   }
@@ -425,11 +426,52 @@ export class MessagingService {
     return thread;
   }
 
+  /**
+   * The conversation an order is being placed from (ADR-050 D-s): the caller's
+   * own, still active, and at the property the order is for. 404 for a thread
+   * that is not theirs, as everywhere on this side.
+   */
+  async assertOrderableThread(
+    userId: string,
+    threadId: string,
+    propertyId: string,
+  ): Promise<void> {
+    const thread = await this.assertMine(threadId, userId);
+    assertWritable(thread.status);
+    if (thread.propertyId !== propertyId) {
+      throw new BadRequestException(
+        'That conversation is with a different property from this menu.',
+      );
+    }
+  }
+
+  /**
+   * A message as a GUEST reads it. In a department conversation a staff reply
+   * is signed with the DEPARTMENT's name and never the staffer's (ADR-050 D-r):
+   * the guest is talking to Housekeeping, whoever is on shift, and a handover
+   * should not read as a stranger taking over.
+   */
+  private presentToGuest(
+    row: MessageRow,
+    viewerUserId: string,
+    departmentName: string | null,
+  ): GuestMessage {
+    const message = this.presentMessage(row, viewerUserId);
+    if (departmentName && message.senderUserId !== null && !message.fromUs) {
+      return { ...message, senderName: departmentName };
+    }
+    return message;
+  }
+
   private presentThread(
     row: Omit<ThreadRow, 'branchPropertyId'>,
   ): Omit<
     OperatorThread,
-    'counterpartName' | 'lastMessageAt' | 'lastMessagePreview' | 'messageCount'
+    | 'counterpartName'
+    | 'departmentName'
+    | 'lastMessageAt'
+    | 'lastMessagePreview'
+    | 'messageCount'
   > {
     // `threads_scope_exactly_one` makes exactly one of the three non null, so
     // this cannot fall through — but it is written to throw rather than to
@@ -467,6 +509,7 @@ export class MessagingService {
       bodyType: row.bodyType,
       // Redaction is on read, never on write: the stored row is verbatim.
       body: scrubPhoneNumbers(row.body),
+      serviceOrderId: row.serviceOrderId,
       voiceDurationS: row.voiceDurationS,
       createdAt: row.createdAt.toISOString(),
     };

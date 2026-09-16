@@ -71,10 +71,43 @@ export const DemoSeat = z.object({
 });
 export type DemoSeat = z.infer<typeof DemoSeat>;
 
+/**
+ * One thing a presenter can do as this persona, in the order a demo would do it.
+ * `href` is where it happens: a path on the web origin (the operator app is
+ * served under it at `/w/...` and `/oversight`), an absolute url for a console
+ * on another host (admin), or null when the step is read rather than clicked.
+ */
+export const DemoStoryStep = z.object({
+    title: z.string(),
+    detail: z.string(),
+    href: z.string().nullable(),
+});
+export type DemoStoryStep = z.infer<typeof DemoStoryStep>;
+
+/**
+ * What a persona is FOR in the demo: who they are, why the platform matters to
+ * them, and what to try. Written against the seeded storyline, so every step
+ * points at something the demo data actually holds (`verify-demo-story.mjs`
+ * checks those anchors).
+ */
+export const DemoStory = z.object({
+    /** One line: "Front desk at Amahoro Boutique Hotel". */
+    headline: z.string(),
+    /** Two or three sentences a stakeholder reads before choosing. */
+    summary: z.string(),
+    tryThis: z.array(DemoStoryStep),
+});
+export type DemoStory = z.infer<typeof DemoStory>;
+
 export const DemoPersona = z.object({
     email: z.string(),
     name: z.string(),
     seats: z.array(DemoSeat),
+    /**
+     * Null for a persona the demo guide does not narrate; absent from an API
+     * older than the guide, so a client must treat a missing story as none.
+     */
+    story: DemoStory.nullish(),
 });
 export type DemoPersona = z.infer<typeof DemoPersona>;
 

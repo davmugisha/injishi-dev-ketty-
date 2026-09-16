@@ -8,6 +8,7 @@ import { UserModule } from '../user/user.module';
 import { BrokerRegistrationService } from './application/broker-registration.service';
 import { OwnerClaimService } from './application/owner-claim.service';
 import { RegistrationService } from './application/registration.service';
+import { RolePermissionsService } from './application/role-permissions.service';
 import { StaffInvitationService } from './application/staff-invitation.service';
 import { TeamService } from './application/team.service';
 import { BrokerRepository } from './infrastructure/broker.repository';
@@ -15,6 +16,7 @@ import { ClaimInvitationMailer } from './infrastructure/claim-invitation.mailer'
 import { OrganizationRepository } from './infrastructure/organization.repository';
 import { OwnerClaimRepository } from './infrastructure/owner-claim.repository';
 import { RegistrationMailer } from './infrastructure/registration.mailer';
+import { RolePermissionsRepository } from './infrastructure/role-permissions.repository';
 import { StaffInvitationMailer } from './infrastructure/staff-invitation.mailer';
 import { StaffInvitationRepository } from './infrastructure/staff-invitation.repository';
 import { TeamRepository } from './infrastructure/team.repository';
@@ -60,6 +62,12 @@ import { tinAdapterProvider } from './infrastructure/tin-adapter.provider';
     // business, not what happened on the desk today.
     TeamRepository,
     TeamService,
+    // What each staff role may do at THIS business (ADR-055). An ORG fact like
+    // the roster beside it: who works here, and what the business decided that
+    // means. `WorkspaceService` reads it through the service, which is why the
+    // service is exported and the repository is not.
+    RolePermissionsRepository,
+    RolePermissionsService,
     // Staff invitations: how an approved owner puts people on the business
     // (setup after approval, 2026-09-13). Mailed through the same seam.
     StaffInvitationRepository,
@@ -74,6 +82,7 @@ import { tinAdapterProvider } from './infrastructure/tin-adapter.provider';
     BrokerRegistrationService,
     OwnerClaimService,
     TeamService,
+    RolePermissionsService,
     StaffInvitationService,
   ],
 })

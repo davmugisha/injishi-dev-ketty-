@@ -3,10 +3,17 @@
 /**
  * One stay, at its own address (ADR-018, move 3, AC-8).
  *
- * **On real data** (ADR-035, wave 2 follow-up). Reads `GET /api/v1/ops/stays`,
- * a route that did not exist until this wave: the stays controller could check
- * a guest in and out and never read one back, which is why this record showed a
- * fixture. The demo store is gone from this screen (D-i).
+ * **On real data** (ADR-035, wave 2 follow-up). Reads
+ * `GET /api/v1/ops/stays/:id`: the stays controller could once check a guest in
+ * and out and never read one back, which is why this record showed a fixture.
+ * The demo store is gone from this screen (D-i).
+ *
+ * **BY ITS OWN ID, not out of the list.** This screen used to take the whole
+ * property's stays and `.find()` the one it wanted, which made a LIST the
+ * arbiter of whether a record exists: anything the list left out was
+ * indistinguishable here from a stay that never happened, and rendered the
+ * app's "that page isn't here" refusal to the desk that owns the guest. A
+ * record read answers that question itself.
  *
  * **THE FOLIO IS THE REASON THIS RECORD MATTERS, AND IT IS JOINED UP NOW.** A
  * guest disputes a spa charge from three nights ago; before the stays read
@@ -32,8 +39,9 @@ import { Bill } from "./bill";
 import { Facts } from "../components/facts";
 import { ObjectPage } from "../components/object-page";
 import { EmptyState, Initials, LoadFailed, SectionHeading, Skeleton } from "../components/ui";
+import { ApiError } from "../data/api";
 import { useCapability, useWorkspaceId } from "../data/capability";
-import { useFolios, useStays } from "../data/ops";
+import { useFolios, useStay } from "../data/ops";
 import { dshortIso, initials } from "../lib/format";
 import { folioHref, lensesFor, objectHref } from "../lib/objects";
 import { useWorkspaceHref } from "../lib/workspace-href";
@@ -41,25 +49,26 @@ import { useWorkspaceHref } from "../lib/workspace-href";
 export function StayRecord({ id, lens }: { id: string; lens: string }) {
   const workspaceId = useWorkspaceId();
   const href = useWorkspaceHref();
-  const stays = useStays(workspaceId);
+  const query = useStay(workspaceId, id);
 
-  if (stays.isPending) return <Skeleton height={320} />;
+  if (query.isPending) return <Skeleton height={320} />;
 
-  if (stays.isError) {
-    /* An unreachable API is not a stay that never happened. A 404 here would
-       tell the desk this guest does not exist. */
+  if (query.isError) {
+    /* A stay this workspace does not hold — or one on a branch outside the
+       scope in view — is a 404, the same answer a made up id gets. Anything
+       else is ours to own: an unreachable API is not a stay that never
+       happened, and refusing here would tell the desk this guest does not
+       exist. */
+    if (query.error instanceof ApiError && query.error.status === 404) notFound();
     return (
-      <LoadFailed onRetry={() => void stays.refetch()} retrying={stays.isFetching}>
+      <LoadFailed onRetry={() => void query.refetch()} retrying={query.isFetching}>
         We couldn&apos;t load this stay. The guest and their bill are safe — this is on our
         side, not a missing guest.
       </LoadFailed>
     );
   }
 
-  const stay = (stays.data?.stays ?? []).find((s) => s.id === id);
-  // Only once the list has really answered. A 404 while the read is in flight
-  // would refuse a stay that is about to arrive.
-  if (!stay) notFound();
+  const stay = query.data;
 
   const open = stay.lifecycle === "open";
 
@@ -83,7 +92,7 @@ export function StayRecord({ id, lens }: { id: string; lens: string }) {
   );
 }
 
-type Stay = NonNullable<ReturnType<typeof useStays>["data"]>["stays"][number];
+type Stay = NonNullable<ReturnType<typeof useStay>["data"]>;
 
 function LensBody({
   lens,

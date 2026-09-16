@@ -106,7 +106,7 @@ export function RoomTypesSection({
     }
     // On create: a plain number is how many, anything else is the door numbers.
     const roomsText = draft.rooms.trim();
-    const count = /^d+$/.test(roomsText) ? Number(roomsText) : null;
+    const count = /^\d+$/.test(roomsText) ? Number(roomsText) : null;
     const roomLabels = roomsText && count === null ? parseRoomLabels(roomsText) : undefined;
     if (editing === "new" && !roomsText) {
       return setFormError(`Say how many ${words.unitPlural} of this type you have, or list their numbers.`);

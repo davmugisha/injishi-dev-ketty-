@@ -1,4 +1,6 @@
-import { ConflictException, NotFoundException } from '@nestjs/common';
+import { BadRequestException, ConflictException, NotFoundException } from '@nestjs/common';
+
+import { orderLineText } from '../infrastructure/order-thread-lines';
 
 import {
   type GuestThreadRow,
@@ -33,6 +35,7 @@ describe('MessagingService (guest)', () => {
     leaseId: null,
     status: 'active',
     kind: 'reservation',
+    propertyId: '88888888-8888-4888-8888-888888888888',
     propertyName: 'Amahoro Boutique Hotel',
     departmentName: null,
     updatedAt: new Date('2026-09-12T08:00:00.000Z'),
@@ -46,6 +49,7 @@ describe('MessagingService (guest)', () => {
     senderName: 'Front desk',
     bodyType: 'text',
     body: 'Your room is ready.',
+    serviceOrderId: null,
     voiceDurationS: null,
     createdAt: new Date('2026-09-12T09:00:00.000Z'),
     ...over,
@@ -280,6 +284,58 @@ describe('MessagingService (guest)', () => {
     });
   });
 
+  describe('department conversations and orders (ADR-050 D-r, D-s)', () => {
+    const PROPERTY = '88888888-8888-4888-8888-888888888888';
+
+    it('signs a staff reply with the department, never the staffer', async () => {
+      const { service } = harness({
+        findThreadForGuest: jest
+          .fn()
+          .mockResolvedValue(thread({ kind: 'department_request', departmentName: 'Housekeeping' })),
+        messagePage: jest.fn().mockResolvedValue([
+          message({ id: 'a', senderUserId: OPERATOR, senderName: 'Solange Uwera' }),
+          message({ id: 'b', senderUserId: GUEST, senderName: 'Samuel' }),
+          message({ id: 'c', senderUserId: null, senderName: null, bodyType: 'system', body: 'Order A1 is ready.', serviceOrderId: '99999999-9999-4999-8999-999999999999' }),
+        ]),
+      });
+      const { messages } = await service.listGuestMessages(GUEST, THREAD);
+      expect(messages.map((m) => m.senderName)).toEqual(['Housekeeping', 'Samuel', null]);
+      expect(messages[2]).toMatchObject({ bodyType: 'system', serviceOrderId: '99999999-9999-4999-8999-999999999999', fromUs: false });
+    });
+
+    it('keeps the staffer name on a reservation thread with no department', async () => {
+      const { service } = harness({
+        messagePage: jest.fn().mockResolvedValue([message({ senderName: 'Solange Uwera' })]),
+      });
+      const { messages } = await service.listGuestMessages(GUEST, THREAD);
+      expect(messages[0]?.senderName).toBe('Solange Uwera');
+    });
+
+    it('lets an order be placed from the guest\'s own active thread at that property', async () => {
+      const { service } = harness();
+      await expect(service.assertOrderableThread(GUEST, THREAD, PROPERTY)).resolves.toBeUndefined();
+    });
+
+    it('refuses a thread at another property, a closed one, and a stranger\'s', async () => {
+      await expect(
+        harness().service.assertOrderableThread(GUEST, THREAD, 'cccccccc-cccc-4ccc-8ccc-cccccccccccc'),
+      ).rejects.toThrow(BadRequestException);
+      await expect(
+        harness({ findThreadForGuest: jest.fn().mockResolvedValue(thread({ status: 'archived' })) }).service.assertOrderableThread(GUEST, THREAD, PROPERTY),
+      ).rejects.toThrow(ConflictException);
+      await expect(
+        harness({ findThreadForGuest: jest.fn().mockResolvedValue(null) }).service.assertOrderableThread(GUEST, THREAD, PROPERTY),
+      ).rejects.toThrow(NotFoundException);
+    });
+
+    it('writes order lines that keep the order number as written', () => {
+      const order = { orderNumber: 'A12B', placeName: 'In-Room Dining', departmentName: 'Food and Beverage' };
+      expect(orderLineText('submitted', order)).toBe('Order A12B was sent to In-Room Dining.');
+      expect(orderLineText('acknowledged', order)).toBe('Food and Beverage has your order A12B and is on it.');
+      expect(orderLineText('cancelled', order)).toBe('Order A12B was cancelled.');
+    });
+  });
+
   describe('markGuestRead', () => {
     it('records the SERVER clock, not a client time', async () => {
       const { service, repo } = harness();
@@ -330,6 +386,7 @@ describe('MessagingService (desk)', () => {
     senderName: null,
     bodyType: 'text',
     body: 'hello',
+    serviceOrderId: null,
     voiceDurationS: null,
     createdAt: new Date('2026-09-14T08:00:00.000Z'),
   });

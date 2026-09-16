@@ -77,12 +77,12 @@ export const LIVE_SCREENS: ReadonlySet<string> = new Set([
    *
    * `Team` reads `GET /ops/team` and `Departments` reads `GET /ops/departments`
    * and commands `PATCH /ops/departments/:id`; neither has imported a fixture
-   * since wave 2. The third lens, Invites, is a `Placeholder`, and a placeholder
-   * is not a fixture — it shows no data at all rather than pretending invented
-   * data is real. That is the same distinction `MockBanner` already makes when
-   * it drops `built: false` items from the list, and it is why this key is
-   * allowed in while `finance` is not: `finance` has a lens that INVENTS a
-   * revenue table.
+   * since wave 2. The third lens, Invites, was a `Placeholder` when this key
+   * joined, and a placeholder is not a fixture — it shows no data at all rather
+   * than pretending invented data is real. That is the same distinction
+   * `MockBanner` already makes when it drops `built: false` items from the list.
+   * Invites has been live since 2026-09-13: it reads and commands
+   * `/ops/team/invitations`.
    */
   "people",
   /*
@@ -144,6 +144,16 @@ export const LIVE_SCREENS: ReadonlySet<string> = new Set([
    */
   "setup",
   "units",
+
+  /*
+   * `listing` joins off the demo store (2026-09-15). It drew invented units and
+   * broker reveals, and its switch changed a reducer. It now renders the same
+   * publish control Units & rents does, for every property the business holds:
+   * GET /inventory/properties, POST /inventory/properties/:id/publish and
+   * /unpublish.
+   */
+  "listing",
+
 ]);
 
 /** Is this screen reading real server data yet? */

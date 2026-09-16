@@ -130,16 +130,16 @@ export declare const StaffAccess: z.ZodObject<{
     }>>;
 }, "strip", z.ZodTypeAny, {
     permissions: ("admin.overview.view" | "admin.analytics.view" | "admin.system.view" | "admin.business.view" | "admin.business.review" | "admin.business.suspend" | "admin.business.reinstate" | "admin.user.view" | "admin.user.role.grant" | "admin.user.session.revoke" | "admin.user.impersonate" | "admin.broker.view" | "admin.broker.approve" | "admin.finance.view" | "admin.fee.edit" | "admin.payout.release" | "admin.money.override" | "admin.compliance.view" | "admin.dsr.action" | "admin.audit.read" | "admin.config.view" | "admin.config.edit" | "admin.environment.view" | "admin.environment.manage" | "admin.announcement.view" | "admin.announcement.publish" | "admin.moderation.view" | "admin.moderation.act" | "admin.localization.view" | "admin.localization.edit" | "training.view" | "training.session.manage" | "training.attendance.mark" | "training.certificate.revoke" | "training.course.manage" | "training.venue.manage" | "training.session.publish")[];
-    isStaff: boolean;
     roles: ("super_admin" | "ops" | "compliance" | "finance" | "trainer")[];
+    isStaff: boolean;
     twoFactor?: {
         verified: boolean;
         required: boolean;
     } | undefined;
 }, {
     permissions: ("admin.overview.view" | "admin.analytics.view" | "admin.system.view" | "admin.business.view" | "admin.business.review" | "admin.business.suspend" | "admin.business.reinstate" | "admin.user.view" | "admin.user.role.grant" | "admin.user.session.revoke" | "admin.user.impersonate" | "admin.broker.view" | "admin.broker.approve" | "admin.finance.view" | "admin.fee.edit" | "admin.payout.release" | "admin.money.override" | "admin.compliance.view" | "admin.dsr.action" | "admin.audit.read" | "admin.config.view" | "admin.config.edit" | "admin.environment.view" | "admin.environment.manage" | "admin.announcement.view" | "admin.announcement.publish" | "admin.moderation.view" | "admin.moderation.act" | "admin.localization.view" | "admin.localization.edit" | "training.view" | "training.session.manage" | "training.attendance.mark" | "training.certificate.revoke" | "training.course.manage" | "training.venue.manage" | "training.session.publish")[];
-    isStaff: boolean;
     roles: ("super_admin" | "ops" | "compliance" | "finance" | "trainer")[];
+    isStaff: boolean;
     twoFactor?: {
         verified: boolean;
         required: boolean;

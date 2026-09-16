@@ -25,9 +25,12 @@
  * disclosure rather than operational data, and it belongs to the two roles that
  * may change the team.
  *
- * **ADDING SOMEBODY IS AN INVITATION**, on the Invites lens beside this one,
- * never a button here that writes an `org_memberships` row: who may send one,
- * how it is delivered and what accepting does are that flow's decisions.
+ * **NO INVITE BUTTON ON THIS LENS**, and the one that used to pretend is gone.
+ * Adding somebody is its own flow with its own decisions — who may send one, how
+ * it is delivered, what happens when an account that already holds a different
+ * role accepts it — and that flow is the Invites lens beside this one
+ * (`screens/invites.tsx`, `/ops/team/invitations`). This lens links to it rather
+ * than growing a second way in.
  *
  * **BRANCHES** (ADR-054 AC-T1). In a hotel with more than one branch, each
  * member shows the branches they cover, and the owner may limit a member to some
@@ -280,11 +283,11 @@ export function Team({ landlord = false }: { landlord?: boolean }) {
       )}
 
       <p className="text-2xs text-muted-foreground">
-        To add somebody, send an{" "}
-        <Link href={`${base}/people/invites`} className="underline">
-          invitation
+        To add somebody, send them an invitation from{" "}
+        <Link href={`${base}/people/invites`} className="underline" data-link="invites">
+          Invites
         </Link>
-        ; they join when they accept it.
+        . They join with the role you choose once they accept.
         {showsDepartments && (
           <>
             {" "}

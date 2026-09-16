@@ -196,7 +196,9 @@ export class TwoFactorService {
       .where(eq(twoFactorChallenges.sessionId, sessionId))
       .limit(1);
 
-    if (existing) {
+    // No resend wait on the demo: its code is fixed and mailed only to its own
+    // Mailpit, so there is no mailbox to flood and nothing to protect.
+    if (existing && !this.isDemo) {
       const age = (Date.now() - existing.createdAt.getTime()) / 1000;
       if (age < RESEND_COOLDOWN_SECONDS) {
         throw new UnprocessableEntityException(
@@ -283,7 +285,9 @@ export class TwoFactorService {
       );
     }
 
-    if (challenge.attempts >= OTP_MAX_ATTEMPTS) {
+    // No attempts cap on the demo: the code is published, so walking it guards
+    // nothing, and a burnt code only strands the visitor who mistyped it.
+    if (!this.isDemo && challenge.attempts >= OTP_MAX_ATTEMPTS) {
       await this.db
         .delete(twoFactorChallenges)
         .where(eq(twoFactorChallenges.sessionId, sessionId));

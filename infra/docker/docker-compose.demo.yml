@@ -322,8 +322,12 @@ services:
       - traefik.http.routers.injishi-demo-api.tls.certresolver=letsencrypt
       - traefik.http.routers.injishi-demo-api.service=injishi-demo-api
     networks:
-      - default
-      - dokploy-network
+      default:
+        # The name web's Server Actions use (INTERNAL_API_URL). Not `api`: web
+        # also joins dokploy-network, where another stack's `api` answers to it.
+        aliases:
+          - injishi-api
+      dokploy-network: {}
 
   worker:
     image: injishi-api:${DEMO_IMAGE_TAG:-demo}
@@ -365,6 +369,9 @@ services:
       NODE_ENV: production
       PORT: "3000"
       OPERATOR_APP_URL: http://app:3002
+      # Server only, read at runtime. Sign-in sends reach the API over the compose
+      # network so the visitor's IP can be forwarded (apps/web/src/lib/otp.server.ts).
+      INTERNAL_API_URL: http://injishi-api:8000
     expose:
       - "3000"
     healthcheck:

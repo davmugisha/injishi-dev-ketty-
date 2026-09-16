@@ -83,7 +83,10 @@ export function Calendar() {
           parent. The plans themselves are set up under Inventory.
         </EmptyState>
       ) : (
-        <RoomGrid />
+        /* `?booking=` is the one other parameter this route reads: the grid
+           opens on that booking (Reservations' "Assign room" and "On the
+           grid"). Switching view drops it, because a view is not a booking. */
+        <RoomGrid focusBookingId={params.get("booking")} />
       )}
     </div>
   );

@@ -75,6 +75,8 @@ const sources = [
   // string builders. Paren-free path: Tailwind's scanner treats the parens in
   // "(app)" as glob metacharacters, so a components dir is matched reliably.
   '@source "../components/app";',
+  // The in-stay panels (/stay, and its desks on /inbox) live here.
+  '@source "../components/stay";',
   // The sign-in screens' own components, added with ADR-017 slice 1. The group
   // that held them is `(app)/(entry)` now, but the components directory keeps
   // its name. A class in a directory this list does not scan compiles to

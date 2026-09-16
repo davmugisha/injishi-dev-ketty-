@@ -327,8 +327,22 @@
     {
       "idx": 46,
       "version": "7",
-      "when": 1789435325291,
-      "tag": "0046_residence_not_bookable",
+      "when": 1789442679357,
+      "tag": "0046_guest_chat_order_lines",
+      "breakpoints": true
+    },
+    {
+      "idx": 47,
+      "version": "7",
+      "when": 1789541249052,
+      "tag": "0047_org_role_permissions",
+      "breakpoints": true
+    },
+    {
+      "idx": 48,
+      "version": "7",
+      "when": 1789541349052,
+      "tag": "0048_residence_not_bookable",
       "breakpoints": true
     }
   ]
