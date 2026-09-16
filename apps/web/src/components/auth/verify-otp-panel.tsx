@@ -48,6 +48,17 @@ import {
 const CODE_TTL_S = 600;
 const RESEND_COOLDOWN_S = 30;
 
+/**
+ * The digits a fresh screen opens with. On a live send to the demo API the code
+ * is the published one (ADR-043, AC-17), so it is already in the boxes and the
+ * manual path is one press too; everywhere else the boxes start empty.
+ */
+function openingDigits(demo: boolean, mode: OtpMode): string[] {
+  return demo && mode === "live" && DEMO_OTP_CODE.length === OTP_LENGTH
+    ? DEMO_OTP_CODE.split("")
+    : Array(OTP_LENGTH).fill("");
+}
+
 function clock(total: number) {
   return `${Math.floor(total / 60)}:${String(total % 60).padStart(2, "0")}`;
 }
@@ -64,7 +75,7 @@ export default function VerifyOtpPanel({
   /** The API says this is the demo (`GET /api/v1/platform`), so the code is fixed. */
   demo: boolean;
 }) {
-  const [digits, setDigits] = useState<string[]>(() => Array(OTP_LENGTH).fill(""));
+  const [digits, setDigits] = useState<string[]>(() => openingDigits(demo, issuedMode));
   const [error, setError] = useState<string | null>(null);
   const [attempt, setAttempt] = useState(0);
   const [info, setInfo] = useState<string | null>(null);
@@ -88,6 +99,7 @@ export default function VerifyOtpPanel({
   const [cooldown, setCooldown] = useState(RESEND_COOLDOWN_S);
   const boxes = useRef<Array<HTMLInputElement | null>>([]);
   const resendButton = useRef<HTMLButtonElement>(null);
+  const verifyButton = useRef<HTMLButtonElement>(null);
   const later = useLater();
 
   const code = digits.join("");
@@ -114,8 +126,12 @@ export default function VerifyOtpPanel({
     return () => clearInterval(t);
   }, [cooldown]);
 
+  // A prefilled code puts the caret on the button that uses it, so Enter or a
+  // tap signs in; an empty row puts it in the first box.
+  const prefilled = useRef(demo && issuedMode === "live");
   useEffect(() => {
-    boxes.current[0]?.focus();
+    if (prefilled.current) verifyButton.current?.focus();
+    else boxes.current[0]?.focus();
   }, []);
 
   function write(index: number, raw: string) {
@@ -210,10 +226,14 @@ export default function VerifyOtpPanel({
     setSpent(false);
     setTtl(CODE_TTL_S);
     setCooldown(RESEND_COOLDOWN_S);
-    // The old digits belong to a code that no longer works, so they go.
-    setDigits(Array(OTP_LENGTH).fill(""));
+    // The old digits belong to a code that no longer works, so they go. On the
+    // demo the new code is the same published one, so it goes straight back in.
+    const fresh = openingDigits(demo, result.mode);
+    setDigits(fresh);
     setInfo(`A new code is on its way to ${email}.`);
-    later(RECOVERY_MS, () => boxes.current[0]?.focus());
+    later(RECOVERY_MS, () =>
+      fresh[0] ? verifyButton.current?.focus() : boxes.current[0]?.focus(),
+    );
   }
 
   return (
@@ -265,7 +285,7 @@ export default function VerifyOtpPanel({
           <span className="font-semibold tracking-wider text-foreground">
             {DEMO_OTP_CODE}
           </span>
-          .
+          . We&rsquo;ve filled it in for you.
         </p>
       ) : null}
 
@@ -307,6 +327,7 @@ export default function VerifyOtpPanel({
       {/* `pending` rather than `disabled` while checking: the button keeps its
           focus, refuses a second press itself, and says what it is doing. */}
       <Button
+        ref={verifyButton}
         type="button"
         variant="secondary"
         className="mt-6 w-full"

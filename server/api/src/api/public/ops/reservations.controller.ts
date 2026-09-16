@@ -90,6 +90,29 @@ export class OpsReservationsController {
   }
 
   /**
+   * ONE reservation, by its own id.
+   *
+   * **The record page had no route and paid for it.** It resolved its booking
+   * out of the desk list above, which is windowed to `DESK_WINDOW_DAYS` of
+   * departures and capped at `DESK_LIMIT` rows — so a booking older than the
+   * window rendered the app's "that page isn't here" refusal to the operator
+   * who owns it. A window bounds a LIST; it must not decide whether a RECORD
+   * exists.
+   *
+   * It carries the SAME permission set as the list above, deliberately. A
+   * record read that was easier to reach than the list it came from would let
+   * a housekeeper open by id exactly what the desk refuses to show them.
+   */
+  @Get(':id')
+  @RequireAnyPermission('reservation.approve', 'reservation.assign', 'stay.checkin')
+  get(
+    @Param('id', ParseUUIDPipe) id: string,
+    @CurrentWorkspace() workspace: ScopedWorkspace,
+  ): Promise<OperatorReservation> {
+    return this.reservations.get(workspace, id);
+  }
+
+  /**
    * Confirm a pending request. The escrow stays held; only the status moves.
    *
    * No body, by design (D-d). The URL says what is being asked and the

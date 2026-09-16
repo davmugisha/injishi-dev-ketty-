@@ -79,6 +79,30 @@ export class OpsStaysController {
   }
 
   /**
+   * ONE stay, by its own id.
+   *
+   * The record screen resolved its stay out of the list above, so the whole
+   * property had to be read to render one guest, and the screen's answer to
+   * "does this stay exist" was "is it in that list" — a question a list is not
+   * qualified to answer. A stay on another workspace, or on a branch outside
+   * this scope, is a 404 here, the same answer an invented id gets.
+   *
+   * Same permission set as the list, so opening a record by id is never easier
+   * than seeing it listed.
+   *
+   * `walk-in` below is a POST, so this GET cannot shadow it whatever the
+   * declaration order, and `ParseUUIDPipe` would refuse that word besides.
+   */
+  @Get(':id')
+  @RequireAnyPermission('stay.checkin', 'stay.checkout', 'folio.charge')
+  get(
+    @Param('id', ParseUUIDPipe) id: string,
+    @CurrentWorkspace() workspace: ScopedWorkspace,
+  ): Promise<OperatorStay> {
+    return this.frontDesk.getStay(workspace, id);
+  }
+
+  /**
    * Check a walk in in — somebody at the counter with no booking (ADR-035).
    *
    * **The desk had a button for this and no route behind it.** Check in names a

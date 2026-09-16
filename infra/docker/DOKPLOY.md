@@ -400,6 +400,13 @@ arguments, set per stack in its compose file from the host variables.
 | `NEXT_PUBLIC_WEB_URL`, `_SITE_URL`, `_PMS_URL` | `https://www.injishi.com` | `https://www-demo.injishi.com` |
 | `NEXT_PUBLIC_ADMIN_URL` | `https://admin.injishi.com` | `https://admin-demo.injishi.com` |
 | `NEXT_PUBLIC_INJISHI_ENVIRONMENT` | `production` | `demo` |
+| `INTERNAL_API_URL` on web, runtime only | `http://injishi-api:8000` | the same, on its own network |
+
+Web's sign-in Server Action calls the API at `INTERNAL_API_URL`, the `api`
+service's `injishi-api` alias on the stack's own network, and forwards the
+visitor's `x-forwarded-for`. Through the public API host, Traefik would replace
+that with the host's own address, and every visitor would share one per-IP send
+budget: the fourth sign-in of any minute is refused.
 
 Each API's `CORS_ORIGINS` lists only its own stack's browser origins:
 production's `www`, the apex and `admin`; the demo's `www-demo` and

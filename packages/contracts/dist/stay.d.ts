@@ -420,14 +420,14 @@ export declare const OpenDepartmentResult: z.ZodObject<{
     /** False when the guest already had this conversation and we appended to it. */
     created: z.ZodBoolean;
 }, "strip", z.ZodTypeAny, {
+    departmentName: string | null;
     threadId: string;
     departmentId: string;
-    departmentName: string | null;
     created: boolean;
 }, {
+    departmentName: string | null;
     threadId: string;
     departmentId: string;
-    departmentName: string | null;
     created: boolean;
 }>;
 export type OpenDepartmentResult = z.infer<typeof OpenDepartmentResult>;

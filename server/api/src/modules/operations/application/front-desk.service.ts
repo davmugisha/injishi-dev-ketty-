@@ -394,6 +394,27 @@ export class FrontDeskService {
     return { stays: rows.map((row) => this.presentStay(row)) };
   }
 
+  /**
+   * ONE stay, by its own id.
+   *
+   * The record screen used to find its stay inside `listStays` above, which is
+   * the same mistake the reservation record made: a LIST is the wrong oracle
+   * for "does this record exist". `listStays` is unwindowed today, so this
+   * closes the edge before a window is ever added to it rather than after —
+   * and it stops the screen paying for every stay on the property to render
+   * one.
+   *
+   * Scoped exactly as `checkOut` scopes its stay: `assertOwned` for the
+   * workspace, `assertInBranchScope` through the ROOM's property for the
+   * branch. Through the room, never the booking, because a walk in has none
+   * (ADR-054).
+   */
+  async getStay(ws: ScopedWorkspace, stayId: string): Promise<OperatorStay> {
+    const stay = assertOwned(await this.rooms.findStay(stayId), ws);
+    assertInBranchScope(ws, stay.propertyId);
+    return this.presentStay(stay);
+  }
+
   private presentStay(row: StayRow): OperatorStay {
     return {
       id: row.id,

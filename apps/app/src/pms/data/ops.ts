@@ -56,14 +56,18 @@ import {
   type OperatorServiceOrder,
   OperatorServiceOrderList,
   OperatorRoomList,
-  type OperatorStay,
+  OperatorStay,
   OperatorStayList,
   WalkInRequest,
+  OperatorRoleList,
+  type OperatorRolePermissions,
+  type SetRolePermissionsRequest,
   OperatorTeamList,
   type OperatorTicket,
   OperatorThreadList,
   OperatorTicketList,
   type PostChargeRequest,
+  type RaiseTicketRequest,
   type RecordRentRequest,
   type ReturnDepositRequest,
   type SendMessageRequest,
@@ -127,6 +131,8 @@ export const OPS_READ = {
   rraClassifications: ["menu.manage"],
   stays: ["stay.checkin", "stay.checkout", "folio.charge"],
   team: ["team.manage"],
+  /** The business's own access policy. Owner only, like the roster. */
+  roles: ["team.manage"],
   threads: ["message.send"],
   /** Not `/ops`, but the same rule: `InventoryController` is `listing.manage`. */
   inventory: ["listing.manage"],
@@ -283,6 +289,32 @@ export function useStays(workspaceId: string | null): UseQueryResult<OperatorSta
     OperatorStayList,
     OPS_READ.stays,
   );
+}
+
+/**
+ * ONE stay, read by its own id.
+ *
+ * The record screen used to take `useStays` and `.find()` the id out of it,
+ * which made the whole property's stays the price of rendering one guest and
+ * made a LIST the arbiter of whether a stay exists. A record read answers that
+ * question itself: a 404 from here means not-yours-or-not-real, and nothing
+ * else does.
+ *
+ * Gated on the same permissions as the list (`OPS_READ.stays`) and sent with
+ * the same branch header, so opening a record by id is never a way around
+ * either.
+ */
+export function useStay(
+  workspaceId: string | null,
+  stayId: string | null,
+): UseQueryResult<OperatorStay> {
+  const mayRead = useMayRead(OPS_READ.stays);
+  return useQuery({
+    queryKey: queryKeys.stay(workspaceId, stayId),
+    queryFn: () =>
+      read(`/ops/stays/${stayId as string}`, workspaceId as string, OperatorStay),
+    enabled: workspaceId !== null && stayId !== null && mayRead,
+  });
 }
 
 export function useCheckIn(
@@ -1045,6 +1077,68 @@ export function useTeam(workspaceId: string | null): UseQueryResult<OperatorTeam
 }
 
 // ---------------------------------------------------------------------------
+// What each role may do here
+// ---------------------------------------------------------------------------
+
+/**
+ * The business's own access policy (ADR-055).
+ *
+ * Behind `team.manage` like the roster, and for the same reason: this says which
+ * colleague can read the takings and which cannot, which is information about
+ * people rather than operational data.
+ *
+ * **NOTHING IS RESOLVED HERE.** The server sends both the platform default and
+ * the effective set for every role; the screen renders the difference between
+ * two arrays it was given. Working a permission out from a role name in the
+ * browser is exactly what `no-client-authz` fails the build on, and it is what
+ * the whole model moved to the server to stop.
+ */
+export function useRoles(workspaceId: string | null): UseQueryResult<OperatorRoleList> {
+  return useOpsQuery(
+    queryKeys.roles(workspaceId),
+    "/ops/roles",
+    workspaceId,
+    OperatorRoleList,
+    OPS_READ.roles,
+  );
+}
+
+/**
+ * Set the whole permission set of one role.
+ *
+ * A PUT with the complete set rather than a toggle command: the same request
+ * sent twice leaves the same policy, so a double click or a retry cannot half
+ * apply an edit.
+ *
+ * **It invalidates `me.workspaces`, and that is not housekeeping.** The array
+ * this writes is the one every screen's `useCapability` reads, so an owner who
+ * withdrew `money.view` from the front desk must see their own app agree without
+ * a reload — and an owner editing the role they are watching would otherwise be
+ * looking at a stale answer while the server had already changed it.
+ */
+export function useSetRolePermissions(
+  workspaceId: string | null,
+): UseMutationResult<
+  OperatorRolePermissions,
+  Error,
+  { orgRole: string } & SetRolePermissionsRequest
+> {
+  const client = useQueryClient();
+  return useMutation({
+    mutationFn: ({ orgRole, ...body }) =>
+      command<OperatorRolePermissions>(`/ops/roles/${orgRole}`, {
+        workspaceId: workspaceId as string,
+        body,
+        method: "PUT",
+      }),
+    onSuccess: () => {
+      void client.invalidateQueries({ queryKey: queryKeys.roles(workspaceId) });
+      void client.invalidateQueries({ queryKey: queryKeys.meWorkspaces });
+    },
+  });
+}
+
+// ---------------------------------------------------------------------------
 // Messaging
 // ---------------------------------------------------------------------------
 
@@ -1111,6 +1205,30 @@ export function useSendMessage(
 // ---------------------------------------------------------------------------
 // Residence
 // ---------------------------------------------------------------------------
+
+/**
+ * Send a line into a thread named at call time rather than at hook time.
+ *
+ * `useSendMessage` binds its thread when the hook is created, which fits a
+ * conversation screen and not a list: the rent roll reminds whichever tenant's
+ * row was pressed, so the thread travels with the call.
+ */
+export function useSendToThread(
+  workspaceId: string | null,
+): UseMutationResult<OperatorMessage, Error, { threadId: string } & SendMessageRequest> {
+  const client = useQueryClient();
+  return useMutation({
+    mutationFn: ({ threadId, ...body }) =>
+      command<OperatorMessage>(`/ops/threads/${threadId}/messages`, {
+        workspaceId: workspaceId as string,
+        body,
+      }),
+    onSuccess: (_message, { threadId }) => {
+      void client.invalidateQueries({ queryKey: queryKeys.threadMessages(workspaceId, threadId) });
+      void client.invalidateQueries({ queryKey: queryKeys.threads(workspaceId) });
+    },
+  });
+}
 
 export function useLeases(workspaceId: string | null): UseQueryResult<OperatorLeaseList> {
   return useOpsQuery(
@@ -1222,6 +1340,30 @@ export function useAdvanceTicket(
   return useMutation({
     mutationFn: ({ ticketId, ...body }) =>
       command<OperatorTicket>(`/ops/tickets/${ticketId}/advance`, {
+        workspaceId: workspaceId as string,
+        body,
+      }),
+    onSuccess: () => {
+      void client.invalidateQueries({ queryKey: queryKeys.tickets(workspaceId) });
+    },
+  });
+}
+
+/**
+ * Report a fault (ADR-016 slice 6, AC-11).
+ *
+ * `POST /ops/tickets` has existed since the work order slice, and nothing in
+ * the app called it: a landlord could advance a ticket but never open one, so
+ * a fault phoned in by a tenant had nowhere to go. Name the lease on a
+ * residence and the room on a hotel; the server refuses a ticket naming neither.
+ */
+export function useRaiseTicket(
+  workspaceId: string | null,
+): UseMutationResult<OperatorTicket, Error, RaiseTicketRequest> {
+  const client = useQueryClient();
+  return useMutation({
+    mutationFn: (body: RaiseTicketRequest) =>
+      command<OperatorTicket>("/ops/tickets", {
         workspaceId: workspaceId as string,
         body,
       }),

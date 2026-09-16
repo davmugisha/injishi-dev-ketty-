@@ -20,14 +20,21 @@
  *    ask, so the demo store stands in exactly as before and the shell's banner
  *    says which screens that applies to (AC-12).
  *
- * An action that leads to a screen still on demo data is shown DISABLED on a
- * live row rather than hidden. Hiding it would make the desk look broken;
- * offering it would send an operator to a screen that cannot find the booking
- * they just clicked. Exactly one is left, and it is the Calendar link ("On the
- * grid", "Assign room", "View") — the room grid still draws the fixture.
+ * **EVERY ROW ACTION OPENS SOMETHING REAL NOW (2026-09-15).** The last refusal
+ * on this screen was the Calendar link ("On the grid", "Assign room", "View"),
+ * disabled on a live row as if the grid still drew the fixture. It had not
+ * been true since the room grid moved onto `/ops/rooms`, `/ops/room-assignments`
+ * and `/ops/stays`. So:
  *
- * **CHECK IN AND VIEW BILL USED TO BE ON THAT LIST AND SHOULD NOT HAVE BEEN.**
- * Neither screen was the problem:
+ *  - "On the grid" and "Assign room" open the grid at `?booking=<id>`. The grid
+ *    moves its window to the booking's dates, marks its bar, and offers the
+ *    rooms it may hold, so an unassigned arrival is one choice away from a room.
+ *  - "View" on a checked out, cancelled or no show booking opens the booking's
+ *    own record (`/reservations/:id`), which shows the stay it became. The grid
+ *    was the wrong target even for the demo: it shows two days of history.
+ *
+ * **CHECK IN AND VIEW BILL WERE REFUSED THE SAME WAY BEFORE THAT, AND SHOULD
+ * NOT HAVE BEEN.** Neither screen was the problem:
  *
  *  - `CheckInDrawer` has sent `POST /ops/stays/:bookingId/checkin` against the
  *    live free-room list since ADR-035. What was still on demo data was the
@@ -38,12 +45,13 @@
  *    missing was the STAY ID, because a bill hangs off the stay and not off the
  *    booking. `GET /ops/stays` supplies it.
  *
- * Both are worth stating because they are the same mistake twice: a screen
- * labelled "still a demo" when the gap was the one line joining it up.
+ * The Calendar link made it three times: a screen labelled "still a demo" when
+ * the gap was the one line joining it up.
  */
 
 import { useState } from "react";
 import Link from "next/link";
+import { withQuery } from "@injishi/utils";
 import { useRouter } from "next/navigation";
 import { useWorkspaceHref } from "../lib/workspace-href";
 import { useHost, usePms } from "../store";
@@ -55,12 +63,13 @@ import {
   useDeclineReservation,
   useReservations,
 } from "../data/reservations";
-import { useStays } from "../data/ops";
+import { useRoomAssignments, useStays } from "../data/ops";
 import { seedFromDemoReservation, seedFromServerReservation } from "../lib/check-in-seed";
 import { buildFolio } from "../lib/folio";
-import { dateRange, dateRangeIso, fmt, todayIso } from "../lib/format";
+import { addDaysIso, dateRange, dateRangeIso, fmt, todayIso } from "../lib/format";
 import { ActionButton, Badge, Chip, EmptyState, LoadFailed, Skeleton, surface, tableHeadStyle } from "../components/ui";
 import { ConfirmAction } from "../components/confirm-action";
+import { HostCancelAction } from "../components/reservations/host-cancel-action";
 // The wording of a decision lives with Today, so the two screens cannot tell
 // an operator two different things about the same command.
 import { decisionToast } from "./today";
@@ -146,6 +155,21 @@ export function Reservations() {
    * blocks the list.
    */
   const stays = useStays(workspaceId);
+  /*
+   * Which confirmed bookings already hold a room, so the row says "On the grid"
+   * rather than "Assign room" to a desk that assigned it yesterday. The
+   * reservation's own `room` is the STAY's room and stays null until check in,
+   * so it cannot answer this. One windowed read, from today to the last
+   * confirmed departure, asked only once the list has answered. The API refuses
+   * a window over 62 days, so a booking further out than that reads "Assign
+   * room" and the grid it opens says what it actually holds.
+   */
+  const confirmed = (query.data?.reservations ?? []).filter((r) => r.state === "confirmed");
+  const latest = confirmed.reduce((max, r) => (r.checkOut > max ? r.checkOut : max), addDaysIso(todayIso(), 1));
+  const holdsCap = addDaysIso(todayIso(), 62);
+  const holdsTo = latest > holdsCap ? holdsCap : latest;
+  const holds = useRoomAssignments(query.isSuccess ? workspaceId : null, todayIso(), holdsTo);
+  const heldBookings = new Set((holds.data?.assignments ?? []).map((h) => h.bookingId));
   const approve = useApproveReservation(workspaceId);
   const decline = useDeclineReservation(workspaceId);
 
@@ -327,19 +351,31 @@ export function Reservations() {
                   </ActionButton>
                 )}
                 {r.bucket === "confirmed" && !r.today && (
+                  /* Opens the grid ON this booking: its dates in view, its bar
+                     marked, and the rooms it may hold offered in place. */
                   <ActionButton
-                    onClick={() => router.push(href("/calendar"))}
-                    deniedReason={r.source === "live" ? STILL_MOCK : undefined}
+                    onClick={() =>
+                      router.push(
+                        href(r.source === "live" ? withQuery("/calendar", { booking: r.id }) : "/calendar"),
+                      )
+                    }
                     style={{ minWidth: 96 }}
                   >
-                    {r.room ? "On the grid" : "Assign room"}
+                    {r.room || heldBookings.has(r.id) ? "On the grid" : "Assign room"}
                   </ActionButton>
+                )}
+                {r.bucket === "confirmed" && r.source === "live" && (
+                  /* The host's cancel (audit H8). Confirmed bookings only: a
+                     pending one already has Decline, which is the same refund.
+                     The component gates on `reservation.approve`, confirms
+                     before it calls, and hides itself once the guest is in. */
+                  <HostCancelAction reservation={query.data?.reservations.find((x) => x.id === r.id)} />
                 )}
                 {r.bucket === "inhouse" && (
                   /* THE BILL HANGS OFF THE STAY, NOT THE BOOKING, which is why
                      this needed `GET /ops/stays` rather than a bigger
-                     reservation payload. A live row used to be refused here with
-                     "that screen still reads demo data" — Bills has read
+                     reservation payload. A live row used to be refused here as
+                     if Bills were still a demo — Bills has read
                      `GET /ops/folios/:id` since wave 2, and the real gap was
                      that this screen had no stay id to address. */
                   <ActionButton
@@ -354,9 +390,11 @@ export function Reservations() {
                   </ActionButton>
                 )}
                 {r.bucket === "out" && (
+                  /* A finished booking's record: its dates, total, and the
+                     stay and bill it became. The grid only reaches two days
+                     back, so it could not show most of these. */
                   <ActionButton
-                    onClick={() => router.push(href("/calendar"))}
-                    deniedReason={r.source === "live" ? STILL_MOCK : undefined}
+                    onClick={() => router.push(href(`/reservations/${r.id}`))}
                     style={{ minWidth: 96 }}
                   >
                     View
@@ -371,14 +409,13 @@ export function Reservations() {
   );
 }
 
-const STILL_MOCK = "That screen still reads demo data, so it can't open a real booking yet.";
-
 /**
- * Different from STILL_MOCK, and the difference is worth wording.
+ * Why "View bill" is refused on an in-house row with no stay to address.
  *
  * The bill screen is fine; there is simply no stay to address. That happens
- * when the reservations and stays reads disagree for a moment, and telling the
- * operator "the screen is a demo" would send them looking in the wrong place.
+ * when the reservations and stays reads disagree for a moment, and it is worded
+ * as that rather than as a broken screen, which would send the operator looking
+ * in the wrong place.
  */
 const NO_STAY = "We can't find an open stay for this booking, so there is no bill to open.";
 

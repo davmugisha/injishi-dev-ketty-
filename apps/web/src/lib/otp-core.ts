@@ -113,6 +113,8 @@ export const OTP_MESSAGES = {
     "We couldn't send your code just now — that's on our side. Try again in a moment.",
   sendRateLimited:
     "We've sent a lot of codes to this address recently, so we've paused for a while. Try again in an hour — the last code we sent still works until it expires.",
+  sendThrottled:
+    "That's a lot of codes asked for in a short time. Wait a minute, then try again.",
   verifyFailed:
     "We couldn't sign you in with that code. Try again, or send yourself a new one.",
   verifyExpired: "That code has expired. We can send you a new one.",
@@ -184,8 +186,15 @@ export function sendFailure(error: OtpError): {
   if (code === "INVALID_EMAIL") {
     return { reason: "invalid-email", message: OTP_MESSAGES.emailInvalid };
   }
-  if (code === "RATE_LIMITED" || status === 429) {
+  // Two different refusals share a 429, and they have different waits. Only our
+  // own send cap (`otpSendCap`) sets `RATE_LIMITED`, and it pauses for an hour.
+  // A bare 429 is Better Auth's per-IP limiter, whose window is sixty seconds:
+  // telling that person "an hour" sends them away for nothing.
+  if (code === "RATE_LIMITED") {
     return { reason: "rate-limited", message: OTP_MESSAGES.sendRateLimited };
+  }
+  if (status === 429) {
+    return { reason: "rate-limited", message: OTP_MESSAGES.sendThrottled };
   }
   return { reason: "system", message: OTP_MESSAGES.sendFailed };
 }

@@ -13,9 +13,10 @@
 //   properties -> listings -> room_types -> rate_plans -> rooms
 //   -> bookings -> guest_stays -> escrows
 //
-// Scoped to what the first thread reads: the Reservations desk. Leases, folios,
-// tickets and menus arrive with the steps that build their screens, so nothing
-// here is fixture data for a surface nobody can open yet.
+// Scoped to what the first thread reads: the Reservations desk. The hotel's
+// working day on top of it (departments, outlets and menu, a month of stays and
+// bills, housekeeping, maintenance, orders) is `seed-demo-hotel.mjs`, which runs
+// after this script and the catalogue, and whose purge `--reset` calls first.
 //
 // Every id is a deterministic constant (never gen_random_uuid) so re running is
 // a no op and `--reset` can find exactly what this script owns.
@@ -40,8 +41,10 @@
 // Preconditions: seed-geography.mjs and seed-content.mjs must have run against
 // the SAME database first (districts and rdb_classifications are foreign
 // key targets here). The script checks and tells you if they have not.
+import { spawnSync } from 'node:child_process';
 import fs from 'node:fs';
 import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { computeBreakdown } from '@injishi/contracts';
 import pg from 'pg';
 
@@ -112,6 +115,11 @@ const SW = (n) => `de300000-0000-4000-8000-0000000013${String(n).padStart(2, '0'
 const RR = (n) => `de300000-0000-4000-8000-0000000014${String(n).padStart(2, '0')}`; // rent roll
 const TH = (n) => `de300000-0000-4000-8000-0000000015${String(n).padStart(2, '0')}`; // threads
 const MS = (n) => `de300000-0000-4000-8000-0000000016${String(n).padStart(2, '0')}`; // messages
+const RLP = (n) => `de300000-0000-4000-8000-0000000017${String(n).padStart(2, '0')}`; // role permissions
+// The twenty room hotel (demo showcase, 2026-09-15). Rows added to the families
+// above take the `0029` block, so the original `00000000NNNN` ids stay exactly
+// as other scripts know them: `0029` + a two digit family + a six digit serial.
+const XH = (family, n) => `de300000-0000-4000-8000-0029${family}${String(n).padStart(6, '0')}`;
 
 // --- The roster --------------------------------------------------------------
 // Mirrors mfp-demo-users.md. `nid` null means no identity document at all,
@@ -186,6 +194,38 @@ const MEMBERSHIPS = [
   // behind it is untouched and her Landlord surface still has rows. Only
   // Samuel's second, duplicate landlord seat is gone.
 ];
+
+/**
+ * What Amahoro decided its own roles mean (ADR-055).
+ *
+ * TWO ROWS, ONE IN EACH DIRECTION, because a demo that only ever showed a grant
+ * would leave the more surprising half — that an owner can take something AWAY
+ * from a manager — untold.
+ *
+ *  - Denise, on the front desk, can read the takings. Plenty of small hotels
+ *    give reception the day's number; the platform default does not, and this is
+ *    the business saying otherwise.
+ *  - Solange, managing, cannot withdraw a signed RRA receipt. It reduces
+ *    declared turnover, and Yves keeps that to himself.
+ *
+ * Both are chosen to be VISIBLE and to break nothing: `money.view` opens the
+ * Money section for Denise, and `ebm.refund` is a button Solange no longer
+ * has — neither is a permission any demo guide walks somebody through using.
+ *
+ * `de300000-0000-4000-8000-` ids like everything else this seed writes, so
+ * `--reset` reaches them.
+ */
+const ROLE_PERMISSIONS = [
+  {
+    id: RLP(1), orgId: O(1), role: 'receptionist',
+    permission: 'money.view', granted: true, setBy: U(1),
+  },
+  {
+    id: RLP(2), orgId: O(1), role: 'manager',
+    permission: 'ebm.refund', granted: false, setBy: U(1),
+  },
+];
+
 
 const WORKSPACES = [
   { id: W(1), kind: 'business', orgId: O(1) },
@@ -307,16 +347,38 @@ const ASSIGNMENTS = [
 // hides or greys out, because "it renders" is not the same as "it renders the
 // case that goes wrong".
 
-/** Days from today, as a bare YYYY-MM-DD the `date` columns take verbatim. */
+/**
+ * The seed's clock. `DEMO_SEED_NOW` (an ISO instant, e.g.
+ * `2026-09-14T23:30:00Z`) stands in for "now", read ONLY by the demo seeds, so
+ * the hour when the Kigali and UTC calendars disagree can be tested on purpose.
+ * Unset, it is the real clock.
+ */
+const NOW = (() => {
+  const fake = process.env.DEMO_SEED_NOW?.trim();
+  if (!fake) return new Date();
+  const d = new Date(fake);
+  if (Number.isNaN(d.getTime())) throw new Error(`DEMO_SEED_NOW is not a date: ${fake}`);
+  return d;
+})();
+
+/**
+ * Days from today, as a bare YYYY-MM-DD the `date` columns take verbatim.
+ *
+ * TODAY IS KIGALI'S (Africa/Kigali, UTC+2, no daylight saving): every demo
+ * property's desk, night audit and month run on it. The UTC calendar is a day
+ * behind between 22:00 and 24:00 UTC, which put an arrival "today" on
+ * yesterday's line of a Today screen.
+ */
 function day(offset) {
-  const d = new Date();
+  const today = new Intl.DateTimeFormat('en-CA', { timeZone: 'Africa/Kigali' }).format(NOW);
+  const d = new Date(`${today}T00:00:00Z`);
   d.setUTCDate(d.getUTCDate() + offset);
   return d.toISOString().slice(0, 10);
 }
 
 /** Hours from now, for the timestamp columns. */
 function hoursFromNow(offset) {
-  return new Date(Date.now() + offset * 3600 * 1000);
+  return new Date(NOW.getTime() + offset * 3600 * 1000);
 }
 
 // Every persona business that trades stays owns a PUBLISHED property with a
@@ -424,10 +486,14 @@ const LISTINGS = [
   { id: LS(10), propertyId: PR(9), workspaceId: W(9), status: 'draft' },
 ];
 
+// Amahoro is twenty rooms: eight Standard Doubles on the first floor, four
+// Executive Suites on the second, eight Deluxe Twins on the third. `roomCount`
+// is the number of rooms below, and the rates sit where a Remera boutique
+// hotel's do (roughly 50 to 100 US dollars a night), room only.
 const ROOM_TYPES = [
   {
     id: RT(1), propertyId: PR(1), workspaceId: W(1), name: 'Standard Double',
-    maxGuests: 2, capacity: 2, roomCount: 2, priceRwf: 45000,
+    maxGuests: 2, capacity: 2, roomCount: 8, priceRwf: 75000,
     // Instant book carries no approval policy, and the
     // `room_types_approval_policy_shape` check enforces that rather than
     // trusting this comment.
@@ -435,10 +501,15 @@ const ROOM_TYPES = [
   },
   {
     id: RT(2), propertyId: PR(1), workspaceId: W(1), name: 'Executive Suite',
-    maxGuests: 3, capacity: 3, roomCount: 2, priceRwf: 120000,
+    maxGuests: 3, capacity: 3, roomCount: 4, priceRwf: 150000,
     // Request to book is what makes the approve command mean anything: only a
     // `pending_approval` booking is there to approve.
     bookingMode: 'request_to_book', approvalPolicy: 'approve_all', cancellationTier: 'moderate',
+  },
+  {
+    id: XH('06', 1), ratePlanId: XH('07', 1), propertyId: PR(1), workspaceId: W(1), name: 'Deluxe Twin',
+    maxGuests: 2, capacity: 2, roomCount: 8, priceRwf: 90000,
+    bookingMode: 'instant_book', approvalPolicy: null, cancellationTier: 'flexible',
   },
   {
     id: RT(3), propertyId: PR(2), workspaceId: SW(2), name: 'Lake View Double',
@@ -472,17 +543,43 @@ const ROOM_TYPES = [
 // The room type columns are deprecated but the booking engine still reads them,
 // so both sides are written and they agree.
 const RATE_PLANS = ROOM_TYPES.map((rt, i) => ({
-  id: RP(i + 1), roomTypeId: rt.id, workspaceId: rt.workspaceId, name: 'Standard rate',
+  id: rt.ratePlanId ?? RP(i + 1), roomTypeId: rt.id, workspaceId: rt.workspaceId, name: 'Standard rate',
   priceRwf: rt.priceRwf, baseOccupancy: 2,
   bookingMode: rt.bookingMode, approvalPolicy: rt.approvalPolicy,
   cancellationTier: rt.cancellationTier,
 }));
 
+/**
+ * The rooms, with the housekeeping state the board shows this morning.
+ *
+ * The states are not decoration: `seed-demo-hotel.mjs` seeds the day behind
+ * them (who is in each room, who leaves today, which clean is on whose list),
+ * and they have to agree with it. Occupied rooms waiting for their stayover are
+ * dirty until their stayover is done; the rooms being made ready for today's arrivals are inspected; 307 is
+ * off sale for a ceiling leak, which is the one `status` that is not
+ * `available`. `hkAt` is today's clock time in Kigali, `hkBy` who set it.
+ */
 const ROOMS = [
-  { id: RM(1), roomTypeId: RT(1), label: '101', housekeeping: 'clean' },
-  { id: RM(2), roomTypeId: RT(1), label: '102', housekeeping: 'dirty' },
-  { id: RM(3), roomTypeId: RT(2), label: '201', housekeeping: 'clean' },
-  { id: RM(4), roomTypeId: RT(2), label: '202', housekeeping: 'inspected' },
+  { id: RM(1),        roomTypeId: RT(1), label: '101', housekeeping: 'clean', hkAt: '08:40', hkBy: U(4) },
+  { id: RM(2),        roomTypeId: RT(1), label: '102', housekeeping: 'dirty' },
+  { id: XH('08', 3),  roomTypeId: RT(1), label: '103', housekeeping: 'inspected', hkAt: '-1 11:20', hkBy: U(4) },
+  { id: XH('08', 4),  roomTypeId: RT(1), label: '104', housekeeping: 'dirty' },
+  { id: XH('08', 5),  roomTypeId: RT(1), label: '105', housekeeping: 'clean', hkAt: '09:05', hkBy: U(4) },
+  { id: XH('08', 6),  roomTypeId: RT(1), label: '106', housekeeping: 'dirty' },
+  { id: XH('08', 7),  roomTypeId: RT(1), label: '107', housekeeping: 'dirty', hkAt: '06:15' },
+  { id: XH('08', 8),  roomTypeId: RT(1), label: '108', housekeeping: 'inspected', hkAt: '-1 15:30', hkBy: U(2) },
+  { id: RM(3),        roomTypeId: RT(2), label: '201', housekeeping: 'dirty' },
+  { id: RM(4),        roomTypeId: RT(2), label: '202', housekeeping: 'clean', hkAt: '10:45', hkBy: U(4) },
+  { id: XH('08', 11), roomTypeId: RT(2), label: '203', housekeeping: 'dirty' },
+  { id: XH('08', 12), roomTypeId: RT(2), label: '204', housekeeping: 'inspected', hkAt: '10:40', hkBy: U(2) },
+  { id: XH('08', 13), roomTypeId: XH('06', 1), label: '301', housekeeping: 'clean', hkAt: '09:50', hkBy: U(4) },
+  { id: XH('08', 14), roomTypeId: XH('06', 1), label: '302', housekeeping: 'dirty' },
+  { id: XH('08', 15), roomTypeId: XH('06', 1), label: '303', housekeeping: 'dirty' },
+  { id: XH('08', 16), roomTypeId: XH('06', 1), label: '304', housekeeping: 'dirty' },
+  { id: XH('08', 17), roomTypeId: XH('06', 1), label: '305', housekeeping: 'inspected', hkAt: '10:20', hkBy: U(2) },
+  { id: XH('08', 18), roomTypeId: XH('06', 1), label: '306', housekeeping: 'dirty' },
+  { id: XH('08', 19), roomTypeId: XH('06', 1), label: '307', housekeeping: 'out_of_order', status: 'maintenance', hkAt: '-1 16:20', hkBy: U(4) },
+  { id: XH('08', 20), roomTypeId: XH('06', 1), label: '308', housekeeping: 'dirty' },
   { id: RM(5), roomTypeId: RT(3), label: '11', housekeeping: 'clean' },
   { id: RM(6), roomTypeId: RT(3), label: '12', housekeeping: 'clean' },
   { id: RM(7), roomTypeId: RT(4), label: 'G1', housekeeping: 'clean' },
@@ -847,6 +944,25 @@ async function seedMembership(c, m) {
   );
 }
 
+/**
+ * One deliberate departure from a role's default set.
+ *
+ * ON CONFLICT on the natural key rather than on the id, because the unique
+ * constraint an owner would trip by editing the same role in the app is
+ * (org, role, permission) — so a reseed after a presenter has clicked around
+ * puts the demo answer back rather than failing on a row it did not write.
+ */
+async function seedRolePermission(c, r) {
+  await c.query(
+    `INSERT INTO org_role_permissions
+       (id, org_id, org_role, permission, granted, set_by_user_id)
+     VALUES ($1, $2, $3, $4, $5, $6)
+     ON CONFLICT (org_id, org_role, permission)
+     DO UPDATE SET granted = EXCLUDED.granted, updated_at = now()`,
+    [r.id, r.orgId, r.role, r.permission, r.granted, r.setBy],
+  );
+}
+
 async function seedAssignment(c, a) {
   await c.query(
     `INSERT INTO oversight_assignments
@@ -944,13 +1060,31 @@ function roomTypeOf(rm) {
   return rt;
 }
 
+/**
+ * A clock time in Kigali (UTC+2, no daylight saving) on a day relative to
+ * today: `'08:40'` is this morning, `'-1 15:30'` yesterday afternoon.
+ *
+ * Operational moments are pinned to the clock rather than to "hours before the
+ * seed ran", because the demo is reseeded at 03:00 and read in the afternoon:
+ * a room cleaned "two hours before the seed" would read as cleaned at 01:00.
+ */
+function kigaliAt(spec) {
+  const [offset, time] = spec.includes(' ') ? spec.split(' ') : ['0', spec];
+  return new Date(`${day(Number(offset))}T${time}:00+02:00`);
+}
+
 async function seedRoom(c, rm) {
   await c.query(
     `INSERT INTO rooms
-       (id, room_type_id, property_id, workspace_id, label, status, housekeeping_status)
-     VALUES ($1, $2, $3, $4, $5, 'available', $6) ON CONFLICT (id) DO NOTHING`,
+       (id, room_type_id, property_id, workspace_id, label, status, housekeeping_status,
+        housekeeping_updated_at, housekeeping_updated_by_user_id)
+     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) ON CONFLICT (id) DO NOTHING`,
     // The room's property and workspace are its room type's, never assumed.
-    [rm.id, rm.roomTypeId, roomTypeOf(rm).propertyId, roomTypeOf(rm).workspaceId, rm.label, rm.housekeeping],
+    [
+      rm.id, rm.roomTypeId, roomTypeOf(rm).propertyId, roomTypeOf(rm).workspaceId, rm.label,
+      rm.status ?? 'available', rm.housekeeping,
+      rm.hkAt ? kigaliAt(rm.hkAt) : null, rm.hkBy ?? null,
+    ],
   );
 }
 
@@ -1169,6 +1303,32 @@ async function reviveExpiredRequests(c) {
 /** Delete only what this script owns, by deterministic id. Never truncates. */
 async function reset(c) {
   const users = PEOPLE.map((p) => p.id);
+  // The hotel's day (`seed-demo-hotel.mjs`) hangs off the bookings, stays and
+  // rooms deleted below, so it goes first. Its purge deletes only its own rows
+  // and whatever a demo session wrote on top of them, and is a no-op when they
+  // are already gone. Imported rather than duplicated, so the order of those
+  // deletes has one owner.
+  //
+  // The portfolio (`seed-demo-portfolio.mjs`: caution holds, reviews, the
+  // pipeline) hangs off the leases and workspaces deleted below in the same
+  // way, so its own `--purge` runs before either. Run as a child process with
+  // this process's environment, so it purges the same database; skipped when
+  // the script is not on disk.
+  const portfolio = path.join(path.dirname(fileURLToPath(import.meta.url)), 'seed-demo-portfolio.mjs');
+  if (fs.existsSync(portfolio)) {
+    const run = spawnSync(process.execPath, [portfolio, '--purge'], {
+      cwd: process.cwd(), env: process.env, encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'],
+    });
+    if (run.status !== 0) {
+      throw new Error(`seed-demo-portfolio.mjs --purge failed (exit ${run.status}):\n${run.stdout}${run.stderr}`);
+    }
+    console.log(run.stdout.trim());
+  }
+  const { purgeHotel } = await import('./seed-demo-hotel.mjs');
+  await purgeHotel(c);
+  // Both buildings' tenancies and everything hanging off them, before the
+  // roster and orgs they point at.
+  await resetLandlordRows(c);
   // Conversations before anything they hang off: a lease thread points at a
   // lease deleted just below, and a booking thread at a booking. Messages
   // before threads. Support tickets point at the roster.
@@ -1191,6 +1351,69 @@ async function reset(c) {
   await c.query('DELETE FROM listings WHERE id = $1', [RESIDENCE_PROPERTY.listingId]);
   await c.query('DELETE FROM properties WHERE id = $1', [RESIDENCE_PROPERTY.id]);
 
+  // What a demo session built on the BK-DEMO bookings: a check in opens a stay
+  // and a bill, an approval opens a pre-arrival bill, checkout queues a clean.
+  // Their ids are random, so they are found through the booking; without this
+  // a reset after anybody has demoed the desk fails on a foreign key.
+  const bookingIds = [...BOOKINGS, ...BRANCH_BOOKINGS].map((b) => b.id);
+  const touched = `SELECT id FROM guest_stays WHERE booking_id = ANY($1::uuid[])`;
+  const bills = `SELECT id FROM folios WHERE booking_id = ANY($1::uuid[]) OR guest_stay_id IN (${touched})`;
+  const orders = `SELECT id FROM service_orders WHERE folio_id IN (${bills}) OR guest_stay_id IN (${touched}) OR booking_id = ANY($1::uuid[])`;
+  for (const sql of [
+    `DELETE FROM outbox_events WHERE aggregate_id IN (${bills}) OR aggregate_id IN (${orders})`,
+    `DELETE FROM service_order_events WHERE service_order_id IN (${orders})`,
+    `DELETE FROM service_order_items WHERE service_order_id IN (${orders})`,
+    `DELETE FROM service_orders WHERE id IN (${orders})`,
+    `DELETE FROM ledger_entries WHERE related_type = 'folio_charge'
+       AND related_id IN (SELECT id FROM folio_charges WHERE folio_id IN (${bills}))`,
+    // Migration 0045 made these RESTRICT: invoice lines before invoices,
+    // charges before bills, identities before stays. Refund requests and offer
+    // redemptions (0044) name a bill with no cascade at all.
+    `DELETE FROM ebm_invoice_lines WHERE ebm_invoice_id IN
+       (SELECT id FROM ebm_invoices WHERE folio_id IN (${bills}) OR booking_id = ANY($1::uuid[]))`,
+    `DELETE FROM ebm_invoices WHERE folio_id IN (${bills}) OR booking_id = ANY($1::uuid[])`,
+    `DELETE FROM stay_refund_requests WHERE folio_id IN (${bills}) OR guest_stay_id IN (${touched}) OR booking_id = ANY($1::uuid[])`,
+    `DELETE FROM offer_redemptions WHERE folio_id IN (${bills}) OR guest_stay_id IN (${touched})`,
+    `DELETE FROM folio_charges WHERE folio_id IN (${bills})`,
+    `DELETE FROM folios WHERE id IN (${bills})`,
+    `DELETE FROM stay_identities WHERE guest_stay_id IN (${touched})`,
+    `DELETE FROM housekeeping_tasks WHERE guest_stay_id IN (${touched})`,
+    `DELETE FROM maintenance_tickets WHERE guest_stay_id IN (${touched})`,
+    `DELETE FROM threads WHERE booking_id = ANY($1::uuid[]) OR guest_stay_id IN (${touched})`,
+    `DELETE FROM payment_attempts WHERE booking_id = ANY($1::uuid[])`,
+    `DELETE FROM escrows WHERE booking_id = ANY($1::uuid[])`,
+    `DELETE FROM guest_stays WHERE booking_id = ANY($1::uuid[])`,
+  ]) {
+    await c.query(sql, [bookingIds]);
+  }
+
+  // A walk in checked in during a demo has no booking, so it is found through
+  // the room; its bill through the property, which RESTRICTs the property's
+  // delete below (0045).
+  const propertyIds = PROPERTIES.map((p) => p.id);
+  const walkIns = `SELECT id FROM guest_stays WHERE booking_id IS NULL AND room_id IN (SELECT id FROM rooms WHERE property_id = ANY($1::uuid[]))`;
+  const propertyBills = `SELECT id FROM folios WHERE property_id = ANY($1::uuid[]) OR guest_stay_id IN (${walkIns})`;
+  for (const sql of [
+    `DELETE FROM outbox_events WHERE aggregate_id IN (${propertyBills})`,
+    `DELETE FROM service_order_events WHERE service_order_id IN (SELECT id FROM service_orders WHERE folio_id IN (${propertyBills}))`,
+    `DELETE FROM service_order_items WHERE service_order_id IN (SELECT id FROM service_orders WHERE folio_id IN (${propertyBills}))`,
+    `DELETE FROM service_orders WHERE folio_id IN (${propertyBills})`,
+    `DELETE FROM ledger_entries WHERE related_type = 'folio_charge'
+       AND related_id IN (SELECT id FROM folio_charges WHERE folio_id IN (${propertyBills}))`,
+    `DELETE FROM ebm_invoice_lines WHERE ebm_invoice_id IN (SELECT id FROM ebm_invoices WHERE folio_id IN (${propertyBills}))`,
+    `DELETE FROM ebm_invoices WHERE folio_id IN (${propertyBills})`,
+    `DELETE FROM stay_refund_requests WHERE folio_id IN (${propertyBills}) OR guest_stay_id IN (${walkIns})`,
+    `DELETE FROM offer_redemptions WHERE folio_id IN (${propertyBills}) OR guest_stay_id IN (${walkIns})`,
+    `DELETE FROM folio_charges WHERE folio_id IN (${propertyBills})`,
+    `DELETE FROM folios WHERE id IN (${propertyBills})`,
+    `DELETE FROM housekeeping_tasks WHERE guest_stay_id IN (${walkIns})`,
+    `DELETE FROM threads WHERE guest_stay_id IN (${walkIns})`,
+    `DELETE FROM stay_identities WHERE guest_stay_id IN (${walkIns})`,
+    `DELETE FROM guest_stays WHERE id IN (${walkIns})`,
+  ]) {
+    await c.query(sql, [propertyIds]);
+  }
+
   await c.query('DELETE FROM escrows WHERE id = ANY($1::uuid[])', [ESCROWS.map((e) => e.id)]);
   await c.query('DELETE FROM guest_stays WHERE id = ANY($1::uuid[])', [[...STAYS, ...BRANCH_STAYS].map((g) => g.id)]);
   await c.query('DELETE FROM bookings WHERE id = ANY($1::uuid[])', [[...BOOKINGS, ...BRANCH_BOOKINGS].map((b) => b.id)]);
@@ -1207,6 +1430,12 @@ async function reset(c) {
   const allOrgs = [...ORGS, ...SAMUEL_ORGS].map((o) => o.id);
   const allWorkspaces = [...WORKSPACES, ...SAMUEL_WORKSPACES].map((w) => w.id);
   await c.query('DELETE FROM org_memberships WHERE org_id = ANY($1::uuid[])', [allOrgs]);
+  // Anything the API wrote while somebody demoed (a check in, a charge) leaves
+  // an outbox event and perhaps a notification naming the workspace. Seen
+  // failing a reset on 2026-09-15: the events are delivery bookkeeping for rows
+  // this reset has just removed, so they go with the workspace.
+  await c.query('DELETE FROM outbox_events WHERE workspace_id = ANY($1::uuid[])', [allWorkspaces]);
+  await c.query('DELETE FROM notifications WHERE workspace_id = ANY($1::uuid[])', [allWorkspaces]);
   await c.query('DELETE FROM workspaces WHERE id = ANY($1::uuid[])', [allWorkspaces]);
   await c.query('DELETE FROM orgs WHERE id = ANY($1::uuid[])', [allOrgs]);
   // identity_documents, verified_identities and user_profiles cascade from users.
@@ -1290,11 +1519,12 @@ const RESIDENCE_LEASES = [
  * by an EARLIER run current; this keeps a fresh run current on its own.
  */
 function residenceCharges() {
-  const now = new Date();
-  const firstOfMonth = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1));
+  // Kigali's month, for the same reason `day()` is Kigali's day.
+  const [year, month] = day(0).split('-').map(Number);
+  const firstOfMonth = new Date(Date.UTC(year, month - 1, 1));
   const iso = (d) => d.toISOString().slice(0, 10);
   const dayOfMonth = (day) =>
-    iso(new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), day)));
+    iso(new Date(Date.UTC(year, month - 1, day)));
 
   return [
     // Settled, and settled for real: no `mock`, because these are database rows
@@ -1365,7 +1595,7 @@ async function seedResidenceRentRoll(c) {
         lease.rent, lease.rent * 2,
         // Started last year, so the tenancy reads as established rather than as
         // five leases that all began this morning.
-        `${new Date().getUTCFullYear() - 1}-02-01`,
+        `${Number(day(0).slice(0, 4)) - 1}-02-01`,
       ],
     );
   }
@@ -1383,6 +1613,347 @@ async function seedResidenceRentRoll(c) {
       ],
     );
   }
+}
+
+/* ── Kayitare Court (2026-09-15) ────────────────────────────────────────────
+ *
+ * Samuel's landlord seat was an org and a workspace with NOTHING behind it: no
+ * building, no units, no leases. Every landlord screen opened empty for the one
+ * persona a presenter uses to show the switcher, so the rent roll at
+ * `/w/<SW(1)>/rent-roll` looked broken on the demo.
+ *
+ * This building is written to put every state a landlord screen can render on
+ * screen at once, because an empty column on a board reads as a missing feature:
+ *
+ *   | Board            | What is here                                              |
+ *   |------------------|-----------------------------------------------------------|
+ *   | Rent roll        | paid, due, overdue, and a part payment still overdue       |
+ *   | Leases           | a draft, a SIGNED lease ready to activate, active, ending, |
+ *   |                  | ended                                                      |
+ *   | Move-outs        | a lease on notice, an ended lease whose deposit is waiting |
+ *   |                  | to be settled, and one settled with its reason             |
+ *   | Maintenance      | open, in progress and resolved work orders                 |
+ *   | Inbox            | two tenants with accounts, each with a conversation        |
+ *   | Units / Listing  | three unit types, ten units, four of them vacant           |
+ *
+ * The signed lease sits on a unit no active lease holds, so "Mark signed —
+ * activate" succeeds on stage instead of tripping `leases_active_room_uk`.
+ *
+ * Tenants with accounts are Theoneste (U13) and Fidele (U14): neither holds a
+ * seat in this org, so `assertNoSelfLease` stays true. Everyone else is a name
+ * on the lease with no account, which is the common case in Kigali.
+ *
+ * Family `..21NN`, clear of 17 and 18 (reserved) and 19 and 20 (used).
+ */
+
+const KC = (n) => `de300000-0000-4000-8000-0000000021${String(n).padStart(2, '0')}`; // Kayitare Court
+
+const KAYITARE_PROPERTY = {
+  id: KC(1), listingId: KC(2), orgId: SO(1), workspaceId: SW(1),
+  slug: 'kayitare-court', name: 'Kayitare Court',
+  district: 'Kicukiro', sector: 'Kagarama', street: 'KK 31 Ave, Kagarama',
+};
+
+const KAYITARE_UNIT_TYPES = [
+  { id: KC(3), name: 'Studio', capacity: 1, rent: 250_000 },
+  { id: KC(4), name: 'One bedroom apartment', capacity: 2, rent: 350_000 },
+  { id: KC(5), name: 'Two bedroom apartment', capacity: 4, rent: 520_000 },
+];
+
+const KAYITARE_UNITS = [
+  { id: KC(10), type: KC(3), label: 'S1' },
+  { id: KC(11), type: KC(3), label: 'S2' },
+  { id: KC(12), type: KC(3), label: 'S3' },
+  { id: KC(13), type: KC(4), label: 'A1' },
+  { id: KC(14), type: KC(4), label: 'A2' },
+  { id: KC(15), type: KC(4), label: 'A3' },
+  { id: KC(16), type: KC(4), label: 'A4' },
+  { id: KC(17), type: KC(5), label: 'B1' },
+  { id: KC(18), type: KC(5), label: 'B2' },
+  { id: KC(19), type: KC(5), label: 'B3' },
+];
+
+/**
+ * `start` and `end` are month offsets from this month; `signed` says whether
+ * both sides have signed. `current` is the state of THIS month's charge on a
+ * live lease, and `paidNow` what has been paid against it.
+ */
+const KAYITARE_LEASES = [
+  { id: KC(20), unit: KC(10), rent: 250_000, tenantUserId: U(13), tenant: 'Theoneste Bimenyimana', phone: '+250 788 210 101',
+    status: 'active', start: -14, signed: true, current: 'paid' },
+  { id: KC(21), unit: KC(11), rent: 250_000, tenantUserId: U(14), tenant: 'Fidele Nkurikiyimana', phone: '+250 788 210 102',
+    status: 'active', start: -9, signed: true, current: 'overdue', paidNow: 100_000 },
+  { id: KC(22), unit: KC(13), rent: 350_000, tenant: 'Diane Mukeshimana', phone: '+250 788 210 103',
+    status: 'active', start: -20, signed: true, current: 'due' },
+  { id: KC(23), unit: KC(14), rent: 350_000, tenant: 'Patrick Nshimiyimana', phone: '+250 788 210 104',
+    status: 'active', start: -6, signed: true, current: 'overdue' },
+  { id: KC(24), unit: KC(17), rent: 520_000, tenant: 'Olive Umutoni', phone: '+250 788 210 105',
+    status: 'active', start: -26, signed: true, current: 'paid' },
+  // On notice: leaves at the end of next month.
+  { id: KC(25), unit: KC(18), rent: 520_000, tenant: 'Jean Paul Habiyaremye', phone: '+250 788 210 106',
+    status: 'ending', start: -18, end: 1, signed: true, current: 'paid' },
+  // Moved out last month. The deposit is still held: that is the Move-outs job.
+  { id: KC(26), unit: KC(15), rent: 350_000, tenant: 'Aline Mutesi', phone: '+250 788 210 107',
+    status: 'ended', start: -13, end: -1, signed: true },
+  // Moved out in spring and settled, so the board shows what a finished one looks like.
+  { id: KC(27), unit: KC(16), rent: 350_000, tenant: 'Innocent Mugisha', phone: '+250 788 210 108',
+    status: 'ended', start: -30, end: -6, signed: true },
+  // Both sides have signed; activating it on stage raises its first month.
+  { id: KC(28), unit: KC(12), rent: 250_000, tenant: 'Sandrine Ingabire', phone: '+250 788 210 109',
+    status: 'pending_signature', start: 0, signed: true },
+  { id: KC(29), unit: KC(19), rent: 520_000, tenant: 'Kevin Ishimwe', phone: '+250 788 210 110',
+    status: 'draft', start: 1, signed: false },
+];
+
+/** First day of the month `offset` months from this one, as YYYY-MM-DD. */
+function monthStart(offset) {
+  const now = new Date();
+  return new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() + offset, 1)).toISOString().slice(0, 10);
+}
+
+/** Last day of the month `offset` months from this one. */
+function monthEnd(offset) {
+  const now = new Date();
+  return new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() + offset + 1, 0)).toISOString().slice(0, 10);
+}
+
+/** A YYYY-MM-DD `days` from `iso`. */
+function addDays(iso, days) {
+  const d = new Date(`${iso}T00:00:00Z`);
+  d.setUTCDate(d.getUTCDate() + days);
+  return d.toISOString().slice(0, 10);
+}
+
+/**
+ * Three months of rent on every lease that was live in them.
+ *
+ * The two earlier months are settled on the 3rd. This month follows the
+ * lease's `current`, and its due date is placed relative to TODAY rather than
+ * pinned to a day of the month: a "due" row is due in five days and an overdue
+ * one fell due nine days ago, whatever day the nightly job happens to run.
+ */
+function kayitareCharges() {
+  const today = new Date().toISOString().slice(0, 10);
+  const rows = [];
+  let n = 30;
+  for (const lease of KAYITARE_LEASES) {
+    if (lease.status === 'draft' || lease.status === 'pending_signature') continue;
+    for (const offset of [-2, -1, 0]) {
+      if (offset < lease.start) continue;
+      if (lease.end !== undefined && offset > lease.end) continue;
+      const period = monthStart(offset);
+      const settledEarlier = offset < 0 || lease.current === 'paid' || lease.current === undefined;
+      if (settledEarlier) {
+        rows.push({ id: KC(n++), leaseId: lease.id, period, amount: lease.rent, paid: lease.rent,
+          status: 'paid', due: addDays(period, 4), paidAt: addDays(period, 2) });
+        continue;
+      }
+      rows.push({
+        id: KC(n++), leaseId: lease.id, period, amount: lease.rent, paid: lease.paidNow ?? 0,
+        status: lease.current,
+        due: lease.current === 'due' ? addDays(today, 5) : addDays(today, -9),
+        paidAt: null,
+      });
+    }
+  }
+  if (n > 60) throw new Error('Kayitare Court charges overran their id block');
+  return rows;
+}
+
+const KAYITARE_HOLDS = [
+  ...KAYITARE_LEASES.filter((l) => ['active', 'ending', 'ended'].includes(l.status)).map((l, i) => ({
+    id: KC(60 + i), leaseId: l.id, amount: l.rent * 2,
+    status: l.id === KC(27) ? 'refunded' : 'held',
+    heldDaysAgo: Math.max(30, -l.start * 30),
+  })),
+];
+
+const KAYITARE_SETTLEMENTS = [
+  { id: KC(70), holdId: KAYITARE_HOLDS.find((h) => h.leaseId === KC(27)).id, leaseId: KC(27),
+    refunded: 700_000, forfeited: 0, daysAgo: 150,
+    reason: 'Unit handed back clean with all keys. Full caution returned.' },
+];
+
+const KAYITARE_TICKETS = [
+  { id: KC(75), leaseId: KC(21), title: 'Water heater not working', category: 'plumbing', priority: 'high',
+    status: 'open', raisedBy: U(14), role: 'tenant', hoursAgo: 3,
+    description: 'No hot water since this morning in S2.' },
+  { id: KC(76), leaseId: KC(22), title: 'Corridor light flickering outside A1', category: 'electrical', priority: 'normal',
+    status: 'in_progress', raisedBy: U(6), role: 'staff', hoursAgo: 30,
+    description: 'The ceiling light in the first floor corridor flickers after dark.',
+    notes: [{ id: KC(80), by: U(6), hoursAgo: 20, note: 'Electrician booked for tomorrow at 10:00.' }] },
+  { id: KC(77), leaseId: KC(20), title: 'Fridge door seal torn', category: 'appliance', priority: 'low',
+    status: 'resolved', raisedBy: U(13), role: 'tenant', hoursAgo: 120, resolvedHoursAgo: 48,
+    description: 'The seal on the fridge door is torn and it will not stay cold.',
+    notes: [{ id: KC(81), by: U(6), hoursAgo: 48, note: 'Seal replaced by the supplier under warranty.' }] },
+  { id: KC(78), leaseId: KC(25), title: 'Repaint the living room before move-out', category: 'other', priority: 'low',
+    status: 'open', raisedBy: U(6), role: 'staff', hoursAgo: 50,
+    description: 'Tenant leaves next month. Scuffed walls in the living room.' },
+];
+
+const KAYITARE_THREADS = [
+  { id: KC(85), leaseId: KC(20) },
+  { id: KC(86), leaseId: KC(21) },
+];
+
+const KAYITARE_MESSAGES = [
+  { id: KC(90), thread: KC(85), from: U(13), minutesAgo: 7300, body: 'Hello, the fridge door seal is torn and it will not stay cold.' },
+  { id: KC(91), thread: KC(85), from: U(6),  minutesAgo: 7200, body: 'Thanks Theoneste, I have logged it and called the supplier.' },
+  { id: KC(92), thread: KC(85), from: U(13), minutesAgo: 2800, body: 'All fixed now, thank you. This month is paid.' },
+  { id: KC(93), thread: KC(86), from: U(14), minutesAgo: 190,  body: 'Good morning, there is no hot water in S2 since this morning.' },
+  { id: KC(94), thread: KC(86), from: U(14), minutesAgo: 185,  body: 'Also, I paid 100,000 of this month. The rest comes on Friday.' },
+];
+
+async function seedCautionHold(c, h) {
+  await c.query(
+    `INSERT INTO caution_holds (id, lease_id, amount_rwf, status, held_at)
+     VALUES ($1, $2, $3, $4, $5) ON CONFLICT (id) DO NOTHING`,
+    [h.id, h.leaseId, h.amount, h.status, hoursFromNow(-24 * h.heldDaysAgo)],
+  );
+}
+
+async function seedMaintenanceTicket(c, t) {
+  await c.query(
+    `INSERT INTO maintenance_tickets
+       (id, lease_id, property_id, org_id, workspace_id, raised_by_user_id,
+        raised_by_role, title, description, category, priority, status,
+        resolved_at, created_at, updated_at)
+     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $14)
+     ON CONFLICT (id) DO NOTHING`,
+    [
+      t.id, t.leaseId, t.propertyId, t.orgId, t.workspaceId, t.raisedBy, t.role,
+      t.title, t.description, t.category, t.priority, t.status,
+      t.resolvedHoursAgo === undefined ? null : hoursFromNow(-t.resolvedHoursAgo),
+      hoursFromNow(-t.hoursAgo),
+    ],
+  );
+  for (const note of t.notes ?? []) {
+    await c.query(
+      `INSERT INTO maintenance_events (id, ticket_id, author_user_id, note, created_at)
+       VALUES ($1, $2, $3, $4, $5) ON CONFLICT (id) DO NOTHING`,
+      [note.id, t.id, note.by, note.note, hoursFromNow(-note.hoursAgo)],
+    );
+  }
+}
+
+async function seedKayitareCourt(c) {
+  const p = KAYITARE_PROPERTY;
+  await c.query(
+    `INSERT INTO properties
+       (id, org_id, workspace_id, name, description, sector_id, district_id, address_text, slug)
+     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+     ON CONFLICT (id) DO UPDATE SET slug = coalesce(properties.slug, excluded.slug)`,
+    [
+      p.id, p.orgId, p.workspaceId, p.name,
+      'A fictional demo apartment block: ten studios and flats off KK 31 Ave in Kagarama.',
+      await sectorId(c, p.district, p.sector),
+      await districtId(c, p.district),
+      p.street, p.slug,
+    ],
+  );
+  await seedListing(c, { id: p.listingId, propertyId: p.id, workspaceId: p.workspaceId, status: 'published' });
+
+  for (const t of KAYITARE_UNIT_TYPES) {
+    await c.query(
+      `INSERT INTO room_types
+         (id, property_id, workspace_id, name, domain, capacity, room_count,
+          base_price_rwf, caution_rwf)
+       VALUES ($1, $2, $3, $4, 'residence', $5, $6, $7, $8)
+       ON CONFLICT (id) DO NOTHING`,
+      [t.id, p.id, p.workspaceId, t.name, t.capacity,
+        KAYITARE_UNITS.filter((u) => u.type === t.id).length, t.rent, t.rent * 2],
+    );
+  }
+  for (const u of KAYITARE_UNITS) {
+    await c.query(
+      `INSERT INTO rooms
+         (id, room_type_id, property_id, workspace_id, label, status, housekeeping_status)
+       VALUES ($1, $2, $3, $4, $5, 'available', 'clean')
+       ON CONFLICT (id) DO NOTHING`,
+      [u.id, u.type, p.id, p.workspaceId, u.label],
+    );
+  }
+
+  for (const l of KAYITARE_LEASES) {
+    const startDate = monthStart(l.start);
+    // A signature a week before the tenancy began, never in the future.
+    const signedAt = l.signed ? hoursFromNow(-24 * Math.max(3, 7 - l.start * 30)) : null;
+    await c.query(
+      `INSERT INTO leases
+         (id, room_id, org_id, workspace_id, tenant_user_id, tenant_name, tenant_phone,
+          monthly_rent_rwf, caution_rwf, status, start_date, end_date,
+          landlord_signed_at, tenant_signed_at)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $13)
+       ON CONFLICT (id) DO NOTHING`,
+      [
+        l.id, l.unit, p.orgId, p.workspaceId, l.tenantUserId ?? null, l.tenant, l.phone,
+        l.rent, l.rent * 2, l.status, startDate,
+        l.end === undefined ? null : monthEnd(l.end),
+        signedAt,
+      ],
+    );
+  }
+
+  for (const ch of kayitareCharges()) {
+    await c.query(
+      `INSERT INTO rent_charges
+         (id, lease_id, period_month, amount_rwf, paid_amount_rwf, status, due_date, paid_at)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+       ON CONFLICT (id) DO NOTHING`,
+      [ch.id, ch.leaseId, ch.period, ch.amount, ch.paid, ch.status, ch.due, ch.paidAt],
+    );
+  }
+
+  for (const h of KAYITARE_HOLDS) await seedCautionHold(c, h);
+  for (const s of KAYITARE_SETTLEMENTS) {
+    await c.query(
+      `INSERT INTO caution_settlements
+         (id, lease_id, caution_hold_id, refunded_rwf, forfeited_rwf, reason, settled_at, idempotency_key)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8) ON CONFLICT (id) DO NOTHING`,
+      [s.id, s.leaseId, s.holdId, s.refunded, s.forfeited, s.reason,
+        hoursFromNow(-24 * s.daysAgo), `seed-demo:${s.id}`],
+    );
+  }
+
+  for (const t of KAYITARE_TICKETS) {
+    await seedMaintenanceTicket(c, { ...t, propertyId: p.id, orgId: p.orgId, workspaceId: p.workspaceId });
+  }
+
+  for (const t of KAYITARE_THREADS) {
+    const newest = Math.min(...KAYITARE_MESSAGES.filter((m) => m.thread === t.id).map((m) => m.minutesAgo));
+    await c.query(
+      `INSERT INTO threads (id, workspace_id, lease_id, thread_kind, status, updated_at)
+       VALUES ($1, $2, $3, 'reservation', 'active', $4) ON CONFLICT (id) DO NOTHING`,
+      [t.id, p.workspaceId, t.leaseId, hoursFromNow(-newest / 60)],
+    );
+  }
+  for (const m of KAYITARE_MESSAGES) await seedMessage(c, m);
+}
+
+/**
+ * Delete the landlord rows `seed-demo` owns, child to parent.
+ *
+ * Keyed on the LEASES and THREADS rather than on each row's own id, so a rent
+ * payment, a settlement, a work order or a message a presenter made during a
+ * demo (random ids, pointing at a seeded lease) goes too instead of failing the
+ * reset on a foreign key.
+ */
+async function resetLandlordRows(c) {
+  const leaseIds = [...RESIDENCE_LEASES.map((l) => l.id), ...KAYITARE_LEASES.map((l) => l.id)];
+  const threadIds = [...LEASE_THREADS, ...KAYITARE_THREADS].map((t) => t.id);
+  await c.query('DELETE FROM messages WHERE thread_id = ANY($1::uuid[])', [threadIds]);
+  await c.query('DELETE FROM thread_reads WHERE thread_id = ANY($1::uuid[])', [threadIds]);
+  await c.query('DELETE FROM threads WHERE id = ANY($1::uuid[]) OR lease_id = ANY($2::uuid[])', [threadIds, leaseIds]);
+  await c.query('DELETE FROM maintenance_tickets WHERE lease_id = ANY($1::uuid[])', [leaseIds]);
+  await c.query('DELETE FROM caution_settlements WHERE lease_id = ANY($1::uuid[])', [leaseIds]);
+  await c.query('DELETE FROM caution_holds WHERE lease_id = ANY($1::uuid[])', [leaseIds]);
+  await c.query('DELETE FROM rent_charges WHERE lease_id = ANY($1::uuid[])', [leaseIds]);
+  await c.query('DELETE FROM leases WHERE id = ANY($1::uuid[])', [leaseIds]);
+  const p = KAYITARE_PROPERTY;
+  await c.query('DELETE FROM rooms WHERE property_id = $1', [p.id]);
+  await c.query('DELETE FROM room_types WHERE property_id = $1', [p.id]);
+  await c.query('DELETE FROM listings WHERE property_id = $1', [p.id]);
+  await c.query('DELETE FROM properties WHERE id = $1', [p.id]);
 }
 
 /* ── `--refresh`: make today today again (task 15, AC-S12) ─────────────────
@@ -1408,68 +1979,67 @@ async function seedResidenceRentRoll(c) {
  *
  * ## What it will not touch
  *
- * Rows this script does not own. The tables below are listed with the predicate
- * that identifies the seed's rows in each — every one of them a deterministic
- * `de300000-…` id, which is the same rule `--reset` uses. A payment recorded
- * during a demo has a random id, matches no predicate, and survives untouched.
- * That is AC-S12's second half, and it is the reason this is a list rather than
- * a sweep over the schema.
+ * Rows no seed owns. Every row is matched by a deterministic `de300000-0000-…`
+ * id (or, for the few tables keyed by something else, the owned id in that
+ * column), which is the same rule `--reset` uses. A payment recorded during a
+ * demo has a random id, matches no predicate, and survives untouched. That is
+ * AC-S12's second half.
  *
- * The COLUMNS are discovered rather than listed, from `information_schema`, so
- * a temporal column added by a later migration is shifted without anybody
- * having to remember this file. The TABLES are listed, so nothing outside the
- * seed can ever be reached. That split is deliberate: forgetting a column makes
- * a demo look slightly wrong, and reaching a table you do not own corrupts
- * somebody else's data.
+ * Tables AND columns are discovered from the catalog (2026-09-15). The tables
+ * used to be a hand list, which was safe and went stale the day the hotel's
+ * folios, housekeeping and orders arrived in another script: a refreshed demo
+ * then had today's bookings with last week's bills. The id predicate is what
+ * keeps a sweep safe — the `de300000-0000-4000-800[01]-` namespace is reserved
+ * for seeds, and the catalogue seed's own ids (`de300000-00NN-…`) do not match.
+ * Date and range columns move too: a room hold is a `daterange`.
  */
-
-/** The id prefix every row this script writes carries. */
-const OWNED = 'de300000-0000-4000-8000-%';
 
 /**
- * The tables the seed owns, each with the column carrying the owned id.
- *
- * Order does not matter: nothing here inserts or deletes, so there are no
- * foreign keys to respect.
+ * The id prefixes a seeded row carries. `8000` is every seed script's own rows
+ * (this one, `seed-demo-hotel.mjs`, `seed-demo-portfolio.mjs`); `8001` is the
+ * guest and tenant accounts those scripts mint outside the persona roster, so
+ * `/api/v1/demo/personas` never lists them.
  */
-const REFRESHABLE = [
-  { table: 'users', key: 'id' },
+const OWNED = 'de300000-0000-4000-8000-%';
+const OWNED_PREFIXES = [OWNED, 'de300000-0000-4000-8001-%'];
+
+/**
+ * Tables whose seeded rows are NOT marked by their own `id`, each with the
+ * column that marks them. A membership is inserted with a generated id, so its
+ * org is what makes it this script's; a profile is keyed on its user.
+ *
+ * Every OTHER table is discovered: any table with an `id` column has its
+ * temporal columns shifted on the rows whose id carries an owned prefix. That
+ * is what keeps a table added by a later seed (the hotel's folios, the
+ * portfolio's reviews) current without anybody remembering this file. The
+ * predicate is still the id, so a row a demo session wrote, with a random id,
+ * is never reached (AC-S12).
+ */
+const KEYED = [
   { table: 'user_profiles', key: 'user_id' },
   { table: 'verified_identities', key: 'user_id' },
   // Linked by `identity_id`, which is the user's id: `verified_identities` is
-  // keyed on the user, and the document hangs off that. Not `user_id` — this
-  // table has no such column, which is the kind of thing only running it finds.
+  // keyed on the user, and the document hangs off that.
   { table: 'identity_documents', key: 'identity_id' },
   { table: 'user_roles', key: 'user_id' },
-  { table: 'orgs', key: 'id' },
-  { table: 'workspaces', key: 'id' },
-  // Keyed on the org rather than on its own id: a membership is inserted with a
-  // generated id, so the org is what marks it as this script's.
   { table: 'org_memberships', key: 'org_id' },
-  { table: 'oversight_assignments', key: 'id' },
-  { table: 'properties', key: 'id' },
-  { table: 'listings', key: 'id' },
-  { table: 'room_types', key: 'id' },
-  { table: 'rate_plans', key: 'id' },
-  { table: 'rooms', key: 'id' },
-  { table: 'bookings', key: 'id' },
-  { table: 'guest_stays', key: 'id' },
-  { table: 'escrows', key: 'id' },
-  { table: 'leases', key: 'id' },
-  { table: 'rent_charges', key: 'id' },
-  // Conversations and support tickets (demo-comms, 2026-09-14): without these a
-  // refreshed demo showed today's bookings beside messages from last week.
-  { table: 'threads', key: 'id' },
-  { table: 'messages', key: 'id' },
-  { table: 'support_tickets', key: 'id' },
-  // ADR-054: the pending registration's settled fee.
-  { table: 'subscription_invoices', key: 'id' },
+  { table: 'thread_reads', key: 'thread_id' },
+];
+
+/** The column types a shift moves. Ranges move both bounds. */
+const TEMPORAL_TYPES = [
+  'date',
+  'timestamp with time zone',
+  'timestamp without time zone',
+  'daterange',
+  'tstzrange',
+  'tsrange',
 ];
 
 /**
  * Does this table have this column?
  *
- * The table map above is written by hand and the schema moves underneath it. A
+ * The keyed map above is written by hand and the schema moves underneath it. A
  * refresh that dies on a renamed column is a refresh nobody runs, so a table
  * whose key column is gone is SKIPPED and named, loudly enough that somebody
  * fixes the map rather than quietly shifting nothing.
@@ -1483,65 +2053,96 @@ async function hasColumn(c, table, column) {
   return rows.length > 0;
 }
 
-/** Temporal columns on a table, as the database itself reports them. */
-async function temporalColumns(c, table) {
+/**
+ * Every table with temporal columns and a way to recognise its seeded rows,
+ * as the database itself reports them.
+ */
+async function refreshPlan(c) {
   const { rows } = await c.query(
-    `SELECT column_name, data_type
-       FROM information_schema.columns
-      WHERE table_schema = 'public'
-        AND table_name = $1
-        AND data_type IN ('date', 'timestamp without time zone', 'timestamp with time zone')`,
-    [table],
+    `SELECT cl.relname AS table_name, a.attname AS column_name,
+            format_type(a.atttypid, a.atttypmod) AS data_type,
+            EXISTS (SELECT 1 FROM pg_attribute k
+                     WHERE k.attrelid = cl.oid AND k.attname = 'id'
+                       AND k.attnum > 0 AND NOT k.attisdropped) AS has_id
+       FROM pg_attribute a
+       JOIN pg_class cl ON cl.oid = a.attrelid
+      WHERE cl.relkind = 'r'
+        AND cl.relnamespace = 'public'::regnamespace
+        AND a.attnum > 0 AND NOT a.attisdropped
+        AND format_type(a.atttypid, a.atttypmod) = ANY($1::text[])
+      ORDER BY cl.relname, a.attnum`,
+    [TEMPORAL_TYPES],
   );
-  return rows;
+  const keyed = new Map(KEYED.map((k) => [k.table, k.key]));
+  const plan = new Map();
+  for (const r of rows) {
+    const key = keyed.get(r.table_name) ?? (r.has_id ? 'id' : null);
+    if (!key) continue;
+    if (!plan.has(r.table_name)) plan.set(r.table_name, { key, columns: [] });
+    plan.get(r.table_name).columns.push({ name: r.column_name, type: r.data_type });
+  }
+  const skipped = [];
+  for (const { table, key } of KEYED) {
+    if (plan.has(table) && !(await hasColumn(c, table, key))) {
+      skipped.push(`${table}.${key}`);
+      plan.delete(table);
+    }
+  }
+  return { plan, skipped };
 }
 
 /**
- * How stale the seeded rows are.
+ * How stale the seeded rows are, twice over.
  *
  * `users.created_at` is the anchor because every run writes people first and
- * every row this script owns is written in the same pass, so they all share one
- * moment. Null means nothing is seeded yet, and there is nothing to shift.
+ * every row the seeds own is written in the same pass, so they all share one
+ * moment. Timestamps move by the exact interval since then. DATES move by the
+ * number of calendar days (Kigali's, the calendar `day()` writes with) between that
+ * moment and now: a seed at 23:00 refreshed at 08:00 is nine hours stale, and
+ * its "arrives today" row must still move to the new today. Null means nothing
+ * is seeded yet, and there is nothing to shift.
  */
 async function drift(c) {
   const { rows } = await c.query(
     // Cast to text in the query rather than letting the driver hand back its
-    // own interval object: that object stringifies as `[object Object]`, which
-    // is useless in the log line and is not something to hand back as a
-    // parameter either.
-    `SELECT (now() - max(created_at))::text AS gap FROM users WHERE id::text LIKE $1`,
+    // own interval object: that object stringifies as `[object Object]`.
+    `SELECT (now() - max(created_at))::text AS gap,
+            ((now() AT TIME ZONE 'Africa/Kigali')::date - (max(created_at) AT TIME ZONE 'Africa/Kigali')::date) AS days
+       FROM users WHERE id::text LIKE $1`,
     [OWNED],
   );
-  return rows[0]?.gap ?? null;
+  if (!rows[0] || rows[0].gap === null) return null;
+  return { gap: rows[0].gap, days: Number(rows[0].days) };
 }
 
 /**
  * Shift every seeded date forward, all of it or none of it.
  *
  * **The transaction is not a nicety.** The shift is measured from
- * `users.created_at`, and `users` is the first table in the list — so a run
- * that updates `users` and then fails on a later table has moved the anchor
- * without moving the rows it anchors. The next run measures a gap of nearly
- * zero and shifts nothing, and the data is stranded half-corrected with no way
- * to tell from the outside. That is not a hypothetical: it is what happened the
- * first time this ran, against a table whose key column had been renamed.
+ * `users.created_at`, so a run that moved `users` and then failed on a later
+ * table would move the anchor without moving the rows it anchors, and the next
+ * run would measure a gap of nearly zero and shift nothing. That is what
+ * happened the first time this ran, against a table whose key had been renamed.
  */
 async function refresh(c) {
-  const gap = await drift(c);
-  if (gap === null) {
+  const stale = await drift(c);
+  if (stale === null) {
     console.log('refresh: nothing seeded yet. Run the seed first.');
     return;
   }
 
   await c.query('BEGIN');
   try {
-    const shifted = await shiftAll(c, gap);
+    const shifted = await shiftAll(c, stale);
     await c.query('COMMIT');
-    console.log(`refresh: moved ${shifted.count} date and timestamp values forward by ${gap}.`);
+    console.log(
+      `refresh: moved ${shifted.count} rows across ${shifted.tables} tables forward by ${stale.gap}` +
+        ` (dates by ${stale.days} day${stale.days === 1 ? '' : 's'}).`,
+    );
     console.log('refresh: nothing was inserted and nothing was deleted.');
     if (shifted.skipped.length > 0) {
       console.log(
-        `refresh: SKIPPED ${shifted.skipped.join(', ')} — no such column. The table` +
+        `refresh: SKIPPED ${shifted.skipped.join(', ')} — no such column. The keyed` +
           ' map in this script is out of step with the schema and wants correcting.',
       );
     }
@@ -1554,40 +2155,70 @@ async function refresh(c) {
   }
 }
 
-async function shiftAll(c, gap) {
-  let shifted = 0;
-  const skipped = [];
-  for (const { table, key } of REFRESHABLE) {
-    if (!(await hasColumn(c, table, key))) {
-      skipped.push(`${table}.${key}`);
-      continue;
-    }
-    const columns = await temporalColumns(c, table);
-    // A table this script names but the schema does not have yet reports no
-    // columns and is skipped, rather than failing a refresh over a migration
-    // that has not run.
-    if (columns.length === 0) continue;
+/** Far enough that a row parked there can meet nothing that has not moved yet. */
+const PARK_DAYS = 109_500;
 
-    for (const col of columns) {
-      // A `date` column plus an interval yields a timestamp, so it is cast back
-      // rather than quietly widening what the column means by a few hours.
-      const value =
-        col.data_type === 'date'
-          ? `("${col.column_name}" + $1::interval)::date`
-          : `"${col.column_name}" + $1::interval`;
-
-      const { rowCount } = await c.query(
-        `UPDATE "${table}"
-            SET "${col.column_name}" = ${value}
-          WHERE "${key}"::text LIKE $2
-            AND "${col.column_name}" IS NOT NULL`,
-        [gap, OWNED],
-      );
-      shifted += rowCount ?? 0;
-    }
+/**
+ * One column's value moved by `days` (a date, a date range) or by `interval`
+ * (a timestamp, a timestamp range). Both are SQL expressions.
+ */
+function moved(col, days, interval) {
+  const c = `"${col.name}"`;
+  const bounds = `(CASE WHEN lower_inc(${c}) THEN '[' ELSE '(' END || CASE WHEN upper_inc(${c}) THEN ']' ELSE ')' END)`;
+  switch (col.type) {
+    case 'date':
+      return `${c} + (${days})`;
+    case 'daterange':
+      return `CASE WHEN ${c} IS NULL OR isempty(${c}) THEN ${c}
+                   ELSE daterange(lower(${c}) + (${days}), upper(${c}) + (${days}), ${bounds}) END`;
+    case 'tstzrange':
+    case 'tsrange':
+      return `CASE WHEN ${c} IS NULL OR isempty(${c}) THEN ${c}
+                   ELSE ${col.type}(lower(${c}) + ${interval}, upper(${c}) + ${interval}, ${bounds}) END`;
+    default:
+      return `${c} + ${interval}`;
   }
+}
 
-  return { count: shifted, skipped };
+/**
+ * Move each table's seeded rows in two hops: out to a parking spot centuries
+ * away, then back to where they belong.
+ *
+ * One hop is not safe, because Postgres checks a unique index and an exclusion
+ * constraint ROW BY ROW during an UPDATE. Moving a guest's room nights forward
+ * a day collides with the next night's charge that has not moved yet
+ * (`folio_charges_room_night_uk`), and a room hold collides with the hold after
+ * it (the `room_assignments` exclusion constraint). Parked, no moved row can
+ * meet an unmoved one; coming back, every row keeps its distance from the rest.
+ *
+ * All of a table's columns move in ONE statement, so a check that compares two
+ * of them (a check out after its check in) never sees one moved and one not.
+ */
+async function shiftAll(c, stale) {
+  const { plan, skipped } = await refreshPlan(c);
+  const out = { days: `${PARK_DAYS}`, interval: `(interval '1 day' * ${PARK_DAYS})` };
+  const back = {
+    days: `${stale.days} - ${PARK_DAYS}`,
+    interval: `($2::interval - interval '1 day' * ${PARK_DAYS})`,
+  };
+  const update = (table, key, columns, move) =>
+    c.query(
+      `UPDATE "${table}"
+          SET ${columns.map((col) => `"${col.name}" = ${moved(col, move.days, move.interval)}`).join(', ')}
+        WHERE "${key}"::text LIKE ANY($1::text[])`,
+      move === out ? [OWNED_PREFIXES] : [OWNED_PREFIXES, stale.gap],
+    );
+
+  let count = 0;
+  let tables = 0;
+  for (const [table, { key, columns }] of plan) {
+    const parked = await update(table, key, columns, out);
+    if (!parked.rowCount) continue;
+    await update(table, key, columns, back);
+    count += parked.rowCount;
+    tables += 1;
+  }
+  return { count, tables, skipped };
 }
 
 /**
@@ -1655,6 +2286,7 @@ async function main() {
     for (const o of [...ORGS, ...SAMUEL_ORGS]) await seedOrg(client, o);
     for (const w of [...WORKSPACES, ...SAMUEL_WORKSPACES]) await seedWorkspace(client, w);
     for (const m of [...MEMBERSHIPS, ...SAMUEL_MEMBERSHIPS]) await seedMembership(client, m);
+    for (const r of ROLE_PERMISSIONS) await seedRolePermission(client, r);
     for (const a of ASSIGNMENTS) await seedAssignment(client, a);
 
     // The operational half, in foreign key order.
@@ -1685,6 +2317,8 @@ async function main() {
     for (const m of MESSAGES.filter((x) => LEASE_THREADS.some((t) => t.id === x.thread))) {
       await seedMessage(client, m);
     }
+    // Samuel's landlord seat, which used to be an org with no building.
+    await seedKayitareCourt(client);
     for (const t of SUPPORT_TICKETS) await seedSupportTicket(client, t);
 
     // Before anything is reported as seeded, not after.

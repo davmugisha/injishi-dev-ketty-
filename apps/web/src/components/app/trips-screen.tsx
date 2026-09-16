@@ -191,6 +191,18 @@ function TripCard({ trip, onChanged }: { trip: GuestTrip; onChanged?: () => void
           // refunds; the dialog asks for that quote before offering to confirm.
           <CancelBooking reference={trip.reference} onCancelled={onChanged} />
         ) : null}
+        {/* A stay in progress has its desks, orders and bill under My stay; one
+            still to come can already talk to the hotel. */}
+        {trip.stage === "in_progress" ? (
+          <Button asChild size="sm">
+            <Link href="/stay">My stay</Link>
+          </Button>
+        ) : null}
+        {trip.stage === "in_progress" || trip.stage === "upcoming" ? (
+          <Button asChild size="sm" variant="outline">
+            <Link href="/inbox">Message the hotel</Link>
+          </Button>
+        ) : null}
         <Button asChild size="sm" variant="outline">
           <Link href={`/receipt/${encodeURIComponent(trip.reference)}`}>See receipt</Link>
         </Button>

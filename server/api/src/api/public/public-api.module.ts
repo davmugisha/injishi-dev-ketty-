@@ -30,6 +30,7 @@ import { InventoryController } from './inventory/inventory.controller';
 import { OpsAmenitiesController } from './ops/amenities.controller';
 import { OpsDepartmentsController } from './ops/departments.controller';
 import { OpsEbmController } from './ops/ebm.controller';
+import { OpsRolesController } from './ops/roles.controller';
 import { OpsTeamController } from './ops/team.controller';
 import { OpsFoliosController } from './ops/folios.controller';
 import { OpsHousekeepingController } from './ops/housekeeping.controller';
@@ -129,6 +130,7 @@ import { WaitlistModule } from './waitlist/waitlist.module';
     OpsOutletsController,
     OpsOutletPartiesController,
     OpsTeamController,
+    OpsRolesController,
     OpsFoliosController,
     // §6.8. Answering a guest who asked for money back, and the offers a
     // property writes. Both behind `WorkspaceGuard` with their own permissions.

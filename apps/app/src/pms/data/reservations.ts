@@ -22,8 +22,8 @@
  */
 
 import {
+  OperatorReservation,
   OperatorReservationList,
-  type OperatorReservation,
 } from "@injishi/contracts";
 import {
   useMutation,
@@ -35,7 +35,7 @@ import {
 
 import { API_BASE, ApiError, REQUEST_TIMEOUT_MS, command } from "./api";
 import { branchHeader } from "./branch";
-import { OPS_READ, useMayRead } from "./ops";
+import { OPS_READ, read, useMayRead } from "./ops";
 import { queryKeys } from "./queries";
 
 /**
@@ -92,6 +92,38 @@ export function useReservations(
     queryKey: queryKeys.reservations(workspaceId),
     queryFn: () => readReservations(workspaceId as string),
     enabled: workspaceId !== null && mayRead,
+  });
+}
+
+/**
+ * ONE reservation, read by its own id.
+ *
+ * **This is what the record screen was missing, and the gap was visible to
+ * operators as a 404.** The screen used to `.find()` its booking inside
+ * `useReservations` above — the DESK list, which the API windows to
+ * `DESK_WINDOW_DAYS` of departures and caps at `DESK_LIMIT` rows. A booking
+ * older than that window exists, belongs to the workspace, and still rendered
+ * "that page isn't here".
+ *
+ * Reuses `read` from `ops.ts` rather than growing a second copy of the fetch,
+ * the same way `ebm.ts` does, so it carries the branch header too. Gated on the
+ * same permission set as the list, for the same reason: a read the server would
+ * refuse must not be asked, because any 403 invalidates the grant.
+ */
+export function useReservation(
+  workspaceId: string | null,
+  reservationId: string | null,
+): UseQueryResult<OperatorReservation> {
+  const mayRead = useMayRead(OPS_READ.reservations);
+  return useQuery({
+    queryKey: queryKeys.reservation(workspaceId, reservationId),
+    queryFn: () =>
+      read(
+        `/ops/reservations/${reservationId as string}`,
+        workspaceId as string,
+        OperatorReservation,
+      ),
+    enabled: workspaceId !== null && reservationId !== null && mayRead,
   });
 }
 

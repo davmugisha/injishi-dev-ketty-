@@ -2,7 +2,7 @@ import { AppShell } from "@/pms/components/app-shell";
 import { People } from "@/pms/screens/people";
 
 /**
- * People · the team lens.
+ * Team & Departments · the team lens.
  *
  * A lens is its own route SEGMENT (ADR-018, D-c), so it is something one
  * person can send another. A merge that hid its parts behind page state
@@ -10,7 +10,7 @@ import { People } from "@/pms/screens/people";
  */
 export default function Page() {
   return (
-    <AppShell title="People">
+    <AppShell title="Team & Departments">
       <People lens="team" />
     </AppShell>
   );

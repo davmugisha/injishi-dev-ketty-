@@ -21,6 +21,7 @@ import { LensPage, type LensLink } from "../components/lens-page";
 import { Placeholder } from "../components/placeholder";
 import { Bills } from "./bills";
 import { Revenue } from "./revenue";
+import { RentLedger } from "./landlord/rent-ledger";
 import { useCapability, useWorkspaceId } from "../data/capability";
 import { workspaceBase } from "../lib/nav";
 import { navContextOf } from "../lib/nav-context";
@@ -70,14 +71,23 @@ export function Finance({ lens }: { lens: string }) {
           : []),
       ];
 
+  // The route at /finance names the hotel's default, `bills`. A landlord's
+  // default is the rent ledger, so the tab is highlighted by what renders
+  // rather than by the route's word for it.
+  const active = landlord && !lenses.some((l) => l.key === lens) ? "rent-ledger" : lens;
+
   return (
-    <LensPage lenses={lenses} active={lens}>
+    <LensPage lenses={lenses} active={active}>
       <Body lens={lens} landlord={landlord} />
     </LensPage>
   );
 }
 
 function Body({ lens, landlord }: { lens: string; landlord: boolean }) {
+  // A landlord has no tax invoices and no departmental revenue: rent never
+  // produces an invoice. A typed URL for either opens the rent ledger rather
+  // than a hotel screen over a residence.
+  if (landlord && (lens === "invoices" || lens === "revenue")) return <RentLedger />;
   switch (lens) {
     case "payouts":
       return <Placeholder screenKey="payouts" />;
@@ -90,6 +100,6 @@ function Body({ lens, landlord }: { lens: string; landlord: boolean }) {
     default:
       // The default lens is the one you open Finance to look at: what is owed
       // right now. Bills for a hotel, the rent ledger for a portfolio.
-      return landlord ? <Placeholder screenKey="rent-ledger" /> : <Bills />;
+      return landlord ? <RentLedger /> : <Bills />;
   }
 }

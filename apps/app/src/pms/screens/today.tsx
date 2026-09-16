@@ -48,17 +48,17 @@ import { useWorkspaceHref } from "../lib/workspace-href";
 import { useHost, usePms } from "../store";
 import { usePmsUi } from "../ui-store";
 import type { HospitalityProperty, Reservation } from "../data/types";
-import type { OperatorFolio, OperatorReservation, OperatorStay } from "@injishi/contracts";
+import type { OperatorFolio, OperatorReservation, OperatorRoomAssignment, OperatorStay } from "@injishi/contracts";
 import { useCapability, useWorkspaceId } from "../data/capability";
 import {
   useApproveReservation,
   useDeclineReservation,
   useReservations,
 } from "../data/reservations";
-import { useCheckOut, useFolios, useStays } from "../data/ops";
+import { useCheckOut, useFolios, useRoomAssignments, useStays } from "../data/ops";
 import { seedFromDemoReservation, seedFromServerReservation } from "../lib/check-in-seed";
 import { buildFolio } from "../lib/folio";
-import { dateRange, dateRangeIso, ds, dshort, dshortIso, fmt, initials, nights, todayIso, TIMEZONE } from "../lib/format";
+import { addDaysIso, dateRange, dateRangeIso, ds, dshort, dshortIso, fmt, initials, nights, todayIso, TIMEZONE } from "../lib/format";
 import { ActionButton, Badge, EmptyState, Initials, LoadFailed, SectionHeading, Skeleton, surface } from "../components/ui";
 import { ConfirmAction } from "../components/confirm-action";
 
@@ -144,6 +144,17 @@ export function Today() {
    * learn what the permission array already said.
    */
   const mayReadBills = can("folio.charge");
+  /*
+   * Rooms already HELD for today's arrivals. A reservation's own `room` is the
+   * stay's room and stays null until check in, so without this read an arrival
+   * the desk assigned yesterday reads "No room yet". Gated like the grid it
+   * mirrors: a caller who may not assign rooms never makes the request.
+   */
+  const holds = useRoomAssignments(
+    live && can("reservation.assign") ? workspaceId : null,
+    todayIso(),
+    addDaysIso(todayIso(), 1),
+  );
   const folios = useFolios(mayReadBills && live ? workspaceId : null);
   const checkOut = useCheckOut(workspaceId);
   // The SAME two hooks Reservations uses, not a second pair. They own the cache
@@ -163,6 +174,7 @@ export function Today() {
         reservations.data?.reservations ?? [],
         stays.data?.stays ?? [],
         mayReadBills ? (folios.data?.folios ?? []) : null,
+        holds.data?.assignments ?? [],
       )
     : fromDemo(P);
 
@@ -364,8 +376,13 @@ function fromServer(
   reservations: readonly OperatorReservation[],
   stays: readonly OperatorStay[],
   folios: readonly OperatorFolio[] | null,
+  holds: readonly OperatorRoomAssignment[] = [],
 ): DayRow[] {
   const today = todayIso();
+  const heldRoomFor = new Map<string, string>();
+  for (const h of holds) {
+    if (h.status === "assigned" && h.roomLabel && h.from <= today && today < h.to) heldRoomFor.set(h.bookingId, h.roomLabel);
+  }
   const openStayFor = new Map<string, OperatorStay>();
   for (const s of stays) {
     if (s.lifecycle === "open" && s.bookingId) openStayFor.set(s.bookingId, s);
@@ -382,7 +399,7 @@ function fromServer(
         ? null
         : (folios.find((f) => (stay && f.guestStayId === stay.id) || f.bookingId === r.id) ?? null);
 
-    const room = r.room ?? stay?.roomLabel ?? null;
+    const room = r.room ?? stay?.roomLabel ?? heldRoomFor.get(r.id) ?? null;
     const guest = r.guestName ?? "Guest";
 
     rows.push({

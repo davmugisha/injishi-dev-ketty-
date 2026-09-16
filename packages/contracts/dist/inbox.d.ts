@@ -73,10 +73,10 @@ export declare const GuestThread: z.ZodObject<{
     subjectId: string;
     propertyName: string | null;
     scope: "lease" | "booking" | "stay";
+    departmentName: string | null;
     lastMessageAt: string | null;
     lastMessagePreview: string | null;
     messageCount: number;
-    departmentName: string | null;
     unreadCount: number;
 }, {
     status: "active" | "archived";
@@ -85,10 +85,10 @@ export declare const GuestThread: z.ZodObject<{
     subjectId: string;
     propertyName: string | null;
     scope: "lease" | "booking" | "stay";
+    departmentName: string | null;
     lastMessageAt: string | null;
     lastMessagePreview: string | null;
     messageCount: number;
-    departmentName: string | null;
     unreadCount: number;
 }>;
 export type GuestThread = z.infer<typeof GuestThread>;
@@ -126,10 +126,10 @@ export declare const MyThreads: z.ZodObject<{
         subjectId: string;
         propertyName: string | null;
         scope: "lease" | "booking" | "stay";
+        departmentName: string | null;
         lastMessageAt: string | null;
         lastMessagePreview: string | null;
         messageCount: number;
-        departmentName: string | null;
         unreadCount: number;
     }, {
         status: "active" | "archived";
@@ -138,10 +138,10 @@ export declare const MyThreads: z.ZodObject<{
         subjectId: string;
         propertyName: string | null;
         scope: "lease" | "booking" | "stay";
+        departmentName: string | null;
         lastMessageAt: string | null;
         lastMessagePreview: string | null;
         messageCount: number;
-        departmentName: string | null;
         unreadCount: number;
     }>, "many">;
 }, "strip", z.ZodTypeAny, {
@@ -152,10 +152,10 @@ export declare const MyThreads: z.ZodObject<{
         subjectId: string;
         propertyName: string | null;
         scope: "lease" | "booking" | "stay";
+        departmentName: string | null;
         lastMessageAt: string | null;
         lastMessagePreview: string | null;
         messageCount: number;
-        departmentName: string | null;
         unreadCount: number;
     }[];
 }, {
@@ -166,10 +166,10 @@ export declare const MyThreads: z.ZodObject<{
         subjectId: string;
         propertyName: string | null;
         scope: "lease" | "booking" | "stay";
+        departmentName: string | null;
         lastMessageAt: string | null;
         lastMessagePreview: string | null;
         messageCount: number;
-        departmentName: string | null;
         unreadCount: number;
     }[];
 }>;
@@ -182,8 +182,11 @@ export declare const GuestMessage: z.ZodObject<{
     senderName: z.ZodNullable<z.ZodString>;
     /** True when the READER sent it, so a screen can side the bubble. */
     fromUs: z.ZodBoolean;
-    bodyType: z.ZodEnum<["text", "image", "voice"]>;
+    /** `system` is a line the platform wrote, such as an order's status (ADR-050 D-s). */
+    bodyType: z.ZodEnum<["text", "image", "voice", "system"]>;
     body: z.ZodNullable<z.ZodString>;
+    /** The order a `system` line reports on; read it from `GET /me/orders/:id`. */
+    serviceOrderId: z.ZodNullable<z.ZodString>;
     voiceDurationS: z.ZodNullable<z.ZodNumber>;
     createdAt: z.ZodString;
 }, "strip", z.ZodTypeAny, {
@@ -194,7 +197,8 @@ export declare const GuestMessage: z.ZodObject<{
     senderUserId: string | null;
     senderName: string | null;
     fromUs: boolean;
-    bodyType: "text" | "image" | "voice";
+    bodyType: "text" | "image" | "voice" | "system";
+    serviceOrderId: string | null;
     voiceDurationS: number | null;
 }, {
     id: string;
@@ -204,7 +208,8 @@ export declare const GuestMessage: z.ZodObject<{
     senderUserId: string | null;
     senderName: string | null;
     fromUs: boolean;
-    bodyType: "text" | "image" | "voice";
+    bodyType: "text" | "image" | "voice" | "system";
+    serviceOrderId: string | null;
     voiceDurationS: number | null;
 }>;
 export type GuestMessage = z.infer<typeof GuestMessage>;
@@ -228,8 +233,11 @@ export declare const GuestMessagePage: z.ZodObject<{
         senderName: z.ZodNullable<z.ZodString>;
         /** True when the READER sent it, so a screen can side the bubble. */
         fromUs: z.ZodBoolean;
-        bodyType: z.ZodEnum<["text", "image", "voice"]>;
+        /** `system` is a line the platform wrote, such as an order's status (ADR-050 D-s). */
+        bodyType: z.ZodEnum<["text", "image", "voice", "system"]>;
         body: z.ZodNullable<z.ZodString>;
+        /** The order a `system` line reports on; read it from `GET /me/orders/:id`. */
+        serviceOrderId: z.ZodNullable<z.ZodString>;
         voiceDurationS: z.ZodNullable<z.ZodNumber>;
         createdAt: z.ZodString;
     }, "strip", z.ZodTypeAny, {
@@ -240,7 +248,8 @@ export declare const GuestMessagePage: z.ZodObject<{
         senderUserId: string | null;
         senderName: string | null;
         fromUs: boolean;
-        bodyType: "text" | "image" | "voice";
+        bodyType: "text" | "image" | "voice" | "system";
+        serviceOrderId: string | null;
         voiceDurationS: number | null;
     }, {
         id: string;
@@ -250,7 +259,8 @@ export declare const GuestMessagePage: z.ZodObject<{
         senderUserId: string | null;
         senderName: string | null;
         fromUs: boolean;
-        bodyType: "text" | "image" | "voice";
+        bodyType: "text" | "image" | "voice" | "system";
+        serviceOrderId: string | null;
         voiceDurationS: number | null;
     }>, "many">;
     /** Opaque. Pass it back as `?cursor=` for the next older page; null at the end. */
@@ -265,7 +275,8 @@ export declare const GuestMessagePage: z.ZodObject<{
         senderUserId: string | null;
         senderName: string | null;
         fromUs: boolean;
-        bodyType: "text" | "image" | "voice";
+        bodyType: "text" | "image" | "voice" | "system";
+        serviceOrderId: string | null;
         voiceDurationS: number | null;
     }[];
 }, {
@@ -278,7 +289,8 @@ export declare const GuestMessagePage: z.ZodObject<{
         senderUserId: string | null;
         senderName: string | null;
         fromUs: boolean;
-        bodyType: "text" | "image" | "voice";
+        bodyType: "text" | "image" | "voice" | "system";
+        serviceOrderId: string | null;
         voiceDurationS: number | null;
     }[];
 }>;

@@ -61,6 +61,8 @@ export interface ThreadRow {
   /** The branch the thread belongs to, see `THREAD_BRANCH`. */
   branchPropertyId: string | null;
   status: 'active' | 'archived';
+  /** The department the conversation is with, when it is with one (ADR-050 D-q). */
+  departmentName: string | null;
 }
 
 /** The last line and the count, so a list reads without opening every thread. */
@@ -76,8 +78,9 @@ export interface MessageRow {
   threadId: string;
   senderUserId: string | null;
   senderName: string | null;
-  bodyType: 'text' | 'image' | 'voice';
+  bodyType: 'text' | 'image' | 'voice' | 'system';
   body: string | null;
+  serviceOrderId: string | null;
   voiceDurationS: number | null;
   createdAt: Date;
 }
@@ -103,8 +106,8 @@ function toDate(value: string | Date | null): Date | null {
 /** A guest reads their own threads by person, never by branch, so no branch. */
 export interface GuestThreadRow extends Omit<ThreadRow, 'branchPropertyId'> {
   kind: 'reservation' | 'department_request' | 'dispute';
+  propertyId: string | null;
   propertyName: string | null;
-  departmentName: string | null;
   updatedAt: Date;
 }
 
@@ -154,8 +157,10 @@ export class MessagingRepository {
         leaseId: threads.leaseId,
         branchPropertyId: THREAD_BRANCH,
         status: threads.status,
+        departmentName: departments.name,
       })
       .from(threads)
+      .leftJoin(departments, eq(departments.id, threads.departmentId))
       .where(
         and(
           eq(threads.workspaceId, workspaceId),
@@ -176,8 +181,10 @@ export class MessagingRepository {
         leaseId: threads.leaseId,
         branchPropertyId: THREAD_BRANCH,
         status: threads.status,
+        departmentName: departments.name,
       })
       .from(threads)
+      .leftJoin(departments, eq(departments.id, threads.departmentId))
       .where(eq(threads.id, threadId))
       .limit(1);
 
@@ -238,7 +245,9 @@ export class MessagingRepository {
       if (preview.has(row.threadId)) continue;
       preview.set(
         row.threadId,
-        row.bodyType === 'text' ? row.body : `[${row.bodyType}]`,
+        // A system line is readable text too: "Order A12 is ready." is the
+        // preview a guest wants, not "[system]".
+        row.bodyType === 'text' || row.bodyType === 'system' ? row.body : `[${row.bodyType}]`,
       );
     }
 
@@ -360,6 +369,7 @@ export class MessagingRepository {
         senderName: users.name,
         bodyType: messages.bodyType,
         body: messages.body,
+        serviceOrderId: messages.serviceOrderId,
         voiceDurationS: messages.voiceDurationS,
         createdAt: messages.createdAt,
       })
@@ -406,6 +416,7 @@ export class MessagingRepository {
         senderName: users.name,
         bodyType: messages.bodyType,
         body: messages.body,
+        serviceOrderId: messages.serviceOrderId,
         voiceDurationS: messages.voiceDurationS,
         createdAt: messages.createdAt,
       })
@@ -442,6 +453,7 @@ export class MessagingRepository {
       leaseId: threads.leaseId,
       status: threads.status,
       kind: threads.threadKind,
+      propertyId: properties.id,
       propertyName: properties.name,
       departmentName: departments.name,
       updatedAt: threads.updatedAt,
@@ -578,6 +590,7 @@ export class MessagingRepository {
         senderName: users.name,
         bodyType: messages.bodyType,
         body: messages.body,
+        serviceOrderId: messages.serviceOrderId,
         voiceDurationS: messages.voiceDurationS,
         createdAt: messages.createdAt,
       })

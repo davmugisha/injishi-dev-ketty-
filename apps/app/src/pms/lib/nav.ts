@@ -52,6 +52,22 @@ export interface NavItem {
    */
   permission?: Permission;
   /**
+   * Any ONE of these opens the leaf (ADR-055), for a screen that several
+   * capabilities legitimately reach.
+   *
+   * It exists because moving Departments under Team & Departments would
+   * otherwise have taken it away from a manager. Under Services the leaf was
+   * gated on `order.advance`; here the obvious gate is `team.manage`, which is
+   * the owner's alone — so a manager who may edit departments
+   * (`department.manage`) would have lost the only door to them. The API already
+   * has this shape as `@RequireAnyPermission`; this is the nav's half of it.
+   *
+   * A leaf declares this OR `permission`, never both. The screen behind such a
+   * leaf must refuse per lens, because reaching it no longer implies holding
+   * every power it offers.
+   */
+  anyPermission?: readonly Permission[];
+  /**
    * Object routes this leaf opens (ADR-018, move 3).
    *
    * A record page is not a nav leaf: nobody navigates to "stays", they open one
@@ -178,9 +194,11 @@ function reachable(
   items: readonly NavItem[],
   permissions: readonly Permission[],
 ): NavItem[] {
-  return items.filter(
-    (item) => item.permission === undefined || permissions.includes(item.permission),
-  );
+  return items.filter((item) => {
+    if (item.anyPermission !== undefined)
+      return item.anyPermission.some((p) => permissions.includes(p));
+    return item.permission === undefined || permissions.includes(item.permission);
+  });
 }
 
 /** A section with the leaves this grant reaches, or nothing when it reaches none. */
@@ -273,8 +291,17 @@ export function hostNav(
     ...sectionOf(
       "Property admin",
       [
-        // People is behind `team.manage`, the owner's alone since 2026-09-12.
-        { key: "people", label: "People", icon: "users", href: `${base}/people`, built: true, permission: "team.manage" },
+        // **Team & Departments**, not People (ADR-055). Departments used to sit
+        // under Services, which read as "the restaurant's settings": a department
+        // is where revenue is reported and where an order routes, so a hotel
+        // with no restaurant had nowhere to see its own departments at all.
+        // **Reached by EITHER power**, which the move made necessary: under
+        // Services the leaf was gated on `order.advance`, so a manager could
+        // open Departments. `team.manage` alone is the owner's, so gating it
+        // there would have taken departments away from the very role that may
+        // edit them. The screen refuses per lens instead: the roster and Roles
+        // ask for `team.manage` inside.
+        { key: "people", label: "Team & Departments", icon: "users", href: `${base}/people`, built: true, anyPermission: ["team.manage", "department.manage"] },
         // Settings is behind `ebm.manage`, because Integrations is where the RRA
         // EBM account is connected (ADR-041, D-o). Plan and billing stays the
         // owner's: `Settings` hides that lens and refuses it by URL.
@@ -328,8 +355,11 @@ export function landlordNav(
         { key: "units", label: "Units & rents", icon: "building-2", href: `${base}/units`, built: true, permission: "unit.manage", grants: ["inventory"] },
         { key: "maintenance", label: "Maintenance", icon: "wrench", href: `${base}/maintenance`, count: ticketsOpen, built: true, permission: "ticket.advance" },
         // Was `directory`, the same word the broker uses for the opposite job:
-        // this one PUBLISHES your units, theirs browses everyone else's.
-        { key: "listing", label: "Listing", icon: "globe", href: `${base}/listing`, built: true, permission: "unit.manage" },
+        // this one PUBLISHES your buildings, theirs browses everyone else's.
+        // Behind `listing.manage`, not `unit.manage`: it renders the real
+        // publish control, and every inventory route it calls declares that
+        // permission (2026-09-15). A door the API refuses behind is no door.
+        { key: "listing", label: "Listing", icon: "globe", href: `${base}/listing`, built: true, permission: "listing.manage" },
       ],
       permissions,
     ),
@@ -337,7 +367,10 @@ export function landlordNav(
       "People",
       [
         { key: "inbox", label: "Inbox", icon: "message-square", href: `${base}/inbox`, count: tenantUnread, built: true, permission: "message.send" },
-        { key: "people", label: "People", icon: "users", href: `${base}/people`, built: true, permission: "team.manage" },
+        // A residence portfolio runs no departments, so this leaf keeps the
+        // shorter name; the screen behind it offers Team, Roles and Invites and
+        // omits the Departments lens rather than opening it empty.
+        { key: "people", label: "Team & roles", icon: "users", href: `${base}/people`, built: true, permission: "team.manage" },
       ],
       permissions,
     ),
