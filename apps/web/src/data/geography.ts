@@ -1,14 +1,15 @@
-import { District, Province, Sector } from "@injishi/contracts";
+import { Cell, District, Province, Sector, Village } from "@injishi/contracts";
 
 import { apiFetch, type ApiResult } from "@/lib/api";
 
 /**
- * Rwandan geography for the address picker — Province → District → Sector (D24).
+ * Rwandan geography for the address picker — Province → District → Sector →
+ * Cell → Village (D24).
  *
  * Reference data that never changes within a session, so each level is fetched
- * once and kept. The cascade is three requests rather than one nested payload
- * because that is the shape the picker actually asks for: nobody needs all 417
- * sectors, they need the ones in the district just chosen.
+ * once and kept. The cascade is five requests rather than one nested payload
+ * because that is the shape the picker actually asks for: nobody needs all
+ * 14,835 villages, they need the ones in the cell just chosen.
  *
  * Responses are parsed against the same contracts the API validates its own
  * answers with, so a drift fails here rather than rendering a half-empty list.
@@ -42,6 +43,28 @@ export async function fetchSectors(
     `/api/v1/geography/sectors?districtId=${districtId}`,
   );
   return parseList(res, Sector);
+}
+
+export async function fetchCells(sectorId: number): Promise<GeographyList<Cell>> {
+  const res = await apiFetch<unknown>(
+    `/api/v1/geography/cells?sectorId=${sectorId}`,
+  );
+  return parseList(res, Cell);
+}
+
+/**
+ * The villages in one cell.
+ *
+ * The scope is not optional here, unlike on the endpoint: the unscoped list is
+ * every village in Rwanda, and no screen this app owns wants that.
+ */
+export async function fetchVillages(
+  cellId: number,
+): Promise<GeographyList<Village>> {
+  const res = await apiFetch<unknown>(
+    `/api/v1/geography/villages?cellId=${cellId}`,
+  );
+  return parseList(res, Village);
 }
 
 /**

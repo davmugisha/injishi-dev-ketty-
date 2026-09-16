@@ -1,5 +1,5 @@
-import { NotFoundException } from '@nestjs/common';
-import type { WorkspaceAccess } from '@injishi/contracts';
+import { ForbiddenException, NotFoundException } from '@nestjs/common';
+import { NEEDS_EVERY_BRANCH_MESSAGE, type WorkspaceAccess } from '@injishi/contracts';
 import { inArray, isNull, or, sql, type AnyColumn, type SQL } from 'drizzle-orm';
 
 /**
@@ -10,8 +10,8 @@ import { inArray, isNull, or, sql, type AnyColumn, type SQL } from 'drizzle-orm'
  * guard, and every ops and inventory repository filters by the SAME concrete
  * list, so a missed join is the only way a row of another branch can leak.
  *
- * - `coverage`: `all` when the membership carries no branch limit, else
- *   `limited`. Always `all` until branch limits are read (ADR-054 slice 4).
+ * - `coverage`: `all` when the membership carries no `org_membership_branches`
+ *   row, else `limited`. An owner is always `all` (invariant 5).
  * - `selectedPropertyId`: the branch named by `x-branch-id`, or null.
  * - `propertyIds`: the one selected branch, or every covered property of the
  *   workspace. Archived ones are included, so history stays readable.
@@ -38,8 +38,15 @@ export type ScopedWorkspace = WorkspaceAccess & { readonly branchScope: BranchSc
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
+/** What a member covers, as `WorkspaceService.coveredProperties` reads it. */
+export interface CoveredProperties {
+  readonly coverage: 'all' | 'limited';
+  /** Every covered property of the workspace, archived ones included. */
+  readonly propertyIds: readonly string[];
+}
+
 /**
- * Resolve the scope from the workspace's own properties and the header.
+ * Resolve the scope from the member's covered properties and the header.
  *
  * A header naming a malformed id, a property of another workspace, or a branch
  * the member does not cover answers 404 (AC-S2): the same answer for all three,
@@ -47,13 +54,9 @@ const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
  * every covered branch.
  */
 export function resolveBranchScope(
-  workspacePropertyIds: readonly string[],
+  { coverage, propertyIds: covered }: CoveredProperties,
   header: string | string[] | undefined,
 ): BranchScope {
-  // Coverage is `all` until org_membership_branches is read (slice 4).
-  const covered = workspacePropertyIds;
-  const coverage = 'all' as const;
-
   const raw = Array.isArray(header) ? header[0] : header;
   const claimed = raw?.trim() ?? '';
   if (claimed === '') {
@@ -61,7 +64,9 @@ export function resolveBranchScope(
       coverage,
       selectedPropertyId: null,
       propertyIds: covered,
-      includesUnbranched: true,
+      // A row of no branch belongs to the whole business, so only a member
+      // covering every branch sees it (AC-T3).
+      includesUnbranched: coverage === 'all',
     };
   }
 
@@ -114,5 +119,19 @@ export function assertInBranchScope(
 ): void {
   if (!coversProperty(ws.branchScope, propertyId)) {
     throw what ? new NotFoundException(`${what} not found.`) : new NotFoundException();
+  }
+}
+
+/**
+ * Refuse a member limited to some branches an org wide action (ADR-054 AC-M6).
+ *
+ * A 403 in plain words rather than a 404: the member knows the action exists,
+ * and what they lack is coverage, not knowledge of the row. Routes declare it
+ * with `@RequireEveryBranch()`; a service calls it where the need depends on
+ * the request, as branch create does.
+ */
+export function assertCoversEveryBranch(ws: Pick<WorkspaceAccess, 'branchCoverage'>): void {
+  if (ws.branchCoverage === 'limited') {
+    throw new ForbiddenException(NEEDS_EVERY_BRANCH_MESSAGE);
   }
 }

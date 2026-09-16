@@ -533,6 +533,13 @@ export type CreateBookingInput = z.infer<typeof CreateBookingInput>;
 /** Server-computed price breakdown, echoed back so the UI can show what was charged. */
 export declare const MoneyBreakdown: z.ZodObject<{
     nights: z.ZodNumber;
+    /**
+     * The billable guests the accommodation line was multiplied by. Optional
+     * so a breakdown written before per-person pricing still parses; absent
+     * means one.
+     */
+    guests: z.ZodOptional<z.ZodNumber>;
+    /** Per guest, per night. */
     nightlyRateRwf: z.ZodNumber;
     accommodationRwf: z.ZodNumber;
     nonRefundableDiscountRwf: z.ZodNumber;
@@ -546,6 +553,7 @@ export declare const MoneyBreakdown: z.ZodObject<{
     nonRefundableDiscountRwf: number;
     serviceFeeRwf: number;
     grossRwf: number;
+    guests?: number | undefined;
 }, {
     nightlyRateRwf: number;
     nights: number;
@@ -553,6 +561,7 @@ export declare const MoneyBreakdown: z.ZodObject<{
     nonRefundableDiscountRwf: number;
     serviceFeeRwf: number;
     grossRwf: number;
+    guests?: number | undefined;
 }>;
 export type MoneyBreakdown = z.infer<typeof MoneyBreakdown>;
 /**
@@ -578,7 +587,27 @@ export declare function computeBreakdown(args: {
     nightlyRateRwf: number;
     nights: number;
     nonRefundable: boolean;
+    /**
+     * Billable guests: adults plus children, never infants (owner decision,
+     * 2026-09-15: a stay is priced PER PERSON). The rate is per guest, per
+     * night, so four guests pay four times what one does.
+     *
+     * Defaults to 1 for a caller that prices an already-locked party figure:
+     * a booking locks `nightlyRateRwf × guests` as its nightly charge (see
+     * `stayNightlyRateRwf`), and a receipt or a replay re-derived from that
+     * locked figure must not multiply by the party a second time.
+     */
+    guests?: number;
 }): MoneyBreakdown;
+/**
+ * What one night of this stay costs the whole party: the per-guest rate times
+ * the billable guests. This is the figure a booking LOCKS, so everything that
+ * later reads the locked rate (the night audit's room charge, the front desk,
+ * the folio, the EBM receipt) posts what the guest actually paid per night.
+ */
+export declare function stayNightlyRateRwf(breakdown: Pick<MoneyBreakdown, "nightlyRateRwf" | "guests">): number;
+/** Infants are free and do not count toward capacity, but a party carries at most this many. */
+export declare const MAX_INFANTS = 5;
 export declare const BookingResult: z.ZodObject<{
     id: z.ZodString;
     /** Human-facing reference, e.g. `BK-7Q2M4X`. */
@@ -594,6 +623,13 @@ export declare const BookingResult: z.ZodObject<{
     guests: z.ZodNumber;
     breakdown: z.ZodObject<{
         nights: z.ZodNumber;
+        /**
+         * The billable guests the accommodation line was multiplied by. Optional
+         * so a breakdown written before per-person pricing still parses; absent
+         * means one.
+         */
+        guests: z.ZodOptional<z.ZodNumber>;
+        /** Per guest, per night. */
         nightlyRateRwf: z.ZodNumber;
         accommodationRwf: z.ZodNumber;
         nonRefundableDiscountRwf: z.ZodNumber;
@@ -607,6 +643,7 @@ export declare const BookingResult: z.ZodObject<{
         nonRefundableDiscountRwf: number;
         serviceFeeRwf: number;
         grossRwf: number;
+        guests?: number | undefined;
     }, {
         nightlyRateRwf: number;
         nights: number;
@@ -614,6 +651,7 @@ export declare const BookingResult: z.ZodObject<{
         nonRefundableDiscountRwf: number;
         serviceFeeRwf: number;
         grossRwf: number;
+        guests?: number | undefined;
     }>;
     /** Set for `request_to_book`: when the request auto-declines (F-B03). */
     approvalExpiresAt: z.ZodNullable<z.ZodString>;
@@ -636,6 +674,7 @@ export declare const BookingResult: z.ZodObject<{
         nonRefundableDiscountRwf: number;
         serviceFeeRwf: number;
         grossRwf: number;
+        guests?: number | undefined;
     };
     approvalExpiresAt: string | null;
 }, {
@@ -657,6 +696,7 @@ export declare const BookingResult: z.ZodObject<{
         nonRefundableDiscountRwf: number;
         serviceFeeRwf: number;
         grossRwf: number;
+        guests?: number | undefined;
     };
     approvalExpiresAt: string | null;
 }>;
@@ -716,6 +756,13 @@ export declare const PaymentAttemptStatus: z.ZodObject<{
         guests: z.ZodNumber;
         breakdown: z.ZodObject<{
             nights: z.ZodNumber;
+            /**
+             * The billable guests the accommodation line was multiplied by. Optional
+             * so a breakdown written before per-person pricing still parses; absent
+             * means one.
+             */
+            guests: z.ZodOptional<z.ZodNumber>;
+            /** Per guest, per night. */
             nightlyRateRwf: z.ZodNumber;
             accommodationRwf: z.ZodNumber;
             nonRefundableDiscountRwf: z.ZodNumber;
@@ -729,6 +776,7 @@ export declare const PaymentAttemptStatus: z.ZodObject<{
             nonRefundableDiscountRwf: number;
             serviceFeeRwf: number;
             grossRwf: number;
+            guests?: number | undefined;
         }, {
             nightlyRateRwf: number;
             nights: number;
@@ -736,6 +784,7 @@ export declare const PaymentAttemptStatus: z.ZodObject<{
             nonRefundableDiscountRwf: number;
             serviceFeeRwf: number;
             grossRwf: number;
+            guests?: number | undefined;
         }>;
         /** Set for `request_to_book`: when the request auto-declines (F-B03). */
         approvalExpiresAt: z.ZodNullable<z.ZodString>;
@@ -758,6 +807,7 @@ export declare const PaymentAttemptStatus: z.ZodObject<{
             nonRefundableDiscountRwf: number;
             serviceFeeRwf: number;
             grossRwf: number;
+            guests?: number | undefined;
         };
         approvalExpiresAt: string | null;
     }, {
@@ -779,6 +829,7 @@ export declare const PaymentAttemptStatus: z.ZodObject<{
             nonRefundableDiscountRwf: number;
             serviceFeeRwf: number;
             grossRwf: number;
+            guests?: number | undefined;
         };
         approvalExpiresAt: string | null;
     }>>;
@@ -804,6 +855,7 @@ export declare const PaymentAttemptStatus: z.ZodObject<{
             nonRefundableDiscountRwf: number;
             serviceFeeRwf: number;
             grossRwf: number;
+            guests?: number | undefined;
         };
         approvalExpiresAt: string | null;
     } | null;
@@ -834,6 +886,7 @@ export declare const PaymentAttemptStatus: z.ZodObject<{
             nonRefundableDiscountRwf: number;
             serviceFeeRwf: number;
             grossRwf: number;
+            guests?: number | undefined;
         };
         approvalExpiresAt: string | null;
     } | null;
@@ -871,6 +924,13 @@ export declare const CreateBookingOutcome: z.ZodDiscriminatedUnion<"status", [z.
         guests: z.ZodNumber;
         breakdown: z.ZodObject<{
             nights: z.ZodNumber;
+            /**
+             * The billable guests the accommodation line was multiplied by. Optional
+             * so a breakdown written before per-person pricing still parses; absent
+             * means one.
+             */
+            guests: z.ZodOptional<z.ZodNumber>;
+            /** Per guest, per night. */
             nightlyRateRwf: z.ZodNumber;
             accommodationRwf: z.ZodNumber;
             nonRefundableDiscountRwf: z.ZodNumber;
@@ -884,6 +944,7 @@ export declare const CreateBookingOutcome: z.ZodDiscriminatedUnion<"status", [z.
             nonRefundableDiscountRwf: number;
             serviceFeeRwf: number;
             grossRwf: number;
+            guests?: number | undefined;
         }, {
             nightlyRateRwf: number;
             nights: number;
@@ -891,6 +952,7 @@ export declare const CreateBookingOutcome: z.ZodDiscriminatedUnion<"status", [z.
             nonRefundableDiscountRwf: number;
             serviceFeeRwf: number;
             grossRwf: number;
+            guests?: number | undefined;
         }>;
         /** Set for `request_to_book`: when the request auto-declines (F-B03). */
         approvalExpiresAt: z.ZodNullable<z.ZodString>;
@@ -913,6 +975,7 @@ export declare const CreateBookingOutcome: z.ZodDiscriminatedUnion<"status", [z.
             nonRefundableDiscountRwf: number;
             serviceFeeRwf: number;
             grossRwf: number;
+            guests?: number | undefined;
         };
         approvalExpiresAt: string | null;
     }, {
@@ -934,6 +997,7 @@ export declare const CreateBookingOutcome: z.ZodDiscriminatedUnion<"status", [z.
             nonRefundableDiscountRwf: number;
             serviceFeeRwf: number;
             grossRwf: number;
+            guests?: number | undefined;
         };
         approvalExpiresAt: string | null;
     }>;
@@ -958,6 +1022,7 @@ export declare const CreateBookingOutcome: z.ZodDiscriminatedUnion<"status", [z.
             nonRefundableDiscountRwf: number;
             serviceFeeRwf: number;
             grossRwf: number;
+            guests?: number | undefined;
         };
         approvalExpiresAt: string | null;
     };
@@ -982,6 +1047,7 @@ export declare const CreateBookingOutcome: z.ZodDiscriminatedUnion<"status", [z.
             nonRefundableDiscountRwf: number;
             serviceFeeRwf: number;
             grossRwf: number;
+            guests?: number | undefined;
         };
         approvalExpiresAt: string | null;
     };
@@ -1020,6 +1086,13 @@ export declare const CreateBookingOutcome: z.ZodDiscriminatedUnion<"status", [z.
             guests: z.ZodNumber;
             breakdown: z.ZodObject<{
                 nights: z.ZodNumber;
+                /**
+                 * The billable guests the accommodation line was multiplied by. Optional
+                 * so a breakdown written before per-person pricing still parses; absent
+                 * means one.
+                 */
+                guests: z.ZodOptional<z.ZodNumber>;
+                /** Per guest, per night. */
                 nightlyRateRwf: z.ZodNumber;
                 accommodationRwf: z.ZodNumber;
                 nonRefundableDiscountRwf: z.ZodNumber;
@@ -1033,6 +1106,7 @@ export declare const CreateBookingOutcome: z.ZodDiscriminatedUnion<"status", [z.
                 nonRefundableDiscountRwf: number;
                 serviceFeeRwf: number;
                 grossRwf: number;
+                guests?: number | undefined;
             }, {
                 nightlyRateRwf: number;
                 nights: number;
@@ -1040,6 +1114,7 @@ export declare const CreateBookingOutcome: z.ZodDiscriminatedUnion<"status", [z.
                 nonRefundableDiscountRwf: number;
                 serviceFeeRwf: number;
                 grossRwf: number;
+                guests?: number | undefined;
             }>;
             /** Set for `request_to_book`: when the request auto-declines (F-B03). */
             approvalExpiresAt: z.ZodNullable<z.ZodString>;
@@ -1062,6 +1137,7 @@ export declare const CreateBookingOutcome: z.ZodDiscriminatedUnion<"status", [z.
                 nonRefundableDiscountRwf: number;
                 serviceFeeRwf: number;
                 grossRwf: number;
+                guests?: number | undefined;
             };
             approvalExpiresAt: string | null;
         }, {
@@ -1083,6 +1159,7 @@ export declare const CreateBookingOutcome: z.ZodDiscriminatedUnion<"status", [z.
                 nonRefundableDiscountRwf: number;
                 serviceFeeRwf: number;
                 grossRwf: number;
+                guests?: number | undefined;
             };
             approvalExpiresAt: string | null;
         }>>;
@@ -1108,6 +1185,7 @@ export declare const CreateBookingOutcome: z.ZodDiscriminatedUnion<"status", [z.
                 nonRefundableDiscountRwf: number;
                 serviceFeeRwf: number;
                 grossRwf: number;
+                guests?: number | undefined;
             };
             approvalExpiresAt: string | null;
         } | null;
@@ -1138,6 +1216,7 @@ export declare const CreateBookingOutcome: z.ZodDiscriminatedUnion<"status", [z.
                 nonRefundableDiscountRwf: number;
                 serviceFeeRwf: number;
                 grossRwf: number;
+                guests?: number | undefined;
             };
             approvalExpiresAt: string | null;
         } | null;
@@ -1171,6 +1250,7 @@ export declare const CreateBookingOutcome: z.ZodDiscriminatedUnion<"status", [z.
                 nonRefundableDiscountRwf: number;
                 serviceFeeRwf: number;
                 grossRwf: number;
+                guests?: number | undefined;
             };
             approvalExpiresAt: string | null;
         } | null;
@@ -1204,6 +1284,7 @@ export declare const CreateBookingOutcome: z.ZodDiscriminatedUnion<"status", [z.
                 nonRefundableDiscountRwf: number;
                 serviceFeeRwf: number;
                 grossRwf: number;
+                guests?: number | undefined;
             };
             approvalExpiresAt: string | null;
         } | null;

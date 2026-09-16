@@ -1,8 +1,10 @@
 import {
   InviteStaffRequest,
+  SetMemberBranchesRequest,
   type OperatorStaffInvitation,
   type OperatorStaffInvitationList,
   type OperatorTeamList,
+  type OperatorTeamMember,
 } from '@injishi/contracts';
 import {
   Body,
@@ -12,6 +14,7 @@ import {
   Param,
   ParseUUIDPipe,
   Post,
+  Put,
   UseGuards,
 } from '@nestjs/common';
 
@@ -24,6 +27,7 @@ import {
 } from '../../../shared/auth/session.guard';
 import {
   CurrentWorkspace,
+  RequireEveryBranch,
   RequirePermission,
   WorkspaceGuard,
 } from '../../../shared/auth/workspace.guard';
@@ -73,9 +77,26 @@ export class OpsTeamController {
     return { invitations: await this.invitations.list(workspace) };
   }
 
+  /**
+   * Limit a member to some branches, or give them every branch again
+   * (ADR-054 AC-T1). An org wide write, so a limited caller is refused (AC-M6).
+   */
+  @Put(':userId/branches')
+  @RequirePermission('team.manage')
+  @RequireEveryBranch()
+  setBranches(
+    @Param('userId', ParseUUIDPipe) userId: string,
+    @Body(new ZodValidationPipe(SetMemberBranchesRequest)) body: SetMemberBranchesRequest,
+    @CurrentWorkspace() workspace: ScopedWorkspace,
+    @CurrentUser() user: SessionUser,
+  ): Promise<OperatorTeamMember> {
+    return this.team.setBranches(workspace, userId, body.branchIds, user.id);
+  }
+
   /** Invite somebody by email into a role. Mails them a single use link. */
   @Post('invitations')
   @RequirePermission('team.manage')
+  @RequireEveryBranch()
   invite(
     @Body(new ZodValidationPipe(InviteStaffRequest)) body: InviteStaffRequest,
     @CurrentWorkspace() workspace: ScopedWorkspace,
@@ -88,6 +109,7 @@ export class OpsTeamController {
   @Post('invitations/:id/revoke')
   @HttpCode(204)
   @RequirePermission('team.manage')
+  @RequireEveryBranch()
   async revoke(
     @Param('id', ParseUUIDPipe) id: string,
     @CurrentWorkspace() workspace: ScopedWorkspace,

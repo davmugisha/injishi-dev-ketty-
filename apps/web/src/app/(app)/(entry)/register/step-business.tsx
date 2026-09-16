@@ -327,12 +327,15 @@ export function StepBusiness({
           </p>
           <p className="mt-0.5 text-xs text-muted-foreground">
             A district officer visits this address, so it has to be the real one.
+            Give the cell and village if you know them — that is what gets
+            someone to the door.
           </p>
           <div className="mt-4">
             <AddressPicker
               idPrefix="biz"
               errorPrefix="business.address"
               rwandaOnly
+              collectVillage
               draft={draft.address}
               onChange={(address) => onChange({ ...draft, address })}
               errors={errors}

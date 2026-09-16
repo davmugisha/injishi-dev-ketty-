@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common';
 
 import { isWorkerProcess } from '../../shared/process/process-role';
+import { GeographyModule } from '../geography/geography.module';
 import { MailerModule } from '../mailer/mailer.module';
 import { UserModule } from '../user/user.module';
 
@@ -37,7 +38,10 @@ import { tinAdapterProvider } from './infrastructure/tin-adapter.provider';
   // itself, so the uniqueness rule on `identity_documents` has one owner.
   // MailerModule for the owner claim invitation (ADR-053), mailed through the
   // same seam as every sign-in code.
-  imports: [UserModule, MailerModule],
+  // GeographyModule for one question only: whether the village on a
+  // registration's address sits under its sector (D24). `villages` is that
+  // module's table, so the join lives there and this module composes it.
+  imports: [UserModule, MailerModule, GeographyModule],
   providers: [
     OrganizationRepository,
     BrokerRepository,

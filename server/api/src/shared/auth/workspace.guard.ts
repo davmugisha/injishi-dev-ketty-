@@ -16,7 +16,11 @@ import {
   type WorkspaceAccess,
 } from '@injishi/contracts';
 
-import { resolveBranchScope, type ScopedWorkspace } from './branch-scope';
+import {
+  assertCoversEveryBranch,
+  resolveBranchScope,
+  type ScopedWorkspace,
+} from './branch-scope';
 import { TwoFactorService } from './two-factor.service';
 import { WorkspaceService } from './workspace.service';
 import type { SessionRecord, SessionUser } from './session.guard';
@@ -64,6 +68,20 @@ export const RequireAnyPermission = (
   ...permissions: [Permission, ...Permission[]]
 ): ReturnType<typeof SetMetadata> =>
   SetMetadata(REQUIRE_ANY_PERMISSION, permissions);
+
+export const REQUIRE_EVERY_BRANCH = 'require_every_branch';
+
+/**
+ * The route is an org wide write: a member limited to some branches is refused
+ * 403 "This needs access to every branch." (ADR-054 AC-M6).
+ *
+ * It narrows who may act, never what a permission grants (invariant 6), so it
+ * sits beside `@RequirePermission` rather than replacing it. Reads of org wide
+ * data stay open to a limited member, which is why it goes on the write
+ * handlers and not the class.
+ */
+export const RequireEveryBranch = (): ReturnType<typeof SetMetadata> =>
+  SetMetadata(REQUIRE_EVERY_BRANCH, true);
 
 interface RequestWithWorkspace {
   headers: Record<string, string | string[] | undefined>;
@@ -207,9 +225,17 @@ export class WorkspaceGuard implements CanActivate {
     // The branch in view, after the permission check so a refused route says
     // why it was refused rather than which branch it could not find (AC-S2).
     const branchScope = resolveBranchScope(
-      await this.workspaces.propertyIdsForWorkspace(access.workspaceId),
+      await this.workspaces.coveredProperties(request.user.id, access),
       request.headers['x-branch-id'],
     );
+
+    // An org wide write, after the scope so the header is still validated
+    // first; refused in words, because the member knows the action exists.
+    const everyBranch = this.reflector.getAllAndOverride<boolean | undefined>(
+      REQUIRE_EVERY_BRANCH,
+      targets,
+    );
+    if (everyBranch) assertCoversEveryBranch(access);
 
     request.workspace = { ...access, branchScope };
     return true;

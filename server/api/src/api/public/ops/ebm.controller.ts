@@ -23,6 +23,7 @@ import { EbmConnectionService } from '../../../modules/ebm/application/ebm-conne
 import { CurrentUser, SessionGuard, type SessionUser } from '../../../shared/auth/session.guard';
 import {
   CurrentWorkspace,
+  RequireEveryBranch,
   RequirePermission,
   WorkspaceGuard,
 } from '../../../shared/auth/workspace.guard';
@@ -56,6 +57,7 @@ export class OpsEbmController {
 
   /** Where to send the taxpayer to consent. The screen performs the redirect. */
   @Post('connect')
+  @RequireEveryBranch()
   async connect(
     @CurrentWorkspace() workspace: ScopedWorkspace,
     @CurrentUser() user: SessionUser,
@@ -80,6 +82,7 @@ export class OpsEbmController {
   }
 
   @Put('mapping')
+  @RequireEveryBranch()
   async mapping(
     @Body(new ZodValidationPipe(EbmItemMappingInput)) body: EbmItemMappingInput,
     @CurrentWorkspace() workspace: ScopedWorkspace,
@@ -92,6 +95,7 @@ export class OpsEbmController {
    * held until the business connects again; nothing is dropped.
    */
   @Delete('connection')
+  @RequireEveryBranch()
   async disconnect(
     @CurrentWorkspace() workspace: ScopedWorkspace,
     @CurrentUser() user: SessionUser,

@@ -83,6 +83,8 @@ export interface CreateOrgRow {
   upi: string | null;
   districtId: number | null;
   sectorId: number | null;
+  /** D24, optional: the finest level of the address, or null when unanswered. */
+  villageId: number | null;
   addressText: string | null;
   ownerUserId: string;
   businessType: RegistrationBusinessType;
@@ -217,6 +219,7 @@ export class OrganizationRepository {
           upi: input.upi,
           districtId: input.districtId,
           sectorId: input.sectorId,
+          villageId: input.villageId,
           addressText: input.addressText,
           registrationStatus: 'pending_payment',
         })

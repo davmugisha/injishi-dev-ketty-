@@ -1,5 +1,7 @@
 import { Module } from '@nestjs/common';
 
+import { GeographyModule } from '../geography/geography.module';
+
 import { ProfileService } from './application/profile.service';
 import { ProfileRepository } from './infrastructure/profile.repository';
 
@@ -12,6 +14,9 @@ import { ProfileRepository } from './infrastructure/profile.repository';
  * "one human, one account" true.
  */
 @Module({
+  // GeographyModule answers one question for Step 1: does the village on this
+  // address sit under its sector (D24)? `villages` is that module's table.
+  imports: [GeographyModule],
   providers: [ProfileRepository, ProfileService],
   exports: [ProfileService],
 })

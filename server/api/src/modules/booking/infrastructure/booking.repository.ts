@@ -6,6 +6,7 @@ import type {
   MoneyBreakdown,
   PaymentStatus,
 } from '@injishi/contracts';
+import { stayNightlyRateRwf } from '@injishi/contracts';
 import { Inject, Injectable } from '@nestjs/common';
 import { and, desc, eq, gte, inArray, sql } from 'drizzle-orm';
 
@@ -358,7 +359,9 @@ export class BookingRepository {
           guestCount: input.guests,
           status: input.status,
           bookingMode: input.bookingMode,
-          lockedNightlyRateRwf: input.breakdown.nightlyRateRwf,
+          // The party's nightly charge (per-guest rate × guests), so every
+          // later reader of the locked rate posts what was actually paid.
+          lockedNightlyRateRwf: stayNightlyRateRwf(input.breakdown),
           lockedCancellationTier: input.cancellationTier,
           nonrefundable: input.nonRefundable,
           grossRwf: input.breakdown.grossRwf,

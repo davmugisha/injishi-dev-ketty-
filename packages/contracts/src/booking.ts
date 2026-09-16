@@ -331,6 +331,13 @@ export type CreateBookingInput = z.infer<typeof CreateBookingInput>;
 /** Server-computed price breakdown, echoed back so the UI can show what was charged. */
 export const MoneyBreakdown = z.object({
     nights: z.number().int().positive(),
+    /**
+     * The billable guests the accommodation line was multiplied by. Optional
+     * so a breakdown written before per-person pricing still parses; absent
+     * means one.
+     */
+    guests: z.number().int().positive().optional(),
+    /** Per guest, per night. */
     nightlyRateRwf: RwfAmount,
     accommodationRwf: RwfAmount,
     nonRefundableDiscountRwf: RwfAmount,
@@ -362,9 +369,21 @@ export function computeBreakdown(args: {
     nightlyRateRwf: number;
     nights: number;
     nonRefundable: boolean;
+    /**
+     * Billable guests: adults plus children, never infants (owner decision,
+     * 2026-09-15: a stay is priced PER PERSON). The rate is per guest, per
+     * night, so four guests pay four times what one does.
+     *
+     * Defaults to 1 for a caller that prices an already-locked party figure:
+     * a booking locks `nightlyRateRwf × guests` as its nightly charge (see
+     * `stayNightlyRateRwf`), and a receipt or a replay re-derived from that
+     * locked figure must not multiply by the party a second time.
+     */
+    guests?: number;
 }): MoneyBreakdown {
     const { nightlyRateRwf, nights, nonRefundable } = args;
-    const accommodationRwf = nightlyRateRwf * nights;
+    const guests = Math.max(1, Math.trunc(args.guests ?? 1));
+    const accommodationRwf = nightlyRateRwf * guests * nights;
     const nonRefundableDiscountRwf = nonRefundable
         ? Math.round(accommodationRwf * NON_REFUNDABLE_DISCOUNT)
         : 0;
@@ -372,6 +391,7 @@ export function computeBreakdown(args: {
     const serviceFeeRwf = Math.round(discounted * GUEST_SERVICE_FEE_RATE);
     return {
         nights,
+        guests,
         nightlyRateRwf,
         accommodationRwf,
         nonRefundableDiscountRwf,
@@ -379,6 +399,17 @@ export function computeBreakdown(args: {
         grossRwf: discounted + serviceFeeRwf,
     };
 }
+/**
+ * What one night of this stay costs the whole party: the per-guest rate times
+ * the billable guests. This is the figure a booking LOCKS, so everything that
+ * later reads the locked rate (the night audit's room charge, the front desk,
+ * the folio, the EBM receipt) posts what the guest actually paid per night.
+ */
+export function stayNightlyRateRwf(breakdown: Pick<MoneyBreakdown, "nightlyRateRwf" | "guests">): number {
+    return breakdown.nightlyRateRwf * (breakdown.guests ?? 1);
+}
+/** Infants are free and do not count toward capacity, but a party carries at most this many. */
+export const MAX_INFANTS = 5;
 export const BookingResult = z.object({
     id: z.string().uuid(),
     /** Human-facing reference, e.g. `BK-7Q2M4X`. */

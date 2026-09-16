@@ -44,6 +44,7 @@ import { SYSTEM_MOVER } from '../infrastructure/registration-events';
 import { tinRecheckDue, tinRecheckStalled } from '../domain/tin-recheck';
 import { RraTinAdapter } from '../infrastructure/rra-tin.adapter';
 import { ProfileService } from '../../user/application/profile.service';
+import { GeographyService } from '../../geography/application/geography.service';
 
 /**
  * Business registration (F-S03 / FL01), the write path.
@@ -78,6 +79,12 @@ export class RegistrationService {
     private readonly orgs: OrganizationRepository,
     private readonly tin: RraTinAdapter,
     private readonly profiles: ProfileService,
+    /**
+     * Geography, composed for ONE question: does the village on this address
+     * sit under the sector on it (D24)? `villages` is the module's table, so
+     * the join that answers it is the module's to own.
+     */
+    private readonly geography: GeographyService,
     private readonly claimMailer: ClaimInvitationMailer,
     /**
      * Registration mail (F-S03). Every call sits AFTER the move it describes has
@@ -145,6 +152,7 @@ export class RegistrationService {
 
     const b = request.business;
     const address = b.address;
+    await this.assertVillagesPlaced(b);
     const branches = await this.branchRowsFor(b);
 
     try {
@@ -172,6 +180,10 @@ export class RegistrationService {
         upi: b.domain === 'hospitality' ? (b.upi ?? null) : b.upi,
         districtId: address.districtId,
         sectorId: address.sectorId,
+        // D24: the fifth level, optional and the only one below sector that is
+        // stored — a village resolves upward to its cell, so the cell the
+        // picker asked for is already in this id.
+        villageId: address.villageId ?? null,
         addressText: address.street ?? null,
         ownerUserId: registrantUserId,
         businessType: businessTypeFor(request.role),
@@ -244,6 +256,54 @@ export class RegistrationService {
         );
       }
       throw err;
+    }
+  }
+
+  /**
+   * Every village on this registration sits under the sector sent with it.
+   *
+   * Separate from `branchRowsFor`, which returns early for a residence: a
+   * landlord's address carries a village too, and a check that only hospitality
+   * reaches is a check half the registrants walk past. This one covers the
+   * business address for both domains, and every branch address for the domain
+   * that has branches.
+   *
+   * The village is OPTIONAL, so an absent one is not an issue. A present one
+   * that belongs elsewhere is, and it is refused at its own field path so the
+   * wizard can put the sentence under the select that produced it. Every
+   * location is examined before anything is thrown, so a registrant with two
+   * wrong villages is told about both.
+   */
+  private async assertVillagesPlaced(
+    b: CreateRegistrationRequest['business'],
+  ): Promise<void> {
+    const located = [
+      { path: ['business', 'address'], address: b.address },
+      ...(b.domain === 'hospitality'
+        ? b.branches.map((branch, index) => ({
+            path: ['business', 'branches', index, 'address'],
+            address: branch.address,
+          }))
+        : []),
+    ];
+
+    const issues: { code: 'custom'; path: (string | number)[]; message: string }[] = [];
+    for (const l of located) {
+      if (l.address.villageId === undefined) continue;
+      const verdict = await this.geography.checkVillageInSector(
+        l.address.villageId,
+        l.address.sectorId,
+      );
+      if (!verdict.ok) {
+        issues.push({
+          code: 'custom',
+          path: [...l.path, 'villageId'],
+          message: verdict.message,
+        });
+      }
+    }
+    if (issues.length > 0) {
+      throw new BadRequestException({ message: 'Validation failed', issues });
     }
   }
 

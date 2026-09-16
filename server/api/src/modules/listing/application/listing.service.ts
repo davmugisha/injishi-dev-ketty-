@@ -124,6 +124,19 @@ export class ListingService {
     if (!room) {
       throw new NotFoundException('That room is no longer offered.');
     }
+    // Residence inventory is never bookable as a stay (FL06 §5C), which is the
+    // fourth fact the 404 above covers — and which this method did not actually
+    // check until 2026-09-16. `BookingService.create` has always refused a
+    // non-hospitality room type, so the two answers disagreed: this read priced
+    // a residence unit and reported a `bookingMode` for it, and the confirm that
+    // followed was refused with "That room type is not bookable." A hand-edited
+    // `/book?roomType=<residence id>` therefore reached a fully priced checkout
+    // form that could never complete. One rule decides bookability, and it is
+    // the domain — not the `booking_mode` column, which a residence row should
+    // not be carrying in the first place (see `seed-content.mjs`).
+    if (room.roomType.domain !== 'hospitality') {
+      throw new NotFoundException('That room is no longer offered.');
+    }
     const { coverPhotoId, ...property } = room.property;
     return {
       property: {

@@ -25,19 +25,29 @@
  * disclosure rather than operational data, and it belongs to the two roles that
  * may change the team.
  *
- * **STILL NO INVITE**, and the button that pretended otherwise is gone. Adding
- * somebody is its own flow with its own decisions — who may send one, how it is
- * delivered, what happens when an account that already holds a different role
- * accepts it. A bare "add member" writing an `org_memberships` row would skip
- * all of them.
+ * **ADDING SOMEBODY IS AN INVITATION**, on the Invites lens beside this one,
+ * never a button here that writes an `org_memberships` row: who may send one,
+ * how it is delivered and what accepting does are that flow's decisions.
+ *
+ * **BRANCHES** (ADR-054 AC-T1). In a hotel with more than one branch, each
+ * member shows the branches they cover, and the owner may limit a member to some
+ * of them or give every branch back. An owner always covers every branch, so
+ * their row offers no change. The API enforces the limit on every ops read.
  *
  * A REMOVED member is shown, dimmed, rather than filtered out. The membership
  * is never deleted, because the rows they posted and charged still name them.
  */
 
-import type { OperatorTeamMember, OrgRole } from "@injishi/contracts";
+import {
+  MEMBER_BRANCHES_REFUSAL,
+  type MemberBranchIds,
+  type OperatorTeamMember,
+  type OrgRole,
+} from "@injishi/contracts";
 import Link from "next/link";
+import { useState } from "react";
 
+import { BranchPicker, coverageText } from "../components/branch-picker";
 import {
   ActionButton,
   Badge,
@@ -47,11 +57,14 @@ import {
   SectionHeading,
   Skeleton,
 } from "../components/ui";
+import { humanError } from "../data/api";
 import { useCapability, useWorkspaceId } from "../data/capability";
 import { useTeam } from "../data/ops";
+import { useSetMemberBranches } from "../data/setup";
 import { dshortIso, initials } from "../lib/format";
 import { workspaceBase } from "../lib/nav";
 import { usePms } from "../store";
+import { currentGrant } from "../store/helpers";
 
 /**
  * What a role MEANS, not what it is called.
@@ -79,13 +92,33 @@ const ROLE: Record<OrgRole, { label: string; note: string; intent: "accent" | "i
 const ORDER: OrgRole[] = ["owner", "manager", "receptionist", "housekeeper"];
 
 export function Team({ landlord = false }: { landlord?: boolean }) {
-  const { state } = usePms();
+  const { state, toast } = usePms();
   const workspaceId = useWorkspaceId();
   const { can, reasonFor } = useCapability();
   const query = useTeam(workspaceId);
+  const setBranches = useSetMemberBranches(workspaceId);
+  const [editing, setEditing] = useState<{ userId: string; branchIds: MemberBranchIds } | null>(null);
+  const [editError, setEditError] = useState<string | null>(null);
 
   const base = workspaceBase(workspaceId);
   const showsDepartments = !landlord && state.ws !== "landlord";
+  const branches = currentGrant(state)?.branches ?? [];
+  const showsBranches = showsDepartments && branches.length > 1;
+
+  const saveBranches = () => {
+    if (!editing) return;
+    setEditError(null);
+    if (editing.branchIds !== null && editing.branchIds.length === 0) {
+      return setEditError(MEMBER_BRANCHES_REFUSAL.empty);
+    }
+    setBranches.mutate(editing, {
+      onSuccess: (m) => {
+        setEditing(null);
+        toast(`${m.name ?? m.email ?? "Member"} now covers ${coverageText(m.branchIds, branches)}`, "ok");
+      },
+      onError: (err) => setEditError(humanError(err)),
+    });
+  };
 
   if (!can("team.manage")) {
     return (
@@ -119,36 +152,82 @@ export function Team({ landlord = false }: { landlord?: boolean }) {
 
   const row = (m: OperatorTeamMember, i: number, live: boolean) => {
     const role = ROLE[m.orgRole];
+    const open = editing?.userId === m.userId;
+    const mayLimit = showsBranches && live && m.orgRole !== "owner";
     return (
       <div
         key={m.userId}
+        data-member={m.email ?? m.userId}
         style={{
-          display: "flex",
-          alignItems: "center",
-          gap: 12,
           padding: "12px 18px",
           borderTop: i === 0 ? "1px solid transparent" : "1px solid var(--line)",
           opacity: live ? 1 : 0.55,
         }}
       >
-        <Initials size={34}>{initials(m.name ?? m.email ?? "?")}</Initials>
-        <span style={{ minWidth: 0, flex: 1 }}>
-          <span style={{ display: "block", fontSize: 13.5, fontWeight: 600, color: "var(--ink)" }}>
-            {/* A membership can exist before its person has a profile. An
-                invited account that never signed in is a real row, and hiding
-                it would hide the invitation. */}
-            {m.name ?? "Not signed in yet"}
+        <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+          <Initials size={34}>{initials(m.name ?? m.email ?? "?")}</Initials>
+          <span style={{ minWidth: 0, flex: 1 }}>
+            <span style={{ display: "block", fontSize: 13.5, fontWeight: 600, color: "var(--ink)" }}>
+              {/* A membership can exist before its person has a profile. An
+                  invited account that never signed in is a real row, and hiding
+                  it would hide the invitation. */}
+              {m.name ?? "Not signed in yet"}
+            </span>
+            <span style={{ display: "block", fontSize: 11.5, color: "var(--muted)" }}>
+              {[m.email, `joined ${dshortIso(m.joinedAt)}`].filter(Boolean).join(" · ")}
+            </span>
+            {showsBranches && (
+              <span data-coverage style={{ display: "block", fontSize: 11.5, color: "var(--muted)" }}>
+                {coverageText(m.branchIds, branches)}
+              </span>
+            )}
           </span>
-          <span style={{ display: "block", fontSize: 11.5, color: "var(--muted)" }}>
-            {[m.email, `joined ${dshortIso(m.joinedAt)}`].filter(Boolean).join(" · ")}
+          <span style={{ textAlign: "right", minWidth: 0 }}>
+            <Badge intent={role.intent}>{role.label}</Badge>
+            <span style={{ display: "block", marginTop: 3, fontSize: 11, color: "var(--faint)" }}>
+              {live ? role.note : "Removed"}
+            </span>
           </span>
-        </span>
-        <span style={{ textAlign: "right", minWidth: 0 }}>
-          <Badge intent={role.intent}>{role.label}</Badge>
-          <span style={{ display: "block", marginTop: 3, fontSize: 11, color: "var(--faint)" }}>
-            {live ? role.note : "Removed"}
-          </span>
-        </span>
+          {mayLimit && !open && (
+            <ActionButton
+              onClick={() => {
+                setEditError(null);
+                setEditing({ userId: m.userId, branchIds: m.branchIds });
+              }}
+            >
+              Branches
+            </ActionButton>
+          )}
+        </div>
+        {open && editing && (
+          <form
+            className="mt-3 flex flex-col gap-3 border-t border-line pt-3"
+            onSubmit={(e) => {
+              e.preventDefault();
+              saveBranches();
+            }}
+          >
+            <BranchPicker
+              name={`branches-${m.userId}`}
+              branches={branches}
+              value={editing.branchIds}
+              onChange={(branchIds) => setEditing({ userId: m.userId, branchIds })}
+            />
+            {editError && (
+              <p role="alert" className="text-sm text-danger">
+                {editError}
+              </p>
+            )}
+            <div className="flex justify-end gap-2">
+              <ActionButton type="button" onClick={() => setEditing(null)}>
+                Cancel
+              </ActionButton>
+              <ActionButton variant="primary" type="submit" pending={setBranches.isPending}>
+                {setBranches.isPending ? "Saving" : "Save branches"}
+              </ActionButton>
+            </div>
+          </form>
+        )}
       </div>
     );
   };
@@ -201,8 +280,11 @@ export function Team({ landlord = false }: { landlord?: boolean }) {
       )}
 
       <p className="text-2xs text-muted-foreground">
-        Inviting somebody is not built yet — it is its own flow, and a button that
-        wrote a membership row would skip every decision in it.
+        To add somebody, send an{" "}
+        <Link href={`${base}/people/invites`} className="underline">
+          invitation
+        </Link>
+        ; they join when they accept it.
         {showsDepartments && (
           <>
             {" "}

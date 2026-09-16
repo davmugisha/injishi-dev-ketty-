@@ -195,7 +195,12 @@ export function Checkout() {
 
   const quote = useMemo(() => {
     if (!selection || nightlyRateRwf === null) return null;
-    return computeQuote({ nightlyRateRwf, nights: selection.nights, nonRefundable });
+    return computeQuote({
+      nightlyRateRwf,
+      nights: selection.nights,
+      guests: billableGuests(selection.intent.guests),
+      nonRefundable,
+    });
   }, [selection, nightlyRateRwf, nonRefundable]);
 
   // A changed quote is a different booking, so it gets a different attempt

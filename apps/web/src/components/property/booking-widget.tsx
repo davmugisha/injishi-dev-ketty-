@@ -31,7 +31,7 @@ import {
   roomForParty,
   type PropertyRooms,
 } from "@/data/property-rooms";
-import type { ApiResult } from "@/lib/api";
+import { retryWhileFailed, type ApiResult } from "@/lib/api";
 import type { PropertyDetail } from "@/data/properties";
 
 /**
@@ -116,7 +116,9 @@ export function BookingWidget({ property }: { property: BookingWidgetProperty })
     let cancelled = false;
     setRooms(null);
     void (async () => {
-      const result = await fetchPropertyRooms(property.slug);
+      // Retried before it is shown: a restart of the API lasts seconds, and a
+      // guest who arrived with dates should see the rooms, not a button.
+      const result = await retryWhileFailed(() => fetchPropertyRooms(property.slug));
       if (!cancelled) setRooms(result);
     })();
     return () => {
@@ -142,6 +144,12 @@ export function BookingWidget({ property }: { property: BookingWidgetProperty })
    */
   const ceiling = largestParty(sellable);
   const maxGuests = sellable.length > 0 ? (ceiling ?? property.maxGuests) : property.maxGuests;
+  // Infants are free but never more than the stay sleeps: a link carrying
+  // five infants into a room for two is trimmed, the same ceiling the picker holds.
+  useEffect(() => {
+    if (guests.infants > maxGuests) setGuests((g) => ({ ...g, infants: maxGuests }));
+  }, [guests.infants, maxGuests]);
+
   /** Rooms are on sale, but none sleeps this many. The guest can fix this one. */
   const partyTooLarge = sellable.length > 0 && bookable === null;
 
@@ -190,9 +198,11 @@ export function BookingWidget({ property }: { property: BookingWidgetProperty })
         : computeQuote({
             nightlyRateRwf: quotedRateRwf,
             nights,
+            // Priced per person: adding a guest adds their nights.
+            guests: party,
             nonRefundable,
           }),
-    [quotedRateRwf, nights, nonRefundable],
+    [quotedRateRwf, nights, party, nonRefundable],
   );
 
   /**

@@ -11,11 +11,17 @@
  *
  * Behind `team.manage`, the owner's. Owner is not offered as a role: ownership
  * changes hands through the owner claim, which checks an identity document.
+ *
+ * A hotel with more than one branch also chooses which branches the invitee
+ * will cover (ADR-054 AC-T1), copied onto the membership when they accept. A
+ * residence business has no branches, so the choice never shows there.
  */
 
 import {
   InvitableOrgRole,
+  MEMBER_BRANCHES_REFUSAL,
   ORG_ROLE_LABEL,
+  type MemberBranchIds,
   type OperatorStaffInvitation,
 } from "@injishi/contracts";
 import { useState } from "react";
@@ -30,11 +36,13 @@ import {
   Skeleton,
   surfaceClass,
 } from "../components/ui";
+import { BranchPicker, coverageText } from "../components/branch-picker";
 import { humanError } from "../data/api";
 import { useCapability, useWorkspaceId } from "../data/capability";
 import { useInviteStaff, useRevokeStaffInvitation, useStaffInvitations } from "../data/setup";
 import { dshortIso } from "../lib/format";
 import { usePms } from "../store";
+import { currentGrant } from "../store/helpers";
 
 /** What each invitable role can do, in the owner's words. */
 const ROLE_NOTE: Record<InvitableOrgRole, string> = {
@@ -54,7 +62,7 @@ const inputClass = "h-10 w-full rounded border border-line2 bg-field px-3 text-s
 
 export function Invites({ landlord }: { landlord: boolean }) {
   const workspaceId = useWorkspaceId();
-  const { toast, toastError } = usePms();
+  const { state, toast, toastError } = usePms();
   const { can, reasonFor } = useCapability();
   const query = useStaffInvitations(can("team.manage") ? workspaceId : null);
   const invite = useInviteStaff(workspaceId);
@@ -62,7 +70,10 @@ export function Invites({ landlord }: { landlord: boolean }) {
   const roles = InvitableOrgRole.options.filter((r) => !landlord || r === "manager");
   const [email, setEmail] = useState("");
   const [role, setRole] = useState<InvitableOrgRole>(landlord ? "manager" : "receptionist");
+  const [branchIds, setBranchIds] = useState<MemberBranchIds>(null);
   const [error, setError] = useState<string | null>(null);
+  const branches = currentGrant(state)?.branches ?? [];
+  const choosesBranches = !landlord && branches.length > 1;
 
   if (!can("team.manage")) {
     return <EmptyState className="p-6 text-sm">{reasonFor("team.manage")}</EmptyState>;
@@ -72,11 +83,14 @@ export function Invites({ landlord }: { landlord: boolean }) {
     setError(null);
     const address = email.trim();
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(address)) return setError("Use an email address like name@example.com.");
+    const limit = choosesBranches ? branchIds : null;
+    if (limit !== null && limit.length === 0) return setError(MEMBER_BRANCHES_REFUSAL.empty);
     invite.mutate(
-      { email: address, orgRole: role },
+      { email: address, orgRole: role, branchIds: limit },
       {
         onSuccess: () => {
           setEmail("");
+          setBranchIds(null);
           toast(`Invitation sent to ${address}`, "ok");
         },
         onError: (err) => setError(humanError(err)),
@@ -100,7 +114,8 @@ export function Invites({ landlord }: { landlord: boolean }) {
         <span className="flex min-w-0 flex-1 flex-col">
           <span className="truncate text-sm font-semibold text-ink">{inv.email}</span>
           <span className="text-2xs text-muted-foreground">
-            {ORG_ROLE_LABEL[inv.orgRole]} · sent {dshortIso(inv.createdAt)}
+            {ORG_ROLE_LABEL[inv.orgRole]}
+            {choosesBranches ? ` · ${coverageText(inv.branchIds, branches)}` : ""} · sent {dshortIso(inv.createdAt)}
             {inv.status === "sent" ? ` · expires ${dshortIso(inv.expiresAt)}` : ""}
           </span>
         </span>
@@ -161,6 +176,9 @@ export function Invites({ landlord }: { landlord: boolean }) {
           </label>
         </div>
         <p className="text-xs text-muted-foreground">{ROLE_NOTE[role]}</p>
+        {choosesBranches && (
+          <BranchPicker name="invite-branches" branches={branches} value={branchIds} onChange={setBranchIds} />
+        )}
         {error && (
           <p role="alert" className="text-sm text-danger">
             {error}

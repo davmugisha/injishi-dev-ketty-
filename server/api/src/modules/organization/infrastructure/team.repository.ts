@@ -1,10 +1,13 @@
 import { Inject, Injectable } from '@nestjs/common';
-import { asc, eq } from 'drizzle-orm';
+import { and, asc, eq, inArray } from 'drizzle-orm';
 
 import { DRIZZLE, type Database } from '../../../shared/database/database.module';
 import { users } from '../../../database/drizzle/auth';
 import {
+  auditEvents,
+  orgMembershipBranches,
   orgMemberships,
+  properties,
   userProfiles,
   workspaces,
 } from '../../../database/drizzle/schema';
@@ -17,7 +20,17 @@ export interface TeamMemberRow {
   orgRole: 'owner' | 'manager' | 'receptionist' | 'housekeeper';
   status: string;
   joinedAt: Date;
+  /** Null: every branch. An owner is always null (ADR-054 invariant 5). */
+  branchIds: string[] | null;
 }
+
+/** Why a member's branches were not changed. Nothing is written for any of them. */
+export type MemberBranchesResult =
+  | { kind: 'done' }
+  | { kind: 'missing' }
+  | { kind: 'owner' }
+  | { kind: 'foreign' }
+  | { kind: 'archived' };
 
 /**
  * Who works at a business (ADR-035, wave 2 follow-up).
@@ -44,6 +57,7 @@ export class TeamRepository {
   async listForWorkspace(workspaceId: string): Promise<TeamMemberRow[]> {
     const rows = await this.db
       .select({
+        membershipId: orgMemberships.id,
         userId: orgMemberships.userId,
         // The profile's display name first, the auth record's second. A person
         // who has completed Step 1 chose the first; the second is whatever the
@@ -62,6 +76,29 @@ export class TeamRepository {
       .where(eq(workspaces.id, workspaceId))
       .orderBy(asc(orgMemberships.orgRole), asc(users.email));
 
+    // The branch limits in one more query rather than a join, which would
+    // repeat each member once per branch (ADR-054 AC-T1).
+    const limits = new Map<string, string[]>();
+    if (rows.length > 0) {
+      const limitRows = await this.db
+        .select({
+          membershipId: orgMembershipBranches.orgMembershipId,
+          propertyId: orgMembershipBranches.propertyId,
+        })
+        .from(orgMembershipBranches)
+        .where(
+          inArray(
+            orgMembershipBranches.orgMembershipId,
+            rows.map((r) => r.membershipId),
+          ),
+        );
+      for (const row of limitRows) {
+        const list = limits.get(row.membershipId) ?? [];
+        list.push(row.propertyId);
+        limits.set(row.membershipId, list);
+      }
+    }
+
     return rows.map((row) => ({
       userId: row.userId,
       name: row.displayName ?? row.authName,
@@ -69,6 +106,99 @@ export class TeamRepository {
       orgRole: row.orgRole,
       status: row.status,
       joinedAt: row.joinedAt,
+      branchIds:
+        row.orgRole === 'owner' ? null : (limits.get(row.membershipId) ?? null),
     }));
+  }
+
+  /**
+   * Set which branches one active member covers (ADR-054 AC-T1, AC-A1).
+   *
+   * All or nothing, on the membership row locked first, so two owners editing
+   * the same person at once apply one after the other and each audit row's
+   * `from` is what the other actually wrote. `branchIds` null clears the limit.
+   * Ids are checked HERE, under the same lock, because a branch archived between
+   * a check and the write would otherwise leave a member covering nothing.
+   */
+  async setMemberBranches(input: {
+    orgId: string;
+    userId: string;
+    branchIds: readonly string[] | null;
+    actorUserId: string;
+  }): Promise<MemberBranchesResult> {
+    return this.db.transaction(async (tx) => {
+      const [membership] = await tx
+        .select({
+          id: orgMemberships.id,
+          orgRole: orgMemberships.orgRole,
+          status: orgMemberships.status,
+          removedAt: orgMemberships.removedAt,
+        })
+        .from(orgMemberships)
+        .where(
+          and(
+            eq(orgMemberships.orgId, input.orgId),
+            eq(orgMemberships.userId, input.userId),
+          ),
+        )
+        .for('update')
+        .limit(1);
+      if (!membership || membership.status !== 'active' || membership.removedAt) {
+        return { kind: 'missing' };
+      }
+      if (membership.orgRole === 'owner') return { kind: 'owner' };
+
+      if (input.branchIds) {
+        const found = await tx
+          .select({
+            id: properties.id,
+            orgId: properties.orgId,
+            archivedAt: properties.archivedAt,
+          })
+          .from(properties)
+          .where(inArray(properties.id, [...input.branchIds]))
+          .for('share');
+        if (
+          found.length !== input.branchIds.length ||
+          found.some((p) => p.orgId !== input.orgId)
+        ) {
+          return { kind: 'foreign' };
+        }
+        if (found.some((p) => p.archivedAt !== null)) return { kind: 'archived' };
+      }
+
+      const before = await tx
+        .select({ propertyId: orgMembershipBranches.propertyId })
+        .from(orgMembershipBranches)
+        .where(eq(orgMembershipBranches.orgMembershipId, membership.id));
+
+      await tx
+        .delete(orgMembershipBranches)
+        .where(eq(orgMembershipBranches.orgMembershipId, membership.id));
+      if (input.branchIds) {
+        await tx.insert(orgMembershipBranches).values(
+          input.branchIds.map((propertyId) => ({
+            orgMembershipId: membership.id,
+            propertyId,
+          })),
+        );
+      }
+
+      await tx.insert(auditEvents).values({
+        actorUserId: input.actorUserId,
+        subjectType: 'user',
+        subjectId: input.userId,
+        eventType: 'team.member_branches_changed',
+        payloadDiff: {
+          orgId: input.orgId,
+          branchIds: {
+            from: before.length > 0 ? before.map((r) => r.propertyId).sort() : null,
+            to: input.branchIds ? [...input.branchIds].sort() : null,
+          },
+        } as never,
+        reason: null,
+      });
+      return { kind: 'done' };
+    });
   }
 }

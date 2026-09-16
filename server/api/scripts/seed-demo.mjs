@@ -144,6 +144,9 @@ const PEOPLE = [
   // Jean-Bosco's verification queue, so a presenter can show the branches an
   // officer sees without typing a registration first.
   { id: U(16), email: 'aimable@demo.injishi.com',   name: 'Aimable Ntwari',        kyc: 'verified',   nid: '1198980012345616' },
+  // ADR-054 AC-D2: a receptionist limited to the Musanze branch, so a presenter
+  // can show that every ops screen, and every id probe, stops at her branch.
+  { id: U(17), email: 'clarisse@demo.injishi.com',  name: 'Clarisse Ingabire',     kyc: 'verified',   nid: '1199180012345617' },
 ];
 
 const ORGS = [
@@ -176,6 +179,8 @@ const MEMBERSHIPS = [
   { orgId: O(1), userId: U(4), role: 'housekeeper' },
   { orgId: O(2), userId: U(5), role: 'owner' },
   { orgId: O(3), userId: U(16), role: 'owner' },
+  // Limited to Musanze (PR(4)); `MEMBERSHIP_BRANCHES` below writes the limit.
+  { orgId: O(1), userId: U(17), role: 'receptionist' },
   // **Samuel's Green Hills hat was REMOVED (ADR-038 child 0, task 14).**
   //
   // It was here to give him a landlord seat before he had a building of his
@@ -185,6 +190,15 @@ const MEMBERSHIPS = [
   // Green Hills stays Josephine's org with her as owner, so the rent roll
   // behind it is untouched and her Landlord surface still has rows. Only
   // Samuel's second, duplicate landlord seat is gone.
+];
+
+/**
+ * Branch limits (ADR-054 AC-T1, AC-D2). A membership with no row here covers
+ * every branch, so only the limited ones are listed. Written after the
+ * properties, which the rows reference.
+ */
+const MEMBERSHIP_BRANCHES = [
+  { orgId: O(1), userId: U(17), propertyIds: [PR(4)] },
 ];
 
 const WORKSPACES = [
@@ -845,6 +859,29 @@ async function seedMembership(c, m) {
     `INSERT INTO org_memberships (org_id, user_id, org_role) VALUES ($1, $2, $3)`,
     [m.orgId, m.userId, m.role],
   );
+}
+
+// Replaces the member's limit with exactly the listed branches, so a rerun
+// changes nothing and an edit to the list converges rather than accumulating.
+async function seedMembershipBranches(c, mb) {
+  const { rows } = await c.query(
+    `SELECT id FROM org_memberships WHERE org_id = $1 AND user_id = $2 AND status = 'active' LIMIT 1`,
+    [mb.orgId, mb.userId],
+  );
+  const membershipId = rows[0]?.id;
+  if (!membershipId) throw new Error(`No active membership for ${mb.userId} to limit.`);
+  await c.query(
+    `DELETE FROM org_membership_branches
+      WHERE org_membership_id = $1 AND NOT (property_id = ANY($2::uuid[]))`,
+    [membershipId, mb.propertyIds],
+  );
+  for (const propertyId of mb.propertyIds) {
+    await c.query(
+      `INSERT INTO org_membership_branches (org_membership_id, property_id)
+       VALUES ($1, $2) ON CONFLICT DO NOTHING`,
+      [membershipId, propertyId],
+    );
+  }
 }
 
 async function seedAssignment(c, a) {
@@ -1659,6 +1696,7 @@ async function main() {
 
     // The operational half, in foreign key order.
     for (const pr of PROPERTIES) await seedProperty(client, pr);
+    for (const mb of MEMBERSHIP_BRANCHES) await seedMembershipBranches(client, mb);
     for (const l of LISTINGS) await seedListing(client, l);
     for (const rt of ROOM_TYPES) await seedRoomType(client, rt);
     for (const rp of RATE_PLANS) await seedRatePlan(client, rp);
@@ -1730,6 +1768,19 @@ async function main() {
         .filter(Boolean).join(', ');
       console.log(`  ${b.legal_name.padEnd(26)} ${b.name.padEnd(24)} ${marks}`);
     }
+
+    const { rows: limited } = await client.query(
+      `SELECT u.email, array_agg(p.name ORDER BY p.name) AS branches
+         FROM org_membership_branches ob
+         JOIN org_memberships m ON m.id = ob.org_membership_id
+         JOIN users u ON u.id = m.user_id
+         JOIN properties p ON p.id = ob.property_id
+        WHERE m.user_id = ANY($1::uuid[])
+        GROUP BY u.email ORDER BY u.email`,
+      [PEOPLE.map((p) => p.id)],
+    );
+    console.log('\nBranch limited members (ADR-054):');
+    for (const l of limited) console.log(`  ${l.email.padEnd(28)} ${l.branches.join(', ')}`);
 
     console.log('\nSign in as yves@demo.injishi.com (code 123456) and open /host/reservations.');
     console.log('Two requests are pending; Approve and Decline both act on real rows.');

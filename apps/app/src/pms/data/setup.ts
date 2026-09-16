@@ -20,7 +20,9 @@ import {
   PropertySetupProgress,
   type InventoryRoom,
   type InviteStaffRequest,
+  type MemberBranchIds,
   type OperatorStaffInvitation,
+  type OperatorTeamMember,
   type RoomStatus,
 } from "@injishi/contracts";
 import {
@@ -141,6 +143,27 @@ export function useInviteStaff(
       command<OperatorStaffInvitation>("/ops/team/invitations", {
         workspaceId: workspaceId as string,
         body,
+      }),
+    onSuccess: invalidate,
+  });
+}
+
+/**
+ * Limit a member to some branches, or give them every branch (ADR-054 AC-T1).
+ * `team.manage` plus every branch. `allBranches`, because the branch in view
+ * has nothing to do with whose coverage is being changed.
+ */
+export function useSetMemberBranches(
+  workspaceId: string | null,
+): UseMutationResult<OperatorTeamMember, Error, { userId: string; branchIds: MemberBranchIds }> {
+  const invalidate = useInvalidateTeam(workspaceId);
+  return useMutation({
+    mutationFn: ({ userId, branchIds }) =>
+      command<OperatorTeamMember>(`/ops/team/${userId}/branches`, {
+        workspaceId: workspaceId as string,
+        method: "PUT",
+        body: { branchIds },
+        allBranches: true,
       }),
     onSuccess: invalidate,
   });

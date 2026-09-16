@@ -164,3 +164,84 @@ describe('ListingService, public photographs', () => {
     );
   });
 });
+
+/**
+ * Bookability has ONE rule, and it is the domain (FL06 §5C).
+ *
+ * `BookingService.create` has always refused a non-hospitality room type. Until
+ * 2026-09-16 `getBookableRoom` did not, so the checkout's own read answered
+ * "here is your priced residence apartment, booking mode request_to_book" for
+ * inventory the confirm would then refuse with a 400. The demo carried a live
+ * example: Lavender Hill's `Two-bedroom apartment` was seeded `request_to_book`
+ * on a `residence` row, and `/book?roomType=<that id>` rendered a full checkout
+ * that could not complete.
+ *
+ * `database-property.tsx` filters residence out of the property page, so the
+ * dead end was only reachable by a hand-edited url — which is exactly the case
+ * `bookHref` was rewritten to close, and not a reason to leave the server
+ * answering two ways.
+ */
+describe('ListingService, what counts as bookable', () => {
+  const ORIGIN = 'https://api.injishi.test';
+
+  function roomRecord(domain: 'hospitality' | 'residence'): BookableRoomRecord {
+    return {
+      property: {
+        id: '44444444-4444-4444-8444-444444444444',
+        slug: 'lavender-hill-residences',
+        name: 'Lavender Hill Residences',
+        districtName: 'Gasabo',
+        checkInTime: null,
+        checkOutTime: null,
+        coverPhotoId: null,
+      },
+      roomType: {
+        id: '55555555-5555-4555-8555-555555555555',
+        name: 'Two-bedroom apartment',
+        domain,
+        capacity: 4,
+        roomCount: 3,
+        nightlyRateRwf: 450_000,
+        bookingMode: 'request_to_book',
+        approvalPolicy: 'approve_first_three',
+        cancellationTier: null,
+        nonrefundableEligible: false,
+        minStay: 30,
+      },
+    };
+  }
+
+  function build(findBookableRoom: jest.Mock): ListingService {
+    return new ListingService(
+      { findBookableRoom } as unknown as ListingRepository,
+      { signedUrl: jest.fn() } as unknown as StorageService,
+      ORIGIN,
+    );
+  }
+
+  it('refuses a residence room type with the same 404 as an unknown one', async () => {
+    const service = build(jest.fn().mockResolvedValue(roomRecord('residence')));
+    await expect(
+      service.getBookableRoom('55555555-5555-4555-8555-555555555555'),
+    ).rejects.toBeInstanceOf(NotFoundException);
+  });
+
+  it('refuses it even while the row still carries a booking mode', async () => {
+    // The seed no longer writes one, but a database written before that fix
+    // still has the column populated. The domain decides, not the column, so an
+    // unmigrated row is refused rather than sold.
+    const record = roomRecord('residence');
+    expect(record.roomType.bookingMode).toBe('request_to_book');
+    const service = build(jest.fn().mockResolvedValue(record));
+    await expect(
+      service.getBookableRoom(record.roomType.id),
+    ).rejects.toBeInstanceOf(NotFoundException);
+  });
+
+  it('still answers a hospitality room type, so the guard refuses only residence', async () => {
+    const service = build(jest.fn().mockResolvedValue(roomRecord('hospitality')));
+    const room = await service.getBookableRoom('55555555-5555-4555-8555-555555555555');
+    expect(room.roomType.domain).toBe('hospitality');
+    expect(room.property.photo).toBeNull();
+  });
+});

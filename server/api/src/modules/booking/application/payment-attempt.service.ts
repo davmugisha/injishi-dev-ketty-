@@ -521,6 +521,7 @@ export class PaymentAttemptService {
       nightlyRateRwf: roomType.nightlyRateRwf,
       nights,
       nonRefundable: row.nonRefundable,
+      guests,
     });
 
     let booking: BookingResult;

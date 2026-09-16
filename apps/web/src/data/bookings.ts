@@ -4,7 +4,7 @@ import {
   PaymentAttemptStatus,
   type CreateBookingInput,
 } from "@injishi/contracts";
-import { apiFetchParsed, type ApiResult } from "@/lib/api";
+import { apiFetchParsed, retryWhileFailed, type ApiResult } from "@/lib/api";
 
 /**
  * The client for the two calls checkout makes (F-B05 / FL07, ADR-020).
@@ -59,7 +59,9 @@ import { apiFetchParsed, type ApiResult } from "@/lib/api";
 export function fetchBookableRoom(
   roomTypeId: string,
 ): Promise<ApiResult<BookableRoom>> {
-  return apiFetchParsed(BookableRoom, `/api/v1/bookable/${roomTypeId}`);
+  // A read the guest did not press anything to start, so a restart of the API
+  // is ridden out here instead of surfacing as "we couldn't load this stay".
+  return retryWhileFailed(() => apiFetchParsed(BookableRoom, `/api/v1/bookable/${roomTypeId}`));
 }
 
 /**

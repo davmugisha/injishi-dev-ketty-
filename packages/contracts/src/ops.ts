@@ -1107,8 +1107,37 @@ export const OperatorTeamMember = z.object({
     /** `active` or `removed`. A removed member keeps their history. */
     status: z.string(),
     joinedAt: z.string(),
+    /**
+     * The branches this member is limited to (ADR-054 AC-T1). `null` means
+     * every branch, which an owner always is. Archived branches a member was
+     * limited to stay listed, so the screen can say why one reads as retired.
+     */
+    branchIds: z.array(Uuid).nullable(),
 });
 export type OperatorTeamMember = z.infer<typeof OperatorTeamMember>;
+/**
+ * Which branches a member covers, as a request carries it (ADR-054 AC-T1).
+ *
+ * `null` means every branch; a list means only those. An empty list is not
+ * refused here but by the service, with the other AC-T1 refusals, because
+ * "no branch at all" is a rule about the business, not the shape: it answers
+ * 422 beside "that branch is archived" rather than 400 beside a malformed id.
+ */
+export const MemberBranchIds = z.array(Uuid).nullable();
+export type MemberBranchIds = z.infer<typeof MemberBranchIds>;
+/** `PUT /api/v1/ops/team/:userId/branches`. */
+export const SetMemberBranchesRequest = z.object({
+    branchIds: MemberBranchIds,
+});
+export type SetMemberBranchesRequest = z.infer<typeof SetMemberBranchesRequest>;
+/** The words a member's branch refusal carries (ADR-054 AC-T1), one per rule. */
+export const MEMBER_BRANCHES_REFUSAL = {
+    owner: "An owner always covers every branch.",
+    empty: "Choose at least one branch, or every branch.",
+    foreign: "That branch does not belong to this business.",
+    archived: "That branch is archived. Restore it first, or choose another.",
+    residence: "A residence business has no branches to limit.",
+} as const;
 export const OperatorTeamList = z.object({
     members: z.array(OperatorTeamMember),
 });
@@ -1140,6 +1169,8 @@ export const InviteStaffRequest = z.object({
         .email("Use an email address like name@example.com.")
         .max(200),
     orgRole: InvitableOrgRole,
+    /** The branches the invitee will cover; absent or null is every branch (ADR-054). */
+    branchIds: MemberBranchIds.default(null),
 });
 export type InviteStaffRequest = z.infer<typeof InviteStaffRequest>;
 export const StaffInvitationStatus = z.enum(["sent", "accepted", "revoked", "expired"]);
@@ -1159,6 +1190,8 @@ export const OperatorStaffInvitation = z.object({
     status: StaffInvitationStatus,
     expiresAt: z.string(),
     createdAt: z.string(),
+    /** The branches the invitee will cover; null is every branch (ADR-054). */
+    branchIds: z.array(Uuid).nullable(),
 });
 export type OperatorStaffInvitation = z.infer<typeof OperatorStaffInvitation>;
 export const OperatorStaffInvitationList = z.object({
