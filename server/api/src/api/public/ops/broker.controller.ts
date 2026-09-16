@@ -28,10 +28,15 @@ import {
  * The broker's own surface → /api/v1/ops/broker (ADR-038 child 6).
  *
  * In the `ops/*` family because a broker workspace is a workspace, and its
- * credits belong to it rather than to a person. The two commands declare no
- * permission on purpose: a broker workspace resolves none, and `BrokerService`
- * refuses anything that is not an active broker's own workspace. Both are named
- * in the API's `require-permission-on-guarded-route` allowlist.
+ * credits belong to it rather than to a person. NO route here declares a
+ * permission, and that is deliberate: `permissionsForWorkspace` returns an
+ * empty array for every workspace that is not kind `business`, so a broker
+ * holds none and any declaration would refuse the one person the surface is
+ * for. `BrokerService` refuses anything that is not an active broker's own
+ * workspace, which is the whole check. All six handlers — the two commands and
+ * the four reads — are named in the API's
+ * `require-permission-on-guarded-route` allowlist, the reads because audit H1
+ * extended that rule from mutations to every verb.
  */
 @Controller({ path: 'ops/broker', version: '1' })
 @UseGuards(SessionGuard, WorkspaceGuard)
