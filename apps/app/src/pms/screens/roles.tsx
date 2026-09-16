@@ -50,6 +50,7 @@ import { Checkbox } from "@injishi/ui";
 import { cn } from "@/lib/utils";
 import { useState } from "react";
 
+import { ConfirmAction } from "../components/confirm-action";
 import {
   ActionButton,
   Badge,
@@ -204,10 +205,20 @@ export function Roles() {
             {role.customisable && !open && (
               <>
                 <ActionButton onClick={() => startEdit(role)}>Change</ActionButton>
+                {/* Reset throws away EVERY decision this business made about
+                    this role, in one press, for however many people hold it —
+                    so it arms first, like every other undo-by-hand action in
+                    this app. The armed label names the count rather than
+                    saying "are you sure". */}
                 {changed.length > 0 && (
-                  <ActionButton
+                  <ConfirmAction
                     pending={busy}
-                    onClick={() =>
+                    confirmLabel={
+                      changed.length === 1
+                        ? "Undo that change"
+                        : `Undo all ${changed.length} changes`
+                    }
+                    onConfirm={() =>
                       commit(
                         role,
                         role.basePermissions.filter((p) => !locked.has(p)),
@@ -216,7 +227,7 @@ export function Roles() {
                     }
                   >
                     Reset
-                  </ActionButton>
+                  </ConfirmAction>
                 )}
               </>
             )}
