@@ -208,7 +208,43 @@ async function main() {
         !/your role cannot/i.test(w.message),
         w.message,
       );
+
+      // Reads too (platform audit, H1). Every operator read declares who may
+      // make it, and an empty permission set holds none of the candidates. It
+      // used to answer 200 here, which is what let a registrant read every list.
+      for (const path of ['/ops/rooms', '/ops/reservations', '/ops/rent-roll', '/ops/threads']) {
+        const r = await as('pending@injishi.com', 'GET', `/api/v1${path}?workspaceId=${ws.id}`);
+        check(`a guarded READ is refused too (GET ${path})`, r.status === 403, `got ${r.status}`);
+        check(
+          `and names the stage (GET ${path})`,
+          r.status === 403 && !/your role cannot/i.test(r.message),
+          r.message,
+        );
+      }
     }
+  }
+
+  // -----------------------------------------------------------------------
+  console.log('\n=== A read is refused to a role that holds none of its powers (H1) ===');
+  {
+    const rr = await as('housekeeper@injishi.com', 'GET', `/api/v1/ops/rent-roll?workspaceId=${hosp.id}`);
+    check('housekeeper cannot read the rent roll', rr.status === 403, `got ${rr.status}`);
+    check('and the refusal names the capability', /record rent/i.test(rr.message), rr.message);
+
+    const th = await as('housekeeper@injishi.com', 'GET', `/api/v1/ops/threads?workspaceId=${hosp.id}`);
+    check('housekeeper cannot read guest threads', th.status === 403, `got ${th.status}`);
+
+    const hr = await as('housekeeper@injishi.com', 'GET', `/api/v1/ops/rooms?workspaceId=${hosp.id}`);
+    check('housekeeper KEEPS the rooms list (any of its powers)', hr.status === 200, `got ${hr.status}`);
+
+    const ht = await as('housekeeper@injishi.com', 'GET', `/api/v1/ops/housekeeping-tasks?workspaceId=${hosp.id}`);
+    check('housekeeper KEEPS the cleaning board', ht.status === 200, `got ${ht.status}`);
+
+    const rf = await as('reception@injishi.com', 'GET', `/api/v1/ops/folios?workspaceId=${hosp.id}`);
+    check('receptionist KEEPS the bills', rf.status === 200, `got ${rf.status}`);
+
+    const rh = await as('reception@injishi.com', 'GET', `/api/v1/ops/housekeeping-tasks?workspaceId=${hosp.id}`);
+    check('receptionist is refused the cleaning board', rh.status === 403, `got ${rh.status}`);
   }
 
   // -----------------------------------------------------------------------

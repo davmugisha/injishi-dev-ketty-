@@ -3,7 +3,6 @@ import {
   CreateHousekeepingTaskRequest,
   type OperatorHousekeepingTask,
   type OperatorHousekeepingTaskList,
-  type WorkspaceAccess,
 } from '@injishi/contracts';
 import {
   Body,
@@ -20,18 +19,21 @@ import { HousekeepingService } from '../../../modules/operations/application/hou
 import { SessionGuard } from '../../../shared/auth/session.guard';
 import {
   CurrentWorkspace,
+  RequireAnyPermission,
   RequirePermission,
   WorkspaceGuard,
 } from '../../../shared/auth/workspace.guard';
+import type { ScopedWorkspace } from '../../../shared/auth/branch-scope';
 import { ZodValidationPipe } from '../../../shared/validation/zod-validation.pipe';
 
 /**
  * The cleaning queue -> /api/v1/ops/housekeeping-tasks (ADR-016 slice 5).
  *
- * THE READ CARRIES NO PERMISSION, and that is the point rather than an
- * oversight. A housekeeper holds exactly `housekeeping.set` and
- * `ticket.advance`; gating their own queue on `task.assign` would 403 them out
- * of the only screen they use.
+ * THE READ IS ANY OF `housekeeping.set` OR `task.assign`. A housekeeper
+ * holds exactly `housekeeping.set` and `ticket.advance`; gating their own
+ * queue on `task.assign` alone would 403 them out of the only screen they use.
+ * A receptionist holds neither and is refused, as is a business still in the
+ * registration pipeline (audit H1).
  *
  * The two commands are gated on different permissions for the same reason:
  * CREATING and assigning a task is a supervisor's act (`task.assign`), and
@@ -47,8 +49,9 @@ export class OpsHousekeepingController {
   constructor(private readonly housekeeping: HousekeepingService) {}
 
   @Get()
+  @RequireAnyPermission('housekeeping.set', 'task.assign')
   async list(
-    @CurrentWorkspace() workspace: WorkspaceAccess,
+    @CurrentWorkspace() workspace: ScopedWorkspace,
   ): Promise<OperatorHousekeepingTaskList> {
     return { tasks: await this.housekeeping.list(workspace) };
   }
@@ -58,7 +61,7 @@ export class OpsHousekeepingController {
   create(
     @Body(new ZodValidationPipe(CreateHousekeepingTaskRequest))
     body: CreateHousekeepingTaskRequest,
-    @CurrentWorkspace() workspace: WorkspaceAccess,
+    @CurrentWorkspace() workspace: ScopedWorkspace,
     @Headers('idempotency-key') key: string | undefined,
   ): Promise<OperatorHousekeepingTask> {
     return this.housekeeping.create(workspace, body, key ?? null);
@@ -70,7 +73,7 @@ export class OpsHousekeepingController {
     @Param('id', ParseUUIDPipe) id: string,
     @Body(new ZodValidationPipe(AdvanceHousekeepingTaskRequest))
     body: AdvanceHousekeepingTaskRequest,
-    @CurrentWorkspace() workspace: WorkspaceAccess,
+    @CurrentWorkspace() workspace: ScopedWorkspace,
   ): Promise<OperatorHousekeepingTask> {
     return this.housekeeping.advance(workspace, id, body);
   }

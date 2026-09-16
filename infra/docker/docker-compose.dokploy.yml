@@ -53,6 +53,12 @@ x-api-env: &api-env
   SENTRY_DSN: ${SENTRY_DSN:-}
   NODE_ENV: production
   PORT: "8000"
+  # One trusted hop: Dokploy's Traefik, the only thing that routes to api
+  # (port 8000 is `expose`d, never published). Traefik appends the address it
+  # saw to X-Forwarded-For, and that entry becomes request.ip; anything a caller
+  # wrote to the left of it is ignored. Pinned, not from the env file. Put a
+  # proxying CDN in front (DOKPLOY.md, Admin network gate) and this becomes 2.
+  TRUST_PROXY: "1"
   DATABASE_URL: ${DATABASE_URL}
   REDIS_URL: ${REDIS_URL}
   COOKIE_SECRET: ${COOKIE_SECRET}
@@ -120,7 +126,7 @@ services:
     restart: unless-stopped
     environment:
       POSTGRES_USER: ${POSTGRES_USER:-injishi}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-change-me}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD}
       POSTGRES_DB: ${POSTGRES_DB:-injishi}
     volumes:
       - db-data:/var/lib/postgresql/data
@@ -277,8 +283,12 @@ services:
       - traefik.http.routers.injishi-production-api.tls.certresolver=letsencrypt
       - traefik.http.routers.injishi-production-api.service=injishi-production-api
     networks:
-      - default
-      - dokploy-network
+      default:
+        # The name web's Server Actions use (INTERNAL_API_URL). Not `api`: web
+        # also joins dokploy-network, where another stack's `api` answers to it.
+        aliases:
+          - injishi-api
+      dokploy-network: {}
 
   # Same image as api. INJISHI_PROCESS=worker boots the queue process, on the
   # same database and Redis, under the same pinned platform.
@@ -320,6 +330,9 @@ services:
       NODE_ENV: production
       PORT: "3000"
       OPERATOR_APP_URL: http://app:3002
+      # Server only, read at runtime. Sign-in sends reach the API over the compose
+      # network so the visitor's IP can be forwarded (apps/web/src/lib/otp.server.ts).
+      INTERNAL_API_URL: http://injishi-api:8000
     expose:
       - "3000"
     depends_on:

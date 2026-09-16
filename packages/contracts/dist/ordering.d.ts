@@ -767,6 +767,12 @@ export declare const PlaceOrderRequest: z.ZodEffects<z.ZodObject<{
         kind: "card";
         token: string;
     }>]>>;
+    /**
+     * The conversation this order is placed from (ADR-050 D-s). The order stays
+     * one record; the thread gets a card and a line for every status change.
+     * It must be the caller's own active thread at the outlet's property.
+     */
+    threadId: z.ZodOptional<z.ZodString>;
 }, "strip", z.ZodTypeAny, {
     items: {
         quantity: number;
@@ -787,6 +793,7 @@ export declare const PlaceOrderRequest: z.ZodEffects<z.ZodObject<{
         kind: "card";
         token: string;
     } | undefined;
+    threadId?: string | undefined;
     guestNote?: string | undefined;
     requestedForAt?: string | undefined;
 }, {
@@ -808,6 +815,7 @@ export declare const PlaceOrderRequest: z.ZodEffects<z.ZodObject<{
         kind: "card";
         token: string;
     } | undefined;
+    threadId?: string | undefined;
     guestNote?: string | undefined;
     context?: "in_house_folio" | "pay_now" | undefined;
     requestedForAt?: string | undefined;
@@ -831,6 +839,7 @@ export declare const PlaceOrderRequest: z.ZodEffects<z.ZodObject<{
         kind: "card";
         token: string;
     } | undefined;
+    threadId?: string | undefined;
     guestNote?: string | undefined;
     requestedForAt?: string | undefined;
 }, {
@@ -852,6 +861,7 @@ export declare const PlaceOrderRequest: z.ZodEffects<z.ZodObject<{
         kind: "card";
         token: string;
     } | undefined;
+    threadId?: string | undefined;
     guestNote?: string | undefined;
     context?: "in_house_folio" | "pay_now" | undefined;
     requestedForAt?: string | undefined;

@@ -2,7 +2,6 @@ import {
   type CreateRoomTypeRequest,
   type OperatorRoomType,
   type UpdateRoomTypeRequest,
-  type WorkspaceAccess,
 } from '@injishi/contracts';
 import {
   BadRequestException,
@@ -11,8 +10,16 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 
+import {
+  assertInBranchScope,
+  type ScopedWorkspace,
+} from '../../../shared/auth/branch-scope';
 import { assertContained } from '../domain/containment';
-import { collidingLabels, numberedLabels } from '../domain/room-labels';
+import {
+  collidingLabels,
+  isRoomLabelCollision,
+  numberedLabels,
+} from '../domain/room-labels';
 import { InventoryRepository } from '../infrastructure/inventory.repository';
 import { RoomsRepository } from '../infrastructure/rooms.repository';
 import {
@@ -42,11 +49,12 @@ export class RoomTypesService {
 
   /** Every room type on one of the caller's properties. */
   async list(
-    workspace: WorkspaceAccess,
+    workspace: ScopedWorkspace,
     propertyId: string,
   ): Promise<OperatorRoomType[]> {
     const property = await this.properties.findProperty(propertyId);
     assertContained(property, workspace.workspaceId, 'Property');
+    assertInBranchScope(workspace, property.id, 'Property');
     const rows = await this.repo.listForProperty(propertyId);
     return rows.map((row) => this.toContract(row));
   }
@@ -59,12 +67,13 @@ export class RoomTypesService {
    * file rows in the residence half of the product.
    */
   async create(
-    workspace: WorkspaceAccess,
+    workspace: ScopedWorkspace,
     propertyId: string,
     request: CreateRoomTypeRequest,
   ): Promise<OperatorRoomType> {
     const property = await this.properties.findProperty(propertyId);
     assertContained(property, workspace.workspaceId, 'Property');
+    assertInBranchScope(workspace, property.id, 'Property');
 
     const domain = await this.repo.domainForProperty(propertyId);
     if (domain === null) {
@@ -90,13 +99,25 @@ export class RoomTypesService {
       );
     }
 
-    const roomTypeId = await this.repo.create({
-      propertyId,
-      workspaceId: workspace.workspaceId,
-      domain,
-      request,
-      roomLabels,
-    });
+    let roomTypeId: string;
+    try {
+      roomTypeId = await this.repo.create({
+        propertyId,
+        workspaceId: workspace.workspaceId,
+        domain,
+        request,
+        roomLabels,
+      });
+    } catch (err) {
+      // A concurrent write took one of these labels after the read above
+      // (`rooms_property_label_uk`); the same refusal, not a 500.
+      if (isRoomLabelCollision(err)) {
+        throw new ConflictException(
+          `These names are already used on this property: ${roomLabels.join(', ')}. Every room needs its own.`,
+        );
+      }
+      throw err;
+    }
     return this.read(roomTypeId);
   }
 
@@ -110,12 +131,13 @@ export class RoomTypesService {
    * refusal is to read.
    */
   async update(
-    workspace: WorkspaceAccess,
+    workspace: ScopedWorkspace,
     roomTypeId: string,
     request: UpdateRoomTypeRequest,
   ): Promise<OperatorRoomType> {
     const existing = await this.repo.find(roomTypeId);
     assertContained(existing, workspace.workspaceId, 'Room type');
+    assertInBranchScope(workspace, existing.propertyId, 'Room type');
     const row = existing as RoomTypeRow;
 
     const archiving = request.status === 'archived' && row.status === 'active';

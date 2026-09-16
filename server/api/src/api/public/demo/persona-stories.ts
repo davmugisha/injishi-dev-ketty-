@@ -42,7 +42,7 @@ const STORIES: Readonly<Record<string, DemoStory>> = {
   yves: {
     headline: 'Owner of Amahoro Boutique Hotel',
     summary:
-      'You own a 20-room hotel in Kigali and you are not at the desk every day. Instead of phoning the manager for last night\'s occupancy or reading a cash book at month end, you open one screen and see today\'s arrivals, who is in house, what each department earned and who works for you.',
+      'You own a 20-room hotel in Kigali, with smaller branches in Musanze and Rubavu, and you are not at the desk every day. Instead of phoning the manager for last night\'s occupancy or reading a cash book at month end, you open one screen and see today\'s arrivals, who is in house, what each department earned and who works for you.',
     tryThis: [
       {
         title: 'Read today at a glance',
@@ -53,7 +53,7 @@ const STORIES: Readonly<Record<string, DemoStory>> = {
       {
         title: 'See how full the hotel is',
         detail:
-          'Room status lists all 20 rooms: which are occupied tonight and which are clean, dirty or inspected.',
+          'Room status lists every room across your branches: the head office\'s 20 in Kigali and the branch rooms, which are occupied tonight and which are clean, dirty or inspected.',
         href: `${AMAHORO}/rooms`,
       },
       {
@@ -207,6 +207,32 @@ const STORIES: Readonly<Record<string, DemoStory>> = {
         detail:
           'Maintenance holds tenants\' repair tickets at different stages, so nothing reported by phone gets lost.',
         href: `${GREEN_HILLS}/maintenance`,
+      },
+    ],
+  },
+
+  aimable: {
+    headline: 'Owner of a hotel group waiting for approval',
+    summary:
+      'Aimable registered Inzozi Hotels Ltd, a head office in Kigali with branches in Huye and Karongi. He has paid the fee and his TIN has been checked, but no government officer has visited yet. Instead of travelling to the district office to ask where his file is, he opens one screen and sees which stage it is at and who holds it. Until the business is approved it cannot list a room.',
+    tryThis: [
+      {
+        title: 'See where the registration stands',
+        detail:
+          'The registration screen shows each stage, which ones are done, and who holds the next one: the field visit by the district verifier.',
+        href: '/register',
+      },
+      {
+        title: 'Try to open the business before approval',
+        detail:
+          'The workspace is listed, but every action is refused, and the refusal names the registration stage rather than a missing permission.',
+        href: '/w/de300000-0000-4000-8000-000000000209',
+      },
+      {
+        title: 'Watch the file from the other side',
+        detail:
+          'Sign in as Jean-Bosco, the PSF verifier for Gasabo: Inzozi Hotels Ltd is in his verification queue, waiting for his visit.',
+        href: null,
       },
     ],
   },

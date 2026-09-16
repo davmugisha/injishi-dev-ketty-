@@ -337,6 +337,31 @@ Behind a proxying CDN (Cloudflare's orange cloud) every request arrives from the
 CDN, and the allowlist either refuses everyone or, if widened to the CDN's
 ranges, admits everyone.
 
+## Client address at the API
+
+The API's address keyed rate limits (support, waitlist, certificate
+verification) read `request.ip`, which Fastify resolves through `TRUST_PROXY`
+(`server/api/src/shared/config/trust-proxy.ts`). All three compose files pin it
+to `"1"`: Traefik is the only route to `api` (8000 is `expose`d, never
+published), so the address Traefik appends to `X-Forwarded-For` is the client
+and anything a caller wrote to the left of it is ignored. Unset, the API trusts
+no proxy and every visitor shares Traefik's address, which is one bucket for
+everybody. `true` is refused at boot. Put a proxying CDN in front and the chain
+is two hops: set `"2"`, or list the proxies' addresses instead of a count.
+
+## Required secrets with no default
+
+`POSTGRES_PASSWORD` has no default in any stack (`${POSTGRES_PASSWORD:?}`):
+compose refuses to start without it rather than initialise a database whose
+password is `change-me`. Postgres reads it only when the `db-data` volume is
+first created, so on a stack that already exists it must equal the password the
+volume was initialised with, which is the one in that stack's `DATABASE_URL`.
+
+The frontend Dockerfiles have no default for any `NEXT_PUBLIC_*` origin and fail
+the build when one is empty, so a build can never silently fall back to
+production's URLs. Each compose file passes all of them from its
+`x-*-public` block.
+
 ## Process order
 
 Compose `depends_on` is the order, the same in all three stacks. Do not invert
@@ -375,6 +400,13 @@ arguments, set per stack in its compose file from the host variables.
 | `NEXT_PUBLIC_WEB_URL`, `_SITE_URL`, `_PMS_URL` | `https://www.injishi.com` | `https://www-demo.injishi.com` |
 | `NEXT_PUBLIC_ADMIN_URL` | `https://admin.injishi.com` | `https://admin-demo.injishi.com` |
 | `NEXT_PUBLIC_INJISHI_ENVIRONMENT` | `production` | `demo` |
+| `INTERNAL_API_URL` on web, runtime only | `http://injishi-api:8000` | the same, on its own network |
+
+Web's sign-in Server Action calls the API at `INTERNAL_API_URL`, the `api`
+service's `injishi-api` alias on the stack's own network, and forwards the
+visitor's `x-forwarded-for`. Through the public API host, Traefik would replace
+that with the host's own address, and every visitor would share one per-IP send
+budget: the fourth sign-in of any minute is refused.
 
 Each API's `CORS_ORIGINS` lists only its own stack's browser origins:
 production's `www`, the apex and `admin`; the demo's `www-demo` and

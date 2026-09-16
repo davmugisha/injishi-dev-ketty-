@@ -27,6 +27,28 @@ export function createAuth(config) {
         baseURL: config.baseURL,
         basePath: AUTH_BASE_PATH,
         trustedOrigins: config.trustedOrigins,
+        /*
+         * The per-IP backstop, sized for a shared network rather than one person.
+         *
+         * Better Auth's email-OTP plugin allows THREE requests a minute per IP on
+         * each code path, and counts the successful ones. The key is the client
+         * IP, and a whole office, a demo room or a mobile carrier's NAT is one
+         * IP: the fourth person to sign in inside a minute was refused with
+         * "That's a lot of tries in a short time", and so was everyone after
+         * them. On 2026-09-15 that locked real people out of the demo.
+         *
+         * The IP count was never the brute-force control, so raising it gives
+         * nothing away. A code dies after `OTP_MAX_ATTEMPTS` wrong guesses and
+         * expires in `OTP_EXPIRY_SECONDS`, and `otpSendCap` budgets sends per
+         * address. What stays here is a ceiling on one IP hammering the API.
+         */
+        rateLimit: {
+            customRules: {
+                "/sign-in/email-otp": { window: 60, max: 100 },
+                "/email-otp/check-verification-otp": { window: 60, max: 100 },
+                "/email-otp/send-verification-otp": { window: 60, max: 30 },
+            },
+        },
         database: drizzleAdapter(config.db, {
             provider: "pg",
             // Tables are plural (`users`, `sessions`, ...); map the singular models.
@@ -107,13 +129,13 @@ export function createAuth(config) {
                 : {}),
         },
         /*
-         * Better Auth's own limiter, keyed by IP: 3 sign-ins and 3 sends a minute
-         * on the OTP paths, on whenever NODE_ENV is production — the demo image
-         * included. A training room signs a whole class in from one NAT address,
-         * so the fourth trainee in a minute got a 429. On the DEMO instance only
-         * it is switched off: the code is published, its accounts are sample
-         * rows, and the send cap is already off there for the same reason.
-         * Production omits the key, so Better Auth's default stands untouched.
+         * NO RATE LIMITS ON THE DEMO INSTANCE, for the reason
+         * `otpSendCap({ enforce })` below gives: its code is fixed and published,
+         * so a limit guards nothing. It did lock people out: the email-OTP plugin
+         * allows 3 sign-ins and 3 sends a MINUTE per IP, and a room of people
+         * trying the demo from one office or one carrier NAT shares an IP, so the
+         * fourth person read "That's a lot of tries in a short time".
+         * Production passes no `demoOtpCode` and keeps every limit.
          */
         ...(config.demoOtpCode ? { rateLimit: { enabled: false } } : {}),
         // Passwordless by default (F-S01 §6): password is an optional add-on,
@@ -124,7 +146,12 @@ export function createAuth(config) {
             emailOTP({
                 otpLength: OTP_LENGTH,
                 expiresIn: OTP_EXPIRY_SECONDS,
-                allowedAttempts: OTP_MAX_ATTEMPTS,
+                // A wrong guess burns a code after OTP_MAX_ATTEMPTS, except on the
+                // demo, where the code is published and a burnt one only strands
+                // the visitor who mistyped it.
+                allowedAttempts: config.demoOtpCode
+                    ? Number.MAX_SAFE_INTEGER
+                    : OTP_MAX_ATTEMPTS,
                 // Better Auth stores OTPs in plaintext by default. A live sign-in code
                 // sitting in `verifications.value` turns any read of that table (a
                 // backup, a support query, an injection) into account takeover on any

@@ -2,7 +2,6 @@ import type {
   AssignRoomRequest,
   OperatorRoomAssignment,
   RoomAssignmentWindowQuery,
-  WorkspaceAccess,
 } from '@injishi/contracts';
 import {
   BadRequestException,
@@ -13,7 +12,12 @@ import {
 
 import { assertOwned } from '../../../shared/auth/assert-owned';
 import {
+  assertInBranchScope,
+  type ScopedWorkspace,
+} from '../../../shared/auth/branch-scope';
+import {
   type AssignmentRow,
+  type AssignmentSubject,
   isOverlapRefusal,
   RoomAssignmentRepository,
 } from '../infrastructure/room-assignment.repository';
@@ -43,14 +47,18 @@ const MAX_WINDOW_DAYS = 62;
 export class RoomAssignmentService {
   constructor(private readonly assignments: RoomAssignmentRepository) {}
 
+  /** The reservation a route named, in this workspace and a branch in scope (ADR-054 AC-T2). */
+  private ownBooking(ws: ScopedWorkspace, row: AssignmentSubject | null): AssignmentSubject {
+    const booking = assertOwned(row, ws);
+    assertInBranchScope(ws, booking.propertyId);
+    return booking;
+  }
+
   async listForBooking(
-    ws: WorkspaceAccess,
+    ws: ScopedWorkspace,
     bookingId: string,
   ): Promise<OperatorRoomAssignment[]> {
-    const booking = assertOwned(
-      await this.assignments.findBooking(bookingId),
-      ws,
-    );
+    const booking = this.ownBooking(ws, await this.assignments.findBooking(bookingId));
     const rows = await this.assignments.listForBooking(booking.id);
     return rows.map((row) => this.present(row));
   }
@@ -62,7 +70,7 @@ export class RoomAssignmentService {
    * is the whole history of the property in one response.
    */
   async listForWindow(
-    ws: WorkspaceAccess,
+    ws: ScopedWorkspace,
     query: RoomAssignmentWindowQuery,
   ): Promise<OperatorRoomAssignment[]> {
     const span =
@@ -78,6 +86,7 @@ export class RoomAssignmentService {
     }
     const rows = await this.assignments.listAssignedInWindow(
       ws.workspaceId,
+      ws.branchScope,
       query.from,
       query.to,
     );
@@ -85,15 +94,12 @@ export class RoomAssignmentService {
   }
 
   async assign(
-    ws: WorkspaceAccess,
+    ws: ScopedWorkspace,
     bookingId: string,
     body: AssignRoomRequest,
     userId: string,
   ): Promise<OperatorRoomAssignment> {
-    const booking = assertOwned(
-      await this.assignments.findBooking(bookingId),
-      ws,
-    );
+    const booking = this.ownBooking(ws, await this.assignments.findBooking(bookingId));
     if (booking.status !== 'confirmed' && booking.status !== 'pending_approval') {
       throw new ConflictException(
         'That reservation is not live, so no room can be held for it.',
@@ -101,6 +107,7 @@ export class RoomAssignmentService {
     }
 
     const room = assertOwned(await this.assignments.findRoom(body.roomId), ws);
+    assertInBranchScope(ws, room.propertyId);
     if (room.roomTypeId !== booking.roomTypeId) {
       throw new UnprocessableEntityException(
         'That room is a different room type than the guest booked.',
@@ -155,15 +162,13 @@ export class RoomAssignmentService {
    * stay has several and releasing "the booking's room" would be ambiguous.
    */
   async release(
-    ws: WorkspaceAccess,
+    ws: ScopedWorkspace,
     bookingId: string,
     assignmentId: string,
   ): Promise<OperatorRoomAssignment> {
-    const booking = assertOwned(
-      await this.assignments.findBooking(bookingId),
-      ws,
-    );
+    const booking = this.ownBooking(ws, await this.assignments.findBooking(bookingId));
     const assignment = assertOwned(await this.assignments.find(assignmentId), ws);
+    assertInBranchScope(ws, assignment.propertyId);
     if (assignment.bookingId !== booking.id) {
       throw new ConflictException('That hold is not on this reservation.');
     }

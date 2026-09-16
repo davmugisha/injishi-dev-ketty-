@@ -43,6 +43,10 @@ import {
   workspaces,
 } from '../../../database/drizzle/schema';
 import {
+  inBranchScope,
+  type BranchScope,
+} from '../../../shared/auth/branch-scope';
+import {
   DRIZZLE,
   type Database,
 } from '../../../shared/database/database.module';
@@ -55,6 +59,7 @@ import {
 import type { DeclarationPlan } from '../application/declaration-plan.service';
 import { MAX_ITEM_SERIAL, itemCode, serialOf } from '../domain/sellable-item';
 import { NO_CONNECTION, type ChargeDraft, postChargesTx } from './folio.repository';
+import { writeOrderThreadLineTx } from './order-thread-lines';
 
 export interface CategoryRow {
   id: string;
@@ -104,6 +109,12 @@ export interface OrderRow {
   id: string;
   workspaceId: string;
   propertyId: string | null;
+  /**
+   * The branch the order belongs to (ADR-054): its own property, else its
+   * outlet's. Null for a standalone outlet order, which only a member
+   * covering every branch sees (AC-T3).
+   */
+  branchPropertyId: string | null;
   /** The outlet it was ordered from, whose taxpayer its charge belongs to. */
   outletId: string | null;
   orderedByUserId: string | null;
@@ -129,6 +140,9 @@ export interface OrderRow {
   guestNote: string | null;
   createdAt: Date;
 }
+
+/** An order's branch: its own property, else its outlet's (ADR-054). */
+const ORDER_BRANCH = sql<string | null>`coalesce(${serviceOrders.propertyId}, ${outlets.propertyId})`;
 
 export interface OrderItemRow {
   id: string;
@@ -205,8 +219,13 @@ export class ServiceCatalogRepository {
 
   // --- The menu ------------------------------------------------------------
 
-  async listCategories(workspaceId: string): Promise<CategoryRow[]> {
-    return this.selectCategories(eq(serviceCategories.workspaceId, workspaceId));
+  async listCategories(workspaceId: string, scope: BranchScope): Promise<CategoryRow[]> {
+    return this.selectCategories(
+      and(
+        eq(serviceCategories.workspaceId, workspaceId),
+        inBranchScope(serviceCategories.propertyId, scope),
+      ) as SQL,
+    );
   }
 
   async listItems(categoryIds: string[]): Promise<ItemRow[]> {
@@ -459,8 +478,13 @@ export class ServiceCatalogRepository {
 
   // --- Orders --------------------------------------------------------------
 
-  async listOrders(workspaceId: string): Promise<OrderRow[]> {
-    return this.selectOrders(eq(serviceOrders.workspaceId, workspaceId));
+  async listOrders(workspaceId: string, scope: BranchScope): Promise<OrderRow[]> {
+    return this.selectOrders(
+      and(
+        eq(serviceOrders.workspaceId, workspaceId),
+        inBranchScope(ORDER_BRANCH, scope),
+      ) as SQL,
+    );
   }
 
   /**
@@ -593,6 +617,8 @@ export class ServiceCatalogRepository {
     /** A signed in walk in with no stay, who pays now. */
     customerUserId?: string | null;
     requestedForAt?: Date | null;
+    /** The conversation it was placed from (ADR-050 D-s), already proved the guest's. */
+    threadId?: string | null;
     subtotalRwf: number;
     taxRwf: number;
     lines: OrderLineDraft[];
@@ -622,6 +648,7 @@ export class ServiceCatalogRepository {
           orderedByUserId: input.orderedByUserId ?? null,
           customerUserId: input.customerUserId ?? null,
           requestedForAt: input.requestedForAt ?? null,
+          threadId: input.threadId ?? null,
           subtotalRwf: input.subtotalRwf,
           taxRwf: input.taxRwf,
           totalRwf: input.subtotalRwf + input.taxRwf,
@@ -647,6 +674,7 @@ export class ServiceCatalogRepository {
       await tx
         .insert(serviceOrderEvents)
         .values({ serviceOrderId: order.id, status, actorUserId: input.orderedByUserId ?? null });
+      await writeOrderThreadLineTx(tx, order.id, status);
 
       await writeOutboxTx(tx, {
         eventType: 'order.status',
@@ -728,6 +756,7 @@ export class ServiceCatalogRepository {
         actorUserId: input.actorUserId,
         note: input.note,
       });
+      await writeOrderThreadLineTx(tx, input.orderId, input.to);
 
       if (input.charge) {
         // An order delivered after its bill was signed goes on the stay's next
@@ -848,6 +877,7 @@ export class ServiceCatalogRepository {
         actorUserId: input.markedByUserId,
         note: input.paymentMethod === '01' ? 'Paid in cash' : 'Paid by mobile money',
       });
+      await writeOrderThreadLineTx(tx, order.id, 'submitted');
       await writeOutboxTx(tx, {
         eventType: 'order.status',
         aggregateType: 'service_order',
@@ -1034,6 +1064,7 @@ export class ServiceCatalogRepository {
       await tx
         .insert(serviceOrderEvents)
         .values({ serviceOrderId: moved.id, status: to, actorUserId, note });
+      await writeOrderThreadLineTx(tx, moved.id, to);
       await writeOutboxTx(tx, {
         eventType: 'order.status',
         aggregateType: 'service_order',
@@ -1142,6 +1173,7 @@ export class ServiceCatalogRepository {
         id: serviceOrders.id,
         workspaceId: serviceOrders.workspaceId,
         propertyId: serviceOrders.propertyId,
+        branchPropertyId: ORDER_BRANCH,
         outletId: serviceOrders.outletId,
         orderedByUserId: serviceOrders.orderedByUserId,
         customerUserId: serviceOrders.customerUserId,
@@ -1169,6 +1201,7 @@ export class ServiceCatalogRepository {
       .from(serviceOrders)
       .leftJoin(departments, eq(departments.id, serviceOrders.departmentId))
       .leftJoin(rooms, eq(rooms.id, serviceOrders.roomId))
+      .leftJoin(outlets, eq(outlets.id, serviceOrders.outletId))
       .where(where)
       .orderBy(desc(serviceOrders.createdAt));
   }

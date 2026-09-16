@@ -26,6 +26,7 @@ import {
   orgMemberships,
   orgs,
   oversightAssignments,
+  properties,
   recordAccessLogs,
   registrationFees,
   sectors,
@@ -43,6 +44,7 @@ import {
   DRIZZLE,
   type Database,
 } from '../../../shared/database/database.module';
+import { insertPropertyWithListing } from '../../listing-setup/infrastructure/insert-property';
 import {
   recordRegistrationEvent,
   type RegistrationMover,
@@ -104,6 +106,19 @@ export interface CreateOrgRow {
     issuedBy: string | null;
     issuedOn: string | null;
     expiresOn: string | null;
+  }[];
+  /**
+   * The locations to write as `properties` rows in the create transaction
+   * (ADR-054 AC-R2): the head office first, then each declared branch. Empty
+   * for a residence, which registers no property.
+   */
+  branches: {
+    name: string;
+    sectorId: number;
+    /** Derived from the sector by the service, never taken from the request. */
+    districtId: number;
+    street: string | null;
+    isHeadOffice: boolean;
   }[];
 }
 
@@ -233,6 +248,22 @@ export class OrganizationRepository {
         orgRole: 'owner',
       });
 
+      // ADR-054 AC-R2: one property per location, in THIS transaction, so the
+      // branches commit or roll back with the org. They go through the same
+      // insert Setup uses, so each starts with a draft listing and seeded
+      // departments exactly as a property added after approval does.
+      for (const branch of input.branches) {
+        await insertPropertyWithListing(tx, {
+          orgId: org.id,
+          workspaceId: workspace.id,
+          name: branch.name,
+          sectorId: branch.sectorId,
+          districtId: branch.districtId,
+          street: branch.street,
+          isHeadOffice: branch.isHeadOffice,
+        });
+      }
+
       if (input.certificates.length > 0) {
         await tx.insert(orgCertificates).values(
           input.certificates.map((c) => ({ orgId: org.id, ...c })),
@@ -309,6 +340,19 @@ export class OrganizationRepository {
         claimInvitation,
       };
     });
+  }
+
+  /**
+   * The district each sector sits in, keyed by sector id. A sector that does
+   * not exist is absent from the map, which the caller refuses.
+   */
+  async districtsForSectors(sectorIds: number[]): Promise<Map<number, number>> {
+    if (sectorIds.length === 0) return new Map();
+    const rows = await this.db
+      .select({ id: sectors.id, districtId: sectors.districtId })
+      .from(sectors)
+      .where(inArray(sectors.id, [...new Set(sectorIds)]));
+    return new Map(rows.map((r) => [r.id, r.districtId]));
   }
 
   /**
@@ -818,6 +862,37 @@ export class OrganizationRepository {
       )
       .limit(1);
     return row !== undefined;
+  }
+
+  /**
+   * The branches each org declared, keyed by org id (ADR-054 AC-R4).
+   *
+   * Active branches only, head office first then by name, with the district
+   * name so an officer sees where each one is. One query for the whole queue
+   * rather than one per row.
+   */
+  async branchesForOrgs(
+    orgIds: string[],
+  ): Promise<Map<string, { name: string; districtName: string | null; isHeadOffice: boolean }[]>> {
+    const byOrg = new Map<string, { name: string; districtName: string | null; isHeadOffice: boolean }[]>();
+    if (orgIds.length === 0) return byOrg;
+    const rows = await this.db
+      .select({
+        orgId: properties.orgId,
+        name: properties.name,
+        districtName: districts.name,
+        isHeadOffice: properties.isHeadOffice,
+      })
+      .from(properties)
+      .leftJoin(districts, eq(districts.id, properties.districtId))
+      .where(and(inArray(properties.orgId, orgIds), isNull(properties.archivedAt)))
+      .orderBy(desc(properties.isHeadOffice), properties.name);
+    for (const { orgId, ...branch } of rows) {
+      const list = byOrg.get(orgId) ?? [];
+      list.push(branch);
+      byOrg.set(orgId, list);
+    }
+    return byOrg;
   }
 
   /**

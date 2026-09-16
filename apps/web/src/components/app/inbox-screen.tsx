@@ -2,12 +2,17 @@
 
 import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
-import type { GuestThread } from "@injishi/contracts";
+import type { GuestThread, MyStay } from "@injishi/contracts";
 import { Button, Skeleton } from "@injishi/ui";
 import { EmptyPanel } from "@/components/app/empty-panel";
 import { Icon } from "@/components/app/icon";
+import { DesksPanel } from "@/components/stay/my-stay-panel";
 import { fetchMyThreads, threadTitle } from "@/data/inbox";
+import { currentStay, fetchMyStays } from "@/data/my-stay";
 import { apiResultMessage, type ApiResult } from "@/lib/api";
+
+/** How often the conversation list asks for new lines. */
+const INBOX_POLL_MS = 15_000;
 
 /**
  * The guest's conversations, from `GET /api/v1/me/threads` (ADR-032).
@@ -45,6 +50,34 @@ export function InboxScreen() {
 
   useEffect(load, [load]);
 
+  // The stay the guest is in, so its desks can be messaged from here as well as
+  // from /stay (ADR-050 D-q). Loaded beside the list and never blocking it.
+  const [stay, setStay] = useState<MyStay | null>(null);
+  useEffect(() => {
+    let cancelled = false;
+    void (async () => {
+      const stays = await fetchMyStays();
+      if (!cancelled && stays.status === "ok") setStay(currentStay(stays.data));
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  // New lines and unread counts arrive without a reload. Quietly: a refresh
+  // that fails keeps the list already on screen rather than replacing it with
+  // an error, and nothing flashes back to the loading shimmer.
+  useEffect(() => {
+    const timer = window.setInterval(() => {
+      if (document.visibilityState !== "visible") return;
+      void (async () => {
+        const next = await fetchMyThreads();
+        if (next.status === "ok") setResult(next);
+      })();
+    }, INBOX_POLL_MS);
+    return () => window.clearInterval(timer);
+  }, []);
+
   if (result === null) return <InboxLoading />;
 
   if (result.status === "unauthenticated") {
@@ -80,7 +113,7 @@ export function InboxScreen() {
     );
   }
 
-  if (result.data.length === 0) {
+  if (result.data.length === 0 && !stay) {
     return (
       <EmptyPanel icon="inbox" title="No messages yet" action={{ label: "Explore stays", href: "/explore" }}>
         Every stay you book opens a conversation with the property, so you can ask
@@ -91,14 +124,24 @@ export function InboxScreen() {
   }
 
   return (
-    <div className="mx-auto w-full max-w-wide animate-arrive px-4 py-8">
-      <ul className="m-0 flex list-none flex-col gap-2 p-0">
-        {result.data.map((thread) => (
-          <li key={thread.id}>
-            <ThreadRow thread={thread} />
-          </li>
-        ))}
-      </ul>
+    <div className="mx-auto flex w-full max-w-wide animate-arrive flex-col gap-section px-4 py-8">
+      {stay ? <DesksPanel stay={stay} /> : null}
+      {result.data.length > 0 ? (
+        <section aria-labelledby="your-conversations" className="flex flex-col gap-3">
+          {stay ? (
+            <h2 id="your-conversations" className="font-display text-lg font-bold tracking-tight">
+              Your conversations
+            </h2>
+          ) : null}
+          <ul className="m-0 flex list-none flex-col gap-2 p-0">
+            {result.data.map((thread) => (
+              <li key={thread.id}>
+                <ThreadRow thread={thread} />
+              </li>
+            ))}
+          </ul>
+        </section>
+      ) : null}
     </div>
   );
 }

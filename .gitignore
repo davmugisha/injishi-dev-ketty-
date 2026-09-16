@@ -62,6 +62,9 @@ apps/web/public/sw.js
 apps/web/public/sw.js.map
 apps/*/build/
 server/*/dist/
+# `worker:dev` builds into its own folder so it can run beside `api:dev`,
+# whose watcher deletes dist/ on every start (demo-comms).
+server/*/dist-worker/
 server/*/.turbo/
 server/*/build/
 tools/*/dist/

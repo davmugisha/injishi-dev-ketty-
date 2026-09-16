@@ -16,6 +16,7 @@ import {
   primaryKey,
   text,
   timestamp,
+  uniqueIndex,
   uuid,
   type AnyPgColumn,
 } from 'drizzle-orm/pg-core';
@@ -60,12 +61,34 @@ export const threads = pgTable(
   (t) => [
     index('threads_workspace_idx').on(t.workspaceId),
     index('threads_department_idx').on(t.departmentId),
+    index('threads_booking_idx').on(t.bookingId),
     check(
       'threads_scope_exactly_one',
       sql`(CASE WHEN ${t.bookingId} IS NOT NULL THEN 1 ELSE 0 END
            + CASE WHEN ${t.guestStayId} IS NOT NULL THEN 1 ELSE 0 END
            + CASE WHEN ${t.leaseId} IS NOT NULL THEN 1 ELSE 0 END) = 1`,
     ),
+    /**
+     * ONE conversation per stay per department, enforced where a race cannot
+     * reach it.
+     *
+     * A guest opening housekeeping twice — two taps, two tabs, a retried
+     * request — must land in the conversation they already have, not in a
+     * second one that splits the history and leaves half their messages in a
+     * thread the desk has stopped looking at. The service reads-then-inserts,
+     * which is exactly the check two concurrent taps both pass, so the index is
+     * what actually refuses the loser; it retries into the winner's row.
+     *
+     * Partial on the kind, because a `dispute` raised about the same stay and
+     * routed to the same department is a genuinely separate conversation.
+     */
+    uniqueIndex('threads_stay_department_request_uk')
+      .on(t.guestStayId, t.departmentId)
+      .where(
+        sql`${t.threadKind} = 'department_request'
+             AND ${t.guestStayId} IS NOT NULL
+             AND ${t.departmentId} IS NOT NULL`,
+      ),
   ],
 );
 
@@ -80,6 +103,13 @@ export const messages = pgTable(
     senderUserId: uuid('sender_user_id').references(() => users.id),
     bodyType: messageBodyTypeEnum('body_type').notNull().default('text'),
     body: text('body'),
+    /**
+     * ADR-050 D-s: the order a `system` line reports on. The order itself
+     * stays one record; this is only what lets a conversation draw its card.
+     */
+    serviceOrderId: uuid('service_order_id').references(
+      (): AnyPgColumn => serviceOrders.id,
+    ),
     voiceDurationS: integer('voice_duration_s'),
     createdAt: timestamp('created_at', { withTimezone: true })
       .notNull()
@@ -133,15 +163,19 @@ export const threadReads = pgTable(
   (t) => [primaryKey({ columns: [t.threadId, t.userId] })],
 );
 
-export const messageAttachments = pgTable('message_attachments', {
-  id: uuid('id').primaryKey().defaultRandom(),
-  messageId: uuid('message_id')
-    .notNull()
-    .references(() => messages.id, { onDelete: 'cascade' }),
-  storedObjectId: uuid('stored_object_id')
-    .notNull()
-    .references(() => storedObjects.id),
-});
+export const messageAttachments = pgTable(
+  'message_attachments',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    messageId: uuid('message_id')
+      .notNull()
+      .references(() => messages.id, { onDelete: 'cascade' }),
+    storedObjectId: uuid('stored_object_id')
+      .notNull()
+      .references(() => storedObjects.id),
+  },
+  (t) => [index('message_attachments_message_idx').on(t.messageId)],
+);
 
 // ===========================================================================
 // §8  MONEY  (ledger is truth; domain money objects post to it)

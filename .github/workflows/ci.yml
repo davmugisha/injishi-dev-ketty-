@@ -207,9 +207,23 @@ jobs:
     steps:
       - uses: actions/checkout@v5
       - uses: ./.github/actions/pnpm-setup
-      - run: pnpm --filter @injishi/design-tokens build
+      # Both compiled packages: mobile imports @injishi/contracts as well as the
+      # tokens, and consumers of either read dist/.
+      - run: pnpm --filter @injishi/contracts --filter @injishi/design-tokens build
       - name: Palette matches the tokens
         run: pnpm --filter @injishi/mobile palette:check
+      # `experiments.typedRoutes` is on, but the route types it produces
+      # (`expo-env.d.ts`, `.expo/types/router.d.ts`) are gitignored and only
+      # written by a dev server. Without this step every `href` and
+      # `router.push` target goes unchecked. `expo customize tsconfig.json`
+      # runs the same generator non-interactively when tsconfig.json already
+      # exists, and leaves the file itself untouched.
+      - name: Generate the typed route declarations
+        working-directory: apps/mobile
+        run: |
+          set -euo pipefail
+          pnpm exec expo customize tsconfig.json
+          test -s .expo/types/router.d.ts
       - run: pnpm --filter @injishi/mobile typecheck
       - run: pnpm --filter @injishi/mobile lint
       - run: pnpm --filter @injishi/mobile test

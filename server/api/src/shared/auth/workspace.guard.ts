@@ -16,6 +16,7 @@ import {
   type WorkspaceAccess,
 } from '@injishi/contracts';
 
+import { resolveBranchScope, type ScopedWorkspace } from './branch-scope';
 import { TwoFactorService } from './two-factor.service';
 import { WorkspaceService } from './workspace.service';
 import type { SessionRecord, SessionUser } from './session.guard';
@@ -24,7 +25,10 @@ export const REQUIRE_PERMISSION = 'require_permission';
 
 /**
  * The permission this route needs inside the active workspace.
- * Omit it to require only that the caller holds the workspace at all.
+ *
+ * Omitting every declaration requires only that the caller holds the workspace
+ * at all, and the lint rule allows that only for a route named in its `allow`
+ * option. A read declares one too — usually as `@RequireAnyPermission`, below.
  *
  * Several may be named, and then EVERY one is required. That exists for one
  * act that is two acts at once: check out closes the stay AND signs its sale,
@@ -37,6 +41,30 @@ export const RequirePermission = (
 ): ReturnType<typeof SetMetadata> =>
   SetMetadata(REQUIRE_PERMISSION, permissions);
 
+export const REQUIRE_ANY_PERMISSION = 'require_any_permission';
+
+/**
+ * The route needs AT LEAST ONE of these permissions inside the active workspace.
+ *
+ * This is the form a READ takes. A list is read by whoever works it, and that is
+ * rarely one role: the rooms list is the front desk's (`stay.checkin`),
+ * housekeeping's (`housekeeping.set`) and inventory's (`listing.manage`). Naming
+ * one of them would lock the others out of their own screen; naming none is what
+ * this replaced, and it let a housekeeper read the rent roll and the owner of a
+ * business still in the registration pipeline read everything (audit H1).
+ *
+ * An empty permission set holds none of the candidates, so the registration gate
+ * refuses every read declared this way. The refusal is worded from the FIRST
+ * candidate, so list the permission a refused person most plausibly needs first.
+ *
+ * It composes with `@RequirePermission`: when a route carries both, every
+ * all-of permission AND one of the any-of set are required.
+ */
+export const RequireAnyPermission = (
+  ...permissions: [Permission, ...Permission[]]
+): ReturnType<typeof SetMetadata> =>
+  SetMetadata(REQUIRE_ANY_PERMISSION, permissions);
+
 interface RequestWithWorkspace {
   headers: Record<string, string | string[] | undefined>;
   params?: Record<string, string>;
@@ -44,7 +72,7 @@ interface RequestWithWorkspace {
   body?: Record<string, unknown>;
   user?: SessionUser;
   session?: SessionRecord;
-  workspace?: WorkspaceAccess;
+  workspace?: ScopedWorkspace;
 }
 
 /**
@@ -153,11 +181,9 @@ export class WorkspaceGuard implements CanActivate {
       throw new ForbiddenException('That workspace is not available to you.');
     }
 
-    const declared = this.reflector.getAllAndOverride<
-      Permission | readonly Permission[] | undefined
-    >(REQUIRE_PERMISSION, [context.getHandler(), context.getClass()]);
-    const required: readonly Permission[] =
-      declared === undefined ? [] : typeof declared === 'string' ? [declared] : declared;
+    const targets = [context.getHandler(), context.getClass()];
+    const required = this.declared(REQUIRE_PERMISSION, targets);
+    const anyOf = this.declared(REQUIRE_ANY_PERMISSION, targets);
 
     // Refused on the FIRST missing one, so the sentence names a real gap.
     const missing = required.find((p) => !access.permissions.includes(p));
@@ -165,8 +191,40 @@ export class WorkspaceGuard implements CanActivate {
       throw new ForbiddenException(refusalFor(access, missing));
     }
 
-    request.workspace = access;
+    // One of the candidates is enough. None held — which is every candidate for
+    // a business still in the registration pipeline — is refused, worded from
+    // the first candidate (or from the stage, which `refusalFor` prefers).
+    if (anyOf.length > 0 && !anyOf.some((p) => access.permissions.includes(p))) {
+      throw new ForbiddenException(refusalFor(access, anyOf[0]));
+    }
+
+    // A route that declares NEITHER passes on membership alone. The lint rule
+    // `injishi/require-permission-on-guarded-route` refuses that shape on every
+    // verb unless the route is named in its `allow` option, so reaching here
+    // undeclared is a reviewed exception (`POST /me/active-workspace`), never
+    // an accident.
+
+    // The branch in view, after the permission check so a refused route says
+    // why it was refused rather than which branch it could not find (AC-S2).
+    const branchScope = resolveBranchScope(
+      await this.workspaces.propertyIdsForWorkspace(access.workspaceId),
+      request.headers['x-branch-id'],
+    );
+
+    request.workspace = { ...access, branchScope };
     return true;
+  }
+
+  /** One metadata key, handler over class, as a list (never undefined). */
+  private declared(
+    key: string,
+    targets: Parameters<Reflector['getAllAndOverride']>[1],
+  ): readonly Permission[] {
+    const value = this.reflector.getAllAndOverride<
+      Permission | readonly Permission[] | undefined
+    >(key, targets);
+    if (value === undefined) return [];
+    return typeof value === 'string' ? [value] : value;
   }
 }
 
@@ -175,7 +233,7 @@ export class WorkspaceGuard implements CanActivate {
  * mirroring `@CurrentUser()` so the same class of mistake fails the same way.
  */
 export const CurrentWorkspace = createParamDecorator(
-  (_data: unknown, context: ExecutionContext): WorkspaceAccess => {
+  (_data: unknown, context: ExecutionContext): ScopedWorkspace => {
     const request = context
       .switchToHttp()
       .getRequest<RequestWithWorkspace>();

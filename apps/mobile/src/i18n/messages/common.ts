@@ -98,14 +98,14 @@ export const en = {
 
   /* Tab labels the prototype adds: the five tab sets of frames.md "Shell" */
   'nav.rentRoll': 'Rent roll',
-  'nav.repairs': 'Repairs',
+  'nav.repairs': 'Maintenance',
   'nav.placements': 'Placements',
   'nav.earnings': 'Earnings',
   'nav.queue': 'Queue',
   'nav.rooms': 'Rooms',
-  'nav.tickets': 'Tickets',
+  'nav.tickets': 'Maintenance',
   'nav.today': 'Today',
-  'nav.reservations': 'Bookings',
+  'nav.reservations': 'Reservations',
 
   /* What assistive tech hears on the shared kit */
   'a11y.dismiss': 'Dismiss',
@@ -348,7 +348,7 @@ export const rw: Record<keyof typeof en, string> = {
   'nav.earnings': 'Ibyinjira',
   'nav.queue': 'Imirimo',
   'nav.rooms': 'Ibyumba',
-  'nav.tickets': 'Ibibazo',
+  'nav.tickets': 'Ibisanwa',
   'nav.today': 'Uyu munsi',
   'nav.reservations': 'Ubwandikishe',
 

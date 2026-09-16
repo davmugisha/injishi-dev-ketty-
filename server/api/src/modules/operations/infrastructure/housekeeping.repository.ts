@@ -15,10 +15,16 @@ import {
   DRIZZLE,
   type Database,
 } from '../../../shared/database/database.module';
+import {
+  inBranchScope,
+  type BranchScope,
+} from '../../../shared/auth/branch-scope';
 
 export interface HousekeepingTaskRow {
   id: string;
   workspaceId: string;
+  /** The branch the task is on (ADR-054). */
+  propertyId: string;
   roomId: string;
   roomLabel: string | null;
   taskType: HousekeepingTaskType;
@@ -83,8 +89,13 @@ export async function enqueueCheckoutClean(
 export class HousekeepingRepository {
   constructor(@Inject(DRIZZLE) private readonly db: Database) {}
 
-  async list(workspaceId: string): Promise<HousekeepingTaskRow[]> {
-    return this.select(eq(housekeepingTasks.workspaceId, workspaceId));
+  async list(workspaceId: string, scope: BranchScope): Promise<HousekeepingTaskRow[]> {
+    return this.select(
+      and(
+        eq(housekeepingTasks.workspaceId, workspaceId),
+        inBranchScope(housekeepingTasks.propertyId, scope),
+      ) as SQL,
+    );
   }
 
   async find(id: string): Promise<HousekeepingTaskRow | null> {
@@ -189,6 +200,7 @@ export class HousekeepingRepository {
       .select({
         id: housekeepingTasks.id,
         workspaceId: housekeepingTasks.workspaceId,
+        propertyId: housekeepingTasks.propertyId,
         roomId: housekeepingTasks.roomId,
         roomLabel: rooms.label,
         taskType: housekeepingTasks.taskType,

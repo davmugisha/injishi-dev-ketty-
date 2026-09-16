@@ -20,6 +20,9 @@
  */
 
 import {
+  BRANCH_ARCHIVE_BLOCKER_LABEL,
+  BranchArchiveRefusal,
+  OperatorPropertyList,
   OperatorRoomTypeList,
   PUBLISH_BLOCKER_LABEL,
   PublishBlocker,
@@ -43,7 +46,7 @@ import {
 } from "@tanstack/react-query";
 
 import { ApiError, command, upload } from "./api";
-import { read } from "./ops";
+import { read, useMayRead } from "./ops";
 import { queryKeys } from "./queries";
 
 type Body<T> = Omit<T, "workspaceId">;
@@ -60,6 +63,8 @@ export function useRoomTypes(
   workspaceId: string | null,
   propertyId: string | null,
 ): UseQueryResult<OperatorRoomTypeList> {
+  // Every /inventory read is `listing.manage` on the server (class guard).
+  const mayRead = useMayRead(["listing.manage"]);
   return useQuery({
     queryKey: queryKeys.roomTypes(workspaceId, propertyId),
     queryFn: () =>
@@ -68,7 +73,7 @@ export function useRoomTypes(
         workspaceId as string,
         OperatorRoomTypeList,
       ),
-    enabled: workspaceId !== null && propertyId !== null,
+    enabled: workspaceId !== null && propertyId !== null && mayRead,
   });
 }
 
@@ -231,6 +236,84 @@ export function useSetListing(
         workspaceId: workspaceId as string,
       }),
     onSettled: invalidate,
+  });
+}
+
+/**
+ * Every branch of the business, archived ones included (ADR-054). Its own key
+ * under `inventory`, so every inventory write refreshes it and the property
+ * list the other screens read stays free of archived rows.
+ */
+export function useBranches(workspaceId: string | null): UseQueryResult<OperatorPropertyList> {
+  const mayRead = useMayRead(["listing.manage"]);
+  return useQuery({
+    queryKey: ["inventory", "branches", workspaceId] as const,
+    queryFn: () =>
+      // Every branch, whichever one the switcher shows: this screen manages them all.
+      read("/inventory/properties?includeArchived=true", workspaceId as string, OperatorPropertyList, {
+        allBranches: true,
+      }),
+    enabled: workspaceId !== null && mayRead,
+  });
+}
+
+/** Edit any branch by id: name, street, contact, and the RRA branch id. */
+export function useUpdateBranch(
+  workspaceId: string | null,
+): UseMutationResult<
+  OperatorProperty,
+  Error,
+  { propertyId: string; body: Body<UpdatePropertyRequest> }
+> {
+  const invalidate = useInvalidateInventory();
+  return useMutation({
+    mutationFn: ({ propertyId, body }) =>
+      command<OperatorProperty>(`/inventory/properties/${propertyId}`, {
+        workspaceId: workspaceId as string,
+        method: "PATCH",
+        body: { ...body, workspaceId },
+        allBranches: true,
+      }),
+    onSuccess: invalidate,
+  });
+}
+
+export type BranchMove = "archive" | "restore" | "head-office";
+
+/**
+ * Archive, restore, or make head office. The grant's branch list changes too
+ * (the switcher and the topbar read it), so `me` is refreshed with inventory.
+ */
+export function useMoveBranch(
+  workspaceId: string | null,
+): UseMutationResult<unknown, Error, { propertyId: string; move: BranchMove }> {
+  const client = useQueryClient();
+  const invalidate = useInvalidateInventory();
+  return useMutation({
+    mutationFn: ({ propertyId, move }) =>
+      command<unknown>(`/inventory/properties/${propertyId}/${move}`, {
+        workspaceId: workspaceId as string,
+        allBranches: true,
+      }),
+    onSettled: () => {
+      invalidate();
+      void client.invalidateQueries({ queryKey: queryKeys.meWorkspaces });
+    },
+  });
+}
+
+/**
+ * Every reason an archive was refused, in words (ADR-054 AC-M3). A reason about
+ * the team names the people it is about. Codes the contract does not know are
+ * dropped rather than printed.
+ */
+export function archiveReasons(error: unknown): string[] {
+  if (!(error instanceof ApiError) || error.status !== 409) return [];
+  const parsed = BranchArchiveRefusal.safeParse(error.body);
+  if (!parsed.success) return [];
+  return parsed.data.reasons.map((r) => {
+    const label = BRANCH_ARCHIVE_BLOCKER_LABEL[r.code];
+    return r.members && r.members.length > 0 ? `${label} ${r.members.join(", ")}.` : label;
   });
 }
 

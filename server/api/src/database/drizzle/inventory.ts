@@ -32,7 +32,7 @@ import { approvalPolicyEnum, bookingModeEnum, cancellationTierEnum, checkInMetho
 import { districts, sectors, villages } from './geography';
 import { storedObjects } from './hospitality';
 import { departments } from './operations';
-import { orgs, workspaces } from './org';
+import { orgMemberships, orgs, workspaces } from './org';
 
 export const properties = pgTable(
   'properties',
@@ -84,6 +84,22 @@ export const properties = pgTable(
     // Nullable, because every property that predates the setup screen has none.
     contactPhone: text('contact_phone'),
     contactEmail: text('contact_email'),
+    /**
+     * ADR-054: a property is a BRANCH of its org. Exactly one active branch of
+     * a hospitality org is the head office, which the partial unique index
+     * below holds, and the head office change is the only thing that moves it.
+     */
+    isHeadOffice: boolean('is_head_office').notNull().default(false),
+    /**
+     * The two digit branch id RRA issued for this location, which a receipt
+     * signed here declares under (ADR-054 AC-F1). Null until somebody sets it,
+     * and then unique within the org FOREVER, archived branches included, so a
+     * retired id is never handed to a second location.
+     */
+    rraBranchId: text('rra_branch_id'),
+    /** Set when the branch is archived. Its history stays readable. */
+    archivedAt: timestamp('archived_at', { withTimezone: true }),
+    archivedByUserId: uuid('archived_by_user_id').references(() => users.id),
     ...timestamps,
   },
   (t) => [
@@ -95,6 +111,44 @@ export const properties = pgTable(
     // the properties that HAVE a public address and leaves the pipeline alone.
     // It is also the index `GET /properties/slug/:slug` reads on.
     uniqueIndex('properties_slug_uk').on(t.slug),
+    uniqueIndex('properties_one_head_office_uk')
+      .on(t.orgId)
+      .where(sql`${t.isHeadOffice} AND ${t.archivedAt} IS NULL`),
+    uniqueIndex('properties_org_rra_branch_uk')
+      .on(t.orgId, t.rraBranchId)
+      .where(sql`${t.rraBranchId} IS NOT NULL`),
+    check('properties_rra_branch_id_ck', sql`${t.rraBranchId} ~ '^[0-9]{2}$'`),
+    check(
+      'properties_head_office_not_archived_ck',
+      sql`NOT (${t.isHeadOffice} AND ${t.archivedAt} IS NOT NULL)`,
+    ),
+  ],
+);
+
+/**
+ * ADR-054: the branches a member is limited to.
+ *
+ * NO rows for a membership means it covers every branch, which is what every
+ * membership that predates this table means, and what an owner always means.
+ * The service refuses a row whose property belongs to another org, because a
+ * foreign key cannot see that.
+ */
+export const orgMembershipBranches = pgTable(
+  'org_membership_branches',
+  {
+    orgMembershipId: uuid('org_membership_id')
+      .notNull()
+      .references(() => orgMemberships.id, { onDelete: 'cascade' }),
+    propertyId: uuid('property_id')
+      .notNull()
+      .references(() => properties.id, { onDelete: 'cascade' }),
+    createdAt: timestamp('created_at', { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (t) => [
+    primaryKey({ columns: [t.orgMembershipId, t.propertyId] }),
+    index('org_membership_branches_property_idx').on(t.propertyId),
   ],
 );
 
@@ -224,6 +278,7 @@ export const roomTypes = pgTable(
   },
   (t) => [
     index('room_types_property_idx').on(t.propertyId),
+    index('room_types_workspace_idx').on(t.workspaceId),
     index('room_types_department_idx').on(t.departmentId),
     index('room_types_domain_idx').on(t.domain),
     check(
@@ -274,6 +329,18 @@ export const rooms = pgTable(
   (t) => [
     index('rooms_room_type_idx').on(t.roomTypeId),
     index('rooms_housekeeping_idx').on(t.propertyId, t.housekeepingStatus),
+    index('rooms_workspace_idx').on(t.workspaceId),
+    /**
+     * One door, one label, per property (platform audit step 3). The service
+     * refuses a collision first and more strictly (case and spacing
+     * insensitive, `domain/room-labels.ts`); this is the backstop for two
+     * concurrent adds that both passed that read. Its 23505 is answered with
+     * the same refusal. Partial, because an unlabelled room collides with
+     * nothing.
+     */
+    uniqueIndex('rooms_property_label_uk')
+      .on(t.propertyId, t.label)
+      .where(sql`${t.label} IS NOT NULL`),
   ],
 );
 
@@ -444,6 +511,7 @@ export const ratePlans = pgTable(
   },
   (t) => [
     index('rate_plans_room_type_idx').on(t.roomTypeId),
+    index('rate_plans_workspace_idx').on(t.workspaceId),
     // Mirrors the room_types check: approval policy is meaningful only for
     // request_to_book.
     check(
@@ -555,7 +623,10 @@ export const listings = pgTable(
     version: integer('version').notNull().default(0),
     ...timestamps,
   },
-  (t) => [unique('listings_property_uk').on(t.propertyId)],
+  (t) => [
+    unique('listings_property_uk').on(t.propertyId),
+    index('listings_workspace_idx').on(t.workspaceId),
+  ],
 );
 
 

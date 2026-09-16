@@ -478,7 +478,6 @@ export class BookingService {
         breakdown,
         reference: makeReference(),
         approvalExpiresAt: expiresAt,
-        roomCount: roomType.roomCount,
         receipt,
         idempotencyKey,
         attemptFingerprint: fingerprint,

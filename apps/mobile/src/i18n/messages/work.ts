@@ -148,7 +148,7 @@ export const en = {
   'work.rooms.notFoundBody': 'It may be on another floor. Go back and pick a tile.',
 
   /* The Tickets tab - F-P05 from the reporter's side */
-  'work.tickets.title': 'Tickets',
+  'work.tickets.title': 'Maintenance',
   'work.tickets.listLabel': 'your tickets',
   'work.tickets.subtitle': 'Faults you sent to Engineering',
   'work.tickets.emptyTitle': 'Nothing broken',
@@ -394,7 +394,7 @@ export const rw: Record<keyof typeof en, string> = {
   'work.rooms.notFoundTitle': 'Icyo cyumba nticyari kuri uru rutonde',
   'work.rooms.notFoundBody': 'Gishobora kuba kiri ku yindi gorofa. Subira inyuma uhitemo ikindi.',
 
-  'work.tickets.title': 'Ibibazo',
+  'work.tickets.title': 'Ibisanwa',
   'work.tickets.listLabel': 'ibibazo byawe',
   'work.tickets.subtitle': 'Ibibazo woherereje abakora ibisanwa',
   'work.tickets.emptyTitle': 'Nta kintu cyangiritse',

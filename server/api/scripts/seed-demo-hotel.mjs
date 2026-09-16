@@ -612,8 +612,14 @@ export async function purgeHotel(c) {
     // Fiscal rows a demo close or a pay now order may have written.
     await q(`DELETE FROM ebm_invoice_lines WHERE folio_charge_id IN (SELECT id FROM _hc)
                OR service_order_item_id IN (SELECT id FROM service_order_items WHERE service_order_id IN (SELECT id FROM _hso))`);
-    await q(`DELETE FROM ebm_invoices WHERE folio_id IN (SELECT id FROM _hf) OR service_order_id IN (SELECT id FROM _hso)
-               OR booking_id IN (SELECT id FROM _hb) OR outlet_id IN (SELECT id FROM _ho)`); // its lines cascade
+    // ON DELETE RESTRICT since migration 0045: the lines go first, by hand.
+    await temp(
+      '_hinv',
+      `SELECT id FROM ebm_invoices WHERE folio_id IN (SELECT id FROM _hf) OR service_order_id IN (SELECT id FROM _hso)
+          OR booking_id IN (SELECT id FROM _hb) OR outlet_id IN (SELECT id FROM _ho)`,
+    );
+    await q(`DELETE FROM ebm_invoice_lines WHERE ebm_invoice_id IN (SELECT id FROM _hinv)`);
+    await q(`DELETE FROM ebm_invoices WHERE id IN (SELECT id FROM _hinv)`);
     await q(`UPDATE service_orders SET payment_attempt_id = NULL WHERE id IN (SELECT id FROM _hso)`);
     await q(`DELETE FROM payment_attempts WHERE booking_id IN (SELECT id FROM _hb) OR service_order_id IN (SELECT id FROM _hso)`);
 
@@ -636,6 +642,11 @@ export async function purgeHotel(c) {
           AND NOT EXISTS (SELECT 1 FROM ledger_entries e WHERE e.transaction_id = t.id)`,
       [OWNED_LIKE],
     );
+    // Refund requests and offer redemptions name a bill or a line with no
+    // cascade (migration 0044), so a demo that raised one would block the bill.
+    await q(`DELETE FROM stay_refund_requests WHERE folio_id IN (SELECT id FROM _hf) OR guest_stay_id IN (SELECT id FROM _hs) OR booking_id IN (SELECT id FROM _hb)`);
+    await q(`DELETE FROM offer_redemptions WHERE folio_id IN (SELECT id FROM _hf) OR folio_charge_id IN (SELECT id FROM _hc) OR guest_stay_id IN (SELECT id FROM _hs)`);
+    // Charges before bills, bills before anything else: both RESTRICT (0045).
     await q(`DELETE FROM folio_charges WHERE id IN (SELECT id FROM _hc)`);
     await q(`DELETE FROM folios WHERE id IN (SELECT id FROM _hf)`);
 
@@ -647,6 +658,7 @@ export async function purgeHotel(c) {
     await q(`DELETE FROM messages WHERE id::text LIKE $1`, [OWNED_LIKE]);
     await q(`DELETE FROM room_assignments WHERE id::text LIKE $1 OR booking_id IN (SELECT id FROM _hb)`, [OWNED_LIKE]);
     await q(`DELETE FROM escrows WHERE id::text LIKE $1 OR booking_id IN (SELECT id FROM _hb)`, [OWNED_LIKE]);
+    await q(`DELETE FROM stay_identities WHERE guest_stay_id IN (SELECT id FROM _hs)`); // RESTRICT (0045)
     await q(`DELETE FROM guest_stays WHERE id IN (SELECT id FROM _hs)`);
     await q(`DELETE FROM bookings WHERE id IN (SELECT id FROM _hb)`);
 
@@ -687,9 +699,13 @@ async function readContext(c) {
     throw new Error('Amahoro is not seeded. Run scripts/seed-demo.mjs against this database first (seed-sample.mjs runs it).');
   }
 
-  const rooms = await one('SELECT id, label, room_type_id, status FROM rooms WHERE workspace_id = $1', [W]);
+  // The day is the HEAD OFFICE's (ADR-054): Amahoro Boutique Hotel in Remera.
+  // The workspace also holds the Musanze, Rubavu and archived Kicukiro
+  // branches, whose rooms, bookings and stays seed-demo.mjs owns; nothing here
+  // reads, counts or writes them.
+  const rooms = await one('SELECT id, label, room_type_id, status FROM rooms WHERE property_id = $1', [PROPERTY]);
   if (rooms.length !== 20) {
-    throw new Error(`Amahoro has ${rooms.length} rooms; this day is planned for 20. Re-run scripts/seed-demo.mjs (--reset) first.`);
+    throw new Error(`Amahoro Boutique Hotel has ${rooms.length} rooms; this day is planned for 20. Re-run scripts/seed-demo.mjs (--reset) first.`);
   }
   const types = await one(
     `SELECT rt.id, rt.name, rt.base_price_rwf, rt.booking_mode, rt.cancellation_tier, rp.id AS rate_plan_id
@@ -742,8 +758,9 @@ async function readContext(c) {
   // The reservations seed-demo.mjs already holds, so no night is sold twice over.
   const otherBookings = await one(
     `SELECT room_type_id, check_in::text AS check_in, check_out::text AS check_out FROM bookings
-      WHERE workspace_id = $1 AND status IN ('confirmed', 'pending_approval') AND id::text NOT LIKE $2`,
-    [W, OWNED_LIKE],
+      WHERE room_type_id IN (SELECT id FROM room_types WHERE property_id = $1)
+        AND status IN ('confirmed', 'pending_approval') AND id::text NOT LIKE $2`,
+    [PROPERTY, OWNED_LIKE],
   );
 
   return { rooms, typeByKey, accounts, vat, memberships, demoStays, otherBookings };
@@ -787,7 +804,7 @@ function build(ctx, departmentIds, partyId, itemCodes) {
     rows.outlets.push({
       id: outletIds[o.key], department_id: dept('fnb'), property_id: PROPERTY, workspace_id: W,
       operator_party_id: partyId, owner_party_id: partyId, relationship_type: 'hotel_operated',
-      rra_branch_id: '00', guest_visible: true, slug: null, address: null,
+      rra_branch_id: null, guest_visible: true, slug: null, address: null,
       // `taxEntityFor` (outlet-rules.ts): a hotel operated outlet sells under
       // its property's org.
       tax_entity_org_id: ORG, name: o.name, outlet_kind: o.kind, ordering_access: o.access,
@@ -1378,15 +1395,15 @@ async function summary(c) {
   const today = day(0);
   const { rows: [s] } = await c.query(
     `SELECT
-       (SELECT count(*) FROM guest_stays WHERE workspace_id = $1 AND lifecycle = 'open')::int AS in_house,
-       (SELECT count(*) FROM bookings b WHERE b.workspace_id = $1 AND b.check_in = $2 AND b.status = 'confirmed'
+       (SELECT count(*) FROM guest_stays g JOIN rooms r ON r.id = g.room_id WHERE r.property_id = $1 AND g.lifecycle = 'open')::int AS in_house,
+       (SELECT count(*) FROM bookings b JOIN room_types t ON t.id = b.room_type_id WHERE t.property_id = $1 AND b.check_in = $2 AND b.status = 'confirmed'
           AND NOT EXISTS (SELECT 1 FROM guest_stays g WHERE g.booking_id = b.id))::int AS arrivals,
        (SELECT count(*) FROM bookings b JOIN guest_stays g ON g.booking_id = b.id AND g.lifecycle = 'open'
-         WHERE b.workspace_id = $1 AND b.check_out = $2)::int AS departures,
-       (SELECT count(*) FROM folios WHERE workspace_id = $1)::int AS folios`,
-    [W, today],
+         JOIN room_types t ON t.id = b.room_type_id WHERE t.property_id = $1 AND b.check_out = $2)::int AS departures,
+       (SELECT count(*) FROM folios WHERE property_id = $1)::int AS folios`,
+    [PROPERTY, today],
   );
-  console.log(`\nTonight: ${s.in_house} of 20 rooms occupied. Today: ${s.arrivals} arrivals to check in, ${s.departures} departures to settle. ${s.folios} bills on file.`);
+  console.log(`\nAmahoro Boutique Hotel (head office) tonight: ${s.in_house} of 20 rooms occupied. Today: ${s.arrivals} arrivals to check in, ${s.departures} departures to settle. ${s.folios} bills on file.`);
 }
 
 async function main() {

@@ -3,23 +3,33 @@ import type { Metadata } from "next";
 import { OrderScreen } from "./order-screen";
 
 export const metadata: Metadata = {
-  title: "Room service",
+  title: "Order food and drink",
   description:
-    "The bar and restaurant card for the hotel you are checked into, ordered to your room.",
+    "The outlets you can order from right now, charged to your room or paid on the spot.",
 };
 
 /**
- * Room service, for the hotel the guest is actually in.
+ * Ordering during a stay, on `/api/v1/me/orderable` and `POST /api/v1/me/orders`.
  *
- * IT IS A CHILD OF `/stay` RATHER THAN A SIBLING, and the nesting is the
- * argument: there is no such thing as room service without a room. The screen
- * reads the same stay record its parent does, and a person who arrives here
- * with no stay is offered the same check-in panel rather than an empty menu.
+ * A CHILD OF `/stay`: what a guest may order depends on where they are staying,
+ * and the server works that out from their open stays. A person with nowhere to
+ * order from is told so, never shown a menu they cannot use.
  *
- * Server shell, client screen, for the reason given on `/stay/page.tsx`: the
- * cart and the stay both live in the browser, and `metadata` cannot come out of
- * a client component.
+ * Server shell, client screen: the session cookie belongs to the API origin, so
+ * the reads run in the browser, and `metadata` cannot come out of a client
+ * component. The public property menu page links here.
  */
-export default function Page() {
-  return <OrderScreen />;
+/**
+ * `?thread=<id>` places the order FROM that conversation (ADR-050 D-s): the
+ * server checks the thread is the guest's own, and the conversation then
+ * carries the order's card and a line for every status change.
+ */
+export default async function Page({
+  searchParams,
+}: {
+  searchParams: Promise<{ thread?: string | string[] }>;
+}) {
+  const { thread } = await searchParams;
+  const threadId = typeof thread === "string" && /^[0-9a-f-]{36}$/i.test(thread) ? thread : undefined;
+  return <OrderScreen threadId={threadId} />;
 }

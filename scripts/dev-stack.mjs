@@ -520,7 +520,12 @@ Start what you need, each in its own terminal, from injishi/:
   pnpm web:dev                        web       http://localhost:3000
   pnpm app:dev                        operator  http://localhost:3002
   pnpm --filter @injishi/admin dev    admin     http://localhost:3001
-  pnpm --filter @injishi/api worker:dev   BullMQ worker (only for queued jobs)
+  pnpm api:worker:dev                 BullMQ worker. Booking, training and waitlist mail
+                                      is QUEUED and waits in Redis until this runs.
+                                      It builds into dist-worker/, so it runs beside api:dev.
+
+  Mailpit   http://localhost:8025     every mail the API sends
+  MinIO     http://localhost:9001     object storage console
 
 Sign in at http://localhost:3000/sign-in with a seeded account, or pick one of
 the demo personas listed there (*@demo.injishi.com):
@@ -548,8 +553,16 @@ async function up(api, cfg, { reset }) {
   await assertPortFree(cfg, 'db', cfg.db.port, 'Postgres', 'the port in DATABASE_URL');
   await assertPortFree(cfg, 'redis', cfg.redis.port, 'Redis', 'REDIS_PORT');
 
-  console.log('\n→ Starting Postgres and Redis');
-  composeOrThrow(cfg, ['up', '-d', '--remove-orphans', 'db', 'redis'], 'docker compose up');
+  // Mailpit and MinIO too (demo-comms, 2026-09-14). The summary promised codes
+  // in Mailpit, and `.env.example` points SMTP_URL and live storage at them,
+  // but only db and redis were started: every mail then failed, a queued one
+  // retried into the failed set, and uploads refused.
+  console.log('\n→ Starting Postgres, Redis, Mailpit and MinIO');
+  composeOrThrow(
+    cfg,
+    ['up', '-d', '--remove-orphans', 'db', 'redis', 'mailpit', 'minio'],
+    'docker compose up',
+  );
 
   console.log('\n→ Waiting for Postgres and Redis to report healthy');
   await waitHealthy(cfg, 'db', DB_HEALTH_TIMEOUT_MS);

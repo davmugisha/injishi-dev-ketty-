@@ -270,7 +270,16 @@ export function HousekeeperPhone() {
           </Button>
         </header>
 
-        <main className="flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto px-4 pt-4 pb-6">{body}</main>
+        {/* On the demo a guide pill floats above the tab bar; the extra bottom room
+            lets the last button on the screen (Send, Finish) scroll clear of it. */}
+        <main
+          className={cn(
+            "flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto px-4 pt-4",
+            state.platform?.environment === "demo" ? "pb-24" : "pb-6",
+          )}
+        >
+          {body}
+        </main>
 
         {sheetRoom && (
           <RoomSheet

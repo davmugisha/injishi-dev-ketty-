@@ -1,8 +1,10 @@
 import { WorkspaceAccess, workspaceLabel } from "@injishi/contracts";
 import type {
+  BranchCoverage,
   DepartmentCategory,
   OrgRegistrationStatus,
   Permission,
+  WorkspaceBranch,
 } from "@injishi/contracts";
 
 import { API_BASE, REQUEST_TIMEOUT_MS, getJson } from "./api";
@@ -79,6 +81,19 @@ export interface MyWorkspace {
    * property yet.
    */
   propertyName: string | null;
+  /**
+   * Whether this member covers every branch of the business, or only some
+   * (ADR-054). The Branches screen hides the org wide moves from a `limited`
+   * member; the API refuses them either way. Null outside a business workspace.
+   */
+  branchCoverage: BranchCoverage | null;
+  /**
+   * The active branches this member covers, head office first (ADR-054 AC-S3).
+   * The branch switcher reads this, never `/inventory/properties`: a
+   * receptionist chooses a branch too, and may not manage listings. Empty
+   * outside a business workspace.
+   */
+  branches: WorkspaceBranch[];
 }
 
 /**
@@ -207,6 +222,8 @@ export async function fetchMyWorkspaces(): Promise<MeState> {
       workspaceId: w.workspaceId,
       departments: w.departments,
       propertyName: w.propertyName,
+      branchCoverage: w.branchCoverage,
+      branches: w.branches,
     });
   }
 

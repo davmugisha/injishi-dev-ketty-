@@ -1,6 +1,6 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.ELEVATION_REFUSED_MESSAGE = exports.SEPARATION_OF_DUTIES_MESSAGE = exports.OVERSIGHT_OWN_BUSINESS_MESSAGE = exports.OVERSIGHT_ORG_ROLE_CONFLICT_MESSAGE = exports.OVERSIGHT_SCOPE_CONFLICT_MESSAGE = exports.OVERSIGHT_CONSOLE_NOT_BUILT_MESSAGE = exports.OVERSIGHT_COUNTRY_SCOPE_LABEL = exports.OversightConsoleGrant = exports.OversightGrant = exports.REGISTRATION_STAGE_MESSAGE = exports.WorkspaceAccess = exports.PERMISSION_LABEL = exports.Permission = void 0;
+exports.ELEVATION_REFUSED_MESSAGE = exports.SEPARATION_OF_DUTIES_MESSAGE = exports.OVERSIGHT_OWN_BUSINESS_MESSAGE = exports.OVERSIGHT_ORG_ROLE_CONFLICT_MESSAGE = exports.OVERSIGHT_SCOPE_CONFLICT_MESSAGE = exports.OVERSIGHT_CONSOLE_NOT_BUILT_MESSAGE = exports.OVERSIGHT_COUNTRY_SCOPE_LABEL = exports.OversightConsoleGrant = exports.OversightGrant = exports.REGISTRATION_STAGE_MESSAGE = exports.WorkspaceAccess = exports.WorkspaceBranch = exports.BranchCoverage = exports.PERMISSION_LABEL = exports.Permission = void 0;
 exports.can = can;
 exports.permissionsForRole = permissionsForRole;
 exports.isOperational = isOperational;
@@ -46,7 +46,8 @@ exports.Permission = zod_1.z.enum([
     "menu.manage",
     "team.manage",
     "money.view",
-    "property.switch",
+    // `property.switch` was here. Seeing a branch is coverage, not a capability:
+    // the switcher reads `branches` from the grant (ADR-054 AC-S4).
     "rent.record",
     "lease.advance",
     "deposit.return",
@@ -98,6 +99,31 @@ exports.Permission = zod_1.z.enum([
      * for what.
      */
     "outlet.manage",
+    /**
+     * Answer a guest's request for money back on a stay that has already begun
+     * (§6.8).
+     *
+     * OWNER AND MANAGER, never the desk. A booking cancellation is arithmetic —
+     * `cancellationRefund` reads a locked tier and a clock, and nobody exercises
+     * judgement — but this is the opposite: the entitlement the rules compute is
+     * a SUGGESTION, and the person deciding may approve more than it (goodwill)
+     * or refuse what it owed by citing a rule the engine cannot see. That is a
+     * discretionary spend of the business's money in front of an unhappy guest,
+     * which is exactly the decision a receptionist must be able to escalate
+     * rather than be pressed into making at the counter.
+     */
+    "refund.decide",
+    /**
+     * Create and retire the property's offers, which is setting prices
+     * downwards (§6.8).
+     *
+     * OWNER AND MANAGER, for the reason `menu.manage` is: a discount is a price,
+     * and whoever can write "50% off, no end date, unlimited redemptions" can
+     * give the property's revenue away without anyone approving a single
+     * transaction. Redeeming one is the guest's own action and carries no
+     * permission at all.
+     */
+    "offer.manage",
 ]);
 const ALL = exports.Permission.options;
 /**
@@ -172,7 +198,6 @@ exports.PERMISSION_LABEL = {
     "menu.manage": "edit the menu",
     "team.manage": "manage the team",
     "money.view": "view money",
-    "property.switch": "switch property",
     "rent.record": "record rent",
     "lease.advance": "advance leases",
     "deposit.return": "return deposits",
@@ -186,6 +211,8 @@ exports.PERMISSION_LABEL = {
     "folio.close": "close a bill and sign its receipt",
     "ebm.refund": "refund a signed receipt",
     "outlet.manage": "manage outlets",
+    "refund.decide": "answer a guest's refund request",
+    "offer.manage": "create and retire offers",
 };
 // ---------------------------------------------------------------------------
 // Workspace access
@@ -197,6 +224,15 @@ exports.PERMISSION_LABEL = {
  * Landlord are both `business`, told apart by the org's domain. This shape is
  * what `GET /api/v1/me/workspaces` returns.
  */
+/** Whether a member covers every branch of their business or only some (ADR-054). */
+exports.BranchCoverage = zod_1.z.enum(["all", "limited"]);
+/** One branch a member covers, as the grant carries it (ADR-054 AC-S3). */
+exports.WorkspaceBranch = zod_1.z.object({
+    id: primitives_1.Uuid,
+    name: zod_1.z.string(),
+    districtName: zod_1.z.string().nullable(),
+    isHeadOffice: zod_1.z.boolean(),
+});
 exports.WorkspaceAccess = zod_1.z.object({
     workspaceId: primitives_1.Uuid,
     kind: primitives_1.WorkspaceKind,
@@ -244,14 +280,25 @@ exports.WorkspaceAccess = zod_1.z.object({
      * — who may not manage listings — was getting a 403 on every page load for a
      * name. Identity is not a listing operation.
      *
-     * THE FIRST property, because nothing yet says which one is in view and a
-     * workspace may hold several. The guess is made ONCE, here, rather than
-     * differently in each screen that needs it.
+     * The head office's name when this member covers it, else the first covered
+     * branch by name (ADR-054 AC-S3). Made ONCE, here, rather than differently
+     * in each screen that needs it.
      *
      * Null for `broker` and `personal`, which have no property, and for a
      * business that has not created one yet.
      */
     propertyName: zod_1.z.string().nullable(),
+    /**
+     * The active branches this member covers, head office first then by name
+     * (ADR-054 AC-S3). Every branch when `branchCoverage` is `all`. Empty for
+     * `broker` and `personal`, and for a business with no property yet.
+     *
+     * Seeing a branch is COVERAGE, not a permission: the switcher reads this,
+     * and the API narrows rows by the same list.
+     */
+    branches: zod_1.z.array(exports.WorkspaceBranch),
+    /** `limited` when the member is limited to some branches. Null outside `business`. */
+    branchCoverage: exports.BranchCoverage.nullable(),
 });
 /**
  * May this org's workspace actually DO anything yet?

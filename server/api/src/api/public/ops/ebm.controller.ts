@@ -26,6 +26,7 @@ import {
   RequirePermission,
   WorkspaceGuard,
 } from '../../../shared/auth/workspace.guard';
+import type { ScopedWorkspace } from '../../../shared/auth/branch-scope';
 import { ZodValidationPipe } from '../../../shared/validation/zod-validation.pipe';
 
 /**
@@ -48,7 +49,7 @@ export class OpsEbmController {
 
   @Get('connection')
   async connection(
-    @CurrentWorkspace() workspace: WorkspaceAccess,
+    @CurrentWorkspace() workspace: ScopedWorkspace,
   ): Promise<EbmConnection> {
     return this.ebm.status(orgOf(workspace));
   }
@@ -56,7 +57,7 @@ export class OpsEbmController {
   /** Where to send the taxpayer to consent. The screen performs the redirect. */
   @Post('connect')
   async connect(
-    @CurrentWorkspace() workspace: WorkspaceAccess,
+    @CurrentWorkspace() workspace: ScopedWorkspace,
     @CurrentUser() user: SessionUser,
   ): Promise<EbmConnectStart> {
     return this.ebm.start(orgOf(workspace), user.id);
@@ -65,7 +66,7 @@ export class OpsEbmController {
   @Get('items')
   async items(
     @Query(new ZodValidationPipe(EbmSearchQuery)) query: EbmSearchQuery,
-    @CurrentWorkspace() workspace: WorkspaceAccess,
+    @CurrentWorkspace() workspace: ScopedWorkspace,
   ): Promise<EbmCatalogItemList> {
     return { items: await this.ebm.catalog(orgOf(workspace), query.search) };
   }
@@ -73,7 +74,7 @@ export class OpsEbmController {
   @Get('customers')
   async customers(
     @Query(new ZodValidationPipe(EbmSearchQuery)) query: EbmSearchQuery,
-    @CurrentWorkspace() workspace: WorkspaceAccess,
+    @CurrentWorkspace() workspace: ScopedWorkspace,
   ): Promise<EbmCustomerOptionList> {
     return { customers: await this.ebm.customers(orgOf(workspace), query.search) };
   }
@@ -81,7 +82,7 @@ export class OpsEbmController {
   @Put('mapping')
   async mapping(
     @Body(new ZodValidationPipe(EbmItemMappingInput)) body: EbmItemMappingInput,
-    @CurrentWorkspace() workspace: WorkspaceAccess,
+    @CurrentWorkspace() workspace: ScopedWorkspace,
   ): Promise<EbmConnection> {
     return this.ebm.saveMapping(orgOf(workspace), body);
   }
@@ -92,7 +93,7 @@ export class OpsEbmController {
    */
   @Delete('connection')
   async disconnect(
-    @CurrentWorkspace() workspace: WorkspaceAccess,
+    @CurrentWorkspace() workspace: ScopedWorkspace,
     @CurrentUser() user: SessionUser,
   ): Promise<EbmConnection> {
     return this.ebm.disconnect(orgOf(workspace), user.id);

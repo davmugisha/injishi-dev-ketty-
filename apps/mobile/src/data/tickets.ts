@@ -29,6 +29,7 @@ import {
   type FixtureMutation,
 } from './use-fixture-mutation';
 import { useOfflineSubmit } from './offline-submit';
+import type { WriteOutcome } from './write-queue';
 
 export const TICKETS_KEY = 'residence.tickets';
 
@@ -198,16 +199,22 @@ export function useFileTicket(): FixtureMutation<FileTicketInput> {
 export function useFileTicketOffline() {
   return useOfflineSubmit<FileTicketInput>({
     kind: 'fault',
-    handler: (input) => {
-      writeFixture<Ticket[]>(TICKETS_KEY, applyFiling(readFixture<Ticket[]>(TICKETS_KEY, seed()), input));
-      // The fixture store cannot refuse and cannot be unreachable, so this
-      // is always `ok`. The surface child that puts a real mutation here
-      // (ADR-038 children 1 to 7) is where `refused` and `failed` start
-      // being answered for real.
-      return { status: 'ok' as const };
-    },
+    handler: fileTicketHandler,
     label: (input) => input.title,
   });
+}
+
+/**
+ * The `fault` write. Module level so `write-handlers.ts` can register it before
+ * any screen mounts, which is what a drain after a cold start needs.
+ */
+export function fileTicketHandler(input: FileTicketInput): WriteOutcome {
+  writeFixture<Ticket[]>(TICKETS_KEY, applyFiling(readFixture<Ticket[]>(TICKETS_KEY, seed()), input));
+  // The fixture store cannot refuse and cannot be unreachable, so this
+  // is always `ok`. The surface child that puts a real mutation here
+  // (ADR-038 children 1 to 7) is where `refused` and `failed` start
+  // being answered for real.
+  return { status: 'ok' };
 }
 
 /** The tickets filed against one lease, newest first. Frame R15's row count. */

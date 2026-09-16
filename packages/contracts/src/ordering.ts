@@ -129,6 +129,12 @@ export const PlaceOrderRequest = z
      * Card is refused until a hosted field exists (D-p).
      */
     instrument: PaymentInstrument.optional(),
+    /**
+     * The conversation this order is placed from (ADR-050 D-s). The order stays
+     * one record; the thread gets a card and a line for every status change.
+     * It must be the caller's own active thread at the outlet's property.
+     */
+    threadId: Uuid.optional(),
 })
     .refine((v) => v.context === "pay_now" || v.instrument === undefined, {
     message: "An order charged to your room takes no payment.",

@@ -1,5 +1,5 @@
-import type { PropertyDetail, RoomTypeSummary } from "@injishi/contracts";
-import { apiFetch, type ApiResult } from "@/lib/api";
+import { PropertyDetail, type RoomTypeSummary } from "@injishi/contracts";
+import { apiFetchParsed, type ApiResult } from "@/lib/api";
 
 /**
  * What the marketplace can actually SELL for a property, read from the API.
@@ -58,7 +58,9 @@ export interface PropertyRooms {
 export async function fetchPropertyRooms(
   slug: string,
 ): Promise<ApiResult<PropertyRooms>> {
-  const result = await apiFetch<PropertyDetail>(
+  // Parsed, not cast: the rates read here are the ones the widget quotes.
+  const result = await apiFetchParsed(
+    PropertyDetail,
     `/api/v1/properties/slug/${encodeURIComponent(slug)}`,
   );
   if (result.status !== "ok") return result;

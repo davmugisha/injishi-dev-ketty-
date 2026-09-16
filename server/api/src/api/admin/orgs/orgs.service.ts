@@ -569,12 +569,17 @@ export class AdminOrgsService {
            where ${listings.propertyId} = ${properties.id}
              and ${listings.status} = 'published'
         )`,
+        // ADR-054 AC-R4: which branch is the head office, and which are retired.
+        isHeadOffice: properties.isHeadOffice,
+        rraBranchId: properties.rraBranchId,
+        archivedAt: properties.archivedAt,
       })
       .from(properties)
       .innerJoin(orgs, eq(orgs.id, properties.orgId))
       .leftJoin(districts, eq(districts.id, properties.districtId))
       .where(eq(properties.orgId, orgId))
-      .orderBy(properties.name)
+      // Head office first, then by name, the order every branch list uses.
+      .orderBy(desc(properties.isHeadOffice), properties.name)
       .limit(pageSize)
       .offset((page - 1) * pageSize);
 
@@ -584,7 +589,10 @@ export class AdminOrgsService {
       .where(eq(properties.orgId, orgId));
 
     return AdminOrgPropertiesResponse.parse({
-      items: rows,
+      items: rows.map((r) => ({
+        ...r,
+        archivedAt: r.archivedAt?.toISOString() ?? null,
+      })),
       meta: { total: counted?.n ?? 0, page, pageSize },
     });
   }

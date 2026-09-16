@@ -28,10 +28,21 @@ jobs:
       - uses: actions/checkout@v5
       - uses: ./.github/actions/pnpm-setup
 
-      # Mobile consumes the tokens and the vocabulary contract, and the tokens
-      # are compiled, so the palette check needs dist/ to exist.
+      # Mobile consumes the tokens, the vocabulary contract and
+      # @injishi/contracts. The tokens and contracts are compiled (consumers read
+      # dist/), so both are built before anything reads them.
       - name: Build the compiled packages
-        run: pnpm --filter @injishi/design-tokens build
+        run: pnpm --filter @injishi/contracts --filter @injishi/design-tokens build
+
+      # Typed routes are gitignored and only a dev server writes them; this
+      # runs the same generator non-interactively so the typecheck below checks
+      # every link target. See the same step in ci.yml.
+      - name: Generate the typed route declarations
+        working-directory: apps/mobile
+        run: |
+          set -euo pipefail
+          pnpm exec expo customize tsconfig.json
+          test -s .expo/types/router.d.ts
 
       # Fail here rather than 20 minutes into an EAS build. These are the same
       # checks ci.yml runs; a tag can point at any commit, including one that

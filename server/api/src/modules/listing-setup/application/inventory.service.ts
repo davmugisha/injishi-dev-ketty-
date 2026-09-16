@@ -1,20 +1,31 @@
 import {
+  BRANCH_ARCHIVE_BLOCKER_LABEL,
+  type BranchArchiveReason,
   type CreatePropertyRequest,
+  NEEDS_EVERY_BRANCH_MESSAGE,
   type OperatorProperty,
   type OperatorPropertySummary,
   PUBLISH_BLOCKER_LABEL,
   type PublishBlocker,
   type UpdatePropertyRequest,
-  type WorkspaceAccess,
 } from '@injishi/contracts';
 import {
   BadRequestException,
   ConflictException,
+  ForbiddenException,
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
 
+import {
+  assertInBranchScope,
+  type ScopedWorkspace,
+} from '../../../shared/auth/branch-scope';
 import { assertContained } from '../domain/containment';
+import {
+  BranchesRepository,
+  type BranchMoveResult,
+} from '../infrastructure/branches.repository';
 import { publishBlockersFor } from '../domain/publish-eligibility';
 import {
   InventoryRepository,
@@ -45,15 +56,24 @@ import { PropertyPhotosService } from './property-photos.service';
 export class InventoryService {
   constructor(
     private readonly repo: InventoryRepository,
+    private readonly branches: BranchesRepository,
     private readonly photos: PropertyPhotosService,
   ) {}
 
-  /** Every property in the caller's workspace. */
+  /**
+   * Every property in the caller's workspace. Archived branches only when asked
+   * for, because only the Branches screen shows them (ADR-054).
+   */
   async listProperties(
-    workspace: WorkspaceAccess,
+    workspace: ScopedWorkspace,
+    includeArchived = false,
   ): Promise<OperatorPropertySummary[]> {
     const [rows, counts] = await Promise.all([
-      this.repo.findPropertiesInWorkspace(workspace.workspaceId),
+      this.repo.findPropertiesInWorkspace(
+        workspace.workspaceId,
+        workspace.branchScope,
+        includeArchived,
+      ),
       this.repo.countsForWorkspace(workspace.workspaceId),
     ]);
     return rows.map((row) => this.toSummary(row, counts.get(row.id)));
@@ -67,8 +87,9 @@ export class InventoryService {
    * else's org.
    */
   async createProperty(
-    workspace: WorkspaceAccess,
+    workspace: ScopedWorkspace,
     request: CreatePropertyRequest,
+    actorUserId: string,
   ): Promise<OperatorProperty> {
     if (!workspace.orgId) {
       // A personal or broker workspace has no org to hang a property on. The
@@ -78,25 +99,58 @@ export class InventoryService {
       );
     }
 
+    // Adding a branch reshapes the whole business, so a member limited to some
+    // branches may not (ADR-054 AC-M6). No fee and no review: a branch created
+    // here is usable at once (AC-M1).
+    this.assertCoversEveryBranch(workspace);
+
     const districtId = await this.districtFor(request.sectorId);
 
     const propertyId = await this.repo.createProperty({
       orgId: workspace.orgId,
       workspaceId: workspace.workspaceId,
       districtId,
+      actorUserId,
       request,
     });
     return this.getProperty(workspace, propertyId);
   }
 
-  /** Edit a property, replacing only the fields that were sent. */
+  /**
+   * Edit a property, replacing only the fields that were sent.
+   *
+   * Setting the RRA branch id changes where this branch's sales are declared, so
+   * it needs `ebm.manage` as well as the route's `listing.manage`, and it is
+   * refused when another branch of the org, archived ones included, holds the
+   * same id (ADR-054 AC-M2, invariant 3).
+   */
   async updateProperty(
-    workspace: WorkspaceAccess,
+    workspace: ScopedWorkspace,
     propertyId: string,
     request: UpdatePropertyRequest,
+    actorUserId: string,
   ): Promise<OperatorProperty> {
     const existing = await this.repo.findProperty(propertyId);
     assertContained(existing, workspace.workspaceId, 'Property');
+    assertInBranchScope(workspace, existing.id, 'Property');
+
+    if (request.rraBranchId !== undefined) {
+      if (!workspace.permissions.includes('ebm.manage')) {
+        throw new ForbiddenException(
+          'Setting the RRA branch id needs the power to connect the RRA EBM account.',
+        );
+      }
+      if (
+        request.rraBranchId !== null &&
+        (await this.branches.rraBranchIdTaken(
+          existing.orgId,
+          request.rraBranchId,
+          propertyId,
+        ))
+      ) {
+        throw this.rraTaken(request.rraBranchId);
+      }
+    }
 
     // The derived district moves with the sector, or an edit would leave the
     // property filed under the district it used to be in.
@@ -105,17 +159,133 @@ export class InventoryService {
         ? null
         : await this.districtFor(request.sectorId);
 
-    await this.repo.updateProperty({ propertyId, districtId, request });
+    const outcome = await this.repo.updateProperty({
+      propertyId,
+      districtId,
+      actorUserId,
+      request,
+    });
+    if (outcome === 'rra_taken') throw this.rraTaken(request.rraBranchId ?? '');
     return this.getProperty(workspace, propertyId);
+  }
+
+  /**
+   * Archive a branch (ADR-054 AC-M3), or refuse with every reason that holds.
+   *
+   * The 409 carries `reasons` so the screen lists them all at once; `message`
+   * is the first, because a toast shows one sentence.
+   */
+  async archiveBranch(
+    workspace: ScopedWorkspace,
+    propertyId: string,
+    actorUserId: string,
+  ): Promise<OperatorProperty> {
+    await this.containedBranch(workspace, propertyId);
+    const result = await this.branches.archive(propertyId, actorUserId);
+    this.throwUnlessDone(result, 'That branch is already archived.');
+    return this.getProperty(workspace, propertyId);
+  }
+
+  /** Bring an archived branch back. Its listing stays a draft (AC-M4). */
+  async restoreBranch(
+    workspace: ScopedWorkspace,
+    propertyId: string,
+    actorUserId: string,
+  ): Promise<OperatorProperty> {
+    await this.containedBranch(workspace, propertyId);
+    const result = await this.branches.restore(propertyId, actorUserId);
+    this.throwUnlessDone(result, 'That branch is already archived.');
+    return this.getProperty(workspace, propertyId);
+  }
+
+  /**
+   * Make this branch the head office (AC-M5). Answers with every active branch,
+   * because two rows changed and the screen redraws both.
+   */
+  async makeHeadOffice(
+    workspace: ScopedWorkspace,
+    propertyId: string,
+    actorUserId: string,
+  ): Promise<OperatorPropertySummary[]> {
+    await this.containedBranch(workspace, propertyId);
+    const result = await this.branches.makeHeadOffice(propertyId, actorUserId);
+    this.throwUnlessDone(
+      result,
+      'An archived branch cannot be the head office. Restore it first.',
+    );
+    return this.listProperties(workspace);
+  }
+
+  /** The org wide moves need every branch (AC-M6), and the row must be ours. */
+  private async containedBranch(
+    workspace: ScopedWorkspace,
+    propertyId: string,
+  ): Promise<void> {
+    const existing = await this.repo.findProperty(propertyId);
+    assertContained(existing, workspace.workspaceId, 'Property');
+    assertInBranchScope(workspace, existing.id, 'Property');
+    this.assertCoversEveryBranch(workspace);
+  }
+
+  /**
+   * Refuse a member limited to some branches (ADR-054 AC-M6).
+   *
+   * A 403 in plain words rather than a 404: the member knows the action exists,
+   * and what they lack is coverage, not knowledge of the row. Coverage is read
+   * from the grant `WorkspaceGuard` resolved, so it narrows the moment branch
+   * limits are read there (slice 4), with nothing to change here.
+   */
+  private assertCoversEveryBranch(workspace: ScopedWorkspace): void {
+    if (workspace.branchCoverage === 'limited') {
+      throw new ForbiddenException(NEEDS_EVERY_BRANCH_MESSAGE);
+    }
+  }
+
+  private throwUnlessDone(result: BranchMoveResult, stateMessage: string): void {
+    switch (result.kind) {
+      case 'done':
+        return;
+      case 'missing':
+        throw new NotFoundException('No such property.');
+      case 'archived':
+        throw new ConflictException(stateMessage);
+      case 'not_archived':
+        throw new ConflictException('That branch is not archived.');
+      case 'not_hospitality':
+        throw new ConflictException(
+          'Only a hospitality business has a head office.',
+        );
+      case 'refused':
+        throw this.archiveRefusal(result.reasons);
+    }
+  }
+
+  private archiveRefusal(reasons: BranchArchiveReason[]): ConflictException {
+    const first = reasons[0];
+    const label = BRANCH_ARCHIVE_BLOCKER_LABEL[first.code];
+    return new ConflictException({
+      message:
+        first.members && first.members.length > 0
+          ? `${label} (${first.members.join(', ')})`
+          : label,
+      reasons,
+    });
+  }
+
+  private rraTaken(rraBranchId: string): ConflictException {
+    return new ConflictException(
+      `Another branch of this business already uses RRA branch id ${rraBranchId}. Each branch needs its own.`,
+    );
   }
 
   /** One property in full, draft or published. */
   async getProperty(
-    workspace: WorkspaceAccess,
+    workspace: ScopedWorkspace,
     propertyId: string,
   ): Promise<OperatorProperty> {
     const row = await this.repo.findProperty(propertyId);
     assertContained(row, workspace.workspaceId, 'Property');
+    assertInBranchScope(workspace, row.id, 'Property');
 
     const [roomTypes, photos] = await Promise.all([
       this.repo.findRoomTypeSummaries(propertyId),
@@ -164,11 +334,12 @@ export class InventoryService {
    * the caller.
    */
   async publish(
-    workspace: WorkspaceAccess,
+    workspace: ScopedWorkspace,
     propertyId: string,
   ): Promise<OperatorProperty> {
     const existing = await this.repo.findProperty(propertyId);
     assertContained(existing, workspace.workspaceId, 'Property');
+    assertInBranchScope(workspace, existing.id, 'Property');
 
     const facts = await this.repo.publishFactsFor(propertyId);
     if (!facts) throw new NotFoundException('No such property.');
@@ -196,11 +367,12 @@ export class InventoryService {
    * operator may always withdraw their own listing.
    */
   async unpublish(
-    workspace: WorkspaceAccess,
+    workspace: ScopedWorkspace,
     propertyId: string,
   ): Promise<OperatorProperty> {
     const existing = await this.repo.findProperty(propertyId);
     assertContained(existing, workspace.workspaceId, 'Property');
+    assertInBranchScope(workspace, existing.id, 'Property');
 
     const done = await this.repo.unpublish(propertyId);
     if (!done) throw new NotFoundException('No such property.');
@@ -253,6 +425,9 @@ export class InventoryService {
       publishedAt: row.publishedAt?.toISOString() ?? null,
       roomTypeCount: counts?.roomTypeCount ?? 0,
       sellableRoomCount: counts?.sellableRoomCount ?? 0,
+      isHeadOffice: row.isHeadOffice,
+      rraBranchId: row.rraBranchId,
+      archivedAt: row.archivedAt?.toISOString() ?? null,
     };
   }
 }

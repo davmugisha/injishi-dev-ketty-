@@ -49,7 +49,7 @@
  * that name from a layout file as the boundary for everything under it. From
  * the root layout that is the whole app.
  */
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { QueryClientProvider } from '@tanstack/react-query';
 import { useEffect, useState, type ComponentProps, type ReactNode } from 'react';
 import { useFonts } from 'expo-font';
 import { Stack, useRouter, useSegments, type ErrorBoundaryProps } from 'expo-router';
@@ -77,7 +77,11 @@ import {
 } from '@/domain';
 import { SessionProvider, readStoredSession, useSession, type ResolvedSession } from '@/session';
 import { WorkspaceProvider, useWorkspace } from '@/workspace';
-import { shouldRetry } from '@/lib/api';
+import { queryClient } from '@/lib/query-client';
+// Registers every queued write's handler at import, before any screen mounts,
+// so the drain below can send what a previous process left in the queue.
+import '@/data/write-handlers';
+import { drain, hydrate } from '@/data/write-queue';
 import {
   LocaleProvider,
   readStoredLocale,
@@ -88,7 +92,7 @@ import {
 import { fontMap } from '@/theme/fonts';
 import { palettes } from '@/theme/tokens';
 import { useReducedMotion } from '@/motion';
-import { OfflineBanner, QueueBanner, ToastProvider } from '@/components';
+import { OfflineBanner, QueueBanner, ToastProvider, useOffline } from '@/components';
 
 SplashScreen.preventAutoHideAsync().catch(() => {});
 
@@ -103,37 +107,12 @@ interface Bootstrap {
   appearance: Appearance;
 }
 
-/**
- * One cache for the app (ADR-038 child 0 task 7).
- *
- * Built at module scope, not inside the component, so a re-render never throws
- * away every cached row and refetches the screen the person is looking at.
- *
- * The retry policy is the contract's, not the library's default.
- * `unauthenticated` and `refused` are ANSWERS: the server was reached and it
- * said no. Retrying either asks the same question again more slowly, and in the
- * refusal case leaves somebody watching a spinner retry something that cannot
- * succeed. Only `failed`, which means we could not reach Injishi at all, is
- * worth another attempt. `shouldRetry` in `lib/api.ts` is where that is decided.
+/*
+ * One cache for the app (ADR-038 child 0 task 7) lives in `lib/query-client.ts`,
+ * at module scope, with the contract's retry policy. It moved out of this file
+ * so the offline queue's handlers, which run with nothing mounted, can
+ * invalidate what a replayed write changed.
  */
-const queryClient = new QueryClient({
-  defaultOptions: {
-    queries: {
-      retry: shouldRetry,
-      // A phone is backgrounded and reopened constantly, and refetching every
-      // visible query on each return is a lot of traffic on a connection this
-      // app is meant to be careful with. A screen that needs fresher data than
-      // this says so itself.
-      staleTime: 60 * 1000,
-    },
-    mutations: {
-      // A write is never retried automatically. The offline queue owns replay,
-      // it carries the idempotency token that makes replay safe, and a second
-      // path retrying underneath it is how one message gets sent twice.
-      retry: false,
-    },
-  },
-});
 
 /* ─────────────────────────────────────────── the web preview frame ────── */
 
@@ -438,6 +417,33 @@ function Shell() {
     if (status !== 'authenticated' || isResolving || inAuth) return;
     if (owesStepUp) router.replace('/(auth)/step-up');
   }, [status, isResolving, inAuth, owesStepUp, router]);
+
+  /**
+   * The offline queue, after a cold start.
+   *
+   * The queue persists to the keychain, and nothing used to read it back: a
+   * message queued in a lift and then killed by memory pressure sat in the
+   * keychain until some later write happened to overwrite the journal. So the
+   * journal is read once here, and drained once there is a network and a
+   * signed-in session with its workspace resolved. The handlers are already
+   * registered, by the `write-handlers` import at the top of this file, so the
+   * drain does not depend on which screen happens to be open.
+   */
+  const offline = useOffline();
+  const [queueHydrated, setQueueHydrated] = useState(false);
+  useEffect(() => {
+    let cancelled = false;
+    void hydrate().then(() => {
+      if (!cancelled) setQueueHydrated(true);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+  useEffect(() => {
+    if (!queueHydrated || offline || status !== 'authenticated' || isResolving) return;
+    void drain();
+  }, [queueHydrated, offline, status, isResolving]);
 
   return (
     <>

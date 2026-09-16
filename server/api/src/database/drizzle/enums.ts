@@ -386,6 +386,9 @@ export const messageBodyTypeEnum = pgEnum('message_body_type', [
   'text',
   'image',
   'voice',
+  // ADR-050 D-s: a line the platform writes, such as an order's status change.
+  // It has no sender and never counts as a staff reply.
+  'system',
 ]);
 
 export const storedObjectKindEnum = pgEnum('stored_object_kind', [
@@ -972,3 +975,113 @@ export const trainingAttendanceDecisionEnum = pgEnum(
   'training_attendance_decision',
   ['present', 'absent'],
 );
+
+// ===========================================================================
+// §6.8  THE GUEST'S OWN STAY  (claiming it, asking for money back, an offer)
+// ===========================================================================
+
+/**
+ * Where one request for money back has got to.
+ *
+ * `submitted` is the guest asking. `approved` and `rejected` are the property
+ * answering, and both are terminal — a rejected request is not re-opened, the
+ * guest raises a new one, so the decision that was made stays on the record
+ * next to the words it was made with. `withdrawn` is the guest changing their
+ * mind, which is a different fact from the property refusing and must not be
+ * filed as one.
+ *
+ * There is deliberately no `paid` value. Money moving is the payment rail's
+ * fact and it is recorded on the booking and in the ledger; a second copy here
+ * would be a second answer to "was this refunded".
+ */
+export const stayRefundStateEnum = pgEnum('stay_refund_state', [
+  'submitted',
+  'approved',
+  'rejected',
+  'withdrawn',
+]);
+
+/**
+ * Why the GUEST says they are owed money, as a code rather than only prose.
+ *
+ * Coded because the reason decides which house rule answers it: an overcharge
+ * is a bill question and a noise complaint is a service one, and a property
+ * that can only read paragraphs cannot route either. `other` keeps the escape
+ * hatch, and `detail` carries the guest's own words in every case.
+ */
+export const stayRefundReasonEnum = pgEnum('stay_refund_reason', [
+  'service_failure',
+  'room_not_as_described',
+  'cleanliness',
+  'noise',
+  'maintenance_unresolved',
+  'overcharged',
+  'early_departure',
+  'changed_plans',
+  'other',
+]);
+
+/**
+ * Why the PROPERTY refused, as a code (the mirror of D25's rejection reasons).
+ *
+ * A refusal a guest cannot act on is a refusal they escalate. Each value names
+ * a rule of the accommodation that the guest was told about before they paid —
+ * the rate they picked, the window they were inside, the nights they slept —
+ * so the answer can be worded as the rule rather than as an opinion, and so a
+ * dispute can be argued about the rule instead of about the staffer.
+ */
+export const stayRefundRefusalReasonEnum = pgEnum(
+  'stay_refund_refusal_reason',
+  [
+    'non_refundable_rate',
+    'outside_cancellation_window',
+    'nights_already_consumed',
+    'no_show_policy',
+    'house_rules_breach',
+    'damage_to_property',
+    'third_party_booking',
+    'not_reported_during_stay',
+    'duplicate_request',
+    'other',
+  ],
+);
+
+/** An offer's life. Soft retirement, because a redemption history outlives it. */
+export const offerStatusEnum = pgEnum('offer_status', [
+  'draft',
+  'active',
+  'archived',
+]);
+
+/** A percentage off, or a flat number of francs off. */
+export const offerDiscountKindEnum = pgEnum('offer_discount_kind', [
+  'percentage',
+  'fixed_amount',
+]);
+
+/**
+ * What the money comes off.
+ *
+ * `room` discounts the accommodation, `service` a department's charges (room
+ * service, the spa), `folio` the whole bill. The scope is what decides which
+ * charge line the discount posts against, which decides which department's
+ * declared revenue it reduces — so it is a fiscal choice, not a label.
+ */
+export const offerScopeEnum = pgEnum('offer_scope', [
+  'room',
+  'service',
+  'folio',
+]);
+
+/**
+ * Who may take it.
+ *
+ * `anyone` is a public offer, readable by a stranger browsing the property.
+ * `in_house` is for guests who are actually in the building tonight, which is
+ * the one a hotel uses to fill its restaurant. The distinction is enforced
+ * server-side on redemption, never only in what is listed.
+ */
+export const offerAudienceEnum = pgEnum('offer_audience', [
+  'anyone',
+  'in_house',
+]);

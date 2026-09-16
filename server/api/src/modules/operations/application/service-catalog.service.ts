@@ -12,7 +12,6 @@ import type {
   UpdateServiceCategoryRequest,
   UpdateServiceItemRequest,
   UpsertServiceItemRequest,
-  WorkspaceAccess,
 } from '@injishi/contracts';
 import {
   BadRequestException,
@@ -22,6 +21,10 @@ import {
 } from '@nestjs/common';
 
 import { assertOwned } from '../../../shared/auth/assert-owned';
+import {
+  assertInBranchScope,
+  type ScopedWorkspace,
+} from '../../../shared/auth/branch-scope';
 import {
   isSellable,
   missingRra,
@@ -96,8 +99,8 @@ export class ServiceCatalogService {
   ) {}
 
   /** The whole menu, grouped, which is the only way anyone reads it. */
-  async menu(ws: WorkspaceAccess): Promise<OperatorServiceCatalog> {
-    const categories = await this.catalog.listCategories(ws.workspaceId);
+  async menu(ws: ScopedWorkspace): Promise<OperatorServiceCatalog> {
+    const categories = await this.catalog.listCategories(ws.workspaceId, ws.branchScope);
     const items = await this.catalog.listItems(categories.map((c) => c.id));
     return {
       categories: categories.map((c) => ({
@@ -127,9 +130,11 @@ export class ServiceCatalogService {
   }
 
   async createCategory(
-    ws: WorkspaceAccess,
+    ws: ScopedWorkspace,
     body: CreateServiceCategoryRequest,
   ): Promise<OperatorServiceCatalog> {
+    // A menu is made on a branch in scope, or not at all (ADR-054 AC-T2).
+    assertInBranchScope(ws, body.propertyId);
     const department = assertOwned(
       await this.folios.findDepartment(body.departmentId),
       ws,
@@ -164,11 +169,12 @@ export class ServiceCatalogService {
   }
 
   async updateCategory(
-    ws: WorkspaceAccess,
+    ws: ScopedWorkspace,
     id: string,
     patch: UpdateServiceCategoryRequest,
   ): Promise<OperatorServiceCatalog> {
     const category = assertOwned(await this.catalog.findCategory(id), ws);
+    assertInBranchScope(ws, category.propertyId);
     const outletId =
       patch.outletId === undefined
         ? undefined
@@ -187,13 +193,14 @@ export class ServiceCatalogService {
    * product type and both units.
    */
   async createItem(
-    ws: WorkspaceAccess,
+    ws: ScopedWorkspace,
     body: UpsertServiceItemRequest,
   ): Promise<OperatorServiceCatalog> {
     const category = assertOwned(
       await this.catalog.findCategory(body.serviceCategoryId),
       ws,
     );
+    assertInBranchScope(ws, category.propertyId);
     const department = assertOwned(
       await this.folios.findDepartment(category.departmentId),
       ws,
@@ -246,11 +253,12 @@ export class ServiceCatalogService {
    * is ordered instead.
    */
   async updateItem(
-    ws: WorkspaceAccess,
+    ws: ScopedWorkspace,
     id: string,
     patch: UpdateServiceItemRequest,
   ): Promise<OperatorServiceCatalog> {
     const item = assertOwned(await this.catalog.findItem(id), ws);
+    assertInBranchScope(ws, item.propertyId);
     await this.assertClassification(patch.rraItemClsCd);
 
     const next = {
@@ -275,8 +283,8 @@ export class ServiceCatalogService {
 
   // --- Orders --------------------------------------------------------------
 
-  async listOrders(ws: WorkspaceAccess): Promise<OperatorServiceOrder[]> {
-    const orders = await this.catalog.listOrders(ws.workspaceId);
+  async listOrders(ws: ScopedWorkspace): Promise<OperatorServiceOrder[]> {
+    const orders = await this.catalog.listOrders(ws.workspaceId, ws.branchScope);
     const lines = await this.catalog.listOrderItems(orders.map((o) => o.id));
     return orders.map((o) => this.presentOrder(o, lines));
   }
@@ -291,7 +299,7 @@ export class ServiceCatalogService {
    * because an outlet is whose TIN signs it.
    */
   async createOrder(
-    ws: WorkspaceAccess,
+    ws: ScopedWorkspace,
     body: CreateServiceOrderRequest,
     clientKey: string | null,
   ): Promise<OperatorServiceOrder> {
@@ -299,6 +307,7 @@ export class ServiceCatalogService {
     if (key) {
       const replay = await this.catalog.findOrderByIdempotencyKey(key);
       if (replay) {
+        assertInBranchScope(ws, replay.branchPropertyId);
         const lines = await this.catalog.listOrderItems([replay.id]);
         return this.presentOrder(replay, lines);
       }
@@ -308,6 +317,7 @@ export class ServiceCatalogService {
       body.context === 'in_house_folio' && body.guestStayId
         ? assertOwned(await this.catalog.folioForStay(body.guestStayId), ws)
         : null;
+    if (stay) assertInBranchScope(ws, stay.propertyId);
 
     const rates = await this.folios.effectiveTaxRates(new Date());
     if (!rates) {
@@ -326,6 +336,7 @@ export class ServiceCatalogService {
         await this.catalog.findItem(requested.serviceItemId),
         ws,
       );
+      assertInBranchScope(ws, item.propertyId);
       if (item.status !== 'active') {
         throw new ConflictException(`${item.name} is not available right now.`);
       }
@@ -413,12 +424,13 @@ export class ServiceCatalogService {
    * sandwich. A pay now order has no bill and posts nothing.
    */
   async advanceOrder(
-    ws: WorkspaceAccess,
+    ws: ScopedWorkspace,
     id: string,
     body: AdvanceServiceOrderRequest,
     actorUserId: string,
   ): Promise<OperatorServiceOrder> {
     const order = assertOwned(await this.catalog.findOrder(id), ws);
+    assertInBranchScope(ws, order.branchPropertyId);
     if (order.status === body.to) {
       return this.presentOrder(order, await this.catalog.listOrderItems([id]));
     }
@@ -475,12 +487,13 @@ export class ServiceCatalogService {
    * method needs nothing from it.
    */
   async markPaidCash(
-    ws: WorkspaceAccess,
+    ws: ScopedWorkspace,
     id: string,
     body: MarkOrderPaidCashRequest,
     actorUserId: string,
   ): Promise<MarkOrderPaidCashResult> {
     const order = assertOwned(await this.catalog.findOrder(id), ws);
+    assertInBranchScope(ws, order.branchPropertyId);
     if (order.orderContext !== 'pay_now') {
       throw new ConflictException('This order is charged to a room. Take the payment on the bill.');
     }
@@ -516,7 +529,7 @@ export class ServiceCatalogService {
    * everywhere on a folio, so an invoice never has to pull the two apart again.
    */
   private async buildOrderCharge(
-    ws: WorkspaceAccess,
+    ws: ScopedWorkspace,
     order: OrderRow,
   ): Promise<{
     folioId: string;
@@ -586,7 +599,7 @@ export class ServiceCatalogService {
 
   /** An outlet this workspace holds, at this property, or a 422 naming why not. */
   private async resolveOutlet(
-    ws: WorkspaceAccess,
+    ws: ScopedWorkspace,
     outletId: string | null | undefined,
     propertyId: string,
   ): Promise<string | null> {

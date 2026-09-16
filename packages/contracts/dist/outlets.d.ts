@@ -93,9 +93,9 @@ export declare const OutletParty: z.ZodObject<{
     legalName: string;
     tin: string | null;
     orgId: string | null;
-    contactPhone: string | null;
     contactEmail: string | null;
     contactName: string | null;
+    contactPhone: string | null;
     isOwnOrg: boolean;
 }, {
     status: "active" | "archived";
@@ -103,9 +103,9 @@ export declare const OutletParty: z.ZodObject<{
     legalName: string;
     tin: string | null;
     orgId: string | null;
-    contactPhone: string | null;
     contactEmail: string | null;
     contactName: string | null;
+    contactPhone: string | null;
     isOwnOrg: boolean;
 }>;
 export type OutletParty = z.infer<typeof OutletParty>;
@@ -128,9 +128,9 @@ export declare const OutletPartyList: z.ZodObject<{
         legalName: string;
         tin: string | null;
         orgId: string | null;
-        contactPhone: string | null;
         contactEmail: string | null;
         contactName: string | null;
+        contactPhone: string | null;
         isOwnOrg: boolean;
     }, {
         status: "active" | "archived";
@@ -138,9 +138,9 @@ export declare const OutletPartyList: z.ZodObject<{
         legalName: string;
         tin: string | null;
         orgId: string | null;
-        contactPhone: string | null;
         contactEmail: string | null;
         contactName: string | null;
+        contactPhone: string | null;
         isOwnOrg: boolean;
     }>, "many">;
 }, "strip", z.ZodTypeAny, {
@@ -150,9 +150,9 @@ export declare const OutletPartyList: z.ZodObject<{
         legalName: string;
         tin: string | null;
         orgId: string | null;
-        contactPhone: string | null;
         contactEmail: string | null;
         contactName: string | null;
+        contactPhone: string | null;
         isOwnOrg: boolean;
     }[];
 }, {
@@ -162,9 +162,9 @@ export declare const OutletPartyList: z.ZodObject<{
         legalName: string;
         tin: string | null;
         orgId: string | null;
-        contactPhone: string | null;
         contactEmail: string | null;
         contactName: string | null;
+        contactPhone: string | null;
         isOwnOrg: boolean;
     }[];
 }>;
@@ -181,16 +181,16 @@ export declare const CreateOutletPartyRequest: z.ZodObject<{
     legalName: string;
     tin?: string | undefined;
     orgId?: string | undefined;
-    contactPhone?: string | undefined;
     contactEmail?: string | undefined;
     contactName?: string | undefined;
+    contactPhone?: string | undefined;
 }, {
     legalName: string;
     tin?: string | undefined;
     orgId?: string | undefined;
-    contactPhone?: string | undefined;
     contactEmail?: string | undefined;
     contactName?: string | undefined;
+    contactPhone?: string | undefined;
 }>;
 export type CreateOutletPartyRequest = z.infer<typeof CreateOutletPartyRequest>;
 export declare const UpdateOutletPartyRequest: z.ZodEffects<z.ZodObject<{
@@ -206,33 +206,33 @@ export declare const UpdateOutletPartyRequest: z.ZodEffects<z.ZodObject<{
     legalName?: string | undefined;
     tin?: string | undefined;
     orgId?: string | undefined;
-    contactPhone?: string | undefined;
     contactEmail?: string | undefined;
     contactName?: string | undefined;
+    contactPhone?: string | undefined;
 }, {
     status?: "active" | "archived" | undefined;
     legalName?: string | undefined;
     tin?: string | undefined;
     orgId?: string | undefined;
-    contactPhone?: string | undefined;
     contactEmail?: string | undefined;
     contactName?: string | undefined;
+    contactPhone?: string | undefined;
 }>, {
     status?: "active" | "archived" | undefined;
     legalName?: string | undefined;
     tin?: string | undefined;
     orgId?: string | undefined;
-    contactPhone?: string | undefined;
     contactEmail?: string | undefined;
     contactName?: string | undefined;
+    contactPhone?: string | undefined;
 }, {
     status?: "active" | "archived" | undefined;
     legalName?: string | undefined;
     tin?: string | undefined;
     orgId?: string | undefined;
-    contactPhone?: string | undefined;
     contactEmail?: string | undefined;
     contactName?: string | undefined;
+    contactPhone?: string | undefined;
 }>;
 export type UpdateOutletPartyRequest = z.infer<typeof UpdateOutletPartyRequest>;
 /** A party as an outlet row names it. */
@@ -307,7 +307,8 @@ export declare const OperatorOutlet: z.ZodObject<{
     taxEntityOrgId: z.ZodString;
     orderingAccess: z.ZodEnum<["in_house_only", "walk_in_only", "both"]>;
     amenityCode: z.ZodNullable<z.ZodString>;
-    rraBranchId: z.ZodString;
+    /** Null means the outlet declares under its branch's RRA id (ADR-054 AC-F1). */
+    rraBranchId: z.ZodNullable<z.ZodString>;
     guestVisible: z.ZodBoolean;
     slug: z.ZodNullable<z.ZodString>;
     address: z.ZodNullable<z.ZodObject<{
@@ -355,6 +356,7 @@ export declare const OperatorOutlet: z.ZodObject<{
     status: "active" | "archived";
     id: string;
     name: string;
+    rraBranchId: string | null;
     propertyName: string | null;
     slug: string | null;
     address: {
@@ -385,7 +387,6 @@ export declare const OperatorOutlet: z.ZodObject<{
         orgId: string | null;
     } | null;
     taxEntityOrgId: string;
-    rraBranchId: string;
     tenancy: {
         status: "active" | "ended" | "invited" | "requested";
         id: string;
@@ -397,6 +398,7 @@ export declare const OperatorOutlet: z.ZodObject<{
     status: "active" | "archived";
     id: string;
     name: string;
+    rraBranchId: string | null;
     propertyName: string | null;
     slug: string | null;
     address: {
@@ -427,7 +429,6 @@ export declare const OperatorOutlet: z.ZodObject<{
         orgId: string | null;
     } | null;
     taxEntityOrgId: string;
-    rraBranchId: string;
     tenancy: {
         status: "active" | "ended" | "invited" | "requested";
         id: string;
@@ -478,7 +479,8 @@ export declare const OperatorOutletList: z.ZodObject<{
         taxEntityOrgId: z.ZodString;
         orderingAccess: z.ZodEnum<["in_house_only", "walk_in_only", "both"]>;
         amenityCode: z.ZodNullable<z.ZodString>;
-        rraBranchId: z.ZodString;
+        /** Null means the outlet declares under its branch's RRA id (ADR-054 AC-F1). */
+        rraBranchId: z.ZodNullable<z.ZodString>;
         guestVisible: z.ZodBoolean;
         slug: z.ZodNullable<z.ZodString>;
         address: z.ZodNullable<z.ZodObject<{
@@ -526,6 +528,7 @@ export declare const OperatorOutletList: z.ZodObject<{
         status: "active" | "archived";
         id: string;
         name: string;
+        rraBranchId: string | null;
         propertyName: string | null;
         slug: string | null;
         address: {
@@ -556,7 +559,6 @@ export declare const OperatorOutletList: z.ZodObject<{
             orgId: string | null;
         } | null;
         taxEntityOrgId: string;
-        rraBranchId: string;
         tenancy: {
             status: "active" | "ended" | "invited" | "requested";
             id: string;
@@ -568,6 +570,7 @@ export declare const OperatorOutletList: z.ZodObject<{
         status: "active" | "archived";
         id: string;
         name: string;
+        rraBranchId: string | null;
         propertyName: string | null;
         slug: string | null;
         address: {
@@ -598,7 +601,6 @@ export declare const OperatorOutletList: z.ZodObject<{
             orgId: string | null;
         } | null;
         taxEntityOrgId: string;
-        rraBranchId: string;
         tenancy: {
             status: "active" | "ended" | "invited" | "requested";
             id: string;
@@ -618,6 +620,7 @@ export declare const OperatorOutletList: z.ZodObject<{
         status: "active" | "archived";
         id: string;
         name: string;
+        rraBranchId: string | null;
         propertyName: string | null;
         slug: string | null;
         address: {
@@ -648,7 +651,6 @@ export declare const OperatorOutletList: z.ZodObject<{
             orgId: string | null;
         } | null;
         taxEntityOrgId: string;
-        rraBranchId: string;
         tenancy: {
             status: "active" | "ended" | "invited" | "requested";
             id: string;
@@ -663,6 +665,7 @@ export declare const OperatorOutletList: z.ZodObject<{
         status: "active" | "archived";
         id: string;
         name: string;
+        rraBranchId: string | null;
         propertyName: string | null;
         slug: string | null;
         address: {
@@ -693,7 +696,6 @@ export declare const OperatorOutletList: z.ZodObject<{
             orgId: string | null;
         } | null;
         taxEntityOrgId: string;
-        rraBranchId: string;
         tenancy: {
             status: "active" | "ended" | "invited" | "requested";
             id: string;
@@ -770,6 +772,7 @@ export declare const CreateOutletRequest: z.ZodObject<{
     outletKind: "other" | "restaurant" | "bar" | "lounge" | "banquet" | "room_service" | "spa" | "gym" | "pool" | "gift_shop" | "parking" | "laundry" | "business_center";
     orderingAccess: "in_house_only" | "walk_in_only" | "both";
     relationshipType: "hotel_operated" | "third_party_managed" | "leased_tenant" | "concession" | "franchise" | "revenue_share";
+    rraBranchId?: string | undefined;
     address?: {
         lat: number;
         lng: number;
@@ -790,13 +793,13 @@ export declare const CreateOutletRequest: z.ZodObject<{
         fri?: [string, string] | [string, string][] | undefined;
         sat?: [string, string] | [string, string][] | undefined;
     } | null | undefined;
-    rraBranchId?: string | undefined;
     operatorPartyId?: string | undefined;
     ownerPartyId?: string | undefined;
 }, {
     name: string;
     departmentId: string;
     outletKind: "other" | "restaurant" | "bar" | "lounge" | "banquet" | "room_service" | "spa" | "gym" | "pool" | "gift_shop" | "parking" | "laundry" | "business_center";
+    rraBranchId?: string | undefined;
     address?: {
         lat: number;
         lng: number;
@@ -819,7 +822,6 @@ export declare const CreateOutletRequest: z.ZodObject<{
         sat?: [string, string] | [string, string][] | undefined;
     } | null | undefined;
     relationshipType?: "hotel_operated" | "third_party_managed" | "leased_tenant" | "concession" | "franchise" | "revenue_share" | undefined;
-    rraBranchId?: string | undefined;
     operatorPartyId?: string | undefined;
     ownerPartyId?: string | undefined;
 }>;
@@ -882,11 +884,12 @@ export declare const UpdateOutletRequest: z.ZodEffects<z.ZodObject<{
         street?: string | undefined;
         timeZone?: string | undefined;
     }>>>;
-    rraBranchId: z.ZodOptional<z.ZodString>;
+    rraBranchId: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     guestVisible: z.ZodOptional<z.ZodBoolean>;
     sortOrder: z.ZodOptional<z.ZodNumber>;
 }, "strip", z.ZodTypeAny, {
     name?: string | undefined;
+    rraBranchId?: string | null | undefined;
     address?: {
         lat: number;
         lng: number;
@@ -910,11 +913,11 @@ export declare const UpdateOutletRequest: z.ZodEffects<z.ZodObject<{
         sat?: [string, string] | [string, string][] | undefined;
     } | null | undefined;
     relationshipType?: "hotel_operated" | "third_party_managed" | "leased_tenant" | "concession" | "franchise" | "revenue_share" | undefined;
-    rraBranchId?: string | undefined;
     operatorPartyId?: string | null | undefined;
     ownerPartyId?: string | null | undefined;
 }, {
     name?: string | undefined;
+    rraBranchId?: string | null | undefined;
     address?: {
         lat: number;
         lng: number;
@@ -938,11 +941,11 @@ export declare const UpdateOutletRequest: z.ZodEffects<z.ZodObject<{
         sat?: [string, string] | [string, string][] | undefined;
     } | null | undefined;
     relationshipType?: "hotel_operated" | "third_party_managed" | "leased_tenant" | "concession" | "franchise" | "revenue_share" | undefined;
-    rraBranchId?: string | undefined;
     operatorPartyId?: string | null | undefined;
     ownerPartyId?: string | null | undefined;
 }>, {
     name?: string | undefined;
+    rraBranchId?: string | null | undefined;
     address?: {
         lat: number;
         lng: number;
@@ -966,11 +969,11 @@ export declare const UpdateOutletRequest: z.ZodEffects<z.ZodObject<{
         sat?: [string, string] | [string, string][] | undefined;
     } | null | undefined;
     relationshipType?: "hotel_operated" | "third_party_managed" | "leased_tenant" | "concession" | "franchise" | "revenue_share" | undefined;
-    rraBranchId?: string | undefined;
     operatorPartyId?: string | null | undefined;
     ownerPartyId?: string | null | undefined;
 }, {
     name?: string | undefined;
+    rraBranchId?: string | null | undefined;
     address?: {
         lat: number;
         lng: number;
@@ -994,7 +997,6 @@ export declare const UpdateOutletRequest: z.ZodEffects<z.ZodObject<{
         sat?: [string, string] | [string, string][] | undefined;
     } | null | undefined;
     relationshipType?: "hotel_operated" | "third_party_managed" | "leased_tenant" | "concession" | "franchise" | "revenue_share" | undefined;
-    rraBranchId?: string | undefined;
     operatorPartyId?: string | null | undefined;
     ownerPartyId?: string | null | undefined;
 }>;

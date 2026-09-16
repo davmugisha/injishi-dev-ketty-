@@ -33,6 +33,8 @@ __exportStar(require("./inventory"), exports);
 __exportStar(require("./setup-steps"), exports);
 __exportStar(require("./booking"), exports);
 __exportStar(require("./trips"), exports);
+__exportStar(require("./stay"), exports);
+__exportStar(require("./offers"), exports);
 __exportStar(require("./inbox"), exports);
 __exportStar(require("./ops"), exports);
 __exportStar(require("./broker"), exports);

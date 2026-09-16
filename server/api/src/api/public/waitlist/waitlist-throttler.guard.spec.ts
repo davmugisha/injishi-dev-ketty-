@@ -4,8 +4,8 @@ import { WAITLIST_THROTTLERS } from './waitlist-throttler.guard';
  * The waitlist's two rate limit buckets (ADR-048 AC-13).
  *
  * These run the real trackers the guard registers. The numbers matter less than
- * the KEYS: a client bucket keyed on the proxy's address caps the whole launch
- * page at five signups an hour for everybody, and a mailbox bucket that treats
+ * the KEYS: a client bucket keyed on a header the caller writes can be walked
+ * around by anyone, and a mailbox bucket that treats
  * `a+1@x.rw` and `a+2@x.rw` as different people can be walked around by anyone
  * who knows about plus addressing.
  */
@@ -48,45 +48,22 @@ describe('waitlist throttler limits', () => {
 describe('waitlist client tracker', () => {
   const { track } = bucket('waitlist-client');
 
-  it('keys on the leftmost X-Forwarded-For entry, the original client (covers: AC-13)', () => {
-    const key = track({
-      ip: '10.0.0.2',
-      headers: { 'x-forwarded-for': '203.0.113.7, 172.18.0.5, 10.0.0.2' },
+  it('keys on req.ip, the address the adapter resolved under TRUST_PROXY (covers: AC-13)', () => {
+    expect(track({ ip: '203.0.113.7', headers: {} })).toBe('203.0.113.7');
+  });
+
+  it('never reads X-Forwarded-For itself, so a forged entry mints no new bucket', () => {
+    const honest = track({ ip: '203.0.113.7', headers: {} });
+    const forged = track({
+      ip: '203.0.113.7',
+      headers: { 'x-forwarded-for': '198.51.100.1, 203.0.113.7' },
     });
 
-    expect(key).toBe('203.0.113.7');
+    expect(forged).toBe(honest);
   });
 
-  it('gives two visitors behind the same proxy two different buckets (covers: AC-13)', () => {
-    const proxy = '172.18.0.5';
-
-    const first = track({ ip: proxy, headers: { 'x-forwarded-for': '198.51.100.1' } });
-    const second = track({ ip: proxy, headers: { 'x-forwarded-for': '198.51.100.2' } });
-
-    expect(first).not.toBe(second);
-  });
-
-  it('trims spaces around the forwarded address', () => {
-    expect(track({ headers: { 'x-forwarded-for': '   198.51.100.9  ,10.0.0.1' } })).toBe(
-      '198.51.100.9',
-    );
-  });
-
-  it('reads the first value when the header arrives as an array', () => {
-    const key = track({
-      ip: '10.0.0.2',
-      headers: { 'x-forwarded-for': ['198.51.100.3, 10.0.0.1', '192.0.2.1'] },
-    });
-
-    expect(key).toBe('198.51.100.3');
-  });
-
-  it('falls back to the socket address when there is no forwarded header', () => {
-    expect(track({ ip: '192.0.2.44', headers: {} })).toBe('192.0.2.44');
-  });
-
-  it('falls back to the socket address when the forwarded header is empty', () => {
-    expect(track({ ip: '192.0.2.45', headers: { 'x-forwarded-for': '' } })).toBe('192.0.2.45');
+  it('gives two clients two different buckets', () => {
+    expect(track({ ip: '198.51.100.1' })).not.toBe(track({ ip: '198.51.100.2' }));
   });
 
   it('answers a stable key rather than throwing when nothing identifies the client', () => {
@@ -131,8 +108,8 @@ describe('waitlist mailbox tracker', () => {
     expect(track(req)).toBe('no-email:192.0.2.9');
   });
 
-  it('counts a garbage body against the forwarded client, not the proxy', () => {
-    const key = track({ ip: '172.18.0.5', headers: { 'x-forwarded-for': '198.51.100.20' }, body: 'junk' });
+  it('counts a garbage body against the resolved client address', () => {
+    const key = track({ ip: '198.51.100.20', headers: { 'x-forwarded-for': '192.0.2.99' }, body: 'junk' });
 
     expect(key).toBe('no-email:198.51.100.20');
   });

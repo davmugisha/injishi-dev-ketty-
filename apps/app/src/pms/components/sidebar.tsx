@@ -42,7 +42,7 @@ import { navContextOf } from "../lib/nav-context";
 import { usePms } from "../store";
 import { usePmsUi } from "../ui-store";
 import { Icon } from "./icon";
-import { LivePropertySwitcher } from "./live-property-switcher";
+import { BranchSwitcher } from "./branch-switcher";
 
 /**
  * A switcher's trigger is the menu's own button, styled here, rather than the
@@ -213,10 +213,10 @@ export function Sidebar() {
   // the href prefix alone left no leaf active on `/stays/*`.
   const activeKey = leafFor(sections, screenSegment(pathname))?.item.key;
 
-  // Only someone who works across the portfolio can switch property: whoever
-  // holds `property.switch`, read from the grant rather than from a role name
-  // (ADR-053, AC-A1). Today that is exactly the owner and the manager.
-  const canSwitchProperty = isHost && capability.can("property.switch");
+  // The standalone demo's fixture card only. A live workspace shows the branch
+  // switcher below, which reads coverage from the grant: `property.switch` is
+  // gone, because seeing a branch is not a permission (ADR-054 AC-S4).
+  const canSwitchProperty = isHost && capability.can("listing.manage");
   // A workspace the server answered for shows ITS properties; the fixture card
   // below is only for the standalone demo with no API behind it (2026-09-13).
   const liveWorkspace = Boolean(state.grants && state.grants.length > 0 && workspaceId);
@@ -326,9 +326,9 @@ export function Sidebar() {
         </DropdownMenuContent>
       </DropdownMenu>
 
-      {/* ── Property switcher ──────────────────────────────────────────── */}
-      {liveWorkspace && workspaceId && capability.can("listing.manage") && (
-        <LivePropertySwitcher workspaceId={workspaceId} unitWord={isHost ? "rooms" : "units"} />
+      {/* ── Branch switcher (ADR-054) ──────────────────────────────────── */}
+      {liveWorkspace && workspaceId && (
+        <BranchSwitcher workspaceId={workspaceId} canSetUp={capability.can("listing.manage")} />
       )}
       {!liveWorkspace && canSwitchProperty && host && (
         <DropdownMenu>

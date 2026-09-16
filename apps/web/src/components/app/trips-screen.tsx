@@ -5,6 +5,7 @@ import Link from "next/link";
 import type { GuestTrip } from "@injishi/contracts";
 import { Badge, Button, Skeleton } from "@injishi/ui";
 import { formatPrice } from "@injishi/utils";
+import { CancelBooking } from "@/components/app/cancel-booking";
 import { EmptyPanel } from "@/components/app/empty-panel";
 import { Icon } from "@/components/app/icon";
 import { fetchMyTrips, groupTrips } from "@/data/trips";
@@ -97,14 +98,25 @@ export function TripsScreen() {
 
   return (
     <div className="mx-auto flex w-full max-w-wide animate-arrive flex-col gap-block px-4 py-8">
-      <TripSection title="Upcoming" trips={groups.current} />
+      {/* A cancellation refreshes the list, so the stay moves to Cancelled
+          from the server's own answer rather than from a local edit. */}
+      <TripSection title="Upcoming" trips={groups.current} onChanged={load} />
       <TripSection title="Past stays" trips={groups.past} />
       <TripSection title="Cancelled" trips={groups.cancelled} />
     </div>
   );
 }
 
-function TripSection({ title, trips }: { title: string; trips: GuestTrip[] }) {
+function TripSection({
+  title,
+  trips,
+  onChanged,
+}: {
+  title: string;
+  trips: GuestTrip[];
+  /** Present only where a trip may still be cancelled. */
+  onChanged?: () => void;
+}) {
   if (trips.length === 0) return null;
   return (
     <section>
@@ -112,7 +124,7 @@ function TripSection({ title, trips }: { title: string; trips: GuestTrip[] }) {
       <ul className="m-0 flex list-none flex-col gap-3 p-0">
         {trips.map((trip) => (
           <li key={trip.id}>
-            <TripCard trip={trip} />
+            <TripCard trip={trip} onChanged={onChanged} />
           </li>
         ))}
       </ul>
@@ -130,7 +142,7 @@ function TripSection({ title, trips }: { title: string; trips: GuestTrip[] }) {
  * The reference is the loudest small thing on the card on purpose: it is what a
  * front desk asks for, and it is the address of the receipt.
  */
-function TripCard({ trip }: { trip: GuestTrip }) {
+function TripCard({ trip, onChanged }: { trip: GuestTrip; onChanged?: () => void }) {
   const badge = STATUS_BADGE[trip.stage];
 
   return (
@@ -174,12 +186,38 @@ function TripCard({ trip }: { trip: GuestTrip }) {
         {trip.nonRefundable ? (
           <span className="text-xs text-muted-foreground">Non-refundable rate</span>
         ) : null}
+        {onChanged && isCancellableStatus(trip) ? (
+          // The server decides whether it may still be cancelled and what it
+          // refunds; the dialog asks for that quote before offering to confirm.
+          <CancelBooking reference={trip.reference} onCancelled={onChanged} />
+        ) : null}
+        {/* A stay in progress has its desks, orders and bill under My stay; one
+            still to come can already talk to the hotel. */}
+        {trip.stage === "in_progress" ? (
+          <Button asChild size="sm">
+            <Link href="/stay">My stay</Link>
+          </Button>
+        ) : null}
+        {trip.stage === "in_progress" || trip.stage === "upcoming" ? (
+          <Button asChild size="sm" variant="outline">
+            <Link href="/inbox">Message the hotel</Link>
+          </Button>
+        ) : null}
         <Button asChild size="sm" variant="outline">
           <Link href={`/receipt/${encodeURIComponent(trip.reference)}`}>See receipt</Link>
         </Button>
       </div>
     </article>
   );
+}
+
+/**
+ * Worth offering the dialog at all. Only a booking still pending or confirmed
+ * can be cancelled; the quote says whether THIS one can (checked in, stay over,
+ * payment settled), so this only keeps the button off rows that are plainly over.
+ */
+function isCancellableStatus(trip: GuestTrip): boolean {
+  return trip.status === "confirmed" || trip.status === "pending_approval";
 }
 
 function Fact({ label, children }: { label: string; children: React.ReactNode }) {

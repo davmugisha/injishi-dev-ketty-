@@ -6,6 +6,7 @@ import {
   eq,
   gt,
   inArray,
+  isNotNull,
   isNull,
   lt,
   ne,
@@ -30,6 +31,26 @@ import {
   DRIZZLE,
   type Database,
 } from '../../../shared/database/database.module';
+import {
+  inBranchScope,
+  type BranchScope,
+} from '../../../shared/auth/branch-scope';
+
+/**
+ * A thread's branch (ADR-054): its booking's, else its stay's room's (a walk in
+ * has no booking), else its department's. Null for a thread tied to none of
+ * them, which only a member covering every branch sees (AC-T3).
+ *
+ * Raw SQL with its own aliases, on purpose. In a select from `threads` alone,
+ * drizzle renders a column in the projection WITHOUT its table name, so
+ * `${bookings.id}` came out as a bare `"id"` inside the subquery and Postgres
+ * refused it as ambiguous. Every name here is written out in full instead.
+ */
+const THREAD_BRANCH = sql<string | null>`coalesce(
+  (select tb_rt.property_id from bookings tb_b inner join room_types tb_rt on tb_rt.id = tb_b.room_type_id where tb_b.id = "threads"."booking_id"),
+  (select tb_r.property_id from guest_stays tb_gs inner join rooms tb_r on tb_r.id = tb_gs.room_id where tb_gs.id = "threads"."guest_stay_id"),
+  (select tb_d.property_id from departments tb_d where tb_d.id = "threads"."department_id")
+)`;
 
 export interface ThreadRow {
   id: string;
@@ -37,7 +58,11 @@ export interface ThreadRow {
   bookingId: string | null;
   guestStayId: string | null;
   leaseId: string | null;
+  /** The branch the thread belongs to, see `THREAD_BRANCH`. */
+  branchPropertyId: string | null;
   status: 'active' | 'archived';
+  /** The department the conversation is with, when it is with one (ADR-050 D-q). */
+  departmentName: string | null;
 }
 
 /** The last line and the count, so a list reads without opening every thread. */
@@ -53,8 +78,9 @@ export interface MessageRow {
   threadId: string;
   senderUserId: string | null;
   senderName: string | null;
-  bodyType: 'text' | 'image' | 'voice';
+  bodyType: 'text' | 'image' | 'voice' | 'system';
   body: string | null;
+  serviceOrderId: string | null;
   voiceDurationS: number | null;
   createdAt: Date;
 }
@@ -77,11 +103,32 @@ function toDate(value: string | Date | null): Date | null {
  * reads it by — which property they are talking to, and which department, once
  * the property has routed the conversation to one.
  */
-export interface GuestThreadRow extends ThreadRow {
+/** A guest reads their own threads by person, never by branch, so no branch. */
+export interface GuestThreadRow extends Omit<ThreadRow, 'branchPropertyId'> {
   kind: 'reservation' | 'department_request' | 'dispute';
+  propertyId: string | null;
   propertyName: string | null;
-  departmentName: string | null;
   updatedAt: Date;
+}
+
+/** A desk a guest may write to, as the property configured it. */
+export interface RequestableDepartmentRow {
+  id: string;
+  name: string;
+  departmentCategory: string;
+  phone: string | null;
+  threadId: string | null;
+  lastMessageAt: Date | null;
+}
+
+/** Is this a collision on the one-thread-per-stay-per-department index? */
+function isDepartmentThreadCollision(error: unknown): boolean {
+  const e = error as { code?: string; constraint?: string; cause?: unknown };
+  const inner = e?.code === '23505' ? e : (e?.cause as typeof e | undefined);
+  return (
+    inner?.code === '23505' &&
+    inner.constraint === 'threads_stay_department_request_uk'
+  );
 }
 
 /**
@@ -100,7 +147,7 @@ export interface GuestThreadRow extends ThreadRow {
 export class MessagingRepository {
   constructor(@Inject(DRIZZLE) private readonly db: Database) {}
 
-  async listThreads(workspaceId: string): Promise<ThreadRow[]> {
+  async listThreads(workspaceId: string, scope: BranchScope): Promise<ThreadRow[]> {
     return this.db
       .select({
         id: threads.id,
@@ -108,10 +155,19 @@ export class MessagingRepository {
         bookingId: threads.bookingId,
         guestStayId: threads.guestStayId,
         leaseId: threads.leaseId,
+        branchPropertyId: THREAD_BRANCH,
         status: threads.status,
+        departmentName: departments.name,
       })
       .from(threads)
-      .where(eq(threads.workspaceId, workspaceId))
+      .leftJoin(departments, eq(departments.id, threads.departmentId))
+      .where(
+        and(
+          eq(threads.workspaceId, workspaceId),
+          // A lease thread belongs to a residence org and is unscoped (ADR-054).
+          or(isNotNull(threads.leaseId), inBranchScope(THREAD_BRANCH, scope)),
+        ),
+      )
       .orderBy(desc(threads.updatedAt));
   }
 
@@ -123,9 +179,12 @@ export class MessagingRepository {
         bookingId: threads.bookingId,
         guestStayId: threads.guestStayId,
         leaseId: threads.leaseId,
+        branchPropertyId: THREAD_BRANCH,
         status: threads.status,
+        departmentName: departments.name,
       })
       .from(threads)
+      .leftJoin(departments, eq(departments.id, threads.departmentId))
       .where(eq(threads.id, threadId))
       .limit(1);
 
@@ -186,7 +245,9 @@ export class MessagingRepository {
       if (preview.has(row.threadId)) continue;
       preview.set(
         row.threadId,
-        row.bodyType === 'text' ? row.body : `[${row.bodyType}]`,
+        // A system line is readable text too: "Order A12 is ready." is the
+        // preview a guest wants, not "[system]".
+        row.bodyType === 'text' || row.bodyType === 'system' ? row.body : `[${row.bodyType}]`,
       );
     }
 
@@ -261,6 +322,44 @@ export class MessagingRepository {
     return found;
   }
 
+  /**
+   * The ACCOUNT on the other side of one thread: the booking's guest, the
+   * stay's guest or the lease's tenant. Null when that person has no account
+   * (a walk-in, a tenant typed in by name), in which case nobody in the thread
+   * can be them.
+   *
+   * What the desk needs to side a bubble. On the desk every line NOT written by
+   * this person is the property's, whichever colleague typed it, so the desk
+   * cannot side from the reader the way the guest does (demo-comms, 2026-09-14).
+   */
+  async counterpartUserId(row: ThreadRow): Promise<string | null> {
+    if (row.bookingId) {
+      const [found] = await this.db
+        .select({ userId: bookings.guestUserId })
+        .from(bookings)
+        .where(eq(bookings.id, row.bookingId))
+        .limit(1);
+      return found?.userId ?? null;
+    }
+    if (row.guestStayId) {
+      const [found] = await this.db
+        .select({ userId: guestStays.guestUserId })
+        .from(guestStays)
+        .where(eq(guestStays.id, row.guestStayId))
+        .limit(1);
+      return found?.userId ?? null;
+    }
+    if (row.leaseId) {
+      const [found] = await this.db
+        .select({ userId: leases.tenantUserId })
+        .from(leases)
+        .where(eq(leases.id, row.leaseId))
+        .limit(1);
+      return found?.userId ?? null;
+    }
+    return null;
+  }
+
   async listMessages(threadId: string): Promise<MessageRow[]> {
     return this.db
       .select({
@@ -270,6 +369,7 @@ export class MessagingRepository {
         senderName: users.name,
         bodyType: messages.bodyType,
         body: messages.body,
+        serviceOrderId: messages.serviceOrderId,
         voiceDurationS: messages.voiceDurationS,
         createdAt: messages.createdAt,
       })
@@ -316,6 +416,7 @@ export class MessagingRepository {
         senderName: users.name,
         bodyType: messages.bodyType,
         body: messages.body,
+        serviceOrderId: messages.serviceOrderId,
         voiceDurationS: messages.voiceDurationS,
         createdAt: messages.createdAt,
       })
@@ -352,6 +453,7 @@ export class MessagingRepository {
       leaseId: threads.leaseId,
       status: threads.status,
       kind: threads.threadKind,
+      propertyId: properties.id,
       propertyName: properties.name,
       departmentName: departments.name,
       updatedAt: threads.updatedAt,
@@ -488,6 +590,7 @@ export class MessagingRepository {
         senderName: users.name,
         bodyType: messages.bodyType,
         body: messages.body,
+        serviceOrderId: messages.serviceOrderId,
         voiceDurationS: messages.voiceDurationS,
         createdAt: messages.createdAt,
       })
@@ -509,6 +612,198 @@ export class MessagingRepository {
       )
       .orderBy(desc(messages.createdAt), desc(messages.id))
       .limit(limit + 1);
+  }
+
+  /**
+   * The desks at one property a GUEST may write to (§6.8).
+   *
+   * `guest_requestable` is the filter, and it has existed since ADR-016 with
+   * nothing reading it: no guest surface could start a conversation at all, so
+   * every department was equally unreachable and the flag was decoration. It is
+   * the property's own control over which of its internal desks take messages
+   * from guests, and Accounting is not one of them.
+   *
+   * Archived departments are excluded. A retired desk keeps its revenue history
+   * and its old threads; it does not keep the right to be messaged.
+   */
+  async requestableDepartments(
+    propertyId: string,
+    guestStayId: string,
+  ): Promise<RequestableDepartmentRow[]> {
+    return this.db
+      .select({
+        id: departments.id,
+        name: departments.name,
+        departmentCategory: departments.departmentCategory,
+        phone: departments.phone,
+        threadId: threads.id,
+        lastMessageAt: threads.updatedAt,
+      })
+      .from(departments)
+      .leftJoin(
+        threads,
+        and(
+          eq(threads.departmentId, departments.id),
+          eq(threads.guestStayId, guestStayId),
+          eq(threads.threadKind, 'department_request'),
+        ),
+      )
+      .where(
+        and(
+          eq(departments.propertyId, propertyId),
+          eq(departments.status, 'active'),
+          eq(departments.guestRequestable, true),
+        ),
+      )
+      .orderBy(asc(departments.sortOrder), asc(departments.name));
+  }
+
+  /** Does this property own this department, and may a guest write to it? */
+  async findRequestableDepartment(
+    departmentId: string,
+    propertyId: string,
+  ): Promise<{ id: string; name: string; workspaceId: string } | null> {
+    const [row] = await this.db
+      .select({
+        id: departments.id,
+        name: departments.name,
+        workspaceId: departments.workspaceId,
+      })
+      .from(departments)
+      .where(
+        and(
+          eq(departments.id, departmentId),
+          eq(departments.propertyId, propertyId),
+          eq(departments.status, 'active'),
+          eq(departments.guestRequestable, true),
+        ),
+      )
+      .limit(1);
+    return row ?? null;
+  }
+
+  /**
+   * OPEN THE CONVERSATION WITH ONE DESK AND SAY SOMETHING, in ONE transaction
+   * (§6.8).
+   *
+   * ## Why the thread and the first message are written together
+   *
+   * A thread with no message in it is a row the desk reads as "a guest wanted
+   * something and did not say what". Two calls mean a dropped connection
+   * between them leaves exactly that, and the guest sees a conversation they
+   * believe they sent.
+   *
+   * ## Why the existing thread is reused rather than a second one opened
+   *
+   * A guest tapping Housekeeping on Monday and again on Wednesday is having one
+   * conversation with housekeeping, and splitting it would leave half of it in a
+   * thread the desk has stopped looking at. The read-then-insert below is
+   * exactly the check two simultaneous taps both pass, so
+   * `threads_stay_department_request_uk` is what actually refuses the loser —
+   * and the loser retries into the winner's row rather than failing in front of
+   * the guest.
+   */
+  async openDepartmentThread(input: {
+    workspaceId: string;
+    guestStayId: string;
+    departmentId: string;
+    subject: string | null;
+    body: string;
+    senderUserId: string;
+  }): Promise<{ threadId: string; created: boolean } | null> {
+    try {
+      return await this.insertDepartmentThread(input);
+    } catch (error) {
+      if (!isDepartmentThreadCollision(error)) throw error;
+      // Somebody else's tap won the race. Append to what they created.
+      const existing = await this.findDepartmentThread(
+        input.guestStayId,
+        input.departmentId,
+      );
+      if (!existing) throw error;
+      const messageId = await this.sendMessage(
+        existing.id,
+        input.senderUserId,
+        input.body,
+      );
+      return messageId ? { threadId: existing.id, created: false } : null;
+    }
+  }
+
+  private insertDepartmentThread(
+    input: Parameters<MessagingRepository['openDepartmentThread']>[0],
+  ): Promise<{ threadId: string; created: boolean } | null> {
+    return this.db.transaction(async (tx) => {
+      const [existing] = await tx
+        .select({ id: threads.id, status: threads.status })
+        .from(threads)
+        .where(
+          and(
+            eq(threads.guestStayId, input.guestStayId),
+            eq(threads.departmentId, input.departmentId),
+            eq(threads.threadKind, 'department_request'),
+          ),
+        )
+        .limit(1);
+
+      const threadId =
+        existing?.id ??
+        (
+          await tx
+            .insert(threads)
+            .values({
+              workspaceId: input.workspaceId,
+              guestStayId: input.guestStayId,
+              departmentId: input.departmentId,
+              threadKind: 'department_request',
+              subject: input.subject,
+            })
+            .returning({ id: threads.id })
+        )[0]?.id;
+      if (!threadId) return null;
+
+      // An archived thread takes no writes, guest or operator (ADR-032 AC-19).
+      // Reopening it here would be a guest un-archiving a conversation the
+      // property closed, which is the property's decision and not theirs.
+      if (existing && existing.status === 'archived') return null;
+
+      const [created] = await tx
+        .insert(messages)
+        .values({
+          threadId,
+          senderUserId: input.senderUserId,
+          bodyType: 'text',
+          body: input.body,
+        })
+        .returning({ id: messages.id });
+      if (!created) return null;
+
+      await tx
+        .update(threads)
+        .set({ updatedAt: new Date() })
+        .where(eq(threads.id, threadId));
+
+      return { threadId, created: existing === undefined };
+    });
+  }
+
+  /** The conversation this stay already has with this desk, if any. */
+  async findDepartmentThread(
+    guestStayId: string,
+    departmentId: string,
+  ): Promise<{ id: string } | null> {
+    const [row] = await this.db
+      .select({ id: threads.id })
+      .from(threads)
+      .where(
+        and(
+          eq(threads.guestStayId, guestStayId),
+          eq(threads.departmentId, departmentId),
+          eq(threads.threadKind, 'department_request'),
+        ),
+      )
+      .limit(1);
+    return row ?? null;
   }
 
   /**

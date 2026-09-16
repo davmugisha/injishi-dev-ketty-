@@ -3,11 +3,12 @@ import type {
   UpdatePropertyRequest,
 } from '@injishi/contracts';
 import { Inject, Injectable } from '@nestjs/common';
-import { and, eq, inArray, isNotNull, sql } from 'drizzle-orm';
+import { and, eq, inArray, isNotNull, isNull, sql } from 'drizzle-orm';
 
 import {
   districts,
   listings,
+  orgs,
   properties,
   propertyPhotos,
   provinces,
@@ -22,11 +23,13 @@ import {
   slugStemFor,
 } from '../domain/slug';
 import type { PublishFacts } from '../domain/publish-eligibility';
-import { seedPropertyDepartments } from '../../operations/domain/usali-departments';
+import { diffOf, recordBranchEvent } from './branch-audit';
+import { insertPropertyWithListing } from './insert-property';
 import {
   DRIZZLE,
   type Database,
 } from '../../../shared/database/database.module';
+import { inBranchScope, type BranchScope } from '../../../shared/auth/branch-scope';
 
 /**
  * Postgres `unique_violation`. Narrowed here rather than inline, so a caller
@@ -39,6 +42,20 @@ function isUniqueViolation(error: unknown): boolean {
     'code' in error &&
     (error as { code?: unknown }).code === '23505'
   );
+}
+
+/**
+ * Whether a failed write broke the named unique constraint. Drizzle may wrap the
+ * driver's error, so the Postgres fields are looked for on its `cause` too.
+ */
+function violates(error: unknown, constraint: string): boolean {
+  let e: unknown = error;
+  while (e && typeof e === 'object') {
+    const pg = e as { code?: unknown; constraint?: unknown; cause?: unknown };
+    if (pg.code === '23505' && pg.constraint === constraint) return true;
+    e = pg.cause;
+  }
+  return false;
 }
 
 /** The shape the service reads back, before it is parsed into a contract. */
@@ -65,6 +82,9 @@ export interface PropertyRow {
   slug: string | null;
   listingStatus: 'draft' | 'published';
   publishedAt: Date | null;
+  isHeadOffice: boolean;
+  rraBranchId: string | null;
+  archivedAt: Date | null;
 }
 
 /**
@@ -95,6 +115,9 @@ const PROPERTY_COLUMNS = {
   slug: properties.slug,
   listingStatus: listings.status,
   publishedAt: listings.publishedAt,
+  isHeadOffice: properties.isHeadOffice,
+  rraBranchId: properties.rraBranchId,
+  archivedAt: properties.archivedAt,
 };
 
 /**
@@ -128,78 +151,93 @@ export class InventoryRepository {
   /**
    * Create the property AND its draft listing, in one transaction.
    *
-   * The two are one act. `listings_property_uk` already says a property has at
-   * most one listing; this makes it exactly one, from the first moment, so no
-   * later code has to handle a property whose listing does not exist yet.
+   * The insert itself is `insertPropertyWithListing`, which registration also
+   * calls inside its own transaction (ADR-054), so both doors create the same
+   * thing.
+   *
+   * A hospitality org with no active head office gets this property as its
+   * head office. That is only a business registered before branches existed
+   * and holding no property yet; everyone else already has one, and the
+   * partial unique index refuses a second.
    */
   async createProperty(input: {
     orgId: string;
     workspaceId: string;
     districtId: number;
+    actorUserId: string;
     request: CreatePropertyRequest;
   }): Promise<string> {
     const r = input.request;
     return this.db.transaction(async (tx) => {
-      const [property] = await tx
-        .insert(properties)
-        .values({
-          orgId: input.orgId,
-          workspaceId: input.workspaceId,
-          name: r.name,
-          description: r.description ?? null,
-          sectorId: r.sectorId,
-          districtId: input.districtId,
-          addressText: r.street ?? null,
-          checkInTime: r.checkInTime ?? null,
-          checkOutTime: r.checkOutTime ?? null,
-          houseRules: r.houseRules ?? null,
-          locationPrivacy: r.locationPrivacy ?? false,
-          contactPhone: r.contactPhone ?? null,
-          contactEmail: r.contactEmail ?? null,
-          // No photo column any more. ADR-053 moved photographs into
-          // `property_photos`, so a property is created with none and the
-          // attach route adds them; "no photos" is now the absence of rows.
-        })
-        .returning({ id: properties.id });
-      if (!property) throw new Error('Property insert returned no row.');
+      const [needsHeadOffice] = await tx
+        .select({ id: orgs.id })
+        .from(orgs)
+        .where(
+          and(
+            eq(orgs.id, input.orgId),
+            eq(orgs.domain, 'hospitality'),
+            sql`NOT EXISTS (SELECT 1 FROM ${properties} WHERE ${properties.orgId} = ${orgs.id} AND ${properties.isHeadOffice} AND ${properties.archivedAt} IS NULL)`,
+          ),
+        )
+        .limit(1);
 
-      await tx.insert(listings).values({
-        propertyId: property.id,
-        workspaceId: input.workspaceId,
-        status: 'draft',
-      });
-
-      // ADR-016 AC-14. A property gets its USALI departments in the SAME
-      // transaction that creates it, so a room charge is attributable the first
-      // time one posts. A property with no Rooms department cannot take one at
-      // all, and a second call after commit is a second chance to fail.
-      //
-      // `seedPropertyDepartments` is pure data plus a function that takes this
-      // transaction handle. It is NOT a service reach-in across modules: there
-      // is nothing injected and nothing stateful in it.
-      await seedPropertyDepartments(tx, {
+      const isHeadOffice = needsHeadOffice !== undefined;
+      const propertyId = await insertPropertyWithListing(tx, {
         orgId: input.orgId,
-        propertyId: property.id,
         workspaceId: input.workspaceId,
+        name: r.name,
+        sectorId: r.sectorId,
+        districtId: input.districtId,
+        street: r.street ?? null,
+        isHeadOffice,
+        description: r.description ?? null,
+        checkInTime: r.checkInTime ?? null,
+        checkOutTime: r.checkOutTime ?? null,
+        houseRules: r.houseRules ?? null,
+        locationPrivacy: r.locationPrivacy ?? false,
+        contactPhone: r.contactPhone ?? null,
+        contactEmail: r.contactEmail ?? null,
       });
 
-      return property.id;
+      // ADR-054 AC-A1: a branch created after approval is recorded in the same
+      // transaction, so a branch nobody can account for cannot exist.
+      await recordBranchEvent(tx, {
+        actorUserId: input.actorUserId,
+        propertyId,
+        districtId: input.districtId,
+        eventType: 'branch.created',
+        diff: {
+          name: { from: null, to: r.name },
+          sectorId: { from: null, to: r.sectorId },
+          addressText: { from: null, to: r.street ?? null },
+          isHeadOffice: { from: null, to: isHeadOffice },
+        },
+      });
+      return propertyId;
     });
   }
 
   /**
-   * Update only the fields that were sent.
+   * Update only the fields that were sent, and record what moved.
    *
    * `district_id` travels with `sector_id` whenever the sector changes, so an
    * edit can never leave the derived district pointing at the old place.
+   *
+   * The row is read under lock before the write, so the audit row's `from`
+   * values are the ones this edit replaced rather than whatever a concurrent
+   * edit left (ADR-054 AC-A1). An edit that changes nothing writes no row.
+   *
+   * Returns `rra_taken` when the unique index refuses the RRA branch id. The
+   * service checks first; this covers the edit that raced that check.
    */
   async updateProperty(input: {
     propertyId: string;
     districtId: number | null;
+    actorUserId: string;
     request: UpdatePropertyRequest;
-  }): Promise<void> {
+  }): Promise<'done' | 'rra_taken'> {
     const r = input.request;
-    const patch: Record<string, unknown> = { updatedAt: new Date() };
+    const patch: Record<string, unknown> = {};
     if (r.name !== undefined) patch.name = r.name;
     if (r.description !== undefined) patch.description = r.description;
     if (r.street !== undefined) patch.addressText = r.street;
@@ -211,15 +249,60 @@ export class InventoryRepository {
     }
     if (r.contactPhone !== undefined) patch.contactPhone = r.contactPhone;
     if (r.contactEmail !== undefined) patch.contactEmail = r.contactEmail;
+    if (r.rraBranchId !== undefined) patch.rraBranchId = r.rraBranchId;
     if (r.sectorId !== undefined) {
       patch.sectorId = r.sectorId;
       patch.districtId = input.districtId;
     }
 
-    await this.db
-      .update(properties)
-      .set(patch)
-      .where(eq(properties.id, input.propertyId));
+    try {
+      await this.db.transaction(async (tx) => {
+        const [before] = await tx
+          .select({
+            name: properties.name,
+            description: properties.description,
+            addressText: properties.addressText,
+            checkInTime: properties.checkInTime,
+            checkOutTime: properties.checkOutTime,
+            houseRules: properties.houseRules,
+            locationPrivacy: properties.locationPrivacy,
+            contactPhone: properties.contactPhone,
+            contactEmail: properties.contactEmail,
+            rraBranchId: properties.rraBranchId,
+            sectorId: properties.sectorId,
+            districtId: properties.districtId,
+          })
+          .from(properties)
+          .where(eq(properties.id, input.propertyId))
+          .for('update')
+          .limit(1);
+        if (!before) return;
+
+        const diff = diffOf(before as Record<string, unknown>, patch);
+        if (Object.keys(diff).length === 0) return;
+
+        await tx
+          .update(properties)
+          .set({ ...patch, updatedAt: new Date() })
+          .where(eq(properties.id, input.propertyId));
+
+        await recordBranchEvent(tx, {
+          actorUserId: input.actorUserId,
+          propertyId: input.propertyId,
+          districtId:
+            (patch.districtId as number | undefined) ?? before.districtId,
+          eventType:
+            'rraBranchId' in diff
+              ? 'branch.rra_branch_id_changed'
+              : 'branch.updated',
+          diff,
+        });
+      });
+    } catch (error) {
+      if (violates(error, 'properties_org_rra_branch_uk')) return 'rra_taken';
+      throw error;
+    }
+    return 'done';
   }
 
   /**
@@ -243,9 +326,17 @@ export class InventoryRepository {
     return row ? this.normalise(row) : null;
   }
 
-  /** Every property in one workspace, newest last so a list reads as a history. */
+  /**
+   * Every property in one workspace, oldest first so a list reads as a history.
+   *
+   * Archived branches are left out unless asked for (ADR-054): Setup, Inventory
+   * and the property picker work on the branches that still trade, and only the
+   * Branches screen needs the rest.
+   */
   async findPropertiesInWorkspace(
     workspaceId: string,
+    scope: BranchScope,
+    includeArchived = false,
   ): Promise<PropertyRow[]> {
     const rows = await this.db
       .select(PROPERTY_COLUMNS)
@@ -254,7 +345,14 @@ export class InventoryRepository {
       .leftJoin(sectors, eq(sectors.id, properties.sectorId))
       .leftJoin(districts, eq(districts.id, properties.districtId))
       .leftJoin(provinces, eq(provinces.id, districts.provinceId))
-      .where(eq(properties.workspaceId, workspaceId))
+      .where(
+        and(
+          eq(properties.workspaceId, workspaceId),
+          // A property IS a branch, so the scope filters it directly (ADR-054).
+          inBranchScope(properties.id, scope),
+          includeArchived ? undefined : isNull(properties.archivedAt),
+        ),
+      )
       .orderBy(properties.createdAt);
     return rows.map((r) => this.normalise(r));
   }

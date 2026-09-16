@@ -6,7 +6,6 @@ import {
   type OperatorDepartmentMember,
   type OperatorDepartmentMemberList,
   UpdateDepartmentRequest,
-  type WorkspaceAccess,
 } from '@injishi/contracts';
 import {
   Body,
@@ -24,19 +23,22 @@ import { DepartmentsService } from '../../../modules/operations/application/depa
 import { SessionGuard } from '../../../shared/auth/session.guard';
 import {
   CurrentWorkspace,
+  RequireAnyPermission,
   RequirePermission,
   WorkspaceGuard,
 } from '../../../shared/auth/workspace.guard';
+import type { ScopedWorkspace } from '../../../shared/auth/branch-scope';
 import { ZodValidationPipe } from '../../../shared/validation/zod-validation.pipe';
 
 /**
  * Departments -> /api/v1/ops/departments (ADR-016 slice 1).
  *
- * The read carries NO permission beyond holding the workspace, and that is
- * deliberate rather than an oversight. A charge screen shows the department
- * picker before anybody posts anything, so gating the list on
- * `department.manage` would hand a receptionist an empty dropdown and no way to
- * charge a minibar.
+ * The read is open to everyone who uses a department, not only to whoever may
+ * edit one. A charge screen shows the department picker before anybody posts
+ * anything, so gating the list on `department.manage` alone would hand a
+ * receptionist an empty dropdown and no way to charge a minibar. It is still
+ * declared (audit H1): a housekeeper, and a business still in the registration
+ * pipeline, hold none of the candidates and are refused.
  *
  * The two commands carry `department.manage`, the twenty second permission
  * (D-p), held by owner and manager only.
@@ -46,9 +48,20 @@ import { ZodValidationPipe } from '../../../shared/validation/zod-validation.pip
 export class OpsDepartmentsController {
   constructor(private readonly departments: DepartmentsService) {}
 
+  /**
+   * Consumers: the Departments lens (`department.manage`), the bill's charge
+   * picker (`folio.charge`), and the Services lenses a receptionist opens,
+   * Outlets among them (`order.advance`, `outlet.manage`).
+   */
   @Get()
+  @RequireAnyPermission(
+    'department.manage',
+    'folio.charge',
+    'order.advance',
+    'outlet.manage',
+  )
   async list(
-    @CurrentWorkspace() workspace: WorkspaceAccess,
+    @CurrentWorkspace() workspace: ScopedWorkspace,
   ): Promise<OperatorDepartmentList> {
     return { departments: await this.departments.list(workspace) };
   }
@@ -58,7 +71,7 @@ export class OpsDepartmentsController {
   create(
     @Body(new ZodValidationPipe(CreateDepartmentRequest))
     body: CreateDepartmentRequest,
-    @CurrentWorkspace() workspace: WorkspaceAccess,
+    @CurrentWorkspace() workspace: ScopedWorkspace,
   ): Promise<OperatorDepartment> {
     return this.departments.create(workspace, body);
   }
@@ -77,7 +90,7 @@ export class OpsDepartmentsController {
     @Param('id', ParseUUIDPipe) id: string,
     @Body(new ZodValidationPipe(UpdateDepartmentRequest))
     body: UpdateDepartmentRequest,
-    @CurrentWorkspace() workspace: WorkspaceAccess,
+    @CurrentWorkspace() workspace: ScopedWorkspace,
   ): Promise<OperatorDepartment> {
     return this.departments.update(workspace, id, body);
   }
@@ -91,9 +104,11 @@ export class OpsDepartmentsController {
    * department is the same act as staffing the business.
    */
   @Get(':id/members')
+  // Names colleagues, so it belongs to whoever staffs or runs departments.
+  @RequireAnyPermission('team.manage', 'department.manage')
   async listMembers(
     @Param('id', ParseUUIDPipe) id: string,
-    @CurrentWorkspace() workspace: WorkspaceAccess,
+    @CurrentWorkspace() workspace: ScopedWorkspace,
   ): Promise<OperatorDepartmentMemberList> {
     return { members: await this.departments.listMembers(workspace, id) };
   }
@@ -104,7 +119,7 @@ export class OpsDepartmentsController {
     @Param('id', ParseUUIDPipe) id: string,
     @Body(new ZodValidationPipe(AssignDepartmentMemberRequest))
     body: AssignDepartmentMemberRequest,
-    @CurrentWorkspace() workspace: WorkspaceAccess,
+    @CurrentWorkspace() workspace: ScopedWorkspace,
   ): Promise<OperatorDepartmentMember> {
     return this.departments.assignMember(workspace, id, body);
   }
@@ -115,7 +130,7 @@ export class OpsDepartmentsController {
   removeMember(
     @Param('id', ParseUUIDPipe) id: string,
     @Param('memberId', ParseUUIDPipe) memberId: string,
-    @CurrentWorkspace() workspace: WorkspaceAccess,
+    @CurrentWorkspace() workspace: ScopedWorkspace,
   ): Promise<OperatorDepartmentMember> {
     return this.departments.removeMember(workspace, id, memberId);
   }

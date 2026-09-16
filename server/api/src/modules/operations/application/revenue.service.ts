@@ -1,10 +1,10 @@
 import type {
   OperatorRevenue,
   OperatorRevenueQuery,
-  WorkspaceAccess,
 } from '@injishi/contracts';
 import { Injectable } from '@nestjs/common';
 
+import type { ScopedWorkspace } from '../../../shared/auth/branch-scope';
 import { RevenueRepository } from '../infrastructure/revenue.repository';
 
 /**
@@ -20,15 +20,15 @@ export class RevenueService {
   constructor(private readonly revenue: RevenueRepository) {}
 
   async forMonth(
-    ws: WorkspaceAccess,
+    ws: ScopedWorkspace,
     query: OperatorRevenueQuery,
   ): Promise<OperatorRevenue> {
     const month = query.month ?? currentKigaliMonth();
     const { from, to } = monthBounds(month);
 
     const [earned, departments] = await Promise.all([
-      this.revenue.revenueByDepartment(ws.workspaceId, from, to),
-      this.revenue.listDepartments(ws.workspaceId),
+      this.revenue.revenueByDepartment(ws.workspaceId, ws.branchScope, from, to),
+      this.revenue.listDepartments(ws.workspaceId, ws.branchScope),
     ]);
 
     /*

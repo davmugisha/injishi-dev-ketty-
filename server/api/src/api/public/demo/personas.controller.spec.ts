@@ -44,6 +44,8 @@ function business(
     permissions: [],
     departments: [],
     propertyName: null,
+    branches: [],
+    branchCoverage: 'all',
     ...over,
   };
 }
@@ -60,6 +62,8 @@ function personalSeat(kind: 'personal' | 'broker'): WorkspaceAccess {
     permissions: [],
     departments: [],
     propertyName: null,
+    branches: [],
+    branchCoverage: null,
   };
 }
 

@@ -31,6 +31,7 @@ import {
   writeFixture,
 } from './use-fixture-mutation';
 import { useOfflineSubmit } from './offline-submit';
+import type { WriteOutcome } from './write-queue';
 
 /** The fixture key. Also the shape of the endpoint that replaces it. */
 export const SAVED_KEY = 'guest.saved';
@@ -95,6 +96,19 @@ function applyToggle(current: string[], { propertyId, next }: Toggle): string[] 
   return next ? [...without, propertyId] : without;
 }
 
+/**
+ * The `save` write. Module level so `write-handlers.ts` can register it before
+ * any screen mounts, which is what a drain after a cold start needs.
+ */
+export function saveToggleHandler(toggleInput: Toggle): WriteOutcome {
+  writeFixture<string[]>(SAVED_KEY, applyToggle(readFixture<string[]>(SAVED_KEY, seed()), toggleInput));
+  // The fixture store cannot refuse and cannot be unreachable, so this
+  // is always `ok`. The surface child that puts a real mutation here
+  // (ADR-038 children 1 to 7) is where `refused` and `failed` start
+  // being answered for real.
+  return { status: 'ok' };
+}
+
 export function useSavedStays(): SavedStays {
   const stored = useFixtureValue<string[]>(SAVED_KEY, seed);
   const { mutate, status } = useFixtureMutation<string[], Toggle>(SAVED_KEY, applyToggle, seed);
@@ -115,17 +129,7 @@ export function useSavedStays(): SavedStays {
    */
   const queued = useOfflineSubmit<Toggle>({
     kind: 'save',
-    handler: (toggleInput) => {
-      writeFixture<string[]>(
-        SAVED_KEY,
-        applyToggle(readFixture<string[]>(SAVED_KEY, seed()), toggleInput),
-      );
-      // The fixture store cannot refuse and cannot be unreachable, so this
-      // is always `ok`. The surface child that puts a real mutation here
-      // (ADR-038 children 1 to 7) is where `refused` and `failed` start
-      // being answered for real.
-      return { status: 'ok' as const };
-    },
+    handler: saveToggleHandler,
     label: (toggleInput) => toggleInput.propertyId,
     idFor: (toggleInput) => `save-${toggleInput.propertyId}`,
   });

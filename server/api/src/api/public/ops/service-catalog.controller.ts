@@ -12,7 +12,6 @@ import {
   UpdateServiceCategoryRequest,
   UpdateServiceItemRequest,
   UpsertServiceItemRequest,
-  type WorkspaceAccess,
 } from '@injishi/contracts';
 import {
   Body,
@@ -36,9 +35,11 @@ import {
 } from '../../../shared/auth/session.guard';
 import {
   CurrentWorkspace,
+  RequireAnyPermission,
   RequirePermission,
   WorkspaceGuard,
 } from '../../../shared/auth/workspace.guard';
+import type { ScopedWorkspace } from '../../../shared/auth/branch-scope';
 import { ZodValidationPipe } from '../../../shared/validation/zod-validation.pipe';
 
 /**
@@ -48,8 +49,9 @@ import { ZodValidationPipe } from '../../../shared/validation/zod-validation.pip
  * out of its scope because `service_items` did not exist, and the permission
  * has been sitting in the contracts unused ever since.
  *
- * The read is ungated beyond the workspace, because a receptionist takes orders
- * and has to see the menu to do it. Editing it is `menu.manage`.
+ * The read is open to `order.advance` as well as `menu.manage`, because a
+ * receptionist takes orders and has to see the menu to do it. Editing it is
+ * `menu.manage`.
  */
 @Controller({ path: 'ops/service-catalog', version: '1' })
 @UseGuards(SessionGuard, WorkspaceGuard)
@@ -57,8 +59,9 @@ export class OpsServiceCatalogController {
   constructor(private readonly catalog: ServiceCatalogService) {}
 
   @Get()
+  @RequireAnyPermission('order.advance', 'menu.manage')
   menu(
-    @CurrentWorkspace() workspace: WorkspaceAccess,
+    @CurrentWorkspace() workspace: ScopedWorkspace,
   ): Promise<OperatorServiceCatalog> {
     return this.catalog.menu(workspace);
   }
@@ -68,7 +71,7 @@ export class OpsServiceCatalogController {
   createCategory(
     @Body(new ZodValidationPipe(CreateServiceCategoryRequest))
     body: CreateServiceCategoryRequest,
-    @CurrentWorkspace() workspace: WorkspaceAccess,
+    @CurrentWorkspace() workspace: ScopedWorkspace,
   ): Promise<OperatorServiceCatalog> {
     return this.catalog.createCategory(workspace, body);
   }
@@ -80,7 +83,7 @@ export class OpsServiceCatalogController {
     @Param('id', ParseUUIDPipe) id: string,
     @Body(new ZodValidationPipe(UpdateServiceCategoryRequest))
     body: UpdateServiceCategoryRequest,
-    @CurrentWorkspace() workspace: WorkspaceAccess,
+    @CurrentWorkspace() workspace: ScopedWorkspace,
   ): Promise<OperatorServiceCatalog> {
     return this.catalog.updateCategory(workspace, id, body);
   }
@@ -90,7 +93,7 @@ export class OpsServiceCatalogController {
   createItem(
     @Body(new ZodValidationPipe(UpsertServiceItemRequest))
     body: UpsertServiceItemRequest,
-    @CurrentWorkspace() workspace: WorkspaceAccess,
+    @CurrentWorkspace() workspace: ScopedWorkspace,
   ): Promise<OperatorServiceCatalog> {
     return this.catalog.createItem(workspace, body);
   }
@@ -110,7 +113,7 @@ export class OpsServiceCatalogController {
     @Param('id', ParseUUIDPipe) id: string,
     @Body(new ZodValidationPipe(UpdateServiceItemRequest))
     body: UpdateServiceItemRequest,
-    @CurrentWorkspace() workspace: WorkspaceAccess,
+    @CurrentWorkspace() workspace: ScopedWorkspace,
   ): Promise<OperatorServiceCatalog> {
     return this.catalog.updateItem(workspace, id, body);
   }
@@ -132,9 +135,11 @@ export class OpsServiceCatalogController {
 export class OpsServiceOrdersController {
   constructor(private readonly catalog: ServiceCatalogService) {}
 
+  // Live orders, the Services leaf's first lens.
   @Get()
+  @RequirePermission('order.advance')
   async list(
-    @CurrentWorkspace() workspace: WorkspaceAccess,
+    @CurrentWorkspace() workspace: ScopedWorkspace,
   ): Promise<OperatorServiceOrderList> {
     return { orders: await this.catalog.listOrders(workspace) };
   }
@@ -144,7 +149,7 @@ export class OpsServiceOrdersController {
   create(
     @Body(new ZodValidationPipe(CreateServiceOrderRequest))
     body: CreateServiceOrderRequest,
-    @CurrentWorkspace() workspace: WorkspaceAccess,
+    @CurrentWorkspace() workspace: ScopedWorkspace,
     @Headers('idempotency-key') key: string | undefined,
   ): Promise<OperatorServiceOrder> {
     return this.catalog.createOrder(workspace, body, key ?? null);
@@ -156,7 +161,7 @@ export class OpsServiceOrdersController {
     @Param('id', ParseUUIDPipe) id: string,
     @Body(new ZodValidationPipe(AdvanceServiceOrderRequest))
     body: AdvanceServiceOrderRequest,
-    @CurrentWorkspace() workspace: WorkspaceAccess,
+    @CurrentWorkspace() workspace: ScopedWorkspace,
     @CurrentUser() user: SessionUser,
   ): Promise<OperatorServiceOrder> {
     return this.catalog.advanceOrder(workspace, id, body, user.id);
@@ -175,7 +180,7 @@ export class OpsServiceOrdersController {
     @Param('id', ParseUUIDPipe) id: string,
     @Body(new ZodValidationPipe(MarkOrderPaidCashRequest))
     body: MarkOrderPaidCashRequest,
-    @CurrentWorkspace() workspace: WorkspaceAccess,
+    @CurrentWorkspace() workspace: ScopedWorkspace,
     @CurrentUser() user: SessionUser,
     // Required, and refused when missing or malformed, before anything runs.
     // Its value is not needed: the replay is the order's own state and NS key.

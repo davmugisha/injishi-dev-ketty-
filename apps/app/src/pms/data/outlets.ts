@@ -39,7 +39,7 @@ import {
   type UseQueryResult,
 } from "@tanstack/react-query";
 import { command } from "./api";
-import { read } from "./ops";
+import { OPS_READ, read, useMayRead } from "./ops";
 import { queryKeys } from "./queries";
 
 export const outletKeys = {
@@ -49,10 +49,11 @@ export const outletKeys = {
 
 /** Every outlet the workspace runs, archived ones included, plus the relationship policy. */
 export function useOutlets(workspaceId: string | null): UseQueryResult<OperatorOutletList> {
+  const mayRead = useMayRead(OPS_READ.outlets);
   return useQuery({
     queryKey: outletKeys.outlets(workspaceId),
     queryFn: () => read("/ops/outlets", workspaceId as string, OperatorOutletList),
-    enabled: workspaceId !== null,
+    enabled: workspaceId !== null && mayRead,
   });
 }
 
@@ -66,10 +67,13 @@ export function useOutletParties(
   workspaceId: string | null,
   enabled: boolean,
 ): UseQueryResult<OutletPartyList> {
+  // The screen's flag stays; the hook also asks for itself, so a caller that
+  // forgets the flag still cannot fire the refused read.
+  const mayRead = useMayRead(OPS_READ.outletParties);
   return useQuery({
     queryKey: outletKeys.parties(workspaceId),
     queryFn: () => read("/ops/outlet-parties", workspaceId as string, OutletPartyList),
-    enabled: workspaceId !== null && enabled,
+    enabled: workspaceId !== null && enabled && mayRead,
   });
 }
 
@@ -78,12 +82,14 @@ export function useOutletParties(
  *
  * One read per property, on the same key `useAmenities` in `ops.ts` uses, so
  * the form's amenity picker and the list's labels share a single cache entry
- * rather than asking twice. The read is open to any workspace member.
+ * rather than asking twice. The read is open to the Services roles
+ * (`OPS_READ.amenities`), and not asked for anyone else.
  */
 export function useAmenityLabels(
   workspaceId: string | null,
   propertyIds: readonly string[],
 ): { labelFor: (propertyId: string | null, code: string) => string } {
+  const mayRead = useMayRead(OPS_READ.amenities);
   const results = useQueries({
     queries: propertyIds.map((propertyId) => ({
       queryKey: queryKeys.amenities(workspaceId, propertyId),
@@ -93,7 +99,7 @@ export function useAmenityLabels(
           workspaceId as string,
           OperatorAmenityList,
         ),
-      enabled: workspaceId !== null,
+      enabled: workspaceId !== null && mayRead,
     })),
   });
   const labels = new Map<string, string>();

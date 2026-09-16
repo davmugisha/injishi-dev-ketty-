@@ -167,11 +167,11 @@ export declare const AdminWaitlistRow: z.ZodObject<{
     audience: "owner" | "traveller";
     fullName: string;
     phone: string | null;
+    invitedAt: string | null;
     marketingOptIn: boolean;
     businessName: string | null;
     propertyType: "hotel" | "guest_house" | "apartment" | "lodge" | "villa" | "hostel" | "homestay" | "campsite" | null;
     sizeBand: "1_5" | "6_20" | "21_50" | "50_plus" | null;
-    invitedAt: string | null;
     unsubscribedAt: string | null;
 }, {
     districtId: number | null;
@@ -182,11 +182,11 @@ export declare const AdminWaitlistRow: z.ZodObject<{
     audience: "owner" | "traveller";
     fullName: string;
     phone: string | null;
+    invitedAt: string | null;
     marketingOptIn: boolean;
     businessName: string | null;
     propertyType: "hotel" | "guest_house" | "apartment" | "lodge" | "villa" | "hostel" | "homestay" | "campsite" | null;
     sizeBand: "1_5" | "6_20" | "21_50" | "50_plus" | null;
-    invitedAt: string | null;
     unsubscribedAt: string | null;
 }>;
 export type AdminWaitlistRow = z.infer<typeof AdminWaitlistRow>;
@@ -216,11 +216,11 @@ export declare const AdminWaitlistPage: z.ZodObject<{
         audience: "owner" | "traveller";
         fullName: string;
         phone: string | null;
+        invitedAt: string | null;
         marketingOptIn: boolean;
         businessName: string | null;
         propertyType: "hotel" | "guest_house" | "apartment" | "lodge" | "villa" | "hostel" | "homestay" | "campsite" | null;
         sizeBand: "1_5" | "6_20" | "21_50" | "50_plus" | null;
-        invitedAt: string | null;
         unsubscribedAt: string | null;
     }, {
         districtId: number | null;
@@ -231,11 +231,11 @@ export declare const AdminWaitlistPage: z.ZodObject<{
         audience: "owner" | "traveller";
         fullName: string;
         phone: string | null;
+        invitedAt: string | null;
         marketingOptIn: boolean;
         businessName: string | null;
         propertyType: "hotel" | "guest_house" | "apartment" | "lodge" | "villa" | "hostel" | "homestay" | "campsite" | null;
         sizeBand: "1_5" | "6_20" | "21_50" | "50_plus" | null;
-        invitedAt: string | null;
         unsubscribedAt: string | null;
     }>, "many">;
 }, "strip", z.ZodTypeAny, {
@@ -249,11 +249,11 @@ export declare const AdminWaitlistPage: z.ZodObject<{
         audience: "owner" | "traveller";
         fullName: string;
         phone: string | null;
+        invitedAt: string | null;
         marketingOptIn: boolean;
         businessName: string | null;
         propertyType: "hotel" | "guest_house" | "apartment" | "lodge" | "villa" | "hostel" | "homestay" | "campsite" | null;
         sizeBand: "1_5" | "6_20" | "21_50" | "50_plus" | null;
-        invitedAt: string | null;
         unsubscribedAt: string | null;
     }[];
 }, {
@@ -267,11 +267,11 @@ export declare const AdminWaitlistPage: z.ZodObject<{
         audience: "owner" | "traveller";
         fullName: string;
         phone: string | null;
+        invitedAt: string | null;
         marketingOptIn: boolean;
         businessName: string | null;
         propertyType: "hotel" | "guest_house" | "apartment" | "lodge" | "villa" | "hostel" | "homestay" | "campsite" | null;
         sizeBand: "1_5" | "6_20" | "21_50" | "50_plus" | null;
-        invitedAt: string | null;
         unsubscribedAt: string | null;
     }[];
 }>;

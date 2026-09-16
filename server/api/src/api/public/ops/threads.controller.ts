@@ -3,7 +3,6 @@ import {
   type OperatorMessageList,
   type OperatorThreadList,
   SendMessageRequest,
-  type WorkspaceAccess,
 } from '@injishi/contracts';
 import {
   Body,
@@ -26,6 +25,7 @@ import {
   RequirePermission,
   WorkspaceGuard,
 } from '../../../shared/auth/workspace.guard';
+import type { ScopedWorkspace } from '../../../shared/auth/branch-scope';
 import { ZodValidationPipe } from '../../../shared/validation/zod-validation.pipe';
 
 /**
@@ -41,19 +41,24 @@ import { ZodValidationPipe } from '../../../shared/validation/zod-validation.pip
 export class OpsThreadsController {
   constructor(private readonly messaging: MessagingService) {}
 
-  /** Every conversation on this desk, newest activity first. */
+  /**
+   * Every conversation on this desk, newest activity first. The Inbox leaf,
+   * on both navs, is behind `message.send`.
+   */
   @Get()
+  @RequirePermission('message.send')
   async list(
-    @CurrentWorkspace() workspace: WorkspaceAccess,
+    @CurrentWorkspace() workspace: ScopedWorkspace,
   ): Promise<OperatorThreadList> {
     return { threads: await this.messaging.listThreads(workspace) };
   }
 
   /** One conversation in full. */
   @Get(':id/messages')
+  @RequirePermission('message.send')
   async messages(
     @Param('id', ParseUUIDPipe) id: string,
-    @CurrentWorkspace() workspace: WorkspaceAccess,
+    @CurrentWorkspace() workspace: ScopedWorkspace,
     @CurrentUser() user: SessionUser,
   ): Promise<OperatorMessageList> {
     return {
@@ -74,7 +79,7 @@ export class OpsThreadsController {
   send(
     @Param('id', ParseUUIDPipe) id: string,
     @Body(new ZodValidationPipe(SendMessageRequest)) body: SendMessageRequest,
-    @CurrentWorkspace() workspace: WorkspaceAccess,
+    @CurrentWorkspace() workspace: ScopedWorkspace,
     @CurrentUser() user: SessionUser,
   ): Promise<OperatorMessage> {
     return this.messaging.sendMessage(workspace, id, body, user.id);

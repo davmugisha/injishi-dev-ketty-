@@ -15,10 +15,6 @@ import injishi from '../../tools/eslint-rules/index.mjs';
  * Narrower than `apps/web` on purpose:
  *
  *   - No `@next/eslint-plugin-next`. This is React Native, not Next.
- *   - No `injishi/no-client-authz`. That rule bans resolving a permission from
- *     a role in a browser; this app does not import `@injishi/contracts` at
- *     all yet. Add it the day it does, not before — a rule with nothing to
- *     check is a rule nobody has proven.
  *
  * ADR-034 task 5 added the two design rules that have a React Native shape.
  * This is the first time any design rule has reached this app: the four were
@@ -44,6 +40,13 @@ export default [
     rules: {
       // code-standards.md, Naming. One convention for every source file.
       'injishi/kebab-case-filenames': 'error',
+
+      // ADR-012 AC-4. This app imports `@injishi/contracts` in dozens of files,
+      // and a phone is as much a client as a browser: resolving a permission
+      // from a role here (`can`, `permissionsForRole`) would be the app
+      // inventing an authorization answer the server never gave. Capability
+      // comes from `/me/workspaces`, as it does on web.
+      'injishi/no-client-authz': 'error',
 
       // ADR-034 task 5. The two design rules that have a React Native shape.
       //

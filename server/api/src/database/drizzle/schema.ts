@@ -49,6 +49,8 @@ export * from './money';
 export * from './events';
 export * from './governance';
 export * from './operations';
+// Last: it is a leaf over hospitality, inventory, operations and org.
+export * from './guest-relations';
 export * from './platform';
 export * from './waitlist';
 export * from './training';

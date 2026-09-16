@@ -2,9 +2,10 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
-import type { GuestMessage, GuestThread } from "@injishi/contracts";
+import type { GuestMessage, GuestOrderDetail, GuestThread } from "@injishi/contracts";
 import { GUEST_MESSAGE_MAX } from "@injishi/contracts";
-import { Button, Skeleton, Textarea } from "@injishi/ui";
+import { Badge, Button, Skeleton, Textarea } from "@injishi/ui";
+import { formatPrice } from "@injishi/utils";
 import { EmptyPanel } from "@/components/app/empty-panel";
 import { Icon } from "@/components/app/icon";
 import { clockLabel, dayKey, dayLabel } from "@/components/inbox/chat-time";
@@ -15,7 +16,11 @@ import {
   sendThreadMessage,
   threadTitle,
 } from "@/data/inbox";
+import { ORDER_STATUS_LABEL, cancelMyOrder, fetchMyOrder, orderTone } from "@/data/ordering";
 import { apiResultMessage } from "@/lib/api";
+
+/** How often an open conversation asks for new lines. */
+const CONVERSATION_POLL_MS = 5_000;
 
 /**
  * One conversation with a property (ADR-032).
@@ -174,6 +179,39 @@ function Conversation({
     foot.current?.scrollIntoView({ block: "end" });
   }, []);
 
+  // The property's replies arrive on their own. There is no push channel, so
+  // the newest page is asked for every few seconds while the tab is visible
+  // and merged BY ID: a line already on screen, including one this person just
+  // sent, is never shown twice, and earlier pages already loaded are kept.
+  const onScreen = useRef(messages);
+  useEffect(() => {
+    onScreen.current = messages;
+  }, [messages]);
+
+  useEffect(() => {
+    if (thread.status === "archived") return;
+    const timer = window.setInterval(() => {
+      if (document.visibilityState !== "visible") return;
+      void (async () => {
+        const page = await fetchThreadMessages(thread.id);
+        if (page.status !== "ok") return;
+        const shown = new Set(onScreen.current.map((m) => m.id));
+        if (page.data.messages.every((m) => shown.has(m.id))) return;
+        setMessages((prev) => {
+          const seen = new Set(prev.map((m) => m.id));
+          const fresh = page.data.messages.filter((m) => !seen.has(m.id));
+          if (fresh.length === 0) return prev;
+          return [...prev, ...fresh].sort((a, b) =>
+            a.createdAt === b.createdAt ? a.id.localeCompare(b.id) : a.createdAt.localeCompare(b.createdAt),
+          );
+        });
+        void markThreadRead(thread.id);
+        requestAnimationFrame(() => foot.current?.scrollIntoView({ block: "end", behavior: "smooth" }));
+      })();
+    }, CONVERSATION_POLL_MS);
+    return () => window.clearInterval(timer);
+  }, [thread.id, thread.status]);
+
   async function loadOlder() {
     if (!older) return;
     setLoadingOlder(true);
@@ -198,12 +236,25 @@ function Conversation({
       setSendError(apiResultMessage(sent));
       return;
     }
-    setMessages((prev) => [...prev, sent.data]);
+    // A poll may have fetched this line in the moment between the send and its
+    // answer, so it is appended only if it is not already there.
+    setMessages((prev) => (prev.some((m) => m.id === sent.data.id) ? prev : [...prev, sent.data]));
     setDraft("");
     requestAnimationFrame(() => foot.current?.scrollIntoView({ block: "end", behavior: "smooth" }));
   }
 
   let lastDay = "";
+  // Each order's card sits under the FIRST line about it; later lines are its
+  // history, and their count is what tells the card to read its status again.
+  const firstLineOf = new Map<string, string>();
+  const linesOf = new Map<string, number>();
+  for (const message of messages) {
+    if (!message.serviceOrderId) continue;
+    if (!firstLineOf.has(message.serviceOrderId)) firstLineOf.set(message.serviceOrderId, message.id);
+    linesOf.set(message.serviceOrderId, (linesOf.get(message.serviceOrderId) ?? 0) + 1);
+  }
+  // Ordering to the room belongs to a stay conversation or a desk request.
+  const mayOrder = thread.status === "active" && (thread.scope === "stay" || thread.kind === "department_request");
 
   return (
     <div className="mx-auto flex w-full max-w-read flex-col gap-block px-4 py-6">
@@ -221,7 +272,9 @@ function Conversation({
         <p className="mt-1 text-sm text-muted-foreground">
           {thread.status === "archived"
             ? "This conversation is closed."
-            : "The property replies here. Please don't share card details in a message."}
+            : thread.departmentName
+              ? `Whoever is on shift in ${thread.departmentName} replies here. Please don't share card details in a message.`
+              : "The property replies here. Please don't share card details in a message."}
         </p>
       </header>
 
@@ -245,7 +298,10 @@ function Conversation({
                   {dayLabel(message.createdAt)}
                 </p>
               ) : null}
-              <Bubble message={message} />
+              {message.bodyType === "system" ? <SystemLine message={message} /> : <Bubble message={message} />}
+              {message.serviceOrderId && firstLineOf.get(message.serviceOrderId) === message.id ? (
+                <OrderCard orderId={message.serviceOrderId} version={linesOf.get(message.serviceOrderId) ?? 0} />
+              ) : null}
             </li>
           );
         })}
@@ -273,7 +329,19 @@ function Conversation({
             aria-label="Write a message"
             rows={3}
           />
-          <div className="flex justify-end">
+          <div className="flex flex-wrap justify-between gap-2">
+            {mayOrder ? (
+              // The full order screen, placing into THIS conversation: its card and
+              // status lines appear here, and the screen comes back here after.
+              <Button asChild variant="outline">
+                <Link href={`/stay/order?thread=${encodeURIComponent(thread.id)}`}>
+                  <Icon name="coffee" className="size-4" />
+                  Order to my room
+                </Link>
+              </Button>
+            ) : (
+              <span />
+            )}
             <Button pending={sending} disabled={draft.trim().length === 0} onClick={() => void send()}>
               {sending ? "Sending…" : "Send"}
             </Button>
@@ -311,6 +379,98 @@ function Bubble({ message }: { message: GuestMessage }) {
           {clockLabel(message.createdAt)}
         </p>
       </div>
+    </div>
+  );
+}
+
+/** A line the platform wrote, such as an order's status. Nobody's bubble. */
+function SystemLine({ message }: { message: GuestMessage }) {
+  return (
+    <p data-system-line className="my-1 flex items-center justify-center gap-2 text-center text-xs text-muted-foreground">
+      <Icon name="clipboard-list" className="size-3.5 shrink-0" />
+      <span>{message.body}</span>
+      <span aria-hidden="true">·</span>
+      <span>{clockLabel(message.createdAt)}</span>
+    </p>
+  );
+}
+
+/**
+ * The order a line is about, as a card (ADR-050 D-s): read from
+ * `GET /me/orders/:id`, the order's one home, and read again whenever `version`
+ * moves, which is the count of lines about it.
+ */
+function OrderCard({ orderId, version }: { orderId: string; version: number }) {
+  const [order, setOrder] = useState<GuestOrderDetail | null>(null);
+  const [cancelling, setCancelling] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    void (async () => {
+      const next = await fetchMyOrder(orderId);
+      if (!cancelled && next.status === "ok") setOrder(next.data);
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [orderId, version]);
+
+  if (!order) return <Skeleton className="mx-auto my-2 h-20 w-full max-w-narrow rounded-card" />;
+
+  async function cancel() {
+    setCancelling(true);
+    setError(null);
+    const next = await cancelMyOrder(orderId);
+    setCancelling(false);
+    if (next.status !== "ok") {
+      setError(apiResultMessage(next));
+      return;
+    }
+    setOrder(next.data);
+  }
+
+  const tone = orderTone(order.status);
+  return (
+    <div
+      data-order-card={order.orderNumber}
+      className="mx-auto my-2 w-full max-w-narrow rounded-card border border-border bg-card p-3 text-sm text-card-foreground"
+    >
+      <div className="flex items-center justify-between gap-2">
+        <p className="font-semibold">
+          Order <span className="money">{order.orderNumber}</span>
+          <span className="font-normal text-muted-foreground"> · {order.outletName}</span>
+        </p>
+        <Badge variant={tone === "open" ? "accent" : tone === "done" ? "success" : "outline"}>
+          {ORDER_STATUS_LABEL[order.status]}
+        </Badge>
+      </div>
+      <ul className="m-0 mt-2 list-none p-0 text-xs text-muted-foreground">
+        {order.lines.map((line, i) => (
+          <li key={`${line.name}-${i}`} className="flex justify-between gap-2">
+            <span>
+              {line.quantity} × {line.name}
+            </span>
+            <span className="money">{formatPrice(line.lineTotalRwf)}</span>
+          </li>
+        ))}
+      </ul>
+      <p className="money mt-2 flex justify-between border-t border-border pt-2 text-xs">
+        <span>{order.context === "in_house_folio" ? "On your room bill, with tax" : "Total, with tax"}</span>
+        <b>{formatPrice(order.totalRwf)}</b>
+      </p>
+      {order.cancellable ? (
+        <div className="mt-2 flex justify-end">
+          <Button size="sm" variant="ghost" pending={cancelling} onClick={() => void cancel()}>
+            {cancelling ? "Cancelling…" : "Cancel this order"}
+          </Button>
+        </div>
+      ) : null}
+      {error ? (
+        <p role="alert" className="mt-1 text-xs text-destructive">
+          {error}
+        </p>
+      ) : null}
     </div>
   );
 }

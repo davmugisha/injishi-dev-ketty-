@@ -33,6 +33,7 @@ import {
   resolveAllowedOrigins,
   resolveCookieSecret,
 } from './shared/config/security.config';
+import { resolveTrustProxy } from './shared/config/trust-proxy';
 import { DatabaseModule } from './shared/database/database.module';
 import { QueuesModule } from './shared/queues/queues.module';
 
@@ -73,9 +74,17 @@ import { QueuesModule } from './shared/queues/queues.module';
 export class AppModule {
   /** HTTP + WS process (:8000). */
   static async main(): Promise<void> {
+    // Which proxy hops may name the client in X-Forwarded-For, and therefore
+    // what `request.ip` (every address keyed rate limit) says. Read from
+    // process.env rather than ConfigService because the adapter exists before
+    // the container does; ConfigModule.forRoot has already loaded .env into
+    // process.env by the time this runs. Off unless the deploy states its proxy
+    // chain, and a value that does not parse fails the boot (trust-proxy.ts).
     const app = await NestFactory.create<NestFastifyApplication>(
       AppModule,
-      new FastifyAdapter(),
+      new FastifyAdapter({
+        trustProxy: resolveTrustProxy(process.env.TRUST_PROXY),
+      }),
       { bufferLogs: true },
     );
     app.useLogger(app.get(Logger));

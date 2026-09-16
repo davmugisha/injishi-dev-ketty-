@@ -1,104 +1,99 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import {
-  Accordion,
-  AccordionContent,
-  AccordionItem,
-  AccordionTrigger,
-} from "@injishi/ui";
+import { ServiceCard } from "@/components/services/service-card";
+import { ServiceKindIcon } from "@/components/services/service-kind-mark";
 import { PageHero } from "@/components/shared/page-hero";
 import { SectionHeading } from "@/components/shared/section-heading";
-import { FAQ, SERVICE_PILLARS } from "@/data/services";
+import {
+  SERVICE_KIND_BLURB,
+  SERVICE_KIND_LABEL,
+  SERVICE_KIND_ORDER,
+  servicesOfKind,
+} from "@/data/service-listings";
 
+/**
+ * The services index: every hotel amenity sold on its own, grouped by kind.
+ *
+ * `/services` used to render the marketing pillars and the FAQ, a second copy
+ * of `/how-it-works` at the address the amenities marketplace had already
+ * taken. `/services/[slug]` linked "All services" back here and landed on
+ * escrow and self check-in. The pillars live at `/how-it-works` alone now, and
+ * this page is what its children's breadcrumb promises.
+ *
+ * It reads the same fixture and the same card the detail page does
+ * (`data/service-listings.ts`, `ServiceCard`), so a tile here is the tile a
+ * reader clicked on the property page. Every figure in that fixture is
+ * invented; read its header before quoting one.
+ *
+ * It opens on a photographic hero ON PURPOSE: `headerVariantFor` keeps
+ * `/services` off its white-page list, and the detail pages under it inherit
+ * the dark header by prefix.
+ */
 export const metadata: Metadata = {
-  title: "Our Services",
+  title: "Services",
   description:
-    "Escrow-backed booking, self check-in, and RRA compliance. How Injishi works for guests and hosts.",
+    "Pool day passes, halls, outdoor spaces, marquees and parking, booked on their own at hotels across Rwanda.",
 };
+
+const GROUPS = SERVICE_KIND_ORDER.map((kind) => ({
+  kind,
+  services: servicesOfKind(kind),
+})).filter((group) => group.services.length > 0);
 
 export default function ServicesPage() {
   return (
-    <div className="flex flex-col items-center">
+    <div className="flex flex-col items-center bg-background">
       <PageHero
-        title="Our Services"
-        trail={[{ label: "Home", href: "/" }, { label: "Our Services" }]}
-        image={{ stem: "rwanda-kigali-hero", alt: "Kigali skyline at sunset" }}
+        title="Services"
+        trail={[{ label: "Home", href: "/" }, { label: "Services" }]}
+        image={{ stem: "kigali-hills-view-01", alt: "Kigali's hills in the afternoon" }}
+        lede="Book a hotel's pool, hall, lawn, marquee or parking without booking a room."
       />
 
       <div className="section-y container">
-        {/* Jump links, mirroring the capture's pill row above the pillars. */}
-        <nav aria-label="Services" className="mb-12 flex flex-wrap gap-3">
-          {SERVICE_PILLARS.map((pillar) => (
+        {/* Jump links, one per kind, the same pill row `/how-it-works` opens on. */}
+        <nav aria-label="Service kinds" className="mb-12 flex flex-wrap gap-3">
+          {GROUPS.map(({ kind }) => (
             <Link
-              key={pillar.id}
-              href={`#${pillar.id}`}
-              className="rounded-full border border-slate-line px-5 py-2.5 text-sm text-page-fg transition-colors duration-300 hover:border-ink"
+              key={kind}
+              href={`#${kind}`}
+              className="flex items-center gap-2 rounded-full border border-slate-line px-5 py-2.5 text-sm text-page-fg transition-colors duration-travel hover:border-ink"
             >
-              {pillar.navLabel}
+              <ServiceKindIcon kind={kind} className="size-4 shrink-0" />
+              {SERVICE_KIND_LABEL[kind]}
             </Link>
           ))}
         </nav>
 
         <div className="flex flex-col gap-16">
-          {SERVICE_PILLARS.map((pillar, index) => (
-            <section
-              key={pillar.id}
-              id={pillar.id}
-              className="grid scroll-mt-32 grid-cols-1 items-center gap-8 lg:grid-cols-2 lg:gap-16"
-            >
-              <div className={index % 2 === 1 ? "lg:order-2" : undefined}>
-                <picture>
-                  <source
-                    type="image/avif"
-                    sizes="(max-width: 1024px) 100vw, 50vw"
-                    srcSet={`/media/${pillar.image.stem}.avif`}
-                  />
-                  {/* Art-directed <picture>: next/image cannot express the AVIF/WebP source pair. */}
-                  <img
-                    src={`/media/${pillar.image.stem}.webp`}
-                    sizes="(max-width: 1024px) 100vw, 50vw"
-                    width={960}
-                    height={640}
-                    alt={pillar.image.alt}
-                    loading="lazy"
-                    className="aspect-[3/2] w-full rounded-card object-cover"
-                  />
-                </picture>
-              </div>
-
-              <div className="flex flex-col gap-4">
-                <SectionHeading lead={pillar.lead} emphasis={pillar.emphasis} />
-                <p className="text-page-fg-70">{pillar.body}</p>
-              </div>
+          {GROUPS.map(({ kind, services }) => (
+            <section key={kind} id={kind} className="scroll-mt-32">
+              <SectionHeading
+                lead={SERVICE_KIND_LABEL[kind]}
+                lede={SERVICE_KIND_BLURB[kind]}
+                className="mb-8"
+              />
+              <ul className="m-0 grid list-none grid-cols-1 gap-6 p-0 md:grid-cols-2 lg:grid-cols-3">
+                {services.map((service) => (
+                  <li key={service.slug} className="flex">
+                    <ServiceCard service={service} />
+                  </li>
+                ))}
+              </ul>
             </section>
           ))}
         </div>
+
+        <p className="mt-16 text-sm text-page-fg-70">
+          Wondering how paying for a service works?{" "}
+          <Link
+            href="/how-it-works#escrow"
+            className="text-page-fg underline underline-offset-[4px]"
+          >
+            How Injishi works
+          </Link>
+        </p>
       </div>
-
-      {/* The FAQ is a peer of the pillars, not a tail on them, so it carries
-          `.section-y` like any other section rather than the `mt-20` it had
-          grown. The interval between the two is now the two adjacent steps the
-          rest of the site runs on. */}
-      <section className="section-y container">
-        <SectionHeading
-          lead="Frequently Asked "
-          emphasis="Questions"
-          className="mb-8"
-        />
-
-        <Accordion type="single" collapsible defaultValue={FAQ[0]?.question}>
-          {FAQ.map((entry) => (
-            <AccordionItem key={entry.question} value={entry.question}>
-              <AccordionTrigger className="text-page-fg">
-                {entry.question}
-              </AccordionTrigger>
-              <AccordionContent className="text-page-fg-70">
-                {entry.answer}
-              </AccordionContent>
-            </AccordionItem>
-          ))}
-        </Accordion>
-      </section>
     </div>
   );
 }

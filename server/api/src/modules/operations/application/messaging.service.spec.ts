@@ -1,10 +1,13 @@
-import { ConflictException, NotFoundException } from '@nestjs/common';
+import { BadRequestException, ConflictException, NotFoundException } from '@nestjs/common';
+
+import { orderLineText } from '../infrastructure/order-thread-lines';
 
 import {
   type GuestThreadRow,
   type MessageRow,
   MessagingRepository,
 } from '../infrastructure/messaging.repository';
+import type { ScopedWorkspace } from '../../../shared/auth/branch-scope';
 import { MessagingService } from './messaging.service';
 
 /**
@@ -32,6 +35,7 @@ describe('MessagingService (guest)', () => {
     leaseId: null,
     status: 'active',
     kind: 'reservation',
+    propertyId: '88888888-8888-4888-8888-888888888888',
     propertyName: 'Amahoro Boutique Hotel',
     departmentName: null,
     updatedAt: new Date('2026-09-12T08:00:00.000Z'),
@@ -45,6 +49,7 @@ describe('MessagingService (guest)', () => {
     senderName: 'Front desk',
     bodyType: 'text',
     body: 'Your room is ready.',
+    serviceOrderId: null,
     voiceDurationS: null,
     createdAt: new Date('2026-09-12T09:00:00.000Z'),
     ...over,
@@ -279,6 +284,58 @@ describe('MessagingService (guest)', () => {
     });
   });
 
+  describe('department conversations and orders (ADR-050 D-r, D-s)', () => {
+    const PROPERTY = '88888888-8888-4888-8888-888888888888';
+
+    it('signs a staff reply with the department, never the staffer', async () => {
+      const { service } = harness({
+        findThreadForGuest: jest
+          .fn()
+          .mockResolvedValue(thread({ kind: 'department_request', departmentName: 'Housekeeping' })),
+        messagePage: jest.fn().mockResolvedValue([
+          message({ id: 'a', senderUserId: OPERATOR, senderName: 'Solange Uwera' }),
+          message({ id: 'b', senderUserId: GUEST, senderName: 'Samuel' }),
+          message({ id: 'c', senderUserId: null, senderName: null, bodyType: 'system', body: 'Order A1 is ready.', serviceOrderId: '99999999-9999-4999-8999-999999999999' }),
+        ]),
+      });
+      const { messages } = await service.listGuestMessages(GUEST, THREAD);
+      expect(messages.map((m) => m.senderName)).toEqual(['Housekeeping', 'Samuel', null]);
+      expect(messages[2]).toMatchObject({ bodyType: 'system', serviceOrderId: '99999999-9999-4999-8999-999999999999', fromUs: false });
+    });
+
+    it('keeps the staffer name on a reservation thread with no department', async () => {
+      const { service } = harness({
+        messagePage: jest.fn().mockResolvedValue([message({ senderName: 'Solange Uwera' })]),
+      });
+      const { messages } = await service.listGuestMessages(GUEST, THREAD);
+      expect(messages[0]?.senderName).toBe('Solange Uwera');
+    });
+
+    it('lets an order be placed from the guest\'s own active thread at that property', async () => {
+      const { service } = harness();
+      await expect(service.assertOrderableThread(GUEST, THREAD, PROPERTY)).resolves.toBeUndefined();
+    });
+
+    it('refuses a thread at another property, a closed one, and a stranger\'s', async () => {
+      await expect(
+        harness().service.assertOrderableThread(GUEST, THREAD, 'cccccccc-cccc-4ccc-8ccc-cccccccccccc'),
+      ).rejects.toThrow(BadRequestException);
+      await expect(
+        harness({ findThreadForGuest: jest.fn().mockResolvedValue(thread({ status: 'archived' })) }).service.assertOrderableThread(GUEST, THREAD, PROPERTY),
+      ).rejects.toThrow(ConflictException);
+      await expect(
+        harness({ findThreadForGuest: jest.fn().mockResolvedValue(null) }).service.assertOrderableThread(GUEST, THREAD, PROPERTY),
+      ).rejects.toThrow(NotFoundException);
+    });
+
+    it('writes order lines that keep the order number as written', () => {
+      const order = { orderNumber: 'A12B', placeName: 'In-Room Dining', departmentName: 'Food and Beverage' };
+      expect(orderLineText('submitted', order)).toBe('Order A12B was sent to In-Room Dining.');
+      expect(orderLineText('acknowledged', order)).toBe('Food and Beverage has your order A12B and is on it.');
+      expect(orderLineText('cancelled', order)).toBe('Order A12B was cancelled.');
+    });
+  });
+
   describe('markGuestRead', () => {
     it('records the SERVER clock, not a client time', async () => {
       const { service, repo } = harness();
@@ -295,5 +352,108 @@ describe('MessagingService (guest)', () => {
       expect(userId).toBe(GUEST);
       expect(at.getTime()).toBeGreaterThanOrEqual(before);
     });
+  });
+});
+
+/**
+ * The DESK's siding (demo-comms, 2026-09-14).
+ *
+ * The desk is a team: a line a colleague wrote is the property's, not the
+ * guest's. Sided from the reader, Denise's seeded reply sat on the guest's side
+ * of Solange's screen.
+ */
+describe('MessagingService (desk)', () => {
+  const WORKSPACE = '55555555-5555-5555-5555-555555555555';
+  const THREAD = '33333333-3333-3333-3333-333333333333';
+  const GUEST = '22222222-2222-2222-2222-222222222222';
+  const MANAGER = '44444444-4444-4444-4444-444444444444';
+  const RECEPTIONIST = '88888888-8888-8888-8888-888888888888';
+  const BRANCH = '77777777-7777-4777-8777-777777777777';
+  const ws = {
+    workspaceId: WORKSPACE,
+    branchScope: {
+      coverage: 'all',
+      selectedPropertyId: null,
+      propertyIds: [BRANCH],
+      includesUnbranched: true,
+    },
+  } as unknown as ScopedWorkspace;
+
+  const line = (id: string, senderUserId: string | null): MessageRow => ({
+    id,
+    threadId: THREAD,
+    senderUserId,
+    senderName: null,
+    bodyType: 'text',
+    body: 'hello',
+    serviceOrderId: null,
+    voiceDurationS: null,
+    createdAt: new Date('2026-09-14T08:00:00.000Z'),
+  });
+
+  function desk(
+    counterpart: string | null,
+    rows: MessageRow[],
+  ): { service: MessagingService; repo: Record<string, jest.Mock> } {
+    const repo = {
+      findThread: jest.fn().mockResolvedValue({
+        id: THREAD,
+        workspaceId: WORKSPACE,
+        bookingId: '66666666-6666-6666-6666-666666666666',
+        guestStayId: null,
+        leaseId: null,
+        branchPropertyId: BRANCH,
+        status: 'active',
+      }),
+      listMessages: jest.fn().mockResolvedValue(rows),
+      counterpartUserId: jest.fn().mockResolvedValue(counterpart),
+      sendMessage: jest.fn().mockResolvedValue(rows[0]?.id),
+      findMessage: jest.fn().mockResolvedValue(rows[0]),
+    };
+    return { service: new MessagingService(repo as unknown as MessagingRepository), repo };
+  }
+
+  it("sides a colleague's reply as the property's, and the guest's line as theirs", async () => {
+    const { service } = desk(GUEST, [
+      line('a', GUEST),
+      line('b', RECEPTIONIST),
+      line('c', MANAGER),
+    ]);
+
+    const messages = await service.listMessages(ws, THREAD, MANAGER);
+
+    expect(messages.map((m) => m.fromUs)).toEqual([false, true, true]);
+  });
+
+  it('keeps a system note (no sender) nobody’s', async () => {
+    const { service } = desk(GUEST, [line('a', null)]);
+
+    const [note] = await service.listMessages(ws, THREAD, MANAGER);
+
+    expect(note?.fromUs).toBe(false);
+  });
+
+  it('falls back to the reader when the other side has no account', async () => {
+    const { service } = desk(null, [line('a', RECEPTIONIST), line('b', MANAGER)]);
+
+    const messages = await service.listMessages(ws, THREAD, MANAGER);
+
+    expect(messages.map((m) => m.fromUs)).toEqual([false, true]);
+  });
+
+  it('returns a sent line sided as ours', async () => {
+    const { service } = desk(GUEST, [line('a', RECEPTIONIST)]);
+
+    const sent = await service.sendMessage(ws, THREAD, { body: 'On its way' }, RECEPTIONIST);
+
+    expect(sent.fromUs).toBe(true);
+  });
+
+  it('proves the thread belongs to the workspace before reading a line', async () => {
+    const { service, repo } = desk(GUEST, [line('a', GUEST)]);
+    repo.findThread.mockResolvedValue({ id: THREAD, workspaceId: 'someone-else', bookingId: 'x', guestStayId: null, leaseId: null, status: 'active' });
+
+    await expect(service.listMessages(ws, THREAD, MANAGER)).rejects.toBeInstanceOf(NotFoundException);
+    expect(repo.listMessages).not.toHaveBeenCalled();
   });
 });

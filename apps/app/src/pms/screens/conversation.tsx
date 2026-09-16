@@ -35,6 +35,7 @@ import { Button, Input } from "@injishi/ui";
 import { cn } from "@/lib/utils";
 import { ScrollShadow } from "@heroui/react";
 import type { OperatorMessage, OperatorThread } from "@injishi/contracts";
+import { useParams } from "next/navigation";
 import { useState } from "react";
 import {
   ActionButton,
@@ -85,6 +86,7 @@ function initialsOf(name: string | null): string {
  */
 function bodyText(m: OperatorMessage): string {
   if (m.bodyType === "image") return "📷 Photo";
+  if (m.bodyType === "system") return m.body ?? "";
   if (m.bodyType === "voice") {
     const s = m.voiceDurationS;
     return s ? `🎙 Voice note · ${s}s` : "🎙 Voice note";
@@ -97,14 +99,18 @@ export function Conversation({ listLabel, scopeNote, placeholder, quick }: Conve
   const workspaceId = useWorkspaceId();
   const { can, reasonFor } = useCapability();
 
-  const [selId, setSelId] = useState<string | null>(null);
+  // `/w/:id/inbox/:threadId` names a thread, and that is the one it opens: a
+  // link a colleague sends has to land on the conversation it points at.
+  const params = useParams<{ threadId?: string | string[] }>();
+  const linked = typeof params.threadId === "string" ? params.threadId : null;
+  const [selId, setSelId] = useState<string | null>(linked);
   const [text, setText] = useState("");
 
   const threadsQuery = useThreads(workspaceId);
   const threads = threadsQuery.data?.threads ?? [];
-  // The route does not name a thread, so the first one stands in until the
-  // operator picks. Derived rather than stored, so a refetch that drops the
-  // selected thread lands on a real one instead of an empty pane.
+  // With no thread in the address, the first one stands in until the operator
+  // picks. Derived rather than stored, so a refetch that drops the selected
+  // thread lands on a real one instead of an empty pane.
   const sel = threads.find((t) => t.id === selId) ?? threads[0] ?? null;
 
   const messagesQuery = useThreadMessages(workspaceId, sel?.id ?? null);
@@ -115,7 +121,8 @@ export function Conversation({ listLabel, scopeNote, placeholder, quick }: Conve
 
   function submit(value: string) {
     const body = value.trim();
-    if (!sel || !body || denied) return;
+    // A press while the last send is still on the wire would post it twice.
+    if (!sel || !body || denied || send.isPending) return;
     send.mutate(
       { body },
       {
@@ -179,8 +186,12 @@ export function Conversation({ listLabel, scopeNote, placeholder, quick }: Conve
                 variant="ghost"
                 key={t.id}
                 onClick={() => setSelId(t.id)}
+                // `h-auto` and `whitespace-normal`, as the officer queue does: the
+                // shared button carries a fixed control height and a thread row is
+                // three lines, so each preview drew over the next row's name.
+                // `rounded-none`: a row is a band of the list, not a control.
                 className={cn(
-                  "flex w-full items-start gap-2.5 border-b border-line px-4 py-3 text-left transition-colors",
+                  "flex h-auto w-full items-start justify-start gap-2.5 whitespace-normal rounded-none border-b border-line px-4 py-3 text-left transition-colors",
                   on ? "bg-hover" : "hover:bg-hover",
                 )}
               >
@@ -195,6 +206,7 @@ export function Conversation({ listLabel, scopeNote, placeholder, quick }: Conve
                     </span>
                   </span>
                   <span className="mt-px block truncate text-2xs text-muted-foreground">
+                    {t.departmentName ? `To ${t.departmentName} · ` : ""}
                     {ABOUT[t.scope]}
                     {t.status === "archived" ? " · archived" : ""}
                   </span>
@@ -218,6 +230,7 @@ export function Conversation({ listLabel, scopeNote, placeholder, quick }: Conve
                 {sel.counterpartName ?? "Unnamed"}
               </span>
               <span className="block truncate text-2xs text-muted-foreground">
+                {sel.departmentName ? `To ${sel.departmentName} · ` : ""}
                 {ABOUT[sel.scope]}
               </span>
             </span>
@@ -246,7 +259,19 @@ export function Conversation({ listLabel, scopeNote, placeholder, quick }: Conve
               </LoadFailed>
             )}
 
-            {(messagesQuery.data?.messages ?? []).map((m) => (
+            {(messagesQuery.data?.messages ?? []).map((m) =>
+              m.bodyType === "system" ? (
+                // A line the platform wrote about an order raised in this
+                // conversation (ADR-050 D-s): nobody's bubble, and it never
+                // reads as the guest or a colleague speaking.
+                <div
+                  key={m.id}
+                  data-system-line
+                  className="self-center rounded-full bg-field px-3 py-1 text-center text-2xs text-muted-foreground"
+                >
+                  {bodyText(m)} · <span className="pms-num">{dshortIso(m.createdAt)}</span>
+                </div>
+              ) : (
               <div key={m.id} className={cn("flex", m.fromUs ? "justify-end" : "justify-start")}>
                 <div className="max-w-[76%]">
                   <div
@@ -270,7 +295,8 @@ export function Conversation({ listLabel, scopeNote, placeholder, quick }: Conve
                   </div>
                 </div>
               </div>
-            ))}
+              ),
+            )}
           </ScrollShadow>
 
           <div className="border-t border-line px-[18px] py-3">

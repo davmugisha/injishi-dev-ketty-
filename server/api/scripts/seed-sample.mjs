@@ -42,6 +42,7 @@ import { fileURLToPath } from 'node:url';
 
 import pg from 'pg';
 
+import { markHeadOffices } from './head-offices.mjs';
 import { assertSampleDatabase, describeDatabase } from './sample-database.mjs';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
@@ -121,6 +122,11 @@ for (const [i, step] of STEPS.entries()) {
     fail(`${step.script} failed with exit code ${result.status}; see its output above.`);
   }
 }
+
+// ADR-054: the seeds write properties after the migration that marks head
+// offices, so the rule is applied once more to what they wrote.
+const marked = await withClient((client) => markHeadOffices(client));
+console.log(`\nHead offices marked for ${marked} hospitality org(s) that had none.`);
 
 // Only a complete run is a reset. The update trigger allows `seeded_at` alone.
 const seededAt = await withClient(async (client) => {

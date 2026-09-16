@@ -45,6 +45,11 @@ x-api-env: &api-env
   INJISHI_DATABASE_KIND: sample
   NODE_ENV: production
   PORT: "8000"
+  # One trusted hop, as production: Dokploy's Traefik is the only route to api
+  # (8000 is `expose`d, never published), and the address it appends to
+  # X-Forwarded-For becomes request.ip. The frontends' server side calls reach
+  # the API through its public address, so they arrive through Traefik too.
+  TRUST_PROXY: "1"
   DATABASE_URL: ${DATABASE_URL}
   REDIS_URL: ${REDIS_URL}
   COOKIE_SECRET: ${COOKIE_SECRET}
@@ -119,7 +124,7 @@ services:
     restart: unless-stopped
     environment:
       POSTGRES_USER: ${POSTGRES_USER:-injishi}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-change-me}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD}
       POSTGRES_DB: ${POSTGRES_DB:-injishi}
     volumes:
       - db-data:/var/lib/postgresql/data
@@ -227,6 +232,12 @@ services:
   mailpit:
     image: axllent/mailpit:v1.31.1
     restart: unless-stopped
+    environment:
+      # The same setting the local compose carries. Mailpit looks up the client's
+      # reverse DNS before its 220 greeting; where that lookup stalls past the
+      # API's 5s greeting timeout every demo sign-in code fails with a 500,
+      # because NODE_ENV=production turns the log fallback off (demo-comms).
+      MP_SMTP_DISABLE_RDNS: "true"
     expose:
       - "1025"
       - "8025"
@@ -310,8 +321,12 @@ services:
       - traefik.http.routers.injishi-staging-api.tls.certresolver=letsencrypt
       - traefik.http.routers.injishi-staging-api.service=injishi-staging-api
     networks:
-      - default
-      - dokploy-network
+      default:
+        # The name web's Server Actions use (INTERNAL_API_URL). Not `api`: web
+        # also joins dokploy-network, where another stack's `api` answers to it.
+        aliases:
+          - injishi-api
+      dokploy-network: {}
 
   worker:
     # The same image as api, by the same tag: one API image, two processes, so a
@@ -350,6 +365,9 @@ services:
       NODE_ENV: production
       PORT: "3000"
       OPERATOR_APP_URL: http://app:3002
+      # Server only, read at runtime. Sign-in sends reach the API over the compose
+      # network so the visitor's IP can be forwarded (apps/web/src/lib/otp.server.ts).
+      INTERNAL_API_URL: http://injishi-api:8000
     expose:
       - "3000"
     depends_on:

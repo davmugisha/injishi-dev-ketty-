@@ -193,6 +193,88 @@ export const OperatorRoom = z.object({
 export type OperatorRoom = z.infer<typeof OperatorRoom>;
 export const OperatorRoomList = z.object({ rooms: z.array(OperatorRoom) });
 export type OperatorRoomList = z.infer<typeof OperatorRoomList>;
+// ===========================================================================
+// §6.8  Registering a guest at the desk
+// ===========================================================================
+// The desk's half of the claim story. The guest's half — claiming, the
+// departments, the refund request — is in `stay.ts`, which imports
+// `DepartmentCategory` from this file and therefore cannot be imported back.
+
+// ---------------------------------------------------------------------------
+// Registering a guest at the desk
+// ---------------------------------------------------------------------------
+
+/**
+ * What the desk writes on the registration card (§6.4 `stay_identities`).
+ *
+ * Every field is optional EXCEPT in the sense that a property regulated in
+ * Rwanda is required to record the identity of whoever sleeps in the building —
+ * so this is optional in the schema and expected in practice, and the desk app
+ * is what insists. A required field here would break the walk in at 23:00 whose
+ * passport is in a bag upstairs, and a stay nobody could open is worse than a
+ * stay with a name and no document number.
+ */
+export const StayRegistrationDetails = z
+  .object({
+    /** As printed on the document, which is not always the name on the booking. */
+    fullName: z.string().trim().min(1).max(200).optional(),
+    documentType: z.enum(["national_id", "passport", "other"]).optional(),
+    idNumber: z.string().trim().min(1).max(64).optional(),
+    /** Home address, free text: Rwandan and foreign addresses do not share a shape. */
+    addressText: z.string().trim().min(1).max(500).optional(),
+    /**
+     * Where the "continue in the app" mail goes. The ONE address this stay's
+     * claim invitation is ever sent to, which is why it is captured here at the
+     * counter with the guest watching, and never supplied later by a caller.
+     */
+    email: z.string().trim().email().max(254).optional(),
+    phone: z.string().trim().min(6).max(32).optional(),
+    /**
+     * Send the claim invitation now. Default true when an address was given:
+     * a desk that captured an address meant to invite them, and making the
+     * invitation a second deliberate step is how it never gets sent.
+     */
+    invite: z.boolean().optional(),
+  })
+  .strict();
+export type StayRegistrationDetails = z.infer<typeof StayRegistrationDetails>;
+
+/** The shape of a claim code as it is printed: four letters, a dash, four digits. */
+export const CLAIM_CODE_PATTERN = /^[A-Z]{4}-\d{4}$/;
+
+/**
+ * What the desk gets back after registering somebody: the code on the slip, and
+ * whether the mail actually left.
+ *
+ * `invitationSent` is false rather than an error when the transport refused.
+ * The stay is real and the code is printed on the slip in the guest's hand;
+ * failing the check in because an SMTP relay was down would put a guest back on
+ * the street over an email.
+ */
+export const StayClaimInvite = z.object({
+  stayId: Uuid,
+  /** Null when the stay is already claimed — there is nothing left to hand out. */
+  claimCode: z.string().nullable(),
+  email: z.string().nullable(),
+  invitationSent: z.boolean(),
+  invitedAt: z.string().nullable(),
+});
+export type StayClaimInvite = z.infer<typeof StayClaimInvite>;
+
+/** Re-send the invitation, or send a first one to an address captured late. */
+export const IssueStayClaimInviteRequest = z
+  .object({
+    /** Absent keeps the address already on the stay. */
+    email: z.string().trim().email().max(254).optional(),
+    /**
+     * Mint a NEW code, invalidating the old slip. For the guest who says the
+     * code does not work, or the one who left the slip in the taxi.
+     */
+    reissue: z.boolean().optional(),
+  })
+  .strict();
+export type IssueStayClaimInviteRequest = z.infer<typeof IssueStayClaimInviteRequest>;
+
 /** A guest in the building, or one who has left. */
 export const OperatorStay = z.object({
     id: Uuid,
@@ -244,6 +326,15 @@ export const CheckInRequest = z.object({
      * the one that must not be overwritten by a blank field.
      */
     nightlyRateRwf: z.number().int().positive().optional(),
+    /**
+     * The registration card, and the invitation that follows it (§6.8).
+     *
+     * OPTIONAL, because a booked guest already has an account and an address
+     * and the desk usually types nothing. Present, it records the identity
+     * against the stay and mails the guest a claim code so they can carry on
+     * in the app. Absent, check in behaves exactly as it did.
+     */
+    guest: StayRegistrationDetails.optional(),
 });
 export type CheckInRequest = z.infer<typeof CheckInRequest>;
 /**
@@ -276,6 +367,16 @@ export const WalkInRequest = z.object({
     plannedExitAt: z.string().optional(),
     /** The nightly rate agreed at the counter. */
     nightlyRateRwf: z.number().int().positive().optional(),
+    /**
+     * The registration card, and the invitation that follows it (§6.8).
+     *
+     * THIS IS THE CASE IT WAS BUILT FOR. A walk in has no account, so the only
+     * record of who they are is what the desk types here, and the only way they
+     * ever reach the app is the claim code this mails them. Without it a walk in
+     * is a room number and a first name, and every guest-facing surface this
+     * platform has is closed to them for the whole of their stay.
+     */
+    guest: StayRegistrationDetails.optional(),
 });
 export type WalkInRequest = z.infer<typeof WalkInRequest>;
 /**
@@ -311,6 +412,11 @@ export const OperatorThread = z.object({
     subjectId: Uuid,
     /** Who the operator is talking to, when we can resolve a name. */
     counterpartName: z.string().nullable(),
+    /**
+     * The department the guest opened this conversation with (ADR-050 D-q),
+     * or null for the reservation thread every booking gets at sale.
+     */
+    departmentName: z.string().nullable(),
     status: z.enum(["active", "archived"]),
     lastMessageAt: z.string().nullable(),
     lastMessagePreview: z.string().nullable(),
@@ -328,8 +434,11 @@ export const OperatorMessage = z.object({
     senderName: z.string().nullable(),
     /** True when this workspace sent it, so a screen can side the bubble. */
     fromUs: z.boolean(),
-    bodyType: z.enum(["text", "image", "voice"]),
+    /** `system` is a line the platform wrote, such as an order's status (ADR-050 D-s). */
+    bodyType: z.enum(["text", "image", "voice", "system"]),
     body: z.string().nullable(),
+    /** The order a `system` line reports on, so a screen can draw its card. */
+    serviceOrderId: Uuid.nullable(),
     voiceDurationS: z.number().int().nullable(),
     createdAt: z.string(),
 });

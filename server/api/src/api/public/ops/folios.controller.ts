@@ -7,7 +7,6 @@ import {
   type PostChargeResult,
   TakePaymentRequest,
   VoidChargeRequest,
-  type WorkspaceAccess,
 } from '@injishi/contracts';
 import {
   Body,
@@ -28,9 +27,11 @@ import {
 import { IdempotencyKey } from '../../../shared/http/idempotency-key';
 import {
   CurrentWorkspace,
+  RequireAnyPermission,
   RequirePermission,
   WorkspaceGuard,
 } from '../../../shared/auth/workspace.guard';
+import type { ScopedWorkspace } from '../../../shared/auth/branch-scope';
 import { ZodValidationPipe } from '../../../shared/validation/zod-validation.pipe';
 
 /**
@@ -57,21 +58,24 @@ import { ZodValidationPipe } from '../../../shared/validation/zod-validation.pip
 export class OpsFoliosController {
   constructor(private readonly folios: FolioService) {}
 
-  /** The Bills list. */
+  /**
+   * The Bills list. The desk works it (`folio.charge`); Finance reads the
+   * same bills under `money.view`.
+   */
   @Get()
-  @RequirePermission('folio.charge')
+  @RequireAnyPermission('folio.charge', 'money.view')
   async list(
-    @CurrentWorkspace() workspace: WorkspaceAccess,
+    @CurrentWorkspace() workspace: ScopedWorkspace,
   ): Promise<OperatorFolioList> {
     return { folios: await this.folios.list(workspace) };
   }
 
-  /** One bill, with its lines. */
+  /** One bill, with its lines. The desk's bill, and Finance's bill lens. */
   @Get(':id')
-  @RequirePermission('folio.charge')
+  @RequireAnyPermission('folio.charge', 'money.view')
   detail(
     @Param('id', ParseUUIDPipe) id: string,
-    @CurrentWorkspace() workspace: WorkspaceAccess,
+    @CurrentWorkspace() workspace: ScopedWorkspace,
   ): Promise<OperatorFolioDetail> {
     return this.folios.detail(workspace, id);
   }
@@ -89,7 +93,7 @@ export class OpsFoliosController {
   postCharge(
     @Param('id', ParseUUIDPipe) id: string,
     @Body(new ZodValidationPipe(PostChargeRequest)) body: PostChargeRequest,
-    @CurrentWorkspace() workspace: WorkspaceAccess,
+    @CurrentWorkspace() workspace: ScopedWorkspace,
     @CurrentUser() user: SessionUser,
     @IdempotencyKey() key: string,
   ): Promise<PostChargeResult> {
@@ -104,7 +108,7 @@ export class OpsFoliosController {
   takePayment(
     @Param('id', ParseUUIDPipe) id: string,
     @Body(new ZodValidationPipe(TakePaymentRequest)) body: TakePaymentRequest,
-    @CurrentWorkspace() workspace: WorkspaceAccess,
+    @CurrentWorkspace() workspace: ScopedWorkspace,
     @CurrentUser() user: SessionUser,
     @IdempotencyKey() key: string,
   ): Promise<OperatorFolioDetail> {
@@ -123,7 +127,7 @@ export class OpsFoliosController {
     @Param('id', ParseUUIDPipe) id: string,
     @Param('chargeId', ParseUUIDPipe) chargeId: string,
     @Body(new ZodValidationPipe(VoidChargeRequest)) body: VoidChargeRequest,
-    @CurrentWorkspace() workspace: WorkspaceAccess,
+    @CurrentWorkspace() workspace: ScopedWorkspace,
     @CurrentUser() user: SessionUser,
     @IdempotencyKey() key: string,
   ): Promise<OperatorFolioDetail> {
@@ -143,7 +147,7 @@ export class OpsFoliosController {
   @RequirePermission('folio.close')
   close(
     @Param('id', ParseUUIDPipe) id: string,
-    @CurrentWorkspace() workspace: WorkspaceAccess,
+    @CurrentWorkspace() workspace: ScopedWorkspace,
     @Body(new ZodValidationPipe(CloseFolioRequest.optional()))
     body: CloseFolioRequest | undefined,
   ): Promise<CloseFolioResult> {

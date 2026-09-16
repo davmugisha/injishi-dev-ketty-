@@ -6,7 +6,12 @@ import {
   bookings,
   roomAssignments,
   rooms,
+  roomTypes,
 } from '../../../database/drizzle/schema';
+import {
+  inBranchScope,
+  type BranchScope,
+} from '../../../shared/auth/branch-scope';
 import {
   DRIZZLE,
   type Database,
@@ -15,6 +20,8 @@ import {
 export interface AssignmentRow {
   id: string;
   workspaceId: string;
+  /** The held room's branch (ADR-054). */
+  propertyId: string;
   bookingId: string;
   roomId: string;
   roomLabel: string | null;
@@ -29,6 +36,8 @@ export interface AssignmentRow {
 export interface AssignmentSubject {
   id: string;
   workspaceId: string;
+  /** Through the room type: the reservation's branch (ADR-054). */
+  propertyId: string | null;
   roomTypeId: string;
   checkIn: string;
   checkOut: string;
@@ -72,12 +81,15 @@ export class RoomAssignmentRepository {
    */
   async listAssignedInWindow(
     workspaceId: string,
+    scope: BranchScope,
     from: string,
     to: string,
   ): Promise<AssignmentRow[]> {
     return this.select(
       and(
         eq(roomAssignments.workspaceId, workspaceId),
+        // The held room's type is the booking's, so its branch is the booking's.
+        inBranchScope(rooms.propertyId, scope),
         eq(roomAssignments.status, 'assigned'),
         sql`${roomAssignments.occupies} && daterange(${from}::date, ${to}::date, '[)')`,
       )!,
@@ -115,12 +127,14 @@ export class RoomAssignmentRepository {
       .select({
         id: bookings.id,
         workspaceId: bookings.workspaceId,
+        propertyId: roomTypes.propertyId,
         roomTypeId: bookings.roomTypeId,
         checkIn: bookings.checkIn,
         checkOut: bookings.checkOut,
         status: bookings.status,
       })
       .from(bookings)
+      .leftJoin(roomTypes, eq(roomTypes.id, bookings.roomTypeId))
       .where(eq(bookings.id, bookingId))
       .limit(1);
     return row ?? null;
@@ -129,6 +143,7 @@ export class RoomAssignmentRepository {
   async findRoom(roomId: string): Promise<{
     id: string;
     workspaceId: string;
+    propertyId: string;
     roomTypeId: string;
     label: string | null;
     status: string;
@@ -137,6 +152,7 @@ export class RoomAssignmentRepository {
       .select({
         id: rooms.id,
         workspaceId: rooms.workspaceId,
+        propertyId: rooms.propertyId,
         roomTypeId: rooms.roomTypeId,
         label: rooms.label,
         status: rooms.status,
@@ -219,6 +235,7 @@ export class RoomAssignmentRepository {
       .select({
         id: roomAssignments.id,
         workspaceId: roomAssignments.workspaceId,
+        propertyId: rooms.propertyId,
         bookingId: roomAssignments.bookingId,
         roomId: roomAssignments.roomId,
         roomLabel: rooms.label,

@@ -8,6 +8,7 @@ import {
   Req,
   UseGuards,
 } from '@nestjs/common';
+import { SkipThrottle } from '@nestjs/throttler';
 
 import type { UploadedPropertyPhoto } from '@injishi/contracts';
 
@@ -27,6 +28,7 @@ import {
   SessionGuard,
   type SessionUser,
 } from '../../../shared/auth/session.guard';
+import { UploadThrottlerGuard } from './upload-throttler.guard';
 
 /**
  * Uploads → /api/v1/uploads (F-S09, ADR-026).
@@ -38,6 +40,11 @@ import {
  *
  * Guarded throughout. There is no anonymous upload path and there must never be
  * one: bytes with no uploader cannot be retained, held or deleted correctly.
+ *
+ * Every route that ACCEPTS bytes is also throttled per person, after the session
+ * guard (`UploadThrottlerGuard`: 30 uploads in 10 minutes across the three,
+ * and 10 certificates). A refusal is a 429 with a readable message and
+ * `Retry-After`. Removing an upload is not throttled: it frees space.
  *
  * Multipart rather than base64 JSON. `@fastify/multipart` is already registered
  * in `app.module.ts`, and streaming past a byte ceiling is something the parser
@@ -89,7 +96,8 @@ export class UploadsController {
    * `kind` is only a file host if the kinds are open, and these are not.
    */
   @Post()
-  @UseGuards(SessionGuard)
+  @UseGuards(SessionGuard, UploadThrottlerGuard)
+  @SkipThrottle({ 'uploads-certificate': true })
   async attachment(
     @Req() request: MultipartRequest,
     @CurrentUser() user: SessionUser,
@@ -186,7 +194,7 @@ export class UploadsController {
    * registration exists to hang it on.
    */
   @Post('certificate')
-  @UseGuards(SessionGuard)
+  @UseGuards(SessionGuard, UploadThrottlerGuard)
   async certificate(
     @Req() request: MultipartRequest,
     @CurrentUser() user: SessionUser,
@@ -236,7 +244,8 @@ export class UploadsController {
    * photograph at attach time, so a stray key cannot be hung on a listing.
    */
   @Post('property-photo')
-  @UseGuards(SessionGuard)
+  @UseGuards(SessionGuard, UploadThrottlerGuard)
+  @SkipThrottle({ 'uploads-certificate': true })
   async propertyPhoto(
     @Req() request: MultipartRequest,
     @CurrentUser() user: SessionUser,

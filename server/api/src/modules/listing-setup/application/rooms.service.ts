@@ -2,7 +2,6 @@ import type {
   CreateRoomsRequest,
   InventoryRoom,
   UpdateRoomRequest,
-  WorkspaceAccess,
 } from '@injishi/contracts';
 import {
   ConflictException,
@@ -10,8 +9,12 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 
+import {
+  assertInBranchScope,
+  type ScopedWorkspace,
+} from '../../../shared/auth/branch-scope';
 import { assertContained } from '../domain/containment';
-import { collidingLabels } from '../domain/room-labels';
+import { collidingLabels, isRoomLabelCollision } from '../domain/room-labels';
 import {
   type RoomRow,
   RoomsRepository,
@@ -37,23 +40,25 @@ export class RoomsService {
   ) {}
 
   async list(
-    workspace: WorkspaceAccess,
+    workspace: ScopedWorkspace,
     roomTypeId: string,
   ): Promise<InventoryRoom[]> {
     const roomType = await this.roomTypes.find(roomTypeId);
     assertContained(roomType, workspace.workspaceId, 'Room type');
+    assertInBranchScope(workspace, roomType.propertyId, 'Room type');
     const rows = await this.rooms.listForRoomType(roomTypeId);
     return rows.map(present);
   }
 
   /** Add rooms, each by the label on its door. */
   async add(
-    workspace: WorkspaceAccess,
+    workspace: ScopedWorkspace,
     roomTypeId: string,
     request: CreateRoomsRequest,
   ): Promise<InventoryRoom[]> {
     const roomType = await this.roomTypes.find(roomTypeId);
     assertContained(roomType, workspace.workspaceId, 'Room type');
+    assertInBranchScope(workspace, roomType.propertyId, 'Room type');
     if (roomType.status === 'archived') {
       throw new ConflictException(
         'That room type is archived. Restore it before adding rooms to it.',
@@ -65,23 +70,30 @@ export class RoomsService {
       collidingLabels(labels, await this.rooms.labelsOnProperty(roomType.propertyId)),
     );
 
-    await this.rooms.add({
-      roomTypeId,
-      propertyId: roomType.propertyId,
-      workspaceId: workspace.workspaceId,
-      labels,
-    });
+    try {
+      await this.rooms.add({
+        roomTypeId,
+        propertyId: roomType.propertyId,
+        workspaceId: workspace.workspaceId,
+        labels,
+      });
+    } catch (err) {
+      // Another add took one of these labels after the read above.
+      if (isRoomLabelCollision(err)) this.refuseCollisions(labels);
+      throw err;
+    }
     return this.list(workspace, roomTypeId);
   }
 
   /** Renumber a room, or change whether it can be sold. */
   async update(
-    workspace: WorkspaceAccess,
+    workspace: ScopedWorkspace,
     roomId: string,
     request: UpdateRoomRequest,
   ): Promise<InventoryRoom> {
     const room = await this.rooms.find(roomId);
     assertContained(room, workspace.workspaceId, 'Room');
+    assertInBranchScope(workspace, room.propertyId, 'Room');
 
     if (request.label !== undefined) {
       this.refuseCollisions(
@@ -92,10 +104,17 @@ export class RoomsService {
       );
     }
 
-    await this.rooms.update(roomId, {
-      label: request.label,
-      status: request.status,
-    });
+    try {
+      await this.rooms.update(roomId, {
+        label: request.label,
+        status: request.status,
+      });
+    } catch (err) {
+      if (isRoomLabelCollision(err) && request.label !== undefined) {
+        this.refuseCollisions([request.label.trim()]);
+      }
+      throw err;
+    }
     const updated = await this.rooms.find(roomId);
     if (!updated) throw new NotFoundException('Room not found.');
     return present(updated);

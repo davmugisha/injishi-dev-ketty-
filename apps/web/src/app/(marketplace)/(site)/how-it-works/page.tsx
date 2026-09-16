@@ -46,7 +46,7 @@ export default function HowItWorksPage() {
             <Link
               key={pillar.id}
               href={`#${pillar.id}`}
-              className="rounded-full border border-slate-line px-5 py-2.5 text-sm text-page-fg transition-colors duration-300 hover:border-ink"
+              className="rounded-full border border-slate-line px-5 py-2.5 text-sm text-page-fg transition-colors duration-travel hover:border-ink"
             >
               {pillar.navLabel}
             </Link>

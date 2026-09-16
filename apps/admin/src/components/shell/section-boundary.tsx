@@ -1,6 +1,4 @@
-import { headers } from "next/headers";
 import Link from "next/link";
-import { notFound } from "next/navigation";
 
 import {
   STAFF_PERMISSION_LABEL,
@@ -10,13 +8,11 @@ import { Button } from "@injishi/ui";
 
 import {
   NAV_ITEMS,
-  isNavKey,
   navItemFor,
   sectionAllows,
   sectionLabel,
   staffCanSee,
 } from "@/lib/nav";
-import { RETURN_HEADER } from "@/lib/return-path";
 import { readStaffAccess } from "@/lib/staff";
 import type { NavKey } from "@/lib/types";
 
@@ -35,20 +31,34 @@ import type { NavKey } from "@/lib/types";
  * reads every business and every payout cannot hand that person `/finance` and
  * rely on each page's own reads failing.
  *
- * ## Why it sits here rather than in sixteen layouts
+ * ## Why each section's own layout mounts it, and the root does not
  *
- * `staff-boundary.tsx` states the rule this follows: a per screen check is a
- * check some screen will not have. One gate, wrapping every route, cannot be
- * forgotten by the seventeenth section — and an unknown first segment is a
- * `notFound()` rather than a render, so a section added WITHOUT a row in
- * `NAV` (and so no `permission`) fails closed and says so immediately,
- * instead of quietly shipping unguarded. It replaced a gate written into each
- * section's layout, which a new section could simply not have.
+ * It WAS mounted once, in the root `app/layout.tsx`, reading the path from the
+ * `RETURN_HEADER` the middleware sets. That guard ran on a full page load and
+ * on nothing else (platform audit 2026-09-14, H5). On a soft navigation the
+ * client sends the router state it already holds, and the server starts
+ * rendering at the first segment that differs from it
+ * (`walkTreeWithFlightRouterState` in `next/dist/server/app-render`). The root
+ * segment never differs, so the root layout never re-ran: a staffer who landed
+ * on Brokers and followed its link to `/audit` was shown Audit, and a refusal
+ * stayed on screen after its own "Go to" link. A root `template.tsx` would not
+ * fix it either: its element is built while rendering the ROOT segment and
+ * handed to the client router, which re-keys it per navigation without asking
+ * the server to render it again.
  *
- * A server component is not told the url it is rendering, so the path arrives
- * the way `staff-boundary.tsx` already gets it: `middleware.ts` SETS
- * `RETURN_HEADER` on every console request, overwriting anything a client sent
- * under that name.
+ * So every section folder carries a `layout.tsx` that mounts this with its own
+ * key, spelled in the file rather than read from a request. A navigation INTO a
+ * section differs from the previous route at that section's segment, which puts
+ * its layout inside what the server renders for that navigation, full load or
+ * soft. A navigation WITHIN a section does not re-run it, and does not need to:
+ * the answer for that section has not changed.
+ *
+ * The objection this file used to raise against per section layouts — "a check
+ * some section will not have" — is now answered by a test instead of by
+ * position. `apps/admin/test/section-gates.test.mjs` fails when a folder under
+ * `app/` has no row in `NAV`, when a row has no folder, and when a section's
+ * layout does not mount this with its own key. An address with no folder at all
+ * is Next's own 404, as it was.
  *
  * ## It is still not the boundary
  *
@@ -66,48 +76,29 @@ import type { NavKey } from "@/lib/types";
  * listing Finance and Compliance is itself a disclosure. This one refuses
  * somebody who IS staff and is already entitled to see the sidebar they are
  * looking at; taking the console away from them would leave a trainer who
- * mistyped an address with no way back to Training.
+ * mistyped an address with no way back to Training. A section's layout sits
+ * inside the root layout's `AdminShell`, so the placement holds by nesting.
  */
 export async function SectionBoundary({
+  section,
   children,
 }: {
+  section: NavKey;
   children: React.ReactNode;
 }) {
-  const path = (await headers()).get(RETURN_HEADER);
-  const key = sectionForPath(path);
-
-  // The console root. `app/page.tsx` redirects it to `/overview`, which is
-  // guarded on arrival — refusing here would refuse the redirect itself.
-  if (key === null) return <>{children}</>;
-  if (key === "unknown") notFound();
-
-  // Free: `readStaffAccess` is request memoised, so this is the answer
-  // `StaffBoundary` already has rather than a second round trip.
+  // On a full load this is free: `readStaffAccess` is request memoised, so it
+  // is the answer `StaffBoundary` already has. On a soft navigation the root
+  // layout does not render, so this is the only read, and it is a fresh one.
   const { status, access } = await readStaffAccess();
 
-  // Only a settled `staff` answer is ours to refuse on. Every other status was
-  // already handled by `StaffBoundary` above us, and `unreachable` in
-  // particular must never be worded as a refusal.
-  if (status !== "staff" || sectionAllows(access.permissions, key)) {
+  // Only a settled `staff` answer is ours to refuse on. Every other status is
+  // `StaffBoundary`'s to handle, and `unreachable` in particular must never be
+  // worded as a refusal.
+  if (status !== "staff" || sectionAllows(access.permissions, section)) {
     return <>{children}</>;
   }
 
-  return <SectionRefusal section={key} permissions={access.permissions} />;
-}
-
-/**
- * `/finance/payouts?tab=held` → `finance`. The first segment and nothing else.
- *
- * `null` means the console root, `"unknown"` means an address this console has
- * no section for. They are separated because they end differently: one renders,
- * one 404s, and folding them together would either 404 the root redirect or
- * render an unregistered section unguarded.
- */
-function sectionForPath(path: string | null): NavKey | "unknown" | null {
-  if (!path) return null;
-  const segment = path.split("?")[0].split("/").filter(Boolean)[0];
-  if (!segment) return null;
-  return isNavKey(segment) ? segment : "unknown";
+  return <SectionRefusal section={section} permissions={access.permissions} />;
 }
 
 /**

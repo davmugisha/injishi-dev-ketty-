@@ -341,6 +341,12 @@ export const orgInvitations = pgTable(
     status: invitationStatusEnum('status').notNull().default('sent'),
     expiresAt: timestamp('expires_at', { withTimezone: true }).notNull(),
     acceptedByUserId: uuid('accepted_by_user_id').references(() => users.id),
+    /**
+     * ADR-054: the branches the invited member will be limited to. Null means
+     * every branch. Copied into `org_membership_branches` on accept; an array
+     * rather than rows because an invitation is a proposal, not a grant.
+     */
+    branchPropertyIds: uuid('branch_property_ids').array(),
     ...timestamps,
   },
   (t) => [

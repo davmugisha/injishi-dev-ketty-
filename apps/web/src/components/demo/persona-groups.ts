@@ -161,6 +161,16 @@ export function roleIndex(seat: DemoSeat): number {
   return bare === -1 ? SEAT_ORDER.length : bare;
 }
 
+/**
+ * 1 when every seat is a business still in the registration pipeline (the API
+ * words that seat's detail "Not yet approved (…)"). A business that cannot trade
+ * yet reads after the ones that can, so the owner still waiting on approval
+ * follows the working hotel's staff rather than cutting in above the manager.
+ */
+function pendingOnly(persona: DemoPersona): number {
+  return persona.seats.every((s) => s.detail?.startsWith("Not yet approved")) ? 1 : 0;
+}
+
 function tiebreak(persona: DemoPersona): number {
   const i = DEMO_TIEBREAK.indexOf(localPart(persona.email));
   return i === -1 ? DEMO_TIEBREAK.length : i;
@@ -210,7 +220,7 @@ export function groupPersonas(personas: DemoPersona[]): PersonaSection[] {
       const mb = b.seats.length > 1 ? 1 : 0;
       const ra = Math.min(...a.seats.map(roleIndex));
       const rb = Math.min(...b.seats.map(roleIndex));
-      return ma - mb || ra - rb || tiebreak(a) - tiebreak(b) || a.name.localeCompare(b.name);
+      return ma - mb || pendingOnly(a) - pendingOnly(b) || ra - rb || tiebreak(a) - tiebreak(b) || a.name.localeCompare(b.name);
     });
   }
   return buckets.filter((b) => b.personas.length > 0);

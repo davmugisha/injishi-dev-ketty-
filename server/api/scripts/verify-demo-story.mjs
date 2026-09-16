@@ -37,6 +37,10 @@ const CODE = process.env.VERIFY_OTP_CODE ?? '123456';
 
 const W_HOTEL = 'de300000-0000-4000-8000-000000000201'; // Amahoro Hospitality Group
 const W_LANDLORD = 'de300000-0000-4000-8000-000000000202'; // Green Hills Properties
+// Amahoro Boutique Hotel, the group's head office (ADR-054). The hotel's day is
+// seeded here; the group's branches (Musanze, Rubavu) add rooms to the same
+// workspace, so room counts are read through the head office's branch scope.
+const HQ_BRANCH = 'de300000-0000-4000-8000-000000000401';
 
 const failures = [];
 let passed = 0;
@@ -70,9 +74,9 @@ async function as(email) {
   });
   if (!res.ok) throw new Error(`sign in ${email}: ${res.status} ${await res.text()}`);
   const cookie = res.headers.getSetCookie().map((c) => c.split(';')[0]).join('; ');
-  const get = async (p, workspaceId) => {
+  const get = async (p, workspaceId, branchId) => {
     const r = await fetch(`${API}/api/v1${p}`, {
-      headers: { origin: ORIGIN, cookie, ...(workspaceId ? { 'x-workspace-id': workspaceId } : {}) },
+      headers: { origin: ORIGIN, cookie, ...(workspaceId ? { 'x-workspace-id': workspaceId } : {}), ...(branchId ? { 'x-branch-id': branchId } : {}) },
     });
     const text = await r.text();
     if (!r.ok) throw new Error(`GET ${p} as ${email}: ${r.status} ${text.slice(0, 200)}`);
@@ -100,8 +104,10 @@ await section('hotel', async () => {
   const S = 'hotel';
   const yves = await as('yves@demo.injishi.com');
 
-  const { rooms } = await yves('/ops/rooms', W_HOTEL);
-  check(S, 'H1 Amahoro has 20 rooms', rooms.length === 20, `got ${rooms.length}`);
+  const { rooms } = await yves('/ops/rooms', W_HOTEL, HQ_BRANCH);
+  check(S, 'H1 Amahoro Boutique Hotel (head office) has 20 rooms', rooms.length === 20, `got ${rooms.length}`);
+  const { rooms: groupRooms } = await yves('/ops/rooms', W_HOTEL);
+  check(S, 'H1b the group\'s branches add rooms beyond the head office', groupRooms.length > rooms.length, `${groupRooms.length} across branches`);
   const occupied = count(rooms, (r) => r.occupiedBy);
   const pct = rooms.length ? occupied / rooms.length : 0;
   check(S, 'H2 occupancy tonight is between 50% and 85%', pct >= 0.5 && pct <= 0.85, `${occupied}/${rooms.length}`);
@@ -166,8 +172,8 @@ await section('hotel', async () => {
     check(S, `H28 ${email.split('@')[0]} opens Amahoro`, ws.workspaces.some((w) => w.workspaceId === W_HOTEL));
   }
   const beatha = await as('beatha@demo.injishi.com');
-  const hk = await beatha('/ops/rooms', W_HOTEL);
-  check(S, 'H29 the housekeeper can read the room board', hk.rooms.length === 20);
+  const hk = await beatha('/ops/rooms', W_HOTEL, HQ_BRANCH);
+  check(S, 'H29 the housekeeper can read the head office room board', hk.rooms.length === 20, `got ${hk.rooms.length}`);
 });
 
 // --- Green Hills Properties: owner Josephine, Ingoro Apartments
@@ -221,7 +227,7 @@ await section('personas', async () => {
   const r = await fetch(`${API}/api/v1/demo/personas`, { headers: { origin: ORIGIN } });
   const personas = r.ok ? await r.json() : [];
   check(S, 'P1 the roster answers', r.ok && personas.length >= 10, `status ${r.status}`);
-  const want = ['yves', 'solange', 'denise', 'beatha', 'josephine', 'jeanbosco', 'claudine', 'ops', 'rayan'];
+  const want = ['yves', 'solange', 'denise', 'beatha', 'josephine', 'aimable', 'jeanbosco', 'claudine', 'ops', 'rayan'];
   for (const who of want) {
     const p = personas.find((x) => x.email.startsWith(`${who}@`));
     const story = p?.story;

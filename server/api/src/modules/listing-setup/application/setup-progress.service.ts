@@ -1,10 +1,11 @@
-import type { PropertySetupProgress, WorkspaceAccess } from '@injishi/contracts';
+import type { PropertySetupProgress } from '@injishi/contracts';
 import {
   BadRequestException,
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
 
+import { coversProperty, type ScopedWorkspace } from '../../../shared/auth/branch-scope';
 import { SetupProgressRepository } from '../infrastructure/setup-progress.repository';
 
 /**
@@ -21,7 +22,7 @@ export class SetupProgressService {
   constructor(private readonly repo: SetupProgressRepository) {}
 
   async progress(
-    workspace: WorkspaceAccess,
+    workspace: ScopedWorkspace,
     propertyId: string | undefined,
   ): Promise<PropertySetupProgress> {
     if (!workspace.orgId) {
@@ -30,7 +31,11 @@ export class SetupProgressService {
     const business = await this.repo.business(workspace.orgId);
     if (!business) throw new NotFoundException('Business not found.');
 
-    const properties = await this.repo.propertiesIn(workspace.workspaceId);
+    // Only the branches in scope (ADR-054). A short id and name list per
+    // workspace, so it narrows here rather than in a second query shape.
+    const properties = (await this.repo.propertiesIn(workspace.workspaceId)).filter((p) =>
+      coversProperty(workspace.branchScope, p.id),
+    );
     const property = propertyId
       ? properties.find((p) => p.id === propertyId)
       : properties[0];

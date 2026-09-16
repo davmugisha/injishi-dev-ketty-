@@ -1,7 +1,6 @@
 import {
   type OperatorRevenue,
   OperatorRevenueQuery,
-  type WorkspaceAccess,
 } from '@injishi/contracts';
 import { Controller, Get, Query, UseGuards } from '@nestjs/common';
 
@@ -12,6 +11,7 @@ import {
   RequirePermission,
   WorkspaceGuard,
 } from '../../../shared/auth/workspace.guard';
+import type { ScopedWorkspace } from '../../../shared/auth/branch-scope';
 import { ZodValidationPipe } from '../../../shared/validation/zod-validation.pipe';
 
 /**
@@ -33,7 +33,7 @@ export class OpsRevenueController {
   forMonth(
     @Query(new ZodValidationPipe(OperatorRevenueQuery))
     query: OperatorRevenueQuery,
-    @CurrentWorkspace() workspace: WorkspaceAccess,
+    @CurrentWorkspace() workspace: ScopedWorkspace,
   ): Promise<OperatorRevenue> {
     return this.revenue.forMonth(workspace, query);
   }

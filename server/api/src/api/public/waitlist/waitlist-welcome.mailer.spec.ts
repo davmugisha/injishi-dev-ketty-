@@ -187,3 +187,31 @@ describe('WaitlistWelcomeMailer · a failed send', () => {
     await expect(mailer.send(TRAVELLER)).rejects.toThrow('Greeting never received');
   });
 });
+
+describe('WaitlistWelcomeMailer · which origin the link uses (demo-comms)', () => {
+  async function sentWith(values: Record<string, string>): Promise<MailMessage> {
+    const send = jest.fn(async () => undefined);
+    const config = { get: jest.fn((key: string) => values[key]) };
+    const mailer = new WaitlistWelcomeMailer(
+      { send } as unknown as MailerPort,
+      config as unknown as ConfigService,
+    );
+    await mailer.send(TRAVELLER);
+    return (send.mock.calls[0] as unknown as [MailMessage])[0];
+  }
+
+  it('follows WEB_URL, which the deployed API and worker are given, before NEXT_PUBLIC_WEB_URL', async () => {
+    const message = await sentWith({
+      WEB_URL: 'https://www-demo.injishi.com',
+      NEXT_PUBLIC_WEB_URL: 'https://other.example.com',
+    });
+
+    expect(message.text).toContain(`Unsubscribe: https://www-demo.injishi.com/waitlist/unsubscribe/${TOKEN}`);
+  });
+
+  it('never doubles a slash when the origin carries a trailing one', async () => {
+    const message = await sentWith({ WEB_URL: 'https://www-demo.injishi.com/' });
+
+    expect(message.text).toContain(`https://www-demo.injishi.com/waitlist/unsubscribe/${TOKEN}`);
+  });
+});

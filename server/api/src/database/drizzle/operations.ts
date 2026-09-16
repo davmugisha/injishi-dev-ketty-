@@ -354,7 +354,13 @@ export const outlets = pgTable(
      * pair to exist in `property_amenities`.
      */
     amenityCode: text('amenity_code').references(() => amenities.code),
-    rraBranchId: text('rra_branch_id').notNull().default('00'),
+    /**
+     * The RRA branch this outlet declares under, when it differs from its
+     * branch's (ADR-054 AC-F1). Null means "use the branch's". It used to be
+     * NOT NULL with a `'00'` default that nothing ever read, so migration 0042
+     * turned every `'00'` into null.
+     */
+    rraBranchId: text('rra_branch_id'),
     guestVisible: boolean('guest_visible').notNull().default(true),
     /** Minted from the name for a standalone outlet, suffixed `-2`, `-3` on collision. */
     slug: text('slug'),
@@ -514,9 +520,14 @@ export const folios = pgTable(
     workspaceId: uuid('workspace_id')
       .notNull()
       .references(() => workspaces.id),
+    /**
+     * RESTRICT since migration 0043 (platform audit step 3). It cascaded, so
+     * deleting a property (or the org above it) silently deleted every bill
+     * and, through `folio_charges`, the lines a tax invoice was cut from.
+     */
     propertyId: uuid('property_id')
       .notNull()
-      .references(() => properties.id, { onDelete: 'cascade' }),
+      .references(() => properties.id, { onDelete: 'restrict' }),
     guestStayId: uuid('guest_stay_id').references(() => guestStays.id),
     bookingId: uuid('booking_id').references(() => bookings.id),
     leaseId: uuid('lease_id').references(() => leases.id),
@@ -612,9 +623,10 @@ export const folioCharges = pgTable(
   'folio_charges',
   {
     id: uuid('id').primaryKey().defaultRandom(),
+    /** RESTRICT since migration 0043: an append only line outlives nothing by accident. */
     folioId: uuid('folio_id')
       .notNull()
-      .references(() => folios.id, { onDelete: 'cascade' }),
+      .references(() => folios.id, { onDelete: 'restrict' }),
     workspaceId: uuid('workspace_id')
       .notNull()
       .references(() => workspaces.id),
@@ -708,6 +720,11 @@ export const folioCharges = pgTable(
   },
   (t) => [
     index('folio_charges_folio_idx').on(t.folioId, t.postedAt),
+    index('folio_charges_workspace_idx').on(t.workspaceId),
+    // No sign CHECK on `amount_rwf`, `unit_price_rwf` or `tax_amount_rwf`, on
+    // purpose (platform audit step 3): a void, a discount, a payment and a
+    // refund are all negative lines here, and a manual adjustment carries a
+    // negative tax line with it (`FolioService`).
     index('folio_charges_department_idx').on(t.departmentId),
     index('folio_charges_source_idx').on(t.sourceRefType, t.sourceRefId),
     unique('folio_charges_idempotency_key_uk').on(t.idempotencyKey),
@@ -894,6 +911,7 @@ export const housekeepingTasks = pgTable(
     ),
     index('housekeeping_tasks_room_idx').on(t.roomId),
     index('housekeeping_tasks_assignee_idx').on(t.assignedToUserId),
+    index('housekeeping_tasks_workspace_idx').on(t.workspaceId),
     unique('housekeeping_tasks_idempotency_key_uk').on(t.idempotencyKey),
     /**
      * One open checkout clean per stay. A checkout that runs twice (a double
@@ -1226,6 +1244,8 @@ export const serviceOrders = pgTable(
     index('service_orders_board_idx').on(t.departmentId, t.status),
     index('service_orders_workspace_idx').on(t.workspaceId),
     index('service_orders_folio_idx').on(t.folioId),
+    index('service_orders_property_idx').on(t.propertyId),
+    index('service_orders_booking_idx').on(t.bookingId),
   ],
 );
 

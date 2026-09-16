@@ -16,6 +16,7 @@
       "distribution": "internal",
       "autoIncrement": true,
       "env": {
+        "EXPO_PUBLIC_API_URL": "https://api-demo.injishi.com",
         "EXPO_UNSTABLE_TREE_SHAKING": "1",
         "EXPO_UNSTABLE_METRO_OPTIMIZE_GRAPH": "1"
       },
@@ -26,6 +27,7 @@
     "production": {
       "autoIncrement": true,
       "env": {
+        "EXPO_PUBLIC_API_URL": "https://api.injishi.com",
         "EXPO_UNSTABLE_TREE_SHAKING": "1",
         "EXPO_UNSTABLE_METRO_OPTIMIZE_GRAPH": "1"
       }

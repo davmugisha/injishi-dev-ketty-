@@ -6,6 +6,7 @@ import { Inject, Injectable } from '@nestjs/common';
 import { and, asc, eq, sql } from 'drizzle-orm';
 
 import { DRIZZLE, type Database } from '../../../shared/database/database.module';
+import { inBranchScope, type BranchScope } from '../../../shared/auth/branch-scope';
 import { ratePlans, roomTypes } from '../../../database/drizzle/schema';
 
 /** One rate plan row, joined to the room type it prices. */
@@ -13,6 +14,8 @@ export interface RatePlanRow {
   id: string;
   roomTypeId: string;
   roomTypeName: string | null;
+  /** Through the room type: the branch this plan prices (ADR-054). */
+  propertyId: string | null;
   /** Present on a single read, so containment can be checked. Absent on a list. */
   workspaceId?: string;
   name: string;
@@ -151,6 +154,7 @@ export class RatePlansRepository {
         id: ratePlans.id,
         roomTypeId: ratePlans.roomTypeId,
         roomTypeName: roomTypes.name,
+        propertyId: roomTypes.propertyId,
         workspaceId: ratePlans.workspaceId,
         name: ratePlans.name,
         status: ratePlans.status,
@@ -175,12 +179,13 @@ export class RatePlansRepository {
     return row ?? null;
   }
 
-  async listForWorkspace(workspaceId: string): Promise<RatePlanRow[]> {
+  async listForWorkspace(workspaceId: string, scope: BranchScope): Promise<RatePlanRow[]> {
     const rows = await this.db
       .select({
         id: ratePlans.id,
         roomTypeId: ratePlans.roomTypeId,
         roomTypeName: roomTypes.name,
+        propertyId: roomTypes.propertyId,
         name: ratePlans.name,
         status: ratePlans.status,
         isDefault: ratePlans.isDefault,
@@ -202,7 +207,7 @@ export class RatePlansRepository {
       // Scoped in the QUERY. A list has no single subject to hand to
       // `assertOwned`, so the workspace is part of the read or a caller sees
       // another property's pricing.
-      .where(eq(ratePlans.workspaceId, workspaceId))
+      .where(and(eq(ratePlans.workspaceId, workspaceId), inBranchScope(roomTypes.propertyId, scope)))
       // Room type first, so a reader meets each room's plans together.
       .orderBy(asc(roomTypes.name), asc(ratePlans.name));
 

@@ -2,7 +2,6 @@ import {
   AddAmenityRequest,
   type OperatorAmenityList,
   PropertyScopedQuery,
-  type WorkspaceAccess,
 } from '@injishi/contracts';
 import {
   Body,
@@ -19,9 +18,11 @@ import { AmenitiesService } from '../../../modules/operations/application/amenit
 import { SessionGuard } from '../../../shared/auth/session.guard';
 import {
   CurrentWorkspace,
+  RequireAnyPermission,
   RequirePermission,
   WorkspaceGuard,
 } from '../../../shared/auth/workspace.guard';
+import type { ScopedWorkspace } from '../../../shared/auth/branch-scope';
 import { ZodValidationPipe } from '../../../shared/validation/zod-validation.pipe';
 
 /**
@@ -42,12 +43,26 @@ import { ZodValidationPipe } from '../../../shared/validation/zod-validation.pip
 export class OpsAmenitiesController {
   constructor(private readonly amenities: AmenitiesService) {}
 
-  /** The whole catalog, flagged with what this property offers. */
+  /**
+   * The whole catalog, flagged with what this property offers.
+   *
+   * Read by the inventory Offer lens (`listing.manage`; a landlord's Units
+   * leaf grants it under `unit.manage`), by the Outlets lens, which labels an
+   * outlet's amenities (`outlet.manage`), and by that same lens under Services,
+   * which a receptionist opens (`order.advance`).
+   */
   @Get()
+  @RequireAnyPermission(
+    'listing.manage',
+    'amenity.manage',
+    'unit.manage',
+    'outlet.manage',
+    'order.advance',
+  )
   async list(
     @Query(new ZodValidationPipe(PropertyScopedQuery))
     query: PropertyScopedQuery,
-    @CurrentWorkspace() workspace: WorkspaceAccess,
+    @CurrentWorkspace() workspace: ScopedWorkspace,
   ): Promise<OperatorAmenityList> {
     return {
       amenities: await this.amenities.list(workspace, query.propertyId),
@@ -59,7 +74,7 @@ export class OpsAmenitiesController {
   @RequirePermission('amenity.manage')
   async add(
     @Body(new ZodValidationPipe(AddAmenityRequest)) body: AddAmenityRequest,
-    @CurrentWorkspace() workspace: WorkspaceAccess,
+    @CurrentWorkspace() workspace: ScopedWorkspace,
   ): Promise<OperatorAmenityList> {
     return { amenities: await this.amenities.add(workspace, body) };
   }
@@ -71,7 +86,7 @@ export class OpsAmenitiesController {
     @Param('code') code: string,
     @Query(new ZodValidationPipe(PropertyScopedQuery))
     query: PropertyScopedQuery,
-    @CurrentWorkspace() workspace: WorkspaceAccess,
+    @CurrentWorkspace() workspace: ScopedWorkspace,
   ): Promise<OperatorAmenityList> {
     return {
       amenities: await this.amenities.remove(workspace, query.propertyId, code),

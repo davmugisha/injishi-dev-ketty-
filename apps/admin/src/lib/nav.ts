@@ -25,8 +25,9 @@ import type { NavGroup, NavItem, NavKey, StaffRole } from "./types";
  *
  * EACH SECTION DECLARES THE PERMISSION ITS READ DECLARES (ADR-053, AC-A3). The
  * sidebar filters on the `permissions[]` the server resolved, and
- * `components/shell/section-boundary.tsx` refuses a typed URL whose section
- * the array lacks (AC-A4). There is no
+ * `components/shell/section-boundary.tsx`, mounted by each section's own
+ * `layout.tsx`, refuses a section the array lacks (AC-A4), whether it was
+ * typed or reached by a link. There is no
  * second staff matrix here any more: the `roles` arrays and `roleCanSee` this
  * replaced never read `StaffPermission`, and had already drifted from
  * `STAFF_ROLE_PERMISSIONS`. Overview, Analytics and System health are not a
@@ -148,7 +149,8 @@ export function navItemFor(key: NavKey): NavItem {
 
 /**
  * May this resolved permission set open this section? What
- * `section-boundary.tsx` asks of a typed URL, through the same `permission` the
+ * `section-boundary.tsx` asks on every navigation into a section (each section's
+ * `layout.tsx` mounts it with its own key), through the same `permission` the
  * sidebar filters on, so the sidebar can never offer a row the route refuses.
  */
 export function sectionAllows(
@@ -156,11 +158,6 @@ export function sectionAllows(
   key: NavKey,
 ): boolean {
   return staffCanSee(permissions, navItemFor(key));
-}
-
-/** Whether a first path segment names a console section at all. */
-export function isNavKey(segment: string): segment is NavKey {
-  return NAV_ITEMS.some((item) => item.key === segment);
 }
 
 /** The label the refusal screen names the section by. One register, again. */

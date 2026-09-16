@@ -2,7 +2,6 @@ import {
   type OperatorRoom,
   type OperatorRoomList,
   SetHousekeepingRequest,
-  type WorkspaceAccess,
 } from '@injishi/contracts';
 import {
   Body,
@@ -22,17 +21,21 @@ import {
 } from '../../../shared/auth/session.guard';
 import {
   CurrentWorkspace,
+  RequireAnyPermission,
   RequirePermission,
   WorkspaceGuard,
 } from '../../../shared/auth/workspace.guard';
+import type { ScopedWorkspace } from '../../../shared/auth/branch-scope';
 import { ZodValidationPipe } from '../../../shared/validation/zod-validation.pipe';
 
 /**
  * Rooms → /api/v1/ops/rooms (ADR-012 step 4).
  *
- * The read carries no permission beyond holding the workspace, which is the
- * ADR's rule for operator reads: a desk that cannot see its own rooms cannot
- * work at all. Setting housekeeping is a command and declares `housekeeping.set`
+ * The read is open to every role that works a room: the desk checking a guest
+ * in (`stay.checkin`) or holding one on the grid (`reservation.assign`),
+ * housekeeping (`housekeeping.set`) and inventory (`listing.manage`). A
+ * business still in the registration pipeline holds none of them (audit H1).
+ * Setting housekeeping is a command and declares `housekeeping.set`
  * — the one permission a housekeeper holds, which is exactly why the two are
  * separated.
  */
@@ -43,8 +46,14 @@ export class OpsRoomsController {
 
   /** Every room on this property, with who is in it right now. */
   @Get()
+  @RequireAnyPermission(
+    'stay.checkin',
+    'housekeeping.set',
+    'reservation.assign',
+    'listing.manage',
+  )
   async list(
-    @CurrentWorkspace() workspace: WorkspaceAccess,
+    @CurrentWorkspace() workspace: ScopedWorkspace,
   ): Promise<OperatorRoomList> {
     return { rooms: await this.frontDesk.listRooms(workspace) };
   }
@@ -62,7 +71,7 @@ export class OpsRoomsController {
     @Param('id', ParseUUIDPipe) id: string,
     @Body(new ZodValidationPipe(SetHousekeepingRequest))
     body: SetHousekeepingRequest,
-    @CurrentWorkspace() workspace: WorkspaceAccess,
+    @CurrentWorkspace() workspace: ScopedWorkspace,
     @CurrentUser() user: SessionUser,
   ): Promise<OperatorRoom> {
     return this.frontDesk.setHousekeeping(workspace, id, body, user.id);

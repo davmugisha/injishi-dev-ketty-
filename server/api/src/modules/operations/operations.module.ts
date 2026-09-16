@@ -17,6 +17,9 @@ import { GuestOrderingService } from './application/guest-ordering.service';
 import { DeclarationPlanService } from './application/declaration-plan.service';
 import { OrderPaymentService } from './application/order-payment.service';
 import { OutletsService } from './application/outlets.service';
+import { OffersService } from './application/offers.service';
+import { StayClaimService } from './application/stay-claim.service';
+import { StayRefundService } from './application/stay-refund.service';
 import { AmenitiesRepository } from './infrastructure/amenities.repository';
 import { BrokerOpsRepository } from './infrastructure/broker-ops.repository';
 import { DepartmentsRepository } from './infrastructure/departments.repository';
@@ -31,6 +34,12 @@ import { RoomAssignmentRepository } from './infrastructure/room-assignment.repos
 import { ServiceCatalogRepository } from './infrastructure/service-catalog.repository';
 import { GuestOrderingRepository } from './infrastructure/guest-ordering.repository';
 import { OutletsRepository } from './infrastructure/outlets.repository';
+import { OffersRepository } from './infrastructure/offers.repository';
+import { StayClaimRepository } from './infrastructure/stay-claim.repository';
+import { StayInvitationMailer } from './infrastructure/stay-invitation.mailer';
+import { StayRefundRepository } from './infrastructure/stay-refund.repository';
+import { MailerModule } from '../mailer/mailer.module';
+import { PaymentsModule } from '../payments/payments.module';
 
 /**
  * The operator command surface behind `/api/v1/ops/*` (ADR-012 steps 4 and 5).
@@ -52,10 +61,27 @@ import { OutletsRepository } from './infrastructure/outlets.repository';
  * The night audit processor runs ONLY in the worker process, so the HTTP
  * process never posts a room charge as a side effect of serving a request.
  *
- * Imports nothing. `DatabaseModule` is `@Global`, so `DRIZZLE` resolves without
- * being named, and no service here reaches into another module's internals.
+ * `DatabaseModule` is `@Global`, so `DRIZZLE` resolves without being named. The
+ * two modules imported below (§6.8) are SEAMS — `MAILER_PORT` and
+ * `PAYMENT_PORT` — and not another module's internals: no service here reaches
+ * into a sibling's repository, which is still the rule.
  */
 @Module({
+  /*
+   * §6.8 adds the first two imports this module has ever had, and both are
+   * seams rather than internals:
+   *
+   * - `MailerModule` supplies `MAILER_PORT`, which `StayInvitationMailer`
+   *   composes words over — the same arrangement `OtpMailer` and
+   *   `BookingMailer` have. A guest registered at a desk has to be told how to
+   *   reach their stay, and that means an email leaves the building.
+   * - `PaymentsModule` supplies `PAYMENT_PORT`, because approving a refund on a
+   *   prepaid booking instructs the provider that is holding the money. The
+   *   alternative was for this module to record an approval and let some other
+   *   module notice it later, which is how a guest ends up marked refunded on
+   *   money nobody sent.
+   */
+  imports: [MailerModule, PaymentsModule],
   providers: [
     FrontDeskRepository,
     MessagingRepository,
@@ -70,6 +96,10 @@ import { OutletsRepository } from './infrastructure/outlets.repository';
     ServiceCatalogRepository,
     GuestOrderingRepository,
     OutletsRepository,
+    OffersRepository,
+    StayClaimRepository,
+    StayRefundRepository,
+    StayInvitationMailer,
     FrontDeskService,
     MessagingService,
     ResidenceService,
@@ -85,6 +115,9 @@ import { OutletsRepository } from './infrastructure/outlets.repository';
     DeclarationPlanService,
     OrderPaymentService,
     OutletsService,
+    OffersService,
+    StayClaimService,
+    StayRefundService,
     NightAuditService,
     ...(isWorkerProcess() ? [NightAuditProcessor] : []),
   ],
@@ -104,6 +137,9 @@ import { OutletsRepository } from './infrastructure/outlets.repository';
     ServiceCatalogService,
     GuestOrderingService,
     OutletsService,
+    OffersService,
+    StayClaimService,
+    StayRefundService,
     NightAuditService,
   ],
 })

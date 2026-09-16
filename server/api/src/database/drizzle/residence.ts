@@ -102,19 +102,28 @@ export const leases = pgTable(
 );
 
 
-export const leaseSignatures = pgTable('lease_signatures', {
-  id: uuid('id').primaryKey().defaultRandom(),
-  leaseId: uuid('lease_id')
-    .notNull()
-    .references(() => leases.id),
-  signerRole: signerRoleEnum('signer_role').notNull(),
-  signerUserId: uuid('signer_user_id').references(() => users.id),
-  signerEmail: text('signer_email'),
-  ipAddress: inet('ip_address'),
-  signedAt: timestamp('signed_at', { withTimezone: true })
-    .notNull()
-    .defaultNow(),
-});
+/**
+ * Append only. The key to `leases` is NO ACTION (it never cascaded, whatever
+ * the platform audit's list assumed), so deleting a signed lease is already
+ * refused; it is left as it is.
+ */
+export const leaseSignatures = pgTable(
+  'lease_signatures',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    leaseId: uuid('lease_id')
+      .notNull()
+      .references(() => leases.id),
+    signerRole: signerRoleEnum('signer_role').notNull(),
+    signerUserId: uuid('signer_user_id').references(() => users.id),
+    signerEmail: text('signer_email'),
+    ipAddress: inet('ip_address'),
+    signedAt: timestamp('signed_at', { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (t) => [index('lease_signatures_lease_idx').on(t.leaseId)],
+);
 
 
 export const rentCharges = pgTable(
@@ -178,7 +187,15 @@ export const escrows = pgTable(
     attemptFingerprint: text('attempt_fingerprint'),
     ...timestamps,
   },
-  (t) => [unique('escrows_idempotency_key_uk').on(t.idempotencyKey)],
+  (t) => [
+    unique('escrows_idempotency_key_uk').on(t.idempotencyKey),
+    index('escrows_workspace_idx').on(t.workspaceId),
+    index('escrows_booking_idx').on(t.bookingId),
+    check(
+      'escrows_amount_non_negative',
+      sql`${t.amountRwf} IS NULL OR ${t.amountRwf} >= 0`,
+    ),
+  ],
 );
 
 /**
@@ -210,6 +227,13 @@ export const paymentCompensations = pgTable(
   },
   (t) => [
     unique('payment_compensations_key_uk').on(t.idempotencyKey),
+    // The three jobs `PaymentCompensationService` writes and `rowToJob` reads
+    // back (platform audit step 3). A row of any other kind was silently
+    // skipped by the sweep forever; now it cannot be written.
+    check(
+      'payment_compensations_kind_known',
+      sql`${t.kind} IN ('refund', 'void-pending', 'release-escrow')`,
+    ),
     index('payment_compensations_due_idx')
       .on(t.nextAt)
       .where(sql`${t.doneAt} IS NULL`),
@@ -329,6 +353,7 @@ export const paymentAttempts = pgTable(
     index('payment_attempts_guest_idx').on(t.guestUserId, t.attemptToken),
     // The provider's callback arrives with its own reference and nothing else.
     index('payment_attempts_adapter_ref_idx').on(t.adapterRef),
+    index('payment_attempts_booking_idx').on(t.bookingId),
     // The sweep reads only what is still waiting, so the index stays the size
     // of prompts in flight rather than of every payment ever made.
     index('payment_attempts_expiry_idx')

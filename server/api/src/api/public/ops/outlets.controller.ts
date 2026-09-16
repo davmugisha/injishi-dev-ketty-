@@ -3,7 +3,6 @@ import {
   type OperatorOutlet,
   type OperatorOutletList,
   UpdateOutletRequest,
-  type WorkspaceAccess,
 } from '@injishi/contracts';
 import {
   Body,
@@ -21,17 +20,21 @@ import { OutletsService } from '../../../modules/operations/application/outlets.
 import { SessionGuard } from '../../../shared/auth/session.guard';
 import {
   CurrentWorkspace,
+  RequireAnyPermission,
   RequirePermission,
   WorkspaceGuard,
 } from '../../../shared/auth/workspace.guard';
+import type { ScopedWorkspace } from '../../../shared/auth/branch-scope';
 import { ZodValidationPipe } from '../../../shared/validation/zod-validation.pipe';
 
 /**
  * Outlets -> /api/v1/ops/outlets (ADR-050 slice 4, task 21).
  *
- * The read needs only the workspace, for the reason the department list does:
- * a menu or an order screen names an outlet before anybody manages one. Every
- * write carries `outlet.manage`, owner and manager only (AC-31).
+ * The read is open beyond `outlet.manage`, for the reason the department list
+ * is: a menu or an order screen names an outlet before anybody manages one, and
+ * the Outlets lens sits under Services, which a receptionist opens
+ * (`order.advance`). Every write carries `outlet.manage`, owner and manager
+ * only (AC-31).
  */
 @Controller({ path: 'ops/outlets', version: '1' })
 @UseGuards(SessionGuard, WorkspaceGuard)
@@ -39,7 +42,8 @@ export class OpsOutletsController {
   constructor(private readonly outlets: OutletsService) {}
 
   @Get()
-  list(@CurrentWorkspace() workspace: WorkspaceAccess): Promise<OperatorOutletList> {
+  @RequireAnyPermission('outlet.manage', 'order.advance', 'menu.manage')
+  list(@CurrentWorkspace() workspace: ScopedWorkspace): Promise<OperatorOutletList> {
     return this.outlets.list(workspace);
   }
 
@@ -47,7 +51,7 @@ export class OpsOutletsController {
   @RequirePermission('outlet.manage')
   create(
     @Body(new ZodValidationPipe(CreateOutletRequest)) body: CreateOutletRequest,
-    @CurrentWorkspace() workspace: WorkspaceAccess,
+    @CurrentWorkspace() workspace: ScopedWorkspace,
   ): Promise<OperatorOutlet> {
     return this.outlets.create(workspace, body);
   }
@@ -57,7 +61,7 @@ export class OpsOutletsController {
   update(
     @Param('id', ParseUUIDPipe) id: string,
     @Body(new ZodValidationPipe(UpdateOutletRequest)) body: UpdateOutletRequest,
-    @CurrentWorkspace() workspace: WorkspaceAccess,
+    @CurrentWorkspace() workspace: ScopedWorkspace,
   ): Promise<OperatorOutlet> {
     return this.outlets.update(workspace, id, body);
   }
@@ -68,7 +72,7 @@ export class OpsOutletsController {
   @RequirePermission('outlet.manage')
   archive(
     @Param('id', ParseUUIDPipe) id: string,
-    @CurrentWorkspace() workspace: WorkspaceAccess,
+    @CurrentWorkspace() workspace: ScopedWorkspace,
   ): Promise<OperatorOutlet> {
     return this.outlets.archive(workspace, id);
   }

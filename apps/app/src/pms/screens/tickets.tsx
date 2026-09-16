@@ -34,6 +34,7 @@ import { useCapability, useWorkspaceId } from "../data/capability";
 import { useAdvanceTicket, useTickets } from "../data/ops";
 import { dshortIso } from "../lib/format";
 import { usePms } from "../store";
+import { ReportFault } from "./report-fault";
 
 /**
  * The four columns, and where the other two statuses land.
@@ -104,6 +105,8 @@ export function Tickets({ landlord = false }: { landlord?: boolean }) {
   /** The card whose note field is open, and what has been typed into it. */
   const [noting, setNoting] = useState<string | null>(null);
   const [note, setNote] = useState("");
+  /** Whether the report-a-fault form is open above the board. */
+  const [reporting, setReporting] = useState(false);
 
   const mayAdvance = can("ticket.advance");
   const denied = mayAdvance ? undefined : reasonFor("ticket.advance");
@@ -111,8 +114,9 @@ export function Tickets({ landlord = false }: { landlord?: boolean }) {
   function submit(ticket: OperatorTicket, to: MaintenanceStatus) {
     const text = note.trim();
     // The server refuses an empty note, so refuse it here rather than sending a
-    // request that can only come back as a validation error.
-    if (!text) return;
+    // request that can only come back as a validation error. A second press
+    // while the first is on the wire would write a second note.
+    if (!text || advance.isPending) return;
     advance.mutate(
       { ticketId: ticket.id, to, note: text },
       {
@@ -174,7 +178,15 @@ export function Tickets({ landlord = false }: { landlord?: boolean }) {
             ? "Tenants report from their app and your caretaker from theirs — both land here."
             : "Housekeepers report from their phone and it lands here."}
         </span>
+        <span style={{ flex: 1 }} />
+        {!reporting && (
+          <ActionButton variant="primary" onClick={() => setReporting(true)} deniedReason={denied}>
+            Report a fault
+          </ActionButton>
+        )}
       </div>
+
+      {reporting && <ReportFault landlord={landlord} onDone={() => setReporting(false)} />}
 
       <div
         style={{

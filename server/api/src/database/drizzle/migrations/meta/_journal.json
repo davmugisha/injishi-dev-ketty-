@@ -302,6 +302,34 @@
       "when": 1789421757760,
       "tag": "0042_guest_stays_one_open_per_room",
       "breakpoints": true
+    },
+    {
+      "idx": 43,
+      "version": "7",
+      "when": 1789429121727,
+      "tag": "0043_business_branches",
+      "breakpoints": true
+    },
+    {
+      "idx": 44,
+      "version": "7",
+      "when": 1789434513884,
+      "tag": "0044_guest_claim_department_refunds_offers",
+      "breakpoints": true
+    },
+    {
+      "idx": 45,
+      "version": "7",
+      "when": 1789435265291,
+      "tag": "0045_data_integrity_constraints_and_indexes",
+      "breakpoints": true
+    },
+    {
+      "idx": 46,
+      "version": "7",
+      "when": 1789442679357,
+      "tag": "0046_guest_chat_order_lines",
+      "breakpoints": true
     }
   ]
 }

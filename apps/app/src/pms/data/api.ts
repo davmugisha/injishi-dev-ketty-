@@ -9,6 +9,8 @@
  * wire.
  */
 
+import { branchHeader } from "./branch";
+
 /**
  * Where the API lives.
  *
@@ -304,6 +306,12 @@ export interface CommandOptions {
    * `PATCH` edits part of one. The server names the verb; this only carries it.
    */
   method?: "POST" | "PUT" | "PATCH" | "DELETE";
+  /**
+   * Act on the whole business, ignoring the branch the switcher shows (ADR-054).
+   * The Branches screen manages every branch, so its commands must not be
+   * narrowed to the one in view.
+   */
+  allBranches?: boolean;
 }
 
 /**
@@ -314,7 +322,7 @@ export interface CommandOptions {
  */
 export async function command<T>(
   path: string,
-  { workspaceId, body, idempotencyKey, method = "POST" }: CommandOptions,
+  { workspaceId, body, idempotencyKey, method = "POST", allBranches = false }: CommandOptions,
 ): Promise<T> {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
@@ -322,6 +330,8 @@ export async function command<T>(
     // The guard reads the workspace from here first. Naming it in a header
     // rather than a body means a command with no body still names it.
     "x-workspace-id": workspaceId,
+    // And the branch in view, when one is chosen (ADR-054 AC-S2).
+    ...branchHeader(allBranches),
   };
   // ONLY with a body. Fastify refuses `application/json` with an empty body
   // (400, "Body cannot be empty"), before any route runs, so sending the

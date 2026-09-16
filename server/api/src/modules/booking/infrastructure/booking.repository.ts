@@ -7,15 +7,15 @@ import type {
   PaymentStatus,
 } from '@injishi/contracts';
 import { Inject, Injectable } from '@nestjs/common';
-import { and, desc, eq, gt, gte, inArray, lt, sql } from 'drizzle-orm';
+import { and, desc, eq, gte, inArray, sql } from 'drizzle-orm';
 
 import { makeReference } from '../domain/pricing';
+import { hasFreeUnitEveryNight } from '../domain/sellable-capacity';
 
 import {
   bookings,
   escrows,
   guestStays,
-  paymentAttempts,
   properties,
   rooms,
   roomTypes,
@@ -27,6 +27,11 @@ import {
   DRIZZLE,
   type Database,
 } from '../../../shared/database/database.module';
+import {
+  inBranchScope,
+  type BranchScope,
+} from '../../../shared/auth/branch-scope';
+import { readNightlyCapacity } from './sellable-capacity.query';
 
 /** Booking statuses that still hold inventory (F-B05 atomic hold). */
 const HOLDING_STATUSES = ['pending_approval', 'confirmed'] as const;
@@ -46,8 +51,6 @@ export interface CreateBookingRow {
   breakdown: MoneyBreakdown;
   reference: string;
   approvalExpiresAt: Date | null;
-  /** Room units of this type that exist; the hold denominator. */
-  roomCount: number;
   /**
    * The receipt from the payment seam, captured BEFORE this transaction opened
    * (ADR-020 A1). Its `adapterRef` is what reconciliation matches against
@@ -145,6 +148,8 @@ export interface ExpiredRequest {
 export interface ReservationOwner {
   id: string;
   workspaceId: string;
+  /** Through the room type: the branch of the reservation (ADR-054). */
+  propertyId: string | null;
   status: BookingStatus;
 }
 
@@ -184,6 +189,8 @@ export interface CancellableBooking {
   bookingId: string;
   reference: string;
   workspaceId: string;
+  /** The branch of the reservation (ADR-054). */
+  propertyId: string;
   status: BookingStatus;
   checkIn: string;
   checkOut: string;
@@ -316,21 +323,24 @@ export class BookingRepository {
         .limit(1);
       if (already) throw new DuplicateAttemptError(input.idempotencyKey);
 
-      // 2. Units already held for any overlapping stay.
-      //    Overlap: existing.checkIn < new.checkOut AND existing.checkOut > new.checkIn.
-      const [held] = await tx
-        .select({ count: sql<number>`count(*)::int` })
-        .from(bookings)
-        .where(
-          and(
-            eq(bookings.roomTypeId, input.roomTypeId),
-            inArray(bookings.status, [...HOLDING_STATUSES]),
-            lt(bookings.checkIn, input.checkOut),
-            gt(bookings.checkOut, input.checkIn),
-          ),
-        );
-
-      if ((held?.count ?? 0) >= input.roomCount) {
+      // 2. Is there still a unit on every night, read UNDER the lock (platform
+      //    audit step 3)? Sellable capacity, not the declared `room_count`:
+      //    rooms out of service and walk ins already in a room are not for
+      //    sale, and a stop sell closes the night.
+      //
+      //    Bookings only, as before: payment holds are NOT counted here. Every
+      //    press claimed its hold before it was charged, so the hold already
+      //    did its job; counting other holds now would also count a unit twice
+      //    in the moment between another press's booking committing and its
+      //    attempt being marked booked, and refund a guest who had a room.
+      const nights = await readNightlyCapacity(tx, {
+        roomTypeId: input.roomTypeId,
+        from: input.checkIn,
+        to: input.checkOut,
+        now: new Date(),
+        countHolds: false,
+      });
+      if (!hasFreeUnitEveryNight(nights)) {
         throw new NoAvailabilityError();
       }
 
@@ -483,51 +493,20 @@ export class BookingRepository {
     roomTypeId: string,
     from: string,
     to: string,
-    roomCount: number,
   ): Promise<{ night: string; freeUnits: number }[]> {
-    // Held = bookings that occupy the night PLUS live payment holds for it
-    // (booking audit, 2026-09-13). A unit held by a prompt on somebody's
-    // handset cannot be claimed, so a calendar that showed it free would offer
-    // a night the checkout then refuses.
-    const rows = await this.db.execute<{ night: string; held: number }>(sql`
-      select
-        to_char(d, 'YYYY-MM-DD') as night,
-        (
-          (select count(*) from ${bookings} b
-            where b.room_type_id = ${roomTypeId}
-              and b.status in ('pending_approval', 'confirmed')
-              and b.check_in <= d::date
-              and b.check_out > d::date)
-          +
-          (select count(*) from ${paymentAttempts} a
-            where a.purpose = 'booking'
-              and a.room_type_id = ${roomTypeId}
-              and a.state = 'prompting'
-              and a.expires_at > now()
-              and a.check_in <= d::date
-              and a.check_out > d::date)
-        )::int as held
-      from generate_series(
-        ${from}::date,
-        ${to}::date - interval '1 day',
-        interval '1 day'
-      ) as d
-      order by d
-    `);
-
-    // Drizzle's `execute` returns the driver's result; node-postgres puts the
-    // rows on `.rows` and some drivers return the array itself.
-    const list: { night: string; held: number }[] = Array.isArray(rows)
-      ? rows
-      : ((rows as { rows?: { night: string; held: number }[] }).rows ?? []);
-
-    return list.map((row) => ({
-      night: row.night,
-      // Never negative. A room type whose `room_count` was lowered below the
-      // bookings already taken against it is a real (if rare) state, and a
-      // calendar must read it as "sold out", not as "minus two free".
-      freeUnits: Math.max(0, roomCount - Number(row.held ?? 0)),
-    }));
+    // The same read the hold and the booking write take under their lock
+    // (platform audit step 3), so the calendar never offers a night the
+    // checkout then refuses. Held = bookings PLUS live payment holds (booking
+    // audit, 2026-09-13); capacity = sellable rooms, not `room_count`. Free
+    // units never go negative: a night sold past what can be sold reads as
+    // sold out, not as "minus two free".
+    const nights = await readNightlyCapacity(this.db, {
+      roomTypeId,
+      from,
+      to,
+      now: new Date(),
+    });
+    return nights.map(({ night, freeUnits }) => ({ night, freeUnits }));
   }
 
   async findByAttemptKey(
@@ -860,6 +839,7 @@ export class BookingRepository {
         bookingId: bookings.id,
         reference: bookings.reference,
         workspaceId: bookings.workspaceId,
+        propertyId: roomTypes.propertyId,
         status: bookings.status,
         checkIn: bookings.checkIn,
         checkOut: bookings.checkOut,
@@ -953,9 +933,11 @@ export class BookingRepository {
       .select({
         id: bookings.id,
         workspaceId: bookings.workspaceId,
+        propertyId: roomTypes.propertyId,
         status: bookings.status,
       })
       .from(bookings)
+      .leftJoin(roomTypes, eq(roomTypes.id, bookings.roomTypeId))
       .where(eq(bookings.id, bookingId))
       .limit(1);
 
@@ -974,6 +956,7 @@ export class BookingRepository {
    */
   async listOperatorReservations(
     workspaceId: string,
+    scope: BranchScope,
     filter: DeskFilter,
   ): Promise<OperatorReservationRow[]> {
     const rows = await this.db
@@ -992,9 +975,12 @@ export class BookingRepository {
       })
       .from(bookings)
       .leftJoin(users, eq(users.id, bookings.guestUserId))
+      .leftJoin(roomTypes, eq(roomTypes.id, bookings.roomTypeId))
       .where(
         and(
           eq(bookings.workspaceId, workspaceId),
+          // A reservation reaches its branch through its room type (ADR-054).
+          inBranchScope(roomTypes.propertyId, scope),
           // A window and a ceiling (review 2.5): the desk shows what is still
           // relevant, not every booking the workspace has ever had.
           gte(bookings.checkOut, filter.since),
