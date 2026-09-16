@@ -56,6 +56,9 @@ export const queryKeys = {
    */
   reservations: (workspaceId: string | null) =>
     ["ops", "reservations", workspaceId] as const,
+  /** ONE reservation by its own id, extending the list key for the same reason. */
+  reservation: (workspaceId: string | null, reservationId: string | null) =>
+    ["ops", "reservations", workspaceId, reservationId] as const,
   rooms: (workspaceId: string | null) => ["ops", "rooms", workspaceId] as const,
   /**
    * Every live room hold, per workspace. The windowed key below extends this
@@ -66,6 +69,15 @@ export const queryKeys = {
   roomAssignmentWindow: (workspaceId: string | null, from: string, to: string) =>
     ["ops", "room-assignments", workspaceId, from, to] as const,
   stays: (workspaceId: string | null) => ["ops", "stays", workspaceId] as const,
+  /**
+   * ONE stay by its own id.
+   *
+   * Extends the list key, so every place that already invalidates the stays
+   * list after a check in or a checkout reaches an open record too — no call
+   * site has to learn a second key to stay correct.
+   */
+  stay: (workspaceId: string | null, stayId: string | null) =>
+    ["ops", "stays", workspaceId, stayId] as const,
   /**
    * The cleaning board, kept apart from `rooms` on purpose. A task and a room
    * status are two different facts served by two endpoints; one key for both

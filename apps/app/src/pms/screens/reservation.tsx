@@ -12,14 +12,17 @@
  * rendering rather than holding it in state. That is what makes each one
  * separately linkable.
  *
- * **IT READS WHAT THE LIST READS (ADR-044, D-a, AC-6).** The list has come from
- * `GET /ops/reservations` since ADR-012 and links every row here by its server
- * id, but this page looked that id up in the demo store and 404ed every live
- * booking. Now a workspace in the address means the live list, from the same
- * query and cache the list screen fills, so a row that is on the list opens.
- * There is no read of ONE reservation on the API; the list carries every field
- * this page shows, so it needs none. The demo store stands in only when there is
- * no workspace to ask, exactly as the list does.
+ * **IT READS THE RECORD, NOT THE LIST (ADR-044, D-a, AC-6).** The list has come
+ * from `GET /ops/reservations` since ADR-012 and links every row here by its
+ * server id, but this page looked that id up in the demo store and 404ed every
+ * live booking. It then read the live LIST and `.find()`-ed the id inside it,
+ * which fixed the demo mismatch and left a worse one behind: the desk list is
+ * windowed to `DESK_WINDOW_DAYS` and capped at `DESK_LIMIT`, so a booking older
+ * than the window rendered "that page isn't here" to the desk that owns it.
+ *
+ * It reads `GET /ops/reservations/:id` now. A window is a property of a LIST and
+ * must never decide whether a RECORD exists. The demo store stands in only when
+ * there is no workspace to ask, exactly as the list does.
  */
 
 import type { OperatorReservation, OperatorReservationState } from "@injishi/contracts";
@@ -30,9 +33,10 @@ import { Bill } from "./bill";
 import { Facts, type Fact } from "../components/facts";
 import { ObjectPage } from "../components/object-page";
 import { EmptyState, Initials, LoadFailed, SectionHeading, Skeleton } from "../components/ui";
+import { ApiError } from "../data/api";
 import { useCapability, useWorkspaceId } from "../data/capability";
 import { useFolios, useStays } from "../data/ops";
-import { useReservations } from "../data/reservations";
+import { useReservation } from "../data/reservations";
 import type { Reservation, ResStatus } from "../data/types";
 import { buildFolio } from "../lib/folio";
 import { dateRange, dateRangeIso, fmt, initials, nights } from "../lib/format";
@@ -82,14 +86,18 @@ function LiveReservation({
   lens: string;
   workspaceId: string;
 }) {
-  const query = useReservations(workspaceId);
+  const query = useReservation(workspaceId, id);
   const stays = useStays(workspaceId);
 
   if (query.isPending) return <Skeleton height={320} />;
 
   if (query.isError) {
-    /* An unreachable API is not a booking that never happened. A 404 here
-       would tell the desk this guest does not exist. */
+    /* A booking this workspace does not hold — or one on a branch outside the
+       scope in view — is a 404, the same answer a made up id gets. Anything
+       else is ours to own: an unreachable API is not a booking that never
+       happened, and refusing here would tell the desk this guest does not
+       exist. */
+    if (query.error instanceof ApiError && query.error.status === 404) notFound();
     return (
       <LoadFailed onRetry={() => void query.refetch()} retrying={query.isFetching}>
         We couldn&apos;t load this reservation. The booking is safe — this is on our side,
@@ -98,15 +106,12 @@ function LiveReservation({
     );
   }
 
-  const reservation = query.data.reservations.find((r) => r.id === id);
-  // Only once the list has answered. An id this workspace does not hold is a
-  // 404, the same answer as a made up one.
-  //
-  // KNOWN EDGE: the desk list reaches back `DESK_WINDOW_DAYS` (90) and no
-  // more, so a link to a booking older than that 404s too, though it exists.
-  // Every row the list shows opens. Closing the edge needs a read of one
-  // reservation on the API, which does not exist yet.
-  if (!reservation) notFound();
+  // THE KNOWN EDGE IS CLOSED. This used to `.find()` the booking inside the
+  // desk list, which reaches back `DESK_WINDOW_DAYS` (90) and stops at
+  // `DESK_LIMIT` rows — so a link to a booking older than that 404'd although
+  // it existed and this workspace held it. A window bounds a LIST; it never
+  // decided whether this record exists, and nothing pretends it does now.
+  const reservation = query.data;
 
   /*
    * The stay this booking became, if the guest has arrived.

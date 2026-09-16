@@ -56,7 +56,7 @@ import {
   type OperatorServiceOrder,
   OperatorServiceOrderList,
   OperatorRoomList,
-  type OperatorStay,
+  OperatorStay,
   OperatorStayList,
   WalkInRequest,
   OperatorRoleList,
@@ -289,6 +289,32 @@ export function useStays(workspaceId: string | null): UseQueryResult<OperatorSta
     OperatorStayList,
     OPS_READ.stays,
   );
+}
+
+/**
+ * ONE stay, read by its own id.
+ *
+ * The record screen used to take `useStays` and `.find()` the id out of it,
+ * which made the whole property's stays the price of rendering one guest and
+ * made a LIST the arbiter of whether a stay exists. A record read answers that
+ * question itself: a 404 from here means not-yours-or-not-real, and nothing
+ * else does.
+ *
+ * Gated on the same permissions as the list (`OPS_READ.stays`) and sent with
+ * the same branch header, so opening a record by id is never a way around
+ * either.
+ */
+export function useStay(
+  workspaceId: string | null,
+  stayId: string | null,
+): UseQueryResult<OperatorStay> {
+  const mayRead = useMayRead(OPS_READ.stays);
+  return useQuery({
+    queryKey: queryKeys.stay(workspaceId, stayId),
+    queryFn: () =>
+      read(`/ops/stays/${stayId as string}`, workspaceId as string, OperatorStay),
+    enabled: workspaceId !== null && stayId !== null && mayRead,
+  });
 }
 
 export function useCheckIn(
