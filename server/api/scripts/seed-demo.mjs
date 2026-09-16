@@ -44,8 +44,8 @@
 import { spawnSync } from 'node:child_process';
 import fs from 'node:fs';
 import path from 'node:path';
-import { computeBreakdown } from '@injishi/contracts';
 import { fileURLToPath } from 'node:url';
+import { computeBreakdown } from '@injishi/contracts';
 import pg from 'pg';
 
 import { assertSampleDatabase } from './sample-database.mjs';
