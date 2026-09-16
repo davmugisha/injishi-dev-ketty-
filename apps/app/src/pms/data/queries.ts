@@ -81,6 +81,8 @@ export const queryKeys = {
   deposits: (workspaceId: string | null) => ["ops", "deposits", workspaceId] as const,
   tickets: (workspaceId: string | null) => ["ops", "tickets", workspaceId] as const,
   team: (workspaceId: string | null) => ["ops", "team", workspaceId] as const,
+  /** What each role may do at this business (ADR-055). Per workspace, like the roster. */
+  roles: (workspaceId: string | null) => ["ops", "roles", workspaceId] as const,
   departments: (workspaceId: string | null) =>
     ["ops", "departments", workspaceId] as const,
   /**

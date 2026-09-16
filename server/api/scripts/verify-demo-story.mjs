@@ -174,7 +174,51 @@ await section('hotel', async () => {
   const beatha = await as('beatha@demo.injishi.com');
   const hk = await beatha('/ops/rooms', W_HOTEL, HQ_BRANCH);
   check(S, 'H29 the housekeeper can read the head office room board', hk.rooms.length === 20, `got ${hk.rooms.length}`);
+  /*
+   * H30–H33: Amahoro decided what its own roles mean (ADR-055).
+   *
+   * These read the GRANT rather than the Roles screen, which is the point: the
+   * seed writes a delta row, and what has to be true is that the affected
+   * colleague's resolved permissions changed on the server. A check that read
+   * `/ops/roles` back would only prove the table round trips.
+   */
+  const roleView = await yves('/ops/roles', W_HOTEL);
+  const byRole = Object.fromEntries(roleView.roles.map((r) => [r.orgRole, r]));
+  check(
+    S,
+    'H30 the Roles lens lists all four roles, with owner marked not editable',
+    roleView.roles.length === 4 && byRole.owner?.customisable === false,
+    `got ${roleView.roles.length}`,
+  );
+  check(
+    S,
+    'H31 team.manage is locked on every editable role',
+    ['manager', 'receptionist', 'housekeeper'].every((r) =>
+      byRole[r]?.lockedPermissions?.includes('team.manage'),
+    ),
+  );
+
+  const deniseGrants = await (await as('denise@demo.injishi.com'))('/me/workspaces');
+  const denise = deniseGrants.workspaces.find((w) => w.workspaceId === W_HOTEL);
+  check(
+    S,
+    'H32 reception was GRANTED money.view here, though the platform withholds it',
+    denise?.permissions.includes('money.view') === true &&
+      byRole.receptionist?.basePermissions.includes('money.view') === false,
+    `receptionist holds ${denise?.permissions.length ?? 0} permissions`,
+  );
+
+  const solangeGrants = await (await as('solange@demo.injishi.com'))('/me/workspaces');
+  const solange = solangeGrants.workspaces.find((w) => w.workspaceId === W_HOTEL);
+  check(
+    S,
+    'H33 the manager had ebm.refund WITHDRAWN here, though the platform gives it',
+    solange?.permissions.includes('ebm.refund') === false &&
+      byRole.manager?.basePermissions.includes('ebm.refund') === true,
+    `manager holds ${solange?.permissions.length ?? 0} permissions`,
+  );
 });
+
 
 // --- Green Hills Properties: owner Josephine, Ingoro Apartments
 await section('landlord', async () => {

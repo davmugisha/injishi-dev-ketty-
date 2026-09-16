@@ -1,8 +1,12 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.ELEVATION_REFUSED_MESSAGE = exports.SEPARATION_OF_DUTIES_MESSAGE = exports.OVERSIGHT_OWN_BUSINESS_MESSAGE = exports.OVERSIGHT_ORG_ROLE_CONFLICT_MESSAGE = exports.OVERSIGHT_SCOPE_CONFLICT_MESSAGE = exports.OVERSIGHT_CONSOLE_NOT_BUILT_MESSAGE = exports.OVERSIGHT_COUNTRY_SCOPE_LABEL = exports.OversightConsoleGrant = exports.OversightGrant = exports.REGISTRATION_STAGE_MESSAGE = exports.WorkspaceAccess = exports.WorkspaceBranch = exports.BranchCoverage = exports.PERMISSION_LABEL = exports.Permission = void 0;
+exports.ELEVATION_REFUSED_MESSAGE = exports.SEPARATION_OF_DUTIES_MESSAGE = exports.OVERSIGHT_OWN_BUSINESS_MESSAGE = exports.OVERSIGHT_ORG_ROLE_CONFLICT_MESSAGE = exports.OVERSIGHT_SCOPE_CONFLICT_MESSAGE = exports.OVERSIGHT_CONSOLE_NOT_BUILT_MESSAGE = exports.OVERSIGHT_COUNTRY_SCOPE_LABEL = exports.OversightConsoleGrant = exports.OversightGrant = exports.REGISTRATION_STAGE_MESSAGE = exports.WorkspaceAccess = exports.WorkspaceBranch = exports.BranchCoverage = exports.SetRolePermissionsRequest = exports.OperatorRoleList = exports.OperatorRolePermissions = exports.PERMISSION_AREA_OF = exports.PERMISSION_AREA_LABEL = exports.PERMISSION_AREA = exports.LOCKED_PERMISSION_REASON = exports.LOCKED_PERMISSIONS = exports.RolePermissionOverride = exports.CustomisableOrgRole = exports.PERMISSION_LABEL = exports.Permission = void 0;
 exports.can = can;
 exports.permissionsForRole = permissionsForRole;
+exports.isCustomisableOrgRole = isCustomisableOrgRole;
+exports.isLockedPermission = isLockedPermission;
+exports.effectivePermissionsForRole = effectivePermissionsForRole;
+exports.parseRolePermissionOverride = parseRolePermissionOverride;
 exports.isOperational = isOperational;
 exports.workspaceLabel = workspaceLabel;
 exports.permissionsForWorkspace = permissionsForWorkspace;
@@ -215,6 +219,238 @@ exports.PERMISSION_LABEL = {
     "offer.manage": "create and retire offers",
 };
 // ---------------------------------------------------------------------------
+// A business's own role customisation
+// ---------------------------------------------------------------------------
+/**
+ * The roles a business may customise, and the fact that `owner` is not one.
+ *
+ * The four roles above are the PLATFORM's defaults: what a hotel means by
+ * "receptionist" before anybody says otherwise. They were the whole model, and
+ * two real properties never agree with them — one lets the front desk read the
+ * month's takings, another does not let a manager withdraw a signed receipt.
+ * The choice belongs to whoever owns the business, so a business may move a
+ * permission on or off any of its staff roles, and the default set stays the
+ * starting point rather than the ceiling.
+ *
+ * `owner` is excluded exactly as `InvitableOrgRole` excludes it, and for a
+ * stronger reason: the customisation screen sits behind `team.manage`, which
+ * only an owner holds, so an owner who could edit `owner` could remove their
+ * own access to the screen that would put it back. There is no other door.
+ */
+exports.CustomisableOrgRole = primitives_1.OrgRole.exclude(["owner"]);
+/** Is this a role a business may customise? Narrows, so callers stay honest. */
+function isCustomisableOrgRole(role) {
+    return role !== "owner";
+}
+/**
+ * One deliberate departure from the default set, for one role of one business.
+ *
+ * A DELTA rather than a stored permission list, and that is the design decision
+ * rather than an implementation detail. A stored list would freeze the role at
+ * the day it was edited: the twenty sixth permission, added to the platform next
+ * quarter, would reach every business that had never opened this screen and no
+ * business that had. A delta says only what this owner CHANGED, so a role that
+ * was never customised for a permission still inherits the platform's answer for
+ * it, and the two kinds of fact stay apart.
+ */
+exports.RolePermissionOverride = zod_1.z.object({
+    orgRole: exports.CustomisableOrgRole,
+    permission: exports.Permission,
+    /** True grants a permission the default set withholds; false withdraws one it gives. */
+    granted: zod_1.z.boolean(),
+});
+/**
+ * The permissions no business may move, and why each one is here.
+ *
+ * `team.manage` is the whole list, and it is `OWNER_ONLY` restated rather than a
+ * second register: granting it to a manager would hand that manager this very
+ * screen, from which they could grant themselves the rest and re-role the owner
+ * out of their own business. Every other permission is an operational choice an
+ * owner is entitled to make; this one is the lock on the door, so it cannot be
+ * handed through the door.
+ *
+ * Locked means locked in BOTH directions. An owner cannot grant it to a
+ * manager, and the question of withdrawing it from `owner` cannot arise,
+ * because `owner` is not customisable at all.
+ */
+exports.LOCKED_PERMISSIONS = OWNER_ONLY;
+/** May an override move this permission at all? */
+function isLockedPermission(permission) {
+    return exports.LOCKED_PERMISSIONS.includes(permission);
+}
+/** Why a locked permission is locked, in words a screen can print. */
+exports.LOCKED_PERMISSION_REASON = {
+    "team.manage": "Only an owner manages the team. Granting it here would let that role change roles — including yours.",
+};
+/**
+ * Every permission a role holds AT ONE BUSINESS: the defaults, plus what that
+ * business granted, minus what it withdrew.
+ *
+ * Overrides for other roles are ignored rather than refused, so a caller may
+ * hand in the whole business's set and ask about one role. A locked permission
+ * is ignored in both directions whatever a stored row says: the row should never
+ * exist, and if one ever did — a bad migration, a hand edited database — the
+ * model must still refuse to resolve it into a grant. That is the difference
+ * between validating an input and enforcing an invariant, and only the second
+ * one survives a database somebody else wrote to.
+ *
+ * The answer keeps `Permission.options` order, like `permissionsForRole`, so
+ * two grants that hold the same powers are the same array.
+ */
+function effectivePermissionsForRole(role, overrides = []) {
+    const held = new Set(permissionsForRole(role));
+    if (isCustomisableOrgRole(role)) {
+        for (const override of overrides) {
+            if (override.orgRole !== role)
+                continue;
+            if (isLockedPermission(override.permission))
+                continue;
+            if (override.granted)
+                held.add(override.permission);
+            else
+                held.delete(override.permission);
+        }
+    }
+    return ALL.filter((p) => held.has(p));
+}
+/**
+ * Narrow one STORED row into an override the model will resolve, or null.
+ *
+ * The one place a database row becomes a permission decision, so the API service
+ * that edits the table and the resolver that reads it on every request cannot
+ * narrow it two different ways.
+ *
+ * Three rows are dropped rather than refused, and each for its own reason:
+ * a role this release does not have, a permission this release does not have —
+ * `permission` is stored as text because the vocabulary changes with a release
+ * and not with a migration, so a rolled back deploy legitimately leaves rows
+ * from a newer one — and `owner`, which is not customisable at all. Dropping is
+ * safe in both directions: an unrecognised grant grants nothing and an
+ * unrecognised withdrawal withdraws nothing.
+ *
+ * A LOCKED permission is deliberately NOT dropped here, because dropping it
+ * would make this the place the lock is enforced. It is enforced in
+ * `effectivePermissionsForRole`, which is what every consumer resolves through;
+ * a caller listing the stored rows should see a row that should not exist rather
+ * than be told there is none.
+ */
+function parseRolePermissionOverride(row) {
+    const parsed = exports.RolePermissionOverride.safeParse(row);
+    return parsed.success ? parsed.data : null;
+}
+/**
+ * How a screen groups the permissions, so a person reads a job rather than a
+ * list of twenty five dotted names.
+ *
+ * In the contract beside the permissions themselves because it is the same
+ * class of fact as `PERMISSION_LABEL`: wording that must not fork between the
+ * operator app and anything else that ever renders this. It grants nothing.
+ */
+exports.PERMISSION_AREA = zod_1.z.enum([
+    "front_desk",
+    "rooms",
+    "services",
+    "money",
+    "property",
+    "people",
+]);
+/** What each area is called. */
+exports.PERMISSION_AREA_LABEL = {
+    front_desk: "Front desk",
+    rooms: "Rooms & housekeeping",
+    services: "Services & outlets",
+    money: "Money & tax",
+    property: "Property & listings",
+    people: "People",
+};
+/** Which area each permission belongs to. Every permission has exactly one. */
+exports.PERMISSION_AREA_OF = {
+    "reservation.approve": "front_desk",
+    "reservation.assign": "front_desk",
+    "stay.checkin": "front_desk",
+    "stay.checkout": "front_desk",
+    "message.send": "front_desk",
+    "housekeeping.set": "rooms",
+    "ticket.advance": "rooms",
+    "task.assign": "rooms",
+    "order.advance": "services",
+    "menu.manage": "services",
+    "outlet.manage": "services",
+    "folio.charge": "money",
+    "folio.payment": "money",
+    "folio.close": "money",
+    "money.view": "money",
+    "ebm.manage": "money",
+    "ebm.refund": "money",
+    "refund.decide": "money",
+    "rent.record": "money",
+    "lease.advance": "property",
+    "deposit.return": "property",
+    "unit.manage": "property",
+    "listing.manage": "property",
+    "amenity.manage": "property",
+    "offer.manage": "property",
+    "department.manage": "people",
+    "team.manage": "people",
+};
+// ---------------------------------------------------------------------------
+// What each role may do, at THIS business
+// ---------------------------------------------------------------------------
+/**
+ * One staff role, with the platform's answer and this business's beside it.
+ *
+ * **Three permission arrays, and none of them is redundant.** `basePermissions`
+ * is what the platform says the role means; `permissions` is what it means here;
+ * `lockedPermissions` is the subset of the first that no owner may move. A
+ * screen that had only the effective array could render a set of toggles, but it
+ * could not say which of them had been CHANGED — and "we changed this" is the
+ * one thing an owner reviewing their own policy needs to see. It is also why the
+ * difference is computed from two arrays on the wire rather than sent as a third
+ * list of deltas: the two arrays are what the server actually resolved, so they
+ * cannot disagree with each other.
+ *
+ * `memberCount` is how many ACTIVE people hold the role right now. It is here
+ * because withdrawing a permission is not an abstract act: it changes what four
+ * named colleagues can do on their next page load, and a screen that hides the
+ * number invites the owner to find out afterwards.
+ *
+ * `customisable` is false for `owner` alone, and the screen renders that row
+ * read only rather than hiding it. An owner looking for "why can nobody else
+ * close the month" must be able to see the owner's own set.
+ */
+exports.OperatorRolePermissions = zod_1.z.object({
+    orgRole: primitives_1.OrgRole,
+    /** `ORG_ROLE_LABEL[orgRole]` (in `ops.ts`), resolved server side so one table words it. */
+    label: zod_1.z.string(),
+    customisable: zod_1.z.boolean(),
+    /** The platform default for this role. */
+    basePermissions: zod_1.z.array(exports.Permission),
+    /** What the role actually holds here: the default, plus grants, minus withdrawals. */
+    permissions: zod_1.z.array(exports.Permission),
+    /** Permissions this business may not move in either direction. */
+    lockedPermissions: zod_1.z.array(exports.Permission),
+    /** Active memberships holding this role. */
+    memberCount: zod_1.z.number().int().nonnegative(),
+});
+exports.OperatorRoleList = zod_1.z.object({
+    roles: zod_1.z.array(exports.OperatorRolePermissions),
+});
+/**
+ * Set what a role may do here: the WHOLE set it should hold, not a delta.
+ *
+ * The client sends the state it wants and the server works out which
+ * departures from the default that implies. Sending deltas from the browser
+ * would make the client the author of the diff, and a client whose copy of the
+ * default set was one release stale would then write a delta that meant
+ * something else — the exact failure the stored-list design was rejected for.
+ *
+ * An empty array is legal and means a role that may do nothing. It is not the
+ * same as deleting the role, and the screen says so before it saves.
+ */
+exports.SetRolePermissionsRequest = zod_1.z.object({
+    permissions: zod_1.z.array(exports.Permission).max(64),
+});
+// ---------------------------------------------------------------------------
 // Workspace access
 // ---------------------------------------------------------------------------
 /**
@@ -345,13 +581,20 @@ function workspaceLabel(a) {
  * the BUSINESS OPERATOR matrix, and inventing broker or guest permissions here
  * would be a design decision, not an implementation of one. They are added when
  * their features are specced.
+ *
+ * `roleOverrides` is what THIS business decided its roles mean. It is optional
+ * and defaults to none, so every existing caller keeps the platform defaults and
+ * a business that has never opened the Roles screen is unaffected. It is applied
+ * INSIDE the registration gate rather than beside it: an org that is not
+ * `active` holds nothing, and a business cannot grant its way past its own
+ * approval.
  */
 function permissionsForWorkspace(input) {
     if (input.kind !== "business" || input.orgRole === null)
         return [];
     if (!isOperational(input.registrationStatus))
         return [];
-    return permissionsForRole(input.orgRole);
+    return effectivePermissionsForRole(input.orgRole, input.roleOverrides ?? []);
 }
 /** Refuse unless the workspace grants it. The one predicate a guard calls. */
 function workspaceAllows(access, permission) {

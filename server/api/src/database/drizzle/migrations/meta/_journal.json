@@ -330,6 +330,13 @@
       "when": 1789442679357,
       "tag": "0046_guest_chat_order_lines",
       "breakpoints": true
+    },
+    {
+      "idx": 47,
+      "version": "7",
+      "when": 1789541249052,
+      "tag": "0047_org_role_permissions",
+      "breakpoints": true
     }
   ]
 }

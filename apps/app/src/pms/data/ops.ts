@@ -59,6 +59,9 @@ import {
   type OperatorStay,
   OperatorStayList,
   WalkInRequest,
+  OperatorRoleList,
+  type OperatorRolePermissions,
+  type SetRolePermissionsRequest,
   OperatorTeamList,
   type OperatorTicket,
   OperatorThreadList,
@@ -128,6 +131,8 @@ export const OPS_READ = {
   rraClassifications: ["menu.manage"],
   stays: ["stay.checkin", "stay.checkout", "folio.charge"],
   team: ["team.manage"],
+  /** The business's own access policy. Owner only, like the roster. */
+  roles: ["team.manage"],
   threads: ["message.send"],
   /** Not `/ops`, but the same rule: `InventoryController` is `listing.manage`. */
   inventory: ["listing.manage"],
@@ -1043,6 +1048,68 @@ export function useTeam(workspaceId: string | null): UseQueryResult<OperatorTeam
     OperatorTeamList,
     OPS_READ.team,
   );
+}
+
+// ---------------------------------------------------------------------------
+// What each role may do here
+// ---------------------------------------------------------------------------
+
+/**
+ * The business's own access policy (ADR-055).
+ *
+ * Behind `team.manage` like the roster, and for the same reason: this says which
+ * colleague can read the takings and which cannot, which is information about
+ * people rather than operational data.
+ *
+ * **NOTHING IS RESOLVED HERE.** The server sends both the platform default and
+ * the effective set for every role; the screen renders the difference between
+ * two arrays it was given. Working a permission out from a role name in the
+ * browser is exactly what `no-client-authz` fails the build on, and it is what
+ * the whole model moved to the server to stop.
+ */
+export function useRoles(workspaceId: string | null): UseQueryResult<OperatorRoleList> {
+  return useOpsQuery(
+    queryKeys.roles(workspaceId),
+    "/ops/roles",
+    workspaceId,
+    OperatorRoleList,
+    OPS_READ.roles,
+  );
+}
+
+/**
+ * Set the whole permission set of one role.
+ *
+ * A PUT with the complete set rather than a toggle command: the same request
+ * sent twice leaves the same policy, so a double click or a retry cannot half
+ * apply an edit.
+ *
+ * **It invalidates `me.workspaces`, and that is not housekeeping.** The array
+ * this writes is the one every screen's `useCapability` reads, so an owner who
+ * withdrew `money.view` from the front desk must see their own app agree without
+ * a reload — and an owner editing the role they are watching would otherwise be
+ * looking at a stale answer while the server had already changed it.
+ */
+export function useSetRolePermissions(
+  workspaceId: string | null,
+): UseMutationResult<
+  OperatorRolePermissions,
+  Error,
+  { orgRole: string } & SetRolePermissionsRequest
+> {
+  const client = useQueryClient();
+  return useMutation({
+    mutationFn: ({ orgRole, ...body }) =>
+      command<OperatorRolePermissions>(`/ops/roles/${orgRole}`, {
+        workspaceId: workspaceId as string,
+        body,
+        method: "PUT",
+      }),
+    onSuccess: () => {
+      void client.invalidateQueries({ queryKey: queryKeys.roles(workspaceId) });
+      void client.invalidateQueries({ queryKey: queryKeys.meWorkspaces });
+    },
+  });
 }
 
 // ---------------------------------------------------------------------------

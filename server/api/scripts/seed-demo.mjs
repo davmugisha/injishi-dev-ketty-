@@ -114,6 +114,7 @@ const SW = (n) => `de300000-0000-4000-8000-0000000013${String(n).padStart(2, '0'
 const RR = (n) => `de300000-0000-4000-8000-0000000014${String(n).padStart(2, '0')}`; // rent roll
 const TH = (n) => `de300000-0000-4000-8000-0000000015${String(n).padStart(2, '0')}`; // threads
 const MS = (n) => `de300000-0000-4000-8000-0000000016${String(n).padStart(2, '0')}`; // messages
+const RLP = (n) => `de300000-0000-4000-8000-0000000017${String(n).padStart(2, '0')}`; // role permissions
 // The twenty room hotel (demo showcase, 2026-09-15). Rows added to the families
 // above take the `0029` block, so the original `00000000NNNN` ids stay exactly
 // as other scripts know them: `0029` + a two digit family + a six digit serial.
@@ -192,6 +193,38 @@ const MEMBERSHIPS = [
   // behind it is untouched and her Landlord surface still has rows. Only
   // Samuel's second, duplicate landlord seat is gone.
 ];
+
+/**
+ * What Amahoro decided its own roles mean (ADR-055).
+ *
+ * TWO ROWS, ONE IN EACH DIRECTION, because a demo that only ever showed a grant
+ * would leave the more surprising half — that an owner can take something AWAY
+ * from a manager — untold.
+ *
+ *  - Denise, on the front desk, can read the takings. Plenty of small hotels
+ *    give reception the day's number; the platform default does not, and this is
+ *    the business saying otherwise.
+ *  - Solange, managing, cannot withdraw a signed RRA receipt. It reduces
+ *    declared turnover, and Yves keeps that to himself.
+ *
+ * Both are chosen to be VISIBLE and to break nothing: `money.view` opens the
+ * Money section for Denise, and `ebm.refund` is a button Solange no longer
+ * has — neither is a permission any demo guide walks somebody through using.
+ *
+ * `de300000-0000-4000-8000-` ids like everything else this seed writes, so
+ * `--reset` reaches them.
+ */
+const ROLE_PERMISSIONS = [
+  {
+    id: RLP(1), orgId: O(1), role: 'receptionist',
+    permission: 'money.view', granted: true, setBy: U(1),
+  },
+  {
+    id: RLP(2), orgId: O(1), role: 'manager',
+    permission: 'ebm.refund', granted: false, setBy: U(1),
+  },
+];
+
 
 const WORKSPACES = [
   { id: W(1), kind: 'business', orgId: O(1) },
@@ -886,6 +919,25 @@ async function seedMembership(c, m) {
   await c.query(
     `INSERT INTO org_memberships (org_id, user_id, org_role) VALUES ($1, $2, $3)`,
     [m.orgId, m.userId, m.role],
+  );
+}
+
+/**
+ * One deliberate departure from a role's default set.
+ *
+ * ON CONFLICT on the natural key rather than on the id, because the unique
+ * constraint an owner would trip by editing the same role in the app is
+ * (org, role, permission) — so a reseed after a presenter has clicked around
+ * puts the demo answer back rather than failing on a row it did not write.
+ */
+async function seedRolePermission(c, r) {
+  await c.query(
+    `INSERT INTO org_role_permissions
+       (id, org_id, org_role, permission, granted, set_by_user_id)
+     VALUES ($1, $2, $3, $4, $5, $6)
+     ON CONFLICT (org_id, org_role, permission)
+     DO UPDATE SET granted = EXCLUDED.granted, updated_at = now()`,
+    [r.id, r.orgId, r.role, r.permission, r.granted, r.setBy],
   );
 }
 
@@ -2144,6 +2196,7 @@ async function main() {
     for (const o of [...ORGS, ...SAMUEL_ORGS]) await seedOrg(client, o);
     for (const w of [...WORKSPACES, ...SAMUEL_WORKSPACES]) await seedWorkspace(client, w);
     for (const m of [...MEMBERSHIPS, ...SAMUEL_MEMBERSHIPS]) await seedMembership(client, m);
+    for (const r of ROLE_PERMISSIONS) await seedRolePermission(client, r);
     for (const a of ASSIGNMENTS) await seedAssignment(client, a);
 
     // The operational half, in foreign key order.
