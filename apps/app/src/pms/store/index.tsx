@@ -27,7 +27,6 @@ import {
   type ReactNode,
 } from "react";
 import type {
-  BrokerData,
   HospitalityProperty,
   Intent,
   OrgRole,
@@ -40,7 +39,6 @@ import { useMyProfile } from "../data/profile";
 import { initials } from "../lib/format";
 import { useToastExpiry } from "../lib/toast-queue";
 import { hostProperty, initialState } from "./helpers";
-import { brokerReducer } from "./broker.reducer";
 import { frontDeskReducer } from "./front-desk.reducer";
 import { messagingReducer } from "./messaging.reducer";
 import { offerReducer } from "./offer.reducer";
@@ -63,7 +61,6 @@ const SLICES = [
   residenceReducer,
   messagingReducer,
   offerReducer,
-  brokerReducer,
 ];
 
 function reducer(s: State, a: Action): State {
@@ -82,7 +79,6 @@ interface PmsContextValue {
   /** The hospitality property in view (null outside a hospitality workspace). */
   host: HospitalityProperty | null;
   residence: ResidenceProperty;
-  broker: BrokerData;
   /** The person whose eyes we're looking through. */
   me: Person;
   toast: (txt: string, intent?: Intent) => void;
@@ -198,7 +194,6 @@ export function PmsProvider({ children }: { children: ReactNode }) {
       dispatch,
       host,
       residence: state.db.residence,
-      broker: state.db.broker,
       me,
       toast,
       toastError,

@@ -328,8 +328,11 @@ export function landlordNav(
         { key: "units", label: "Units & rents", icon: "building-2", href: `${base}/units`, built: true, permission: "unit.manage", grants: ["inventory"] },
         { key: "maintenance", label: "Maintenance", icon: "wrench", href: `${base}/maintenance`, count: ticketsOpen, built: true, permission: "ticket.advance" },
         // Was `directory`, the same word the broker uses for the opposite job:
-        // this one PUBLISHES your units, theirs browses everyone else's.
-        { key: "listing", label: "Listing", icon: "globe", href: `${base}/listing`, built: true, permission: "unit.manage" },
+        // this one PUBLISHES your buildings, theirs browses everyone else's.
+        // Behind `listing.manage`, not `unit.manage`: it renders the real
+        // publish control, and every inventory route it calls declares that
+        // permission (2026-09-15). A door the API refuses behind is no door.
+        { key: "listing", label: "Listing", icon: "globe", href: `${base}/listing`, built: true, permission: "listing.manage" },
       ],
       permissions,
     ),

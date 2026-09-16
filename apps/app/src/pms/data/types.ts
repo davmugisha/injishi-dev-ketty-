@@ -299,47 +299,6 @@ export interface RoomType {
   plans: RatePlan[];
 }
 
-/* ── Broker workspace ───────────────────────────────────────────────────── */
-
-export interface DirectoryListing {
-  id: string;
-  type: string;
-  loc: string;
-  rent: number;
-  /** Deposit, expressed the way Rwandan lettings do — "1 month". */
-  caution: string;
-  landlord: string;
-  phone: string;
-  /** A reveal is spent, logged, and cannot be taken back. */
-  revealed: boolean;
-}
-
-export type PlacementState = "none" | "progress" | "awaiting" | "disbursed";
-
-export interface Placement {
-  tenant: string | null;
-  unit: string | null;
-  landlord: string;
-  lease: string | null;
-  fee: number | null;
-  st: PlacementState;
-}
-
-export type LedgerState = "pending" | "disbursed";
-
-/** [label, when, amount, state]. A fee is pending until its lease activates. */
-export type LedgerLine = [string, string, number, LedgerState];
-
-export interface BrokerData {
-  key: "broker";
-  name: string;
-  dir: DirectoryListing[];
-  placements: Placement[];
-  ledger: LedgerLine[];
-  /** Reveals left this period. */
-  reveals: number;
-}
-
 /* ── Personal workspace ─────────────────────────────────────────────────── */
 
 export interface Trip {
@@ -417,5 +376,4 @@ export interface Db {
   hotel: HospitalityProperty;
   guesthouse: HospitalityProperty;
   residence: ResidenceProperty;
-  broker: BrokerData;
 }

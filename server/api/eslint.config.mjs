@@ -37,6 +37,14 @@ export default tseslint.config(
             // and there is no power to name. Demanding a permission would mean
             // inventing one that grants nothing.
             'MeController.setActiveWorkspace',
+            // `POST /api/v1/ops/broker/directory/:listingId/reveal` and
+            // `.../placements` (ADR-038 child 6). A broker workspace resolves
+            // NO permissions (`permissionsForWorkspace`), so any declaration
+            // would refuse the one person the route is for. It has a single
+            // holder, and `BrokerService` refuses a non-broker workspace and
+            // a suspended broker, which is the whole check.
+            'OpsBrokerController.reveal',
+            'OpsBrokerController.startPlacement',
           ],
         },
       ],

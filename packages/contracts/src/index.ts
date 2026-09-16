@@ -19,6 +19,7 @@ export * from "./booking";
 export * from "./trips";
 export * from "./inbox";
 export * from "./ops";
+export * from "./broker";
 export * from "./ordering";
 export * from "./outlets";
 export * from "./property-detail";

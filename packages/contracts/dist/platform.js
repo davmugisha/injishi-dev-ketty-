@@ -1,6 +1,6 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.STAFF_ROLE_LABEL = exports.OVERSIGHT_ROLE_LABEL = exports.DemoPersona = exports.DemoSeat = exports.DemoSurface = exports.PlatformInfo = exports.PlatformEnvironmentName = void 0;
+exports.STAFF_ROLE_LABEL = exports.OVERSIGHT_ROLE_LABEL = exports.DemoPersona = exports.DemoStory = exports.DemoStoryStep = exports.DemoSeat = exports.DemoSurface = exports.PlatformInfo = exports.PlatformEnvironmentName = void 0;
 const zod_1 = require("zod");
 /**
  * `GET /api/v1/platform`: which platform a deployment is (ADR-043, AC-16).
@@ -63,10 +63,39 @@ exports.DemoSeat = zod_1.z.object({
      */
     detail: zod_1.z.string().nullable(),
 });
+/**
+ * One thing a presenter can do as this persona, in the order a demo would do it.
+ * `href` is where it happens: a path on the web origin (the operator app is
+ * served under it at `/w/...` and `/oversight`), an absolute url for a console
+ * on another host (admin), or null when the step is read rather than clicked.
+ */
+exports.DemoStoryStep = zod_1.z.object({
+    title: zod_1.z.string(),
+    detail: zod_1.z.string(),
+    href: zod_1.z.string().nullable(),
+});
+/**
+ * What a persona is FOR in the demo: who they are, why the platform matters to
+ * them, and what to try. Written against the seeded storyline, so every step
+ * points at something the demo data actually holds (`verify-demo-story.mjs`
+ * checks those anchors).
+ */
+exports.DemoStory = zod_1.z.object({
+    /** One line: "Front desk at Amahoro Boutique Hotel". */
+    headline: zod_1.z.string(),
+    /** Two or three sentences a stakeholder reads before choosing. */
+    summary: zod_1.z.string(),
+    tryThis: zod_1.z.array(exports.DemoStoryStep),
+});
 exports.DemoPersona = zod_1.z.object({
     email: zod_1.z.string(),
     name: zod_1.z.string(),
     seats: zod_1.z.array(exports.DemoSeat),
+    /**
+     * Null for a persona the demo guide does not narrate; absent from an API
+     * older than the guide, so a client must treat a missing story as none.
+     */
+    story: exports.DemoStory.nullish(),
 });
 /**
  * The short words an oversight role is read in, as a badge. The admin

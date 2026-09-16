@@ -2,6 +2,7 @@ import { Module } from '@nestjs/common';
 
 import { isWorkerProcess } from '../../shared/process/process-role';
 import { AmenitiesService } from './application/amenities.service';
+import { BrokerService } from './application/broker.service';
 import { DepartmentsService } from './application/departments.service';
 import { FolioService } from './application/folio.service';
 import { FrontDeskService } from './application/front-desk.service';
@@ -17,6 +18,7 @@ import { DeclarationPlanService } from './application/declaration-plan.service';
 import { OrderPaymentService } from './application/order-payment.service';
 import { OutletsService } from './application/outlets.service';
 import { AmenitiesRepository } from './infrastructure/amenities.repository';
+import { BrokerOpsRepository } from './infrastructure/broker-ops.repository';
 import { DepartmentsRepository } from './infrastructure/departments.repository';
 import { FolioRepository } from './infrastructure/folio.repository';
 import { FrontDeskRepository } from './infrastructure/front-desk.repository';
@@ -58,6 +60,7 @@ import { OutletsRepository } from './infrastructure/outlets.repository';
     FrontDeskRepository,
     MessagingRepository,
     ResidenceRepository,
+    BrokerOpsRepository,
     AmenitiesRepository,
     DepartmentsRepository,
     FolioRepository,
@@ -70,6 +73,7 @@ import { OutletsRepository } from './infrastructure/outlets.repository';
     FrontDeskService,
     MessagingService,
     ResidenceService,
+    BrokerService,
     AmenitiesService,
     DepartmentsService,
     FolioService,
@@ -90,6 +94,7 @@ import { OutletsRepository } from './infrastructure/outlets.repository';
     FrontDeskService,
     MessagingService,
     ResidenceService,
+    BrokerService,
     AmenitiesService,
     DepartmentsService,
     FolioService,

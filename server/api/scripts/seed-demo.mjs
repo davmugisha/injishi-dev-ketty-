@@ -13,9 +13,10 @@
 //   properties -> listings -> room_types -> rate_plans -> rooms
 //   -> bookings -> guest_stays -> escrows
 //
-// Scoped to what the first thread reads: the Reservations desk. Leases, folios,
-// tickets and menus arrive with the steps that build their screens, so nothing
-// here is fixture data for a surface nobody can open yet.
+// Scoped to what the first thread reads: the Reservations desk. The hotel's
+// working day on top of it (departments, outlets and menu, a month of stays and
+// bills, housekeeping, maintenance, orders) is `seed-demo-hotel.mjs`, which runs
+// after this script and the catalogue, and whose purge `--reset` calls first.
 //
 // Every id is a deterministic constant (never gen_random_uuid) so re running is
 // a no op and `--reset` can find exactly what this script owns.
@@ -40,8 +41,10 @@
 // Preconditions: seed-geography.mjs and seed-content.mjs must have run against
 // the SAME database first (districts and rdb_classifications are foreign
 // key targets here). The script checks and tells you if they have not.
+import { spawnSync } from 'node:child_process';
 import fs from 'node:fs';
 import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 import pg from 'pg';
 
 import { assertSampleDatabase } from './sample-database.mjs';
@@ -111,6 +114,10 @@ const SW = (n) => `de300000-0000-4000-8000-0000000013${String(n).padStart(2, '0'
 const RR = (n) => `de300000-0000-4000-8000-0000000014${String(n).padStart(2, '0')}`; // rent roll
 const TH = (n) => `de300000-0000-4000-8000-0000000015${String(n).padStart(2, '0')}`; // threads
 const MS = (n) => `de300000-0000-4000-8000-0000000016${String(n).padStart(2, '0')}`; // messages
+// The twenty room hotel (demo showcase, 2026-09-15). Rows added to the families
+// above take the `0029` block, so the original `00000000NNNN` ids stay exactly
+// as other scripts know them: `0029` + a two digit family + a six digit serial.
+const XH = (family, n) => `de300000-0000-4000-8000-0029${family}${String(n).padStart(6, '0')}`;
 
 // --- The roster --------------------------------------------------------------
 // Mirrors mfp-demo-users.md. `nid` null means no identity document at all,
@@ -292,16 +299,38 @@ const ASSIGNMENTS = [
 // hides or greys out, because "it renders" is not the same as "it renders the
 // case that goes wrong".
 
-/** Days from today, as a bare YYYY-MM-DD the `date` columns take verbatim. */
+/**
+ * The seed's clock. `DEMO_SEED_NOW` (an ISO instant, e.g.
+ * `2026-09-14T23:30:00Z`) stands in for "now", read ONLY by the demo seeds, so
+ * the hour when the Kigali and UTC calendars disagree can be tested on purpose.
+ * Unset, it is the real clock.
+ */
+const NOW = (() => {
+  const fake = process.env.DEMO_SEED_NOW?.trim();
+  if (!fake) return new Date();
+  const d = new Date(fake);
+  if (Number.isNaN(d.getTime())) throw new Error(`DEMO_SEED_NOW is not a date: ${fake}`);
+  return d;
+})();
+
+/**
+ * Days from today, as a bare YYYY-MM-DD the `date` columns take verbatim.
+ *
+ * TODAY IS KIGALI'S (Africa/Kigali, UTC+2, no daylight saving): every demo
+ * property's desk, night audit and month run on it. The UTC calendar is a day
+ * behind between 22:00 and 24:00 UTC, which put an arrival "today" on
+ * yesterday's line of a Today screen.
+ */
 function day(offset) {
-  const d = new Date();
+  const today = new Intl.DateTimeFormat('en-CA', { timeZone: 'Africa/Kigali' }).format(NOW);
+  const d = new Date(`${today}T00:00:00Z`);
   d.setUTCDate(d.getUTCDate() + offset);
   return d.toISOString().slice(0, 10);
 }
 
 /** Hours from now, for the timestamp columns. */
 function hoursFromNow(offset) {
-  return new Date(Date.now() + offset * 3600 * 1000);
+  return new Date(NOW.getTime() + offset * 3600 * 1000);
 }
 
 // Every persona business that trades stays owns a PUBLISHED property with a
@@ -346,10 +375,14 @@ const LISTINGS = [
   { id: LS(3), propertyId: PR(3), workspaceId: SW(3), status: 'published' },
 ];
 
+// Amahoro is twenty rooms: eight Standard Doubles on the first floor, four
+// Executive Suites on the second, eight Deluxe Twins on the third. `roomCount`
+// is the number of rooms below, and the rates sit where a Remera boutique
+// hotel's do (roughly 50 to 100 US dollars a night), room only.
 const ROOM_TYPES = [
   {
     id: RT(1), propertyId: PR(1), workspaceId: W(1), name: 'Standard Double',
-    maxGuests: 2, capacity: 2, roomCount: 2, priceRwf: 45000,
+    maxGuests: 2, capacity: 2, roomCount: 8, priceRwf: 75000,
     // Instant book carries no approval policy, and the
     // `room_types_approval_policy_shape` check enforces that rather than
     // trusting this comment.
@@ -357,10 +390,15 @@ const ROOM_TYPES = [
   },
   {
     id: RT(2), propertyId: PR(1), workspaceId: W(1), name: 'Executive Suite',
-    maxGuests: 3, capacity: 3, roomCount: 2, priceRwf: 120000,
+    maxGuests: 3, capacity: 3, roomCount: 4, priceRwf: 150000,
     // Request to book is what makes the approve command mean anything: only a
     // `pending_approval` booking is there to approve.
     bookingMode: 'request_to_book', approvalPolicy: 'approve_all', cancellationTier: 'moderate',
+  },
+  {
+    id: XH('06', 1), ratePlanId: XH('07', 1), propertyId: PR(1), workspaceId: W(1), name: 'Deluxe Twin',
+    maxGuests: 2, capacity: 2, roomCount: 8, priceRwf: 90000,
+    bookingMode: 'instant_book', approvalPolicy: null, cancellationTier: 'flexible',
   },
   {
     id: RT(3), propertyId: PR(2), workspaceId: SW(2), name: 'Lake View Double',
@@ -378,17 +416,43 @@ const ROOM_TYPES = [
 // The room type columns are deprecated but the booking engine still reads them,
 // so both sides are written and they agree.
 const RATE_PLANS = ROOM_TYPES.map((rt, i) => ({
-  id: RP(i + 1), roomTypeId: rt.id, workspaceId: rt.workspaceId, name: 'Standard rate',
+  id: rt.ratePlanId ?? RP(i + 1), roomTypeId: rt.id, workspaceId: rt.workspaceId, name: 'Standard rate',
   priceRwf: rt.priceRwf, baseOccupancy: 2,
   bookingMode: rt.bookingMode, approvalPolicy: rt.approvalPolicy,
   cancellationTier: rt.cancellationTier,
 }));
 
+/**
+ * The rooms, with the housekeeping state the board shows this morning.
+ *
+ * The states are not decoration: `seed-demo-hotel.mjs` seeds the day behind
+ * them (who is in each room, who leaves today, which clean is on whose list),
+ * and they have to agree with it. Occupied rooms waiting for their stayover are
+ * dirty until their stayover is done; the rooms being made ready for today's arrivals are inspected; 307 is
+ * off sale for a ceiling leak, which is the one `status` that is not
+ * `available`. `hkAt` is today's clock time in Kigali, `hkBy` who set it.
+ */
 const ROOMS = [
-  { id: RM(1), roomTypeId: RT(1), label: '101', housekeeping: 'clean' },
-  { id: RM(2), roomTypeId: RT(1), label: '102', housekeeping: 'dirty' },
-  { id: RM(3), roomTypeId: RT(2), label: '201', housekeeping: 'clean' },
-  { id: RM(4), roomTypeId: RT(2), label: '202', housekeeping: 'inspected' },
+  { id: RM(1),        roomTypeId: RT(1), label: '101', housekeeping: 'clean', hkAt: '08:40', hkBy: U(4) },
+  { id: RM(2),        roomTypeId: RT(1), label: '102', housekeeping: 'dirty' },
+  { id: XH('08', 3),  roomTypeId: RT(1), label: '103', housekeeping: 'inspected', hkAt: '-1 11:20', hkBy: U(4) },
+  { id: XH('08', 4),  roomTypeId: RT(1), label: '104', housekeeping: 'dirty' },
+  { id: XH('08', 5),  roomTypeId: RT(1), label: '105', housekeeping: 'clean', hkAt: '09:05', hkBy: U(4) },
+  { id: XH('08', 6),  roomTypeId: RT(1), label: '106', housekeeping: 'dirty' },
+  { id: XH('08', 7),  roomTypeId: RT(1), label: '107', housekeeping: 'dirty', hkAt: '06:15' },
+  { id: XH('08', 8),  roomTypeId: RT(1), label: '108', housekeeping: 'inspected', hkAt: '-1 15:30', hkBy: U(2) },
+  { id: RM(3),        roomTypeId: RT(2), label: '201', housekeeping: 'dirty' },
+  { id: RM(4),        roomTypeId: RT(2), label: '202', housekeeping: 'clean', hkAt: '10:45', hkBy: U(4) },
+  { id: XH('08', 11), roomTypeId: RT(2), label: '203', housekeeping: 'dirty' },
+  { id: XH('08', 12), roomTypeId: RT(2), label: '204', housekeeping: 'inspected', hkAt: '10:40', hkBy: U(2) },
+  { id: XH('08', 13), roomTypeId: XH('06', 1), label: '301', housekeeping: 'clean', hkAt: '09:50', hkBy: U(4) },
+  { id: XH('08', 14), roomTypeId: XH('06', 1), label: '302', housekeeping: 'dirty' },
+  { id: XH('08', 15), roomTypeId: XH('06', 1), label: '303', housekeeping: 'dirty' },
+  { id: XH('08', 16), roomTypeId: XH('06', 1), label: '304', housekeeping: 'dirty' },
+  { id: XH('08', 17), roomTypeId: XH('06', 1), label: '305', housekeeping: 'inspected', hkAt: '10:20', hkBy: U(2) },
+  { id: XH('08', 18), roomTypeId: XH('06', 1), label: '306', housekeeping: 'dirty' },
+  { id: XH('08', 19), roomTypeId: XH('06', 1), label: '307', housekeeping: 'out_of_order', status: 'maintenance', hkAt: '-1 16:20', hkBy: U(4) },
+  { id: XH('08', 20), roomTypeId: XH('06', 1), label: '308', housekeeping: 'dirty' },
   { id: RM(5), roomTypeId: RT(3), label: '11', housekeeping: 'clean' },
   { id: RM(6), roomTypeId: RT(3), label: '12', housekeeping: 'clean' },
   { id: RM(7), roomTypeId: RT(4), label: 'G1', housekeeping: 'clean' },
@@ -403,19 +467,19 @@ const ROOMS = [
  */
 const BOOKINGS = [
   // The two the approve and decline commands act on.
-  { id: BK(1), ref: 'BK-DEMO-001', roomType: RT(2), guest: U(11), status: 'pending_approval', in: 2,  nights: 3, gross: 360000 },
-  { id: BK(2), ref: 'BK-DEMO-002', roomType: RT(2), guest: U(12), status: 'pending_approval', in: 0,  nights: 2, gross: 240000 },
+  { id: BK(1), ref: 'BK-DEMO-001', roomType: RT(2), guest: U(11), status: 'pending_approval', in: 2,  nights: 3, gross: 450000 },
+  { id: BK(2), ref: 'BK-DEMO-002', roomType: RT(2), guest: U(12), status: 'pending_approval', in: 0,  nights: 2, gross: 300000 },
   // Confirmed, nobody has arrived. The second arrives today, which is what turns
   // "Reserved" into a check in button.
-  { id: BK(3), ref: 'BK-DEMO-003', roomType: RT(1), guest: U(13), status: 'confirmed', in: 7,  nights: 2, gross: 90000 },
-  { id: BK(4), ref: 'BK-DEMO-004', roomType: RT(1), guest: U(14), status: 'confirmed', in: 0,  nights: 3, gross: 135000 },
+  { id: BK(3), ref: 'BK-DEMO-003', roomType: RT(1), guest: U(13), status: 'confirmed', in: 7,  nights: 2, gross: 150000 },
+  { id: BK(4), ref: 'BK-DEMO-004', roomType: RT(1), guest: U(14), status: 'confirmed', in: 0,  nights: 3, gross: 225000 },
   // In house right now, and checked out last week. Both carry a guest stay.
-  { id: BK(5), ref: 'BK-DEMO-005', roomType: RT(1), guest: U(6),  status: 'confirmed', in: -1, nights: 3, gross: 135000 },
-  { id: BK(6), ref: 'BK-DEMO-006', roomType: RT(2), guest: U(11), status: 'confirmed', in: -5, nights: 3, gross: 360000 },
+  { id: BK(5), ref: 'BK-DEMO-005', roomType: RT(1), guest: U(6),  status: 'confirmed', in: -1, nights: 3, gross: 225000 },
+  { id: BK(6), ref: 'BK-DEMO-006', roomType: RT(2), guest: U(11), status: 'confirmed', in: -5, nights: 3, gross: 450000 },
   // Declined: the screen hides it, and proving that it hides it is the point.
-  { id: BK(7), ref: 'BK-DEMO-007', roomType: RT(1), guest: U(12), status: 'declined',  in: 4,  nights: 2, gross: 90000 },
+  { id: BK(7), ref: 'BK-DEMO-007', roomType: RT(1), guest: U(12), status: 'declined',  in: 4,  nights: 2, gross: 150000 },
   // Cancelled: kept visible, because somebody has to see a confirmed booking go.
-  { id: BK(8), ref: 'BK-DEMO-008', roomType: RT(2), guest: U(13), status: 'cancelled', in: 10, nights: 2, gross: 240000 },
+  { id: BK(8), ref: 'BK-DEMO-008', roomType: RT(2), guest: U(13), status: 'cancelled', in: 10, nights: 2, gross: 300000 },
 ];
 
 /**
@@ -724,13 +788,31 @@ function roomTypeOf(rm) {
   return rt;
 }
 
+/**
+ * A clock time in Kigali (UTC+2, no daylight saving) on a day relative to
+ * today: `'08:40'` is this morning, `'-1 15:30'` yesterday afternoon.
+ *
+ * Operational moments are pinned to the clock rather than to "hours before the
+ * seed ran", because the demo is reseeded at 03:00 and read in the afternoon:
+ * a room cleaned "two hours before the seed" would read as cleaned at 01:00.
+ */
+function kigaliAt(spec) {
+  const [offset, time] = spec.includes(' ') ? spec.split(' ') : ['0', spec];
+  return new Date(`${day(Number(offset))}T${time}:00+02:00`);
+}
+
 async function seedRoom(c, rm) {
   await c.query(
     `INSERT INTO rooms
-       (id, room_type_id, property_id, workspace_id, label, status, housekeeping_status)
-     VALUES ($1, $2, $3, $4, $5, 'available', $6) ON CONFLICT (id) DO NOTHING`,
+       (id, room_type_id, property_id, workspace_id, label, status, housekeeping_status,
+        housekeeping_updated_at, housekeeping_updated_by_user_id)
+     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) ON CONFLICT (id) DO NOTHING`,
     // The room's property and workspace are its room type's, never assumed.
-    [rm.id, rm.roomTypeId, roomTypeOf(rm).propertyId, roomTypeOf(rm).workspaceId, rm.label, rm.housekeeping],
+    [
+      rm.id, rm.roomTypeId, roomTypeOf(rm).propertyId, roomTypeOf(rm).workspaceId, rm.label,
+      rm.status ?? 'available', rm.housekeeping,
+      rm.hkAt ? kigaliAt(rm.hkAt) : null, rm.hkBy ?? null,
+    ],
   );
 }
 
@@ -847,6 +929,29 @@ async function seedEscrow(c, e) {
 /** Delete only what this script owns, by deterministic id. Never truncates. */
 async function reset(c) {
   const users = PEOPLE.map((p) => p.id);
+  // The hotel's day (`seed-demo-hotel.mjs`) hangs off the bookings, stays and
+  // rooms deleted below, so it goes first. Its purge deletes only its own rows
+  // and whatever a demo session wrote on top of them, and is a no-op when they
+  // are already gone. Imported rather than duplicated, so the order of those
+  // deletes has one owner.
+  //
+  // The portfolio (`seed-demo-portfolio.mjs`: caution holds, reviews, the
+  // pipeline) hangs off the leases and workspaces deleted below in the same
+  // way, so its own `--purge` runs before either. Run as a child process with
+  // this process's environment, so it purges the same database; skipped when
+  // the script is not on disk.
+  const portfolio = path.join(path.dirname(fileURLToPath(import.meta.url)), 'seed-demo-portfolio.mjs');
+  if (fs.existsSync(portfolio)) {
+    const run = spawnSync(process.execPath, [portfolio, '--purge'], {
+      cwd: process.cwd(), env: process.env, encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'],
+    });
+    if (run.status !== 0) {
+      throw new Error(`seed-demo-portfolio.mjs --purge failed (exit ${run.status}):\n${run.stdout}${run.stderr}`);
+    }
+    console.log(run.stdout.trim());
+  }
+  const { purgeHotel } = await import('./seed-demo-hotel.mjs');
+  await purgeHotel(c);
   // Operational rows FIRST. `bookings` and `guest_stays` reference `workspaces`
   // with no cascade, so deleting the roster before them fails on a foreign key.
   // The residence rent roll first of all, and this was MISSING until task 15
@@ -860,6 +965,33 @@ async function reset(c) {
   await c.query('DELETE FROM room_types WHERE id = $1', [RESIDENCE_ROOM_TYPE.id]);
   await c.query('DELETE FROM listings WHERE id = $1', [RESIDENCE_PROPERTY.listingId]);
   await c.query('DELETE FROM properties WHERE id = $1', [RESIDENCE_PROPERTY.id]);
+
+  // What a demo session built on the BK-DEMO bookings: a check in opens a stay
+  // and a bill, an approval opens a pre-arrival bill, checkout queues a clean.
+  // Their ids are random, so they are found through the booking; without this
+  // a reset after anybody has demoed the desk fails on a foreign key.
+  const bookingIds = BOOKINGS.map((b) => b.id);
+  const touched = `SELECT id FROM guest_stays WHERE booking_id = ANY($1::uuid[])`;
+  const bills = `SELECT id FROM folios WHERE booking_id = ANY($1::uuid[]) OR guest_stay_id IN (${touched})`;
+  const orders = `SELECT id FROM service_orders WHERE folio_id IN (${bills}) OR guest_stay_id IN (${touched}) OR booking_id = ANY($1::uuid[])`;
+  for (const sql of [
+    `DELETE FROM outbox_events WHERE aggregate_id IN (${bills}) OR aggregate_id IN (${orders})`,
+    `DELETE FROM service_order_events WHERE service_order_id IN (${orders})`,
+    `DELETE FROM service_order_items WHERE service_order_id IN (${orders})`,
+    `DELETE FROM service_orders WHERE id IN (${orders})`,
+    `DELETE FROM ledger_entries WHERE related_type = 'folio_charge'
+       AND related_id IN (SELECT id FROM folio_charges WHERE folio_id IN (${bills}))`,
+    `DELETE FROM ebm_invoices WHERE folio_id IN (${bills}) OR booking_id = ANY($1::uuid[])`,
+    `DELETE FROM folios WHERE id IN (${bills})`, // charges cascade
+    `DELETE FROM housekeeping_tasks WHERE guest_stay_id IN (${touched})`,
+    `DELETE FROM maintenance_tickets WHERE guest_stay_id IN (${touched})`,
+    `DELETE FROM threads WHERE booking_id = ANY($1::uuid[]) OR guest_stay_id IN (${touched})`,
+    `DELETE FROM payment_attempts WHERE booking_id = ANY($1::uuid[])`,
+    `DELETE FROM escrows WHERE booking_id = ANY($1::uuid[])`,
+    `DELETE FROM guest_stays WHERE booking_id = ANY($1::uuid[])`,
+  ]) {
+    await c.query(sql, [bookingIds]);
+  }
 
   // Messages before threads, threads before the bookings they point at.
   await c.query('DELETE FROM messages WHERE id = ANY($1::uuid[])', [MESSAGES.map((m) => m.id)]);
@@ -880,6 +1012,12 @@ async function reset(c) {
   const allOrgs = [...ORGS, ...SAMUEL_ORGS].map((o) => o.id);
   const allWorkspaces = [...WORKSPACES, ...SAMUEL_WORKSPACES].map((w) => w.id);
   await c.query('DELETE FROM org_memberships WHERE org_id = ANY($1::uuid[])', [allOrgs]);
+  // Anything the API wrote while somebody demoed (a check in, a charge) leaves
+  // an outbox event and perhaps a notification naming the workspace. Seen
+  // failing a reset on 2026-09-15: the events are delivery bookkeeping for rows
+  // this reset has just removed, so they go with the workspace.
+  await c.query('DELETE FROM outbox_events WHERE workspace_id = ANY($1::uuid[])', [allWorkspaces]);
+  await c.query('DELETE FROM notifications WHERE workspace_id = ANY($1::uuid[])', [allWorkspaces]);
   await c.query('DELETE FROM workspaces WHERE id = ANY($1::uuid[])', [allWorkspaces]);
   await c.query('DELETE FROM orgs WHERE id = ANY($1::uuid[])', [allOrgs]);
   // identity_documents, verified_identities and user_profiles cascade from users.
@@ -963,11 +1101,12 @@ const RESIDENCE_LEASES = [
  * by an EARLIER run current; this keeps a fresh run current on its own.
  */
 function residenceCharges() {
-  const now = new Date();
-  const firstOfMonth = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1));
+  // Kigali's month, for the same reason `day()` is Kigali's day.
+  const [year, month] = day(0).split('-').map(Number);
+  const firstOfMonth = new Date(Date.UTC(year, month - 1, 1));
   const iso = (d) => d.toISOString().slice(0, 10);
   const dayOfMonth = (day) =>
-    iso(new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), day)));
+    iso(new Date(Date.UTC(year, month - 1, day)));
 
   return [
     // Settled, and settled for real: no `mock`, because these are database rows
@@ -1038,7 +1177,7 @@ async function seedResidenceRentRoll(c) {
         lease.rent, lease.rent * 2,
         // Started last year, so the tenancy reads as established rather than as
         // five leases that all began this morning.
-        `${new Date().getUTCFullYear() - 1}-02-01`,
+        `${Number(day(0).slice(0, 4)) - 1}-02-01`,
       ],
     );
   }
@@ -1081,61 +1220,67 @@ async function seedResidenceRentRoll(c) {
  *
  * ## What it will not touch
  *
- * Rows this script does not own. The tables below are listed with the predicate
- * that identifies the seed's rows in each — every one of them a deterministic
- * `de300000-…` id, which is the same rule `--reset` uses. A payment recorded
- * during a demo has a random id, matches no predicate, and survives untouched.
- * That is AC-S12's second half, and it is the reason this is a list rather than
- * a sweep over the schema.
+ * Rows no seed owns. Every row is matched by a deterministic `de300000-0000-…`
+ * id (or, for the few tables keyed by something else, the owned id in that
+ * column), which is the same rule `--reset` uses. A payment recorded during a
+ * demo has a random id, matches no predicate, and survives untouched. That is
+ * AC-S12's second half.
  *
- * The COLUMNS are discovered rather than listed, from `information_schema`, so
- * a temporal column added by a later migration is shifted without anybody
- * having to remember this file. The TABLES are listed, so nothing outside the
- * seed can ever be reached. That split is deliberate: forgetting a column makes
- * a demo look slightly wrong, and reaching a table you do not own corrupts
- * somebody else's data.
+ * Tables AND columns are discovered from the catalog (2026-09-15). The tables
+ * used to be a hand list, which was safe and went stale the day the hotel's
+ * folios, housekeeping and orders arrived in another script: a refreshed demo
+ * then had today's bookings with last week's bills. The id predicate is what
+ * keeps a sweep safe — the `de300000-0000-4000-800[01]-` namespace is reserved
+ * for seeds, and the catalogue seed's own ids (`de300000-00NN-…`) do not match.
+ * Date and range columns move too: a room hold is a `daterange`.
  */
-
-/** The id prefix every row this script writes carries. */
-const OWNED = 'de300000-0000-4000-8000-%';
 
 /**
- * The tables the seed owns, each with the column carrying the owned id.
- *
- * Order does not matter: nothing here inserts or deletes, so there are no
- * foreign keys to respect.
+ * The id prefixes a seeded row carries. `8000` is every seed script's own rows
+ * (this one, `seed-demo-hotel.mjs`, `seed-demo-portfolio.mjs`); `8001` is the
+ * guest and tenant accounts those scripts mint outside the persona roster, so
+ * `/api/v1/demo/personas` never lists them.
  */
-const REFRESHABLE = [
-  { table: 'users', key: 'id' },
+const OWNED = 'de300000-0000-4000-8000-%';
+const OWNED_PREFIXES = [OWNED, 'de300000-0000-4000-8001-%'];
+
+/**
+ * Tables whose seeded rows are NOT marked by their own `id`, each with the
+ * column that marks them. A membership is inserted with a generated id, so its
+ * org is what makes it this script's; a profile is keyed on its user.
+ *
+ * Every OTHER table is discovered: any table with an `id` column has its
+ * temporal columns shifted on the rows whose id carries an owned prefix. That
+ * is what keeps a table added by a later seed (the hotel's folios, the
+ * portfolio's reviews) current without anybody remembering this file. The
+ * predicate is still the id, so a row a demo session wrote, with a random id,
+ * is never reached (AC-S12).
+ */
+const KEYED = [
   { table: 'user_profiles', key: 'user_id' },
   { table: 'verified_identities', key: 'user_id' },
   // Linked by `identity_id`, which is the user's id: `verified_identities` is
-  // keyed on the user, and the document hangs off that. Not `user_id` — this
-  // table has no such column, which is the kind of thing only running it finds.
+  // keyed on the user, and the document hangs off that.
   { table: 'identity_documents', key: 'identity_id' },
   { table: 'user_roles', key: 'user_id' },
-  { table: 'orgs', key: 'id' },
-  { table: 'workspaces', key: 'id' },
-  // Keyed on the org rather than on its own id: a membership is inserted with a
-  // generated id, so the org is what marks it as this script's.
   { table: 'org_memberships', key: 'org_id' },
-  { table: 'oversight_assignments', key: 'id' },
-  { table: 'properties', key: 'id' },
-  { table: 'listings', key: 'id' },
-  { table: 'room_types', key: 'id' },
-  { table: 'rate_plans', key: 'id' },
-  { table: 'rooms', key: 'id' },
-  { table: 'bookings', key: 'id' },
-  { table: 'guest_stays', key: 'id' },
-  { table: 'escrows', key: 'id' },
-  { table: 'leases', key: 'id' },
-  { table: 'rent_charges', key: 'id' },
+  { table: 'thread_reads', key: 'thread_id' },
+];
+
+/** The column types a shift moves. Ranges move both bounds. */
+const TEMPORAL_TYPES = [
+  'date',
+  'timestamp with time zone',
+  'timestamp without time zone',
+  'daterange',
+  'tstzrange',
+  'tsrange',
 ];
 
 /**
  * Does this table have this column?
  *
- * The table map above is written by hand and the schema moves underneath it. A
+ * The keyed map above is written by hand and the schema moves underneath it. A
  * refresh that dies on a renamed column is a refresh nobody runs, so a table
  * whose key column is gone is SKIPPED and named, loudly enough that somebody
  * fixes the map rather than quietly shifting nothing.
@@ -1149,65 +1294,96 @@ async function hasColumn(c, table, column) {
   return rows.length > 0;
 }
 
-/** Temporal columns on a table, as the database itself reports them. */
-async function temporalColumns(c, table) {
+/**
+ * Every table with temporal columns and a way to recognise its seeded rows,
+ * as the database itself reports them.
+ */
+async function refreshPlan(c) {
   const { rows } = await c.query(
-    `SELECT column_name, data_type
-       FROM information_schema.columns
-      WHERE table_schema = 'public'
-        AND table_name = $1
-        AND data_type IN ('date', 'timestamp without time zone', 'timestamp with time zone')`,
-    [table],
+    `SELECT cl.relname AS table_name, a.attname AS column_name,
+            format_type(a.atttypid, a.atttypmod) AS data_type,
+            EXISTS (SELECT 1 FROM pg_attribute k
+                     WHERE k.attrelid = cl.oid AND k.attname = 'id'
+                       AND k.attnum > 0 AND NOT k.attisdropped) AS has_id
+       FROM pg_attribute a
+       JOIN pg_class cl ON cl.oid = a.attrelid
+      WHERE cl.relkind = 'r'
+        AND cl.relnamespace = 'public'::regnamespace
+        AND a.attnum > 0 AND NOT a.attisdropped
+        AND format_type(a.atttypid, a.atttypmod) = ANY($1::text[])
+      ORDER BY cl.relname, a.attnum`,
+    [TEMPORAL_TYPES],
   );
-  return rows;
+  const keyed = new Map(KEYED.map((k) => [k.table, k.key]));
+  const plan = new Map();
+  for (const r of rows) {
+    const key = keyed.get(r.table_name) ?? (r.has_id ? 'id' : null);
+    if (!key) continue;
+    if (!plan.has(r.table_name)) plan.set(r.table_name, { key, columns: [] });
+    plan.get(r.table_name).columns.push({ name: r.column_name, type: r.data_type });
+  }
+  const skipped = [];
+  for (const { table, key } of KEYED) {
+    if (plan.has(table) && !(await hasColumn(c, table, key))) {
+      skipped.push(`${table}.${key}`);
+      plan.delete(table);
+    }
+  }
+  return { plan, skipped };
 }
 
 /**
- * How stale the seeded rows are.
+ * How stale the seeded rows are, twice over.
  *
  * `users.created_at` is the anchor because every run writes people first and
- * every row this script owns is written in the same pass, so they all share one
- * moment. Null means nothing is seeded yet, and there is nothing to shift.
+ * every row the seeds own is written in the same pass, so they all share one
+ * moment. Timestamps move by the exact interval since then. DATES move by the
+ * number of calendar days (Kigali's, the calendar `day()` writes with) between that
+ * moment and now: a seed at 23:00 refreshed at 08:00 is nine hours stale, and
+ * its "arrives today" row must still move to the new today. Null means nothing
+ * is seeded yet, and there is nothing to shift.
  */
 async function drift(c) {
   const { rows } = await c.query(
     // Cast to text in the query rather than letting the driver hand back its
-    // own interval object: that object stringifies as `[object Object]`, which
-    // is useless in the log line and is not something to hand back as a
-    // parameter either.
-    `SELECT (now() - max(created_at))::text AS gap FROM users WHERE id::text LIKE $1`,
+    // own interval object: that object stringifies as `[object Object]`.
+    `SELECT (now() - max(created_at))::text AS gap,
+            ((now() AT TIME ZONE 'Africa/Kigali')::date - (max(created_at) AT TIME ZONE 'Africa/Kigali')::date) AS days
+       FROM users WHERE id::text LIKE $1`,
     [OWNED],
   );
-  return rows[0]?.gap ?? null;
+  if (!rows[0] || rows[0].gap === null) return null;
+  return { gap: rows[0].gap, days: Number(rows[0].days) };
 }
 
 /**
  * Shift every seeded date forward, all of it or none of it.
  *
  * **The transaction is not a nicety.** The shift is measured from
- * `users.created_at`, and `users` is the first table in the list — so a run
- * that updates `users` and then fails on a later table has moved the anchor
- * without moving the rows it anchors. The next run measures a gap of nearly
- * zero and shifts nothing, and the data is stranded half-corrected with no way
- * to tell from the outside. That is not a hypothetical: it is what happened the
- * first time this ran, against a table whose key column had been renamed.
+ * `users.created_at`, so a run that moved `users` and then failed on a later
+ * table would move the anchor without moving the rows it anchors, and the next
+ * run would measure a gap of nearly zero and shift nothing. That is what
+ * happened the first time this ran, against a table whose key had been renamed.
  */
 async function refresh(c) {
-  const gap = await drift(c);
-  if (gap === null) {
+  const stale = await drift(c);
+  if (stale === null) {
     console.log('refresh: nothing seeded yet. Run the seed first.');
     return;
   }
 
   await c.query('BEGIN');
   try {
-    const shifted = await shiftAll(c, gap);
+    const shifted = await shiftAll(c, stale);
     await c.query('COMMIT');
-    console.log(`refresh: moved ${shifted.count} date and timestamp values forward by ${gap}.`);
+    console.log(
+      `refresh: moved ${shifted.count} rows across ${shifted.tables} tables forward by ${stale.gap}` +
+        ` (dates by ${stale.days} day${stale.days === 1 ? '' : 's'}).`,
+    );
     console.log('refresh: nothing was inserted and nothing was deleted.');
     if (shifted.skipped.length > 0) {
       console.log(
-        `refresh: SKIPPED ${shifted.skipped.join(', ')} — no such column. The table` +
+        `refresh: SKIPPED ${shifted.skipped.join(', ')} — no such column. The keyed` +
           ' map in this script is out of step with the schema and wants correcting.',
       );
     }
@@ -1220,40 +1396,70 @@ async function refresh(c) {
   }
 }
 
-async function shiftAll(c, gap) {
-  let shifted = 0;
-  const skipped = [];
-  for (const { table, key } of REFRESHABLE) {
-    if (!(await hasColumn(c, table, key))) {
-      skipped.push(`${table}.${key}`);
-      continue;
-    }
-    const columns = await temporalColumns(c, table);
-    // A table this script names but the schema does not have yet reports no
-    // columns and is skipped, rather than failing a refresh over a migration
-    // that has not run.
-    if (columns.length === 0) continue;
+/** Far enough that a row parked there can meet nothing that has not moved yet. */
+const PARK_DAYS = 109_500;
 
-    for (const col of columns) {
-      // A `date` column plus an interval yields a timestamp, so it is cast back
-      // rather than quietly widening what the column means by a few hours.
-      const value =
-        col.data_type === 'date'
-          ? `("${col.column_name}" + $1::interval)::date`
-          : `"${col.column_name}" + $1::interval`;
-
-      const { rowCount } = await c.query(
-        `UPDATE "${table}"
-            SET "${col.column_name}" = ${value}
-          WHERE "${key}"::text LIKE $2
-            AND "${col.column_name}" IS NOT NULL`,
-        [gap, OWNED],
-      );
-      shifted += rowCount ?? 0;
-    }
+/**
+ * One column's value moved by `days` (a date, a date range) or by `interval`
+ * (a timestamp, a timestamp range). Both are SQL expressions.
+ */
+function moved(col, days, interval) {
+  const c = `"${col.name}"`;
+  const bounds = `(CASE WHEN lower_inc(${c}) THEN '[' ELSE '(' END || CASE WHEN upper_inc(${c}) THEN ']' ELSE ')' END)`;
+  switch (col.type) {
+    case 'date':
+      return `${c} + (${days})`;
+    case 'daterange':
+      return `CASE WHEN ${c} IS NULL OR isempty(${c}) THEN ${c}
+                   ELSE daterange(lower(${c}) + (${days}), upper(${c}) + (${days}), ${bounds}) END`;
+    case 'tstzrange':
+    case 'tsrange':
+      return `CASE WHEN ${c} IS NULL OR isempty(${c}) THEN ${c}
+                   ELSE ${col.type}(lower(${c}) + ${interval}, upper(${c}) + ${interval}, ${bounds}) END`;
+    default:
+      return `${c} + ${interval}`;
   }
+}
 
-  return { count: shifted, skipped };
+/**
+ * Move each table's seeded rows in two hops: out to a parking spot centuries
+ * away, then back to where they belong.
+ *
+ * One hop is not safe, because Postgres checks a unique index and an exclusion
+ * constraint ROW BY ROW during an UPDATE. Moving a guest's room nights forward
+ * a day collides with the next night's charge that has not moved yet
+ * (`folio_charges_room_night_uk`), and a room hold collides with the hold after
+ * it (the `room_assignments` exclusion constraint). Parked, no moved row can
+ * meet an unmoved one; coming back, every row keeps its distance from the rest.
+ *
+ * All of a table's columns move in ONE statement, so a check that compares two
+ * of them (a check out after its check in) never sees one moved and one not.
+ */
+async function shiftAll(c, stale) {
+  const { plan, skipped } = await refreshPlan(c);
+  const out = { days: `${PARK_DAYS}`, interval: `(interval '1 day' * ${PARK_DAYS})` };
+  const back = {
+    days: `${stale.days} - ${PARK_DAYS}`,
+    interval: `($2::interval - interval '1 day' * ${PARK_DAYS})`,
+  };
+  const update = (table, key, columns, move) =>
+    c.query(
+      `UPDATE "${table}"
+          SET ${columns.map((col) => `"${col.name}" = ${moved(col, move.days, move.interval)}`).join(', ')}
+        WHERE "${key}"::text LIKE ANY($1::text[])`,
+      move === out ? [OWNED_PREFIXES] : [OWNED_PREFIXES, stale.gap],
+    );
+
+  let count = 0;
+  let tables = 0;
+  for (const [table, { key, columns }] of plan) {
+    const parked = await update(table, key, columns, out);
+    if (!parked.rowCount) continue;
+    await update(table, key, columns, back);
+    count += parked.rowCount;
+    tables += 1;
+  }
+  return { count, tables, skipped };
 }
 
 /**

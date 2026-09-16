@@ -1,110 +1,98 @@
 "use client";
 
 /**
- * Directory listing (F-R07) — which vacant units brokers can see.
+ * Listing — whether guests can find each of the landlord's buildings, on real
+ * data (2026-09-15).
  *
- * Two constraints make this screen behave the way it does:
- *  - **Only vacant units can be listed.** Occupancy is derived from leases, so a
- *    unit delists itself the day a lease activates. The toggle is simply absent
- *    on an occupied unit, with the reason shown instead.
- *  - **The landlord's number is never on the listing.** A broker sees the unit
- *    and the rent; they must spend a logged reveal to get the contact.
+ * **This screen used to read the demo store.** It drew invented units, counted
+ * invented broker reveals, and its switch changed a reducer and nothing else, so
+ * a landlord who "listed" a flat here had listed it nowhere. The real publishing
+ * control already existed under Units & rents (`ListingPanel`, which commands
+ * `POST /inventory/properties/:id/publish` and `/unpublish`), so this screen now
+ * renders that same control for every property the business holds rather than a
+ * second one. Two controls for one fact would be two answers the day they drift.
+ *
+ * Publishing is per BUILDING, not per unit, because that is what the API
+ * publishes: a property and the unit types under it. A per unit broker directory
+ * has no table or route behind it; it is not offered here rather than faked.
+ *
+ * The address stays `/listing` so a bookmark still opens something true.
  */
 
-import { Card, Switch } from "@injishi/ui";
-import { fmt } from "../../lib/format";
-import { usePms } from "../../store";
-import { Badge, StatCard, surfaceClass } from "../../components/ui";
-import { cn } from "@/lib/utils";
+import Link from "next/link";
+
+import { EmptyState, LoadFailed, Skeleton } from "../../components/ui";
+import { useCapability, useWorkspaceId } from "../../data/capability";
+import { useProperties } from "../../data/ops";
+import { workspaceBase } from "../../lib/nav";
+import { ListingPanel } from "../listing-panel";
 
 export function DirectoryListing() {
-  const { residence, dispatch } = usePms();
+  const workspaceId = useWorkspaceId();
+  const { can, reasonFor } = useCapability();
+  const list = useProperties(can("listing.manage") ? workspaceId : null);
+  const units = `${workspaceBase(workspaceId)}/units`;
 
-  const occupiedBy = (unit: string) =>
-    residence.leases.find((l) => l.unit === unit && (l.st === "active" || l.st === "ending"));
-  const pendingOn = (unit: string) =>
-    residence.leases.find((l) => l.unit === unit && (l.st === "awaiting" || l.st === "draft"));
+  // Refused before the request, because the server refuses it too: every
+  // inventory route declares `listing.manage`.
+  if (!can("listing.manage")) {
+    return <EmptyState className="p-6 text-sm">{reasonFor("listing.manage")}</EmptyState>;
+  }
 
-  const listed = residence.units.filter((u) => residence.dirListed.includes(u.id));
-  const vacant = residence.units.filter((u) => !occupiedBy(u.id));
+  if (!workspaceId) {
+    return (
+      <EmptyState className="p-6 text-sm">
+        Open a business to see its listings.
+      </EmptyState>
+    );
+  }
+
+  if (list.isPending) {
+    return (
+      <div className="pms-enter flex flex-col gap-4">
+        <Skeleton height={40} />
+        <Skeleton height={120} delay={60} />
+      </div>
+    );
+  }
+
+  if (list.isError) {
+    /* Unreachable is not unlisted. Told "nothing is published", a landlord
+       would think their building had been taken down. */
+    return (
+      <LoadFailed onRetry={() => void list.refetch()} retrying={list.isFetching}>
+        We couldn&apos;t load your buildings. Your listings are untouched — this is on our
+        side.
+      </LoadFailed>
+    );
+  }
+
+  const properties = list.data.properties;
 
   return (
-    <div className="pms-enter flex flex-col gap-4">
-      <div className="grid gap-3 sm:grid-cols-3">
-        <StatCard n={String(listed.length)} label="Listed to brokers" />
-        <StatCard n={String(vacant.length)} label="Vacant and listable" />
-        <StatCard n={String(residence.reveals)} label="Contact reveals spent on you" />
-      </div>
-
-      <div className="text-xs text-muted-foreground">
-        Private to registered brokers — never public. Your number stays hidden until a broker reveals it, and every
-        reveal is logged.
-      </div>
-
-      <div className="grid gap-3 [grid-template-columns:repeat(auto-fill,minmax(250px,1fr))]">
-        {residence.units.map((u) => {
-          const lease = occupiedBy(u.id);
-          const pending = pendingOn(u.id);
-          const listable = !lease && !pending;
-          const on = residence.dirListed.includes(u.id);
-          return (
-            <Card
-              key={u.id}
-              className={cn(surfaceClass, "gap-0 px-[17px] py-4 shadow-none", on && "border-accent-text")}
-            >
-              <div className="flex items-baseline gap-2">
-                <span className="pms-num text-base font-bold text-ink">{u.id}</span>
-                <span className="text-xs text-muted-foreground">{u.type}</span>
-              </div>
-              <div className="pms-num mt-1.5 text-base font-bold tracking-[-0.2px] text-ink">
-                {fmt(u.rent)}
-                <span className="text-2xs font-medium text-muted-foreground"> / month</span>
-              </div>
-
-              <div className="mt-2.5">
-                {lease ? (
-                  <Badge intent="neutral">Occupied · {lease.tenant}</Badge>
-                ) : pending ? (
-                  <Badge intent="info">Lease pending</Badge>
-                ) : (
-                  <Badge intent="warn">Vacant</Badge>
-                )}
-              </div>
-
-              <div className="mt-3 border-t border-line pt-3">
-                {listable ? (
-                  <>
-                    <div className="flex items-center justify-between gap-2">
-                      <span className="text-xs font-semibold text-ink">Listed to brokers</span>
-                      <Switch
-                        checked={on}
-                        onCheckedChange={() => dispatch({ type: "toggleListing", unit: u.id })}
-                        aria-label={`${on ? "Unlist" : "List"} ${u.id} to brokers`}
-                      />
-                    </div>
-                    {on && (
-                      <div className="mt-1.5 text-2xs text-muted-foreground">
-                        Deposit · 1 month · brokers see the unit, never your contact
-                      </div>
-                    )}
-                  </>
-                ) : (
-                  <div className="text-2xs text-muted-foreground">
-                    {lease
-                      ? "Occupied — a unit delists itself the day a lease activates."
-                      : "A lease is already pending on this unit."}
-                  </div>
-                )}
-              </div>
-            </Card>
-          );
-        })}
-      </div>
-
-      <p className="text-2xs text-muted-foreground">
-        Only vacant units can be listed — occupancy is derived from leases, so a unit delists itself the day a lease
-        activates. A reveal with no placement afterwards gets flagged for review.
+    <div className="pms-enter flex flex-col gap-4" data-screen="listing">
+      <p className="text-xs text-muted-foreground">
+        A published building can be found by anyone on the Injishi marketplace. Its units, rents and
+        photos are set up under{" "}
+        <Link href={units} className="font-semibold text-ink underline underline-offset-2">
+          Units &amp; rents
+        </Link>
+        ; if a publish is refused, the reasons listed tell you what to add there first.
       </p>
+
+      {properties.length === 0 ? (
+        <EmptyState className="p-6 text-sm">
+          No building on this business yet. Add one under{" "}
+          <Link href={units} className="font-semibold underline underline-offset-2">
+            Units &amp; rents
+          </Link>{" "}
+          and publish it here.
+        </EmptyState>
+      ) : (
+        properties.map((property) => (
+          <ListingPanel key={property.id} workspaceId={workspaceId} property={property} />
+        ))
+      )}
     </div>
   );
 }

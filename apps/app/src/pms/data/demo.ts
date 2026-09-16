@@ -10,7 +10,6 @@
 
 import type { OrgRole, Permission } from "@injishi/contracts";
 
-import { broker } from "./broker";
 import type {
   Db,
   HospitalityProperty,
@@ -592,6 +591,5 @@ export function buildDb(): Db {
     hotel: hotel(),
     guesthouse: guesthouse(),
     residence: residence(),
-    broker: broker(),
   };
 }

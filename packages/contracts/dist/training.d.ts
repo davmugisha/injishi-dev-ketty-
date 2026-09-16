@@ -1553,20 +1553,20 @@ export declare const AdminTrainingCourse: z.ZodObject<{
     createdAt: string;
     version: number;
     slug: string;
+    updatedAt: string;
     summary: string;
     isPublished: boolean;
     sessionCount: number;
-    updatedAt: string;
 }, {
     title: string;
     id: string;
     createdAt: string;
     version: number;
     slug: string;
+    updatedAt: string;
     summary: string;
     isPublished: boolean;
     sessionCount: number;
-    updatedAt: string;
 }>;
 export type AdminTrainingCourse = z.infer<typeof AdminTrainingCourse>;
 export declare const AdminTrainingCourseListQuery: z.ZodObject<{
@@ -1597,20 +1597,20 @@ export declare const AdminTrainingCourseListResponse: z.ZodObject<{
         createdAt: string;
         version: number;
         slug: string;
+        updatedAt: string;
         summary: string;
         isPublished: boolean;
         sessionCount: number;
-        updatedAt: string;
     }, {
         title: string;
         id: string;
         createdAt: string;
         version: number;
         slug: string;
+        updatedAt: string;
         summary: string;
         isPublished: boolean;
         sessionCount: number;
-        updatedAt: string;
     }>, "many">;
     meta: z.ZodObject<{
         total: z.ZodNumber;
@@ -1632,10 +1632,10 @@ export declare const AdminTrainingCourseListResponse: z.ZodObject<{
         createdAt: string;
         version: number;
         slug: string;
+        updatedAt: string;
         summary: string;
         isPublished: boolean;
         sessionCount: number;
-        updatedAt: string;
     }[];
     meta: {
         total: number;
@@ -1649,10 +1649,10 @@ export declare const AdminTrainingCourseListResponse: z.ZodObject<{
         createdAt: string;
         version: number;
         slug: string;
+        updatedAt: string;
         summary: string;
         isPublished: boolean;
         sessionCount: number;
-        updatedAt: string;
     }[];
     meta: {
         total: number;

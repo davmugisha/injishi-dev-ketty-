@@ -2,8 +2,16 @@
 
 /**
  * Room status (F-P04) — the desk's view of housekeeping, floor by floor.
- * Housekeeping status is separate from availability; it updates live from the
- * housekeeping phones. A card expands to set the status inline.
+ * Housekeeping status is separate from availability. A card expands to set the
+ * status inline.
+ *
+ * **HOW IT STAYS CURRENT, stated because this line used to overstate it.** It
+ * claimed the board was pushed every change a housekeeper made. Nothing pushes to
+ * it. It reads `GET /ops/rooms`, and that read is refreshed when the screen
+ * opens, after a status is set here, when the tab comes back into view, and
+ * every `REFRESH_MS` while it is visible. A room changed anywhere else — another
+ * desk, a housekeeper — therefore shows here within that interval, and the
+ * sentence on screen says exactly that.
  *
  * **On real data** (ADR-012 step 4), following the Reservations pattern exactly:
  * `useCapability()` says what may be done, three read states are told apart, and
@@ -16,12 +24,14 @@
  */
 
 import { Button } from "@injishi/ui";
-import { useState } from "react";
+import { useQueryClient } from "@tanstack/react-query";
+import { useEffect, useState } from "react";
 import { useHost, usePms } from "../store";
 import type { HkStatus } from "../data/types";
 import type { HousekeepingStatus } from "@injishi/contracts";
 import { useCapability, useWorkspaceId } from "../data/capability";
 import { useRooms, useSetHousekeeping } from "../data/ops";
+import { queryKeys } from "../data/queries";
 import { ActionButton, Badge, Chip, EmptyState, LoadFailed, Skeleton } from "../components/ui";
 import { HOUSEKEEPING as HK, HOUSEKEEPING_BY as HK_BY } from "../lib/housekeeping";
 
@@ -41,6 +51,9 @@ const TO_DEMO: Record<HousekeepingStatus, HkStatus> = {
   // Nothing in the demo store can hold this, so it lands on the nearest thing.
   out_of_order: "needs",
 };
+
+/** How often the board re-reads `GET /ops/rooms` while it is on screen. */
+const REFRESH_MS = 30_000;
 
 interface DeskRoom {
   id: string;
@@ -63,6 +76,28 @@ export function RoomStatus() {
   const setHousekeeping = useSetHousekeeping(workspaceId);
 
   const live = workspaceId !== null;
+  const client = useQueryClient();
+
+  /*
+   * Re-read the rooms on a timer while the tab is visible. The app turns
+   * refetch-on-focus off everywhere, so without this the board would show a
+   * room as dirty long after somebody cleaned it. A hidden tab asks nothing.
+   */
+  useEffect(() => {
+    if (!live) return;
+    const refresh = () => {
+      if (document.visibilityState === "visible") {
+        void client.invalidateQueries({ queryKey: queryKeys.rooms(workspaceId) });
+      }
+    };
+    const timer = window.setInterval(refresh, REFRESH_MS);
+    document.addEventListener("visibilitychange", refresh);
+    return () => {
+      window.clearInterval(timer);
+      document.removeEventListener("visibilitychange", refresh);
+    };
+  }, [client, live, workspaceId]);
+
   const maySet = can("housekeeping.set");
   const denied = maySet ? undefined : reasonFor("housekeeping.set");
 
@@ -91,7 +126,7 @@ export function RoomStatus() {
   /** What the room IS now, for the desk deciding whether it can be sold. */
   function arrived(room: DeskRoom, to: HousekeepingStatus): string {
     if (to === "clean") return `Room ${room.label} is ready to sell.`;
-    if (to === "dirty") return `Room ${room.label} needs cleaning. It is on the housekeeping phones now.`;
+    if (to === "dirty") return `Room ${room.label} needs cleaning before it can be sold.`;
     if (to === "inspected") return `Room ${room.label} is inspected and ready.`;
     return `Room ${room.label} is out of order. It won't be offered to a guest.`;
   }
@@ -148,13 +183,13 @@ export function RoomStatus() {
         ))}
         <span style={{ flex: 1 }} />
         <span style={{ fontSize: 12.5, color: "var(--muted)" }}>
-          Housekeeping status is separate from availability · updates live from the housekeeping phones
+          Housekeeping status is separate from availability · {live ? "refreshed from the server every 30 seconds" : "demo rooms, not saved"}
         </span>
       </div>
 
       {rooms.length === 0 && (
         <EmptyState style={{ padding: 26, fontSize: 13.5 }}>
-          No rooms on this property yet. Add them under Rooms &amp; rates.
+          No rooms on this property yet. Add them under Inventory.
         </EmptyState>
       )}
 

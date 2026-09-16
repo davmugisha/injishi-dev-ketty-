@@ -43,6 +43,7 @@ import {
   OpsReservationsController,
   OpsRoomAssignmentsController,
 } from './ops/reservations.controller';
+import { OpsBrokerController } from './ops/broker.controller';
 import { OpsRevenueController } from './ops/revenue.controller';
 import {
   OpsDepositsController,
@@ -138,6 +139,9 @@ import { WaitlistModule } from './waitlist/waitlist.module';
     OpsRentRollController,
     OpsTicketsController,
     OpsDepositsController,
+    // The broker workspace's directory, reveals, placements and earnings
+    // (ADR-038 child 6).
+    OpsBrokerController,
     OpsAmenitiesController,
     // RRA EBM account (ADR-041): the operator's setup screen, and the
     // provider's consent redirect back to it.

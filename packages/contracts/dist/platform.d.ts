@@ -85,6 +85,68 @@ export declare const DemoSeat: z.ZodObject<{
     roleKey: string;
 }>;
 export type DemoSeat = z.infer<typeof DemoSeat>;
+/**
+ * One thing a presenter can do as this persona, in the order a demo would do it.
+ * `href` is where it happens: a path on the web origin (the operator app is
+ * served under it at `/w/...` and `/oversight`), an absolute url for a console
+ * on another host (admin), or null when the step is read rather than clicked.
+ */
+export declare const DemoStoryStep: z.ZodObject<{
+    title: z.ZodString;
+    detail: z.ZodString;
+    href: z.ZodNullable<z.ZodString>;
+}, "strip", z.ZodTypeAny, {
+    title: string;
+    detail: string;
+    href: string | null;
+}, {
+    title: string;
+    detail: string;
+    href: string | null;
+}>;
+export type DemoStoryStep = z.infer<typeof DemoStoryStep>;
+/**
+ * What a persona is FOR in the demo: who they are, why the platform matters to
+ * them, and what to try. Written against the seeded storyline, so every step
+ * points at something the demo data actually holds (`verify-demo-story.mjs`
+ * checks those anchors).
+ */
+export declare const DemoStory: z.ZodObject<{
+    /** One line: "Front desk at Amahoro Boutique Hotel". */
+    headline: z.ZodString;
+    /** Two or three sentences a stakeholder reads before choosing. */
+    summary: z.ZodString;
+    tryThis: z.ZodArray<z.ZodObject<{
+        title: z.ZodString;
+        detail: z.ZodString;
+        href: z.ZodNullable<z.ZodString>;
+    }, "strip", z.ZodTypeAny, {
+        title: string;
+        detail: string;
+        href: string | null;
+    }, {
+        title: string;
+        detail: string;
+        href: string | null;
+    }>, "many">;
+}, "strip", z.ZodTypeAny, {
+    headline: string;
+    summary: string;
+    tryThis: {
+        title: string;
+        detail: string;
+        href: string | null;
+    }[];
+}, {
+    headline: string;
+    summary: string;
+    tryThis: {
+        title: string;
+        detail: string;
+        href: string | null;
+    }[];
+}>;
+export type DemoStory = z.infer<typeof DemoStory>;
 export declare const DemoPersona: z.ZodObject<{
     email: z.ZodString;
     name: z.ZodString;
@@ -125,6 +187,45 @@ export declare const DemoPersona: z.ZodObject<{
         surface: "broker" | "personal" | "oversight" | "host" | "landlord" | "staff" | "work";
         roleKey: string;
     }>, "many">;
+    /**
+     * Null for a persona the demo guide does not narrate; absent from an API
+     * older than the guide, so a client must treat a missing story as none.
+     */
+    story: z.ZodOptional<z.ZodNullable<z.ZodObject<{
+        /** One line: "Front desk at Amahoro Boutique Hotel". */
+        headline: z.ZodString;
+        /** Two or three sentences a stakeholder reads before choosing. */
+        summary: z.ZodString;
+        tryThis: z.ZodArray<z.ZodObject<{
+            title: z.ZodString;
+            detail: z.ZodString;
+            href: z.ZodNullable<z.ZodString>;
+        }, "strip", z.ZodTypeAny, {
+            title: string;
+            detail: string;
+            href: string | null;
+        }, {
+            title: string;
+            detail: string;
+            href: string | null;
+        }>, "many">;
+    }, "strip", z.ZodTypeAny, {
+        headline: string;
+        summary: string;
+        tryThis: {
+            title: string;
+            detail: string;
+            href: string | null;
+        }[];
+    }, {
+        headline: string;
+        summary: string;
+        tryThis: {
+            title: string;
+            detail: string;
+            href: string | null;
+        }[];
+    }>>>;
 }, "strip", z.ZodTypeAny, {
     name: string;
     email: string;
@@ -135,6 +236,15 @@ export declare const DemoPersona: z.ZodObject<{
         surface: "broker" | "personal" | "oversight" | "host" | "landlord" | "staff" | "work";
         roleKey: string;
     }[];
+    story?: {
+        headline: string;
+        summary: string;
+        tryThis: {
+            title: string;
+            detail: string;
+            href: string | null;
+        }[];
+    } | null | undefined;
 }, {
     name: string;
     email: string;
@@ -145,6 +255,15 @@ export declare const DemoPersona: z.ZodObject<{
         surface: "broker" | "personal" | "oversight" | "host" | "landlord" | "staff" | "work";
         roleKey: string;
     }[];
+    story?: {
+        headline: string;
+        summary: string;
+        tryThis: {
+            title: string;
+            detail: string;
+            href: string | null;
+        }[];
+    } | null | undefined;
 }>;
 export type DemoPersona = z.infer<typeof DemoPersona>;
 /**

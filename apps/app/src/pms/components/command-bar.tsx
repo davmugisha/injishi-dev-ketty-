@@ -15,6 +15,7 @@ import { useWorkspaceHref } from "../lib/workspace-href";
 import { buildFolio } from "../lib/folio";
 import { dateRange, dateRangeIso, fmt } from "../lib/format";
 import { useWorkspaceId } from "../data/capability";
+import { useBrokerDirectory } from "../data/broker-ops";
 import { useStays } from "../data/ops";
 import { useReservations } from "../data/reservations";
 import { navFor } from "../lib/nav";
@@ -37,7 +38,7 @@ export function CommandBar() {
   const workspaceId = useWorkspaceId();
   // The search index reads every workspace's data directly, so this component
   // keeps the wide destructure the other two no longer need.
-  const { state, host, broker } = pms;
+  const { state, host } = pms;
   const { cmdkOpen, setCmdkOpen } = usePmsUi();
   const router = useRouter();
   // Every jump stays inside the workspace in the address bar (ADR-018).
@@ -52,6 +53,10 @@ export function CommandBar() {
   const askLive = cmdkOpen && live && state.ws === "host" ? workspaceId : null;
   const liveReservations = useReservations(askLive);
   const liveStays = useStays(askLive);
+  // The broker's directory, from the same cache the Directory screen reads.
+  const liveDirectory = useBrokerDirectory(
+    cmdkOpen && live && state.ws === "broker" ? workspaceId : null,
+  );
 
   // ⌘K / Ctrl-K toggles; Esc closes.
   useEffect(() => {
@@ -149,14 +154,16 @@ export function CommandBar() {
           }),
         );
     } else if (state.ws === "broker") {
-      broker.dir.forEach((d) =>
-        items.push({
-          group: "Directory",
-          label: `${d.type} · ${d.loc}`,
-          sub: `${fmt(d.rent)} / mo · ${d.landlord}`,
-          icon: "building-2",
-          href: href("/directory"),
-        }),
+      (liveDirectory.data?.listings ?? []).forEach((listing) =>
+        listing.units.forEach((unit) =>
+          items.push({
+            group: "Directory",
+            label: `${unit.name} · ${listing.propertyName}`,
+            sub: `${unit.monthlyRentRwf === null ? "Rent not set" : `${fmt(unit.monthlyRentRwf)} / mo`} · ${listing.district ?? listing.landlordName}`,
+            icon: "building-2",
+            href: href("/directory"),
+          }),
+        ),
       );
     }
 
@@ -166,7 +173,7 @@ export function CommandBar() {
     state.role,
     state.db.residence,
     host,
-    broker,
+    liveDirectory.data,
     href,
     pms,
     workspaceId,

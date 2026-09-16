@@ -25,11 +25,12 @@
  * disclosure rather than operational data, and it belongs to the two roles that
  * may change the team.
  *
- * **STILL NO INVITE**, and the button that pretended otherwise is gone. Adding
- * somebody is its own flow with its own decisions — who may send one, how it is
- * delivered, what happens when an account that already holds a different role
- * accepts it. A bare "add member" writing an `org_memberships` row would skip
- * all of them.
+ * **NO INVITE BUTTON ON THIS LENS**, and the one that used to pretend is gone.
+ * Adding somebody is its own flow with its own decisions — who may send one, how
+ * it is delivered, what happens when an account that already holds a different
+ * role accepts it — and that flow is the Invites lens beside this one
+ * (`screens/invites.tsx`, `/ops/team/invitations`). This lens links to it rather
+ * than growing a second way in.
  *
  * A REMOVED member is shown, dimmed, rather than filtered out. The membership
  * is never deleted, because the rows they posted and charged still name them.
@@ -201,8 +202,11 @@ export function Team({ landlord = false }: { landlord?: boolean }) {
       )}
 
       <p className="text-2xs text-muted-foreground">
-        Inviting somebody is not built yet — it is its own flow, and a button that
-        wrote a membership row would skip every decision in it.
+        To add somebody, send them an invitation from{" "}
+        <Link href={`${base}/people/invites`} className="underline" data-link="invites">
+          Invites
+        </Link>
+        . They join with the role you choose once they accept.
         {showsDepartments && (
           <>
             {" "}
