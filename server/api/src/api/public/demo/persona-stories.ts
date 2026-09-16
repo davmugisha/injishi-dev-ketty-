@@ -63,10 +63,16 @@ const STORIES: Readonly<Record<string, DemoStory>> = {
         href: `${AMAHORO}/finance/revenue`,
       },
       {
-        title: 'See who works here',
+        title: 'See who works here, and which departments you run',
         detail:
-          'People lists your team with their roles. Only the owner can open it: your manager runs the hotel but does not decide who is on the staff.',
+          'Team & Departments lists your staff with their roles, and the departments every charge and order routes through. The roster stays yours — your manager runs the hotel but does not decide who is on the staff.',
         href: `${AMAHORO}/people`,
+      },
+      {
+        title: 'Decide what each role may do',
+        detail:
+          'Roles starts from the access Injishi gives each role and lets you change it. You have already granted your front desk "view money", and taken "refund a signed receipt" away from your manager. Managing the team is the one thing you cannot hand to anybody else.',
+        href: `${AMAHORO}/people/roles`,
       },
       {
         title: 'See the hotel the way a guest does',
