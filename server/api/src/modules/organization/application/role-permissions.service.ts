@@ -129,11 +129,33 @@ export class RolePermissionsService {
       overrides.push({ permission, granted: has });
     }
 
+    /*
+     * What the role held BEFORE this edit, read before the write, for the audit
+     * row. Resolved through the model rather than taken from the request, so the
+     * trail records what the API was actually enforcing a moment ago — including
+     * a locked row that the resolver was already ignoring.
+     */
+    const from = effectivePermissionsForRole(
+      orgRole,
+      this.parseStored(await this.roles.listForOrg(orgId)),
+    );
+
     await this.roles.replaceForRole({
       orgId,
       orgRole,
       overrides,
       setByUserId: actorUserId,
+      effective: {
+        from,
+        to: effectivePermissionsForRole(
+          orgRole,
+          overrides.map((o) => ({
+            orgRole,
+            permission: o.permission as Permission,
+            granted: o.granted,
+          })),
+        ),
+      },
     });
 
     const [stored, counts] = await Promise.all([
