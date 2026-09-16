@@ -1,6 +1,12 @@
 import type { MyProfile, PersonalDetails } from '@injishi/contracts';
-import { ConflictException, Injectable } from '@nestjs/common';
+import { isRwandanAddress } from '@injishi/contracts';
+import {
+  BadRequestException,
+  ConflictException,
+  Injectable,
+} from '@nestjs/common';
 
+import { GeographyService } from '../../geography/application/geography.service';
 import { maskIdentifier } from '../../../shared/identity/mask';
 import {
   DuplicateIdentityDocumentError,
@@ -21,10 +27,20 @@ import {
  */
 @Injectable()
 export class ProfileService {
-  constructor(private readonly profiles: ProfileRepository) {}
+  constructor(
+    private readonly profiles: ProfileRepository,
+    /**
+     * Geography, composed for one question: does the village on this address
+     * sit under its sector (D24)? The same question `RegistrationService` asks
+     * about a business address, answered by the same join, so a person and a
+     * business can never be told different things about the same pair.
+     */
+    private readonly geography: GeographyService,
+  ) {}
 
   /** Save Step 1, refusing a document that already anchors another account. */
   async save(userId: string, details: PersonalDetails): Promise<MyProfile> {
+    await this.assertVillagePlaced(details);
     try {
       await this.profiles.save(userId, details);
     } catch (err) {
@@ -34,6 +50,35 @@ export class ProfileService {
       throw err;
     }
     return this.read(userId);
+  }
+
+  /**
+   * The village on Step 1 belongs to the sector on Step 1.
+   *
+   * Village is optional, so an absent one is nothing to check. A present one
+   * that belongs under a different sector is refused before the write, at its
+   * own field path, in the shape `ZodValidationPipe` produces — so the wizard
+   * reads a server refusal and a contract refusal the same way and puts the
+   * sentence under the select that caused it.
+   */
+  private async assertVillagePlaced(details: PersonalDetails): Promise<void> {
+    const address = details.address;
+    if (!isRwandanAddress(address) || address.villageId === undefined) return;
+    const verdict = await this.geography.checkVillageInSector(
+      address.villageId,
+      address.sectorId,
+    );
+    if (verdict.ok) return;
+    throw new BadRequestException({
+      message: 'Validation failed',
+      issues: [
+        {
+          code: 'custom',
+          path: ['address', 'villageId'],
+          message: verdict.message,
+        },
+      ],
+    });
   }
 
   /** What the wizard renders for a returning registrant. */
@@ -121,6 +166,11 @@ function isComplete(row: ProfileRow): boolean {
  * A Rwandan address needs its province, which comes from the sector join. If
  * that join found nothing the address is not renderable, and null is the honest
  * answer — better than a half address the picker cannot open.
+ *
+ * The village and its cell are omitted rather than sent as null when there is
+ * no village: they are OPTIONAL on `RwandanAddress`, and `undefined` is what
+ * optional means there. `cellId` rides along because the picker needs it to
+ * reopen the village list; it is joined from the village, never stored.
  */
 function toAddress(row: ProfileRow): MyProfile['address'] {
   if (row.country === 'RW') {
@@ -132,6 +182,8 @@ function toAddress(row: ProfileRow): MyProfile['address'] {
       provinceId: row.provinceId,
       districtId: row.districtId,
       sectorId: row.sectorId,
+      ...(row.cellId === null ? {} : { cellId: row.cellId }),
+      ...(row.villageId === null ? {} : { villageId: row.villageId }),
       ...(row.addressText ? { street: row.addressText } : {}),
     };
   }

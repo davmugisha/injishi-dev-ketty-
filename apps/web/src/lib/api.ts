@@ -21,6 +21,9 @@ export const API_URL =
 /** Ceiling on one API round trip. */
 const API_TIMEOUT_MS = 12_000;
 
+/** A response body that did not parse as JSON, kept apart from a JSON `null`. */
+const NOT_JSON = Symbol("not-json");
+
 /**
  * What a call to the API can turn out to be.
  *
@@ -132,7 +135,20 @@ export async function apiFetch<T>(
 
   if (res.status === 401) return { status: "unauthenticated" };
 
-  const body: unknown = await res.json().catch(() => null);
+  const body: unknown = await res.json().catch(() => NOT_JSON);
+
+  /*
+   * An error the API did not write is not an answer from the API.
+   *
+   * Every refusal Nest sends is JSON. A plain-text error on this origin is the
+   * gateway talking: while the API container restarts (a deploy, the demo's
+   * nightly rebuild) Traefik has no route and answers `404 page not found`. That
+   * used to come back as `refused` 404, which every caller reads as "gone": the
+   * booking card told a guest the stay could not be booked online, and an
+   * invite link read as invalid, for as long as the restart lasted and until a
+   * reload. It is the "we could not ask" case, so it is worded as one.
+   */
+  if (!res.ok && body === NOT_JSON) return { status: "failed" };
 
   if (!res.ok) {
     return {
@@ -142,7 +158,7 @@ export async function apiFetch<T>(
       ...codeOf(body),
     };
   }
-  return { status: "ok", data: body as T };
+  return { status: "ok", data: (body === NOT_JSON ? null : body) as T };
 }
 
 /**
@@ -166,6 +182,30 @@ export async function apiFetchParsed<T>(
   if (result.status !== "ok") return result;
   const parsed = schema.safeParse(result.data);
   return parsed.success ? { status: "ok", data: parsed.data } : { status: "failed" };
+}
+
+/**
+ * Ask again, quietly, when we could not ask at all.
+ *
+ * For a READ a guest did not press anything to start, where a blip should heal
+ * itself rather than put a "Try again" button in front of them: an API restart
+ * lasts seconds. Only `failed` is retried. A refusal, a 401 or an answer is the
+ * API speaking, and asking again would only repeat it.
+ *
+ * Never wrap a write in this: a write that timed out may have landed.
+ */
+export async function retryWhileFailed<T>(
+  read: () => Promise<ApiResult<T>>,
+  delaysMs: readonly number[] = [1_500, 4_000],
+  sleep: (ms: number) => Promise<void> = (ms) => new Promise((done) => setTimeout(done, ms)),
+): Promise<ApiResult<T>> {
+  let result = await read();
+  for (const delay of delaysMs) {
+    if (result.status !== "failed") return result;
+    await sleep(delay);
+    result = await read();
+  }
+  return result;
 }
 
 /** One sentence for the branches that carry no server message of their own. */

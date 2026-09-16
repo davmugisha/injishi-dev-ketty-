@@ -87,7 +87,7 @@ describe.each(SCHEMES)('a confirmed booking in %s', (scheme) => {
     expect(screen.getByText(en['status.booking.confirmed'])).toBeTruthy();
     expect(screen.getByText(en['book.paidIntoEscrow'])).toBeTruthy();
     // The money is the breakdown stored on the trip, never recomputed here.
-    expect(screen.getByText('756,000')).toBeTruthy();
+    expect(screen.getByText('1,512,000')).toBeTruthy();
   });
 });
 

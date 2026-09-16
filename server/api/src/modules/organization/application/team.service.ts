@@ -1,7 +1,17 @@
-import type { OperatorTeamList, WorkspaceAccess } from '@injishi/contracts';
-import { Injectable } from '@nestjs/common';
+import {
+  MEMBER_BRANCHES_REFUSAL,
+  type OperatorTeamList,
+  type OperatorTeamMember,
+  type WorkspaceAccess,
+} from '@injishi/contracts';
+import {
+  BadRequestException,
+  Injectable,
+  NotFoundException,
+  UnprocessableEntityException,
+} from '@nestjs/common';
 
-import { TeamRepository } from '../infrastructure/team.repository';
+import { TeamRepository, type TeamMemberRow } from '../infrastructure/team.repository';
 
 /**
  * The staff roster (ADR-035, wave 2 follow-up).
@@ -17,12 +27,11 @@ import { TeamRepository } from '../infrastructure/team.repository';
  * place an owner can see WHY their receptionist cannot open Finance. A roster
  * without it would be an address book.
  *
- * NO WRITE PATH HERE, DELIBERATELY. Adding somebody to a business is an
- * invitation, and an invitation is its own flow with its own decisions — who may
- * send one, how it is delivered, what happens when it is accepted by an account
- * that already holds a different role. Shipping a bare "add member" that wrote
- * an `org_memberships` row would skip all of that. Reading is the honest half
- * and it is what unblocks the screen.
+ * ADDING SOMEBODY IS STILL NOT HERE. Adding somebody to a business is an
+ * invitation (`StaffInvitationService`), with its own decisions about delivery
+ * and acceptance, and a bare "add member" would skip all of that. The one write
+ * here narrows an EXISTING member to some branches (ADR-054 AC-T1): it changes
+ * which rows they see, never whether they work here or what their role grants.
  */
 @Injectable()
 export class TeamService {
@@ -30,15 +39,74 @@ export class TeamService {
 
   async list(ws: WorkspaceAccess): Promise<OperatorTeamList> {
     const rows = await this.team.listForWorkspace(ws.workspaceId);
-    return {
-      members: rows.map((row) => ({
-        userId: row.userId,
-        name: row.name,
-        email: row.email,
-        orgRole: row.orgRole,
-        status: row.status,
-        joinedAt: row.joinedAt.toISOString(),
-      })),
-    };
+    return { members: rows.map(present) };
   }
+
+  /**
+   * `PUT /ops/team/:userId/branches`. The route already refused a limited
+   * caller (AC-M6); this refuses the AC-T1 cases with 422 and an unknown or
+   * removed member with 404.
+   */
+  async setBranches(
+    ws: WorkspaceAccess,
+    userId: string,
+    branchIds: readonly string[] | null,
+    actorUserId: string,
+  ): Promise<OperatorTeamMember> {
+    if (!ws.orgId) {
+      throw new BadRequestException('Only a business workspace has staff.');
+    }
+    const refusal = memberBranchesShapeRefusal(ws, branchIds);
+    if (refusal) throw new UnprocessableEntityException(refusal);
+
+    const result = await this.team.setMemberBranches({
+      orgId: ws.orgId,
+      userId,
+      branchIds: branchIds ? [...new Set(branchIds)] : null,
+      actorUserId,
+    });
+    switch (result.kind) {
+      case 'missing':
+        throw new NotFoundException('No such member.');
+      case 'owner':
+      case 'foreign':
+      case 'archived':
+        throw new UnprocessableEntityException(MEMBER_BRANCHES_REFUSAL[result.kind]);
+      case 'done':
+        break;
+    }
+
+    const member = (await this.team.listForWorkspace(ws.workspaceId)).find(
+      (m) => m.userId === userId,
+    );
+    if (!member) throw new NotFoundException('No such member.');
+    return present(member);
+  }
+}
+
+/**
+ * The AC-T1 refusals a request carries on its face: a residence business, or
+ * a list with nothing in it. Shared with the invitation, which takes the same
+ * list. Whether each id is a live branch of this org is asked of the database.
+ */
+export function memberBranchesShapeRefusal(
+  ws: Pick<WorkspaceAccess, 'domain'>,
+  branchIds: readonly string[] | null,
+): string | null {
+  if (branchIds === null) return null;
+  if (ws.domain !== 'hospitality') return MEMBER_BRANCHES_REFUSAL.residence;
+  if (branchIds.length === 0) return MEMBER_BRANCHES_REFUSAL.empty;
+  return null;
+}
+
+function present(row: TeamMemberRow): OperatorTeamMember {
+  return {
+    userId: row.userId,
+    name: row.name,
+    email: row.email,
+    orgRole: row.orgRole,
+    status: row.status,
+    joinedAt: row.joinedAt.toISOString(),
+    branchIds: row.branchIds,
+  };
 }

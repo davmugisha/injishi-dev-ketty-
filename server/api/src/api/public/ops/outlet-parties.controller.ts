@@ -19,6 +19,7 @@ import { OutletsService } from '../../../modules/operations/application/outlets.
 import { SessionGuard } from '../../../shared/auth/session.guard';
 import {
   CurrentWorkspace,
+  RequireEveryBranch,
   RequirePermission,
   WorkspaceGuard,
 } from '../../../shared/auth/workspace.guard';
@@ -45,6 +46,7 @@ export class OpsOutletPartiesController {
 
   @Post()
   @RequirePermission('outlet.manage')
+  @RequireEveryBranch()
   create(
     @Body(new ZodValidationPipe(CreateOutletPartyRequest)) body: CreateOutletPartyRequest,
     @CurrentWorkspace() workspace: ScopedWorkspace,
@@ -54,6 +56,7 @@ export class OpsOutletPartiesController {
 
   @Patch(':id')
   @RequirePermission('outlet.manage')
+  @RequireEveryBranch()
   update(
     @Param('id', ParseUUIDPipe) id: string,
     @Body(new ZodValidationPipe(UpdateOutletPartyRequest)) body: UpdateOutletPartyRequest,

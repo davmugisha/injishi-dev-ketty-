@@ -326,12 +326,14 @@ export function quote(args: {
   nightlyRateRwf: number | null;
   dates: DateRange;
   nonRefundable: boolean;
+  /** Billable guests (adults plus children). A stay is priced per person; infants are free. */
+  guests?: number;
 }): MoneyBreakdown | undefined {
   const { nightlyRateRwf, dates } = args;
   if (nightlyRateRwf === null || !dates.start || !dates.end) return undefined;
   const nights = nightsBetween(dates.start, dates.end);
   if (nights < 1) return undefined;
-  return computeBreakdown({ nightlyRateRwf, nights, nonRefundable: args.nonRefundable });
+  return computeBreakdown({ nightlyRateRwf, nights, nonRefundable: args.nonRefundable, guests: args.guests });
 }
 
 /** Nights in the range, or 0 while it is incomplete. */

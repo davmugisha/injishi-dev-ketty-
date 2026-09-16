@@ -1064,6 +1064,10 @@ function personalFromProfile(
               provinceId: String(a.provinceId),
               districtId: String(a.districtId),
               sectorId: String(a.sectorId),
+              // Optional on the wire, so absent stays "" rather than becoming
+              // the string "undefined" that `String()` would hand back.
+              cellId: a.cellId === undefined ? "" : String(a.cellId),
+              villageId: a.villageId === undefined ? "" : String(a.villageId),
               street: a.street ?? "",
               addressText: "",
             }

@@ -19,12 +19,14 @@ import {
 } from '@injishi/contracts';
 
 import { DRIZZLE, type Database } from '../database/database.module';
+import type { CoveredProperties } from './branch-scope';
 import {
   adminUsers,
   departments,
   districts,
   governmentBodies,
   identityDocuments,
+  orgMembershipBranches,
   orgMemberships,
   orgRolePermissions,
   orgs,
@@ -76,6 +78,7 @@ export class WorkspaceService {
         orgName: orgs.legalName,
         domain: orgs.domain,
         orgRole: orgMemberships.orgRole,
+        membershipId: orgMemberships.id,
         // Not decoration: this is what decides whether the caller holds any
         // permission here at all (D20, D23). Selected on the same row as the
         // role so the two can never be resolved from different reads.
@@ -139,10 +142,10 @@ export class WorkspaceService {
      * meant a receptionist — who may not manage listings — took a 403 on every
      * page load for a name. Identity is not a listing operation.
      *
-     * Active branches only, head office first then by name. Coverage is `all`
-     * for every member until branch limits are read (ADR-054 slice 4), so the
-     * list is every active branch of the org.
+     * Active branches only, head office first then by name, narrowed to the
+     * member's `org_membership_branches` rows when they have any.
      */
+    const limits = await this.branchLimitsFor(viaOrg);
     const branchesByWorkspace = new Map<string, WorkspaceBranch[]>();
     if (businessWorkspaceIds.length > 0) {
       const rows = await this.db
@@ -236,7 +239,10 @@ export class WorkspaceService {
     }
 
     const fromOrg: WorkspaceAccess[] = viaOrg.map((w) => {
-      const branches = branchesByWorkspace.get(w.workspaceId) ?? [];
+      const limit = limits.get(w.membershipId);
+      const branches = (branchesByWorkspace.get(w.workspaceId) ?? []).filter(
+        (b) => !limit || limit.has(b.id),
+      );
       return {
         workspaceId: w.workspaceId,
         kind: w.kind,
@@ -256,11 +262,41 @@ export class WorkspaceService {
         // the head office when covered and else the first by name (AC-S3).
         propertyName: branches[0]?.name ?? null,
         branches,
-        branchCoverage: 'all' as const,
+        branchCoverage: limit ? ('limited' as const) : ('all' as const),
       };
     });
 
     return [...fromOwn, ...fromOrg];
+  }
+
+  /**
+   * The branch limit of each membership that has one, keyed by membership id.
+   *
+   * No rows means every branch (ADR-054, `org_membership_branches`). An owner's
+   * rows, which the service never writes, are ignored rather than trusted:
+   * an owner always covers every branch (invariant 5).
+   */
+  private async branchLimitsFor(
+    memberships: readonly { membershipId: string; orgRole: string }[],
+  ): Promise<Map<string, Set<string>>> {
+    const ids = memberships
+      .filter((m) => m.orgRole !== 'owner')
+      .map((m) => m.membershipId);
+    const limits = new Map<string, Set<string>>();
+    if (ids.length === 0) return limits;
+    const rows = await this.db
+      .select({
+        membershipId: orgMembershipBranches.orgMembershipId,
+        propertyId: orgMembershipBranches.propertyId,
+      })
+      .from(orgMembershipBranches)
+      .where(inArray(orgMembershipBranches.orgMembershipId, ids));
+    for (const row of rows) {
+      const set = limits.get(row.membershipId) ?? new Set<string>();
+      set.add(row.propertyId);
+      limits.set(row.membershipId, set);
+    }
+    return limits;
   }
 
   /**
@@ -278,16 +314,44 @@ export class WorkspaceService {
   }
 
   /**
-   * Every property of a workspace, archived ones included, for the branch
-   * scope `WorkspaceGuard` resolves (ADR-054). Archived branches stay in it so
-   * their history is still readable; the switcher offers only `branches`.
+   * The properties this member covers in a workspace, archived ones included,
+   * for the branch scope `WorkspaceGuard` resolves (ADR-054). Archived branches
+   * stay in it so their history is still readable; the switcher offers only
+   * the grant's `branches`.
+   *
+   * `access` is the grant `resolveForUser` returned, so its coverage and this
+   * list come from the same membership. A limited member's list is their limit
+   * rows, joined to the workspace so a row naming another org's property (which
+   * the service refuses to write) can never widen it.
    */
-  async propertyIdsForWorkspace(workspaceId: string): Promise<string[]> {
+  async coveredProperties(
+    userId: string,
+    access: WorkspaceAccess,
+  ): Promise<CoveredProperties> {
+    if (access.branchCoverage !== 'limited' || !access.orgId) {
+      const rows = await this.db
+        .select({ id: properties.id })
+        .from(properties)
+        .where(eq(properties.workspaceId, access.workspaceId));
+      return { coverage: 'all', propertyIds: rows.map((r) => r.id) };
+    }
     const rows = await this.db
       .select({ id: properties.id })
-      .from(properties)
-      .where(eq(properties.workspaceId, workspaceId));
-    return rows.map((r) => r.id);
+      .from(orgMembershipBranches)
+      .innerJoin(
+        orgMemberships,
+        eq(orgMemberships.id, orgMembershipBranches.orgMembershipId),
+      )
+      .innerJoin(properties, eq(properties.id, orgMembershipBranches.propertyId))
+      .where(
+        and(
+          eq(orgMemberships.userId, userId),
+          eq(orgMemberships.orgId, access.orgId),
+          eq(orgMemberships.status, 'active'),
+          eq(properties.workspaceId, access.workspaceId),
+        ),
+      );
+    return { coverage: 'limited', propertyIds: rows.map((r) => r.id) };
   }
 
   /**

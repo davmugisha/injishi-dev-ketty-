@@ -209,8 +209,9 @@ describe('the money', () => {
     fireEvent.press(screen.getByTestId('book-primary'));
     await waitFor(() => expect(screen.getByText(en['book.step2'])).toBeTruthy());
 
-    // Garden Suite, 240,000 x 3 nights, plus the 5% guest service fee.
-    expect(screen.getAllByText('756,000').length).toBeGreaterThan(0);
+    // Garden Suite, 240,000 per guest per night x 2 guests x 3 nights, plus the
+    // 5% guest service fee.
+    expect(screen.getAllByText('1,512,000').length).toBeGreaterThan(0);
     expect(screen.getByText(en['book.fee'])).toBeTruthy();
   });
 
@@ -368,7 +369,7 @@ describe('confirming', () => {
       const made = trips.find((trip) => trip.id === draft.bookingId);
       expect(made).toBeDefined();
       expect(made?.state).toBe('confirmed');
-      expect(made?.total).toBe(756_000);
+      expect(made?.total).toBe(1_512_000);
 
       // The reference is the deliverable on an async rail: it is the only thing
       // a guest can act on afterwards.

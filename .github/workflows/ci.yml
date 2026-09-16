@@ -144,8 +144,18 @@ jobs:
       # fail under contention on a machine with few cores, and a hosted runner
       # has two to four. A test job that fails for want of CPU teaches people to
       # rerun it until it passes, which is worse than having no test job.
+      #
+      # `test:ci`, not `test`, because the `mobile` job below already runs
+      # `@injishi/mobile test` and that suite is the longest thing in the
+      # pipeline (577s on 2026-09-16, against 74s for everything else in that
+      # job). Running it here too put a second copy of it on this job's serial
+      # critical path for no extra coverage. Nothing is lost: `changes` marks
+      # `mobile` from the workspace dependency graph, so anything mobile depends
+      # on runs the `mobile` job, and a change that leaves mobile unaffected has
+      # no mobile suite worth running. `pnpm test` at the root still means
+      # EVERY suite, which is what a developer wants locally.
       - name: Run every suite
-        run: pnpm test
+        run: pnpm test:ci
 
   build-web:
     name: build web

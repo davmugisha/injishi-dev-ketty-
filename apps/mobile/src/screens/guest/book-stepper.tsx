@@ -38,6 +38,8 @@
  * is satisfied by the draft outliving the trip through sign-in.
  */
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+
+import { billableGuests } from '@/data/search';
 import { Pressable, ScrollView, View } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -221,8 +223,9 @@ function Loaded({
         nightlyRateRwf: room.summary.nightlyRateRwf,
         dates: draft.dates,
         nonRefundable: takesNonRefundable,
+        guests: billableGuests(draft.party),
       }),
-    [room.summary.nightlyRateRwf, draft.dates, takesNonRefundable],
+    [room.summary.nightlyRateRwf, draft.dates, draft.party, takesNonRefundable],
   );
 
   const signature = quoteSignature({

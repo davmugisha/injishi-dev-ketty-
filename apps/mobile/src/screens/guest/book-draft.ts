@@ -241,6 +241,7 @@ export function mintTrip(args: MintArgs): Trip {
     nightlyRateRwf: room.summary.nightlyRateRwf,
     dates,
     nonRefundable,
+    guests: billableGuests(party),
   });
   if (!money || !dates.start || !dates.end) {
     throw new Error('a booking needs a rate, a check-in and a check-out');

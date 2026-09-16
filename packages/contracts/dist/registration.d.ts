@@ -91,13 +91,25 @@ export type IdentityDocumentInput = z.infer<typeof IdentityDocumentInput>;
  *
  * Province is collected but not stored: `sectors` already resolves upward to
  * its district and province, and storing a fourth copy invites the four to
- * disagree. It is on the wire so the picker can validate its own cascade.
+ * disagree. It is on the wire so the picker can validate its own cascade. Cell
+ * is the same kind of field one level down — `villages` resolves upward to its
+ * cell — so `village_id` is the only one of the two that any table holds.
+ *
+ * Cell and village are OPTIONAL, and that is a product decision, not an
+ * oversight: village is the level that actually locates a plot in Rwanda, and
+ * it is also the level a registrant is most likely not to know by name. A
+ * registration must not be blocked on it. Optional means absent, never zero:
+ * the positive bound below refuses `0` rather than storing it as an id.
  */
 export declare const RwandanAddress: z.ZodObject<{
     country: z.ZodLiteral<"RW">;
     provinceId: z.ZodNumber;
     districtId: z.ZodNumber;
     sectorId: z.ZodNumber;
+    /** Fourth level. Collected to drive the village picker, never stored. */
+    cellId: z.ZodOptional<z.ZodNumber>;
+    /** Fifth level, and the finest one. Stored; see `orgs.village_id`. */
+    villageId: z.ZodOptional<z.ZodNumber>;
     /** Street line, e.g. "KG 11 Ave". Optional: not every plot has one. */
     street: z.ZodOptional<z.ZodString>;
 }, "strip", z.ZodTypeAny, {
@@ -105,12 +117,16 @@ export declare const RwandanAddress: z.ZodObject<{
     districtId: number;
     sectorId: number;
     provinceId: number;
+    villageId?: number | undefined;
+    cellId?: number | undefined;
     street?: string | undefined;
 }, {
     country: "RW";
     districtId: number;
     sectorId: number;
     provinceId: number;
+    villageId?: number | undefined;
+    cellId?: number | undefined;
     street?: string | undefined;
 }>;
 export type RwandanAddress = z.infer<typeof RwandanAddress>;
@@ -131,6 +147,10 @@ export declare const Address: z.ZodUnion<[z.ZodObject<{
     provinceId: z.ZodNumber;
     districtId: z.ZodNumber;
     sectorId: z.ZodNumber;
+    /** Fourth level. Collected to drive the village picker, never stored. */
+    cellId: z.ZodOptional<z.ZodNumber>;
+    /** Fifth level, and the finest one. Stored; see `orgs.village_id`. */
+    villageId: z.ZodOptional<z.ZodNumber>;
     /** Street line, e.g. "KG 11 Ave". Optional: not every plot has one. */
     street: z.ZodOptional<z.ZodString>;
 }, "strip", z.ZodTypeAny, {
@@ -138,12 +158,16 @@ export declare const Address: z.ZodUnion<[z.ZodObject<{
     districtId: number;
     sectorId: number;
     provinceId: number;
+    villageId?: number | undefined;
+    cellId?: number | undefined;
     street?: string | undefined;
 }, {
     country: "RW";
     districtId: number;
     sectorId: number;
     provinceId: number;
+    villageId?: number | undefined;
+    cellId?: number | undefined;
     street?: string | undefined;
 }>, z.ZodObject<{
     country: z.ZodEffects<z.ZodEffects<z.ZodString, string, string>, string, string>;
@@ -204,6 +228,10 @@ export declare const PersonalDetails: z.ZodObject<{
         provinceId: z.ZodNumber;
         districtId: z.ZodNumber;
         sectorId: z.ZodNumber;
+        /** Fourth level. Collected to drive the village picker, never stored. */
+        cellId: z.ZodOptional<z.ZodNumber>;
+        /** Fifth level, and the finest one. Stored; see `orgs.village_id`. */
+        villageId: z.ZodOptional<z.ZodNumber>;
         /** Street line, e.g. "KG 11 Ave". Optional: not every plot has one. */
         street: z.ZodOptional<z.ZodString>;
     }, "strip", z.ZodTypeAny, {
@@ -211,12 +239,16 @@ export declare const PersonalDetails: z.ZodObject<{
         districtId: number;
         sectorId: number;
         provinceId: number;
+        villageId?: number | undefined;
+        cellId?: number | undefined;
         street?: string | undefined;
     }, {
         country: "RW";
         districtId: number;
         sectorId: number;
         provinceId: number;
+        villageId?: number | undefined;
+        cellId?: number | undefined;
         street?: string | undefined;
     }>, z.ZodObject<{
         country: z.ZodEffects<z.ZodEffects<z.ZodString, string, string>, string, string>;
@@ -247,6 +279,8 @@ export declare const PersonalDetails: z.ZodObject<{
         districtId: number;
         sectorId: number;
         provinceId: number;
+        villageId?: number | undefined;
+        cellId?: number | undefined;
         street?: string | undefined;
     } | {
         country: string;
@@ -271,6 +305,8 @@ export declare const PersonalDetails: z.ZodObject<{
         districtId: number;
         sectorId: number;
         provinceId: number;
+        villageId?: number | undefined;
+        cellId?: number | undefined;
         street?: string | undefined;
     } | {
         country: string;
@@ -325,6 +361,10 @@ export declare const RegistrationBranch: z.ZodObject<{
         provinceId: z.ZodNumber;
         districtId: z.ZodNumber;
         sectorId: z.ZodNumber;
+        /** Fourth level. Collected to drive the village picker, never stored. */
+        cellId: z.ZodOptional<z.ZodNumber>;
+        /** Fifth level, and the finest one. Stored; see `orgs.village_id`. */
+        villageId: z.ZodOptional<z.ZodNumber>;
         /** Street line, e.g. "KG 11 Ave". Optional: not every plot has one. */
         street: z.ZodOptional<z.ZodString>;
     }, "strip", z.ZodTypeAny, {
@@ -332,12 +372,16 @@ export declare const RegistrationBranch: z.ZodObject<{
         districtId: number;
         sectorId: number;
         provinceId: number;
+        villageId?: number | undefined;
+        cellId?: number | undefined;
         street?: string | undefined;
     }, {
         country: "RW";
         districtId: number;
         sectorId: number;
         provinceId: number;
+        villageId?: number | undefined;
+        cellId?: number | undefined;
         street?: string | undefined;
     }>;
 }, "strip", z.ZodTypeAny, {
@@ -347,6 +391,8 @@ export declare const RegistrationBranch: z.ZodObject<{
         districtId: number;
         sectorId: number;
         provinceId: number;
+        villageId?: number | undefined;
+        cellId?: number | undefined;
         street?: string | undefined;
     };
 }, {
@@ -356,6 +402,8 @@ export declare const RegistrationBranch: z.ZodObject<{
         districtId: number;
         sectorId: number;
         provinceId: number;
+        villageId?: number | undefined;
+        cellId?: number | undefined;
         street?: string | undefined;
     };
 }>;
@@ -373,6 +421,10 @@ export declare const HospitalityBusiness: z.ZodObject<{
         provinceId: z.ZodNumber;
         districtId: z.ZodNumber;
         sectorId: z.ZodNumber;
+        /** Fourth level. Collected to drive the village picker, never stored. */
+        cellId: z.ZodOptional<z.ZodNumber>;
+        /** Fifth level, and the finest one. Stored; see `orgs.village_id`. */
+        villageId: z.ZodOptional<z.ZodNumber>;
         /** Street line, e.g. "KG 11 Ave". Optional: not every plot has one. */
         street: z.ZodOptional<z.ZodString>;
     }, "strip", z.ZodTypeAny, {
@@ -380,12 +432,16 @@ export declare const HospitalityBusiness: z.ZodObject<{
         districtId: number;
         sectorId: number;
         provinceId: number;
+        villageId?: number | undefined;
+        cellId?: number | undefined;
         street?: string | undefined;
     }, {
         country: "RW";
         districtId: number;
         sectorId: number;
         provinceId: number;
+        villageId?: number | undefined;
+        cellId?: number | undefined;
         street?: string | undefined;
     }>;
     certificates: z.ZodDefault<z.ZodArray<z.ZodObject<{
@@ -436,6 +492,10 @@ export declare const HospitalityBusiness: z.ZodObject<{
             provinceId: z.ZodNumber;
             districtId: z.ZodNumber;
             sectorId: z.ZodNumber;
+            /** Fourth level. Collected to drive the village picker, never stored. */
+            cellId: z.ZodOptional<z.ZodNumber>;
+            /** Fifth level, and the finest one. Stored; see `orgs.village_id`. */
+            villageId: z.ZodOptional<z.ZodNumber>;
             /** Street line, e.g. "KG 11 Ave". Optional: not every plot has one. */
             street: z.ZodOptional<z.ZodString>;
         }, "strip", z.ZodTypeAny, {
@@ -443,12 +503,16 @@ export declare const HospitalityBusiness: z.ZodObject<{
             districtId: number;
             sectorId: number;
             provinceId: number;
+            villageId?: number | undefined;
+            cellId?: number | undefined;
             street?: string | undefined;
         }, {
             country: "RW";
             districtId: number;
             sectorId: number;
             provinceId: number;
+            villageId?: number | undefined;
+            cellId?: number | undefined;
             street?: string | undefined;
         }>;
     }, "strip", z.ZodTypeAny, {
@@ -458,6 +522,8 @@ export declare const HospitalityBusiness: z.ZodObject<{
             districtId: number;
             sectorId: number;
             provinceId: number;
+            villageId?: number | undefined;
+            cellId?: number | undefined;
             street?: string | undefined;
         };
     }, {
@@ -467,6 +533,8 @@ export declare const HospitalityBusiness: z.ZodObject<{
             districtId: number;
             sectorId: number;
             provinceId: number;
+            villageId?: number | undefined;
+            cellId?: number | undefined;
             street?: string | undefined;
         };
     }>, "many">>;
@@ -482,6 +550,8 @@ export declare const HospitalityBusiness: z.ZodObject<{
         districtId: number;
         sectorId: number;
         provinceId: number;
+        villageId?: number | undefined;
+        cellId?: number | undefined;
         street?: string | undefined;
     };
     certificates: {
@@ -501,6 +571,8 @@ export declare const HospitalityBusiness: z.ZodObject<{
             districtId: number;
             sectorId: number;
             provinceId: number;
+            villageId?: number | undefined;
+            cellId?: number | undefined;
             street?: string | undefined;
         };
     }[];
@@ -518,6 +590,8 @@ export declare const HospitalityBusiness: z.ZodObject<{
         districtId: number;
         sectorId: number;
         provinceId: number;
+        villageId?: number | undefined;
+        cellId?: number | undefined;
         street?: string | undefined;
     };
     tourismLicenseNumber?: string | undefined;
@@ -543,6 +617,8 @@ export declare const HospitalityBusiness: z.ZodObject<{
             districtId: number;
             sectorId: number;
             provinceId: number;
+            villageId?: number | undefined;
+            cellId?: number | undefined;
             street?: string | undefined;
         };
     }[] | undefined;
@@ -555,6 +631,10 @@ export declare const ResidenceBusiness: z.ZodObject<{
         provinceId: z.ZodNumber;
         districtId: z.ZodNumber;
         sectorId: z.ZodNumber;
+        /** Fourth level. Collected to drive the village picker, never stored. */
+        cellId: z.ZodOptional<z.ZodNumber>;
+        /** Fifth level, and the finest one. Stored; see `orgs.village_id`. */
+        villageId: z.ZodOptional<z.ZodNumber>;
         /** Street line, e.g. "KG 11 Ave". Optional: not every plot has one. */
         street: z.ZodOptional<z.ZodString>;
     }, "strip", z.ZodTypeAny, {
@@ -562,12 +642,16 @@ export declare const ResidenceBusiness: z.ZodObject<{
         districtId: number;
         sectorId: number;
         provinceId: number;
+        villageId?: number | undefined;
+        cellId?: number | undefined;
         street?: string | undefined;
     }, {
         country: "RW";
         districtId: number;
         sectorId: number;
         provinceId: number;
+        villageId?: number | undefined;
+        cellId?: number | undefined;
         street?: string | undefined;
     }>;
     certificates: z.ZodDefault<z.ZodArray<z.ZodObject<{
@@ -617,6 +701,8 @@ export declare const ResidenceBusiness: z.ZodObject<{
         districtId: number;
         sectorId: number;
         provinceId: number;
+        villageId?: number | undefined;
+        cellId?: number | undefined;
         street?: string | undefined;
     };
     certificates: {
@@ -639,6 +725,8 @@ export declare const ResidenceBusiness: z.ZodObject<{
         districtId: number;
         sectorId: number;
         provinceId: number;
+        villageId?: number | undefined;
+        cellId?: number | undefined;
         street?: string | undefined;
     };
     certificates?: {
@@ -659,6 +747,10 @@ export declare const BusinessDetails: z.ZodEffects<z.ZodDiscriminatedUnion<"doma
         provinceId: z.ZodNumber;
         districtId: z.ZodNumber;
         sectorId: z.ZodNumber;
+        /** Fourth level. Collected to drive the village picker, never stored. */
+        cellId: z.ZodOptional<z.ZodNumber>;
+        /** Fifth level, and the finest one. Stored; see `orgs.village_id`. */
+        villageId: z.ZodOptional<z.ZodNumber>;
         /** Street line, e.g. "KG 11 Ave". Optional: not every plot has one. */
         street: z.ZodOptional<z.ZodString>;
     }, "strip", z.ZodTypeAny, {
@@ -666,12 +758,16 @@ export declare const BusinessDetails: z.ZodEffects<z.ZodDiscriminatedUnion<"doma
         districtId: number;
         sectorId: number;
         provinceId: number;
+        villageId?: number | undefined;
+        cellId?: number | undefined;
         street?: string | undefined;
     }, {
         country: "RW";
         districtId: number;
         sectorId: number;
         provinceId: number;
+        villageId?: number | undefined;
+        cellId?: number | undefined;
         street?: string | undefined;
     }>;
     certificates: z.ZodDefault<z.ZodArray<z.ZodObject<{
@@ -722,6 +818,10 @@ export declare const BusinessDetails: z.ZodEffects<z.ZodDiscriminatedUnion<"doma
             provinceId: z.ZodNumber;
             districtId: z.ZodNumber;
             sectorId: z.ZodNumber;
+            /** Fourth level. Collected to drive the village picker, never stored. */
+            cellId: z.ZodOptional<z.ZodNumber>;
+            /** Fifth level, and the finest one. Stored; see `orgs.village_id`. */
+            villageId: z.ZodOptional<z.ZodNumber>;
             /** Street line, e.g. "KG 11 Ave". Optional: not every plot has one. */
             street: z.ZodOptional<z.ZodString>;
         }, "strip", z.ZodTypeAny, {
@@ -729,12 +829,16 @@ export declare const BusinessDetails: z.ZodEffects<z.ZodDiscriminatedUnion<"doma
             districtId: number;
             sectorId: number;
             provinceId: number;
+            villageId?: number | undefined;
+            cellId?: number | undefined;
             street?: string | undefined;
         }, {
             country: "RW";
             districtId: number;
             sectorId: number;
             provinceId: number;
+            villageId?: number | undefined;
+            cellId?: number | undefined;
             street?: string | undefined;
         }>;
     }, "strip", z.ZodTypeAny, {
@@ -744,6 +848,8 @@ export declare const BusinessDetails: z.ZodEffects<z.ZodDiscriminatedUnion<"doma
             districtId: number;
             sectorId: number;
             provinceId: number;
+            villageId?: number | undefined;
+            cellId?: number | undefined;
             street?: string | undefined;
         };
     }, {
@@ -753,6 +859,8 @@ export declare const BusinessDetails: z.ZodEffects<z.ZodDiscriminatedUnion<"doma
             districtId: number;
             sectorId: number;
             provinceId: number;
+            villageId?: number | undefined;
+            cellId?: number | undefined;
             street?: string | undefined;
         };
     }>, "many">>;
@@ -768,6 +876,8 @@ export declare const BusinessDetails: z.ZodEffects<z.ZodDiscriminatedUnion<"doma
         districtId: number;
         sectorId: number;
         provinceId: number;
+        villageId?: number | undefined;
+        cellId?: number | undefined;
         street?: string | undefined;
     };
     certificates: {
@@ -787,6 +897,8 @@ export declare const BusinessDetails: z.ZodEffects<z.ZodDiscriminatedUnion<"doma
             districtId: number;
             sectorId: number;
             provinceId: number;
+            villageId?: number | undefined;
+            cellId?: number | undefined;
             street?: string | undefined;
         };
     }[];
@@ -804,6 +916,8 @@ export declare const BusinessDetails: z.ZodEffects<z.ZodDiscriminatedUnion<"doma
         districtId: number;
         sectorId: number;
         provinceId: number;
+        villageId?: number | undefined;
+        cellId?: number | undefined;
         street?: string | undefined;
     };
     tourismLicenseNumber?: string | undefined;
@@ -829,6 +943,8 @@ export declare const BusinessDetails: z.ZodEffects<z.ZodDiscriminatedUnion<"doma
             districtId: number;
             sectorId: number;
             provinceId: number;
+            villageId?: number | undefined;
+            cellId?: number | undefined;
             street?: string | undefined;
         };
     }[] | undefined;
@@ -839,6 +955,10 @@ export declare const BusinessDetails: z.ZodEffects<z.ZodDiscriminatedUnion<"doma
         provinceId: z.ZodNumber;
         districtId: z.ZodNumber;
         sectorId: z.ZodNumber;
+        /** Fourth level. Collected to drive the village picker, never stored. */
+        cellId: z.ZodOptional<z.ZodNumber>;
+        /** Fifth level, and the finest one. Stored; see `orgs.village_id`. */
+        villageId: z.ZodOptional<z.ZodNumber>;
         /** Street line, e.g. "KG 11 Ave". Optional: not every plot has one. */
         street: z.ZodOptional<z.ZodString>;
     }, "strip", z.ZodTypeAny, {
@@ -846,12 +966,16 @@ export declare const BusinessDetails: z.ZodEffects<z.ZodDiscriminatedUnion<"doma
         districtId: number;
         sectorId: number;
         provinceId: number;
+        villageId?: number | undefined;
+        cellId?: number | undefined;
         street?: string | undefined;
     }, {
         country: "RW";
         districtId: number;
         sectorId: number;
         provinceId: number;
+        villageId?: number | undefined;
+        cellId?: number | undefined;
         street?: string | undefined;
     }>;
     certificates: z.ZodDefault<z.ZodArray<z.ZodObject<{
@@ -901,6 +1025,8 @@ export declare const BusinessDetails: z.ZodEffects<z.ZodDiscriminatedUnion<"doma
         districtId: number;
         sectorId: number;
         provinceId: number;
+        villageId?: number | undefined;
+        cellId?: number | undefined;
         street?: string | undefined;
     };
     certificates: {
@@ -923,6 +1049,8 @@ export declare const BusinessDetails: z.ZodEffects<z.ZodDiscriminatedUnion<"doma
         districtId: number;
         sectorId: number;
         provinceId: number;
+        villageId?: number | undefined;
+        cellId?: number | undefined;
         street?: string | undefined;
     };
     certificates?: {
@@ -947,6 +1075,8 @@ export declare const BusinessDetails: z.ZodEffects<z.ZodDiscriminatedUnion<"doma
         districtId: number;
         sectorId: number;
         provinceId: number;
+        villageId?: number | undefined;
+        cellId?: number | undefined;
         street?: string | undefined;
     };
     certificates: {
@@ -966,6 +1096,8 @@ export declare const BusinessDetails: z.ZodEffects<z.ZodDiscriminatedUnion<"doma
             districtId: number;
             sectorId: number;
             provinceId: number;
+            villageId?: number | undefined;
+            cellId?: number | undefined;
             street?: string | undefined;
         };
     }[];
@@ -983,6 +1115,8 @@ export declare const BusinessDetails: z.ZodEffects<z.ZodDiscriminatedUnion<"doma
         districtId: number;
         sectorId: number;
         provinceId: number;
+        villageId?: number | undefined;
+        cellId?: number | undefined;
         street?: string | undefined;
     };
     certificates: {
@@ -1005,6 +1139,8 @@ export declare const BusinessDetails: z.ZodEffects<z.ZodDiscriminatedUnion<"doma
         districtId: number;
         sectorId: number;
         provinceId: number;
+        villageId?: number | undefined;
+        cellId?: number | undefined;
         street?: string | undefined;
     };
     tourismLicenseNumber?: string | undefined;
@@ -1030,6 +1166,8 @@ export declare const BusinessDetails: z.ZodEffects<z.ZodDiscriminatedUnion<"doma
             districtId: number;
             sectorId: number;
             provinceId: number;
+            villageId?: number | undefined;
+            cellId?: number | undefined;
             street?: string | undefined;
         };
     }[] | undefined;
@@ -1043,6 +1181,8 @@ export declare const BusinessDetails: z.ZodEffects<z.ZodDiscriminatedUnion<"doma
         districtId: number;
         sectorId: number;
         provinceId: number;
+        villageId?: number | undefined;
+        cellId?: number | undefined;
         street?: string | undefined;
     };
     certificates?: {
@@ -1127,6 +1267,10 @@ export declare const CreateRegistrationRequest: z.ZodEffects<z.ZodObject<{
             provinceId: z.ZodNumber;
             districtId: z.ZodNumber;
             sectorId: z.ZodNumber;
+            /** Fourth level. Collected to drive the village picker, never stored. */
+            cellId: z.ZodOptional<z.ZodNumber>;
+            /** Fifth level, and the finest one. Stored; see `orgs.village_id`. */
+            villageId: z.ZodOptional<z.ZodNumber>;
             /** Street line, e.g. "KG 11 Ave". Optional: not every plot has one. */
             street: z.ZodOptional<z.ZodString>;
         }, "strip", z.ZodTypeAny, {
@@ -1134,12 +1278,16 @@ export declare const CreateRegistrationRequest: z.ZodEffects<z.ZodObject<{
             districtId: number;
             sectorId: number;
             provinceId: number;
+            villageId?: number | undefined;
+            cellId?: number | undefined;
             street?: string | undefined;
         }, {
             country: "RW";
             districtId: number;
             sectorId: number;
             provinceId: number;
+            villageId?: number | undefined;
+            cellId?: number | undefined;
             street?: string | undefined;
         }>, z.ZodObject<{
             country: z.ZodEffects<z.ZodEffects<z.ZodString, string, string>, string, string>;
@@ -1170,6 +1318,8 @@ export declare const CreateRegistrationRequest: z.ZodEffects<z.ZodObject<{
             districtId: number;
             sectorId: number;
             provinceId: number;
+            villageId?: number | undefined;
+            cellId?: number | undefined;
             street?: string | undefined;
         } | {
             country: string;
@@ -1194,6 +1344,8 @@ export declare const CreateRegistrationRequest: z.ZodEffects<z.ZodObject<{
             districtId: number;
             sectorId: number;
             provinceId: number;
+            villageId?: number | undefined;
+            cellId?: number | undefined;
             street?: string | undefined;
         } | {
             country: string;
@@ -1208,6 +1360,10 @@ export declare const CreateRegistrationRequest: z.ZodEffects<z.ZodObject<{
             provinceId: z.ZodNumber;
             districtId: z.ZodNumber;
             sectorId: z.ZodNumber;
+            /** Fourth level. Collected to drive the village picker, never stored. */
+            cellId: z.ZodOptional<z.ZodNumber>;
+            /** Fifth level, and the finest one. Stored; see `orgs.village_id`. */
+            villageId: z.ZodOptional<z.ZodNumber>;
             /** Street line, e.g. "KG 11 Ave". Optional: not every plot has one. */
             street: z.ZodOptional<z.ZodString>;
         }, "strip", z.ZodTypeAny, {
@@ -1215,12 +1371,16 @@ export declare const CreateRegistrationRequest: z.ZodEffects<z.ZodObject<{
             districtId: number;
             sectorId: number;
             provinceId: number;
+            villageId?: number | undefined;
+            cellId?: number | undefined;
             street?: string | undefined;
         }, {
             country: "RW";
             districtId: number;
             sectorId: number;
             provinceId: number;
+            villageId?: number | undefined;
+            cellId?: number | undefined;
             street?: string | undefined;
         }>;
         certificates: z.ZodDefault<z.ZodArray<z.ZodObject<{
@@ -1271,6 +1431,10 @@ export declare const CreateRegistrationRequest: z.ZodEffects<z.ZodObject<{
                 provinceId: z.ZodNumber;
                 districtId: z.ZodNumber;
                 sectorId: z.ZodNumber;
+                /** Fourth level. Collected to drive the village picker, never stored. */
+                cellId: z.ZodOptional<z.ZodNumber>;
+                /** Fifth level, and the finest one. Stored; see `orgs.village_id`. */
+                villageId: z.ZodOptional<z.ZodNumber>;
                 /** Street line, e.g. "KG 11 Ave". Optional: not every plot has one. */
                 street: z.ZodOptional<z.ZodString>;
             }, "strip", z.ZodTypeAny, {
@@ -1278,12 +1442,16 @@ export declare const CreateRegistrationRequest: z.ZodEffects<z.ZodObject<{
                 districtId: number;
                 sectorId: number;
                 provinceId: number;
+                villageId?: number | undefined;
+                cellId?: number | undefined;
                 street?: string | undefined;
             }, {
                 country: "RW";
                 districtId: number;
                 sectorId: number;
                 provinceId: number;
+                villageId?: number | undefined;
+                cellId?: number | undefined;
                 street?: string | undefined;
             }>;
         }, "strip", z.ZodTypeAny, {
@@ -1293,6 +1461,8 @@ export declare const CreateRegistrationRequest: z.ZodEffects<z.ZodObject<{
                 districtId: number;
                 sectorId: number;
                 provinceId: number;
+                villageId?: number | undefined;
+                cellId?: number | undefined;
                 street?: string | undefined;
             };
         }, {
@@ -1302,6 +1472,8 @@ export declare const CreateRegistrationRequest: z.ZodEffects<z.ZodObject<{
                 districtId: number;
                 sectorId: number;
                 provinceId: number;
+                villageId?: number | undefined;
+                cellId?: number | undefined;
                 street?: string | undefined;
             };
         }>, "many">>;
@@ -1317,6 +1489,8 @@ export declare const CreateRegistrationRequest: z.ZodEffects<z.ZodObject<{
             districtId: number;
             sectorId: number;
             provinceId: number;
+            villageId?: number | undefined;
+            cellId?: number | undefined;
             street?: string | undefined;
         };
         certificates: {
@@ -1336,6 +1510,8 @@ export declare const CreateRegistrationRequest: z.ZodEffects<z.ZodObject<{
                 districtId: number;
                 sectorId: number;
                 provinceId: number;
+                villageId?: number | undefined;
+                cellId?: number | undefined;
                 street?: string | undefined;
             };
         }[];
@@ -1353,6 +1529,8 @@ export declare const CreateRegistrationRequest: z.ZodEffects<z.ZodObject<{
             districtId: number;
             sectorId: number;
             provinceId: number;
+            villageId?: number | undefined;
+            cellId?: number | undefined;
             street?: string | undefined;
         };
         tourismLicenseNumber?: string | undefined;
@@ -1378,6 +1556,8 @@ export declare const CreateRegistrationRequest: z.ZodEffects<z.ZodObject<{
                 districtId: number;
                 sectorId: number;
                 provinceId: number;
+                villageId?: number | undefined;
+                cellId?: number | undefined;
                 street?: string | undefined;
             };
         }[] | undefined;
@@ -1388,6 +1568,10 @@ export declare const CreateRegistrationRequest: z.ZodEffects<z.ZodObject<{
             provinceId: z.ZodNumber;
             districtId: z.ZodNumber;
             sectorId: z.ZodNumber;
+            /** Fourth level. Collected to drive the village picker, never stored. */
+            cellId: z.ZodOptional<z.ZodNumber>;
+            /** Fifth level, and the finest one. Stored; see `orgs.village_id`. */
+            villageId: z.ZodOptional<z.ZodNumber>;
             /** Street line, e.g. "KG 11 Ave". Optional: not every plot has one. */
             street: z.ZodOptional<z.ZodString>;
         }, "strip", z.ZodTypeAny, {
@@ -1395,12 +1579,16 @@ export declare const CreateRegistrationRequest: z.ZodEffects<z.ZodObject<{
             districtId: number;
             sectorId: number;
             provinceId: number;
+            villageId?: number | undefined;
+            cellId?: number | undefined;
             street?: string | undefined;
         }, {
             country: "RW";
             districtId: number;
             sectorId: number;
             provinceId: number;
+            villageId?: number | undefined;
+            cellId?: number | undefined;
             street?: string | undefined;
         }>;
         certificates: z.ZodDefault<z.ZodArray<z.ZodObject<{
@@ -1450,6 +1638,8 @@ export declare const CreateRegistrationRequest: z.ZodEffects<z.ZodObject<{
             districtId: number;
             sectorId: number;
             provinceId: number;
+            villageId?: number | undefined;
+            cellId?: number | undefined;
             street?: string | undefined;
         };
         certificates: {
@@ -1472,6 +1662,8 @@ export declare const CreateRegistrationRequest: z.ZodEffects<z.ZodObject<{
             districtId: number;
             sectorId: number;
             provinceId: number;
+            villageId?: number | undefined;
+            cellId?: number | undefined;
             street?: string | undefined;
         };
         certificates?: {
@@ -1496,6 +1688,8 @@ export declare const CreateRegistrationRequest: z.ZodEffects<z.ZodObject<{
             districtId: number;
             sectorId: number;
             provinceId: number;
+            villageId?: number | undefined;
+            cellId?: number | undefined;
             street?: string | undefined;
         };
         certificates: {
@@ -1515,6 +1709,8 @@ export declare const CreateRegistrationRequest: z.ZodEffects<z.ZodObject<{
                 districtId: number;
                 sectorId: number;
                 provinceId: number;
+                villageId?: number | undefined;
+                cellId?: number | undefined;
                 street?: string | undefined;
             };
         }[];
@@ -1532,6 +1728,8 @@ export declare const CreateRegistrationRequest: z.ZodEffects<z.ZodObject<{
             districtId: number;
             sectorId: number;
             provinceId: number;
+            villageId?: number | undefined;
+            cellId?: number | undefined;
             street?: string | undefined;
         };
         certificates: {
@@ -1554,6 +1752,8 @@ export declare const CreateRegistrationRequest: z.ZodEffects<z.ZodObject<{
             districtId: number;
             sectorId: number;
             provinceId: number;
+            villageId?: number | undefined;
+            cellId?: number | undefined;
             street?: string | undefined;
         };
         tourismLicenseNumber?: string | undefined;
@@ -1579,6 +1779,8 @@ export declare const CreateRegistrationRequest: z.ZodEffects<z.ZodObject<{
                 districtId: number;
                 sectorId: number;
                 provinceId: number;
+                villageId?: number | undefined;
+                cellId?: number | undefined;
                 street?: string | undefined;
             };
         }[] | undefined;
@@ -1592,6 +1794,8 @@ export declare const CreateRegistrationRequest: z.ZodEffects<z.ZodObject<{
             districtId: number;
             sectorId: number;
             provinceId: number;
+            villageId?: number | undefined;
+            cellId?: number | undefined;
             street?: string | undefined;
         };
         certificates?: {
@@ -1632,6 +1836,8 @@ export declare const CreateRegistrationRequest: z.ZodEffects<z.ZodObject<{
             districtId: number;
             sectorId: number;
             provinceId: number;
+            villageId?: number | undefined;
+            cellId?: number | undefined;
             street?: string | undefined;
         };
         certificates: {
@@ -1651,6 +1857,8 @@ export declare const CreateRegistrationRequest: z.ZodEffects<z.ZodObject<{
                 districtId: number;
                 sectorId: number;
                 provinceId: number;
+                villageId?: number | undefined;
+                cellId?: number | undefined;
                 street?: string | undefined;
             };
         }[];
@@ -1668,6 +1876,8 @@ export declare const CreateRegistrationRequest: z.ZodEffects<z.ZodObject<{
             districtId: number;
             sectorId: number;
             provinceId: number;
+            villageId?: number | undefined;
+            cellId?: number | undefined;
             street?: string | undefined;
         };
         certificates: {
@@ -1701,6 +1911,8 @@ export declare const CreateRegistrationRequest: z.ZodEffects<z.ZodObject<{
             districtId: number;
             sectorId: number;
             provinceId: number;
+            villageId?: number | undefined;
+            cellId?: number | undefined;
             street?: string | undefined;
         } | {
             country: string;
@@ -1724,6 +1936,8 @@ export declare const CreateRegistrationRequest: z.ZodEffects<z.ZodObject<{
             districtId: number;
             sectorId: number;
             provinceId: number;
+            villageId?: number | undefined;
+            cellId?: number | undefined;
             street?: string | undefined;
         };
         tourismLicenseNumber?: string | undefined;
@@ -1749,6 +1963,8 @@ export declare const CreateRegistrationRequest: z.ZodEffects<z.ZodObject<{
                 districtId: number;
                 sectorId: number;
                 provinceId: number;
+                villageId?: number | undefined;
+                cellId?: number | undefined;
                 street?: string | undefined;
             };
         }[] | undefined;
@@ -1762,6 +1978,8 @@ export declare const CreateRegistrationRequest: z.ZodEffects<z.ZodObject<{
             districtId: number;
             sectorId: number;
             provinceId: number;
+            villageId?: number | undefined;
+            cellId?: number | undefined;
             street?: string | undefined;
         };
         certificates?: {
@@ -1794,6 +2012,8 @@ export declare const CreateRegistrationRequest: z.ZodEffects<z.ZodObject<{
             districtId: number;
             sectorId: number;
             provinceId: number;
+            villageId?: number | undefined;
+            cellId?: number | undefined;
             street?: string | undefined;
         } | {
             country: string;
@@ -1820,6 +2040,8 @@ export declare const CreateRegistrationRequest: z.ZodEffects<z.ZodObject<{
             districtId: number;
             sectorId: number;
             provinceId: number;
+            villageId?: number | undefined;
+            cellId?: number | undefined;
             street?: string | undefined;
         };
         certificates: {
@@ -1839,6 +2061,8 @@ export declare const CreateRegistrationRequest: z.ZodEffects<z.ZodObject<{
                 districtId: number;
                 sectorId: number;
                 provinceId: number;
+                villageId?: number | undefined;
+                cellId?: number | undefined;
                 street?: string | undefined;
             };
         }[];
@@ -1856,6 +2080,8 @@ export declare const CreateRegistrationRequest: z.ZodEffects<z.ZodObject<{
             districtId: number;
             sectorId: number;
             provinceId: number;
+            villageId?: number | undefined;
+            cellId?: number | undefined;
             street?: string | undefined;
         };
         certificates: {
@@ -1889,6 +2115,8 @@ export declare const CreateRegistrationRequest: z.ZodEffects<z.ZodObject<{
             districtId: number;
             sectorId: number;
             provinceId: number;
+            villageId?: number | undefined;
+            cellId?: number | undefined;
             street?: string | undefined;
         } | {
             country: string;
@@ -1912,6 +2140,8 @@ export declare const CreateRegistrationRequest: z.ZodEffects<z.ZodObject<{
             districtId: number;
             sectorId: number;
             provinceId: number;
+            villageId?: number | undefined;
+            cellId?: number | undefined;
             street?: string | undefined;
         };
         tourismLicenseNumber?: string | undefined;
@@ -1937,6 +2167,8 @@ export declare const CreateRegistrationRequest: z.ZodEffects<z.ZodObject<{
                 districtId: number;
                 sectorId: number;
                 provinceId: number;
+                villageId?: number | undefined;
+                cellId?: number | undefined;
                 street?: string | undefined;
             };
         }[] | undefined;
@@ -1950,6 +2182,8 @@ export declare const CreateRegistrationRequest: z.ZodEffects<z.ZodObject<{
             districtId: number;
             sectorId: number;
             provinceId: number;
+            villageId?: number | undefined;
+            cellId?: number | undefined;
             street?: string | undefined;
         };
         certificates?: {
@@ -1982,6 +2216,8 @@ export declare const CreateRegistrationRequest: z.ZodEffects<z.ZodObject<{
             districtId: number;
             sectorId: number;
             provinceId: number;
+            villageId?: number | undefined;
+            cellId?: number | undefined;
             street?: string | undefined;
         } | {
             country: string;
@@ -2476,6 +2712,10 @@ export declare const MyProfile: z.ZodObject<{
         provinceId: z.ZodNumber;
         districtId: z.ZodNumber;
         sectorId: z.ZodNumber;
+        /** Fourth level. Collected to drive the village picker, never stored. */
+        cellId: z.ZodOptional<z.ZodNumber>;
+        /** Fifth level, and the finest one. Stored; see `orgs.village_id`. */
+        villageId: z.ZodOptional<z.ZodNumber>;
         /** Street line, e.g. "KG 11 Ave". Optional: not every plot has one. */
         street: z.ZodOptional<z.ZodString>;
     }, "strip", z.ZodTypeAny, {
@@ -2483,12 +2723,16 @@ export declare const MyProfile: z.ZodObject<{
         districtId: number;
         sectorId: number;
         provinceId: number;
+        villageId?: number | undefined;
+        cellId?: number | undefined;
         street?: string | undefined;
     }, {
         country: "RW";
         districtId: number;
         sectorId: number;
         provinceId: number;
+        villageId?: number | undefined;
+        cellId?: number | undefined;
         street?: string | undefined;
     }>, z.ZodObject<{
         country: z.ZodEffects<z.ZodEffects<z.ZodString, string, string>, string, string>;
@@ -2524,6 +2768,8 @@ export declare const MyProfile: z.ZodObject<{
         districtId: number;
         sectorId: number;
         provinceId: number;
+        villageId?: number | undefined;
+        cellId?: number | undefined;
         street?: string | undefined;
     } | {
         country: string;
@@ -2545,6 +2791,8 @@ export declare const MyProfile: z.ZodObject<{
         districtId: number;
         sectorId: number;
         provinceId: number;
+        villageId?: number | undefined;
+        cellId?: number | undefined;
         street?: string | undefined;
     } | {
         country: string;
@@ -2606,6 +2854,10 @@ export declare const CreateBrokerRegistrationRequest: z.ZodObject<{
             provinceId: z.ZodNumber;
             districtId: z.ZodNumber;
             sectorId: z.ZodNumber;
+            /** Fourth level. Collected to drive the village picker, never stored. */
+            cellId: z.ZodOptional<z.ZodNumber>;
+            /** Fifth level, and the finest one. Stored; see `orgs.village_id`. */
+            villageId: z.ZodOptional<z.ZodNumber>;
             /** Street line, e.g. "KG 11 Ave". Optional: not every plot has one. */
             street: z.ZodOptional<z.ZodString>;
         }, "strip", z.ZodTypeAny, {
@@ -2613,12 +2865,16 @@ export declare const CreateBrokerRegistrationRequest: z.ZodObject<{
             districtId: number;
             sectorId: number;
             provinceId: number;
+            villageId?: number | undefined;
+            cellId?: number | undefined;
             street?: string | undefined;
         }, {
             country: "RW";
             districtId: number;
             sectorId: number;
             provinceId: number;
+            villageId?: number | undefined;
+            cellId?: number | undefined;
             street?: string | undefined;
         }>, z.ZodObject<{
             country: z.ZodEffects<z.ZodEffects<z.ZodString, string, string>, string, string>;
@@ -2649,6 +2905,8 @@ export declare const CreateBrokerRegistrationRequest: z.ZodObject<{
             districtId: number;
             sectorId: number;
             provinceId: number;
+            villageId?: number | undefined;
+            cellId?: number | undefined;
             street?: string | undefined;
         } | {
             country: string;
@@ -2673,6 +2931,8 @@ export declare const CreateBrokerRegistrationRequest: z.ZodObject<{
             districtId: number;
             sectorId: number;
             provinceId: number;
+            villageId?: number | undefined;
+            cellId?: number | undefined;
             street?: string | undefined;
         } | {
             country: string;
@@ -2699,6 +2959,8 @@ export declare const CreateBrokerRegistrationRequest: z.ZodObject<{
             districtId: number;
             sectorId: number;
             provinceId: number;
+            villageId?: number | undefined;
+            cellId?: number | undefined;
             street?: string | undefined;
         } | {
             country: string;
@@ -2725,6 +2987,8 @@ export declare const CreateBrokerRegistrationRequest: z.ZodObject<{
             districtId: number;
             sectorId: number;
             provinceId: number;
+            villageId?: number | undefined;
+            cellId?: number | undefined;
             street?: string | undefined;
         } | {
             country: string;

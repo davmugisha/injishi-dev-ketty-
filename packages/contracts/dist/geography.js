@@ -1,6 +1,6 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.SectorListQuery = exports.SectorListResponse = exports.DistrictListQuery = exports.DistrictListResponse = exports.ProvinceListResponse = exports.Village = exports.Cell = exports.Sector = exports.District = exports.Province = void 0;
+exports.VillageListQuery = exports.VillageListResponse = exports.CellListQuery = exports.CellListResponse = exports.SectorListQuery = exports.SectorListResponse = exports.DistrictListQuery = exports.DistrictListResponse = exports.ProvinceListResponse = exports.Village = exports.Cell = exports.Sector = exports.District = exports.Province = void 0;
 const zod_1 = require("zod");
 /**
  * Rwandan Province -> District -> Sector -> Cell -> Village hierarchy.
@@ -52,5 +52,28 @@ exports.SectorListResponse = zod_1.z.array(exports.Sector);
  */
 exports.SectorListQuery = zod_1.z.object({
     districtId: zod_1.z.coerce.number().int().positive().optional(),
+});
+exports.CellListResponse = zod_1.z.array(exports.Cell);
+/**
+ * Query params for GET /api/v1/geography/cells (optionally scoped).
+ *
+ * Optional like the two above it, for the same reason: the address picker
+ * always narrows by sector, and a caller listing a whole district's cells
+ * should not have to loop over its sectors to do it.
+ */
+exports.CellListQuery = zod_1.z.object({
+    sectorId: zod_1.z.coerce.number().int().positive().optional(),
+});
+exports.VillageListResponse = zod_1.z.array(exports.Village);
+/**
+ * Query params for GET /api/v1/geography/villages (optionally scoped).
+ *
+ * The one level where the scope is worth thinking about: there are ~14,800
+ * villages, so an unscoped list is a real payload. It stays optional for
+ * symmetry and for the rare full export, and every client the wizard owns
+ * passes a cell.
+ */
+exports.VillageListQuery = zod_1.z.object({
+    cellId: zod_1.z.coerce.number().int().positive().optional(),
 });
 //# sourceMappingURL=geography.js.map

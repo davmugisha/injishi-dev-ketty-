@@ -530,12 +530,13 @@ function PersonalForm({
       <div className="rounded-card border border-border p-4">
         <p className="text-sm font-semibold">Where you live</p>
         <p className="mt-0.5 text-xs text-muted-foreground">
-          Rwanda uses Province, District and Sector. Anywhere else, just write the
-          address.
+          Rwanda uses Province, District, Sector, Cell and Village — the last two
+          are optional. Anywhere else, just write the address.
         </p>
         <div className="mt-4">
           <AddressPicker
             idPrefix="you"
+            collectVillage
             draft={draft.address}
             onChange={(address) => onChange({ ...draft, address })}
             errors={errors}

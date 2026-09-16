@@ -20,6 +20,7 @@
     "typecheck": "pnpm -r typecheck",
     "lint": "pnpm -r lint",
     "test": "pnpm -r --workspace-concurrency=1 test",
+    "test:ci": "pnpm -r --workspace-concurrency=1 --filter=!@injishi/mobile test",
     "build": "pnpm --filter @injishi/web --filter @injishi/app --filter @injishi/admin --filter @injishi/api build",
     "check:manifests": "node scripts/check-workspace-manifests.mjs",
     "lint:ratchet": "node scripts/lint-ratchet.mjs",

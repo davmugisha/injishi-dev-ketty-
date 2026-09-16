@@ -3091,6 +3091,12 @@ export declare const OperatorTeamMember: z.ZodObject<{
     /** `active` or `removed`. A removed member keeps their history. */
     status: z.ZodString;
     joinedAt: z.ZodString;
+    /**
+     * The branches this member is limited to (ADR-054 AC-T1). `null` means
+     * every branch, which an owner always is. Archived branches a member was
+     * limited to stay listed, so the screen can say why one reads as retired.
+     */
+    branchIds: z.ZodNullable<z.ZodArray<z.ZodString, "many">>;
 }, "strip", z.ZodTypeAny, {
     status: string;
     userId: string;
@@ -3098,6 +3104,7 @@ export declare const OperatorTeamMember: z.ZodObject<{
     email: string | null;
     orgRole: "owner" | "manager" | "receptionist" | "housekeeper";
     joinedAt: string;
+    branchIds: string[] | null;
 }, {
     status: string;
     userId: string;
@@ -3105,8 +3112,36 @@ export declare const OperatorTeamMember: z.ZodObject<{
     email: string | null;
     orgRole: "owner" | "manager" | "receptionist" | "housekeeper";
     joinedAt: string;
+    branchIds: string[] | null;
 }>;
 export type OperatorTeamMember = z.infer<typeof OperatorTeamMember>;
+/**
+ * Which branches a member covers, as a request carries it (ADR-054 AC-T1).
+ *
+ * `null` means every branch; a list means only those. An empty list is not
+ * refused here but by the service, with the other AC-T1 refusals, because
+ * "no branch at all" is a rule about the business, not the shape: it answers
+ * 422 beside "that branch is archived" rather than 400 beside a malformed id.
+ */
+export declare const MemberBranchIds: z.ZodNullable<z.ZodArray<z.ZodString, "many">>;
+export type MemberBranchIds = z.infer<typeof MemberBranchIds>;
+/** `PUT /api/v1/ops/team/:userId/branches`. */
+export declare const SetMemberBranchesRequest: z.ZodObject<{
+    branchIds: z.ZodNullable<z.ZodArray<z.ZodString, "many">>;
+}, "strip", z.ZodTypeAny, {
+    branchIds: string[] | null;
+}, {
+    branchIds: string[] | null;
+}>;
+export type SetMemberBranchesRequest = z.infer<typeof SetMemberBranchesRequest>;
+/** The words a member's branch refusal carries (ADR-054 AC-T1), one per rule. */
+export declare const MEMBER_BRANCHES_REFUSAL: {
+    readonly owner: "An owner always covers every branch.";
+    readonly empty: "Choose at least one branch, or every branch.";
+    readonly foreign: "That branch does not belong to this business.";
+    readonly archived: "That branch is archived. Restore it first, or choose another.";
+    readonly residence: "A residence business has no branches to limit.";
+};
 export declare const OperatorTeamList: z.ZodObject<{
     members: z.ZodArray<z.ZodObject<{
         userId: z.ZodString;
@@ -3116,6 +3151,12 @@ export declare const OperatorTeamList: z.ZodObject<{
         /** `active` or `removed`. A removed member keeps their history. */
         status: z.ZodString;
         joinedAt: z.ZodString;
+        /**
+         * The branches this member is limited to (ADR-054 AC-T1). `null` means
+         * every branch, which an owner always is. Archived branches a member was
+         * limited to stay listed, so the screen can say why one reads as retired.
+         */
+        branchIds: z.ZodNullable<z.ZodArray<z.ZodString, "many">>;
     }, "strip", z.ZodTypeAny, {
         status: string;
         userId: string;
@@ -3123,6 +3164,7 @@ export declare const OperatorTeamList: z.ZodObject<{
         email: string | null;
         orgRole: "owner" | "manager" | "receptionist" | "housekeeper";
         joinedAt: string;
+        branchIds: string[] | null;
     }, {
         status: string;
         userId: string;
@@ -3130,6 +3172,7 @@ export declare const OperatorTeamList: z.ZodObject<{
         email: string | null;
         orgRole: "owner" | "manager" | "receptionist" | "housekeeper";
         joinedAt: string;
+        branchIds: string[] | null;
     }>, "many">;
 }, "strip", z.ZodTypeAny, {
     members: {
@@ -3139,6 +3182,7 @@ export declare const OperatorTeamList: z.ZodObject<{
         email: string | null;
         orgRole: "owner" | "manager" | "receptionist" | "housekeeper";
         joinedAt: string;
+        branchIds: string[] | null;
     }[];
 }, {
     members: {
@@ -3148,6 +3192,7 @@ export declare const OperatorTeamList: z.ZodObject<{
         email: string | null;
         orgRole: "owner" | "manager" | "receptionist" | "housekeeper";
         joinedAt: string;
+        branchIds: string[] | null;
     }[];
 }>;
 export type OperatorTeamList = z.infer<typeof OperatorTeamList>;
@@ -3165,12 +3210,16 @@ export declare const ORG_ROLE_LABEL: Readonly<Record<OrgRole, string>>;
 export declare const InviteStaffRequest: z.ZodObject<{
     email: z.ZodString;
     orgRole: z.ZodEnum<["manager", "receptionist", "housekeeper"]>;
+    /** The branches the invitee will cover; absent or null is every branch (ADR-054). */
+    branchIds: z.ZodDefault<z.ZodNullable<z.ZodArray<z.ZodString, "many">>>;
 }, "strip", z.ZodTypeAny, {
     email: string;
     orgRole: "manager" | "receptionist" | "housekeeper";
+    branchIds: string[] | null;
 }, {
     email: string;
     orgRole: "manager" | "receptionist" | "housekeeper";
+    branchIds?: string[] | null | undefined;
 }>;
 export type InviteStaffRequest = z.infer<typeof InviteStaffRequest>;
 export declare const StaffInvitationStatus: z.ZodEnum<["sent", "accepted", "revoked", "expired"]>;
@@ -3190,6 +3239,8 @@ export declare const OperatorStaffInvitation: z.ZodObject<{
     status: z.ZodEnum<["sent", "accepted", "revoked", "expired"]>;
     expiresAt: z.ZodString;
     createdAt: z.ZodString;
+    /** The branches the invitee will cover; null is every branch (ADR-054). */
+    branchIds: z.ZodNullable<z.ZodArray<z.ZodString, "many">>;
 }, "strip", z.ZodTypeAny, {
     status: "expired" | "sent" | "accepted" | "revoked";
     id: string;
@@ -3197,6 +3248,7 @@ export declare const OperatorStaffInvitation: z.ZodObject<{
     email: string;
     orgRole: "owner" | "manager" | "receptionist" | "housekeeper";
     expiresAt: string;
+    branchIds: string[] | null;
 }, {
     status: "expired" | "sent" | "accepted" | "revoked";
     id: string;
@@ -3204,6 +3256,7 @@ export declare const OperatorStaffInvitation: z.ZodObject<{
     email: string;
     orgRole: "owner" | "manager" | "receptionist" | "housekeeper";
     expiresAt: string;
+    branchIds: string[] | null;
 }>;
 export type OperatorStaffInvitation = z.infer<typeof OperatorStaffInvitation>;
 export declare const OperatorStaffInvitationList: z.ZodObject<{
@@ -3215,6 +3268,8 @@ export declare const OperatorStaffInvitationList: z.ZodObject<{
         status: z.ZodEnum<["sent", "accepted", "revoked", "expired"]>;
         expiresAt: z.ZodString;
         createdAt: z.ZodString;
+        /** The branches the invitee will cover; null is every branch (ADR-054). */
+        branchIds: z.ZodNullable<z.ZodArray<z.ZodString, "many">>;
     }, "strip", z.ZodTypeAny, {
         status: "expired" | "sent" | "accepted" | "revoked";
         id: string;
@@ -3222,6 +3277,7 @@ export declare const OperatorStaffInvitationList: z.ZodObject<{
         email: string;
         orgRole: "owner" | "manager" | "receptionist" | "housekeeper";
         expiresAt: string;
+        branchIds: string[] | null;
     }, {
         status: "expired" | "sent" | "accepted" | "revoked";
         id: string;
@@ -3229,6 +3285,7 @@ export declare const OperatorStaffInvitationList: z.ZodObject<{
         email: string;
         orgRole: "owner" | "manager" | "receptionist" | "housekeeper";
         expiresAt: string;
+        branchIds: string[] | null;
     }>, "many">;
 }, "strip", z.ZodTypeAny, {
     invitations: {
@@ -3238,6 +3295,7 @@ export declare const OperatorStaffInvitationList: z.ZodObject<{
         email: string;
         orgRole: "owner" | "manager" | "receptionist" | "housekeeper";
         expiresAt: string;
+        branchIds: string[] | null;
     }[];
 }, {
     invitations: {
@@ -3247,6 +3305,7 @@ export declare const OperatorStaffInvitationList: z.ZodObject<{
         email: string;
         orgRole: "owner" | "manager" | "receptionist" | "housekeeper";
         expiresAt: string;
+        branchIds: string[] | null;
     }[];
 }>;
 export type OperatorStaffInvitationList = z.infer<typeof OperatorStaffInvitationList>;

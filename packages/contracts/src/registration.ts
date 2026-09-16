@@ -130,13 +130,25 @@ export type IdentityDocumentInput = z.infer<typeof IdentityDocumentInput>;
  *
  * Province is collected but not stored: `sectors` already resolves upward to
  * its district and province, and storing a fourth copy invites the four to
- * disagree. It is on the wire so the picker can validate its own cascade.
+ * disagree. It is on the wire so the picker can validate its own cascade. Cell
+ * is the same kind of field one level down — `villages` resolves upward to its
+ * cell — so `village_id` is the only one of the two that any table holds.
+ *
+ * Cell and village are OPTIONAL, and that is a product decision, not an
+ * oversight: village is the level that actually locates a plot in Rwanda, and
+ * it is also the level a registrant is most likely not to know by name. A
+ * registration must not be blocked on it. Optional means absent, never zero:
+ * the positive bound below refuses `0` rather than storing it as an id.
  */
 export const RwandanAddress = z.object({
     country: z.literal("RW"),
     provinceId: z.number().int().positive("Choose a province."),
     districtId: z.number().int().positive("Choose a district."),
     sectorId: z.number().int().positive("Choose a sector."),
+    /** Fourth level. Collected to drive the village picker, never stored. */
+    cellId: z.number().int().positive("Choose a cell.").optional(),
+    /** Fifth level, and the finest one. Stored; see `orgs.village_id`. */
+    villageId: z.number().int().positive("Choose a village.").optional(),
     /** Street line, e.g. "KG 11 Ave". Optional: not every plot has one. */
     street: z.string().trim().max(200).optional(),
 });

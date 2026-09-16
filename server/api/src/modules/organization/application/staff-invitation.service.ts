@@ -1,6 +1,7 @@
 import {
   type AcceptedStaffInvitation,
   type InviteStaffRequest,
+  MEMBER_BRANCHES_REFUSAL,
   ORG_ROLE_LABEL,
   type OperatorStaffInvitation,
   type StaffInvitationPreview,
@@ -12,6 +13,7 @@ import {
   ForbiddenException,
   Injectable,
   NotFoundException,
+  UnprocessableEntityException,
 } from '@nestjs/common';
 
 import {
@@ -24,6 +26,7 @@ import {
   StaffInvitationRepository,
   type StaffInvitationRow,
 } from '../infrastructure/staff-invitation.repository';
+import { memberBranchesShapeRefusal } from './team.service';
 
 /**
  * Putting staff on a business: invite by email and role, accept by signing in.
@@ -60,12 +63,23 @@ export class StaffInvitationService {
       );
     }
 
+    // The branches the invitee will cover, refused as the member branch
+    // change refuses them (ADR-054 AC-T1). Duplicates collapse to one.
+    const branchIds = body.branchIds ? [...new Set(body.branchIds)] : null;
+    const shape = memberBranchesShapeRefusal(ws, branchIds);
+    if (shape) throw new UnprocessableEntityException(shape);
+    if (branchIds) {
+      const refusal = await this.repo.branchRefusal(orgId, branchIds);
+      if (refusal) throw new UnprocessableEntityException(MEMBER_BRANCHES_REFUSAL[refusal]);
+    }
+
     const token = newStaffInvitationToken();
     const expiresAt = staffInvitationExpiresAt(new Date());
     const id = await this.repo.issue({
       orgId,
       email: body.email,
       orgRole: body.orgRole,
+      branchIds,
       token,
       expiresAt,
       invitedByUserId: actorUserId,
@@ -118,6 +132,10 @@ export class StaffInvitationService {
           throw new ForbiddenException(
             'This invitation was sent to a different email address. Sign in with that address to accept it.',
           );
+        case 'branches_gone':
+          throw new ConflictException(
+            'Every branch this invitation named has been archived since it was sent. Ask for a new invitation.',
+          );
         case 'already_member':
           throw new ConflictException(
             `You already work at this business as ${
@@ -147,5 +165,6 @@ function present(row: StaffInvitationRow): OperatorStaffInvitation {
     status: expired ? 'expired' : row.status,
     expiresAt: row.expiresAt.toISOString(),
     createdAt: row.createdAt.toISOString(),
+    branchIds: row.branchIds,
   };
 }

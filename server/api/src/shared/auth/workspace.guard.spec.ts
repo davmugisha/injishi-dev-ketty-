@@ -14,6 +14,7 @@ jest.mock('./two-factor.service', () => ({ TwoFactorService: class {} }));
 
 import {
   REQUIRE_ANY_PERMISSION,
+  REQUIRE_EVERY_BRANCH,
   REQUIRE_PERMISSION,
   WorkspaceGuard,
 } from './workspace.guard';
@@ -77,16 +78,25 @@ describe('WorkspaceGuard', () => {
     resolved: WorkspaceAccess | null,
     requiredPermission?: string | string[],
     anyOfPermissions?: string[],
+    everyBranch?: boolean,
   ): { guard: WorkspaceGuard; workspaces: WorkspaceService } {
+    // A limited member covers Rubavu only; everyone else covers both.
     const workspaces = {
       resolveForUser: jest.fn().mockResolvedValue(resolved),
-      propertyIdsForWorkspace: jest.fn().mockResolvedValue([REMERA, RUBAVU]),
+      coveredProperties: jest.fn((_userId: string, access: WorkspaceAccess) =>
+        Promise.resolve(
+          access.branchCoverage === 'limited'
+            ? { coverage: 'limited', propertyIds: [RUBAVU] }
+            : { coverage: 'all', propertyIds: [REMERA, RUBAVU] },
+        ),
+      ),
     } as unknown as WorkspaceService;
     // Answers per metadata key, the way Nest's reflector does: the all-of and
     // the any-of declarations are two separate keys on the same handler.
     const metadata: Record<string, unknown> = {
       [REQUIRE_PERMISSION]: requiredPermission,
       [REQUIRE_ANY_PERMISSION]: anyOfPermissions,
+      [REQUIRE_EVERY_BRANCH]: everyBranch,
     };
     const reflector = {
       getAllAndOverride: jest.fn((key: string) => metadata[key]),
@@ -538,6 +548,52 @@ describe('WorkspaceGuard', () => {
       await expect(guard.canActivate(contextFor(withBranch(branch)))).rejects.toThrow(
         NotFoundException,
       );
+    });
+  });
+
+  describe('a member limited to some branches (ADR-054 slice 4)', () => {
+    const LIMITED_ACCESS: WorkspaceAccess = {
+      ...RECEPTIONIST_ACCESS,
+      branchCoverage: 'limited',
+    };
+    const request = (branch?: string): FakeRequest => ({
+      headers: {
+        host: 'd',
+        'x-workspace-id': 'ws-owned',
+        ...(branch ? { 'x-branch-id': branch } : {}),
+      },
+      user: signedIn,
+    });
+
+    it('scopes to the covered branches and hides rows of no branch (AC-T2, AC-T3)', async () => {
+      const { guard } = guardWith(LIMITED_ACCESS);
+      const req = request();
+      await guard.canActivate(contextFor(req));
+      expect(req.workspace?.branchScope).toEqual({
+        coverage: 'limited',
+        selectedPropertyId: null,
+        propertyIds: [RUBAVU],
+        includesUnbranched: false,
+      });
+    });
+
+    it('answers 404 for a branch of the business it does not cover (AC-S2)', async () => {
+      const { guard } = guardWith(LIMITED_ACCESS);
+      await expect(guard.canActivate(contextFor(request(REMERA)))).rejects.toThrow(
+        NotFoundException,
+      );
+    });
+
+    it('refuses an org wide write with 403 in words (AC-M6)', async () => {
+      const { guard } = guardWith(LIMITED_ACCESS, undefined, undefined, true);
+      await expect(guard.canActivate(contextFor(request()))).rejects.toThrow(
+        'This needs access to every branch.',
+      );
+    });
+
+    it('lets a member covering every branch through the same write', async () => {
+      const { guard } = guardWith(OWNER_ACCESS, undefined, undefined, true);
+      await expect(guard.canActivate(contextFor(request()))).resolves.toBe(true);
     });
   });
 });
