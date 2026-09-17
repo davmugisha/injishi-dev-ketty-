@@ -20,9 +20,13 @@ import { EMPTY_INTENT, exploreHref, DEFAULT_REFINEMENT } from "@/lib/search-para
 export function BrowseByCategory() {
   return (
     <section className="section-y container flex flex-col gap-8">
+      {/* One weight, no bold segment: the owner asked for this band's opener
+          to read evenly rather than splitting "Browse" from "by category".
+          `lead` alone renders the documented Headline role (Spectral 400), so
+          there is no local override here. Its peer bands still pass
+          `emphasis`, so this heading is deliberately the odd one out. */}
       <SectionHeading
-        lead="Browse "
-        emphasis="by category"
+        lead="Browse by category"
         action={{ label: "All stays", href: "/explore" }}
       />
 
@@ -58,7 +62,7 @@ export function BrowseByCategory() {
                   alt={category.image.alt}
                   loading="lazy"
                   decoding="async"
-                  className="h-full w-full object-cover object-center transition-transform duration-300 group-hover:scale-105"
+                  className="h-full w-full object-cover object-center transition-transform duration-travel group-hover:scale-105"
                 />
               </picture>
             </div>
@@ -74,7 +78,7 @@ export function BrowseByCategory() {
                   <h3 className="text-base font-bold text-white lg:text-lg">
                     {category.label}
                   </h3>
-                  <ArrowBoxIcon className="size-4 shrink-0 text-white transition-transform duration-300 group-hover:-translate-y-1 group-hover:translate-x-1" />
+                  <ArrowBoxIcon className="size-4 shrink-0 text-white transition-transform duration-travel group-hover:-translate-y-1 group-hover:translate-x-1" />
                 </div>
               </div>
             </div>
