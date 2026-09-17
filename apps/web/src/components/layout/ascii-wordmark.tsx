@@ -35,12 +35,21 @@ import { useEffect, useRef } from "react";
  *     for a backgrounded tab. Scrolled past, this costs what the band it
  *     replaced cost: nothing.
  *
- *  3. THE IDLE CURSOR IS VIRTUAL. The footer is the last thing on the page and
- *     most visitors never point at it — on a touch screen nobody can. So while
- *     no pointer is over the stage a virtual cursor roams the word on a
- *     Lissajous path at a gentler force. A real pointer takes over, and the two
- *     cross-fade through `roamMix` rather than cutting, so neither arriving nor
- *     leaving snaps.
+ *  3. NOTHING MOVES ON ITS OWN. The word shimmers in place and the glyphs are
+ *     shoved ONLY by a real pointer over the band.
+ *
+ *     This is a reversal. A virtual cursor used to roam the word on a Lissajous
+ *     path whenever no pointer was over the stage, on the reasoning that the
+ *     footer is the last thing on the page and most visitors — everyone on a
+ *     touch screen — would otherwise never see the effect. What it actually
+ *     produced was a tinted blister of accent-coloured glyphs sliding back and
+ *     forth through the wordmark forever, which the owner read as a bubble
+ *     travelling across the footer rather than as an invitation to hover. An
+ *     idle animation that nobody asked for is a distraction on every page of
+ *     the site at once, so the demo it came from keeps its roaming cursor and
+ *     this footer does not. Hover is now undiscoverable on touch, and that is
+ *     the accepted cost: the wordmark reads correctly without ever being
+ *     touched.
  *
  * Everything is written straight to one canvas from one rAF loop. React renders
  * this component exactly once.
@@ -88,12 +97,6 @@ const DAMPING = 0.5;
 const REST_EPSILON = 0.01;
 /** No glyph travels further than this, so the band cannot clip the word. */
 const MAX_OFFSET = 8;
-
-/** The idle cursor: gentler than a hand, and slow enough to read as drift. */
-const ROAM_FORCE = 0.55;
-const ROAM_SPEED = 0.02;
-/** Per-frame ease between the roaming cursor and a real one. */
-const HANDOVER = 0.08;
 
 /** Displacement, in cells, at which a glyph is fully accent-tinted. */
 const TINT_SPAN = 3;
@@ -380,8 +383,6 @@ export function AsciiWordmark() {
     /* ── the force field and the loop ─────────────────────────────────────── */
 
     const pointer = { column: 0, row: 0, over: false };
-    let roamMix = 1;
-    let roamClock = 0;
 
     function applyField(centreColumn: number, centreRow: number, scale: number) {
       if (scale <= 0.01) return;
@@ -478,14 +479,9 @@ export function AsciiWordmark() {
           glyphIndex[i] = (Math.pow(Math.random(), FLICKER_BIAS) * GLYPHS.length) | 0;
         }
       }
-      roamClock += ROAM_SPEED;
-      roamMix += ((pointer.over ? 0 : 1) - roamMix) * HANDOVER;
-      if (roamMix > 0.01) {
-        const roamX = width * (0.5 + 0.34 * Math.sin(roamClock));
-        const roamY = height * (0.5 + 0.16 * Math.sin(roamClock * 1.7));
-        applyField(roamX / step, roamY / step, ROAM_FORCE * roamMix);
-      }
-      applyField(pointer.column, pointer.row, 1 - roamMix);
+      // No idle field: with the pointer away the glyphs only spring home, so
+      // the band settles and stays settled.
+      if (pointer.over) applyField(pointer.column, pointer.row, 1);
       integrate();
       render();
     }
