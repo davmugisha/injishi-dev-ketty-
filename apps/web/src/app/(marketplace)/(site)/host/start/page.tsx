@@ -1,5 +1,4 @@
 import type { Metadata } from "next";
-import { businessTypeFor } from "@injishi/contracts";
 import Link from "next/link";
 import { Button } from "@injishi/ui";
 import { withQuery } from "@injishi/utils";
@@ -8,8 +7,6 @@ import { ArtDirectedImage } from "@/components/shared/art-directed-image";
 import { Breadcrumbs } from "@/components/shared/breadcrumbs";
 import { RegistrationStepRail } from "@/components/shared/registration-step-rail";
 import { findHostKind, registrationForHostKind } from "@/data/host";
-import { fetchRegistrationFee } from "@/data/registration";
-import { formatRwf } from "@/lib/money";
 
 export const metadata: Metadata = {
   title: "Start your listing",
@@ -44,15 +41,6 @@ export default async function Page({
   const { kind } = await searchParams;
   const chosen = findHostKind(kind);
   const entry = chosen ? registrationForHostKind(chosen.value) : null;
-
-  // The price, on the screen BEFORE the wizard rather than on its last step
-  // (ADR-026, AC-3). A fee first shown after five screens of work is a fee
-  // people find out about once they have already spent the effort, and the
-  // quote route is public precisely so it can be asked here.
-  const quote = entry
-    ? await fetchRegistrationFee(businessTypeFor(entry.role))
-    : null;
-  const feeRwf = quote?.status === "ok" ? quote.data.amountRwf : null;
 
   // What the officer asks for differs by domain, and it is the one thing worth
   // saying before someone starts: a hospitality business is checked against its
@@ -115,19 +103,13 @@ export default async function Page({
             </p>
           ) : null}
 
-          {feeRwf !== null ? (
-            <div className="flex items-center gap-3 rounded-card border border-border px-4 py-3">
-              <span className="text-sm text-page-fg-70">
-                One time registration fee
-              </span>
-              <b className="text-lg font-bold text-page-fg">
-                {formatRwf(feeRwf)}
-              </b>
-              <span className="text-xs text-page-fg-70">
-                paid at the last step
-              </span>
-            </div>
-          ) : null}
+          {/* THAT a fee applies, never how much. This page used to fetch the
+              quote and print the figure (ADR-026 AC-3); the owner reversed that
+              on 2026-09-21. The amount is stated nowhere in the registration
+              flow, so nothing is fetched here. */}
+          <p className="max-w-narrow text-sm text-page-fg-70">
+            A one time registration fee applies. You pay it at the last step.
+          </p>
 
           {/* The object the wizard continues with, shown here first — pressing
               the button below carries this exact rail into `/register` rather

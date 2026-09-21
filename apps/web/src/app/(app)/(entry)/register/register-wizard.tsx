@@ -38,7 +38,6 @@ import {
   registerAsBroker,
 } from "@/data/registration";
 import { apiResultMessage } from "@/lib/api";
-import { formatRwf } from "@/lib/money";
 import { type RegistrationContractInput } from "@/lib/registration-contract";
 import { formatNationalId, nationalIdError } from "@/lib/rwanda-id";
 import { upiError } from "@/lib/upi";
@@ -70,7 +69,11 @@ import { Notice } from "./wizard-ui";
  * FIVE STEPS, AND THE FIRST ONE IS THE FIX (ADR-026). The order still follows
  * D23 — what you are registering picks the whole path and its price, then who
  * you are, then what you run, then the fee, and only once the fee settles does
- * anything reach a government officer. What changed is that the path question
+ * anything reach a government officer. The price is PICKED at step one and
+ * NEVER SHOWN: since 2026-09-21 no screen and no document in this flow states
+ * the figure (the owner reversed ADR-026 AC-3, then removed it from the
+ * contract and the pay screen too). The quote fetched below only decides
+ * whether this kind of registration is open. What changed is that the path question
  * is now asked ONCE. It used to be asked three times: `/host` asked what kind
  * of place you have, step 0 asked whether you were a host, a landlord or a
  * broker, and step 2 asked what kind of place you have again. Those are one
@@ -202,12 +205,6 @@ export default function RegisterWizard({
   const [summary, setSummary] = useState<RegistrationSummary | null>(null);
   const [broker, setBroker] = useState<BrokerRegistrationSummary | null>(null);
   const [pending, setPending] = useState<LabelledWorkspace[]>([]);
-  /**
-   * True when the registration on screen was opened from the resume panel, so
-   * no draft of it exists in this browser. The pay step then shows the bill
-   * alone rather than a review of answers nobody typed here.
-   */
-  const [resumed, setResumed] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [formError, setFormError] = useState("");
   const [busy, setBusy] = useState(false);
@@ -250,7 +247,9 @@ export default function RegisterWizard({
   // in an effect rather than inside the press handler so it is loaded the same
   // way whether the answer was pressed here or carried from `/host` — the old
   // version only fetched on a press, so an arrival reached the pay step on an
-  // em dash and a "we couldn't load the fee" notice.
+  // em dash and a "we couldn't load the fee" notice. It is still fetched
+  // although nothing shows it: the review step refuses to create a
+  // registration for a kind whose fee cannot be quoted.
   useEffect(() => {
     if (role === null || role === "broker") {
       setQuote(null);
@@ -275,7 +274,6 @@ export default function RegisterWizard({
       return;
     }
     setSummary(res.data);
-    setResumed(true);
     // Where to resume is read from the SERVER, never from this browser: a
     // registrant who accepted on another device, or cleared their storage, is
     // exactly as far along as the business says they are (AC-R8). Unpaid and
@@ -614,7 +612,6 @@ export default function RegisterWizard({
           <StepPlace
             kind={kind}
             carried={carried}
-            feeRwf={quote?.amountRwf ?? null}
             onChoose={chooseKind}
             onReopen={() => setCarried(false)}
             onNext={() => setPhase("about")}
@@ -700,7 +697,6 @@ export default function RegisterWizard({
             certificates={certificates}
             quote={quote}
             summary={summary}
-            resumed={resumed}
             busy={busy}
             error={formError}
             onCreate={() => void createAndShowBill()}
@@ -938,9 +934,9 @@ function businessCandidate(
  * The registration, in the words the contract prints it in.
  *
  * EVERY VALUE ARRIVES ALREADY FORMATTED, because `lib/registration-contract.ts`
- * imports nothing and therefore formats nothing. That is deliberate: the money
- * goes through `formatRwf` and the identity document through `formatNationalId`
- * — the same two helpers the pay step reads them back with — so a person
+ * imports nothing and therefore formats nothing. That is deliberate: the
+ * identity document goes through `formatNationalId` — the same helper the
+ * review step reads it back with — so a person
  * proofreading the review screen and a person reading the signed contract are
  * looking at the same characters in the same grouping.
  *
@@ -1023,10 +1019,6 @@ function contractInputFor({
     businessKindLabel: kindLabel,
     businessIdLabel,
     businessAddressLabel: street || null,
-    // The invoiced amount. The contract is accepted while the invoice is
-    // outstanding, which is exactly when the server reports it.
-    feeLabel:
-      summary.amountDueRwf === null ? null : formatRwf(summary.amountDueRwf),
     reference: summary.orgId,
     contractVersion: OPERATOR_CONTRACT_VERSION,
   };

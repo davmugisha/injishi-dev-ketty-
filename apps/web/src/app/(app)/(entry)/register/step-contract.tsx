@@ -174,9 +174,6 @@ export function StepContract({
           {input.registrantIdLabel ? (
             <SummaryRow label="ID" value={input.registrantIdLabel} />
           ) : null}
-          {input.feeLabel ? (
-            <SummaryRow label="Registration fee" value={input.feeLabel} />
-          ) : null}
         </SummaryCard>
 
         {/* Scrollable, focusable and labelled. A long agreement in a fixed box

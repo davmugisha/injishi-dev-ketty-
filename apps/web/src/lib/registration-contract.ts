@@ -51,16 +51,6 @@ export interface RegistrationContractInput {
   businessIdLabel: string | null;
   /** The town or sector the business sits in, as one line. */
   businessAddressLabel: string | null;
-  /**
-   * The fee actually invoiced, through `formatRwf`.
-   *
-   * The contract is signed BEFORE paying (ADR-053), which is exactly while
-   * `RegistrationSummary.amountDueRwf` is reported, so this is the amount the
-   * registrant is about to be charged. Still nullable, for an invoice the server
-   * could not name; then the clause names no amount rather than quoting a
-   * published price nobody was billed.
-   */
-  feeLabel: string | null;
   /** The registration this agreement belongs to. */
   reference: string;
   /**
@@ -124,9 +114,9 @@ export function registrationContractClauses(
       number: 2,
       heading: "The registration fee, and what it buys",
       body: [
-        input.feeLabel === null
-          ? "The registration fee for this business is the amount on its invoice, charged once."
-          : `The registration fee for this business is ${input.feeLabel}, charged once, and you pay it after accepting this agreement.`,
+        // No figure, on the owner's instruction (2026-09-21): no screen and no
+        // document in the registration flow states the amount.
+        "The registration fee for this business is the amount on its invoice, charged once, and you pay it after accepting this agreement.",
         "It pays for the review that follows rather than for the outcome of that review, so settling it buys your application a place in the queue and buys nothing else, and no amount of it is a deposit against future earnings.",
         "If a verifier or an approver decides against you, the fee is not refunded. If you then correct what they asked you to correct and send the registration back for another look, you are not charged a second time, however many rounds that takes.",
       ],
@@ -237,7 +227,6 @@ export function contractDocumentHtml(
     ["Business identifier", input.businessIdLabel],
     ["Address", input.businessAddressLabel],
     ["Registration reference", input.reference],
-    ["Registration fee", input.feeLabel],
     ["Counterparty", CONTRACT_OPERATOR],
   ];
 

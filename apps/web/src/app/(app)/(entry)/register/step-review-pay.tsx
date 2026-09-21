@@ -9,7 +9,7 @@ import {
   type RegistrationFeeQuote,
   type RegistrationSummary,
 } from "@injishi/contracts";
-import { BadgeCheck, Info, Landmark, Receipt, ShieldCheck } from "lucide-react";
+import { BadgeCheck, Landmark, Receipt, ShieldCheck } from "lucide-react";
 import { useEffect, useState } from "react";
 
 import {
@@ -31,11 +31,18 @@ import {
   StepActions,
   SummaryCard,
   SummaryRow,
-  formatRwf,
 } from "./wizard-ui";
 
 /**
- * Step 5 — read it back, then pay (ADR-026, AC-9; D23).
+ * Step 5 — read it back, then, on a second visit, pay (ADR-026, AC-9; D23).
+ *
+ * NO FIGURE, ANYWHERE. The owner reversed ADR-026 AC-3 on 2026-09-21 and then
+ * took the amount out of the contract and this screen too: the registration
+ * flow says THAT a one time fee is charged and never how much. The first visit
+ * is the read back; the second, after the contract, is the fee block and the
+ * Pay button, after everything else. This file must not import `formatRwf`.
+ * The fee is still RESOLVED, for one reason: a kind whose fee cannot be quoted
+ * is a kind that is not open, and Create is disabled for it.
  *
  * The pay step used to open on a price and a paragraph. Everything a person had
  * typed over four screens was behind a Back button, which is the wrong place
@@ -46,12 +53,9 @@ import {
  * the step that asked. Then the bill.
  *
  * TWO VISITS, NOT ONE. The first press creates the registration and the wizard
- * moves on to the operator contract, which quotes the real bill the server
- * raised; after accepting it the registrant comes back here and the second
- * press settles it (ADR-053, AC-R8). Collapsing them would mean quoting a price from the catalog and charging
- * whatever the server decided, and those are allowed to differ — the amount is
- * LOCKED onto the invoice at creation (D8), so the bill is the only figure
- * worth showing once one exists.
+ * moves on to the operator contract; after accepting it the registrant comes back here and the second
+ * press settles it (ADR-053, AC-R8). The amount is LOCKED onto the invoice at
+ * creation (D8), and the server charges that.
  */
 
 export function StepReviewPay({
@@ -66,7 +70,6 @@ export function StepReviewPay({
   certificates,
   quote,
   summary,
-  resumed,
   busy,
   error,
   onCreate,
@@ -86,12 +89,13 @@ export function StepReviewPay({
   branches: BranchDraft[];
   certificates: CertificateDraft[];
   quote: RegistrationFeeQuote | null;
-  summary: RegistrationSummary | null;
   /**
-   * Opened from the resume panel, so nothing was typed in this browser. The
-   * read back cards would be a column of dashes; the bill is shown alone.
+   * Null on the first visit, which is the read back. Set on the second, after
+   * the contract, which is the bill alone: the answers can no longer be changed
+   * by then, and a registration opened from the resume panel never had any
+   * typed in this browser.
    */
-  resumed: boolean;
+  summary: RegistrationSummary | null;
   busy: boolean;
   error: string;
   onCreate: () => void;
@@ -128,16 +132,6 @@ export function StepReviewPay({
   const kindEntry = kind
     ? REGISTRATION_KINDS.find((k) => k.value === kind) ?? null
     : null;
-  // The tile's own word first. `fee.configured.label` is the same word for
-  // every priced type and differs only when a type has fallen through to the
-  // "Other" row — in which case naming that row is more honest than naming the
-  // tile, because "Other" is the rate actually being quoted.
-  const feeLabel =
-    fee.configured === null
-      ? null
-      : fee.configured.accommodationType === kind
-        ? kindEntry?.label ?? fee.configured.label
-        : fee.configured.label;
   // Derived from the tile, never from whether a field happens to be filled in.
   // Reading `business.tin !== ""` would have been true for a host who typed a
   // TIN and then went back and switched to Residence, and false for a host who
@@ -174,16 +168,16 @@ export function StepReviewPay({
   return (
     <section aria-labelledby="step-pay">
       <h2 id="step-pay" className="text-xl font-semibold tracking-tight">
-        {resumed && summary ? `Pay for ${summary.legalName}` : "Check it, then pay"}
+        {summary ? `Pay for ${summary.legalName}` : "Check your answers"}
       </h2>
       <p className="mt-1 text-sm text-muted-foreground">
-        {resumed && summary
+        {summary
           ? "Your contract is accepted. Paying the registration fee sends the business for review."
-          : "Read this back before anything is charged. A wrong number here comes back as a rejection later."}
+          : "Read this back before you create the registration. A wrong number here comes back as a rejection later. You pay the registration fee after the contract, at the very end."}
       </p>
 
       <div className="mt-6 space-y-4">
-        {resumed ? null : (
+        {summary ? null : (
         <>
         <SummaryCard title="What you are registering">
           <SummaryRow
@@ -363,64 +357,6 @@ export function StepReviewPay({
         </>
         )}
 
-        {/* The bill. Its own surface rather than another summary card: it is
-            the one block on this page that is about to take money, and it
-            should not read as a sixth row of answers. */}
-        <div className="rounded-card border border-accent-brand bg-accent-brand/10 p-5">
-          <div className="flex items-baseline justify-between gap-4">
-            <span className="flex items-center gap-2 text-sm font-semibold">
-              <Receipt size={16} aria-hidden />
-              One time registration fee
-            </span>
-            <span className="text-2xl font-semibold tabular-nums">
-              {amount === null ? "—" : formatRwf(amount)}
-            </span>
-          </div>
-          {/* The fee differs by what is being registered, so the figure has to
-              say which type it is the figure FOR. A lone amount invites the
-              reader to assume it is the same for everyone, which is the exact
-              belief this feature exists to correct. */}
-          {/* Only the offline demo prices by accommodation type (`data/registration-fees.ts`).
-              The platform's fee is one catalogue row per business type (ADR-026,
-              ratified in ADR-053), so saying "the hotel rate" over a real quote
-              would describe a pricing model the platform does not have. */}
-          {feeLabel === null || fee.source !== "configured" ? null : (
-            <p className="mt-1 text-sm text-muted-foreground">
-              The {feeLabel} rate in this offline demonstration.
-            </p>
-          )}
-          <p className="mt-2 text-xs text-muted-foreground">
-            Charged once. It is not refunded if the review goes against you, and
-            you are never charged a second time to correct and resubmit.
-          </p>
-        </div>
-
-        {/* Said plainly, and only when it is true: this figure came from the
-            schedule this app carries rather than from the platform. Quietly
-            substituting a local number for a server price and letting it read
-            as a bill is the one thing a demo may not do. */}
-        {fee.source === "configured" && fee.configured !== null ? (
-          <aside
-            className="flex items-start gap-3 rounded-card border border-dashed border-input bg-secondary px-4 py-3 text-secondary-foreground"
-            aria-label="Demo data notice"
-          >
-            <Info
-              size={16}
-              aria-hidden
-              className="mt-0.5 shrink-0 text-muted-foreground"
-            />
-            <p className="text-xs leading-relaxed">
-              <span className="font-semibold">Demo data.</span>{" "}
-              <span className="text-muted-foreground">
-                The platform did not quote this registration, so the amount above
-                is the {fee.configured.label} rate this demonstration carries —
-                set by {fee.configured.setBy}, with effect from{" "}
-                {fee.configured.effectiveFrom}. Nothing has been charged.
-              </span>
-            </p>
-          </aside>
-        ) : null}
-
         {amount === null ? (
           <Notice tone="warning">
             We couldn&apos;t load the fee for this kind of registration. It may
@@ -459,7 +395,9 @@ export function StepReviewPay({
           ))}
         </div>
 
-        {error ? <Notice tone="danger">{error}</Notice> : null}
+        {/* On the pay visit the error sits under the bill, beside the button
+            that raised it. */}
+        {error && summary === null ? <Notice tone="danger">{error}</Notice> : null}
       </div>
 
       {summary === null ? (
@@ -471,22 +409,43 @@ export function StepReviewPay({
           disabled={amount === null}
         />
       ) : (
-        <div className="mt-8 flex flex-wrap items-center gap-3">
-          <span className="text-sm text-muted-foreground">
-            {summary.contractAcceptedAt === null
-              ? `${summary.legalName} is created. Accept the contract before paying.`
-              : `${summary.legalName} is created, its contract is accepted, and it is waiting for payment.`}
-          </span>
-          <span className="grow" />
-          <Button
-            variant="primary"
-            onPress={onPay}
-            isDisabled={busy}
-            isPending={busy}
-          >
-            {busy ? "Paying…" : `Pay ${amount === null ? "" : formatRwf(amount)}`}
-          </Button>
-        </div>
+        <>
+          <div className="mt-4 space-y-4">
+          {/* The bill. Its own surface rather than another summary card: it is
+              the one block on this page that is about to take money, and it
+              should not read as a sixth row of answers. */}
+          <div className="rounded-card border border-accent-brand bg-accent-brand/10 p-5">
+            <div className="flex items-baseline gap-4">
+              <span className="flex items-center gap-2 text-sm font-semibold">
+                <Receipt size={16} aria-hidden />
+                One time registration fee
+              </span>
+            </div>
+            <p className="mt-2 text-xs text-muted-foreground">
+              Charged once. It is not refunded if the review goes against you, and
+              you are never charged a second time to correct and resubmit.
+            </p>
+          </div>
+
+          {error ? <Notice tone="danger">{error}</Notice> : null}
+          </div>
+          <div className="mt-8 flex flex-wrap items-center gap-3">
+            <span className="text-sm text-muted-foreground">
+              {summary.contractAcceptedAt === null
+                ? `${summary.legalName} is created. Accept the contract before paying.`
+                : `${summary.legalName} is created, its contract is accepted, and it is waiting for payment.`}
+            </span>
+            <span className="grow" />
+            <Button
+              variant="primary"
+              onPress={onPay}
+              isDisabled={busy}
+              isPending={busy}
+            >
+              {busy ? "Paying…" : "Pay the registration fee"}
+            </Button>
+          </div>
+        </>
       )}
     </section>
   );

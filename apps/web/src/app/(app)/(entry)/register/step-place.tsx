@@ -11,7 +11,7 @@ import {
   type RegistrationKind,
   whatWeAskFor,
 } from "./registration-kinds";
-import { Notice, StepActions, TileCard, formatRwf } from "./wizard-ui";
+import { Notice, StepActions, TileCard } from "./wizard-ui";
 
 /**
  * Step 1 — what you are registering (ADR-026, AC-1 and AC-2).
@@ -44,10 +44,13 @@ function iconFor(kind: RegistrationKind) {
   return HostKindIcons[kind];
 }
 
+/** One sentence, both faces of the step, and no figure in it. */
+const FEE_LINE =
+  "A one time registration fee applies. You pay it at the last step.";
+
 export function StepPlace({
   kind,
   carried,
-  feeRwf,
   onChoose,
   onReopen,
   onNext,
@@ -55,7 +58,6 @@ export function StepPlace({
   kind: RegistrationKind | null;
   /** True when this answer arrived from `/host` and has not been changed here. */
   carried: boolean;
-  feeRwf: number | null;
   onChoose: (kind: RegistrationKind) => void;
   /** Drop back to the ten tiles. Separate from `onChoose`, which ANSWERS. */
   onReopen: () => void;
@@ -101,14 +103,13 @@ export function StepPlace({
           </Button>
         </div>
 
-        {/* The price, on the first screen inside the wizard rather than on the
-            last one. A fee revealed at the end of a five step form is a fee
-            people find out about after they have spent the effort. */}
-        {chosen.value !== "broker" && feeRwf !== null ? (
+        {/* THAT a fee applies, never how much. The figure used to be printed
+            here (ADR-026 AC-3); the owner reversed that on 2026-09-21. The
+            amount is stated nowhere in this flow, so this line says a fee is
+            coming without quoting one. */}
+        {chosen.value !== "broker" ? (
           <p className="mt-4 text-sm text-muted-foreground">
-            Registration costs{" "}
-            <b className="font-semibold text-foreground">{formatRwf(feeRwf)}</b>,
-            once, paid at the end.
+            {FEE_LINE}
           </p>
         ) : null}
         {chosen.value === "broker" ? (
@@ -215,9 +216,7 @@ export function StepPlace({
             <b>{chosen.label}.</b> {whatWeAskFor(chosen.value)}{" "}
             {chosen.value === "broker"
               ? "There is no registration fee."
-              : feeRwf === null
-                ? ""
-                : `Registration costs ${formatRwf(feeRwf)}, once.`}
+              : FEE_LINE}
           </Notice>
         ) : null}
       </div>
