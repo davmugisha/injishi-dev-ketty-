@@ -31,18 +31,30 @@ import {
   StepActions,
   SummaryCard,
   SummaryRow,
+  formatRwf,
 } from "./wizard-ui";
 
 /**
  * Step 5 — read it back, then, on a second visit, pay (ADR-026, AC-9; D23).
  *
- * NO FIGURE, ANYWHERE. The owner reversed ADR-026 AC-3 on 2026-09-21 and then
- * took the amount out of the contract and this screen too: the registration
- * flow says THAT a one time fee is charged and never how much. The first visit
- * is the read back; the second, after the contract, is the fee block and the
- * Pay button, after everything else. This file must not import `formatRwf`.
- * The fee is still RESOLVED, for one reason: a kind whose fee cannot be quoted
- * is a kind that is not open, and Create is disabled for it.
+ * NO FIGURE UNTIL THE MOMENT OF PAYING, and then it is stated plainly.
+ *
+ * The owner reversed ADR-026 AC-3 on 2026-09-21, so the flow no longer quotes a
+ * price early: `/host/start`, step 1 and the read back say THAT a one time fee
+ * is charged and never how much. A second instruction that day took the figure
+ * out of the operator contract and out of this screen as well, and THAT half is
+ * amended here (2026-09-27): a person about to press Pay is told the amount
+ * they are about to be charged. Being asked to authorise a payment whose size
+ * is not on screen is the one place the reversal cost more than it bought.
+ *
+ * So the rule is a boundary, not a ban. The first visit — the read back, where
+ * nothing is charged — still names no figure, and neither does any earlier
+ * screen or the contract. The second visit, after the contract, is the fee
+ * block and the Pay button, and both carry the amount.
+ *
+ * The fee is resolved on BOTH visits regardless, for the reason it always was:
+ * a kind whose fee cannot be quoted is a kind that is not open, and Create is
+ * disabled for it.
  *
  * The pay step used to open on a price and a paragraph. Everything a person had
  * typed over four screens was behind a Back button, which is the wrong place
@@ -434,10 +446,16 @@ export function StepReviewPay({
               the one block on this page that is about to take money, and it
               should not read as a sixth row of answers. */}
           <div className="rounded-card border border-accent-brand bg-accent-brand/10 p-5">
-            <div className="flex items-baseline gap-4">
+            {/* The amount, on the one screen that charges it. `justify-between`
+                rather than a plain row: the figure is the second thing read
+                here, not an afterthought at the end of a sentence. */}
+            <div className="flex items-baseline justify-between gap-4">
               <span className="flex items-center gap-2 text-sm font-semibold">
                 <Receipt size={16} aria-hidden />
                 One time registration fee
+              </span>
+              <span className="text-2xl font-semibold tabular-nums">
+                {amount === null ? "—" : formatRwf(amount)}
               </span>
             </div>
             <p className="mt-2 text-xs text-muted-foreground">
@@ -461,7 +479,14 @@ export function StepReviewPay({
               isDisabled={busy}
               isPending={busy}
             >
-              {busy ? "Paying…" : "Pay the registration fee"}
+              {/* The amount in the label too. The block above can be scrolled
+                  past; the control cannot, and a button that authorises a
+                  payment should say what it authorises. */}
+              {busy
+                ? "Paying…"
+                : amount === null
+                  ? "Pay the registration fee"
+                  : `Pay ${formatRwf(amount)}`}
             </Button>
           </div>
         </>
