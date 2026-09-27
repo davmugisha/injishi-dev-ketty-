@@ -59,6 +59,11 @@ import { OpsThreadsController } from './ops/threads.controller';
 import { OpsStaysController } from './ops/stays.controller';
 import { OversightController } from './oversight/oversight.controller';
 import { PlatformController } from './platform/platform.controller';
+import {
+  OversightPsfController,
+  PsfMembershipController,
+  PsfTiersController,
+} from './psf/psf-membership.controller';
 import { OrgClaimsController } from './registrations/org-claims.controller';
 import { RegistrationsController } from './registrations/registrations.controller';
 import { StaffInvitationsController } from './registrations/staff-invitations.controller';
@@ -120,6 +125,11 @@ import { WaitlistModule } from './waitlist/waitlist.module';
     OrgClaimsController,
     // Accepting a staff invitation, before the invitee holds the workspace.
     StaffInvitationsController,
+    // PSF membership (ADR-056): the tiers, a business's application, and the
+    // PSF membership officer's queue.
+    PsfTiersController,
+    PsfMembershipController,
+    OversightPsfController,
     UploadsController,
     InventoryController,
     OpsReservationsController,

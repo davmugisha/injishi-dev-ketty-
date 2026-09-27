@@ -56,7 +56,7 @@ export type DocumentType = z.infer<typeof DocumentType>;
  * registration/approval pipeline branches on it. The government BODY is a
  * separate admin-managed catalog (add one without a migration).
  */
-export declare const OversightRole: z.ZodEnum<["tax_compliance_officer", "business_field_verifier", "business_approver"]>;
+export declare const OversightRole: z.ZodEnum<["tax_compliance_officer", "business_field_verifier", "business_approver", "psf_membership_officer"]>;
 export type OversightRole = z.infer<typeof OversightRole>;
 /** Region scope of an oversight assignment (Decision B). */
 export declare const OversightScopeLevel: z.ZodEnum<["country", "province", "district"]>;

@@ -57,6 +57,8 @@ export interface MyWorkspace {
   registrationStatus: OrgRegistrationStatus | null;
   /** Every workspace this app serves has one. */
   workspaceId: string | null;
+  /** The business behind a business workspace; null for broker and personal. */
+  orgId: string | null;
   /**
    * The USALI department categories this business runs (ADR-035, D-a).
    *
@@ -94,6 +96,12 @@ export interface MyWorkspace {
    * outside a business workspace.
    */
   branches: WorkspaceBranch[];
+  /**
+   * May this person see and act on the business's PSF membership (ADR-056)?
+   * The server's answer, never derived from the role here. False outside a
+   * hospitality business.
+   */
+  psfCanManage: boolean;
 }
 
 /**
@@ -220,10 +228,12 @@ export async function fetchMyWorkspaces(): Promise<MeState> {
       permissions: w.permissions,
       registrationStatus: w.registrationStatus,
       workspaceId: w.workspaceId,
+      orgId: w.orgId,
       departments: w.departments,
       propertyName: w.propertyName,
       branchCoverage: w.branchCoverage,
       branches: w.branches,
+      psfCanManage: w.psfMembership?.canManage === true,
     });
   }
 

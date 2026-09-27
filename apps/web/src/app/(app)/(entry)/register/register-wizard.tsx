@@ -7,7 +7,9 @@ import {
   IntendedOwner,
   OPERATOR_CONTRACT_VERSION,
   PersonalDetails,
+  PsfApplicationInput,
   type BrokerRegistrationSummary,
+  type PsfTier,
   type MyProfile,
   type RegistrantCapacity,
   type RegistrantRole,
@@ -32,12 +34,14 @@ import {
   acceptRegistrationContract,
   createRegistration,
   fetchMyProfile,
+  fetchPsfTiers,
   fetchRegistration,
   fetchRegistrationFee,
   payRegistrationFee,
   registerAsBroker,
 } from "@/data/registration";
 import { apiResultMessage } from "@/lib/api";
+import { useSessionUser } from "@/lib/session";
 import { type RegistrationContractInput } from "@/lib/registration-contract";
 import { formatNationalId, nationalIdError } from "@/lib/rwanda-id";
 import { upiError } from "@/lib/upi";
@@ -60,6 +64,7 @@ import { StepBranches, type BranchDraft } from "./step-branches";
 import { StepBusiness, type BusinessDraft } from "./step-business";
 import { StepDocuments, type CertificateDraft } from "./step-documents";
 import { StepPlace } from "./step-place";
+import { StepPsf, psfCandidate, psfDraftFrom, type PsfDraft } from "./step-psf";
 import { StepReviewPay } from "./step-review-pay";
 import { Notice } from "./wizard-ui";
 
@@ -99,6 +104,12 @@ type Phase =
   /** Hospitality only (ADR-054 AC-R1). A residence goes from business to documents. */
   | "branches"
   | "documents"
+  /**
+   * ADR-056. Only for a hotel that answered No to PSF and chose to apply now.
+   * After Documents, so the required registration is complete first; before
+   * Review, which shows the application with a Change control.
+   */
+  | "psf"
   | "pay"
   /**
    * The operator agreement, accepted BETWEEN creating the registration and
@@ -146,6 +157,8 @@ const EMPTY_BUSINESS: BusinessDraft = {
   tourismLicenseNumber: "",
   chamberOfTourismMember: null,
   psfMember: null,
+  psfApply: null,
+  psfMembershipNumber: "",
   eacStarGrade: "",
   address: { ...EMPTY_ADDRESS },
 };
@@ -208,6 +221,15 @@ export default function RegisterWizard({
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [formError, setFormError] = useState("");
   const [busy, setBusy] = useState(false);
+  /**
+   * The PSF application (ADR-056). Built from the steps before the first time
+   * the PSF step opens, then kept, so going back to change a tier does not
+   * lose what was typed.
+   */
+  const [psfDraft, setPsfDraft] = useState<PsfDraft | null>(null);
+  const [psfTiers, setPsfTiers] = useState<PsfTier[] | null>(null);
+  const [psfTiersFailed, setPsfTiersFailed] = useState(false);
+  const session = useSessionUser();
 
   const role: RegistrantRole | null = kind
     ? registrationForKind(kind).role
@@ -430,6 +452,10 @@ export default function RegisterWizard({
     if (role === "host" && business.psfMember === null) {
       unanswered["business.psfMember"] = "Answer Yes or No.";
     }
+    // ADR-056: a No asks whether to apply now, and that is answered too.
+    if (role === "host" && business.psfMember === false && business.psfApply === null) {
+      unanswered["business.psfApply"] = "Answer Yes or No.";
+    }
     if (!parsed.success || Object.keys(unanswered).length > 0) {
       setErrors({
         ...(parsed.success ? {} : prefix("business", issuesToErrors(parsed.error.issues))),
@@ -462,6 +488,48 @@ export default function RegisterWizard({
     setPhase("documents");
   };
 
+  // --- the PSF step, when the registrant chose to apply (ADR-056) ----------
+  const needsPsf = role === "host" && business.psfMember === false && business.psfApply === true;
+
+  const loadPsfTiers = useCallback(async () => {
+    setPsfTiersFailed(false);
+    const res = await fetchPsfTiers();
+    if (res.status === "ok") setPsfTiers(res.data);
+    else setPsfTiersFailed(true);
+  }, []);
+
+  const openPsf = () => {
+    if (psfDraft === null) {
+      const personalNow = profile && !editingProfile ? personalFromProfile(profile, personal) : personal;
+      setPsfDraft(
+        psfDraftFrom({
+          business,
+          personal: personalNow,
+          onBehalf: capacity === "on_behalf_of",
+          intendedOwner,
+          sessionEmail: session.user?.email ?? null,
+        }),
+      );
+    }
+    if (psfTiers === null) void loadPsfTiers();
+    setErrors({});
+    setFormError("");
+    setPhase("psf");
+  };
+
+  const submitPsf = () => {
+    if (!psfDraft) return;
+    setErrors({});
+    setFormError("");
+    const parsed = PsfApplicationInput.safeParse(psfCandidate(psfDraft));
+    if (!parsed.success) {
+      setErrors(prefix("psf", issuesToErrors(parsed.error.issues)));
+      setFormError("Some of your PSF application needs fixing.");
+      return;
+    }
+    setPhase("pay");
+  };
+
   // --- step 5: create, then pay -------------------------------------------
   const createAndShowBill = async () => {
     if (!role) return;
@@ -473,7 +541,14 @@ export default function RegisterWizard({
       role,
       capacity,
       ...(sendPersonal ? { personal: personalCandidate(personal) } : {}),
-      business: businessCandidate(business, role, kind, certificates, branches),
+      business: businessCandidate(
+        business,
+        role,
+        kind,
+        certificates,
+        branches,
+        needsPsf && psfDraft ? psfCandidate(psfDraft) : null,
+      ),
       ...(capacity === "on_behalf_of"
         ? {
             intendedOwner: {
@@ -680,7 +755,27 @@ export default function RegisterWizard({
             onChange={setCertificates}
             busy={busy}
             onBack={() => setPhase(role === "host" ? "branches" : "business")}
-            onNext={() => setPhase("pay")}
+            onNext={() => (needsPsf ? openPsf() : setPhase("pay"))}
+          />
+        ) : null}
+
+        {phase === "psf" && needsPsf && psfDraft ? (
+          <StepPsf
+            tiers={psfTiers}
+            tiersFailed={psfTiersFailed}
+            onRetryTiers={() => void loadPsfTiers()}
+            draft={psfDraft}
+            onChange={setPsfDraft}
+            registrationNumber={business.tin}
+            errors={errors}
+            formError={formError}
+            busy={busy}
+            onBack={() => setPhase("documents")}
+            onNext={submitPsf}
+            onSkip={() => {
+              setBusiness({ ...business, psfApply: false });
+              setPhase("pay");
+            }}
           />
         ) : null}
 
@@ -701,7 +796,16 @@ export default function RegisterWizard({
             error={formError}
             onCreate={() => void createAndShowBill()}
             onPay={() => void pay()}
-            onBack={() => setPhase("documents")}
+            psf={
+              needsPsf && psfDraft
+                ? {
+                    tierName: psfTiers?.find((t) => t.code === psfDraft.requestedTierCode)?.nameEn ?? null,
+                    contactName: `${psfDraft.firstName} ${psfDraft.lastName}`.trim(),
+                  }
+                : null
+            }
+            onEditPsf={openPsf}
+            onBack={() => setPhase(needsPsf ? "psf" : "documents")}
             onEditStep={(step) => {
               if (step === "place") setCarried(false);
               setPhase(step);
@@ -824,6 +928,9 @@ function stepRailActive(phase: Phase): RegistrationStepId | null {
     case "documents":
     case "pay":
       return phase;
+    // Still filling things in, on the node before Review (ADR-056).
+    case "psf":
+      return "documents";
     default:
       return null;
   }
@@ -876,6 +983,8 @@ function businessCandidate(
   kind: RegistrationKind | null,
   certificates: CertificateDraft[],
   branches: BranchDraft[],
+  /** ADR-056: the PSF application a No carries, already in the wire's shape. */
+  psfApplication: unknown = null,
 ): unknown {
   const address = addressFromDraft(d.address);
   const wire = certificates.map((c) => ({
@@ -918,6 +1027,11 @@ function businessCandidate(
       : {}),
     ...(d.chamberOfTourismMember === null ? {} : { chamberOfTourismMember: d.chamberOfTourismMember }),
     ...(d.psfMember === null ? {} : { psfMember: d.psfMember }),
+    // ADR-056: a number rides with a Yes, an application with a No.
+    ...(d.psfMember === true && d.psfMembershipNumber.trim()
+      ? { psfMembershipNumber: d.psfMembershipNumber.trim() }
+      : {}),
+    ...(d.psfMember === false && psfApplication !== null ? { psfApplication } : {}),
     ...(d.eacStarGrade ? { eacStarGrade: Number(d.eacStarGrade) } : {}),
     address,
     certificates: wire,

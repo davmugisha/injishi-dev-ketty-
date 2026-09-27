@@ -13,6 +13,7 @@ import type {
 } from '@injishi/contracts';
 import {
   OPERATOR_CONTRACT_VERSION,
+  PSF_CONSENT_VERSION,
   SEPARATION_OF_DUTIES_MESSAGE,
   businessTypeFor,
   OVERSIGHT_OWN_BUSINESS_MESSAGE,
@@ -40,6 +41,8 @@ import {
 } from '../infrastructure/organization.repository';
 import { ClaimInvitationMailer } from '../infrastructure/claim-invitation.mailer';
 import { RegistrationMailer } from '../infrastructure/registration.mailer';
+import { buildPsfApplicationRow } from './psf-application-row';
+import { PsfMembershipService } from './psf-membership.service';
 import { SYSTEM_MOVER } from '../infrastructure/registration-events';
 import { tinRecheckDue, tinRecheckStalled } from '../domain/tin-recheck';
 import { RraTinAdapter } from '../infrastructure/rra-tin.adapter';
@@ -69,6 +72,8 @@ const STAGE_FOR_ROLE: Readonly<
   business_field_verifier: 'tin_verified',
   business_approver: 'field_verified',
   tax_compliance_officer: null,
+  // Membership is not a registration gate (ADR-056); its queue is its own.
+  psf_membership_officer: null,
 };
 
 @Injectable()
@@ -92,6 +97,12 @@ export class RegistrationService {
      * registration step.
      */
     private readonly mail: RegistrationMailer,
+    /**
+     * PSF membership (ADR-056): a PSF application waits for the TIN check, so
+     * the TIN pass is what puts it in PSF's queue. It also files the
+     * application a registration carries, through the same row builder.
+     */
+    private readonly psf: PsfMembershipService,
   ) {}
 
   /** What this registration will cost, before anyone commits to it. */
@@ -155,6 +166,30 @@ export class RegistrationService {
     await this.assertVillagesPlaced(b);
     const branches = await this.branchRowsFor(b);
 
+    // ADR-056 AC-6: an application a No carries is filed in the create
+    // transaction below, so the form someone filled cannot be lost between
+    // two calls. Its tier is checked here, first, so a retired one refuses the
+    // whole registration with nothing written.
+    const psfFiling =
+      b.domain === 'hospitality' && b.psfApplication
+        ? {
+            tier: await this.psf.tierForFiling(b.psfApplication.requestedTierCode),
+            form: b.psfApplication,
+            tin: b.tin,
+          }
+        : null;
+    const psfApplication = psfFiling
+      ? buildPsfApplicationRow({
+          submittedByUserId: registrantUserId,
+          capacity: request.capacity === 'on_behalf_of' ? 'on_behalf_of' : 'owner',
+          registrationNumber: psfFiling.tin,
+          tier: psfFiling.tier,
+          form: psfFiling.form,
+          consentGivenAt: new Date(),
+          consentVersion: PSF_CONSENT_VERSION,
+        })
+      : null;
+
     try {
       const created = await this.orgs.createRegistration({
         legalName: b.legalName,
@@ -172,6 +207,12 @@ export class RegistrationService {
         chamberOfTourismMember:
           b.domain === 'hospitality' ? b.chamberOfTourismMember : false,
         psfMember: b.domain === 'hospitality' ? b.psfMember : false,
+        // ADR-056: the application a No carries, and the number a Yes carries.
+        psfApplication,
+        psfMembershipNumber:
+          b.domain === 'hospitality' && b.psfMember
+            ? (b.psfMembershipNumber ?? null)
+            : null,
         eacStarGrade:
           b.domain === 'hospitality' ? (b.eacStarGrade ?? null) : null,
         // D24: a business carries a TIN, a residence carries a UPI. The database
@@ -227,6 +268,11 @@ export class RegistrationService {
         });
       }
       await this.mail.received(created.orgId, created.amountDueRwf);
+      // The PSF receipt. A new registration sits at `pending_payment`, so the
+      // application waits for the TIN check and no officer is mailed yet.
+      if (psfFiling) {
+        await this.psf.afterFiled(created.orgId, psfFiling.tier.nameEn, 'pending_payment');
+      }
 
       return {
         orgId: created.orgId,
@@ -515,6 +561,10 @@ export class RegistrationService {
       const to = nextStatus('submitted', 'tin_verified');
       if (to && (await this.orgs.advance(orgId, 'submitted', to, SYSTEM_MOVER))) {
         await this.mail.queueEntered(orgId, 'business_field_verifier');
+        // ADR-056 AC-8 and AC-9: a PSF application waiting on this check is in
+        // PSF's queue from now on. The stamp is its own guarded update, so a
+        // resubmitted business that passes again emails no officer twice.
+        await this.psf.markQueued(orgId);
       }
       return;
     }

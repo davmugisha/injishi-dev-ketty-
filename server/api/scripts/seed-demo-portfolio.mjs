@@ -499,6 +499,9 @@ const PIPELINE = [
     owner: { n: 1, name: 'Innocent Niyonsaba', gender: 'male', dob: '1984-03-09' },
     certificates: [{ kind: 'tourism_license', number: 'TL-2026-GSB-0412', issuedBy: 'Rwanda Development Board', issuedDaysAgo: 40, validYears: 3 }],
     steps: [],
+    // Answered No to PSF, so seed-demo-psf.mjs can give it an application
+    // waiting in the PSF membership queue (ADR-056 AC-21).
+    psfMember: false,
   },
   {
     n: 2, name: 'Kacyiru Jacaranda Suites', cls: 'serviced_apartment', district: 'Gasabo', sector: 'Kacyiru',
@@ -654,7 +657,7 @@ async function seedPipeline(c) {
 
     await insert(c, 'orgs', {
       id: orgId, legal_name: b.name, domain: 'hospitality', rdb_entity_group: 'accommodation',
-      accommodation_class: b.cls, tin: b.tin, psf_member: true,
+      accommodation_class: b.cls, tin: b.tin, psf_member: b.psfMember ?? true,
       registration_status: status, district_id: place.district_id, sector_id: place.sector_id,
       address_text: b.street, created_at: created, updated_at: lastMove,
       contract_version: CONTRACT_VERSION, contract_accepted_at: accepted, contract_accepted_by_user_id: owner.id,

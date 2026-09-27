@@ -89,6 +89,8 @@ export const OversightRole = z.enum([
     "tax_compliance_officer",
     "business_field_verifier",
     "business_approver",
+    /** ADR-056: decides PSF membership applications. PSF, country scope only. */
+    "psf_membership_officer",
 ]);
 export type OversightRole = z.infer<typeof OversightRole>;
 /** Region scope of an oversight assignment (Decision B). */

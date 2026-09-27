@@ -3,8 +3,11 @@ import {
   type AdminFeeSchedule,
   type AdminRegistrationFee,
   AppendRegistrationFeeRequest,
+  CreatePsfTierRequest,
+  type PsfTier,
+  UpdatePsfTierRequest,
 } from '@injishi/contracts';
-import { Body, Controller, Get, HttpCode, Post, UseGuards } from '@nestjs/common';
+import { Body, Controller, Get, HttpCode, Param, Patch, Post, UseGuards } from '@nestjs/common';
 
 import {
   CurrentUser,
@@ -75,6 +78,37 @@ export class AdminConfigurationController {
   }
 
   /** Every versioned platform setting and every feature flag. */
+  /**
+   * The PSF membership tier catalogue (ADR-056 AC-19), retired tiers
+   * included. Written by the same staff who price the registration fee,
+   * because a tier is a price.
+   */
+  @Get('psf-tiers')
+  @RequireStaffPermission('admin.config.view')
+  psfTiers(): Promise<PsfTier[]> {
+    return this.config.psfTiers();
+  }
+
+  @Post('psf-tiers')
+  @HttpCode(201)
+  @RequireStaffPermission('admin.fee.edit')
+  createPsfTier(
+    @Body(new ZodValidationPipe(CreatePsfTierRequest)) body: CreatePsfTierRequest,
+    @CurrentUser() user: SessionUser,
+  ): Promise<PsfTier> {
+    return this.config.createPsfTier({ actorUserId: user.id, request: body });
+  }
+
+  @Patch('psf-tiers/:code')
+  @RequireStaffPermission('admin.fee.edit')
+  updatePsfTier(
+    @Param('code') code: string,
+    @Body(new ZodValidationPipe(UpdatePsfTierRequest)) body: UpdatePsfTierRequest,
+    @CurrentUser() user: SessionUser,
+  ): Promise<PsfTier> {
+    return this.config.updatePsfTier({ actorUserId: user.id, code, request: body });
+  }
+
   @Get()
   @RequireStaffPermission('admin.config.view')
   configuration(): Promise<AdminConfiguration> {

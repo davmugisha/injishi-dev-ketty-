@@ -285,15 +285,15 @@ export declare const WorkspaceBranch: z.ZodObject<{
     districtName: z.ZodNullable<z.ZodString>;
     isHeadOffice: z.ZodBoolean;
 }, "strip", z.ZodTypeAny, {
-    districtName: string | null;
-    id: string;
     name: string;
+    districtName: string | null;
     isHeadOffice: boolean;
+    id: string;
 }, {
-    districtName: string | null;
-    id: string;
     name: string;
+    districtName: string | null;
     isHeadOffice: boolean;
+    id: string;
 }>;
 export type WorkspaceBranch = z.infer<typeof WorkspaceBranch>;
 export declare const WorkspaceAccess: z.ZodObject<{
@@ -365,54 +365,77 @@ export declare const WorkspaceAccess: z.ZodObject<{
         districtName: z.ZodNullable<z.ZodString>;
         isHeadOffice: z.ZodBoolean;
     }, "strip", z.ZodTypeAny, {
-        districtName: string | null;
-        id: string;
         name: string;
+        districtName: string | null;
         isHeadOffice: boolean;
+        id: string;
     }, {
-        districtName: string | null;
-        id: string;
         name: string;
+        districtName: string | null;
         isHeadOffice: boolean;
+        id: string;
     }>, "many">;
     /** `limited` when the member is limited to some branches. Null outside `business`. */
     branchCoverage: z.ZodNullable<z.ZodEnum<["all", "limited"]>>;
+    /**
+     * Whether this person may see and act on the business's PSF membership
+     * (ADR-056). Computed on the server by `isPsfApplicant`, which reads the
+     * owner membership and the on behalf claim, never a permission: a pending
+     * business holds none (ADR-053 rule 2), and the application must be
+     * reachable at every registration stage. Null outside hospitality.
+     *
+     * Defaults to null when absent, so a client built after this field landed
+     * still parses a grant from an API built before it.
+     */
+    psfMembership: z.ZodDefault<z.ZodNullable<z.ZodObject<{
+        canManage: z.ZodBoolean;
+    }, "strip", z.ZodTypeAny, {
+        canManage: boolean;
+    }, {
+        canManage: boolean;
+    }>>>;
 }, "strip", z.ZodTypeAny, {
+    kind: "business" | "broker" | "personal";
     domain: "hospitality" | "residence" | null;
-    registrationStatus: "pending_payment" | "submitted" | "tin_verified" | "field_verified" | "approved" | "active" | "rejected" | "suspended" | null;
+    branches: {
+        name: string;
+        districtName: string | null;
+        isHeadOffice: boolean;
+        id: string;
+    }[];
     orgId: string | null;
+    workspaceId: string;
+    registrationStatus: "pending_payment" | "submitted" | "tin_verified" | "field_verified" | "approved" | "active" | "rejected" | "suspended" | null;
     orgName: string | null;
     orgRole: "owner" | "manager" | "receptionist" | "housekeeper" | null;
-    workspaceId: string;
-    kind: "business" | "broker" | "personal";
     propertyName: string | null;
-    branches: {
-        districtName: string | null;
-        id: string;
-        name: string;
-        isHeadOffice: boolean;
-    }[];
     departments: ("rooms" | "fnb" | "spa_recreation" | "other_operated" | "misc_income" | "admin_general" | "sales_marketing" | "it" | "engineering" | "utilities" | "hr")[];
     permissions: ("reservation.approve" | "reservation.assign" | "stay.checkin" | "stay.checkout" | "folio.charge" | "folio.payment" | "housekeeping.set" | "ticket.advance" | "order.advance" | "menu.manage" | "team.manage" | "money.view" | "rent.record" | "lease.advance" | "deposit.return" | "unit.manage" | "listing.manage" | "message.send" | "task.assign" | "amenity.manage" | "department.manage" | "ebm.manage" | "folio.close" | "ebm.refund" | "outlet.manage" | "refund.decide" | "offer.manage")[];
     branchCoverage: "limited" | "all" | null;
+    psfMembership: {
+        canManage: boolean;
+    } | null;
 }, {
+    kind: "business" | "broker" | "personal";
     domain: "hospitality" | "residence" | null;
-    registrationStatus: "pending_payment" | "submitted" | "tin_verified" | "field_verified" | "approved" | "active" | "rejected" | "suspended" | null;
+    branches: {
+        name: string;
+        districtName: string | null;
+        isHeadOffice: boolean;
+        id: string;
+    }[];
     orgId: string | null;
+    workspaceId: string;
+    registrationStatus: "pending_payment" | "submitted" | "tin_verified" | "field_verified" | "approved" | "active" | "rejected" | "suspended" | null;
     orgName: string | null;
     orgRole: "owner" | "manager" | "receptionist" | "housekeeper" | null;
-    workspaceId: string;
-    kind: "business" | "broker" | "personal";
     propertyName: string | null;
-    branches: {
-        districtName: string | null;
-        id: string;
-        name: string;
-        isHeadOffice: boolean;
-    }[];
     departments: ("rooms" | "fnb" | "spa_recreation" | "other_operated" | "misc_income" | "admin_general" | "sales_marketing" | "it" | "engineering" | "utilities" | "hr")[];
     permissions: ("reservation.approve" | "reservation.assign" | "stay.checkin" | "stay.checkout" | "folio.charge" | "folio.payment" | "housekeeping.set" | "ticket.advance" | "order.advance" | "menu.manage" | "team.manage" | "money.view" | "rent.record" | "lease.advance" | "deposit.return" | "unit.manage" | "listing.manage" | "message.send" | "task.assign" | "amenity.manage" | "department.manage" | "ebm.manage" | "folio.close" | "ebm.refund" | "outlet.manage" | "refund.decide" | "offer.manage")[];
     branchCoverage: "limited" | "all" | null;
+    psfMembership?: {
+        canManage: boolean;
+    } | null | undefined;
 }>;
 export type WorkspaceAccess = z.infer<typeof WorkspaceAccess>;
 /**
@@ -470,26 +493,26 @@ export declare function workspaceAllows(access: Pick<WorkspaceAccess, "permissio
  * "no assignment" and "no console" are the same thing.
  */
 export declare const OversightGrant: z.ZodObject<{
-    oversightRole: z.ZodEnum<["tax_compliance_officer", "business_field_verifier", "business_approver"]>;
+    oversightRole: z.ZodEnum<["tax_compliance_officer", "business_field_verifier", "business_approver", "psf_membership_officer"]>;
     governmentBodyCode: z.ZodString;
     governmentTitle: z.ZodNullable<z.ZodString>;
     scopeLevel: z.ZodEnum<["country", "province", "district"]>;
     provinceId: z.ZodNullable<z.ZodNumber>;
     districtId: z.ZodNullable<z.ZodNumber>;
 }, "strip", z.ZodTypeAny, {
+    provinceId: number | null;
     districtId: number | null;
-    oversightRole: "tax_compliance_officer" | "business_field_verifier" | "business_approver";
+    oversightRole: "tax_compliance_officer" | "business_field_verifier" | "business_approver" | "psf_membership_officer";
     governmentBodyCode: string;
     governmentTitle: string | null;
     scopeLevel: "country" | "province" | "district";
-    provinceId: number | null;
 }, {
+    provinceId: number | null;
     districtId: number | null;
-    oversightRole: "tax_compliance_officer" | "business_field_verifier" | "business_approver";
+    oversightRole: "tax_compliance_officer" | "business_field_verifier" | "business_approver" | "psf_membership_officer";
     governmentBodyCode: string;
     governmentTitle: string | null;
     scopeLevel: "country" | "province" | "district";
-    provinceId: number | null;
 }>;
 export type OversightGrant = z.infer<typeof OversightGrant>;
 /**
@@ -515,8 +538,8 @@ export type OversightGrant = z.infer<typeof OversightGrant>;
 export declare const OversightConsoleGrant: z.ZodObject<{
     /** The assignment row, so a console can name the seat it is rendering. */
     assignmentId: z.ZodString;
-    console: z.ZodEnum<["verification", "approval", "tax"]>;
-    oversightRole: z.ZodEnum<["tax_compliance_officer", "business_field_verifier", "business_approver"]>;
+    console: z.ZodEnum<["verification", "approval", "tax", "membership"]>;
+    oversightRole: z.ZodEnum<["tax_compliance_officer", "business_field_verifier", "business_approver", "psf_membership_officer"]>;
     bodyCode: z.ZodString;
     bodyName: z.ZodNullable<z.ZodString>;
     title: z.ZodNullable<z.ZodString>;
@@ -525,25 +548,25 @@ export declare const OversightConsoleGrant: z.ZodObject<{
     districtId: z.ZodNullable<z.ZodNumber>;
     scopeLabel: z.ZodString;
 }, "strip", z.ZodTypeAny, {
+    provinceId: number | null;
     districtId: number | null;
+    oversightRole: "tax_compliance_officer" | "business_field_verifier" | "business_approver" | "psf_membership_officer";
     title: string | null;
-    oversightRole: "tax_compliance_officer" | "business_field_verifier" | "business_approver";
     scopeLevel: "country" | "province" | "district";
     scopeLabel: string;
-    provinceId: number | null;
     assignmentId: string;
-    console: "tax" | "verification" | "approval";
+    console: "membership" | "tax" | "verification" | "approval";
     bodyCode: string;
     bodyName: string | null;
 }, {
+    provinceId: number | null;
     districtId: number | null;
+    oversightRole: "tax_compliance_officer" | "business_field_verifier" | "business_approver" | "psf_membership_officer";
     title: string | null;
-    oversightRole: "tax_compliance_officer" | "business_field_verifier" | "business_approver";
     scopeLevel: "country" | "province" | "district";
     scopeLabel: string;
-    provinceId: number | null;
     assignmentId: string;
-    console: "tax" | "verification" | "approval";
+    console: "membership" | "tax" | "verification" | "approval";
     bodyCode: string;
     bodyName: string | null;
 }>;
@@ -560,7 +583,7 @@ export declare const OVERSIGHT_COUNTRY_SCOPE_LABEL = "Rwanda";
  */
 export declare const OVERSIGHT_CONSOLE_NOT_BUILT_MESSAGE: string;
 /** Which console a function opens. */
-export declare function oversightConsoleFor(role: OversightRole): "verification" | "approval" | "tax";
+export declare function oversightConsoleFor(role: OversightRole): "verification" | "approval" | "tax" | "membership";
 /**
  * Every district a province holds, as the caller read it from `districts`.
  *

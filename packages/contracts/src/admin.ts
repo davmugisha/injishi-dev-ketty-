@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { AdminOrgPsf } from "./psf";
 import {
     AdapterMode,
     Domain,
@@ -582,6 +583,11 @@ export const AdminOrgDetail = AdminOrgRow.extend({
     memberCount: z.number().int().nonnegative(),
     propertyCount: z.number().int().nonnegative(),
     certificateCount: z.number().int().nonnegative(),
+    /**
+     * PSF membership (ADR-056 AC-20). Null for a residence, which cannot hold
+     * one. Defaults to null so an older API still parses.
+     */
+    psf: AdminOrgPsf.nullable().default(null),
 });
 export type AdminOrgDetail = z.infer<typeof AdminOrgDetail>;
 /**

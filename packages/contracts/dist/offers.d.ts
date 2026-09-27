@@ -59,11 +59,11 @@ export declare const OfferTerms: z.ZodObject<{
 }, "strip", z.ZodTypeAny, {
     code: string | null;
     status: "active" | "draft" | "archived";
+    startsOn: string;
     scope: "room" | "service" | "folio";
     audience: "anyone" | "in_house";
     discountKind: "percentage" | "fixed_amount";
     discountValue: number;
-    startsOn: string;
     endsOn: string | null;
     minNights: number | null;
     minSpendRwf: number | null;
@@ -71,11 +71,11 @@ export declare const OfferTerms: z.ZodObject<{
 }, {
     code: string | null;
     status: "active" | "draft" | "archived";
+    startsOn: string;
     scope: "room" | "service" | "folio";
     audience: "anyone" | "in_house";
     discountKind: "percentage" | "fixed_amount";
     discountValue: number;
-    startsOn: string;
     endsOn: string | null;
     minNights: number | null;
     minSpendRwf: number | null;
@@ -111,9 +111,10 @@ export declare const Offer: z.ZodObject<{
 }, "strip", z.ZodTypeAny, {
     code: string | null;
     status: "active" | "draft" | "archived";
-    id: string;
-    createdAt: string;
     name: string;
+    id: string;
+    startsOn: string;
+    createdAt: string;
     scope: "room" | "service" | "folio";
     audience: "anyone" | "in_house";
     departmentName: string | null;
@@ -122,7 +123,6 @@ export declare const Offer: z.ZodObject<{
     departmentId: string | null;
     discountKind: "percentage" | "fixed_amount";
     discountValue: number;
-    startsOn: string;
     endsOn: string | null;
     minNights: number | null;
     minSpendRwf: number | null;
@@ -131,9 +131,10 @@ export declare const Offer: z.ZodObject<{
 }, {
     code: string | null;
     status: "active" | "draft" | "archived";
-    id: string;
-    createdAt: string;
     name: string;
+    id: string;
+    startsOn: string;
+    createdAt: string;
     scope: "room" | "service" | "folio";
     audience: "anyone" | "in_house";
     departmentName: string | null;
@@ -142,7 +143,6 @@ export declare const Offer: z.ZodObject<{
     departmentId: string | null;
     discountKind: "percentage" | "fixed_amount";
     discountValue: number;
-    startsOn: string;
     endsOn: string | null;
     minNights: number | null;
     minSpendRwf: number | null;
@@ -179,9 +179,10 @@ export declare const OfferList: z.ZodObject<{
     }, "strip", z.ZodTypeAny, {
         code: string | null;
         status: "active" | "draft" | "archived";
-        id: string;
-        createdAt: string;
         name: string;
+        id: string;
+        startsOn: string;
+        createdAt: string;
         scope: "room" | "service" | "folio";
         audience: "anyone" | "in_house";
         departmentName: string | null;
@@ -190,7 +191,6 @@ export declare const OfferList: z.ZodObject<{
         departmentId: string | null;
         discountKind: "percentage" | "fixed_amount";
         discountValue: number;
-        startsOn: string;
         endsOn: string | null;
         minNights: number | null;
         minSpendRwf: number | null;
@@ -199,9 +199,10 @@ export declare const OfferList: z.ZodObject<{
     }, {
         code: string | null;
         status: "active" | "draft" | "archived";
-        id: string;
-        createdAt: string;
         name: string;
+        id: string;
+        startsOn: string;
+        createdAt: string;
         scope: "room" | "service" | "folio";
         audience: "anyone" | "in_house";
         departmentName: string | null;
@@ -210,7 +211,6 @@ export declare const OfferList: z.ZodObject<{
         departmentId: string | null;
         discountKind: "percentage" | "fixed_amount";
         discountValue: number;
-        startsOn: string;
         endsOn: string | null;
         minNights: number | null;
         minSpendRwf: number | null;
@@ -221,9 +221,10 @@ export declare const OfferList: z.ZodObject<{
     offers: {
         code: string | null;
         status: "active" | "draft" | "archived";
-        id: string;
-        createdAt: string;
         name: string;
+        id: string;
+        startsOn: string;
+        createdAt: string;
         scope: "room" | "service" | "folio";
         audience: "anyone" | "in_house";
         departmentName: string | null;
@@ -232,7 +233,6 @@ export declare const OfferList: z.ZodObject<{
         departmentId: string | null;
         discountKind: "percentage" | "fixed_amount";
         discountValue: number;
-        startsOn: string;
         endsOn: string | null;
         minNights: number | null;
         minSpendRwf: number | null;
@@ -243,9 +243,10 @@ export declare const OfferList: z.ZodObject<{
     offers: {
         code: string | null;
         status: "active" | "draft" | "archived";
-        id: string;
-        createdAt: string;
         name: string;
+        id: string;
+        startsOn: string;
+        createdAt: string;
         scope: "room" | "service" | "folio";
         audience: "anyone" | "in_house";
         departmentName: string | null;
@@ -254,7 +255,6 @@ export declare const OfferList: z.ZodObject<{
         departmentId: string | null;
         discountKind: "percentage" | "fixed_amount";
         discountValue: number;
-        startsOn: string;
         endsOn: string | null;
         minNights: number | null;
         minSpendRwf: number | null;
@@ -296,9 +296,10 @@ export declare const GuestOffer: z.ZodObject<{
     /** Already taken on this stay. */
     redeemed: z.ZodBoolean;
 }, "strip", z.ZodTypeAny, {
-    id: string;
     name: string;
     reason: string | null;
+    id: string;
+    startsOn: string;
     propertyName: string | null;
     scope: "room" | "service" | "folio";
     departmentName: string | null;
@@ -307,7 +308,6 @@ export declare const GuestOffer: z.ZodObject<{
     eligible: boolean;
     discountKind: "percentage" | "fixed_amount";
     discountValue: number;
-    startsOn: string;
     endsOn: string | null;
     minNights: number | null;
     minSpendRwf: number | null;
@@ -315,9 +315,10 @@ export declare const GuestOffer: z.ZodObject<{
     discountRwf: number;
     redeemed: boolean;
 }, {
-    id: string;
     name: string;
     reason: string | null;
+    id: string;
+    startsOn: string;
     propertyName: string | null;
     scope: "room" | "service" | "folio";
     departmentName: string | null;
@@ -326,7 +327,6 @@ export declare const GuestOffer: z.ZodObject<{
     eligible: boolean;
     discountKind: "percentage" | "fixed_amount";
     discountValue: number;
-    startsOn: string;
     endsOn: string | null;
     minNights: number | null;
     minSpendRwf: number | null;
@@ -361,9 +361,10 @@ export declare const GuestOfferList: z.ZodObject<{
         /** Already taken on this stay. */
         redeemed: z.ZodBoolean;
     }, "strip", z.ZodTypeAny, {
-        id: string;
         name: string;
         reason: string | null;
+        id: string;
+        startsOn: string;
         propertyName: string | null;
         scope: "room" | "service" | "folio";
         departmentName: string | null;
@@ -372,7 +373,6 @@ export declare const GuestOfferList: z.ZodObject<{
         eligible: boolean;
         discountKind: "percentage" | "fixed_amount";
         discountValue: number;
-        startsOn: string;
         endsOn: string | null;
         minNights: number | null;
         minSpendRwf: number | null;
@@ -380,9 +380,10 @@ export declare const GuestOfferList: z.ZodObject<{
         discountRwf: number;
         redeemed: boolean;
     }, {
-        id: string;
         name: string;
         reason: string | null;
+        id: string;
+        startsOn: string;
         propertyName: string | null;
         scope: "room" | "service" | "folio";
         departmentName: string | null;
@@ -391,7 +392,6 @@ export declare const GuestOfferList: z.ZodObject<{
         eligible: boolean;
         discountKind: "percentage" | "fixed_amount";
         discountValue: number;
-        startsOn: string;
         endsOn: string | null;
         minNights: number | null;
         minSpendRwf: number | null;
@@ -402,9 +402,10 @@ export declare const GuestOfferList: z.ZodObject<{
 }, "strip", z.ZodTypeAny, {
     stayId: string | null;
     offers: {
-        id: string;
         name: string;
         reason: string | null;
+        id: string;
+        startsOn: string;
         propertyName: string | null;
         scope: "room" | "service" | "folio";
         departmentName: string | null;
@@ -413,7 +414,6 @@ export declare const GuestOfferList: z.ZodObject<{
         eligible: boolean;
         discountKind: "percentage" | "fixed_amount";
         discountValue: number;
-        startsOn: string;
         endsOn: string | null;
         minNights: number | null;
         minSpendRwf: number | null;
@@ -424,9 +424,10 @@ export declare const GuestOfferList: z.ZodObject<{
 }, {
     stayId: string | null;
     offers: {
-        id: string;
         name: string;
         reason: string | null;
+        id: string;
+        startsOn: string;
         propertyName: string | null;
         scope: "room" | "service" | "folio";
         departmentName: string | null;
@@ -435,7 +436,6 @@ export declare const GuestOfferList: z.ZodObject<{
         eligible: boolean;
         discountKind: "percentage" | "fixed_amount";
         discountValue: number;
-        startsOn: string;
         endsOn: string | null;
         minNights: number | null;
         minSpendRwf: number | null;
@@ -515,11 +515,11 @@ export declare const CreateOfferRequest: z.ZodEffects<z.ZodEffects<z.ZodEffects<
     status: z.ZodOptional<z.ZodEnum<["draft", "active", "archived"]>>;
 }, "strict", z.ZodTypeAny, {
     name: string;
+    startsOn: string;
     scope: "room" | "service" | "folio";
     propertyId: string;
     discountKind: "percentage" | "fixed_amount";
     discountValue: number;
-    startsOn: string;
     code?: string | undefined;
     status?: "active" | "draft" | "archived" | undefined;
     audience?: "anyone" | "in_house" | undefined;
@@ -531,11 +531,11 @@ export declare const CreateOfferRequest: z.ZodEffects<z.ZodEffects<z.ZodEffects<
     maxRedemptions?: number | undefined;
 }, {
     name: string;
+    startsOn: string;
     scope: "room" | "service" | "folio";
     propertyId: string;
     discountKind: "percentage" | "fixed_amount";
     discountValue: number;
-    startsOn: string;
     code?: string | undefined;
     status?: "active" | "draft" | "archived" | undefined;
     audience?: "anyone" | "in_house" | undefined;
@@ -547,11 +547,11 @@ export declare const CreateOfferRequest: z.ZodEffects<z.ZodEffects<z.ZodEffects<
     maxRedemptions?: number | undefined;
 }>, {
     name: string;
+    startsOn: string;
     scope: "room" | "service" | "folio";
     propertyId: string;
     discountKind: "percentage" | "fixed_amount";
     discountValue: number;
-    startsOn: string;
     code?: string | undefined;
     status?: "active" | "draft" | "archived" | undefined;
     audience?: "anyone" | "in_house" | undefined;
@@ -563,11 +563,11 @@ export declare const CreateOfferRequest: z.ZodEffects<z.ZodEffects<z.ZodEffects<
     maxRedemptions?: number | undefined;
 }, {
     name: string;
+    startsOn: string;
     scope: "room" | "service" | "folio";
     propertyId: string;
     discountKind: "percentage" | "fixed_amount";
     discountValue: number;
-    startsOn: string;
     code?: string | undefined;
     status?: "active" | "draft" | "archived" | undefined;
     audience?: "anyone" | "in_house" | undefined;
@@ -579,11 +579,11 @@ export declare const CreateOfferRequest: z.ZodEffects<z.ZodEffects<z.ZodEffects<
     maxRedemptions?: number | undefined;
 }>, {
     name: string;
+    startsOn: string;
     scope: "room" | "service" | "folio";
     propertyId: string;
     discountKind: "percentage" | "fixed_amount";
     discountValue: number;
-    startsOn: string;
     code?: string | undefined;
     status?: "active" | "draft" | "archived" | undefined;
     audience?: "anyone" | "in_house" | undefined;
@@ -595,11 +595,11 @@ export declare const CreateOfferRequest: z.ZodEffects<z.ZodEffects<z.ZodEffects<
     maxRedemptions?: number | undefined;
 }, {
     name: string;
+    startsOn: string;
     scope: "room" | "service" | "folio";
     propertyId: string;
     discountKind: "percentage" | "fixed_amount";
     discountValue: number;
-    startsOn: string;
     code?: string | undefined;
     status?: "active" | "draft" | "archived" | undefined;
     audience?: "anyone" | "in_house" | undefined;
@@ -611,11 +611,11 @@ export declare const CreateOfferRequest: z.ZodEffects<z.ZodEffects<z.ZodEffects<
     maxRedemptions?: number | undefined;
 }>, {
     name: string;
+    startsOn: string;
     scope: "room" | "service" | "folio";
     propertyId: string;
     discountKind: "percentage" | "fixed_amount";
     discountValue: number;
-    startsOn: string;
     code?: string | undefined;
     status?: "active" | "draft" | "archived" | undefined;
     audience?: "anyone" | "in_house" | undefined;
@@ -627,11 +627,11 @@ export declare const CreateOfferRequest: z.ZodEffects<z.ZodEffects<z.ZodEffects<
     maxRedemptions?: number | undefined;
 }, {
     name: string;
+    startsOn: string;
     scope: "room" | "service" | "folio";
     propertyId: string;
     discountKind: "percentage" | "fixed_amount";
     discountValue: number;
-    startsOn: string;
     code?: string | undefined;
     status?: "active" | "draft" | "archived" | undefined;
     audience?: "anyone" | "in_house" | undefined;
@@ -669,11 +669,11 @@ export declare const UpdateOfferRequest: z.ZodEffects<z.ZodObject<{
     code?: string | null | undefined;
     status?: "active" | "draft" | "archived" | undefined;
     name?: string | undefined;
+    startsOn?: string | undefined;
     audience?: "anyone" | "in_house" | undefined;
     description?: string | null | undefined;
     discountKind?: "percentage" | "fixed_amount" | undefined;
     discountValue?: number | undefined;
-    startsOn?: string | undefined;
     endsOn?: string | null | undefined;
     minNights?: number | null | undefined;
     minSpendRwf?: number | null | undefined;
@@ -682,11 +682,11 @@ export declare const UpdateOfferRequest: z.ZodEffects<z.ZodObject<{
     code?: string | null | undefined;
     status?: "active" | "draft" | "archived" | undefined;
     name?: string | undefined;
+    startsOn?: string | undefined;
     audience?: "anyone" | "in_house" | undefined;
     description?: string | null | undefined;
     discountKind?: "percentage" | "fixed_amount" | undefined;
     discountValue?: number | undefined;
-    startsOn?: string | undefined;
     endsOn?: string | null | undefined;
     minNights?: number | null | undefined;
     minSpendRwf?: number | null | undefined;
@@ -695,11 +695,11 @@ export declare const UpdateOfferRequest: z.ZodEffects<z.ZodObject<{
     code?: string | null | undefined;
     status?: "active" | "draft" | "archived" | undefined;
     name?: string | undefined;
+    startsOn?: string | undefined;
     audience?: "anyone" | "in_house" | undefined;
     description?: string | null | undefined;
     discountKind?: "percentage" | "fixed_amount" | undefined;
     discountValue?: number | undefined;
-    startsOn?: string | undefined;
     endsOn?: string | null | undefined;
     minNights?: number | null | undefined;
     minSpendRwf?: number | null | undefined;
@@ -708,11 +708,11 @@ export declare const UpdateOfferRequest: z.ZodEffects<z.ZodObject<{
     code?: string | null | undefined;
     status?: "active" | "draft" | "archived" | undefined;
     name?: string | undefined;
+    startsOn?: string | undefined;
     audience?: "anyone" | "in_house" | undefined;
     description?: string | null | undefined;
     discountKind?: "percentage" | "fixed_amount" | undefined;
     discountValue?: number | undefined;
-    startsOn?: string | undefined;
     endsOn?: string | null | undefined;
     minNights?: number | null | undefined;
     minSpendRwf?: number | null | undefined;

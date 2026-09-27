@@ -62,6 +62,7 @@ import {
   UserRound,
   ListChecks,
   Phone,
+  BadgeCheck,
   type LucideIcon,
 } from "lucide-react";
 
@@ -119,6 +120,8 @@ const ICONS: Record<string, LucideIcon> = {
   "user-round": UserRound,
   "list-checks": ListChecks,
   phone: Phone,
+  // PSF membership (ADR-056).
+  "badge-check": BadgeCheck,
 };
 
 export function Icon({

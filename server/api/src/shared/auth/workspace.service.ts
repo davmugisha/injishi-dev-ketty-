@@ -11,6 +11,7 @@ import {
   type RolePermissionOverride,
   type StaffAccess,
   type WorkspaceAccess,
+  isPsfApplicant,
   mayElevate,
   oversightConsoleFor,
   parseRolePermissionOverride,
@@ -26,6 +27,7 @@ import {
   districts,
   governmentBodies,
   identityDocuments,
+  oboRegistrations,
   orgMembershipBranches,
   orgMemberships,
   orgRolePermissions,
@@ -191,6 +193,8 @@ export class WorkspaceService {
       propertyName: null,
       branches: [],
       branchCoverage: null,
+      // No business, so no PSF membership (ADR-056).
+      psfMembership: null,
     }));
 
     /*
@@ -238,6 +242,31 @@ export class WorkspaceService {
       }
     }
 
+    /*
+     * The on behalf registration of each business, for the PSF applicant rule
+     * (ADR-056). The agent who registered stays an `owner` after the claim
+     * (scope `_root` 40), so the rule has to read the claim to tell them apart
+     * from the owner. One query for every business at once, skipped with none.
+     */
+    const oboByOrg = new Map<
+      string,
+      {
+        registrantUserId: string;
+        claimStatus: 'registrant_held' | 'owner_claimed' | 'expired';
+      }
+    >();
+    if (orgIds.length > 0) {
+      const rows = await this.db
+        .select({
+          orgId: oboRegistrations.orgId,
+          registrantUserId: oboRegistrations.registrantUserId,
+          claimStatus: oboRegistrations.claimStatus,
+        })
+        .from(oboRegistrations)
+        .where(inArray(oboRegistrations.orgId, orgIds));
+      for (const { orgId, ...obo } of rows) oboByOrg.set(orgId, obo);
+    }
+
     const fromOrg: WorkspaceAccess[] = viaOrg.map((w) => {
       const limit = limits.get(w.membershipId);
       const branches = (branchesByWorkspace.get(w.workspaceId) ?? []).filter(
@@ -263,6 +292,17 @@ export class WorkspaceService {
         propertyName: branches[0]?.name ?? null,
         branches,
         branchCoverage: limit ? ('limited' as const) : ('all' as const),
+        psfMembership:
+          w.domain === 'hospitality'
+            ? {
+                canManage: isPsfApplicant({
+                  userId,
+                  domain: w.domain,
+                  orgRole: w.orgRole,
+                  obo: w.orgId ? (oboByOrg.get(w.orgId) ?? null) : null,
+                }),
+              }
+            : null,
       };
     });
 

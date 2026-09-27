@@ -68,8 +68,8 @@ export declare const GuestThread: z.ZodObject<{
     unreadCount: z.ZodNumber;
 }, "strip", z.ZodTypeAny, {
     status: "active" | "archived";
-    id: string;
     kind: "dispute" | "reservation" | "department_request";
+    id: string;
     subjectId: string;
     propertyName: string | null;
     scope: "lease" | "booking" | "stay";
@@ -80,8 +80,8 @@ export declare const GuestThread: z.ZodObject<{
     unreadCount: number;
 }, {
     status: "active" | "archived";
-    id: string;
     kind: "dispute" | "reservation" | "department_request";
+    id: string;
     subjectId: string;
     propertyName: string | null;
     scope: "lease" | "booking" | "stay";
@@ -121,8 +121,8 @@ export declare const MyThreads: z.ZodObject<{
         unreadCount: z.ZodNumber;
     }, "strip", z.ZodTypeAny, {
         status: "active" | "archived";
-        id: string;
         kind: "dispute" | "reservation" | "department_request";
+        id: string;
         subjectId: string;
         propertyName: string | null;
         scope: "lease" | "booking" | "stay";
@@ -133,8 +133,8 @@ export declare const MyThreads: z.ZodObject<{
         unreadCount: number;
     }, {
         status: "active" | "archived";
-        id: string;
         kind: "dispute" | "reservation" | "department_request";
+        id: string;
         subjectId: string;
         propertyName: string | null;
         scope: "lease" | "booking" | "stay";
@@ -147,8 +147,8 @@ export declare const MyThreads: z.ZodObject<{
 }, "strip", z.ZodTypeAny, {
     threads: {
         status: "active" | "archived";
-        id: string;
         kind: "dispute" | "reservation" | "department_request";
+        id: string;
         subjectId: string;
         propertyName: string | null;
         scope: "lease" | "booking" | "stay";
@@ -161,8 +161,8 @@ export declare const MyThreads: z.ZodObject<{
 }, {
     threads: {
         status: "active" | "archived";
-        id: string;
         kind: "dispute" | "reservation" | "department_request";
+        id: string;
         subjectId: string;
         propertyName: string | null;
         scope: "lease" | "booking" | "stay";

@@ -55,6 +55,7 @@ const base: Omit<WorkspaceAccess, 'workspaceId' | 'kind'> = {
   registrationStatus: null,
   branches: [],
   branchCoverage: null,
+  psfMembership: null,
 };
 
 /** Samuel's five seats, in switcher order. */

@@ -107,6 +107,7 @@ exports.OVERSIGHT_ROLE_LABEL = {
     business_approver: "Approver",
     business_field_verifier: "Field verifier",
     tax_compliance_officer: "Tax compliance officer",
+    psf_membership_officer: "PSF membership officer",
 };
 /** The short words a platform staff role is read in. */
 exports.STAFF_ROLE_LABEL = {

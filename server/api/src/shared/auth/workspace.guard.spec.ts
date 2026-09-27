@@ -46,6 +46,7 @@ describe('WorkspaceGuard', () => {
     propertyName: 'Kivu Crest Hotel',
     branches: [],
     branchCoverage: 'all',
+    psfMembership: { canManage: true },
   };
 
   const REMERA = '11111111-1111-4111-8111-111111111111';
@@ -216,6 +217,7 @@ describe('WorkspaceGuard', () => {
         propertyName: null,
         branches: [],
         branchCoverage: null,
+        psfMembership: null,
       };
       const { guard } = guardWith(broker, 'money.view');
       const context = contextFor({

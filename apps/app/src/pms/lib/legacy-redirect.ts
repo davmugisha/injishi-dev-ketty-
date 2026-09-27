@@ -303,6 +303,7 @@ export const WORKSPACE_ROUTES: readonly string[] = [
   "people/invites",
   "people/roles",
   "placements",
+  "psf-membership",
   "rent-roll",
   "reservations",
   "reservations/*",

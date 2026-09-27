@@ -70,7 +70,7 @@ export declare const OperatorReservation: z.ZodObject<{
     id: string;
     reference: string;
     guestName: string | null;
-    state: "pending" | "confirmed" | "declined" | "cancelled" | "no_show" | "inhouse" | "checked_out";
+    state: "pending" | "declined" | "confirmed" | "cancelled" | "no_show" | "inhouse" | "checked_out";
     roomTypeId: string;
     nights: number;
     checkIn: string;
@@ -78,14 +78,14 @@ export declare const OperatorReservation: z.ZodObject<{
     approvalExpiresAt: string | null;
     confirmedAt: string | null;
     guestCount: number;
-    bookingStatus: "pending_approval" | "confirmed" | "declined" | "cancelled" | "no_show";
+    bookingStatus: "declined" | "pending_approval" | "confirmed" | "cancelled" | "no_show";
     room: string | null;
     totalRwf: number | null;
 }, {
     id: string;
     reference: string;
     guestName: string | null;
-    state: "pending" | "confirmed" | "declined" | "cancelled" | "no_show" | "inhouse" | "checked_out";
+    state: "pending" | "declined" | "confirmed" | "cancelled" | "no_show" | "inhouse" | "checked_out";
     roomTypeId: string;
     nights: number;
     checkIn: string;
@@ -93,7 +93,7 @@ export declare const OperatorReservation: z.ZodObject<{
     approvalExpiresAt: string | null;
     confirmedAt: string | null;
     guestCount: number;
-    bookingStatus: "pending_approval" | "confirmed" | "declined" | "cancelled" | "no_show";
+    bookingStatus: "declined" | "pending_approval" | "confirmed" | "cancelled" | "no_show";
     room: string | null;
     totalRwf: number | null;
 }>;
@@ -137,7 +137,7 @@ export declare const OperatorReservationList: z.ZodObject<{
         id: string;
         reference: string;
         guestName: string | null;
-        state: "pending" | "confirmed" | "declined" | "cancelled" | "no_show" | "inhouse" | "checked_out";
+        state: "pending" | "declined" | "confirmed" | "cancelled" | "no_show" | "inhouse" | "checked_out";
         roomTypeId: string;
         nights: number;
         checkIn: string;
@@ -145,14 +145,14 @@ export declare const OperatorReservationList: z.ZodObject<{
         approvalExpiresAt: string | null;
         confirmedAt: string | null;
         guestCount: number;
-        bookingStatus: "pending_approval" | "confirmed" | "declined" | "cancelled" | "no_show";
+        bookingStatus: "declined" | "pending_approval" | "confirmed" | "cancelled" | "no_show";
         room: string | null;
         totalRwf: number | null;
     }, {
         id: string;
         reference: string;
         guestName: string | null;
-        state: "pending" | "confirmed" | "declined" | "cancelled" | "no_show" | "inhouse" | "checked_out";
+        state: "pending" | "declined" | "confirmed" | "cancelled" | "no_show" | "inhouse" | "checked_out";
         roomTypeId: string;
         nights: number;
         checkIn: string;
@@ -160,7 +160,7 @@ export declare const OperatorReservationList: z.ZodObject<{
         approvalExpiresAt: string | null;
         confirmedAt: string | null;
         guestCount: number;
-        bookingStatus: "pending_approval" | "confirmed" | "declined" | "cancelled" | "no_show";
+        bookingStatus: "declined" | "pending_approval" | "confirmed" | "cancelled" | "no_show";
         room: string | null;
         totalRwf: number | null;
     }>, "many">;
@@ -169,7 +169,7 @@ export declare const OperatorReservationList: z.ZodObject<{
         id: string;
         reference: string;
         guestName: string | null;
-        state: "pending" | "confirmed" | "declined" | "cancelled" | "no_show" | "inhouse" | "checked_out";
+        state: "pending" | "declined" | "confirmed" | "cancelled" | "no_show" | "inhouse" | "checked_out";
         roomTypeId: string;
         nights: number;
         checkIn: string;
@@ -177,7 +177,7 @@ export declare const OperatorReservationList: z.ZodObject<{
         approvalExpiresAt: string | null;
         confirmedAt: string | null;
         guestCount: number;
-        bookingStatus: "pending_approval" | "confirmed" | "declined" | "cancelled" | "no_show";
+        bookingStatus: "declined" | "pending_approval" | "confirmed" | "cancelled" | "no_show";
         room: string | null;
         totalRwf: number | null;
     }[];
@@ -186,7 +186,7 @@ export declare const OperatorReservationList: z.ZodObject<{
         id: string;
         reference: string;
         guestName: string | null;
-        state: "pending" | "confirmed" | "declined" | "cancelled" | "no_show" | "inhouse" | "checked_out";
+        state: "pending" | "declined" | "confirmed" | "cancelled" | "no_show" | "inhouse" | "checked_out";
         roomTypeId: string;
         nights: number;
         checkIn: string;
@@ -194,7 +194,7 @@ export declare const OperatorReservationList: z.ZodObject<{
         approvalExpiresAt: string | null;
         confirmedAt: string | null;
         guestCount: number;
-        bookingStatus: "pending_approval" | "confirmed" | "declined" | "cancelled" | "no_show";
+        bookingStatus: "declined" | "pending_approval" | "confirmed" | "cancelled" | "no_show";
         room: string | null;
         totalRwf: number | null;
     }[];
@@ -214,10 +214,10 @@ export declare const OperatorReservationQuery: z.ZodObject<{
     state: z.ZodOptional<z.ZodEnum<["pending", "confirmed", "inhouse", "checked_out", "declined", "cancelled", "no_show"]>>;
 }, "strip", z.ZodTypeAny, {
     workspaceId?: string | undefined;
-    state?: "pending" | "confirmed" | "declined" | "cancelled" | "no_show" | "inhouse" | "checked_out" | undefined;
+    state?: "pending" | "declined" | "confirmed" | "cancelled" | "no_show" | "inhouse" | "checked_out" | undefined;
 }, {
     workspaceId?: string | undefined;
-    state?: "pending" | "confirmed" | "declined" | "cancelled" | "no_show" | "inhouse" | "checked_out" | undefined;
+    state?: "pending" | "declined" | "confirmed" | "cancelled" | "no_show" | "inhouse" | "checked_out" | undefined;
 }>;
 export type OperatorReservationQuery = z.infer<typeof OperatorReservationQuery>;
 /**
@@ -270,7 +270,7 @@ export declare const ReservationDecisionResult: z.ZodObject<{
     id: string;
     reference: string;
     guestName: string | null;
-    state: "pending" | "confirmed" | "declined" | "cancelled" | "no_show" | "inhouse" | "checked_out";
+    state: "pending" | "declined" | "confirmed" | "cancelled" | "no_show" | "inhouse" | "checked_out";
     roomTypeId: string;
     nights: number;
     checkIn: string;
@@ -278,14 +278,14 @@ export declare const ReservationDecisionResult: z.ZodObject<{
     approvalExpiresAt: string | null;
     confirmedAt: string | null;
     guestCount: number;
-    bookingStatus: "pending_approval" | "confirmed" | "declined" | "cancelled" | "no_show";
+    bookingStatus: "declined" | "pending_approval" | "confirmed" | "cancelled" | "no_show";
     room: string | null;
     totalRwf: number | null;
 }, {
     id: string;
     reference: string;
     guestName: string | null;
-    state: "pending" | "confirmed" | "declined" | "cancelled" | "no_show" | "inhouse" | "checked_out";
+    state: "pending" | "declined" | "confirmed" | "cancelled" | "no_show" | "inhouse" | "checked_out";
     roomTypeId: string;
     nights: number;
     checkIn: string;
@@ -293,7 +293,7 @@ export declare const ReservationDecisionResult: z.ZodObject<{
     approvalExpiresAt: string | null;
     confirmedAt: string | null;
     guestCount: number;
-    bookingStatus: "pending_approval" | "confirmed" | "declined" | "cancelled" | "no_show";
+    bookingStatus: "declined" | "pending_approval" | "confirmed" | "cancelled" | "no_show";
     room: string | null;
     totalRwf: number | null;
 }>;
@@ -347,8 +347,8 @@ export declare const OperatorRoom: z.ZodObject<{
     }>>;
 }, "strip", z.ZodTypeAny, {
     status: "available" | "maintenance" | "out_of_service";
-    label: string | null;
     id: string;
+    label: string | null;
     roomTypeId: string;
     roomTypeName: string;
     housekeeping: "dirty" | "clean" | "inspected" | "out_of_order";
@@ -358,8 +358,8 @@ export declare const OperatorRoom: z.ZodObject<{
     } | null;
 }, {
     status: "available" | "maintenance" | "out_of_service";
-    label: string | null;
     id: string;
+    label: string | null;
     roomTypeId: string;
     roomTypeName: string;
     housekeeping: "dirty" | "clean" | "inspected" | "out_of_order";
@@ -391,8 +391,8 @@ export declare const OperatorRoomList: z.ZodObject<{
         }>>;
     }, "strip", z.ZodTypeAny, {
         status: "available" | "maintenance" | "out_of_service";
-        label: string | null;
         id: string;
+        label: string | null;
         roomTypeId: string;
         roomTypeName: string;
         housekeeping: "dirty" | "clean" | "inspected" | "out_of_order";
@@ -402,8 +402,8 @@ export declare const OperatorRoomList: z.ZodObject<{
         } | null;
     }, {
         status: "available" | "maintenance" | "out_of_service";
-        label: string | null;
         id: string;
+        label: string | null;
         roomTypeId: string;
         roomTypeName: string;
         housekeeping: "dirty" | "clean" | "inspected" | "out_of_order";
@@ -415,8 +415,8 @@ export declare const OperatorRoomList: z.ZodObject<{
 }, "strip", z.ZodTypeAny, {
     rooms: {
         status: "available" | "maintenance" | "out_of_service";
-        label: string | null;
         id: string;
+        label: string | null;
         roomTypeId: string;
         roomTypeName: string;
         housekeeping: "dirty" | "clean" | "inspected" | "out_of_order";
@@ -428,8 +428,8 @@ export declare const OperatorRoomList: z.ZodObject<{
 }, {
     rooms: {
         status: "available" | "maintenance" | "out_of_service";
-        label: string | null;
         id: string;
+        label: string | null;
         roomTypeId: string;
         roomTypeName: string;
         housekeeping: "dirty" | "clean" | "inspected" | "out_of_order";
@@ -471,18 +471,18 @@ export declare const StayRegistrationDetails: z.ZodObject<{
      */
     invite: z.ZodOptional<z.ZodBoolean>;
 }, "strict", z.ZodTypeAny, {
-    addressText?: string | undefined;
-    email?: string | undefined;
     documentType?: "national_id" | "passport" | "other" | undefined;
+    addressText?: string | undefined;
     fullName?: string | undefined;
+    email?: string | undefined;
     idNumber?: string | undefined;
     phone?: string | undefined;
     invite?: boolean | undefined;
 }, {
-    addressText?: string | undefined;
-    email?: string | undefined;
     documentType?: "national_id" | "passport" | "other" | undefined;
+    addressText?: string | undefined;
     fullName?: string | undefined;
+    email?: string | undefined;
     idNumber?: string | undefined;
     phone?: string | undefined;
     invite?: boolean | undefined;
@@ -693,28 +693,28 @@ export declare const CheckInRequest: z.ZodObject<{
          */
         invite: z.ZodOptional<z.ZodBoolean>;
     }, "strict", z.ZodTypeAny, {
-        addressText?: string | undefined;
-        email?: string | undefined;
         documentType?: "national_id" | "passport" | "other" | undefined;
+        addressText?: string | undefined;
         fullName?: string | undefined;
+        email?: string | undefined;
         idNumber?: string | undefined;
         phone?: string | undefined;
         invite?: boolean | undefined;
     }, {
-        addressText?: string | undefined;
-        email?: string | undefined;
         documentType?: "national_id" | "passport" | "other" | undefined;
+        addressText?: string | undefined;
         fullName?: string | undefined;
+        email?: string | undefined;
         idNumber?: string | undefined;
         phone?: string | undefined;
         invite?: boolean | undefined;
     }>>;
 }, "strip", z.ZodTypeAny, {
     guest?: {
-        addressText?: string | undefined;
-        email?: string | undefined;
         documentType?: "national_id" | "passport" | "other" | undefined;
+        addressText?: string | undefined;
         fullName?: string | undefined;
+        email?: string | undefined;
         idNumber?: string | undefined;
         phone?: string | undefined;
         invite?: boolean | undefined;
@@ -723,10 +723,10 @@ export declare const CheckInRequest: z.ZodObject<{
     roomId?: string | undefined;
 }, {
     guest?: {
-        addressText?: string | undefined;
-        email?: string | undefined;
         documentType?: "national_id" | "passport" | "other" | undefined;
+        addressText?: string | undefined;
         fullName?: string | undefined;
+        email?: string | undefined;
         idNumber?: string | undefined;
         phone?: string | undefined;
         invite?: boolean | undefined;
@@ -795,18 +795,18 @@ export declare const WalkInRequest: z.ZodObject<{
          */
         invite: z.ZodOptional<z.ZodBoolean>;
     }, "strict", z.ZodTypeAny, {
-        addressText?: string | undefined;
-        email?: string | undefined;
         documentType?: "national_id" | "passport" | "other" | undefined;
+        addressText?: string | undefined;
         fullName?: string | undefined;
+        email?: string | undefined;
         idNumber?: string | undefined;
         phone?: string | undefined;
         invite?: boolean | undefined;
     }, {
-        addressText?: string | undefined;
-        email?: string | undefined;
         documentType?: "national_id" | "passport" | "other" | undefined;
+        addressText?: string | undefined;
         fullName?: string | undefined;
+        email?: string | undefined;
         idNumber?: string | undefined;
         phone?: string | undefined;
         invite?: boolean | undefined;
@@ -815,10 +815,10 @@ export declare const WalkInRequest: z.ZodObject<{
     guestName: string;
     roomId: string;
     guest?: {
-        addressText?: string | undefined;
-        email?: string | undefined;
         documentType?: "national_id" | "passport" | "other" | undefined;
+        addressText?: string | undefined;
         fullName?: string | undefined;
+        email?: string | undefined;
         idNumber?: string | undefined;
         phone?: string | undefined;
         invite?: boolean | undefined;
@@ -829,10 +829,10 @@ export declare const WalkInRequest: z.ZodObject<{
     guestName: string;
     roomId: string;
     guest?: {
-        addressText?: string | undefined;
-        email?: string | undefined;
         documentType?: "national_id" | "passport" | "other" | undefined;
+        addressText?: string | undefined;
         fullName?: string | undefined;
+        email?: string | undefined;
         idNumber?: string | undefined;
         phone?: string | undefined;
         invite?: boolean | undefined;
@@ -1127,8 +1127,8 @@ export declare const OperatorTicket: z.ZodObject<{
     noteCount: z.ZodNumber;
 }, "strip", z.ZodTypeAny, {
     status: "open" | "resolved" | "closed" | "cancelled" | "assigned" | "in_progress";
-    title: string;
     id: string;
+    title: string;
     createdAt: string;
     category: "other" | "plumbing" | "electrical" | "hvac" | "appliance" | "furniture" | "it_tech" | "safety" | null;
     resolvedAt: string | null;
@@ -1141,8 +1141,8 @@ export declare const OperatorTicket: z.ZodObject<{
     noteCount: number;
 }, {
     status: "open" | "resolved" | "closed" | "cancelled" | "assigned" | "in_progress";
-    title: string;
     id: string;
+    title: string;
     createdAt: string;
     category: "other" | "plumbing" | "electrical" | "hvac" | "appliance" | "furniture" | "it_tech" | "safety" | null;
     resolvedAt: string | null;
@@ -1173,8 +1173,8 @@ export declare const OperatorTicketList: z.ZodObject<{
         noteCount: z.ZodNumber;
     }, "strip", z.ZodTypeAny, {
         status: "open" | "resolved" | "closed" | "cancelled" | "assigned" | "in_progress";
-        title: string;
         id: string;
+        title: string;
         createdAt: string;
         category: "other" | "plumbing" | "electrical" | "hvac" | "appliance" | "furniture" | "it_tech" | "safety" | null;
         resolvedAt: string | null;
@@ -1187,8 +1187,8 @@ export declare const OperatorTicketList: z.ZodObject<{
         noteCount: number;
     }, {
         status: "open" | "resolved" | "closed" | "cancelled" | "assigned" | "in_progress";
-        title: string;
         id: string;
+        title: string;
         createdAt: string;
         category: "other" | "plumbing" | "electrical" | "hvac" | "appliance" | "furniture" | "it_tech" | "safety" | null;
         resolvedAt: string | null;
@@ -1203,8 +1203,8 @@ export declare const OperatorTicketList: z.ZodObject<{
 }, "strip", z.ZodTypeAny, {
     tickets: {
         status: "open" | "resolved" | "closed" | "cancelled" | "assigned" | "in_progress";
-        title: string;
         id: string;
+        title: string;
         createdAt: string;
         category: "other" | "plumbing" | "electrical" | "hvac" | "appliance" | "furniture" | "it_tech" | "safety" | null;
         resolvedAt: string | null;
@@ -1219,8 +1219,8 @@ export declare const OperatorTicketList: z.ZodObject<{
 }, {
     tickets: {
         status: "open" | "resolved" | "closed" | "cancelled" | "assigned" | "in_progress";
-        title: string;
         id: string;
+        title: string;
         createdAt: string;
         category: "other" | "plumbing" | "electrical" | "hvac" | "appliance" | "furniture" | "it_tech" | "safety" | null;
         resolvedAt: string | null;
@@ -1523,13 +1523,13 @@ export declare const OperatorDeposit: z.ZodObject<{
         reason: z.ZodNullable<z.ZodString>;
         settledAt: z.ZodString;
     }, "strip", z.ZodTypeAny, {
-        settledAt: string;
         reason: string | null;
+        settledAt: string;
         refundedRwf: number | null;
         forfeitedRwf: number | null;
     }, {
-        settledAt: string;
         reason: string | null;
+        settledAt: string;
         refundedRwf: number | null;
         forfeitedRwf: number | null;
     }>>;
@@ -1542,8 +1542,8 @@ export declare const OperatorDeposit: z.ZodObject<{
     tenantName: string | null;
     heldAt: string;
     settlement: {
-        settledAt: string;
         reason: string | null;
+        settledAt: string;
         refundedRwf: number | null;
         forfeitedRwf: number | null;
     } | null;
@@ -1556,8 +1556,8 @@ export declare const OperatorDeposit: z.ZodObject<{
     tenantName: string | null;
     heldAt: string;
     settlement: {
-        settledAt: string;
         reason: string | null;
+        settledAt: string;
         refundedRwf: number | null;
         forfeitedRwf: number | null;
     } | null;
@@ -1579,13 +1579,13 @@ export declare const OperatorDepositList: z.ZodObject<{
             reason: z.ZodNullable<z.ZodString>;
             settledAt: z.ZodString;
         }, "strip", z.ZodTypeAny, {
-            settledAt: string;
             reason: string | null;
+            settledAt: string;
             refundedRwf: number | null;
             forfeitedRwf: number | null;
         }, {
-            settledAt: string;
             reason: string | null;
+            settledAt: string;
             refundedRwf: number | null;
             forfeitedRwf: number | null;
         }>>;
@@ -1598,8 +1598,8 @@ export declare const OperatorDepositList: z.ZodObject<{
         tenantName: string | null;
         heldAt: string;
         settlement: {
-            settledAt: string;
             reason: string | null;
+            settledAt: string;
             refundedRwf: number | null;
             forfeitedRwf: number | null;
         } | null;
@@ -1612,8 +1612,8 @@ export declare const OperatorDepositList: z.ZodObject<{
         tenantName: string | null;
         heldAt: string;
         settlement: {
-            settledAt: string;
             reason: string | null;
+            settledAt: string;
             refundedRwf: number | null;
             forfeitedRwf: number | null;
         } | null;
@@ -1628,8 +1628,8 @@ export declare const OperatorDepositList: z.ZodObject<{
         tenantName: string | null;
         heldAt: string;
         settlement: {
-            settledAt: string;
             reason: string | null;
+            settledAt: string;
             refundedRwf: number | null;
             forfeitedRwf: number | null;
         } | null;
@@ -1644,8 +1644,8 @@ export declare const OperatorDepositList: z.ZodObject<{
         tenantName: string | null;
         heldAt: string;
         settlement: {
-            settledAt: string;
             reason: string | null;
+            settledAt: string;
             refundedRwf: number | null;
             forfeitedRwf: number | null;
         } | null;
@@ -1802,28 +1802,28 @@ export declare const OperatorDepartment: z.ZodObject<{
     phone: z.ZodNullable<z.ZodString>;
 }, "strip", z.ZodTypeAny, {
     status: "active" | "archived";
-    id: string;
     name: string;
+    sortOrder: number;
+    id: string;
     phone: string | null;
     propertyId: string | null;
     departmentType: "operated" | "undistributed";
     departmentCategory: "rooms" | "fnb" | "spa_recreation" | "other_operated" | "misc_income" | "admin_general" | "sales_marketing" | "it" | "engineering" | "utilities" | "hr";
     isRevenueCenter: boolean;
     guestRequestable: boolean;
-    sortOrder: number;
     headName: string | null;
     headPhone: string | null;
 }, {
     status: "active" | "archived";
-    id: string;
     name: string;
+    sortOrder: number;
+    id: string;
     phone: string | null;
     propertyId: string | null;
     departmentType: "operated" | "undistributed";
     departmentCategory: "rooms" | "fnb" | "spa_recreation" | "other_operated" | "misc_income" | "admin_general" | "sales_marketing" | "it" | "engineering" | "utilities" | "hr";
     isRevenueCenter: boolean;
     guestRequestable: boolean;
-    sortOrder: number;
     headName: string | null;
     headPhone: string | null;
 }>;
@@ -1849,58 +1849,58 @@ export declare const OperatorDepartmentList: z.ZodObject<{
         phone: z.ZodNullable<z.ZodString>;
     }, "strip", z.ZodTypeAny, {
         status: "active" | "archived";
-        id: string;
         name: string;
+        sortOrder: number;
+        id: string;
         phone: string | null;
         propertyId: string | null;
         departmentType: "operated" | "undistributed";
         departmentCategory: "rooms" | "fnb" | "spa_recreation" | "other_operated" | "misc_income" | "admin_general" | "sales_marketing" | "it" | "engineering" | "utilities" | "hr";
         isRevenueCenter: boolean;
         guestRequestable: boolean;
-        sortOrder: number;
         headName: string | null;
         headPhone: string | null;
     }, {
         status: "active" | "archived";
-        id: string;
         name: string;
+        sortOrder: number;
+        id: string;
         phone: string | null;
         propertyId: string | null;
         departmentType: "operated" | "undistributed";
         departmentCategory: "rooms" | "fnb" | "spa_recreation" | "other_operated" | "misc_income" | "admin_general" | "sales_marketing" | "it" | "engineering" | "utilities" | "hr";
         isRevenueCenter: boolean;
         guestRequestable: boolean;
-        sortOrder: number;
         headName: string | null;
         headPhone: string | null;
     }>, "many">;
 }, "strip", z.ZodTypeAny, {
     departments: {
         status: "active" | "archived";
-        id: string;
         name: string;
+        sortOrder: number;
+        id: string;
         phone: string | null;
         propertyId: string | null;
         departmentType: "operated" | "undistributed";
         departmentCategory: "rooms" | "fnb" | "spa_recreation" | "other_operated" | "misc_income" | "admin_general" | "sales_marketing" | "it" | "engineering" | "utilities" | "hr";
         isRevenueCenter: boolean;
         guestRequestable: boolean;
-        sortOrder: number;
         headName: string | null;
         headPhone: string | null;
     }[];
 }, {
     departments: {
         status: "active" | "archived";
-        id: string;
         name: string;
+        sortOrder: number;
+        id: string;
         phone: string | null;
         propertyId: string | null;
         departmentType: "operated" | "undistributed";
         departmentCategory: "rooms" | "fnb" | "spa_recreation" | "other_operated" | "misc_income" | "admin_general" | "sales_marketing" | "it" | "engineering" | "utilities" | "hr";
         isRevenueCenter: boolean;
         guestRequestable: boolean;
-        sortOrder: number;
         headName: string | null;
         headPhone: string | null;
     }[];
@@ -1927,9 +1927,9 @@ export declare const CreateDepartmentRequest: z.ZodObject<{
     propertyId: string;
     departmentType: "operated" | "undistributed";
     departmentCategory: "rooms" | "fnb" | "spa_recreation" | "other_operated" | "misc_income" | "admin_general" | "sales_marketing" | "it" | "engineering" | "utilities" | "hr";
+    sortOrder?: number | undefined;
     phone?: string | null | undefined;
     guestRequestable?: boolean | undefined;
-    sortOrder?: number | undefined;
     headName?: string | null | undefined;
     headPhone?: string | null | undefined;
 }, {
@@ -1937,9 +1937,9 @@ export declare const CreateDepartmentRequest: z.ZodObject<{
     propertyId: string;
     departmentType: "operated" | "undistributed";
     departmentCategory: "rooms" | "fnb" | "spa_recreation" | "other_operated" | "misc_income" | "admin_general" | "sales_marketing" | "it" | "engineering" | "utilities" | "hr";
+    sortOrder?: number | undefined;
     phone?: string | null | undefined;
     guestRequestable?: boolean | undefined;
-    sortOrder?: number | undefined;
     headName?: string | null | undefined;
     headPhone?: string | null | undefined;
 }>;
@@ -1962,33 +1962,33 @@ export declare const UpdateDepartmentRequest: z.ZodEffects<z.ZodObject<{
 }, "strip", z.ZodTypeAny, {
     status?: "active" | "archived" | undefined;
     name?: string | undefined;
+    sortOrder?: number | undefined;
     phone?: string | null | undefined;
     guestRequestable?: boolean | undefined;
-    sortOrder?: number | undefined;
     headName?: string | null | undefined;
     headPhone?: string | null | undefined;
 }, {
     status?: "active" | "archived" | undefined;
     name?: string | undefined;
+    sortOrder?: number | undefined;
     phone?: string | null | undefined;
     guestRequestable?: boolean | undefined;
-    sortOrder?: number | undefined;
     headName?: string | null | undefined;
     headPhone?: string | null | undefined;
 }>, {
     status?: "active" | "archived" | undefined;
     name?: string | undefined;
+    sortOrder?: number | undefined;
     phone?: string | null | undefined;
     guestRequestable?: boolean | undefined;
-    sortOrder?: number | undefined;
     headName?: string | null | undefined;
     headPhone?: string | null | undefined;
 }, {
     status?: "active" | "archived" | undefined;
     name?: string | undefined;
+    sortOrder?: number | undefined;
     phone?: string | null | undefined;
     guestRequestable?: boolean | undefined;
-    sortOrder?: number | undefined;
     headName?: string | null | undefined;
     headPhone?: string | null | undefined;
 }>;
@@ -3099,17 +3099,17 @@ export declare const OperatorTeamMember: z.ZodObject<{
     branchIds: z.ZodNullable<z.ZodArray<z.ZodString, "many">>;
 }, "strip", z.ZodTypeAny, {
     status: string;
-    userId: string;
     name: string | null;
     email: string | null;
+    userId: string;
     orgRole: "owner" | "manager" | "receptionist" | "housekeeper";
     joinedAt: string;
     branchIds: string[] | null;
 }, {
     status: string;
-    userId: string;
     name: string | null;
     email: string | null;
+    userId: string;
     orgRole: "owner" | "manager" | "receptionist" | "housekeeper";
     joinedAt: string;
     branchIds: string[] | null;
@@ -3159,17 +3159,17 @@ export declare const OperatorTeamList: z.ZodObject<{
         branchIds: z.ZodNullable<z.ZodArray<z.ZodString, "many">>;
     }, "strip", z.ZodTypeAny, {
         status: string;
-        userId: string;
         name: string | null;
         email: string | null;
+        userId: string;
         orgRole: "owner" | "manager" | "receptionist" | "housekeeper";
         joinedAt: string;
         branchIds: string[] | null;
     }, {
         status: string;
-        userId: string;
         name: string | null;
         email: string | null;
+        userId: string;
         orgRole: "owner" | "manager" | "receptionist" | "housekeeper";
         joinedAt: string;
         branchIds: string[] | null;
@@ -3177,9 +3177,9 @@ export declare const OperatorTeamList: z.ZodObject<{
 }, "strip", z.ZodTypeAny, {
     members: {
         status: string;
-        userId: string;
         name: string | null;
         email: string | null;
+        userId: string;
         orgRole: "owner" | "manager" | "receptionist" | "housekeeper";
         joinedAt: string;
         branchIds: string[] | null;
@@ -3187,9 +3187,9 @@ export declare const OperatorTeamList: z.ZodObject<{
 }, {
     members: {
         status: string;
-        userId: string;
         name: string | null;
         email: string | null;
+        userId: string;
         orgRole: "owner" | "manager" | "receptionist" | "housekeeper";
         joinedAt: string;
         branchIds: string[] | null;
@@ -3243,17 +3243,17 @@ export declare const OperatorStaffInvitation: z.ZodObject<{
     branchIds: z.ZodNullable<z.ZodArray<z.ZodString, "many">>;
 }, "strip", z.ZodTypeAny, {
     status: "expired" | "sent" | "accepted" | "revoked";
+    email: string;
     id: string;
     createdAt: string;
-    email: string;
     orgRole: "owner" | "manager" | "receptionist" | "housekeeper";
     expiresAt: string;
     branchIds: string[] | null;
 }, {
     status: "expired" | "sent" | "accepted" | "revoked";
+    email: string;
     id: string;
     createdAt: string;
-    email: string;
     orgRole: "owner" | "manager" | "receptionist" | "housekeeper";
     expiresAt: string;
     branchIds: string[] | null;
@@ -3272,17 +3272,17 @@ export declare const OperatorStaffInvitationList: z.ZodObject<{
         branchIds: z.ZodNullable<z.ZodArray<z.ZodString, "many">>;
     }, "strip", z.ZodTypeAny, {
         status: "expired" | "sent" | "accepted" | "revoked";
+        email: string;
         id: string;
         createdAt: string;
-        email: string;
         orgRole: "owner" | "manager" | "receptionist" | "housekeeper";
         expiresAt: string;
         branchIds: string[] | null;
     }, {
         status: "expired" | "sent" | "accepted" | "revoked";
+        email: string;
         id: string;
         createdAt: string;
-        email: string;
         orgRole: "owner" | "manager" | "receptionist" | "housekeeper";
         expiresAt: string;
         branchIds: string[] | null;
@@ -3290,9 +3290,9 @@ export declare const OperatorStaffInvitationList: z.ZodObject<{
 }, "strip", z.ZodTypeAny, {
     invitations: {
         status: "expired" | "sent" | "accepted" | "revoked";
+        email: string;
         id: string;
         createdAt: string;
-        email: string;
         orgRole: "owner" | "manager" | "receptionist" | "housekeeper";
         expiresAt: string;
         branchIds: string[] | null;
@@ -3300,9 +3300,9 @@ export declare const OperatorStaffInvitationList: z.ZodObject<{
 }, {
     invitations: {
         status: "expired" | "sent" | "accepted" | "revoked";
+        email: string;
         id: string;
         createdAt: string;
-        email: string;
         orgRole: "owner" | "manager" | "receptionist" | "housekeeper";
         expiresAt: string;
         branchIds: string[] | null;
@@ -3325,12 +3325,12 @@ export declare const StaffInvitationPreview: z.ZodObject<{
     /** The address it was sent to, so a person signed in as someone else sees why it refuses. */
     email: z.ZodString;
 }, "strip", z.ZodTypeAny, {
-    legalName: string;
     email: string;
+    legalName: string;
     orgRole: "owner" | "manager" | "receptionist" | "housekeeper";
 }, {
-    legalName: string;
     email: string;
+    legalName: string;
     orgRole: "owner" | "manager" | "receptionist" | "housekeeper";
 }>;
 export type StaffInvitationPreview = z.infer<typeof StaffInvitationPreview>;
@@ -3340,12 +3340,12 @@ export declare const AcceptedStaffInvitation: z.ZodObject<{
     orgRole: z.ZodEnum<["owner", "manager", "receptionist", "housekeeper"]>;
 }, "strip", z.ZodTypeAny, {
     orgId: string;
-    orgRole: "owner" | "manager" | "receptionist" | "housekeeper";
     workspaceId: string;
+    orgRole: "owner" | "manager" | "receptionist" | "housekeeper";
 }, {
     orgId: string;
-    orgRole: "owner" | "manager" | "receptionist" | "housekeeper";
     workspaceId: string;
+    orgRole: "owner" | "manager" | "receptionist" | "housekeeper";
 }>;
 export type AcceptedStaffInvitation = z.infer<typeof AcceptedStaffInvitation>;
 export declare const HousekeepingTaskType: z.ZodEnum<["checkout_clean", "stayover_clean", "inspection", "deep_clean", "turndown"]>;
@@ -3372,10 +3372,10 @@ export declare const OperatorHousekeepingTask: z.ZodObject<{
 }, "strip", z.ZodTypeAny, {
     status: "pending" | "inspected" | "in_progress" | "done" | "blocked";
     id: string;
+    note: string | null;
     createdAt: string;
     roomId: string;
     roomLabel: string | null;
-    note: string | null;
     priority: number;
     taskType: "checkout_clean" | "stayover_clean" | "inspection" | "deep_clean" | "turndown";
     assignedToUserId: string | null;
@@ -3385,10 +3385,10 @@ export declare const OperatorHousekeepingTask: z.ZodObject<{
 }, {
     status: "pending" | "inspected" | "in_progress" | "done" | "blocked";
     id: string;
+    note: string | null;
     createdAt: string;
     roomId: string;
     roomLabel: string | null;
-    note: string | null;
     priority: number;
     taskType: "checkout_clean" | "stayover_clean" | "inspection" | "deep_clean" | "turndown";
     assignedToUserId: string | null;
@@ -3414,10 +3414,10 @@ export declare const OperatorHousekeepingTaskList: z.ZodObject<{
     }, "strip", z.ZodTypeAny, {
         status: "pending" | "inspected" | "in_progress" | "done" | "blocked";
         id: string;
+        note: string | null;
         createdAt: string;
         roomId: string;
         roomLabel: string | null;
-        note: string | null;
         priority: number;
         taskType: "checkout_clean" | "stayover_clean" | "inspection" | "deep_clean" | "turndown";
         assignedToUserId: string | null;
@@ -3427,10 +3427,10 @@ export declare const OperatorHousekeepingTaskList: z.ZodObject<{
     }, {
         status: "pending" | "inspected" | "in_progress" | "done" | "blocked";
         id: string;
+        note: string | null;
         createdAt: string;
         roomId: string;
         roomLabel: string | null;
-        note: string | null;
         priority: number;
         taskType: "checkout_clean" | "stayover_clean" | "inspection" | "deep_clean" | "turndown";
         assignedToUserId: string | null;
@@ -3442,10 +3442,10 @@ export declare const OperatorHousekeepingTaskList: z.ZodObject<{
     tasks: {
         status: "pending" | "inspected" | "in_progress" | "done" | "blocked";
         id: string;
+        note: string | null;
         createdAt: string;
         roomId: string;
         roomLabel: string | null;
-        note: string | null;
         priority: number;
         taskType: "checkout_clean" | "stayover_clean" | "inspection" | "deep_clean" | "turndown";
         assignedToUserId: string | null;
@@ -3457,10 +3457,10 @@ export declare const OperatorHousekeepingTaskList: z.ZodObject<{
     tasks: {
         status: "pending" | "inspected" | "in_progress" | "done" | "blocked";
         id: string;
+        note: string | null;
         createdAt: string;
         roomId: string;
         roomLabel: string | null;
-        note: string | null;
         priority: number;
         taskType: "checkout_clean" | "stayover_clean" | "inspection" | "deep_clean" | "turndown";
         assignedToUserId: string | null;
@@ -3769,8 +3769,8 @@ export declare const OperatorServiceItem: z.ZodObject<{
         }[];
     }[];
     status: "active" | "archived" | "out_of_stock";
-    id: string;
     name: string;
+    id: string;
     priceRwf: number;
     description: string | null;
     departmentId: string;
@@ -3798,8 +3798,8 @@ export declare const OperatorServiceItem: z.ZodObject<{
         maxChoices?: number | undefined;
     }[];
     status: "active" | "archived" | "out_of_stock";
-    id: string;
     name: string;
+    id: string;
     priceRwf: number;
     description: string | null;
     departmentId: string;
@@ -3902,8 +3902,8 @@ export declare const OperatorServiceCategory: z.ZodObject<{
             }[];
         }[];
         status: "active" | "archived" | "out_of_stock";
-        id: string;
         name: string;
+        id: string;
         priceRwf: number;
         description: string | null;
         departmentId: string;
@@ -3931,8 +3931,8 @@ export declare const OperatorServiceCategory: z.ZodObject<{
             maxChoices?: number | undefined;
         }[];
         status: "active" | "archived" | "out_of_stock";
-        id: string;
         name: string;
+        id: string;
         priceRwf: number;
         description: string | null;
         departmentId: string;
@@ -3952,7 +3952,7 @@ export declare const OperatorServiceCategory: z.ZodObject<{
     }>, "many">;
 }, "strip", z.ZodTypeAny, {
     status: "active" | "archived";
-    id: string;
+    name: string;
     items: {
         options: {
             name: string;
@@ -3964,8 +3964,8 @@ export declare const OperatorServiceCategory: z.ZodObject<{
             }[];
         }[];
         status: "active" | "archived" | "out_of_stock";
-        id: string;
         name: string;
+        id: string;
         priceRwf: number;
         description: string | null;
         departmentId: string;
@@ -3983,9 +3983,9 @@ export declare const OperatorServiceCategory: z.ZodObject<{
         rraQtyUnitCd: string | null;
         missingRra: ("classification" | "productType" | "itemCode" | "packagingUnit" | "quantityUnit")[];
     }[];
-    name: string;
-    departmentName: string | null;
     sortOrder: number;
+    id: string;
+    departmentName: string | null;
     departmentId: string;
     outletId: string | null;
     guestVisible: boolean;
@@ -3996,7 +3996,7 @@ export declare const OperatorServiceCategory: z.ZodObject<{
     defaultTaxCode: "TAX_A" | "TAX_B" | "TAX_C" | "TAX_D" | null;
 }, {
     status: "active" | "archived";
-    id: string;
+    name: string;
     items: {
         options: {
             name: string;
@@ -4008,8 +4008,8 @@ export declare const OperatorServiceCategory: z.ZodObject<{
             maxChoices?: number | undefined;
         }[];
         status: "active" | "archived" | "out_of_stock";
-        id: string;
         name: string;
+        id: string;
         priceRwf: number;
         description: string | null;
         departmentId: string;
@@ -4027,9 +4027,9 @@ export declare const OperatorServiceCategory: z.ZodObject<{
         rraQtyUnitCd: string | null;
         missingRra: ("classification" | "productType" | "itemCode" | "packagingUnit" | "quantityUnit")[];
     }[];
-    name: string;
-    departmentName: string | null;
     sortOrder: number;
+    id: string;
+    departmentName: string | null;
     departmentId: string;
     outletId: string | null;
     guestVisible: boolean;
@@ -4126,8 +4126,8 @@ export declare const OperatorServiceCatalog: z.ZodObject<{
                 }[];
             }[];
             status: "active" | "archived" | "out_of_stock";
-            id: string;
             name: string;
+            id: string;
             priceRwf: number;
             description: string | null;
             departmentId: string;
@@ -4155,8 +4155,8 @@ export declare const OperatorServiceCatalog: z.ZodObject<{
                 maxChoices?: number | undefined;
             }[];
             status: "active" | "archived" | "out_of_stock";
-            id: string;
             name: string;
+            id: string;
             priceRwf: number;
             description: string | null;
             departmentId: string;
@@ -4176,7 +4176,7 @@ export declare const OperatorServiceCatalog: z.ZodObject<{
         }>, "many">;
     }, "strip", z.ZodTypeAny, {
         status: "active" | "archived";
-        id: string;
+        name: string;
         items: {
             options: {
                 name: string;
@@ -4188,8 +4188,8 @@ export declare const OperatorServiceCatalog: z.ZodObject<{
                 }[];
             }[];
             status: "active" | "archived" | "out_of_stock";
-            id: string;
             name: string;
+            id: string;
             priceRwf: number;
             description: string | null;
             departmentId: string;
@@ -4207,9 +4207,9 @@ export declare const OperatorServiceCatalog: z.ZodObject<{
             rraQtyUnitCd: string | null;
             missingRra: ("classification" | "productType" | "itemCode" | "packagingUnit" | "quantityUnit")[];
         }[];
-        name: string;
-        departmentName: string | null;
         sortOrder: number;
+        id: string;
+        departmentName: string | null;
         departmentId: string;
         outletId: string | null;
         guestVisible: boolean;
@@ -4220,7 +4220,7 @@ export declare const OperatorServiceCatalog: z.ZodObject<{
         defaultTaxCode: "TAX_A" | "TAX_B" | "TAX_C" | "TAX_D" | null;
     }, {
         status: "active" | "archived";
-        id: string;
+        name: string;
         items: {
             options: {
                 name: string;
@@ -4232,8 +4232,8 @@ export declare const OperatorServiceCatalog: z.ZodObject<{
                 maxChoices?: number | undefined;
             }[];
             status: "active" | "archived" | "out_of_stock";
-            id: string;
             name: string;
+            id: string;
             priceRwf: number;
             description: string | null;
             departmentId: string;
@@ -4251,9 +4251,9 @@ export declare const OperatorServiceCatalog: z.ZodObject<{
             rraQtyUnitCd: string | null;
             missingRra: ("classification" | "productType" | "itemCode" | "packagingUnit" | "quantityUnit")[];
         }[];
-        name: string;
-        departmentName: string | null;
         sortOrder: number;
+        id: string;
+        departmentName: string | null;
         departmentId: string;
         outletId: string | null;
         guestVisible: boolean;
@@ -4266,7 +4266,7 @@ export declare const OperatorServiceCatalog: z.ZodObject<{
 }, "strip", z.ZodTypeAny, {
     categories: {
         status: "active" | "archived";
-        id: string;
+        name: string;
         items: {
             options: {
                 name: string;
@@ -4278,8 +4278,8 @@ export declare const OperatorServiceCatalog: z.ZodObject<{
                 }[];
             }[];
             status: "active" | "archived" | "out_of_stock";
-            id: string;
             name: string;
+            id: string;
             priceRwf: number;
             description: string | null;
             departmentId: string;
@@ -4297,9 +4297,9 @@ export declare const OperatorServiceCatalog: z.ZodObject<{
             rraQtyUnitCd: string | null;
             missingRra: ("classification" | "productType" | "itemCode" | "packagingUnit" | "quantityUnit")[];
         }[];
-        name: string;
-        departmentName: string | null;
         sortOrder: number;
+        id: string;
+        departmentName: string | null;
         departmentId: string;
         outletId: string | null;
         guestVisible: boolean;
@@ -4312,7 +4312,7 @@ export declare const OperatorServiceCatalog: z.ZodObject<{
 }, {
     categories: {
         status: "active" | "archived";
-        id: string;
+        name: string;
         items: {
             options: {
                 name: string;
@@ -4324,8 +4324,8 @@ export declare const OperatorServiceCatalog: z.ZodObject<{
                 maxChoices?: number | undefined;
             }[];
             status: "active" | "archived" | "out_of_stock";
-            id: string;
             name: string;
+            id: string;
             priceRwf: number;
             description: string | null;
             departmentId: string;
@@ -4343,9 +4343,9 @@ export declare const OperatorServiceCatalog: z.ZodObject<{
             rraQtyUnitCd: string | null;
             missingRra: ("classification" | "productType" | "itemCode" | "packagingUnit" | "quantityUnit")[];
         }[];
-        name: string;
-        departmentName: string | null;
         sortOrder: number;
+        id: string;
+        departmentName: string | null;
         departmentId: string;
         outletId: string | null;
         guestVisible: boolean;
@@ -4772,8 +4772,6 @@ export declare const OperatorServiceOrder: z.ZodObject<{
     }>, "many">;
 }, "strip", z.ZodTypeAny, {
     status: "pending_payment" | "submitted" | "rejected" | "cancelled" | "in_progress" | "acknowledged" | "ready" | "delivered" | "completed" | "payment_failed";
-    id: string;
-    createdAt: string;
     items: {
         id: string;
         note: string | null;
@@ -4791,6 +4789,8 @@ export declare const OperatorServiceOrder: z.ZodObject<{
             }[];
         }[];
     }[];
+    id: string;
+    createdAt: string;
     totalRwf: number;
     roomId: string | null;
     roomLabel: string | null;
@@ -4809,8 +4809,6 @@ export declare const OperatorServiceOrder: z.ZodObject<{
     guestNote: string | null;
 }, {
     status: "pending_payment" | "submitted" | "rejected" | "cancelled" | "in_progress" | "acknowledged" | "ready" | "delivered" | "completed" | "payment_failed";
-    id: string;
-    createdAt: string;
     items: {
         id: string;
         note: string | null;
@@ -4828,6 +4826,8 @@ export declare const OperatorServiceOrder: z.ZodObject<{
             }[];
         }[];
     }[];
+    id: string;
+    createdAt: string;
     totalRwf: number;
     roomId: string | null;
     roomLabel: string | null;
@@ -4938,8 +4938,6 @@ export declare const OperatorServiceOrderList: z.ZodObject<{
         }>, "many">;
     }, "strip", z.ZodTypeAny, {
         status: "pending_payment" | "submitted" | "rejected" | "cancelled" | "in_progress" | "acknowledged" | "ready" | "delivered" | "completed" | "payment_failed";
-        id: string;
-        createdAt: string;
         items: {
             id: string;
             note: string | null;
@@ -4957,6 +4955,8 @@ export declare const OperatorServiceOrderList: z.ZodObject<{
                 }[];
             }[];
         }[];
+        id: string;
+        createdAt: string;
         totalRwf: number;
         roomId: string | null;
         roomLabel: string | null;
@@ -4975,8 +4975,6 @@ export declare const OperatorServiceOrderList: z.ZodObject<{
         guestNote: string | null;
     }, {
         status: "pending_payment" | "submitted" | "rejected" | "cancelled" | "in_progress" | "acknowledged" | "ready" | "delivered" | "completed" | "payment_failed";
-        id: string;
-        createdAt: string;
         items: {
             id: string;
             note: string | null;
@@ -4994,6 +4992,8 @@ export declare const OperatorServiceOrderList: z.ZodObject<{
                 }[];
             }[];
         }[];
+        id: string;
+        createdAt: string;
         totalRwf: number;
         roomId: string | null;
         roomLabel: string | null;
@@ -5014,8 +5014,6 @@ export declare const OperatorServiceOrderList: z.ZodObject<{
 }, "strip", z.ZodTypeAny, {
     orders: {
         status: "pending_payment" | "submitted" | "rejected" | "cancelled" | "in_progress" | "acknowledged" | "ready" | "delivered" | "completed" | "payment_failed";
-        id: string;
-        createdAt: string;
         items: {
             id: string;
             note: string | null;
@@ -5033,6 +5031,8 @@ export declare const OperatorServiceOrderList: z.ZodObject<{
                 }[];
             }[];
         }[];
+        id: string;
+        createdAt: string;
         totalRwf: number;
         roomId: string | null;
         roomLabel: string | null;
@@ -5053,8 +5053,6 @@ export declare const OperatorServiceOrderList: z.ZodObject<{
 }, {
     orders: {
         status: "pending_payment" | "submitted" | "rejected" | "cancelled" | "in_progress" | "acknowledged" | "ready" | "delivered" | "completed" | "payment_failed";
-        id: string;
-        createdAt: string;
         items: {
             id: string;
             note: string | null;
@@ -5072,6 +5070,8 @@ export declare const OperatorServiceOrderList: z.ZodObject<{
                 }[];
             }[];
         }[];
+        id: string;
+        createdAt: string;
         totalRwf: number;
         roomId: string | null;
         roomLabel: string | null;
@@ -5334,8 +5334,6 @@ export declare const MarkOrderPaidCashResult: z.ZodObject<{
     emissionId: z.ZodNullable<z.ZodString>;
 }, "strip", z.ZodTypeAny, {
     status: "pending_payment" | "submitted" | "rejected" | "cancelled" | "in_progress" | "acknowledged" | "ready" | "delivered" | "completed" | "payment_failed";
-    id: string;
-    createdAt: string;
     items: {
         id: string;
         note: string | null;
@@ -5353,6 +5351,8 @@ export declare const MarkOrderPaidCashResult: z.ZodObject<{
             }[];
         }[];
     }[];
+    id: string;
+    createdAt: string;
     totalRwf: number;
     roomId: string | null;
     roomLabel: string | null;
@@ -5372,8 +5372,6 @@ export declare const MarkOrderPaidCashResult: z.ZodObject<{
     guestNote: string | null;
 }, {
     status: "pending_payment" | "submitted" | "rejected" | "cancelled" | "in_progress" | "acknowledged" | "ready" | "delivered" | "completed" | "payment_failed";
-    id: string;
-    createdAt: string;
     items: {
         id: string;
         note: string | null;
@@ -5391,6 +5389,8 @@ export declare const MarkOrderPaidCashResult: z.ZodObject<{
             }[];
         }[];
     }[];
+    id: string;
+    createdAt: string;
     totalRwf: number;
     roomId: string | null;
     roomLabel: string | null;
@@ -5599,19 +5599,19 @@ export declare const OperatorDepartmentMember: z.ZodObject<{
     status: z.ZodEnum<["active", "removed"]>;
 }, "strip", z.ZodTypeAny, {
     status: "active" | "removed";
-    id: string;
-    userId: string;
     name: string | null;
     email: string | null;
+    id: string;
+    userId: string;
     departmentId: string;
     departmentPosition: "staff" | "department_head" | "supervisor";
     isPrimary: boolean;
 }, {
     status: "active" | "removed";
-    id: string;
-    userId: string;
     name: string | null;
     email: string | null;
+    id: string;
+    userId: string;
     departmentId: string;
     departmentPosition: "staff" | "department_head" | "supervisor";
     isPrimary: boolean;
@@ -5630,19 +5630,19 @@ export declare const OperatorDepartmentMemberList: z.ZodObject<{
         status: z.ZodEnum<["active", "removed"]>;
     }, "strip", z.ZodTypeAny, {
         status: "active" | "removed";
-        id: string;
-        userId: string;
         name: string | null;
         email: string | null;
+        id: string;
+        userId: string;
         departmentId: string;
         departmentPosition: "staff" | "department_head" | "supervisor";
         isPrimary: boolean;
     }, {
         status: "active" | "removed";
-        id: string;
-        userId: string;
         name: string | null;
         email: string | null;
+        id: string;
+        userId: string;
         departmentId: string;
         departmentPosition: "staff" | "department_head" | "supervisor";
         isPrimary: boolean;
@@ -5650,10 +5650,10 @@ export declare const OperatorDepartmentMemberList: z.ZodObject<{
 }, "strip", z.ZodTypeAny, {
     members: {
         status: "active" | "removed";
-        id: string;
-        userId: string;
         name: string | null;
         email: string | null;
+        id: string;
+        userId: string;
         departmentId: string;
         departmentPosition: "staff" | "department_head" | "supervisor";
         isPrimary: boolean;
@@ -5661,10 +5661,10 @@ export declare const OperatorDepartmentMemberList: z.ZodObject<{
 }, {
     members: {
         status: "active" | "removed";
-        id: string;
-        userId: string;
         name: string | null;
         email: string | null;
+        id: string;
+        userId: string;
         departmentId: string;
         departmentPosition: "staff" | "department_head" | "supervisor";
         isPrimary: boolean;

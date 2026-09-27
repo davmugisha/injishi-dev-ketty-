@@ -242,6 +242,9 @@ export const oversightRoleEnum = pgEnum('oversight_role', [
   'tax_compliance_officer',
   'business_field_verifier',
   'business_approver',
+  // ADR-056: decides PSF membership applications. Posted at the PSF body with
+  // country scope only (OVERSIGHT_ROLE_POSTING in @injishi/contracts).
+  'psf_membership_officer',
 ]);
 
 export const oversightScopeLevelEnum = pgEnum('oversight_scope_level', [
@@ -1084,4 +1087,93 @@ export const offerScopeEnum = pgEnum('offer_scope', [
 export const offerAudienceEnum = pgEnum('offer_audience', [
   'anyone',
   'in_house',
+]);
+
+/**
+ * ADR-056  PSF MEMBERSHIP APPLICATION.
+ *
+ * The membership families and the shape of a tier's price are enums because
+ * the form branches on them; the tiers themselves are catalogue rows admin
+ * edits (`psf_membership_tiers`), so a new price is never a migration.
+ */
+export const psfMembershipFamilyEnum = pgEnum('psf_membership_family', [
+  'golden_circle',
+  'indashyikirwa',
+  'ordinary',
+  'junior_giants',
+]);
+
+/** A fixed amount, a min to max range, or a price only PSF can quote. */
+export const psfPriceKindEnum = pgEnum('psf_price_kind', [
+  'fixed',
+  'range',
+  'set_by_psf',
+]);
+
+/**
+ * `submitted` is the only open state; the other three are terminal. Applying
+ * again writes a new row, so a decision is never overwritten by a later one.
+ */
+export const psfApplicationStatusEnum = pgEnum('psf_application_status', [
+  'submitted',
+  'member',
+  'declined',
+  'withdrawn',
+]);
+
+/** Who sent it: the owner, or the agent while an on behalf claim is open. */
+export const psfSubmittedCapacityEnum = pgEnum('psf_submitted_capacity', [
+  'owner',
+  'on_behalf_of',
+]);
+
+/** PSF's form, "Company type", as printed. */
+export const psfCompanyTypeEnum = pgEnum('psf_company_type', [
+  'cooperative',
+  'ngo',
+  'partly_state_owned',
+  'private_company',
+  'public_company',
+  'sole_trader',
+]);
+
+/** PSF's form, "Ownership", as printed. `other` carries a text. */
+export const psfOwnershipEnum = pgEnum('psf_ownership', [
+  'foreign_100',
+  'rwandan_100',
+  'franchise',
+  'joint_venture',
+  'foreign_representative',
+  'other',
+]);
+
+export const psfTradeDirectionEnum = pgEnum('psf_trade_direction', [
+  'none',
+  'export',
+  'import',
+  'both',
+]);
+
+/** PSF's form, "Role/Function", as printed. */
+export const psfContactRoleEnum = pgEnum('psf_contact_role', [
+  'owner',
+  'managing_director',
+  'ceo',
+  'chairman',
+]);
+
+export const psfDeclineReasonEnum = pgEnum('psf_decline_reason', [
+  'details_incomplete',
+  'not_eligible_for_tier',
+  'business_not_recognised',
+  'other',
+]);
+
+/**
+ * `psf_confirmed` is a PSF officer's decision in Injishi. `self_declared` is a
+ * Yes at registration that came with a membership number nobody has checked.
+ */
+export const psfMembershipSourceEnum = pgEnum('psf_membership_source', [
+  'psf_confirmed',
+  'self_declared',
 ]);

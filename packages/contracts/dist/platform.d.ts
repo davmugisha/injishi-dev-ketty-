@@ -72,16 +72,16 @@ export declare const DemoSeat: z.ZodObject<{
      */
     detail: z.ZodNullable<z.ZodString>;
 }, "strip", z.ZodTypeAny, {
+    role: string;
     label: string;
     detail: string | null;
-    role: string;
-    surface: "broker" | "personal" | "oversight" | "host" | "landlord" | "staff" | "work";
+    surface: "broker" | "personal" | "host" | "landlord" | "oversight" | "staff" | "work";
     roleKey: string;
 }, {
+    role: string;
     label: string;
     detail: string | null;
-    role: string;
-    surface: "broker" | "personal" | "oversight" | "host" | "landlord" | "staff" | "work";
+    surface: "broker" | "personal" | "host" | "landlord" | "oversight" | "staff" | "work";
     roleKey: string;
 }>;
 export type DemoSeat = z.infer<typeof DemoSeat>;
@@ -175,16 +175,16 @@ export declare const DemoPersona: z.ZodObject<{
          */
         detail: z.ZodNullable<z.ZodString>;
     }, "strip", z.ZodTypeAny, {
+        role: string;
         label: string;
         detail: string | null;
-        role: string;
-        surface: "broker" | "personal" | "oversight" | "host" | "landlord" | "staff" | "work";
+        surface: "broker" | "personal" | "host" | "landlord" | "oversight" | "staff" | "work";
         roleKey: string;
     }, {
+        role: string;
         label: string;
         detail: string | null;
-        role: string;
-        surface: "broker" | "personal" | "oversight" | "host" | "landlord" | "staff" | "work";
+        surface: "broker" | "personal" | "host" | "landlord" | "oversight" | "staff" | "work";
         roleKey: string;
     }>, "many">;
     /**
@@ -230,10 +230,10 @@ export declare const DemoPersona: z.ZodObject<{
     name: string;
     email: string;
     seats: {
+        role: string;
         label: string;
         detail: string | null;
-        role: string;
-        surface: "broker" | "personal" | "oversight" | "host" | "landlord" | "staff" | "work";
+        surface: "broker" | "personal" | "host" | "landlord" | "oversight" | "staff" | "work";
         roleKey: string;
     }[];
     story?: {
@@ -249,10 +249,10 @@ export declare const DemoPersona: z.ZodObject<{
     name: string;
     email: string;
     seats: {
+        role: string;
         label: string;
         detail: string | null;
-        role: string;
-        surface: "broker" | "personal" | "oversight" | "host" | "landlord" | "staff" | "work";
+        surface: "broker" | "personal" | "host" | "landlord" | "oversight" | "staff" | "work";
         roleKey: string;
     }[];
     story?: {

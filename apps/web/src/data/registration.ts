@@ -5,6 +5,7 @@ import {
   type CreateRegistrationRequest,
   MyProfile,
   type PersonalDetails,
+  PsfTier,
   RegistrationFeeQuote,
   RegistrationSummary,
   type RegistrationBusinessType,
@@ -271,5 +272,17 @@ export async function registerAsBroker(
   });
   if (res.status !== "ok") return res;
   const parsed = BrokerRegistrationSummary.safeParse(res.data);
+  return parsed.success ? { status: "ok", data: parsed.data } : { status: "failed" };
+}
+
+/**
+ * The PSF membership tiers the wizard's PSF step offers (ADR-056 AC-2). Checked
+ * against the contract so a drifted catalogue reads as unreachable, never as
+ * a tier with a blank price.
+ */
+export async function fetchPsfTiers(): Promise<ApiResult<PsfTier[]>> {
+  const res = await apiFetch<unknown>("/api/v1/psf/tiers");
+  if (res.status !== "ok") return res;
+  const parsed = PsfTier.array().safeParse(res.data);
   return parsed.success ? { status: "ok", data: parsed.data } : { status: "failed" };
 }

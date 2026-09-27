@@ -1,4 +1,4 @@
-import { AdminConfiguration, AdminFeeSchedule } from "@injishi/contracts";
+import { AdminConfiguration, AdminFeeSchedule, PsfTier } from "@injishi/contracts";
 
 import { apiGet, type ApiResult } from "./server";
 
@@ -21,4 +21,9 @@ export function getConfiguration(): Promise<ApiResult<AdminConfiguration>> {
 /** Registration fees, subscription plans and the placement-fee totals. P: `admin.config.view`. */
 export function getFeeSchedule(): Promise<ApiResult<AdminFeeSchedule>> {
   return apiGet(`${BASE}/fees`, AdminFeeSchedule);
+}
+
+/** The PSF membership tiers, retired ones included (ADR-056 AC-19). P: `admin.config.view`. */
+export function getPsfTiers(): Promise<ApiResult<PsfTier[]>> {
+  return apiGet(`${BASE}/psf-tiers`, PsfTier.array());
 }

@@ -76,6 +76,8 @@ export function StepReviewPay({
   onPay,
   onBack,
   onEditStep,
+  psf,
+  onEditPsf,
 }: {
   kind: RegistrationKind | null;
   personal: PersonalDraft;
@@ -102,6 +104,12 @@ export function StepReviewPay({
   onPay: () => void;
   onBack: () => void;
   onEditStep: (step: "place" | "about" | "business" | "branches" | "documents") => void;
+  /**
+   * ADR-056: the PSF application this registration carries, read back with a
+   * Change control (AC-5). Null when the registrant is not applying.
+   */
+  psf: { tierName: string | null; contactName: string } | null;
+  onEditPsf: () => void;
 }) {
   // The console's edits, read ONCE after mount and never during render.
   // `readFeeOverrides` looks at `document.cookie`, which does not exist on the
@@ -227,9 +235,20 @@ export function StepReviewPay({
               />
               <SummaryRow
                 label="PSF"
-                value={answer(business.psfMember)}
+                value={
+                  business.psfMember === true && business.psfMembershipNumber.trim()
+                    ? `Yes, number ${business.psfMembershipNumber.trim()}`
+                    : answer(business.psfMember)
+                }
                 onEdit={() => onEditStep("business")}
               />
+              {psf ? (
+                <SummaryRow
+                  label="PSF application"
+                  value={`${psf.tierName ?? "A tier"}, for ${psf.contactName || "the owner"}. Goes to PSF after your TIN check.`}
+                  onEdit={onEditPsf}
+                />
+              ) : null}
             </>
           ) : (
             <>

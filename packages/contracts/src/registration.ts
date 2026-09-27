@@ -268,6 +268,146 @@ export type RegistrationBranch = z.infer<typeof RegistrationBranch>;
 export function branchNameKey(name: string): string {
     return name.trim().toLocaleLowerCase("en");
 }
+// ---------------------------------------------------------------------------
+// PSF membership application (ADR-056)
+// ---------------------------------------------------------------------------
+/**
+ * The input lives here, beside the rest of what a registration can carry,
+ * because `HospitalityBusiness` embeds it and it reuses this file's ID, phone
+ * and country rules. `psf.ts` holds everything else about PSF membership and
+ * imports from here, never the other way round.
+ */
+/** PSF's form, "Company type", as printed. */
+export const PsfCompanyType = z.enum([
+    "cooperative",
+    "ngo",
+    "partly_state_owned",
+    "private_company",
+    "public_company",
+    "sole_trader",
+]);
+export type PsfCompanyType = z.infer<typeof PsfCompanyType>;
+/** PSF's form, "Ownership", as printed. `other` carries a text. */
+export const PsfOwnership = z.enum([
+    "foreign_100",
+    "rwandan_100",
+    "franchise",
+    "joint_venture",
+    "foreign_representative",
+    "other",
+]);
+export type PsfOwnership = z.infer<typeof PsfOwnership>;
+export const PsfTradeDirection = z.enum(["none", "export", "import", "both"]);
+export type PsfTradeDirection = z.infer<typeof PsfTradeDirection>;
+/** PSF's form, "Role/Function", as printed. */
+export const PsfContactRole = z.enum(["owner", "managing_director", "ceo", "chairman"]);
+export type PsfContactRole = z.infer<typeof PsfContactRole>;
+/**
+ * PSF's form knows two genders. This never changes the person's own profile,
+ * which keeps all four answers (ADR-056 AC-4).
+ */
+export const PsfGender = z.enum(["male", "female"], {
+    errorMap: () => ({ message: "PSF's form needs Male or Female." }),
+});
+export type PsfGender = z.infer<typeof PsfGender>;
+/**
+ * The version of the consent text the applicant ticked. Bump it whenever the
+ * wording in `PSF_CONSENT_TEXT` changes, so every stored consent names the
+ * words it agreed to.
+ */
+export const PSF_CONSENT_VERSION = "2026-09-27";
+/** What the consent box says. Rendered verbatim by every surface that asks. */
+export const PSF_CONSENT_TEXT: string = "I agree that Injishi shares this application with the Private Sector Federation (PSF): " +
+    "the business details above, and my name, ID number, date of birth, phone and email, " +
+    "so that PSF can decide my membership.";
+const psfText = (max: number, required: string) => z.string().trim().min(1, required).max(max, "That is too long for PSF's form.");
+/**
+ * One PSF membership application, as the wizard or the workspace sends it.
+ *
+ * The registration type and number are NOT inputs: the server copies the TIN
+ * from the business, which is what makes AC-3's "not editable" true on the
+ * wire and not only on the screen.
+ */
+export const PsfApplicationInput = z
+    .object({
+    requestedTierCode: z.string().trim().min(1, "Pick a membership tier.").max(60),
+    companyName: psfText(200, "Give the name PSF should record."),
+    streetAddress: psfText(200, "Give the business's street address."),
+    website: z
+        .string()
+        .trim()
+        .max(200)
+        .url("Give the full address, like https://example.rw.")
+        .optional(),
+    companyType: PsfCompanyType,
+    ownership: PsfOwnership,
+    ownershipOther: z.string().trim().min(1).max(120).optional(),
+    businessActivity: psfText(300, "Say what the business does."),
+    tradeDirection: PsfTradeDirection,
+    tradeGoods: z.string().trim().min(1).max(300).optional(),
+    tradeCountries: z.array(CountryCode).max(50).default([]),
+    contactRole: PsfContactRole,
+    firstName: psfText(80, "Give a first name."),
+    lastName: psfText(80, "Give a last name."),
+    gender: PsfGender,
+    phoneE164: z
+        .string()
+        .trim()
+        .transform((v) => v.replace(/[\s-]/g, ""))
+        .pipe(z.string().regex(/^\+\d{7,15}$/, "Include the country code, like +250788123456.")),
+    email: z.string().trim().email("That email address does not look right."),
+    idDocument: z.discriminatedUnion("documentType", [
+        z.object({ documentType: z.literal("national_id"), documentNumber: RwandanNationalId }),
+        z.object({ documentType: z.literal("passport"), documentNumber: PassportNumber }),
+    ]),
+    dateOfBirth: z
+        .string()
+        .regex(/^\d{4}-\d{2}-\d{2}$/, "Use the date picker.")
+        .refine((v) => {
+        const d = new Date(`${v}T00:00:00Z`);
+        if (Number.isNaN(d.getTime()))
+            return false;
+        const years = (Date.now() - d.getTime()) / (365.25 * 24 * 3600 * 1000);
+        return years >= 18 && years <= 120;
+    }, "The person named here must be at least 18."),
+    /** Must be ticked: an unticked box and a Yes are different acts (AC-5). */
+    consent: z.literal(true, {
+        errorMap: () => ({ message: "Tick the box to agree to share this with PSF." }),
+    }),
+})
+    .superRefine((value, ctx) => {
+    // Mirrors `psf_membership_applications_ownership_shape`.
+    if (value.ownership === "other" && !value.ownershipOther) {
+        ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["ownershipOther"], message: "Say what the ownership is." });
+    }
+    if (value.ownership !== "other" && value.ownershipOther) {
+        ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["ownershipOther"], message: "Only fill this in when you pick Other." });
+    }
+    // Mirrors `psf_membership_applications_trade_shape`.
+    if (value.tradeDirection === "none") {
+        if (value.tradeGoods) {
+            ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["tradeGoods"], message: "Leave this empty when you do not export or import." });
+        }
+        if (value.tradeCountries.length > 0) {
+            ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["tradeCountries"], message: "Leave this empty when you do not export or import." });
+        }
+    }
+    else {
+        if (!value.tradeGoods) {
+            ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["tradeGoods"], message: "Say which goods or services." });
+        }
+        if (value.tradeCountries.length === 0) {
+            ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["tradeCountries"], message: "Pick at least one country." });
+        }
+    }
+});
+export type PsfApplicationInput = z.infer<typeof PsfApplicationInput>;
+/** The membership number a business that answered Yes may give (ADR-056 AC-1). */
+export const PsfMembershipNumber = z
+    .string()
+    .trim()
+    .min(1, "Give the number, or leave it empty.")
+    .max(40, "That number is too long.");
 const businessBase = z.object({
     legalName: z
         .string()
@@ -293,6 +433,16 @@ export const HospitalityBusiness = businessBase.extend({
     chamberOfTourismMember: z.boolean().default(false),
     /** Optional, and hospitality only. Not the PSF oversight body (D24). */
     psfMember: z.boolean().default(false),
+    /**
+     * A Yes may carry the PSF membership number; nobody checks it (ADR-056
+     * AC-7). Forbidden with a No (see `BusinessDetails`).
+     */
+    psfMembershipNumber: PsfMembershipNumber.optional(),
+    /**
+     * A No may carry an application to join (ADR-056 AC-6), written in the
+     * same transaction as the business. Forbidden with a Yes.
+     */
+    psfApplication: PsfApplicationInput.optional(),
     eacStarGrade: z.number().int().min(1).max(5).optional(),
     /** The locations beyond the head office (ADR-054). Empty for a single site business. */
     branches: z
@@ -313,6 +463,17 @@ export const ResidenceBusiness = businessBase.extend({
     branches: z
         .array(z.unknown())
         .max(0, "A residence registers without branches.")
+        .optional(),
+    /**
+     * Refused, not stripped, for the same reason (ADR-056 AC-6): PSF
+     * membership through Injishi is hospitality only, and the database's
+     * `orgs_domain_shape` forbids it on a residence too.
+     */
+    psfApplication: z
+        .never({ errorMap: () => ({ message: "A residence cannot apply for PSF membership here." }) })
+        .optional(),
+    psfMembershipNumber: z
+        .never({ errorMap: () => ({ message: "A residence cannot hold a PSF membership here." }) })
         .optional(),
 });
 export const BusinessDetails = z
@@ -335,6 +496,21 @@ export const BusinessDetails = z
             code: z.ZodIssueCode.custom,
             path: ["accommodationClassOther"],
             message: "Only fill this in when you pick Other.",
+        });
+    }
+    // ADR-056 AC-1: a number goes with a Yes, an application with a No.
+    if (value.psfMembershipNumber && !value.psfMember) {
+        ctx.addIssue({
+            code: z.ZodIssueCode.custom,
+            path: ["psfMembershipNumber"],
+            message: "Only give a membership number when you answer Yes.",
+        });
+    }
+    if (value.psfApplication && value.psfMember) {
+        ctx.addIssue({
+            code: z.ZodIssueCode.custom,
+            path: ["psfApplication"],
+            message: "A business that is already a member does not apply.",
         });
     }
     // ADR-054 AC-R3: no two branch names equal after trimming and ignoring

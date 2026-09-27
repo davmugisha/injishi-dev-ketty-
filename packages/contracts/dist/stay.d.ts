@@ -317,16 +317,16 @@ export declare const StayDepartment: z.ZodObject<{
     unreadCount: z.ZodNumber;
     lastMessageAt: z.ZodNullable<z.ZodString>;
 }, "strip", z.ZodTypeAny, {
-    id: string;
     name: string;
+    id: string;
     phone: string | null;
     lastMessageAt: string | null;
     threadId: string | null;
     departmentCategory: "rooms" | "fnb" | "spa_recreation" | "other_operated" | "misc_income" | "admin_general" | "sales_marketing" | "it" | "engineering" | "utilities" | "hr";
     unreadCount: number;
 }, {
-    id: string;
     name: string;
+    id: string;
     phone: string | null;
     lastMessageAt: string | null;
     threadId: string | null;
@@ -347,16 +347,16 @@ export declare const StayDepartments: z.ZodObject<{
         unreadCount: z.ZodNumber;
         lastMessageAt: z.ZodNullable<z.ZodString>;
     }, "strip", z.ZodTypeAny, {
-        id: string;
         name: string;
+        id: string;
         phone: string | null;
         lastMessageAt: string | null;
         threadId: string | null;
         departmentCategory: "rooms" | "fnb" | "spa_recreation" | "other_operated" | "misc_income" | "admin_general" | "sales_marketing" | "it" | "engineering" | "utilities" | "hr";
         unreadCount: number;
     }, {
-        id: string;
         name: string;
+        id: string;
         phone: string | null;
         lastMessageAt: string | null;
         threadId: string | null;
@@ -366,8 +366,8 @@ export declare const StayDepartments: z.ZodObject<{
 }, "strip", z.ZodTypeAny, {
     stayId: string;
     departments: {
-        id: string;
         name: string;
+        id: string;
         phone: string | null;
         lastMessageAt: string | null;
         threadId: string | null;
@@ -377,8 +377,8 @@ export declare const StayDepartments: z.ZodObject<{
 }, {
     stayId: string;
     departments: {
-        id: string;
         name: string;
+        id: string;
         phone: string | null;
         lastMessageAt: string | null;
         threadId: string | null;
@@ -559,12 +559,12 @@ export declare const RaiseStayRefundRequest: z.ZodObject<{
     /** Absent means "whatever the rules allow", which is the normal case. */
     requestedRwf: z.ZodOptional<z.ZodNumber>;
 }, "strict", z.ZodTypeAny, {
-    detail: string;
     reason: "other" | "service_failure" | "room_not_as_described" | "cleanliness" | "noise" | "maintenance_unresolved" | "overcharged" | "early_departure" | "changed_plans";
+    detail: string;
     requestedRwf?: number | undefined;
 }, {
-    detail: string;
     reason: "other" | "service_failure" | "room_not_as_described" | "cleanliness" | "noise" | "maintenance_unresolved" | "overcharged" | "early_departure" | "changed_plans";
+    detail: string;
     requestedRwf?: number | undefined;
 }>;
 export type RaiseStayRefundRequest = z.infer<typeof RaiseStayRefundRequest>;
@@ -594,11 +594,12 @@ export declare const StayRefundRequestView: z.ZodObject<{
     decidedAt: z.ZodNullable<z.ZodString>;
     createdAt: z.ZodString;
 }, "strip", z.ZodTypeAny, {
-    detail: string;
-    id: string;
-    createdAt: string;
     decidedAt: string | null;
     reason: "other" | "service_failure" | "room_not_as_described" | "cleanliness" | "noise" | "maintenance_unresolved" | "overcharged" | "early_departure" | "changed_plans";
+    id: string;
+    decisionNote: string | null;
+    detail: string;
+    createdAt: string;
     stayId: string;
     reference: string;
     propertyName: string | null;
@@ -613,13 +614,13 @@ export declare const StayRefundRequestView: z.ZodObject<{
     approvedRwf: number | null;
     refusalReason: "other" | "non_refundable_rate" | "outside_cancellation_window" | "nights_already_consumed" | "no_show_policy" | "house_rules_breach" | "damage_to_property" | "third_party_booking" | "not_reported_during_stay" | "duplicate_request" | null;
     refusalLabel: string | null;
-    decisionNote: string | null;
 }, {
-    detail: string;
-    id: string;
-    createdAt: string;
     decidedAt: string | null;
     reason: "other" | "service_failure" | "room_not_as_described" | "cleanliness" | "noise" | "maintenance_unresolved" | "overcharged" | "early_departure" | "changed_plans";
+    id: string;
+    decisionNote: string | null;
+    detail: string;
+    createdAt: string;
     stayId: string;
     reference: string;
     propertyName: string | null;
@@ -634,7 +635,6 @@ export declare const StayRefundRequestView: z.ZodObject<{
     approvedRwf: number | null;
     refusalReason: "other" | "non_refundable_rate" | "outside_cancellation_window" | "nights_already_consumed" | "no_show_policy" | "house_rules_breach" | "damage_to_property" | "third_party_booking" | "not_reported_during_stay" | "duplicate_request" | null;
     refusalLabel: string | null;
-    decisionNote: string | null;
 }>;
 export type StayRefundRequestView = z.infer<typeof StayRefundRequestView>;
 export declare const StayRefundRequestList: z.ZodObject<{
@@ -663,11 +663,12 @@ export declare const StayRefundRequestList: z.ZodObject<{
         decidedAt: z.ZodNullable<z.ZodString>;
         createdAt: z.ZodString;
     }, "strip", z.ZodTypeAny, {
-        detail: string;
-        id: string;
-        createdAt: string;
         decidedAt: string | null;
         reason: "other" | "service_failure" | "room_not_as_described" | "cleanliness" | "noise" | "maintenance_unresolved" | "overcharged" | "early_departure" | "changed_plans";
+        id: string;
+        decisionNote: string | null;
+        detail: string;
+        createdAt: string;
         stayId: string;
         reference: string;
         propertyName: string | null;
@@ -682,13 +683,13 @@ export declare const StayRefundRequestList: z.ZodObject<{
         approvedRwf: number | null;
         refusalReason: "other" | "non_refundable_rate" | "outside_cancellation_window" | "nights_already_consumed" | "no_show_policy" | "house_rules_breach" | "damage_to_property" | "third_party_booking" | "not_reported_during_stay" | "duplicate_request" | null;
         refusalLabel: string | null;
-        decisionNote: string | null;
     }, {
-        detail: string;
-        id: string;
-        createdAt: string;
         decidedAt: string | null;
         reason: "other" | "service_failure" | "room_not_as_described" | "cleanliness" | "noise" | "maintenance_unresolved" | "overcharged" | "early_departure" | "changed_plans";
+        id: string;
+        decisionNote: string | null;
+        detail: string;
+        createdAt: string;
         stayId: string;
         reference: string;
         propertyName: string | null;
@@ -703,15 +704,15 @@ export declare const StayRefundRequestList: z.ZodObject<{
         approvedRwf: number | null;
         refusalReason: "other" | "non_refundable_rate" | "outside_cancellation_window" | "nights_already_consumed" | "no_show_policy" | "house_rules_breach" | "damage_to_property" | "third_party_booking" | "not_reported_during_stay" | "duplicate_request" | null;
         refusalLabel: string | null;
-        decisionNote: string | null;
     }>, "many">;
 }, "strip", z.ZodTypeAny, {
     requests: {
-        detail: string;
-        id: string;
-        createdAt: string;
         decidedAt: string | null;
         reason: "other" | "service_failure" | "room_not_as_described" | "cleanliness" | "noise" | "maintenance_unresolved" | "overcharged" | "early_departure" | "changed_plans";
+        id: string;
+        decisionNote: string | null;
+        detail: string;
+        createdAt: string;
         stayId: string;
         reference: string;
         propertyName: string | null;
@@ -726,15 +727,15 @@ export declare const StayRefundRequestList: z.ZodObject<{
         approvedRwf: number | null;
         refusalReason: "other" | "non_refundable_rate" | "outside_cancellation_window" | "nights_already_consumed" | "no_show_policy" | "house_rules_breach" | "damage_to_property" | "third_party_booking" | "not_reported_during_stay" | "duplicate_request" | null;
         refusalLabel: string | null;
-        decisionNote: string | null;
     }[];
 }, {
     requests: {
-        detail: string;
-        id: string;
-        createdAt: string;
         decidedAt: string | null;
         reason: "other" | "service_failure" | "room_not_as_described" | "cleanliness" | "noise" | "maintenance_unresolved" | "overcharged" | "early_departure" | "changed_plans";
+        id: string;
+        decisionNote: string | null;
+        detail: string;
+        createdAt: string;
         stayId: string;
         reference: string;
         propertyName: string | null;
@@ -749,7 +750,6 @@ export declare const StayRefundRequestList: z.ZodObject<{
         approvedRwf: number | null;
         refusalReason: "other" | "non_refundable_rate" | "outside_cancellation_window" | "nights_already_consumed" | "no_show_policy" | "house_rules_breach" | "damage_to_property" | "third_party_booking" | "not_reported_during_stay" | "duplicate_request" | null;
         refusalLabel: string | null;
-        decisionNote: string | null;
     }[];
 }>;
 export type StayRefundRequestList = z.infer<typeof StayRefundRequestList>;

@@ -68,6 +68,13 @@ export const QUEUES = {
    * be edited when somebody withdraws.
    */
   trainingEmail: 'TrainingEmail',
+  /**
+   * ADR-056 AC-18: the daily PSF membership sweep. Ends expired memberships,
+   * sends the 30 day and on the day emails, and stamps any application that
+   * reached PSF's queue without its stamp. Its own queue for the same reason
+   * the TIN sweep has one: a scheduler's policy is per queue.
+   */
+  psfMembershipSweep: 'PsfMembershipSweep',
 } as const;
 
 @Global()

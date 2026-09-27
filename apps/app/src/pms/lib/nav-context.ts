@@ -55,6 +55,8 @@ export function navContextOf(
       workspaceId: workspaceId ?? pms.state.workspaceId,
     }),
     departments: grant?.departments ?? [],
+    // ADR-056: the server decides; the nav only renders it.
+    psfManage: grant?.psfCanManage === true,
     // No counts yet. Every pill stays absent until a live query answers it
     // (ADR-035, D-a); a fixture supplied number is not a count.
     counts: undefined,

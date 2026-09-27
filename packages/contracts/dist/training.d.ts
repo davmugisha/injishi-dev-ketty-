@@ -72,21 +72,21 @@ export declare const TrainingVenueSummary: z.ZodObject<{
     /** The Injishi office is one row in the venue list, flagged, not special-cased. */
     isOffice: z.ZodBoolean;
 }, "strip", z.ZodTypeAny, {
-    districtId: number;
-    districtName: string;
-    id: string;
     name: string;
     provinceId: number;
+    districtId: number;
     address: string;
+    districtName: string;
+    id: string;
     provinceName: string;
     isOffice: boolean;
 }, {
-    districtId: number;
-    districtName: string;
-    id: string;
     name: string;
     provinceId: number;
+    districtId: number;
     address: string;
+    districtName: string;
+    id: string;
     provinceName: string;
     isOffice: boolean;
 }>;
@@ -115,21 +115,21 @@ export declare const TrainingPublicSession: z.ZodObject<{
         /** The Injishi office is one row in the venue list, flagged, not special-cased. */
         isOffice: z.ZodBoolean;
     }, "strip", z.ZodTypeAny, {
-        districtId: number;
-        districtName: string;
-        id: string;
         name: string;
         provinceId: number;
+        districtId: number;
         address: string;
+        districtName: string;
+        id: string;
         provinceName: string;
         isOffice: boolean;
     }, {
-        districtId: number;
-        districtName: string;
-        id: string;
         name: string;
         provinceId: number;
+        districtId: number;
         address: string;
+        districtName: string;
+        id: string;
         provinceName: string;
         isOffice: boolean;
     }>;
@@ -147,12 +147,12 @@ export declare const TrainingPublicSession: z.ZodObject<{
     startsAt: string;
     endsAt: string;
     venue: {
-        districtId: number;
-        districtName: string;
-        id: string;
         name: string;
         provinceId: number;
+        districtId: number;
         address: string;
+        districtName: string;
+        id: string;
         provinceName: string;
         isOffice: boolean;
     };
@@ -168,12 +168,12 @@ export declare const TrainingPublicSession: z.ZodObject<{
     startsAt: string;
     endsAt: string;
     venue: {
-        districtId: number;
-        districtName: string;
-        id: string;
         name: string;
         provinceId: number;
+        districtId: number;
         address: string;
+        districtName: string;
+        id: string;
         provinceName: string;
         isOffice: boolean;
     };
@@ -207,21 +207,21 @@ export declare const TrainingPublicCourse: z.ZodObject<{
             /** The Injishi office is one row in the venue list, flagged, not special-cased. */
             isOffice: z.ZodBoolean;
         }, "strip", z.ZodTypeAny, {
-            districtId: number;
-            districtName: string;
-            id: string;
             name: string;
             provinceId: number;
+            districtId: number;
             address: string;
+            districtName: string;
+            id: string;
             provinceName: string;
             isOffice: boolean;
         }, {
-            districtId: number;
-            districtName: string;
-            id: string;
             name: string;
             provinceId: number;
+            districtId: number;
             address: string;
+            districtName: string;
+            id: string;
             provinceName: string;
             isOffice: boolean;
         }>;
@@ -239,12 +239,12 @@ export declare const TrainingPublicCourse: z.ZodObject<{
         startsAt: string;
         endsAt: string;
         venue: {
-            districtId: number;
-            districtName: string;
-            id: string;
             name: string;
             provinceId: number;
+            districtId: number;
             address: string;
+            districtName: string;
+            id: string;
             provinceName: string;
             isOffice: boolean;
         };
@@ -260,12 +260,12 @@ export declare const TrainingPublicCourse: z.ZodObject<{
         startsAt: string;
         endsAt: string;
         venue: {
-            districtId: number;
-            districtName: string;
-            id: string;
             name: string;
             provinceId: number;
+            districtId: number;
             address: string;
+            districtName: string;
+            id: string;
             provinceName: string;
             isOffice: boolean;
         };
@@ -276,8 +276,8 @@ export declare const TrainingPublicCourse: z.ZodObject<{
         isOverSubscribed: boolean;
     }>, "many">;
 }, "strip", z.ZodTypeAny, {
-    title: string;
     id: string;
+    title: string;
     version: number;
     slug: string;
     summary: string;
@@ -288,12 +288,12 @@ export declare const TrainingPublicCourse: z.ZodObject<{
         startsAt: string;
         endsAt: string;
         venue: {
-            districtId: number;
-            districtName: string;
-            id: string;
             name: string;
             provinceId: number;
+            districtId: number;
             address: string;
+            districtName: string;
+            id: string;
             provinceName: string;
             isOffice: boolean;
         };
@@ -304,8 +304,8 @@ export declare const TrainingPublicCourse: z.ZodObject<{
         isOverSubscribed: boolean;
     }[];
 }, {
-    title: string;
     id: string;
+    title: string;
     version: number;
     slug: string;
     summary: string;
@@ -316,12 +316,12 @@ export declare const TrainingPublicCourse: z.ZodObject<{
         startsAt: string;
         endsAt: string;
         venue: {
-            districtId: number;
-            districtName: string;
-            id: string;
             name: string;
             provinceId: number;
+            districtId: number;
             address: string;
+            districtName: string;
+            id: string;
             provinceName: string;
             isOffice: boolean;
         };
@@ -368,21 +368,21 @@ export declare const TrainingCourseListResponse: z.ZodObject<{
                 /** The Injishi office is one row in the venue list, flagged, not special-cased. */
                 isOffice: z.ZodBoolean;
             }, "strip", z.ZodTypeAny, {
-                districtId: number;
-                districtName: string;
-                id: string;
                 name: string;
                 provinceId: number;
+                districtId: number;
                 address: string;
+                districtName: string;
+                id: string;
                 provinceName: string;
                 isOffice: boolean;
             }, {
-                districtId: number;
-                districtName: string;
-                id: string;
                 name: string;
                 provinceId: number;
+                districtId: number;
                 address: string;
+                districtName: string;
+                id: string;
                 provinceName: string;
                 isOffice: boolean;
             }>;
@@ -400,12 +400,12 @@ export declare const TrainingCourseListResponse: z.ZodObject<{
             startsAt: string;
             endsAt: string;
             venue: {
-                districtId: number;
-                districtName: string;
-                id: string;
                 name: string;
                 provinceId: number;
+                districtId: number;
                 address: string;
+                districtName: string;
+                id: string;
                 provinceName: string;
                 isOffice: boolean;
             };
@@ -421,12 +421,12 @@ export declare const TrainingCourseListResponse: z.ZodObject<{
             startsAt: string;
             endsAt: string;
             venue: {
-                districtId: number;
-                districtName: string;
-                id: string;
                 name: string;
                 provinceId: number;
+                districtId: number;
                 address: string;
+                districtName: string;
+                id: string;
                 provinceName: string;
                 isOffice: boolean;
             };
@@ -437,8 +437,8 @@ export declare const TrainingCourseListResponse: z.ZodObject<{
             isOverSubscribed: boolean;
         }>, "many">;
     }, "strip", z.ZodTypeAny, {
-        title: string;
         id: string;
+        title: string;
         version: number;
         slug: string;
         summary: string;
@@ -449,12 +449,12 @@ export declare const TrainingCourseListResponse: z.ZodObject<{
             startsAt: string;
             endsAt: string;
             venue: {
-                districtId: number;
-                districtName: string;
-                id: string;
                 name: string;
                 provinceId: number;
+                districtId: number;
                 address: string;
+                districtName: string;
+                id: string;
                 provinceName: string;
                 isOffice: boolean;
             };
@@ -465,8 +465,8 @@ export declare const TrainingCourseListResponse: z.ZodObject<{
             isOverSubscribed: boolean;
         }[];
     }, {
-        title: string;
         id: string;
+        title: string;
         version: number;
         slug: string;
         summary: string;
@@ -477,12 +477,12 @@ export declare const TrainingCourseListResponse: z.ZodObject<{
             startsAt: string;
             endsAt: string;
             venue: {
-                districtId: number;
-                districtName: string;
-                id: string;
                 name: string;
                 provinceId: number;
+                districtId: number;
                 address: string;
+                districtName: string;
+                id: string;
                 provinceName: string;
                 isOffice: boolean;
             };
@@ -508,8 +508,8 @@ export declare const TrainingCourseListResponse: z.ZodObject<{
     }>;
 }, "strip", z.ZodTypeAny, {
     items: {
-        title: string;
         id: string;
+        title: string;
         version: number;
         slug: string;
         summary: string;
@@ -520,12 +520,12 @@ export declare const TrainingCourseListResponse: z.ZodObject<{
             startsAt: string;
             endsAt: string;
             venue: {
-                districtId: number;
-                districtName: string;
-                id: string;
                 name: string;
                 provinceId: number;
+                districtId: number;
                 address: string;
+                districtName: string;
+                id: string;
                 provinceName: string;
                 isOffice: boolean;
             };
@@ -543,8 +543,8 @@ export declare const TrainingCourseListResponse: z.ZodObject<{
     };
 }, {
     items: {
-        title: string;
         id: string;
+        title: string;
         version: number;
         slug: string;
         summary: string;
@@ -555,12 +555,12 @@ export declare const TrainingCourseListResponse: z.ZodObject<{
             startsAt: string;
             endsAt: string;
             venue: {
-                districtId: number;
-                districtName: string;
-                id: string;
                 name: string;
                 provinceId: number;
+                districtId: number;
                 address: string;
+                districtName: string;
+                id: string;
                 provinceName: string;
                 isOffice: boolean;
             };
@@ -595,21 +595,21 @@ export declare const TrainingSessionDetail: z.ZodObject<{
         /** The Injishi office is one row in the venue list, flagged, not special-cased. */
         isOffice: z.ZodBoolean;
     }, "strip", z.ZodTypeAny, {
-        districtId: number;
-        districtName: string;
-        id: string;
         name: string;
         provinceId: number;
+        districtId: number;
         address: string;
+        districtName: string;
+        id: string;
         provinceName: string;
         isOffice: boolean;
     }, {
-        districtId: number;
-        districtName: string;
-        id: string;
         name: string;
         provinceId: number;
+        districtId: number;
         address: string;
+        districtName: string;
+        id: string;
         provinceName: string;
         isOffice: boolean;
     }>;
@@ -628,14 +628,14 @@ export declare const TrainingSessionDetail: z.ZodObject<{
         summary: z.ZodString;
         version: z.ZodNumber;
     }, "strip", z.ZodTypeAny, {
-        title: string;
         id: string;
+        title: string;
         version: number;
         slug: string;
         summary: string;
     }, {
-        title: string;
         id: string;
+        title: string;
         version: number;
         slug: string;
         summary: string;
@@ -647,12 +647,12 @@ export declare const TrainingSessionDetail: z.ZodObject<{
     startsAt: string;
     endsAt: string;
     venue: {
-        districtId: number;
-        districtName: string;
-        id: string;
         name: string;
         provinceId: number;
+        districtId: number;
         address: string;
+        districtName: string;
+        id: string;
         provinceName: string;
         isOffice: boolean;
     };
@@ -662,8 +662,8 @@ export declare const TrainingSessionDetail: z.ZodObject<{
     seatsRemaining: number;
     isOverSubscribed: boolean;
     course: {
-        title: string;
         id: string;
+        title: string;
         version: number;
         slug: string;
         summary: string;
@@ -675,12 +675,12 @@ export declare const TrainingSessionDetail: z.ZodObject<{
     startsAt: string;
     endsAt: string;
     venue: {
-        districtId: number;
-        districtName: string;
-        id: string;
         name: string;
         provinceId: number;
+        districtId: number;
         address: string;
+        districtName: string;
+        id: string;
         provinceName: string;
         isOffice: boolean;
     };
@@ -690,8 +690,8 @@ export declare const TrainingSessionDetail: z.ZodObject<{
     seatsRemaining: number;
     isOverSubscribed: boolean;
     course: {
-        title: string;
         id: string;
+        title: string;
         version: number;
         slug: string;
         summary: string;
@@ -762,13 +762,13 @@ export declare const TrainingRegistrationResult: z.ZodObject<{
     feeRwf: z.ZodNumber;
     currency: z.ZodLiteral<"RWF">;
 }, "strip", z.ZodTypeAny, {
-    status: "released" | "withdrawn" | "registered" | "attended" | "absent";
+    status: "withdrawn" | "released" | "registered" | "attended" | "absent";
     currency: "RWF";
     feeRwf: number;
     registrationId: string;
     alreadyRegistered: boolean;
 }, {
-    status: "released" | "withdrawn" | "registered" | "attended" | "absent";
+    status: "withdrawn" | "released" | "registered" | "attended" | "absent";
     currency: "RWF";
     feeRwf: number;
     registrationId: string;
@@ -799,21 +799,21 @@ export declare const TrainingMyRegistration: z.ZodObject<{
             /** The Injishi office is one row in the venue list, flagged, not special-cased. */
             isOffice: z.ZodBoolean;
         }, "strip", z.ZodTypeAny, {
-            districtId: number;
-            districtName: string;
-            id: string;
             name: string;
             provinceId: number;
+            districtId: number;
             address: string;
+            districtName: string;
+            id: string;
             provinceName: string;
             isOffice: boolean;
         }, {
-            districtId: number;
-            districtName: string;
-            id: string;
             name: string;
             provinceId: number;
+            districtId: number;
             address: string;
+            districtName: string;
+            id: string;
             provinceName: string;
             isOffice: boolean;
         }>;
@@ -823,12 +823,12 @@ export declare const TrainingMyRegistration: z.ZodObject<{
         startsAt: string;
         endsAt: string;
         venue: {
-            districtId: number;
-            districtName: string;
-            id: string;
             name: string;
             provinceId: number;
+            districtId: number;
             address: string;
+            districtName: string;
+            id: string;
             provinceName: string;
             isOffice: boolean;
         };
@@ -838,12 +838,12 @@ export declare const TrainingMyRegistration: z.ZodObject<{
         startsAt: string;
         endsAt: string;
         venue: {
-            districtId: number;
-            districtName: string;
-            id: string;
             name: string;
             provinceId: number;
+            districtId: number;
             address: string;
+            districtName: string;
+            id: string;
             provinceName: string;
             isOffice: boolean;
         };
@@ -853,27 +853,27 @@ export declare const TrainingMyRegistration: z.ZodObject<{
         title: z.ZodString;
         slug: z.ZodString;
     }, "strip", z.ZodTypeAny, {
-        title: string;
         id: string;
+        title: string;
         slug: string;
     }, {
-        title: string;
         id: string;
+        title: string;
         slug: string;
     }>;
     /** Set only once a trainer ticked them present. */
     certificateId: z.ZodNullable<z.ZodString>;
 }, "strip", z.ZodTypeAny, {
-    status: "released" | "withdrawn" | "registered" | "attended" | "absent";
+    status: "withdrawn" | "released" | "registered" | "attended" | "absent";
     currency: "RWF";
     id: string;
+    source: "self" | "walk_in";
     feeRwf: number;
     course: {
-        title: string;
         id: string;
+        title: string;
         slug: string;
     };
-    source: "self" | "walk_in";
     registeredAt: string;
     session: {
         status: "draft" | "published" | "cancelled" | "completed";
@@ -881,28 +881,28 @@ export declare const TrainingMyRegistration: z.ZodObject<{
         startsAt: string;
         endsAt: string;
         venue: {
-            districtId: number;
-            districtName: string;
-            id: string;
             name: string;
             provinceId: number;
+            districtId: number;
             address: string;
+            districtName: string;
+            id: string;
             provinceName: string;
             isOffice: boolean;
         };
     };
     certificateId: string | null;
 }, {
-    status: "released" | "withdrawn" | "registered" | "attended" | "absent";
+    status: "withdrawn" | "released" | "registered" | "attended" | "absent";
     currency: "RWF";
     id: string;
+    source: "self" | "walk_in";
     feeRwf: number;
     course: {
-        title: string;
         id: string;
+        title: string;
         slug: string;
     };
-    source: "self" | "walk_in";
     registeredAt: string;
     session: {
         status: "draft" | "published" | "cancelled" | "completed";
@@ -910,12 +910,12 @@ export declare const TrainingMyRegistration: z.ZodObject<{
         startsAt: string;
         endsAt: string;
         venue: {
-            districtId: number;
-            districtName: string;
-            id: string;
             name: string;
             provinceId: number;
+            districtId: number;
             address: string;
+            districtName: string;
+            id: string;
             provinceName: string;
             isOffice: boolean;
         };
@@ -1017,21 +1017,21 @@ export declare const TrainingMeResponse: z.ZodObject<{
                     /** The Injishi office is one row in the venue list, flagged, not special-cased. */
                     isOffice: z.ZodBoolean;
                 }, "strip", z.ZodTypeAny, {
-                    districtId: number;
-                    districtName: string;
-                    id: string;
                     name: string;
                     provinceId: number;
+                    districtId: number;
                     address: string;
+                    districtName: string;
+                    id: string;
                     provinceName: string;
                     isOffice: boolean;
                 }, {
-                    districtId: number;
-                    districtName: string;
-                    id: string;
                     name: string;
                     provinceId: number;
+                    districtId: number;
                     address: string;
+                    districtName: string;
+                    id: string;
                     provinceName: string;
                     isOffice: boolean;
                 }>;
@@ -1041,12 +1041,12 @@ export declare const TrainingMeResponse: z.ZodObject<{
                 startsAt: string;
                 endsAt: string;
                 venue: {
-                    districtId: number;
-                    districtName: string;
-                    id: string;
                     name: string;
                     provinceId: number;
+                    districtId: number;
                     address: string;
+                    districtName: string;
+                    id: string;
                     provinceName: string;
                     isOffice: boolean;
                 };
@@ -1056,12 +1056,12 @@ export declare const TrainingMeResponse: z.ZodObject<{
                 startsAt: string;
                 endsAt: string;
                 venue: {
-                    districtId: number;
-                    districtName: string;
-                    id: string;
                     name: string;
                     provinceId: number;
+                    districtId: number;
                     address: string;
+                    districtName: string;
+                    id: string;
                     provinceName: string;
                     isOffice: boolean;
                 };
@@ -1071,27 +1071,27 @@ export declare const TrainingMeResponse: z.ZodObject<{
                 title: z.ZodString;
                 slug: z.ZodString;
             }, "strip", z.ZodTypeAny, {
-                title: string;
                 id: string;
+                title: string;
                 slug: string;
             }, {
-                title: string;
                 id: string;
+                title: string;
                 slug: string;
             }>;
             /** Set only once a trainer ticked them present. */
             certificateId: z.ZodNullable<z.ZodString>;
         }, "strip", z.ZodTypeAny, {
-            status: "released" | "withdrawn" | "registered" | "attended" | "absent";
+            status: "withdrawn" | "released" | "registered" | "attended" | "absent";
             currency: "RWF";
             id: string;
+            source: "self" | "walk_in";
             feeRwf: number;
             course: {
-                title: string;
                 id: string;
+                title: string;
                 slug: string;
             };
-            source: "self" | "walk_in";
             registeredAt: string;
             session: {
                 status: "draft" | "published" | "cancelled" | "completed";
@@ -1099,28 +1099,28 @@ export declare const TrainingMeResponse: z.ZodObject<{
                 startsAt: string;
                 endsAt: string;
                 venue: {
-                    districtId: number;
-                    districtName: string;
-                    id: string;
                     name: string;
                     provinceId: number;
+                    districtId: number;
                     address: string;
+                    districtName: string;
+                    id: string;
                     provinceName: string;
                     isOffice: boolean;
                 };
             };
             certificateId: string | null;
         }, {
-            status: "released" | "withdrawn" | "registered" | "attended" | "absent";
+            status: "withdrawn" | "released" | "registered" | "attended" | "absent";
             currency: "RWF";
             id: string;
+            source: "self" | "walk_in";
             feeRwf: number;
             course: {
-                title: string;
                 id: string;
+                title: string;
                 slug: string;
             };
-            source: "self" | "walk_in";
             registeredAt: string;
             session: {
                 status: "draft" | "published" | "cancelled" | "completed";
@@ -1128,12 +1128,12 @@ export declare const TrainingMeResponse: z.ZodObject<{
                 startsAt: string;
                 endsAt: string;
                 venue: {
-                    districtId: number;
-                    districtName: string;
-                    id: string;
                     name: string;
                     provinceId: number;
+                    districtId: number;
                     address: string;
+                    districtName: string;
+                    id: string;
                     provinceName: string;
                     isOffice: boolean;
                 };
@@ -1155,16 +1155,16 @@ export declare const TrainingMeResponse: z.ZodObject<{
         }>;
     }, "strip", z.ZodTypeAny, {
         items: {
-            status: "released" | "withdrawn" | "registered" | "attended" | "absent";
+            status: "withdrawn" | "released" | "registered" | "attended" | "absent";
             currency: "RWF";
             id: string;
+            source: "self" | "walk_in";
             feeRwf: number;
             course: {
-                title: string;
                 id: string;
+                title: string;
                 slug: string;
             };
-            source: "self" | "walk_in";
             registeredAt: string;
             session: {
                 status: "draft" | "published" | "cancelled" | "completed";
@@ -1172,12 +1172,12 @@ export declare const TrainingMeResponse: z.ZodObject<{
                 startsAt: string;
                 endsAt: string;
                 venue: {
-                    districtId: number;
-                    districtName: string;
-                    id: string;
                     name: string;
                     provinceId: number;
+                    districtId: number;
                     address: string;
+                    districtName: string;
+                    id: string;
                     provinceName: string;
                     isOffice: boolean;
                 };
@@ -1191,16 +1191,16 @@ export declare const TrainingMeResponse: z.ZodObject<{
         };
     }, {
         items: {
-            status: "released" | "withdrawn" | "registered" | "attended" | "absent";
+            status: "withdrawn" | "released" | "registered" | "attended" | "absent";
             currency: "RWF";
             id: string;
+            source: "self" | "walk_in";
             feeRwf: number;
             course: {
-                title: string;
                 id: string;
+                title: string;
                 slug: string;
             };
-            source: "self" | "walk_in";
             registeredAt: string;
             session: {
                 status: "draft" | "published" | "cancelled" | "completed";
@@ -1208,12 +1208,12 @@ export declare const TrainingMeResponse: z.ZodObject<{
                 startsAt: string;
                 endsAt: string;
                 venue: {
-                    districtId: number;
-                    districtName: string;
-                    id: string;
                     name: string;
                     provinceId: number;
+                    districtId: number;
                     address: string;
+                    districtName: string;
+                    id: string;
                     provinceName: string;
                     isOffice: boolean;
                 };
@@ -1359,16 +1359,16 @@ export declare const TrainingMeResponse: z.ZodObject<{
     };
     registrations: {
         items: {
-            status: "released" | "withdrawn" | "registered" | "attended" | "absent";
+            status: "withdrawn" | "released" | "registered" | "attended" | "absent";
             currency: "RWF";
             id: string;
+            source: "self" | "walk_in";
             feeRwf: number;
             course: {
-                title: string;
                 id: string;
+                title: string;
                 slug: string;
             };
-            source: "self" | "walk_in";
             registeredAt: string;
             session: {
                 status: "draft" | "published" | "cancelled" | "completed";
@@ -1376,12 +1376,12 @@ export declare const TrainingMeResponse: z.ZodObject<{
                 startsAt: string;
                 endsAt: string;
                 venue: {
-                    districtId: number;
-                    districtName: string;
-                    id: string;
                     name: string;
                     provinceId: number;
+                    districtId: number;
                     address: string;
+                    districtName: string;
+                    id: string;
                     provinceName: string;
                     isOffice: boolean;
                 };
@@ -1420,16 +1420,16 @@ export declare const TrainingMeResponse: z.ZodObject<{
     };
     registrations: {
         items: {
-            status: "released" | "withdrawn" | "registered" | "attended" | "absent";
+            status: "withdrawn" | "released" | "registered" | "attended" | "absent";
             currency: "RWF";
             id: string;
+            source: "self" | "walk_in";
             feeRwf: number;
             course: {
-                title: string;
                 id: string;
+                title: string;
                 slug: string;
             };
-            source: "self" | "walk_in";
             registeredAt: string;
             session: {
                 status: "draft" | "published" | "cancelled" | "completed";
@@ -1437,12 +1437,12 @@ export declare const TrainingMeResponse: z.ZodObject<{
                 startsAt: string;
                 endsAt: string;
                 venue: {
-                    districtId: number;
-                    districtName: string;
-                    id: string;
                     name: string;
                     provinceId: number;
+                    districtId: number;
                     address: string;
+                    districtName: string;
+                    id: string;
                     provinceName: string;
                     isOffice: boolean;
                 };
@@ -1548,8 +1548,8 @@ export declare const AdminTrainingCourse: z.ZodObject<{
     createdAt: z.ZodString;
     updatedAt: z.ZodString;
 }, "strip", z.ZodTypeAny, {
-    title: string;
     id: string;
+    title: string;
     createdAt: string;
     version: number;
     slug: string;
@@ -1558,8 +1558,8 @@ export declare const AdminTrainingCourse: z.ZodObject<{
     sessionCount: number;
     updatedAt: string;
 }, {
-    title: string;
     id: string;
+    title: string;
     createdAt: string;
     version: number;
     slug: string;
@@ -1592,8 +1592,8 @@ export declare const AdminTrainingCourseListResponse: z.ZodObject<{
         createdAt: z.ZodString;
         updatedAt: z.ZodString;
     }, "strip", z.ZodTypeAny, {
-        title: string;
         id: string;
+        title: string;
         createdAt: string;
         version: number;
         slug: string;
@@ -1602,8 +1602,8 @@ export declare const AdminTrainingCourseListResponse: z.ZodObject<{
         sessionCount: number;
         updatedAt: string;
     }, {
-        title: string;
         id: string;
+        title: string;
         createdAt: string;
         version: number;
         slug: string;
@@ -1627,8 +1627,8 @@ export declare const AdminTrainingCourseListResponse: z.ZodObject<{
     }>;
 }, "strip", z.ZodTypeAny, {
     items: {
-        title: string;
         id: string;
+        title: string;
         createdAt: string;
         version: number;
         slug: string;
@@ -1644,8 +1644,8 @@ export declare const AdminTrainingCourseListResponse: z.ZodObject<{
     };
 }, {
     items: {
-        title: string;
         id: string;
+        title: string;
         createdAt: string;
         version: number;
         slug: string;
@@ -1728,24 +1728,24 @@ export declare const AdminTrainingVenue: z.ZodObject<{
     retiredAt: z.ZodNullable<z.ZodString>;
     createdAt: z.ZodString;
 }, "strip", z.ZodTypeAny, {
+    name: string;
+    provinceId: number;
     districtId: number;
+    address: string;
     districtName: string;
     id: string;
     createdAt: string;
-    name: string;
-    provinceId: number;
-    address: string;
     provinceName: string;
     isOffice: boolean;
     retiredAt: string | null;
 }, {
+    name: string;
+    provinceId: number;
     districtId: number;
+    address: string;
     districtName: string;
     id: string;
     createdAt: string;
-    name: string;
-    provinceId: number;
-    address: string;
     provinceName: string;
     isOffice: boolean;
     retiredAt: string | null;
@@ -1780,24 +1780,24 @@ export declare const AdminTrainingVenueListResponse: z.ZodObject<{
         retiredAt: z.ZodNullable<z.ZodString>;
         createdAt: z.ZodString;
     }, "strip", z.ZodTypeAny, {
+        name: string;
+        provinceId: number;
         districtId: number;
+        address: string;
         districtName: string;
         id: string;
         createdAt: string;
-        name: string;
-        provinceId: number;
-        address: string;
         provinceName: string;
         isOffice: boolean;
         retiredAt: string | null;
     }, {
+        name: string;
+        provinceId: number;
         districtId: number;
+        address: string;
         districtName: string;
         id: string;
         createdAt: string;
-        name: string;
-        provinceId: number;
-        address: string;
         provinceName: string;
         isOffice: boolean;
         retiredAt: string | null;
@@ -1817,13 +1817,13 @@ export declare const AdminTrainingVenueListResponse: z.ZodObject<{
     }>;
 }, "strip", z.ZodTypeAny, {
     items: {
+        name: string;
+        provinceId: number;
         districtId: number;
+        address: string;
         districtName: string;
         id: string;
         createdAt: string;
-        name: string;
-        provinceId: number;
-        address: string;
         provinceName: string;
         isOffice: boolean;
         retiredAt: string | null;
@@ -1835,13 +1835,13 @@ export declare const AdminTrainingVenueListResponse: z.ZodObject<{
     };
 }, {
     items: {
+        name: string;
+        provinceId: number;
         districtId: number;
+        address: string;
         districtName: string;
         id: string;
         createdAt: string;
-        name: string;
-        provinceId: number;
-        address: string;
         provinceName: string;
         isOffice: boolean;
         retiredAt: string | null;
@@ -1866,13 +1866,13 @@ export declare const CreateAdminTrainingVenue: z.ZodObject<{
     districtId: z.ZodNumber;
     isOffice: z.ZodOptional<z.ZodBoolean>;
 }, "strip", z.ZodTypeAny, {
-    districtId: number;
     name: string;
+    districtId: number;
     address: string;
     isOffice?: boolean | undefined;
 }, {
-    districtId: number;
     name: string;
+    districtId: number;
     address: string;
     isOffice?: boolean | undefined;
 }>;
@@ -1883,13 +1883,13 @@ export declare const UpdateAdminTrainingVenue: z.ZodObject<{
     districtId: z.ZodOptional<z.ZodNumber>;
     isOffice: z.ZodOptional<z.ZodBoolean>;
 }, "strip", z.ZodTypeAny, {
-    districtId?: number | undefined;
     name?: string | undefined;
+    districtId?: number | undefined;
     address?: string | undefined;
     isOffice?: boolean | undefined;
 }, {
-    districtId?: number | undefined;
     name?: string | undefined;
+    districtId?: number | undefined;
     address?: string | undefined;
     isOffice?: boolean | undefined;
 }>;
@@ -1916,24 +1916,24 @@ export declare const RetireAdminTrainingVenueResult: z.ZodObject<{
         retiredAt: z.ZodNullable<z.ZodString>;
         createdAt: z.ZodString;
     }, "strip", z.ZodTypeAny, {
+        name: string;
+        provinceId: number;
         districtId: number;
+        address: string;
         districtName: string;
         id: string;
         createdAt: string;
-        name: string;
-        provinceId: number;
-        address: string;
         provinceName: string;
         isOffice: boolean;
         retiredAt: string | null;
     }, {
+        name: string;
+        provinceId: number;
         districtId: number;
+        address: string;
         districtName: string;
         id: string;
         createdAt: string;
-        name: string;
-        provinceId: number;
-        address: string;
         provinceName: string;
         isOffice: boolean;
         retiredAt: string | null;
@@ -1941,13 +1941,13 @@ export declare const RetireAdminTrainingVenueResult: z.ZodObject<{
     draftsNowBlocked: z.ZodNumber;
 }, "strip", z.ZodTypeAny, {
     venue: {
+        name: string;
+        provinceId: number;
         districtId: number;
+        address: string;
         districtName: string;
         id: string;
         createdAt: string;
-        name: string;
-        provinceId: number;
-        address: string;
         provinceName: string;
         isOffice: boolean;
         retiredAt: string | null;
@@ -1955,13 +1955,13 @@ export declare const RetireAdminTrainingVenueResult: z.ZodObject<{
     draftsNowBlocked: number;
 }, {
     venue: {
+        name: string;
+        provinceId: number;
         districtId: number;
+        address: string;
         districtName: string;
         id: string;
         createdAt: string;
-        name: string;
-        provinceId: number;
-        address: string;
         provinceName: string;
         isOffice: boolean;
         retiredAt: string | null;
@@ -1975,12 +1975,12 @@ export declare const TrainingSessionTrainer: z.ZodObject<{
     name: z.ZodString;
     isLead: z.ZodBoolean;
 }, "strip", z.ZodTypeAny, {
-    userId: string;
     name: string;
+    userId: string;
     isLead: boolean;
 }, {
-    userId: string;
     name: string;
+    userId: string;
     isLead: boolean;
 }>;
 export type TrainingSessionTrainer = z.infer<typeof TrainingSessionTrainer>;
@@ -2004,13 +2004,13 @@ export declare const AdminTrainingTrainer: z.ZodObject<{
     name: z.ZodNullable<z.ZodString>;
     email: z.ZodString;
 }, "strip", z.ZodTypeAny, {
-    id: string;
     name: string | null;
     email: string;
+    id: string;
 }, {
-    id: string;
     name: string | null;
     email: string;
+    id: string;
 }>;
 export type AdminTrainingTrainer = z.infer<typeof AdminTrainingTrainer>;
 export declare const AdminTrainingTrainerListQuery: z.ZodObject<{
@@ -2030,13 +2030,13 @@ export declare const AdminTrainingTrainerListResponse: z.ZodObject<{
         name: z.ZodNullable<z.ZodString>;
         email: z.ZodString;
     }, "strip", z.ZodTypeAny, {
-        id: string;
         name: string | null;
         email: string;
+        id: string;
     }, {
-        id: string;
         name: string | null;
         email: string;
+        id: string;
     }>, "many">;
     meta: z.ZodObject<{
         total: z.ZodNumber;
@@ -2053,9 +2053,9 @@ export declare const AdminTrainingTrainerListResponse: z.ZodObject<{
     }>;
 }, "strip", z.ZodTypeAny, {
     items: {
-        id: string;
         name: string | null;
         email: string;
+        id: string;
     }[];
     meta: {
         total: number;
@@ -2064,9 +2064,9 @@ export declare const AdminTrainingTrainerListResponse: z.ZodObject<{
     };
 }, {
     items: {
-        id: string;
         name: string | null;
         email: string;
+        id: string;
     }[];
     meta: {
         total: number;
@@ -2086,14 +2086,14 @@ export declare const AdminTrainingSession: z.ZodObject<{
         version: z.ZodNumber;
         isPublished: z.ZodBoolean;
     }, "strip", z.ZodTypeAny, {
-        title: string;
         id: string;
+        title: string;
         version: number;
         slug: string;
         isPublished: boolean;
     }, {
-        title: string;
         id: string;
+        title: string;
         version: number;
         slug: string;
         isPublished: boolean;
@@ -2112,24 +2112,24 @@ export declare const AdminTrainingSession: z.ZodObject<{
         retiredAt: z.ZodNullable<z.ZodString>;
         createdAt: z.ZodString;
     }, "strip", z.ZodTypeAny, {
+        name: string;
+        provinceId: number;
         districtId: number;
+        address: string;
         districtName: string;
         id: string;
         createdAt: string;
-        name: string;
-        provinceId: number;
-        address: string;
         provinceName: string;
         isOffice: boolean;
         retiredAt: string | null;
     }, {
+        name: string;
+        provinceId: number;
         districtId: number;
+        address: string;
         districtName: string;
         id: string;
         createdAt: string;
-        name: string;
-        provinceId: number;
-        address: string;
         provinceName: string;
         isOffice: boolean;
         retiredAt: string | null;
@@ -2145,12 +2145,12 @@ export declare const AdminTrainingSession: z.ZodObject<{
         name: z.ZodString;
         isLead: z.ZodBoolean;
     }, "strip", z.ZodTypeAny, {
-        userId: string;
         name: string;
+        userId: string;
         isLead: boolean;
     }, {
-        userId: string;
         name: string;
+        userId: string;
         isLead: boolean;
     }>, "many">;
     publishedAt: z.ZodNullable<z.ZodString>;
@@ -2168,13 +2168,13 @@ export declare const AdminTrainingSession: z.ZodObject<{
     startsAt: string;
     endsAt: string;
     venue: {
+        name: string;
+        provinceId: number;
         districtId: number;
+        address: string;
         districtName: string;
         id: string;
         createdAt: string;
-        name: string;
-        provinceId: number;
-        address: string;
         provinceName: string;
         isOffice: boolean;
         retiredAt: string | null;
@@ -2183,15 +2183,15 @@ export declare const AdminTrainingSession: z.ZodObject<{
     seatCount: number;
     registrationCount: number;
     course: {
-        title: string;
         id: string;
+        title: string;
         version: number;
         slug: string;
         isPublished: boolean;
     };
     trainers: {
-        userId: string;
         name: string;
+        userId: string;
         isLead: boolean;
     }[];
     cancelledAt: string | null;
@@ -2207,13 +2207,13 @@ export declare const AdminTrainingSession: z.ZodObject<{
     startsAt: string;
     endsAt: string;
     venue: {
+        name: string;
+        provinceId: number;
         districtId: number;
+        address: string;
         districtName: string;
         id: string;
         createdAt: string;
-        name: string;
-        provinceId: number;
-        address: string;
         provinceName: string;
         isOffice: boolean;
         retiredAt: string | null;
@@ -2222,15 +2222,15 @@ export declare const AdminTrainingSession: z.ZodObject<{
     seatCount: number;
     registrationCount: number;
     course: {
-        title: string;
         id: string;
+        title: string;
         version: number;
         slug: string;
         isPublished: boolean;
     };
     trainers: {
-        userId: string;
         name: string;
+        userId: string;
         isLead: boolean;
     }[];
     cancelledAt: string | null;
@@ -2267,14 +2267,14 @@ export declare const AdminTrainingSessionListResponse: z.ZodObject<{
             version: z.ZodNumber;
             isPublished: z.ZodBoolean;
         }, "strip", z.ZodTypeAny, {
-            title: string;
             id: string;
+            title: string;
             version: number;
             slug: string;
             isPublished: boolean;
         }, {
-            title: string;
             id: string;
+            title: string;
             version: number;
             slug: string;
             isPublished: boolean;
@@ -2293,24 +2293,24 @@ export declare const AdminTrainingSessionListResponse: z.ZodObject<{
             retiredAt: z.ZodNullable<z.ZodString>;
             createdAt: z.ZodString;
         }, "strip", z.ZodTypeAny, {
+            name: string;
+            provinceId: number;
             districtId: number;
+            address: string;
             districtName: string;
             id: string;
             createdAt: string;
-            name: string;
-            provinceId: number;
-            address: string;
             provinceName: string;
             isOffice: boolean;
             retiredAt: string | null;
         }, {
+            name: string;
+            provinceId: number;
             districtId: number;
+            address: string;
             districtName: string;
             id: string;
             createdAt: string;
-            name: string;
-            provinceId: number;
-            address: string;
             provinceName: string;
             isOffice: boolean;
             retiredAt: string | null;
@@ -2326,12 +2326,12 @@ export declare const AdminTrainingSessionListResponse: z.ZodObject<{
             name: z.ZodString;
             isLead: z.ZodBoolean;
         }, "strip", z.ZodTypeAny, {
-            userId: string;
             name: string;
+            userId: string;
             isLead: boolean;
         }, {
-            userId: string;
             name: string;
+            userId: string;
             isLead: boolean;
         }>, "many">;
         publishedAt: z.ZodNullable<z.ZodString>;
@@ -2349,13 +2349,13 @@ export declare const AdminTrainingSessionListResponse: z.ZodObject<{
         startsAt: string;
         endsAt: string;
         venue: {
+            name: string;
+            provinceId: number;
             districtId: number;
+            address: string;
             districtName: string;
             id: string;
             createdAt: string;
-            name: string;
-            provinceId: number;
-            address: string;
             provinceName: string;
             isOffice: boolean;
             retiredAt: string | null;
@@ -2364,15 +2364,15 @@ export declare const AdminTrainingSessionListResponse: z.ZodObject<{
         seatCount: number;
         registrationCount: number;
         course: {
-            title: string;
             id: string;
+            title: string;
             version: number;
             slug: string;
             isPublished: boolean;
         };
         trainers: {
-            userId: string;
             name: string;
+            userId: string;
             isLead: boolean;
         }[];
         cancelledAt: string | null;
@@ -2388,13 +2388,13 @@ export declare const AdminTrainingSessionListResponse: z.ZodObject<{
         startsAt: string;
         endsAt: string;
         venue: {
+            name: string;
+            provinceId: number;
             districtId: number;
+            address: string;
             districtName: string;
             id: string;
             createdAt: string;
-            name: string;
-            provinceId: number;
-            address: string;
             provinceName: string;
             isOffice: boolean;
             retiredAt: string | null;
@@ -2403,15 +2403,15 @@ export declare const AdminTrainingSessionListResponse: z.ZodObject<{
         seatCount: number;
         registrationCount: number;
         course: {
-            title: string;
             id: string;
+            title: string;
             version: number;
             slug: string;
             isPublished: boolean;
         };
         trainers: {
-            userId: string;
             name: string;
+            userId: string;
             isLead: boolean;
         }[];
         cancelledAt: string | null;
@@ -2442,13 +2442,13 @@ export declare const AdminTrainingSessionListResponse: z.ZodObject<{
         startsAt: string;
         endsAt: string;
         venue: {
+            name: string;
+            provinceId: number;
             districtId: number;
+            address: string;
             districtName: string;
             id: string;
             createdAt: string;
-            name: string;
-            provinceId: number;
-            address: string;
             provinceName: string;
             isOffice: boolean;
             retiredAt: string | null;
@@ -2457,15 +2457,15 @@ export declare const AdminTrainingSessionListResponse: z.ZodObject<{
         seatCount: number;
         registrationCount: number;
         course: {
-            title: string;
             id: string;
+            title: string;
             version: number;
             slug: string;
             isPublished: boolean;
         };
         trainers: {
-            userId: string;
             name: string;
+            userId: string;
             isLead: boolean;
         }[];
         cancelledAt: string | null;
@@ -2488,13 +2488,13 @@ export declare const AdminTrainingSessionListResponse: z.ZodObject<{
         startsAt: string;
         endsAt: string;
         venue: {
+            name: string;
+            provinceId: number;
             districtId: number;
+            address: string;
             districtName: string;
             id: string;
             createdAt: string;
-            name: string;
-            provinceId: number;
-            address: string;
             provinceName: string;
             isOffice: boolean;
             retiredAt: string | null;
@@ -2503,15 +2503,15 @@ export declare const AdminTrainingSessionListResponse: z.ZodObject<{
         seatCount: number;
         registrationCount: number;
         course: {
-            title: string;
             id: string;
+            title: string;
             version: number;
             slug: string;
             isPublished: boolean;
         };
         trainers: {
-            userId: string;
             name: string;
+            userId: string;
             isLead: boolean;
         }[];
         cancelledAt: string | null;
@@ -2663,14 +2663,14 @@ export declare const CancelAdminTrainingSessionResult: z.ZodObject<{
             version: z.ZodNumber;
             isPublished: z.ZodBoolean;
         }, "strip", z.ZodTypeAny, {
-            title: string;
             id: string;
+            title: string;
             version: number;
             slug: string;
             isPublished: boolean;
         }, {
-            title: string;
             id: string;
+            title: string;
             version: number;
             slug: string;
             isPublished: boolean;
@@ -2689,24 +2689,24 @@ export declare const CancelAdminTrainingSessionResult: z.ZodObject<{
             retiredAt: z.ZodNullable<z.ZodString>;
             createdAt: z.ZodString;
         }, "strip", z.ZodTypeAny, {
+            name: string;
+            provinceId: number;
             districtId: number;
+            address: string;
             districtName: string;
             id: string;
             createdAt: string;
-            name: string;
-            provinceId: number;
-            address: string;
             provinceName: string;
             isOffice: boolean;
             retiredAt: string | null;
         }, {
+            name: string;
+            provinceId: number;
             districtId: number;
+            address: string;
             districtName: string;
             id: string;
             createdAt: string;
-            name: string;
-            provinceId: number;
-            address: string;
             provinceName: string;
             isOffice: boolean;
             retiredAt: string | null;
@@ -2722,12 +2722,12 @@ export declare const CancelAdminTrainingSessionResult: z.ZodObject<{
             name: z.ZodString;
             isLead: z.ZodBoolean;
         }, "strip", z.ZodTypeAny, {
-            userId: string;
             name: string;
+            userId: string;
             isLead: boolean;
         }, {
-            userId: string;
             name: string;
+            userId: string;
             isLead: boolean;
         }>, "many">;
         publishedAt: z.ZodNullable<z.ZodString>;
@@ -2745,13 +2745,13 @@ export declare const CancelAdminTrainingSessionResult: z.ZodObject<{
         startsAt: string;
         endsAt: string;
         venue: {
+            name: string;
+            provinceId: number;
             districtId: number;
+            address: string;
             districtName: string;
             id: string;
             createdAt: string;
-            name: string;
-            provinceId: number;
-            address: string;
             provinceName: string;
             isOffice: boolean;
             retiredAt: string | null;
@@ -2760,15 +2760,15 @@ export declare const CancelAdminTrainingSessionResult: z.ZodObject<{
         seatCount: number;
         registrationCount: number;
         course: {
-            title: string;
             id: string;
+            title: string;
             version: number;
             slug: string;
             isPublished: boolean;
         };
         trainers: {
-            userId: string;
             name: string;
+            userId: string;
             isLead: boolean;
         }[];
         cancelledAt: string | null;
@@ -2784,13 +2784,13 @@ export declare const CancelAdminTrainingSessionResult: z.ZodObject<{
         startsAt: string;
         endsAt: string;
         venue: {
+            name: string;
+            provinceId: number;
             districtId: number;
+            address: string;
             districtName: string;
             id: string;
             createdAt: string;
-            name: string;
-            provinceId: number;
-            address: string;
             provinceName: string;
             isOffice: boolean;
             retiredAt: string | null;
@@ -2799,15 +2799,15 @@ export declare const CancelAdminTrainingSessionResult: z.ZodObject<{
         seatCount: number;
         registrationCount: number;
         course: {
-            title: string;
             id: string;
+            title: string;
             version: number;
             slug: string;
             isPublished: boolean;
         };
         trainers: {
-            userId: string;
             name: string;
+            userId: string;
             isLead: boolean;
         }[];
         cancelledAt: string | null;
@@ -2827,13 +2827,13 @@ export declare const CancelAdminTrainingSessionResult: z.ZodObject<{
         startsAt: string;
         endsAt: string;
         venue: {
+            name: string;
+            provinceId: number;
             districtId: number;
+            address: string;
             districtName: string;
             id: string;
             createdAt: string;
-            name: string;
-            provinceId: number;
-            address: string;
             provinceName: string;
             isOffice: boolean;
             retiredAt: string | null;
@@ -2842,15 +2842,15 @@ export declare const CancelAdminTrainingSessionResult: z.ZodObject<{
         seatCount: number;
         registrationCount: number;
         course: {
-            title: string;
             id: string;
+            title: string;
             version: number;
             slug: string;
             isPublished: boolean;
         };
         trainers: {
-            userId: string;
             name: string;
+            userId: string;
             isLead: boolean;
         }[];
         cancelledAt: string | null;
@@ -2870,13 +2870,13 @@ export declare const CancelAdminTrainingSessionResult: z.ZodObject<{
         startsAt: string;
         endsAt: string;
         venue: {
+            name: string;
+            provinceId: number;
             districtId: number;
+            address: string;
             districtName: string;
             id: string;
             createdAt: string;
-            name: string;
-            provinceId: number;
-            address: string;
             provinceName: string;
             isOffice: boolean;
             retiredAt: string | null;
@@ -2885,15 +2885,15 @@ export declare const CancelAdminTrainingSessionResult: z.ZodObject<{
         seatCount: number;
         registrationCount: number;
         course: {
-            title: string;
             id: string;
+            title: string;
             version: number;
             slug: string;
             isPublished: boolean;
         };
         trainers: {
-            userId: string;
             name: string;
+            userId: string;
             isLead: boolean;
         }[];
         cancelledAt: string | null;
@@ -2932,15 +2932,15 @@ export declare const TrainingRosterEntry: z.ZodObject<{
     certificateSerial: z.ZodNullable<z.ZodString>;
     certificateRevokedAt: z.ZodNullable<z.ZodString>;
 }, "strip", z.ZodTypeAny, {
-    status: "released" | "withdrawn" | "registered" | "attended" | "absent";
-    orgId: string | null;
-    userId: string;
-    email: string;
+    status: "withdrawn" | "released" | "registered" | "attended" | "absent";
     fullName: string;
-    phone: string;
-    businessName: string | null;
-    registrationId: string;
+    email: string;
+    orgId: string | null;
     source: "self" | "walk_in";
+    businessName: string | null;
+    userId: string;
+    phone: string;
+    registrationId: string;
     registeredAt: string;
     certificateId: string | null;
     latestDecision: "absent" | "present" | null;
@@ -2949,15 +2949,15 @@ export declare const TrainingRosterEntry: z.ZodObject<{
     certificateSerial: string | null;
     certificateRevokedAt: string | null;
 }, {
-    status: "released" | "withdrawn" | "registered" | "attended" | "absent";
-    orgId: string | null;
-    userId: string;
-    email: string;
+    status: "withdrawn" | "released" | "registered" | "attended" | "absent";
     fullName: string;
-    phone: string;
-    businessName: string | null;
-    registrationId: string;
+    email: string;
+    orgId: string | null;
     source: "self" | "walk_in";
+    businessName: string | null;
+    userId: string;
+    phone: string;
+    registrationId: string;
     registeredAt: string;
     certificateId: string | null;
     latestDecision: "absent" | "present" | null;
@@ -2998,15 +2998,15 @@ export declare const TrainingRosterResponse: z.ZodObject<{
         certificateSerial: z.ZodNullable<z.ZodString>;
         certificateRevokedAt: z.ZodNullable<z.ZodString>;
     }, "strip", z.ZodTypeAny, {
-        status: "released" | "withdrawn" | "registered" | "attended" | "absent";
-        orgId: string | null;
-        userId: string;
-        email: string;
+        status: "withdrawn" | "released" | "registered" | "attended" | "absent";
         fullName: string;
-        phone: string;
-        businessName: string | null;
-        registrationId: string;
+        email: string;
+        orgId: string | null;
         source: "self" | "walk_in";
+        businessName: string | null;
+        userId: string;
+        phone: string;
+        registrationId: string;
         registeredAt: string;
         certificateId: string | null;
         latestDecision: "absent" | "present" | null;
@@ -3015,15 +3015,15 @@ export declare const TrainingRosterResponse: z.ZodObject<{
         certificateSerial: string | null;
         certificateRevokedAt: string | null;
     }, {
-        status: "released" | "withdrawn" | "registered" | "attended" | "absent";
-        orgId: string | null;
-        userId: string;
-        email: string;
+        status: "withdrawn" | "released" | "registered" | "attended" | "absent";
         fullName: string;
-        phone: string;
-        businessName: string | null;
-        registrationId: string;
+        email: string;
+        orgId: string | null;
         source: "self" | "walk_in";
+        businessName: string | null;
+        userId: string;
+        phone: string;
+        registrationId: string;
         registeredAt: string;
         certificateId: string | null;
         latestDecision: "absent" | "present" | null;
@@ -3047,15 +3047,15 @@ export declare const TrainingRosterResponse: z.ZodObject<{
     }>;
 }, "strip", z.ZodTypeAny, {
     items: {
-        status: "released" | "withdrawn" | "registered" | "attended" | "absent";
-        orgId: string | null;
-        userId: string;
-        email: string;
+        status: "withdrawn" | "released" | "registered" | "attended" | "absent";
         fullName: string;
-        phone: string;
-        businessName: string | null;
-        registrationId: string;
+        email: string;
+        orgId: string | null;
         source: "self" | "walk_in";
+        businessName: string | null;
+        userId: string;
+        phone: string;
+        registrationId: string;
         registeredAt: string;
         certificateId: string | null;
         latestDecision: "absent" | "present" | null;
@@ -3071,15 +3071,15 @@ export declare const TrainingRosterResponse: z.ZodObject<{
     };
 }, {
     items: {
-        status: "released" | "withdrawn" | "registered" | "attended" | "absent";
-        orgId: string | null;
-        userId: string;
-        email: string;
+        status: "withdrawn" | "released" | "registered" | "attended" | "absent";
         fullName: string;
-        phone: string;
-        businessName: string | null;
-        registrationId: string;
+        email: string;
+        orgId: string | null;
         source: "self" | "walk_in";
+        businessName: string | null;
+        userId: string;
+        phone: string;
+        registrationId: string;
         registeredAt: string;
         certificateId: string | null;
         latestDecision: "absent" | "present" | null;
@@ -3111,26 +3111,26 @@ export declare const CreateTrainingWalkIn: z.ZodEffects<z.ZodObject<{
     orgId: z.ZodOptional<z.ZodString>;
     businessName: z.ZodOptional<z.ZodString>;
 }, "strip", z.ZodTypeAny, {
-    email: string;
     fullName: string;
+    email: string;
     phone: string;
     orgId?: string | undefined;
     businessName?: string | undefined;
 }, {
-    email: string;
     fullName: string;
+    email: string;
     phone: string;
     orgId?: string | undefined;
     businessName?: string | undefined;
 }>, {
-    email: string;
     fullName: string;
+    email: string;
     phone: string;
     orgId?: string | undefined;
     businessName?: string | undefined;
 }, {
-    email: string;
     fullName: string;
+    email: string;
     phone: string;
     orgId?: string | undefined;
     businessName?: string | undefined;
@@ -3142,12 +3142,12 @@ export declare const TrainingWalkInResult: z.ZodObject<{
     /** True when the email matched an account that already existed. */
     linkedExistingUser: z.ZodBoolean;
 }, "strip", z.ZodTypeAny, {
-    registrationId: string;
     source: "walk_in";
+    registrationId: string;
     linkedExistingUser: boolean;
 }, {
-    registrationId: string;
     source: "walk_in";
+    registrationId: string;
     linkedExistingUser: boolean;
 }>;
 export type TrainingWalkInResult = z.infer<typeof TrainingWalkInResult>;
@@ -3189,13 +3189,13 @@ export declare const RecordTrainingAttendanceResult: z.ZodObject<{
     certificateSerial: z.ZodNullable<z.ZodString>;
     issuedNow: z.ZodBoolean;
 }, "strip", z.ZodTypeAny, {
-    registrationStatus: "released" | "withdrawn" | "registered" | "attended" | "absent";
+    registrationStatus: "withdrawn" | "released" | "registered" | "attended" | "absent";
     certificateId: string | null;
     certificateSerial: string | null;
     decisionId: string;
     issuedNow: boolean;
 }, {
-    registrationStatus: "released" | "withdrawn" | "registered" | "attended" | "absent";
+    registrationStatus: "withdrawn" | "released" | "registered" | "attended" | "absent";
     certificateId: string | null;
     certificateSerial: string | null;
     decisionId: string;
@@ -3250,9 +3250,9 @@ export declare const AdminTrainingCertificate: z.ZodObject<{
     revocationReason: z.ZodNullable<z.ZodString>;
     hasPdf: z.ZodBoolean;
 }, "strip", z.ZodTypeAny, {
+    issuedBy: string;
     districtName: string;
     id: string;
-    issuedBy: string;
     sessionId: string;
     registrationId: string;
     serial: string;
@@ -3269,9 +3269,9 @@ export declare const AdminTrainingCertificate: z.ZodObject<{
     holderUserId: string;
     revokedBy: string | null;
 }, {
+    issuedBy: string;
     districtName: string;
     id: string;
-    issuedBy: string;
     sessionId: string;
     registrationId: string;
     serial: string;
@@ -3324,9 +3324,9 @@ export declare const AdminTrainingCertificateListResponse: z.ZodObject<{
         revocationReason: z.ZodNullable<z.ZodString>;
         hasPdf: z.ZodBoolean;
     }, "strip", z.ZodTypeAny, {
+        issuedBy: string;
         districtName: string;
         id: string;
-        issuedBy: string;
         sessionId: string;
         registrationId: string;
         serial: string;
@@ -3343,9 +3343,9 @@ export declare const AdminTrainingCertificateListResponse: z.ZodObject<{
         holderUserId: string;
         revokedBy: string | null;
     }, {
+        issuedBy: string;
         districtName: string;
         id: string;
-        issuedBy: string;
         sessionId: string;
         registrationId: string;
         serial: string;
@@ -3377,9 +3377,9 @@ export declare const AdminTrainingCertificateListResponse: z.ZodObject<{
     }>;
 }, "strip", z.ZodTypeAny, {
     items: {
+        issuedBy: string;
         districtName: string;
         id: string;
-        issuedBy: string;
         sessionId: string;
         registrationId: string;
         serial: string;
@@ -3403,9 +3403,9 @@ export declare const AdminTrainingCertificateListResponse: z.ZodObject<{
     };
 }, {
     items: {
+        issuedBy: string;
         districtName: string;
         id: string;
-        issuedBy: string;
         sessionId: string;
         registrationId: string;
         serial: string;

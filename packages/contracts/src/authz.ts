@@ -528,6 +528,17 @@ export const WorkspaceAccess = z.object({
     branches: z.array(WorkspaceBranch),
     /** `limited` when the member is limited to some branches. Null outside `business`. */
     branchCoverage: BranchCoverage.nullable(),
+    /**
+     * Whether this person may see and act on the business's PSF membership
+     * (ADR-056). Computed on the server by `isPsfApplicant`, which reads the
+     * owner membership and the on behalf claim, never a permission: a pending
+     * business holds none (ADR-053 rule 2), and the application must be
+     * reachable at every registration stage. Null outside hospitality.
+     *
+     * Defaults to null when absent, so a client built after this field landed
+     * still parses a grant from an API built before it.
+     */
+    psfMembership: z.object({ canManage: z.boolean() }).nullable().default(null),
 });
 export type WorkspaceAccess = z.infer<typeof WorkspaceAccess>;
 /**
@@ -644,7 +655,7 @@ export type OversightGrant = z.infer<typeof OversightGrant>;
 export const OversightConsoleGrant = z.object({
     /** The assignment row, so a console can name the seat it is rendering. */
     assignmentId: Uuid,
-    console: z.enum(["verification", "approval", "tax"]),
+    console: z.enum(["verification", "approval", "tax", "membership"]),
     oversightRole: OversightRole,
     bodyCode: z.string(),
     bodyName: z.string().nullable(),
@@ -668,7 +679,7 @@ export const OVERSIGHT_COUNTRY_SCOPE_LABEL = "Rwanda";
 export const OVERSIGHT_CONSOLE_NOT_BUILT_MESSAGE: string = "Your appointment is recorded, and the console for it is not built yet. " +
     "Tax compliance review is not available in this release.";
 /** Which console a function opens. */
-export function oversightConsoleFor(role: OversightRole): "verification" | "approval" | "tax" {
+export function oversightConsoleFor(role: OversightRole): "verification" | "approval" | "tax" | "membership" {
     switch (role) {
         case "business_field_verifier":
             return "verification";
@@ -676,6 +687,8 @@ export function oversightConsoleFor(role: OversightRole): "verification" | "appr
             return "approval";
         case "tax_compliance_officer":
             return "tax";
+        case "psf_membership_officer":
+            return "membership";
     }
 }
 /**
@@ -775,6 +788,10 @@ export function opposingGateRole(role: OversightRole): OversightRole | null {
         // A tax compliance posting gates nothing in the registration pipeline, so
         // it opposes nothing. Holding it alongside either gate role is fine.
         case "tax_compliance_officer":
+            return null;
+        // Membership is not a registration gate either (ADR-056), so a PSF
+        // field verifier may also hold it: they decide different things.
+        case "psf_membership_officer":
             return null;
     }
 }

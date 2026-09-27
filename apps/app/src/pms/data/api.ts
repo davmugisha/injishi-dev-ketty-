@@ -194,7 +194,7 @@ export function humanError(error: unknown): string {
 }
 
 /** Nest sends `message` as a string or an array of them. Read both. */
-async function readRefusal(res: Response): Promise<ApiError> {
+export async function readRefusal(res: Response): Promise<ApiError> {
   let body: ErrorBody | null = null;
   try {
     body = (await res.json()) as ErrorBody;

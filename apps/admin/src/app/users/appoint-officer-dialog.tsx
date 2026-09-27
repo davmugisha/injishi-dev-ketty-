@@ -1,6 +1,6 @@
 "use client";
 
-import type { District, GovernmentBody, OversightRole, OversightScopeLevel, Province } from "@injishi/contracts";
+import { OVERSIGHT_ROLE_POSTING, type District, type GovernmentBody, type OversightRole, type OversightScopeLevel, type Province } from "@injishi/contracts";
 import { Button, Input, NativeDialog, Textarea } from "@injishi/ui";
 import { Landmark } from "lucide-react";
 import { useRouter } from "next/navigation";
@@ -32,6 +32,7 @@ const FUNCTIONS: { key: OversightRole; label: string }[] = [
   { key: "business_field_verifier", label: "Business field verifier — checks a business on site" },
   { key: "business_approver", label: "Business approver — approves a field-verified business" },
   { key: "tax_compliance_officer", label: "Tax compliance officer — reviews tax data" },
+  { key: "psf_membership_officer", label: "PSF membership officer — decides PSF membership applications" },
 ];
 
 const SCOPES: { key: OversightScopeLevel; label: string }[] = [
@@ -132,7 +133,17 @@ export function AppointOfficerDialog({
         <div className="mt-4 space-y-3">
           <label className="block text-sm font-semibold">
             Function
-            <select aria-label="Function" value={role} onChange={(e) => setRole(e.target.value as OversightRole)} className={selectClass}>
+            <select aria-label="Function" value={role} onChange={(e) => {
+              const next = e.target.value as OversightRole;
+              setRole(next);
+              // ADR-056: a role with a posting rule is appointed only there, so
+              // the form moves to it rather than letting the server refuse.
+              const posting = OVERSIGHT_ROLE_POSTING[next];
+              if (posting) {
+                setBodyCode(posting.governmentBodyCode);
+                setScope(posting.scopeLevels[0] ?? "country");
+              }
+            }} className={selectClass}>
               {FUNCTIONS.map((f) => (
                 <option key={f.key} value={f.key}>
                   {f.label}

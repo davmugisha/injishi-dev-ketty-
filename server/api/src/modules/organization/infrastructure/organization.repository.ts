@@ -49,6 +49,11 @@ import {
   recordRegistrationEvent,
   type RegistrationMover,
 } from './registration-events';
+import {
+  insertPsfApplication,
+  insertSelfDeclaredMembership,
+  type NewPsfApplication,
+} from './psf-membership.repository';
 import { pendingTinAttemptsSql } from './tin-recheck.sql';
 
 /** A TIN that already belongs to another org (KYB dedup, F-S03 §9). */
@@ -122,6 +127,14 @@ export interface CreateOrgRow {
     street: string | null;
     isHeadOffice: boolean;
   }[];
+  /**
+   * A PSF membership application the registration carries (ADR-056 AC-6),
+   * written in the create transaction through the one shared insert. Null
+   * when the registrant did not apply.
+   */
+  psfApplication: Omit<NewPsfApplication, 'orgId'> | null;
+  /** A Yes with a membership number (ADR-056 AC-7). Null otherwise. */
+  psfMembershipNumber: string | null;
 }
 
 export interface CreatedOrg {
@@ -250,6 +263,18 @@ export class OrganizationRepository {
         userId: input.ownerUserId,
         orgRole: 'owner',
       });
+
+      // ADR-056: PSF membership, committed or rolled back with the business.
+      if (input.psfApplication) {
+        await insertPsfApplication(tx, { ...input.psfApplication, orgId: org.id });
+      }
+      if (input.psfMembershipNumber) {
+        await insertSelfDeclaredMembership(tx, {
+          orgId: org.id,
+          membershipNumber: input.psfMembershipNumber,
+          recordedByUserId: input.ownerUserId,
+        });
+      }
 
       // ADR-054 AC-R2: one property per location, in THIS transaction, so the
       // branches commit or roll back with the org. They go through the same

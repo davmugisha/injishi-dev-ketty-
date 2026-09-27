@@ -51,6 +51,13 @@ export interface BusinessDraft {
    */
   chamberOfTourismMember: boolean | null;
   psfMember: boolean | null;
+  /**
+   * ADR-056. With a No: whether to apply to PSF now, `null` until answered, so
+   * the PSF step only appears for someone who chose it. With a Yes: the
+   * membership number, optional and unchecked.
+   */
+  psfApply: boolean | null;
+  psfMembershipNumber: string;
   eacStarGrade: string;
   address: AddressDraft;
 }
@@ -259,8 +266,39 @@ export function StepBusiness({
                   logo={{ src: "/assets/partners/psf.png", width: 674, height: 930 }}
                   value={draft.psfMember}
                   error={errors["business.psfMember"]}
-                  onChange={(v) => onChange({ ...draft, psfMember: v })}
+                  onChange={(v) =>
+                    onChange({
+                      ...draft,
+                      psfMember: v,
+                      // The follow up belongs to the answer given; a changed
+                      // answer asks its own follow up afresh.
+                      psfApply: null,
+                      psfMembershipNumber: "",
+                    })
+                  }
                 />
+                {draft.psfMember === true ? (
+                  <Field
+                    label="PSF membership number (optional)"
+                    hint="If you have it to hand. Nobody checks it here."
+                    error={errors["business.psfMembershipNumber"]}
+                  >
+                    <TextInput
+                      value={draft.psfMembershipNumber}
+                      onChange={(e) => onChange({ ...draft, psfMembershipNumber: e.target.value })}
+                    />
+                  </Field>
+                ) : null}
+                {draft.psfMember === false ? (
+                  <YesNoField
+                    name="psfApply"
+                    legend="Would you like to apply for PSF membership now?"
+                    hint="You fill in PSF's form on a later step, most of it from what you tell us here. PSF invoices you directly; Injishi never takes that fee. You can also apply later from your workspace."
+                    value={draft.psfApply}
+                    error={errors["business.psfApply"]}
+                    onChange={(v) => onChange({ ...draft, psfApply: v })}
+                  />
+                ) : null}
               </div>
             </Fieldset>
           </>

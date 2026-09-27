@@ -86,13 +86,13 @@ export declare const EbmCustomerOption: z.ZodObject<{
     name: z.ZodString;
     tin: z.ZodNullable<z.ZodString>;
 }, "strip", z.ZodTypeAny, {
-    id: number;
-    tin: string | null;
     name: string;
+    tin: string | null;
+    id: number;
 }, {
-    id: number;
-    tin: string | null;
     name: string;
+    tin: string | null;
+    id: number;
 }>;
 export type EbmCustomerOption = z.infer<typeof EbmCustomerOption>;
 /** What `GET /api/v1/ops/ebm/items` answers. */
@@ -142,25 +142,25 @@ export declare const EbmCustomerOptionList: z.ZodObject<{
         name: z.ZodString;
         tin: z.ZodNullable<z.ZodString>;
     }, "strip", z.ZodTypeAny, {
-        id: number;
-        tin: string | null;
         name: string;
+        tin: string | null;
+        id: number;
     }, {
-        id: number;
-        tin: string | null;
         name: string;
+        tin: string | null;
+        id: number;
     }>, "many">;
 }, "strip", z.ZodTypeAny, {
     customers: {
-        id: number;
-        tin: string | null;
         name: string;
+        tin: string | null;
+        id: number;
     }[];
 }, {
     customers: {
-        id: number;
-        tin: string | null;
         name: string;
+        tin: string | null;
+        id: number;
     }[];
 }>;
 export type EbmCustomerOptionList = z.infer<typeof EbmCustomerOptionList>;
@@ -301,8 +301,8 @@ export declare const EbmConnection: z.ZodObject<{
     heldSaleCount: z.ZodNumber;
 }, "strip", z.ZodTypeAny, {
     status: "revoked" | "not_connected" | "connected";
-    mode: "mock" | "live";
     tin: string | null;
+    mode: "mock" | "live";
     accountName: string | null;
     accountStatus: "submitted" | "approved" | "disabled" | null;
     branchId: string | null;
@@ -318,8 +318,8 @@ export declare const EbmConnection: z.ZodObject<{
     heldSaleCount: number;
 }, {
     status: "revoked" | "not_connected" | "connected";
-    mode: "mock" | "live";
     tin: string | null;
+    mode: "mock" | "live";
     accountName: string | null;
     accountStatus: "submitted" | "approved" | "disabled" | null;
     branchId: string | null;

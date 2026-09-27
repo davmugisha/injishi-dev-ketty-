@@ -6,7 +6,7 @@ import { useEffect, useState } from "react";
 import { signInUrl, twoFactorUrl } from "@/pms/lib/sign-in-url";
 import { OVERSIGHT_CONSOLE_NOT_BUILT_MESSAGE } from "@injishi/contracts";
 import { fetchMyConsoles, type OfficerAccess } from "@/pms/oversight/data/me";
-import { consoleHome } from "@/pms/oversight/lib/nav";
+import { MEMBERSHIP_CONSOLE_HOME, consoleHome } from "@/pms/oversight/lib/nav";
 
 /**
  * Which console this officer opens.
@@ -32,6 +32,7 @@ export default function Page() {
     status: "loading",
     consoles: [],
     grants: [],
+    membership: null,
     unbuiltConsoles: [],
     twoFactor: null,
   });
@@ -63,6 +64,8 @@ export default function Page() {
     }
     const first = access.consoles[0];
     if (first) router.replace(consoleHome(first));
+    // A PSF membership officer only (ADR-056) opens the Membership console.
+    else if (access.membership) router.replace(MEMBERSHIP_CONSOLE_HOME);
   }, [access, router]);
 
   /*
@@ -73,10 +76,10 @@ export default function Page() {
    * assignment when they hold one — it reads as broken access and sends somebody
    * to support over a feature nobody has written.
    */
-  const unbuiltOnly =
-    access.status === "resolved" &&
-    access.consoles.length === 0 &&
-    access.unbuiltConsoles.length > 0;
+  // No console of any kind, the PSF Membership one (ADR-056) included.
+  const holdsNone =
+    access.status === "resolved" && access.consoles.length === 0 && access.membership === null;
+  const unbuiltOnly = holdsNone && access.unbuiltConsoles.length > 0;
 
   return (
     <div
@@ -95,7 +98,7 @@ export default function Page() {
             ? "We can't reach the service"
             : unbuiltOnly
               ? "Console not built yet"
-              : access.status === "resolved" && access.consoles.length === 0
+              : holdsNone
                 ? "No console yet"
                 : "Opening your console…"}
         </p>
@@ -103,7 +106,7 @@ export default function Page() {
           <p style={{ marginTop: 10, fontSize: "0.9rem", lineHeight: 1.55, opacity: 0.72 }}>
             {OVERSIGHT_CONSOLE_NOT_BUILT_MESSAGE}
           </p>
-        ) : access.status === "resolved" && access.consoles.length === 0 ? (
+        ) : holdsNone ? (
           <p style={{ marginTop: 10, fontSize: "0.9rem", lineHeight: 1.55, opacity: 0.72 }}>
             You&apos;re signed in, but you don&apos;t hold a government oversight
             assignment on this account.

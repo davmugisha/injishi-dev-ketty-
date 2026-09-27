@@ -535,6 +535,17 @@ exports.WorkspaceAccess = zod_1.z.object({
     branches: zod_1.z.array(exports.WorkspaceBranch),
     /** `limited` when the member is limited to some branches. Null outside `business`. */
     branchCoverage: exports.BranchCoverage.nullable(),
+    /**
+     * Whether this person may see and act on the business's PSF membership
+     * (ADR-056). Computed on the server by `isPsfApplicant`, which reads the
+     * owner membership and the on behalf claim, never a permission: a pending
+     * business holds none (ADR-053 rule 2), and the application must be
+     * reachable at every registration stage. Null outside hospitality.
+     *
+     * Defaults to null when absent, so a client built after this field landed
+     * still parses a grant from an API built before it.
+     */
+    psfMembership: zod_1.z.object({ canManage: zod_1.z.boolean() }).nullable().default(null),
 });
 /**
  * May this org's workspace actually DO anything yet?
@@ -640,7 +651,7 @@ exports.OversightGrant = zod_1.z.object({
 exports.OversightConsoleGrant = zod_1.z.object({
     /** The assignment row, so a console can name the seat it is rendering. */
     assignmentId: primitives_1.Uuid,
-    console: zod_1.z.enum(["verification", "approval", "tax"]),
+    console: zod_1.z.enum(["verification", "approval", "tax", "membership"]),
     oversightRole: primitives_1.OversightRole,
     bodyCode: zod_1.z.string(),
     bodyName: zod_1.z.string().nullable(),
@@ -671,6 +682,8 @@ function oversightConsoleFor(role) {
             return "approval";
         case "tax_compliance_officer":
             return "tax";
+        case "psf_membership_officer":
+            return "membership";
     }
 }
 /**
@@ -750,6 +763,10 @@ function opposingGateRole(role) {
         // A tax compliance posting gates nothing in the registration pipeline, so
         // it opposes nothing. Holding it alongside either gate role is fine.
         case "tax_compliance_officer":
+            return null;
+        // Membership is not a registration gate either (ADR-056), so a PSF
+        // field verifier may also hold it: they decide different things.
+        case "psf_membership_officer":
             return null;
     }
 }

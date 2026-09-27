@@ -82,6 +82,8 @@ exports.OversightRole = zod_1.z.enum([
     "tax_compliance_officer",
     "business_field_verifier",
     "business_approver",
+    /** ADR-056: decides PSF membership applications. PSF, country scope only. */
+    "psf_membership_officer",
 ]);
 /** Region scope of an oversight assignment (Decision B). */
 exports.OversightScopeLevel = zod_1.z.enum(["country", "province", "district"]);

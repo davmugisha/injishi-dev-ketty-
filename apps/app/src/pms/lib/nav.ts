@@ -217,6 +217,7 @@ export function hostNav(
   permissions: readonly Permission[],
   base: string,
   counts: NavCounts = {},
+  psfManage = false,
 ): NavSection[] {
   // The USALI category, not the display name. Two hotels spell "Restaurant"
   // and "Dining" for the same thing; `fnb` is what both of them are.
@@ -306,6 +307,13 @@ export function hostNav(
         // EBM account is connected (ADR-041, D-o). Plan and billing stays the
         // owner's: `Settings` hides that lens and refuses it by URL.
         { key: "settings", label: "Settings", icon: "settings", href: `${base}/settings`, built: true, permission: "ebm.manage" },
+        // PSF membership (ADR-056). Gated on the server's `canManage`, never on
+        // a permission: the owner applies at every registration stage, and a
+        // business in the pipeline holds no permission at all. It carries none,
+        // so `sectionOf` keeps it once it is in the list.
+        ...(psfManage
+          ? [{ key: "psf-membership", label: "PSF membership", icon: "badge-check", href: `${base}/psf-membership`, built: true } satisfies NavItem]
+          : []),
       ],
       permissions,
     ),
@@ -594,6 +602,13 @@ export interface NavContext {
    * honest state before a live query has answered.
    */
   counts?: NavCounts & ResidenceNavCounts & { placementsAwaiting?: number | null };
+  /**
+   * The grant's `psfMembership.canManage` (ADR-056): the server's answer to
+   * "may this person act on the business's PSF membership". Not a permission,
+   * because a business in the registration pipeline holds none and its PSF page
+   * must still open.
+   */
+  psfManage?: boolean;
 }
 
 /**
@@ -685,7 +700,7 @@ export function navFor(ctx: NavContext): NavSection[] {
   const counts = ctx.counts ?? {};
   switch (ctx.ws) {
     case "host":
-      return hostNav(ctx.departments, ctx.permissions, base, counts);
+      return hostNav(ctx.departments, ctx.permissions, base, counts, ctx.psfManage === true);
     case "landlord":
       return landlordNav(ctx.permissions, base, counts);
     case "broker":
