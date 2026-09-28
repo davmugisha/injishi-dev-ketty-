@@ -90,6 +90,7 @@ export const queryKeys = {
     ["ops", "threads", workspaceId, threadId, "messages"] as const,
   leases: (workspaceId: string | null) => ["ops", "leases", workspaceId] as const,
   rentRoll: (workspaceId: string | null) => ["ops", "rent-roll", workspaceId] as const,
+  filings: (workspaceId: string | null) => ["ops", "filings", workspaceId] as const,
   deposits: (workspaceId: string | null) => ["ops", "deposits", workspaceId] as const,
   tickets: (workspaceId: string | null) => ["ops", "tickets", workspaceId] as const,
   team: (workspaceId: string | null) => ["ops", "team", workspaceId] as const,

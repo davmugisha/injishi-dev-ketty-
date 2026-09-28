@@ -560,20 +560,6 @@ function residence(): ResidenceProperty {
     // GH-10 is vacant since Jeanette moved out — the one unit brokers can see.
     dirListed: ["GH-10"],
     reveals: 3,
-    // A lease never produces a tax invoice; this summary is what filing needs.
-    // The step up in March is GH-07's lease starting.
-    filing: {
-      due: "31 Jan 2027",
-      months: [
-        ["January", 1530000],
-        ["February", 1530000],
-        ["March", 1710000],
-        ["April", 1710000],
-        ["May", 1710000],
-        ["June", 1710000],
-        ["July — so far", 910000],
-      ],
-    },
     msgs: 2,
   };
 }

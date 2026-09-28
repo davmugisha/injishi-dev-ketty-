@@ -374,8 +374,8 @@ export declare const EbmEmission: z.ZodObject<{
     status: "failed" | "held" | "emitted";
     id: string;
     totalRwf: number;
-    bookingReference: string;
     attempts: number;
+    bookingReference: string;
     lastError: string | null;
     emittedAt: string | null;
     receiptNumber: number | null;
@@ -383,8 +383,8 @@ export declare const EbmEmission: z.ZodObject<{
     status: "failed" | "held" | "emitted";
     id: string;
     totalRwf: number;
-    bookingReference: string;
     attempts: number;
+    bookingReference: string;
     lastError: string | null;
     emittedAt: string | null;
     receiptNumber: number | null;

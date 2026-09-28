@@ -211,6 +211,22 @@ export const guestStays = pgTable(
     entryAt: timestamp('entry_at', { withTimezone: true }).notNull(),
     plannedExitAt: timestamp('planned_exit_at', { withTimezone: true }),
     actualExitAt: timestamp('actual_exit_at', { withTimezone: true }),
+    /**
+     * What the desk wrote down as the guest left — "left early, keys at desk",
+     * "disputes the minibar line", "balance to be invoiced to the employer".
+     *
+     * `CheckOutRequest.note` has been in the contract since ADR-035 and there
+     * was nowhere to put it: the field was declared, the controller took no
+     * body, and anything typed would have been accepted and dropped. A column
+     * is the smaller half of fixing that; the larger half is that check out is
+     * the one moment a receptionist has a reason to write something down and
+     * the only record of it was a verbal handover.
+     *
+     * Deliberately NOT a general stay note. It is written once, by the close,
+     * and nothing else updates it — which is why it lives on the stay rather
+     * than growing a notes table nobody asked for yet.
+     */
+    departureNote: text('departure_note'),
     priceRwf: amount('price_rwf'),
     currency: currency(),
     lifecycle: stayLifecycleEnum('lifecycle').notNull().default('open'),

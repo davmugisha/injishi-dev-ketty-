@@ -29,6 +29,7 @@ import { OpsRefundRequestsController } from './refunds.controller';
 import { OpsReservationsController, OpsRoomAssignmentsController } from './reservations.controller';
 import {
   OpsDepositsController,
+  OpsFilingsController,
   OpsLeasesController,
   OpsRentRollController,
   OpsTicketsController,
@@ -75,6 +76,7 @@ const CONTROLLERS: Ctor[] = [
   OpsRoomAssignmentsController,
   OpsLeasesController,
   OpsRentRollController,
+  OpsFilingsController,
   OpsTicketsController,
   OpsDepositsController,
   OpsRevenueController,
@@ -164,6 +166,10 @@ const EXPECTED: Record<string, readonly OrgRole[]> = {
   '/ops/room-assignments': ['owner', 'manager', 'receptionist'],
   '/ops/leases': ['owner', 'manager'],
   '/ops/rent-roll': ['owner', 'manager'],
+  // The Filings lens on Finance (F-R10). The same consumers as the leases it
+  // reports on: whether a contract was filed is the business's compliance
+  // record, not something the front desk needs.
+  '/ops/filings': ['owner', 'manager'],
   '/ops/tickets': ['owner', 'manager', 'housekeeper'],
   '/ops/deposits': ['owner', 'manager'],
   '/ops/revenue': ['owner', 'manager'],

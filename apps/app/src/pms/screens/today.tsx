@@ -224,7 +224,7 @@ export function Today() {
       toast("We can't find an open stay for this booking. Reload and try again.", "bad");
       return;
     }
-    checkOut.mutate(row.stayId, {
+    checkOut.mutate({ stayId: row.stayId }, {
       onSuccess: () =>
         toast(`${row.guest} is checked out. The room is on the housekeeping board now.`, "ok"),
       onError: toastError,
@@ -323,7 +323,7 @@ export function Today() {
                           ? "approve"
                           : decline.isPending && decline.variables === r.id
                             ? "decline"
-                            : checkOut.isPending && r.stayId !== null && checkOut.variables === r.stayId
+                            : checkOut.isPending && r.stayId !== null && checkOut.variables?.stayId === r.stayId
                               ? "checkout"
                               : null
                       }

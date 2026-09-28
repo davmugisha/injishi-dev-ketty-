@@ -29,6 +29,7 @@ import {
   type AdvanceTicketRequest,
   type AssignRoomRequest,
   type CheckInRequest,
+  type CheckOutRequest,
   OperatorAmenityList,
   type OperatorDepartment,
   OperatorDepartmentList,
@@ -38,6 +39,7 @@ import {
   type OperatorHousekeepingTask,
   OperatorHousekeepingTaskList,
   OperatorDepositList,
+  OperatorFilingList,
   type OperatorLease,
   OperatorProperty,
   OperatorPropertyList,
@@ -122,6 +124,7 @@ export const OPS_READ = {
   roomAssignments: ["reservation.assign", "reservation.approve", "stay.checkin"],
   leases: ["lease.advance", "rent.record", "deposit.return"],
   rentRoll: ["rent.record", "money.view"],
+  filings: ["lease.advance", "money.view"],
   tickets: ["ticket.advance"],
   deposits: ["deposit.return", "lease.advance", "money.view"],
   revenue: ["money.view"],
@@ -227,12 +230,20 @@ function useOpsQuery<T>(
   workspaceId: string | null,
   schema: Parser<T>,
   anyOf: readonly Permission[],
+  /**
+   * Poll this read, for a screen that is WATCHED rather than visited. Left
+   * undefined it behaves as before: fetch once, then on focus and invalidation.
+   * TanStack pauses an interval while the window is blurred unless asked
+   * otherwise, so a board left open overnight does not keep the API busy.
+   */
+  refetchInterval?: number,
 ): UseQueryResult<T> {
   const mayRead = useMayRead(anyOf);
   return useQuery({
     queryKey: key,
     queryFn: () => read(path, workspaceId as string, schema),
     enabled: workspaceId !== null && mayRead,
+    refetchInterval,
   });
 }
 
@@ -240,13 +251,29 @@ function useOpsQuery<T>(
 // Rooms and stays
 // ---------------------------------------------------------------------------
 
-export function useRooms(workspaceId: string | null): UseQueryResult<OperatorRoomList> {
+/**
+ * Every room on the property.
+ *
+ * `refreshMs` is for the screen that is left OPEN. Room status is a board a
+ * desk watches while housekeeping works the floors, and it told operators it
+ * "updates live from the housekeeping phones" while reading this list exactly
+ * once: a room cleaned at 11:02 stayed dirty on the desk until somebody
+ * refocused the tab or set a status by hand. The phone polls at 30 seconds
+ * (`PHONE_REFRESH_MS`); the desk watching the same rooms now can too. Callers
+ * that read the list once — a drawer, a picker, the grid — pass nothing and
+ * keep the single fetch.
+ */
+export function useRooms(
+  workspaceId: string | null,
+  refreshMs?: number,
+): UseQueryResult<OperatorRoomList> {
   return useOpsQuery(
     queryKeys.rooms(workspaceId),
     "/ops/rooms",
     workspaceId,
     OperatorRoomList,
     OPS_READ.rooms,
+    refreshMs,
   );
 }
 
@@ -270,6 +297,11 @@ export function useSetHousekeeping(
       }),
     onSuccess: () => {
       void client.invalidateQueries({ queryKey: queryKeys.rooms(workspaceId) });
+      // The second half of the paragraph above, which the code did not do.
+      // A reservation carries the room it sits in, so a room going out of
+      // order left the arrivals list still offering it until something else
+      // happened to refetch.
+      void client.invalidateQueries({ queryKey: queryKeys.reservations(workspaceId) });
     },
   });
 }
@@ -374,14 +406,25 @@ export function useWalkIn(
   });
 }
 
+/**
+ * Check a guest out.
+ *
+ * **It takes a note now**, which is the client half of `CheckOutRequest` having
+ * been a declared contract with nothing behind it: the field existed, the route
+ * took no body, and anything typed anywhere would have been dropped in transit.
+ * The variable is an object rather than a bare `stayId` so the note travels
+ * with the stay it belongs to — a second argument would have let a caller send
+ * the two apart, and `useMutation` only ever passes one.
+ */
 export function useCheckOut(
   workspaceId: string | null,
-): UseMutationResult<OperatorStay, Error, string> {
+): UseMutationResult<OperatorStay, Error, { stayId: string } & CheckOutRequest> {
   const client = useQueryClient();
   return useMutation({
-    mutationFn: (stayId: string) =>
+    mutationFn: ({ stayId, ...body }) =>
       command<OperatorStay>(`/ops/stays/${stayId}/checkout`, {
         workspaceId: workspaceId as string,
+        body,
       }),
     onSuccess: () => {
       void client.invalidateQueries({ queryKey: queryKeys.reservations(workspaceId) });
@@ -1277,6 +1320,22 @@ export function useRentRoll(workspaceId: string | null): UseQueryResult<Operator
  * the same key and the server records the payment once — which is the whole
  * contract.
  */
+/**
+ * Every lease and the filing of its contract (F-R10).
+ *
+ * The Filings lens on Finance reads this beside the rent roll: one answers
+ * "what have I collected to declare", the other "what has actually been filed".
+ */
+export function useFilings(workspaceId: string | null): UseQueryResult<OperatorFilingList> {
+  return useOpsQuery(
+    queryKeys.filings(workspaceId),
+    "/ops/filings",
+    workspaceId,
+    OperatorFilingList,
+    OPS_READ.filings,
+  );
+}
+
 export function useRecordRent(
   workspaceId: string | null,
 ): UseMutationResult<OperatorRentCharge, Error, { leaseId: string } & RecordRentRequest> {

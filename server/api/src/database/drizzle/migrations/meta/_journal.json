@@ -351,6 +351,13 @@
       "when": 1790502272352,
       "tag": "0049_psf_membership",
       "breakpoints": true
+    },
+    {
+      "idx": 50,
+      "version": "7",
+      "when": 1790551228800,
+      "tag": "0050_stay_departure_note",
+      "breakpoints": true
     }
   ]
 }

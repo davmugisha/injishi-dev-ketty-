@@ -199,7 +199,6 @@ export interface ResidenceProperty {
   dirListed: string[];
   /** Contact reveals spent by brokers against this portfolio. */
   reveals: number;
-  filing: Filing;
   msgs: number;
 }
 
@@ -235,13 +234,6 @@ export interface Thread {
   ref?: string;
   unread: boolean;
   msgs: Message[];
-}
-
-/** Rental income by month, in the shape the RRA declaration asks for. */
-export interface Filing {
-  due: string;
-  /** [month label, income]. */
-  months: [string, number][];
 }
 
 /* ── Rooms & rates (the sell-side of inventory) ─────────────────────────── */

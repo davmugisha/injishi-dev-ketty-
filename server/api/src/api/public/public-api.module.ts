@@ -50,6 +50,7 @@ import { OpsRefundRequestsController } from './ops/refunds.controller';
 import { OpsRevenueController } from './ops/revenue.controller';
 import {
   OpsDepositsController,
+  OpsFilingsController,
   OpsLeasesController,
   OpsRentRollController,
   OpsTicketsController,
@@ -155,6 +156,7 @@ import { WaitlistModule } from './waitlist/waitlist.module';
     OpsThreadsController,
     OpsLeasesController,
     OpsRentRollController,
+    OpsFilingsController,
     OpsTicketsController,
     OpsDepositsController,
     OpsAmenitiesController,

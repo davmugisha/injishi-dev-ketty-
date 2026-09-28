@@ -88,6 +88,11 @@ const READS = [
   ['Reservations', '/ops/reservations', 'reservations'],
   ['Room status', '/ops/rooms', 'rooms'],
   ['Rent roll', '/ops/rent-roll', 'charges'],
+  // The Filings lens on Finance (F-R10). Absent from the desk's and the
+  // housekeeper's expected maps below, so this run also proves both are
+  // refused it: whether a contract was filed is the business's compliance
+  // record, not something the front desk needs.
+  ['Filings', '/ops/filings', 'filings'],
 ];
 
 console.log(`Verifying operator reads against ${API}\n`);

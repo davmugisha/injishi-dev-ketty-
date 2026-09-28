@@ -1,6 +1,6 @@
 import { z } from "zod";
 import { BookingStatus } from "./booking";
-import { ContactPhone, OrgRole, Uuid } from "./primitives";
+import { AdapterMode, ContactPhone, OrgRole, Uuid } from "./primitives";
 import { Tin } from "./registration";
 /**
  * The operator command surface (ADR-012, `/api/v1/ops/*`).
@@ -578,6 +578,59 @@ export const OperatorRentRoll = z.object({
     charges: z.array(OperatorRentCharge),
 });
 export type OperatorRentRoll = z.infer<typeof OperatorRentRoll>;
+/**
+ * Where the filing of one signed contract stands (F-R10 §8).
+ *
+ * The same three values as the `filing_status` enum, and deliberately no
+ * fourth: "not filed yet" is the ABSENCE of a filing, carried as a null status
+ * on the row below, not a state a filing can be in.
+ */
+export const FilingStatus = z.enum(["pending", "filed", "failed"]);
+export type FilingStatus = z.infer<typeof FilingStatus>;
+/**
+ * How long Injishi has to file a signed contract with the tax administration,
+ * counted from signing (F-R10 §6, §9).
+ *
+ * One definition, because both sides count against it: the API dates `due_by`
+ * from it and the operator app words the clock from it.
+ */
+export const CONTRACT_FILING_WINDOW_DAYS = 15;
+/**
+ * A lease and the filing of its contract, for the Filings lens on Finance.
+ *
+ * One row PER LEASE, not per filing, and that is the point. A lease whose
+ * contract nothing has filed is exactly what a landlord must be shown, and a
+ * list of filings cannot show it. `status` is null on such a lease, and
+ * `signedAt` says whether that is because nobody has signed yet or because the
+ * filing was never raised.
+ *
+ * `adapterMode` rides along for the reason it rides along on every other
+ * adapter-backed answer in this repository: a screen that cannot tell a real
+ * filing from a stand-in will eventually claim one. There is no RRA contract
+ * channel yet (F-R10 §11, open question O-4), so every row today is `mock`.
+ */
+export const OperatorContractFiling = z.object({
+    leaseId: Uuid,
+    unitLabel: z.string().nullable(),
+    tenantName: z.string().nullable(),
+    leaseStatus: LeaseStatus,
+    /** Null when no filing has been raised for this lease at all. */
+    status: FilingStatus.nullable(),
+    /** When the fifteen days started. The signature, or the amendment that reset it. */
+    clockStartAt: z.string().nullable(),
+    dueBy: z.string().nullable(),
+    attempts: z.number().int().nonnegative(),
+    /** Required on a failure (F-R10 §6: never silently dropped), null otherwise. */
+    failureReason: z.string().nullable(),
+    adapterMode: AdapterMode.nullable(),
+    /** The tenant's signature: what the clock starts at, when there is one. */
+    signedAt: z.string().nullable(),
+});
+export type OperatorContractFiling = z.infer<typeof OperatorContractFiling>;
+export const OperatorFilingList = z.object({
+    filings: z.array(OperatorContractFiling),
+});
+export type OperatorFilingList = z.infer<typeof OperatorFilingList>;
 /**
  * Record a rent payment against one month of one lease.
  *

@@ -4,6 +4,7 @@ import {
   RaiseTicketRequest,
   type OperatorDepositList,
   type OperatorDeposit,
+  type OperatorFilingList,
   type OperatorLease,
   type OperatorLeaseList,
   type OperatorRentCharge,
@@ -117,6 +118,36 @@ export class OpsRentRollController {
     @CurrentWorkspace() workspace: ScopedWorkspace,
   ): Promise<OperatorRentRoll> {
     return { charges: await this.residence.listRentRoll(workspace) };
+  }
+}
+
+/**
+ * Contract filings → /api/v1/ops/filings (F-R10).
+ *
+ * Its own controller for the same reason the rent roll has one: a Nest
+ * controller carries one prefix, and folding this under `ops/leases` would
+ * have made the path `/ops/leases/filings`, which reads as a filing belonging
+ * to no lease in particular.
+ *
+ * Read only, and it will stay read only. Nothing here files anything: the
+ * filing itself is a background job against a tax administration channel that
+ * does not exist yet (F-R10 §11, open question O-4). This lens shows what the
+ * platform owes and what it has done, which is the half that can be true today.
+ */
+@Controller({ path: 'ops/filings', version: '1' })
+@UseGuards(SessionGuard, WorkspaceGuard)
+export class OpsFilingsController {
+  constructor(private readonly residence: ResidenceService) {}
+
+  // The Filings lens on Finance. The same people who hold the leases or read
+  // the money: filing status is a compliance obligation of the business, not a
+  // desk task.
+  @Get()
+  @RequireAnyPermission('lease.advance', 'money.view')
+  async list(
+    @CurrentWorkspace() workspace: ScopedWorkspace,
+  ): Promise<OperatorFilingList> {
+    return { filings: await this.residence.listContractFilings(workspace) };
   }
 }
 

@@ -1,0 +1,1 @@
+ALTER TABLE "guest_stays" ADD COLUMN "departure_note" text;

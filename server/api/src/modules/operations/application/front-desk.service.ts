@@ -1,5 +1,6 @@
 import type {
   CheckInRequest,
+  CheckOutRequest,
   OperatorRoom,
   OperatorStay,
   OperatorStayList,
@@ -307,7 +308,11 @@ export class FrontDeskService {
    * stay as it already stands rather than moving an exit time that was already
    * recorded.
    */
-  async checkOut(ws: ScopedWorkspace, stayId: string): Promise<OperatorStay> {
+  async checkOut(
+    ws: ScopedWorkspace,
+    stayId: string,
+    body: CheckOutRequest = {},
+  ): Promise<OperatorStay> {
     const stay = assertOwned(await this.rooms.findStay(stayId), ws);
     // Through the room, never the booking: a walk in has none (ADR-054).
     assertInBranchScope(ws, stay.propertyId);
@@ -318,6 +323,10 @@ export class FrontDeskService {
       roomId: stay.roomId,
       workspaceId: ws.workspaceId,
       propertyId: stay.propertyId,
+      // Written by the SAME guarded statement that closes the stay, so a note
+      // can never land on a stay somebody else closed first (the `!closed`
+      // branch below is that race, and it must stay a read).
+      departureNote: body.note,
     });
 
     // ADR-016 D-h and AC-8. The hold runs to CHECKOUT, never to check in.
