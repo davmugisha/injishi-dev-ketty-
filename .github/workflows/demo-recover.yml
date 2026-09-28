@@ -1,0 +1,120 @@
+name: demo-recover
+
+# Bring the public demo back when its API is down, and rebuild it at the pushed
+# commit. The demo has no deploy workflow of its own (ADR-052): host cron runs
+# demo-nightly.sh at 01:00 UTC, so a demo that dies in the day stays dead until
+# the next night. This job is the daytime lever, on the same self hosted runner
+# the deploys use.
+#
+# Runs when THIS FILE changes on main (a push is the only trigger this machine
+# can pull without `gh`), or by hand. Never on a pull request:
+# scripts/check-workflow-triggers.mjs refuses that for any job on injishi-vps.
+#
+# 1. Say what is running and why the API is down: ps, the API's last logs, its
+#    OOM flag, disk, the nightly log. Read these before anything else.
+# 2. Start the demo as it is (no build) and wait for the API's health check.
+#    A container that merely stopped is back within minutes.
+# 3. Rebuild it at the pushed commit with demo-nightly.sh itself: candidate
+#    images and a freshly seeded candidate database, swapped in only after the
+#    health checks pass, swapped back when they do not. STAGING_SRC points at a
+#    checkout of this commit instead of staging's, so the demo gets this commit
+#    today; the next nightly realigns it with staging.
+#
+# Touches the injishi-demo project only. Production and staging are not named.
+
+on:
+  push:
+    branches: [main]
+    paths: [.github/workflows/demo-recover.yml]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: demo-recover
+  cancel-in-progress: false
+
+jobs:
+  recover:
+    name: recover the demo
+    runs-on: [self-hosted, injishi-vps]
+    timeout-minutes: 85
+    env:
+      DEMO_ROOT: /opt/injishi-demo
+      COMPOSE_FILE_REL: infra/docker/docker-compose.demo.yml
+    steps:
+      - name: What the demo is running, and why the API is down
+        run: |
+          set +e
+          S="docker compose -p injishi-demo -f $DEMO_ROOT/src/$COMPOSE_FILE_REL --env-file $DEMO_ROOT/.env"
+          echo "demo checkout:    $(git -C $DEMO_ROOT/src log -1 --format='%h %ci %s')"
+          echo "staging checkout: $(git -C /opt/injishi-staging/src log -1 --format='%h %ci %s')"
+          echo "::group::docker compose ps -a"
+          $S ps -a
+          echo "::endgroup::"
+          api=$($S ps -aq api)
+          if [ -n "$api" ]; then
+            docker inspect -f 'api state={{.State.Status}} exit={{.State.ExitCode}} oom={{.State.OOMKilled}} restarts={{.RestartCount}} health={{if .State.Health}}{{.State.Health.Status}}{{end}} started={{.State.StartedAt}} finished={{.State.FinishedAt}}' "$api"
+          else
+            echo "api: no container at all"
+          fi
+          echo "::group::api logs (last 200)"
+          $S logs --no-color --tail 200 api
+          echo "::endgroup::"
+          echo "::group::minio-init, redis, db"
+          $S logs --no-color --tail 40 minio-init redis db
+          echo "::endgroup::"
+          echo "::group::disk"
+          df -h / /var/lib/docker 2>/dev/null
+          docker system df
+          echo "::endgroup::"
+          echo "::group::nightly log (last 80)"
+          tail -80 /var/log/injishi-demo-nightly.log
+          echo "::endgroup::"
+          exit 0
+
+      - name: Start the demo as it is
+        id: start
+        run: |
+          set +e
+          S="docker compose -p injishi-demo -f $DEMO_ROOT/src/$COMPOSE_FILE_REL --env-file $DEMO_ROOT/.env"
+          $S up -d --no-build
+          healthy=false
+          for i in $(seq 1 60); do
+            api=$($S ps -q api)
+            status=$([ -n "$api" ] && docker inspect -f '{{if .State.Health}}{{.State.Health.Status}}{{end}}' "$api")
+            echo "$(date -u +%T) api health: ${status:-no container}"
+            if [ "$status" = healthy ]; then healthy=true; break; fi
+            sleep 5
+          done
+          echo "healthy=$healthy" >> "$GITHUB_OUTPUT"
+          $S ps
+          if [ "$healthy" != true ]; then
+            echo "::warning::the demo API is still not healthy after starting it as it is; the rebuild below is the next step"
+            $S logs --no-color --tail 80 api
+          fi
+          exit 0
+
+      - name: Rebuild the demo at this commit (demo-nightly.sh, health checked, swaps back on failure)
+        env:
+          NIGHTLY_LOCK_RETRY_MINUTES: '40'
+          HEALTH_TIMEOUT: '600'
+        run: |
+          set -euo pipefail
+          git -C "$DEMO_ROOT/src" fetch --quiet origin
+          target="$RUNNER_TEMP/demo-target"
+          rm -rf "$target"
+          git clone --quiet --no-checkout "$DEMO_ROOT/src" "$target"
+          git -C "$target" checkout --quiet --detach "$GITHUB_SHA"
+          echo "rebuilding the demo at $(git -C "$target" log -1 --format='%h %s')"
+          STAGING_SRC="$target" DEMO_ROOT="$DEMO_ROOT" bash "$target/infra/docker/demo-nightly.sh"
+
+      - name: What is serving now
+        if: always()
+        run: |
+          set +e
+          S="docker compose -p injishi-demo -f $DEMO_ROOT/src/$COMPOSE_FILE_REL --env-file $DEMO_ROOT/.env"
+          echo "demo checkout: $(git -C $DEMO_ROOT/src log -1 --format='%h %s')"
+          $S ps
+          curl -sS -m 10 https://api-demo.injishi.com/api/v1/health; echo
