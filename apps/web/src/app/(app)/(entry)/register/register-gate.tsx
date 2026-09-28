@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 import { Button, Input } from "@heroui/react";
 
 import {
@@ -21,6 +21,25 @@ import {
   type OtpMode,
 } from "@/lib/otp";
 import { sessionDisplayName, useSessionUser } from "@/lib/session";
+import { gateView, nextReconnectDelay } from "@/lib/session-reconnect";
+
+function subscribeOnline(onChange: () => void) {
+  window.addEventListener("online", onChange);
+  window.addEventListener("offline", onChange);
+  return () => {
+    window.removeEventListener("online", onChange);
+    window.removeEventListener("offline", onChange);
+  };
+}
+
+/** `navigator.onLine`, live. The server render assumes online. */
+function useOnline(): boolean {
+  return useSyncExternalStore(
+    subscribeOnline,
+    () => navigator.onLine,
+    () => true,
+  );
+}
 
 /**
  * Identity gate for the business-registration wizard (FL01).
@@ -54,8 +73,54 @@ export default function RegisterGate({
   children: React.ReactNode;
 }) {
   const session = useSessionUser();
+  const online = useOnline();
+  const [failedRetries, setFailedRetries] = useState(0);
+  const { status, refresh } = session;
 
-  if (session.status === "loading") {
+  // Any answer at all ends the run, so the next outage gets the whole schedule.
+  useEffect(() => {
+    if (status !== "unreachable") setFailedRetries(0);
+  }, [status]);
+
+  // Coming back online is worth a fresh run, not the tail of a spent one.
+  useEffect(() => {
+    if (online) setFailedRetries(0);
+  }, [online]);
+
+  // Ask again on the schedule while we are online and it is not spent. Offline,
+  // asking is pointless; the `online` event restarts the run instead.
+  useEffect(() => {
+    if (status !== "unreachable" || !online) return;
+    const delay = nextReconnectDelay(failedRetries);
+    if (delay === null) return;
+    let live = true;
+    const timer = setTimeout(() => {
+      void refresh().then((next) => {
+        if (live && next.status === "unreachable") setFailedRetries((n) => n + 1);
+      });
+    }, delay);
+    return () => {
+      live = false;
+      clearTimeout(timer);
+    };
+  }, [status, online, failedRetries, refresh]);
+
+  // A press asks now, and only once that lookup settles does the schedule start
+  // again behind it, so two lookups never race to write the session. Offline,
+  // the schedule stays parked and the press is the only lookup:
+  // `navigator.onLine` can be wrong, and a person who says try is owed a try.
+  const [asking, setAsking] = useState(false);
+  const tryAgain = () => {
+    setAsking(true);
+    void refresh().then(() => {
+      setAsking(false);
+      setFailedRetries(0);
+    });
+  };
+
+  const view = gateView(status, failedRetries, online);
+
+  if (view === "checking") {
     return (
       <p className="mx-auto max-w-wide px-4 py-16 text-sm text-muted-foreground sm:px-6">
         Checking your account…
@@ -64,36 +129,55 @@ export default function RegisterGate({
   }
 
   /**
-   * Unreachable is NOT signed out (lib/session.ts).
+   * Unreachable is NOT signed out (lib/session.ts), and it is usually brief.
    *
    * The prototype let this branch through and ran offline, because it posted
    * nowhere. The real wizard cannot: every step needs the API, so continuing
-   * would show a form that is guaranteed to fail on submit. Saying so is the
-   * honest answer.
+   * would show a form that is guaranteed to fail on submit. So the gate waits,
+   * visibly, while the API is not answering (lib/session-reconnect.ts), and
+   * only after the schedule is spent says it is down. It blames the visitor's
+   * connection only when the browser itself reports none: this screen used to
+   * tell everyone to check theirs, which was wrong every time the API restarted.
    */
-  if (session.status === "unreachable") {
+  if (view === "reconnecting") {
     return (
-      <div className="mx-auto max-w-form px-4 py-16 sm:px-6">
+      <div
+        role="status"
+        className="mx-auto max-w-form px-4 py-16 text-sm text-muted-foreground sm:px-6"
+      >
+        <p className="font-semibold text-foreground">Still connecting to Injishi…</p>
+        <p className="mt-1">
+          It isn&apos;t answering yet. We&apos;ll keep trying — you don&apos;t
+          need to do anything.
+        </p>
+      </div>
+    );
+  }
+
+  if (view === "offline" || view === "down") {
+    return (
+      <div role="status" className="mx-auto max-w-form px-4 py-16 sm:px-6">
         <h1 className="text-2xl font-semibold tracking-tight">
-          We can&apos;t reach Injishi
+          {view === "offline" ? "You're offline" : "We can't reach Injishi"}
         </h1>
         <p className="mt-2 text-sm text-muted-foreground">
-          Registering a business needs a live connection — we check your TIN with
-          RRA and send your application to a government officer. Check your
-          connection and try again.
+          {view === "offline"
+            ? "Registering a business needs a live connection — we check your TIN with RRA and send your application to a government officer. We'll carry on as soon as you're back online."
+            : "Injishi isn't answering right now. Registering a business needs it — we check your TIN with RRA and send your application to a government officer — so it can't start until Injishi is back. Try again in a few minutes."}
         </p>
         <Button
           variant="outline"
           className="mt-6"
-          onPress={() => void session.refresh()}
+          isPending={asking}
+          onPress={tryAgain}
         >
-          Try again
+          {asking ? "Trying…" : "Try again"}
         </Button>
       </div>
     );
   }
 
-  if (session.status === "anonymous") {
+  if (view === "anonymous") {
     return <SignInPanel onSignedIn={() => void session.refresh()} />;
   }
 
