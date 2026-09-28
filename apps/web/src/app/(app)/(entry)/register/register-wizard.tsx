@@ -500,7 +500,11 @@ export default function RegisterWizard({
 
   const openPsf = () => {
     if (psfDraft === null) {
-      const personalNow = profile && !editingProfile ? personalFromProfile(profile, personal) : personal;
+      // The stored profile only when it is COMPLETE, the same test every other
+      // step uses: a new account's profile exists with every field null, and
+      // reading it would blank what About you just collected.
+      const personalNow =
+        profile?.complete === true && !editingProfile ? personalFromProfile(profile, personal) : personal;
       setPsfDraft(
         psfDraftFrom({
           business,

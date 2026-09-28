@@ -7,7 +7,7 @@ import {
 } from '@injishi/contracts';
 import { Inject, Injectable } from '@nestjs/common';
 import { and, asc, desc, eq, gt, inArray, isNull, lt, or, sql, type SQL } from 'drizzle-orm';
-import { alias } from 'drizzle-orm/pg-core';
+import { alias, type AnyPgColumn } from 'drizzle-orm/pg-core';
 
 import {
   districts,
@@ -21,6 +21,7 @@ import {
   psfMemberships,
   userProfiles,
   users,
+  verifiedIdentities,
   workspaces,
 } from '../../../database/drizzle/schema';
 import {
@@ -130,6 +131,26 @@ export interface PsfQueueRow {
 }
 
 const submitter = alias(users, 'psf_submitter');
+const submitterIdentity = alias(verifiedIdentities, 'psf_submitter_identity');
+
+/**
+ * What to call a person: the rule `OrganizationRepository.displayNameFor`
+ * applies, in SQL. The verified legal name first, because `users.name` is empty
+ * for everyone who signed up with an emailed code, which left "sent on your
+ * behalf by" with no name (ADR-056 AC-17) and the apply form with no name to
+ * start from (AC-3, AC-16).
+ */
+function displayName(
+  user: { name: AnyPgColumn },
+  identity: { legalFullName: AnyPgColumn },
+): SQL<string | null> {
+  return sql<string | null>`coalesce(
+    nullif(trim(${identity.legalFullName}), ''),
+    nullif(trim(${user.name}), '')
+  )`;
+}
+
+const submittedByName = displayName(submitter, submitterIdentity);
 
 @Injectable()
 export class PsfMembershipRepository {
@@ -200,7 +221,7 @@ export class PsfMembershipRepository {
       .select({
         application: psfMembershipApplications,
         requestedTierName: psfMembershipTiers.nameEn,
-        submittedByName: submitter.name,
+        submittedByName,
       })
       .from(psfMembershipApplications)
       .innerJoin(
@@ -208,6 +229,7 @@ export class PsfMembershipRepository {
         eq(psfMembershipTiers.code, psfMembershipApplications.requestedTierCode),
       )
       .leftJoin(submitter, eq(submitter.id, psfMembershipApplications.submittedByUserId))
+      .leftJoin(submitterIdentity, eq(submitterIdentity.userId, submitter.id))
       .where(eq(psfMembershipApplications.id, applicationId))
       .limit(1);
     return row
@@ -262,7 +284,7 @@ export class PsfMembershipRepository {
     const [row] = await this.db
       .select({
         email: users.email,
-        name: users.name,
+        name: displayName(users, verifiedIdentities),
         phoneE164: userProfiles.phoneE164,
         dob: userProfiles.dob,
         gender: userProfiles.gender,
@@ -272,6 +294,7 @@ export class PsfMembershipRepository {
       })
       .from(users)
       .leftJoin(userProfiles, eq(userProfiles.userId, users.id))
+      .leftJoin(verifiedIdentities, eq(verifiedIdentities.userId, users.id))
       .leftJoin(
         identityDocuments,
         and(
@@ -334,7 +357,7 @@ export class PsfMembershipRepository {
       .select({
         application: psfMembershipApplications,
         requestedTierName: psfMembershipTiers.nameEn,
-        submittedByName: submitter.name,
+        submittedByName,
       })
       .from(psfMembershipApplications)
       .innerJoin(
@@ -342,6 +365,7 @@ export class PsfMembershipRepository {
         eq(psfMembershipTiers.code, psfMembershipApplications.requestedTierCode),
       )
       .leftJoin(submitter, eq(submitter.id, psfMembershipApplications.submittedByUserId))
+      .leftJoin(submitterIdentity, eq(submitterIdentity.userId, submitter.id))
       .where(eq(psfMembershipApplications.orgId, orgId))
       .orderBy(desc(psfMembershipApplications.createdAt));
     return rows.map((r) => ({
@@ -502,7 +526,7 @@ export class PsfMembershipRepository {
       .select({
         application: psfMembershipApplications,
         requestedTierName: psfMembershipTiers.nameEn,
-        submittedByName: submitter.name,
+        submittedByName,
         businessName: orgs.legalName,
         districtName: districts.name,
         registrationStatus: orgs.registrationStatus,
@@ -515,6 +539,7 @@ export class PsfMembershipRepository {
         eq(psfMembershipTiers.code, psfMembershipApplications.requestedTierCode),
       )
       .leftJoin(submitter, eq(submitter.id, psfMembershipApplications.submittedByUserId))
+      .leftJoin(submitterIdentity, eq(submitterIdentity.userId, submitter.id))
       .leftJoin(districts, eq(districts.id, orgs.districtId))
       .where(and(eq(psfMembershipApplications.id, applicationId), this.inQueue()))
       .limit(1);

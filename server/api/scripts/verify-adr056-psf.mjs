@@ -232,6 +232,30 @@ const main = async () => {
   check('and may apply again 201', again.status === 201);
   const amahoroApp = again.json?.open?.id;
 
+  // Someone who signed up with an emailed code has an empty `users.name`; their
+  // name is on the verified identity. Seeded users carry a name, which hid what
+  // follows. Blank two owners the same way and read again (AC-3, AC-16, AC-17):
+  //   Samuel, whose Umurage Guesthouse has never applied, so the form starts
+  //   from the person rather than from an earlier application;
+  //   Yves, whose open application must still say who sent it.
+  const blanked = (await db.query(
+    `SELECT id, name FROM users WHERE email IN ('yves@demo.injishi.com', 'samuel@demo.injishi.com')`,
+  )).rows;
+  await db.query(`UPDATE users SET name = '' WHERE id = ANY($1)`, [blanked.map((r) => r.id)]);
+  try {
+    const samuel = await signIn('samuel@demo.injishi.com');
+    const fresh = await call(samuel, 'GET', `/api/v1/orgs/${await orgId('Umurage Guesthouse')}/psf-membership`);
+    check(
+      'with no account name, a first application starts from the verified name',
+      fresh.json?.prefill?.firstName === 'Samuel' && fresh.json?.prefill?.lastName === 'Kayitare',
+      `${fresh.status} ${fresh.json?.prefill?.firstName} ${fresh.json?.prefill?.lastName}`,
+    );
+    const blank = await call(yves, 'GET', `/api/v1/orgs/${AMAHORO}/psf-membership`);
+    check('and an application names who sent it', blank.json?.open?.submittedByName === 'Yves Rutayisire', blank.json?.open?.submittedByName);
+  } finally {
+    for (const r of blanked) await db.query('UPDATE users SET name = $2 WHERE id = $1', [r.id, r.name]);
+  }
+
   console.log('\n=== C. The officer side (AC-10 to AC-13) ===');
   check('a business owner is not an officer 403', (await call(innocent, 'GET', '/api/v1/oversight/psf-applications')).status === 403);
   const q = await call(eric, 'GET', '/api/v1/oversight/psf-applications');
