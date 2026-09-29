@@ -182,6 +182,19 @@ jobs:
         run: |
           set -euo pipefail
           target="$GITHUB_WORKSPACE/demo-target"
+          # Never backwards on a pick. The runs API has been seen (2026-09-29)
+          # to answer an OLDER green run as the newest for a moment, which would
+          # quietly roll the demo back a day. So a scheduled or dispatched build
+          # must contain the commit the demo runs now. A push names its commit
+          # on purpose and is not held to this, and neither is a demo running a
+          # commit GitHub has never seen (nothing to compare against).
+          current=$(git -C "$DEMO_ROOT/src" rev-parse HEAD)
+          if [ "$GITHUB_EVENT_NAME" != push ] &&
+             git -C "$target" cat-file -e "$current^{commit}" 2>/dev/null &&
+             ! git -C "$target" merge-base --is-ancestor "$current" HEAD; then
+            echo "::error::refusing to move the demo backwards: it runs ${current:0:7}, which $(git -C "$target" rev-parse --short HEAD) does not contain. Run it again; if it repeats, the runs API is answering an old commit as main's newest green one."
+            exit 1
+          fi
           echo "rebuilding the demo at $(git -C "$target" log -1 --format='%h %s')"
           STAGING_SRC="$target" DEMO_ROOT="$DEMO_ROOT" bash "$target/infra/docker/demo-nightly.sh"
 

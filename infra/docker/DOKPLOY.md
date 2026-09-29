@@ -196,7 +196,9 @@ guards against a broken build or seed, not a broken screen.
 cron.** There is no staging to follow, so at 01:00 UTC that workflow runs this
 same script on the [runner](#the-self-hosted-runner), at the newest commit on
 `main` whose `ci` succeeded; run by hand (Actions, demo-recover, Run
-workflow) it makes the same pick. Root's crontab carries no demo line.
+workflow) it makes the same pick, and refuses one that does not contain the
+commit the demo already runs, so a stale answer from the runs API cannot roll
+the demo back. Root's crontab carries no demo line.
 `/opt/injishi-demo/demo-reseed.sh` (not in this repository) stays on the host
 for resetting the data without a rebuild: it seeds a candidate database with
 the API image already running and swaps it in, under the same build lock.
