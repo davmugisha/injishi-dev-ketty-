@@ -220,6 +220,9 @@ export async function api<T>(
       method,
       headers,
       body: formData ?? (body === undefined ? undefined : JSON.stringify(body)),
+      // Never the native cookie jar: identity is the bearer header alone.
+      // `authCall` in `auth.ts` records what a replayed session cookie did.
+      credentials: 'omit',
       signal: controller.signal,
     });
 

@@ -104,6 +104,19 @@ function messageOf(body: unknown, fallback: string): string {
   return fallback;
 }
 
+/**
+ * One bounded POST to Better Auth.
+ *
+ * `credentials: 'omit'` is load bearing. Expo installs `expo/fetch` as the
+ * global `fetch`, and it defaults to `'include'`: the native client keeps every
+ * cookie an answer sets and replays it on the next call to that host. Sign in
+ * answers with the session cookie as well as `set-auth-token`, so from then on
+ * every POST here carried that cookie and no Origin, which Better Auth's CSRF
+ * check refuses as "Missing or null Origin". The first sign in on a device
+ * worked and every later one failed. Identity here is the bearer token alone,
+ * so the jar has no job: `'omit'` neither sends a stored cookie nor keeps a new
+ * one, on Android and iOS alike.
+ */
 async function authCall(
   path: string,
   body: Record<string, unknown>,
@@ -115,6 +128,7 @@ async function authCall(
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(body),
+      credentials: 'omit',
       signal: controller.signal,
     });
 
@@ -218,6 +232,12 @@ export async function signOut(): Promise<{ serverConfirmed: boolean }> {
       const response = await fetch(`${AUTH_BASE}/sign-out`, {
         method: 'POST',
         headers: { ...authHeaders(), 'Content-Type': 'application/json' },
+        // An empty object, never no body. The API runs on Fastify, which answers
+        // a JSON content type over an empty body with a 400 before Better Auth
+        // sees the request, so the session was never ended server side.
+        body: JSON.stringify({}),
+        // Never the cookie jar; `authCall` records why.
+        credentials: 'omit',
         signal: controller.signal,
       });
       serverConfirmed = response.ok;
