@@ -1,5 +1,20 @@
 {
   "extends": "./tsconfig.json",
   "include": ["src/**/*"],
-  "exclude": ["node_modules", "dist", "src/**/*.spec.ts", "drizzle.config.ts"]
+  "exclude": ["node_modules", "dist", "src/**/*.spec.ts", "drizzle.config.ts"],
+  // Read by `nest start --watch` (api:dev, and api:worker:dev through
+  // tsconfig.worker.json). On Windows TypeScript's file events report a READ
+  // as a change when NTFS last-access updates are on, and Nest restarts the
+  // app after every clean compile, so any process reading node_modules (a Next
+  // dev compile, pnpm, a typecheck) took the local API down for ~20s at a
+  // time. Polling compares modified times, so reads no longer count, and
+  // leaving node_modules out keeps the poll to the ~400 files we edit (with
+  // it, ~4,200 files and a half-minute cycle). Workspace packages are watched
+  // by their real path under packages/, which this does not reach; a
+  // dependency change after `pnpm install` needs a restart.
+  "watchOptions": {
+    "watchFile": "dynamicPriorityPolling",
+    "excludeFiles": ["../../**/node_modules"],
+    "excludeDirectories": ["../../**/node_modules"]
+  }
 }
