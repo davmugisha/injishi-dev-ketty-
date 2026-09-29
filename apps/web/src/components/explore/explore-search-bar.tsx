@@ -10,7 +10,12 @@ import { GuestPanel } from "@/components/search/guest-panel";
 import { StayDatePicker } from "@/components/search/stay-date-picker";
 import { SEARCH_DISTRICTS } from "@/data/search-options";
 import { toParamDate, type StayIntent } from "@/lib/search-params";
-import { guestSummary, intentDateRange, intentDateSummary } from "@/lib/stay-search";
+import {
+  DEFAULT_GUESTS,
+  guestSummary,
+  intentDateRange,
+  intentDateSummary,
+} from "@/lib/stay-search";
 
 /**
  * The sticky search bar above the results.
@@ -154,7 +159,11 @@ export function ExploreSearchBar({
             <PopoverContent align="end" collisionPadding={16} className="w-auto border-none p-0">
               <GuestPanel
                 guests={intent.guests}
-                onChange={(guests) => onIntentChange({ guests })}
+                // The panel can now UNASK the question, which the hero needs
+                // and this bar cannot use: a URL always resolves a party, and
+                // the list on screen really is filtered by it. Reset here
+                // means back to the default party, not back to no answer.
+                onChange={(guests) => onIntentChange({ guests: guests ?? DEFAULT_GUESTS })}
                 onDone={() => setGuestsOpen(false)}
               />
             </PopoverContent>

@@ -11,7 +11,7 @@ export { BarList, type BarListRow } from "./components/bar-list";
 /* ADR-044 D-e 4: the one trail above a record, in every app. */
 export { Breadcrumbs, type Crumb } from "./components/breadcrumbs";
 export { Button, buttonVariants, type ButtonProps } from "./components/button";
-export { Calendar } from "./components/calendar";
+export { Calendar, HALF_BAND } from "./components/calendar";
 export {
   Card,
   CardHeader,

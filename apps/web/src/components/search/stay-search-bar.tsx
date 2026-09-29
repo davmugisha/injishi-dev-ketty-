@@ -14,7 +14,8 @@ import { usePanelPlacement } from "@/hooks/use-panel-placement";
 import {
   dateSummary,
   EMPTY_SEARCH,
-  guestSummary,
+  GUESTS_PLACEHOLDER,
+  searchGuestSummary,
   searchHref,
   toDateRange,
   withDateRange,
@@ -52,6 +53,18 @@ export function StaySearchBar() {
   // calendar); using one figure keeps all three panels on the same side.
   const placement = usePanelPlacement(barRef, open !== null, 460);
   const dates = dateSummary(search.checkIn, search.checkOut, search.flexDays);
+  /**
+   * Null until the guest says who is coming, and then the placeholder stands
+   * in — the same treatment "Any week" already had.
+   *
+   * WHO used to print `guestSummary(DEFAULT_GUESTS)`, so a pill that had been
+   * asked nothing answered "2 guests": the one field of the three that stated
+   * a fact about the visitor's trip before they had said anything. It also
+   * made the party look chosen, which is the half of it that matters — a guest
+   * travelling alone or in six had no cue that the number was ours and not
+   * theirs.
+   */
+  const guests = searchGuestSummary(search);
   const panelSide =
     placement === "top" ? "bottom-[calc(100%+12px)]" : "top-[calc(100%+12px)]";
 
@@ -124,9 +137,10 @@ export function StaySearchBar() {
                 onSelect={chooseDestination}
                 open={open === "destination"}
                 // A default value, not an instruction: it sits beside "Any
-                // week" and "2 guests", and "Search a district, park or stay"
-                // both repeated the field's own label and broke that rhythm.
-                // The instruction lives in the panel, where it is actionable.
+                // week", and "Search a district, park or stay" both repeated
+                // the field's own label and broke that rhythm. The instruction
+                // lives in the panel, where it is actionable. WHO is the one
+                // exception and says so at `GUESTS_PLACEHOLDER`.
                 placeholder="Anywhere in Rwanda"
                 inputRef={inputRef}
                 placement={placement}
@@ -191,8 +205,15 @@ export function StaySearchBar() {
             <FieldLabel>Who</FieldLabel>
             <span className="flex items-center gap-2.5">
               <GuestGlyph className="shrink-0 text-ink/40" />
-              <span className="block truncate text-base leading-tight text-ink">
-                {guestSummary(search.guests)}
+              <span
+                className={cn(
+                  "block truncate text-base leading-tight",
+                  // Muted while it is a placeholder, exactly as WHEN is, so
+                  // the three zones read as one row of unanswered questions.
+                  guests ? "text-ink" : "text-ink/65",
+                )}
+              >
+                {guests ?? GUESTS_PLACEHOLDER}
               </span>
             </span>
             {open === "guests" ? (
@@ -231,7 +252,7 @@ export function StaySearchBar() {
             {search.destination?.label || search.query.trim() || "Where to?"}
           </span>
           <span className="block truncate text-sm leading-tight text-ink/65">
-            {[dates ?? "Any week", guestSummary(search.guests)].join(" · ")}
+            {[dates ?? "Any week", guests ?? GUESTS_PLACEHOLDER].join(" · ")}
           </span>
         </span>
         <span className="flex size-11 shrink-0 items-center justify-center rounded-full bg-ink text-white">
@@ -277,9 +298,15 @@ function Segment({
       tabIndex={0}
       onClick={onClick}
       onKeyDown={(event) => {
+        // Only the zone ITSELF toggles. A key pressed on something inside it —
+        // a night in the calendar, a stepper in the guest panel, the
+        // destination input — belongs to that control. This used to exempt
+        // the input alone, so Enter on a day button bubbled here, was
+        // `preventDefault`ed before the button saw it, and closed the panel
+        // instead of picking the night: a keyboard user could open the
+        // calendar and never choose a date.
+        if (event.target !== event.currentTarget) return;
         if (event.key === "Enter" || event.key === " ") {
-          // Space inside the destination input must type a space, not re-open.
-          if (event.target instanceof HTMLInputElement) return;
           event.preventDefault();
           onClick();
         }
