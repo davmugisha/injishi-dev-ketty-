@@ -207,7 +207,14 @@ services:
   # (minio/provision.sh, idempotent). The API and the worker start only once it
   # has exited 0, so neither boots against a bucket that is not there.
   minio-init:
-    image: quay.io/minio/mc:RELEASE.2025-08-13T08-35-41Z
+    # minio's own SERVER image, not quay.io/minio/mc. It ships /usr/bin/mc at
+    # the release the mc image was pinned to (RELEASE.2025-08-13T08-35-41Z),
+    # plus the sh and timeout provision.sh needs. quay.io has answered 401 for
+    # MinIO's images since at least 2026-09-25, so an mc tag a host had not
+    # cached could no longer be pulled: the demo's nightly `up` failed on it
+    # five nights running and left the API stopped. One image for both
+    # services also means the one a host holds serves both.
+    image: quay.io/minio/minio:RELEASE.2025-09-07T16-13-09Z
     restart: "no"
     entrypoint: ["/bin/sh", "/provision.sh"]
     environment:

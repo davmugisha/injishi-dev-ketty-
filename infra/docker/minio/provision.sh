@@ -1,10 +1,10 @@
 #!/bin/sh
 # Provisions MinIO for the API, idempotently, on every `up`.
 #
-# Run by the one shot minio-init service (image minio/mc, entrypoint
+# Run by the one shot minio-init service (minio's own server image, entrypoint
 # ["/bin/sh", "/provision.sh"]) before the API or a worker may start. That
-# image is ubi9-micro plus /usr/bin/mc: a shell and coreutils, no curl, wget
-# or jq, and no promise of grep or sed. So this is POSIX sh, mc and coreutils,
+# image is ubi9-micro plus /usr/bin/minio and /usr/bin/mc: a shell and
+# coreutils, no curl, wget or jq, and no promise of grep or sed. So this is POSIX sh, mc and coreutils,
 # and every parse below is a `case` pattern for that reason.
 #
 # What it leaves behind, whatever state it finds:
@@ -114,10 +114,10 @@ buckets=$STORAGE_BUCKET
 [ "$STORAGE_S3_ACCESS_KEY" != "$MINIO_ROOT_USER" ] ||
   fail "STORAGE_S3_ACCESS_KEY must differ from MINIO_ROOT_USER; the API never holds root"
 
-# The two binaries this depends on beyond the shell. Both ship in the minio/mc
-# image (mc, and timeout from coreutils); anywhere else, say so up front.
+# The two binaries this depends on beyond the shell. Both ship in minio's
+# server image (mc, and timeout from coreutils); anywhere else, say so up front.
 for tool in mc timeout; do
-  command -v "$tool" >/dev/null 2>&1 || fail "$tool is not on PATH; run this in the minio/mc image"
+  command -v "$tool" >/dev/null 2>&1 || fail "$tool is not on PATH; run this in minio's server image"
 done
 
 # mc keeps root's keys in its config file. Give it a private directory that

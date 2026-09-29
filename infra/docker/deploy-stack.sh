@@ -85,8 +85,11 @@ FRONTEND_SERVICES=(web app admin)
 # ── the shared build lock ───────────────────────────────────────────────────────
 # One host cannot build two stacks at once, and demo-nightly.sh takes this same
 # lock. Waiting is the point: a deploy that collides with the nightly should
-# queue behind it, not fail and not build alongside it (AC-18).
-exec 9>/var/lock/injishi-demo-nightly.lock
+# queue behind it, not fail and not build alongside it (AC-18). Opened for
+# reading, as demo-nightly.sh opens it: the file belongs to whoever created it
+# first after a boot, and flock needs no write access.
+[[ -e /var/lock/injishi-demo-nightly.lock ]] || : >>/var/lock/injishi-demo-nightly.lock
+exec 9</var/lock/injishi-demo-nightly.lock
 if ! flock -n 9; then
   log "the build lock is held; waiting up to ${LOCK_TIMEOUT}s"
   flock -w "$LOCK_TIMEOUT" 9 \

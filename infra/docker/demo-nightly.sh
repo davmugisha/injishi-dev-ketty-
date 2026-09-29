@@ -35,7 +35,14 @@
 #
 # Settings, all optional:
 #   DEMO_ROOT        /opt/injishi-demo          the demo's home (.env, src/)
-#   STAGING_SRC      /opt/injishi-staging/src   staging's checkout
+#   DEMO_COMPOSE_PROJECT  injishi-demo          the running demo's compose
+#                                               project. Dokploy names its own
+#                                               (injishi-demo-rllflw on the
+#                                               Hangaa VPS); a wrong name
+#                                               builds a second, empty demo
+#   STAGING_SRC      /opt/injishi-staging/src   a checkout whose HEAD is the
+#                                               commit to run: staging's, or
+#                                               demo-recover's own checkout
 #   HEALTH_TIMEOUT   600                        seconds to wait at the confirm
 #   NIGHTLY_LOCK_RETRY_MINUTES  90              how long to wait for the lock
 #
@@ -58,7 +65,7 @@ HEALTH_TIMEOUT=${HEALTH_TIMEOUT:-600}
 NIGHTLY_LOCK_RETRY_MINUTES=${NIGHTLY_LOCK_RETRY_MINUTES:-90}
 DEMO_SRC="$DEMO_ROOT/src"
 ENV_FILE="$DEMO_ROOT/.env"
-PROJECT=injishi-demo
+PROJECT=${DEMO_COMPOSE_PROJECT:-injishi-demo}
 COMPOSE_FILE=infra/docker/docker-compose.demo.yml
 # The four images the stack builds; `worker` runs the api image.
 IMAGES=(injishi-api injishi-web injishi-app injishi-admin)
@@ -88,7 +95,13 @@ trap 'rm -f "$DEMO_NIGHTLY_COPY"' EXIT
 # UTC would cancel that night's rebuild outright. It waits now, and gives up
 # only after NIGHTLY_LOCK_RETRY_MINUTES, because a rebuild that starts an hour
 # late is worth far more than one that never ran (AC-18b).
-exec 9>/var/lock/injishi-demo-nightly.lock
+#
+# Opened for READING: flock needs no write access. /var/lock is a tmpfs, so
+# after a boot the file belongs to whichever of root's cron and the runner's
+# own user creates it first, and opening it for writing would refuse the other.
+LOCK=/var/lock/injishi-demo-nightly.lock
+[[ -e $LOCK ]] || : >>"$LOCK"
+exec 9<"$LOCK"
 lock_wait=$(( NIGHTLY_LOCK_RETRY_MINUTES * 60 ))
 if ! flock -n 9; then
   log "/var/lock/injishi-demo-nightly.lock is held; waiting up to ${NIGHTLY_LOCK_RETRY_MINUTES}m for it"
@@ -136,7 +149,10 @@ trap on_error ERR
 commit=$(git -C "$STAGING_SRC" rev-parse HEAD)
 short=$(git -C "$STAGING_SRC" rev-parse --short HEAD)
 log "staging is at $short; checking it out in $DEMO_SRC"
-git -C "$DEMO_SRC" fetch --quiet origin
+# Fetched from the checkout that names the commit, never from origin: the
+# demo's checkout holds no credential for this private repository, and the
+# commit is by definition already in STAGING_SRC.
+git -C "$DEMO_SRC" fetch --quiet "$STAGING_SRC" HEAD
 git -C "$DEMO_SRC" checkout --quiet --detach "$commit"
 
 # The backing services are started (or reconciled with the checked out compose
@@ -146,7 +162,13 @@ compose exec -T db sh -c 'until pg_isready -q -U "$POSTGRES_USER"; do sleep 1; d
 
 # ── 2. build the candidate images ─────────────────────────────────────────────────
 log "building :demo-next images at $short"
-DEMO_IMAGE_TAG=demo-next INJISHI_COMMIT=$short compose build api web app admin
+# One image at a time. One `compose build` of all four bakes them in parallel,
+# and three Next builds at once ran the 3.9 GB demo host out of memory and swap
+# (2026-09-14). Slower, and it finishes.
+for service in api web app admin; do
+  log "building $service"
+  DEMO_IMAGE_TAG=demo-next INJISHI_COMMIT=$short compose build "$service"
+done
 
 # ── 3. a fresh candidate database: migrate, mark, seed ────────────────────────────
 log "creating $NEXT_DB and running the sample recipe into it"
