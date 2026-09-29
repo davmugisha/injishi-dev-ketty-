@@ -2,15 +2,23 @@
  * The agreement a registrant signs at the end of business registration, and the
  * printable document that agreement is downloaded as.
  *
- * IT HAS NO IMPORTS, ON PURPOSE. Two things depend on that. The wizard step is
- * a `"use client"` component and this module is pulled into that bundle, so a
- * transitive import of anything server-only would break the build; and a module
- * with no imports can be driven directly under Node's type stripping, which is
- * how the clause text and the generated document are checked without a browser.
- * The consequence is that every value it prints arrives ALREADY FORMATTED — the
- * fee comes in as the string `formatRwf` produced, the identity document as the
- * string the register screens already show — so money and identity are formatted
- * in exactly one place each and this file never invents a second spelling.
+ * IT IMPORTS ONE THING, AND NOTHING ELSE MAY BE ADDED. Two constraints decide
+ * that. The wizard step is a `"use client"` component and this module is pulled
+ * into that bundle, so a transitive import of anything server-only would break
+ * the build; and the module is driven directly under Node's type stripping,
+ * which is how the clause text and the generated document are checked without a
+ * browser (`apps/web/tests/contract-document.test.mjs`). Both survive a single
+ * import of `@injishi/design-tokens` — a pure value package with no
+ * dependencies of its own, which `global-error.tsx`, `global-not-found.tsx` and
+ * `manifest.ts` already import for exactly this reason: a surface that renders
+ * outside the app's stylesheet has to carry the token VALUES, and the only
+ * alternative is hex literals the palette can no longer move.
+ *
+ * The rest of the rule is unchanged, and it is the reason this file stays thin:
+ * every value it prints arrives ALREADY FORMATTED — the fee comes in as the
+ * string `formatRwf` produced, the identity document as the string the register
+ * screens already show — so money and identity are formatted in exactly one
+ * place each and this file never invents a second spelling.
  *
  * WHAT THIS IS NOT. Nothing here is filed with RDB, RRA or a district office,
  * nobody counter-signs it on Injishi's behalf, and no copy of it leaves the
@@ -21,6 +29,8 @@
  * the screen — a person who keeps the file and reads it a month later must find
  * the disclaimer in the file, not remember a notice they scrolled past.
  */
+
+import { fixed, green, ink } from "@injishi/design-tokens";
 
 // ---------------------------------------------------------------------------
 // The document
@@ -190,6 +200,60 @@ export function registrationContractClauses(
 // ---------------------------------------------------------------------------
 
 /**
+ * The document's palette, resolved in TypeScript because the document leaves
+ * the app.
+ *
+ * WHY NOT `var(--accent)`. The download is opened where the app's stylesheet
+ * was never loaded: a downloads folder, a mail client, a copy shop's machine.
+ * Every custom property resolves to nothing there, so a document styled through
+ * them arrives unstyled at exactly the moment nobody is left to notice.
+ * `global-error.tsx` is in the same bind for the same reason, and this follows
+ * the answer recorded there (ADR-010 supporting call 6b): read the ramps from
+ * `@injishi/design-tokens` and let the build inline the values, rather than
+ * writing hex literals that regenerating the palette can no longer reach.
+ *
+ * Each constant names the step it takes and the measurement that chose it, so a
+ * later reader can tell a considered contrast from a colour somebody liked.
+ */
+
+/** green-950. The head band. White on it measures about 10:1. */
+const BAND = green[950];
+/**
+ * green-900, one step up. The fold across the band has to read as the same
+ * green turned toward the light, not as a second colour, which is why it is the
+ * neighbouring step and not a hue of its own.
+ */
+const BAND_FOLD = green[900];
+/**
+ * green-800. `semantic.ts` records this as the green that clears AA on white,
+ * which is why the section rules and the clause numerals are this step and not
+ * the brand green-600: white on green-600 is 2.98:1 and fails.
+ */
+const ACCENT = green[800];
+/** ink-950, through its fixed role. The body text; pure black never ships. */
+const TEXT = fixed.ink;
+/** ink-600. `semantic.ts`: muted text on white is this step, and never lighter. */
+const MUTED = ink[600];
+/** ink-200. The hairline between one printed fact and the next. */
+const HAIRLINE = ink[200];
+/** ink-50. The tint under the party and signature panels. */
+const TINT = ink[50];
+/** The paper, and the text on the band. */
+const PAPER = fixed.white;
+
+/**
+ * The type stack.
+ *
+ * Figtree is the platform face (`ui-tokens.md` § Typography) and is named FIRST
+ * so a reader who has it installed gets it. Everything after it is already on
+ * the machine: this document cannot ship a font file and must never fetch one,
+ * because a contract that needs the network to look like itself is a contract
+ * that looks wrong in the archive it was saved to.
+ */
+const TYPE_STACK =
+  'Figtree, ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif';
+
+/**
  * The signed agreement as one self-contained HTML file.
  *
  * WHY HTML AND NOT A CANVAS IMAGE OR A PDF. The file has to be readable, and a
@@ -199,13 +263,20 @@ export function registrationContractClauses(
  * browser the person is already holding, prints from Ctrl+P, and saves as a PDF
  * from the print dialog, which is the same three outcomes for none of the cost.
  *
- * WHY IT DECLARES NO COLOURS. This document leaves the app, so the design
- * tokens the rest of the web app is built from do not exist where it is opened.
- * Rather than hardcode a palette here — which the root rules forbid and which
- * would be wrong anyway — it declares only structure and lets the browser paint
- * ink on paper. `color-scheme: light` is the one appearance declaration, and it
- * is there so a reader whose browser is in dark mode still gets a document that
- * looks like a document and prints like one.
+ * HOW IT IS LAID OUT, AND WHY THAT IS NOT DECORATION. A contract is read in a
+ * fixed order — who is bound, over what, on what terms, and signed by whom —
+ * so the document is built in that order and each part is given its own block,
+ * which is what lets a reader find one of them without reading the others. The
+ * banded head carries the three facts that identify this particular copy, where
+ * a printed or filed page is scanned for them. The parties sit side by side
+ * because there are exactly two of them, and the asymmetry between the two
+ * columns is the substance rather than the styling: only one of them has signed.
+ *
+ * WHAT IS DELIBERATELY NOT DRAWN. There is no empty counter-signature rule in
+ * Party B's column. A ruled, unfilled slot is the shape of a document waiting
+ * to be executed, and clause 9 says this one never will be, so drawing one
+ * would make the file look half-finished rather than honestly one-sided. The
+ * column states the fact instead, and the note under it explains why.
  *
  * The signature travels INSIDE the file as a base64 PNG in the `src` of the
  * image below. There is no second request, no linked asset and nothing to lose,
@@ -218,35 +289,44 @@ export function contractDocumentHtml(
   const clauses = registrationContractClauses(input);
   const signedOn = formatSignedAt(signature.signedAt);
 
-  const parties: [string, string | null][] = [
-    ["Registrant", input.registrantName],
-    ["Identity document", input.registrantIdLabel],
-    ["Phone", input.registrantPhone],
+  /**
+   * A line that disappears when it has nothing to say.
+   *
+   * The rule is the one `RegistrationContractInput` states: a resuming
+   * registrant may hold no phone number or TIN in memory, and a contract that
+   * prints "TIN —" states something false about what was agreed, while one that
+   * omits the row simply does not mention it.
+   */
+  const optionalLine = (value: string | null, className: string): string =>
+    value === null || value === ""
+      ? ""
+      : `<p class="${className}">${escapeHtml(value)}</p>`;
+
+  const facts: [string, string | null][] = [
     ["Business", input.businessName],
     ["Kind", input.businessKindLabel],
     ["Business identifier", input.businessIdLabel],
     ["Address", input.businessAddressLabel],
     ["Registration reference", input.reference],
-    ["Counterparty", CONTRACT_OPERATOR],
   ];
 
-  const partyRows = parties
+  const factRows = facts
     .filter((row): row is [string, string] => row[1] !== null && row[1] !== "")
     .map(
       ([label, value]) =>
-        `<tr><th scope="row">${escapeHtml(label)}</th><td>${escapeHtml(value)}</td></tr>`,
+        `<div class="fact"><dt>${escapeHtml(label)}</dt><dd>${escapeHtml(value)}</dd></div>`,
     )
-    .join("\n      ");
+    .join("\n        ");
 
   const clauseHtml = clauses
     .map(
       (clause) =>
         `<section class="clause">
-        <h2><span class="n">${clause.number}.</span> ${escapeHtml(clause.heading)}</h2>
-        ${clause.body.map((p) => `<p>${escapeHtml(p)}</p>`).join("\n        ")}
-      </section>`,
+          <h3><span class="n">${clause.number}</span><span>${escapeHtml(clause.heading)}</span></h3>
+          ${clause.body.map((p) => `<p>${escapeHtml(p)}</p>`).join("\n          ")}
+        </section>`,
     )
-    .join("\n      ");
+    .join("\n        ");
 
   const markDescription =
     signature.method === "drawn"
@@ -265,58 +345,286 @@ export function contractDocumentHtml(
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>${escapeHtml(CONTRACT_TITLE)} — ${escapeHtml(input.businessName)}</title>
 <style>
+  /* \`light\` and not \`light dark\`: this is paper. A reader whose browser is in
+     dark mode still gets a document that looks like a document and prints like
+     one, rather than a dark page with a signature that vanishes into it. */
   :root { color-scheme: light; }
-  body { font-family: Georgia, "Times New Roman", serif; line-height: 1.55; margin: 0 auto; max-width: 44rem; padding: 3rem 1.5rem 5rem; }
-  header { border-bottom: 2px solid; padding-bottom: 1rem; }
-  h1 { font-size: 1.5rem; margin: 0 0 .25rem; }
-  .meta { font-family: system-ui, sans-serif; font-size: .8rem; margin: 0; }
-  table { border-collapse: collapse; font-family: system-ui, sans-serif; font-size: .85rem; margin: 1.5rem 0 2rem; width: 100%; }
-  th, td { border-bottom: 1px solid; padding: .45rem .5rem; text-align: left; vertical-align: top; }
-  th { font-weight: 600; white-space: nowrap; width: 12rem; }
-  .clause { margin: 0 0 1.6rem; }
-  .clause h2 { font-size: 1.05rem; margin: 0 0 .4rem; }
-  .clause .n { font-family: system-ui, sans-serif; }
-  .clause p { margin: 0 0 .6rem; }
-  .signature { border-top: 2px solid; margin-top: 2.5rem; padding-top: 1.5rem; }
-  .signature h2 { font-size: 1.05rem; margin: 0 0 1rem; }
-  .mark { border-bottom: 1px solid; display: block; max-width: 22rem; padding-bottom: .25rem; }
-  .mark img { display: block; height: auto; max-width: 100%; }
-  .signed-by { font-family: system-ui, sans-serif; font-size: .85rem; margin: .5rem 0 0; }
-  .note { font-family: system-ui, sans-serif; font-size: .8rem; margin-top: 2rem; }
-  .print-hint { font-family: system-ui, sans-serif; font-size: .8rem; margin-top: 2.5rem; }
+
+  *, *::before, *::after { box-sizing: border-box; }
+
+  body {
+    background: ${PAPER};
+    color: ${TEXT};
+    font-family: ${TYPE_STACK};
+    font-size: 16px;
+    line-height: 1.6;
+    margin: 0;
+    -webkit-font-smoothing: antialiased;
+    /* Browsers drop background colour when printing unless this is set, and
+       the band is the one part of this document that IS a background. */
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+
+  .sheet { margin: 0 auto; max-width: 40rem; padding: 0 1.5rem 3.5rem; }
+
+  /* The head. The fold is two hard-stopped gradients rather than an image, so
+     it survives being saved, mailed, opened offline and printed. */
+  .band {
+    background-color: ${BAND};
+    background-image:
+      linear-gradient(101deg, ${BAND_FOLD} 0 26%, transparent 26%),
+      linear-gradient(101deg, transparent 0 32%, ${BAND_FOLD} 32% 34.5%, transparent 34.5%);
+    color: ${PAPER};
+    padding: 2.5rem 0 1.75rem;
+  }
+  .band-inner {
+    align-items: flex-start;
+    display: flex;
+    gap: 2rem;
+    justify-content: space-between;
+    margin: 0 auto;
+    max-width: 40rem;
+    padding: 0 1.5rem;
+  }
+  .band h1 {
+    font-size: 1.875rem;
+    font-weight: 800;
+    letter-spacing: -0.015em;
+    line-height: 1.08;
+    margin: 0;
+    max-width: 20ch;
+    text-transform: uppercase;
+  }
+  .issuer {
+    border-left: 1px solid rgba(255, 255, 255, 0.4);
+    font-size: 0.7rem;
+    font-weight: 600;
+    letter-spacing: 0.1em;
+    line-height: 1.65;
+    margin: 0.45rem 0 0;
+    max-width: 15ch;
+    padding-left: 0.85rem;
+    text-transform: uppercase;
+  }
+  .band-foot { margin: 1.75rem auto 0; max-width: 40rem; padding: 0 1.5rem; }
+  .band-meta {
+    border-top: 1px solid rgba(255, 255, 255, 0.3);
+    display: flex;
+    flex-wrap: wrap;
+    font-size: 0.7rem;
+    gap: 0.35rem 1.75rem;
+    letter-spacing: 0.08em;
+    margin: 0;
+    padding-top: 0.85rem;
+    text-transform: uppercase;
+  }
+  .band-meta b { font-weight: 700; }
+
+  .block { margin-top: 2.5rem; }
+  .block-title {
+    border-bottom: 2px solid ${ACCENT};
+    color: ${ACCENT};
+    font-size: 0.72rem;
+    font-weight: 700;
+    letter-spacing: 0.14em;
+    margin: 0 0 1.1rem;
+    padding-bottom: 0.45rem;
+    text-transform: uppercase;
+  }
+
+  .pair { display: grid; gap: 1rem; grid-template-columns: 1fr 1fr; }
+  .panel {
+    background: ${TINT};
+    border: 1px solid ${HAIRLINE};
+    padding: 1.1rem 1.25rem;
+  }
+  .role {
+    color: ${MUTED};
+    font-size: 0.66rem;
+    font-weight: 700;
+    letter-spacing: 0.12em;
+    margin: 0 0 0.6rem;
+    text-transform: uppercase;
+  }
+  .party-name { font-size: 1.05rem; font-weight: 700; line-height: 1.35; margin: 0; }
+  .party-line { color: ${MUTED}; font-size: 0.85rem; margin: 0.35rem 0 0; }
+
+  .facts { margin: 0; }
+  .fact {
+    border-bottom: 1px solid ${HAIRLINE};
+    display: grid;
+    gap: 0.2rem 1.5rem;
+    grid-template-columns: 13rem 1fr;
+    padding: 0.6rem 0;
+  }
+  .fact:first-child { border-top: 1px solid ${HAIRLINE}; }
+  .fact dt {
+    color: ${MUTED};
+    font-size: 0.72rem;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    margin: 0;
+    text-transform: uppercase;
+  }
+  .fact dd { font-size: 0.92rem; font-weight: 500; margin: 0; }
+
+  .clause { break-inside: avoid; margin: 0 0 1.5rem; }
+  .clause h3 {
+    align-items: baseline;
+    display: flex;
+    font-size: 1.02rem;
+    font-weight: 700;
+    gap: 0.65rem;
+    line-height: 1.35;
+    margin: 0 0 0.5rem;
+  }
+  /* The number is the handle a registrant, an officer and a support agent all
+     refer to the same paragraph by, so it is given a shape of its own rather
+     than set as part of the sentence. */
+  .clause .n {
+    background: ${ACCENT};
+    color: ${PAPER};
+    flex: none;
+    font-size: 0.72rem;
+    font-variant-numeric: tabular-nums;
+    font-weight: 700;
+    height: 1.4rem;
+    line-height: 1.4rem;
+    text-align: center;
+    width: 1.4rem;
+  }
+  .clause p {
+    -webkit-hyphens: auto;
+    hyphens: auto;
+    margin: 0 0 0.6rem;
+    text-align: justify;
+  }
+
+  .slot {
+    align-items: flex-end;
+    border-bottom: 1.5px solid ${TEXT};
+    display: flex;
+    margin: 0;
+    min-height: 4.25rem;
+    padding-bottom: 0.4rem;
+  }
+  .slot img { display: block; height: auto; max-width: 100%; }
+  .slot-open {
+    border-bottom-color: ${MUTED};
+    border-bottom-style: dashed;
+    color: ${MUTED};
+    font-size: 0.8rem;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+  }
+  .signed-by { color: ${MUTED}; font-size: 0.8rem; margin: 0.65rem 0 0; }
+  .signed-by strong { color: ${TEXT}; display: block; font-size: 0.95rem; font-weight: 700; }
+
+  .note {
+    border-top: 1px solid ${HAIRLINE};
+    color: ${MUTED};
+    font-size: 0.8rem;
+    margin-top: 1.75rem;
+    padding-top: 1rem;
+  }
+  .print-hint { color: ${MUTED}; font-size: 0.8rem; margin-top: 1.5rem; }
+
+  /* One column on a phone, and the justification goes with it: justified text
+     in a narrow measure opens rivers a contract does not need. */
+  @media (max-width: 40rem) {
+    .band h1 { font-size: 1.55rem; max-width: none; }
+    .band-inner { flex-direction: column; gap: 1.1rem; }
+    .issuer {
+      border-left: 0;
+      border-top: 1px solid rgba(255, 255, 255, 0.4);
+      max-width: none;
+      padding: 0.6rem 0 0;
+    }
+    .pair { grid-template-columns: 1fr; }
+    .fact { grid-template-columns: 1fr; }
+    .clause p { text-align: left; }
+  }
+
+  @page { margin: 14mm; }
+
   @media print {
-    body { max-width: none; padding: 0; }
+    body { font-size: 10.5pt; }
+    /* Only the max-width goes. Every gutter stays 1.5rem, so the title in
+       the band and the clauses under it share one left edge; zeroing the
+       padding here put the two a gutter apart on paper. */
+    .sheet, .band-inner, .band-foot { max-width: none; }
+    .sheet { padding-bottom: 0; }
+    .band { padding: 1.25rem 0 1rem; }
     .print-hint { display: none; }
-    .clause { break-inside: avoid; }
-    .signature { break-inside: avoid; }
+    .block-title { break-after: avoid; }
+    .clause, .signature, .panel { break-inside: avoid; }
   }
 </style>
 </head>
 <body>
-  <header>
-    <h1>${escapeHtml(CONTRACT_TITLE)}</h1>
-    <p class="meta">Version ${escapeHtml(input.contractVersion)} · Registration ${escapeHtml(input.reference)} · Signed ${escapeHtml(signedOn)}</p>
+  <header class="band">
+    <div class="band-inner">
+      <h1>${escapeHtml(CONTRACT_TITLE)}</h1>
+      <p class="issuer">${escapeHtml(CONTRACT_OPERATOR)}</p>
+    </div>
+    <div class="band-foot">
+      <p class="band-meta">
+        <span>Version <b>${escapeHtml(input.contractVersion)}</b></span>
+        <span>Registration <b>${escapeHtml(input.reference)}</b></span>
+        <span>Signed <b>${escapeHtml(signedOn)}</b></span>
+      </p>
+    </div>
   </header>
 
-  <table>
-    <caption class="meta" style="text-align:left; padding:.75rem 0 0;">The parties and the registration this agreement covers</caption>
-    <tbody>
-      ${partyRows}
-    </tbody>
-  </table>
+  <main class="sheet">
+    <section class="block">
+      <h2 class="block-title">The parties</h2>
+      <div class="pair">
+        <div class="panel">
+          <p class="role">Party A · The registrant</p>
+          <p class="party-name">${escapeHtml(input.registrantName)}</p>
+          ${optionalLine(input.registrantIdLabel, "party-line")}
+          ${optionalLine(input.registrantPhone, "party-line")}
+        </div>
+        <div class="panel">
+          <p class="role">Party B · The operator</p>
+          <p class="party-name">${escapeHtml(CONTRACT_OPERATOR)}</p>
+        </div>
+      </div>
+    </section>
 
-  ${clauseHtml}
+    <section class="block">
+      <h2 class="block-title">What this agreement covers</h2>
+      <dl class="facts">
+        ${factRows}
+      </dl>
+    </section>
 
-  <div class="signature">
-    <h2>Signed by the registrant</h2>
-    <span class="mark"><img src="${signature.dataUrl}" alt="${escapeHtml(markDescription)}" width="440"></span>
-    <p class="signed-by"><strong>${escapeHtml(signature.signedName)}</strong><br>
-    ${escapeHtml(signedOn)}<br>
-    ${escapeHtml(howItWasSigned)}</p>
-    <p class="note">Not counter-signed. ${escapeHtml(CONTRACT_OPERATOR)} has not signed this copy, and clause 9 explains why: this is a demonstration build, and no registry, officer or approver has received this document.</p>
-  </div>
+    <section class="block">
+      <h2 class="block-title">The agreement</h2>
+      ${clauseHtml}
+    </section>
 
-  <p class="print-hint">To keep this as a PDF, print this page and choose “Save as PDF”.</p>
+    <section class="block signature">
+      <h2 class="block-title">Signatures</h2>
+      <div class="pair">
+        <div class="panel">
+          <p class="role">Party A · The registrant</p>
+          <span class="slot"><img src="${signature.dataUrl}" alt="${escapeHtml(markDescription)}" width="440"></span>
+          <p class="signed-by"><strong>${escapeHtml(signature.signedName)}</strong>${escapeHtml(signedOn)}<br>${escapeHtml(howItWasSigned)}</p>
+        </div>
+        <div class="panel">
+          <p class="role">Party B · The operator</p>
+          <p class="slot slot-open">Not counter-signed</p>
+        </div>
+      </div>
+      <p class="note">Not counter-signed. ${escapeHtml(CONTRACT_OPERATOR)} has not signed this copy, and clause 9 explains why: this is a demonstration build, and no registry, officer or approver has received this document.</p>
+    </section>
+
+    <p class="print-hint">To keep this as a PDF, print this page and choose “Save as PDF”.</p>
+  </main>
 </body>
 </html>
 `;
