@@ -138,6 +138,8 @@ export interface CheckInDraft {
   name: string;
   nid: string;
   phone: string;
+  /** Where the claim invitation is mailed (§6.8). Optional, like the rest of the card. */
+  email: string;
   room: string;
   nights: number;
   rate: string;

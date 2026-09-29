@@ -139,6 +139,7 @@ export function PmsUiProvider({ children }: { children: ReactNode }) {
       name: seed?.guestName ?? "",
       nid: "",
       phone: "",
+      email: "",
       room: seed?.roomId ?? "",
       nights: seed?.nights ?? 1,
       rate: seed?.rate != null ? String(seed.rate) : "",
