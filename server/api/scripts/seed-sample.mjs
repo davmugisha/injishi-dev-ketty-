@@ -26,7 +26,9 @@
  *                             registration pipeline, and the admin console's
  *                             reviews and support tickets
  *
- * then records the finish in `database_identity.seeded_at`, which
+ * then gives every property the seeds wrote the USALI department set (ADR-016
+ * AC-14), which they skip by INSERTing properties directly, and records the
+ * finish in `database_identity.seeded_at`, which
  * `GET /api/v1/platform` reports as the last reset time.
  *
  * It refuses, before running anything, a database that carries no sample
@@ -43,6 +45,10 @@ import { fileURLToPath } from 'node:url';
 import pg from 'pg';
 
 import { markHeadOffices } from './head-offices.mjs';
+import {
+  propertiesWithoutDepartments,
+  seedMissingDepartments,
+} from './property-departments.mjs';
 import { assertSampleDatabase, describeDatabase } from './sample-database.mjs';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
@@ -127,6 +133,26 @@ for (const [i, step] of STEPS.entries()) {
 // offices, so the rule is applied once more to what they wrote.
 const marked = await withClient((client) => markHeadOffices(client));
 console.log(`\nHead offices marked for ${marked} hospitality org(s) that had none.`);
+
+// ADR-016 AC-14, for the same reason: a seed INSERTs its properties, so it
+// misses both migration 0011's backfill and the department set listing-setup
+// writes inside the transaction that creates a property. A property with no
+// departments offers a guest an EMPTY list of desks to write to — which is what
+// the demo showed for every property except Amahoro Boutique Hotel, the only
+// one any seed in this recipe gives departments to.
+const filled = await withClient(async (client) => {
+  const written = await seedMissingDepartments(client);
+  const missing = await propertiesWithoutDepartments(client);
+  return { ...written, missing };
+});
+console.log(
+  `USALI departments: ${filled.departments} row(s) written, ${filled.roomTypes} room type(s) pointed at Rooms.`,
+);
+if (filled.missing > 0) {
+  fail(
+    `${filled.missing} propert(ies) still hold no department, so a guest there has nobody to message.`,
+  );
+}
 
 // Only a complete run is a reset. The update trigger allows `seeded_at` alone.
 const seededAt = await withClient(async (client) => {
