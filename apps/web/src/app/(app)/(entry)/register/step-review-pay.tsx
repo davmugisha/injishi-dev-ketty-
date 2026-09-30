@@ -19,23 +19,23 @@ import {
 import { resolveRegistrationFee } from "@/data/registration";
 import { formatNationalId } from "@/lib/rwanda-id";
 
+import {
+  type ContractSignature,
+  type RegistrationContractInput,
+} from "@/lib/registration-contract";
+
 import { useAddressLine } from "./address-picker";
+import { ContractSigner } from "./step-contract";
 import type { BranchDraft } from "./step-branches";
 import type { CertificateDraft } from "./step-documents";
 import type { BusinessDraft } from "./step-business";
 import { composeFullName, type PersonalDraft } from "./step-about-you";
 import type { RegistrationKind } from "./registration-kinds";
 import { REGISTRATION_KINDS, registrationForKind } from "./registration-kinds";
-import {
-  Notice,
-  StepActions,
-  SummaryCard,
-  SummaryRow,
-  formatRwf,
-} from "./wizard-ui";
+import { Notice, SummaryCard, SummaryRow, formatRwf } from "./wizard-ui";
 
 /**
- * Step 5 — read it back, then, on a second visit, pay (ADR-026, AC-9; D23).
+ * Step 5 — read it back, sign, and pay, on one screen (ADR-026, AC-9; D23; ADR-060).
  *
  * NO FIGURE UNTIL THE MOMENT OF PAYING, and then it is stated plainly.
  *
@@ -47,14 +47,12 @@ import {
  * they are about to be charged. Being asked to authorise a payment whose size
  * is not on screen is the one place the reversal cost more than it bought.
  *
- * So the rule is a boundary, not a ban. The first visit — the read back, where
- * nothing is charged — still names no figure, and neither does any earlier
- * screen or the contract. The second visit, after the contract, is the fee
- * block and the Pay button, and both carry the amount.
+ * So the rule is a boundary, not a ban. No earlier screen names a figure, and
+ * neither do the read back rows or the agreement on this one. The fee block and
+ * the Sign and pay button, which are what charge, both carry the amount.
  *
- * The fee is resolved on BOTH visits regardless, for the reason it always was:
- * a kind whose fee cannot be quoted is a kind that is not open, and Create is
- * disabled for it.
+ * The fee is resolved regardless, for the reason it always was: a kind whose
+ * fee cannot be quoted is a kind that is not open, and Create is disabled for it.
  *
  * The pay step used to open on a price and a paragraph. Everything a person had
  * typed over four screens was behind a Back button, which is the wrong place
@@ -64,10 +62,11 @@ import {
  * So this reads it all back first, with a Change link per block that lands on
  * the step that asked. Then the bill.
  *
- * TWO VISITS, NOT ONE. The first press creates the registration and the wizard
- * moves on to the operator contract; after accepting it the registrant comes back here and the second
- * press settles it (ADR-053, AC-R8). The amount is LOCKED onto the invoice at
- * creation (D8), and the server charges that.
+ * ONE SCREEN, ONE PRESS (ADR-060). It used to be two visits with the contract
+ * between them. Now the read back, the agreement and the fee sit here together,
+ * and "Sign and pay" runs create, accept and pay in the server's own order
+ * (ADR-053, AC-R8), each skipped once done. The amount is still LOCKED onto the
+ * invoice at creation (D8), and the server charges that.
  */
 
 export function StepReviewPay({
@@ -84,8 +83,8 @@ export function StepReviewPay({
   summary,
   busy,
   error,
-  onCreate,
-  onPay,
+  contractInput,
+  onSignAndPay,
   onBack,
   onEditStep,
   psf,
@@ -112,10 +111,12 @@ export function StepReviewPay({
   summary: RegistrationSummary | null;
   busy: boolean;
   error: string;
-  onCreate: () => void;
-  onPay: () => void;
+  /** The agreement as it will be signed; its reference is filled in once the server names it. */
+  contractInput: RegistrationContractInput;
+  /** Sign (null when the contract is already accepted), then create, accept and pay. */
+  onSignAndPay: (signature: ContractSignature | null) => Promise<void>;
   onBack: () => void;
-  onEditStep: (step: "place" | "about" | "business" | "branches" | "documents") => void;
+  onEditStep: (step: "place" | "about" | "business" | "documents") => void;
   /**
    * ADR-056: the PSF application this registration carries, read back with a
    * Change control (AC-5). Null when the registrant is not applying.
@@ -188,12 +189,12 @@ export function StepReviewPay({
   return (
     <section aria-labelledby="step-pay">
       <h2 id="step-pay" className="text-xl font-semibold tracking-tight">
-        {summary ? `Pay for ${summary.legalName}` : "Check your answers"}
+        {summary ? `Sign and pay for ${summary.legalName}` : "Review, sign and pay"}
       </h2>
       <p className="mt-1 text-sm text-muted-foreground">
         {summary
-          ? "Your contract is accepted. Paying the registration fee sends the business for review."
-          : "Read this back before you create the registration. A wrong number here comes back as a rejection later. You pay the registration fee after the contract, at the very end."}
+          ? "Your registration is created. Sign the agreement if you have not, then pay the registration fee to send it for review."
+          : "Read your answers back, read and sign the agreement, and pay the registration fee, all on this screen. A wrong number here comes back as a rejection later."}
       </p>
 
       <div className="mt-6 space-y-4">
@@ -300,7 +301,7 @@ export function StepReviewPay({
               <SummaryRow
                 label="Other branches"
                 value="None, one location"
-                onEdit={() => onEditStep("branches")}
+                onEdit={() => onEditStep("business")}
                 editLabel="Add"
               />
             ) : (
@@ -309,7 +310,7 @@ export function StepReviewPay({
                   key={b.key}
                   index={i}
                   branch={b}
-                  onEdit={() => onEditStep("branches")}
+                  onEdit={() => onEditStep("business")}
                 />
               ))
             )}
@@ -426,71 +427,62 @@ export function StepReviewPay({
           ))}
         </div>
 
-        {/* On the pay visit the error sits under the bill, beside the button
-            that raised it. */}
-        {error && summary === null ? <Notice tone="danger">{error}</Notice> : null}
+        {/* The fee, with its amount: this is the screen that charges it (owner
+            decision 2026-09-27). `justify-between` rather than a plain row: the
+            figure is the second thing read here, not an afterthought at the end
+            of a sentence. */}
+        <div className="rounded-card border border-accent-brand bg-accent-brand/10 p-5">
+          <div className="flex items-baseline justify-between gap-4">
+            <span className="flex items-center gap-2 text-sm font-semibold">
+              <Receipt size={16} aria-hidden />
+              One time registration fee
+            </span>
+            <span className="text-2xl font-semibold tabular-nums">
+              {amount === null ? "—" : formatRwf(amount)}
+            </span>
+          </div>
+          <p className="mt-2 text-xs text-muted-foreground">
+            Charged once, when you sign and pay below. It is not refunded if the
+            review goes against you, and you are never charged a second time to
+            correct and resubmit.
+          </p>
+        </div>
       </div>
 
-      {summary === null ? (
-        <StepActions
-          onBack={onBack}
-          onNext={onCreate}
-          nextLabel="Create my registration"
-          busy={busy}
-          disabled={amount === null}
-        />
-      ) : (
-        <>
-          <div className="mt-4 space-y-4">
-          {/* The bill. Its own surface rather than another summary card: it is
-              the one block on this page that is about to take money, and it
-              should not read as a sixth row of answers. */}
-          <div className="rounded-card border border-accent-brand bg-accent-brand/10 p-5">
-            {/* The amount, on the one screen that charges it. `justify-between`
-                rather than a plain row: the figure is the second thing read
-                here, not an afterthought at the end of a sentence. */}
-            <div className="flex items-baseline justify-between gap-4">
-              <span className="flex items-center gap-2 text-sm font-semibold">
-                <Receipt size={16} aria-hidden />
-                One time registration fee
+      <div className="mt-6">
+        {amount === null ? null : summary !== null && summary.contractAcceptedAt !== null ? (
+          <>
+            {error ? <Notice tone="danger">{error}</Notice> : null}
+            <div className="mt-4 flex flex-wrap items-center gap-3">
+              <span className="text-sm text-muted-foreground">
+                {summary.legalName} is created and its agreement is signed. It is waiting for payment.
               </span>
-              <span className="text-2xl font-semibold tabular-nums">
-                {amount === null ? "—" : formatRwf(amount)}
-              </span>
+              <span className="grow" />
+              <Button
+                variant="primary"
+                onPress={() => void onSignAndPay(null)}
+                isDisabled={busy}
+                isPending={busy}
+              >
+                {/* The amount in the label too: the block above can be scrolled past,
+                    the control cannot, and a button that authorises a payment should
+                    say what it authorises. */}
+                {busy ? "Paying…" : `Pay ${formatRwf(amount)}`}
+              </Button>
             </div>
-            <p className="mt-2 text-xs text-muted-foreground">
-              Charged once. It is not refunded if the review goes against you, and
-              you are never charged a second time to correct and resubmit.
-            </p>
-          </div>
-
-          {error ? <Notice tone="danger">{error}</Notice> : null}
-          </div>
-          <div className="mt-8 flex flex-wrap items-center gap-3">
-            <span className="text-sm text-muted-foreground">
-              {summary.contractAcceptedAt === null
-                ? `${summary.legalName} is created. Accept the contract before paying.`
-                : `${summary.legalName} is created, its contract is accepted, and it is waiting for payment.`}
-            </span>
-            <span className="grow" />
-            <Button
-              variant="primary"
-              onPress={onPay}
-              isDisabled={busy}
-              isPending={busy}
-            >
-              {/* The amount in the label too. The block above can be scrolled
-                  past; the control cannot, and a button that authorises a
-                  payment should say what it authorises. */}
-              {busy
-                ? "Paying…"
-                : amount === null
-                  ? "Pay the registration fee"
-                  : `Pay ${formatRwf(amount)}`}
-            </Button>
-          </div>
-        </>
-      )}
+          </>
+        ) : (
+          <ContractSigner
+            input={contractInput}
+            actionLabel={`Sign and pay ${formatRwf(amount)}`}
+            busyLabel="Submitting…"
+            busy={busy}
+            error={error}
+            onBack={summary === null ? onBack : undefined}
+            onSign={(signature) => onSignAndPay(signature)}
+          />
+        )}
+      </div>
     </section>
   );
 }

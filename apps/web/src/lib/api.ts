@@ -41,9 +41,26 @@ export type ApiResult<T> =
    * machine readable reason when the API sent one (`contract_not_accepted`),
    * so a screen can act on a refusal without matching on its English.
    */
-  | { status: "refused"; message: string; httpStatus: number; code?: string }
+  | {
+      status: "refused";
+      message: string;
+      httpStatus: number;
+      code?: string;
+      /**
+       * The field refusals the validation pipe (or a service refusing in its
+       * shape) sent, each with its path, so a form can put the sentence under
+       * the field it came from rather than above the whole form.
+       */
+      issues?: RefusalIssue[];
+    }
   /** Unreachable, timed out, or an answer we could not read. */
   | { status: "failed" };
+
+/** One field refusal, as the API's validation pipe shapes it. */
+export interface RefusalIssue {
+  path: (string | number)[];
+  message: string;
+}
 
 /**
  * Messages that are the framework talking, not the product.
@@ -81,7 +98,25 @@ function messageOf(body: unknown, httpStatus: number): string {
     const m = (body as { message?: unknown }).message;
     if (typeof m === "string" && m.trim() && !FRAMEWORK_MESSAGE.test(m.trim())) return m;
   }
+  // "Validation failed" is the pipe's headline, not a sentence; the first
+  // field refusal under it is written for a person.
+  const first = issuesOf(body)[0];
+  if (first) return first.message;
   return fallbackFor(httpStatus);
+}
+
+/** The field refusals in an error body, when it carries any. */
+function issuesOf(body: unknown): RefusalIssue[] {
+  if (!body || typeof body !== "object" || !("issues" in body)) return [];
+  const raw = (body as { issues?: unknown }).issues;
+  if (!Array.isArray(raw)) return [];
+  return raw.flatMap((issue) => {
+    if (!issue || typeof issue !== "object") return [];
+    const { path, message } = issue as { path?: unknown; message?: unknown };
+    return Array.isArray(path) && typeof message === "string"
+      ? [{ path: path.filter((p): p is string | number => typeof p === "string" || typeof p === "number"), message }]
+      : [];
+  });
 }
 
 /** The refusal's machine readable `code`, when the body carries one. */
@@ -156,6 +191,7 @@ export async function apiFetch<T>(
       httpStatus: res.status,
       message: messageOf(body, res.status),
       ...codeOf(body),
+      ...(issuesOf(body).length > 0 ? { issues: issuesOf(body) } : {}),
     };
   }
   return { status: "ok", data: (body === NOT_JSON ? null : body) as T };

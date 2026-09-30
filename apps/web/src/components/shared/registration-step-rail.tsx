@@ -9,8 +9,11 @@ import { cn } from "@injishi/utils";
  * on `/host/start` does not open a different page so much as continue the
  * object already on screen.
  *
- * A hospitality business walks SIX steps since ADR-054 added Branches, and a
- * residence five. It used to carry three (ADR-026). The three were "You",
+ * A hospitality business and a residence both walk FIVE screens since ADR-060,
+ * and the rail names every one: Branches moved onto the Business step, and
+ * Review, contract and payment became one screen, so no screen is walked that
+ * the rail does not show (it showed six nodes over nine screens before). It
+ * carried three under ADR-026. The three were "You",
  * "Business", "Pay", which described the form and not the journey: the first
  * thing that actually happens is choosing what you are registering, and
  * attaching documents is a step a person prepares for rather than a field they
@@ -26,7 +29,6 @@ export type RegistrationStepId =
   | "place"
   | "about"
   | "business"
-  | "branches"
   | "documents"
   | "pay";
 
@@ -36,22 +38,20 @@ export interface RegistrationStep {
 }
 
 /**
- * A hospitality business's path. Branches sits after Business and before
- * Documents (ADR-054 AC-R1): the business is described, then its other
- * locations under the same TIN, then what proves it.
+ * A business's path, every screen of it (ADR-060): its branches are declared
+ * on the Business step, and the read back, the agreement and the fee are one
+ * screen at the end.
  */
 export const REGISTRATION_STEPS: ReadonlyArray<RegistrationStep> = [
   { id: "place", label: "Place" },
   { id: "about", label: "You" },
   { id: "business", label: "Business" },
-  { id: "branches", label: "Branches" },
   { id: "documents", label: "Documents" },
-  { id: "pay", label: "Pay" },
+  { id: "pay", label: "Review & pay" },
 ];
 
-/** A residence registers without branches, so its rail never shows the step. */
-export const RESIDENCE_STEPS: ReadonlyArray<RegistrationStep> =
-  REGISTRATION_STEPS.filter((s) => s.id !== "branches");
+/** A residence walks the same five screens; it simply declares no branches. */
+export const RESIDENCE_STEPS: ReadonlyArray<RegistrationStep> = REGISTRATION_STEPS;
 
 /** A broker registers a person, not a business — two steps and no fee. */
 export const BROKER_STEPS: ReadonlyArray<RegistrationStep> = [

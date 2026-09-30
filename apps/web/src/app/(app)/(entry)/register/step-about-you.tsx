@@ -1,13 +1,15 @@
 "use client";
 
 import {
+  type IdentityStatus,
   type MyProfile,
   type RegistrantCapacity,
+  type VerifiedPerson,
   countryName,
   isRwandanAddress,
 } from "@injishi/contracts";
 
-import { nationalIdError } from "@/lib/rwanda-id";
+import { nationalIdError, nationalIdFacts } from "@/lib/rwanda-id";
 
 import {
   AddressPicker,
@@ -15,6 +17,11 @@ import {
 } from "./address-picker";
 import { Button } from "@heroui/react";
 import { COUNTRY_OPTIONS } from "./country-options";
+import {
+  NationalIdVerifier,
+  PassportScanner,
+  VerifiedIdentityCard,
+} from "./identity-verifier";
 import { PhoneInput } from "./phone-input";
 import {
   ChoiceCard,
@@ -117,6 +124,20 @@ function collapse(value: string): string {
   return value.trim().replace(/\s+/g, " ");
 }
 
+/**
+ * What the wizard knows about verifying this person (ADR-060): which paths the
+ * deployment can run, who they are once verified, and how the form learns of a
+ * verification. Null when neither path can run here, which keeps the typed form.
+ */
+export interface IdentityVerification {
+  available: IdentityStatus["available"];
+  verified: NonNullable<IdentityStatus["verified"]> | null;
+  method: string | null;
+  /** True when registering is held to a verified identity here. */
+  required: boolean;
+  onVerified: (person: VerifiedPerson) => void;
+}
+
 export function StepAboutYou({
   profile,
   editing,
@@ -132,7 +153,9 @@ export function StepAboutYou({
   busy,
   onBack,
   onNext,
+  verification,
 }: {
+  verification: IdentityVerification | null;
   profile: MyProfile | null;
   editing: boolean;
   onEdit: () => void;
@@ -166,9 +189,14 @@ export function StepAboutYou({
 
       <div className="mt-6 space-y-6">
         {showStored ? (
-          <StoredProfile profile={profile} onEdit={onEdit} />
+          <>
+            <StoredProfile profile={profile} onEdit={onEdit} verified={Boolean(verification?.verified)} />
+            {verification && verification.required && !verification.verified ? (
+              <StoredIdentityCheck profile={profile} verification={verification} draft={draft} onDraftChange={onDraftChange} />
+            ) : null}
+          </>
         ) : (
-          <PersonalForm draft={draft} onChange={onDraftChange} errors={errors} />
+          <PersonalForm draft={draft} onChange={onDraftChange} errors={errors} verification={verification} />
         )}
 
         <Fieldset
@@ -197,65 +225,7 @@ export function StepAboutYou({
         </Fieldset>
 
         {capacity === "on_behalf_of" ? (
-          <div className="space-y-4 rounded-card border border-border p-4">
-            <p className="text-sm font-semibold">Who are you registering for?</p>
-            <Field
-              label="Their full name"
-              required
-              error={errors["intendedOwner.name"]}
-            >
-              <TextInput
-                value={intendedOwner.name}
-                onChange={(e) =>
-                  onIntendedOwnerChange({ ...intendedOwner, name: e.target.value })
-                }
-              />
-            </Field>
-            {/* Required (ADR-053 J25): it is what the claim is matched on, so
-                without it nobody can ever claim the business, and a typo hands
-                it to nobody. Checked as you type once something is typed. */}
-            <Field
-              label="Their National ID"
-              required
-              hint="It is how we match the owner when they claim. 16 digits."
-              error={
-                errors["intendedOwner.nationalId"] ??
-                (intendedOwner.nationalId.trim() !== ""
-                  ? (nationalIdError(intendedOwner.nationalId) ?? undefined)
-                  : undefined)
-              }
-            >
-              <TextInput
-                inputMode="numeric"
-                placeholder="1 1995 8 0012345 12 3"
-                maxLength={24}
-                value={intendedOwner.nationalId}
-                onChange={(e) =>
-                  onIntendedOwnerChange({
-                    ...intendedOwner,
-                    nationalId: e.target.value,
-                  })
-                }
-              />
-            </Field>
-            <Field
-              label="Their email"
-              required
-              hint="We send their claim invitation here."
-              error={errors["intendedOwner.email"]}
-            >
-              <TextInput
-                type="email"
-                value={intendedOwner.email}
-                onChange={(e) =>
-                  onIntendedOwnerChange({
-                    ...intendedOwner,
-                    email: e.target.value,
-                  })
-                }
-              />
-            </Field>
-          </div>
+          <IntendedOwnerFields value={intendedOwner} onChange={onIntendedOwnerChange} errors={errors} />
         ) : null}
 
         {formError ? <Notice tone="danger">{formError}</Notice> : null}
@@ -275,13 +245,136 @@ export function StepAboutYou({
   );
 }
 
+/**
+ * Who a registration is for, when it is registered on someone's behalf: the
+ * three answers the claim binds to (ADR-053 J25). Shared by About you and, when
+ * the company register moves a registrant onto this path, the Business step
+ * (ADR-060).
+ */
+export function IntendedOwnerFields({
+  value,
+  onChange,
+  errors,
+  title = "Who are you registering for?",
+}: {
+  value: { name: string; nationalId: string; email: string };
+  onChange: (next: { name: string; nationalId: string; email: string }) => void;
+  errors: Record<string, string>;
+  title?: string;
+}) {
+  return (
+    <div className="space-y-4 rounded-card border border-border p-4">
+      <p className="text-sm font-semibold">{title}</p>
+      <Field
+        label="Their full name"
+        required
+        error={errors["intendedOwner.name"]}
+      >
+        <TextInput
+          value={value.name}
+          onChange={(e) =>
+            onChange({ ...value, name: e.target.value })
+          }
+        />
+      </Field>
+      {/* Required (ADR-053 J25): it is what the claim is matched on, so
+          without it nobody can ever claim the business, and a typo hands
+          it to nobody. Checked as you type once something is typed. */}
+      <Field
+        label="Their National ID"
+        required
+        hint="It is how we match the owner when they claim. 16 digits."
+        error={
+          errors["intendedOwner.nationalId"] ??
+          (value.nationalId.trim() !== ""
+            ? (nationalIdError(value.nationalId) ?? undefined)
+            : undefined)
+        }
+      >
+        <TextInput
+          inputMode="numeric"
+          placeholder="1 1995 8 0012345 12 3"
+          maxLength={24}
+          value={value.nationalId}
+          onChange={(e) =>
+            onChange({
+              ...value,
+              nationalId: e.target.value,
+            })
+          }
+        />
+      </Field>
+      <Field
+        label="Their email"
+        required
+        hint="We send their claim invitation here."
+        error={errors["intendedOwner.email"]}
+      >
+        <TextInput
+          type="email"
+          value={value.email}
+          onChange={(e) =>
+            onChange({
+              ...value,
+              email: e.target.value,
+            })
+          }
+        />
+      </Field>
+    </div>
+  );
+}
+
+/**
+ * A returning registrant whose details are on file but not verified: registering
+ * is held to a verified identity here, so they validate the document they hold.
+ */
+function StoredIdentityCheck({
+  profile,
+  verification,
+  draft,
+  onDraftChange,
+}: {
+  profile: MyProfile;
+  verification: IdentityVerification;
+  draft: PersonalDraft;
+  onDraftChange: (next: PersonalDraft) => void;
+}) {
+  const passport = profile.document?.documentType === "passport";
+  return (
+    <div className="space-y-3 rounded-card border border-border p-4">
+      <p className="text-sm font-semibold">Verify your identity</p>
+      <p className="text-sm text-muted-foreground">
+        Registering a business needs a verified identity. {passport ? "Scan the passport on your account." : "Validate the National ID on your account; we send a code to the phone the register holds for it."}
+      </p>
+      {passport ? (
+        verification.available.passport ? (
+          <PassportScanner onVerified={verification.onVerified} />
+        ) : (
+          <Notice tone="warning">Passport scanning is not available here yet.</Notice>
+        )
+      ) : verification.available.nationalId ? (
+        <NationalIdVerifier
+          documentNumber={draft.documentNumber}
+          onDocumentNumberChange={(documentNumber) => onDraftChange({ ...draft, documentNumber })}
+          onVerified={verification.onVerified}
+        />
+      ) : (
+        <Notice tone="warning">National ID lookup is not available here yet.</Notice>
+      )}
+    </div>
+  );
+}
+
 /** What a returning registrant confirms rather than retypes. */
 function StoredProfile({
   profile,
   onEdit,
+  verified,
 }: {
   profile: MyProfile;
   onEdit: () => void;
+  verified: boolean;
 }) {
   const address = profile.address;
   const addressLine =
@@ -319,8 +412,9 @@ function StoredProfile({
         </Button>
       </div>
       <p className="mt-3 text-xs text-muted-foreground">
-        These are the details on your Injishi account. Government reviewers see
-        them alongside your business.
+        {verified
+          ? "Your identity is verified. Government reviewers see these details alongside your business."
+          : "These are the details on your Injishi account. Government reviewers see them alongside your business."}
       </p>
     </div>
   );
@@ -340,10 +434,12 @@ function PersonalForm({
   draft,
   onChange,
   errors,
+  verification,
 }: {
   draft: PersonalDraft;
   onChange: (next: PersonalDraft) => void;
   errors: Record<string, string>;
+  verification: IdentityVerification | null;
 }) {
   const isPassport = draft.documentType === "passport";
 
@@ -360,158 +456,214 @@ function PersonalForm({
       ? nationalIdError(draft.documentNumber)
       : null;
 
+  /** What the card says, and whether the date of birth disagrees with it. */
+  const idFacts = isPassport ? null : nationalIdFacts(draft.documentNumber);
+  const birthYearClash =
+    idFacts !== null &&
+    /^\d{4}-/.test(draft.dateOfBirth) &&
+    Number(draft.dateOfBirth.slice(0, 4)) !== idFacts.birthYear;
+
+  const path = verification && !verification.verified
+    ? isPassport
+      ? verification.available.passport
+        ? "passport"
+        : null
+      : verification.available.nationalId
+        ? "national_id"
+        : null
+    : null;
+
   return (
     <div className="space-y-4">
-      {/* One legend over three inputs, because they are one question. The
-          fieldset also carries `errors["fullName"]` — the contract validates
-          the composed name and reports against that one path, and hanging its
-          message on the first name box alone would blame the wrong field. */}
-      <Fieldset
-        legend="Your name"
-        hint="Exactly as written on your ID or passport, in the same order."
-        error={errors["fullName"]}
-      >
-        <div className="grid gap-4 sm:grid-cols-3">
-          <Field label="First name" required error={errors["firstName"]}>
-            <TextInput
-              id="you-first-name"
-              autoComplete="given-name"
-              value={draft.firstName}
-              onChange={(e) => onChange({ ...draft, firstName: e.target.value })}
+      {verification?.verified ? (
+        <VerifiedIdentityCard person={verification.verified} method={verification.method} />
+      ) : (
+        <>
+          <Fieldset legend="Which document do you have?" error={errors["document"]}>
+            <div className="grid gap-3 sm:grid-cols-2">
+              <ChoiceCard
+                name="documentType"
+                value="national_id"
+                checked={!isPassport}
+                title="Rwandan National ID"
+                description="16 digits."
+                onSelect={() =>
+                  onChange({
+                    ...draft,
+                    documentType: "national_id",
+                    documentNumber: "",
+                    issuingCountry: "RW",
+                  })
+                }
+              />
+              <ChoiceCard
+                name="documentType"
+                value="passport"
+                checked={isPassport}
+                title="Passport"
+                description="Any country."
+                onSelect={() =>
+                  onChange({
+                    ...draft,
+                    documentType: "passport",
+                    documentNumber: "",
+                  })
+                }
+              />
+            </div>
+          </Fieldset>
+          {path === "national_id" ? (
+            <NationalIdVerifier
+              documentNumber={draft.documentNumber}
+              onDocumentNumberChange={(documentNumber) => onChange({ ...draft, documentNumber })}
+              onVerified={verification!.onVerified}
+              error={errors["document.documentNumber"]}
             />
-          </Field>
-          <Field
-            label="Middle name"
-            hint="Leave blank if you have none."
-            error={errors["middleName"]}
-          >
-            <TextInput
-              id="you-middle-name"
-              autoComplete="additional-name"
-              value={draft.middleName}
-              onChange={(e) =>
-                onChange({ ...draft, middleName: e.target.value })
-              }
-            />
-          </Field>
-          <Field label="Last name" required error={errors["lastName"]}>
-            <TextInput
-              id="you-last-name"
-              autoComplete="family-name"
-              value={draft.lastName}
-              onChange={(e) => onChange({ ...draft, lastName: e.target.value })}
-            />
-          </Field>
-        </div>
-      </Fieldset>
+          ) : path === "passport" ? (
+            <PassportScanner onVerified={verification!.onVerified} />
+          ) : (
+            <>
+              {/* One legend over three inputs, because they are one question. The
+                  fieldset also carries `errors["fullName"]` — the contract validates
+                  the composed name and reports against that one path, and hanging its
+                  message on the first name box alone would blame the wrong field. */}
+              <Fieldset
+                legend="Your name"
+                hint="Exactly as written on your ID or passport, in the same order."
+                error={errors["fullName"]}
+              >
+                <div className="grid gap-4 sm:grid-cols-3">
+                  <Field label="First name" required error={errors["firstName"]}>
+                    <TextInput
+                      id="you-first-name"
+                      autoComplete="given-name"
+                      value={draft.firstName}
+                      onChange={(e) => onChange({ ...draft, firstName: e.target.value })}
+                    />
+                  </Field>
+                  <Field
+                    label="Middle name"
+                    hint="Leave blank if you have none."
+                    error={errors["middleName"]}
+                  >
+                    <TextInput
+                      id="you-middle-name"
+                      autoComplete="additional-name"
+                      value={draft.middleName}
+                      onChange={(e) =>
+                        onChange({ ...draft, middleName: e.target.value })
+                      }
+                    />
+                  </Field>
+                  <Field label="Last name" required error={errors["lastName"]}>
+                    <TextInput
+                      id="you-last-name"
+                      autoComplete="family-name"
+                      value={draft.lastName}
+                      onChange={(e) => onChange({ ...draft, lastName: e.target.value })}
+                    />
+                  </Field>
+                </div>
+              </Fieldset>
 
-      <Fieldset legend="Which document do you have?" error={errors["document"]}>
-        <div className="grid gap-3 sm:grid-cols-2">
-          <ChoiceCard
-            name="documentType"
-            value="national_id"
-            checked={!isPassport}
-            title="Rwandan National ID"
-            description="16 digits."
-            onSelect={() =>
-              onChange({
-                ...draft,
-                documentType: "national_id",
-                documentNumber: "",
-                issuingCountry: "RW",
-              })
-            }
-          />
-          <ChoiceCard
-            name="documentType"
-            value="passport"
-            checked={isPassport}
-            title="Passport"
-            description="Any country."
-            onSelect={() =>
-              onChange({
-                ...draft,
-                documentType: "passport",
-                documentNumber: "",
-              })
-            }
-          />
-        </div>
-      </Fieldset>
 
-      <Field
-        label={isPassport ? "Passport number" : "National ID number"}
-        required
-        hint={
-          isPassport
-            ? "6 to 12 letters or digits."
-            : "16 digits, as printed on the card. Type it in groups if you like — 1 1995 8 0012345 12 3 — the spaces are ignored."
-        }
-        error={errors["document.documentNumber"] ?? liveIdError ?? undefined}
-      >
-        <TextInput
-          id="you-document-number"
-          inputMode={isPassport ? "text" : "numeric"}
-          autoComplete="off"
-          placeholder={isPassport ? "PC1234567" : "1 1995 8 0012345 12 3"}
-          maxLength={isPassport ? 12 : 24}
-          aria-invalid={
-            errors["document.documentNumber"] ?? liveIdError ? true : undefined
-          }
-          value={draft.documentNumber}
-          onChange={(e) => onChange({ ...draft, documentNumber: e.target.value })}
-        />
-      </Field>
+              <Field
+                label={isPassport ? "Passport number" : "National ID number"}
+                required
+                hint={
+                  isPassport
+                    ? "6 to 12 letters or digits."
+                    : "16 digits, as printed on the card. Type it in groups if you like — 1 1995 8 0012345 12 3 — the spaces are ignored."
+                }
+                error={errors["document.documentNumber"] ?? liveIdError ?? undefined}
+              >
+                <TextInput
+                  id="you-document-number"
+                  inputMode={isPassport ? "text" : "numeric"}
+                  autoComplete="off"
+                  placeholder={isPassport ? "PC1234567" : "1 1995 8 0012345 12 3"}
+                  maxLength={isPassport ? 12 : 24}
+                  aria-invalid={
+                    errors["document.documentNumber"] ?? liveIdError ? true : undefined
+                  }
+                  value={draft.documentNumber}
+                  onChange={(e) => {
+                    const documentNumber = e.target.value;
+                    // The moment the ID becomes whole, a gender still unanswered is
+                    // read off it (Phase 0). Only then, and only into a blank: a gender
+                    // the person chose is theirs, and so is changing this one.
+                    const facts = isPassport ? null : nationalIdFacts(documentNumber);
+                    const becameWhole =
+                      facts !== null && nationalIdFacts(draft.documentNumber) === null;
+                    onChange({
+                      ...draft,
+                      documentNumber,
+                      ...(becameWhole && facts.gender && draft.gender === ""
+                        ? { gender: facts.gender }
+                        : {}),
+                    });
+                  }}
+                />
+              </Field>
 
-      {isPassport ? (
-        <Field
-          label="Issuing country"
-          required
-          error={errors["document.issuingCountry"]}
-        >
-          <SelectField
-            value={draft.issuingCountry}
-            options={COUNTRY_OPTIONS}
-            placeholder="Choose a country"
-            invalid={Boolean(errors["document.issuingCountry"])}
-            onChange={(issuingCountry) =>
-              onChange({ ...draft, issuingCountry })
-            }
-          />
-        </Field>
-      ) : null}
+              {isPassport ? (
+                <Field
+                  label="Issuing country"
+                  required
+                  error={errors["document.issuingCountry"]}
+                >
+                  <SelectField
+                    value={draft.issuingCountry}
+                    options={COUNTRY_OPTIONS}
+                    placeholder="Choose a country"
+                    invalid={Boolean(errors["document.issuingCountry"])}
+                    onChange={(issuingCountry) =>
+                      onChange({ ...draft, issuingCountry })
+                    }
+                  />
+                </Field>
+              ) : null}
 
-      <div className="grid gap-4 sm:grid-cols-2">
-        <Field
-          label="Date of birth"
-          required
-          hint="You must be 18 or over to register a business."
-          error={errors["dateOfBirth"]}
-        >
-          <TextInput
-            type="date"
-            value={draft.dateOfBirth}
-            onChange={(e) => onChange({ ...draft, dateOfBirth: e.target.value })}
-          />
-        </Field>
+              <div className="grid gap-4 sm:grid-cols-2">
+                <Field
+                  label="Date of birth"
+                  required
+                  hint={
+                    birthYearClash
+                      ? `Your National ID says you were born in ${idFacts?.birthYear}. Check the year.`
+                      : "You must be 18 or over to register a business."
+                  }
+                  error={errors["dateOfBirth"]}
+                >
+                  <TextInput
+                    type="date"
+                    value={draft.dateOfBirth}
+                    onChange={(e) => onChange({ ...draft, dateOfBirth: e.target.value })}
+                  />
+                </Field>
 
-        <Field label="Gender" hint="Optional." error={errors["gender"]}>
-          {/* "Rather not say now" is an answer, not an absence, so it stays
-              an option. See the sentinel note on `SelectField`. */}
-          <SelectField
-            value={draft.gender}
-            options={[
-              { value: "", label: "Rather not say now" },
-              { value: "female", label: "Female" },
-              { value: "male", label: "Male" },
-              { value: "other", label: "Other" },
-              { value: "prefer_not_to_say", label: "Prefer not to say" },
-            ]}
-            invalid={Boolean(errors["gender"])}
-            onChange={(gender) => onChange({ ...draft, gender })}
-          />
-        </Field>
-      </div>
+                <Field label="Gender" hint="Optional." error={errors["gender"]}>
+                  {/* "Rather not say now" is an answer, not an absence, so it stays
+                      an option. See the sentinel note on `SelectField`. */}
+                  <SelectField
+                    value={draft.gender}
+                    options={[
+                      { value: "", label: "Rather not say now" },
+                      { value: "female", label: "Female" },
+                      { value: "male", label: "Male" },
+                      { value: "other", label: "Other" },
+                      { value: "prefer_not_to_say", label: "Prefer not to say" },
+                    ]}
+                    invalid={Boolean(errors["gender"])}
+                    onChange={(gender) => onChange({ ...draft, gender })}
+                  />
+                </Field>
+              </div>
+
+            </>
+          )}
+        </>
+      )}
 
       <Field
         label="Phone"

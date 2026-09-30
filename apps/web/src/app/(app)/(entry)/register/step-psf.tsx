@@ -26,6 +26,7 @@ import {
   PsfTradeDirection,
   psfBusinessActivityFor,
   splitPsfName,
+  type MyProfileDocument,
   type PsfTier,
 } from "@injishi/contracts";
 import { Checkbox } from "@injishi/ui";
@@ -55,6 +56,12 @@ export interface PsfDraft {
   email: string;
   idDocumentType: string;
   idDocumentNumber: string;
+  /**
+   * The masked document on the registrant's profile, e.g. "National ID
+   * ••••1234", when the application uses it (registration Phase 0). The server
+   * copies the full number; null means the ID is typed above.
+   */
+  idOnFile: string | null;
   dateOfBirth: string;
   consent: boolean;
 }
@@ -70,6 +77,12 @@ export function psfDraftFrom(input: {
   onBehalf: boolean;
   intendedOwner: { name: string; nationalId: string; email: string };
   sessionEmail: string | null;
+  /**
+   * The document on a returning registrant's profile. Its number comes back
+   * masked, so it can be named but never retyped for them; the application
+   * says "use the one on file" instead.
+   */
+  documentOnFile?: MyProfileDocument | null;
 }): PsfDraft {
   const { business, personal } = input;
   const base = {
@@ -98,9 +111,11 @@ export function psfDraftFrom(input: {
       email: input.intendedOwner.email,
       idDocumentType: "national_id",
       idDocumentNumber: input.intendedOwner.nationalId.replace(/\s+/g, ""),
+      idOnFile: null,
       dateOfBirth: "",
     };
   }
+  const onFile = input.documentOnFile ?? null;
   return {
     ...base,
     contactRole: "owner",
@@ -110,8 +125,11 @@ export function psfDraftFrom(input: {
     gender: personal.gender === "male" || personal.gender === "female" ? personal.gender : "",
     phoneE164: personal.phoneE164,
     email: input.sessionEmail ?? "",
-    idDocumentType: personal.documentType,
-    idDocumentNumber: personal.documentNumber.replace(/\s+/g, ""),
+    idDocumentType: onFile?.documentType ?? personal.documentType,
+    idDocumentNumber: onFile ? "" : personal.documentNumber.replace(/\s+/g, ""),
+    idOnFile: onFile
+      ? `${onFile.documentType === "passport" ? "Passport" : "National ID"} ${onFile.documentNumberMasked}`
+      : null,
     dateOfBirth: personal.dateOfBirth,
   };
 }
@@ -137,7 +155,9 @@ export function psfCandidate(d: PsfDraft): unknown {
     ...(d.gender ? { gender: d.gender } : {}),
     phoneE164: d.phoneE164,
     email: d.email,
-    idDocument: { documentType: d.idDocumentType, documentNumber: d.idDocumentNumber },
+    ...(d.idOnFile
+      ? { useDocumentOnFile: true }
+      : { idDocument: { documentType: d.idDocumentType, documentNumber: d.idDocumentNumber } }),
     dateOfBirth: d.dateOfBirth,
     consent: d.consent,
   };
@@ -394,6 +414,21 @@ export function StepPsf({
                 <TextInput type="email" value={draft.email} onChange={(e) => set("email", e.target.value)} />
               </Field>
             </div>
+            {draft.idOnFile ? (
+              <div>
+                <span className="text-sm font-semibold">ID</span>
+                <p className="mt-1.5 flex flex-wrap items-center gap-x-3 text-sm">
+                  <span>{draft.idOnFile}, from your profile</span>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onPress={() => onChange({ ...draft, idOnFile: null })}
+                  >
+                    Use a different ID
+                  </Button>
+                </p>
+              </div>
+            ) : (
             <div className="grid gap-4 sm:grid-cols-2">
               <Field label="ID type" required>
                 <SelectField
@@ -409,6 +444,7 @@ export function StepPsf({
                 <TextInput value={draft.idDocumentNumber} onChange={(e) => set("idDocumentNumber", e.target.value)} />
               </Field>
             </div>
+            )}
             <Field label="Date of birth" error={err("dateOfBirth")} required>
               <TextInput type="date" value={draft.dateOfBirth} onChange={(e) => set("dateOfBirth", e.target.value)} />
             </Field>

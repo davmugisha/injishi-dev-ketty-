@@ -73,6 +73,53 @@ export async function uploadCertificate(
   }
 }
 
+/**
+ * Send a photo of an identity document, or a selfie, as `kind=id_photo`
+ * (ADR-060) through the generic `POST /api/v1/uploads`, and get back its key.
+ *
+ * The attempt token makes a retry on a flaky connection land on the same
+ * object rather than a second copy: the server derives the key from it.
+ */
+export async function uploadIdPhoto(
+  file: File,
+  attemptToken: string,
+): Promise<ApiResult<{ objectKey: string }>> {
+  const form = new FormData();
+  form.append("kind", "id_photo");
+  form.append("attemptToken", attemptToken);
+  form.append("file", file, file.name);
+
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), UPLOAD_TIMEOUT_MS);
+  try {
+    const res = await fetch(`${API_URL}/api/v1/uploads`, {
+      method: "POST",
+      body: form,
+      credentials: "include",
+      signal: controller.signal,
+    });
+    if (res.status === 401) return { status: "unauthenticated" };
+    const body = (await res.json().catch(() => null)) as {
+      objectKey?: unknown;
+      message?: string;
+    } | null;
+    if (!res.ok) {
+      return {
+        status: "refused",
+        message: body?.message ?? "That photo could not be uploaded.",
+        httpStatus: res.status,
+      };
+    }
+    return typeof body?.objectKey === "string"
+      ? { status: "ok", data: { objectKey: body.objectKey } }
+      : { status: "failed" };
+  } catch {
+    return { status: "failed" };
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
 /** Drop a file that was uploaded but never attached to a registration. */
 export async function removeCertificate(
   objectKey: string,

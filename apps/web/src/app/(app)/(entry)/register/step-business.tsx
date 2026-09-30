@@ -1,11 +1,21 @@
 "use client";
 
-import { type RegistrantRole } from "@injishi/contracts";
-import { Building2, MapPin } from "lucide-react";
+import {
+  type RegistrantCapacity,
+  type RegistrantRole,
+  type RegistryBusiness,
+  type TinCheckResult,
+} from "@injishi/contracts";
+import { Button } from "@heroui/react";
+import { Building2, CheckCircle2, Home, MapPin } from "lucide-react";
+import { useState } from "react";
 
+import { checkTin } from "@/data/registration";
 import { upiError } from "@/lib/upi";
 
 import { AddressPicker, type AddressDraft } from "./address-picker";
+import { IntendedOwnerFields } from "./step-about-you";
+import { BranchesEditor, type BranchDraft } from "./step-branches";
 import {
   findRegistrationKind,
   type RegistrationKind,
@@ -62,6 +72,15 @@ export interface BusinessDraft {
   address: AddressDraft;
 }
 
+/** The TIN as the contract reads it: spaces dropped. */
+function normalizeTin(raw: string): string {
+  return raw.replace(/\s+/g, "");
+}
+
+function isFullTin(raw: string): boolean {
+  return /^\d{9}$/.test(normalizeTin(raw));
+}
+
 export function StepBusiness({
   role,
   kind,
@@ -73,7 +92,26 @@ export function StepBusiness({
   onBack,
   onNext,
   onChangeKind,
+  homeAddress,
+  branches,
+  onBranchesChange,
+  registry,
+  onRegistry,
+  capacity,
+  intendedOwner,
+  onIntendedOwnerChange,
 }: {
+  /** The address About you holds, stored or typed; null when none. */
+  homeAddress: AddressDraft | null;
+  /** A hotel's other locations, declared on this step since ADR-060. */
+  branches: BranchDraft[];
+  onBranchesChange: (next: BranchDraft[]) => void;
+  /** The company the register holds for the TIN, once asked (ADR-060). */
+  registry: RegistryBusiness | null;
+  onRegistry: (found: RegistryBusiness | null, registrantIsDirector: boolean | null) => void;
+  capacity: RegistrantCapacity;
+  intendedOwner: { name: string; nationalId: string; email: string };
+  onIntendedOwnerChange: (next: { name: string; nationalId: string; email: string }) => void;
   role: RegistrantRole;
   /** The tile picked on step 1. It, not the class, names what is registered. */
   kind: RegistrationKind | null;
@@ -103,6 +141,71 @@ export function StepBusiness({
    * would invite an answer that contradicts the tile.
    */
   const asksForClassName = kind === "other";
+
+  /**
+   * The home address from About you, offered as a one-press copy (registration
+   * Phase 0) when it is a placed Rwandan address and not already the answer.
+   * Many small hosts run the business from home; everyone else ignores it.
+   */
+  const canUseHome =
+    homeAddress !== null &&
+    homeAddress.country === "RW" &&
+    homeAddress.sectorId !== "" &&
+    JSON.stringify(homeAddress) !== JSON.stringify(draft.address);
+
+  /**
+   * The TIN, asked of RRA here rather than after payment (registration Phase
+   * 0). The verdict is kept against the TIN it answered, so editing the field
+   * drops a stale one instead of showing a tick beside a different number.
+   */
+  const [tinCheck, setTinCheck] = useState<{
+    tin: string;
+    verdict: TinCheckResult;
+  } | null>(null);
+  const [tinChecking, setTinChecking] = useState(false);
+  const tinVerdict =
+    isHospitality && tinCheck?.tin === normalizeTin(draft.tin)
+      ? tinCheck.verdict
+      : null;
+  const tinRefusal =
+    tinVerdict?.result === "failed" || tinVerdict?.result === "taken"
+      ? tinVerdict.message
+      : undefined;
+
+  /**
+   * The legal name is the register's once the register named it (ADR-060),
+   * and `create` refuses any other, so the field is locked rather than left to
+   * be typed into a refusal.
+   */
+  const nameFromRegister =
+    isHospitality && registry !== null && draft.legalName === registry.legalName;
+
+  async function validateTin(): Promise<TinCheckResult | null> {
+    const tin = normalizeTin(draft.tin);
+    if (tinCheck?.tin === tin) return tinCheck.verdict;
+    setTinChecking(true);
+    const res = await checkTin(tin);
+    setTinChecking(false);
+    // No answer at all is read like RRA being down: never a refusal, because
+    // the check after payment still runs.
+    if (res.status !== "ok") return null;
+    setTinCheck({ tin, verdict: res.data });
+    // The register's answer fills the step (ADR-060): legal name, address,
+    // and whether the registrant is one of its directors.
+    if (res.data.result === "verified") {
+      onRegistry(res.data.business, res.data.registrantIsDirector);
+    }
+    return res.data;
+  }
+
+  /** Continue, but never past a TIN RRA refused or another business holds. */
+  async function guardedNext(): Promise<void> {
+    if (isHospitality && isFullTin(draft.tin)) {
+      const verdict = await validateTin();
+      if (verdict?.result === "failed" || verdict?.result === "taken") return;
+    }
+    onNext();
+  }
 
   /**
    * The UPI rule, applied as it is typed.
@@ -154,12 +257,16 @@ export function StepBusiness({
         <Field
           label="Registered business name"
           required
-          hint="Exactly as it appears on your registration."
+          hint={
+            nameFromRegister
+              ? "As the company register holds it for this TIN. It cannot be changed here."
+              : "Exactly as it appears on your registration."
+          }
           error={errors["business.legalName"]}
         >
           <TextInput
             id="biz-legal-name"
-
+            readOnly={nameFromRegister}
             value={draft.legalName}
             onChange={(e) => onChange({ ...draft, legalName: e.target.value })}
           />
@@ -188,17 +295,70 @@ export function StepBusiness({
             <Field
               label="TIN"
               required
-              hint="Your 9 digit RRA Tax Identification Number. We check it against RRA."
-              error={errors["business.tin"]}
+              hint="Your 9 digit RRA Tax Identification Number. We check it with RRA now, before you pay anything."
+              error={errors["business.tin"] ?? tinRefusal}
             >
-              <TextInput
-                id="biz-tin"
-
-                inputMode="numeric"
-                value={draft.tin}
-                onChange={(e) => onChange({ ...draft, tin: e.target.value })}
-              />
+              <span className="flex gap-2">
+                <TextInput
+                  id="biz-tin"
+                  className="grow"
+                  inputMode="numeric"
+                  value={draft.tin}
+                  onChange={(e) => onChange({ ...draft, tin: e.target.value })}
+                  onBlur={() => {
+                    if (isFullTin(draft.tin)) void validateTin();
+                  }}
+                />
+                <Button
+                  variant="outline"
+                  onPress={() => void validateTin()}
+                  isDisabled={!isFullTin(draft.tin)}
+                  isPending={tinChecking}
+                >
+                  {tinChecking ? "Checking…" : "Validate"}
+                </Button>
+              </span>
             </Field>
+            {tinVerdict?.result === "verified" ? (
+              <p className="flex items-center gap-1.5 text-sm" role="status">
+                <CheckCircle2 className="size-4 text-success" aria-hidden="true" />
+                {tinVerdict.message}
+              </p>
+            ) : tinVerdict?.result === "pending" ? (
+              <p className="text-sm text-muted-foreground" role="status">
+                {tinVerdict.message}
+              </p>
+            ) : null}
+
+            {/* What the company register said (ADR-060): the name and address
+                above came from it, and a registrant it does not list as a
+                director registers on the owner's behalf. */}
+            {registry && tinVerdict?.result === "verified" ? (
+              <Notice tone="info">
+                <b>From the company register:</b> {registry.legalName}
+                {registry.registeredOn ? `, registered on ${registry.registeredOn}` : ""}.
+                We filled in its name and address; add what the register does
+                not hold.
+                {registry.directors.length > 0
+                  ? ` Directors: ${registry.directors.map((d) => d.name).join(", ")}.`
+                  : ""}
+                {registry.generated
+                  ? " (Demo: no real register is connected, so this company was generated.)"
+                  : ""}
+              </Notice>
+            ) : null}
+            {registry && registry.directors.length > 0 && capacity === "on_behalf_of" ? (
+              <IntendedOwnerFields
+                title={
+                  tinVerdict?.registrantIsDirector === false
+                    ? "You are not one of its directors, so you register on the owner's behalf. Who owns it?"
+                    : "Who are you registering for?"
+                }
+                value={intendedOwner}
+                onChange={onIntendedOwnerChange}
+                errors={errors}
+              />
+            ) : null}
 
             <div className="grid gap-4 sm:grid-cols-2">
               <Field
@@ -368,6 +528,17 @@ export function StepBusiness({
             Give the cell and village if you know them — that is what gets
             someone to the door.
           </p>
+          {canUseHome ? (
+            <Button
+              className="mt-3"
+              variant="outline"
+              size="sm"
+              onPress={() => onChange({ ...draft, address: { ...homeAddress } })}
+            >
+              <Home size={14} aria-hidden />
+              Same as my home address
+            </Button>
+          ) : null}
           <div className="mt-4">
             <AddressPicker
               idPrefix="biz"
@@ -381,14 +552,24 @@ export function StepBusiness({
           </div>
         </div>
 
+        {/* A hotel's other locations, on this step since ADR-060. */}
+        {isHospitality ? (
+          <BranchesEditor
+            headOfficeAddress={draft.address}
+            drafts={branches}
+            onChange={onBranchesChange}
+            errors={errors}
+          />
+        ) : null}
+
         {formError ? <Notice tone="danger">{formError}</Notice> : null}
       </div>
 
       <StepActions
         onBack={onBack}
-        onNext={onNext}
+        onNext={() => void guardedNext()}
         nextLabel="Continue"
-        busy={busy}
+        busy={busy || tinChecking}
       />
     </section>
   );

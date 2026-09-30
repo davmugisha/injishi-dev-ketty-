@@ -8,9 +8,10 @@
  * cannot drift into a second private copy of the pipeline.
  *
  * Mapping `OversightQueueItem` into the screen's `RegOrg` keeps the existing
- * queue UI. Fields the wire does not carry (docs, tourism licence, OBO flag)
- * stay empty rather than invented — inventing them would put a second, staler
- * answer beside the server's.
+ * queue UI. The documents, tourism licence and OBO flag used to stay empty
+ * because the wire did not carry them, which flagged every hotel "No tourism
+ * license"; it carries them now (registration Phase 0). Fields it still does
+ * not carry stay empty rather than invented.
  */
 
 import {
@@ -36,6 +37,15 @@ function ageHours(iso: string): number {
   return Math.max(0, Math.floor((Date.now() - then) / 3_600_000));
 }
 
+/** How the queue names a certificate kind (`org_certificate_kind`). */
+const CERTIFICATE_LABEL: Record<string, string> = {
+  rdb_grade: "RDB grade certificate",
+  tourism_license: "Tourism licence",
+  tax_clearance: "Tax clearance",
+  fire_safety: "Fire safety certificate",
+  health_inspection: "Health inspection",
+};
+
 function domainToType(domain: string): BusinessType {
   if (domain === "residence") return "landlord";
   if (domain === "broker") return "broker";
@@ -55,13 +65,20 @@ export function queueItemToRegOrg(item: OversightQueueItem): RegOrg {
     biz: item.legalName,
     type: domainToType(item.domain),
     registrant: "other",
+    // The owner the file names (ADR-060): the intended owner on an on behalf
+    // registration, otherwise the person who registered it.
+    owner: (item.onBehalfOf ? item.intendedOwnerName : item.registrantName) ?? undefined,
     tin: item.tin ?? "",
     cls: item.accommodationClass ?? "",
     upi: item.upi ?? undefined,
     district: item.districtName ?? "—",
     sector: item.sectorName ?? "—",
     address: item.addressText ?? "—",
-    docs: [],
+    tourismLic: item.tourismLicenseNumber ?? undefined,
+    docs: item.certificates.map((c) => [
+      c.kind === "other" ? (c.kindOther ?? "Other document") : (CERTIFICATE_LABEL[c.kind] ?? c.kind),
+      c.certificateNumber ? `No. ${c.certificateNumber}` : "No number given",
+    ]),
     branches: item.branches.map((b) => ({
       name: b.name,
       district: b.districtName,
@@ -70,8 +87,11 @@ export function queueItemToRegOrg(item: OversightQueueItem): RegOrg {
     stage: item.status as RegStage,
     ageH: ageHours(item.waitingSince),
     submittedTs: item.waitingSince,
-    obo: false,
-    tinOk: true,
+    obo: item.onBehalfOf,
+    // The newest RRA answer on record (ADR-060). A business reaches either
+    // queue only by passing the check, so a missing record still reads as passed.
+    tinOk: item.tinCheck ? item.tinCheck.result === "verified" : true,
+    tinMode: item.tinCheck?.adapterMode,
     fieldVerifiedBy: item.blockedBySeparationOfDuties ? "you" : null,
     approvedBy: null,
     rejectReason: null,
