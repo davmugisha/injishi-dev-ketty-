@@ -52,6 +52,7 @@ import {
 import { useTheme } from '@/theme/theme';
 import { useT, type Translate } from '@/i18n/i18n';
 import { checkInGate, useCheckInTrip, useTrip, type Trip } from '@/data/trips';
+import { isRealBooking, submitSelfCheckIn } from '@/data/self-check-in';
 import {
   CHECK_IN_STEPS,
   DOCUMENT_LABEL,
@@ -130,6 +131,17 @@ export function TripCheckIn({ bookingId }: { bookingId: string | undefined }) {
 
   const commit = async () => {
     setCommitting(true);
+    // A real booking sends the document and its photo to the API (ADR-060);
+    // a fixture trip has no booking on the server to send to. A send that
+    // fails keeps the draft and the screen, so nothing typed is lost.
+    if (isRealBooking(trip.id)) {
+      const sent = await submitSelfCheckIn(trip.id, handle.draft);
+      if (sent.status !== 'ok') {
+        setCommitting(false);
+        toast.show(t('checkin.sendFailed'), 'danger');
+        return;
+      }
+    }
     await checkIn(trip.id);
     handle.clear();
     toast.show(t('checkin.doneToast'), 'success');

@@ -75,6 +75,10 @@ export const ENDPOINTS = {
   meOrderable: apiPath('/me/orderable'),
   /** `POST` — place an order charged to the room. Needs an `Idempotency-Key`. */
   meOrders: apiPath('/me/orders'),
+  /** `POST` — the guest's own check-in before arrival for booking `:p`: the
+   *  document, the key of the ID photo uploaded first, and an address (ADR-060). */
+  meBookingCheckIn: (bookingId: string) =>
+    apiPath(`/me/bookings/${encodeURIComponent(bookingId)}/check-in`),
 
   /** `GET` — which platform the API is: demo or production, sample data, last
    *  reset (ADR-043). Public; the app's one demo signal, see `queries/platform.ts`. */
