@@ -1,4 +1,4 @@
-import type { MyProfile, PersonalDetails } from '@injishi/contracts';
+import type { IdentityDocumentInput, MyProfile, PersonalDetails } from '@injishi/contracts';
 import { isRwandanAddress } from '@injishi/contracts';
 import {
   BadRequestException,
@@ -8,6 +8,7 @@ import {
 
 import { GeographyService } from '../../geography/application/geography.service';
 import { maskIdentifier } from '../../../shared/identity/mask';
+import { IdentityRepository } from '../infrastructure/identity.repository';
 import {
   DuplicateIdentityDocumentError,
   ProfileRepository,
@@ -36,13 +37,16 @@ export class ProfileService {
      * business can never be told different things about the same pair.
      */
     private readonly geography: GeographyService,
+    /** Read only: a verified identity bounds what Step 1 may say (ADR-060). */
+    private readonly identities: IdentityRepository,
   ) {}
 
   /** Save Step 1, refusing a document that already anchors another account. */
   async save(userId: string, details: PersonalDetails): Promise<MyProfile> {
     await this.assertVillagePlaced(details);
+    const document = await this.resolveDocument(userId, details);
     try {
-      await this.profiles.save(userId, details);
+      await this.profiles.save(userId, { ...details, document });
     } catch (err) {
       if (err instanceof DuplicateIdentityDocumentError) {
         throw new ConflictException(err.message);
@@ -50,6 +54,74 @@ export class ProfileService {
       throw err;
     }
     return this.read(userId);
+  }
+
+  /**
+   * The document this save keeps, and the refusals a VERIFIED identity owes
+   * (ADR-060).
+   *
+   * Once the register or a document verifier has said who someone is, Step 1
+   * can no longer say otherwise: a different document, name or birth date is
+   * refused at its own field. The name is compared ignoring case and spacing,
+   * because "RAYAN  Iraguha" is the same person typed differently. A verified
+   * person may leave the document out entirely, and keeps the verified one;
+   * that is what lets the wizard save after a reload, when it no longer holds
+   * the full number (the draft never does).
+   */
+  private async resolveDocument(
+    userId: string,
+    details: PersonalDetails,
+  ): Promise<IdentityDocumentInput> {
+    const identity = await this.identities.find(userId);
+    const issues: { code: 'custom'; path: string[]; message: string }[] = [];
+    if (identity.kycStatus === 'verified') {
+      const held = identity.document;
+      if (
+        held &&
+        details.document &&
+        (held.documentType !== details.document.documentType ||
+          held.documentNumber !== details.document.documentNumber ||
+          held.issuingCountry !== details.document.issuingCountry)
+      ) {
+        issues.push({
+          code: 'custom',
+          path: ['document', 'documentNumber'],
+          message: `Your identity is verified with ${held.documentType === 'passport' ? 'passport' : 'National ID'} ${maskIdentifier(held.documentNumber)}, and that stays your document.`,
+        });
+      }
+      if (identity.legalFullName && normalizeName(identity.legalFullName) !== normalizeName(details.fullName)) {
+        issues.push({
+          code: 'custom',
+          path: ['fullName'],
+          message: `Your verified name is ${identity.legalFullName}. Use it as it is.`,
+        });
+      }
+      if (identity.dateOfBirth && identity.dateOfBirth !== details.dateOfBirth) {
+        issues.push({
+          code: 'custom',
+          path: ['dateOfBirth'],
+          message: 'That is not the birth date your identity was verified with.',
+        });
+      }
+      if (issues.length === 0 && !details.document && held) {
+        return {
+          documentType: held.documentType,
+          documentNumber: held.documentNumber,
+          issuingCountry: held.issuingCountry,
+        } as IdentityDocumentInput;
+      }
+    }
+    if (issues.length === 0 && !details.document) {
+      issues.push({
+        code: 'custom',
+        path: ['document', 'documentNumber'],
+        message: 'Give the number on your National ID or passport.',
+      });
+    }
+    if (issues.length > 0) {
+      throw new BadRequestException({ message: 'Validation failed', issues });
+    }
+    return details.document!;
   }
 
   /**
@@ -135,6 +207,24 @@ export class ProfileService {
    * twice. It returns null for a passport rather than the passport number: a
    * passport is a valid account document and is not a valid broker identity.
    */
+  /**
+   * The caller's own primary document in full, National ID or passport, or
+   * null. The second unmasked read, as narrow as the first: a PSF application
+   * that says "use the document on file" (registration Phase 0) copies it into
+   * the application row server side, so the full number never goes back to the
+   * browser that asked.
+   */
+  async documentFor(
+    userId: string,
+  ): Promise<{ documentType: 'national_id' | 'passport'; documentNumber: string } | null> {
+    const row = await this.profiles.findByUserId(userId);
+    if (!row?.document) return null;
+    return {
+      documentType: row.document.documentType === 'passport' ? 'passport' : 'national_id',
+      documentNumber: row.document.documentNumber,
+    };
+  }
+
   async nationalIdFor(userId: string): Promise<string | null> {
     const row = await this.profiles.findByUserId(userId);
     if (!row?.document) return null;
@@ -151,6 +241,11 @@ export class ProfileService {
  * an international one owes a written address instead — and SQL that encodes
  * that is harder to read than the sentence it replaces.
  */
+/** A name as a person, not as typed: case and spacing do not make two people. */
+function normalizeName(name: string): string {
+  return name.trim().replace(/\s+/g, ' ').toLowerCase();
+}
+
 function isComplete(row: ProfileRow): boolean {
   if (!row.fullName || !row.dateOfBirth || !row.phoneE164) return false;
   if (!row.document) return false;

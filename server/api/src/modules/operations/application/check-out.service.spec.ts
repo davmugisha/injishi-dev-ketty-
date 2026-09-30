@@ -6,6 +6,7 @@ import { FolioService } from './folio.service';
 import { FrontDeskService } from './front-desk.service';
 import type { RoomAssignmentService } from './room-assignment.service';
 import type { StayClaimService } from './stay-claim.service';
+import type { SelfCheckInService } from './self-check-in.service';
 
 /**
  * WHAT CHECK OUT DOES WITH THE BODY IT NOW TAKES.
@@ -110,6 +111,7 @@ describe('FrontDeskService.checkOut: the departure note and the balance', () => 
       { findFolioForStay } as unknown as FolioRepository,
       { close } as unknown as FolioService,
       {} as unknown as StayClaimService,
+      {} as unknown as SelfCheckInService,
     );
 
     return { service, closeStay, findFolioForStay, close, releaseForBooking };

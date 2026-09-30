@@ -12,6 +12,7 @@ import {
   type OversightGrant,
   type PsfApplicationInput,
   type PsfApplicationPrefill,
+  type PsfIdDocument,
   type PsfDeclineRequest,
   type PsfMemberDecisionRequest,
   type PsfMembershipOverview,
@@ -28,6 +29,7 @@ import {
   UnprocessableEntityException,
 } from '@nestjs/common';
 
+import { ProfileService } from '../../user/application/profile.service';
 import { PsfMembershipMailer } from '../infrastructure/psf-membership.mailer';
 import {
   OpenPsfApplicationExists,
@@ -60,7 +62,35 @@ export class PsfMembershipService {
   constructor(
     private readonly repo: PsfMembershipRepository,
     private readonly mail: PsfMembershipMailer,
+    /** Read only for "use the document on file" (registration Phase 0). */
+    private readonly profiles: ProfileService,
   ) {}
+
+  /**
+   * The form with its ID resolved: the one typed, or the applicant's own
+   * document on file, copied here so the full number never crosses to the
+   * browser. Refused at the field when there is nothing on file to copy.
+   */
+  async withIdDocument(
+    form: PsfApplicationInput,
+    userId: string,
+  ): Promise<PsfApplicationInput & { idDocument: PsfIdDocument }> {
+    if (form.idDocument) return { ...form, idDocument: form.idDocument };
+    const onFile = await this.profiles.documentFor(userId);
+    if (!onFile) {
+      throw new UnprocessableEntityException({
+        message: 'Validation failed',
+        issues: [
+          {
+            code: 'custom',
+            path: ['idDocument', 'documentNumber'],
+            message: 'There is no ID on your profile to use. Type the ID number instead.',
+          },
+        ],
+      });
+    }
+    return { ...form, idDocument: onFile };
+  }
 
   // --- The applicant ---------------------------------------------------------
 
@@ -221,7 +251,7 @@ export class PsfMembershipService {
           capacity: this.capacityOf(facts, userId),
           registrationNumber: facts.tin,
           tier,
-          form: input,
+          form: await this.withIdDocument(input, userId),
           consentGivenAt: new Date(),
           consentVersion: PSF_CONSENT_VERSION,
         }),

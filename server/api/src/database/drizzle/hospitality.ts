@@ -307,6 +307,39 @@ export const stayIdentities = pgTable('stay_identities', {
 });
 
 
+/**
+ * The identity a guest sent from their phone BEFORE arrival (F-B09, ADR-060).
+ *
+ * Keyed by the BOOKING, because a `guest_stays` row is only created when the
+ * desk checks the guest in, and `stay_identities` cannot exist before its stay.
+ * The desk check-in copies this onto `stay_identities`, photo included, so the
+ * desk confirms what the guest sent rather than retyping it. Personal data
+ * under the same retention rules as `stay_identities`: RESTRICT, not cascade.
+ */
+export const preArrivalIdentities = pgTable('pre_arrival_identities', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  bookingId: uuid('booking_id')
+    .notNull()
+    .unique()
+    .references(() => bookings.id, { onDelete: 'restrict' }),
+  guestUserId: uuid('guest_user_id')
+    .notNull()
+    .references(() => users.id),
+  documentType: documentTypeEnum('document_type').notNull(),
+  documentNumber: text('document_number').notNull(),
+  issuingCountry: text('issuing_country').notNull(),
+  idPhotoObjectId: uuid('id_photo_object_id').references(() => storedObjects.id),
+  addressText: text('address_text').notNull(),
+  submittedAt: timestamp('submitted_at', { withTimezone: true })
+    .notNull()
+    .defaultNow(),
+  ...timestamps,
+}, (t) => [
+  index('pre_arrival_identities_guest_user_idx').on(t.guestUserId),
+  index('pre_arrival_identities_id_photo_idx').on(t.idPhotoObjectId),
+]);
+
+
 export const reviews = pgTable(
   'reviews',
   {

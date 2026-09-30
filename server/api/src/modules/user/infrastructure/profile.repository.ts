@@ -1,4 +1,4 @@
-import type { Address, PersonalDetails } from '@injishi/contracts';
+import type { Address, IdentityDocumentInput, PersonalDetails } from '@injishi/contracts';
 import { isRwandanAddress } from '@injishi/contracts';
 import { Inject, Injectable } from '@nestjs/common';
 import { and, eq, ne } from 'drizzle-orm';
@@ -91,7 +91,11 @@ export class ProfileRepository {
    * registrant who mistyped a phone number and came back should not be told
    * their profile already exists.
    */
-  async save(userId: string, details: PersonalDetails): Promise<void> {
+  async save(
+    userId: string,
+    // The service resolves the document first (a verified person may omit it).
+    details: PersonalDetails & { document: IdentityDocumentInput },
+  ): Promise<void> {
     const address = this.addressColumns(details.address);
     const doc = details.document;
     // §4.2: `user_profiles.national_id` is a display MIRROR of the primary

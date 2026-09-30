@@ -27,6 +27,7 @@ import {
   FrontDeskRepository,
 } from '../infrastructure/front-desk.repository';
 import { RoomAssignmentService } from './room-assignment.service';
+import { SelfCheckInService } from './self-check-in.service';
 import { StayClaimService } from './stay-claim.service';
 
 /**
@@ -59,6 +60,8 @@ export class FrontDeskService {
      * it may fail a check in — lives in one place with the reason written down.
      */
     private readonly onboarding: StayClaimService,
+    /** The identity a guest sent ahead of arrival, carried onto the stay (ADR-060). */
+    private readonly selfCheckIn: SelfCheckInService,
   ) {}
 
   /** Every room in this workspace, with who is in it. */
@@ -203,6 +206,9 @@ export class FrontDeskService {
     // the claim code and the "continue in the app" mail. A booked guest usually
     // sends nothing here and nothing happens.
     await this.onboarding.registerAndInvite(created.id, body.guest);
+    // What the guest sent from their phone before arriving, photo included.
+    // After the desk card, so anything the desk typed wins; never throws.
+    await this.selfCheckIn.carryToStay(booking.id, created.id);
 
     return this.presentStay(created);
   }

@@ -1538,8 +1538,8 @@ export declare const OperatorContractFiling: z.ZodObject<{
     signedAt: z.ZodNullable<z.ZodString>;
 }, "strip", z.ZodTypeAny, {
     status: "pending" | "failed" | "filed" | null;
-    failureReason: string | null;
     adapterMode: "mock" | "live" | null;
+    failureReason: string | null;
     leaseId: string;
     unitLabel: string | null;
     tenantName: string | null;
@@ -1550,8 +1550,8 @@ export declare const OperatorContractFiling: z.ZodObject<{
     signedAt: string | null;
 }, {
     status: "pending" | "failed" | "filed" | null;
-    failureReason: string | null;
     adapterMode: "mock" | "live" | null;
+    failureReason: string | null;
     leaseId: string;
     unitLabel: string | null;
     tenantName: string | null;
@@ -1581,8 +1581,8 @@ export declare const OperatorFilingList: z.ZodObject<{
         signedAt: z.ZodNullable<z.ZodString>;
     }, "strip", z.ZodTypeAny, {
         status: "pending" | "failed" | "filed" | null;
-        failureReason: string | null;
         adapterMode: "mock" | "live" | null;
+        failureReason: string | null;
         leaseId: string;
         unitLabel: string | null;
         tenantName: string | null;
@@ -1593,8 +1593,8 @@ export declare const OperatorFilingList: z.ZodObject<{
         signedAt: string | null;
     }, {
         status: "pending" | "failed" | "filed" | null;
-        failureReason: string | null;
         adapterMode: "mock" | "live" | null;
+        failureReason: string | null;
         leaseId: string;
         unitLabel: string | null;
         tenantName: string | null;
@@ -1607,8 +1607,8 @@ export declare const OperatorFilingList: z.ZodObject<{
 }, "strip", z.ZodTypeAny, {
     filings: {
         status: "pending" | "failed" | "filed" | null;
-        failureReason: string | null;
         adapterMode: "mock" | "live" | null;
+        failureReason: string | null;
         leaseId: string;
         unitLabel: string | null;
         tenantName: string | null;
@@ -1621,8 +1621,8 @@ export declare const OperatorFilingList: z.ZodObject<{
 }, {
     filings: {
         status: "pending" | "failed" | "filed" | null;
-        failureReason: string | null;
         adapterMode: "mock" | "live" | null;
+        failureReason: string | null;
         leaseId: string;
         unitLabel: string | null;
         tenantName: string | null;

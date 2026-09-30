@@ -1655,7 +1655,7 @@ export declare const CreatePsfApplicationRequest: z.ZodEffects<z.ZodObject<{
     gender: z.ZodEnum<["male", "female"]>;
     phoneE164: z.ZodPipeline<z.ZodEffects<z.ZodString, string, string>, z.ZodString>;
     email: z.ZodString;
-    idDocument: z.ZodDiscriminatedUnion<"documentType", [z.ZodObject<{
+    idDocument: z.ZodOptional<z.ZodDiscriminatedUnion<"documentType", [z.ZodObject<{
         documentType: z.ZodLiteral<"national_id">;
         documentNumber: z.ZodPipeline<z.ZodEffects<z.ZodString, string, string>, z.ZodString>;
     }, "strip", z.ZodTypeAny, {
@@ -1673,7 +1673,8 @@ export declare const CreatePsfApplicationRequest: z.ZodEffects<z.ZodObject<{
     }, {
         documentType: "passport";
         documentNumber: string;
-    }>]>;
+    }>]>>;
+    useDocumentOnFile: z.ZodOptional<z.ZodLiteral<true>>;
     dateOfBirth: z.ZodEffects<z.ZodString, string, string>;
     consent: z.ZodLiteral<true>;
 }, "strip", z.ZodTypeAny, {
@@ -1692,17 +1693,18 @@ export declare const CreatePsfApplicationRequest: z.ZodEffects<z.ZodObject<{
     firstName: string;
     lastName: string;
     email: string;
-    idDocument: {
+    consent: true;
+    website?: string | undefined;
+    ownershipOther?: string | undefined;
+    tradeGoods?: string | undefined;
+    idDocument?: {
         documentType: "national_id";
         documentNumber: string;
     } | {
         documentType: "passport";
         documentNumber: string;
-    };
-    consent: true;
-    website?: string | undefined;
-    ownershipOther?: string | undefined;
-    tradeGoods?: string | undefined;
+    } | undefined;
+    useDocumentOnFile?: true | undefined;
 }, {
     gender: "female" | "male";
     dateOfBirth: string;
@@ -1718,18 +1720,19 @@ export declare const CreatePsfApplicationRequest: z.ZodEffects<z.ZodObject<{
     firstName: string;
     lastName: string;
     email: string;
-    idDocument: {
-        documentType: "national_id";
-        documentNumber: string;
-    } | {
-        documentType: "passport";
-        documentNumber: string;
-    };
     consent: true;
     website?: string | undefined;
     ownershipOther?: string | undefined;
     tradeGoods?: string | undefined;
     tradeCountries?: string[] | undefined;
+    idDocument?: {
+        documentType: "national_id";
+        documentNumber: string;
+    } | {
+        documentType: "passport";
+        documentNumber: string;
+    } | undefined;
+    useDocumentOnFile?: true | undefined;
 }>, {
     gender: "female" | "male";
     dateOfBirth: string;
@@ -1746,17 +1749,18 @@ export declare const CreatePsfApplicationRequest: z.ZodEffects<z.ZodObject<{
     firstName: string;
     lastName: string;
     email: string;
-    idDocument: {
+    consent: true;
+    website?: string | undefined;
+    ownershipOther?: string | undefined;
+    tradeGoods?: string | undefined;
+    idDocument?: {
         documentType: "national_id";
         documentNumber: string;
     } | {
         documentType: "passport";
         documentNumber: string;
-    };
-    consent: true;
-    website?: string | undefined;
-    ownershipOther?: string | undefined;
-    tradeGoods?: string | undefined;
+    } | undefined;
+    useDocumentOnFile?: true | undefined;
 }, {
     gender: "female" | "male";
     dateOfBirth: string;
@@ -1772,18 +1776,19 @@ export declare const CreatePsfApplicationRequest: z.ZodEffects<z.ZodObject<{
     firstName: string;
     lastName: string;
     email: string;
-    idDocument: {
-        documentType: "national_id";
-        documentNumber: string;
-    } | {
-        documentType: "passport";
-        documentNumber: string;
-    };
     consent: true;
     website?: string | undefined;
     ownershipOther?: string | undefined;
     tradeGoods?: string | undefined;
     tradeCountries?: string[] | undefined;
+    idDocument?: {
+        documentType: "national_id";
+        documentNumber: string;
+    } | {
+        documentType: "passport";
+        documentNumber: string;
+    } | undefined;
+    useDocumentOnFile?: true | undefined;
 }>;
 export type CreatePsfApplicationRequest = z.infer<typeof CreatePsfApplicationRequest>;
 export declare const PsfQueueItem: z.ZodObject<{

@@ -199,7 +199,13 @@ export const PersonalDetails = z.object({
         .trim()
         .min(2, "Tell us your full name, as written on your document.")
         .max(160, "That name is too long for our records."),
-    document: IdentityDocumentInput,
+    /**
+     * Absent only when the person's identity is already VERIFIED (ADR-060): the
+     * server then keeps the verified document, whose full number the browser
+     * never holds again after a reload. For anyone unverified the server
+     * refuses its absence at this path.
+     */
+    document: IdentityDocumentInput.optional(),
     gender: Gender.optional(),
     /** ISO date. Bounds are sanity rails, not a policy on who may register. */
     dateOfBirth: z
@@ -328,6 +334,12 @@ const psfText = (max: number, required: string) => z.string().trim().min(1, requ
  * from the business, which is what makes AC-3's "not editable" true on the
  * wire and not only on the screen.
  */
+/** The ID a PSF application names its contact by. */
+export const PsfIdDocument = z.discriminatedUnion("documentType", [
+    z.object({ documentType: z.literal("national_id"), documentNumber: RwandanNationalId }),
+    z.object({ documentType: z.literal("passport"), documentNumber: PassportNumber }),
+]);
+export type PsfIdDocument = z.infer<typeof PsfIdDocument>;
 export const PsfApplicationInput = z
     .object({
     requestedTierCode: z.string().trim().min(1, "Pick a membership tier.").max(60),
@@ -356,10 +368,15 @@ export const PsfApplicationInput = z
         .transform((v) => v.replace(/[\s-]/g, ""))
         .pipe(z.string().regex(/^\+\d{7,15}$/, "Include the country code, like +250788123456.")),
     email: z.string().trim().email("That email address does not look right."),
-    idDocument: z.discriminatedUnion("documentType", [
-        z.object({ documentType: z.literal("national_id"), documentNumber: RwandanNationalId }),
-        z.object({ documentType: z.literal("passport"), documentNumber: PassportNumber }),
-    ]),
+    /** Absent only when `useDocumentOnFile` asks the server for it instead. */
+    idDocument: PsfIdDocument.optional(),
+    /**
+     * "Use the document on my profile" (registration Phase 0). The profile read
+     * masks the number, so a returning registrant could only retype it; with
+     * this the server copies the full number from the profile it holds, and the
+     * browser never sees it.
+     */
+    useDocumentOnFile: z.literal(true).optional(),
     dateOfBirth: z
         .string()
         .regex(/^\d{4}-\d{2}-\d{2}$/, "Use the date picker.")
@@ -376,6 +393,13 @@ export const PsfApplicationInput = z
     }),
 })
     .superRefine((value, ctx) => {
+    // One source for the ID: typed, or the one on file. Never both, never none.
+    if (!value.idDocument && !value.useDocumentOnFile) {
+        ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["idDocument", "documentNumber"], message: "Give an ID number." });
+    }
+    if (value.idDocument && value.useDocumentOnFile) {
+        ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["idDocument"], message: "Give an ID number or use the one on file, not both." });
+    }
     // Mirrors `psf_membership_applications_ownership_shape`.
     if (value.ownership === "other" && !value.ownershipOther) {
         ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["ownershipOther"], message: "Say what the ownership is." });
@@ -725,6 +749,38 @@ export const OversightQueueItem = z.object({
         districtName: z.string().nullable(),
         isHeadOffice: z.boolean(),
     })),
+    /**
+     * What the registrant declared, sent so the queue stops flagging every
+     * hotel "No tourism license" and every file "Missing documents" for want
+     * of fields it was never given (registration Phase 0).
+     */
+    tourismLicenseNumber: z.string().nullable(),
+    /** Registered by an agent for its owner; payouts stay locked until claimed. */
+    onBehalfOf: z.boolean(),
+    /**
+     * The certificates attached, as metadata only: kind and number. The files
+     * are not linked here; opening one is a PII read with its own access log.
+     */
+    certificates: z.array(z.object({
+        kind: z.string(),
+        kindOther: z.string().nullable(),
+        certificateNumber: z.string().nullable(),
+    })),
+    /**
+     * The latest RRA answer on record, with the side of the seam that gave it,
+     * so an officer can tell a register's verdict from a mock's (ADR-060).
+     */
+    tinCheck: z
+        .object({
+        result: z.enum(["pending", "verified", "failed"]),
+        adapterMode: z.enum(["mock", "live"]),
+        checkedAt: z.string(),
+    })
+        .nullable(),
+    /** Who registered it, by their verified name where there is one. */
+    registrantName: z.string().nullable(),
+    /** On an on behalf registration, the owner it was registered for. */
+    intendedOwnerName: z.string().nullable(),
 });
 export type OversightQueueItem = z.infer<typeof OversightQueueItem>;
 /**
@@ -822,12 +878,115 @@ export type AcceptContractRequest = z.infer<typeof AcceptContractRequest>;
  * `contract_version_stale` are accept's. Sent as `code` on the error body so a
  * page can word the refusal without matching on English.
  */
+/**
+ * The wizard's answers, kept on the server between steps (ADR-059 call 5,
+ * moved server side by ADR-060) at `GET|PUT|DELETE /api/v1/me/registration-draft`.
+ *
+ * It NEVER holds an ID number, and that is structural rather than promised:
+ * the personal block has no document number field and is strict, the intended
+ * owner carries no National ID, and the whole draft is refused if a run of
+ * sixteen digits appears anywhere in it. A verified identity lives in
+ * `verified_identities`; the draft only has to remember what was typed around it.
+ */
+const DraftText = z.string().max(300);
+const DraftAddress = z.record(z.string().max(40), DraftText);
+export const REGISTRATION_DRAFT_PHASES = ["place", "about", "business", "documents"] as const;
+export const RegistrationDraft = z
+    .object({
+    v: z.literal(1),
+    phase: z.enum(REGISTRATION_DRAFT_PHASES),
+    kind: z.string().max(40).nullable(),
+    capacity: RegistrantCapacity,
+    /** False when the stored profile answered About you. */
+    typedPersonal: z.boolean(),
+    personal: z
+        .object({
+        firstName: DraftText,
+        middleName: DraftText,
+        lastName: DraftText,
+        documentType: AccountDocumentType,
+        issuingCountry: DraftText,
+        gender: DraftText,
+        dateOfBirth: DraftText,
+        phoneE164: DraftText,
+        address: DraftAddress,
+    })
+        .strict(),
+    intendedOwner: z.object({ name: DraftText, email: DraftText }).strict(),
+    business: z.record(z.string().max(60), z.union([DraftText, z.boolean(), z.null(), DraftAddress])),
+    branches: z.array(z.object({ name: DraftText, address: DraftAddress }).strict()).max(50),
+})
+    .strict()
+    .refine((draft) => !/\d{16}/.test(JSON.stringify(draft)), {
+    message: "A registration draft never holds an ID number.",
+});
+export type RegistrationDraft = z.infer<typeof RegistrationDraft>;
 export const RegistrationConflictCode = z.enum([
+    /** 403: registering a business needs a verified identity here (ADR-060). */
+    "identity_not_verified",
     "contract_not_accepted",
     "contract_not_open",
     "contract_version_stale",
 ]);
 export type RegistrationConflictCode = z.infer<typeof RegistrationConflictCode>;
+// ---------------------------------------------------------------------------
+// The TIN pre-check (registration Phase 0)
+// ---------------------------------------------------------------------------
+/**
+ * `POST /api/v1/registrations/tin-check`. Asked at the Business step, before
+ * anything is created or billed, so a TIN RRA will refuse is found while the
+ * registrant can still change it rather than after a non-refundable fee.
+ */
+export const TinCheckRequest = z.object({ tin: Tin });
+export type TinCheckRequest = z.infer<typeof TinCheckRequest>;
+/**
+ * A business as the company register states it (ADR-060). Directors are NAMES
+ * only: their document numbers stay on the server, which compares them.
+ */
+export const RegistryBusiness = z.object({
+    legalName: z.string().min(1),
+    /** `YYYY-MM-DD`, when the register gives one. */
+    registeredOn: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).nullable(),
+    companyType: PsfCompanyType.nullable(),
+    /** The registered address, as geography ids the picker can take directly. */
+    address: z
+        .object({
+        provinceId: z.number().int(),
+        districtId: z.number().int(),
+        sectorId: z.number().int(),
+        street: z.string().nullable(),
+    })
+        .nullable(),
+    directors: z.array(z.object({ name: z.string().min(1) })),
+    /** True when a MOCK adapter made this business up. */
+    generated: z.boolean(),
+});
+export type RegistryBusiness = z.infer<typeof RegistryBusiness>;
+/**
+ * - `verified`: RRA knows the TIN.
+ * - `failed`: RRA does not; registration with it is refused.
+ * - `taken`: another business on Injishi already holds it.
+ * - `pending`: RRA could not be reached. Not a refusal: the check runs again
+ *   after payment, exactly as it did before this pre-check existed.
+ */
+export const TinCheckResult = z.object({
+    tin: z.string(),
+    result: z.enum(["verified", "failed", "taken", "pending"]),
+    message: z.string(),
+    /**
+     * The business as the register holds it (ADR-060), or null when the
+     * register returned no details. The Business step fills itself from this
+     * and locks the legal name; `create` refuses a legal name that disagrees.
+     */
+    business: RegistryBusiness.nullable(),
+    /**
+     * Whether the caller's own verified document is among the directors. Null
+     * when the register lists no directors, or the caller holds no document to
+     * compare. `false` is what moves a registrant to the on behalf path.
+     */
+    registrantIsDirector: z.boolean().nullable(),
+});
+export type TinCheckResult = z.infer<typeof TinCheckResult>;
 // ---------------------------------------------------------------------------
 // The owner claim (FL02, ADR-053)
 // ---------------------------------------------------------------------------

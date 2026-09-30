@@ -331,18 +331,18 @@ export declare const PropertyPhoto: z.ZodObject<{
     url: z.ZodString;
 }, "strip", z.ZodTypeAny, {
     objectKey: string;
+    url: string;
     id: string;
     position: number;
     isCover: boolean;
     caption: string | null;
-    url: string;
 }, {
     objectKey: string;
+    url: string;
     id: string;
     position: number;
     isCover: boolean;
     caption: string | null;
-    url: string;
 }>;
 export type PropertyPhoto = z.infer<typeof PropertyPhoto>;
 /**
@@ -420,18 +420,18 @@ export declare const OperatorProperty: z.ZodObject<{
         url: z.ZodString;
     }, "strip", z.ZodTypeAny, {
         objectKey: string;
+        url: string;
         id: string;
         position: number;
         isCover: boolean;
         caption: string | null;
-        url: string;
     }, {
         objectKey: string;
+        url: string;
         id: string;
         position: number;
         isCover: boolean;
         caption: string | null;
-        url: string;
     }>, "many">;
     /**
      * Empty until feature 2 builds the room type write path. An empty array is a
@@ -490,11 +490,11 @@ export declare const OperatorProperty: z.ZodObject<{
     timezone: string;
     photos: {
         objectKey: string;
+        url: string;
         id: string;
         position: number;
         isCover: boolean;
         caption: string | null;
-        url: string;
     }[];
     roomTypes: {
         status: "active" | "archived";
@@ -534,11 +534,11 @@ export declare const OperatorProperty: z.ZodObject<{
     timezone: string;
     photos: {
         objectKey: string;
+        url: string;
         id: string;
         position: number;
         isCover: boolean;
         caption: string | null;
-        url: string;
     }[];
     roomTypes: {
         status: "active" | "archived";
@@ -1252,36 +1252,36 @@ export declare const PropertyPhotoList: z.ZodObject<{
         url: z.ZodString;
     }, "strip", z.ZodTypeAny, {
         objectKey: string;
+        url: string;
         id: string;
         position: number;
         isCover: boolean;
         caption: string | null;
-        url: string;
     }, {
         objectKey: string;
+        url: string;
         id: string;
         position: number;
         isCover: boolean;
         caption: string | null;
-        url: string;
     }>, "many">;
 }, "strip", z.ZodTypeAny, {
     photos: {
         objectKey: string;
+        url: string;
         id: string;
         position: number;
         isCover: boolean;
         caption: string | null;
-        url: string;
     }[];
 }, {
     photos: {
         objectKey: string;
+        url: string;
         id: string;
         position: number;
         isCover: boolean;
         caption: string | null;
-        url: string;
     }[];
 }>;
 export type PropertyPhotoList = z.infer<typeof PropertyPhotoList>;
@@ -1304,17 +1304,17 @@ export declare const UploadedPropertyPhoto: z.ZodObject<{
 }, "strip", z.ZodTypeAny, {
     kind: "property_photo";
     objectKey: string;
+    url: string;
     mime: string;
     sizeBytes: number;
     filename: string;
-    url: string;
 }, {
     kind: "property_photo";
     objectKey: string;
+    url: string;
     mime: string;
     sizeBytes: number;
     filename: string;
-    url: string;
 }>;
 export type UploadedPropertyPhoto = z.infer<typeof UploadedPropertyPhoto>;
 /**

@@ -8,6 +8,7 @@ import { UserModule } from '../user/user.module';
 import { BrokerRegistrationService } from './application/broker-registration.service';
 import { OwnerClaimService } from './application/owner-claim.service';
 import { PsfMembershipService } from './application/psf-membership.service';
+import { RegistrationDraftService } from './application/registration-draft.service';
 import { RegistrationService } from './application/registration.service';
 import { RolePermissionsService } from './application/role-permissions.service';
 import { StaffInvitationService } from './application/staff-invitation.service';
@@ -18,6 +19,7 @@ import { OrganizationRepository } from './infrastructure/organization.repository
 import { OwnerClaimRepository } from './infrastructure/owner-claim.repository';
 import { PsfMembershipMailer } from './infrastructure/psf-membership.mailer';
 import { PsfMembershipRepository } from './infrastructure/psf-membership.repository';
+import { RegistrationDraftRepository } from './infrastructure/registration-draft.repository';
 import { RegistrationMailer } from './infrastructure/registration.mailer';
 import { RolePermissionsRepository } from './infrastructure/role-permissions.repository';
 import { StaffInvitationMailer } from './infrastructure/staff-invitation.mailer';
@@ -51,6 +53,8 @@ import { tinAdapterProvider } from './infrastructure/tin-adapter.provider';
   providers: [
     OrganizationRepository,
     BrokerRepository,
+    RegistrationDraftRepository,
+    RegistrationDraftService,
     tinAdapterProvider(),
     RegistrationService,
     BrokerRegistrationService,
@@ -91,6 +95,7 @@ import { tinAdapterProvider } from './infrastructure/tin-adapter.provider';
   ],
   exports: [
     RegistrationService,
+    RegistrationDraftService,
     BrokerRegistrationService,
     OwnerClaimService,
     TeamService,

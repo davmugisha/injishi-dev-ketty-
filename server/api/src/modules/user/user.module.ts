@@ -1,23 +1,38 @@
 import { Module } from '@nestjs/common';
 
 import { GeographyModule } from '../geography/geography.module';
+import { SmsModule } from '../sms/sms.module';
+import { StorageModule } from '../storage/storage.module';
 
+import { IdentityService } from './application/identity.service';
 import { ProfileService } from './application/profile.service';
+import { identityAdapterProviders } from './infrastructure/identity-adapters.provider';
+import { IdentityRepository } from './infrastructure/identity.repository';
 import { ProfileRepository } from './infrastructure/profile.repository';
 
 /**
  * Identity capture — the person behind a login (architecture.md, `user`).
  *
  * Layering matches every other module: application/ (use cases) —
- * infrastructure/ (Drizzle). `ProfileService` is the only export, so nothing
- * outside can write `identity_documents` around the uniqueness rule that makes
- * "one human, one account" true.
+ * infrastructure/ (Drizzle). `ProfileService` and `IdentityService` are the
+ * only exports, so nothing outside can write `identity_documents` around the
+ * uniqueness rule that makes "one human, one account" true.
  */
 @Module({
   // GeographyModule answers one question for Step 1: does the village on this
   // address sit under its sector (D24)? `villages` is that module's table.
-  imports: [GeographyModule],
-  providers: [ProfileRepository, ProfileService],
-  exports: [ProfileService],
+  imports: [GeographyModule, SmsModule, StorageModule],
+  // Identity verification (ADR-060): the register and document seams, the
+  // challenge rows, and the service that finally moves `kyc_status`.
+  // `IdentityService` is exported so registration can require a verified
+  // identity; the repository stays private, like the profile's.
+  providers: [
+    ProfileRepository,
+    ProfileService,
+    IdentityRepository,
+    IdentityService,
+    ...identityAdapterProviders,
+  ],
+  exports: [ProfileService, IdentityService],
 })
 export class UserModule {}

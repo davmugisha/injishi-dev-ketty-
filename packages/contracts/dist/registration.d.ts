@@ -193,7 +193,13 @@ export declare const Upi: z.ZodPipeline<z.ZodEffects<z.ZodString, string, string
 export declare const PersonalDetails: z.ZodObject<{
     /** As written on the identity document. */
     fullName: z.ZodString;
-    document: z.ZodDiscriminatedUnion<"documentType", [z.ZodObject<{
+    /**
+     * Absent only when the person's identity is already VERIFIED (ADR-060): the
+     * server then keeps the verified document, whose full number the browser
+     * never holds again after a reload. For anyone unverified the server
+     * refuses its absence at this path.
+     */
+    document: z.ZodOptional<z.ZodDiscriminatedUnion<"documentType", [z.ZodObject<{
         documentType: z.ZodLiteral<"national_id">;
         documentNumber: z.ZodPipeline<z.ZodEffects<z.ZodString, string, string>, z.ZodString>;
         /** A Rwandan NID is Rwandan by definition; kept explicit for the row. */
@@ -218,7 +224,7 @@ export declare const PersonalDetails: z.ZodObject<{
         documentType: "passport";
         documentNumber: string;
         issuingCountry: string;
-    }>]>;
+    }>]>>;
     gender: z.ZodOptional<z.ZodEnum<["female", "male", "other", "prefer_not_to_say"]>>;
     /** ISO date. Bounds are sanity rails, not a policy on who may register. */
     dateOfBirth: z.ZodEffects<z.ZodString, string, string>;
@@ -263,7 +269,21 @@ export declare const PersonalDetails: z.ZodObject<{
     }>]>;
 }, "strip", z.ZodTypeAny, {
     fullName: string;
-    document: {
+    dateOfBirth: string;
+    phoneE164: string;
+    address: {
+        country: "RW";
+        provinceId: number;
+        districtId: number;
+        sectorId: number;
+        cellId?: number | undefined;
+        villageId?: number | undefined;
+        street?: string | undefined;
+    } | {
+        country: string;
+        addressText: string;
+    };
+    document?: {
         documentType: "national_id";
         documentNumber: string;
         issuingCountry: "RW";
@@ -271,7 +291,10 @@ export declare const PersonalDetails: z.ZodObject<{
         documentType: "passport";
         documentNumber: string;
         issuingCountry: string;
-    };
+    } | undefined;
+    gender?: "other" | "female" | "male" | "prefer_not_to_say" | undefined;
+}, {
+    fullName: string;
     dateOfBirth: string;
     phoneE164: string;
     address: {
@@ -286,10 +309,7 @@ export declare const PersonalDetails: z.ZodObject<{
         country: string;
         addressText: string;
     };
-    gender?: "other" | "female" | "male" | "prefer_not_to_say" | undefined;
-}, {
-    fullName: string;
-    document: {
+    document?: {
         documentType: "national_id";
         documentNumber: string;
         issuingCountry?: "RW" | undefined;
@@ -297,21 +317,7 @@ export declare const PersonalDetails: z.ZodObject<{
         documentType: "passport";
         documentNumber: string;
         issuingCountry: string;
-    };
-    dateOfBirth: string;
-    phoneE164: string;
-    address: {
-        country: "RW";
-        provinceId: number;
-        districtId: number;
-        sectorId: number;
-        cellId?: number | undefined;
-        villageId?: number | undefined;
-        street?: string | undefined;
-    } | {
-        country: string;
-        addressText: string;
-    };
+    } | undefined;
     gender?: "other" | "female" | "male" | "prefer_not_to_say" | undefined;
 }>;
 export type PersonalDetails = z.infer<typeof PersonalDetails>;
@@ -448,6 +454,27 @@ export declare const PSF_CONSENT_TEXT: string;
  * from the business, which is what makes AC-3's "not editable" true on the
  * wire and not only on the screen.
  */
+/** The ID a PSF application names its contact by. */
+export declare const PsfIdDocument: z.ZodDiscriminatedUnion<"documentType", [z.ZodObject<{
+    documentType: z.ZodLiteral<"national_id">;
+    documentNumber: z.ZodPipeline<z.ZodEffects<z.ZodString, string, string>, z.ZodString>;
+}, "strip", z.ZodTypeAny, {
+    documentType: "national_id";
+    documentNumber: string;
+}, {
+    documentType: "national_id";
+    documentNumber: string;
+}>, z.ZodObject<{
+    documentType: z.ZodLiteral<"passport">;
+    documentNumber: z.ZodPipeline<z.ZodEffects<z.ZodString, string, string>, z.ZodString>;
+}, "strip", z.ZodTypeAny, {
+    documentType: "passport";
+    documentNumber: string;
+}, {
+    documentType: "passport";
+    documentNumber: string;
+}>]>;
+export type PsfIdDocument = z.infer<typeof PsfIdDocument>;
 export declare const PsfApplicationInput: z.ZodEffects<z.ZodObject<{
     requestedTierCode: z.ZodString;
     companyName: z.ZodString;
@@ -466,7 +493,8 @@ export declare const PsfApplicationInput: z.ZodEffects<z.ZodObject<{
     gender: z.ZodEnum<["male", "female"]>;
     phoneE164: z.ZodPipeline<z.ZodEffects<z.ZodString, string, string>, z.ZodString>;
     email: z.ZodString;
-    idDocument: z.ZodDiscriminatedUnion<"documentType", [z.ZodObject<{
+    /** Absent only when `useDocumentOnFile` asks the server for it instead. */
+    idDocument: z.ZodOptional<z.ZodDiscriminatedUnion<"documentType", [z.ZodObject<{
         documentType: z.ZodLiteral<"national_id">;
         documentNumber: z.ZodPipeline<z.ZodEffects<z.ZodString, string, string>, z.ZodString>;
     }, "strip", z.ZodTypeAny, {
@@ -484,7 +512,14 @@ export declare const PsfApplicationInput: z.ZodEffects<z.ZodObject<{
     }, {
         documentType: "passport";
         documentNumber: string;
-    }>]>;
+    }>]>>;
+    /**
+     * "Use the document on my profile" (registration Phase 0). The profile read
+     * masks the number, so a returning registrant could only retype it; with
+     * this the server copies the full number from the profile it holds, and the
+     * browser never sees it.
+     */
+    useDocumentOnFile: z.ZodOptional<z.ZodLiteral<true>>;
     dateOfBirth: z.ZodEffects<z.ZodString, string, string>;
     /** Must be ticked: an unticked box and a Yes are different acts (AC-5). */
     consent: z.ZodLiteral<true>;
@@ -504,17 +539,18 @@ export declare const PsfApplicationInput: z.ZodEffects<z.ZodObject<{
     firstName: string;
     lastName: string;
     email: string;
-    idDocument: {
+    consent: true;
+    website?: string | undefined;
+    ownershipOther?: string | undefined;
+    tradeGoods?: string | undefined;
+    idDocument?: {
         documentType: "national_id";
         documentNumber: string;
     } | {
         documentType: "passport";
         documentNumber: string;
-    };
-    consent: true;
-    website?: string | undefined;
-    ownershipOther?: string | undefined;
-    tradeGoods?: string | undefined;
+    } | undefined;
+    useDocumentOnFile?: true | undefined;
 }, {
     gender: "female" | "male";
     dateOfBirth: string;
@@ -530,18 +566,19 @@ export declare const PsfApplicationInput: z.ZodEffects<z.ZodObject<{
     firstName: string;
     lastName: string;
     email: string;
-    idDocument: {
-        documentType: "national_id";
-        documentNumber: string;
-    } | {
-        documentType: "passport";
-        documentNumber: string;
-    };
     consent: true;
     website?: string | undefined;
     ownershipOther?: string | undefined;
     tradeGoods?: string | undefined;
     tradeCountries?: string[] | undefined;
+    idDocument?: {
+        documentType: "national_id";
+        documentNumber: string;
+    } | {
+        documentType: "passport";
+        documentNumber: string;
+    } | undefined;
+    useDocumentOnFile?: true | undefined;
 }>, {
     gender: "female" | "male";
     dateOfBirth: string;
@@ -558,17 +595,18 @@ export declare const PsfApplicationInput: z.ZodEffects<z.ZodObject<{
     firstName: string;
     lastName: string;
     email: string;
-    idDocument: {
+    consent: true;
+    website?: string | undefined;
+    ownershipOther?: string | undefined;
+    tradeGoods?: string | undefined;
+    idDocument?: {
         documentType: "national_id";
         documentNumber: string;
     } | {
         documentType: "passport";
         documentNumber: string;
-    };
-    consent: true;
-    website?: string | undefined;
-    ownershipOther?: string | undefined;
-    tradeGoods?: string | undefined;
+    } | undefined;
+    useDocumentOnFile?: true | undefined;
 }, {
     gender: "female" | "male";
     dateOfBirth: string;
@@ -584,18 +622,19 @@ export declare const PsfApplicationInput: z.ZodEffects<z.ZodObject<{
     firstName: string;
     lastName: string;
     email: string;
-    idDocument: {
-        documentType: "national_id";
-        documentNumber: string;
-    } | {
-        documentType: "passport";
-        documentNumber: string;
-    };
     consent: true;
     website?: string | undefined;
     ownershipOther?: string | undefined;
     tradeGoods?: string | undefined;
     tradeCountries?: string[] | undefined;
+    idDocument?: {
+        documentType: "national_id";
+        documentNumber: string;
+    } | {
+        documentType: "passport";
+        documentNumber: string;
+    } | undefined;
+    useDocumentOnFile?: true | undefined;
 }>;
 export type PsfApplicationInput = z.infer<typeof PsfApplicationInput>;
 /** The membership number a business that answered Yes may give (ADR-056 AC-1). */
@@ -700,7 +739,8 @@ export declare const HospitalityBusiness: z.ZodObject<{
         gender: z.ZodEnum<["male", "female"]>;
         phoneE164: z.ZodPipeline<z.ZodEffects<z.ZodString, string, string>, z.ZodString>;
         email: z.ZodString;
-        idDocument: z.ZodDiscriminatedUnion<"documentType", [z.ZodObject<{
+        /** Absent only when `useDocumentOnFile` asks the server for it instead. */
+        idDocument: z.ZodOptional<z.ZodDiscriminatedUnion<"documentType", [z.ZodObject<{
             documentType: z.ZodLiteral<"national_id">;
             documentNumber: z.ZodPipeline<z.ZodEffects<z.ZodString, string, string>, z.ZodString>;
         }, "strip", z.ZodTypeAny, {
@@ -718,7 +758,14 @@ export declare const HospitalityBusiness: z.ZodObject<{
         }, {
             documentType: "passport";
             documentNumber: string;
-        }>]>;
+        }>]>>;
+        /**
+         * "Use the document on my profile" (registration Phase 0). The profile read
+         * masks the number, so a returning registrant could only retype it; with
+         * this the server copies the full number from the profile it holds, and the
+         * browser never sees it.
+         */
+        useDocumentOnFile: z.ZodOptional<z.ZodLiteral<true>>;
         dateOfBirth: z.ZodEffects<z.ZodString, string, string>;
         /** Must be ticked: an unticked box and a Yes are different acts (AC-5). */
         consent: z.ZodLiteral<true>;
@@ -738,17 +785,18 @@ export declare const HospitalityBusiness: z.ZodObject<{
         firstName: string;
         lastName: string;
         email: string;
-        idDocument: {
+        consent: true;
+        website?: string | undefined;
+        ownershipOther?: string | undefined;
+        tradeGoods?: string | undefined;
+        idDocument?: {
             documentType: "national_id";
             documentNumber: string;
         } | {
             documentType: "passport";
             documentNumber: string;
-        };
-        consent: true;
-        website?: string | undefined;
-        ownershipOther?: string | undefined;
-        tradeGoods?: string | undefined;
+        } | undefined;
+        useDocumentOnFile?: true | undefined;
     }, {
         gender: "female" | "male";
         dateOfBirth: string;
@@ -764,18 +812,19 @@ export declare const HospitalityBusiness: z.ZodObject<{
         firstName: string;
         lastName: string;
         email: string;
-        idDocument: {
-            documentType: "national_id";
-            documentNumber: string;
-        } | {
-            documentType: "passport";
-            documentNumber: string;
-        };
         consent: true;
         website?: string | undefined;
         ownershipOther?: string | undefined;
         tradeGoods?: string | undefined;
         tradeCountries?: string[] | undefined;
+        idDocument?: {
+            documentType: "national_id";
+            documentNumber: string;
+        } | {
+            documentType: "passport";
+            documentNumber: string;
+        } | undefined;
+        useDocumentOnFile?: true | undefined;
     }>, {
         gender: "female" | "male";
         dateOfBirth: string;
@@ -792,17 +841,18 @@ export declare const HospitalityBusiness: z.ZodObject<{
         firstName: string;
         lastName: string;
         email: string;
-        idDocument: {
+        consent: true;
+        website?: string | undefined;
+        ownershipOther?: string | undefined;
+        tradeGoods?: string | undefined;
+        idDocument?: {
             documentType: "national_id";
             documentNumber: string;
         } | {
             documentType: "passport";
             documentNumber: string;
-        };
-        consent: true;
-        website?: string | undefined;
-        ownershipOther?: string | undefined;
-        tradeGoods?: string | undefined;
+        } | undefined;
+        useDocumentOnFile?: true | undefined;
     }, {
         gender: "female" | "male";
         dateOfBirth: string;
@@ -818,18 +868,19 @@ export declare const HospitalityBusiness: z.ZodObject<{
         firstName: string;
         lastName: string;
         email: string;
-        idDocument: {
-            documentType: "national_id";
-            documentNumber: string;
-        } | {
-            documentType: "passport";
-            documentNumber: string;
-        };
         consent: true;
         website?: string | undefined;
         ownershipOther?: string | undefined;
         tradeGoods?: string | undefined;
         tradeCountries?: string[] | undefined;
+        idDocument?: {
+            documentType: "national_id";
+            documentNumber: string;
+        } | {
+            documentType: "passport";
+            documentNumber: string;
+        } | undefined;
+        useDocumentOnFile?: true | undefined;
     }>>;
     eacStarGrade: z.ZodOptional<z.ZodNumber>;
     /** The locations beyond the head office (ADR-054). Empty for a single site business. */
@@ -944,17 +995,18 @@ export declare const HospitalityBusiness: z.ZodObject<{
         firstName: string;
         lastName: string;
         email: string;
-        idDocument: {
+        consent: true;
+        website?: string | undefined;
+        ownershipOther?: string | undefined;
+        tradeGoods?: string | undefined;
+        idDocument?: {
             documentType: "national_id";
             documentNumber: string;
         } | {
             documentType: "passport";
             documentNumber: string;
-        };
-        consent: true;
-        website?: string | undefined;
-        ownershipOther?: string | undefined;
-        tradeGoods?: string | undefined;
+        } | undefined;
+        useDocumentOnFile?: true | undefined;
     } | undefined;
     eacStarGrade?: number | undefined;
 }, {
@@ -1002,18 +1054,19 @@ export declare const HospitalityBusiness: z.ZodObject<{
         firstName: string;
         lastName: string;
         email: string;
-        idDocument: {
-            documentType: "national_id";
-            documentNumber: string;
-        } | {
-            documentType: "passport";
-            documentNumber: string;
-        };
         consent: true;
         website?: string | undefined;
         ownershipOther?: string | undefined;
         tradeGoods?: string | undefined;
         tradeCountries?: string[] | undefined;
+        idDocument?: {
+            documentType: "national_id";
+            documentNumber: string;
+        } | {
+            documentType: "passport";
+            documentNumber: string;
+        } | undefined;
+        useDocumentOnFile?: true | undefined;
     } | undefined;
     eacStarGrade?: number | undefined;
     branches?: {
@@ -1253,7 +1306,8 @@ export declare const BusinessDetails: z.ZodEffects<z.ZodDiscriminatedUnion<"doma
         gender: z.ZodEnum<["male", "female"]>;
         phoneE164: z.ZodPipeline<z.ZodEffects<z.ZodString, string, string>, z.ZodString>;
         email: z.ZodString;
-        idDocument: z.ZodDiscriminatedUnion<"documentType", [z.ZodObject<{
+        /** Absent only when `useDocumentOnFile` asks the server for it instead. */
+        idDocument: z.ZodOptional<z.ZodDiscriminatedUnion<"documentType", [z.ZodObject<{
             documentType: z.ZodLiteral<"national_id">;
             documentNumber: z.ZodPipeline<z.ZodEffects<z.ZodString, string, string>, z.ZodString>;
         }, "strip", z.ZodTypeAny, {
@@ -1271,7 +1325,14 @@ export declare const BusinessDetails: z.ZodEffects<z.ZodDiscriminatedUnion<"doma
         }, {
             documentType: "passport";
             documentNumber: string;
-        }>]>;
+        }>]>>;
+        /**
+         * "Use the document on my profile" (registration Phase 0). The profile read
+         * masks the number, so a returning registrant could only retype it; with
+         * this the server copies the full number from the profile it holds, and the
+         * browser never sees it.
+         */
+        useDocumentOnFile: z.ZodOptional<z.ZodLiteral<true>>;
         dateOfBirth: z.ZodEffects<z.ZodString, string, string>;
         /** Must be ticked: an unticked box and a Yes are different acts (AC-5). */
         consent: z.ZodLiteral<true>;
@@ -1291,17 +1352,18 @@ export declare const BusinessDetails: z.ZodEffects<z.ZodDiscriminatedUnion<"doma
         firstName: string;
         lastName: string;
         email: string;
-        idDocument: {
+        consent: true;
+        website?: string | undefined;
+        ownershipOther?: string | undefined;
+        tradeGoods?: string | undefined;
+        idDocument?: {
             documentType: "national_id";
             documentNumber: string;
         } | {
             documentType: "passport";
             documentNumber: string;
-        };
-        consent: true;
-        website?: string | undefined;
-        ownershipOther?: string | undefined;
-        tradeGoods?: string | undefined;
+        } | undefined;
+        useDocumentOnFile?: true | undefined;
     }, {
         gender: "female" | "male";
         dateOfBirth: string;
@@ -1317,18 +1379,19 @@ export declare const BusinessDetails: z.ZodEffects<z.ZodDiscriminatedUnion<"doma
         firstName: string;
         lastName: string;
         email: string;
-        idDocument: {
-            documentType: "national_id";
-            documentNumber: string;
-        } | {
-            documentType: "passport";
-            documentNumber: string;
-        };
         consent: true;
         website?: string | undefined;
         ownershipOther?: string | undefined;
         tradeGoods?: string | undefined;
         tradeCountries?: string[] | undefined;
+        idDocument?: {
+            documentType: "national_id";
+            documentNumber: string;
+        } | {
+            documentType: "passport";
+            documentNumber: string;
+        } | undefined;
+        useDocumentOnFile?: true | undefined;
     }>, {
         gender: "female" | "male";
         dateOfBirth: string;
@@ -1345,17 +1408,18 @@ export declare const BusinessDetails: z.ZodEffects<z.ZodDiscriminatedUnion<"doma
         firstName: string;
         lastName: string;
         email: string;
-        idDocument: {
+        consent: true;
+        website?: string | undefined;
+        ownershipOther?: string | undefined;
+        tradeGoods?: string | undefined;
+        idDocument?: {
             documentType: "national_id";
             documentNumber: string;
         } | {
             documentType: "passport";
             documentNumber: string;
-        };
-        consent: true;
-        website?: string | undefined;
-        ownershipOther?: string | undefined;
-        tradeGoods?: string | undefined;
+        } | undefined;
+        useDocumentOnFile?: true | undefined;
     }, {
         gender: "female" | "male";
         dateOfBirth: string;
@@ -1371,18 +1435,19 @@ export declare const BusinessDetails: z.ZodEffects<z.ZodDiscriminatedUnion<"doma
         firstName: string;
         lastName: string;
         email: string;
-        idDocument: {
-            documentType: "national_id";
-            documentNumber: string;
-        } | {
-            documentType: "passport";
-            documentNumber: string;
-        };
         consent: true;
         website?: string | undefined;
         ownershipOther?: string | undefined;
         tradeGoods?: string | undefined;
         tradeCountries?: string[] | undefined;
+        idDocument?: {
+            documentType: "national_id";
+            documentNumber: string;
+        } | {
+            documentType: "passport";
+            documentNumber: string;
+        } | undefined;
+        useDocumentOnFile?: true | undefined;
     }>>;
     eacStarGrade: z.ZodOptional<z.ZodNumber>;
     /** The locations beyond the head office (ADR-054). Empty for a single site business. */
@@ -1497,17 +1562,18 @@ export declare const BusinessDetails: z.ZodEffects<z.ZodDiscriminatedUnion<"doma
         firstName: string;
         lastName: string;
         email: string;
-        idDocument: {
+        consent: true;
+        website?: string | undefined;
+        ownershipOther?: string | undefined;
+        tradeGoods?: string | undefined;
+        idDocument?: {
             documentType: "national_id";
             documentNumber: string;
         } | {
             documentType: "passport";
             documentNumber: string;
-        };
-        consent: true;
-        website?: string | undefined;
-        ownershipOther?: string | undefined;
-        tradeGoods?: string | undefined;
+        } | undefined;
+        useDocumentOnFile?: true | undefined;
     } | undefined;
     eacStarGrade?: number | undefined;
 }, {
@@ -1555,18 +1621,19 @@ export declare const BusinessDetails: z.ZodEffects<z.ZodDiscriminatedUnion<"doma
         firstName: string;
         lastName: string;
         email: string;
-        idDocument: {
-            documentType: "national_id";
-            documentNumber: string;
-        } | {
-            documentType: "passport";
-            documentNumber: string;
-        };
         consent: true;
         website?: string | undefined;
         ownershipOther?: string | undefined;
         tradeGoods?: string | undefined;
         tradeCountries?: string[] | undefined;
+        idDocument?: {
+            documentType: "national_id";
+            documentNumber: string;
+        } | {
+            documentType: "passport";
+            documentNumber: string;
+        } | undefined;
+        useDocumentOnFile?: true | undefined;
     } | undefined;
     eacStarGrade?: number | undefined;
     branches?: {
@@ -1765,17 +1832,18 @@ export declare const BusinessDetails: z.ZodEffects<z.ZodDiscriminatedUnion<"doma
         firstName: string;
         lastName: string;
         email: string;
-        idDocument: {
+        consent: true;
+        website?: string | undefined;
+        ownershipOther?: string | undefined;
+        tradeGoods?: string | undefined;
+        idDocument?: {
             documentType: "national_id";
             documentNumber: string;
         } | {
             documentType: "passport";
             documentNumber: string;
-        };
-        consent: true;
-        website?: string | undefined;
-        ownershipOther?: string | undefined;
-        tradeGoods?: string | undefined;
+        } | undefined;
+        useDocumentOnFile?: true | undefined;
     } | undefined;
     eacStarGrade?: number | undefined;
 } | {
@@ -1849,18 +1917,19 @@ export declare const BusinessDetails: z.ZodEffects<z.ZodDiscriminatedUnion<"doma
         firstName: string;
         lastName: string;
         email: string;
-        idDocument: {
-            documentType: "national_id";
-            documentNumber: string;
-        } | {
-            documentType: "passport";
-            documentNumber: string;
-        };
         consent: true;
         website?: string | undefined;
         ownershipOther?: string | undefined;
         tradeGoods?: string | undefined;
         tradeCountries?: string[] | undefined;
+        idDocument?: {
+            documentType: "national_id";
+            documentNumber: string;
+        } | {
+            documentType: "passport";
+            documentNumber: string;
+        } | undefined;
+        useDocumentOnFile?: true | undefined;
     } | undefined;
     eacStarGrade?: number | undefined;
     branches?: {
@@ -1938,7 +2007,13 @@ export declare const CreateRegistrationRequest: z.ZodEffects<z.ZodObject<{
     personal: z.ZodOptional<z.ZodObject<{
         /** As written on the identity document. */
         fullName: z.ZodString;
-        document: z.ZodDiscriminatedUnion<"documentType", [z.ZodObject<{
+        /**
+         * Absent only when the person's identity is already VERIFIED (ADR-060): the
+         * server then keeps the verified document, whose full number the browser
+         * never holds again after a reload. For anyone unverified the server
+         * refuses its absence at this path.
+         */
+        document: z.ZodOptional<z.ZodDiscriminatedUnion<"documentType", [z.ZodObject<{
             documentType: z.ZodLiteral<"national_id">;
             documentNumber: z.ZodPipeline<z.ZodEffects<z.ZodString, string, string>, z.ZodString>;
             /** A Rwandan NID is Rwandan by definition; kept explicit for the row. */
@@ -1963,7 +2038,7 @@ export declare const CreateRegistrationRequest: z.ZodEffects<z.ZodObject<{
             documentType: "passport";
             documentNumber: string;
             issuingCountry: string;
-        }>]>;
+        }>]>>;
         gender: z.ZodOptional<z.ZodEnum<["female", "male", "other", "prefer_not_to_say"]>>;
         /** ISO date. Bounds are sanity rails, not a policy on who may register. */
         dateOfBirth: z.ZodEffects<z.ZodString, string, string>;
@@ -2008,7 +2083,21 @@ export declare const CreateRegistrationRequest: z.ZodEffects<z.ZodObject<{
         }>]>;
     }, "strip", z.ZodTypeAny, {
         fullName: string;
-        document: {
+        dateOfBirth: string;
+        phoneE164: string;
+        address: {
+            country: "RW";
+            provinceId: number;
+            districtId: number;
+            sectorId: number;
+            cellId?: number | undefined;
+            villageId?: number | undefined;
+            street?: string | undefined;
+        } | {
+            country: string;
+            addressText: string;
+        };
+        document?: {
             documentType: "national_id";
             documentNumber: string;
             issuingCountry: "RW";
@@ -2016,7 +2105,10 @@ export declare const CreateRegistrationRequest: z.ZodEffects<z.ZodObject<{
             documentType: "passport";
             documentNumber: string;
             issuingCountry: string;
-        };
+        } | undefined;
+        gender?: "other" | "female" | "male" | "prefer_not_to_say" | undefined;
+    }, {
+        fullName: string;
         dateOfBirth: string;
         phoneE164: string;
         address: {
@@ -2031,10 +2123,7 @@ export declare const CreateRegistrationRequest: z.ZodEffects<z.ZodObject<{
             country: string;
             addressText: string;
         };
-        gender?: "other" | "female" | "male" | "prefer_not_to_say" | undefined;
-    }, {
-        fullName: string;
-        document: {
+        document?: {
             documentType: "national_id";
             documentNumber: string;
             issuingCountry?: "RW" | undefined;
@@ -2042,21 +2131,7 @@ export declare const CreateRegistrationRequest: z.ZodEffects<z.ZodObject<{
             documentType: "passport";
             documentNumber: string;
             issuingCountry: string;
-        };
-        dateOfBirth: string;
-        phoneE164: string;
-        address: {
-            country: "RW";
-            provinceId: number;
-            districtId: number;
-            sectorId: number;
-            cellId?: number | undefined;
-            villageId?: number | undefined;
-            street?: string | undefined;
-        } | {
-            country: string;
-            addressText: string;
-        };
+        } | undefined;
         gender?: "other" | "female" | "male" | "prefer_not_to_say" | undefined;
     }>>;
     business: z.ZodEffects<z.ZodDiscriminatedUnion<"domain", [z.ZodObject<{
@@ -2155,7 +2230,8 @@ export declare const CreateRegistrationRequest: z.ZodEffects<z.ZodObject<{
             gender: z.ZodEnum<["male", "female"]>;
             phoneE164: z.ZodPipeline<z.ZodEffects<z.ZodString, string, string>, z.ZodString>;
             email: z.ZodString;
-            idDocument: z.ZodDiscriminatedUnion<"documentType", [z.ZodObject<{
+            /** Absent only when `useDocumentOnFile` asks the server for it instead. */
+            idDocument: z.ZodOptional<z.ZodDiscriminatedUnion<"documentType", [z.ZodObject<{
                 documentType: z.ZodLiteral<"national_id">;
                 documentNumber: z.ZodPipeline<z.ZodEffects<z.ZodString, string, string>, z.ZodString>;
             }, "strip", z.ZodTypeAny, {
@@ -2173,7 +2249,14 @@ export declare const CreateRegistrationRequest: z.ZodEffects<z.ZodObject<{
             }, {
                 documentType: "passport";
                 documentNumber: string;
-            }>]>;
+            }>]>>;
+            /**
+             * "Use the document on my profile" (registration Phase 0). The profile read
+             * masks the number, so a returning registrant could only retype it; with
+             * this the server copies the full number from the profile it holds, and the
+             * browser never sees it.
+             */
+            useDocumentOnFile: z.ZodOptional<z.ZodLiteral<true>>;
             dateOfBirth: z.ZodEffects<z.ZodString, string, string>;
             /** Must be ticked: an unticked box and a Yes are different acts (AC-5). */
             consent: z.ZodLiteral<true>;
@@ -2193,17 +2276,18 @@ export declare const CreateRegistrationRequest: z.ZodEffects<z.ZodObject<{
             firstName: string;
             lastName: string;
             email: string;
-            idDocument: {
+            consent: true;
+            website?: string | undefined;
+            ownershipOther?: string | undefined;
+            tradeGoods?: string | undefined;
+            idDocument?: {
                 documentType: "national_id";
                 documentNumber: string;
             } | {
                 documentType: "passport";
                 documentNumber: string;
-            };
-            consent: true;
-            website?: string | undefined;
-            ownershipOther?: string | undefined;
-            tradeGoods?: string | undefined;
+            } | undefined;
+            useDocumentOnFile?: true | undefined;
         }, {
             gender: "female" | "male";
             dateOfBirth: string;
@@ -2219,18 +2303,19 @@ export declare const CreateRegistrationRequest: z.ZodEffects<z.ZodObject<{
             firstName: string;
             lastName: string;
             email: string;
-            idDocument: {
-                documentType: "national_id";
-                documentNumber: string;
-            } | {
-                documentType: "passport";
-                documentNumber: string;
-            };
             consent: true;
             website?: string | undefined;
             ownershipOther?: string | undefined;
             tradeGoods?: string | undefined;
             tradeCountries?: string[] | undefined;
+            idDocument?: {
+                documentType: "national_id";
+                documentNumber: string;
+            } | {
+                documentType: "passport";
+                documentNumber: string;
+            } | undefined;
+            useDocumentOnFile?: true | undefined;
         }>, {
             gender: "female" | "male";
             dateOfBirth: string;
@@ -2247,17 +2332,18 @@ export declare const CreateRegistrationRequest: z.ZodEffects<z.ZodObject<{
             firstName: string;
             lastName: string;
             email: string;
-            idDocument: {
+            consent: true;
+            website?: string | undefined;
+            ownershipOther?: string | undefined;
+            tradeGoods?: string | undefined;
+            idDocument?: {
                 documentType: "national_id";
                 documentNumber: string;
             } | {
                 documentType: "passport";
                 documentNumber: string;
-            };
-            consent: true;
-            website?: string | undefined;
-            ownershipOther?: string | undefined;
-            tradeGoods?: string | undefined;
+            } | undefined;
+            useDocumentOnFile?: true | undefined;
         }, {
             gender: "female" | "male";
             dateOfBirth: string;
@@ -2273,18 +2359,19 @@ export declare const CreateRegistrationRequest: z.ZodEffects<z.ZodObject<{
             firstName: string;
             lastName: string;
             email: string;
-            idDocument: {
-                documentType: "national_id";
-                documentNumber: string;
-            } | {
-                documentType: "passport";
-                documentNumber: string;
-            };
             consent: true;
             website?: string | undefined;
             ownershipOther?: string | undefined;
             tradeGoods?: string | undefined;
             tradeCountries?: string[] | undefined;
+            idDocument?: {
+                documentType: "national_id";
+                documentNumber: string;
+            } | {
+                documentType: "passport";
+                documentNumber: string;
+            } | undefined;
+            useDocumentOnFile?: true | undefined;
         }>>;
         eacStarGrade: z.ZodOptional<z.ZodNumber>;
         /** The locations beyond the head office (ADR-054). Empty for a single site business. */
@@ -2399,17 +2486,18 @@ export declare const CreateRegistrationRequest: z.ZodEffects<z.ZodObject<{
             firstName: string;
             lastName: string;
             email: string;
-            idDocument: {
+            consent: true;
+            website?: string | undefined;
+            ownershipOther?: string | undefined;
+            tradeGoods?: string | undefined;
+            idDocument?: {
                 documentType: "national_id";
                 documentNumber: string;
             } | {
                 documentType: "passport";
                 documentNumber: string;
-            };
-            consent: true;
-            website?: string | undefined;
-            ownershipOther?: string | undefined;
-            tradeGoods?: string | undefined;
+            } | undefined;
+            useDocumentOnFile?: true | undefined;
         } | undefined;
         eacStarGrade?: number | undefined;
     }, {
@@ -2457,18 +2545,19 @@ export declare const CreateRegistrationRequest: z.ZodEffects<z.ZodObject<{
             firstName: string;
             lastName: string;
             email: string;
-            idDocument: {
-                documentType: "national_id";
-                documentNumber: string;
-            } | {
-                documentType: "passport";
-                documentNumber: string;
-            };
             consent: true;
             website?: string | undefined;
             ownershipOther?: string | undefined;
             tradeGoods?: string | undefined;
             tradeCountries?: string[] | undefined;
+            idDocument?: {
+                documentType: "national_id";
+                documentNumber: string;
+            } | {
+                documentType: "passport";
+                documentNumber: string;
+            } | undefined;
+            useDocumentOnFile?: true | undefined;
         } | undefined;
         eacStarGrade?: number | undefined;
         branches?: {
@@ -2667,17 +2756,18 @@ export declare const CreateRegistrationRequest: z.ZodEffects<z.ZodObject<{
             firstName: string;
             lastName: string;
             email: string;
-            idDocument: {
+            consent: true;
+            website?: string | undefined;
+            ownershipOther?: string | undefined;
+            tradeGoods?: string | undefined;
+            idDocument?: {
                 documentType: "national_id";
                 documentNumber: string;
             } | {
                 documentType: "passport";
                 documentNumber: string;
-            };
-            consent: true;
-            website?: string | undefined;
-            ownershipOther?: string | undefined;
-            tradeGoods?: string | undefined;
+            } | undefined;
+            useDocumentOnFile?: true | undefined;
         } | undefined;
         eacStarGrade?: number | undefined;
     } | {
@@ -2751,18 +2841,19 @@ export declare const CreateRegistrationRequest: z.ZodEffects<z.ZodObject<{
             firstName: string;
             lastName: string;
             email: string;
-            idDocument: {
-                documentType: "national_id";
-                documentNumber: string;
-            } | {
-                documentType: "passport";
-                documentNumber: string;
-            };
             consent: true;
             website?: string | undefined;
             ownershipOther?: string | undefined;
             tradeGoods?: string | undefined;
             tradeCountries?: string[] | undefined;
+            idDocument?: {
+                documentType: "national_id";
+                documentNumber: string;
+            } | {
+                documentType: "passport";
+                documentNumber: string;
+            } | undefined;
+            useDocumentOnFile?: true | undefined;
         } | undefined;
         eacStarGrade?: number | undefined;
         branches?: {
@@ -2877,17 +2968,18 @@ export declare const CreateRegistrationRequest: z.ZodEffects<z.ZodObject<{
             firstName: string;
             lastName: string;
             email: string;
-            idDocument: {
+            consent: true;
+            website?: string | undefined;
+            ownershipOther?: string | undefined;
+            tradeGoods?: string | undefined;
+            idDocument?: {
                 documentType: "national_id";
                 documentNumber: string;
             } | {
                 documentType: "passport";
                 documentNumber: string;
-            };
-            consent: true;
-            website?: string | undefined;
-            ownershipOther?: string | undefined;
-            tradeGoods?: string | undefined;
+            } | undefined;
+            useDocumentOnFile?: true | undefined;
         } | undefined;
         eacStarGrade?: number | undefined;
     } | {
@@ -2921,15 +3013,6 @@ export declare const CreateRegistrationRequest: z.ZodEffects<z.ZodObject<{
     capacity: "owner" | "on_behalf_of";
     personal?: {
         fullName: string;
-        document: {
-            documentType: "national_id";
-            documentNumber: string;
-            issuingCountry: "RW";
-        } | {
-            documentType: "passport";
-            documentNumber: string;
-            issuingCountry: string;
-        };
         dateOfBirth: string;
         phoneE164: string;
         address: {
@@ -2944,6 +3027,15 @@ export declare const CreateRegistrationRequest: z.ZodEffects<z.ZodObject<{
             country: string;
             addressText: string;
         };
+        document?: {
+            documentType: "national_id";
+            documentNumber: string;
+            issuingCountry: "RW";
+        } | {
+            documentType: "passport";
+            documentNumber: string;
+            issuingCountry: string;
+        } | undefined;
         gender?: "other" | "female" | "male" | "prefer_not_to_say" | undefined;
     } | undefined;
     intendedOwner?: {
@@ -2997,18 +3089,19 @@ export declare const CreateRegistrationRequest: z.ZodEffects<z.ZodObject<{
             firstName: string;
             lastName: string;
             email: string;
-            idDocument: {
-                documentType: "national_id";
-                documentNumber: string;
-            } | {
-                documentType: "passport";
-                documentNumber: string;
-            };
             consent: true;
             website?: string | undefined;
             ownershipOther?: string | undefined;
             tradeGoods?: string | undefined;
             tradeCountries?: string[] | undefined;
+            idDocument?: {
+                documentType: "national_id";
+                documentNumber: string;
+            } | {
+                documentType: "passport";
+                documentNumber: string;
+            } | undefined;
+            useDocumentOnFile?: true | undefined;
         } | undefined;
         eacStarGrade?: number | undefined;
         branches?: {
@@ -3053,15 +3146,6 @@ export declare const CreateRegistrationRequest: z.ZodEffects<z.ZodObject<{
     role: "broker" | "host" | "landlord";
     personal?: {
         fullName: string;
-        document: {
-            documentType: "national_id";
-            documentNumber: string;
-            issuingCountry?: "RW" | undefined;
-        } | {
-            documentType: "passport";
-            documentNumber: string;
-            issuingCountry: string;
-        };
         dateOfBirth: string;
         phoneE164: string;
         address: {
@@ -3076,6 +3160,15 @@ export declare const CreateRegistrationRequest: z.ZodEffects<z.ZodObject<{
             country: string;
             addressText: string;
         };
+        document?: {
+            documentType: "national_id";
+            documentNumber: string;
+            issuingCountry?: "RW" | undefined;
+        } | {
+            documentType: "passport";
+            documentNumber: string;
+            issuingCountry: string;
+        } | undefined;
         gender?: "other" | "female" | "male" | "prefer_not_to_say" | undefined;
     } | undefined;
     capacity?: "owner" | "on_behalf_of" | undefined;
@@ -3143,17 +3236,18 @@ export declare const CreateRegistrationRequest: z.ZodEffects<z.ZodObject<{
             firstName: string;
             lastName: string;
             email: string;
-            idDocument: {
+            consent: true;
+            website?: string | undefined;
+            ownershipOther?: string | undefined;
+            tradeGoods?: string | undefined;
+            idDocument?: {
                 documentType: "national_id";
                 documentNumber: string;
             } | {
                 documentType: "passport";
                 documentNumber: string;
-            };
-            consent: true;
-            website?: string | undefined;
-            ownershipOther?: string | undefined;
-            tradeGoods?: string | undefined;
+            } | undefined;
+            useDocumentOnFile?: true | undefined;
         } | undefined;
         eacStarGrade?: number | undefined;
     } | {
@@ -3187,15 +3281,6 @@ export declare const CreateRegistrationRequest: z.ZodEffects<z.ZodObject<{
     capacity: "owner" | "on_behalf_of";
     personal?: {
         fullName: string;
-        document: {
-            documentType: "national_id";
-            documentNumber: string;
-            issuingCountry: "RW";
-        } | {
-            documentType: "passport";
-            documentNumber: string;
-            issuingCountry: string;
-        };
         dateOfBirth: string;
         phoneE164: string;
         address: {
@@ -3210,6 +3295,15 @@ export declare const CreateRegistrationRequest: z.ZodEffects<z.ZodObject<{
             country: string;
             addressText: string;
         };
+        document?: {
+            documentType: "national_id";
+            documentNumber: string;
+            issuingCountry: "RW";
+        } | {
+            documentType: "passport";
+            documentNumber: string;
+            issuingCountry: string;
+        } | undefined;
         gender?: "other" | "female" | "male" | "prefer_not_to_say" | undefined;
     } | undefined;
     intendedOwner?: {
@@ -3263,18 +3357,19 @@ export declare const CreateRegistrationRequest: z.ZodEffects<z.ZodObject<{
             firstName: string;
             lastName: string;
             email: string;
-            idDocument: {
-                documentType: "national_id";
-                documentNumber: string;
-            } | {
-                documentType: "passport";
-                documentNumber: string;
-            };
             consent: true;
             website?: string | undefined;
             ownershipOther?: string | undefined;
             tradeGoods?: string | undefined;
             tradeCountries?: string[] | undefined;
+            idDocument?: {
+                documentType: "national_id";
+                documentNumber: string;
+            } | {
+                documentType: "passport";
+                documentNumber: string;
+            } | undefined;
+            useDocumentOnFile?: true | undefined;
         } | undefined;
         eacStarGrade?: number | undefined;
         branches?: {
@@ -3319,15 +3414,6 @@ export declare const CreateRegistrationRequest: z.ZodEffects<z.ZodObject<{
     role: "broker" | "host" | "landlord";
     personal?: {
         fullName: string;
-        document: {
-            documentType: "national_id";
-            documentNumber: string;
-            issuingCountry?: "RW" | undefined;
-        } | {
-            documentType: "passport";
-            documentNumber: string;
-            issuingCountry: string;
-        };
         dateOfBirth: string;
         phoneE164: string;
         address: {
@@ -3342,6 +3428,15 @@ export declare const CreateRegistrationRequest: z.ZodEffects<z.ZodObject<{
             country: string;
             addressText: string;
         };
+        document?: {
+            documentType: "national_id";
+            documentNumber: string;
+            issuingCountry?: "RW" | undefined;
+        } | {
+            documentType: "passport";
+            documentNumber: string;
+            issuingCountry: string;
+        } | undefined;
         gender?: "other" | "female" | "male" | "prefer_not_to_say" | undefined;
     } | undefined;
     capacity?: "owner" | "on_behalf_of" | undefined;
@@ -3471,15 +3566,67 @@ export declare const OversightQueueItem: z.ZodObject<{
         districtName: string | null;
         isHeadOffice: boolean;
     }>, "many">;
+    /**
+     * What the registrant declared, sent so the queue stops flagging every
+     * hotel "No tourism license" and every file "Missing documents" for want
+     * of fields it was never given (registration Phase 0).
+     */
+    tourismLicenseNumber: z.ZodNullable<z.ZodString>;
+    /** Registered by an agent for its owner; payouts stay locked until claimed. */
+    onBehalfOf: z.ZodBoolean;
+    /**
+     * The certificates attached, as metadata only: kind and number. The files
+     * are not linked here; opening one is a PII read with its own access log.
+     */
+    certificates: z.ZodArray<z.ZodObject<{
+        kind: z.ZodString;
+        kindOther: z.ZodNullable<z.ZodString>;
+        certificateNumber: z.ZodNullable<z.ZodString>;
+    }, "strip", z.ZodTypeAny, {
+        kind: string;
+        kindOther: string | null;
+        certificateNumber: string | null;
+    }, {
+        kind: string;
+        kindOther: string | null;
+        certificateNumber: string | null;
+    }>, "many">;
+    /**
+     * The latest RRA answer on record, with the side of the seam that gave it,
+     * so an officer can tell a register's verdict from a mock's (ADR-060).
+     */
+    tinCheck: z.ZodNullable<z.ZodObject<{
+        result: z.ZodEnum<["pending", "verified", "failed"]>;
+        adapterMode: z.ZodEnum<["mock", "live"]>;
+        checkedAt: z.ZodString;
+    }, "strip", z.ZodTypeAny, {
+        result: "pending" | "verified" | "failed";
+        adapterMode: "mock" | "live";
+        checkedAt: string;
+    }, {
+        result: "pending" | "verified" | "failed";
+        adapterMode: "mock" | "live";
+        checkedAt: string;
+    }>>;
+    /** Who registered it, by their verified name where there is one. */
+    registrantName: z.ZodNullable<z.ZodString>;
+    /** On an on behalf registration, the owner it was registered for. */
+    intendedOwnerName: z.ZodNullable<z.ZodString>;
 }, "strip", z.ZodTypeAny, {
     status: "pending_payment" | "submitted" | "tin_verified" | "field_verified" | "approved" | "active" | "rejected" | "suspended";
     districtId: number | null;
     addressText: string | null;
     legalName: string;
+    certificates: {
+        kind: string;
+        kindOther: string | null;
+        certificateNumber: string | null;
+    }[];
     domain: "hospitality" | "residence";
     accommodationClass: "other" | "hotel" | "motel" | "tented_camp" | "guest_house" | "apartment" | "lodge" | "villa" | "town_hotel" | "vacation_hotel_resort" | "serviced_apartment" | "cottage" | null;
     tin: string | null;
     upi: string | null;
+    tourismLicenseNumber: string | null;
     branches: {
         name: string;
         districtName: string | null;
@@ -3490,15 +3637,29 @@ export declare const OversightQueueItem: z.ZodObject<{
     sectorName: string | null;
     waitingSince: string;
     blockedBySeparationOfDuties: boolean;
+    onBehalfOf: boolean;
+    tinCheck: {
+        result: "pending" | "verified" | "failed";
+        adapterMode: "mock" | "live";
+        checkedAt: string;
+    } | null;
+    registrantName: string | null;
+    intendedOwnerName: string | null;
 }, {
     status: "pending_payment" | "submitted" | "tin_verified" | "field_verified" | "approved" | "active" | "rejected" | "suspended";
     districtId: number | null;
     addressText: string | null;
     legalName: string;
+    certificates: {
+        kind: string;
+        kindOther: string | null;
+        certificateNumber: string | null;
+    }[];
     domain: "hospitality" | "residence";
     accommodationClass: "other" | "hotel" | "motel" | "tented_camp" | "guest_house" | "apartment" | "lodge" | "villa" | "town_hotel" | "vacation_hotel_resort" | "serviced_apartment" | "cottage" | null;
     tin: string | null;
     upi: string | null;
+    tourismLicenseNumber: string | null;
     branches: {
         name: string;
         districtName: string | null;
@@ -3509,6 +3670,14 @@ export declare const OversightQueueItem: z.ZodObject<{
     sectorName: string | null;
     waitingSince: string;
     blockedBySeparationOfDuties: boolean;
+    onBehalfOf: boolean;
+    tinCheck: {
+        result: "pending" | "verified" | "failed";
+        adapterMode: "mock" | "live";
+        checkedAt: string;
+    } | null;
+    registrantName: string | null;
+    intendedOwnerName: string | null;
 }>;
 export type OversightQueueItem = z.infer<typeof OversightQueueItem>;
 /**
@@ -3718,15 +3887,376 @@ export declare const AcceptContractRequest: z.ZodObject<{
     contractVersion: string;
 }>;
 export type AcceptContractRequest = z.infer<typeof AcceptContractRequest>;
-/**
- * Why a registrant action on the contract or the fee was refused (409).
- *
- * `contract_not_accepted` is pay's refusal, `contract_not_open` and
- * `contract_version_stale` are accept's. Sent as `code` on the error body so a
- * page can word the refusal without matching on English.
- */
-export declare const RegistrationConflictCode: z.ZodEnum<["contract_not_accepted", "contract_not_open", "contract_version_stale"]>;
+export declare const REGISTRATION_DRAFT_PHASES: readonly ["place", "about", "business", "documents"];
+export declare const RegistrationDraft: z.ZodEffects<z.ZodObject<{
+    v: z.ZodLiteral<1>;
+    phase: z.ZodEnum<["place", "about", "business", "documents"]>;
+    kind: z.ZodNullable<z.ZodString>;
+    capacity: z.ZodEnum<["owner", "on_behalf_of"]>;
+    /** False when the stored profile answered About you. */
+    typedPersonal: z.ZodBoolean;
+    personal: z.ZodObject<{
+        firstName: z.ZodString;
+        middleName: z.ZodString;
+        lastName: z.ZodString;
+        documentType: z.ZodEnum<["national_id", "passport"]>;
+        issuingCountry: z.ZodString;
+        gender: z.ZodString;
+        dateOfBirth: z.ZodString;
+        phoneE164: z.ZodString;
+        address: z.ZodRecord<z.ZodString, z.ZodString>;
+    }, "strict", z.ZodTypeAny, {
+        documentType: "national_id" | "passport";
+        issuingCountry: string;
+        gender: string;
+        dateOfBirth: string;
+        phoneE164: string;
+        address: Record<string, string>;
+        firstName: string;
+        lastName: string;
+        middleName: string;
+    }, {
+        documentType: "national_id" | "passport";
+        issuingCountry: string;
+        gender: string;
+        dateOfBirth: string;
+        phoneE164: string;
+        address: Record<string, string>;
+        firstName: string;
+        lastName: string;
+        middleName: string;
+    }>;
+    intendedOwner: z.ZodObject<{
+        name: z.ZodString;
+        email: z.ZodString;
+    }, "strict", z.ZodTypeAny, {
+        name: string;
+        email: string;
+    }, {
+        name: string;
+        email: string;
+    }>;
+    business: z.ZodRecord<z.ZodString, z.ZodUnion<[z.ZodString, z.ZodBoolean, z.ZodNull, z.ZodRecord<z.ZodString, z.ZodString>]>>;
+    branches: z.ZodArray<z.ZodObject<{
+        name: z.ZodString;
+        address: z.ZodRecord<z.ZodString, z.ZodString>;
+    }, "strict", z.ZodTypeAny, {
+        name: string;
+        address: Record<string, string>;
+    }, {
+        name: string;
+        address: Record<string, string>;
+    }>, "many">;
+}, "strict", z.ZodTypeAny, {
+    business: Record<string, string | boolean | Record<string, string> | null>;
+    personal: {
+        documentType: "national_id" | "passport";
+        issuingCountry: string;
+        gender: string;
+        dateOfBirth: string;
+        phoneE164: string;
+        address: Record<string, string>;
+        firstName: string;
+        lastName: string;
+        middleName: string;
+    };
+    kind: string | null;
+    branches: {
+        name: string;
+        address: Record<string, string>;
+    }[];
+    capacity: "owner" | "on_behalf_of";
+    intendedOwner: {
+        name: string;
+        email: string;
+    };
+    v: 1;
+    phase: "business" | "documents" | "place" | "about";
+    typedPersonal: boolean;
+}, {
+    business: Record<string, string | boolean | Record<string, string> | null>;
+    personal: {
+        documentType: "national_id" | "passport";
+        issuingCountry: string;
+        gender: string;
+        dateOfBirth: string;
+        phoneE164: string;
+        address: Record<string, string>;
+        firstName: string;
+        lastName: string;
+        middleName: string;
+    };
+    kind: string | null;
+    branches: {
+        name: string;
+        address: Record<string, string>;
+    }[];
+    capacity: "owner" | "on_behalf_of";
+    intendedOwner: {
+        name: string;
+        email: string;
+    };
+    v: 1;
+    phase: "business" | "documents" | "place" | "about";
+    typedPersonal: boolean;
+}>, {
+    business: Record<string, string | boolean | Record<string, string> | null>;
+    personal: {
+        documentType: "national_id" | "passport";
+        issuingCountry: string;
+        gender: string;
+        dateOfBirth: string;
+        phoneE164: string;
+        address: Record<string, string>;
+        firstName: string;
+        lastName: string;
+        middleName: string;
+    };
+    kind: string | null;
+    branches: {
+        name: string;
+        address: Record<string, string>;
+    }[];
+    capacity: "owner" | "on_behalf_of";
+    intendedOwner: {
+        name: string;
+        email: string;
+    };
+    v: 1;
+    phase: "business" | "documents" | "place" | "about";
+    typedPersonal: boolean;
+}, {
+    business: Record<string, string | boolean | Record<string, string> | null>;
+    personal: {
+        documentType: "national_id" | "passport";
+        issuingCountry: string;
+        gender: string;
+        dateOfBirth: string;
+        phoneE164: string;
+        address: Record<string, string>;
+        firstName: string;
+        lastName: string;
+        middleName: string;
+    };
+    kind: string | null;
+    branches: {
+        name: string;
+        address: Record<string, string>;
+    }[];
+    capacity: "owner" | "on_behalf_of";
+    intendedOwner: {
+        name: string;
+        email: string;
+    };
+    v: 1;
+    phase: "business" | "documents" | "place" | "about";
+    typedPersonal: boolean;
+}>;
+export type RegistrationDraft = z.infer<typeof RegistrationDraft>;
+export declare const RegistrationConflictCode: z.ZodEnum<["identity_not_verified", "contract_not_accepted", "contract_not_open", "contract_version_stale"]>;
 export type RegistrationConflictCode = z.infer<typeof RegistrationConflictCode>;
+/**
+ * `POST /api/v1/registrations/tin-check`. Asked at the Business step, before
+ * anything is created or billed, so a TIN RRA will refuse is found while the
+ * registrant can still change it rather than after a non-refundable fee.
+ */
+export declare const TinCheckRequest: z.ZodObject<{
+    tin: z.ZodPipeline<z.ZodEffects<z.ZodString, string, string>, z.ZodString>;
+}, "strip", z.ZodTypeAny, {
+    tin: string;
+}, {
+    tin: string;
+}>;
+export type TinCheckRequest = z.infer<typeof TinCheckRequest>;
+/**
+ * A business as the company register states it (ADR-060). Directors are NAMES
+ * only: their document numbers stay on the server, which compares them.
+ */
+export declare const RegistryBusiness: z.ZodObject<{
+    legalName: z.ZodString;
+    /** `YYYY-MM-DD`, when the register gives one. */
+    registeredOn: z.ZodNullable<z.ZodString>;
+    companyType: z.ZodNullable<z.ZodEnum<["cooperative", "ngo", "partly_state_owned", "private_company", "public_company", "sole_trader"]>>;
+    /** The registered address, as geography ids the picker can take directly. */
+    address: z.ZodNullable<z.ZodObject<{
+        provinceId: z.ZodNumber;
+        districtId: z.ZodNumber;
+        sectorId: z.ZodNumber;
+        street: z.ZodNullable<z.ZodString>;
+    }, "strip", z.ZodTypeAny, {
+        provinceId: number;
+        districtId: number;
+        sectorId: number;
+        street: string | null;
+    }, {
+        provinceId: number;
+        districtId: number;
+        sectorId: number;
+        street: string | null;
+    }>>;
+    directors: z.ZodArray<z.ZodObject<{
+        name: z.ZodString;
+    }, "strip", z.ZodTypeAny, {
+        name: string;
+    }, {
+        name: string;
+    }>, "many">;
+    /** True when a MOCK adapter made this business up. */
+    generated: z.ZodBoolean;
+}, "strip", z.ZodTypeAny, {
+    address: {
+        provinceId: number;
+        districtId: number;
+        sectorId: number;
+        street: string | null;
+    } | null;
+    companyType: "cooperative" | "ngo" | "partly_state_owned" | "private_company" | "public_company" | "sole_trader" | null;
+    legalName: string;
+    registeredOn: string | null;
+    directors: {
+        name: string;
+    }[];
+    generated: boolean;
+}, {
+    address: {
+        provinceId: number;
+        districtId: number;
+        sectorId: number;
+        street: string | null;
+    } | null;
+    companyType: "cooperative" | "ngo" | "partly_state_owned" | "private_company" | "public_company" | "sole_trader" | null;
+    legalName: string;
+    registeredOn: string | null;
+    directors: {
+        name: string;
+    }[];
+    generated: boolean;
+}>;
+export type RegistryBusiness = z.infer<typeof RegistryBusiness>;
+/**
+ * - `verified`: RRA knows the TIN.
+ * - `failed`: RRA does not; registration with it is refused.
+ * - `taken`: another business on Injishi already holds it.
+ * - `pending`: RRA could not be reached. Not a refusal: the check runs again
+ *   after payment, exactly as it did before this pre-check existed.
+ */
+export declare const TinCheckResult: z.ZodObject<{
+    tin: z.ZodString;
+    result: z.ZodEnum<["verified", "failed", "taken", "pending"]>;
+    message: z.ZodString;
+    /**
+     * The business as the register holds it (ADR-060), or null when the
+     * register returned no details. The Business step fills itself from this
+     * and locks the legal name; `create` refuses a legal name that disagrees.
+     */
+    business: z.ZodNullable<z.ZodObject<{
+        legalName: z.ZodString;
+        /** `YYYY-MM-DD`, when the register gives one. */
+        registeredOn: z.ZodNullable<z.ZodString>;
+        companyType: z.ZodNullable<z.ZodEnum<["cooperative", "ngo", "partly_state_owned", "private_company", "public_company", "sole_trader"]>>;
+        /** The registered address, as geography ids the picker can take directly. */
+        address: z.ZodNullable<z.ZodObject<{
+            provinceId: z.ZodNumber;
+            districtId: z.ZodNumber;
+            sectorId: z.ZodNumber;
+            street: z.ZodNullable<z.ZodString>;
+        }, "strip", z.ZodTypeAny, {
+            provinceId: number;
+            districtId: number;
+            sectorId: number;
+            street: string | null;
+        }, {
+            provinceId: number;
+            districtId: number;
+            sectorId: number;
+            street: string | null;
+        }>>;
+        directors: z.ZodArray<z.ZodObject<{
+            name: z.ZodString;
+        }, "strip", z.ZodTypeAny, {
+            name: string;
+        }, {
+            name: string;
+        }>, "many">;
+        /** True when a MOCK adapter made this business up. */
+        generated: z.ZodBoolean;
+    }, "strip", z.ZodTypeAny, {
+        address: {
+            provinceId: number;
+            districtId: number;
+            sectorId: number;
+            street: string | null;
+        } | null;
+        companyType: "cooperative" | "ngo" | "partly_state_owned" | "private_company" | "public_company" | "sole_trader" | null;
+        legalName: string;
+        registeredOn: string | null;
+        directors: {
+            name: string;
+        }[];
+        generated: boolean;
+    }, {
+        address: {
+            provinceId: number;
+            districtId: number;
+            sectorId: number;
+            street: string | null;
+        } | null;
+        companyType: "cooperative" | "ngo" | "partly_state_owned" | "private_company" | "public_company" | "sole_trader" | null;
+        legalName: string;
+        registeredOn: string | null;
+        directors: {
+            name: string;
+        }[];
+        generated: boolean;
+    }>>;
+    /**
+     * Whether the caller's own verified document is among the directors. Null
+     * when the register lists no directors, or the caller holds no document to
+     * compare. `false` is what moves a registrant to the on behalf path.
+     */
+    registrantIsDirector: z.ZodNullable<z.ZodBoolean>;
+}, "strip", z.ZodTypeAny, {
+    message: string;
+    business: {
+        address: {
+            provinceId: number;
+            districtId: number;
+            sectorId: number;
+            street: string | null;
+        } | null;
+        companyType: "cooperative" | "ngo" | "partly_state_owned" | "private_company" | "public_company" | "sole_trader" | null;
+        legalName: string;
+        registeredOn: string | null;
+        directors: {
+            name: string;
+        }[];
+        generated: boolean;
+    } | null;
+    tin: string;
+    result: "pending" | "verified" | "failed" | "taken";
+    registrantIsDirector: boolean | null;
+}, {
+    message: string;
+    business: {
+        address: {
+            provinceId: number;
+            districtId: number;
+            sectorId: number;
+            street: string | null;
+        } | null;
+        companyType: "cooperative" | "ngo" | "partly_state_owned" | "private_company" | "public_company" | "sole_trader" | null;
+        legalName: string;
+        registeredOn: string | null;
+        directors: {
+            name: string;
+        }[];
+        generated: boolean;
+    } | null;
+    tin: string;
+    result: "pending" | "verified" | "failed" | "taken";
+    registrantIsDirector: boolean | null;
+}>;
+export type TinCheckResult = z.infer<typeof TinCheckResult>;
 /**
  * `POST /api/v1/orgs/:orgId/claim/preview` and `/claim`. The token from the
  * invitation mail, in the body so it never lands in the API's access log.
@@ -3756,14 +4286,14 @@ export declare const ClaimPreview: z.ZodObject<{
     legalName: string;
     orgId: string;
     districtName: string | null;
-    registrationStatus: "pending_payment" | "submitted" | "tin_verified" | "field_verified" | "approved" | "active" | "rejected" | "suspended";
     registrantName: string | null;
+    registrationStatus: "pending_payment" | "submitted" | "tin_verified" | "field_verified" | "approved" | "active" | "rejected" | "suspended";
 }, {
     legalName: string;
     orgId: string;
     districtName: string | null;
-    registrationStatus: "pending_payment" | "submitted" | "tin_verified" | "field_verified" | "approved" | "active" | "rejected" | "suspended";
     registrantName: string | null;
+    registrationStatus: "pending_payment" | "submitted" | "tin_verified" | "field_verified" | "approved" | "active" | "rejected" | "suspended";
 }>;
 export type ClaimPreview = z.infer<typeof ClaimPreview>;
 /** The fee a registrant is quoted, read from the effective-dated catalog. */
@@ -3938,7 +4468,13 @@ export declare const CreateBrokerRegistrationRequest: z.ZodObject<{
     personal: z.ZodOptional<z.ZodObject<{
         /** As written on the identity document. */
         fullName: z.ZodString;
-        document: z.ZodDiscriminatedUnion<"documentType", [z.ZodObject<{
+        /**
+         * Absent only when the person's identity is already VERIFIED (ADR-060): the
+         * server then keeps the verified document, whose full number the browser
+         * never holds again after a reload. For anyone unverified the server
+         * refuses its absence at this path.
+         */
+        document: z.ZodOptional<z.ZodDiscriminatedUnion<"documentType", [z.ZodObject<{
             documentType: z.ZodLiteral<"national_id">;
             documentNumber: z.ZodPipeline<z.ZodEffects<z.ZodString, string, string>, z.ZodString>;
             /** A Rwandan NID is Rwandan by definition; kept explicit for the row. */
@@ -3963,7 +4499,7 @@ export declare const CreateBrokerRegistrationRequest: z.ZodObject<{
             documentType: "passport";
             documentNumber: string;
             issuingCountry: string;
-        }>]>;
+        }>]>>;
         gender: z.ZodOptional<z.ZodEnum<["female", "male", "other", "prefer_not_to_say"]>>;
         /** ISO date. Bounds are sanity rails, not a policy on who may register. */
         dateOfBirth: z.ZodEffects<z.ZodString, string, string>;
@@ -4008,7 +4544,21 @@ export declare const CreateBrokerRegistrationRequest: z.ZodObject<{
         }>]>;
     }, "strip", z.ZodTypeAny, {
         fullName: string;
-        document: {
+        dateOfBirth: string;
+        phoneE164: string;
+        address: {
+            country: "RW";
+            provinceId: number;
+            districtId: number;
+            sectorId: number;
+            cellId?: number | undefined;
+            villageId?: number | undefined;
+            street?: string | undefined;
+        } | {
+            country: string;
+            addressText: string;
+        };
+        document?: {
             documentType: "national_id";
             documentNumber: string;
             issuingCountry: "RW";
@@ -4016,7 +4566,10 @@ export declare const CreateBrokerRegistrationRequest: z.ZodObject<{
             documentType: "passport";
             documentNumber: string;
             issuingCountry: string;
-        };
+        } | undefined;
+        gender?: "other" | "female" | "male" | "prefer_not_to_say" | undefined;
+    }, {
+        fullName: string;
         dateOfBirth: string;
         phoneE164: string;
         address: {
@@ -4031,10 +4584,7 @@ export declare const CreateBrokerRegistrationRequest: z.ZodObject<{
             country: string;
             addressText: string;
         };
-        gender?: "other" | "female" | "male" | "prefer_not_to_say" | undefined;
-    }, {
-        fullName: string;
-        document: {
+        document?: {
             documentType: "national_id";
             documentNumber: string;
             issuingCountry?: "RW" | undefined;
@@ -4042,27 +4592,27 @@ export declare const CreateBrokerRegistrationRequest: z.ZodObject<{
             documentType: "passport";
             documentNumber: string;
             issuingCountry: string;
-        };
-        dateOfBirth: string;
-        phoneE164: string;
-        address: {
-            country: "RW";
-            provinceId: number;
-            districtId: number;
-            sectorId: number;
-            cellId?: number | undefined;
-            villageId?: number | undefined;
-            street?: string | undefined;
-        } | {
-            country: string;
-            addressText: string;
-        };
+        } | undefined;
         gender?: "other" | "female" | "male" | "prefer_not_to_say" | undefined;
     }>>;
 }, "strip", z.ZodTypeAny, {
     personal?: {
         fullName: string;
-        document: {
+        dateOfBirth: string;
+        phoneE164: string;
+        address: {
+            country: "RW";
+            provinceId: number;
+            districtId: number;
+            sectorId: number;
+            cellId?: number | undefined;
+            villageId?: number | undefined;
+            street?: string | undefined;
+        } | {
+            country: string;
+            addressText: string;
+        };
+        document?: {
             documentType: "national_id";
             documentNumber: string;
             issuingCountry: "RW";
@@ -4070,7 +4620,12 @@ export declare const CreateBrokerRegistrationRequest: z.ZodObject<{
             documentType: "passport";
             documentNumber: string;
             issuingCountry: string;
-        };
+        } | undefined;
+        gender?: "other" | "female" | "male" | "prefer_not_to_say" | undefined;
+    } | undefined;
+}, {
+    personal?: {
+        fullName: string;
         dateOfBirth: string;
         phoneE164: string;
         address: {
@@ -4085,12 +4640,7 @@ export declare const CreateBrokerRegistrationRequest: z.ZodObject<{
             country: string;
             addressText: string;
         };
-        gender?: "other" | "female" | "male" | "prefer_not_to_say" | undefined;
-    } | undefined;
-}, {
-    personal?: {
-        fullName: string;
-        document: {
+        document?: {
             documentType: "national_id";
             documentNumber: string;
             issuingCountry?: "RW" | undefined;
@@ -4098,21 +4648,7 @@ export declare const CreateBrokerRegistrationRequest: z.ZodObject<{
             documentType: "passport";
             documentNumber: string;
             issuingCountry: string;
-        };
-        dateOfBirth: string;
-        phoneE164: string;
-        address: {
-            country: "RW";
-            provinceId: number;
-            districtId: number;
-            sectorId: number;
-            cellId?: number | undefined;
-            villageId?: number | undefined;
-            street?: string | undefined;
-        } | {
-            country: string;
-            addressText: string;
-        };
+        } | undefined;
         gender?: "other" | "female" | "male" | "prefer_not_to_say" | undefined;
     } | undefined;
 }>;

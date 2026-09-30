@@ -828,4 +828,4 @@ export function mayElevate(identity: {
 }): boolean {
     return identity.kycStatus === "verified" && identity.activeDocumentCount > 0;
 }
-export const ELEVATION_REFUSED_MESSAGE = "This needs a verified identity. Add a national ID or passport to continue.";
+export const ELEVATION_REFUSED_MESSAGE = "This needs a verified identity. Validate your National ID or scan your passport on the About you step, then try again.";

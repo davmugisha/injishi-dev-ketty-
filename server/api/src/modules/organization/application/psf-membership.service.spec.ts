@@ -5,6 +5,7 @@ import {
   UnprocessableEntityException,
 } from '@nestjs/common';
 
+import type { ProfileService } from '../../user/application/profile.service';
 import type { PsfMembershipMailer } from '../infrastructure/psf-membership.mailer';
 import {
   OpenPsfApplicationExists,
@@ -112,6 +113,7 @@ function setup(): {
   const service = new PsfMembershipService(
     repo as unknown as PsfMembershipRepository,
     mail as unknown as PsfMembershipMailer,
+    { documentFor: jest.fn().mockResolvedValue(null) } as unknown as ProfileService,
   );
   // `decidedView` reads back after a decision; its detail is not under test here.
   jest

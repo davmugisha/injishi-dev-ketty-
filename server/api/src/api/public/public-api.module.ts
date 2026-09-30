@@ -67,6 +67,9 @@ import {
   PsfTiersController,
 } from './psf/psf-membership.controller';
 import { OrgClaimsController } from './registrations/org-claims.controller';
+import { IdentityController } from './me/identity.controller';
+import { SelfCheckInController } from './me/self-check-in.controller';
+import { RegistrationDraftController } from './registrations/registration-draft.controller';
 import { RegistrationsController } from './registrations/registrations.controller';
 import { StaffInvitationsController } from './registrations/staff-invitations.controller';
 import { UploadsController } from './uploads/uploads.controller';
@@ -123,6 +126,12 @@ import { WaitlistModule } from './waitlist/waitlist.module';
     // The host's approve and decline, behind WorkspaceGuard (ADR-053, AC-A5).
     BookingDecisionsController,
     RegistrationsController,
+    // The caller's own identity verification (ADR-060).
+    IdentityController,
+    // A guest's own check-in before arrival (F-B09, ADR-060).
+    SelfCheckInController,
+    // The registration wizard's answers between steps (ADR-060).
+    RegistrationDraftController,
     // The owner claim: the end an OBO registration could never reach (ADR-053).
     OrgClaimsController,
     // Accepting a staff invitation, before the invitee holds the workspace.

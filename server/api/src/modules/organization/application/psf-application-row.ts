@@ -1,6 +1,7 @@
 import type {
   PsfApplication,
   PsfApplicationInput,
+  PsfIdDocument,
   PsfMembership,
   PsfSubmittedCapacity,
   PsfTier,
@@ -31,7 +32,8 @@ export function buildPsfApplicationRow(input: {
   capacity: PsfSubmittedCapacity;
   registrationNumber: string;
   tier: Pick<PsfTierRow, 'code' | 'priceKind' | 'annualFeeRwf' | 'annualFeeMinRwf' | 'annualFeeMaxRwf'>;
-  form: PsfApplicationInput;
+  /** The ID resolved: typed, or copied from the profile by the caller. */
+  form: PsfApplicationInput & { idDocument: PsfIdDocument };
   consentGivenAt: Date;
   consentVersion: string;
 }): Omit<NewPsfApplication, 'orgId'> {

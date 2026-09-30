@@ -857,4 +857,82 @@ export declare const DecideStayRefundRequest: z.ZodEffects<z.ZodDiscriminatedUni
     note?: string | undefined;
 }>;
 export type DecideStayRefundRequest = z.infer<typeof DecideStayRefundRequest>;
+/**
+ * `POST /api/v1/me/bookings/:id/check-in`: the guest's own identity for a
+ * booking, sent from the phone before they reach the desk.
+ *
+ * The photo is uploaded first through `POST /api/v1/uploads` as `kind=id_photo`,
+ * and only its key comes here, so a poor connection retries a small JSON body
+ * rather than the image. The document is the same account rule registration
+ * uses, which is why a passport number is 6 to 12 characters here too.
+ */
+export declare const SelfCheckInRequest: z.ZodObject<{
+    document: z.ZodDiscriminatedUnion<"documentType", [z.ZodObject<{
+        documentType: z.ZodLiteral<"national_id">;
+        documentNumber: z.ZodPipeline<z.ZodEffects<z.ZodString, string, string>, z.ZodString>;
+        issuingCountry: z.ZodDefault<z.ZodLiteral<"RW">>;
+    }, "strip", z.ZodTypeAny, {
+        documentType: "national_id";
+        documentNumber: string;
+        issuingCountry: "RW";
+    }, {
+        documentType: "national_id";
+        documentNumber: string;
+        issuingCountry?: "RW" | undefined;
+    }>, z.ZodObject<{
+        documentType: z.ZodLiteral<"passport">;
+        documentNumber: z.ZodPipeline<z.ZodEffects<z.ZodString, string, string>, z.ZodString>;
+        issuingCountry: z.ZodEffects<z.ZodString, string, string>;
+    }, "strip", z.ZodTypeAny, {
+        documentType: "passport";
+        documentNumber: string;
+        issuingCountry: string;
+    }, {
+        documentType: "passport";
+        documentNumber: string;
+        issuingCountry: string;
+    }>]>;
+    idPhotoObjectKey: z.ZodString;
+    addressText: z.ZodString;
+}, "strip", z.ZodTypeAny, {
+    addressText: string;
+    document: {
+        documentType: "national_id";
+        documentNumber: string;
+        issuingCountry: "RW";
+    } | {
+        documentType: "passport";
+        documentNumber: string;
+        issuingCountry: string;
+    };
+    idPhotoObjectKey: string;
+}, {
+    addressText: string;
+    document: {
+        documentType: "national_id";
+        documentNumber: string;
+        issuingCountry?: "RW" | undefined;
+    } | {
+        documentType: "passport";
+        documentNumber: string;
+        issuingCountry: string;
+    };
+    idPhotoObjectKey: string;
+}>;
+export type SelfCheckInRequest = z.infer<typeof SelfCheckInRequest>;
+export declare const SelfCheckInReceipt: z.ZodObject<{
+    bookingId: z.ZodString;
+    submittedAt: z.ZodString;
+    /** False only if the photo could not be attached; the identity still stands. */
+    idPhotoStored: z.ZodBoolean;
+}, "strip", z.ZodTypeAny, {
+    submittedAt: string;
+    bookingId: string;
+    idPhotoStored: boolean;
+}, {
+    submittedAt: string;
+    bookingId: string;
+    idPhotoStored: boolean;
+}>;
+export type SelfCheckInReceipt = z.infer<typeof SelfCheckInReceipt>;
 //# sourceMappingURL=stay.d.ts.map

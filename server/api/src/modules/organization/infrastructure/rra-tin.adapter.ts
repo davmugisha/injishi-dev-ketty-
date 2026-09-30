@@ -1,4 +1,7 @@
-import { Injectable } from '@nestjs/common';
+import { Inject, Injectable, Optional } from '@nestjs/common';
+
+import { PLATFORM, type Platform } from '../../../shared/config/platform';
+import { registerBusiness, registerPerson } from '../../../shared/registry/demo-registers';
 
 /**
  * RRA TIN verification (F-S03, EXT). Mocked until RRA grants API access.
@@ -13,8 +16,30 @@ import { Injectable } from '@nestjs/common';
  * `rejected`. Collapsing the two would tell a legitimate business it failed a
  * check that never ran.
  */
+/**
+ * The business as the company register holds it (ADR-060). Directors carry
+ * their document numbers, which never leave the server: the service compares
+ * them with the registrant's and sends the browser names only.
+ */
+export interface TinRegistryBusiness {
+  legalName: string;
+  registeredOn: string | null;
+  companyType: 'cooperative' | 'ngo' | 'partly_state_owned' | 'private_company' | 'public_company' | 'sole_trader' | null;
+  address: { provinceId: number; districtId: number; sectorId: number; street: string | null } | null;
+  directors: { name: string; documentNumber: string | null }[];
+  /** True when a mock made it up. */
+  generated: boolean;
+}
+
 export type TinCheckOutcome =
-  | { result: 'verified'; latencyMs: number; adapterMode: 'mock' | 'live'; raw: unknown }
+  | {
+      result: 'verified';
+      latencyMs: number;
+      adapterMode: 'mock' | 'live';
+      raw: unknown;
+      /** Null when the register returned no company details. */
+      business: TinRegistryBusiness | null;
+    }
   | { result: 'failed'; reason: string; latencyMs: number; adapterMode: 'mock' | 'live'; raw: unknown }
   | { result: 'pending'; reason: 'adapter_unavailable'; latencyMs: number; adapterMode: 'mock' | 'live'; raw: unknown };
 
@@ -32,8 +57,21 @@ export type TinCheckOutcome =
  */
 @Injectable()
 export class RraTinAdapter {
+  /**
+   * Company details are made up only over a sample database (ADR-060). Over a
+   * real one the mock still verifies, as it always has, but fills nothing: a
+   * made-up legal name locked onto a real business would be worse than none.
+   * Optional so the spec can build the adapter bare, which reads as "real".
+   */
+  private readonly sampleData: boolean;
+
+  constructor(@Optional() @Inject(PLATFORM) platform?: Pick<Platform, 'sampleData'>) {
+    this.sampleData = platform?.sampleData ?? false;
+  }
+
   async verify(tin: string): Promise<TinCheckOutcome> {
     const startedAt = Date.now();
+    const known = this.sampleData ? registerBusiness(tin) : null;
 
     // DEMO RULE: the mock always verifies.
     //
@@ -51,7 +89,24 @@ export class RraTinAdapter {
       raw: {
         tin,
         note: 'mock adapter: auto-verified, RRA API access pending',
+        demoBusiness: known ? known.legalName : null,
       },
+      // Company details only where the demo register holds them
+      // (`registerBusiness` in `shared/registry/demo-registers.ts`); every other
+      // TIN is known to the mock as valid but carries no details.
+      business: known
+        ? {
+            legalName: known.legalName,
+            registeredOn: known.registeredOn,
+            companyType: known.companyType,
+            address: known.address,
+            directors: known.directorDocumentNumbers.map((documentNumber) => ({
+              name: registerPerson(documentNumber)?.fullName ?? 'A director',
+              documentNumber,
+            })),
+            generated: true,
+          }
+        : null,
     };
   }
 }

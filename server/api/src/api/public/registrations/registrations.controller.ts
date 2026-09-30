@@ -9,7 +9,10 @@ import {
   type RegistrationFeeQuote,
   type RegistrationSummary,
   RejectRegistrationRequest,
+  TinCheckRequest,
+  type TinCheckResult,
 } from '@injishi/contracts';
+import { Throttle } from '@nestjs/throttler';
 import {
   BadRequestException,
   Body,
@@ -35,6 +38,7 @@ import {
   OversightGuard,
   RequireOversight,
 } from '../../../shared/auth/oversight.guard';
+import { UserThrottlerGuard } from '../../../shared/http/user-throttler.guard';
 import { ZodValidationPipe } from '../../../shared/validation/zod-validation.pipe';
 
 /**
@@ -68,6 +72,26 @@ export class RegistrationsController {
       );
     }
     return this.registrations.quote(parsed.data);
+  }
+
+  /**
+   * Check a TIN at the Business step, before anything is created or billed
+   * (registration Phase 0). Writes nothing.
+   *
+   * Signed in and throttled per person: whether a TIN is already on Injishi is
+   * something `POST /registrations` would tell a caller anyway, but not twenty
+   * times a minute.
+   */
+  @Post('tin-check')
+  @HttpCode(200)
+  @UseGuards(SessionGuard, UserThrottlerGuard)
+  @Throttle({ money: { limit: 20, ttl: 60_000 } })
+  checkTin(
+    @Body(new ZodValidationPipe(TinCheckRequest)) body: TinCheckRequest,
+    @CurrentUser() user: SessionUser,
+  ): Promise<TinCheckResult> {
+    // The caller, because "are you one of its directors?" is asked of them.
+    return this.registrations.checkTin(body.tin, user.id);
   }
 
   /** Create the registration at `pending_payment`, with its bill. */

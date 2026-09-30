@@ -12,6 +12,7 @@ import type { FolioService } from './folio.service';
 import { FrontDeskService } from './front-desk.service';
 import type { RoomAssignmentService } from './room-assignment.service';
 import type { StayClaimService } from './stay-claim.service';
+import type { SelfCheckInService } from './self-check-in.service';
 
 const ws = {
   workspaceId: 'ws-1',
@@ -114,6 +115,8 @@ function build(opts: {
     folioRepo,
     {} as FolioService,
     onboarding,
+    // A walk-in has no booking, so nothing pre-arrival is carried onto the stay.
+    { carryToStay: async () => undefined } as unknown as SelfCheckInService,
   );
   return { service, opened, holdQueries, folios, cards };
 }

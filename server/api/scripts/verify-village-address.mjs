@@ -91,6 +91,24 @@ function databaseUrl() {
 const db = new pg.Pool({ connectionString: databaseUrl() });
 const q = async (text, params = []) => (await db.query(text, params)).rows;
 
+/**
+ * Registering a business needs a verified identity wherever a check can run
+ * (ADR-060). This proof is about something else, so its registrant is verified
+ * by staff, the way the demo seeds verify theirs (`manual`), under the same
+ * name and birth date the proof then sends.
+ */
+async function markVerified(email, fullName, dateOfBirth) {
+  const [user] = await q(`select id from users where lower(email) = lower($1)`, [email]);
+  if (!user) throw new Error(`markVerified: no user ${email}`);
+  await q(
+    `insert into verified_identities (user_id, kyc_status, legal_full_name, dob, verified_method, verified_at)
+     values ($1, 'verified', $2, $3, 'manual', now())
+     on conflict (user_id) do update set kyc_status = 'verified', legal_full_name = $2, dob = $3,
+       verified_method = 'manual', verified_at = now()`,
+    [user.id, fullName, dateOfBirth],
+  );
+}
+
 // ---------------------------------------------------------------------------
 // Sessions, cached between runs in the OS temp directory. The OTP cap is five
 // codes per address per hour, and the cache holds live cookies, so it never
@@ -300,10 +318,13 @@ async function geographyPhase() {
 async function businessPhase() {
   const { here, elsewhere } = await twoPlaces();
   const session = await signIn(BIZ_REGISTRANT);
+  await markVerified(BIZ_REGISTRANT, "Village Verify Registrant", "1990-01-01");
   const personal = personalFor(
     'Village Verify Registrant',
-    '1199900000049050',
-    '+250780049050',
+    // Its own block: `verify-adr053-claim.mjs` holds 049049 to 049052, and a
+    // number held by another account is refused (one human, one account).
+    '1199900000059050',
+    '+250780059050',
     address(here, { withVillage: false }),
   );
 
@@ -413,7 +434,7 @@ async function personalPhase() {
   const { here, elsewhere } = await twoPlaces();
   const session = await signIn(ME_REGISTRANT);
   const details = (addr) =>
-    personalFor('Village Verify Person', '1199900000049051', '+250780049051', addr);
+    personalFor('Village Verify Person', '1199900000059051', '+250780059051', addr);
 
   const saved = await call(session, 'PUT', '/api/v1/me/profile', details(address(here, { withVillage: true })));
   check('Step 1 with a cell and village is accepted', saved.status === 200, `status ${saved.status} ${saved.text.slice(0, 200)}`);

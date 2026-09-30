@@ -10,6 +10,7 @@ import type {
   RegistrationFeeQuote,
   RegistrationRejectionReason,
   RegistrationSummary,
+  TinCheckResult,
 } from '@injishi/contracts';
 import {
   OPERATOR_CONTRACT_VERSION,
@@ -45,7 +46,9 @@ import { buildPsfApplicationRow } from './psf-application-row';
 import { PsfMembershipService } from './psf-membership.service';
 import { SYSTEM_MOVER } from '../infrastructure/registration-events';
 import { tinRecheckDue, tinRecheckStalled } from '../domain/tin-recheck';
-import { RraTinAdapter } from '../infrastructure/rra-tin.adapter';
+import { RraTinAdapter, type TinRegistryBusiness } from '../infrastructure/rra-tin.adapter';
+import { IdentityService } from '../../user/application/identity.service';
+import { RegistrationDraftService } from './registration-draft.service';
 import { ProfileService } from '../../user/application/profile.service';
 import { GeographyService } from '../../geography/application/geography.service';
 
@@ -103,6 +106,10 @@ export class RegistrationService {
      * application a registration carries, through the same row builder.
      */
     private readonly psf: PsfMembershipService,
+    /** A business is registered by a verified person, where a check can run (ADR-060). */
+    private readonly identity: IdentityService,
+    /** The wizard's draft, cleared once the registration exists (ADR-060). */
+    private readonly drafts: RegistrationDraftService,
   ) {}
 
   /** What this registration will cost, before anyone commits to it. */
@@ -121,11 +128,129 @@ export class RegistrationService {
   }
 
   /**
+   * Ask about a TIN before anything is created or billed (registration Phase 0).
+   *
+   * The check after payment stayed the gate of record, but on its own it found
+   * a mistyped TIN only once a non-refundable fee was paid. This asks the same
+   * adapter at the Business step. It writes nothing: `tin_verifications` rows
+   * belong to an org, and there is none yet. It moves nothing either, so D23's
+   * rule that nothing unpaid reaches an officer still holds.
+   */
+  async checkTin(tin: string, userId: string): Promise<TinCheckResult> {
+    const none = { business: null, registrantIsDirector: null };
+    if (await this.orgs.tinTaken(tin)) {
+      return {
+        tin,
+        result: 'taken',
+        message:
+          'A business on Injishi is already registered with this TIN. If it is yours, sign in with the account that registered it.',
+        ...none,
+      };
+    }
+    const outcome = await this.verifyTinSafely(tin);
+    switch (outcome.result) {
+      case 'verified': {
+        const business = outcome.business;
+        return {
+          tin,
+          result: 'verified',
+          message: business
+            ? `RRA recognises this TIN. The register holds it for ${business.legalName}.`
+            : 'RRA recognises this TIN.',
+          // Names only: the directors' document numbers stay on this side.
+          business: business
+            ? {
+                legalName: business.legalName,
+                registeredOn: business.registeredOn,
+                companyType: business.companyType,
+                address: business.address,
+                directors: business.directors.map((d) => ({ name: d.name })),
+                generated: business.generated,
+              }
+            : null,
+          registrantIsDirector: business
+            ? isDirector(business, await this.profiles.documentFor(userId))
+            : null,
+        };
+      }
+      case 'failed':
+        return { tin, result: 'failed', message: TIN_REFUSED_MESSAGE, ...none };
+      case 'pending':
+        return {
+          tin,
+          result: 'pending',
+          message:
+            'We could not reach RRA just now. You can carry on; we check the TIN again after you submit.',
+          ...none,
+        };
+    }
+  }
+
+  /**
+   * The adapter's answer, with a throw read as `pending`. An outage must never
+   * stop a registrant here, because the check after payment covers it.
+   */
+  private async verifyTinSafely(tin: string): Promise<
+    | { result: 'verified'; business: TinRegistryBusiness | null }
+    | { result: 'failed' | 'pending'; business: null }
+  > {
+    try {
+      const outcome = await this.tin.verify(tin);
+      return outcome.result === 'verified'
+        ? { result: 'verified', business: outcome.business }
+        : { result: outcome.result, business: null };
+    } catch (error) {
+      this.log.warn(`TIN pre-check could not run: ${(error as Error).message}`);
+      return { result: 'pending', business: null };
+    }
+  }
+
+  /**
+   * What the company register says, held against the request (ADR-060): the
+   * legal name must be the register's, and when the register lists directors
+   * an OWNER must be one of them, and an on behalf registration must name one
+   * of them as its owner. Refused at the field each came from, all at once.
+   */
+  private async registryIssues(
+    request: CreateRegistrationRequest,
+    business: TinRegistryBusiness,
+    registrantUserId: string,
+  ): Promise<{ code: 'custom'; path: (string | number)[]; message: string }[]> {
+    const issues: { code: 'custom'; path: (string | number)[]; message: string }[] = [];
+    if (normalizeName(request.business.legalName) !== normalizeName(business.legalName)) {
+      issues.push({
+        code: 'custom',
+        path: ['business', 'legalName'],
+        message: `The register holds this TIN for ${business.legalName}. Use that name.`,
+      });
+    }
+    const listed = business.directors.some((d) => d.documentNumber);
+    if (!listed) return issues;
+    if (request.capacity === 'on_behalf_of') {
+      const owner = request.intendedOwner?.nationalId ?? null;
+      if (owner && !business.directors.some((d) => d.documentNumber === owner)) {
+        issues.push({
+          code: 'custom',
+          path: ['intendedOwner', 'nationalId'],
+          message: `That National ID is not one of ${business.legalName}'s directors.`,
+        });
+      }
+    } else if (!isDirector(business, await this.profiles.documentFor(registrantUserId))) {
+      issues.push({
+        code: 'custom',
+        path: ['capacity'],
+        message: `You are not listed as a director of ${business.legalName}. Register it on behalf of its owner.`,
+      });
+    }
+    return issues;
+  }
+
+  /**
    * Create the registration at `pending_payment` and hand back the bill.
    *
-   * Nothing is verified here. The RRA call is deliberately downstream of the
-   * payment, so this method never talks to an external system and cannot be
-   * made slow or flaky by one.
+   * A TIN RRA refuses is refused HERE, before a bill exists (Phase 0). An RRA
+   * that cannot be reached refuses nothing: the call after payment is still the
+   * gate of record, and it retries.
    */
   async create(
     request: CreateRegistrationRequest,
@@ -161,8 +286,26 @@ export class RegistrationService {
       );
     }
 
+    // A verified identity, wherever a check can run (ADR-060). After the
+    // profile save, so a person verified a moment ago on About you passes.
+    await this.identity.assertMayRegister(registrantUserId);
+
     const b = request.business;
     const address = b.address;
+    if (b.domain === 'hospitality') {
+      const tinOutcome = await this.verifyTinSafely(b.tin);
+      // The shape the validation pipe gives, so the wizard puts each sentence
+      // under the field it came from.
+      const issues =
+        tinOutcome.result === 'failed'
+          ? [{ code: 'custom' as const, path: ['business', 'tin'], message: TIN_REFUSED_MESSAGE }]
+          : tinOutcome.business
+            ? await this.registryIssues(request, tinOutcome.business, registrantUserId)
+            : [];
+      if (issues.length > 0) {
+        throw new BadRequestException({ message: 'Validation failed', issues });
+      }
+    }
     await this.assertVillagesPlaced(b);
     const branches = await this.branchRowsFor(b);
 
@@ -174,7 +317,9 @@ export class RegistrationService {
       b.domain === 'hospitality' && b.psfApplication
         ? {
             tier: await this.psf.tierForFiling(b.psfApplication.requestedTierCode),
-            form: b.psfApplication,
+            // After `profiles.save` above, so a first-time registrant's
+            // document is already on file for "use the one on file".
+            form: await this.psf.withIdDocument(b.psfApplication, registrantUserId),
             tin: b.tin,
           }
         : null;
@@ -268,6 +413,9 @@ export class RegistrationService {
         });
       }
       await this.mail.received(created.orgId, created.amountDueRwf);
+      // The server holds the registration now, so the wizard's draft has
+      // nothing left to remember, and must not offer to resume it (ADR-060).
+      await this.drafts.clear(registrantUserId);
       // The PSF receipt. A new registration sits at `pending_payment`, so the
       // application waits for the TIN check and no officer is mailed yet.
       if (psfFiling) {
@@ -685,6 +833,7 @@ export class RegistrationService {
     const districtIds = await this.districtScopeFor(grants);
     const rows = await this.orgs.findQueue({ stage, districtIds });
     const branches = await this.orgs.branchesForOrgs(rows.map((r) => r.orgId));
+    const evidence = await this.orgs.queueEvidenceFor(rows.map((r) => r.orgId));
 
     // Only the approval queue can be blocked this way, and only per row: an
     // approver may hold a mixed queue where they verified some of it.
@@ -712,6 +861,12 @@ export class RegistrationService {
               })
             : false,
         branches: branches.get(r.orgId) ?? [],
+        tourismLicenseNumber: r.tourismLicenseNumber,
+        onBehalfOf: evidence.get(r.orgId)?.onBehalfOf ?? false,
+        certificates: evidence.get(r.orgId)?.certificates ?? [],
+        tinCheck: evidence.get(r.orgId)?.tinCheck ?? null,
+        registrantName: evidence.get(r.orgId)?.registrantName ?? null,
+        intendedOwnerName: evidence.get(r.orgId)?.intendedOwnerName ?? null,
       })),
     );
     return items;
@@ -1017,6 +1172,25 @@ export class RegistrationService {
     return this.orgs.districtsByProvince(provinceIds);
   }
 }
+
+/** Whether this document is one of the register's directors. */
+function isDirector(
+  business: TinRegistryBusiness,
+  document: { documentNumber: string } | null,
+): boolean | null {
+  if (!business.directors.some((d) => d.documentNumber)) return null;
+  if (!document) return null;
+  return business.directors.some((d) => d.documentNumber === document.documentNumber);
+}
+
+/** A company name as a register means it: case and spacing do not make two companies. */
+function normalizeName(name: string): string {
+  return name.trim().replace(/\s+/g, ' ').toLowerCase();
+}
+
+/** What a registrant is told when RRA does not recognise their TIN. */
+const TIN_REFUSED_MESSAGE =
+  'RRA does not recognise this TIN. Check it against your RRA certificate.';
 
 /** How many decisions one page of the log carries. */
 const DECISION_PAGE_SIZE = 25;

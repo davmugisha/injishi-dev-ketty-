@@ -1047,25 +1047,25 @@ export declare const AdminOboRow: z.ZodObject<{
 }, "strip", z.ZodTypeAny, {
     orgId: string;
     districtName: string | null;
-    payoutLocked: boolean;
     registrantName: string | null;
+    intendedOwnerName: string;
+    payoutLocked: boolean;
     claimStatus: "registrant_held" | "owner_claimed" | "expired";
     id: string;
     orgName: string;
     registrantUserId: string;
-    intendedOwnerName: string;
     intendedOwnerEmail: string | null;
     claimedAt: string | null;
 }, {
     orgId: string;
     districtName: string | null;
-    payoutLocked: boolean;
     registrantName: string | null;
+    intendedOwnerName: string;
+    payoutLocked: boolean;
     claimStatus: "registrant_held" | "owner_claimed" | "expired";
     id: string;
     orgName: string;
     registrantUserId: string;
-    intendedOwnerName: string;
     intendedOwnerEmail: string | null;
     claimedAt: string | null;
 }>;
@@ -1086,25 +1086,25 @@ export declare const AdminOboListResponse: z.ZodObject<{
     }, "strip", z.ZodTypeAny, {
         orgId: string;
         districtName: string | null;
-        payoutLocked: boolean;
         registrantName: string | null;
+        intendedOwnerName: string;
+        payoutLocked: boolean;
         claimStatus: "registrant_held" | "owner_claimed" | "expired";
         id: string;
         orgName: string;
         registrantUserId: string;
-        intendedOwnerName: string;
         intendedOwnerEmail: string | null;
         claimedAt: string | null;
     }, {
         orgId: string;
         districtName: string | null;
-        payoutLocked: boolean;
         registrantName: string | null;
+        intendedOwnerName: string;
+        payoutLocked: boolean;
         claimStatus: "registrant_held" | "owner_claimed" | "expired";
         id: string;
         orgName: string;
         registrantUserId: string;
-        intendedOwnerName: string;
         intendedOwnerEmail: string | null;
         claimedAt: string | null;
     }>, "many">;
@@ -1125,13 +1125,13 @@ export declare const AdminOboListResponse: z.ZodObject<{
     items: {
         orgId: string;
         districtName: string | null;
-        payoutLocked: boolean;
         registrantName: string | null;
+        intendedOwnerName: string;
+        payoutLocked: boolean;
         claimStatus: "registrant_held" | "owner_claimed" | "expired";
         id: string;
         orgName: string;
         registrantUserId: string;
-        intendedOwnerName: string;
         intendedOwnerEmail: string | null;
         claimedAt: string | null;
     }[];
@@ -1144,13 +1144,13 @@ export declare const AdminOboListResponse: z.ZodObject<{
     items: {
         orgId: string;
         districtName: string | null;
-        payoutLocked: boolean;
         registrantName: string | null;
+        intendedOwnerName: string;
+        payoutLocked: boolean;
         claimStatus: "registrant_held" | "owner_claimed" | "expired";
         id: string;
         orgName: string;
         registrantUserId: string;
-        intendedOwnerName: string;
         intendedOwnerEmail: string | null;
         claimedAt: string | null;
     }[];
@@ -1795,7 +1795,7 @@ export declare const AdminInvoice: z.ZodObject<{
     periodEnd: z.ZodNullable<z.ZodString>;
     createdAt: z.ZodString;
 }, "strip", z.ZodTypeAny, {
-    status: "pending" | "paid" | "failed";
+    status: "pending" | "failed" | "paid";
     amountRwf: number;
     currency: string;
     id: string;
@@ -1804,7 +1804,7 @@ export declare const AdminInvoice: z.ZodObject<{
     periodStart: string | null;
     periodEnd: string | null;
 }, {
-    status: "pending" | "paid" | "failed";
+    status: "pending" | "failed" | "paid";
     amountRwf: number;
     currency: string;
     id: string;
@@ -1855,7 +1855,7 @@ export declare const AdminOrgSubscription: z.ZodObject<{
         periodEnd: z.ZodNullable<z.ZodString>;
         createdAt: z.ZodString;
     }, "strip", z.ZodTypeAny, {
-        status: "pending" | "paid" | "failed";
+        status: "pending" | "failed" | "paid";
         amountRwf: number;
         currency: string;
         id: string;
@@ -1864,7 +1864,7 @@ export declare const AdminOrgSubscription: z.ZodObject<{
         periodStart: string | null;
         periodEnd: string | null;
     }, {
-        status: "pending" | "paid" | "failed";
+        status: "pending" | "failed" | "paid";
         amountRwf: number;
         currency: string;
         id: string;
@@ -1883,7 +1883,7 @@ export declare const AdminOrgSubscription: z.ZodObject<{
         canceledAt: string | null;
     } | null;
     invoices: {
-        status: "pending" | "paid" | "failed";
+        status: "pending" | "failed" | "paid";
         amountRwf: number;
         currency: string;
         id: string;
@@ -1902,7 +1902,7 @@ export declare const AdminOrgSubscription: z.ZodObject<{
         canceledAt: string | null;
     } | null;
     invoices: {
-        status: "pending" | "paid" | "failed";
+        status: "pending" | "failed" | "paid";
         amountRwf: number;
         currency: string;
         id: string;
@@ -1969,22 +1969,22 @@ export declare const AdminLedgerRow: z.ZodObject<{
     occurredAt: z.ZodString;
 }, "strip", z.ZodTypeAny, {
     kind: "capture" | "refund" | "forfeiture" | "payout" | "rent_settle" | "caution_settle" | "placement_disburse" | "subscription_charge" | "override" | "chargeback" | "folio_post" | "folio_settle";
+    adapterMode: "mock" | "live";
     amountRwf: number;
     currency: string;
     id: string;
     transactionId: string;
-    adapterMode: "mock" | "live";
     memo: string | null;
     accountCode: string;
     direction: "debit" | "credit";
     occurredAt: string;
 }, {
     kind: "capture" | "refund" | "forfeiture" | "payout" | "rent_settle" | "caution_settle" | "placement_disburse" | "subscription_charge" | "override" | "chargeback" | "folio_post" | "folio_settle";
+    adapterMode: "mock" | "live";
     amountRwf: number;
     currency: string;
     id: string;
     transactionId: string;
-    adapterMode: "mock" | "live";
     memo: string | null;
     accountCode: string;
     direction: "debit" | "credit";
@@ -2009,7 +2009,7 @@ export declare const AdminOrgMoney: z.ZodObject<{
         periodEnd: z.ZodNullable<z.ZodString>;
         createdAt: z.ZodString;
     }, "strip", z.ZodTypeAny, {
-        status: "pending" | "paid" | "failed";
+        status: "pending" | "failed" | "paid";
         amountRwf: number;
         currency: string;
         id: string;
@@ -2018,7 +2018,7 @@ export declare const AdminOrgMoney: z.ZodObject<{
         periodStart: string | null;
         periodEnd: string | null;
     }, {
-        status: "pending" | "paid" | "failed";
+        status: "pending" | "failed" | "paid";
         amountRwf: number;
         currency: string;
         id: string;
@@ -2037,7 +2037,7 @@ export declare const AdminOrgMoney: z.ZodObject<{
         periodEnd: z.ZodNullable<z.ZodString>;
         createdAt: z.ZodString;
     }, "strip", z.ZodTypeAny, {
-        status: "pending" | "paid" | "failed";
+        status: "pending" | "failed" | "paid";
         amountRwf: number;
         currency: string;
         id: string;
@@ -2046,7 +2046,7 @@ export declare const AdminOrgMoney: z.ZodObject<{
         periodStart: string | null;
         periodEnd: string | null;
     }, {
-        status: "pending" | "paid" | "failed";
+        status: "pending" | "failed" | "paid";
         amountRwf: number;
         currency: string;
         id: string;
@@ -2096,22 +2096,22 @@ export declare const AdminOrgMoney: z.ZodObject<{
         occurredAt: z.ZodString;
     }, "strip", z.ZodTypeAny, {
         kind: "capture" | "refund" | "forfeiture" | "payout" | "rent_settle" | "caution_settle" | "placement_disburse" | "subscription_charge" | "override" | "chargeback" | "folio_post" | "folio_settle";
+        adapterMode: "mock" | "live";
         amountRwf: number;
         currency: string;
         id: string;
         transactionId: string;
-        adapterMode: "mock" | "live";
         memo: string | null;
         accountCode: string;
         direction: "debit" | "credit";
         occurredAt: string;
     }, {
         kind: "capture" | "refund" | "forfeiture" | "payout" | "rent_settle" | "caution_settle" | "placement_disburse" | "subscription_charge" | "override" | "chargeback" | "folio_post" | "folio_settle";
+        adapterMode: "mock" | "live";
         amountRwf: number;
         currency: string;
         id: string;
         transactionId: string;
-        adapterMode: "mock" | "live";
         memo: string | null;
         accountCode: string;
         direction: "debit" | "credit";
@@ -2119,7 +2119,7 @@ export declare const AdminOrgMoney: z.ZodObject<{
     }>, "many">;
 }, "strip", z.ZodTypeAny, {
     invoices: {
-        status: "pending" | "paid" | "failed";
+        status: "pending" | "failed" | "paid";
         amountRwf: number;
         currency: string;
         id: string;
@@ -2129,7 +2129,7 @@ export declare const AdminOrgMoney: z.ZodObject<{
         periodEnd: string | null;
     }[];
     registrationFee: {
-        status: "pending" | "paid" | "failed";
+        status: "pending" | "failed" | "paid";
         amountRwf: number;
         currency: string;
         id: string;
@@ -2150,11 +2150,11 @@ export declare const AdminOrgMoney: z.ZodObject<{
     }[];
     ledger: {
         kind: "capture" | "refund" | "forfeiture" | "payout" | "rent_settle" | "caution_settle" | "placement_disburse" | "subscription_charge" | "override" | "chargeback" | "folio_post" | "folio_settle";
+        adapterMode: "mock" | "live";
         amountRwf: number;
         currency: string;
         id: string;
         transactionId: string;
-        adapterMode: "mock" | "live";
         memo: string | null;
         accountCode: string;
         direction: "debit" | "credit";
@@ -2162,7 +2162,7 @@ export declare const AdminOrgMoney: z.ZodObject<{
     }[];
 }, {
     invoices: {
-        status: "pending" | "paid" | "failed";
+        status: "pending" | "failed" | "paid";
         amountRwf: number;
         currency: string;
         id: string;
@@ -2172,7 +2172,7 @@ export declare const AdminOrgMoney: z.ZodObject<{
         periodEnd: string | null;
     }[];
     registrationFee: {
-        status: "pending" | "paid" | "failed";
+        status: "pending" | "failed" | "paid";
         amountRwf: number;
         currency: string;
         id: string;
@@ -2193,11 +2193,11 @@ export declare const AdminOrgMoney: z.ZodObject<{
     }[];
     ledger: {
         kind: "capture" | "refund" | "forfeiture" | "payout" | "rent_settle" | "caution_settle" | "placement_disburse" | "subscription_charge" | "override" | "chargeback" | "folio_post" | "folio_settle";
+        adapterMode: "mock" | "live";
         amountRwf: number;
         currency: string;
         id: string;
         transactionId: string;
-        adapterMode: "mock" | "live";
         memo: string | null;
         accountCode: string;
         direction: "debit" | "credit";
@@ -3558,22 +3558,22 @@ export declare const AdminLedgerResponse: z.ZodObject<{
         occurredAt: z.ZodString;
     }, "strip", z.ZodTypeAny, {
         kind: "capture" | "refund" | "forfeiture" | "payout" | "rent_settle" | "caution_settle" | "placement_disburse" | "subscription_charge" | "override" | "chargeback" | "folio_post" | "folio_settle";
+        adapterMode: "mock" | "live";
         amountRwf: number;
         currency: string;
         id: string;
         transactionId: string;
-        adapterMode: "mock" | "live";
         memo: string | null;
         accountCode: string;
         direction: "debit" | "credit";
         occurredAt: string;
     }, {
         kind: "capture" | "refund" | "forfeiture" | "payout" | "rent_settle" | "caution_settle" | "placement_disburse" | "subscription_charge" | "override" | "chargeback" | "folio_post" | "folio_settle";
+        adapterMode: "mock" | "live";
         amountRwf: number;
         currency: string;
         id: string;
         transactionId: string;
-        adapterMode: "mock" | "live";
         memo: string | null;
         accountCode: string;
         direction: "debit" | "credit";
@@ -3595,11 +3595,11 @@ export declare const AdminLedgerResponse: z.ZodObject<{
 }, "strip", z.ZodTypeAny, {
     items: {
         kind: "capture" | "refund" | "forfeiture" | "payout" | "rent_settle" | "caution_settle" | "placement_disburse" | "subscription_charge" | "override" | "chargeback" | "folio_post" | "folio_settle";
+        adapterMode: "mock" | "live";
         amountRwf: number;
         currency: string;
         id: string;
         transactionId: string;
-        adapterMode: "mock" | "live";
         memo: string | null;
         accountCode: string;
         direction: "debit" | "credit";
@@ -3613,11 +3613,11 @@ export declare const AdminLedgerResponse: z.ZodObject<{
 }, {
     items: {
         kind: "capture" | "refund" | "forfeiture" | "payout" | "rent_settle" | "caution_settle" | "placement_disburse" | "subscription_charge" | "override" | "chargeback" | "folio_post" | "folio_settle";
+        adapterMode: "mock" | "live";
         amountRwf: number;
         currency: string;
         id: string;
         transactionId: string;
-        adapterMode: "mock" | "live";
         memo: string | null;
         accountCode: string;
         direction: "debit" | "credit";
@@ -3739,7 +3739,7 @@ export declare const AdminFailedCharge: z.ZodObject<{
     status: z.ZodEnum<["pending", "paid", "failed"]>;
     createdAt: z.ZodString;
 }, "strip", z.ZodTypeAny, {
-    status: "pending" | "paid" | "failed";
+    status: "pending" | "failed" | "paid";
     orgId: string;
     invoiceId: string;
     amountRwf: number;
@@ -3748,7 +3748,7 @@ export declare const AdminFailedCharge: z.ZodObject<{
     orgName: string;
     invoiceKind: "registration_fee" | "subscription";
 }, {
-    status: "pending" | "paid" | "failed";
+    status: "pending" | "failed" | "paid";
     orgId: string;
     invoiceId: string;
     amountRwf: number;
@@ -3769,7 +3769,7 @@ export declare const AdminFailedChargeResponse: z.ZodObject<{
         status: z.ZodEnum<["pending", "paid", "failed"]>;
         createdAt: z.ZodString;
     }, "strip", z.ZodTypeAny, {
-        status: "pending" | "paid" | "failed";
+        status: "pending" | "failed" | "paid";
         orgId: string;
         invoiceId: string;
         amountRwf: number;
@@ -3778,7 +3778,7 @@ export declare const AdminFailedChargeResponse: z.ZodObject<{
         orgName: string;
         invoiceKind: "registration_fee" | "subscription";
     }, {
-        status: "pending" | "paid" | "failed";
+        status: "pending" | "failed" | "paid";
         orgId: string;
         invoiceId: string;
         amountRwf: number;
@@ -3802,7 +3802,7 @@ export declare const AdminFailedChargeResponse: z.ZodObject<{
     }>;
 }, "strip", z.ZodTypeAny, {
     items: {
-        status: "pending" | "paid" | "failed";
+        status: "pending" | "failed" | "paid";
         orgId: string;
         invoiceId: string;
         amountRwf: number;
@@ -3818,7 +3818,7 @@ export declare const AdminFailedChargeResponse: z.ZodObject<{
     };
 }, {
     items: {
-        status: "pending" | "paid" | "failed";
+        status: "pending" | "failed" | "paid";
         orgId: string;
         invoiceId: string;
         amountRwf: number;
@@ -5797,16 +5797,16 @@ export declare const AdminTinRecheckResult: z.ZodObject<{
     registrationStatus: z.ZodEnum<["pending_payment", "submitted", "tin_verified", "field_verified", "approved", "active", "rejected", "suspended"]>;
 }, "strip", z.ZodTypeAny, {
     orgId: string;
-    registrationStatus: "pending_payment" | "submitted" | "tin_verified" | "field_verified" | "approved" | "active" | "rejected" | "suspended";
-    adapterMode: "mock" | "live";
-    auditEventId: string;
     result: "pending" | "verified" | "failed";
+    adapterMode: "mock" | "live";
+    registrationStatus: "pending_payment" | "submitted" | "tin_verified" | "field_verified" | "approved" | "active" | "rejected" | "suspended";
+    auditEventId: string;
 }, {
     orgId: string;
-    registrationStatus: "pending_payment" | "submitted" | "tin_verified" | "field_verified" | "approved" | "active" | "rejected" | "suspended";
-    adapterMode: "mock" | "live";
-    auditEventId: string;
     result: "pending" | "verified" | "failed";
+    adapterMode: "mock" | "live";
+    registrationStatus: "pending_payment" | "submitted" | "tin_verified" | "field_verified" | "approved" | "active" | "rejected" | "suspended";
+    auditEventId: string;
 }>;
 export type AdminTinRecheckResult = z.infer<typeof AdminTinRecheckResult>;
 /** `POST /api/v1/admin/brokers/:brokerId/suspend`. */

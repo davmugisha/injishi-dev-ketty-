@@ -797,5 +797,5 @@ exports.SEPARATION_OF_DUTIES_MESSAGE = "You field-verified this business — a d
 function mayElevate(identity) {
     return identity.kycStatus === "verified" && identity.activeDocumentCount > 0;
 }
-exports.ELEVATION_REFUSED_MESSAGE = "This needs a verified identity. Add a national ID or passport to continue.";
+exports.ELEVATION_REFUSED_MESSAGE = "This needs a verified identity. Validate your National ID or scan your passport on the About you step, then try again.";
 //# sourceMappingURL=authz.js.map

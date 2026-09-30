@@ -667,5 +667,5 @@ export declare function mayElevate(identity: {
     kycStatus: string;
     activeDocumentCount: number;
 }): boolean;
-export declare const ELEVATION_REFUSED_MESSAGE = "This needs a verified identity. Add a national ID or passport to continue.";
+export declare const ELEVATION_REFUSED_MESSAGE = "This needs a verified identity. Validate your National ID or scan your passport on the About you step, then try again.";
 //# sourceMappingURL=authz.d.ts.map
