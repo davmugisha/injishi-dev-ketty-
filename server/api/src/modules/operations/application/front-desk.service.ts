@@ -252,6 +252,49 @@ export class FrontDeskService {
     if (plannedExitAt && Number.isNaN(plannedExitAt.getTime())) {
       throw new BadRequestException('That departure date is not a real date.');
     }
+    const now = new Date();
+    if (plannedExitAt && plannedExitAt.getTime() <= now.getTime()) {
+      throw new BadRequestException('The departure has to be after now.');
+    }
+
+    const roomName = room.label ? `Room ${room.label}` : 'That room';
+
+    /*
+     * A ROOM HELD FOR A GUEST WHO IS COMING IS NOT FREE (ADR-016 D-g).
+     *
+     * The exclusion constraint compares holds with holds, and a walk in has no
+     * hold, so nothing refused this: the desk could sell tonight's arrival's
+     * room to whoever walked in first, and that guest was then turned away at
+     * check in with a 409 nobody at the counter could fix. An open ended walk
+     * in is asked about tonight only, which is all the desk is promising.
+     */
+    const today = now.toISOString().slice(0, 10);
+    const lastNight = plannedExitAt
+      ? plannedExitAt.toISOString().slice(0, 10)
+      : today;
+    const until = lastNight > today ? lastNight : this.dayAfter(today);
+    const hold = await this.assignments.firstHoldOnRoom(room.id, today, until);
+    if (hold) {
+      throw new ConflictException(
+        `${roomName} is held for a reservation arriving ${hold.from}. Choose another room, or move that reservation first.`,
+      );
+    }
+
+    /*
+     * THE RATE IS WHAT GETS THE ROOM PAID FOR. The night audit bills a walk in
+     * from the stay's price, so a stay opened without one is a room nobody is
+     * ever charged for — and check out then closed its zero bill on its own.
+     * Absent means the room type's default rate; a type with no priced default
+     * plan leaves the desk to say the figure out loud.
+     */
+    const priceRwf =
+      body.nightlyRateRwf ??
+      (await this.rooms.defaultNightlyRate(room.roomTypeId));
+    if (!priceRwf) {
+      throw new BadRequestException(
+        `${room.roomTypeName} has no default rate. Enter the nightly rate agreed with the guest.`,
+      );
+    }
 
     const stayId = await this.rooms.openStay({
       bookingId: null,
@@ -261,7 +304,7 @@ export class FrontDeskService {
       guestName: body.guestName.trim(),
       roomId: room.id,
       plannedExitAt,
-      priceRwf: body.nightlyRateRwf ?? null,
+      priceRwf,
     });
 
     if (!stayId) {
@@ -378,6 +421,13 @@ export class FrontDeskService {
           (error instanceof Error ? error.message : String(error)),
       );
     }
+  }
+
+  /** `2026-09-15` to `2026-09-16`, in UTC like every business date here. */
+  private dayAfter(isoDate: string): string {
+    const d = new Date(`${isoDate}T00:00:00Z`);
+    d.setUTCDate(d.getUTCDate() + 1);
+    return d.toISOString().slice(0, 10);
   }
 
   private presentRoom(row: RoomRow): Omit<OperatorRoom, 'occupiedBy'> {

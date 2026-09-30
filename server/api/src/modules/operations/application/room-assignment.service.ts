@@ -188,6 +188,21 @@ export class RoomAssignmentService {
     return this.assignments.assignedOn(bookingId, today);
   }
 
+  /**
+   * The first live hold on a room over `[from, to)`, read by a walk in.
+   *
+   * A hold names a guest who is coming; putting somebody else in the room
+   * turns that guest away at the desk with a 409 the receptionist cannot fix.
+   */
+  async firstHoldOnRoom(
+    roomId: string,
+    from: string,
+    to: string,
+  ): Promise<AssignmentRow | null> {
+    const [row] = await this.assignments.assignedOnRoomInWindow(roomId, from, to);
+    return row ?? null;
+  }
+
   /** Called at checkout, never at check in (D-h, AC-8). */
   async releaseForBooking(bookingId: string): Promise<void> {
     await this.assignments.releaseForBooking(bookingId);

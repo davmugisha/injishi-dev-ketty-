@@ -345,7 +345,15 @@ exports.WalkInRequest = zod_1.z.object({
     guestName: zod_1.z.string().trim().min(1).max(200),
     /** Absent means open ended. */
     plannedExitAt: zod_1.z.string().optional(),
-    /** The nightly rate agreed at the counter. */
+    /**
+     * The nightly rate agreed at the counter.
+     *
+     * Absent means the room type's default rate plan, and a walk in with
+     * NEITHER is refused. The night audit bills a walk in from the price on its
+     * stay, so a stay opened without one is a room nobody is ever charged for —
+     * and check out closes that zero bill by itself, so the guest leaves and
+     * nothing is owed.
+     */
     nightlyRateRwf: zod_1.z.number().int().positive().optional(),
     /**
      * The registration card, and the invitation that follows it (§6.8).

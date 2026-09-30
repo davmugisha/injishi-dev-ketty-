@@ -5,6 +5,7 @@ import { and, desc, eq, inArray, sql, type SQL } from 'drizzle-orm';
 import {
   bookings,
   guestStays,
+  ratePlans,
   rooms,
   roomTypes,
   users,
@@ -190,6 +191,29 @@ export class FrontDeskRepository {
         housekeepingUpdatedByUserId: byUserId,
       })
       .where(eq(rooms.id, roomId));
+  }
+
+  /**
+   * The nightly price a room type sells at by default: its default, active
+   * rate plan's base price. Null when the type has no such plan or no price.
+   *
+   * Read by a walk in that arrives with no rate agreed. The night audit bills a
+   * walk in from the stay's own price, so a stay opened without one would be a
+   * room nobody is ever charged for.
+   */
+  async defaultNightlyRate(roomTypeId: string): Promise<number | null> {
+    const [row] = await this.db
+      .select({ price: ratePlans.basePriceRwf })
+      .from(ratePlans)
+      .where(
+        and(
+          eq(ratePlans.roomTypeId, roomTypeId),
+          eq(ratePlans.isDefault, true),
+          eq(ratePlans.status, 'active'),
+        ),
+      )
+      .limit(1);
+    return row?.price ?? null;
   }
 
   // --- Stays ---------------------------------------------------------------

@@ -763,7 +763,15 @@ export declare const WalkInRequest: z.ZodObject<{
     guestName: z.ZodString;
     /** Absent means open ended. */
     plannedExitAt: z.ZodOptional<z.ZodString>;
-    /** The nightly rate agreed at the counter. */
+    /**
+     * The nightly rate agreed at the counter.
+     *
+     * Absent means the room type's default rate plan, and a walk in with
+     * NEITHER is refused. The night audit bills a walk in from the price on its
+     * stay, so a stay opened without one is a room nobody is ever charged for —
+     * and check out closes that zero bill by itself, so the guest leaves and
+     * nothing is owed.
+     */
     nightlyRateRwf: z.ZodOptional<z.ZodNumber>;
     /**
      * The registration card, and the invitation that follows it (§6.8).

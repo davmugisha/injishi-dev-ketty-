@@ -19,6 +19,15 @@
 //   5. The room is refused to a SECOND walk in while the first is in it. This
 //      is the race a busy desk creates, and a walk in is more exposed to it
 //      than a reservation: nothing held the room in advance.
+//   6. A departure already in the past is refused, so a mistyped date cannot
+//      open a stay that is over before it starts.
+//
+// The other rules the walk in now carries are proven elsewhere, and are named
+// here so nobody reads this script as the whole contract: the nightly rate (its
+// default, and the refusal when a room type has none) and the refusal of a room
+// HELD for an arriving reservation are covered by front-desk.service.spec.ts;
+// the registration card and the claim code by verify-adr053-registration.mjs
+// and verify-adr053-claim.mjs.
 //
 // Run against a database you control, never the shared one:
 //   VERIFY_API_URL=http://localhost:8000 node scripts/verify-walk-in.mjs
@@ -98,6 +107,10 @@ console.log('A guest with no booking is checked in');
 const walkRes = await post(desk, '/ops/stays/walk-in', {
   roomId: free.id,
   guestName: name,
+  // Explicit, so this script does not depend on the property having priced a
+  // default rate plan. A walk in with neither is refused, which is the point:
+  // the night audit bills a walk in from the stay's own rate.
+  nightlyRateRwf: 45000,
 });
 const walk = await walkRes.json();
 check('POST /ops/stays/walk-in answers 201', walkRes.status === 201, `got ${walkRes.status}`);
@@ -125,6 +138,14 @@ const clashRes = await post(desk, '/ops/stays/walk-in', {
   guestName: 'Should Not Happen',
 });
 check('the second is refused', clashRes.status === 409, `got ${clashRes.status}`);
+
+console.log('\nA departure already in the past is refused');
+const pastRes = await post(desk, '/ops/stays/walk-in', {
+  roomId: free.id,
+  guestName: 'Should Not Happen',
+  plannedExitAt: '2020-01-01T11:00:00Z',
+});
+check('a departure before now is refused', pastRes.status === 400, `got ${pastRes.status}`);
 
 console.log('\nA name is required — there is no account to read one from');
 const namelessRes = await post(desk, '/ops/stays/walk-in', { roomId: free.id });
