@@ -346,6 +346,27 @@ export class InventoryService {
   }
 
   /**
+   * What would stop `publish` today, without publishing (ADR-061 slice D).
+   *
+   * The same containment, branch scope and blocker rule `publish` applies, in
+   * the same order, so the support assistant's answer to "why can't I publish"
+   * is exactly what pressing Publish would refuse with. Writes nothing. An
+   * empty list means publishing would pass its checks now.
+   */
+  async publishBlockers(
+    workspace: ScopedWorkspace,
+    propertyId: string,
+  ): Promise<PublishBlocker[]> {
+    const existing = await this.repo.findProperty(propertyId);
+    assertContained(existing, workspace.workspaceId, 'Property');
+    assertInBranchScope(workspace, existing.id, 'Property');
+
+    const facts = await this.repo.publishFactsFor(propertyId);
+    if (!facts) throw new NotFoundException('No such property.');
+    return publishBlockersFor(facts);
+  }
+
+  /**
    * Take it back off the marketplace, keeping the address (ADR-053, AC-I6).
    *
    * The slug survives, so a republished property keeps every bookmark and search

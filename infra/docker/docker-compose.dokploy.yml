@@ -48,6 +48,10 @@ x-api-env: &api-env
   # as captured; the API now refuses to boot on `real` with mock or unset
   # (booking audit, 2026-09-13). `live` only once a live adapter is registered.
   PAYMENT_ADAPTER_MODE: "off"
+  # The support assistant (ADR-061). Off unless the host env file turns it on. `live` needs ANTHROPIC_API_KEY from the host env file, never from this file, and the API refuses to boot on `live` without it.
+  ASSISTANT_ADAPTER_MODE: ${ASSISTANT_ADAPTER_MODE:-off}
+  ASSISTANT_MODEL: ${ASSISTANT_MODEL:-claude-sonnet-5-5}
+  ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
   # Money alarms (STUCK MONEY, UNRECORDED COMPENSATION, a refused queue wake)
   # go to Sentry when this is set, and nowhere but the log when it is not.
   SENTRY_DSN: ${SENTRY_DSN:-}

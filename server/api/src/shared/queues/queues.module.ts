@@ -75,6 +75,13 @@ export const QUEUES = {
    * the TIN sweep has one: a scheduler's policy is per queue.
    */
   psfMembershipSweep: 'PsfMembershipSweep',
+  /**
+   * ADR-061 D-d: the support assistant's hourly retention sweep. Deletes
+   * expired conversations with what they prepared, expires undecided
+   * proposals, and closes interrupted approvals from the live price. Its own
+   * queue so a privacy deletion never waits behind a backlog of anything else.
+   */
+  assistantRetention: 'AssistantRetention',
 } as const;
 
 @Global()

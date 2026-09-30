@@ -55,3 +55,4 @@ export * from './platform';
 export * from './waitlist';
 export * from './training';
 export * from './psf';
+export * from './assistant';

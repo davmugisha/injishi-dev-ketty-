@@ -123,6 +123,12 @@ export type ApiWriteResult<T> =
        * `refusal` wording reads it (training's roster writes). Not shown as is.
        */
       detail?: string;
+      /**
+       * The refusal body's machine `code`, when it carried one (`conversation_full`
+       * from the support assistant). Read by an action that branches on it; it
+       * is never shown.
+       */
+      code?: string;
     };
 
 export type ApiResult<T> =
@@ -300,6 +306,16 @@ async function refusalDetail(res: Response): Promise<string | undefined> {
   }
 }
 
+/** The refusal body's `code`, when it is a plain string. */
+async function refusalCode(res: Response): Promise<string | undefined> {
+  try {
+    const body = (await res.clone().json()) as { code?: unknown };
+    return typeof body?.code === "string" ? body.code : undefined;
+  } catch {
+    return undefined;
+  }
+}
+
 /**
  * One bounded, cookie-forwarding round trip, parsed against its contract.
  *
@@ -313,10 +329,11 @@ async function send<T>(
   schema: ResponseSchema<T>,
   query?: Record<string, QueryValue>,
   body?: unknown,
+  timeoutMs: number = REQUEST_TIMEOUT_MS,
 ): Promise<ApiWriteResult<T>> {
   const cookie = await callerCookie();
   const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
 
   try {
     const headers: Record<string, string> = {};
@@ -345,11 +362,13 @@ async function send<T>(
         refusal === "conflict" || refusal === "rejected" || refusal === "denied"
           ? await refusalDetail(res)
           : undefined;
+      const code = await refusalCode(res);
       return {
         ok: false,
         reason: refusal,
         ...(message ? { message } : {}),
         ...(detail !== undefined ? { detail } : {}),
+        ...(code !== undefined ? { code } : {}),
       };
     }
 
@@ -423,8 +442,13 @@ export function apiPost<T>(
   path: string,
   schema: ResponseSchema<T>,
   body?: unknown,
+  /**
+   * A longer ceiling for the one write that legitimately outlasts ten seconds:
+   * a support assistant turn, which the API bounds at 55 s (ADR-061 D-p).
+   */
+  options?: { timeoutMs?: number },
 ): Promise<ApiWriteResult<T>> {
-  return send("POST", path, schema, undefined, body ?? {});
+  return send("POST", path, schema, undefined, body ?? {}, options?.timeoutMs);
 }
 
 /**

@@ -59,6 +59,10 @@ x-api-env: &api-env
   CORS_ORIGINS: https://www.${STAGING_DOMAIN},https://admin.${STAGING_DOMAIN}
   GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:-}
   GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET:-}
+  # The support assistant (ADR-061). Off unless the host env file turns it on. `live` needs ANTHROPIC_API_KEY from the host env file, never from this file, and the API refuses to boot on `live` without it.
+  ASSISTANT_ADAPTER_MODE: ${ASSISTANT_ADAPTER_MODE:-off}
+  ASSISTANT_MODEL: ${ASSISTANT_MODEL:-claude-sonnet-5-5}
+  ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
   # Object storage on this stack's minio, through the scoped user minio-init
   # creates. `injishi-minio`, not `minio`: api also joins dokploy-network, where
   # production's `minio` answers to the same name.

@@ -74,6 +74,7 @@ import { RegistrationsController } from './registrations/registrations.controlle
 import { StaffInvitationsController } from './registrations/staff-invitations.controller';
 import { UploadsController } from './uploads/uploads.controller';
 import { SupportModule } from './support/support.module';
+import { AssistantPublicModule } from './assistant/assistant.module';
 import { TrainingPublicModule } from './training/training.module';
 import { WaitlistModule } from './waitlist/waitlist.module';
 
@@ -103,6 +104,9 @@ import { WaitlistModule } from './waitlist/waitlist.module';
     // POST /support/tickets, the public support intake; limits and caps are
     // in its own folder.
     SupportModule,
+    // /assistant/*, the support assistant (ADR-061); its limits, cookie and
+    // model seam are in its own folder and `modules/assistant`.
+    AssistantPublicModule,
     // POST /waitlist/signups and the unsubscribe route, the pre-launch
     // waitlist (ADR-048). Deleted whole at launch.
     WaitlistModule,
