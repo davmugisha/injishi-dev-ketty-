@@ -154,6 +154,17 @@ export const LIVE_SCREENS: ReadonlySet<string> = new Set([
    */
   "listing",
 
+  /*
+   * The broker workspace joins off the demo store (2026-09-15, ADR-038 child
+   * 6). `directory` reads GET /ops/broker/directory and commands
+   * POST /ops/broker/directory/:listingId/reveal and /placements; `placements`
+   * reads GET /ops/broker/placements; `earnings` reads GET /ops/broker/earnings.
+   * `data/broker.ts` and its reducer are deleted. `account` is `built: false`,
+   * a placeholder rather than a fixture, and the banner drops it.
+   */
+  "directory",
+  "placements",
+  "earnings",
 ]);
 
 /** Is this screen reading real server data yet? */

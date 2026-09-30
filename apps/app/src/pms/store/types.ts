@@ -120,9 +120,6 @@ export type Action =
   /* What you offer */
   | { type: "toggleAmenity"; scope: "prop" | "room"; code: string; typeKey?: string }
   | { type: "toggleShared"; label: string }
-  /* Broker */
-  | { type: "revealContact"; id: string }
-  | { type: "startPlacement"; id: string }
   /* Personal */
   | { type: "payOwnRent" }
 ;

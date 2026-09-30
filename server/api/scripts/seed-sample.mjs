@@ -77,6 +77,8 @@ const STEPS = [
   { script: 'seed-demo-portfolio.mjs', what: 'rent roll, registration pipeline, reviews and support' },
   // Reads two pipeline businesses seed-demo-portfolio.mjs writes.
   { script: 'seed-demo-psf.mjs', what: 'PSF membership: tiers, an officer, an application (ADR-056)' },
+  // Last: it places tenants on leases the two residence seeds above write.
+  { script: 'seed-broker.mjs', what: 'brokers: credits, reveals, placements and fees (ADR-038 child 6)' },
 ];
 
 function fail(message) {

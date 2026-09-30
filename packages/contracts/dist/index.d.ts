@@ -21,6 +21,7 @@ export * from "./stay";
 export * from "./offers";
 export * from "./inbox";
 export * from "./ops";
+export * from "./broker";
 export * from "./ordering";
 export * from "./outlets";
 export * from "./property-detail";
