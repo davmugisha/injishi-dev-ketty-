@@ -57,7 +57,7 @@ describe('LiveVsdcSigner', () => {
     );
     const signer = new LiveVsdcSigner(
       { findForBookingReference } as unknown as EbmEmissionRepository,
-      { environment, sampleData: false },
+      { environment, sampleData: false, commit: null },
     );
     return { signer, findForBookingReference };
   }

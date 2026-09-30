@@ -151,6 +151,7 @@ describe('EbmConnectionService', () => {
     const service = new FixedClock(repo as unknown as EbmConnectionRepository, live, {
       environment: opts.environment ?? 'production',
       sampleData: false,
+      commit: null,
     });
     return { service, repo, client, states, saved };
   }
@@ -359,6 +360,7 @@ describe('EbmConnectionService', () => {
     const service = new FixedClock({} as EbmConnectionRepository, null, {
       environment: 'production',
       sampleData: false,
+      commit: null,
     });
     await expect(service.start(ORG, OWNER)).rejects.toThrow(/mock mode/);
     expect(await service.credentialsFor(ORG)).toEqual({ ready: false, reason: 'RRA invoicing is in mock mode' });

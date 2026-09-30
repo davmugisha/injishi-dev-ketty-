@@ -58,7 +58,7 @@ describe('EbmEmissionProcessor', () => {
       emitter as unknown as EbmEmissionService,
       trigger as unknown as EbmSaleTrigger,
       live,
-      { environment: opts.environment ?? 'production', sampleData: false },
+      { environment: opts.environment ?? 'production', sampleData: false, commit: null },
     );
     return { processor, emissions, connections, trigger, emitter, order };
   }

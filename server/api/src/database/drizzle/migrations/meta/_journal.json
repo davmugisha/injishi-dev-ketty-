@@ -358,6 +358,13 @@
       "when": 1790551228800,
       "tag": "0050_stay_departure_note",
       "breakpoints": true
+    },
+    {
+      "idx": 51,
+      "version": "7",
+      "when": 1790763139096,
+      "tag": "0051_guest_booking_department_threads",
+      "breakpoints": true
     }
   ]
 }

@@ -241,8 +241,19 @@ function StaySummary({ stay }: { stay: MyStay }) {
  * existed since ADR-016 with nothing reading it, because no guest surface could
  * start a conversation at all.
  */
-/** Exported for `/inbox`, which offers the same desks above the conversations. */
-export function DesksPanel({ stay }: { stay: MyStay }) {
+/**
+ * This panel belongs to `/stay` alone, and is no longer exported.
+ *
+ * `/inbox` used to render it too, which is how the department capability came
+ * to be invisible to every guest who had booked and not yet arrived: this
+ * component needs a `MyStay`, and a person with a booking has none. `/inbox`
+ * now has its own section on `GET /me/departments`
+ * (`components/app/inbox-desks.tsx`), which answers for stays and bookings
+ * alike. This one stays because `/stay` IS one stay — it holds the id, its
+ * unread counts are that stay's, and `POST /me/stays/:id/requests` is the
+ * narrower route for exactly that case.
+ */
+function DesksPanel({ stay }: { stay: MyStay }) {
   const [desks, setDesks] = useState<StayDepartment[] | null>(null);
   const [openFor, setOpenFor] = useState<string | null>(null);
   const [body, setBody] = useState("");

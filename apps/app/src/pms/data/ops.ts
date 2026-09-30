@@ -1196,11 +1196,50 @@ export function useSetRolePermissions(
 const THREAD_LIST_POLL_MS = 15_000;
 const THREAD_MESSAGES_POLL_MS = 5_000;
 
-export function useThreads(workspaceId: string | null): UseQueryResult<OperatorThreadList> {
+/**
+ * The inbox read, as a path — every conversation, or one desk's (ADR-050 D-q).
+ *
+ * **THE NARROWING IS A REQUEST, NOT A REDUCTION**, and that is the whole point
+ * of it. `MessagingService.listThreads` applies `departmentId` in SQL, so
+ * Housekeeping asks for its own two rows and is sent two. Fetching the
+ * property's whole inbox and dropping the rest here would send all seventy-four
+ * to throw seventy-two away — a list that gets slower exactly as the property
+ * gets busier, which is the condition the filter exists for.
+ *
+ * `URLSearchParams` rather than concatenation, so a value that is not the uuid
+ * we expect is encoded rather than pasted into the query string. And the
+ * parameter is OMITTED, never sent empty, when no desk is chosen: `?departmentId=`
+ * is a 400 from the controller's `ParseUUIDPipe` (probed against a running API
+ * on 2026-09-16), and the unfiltered inbox is the default every operator opens.
+ *
+ * Exported for `apps/app/tests/ops-department-filter.check.mjs`, which runs this
+ * function rather than reading the file and hoping.
+ */
+export function opsThreadsPath(departmentId: string | null): string {
+  if (departmentId === null) return "/ops/threads";
+  return `/ops/threads?${new URLSearchParams({ departmentId }).toString()}`;
+}
+
+/**
+ * Every conversation on this desk, or one department's.
+ *
+ * The filter is NOT a permission and must never become one: the same threads
+ * come back either way, and a staffer who may read the inbox may read all of
+ * it. `message.send` is the gate, on the server, unchanged.
+ */
+export function useThreads(
+  workspaceId: string | null,
+  /** One department's conversations; null (the default) for every desk's. */
+  departmentId: string | null = null,
+): UseQueryResult<OperatorThreadList> {
   const mayRead = useMayRead(OPS_READ.threads);
   return useQuery({
-    queryKey: queryKeys.threads(workspaceId),
-    queryFn: () => read("/ops/threads", workspaceId as string, OperatorThreadList),
+    queryKey:
+      departmentId === null
+        ? queryKeys.threads(workspaceId)
+        : queryKeys.threadsInDepartment(workspaceId, departmentId),
+    queryFn: () =>
+      read(opsThreadsPath(departmentId), workspaceId as string, OperatorThreadList),
     enabled: workspaceId !== null && mayRead,
     refetchInterval: THREAD_LIST_POLL_MS,
   });

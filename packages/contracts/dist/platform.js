@@ -25,6 +25,27 @@ exports.PlatformInfo = zod_1.z.object({
      * never has. Read per request, so a reseed run by hand shows at once.
      */
     seededAt: zod_1.z.string().nullable(),
+    /**
+     * The git commit this process was BUILT from (`INJISHI_COMMIT`, stamped on
+     * the image), or null when it was started from a working tree that did not
+     * say.
+     *
+     * Without it there is no way to ask a deployed API which code it is
+     * running, so "shipped" is a claim nothing can check: a deploy that
+     * silently served the previous image looked exactly like one that worked.
+     * It is a commit sha and nothing else — never a branch, a version or a
+     * build date — because the sha is the only one of those that names one
+     * tree.
+     *
+     * `nullish` rather than `nullable`, for the same reason `DemoPersona.story`
+     * is: an API older than this field does not send the key, and every client
+     * reads this payload with `safeParse` and falls back to NULL on a failure.
+     * Required, the first frontend deployed ahead of the API would lose the
+     * whole platform answer — the demo pill, the persona picker, the fixed-code
+     * notice — over a field it does not use. The API always sends the key; a
+     * missing one means "an API that could not tell you".
+     */
+    commit: zod_1.z.string().nullish(),
 });
 /**
  * `GET /api/v1/demo/personas`: the demo roster for the sign in picker (ADR-038

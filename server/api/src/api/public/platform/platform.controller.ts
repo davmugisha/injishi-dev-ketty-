@@ -33,6 +33,10 @@ export class PlatformController {
       environment: this.platform.environment,
       sampleData: this.platform.sampleData,
       seededAt: seededAt?.toISOString() ?? null,
+      // Always sent, null included: a client reads a missing key as "an API too
+      // old to say" and a null as "a process that was never stamped", and those
+      // are different answers to "which commit am I talking to?".
+      commit: this.platform.commit,
     });
   }
 

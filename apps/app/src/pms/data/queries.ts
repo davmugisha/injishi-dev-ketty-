@@ -86,6 +86,22 @@ export const queryKeys = {
   housekeepingTasks: (workspaceId: string | null) =>
     ["ops", "housekeeping-tasks", workspaceId] as const,
   threads: (workspaceId: string | null) => ["ops", "threads", workspaceId] as const,
+  /**
+   * One desk's slice of the same inbox (ADR-050 D-q).
+   *
+   * A SEPARATE ENTRY, not the same one refetched. Housekeeping's two
+   * conversations and the property's seventy-four are two different answers to
+   * two different requests, and a shared key would paint one under the other's
+   * heading for the moment before the refetch landed — which is the bug the
+   * `reservations` note above records, in an inbox where the wrong list means
+   * reading somebody else's guest.
+   *
+   * It sits UNDER `threads(workspaceId)` so every existing invalidation still
+   * reaches it: sending a message invalidates the base key, and TanStack
+   * matches by prefix, so the desk's list moves too.
+   */
+  threadsInDepartment: (workspaceId: string | null, departmentId: string) =>
+    ["ops", "threads", workspaceId, "department", departmentId] as const,
   threadMessages: (workspaceId: string | null, threadId: string | null) =>
     ["ops", "threads", workspaceId, threadId, "messages"] as const,
   leases: (workspaceId: string | null) => ["ops", "leases", workspaceId] as const,

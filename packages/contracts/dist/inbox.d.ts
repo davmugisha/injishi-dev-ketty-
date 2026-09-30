@@ -48,6 +48,19 @@ export declare const GuestThread: z.ZodObject<{
     kind: z.ZodEnum<["reservation", "department_request", "dispute"]>;
     status: z.ZodEnum<["active", "archived"]>;
     /**
+     * WHICH property this conversation is about, as an id.
+     *
+     * The name alone was not enough to act on. Ordering, the desks a guest may
+     * write to and every other per-property question is asked of the server BY
+     * ID (`GET /me/orderable?propertyId=…`), so a screen holding only
+     * `propertyName` could render the conversation and nothing else about it —
+     * which is why ordering inside a thread had to be a link out to a screen that
+     * knew the property some other way.
+     *
+     * Null exactly where `propertyName` is null: they come from the same join.
+     */
+    propertyId: z.ZodNullable<z.ZodString>;
+    /**
      * Who the guest is talking to, as they think of it: the property.
      *
      * Nullable because the join can miss on a lease thread whose unit has no
@@ -77,6 +90,7 @@ export declare const GuestThread: z.ZodObject<{
     lastMessageAt: string | null;
     lastMessagePreview: string | null;
     messageCount: number;
+    propertyId: string | null;
     unreadCount: number;
 }, {
     status: "active" | "archived";
@@ -89,6 +103,7 @@ export declare const GuestThread: z.ZodObject<{
     lastMessageAt: string | null;
     lastMessagePreview: string | null;
     messageCount: number;
+    propertyId: string | null;
     unreadCount: number;
 }>;
 export type GuestThread = z.infer<typeof GuestThread>;
@@ -100,6 +115,19 @@ export declare const MyThreads: z.ZodObject<{
         subjectId: z.ZodString;
         kind: z.ZodEnum<["reservation", "department_request", "dispute"]>;
         status: z.ZodEnum<["active", "archived"]>;
+        /**
+         * WHICH property this conversation is about, as an id.
+         *
+         * The name alone was not enough to act on. Ordering, the desks a guest may
+         * write to and every other per-property question is asked of the server BY
+         * ID (`GET /me/orderable?propertyId=…`), so a screen holding only
+         * `propertyName` could render the conversation and nothing else about it —
+         * which is why ordering inside a thread had to be a link out to a screen that
+         * knew the property some other way.
+         *
+         * Null exactly where `propertyName` is null: they come from the same join.
+         */
+        propertyId: z.ZodNullable<z.ZodString>;
         /**
          * Who the guest is talking to, as they think of it: the property.
          *
@@ -130,6 +158,7 @@ export declare const MyThreads: z.ZodObject<{
         lastMessageAt: string | null;
         lastMessagePreview: string | null;
         messageCount: number;
+        propertyId: string | null;
         unreadCount: number;
     }, {
         status: "active" | "archived";
@@ -142,6 +171,7 @@ export declare const MyThreads: z.ZodObject<{
         lastMessageAt: string | null;
         lastMessagePreview: string | null;
         messageCount: number;
+        propertyId: string | null;
         unreadCount: number;
     }>, "many">;
 }, "strip", z.ZodTypeAny, {
@@ -156,6 +186,7 @@ export declare const MyThreads: z.ZodObject<{
         lastMessageAt: string | null;
         lastMessagePreview: string | null;
         messageCount: number;
+        propertyId: string | null;
         unreadCount: number;
     }[];
 }, {
@@ -170,6 +201,7 @@ export declare const MyThreads: z.ZodObject<{
         lastMessageAt: string | null;
         lastMessagePreview: string | null;
         messageCount: number;
+        propertyId: string | null;
         unreadCount: number;
     }[];
 }>;
@@ -318,4 +350,261 @@ export declare const SendGuestMessageInput: z.ZodObject<{
     body: string;
 }>;
 export type SendGuestMessageInput = z.infer<typeof SendGuestMessageInput>;
+/**
+ * `POST /api/v1/me/threads` (ADR-050 D-q): open or resume the conversation with
+ * one department, and say something.
+ *
+ * NAMED BY THE DEPARTMENT ALONE, and that is the whole point of this shape.
+ * `POST /me/stays/:id/requests` could only be reached by a guest who had a
+ * stay, so a person who had BOOKED and not yet arrived could reach no desk of
+ * the property at all — the department capability was invisible to everyone
+ * before check-in. The server resolves which record the conversation hangs off
+ * (an open stay at that department's property, else a live booking with it),
+ * because the guest does not know and should not have to say: they tapped
+ * "Housekeeping".
+ *
+ * THE FIRST MESSAGE IS REQUIRED, for the same reason it is on the stay route: a
+ * thread with nothing in it is a row the desk reads as a guest who wanted
+ * something and did not say what.
+ *
+ * `.strict()` so a body that names its own stay, booking or workspace is
+ * refused rather than quietly ignored — a field the server does not read is a
+ * field a client will eventually believe in.
+ */
+export declare const OpenThreadRequest: z.ZodObject<{
+    departmentId: z.ZodString;
+    /** Optional one-liner for the desk's list view. */
+    subject: z.ZodOptional<z.ZodString>;
+    body: z.ZodString;
+}, "strict", z.ZodTypeAny, {
+    body: string;
+    departmentId: string;
+    subject?: string | undefined;
+}, {
+    body: string;
+    departmentId: string;
+    subject?: string | undefined;
+}>;
+export type OpenThreadRequest = z.infer<typeof OpenThreadRequest>;
+/**
+ * One property a guest may write to right now, and the desks there.
+ *
+ * A PLACE, not a stay and not a booking: the guest thinks "the hotel I am at"
+ * and "the hotel I am going to", and both offer the same desks. `context` and
+ * `subjectId` say which record the server resolved the right from, so a screen
+ * can link to the trip or the stay it came from, and `inHouse` says which of
+ * the two wordings to use ("Message Housekeeping" versus "Ask before you
+ * arrive"). They agree by construction — `context === "stay"` is exactly
+ * `inHouse` — and are both here because a client should not have to know that.
+ *
+ * There is deliberately NO `canOrder` flag. Whether this person may order at
+ * this property is the outlet policy's answer and it is a per-outlet one:
+ * `GET /me/orderable?propertyId=…` is the verdict, and computing a summary of
+ * it for every row of a list screen would cost a policy resolution per row to
+ * produce a boolean that is wrong the moment an outlet closes.
+ */
+export declare const GuestDeskPlace: z.ZodObject<{
+    propertyId: z.ZodString;
+    propertyName: z.ZodString;
+    /** Which record opens these desks: the stay they are on, or the booking. */
+    context: z.ZodEnum<["stay", "booking"]>;
+    /** The `guest_stays` id or the `bookings` id, per `context`. */
+    subjectId: z.ZodString;
+    /** The booking's reference, for a place a guest recognises by it. Null for a walk-in. */
+    bookingReference: z.ZodNullable<z.ZodString>;
+    /**
+     * When they arrive, or arrived: the booking's check-in date for a booking,
+     * the stay's entry instant for a stay. Read it as a moment, not as a format.
+     */
+    checkIn: z.ZodNullable<z.ZodString>;
+    /** True when the guest is checked in here right now. */
+    inHouse: z.ZodBoolean;
+    /** Only the desks this property marked `guest_requestable`, its own control. */
+    departments: z.ZodArray<z.ZodObject<{
+        id: z.ZodString;
+        name: z.ZodString;
+        departmentCategory: z.ZodEnum<["rooms", "fnb", "spa_recreation", "other_operated", "misc_income", "admin_general", "sales_marketing", "it", "engineering", "utilities", "hr"]>;
+        phone: z.ZodNullable<z.ZodString>;
+        threadId: z.ZodNullable<z.ZodString>;
+        unreadCount: z.ZodNumber;
+        lastMessageAt: z.ZodNullable<z.ZodString>;
+    }, "strip", z.ZodTypeAny, {
+        name: string;
+        id: string;
+        phone: string | null;
+        lastMessageAt: string | null;
+        threadId: string | null;
+        departmentCategory: "rooms" | "fnb" | "spa_recreation" | "other_operated" | "misc_income" | "admin_general" | "sales_marketing" | "it" | "engineering" | "utilities" | "hr";
+        unreadCount: number;
+    }, {
+        name: string;
+        id: string;
+        phone: string | null;
+        lastMessageAt: string | null;
+        threadId: string | null;
+        departmentCategory: "rooms" | "fnb" | "spa_recreation" | "other_operated" | "misc_income" | "admin_general" | "sales_marketing" | "it" | "engineering" | "utilities" | "hr";
+        unreadCount: number;
+    }>, "many">;
+}, "strip", z.ZodTypeAny, {
+    subjectId: string;
+    propertyName: string;
+    checkIn: string | null;
+    propertyId: string;
+    departments: {
+        name: string;
+        id: string;
+        phone: string | null;
+        lastMessageAt: string | null;
+        threadId: string | null;
+        departmentCategory: "rooms" | "fnb" | "spa_recreation" | "other_operated" | "misc_income" | "admin_general" | "sales_marketing" | "it" | "engineering" | "utilities" | "hr";
+        unreadCount: number;
+    }[];
+    context: "booking" | "stay";
+    bookingReference: string | null;
+    inHouse: boolean;
+}, {
+    subjectId: string;
+    propertyName: string;
+    checkIn: string | null;
+    propertyId: string;
+    departments: {
+        name: string;
+        id: string;
+        phone: string | null;
+        lastMessageAt: string | null;
+        threadId: string | null;
+        departmentCategory: "rooms" | "fnb" | "spa_recreation" | "other_operated" | "misc_income" | "admin_general" | "sales_marketing" | "it" | "engineering" | "utilities" | "hr";
+        unreadCount: number;
+    }[];
+    context: "booking" | "stay";
+    bookingReference: string | null;
+    inHouse: boolean;
+}>;
+export type GuestDeskPlace = z.infer<typeof GuestDeskPlace>;
+/**
+ * `GET /api/v1/me/departments`: every desk this person may write to, anywhere.
+ *
+ * Session scoped and takes no parameter. The stay-scoped
+ * `GET /me/stays/:id/departments` answers the same question for one stay and
+ * stays where it is; this one is what an inbox opens with, because an inbox
+ * does not know which stay or booking the guest has in mind.
+ */
+export declare const MyDepartments: z.ZodObject<{
+    places: z.ZodArray<z.ZodObject<{
+        propertyId: z.ZodString;
+        propertyName: z.ZodString;
+        /** Which record opens these desks: the stay they are on, or the booking. */
+        context: z.ZodEnum<["stay", "booking"]>;
+        /** The `guest_stays` id or the `bookings` id, per `context`. */
+        subjectId: z.ZodString;
+        /** The booking's reference, for a place a guest recognises by it. Null for a walk-in. */
+        bookingReference: z.ZodNullable<z.ZodString>;
+        /**
+         * When they arrive, or arrived: the booking's check-in date for a booking,
+         * the stay's entry instant for a stay. Read it as a moment, not as a format.
+         */
+        checkIn: z.ZodNullable<z.ZodString>;
+        /** True when the guest is checked in here right now. */
+        inHouse: z.ZodBoolean;
+        /** Only the desks this property marked `guest_requestable`, its own control. */
+        departments: z.ZodArray<z.ZodObject<{
+            id: z.ZodString;
+            name: z.ZodString;
+            departmentCategory: z.ZodEnum<["rooms", "fnb", "spa_recreation", "other_operated", "misc_income", "admin_general", "sales_marketing", "it", "engineering", "utilities", "hr"]>;
+            phone: z.ZodNullable<z.ZodString>;
+            threadId: z.ZodNullable<z.ZodString>;
+            unreadCount: z.ZodNumber;
+            lastMessageAt: z.ZodNullable<z.ZodString>;
+        }, "strip", z.ZodTypeAny, {
+            name: string;
+            id: string;
+            phone: string | null;
+            lastMessageAt: string | null;
+            threadId: string | null;
+            departmentCategory: "rooms" | "fnb" | "spa_recreation" | "other_operated" | "misc_income" | "admin_general" | "sales_marketing" | "it" | "engineering" | "utilities" | "hr";
+            unreadCount: number;
+        }, {
+            name: string;
+            id: string;
+            phone: string | null;
+            lastMessageAt: string | null;
+            threadId: string | null;
+            departmentCategory: "rooms" | "fnb" | "spa_recreation" | "other_operated" | "misc_income" | "admin_general" | "sales_marketing" | "it" | "engineering" | "utilities" | "hr";
+            unreadCount: number;
+        }>, "many">;
+    }, "strip", z.ZodTypeAny, {
+        subjectId: string;
+        propertyName: string;
+        checkIn: string | null;
+        propertyId: string;
+        departments: {
+            name: string;
+            id: string;
+            phone: string | null;
+            lastMessageAt: string | null;
+            threadId: string | null;
+            departmentCategory: "rooms" | "fnb" | "spa_recreation" | "other_operated" | "misc_income" | "admin_general" | "sales_marketing" | "it" | "engineering" | "utilities" | "hr";
+            unreadCount: number;
+        }[];
+        context: "booking" | "stay";
+        bookingReference: string | null;
+        inHouse: boolean;
+    }, {
+        subjectId: string;
+        propertyName: string;
+        checkIn: string | null;
+        propertyId: string;
+        departments: {
+            name: string;
+            id: string;
+            phone: string | null;
+            lastMessageAt: string | null;
+            threadId: string | null;
+            departmentCategory: "rooms" | "fnb" | "spa_recreation" | "other_operated" | "misc_income" | "admin_general" | "sales_marketing" | "it" | "engineering" | "utilities" | "hr";
+            unreadCount: number;
+        }[];
+        context: "booking" | "stay";
+        bookingReference: string | null;
+        inHouse: boolean;
+    }>, "many">;
+}, "strip", z.ZodTypeAny, {
+    places: {
+        subjectId: string;
+        propertyName: string;
+        checkIn: string | null;
+        propertyId: string;
+        departments: {
+            name: string;
+            id: string;
+            phone: string | null;
+            lastMessageAt: string | null;
+            threadId: string | null;
+            departmentCategory: "rooms" | "fnb" | "spa_recreation" | "other_operated" | "misc_income" | "admin_general" | "sales_marketing" | "it" | "engineering" | "utilities" | "hr";
+            unreadCount: number;
+        }[];
+        context: "booking" | "stay";
+        bookingReference: string | null;
+        inHouse: boolean;
+    }[];
+}, {
+    places: {
+        subjectId: string;
+        propertyName: string;
+        checkIn: string | null;
+        propertyId: string;
+        departments: {
+            name: string;
+            id: string;
+            phone: string | null;
+            lastMessageAt: string | null;
+            threadId: string | null;
+            departmentCategory: "rooms" | "fnb" | "spa_recreation" | "other_operated" | "misc_income" | "admin_general" | "sales_marketing" | "it" | "engineering" | "utilities" | "hr";
+            unreadCount: number;
+        }[];
+        context: "booking" | "stay";
+        bookingReference: string | null;
+        inHouse: boolean;
+    }[];
+}>;
+export type MyDepartments = z.infer<typeof MyDepartments>;
 //# sourceMappingURL=inbox.d.ts.map

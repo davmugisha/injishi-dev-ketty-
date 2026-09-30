@@ -33,6 +33,17 @@ export interface Platform {
   readonly environment: PlatformEnvironment;
   /** The database carries the `sample` marker. */
   readonly sampleData: boolean;
+  /**
+   * The git commit this process was BUILT from (`INJISHI_COMMIT`, stamped on
+   * the image by the compose files), or null when nothing said.
+   *
+   * Read here rather than wherever it is reported, because it is a fact about
+   * the process and this file is where a process's facts are decided — once, at
+   * boot. It changes no behaviour; it is what makes "this deploy is running
+   * that commit" a question anybody can ask instead of a claim nobody can
+   * check.
+   */
+  readonly commit: string | null;
 }
 
 /** DI token for this process's `Platform`, provided by `DatabaseModule`. */
@@ -45,6 +56,7 @@ export type DatabaseKind = 'real' | 'sample';
 export interface PlatformEnv {
   INJISHI_ENVIRONMENT?: string;
   INJISHI_DATABASE_KIND?: string;
+  INJISHI_COMMIT?: string;
   NODE_ENV?: string;
   PAYMENT_ADAPTER_MODE?: string;
   VSDC_ADAPTER_MODE?: string;
@@ -82,6 +94,21 @@ export function expectedDatabaseKind(env: PlatformEnv): DatabaseKind | null {
   );
 }
 
+/**
+ * `INJISHI_COMMIT`, read once. Unset, blank or unreadable means null.
+ *
+ * A build stamps it; a working tree usually does not, and that is not an error
+ * — an API you started yourself is one whose code you are holding. It NEVER
+ * refuses a boot: a deploy that dies over a label it only reports would be a
+ * worse outcome than one that cannot name itself. Anything that is not a git
+ * sha is dropped rather than echoed, because a field a client may render must
+ * not carry whatever a stray variable happened to hold.
+ */
+export function processCommit(env: PlatformEnv): string | null {
+  const raw = (env.INJISHI_COMMIT ?? '').trim().toLowerCase();
+  return /^[0-9a-f]{7,40}$/.test(raw) ? raw : null;
+}
+
 /** An adapter mode is live exactly as its owning module reads it. */
 function isLive(mode: string | undefined): boolean {
   return (mode ?? '').trim().toLowerCase() === 'live';
@@ -92,6 +119,8 @@ export interface PlatformInputs {
   expectedKind: DatabaseKind | null;
   /** What the marker says, from `readDatabaseKind`. */
   marker: DatabaseKind;
+  /** The build's commit, from `processCommit`. Reported, never enforced. */
+  commit?: string | null;
   paymentAdapterMode?: string;
   vsdcAdapterMode?: string;
 }
@@ -170,7 +199,11 @@ export function resolvePlatform(input: PlatformInputs): Platform {
     }
   }
 
-  return { environment, sampleData: marker === 'sample' };
+  return {
+    environment,
+    sampleData: marker === 'sample',
+    commit: input.commit ?? null,
+  };
 }
 
 /** The part of a `pg` pool or client the marker read needs. */
@@ -219,6 +252,7 @@ export async function bootPlatform(
     environment,
     expectedKind,
     marker,
+    commit: processCommit(env),
     paymentAdapterMode: env.PAYMENT_ADAPTER_MODE,
     vsdcAdapterMode: env.VSDC_ADAPTER_MODE,
   });
