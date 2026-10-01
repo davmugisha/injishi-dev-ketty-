@@ -276,13 +276,19 @@ describe('payMethod', () => {
     expect(payMethod('airtel').prefixes).toEqual(['72', '73']);
   });
 
-  it('offers no card: the app takes no card number, expiry or security code', () => {
-    // The owner's decision of 2026-10-01. The API refuses a card instrument
-    // (ADR-047), and holding card details would put the app in PCI scope.
+  it('offers the two mobile money rails until a payment gateway brings card', () => {
+    // Today's list, not a rule: card returns with the gateway (scope/mobile
+    // feature 30), as a hand off to the gateway's own secure page.
     expect(PAY_METHODS.map((m) => m.id)).toEqual(['momo', 'airtel']);
-    const cardKeys = Object.keys(en).filter((key) =>
-      /^(book\.(method|methodHint)\.card|book\.card|book\.cvv|book\.expiry|book\.blockedCard|payRent\.card)/.test(key),
+  });
+
+  it('never asks for a card number, expiry or security code', () => {
+    // The rule, by the owner's decision of 2026-10-01: card details are typed
+    // into the gateway's page, never into the app, so the app never holds them
+    // and stays out of card security (PCI) scope.
+    const cardDetailKeys = Object.keys(en).filter((key) =>
+      /^book\.(card(Number|Expiry|Cvv|Short|Checksum)|cvv|expiry|blockedCard)/.test(key),
     );
-    expect(cardKeys).toEqual([]);
+    expect(cardDetailKeys).toEqual([]);
   });
 });

@@ -6,11 +6,13 @@
  * here and on frame R12's rent sheet — and it is not alphabetical. It is how
  * Rwanda pays, so the order is data (`PAY_METHODS`) rather than markup.
  *
- * **No card.** The canvas drew a card row last; it is gone by the owner's
- * decision of 2026-10-01. The API refuses a card instrument (ADR-047 removed
- * web's card form for the same reason), and an app that asks for a card number,
- * expiry and security code is an app in card security (PCI) scope. A row that
- * is offered and then refused would be worse than no row.
+ * **No card fields, ever, and no card row until there is a gateway.** The
+ * canvas drew a card row with number, expiry and security code fields. The
+ * fields are gone for good by the owner's decision of 2026-10-01: a card is
+ * typed into the payment gateway's own secure page, so the app never sees or
+ * keeps it (`book-format.ts` explains). The row itself returns when the gateway
+ * lands; today the API refuses a card, and a row offered then refused would be
+ * worse than no row.
  *
  * **The field validates as you type, and every message says what to do.** The
  * canvas's four handset notes are the most carefully written strings on the

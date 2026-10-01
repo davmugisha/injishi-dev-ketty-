@@ -13,8 +13,9 @@ export type LeaseState = 'active' | 'ending' | 'pending_signature' | 'draft' | '
 /**
  * How a rent period settled. MTN MoMo leads because it is the rail that
  * answers first in Rwanda (frame R12's sheet draws them in this order). Frame
- * R12 also drew a card; the app takes none, by the owner's decision of
- * 2026-10-01, because no card rail exists on the API.
+ * R12 also drew a card. It returns with the payment gateway, as the gateway's
+ * own secure page; until then no card rail exists (see
+ * `screens/guest/book-format.ts`).
  */
 export type PayMethod = 'mtn_momo' | 'airtel_money';
 

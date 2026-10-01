@@ -16,12 +16,17 @@ import { billableGuests, type GuestParty } from '@/data/search';
 /* ------------------------------------------------------------ the methods */
 
 /**
- * **No card, by the owner's decision of 2026-10-01.** The API refuses a card
- * instrument (ADR-047 deleted web's hand-built card form for the same reason),
- * and an app that takes a card number, expiry and security code is an app in
- * card security (PCI) scope. So the app never asks for one: the two mobile
- * money rails are the only methods, and a card is not offered at all rather
- * than offered and refused.
+ * **The app never takes card details** (the owner's decision of 2026-10-01).
+ * Card payments are wanted, but a card number, expiry and security code are
+ * typed into the payment gateway's own secure page, never into a field of
+ * ours, so Injishi neither sees nor keeps them (an app that did would be in
+ * card security, PCI, scope; ADR-047 removed web's hand-built form for the same
+ * reason).
+ *
+ * **Card is not offered yet** because there is no gateway: the API refuses a
+ * card instrument today, and a method that can only fail is worse than none. It
+ * comes back as a method when the gateway lands (scope/mobile feature 30), as a
+ * hand off to the gateway's page rather than as fields here.
  */
 export type PayMethod = 'momo' | 'airtel';
 

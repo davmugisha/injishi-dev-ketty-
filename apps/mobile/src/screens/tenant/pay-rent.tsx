@@ -2,9 +2,10 @@
  * Frame R12's sheet · Pay rent — MTN MoMo, then Airtel Money.
  *
  * The order is not alphabetical and is not a preference: it is the order those
- * rails answer in. Frame R12 drew a card row last; it is gone by the owner's
- * decision of 2026-10-01, because no card rail exists on the API and the app
- * takes no card details (see `screens/guest/book-format.ts`).
+ * rails answer in. Frame R12 drew a card row last. It waits for the payment
+ * gateway: a card will be typed into the gateway's own secure page, never into
+ * this app, and until a gateway exists no card rail does (see
+ * `screens/guest/book-format.ts`).
  *
  * ## What gaps.md B2 changed here, and why it is not a screen change
  *
