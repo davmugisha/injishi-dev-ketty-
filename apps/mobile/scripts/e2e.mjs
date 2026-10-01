@@ -56,8 +56,18 @@ function maestroPath() {
   return 'maestro';
 }
 
+/**
+ * Runs a command, quoting every argument for the Windows shell.
+ *
+ * Maestro is a `.bat` on Windows, and Node runs a `.bat` only through the
+ * shell, which joins the arguments with spaces and quotes none of them. This
+ * workspace's path has spaces in it, so an unquoted flow path arrives cut off at
+ * the first one.
+ */
 function run(command, args, options = {}) {
-  return spawnSync(command, args, { encoding: 'utf8', shell: process.platform === 'win32', ...options });
+  if (process.platform !== 'win32') return spawnSync(command, args, { encoding: 'utf8', ...options });
+  const quote = (value) => (/[\s"&|<>^]/.test(value) ? `"${value.replace(/"/g, '""')}"` : value);
+  return spawnSync(quote(command), args.map(quote), { encoding: 'utf8', shell: true, ...options });
 }
 
 const adb = adbPath();
@@ -77,9 +87,23 @@ const device = arg('device', attached[0]);
 if (!attached.includes(device)) fail(`device ${device} is not attached (attached: ${attached.join(', ')}).`);
 const onDevice = (args) => run(adb, ['-s', device, ...args]);
 
-for (const port of ['8081', '8000']) {
-  const reverse = onDevice(['reverse', `tcp:${port}`, `tcp:${port}`]);
-  if (reverse.status !== 0) fail(`adb reverse for port ${port} failed: ${reverse.stderr.trim()}`);
+/**
+ * Maps the device's 8081 and 8000 to this machine's, and checks they took.
+ *
+ * Run before EACH theme, not once. The rules live on the device's adb link and
+ * can be lost while the device stays attached (on 2026-10-01 they vanished
+ * between two runs, after another Maestro client lost its link), and an app
+ * that cannot reach the API fails a flow with nothing on screen to say why.
+ */
+function reversePorts() {
+  for (const port of ['8081', '8000']) {
+    const reverse = onDevice(['reverse', `tcp:${port}`, `tcp:${port}`]);
+    if (reverse.status !== 0) fail(`adb reverse for port ${port} failed: ${reverse.stderr.trim()}`);
+  }
+  const list = onDevice(['reverse', '--list']).stdout ?? '';
+  for (const port of ['8081', '8000']) {
+    if (!list.includes(`tcp:${port} tcp:${port}`)) fail(`adb reverse for port ${port} did not hold.`);
+  }
 }
 
 const themeArg = arg('theme', 'both');
@@ -90,14 +114,15 @@ const maestro = maestroPath();
 
 const results = [];
 for (const theme of themes) {
+  reversePorts();
   onDevice(['shell', 'cmd', 'uimode', 'night', theme === 'dark' ? 'yes' : 'no']);
   const out = path.join(os.tmpdir(), 'injishi-maestro', theme);
   mkdirSync(out, { recursive: true });
   console.log(`\ne2e: ${theme} theme on ${device}, output in ${out}`);
-  const test = spawnSync(
+  const test = run(
     maestro,
     ['--device', device, 'test', '--env', `THEME=${theme}`, '--test-output-dir', out, flow],
-    { stdio: 'inherit', shell: process.platform === 'win32', cwd: appDir },
+    { stdio: 'inherit', cwd: appDir },
   );
   results.push({ theme, ok: test.status === 0 });
 }
