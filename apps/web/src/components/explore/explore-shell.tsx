@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import dynamic from "next/dynamic";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useCallback, useMemo, useState } from "react";
 import { Button } from "@injishi/ui";
@@ -8,12 +9,24 @@ import { ExploreFilterRail } from "@/components/explore/explore-filters";
 import { ExploreResults } from "@/components/explore/explore-results";
 import { ExploreSearchBar } from "@/components/explore/explore-search-bar";
 import { FilterSheet } from "@/components/explore/filter-sheet";
+
+// The map pulls in maplibre-gl (~200 KB gz) and touches `window`, so it is
+// dynamic + client-only. A guest who never toggles the map never pays for it.
+const ExploreMap = dynamic(
+  () => import("@/components/explore/explore-map").then((m) => m.ExploreMap),
+  { ssr: false, loading: () => <MapSkeleton /> },
+);
+
+function MapSkeleton() {
+  return <div className="h-full w-full animate-pulse rounded-card bg-surface-secondary" />;
+}
 import {
   EXPLORE_RESULTS_ID,
   ResultsToolbar,
   stayTabId,
 } from "@/components/explore/results-toolbar";
 import { LISTINGS, type Listing } from "@/data/listings";
+import type { MapBounds } from "@/components/explore/explore-map";
 import { PROMO_PAIR } from "@/data/promotions";
 import { filterListings } from "@/lib/filter-listings";
 import {
@@ -62,11 +75,36 @@ export function ExploreShell({
   const [intent, setIntent] = useState<StayIntent>(urlIntent);
   const [refinement, setRefinement] = useState<ExploreRefinement>(urlRefinement);
   const [sheetOpen, setSheetOpen] = useState(false);
+  const [mapOn, setMapOn] = useState(false);
+  // Hover-sync: a card sets this on mouse-enter, the map highlights the pin;
+  // a pin sets it on hover, the card scrolls into view. Selection is a
+  // separate slot so a click on either side survives the next hover clear.
+  const [hoveredSlug, setHoveredSlug] = useState<string | null>(null);
+  const [selectedSlug, setSelectedSlug] = useState<string | null>(null);
+  // "Search as I move the map": when on, the list is the results inside the
+  // map's last visible bounds. The map always gets the full result set, so
+  // narrowing the list can never feed back into what the map fits to.
+  const [searchArea, setSearchArea] = useState(false);
+  const [mapBounds, setMapBounds] = useState<MapBounds | null>(null);
 
   const results = useMemo(
     () => filterListings(listings, intent, refinement),
     [listings, intent, refinement],
   );
+
+  const listed = useMemo(() => {
+    if (!mapOn || !searchArea || !mapBounds) return results;
+    const [w, s, e, n] = mapBounds;
+    return results.filter(
+      (l) =>
+        l.latitude !== null &&
+        l.longitude !== null &&
+        l.longitude >= w &&
+        l.longitude <= e &&
+        l.latitude >= s &&
+        l.latitude <= n,
+    );
+  }, [results, mapOn, searchArea, mapBounds]);
 
   const commit = useCallback(
     (nextIntent: StayIntent, nextRefinement: ExploreRefinement) => {
@@ -141,7 +179,7 @@ export function ExploreShell({
 
         <div className="min-w-0 flex-1">
           <ResultsToolbar
-            count={results.length}
+            count={listed.length}
             totalCatalogue={listings.length}
             stayType={refinement.stayType}
             onStayTypeChange={(stayType) => onRefinementChange({ stayType })}
@@ -151,6 +189,8 @@ export function ExploreShell({
             activeFilterCount={
               refinementCount(refinement) + (intent.districts.length > 0 ? 1 : 0)
             }
+            mapOn={mapOn}
+            onToggleMap={() => setMapOn((on) => !on)}
           />
 
           {dates ? (
@@ -170,7 +210,7 @@ export function ExploreShell({
             className="mt-4"
           >
             <ExploreResults
-              results={results}
+              results={listed}
               intent={intent}
               refinement={refinement}
               onPageChange={goToPage}
@@ -180,11 +220,40 @@ export function ExploreShell({
                 commit(EMPTY_INTENT, DEFAULT_REFINEMENT);
               }}
               onPickDistrict={(slug) => onIntentChange({ districts: [slug] })}
+              hoveredSlug={hoveredSlug}
+              onCardHover={setHoveredSlug}
+              cardVariant={mapOn ? "vertical" : "horizontal"}
             />
           </div>
         </div>
 
-        <AdRail />
+        {mapOn ? (
+          // Split view: map fills the third column at roughly half the
+          // available width. AdRail steps aside — the map is what a guest
+          // toggled it on for. Vertical cards for the narrower results column
+          // so the name never wraps one word per line. Desktop only: below
+          // `md` a half-viewport map on a phone is unusable, so it hides and
+          // the toolbar toggle re-appears as a full swap.
+          <aside
+            data-explore-map
+            className="sticky top-[169px] hidden h-[calc(100dvh-185px)] flex-1 shrink basis-0 md:block"
+          >
+            <ExploreMap
+              listings={results}
+              hoveredSlug={hoveredSlug}
+              selectedSlug={selectedSlug}
+              onHover={setHoveredSlug}
+              onSelect={setSelectedSlug}
+              searchArea={searchArea}
+              onSearchAreaChange={setSearchArea}
+              onBoundsChange={setMapBounds}
+              areaCount={listed.length}
+              intent={intent}
+            />
+          </aside>
+        ) : (
+          <AdRail />
+        )}
       </div>
 
       <FilterSheet

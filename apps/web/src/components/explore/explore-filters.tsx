@@ -1,6 +1,6 @@
 "use client";
 
-import { GitCompare, MapPin } from "lucide-react";
+import { GitCompare } from "lucide-react";
 import { Input } from "@injishi/ui";
 import { cn } from "@injishi/utils";
 import { ClearButton, FacetBlock } from "@/components/explore/filter-primitives";
@@ -188,7 +188,7 @@ export function FilterRailBody({
   );
 }
 
-/** The map card, the compare toggle and the name search, above "Filter by". */
+/** The compare toggle and the name search, above "Filter by". */
 function RailShortcuts({
   compareOn,
   onToggleCompare,
@@ -202,23 +202,6 @@ function RailShortcuts({
 }) {
   return (
     <div className="flex flex-col gap-3 pb-4">
-      {/*
-        No map provider is wired into this app (no Mapbox or Google Maps key
-        in `.env.example`), so this is an honest static card rather than a
-        picture of an interactive map wearing a "View in a map" label that
-        would do nothing when pressed.
-      */}
-      <div
-        data-rail-map
-        className="flex items-center gap-3 rounded-card bg-surface-secondary px-4 py-3 text-muted-foreground"
-      >
-        <MapPin className="size-5 shrink-0" strokeWidth={2} aria-hidden />
-        <div className="min-w-0">
-          <p className="text-sm font-bold text-foreground">Map view</p>
-          <p className="text-xs">Coming soon for this catalogue.</p>
-        </div>
-      </div>
-
       <button
         type="button"
         data-rail-compare

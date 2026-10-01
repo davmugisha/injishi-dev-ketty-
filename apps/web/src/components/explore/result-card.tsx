@@ -1,5 +1,6 @@
 import { Check, ShieldCheck, TicketPercent } from "lucide-react";
 import Link from "next/link";
+import { useEffect, useRef } from "react";
 import { Badge } from "@injishi/ui";
 import { cn } from "@injishi/utils";
 import { ResultGallery } from "@/components/explore/result-gallery";
@@ -35,10 +36,16 @@ export function ResultCard({
   listing,
   intent,
   className,
+  highlighted = false,
+  onHover,
 }: {
   listing: Listing;
   intent?: StayIntent;
   className?: string;
+  /** True while the map pin for this listing is hovered/selected. */
+  highlighted?: boolean;
+  /** Fires on mouse-enter/leave so the shell can highlight the matching pin. */
+  onHover?: (slug: string | null) => void;
 }) {
   const commerce = demoCommerceFor(listing);
   const rate = formatRateNumber(listing.nightlyRateRwf);
@@ -47,9 +54,20 @@ export function ResultCard({
   const { roomsLeft, vip, cancellation } = listing.facets;
   const refundable = cancellation.includes("fully_refundable");
 
+  // Scroll the card into view when the map (not the mouse) is the source of
+  // the highlight, so hovering a pin brings its card on-screen. `nearest`
+  // avoids jerking the whole page around when the card is already visible.
+  const ref = useRef<HTMLElement | null>(null);
+  useEffect(() => {
+    if (highlighted) ref.current?.scrollIntoView({ block: "nearest", behavior: "smooth" });
+  }, [highlighted]);
+
   return (
     <article
       data-result-card
+      ref={ref}
+      onMouseEnter={onHover ? () => onHover(listing.slug) : undefined}
+      onMouseLeave={onHover ? () => onHover(null) : undefined}
       className={cn(
         // `bg-card`, NOT `bg-canvas`. `--canvas` is one of the FIXED tokens —
         // the same value in both themes — and this card sets its text with
@@ -63,7 +81,8 @@ export function ResultCard({
         // list is the same height — which is what the reference's list is and
         // what this one was not: photographs of different intrinsic ratios were
         // setting their own rows to 227px, 254px and 449px down the same column.
-        "group relative flex flex-col overflow-hidden rounded-card bg-card ring-1 ring-border transition-shadow hover:shadow-control md:min-h-[220px] md:flex-row",
+        "group relative flex flex-col overflow-hidden rounded-card bg-card ring-1 transition-shadow hover:shadow-control md:min-h-[220px] md:flex-row",
+        highlighted ? "ring-2 ring-primary shadow-control" : "ring-border",
         className,
       )}
     >

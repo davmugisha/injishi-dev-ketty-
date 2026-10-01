@@ -148,7 +148,7 @@ function cardToProperty(card: PropertyCard): PropertyDetail {
       { label: "From", value: rate === null ? "Rate on request" : `${formatPrice(rate)} a night` },
     ],
     amenities: [],
-    place: { addressLines: [card.name, district], latitude: null, longitude: null, blurb: "" },
+    place: { addressLines: [card.name, district], latitude: card.latitude, longitude: card.longitude, blurb: "" },
     thingsToKnow: [],
     // A database record, not a sourced directory entry.
     sources: [],

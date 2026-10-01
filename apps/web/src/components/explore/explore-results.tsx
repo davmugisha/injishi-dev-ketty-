@@ -9,6 +9,7 @@ import {
   SupportInterstitial,
 } from "@/components/explore/result-interstitials";
 import { ResultCard } from "@/components/explore/result-card";
+import { ResultCardVertical } from "@/components/explore/result-card-vertical";
 import { LISTINGS, type Listing } from "@/data/listings";
 import { SEARCH_DISTRICTS } from "@/data/search-options";
 import type { ExploreRefinement, StayIntent } from "@/lib/search-params";
@@ -31,6 +32,9 @@ export function ExploreResults({
   onPageChange,
   onClearAll,
   onPickDistrict,
+  hoveredSlug,
+  onCardHover,
+  cardVariant = "horizontal",
 }: {
   results: Listing[];
   intent: StayIntent;
@@ -38,6 +42,11 @@ export function ExploreResults({
   onPageChange: (page: number) => void;
   onClearAll: () => void;
   onPickDistrict: (slug: string) => void;
+  hoveredSlug: string | null;
+  onCardHover: (slug: string | null) => void;
+  /** `vertical` is used inside the split-with-map layout; `horizontal` is the
+   * default full-width list. */
+  cardVariant?: "horizontal" | "vertical";
 }) {
   const firstPageSize = PAGE_SIZE - INTERSTITIAL_SLOTS.length;
   const pageCount =
@@ -62,12 +71,43 @@ export function ExploreResults({
     );
   }
 
+  if (cardVariant === "vertical") {
+    // Split-view mode: no interstitials (they are designed for the full-width
+    // horizontal list), compact cards, two per row on wider breakpoints.
+    return (
+      <>
+        <div
+          data-result-list
+          data-variant="vertical"
+          className="grid grid-cols-1 gap-4 lg:grid-cols-2"
+        >
+          {pageResults.map((listing) => (
+            <ResultCardVertical
+              key={listing.slug}
+              listing={listing}
+              intent={intent}
+              highlighted={hoveredSlug === listing.slug}
+              onHover={onCardHover}
+            />
+          ))}
+        </div>
+        <Pagination page={currentPage} pageCount={pageCount} onPageChange={onPageChange} />
+      </>
+    );
+  }
+
   return (
     <>
       <div data-result-list className="flex flex-col gap-4">
         {pageResults.flatMap((listing, index) => {
           const row: React.ReactNode[] = [
-            <ResultCard key={listing.slug} listing={listing} intent={intent} />,
+            <ResultCard
+              key={listing.slug}
+              listing={listing}
+              intent={intent}
+              highlighted={hoveredSlug === listing.slug}
+              onHover={onCardHover}
+            />,
           ];
           // The three interstitials ride the first page only: repeating a
           // promo under every page turn would read as another result rather

@@ -11,7 +11,7 @@ import {
   TabsList,
   TabsTrigger,
 } from "@injishi/ui";
-import { SlidersHorizontal } from "lucide-react";
+import { List, Map as MapIcon, SlidersHorizontal } from "lucide-react";
 import { SORT_EXPLAINER, SORT_OPTIONS, STAY_TYPES, type ExploreSort, type StayType } from "@/lib/search-params";
 
 /**
@@ -51,6 +51,8 @@ export function ResultsToolbar({
   onSortChange,
   onOpenFilters,
   activeFilterCount,
+  mapOn,
+  onToggleMap,
 }: {
   count: number;
   /** The whole catalogue's size, so "300+" never overstates what exists. */
@@ -62,6 +64,8 @@ export function ResultsToolbar({
   /** Opens the mobile filter sheet. Omit to hide the trigger (desktop). */
   onOpenFilters?: () => void;
   activeFilterCount?: number;
+  mapOn: boolean;
+  onToggleMap: () => void;
 }) {
   const sortLabel = SORT_OPTIONS.find((option) => option.value === sort)?.label ?? "Sort";
 
@@ -101,6 +105,27 @@ export function ResultsToolbar({
         </div>
 
         <div className="flex items-center gap-2">
+          <Button
+            variant="outline"
+            size="sm"
+            data-map-toggle
+            aria-pressed={mapOn}
+            onClick={onToggleMap}
+            className="gap-2 whitespace-nowrap border-slate-line px-4 py-2.5 text-page-fg hover:border-ink"
+          >
+            {mapOn ? (
+              <>
+                <List className="size-4" strokeWidth={2} aria-hidden />
+                Show list
+              </>
+            ) : (
+              <>
+                <MapIcon className="size-4" strokeWidth={2} aria-hidden />
+                Show map
+              </>
+            )}
+          </Button>
+
           {onOpenFilters ? (
             <Button
               variant="outline"
