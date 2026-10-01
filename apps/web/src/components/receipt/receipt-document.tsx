@@ -80,7 +80,7 @@ export function ReceiptDocument({ receipt }: ReceiptDocumentProps) {
        * no styles of its own.
        */
       className={`${styles.sheet} injishi-receipt-paper`}
-      aria-label={`Receipt for booking ${receipt.bookingReference}`}
+      aria-label={`${receipt.receiptType === "PS" ? "Proforma invoice" : "Receipt"} for booking ${receipt.bookingReference}`}
     >
       {watermark ? (
         <div className={styles.watermark} aria-hidden="true">

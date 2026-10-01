@@ -19,6 +19,11 @@ import {
   SaleNotInvoiceable,
   stayForReceipt,
 } from '../domain/stay-for-receipt';
+import {
+  EBM_SIGN_POINT,
+  receiptSignPoint,
+  type SignPoint,
+} from '../domain/sign-point';
 import { VSDC_PORT, type VsdcPort } from '../domain/vsdc-port';
 import { EbmBookingRepository } from '../infrastructure/ebm-booking.repository';
 
@@ -37,7 +42,9 @@ const NO_RECEIPT = 'No receipt for that booking reference.';
 const REFERENCE_SHAPE = /^[A-Z0-9-]{1,32}$/;
 
 /**
- * Issues the RRA EBM receipt for a stay (clause 13, NORMAL SALE).
+ * Issues the RRA EBM receipt for a stay: a NORMAL SALE (`NS`, clause 13), or,
+ * for a booking confirmed under ADR-050's `checkout` rule, the PROFORMA (`PS`,
+ * clause 17) that stands for its prepayment until the bill is closed.
  *
  * The order of operations is the order the specification implies and is not
  * rearrangeable: find the sale, refuse if there is no sale to invoice, price it
@@ -56,6 +63,7 @@ export class EbmReceiptService {
   constructor(
     private readonly bookings: EbmBookingRepository,
     @Inject(VSDC_PORT) private readonly vsdc: VsdcPort,
+    @Inject(EBM_SIGN_POINT) private readonly signPoint: SignPoint,
   ) {}
 
   /**
@@ -113,6 +121,21 @@ export class EbmReceiptService {
     }
 
     /**
+     * WHICH DOCUMENT THE GUEST HOLDS (ADR-050 D-a, AC-1).
+     *
+     * Under `checkout` the booking's document is the PROFORMA: the same priced
+     * stay, but no receipt signature, no QR and no payment line (clause 17),
+     * and `THIS IS NOT AN OFFICIAL RECEIPT` on the paper (clause 11). The sale
+     * itself is signed once, when the bill is closed at check out. Read from the
+     * booking's stamp, as the emission trigger reads it, so the guest and the
+     * pipeline never disagree about which document this booking raised.
+     */
+    const receiptType =
+      receiptSignPoint(booking.ebmSignAt, booking.status, this.signPoint) === 'checkout'
+        ? 'PS'
+        : 'NS';
+
+    /**
      * Not wrapped. Clause 10 makes a failed VSDC call fatal to the receipt —
      * "it shall be impossible to issue receipt if the CIS did not receive any
      * response" — so whatever a live adapter throws (a timeout, a 503, a
@@ -125,7 +148,7 @@ export class EbmReceiptService {
       bookingReference: stay.bookingReference,
       // The taxpayer's device. One business, one workspace, one VSDC.
       sellerKey: booking.workspaceId,
-      receiptType: 'NS',
+      receiptType,
       transaction: 'SALE',
       /**
        * The instant the sale concluded, not the instant the guest opened the
@@ -141,7 +164,7 @@ export class EbmReceiptService {
       itemsNumber: priced.items.length,
     });
 
-    const receipt = buildStayReceipt(stay, priced, signature);
+    const receipt = buildStayReceipt(stay, priced, signature, receiptType);
 
     // Validated against the contract before it leaves. The schema is what the
     // receipt screen trusts, so a receipt that fails it is a defect here and
