@@ -93,7 +93,7 @@ export interface PaymentAttempt {
    * SIMs who is told only "check your phone" checks the wrong one.
    */
   handset: string;
-  /** 'momo' | 'airtel' | 'card' — the rail, which decides the USSD code shown. */
+  /** 'momo' | 'airtel' — the rail, which decides the USSD code shown. */
   rail: string;
   amountRwf: number;
   /** Only ever set by `confirm()`, and only from a value the rail returned. */
@@ -336,7 +336,7 @@ export const RAIL_MS = 1200;
  * `settle`.
  */
 export function mintReferenceForRail(rail: string): string {
-  const prefix = rail === 'airtel' ? 'AM' : rail === 'card' ? 'CD' : 'MP';
+  const prefix = rail === 'airtel' ? 'AM' : 'MP';
   const stamp = new Date().toISOString().slice(2, 10).replace(/-/g, '');
   const noise = Math.random().toString(36).slice(2, 6).toUpperCase();
   return `${prefix}-${stamp}-${noise}`;

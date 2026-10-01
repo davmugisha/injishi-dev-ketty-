@@ -243,9 +243,6 @@ function Loaded({
     acceptedRules: draft.acceptedRules,
     method: draft.method,
     handset: draft.handset,
-    cardNumber: draft.cardNumber,
-    cardExpiry: draft.cardExpiry,
-    cardCvv: draft.cardCvv,
   };
 
   const step = Math.min(Math.max(draft.step, 0), 2);
@@ -350,22 +347,11 @@ function Loaded({
     // reads it back from on the next render.
     tokenForPress(signature);
     submit({
-      handset: draft.method === 'card' ? t('book.method.card') : `+250 ${draft.handset}`,
-      rail: draft.method === 'momo' ? 'momo' : draft.method === 'airtel' ? 'airtel' : 'card',
+      handset: `+250 ${draft.handset}`,
+      rail: draft.method,
       amountRwf: money.grossRwf,
     });
-  }, [
-    draft.handset,
-    draft.method,
-    money,
-    paying,
-    patch,
-    signature,
-    step,
-    submit,
-    t,
-    tokenForPress,
-  ]);
+  }, [draft.handset, draft.method, money, paying, patch, signature, step, submit, tokenForPress]);
 
   /** A fresh press after a refusal is a NEW intent, so it needs a new token. */
   const onTryAgain = useCallback(() => {
@@ -522,14 +508,8 @@ function Loaded({
             money={money}
             method={draft.method}
             handset={draft.handset}
-            cardNumber={draft.cardNumber}
-            cardExpiry={draft.cardExpiry}
-            cardCvv={draft.cardCvv}
             onMethod={(method: PayMethod) => patch({ method })}
             onHandset={(handset) => patch({ handset })}
-            onCardNumber={(cardNumber) => patch({ cardNumber })}
-            onCardExpiry={(cardExpiry) => patch({ cardExpiry })}
-            onCardCvv={(cardCvv) => patch({ cardCvv })}
           />
         ) : null}
       </ScrollView>

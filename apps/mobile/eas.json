@@ -17,6 +17,7 @@
       "autoIncrement": true,
       "env": {
         "EXPO_PUBLIC_API_URL": "https://api-demo.injishi.com",
+        "EXPO_PUBLIC_WEB_URL": "https://www-demo.injishi.com",
         "EXPO_UNSTABLE_TREE_SHAKING": "1",
         "EXPO_UNSTABLE_METRO_OPTIMIZE_GRAPH": "1"
       },
@@ -28,6 +29,7 @@
       "autoIncrement": true,
       "env": {
         "EXPO_PUBLIC_API_URL": "https://api.injishi.com",
+        "EXPO_PUBLIC_WEB_URL": "https://www.injishi.com",
         "EXPO_UNSTABLE_TREE_SHAKING": "1",
         "EXPO_UNSTABLE_METRO_OPTIMIZE_GRAPH": "1"
       }

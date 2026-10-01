@@ -341,7 +341,10 @@ describe.each(SCHEMES)('the destinations in %s', (scheme) => {
 
   it('creating a workspace prints the URL rather than promising a screen', () => {
     renderInScheme(seat(<CreateWorkspaceSheet />, 'tenant'), scheme);
-    expect(screen.getByText(ONBOARDING_URL)).toBeTruthy();
+    // Web sign in on the same stack, which then opens the registration wizard.
+    // It used to print https://injishi.rw/business/new, a page that never existed.
+    expect(ONBOARDING_URL).toBe('http://web.test.invalid/sign-in?redirect=/register');
+    expect(screen.getByText('http://web.test.invalid/sign-in?redirect=/register')).toBeTruthy();
     expect(screen.getByText(en['createWorkspace.needTin'])).toBeTruthy();
   });
 });

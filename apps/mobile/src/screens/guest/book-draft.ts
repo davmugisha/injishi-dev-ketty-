@@ -58,9 +58,6 @@ export interface BookDraft {
   acceptedRules: boolean;
   method: PayMethod;
   handset: string;
-  cardNumber: string;
-  cardExpiry: string;
-  cardCvv: string;
   /** ADR-020 D-c. Null until the first press of confirm. */
   attemptToken: string | null;
   /** The quote that token was minted against. A change re-mints it. */
@@ -76,9 +73,6 @@ export const EMPTY_BOOK_DRAFT: BookDraft = {
   acceptedRules: false,
   method: 'momo',
   handset: '',
-  cardNumber: '',
-  cardExpiry: '',
-  cardCvv: '',
   attemptToken: null,
   tokenFor: null,
   bookingId: null,

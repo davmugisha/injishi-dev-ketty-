@@ -12,10 +12,11 @@ export type LeaseState = 'active' | 'ending' | 'pending_signature' | 'draft' | '
 
 /**
  * How a rent period settled. MTN MoMo leads because it is the rail that
- * answers first in Rwanda; card is last because it is the one that carries a
- * fee (frame R12's sheet draws them in this order).
+ * answers first in Rwanda (frame R12's sheet draws them in this order). Frame
+ * R12 also drew a card; the app takes none, by the owner's decision of
+ * 2026-10-01, because no card rail exists on the API.
  */
-export type PayMethod = 'mtn_momo' | 'airtel_money' | 'card';
+export type PayMethod = 'mtn_momo' | 'airtel_money';
 
 export interface RentPeriod {
   month: string;
@@ -878,7 +879,7 @@ export const TENANCIES: Tenancy[] = [
         status: 'paid',
         dueOn: '2025-10-01',
         paidOn: '2025-10-01',
-        method: 'card',
+        method: 'airtel_money',
       },
     ],
     documents: [

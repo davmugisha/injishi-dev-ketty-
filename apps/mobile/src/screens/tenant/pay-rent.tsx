@@ -1,10 +1,10 @@
 /**
- * Frame R12's sheet · Pay rent — MTN MoMo, then Airtel Money, then card.
+ * Frame R12's sheet · Pay rent — MTN MoMo, then Airtel Money.
  *
  * The order is not alphabetical and is not a preference: it is the order those
- * rails answer in, and card is last because it is the only one that carries a
- * fee. A sheet that led with card would be a sheet that costs its reader money
- * for being at the top.
+ * rails answer in. Frame R12 drew a card row last; it is gone by the owner's
+ * decision of 2026-10-01, because no card rail exists on the API and the app
+ * takes no card details (see `screens/guest/book-format.ts`).
  *
  * ## What gaps.md B2 changed here, and why it is not a screen change
  *
@@ -76,7 +76,7 @@ interface MethodRow {
   label: MessageKey;
   meta: MessageKey;
   /** The rail's own prefixes, so a number on the wrong network says so. */
-  prefixes?: readonly string[];
+  prefixes: readonly string[];
   /** What the shared machine calls this rail — it decides the USSD fallback. */
   rail: string;
 }
@@ -99,7 +99,6 @@ const METHODS: MethodRow[] = [
     prefixes: ['72', '73'],
     rail: 'airtel',
   },
-  { value: 'card', icon: 'creditCard', label: 'payRent.card', meta: 'payRent.cardMeta', rail: 'card' },
 ];
 
 export function PayRent() {
@@ -146,18 +145,14 @@ export function PayRent() {
   const { attempt, submit, checkAgain, dismiss } = usePaymentAttempt(token);
 
   const national = digitsOf(handset);
-  const needsHandset = Boolean(spec.prefixes);
   const handsetError = useMemo((): MessageKey | null => {
-    if (!needsHandset || !touched || national === '') return null;
+    if (!touched || national === '') return null;
     if (!isComplete(national) || !isPlausible(national)) return 'payRent.handsetInvalid';
-    if (spec.prefixes && !spec.prefixes.some((p) => national.startsWith(p))) {
-      return 'payRent.handsetWrongNetwork';
-    }
+    if (!spec.prefixes.some((p) => national.startsWith(p))) return 'payRent.handsetWrongNetwork';
     return null;
-  }, [needsHandset, touched, national, spec.prefixes]);
+  }, [touched, national, spec.prefixes]);
 
-  const ready =
-    !needsHandset || (isPlausible(national) && spec.prefixes!.some((p) => national.startsWith(p)));
+  const ready = isPlausible(national) && spec.prefixes.some((p) => national.startsWith(p));
 
   const saving = settle.status === 'saving';
 
@@ -418,24 +413,22 @@ export function PayRent() {
           thing a tenant with two SIMs needs to know. An untouched field is
           never red — colouring an empty field on arrival is a form starting an
           argument with someone who has done nothing. */}
-      {needsHandset ? (
-        <InputField
-          label={t('payRent.handset')}
-          value={formatPhone(national)}
-          onChangeText={(next) => {
-            setHandset(next);
-            setTouched(true);
-          }}
-          placeholder={t('payRent.handsetPlaceholder')}
-          prefix="+250"
-          keyboardType="phone-pad"
-          autoComplete="tel"
-          maxLength={11}
-          helper={handsetError ? undefined : t('payRent.handsetHelp')}
-          error={handsetError ? t(handsetError, { network: t(spec.label) }) : undefined}
-          testID="pay-rent-handset"
-        />
-      ) : null}
+      <InputField
+        label={t('payRent.handset')}
+        value={formatPhone(national)}
+        onChangeText={(next) => {
+          setHandset(next);
+          setTouched(true);
+        }}
+        placeholder={t('payRent.handsetPlaceholder')}
+        prefix="+250"
+        keyboardType="phone-pad"
+        autoComplete="tel"
+        maxLength={11}
+        helper={handsetError ? undefined : t('payRent.handsetHelp')}
+        error={handsetError ? t(handsetError, { network: t(spec.label) }) : undefined}
+        testID="pay-rent-handset"
+      />
 
       <View
         accessible

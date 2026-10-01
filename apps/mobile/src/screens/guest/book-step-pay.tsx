@@ -2,13 +2,17 @@
  * Step 3 of 3 — confirm and pay. Guest canvas artboard 7, `bookPay` in
  * `screens-b.mjs`.
  *
- * **MTN MoMo first, then Airtel Money, then card.** That order is in the canvas
- * twice — here and on frame R12's rent sheet — and it is not alphabetical. It
- * is how Rwanda pays. A checkout that opened with Visa would be an app built
- * for somebody else's market, so the order is data (`PAY_METHODS`) rather than
- * markup, and the card is last.
+ * **MTN MoMo first, then Airtel Money.** That order is in the canvas twice —
+ * here and on frame R12's rent sheet — and it is not alphabetical. It is how
+ * Rwanda pays, so the order is data (`PAY_METHODS`) rather than markup.
  *
- * **The fields validate as you type, and every message says what to do.** The
+ * **No card.** The canvas drew a card row last; it is gone by the owner's
+ * decision of 2026-10-01. The API refuses a card instrument (ADR-047 removed
+ * web's card form for the same reason), and an app that asks for a card number,
+ * expiry and security code is an app in card security (PCI) scope. A row that
+ * is offered and then refused would be worse than no row.
+ *
+ * **The field validates as you type, and every message says what to do.** The
  * canvas's four handset notes are the most carefully written strings on the
  * artboard: nine digits with an example, the prefix rule when the number is on
  * no network, "that is an Airtel Money number, pick Airtel Money above" when it
@@ -21,7 +25,7 @@
  * starting an argument with someone who has done nothing.
  *
  * **No stored payment methods** (FL07 §9, F-B05 §6 out of scope). Nothing here
- * offers to remember a card, and the escrow note says so in as many words.
+ * offers to remember a number, and the escrow note says so in as many words.
  */
 import { View } from 'react-native';
 import type { MoneyBreakdown } from '@injishi/contracts';
@@ -29,17 +33,7 @@ import { Card, InputField, SectionLabel } from '@/components';
 import { useTheme } from '@/theme/theme';
 import { useT } from '@/i18n/i18n';
 import type { RoomCard } from '@/data/property-detail';
-import {
-  PAY_METHODS,
-  checkCardNumber,
-  checkCvv,
-  checkExpiry,
-  checkHandset,
-  groupCard,
-  groupExpiry,
-  groupHandset,
-  type PayMethod,
-} from './book-format';
+import { PAY_METHODS, checkHandset, groupHandset, type PayMethod } from './book-format';
 import { AdapterChip, Choice, MoneyRow, Note } from './book-parts';
 
 export interface StepPayProps {
@@ -47,37 +41,15 @@ export interface StepPayProps {
   money: MoneyBreakdown;
   method: PayMethod;
   handset: string;
-  cardNumber: string;
-  cardExpiry: string;
-  cardCvv: string;
   onMethod: (method: PayMethod) => void;
   onHandset: (value: string) => void;
-  onCardNumber: (value: string) => void;
-  onCardExpiry: (value: string) => void;
-  onCardCvv: (value: string) => void;
 }
 
-export function BookStepPay({
-  room,
-  money,
-  method,
-  handset,
-  cardNumber,
-  cardExpiry,
-  cardCvv,
-  onMethod,
-  onHandset,
-  onCardNumber,
-  onCardExpiry,
-  onCardCvv,
-}: StepPayProps) {
+export function BookStepPay({ room, money, method, handset, onMethod, onHandset }: StepPayProps) {
   const { space } = useTheme();
   const t = useT();
 
   const phone = checkHandset(handset, method, t);
-  const number = checkCardNumber(cardNumber, t);
-  const expiry = checkExpiry(cardExpiry, t);
-  const cvv = checkCvv(cardCvv, t);
 
   const requestToBook = room.summary.bookingMode !== 'instant_book';
 
@@ -102,64 +74,22 @@ export function BookStepPay({
               onPress={() => onMethod(spec.id)}
               testID={`book-method-${spec.id}`}
             >
-              {/* The fields live INSIDE the chosen row rather than below the
+              {/* The field lives INSIDE the chosen row rather than below the
                   group, so the number and the method it belongs to are never
                   separated by a row the guest did not pick. */}
-              {spec.prefixes ? (
-                <InputField
-                  label={t('book.mobileNumber')}
-                  value={groupHandset(handset)}
-                  onChangeText={onHandset}
-                  placeholder={t('book.mobilePlaceholder')}
-                  prefix="+250"
-                  keyboardType="phone-pad"
-                  autoComplete="tel"
-                  maxLength={11}
-                  helper={phone.tone === 'hint' ? (phone.text ?? undefined) : undefined}
-                  error={phone.tone === 'error' ? (phone.text ?? undefined) : undefined}
-                  testID={`book-handset-${spec.id}`}
-                />
-              ) : (
-                <View style={{ gap: 12 }}>
-                  <InputField
-                    label={t('book.cardNumber')}
-                    value={groupCard(cardNumber)}
-                    onChangeText={onCardNumber}
-                    placeholder={t('book.cardNumberPlaceholder')}
-                    keyboardType="number-pad"
-                    autoComplete="cc-number"
-                    maxLength={23}
-                    error={number.tone === 'error' ? (number.text ?? undefined) : undefined}
-                    testID="book-card-number"
-                  />
-                  <View style={{ flexDirection: 'row', gap: 12 }}>
-                    <View style={{ flex: 1 }}>
-                      <InputField
-                        label={t('book.cardExpiry')}
-                        value={groupExpiry(cardExpiry)}
-                        onChangeText={onCardExpiry}
-                        placeholder={t('book.cardExpiryPlaceholder')}
-                        keyboardType="number-pad"
-                        maxLength={7}
-                        error={expiry.tone === 'error' ? (expiry.text ?? undefined) : undefined}
-                        testID="book-card-expiry"
-                      />
-                    </View>
-                    <View style={{ flex: 1 }}>
-                      <InputField
-                        label={t('book.cardCvv')}
-                        value={cardCvv}
-                        onChangeText={onCardCvv}
-                        placeholder={t('book.cardCvvPlaceholder')}
-                        keyboardType="number-pad"
-                        maxLength={4}
-                        error={cvv.tone === 'error' ? (cvv.text ?? undefined) : undefined}
-                        testID="book-card-cvv"
-                      />
-                    </View>
-                  </View>
-                </View>
-              )}
+              <InputField
+                label={t('book.mobileNumber')}
+                value={groupHandset(handset)}
+                onChangeText={onHandset}
+                placeholder={t('book.mobilePlaceholder')}
+                prefix="+250"
+                keyboardType="phone-pad"
+                autoComplete="tel"
+                maxLength={11}
+                helper={phone.tone === 'hint' ? (phone.text ?? undefined) : undefined}
+                error={phone.tone === 'error' ? (phone.text ?? undefined) : undefined}
+                testID={`book-handset-${spec.id}`}
+              />
             </Choice>
           ))}
         </View>

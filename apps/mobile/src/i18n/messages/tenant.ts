@@ -130,8 +130,6 @@ export const en = {
   'payRent.mtnMeta': 'To the number on your account · instant',
   'payRent.airtel': 'Airtel Money',
   'payRent.airtelMeta': 'To the number on your account · instant',
-  'payRent.card': 'Card',
-  'payRent.cardMeta': 'Visa or Mastercard · 1 to 2 days',
   'payRent.mockTitle': 'Nothing leaves your account',
   'payRent.mockBody':
     'This build settles through a mock adapter. The period is stamped mock, no money moves, and a live payment would never carry a platform commission on rent.',
@@ -482,8 +480,6 @@ export const rw: Record<keyof typeof en, string> = {
   'payRent.mtnMeta': 'Kuri nimero iri kuri konti yawe · ako kanya',
   'payRent.airtel': 'Airtel Money',
   'payRent.airtelMeta': 'Kuri nimero iri kuri konti yawe · ako kanya',
-  'payRent.card': 'Ikarita',
-  'payRent.cardMeta': 'Visa cyangwa Mastercard · iminsi 1 kugeza 2',
   'payRent.mockTitle': 'Nta mafaranga akurwa kuri konti yawe',
   'payRent.mockBody':
     'Iyi verisiyo ikoresha ikigereranyo cyo kwishyura. Ukwezi kwandikwaho ikigereranyo, nta mafaranga agenda, kandi no mu buryo nyakuri ubukode ntibufatirwaho amafaranga na porogaramu.',

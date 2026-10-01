@@ -17,6 +17,9 @@
  */
 process.env.EXPO_PUBLIC_API_URL ??= 'http://api.test.invalid';
 
+/** The web origin of the same stack, for the flows that live on the web. Same rule: not a real address. */
+process.env.EXPO_PUBLIC_WEB_URL ??= 'http://web.test.invalid';
+
 /**
  * Runs before every test file.
  *

@@ -229,11 +229,12 @@ describe('R12 Rent, paying', () => {
 /* ------------------------------------------ the pay-rent sheet ----------- */
 
 describe.each(SCHEMES)('the pay-rent sheet in the %s scheme', (scheme) => {
-  it('offers the three rails in the order they answer in', async () => {
+  it('offers the two mobile money rails, in the order they answer in, and no card', async () => {
     mockParams = { leaseId: RUNNING, month: NEXT_DUE };
     await open(<PayRent />, scheme, en['payRent.mtn']);
     expect(screen.getByText(en['payRent.airtel'])).toBeTruthy();
-    expect(screen.getByText(en['payRent.card'])).toBeTruthy();
+    // The owner's decision of 2026-10-01: the app takes no card details.
+    expect(screen.queryByText(/card/i)).toBeNull();
   });
 
   it('says nothing leaves the account before the button that pays', async () => {

@@ -15,26 +15,32 @@ import { billableGuests, type GuestParty } from '@/data/search';
 
 /* ------------------------------------------------------------ the methods */
 
-export type PayMethod = 'momo' | 'airtel' | 'card';
+/**
+ * **No card, by the owner's decision of 2026-10-01.** The API refuses a card
+ * instrument (ADR-047 deleted web's hand-built card form for the same reason),
+ * and an app that takes a card number, expiry and security code is an app in
+ * card security (PCI) scope. So the app never asks for one: the two mobile
+ * money rails are the only methods, and a card is not offered at all rather
+ * than offered and refused.
+ */
+export type PayMethod = 'momo' | 'airtel';
 
 export interface PayMethodSpec {
   id: PayMethod;
   label: MessageKey;
   hint: MessageKey;
-  icon: 'smartphone' | 'creditCard';
+  icon: 'smartphone';
   /**
-   * The two-digit national prefixes this network issues, or `null` for a
-   * method that takes no handset. Rwanda's mobile money numbering, as the
-   * canvas's `bookPay` logic block has it: MTN on 78 and 79, Airtel on 72
-   * and 73.
+   * The two-digit national prefixes this network issues. Rwanda's mobile money
+   * numbering, as the canvas's `bookPay` logic block has it: MTN on 78 and 79,
+   * Airtel on 72 and 73.
    */
-  prefixes: readonly string[] | null;
+  prefixes: readonly string[];
 }
 
 /**
- * MoMo first, then Airtel, then card — the canvas order, and it is not
- * alphabetical or arbitrary. Mobile money is how Rwanda pays; a card list that
- * opened with Visa would be an app built for somebody else's market.
+ * MoMo first, then Airtel — the canvas order, and it is not alphabetical or
+ * arbitrary. Mobile money is how Rwanda pays.
  */
 export const PAY_METHODS: readonly PayMethodSpec[] = [
   {
@@ -50,13 +56,6 @@ export const PAY_METHODS: readonly PayMethodSpec[] = [
     hint: 'book.methodHint.airtel',
     icon: 'smartphone',
     prefixes: ['72', '73'],
-  },
-  {
-    id: 'card',
-    label: 'book.method.card',
-    hint: 'book.methodHint.card',
-    icon: 'creditCard',
-    prefixes: null,
   },
 ];
 
@@ -109,7 +108,7 @@ export function groupHandset(raw: string): string {
 /** Which method, if any, issues this number. Drives the cross-network note. */
 export function networkFor(national: string): PayMethodSpec | undefined {
   const head = national.slice(0, 2);
-  return PAY_METHODS.find((m) => m.prefixes?.includes(head));
+  return PAY_METHODS.find((m) => m.prefixes.includes(head));
 }
 
 /**
@@ -138,7 +137,6 @@ const CLEAN: FieldNote = { ok: false, tone: 'none', text: null };
  */
 export function checkHandset(raw: string, method: PayMethod, t: Translate): FieldNote {
   const spec = payMethod(method);
-  if (!spec.prefixes) return CLEAN;
   if (raw.trim() === '') return CLEAN;
 
   const national = nationalDigits(raw);
@@ -163,84 +161,6 @@ export function checkHandset(raw: string, method: PayMethod, t: Translate): Fiel
   return { ok: true, tone: 'hint', text: t('book.phonePrompt', { number: formatHandset(national) }) };
 }
 
-/* -------------------------------------------------------------- the card */
-
-/**
- * The Luhn check digit.
- *
- * Worth having even in a prototype with a mock adapter, because it is the one
- * card check that catches a real typo — a transposed pair or a single wrong
- * digit — before the guest waits on a decline they cannot read.
- */
-export function luhn(digits: string): boolean {
-  let sum = 0;
-  let double = false;
-  for (let i = digits.length - 1; i >= 0; i--) {
-    let d = digits.charCodeAt(i) - 48;
-    if (double) {
-      d *= 2;
-      if (d > 9) d -= 9;
-    }
-    sum += d;
-    double = !double;
-  }
-  return digits.length > 0 && sum % 10 === 0;
-}
-
-/** `4242424242424242` -> `4242 4242 4242 4242`, capped at 19 digits. */
-export function groupCard(raw: string): string {
-  const d = digitsOf(raw).slice(0, 19);
-  return (d.match(/.{1,4}/g) ?? []).join(' ');
-}
-
-export function checkCardNumber(raw: string, t: Translate): FieldNote {
-  if (raw.trim() === '') return CLEAN;
-  const d = digitsOf(raw);
-  if (d.length < 13 || d.length > 19) {
-    return { ok: false, tone: 'error', text: t('book.cardShort') };
-  }
-  if (!luhn(d)) return { ok: false, tone: 'error', text: t('book.cardChecksum') };
-  return { ok: true, tone: 'none', text: null };
-}
-
-/** `0928` -> `09 / 28`. Typed straight through, never re-parsed from display. */
-export function groupExpiry(raw: string): string {
-  const d = digitsOf(raw).slice(0, 4);
-  return d.length <= 2 ? d : `${d.slice(0, 2)} / ${d.slice(2)}`;
-}
-
-/**
- * `now` is an argument rather than a `Date.now()` inside, so the "expired"
- * boundary is testable. A card expires at the END of its month, which is why
- * the comparison is on the month and not on a day.
- */
-export function checkExpiry(raw: string, t: Translate, now = new Date()): FieldNote {
-  if (raw.trim() === '') return CLEAN;
-  const d = digitsOf(raw);
-  if (d.length !== 4) return { ok: false, tone: 'error', text: t('book.expiryFormat') };
-
-  const month = Number(d.slice(0, 2));
-  const year = 2000 + Number(d.slice(2));
-  if (month < 1 || month > 12) {
-    return { ok: false, tone: 'error', text: t('book.expiryFormat') };
-  }
-
-  const thisMonth = now.getFullYear() * 12 + now.getMonth();
-  const cardMonth = year * 12 + (month - 1);
-  if (cardMonth < thisMonth) return { ok: false, tone: 'error', text: t('book.expiryPast') };
-
-  return { ok: true, tone: 'none', text: null };
-}
-
-export function checkCvv(raw: string, t: Translate): FieldNote {
-  if (raw.trim() === '') return CLEAN;
-  const d = digitsOf(raw);
-  if (d.length < 3 || d.length > 4) {
-    return { ok: false, tone: 'error', text: t('book.cvvShort') };
-  }
-  return { ok: true, tone: 'none', text: null };
-}
-
 /* ------------------------------------------------------------- the gates */
 
 /**
@@ -262,9 +182,6 @@ export interface StepInput {
   acceptedRules: boolean;
   method: PayMethod;
   handset: string;
-  cardNumber: string;
-  cardExpiry: string;
-  cardCvv: string;
 }
 
 export function blockedOnDates(input: StepInput): MessageKey | null {
@@ -278,36 +195,19 @@ export function blockedOnSummary(input: StepInput): MessageKey | null {
   return input.acceptedRules ? null : 'book.blockedRules';
 }
 
-export function blockedOnPay(input: StepInput, now = new Date()): MessageKey | null {
-  if (payMethod(input.method).prefixes) {
-    const national = nationalDigits(input.handset);
-    return /^[0-9]{9}$/.test(national) &&
-      (payMethod(input.method).prefixes as readonly string[]).includes(national.slice(0, 2))
-      ? null
-      : 'book.blockedHandset';
-  }
-
-  const d = digitsOf(input.cardNumber);
-  const okNumber = d.length >= 13 && d.length <= 19 && luhn(d);
-  const okExpiry = expiryOk(input.cardExpiry, now);
-  const okCvv = digitsOf(input.cardCvv).length >= 3 && digitsOf(input.cardCvv).length <= 4;
-  return okNumber && okExpiry && okCvv ? null : 'book.blockedCard';
-}
-
-function expiryOk(raw: string, now: Date): boolean {
-  const d = digitsOf(raw);
-  if (d.length !== 4) return false;
-  const month = Number(d.slice(0, 2));
-  if (month < 1 || month > 12) return false;
-  const cardMonth = (2000 + Number(d.slice(2))) * 12 + (month - 1);
-  return cardMonth >= now.getFullYear() * 12 + now.getMonth();
+export function blockedOnPay(input: StepInput): MessageKey | null {
+  const national = nationalDigits(input.handset);
+  return /^[0-9]{9}$/.test(national) &&
+    payMethod(input.method).prefixes.includes(national.slice(0, 2))
+    ? null
+    : 'book.blockedHandset';
 }
 
 /** The three gates, indexed by step, so the container asks one question. */
 export const STEP_GATES: readonly ((input: StepInput) => MessageKey | null)[] = [
   blockedOnDates,
   blockedOnSummary,
-  (input) => blockedOnPay(input),
+  blockedOnPay,
 ];
 
 /* --------------------------------------------------------- the arithmetic */

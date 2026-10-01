@@ -38,6 +38,28 @@ if (!configured || !normaliseOrigin(configured)) {
 /** The API origin, with no trailing slash. */
 export const API_ORIGIN = normaliseOrigin(configured);
 
+const configuredWeb = process.env.EXPO_PUBLIC_WEB_URL;
+
+/**
+ * The web origin of the same stack as the API, for the few flows that live on
+ * the web and always will (registering a business, for one).
+ *
+ * Each stack has its own hosts since ADR-043 (`infra/docker/DOKPLOY.md` §
+ * Public hosts): production is `www.injishi.com`, the demo is
+ * `www-demo.injishi.com`. So the value follows the build profile, exactly as
+ * the API origin does, and `eas.json` sets both side by side. A local build
+ * that does not set it falls back to the API host on port 3000, which is the
+ * local shape (web on 3000, API on 8000). Unlike the API origin it does not
+ * throw when it cannot be known: a missing web link is one button that says it
+ * could not open, not an app that cannot start.
+ */
+export const WEB_ORIGIN: string | null =
+  configuredWeb && normaliseOrigin(configuredWeb)
+    ? normaliseOrigin(configuredWeb)
+    : /:8000$/.test(API_ORIGIN)
+      ? API_ORIGIN.replace(/:8000$/, ':3000')
+      : null;
+
 /** Product routes. Everything except Better Auth lives under this. */
 export const API_BASE = `${API_ORIGIN}/api/v1`;
 
