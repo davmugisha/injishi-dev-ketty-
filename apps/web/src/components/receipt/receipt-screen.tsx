@@ -147,6 +147,13 @@ export function ReceiptScreen({ reference }: ReceiptScreenProps) {
   }
 
   const { receipt } = screen;
+  /**
+   * A booking confirmed under ADR-050's `checkout` rule holds a PROFORMA, not
+   * a sale receipt, until its bill is closed. The paper already says so
+   * (clause 11); the screen around it has to say it in words too, because
+   * "receipt" on a document marked NOT AN OFFICIAL RECEIPT reads as a mistake.
+   */
+  const proforma = receipt.receiptType === "PS";
 
   return (
     <div className={styles.screen}>
@@ -156,8 +163,20 @@ export function ReceiptScreen({ reference }: ReceiptScreenProps) {
         navigating by headings landed on a page with zero of them.
       */}
       <h1 className={styles.srOnly}>
-        RRA receipt for booking {receipt.bookingReference}
+        {proforma ? "Proforma invoice" : "RRA receipt"} for booking{" "}
+        {receipt.bookingReference}
       </h1>
+
+      {proforma ? (
+        <div className={styles.callout} role="note">
+          <p className={styles.calloutHeading}>This is your proforma invoice</p>
+          <p className={styles.calloutBody}>
+            It records what you paid in advance for this stay. It is not the
+            tax receipt: that is issued once, when you check out and the
+            property closes your bill.
+          </p>
+        </div>
+      ) : null}
 
       {/*
         The screen-only twin of the warning printed on the paper itself. The
@@ -168,7 +187,18 @@ export function ReceiptScreen({ reference }: ReceiptScreenProps) {
         There is no way to dismiss it, on purpose. A closable warning on a
         document that looks like a tax invoice is a warning that will be closed.
       */}
-      {isSignedByRealDevice(receipt) ? null : (
+      {isSignedByRealDevice(receipt) ? null : proforma ? (
+        <div className={styles.callout} role="note">
+          <p className={styles.calloutHeading}>
+            No certified device issued it
+          </p>
+          <p className={styles.calloutBody}>
+            Injishi is not connected to the Rwanda Revenue Authority. The SDC
+            identifier and counters on this proforma are simulated, so keep it
+            as your own record of the prepayment only.
+          </p>
+        </div>
+      ) : (
         <div className={styles.callout} role="note">
           <p className={styles.calloutHeading}>
             This is not a tax receipt yet
@@ -186,7 +216,7 @@ export function ReceiptScreen({ reference }: ReceiptScreenProps) {
 
       <div className={styles.toolbar}>
         <Button variant="primary" onClick={print}>
-          Print receipt
+          {proforma ? "Print proforma" : "Print receipt"}
         </Button>
       </div>
 

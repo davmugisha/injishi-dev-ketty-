@@ -59,6 +59,7 @@ describe('EbmEmissionService', () => {
       paymentAdapterMode: 'live',
       confirmedAt: NOW,
       createdAt: NOW,
+      ebmSignAt: null,
       ...overrides,
     };
   }

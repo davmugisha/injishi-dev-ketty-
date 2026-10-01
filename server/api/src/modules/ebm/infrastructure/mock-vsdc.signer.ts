@@ -117,12 +117,23 @@ export class MockVsdcSigner implements VsdcPort {
     const totalCounter =
       typeCounter + this.number(`${reference}:total-counter`, 5_000);
 
-    const internalData = ebmGroupInFours(
-      this.token(
-        `${reference}:internal-data`,
-        MockVsdcSigner.INTERNAL_DATA_LENGTH,
-      ),
-    );
+    /**
+     * Clauses 16 and 17: a training ticket and a proforma are printed
+     * "EXCLUDING digital signatures", so the device answers them with none. An
+     * empty value is what the contract accepts for exactly this case, and what
+     * keeps a fabricated signature off a document the specification says has
+     * none, even in a consumer that forgot to hide it.
+     */
+    const signed = request.receiptType !== 'TS' && request.receiptType !== 'PS';
+
+    const internalData = signed
+      ? ebmGroupInFours(
+          this.token(
+            `${reference}:internal-data`,
+            MockVsdcSigner.INTERNAL_DATA_LENGTH,
+          ),
+        )
+      : '';
 
     /**
      * The one property this shares with a real signature: it covers the
@@ -132,22 +143,24 @@ export class MockVsdcSigner implements VsdcPort {
      * signature cannot be quietly detached from the sale it sits under while
      * this build is used to develop the surfaces that read it.
      */
-    const receiptSignature = ebmGroupInFours(
-      this.token(
-        [
-          reference,
-          request.receiptType,
-          request.transaction,
-          request.totalRwf,
-          request.totalTaxRwf,
-          request.itemsNumber,
-          sdcId,
-          typeCounter,
-          totalCounter,
-        ].join('|'),
-        MockVsdcSigner.SIGNATURE_LENGTH,
-      ),
-    );
+    const receiptSignature = signed
+      ? ebmGroupInFours(
+          this.token(
+            [
+              reference,
+              request.receiptType,
+              request.transaction,
+              request.totalRwf,
+              request.totalTaxRwf,
+              request.itemsNumber,
+              sdcId,
+              typeCounter,
+              totalCounter,
+            ].join('|'),
+            MockVsdcSigner.SIGNATURE_LENGTH,
+          ),
+        )
+      : '';
 
     const sdc = {
       date,
