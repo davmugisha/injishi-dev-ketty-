@@ -8,12 +8,13 @@ import {
   CompareSheet,
   CompareTray,
 } from "@/components/explore/compare";
-import { ActiveFilterChips, QuickFilters } from "@/components/explore/active-filters";
-import { CLEARED_REFINEMENT, ExploreFilterRail } from "@/components/explore/explore-filters";
-import { ExploreSideRail } from "@/components/explore/explore-side-rail";
-import { RecentlyViewedStrip } from "@/components/stays/recently-viewed";
-import { toRecentStay } from "@/data/recent-stay";
+import { List, Map as MapIcon } from "lucide-react";
+import { cn } from "@injishi/utils";
+import { ActiveFilterChips } from "@/components/explore/active-filters";
+import { ExploreFilterBar } from "@/components/explore/explore-filter-bar";
+import { CLEARED_REFINEMENT } from "@/components/explore/explore-filters";
 import { SEARCH_DISTRICTS } from "@/data/search-options";
+import { useMediaQuery } from "@/hooks/use-media-query";
 import { ExploreResults } from "@/components/explore/explore-results";
 import { ExploreSearchBar } from "@/components/explore/explore-search-bar";
 import { FilterSheet } from "@/components/explore/filter-sheet";
@@ -28,12 +29,7 @@ const ExploreMap = dynamic(
 function MapSkeleton() {
   return <div className="h-full w-full animate-pulse rounded-card bg-surface-secondary" />;
 }
-import {
-  EXPLORE_RESULTS_ID,
-  ResultsToolbar,
-  type ResultsView,
-  stayTabId,
-} from "@/components/explore/results-toolbar";
+import { EXPLORE_RESULTS_ID, ResultsToolbar, stayTabId } from "@/components/explore/results-toolbar";
 import { LISTINGS, type Listing } from "@/data/listings";
 import type { MapBounds } from "@/components/explore/explore-map";
 import { filterListings } from "@/lib/filter-listings";
@@ -59,9 +55,10 @@ import { intentDateSummary, guestSummary } from "@/lib/stay-search";
  * only module allowed to build that query string; this component is the only
  * one allowed to call the function that does.
  *
- * The page renders three regions side by side from `lg` up — the filter rail,
- * the result column, and a narrow ad rail — and collapses to the result
- * column alone below it, with the rail moved into `FilterSheet`.
+ * The page is two halves from `lg` up: a grid of stays on the left and the
+ * map on the right, under a compact search pill and one row of filters
+ * (Filters, the quick chips, Compare). Every rail group lives in the Filters
+ * panel. On a phone the list and the map swap, with a floating toggle.
  */
 export function ExploreShell({
   databaseListings = [],
@@ -75,7 +72,6 @@ export function ExploreShell({
 } = {}) {
   const router = useRouter();
   const listings = useMemo(() => [...databaseListings, ...LISTINGS], [databaseListings]);
-  const recentStays = useMemo(() => listings.map(toRecentStay), [listings]);
   const searchParams = useSearchParams();
 
   const urlIntent = useMemo(() => parseIntent(searchParams), [searchParams]);
@@ -84,9 +80,13 @@ export function ExploreShell({
   const [intent, setIntent] = useState<StayIntent>(urlIntent);
   const [refinement, setRefinement] = useState<ExploreRefinement>(urlRefinement);
   const [sheetOpen, setSheetOpen] = useState(false);
-  const [mapOn, setMapOn] = useState(false);
-  // List or grid. A layout preference for this visit, not part of the search.
-  const [view, setView] = useState<ResultsView>("list");
+  // The map is on by default where there is room for it beside the list
+  // (`lg` up) and off on a phone, where it swaps with the list instead. A
+  // toggle overrides the default for this visit.
+  const desktop = useMediaQuery("(min-width: 1024px)");
+  const [mapPref, setMapPref] = useState<boolean | null>(null);
+  const mapOn = mapPref ?? desktop;
+  const toggleMap = () => setMapPref(!mapOn);
   // Hover-sync: a card sets this on mouse-enter, the map highlights the pin;
   // a pin sets it on hover, the card scrolls into view. Selection is a
   // separate slot so a click on either side survives the next hover clear.
@@ -226,24 +226,30 @@ export function ExploreShell({
       : intent.districts.length === 1
         ? (SEARCH_DISTRICTS.find((d) => d.slug === intent.districts[0])?.name ?? "1 district")
         : `${intent.districts.length} districts`;
-  const openCompare = () => setCompareOpen(true);
+
+  const appliedCount = refinementCount(refinement) + (intent.districts.length > 0 ? 1 : 0);
 
   return (
     <div data-explore-shell>
-      <ExploreSearchBar intent={intent} onIntentChange={onIntentChange} onSubmit={submit} />
+      <ExploreSearchBar
+        intent={intent}
+        onIntentChange={onIntentChange}
+        onSubmit={submit}
+        below={
+          <ExploreFilterBar
+            listings={listings}
+            intent={intent}
+            refinement={refinement}
+            onRefinementChange={onRefinementChange}
+            activeCount={appliedCount}
+            onOpenFilters={() => setSheetOpen(true)}
+          />
+        }
+      />
 
-      <div className="container mt-6 flex items-start gap-6">
-        <ExploreFilterRail
-          listings={listings}
-          intent={intent}
-          refinement={refinement}
-          onIntentChange={onIntentChange}
-          onRefinementChange={onRefinementChange}
-          onOpenCompare={openCompare}
-          onClearAll={clearFilters}
-        />
-
-        <div className="min-w-0 flex-1">
+      <div className="mt-6 flex items-start gap-8 px-4 sm:px-6 xl:px-10">
+        {/* On a phone the map replaces the list rather than squeezing in. */}
+        <div className={cn("min-w-0 flex-1", mapOn && "hidden lg:block")}>
           <ResultsToolbar
             count={listed.length}
             totalCatalogue={listings.length}
@@ -252,45 +258,25 @@ export function ExploreShell({
             onStayTypeChange={(stayType) => onRefinementChange({ stayType })}
             sort={refinement.sort}
             onSortChange={(sort: ExploreSort) => onRefinementChange({ sort })}
-            onOpenFilters={() => setSheetOpen(true)}
-            activeFilterCount={
-              refinementCount(refinement) + (intent.districts.length > 0 ? 1 : 0)
-            }
             mapOn={mapOn}
-            onToggleMap={() => setMapOn((on) => !on)}
-            mapToggleAlways={mapOn}
-            view={view}
-            onViewChange={setView}
+            onToggleMap={toggleMap}
           />
 
-          <div className="mt-4 flex flex-col gap-3">
-            <QuickFilters
-              listings={listings}
-              intent={intent}
-              refinement={refinement}
-              onRefinementChange={onRefinementChange}
-            />
-            <ActiveFilterChips
-              listings={listings}
-              intent={intent}
-              refinement={refinement}
-              onIntentChange={onIntentChange}
-              onRefinementChange={onRefinementChange}
-              onClearAll={clearFilters}
-            />
-          </div>
+          <ActiveFilterChips
+            listings={listings}
+            intent={intent}
+            refinement={refinement}
+            onIntentChange={onIntentChange}
+            onRefinementChange={onRefinementChange}
+            onClearAll={clearFilters}
+          />
 
           {dates ? (
-            <p className="mt-2 text-sm text-page-fg-70">
+            <p className="mt-3 text-sm text-page-fg-70">
               {dates} for {guestSummary(intent.guests)}. We confirm availability at the
               booking step.
             </p>
           ) : null}
-
-          {/* Recently viewed, on narrower screens. From `xl` the right rail
-              is the mini map and the editorial card; the home page carries
-              "Continue browsing" at every width. */}
-          <RecentlyViewedStrip stays={recentStays} intent={intent} className="mt-5 xl:hidden" />
 
           {/* The panel the stay-type tabs in the toolbar switch, named so each
               trigger can point at it. It wraps the empty state too, so a tab
@@ -299,7 +285,7 @@ export function ExploreShell({
             id={EXPLORE_RESULTS_ID}
             role="tabpanel"
             aria-labelledby={stayTabId(refinement.stayType)}
-            className="mt-4"
+            className="mt-6"
           >
             <ExploreResults
               results={listed}
@@ -314,7 +300,8 @@ export function ExploreShell({
               onPickDistrict={(slug) => onIntentChange({ districts: [slug] })}
               hoveredSlug={hoveredSlug}
               onCardHover={setHoveredSlug}
-              cardVariant={mapOn || view === "grid" ? "vertical" : "horizontal"}
+              cardVariant="vertical"
+              wide={!mapOn}
               compare={
                 refinement.compare
                   ? {
@@ -329,15 +316,12 @@ export function ExploreShell({
         </div>
 
         {mapOn ? (
-          // Split view: map fills the third column at roughly half the
-          // available width. AdRail steps aside — the map is what a guest
-          // toggled it on for. Vertical cards for the narrower results column
-          // so the name never wraps one word per line. Desktop only: below
-          // `md` a half-viewport map on a phone is unusable, so it hides and
-          // the toolbar toggle re-appears as a full swap.
+          // Pinned beside the list from `lg`, under the search band (whose
+          // height the bar publishes as `--explore-band-bottom`). On a phone
+          // it takes the screen the list gave up.
           <aside
             data-explore-map
-            className="sticky top-24 hidden h-[calc(100dvh-112px)] flex-1 shrink basis-0 md:block lg:top-[calc(var(--explore-band-bottom,169px)+16px)] lg:h-[calc(100dvh-var(--explore-band-bottom,169px)-32px)]"
+            className="sticky top-24 h-[calc(100dvh-120px)] w-full shrink-0 lg:top-[calc(var(--explore-band-bottom,169px)+16px)] lg:h-[calc(100dvh-var(--explore-band-bottom,169px)-32px)] lg:w-5/12"
           >
             <ExploreMap
               listings={results}
@@ -352,22 +336,27 @@ export function ExploreShell({
               intent={intent}
             />
           </aside>
-        ) : (
-          <ExploreSideRail
-            results={results}
-            hoveredSlug={hoveredSlug}
-            selectedSlug={selectedSlug}
-            onHover={setHoveredSlug}
-            onSelect={setSelectedSlug}
-            onBoundsChange={setMapBounds}
-            onOpenMap={() => {
-              setMapOn(true);
-              window.scrollTo({ top: 0, behavior: "smooth" });
-            }}
-            intent={intent}
-          />
-        )}
+        ) : null}
       </div>
+
+      {/* The phone's list/map switch, floating where a thumb reaches it. */}
+      <button
+        type="button"
+        onClick={toggleMap}
+        className="fixed bottom-[calc(5.5rem+env(safe-area-inset-bottom))] left-1/2 z-30 flex h-11 -translate-x-1/2 items-center gap-2 rounded-full bg-foreground px-5 text-sm font-bold text-background shadow-control lg:hidden"
+      >
+        {mapOn ? (
+          <>
+            <List className="size-4" strokeWidth={2.2} aria-hidden />
+            Show list
+          </>
+        ) : (
+          <>
+            <MapIcon className="size-4" strokeWidth={2.2} aria-hidden />
+            Show map
+          </>
+        )}
+      </button>
 
       {refinement.compare ? (
         <>
@@ -400,7 +389,6 @@ export function ExploreShell({
         onIntentChange={onIntentChange}
         onRefinementChange={onRefinementChange}
         resultCount={results.length}
-        onOpenCompare={openCompare}
         onClearAll={clearFilters}
       />
     </div>

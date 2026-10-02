@@ -1,8 +1,8 @@
 "use client";
 
-import { CalendarDays, ChevronDown, MapPin, Search, Users, X } from "lucide-react";
+import { CalendarDays, ChevronDown, MapPin, Users, X } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { forwardRef, useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
+import { forwardRef, useCallback, useEffect, useRef, useState } from "react";
 import { Popover, PopoverContent, PopoverTrigger } from "@injishi/ui";
 import { cn } from "@injishi/utils";
 import { SearchIcon } from "@/components/icons";
@@ -11,7 +11,6 @@ import { GuestPanel } from "@/components/search/guest-panel";
 import { StayDatePicker } from "@/components/search/stay-date-picker";
 import type { Destination } from "@/data/destinations";
 import { SEARCH_DISTRICTS } from "@/data/search-options";
-import { useScrolled } from "@/hooks/use-scrolled";
 import { propertyHref, toParamDate, type StayIntent } from "@/lib/search-params";
 import {
   DEFAULT_GUESTS,
@@ -29,12 +28,9 @@ import {
  * `DestinationField`, so both surfaces suggest the same places), and a stay
  * picked there opens its page directly.
  *
- * From `lg` the bar is pinned under the header, and once the guest scrolls
- * into the results it folds into a compact pill ("Musanze · Any week ·
- * 2 guests") so the list gets the height back. A click on the pill unfolds
- * it; scrolling on folds it again. It publishes its bottom edge as
- * `--explore-band-bottom` so the pinned columns below sit just under it in
- * either state.
+ * From `lg` the bar is pinned under the header as a compact pill, with the
+ * filter row (`below`) pinned under it. It publishes its bottom edge as
+ * `--explore-band-bottom` so the map beside the list sits just under it.
  *
  * It edits INTENT only. Refinement (type, price, amenities…) lives in the
  * rail; this bar is the funnel's shared vocabulary, not the rail's.
@@ -43,30 +39,17 @@ export function ExploreSearchBar({
   intent,
   onIntentChange,
   onSubmit,
+  below,
 }: {
   intent: StayIntent;
   onIntentChange: (next: Partial<StayIntent>) => void;
   onSubmit: () => void;
+  /** Pinned with the bar, under it: Explore's filter row. */
+  below?: React.ReactNode;
 }) {
   const [datesOpen, setDatesOpen] = useState(false);
   const [guestsOpen, setGuestsOpen] = useState(false);
   const [destOpen, setDestOpen] = useState(false);
-
-  // Fold once the guest is into the results; unfold on demand, and fold
-  // again after they scroll on a little, so an unfolded bar never sticks.
-  const scrolled = useScrolled(220);
-  const [unfolded, setUnfolded] = useState(false);
-  const unfoldedAt = useRef(0);
-  useEffect(() => {
-    if (!unfolded) return;
-    const onScroll = () => {
-      if (Math.abs(window.scrollY - unfoldedAt.current) > 160) setUnfolded(false);
-    };
-    window.addEventListener("scroll", onScroll, { passive: true });
-    return () => window.removeEventListener("scroll", onScroll);
-  }, [unfolded]);
-  const anyOpen = datesOpen || guestsOpen || destOpen;
-  const compact = scrolled && !unfolded && !anyOpen;
 
   // Publish the band's bottom edge for the pinned columns (see the doc above).
   // A ResizeObserver catches every size change; the layout effect below also
@@ -92,9 +75,6 @@ export function ExploreSearchBar({
       document.documentElement.style.removeProperty("--explore-band-bottom");
     };
   }, [syncBand]);
-  useLayoutEffect(() => {
-    syncBand();
-  }, [compact, syncBand]);
 
   const place = placeLabel(intent);
   const dates = intentDateSummary(intent) ?? "Any week";
@@ -104,43 +84,19 @@ export function ExploreSearchBar({
     <div
       ref={bandRef}
       data-explore-searchbar
-      data-compact={compact || undefined}
       // `lg:top-20`, not `top-0`: the shared `SiteHeader` is fixed and 80px
       // tall from `md`, so the band pins exactly under it. Below `lg` the
       // panel stacks to three rows and pinning it would cover half a phone.
-      className="relative z-[999998] border-b border-separator bg-background/95 py-3 backdrop-blur lg:sticky lg:top-20 lg:py-2.5"
+      //
+      // The `before:` strip fills the 80px between the viewport top and the
+      // band. The site header floats as a pill once scrolled (inset from the
+      // edges, `md:top-4`), so without it the results scrolled up through
+      // that gap and showed around the pill. The header stacks above it
+      // (`z-[999999]` against this band's `z-[999998]`).
+      className="relative z-[999998] border-b border-separator bg-background py-3 lg:sticky lg:top-20 lg:py-2.5 lg:before:pointer-events-none lg:before:absolute lg:before:inset-x-0 lg:before:bottom-full lg:before:h-20 lg:before:bg-background lg:before:content-['']"
     >
       <div className="container">
-        {compact ? (
-          <div className="hidden justify-center lg:flex">
-            <button
-              type="button"
-              onClick={() => {
-                unfoldedAt.current = window.scrollY;
-                setUnfolded(true);
-              }}
-              aria-label={`Change search: ${place}, ${dates}, ${guests}`}
-              className="explore-pill-in flex h-12 w-full max-w-wide items-center gap-3 rounded-full bg-card py-1.5 pl-5 pr-1.5 text-sm shadow-control ring-1 ring-border transition-shadow hover:shadow-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-            >
-              <MapPin className="size-4 shrink-0 text-muted-foreground" strokeWidth={2} aria-hidden />
-              <span className="min-w-0 truncate font-bold text-foreground">{place}</span>
-              <span aria-hidden className="h-4 w-px shrink-0 bg-border" />
-              <span className="shrink-0 text-foreground">{dates}</span>
-              <span aria-hidden className="h-4 w-px shrink-0 bg-border" />
-              <span className="shrink-0 text-foreground">{guests}</span>
-              <span className="ml-auto flex size-9 shrink-0 items-center justify-center rounded-full bg-primary text-primary-foreground">
-                <Search className="size-4" strokeWidth={2.4} aria-hidden />
-              </span>
-            </button>
-          </div>
-        ) : null}
-
-        <div
-          className={cn(
-            "flex w-full flex-col rounded-card bg-card p-1.5 shadow-control ring-1 ring-border lg:flex-row lg:items-center lg:rounded-full lg:pl-3",
-            compact && "lg:hidden",
-          )}
-        >
+        <div className="mx-auto flex w-full max-w-wide flex-col rounded-card bg-card p-1.5 shadow-control ring-1 ring-border lg:flex-row lg:items-center lg:rounded-full lg:p-1 lg:pl-2">
           <div className="flex min-w-0 flex-1 flex-col divide-y divide-separator lg:flex-row lg:divide-x lg:divide-y-0">
             <DestinationSegment
               intent={intent}
@@ -194,30 +150,14 @@ export function ExploreSearchBar({
             type="button"
             onClick={onSubmit}
             aria-label="Search stays"
-            className="mt-1.5 flex h-12 shrink-0 items-center justify-center gap-2 rounded-card bg-primary px-5 text-sm font-bold text-primary-foreground transition-opacity hover:opacity-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 lg:mt-0 lg:size-12 lg:rounded-full lg:px-0"
+            className="mt-1.5 flex h-12 shrink-0 items-center justify-center gap-2 rounded-card bg-primary px-5 text-sm font-bold text-primary-foreground transition-opacity hover:opacity-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 lg:mt-0 lg:size-11 lg:rounded-full lg:px-0"
           >
             <SearchIcon className="size-5" />
             <span className="lg:sr-only">Search</span>
           </button>
         </div>
+        {below ? <div className="mt-3">{below}</div> : null}
       </div>
-
-      <style jsx global>{`
-        .explore-pill-in {
-          animation: explore-pill-in 200ms cubic-bezier(0.2, 0.8, 0.2, 1);
-        }
-        @keyframes explore-pill-in {
-          from {
-            opacity: 0;
-            transform: translateY(-6px) scale(0.98);
-          }
-        }
-        @media (prefers-reduced-motion: reduce) {
-          .explore-pill-in {
-            animation: none;
-          }
-        }
-      `}</style>
     </div>
   );
 }
@@ -297,11 +237,11 @@ function DestinationSegment({
         }}
         onClick={() => inputRef.current?.focus()}
         className={cn(
-          "flex h-16 cursor-text items-center gap-3 px-4 transition-colors lg:h-14 lg:rounded-full",
+          "flex h-16 cursor-text items-center gap-3 px-4 transition-colors lg:h-12 lg:rounded-full",
           open ? "bg-surface-secondary" : "hover:bg-surface-secondary",
         )}
       >
-        <MapPin className="size-5 shrink-0 text-foreground" strokeWidth={1.8} aria-hidden />
+        <MapPin className="size-5 shrink-0 text-foreground lg:size-4" strokeWidth={1.8} aria-hidden />
         <label className="flex min-w-0 flex-1 flex-col leading-tight">
           <span className="whitespace-nowrap text-xs text-muted-foreground">Where to?</span>
           <DestinationField
@@ -315,7 +255,7 @@ function DestinationSegment({
               setQuery("");
               onOpenChange(true);
             }}
-            inputClassName="font-medium [--field-foreground:var(--foreground)] placeholder:text-muted-foreground"
+            inputClassName="font-medium lg:text-sm [--field-foreground:var(--foreground)] placeholder:text-muted-foreground"
           />
         </label>
         {hasPlace && !open ? (
@@ -349,19 +289,19 @@ const Trigger = forwardRef<
       ref={ref}
       type="button"
       className={cn(
-        "group flex h-16 min-w-0 flex-1 items-center gap-3 px-4 text-left text-foreground transition-colors hover:bg-surface-secondary aria-expanded:bg-surface-secondary lg:h-14 lg:rounded-full",
+        "group flex h-16 min-w-0 flex-1 items-center gap-3 px-4 text-left text-foreground transition-colors hover:bg-surface-secondary aria-expanded:bg-surface-secondary lg:h-12 lg:rounded-full",
         "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring",
         className,
       )}
       {...props}
     >
-      <Icon className="size-5 shrink-0 text-foreground" strokeWidth={1.8} aria-hidden />
+      <Icon className="size-5 shrink-0 text-foreground lg:size-4" strokeWidth={1.8} aria-hidden />
 
       {/* `w-full truncate` inside a `min-w-0` chain: truncation needs a
           bounded width, which the chain provides. */}
       <span className="flex min-w-0 flex-1 flex-col items-start leading-tight">
         <span className="whitespace-nowrap text-xs text-muted-foreground">{label}</span>
-        <span className="block w-full truncate text-base font-medium">{value}</span>
+        <span className="block w-full truncate text-base font-medium lg:text-sm">{value}</span>
       </span>
 
       <ChevronDown

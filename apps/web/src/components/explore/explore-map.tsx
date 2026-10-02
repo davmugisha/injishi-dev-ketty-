@@ -3,14 +3,10 @@
 import "maplibre-gl/dist/maplibre-gl.css";
 
 import {
-  ArrowRight,
   ChevronRight,
-  Info,
   LocateFixed,
   Map as MapIcon,
   MapPin,
-  Maximize2,
-  MapPinned,
   Minus,
   Plus,
   ShieldCheck,
@@ -167,8 +163,6 @@ function boundsOf(pins: PlottedListing[]): [[number, number], [number, number]] 
 
 // Room for the header and switch above, the fold below, and pins growing up-right.
 const FIT_PADDING = { top: 170, bottom: 72, left: 56, right: 120 };
-// The rail's mini map: a chip on top, the controls and "Open map" below.
-const MINI_PADDING = { top: 64, bottom: 64, left: 32, right: 80 };
 
 const photoOf = (listing: Listing) => listing.image.src ?? `/assets/${listing.image.stem}.jpg`;
 
@@ -184,8 +178,6 @@ export function ExploreMap({
   areaCount,
   intent,
   className,
-  variant = "full",
-  onExpand,
 }: {
   listings: Listing[];
   hoveredSlug: string | null;
@@ -201,16 +193,8 @@ export function ExploreMap({
   areaCount: number;
   intent?: StayIntent;
   className?: string;
-  /**
-   * `mini` is the right rail's preview: no header, no area switch and no
-   * preview card. A click on a pin, the expand button or "Open map" calls
-   * `onExpand`, which opens the full split view on the same selection.
-   */
-  variant?: "full" | "mini";
-  onExpand?: () => void;
 }) {
-  const mini = variant === "mini";
-  const padding = mini ? MINI_PADDING : FIT_PADDING;
+  const padding = FIT_PADDING;
   const mapRef = useRef<MapRef | null>(null);
   const [loaded, setLoaded] = useState(false);
   const [groups, setGroups] = useState<PinGroup[]>([]);
@@ -321,11 +305,6 @@ export function ExploreMap({
   const select = useCallback(
     (listing: PlottedListing) => {
       onSelect(listing.slug);
-      if (mini) {
-        // The preview card belongs to the full map; open it there.
-        onExpand?.();
-        return;
-      }
       setViewed((prev) => (prev.has(listing.slug) ? prev : new Set(prev).add(listing.slug)));
       // The preview opens ~400 px above the pin. If that would run off the
       // top or a side, ease the pin down into the lower middle of the map.
@@ -341,7 +320,7 @@ export function ExploreMap({
         });
       }
     },
-    [onSelect, mini, onExpand],
+    [onSelect],
   );
 
   const zoomIntoCluster = useCallback(
@@ -353,15 +332,14 @@ export function ExploreMap({
 
   const popupListing = useMemo(
     () =>
-      !mini && selectedSlug ? (plotted.find((p) => p.slug === selectedSlug) ?? null) : null,
-    [mini, selectedSlug, plotted],
+      selectedSlug ? (plotted.find((p) => p.slug === selectedSlug) ?? null) : null,
+    [selectedSlug, plotted],
   );
 
   return (
     <div
       className={cn(
         "explore-map relative isolate h-full w-full overflow-hidden rounded-card bg-surface-secondary shadow-control ring-1 ring-border",
-        mini && "explore-map-mini",
         className,
       )}
     >
@@ -477,48 +455,24 @@ export function ExploreMap({
         aria-hidden
         className={cn(
           "pointer-events-none absolute inset-x-0 top-0 z-10 bg-gradient-to-b from-background/80 via-background/30 to-transparent",
-          mini ? "h-20" : "h-36",
+          "h-36",
         )}
       />
 
-      {mini ? (
-        <>
-          <div className="pointer-events-none absolute inset-x-3 top-3 z-20 flex items-center justify-between gap-2">
-            <span className="pointer-events-auto truncate rounded-full bg-card/95 px-3 py-1.5 text-xs font-bold text-foreground shadow-control ring-1 ring-border backdrop-blur">
-              {plotted.length} {plotted.length === 1 ? "stay" : "stays"} on the map
-            </span>
-            <button
-              type="button"
-              onClick={onExpand}
-              aria-label="Open the full map"
-              title="Open the full map"
-              className="pointer-events-auto flex size-8 shrink-0 items-center justify-center rounded-full bg-card/95 text-foreground shadow-control ring-1 ring-border backdrop-blur transition-colors hover:bg-card focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-            >
-              <Maximize2 className="size-3.5" strokeWidth={2.4} aria-hidden />
-            </button>
-          </div>
-          <button
-            type="button"
-            onClick={onExpand}
-            className="absolute bottom-3 left-3 z-20 flex h-9 items-center gap-1.5 rounded-full bg-card px-3.5 text-xs font-bold text-foreground shadow-control ring-1 ring-border transition-colors hover:bg-surface-secondary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-          >
-            <MapIcon className="size-3.5" strokeWidth={2.2} aria-hidden />
-            Open map
-            <ArrowRight className="size-3.5" strokeWidth={2.4} aria-hidden />
-          </button>
-        </>
-      ) : plotted.length > 0 ? (
+      {plotted.length > 0 ? (
         // The header and the area switch stack top-left: the map's bottom
         // edge sits below the fold until the page scrolls, so anything
         // pinned to the bottom would start out of sight.
         <div className="pointer-events-none absolute left-3 right-16 top-3 z-20 flex flex-col items-start gap-2">
-          <MapHeader
-            plottedCount={plotted.length}
-            unplottedCount={listings.length - plotted.length}
-            approximateCount={plotted.filter((l) => l.locationApproximate).length}
-            searchArea={searchArea}
-            areaCount={areaCount}
-          />
+          {/* The switch alone, as the busy-page review asked: the count and
+              the approximate-pin note it sat under repeated the list's own
+              title and each preview's "Approximate area" chip. Under the
+              switch it still says how many stays are in view. */}
+          {searchArea ? (
+            <span className="pointer-events-auto rounded-full bg-card/95 px-3 py-1 text-xs font-bold text-foreground shadow-control ring-1 ring-border backdrop-blur-md">
+              {areaCount} {areaCount === 1 ? "stay" : "stays"} in this area
+            </span>
+          ) : null}
           <SearchAreaSwitch checked={searchArea} onChange={onSearchAreaChange} />
         </div>
       ) : null}
@@ -527,7 +481,6 @@ export function ExploreMap({
         onZoomIn={() => mapRef.current?.zoomIn({ duration: 250 })}
         onZoomOut={() => mapRef.current?.zoomOut({ duration: 250 })}
         onFitAll={plotted.length > 0 ? () => fitAll() : undefined}
-        position={mini ? "bottom" : "top"}
       />
 
       {plotted.length === 0 && mapStyle ? <EmptyMapOverlay listingCount={listings.length} /> : null}
@@ -560,12 +513,6 @@ export function ExploreMap({
         .explore-map .maplibregl-ctrl-attrib a {
           color: inherit;
         }
-        /* The mini map is too small for the credit line to sit open across
-           its foot (it ran into "Open map"). It stays one tap away behind the
-           (i) button, which the tile licences ask for. */
-        .explore-map-mini .maplibregl-ctrl-attrib:not(:hover):not(:focus-within) .maplibregl-ctrl-attrib-inner {
-          display: none;
-        }
         .explore-map .maplibregl-ctrl-bottom-right {
           z-index: 20;
         }
@@ -591,64 +538,6 @@ export function ExploreMap({
           }
         }
       `}</style>
-    </div>
-  );
-}
-
-/**
- * The map's own header: what the pins are, in one line, and — only when it
- * applies — why the list holds more than the map does. Under "search as I
- * move" it counts the stays in view instead.
- */
-function MapHeader({
-  plottedCount,
-  unplottedCount,
-  approximateCount,
-  searchArea,
-  areaCount,
-}: {
-  plottedCount: number;
-  unplottedCount: number;
-  approximateCount: number;
-  searchArea: boolean;
-  areaCount: number;
-}) {
-  const headline = searchArea
-    ? areaCount === 0
-      ? "No stays in this area"
-      : `${areaCount} ${areaCount === 1 ? "stay" : "stays"} in this area`
-    : `${plottedCount} ${plottedCount === 1 ? "stay" : "stays"} on the map`;
-  const detail = searchArea
-    ? areaCount === 0
-      ? "Zoom out or move the map to find more."
-      : "The list shows only what's in view."
-    : unplottedCount > 0
-      ? `${unplottedCount} more in the list haven't added a location yet.`
-      : approximateCount > 0
-        ? "Some pins mark the neighbourhood, not the exact address."
-        : "Every result is pinned at its address.";
-  const showInfo = !searchArea && (unplottedCount > 0 || approximateCount > 0);
-
-  return (
-    <div
-      role="status"
-      aria-live="polite"
-      className="pointer-events-auto inline-flex max-w-full items-center gap-3 rounded-card bg-card/90 py-2 pl-2 pr-4 shadow-control ring-1 ring-border backdrop-blur-md"
-    >
-      <span className="flex size-9 shrink-0 items-center justify-center rounded-full bg-accent text-accent-foreground">
-        <MapPinned className="size-4" strokeWidth={2.2} aria-hidden />
-      </span>
-      <span className="min-w-0">
-        <span className="block truncate text-sm font-bold leading-tight text-foreground">
-          {headline}
-        </span>
-        <span className="flex items-center gap-1 truncate text-xs leading-tight text-muted-foreground">
-          {showInfo ? (
-            <Info className="size-3 shrink-0" strokeWidth={2.4} aria-hidden />
-          ) : null}
-          <span className="truncate">{detail}</span>
-        </span>
-      </span>
     </div>
   );
 }
@@ -880,24 +769,16 @@ function MapControls({
   onZoomIn,
   onZoomOut,
   onFitAll,
-  position = "top",
 }: {
   onZoomIn: () => void;
   onZoomOut: () => void;
   onFitAll?: () => void;
-  /** `bottom` for the mini map, whose top edge holds its own chip. */
-  position?: "top" | "bottom";
 }) {
   const button =
     "flex size-10 items-center justify-center text-foreground transition-colors hover:bg-surface-secondary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring";
   const surface = "overflow-hidden rounded-card bg-card/90 shadow-control ring-1 ring-border backdrop-blur-md";
   return (
-    <div
-      className={cn(
-        "absolute right-3 z-20 flex flex-col gap-2",
-        position === "top" ? "top-3" : "bottom-8",
-      )}
-    >
+    <div className="absolute right-3 top-3 z-20 flex flex-col gap-2">
       <div className={cn("flex flex-col", surface)}>
         <button type="button" onClick={onZoomIn} aria-label="Zoom in" title="Zoom in" className={button}>
           <Plus className="size-4" strokeWidth={2.4} aria-hidden />

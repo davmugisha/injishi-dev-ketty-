@@ -4,7 +4,8 @@ import { ScrollShadow } from "@heroui/react";
 import { Button, Sheet, SheetClose, SheetContent, SheetHeader, SheetTitle } from "@injishi/ui";
 import { FilterRailBody } from "@/components/explore/explore-filters";
 import type { Listing } from "@/data/listings";
-import type { ExploreRefinement, StayIntent } from "@/lib/search-params";
+import { useMediaQuery } from "@/hooks/use-media-query";
+import { refinementCount, type ExploreRefinement, type StayIntent } from "@/lib/search-params";
 
 /**
  * The mobile path to the rail.
@@ -30,7 +31,6 @@ export function FilterSheet({
   onIntentChange,
   onRefinementChange,
   resultCount,
-  onOpenCompare,
   onClearAll,
 }: {
   open: boolean;
@@ -41,14 +41,41 @@ export function FilterSheet({
   onIntentChange: (next: Partial<StayIntent>) => void;
   onRefinementChange: (next: Partial<ExploreRefinement>) => void;
   resultCount: number;
-  onOpenCompare?: () => void;
   onClearAll: () => void;
 }) {
+  // A side panel on desktop, a bottom sheet on a phone.
+  const desktop = useMediaQuery("(min-width: 1024px)");
+  const applied = refinementCount(refinement) + (intent.districts.length > 0 ? 1 : 0);
+
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent side="bottom" className="h-[88dvh] rounded-t-3xl p-0">
+      <SheetContent
+        side={desktop ? "right" : "bottom"}
+        className={
+          desktop
+            ? "flex h-dvh w-full flex-col p-0 sm:max-w-form"
+            : "h-[88dvh] rounded-t-3xl p-0"
+        }
+      >
         <SheetHeader className="border-b border-separator px-5 py-4 text-left">
           <SheetTitle>Filters</SheetTitle>
+          <p className="text-xs text-muted-foreground" aria-live="polite">
+            {applied === 0
+              ? "Nothing applied yet"
+              : `${applied} ${applied === 1 ? "filter" : "filters"} applied`}
+            {applied > 0 ? (
+              <>
+                {" · "}
+                <button
+                  type="button"
+                  onClick={onClearAll}
+                  className="rounded font-bold text-accent-text underline-offset-2 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                >
+                  Clear all
+                </button>
+              </>
+            ) : null}
+          </p>
         </SheetHeader>
 
         <ScrollShadow className="flex-1 scrollbar overflow-y-auto px-5 py-2">
@@ -58,16 +85,6 @@ export function FilterSheet({
             refinement={refinement}
             onIntentChange={onIntentChange}
             onRefinementChange={onRefinementChange}
-            onClearAll={onClearAll}
-            onOpenCompare={
-              // One sheet at a time: close the filters, then open the comparison.
-              onOpenCompare
-                ? () => {
-                    onOpenChange(false);
-                    onOpenCompare();
-                  }
-                : undefined
-            }
           />
         </ScrollShadow>
 

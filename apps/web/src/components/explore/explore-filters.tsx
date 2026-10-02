@@ -1,7 +1,7 @@
 "use client";
 
-import { ArrowRight, GitCompare, Search, X } from "lucide-react";
-import { Button, Input } from "@injishi/ui";
+import { Search } from "lucide-react";
+import { Input } from "@injishi/ui";
 import { cn } from "@injishi/utils";
 import { FacetBlock } from "@/components/explore/filter-primitives";
 import { PriceFilter } from "@/components/explore/price-filter";
@@ -14,7 +14,6 @@ import {
 import type { Listing } from "@/data/listings";
 import { filterListings, poolExcluding } from "@/lib/filter-listings";
 import {
-  refinementCount,
   toggleFacet,
   type ExploreRefinement,
   type PriceBasis,
@@ -42,18 +41,12 @@ export function FilterRailBody({
   refinement,
   onIntentChange,
   onRefinementChange,
-  onOpenCompare,
-  onClearAll,
 }: {
   listings: Listing[];
   intent: StayIntent;
   refinement: ExploreRefinement;
   onIntentChange: (next: Partial<StayIntent>) => void;
   onRefinementChange: (next: Partial<ExploreRefinement>) => void;
-  /** Opens the side-by-side sheet. Absent where the rail cannot open it. */
-  onOpenCompare?: () => void;
-  /** Clears place and filters in one commit; see `clearFilters` in the shell. */
-  onClearAll: () => void;
 }) {
   const pool = (_id: string, field: FacetField) =>
     poolExcluding(listings, intent, refinement, field);
@@ -79,47 +72,8 @@ export function FilterRailBody({
   };
   const selectedFor = (field: FacetField) => facetSelection(field, intent, refinement);
 
-  const clearAll = onClearAll;
-
-  const activeCount = refinementCount(refinement) + (intent.districts.length > 0 ? 1 : 0);
-
   return (
     <div>
-      <CompareCard
-        compareOn={refinement.compare}
-        picked={refinement.picks
-          .map((slug) => listings.find((l) => l.slug === slug))
-          .filter((l): l is Listing => l !== undefined)}
-        onToggleCompare={() =>
-          onRefinementChange({ compare: !refinement.compare, page: refinement.page })
-        }
-        onDismiss={() => onRefinementChange({ compare: false, picks: [], page: refinement.page })}
-        onOpenCompare={onOpenCompare}
-      />
-
-      <div className="flex items-end justify-between gap-3 border-b border-separator pb-3 pt-5">
-        <div>
-          <h2 className="text-lg font-bold leading-tight text-foreground">Filters</h2>
-          <p className="mt-0.5 text-xs text-muted-foreground" aria-live="polite">
-            {activeCount === 0
-              ? "Nothing applied yet"
-              : `${activeCount} ${activeCount === 1 ? "filter" : "filters"} applied`}
-            {activeCount > 0 ? (
-              <>
-                {" · "}
-                <button
-                  type="button"
-                  onClick={clearAll}
-                  className="rounded font-bold text-accent-text underline-offset-2 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                >
-                  Clear all
-                </button>
-              </>
-            ) : null}
-          </p>
-        </div>
-      </div>
-
       <NameSearch value={refinement.name} onChange={(name) => onRefinementChange({ name })} />
 
       <PriceFilter
@@ -141,107 +95,6 @@ export function FilterRailBody({
         />
       ))}
     </div>
-  );
-}
-
-/**
- * Compare, at the top of the rail. Off, it is the tile that turns compare mode
- * on. With stays picked it becomes a summary: how many, which, and the button
- * that opens them side by side; × drops the picks and leaves compare mode.
- */
-function CompareCard({
-  compareOn,
-  picked,
-  onToggleCompare,
-  onDismiss,
-  onOpenCompare,
-}: {
-  compareOn: boolean;
-  picked: Listing[];
-  onToggleCompare: () => void;
-  onDismiss: () => void;
-  onOpenCompare?: () => void;
-}) {
-  if (picked.length > 0) {
-    const names = picked.map((l) => l.nameLead.trim() || l.nameRest);
-    return (
-      <div
-        data-rail-compare
-        className="relative rounded-card bg-surface-secondary p-4 ring-1 ring-accent"
-      >
-        <button
-          type="button"
-          onClick={onDismiss}
-          aria-label="Stop comparing and clear picks"
-          className="absolute right-2.5 top-2.5 flex size-7 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-card hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-        >
-          <X className="size-4" strokeWidth={2.4} aria-hidden />
-        </button>
-        <div className="flex items-start gap-3 pr-6">
-          <span className="flex size-9 shrink-0 items-center justify-center rounded-card bg-accent text-accent-foreground">
-            <GitCompare className="size-4.5" strokeWidth={2} aria-hidden />
-          </span>
-          <div className="min-w-0">
-            <p className="text-sm font-bold text-foreground">
-              {picked.length} {picked.length === 1 ? "property" : "properties"} selected
-            </p>
-            <p className="mt-0.5 line-clamp-2 text-xs text-muted-foreground">{names.join(" · ")}</p>
-          </div>
-        </div>
-        {onOpenCompare ? (
-          <Button
-            size="sm"
-            onClick={onOpenCompare}
-            disabled={picked.length < 2}
-            className="mt-3 w-full gap-1.5"
-          >
-            {picked.length < 2 ? "Pick one more to compare" : "Compare properties"}
-            {picked.length >= 2 ? <ArrowRight className="size-4" strokeWidth={2.4} aria-hidden /> : null}
-          </Button>
-        ) : null}
-        {!compareOn ? (
-          <button
-            type="button"
-            onClick={onToggleCompare}
-            className="mt-2 w-full rounded text-center text-xs font-bold text-accent-text hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-          >
-            Pick more stays
-          </button>
-        ) : null}
-      </div>
-    );
-  }
-
-  return (
-    <button
-      type="button"
-      data-rail-compare
-      aria-pressed={compareOn}
-      onClick={onToggleCompare}
-      className={cn(
-        "flex w-full items-center gap-3 rounded-card border px-4 py-3 text-left transition-colors",
-        compareOn
-          ? "border-accent-text bg-surface-secondary"
-          : "border-border bg-card hover:bg-surface-secondary",
-      )}
-    >
-      <span
-        className={cn(
-          "flex size-9 shrink-0 items-center justify-center rounded-card transition-colors",
-          compareOn ? "bg-accent text-accent-foreground" : "bg-surface-secondary text-muted-foreground",
-        )}
-      >
-        <GitCompare className="size-4.5" strokeWidth={2} aria-hidden />
-      </span>
-      <div className="min-w-0 flex-1">
-        <p className="text-sm font-bold text-foreground">Compare properties</p>
-        <p className="text-xs text-muted-foreground">
-          {compareOn
-            ? "On. Tick Compare on up to 5 stays."
-            : "Get a side-by-side view of up to 5 properties."}
-        </p>
-      </div>
-    </button>
   );
 }
 
@@ -366,21 +219,3 @@ export const CLEARED_REFINEMENT: Partial<ExploreRefinement> = {
   name: "",
   available: false,
 };
-
-/**
- * The DESKTOP rail: sticky, scrollable, and pinned to the left column.
- *
- * `filter-sheet.tsx` renders `FilterRailBody` directly inside a `Sheet` at
- * narrow widths instead of this wrapper — the body is shared, the chrome
- * around it is not.
- */
-export function ExploreFilterRail(props: React.ComponentProps<typeof FilterRailBody>) {
-  return (
-    <aside
-      data-filter-rail
-      className="hidden lg:sticky lg:top-[calc(var(--explore-band-bottom,169px)+16px)] lg:block lg:h-[calc(100dvh-var(--explore-band-bottom,169px)-32px)] lg:w-[236px] lg:shrink-0 2xl:w-[264px] scrollbar lg:overflow-y-auto lg:pr-2"
-    >
-      <FilterRailBody {...props} />
-    </aside>
-  );
-}

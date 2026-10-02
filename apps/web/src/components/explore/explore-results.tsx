@@ -37,6 +37,7 @@ export function ExploreResults({
   hoveredSlug,
   onCardHover,
   cardVariant = "horizontal",
+  wide = false,
   compare,
 }: {
   results: Listing[];
@@ -50,6 +51,8 @@ export function ExploreResults({
   /** `vertical` is used inside the split-with-map layout; `horizontal` is the
    * default full-width list. */
   cardVariant?: "horizontal" | "vertical";
+  /** The grid has the whole width (no map beside it): more columns. */
+  wide?: boolean;
   /** Compare mode: a checkbox over every card. Absent when the mode is off. */
   compare?: {
     selected: readonly string[];
@@ -114,7 +117,10 @@ export function ExploreResults({
         <div
           data-result-list
           data-variant="vertical"
-          className="grid grid-cols-1 gap-4 lg:grid-cols-2"
+          className={cn(
+            "grid grid-cols-1 gap-x-6 gap-y-10 sm:grid-cols-2",
+            wide && "lg:grid-cols-3 2xl:grid-cols-4",
+          )}
         >
           {pageResults.map((listing) =>
             withCompare(
