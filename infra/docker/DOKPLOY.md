@@ -183,9 +183,18 @@ then, only when all of that succeeded, swap (stop the demo, rename the live
 database to `injishi_demo_prev` and the candidate to `injishi_demo`, retag the
 images, empty the bucket, flush Redis, empty Mailpit, start the demo) and wait
 for the API and web health checks. Healthy, it drops the previous database and
-images. Not healthy within ten minutes, it swaps the previous database and
-images back and exits non zero. A failure before the swap drops the candidate
-and leaves yesterday's demo running untouched.
+images. Not healthy within ten minutes, it prints the new API's log, swaps the
+previous database and images back and exits non zero. A failure before the swap
+drops the candidate and leaves yesterday's demo running untouched.
+
+That includes `compose up` itself failing, which it does when the new API is
+unhealthy: compose waits on the API's health check before starting what
+depends on it. Until 2026-10-01 that exit ended the script before the swap back,
+and the demo stayed down from the 06:42 UTC rebuild (an API that refused to
+boot, `2f5f8d3`) until the kept `:demo-prev` images and `injishi_demo_prev`
+were swapped back by hand. That hand restore is exactly the script's own swap
+back: stop the app services, rename `injishi_demo` to `injishi_demo_next` and
+`injishi_demo_prev` to `injishi_demo`, retag each `:demo-prev` as `:demo`, `up -d`.
 
 The job reads no secret itself, holds a lock so two runs never overlap, and
 logs one line per step to `/var/log/injishi-demo-nightly.log`. A presenter

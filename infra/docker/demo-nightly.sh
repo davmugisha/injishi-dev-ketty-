@@ -19,9 +19,11 @@
 #      end every connection, rename the live database to `injishi_demo_prev`
 #      and `injishi_demo_next` to `injishi_demo`, keep the current images as
 #      `:demo-prev` and retag `:demo-next` as `:demo`, empty the bucket, flush
-#      Redis, empty Mailpit, start the demo again.
-#   5. CONFIRM the API and web health checks. Healthy: drop the previous
-#      database and images. Not healthy in time: swap both back, exit non zero.
+#      Redis, empty Mailpit.
+#   5. CONFIRM: start the demo again and wait for the API and web health
+#      checks. Healthy: drop the previous database and images. Not healthy in
+#      time, or `compose up` itself failing on an unhealthy API: print the new
+#      API's log, swap both back, exit non zero.
 #   6. Any failure before the swap drops the candidate database and images and
 #      leaves the running demo untouched, then exits non zero.
 #
@@ -226,10 +228,15 @@ compose run --rm --no-deps -T --entrypoint sh minio-init -c '
 compose exec -T redis redis-cli FLUSHALL >/dev/null
 compose restart mailpit >/dev/null
 
-compose up -d --no-build
-
 # ── 5. confirm ────────────────────────────────────────────────────────────────────
+# Starting the demo belongs to the confirm, not the swap, and its exit status is
+# not fatal. `compose up` waits on the API's health check before it starts the
+# services that depend on it, and exits non zero when the new API is unhealthy.
+# On 2026-10-01 that exit ended this script in phase 'swap', so the swap back
+# below never ran and the demo stayed down until a hand restore. The health
+# checks are what decide.
 phase=confirm
+compose up -d --no-build || log "compose up exited non zero; the health checks below decide" >&2
 health_of() {
   local id
   id=$(compose ps -q "$1")
@@ -259,6 +266,8 @@ fi
 log "the new demo is not healthy after ${HEALTH_TIMEOUT}s (api: $(health_of api), web: $(health_of web)); swapping back"
 trap - ERR
 set +e
+# Why, before the swap back recreates the container and the reason is gone.
+compose logs --no-color --tail 80 api >&2
 compose stop "${APP_SERVICES[@]}"
 psql_admin "select pg_terminate_backend(pid) from pg_stat_activity
             where datname in ('$LIVE_DB', '$PREV_DB') and pid <> pg_backend_pid()" >/dev/null

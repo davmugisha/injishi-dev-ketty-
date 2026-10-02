@@ -32,7 +32,7 @@ import { taxCodeEnum } from './enums';
 import { bookings, guestStays } from './hospitality';
 import { amenities, properties, rooms } from './inventory';
 import { ebmInvoices } from './money';
-import { orgMemberships, orgs, workspaces } from './org';
+import { orgs, workspaces } from './org';
 import { threads } from './messaging';
 import { leases, paymentAttempts } from './residence';
 
@@ -409,48 +409,10 @@ export const outlets = pgTable(
 );
 
 
-/**
- * Who works in which department (§14.3, D17).
- *
- * This decides whose board a task appears on. It never decides what anybody may
- * do: permission scope stays on `org_memberships.org_role`, so a department
- * head with a receptionist's role still cannot move money.
- */
-export const departmentMembers = pgTable(
-  'department_members',
-  {
-    id: uuid('id').primaryKey().defaultRandom(),
-    departmentId: uuid('department_id')
-      .notNull()
-      .references(() => departments.id, { onDelete: 'cascade' }),
-    orgMembershipId: uuid('org_membership_id')
-      .notNull()
-      .references(() => orgMemberships.id, { onDelete: 'cascade' }),
-    /** Denormalized from the membership so a board query needs no join. */
-    userId: uuid('user_id')
-      .notNull()
-      .references(() => users.id),
-    workspaceId: uuid('workspace_id')
-      .notNull()
-      .references(() => workspaces.id),
-    departmentPosition: departmentPositionEnum('department_position')
-      .notNull()
-      .default('staff'),
-    /** Free text ranks the enum deliberately omits: therapist, waiter, concierge. */
-    jobTitles: jsonb('job_titles'),
-    /** The staffer's home department, the one their shift board defaults to. */
-    isPrimary: boolean('is_primary').notNull().default(false),
-    status: departmentMemberStatusEnum('status').notNull().default('active'),
-    ...timestamps,
-  },
-  (t) => [
-    index('department_members_department_idx').on(t.departmentId),
-    index('department_members_user_idx').on(t.userId),
-    uniqueIndex('department_members_active_uk')
-      .on(t.departmentId, t.userId)
-      .where(sql`${t.status} = 'active'`),
-  ],
-);
+// `department_members`, who works in which department, moved to `people.ts`
+// with ADR-058: it became the HR module's one roster (cross child contract 5),
+// and it points at `employees`, which lives there. Declaring it here would have
+// made the two schema modules import each other.
 
 
 // --- §14.5 the folio and its charges ---------------------------------------

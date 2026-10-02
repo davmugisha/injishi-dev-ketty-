@@ -85,6 +85,11 @@ exports.AdminAuditSubjectType = zod_1.z.enum([
     // "every audit row about this certificate" stays a query rather than a
     // search through payloads.
     "training_certificate",
+    // ADR-058 (migration 0053), caught by the same typecheck a third time. HR
+    // rows name the file or the pay run they touched; their diffs carry field
+    // names, and never an ID number, an RSSB number or a wage (AC-U5).
+    "employee",
+    "pay_run",
 ]);
 /**
  * `record_data_class`. What class of another person's data a staff member read.

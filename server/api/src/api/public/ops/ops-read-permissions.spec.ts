@@ -18,7 +18,12 @@ import {
   WorkspaceGuard,
 } from '../../../shared/auth/workspace.guard';
 import { OpsAmenitiesController } from './amenities.controller';
+import { OpsAttendanceController } from './attendance.controller';
 import { OpsDepartmentsController } from './departments.controller';
+import { OpsEmployeesController } from './employees.controller';
+import { OpsLeaveController } from './leave.controller';
+import { OpsPayRunsController } from './pay-runs.controller';
+import { OpsRosterController, OpsShiftTemplatesController } from './roster.controller';
 import { OpsEbmController } from './ebm.controller';
 import { OpsFoliosController } from './folios.controller';
 import { OpsHousekeepingController } from './housekeeping.controller';
@@ -87,6 +92,12 @@ const CONTROLLERS: Ctor[] = [
   OpsStaysController,
   OpsTeamController,
   OpsThreadsController,
+  OpsEmployeesController,
+  OpsShiftTemplatesController,
+  OpsRosterController,
+  OpsAttendanceController,
+  OpsLeaveController,
+  OpsPayRunsController,
 ];
 
 interface Read {
@@ -189,6 +200,19 @@ const EXPECTED: Record<string, readonly OrgRole[]> = {
   '/ops/team/invitations': ['owner'],
   '/ops/threads': ['owner', 'manager', 'receptionist'],
   '/ops/threads/:id/messages': ['owner', 'manager', 'receptionist'],
+  // The HR module (ADR-058, contract 4). A file is read by `people.view` and
+  // above, which the desk does not hold; the desk reads the roster and the
+  // attendance sheet as roster cards, because it clocks people in.
+  '/ops/employees': ['owner', 'manager'],
+  '/ops/employees/:id': ['owner', 'manager'],
+  '/ops/employees/:id/leave-balances': ['owner', 'manager'],
+  '/ops/shift-templates': ['owner', 'manager', 'receptionist'],
+  '/ops/roster': ['owner', 'manager', 'receptionist'],
+  '/ops/attendance': ['owner', 'manager', 'receptionist'],
+  '/ops/leave/requests': ['owner', 'manager'],
+  // What each colleague earns: the owner's by default (`payroll.run`).
+  '/ops/pay-runs': ['owner'],
+  '/ops/pay-runs/:id': ['owner'],
 };
 
 describe('operator reads (audit H1)', () => {

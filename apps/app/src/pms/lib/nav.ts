@@ -171,6 +171,52 @@ export interface NavCounts {
   unreadThreads?: number | null;
 }
 
+/**
+ * The Staff screen's lenses and the permissions that open each (ADR-058,
+ * contract 10), in the order the rail shows them.
+ *
+ * In this file rather than in the screen because it is the same class of fact
+ * as a nav leaf's gate: which doors a grant reaches. The leaf below is opened by
+ * ANY of the seven HR permissions, and the screen offers only the lenses this
+ * table lets through, so a receptionist who clocks people in reaches Staff and
+ * sees Roster and Attendance, never Employees or Payroll. Each gate is exactly
+ * the read its lens makes, so an offered lens never meets a refusal.
+ */
+export const STAFF_LENSES: readonly {
+  key: "employees" | "roster" | "attendance" | "leave" | "payroll";
+  label: string;
+  /** The route segment under `/staff`; empty for the default lens. */
+  segment: string;
+  anyPermission: readonly Permission[];
+}[] = [
+  { key: "employees", label: "Employees", segment: "", anyPermission: ["people.view", "people.manage", "payroll.run"] },
+  { key: "roster", label: "Roster", segment: "roster", anyPermission: ["roster.manage", "attendance.record", "people.view"] },
+  { key: "attendance", label: "Attendance", segment: "attendance", anyPermission: ["attendance.record", "attendance.approve"] },
+  { key: "leave", label: "Leave", segment: "leave", anyPermission: ["leave.approve"] },
+  { key: "payroll", label: "Payroll", segment: "payroll", anyPermission: ["payroll.run"] },
+];
+
+/** The Staff lenses a grant reaches. */
+export function staffLenses(permissions: readonly Permission[]): typeof STAFF_LENSES[number][] {
+  return STAFF_LENSES.filter((lens) => lens.anyPermission.some((p) => permissions.includes(p)));
+}
+
+/** Every HR permission: any one of them opens the Staff leaf. */
+const STAFF_PERMISSIONS: readonly Permission[] = [
+  "people.view",
+  "people.manage",
+  "roster.manage",
+  "attendance.record",
+  "attendance.approve",
+  "leave.approve",
+  "payroll.run",
+];
+
+/** The Staff leaf, the same in a hotel and a residence business (ADR-058). */
+function staffLeaf(base: string): NavItem {
+  return { key: "staff", label: "Staff", icon: "id-card", href: `${base}/staff`, built: true, anyPermission: STAFF_PERMISSIONS };
+}
+
 /** A pill shows a positive number or nothing. Zero is quiet, absent is quiet. */
 function pill(n: number | null | undefined): number | null {
   return typeof n === "number" && n > 0 ? n : null;
@@ -289,6 +335,11 @@ export function hostNav(
       [{ key: "finance", label: "Finance", icon: "receipt", href: `${base}/finance`, built: true, permission: "money.view" }],
       permissions,
     ),
+    // The HR module (ADR-058): everyone who works here, with or without an
+    // account, their shifts, attendance, leave and pay. Beside Team &
+    // Departments rather than inside it, because that screen is about who holds
+    // an ACCOUNT and what it may do, and most of a hotel's staff never sign in.
+    ...sectionOf("People", [staffLeaf(base)], permissions),
     ...sectionOf(
       "Property admin",
       [
@@ -379,6 +430,9 @@ export function landlordNav(
         // shorter name; the screen behind it offers Team, Roles and Invites and
         // omits the Departments lens rather than opening it empty.
         { key: "people", label: "Team & roles", icon: "users", href: `${base}/people`, built: true, permission: "team.manage" },
+        // Every business type gets HR (ADR-058): a caretaker or a guard on a
+        // residence payroll is on file like a hotel cook.
+        staffLeaf(base),
       ],
       permissions,
     ),

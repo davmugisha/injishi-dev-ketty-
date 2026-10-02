@@ -67,6 +67,11 @@ x-api-env: &api-env
   # means a line in the env file cannot even try.
   PAYMENT_ADAPTER_MODE: mock
   VSDC_ADAPTER_MODE: mock
+  # ADR-050 D-a's new rule: a confirmed booking holds a PROFORMA (PS) and the
+  # sale is signed when the bill closes at check out. The demo declares nothing
+  # to RRA either way (ADR-041 D-p); this decides which document a guest sees.
+  # Production and staging still run the old rule (unset means `booking`).
+  EBM_SIGN_AT: checkout
   # This stack's own MinIO, through the scoped user minio-init creates.
   # `injishi-minio`, not `minio`: api also joins dokploy-network, where the other
   # stacks' `minio` answers to the same name.

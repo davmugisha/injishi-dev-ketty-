@@ -787,6 +787,10 @@ export const auditSubjectTypeEnum = pgEnum('audit_subject_type', [
   // answerable by reading payloads. The subject is the certificate, so the
   // subject type names one.
   'training_certificate',
+  // ADR-058 AC-U5: every person initiated HR action is audited against the
+  // file it touched, and a bulk pay run action against the run.
+  'employee',
+  'pay_run',
 ]);
 
 export const recordDataClassEnum = pgEnum('record_data_class', [

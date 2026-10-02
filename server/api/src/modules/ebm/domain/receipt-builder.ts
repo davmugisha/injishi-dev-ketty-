@@ -4,6 +4,7 @@ import {
   ebmTaxIncludedIn,
   type EbmReceipt,
   type EbmReceiptItem,
+  type EbmReceiptType,
   type EbmSeller,
   type EbmTaxLabel,
   type EbmTaxLine,
@@ -232,7 +233,13 @@ export function priceStay(stay: StayForReceipt): PricedStay {
 }
 
 /**
- * A NORMAL SALE (`NS`, clause 13) receipt for one stay.
+ * The receipt for one stay: a NORMAL SALE (`NS`, clause 13), or the PROFORMA
+ * (`PS`, clause 17) a booking confirmed under ADR-050's `checkout` rule holds.
+ *
+ * Both carry the same priced lines and totals, so a proforma states exactly
+ * what the guest prepaid. What makes a `PS` different is printed by the
+ * receipt screen from the type alone (the clause 11 designation, no signature,
+ * no payment line), so nothing else here branches on it.
  *
  * `signature` is the VSDC's answer and this function does not second-guess it:
  * clause 7.20 is "receive response data from VSDC and add this information to
@@ -244,10 +251,11 @@ export function buildStayReceipt(
   stay: StayForReceipt,
   priced: PricedStay,
   signature: VsdcSignature,
+  receiptType: Extract<EbmReceiptType, 'NS' | 'PS'>,
 ): EbmReceipt {
   return {
     bookingReference: stay.bookingReference,
-    receiptType: 'NS',
+    receiptType,
     transaction: 'SALE',
     seller: stay.seller,
     commercialMessage: COMMERCIAL_MESSAGE,

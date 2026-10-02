@@ -206,3 +206,13 @@ jobs:
           echo "demo checkout: $(git -C $DEMO_ROOT/src log -1 --format='%h %s')"
           $S ps
           curl -sS -m 10 https://api-demo.injishi.com/api/v1/platform; echo
+          # An API that is not healthy says why here. On 2026-10-01 this step
+          # printed only `ps`, and the reason (a refusal thrown at boot) took a
+          # second run to read.
+          api=$($S ps -aq api)
+          health=$([ -n "$api" ] && docker inspect -f '{{if .State.Health}}{{.State.Health.Status}}{{end}}' "$api")
+          if [ "$health" != healthy ]; then
+            echo "::group::api logs (last 80): the API is ${health:-not running}"
+            $S logs --no-color --tail 80 api
+            echo "::endgroup::"
+          fi

@@ -17,11 +17,14 @@ import {
  * sign in at all, and a feature nobody can run end to end is a feature nobody
  * can verify.
  *
- * The exception is STRUCTURAL, not a setting. This class can only be reached
- * when `SMS_MODE=mock`, and `sms.module.ts` refuses to boot when that is true
- * and `NODE_ENV=production`. So there is no environment variable, feature flag
- * or mistake that puts a printed code on a live server: reaching it would take
- * a code change, and that code change is what a review would catch.
+ * The exception is STRUCTURAL, not a setting. This class is only reached over
+ * a sample database (ADR-043's marker): `resolveSmsMode` runs it there when
+ * `SMS_MODE` is unset or `mock`, runs `off` over a real database, and refuses
+ * to boot on `SMS_MODE=mock` over a real one. So there is no environment
+ * variable, feature flag or mistake that prints a code over real data: reaching
+ * it would take a code change, and that code change is what a review would
+ * catch. It used to be keyed on `NODE_ENV=production`, which the demo also
+ * runs, so the demo could not boot once anything imported this seam.
  *
  * The destination is still masked, because the exception covers the code and
  * nothing else. A log line that carried both would be a full sign-in credential

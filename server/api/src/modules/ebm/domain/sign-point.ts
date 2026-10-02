@@ -57,3 +57,22 @@ export function resolveSignPoint(
 export function signPointOf(stamped: string | null | undefined): SignPoint {
   return stamped === 'checkout' ? 'checkout' : 'booking';
 }
+
+/**
+ * Which rule the GUEST'S receipt for a booking is drawn under (ADR-050 AC-1).
+ *
+ * The stamp, when there is one. With no stamp, the one case that differs from
+ * `signPointOf` is a request still waiting for its host: it is stamped under
+ * this process's rule the moment it is approved (the flag is read once per
+ * process), so its guest is shown the document they will still be holding
+ * afterwards, rather than a sale receipt that turns into a proforma on
+ * approval. Any other unstamped row reads `booking`, as `signPointOf` says.
+ */
+export function receiptSignPoint(
+  stamped: string | null | undefined,
+  status: string,
+  processRule: SignPoint,
+): SignPoint {
+  if (!stamped && status === 'pending_approval') return processRule;
+  return signPointOf(stamped);
+}
