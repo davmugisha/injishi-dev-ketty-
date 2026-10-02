@@ -97,6 +97,11 @@ export const AdminAuditSubjectType = z.enum([
     // "every audit row about this certificate" stays a query rather than a
     // search through payloads.
     "training_certificate",
+    // ADR-058 (migration 0053), caught by the same typecheck a third time. HR
+    // rows name the file or the pay run they touched; their diffs carry field
+    // names, and never an ID number, an RSSB number or a wage (AC-U5).
+    "employee",
+    "pay_run",
 ]);
 export type AdminAuditSubjectType = z.infer<typeof AdminAuditSubjectType>;
 /**

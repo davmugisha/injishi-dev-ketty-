@@ -139,6 +139,14 @@ export const OPS_READ = {
   threads: ["message.send"],
   /** Not `/ops`, but the same rule: `InventoryController` is `listing.manage`. */
   inventory: ["listing.manage"],
+  // The HR module (ADR-058, contract 4), each the route's own declaration.
+  employees: ["people.view", "people.manage", "payroll.run"],
+  leaveBalances: ["people.view", "people.manage", "leave.approve"],
+  shiftTemplates: ["roster.manage", "attendance.record"],
+  roster: ["roster.manage", "attendance.record", "people.view"],
+  attendance: ["attendance.record", "attendance.approve"],
+  leaveRequests: ["leave.approve"],
+  payRuns: ["payroll.run"],
 } as const satisfies Record<string, readonly Permission[]>;
 
 /**
