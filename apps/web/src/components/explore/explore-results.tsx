@@ -119,7 +119,7 @@ export function ExploreResults({
           data-variant="vertical"
           className={cn(
             "grid grid-cols-1 gap-x-6 gap-y-10 sm:grid-cols-2",
-            wide && "lg:grid-cols-3 2xl:grid-cols-4",
+            wide && "lg:grid-cols-3 xl:grid-cols-4",
           )}
         >
           {pageResults.map((listing) =>

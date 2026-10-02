@@ -71,36 +71,23 @@ export function ResultsToolbar({
   const sortLabel = SORT_OPTIONS.find((option) => option.value === sort)?.label ?? "Sort";
   const shown = count === totalCatalogue ? `${count}+` : String(count);
 
+  // Two deliberate rows: the count and the controls that act on the whole
+  // list share the first, centred on one line; the stay-type tabs take the
+  // second, over a full-width rule. Packed onto one row they wrapped in the
+  // narrower split-view column and left the controls floating on a line of
+  // their own.
   return (
-    <div data-results-toolbar className="flex flex-col gap-3">
-      <div className="flex flex-wrap items-end justify-between gap-x-6 gap-y-3">
-        <div className="flex min-w-0 flex-wrap items-end gap-x-6 gap-y-2">
-          <h2
-            data-result-count
-            data-count={count}
-            className="text-xl font-bold leading-tight text-foreground"
-          >
-            {count === 1 ? "1 stay" : `${shown} stays`} in {place}
-          </h2>
+    <div data-results-toolbar className="flex flex-col gap-4">
+      <div className="flex flex-wrap items-center justify-between gap-x-6 gap-y-3">
+        <h2
+          data-result-count
+          data-count={count}
+          className="text-xl font-bold leading-tight text-foreground"
+        >
+          {count === 1 ? "1 stay" : `${shown} stays`} in {place}
+        </h2>
 
-          <Tabs value={stayType} onValueChange={(value) => onStayTypeChange(value as StayType)}>
-            <TabsList variant="underline" aria-label="Stay type" className="-mx-1 scrollbar overflow-x-auto px-1">
-              {STAY_TYPES.map((type) => (
-                <TabsTrigger
-                  key={type.value}
-                  value={type.value}
-                  id={stayTabId(type.value)}
-                  aria-controls={EXPLORE_RESULTS_ID}
-                  data-stay-tab
-                >
-                  {type.label}
-                </TabsTrigger>
-              ))}
-            </TabsList>
-          </Tabs>
-        </div>
-
-        <div className="ml-auto flex flex-wrap items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button
@@ -109,7 +96,7 @@ export function ResultsToolbar({
                 data-sort-trigger
                 className="gap-2 whitespace-nowrap border-border bg-card px-4 py-2.5 text-page-fg hover:border-ink"
               >
-                <span className="hidden text-page-fg-70 2xl:inline">Sort by</span>
+                <span className="hidden text-page-fg-70 sm:inline">Sort by</span>
                 <span className="font-bold">{sortLabel}</span>
                 <ChevronDown className="size-4 text-muted-foreground" strokeWidth={2.2} aria-hidden />
               </Button>
@@ -159,6 +146,24 @@ export function ResultsToolbar({
             )}
           </Button>
         </div>
+      </div>
+
+      <div className="border-b border-separator">
+        <Tabs value={stayType} onValueChange={(value) => onStayTypeChange(value as StayType)}>
+          <TabsList variant="underline" aria-label="Stay type" className="-mx-1 -mb-px scrollbar overflow-x-auto px-1">
+            {STAY_TYPES.map((type) => (
+              <TabsTrigger
+                key={type.value}
+                value={type.value}
+                id={stayTabId(type.value)}
+                aria-controls={EXPLORE_RESULTS_ID}
+                data-stay-tab
+              >
+                {type.label}
+              </TabsTrigger>
+            ))}
+          </TabsList>
+        </Tabs>
       </div>
     </div>
   );

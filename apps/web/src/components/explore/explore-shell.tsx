@@ -2,7 +2,7 @@
 
 import dynamic from "next/dynamic";
 import { useRouter, useSearchParams } from "next/navigation";
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useMemo, useRef, useState } from "react";
 import {
   COMPARE_LIMIT,
   CompareSheet,
@@ -77,16 +77,44 @@ export function ExploreShell({
   const urlIntent = useMemo(() => parseIntent(searchParams), [searchParams]);
   const urlRefinement = useMemo(() => parseRefinement(searchParams), [searchParams]);
 
-  const [intent, setIntent] = useState<StayIntent>(urlIntent);
-  const [refinement, setRefinement] = useState<ExploreRefinement>(urlRefinement);
+  const [intent, setIntentState] = useState<StayIntent>(urlIntent);
+  const [refinement, setRefinementState] = useState<ExploreRefinement>(urlRefinement);
+
+  // The LATEST state, read by every handler below instead of the render's
+  // closure. A control that changes two things in one click (the date
+  // picker's Clear sets the dates, then the flex days; "Clear all" sets the
+  // place, then the filters) calls two handlers back to back, and each used
+  // to merge onto the state from before the click, so the second wrote the
+  // first's change back out. Merging onto these refs composes them.
+  const intentRef = useRef(intent);
+  const refinementRef = useRef(refinement);
+  intentRef.current = intent;
+  refinementRef.current = refinement;
+  const setIntent = useCallback((next: StayIntent) => {
+    intentRef.current = next;
+    setIntentState(next);
+  }, []);
+  const setRefinement = useCallback((next: ExploreRefinement) => {
+    refinementRef.current = next;
+    setRefinementState(next);
+  }, []);
   const [sheetOpen, setSheetOpen] = useState(false);
   // The map is on by default where there is room for it beside the list
   // (`lg` up) and off on a phone, where it swaps with the list instead. A
   // toggle overrides the default for this visit.
+  //
+  // The DEFAULT is laid out by CSS, not by JavaScript: `mapPref` null renders
+  // the map's column as `hidden lg:block` and the grid at its two-column
+  // shape, so the first paint already has the final layout. Deciding it from
+  // `useMediaQuery` painted the map-less four-column grid first and then
+  // jumped to the split view once the media query answered: the flicker on
+  // load. The query now only decides whether to MOUNT the map (so a phone
+  // never downloads maplibre for a hidden column).
   const desktop = useMediaQuery("(min-width: 1024px)");
   const [mapPref, setMapPref] = useState<boolean | null>(null);
-  const mapOn = mapPref ?? desktop;
-  const toggleMap = () => setMapPref(!mapOn);
+  const mapShown = mapPref ?? desktop;
+  const mountMap = mapPref === true || (mapPref === null && desktop);
+  const toggleMap = () => setMapPref(!mapShown);
   // Hover-sync: a card sets this on mouse-enter, the map highlights the pin;
   // a pin sets it on hover, the card scrolls into view. Selection is a
   // separate slot so a click on either side survives the next hover clear.
@@ -107,7 +135,7 @@ export function ExploreShell({
   );
 
   const listed = useMemo(() => {
-    if (!mapOn || !searchArea || !mapBounds) return results;
+    if (!mapShown || !searchArea || !mapBounds) return results;
     const [w, s, e, n] = mapBounds;
     return results.filter(
       (l) =>
@@ -118,7 +146,7 @@ export function ExploreShell({
         l.latitude >= s &&
         l.latitude <= n,
     );
-  }, [results, mapOn, searchArea, mapBounds]);
+  }, [results, mapShown, searchArea, mapBounds]);
 
   const commit = useCallback(
     (nextIntent: StayIntent, nextRefinement: ExploreRefinement) => {
@@ -133,12 +161,12 @@ export function ExploreShell({
 
   const goToPage = useCallback(
     (next: number) => {
-      const nextRefinement = { ...refinement, page: next };
+      const nextRefinement = { ...refinementRef.current, page: next };
       setRefinement(nextRefinement);
-      commit(intent, nextRefinement);
+      commit(intentRef.current, nextRefinement);
       window.scrollTo({ top: 0, behavior: "smooth" });
     },
-    [commit, intent, refinement],
+    [commit, setRefinement],
   );
 
   /**
@@ -155,14 +183,14 @@ export function ExploreShell({
   const onRefinementChange = useCallback(
     (next: Partial<ExploreRefinement>) => {
       const merged: ExploreRefinement = {
-        ...refinement,
+        ...refinementRef.current,
         ...next,
         page: "page" in next ? next.page! : 1,
       };
       setRefinement(merged);
-      commit(intent, merged);
+      commit(intentRef.current, merged);
     },
-    [commit, intent, refinement],
+    [commit, setRefinement],
   );
 
   const compared = useMemo(
@@ -195,28 +223,28 @@ export function ExploreShell({
     [refinement.picks, setPicks],
   );
 
-  /**
-   * "Clear all": the place AND every rail filter, in ONE commit. Two calls in
-   * a row (intent, then refinement) each committed from the state they
-   * closed over, so the second wrote the old place back into the URL.
-   */
+  /** "Clear all": the place AND every rail filter, in one commit. */
   const clearFilters = useCallback(() => {
-    const nextIntent: StayIntent = { ...intent, districts: [], query: "" };
-    const nextRefinement: ExploreRefinement = { ...refinement, ...CLEARED_REFINEMENT, page: 1 };
+    const nextIntent: StayIntent = { ...intentRef.current, districts: [], query: "" };
+    const nextRefinement: ExploreRefinement = {
+      ...refinementRef.current,
+      ...CLEARED_REFINEMENT,
+      page: 1,
+    };
     setIntent(nextIntent);
     setRefinement(nextRefinement);
     commit(nextIntent, nextRefinement);
-  }, [commit, intent, refinement]);
+  }, [commit, setIntent, setRefinement]);
 
   const onIntentChange = useCallback(
     (next: Partial<StayIntent>) => {
-      const mergedIntent: StayIntent = { ...intent, ...next };
-      const mergedRefinement: ExploreRefinement = { ...refinement, page: 1 };
+      const mergedIntent: StayIntent = { ...intentRef.current, ...next };
+      const mergedRefinement: ExploreRefinement = { ...refinementRef.current, page: 1 };
       setIntent(mergedIntent);
       setRefinement(mergedRefinement);
       commit(mergedIntent, mergedRefinement);
     },
-    [commit, intent, refinement],
+    [commit, setIntent, setRefinement],
   );
 
   const dates = intentDateSummary(intent);
@@ -247,9 +275,11 @@ export function ExploreShell({
         }
       />
 
-      <div className="mt-6 flex items-start gap-8 px-4 sm:px-6 xl:px-10">
+      {/* The site's page column, with or without the map: aligned with the
+          header and the search pill, never running to the screen's edges. */}
+      <div className="container mt-8 flex items-start gap-8">
         {/* On a phone the map replaces the list rather than squeezing in. */}
-        <div className={cn("min-w-0 flex-1", mapOn && "hidden lg:block")}>
+        <div className={cn("min-w-0 flex-1", mapPref === true && "hidden lg:block")}>
           <ResultsToolbar
             count={listed.length}
             totalCatalogue={listings.length}
@@ -258,7 +288,8 @@ export function ExploreShell({
             onStayTypeChange={(stayType) => onRefinementChange({ stayType })}
             sort={refinement.sort}
             onSortChange={(sort: ExploreSort) => onRefinementChange({ sort })}
-            mapOn={mapOn}
+            // The toggle only shows from `lg`, where the default is "on".
+            mapOn={mapPref ?? true}
             onToggleMap={toggleMap}
           />
 
@@ -301,7 +332,7 @@ export function ExploreShell({
               hoveredSlug={hoveredSlug}
               onCardHover={setHoveredSlug}
               cardVariant="vertical"
-              wide={!mapOn}
+              wide={mapPref === false}
               compare={
                 refinement.compare
                   ? {
@@ -315,15 +346,22 @@ export function ExploreShell({
           </div>
         </div>
 
-        {mapOn ? (
+        {mapPref !== false ? (
           // Pinned beside the list from `lg`, under the search band (whose
           // height the bar publishes as `--explore-band-bottom`). On a phone
           // it takes the screen the list gave up.
           <aside
             data-explore-map
-            className="sticky top-24 h-[calc(100dvh-120px)] w-full shrink-0 lg:top-[calc(var(--explore-band-bottom,169px)+16px)] lg:h-[calc(100dvh-var(--explore-band-bottom,169px)-32px)] lg:w-5/12"
+            // 213px: the band's real bottom edge at `lg` (header 80 + pill and
+            // filter row 133), so the column is already where it ends up
+            // before the bar publishes the measured value.
+            className={cn(
+              "sticky top-24 h-[calc(100dvh-120px)] w-full shrink-0 lg:top-[calc(var(--explore-band-bottom,213px)+16px)] lg:h-[calc(100dvh-var(--explore-band-bottom,213px)-32px)] lg:w-5/12",
+              mapPref === null && "hidden lg:block",
+            )}
           >
-            <ExploreMap
+            {mountMap ? (
+              <ExploreMap
               listings={results}
               hoveredSlug={hoveredSlug}
               selectedSlug={selectedSlug}
@@ -335,6 +373,9 @@ export function ExploreShell({
               areaCount={listed.length}
               intent={intent}
             />
+            ) : (
+              <MapSkeleton />
+            )}
           </aside>
         ) : null}
       </div>
@@ -342,10 +383,10 @@ export function ExploreShell({
       {/* The phone's list/map switch, floating where a thumb reaches it. */}
       <button
         type="button"
-        onClick={toggleMap}
+        onClick={() => setMapPref(mapPref !== true)}
         className="fixed bottom-[calc(5.5rem+env(safe-area-inset-bottom))] left-1/2 z-30 flex h-11 -translate-x-1/2 items-center gap-2 rounded-full bg-foreground px-5 text-sm font-bold text-background shadow-control lg:hidden"
       >
-        {mapOn ? (
+        {mapPref === true ? (
           <>
             <List className="size-4" strokeWidth={2.2} aria-hidden />
             Show list
