@@ -130,7 +130,10 @@ function cardToProperty(card: PropertyCard): PropertyDetail {
     heroImage: images[0]!,
     gallery: images,
     photoCount: card.photos.length,
-    price: { fromUsd: null, fromRwf: rate, basis: "per room, per night", includes: "Room only" },
+    // Per person: every Injishi booking is charged rate × guests × nights
+    // (owner decision 2026-09-15, `computeBreakdown`). This said "per room",
+    // so a couple read half of what checkout then charged them.
+    price: { fromUsd: null, fromRwf: rate, basis: "per person, per night", includes: "Room only" },
     nightlyRateRwf: rate,
     rating: null,
     operator: null,

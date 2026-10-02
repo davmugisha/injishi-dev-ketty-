@@ -8,7 +8,8 @@ import { ResultGallery } from "@/components/explore/result-gallery";
 import { SaveStayButton } from "@/components/stays/save-stay-button";
 import type { Listing } from "@/data/listings";
 import { formatRateNumber, NO_RATE, shortBasis } from "@/lib/price";
-import { propertyHref, type StayIntent } from "@/lib/search-params";
+import { partyPrice } from "@/lib/party-price";
+import { EMPTY_INTENT, propertyHref, type StayIntent } from "@/lib/search-params";
 import { ratingLabel } from "@/lib/rating";
 
 /**
@@ -32,6 +33,7 @@ export function ResultCardVertical({
   className?: string;
 }) {
   const rate = formatRateNumber(listing.nightlyRateRwf);
+  const party = partyPrice(listing.nightlyRateRwf, listing.priceBasis, intent ?? EMPTY_INTENT);
   const ref = useRef<HTMLElement | null>(null);
 
   useEffect(() => {
@@ -95,11 +97,18 @@ export function ResultCardVertical({
             covered the price ("F per room / night"). */}
         <div className="mt-2 flex items-center justify-between gap-2 border-t border-separator pt-2.5">
           {rate ? (
-            <p className="min-w-0 truncate text-sm font-bold text-foreground">
-              {rate}&nbsp;RWF{" "}
-              <span className="text-xs font-normal text-muted-foreground">
-                {shortBasis(listing.priceBasis)}
+            <p className="min-w-0 text-sm font-bold text-foreground">
+              <span className="block truncate">
+                {rate}&nbsp;RWF{" "}
+                <span className="text-xs font-normal text-muted-foreground">
+                  {shortBasis(listing.priceBasis)}
+                </span>
               </span>
+              {party ? (
+                <span className="block truncate text-xs font-normal text-muted-foreground">
+                  {party.label}: <b className="font-bold text-foreground">{party.amount}</b>
+                </span>
+              ) : null}
             </p>
           ) : (
             <p className="text-sm font-bold text-foreground">{NO_RATE}</p>

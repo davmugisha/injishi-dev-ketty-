@@ -3,11 +3,13 @@
 import "maplibre-gl/dist/maplibre-gl.css";
 
 import {
+  ArrowRight,
   ChevronRight,
   Info,
   LocateFixed,
   Map as MapIcon,
   MapPin,
+  Maximize2,
   MapPinned,
   Minus,
   Plus,
@@ -29,8 +31,9 @@ import { loadMapStyle, type MapTheme } from "@/components/explore/explore-map-st
 import { SaveStayButton } from "@/components/stays/save-stay-button";
 import { demoCommerceFor } from "@/data/demo-commerce";
 import type { Listing } from "@/data/listings";
-import { formatRateNumber, NO_RATE } from "@/lib/price";
-import { propertyHref, type StayIntent } from "@/lib/search-params";
+import { partyPrice } from "@/lib/party-price";
+import { formatRateNumber, NO_RATE, shortBasis } from "@/lib/price";
+import { EMPTY_INTENT, propertyHref, type StayIntent } from "@/lib/search-params";
 import { ratingLabel } from "@/lib/rating";
 
 /**
@@ -164,6 +167,8 @@ function boundsOf(pins: PlottedListing[]): [[number, number], [number, number]] 
 
 // Room for the header and switch above, the fold below, and pins growing up-right.
 const FIT_PADDING = { top: 170, bottom: 72, left: 56, right: 120 };
+// The rail's mini map: a chip on top, the controls and "Open map" below.
+const MINI_PADDING = { top: 64, bottom: 64, left: 32, right: 80 };
 
 const photoOf = (listing: Listing) => listing.image.src ?? `/assets/${listing.image.stem}.jpg`;
 
@@ -179,6 +184,8 @@ export function ExploreMap({
   areaCount,
   intent,
   className,
+  variant = "full",
+  onExpand,
 }: {
   listings: Listing[];
   hoveredSlug: string | null;
@@ -194,7 +201,16 @@ export function ExploreMap({
   areaCount: number;
   intent?: StayIntent;
   className?: string;
+  /**
+   * `mini` is the right rail's preview: no header, no area switch and no
+   * preview card. A click on a pin, the expand button or "Open map" calls
+   * `onExpand`, which opens the full split view on the same selection.
+   */
+  variant?: "full" | "mini";
+  onExpand?: () => void;
 }) {
+  const mini = variant === "mini";
+  const padding = mini ? MINI_PADDING : FIT_PADDING;
   const mapRef = useRef<MapRef | null>(null);
   const [loaded, setLoaded] = useState(false);
   const [groups, setGroups] = useState<PinGroup[]>([]);
@@ -243,9 +259,9 @@ export function ExploreMap({
         map.easeTo({ center: [only.longitude, only.latitude], zoom: 13, duration });
         return;
       }
-      map.fitBounds(boundsOf(plotted), { padding: FIT_PADDING, duration, maxZoom: 13 });
+      map.fitBounds(boundsOf(plotted), { padding, duration, maxZoom: 13 });
     },
-    [plotted],
+    [plotted, padding],
   );
 
   // A new result set: fit to it, and regroup straight away in case the
@@ -305,6 +321,11 @@ export function ExploreMap({
   const select = useCallback(
     (listing: PlottedListing) => {
       onSelect(listing.slug);
+      if (mini) {
+        // The preview card belongs to the full map; open it there.
+        onExpand?.();
+        return;
+      }
       setViewed((prev) => (prev.has(listing.slug) ? prev : new Set(prev).add(listing.slug)));
       // The preview opens ~400 px above the pin. If that would run off the
       // top or a side, ease the pin down into the lower middle of the map.
@@ -320,26 +341,27 @@ export function ExploreMap({
         });
       }
     },
-    [onSelect],
+    [onSelect, mini, onExpand],
   );
 
-  const zoomIntoCluster = useCallback((members: PlottedListing[]) => {
-    mapRef.current?.fitBounds(boundsOf(members), {
-      padding: FIT_PADDING,
-      duration: 500,
-      maxZoom: 15,
-    });
-  }, []);
+  const zoomIntoCluster = useCallback(
+    (members: PlottedListing[]) => {
+      mapRef.current?.fitBounds(boundsOf(members), { padding, duration: 500, maxZoom: 15 });
+    },
+    [padding],
+  );
 
   const popupListing = useMemo(
-    () => (selectedSlug ? (plotted.find((p) => p.slug === selectedSlug) ?? null) : null),
-    [selectedSlug, plotted],
+    () =>
+      !mini && selectedSlug ? (plotted.find((p) => p.slug === selectedSlug) ?? null) : null,
+    [mini, selectedSlug, plotted],
   );
 
   return (
     <div
       className={cn(
         "explore-map relative isolate h-full w-full overflow-hidden rounded-card bg-surface-secondary shadow-control ring-1 ring-border",
+        mini && "explore-map-mini",
         className,
       )}
     >
@@ -453,10 +475,39 @@ export function ExploreMap({
           basemap colour without a hard box across the top of the map. */}
       <div
         aria-hidden
-        className="pointer-events-none absolute inset-x-0 top-0 z-10 h-36 bg-gradient-to-b from-background/80 via-background/30 to-transparent"
+        className={cn(
+          "pointer-events-none absolute inset-x-0 top-0 z-10 bg-gradient-to-b from-background/80 via-background/30 to-transparent",
+          mini ? "h-20" : "h-36",
+        )}
       />
 
-      {plotted.length > 0 ? (
+      {mini ? (
+        <>
+          <div className="pointer-events-none absolute inset-x-3 top-3 z-20 flex items-center justify-between gap-2">
+            <span className="pointer-events-auto truncate rounded-full bg-card/95 px-3 py-1.5 text-xs font-bold text-foreground shadow-control ring-1 ring-border backdrop-blur">
+              {plotted.length} {plotted.length === 1 ? "stay" : "stays"} on the map
+            </span>
+            <button
+              type="button"
+              onClick={onExpand}
+              aria-label="Open the full map"
+              title="Open the full map"
+              className="pointer-events-auto flex size-8 shrink-0 items-center justify-center rounded-full bg-card/95 text-foreground shadow-control ring-1 ring-border backdrop-blur transition-colors hover:bg-card focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            >
+              <Maximize2 className="size-3.5" strokeWidth={2.4} aria-hidden />
+            </button>
+          </div>
+          <button
+            type="button"
+            onClick={onExpand}
+            className="absolute bottom-3 left-3 z-20 flex h-9 items-center gap-1.5 rounded-full bg-card px-3.5 text-xs font-bold text-foreground shadow-control ring-1 ring-border transition-colors hover:bg-surface-secondary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          >
+            <MapIcon className="size-3.5" strokeWidth={2.2} aria-hidden />
+            Open map
+            <ArrowRight className="size-3.5" strokeWidth={2.4} aria-hidden />
+          </button>
+        </>
+      ) : plotted.length > 0 ? (
         // The header and the area switch stack top-left: the map's bottom
         // edge sits below the fold until the page scrolls, so anything
         // pinned to the bottom would start out of sight.
@@ -476,6 +527,7 @@ export function ExploreMap({
         onZoomIn={() => mapRef.current?.zoomIn({ duration: 250 })}
         onZoomOut={() => mapRef.current?.zoomOut({ duration: 250 })}
         onFitAll={plotted.length > 0 ? () => fitAll() : undefined}
+        position={mini ? "bottom" : "top"}
       />
 
       {plotted.length === 0 && mapStyle ? <EmptyMapOverlay listingCount={listings.length} /> : null}
@@ -507,6 +559,12 @@ export function ExploreMap({
         }
         .explore-map .maplibregl-ctrl-attrib a {
           color: inherit;
+        }
+        /* The mini map is too small for the credit line to sit open across
+           its foot (it ran into "Open map"). It stays one tap away behind the
+           (i) button, which the tile licences ask for. */
+        .explore-map-mini .maplibregl-ctrl-attrib:not(:hover):not(:focus-within) .maplibregl-ctrl-attrib-inner {
+          display: none;
         }
         .explore-map .maplibregl-ctrl-bottom-right {
           z-index: 20;
@@ -736,7 +794,8 @@ function PhotoPin({
   onHover: (slug: string | null) => void;
 }) {
   const rate = listing.nightlyRateRwf;
-  const fullLabel = rate == null ? NO_RATE : `RWF ${formatRateNumber(rate)} a night`;
+  const fullLabel =
+    rate == null ? NO_RATE : `RWF ${formatRateNumber(rate)} ${shortBasis(listing.priceBasis)}`;
 
   // Selection is the Marker's onClick (it has to stop MapLibre's own click);
   // the button is here for focus, Enter/Space and the accessible name.
@@ -821,16 +880,24 @@ function MapControls({
   onZoomIn,
   onZoomOut,
   onFitAll,
+  position = "top",
 }: {
   onZoomIn: () => void;
   onZoomOut: () => void;
   onFitAll?: () => void;
+  /** `bottom` for the mini map, whose top edge holds its own chip. */
+  position?: "top" | "bottom";
 }) {
   const button =
     "flex size-10 items-center justify-center text-foreground transition-colors hover:bg-surface-secondary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring";
   const surface = "overflow-hidden rounded-card bg-card/90 shadow-control ring-1 ring-border backdrop-blur-md";
   return (
-    <div className="absolute right-3 top-3 z-20 flex flex-col gap-2">
+    <div
+      className={cn(
+        "absolute right-3 z-20 flex flex-col gap-2",
+        position === "top" ? "top-3" : "bottom-8",
+      )}
+    >
       <div className={cn("flex flex-col", surface)}>
         <button type="button" onClick={onZoomIn} aria-label="Zoom in" title="Zoom in" className={button}>
           <Plus className="size-4" strokeWidth={2.4} aria-hidden />
@@ -860,6 +927,7 @@ function MapControls({
 function PinPreview({ listing, intent }: { listing: PlottedListing; intent?: StayIntent }) {
   const href = intent ? propertyHref(listing.slug, intent) : `/property/${listing.slug}`;
   const reviewCount = demoCommerceFor(listing).reviewCount;
+  const party = partyPrice(listing.nightlyRateRwf, listing.priceBasis, intent ?? EMPTY_INTENT);
 
   return (
     <div className="group/card relative w-[300px] bg-card p-2 text-foreground">
@@ -922,7 +990,14 @@ function PinPreview({ listing, intent }: { listing: PlottedListing; intent?: Sta
             {listing.nightlyRateRwf != null ? (
               <>
                 {formatRateNumber(listing.nightlyRateRwf)} RWF{" "}
-                <span className="text-sm font-normal text-muted-foreground">/ night</span>
+                <span className="text-sm font-normal text-muted-foreground">
+                  {shortBasis(listing.priceBasis)}
+                </span>
+                {party ? (
+                  <span className="block text-xs font-normal text-muted-foreground">
+                    {party.label}: <b className="font-bold text-foreground">{party.amount}</b>
+                  </span>
+                ) : null}
               </>
             ) : (
               NO_RATE

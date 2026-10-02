@@ -11,7 +11,8 @@ import {
   TabsList,
   TabsTrigger,
 } from "@injishi/ui";
-import { List, Map as MapIcon, SlidersHorizontal } from "lucide-react";
+import { ChevronDown, Info, LayoutGrid, List, Map as MapIcon, SlidersHorizontal } from "lucide-react";
+import { cn } from "@injishi/utils";
 import { SORT_EXPLAINER, SORT_OPTIONS, STAY_TYPES, type ExploreSort, type StayType } from "@/lib/search-params";
 
 /**
@@ -27,8 +28,10 @@ export function stayTabId(type: StayType): string {
 }
 
 /**
- * The bar above the result list: the count, the stay-type tabs, the
- * sort-order explainer and the sort control.
+ * The bar above the result list: "61+ stays in Rwanda", the stay-type tabs,
+ * the sort control with its explainer one hover away, and the list/grid
+ * layout switch. The map toggle shows only where the right rail's mini map
+ * is not on screen, and to come back from the map view.
  *
  * The stay-type row is the shared `Tabs`, `underline` variant (2026-09-12).
  * It was three bare `<button>`s with a `border-b-2` each, and the public
@@ -42,9 +45,12 @@ export function stayTabId(type: StayType): string {
  * properties"); a check that needs the true count reads the attribute rather
  * than parsing prose, so a later copy change cannot break it.
  */
+export type ResultsView = "list" | "grid";
+
 export function ResultsToolbar({
   count,
   totalCatalogue,
+  place,
   stayType,
   onStayTypeChange,
   sort,
@@ -53,10 +59,15 @@ export function ResultsToolbar({
   activeFilterCount,
   mapOn,
   onToggleMap,
+  mapToggleAlways,
+  view,
+  onViewChange,
 }: {
   count: number;
   /** The whole catalogue's size, so "300+" never overstates what exists. */
   totalCatalogue: number;
+  /** Where the results are: "Rwanda", "Musanze", "2 districts". */
+  place: string;
   stayType: StayType;
   onStayTypeChange: (type: StayType) => void;
   sort: ExploreSort;
@@ -66,66 +77,47 @@ export function ResultsToolbar({
   activeFilterCount?: number;
   mapOn: boolean;
   onToggleMap: () => void;
+  /**
+   * The map toggle is needed only where the rail's mini map is not on screen
+   * (below `xl`) and to come back from the map view. False hides it at `xl`.
+   */
+  mapToggleAlways: boolean;
+  view: ResultsView;
+  onViewChange: (view: ResultsView) => void;
 }) {
   const sortLabel = SORT_OPTIONS.find((option) => option.value === sort)?.label ?? "Sort";
+  const shown = count === totalCatalogue ? `${count}+` : String(count);
 
   return (
     <div data-results-toolbar className="flex flex-col gap-3">
-      <Tabs value={stayType} onValueChange={(value) => onStayTypeChange(value as StayType)}>
-        <TabsList variant="underline" aria-label="Stay type" className="-mx-1 scrollbar overflow-x-auto px-1">
-          {STAY_TYPES.map((type) => (
-            <TabsTrigger
-              key={type.value}
-              value={type.value}
-              id={stayTabId(type.value)}
-              aria-controls={EXPLORE_RESULTS_ID}
-              data-stay-tab
-            >
-              {type.label}
-            </TabsTrigger>
-          ))}
-        </TabsList>
-      </Tabs>
+      <div className="flex flex-wrap items-end justify-between gap-x-6 gap-y-3">
+        <div className="flex min-w-0 flex-wrap items-end gap-x-6 gap-y-2">
+          <h2
+            data-result-count
+            data-count={count}
+            className="text-xl font-bold leading-tight text-foreground lg:text-2xl"
+          >
+            {count === 1 ? "1 stay" : `${shown} stays`} in {place}
+          </h2>
 
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div className="min-w-0">
-          <p data-result-count data-count={count} className="text-page-fg">
-            {count === 1 ? (
-              "1 property"
-            ) : (
-              <>
-                <b>{count === totalCatalogue ? `${count}+` : count}</b> properties
-              </>
-            )}
-          </p>
-          <p data-sort-explainer className="mt-0.5 text-xs text-page-fg-70">
-            How our sort order works
-            <span className="sr-only">: {SORT_EXPLAINER}</span>
-          </p>
+          <Tabs value={stayType} onValueChange={(value) => onStayTypeChange(value as StayType)}>
+            <TabsList variant="underline" aria-label="Stay type" className="-mx-1 scrollbar overflow-x-auto px-1">
+              {STAY_TYPES.map((type) => (
+                <TabsTrigger
+                  key={type.value}
+                  value={type.value}
+                  id={stayTabId(type.value)}
+                  aria-controls={EXPLORE_RESULTS_ID}
+                  data-stay-tab
+                >
+                  {type.label}
+                </TabsTrigger>
+              ))}
+            </TabsList>
+          </Tabs>
         </div>
 
-        <div className="flex items-center gap-2">
-          <Button
-            variant="outline"
-            size="sm"
-            data-map-toggle
-            aria-pressed={mapOn}
-            onClick={onToggleMap}
-            className="gap-2 whitespace-nowrap border-slate-line px-4 py-2.5 text-page-fg hover:border-ink"
-          >
-            {mapOn ? (
-              <>
-                <List className="size-4" strokeWidth={2} aria-hidden />
-                Show list
-              </>
-            ) : (
-              <>
-                <MapIcon className="size-4" strokeWidth={2} aria-hidden />
-                Show map
-              </>
-            )}
-          </Button>
-
+        <div className="ml-auto flex flex-wrap items-center gap-2">
           {onOpenFilters ? (
             <Button
               variant="outline"
@@ -144,16 +136,41 @@ export function ResultsToolbar({
             </Button>
           ) : null}
 
+          <Button
+            variant="outline"
+            size="sm"
+            data-map-toggle
+            aria-pressed={mapOn}
+            onClick={onToggleMap}
+            className={cn(
+              "gap-2 whitespace-nowrap border-slate-line px-4 py-2.5 text-page-fg hover:border-ink",
+              !mapToggleAlways && "xl:hidden",
+            )}
+          >
+            {mapOn ? (
+              <>
+                <List className="size-4" strokeWidth={2} aria-hidden />
+                Show list
+              </>
+            ) : (
+              <>
+                <MapIcon className="size-4" strokeWidth={2} aria-hidden />
+                Show map
+              </>
+            )}
+          </Button>
+
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button
                 variant="outline"
                 size="sm"
                 data-sort-trigger
-                className="gap-2 whitespace-nowrap border-slate-line px-5 py-2.5 text-page-fg hover:border-ink"
+                className="gap-2 whitespace-nowrap border-border bg-card px-4 py-2.5 text-page-fg hover:border-ink"
               >
-                <span className="text-page-fg-70">Sort by</span>
-                {sortLabel}
+                <span className="hidden text-page-fg-70 sm:inline">Sort by</span>
+                <span className="font-bold">{sortLabel}</span>
+                <ChevronDown className="size-4 text-muted-foreground" strokeWidth={2.2} aria-hidden />
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="border border-border">
@@ -169,6 +186,51 @@ export function ResultsToolbar({
               </DropdownMenuRadioGroup>
             </DropdownMenuContent>
           </DropdownMenu>
+
+          {/* How the default order is decided, kept one hover away rather
+              than as a second line under the count. */}
+          <span
+            data-sort-explainer
+            title={SORT_EXPLAINER}
+            className="hidden size-9 items-center justify-center rounded-full text-muted-foreground sm:flex"
+          >
+            <Info className="size-4" strokeWidth={2} aria-hidden />
+            <span className="sr-only">How our sort order works: {SORT_EXPLAINER}</span>
+          </span>
+
+          {!mapOn ? (
+            <div
+              role="radiogroup"
+              aria-label="Layout"
+              className="hidden items-center rounded-full bg-card p-1 ring-1 ring-border md:flex"
+            >
+              {(
+                [
+                  { value: "list", label: "List view", Icon: List },
+                  { value: "grid", label: "Grid view", Icon: LayoutGrid },
+                ] as const
+              ).map(({ value, label, Icon }) => (
+                <button
+                  key={value}
+                  type="button"
+                  role="radio"
+                  aria-checked={view === value}
+                  aria-label={label}
+                  title={label}
+                  onClick={() => onViewChange(value)}
+                  className={cn(
+                    "flex size-8 items-center justify-center rounded-full transition-colors",
+                    "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+                    view === value
+                      ? "bg-foreground text-background"
+                      : "text-muted-foreground hover:text-foreground",
+                  )}
+                >
+                  <Icon className="size-4" strokeWidth={2} aria-hidden />
+                </button>
+              ))}
+            </div>
+          ) : null}
         </div>
       </div>
     </div>

@@ -49,7 +49,8 @@ const NEIGHBOURHOOD: Readonly<Record<string, LatLng>> = {
   rwempasha: [-1.24, 30.26],
 };
 
-const DISTRICT: Readonly<Record<DistrictSlug, LatLng>> = {
+/** District centres, the fallback when a neighbourhood is not in the table. */
+const DISTRICT_CENTRE: Readonly<Record<DistrictSlug, LatLng>> = {
   kigali: [-1.9536, 30.0605],
   musanze: [-1.499, 29.634],
   rubavu: [-1.681, 29.2624],
@@ -87,7 +88,7 @@ export function approximateLocation(
   district: DistrictSlug,
 ): ApproximateLocation | null {
   const named = neighbourhood ? NEIGHBOURHOOD[placeKey(neighbourhood)] : undefined;
-  const centre = named ?? DISTRICT[district];
+  const centre = named ?? DISTRICT_CENTRE[district];
   if (!centre) return null;
   const spread = named ? 0.004 : 0.012;
   return {

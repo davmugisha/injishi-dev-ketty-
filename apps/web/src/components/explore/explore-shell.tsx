@@ -1,16 +1,19 @@
 "use client";
 
-import Link from "next/link";
 import dynamic from "next/dynamic";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useCallback, useMemo, useState } from "react";
-import { Button } from "@injishi/ui";
 import {
   COMPARE_LIMIT,
   CompareSheet,
   CompareTray,
 } from "@/components/explore/compare";
-import { ExploreFilterRail } from "@/components/explore/explore-filters";
+import { ActiveFilterChips, QuickFilters } from "@/components/explore/active-filters";
+import { CLEARED_REFINEMENT, ExploreFilterRail } from "@/components/explore/explore-filters";
+import { ExploreSideRail } from "@/components/explore/explore-side-rail";
+import { RecentlyViewedStrip } from "@/components/stays/recently-viewed";
+import { toRecentStay } from "@/data/recent-stay";
+import { SEARCH_DISTRICTS } from "@/data/search-options";
 import { ExploreResults } from "@/components/explore/explore-results";
 import { ExploreSearchBar } from "@/components/explore/explore-search-bar";
 import { FilterSheet } from "@/components/explore/filter-sheet";
@@ -28,11 +31,11 @@ function MapSkeleton() {
 import {
   EXPLORE_RESULTS_ID,
   ResultsToolbar,
+  type ResultsView,
   stayTabId,
 } from "@/components/explore/results-toolbar";
 import { LISTINGS, type Listing } from "@/data/listings";
 import type { MapBounds } from "@/components/explore/explore-map";
-import { PROMO_PAIR } from "@/data/promotions";
 import { filterListings } from "@/lib/filter-listings";
 import {
   DEFAULT_REFINEMENT,
@@ -72,6 +75,7 @@ export function ExploreShell({
 } = {}) {
   const router = useRouter();
   const listings = useMemo(() => [...databaseListings, ...LISTINGS], [databaseListings]);
+  const recentStays = useMemo(() => listings.map(toRecentStay), [listings]);
   const searchParams = useSearchParams();
 
   const urlIntent = useMemo(() => parseIntent(searchParams), [searchParams]);
@@ -81,6 +85,8 @@ export function ExploreShell({
   const [refinement, setRefinement] = useState<ExploreRefinement>(urlRefinement);
   const [sheetOpen, setSheetOpen] = useState(false);
   const [mapOn, setMapOn] = useState(false);
+  // List or grid. A layout preference for this visit, not part of the search.
+  const [view, setView] = useState<ResultsView>("list");
   // Hover-sync: a card sets this on mouse-enter, the map highlights the pin;
   // a pin sets it on hover, the card scrolls into view. Selection is a
   // separate slot so a click on either side survives the next hover clear.
@@ -189,6 +195,19 @@ export function ExploreShell({
     [refinement.picks, setPicks],
   );
 
+  /**
+   * "Clear all": the place AND every rail filter, in ONE commit. Two calls in
+   * a row (intent, then refinement) each committed from the state they
+   * closed over, so the second wrote the old place back into the URL.
+   */
+  const clearFilters = useCallback(() => {
+    const nextIntent: StayIntent = { ...intent, districts: [], query: "" };
+    const nextRefinement: ExploreRefinement = { ...refinement, ...CLEARED_REFINEMENT, page: 1 };
+    setIntent(nextIntent);
+    setRefinement(nextRefinement);
+    commit(nextIntent, nextRefinement);
+  }, [commit, intent, refinement]);
+
   const onIntentChange = useCallback(
     (next: Partial<StayIntent>) => {
       const mergedIntent: StayIntent = { ...intent, ...next };
@@ -201,24 +220,34 @@ export function ExploreShell({
   );
 
   const dates = intentDateSummary(intent);
+  const place =
+    intent.districts.length === 0
+      ? intent.query.trim() || "Rwanda"
+      : intent.districts.length === 1
+        ? (SEARCH_DISTRICTS.find((d) => d.slug === intent.districts[0])?.name ?? "1 district")
+        : `${intent.districts.length} districts`;
+  const openCompare = () => setCompareOpen(true);
 
   return (
     <div data-explore-shell>
       <ExploreSearchBar intent={intent} onIntentChange={onIntentChange} onSubmit={submit} />
 
-      <div className="container mt-6 flex items-start gap-6 xl:gap-7">
+      <div className="container mt-6 flex items-start gap-6">
         <ExploreFilterRail
           listings={listings}
           intent={intent}
           refinement={refinement}
           onIntentChange={onIntentChange}
           onRefinementChange={onRefinementChange}
+          onOpenCompare={openCompare}
+          onClearAll={clearFilters}
         />
 
         <div className="min-w-0 flex-1">
           <ResultsToolbar
             count={listed.length}
             totalCatalogue={listings.length}
+            place={place}
             stayType={refinement.stayType}
             onStayTypeChange={(stayType) => onRefinementChange({ stayType })}
             sort={refinement.sort}
@@ -229,7 +258,27 @@ export function ExploreShell({
             }
             mapOn={mapOn}
             onToggleMap={() => setMapOn((on) => !on)}
+            mapToggleAlways={mapOn}
+            view={view}
+            onViewChange={setView}
           />
+
+          <div className="mt-4 flex flex-col gap-3">
+            <QuickFilters
+              listings={listings}
+              intent={intent}
+              refinement={refinement}
+              onRefinementChange={onRefinementChange}
+            />
+            <ActiveFilterChips
+              listings={listings}
+              intent={intent}
+              refinement={refinement}
+              onIntentChange={onIntentChange}
+              onRefinementChange={onRefinementChange}
+              onClearAll={clearFilters}
+            />
+          </div>
 
           {dates ? (
             <p className="mt-2 text-sm text-page-fg-70">
@@ -237,6 +286,11 @@ export function ExploreShell({
               booking step.
             </p>
           ) : null}
+
+          {/* Recently viewed, on narrower screens. From `xl` the right rail
+              is the mini map and the editorial card; the home page carries
+              "Continue browsing" at every width. */}
+          <RecentlyViewedStrip stays={recentStays} intent={intent} className="mt-5 xl:hidden" />
 
           {/* The panel the stay-type tabs in the toolbar switch, named so each
               trigger can point at it. It wraps the empty state too, so a tab
@@ -260,7 +314,7 @@ export function ExploreShell({
               onPickDistrict={(slug) => onIntentChange({ districts: [slug] })}
               hoveredSlug={hoveredSlug}
               onCardHover={setHoveredSlug}
-              cardVariant={mapOn ? "vertical" : "horizontal"}
+              cardVariant={mapOn || view === "grid" ? "vertical" : "horizontal"}
               compare={
                 refinement.compare
                   ? {
@@ -283,7 +337,7 @@ export function ExploreShell({
           // the toolbar toggle re-appears as a full swap.
           <aside
             data-explore-map
-            className="sticky top-[169px] hidden h-[calc(100dvh-185px)] flex-1 shrink basis-0 md:block"
+            className="sticky top-24 hidden h-[calc(100dvh-112px)] flex-1 shrink basis-0 md:block lg:top-[calc(var(--explore-band-bottom,169px)+16px)] lg:h-[calc(100dvh-var(--explore-band-bottom,169px)-32px)]"
           >
             <ExploreMap
               listings={results}
@@ -299,7 +353,19 @@ export function ExploreShell({
             />
           </aside>
         ) : (
-          <AdRail />
+          <ExploreSideRail
+            results={results}
+            hoveredSlug={hoveredSlug}
+            selectedSlug={selectedSlug}
+            onHover={setHoveredSlug}
+            onSelect={setSelectedSlug}
+            onBoundsChange={setMapBounds}
+            onOpenMap={() => {
+              setMapOn(true);
+              window.scrollTo({ top: 0, behavior: "smooth" });
+            }}
+            intent={intent}
+          />
         )}
       </div>
 
@@ -334,46 +400,10 @@ export function ExploreShell({
         onIntentChange={onIntentChange}
         onRefinementChange={onRefinementChange}
         resultCount={results.length}
+        onOpenCompare={openCompare}
+        onClearAll={clearFilters}
       />
     </div>
-  );
-}
-
-/**
- * The narrow right rail at wide viewports.
- *
- * The reference sells this column to a third-party advertiser (Hilton, in the
- * capture). Injishi has no ad sales module and no advertiser relationship, so
- * inventing one would be a false claim about a company that has never bought
- * placement here. `PROMO_PAIR` is the real fixture ADR-022 authored for
- * exactly this shape — a claim-free promotional tile — reused rather than
- * duplicated.
- */
-function AdRail() {
-  const tiles = PROMO_PAIR.filter((tile): tile is NonNullable<typeof tile> => tile !== null);
-  if (tiles.length === 0) return null;
-
-  return (
-    <aside
-      data-ad-rail
-      className="sticky top-[96px] hidden w-[220px] shrink-0 flex-col gap-4 xl:flex"
-    >
-      {tiles.map((tile) => (
-        <div
-          key={tile.headline}
-          className="flex flex-col gap-2 rounded-card bg-surface-secondary p-5"
-        >
-          <span className="text-2xs font-bold uppercase tracking-widest text-accent-text">
-            {tile.tag}
-          </span>
-          <h3 className="text-base font-bold text-foreground">{tile.headline}</h3>
-          <p className="text-sm text-muted-foreground">{tile.body}</p>
-          <Button asChild variant="outline" size="sm" className="mt-1 w-max">
-            <Link href={tile.href}>{tile.ctaLabel}</Link>
-          </Button>
-        </div>
-      ))}
-    </aside>
   );
 }
 

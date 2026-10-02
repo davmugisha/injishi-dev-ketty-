@@ -11,7 +11,9 @@ import {
 } from "@/components/property/related-stays";
 import { DatabaseProperty } from "@/components/property/database-property";
 import { PropertyFacilities } from "@/components/property/property-facilities";
+import { KeyFacts } from "@/components/property/key-facts";
 import { PropertyGallery } from "@/components/property/property-gallery";
+import { RecordRecentView } from "@/components/property/record-recent-view";
 import {
   PropertySubtitle,
   PropertyTitle,
@@ -69,7 +71,12 @@ export default async function PropertyPage({
   const source = await resolvePropertyPage(slug);
   if (!source) notFound();
   if (source.kind === "database") {
-    return <DatabaseProperty property={source.property} slug={slug} />;
+    return (
+      <>
+        <RecordRecentView slug={slug} />
+        <DatabaseProperty property={source.property} slug={slug} />
+      </>
+    );
   }
   const property = source.property;
 
@@ -77,6 +84,7 @@ export default async function PropertyPage({
 
   return (
     <div className="flex flex-col items-center bg-background">
+      <RecordRecentView slug={slug} />
       {/*
         The mosaic replaces the full-bleed hero this page used to open with. The
         hero laid the name and rate over the photograph, which cost legibility on
@@ -98,17 +106,7 @@ export default async function PropertyPage({
               </p>
             ))}
 
-            <div className="mt-8 grid grid-cols-3 gap-4">
-              {property.specs.slice(0, 3).map((spec) => (
-                <div
-                  key={spec.label}
-                  className="flex flex-col gap-1 rounded-card border border-input p-4"
-                >
-                  <span className="text-xs text-page-fg-70">{spec.label}</span>
-                  <b className="text-page-fg">{spec.value}</b>
-                </div>
-              ))}
-            </div>
+            <KeyFacts property={property} />
           </section>
 
           <section>

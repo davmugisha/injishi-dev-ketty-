@@ -1,9 +1,9 @@
 "use client";
 
-import { GitCompare } from "lucide-react";
-import { Input } from "@injishi/ui";
+import { ArrowRight, GitCompare, Search, X } from "lucide-react";
+import { Button, Input } from "@injishi/ui";
 import { cn } from "@injishi/utils";
-import { ClearButton, FacetBlock } from "@/components/explore/filter-primitives";
+import { FacetBlock } from "@/components/explore/filter-primitives";
 import { PriceFilter } from "@/components/explore/price-filter";
 import {
   buildFacetGroups,
@@ -42,16 +42,22 @@ export function FilterRailBody({
   refinement,
   onIntentChange,
   onRefinementChange,
+  onOpenCompare,
+  onClearAll,
 }: {
   listings: Listing[];
   intent: StayIntent;
   refinement: ExploreRefinement;
   onIntentChange: (next: Partial<StayIntent>) => void;
   onRefinementChange: (next: Partial<ExploreRefinement>) => void;
+  /** Opens the side-by-side sheet. Absent where the rail cannot open it. */
+  onOpenCompare?: () => void;
+  /** Clears place and filters in one commit; see `clearFilters` in the shell. */
+  onClearAll: () => void;
 }) {
   const pool = (_id: string, field: FacetField) =>
     poolExcluding(listings, intent, refinement, field);
-  const groups = buildFacetGroups(pool);
+  const groups = buildFacetGroups(pool, (field) => facetSelection(field, intent, refinement));
 
   // The histogram redraws over whatever survives every filter EXCEPT the
   // price bound itself — the same "everything but this" pool the groups below
@@ -66,102 +72,55 @@ export function FilterRailBody({
   const setRange = (minRwf: number | null, maxRwf: number | null) =>
     onRefinementChange({ minRwf, maxRwf });
 
-  const onList = (field: FacetField & keyof ExploreRefinement, value: string) => {
-    const current = refinement[field] as string[];
-    onRefinementChange({ [field]: toggleFacet(current, value) } as Partial<ExploreRefinement>);
+  const toggle = (field: FacetField, value: string) => {
+    const patch = facetTogglePatch(field, value, intent, refinement);
+    if (patch.intent) onIntentChange(patch.intent);
+    if (patch.refinement) onRefinementChange(patch.refinement);
   };
+  const selectedFor = (field: FacetField) => facetSelection(field, intent, refinement);
 
-  const onDistrict = (slug: string) => {
-    onIntentChange({
-      districts: intent.districts.includes(slug)
-        ? intent.districts.filter((entry) => entry !== slug)
-        : [...intent.districts, slug],
-    });
-  };
-
-  const onClass = (value: string) => {
-    const stars = Number(value);
-    onRefinementChange({
-      classes: refinement.classes.includes(stars)
-        ? refinement.classes.filter((entry) => entry !== stars)
-        : [...refinement.classes, stars],
-    });
-  };
-
-  const onRadio = (field: "rating" | "bedrooms", value: string) => {
-    const parsed = Number(value);
-    onRefinementChange({ [field]: refinement[field] === parsed ? null : parsed });
-  };
-
-  const toggle = (group: FacetField, value: string) => {
-    switch (group) {
-      case "districts":
-        return onDistrict(value);
-      case "classes":
-        return onClass(value);
-      case "rating":
-        return onRadio("rating", value);
-      case "bedrooms":
-        return onRadio("bedrooms", value);
-      case "available":
-        return onRefinementChange({ available: !refinement.available });
-      default:
-        return onList(group, value);
-    }
-  };
-
-  const selectedFor = (group: FacetField): string[] => {
-    switch (group) {
-      case "districts":
-        return intent.districts;
-      case "classes":
-        return refinement.classes.map(String);
-      case "rating":
-        return refinement.rating !== null ? [String(refinement.rating)] : [];
-      case "bedrooms":
-        return refinement.bedrooms !== null ? [String(refinement.bedrooms)] : [];
-      case "available":
-        return refinement.available ? ["1"] : [];
-      default:
-        return refinement[group] as string[];
-    }
-  };
-
-  const clearAll = () => {
-    onIntentChange({ districts: [] });
-    onRefinementChange({
-      minRwf: null,
-      maxRwf: null,
-      kinds: [],
-      classes: [],
-      rating: null,
-      amenities: [],
-      roomAmenities: [],
-      experience: [],
-      views: [],
-      activities: [],
-      payment: [],
-      cancellation: [],
-      meals: [],
-      access: [],
-      popular: [],
-      bedrooms: null,
-      name: "",
-      available: false,
-    });
-  };
+  const clearAll = onClearAll;
 
   const activeCount = refinementCount(refinement) + (intent.districts.length > 0 ? 1 : 0);
 
   return (
     <div>
-      <RailShortcuts
+      <CompareCard
         compareOn={refinement.compare}
-        pickCount={refinement.picks.length}
-        onToggleCompare={() => onRefinementChange({ compare: !refinement.compare })}
-        name={refinement.name}
-        onNameChange={(name) => onRefinementChange({ name })}
+        picked={refinement.picks
+          .map((slug) => listings.find((l) => l.slug === slug))
+          .filter((l): l is Listing => l !== undefined)}
+        onToggleCompare={() =>
+          onRefinementChange({ compare: !refinement.compare, page: refinement.page })
+        }
+        onDismiss={() => onRefinementChange({ compare: false, picks: [], page: refinement.page })}
+        onOpenCompare={onOpenCompare}
       />
+
+      <div className="flex items-end justify-between gap-3 border-b border-separator pb-3 pt-5">
+        <div>
+          <h2 className="text-lg font-bold leading-tight text-foreground">Filters</h2>
+          <p className="mt-0.5 text-xs text-muted-foreground" aria-live="polite">
+            {activeCount === 0
+              ? "Nothing applied yet"
+              : `${activeCount} ${activeCount === 1 ? "filter" : "filters"} applied`}
+            {activeCount > 0 ? (
+              <>
+                {" · "}
+                <button
+                  type="button"
+                  onClick={clearAll}
+                  className="rounded font-bold text-accent-text underline-offset-2 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                >
+                  Clear all
+                </button>
+              </>
+            ) : null}
+          </p>
+        </div>
+      </div>
+
+      <NameSearch value={refinement.name} onChange={(name) => onRefinementChange({ name })} />
 
       <PriceFilter
         basis={refinement.priceBasis}
@@ -170,12 +129,8 @@ export function FilterRailBody({
         onBasisChange={setBasis}
         onRangeChange={setRange}
         histogram={histogram}
+        matchCount={filterListings(listings, intent, refinement).length}
       />
-
-      <div className="flex items-center justify-between border-t border-separator pt-4">
-        <h2 className="text-base font-bold text-foreground">Filter by</h2>
-        <ClearButton count={activeCount} onClear={clearAll} />
-      </div>
 
       {groups.map((group) => (
         <FacetBlock
@@ -189,83 +144,228 @@ export function FilterRailBody({
   );
 }
 
-/** The compare toggle and the name search, above "Filter by". */
-function RailShortcuts({
+/**
+ * Compare, at the top of the rail. Off, it is the tile that turns compare mode
+ * on. With stays picked it becomes a summary: how many, which, and the button
+ * that opens them side by side; × drops the picks and leaves compare mode.
+ */
+function CompareCard({
   compareOn,
-  pickCount,
+  picked,
   onToggleCompare,
-  name,
-  onNameChange,
+  onDismiss,
+  onOpenCompare,
 }: {
   compareOn: boolean;
-  pickCount: number;
+  picked: Listing[];
   onToggleCompare: () => void;
-  name: string;
-  onNameChange: (value: string) => void;
+  onDismiss: () => void;
+  onOpenCompare?: () => void;
 }) {
-  return (
-    <div className="flex flex-col gap-3 pb-4">
-      <button
-        type="button"
+  if (picked.length > 0) {
+    const names = picked.map((l) => l.nameLead.trim() || l.nameRest);
+    return (
+      <div
         data-rail-compare
-        aria-pressed={compareOn}
-        onClick={onToggleCompare}
+        className="relative rounded-card bg-surface-secondary p-4 ring-1 ring-accent"
+      >
+        <button
+          type="button"
+          onClick={onDismiss}
+          aria-label="Stop comparing and clear picks"
+          className="absolute right-2.5 top-2.5 flex size-7 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-card hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+        >
+          <X className="size-4" strokeWidth={2.4} aria-hidden />
+        </button>
+        <div className="flex items-start gap-3 pr-6">
+          <span className="flex size-9 shrink-0 items-center justify-center rounded-card bg-accent text-accent-foreground">
+            <GitCompare className="size-4.5" strokeWidth={2} aria-hidden />
+          </span>
+          <div className="min-w-0">
+            <p className="text-sm font-bold text-foreground">
+              {picked.length} {picked.length === 1 ? "property" : "properties"} selected
+            </p>
+            <p className="mt-0.5 line-clamp-2 text-xs text-muted-foreground">{names.join(" · ")}</p>
+          </div>
+        </div>
+        {onOpenCompare ? (
+          <Button
+            size="sm"
+            onClick={onOpenCompare}
+            disabled={picked.length < 2}
+            className="mt-3 w-full gap-1.5"
+          >
+            {picked.length < 2 ? "Pick one more to compare" : "Compare properties"}
+            {picked.length >= 2 ? <ArrowRight className="size-4" strokeWidth={2.4} aria-hidden /> : null}
+          </Button>
+        ) : null}
+        {!compareOn ? (
+          <button
+            type="button"
+            onClick={onToggleCompare}
+            className="mt-2 w-full rounded text-center text-xs font-bold text-accent-text hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          >
+            Pick more stays
+          </button>
+        ) : null}
+      </div>
+    );
+  }
+
+  return (
+    <button
+      type="button"
+      data-rail-compare
+      aria-pressed={compareOn}
+      onClick={onToggleCompare}
+      className={cn(
+        "flex w-full items-center gap-3 rounded-card border px-4 py-3 text-left transition-colors",
+        compareOn
+          ? "border-accent-text bg-surface-secondary"
+          : "border-border bg-card hover:bg-surface-secondary",
+      )}
+    >
+      <span
         className={cn(
-          "flex items-center gap-3 rounded-card border px-4 py-3 text-left transition-colors",
-          compareOn
-            ? "border-accent-text bg-surface-secondary"
-            : "border-slate-line hover:bg-surface-secondary",
+          "flex size-9 shrink-0 items-center justify-center rounded-card transition-colors",
+          compareOn ? "bg-accent text-accent-foreground" : "bg-surface-secondary text-muted-foreground",
         )}
       >
-        <span
-          className={cn(
-            "flex size-9 shrink-0 items-center justify-center rounded-full transition-colors",
-            compareOn ? "bg-accent text-accent-foreground" : "bg-surface-secondary text-muted-foreground",
-          )}
-        >
-          <GitCompare className="size-4.5" strokeWidth={2} aria-hidden />
-        </span>
-        <div className="min-w-0 flex-1">
-          <p className="flex items-center gap-2 text-sm font-bold text-foreground">
-            Compare properties
-            {pickCount > 0 ? (
-              <span className="rounded-full bg-foreground px-1.5 py-0.5 text-2xs font-bold leading-none text-background">
-                {pickCount}
-              </span>
-            ) : null}
-          </p>
-          <p className="text-xs text-muted-foreground">
-            {compareOn
-              ? "On. Tick Compare on up to 5 stays."
-              : "Get a side-by-side view of up to 5 properties."}
-          </p>
-        </div>
-      </button>
+        <GitCompare className="size-4.5" strokeWidth={2} aria-hidden />
+      </span>
+      <div className="min-w-0 flex-1">
+        <p className="text-sm font-bold text-foreground">Compare properties</p>
+        <p className="text-xs text-muted-foreground">
+          {compareOn
+            ? "On. Tick Compare on up to 5 stays."
+            : "Get a side-by-side view of up to 5 properties."}
+        </p>
+      </div>
+    </button>
+  );
+}
 
-      {/*
-        NOT a `FilterSection`: that primitive stamps `data-facet-group`, which
-        is also the checker's handle on the twenty computed rail blocks below.
-        This field is real but writes free text rather than a computed facet,
-        and letting it carry the same attribute would count it as a group with
-        zero options and fail the very check that proves the real groups all
-        have some.
-      */}
-      <div className="border-t border-separator pt-4">
-        <h3 className="mb-2 text-base font-bold text-foreground">
-          Search by property name
-        </h3>
+/**
+ * NOT a `FilterSection`: that primitive stamps `data-facet-group`, which is
+ * also the checker's handle on the twenty computed rail blocks below. This
+ * field is real but writes free text rather than a computed facet, and letting
+ * it carry the same attribute would count it as a group with zero options and
+ * fail the very check that proves the real groups all have some.
+ */
+function NameSearch({ value, onChange }: { value: string; onChange: (value: string) => void }) {
+  return (
+    <div className="border-b border-separator py-4">
+      <label className="relative block">
+        <span className="sr-only">Search by property name</span>
+        <Search
+          className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground"
+          strokeWidth={2}
+          aria-hidden
+        />
         <Input
           type="search"
           data-rail-name-search
-          value={name}
-          onChange={(event) => onNameChange(event.currentTarget.value)}
-          placeholder="e.g. Amberhill"
-          className="w-full"
+          value={value}
+          onChange={(event) => onChange(event.currentTarget.value)}
+          placeholder="Search by property name"
+          className="w-full pl-9"
         />
-      </div>
+      </label>
     </div>
   );
 }
+
+/* ------------------------------------------------- shared selection logic */
+
+/**
+ * What a facet group has ticked, as the option values the group renders. One
+ * reading of the URL state, shared by the rail and the active-filter chips so
+ * the two can never disagree about what is applied.
+ */
+export function facetSelection(
+  field: FacetField,
+  intent: StayIntent,
+  refinement: ExploreRefinement,
+): string[] {
+  switch (field) {
+    case "districts":
+      return intent.districts;
+    case "classes":
+      return refinement.classes.map(String);
+    case "rating":
+      return refinement.rating !== null ? [String(refinement.rating)] : [];
+    case "bedrooms":
+      return refinement.bedrooms !== null ? [String(refinement.bedrooms)] : [];
+    case "available":
+      return refinement.available ? ["1"] : [];
+    default:
+      return refinement[field] as string[];
+  }
+}
+
+/** The state change that ticks or unticks one option. */
+export function facetTogglePatch(
+  field: FacetField,
+  value: string,
+  intent: StayIntent,
+  refinement: ExploreRefinement,
+): { intent?: Partial<StayIntent>; refinement?: Partial<ExploreRefinement> } {
+  switch (field) {
+    case "districts":
+      return {
+        intent: {
+          districts: intent.districts.includes(value)
+            ? intent.districts.filter((entry) => entry !== value)
+            : [...intent.districts, value],
+        },
+      };
+    case "classes": {
+      const stars = Number(value);
+      return {
+        refinement: {
+          classes: refinement.classes.includes(stars)
+            ? refinement.classes.filter((entry) => entry !== stars)
+            : [...refinement.classes, stars],
+        },
+      };
+    }
+    case "rating":
+    case "bedrooms": {
+      const parsed = Number(value);
+      return { refinement: { [field]: refinement[field] === parsed ? null : parsed } };
+    }
+    case "available":
+      return { refinement: { available: !refinement.available } };
+    default:
+      return {
+        refinement: {
+          [field]: toggleFacet(refinement[field] as string[], value),
+        } as Partial<ExploreRefinement>,
+      };
+  }
+}
+
+/** Every rail filter back to its default; the view (sort, page, compare) kept. */
+export const CLEARED_REFINEMENT: Partial<ExploreRefinement> = {
+  minRwf: null,
+  maxRwf: null,
+  kinds: [],
+  classes: [],
+  rating: null,
+  amenities: [],
+  roomAmenities: [],
+  experience: [],
+  views: [],
+  activities: [],
+  payment: [],
+  cancellation: [],
+  meals: [],
+  access: [],
+  popular: [],
+  bedrooms: null,
+  name: "",
+  available: false,
+};
 
 /**
  * The DESKTOP rail: sticky, scrollable, and pinned to the left column.
@@ -278,7 +378,7 @@ export function ExploreFilterRail(props: React.ComponentProps<typeof FilterRailB
   return (
     <aside
       data-filter-rail
-      className="hidden lg:sticky lg:top-[169px] lg:block lg:h-[calc(100dvh-185px)] lg:w-[248px] lg:shrink-0 xl:w-[264px] scrollbar lg:overflow-y-auto lg:pr-2"
+      className="hidden lg:sticky lg:top-[calc(var(--explore-band-bottom,169px)+16px)] lg:block lg:h-[calc(100dvh-var(--explore-band-bottom,169px)-32px)] lg:w-[236px] lg:shrink-0 2xl:w-[264px] scrollbar lg:overflow-y-auto lg:pr-2"
     >
       <FilterRailBody {...props} />
     </aside>

@@ -30,6 +30,8 @@ export function FilterSheet({
   onIntentChange,
   onRefinementChange,
   resultCount,
+  onOpenCompare,
+  onClearAll,
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -39,6 +41,8 @@ export function FilterSheet({
   onIntentChange: (next: Partial<StayIntent>) => void;
   onRefinementChange: (next: Partial<ExploreRefinement>) => void;
   resultCount: number;
+  onOpenCompare?: () => void;
+  onClearAll: () => void;
 }) {
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
@@ -54,6 +58,16 @@ export function FilterSheet({
             refinement={refinement}
             onIntentChange={onIntentChange}
             onRefinementChange={onRefinementChange}
+            onClearAll={onClearAll}
+            onOpenCompare={
+              // One sheet at a time: close the filters, then open the comparison.
+              onOpenCompare
+                ? () => {
+                    onOpenChange(false);
+                    onOpenCompare();
+                  }
+                : undefined
+            }
           />
         </ScrollShadow>
 

@@ -95,13 +95,17 @@ function DropdownMenuRadioItem({
       className={cn(
         "relative flex cursor-pointer select-none items-center rounded py-2 pl-8 pr-3 text-sm outline-none",
         "focus:bg-secondary data-[disabled]:pointer-events-none data-[disabled]:opacity-50",
+        "data-[state=checked]:font-semibold",
         className,
       )}
       {...props}
     >
+      {/* A tick, the same mark the checkbox item uses. It was an 8px dot in
+          a bare inline <span>: inline boxes ignore width and height, so the
+          dot painted nothing and no radio menu ever showed its choice. */}
       <span className="absolute left-2 flex size-4 items-center justify-center">
-        <DropdownMenuPrimitive.ItemIndicator>
-          <span className="bg-foreground size-2 rounded-full" />
+        <DropdownMenuPrimitive.ItemIndicator className="flex items-center justify-center">
+          <CheckIcon className="size-4" strokeWidth={2.5} />
         </DropdownMenuPrimitive.ItemIndicator>
       </span>
       {children}

@@ -28,9 +28,11 @@ import { cn } from "@injishi/utils";
 import { demoCommerceFor } from "@/data/demo-commerce";
 import type { Listing } from "@/data/listings";
 import { amenityMark } from "@/lib/amenity-icon";
+import { bookingUnit } from "@/lib/booking-unit";
 import { formatRateNumber, NO_RATE, shortBasis } from "@/lib/price";
 import { ratingLabel } from "@/lib/rating";
-import { MAX_PICKS, propertyHref, type StayIntent } from "@/lib/search-params";
+import { partyPrice } from "@/lib/party-price";
+import { EMPTY_INTENT, MAX_PICKS, propertyHref, type StayIntent } from "@/lib/search-params";
 
 /**
  * Compare properties.
@@ -271,7 +273,7 @@ const No = () => (
 
 const REAL_VIEWS = { lake: "Lake view", mountain: "Mountain view" } as const;
 
-function buildSections(selected: Listing[]): Section[] {
+function buildSections(selected: Listing[], intent?: StayIntent): Section[] {
   const slugsWhere = (test: (l: Listing) => boolean) =>
     new Set(selected.filter(test).map((l) => l.slug));
 
@@ -310,6 +312,14 @@ function buildSections(selected: Listing[]): Section[] {
               <span>
                 <span className="text-base font-bold">{formatRateNumber(l.nightlyRateRwf)} RWF</span>
                 <span className="block text-xs text-muted-foreground">{shortBasis(l.priceBasis)}</span>
+                {(() => {
+                  const party = partyPrice(l.nightlyRateRwf, l.priceBasis, intent ?? EMPTY_INTENT);
+                  return party ? (
+                    <span className="mt-1 block text-xs text-muted-foreground">
+                      {party.label}: <b className="font-bold text-foreground">{party.amount}</b>
+                    </span>
+                  ) : null;
+                })()}
               </span>
             ),
           key: (l) => `${l.nightlyRateRwf}|${shortBasis(l.priceBasis)}`,
@@ -376,7 +386,10 @@ function buildSections(selected: Listing[]): Section[] {
         },
         {
           label: "Bedrooms",
-          cell: (l) => `${l.bedrooms} ${l.bedrooms === 1 ? "bedroom" : "bedrooms"}`,
+          cell: (l) => {
+            const noun = bookingUnit(l.kind, `${l.nameLead} ${l.nameRest}`).one;
+            return `${l.bedrooms} ${l.bedrooms === 1 ? "bedroom" : "bedrooms"} per ${noun}`;
+          },
           key: (l) => String(l.bedrooms),
         },
         {
@@ -446,7 +459,7 @@ export function CompareSheet({
     return () => window.clearTimeout(t);
   }, [copied]);
 
-  const sections = useMemo(() => buildSections(selected), [selected]);
+  const sections = useMemo(() => buildSections(selected, intent), [selected, intent]);
   const visible = useMemo(
     () =>
       sections
