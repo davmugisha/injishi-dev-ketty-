@@ -157,6 +157,7 @@ export function FilterRailBody({
     <div>
       <RailShortcuts
         compareOn={refinement.compare}
+        pickCount={refinement.picks.length}
         onToggleCompare={() => onRefinementChange({ compare: !refinement.compare })}
         name={refinement.name}
         onNameChange={(name) => onRefinementChange({ name })}
@@ -191,11 +192,13 @@ export function FilterRailBody({
 /** The compare toggle and the name search, above "Filter by". */
 function RailShortcuts({
   compareOn,
+  pickCount,
   onToggleCompare,
   name,
   onNameChange,
 }: {
   compareOn: boolean;
+  pickCount: number;
   onToggleCompare: () => void;
   name: string;
   onNameChange: (value: string) => void;
@@ -214,11 +217,27 @@ function RailShortcuts({
             : "border-slate-line hover:bg-surface-secondary",
         )}
       >
-        <GitCompare className="size-5 shrink-0 text-muted-foreground" strokeWidth={2} aria-hidden />
-        <div className="min-w-0">
-          <p className="text-sm font-bold text-foreground">Compare properties</p>
+        <span
+          className={cn(
+            "flex size-9 shrink-0 items-center justify-center rounded-full transition-colors",
+            compareOn ? "bg-accent text-accent-foreground" : "bg-surface-secondary text-muted-foreground",
+          )}
+        >
+          <GitCompare className="size-4.5" strokeWidth={2} aria-hidden />
+        </span>
+        <div className="min-w-0 flex-1">
+          <p className="flex items-center gap-2 text-sm font-bold text-foreground">
+            Compare properties
+            {pickCount > 0 ? (
+              <span className="rounded-full bg-foreground px-1.5 py-0.5 text-2xs font-bold leading-none text-background">
+                {pickCount}
+              </span>
+            ) : null}
+          </p>
           <p className="text-xs text-muted-foreground">
-            Get a side-by-side view of up to 5 properties.
+            {compareOn
+              ? "On. Tick Compare on up to 5 stays."
+              : "Get a side-by-side view of up to 5 properties."}
           </p>
         </div>
       </button>

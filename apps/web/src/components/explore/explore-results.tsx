@@ -1,6 +1,8 @@
 "use client";
 
 import { Button } from "@injishi/ui";
+import { cn } from "@injishi/utils";
+import { CompareToggle } from "@/components/explore/compare";
 import { Pagination } from "@/components/explore/pagination";
 import {
   BrandRail,
@@ -35,6 +37,7 @@ export function ExploreResults({
   hoveredSlug,
   onCardHover,
   cardVariant = "horizontal",
+  compare,
 }: {
   results: Listing[];
   intent: StayIntent;
@@ -47,7 +50,39 @@ export function ExploreResults({
   /** `vertical` is used inside the split-with-map layout; `horizontal` is the
    * default full-width list. */
   cardVariant?: "horizontal" | "vertical";
+  /** Compare mode: a checkbox over every card. Absent when the mode is off. */
+  compare?: {
+    selected: readonly string[];
+    full: boolean;
+    onToggle: (slug: string) => void;
+  };
 }) {
+  // The compare checkbox rides over the card's photo, top-left (the save
+  // heart owns top-right), outside the card so neither card shape changes.
+  const withCompare = (listing: Listing, card: React.ReactNode) => {
+    if (!compare) return card;
+    const selected = compare.selected.includes(listing.slug);
+    return (
+      <div
+        key={listing.slug}
+        className={cn(
+          "relative rounded-card transition-shadow duration-quick",
+          selected && "ring-2 ring-accent ring-offset-2 ring-offset-background",
+        )}
+      >
+        {card}
+        <div className="absolute left-3 top-3 z-30">
+          <CompareToggle
+            listing={listing}
+            selected={selected}
+            disabled={compare.full && !selected}
+            onToggle={compare.onToggle}
+          />
+        </div>
+      </div>
+    );
+  };
+
   const firstPageSize = PAGE_SIZE - INTERSTITIAL_SLOTS.length;
   const pageCount =
     results.length <= firstPageSize
@@ -81,15 +116,18 @@ export function ExploreResults({
           data-variant="vertical"
           className="grid grid-cols-1 gap-4 lg:grid-cols-2"
         >
-          {pageResults.map((listing) => (
-            <ResultCardVertical
-              key={listing.slug}
-              listing={listing}
-              intent={intent}
-              highlighted={hoveredSlug === listing.slug}
-              onHover={onCardHover}
-            />
-          ))}
+          {pageResults.map((listing) =>
+            withCompare(
+              listing,
+              <ResultCardVertical
+                key={listing.slug}
+                listing={listing}
+                intent={intent}
+                highlighted={hoveredSlug === listing.slug}
+                onHover={onCardHover}
+              />,
+            ),
+          )}
         </div>
         <Pagination page={currentPage} pageCount={pageCount} onPageChange={onPageChange} />
       </>
@@ -101,13 +139,16 @@ export function ExploreResults({
       <div data-result-list className="flex flex-col gap-4">
         {pageResults.flatMap((listing, index) => {
           const row: React.ReactNode[] = [
-            <ResultCard
-              key={listing.slug}
-              listing={listing}
-              intent={intent}
-              highlighted={hoveredSlug === listing.slug}
-              onHover={onCardHover}
-            />,
+            withCompare(
+              listing,
+              <ResultCard
+                key={listing.slug}
+                listing={listing}
+                intent={intent}
+                highlighted={hoveredSlug === listing.slug}
+                onHover={onCardHover}
+              />,
+            ),
           ];
           // The three interstitials ride the first page only: repeating a
           // promo under every page turn would read as another result rather

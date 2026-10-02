@@ -5,6 +5,11 @@ import dynamic from "next/dynamic";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useCallback, useMemo, useState } from "react";
 import { Button } from "@injishi/ui";
+import {
+  COMPARE_LIMIT,
+  CompareSheet,
+  CompareTray,
+} from "@/components/explore/compare";
 import { ExploreFilterRail } from "@/components/explore/explore-filters";
 import { ExploreResults } from "@/components/explore/explore-results";
 import { ExploreSearchBar } from "@/components/explore/explore-search-bar";
@@ -85,6 +90,9 @@ export function ExploreShell({
   // map's last visible bounds. The map always gets the full result set, so
   // narrowing the list can never feed back into what the map fits to.
   const [searchArea, setSearchArea] = useState(false);
+  // Compare: the picks live in the URL (`cmp`), so they survive filter
+  // changes, page turns and reloads, and a comparison can be shared.
+  const [compareOpen, setCompareOpen] = useState(false);
   const [mapBounds, setMapBounds] = useState<MapBounds | null>(null);
 
   const results = useMemo(
@@ -149,6 +157,36 @@ export function ExploreShell({
       commit(intent, merged);
     },
     [commit, intent, refinement],
+  );
+
+  const compared = useMemo(
+    () =>
+      refinement.picks
+        .map((slug) => listings.find((l) => l.slug === slug))
+        .filter((l): l is Listing => l !== undefined),
+    [refinement.picks, listings],
+  );
+  // Picking is not narrowing: keep the page the guest is on.
+  const setPicks = useCallback(
+    (picks: string[]) => onRefinementChange({ picks, page: refinement.page }),
+    [onRefinementChange, refinement.page],
+  );
+  const toggleCompare = useCallback(
+    (slug: string) => {
+      const picks = refinement.picks;
+      if (picks.includes(slug)) setPicks(picks.filter((s) => s !== slug));
+      else if (picks.length < COMPARE_LIMIT) setPicks([...picks, slug]);
+    },
+    [refinement.picks, setPicks],
+  );
+  const removeCompared = useCallback(
+    (slug: string) => {
+      const next = refinement.picks.filter((s) => s !== slug);
+      setPicks(next);
+      // A comparison of one is not a comparison; close the sheet.
+      if (next.length < 2) setCompareOpen(false);
+    },
+    [refinement.picks, setPicks],
   );
 
   const onIntentChange = useCallback(
@@ -223,6 +261,15 @@ export function ExploreShell({
               hoveredSlug={hoveredSlug}
               onCardHover={setHoveredSlug}
               cardVariant={mapOn ? "vertical" : "horizontal"}
+              compare={
+                refinement.compare
+                  ? {
+                      selected: refinement.picks,
+                      full: refinement.picks.length >= COMPARE_LIMIT,
+                      onToggle: toggleCompare,
+                    }
+                  : undefined
+              }
             />
           </div>
         </div>
@@ -255,6 +302,28 @@ export function ExploreShell({
           <AdRail />
         )}
       </div>
+
+      {refinement.compare ? (
+        <>
+          {/* Room under the last row, so the tray never covers pagination. */}
+          <div aria-hidden className="h-32" />
+          <CompareTray
+            selected={compared}
+            onRemove={removeCompared}
+            onClear={() => setPicks([])}
+            onOpen={() => setCompareOpen(true)}
+            onClose={() => onRefinementChange({ compare: false, page: refinement.page })}
+          />
+        </>
+      ) : null}
+      <CompareSheet
+        open={compareOpen}
+        onOpenChange={setCompareOpen}
+        selected={compared}
+        onRemove={removeCompared}
+        onAddMore={() => setCompareOpen(false)}
+        intent={intent}
+      />
 
       <FilterSheet
         open={sheetOpen}
