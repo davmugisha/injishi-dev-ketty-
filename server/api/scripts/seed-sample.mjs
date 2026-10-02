@@ -82,6 +82,10 @@ const STEPS = [
   { script: 'seed-demo-psf.mjs', what: 'PSF membership: tiers, an officer, an application (ADR-056)' },
   // Last: it places tenants on leases the two residence seeds above write.
   { script: 'seed-broker.mjs', what: 'brokers: credits, reveals, placements and fees (ADR-038 child 6)' },
+  // After every step that creates a membership: migration 0053 backfilled files
+  // only for memberships that existed when it ran, which on a migrate-then-seed
+  // database is none (ADR-058 AC-P5).
+  { script: 'seed-hr-files.mjs', what: 'HR: a staff file for every seeded staff account (ADR-058)' },
 ];
 
 function fail(message) {
