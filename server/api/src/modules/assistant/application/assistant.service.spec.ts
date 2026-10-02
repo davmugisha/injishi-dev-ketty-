@@ -3,7 +3,6 @@ import {
   type SendAssistantMessageInput,
 } from '@injishi/contracts';
 import {
-  BadGatewayException,
   ConflictException,
   ServiceUnavailableException,
 } from '@nestjs/common';
@@ -23,7 +22,9 @@ import { defaultProposals } from '../testing/fake-actions';
 import { GUEST_A, fakeReads } from '../testing/fake-listings';
 import { ToolSet } from './assistant-tools';
 import type { AssistantSettings } from './assistant-settings';
+import { CANNOT_ANSWER_NOW, FALLBACK_ARTICLE, UNCONFIRMED_FIGURE } from './answer-templates';
 import { AssistantService, INCOMPLETE_REPLY, REFUSAL_REPLY, extractCitations } from './assistant.service';
+import { FakeUsage } from '../testing/fake-usage';
 
 /** A model that answers from a script and records every request it saw. */
 class ScriptedModel implements AssistantModelPort {
@@ -49,7 +50,7 @@ function build(
   mode: AssistantSettings['mode'] = 'mock',
 ): { repo: FakeConversations; service: AssistantService } {
   const repo = new FakeConversations();
-  const service = new AssistantService(model, { mode, model: 'claude-sonnet-5-5' }, repo.asRepository(), new ToolSet(fakeReads), defaultProposals);
+  const service = new AssistantService(model, { mode, model: 'claude-sonnet-5-5' }, repo.asRepository(), new ToolSet(fakeReads), defaultProposals, new FakeUsage());
   return { repo, service };
 }
 
@@ -110,15 +111,18 @@ describe('AssistantService (ADR-061)', () => {
     expect(result.conversation.messages[1]).toMatchObject({ text: MOCK_NO_ANSWER, sources: [] });
   });
 
-  it('replays earlier turns to the model unchanged, in order (append only)', async () => {
+  it('sends one message with a short window of earlier turns, never replaying them (D-r)', async () => {
     const model = new ScriptedModel([]);
     const { service } = build(model);
     const first = await service.send({ kind: 'user', userId: 'u1' }, ask('one'), NOW);
     await service.send({ kind: 'user', userId: 'u1' }, ask('two'), NOW);
-    const firstTurn = model.requests[0].messages;
-    const secondTurn = model.requests[1].messages;
-    expect(secondTurn.slice(0, firstTurn.length)).toEqual(firstTurn);
-    expect(secondTurn.at(-1)).toEqual({ role: 'user', content: [{ type: 'text', text: 'two' }] });
+    expect(model.requests[0].messages).toEqual([{ role: 'user', content: [{ type: 'text', text: 'one' }] }]);
+    const second = model.requests[1].messages;
+    expect(second).toHaveLength(1);
+    const text = String(second[0].content[0].text);
+    expect(text).toContain('Person: one');
+    expect(text).toContain('Assistant: done');
+    expect(text.endsWith('Current question:\ntwo')).toBe(true);
     expect(first.conversation.messages[1].text).toBe('done');
   });
 
@@ -143,7 +147,9 @@ describe('AssistantService (ADR-061)', () => {
       { content: [{ type: 'text', text: 'I cannot do that.' }], stopReason: 'end_turn', model: 'x' },
     ]);
     const { service } = build(model);
-    await service.send({ kind: 'anon', tokenHash: null }, ask('change my price'), NOW);
+    // A question no rule answers, so it reaches the model (D-q); a price
+    // change request is now answered by the router without one.
+    await service.send({ kind: 'anon', tokenHash: null }, ask('could you sort this out for me somehow'), NOW);
     const toolResult = model.requests[1].messages.at(-1)?.content[0];
     expect(toolResult).toMatchObject({ type: 'tool_result', tool_use_id: 't1', is_error: true });
   });
@@ -186,11 +192,27 @@ describe('AssistantService (ADR-061)', () => {
     expect(cited.map((c) => c.id)).toEqual(['host-charges']);
   });
 
-  it('stores nothing when the model is unavailable, and answers 502', async () => {
+  it('answers by fallback when the model is unavailable, never with an error (D-u)', async () => {
     const { repo, service } = build(new ScriptedModel([new ModelUnavailableError('down')]));
-    await expect(service.send({ kind: 'anon', tokenHash: null }, ask('x'), NOW)).rejects.toBeInstanceOf(BadGatewayException);
-    expect(repo.rows).toHaveLength(0);
-    expect([...repo.messages.values()].flat()).toHaveLength(0);
+    const result = await service.send({ kind: 'anon', tokenHash: null }, ask('could you sort this out for me somehow'), NOW, { catalogueOpen: true });
+    const text = result.conversation.messages.at(-1)?.text ?? '';
+    expect(text.startsWith(FALLBACK_ARTICLE) || text.startsWith(CANNOT_ANSWER_NOW)).toBe(true);
+    const stored = [...repo.messages.values()].flat();
+    expect(stored.map((m) => m.role)).toEqual(['user', 'assistant']);
+    expect(stored[1].route).toBe('fallback:model_unavailable');
+  });
+
+  it('withholds a model answer that states a figure this turn holds nowhere (D-v)', async () => {
+    const say = (text: string): ModelTurn => ({ content: [{ type: 'text', text }], stopReason: 'end_turn', model: 'x' });
+    for (const invented of ['Listing costs 99,000 RWF a month.', 'Your payout arrives on 2026-10-14.']) {
+      const { service } = build(new ScriptedModel([say(invented)]));
+      const result = await service.send({ kind: 'anon', tokenHash: null }, ask('could you sort this out for me somehow'), NOW, { catalogueOpen: true });
+      expect(result.conversation.messages.at(-1)?.text).toBe(UNCONFIRMED_FIGURE);
+    }
+    // The person's own figure, and a small count, are not invented data.
+    const { service } = build(new ScriptedModel([say('At 45,000 RWF a night, 2 nights come to twice that.')]));
+    const result = await service.send({ kind: 'anon', tokenHash: null }, ask('explain if 45,000 RWF a night suits me'), NOW, { catalogueOpen: true });
+    expect(result.conversation.messages.at(-1)?.text).toBe('At 45,000 RWF a night, 2 nights come to twice that.');
   });
 
   it('refuses a full conversation with 409 conversation_full', async () => {

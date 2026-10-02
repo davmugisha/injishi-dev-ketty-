@@ -39,11 +39,13 @@ export class AssistantRetentionProcessor extends WorkerHost implements OnModuleI
       return;
     }
     const outcome = await this.retention.sweep();
-    const total = outcome.expiredProposals + outcome.closedApprovals + outcome.deletedConversations;
+    const total =
+      outcome.expiredProposals + outcome.closedApprovals + outcome.deletedConversations + outcome.deletedProposals + outcome.anonymisedUsage;
     if (total > 0) {
       this.logger.log(
         `Assistant retention: ${outcome.deletedConversations} conversation(s) and ${outcome.deletedProposals} proposal(s) deleted, ` +
-          `${outcome.expiredProposals} proposal(s) expired, ${outcome.closedApprovals} interrupted approval(s) closed`,
+          `${outcome.expiredProposals} proposal(s) expired, ${outcome.closedApprovals} interrupted approval(s) closed, ` +
+          `${outcome.anonymisedUsage} usage row(s) no longer name a person`,
       );
     }
   }

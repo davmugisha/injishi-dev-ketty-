@@ -1373,4 +1373,349 @@ export declare const AssistantFeedbackResult: z.ZodObject<{
     messageId: string;
 }>;
 export type AssistantFeedbackResult = z.infer<typeof AssistantFeedbackResult>;
+/**
+ * `GET /api/v1/admin/assistant/usage?month=YYYY-MM` (ADR-061 D-s), staff with
+ * `admin.analytics.view`. A month is a UTC calendar month; unset means the
+ * current one. Aggregates only: no person, conversation or text is returned.
+ */
+export declare const AssistantUsageMonth: z.ZodString;
+export declare const AssistantUsageQuery: z.ZodObject<{
+    month: z.ZodOptional<z.ZodString>;
+}, "strict", z.ZodTypeAny, {
+    month?: string | undefined;
+}, {
+    month?: string | undefined;
+}>;
+export type AssistantUsageQuery = z.infer<typeof AssistantUsageQuery>;
+export declare const AssistantCallerRole: z.ZodEnum<["anonymous", "signed_in", "operator", "staff"]>;
+export type AssistantCallerRole = z.infer<typeof AssistantCallerRole>;
+export declare const AssistantUsageReport: z.ZodObject<{
+    month: z.ZodString;
+    /** The month's first instant and the next month's, ISO 8601 in UTC. */
+    from: z.ZodString;
+    to: z.ZodString;
+    /** US dollars per million tokens, as configured when the report was read. */
+    prices: z.ZodObject<{
+        inputPerMTokUsd: z.ZodNumber;
+        outputPerMTokUsd: z.ZodNumber;
+        cacheReadPerMTokUsd: z.ZodNumber;
+        cacheWritePerMTokUsd: z.ZodNumber;
+    }, "strip", z.ZodTypeAny, {
+        inputPerMTokUsd: number;
+        outputPerMTokUsd: number;
+        cacheReadPerMTokUsd: number;
+        cacheWritePerMTokUsd: number;
+    }, {
+        inputPerMTokUsd: number;
+        outputPerMTokUsd: number;
+        cacheReadPerMTokUsd: number;
+        cacheWritePerMTokUsd: number;
+    }>;
+    modelRequests: z.ZodNumber;
+    tokens: z.ZodObject<{
+        input: z.ZodNumber;
+        output: z.ZodNumber;
+        cacheRead: z.ZodNumber;
+        cacheWrite: z.ZodNumber;
+    }, "strip", z.ZodTypeAny, {
+        input: number;
+        output: number;
+        cacheRead: number;
+        cacheWrite: number;
+    }, {
+        input: number;
+        output: number;
+        cacheRead: number;
+        cacheWrite: number;
+    }>;
+    /** Each call priced when it was made, summed; an estimate, not an invoice. */
+    estimatedCostUsd: z.ZodNumber;
+    /** Stored answers by how they were produced (D-q, D-u). */
+    answers: z.ZodObject<{
+        direct: z.ZodNumber;
+        ai: z.ZodNumber;
+        fallback: z.ZodNumber;
+        total: z.ZodNumber;
+    }, "strip", z.ZodTypeAny, {
+        total: number;
+        direct: number;
+        ai: number;
+        fallback: number;
+    }, {
+        total: number;
+        direct: number;
+        ai: number;
+        fallback: number;
+    }>;
+    /** Every user turn, one row each (D-s, D-x, D-y). */
+    turns: z.ZodObject<{
+        total: z.ZodNumber;
+        /** How turns ended; `failed` stored nothing; `truncated` hit the output ceiling. */
+        byOutcome: z.ZodObject<{
+            answered: z.ZodNumber;
+            fallback: z.ZodNumber;
+            withheld: z.ZodNumber;
+            truncated: z.ZodNumber;
+            out_of_time: z.ZodNumber;
+            step_limit: z.ZodNumber;
+            refused: z.ZodNumber;
+            failed: z.ZodNumber;
+        }, "strip", z.ZodTypeAny, {
+            failed: number;
+            fallback: number;
+            answered: number;
+            withheld: number;
+            truncated: number;
+            out_of_time: number;
+            step_limit: number;
+            refused: number;
+        }, {
+            failed: number;
+            fallback: number;
+            answered: number;
+            withheld: number;
+            truncated: number;
+            out_of_time: number;
+            step_limit: number;
+            refused: number;
+        }>;
+        /** Model answered turns by the calls they took: one is the norm (D-x). */
+        modelCallsPerModelTurn: z.ZodObject<{
+            one: z.ZodNumber;
+            two: z.ZodNumber;
+            threeOrMore: z.ZodNumber;
+        }, "strip", z.ZodTypeAny, {
+            one: number;
+            two: number;
+            threeOrMore: number;
+        }, {
+            one: number;
+            two: number;
+            threeOrMore: number;
+        }>;
+        /** Model answered turns where the gathered data was enough: candidates for a router rule. */
+        modelTurnsWithoutOwnToolCalls: z.ZodNumber;
+        tools: z.ZodArray<z.ZodObject<{
+            tool: z.ZodString;
+            runs: z.ZodNumber;
+        }, "strip", z.ZodTypeAny, {
+            tool: string;
+            runs: number;
+        }, {
+            tool: string;
+            runs: number;
+        }>, "many">;
+    }, "strip", z.ZodTypeAny, {
+        total: number;
+        byOutcome: {
+            failed: number;
+            fallback: number;
+            answered: number;
+            withheld: number;
+            truncated: number;
+            out_of_time: number;
+            step_limit: number;
+            refused: number;
+        };
+        modelCallsPerModelTurn: {
+            one: number;
+            two: number;
+            threeOrMore: number;
+        };
+        modelTurnsWithoutOwnToolCalls: number;
+        tools: {
+            tool: string;
+            runs: number;
+        }[];
+    }, {
+        total: number;
+        byOutcome: {
+            failed: number;
+            fallback: number;
+            answered: number;
+            withheld: number;
+            truncated: number;
+            out_of_time: number;
+            step_limit: number;
+            refused: number;
+        };
+        modelCallsPerModelTurn: {
+            one: number;
+            two: number;
+            threeOrMore: number;
+        };
+        modelTurnsWithoutOwnToolCalls: number;
+        tools: {
+            tool: string;
+            runs: number;
+        }[];
+    }>;
+    byRequestType: z.ZodArray<z.ZodObject<{
+        modelRequests: z.ZodNumber;
+        estimatedCostUsd: z.ZodNumber;
+    } & {
+        requestType: z.ZodString;
+    }, "strip", z.ZodTypeAny, {
+        requestType: string;
+        modelRequests: number;
+        estimatedCostUsd: number;
+    }, {
+        requestType: string;
+        modelRequests: number;
+        estimatedCostUsd: number;
+    }>, "many">;
+    byCallerRole: z.ZodArray<z.ZodObject<{
+        modelRequests: z.ZodNumber;
+        estimatedCostUsd: z.ZodNumber;
+    } & {
+        callerRole: z.ZodEnum<["anonymous", "signed_in", "operator", "staff"]>;
+    }, "strip", z.ZodTypeAny, {
+        modelRequests: number;
+        estimatedCostUsd: number;
+        callerRole: "anonymous" | "signed_in" | "operator" | "staff";
+    }, {
+        modelRequests: number;
+        estimatedCostUsd: number;
+        callerRole: "anonymous" | "signed_in" | "operator" | "staff";
+    }>, "many">;
+    byModel: z.ZodArray<z.ZodObject<{
+        modelRequests: z.ZodNumber;
+        estimatedCostUsd: z.ZodNumber;
+    } & {
+        model: z.ZodString;
+    }, "strip", z.ZodTypeAny, {
+        modelRequests: number;
+        estimatedCostUsd: number;
+        model: string;
+    }, {
+        modelRequests: number;
+        estimatedCostUsd: number;
+        model: string;
+    }>, "many">;
+}, "strip", z.ZodTypeAny, {
+    from: string;
+    month: string;
+    modelRequests: number;
+    estimatedCostUsd: number;
+    to: string;
+    prices: {
+        inputPerMTokUsd: number;
+        outputPerMTokUsd: number;
+        cacheReadPerMTokUsd: number;
+        cacheWritePerMTokUsd: number;
+    };
+    tokens: {
+        input: number;
+        output: number;
+        cacheRead: number;
+        cacheWrite: number;
+    };
+    answers: {
+        total: number;
+        direct: number;
+        ai: number;
+        fallback: number;
+    };
+    turns: {
+        total: number;
+        byOutcome: {
+            failed: number;
+            fallback: number;
+            answered: number;
+            withheld: number;
+            truncated: number;
+            out_of_time: number;
+            step_limit: number;
+            refused: number;
+        };
+        modelCallsPerModelTurn: {
+            one: number;
+            two: number;
+            threeOrMore: number;
+        };
+        modelTurnsWithoutOwnToolCalls: number;
+        tools: {
+            tool: string;
+            runs: number;
+        }[];
+    };
+    byRequestType: {
+        requestType: string;
+        modelRequests: number;
+        estimatedCostUsd: number;
+    }[];
+    byCallerRole: {
+        modelRequests: number;
+        estimatedCostUsd: number;
+        callerRole: "anonymous" | "signed_in" | "operator" | "staff";
+    }[];
+    byModel: {
+        modelRequests: number;
+        estimatedCostUsd: number;
+        model: string;
+    }[];
+}, {
+    from: string;
+    month: string;
+    modelRequests: number;
+    estimatedCostUsd: number;
+    to: string;
+    prices: {
+        inputPerMTokUsd: number;
+        outputPerMTokUsd: number;
+        cacheReadPerMTokUsd: number;
+        cacheWritePerMTokUsd: number;
+    };
+    tokens: {
+        input: number;
+        output: number;
+        cacheRead: number;
+        cacheWrite: number;
+    };
+    answers: {
+        total: number;
+        direct: number;
+        ai: number;
+        fallback: number;
+    };
+    turns: {
+        total: number;
+        byOutcome: {
+            failed: number;
+            fallback: number;
+            answered: number;
+            withheld: number;
+            truncated: number;
+            out_of_time: number;
+            step_limit: number;
+            refused: number;
+        };
+        modelCallsPerModelTurn: {
+            one: number;
+            two: number;
+            threeOrMore: number;
+        };
+        modelTurnsWithoutOwnToolCalls: number;
+        tools: {
+            tool: string;
+            runs: number;
+        }[];
+    };
+    byRequestType: {
+        requestType: string;
+        modelRequests: number;
+        estimatedCostUsd: number;
+    }[];
+    byCallerRole: {
+        modelRequests: number;
+        estimatedCostUsd: number;
+        callerRole: "anonymous" | "signed_in" | "operator" | "staff";
+    }[];
+    byModel: {
+        modelRequests: number;
+        estimatedCostUsd: number;
+        model: string;
+    }[];
+}>;
+export type AssistantUsageReport = z.infer<typeof AssistantUsageReport>;
 //# sourceMappingURL=assistant.d.ts.map

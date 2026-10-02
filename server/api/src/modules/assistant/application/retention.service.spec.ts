@@ -40,6 +40,10 @@ function fakeRepo(options: { stale?: StaleApprovalRow[]; batches?: number[]; alr
         calls.push('orphans');
         return 4;
       },
+      clearUsagePeople: async () => {
+        calls.push('usage');
+        return 6;
+      },
       deleteExpiredConversations: async () => {
         calls.push('delete');
         const conversations = batches.shift() ?? 0;
@@ -53,8 +57,8 @@ describe('AssistantRetentionService (ADR-061 D-d)', () => {
   it('expires proposals, then closes interrupted approvals, then deletes conversations, then orphaned proposals', async () => {
     const { repo, calls } = fakeRepo({ stale: [{ id: 'p1', proposed_value: 70000, live_price: '70000' }], batches: [3] });
     const outcome = await new AssistantRetentionService(repo).sweep(new Date('2026-09-30T12:00:00Z'));
-    expect(calls).toEqual(['expire', 'stale', 'close:p1', 'delete', 'orphans']);
-    expect(outcome).toEqual({ expiredProposals: 2, closedApprovals: 1, deletedConversations: 3, deletedProposals: 5 });
+    expect(calls).toEqual(['expire', 'stale', 'close:p1', 'delete', 'orphans', 'usage']);
+    expect(outcome).toEqual({ expiredProposals: 2, closedApprovals: 1, deletedConversations: 3, deletedProposals: 5, anonymisedUsage: 6 });
   });
 
   it('closes an interrupted approval from the live price: made when it moved, failed with words when not', async () => {

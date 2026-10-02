@@ -13,9 +13,21 @@ export function expiresAtFor(owned: boolean, lastMessageAt: Date): Date {
   return new Date(lastMessageAt.getTime() + days * DAY_MS);
 }
 
-/** Limits on a public write that costs money per call (D-n). */
+/**
+ * Limits on a public write that costs money per call (D-n). Six calls is a
+ * safety ceiling; one is the normal case (D-x).
+ */
 export const MAX_MODEL_CALLS_PER_TURN = 6;
+/** The hard ceiling on one call's output; `ASSISTANT_MAX_OUTPUT_TOKENS` may not exceed it (D-y). */
 export const MAX_OUTPUT_TOKENS = 8000;
+/** The lowest output ceiling accepted: below it thinking alone can exhaust a call. */
+export const MIN_OUTPUT_TOKENS = 256;
+/**
+ * One call's output by default (D-y): room for a short answer and the
+ * adaptive thinking that shares the budget. Tuned on the evaluation by the
+ * `truncated` count, never raised to make answers longer.
+ */
+export const DEFAULT_OUTPUT_TOKENS = 1500;
 /**
  * The whole turn, every model call and tool included, inside the 60 s the
  * API promises (D-p); the web client waits 65 s. No new model call starts

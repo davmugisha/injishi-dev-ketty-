@@ -110,7 +110,19 @@ export function createGuideTools(): AssistantTool[] {
 }
 
 function bestGuide(query: string): TaskGuide | null {
-  const wanted = new Set(tokens(query));
+  return matchGuide(query)?.guide ?? null;
+}
+
+/**
+ * The best matching current guide and how strongly it matched: 3 per title
+ * word, 2 per tag, 1 per description word. The request router answers from a
+ * guide only above its threshold (ADR-061 D-q); weaker matches go to the model.
+ */
+export function matchGuide(query: string): { guide: TaskGuide; score: number } | null {
+  // "Injishi" names the platform, not a task: "how do I reach Injishi
+  // support" is not "Register a business on Injishi". Help search keeps the
+  // word, because "what is Injishi" is exactly its article.
+  const wanted = new Set(tokens(query).filter((word) => word !== 'injishi'));
   let best: { guide: TaskGuide; score: number } | null = null;
   for (const guide of TASK_GUIDES) {
     if (guide.status !== 'current') continue;
@@ -127,7 +139,7 @@ function bestGuide(query: string): TaskGuide | null {
       best = { guide, score };
     }
   }
-  return best?.guide ?? null;
+  return best;
 }
 
 /** true or false from the grant in view; 'unknown' without a workspace. */

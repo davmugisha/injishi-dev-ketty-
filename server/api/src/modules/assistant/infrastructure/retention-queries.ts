@@ -148,6 +148,23 @@ export function deleteOrphanProposals(now: Date): RetentionQuery {
   };
 }
 
+/** How long a usage row keeps the person's id (D-s): the signed in retention. */
+export const USAGE_PERSON_MS = 90 * 24 * 60 * 60_000;
+
+/**
+ * A usage row outlives its conversation so the month's cost survives
+ * retention (D-s); after 90 days it stops naming the person. Tokens, cost,
+ * role, surface and route stay, which is all the report reads.
+ */
+export function clearUsagePeople(now: Date): RetentionQuery {
+  return {
+    text: `UPDATE assistant_model_usage
+             SET user_id = NULL
+           WHERE user_id IS NOT NULL AND created_at < $1`,
+    values: [new Date(now.getTime() - USAGE_PERSON_MS)],
+  };
+}
+
 /** One row of `staleApprovals`, as the driver returns it. */
 export interface StaleApprovalRow {
   id: string;

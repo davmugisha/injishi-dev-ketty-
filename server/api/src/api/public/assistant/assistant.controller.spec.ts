@@ -40,6 +40,7 @@ import {
   ASSISTANT_CONVERSATION_LIMIT,
 } from './assistant-throttler.guard';
 import { OperatorScopeResolver } from './operator-scope';
+import { FakeUsage } from '../../../modules/assistant/testing/fake-usage';
 
 const MESSAGES = '/api/v1/assistant/messages';
 const CURRENT = '/api/v1/assistant/conversations/current?surface=web';
@@ -121,6 +122,7 @@ async function boot(options: {
     repo.asRepository(),
     new ToolSet(fakeReads),
     defaultProposals,
+    new FakeUsage(),
   );
   const moduleRef = await Test.createTestingModule({
     imports: [ThrottlerModule.forRoot([{ name: 'money', ttl: 60_000, limit: 5 }])],
@@ -364,15 +366,20 @@ describe('AssistantController (ADR-061 slice A)', () => {
         ),
     }));
 
-    await post({ message: 'how do I approve a listing', surface: 'admin' }, { 'x-test-user': 'staff-1' });
+    // Explanation questions, so they reach the model (D-q) and its tool list
+    // can be read; simpler questions are answered by the router without one.
+    await post({ message: 'explain how listing approval works', surface: 'admin' }, { 'x-test-user': 'staff-1' });
+    expect(offered.length).toBeGreaterThan(0);
+    const asked = offered.length;
     expect(offered.at(-1)).toEqual(expect.arrayContaining(['search_help']));
     for (const name of OPERATOR_TOOLS) expect(offered.at(-1)).not.toContain(name);
 
     // Positive control: the same person in a workspace is offered them.
     await post(
-      { message: 'which rooms are free tomorrow', surface: 'app' },
+      { message: 'explain which rooms I should sell first', surface: 'app' },
       { 'x-test-user': 'staff-1', 'x-workspace-id': OPS_WORKSPACE },
     );
+    expect(offered.length).toBeGreaterThan(asked);
     expect(offered.at(-1)).toEqual(expect.arrayContaining(['rooms_on_dates', 'propose_room_price']));
   });
 
@@ -568,19 +575,21 @@ describe('AssistantController (ADR-061 slice A)', () => {
     expect(response.json()).toMatchObject({ code: 'assistant_off' });
   });
 
-  it('answers 502 model_unavailable, stores nothing and sets no cookie when the model fails', async () => {
+  it('answers 200 by fallback when the model fails, never 502 (D-u)', async () => {
     const failing: AssistantModelPort = {
       kind: 'mock',
       createTurn: () => Promise.reject(new ModelUnavailableError('down')),
     };
     let repo: FakeConversations;
     ({ app, repo } = await boot({ model: failing }));
-    const response = await post({ message: 'hi', surface: 'web' });
-    expect(response.statusCode).toBe(502);
-    expect(response.json()).toMatchObject({ code: 'model_unavailable' });
-    expect(response.headers['set-cookie']).toBeUndefined();
-    expect(repo.rows).toHaveLength(0);
-    expect([...repo.messages.values()].flat()).toHaveLength(0);
+    const response = await post({ message: 'could you sort this out for me somehow', surface: 'web' });
+    expect(response.statusCode).toBe(200);
+    const answer = response.json().conversation.messages.at(-1);
+    expect(answer.role).toBe('assistant');
+    expect(answer.text.length).toBeGreaterThan(10);
+    // A new anonymous conversation was started, so it gets its cookie.
+    expect(response.headers['set-cookie']).toBeDefined();
+    expect([...repo.messages.values()].flat().at(-1)?.route).toBe('fallback:model_unavailable');
   });
   /**
    * The Phase 1 success journeys (ADR-061 feature 12), each driven end to end
@@ -592,6 +601,44 @@ describe('AssistantController (ADR-061 slice A)', () => {
   describe('Phase 1 journeys (ADR-061 feature 12)', () => {
     const answerOf = (response: Awaited<ReturnType<typeof post>>): { text: string; sources: { id: string; kind: string }[] } =>
       response.json().conversation.messages.at(-1);
+
+    it('answers every journey question from Injishi’s own data with no model call, and hands only an explanation to the model (D-q)', async () => {
+      let modelCalls = 0;
+      const inner = new MockAssistantModel();
+      const counting: AssistantModelPort = {
+        kind: 'mock',
+        createTurn: (request) => {
+          modelCalls += 1;
+          return inner.createTurn(request);
+        },
+      };
+      defaultRoomTypes.price = 60000;
+      let repo: FakeConversations;
+      ({ app, repo } = await boot({
+        model: counting,
+        scope: () => Promise.resolve({ workspace: scoped(['stay.checkin', 'listing.manage']), stepUpNeeded: false }),
+      }));
+      const operator = { 'x-test-user': 'user-owner', 'x-workspace-id': OPS_WORKSPACE };
+      const asked: [object, Record<string, string>][] = [
+        [{ message: "I can't publish my property", surface: 'web' }, { host: 'localhost:8000', 'x-forwarded-for': '198.51.100.31' }],
+        [{ message: 'places to stay in Musanze', surface: 'web' }, { host: 'localhost:8000', 'x-forwarded-for': '198.51.100.32' }],
+        [{ message: 'show my trips', surface: 'web' }, { 'x-test-user': GUEST_A }],
+        [{ message: 'how do I check a guest in', surface: 'app' }, operator],
+        [{ message: 'which rooms are free on 2026-10-10', surface: 'app' }, operator],
+        [{ message: 'change the Double room price from 60,000 to 70,000', surface: 'app' }, operator],
+        [{ message: 'I want to talk to a person', surface: 'web' }, { 'x-forwarded-for': '198.51.100.33' }],
+      ];
+      for (const [body, headers] of asked) expect((await post(body, headers)).statusCode).toBe(200);
+      expect(modelCalls).toBe(0);
+      const routes = (): (string | null)[] => [...repo.messages.values()].flat().filter((m) => m.role === 'assistant').map((m) => m.route);
+      expect(routes().every((route) => route?.startsWith('direct:'))).toBe(true);
+      expect(routes()).toHaveLength(asked.length);
+
+      // An explanation is the model's job, and the only question here that reaches it.
+      await post({ message: 'explain how listing approval works', surface: 'web' }, { 'x-forwarded-for': '198.51.100.34' });
+      expect(modelCalls).toBeGreaterThan(0);
+      expect(routes().at(-1)).toBe('ai:analysis');
+    });
 
     it('journey 1: an anonymous visitor gets a sourced answer about Injishi and finds published places', async () => {
       ({ app } = await boot());

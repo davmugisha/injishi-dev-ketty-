@@ -7,6 +7,7 @@ import { FakeConversations } from '../testing/fake-conversations';
 import { fakeReads } from '../testing/fake-listings';
 import { ToolSet } from './assistant-tools';
 import { AssistantService } from './assistant.service';
+import { FakeUsage } from '../testing/fake-usage';
 
 const NOW = new Date('2026-09-30T10:00:00Z');
 
@@ -18,6 +19,7 @@ function build(): { repo: FakeConversations; service: AssistantService } {
     repo.asRepository(),
     new ToolSet(fakeReads),
     defaultProposals,
+    new FakeUsage(),
   );
   return { repo, service };
 }

@@ -1,5 +1,6 @@
 import { sql } from 'drizzle-orm';
 import {
+  bigint,
   boolean,
   check,
   index,
@@ -91,6 +92,11 @@ export const assistantMessages = pgTable(
     // What the answer cited, already checked against what a tool returned in
     // the same turn. Only these are shown as sources.
     sources: jsonb('sources').notNull().default(sql`'[]'::jsonb`),
+    // How an assistant answer was produced (ADR-061 D-q): `direct:<intent>` by
+    // the request router with no model call, `ai:<reason>` by the model, or
+    // `fallback:<reason>` without it. Null on the person's own messages and on
+    // answers stored before the router existed.
+    route: text('route'),
     createdAt: timestamp('created_at', { withTimezone: true })
       .notNull()
       .defaultNow(),
@@ -170,4 +176,104 @@ export const assistantFeedback = pgTable(
       .defaultNow(),
   },
   (t) => [uniqueIndex('assistant_feedback_message_uk').on(t.messageId)],
+);
+
+/**
+ * One row per model call that reported usage (ADR-061 D-s, migration
+ * 0054_assistant_data_first): the tokens it used and what it is estimated to
+ * have cost, priced from configuration at the time of the call.
+ *
+ * It OUTLIVES its conversation on purpose: the month's cost must survive the
+ * 7 and 90 day retention, so the conversation and message links are cleared,
+ * not cascaded, and the retention sweep clears the person's id after 90 days.
+ */
+export const assistantModelUsage = pgTable(
+  'assistant_model_usage',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    conversationId: uuid('conversation_id').references(() => assistantConversations.id, {
+      onDelete: 'set null',
+    }),
+    messageId: uuid('message_id').references(() => assistantMessages.id, { onDelete: 'set null' }),
+    userId: uuid('user_id').references(() => users.id, { onDelete: 'set null' }),
+    surface: text('surface').notNull(),
+    callerRole: text('caller_role').notNull(),
+    requestType: text('request_type').notNull(),
+    model: text('model').notNull(),
+    inputTokens: integer('input_tokens').notNull(),
+    outputTokens: integer('output_tokens').notNull(),
+    cacheReadTokens: integer('cache_read_tokens').notNull().default(0),
+    cacheWriteTokens: integer('cache_write_tokens').notNull().default(0),
+    estimatedCostMicroUsd: bigint('estimated_cost_micro_usd', { mode: 'number' }).notNull(),
+    createdAt: timestamp('created_at', { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (t) => [
+    index('assistant_model_usage_created_idx').on(t.createdAt),
+    index('assistant_model_usage_user_created_idx').on(t.userId, t.createdAt),
+    index('assistant_model_usage_conversation_created_idx').on(t.conversationId, t.createdAt),
+    check(
+      'assistant_model_usage_caller_role',
+      sql`${t.callerRole} IN ('anonymous', 'signed_in', 'operator', 'staff')`,
+    ),
+    check(
+      'assistant_model_usage_tokens_nonnegative',
+      sql`${t.inputTokens} >= 0 AND ${t.outputTokens} >= 0 AND ${t.cacheReadTokens} >= 0 AND ${t.cacheWriteTokens} >= 0 AND ${t.estimatedCostMicroUsd} >= 0`,
+    ),
+  ],
+);
+
+/**
+ * One row per user turn (ADR-061 D-s, D-x, D-y, migration
+ * 0054_assistant_data_first), whether or not an answer was stored: which path
+ * answered (the route), how it ended (the outcome), the model calls it made
+ * and the tool calls the model itself asked for, every tool run in the turn,
+ * its tokens and estimated cost, and how long it took.
+ *
+ * No person and no text, so it outlives retention like the usage rows; the
+ * conversation and message links are cleared with them. It is how an
+ * unnecessary model call, a turn that needed more than two, a truncated
+ * answer or a timeout is found.
+ */
+export const assistantTurns = pgTable(
+  'assistant_turns',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    conversationId: uuid('conversation_id').references(() => assistantConversations.id, {
+      onDelete: 'set null',
+    }),
+    messageId: uuid('message_id').references(() => assistantMessages.id, { onDelete: 'set null' }),
+    surface: text('surface').notNull(),
+    callerRole: text('caller_role').notNull(),
+    route: text('route').notNull(),
+    outcome: text('outcome').notNull(),
+    modelCalls: integer('model_calls').notNull().default(0),
+    modelToolCalls: integer('model_tool_calls').notNull().default(0),
+    tools: text('tools').array().notNull().default(sql`'{}'::text[]`),
+    inputTokens: integer('input_tokens').notNull().default(0),
+    outputTokens: integer('output_tokens').notNull().default(0),
+    cacheReadTokens: integer('cache_read_tokens').notNull().default(0),
+    cacheWriteTokens: integer('cache_write_tokens').notNull().default(0),
+    estimatedCostMicroUsd: bigint('estimated_cost_micro_usd', { mode: 'number' }).notNull().default(0),
+    durationMs: integer('duration_ms').notNull(),
+    createdAt: timestamp('created_at', { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (t) => [
+    index('assistant_turns_created_idx').on(t.createdAt),
+    check(
+      'assistant_turns_caller_role',
+      sql`${t.callerRole} IN ('anonymous', 'signed_in', 'operator', 'staff')`,
+    ),
+    check(
+      'assistant_turns_outcome',
+      sql`${t.outcome} IN ('answered', 'fallback', 'withheld', 'truncated', 'out_of_time', 'step_limit', 'refused', 'failed')`,
+    ),
+    check(
+      'assistant_turns_counts_nonnegative',
+      sql`${t.modelCalls} >= 0 AND ${t.modelToolCalls} >= 0 AND ${t.inputTokens} >= 0 AND ${t.outputTokens} >= 0 AND ${t.cacheReadTokens} >= 0 AND ${t.cacheWriteTokens} >= 0 AND ${t.estimatedCostMicroUsd} >= 0 AND ${t.durationMs} >= 0`,
+    ),
+  ],
 );

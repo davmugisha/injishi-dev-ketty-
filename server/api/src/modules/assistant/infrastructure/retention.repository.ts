@@ -3,6 +3,7 @@ import { type SQL, sql } from 'drizzle-orm';
 
 import { DRIZZLE, type Database } from '../../../shared/database/database.module';
 import {
+  clearUsagePeople,
   closeStaleApproval,
   deleteExpiredConversations,
   deleteOrphanProposals,
@@ -49,6 +50,10 @@ export class RetentionRepository {
 
   async deleteOrphanProposals(now: Date): Promise<number> {
     return (await this.run(deleteOrphanProposals(now))).rowCount ?? 0;
+  }
+
+  async clearUsagePeople(now: Date): Promise<number> {
+    return (await this.run(clearUsagePeople(now))).rowCount ?? 0;
   }
 }
 

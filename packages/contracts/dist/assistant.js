@@ -1,6 +1,6 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.AssistantFeedbackResult = exports.AssistantFeedbackInput = exports.SendAssistantEscalationResult = exports.SendAssistantEscalationInput = exports.AssistantErrorCode = exports.ClaimAssistantConversationResult = exports.ClaimAssistantConversationInput = exports.AssistantCurrentConversation = exports.SendAssistantMessageResult = exports.AssistantConversation = exports.AssistantMessage = exports.AssistantRole = exports.AssistantProposalResult = exports.AssistantProposal = exports.AssistantProposalState = exports.AssistantProposalKind = exports.AssistantSource = exports.AssistantSourceKind = exports.SendAssistantMessageInput = exports.AssistantSurface = exports.ASSISTANT_TURN_LIMIT = exports.ASSISTANT_PAGE_PATH_MAX = exports.ASSISTANT_MESSAGE_MAX = void 0;
+exports.AssistantUsageReport = exports.AssistantCallerRole = exports.AssistantUsageQuery = exports.AssistantUsageMonth = exports.AssistantFeedbackResult = exports.AssistantFeedbackInput = exports.SendAssistantEscalationResult = exports.SendAssistantEscalationInput = exports.AssistantErrorCode = exports.ClaimAssistantConversationResult = exports.ClaimAssistantConversationInput = exports.AssistantCurrentConversation = exports.SendAssistantMessageResult = exports.AssistantConversation = exports.AssistantMessage = exports.AssistantRole = exports.AssistantProposalResult = exports.AssistantProposal = exports.AssistantProposalState = exports.AssistantProposalKind = exports.AssistantSource = exports.AssistantSourceKind = exports.SendAssistantMessageInput = exports.AssistantSurface = exports.ASSISTANT_TURN_LIMIT = exports.ASSISTANT_PAGE_PATH_MAX = exports.ASSISTANT_MESSAGE_MAX = void 0;
 const zod_1 = require("zod");
 const primitives_1 = require("./primitives");
 const support_1 = require("./support");
@@ -167,6 +167,8 @@ exports.AssistantErrorCode = zod_1.z.enum([
     "assistant_off",
     "conversation_full",
     "conversation_busy",
+    // Retired by ADR-061 D-u: the API now answers by fallback with 200 and never
+    // sends it. Kept so a client built against Phase 1 still parses.
     "model_unavailable",
     // Approval refusals (ADR-061 D-k).
     "proposal_closed",
@@ -191,4 +193,57 @@ exports.SendAssistantEscalationResult = zod_1.z.object({ ticketId: primitives_1.
 /** `POST /api/v1/assistant/messages/:id/feedback` (ADR-061 D-m). */
 exports.AssistantFeedbackInput = zod_1.z.object({ helpful: zod_1.z.boolean() }).strict();
 exports.AssistantFeedbackResult = zod_1.z.object({ messageId: primitives_1.Uuid, helpful: zod_1.z.boolean() });
+/**
+ * `GET /api/v1/admin/assistant/usage?month=YYYY-MM` (ADR-061 D-s), staff with
+ * `admin.analytics.view`. A month is a UTC calendar month; unset means the
+ * current one. Aggregates only: no person, conversation or text is returned.
+ */
+exports.AssistantUsageMonth = zod_1.z.string().regex(/^\d{4}-(0[1-9]|1[0-2])$/, "A month is written YYYY-MM.");
+exports.AssistantUsageQuery = zod_1.z.object({ month: exports.AssistantUsageMonth.optional() }).strict();
+exports.AssistantCallerRole = zod_1.z.enum(["anonymous", "signed_in", "operator", "staff"]);
+const count = zod_1.z.number().int().nonnegative();
+const usd = zod_1.z.number().nonnegative();
+const AssistantUsageSlice = zod_1.z.object({ modelRequests: count, estimatedCostUsd: usd });
+exports.AssistantUsageReport = zod_1.z.object({
+    month: exports.AssistantUsageMonth,
+    /** The month's first instant and the next month's, ISO 8601 in UTC. */
+    from: zod_1.z.string(),
+    to: zod_1.z.string(),
+    /** US dollars per million tokens, as configured when the report was read. */
+    prices: zod_1.z.object({
+        inputPerMTokUsd: usd,
+        outputPerMTokUsd: usd,
+        cacheReadPerMTokUsd: usd,
+        cacheWritePerMTokUsd: usd,
+    }),
+    modelRequests: count,
+    tokens: zod_1.z.object({ input: count, output: count, cacheRead: count, cacheWrite: count }),
+    /** Each call priced when it was made, summed; an estimate, not an invoice. */
+    estimatedCostUsd: usd,
+    /** Stored answers by how they were produced (D-q, D-u). */
+    answers: zod_1.z.object({ direct: count, ai: count, fallback: count, total: count }),
+    /** Every user turn, one row each (D-s, D-x, D-y). */
+    turns: zod_1.z.object({
+        total: count,
+        /** How turns ended; `failed` stored nothing; `truncated` hit the output ceiling. */
+        byOutcome: zod_1.z.object({
+            answered: count,
+            fallback: count,
+            withheld: count,
+            truncated: count,
+            out_of_time: count,
+            step_limit: count,
+            refused: count,
+            failed: count,
+        }),
+        /** Model answered turns by the calls they took: one is the norm (D-x). */
+        modelCallsPerModelTurn: zod_1.z.object({ one: count, two: count, threeOrMore: count }),
+        /** Model answered turns where the gathered data was enough: candidates for a router rule. */
+        modelTurnsWithoutOwnToolCalls: count,
+        tools: zod_1.z.array(zod_1.z.object({ tool: zod_1.z.string(), runs: count })),
+    }),
+    byRequestType: zod_1.z.array(AssistantUsageSlice.extend({ requestType: zod_1.z.string() })),
+    byCallerRole: zod_1.z.array(AssistantUsageSlice.extend({ callerRole: exports.AssistantCallerRole })),
+    byModel: zod_1.z.array(AssistantUsageSlice.extend({ model: zod_1.z.string() })),
+});
 //# sourceMappingURL=assistant.js.map

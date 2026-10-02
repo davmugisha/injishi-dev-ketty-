@@ -3,7 +3,10 @@ import { Test } from '@nestjs/testing';
 
 import { DatabaseModule } from '../../../shared/database/database.module';
 import { AssistantRetentionService } from '../application/retention.service';
+import { ASSISTANT_LIMITS, ASSISTANT_PRICES, UsageLedger } from '../application/usage-ledger';
+import { DEFAULT_PRICES } from '../domain/usage';
 import { RetentionRepository } from './retention.repository';
+import { UsageRepository } from './usage.repository';
 
 /**
  * The retention providers resolve against what `DatabaseModule` actually
@@ -16,7 +19,7 @@ import { RetentionRepository } from './retention.repository';
  * the real module's export list, read from its metadata rather than copied, so
  * a token the real module does not share fails here instead of at boot.
  */
-describe('retention wiring (ADR-061 D-d)', () => {
+describe('retention and usage wiring (ADR-061 D-d, D-s)', () => {
   it('injects only tokens DatabaseModule exports', async () => {
     const exported = (Reflect.getMetadata('exports', DatabaseModule) ?? []) as unknown[];
     expect(exported.length).toBeGreaterThan(0);
@@ -30,9 +33,17 @@ describe('retention wiring (ADR-061 D-d)', () => {
 
     const moduleRef = await Test.createTestingModule({
       imports: [ExportedDatabase],
-      providers: [RetentionRepository, AssistantRetentionService],
+      providers: [
+        RetentionRepository,
+        AssistantRetentionService,
+        UsageRepository,
+        UsageLedger,
+        { provide: ASSISTANT_PRICES, useValue: DEFAULT_PRICES },
+        { provide: ASSISTANT_LIMITS, useValue: { monthlyBudgetUsd: null, aiTurnsPerDay: 30 } },
+      ],
     }).compile();
 
     expect(moduleRef.get(AssistantRetentionService)).toBeInstanceOf(AssistantRetentionService);
+    expect(moduleRef.get(UsageLedger)).toBeInstanceOf(UsageLedger);
   });
 });

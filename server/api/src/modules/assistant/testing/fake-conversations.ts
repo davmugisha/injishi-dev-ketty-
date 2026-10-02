@@ -141,17 +141,21 @@ export class FakeConversations {
     id: string,
     list: NewMessage[],
     clock: { now: Date; expiresAt: Date; pageContext?: string | null },
-  ): Promise<void> {
+  ): Promise<string[]> {
     const stored = this.messages.get(id) ?? [];
+    const ids: string[] = [];
     for (const m of list) {
+      const messageId = fakeUuid(++this.next);
+      ids.push(messageId);
       stored.push({
-        id: fakeUuid(++this.next),
+        id: messageId,
         seq: stored.length + 1,
         role: m.role,
         displayText: m.displayText,
         modelContent: m.modelContent,
         sources: m.sources,
         toolCalls: m.toolCalls,
+        route: m.route ?? null,
         createdAt: clock.now,
       });
     }
@@ -160,7 +164,7 @@ export class FakeConversations {
       row.expiresAt = clock.expiresAt;
       if (clock.pageContext) row.pageContext = clock.pageContext;
     }
-    return Promise.resolve();
+    return Promise.resolve(ids);
   }
 }
 

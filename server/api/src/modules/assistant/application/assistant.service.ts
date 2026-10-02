@@ -8,7 +8,6 @@ import {
   type SendAssistantMessageInput,
 } from '@injishi/contracts';
 import {
-  BadGatewayException,
   BadRequestException,
   ConflictException,
   NotFoundException,
@@ -29,6 +28,8 @@ import {
   isToolUse,
   textOf,
 } from '../domain/model-port';
+import { unconfirmedFigures } from '../domain/figures';
+import type { TurnOutcome } from '../infrastructure/usage-queries';
 import { redact } from '../domain/redaction';
 import {
   MAX_MODEL_CALLS_PER_TURN,
@@ -48,6 +49,11 @@ import { presentProposal } from './proposal-view';
 import { AssistantToolbox, type ToolCaller, type ToolSet } from './assistant-tools';
 import { ASSISTANT_SETTINGS, type AssistantSettings } from './assistant-settings';
 import { ASSISTANT_SYSTEM_PROMPT } from './system-prompt';
+import { UNCONFIRMED_FIGURE, guideAnswer } from './answer-templates';
+import { type FallbackReason, type Gathered, RequestRouter } from './request-router';
+import { modelInputFor } from './context-window';
+import { type MeteredCall, UsageLedger, type UsageSink } from './usage-ledger';
+import type { CallerRole } from '../domain/usage';
 
 /** Who is asking: an account, or the holder of an anonymous cookie. */
 export type ConversationHolder =
@@ -65,6 +71,25 @@ export interface TurnContext {
   workspace?: ScopedWorkspace | null;
   /** True when this session still owes the emailed step up code. */
   stepUpNeeded?: boolean;
+}
+
+/** One turn's answer, ready to store. */
+interface StoredTurn {
+  messages: ModelMessage[];
+  text: string;
+  sources: AssistantSource[];
+  toolCalls: ToolCallRecord[];
+  route: string;
+  /** How the turn ended (D-s). */
+  outcome: TurnOutcome;
+}
+
+/** What a model turn did, counted as it runs so a failure still reports it. */
+interface CallStats {
+  /** Calls attempted, metered or not. */
+  modelCalls: number;
+  /** Tool calls the model itself asked for. */
+  modelToolCalls: number;
 }
 
 export interface SendResult {
@@ -86,9 +111,10 @@ const SOURCE_MARKER = /\s?\[\s*source\s*:\s*([A-Za-z0-9_-]+)\s*\]/gi;
 /**
  * The assistant's orchestrator (ADR-061).
  *
- * One call to `send` is one user turn: load the conversation, replay its
- * history unchanged, run the tool loop against the model port, and store the
- * question and the answer together. Nothing is stored when the model fails, so
+ * One call to `send` is one user turn: load the conversation, let the request
+ * router answer from Injishi's own data and content when it can (D-q), run the
+ * tool loop against the model port only when it cannot, and store the question
+ * and the answer together, with how the answer was produced. Nothing is stored when the model fails, so
  * a failed turn leaves no half written history behind to replay.
  */
 @Injectable()
@@ -96,6 +122,7 @@ export class AssistantService {
   private readonly logger = new Logger(AssistantService.name);
   /** Wall clock for the turn deadline; a field so a test can move time. */
   clock: () => number = Date.now;
+  private readonly router: RequestRouter;
 
   constructor(
     @Inject(ASSISTANT_MODEL_PORT) private readonly model: AssistantModelPort,
@@ -103,7 +130,11 @@ export class AssistantService {
     private readonly conversations: ConversationRepository,
     @Inject(AssistantToolbox) private readonly tools: ToolSet,
     @Inject(ProposalRepository) private readonly proposals: Pick<ProposalRepository, 'listByIds'>,
-  ) {}
+    @Inject(UsageLedger) private readonly usage: UsageSink,
+  ) {
+    // The router runs the same permission checked tools the model is offered.
+    this.router = new RequestRouter(tools);
+  }
 
   get enabled(): boolean {
     return this.settings.mode !== 'off';
@@ -261,91 +292,173 @@ export class AssistantService {
       role: 'user',
       content: [{ type: 'text', text: redact(input.message) }],
     };
-    // The model runs BEFORE anything is written, a new conversation included,
-    // so a failed turn leaves no row, no message and no cookie behind.
-    const turn = await this.runTurn(
-      [...history.flatMap((m) => m.modelContent), question],
-      caller,
-    );
-
-    let newAnonToken: string | null = null;
-    if (!conversation) {
-      // An anonymous conversation always gets a FRESH token: the old one may
-      // still name an expired row the deletion job has not reached, and the
-      // token column is unique.
-      let anonTokenHash: string | null = null;
-      if (holder.kind === 'anon') {
-        const minted = mintAnonToken();
-        newAnonToken = minted.token;
-        anonTokenHash = minted.hash;
+    // Every model call is metered (D-s), the ones of a turn that then fails
+    // included: the call was made, so it is paid for and it is counted.
+    const metered: MeteredCall[] = [];
+    const stats: CallStats = { modelCalls: 0, modelToolCalls: 0 };
+    const startedAt = this.clock();
+    const spent = {
+      route: 'unrouted',
+      conversationId: conversation?.id ?? null,
+      messageId: null as string | null,
+      outcome: 'failed' as TurnOutcome,
+      tools: [] as string[],
+    };
+    try {
+      // The router first (D-q): a question it answers costs no model call. The
+      // model runs only for what it hands on, and BEFORE anything is written, a
+      // new conversation included, so a failed turn leaves nothing behind.
+      const asked = redact(input.message);
+      const routed = await this.router.route({ question: asked, caller, now, history });
+      spent.route = routed.route;
+      let turn: StoredTurn;
+      if (routed.kind === 'direct') {
+        turn = directTurn(routed.text, routed.available, routed.toolCalls, routed.route);
+      } else {
+        // Spending is capped (D-t): past the month's budget or the daily cap,
+        // the model is not called and the answer falls back (D-u).
+        const allowance = await this.usage.allowance({ userId: caller.userId, conversationId: conversation?.id ?? null, now });
+        if (!allowance.allowed) {
+          turn = await this.fallbackTurn(asked, caller, allowance.reason);
+        } else {
+          try {
+            // Minimum context (D-r): a summary and a short window of earlier
+            // turns in ONE message, never the whole replayed history.
+            // The data the router gathered rides in the one message (D-q,
+            // D-r), so one call is the normal case (D-x).
+            turn = {
+              ...(await this.runTurn([modelInputFor(history, asked, routed.gathered)], caller, metered, stats, [asked], routed.gathered)),
+              route: routed.route,
+            };
+          } catch (error) {
+            if (!(error instanceof ModelUnavailableError)) throw error;
+            // The provider failed: the person still gets an answer (D-u), and
+            // the calls already made are still metered.
+            turn = await this.fallbackTurn(asked, caller, 'model_unavailable');
+          }
+        }
       }
-      conversation = await this.conversations.create({
-        ownerUserId: holder.kind === 'user' ? holder.userId : null,
-        anonTokenHash,
+      spent.route = turn.route;
+      spent.outcome = turn.outcome;
+      spent.tools = turn.toolCalls.map((call) => call.name);
+
+      let newAnonToken: string | null = null;
+      if (!conversation) {
+        // An anonymous conversation always gets a FRESH token: the old one may
+        // still name an expired row the deletion job has not reached, and the
+        // token column is unique.
+        let anonTokenHash: string | null = null;
+        if (holder.kind === 'anon') {
+          const minted = mintAnonToken();
+          newAnonToken = minted.token;
+          anonTokenHash = minted.hash;
+        }
+        conversation = await this.conversations.create({
+          ownerUserId: holder.kind === 'user' ? holder.userId : null,
+          anonTokenHash,
+          surface: input.surface,
+          expiresAt: expiresAtFor(holder.kind === 'user', now),
+          now,
+        });
+      }
+      spent.conversationId = conversation.id;
+
+      try {
+        const ids = await this.conversations.appendTurn(
+          conversation.id,
+          [
+            {
+              role: 'user',
+              // The person's own words, as they wrote them, for them to read.
+              // The redacted question is the `modelContent`; later turns quote
+              // it in their short window (D-r), never the raw words.
+              displayText: input.message,
+              modelContent: [question],
+              toolCalls: [],
+              sources: [],
+            },
+            {
+              role: 'assistant',
+              displayText: turn.text,
+              modelContent: turn.messages,
+              toolCalls: turn.toolCalls,
+              sources: turn.sources,
+              route: turn.route,
+            },
+          ],
+          {
+            now,
+            expiresAt: expiresAtFor(conversation.ownerUserId !== null, now),
+            pageContext: input.pagePath ?? null,
+          },
+        );
+        spent.messageId = ids[1] ?? null;
+      } catch (error) {
+        if (error instanceof ConversationBusyError) {
+          throw new ConflictException({ code: 'conversation_busy', message: error.message });
+        }
+        throw error;
+      }
+
+      const stored = { ...conversation, expiresAt: expiresAtFor(conversation.ownerUserId !== null, now) };
+      return {
+        conversation: await this.view(stored, await this.conversations.listMessages(conversation.id)),
+        newAnonToken,
+      };
+    } finally {
+      await this.usage.recordTurn({
+        calls: metered,
+        route: spent.route,
+        // An answer that was never stored (an error, a busy conversation) is a
+        // failed turn, whatever the model managed before it.
+        outcome: spent.messageId !== null ? spent.outcome : 'failed',
+        modelCalls: stats.modelCalls,
+        modelToolCalls: stats.modelToolCalls,
+        tools: spent.tools,
+        durationMs: this.clock() - startedAt,
+        conversationId: spent.conversationId,
+        messageId: spent.messageId,
+        userId: holder.kind === 'user' ? holder.userId : null,
         surface: input.surface,
-        expiresAt: expiresAtFor(holder.kind === 'user', now),
+        callerRole: callerRoleOf(holder, input.surface, context),
         now,
       });
     }
-
-    try {
-      await this.conversations.appendTurn(
-        conversation.id,
-        [
-          {
-            role: 'user',
-            // The person's own words, as they wrote them, for them to read.
-            // What went to the provider is the redacted `modelContent`.
-            displayText: input.message,
-            modelContent: [question],
-            toolCalls: [],
-            sources: [],
-          },
-          {
-            role: 'assistant',
-            displayText: turn.text,
-            modelContent: turn.messages,
-            toolCalls: turn.toolCalls,
-            sources: turn.sources,
-          },
-        ],
-        {
-          now,
-          expiresAt: expiresAtFor(conversation.ownerUserId !== null, now),
-          pageContext: input.pagePath ?? null,
-        },
-      );
-    } catch (error) {
-      if (error instanceof ConversationBusyError) {
-        throw new ConflictException({ code: 'conversation_busy', message: error.message });
-      }
-      throw error;
-    }
-
-    const stored = { ...conversation, expiresAt: expiresAtFor(conversation.ownerUserId !== null, now) };
-    return {
-      conversation: await this.view(stored, await this.conversations.listMessages(conversation.id)),
-      newAnonToken,
-    };
   }
 
   /**
-   * The tool loop. Every model response is kept whole and in order, so the
-   * next turn replays exactly what the model produced (D-a). Tool results are
+   * The tool loop. Within one turn every model response is kept whole and in
+   * order (D-a); across turns nothing is replayed (D-r). Tool results are
    * redacted before they are appended (D-g).
    */
   private async runTurn(
     messages: ModelMessage[],
     caller: ToolCaller,
+    metered: MeteredCall[],
+    stats: CallStats,
+    /** What the answer's figures may come from besides tool results: the question. */
+    evidence: string[],
+    /** What the router gathered for this question; counts as this turn's data. */
+    gathered: Gathered[] = [],
   ): Promise<{
     messages: ModelMessage[];
     text: string;
     sources: AssistantSource[];
     toolCalls: ToolCallRecord[];
+    outcome: TurnOutcome;
   }> {
     const produced: ModelMessage[] = [];
+    let ended: TurnOutcome | null = null;
     const available = new Map<string, AssistantSource>();
     const toolCalls: ToolCallRecord[] = [];
+    // Gathered results are this turn's data: citable (D-i) and evidence for
+    // the figure check (D-v), exactly as a tool the model called would be.
+    for (const { tool, outcome } of gathered) {
+      for (const source of outcome.sources) available.set(source.id, source);
+      evidence.push(outcome.content);
+      const guideId = tool === 'get_task_guide' ? guideAnswer(outcome.content)?.guideId : undefined;
+      toolCalls.push({ name: tool, ok: true, ...(guideId ? { guideId } : {}) });
+    }
     const tools = this.tools.offered(caller);
     let lastContent: ModelBlock[] = [];
     let text: string | null = null;
@@ -353,47 +466,66 @@ export class AssistantService {
 
     for (let call = 0; call < MAX_MODEL_CALLS_PER_TURN; call++) {
       // Out of time for another call: answer with what we have, never late.
-      if (deadline - this.clock() < MIN_CALL_BUDGET_MS) break;
+      if (deadline - this.clock() < MIN_CALL_BUDGET_MS) {
+        ended = 'out_of_time';
+        break;
+      }
+      stats.modelCalls += 1;
       let response;
       try {
+        // The last call a turn may make cannot ask for a tool (D-x): a turn
+        // at the ceiling still ends with an answer worded from what it has.
+        const last = call === MAX_MODEL_CALLS_PER_TURN - 1;
         response = await this.model.createTurn(
-          { system: ASSISTANT_SYSTEM_PROMPT, tools, messages: [...messages, ...produced] },
+          { system: ASSISTANT_SYSTEM_PROMPT, tools, messages: [...messages, ...produced], ...(last ? { toolChoice: 'none' as const } : {}) },
           { deadline },
         );
       } catch (error) {
-        if (error instanceof ModelUnavailableError) {
-          this.logger.warn(`Assistant model unavailable: ${error.message}`);
-          throw new BadGatewayException({
-            code: 'model_unavailable',
-            message: 'The assistant could not answer just now. Please try again.',
-          });
-        }
+        if (error instanceof ModelUnavailableError) this.logger.warn(`Assistant model unavailable: ${error.message}`);
         throw error;
       }
 
+      if (response.usage) metered.push({ model: response.model, usage: response.usage });
       produced.push({ role: 'assistant', content: response.content });
       lastContent = response.content;
 
       if (response.stopReason === 'refusal') {
         text = REFUSAL_REPLY;
+        ended = 'refused';
         break;
       }
       if (response.stopReason === 'pause_turn') continue;
+      if (response.stopReason === 'max_tokens') {
+        // Stopped at ASSISTANT_MAX_OUTPUT_TOKENS (D-y): counted, so the
+        // ceiling is tuned on evidence.
+        ended = 'truncated';
+        break;
+      }
       if (response.stopReason !== 'tool_use') break;
 
       const uses = response.content.filter(isToolUse);
       if (uses.length === 0) break;
+      stats.modelToolCalls += uses.length;
+      // Nothing runs after the last allowed call: no later call could read the
+      // result, and a tool may prepare a proposal nobody would be shown.
+      if (call === MAX_MODEL_CALLS_PER_TURN - 1) {
+        ended = 'step_limit';
+        break;
+      }
       // Every tool_result for one response goes back in ONE user message.
       const results: ModelBlock[] = [];
       for (const use of uses) {
         const outcome = await this.tools.run(use.name, use.input, caller);
+        const guideId = use.name === 'get_task_guide' && !outcome.isError ? guideAnswer(outcome.content)?.guideId : undefined;
         toolCalls.push({
           name: use.name,
           ok: !outcome.isError,
           ...(outcome.proposalIds?.length ? { proposalIds: outcome.proposalIds } : {}),
           ...(outcome.escalation ? { escalationTopic: outcome.escalation.topic } : {}),
+          ...(guideId ? { guideId } : {}),
         });
         for (const source of outcome.sources) available.set(source.id, source);
+        evidence.push(outcome.content);
         results.push({
           type: 'tool_result',
           tool_use_id: use.id,
@@ -405,9 +537,27 @@ export class AssistantService {
     }
 
     const lastIsAnswer = produced.at(-1)?.role === 'assistant';
+    // Still asking for a tool after the last allowed call: the ceiling.
+    if (ended === null && (!lastIsAnswer || lastContent.some(isToolUse))) ended = 'step_limit';
     const raw = text ?? (lastIsAnswer ? textOf(lastContent) : '');
     const { clean, cited } = extractCitations(raw || INCOMPLETE_REPLY, available);
-    return { messages: produced, text: clean, sources: cited, toolCalls };
+    // Figure checks (D-v): a money amount or date the model states must be in
+    // this turn's tool results or the person's own question. If one is not,
+    // the answer is withheld; its checked sources stay.
+    if (text === null && raw) {
+      const unconfirmed = unconfirmedFigures(clean, evidence);
+      if (unconfirmed.length > 0) {
+        this.logger.warn(`Assistant answer withheld: ${unconfirmed.length} figure(s) not in this turn's data`);
+        return { messages: produced, text: UNCONFIRMED_FIGURE, sources: cited, toolCalls, outcome: 'withheld' };
+      }
+    }
+    return { messages: produced, text: clean, sources: cited, toolCalls, outcome: ended ?? 'answered' };
+  }
+
+  /** A fallback answer (D-u), stored like a router answer. */
+  private async fallbackTurn(question: string, caller: ToolCaller, reason: FallbackReason): Promise<StoredTurn> {
+    const decision = await this.router.fallback(question, caller, reason);
+    return directTurn(decision.text, decision.available, decision.toolCalls, decision.route);
   }
 
   private async find(
@@ -487,6 +637,18 @@ export interface EscalationContext {
 }
 
 /**
+ * A turn the router answered without the model (D-q). Its citations are
+ * checked against the sources the router's tool returned, exactly as a
+ * model's are. The stored model content is the answer as plain text, so a
+ * later turn that does reach the model reads a well formed history.
+ */
+function directTurn(text: string, available: AssistantSource[], toolCalls: ToolCallRecord[], route: string): StoredTurn {
+  const { clean, cited } = extractCitations(text, new Map(available.map((source) => [source.id, source])));
+  const outcome: TurnOutcome = route.startsWith('fallback:') ? 'fallback' : 'answered';
+  return { messages: [{ role: 'assistant', content: [{ type: 'text', text: clean }] }], text: clean, sources: cited, toolCalls, route, outcome };
+}
+
+/**
  * Strip `[source:id]` markers from the answer and keep, as sources, only the
  * ids a tool returned in this turn. A model that cites something it was never
  * given gets no link for it (D-i).
@@ -501,4 +663,16 @@ export function extractCitations(
     if (source) cited.set(source.id, source);
   }
   return { clean: text.replace(SOURCE_MARKER, '').trim(), cited: [...cited.values()] };
+}
+
+/**
+ * Who asked, as the usage report groups it (D-s). A label for the report
+ * only: it grants nothing, and the tools check every grant themselves.
+ * `staff` is a signed in caller on the admin console's surface.
+ */
+function callerRoleOf(holder: ConversationHolder, surface: AssistantSurface, context: TurnContext): CallerRole {
+  if (holder.kind === 'anon') return 'anonymous';
+  if (context.workspace) return 'operator';
+  if (surface === 'admin') return 'staff';
+  return 'signed_in';
 }

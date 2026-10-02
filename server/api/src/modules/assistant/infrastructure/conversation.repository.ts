@@ -51,6 +51,8 @@ export interface MessageRow {
   modelContent: ModelMessage[];
   sources: AssistantSource[];
   toolCalls: ToolCallRecord[];
+  /** How an assistant answer was produced (ADR-061 D-q); null on the person's messages. */
+  route: string | null;
   createdAt: Date;
 }
 
@@ -61,6 +63,11 @@ export interface ToolCallRecord {
   proposalIds?: string[];
   /** The support topic, when this call offered human support (slice F). */
   escalationTopic?: SupportTopic;
+  /**
+   * The task guide this call gave, so a later "still stuck" can offer that
+   * guide's tutorial and never a tutorial before the steps (ADR-061 D-q).
+   */
+  guideId?: string;
 }
 
 export interface NewMessage {
@@ -69,6 +76,7 @@ export interface NewMessage {
   modelContent: ModelMessage[];
   toolCalls: ToolCallRecord[];
   sources: AssistantSource[];
+  route?: string | null;
 }
 
 /** Two turns raced on one conversation and this one lost the seq. Maps to 409. */
@@ -302,6 +310,7 @@ export class ConversationRepository {
         modelContent: assistantMessages.modelContent,
         sources: assistantMessages.sources,
         toolCalls: assistantMessages.toolCalls,
+        route: assistantMessages.route,
         createdAt: assistantMessages.createdAt,
       })
       .from(assistantMessages)
@@ -313,6 +322,7 @@ export class ConversationRepository {
       modelContent: r.modelContent as ModelMessage[],
       sources: r.sources as AssistantSource[],
       toolCalls: (r.toolCalls ?? []) as ToolCallRecord[],
+      route: r.route ?? null,
     }));
   }
 
@@ -326,26 +336,30 @@ export class ConversationRepository {
     conversationId: string,
     messages: NewMessage[],
     clock: { now: Date; expiresAt: Date; pageContext: string | null },
-  ): Promise<void> {
+  ): Promise<string[]> {
     try {
-      await this.db.transaction(async (tx) => {
+      return await this.db.transaction(async (tx) => {
         const [last] = await tx
           .select({ seq: max(assistantMessages.seq) })
           .from(assistantMessages)
           .where(eq(assistantMessages.conversationId, conversationId));
         let seq = last?.seq ?? 0;
-        await tx.insert(assistantMessages).values(
-          messages.map((m) => ({
-            conversationId,
-            seq: ++seq,
-            role: m.role,
-            displayText: m.displayText,
-            modelContent: m.modelContent,
-            toolCalls: m.toolCalls,
-            sources: m.sources,
-            createdAt: clock.now,
-          })),
-        );
+        const inserted = await tx
+          .insert(assistantMessages)
+          .values(
+            messages.map((m) => ({
+              conversationId,
+              seq: ++seq,
+              role: m.role,
+              displayText: m.displayText,
+              modelContent: m.modelContent,
+              toolCalls: m.toolCalls,
+              sources: m.sources,
+              route: m.route ?? null,
+              createdAt: clock.now,
+            })),
+          )
+          .returning({ id: assistantMessages.id, seq: assistantMessages.seq });
         await tx
           .update(assistantConversations)
           .set({
@@ -354,6 +368,8 @@ export class ConversationRepository {
             ...(clock.pageContext ? { pageContext: clock.pageContext } : {}),
           })
           .where(eq(assistantConversations.id, conversationId));
+        // In the order given, so the caller can tie usage to the answer.
+        return [...inserted].sort((a, b) => a.seq - b.seq).map((r) => r.id);
       });
     } catch (error) {
       if (isSeqCollision(error)) throw new ConversationBusyError();

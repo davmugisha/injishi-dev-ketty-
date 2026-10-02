@@ -8,6 +8,8 @@ export interface RetentionOutcome {
   closedApprovals: number;
   deletedConversations: number;
   deletedProposals: number;
+  /** Usage rows that stopped naming a person (D-s). */
+  anonymisedUsage: number;
 }
 
 /** Enough full batches to clear a backlog in one run without running forever. */
@@ -24,6 +26,8 @@ const MAX_BATCHES = 20;
  *    prepared; messages and feedback go by cascade, a ticket keeps its context.
  * 4. A closed proposal no stored message refers to (a turn that failed after
  *    preparing it) is deleted once it is a day old.
+ * 5. A usage row older than 90 days stops naming the person (D-s); its tokens
+ *    and cost stay, so a month's figures survive.
  *
  * Every step is a guarded statement, so a rerun, or two workers, change
  * nothing twice. Reads by the assistant already treat an expired conversation
@@ -51,7 +55,8 @@ export class AssistantRetentionService {
       if (deleted.conversations < RETENTION_BATCH) break;
     }
     deletedProposals += await this.repo.deleteOrphanProposals(now);
+    const anonymisedUsage = await this.repo.clearUsagePeople(now);
 
-    return { expiredProposals, closedApprovals, deletedConversations, deletedProposals };
+    return { expiredProposals, closedApprovals, deletedConversations, deletedProposals, anonymisedUsage };
   }
 }

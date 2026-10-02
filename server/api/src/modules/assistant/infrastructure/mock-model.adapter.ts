@@ -5,6 +5,45 @@ import type {
   ModelTurn,
   ModelTurnRequest,
 } from '../domain/model-port';
+import {
+  HOW_TO_QUESTION,
+  HUMAN_QUESTION,
+  PRICE_CHANGE,
+  PUBLISH_QUESTION,
+  ROOMS_QUESTION,
+  STAY_QUESTION,
+  TRIP_QUESTION,
+  placeIn,
+} from '../domain/intents';
+import {
+  CANNOT_CHANGE,
+  ESCALATION_OFFERED,
+  LISTINGS_CLOSED,
+  NO_ANSWER,
+  NO_LISTINGS,
+  NO_OPERATOR,
+  NO_TRIPS,
+  SIGN_IN_FOR_TRIPS,
+  guideAnswer,
+  knowledgeAnswer,
+  listingsAnswer,
+  proposalAnswer,
+  publishBlockersAnswer,
+  roomsAnswer,
+  tripsAnswer,
+} from '../application/answer-templates';
+import { GATHERED_HEADING } from '../application/context-window';
+import type { ModelUsage } from '../domain/usage';
+
+// The fixed sentences, kept under their mock names for the tests that read them.
+export const MOCK_NO_ANSWER = NO_ANSWER;
+export const MOCK_NO_LISTINGS = NO_LISTINGS;
+export const MOCK_LISTINGS_CLOSED = LISTINGS_CLOSED;
+export const MOCK_SIGN_IN = SIGN_IN_FOR_TRIPS;
+export const MOCK_NO_TRIPS = NO_TRIPS;
+export const MOCK_NO_OPERATOR = NO_OPERATOR;
+export const MOCK_CANNOT_CHANGE = CANNOT_CHANGE;
+export const MOCK_ESCALATION_OFFERED = ESCALATION_OFFERED;
 
 /**
  * The deterministic stand in for the model (ADR-061 D-b, `mock` mode).
@@ -15,46 +54,43 @@ import type {
  * results with citations, or says it has nothing verified. Tests, CI and
  * laptops get the whole loop (tools, citations, storage, limits) with no key
  * and the same answer every time.
+ *
+ * Since the request router (ADR-061 D-q) it is reached only by questions the
+ * router hands to the model. It reads the same intent rules and words results
+ * with the same templates, so the two never disagree.
+ *
+ * It reports usage estimated at four characters a token, under the model name
+ * `mock`, so the ledger, the report and the budget (D-s, D-t) run end to end on
+ * a laptop. A real call's usage comes only from the provider.
  */
-export const MOCK_NO_ANSWER =
-  "I don't have a verified answer for that. The support page at /support can help.";
-export const MOCK_NO_LISTINGS = 'No published property matches that.';
-export const MOCK_LISTINGS_CLOSED = 'Listings are not open yet.';
-export const MOCK_SIGN_IN = 'Sign in and I can look up your trips.';
-export const MOCK_NO_TRIPS = 'I found no trips on your account.';
-
-export const MOCK_NO_OPERATOR = 'I can only check rooms from the operator app, in a business you work in.';
-export const MOCK_CANNOT_CHANGE = 'Your account cannot change prices here.';
-export const MOCK_ESCALATION_OFFERED =
-  'I can pass this to a person at Injishi support. Press "Send to Injishi support" and they will reply by email.';
-
-const HUMAN_QUESTION = /\b(a (human|person)|real person|someone at injishi|talk to (someone|support)|escalate)\b/i;
-
-// "change the Double room price to 70,000" -> "Double room".
-const PRICE_CHANGE = /\b(?:change|set)\s+(?:the\s+)?(.+?)\s+price\b/i;
-
-const PUBLISH_QUESTION = /\bpublish/i;
-const ROOMS_QUESTION = /\brooms?\b.*\b(free|taken|available|held|tonight|tomorrow|\d{4}-\d{2}-\d{2})\b/i;
-const HOW_TO_QUESTION = /\bhow (do|can|to)\b/i;
-
-// Checked before places to stay: "my stay" is a trip question.
-const TRIP_QUESTION = /\b(trips?|bookings?|reservations?|my stay)\b/i;
-const STAY_QUESTION = /\b(stay|stays|hotels?|lodges?|places?|guest ?houses?|apartments?|villas?|motels?|camps?)\b/i;
-
 export class MockAssistantModel implements AssistantModelPort {
   readonly kind = 'mock' as const;
 
-  createTurn(request: ModelTurnRequest): Promise<ModelTurn> {
+  async createTurn(request: ModelTurnRequest): Promise<ModelTurn> {
+    const turn = await this.reply(request);
+    return { ...turn, usage: estimatedUsage(request, turn) };
+  }
+
+  private reply(request: ModelTurnRequest): Promise<ModelTurn> {
     const last = request.messages.at(-1);
     const results = last ? toolResultsIn(last) : [];
 
     if (results.length === 0) {
-      const question = last ? textIn(last) : '';
+      const message = last ? textIn(last) : '';
+      // The rules read the current question only, never the gathered data or
+      // the window around it, as a model reads the question it is asked.
+      const question = currentQuestion(message);
       if (!question) return Promise.resolve(answer(MOCK_NO_ANSWER));
       const offers = (name: string): boolean => request.tools.some((t) => t.name === name);
-      if (HUMAN_QUESTION.test(question) && offers('suggest_human_support')) {
+      if (HUMAN_QUESTION.test(question) && offers('suggest_human_support') && request.toolChoice !== 'none') {
         return Promise.resolve(call(request, 'suggest_human_support', { topic: 'other' }));
       }
+      // What the router gathered answers in this one call (D-x), as the
+      // system prompt asks of the real model.
+      const fromData = answerFromGathered(message, HOW_TO_QUESTION.test(question));
+      if (fromData) return Promise.resolve(answer(fromData));
+      // The last call may not ask for a tool (D-x).
+      if (request.toolChoice === 'none') return Promise.resolve(answer(MOCK_NO_ANSWER));
       const priceChange = question.match(PRICE_CHANGE);
       if (priceChange) {
         if (!offers('propose_room_price')) return Promise.resolve(answer(MOCK_CANNOT_CHANGE));
@@ -90,44 +126,28 @@ export class MockAssistantModel implements AssistantModelPort {
     if (called === 'suggest_human_support' && parsed && 'offered' in parsed) {
       return Promise.resolve(answer(MOCK_ESCALATION_OFFERED));
     }
+    const content = typeof results[0].content === 'string' ? results[0].content : '';
     if (called === 'propose_room_price' && parsed && 'proposalId' in parsed) {
-      const p = parsed as { roomType?: string; current?: string; proposed?: string };
-      return Promise.resolve(
-        answer(`Ready to change ${p.roomType} from ${p.current} to ${p.proposed}. Nothing has changed yet: press Approve on the card to make it, or Reject.`),
-      );
+      return Promise.resolve(answer(proposalAnswer(content) ?? MOCK_NO_ANSWER));
     }
     if (called === 'get_task_guide') {
-      const guide = (parsed as { guide?: { title?: string; steps?: string[] } | null } | null)?.guide;
-      if (!guide) return Promise.resolve(answer(MOCK_NO_ANSWER));
-      return Promise.resolve(answer(`${guide.title}: ${(guide.steps ?? []).map((s, i) => `${i + 1}. ${s}`).join(' ')}`));
+      return Promise.resolve(answer(guideAnswer(content)?.text ?? MOCK_NO_ANSWER));
     }
     if (called === 'rooms_on_dates') {
-      const rooms = ((parsed as { rooms?: Array<{ room?: string; heldForDates?: boolean }> } | null)?.rooms ?? []);
-      const taken = rooms.filter((r) => r.heldForDates).map((r) => r.room);
-      const free = rooms.filter((r) => !r.heldForDates).map((r) => r.room);
-      return Promise.resolve(answer(`Held: ${taken.join(', ') || 'none'}. Free: ${free.join(', ') || 'none'}.`));
+      return Promise.resolve(answer(roomsAnswer(content) ?? MOCK_NO_ANSWER));
     }
     if (called === 'publish_blockers') {
-      const props = ((parsed as { properties?: Array<{ property?: string; blockers?: Array<{ fix?: string }> }> } | null)?.properties ?? []);
-      return Promise.resolve(
-        answer(props.map((p) => `${p.property}: ${(p.blockers ?? []).map((b) => b.fix).join(' ') || 'ready to publish.'}`).join(' ')),
-      );
+      return Promise.resolve(answer(publishBlockersAnswer(content) ?? MOCK_NO_ANSWER));
     }
     if (results[0].is_error === true && typeof results[0].content === 'string') {
       const error = (JSON.parse(results[0].content) as { error?: string }).error;
       return Promise.resolve(answer(error ?? MOCK_NO_ANSWER));
     }
     if (called === 'my_trips') {
-      const trips = ((parsed as { trips?: unknown[] } | null)?.trips ?? []) as Array<{ property?: string; checkIn?: string; reference?: string }>;
-      if (trips.length === 0) return Promise.resolve(answer(MOCK_NO_TRIPS));
-      const first = trips[0];
-      return Promise.resolve(answer(`Your next stay is at ${first.property} from ${first.checkIn}, reference ${first.reference}.`));
+      return Promise.resolve(answer(tripsAnswer(content) ?? MOCK_NO_TRIPS));
     }
     if (calledTool(request) === 'search_listings') {
-      const found = (parsed?.results ?? []) as Array<{ propertyId?: string; name?: string }>;
-      if (found.length === 0) return Promise.resolve(answer(MOCK_NO_LISTINGS));
-      const names = found.map((r) => `${r.name} [source:${r.propertyId}]`).join(', ');
-      return Promise.resolve(answer(`Published places that match: ${names}.`));
+      return Promise.resolve(answer(listingsAnswer(content) ?? MOCK_NO_LISTINGS));
     }
     const top = (parsed?.results as Array<{ id?: unknown; summary?: unknown }> | undefined)?.[0];
     if (!top || typeof top.id !== 'string' || typeof top.summary !== 'string') {
@@ -135,6 +155,54 @@ export class MockAssistantModel implements AssistantModelPort {
     }
     return Promise.resolve(answer(`${top.summary} [source:${top.id}]`));
   }
+}
+
+/** The text after the last "Current question:" line, or the whole message. */
+function currentQuestion(message: string): string {
+  const marker = '\nCurrent question:\n';
+  const at = message.lastIndexOf(marker);
+  return (at >= 0 ? message.slice(at + marker.length) : message).trim();
+}
+
+/**
+ * An answer worded from the data gathered before the call, when it holds
+ * enough: a data tool's result first, then the task guide and the top help
+ * article (the guide first for a "how do I"), each with the same template the router and the tool path use.
+ */
+function answerFromGathered(message: string, howTo: boolean): string | null {
+  if (!message.startsWith(GATHERED_HEADING)) return null;
+  const results = new Map<string, string>();
+  for (const line of message.split('\n')) {
+    const match = /^\[([a-z_]+)\] (.*)$/.exec(line);
+    if (match) results.set(match[1], match[2]);
+  }
+  const wording: Array<[string, (content: string) => string | null]> = [
+    ['rooms_on_dates', roomsAnswer],
+    ['my_trips', tripsAnswer],
+    ['search_listings', listingsAnswer],
+    ['publish_blockers', publishBlockersAnswer],
+    // A "how do I" is answered by the guide's steps, anything else by the article.
+    ...((howTo
+      ? [['get_task_guide', (content: string) => guideAnswer(content)?.text ?? null], ['search_help', knowledgeAnswer]]
+      : [['search_help', knowledgeAnswer], ['get_task_guide', (content: string) => guideAnswer(content)?.text ?? null]]) as Array<[string, (content: string) => string | null]>),
+  ];
+  for (const [tool, word] of wording) {
+    const content = results.get(tool);
+    const text = content === undefined ? null : word(content);
+    if (text) return text;
+  }
+  return null;
+}
+
+/** About four characters a token, the usual rule of thumb for English text. */
+function estimatedUsage(request: ModelTurnRequest, turn: ModelTurn): ModelUsage {
+  const tokens = (value: unknown): number => Math.ceil(JSON.stringify(value).length / 4);
+  return {
+    inputTokens: tokens([request.system, request.tools, request.messages]),
+    outputTokens: tokens(turn.content),
+    cacheReadTokens: 0,
+    cacheWriteTokens: 0,
+  };
 }
 
 function call(request: ModelTurnRequest, name: string, input: Record<string, unknown>): ModelTurn {
@@ -152,12 +220,6 @@ function answer(text: string): ModelTurn {
 /** The first yyyy-mm-dd in the question, or 2026-10-10 as the mock's "today". */
 function dateIn(question: string): string {
   return question.match(/\d{4}-\d{2}-\d{2}/)?.[0] ?? '2026-10-10';
-}
-
-/** "places to stay in Musanze" -> "Musanze"; otherwise the whole question. */
-function placeIn(question: string): string {
-  const match = question.match(/\b(?:in|near|around)\s+([^?.!,]+)/i);
-  return (match ? match[1] : question).trim().slice(0, 120);
 }
 
 function textIn(message: ModelMessage): string {

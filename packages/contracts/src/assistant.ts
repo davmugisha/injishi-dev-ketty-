@@ -207,6 +207,8 @@ export const AssistantErrorCode = z.enum([
   "assistant_off",
   "conversation_full",
   "conversation_busy",
+  // Retired by ADR-061 D-u: the API now answers by fallback with 200 and never
+  // sends it. Kept so a client built against Phase 1 still parses.
   "model_unavailable",
   // Approval refusals (ADR-061 D-k).
   "proposal_closed",
@@ -240,3 +242,63 @@ export type AssistantFeedbackInput = z.infer<typeof AssistantFeedbackInput>;
 
 export const AssistantFeedbackResult = z.object({ messageId: Uuid, helpful: z.boolean() });
 export type AssistantFeedbackResult = z.infer<typeof AssistantFeedbackResult>;
+
+/**
+ * `GET /api/v1/admin/assistant/usage?month=YYYY-MM` (ADR-061 D-s), staff with
+ * `admin.analytics.view`. A month is a UTC calendar month; unset means the
+ * current one. Aggregates only: no person, conversation or text is returned.
+ */
+export const AssistantUsageMonth = z.string().regex(/^\d{4}-(0[1-9]|1[0-2])$/, "A month is written YYYY-MM.");
+export const AssistantUsageQuery = z.object({ month: AssistantUsageMonth.optional() }).strict();
+export type AssistantUsageQuery = z.infer<typeof AssistantUsageQuery>;
+
+export const AssistantCallerRole = z.enum(["anonymous", "signed_in", "operator", "staff"]);
+export type AssistantCallerRole = z.infer<typeof AssistantCallerRole>;
+
+const count = z.number().int().nonnegative();
+const usd = z.number().nonnegative();
+const AssistantUsageSlice = z.object({ modelRequests: count, estimatedCostUsd: usd });
+
+export const AssistantUsageReport = z.object({
+  month: AssistantUsageMonth,
+  /** The month's first instant and the next month's, ISO 8601 in UTC. */
+  from: z.string(),
+  to: z.string(),
+  /** US dollars per million tokens, as configured when the report was read. */
+  prices: z.object({
+    inputPerMTokUsd: usd,
+    outputPerMTokUsd: usd,
+    cacheReadPerMTokUsd: usd,
+    cacheWritePerMTokUsd: usd,
+  }),
+  modelRequests: count,
+  tokens: z.object({ input: count, output: count, cacheRead: count, cacheWrite: count }),
+  /** Each call priced when it was made, summed; an estimate, not an invoice. */
+  estimatedCostUsd: usd,
+  /** Stored answers by how they were produced (D-q, D-u). */
+  answers: z.object({ direct: count, ai: count, fallback: count, total: count }),
+  /** Every user turn, one row each (D-s, D-x, D-y). */
+  turns: z.object({
+    total: count,
+    /** How turns ended; `failed` stored nothing; `truncated` hit the output ceiling. */
+    byOutcome: z.object({
+      answered: count,
+      fallback: count,
+      withheld: count,
+      truncated: count,
+      out_of_time: count,
+      step_limit: count,
+      refused: count,
+      failed: count,
+    }),
+    /** Model answered turns by the calls they took: one is the norm (D-x). */
+    modelCallsPerModelTurn: z.object({ one: count, two: count, threeOrMore: count }),
+    /** Model answered turns where the gathered data was enough: candidates for a router rule. */
+    modelTurnsWithoutOwnToolCalls: count,
+    tools: z.array(z.object({ tool: z.string(), runs: count })),
+  }),
+  byRequestType: z.array(AssistantUsageSlice.extend({ requestType: z.string() })),
+  byCallerRole: z.array(AssistantUsageSlice.extend({ callerRole: AssistantCallerRole })),
+  byModel: z.array(AssistantUsageSlice.extend({ model: z.string() })),
+});
+export type AssistantUsageReport = z.infer<typeof AssistantUsageReport>;

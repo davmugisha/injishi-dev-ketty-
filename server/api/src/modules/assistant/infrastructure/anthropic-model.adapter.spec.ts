@@ -47,6 +47,7 @@ describe('AnthropicAssistantModel (ADR-061 D-a)', () => {
 
     expect(captured[0]).toMatchObject({
       model: 'claude-sonnet-5-5',
+      max_tokens: 1500,
       betas: ['server-side-fallback-2026-07-01'],
       fallbacks: 'default',
       output_config: { effort: 'low' },
@@ -58,8 +59,37 @@ describe('AnthropicAssistantModel (ADR-061 D-a)', () => {
       { name: 'search_help', description: 'd', input_schema: request.tools[0].inputSchema, strict: true },
     ]);
     expect(captured[0]).not.toHaveProperty('thinking');
-    // Every block comes back whole, thinking included, for append only replay.
+    expect(captured[0]).not.toHaveProperty('tool_choice');
+    // Every block comes back whole, thinking included, for the rest of the turn.
     expect(turn).toEqual({ content, stopReason: 'end_turn', model: 'claude-sonnet-5-5' });
+  });
+
+  it('sends the configured output ceiling, and tool_choice none on a last call (D-x, D-y)', async () => {
+    const captured: Array<Record<string, unknown>> = [];
+    const model = new AnthropicAssistantModel('key', 'm', clientReturning({ content: [], stop_reason: 'end_turn', model: 'm' }, captured), 800);
+    await model.createTurn({ ...request, toolChoice: 'none' }, { deadline: Date.now() + 55_000 });
+    expect(captured[0]).toMatchObject({ max_tokens: 800, tool_choice: { type: 'none' } });
+  });
+
+  it('reports the tokens the provider counted, cache reads and writes included (D-s)', async () => {
+    const usage = { input_tokens: 120, output_tokens: 45, cache_read_input_tokens: 3000, cache_creation_input_tokens: 0 };
+    const model = new AnthropicAssistantModel(
+      'key',
+      'm',
+      clientReturning({ content: [], stop_reason: 'end_turn', model: 'm', usage }, []),
+    );
+    expect((await model.createTurn(request, { deadline: Date.now() + 55_000 })).usage).toEqual({
+      inputTokens: 120,
+      outputTokens: 45,
+      cacheReadTokens: 3000,
+      cacheWriteTokens: 0,
+    });
+
+    // A response with no cache fields, or no usage at all, is not invented.
+    const bare = new AnthropicAssistantModel('key', 'm', clientReturning({ content: [], stop_reason: 'end_turn', model: 'm', usage: { input_tokens: 7, output_tokens: 2 } }, []));
+    expect((await bare.createTurn(request, { deadline: Date.now() + 55_000 })).usage).toEqual({ inputTokens: 7, outputTokens: 2, cacheReadTokens: 0, cacheWriteTokens: 0 });
+    const none = new AnthropicAssistantModel('key', 'm', clientReturning({ content: [], stop_reason: 'end_turn', model: 'm' }, []));
+    expect((await none.createTurn(request, { deadline: Date.now() + 55_000 })).usage).toBeUndefined();
   });
 
   it('spends only what is left of the turn: the remaining time as timeout, one retry only with over 30 s left', async () => {

@@ -223,9 +223,10 @@ export class AssistantController {
   }
 
   /**
-   * Ask a question. 200 with the conversation as it now stands; 503
-   * `assistant_off`, 409 `conversation_full` or `conversation_busy`, 502
-   * `model_unavailable`, 429 from the throttler.
+   * Ask a question. 200 with the conversation as it now stands, a fallback
+   * answer included when the model is unavailable or its budget is spent
+   * (ADR-061 D-u; the Phase 1 502 is retired); 503 `assistant_off`, 409
+   * `conversation_full` or `conversation_busy`, 429 from the throttler.
    */
   @Post('messages')
   @HttpCode(200)

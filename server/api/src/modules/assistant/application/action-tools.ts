@@ -69,7 +69,8 @@ export function createActionTools(reads: ActionReads, clock: () => number = Date
       const ws = caller.workspace as ScopedWorkspace;
       const parsed = ProposePriceInput.safeParse(input);
       if (!parsed.success) {
-        return errorOutcome(`Give the room type and a whole newPriceRwf between 1 and ${MAX_PRICE_RWF.toLocaleString('en-US')}.`);
+        // Read by the person when the router shows it (D-q), so no field names.
+        return errorOutcome(`Name the room type and a new price per night between 1 and ${formatRwf(MAX_PRICE_RWF)}.`);
       }
       const { roomTypeId, roomTypeName, newPriceRwf } = parsed.data;
       const active = (await reads.roomTypes(ws)).filter((r) => r.status === 'active');
@@ -82,7 +83,11 @@ export function createActionTools(reads: ActionReads, clock: () => number = Date
         );
       }
       if (matches.length > 1) {
-        return errorOutcome(`More than one room type is called that. Ask which one: ${matches.map((r) => r.id).join(', ')}.`);
+        // The person reads the sentence; only the model reads the ids, in `choices`.
+        return errorOutcome(
+          'More than one room type in the branches you cover is called that. Tell me which branch it is in, or change it on the Inventory screen.',
+          { choices: matches.map((r) => ({ roomTypeId: r.id, propertyId: r.propertyId })) },
+        );
       }
       const target = matches[0];
       if (target.basePriceRwf === newPriceRwf) {
@@ -125,6 +130,6 @@ export function formatRwf(amount: number): string {
   return `${amount.toLocaleString('en-US')} RWF`;
 }
 
-function errorOutcome(message: string): ToolOutcome {
-  return { content: JSON.stringify({ error: message }), isError: true, sources: [] };
+function errorOutcome(message: string, extra: Record<string, unknown> = {}): ToolOutcome {
+  return { content: JSON.stringify({ error: message, ...extra }), isError: true, sources: [] };
 }

@@ -379,6 +379,13 @@
       "when": 1790795978286,
       "tag": "0053_support_assistant",
       "breakpoints": true
+    },
+    {
+      "idx": 54,
+      "version": "7",
+      "when": 1790890488424,
+      "tag": "0054_assistant_data_first",
+      "breakpoints": true
     }
   ]
 }
