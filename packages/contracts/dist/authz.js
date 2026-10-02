@@ -128,6 +128,41 @@ exports.Permission = zod_1.z.enum([
      * permission at all.
      */
     "offer.manage",
+    /**
+     * The HR module (ADR-058, cross child contract 4). Seven permissions in the
+     * `people` area, each moveable per role under ADR-055.
+     *
+     * `people.view` reads the HR file WITHOUT the sensitive fields (date of
+     * birth, ID number, RSSB number, wages). Only `people.manage` and
+     * `payroll.run` see those, and the API answers with a different schema for
+     * each, so a missed check cannot leak a field.
+     */
+    "people.view",
+    /**
+     * Create and edit HR files and contracts, see the sensitive fields, and
+     * offboard. OWNER BY DEFAULT (`OWNER_BY_DEFAULT` below), but grantable: an
+     * owner may hand it to a manager. Offboarding a person who holds an account
+     * still needs `team.manage` as well, which cannot be granted.
+     */
+    "people.manage",
+    /** Shift templates and the roster. */
+    "roster.manage",
+    /**
+     * Clock a person in and out. Held by the front desk, which is who is at the
+     * door when the night shift arrives. Reads return roster cards only, so
+     * this exposes no field of the HR file.
+     */
+    "attendance.record",
+    /** Correct an attendance record, and validate a self clock in. */
+    "attendance.approve",
+    /** Decide leave, and file leave on someone's behalf. */
+    "leave.approve",
+    /**
+     * Pay runs, payslips and declarations, and the sensitive fields they need.
+     * OWNER BY DEFAULT, like `people.manage`: what the business pays each person
+     * is the owner's to disclose.
+     */
+    "payroll.run",
 ]);
 const ALL = exports.Permission.options;
 /**
@@ -155,18 +190,30 @@ const ALL = exports.Permission.options;
  */
 const OWNER_ONLY = ["team.manage"];
 /**
+ * What only an owner holds BY DEFAULT, and an owner may still grant (ADR-058,
+ * cross child contract 4).
+ *
+ * Different from `OWNER_ONLY` in kind, not degree. `team.manage` is the lock on
+ * the door and can never be granted; these two are disclosures (a person's ID
+ * number, what each colleague earns) that a hotel may well want its general
+ * manager to hold, so they start with the owner and move with an ADR-055
+ * override like any other permission.
+ */
+const OWNER_BY_DEFAULT = ["people.manage", "payroll.run"];
+/**
  * Role to permissions, inside a business workspace.
  *
  * owner runs and OWNS the property: everything, the roster included.
  * manager runs the property: everything operational, money and the fiscal
- * account included — but does not decide who works here (`OWNER_ONLY`).
+ * account included — but does not decide who works here (`OWNER_ONLY`), and by
+ * default neither reads HR files in full nor runs payroll (`OWNER_BY_DEFAULT`).
  * receptionist works the front desk and takes service orders: no money, no
- * team, no housekeeping board, no menu editing.
+ * team, no housekeeping board, no menu editing. Clocks staff in and out.
  * housekeeper is the phone: room status and maintenance tickets only.
  */
 const ROLE_PERMISSIONS = {
     owner: new Set(ALL),
-    manager: new Set(ALL.filter((p) => !OWNER_ONLY.includes(p))),
+    manager: new Set(ALL.filter((p) => !OWNER_ONLY.includes(p) && !OWNER_BY_DEFAULT.includes(p))),
     receptionist: new Set([
         "reservation.approve",
         "reservation.assign",
@@ -177,6 +224,7 @@ const ROLE_PERMISSIONS = {
         "folio.close",
         "order.advance",
         "message.send",
+        "attendance.record",
     ]),
     housekeeper: new Set(["housekeeping.set", "ticket.advance"]),
 };
@@ -217,6 +265,13 @@ exports.PERMISSION_LABEL = {
     "outlet.manage": "manage outlets",
     "refund.decide": "answer a guest's refund request",
     "offer.manage": "create and retire offers",
+    "people.view": "view staff files",
+    "people.manage": "manage staff files and contracts",
+    "roster.manage": "manage the roster",
+    "attendance.record": "clock staff in and out",
+    "attendance.approve": "correct and approve attendance",
+    "leave.approve": "decide leave",
+    "payroll.run": "run payroll",
 };
 // ---------------------------------------------------------------------------
 // A business's own role customisation
@@ -392,6 +447,13 @@ exports.PERMISSION_AREA_OF = {
     "offer.manage": "property",
     "department.manage": "people",
     "team.manage": "people",
+    "people.view": "people",
+    "people.manage": "people",
+    "roster.manage": "people",
+    "attendance.record": "people",
+    "attendance.approve": "people",
+    "leave.approve": "people",
+    "payroll.run": "people",
 };
 // ---------------------------------------------------------------------------
 // What each role may do, at THIS business

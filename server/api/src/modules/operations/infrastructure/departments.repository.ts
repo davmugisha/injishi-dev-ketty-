@@ -193,7 +193,9 @@ export class DepartmentsRepository {
         id: departmentMembers.id,
         workspaceId: departmentMembers.workspaceId,
         departmentId: departmentMembers.departmentId,
-        userId: departmentMembers.userId,
+        // The joined user, never the nullable column: a row without an account
+        // (ADR-058) is on the HR roster and is not a board member.
+        userId: users.id,
         name: users.name,
         email: users.email,
         departmentPosition: departmentMembers.departmentPosition,
@@ -212,7 +214,9 @@ export class DepartmentsRepository {
         id: departmentMembers.id,
         workspaceId: departmentMembers.workspaceId,
         departmentId: departmentMembers.departmentId,
-        userId: departmentMembers.userId,
+        // The joined user, never the nullable column: a row without an account
+        // (ADR-058) is on the HR roster and is not a board member.
+        userId: users.id,
         name: users.name,
         email: users.email,
         departmentPosition: departmentMembers.departmentPosition,

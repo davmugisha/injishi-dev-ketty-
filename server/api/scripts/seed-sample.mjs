@@ -62,6 +62,9 @@ const STEPS = [
     what: 'RRA item classifications: the VSDC specification sample codes (ADR-050 D-m)',
     env: { RRA_CLASSIFICATION_SOURCE: path.join(here, 'data', 'rra-item-classifications.sample.json') },
   },
+  // Invented placeholder PAYE, RSSB, leave and holiday rows, marked DEMO SAMPLE
+  // DATA, so pay and leave compute on a sample database (ADR-058 slice 1).
+  { script: 'seed-hr-rules.mjs', what: 'HR rules: placeholder PAYE, RSSB, leave and holidays (ADR-058)' },
   { script: 'seed-users.mjs', what: 'sign in accounts and their grants' },
   { script: 'seed-content.mjs', what: 'second pass: the residence side seed-users unlocked' },
   { script: 'seed-demo.mjs', what: 'the demo roster and the rows it trades on' },

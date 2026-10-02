@@ -13,7 +13,8 @@ import {
 import { and, eq, sql } from 'drizzle-orm';
 
 import { users } from '../../../database/drizzle/auth';
-import { departmentMembers, departments } from '../../../database/drizzle/operations';
+import { departments } from '../../../database/drizzle/operations';
+import { departmentMembers } from '../../../database/drizzle/people';
 import { WorkspaceService } from '../../../shared/auth/workspace.service';
 import { storyFor } from './persona-stories';
 import { PLATFORM, type Platform } from '../../../shared/config/platform';

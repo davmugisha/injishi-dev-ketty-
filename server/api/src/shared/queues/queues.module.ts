@@ -75,6 +75,12 @@ export const QUEUES = {
    * the TIN sweep has one: a scheduler's policy is per queue.
    */
   psfMembershipSweep: 'PsfMembershipSweep',
+  /**
+   * ADR-058: the HR daily job. Moves contract statuses on Kigali dates and
+   * writes the leave accruals each person is owed. Its own queue, because a
+   * scheduler's policy is per queue.
+   */
+  hrDaily: 'HrDaily',
 } as const;
 
 @Global()

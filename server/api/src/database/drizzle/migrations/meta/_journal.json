@@ -372,6 +372,13 @@
       "when": 1790778295107,
       "tag": "0052_identity_lookup_and_drafts",
       "breakpoints": true
+    },
+    {
+      "idx": 53,
+      "version": "7",
+      "when": 1790843253806,
+      "tag": "0053_hr_first_thread",
+      "breakpoints": true
     }
   ]
 }
