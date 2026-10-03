@@ -58,7 +58,7 @@ const columns = {
 
 /**
  * Persistence for assistant action proposals and their audit rows
- * (ADR-061 D-k, migration 0053_support_assistant).
+ * (ADR-061 D-k, migration 0054_support_assistant).
  *
  * `claim` is the one door from `proposed` to `approved`: a conditional update
  * that also records the idempotency key, so two presses of Approve race on one

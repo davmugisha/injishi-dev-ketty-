@@ -55,4 +55,6 @@ export * from './platform';
 export * from './waitlist';
 export * from './training';
 export * from './psf';
+// A leaf over operations, inventory and org: nothing imports it back.
+export * from './people';
 export * from './assistant';

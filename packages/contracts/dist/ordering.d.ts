@@ -1208,11 +1208,11 @@ export declare const OrderPaymentAttemptStatus: z.ZodObject<{
 }, "strip", z.ZodTypeAny, {
     amountRwf: number | null;
     failureReason: string | null;
-    state: "expired" | "refused" | "confirmed" | "prompting";
-    expiresAt: string;
+    state: "expired" | "confirmed" | "prompting" | "refused";
     network: "mtn_momo" | "airtel_money" | null;
     attemptToken: string;
     payerMasked: string | null;
+    expiresAt: string;
     order: {
         status: "pending_payment" | "submitted" | "rejected" | "cancelled" | "in_progress" | "acknowledged" | "ready" | "delivered" | "completed" | "payment_failed";
         id: string;
@@ -1245,11 +1245,11 @@ export declare const OrderPaymentAttemptStatus: z.ZodObject<{
 }, {
     amountRwf: number | null;
     failureReason: string | null;
-    state: "expired" | "refused" | "confirmed" | "prompting";
-    expiresAt: string;
+    state: "expired" | "confirmed" | "prompting" | "refused";
     network: "mtn_momo" | "airtel_money" | null;
     attemptToken: string;
     payerMasked: string | null;
+    expiresAt: string;
     order: {
         status: "pending_payment" | "submitted" | "rejected" | "cancelled" | "in_progress" | "acknowledged" | "ready" | "delivered" | "completed" | "payment_failed";
         id: string;
@@ -1506,19 +1506,19 @@ export declare const PlaceOrderResult: z.ZodObject<{
     }, "order">, "strip", z.ZodTypeAny, {
         amountRwf: number | null;
         failureReason: string | null;
-        state: "expired" | "refused" | "confirmed" | "prompting";
-        expiresAt: string;
+        state: "expired" | "confirmed" | "prompting" | "refused";
         network: "mtn_momo" | "airtel_money" | null;
         attemptToken: string;
         payerMasked: string | null;
+        expiresAt: string;
     }, {
         amountRwf: number | null;
         failureReason: string | null;
-        state: "expired" | "refused" | "confirmed" | "prompting";
-        expiresAt: string;
+        state: "expired" | "confirmed" | "prompting" | "refused";
         network: "mtn_momo" | "airtel_money" | null;
         attemptToken: string;
         payerMasked: string | null;
+        expiresAt: string;
     }>>;
 }, "strip", z.ZodTypeAny, {
     status: "pending_payment" | "submitted" | "rejected" | "cancelled" | "in_progress" | "acknowledged" | "ready" | "delivered" | "completed" | "payment_failed";
@@ -1528,11 +1528,11 @@ export declare const PlaceOrderResult: z.ZodObject<{
     attempt: {
         amountRwf: number | null;
         failureReason: string | null;
-        state: "expired" | "refused" | "confirmed" | "prompting";
-        expiresAt: string;
+        state: "expired" | "confirmed" | "prompting" | "refused";
         network: "mtn_momo" | "airtel_money" | null;
         attemptToken: string;
         payerMasked: string | null;
+        expiresAt: string;
     } | null;
     cancellable: boolean;
     totalRwf: number;
@@ -1565,11 +1565,11 @@ export declare const PlaceOrderResult: z.ZodObject<{
     attempt: {
         amountRwf: number | null;
         failureReason: string | null;
-        state: "expired" | "refused" | "confirmed" | "prompting";
-        expiresAt: string;
+        state: "expired" | "confirmed" | "prompting" | "refused";
         network: "mtn_momo" | "airtel_money" | null;
         attemptToken: string;
         payerMasked: string | null;
+        expiresAt: string;
     } | null;
     cancellable: boolean;
     totalRwf: number;

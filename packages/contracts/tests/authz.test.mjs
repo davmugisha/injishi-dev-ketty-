@@ -69,15 +69,19 @@ describe("the four org roles", () => {
   test("owner holds every permission there is", () => {
     assert.deepEqual(permissionsForRole("owner"), Permission.options);
     // 27: ADR-054 removed `property.switch` (AC-S4) from the 28 origin carried.
-    assert.equal(permissionsForRole("owner").length, 27);
+    // 34: ADR-058 added the seven HR permissions (cross child contract 4).
+    assert.equal(permissionsForRole("owner").length, 34);
   });
 
-  test("manager holds everything except team.manage", () => {
+  test("manager holds everything except team.manage and the two HR disclosures", () => {
+    // ADR-058: `people.manage` and `payroll.run` start with the owner, and an
+    // owner may grant them. `team.manage` never moves.
+    const withheld = ["team.manage", "people.manage", "payroll.run"];
     assert.deepEqual(
       permissionsForRole("manager"),
-      Permission.options.filter((p) => p !== "team.manage"),
+      Permission.options.filter((p) => !withheld.includes(p)),
     );
-    assert.equal(permissionsForRole("manager").length, 26);
+    assert.equal(permissionsForRole("manager").length, 31);
   });
 
   test("receptionist works the front desk and takes orders", () => {
@@ -92,6 +96,8 @@ describe("the four org roles", () => {
       "message.send",
       // ADR-050 D-t: signing a correct sale at the desk is the desk's job.
       "folio.close",
+      // ADR-058: the desk is who is at the door when the night shift arrives.
+      "attendance.record",
     ]);
   });
 

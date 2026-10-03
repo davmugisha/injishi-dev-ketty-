@@ -15,7 +15,7 @@ import {
 import { users } from './auth';
 
 /**
- * The support assistant's conversations (ADR-061, migration 0053_support_assistant).
+ * The support assistant's conversations (ADR-061, migration 0054_support_assistant).
  *
  * A conversation belongs to an account OR to an anonymous cookie, never to
  * neither (D-c). The cookie itself is never stored: `anon_token_hash` is its
@@ -109,7 +109,7 @@ export const assistantMessages = pgTable(
 
 /**
  * A change the assistant PREPARED and the person has not yet approved
- * (ADR-061 D-k, migration 0053_support_assistant).
+ * (ADR-061 D-k, migration 0054_support_assistant).
  *
  * The model can write a row here and nothing else. Approval is the person's
  * own request to `POST /api/v1/assistant/actions/:id/approve`, which moves a
@@ -159,7 +159,7 @@ export const assistantActionProposals = pgTable(
 );
 
 /**
- * Whether an answer helped, one row per answer (ADR-061 D-m, migration 0053_support_assistant).
+ * Whether an answer helped, one row per answer (ADR-061 D-m, migration 0054_support_assistant).
  * Pulled forward from Phase 2 because it is how reliability is measured.
  * Deleted with the message, and so with the conversation at retention.
  */
@@ -180,7 +180,7 @@ export const assistantFeedback = pgTable(
 
 /**
  * One row per model call that reported usage (ADR-061 D-s, migration
- * 0054_assistant_data_first): the tokens it used and what it is estimated to
+ * 0055_assistant_data_first): the tokens it used and what it is estimated to
  * have cost, priced from configuration at the time of the call.
  *
  * It OUTLIVES its conversation on purpose: the month's cost must survive the
@@ -226,7 +226,7 @@ export const assistantModelUsage = pgTable(
 
 /**
  * One row per user turn (ADR-061 D-s, D-x, D-y, migration
- * 0054_assistant_data_first), whether or not an answer was stored: which path
+ * 0055_assistant_data_first), whether or not an answer was stored: which path
  * answered (the route), how it ended (the outcome), the model calls it made
  * and the tool calls the model itself asked for, every tool run in the turn,
  * its tokens and estimated cost, and how long it took.

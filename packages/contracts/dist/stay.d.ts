@@ -258,7 +258,6 @@ export declare const ClaimStayResult: z.ZodObject<{
     /** True when this call did the binding, false when it had already happened. */
     claimed: z.ZodBoolean;
 }, "strip", z.ZodTypeAny, {
-    claimed: boolean;
     stay: {
         id: string;
         propertyName: string | null;
@@ -276,8 +275,8 @@ export declare const ClaimStayResult: z.ZodObject<{
         checkInMode: "staffed" | "self";
         openRefundRequestId: string | null;
     };
+    claimed: boolean;
 }, {
-    claimed: boolean;
     stay: {
         id: string;
         propertyName: string | null;
@@ -295,6 +294,7 @@ export declare const ClaimStayResult: z.ZodObject<{
         checkInMode: "staffed" | "self";
         openRefundRequestId: string | null;
     };
+    claimed: boolean;
 }>;
 export type ClaimStayResult = z.infer<typeof ClaimStayResult>;
 /**

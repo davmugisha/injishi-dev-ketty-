@@ -51,4 +51,6 @@ __exportStar(require("./platform"), exports);
 __exportStar(require("./training"), exports);
 __exportStar(require("./psf"), exports);
 __exportStar(require("./identity"), exports);
+__exportStar(require("./people"), exports);
+__exportStar(require("./payroll"), exports);
 //# sourceMappingURL=index.js.map

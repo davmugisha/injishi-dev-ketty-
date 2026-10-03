@@ -82,6 +82,12 @@ export const QUEUES = {
    * queue so a privacy deletion never waits behind a backlog of anything else.
    */
   assistantRetention: 'AssistantRetention',
+  /**
+   * ADR-058: the HR daily job. Moves contract statuses on Kigali dates and
+   * writes the leave accruals each person is owed. Its own queue, because a
+   * scheduler's policy is per queue.
+   */
+  hrDaily: 'HrDaily',
 } as const;
 
 @Global()

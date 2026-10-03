@@ -96,7 +96,7 @@ const conversationColumns = {
 };
 
 /**
- * Persistence for assistant conversations (ADR-061, migration 0053_support_assistant).
+ * Persistence for assistant conversations (ADR-061, migration 0054_support_assistant).
  *
  * Every read that finds "the current conversation" filters on `closed_at IS
  * NULL` and `expires_at > now`, so an expired conversation is absent to the

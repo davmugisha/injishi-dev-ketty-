@@ -253,9 +253,14 @@ describe("the unenforced permissions", () => {
   }
 
   const inUse = new Set();
+  /** Every quoted permission name in a list, such as `('a', 'b')` or `["a", "b"]`. */
+  const names = (list) => [...list.matchAll(/['"]([a-z_]+\.[a-z_.]+)['"]/g)].map((m) => m[1]);
   for (const file of tsFiles(join(repo, "server", "api", "src"))) {
     const text = readFileSync(file, "utf8");
     for (const m of text.matchAll(/@Require(?:Staff)?Permission\(\s*['"]([a-z_.]+)['"]/g)) inUse.add(m[1]);
+    // ADR-058: a read opened by any one of several permissions enforces each
+    // of them, so `people.view`, which is only ever one of several, counts.
+    for (const m of text.matchAll(/@RequireAnyPermission\(([^)]*)\)/g)) for (const p of names(m[1])) inUse.add(p);
   }
   for (const nav of [
     join(repo, "apps", "app", "src", "pms", "lib", "nav.ts"),
@@ -263,6 +268,7 @@ describe("the unenforced permissions", () => {
   ]) {
     const text = readFileSync(nav, "utf8");
     for (const m of text.matchAll(/permission:\s*"([a-z_.]+)"/g)) inUse.add(m[1]);
+    for (const m of text.matchAll(/anyPermission:\s*\[([^\]]*)\]/g)) for (const p of names(m[1])) inUse.add(p);
   }
 
   test("the scan found the API and both navs", () => {

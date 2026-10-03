@@ -1448,10 +1448,10 @@ export declare const PropertySetupCounts: z.ZodObject<{
     published: z.ZodNumber;
 }, "strip", z.ZodTypeAny, {
     published: number;
-    staff: number;
     rooms: number;
     amenities: number;
     departments: number;
+    staff: number;
     photos: number;
     roomTypes: number;
     properties: number;
@@ -1461,10 +1461,10 @@ export declare const PropertySetupCounts: z.ZodObject<{
     outlets: number;
 }, {
     published: number;
-    staff: number;
     rooms: number;
     amenities: number;
     departments: number;
+    staff: number;
     photos: number;
     roomTypes: number;
     properties: number;
@@ -1497,10 +1497,10 @@ export declare const PropertySetupProgress: z.ZodObject<{
         published: z.ZodNumber;
     }, "strip", z.ZodTypeAny, {
         published: number;
-        staff: number;
         rooms: number;
         amenities: number;
         departments: number;
+        staff: number;
         photos: number;
         roomTypes: number;
         properties: number;
@@ -1510,10 +1510,10 @@ export declare const PropertySetupProgress: z.ZodObject<{
         outlets: number;
     }, {
         published: number;
-        staff: number;
         rooms: number;
         amenities: number;
         departments: number;
+        staff: number;
         photos: number;
         roomTypes: number;
         properties: number;
@@ -1531,10 +1531,10 @@ export declare const PropertySetupProgress: z.ZodObject<{
     propertyId: string | null;
     counts: {
         published: number;
-        staff: number;
         rooms: number;
         amenities: number;
         departments: number;
+        staff: number;
         photos: number;
         roomTypes: number;
         properties: number;
@@ -1552,10 +1552,10 @@ export declare const PropertySetupProgress: z.ZodObject<{
     propertyId: string | null;
     counts: {
         published: number;
-        staff: number;
         rooms: number;
         amenities: number;
         departments: number;
+        staff: number;
         photos: number;
         roomTypes: number;
         properties: number;

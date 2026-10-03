@@ -156,10 +156,20 @@ async function main() {
     check(`owner holds all ${OWNER_ALL}`, forRole('owner').length, OWNER_ALL);
     check(`manager holds ${MANAGER_ALL}`, forRole('manager').length, MANAGER_ALL);
     // The definition behind the two numbers above, which is what actually
-    // matters: owner is the whole enum, and manager is that minus team.manage.
+    // matters: owner is the whole enum, and manager is that minus team.manage
+    // (OWNER_ONLY) and, since ADR-058, minus the two HR disclosures an owner
+    // holds by default and may grant (OWNER_BY_DEFAULT).
     check('owner is the whole permission enum', OWNER_ALL, Permission.options.length);
-    check('manager is the owner minus exactly one', OWNER_ALL - MANAGER_ALL, 1);
-    check('receptionist holds 9', forRole('receptionist').length, 9);
+    const managerLacks = forRole('owner').filter((p) => !forRole('manager').includes(p)).sort();
+    check(
+      'manager is the owner minus team.manage, people.manage and payroll.run',
+      managerLacks,
+      ['payroll.run', 'people.manage', 'team.manage'],
+    );
+    // 9 until ADR-058, which gave the desk attendance.record: the desk is who is
+    // at the door when the night shift arrives.
+    check('receptionist holds 10', forRole('receptionist').length, 10);
+    check('receptionist may clock staff in (ADR-058)', can('receptionist', 'attendance.record'), true);
     check('housekeeper holds 2', forRole('housekeeper').length, 2);
 
     console.log('\n=== owner and manager are no longer the same role ===');
@@ -179,7 +189,7 @@ async function main() {
     const EXPECTED = [
       ['host@injishi.com', 'owner', OWNER_ALL, 'hospitality'],
       ['manager@injishi.com', 'manager', MANAGER_ALL, 'hospitality'],
-      ['reception@injishi.com', 'receptionist', 9, 'hospitality'],
+      ['reception@injishi.com', 'receptionist', 10, 'hospitality'],
       ['housekeeper@injishi.com', 'housekeeper', 2, 'hospitality'],
       ['landlord@injishi.com', 'owner', OWNER_ALL, 'residence'],
       ['resident-manager@injishi.com', 'manager', MANAGER_ALL, 'residence'],

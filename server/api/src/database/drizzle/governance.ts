@@ -250,7 +250,7 @@ export const supportTickets = pgTable('support_tickets', {
   contactName: text('contact_name'),
   contactPhone: text('contact_phone'),
   // A ticket the person sent from the support assistant (ADR-061 D-l,
-  // migration 0053_support_assistant). The conversation link is cleared when the conversation
+  // migration 0054_support_assistant). The conversation link is cleared when the conversation
   // is deleted at the end of its retention; `context` (the page, the questions
   // asked, the tools used, the changes prepared) stays with the ticket, and is
   // also written into `message` so the moderation desk shows it unchanged.

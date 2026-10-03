@@ -8,6 +8,7 @@ import { ListingSetupModule } from '../../modules/listing-setup/listing-setup.mo
 import { ListingModule } from '../../modules/listing/listing.module';
 import { OperationsModule } from '../../modules/operations/operations.module';
 import { OrganizationModule } from '../../modules/organization/organization.module';
+import { PeopleModule } from '../../modules/people/people.module';
 import { StorageModule } from '../../modules/storage/storage.module';
 import { UserModule } from '../../modules/user/user.module';
 import { TwoFactorService } from '../../shared/auth/two-factor.service';
@@ -32,6 +33,11 @@ import { OpsDepartmentsController } from './ops/departments.controller';
 import { OpsEbmController } from './ops/ebm.controller';
 import { OpsRolesController } from './ops/roles.controller';
 import { OpsTeamController } from './ops/team.controller';
+import { OpsAttendanceController } from './ops/attendance.controller';
+import { OpsEmployeesController } from './ops/employees.controller';
+import { OpsLeaveController } from './ops/leave.controller';
+import { OpsPayRunsController } from './ops/pay-runs.controller';
+import { OpsRosterController, OpsShiftTemplatesController } from './ops/roster.controller';
 import { OpsFoliosController } from './ops/folios.controller';
 import { OpsHousekeepingController } from './ops/housekeeping.controller';
 import { OpsOutletPartiesController } from './ops/outlet-parties.controller';
@@ -99,6 +105,8 @@ import { WaitlistModule } from './waitlist/waitlist.module';
     BookingModule,
     OperationsModule,
     OrganizationModule,
+    // The HR module (ADR-058): files, roster, attendance, leave and pay.
+    PeopleModule,
     StorageModule,
     UserModule,
     // POST /support/tickets, the public support intake; limits and caps are
@@ -156,6 +164,14 @@ import { WaitlistModule } from './waitlist/waitlist.module';
     OpsOutletPartiesController,
     OpsTeamController,
     OpsRolesController,
+    // The HR module (ADR-058, first thread). Every route behind WorkspaceGuard
+    // with one of the seven HR permissions.
+    OpsEmployeesController,
+    OpsShiftTemplatesController,
+    OpsRosterController,
+    OpsAttendanceController,
+    OpsLeaveController,
+    OpsPayRunsController,
     OpsFoliosController,
     // §6.8. Answering a guest who asked for money back, and the offers a
     // property writes. Both behind `WorkspaceGuard` with their own permissions.

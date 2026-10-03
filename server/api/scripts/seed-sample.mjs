@@ -62,6 +62,9 @@ const STEPS = [
     what: 'RRA item classifications: the VSDC specification sample codes (ADR-050 D-m)',
     env: { RRA_CLASSIFICATION_SOURCE: path.join(here, 'data', 'rra-item-classifications.sample.json') },
   },
+  // Invented placeholder PAYE, RSSB, leave and holiday rows, marked DEMO SAMPLE
+  // DATA, so pay and leave compute on a sample database (ADR-058 slice 1).
+  { script: 'seed-hr-rules.mjs', what: 'HR rules: placeholder PAYE, RSSB, leave and holidays (ADR-058)' },
   { script: 'seed-users.mjs', what: 'sign in accounts and their grants' },
   { script: 'seed-content.mjs', what: 'second pass: the residence side seed-users unlocked' },
   { script: 'seed-demo.mjs', what: 'the demo roster and the rows it trades on' },
@@ -79,6 +82,10 @@ const STEPS = [
   { script: 'seed-demo-psf.mjs', what: 'PSF membership: tiers, an officer, an application (ADR-056)' },
   // Last: it places tenants on leases the two residence seeds above write.
   { script: 'seed-broker.mjs', what: 'brokers: credits, reveals, placements and fees (ADR-038 child 6)' },
+  // After every step that creates a membership: migration 0053 backfilled files
+  // only for memberships that existed when it ran, which on a migrate-then-seed
+  // database is none (ADR-058 AC-P5).
+  { script: 'seed-hr-files.mjs', what: 'HR: a staff file for every seeded staff account (ADR-058)' },
 ];
 
 function fail(message) {
