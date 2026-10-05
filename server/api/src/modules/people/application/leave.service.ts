@@ -2,8 +2,11 @@ import type {
   CreateLeaveRequestRequest,
   LeaveBalances,
   LeaveRequest,
-  LeaveRequestList,
-  LeaveRequestQuery,
+  LeaveBulkRequest,
+  LeaveRequestPage,
+  ListIds,
+  ListQuery,
+  BulkResponse,
   LeaveType,
 } from '@injishi/contracts';
 import {
@@ -16,6 +19,8 @@ import {
 
 import { assertOwnedByOrg } from '../../../shared/auth/assert-owned';
 import { assertInBranchScope, type ScopedWorkspace } from '../../../shared/auth/branch-scope';
+import { runBulk } from '../../../shared/lists/bulk';
+import { pageOf } from '../../../shared/lists/list-query';
 import { isCalendarDate } from '../../booking/domain/pricing';
 import { addDays, kigaliToday, monthOf } from '../domain/hr-calendar';
 import { HR_RULE, missingRuleMessage } from '../domain/hr-rules';
@@ -143,17 +148,40 @@ export class LeaveService {
     };
   }
 
-  /** `GET /ops/leave/requests`: the queue, routed to the caller first. */
-  async list(ws: ScopedWorkspace, userId: string, query: LeaveRequestQuery): Promise<LeaveRequestList> {
+  /**
+   * `GET /ops/leave/requests`: one page of the queue through the list
+   * contract; by default what is routed to the caller comes first.
+   */
+  async list(ws: ScopedWorkspace, userId: string, query: ListQuery): Promise<LeaveRequestPage> {
     const orgId = orgOf(ws);
     const me = await this.employees.findForUser(orgId, userId);
-    const rows = await this.leave.listRequests({ orgId, scope: ws.branchScope, status: query.status });
-    const mine = (r: LeaveRequestRow): number => (me !== null && r.routedToEmployeeId === me ? 0 : 1);
-    return {
-      requests: [...rows]
-        .sort((a, b) => mine(a) - mine(b))
-        .map((r) => presentRequest(r, me)),
-    };
+    const page = await this.leave.listRequestsPage({ orgId, scope: ws.branchScope, query, me });
+    return pageOf(
+      page.rows.map((r) => presentRequest(r, me)),
+      page.total,
+      query,
+      { groups: page.groups, statusCounts: page.statusCounts },
+    );
+  }
+
+  /** `GET /ops/leave/requests/ids`: select all over the queue, up to the bulk cap (AC-LF15). */
+  async ids(ws: ScopedWorkspace, userId: string, query: ListQuery): Promise<ListIds> {
+    const orgId = orgOf(ws);
+    const me = await this.employees.findForUser(orgId, userId);
+    return this.leave.listRequestIds({ orgId, scope: ws.branchScope, query, me });
+  }
+
+  /**
+   * `POST /ops/leave/requests/bulk`: approve or refuse several requests. Each
+   * goes through the single command, with its own checks, its own lock on the
+   * file and its own audit row, so one refusal (a request already decided, a
+   * person's own leave) is that row's result and undoes nothing (AC-LF6).
+   */
+  bulk(ws: ScopedWorkspace, userId: string, body: LeaveBulkRequest): Promise<BulkResponse> {
+    const note = body.params?.note?.trim() || null;
+    return runBulk(body.ids, (id) =>
+      body.action === 'approve' ? this.approve(ws, userId, id, note) : this.reject(ws, userId, id, note),
+    );
   }
 
   // --- Request -------------------------------------------------------------
@@ -532,6 +560,7 @@ export function presentRequest(row: LeaveRequestRow, callerEmployeeId: string | 
       legalName: row.legalName,
       jobPositionTitle: row.jobPositionTitle,
     }),
+    branchId: row.workPropertyId,
     leaveType: { id: row.leaveTypeId, code: row.leaveTypeCode, name: row.leaveTypeName, paid: row.leaveTypePaid },
     startsOn: row.startsOn,
     endsOn: row.endsOn,

@@ -1,12 +1,16 @@
-import type {
-  LeaveAccrual,
-  LeaveEndHalf,
-  LeaveEntryKind,
-  LeaveRequestStatus,
-  LeaveStartHalf,
+import {
+  LEAVE_REQUEST_LIST,
+  MAX_BULK_IDS,
+  type LeaveAccrual,
+  type LeaveEndHalf,
+  type LeaveEntryKind,
+  type LeaveRequestStatus,
+  type LeaveStartHalf,
+  type ListIds,
+  type ListQuery,
 } from '@injishi/contracts';
 import { Inject, Injectable } from '@nestjs/common';
-import { and, asc, desc, eq, gte, inArray, lte, ne, sql } from 'drizzle-orm';
+import { and, asc, desc, eq, gte, inArray, lte, ne, sql, type SQL } from 'drizzle-orm';
 import { alias } from 'drizzle-orm/pg-core';
 
 import {
@@ -18,8 +22,19 @@ import {
 } from '../../../database/drizzle/schema';
 import { inBranchScope, type BranchScope } from '../../../shared/auth/branch-scope';
 import { DRIZZLE, type Database } from '../../../shared/database/database.module';
+import {
+  compileListQuery,
+  countAll,
+  groupOrder,
+  groupsOf,
+  statusCountsOf,
+  type CompiledList,
+  type ListColumns,
+  type ListRows,
+} from '../../../shared/lists/list-query';
 import type { LeaveDefaultsRule } from '../domain/hr-rules';
 import type { Tx } from './employees.repository';
+import { refLabels } from './hr-labels';
 
 export interface LeaveTypeRow {
   id: string;
@@ -319,21 +334,105 @@ export class LeaveRepository {
       .leftJoin(routedTo, eq(routedTo.id, leaveRequests.routedToEmployeeId));
   }
 
-  /** The queue: requests of people in the caller's branches, oldest first. */
-  async listRequests(input: {
+  /**
+   * The leave list's field to column map (`LEAVE_REQUEST_LIST`). `routedToMe`
+   * depends on who asks, so the map is built per caller: `me` is their own
+   * file at this business, or null when they hold none.
+   */
+  private listColumns(me: string | null): ListColumns {
+    return {
+      status: leaveRequests.status,
+      leaveType: leaveRequests.leaveTypeId,
+      employee: sql`coalesce(nullif(btrim(${employees.preferredName}), ''), ${employees.legalName})`,
+      startsOn: leaveRequests.startsOn,
+      endsOn: leaveRequests.endsOn,
+      days: leaveRequests.days,
+      branch: employees.workPropertyId,
+      routedToMe: me
+        ? sql`coalesce(${leaveRequests.routedToEmployeeId} = ${me}::uuid, false)`
+        : sql`false`,
+      createdAt: leaveRequests.createdAt,
+    };
+  }
+
+  private compiledList(input: { orgId: string; scope: BranchScope; query: ListQuery; me: string | null }): {
+    compiled: CompiledList;
+    own: SQL | undefined;
+    where: SQL | undefined;
+  } {
+    const compiled = compileListQuery({
+      spec: LEAVE_REQUEST_LIST,
+      columns: this.listColumns(input.me),
+      reader: 'basic',
+      query: input.query,
+      tieBreaker: leaveRequests.id,
+    });
+    const own = and(eq(leaveRequests.orgId, input.orgId), inBranchScope(employees.workPropertyId, input.scope));
+    return { compiled, own, where: compiled.where ? and(own, compiled.where) : own };
+  }
+
+  /**
+   * The queue: one page of requests of people in the caller's branches
+   * (AC-L4, AC-LF3). By default the ones routed to the caller come first, then
+   * by first day, as the queue always read.
+   */
+  async listRequestsPage(input: {
     orgId: string;
     scope: BranchScope;
-    status?: LeaveRequestStatus;
-  }): Promise<LeaveRequestRow[]> {
-    const where = [
-      eq(leaveRequests.orgId, input.orgId),
-      inBranchScope(employees.workPropertyId, input.scope),
-    ];
-    if (input.status) where.push(eq(leaveRequests.status, input.status));
-    return (await this.requests()
-      .where(and(...where))
-      .orderBy(asc(leaveRequests.startsOn), asc(leaveRequests.createdAt))
-      .limit(500)) as LeaveRequestRow[];
+    query: ListQuery;
+    me: string | null;
+  }): Promise<ListRows<LeaveRequestRow>> {
+    const { compiled, own, where } = this.compiledList(input);
+    const [rows, [{ count }], statusRows, groupRows] = await Promise.all([
+      this.requests().where(where).orderBy(...compiled.orderBy).limit(compiled.limit).offset(compiled.offset),
+      this.db
+        .select({ count: countAll })
+        .from(leaveRequests)
+        .innerJoin(employees, eq(employees.id, leaveRequests.employeeId))
+        .where(where),
+      this.db
+        .select({ value: leaveRequests.status, count: countAll })
+        .from(leaveRequests)
+        .innerJoin(employees, eq(employees.id, leaveRequests.employeeId))
+        .where(compiled.whereForStatusCounts ? and(own, compiled.whereForStatusCounts) : own)
+        .groupBy(leaveRequests.status),
+      compiled.groupColumn
+        ? this.db
+            .select({ key: sql`${compiled.groupColumn}`, count: countAll })
+            .from(leaveRequests)
+            .innerJoin(employees, eq(employees.id, leaveRequests.employeeId))
+            .where(where)
+            .groupBy(sql`${compiled.groupColumn}`)
+            .orderBy(groupOrder(compiled.groupColumn))
+        : Promise.resolve([] as { key: unknown; count: number }[]),
+    ]);
+    const labels = await refLabels(this.db, input.query.groupBy, groupRows.map((g) => g.key));
+    return {
+      rows: rows as LeaveRequestRow[],
+      total: Number(count),
+      groups: groupsOf(LEAVE_REQUEST_LIST, input.query.groupBy, groupRows, labels),
+      statusCounts: statusCountsOf(statusRows),
+    };
+  }
+
+  /** Select all over the queue (AC-LF15): the matching ids up to the bulk cap, and how many match. */
+  async listRequestIds(input: { orgId: string; scope: BranchScope; query: ListQuery; me: string | null }): Promise<ListIds> {
+    const { compiled, where } = this.compiledList(input);
+    const [rows, [{ count }]] = await Promise.all([
+      this.db
+        .select({ id: leaveRequests.id })
+        .from(leaveRequests)
+        .innerJoin(employees, eq(employees.id, leaveRequests.employeeId))
+        .where(where)
+        .orderBy(...compiled.orderBy)
+        .limit(MAX_BULK_IDS),
+      this.db
+        .select({ count: countAll })
+        .from(leaveRequests)
+        .innerJoin(employees, eq(employees.id, leaveRequests.employeeId))
+        .where(where),
+    ]);
+    return { ids: rows.map((r) => r.id), total: Number(count) };
   }
 
   async requestsOf(employeeId: string, tx?: Tx): Promise<LeaveRequestRow[]> {

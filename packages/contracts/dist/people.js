@@ -1,7 +1,6 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.LeaveBalance = exports.LeaveLedgerEntry = exports.LeaveType = exports.CorrectAttendanceRequest = exports.ClockOutRequest = exports.ClockInRequest = exports.AttendanceQuery = exports.AttendanceList = exports.AttendanceRecord = exports.CancelRosterEntryRequest = exports.CreateRosterEntryRequest = exports.RosterQuery = exports.RosterList = exports.RosterEntry = exports.CreateShiftTemplateRequest = exports.ShiftTemplateQuery = exports.ShiftTemplateList = exports.ShiftTemplate = exports.ShiftTemplateStatus = exports.OffboardEmployeeRequest = exports.CreateContractResponse = exports.CreateContractRequest = exports.UpdateEmployeeRequest = exports.CreateEmployeeRequest = exports.EmployeeFile = exports.EmployeeDepartment = exports.Employee = exports.EmployeeFull = exports.EmployeeBasic = exports.EmploymentContract = exports.EmploymentContractFull = exports.EmploymentContractBasic = exports.RosterCard = exports.EMPLOYEE_MISSING_DETAIL_LABEL = exports.EmployeeMissingDetail = exports.TimeOfDay = exports.LeaveEndHalf = exports.LeaveStartHalf = exports.LeaveRequestStatus = exports.LeaveEntryKind = exports.LeaveAccrual = exports.AttendanceStatus = exports.AttendanceSource = exports.RosterStatus = exports.ContractStatus = exports.WageBasis = exports.ContractType = exports.EmployeeStatus = exports.HrIdDocumentType = exports.HrSex = void 0;
-exports.LeaveDecisionRequest = exports.CreateLeaveRequestRequest = exports.LeaveRequestQuery = exports.LeaveRequestList = exports.LeaveRequest = exports.LeaveBalances = void 0;
+exports.LeaveDecisionRequest = exports.CreateLeaveRequestRequest = exports.LeaveRequest = exports.LeaveBalances = exports.LeaveBalance = exports.LeaveLedgerEntry = exports.LeaveType = exports.CorrectAttendanceRequest = exports.ClockOutRequest = exports.ClockInRequest = exports.AttendanceRecord = exports.CancelRosterEntryRequest = exports.CreateRosterEntryRequest = exports.RosterEntry = exports.CreateShiftTemplateRequest = exports.ShiftTemplateQuery = exports.ShiftTemplateList = exports.ShiftTemplate = exports.ShiftTemplateStatus = exports.OffboardEmployeeRequest = exports.CreateContractResponse = exports.CreateContractRequest = exports.UpdateEmployeeRequest = exports.CreateEmployeeRequest = exports.EmployeeFile = exports.EmployeeDepartment = exports.Employee = exports.EmployeeFull = exports.EmployeeBasic = exports.EmploymentContract = exports.EmploymentContractFull = exports.EmploymentContractBasic = exports.RosterCard = exports.EMPLOYEE_MISSING_DETAIL_LABEL = exports.EmployeeMissingDetail = exports.TimeOfDay = exports.LeaveEndHalf = exports.LeaveStartHalf = exports.LeaveRequestStatus = exports.LeaveEntryKind = exports.LeaveAccrual = exports.AttendanceStatus = exports.AttendanceSource = exports.RosterStatus = exports.ContractStatus = exports.WageBasis = exports.ContractType = exports.EmployeeStatus = exports.HrIdDocumentType = exports.HrSex = void 0;
 const zod_1 = require("zod");
 const booking_1 = require("./booking");
 const phone_1 = require("./phone");
@@ -275,13 +274,6 @@ exports.RosterEntry = zod_1.z.object({
     status: exports.RosterStatus,
     cancelReason: zod_1.z.string().nullable(),
 });
-exports.RosterList = zod_1.z.object({ entries: zod_1.z.array(exports.RosterEntry) });
-/** At most 31 days, inclusive at both ends. */
-exports.RosterQuery = zod_1.z.object({
-    from: booking_1.IsoDate,
-    to: booking_1.IsoDate,
-    propertyId: primitives_1.Uuid.optional(),
-});
 exports.CreateRosterEntryRequest = zod_1.z.object({
     employeeId: primitives_1.Uuid,
     shiftTemplateId: primitives_1.Uuid,
@@ -296,6 +288,8 @@ exports.CancelRosterEntryRequest = zod_1.z.object({
 exports.AttendanceRecord = zod_1.z.object({
     id: primitives_1.Uuid,
     employee: exports.RosterCard,
+    /** The branch the person works at: what branch limits read and a page groups by. */
+    branchId: primitives_1.Uuid.nullable(),
     rosterEntryId: primitives_1.Uuid.nullable(),
     workDate: booking_1.IsoDate,
     clockInAt: zod_1.z.string(),
@@ -305,11 +299,6 @@ exports.AttendanceRecord = zod_1.z.object({
     status: exports.AttendanceStatus,
     supersedesId: primitives_1.Uuid.nullable(),
     note: zod_1.z.string().nullable(),
-});
-exports.AttendanceList = zod_1.z.object({ records: zod_1.z.array(exports.AttendanceRecord) });
-exports.AttendanceQuery = zod_1.z.object({
-    date: booking_1.IsoDate,
-    propertyId: primitives_1.Uuid.optional(),
 });
 const Instant = zod_1.z.string().datetime({ offset: true, message: "A time is an ISO instant." });
 exports.ClockInRequest = zod_1.z.object({
@@ -361,6 +350,8 @@ exports.LeaveBalances = zod_1.z.object({
 exports.LeaveRequest = zod_1.z.object({
     id: primitives_1.Uuid,
     employee: exports.RosterCard,
+    /** The branch the person works at: what branch limits read and a page groups by. */
+    branchId: primitives_1.Uuid.nullable(),
     leaveType: zod_1.z.object({ id: primitives_1.Uuid, code: zod_1.z.string(), name: zod_1.z.string(), paid: zod_1.z.boolean() }),
     startsOn: booking_1.IsoDate,
     endsOn: booking_1.IsoDate,
@@ -379,8 +370,6 @@ exports.LeaveRequest = zod_1.z.object({
     decisionNote: zod_1.z.string().nullable(),
     createdAt: zod_1.z.string(),
 });
-exports.LeaveRequestList = zod_1.z.object({ requests: zod_1.z.array(exports.LeaveRequest) });
-exports.LeaveRequestQuery = zod_1.z.object({ status: exports.LeaveRequestStatus.optional() });
 exports.CreateLeaveRequestRequest = zod_1.z.object({
     employeeId: primitives_1.Uuid,
     leaveTypeId: primitives_1.Uuid,

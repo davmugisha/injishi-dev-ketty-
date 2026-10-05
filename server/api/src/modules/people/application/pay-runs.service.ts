@@ -2,7 +2,8 @@ import type {
   PayRun,
   PayRunBlocker,
   PayRunDetail,
-  PayRunList,
+  ListQuery,
+  PayRunPage,
   PayRunRuleVersion,
   Payslip,
 } from '@injishi/contracts';
@@ -11,6 +12,7 @@ import { ConflictException, Inject, Injectable, NotFoundException } from '@nestj
 import { assertOwnedByOrg } from '../../../shared/auth/assert-owned';
 import type { ScopedWorkspace } from '../../../shared/auth/branch-scope';
 import { DRIZZLE, type Database } from '../../../shared/database/database.module';
+import { pageOf } from '../../../shared/lists/list-query';
 import { firstOfMonth, lastOfMonth, monthOf } from '../domain/hr-calendar';
 import { HR_RULE, missingRuleMessage } from '../domain/hr-rules';
 import { computePayslip, type ComputedPayslip, type PayContract } from '../domain/pay-computation';
@@ -50,9 +52,10 @@ export class PayRunsService {
     private readonly rules: HrRulesRepository,
   ) {}
 
-  async list(ws: ScopedWorkspace): Promise<PayRunList> {
-    const rows = await this.payroll.listRuns(orgOf(ws));
-    return { runs: rows.map(presentRun) };
+  /** `GET /ops/pay-runs`: one page through the list contract, newest month first by default. */
+  async list(ws: ScopedWorkspace, query: ListQuery): Promise<PayRunPage> {
+    const page = await this.payroll.listRunsPage(orgOf(ws), query);
+    return pageOf(page.rows.map(presentRun), page.total, query, { statusCounts: page.statusCounts });
   }
 
   async get(ws: ScopedWorkspace, id: string): Promise<PayRunDetail> {

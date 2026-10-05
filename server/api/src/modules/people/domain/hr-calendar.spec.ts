@@ -5,6 +5,7 @@ import {
   isWeekday,
   kigaliDateOf,
   lastOfMonth,
+  mondayOf,
   payableThirtieths,
   roundHalfUp,
   shiftInstants,
@@ -67,6 +68,12 @@ describe('hr calendar (ADR-058 index contract 9)', () => {
     expect(eachMonth('2026-11', '2027-02')).toEqual(['2026-11', '2026-12', '2027-01', '2027-02']);
     expect(isWeekday('2026-10-03')).toBe(false); // a Saturday
     expect(isWeekday('2026-10-05')).toBe(true); // a Monday
+  });
+
+  it('finds the Monday of a week that runs Monday to Sunday', () => {
+    expect(mondayOf('2026-10-05')).toBe('2026-10-05'); // a Monday is its own
+    expect(mondayOf('2026-10-11')).toBe('2026-10-05'); // a Sunday ends the week before it
+    expect(mondayOf('2027-01-01')).toBe('2026-12-28'); // across a year
   });
 
   it('rounds half up, symmetric around zero', () => {

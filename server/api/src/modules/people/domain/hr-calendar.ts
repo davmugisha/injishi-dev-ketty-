@@ -49,6 +49,11 @@ export function daysBetween(from: string, to: string): number {
   return Math.round((noon(to).getTime() - noon(from).getTime()) / 86_400_000);
 }
 
+/** The Monday of the week a date falls in (weeks run Monday to Sunday). */
+export function mondayOf(date: string): string {
+  return addDays(date, -((noon(date).getUTCDay() + 6) % 7));
+}
+
 /** Monday to Friday. */
 export function isWeekday(date: string): boolean {
   const day = noon(date).getUTCDay();

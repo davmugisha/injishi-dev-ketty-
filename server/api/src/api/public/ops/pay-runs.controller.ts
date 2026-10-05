@@ -1,7 +1,8 @@
 import {
   CreatePayRunRequest,
   type PayRunDetail,
-  type PayRunList,
+  type ListQuery,
+  type PayRunPage,
 } from '@injishi/contracts';
 import {
   Body,
@@ -11,6 +12,7 @@ import {
   Param,
   ParseUUIDPipe,
   Post,
+  Query,
   UseGuards,
 } from '@nestjs/common';
 
@@ -26,6 +28,7 @@ import {
   WorkspaceGuard,
 } from '../../../shared/auth/workspace.guard';
 import type { ScopedWorkspace } from '../../../shared/auth/branch-scope';
+import { ListQueryPipe } from '../../../shared/lists/list-query';
 import { ZodValidationPipe } from '../../../shared/validation/zod-validation.pipe';
 
 /**
@@ -42,8 +45,11 @@ export class OpsPayRunsController {
 
   @Get()
   @RequirePermission('payroll.run')
-  list(@CurrentWorkspace() workspace: ScopedWorkspace): Promise<PayRunList> {
-    return this.payRuns.list(workspace);
+  list(
+    @CurrentWorkspace() workspace: ScopedWorkspace,
+    @Query(ListQueryPipe) query: ListQuery,
+  ): Promise<PayRunPage> {
+    return this.payRuns.list(workspace, query);
   }
 
   @Post()

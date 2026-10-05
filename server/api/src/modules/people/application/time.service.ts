@@ -1,6 +1,5 @@
 import type {
-  AttendanceList,
-  AttendanceQuery,
+  AttendancePage,
   AttendanceRecord,
   CancelRosterEntryRequest,
   ClockInRequest,
@@ -9,8 +8,8 @@ import type {
   CreateRosterEntryRequest,
   CreateShiftTemplateRequest,
   RosterEntry,
-  RosterList,
-  RosterQuery,
+  ListQuery,
+  RosterPage,
   ShiftTemplate,
   ShiftTemplateList,
   ShiftTemplateQuery,
@@ -26,13 +25,16 @@ import {
 import { assertOwnedByOrg } from '../../../shared/auth/assert-owned';
 import type { ScopedWorkspace } from '../../../shared/auth/branch-scope';
 import { DRIZZLE, type Database } from '../../../shared/database/database.module';
+import { pageOf } from '../../../shared/lists/list-query';
 import { isCalendarDate } from '../../booking/domain/pricing';
 import {
+  addDays,
   crossesMidnight,
-  daysBetween,
   hhmm,
   kigaliDateOf,
+  kigaliToday,
   lastOfMonth,
+  mondayOf,
   monthOf,
   shiftInstants,
 } from '../domain/hr-calendar';
@@ -118,23 +120,24 @@ export class TimeService {
 
   // --- Roster --------------------------------------------------------------
 
-  /** `GET /ops/roster`, at most 31 days. */
-  async listRoster(ws: ScopedWorkspace, query: RosterQuery): Promise<RosterList> {
-    if (!isCalendarDate(query.from) || !isCalendarDate(query.to)) {
-      throw new UnprocessableEntityException('Those are not real dates.');
-    }
-    const span = daysBetween(query.from, query.to);
-    if (span < 0 || span > 30) {
-      throw new UnprocessableEntityException('A roster read covers 1 to 31 days.');
-    }
-    const rows = await this.time.listRoster({
+  /**
+   * `GET /ops/roster`: one page through the list contract (058-list-framework).
+   * With no day filter it reads this week, Monday to Sunday in Kigali, so the
+   * lens opens on the week; pages bound anything wider.
+   */
+  async listRoster(ws: ScopedWorkspace, query: ListQuery): Promise<RosterPage> {
+    const named = query.filters.some((f) => f.field === 'workDate');
+    const monday = mondayOf(kigaliToday());
+    const page = await this.time.listRosterPage({
       orgId: orgOf(ws),
       scope: ws.branchScope,
-      from: query.from,
-      to: query.to,
-      propertyId: query.propertyId,
+      query,
+      window: named ? null : { from: monday, to: addDays(monday, 6) },
     });
-    return { entries: rows.map(presentEntry) };
+    return pageOf(page.rows.map(presentEntry), page.total, query, {
+      groups: page.groups,
+      statusCounts: page.statusCounts,
+    });
   }
 
   /** `POST /ops/roster` (AC-T1 to AC-T3). */
@@ -217,16 +220,22 @@ export class TimeService {
 
   // --- Attendance ----------------------------------------------------------
 
-  /** `GET /ops/attendance`: a day's sheet, plus anything still open. */
-  async listAttendance(ws: ScopedWorkspace, query: AttendanceQuery): Promise<AttendanceList> {
-    if (!isCalendarDate(query.date)) throw new UnprocessableEntityException('That is not a real date.');
-    const rows = await this.time.listAttendance({
+  /**
+   * `GET /ops/attendance`: one page through the list contract. With no day or
+   * time filter it is today's sheet: today's records and anything still open.
+   */
+  async listAttendance(ws: ScopedWorkspace, query: ListQuery): Promise<AttendancePage> {
+    const named = query.filters.some((f) => f.field === 'workDate' || f.field === 'clockInAt');
+    const page = await this.time.listAttendancePage({
       orgId: orgOf(ws),
       scope: ws.branchScope,
-      date: query.date,
-      propertyId: query.propertyId,
+      query,
+      sheetDay: named ? null : kigaliToday(),
     });
-    return { records: rows.map(presentRecord) };
+    return pageOf(page.rows.map(presentRecord), page.total, query, {
+      groups: page.groups,
+      statusCounts: page.statusCounts,
+    });
   }
 
   /** `POST /ops/attendance/clock-in` (AC-T4). */
@@ -499,6 +508,7 @@ function presentRecord(row: AttendanceRow): AttendanceRecord {
       legalName: row.legalName,
       jobPositionTitle: row.jobPositionTitle,
     }),
+    branchId: row.workPropertyId,
     rosterEntryId: row.rosterEntryId,
     workDate: row.workDate,
     clockInAt: row.clockInAt.toISOString(),

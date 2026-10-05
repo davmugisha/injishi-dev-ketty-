@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { defineListSpec, listPage } from "./list-query";
+import { BulkRequest, defineListSpec, listPage } from "./list-query";
 import { PayRun } from "./payroll";
 import { AttendanceRecord, Employee, LeaveRequest, RosterEntry } from "./people";
 /**
@@ -45,7 +45,11 @@ export const EMPLOYEE_LIST = defineListSpec({
 });
 export const EmployeePage = listPage(Employee);
 export type EmployeePage = z.infer<typeof EmployeePage>;
-/** `GET /ops/roster`. A read covers at most 31 days; with no date filter it reads this week. */
+/**
+ * `GET /ops/roster`. With no day filter it reads this week, Monday to Sunday in
+ * Kigali; pages bound anything wider, which retired the first thread's 31 day
+ * cap on a roster read.
+ */
 export const ROSTER_LIST = defineListSpec({
     key: "staff.roster",
     searchFields: ["employee"],
@@ -111,7 +115,11 @@ export const LEAVE_REQUEST_LIST = defineListSpec({
     key: "staff.leave-requests",
     searchFields: ["employee"],
     statusField: "status",
-    defaultSort: [{ field: "startsOn", dir: "asc" }],
+    // The queue as it always read: what is routed to the caller first, then by first day.
+    defaultSort: [
+        { field: "routedToMe", dir: "desc" },
+        { field: "startsOn", dir: "asc" },
+    ],
     fields: [
         {
             key: "status",
@@ -128,12 +136,21 @@ export const LEAVE_REQUEST_LIST = defineListSpec({
         { key: "endsOn", label: "To", type: "date", filterable: true, sortable: true },
         { key: "days", label: "Days", type: "number", filterable: true, sortable: true },
         { key: "branch", label: "Branch", type: "ref", filterable: true, groupable: true },
-        { key: "routedToMe", label: "Waiting on me", type: "bool", filterable: true },
+        { key: "routedToMe", label: "Waiting on me", type: "bool", filterable: true, sortable: true },
         { key: "createdAt", label: "Requested", type: "datetime", filterable: true, sortable: true },
     ],
 });
 export const LeaveRequestPage = listPage(LeaveRequest);
 export type LeaveRequestPage = z.infer<typeof LeaveRequestPage>;
+/**
+ * `POST /ops/leave/requests/bulk`: approve or refuse several requests, each as
+ * the single command with its own checks, lock and audit row (AC-LF6).
+ */
+export const LeaveBulkRequest = BulkRequest.extend({
+    action: z.enum(["approve", "reject"]),
+    params: z.object({ note: z.string().trim().max(300).optional() }).optional(),
+});
+export type LeaveBulkRequest = z.infer<typeof LeaveBulkRequest>;
 /** `GET /ops/pay-runs`. */
 export const PAY_RUN_LIST = defineListSpec({
     key: "staff.pay-runs",

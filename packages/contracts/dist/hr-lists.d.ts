@@ -569,7 +569,11 @@ export declare const EmployeePage: z.ZodObject<{
     }[] | undefined;
 }>;
 export type EmployeePage = z.infer<typeof EmployeePage>;
-/** `GET /ops/roster`. A read covers at most 31 days; with no date filter it reads this week. */
+/**
+ * `GET /ops/roster`. With no day filter it reads this week, Monday to Sunday in
+ * Kigali; pages bound anything wider, which retired the first thread's 31 day
+ * cap on a roster read.
+ */
 export declare const ROSTER_LIST: {
     readonly key: "staff.roster";
     readonly searchFields: readonly ["employee"];
@@ -871,6 +875,7 @@ export declare const AttendancePage: z.ZodObject<{
             displayName: string;
             jobPositionTitle: string | null;
         }>;
+        branchId: z.ZodNullable<z.ZodString>;
         rosterEntryId: z.ZodNullable<z.ZodString>;
         workDate: z.ZodString;
         clockInAt: z.ZodString;
@@ -890,6 +895,7 @@ export declare const AttendancePage: z.ZodObject<{
             displayName: string;
             jobPositionTitle: string | null;
         };
+        branchId: string | null;
         workDate: string;
         rosterEntryId: string | null;
         clockInAt: string;
@@ -906,6 +912,7 @@ export declare const AttendancePage: z.ZodObject<{
             displayName: string;
             jobPositionTitle: string | null;
         };
+        branchId: string | null;
         workDate: string;
         rosterEntryId: string | null;
         clockInAt: string;
@@ -960,6 +967,7 @@ export declare const AttendancePage: z.ZodObject<{
             displayName: string;
             jobPositionTitle: string | null;
         };
+        branchId: string | null;
         workDate: string;
         rosterEntryId: string | null;
         clockInAt: string;
@@ -994,6 +1002,7 @@ export declare const AttendancePage: z.ZodObject<{
             displayName: string;
             jobPositionTitle: string | null;
         };
+        branchId: string | null;
         workDate: string;
         rosterEntryId: string | null;
         clockInAt: string;
@@ -1025,6 +1034,9 @@ export declare const LEAVE_REQUEST_LIST: {
     readonly searchFields: readonly ["employee"];
     readonly statusField: "status";
     readonly defaultSort: readonly [{
+        readonly field: "routedToMe";
+        readonly dir: "desc";
+    }, {
         readonly field: "startsOn";
         readonly dir: "asc";
     }];
@@ -1081,6 +1093,7 @@ export declare const LEAVE_REQUEST_LIST: {
         readonly label: "Waiting on me";
         readonly type: "bool";
         readonly filterable: true;
+        readonly sortable: true;
     }, {
         readonly key: "createdAt";
         readonly label: "Requested";
@@ -1105,6 +1118,7 @@ export declare const LeaveRequestPage: z.ZodObject<{
             displayName: string;
             jobPositionTitle: string | null;
         }>;
+        branchId: z.ZodNullable<z.ZodString>;
         leaveType: z.ZodObject<{
             id: z.ZodString;
             code: z.ZodString;
@@ -1147,6 +1161,7 @@ export declare const LeaveRequestPage: z.ZodObject<{
             jobPositionTitle: string | null;
         };
         createdAt: string;
+        branchId: string | null;
         endsOn: string;
         days: number;
         leaveType: {
@@ -1173,6 +1188,7 @@ export declare const LeaveRequestPage: z.ZodObject<{
             jobPositionTitle: string | null;
         };
         createdAt: string;
+        branchId: string | null;
         endsOn: string;
         days: number;
         leaveType: {
@@ -1237,6 +1253,7 @@ export declare const LeaveRequestPage: z.ZodObject<{
             jobPositionTitle: string | null;
         };
         createdAt: string;
+        branchId: string | null;
         endsOn: string;
         days: number;
         leaveType: {
@@ -1281,6 +1298,7 @@ export declare const LeaveRequestPage: z.ZodObject<{
             jobPositionTitle: string | null;
         };
         createdAt: string;
+        branchId: string | null;
         endsOn: string;
         days: number;
         leaveType: {
@@ -1313,6 +1331,35 @@ export declare const LeaveRequestPage: z.ZodObject<{
     }[] | undefined;
 }>;
 export type LeaveRequestPage = z.infer<typeof LeaveRequestPage>;
+/**
+ * `POST /ops/leave/requests/bulk`: approve or refuse several requests, each as
+ * the single command with its own checks, lock and audit row (AC-LF6).
+ */
+export declare const LeaveBulkRequest: z.ZodObject<{
+    ids: z.ZodArray<z.ZodString, "many">;
+} & {
+    action: z.ZodEnum<["approve", "reject"]>;
+    params: z.ZodOptional<z.ZodObject<{
+        note: z.ZodOptional<z.ZodString>;
+    }, "strip", z.ZodTypeAny, {
+        note?: string | undefined;
+    }, {
+        note?: string | undefined;
+    }>>;
+}, "strip", z.ZodTypeAny, {
+    action: "approve" | "reject";
+    ids: string[];
+    params?: {
+        note?: string | undefined;
+    } | undefined;
+}, {
+    action: "approve" | "reject";
+    ids: string[];
+    params?: {
+        note?: string | undefined;
+    } | undefined;
+}>;
+export type LeaveBulkRequest = z.infer<typeof LeaveBulkRequest>;
 /** `GET /ops/pay-runs`. */
 export declare const PAY_RUN_LIST: {
     readonly key: "staff.pay-runs";

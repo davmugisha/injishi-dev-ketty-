@@ -1,6 +1,7 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.PayRunPage = exports.PAY_RUN_LIST = exports.LeaveRequestPage = exports.LEAVE_REQUEST_LIST = exports.AttendancePage = exports.ATTENDANCE_LIST = exports.RosterPage = exports.ROSTER_LIST = exports.EmployeePage = exports.EMPLOYEE_LIST = void 0;
+exports.PayRunPage = exports.PAY_RUN_LIST = exports.LeaveBulkRequest = exports.LeaveRequestPage = exports.LEAVE_REQUEST_LIST = exports.AttendancePage = exports.ATTENDANCE_LIST = exports.RosterPage = exports.ROSTER_LIST = exports.EmployeePage = exports.EMPLOYEE_LIST = void 0;
+const zod_1 = require("zod");
 const list_query_1 = require("./list-query");
 const payroll_1 = require("./payroll");
 const people_1 = require("./people");
@@ -46,7 +47,11 @@ exports.EMPLOYEE_LIST = (0, list_query_1.defineListSpec)({
     ],
 });
 exports.EmployeePage = (0, list_query_1.listPage)(people_1.Employee);
-/** `GET /ops/roster`. A read covers at most 31 days; with no date filter it reads this week. */
+/**
+ * `GET /ops/roster`. With no day filter it reads this week, Monday to Sunday in
+ * Kigali; pages bound anything wider, which retired the first thread's 31 day
+ * cap on a roster read.
+ */
 exports.ROSTER_LIST = (0, list_query_1.defineListSpec)({
     key: "staff.roster",
     searchFields: ["employee"],
@@ -110,7 +115,11 @@ exports.LEAVE_REQUEST_LIST = (0, list_query_1.defineListSpec)({
     key: "staff.leave-requests",
     searchFields: ["employee"],
     statusField: "status",
-    defaultSort: [{ field: "startsOn", dir: "asc" }],
+    // The queue as it always read: what is routed to the caller first, then by first day.
+    defaultSort: [
+        { field: "routedToMe", dir: "desc" },
+        { field: "startsOn", dir: "asc" },
+    ],
     fields: [
         {
             key: "status",
@@ -127,11 +136,19 @@ exports.LEAVE_REQUEST_LIST = (0, list_query_1.defineListSpec)({
         { key: "endsOn", label: "To", type: "date", filterable: true, sortable: true },
         { key: "days", label: "Days", type: "number", filterable: true, sortable: true },
         { key: "branch", label: "Branch", type: "ref", filterable: true, groupable: true },
-        { key: "routedToMe", label: "Waiting on me", type: "bool", filterable: true },
+        { key: "routedToMe", label: "Waiting on me", type: "bool", filterable: true, sortable: true },
         { key: "createdAt", label: "Requested", type: "datetime", filterable: true, sortable: true },
     ],
 });
 exports.LeaveRequestPage = (0, list_query_1.listPage)(people_1.LeaveRequest);
+/**
+ * `POST /ops/leave/requests/bulk`: approve or refuse several requests, each as
+ * the single command with its own checks, lock and audit row (AC-LF6).
+ */
+exports.LeaveBulkRequest = list_query_1.BulkRequest.extend({
+    action: zod_1.z.enum(["approve", "reject"]),
+    params: zod_1.z.object({ note: zod_1.z.string().trim().max(300).optional() }).optional(),
+});
 /** `GET /ops/pay-runs`. */
 exports.PAY_RUN_LIST = (0, list_query_1.defineListSpec)({
     key: "staff.pay-runs",

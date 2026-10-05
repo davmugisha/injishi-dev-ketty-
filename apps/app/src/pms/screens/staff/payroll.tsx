@@ -13,27 +13,25 @@
  * none in force the run is refused, naming the rule; nothing here guesses a
  * rate. On a sample database those rows are placeholders marked DEMO SAMPLE
  * DATA, and the run page says which rule rows it used.
+ *
+ * The runs are the shared `DataView` over `PAY_RUN_LIST` (058-list-framework).
+ * Its totals are the business's, never a person's, so they may sort.
  */
 
-import { Input } from "@injishi/ui";
+import { ListQuery, PAY_RUN_LIST, type PayRun } from "@injishi/contracts";
+import { DataView, Input, type DataColumn } from "@injishi/ui";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 
-import {
-  ActionButton,
-  Badge,
-  EmptyState,
-  LoadFailed,
-  SectionHeading,
-  Skeleton,
-} from "../../components/ui";
+import { ActionButton, Badge, SectionHeading } from "../../components/ui";
 import { useWorkspaceId } from "../../data/capability";
-import { useCreatePayRun, usePayRuns } from "../../data/people";
+import { useListUrl, useSavedViewsFor } from "../../data/lists";
+import { useCreatePayRun, usePayRunPage } from "../../data/people";
 import { fmt, todayIso } from "../../lib/format";
 import { workspaceBase } from "../../lib/nav";
 import { usePms } from "../../store";
-import { Field, FormError, RowList, rowClass } from "./staff-ui";
+import { Field, FormError } from "./staff-ui";
 
 /** `September 2026` from `2026-09`. */
 export function monthName(period: string): string {
@@ -47,29 +45,38 @@ export function Payroll() {
   const { toast } = usePms();
   const router = useRouter();
   const workspaceId = useWorkspaceId();
-  const runs = usePayRuns(workspaceId);
   const create = useCreatePayRun(workspaceId);
   const [period, setPeriod] = useState(todayIso().slice(0, 7));
   const base = `${workspaceBase(workspaceId)}/staff/payroll`;
+  const { defaultView, savedViews } = useSavedViewsFor(workspaceId, PAY_RUN_LIST.key);
+  const list = useListUrl(PAY_RUN_LIST, "full", defaultView);
+  const page = usePayRunPage(workspaceId, list.state.query);
+  // One run per month: whether the month chosen already has one, asked of the route itself.
+  const sameMonth = usePayRunPage(
+    workspaceId,
+    ListQuery.parse({ filters: [{ field: "periodStart", op: "eq", value: `${period}-01` }], pageSize: 10 }),
+  );
+  const exists = (sameMonth.data?.total ?? 0) > 0;
 
-  if (runs.isPending) {
-    return (
-      <div className="pms-enter flex max-w-wide flex-col gap-4">
-        <Skeleton height={40} />
-        <Skeleton height={160} delay={60} />
-      </div>
-    );
-  }
-  if (runs.isError) {
-    return (
-      <LoadFailed onRetry={() => void runs.refetch()} retrying={runs.isFetching}>
-        We couldn&apos;t load pay runs. Nothing about them has changed — this is on our side.
-      </LoadFailed>
-    );
-  }
-
-  const list = runs.data.runs;
-  const exists = list.some((r) => r.period === period);
+  const columns: DataColumn<PayRun>[] = [
+    {
+      key: "periodStart",
+      header: "Month",
+      cell: (r) => (
+        <Link href={`${base}/${r.id}`} data-pay-run={r.period} className="font-semibold text-foreground no-underline hover:underline">
+          {monthName(r.period)}
+        </Link>
+      ),
+    },
+    { key: "headcount", header: "People", align: "end", cell: (r) => r.headcount },
+    { key: "grossRwf", header: "Gross", align: "end", cell: (r) => fmt(r.grossRwf) },
+    { key: "netRwf", header: "Net", align: "end", cell: (r) => fmt(r.netRwf) },
+    {
+      key: "status",
+      header: "Status",
+      cell: (r) => <Badge intent={r.status === "confirmed" ? "ok" : "warn"}>{r.status === "confirmed" ? "Confirmed" : "Draft"}</Badge>,
+    },
+  ];
 
   return (
     <div className="pms-enter flex max-w-wide flex-col gap-4">
@@ -107,36 +114,28 @@ export function Payroll() {
         </div>
       </form>
 
-      <section>
-        <SectionHeading n={list.length}>Pay runs</SectionHeading>
-        {list.length === 0 ? (
-          <EmptyState className="mt-2.5 p-6">
-            No pay run yet. Everyone with a contract in the month is on it, whether or not they have an account.
-          </EmptyState>
-        ) : (
-          <RowList>
-            {list.map((r, i) => (
-              <Link
-                key={r.id}
-                href={`${base}/${r.id}`}
-                data-pay-run={r.period}
-                className={`${rowClass(i)} flex flex-wrap items-center gap-3 no-underline hover:bg-hover`}
-              >
-                <span className="flex min-w-0 flex-1 flex-col gap-0.5">
-                  <span className="text-sm font-semibold text-ink">{monthName(r.period)}</span>
-                  <span className="text-2xs text-muted-foreground">
-                    {r.headcount} {r.headcount === 1 ? "person" : "people"}
-                  </span>
-                </span>
-                <span className="pms-num text-right text-sm text-ink2">
-                  <span className="block">{fmt(r.netRwf)} net</span>
-                  <span className="block text-2xs text-muted-foreground">{fmt(r.grossRwf)} gross</span>
-                </span>
-                <Badge intent={r.status === "confirmed" ? "ok" : "warn"}>{r.status === "confirmed" ? "Confirmed" : "Draft"}</Badge>
-              </Link>
-            ))}
-          </RowList>
-        )}
+      <section className="flex flex-col gap-3">
+        <SectionHeading n={page.data?.total}>Pay runs</SectionHeading>
+        <DataView
+          spec={PAY_RUN_LIST}
+          reader="full"
+          state={list.state}
+          onStateChange={list.setState}
+          dropped={list.dropped}
+          onDismissDropped={list.dismissDropped}
+          page={page.data}
+          status={page.isError ? "error" : page.isPending ? "loading" : "ready"}
+          onRetry={() => void page.refetch()}
+          columns={columns}
+          getRowId={(r) => r.id}
+          labelOf={(r) => monthName(r.period)}
+          caption="Pay runs"
+          savedViews={savedViews}
+          empty={{
+            title: "No pay run yet",
+            body: "Everyone with a contract in the month is on it, whether or not they have an account.",
+          }}
+        />
       </section>
     </div>
   );

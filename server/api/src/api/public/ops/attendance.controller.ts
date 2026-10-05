@@ -1,9 +1,9 @@
 import {
-  AttendanceQuery,
   ClockInRequest,
   ClockOutRequest,
   CorrectAttendanceRequest,
-  type AttendanceList,
+  type AttendancePage,
+  type ListQuery,
   type AttendanceRecord,
 } from '@injishi/contracts';
 import {
@@ -31,6 +31,7 @@ import {
   WorkspaceGuard,
 } from '../../../shared/auth/workspace.guard';
 import type { ScopedWorkspace } from '../../../shared/auth/branch-scope';
+import { ListQueryPipe } from '../../../shared/lists/list-query';
 import { ZodValidationPipe } from '../../../shared/validation/zod-validation.pipe';
 
 /**
@@ -48,9 +49,9 @@ export class OpsAttendanceController {
   @Get()
   @RequireAnyPermission('attendance.record', 'attendance.approve')
   list(
-    @Query(new ZodValidationPipe(AttendanceQuery)) query: AttendanceQuery,
+    @Query(ListQueryPipe) query: ListQuery,
     @CurrentWorkspace() workspace: ScopedWorkspace,
-  ): Promise<AttendanceList> {
+  ): Promise<AttendancePage> {
     return this.time.listAttendance(workspace, query);
   }
 

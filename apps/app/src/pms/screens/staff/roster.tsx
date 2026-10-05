@@ -3,9 +3,10 @@
 /**
  * Staff · Roster (ADR-058, AC-T1 to AC-T3, AC-T6).
  *
- * One day at a time: who is on which shift, at the branches you cover. The
- * week grid per branch and department is slice 3; this is the thin list the
- * first thread asks for.
+ * Who is on which shift, at the branches you cover. The list is the shared
+ * `DataView` over `ROSTER_LIST` (058-list-framework): with no day filter it
+ * reads this week, Monday to Sunday, and grouping by day lays it out as one.
+ * The week grid per branch and department is 058-time's; this is the list.
  *
  * Two people cannot overlap themselves, and the DATABASE refuses it, so two
  * managers rostering the same cook at once cannot both succeed. A day inside
@@ -16,28 +17,22 @@
  * button to change it: rostering is `roster.manage`.
  */
 
-import { Input } from "@injishi/ui";
+import { ROSTER_LIST, type RosterEntry } from "@injishi/contracts";
+import { DataView, Input, type DataColumn } from "@injishi/ui";
 import { useState } from "react";
 
-import {
-  ActionButton,
-  Badge,
-  EmptyState,
-  LoadFailed,
-  SectionHeading,
-  SelectField,
-  Skeleton,
-} from "../../components/ui";
+import { ActionButton, Badge, EmptyState, SectionHeading, SelectField } from "../../components/ui";
 import { useCapability, useWorkspaceId } from "../../data/capability";
+import { useListUrl, useSavedViewsFor } from "../../data/lists";
 import {
   useCancelRosterEntry,
   useCreateShiftTemplate,
   useEmployees,
-  useRoster,
   useRosterEntry,
+  useRosterPage,
   useShiftTemplates,
 } from "../../data/people";
-import { addDaysIso, dshortIso, todayIso } from "../../lib/format";
+import { dshortIso, todayIso } from "../../lib/format";
 import { usePms } from "../../store";
 import { currentGrant } from "../../store/helpers";
 import { Field, FormError, RowList, clock, inputClass, rowClass } from "./staff-ui";
@@ -47,7 +42,9 @@ export function Roster() {
   const workspaceId = useWorkspaceId();
   const { can } = useCapability();
   const [day, setDay] = useState(todayIso());
-  const roster = useRoster(workspaceId, day, day);
+  const { defaultView, savedViews } = useSavedViewsFor(workspaceId, ROSTER_LIST.key);
+  const list = useListUrl(ROSTER_LIST, "basic", defaultView);
+  const page = useRosterPage(workspaceId, list.state.query);
   const templates = useShiftTemplates(workspaceId);
   const mayRoster = can("roster.manage");
   const employees = useEmployees(mayRoster ? workspaceId : null, "active");
@@ -60,42 +57,61 @@ export function Roster() {
 
   const branchName = (id: string) => branches.find((b) => b.id === id)?.name ?? "";
 
-  if (roster.isPending) {
-    return (
-      <div className="pms-enter flex max-w-wide flex-col gap-4">
-        <Skeleton height={40} />
-        <Skeleton height={200} delay={60} />
-      </div>
-    );
-  }
-  if (roster.isError) {
-    return (
-      <LoadFailed onRetry={() => void roster.refetch()} retrying={roster.isFetching}>
-        We couldn&apos;t load the roster. Nobody&apos;s shifts have changed — this is on our side.
-      </LoadFailed>
-    );
-  }
-
-  const entries = roster.data.entries;
-  const scheduled = entries.filter((e) => e.status === "scheduled");
-  const cancelled = entries.filter((e) => e.status === "cancelled");
   const shifts = templates.data?.templates ?? [];
+
+  // Built each render: a button reads the pending state of its own row.
+  const columns: DataColumn<RosterEntry>[] = [
+    { key: "workDate", header: "Day", cell: (r) => <span className="pms-num">{dshortIso(r.workDate)}</span> },
+    {
+      key: "startsAt",
+      header: "Hours",
+      cell: (r) => (
+        <span className="pms-num">
+          {clock(r.startsAt)}–{clock(r.endsAt)}
+        </span>
+      ),
+    },
+    {
+      key: "employee",
+      header: "Person",
+      cell: (r) => (
+        <span className="flex flex-col gap-0.5" data-roster={r.id}>
+          <span className="font-semibold text-foreground">{r.employee.displayName}</span>
+          {r.employee.jobPositionTitle ? <span className="text-2xs text-muted-foreground">{r.employee.jobPositionTitle}</span> : null}
+        </span>
+      ),
+    },
+    { key: "shift", header: "Shift", cell: (r) => r.shiftName },
+    { key: "branch", header: "Branch", cell: (r) => branchName(r.propertyId) },
+    {
+      key: "status",
+      header: "Status",
+      cell: (r) =>
+        r.status === "scheduled" ? <Badge intent="ok">Scheduled</Badge> : <Badge>{r.cancelReason ?? "Cancelled"}</Badge>,
+    },
+    {
+      key: "actions",
+      header: "",
+      align: "end",
+      cell: (r) =>
+        mayRoster && r.status === "scheduled" ? (
+          <ActionButton
+            pending={cancel.isPending && cancel.variables?.id === r.id}
+            onClick={() =>
+              cancel.mutate(
+                { id: r.id, reason: "Taken off the roster" },
+                { onSuccess: () => toast(`${r.employee.displayName} is off ${r.shiftName}`, "ok") },
+              )
+            }
+          >
+            Take off
+          </ActionButton>
+        ) : null,
+    },
+  ];
 
   return (
     <div className="pms-enter flex max-w-wide flex-col gap-4">
-      <div className="flex flex-wrap items-center gap-2">
-        <ActionButton onClick={() => setDay(addDaysIso(day, -1))}>Previous day</ActionButton>
-        <Input
-          type="date"
-          aria-label="Day"
-          value={day}
-          onChange={(e) => e.target.value && setDay(e.target.value)}
-          className="h-10 w-auto rounded border-line2 bg-card text-sm"
-        />
-        <ActionButton onClick={() => setDay(addDaysIso(day, 1))}>Next day</ActionButton>
-        {day !== todayIso() && <ActionButton onClick={() => setDay(todayIso())}>Today</ActionButton>}
-      </div>
-
       {mayRoster && (
         <form
           className="flex flex-wrap items-end gap-3 rounded-card border border-card-bd bg-card p-4"
@@ -113,6 +129,17 @@ export function Roster() {
             );
           }}
         >
+          <div className="shrink-0">
+            <Field label="Day" htmlFor="roster-day">
+              <Input
+                id="roster-day"
+                type="date"
+                value={day}
+                onChange={(e) => e.target.value && setDay(e.target.value)}
+                className="h-10 w-auto rounded border-line2 bg-card text-sm"
+              />
+            </Field>
+          </div>
           <div className="min-w-0 flex-1">
             <Field label="Person">
               <SelectField
@@ -152,63 +179,38 @@ export function Roster() {
         </form>
       )}
 
-      <section>
-        <SectionHeading n={scheduled.length}>On {dshortIso(day)}</SectionHeading>
-        {scheduled.length === 0 ? (
-          <EmptyState className="mt-2.5 p-6">
-            Nobody is rostered on this day{mayRoster ? ". Put someone on a shift above." : "."}
-          </EmptyState>
-        ) : (
-          <RowList>
-            {scheduled.map((r, i) => (
-              <div key={r.id} data-roster={r.id} className={`${rowClass(i)} flex flex-wrap items-center gap-3`}>
-                <span className="pms-num w-28 shrink-0 text-sm text-ink2">
-                  {clock(r.startsAt)}–{clock(r.endsAt)}
-                </span>
-                <span className="flex min-w-0 flex-1 flex-col gap-0.5">
-                  <span className="truncate text-sm font-semibold text-ink">{r.employee.displayName}</span>
-                  <span className="truncate text-2xs text-muted-foreground">
-                    {[r.shiftName, r.employee.jobPositionTitle, branches.length > 1 ? branchName(r.propertyId) : null]
-                      .filter(Boolean)
-                      .join(" · ")}
-                  </span>
-                </span>
-                {mayRoster && (
-                  <ActionButton
-                    pending={cancel.isPending && cancel.variables?.id === r.id}
-                    onClick={() =>
-                      cancel.mutate(
-                        { id: r.id, reason: "Taken off the roster" },
-                        { onSuccess: () => toast(`${r.employee.displayName} is off ${r.shiftName}`, "ok") },
-                      )
-                    }
-                  >
-                    Take off
-                  </ActionButton>
-                )}
-              </div>
-            ))}
-          </RowList>
-        )}
+      <section className="flex flex-col gap-3">
+        <SectionHeading n={page.data?.total}>Roster</SectionHeading>
+        <DataView
+          spec={ROSTER_LIST}
+          reader="basic"
+          state={list.state}
+          onStateChange={list.setState}
+          dropped={list.dropped}
+          onDismissDropped={list.dismissDropped}
+          page={page.data}
+          status={page.isError ? "error" : page.isPending ? "loading" : "ready"}
+          onRetry={() => void page.refetch()}
+          columns={columns}
+          getRowId={(r) => r.id}
+          labelOf={(r) => r.employee.displayName}
+          groupKeyOf={rosterGroupKey}
+          caption="Roster"
+          searchPlaceholder="Search a name"
+          refOptions={{
+            branch: branches.map((b) => ({ value: b.id, label: b.name })),
+            shift: shifts.map((t) => ({ value: t.id, label: t.name })),
+          }}
+          savedViews={savedViews}
+          empty={{
+            title: "Nobody is rostered",
+            body: mayRoster
+              ? "With no day chosen this is this week. Put someone on a shift above."
+              : "With no day chosen this is this week.",
+          }}
+        />
         <FormError error={cancel.error} />
       </section>
-
-      {cancelled.length > 0 && (
-        <section>
-          <SectionHeading n={cancelled.length}>Taken off</SectionHeading>
-          <RowList>
-            {cancelled.map((r, i) => (
-              <div key={r.id} className={`${rowClass(i)} flex items-center gap-3 opacity-60`}>
-                <span className="pms-num w-28 shrink-0 text-sm text-ink2">
-                  {clock(r.startsAt)}–{clock(r.endsAt)}
-                </span>
-                <span className="flex-1 text-sm text-ink">{r.employee.displayName}</span>
-                <Badge>{r.cancelReason ?? "Cancelled"}</Badge>
-              </div>
-            ))}
-          </RowList>
-        </section>
-      )}
 
       <section>
         <div className="flex items-center justify-between">
@@ -301,4 +303,20 @@ export function Roster() {
       </section>
     </div>
   );
+}
+
+/** How the server keys each groupable field of an entry. */
+function rosterGroupKey(r: RosterEntry, field: string): string | null {
+  switch (field) {
+    case "workDate":
+      return r.workDate;
+    case "shift":
+      return r.shiftTemplateId;
+    case "branch":
+      return r.propertyId;
+    case "department":
+      return r.departmentId;
+    default:
+      return null;
+  }
 }

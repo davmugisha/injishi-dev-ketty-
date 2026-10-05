@@ -1,6 +1,12 @@
-import type { PayRunRuleVersion, PayRunStatus, PayslipLine } from '@injishi/contracts';
+import {
+  PAY_RUN_LIST,
+  type ListQuery,
+  type PayRunRuleVersion,
+  type PayRunStatus,
+  type PayslipLine,
+} from '@injishi/contracts';
 import { Inject, Injectable } from '@nestjs/common';
-import { and, asc, desc, eq, gte, inArray, isNull, lte, notInArray, or, sql, type SQL } from 'drizzle-orm';
+import { and, asc, eq, gte, inArray, isNull, lte, notInArray, or, sql, type SQL } from 'drizzle-orm';
 
 import {
   attendanceRecords,
@@ -10,6 +16,13 @@ import {
   payslips,
 } from '../../../database/drizzle/schema';
 import { DRIZZLE, type Database } from '../../../shared/database/database.module';
+import {
+  compileListQuery,
+  countAll,
+  statusCountsOf,
+  type ListColumns,
+  type ListRows,
+} from '../../../shared/lists/list-query';
 import type { ComputedPayslip } from '../domain/pay-computation';
 import type { ContractRow, Tx } from './employees.repository';
 
@@ -110,13 +123,47 @@ export class PayrollRepository {
     };
   }
 
-  async listRuns(orgId: string): Promise<PayRunRow[]> {
-    const rows = await this.db
-      .select(this.runColumns)
-      .from(payRuns)
-      .where(eq(payRuns.orgId, orgId))
-      .orderBy(desc(payRuns.periodStart));
-    return rows.map((r) => this.toRun(r));
+  /** The pay run list's field to column map (`PAY_RUN_LIST`); the totals are the business's, never a person's. */
+  private readonly runListColumns: ListColumns = {
+    periodStart: payRuns.periodStart,
+    status: payRuns.status,
+    headcount: this.runColumns.headcount,
+    grossRwf: this.runColumns.grossRwf,
+    netRwf: this.runColumns.netRwf,
+  };
+
+  /** One page of the business's pay runs, newest month first by default (AC-LF3). */
+  async listRunsPage(orgId: string, query: ListQuery): Promise<ListRows<PayRunRow>> {
+    const compiled = compileListQuery({
+      spec: PAY_RUN_LIST,
+      columns: this.runListColumns,
+      reader: 'full',
+      query,
+      tieBreaker: payRuns.id,
+    });
+    const own = eq(payRuns.orgId, orgId);
+    const where = compiled.where ? and(own, compiled.where) : own;
+    const [rows, [{ count }], statusRows] = await Promise.all([
+      this.db
+        .select(this.runColumns)
+        .from(payRuns)
+        .where(where)
+        .orderBy(...compiled.orderBy)
+        .limit(compiled.limit)
+        .offset(compiled.offset),
+      this.db.select({ count: countAll }).from(payRuns).where(where),
+      this.db
+        .select({ value: payRuns.status, count: countAll })
+        .from(payRuns)
+        .where(compiled.whereForStatusCounts ? and(own, compiled.whereForStatusCounts) : own)
+        .groupBy(payRuns.status),
+    ]);
+    return {
+      rows: rows.map((r) => this.toRun(r)),
+      total: Number(count),
+      groups: undefined,
+      statusCounts: statusCountsOf(statusRows),
+    };
   }
 
   async findRun(id: string, tx?: Tx): Promise<PayRunRow | null> {

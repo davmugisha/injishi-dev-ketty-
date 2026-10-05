@@ -1850,119 +1850,6 @@ export declare const RosterEntry: z.ZodObject<{
     cancelReason: string | null;
 }>;
 export type RosterEntry = z.infer<typeof RosterEntry>;
-export declare const RosterList: z.ZodObject<{
-    entries: z.ZodArray<z.ZodObject<{
-        id: z.ZodString;
-        employee: z.ZodObject<{
-            employeeId: z.ZodString;
-            /** The preferred name, else the legal name. */
-            displayName: z.ZodString;
-            jobPositionTitle: z.ZodNullable<z.ZodString>;
-        }, "strip", z.ZodTypeAny, {
-            employeeId: string;
-            displayName: string;
-            jobPositionTitle: string | null;
-        }, {
-            employeeId: string;
-            displayName: string;
-            jobPositionTitle: string | null;
-        }>;
-        shiftTemplateId: z.ZodString;
-        shiftName: z.ZodString;
-        propertyId: z.ZodString;
-        departmentId: z.ZodNullable<z.ZodString>;
-        workDate: z.ZodString;
-        /** Instants, computed from the template's times on `workDate` in Kigali. */
-        startsAt: z.ZodString;
-        endsAt: z.ZodString;
-        status: z.ZodEnum<["scheduled", "cancelled"]>;
-        cancelReason: z.ZodNullable<z.ZodString>;
-    }, "strip", z.ZodTypeAny, {
-        status: "scheduled" | "cancelled";
-        id: string;
-        employee: {
-            employeeId: string;
-            displayName: string;
-            jobPositionTitle: string | null;
-        };
-        propertyId: string;
-        departmentId: string | null;
-        startsAt: string;
-        endsAt: string;
-        shiftTemplateId: string;
-        shiftName: string;
-        workDate: string;
-        cancelReason: string | null;
-    }, {
-        status: "scheduled" | "cancelled";
-        id: string;
-        employee: {
-            employeeId: string;
-            displayName: string;
-            jobPositionTitle: string | null;
-        };
-        propertyId: string;
-        departmentId: string | null;
-        startsAt: string;
-        endsAt: string;
-        shiftTemplateId: string;
-        shiftName: string;
-        workDate: string;
-        cancelReason: string | null;
-    }>, "many">;
-}, "strip", z.ZodTypeAny, {
-    entries: {
-        status: "scheduled" | "cancelled";
-        id: string;
-        employee: {
-            employeeId: string;
-            displayName: string;
-            jobPositionTitle: string | null;
-        };
-        propertyId: string;
-        departmentId: string | null;
-        startsAt: string;
-        endsAt: string;
-        shiftTemplateId: string;
-        shiftName: string;
-        workDate: string;
-        cancelReason: string | null;
-    }[];
-}, {
-    entries: {
-        status: "scheduled" | "cancelled";
-        id: string;
-        employee: {
-            employeeId: string;
-            displayName: string;
-            jobPositionTitle: string | null;
-        };
-        propertyId: string;
-        departmentId: string | null;
-        startsAt: string;
-        endsAt: string;
-        shiftTemplateId: string;
-        shiftName: string;
-        workDate: string;
-        cancelReason: string | null;
-    }[];
-}>;
-export type RosterList = z.infer<typeof RosterList>;
-/** At most 31 days, inclusive at both ends. */
-export declare const RosterQuery: z.ZodObject<{
-    from: z.ZodString;
-    to: z.ZodString;
-    propertyId: z.ZodOptional<z.ZodString>;
-}, "strip", z.ZodTypeAny, {
-    from: string;
-    to: string;
-    propertyId?: string | undefined;
-}, {
-    from: string;
-    to: string;
-    propertyId?: string | undefined;
-}>;
-export type RosterQuery = z.infer<typeof RosterQuery>;
 export declare const CreateRosterEntryRequest: z.ZodObject<{
     employeeId: z.ZodString;
     shiftTemplateId: z.ZodString;
@@ -2001,6 +1888,8 @@ export declare const AttendanceRecord: z.ZodObject<{
         displayName: string;
         jobPositionTitle: string | null;
     }>;
+    /** The branch the person works at: what branch limits read and a page groups by. */
+    branchId: z.ZodNullable<z.ZodString>;
     rosterEntryId: z.ZodNullable<z.ZodString>;
     workDate: z.ZodString;
     clockInAt: z.ZodString;
@@ -2020,6 +1909,7 @@ export declare const AttendanceRecord: z.ZodObject<{
         displayName: string;
         jobPositionTitle: string | null;
     };
+    branchId: string | null;
     workDate: string;
     rosterEntryId: string | null;
     clockInAt: string;
@@ -2036,6 +1926,7 @@ export declare const AttendanceRecord: z.ZodObject<{
         displayName: string;
         jobPositionTitle: string | null;
     };
+    branchId: string | null;
     workDate: string;
     rosterEntryId: string | null;
     clockInAt: string;
@@ -2044,114 +1935,6 @@ export declare const AttendanceRecord: z.ZodObject<{
     supersedesId: string | null;
 }>;
 export type AttendanceRecord = z.infer<typeof AttendanceRecord>;
-export declare const AttendanceList: z.ZodObject<{
-    records: z.ZodArray<z.ZodObject<{
-        id: z.ZodString;
-        employee: z.ZodObject<{
-            employeeId: z.ZodString;
-            /** The preferred name, else the legal name. */
-            displayName: z.ZodString;
-            jobPositionTitle: z.ZodNullable<z.ZodString>;
-        }, "strip", z.ZodTypeAny, {
-            employeeId: string;
-            displayName: string;
-            jobPositionTitle: string | null;
-        }, {
-            employeeId: string;
-            displayName: string;
-            jobPositionTitle: string | null;
-        }>;
-        rosterEntryId: z.ZodNullable<z.ZodString>;
-        workDate: z.ZodString;
-        clockInAt: z.ZodString;
-        clockOutAt: z.ZodNullable<z.ZodString>;
-        source: z.ZodEnum<["supervisor", "self"]>;
-        validated: z.ZodBoolean;
-        status: z.ZodEnum<["open", "closed", "superseded"]>;
-        supersedesId: z.ZodNullable<z.ZodString>;
-        note: z.ZodNullable<z.ZodString>;
-    }, "strip", z.ZodTypeAny, {
-        status: "superseded" | "open" | "closed";
-        id: string;
-        source: "supervisor" | "self";
-        note: string | null;
-        employee: {
-            employeeId: string;
-            displayName: string;
-            jobPositionTitle: string | null;
-        };
-        workDate: string;
-        rosterEntryId: string | null;
-        clockInAt: string;
-        clockOutAt: string | null;
-        validated: boolean;
-        supersedesId: string | null;
-    }, {
-        status: "superseded" | "open" | "closed";
-        id: string;
-        source: "supervisor" | "self";
-        note: string | null;
-        employee: {
-            employeeId: string;
-            displayName: string;
-            jobPositionTitle: string | null;
-        };
-        workDate: string;
-        rosterEntryId: string | null;
-        clockInAt: string;
-        clockOutAt: string | null;
-        validated: boolean;
-        supersedesId: string | null;
-    }>, "many">;
-}, "strip", z.ZodTypeAny, {
-    records: {
-        status: "superseded" | "open" | "closed";
-        id: string;
-        source: "supervisor" | "self";
-        note: string | null;
-        employee: {
-            employeeId: string;
-            displayName: string;
-            jobPositionTitle: string | null;
-        };
-        workDate: string;
-        rosterEntryId: string | null;
-        clockInAt: string;
-        clockOutAt: string | null;
-        validated: boolean;
-        supersedesId: string | null;
-    }[];
-}, {
-    records: {
-        status: "superseded" | "open" | "closed";
-        id: string;
-        source: "supervisor" | "self";
-        note: string | null;
-        employee: {
-            employeeId: string;
-            displayName: string;
-            jobPositionTitle: string | null;
-        };
-        workDate: string;
-        rosterEntryId: string | null;
-        clockInAt: string;
-        clockOutAt: string | null;
-        validated: boolean;
-        supersedesId: string | null;
-    }[];
-}>;
-export type AttendanceList = z.infer<typeof AttendanceList>;
-export declare const AttendanceQuery: z.ZodObject<{
-    date: z.ZodString;
-    propertyId: z.ZodOptional<z.ZodString>;
-}, "strip", z.ZodTypeAny, {
-    date: string;
-    propertyId?: string | undefined;
-}, {
-    date: string;
-    propertyId?: string | undefined;
-}>;
-export type AttendanceQuery = z.infer<typeof AttendanceQuery>;
 export declare const ClockInRequest: z.ZodObject<{
     employeeId: z.ZodString;
     /** At most 5 minutes ahead and 7 days behind the server clock. */
@@ -2503,6 +2286,8 @@ export declare const LeaveRequest: z.ZodObject<{
         displayName: string;
         jobPositionTitle: string | null;
     }>;
+    /** The branch the person works at: what branch limits read and a page groups by. */
+    branchId: z.ZodNullable<z.ZodString>;
     leaveType: z.ZodObject<{
         id: z.ZodString;
         code: z.ZodString;
@@ -2548,6 +2333,7 @@ export declare const LeaveRequest: z.ZodObject<{
         jobPositionTitle: string | null;
     };
     createdAt: string;
+    branchId: string | null;
     endsOn: string;
     days: number;
     leaveType: {
@@ -2574,6 +2360,7 @@ export declare const LeaveRequest: z.ZodObject<{
         jobPositionTitle: string | null;
     };
     createdAt: string;
+    branchId: string | null;
     endsOn: string;
     days: number;
     leaveType: {
@@ -2589,174 +2376,6 @@ export declare const LeaveRequest: z.ZodObject<{
     routedToMe: boolean;
 }>;
 export type LeaveRequest = z.infer<typeof LeaveRequest>;
-export declare const LeaveRequestList: z.ZodObject<{
-    requests: z.ZodArray<z.ZodObject<{
-        id: z.ZodString;
-        employee: z.ZodObject<{
-            employeeId: z.ZodString;
-            /** The preferred name, else the legal name. */
-            displayName: z.ZodString;
-            jobPositionTitle: z.ZodNullable<z.ZodString>;
-        }, "strip", z.ZodTypeAny, {
-            employeeId: string;
-            displayName: string;
-            jobPositionTitle: string | null;
-        }, {
-            employeeId: string;
-            displayName: string;
-            jobPositionTitle: string | null;
-        }>;
-        leaveType: z.ZodObject<{
-            id: z.ZodString;
-            code: z.ZodString;
-            name: z.ZodString;
-            paid: z.ZodBoolean;
-        }, "strip", z.ZodTypeAny, {
-            code: string;
-            name: string;
-            id: string;
-            paid: boolean;
-        }, {
-            code: string;
-            name: string;
-            id: string;
-            paid: boolean;
-        }>;
-        startsOn: z.ZodString;
-        endsOn: z.ZodString;
-        startHalf: z.ZodEnum<["full", "second_half"]>;
-        endHalf: z.ZodEnum<["full", "first_half"]>;
-        /** Estimated at request; the approved figure once approved. */
-        days: z.ZodNumber;
-        reason: z.ZodNullable<z.ZodString>;
-        status: z.ZodEnum<["requested", "approved", "rejected", "cancelled"]>;
-        /** The reporting manager at request time. Orders the queue; grants nothing. */
-        routedToEmployeeId: z.ZodNullable<z.ZodString>;
-        routedToName: z.ZodNullable<z.ZodString>;
-        /** Whether the caller is the manager this request was routed to. */
-        routedToMe: z.ZodBoolean;
-        decidedAt: z.ZodNullable<z.ZodString>;
-        decisionNote: z.ZodNullable<z.ZodString>;
-        createdAt: z.ZodString;
-    }, "strip", z.ZodTypeAny, {
-        status: "approved" | "rejected" | "cancelled" | "requested";
-        decidedAt: string | null;
-        reason: string | null;
-        id: string;
-        startsOn: string;
-        decisionNote: string | null;
-        employee: {
-            employeeId: string;
-            displayName: string;
-            jobPositionTitle: string | null;
-        };
-        createdAt: string;
-        endsOn: string;
-        days: number;
-        leaveType: {
-            code: string;
-            name: string;
-            id: string;
-            paid: boolean;
-        };
-        startHalf: "full" | "second_half";
-        endHalf: "full" | "first_half";
-        routedToEmployeeId: string | null;
-        routedToName: string | null;
-        routedToMe: boolean;
-    }, {
-        status: "approved" | "rejected" | "cancelled" | "requested";
-        decidedAt: string | null;
-        reason: string | null;
-        id: string;
-        startsOn: string;
-        decisionNote: string | null;
-        employee: {
-            employeeId: string;
-            displayName: string;
-            jobPositionTitle: string | null;
-        };
-        createdAt: string;
-        endsOn: string;
-        days: number;
-        leaveType: {
-            code: string;
-            name: string;
-            id: string;
-            paid: boolean;
-        };
-        startHalf: "full" | "second_half";
-        endHalf: "full" | "first_half";
-        routedToEmployeeId: string | null;
-        routedToName: string | null;
-        routedToMe: boolean;
-    }>, "many">;
-}, "strip", z.ZodTypeAny, {
-    requests: {
-        status: "approved" | "rejected" | "cancelled" | "requested";
-        decidedAt: string | null;
-        reason: string | null;
-        id: string;
-        startsOn: string;
-        decisionNote: string | null;
-        employee: {
-            employeeId: string;
-            displayName: string;
-            jobPositionTitle: string | null;
-        };
-        createdAt: string;
-        endsOn: string;
-        days: number;
-        leaveType: {
-            code: string;
-            name: string;
-            id: string;
-            paid: boolean;
-        };
-        startHalf: "full" | "second_half";
-        endHalf: "full" | "first_half";
-        routedToEmployeeId: string | null;
-        routedToName: string | null;
-        routedToMe: boolean;
-    }[];
-}, {
-    requests: {
-        status: "approved" | "rejected" | "cancelled" | "requested";
-        decidedAt: string | null;
-        reason: string | null;
-        id: string;
-        startsOn: string;
-        decisionNote: string | null;
-        employee: {
-            employeeId: string;
-            displayName: string;
-            jobPositionTitle: string | null;
-        };
-        createdAt: string;
-        endsOn: string;
-        days: number;
-        leaveType: {
-            code: string;
-            name: string;
-            id: string;
-            paid: boolean;
-        };
-        startHalf: "full" | "second_half";
-        endHalf: "full" | "first_half";
-        routedToEmployeeId: string | null;
-        routedToName: string | null;
-        routedToMe: boolean;
-    }[];
-}>;
-export type LeaveRequestList = z.infer<typeof LeaveRequestList>;
-export declare const LeaveRequestQuery: z.ZodObject<{
-    status: z.ZodOptional<z.ZodEnum<["requested", "approved", "rejected", "cancelled"]>>;
-}, "strip", z.ZodTypeAny, {
-    status?: "approved" | "rejected" | "cancelled" | "requested" | undefined;
-}, {
-    status?: "approved" | "rejected" | "cancelled" | "requested" | undefined;
-}>;
-export type LeaveRequestQuery = z.infer<typeof LeaveRequestQuery>;
 export declare const CreateLeaveRequestRequest: z.ZodObject<{
     employeeId: z.ZodString;
     leaveTypeId: z.ZodString;

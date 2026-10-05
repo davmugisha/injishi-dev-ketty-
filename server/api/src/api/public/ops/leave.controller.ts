@@ -1,9 +1,12 @@
 import {
   CreateLeaveRequestRequest,
+  LeaveBulkRequest,
   LeaveDecisionRequest,
-  LeaveRequestQuery,
+  type BulkResponse,
   type LeaveRequest,
-  type LeaveRequestList,
+  type LeaveRequestPage,
+  type ListIds,
+  type ListQuery,
 } from '@injishi/contracts';
 import {
   Body,
@@ -30,6 +33,7 @@ import {
   WorkspaceGuard,
 } from '../../../shared/auth/workspace.guard';
 import type { ScopedWorkspace } from '../../../shared/auth/branch-scope';
+import { ListQueryPipe } from '../../../shared/lists/list-query';
 import { ZodValidationPipe } from '../../../shared/validation/zod-validation.pipe';
 
 /**
@@ -44,14 +48,41 @@ import { ZodValidationPipe } from '../../../shared/validation/zod-validation.pip
 export class OpsLeaveController {
   constructor(private readonly leave: LeaveService) {}
 
+  /** One page of the queue through the list contract (058-list-framework). */
   @Get()
   @RequirePermission('leave.approve')
   list(
-    @Query(new ZodValidationPipe(LeaveRequestQuery)) query: LeaveRequestQuery,
+    @Query(ListQueryPipe) query: ListQuery,
     @CurrentWorkspace() workspace: ScopedWorkspace,
     @CurrentUser() user: SessionUser,
-  ): Promise<LeaveRequestList> {
+  ): Promise<LeaveRequestPage> {
     return this.leave.list(workspace, user.id, query);
+  }
+
+  /** Select all over the queue: the matching ids up to the bulk cap, and how many match. */
+  @Get('ids')
+  @RequirePermission('leave.approve')
+  ids(
+    @Query(ListQueryPipe) query: ListQuery,
+    @CurrentWorkspace() workspace: ScopedWorkspace,
+    @CurrentUser() user: SessionUser,
+  ): Promise<ListIds> {
+    return this.leave.ids(workspace, user.id, query);
+  }
+
+  /**
+   * Approve or refuse several requests, each as the single command. Answers
+   * 200 with a result per id, so a partial success is reported row by row.
+   */
+  @Post('bulk')
+  @HttpCode(200)
+  @RequirePermission('leave.approve')
+  bulk(
+    @Body(new ZodValidationPipe(LeaveBulkRequest)) body: LeaveBulkRequest,
+    @CurrentWorkspace() workspace: ScopedWorkspace,
+    @CurrentUser() user: SessionUser,
+  ): Promise<BulkResponse> {
+    return this.leave.bulk(workspace, user.id, body);
   }
 
   /** File leave for someone. Its days are an estimate until approved. */

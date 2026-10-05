@@ -307,15 +307,6 @@ export const RosterEntry = z.object({
     cancelReason: z.string().nullable(),
 });
 export type RosterEntry = z.infer<typeof RosterEntry>;
-export const RosterList = z.object({ entries: z.array(RosterEntry) });
-export type RosterList = z.infer<typeof RosterList>;
-/** At most 31 days, inclusive at both ends. */
-export const RosterQuery = z.object({
-    from: IsoDate,
-    to: IsoDate,
-    propertyId: Uuid.optional(),
-});
-export type RosterQuery = z.infer<typeof RosterQuery>;
 export const CreateRosterEntryRequest = z.object({
     employeeId: Uuid,
     shiftTemplateId: Uuid,
@@ -332,6 +323,8 @@ export type CancelRosterEntryRequest = z.infer<typeof CancelRosterEntryRequest>;
 export const AttendanceRecord = z.object({
     id: Uuid,
     employee: RosterCard,
+    /** The branch the person works at: what branch limits read and a page groups by. */
+    branchId: Uuid.nullable(),
     rosterEntryId: Uuid.nullable(),
     workDate: IsoDate,
     clockInAt: z.string(),
@@ -343,13 +336,6 @@ export const AttendanceRecord = z.object({
     note: z.string().nullable(),
 });
 export type AttendanceRecord = z.infer<typeof AttendanceRecord>;
-export const AttendanceList = z.object({ records: z.array(AttendanceRecord) });
-export type AttendanceList = z.infer<typeof AttendanceList>;
-export const AttendanceQuery = z.object({
-    date: IsoDate,
-    propertyId: Uuid.optional(),
-});
-export type AttendanceQuery = z.infer<typeof AttendanceQuery>;
 const Instant = z.string().datetime({ offset: true, message: "A time is an ISO instant." });
 export const ClockInRequest = z.object({
     employeeId: Uuid,
@@ -407,6 +393,8 @@ export type LeaveBalances = z.infer<typeof LeaveBalances>;
 export const LeaveRequest = z.object({
     id: Uuid,
     employee: RosterCard,
+    /** The branch the person works at: what branch limits read and a page groups by. */
+    branchId: Uuid.nullable(),
     leaveType: z.object({ id: Uuid, code: z.string(), name: z.string(), paid: z.boolean() }),
     startsOn: IsoDate,
     endsOn: IsoDate,
@@ -426,10 +414,6 @@ export const LeaveRequest = z.object({
     createdAt: z.string(),
 });
 export type LeaveRequest = z.infer<typeof LeaveRequest>;
-export const LeaveRequestList = z.object({ requests: z.array(LeaveRequest) });
-export type LeaveRequestList = z.infer<typeof LeaveRequestList>;
-export const LeaveRequestQuery = z.object({ status: LeaveRequestStatus.optional() });
-export type LeaveRequestQuery = z.infer<typeof LeaveRequestQuery>;
 export const CreateLeaveRequestRequest = z.object({
     employeeId: Uuid,
     leaveTypeId: Uuid,

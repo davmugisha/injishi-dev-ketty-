@@ -1,6 +1,6 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.CreatePayRunRequest = exports.PayRunDetail = exports.PayRunList = exports.PayRun = exports.PayRunBlocker = exports.PayRunBlockerCode = exports.PayRunRuleVersion = exports.Payslip = exports.PayslipLine = exports.PayslipLineSide = exports.PayRunStatus = exports.PayPeriod = void 0;
+exports.CreatePayRunRequest = exports.PayRunDetail = exports.PayRun = exports.PayRunBlocker = exports.PayRunBlockerCode = exports.PayRunRuleVersion = exports.Payslip = exports.PayslipLine = exports.PayslipLineSide = exports.PayRunStatus = exports.PayPeriod = void 0;
 const zod_1 = require("zod");
 const booking_1 = require("./booking");
 const primitives_1 = require("./primitives");
@@ -91,7 +91,6 @@ exports.PayRun = zod_1.z.object({
     employeeContributionsRwf: zod_1.z.number().int(),
     employerContributionsRwf: zod_1.z.number().int(),
 });
-exports.PayRunList = zod_1.z.object({ runs: zod_1.z.array(exports.PayRun) });
 /** `GET /ops/pay-runs/:id`: the run, its payslips, and what blocks confirming it. */
 exports.PayRunDetail = zod_1.z.object({
     run: exports.PayRun,

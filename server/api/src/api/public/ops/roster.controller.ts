@@ -2,10 +2,10 @@ import {
   CancelRosterEntryRequest,
   CreateRosterEntryRequest,
   CreateShiftTemplateRequest,
-  RosterQuery,
   ShiftTemplateQuery,
   type RosterEntry,
-  type RosterList,
+  type ListQuery,
+  type RosterPage,
   type ShiftTemplate,
   type ShiftTemplateList,
 } from '@injishi/contracts';
@@ -34,6 +34,7 @@ import {
   WorkspaceGuard,
 } from '../../../shared/auth/workspace.guard';
 import type { ScopedWorkspace } from '../../../shared/auth/branch-scope';
+import { ListQueryPipe } from '../../../shared/lists/list-query';
 import { ZodValidationPipe } from '../../../shared/validation/zod-validation.pipe';
 
 /**
@@ -80,9 +81,9 @@ export class OpsRosterController {
   @Get()
   @RequireAnyPermission('roster.manage', 'attendance.record', 'people.view')
   list(
-    @Query(new ZodValidationPipe(RosterQuery)) query: RosterQuery,
+    @Query(ListQueryPipe) query: ListQuery,
     @CurrentWorkspace() workspace: ScopedWorkspace,
-  ): Promise<RosterList> {
+  ): Promise<RosterPage> {
     return this.time.listRoster(workspace, query);
   }
 

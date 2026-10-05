@@ -11,34 +11,32 @@
  *
  * Nobody decides their own leave. The server refuses it (403), and this screen
  * says so on the row rather than offering a button that will fail.
+ *
+ * The queue is the shared `DataView` over `LEAVE_REQUEST_LIST`
+ * (058-list-framework), with the status chips, filters and saved views, and a
+ * bulk approve or refuse that runs the single decision once per request: one
+ * refusal (a request already decided) is that row's result and undoes nothing.
  */
 
-import type { LeaveRequest, LeaveRequestStatus } from "@injishi/contracts";
-import { Input } from "@injishi/ui";
+import { LEAVE_REQUEST_LIST, type LeaveRequest, type LeaveRequestStatus } from "@injishi/contracts";
+import { DataView, Input, type DataColumn } from "@injishi/ui";
 import { useState } from "react";
 
-import {
-  ActionButton,
-  Badge,
-  Chip,
-  EmptyState,
-  LoadFailed,
-  SectionHeading,
-  SelectField,
-  Skeleton,
-} from "../../components/ui";
+import { ActionButton, Badge, SectionHeading, SelectField } from "../../components/ui";
 import { useCapability, useWorkspaceId } from "../../data/capability";
+import { readListIds, runBulkAction, useListUrl, useSavedViewsFor } from "../../data/lists";
 import {
   useDecideLeave,
   useEmployees,
   useLeaveBalances,
-  useLeaveRequests,
+  useLeavePage,
   useRequestLeave,
   type LeaveDecision,
 } from "../../data/people";
 import { dshortIso, todayIso } from "../../lib/format";
 import { usePms } from "../../store";
-import { Field, FormError, RowList, daysText, inputClass, rowClass } from "./staff-ui";
+import { currentGrant } from "../../store/helpers";
+import { Field, FormError, daysText, inputClass } from "./staff-ui";
 
 const STATUS: Record<LeaveRequestStatus, { label: string; intent: "ok" | "warn" | "bad" | "neutral" }> = {
   requested: { label: "Waiting", intent: "warn" },
@@ -48,33 +46,17 @@ const STATUS: Record<LeaveRequestStatus, { label: string; intent: "ok" | "warn" 
 };
 
 export function Leave() {
-  const { toast } = usePms();
+  const { state, toast } = usePms();
   const workspaceId = useWorkspaceId();
   const { can } = useCapability();
-  const [filter, setFilter] = useState<LeaveRequestStatus | "all">("requested");
-  const queue = useLeaveRequests(workspaceId);
   const decide = useDecideLeave(workspaceId);
   const [filing, setFiling] = useState(false);
+  const branches = currentGrant(state)?.branches ?? [];
+  const mayDecide = can("leave.approve");
 
-  if (queue.isPending) {
-    return (
-      <div className="pms-enter flex max-w-wide flex-col gap-4">
-        <Skeleton height={40} />
-        <Skeleton height={200} delay={60} />
-      </div>
-    );
-  }
-  if (queue.isError) {
-    return (
-      <LoadFailed onRetry={() => void queue.refetch()} retrying={queue.isFetching}>
-        We couldn&apos;t load leave requests. Nothing has been decided or changed — this is on our side.
-      </LoadFailed>
-    );
-  }
-
-  const all = queue.data.requests;
-  const shown = filter === "all" ? all : all.filter((r) => r.status === filter);
-  const count = (s: LeaveRequestStatus) => all.filter((r) => r.status === s).length;
+  const { defaultView, savedViews } = useSavedViewsFor(workspaceId, LEAVE_REQUEST_LIST.key);
+  const list = useListUrl(LEAVE_REQUEST_LIST, "basic", defaultView);
+  const page = useLeavePage(workspaceId, list.state.query);
 
   const act = (r: LeaveRequest, decision: LeaveDecision) =>
     decide.mutate(
@@ -92,6 +74,76 @@ export function Leave() {
       },
     );
 
+  // Built each render: every cell reads the decision state of its own row.
+  const columns: DataColumn<LeaveRequest>[] = [
+      {
+        key: "employee",
+        header: "Person",
+        cell: (r) => (
+          <span className="flex flex-col gap-0.5" data-leave={r.id}>
+            <span className="font-semibold text-foreground">{r.employee.displayName}</span>
+            {r.reason ? <span className="text-2xs text-muted-foreground">{r.reason}</span> : null}
+          </span>
+        ),
+      },
+      { key: "leaveType", header: "Type", cell: (r) => r.leaveType.name },
+      {
+        key: "startsOn",
+        header: "From",
+        cell: (r) => (
+          <span className="pms-num">
+            {dshortIso(r.startsOn)}
+            {r.endsOn !== r.startsOn ? ` to ${dshortIso(r.endsOn)}` : ""}
+          </span>
+        ),
+      },
+      {
+        key: "days",
+        header: "Days",
+        align: "end",
+        cell: (r) => `${daysText(r.days)}${r.status === "requested" ? " (estimated)" : ""}`,
+      },
+      {
+        key: "status",
+        header: "Status",
+        cell: (r) => (
+          <span className="flex flex-wrap gap-1.5">
+            <Badge intent={STATUS[r.status].intent}>{STATUS[r.status].label}</Badge>
+            {r.routedToMe && r.status === "requested" && <Badge intent="info">Routed to you</Badge>}
+          </span>
+        ),
+      },
+      {
+        key: "actions",
+        header: "",
+        align: "end",
+        cell: (r) => {
+          const busy = decide.isPending && decide.variables?.id === r.id;
+          if (!mayDecide) return null;
+          if (r.status === "requested") {
+            return (
+              <span className="flex justify-end gap-2">
+                <ActionButton pending={busy && decide.variables?.decision === "reject"} onClick={() => act(r, "reject")}>
+                  Refuse
+                </ActionButton>
+                <ActionButton variant="primary" pending={busy && decide.variables?.decision === "approve"} onClick={() => act(r, "approve")}>
+                  Approve
+                </ActionButton>
+              </span>
+            );
+          }
+          if (r.status === "approved") {
+            return (
+              <ActionButton pending={busy} onClick={() => act(r, "cancel")}>
+                Cancel leave
+              </ActionButton>
+            );
+          }
+          return null;
+        },
+      },
+  ];
+
   return (
     <div className="pms-enter flex max-w-wide flex-col gap-4">
       <div className="flex flex-wrap items-center gap-2">
@@ -108,63 +160,62 @@ export function Leave() {
 
       {filing && <FileLeave onDone={() => setFiling(false)} />}
 
-      <div className="flex flex-wrap gap-2">
-        <Chip active={filter === "requested"} onClick={() => setFilter("requested")} n={count("requested")} label="Waiting" />
-        <Chip active={filter === "approved"} onClick={() => setFilter("approved")} n={count("approved")} label="Approved" />
-        <Chip active={filter === "all"} onClick={() => setFilter("all")} n={all.length} label="All" />
-      </div>
-
-      <section>
-        <SectionHeading n={shown.length}>Requests</SectionHeading>
-        {shown.length === 0 ? (
-          <EmptyState className="mt-2.5 p-6">
-            {filter === "requested" ? "Nothing is waiting for a decision." : "No leave here yet."}
-          </EmptyState>
-        ) : (
-          <RowList>
-            {shown.map((r, i) => {
-              const busy = decide.isPending && decide.variables?.id === r.id;
-              return (
-                <div key={r.id} data-leave={r.id} className={`${rowClass(i)} flex flex-wrap items-center gap-3`}>
-                  <span className="flex min-w-0 flex-1 flex-col gap-0.5">
-                    <span className="truncate text-sm font-semibold text-ink">{r.employee.displayName}</span>
-                    <span className="pms-num truncate text-2xs text-muted-foreground">
-                      {r.leaveType.name} · {dshortIso(r.startsOn)}
-                      {r.endsOn !== r.startsOn ? ` to ${dshortIso(r.endsOn)}` : ""} · {daysText(r.days)}
-                      {r.status === "requested" ? " (estimated)" : ""}
-                      {r.reason ? ` · ${r.reason}` : ""}
-                    </span>
-                  </span>
-                  {r.routedToMe && r.status === "requested" && <Badge intent="info">Routed to you</Badge>}
-                  <Badge intent={STATUS[r.status].intent}>{STATUS[r.status].label}</Badge>
-                  {r.status === "requested" && can("leave.approve") && (
-                    <>
-                      <ActionButton pending={busy && decide.variables?.decision === "reject"} onClick={() => act(r, "reject")}>
-                        Refuse
-                      </ActionButton>
-                      <ActionButton
-                        variant="primary"
-                        pending={busy && decide.variables?.decision === "approve"}
-                        onClick={() => act(r, "approve")}
-                      >
-                        Approve
-                      </ActionButton>
-                    </>
-                  )}
-                  {r.status === "approved" && can("leave.approve") && (
-                    <ActionButton pending={busy} onClick={() => act(r, "cancel")}>
-                      Cancel leave
-                    </ActionButton>
-                  )}
-                </div>
-              );
-            })}
-          </RowList>
-        )}
+      <section className="flex flex-col gap-3">
+        <SectionHeading n={page.data?.total}>Requests</SectionHeading>
+        <DataView
+          spec={LEAVE_REQUEST_LIST}
+          reader="basic"
+          state={list.state}
+          onStateChange={list.setState}
+          dropped={list.dropped}
+          onDismissDropped={list.dismissDropped}
+          page={page.data}
+          status={page.isError ? "error" : page.isPending ? "loading" : "ready"}
+          onRetry={() => void page.refetch()}
+          columns={columns}
+          getRowId={(r) => r.id}
+          labelOf={(r) => r.employee.displayName}
+          groupKeyOf={leaveGroupKey}
+          caption="Leave requests"
+          searchPlaceholder="Search a name"
+          refOptions={{ branch: branches.map((b) => ({ value: b.id, label: b.name })) }}
+          bulk={
+            mayDecide && workspaceId
+              ? {
+                  actions: [
+                    { key: "approve", label: "Approve" },
+                    { key: "reject", label: "Refuse", danger: true },
+                  ],
+                  onSelectAll: () => readListIds(workspaceId, "/ops/leave/requests", list.state.query),
+                  onAction: async (key, ids) => {
+                    const answer = await runBulkAction(workspaceId, "/ops/leave/requests", key, ids);
+                    void page.refetch();
+                    return answer;
+                  },
+                }
+              : undefined
+          }
+          savedViews={savedViews}
+          empty={{ title: "No leave here yet", body: "Requests filed for anyone at your branches appear here." }}
+        />
         <FormError error={decide.error} />
       </section>
     </div>
   );
+}
+
+/** How the server keys each groupable field of a request. */
+function leaveGroupKey(r: LeaveRequest, field: string): string | null {
+  switch (field) {
+    case "status":
+      return r.status;
+    case "leaveType":
+      return r.leaveType.id;
+    case "branch":
+      return r.branchId;
+    default:
+      return null;
+  }
 }
 
 function FileLeave({ onDone }: { onDone: () => void }) {

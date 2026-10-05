@@ -229,6 +229,14 @@ export function groupOrder(groupColumn: AnyColumn | SQL): SQL {
 /** `count(*)` as an int, for the total and the group and status counts. */
 export const countAll = sql<number>`count(*)::int`;
 
+/** What a repository's list read returns, for the service to present and page. */
+export interface ListRows<T> {
+  readonly rows: T[];
+  readonly total: number;
+  readonly groups: ListGroup[] | undefined;
+  readonly statusCounts: ListCount[] | undefined;
+}
+
 /**
  * The label a group shows: the spec's enum label, a label the repository looked
  * up (a branch name for a branch id), or the raw value.

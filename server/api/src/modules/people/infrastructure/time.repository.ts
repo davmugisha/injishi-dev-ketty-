@@ -1,8 +1,11 @@
-import type {
-  AttendanceSource,
-  AttendanceStatus,
-  RosterStatus,
-  ShiftTemplateStatus,
+import {
+  ATTENDANCE_LIST,
+  ROSTER_LIST,
+  type AttendanceSource,
+  type AttendanceStatus,
+  type ListQuery,
+  type RosterStatus,
+  type ShiftTemplateStatus,
 } from '@injishi/contracts';
 import { Inject, Injectable } from '@nestjs/common';
 import { and, asc, eq, gte, inArray, lte, or, sql } from 'drizzle-orm';
@@ -17,7 +20,20 @@ import {
 } from '../../../database/drizzle/schema';
 import { inBranchScope, type BranchScope } from '../../../shared/auth/branch-scope';
 import { DRIZZLE, type Database } from '../../../shared/database/database.module';
+import {
+  compileListQuery,
+  countAll,
+  groupOrder,
+  groupsOf,
+  statusCountsOf,
+  type ListColumns,
+  type ListRows,
+} from '../../../shared/lists/list-query';
 import type { Tx } from './employees.repository';
+import { refLabels } from './hr-labels';
+
+/** A person's name as every HR list shows and searches it: the preferred one, else the legal one. */
+const personName = sql`coalesce(nullif(btrim(${employees.preferredName}), ''), ${employees.legalName})`;
 
 export interface ShiftTemplateRow {
   id: string;
@@ -172,24 +188,75 @@ export class TimeRepository {
       .leftJoin(jobPositions, eq(jobPositions.id, employees.jobPositionId));
   }
 
-  /** The roster between two dates, in the branches the caller covers (AC-T6). */
-  async listRoster(input: {
+  /** The roster list's one field to column map (`ROSTER_LIST`, 058-list-framework). */
+  private readonly rosterListColumns: ListColumns = {
+    workDate: rosterEntries.workDate,
+    startsAt: rosterEntries.startsAt,
+    employee: personName,
+    shift: rosterEntries.shiftTemplateId,
+    branch: rosterEntries.propertyId,
+    department: rosterEntries.departmentId,
+    status: rosterEntries.status,
+  };
+
+  /**
+   * One page of the roster in the caller's branches (AC-T6, AC-LF3). `window`,
+   * when given, bounds the days read: the service passes this week when the
+   * query names no day, so the lens opens on the week rather than on every
+   * shift ever planned. A roster carries no sensitive field, so every reader
+   * reads it the same way.
+   */
+  async listRosterPage(input: {
     orgId: string;
     scope: BranchScope;
-    from: string;
-    to: string;
-    propertyId?: string;
-  }): Promise<RosterEntryRow[]> {
-    const where = [
+    query: ListQuery;
+    window: { from: string; to: string } | null;
+  }): Promise<ListRows<RosterEntryRow>> {
+    const compiled = compileListQuery({
+      spec: ROSTER_LIST,
+      columns: this.rosterListColumns,
+      reader: 'basic',
+      query: input.query,
+      tieBreaker: rosterEntries.id,
+    });
+    const own = and(
       eq(rosterEntries.orgId, input.orgId),
-      gte(rosterEntries.workDate, input.from),
-      lte(rosterEntries.workDate, input.to),
       inBranchScope(rosterEntries.propertyId, input.scope),
-    ];
-    if (input.propertyId) where.push(eq(rosterEntries.propertyId, input.propertyId));
-    return this.entries()
-      .where(and(...where))
-      .orderBy(asc(rosterEntries.workDate), asc(rosterEntries.startsAt), asc(employees.legalName));
+      ...(input.window
+        ? [gte(rosterEntries.workDate, input.window.from), lte(rosterEntries.workDate, input.window.to)]
+        : []),
+    );
+    const where = compiled.where ? and(own, compiled.where) : own;
+    const [rows, [{ count }], statusRows, groupRows] = await Promise.all([
+      this.entries().where(where).orderBy(...compiled.orderBy).limit(compiled.limit).offset(compiled.offset),
+      this.db
+        .select({ count: countAll })
+        .from(rosterEntries)
+        .innerJoin(employees, eq(employees.id, rosterEntries.employeeId))
+        .where(where),
+      this.db
+        .select({ value: rosterEntries.status, count: countAll })
+        .from(rosterEntries)
+        .innerJoin(employees, eq(employees.id, rosterEntries.employeeId))
+        .where(compiled.whereForStatusCounts ? and(own, compiled.whereForStatusCounts) : own)
+        .groupBy(rosterEntries.status),
+      compiled.groupColumn
+        ? this.db
+            .select({ key: sql`${compiled.groupColumn}`, count: countAll })
+            .from(rosterEntries)
+            .innerJoin(employees, eq(employees.id, rosterEntries.employeeId))
+            .where(where)
+            .groupBy(sql`${compiled.groupColumn}`)
+            .orderBy(groupOrder(compiled.groupColumn))
+        : Promise.resolve([] as { key: unknown; count: number }[]),
+    ]);
+    const labels = await refLabels(this.db, input.query.groupBy, groupRows.map((g) => g.key));
+    return {
+      rows,
+      total: Number(count),
+      groups: groupsOf(ROSTER_LIST, input.query.groupBy, groupRows, labels),
+      statusCounts: statusCountsOf(statusRows),
+    };
   }
 
   async findEntry(id: string, tx?: Tx): Promise<RosterEntryRow | null> {
@@ -300,26 +367,75 @@ export class TimeRepository {
       .leftJoin(jobPositions, eq(jobPositions.id, employees.jobPositionId));
   }
 
+  /** The attendance list's one field to column map (`ATTENDANCE_LIST`, 058-list-framework). */
+  private readonly attendanceListColumns: ListColumns = {
+    workDate: attendanceRecords.workDate,
+    clockInAt: attendanceRecords.clockInAt,
+    employee: personName,
+    branch: employees.workPropertyId,
+    status: attendanceRecords.status,
+    source: attendanceRecords.source,
+    validated: attendanceRecords.validated,
+  };
+
   /**
-   * A day's sheet: every record dated that day, and every record still OPEN
-   * whatever its date, so a night shift that began yesterday is on today's
-   * sheet to be clocked out.
+   * One page of attendance in the caller's branches (AC-LF3). `sheetDay`, when
+   * given, makes it a day's sheet: every record dated that day, and every
+   * record still OPEN whatever its date, so a night shift that began yesterday
+   * is on today's sheet to be clocked out. The service passes today when the
+   * query names no day.
    */
-  async listAttendance(input: {
+  async listAttendancePage(input: {
     orgId: string;
     scope: BranchScope;
-    date: string;
-    propertyId?: string;
-  }): Promise<AttendanceRow[]> {
-    const where = [
+    query: ListQuery;
+    sheetDay: string | null;
+  }): Promise<ListRows<AttendanceRow>> {
+    const compiled = compileListQuery({
+      spec: ATTENDANCE_LIST,
+      columns: this.attendanceListColumns,
+      reader: 'basic',
+      query: input.query,
+      tieBreaker: attendanceRecords.id,
+    });
+    const own = and(
       eq(attendanceRecords.orgId, input.orgId),
-      or(eq(attendanceRecords.workDate, input.date), eq(attendanceRecords.status, 'open')),
       inBranchScope(employees.workPropertyId, input.scope),
-    ];
-    if (input.propertyId) where.push(eq(employees.workPropertyId, input.propertyId));
-    return this.records()
-      .where(and(...where))
-      .orderBy(asc(attendanceRecords.clockInAt));
+      ...(input.sheetDay
+        ? [or(eq(attendanceRecords.workDate, input.sheetDay), eq(attendanceRecords.status, 'open'))]
+        : []),
+    );
+    const where = compiled.where ? and(own, compiled.where) : own;
+    const [rows, [{ count }], statusRows, groupRows] = await Promise.all([
+      this.records().where(where).orderBy(...compiled.orderBy).limit(compiled.limit).offset(compiled.offset),
+      this.db
+        .select({ count: countAll })
+        .from(attendanceRecords)
+        .innerJoin(employees, eq(employees.id, attendanceRecords.employeeId))
+        .where(where),
+      this.db
+        .select({ value: attendanceRecords.status, count: countAll })
+        .from(attendanceRecords)
+        .innerJoin(employees, eq(employees.id, attendanceRecords.employeeId))
+        .where(compiled.whereForStatusCounts ? and(own, compiled.whereForStatusCounts) : own)
+        .groupBy(attendanceRecords.status),
+      compiled.groupColumn
+        ? this.db
+            .select({ key: sql`${compiled.groupColumn}`, count: countAll })
+            .from(attendanceRecords)
+            .innerJoin(employees, eq(employees.id, attendanceRecords.employeeId))
+            .where(where)
+            .groupBy(sql`${compiled.groupColumn}`)
+            .orderBy(groupOrder(compiled.groupColumn))
+        : Promise.resolve([] as { key: unknown; count: number }[]),
+    ]);
+    const labels = await refLabels(this.db, input.query.groupBy, groupRows.map((g) => g.key));
+    return {
+      rows,
+      total: Number(count),
+      groups: groupsOf(ATTENDANCE_LIST, input.query.groupBy, groupRows, labels),
+      statusCounts: statusCountsOf(statusRows),
+    };
   }
 
   async findRecord(id: string, tx?: Tx): Promise<AttendanceRow | null> {

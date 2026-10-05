@@ -97,8 +97,6 @@ export const PayRun = z.object({
     employerContributionsRwf: z.number().int(),
 });
 export type PayRun = z.infer<typeof PayRun>;
-export const PayRunList = z.object({ runs: z.array(PayRun) });
-export type PayRunList = z.infer<typeof PayRunList>;
 /** `GET /ops/pay-runs/:id`: the run, its payslips, and what blocks confirming it. */
 export const PayRunDetail = z.object({
     run: PayRun,
