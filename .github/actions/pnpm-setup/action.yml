@@ -38,11 +38,16 @@ runs:
     - name: Install pnpm
       uses: pnpm/action-setup@v6
 
+    # The pnpm store is cached only for a job that installs. A toolchain only
+    # job never creates the store, and on a cache miss (any change to
+    # pnpm-lock.yaml) setup-node's post step then fails the job trying to save
+    # a path that does not exist: `changes` and `workflow-guard` did exactly
+    # that on 2026-10-05, which skipped every other job.
     - name: Install Node
       uses: actions/setup-node@v7
       with:
         node-version: ${{ steps.node-version.outputs.version }}
-        cache: pnpm
+        cache: ${{ inputs.install == 'true' && 'pnpm' || '' }}
 
     - name: Install the workspace
       if: inputs.install == 'true'
