@@ -706,6 +706,12 @@ export declare const ShiftRequest: z.ZodObject<{
     createdAt: string;
     branchId: string | null;
     routedToMe: boolean;
+    decidedByName: string | null;
+    routedTo: {
+        employeeId: string;
+        displayName: string;
+        jobPositionTitle: string | null;
+    } | null;
     fromDate: string;
     toDate: string;
     shiftTemplate: {
@@ -718,12 +724,6 @@ export declare const ShiftRequest: z.ZodObject<{
         jobPositionTitle: string | null;
     } | null;
     colleagueAcceptedAt: string | null;
-    routedTo: {
-        employeeId: string;
-        displayName: string;
-        jobPositionTitle: string | null;
-    } | null;
-    decidedByName: string | null;
 }, {
     status: "approved" | "rejected" | "cancelled" | "requested" | "awaiting_colleague";
     kind: "change" | "swap";
@@ -739,6 +739,12 @@ export declare const ShiftRequest: z.ZodObject<{
     createdAt: string;
     branchId: string | null;
     routedToMe: boolean;
+    decidedByName: string | null;
+    routedTo: {
+        employeeId: string;
+        displayName: string;
+        jobPositionTitle: string | null;
+    } | null;
     fromDate: string;
     toDate: string;
     shiftTemplate: {
@@ -751,12 +757,6 @@ export declare const ShiftRequest: z.ZodObject<{
         jobPositionTitle: string | null;
     } | null;
     colleagueAcceptedAt: string | null;
-    routedTo: {
-        employeeId: string;
-        displayName: string;
-        jobPositionTitle: string | null;
-    } | null;
-    decidedByName: string | null;
 }>;
 export type ShiftRequest = z.infer<typeof ShiftRequest>;
 /** `POST /ops/shift-requests`: on someone's behalf. A swap names a colleague at the same branch. */
@@ -968,12 +968,12 @@ export declare const AttendanceRequest: z.ZodObject<{
     clockInAt: string;
     clockOutAt: string;
     routedToMe: boolean;
+    decidedByName: string | null;
     routedTo: {
         employeeId: string;
         displayName: string;
         jobPositionTitle: string | null;
     } | null;
-    decidedByName: string | null;
     recordId: string | null;
     resultRecordId: string | null;
 }, {
@@ -993,12 +993,12 @@ export declare const AttendanceRequest: z.ZodObject<{
     clockInAt: string;
     clockOutAt: string;
     routedToMe: boolean;
+    decidedByName: string | null;
     routedTo: {
         employeeId: string;
         displayName: string;
         jobPositionTitle: string | null;
     } | null;
-    decidedByName: string | null;
     recordId: string | null;
     resultRecordId: string | null;
 }>;
@@ -1096,6 +1096,8 @@ export declare const AttendancePolicy: z.ZodObject<{
     linkWindowMinutes: z.ZodNumber;
     staleOpenHours: z.ZodNumber;
     defaultShiftMinutes: z.ZodNumber;
+    /** 058-leave AC-LV8: minutes on a worked holiday or day off that earn a whole compensatory day; half of it earns half. */
+    compensationThresholdMinutes: z.ZodNumber;
 } & {
     /** Null: the business default every branch without its own row follows. */
     propertyId: z.ZodNullable<z.ZodString>;
@@ -1111,6 +1113,7 @@ export declare const AttendancePolicy: z.ZodObject<{
     linkWindowMinutes: number;
     staleOpenHours: number;
     defaultShiftMinutes: number;
+    compensationThresholdMinutes: number;
     saved: boolean;
 }, {
     propertyId: string | null;
@@ -1122,6 +1125,7 @@ export declare const AttendancePolicy: z.ZodObject<{
     linkWindowMinutes: number;
     staleOpenHours: number;
     defaultShiftMinutes: number;
+    compensationThresholdMinutes: number;
     saved: boolean;
 }>;
 export type AttendancePolicy = z.infer<typeof AttendancePolicy>;
@@ -1177,6 +1181,8 @@ export declare const AttendanceSettings: z.ZodObject<{
         linkWindowMinutes: z.ZodNumber;
         staleOpenHours: z.ZodNumber;
         defaultShiftMinutes: z.ZodNumber;
+        /** 058-leave AC-LV8: minutes on a worked holiday or day off that earn a whole compensatory day; half of it earns half. */
+        compensationThresholdMinutes: z.ZodNumber;
     } & {
         /** Null: the business default every branch without its own row follows. */
         propertyId: z.ZodNullable<z.ZodString>;
@@ -1192,6 +1198,7 @@ export declare const AttendanceSettings: z.ZodObject<{
         linkWindowMinutes: number;
         staleOpenHours: number;
         defaultShiftMinutes: number;
+        compensationThresholdMinutes: number;
         saved: boolean;
     }, {
         propertyId: string | null;
@@ -1203,6 +1210,7 @@ export declare const AttendanceSettings: z.ZodObject<{
         linkWindowMinutes: number;
         staleOpenHours: number;
         defaultShiftMinutes: number;
+        compensationThresholdMinutes: number;
         saved: boolean;
     }>, "many">;
     clock: z.ZodArray<z.ZodObject<{
@@ -1256,6 +1264,7 @@ export declare const AttendanceSettings: z.ZodObject<{
         linkWindowMinutes: number;
         staleOpenHours: number;
         defaultShiftMinutes: number;
+        compensationThresholdMinutes: number;
         saved: boolean;
     }[];
     clock: {
@@ -1280,6 +1289,7 @@ export declare const AttendanceSettings: z.ZodObject<{
         linkWindowMinutes: number;
         staleOpenHours: number;
         defaultShiftMinutes: number;
+        compensationThresholdMinutes: number;
         saved: boolean;
     }[];
     clock: {
@@ -1306,6 +1316,7 @@ export declare const PutAttendancePolicyRequest: z.ZodObject<{
     defaultShiftMinutes: z.ZodNumber;
 } & {
     propertyId: z.ZodNullable<z.ZodString>;
+    compensationThresholdMinutes: z.ZodOptional<z.ZodNumber>;
 }, "strip", z.ZodTypeAny, {
     propertyId: string | null;
     graceInMinutes: number;
@@ -1316,6 +1327,7 @@ export declare const PutAttendancePolicyRequest: z.ZodObject<{
     linkWindowMinutes: number;
     staleOpenHours: number;
     defaultShiftMinutes: number;
+    compensationThresholdMinutes?: number | undefined;
 }, {
     propertyId: string | null;
     graceInMinutes: number;
@@ -1326,6 +1338,7 @@ export declare const PutAttendancePolicyRequest: z.ZodObject<{
     linkWindowMinutes: number;
     staleOpenHours: number;
     defaultShiftMinutes: number;
+    compensationThresholdMinutes?: number | undefined;
 }>;
 export type PutAttendancePolicyRequest = z.infer<typeof PutAttendancePolicyRequest>;
 /** The radius, and the centre: null clears it back to the property's pin, absent leaves it. */
@@ -2689,6 +2702,12 @@ export declare const MyShiftRequestList: z.ZodObject<{
         createdAt: string;
         branchId: string | null;
         routedToMe: boolean;
+        decidedByName: string | null;
+        routedTo: {
+            employeeId: string;
+            displayName: string;
+            jobPositionTitle: string | null;
+        } | null;
         fromDate: string;
         toDate: string;
         shiftTemplate: {
@@ -2701,12 +2720,6 @@ export declare const MyShiftRequestList: z.ZodObject<{
             jobPositionTitle: string | null;
         } | null;
         colleagueAcceptedAt: string | null;
-        routedTo: {
-            employeeId: string;
-            displayName: string;
-            jobPositionTitle: string | null;
-        } | null;
-        decidedByName: string | null;
     }, {
         status: "approved" | "rejected" | "cancelled" | "requested" | "awaiting_colleague";
         kind: "change" | "swap";
@@ -2722,6 +2735,12 @@ export declare const MyShiftRequestList: z.ZodObject<{
         createdAt: string;
         branchId: string | null;
         routedToMe: boolean;
+        decidedByName: string | null;
+        routedTo: {
+            employeeId: string;
+            displayName: string;
+            jobPositionTitle: string | null;
+        } | null;
         fromDate: string;
         toDate: string;
         shiftTemplate: {
@@ -2734,12 +2753,6 @@ export declare const MyShiftRequestList: z.ZodObject<{
             jobPositionTitle: string | null;
         } | null;
         colleagueAcceptedAt: string | null;
-        routedTo: {
-            employeeId: string;
-            displayName: string;
-            jobPositionTitle: string | null;
-        } | null;
-        decidedByName: string | null;
     }>, "many">;
     /** Swaps colleagues asked of them, waiting for an answer. */
     askedOfMe: z.ZodArray<z.ZodObject<{
@@ -2821,6 +2834,12 @@ export declare const MyShiftRequestList: z.ZodObject<{
         createdAt: string;
         branchId: string | null;
         routedToMe: boolean;
+        decidedByName: string | null;
+        routedTo: {
+            employeeId: string;
+            displayName: string;
+            jobPositionTitle: string | null;
+        } | null;
         fromDate: string;
         toDate: string;
         shiftTemplate: {
@@ -2833,12 +2852,6 @@ export declare const MyShiftRequestList: z.ZodObject<{
             jobPositionTitle: string | null;
         } | null;
         colleagueAcceptedAt: string | null;
-        routedTo: {
-            employeeId: string;
-            displayName: string;
-            jobPositionTitle: string | null;
-        } | null;
-        decidedByName: string | null;
     }, {
         status: "approved" | "rejected" | "cancelled" | "requested" | "awaiting_colleague";
         kind: "change" | "swap";
@@ -2854,6 +2867,12 @@ export declare const MyShiftRequestList: z.ZodObject<{
         createdAt: string;
         branchId: string | null;
         routedToMe: boolean;
+        decidedByName: string | null;
+        routedTo: {
+            employeeId: string;
+            displayName: string;
+            jobPositionTitle: string | null;
+        } | null;
         fromDate: string;
         toDate: string;
         shiftTemplate: {
@@ -2866,12 +2885,6 @@ export declare const MyShiftRequestList: z.ZodObject<{
             jobPositionTitle: string | null;
         } | null;
         colleagueAcceptedAt: string | null;
-        routedTo: {
-            employeeId: string;
-            displayName: string;
-            jobPositionTitle: string | null;
-        } | null;
-        decidedByName: string | null;
     }>, "many">;
 }, "strip", z.ZodTypeAny, {
     mine: {
@@ -2889,6 +2902,12 @@ export declare const MyShiftRequestList: z.ZodObject<{
         createdAt: string;
         branchId: string | null;
         routedToMe: boolean;
+        decidedByName: string | null;
+        routedTo: {
+            employeeId: string;
+            displayName: string;
+            jobPositionTitle: string | null;
+        } | null;
         fromDate: string;
         toDate: string;
         shiftTemplate: {
@@ -2901,12 +2920,6 @@ export declare const MyShiftRequestList: z.ZodObject<{
             jobPositionTitle: string | null;
         } | null;
         colleagueAcceptedAt: string | null;
-        routedTo: {
-            employeeId: string;
-            displayName: string;
-            jobPositionTitle: string | null;
-        } | null;
-        decidedByName: string | null;
     }[];
     askedOfMe: {
         status: "approved" | "rejected" | "cancelled" | "requested" | "awaiting_colleague";
@@ -2923,6 +2936,12 @@ export declare const MyShiftRequestList: z.ZodObject<{
         createdAt: string;
         branchId: string | null;
         routedToMe: boolean;
+        decidedByName: string | null;
+        routedTo: {
+            employeeId: string;
+            displayName: string;
+            jobPositionTitle: string | null;
+        } | null;
         fromDate: string;
         toDate: string;
         shiftTemplate: {
@@ -2935,12 +2954,6 @@ export declare const MyShiftRequestList: z.ZodObject<{
             jobPositionTitle: string | null;
         } | null;
         colleagueAcceptedAt: string | null;
-        routedTo: {
-            employeeId: string;
-            displayName: string;
-            jobPositionTitle: string | null;
-        } | null;
-        decidedByName: string | null;
     }[];
 }, {
     mine: {
@@ -2958,6 +2971,12 @@ export declare const MyShiftRequestList: z.ZodObject<{
         createdAt: string;
         branchId: string | null;
         routedToMe: boolean;
+        decidedByName: string | null;
+        routedTo: {
+            employeeId: string;
+            displayName: string;
+            jobPositionTitle: string | null;
+        } | null;
         fromDate: string;
         toDate: string;
         shiftTemplate: {
@@ -2970,12 +2989,6 @@ export declare const MyShiftRequestList: z.ZodObject<{
             jobPositionTitle: string | null;
         } | null;
         colleagueAcceptedAt: string | null;
-        routedTo: {
-            employeeId: string;
-            displayName: string;
-            jobPositionTitle: string | null;
-        } | null;
-        decidedByName: string | null;
     }[];
     askedOfMe: {
         status: "approved" | "rejected" | "cancelled" | "requested" | "awaiting_colleague";
@@ -2992,6 +3005,12 @@ export declare const MyShiftRequestList: z.ZodObject<{
         createdAt: string;
         branchId: string | null;
         routedToMe: boolean;
+        decidedByName: string | null;
+        routedTo: {
+            employeeId: string;
+            displayName: string;
+            jobPositionTitle: string | null;
+        } | null;
         fromDate: string;
         toDate: string;
         shiftTemplate: {
@@ -3004,12 +3023,6 @@ export declare const MyShiftRequestList: z.ZodObject<{
             jobPositionTitle: string | null;
         } | null;
         colleagueAcceptedAt: string | null;
-        routedTo: {
-            employeeId: string;
-            displayName: string;
-            jobPositionTitle: string | null;
-        } | null;
-        decidedByName: string | null;
     }[];
 }>;
 export type MyShiftRequestList = z.infer<typeof MyShiftRequestList>;
@@ -3204,12 +3217,12 @@ export declare const MyAttendance: z.ZodObject<{
         clockInAt: string;
         clockOutAt: string;
         routedToMe: boolean;
+        decidedByName: string | null;
         routedTo: {
             employeeId: string;
             displayName: string;
             jobPositionTitle: string | null;
         } | null;
-        decidedByName: string | null;
         recordId: string | null;
         resultRecordId: string | null;
     }, {
@@ -3229,12 +3242,12 @@ export declare const MyAttendance: z.ZodObject<{
         clockInAt: string;
         clockOutAt: string;
         routedToMe: boolean;
+        decidedByName: string | null;
         routedTo: {
             employeeId: string;
             displayName: string;
             jobPositionTitle: string | null;
         } | null;
-        decidedByName: string | null;
         recordId: string | null;
         resultRecordId: string | null;
     }>, "many">;
@@ -3256,12 +3269,12 @@ export declare const MyAttendance: z.ZodObject<{
         clockInAt: string;
         clockOutAt: string;
         routedToMe: boolean;
+        decidedByName: string | null;
         routedTo: {
             employeeId: string;
             displayName: string;
             jobPositionTitle: string | null;
         } | null;
-        decidedByName: string | null;
         recordId: string | null;
         resultRecordId: string | null;
     }[];
@@ -3318,12 +3331,12 @@ export declare const MyAttendance: z.ZodObject<{
         clockInAt: string;
         clockOutAt: string;
         routedToMe: boolean;
+        decidedByName: string | null;
         routedTo: {
             employeeId: string;
             displayName: string;
             jobPositionTitle: string | null;
         } | null;
-        decidedByName: string | null;
         recordId: string | null;
         resultRecordId: string | null;
     }[];
@@ -3424,12 +3437,12 @@ export declare const MyAttendanceRequestList: z.ZodObject<{
         clockInAt: string;
         clockOutAt: string;
         routedToMe: boolean;
+        decidedByName: string | null;
         routedTo: {
             employeeId: string;
             displayName: string;
             jobPositionTitle: string | null;
         } | null;
-        decidedByName: string | null;
         recordId: string | null;
         resultRecordId: string | null;
     }, {
@@ -3449,12 +3462,12 @@ export declare const MyAttendanceRequestList: z.ZodObject<{
         clockInAt: string;
         clockOutAt: string;
         routedToMe: boolean;
+        decidedByName: string | null;
         routedTo: {
             employeeId: string;
             displayName: string;
             jobPositionTitle: string | null;
         } | null;
-        decidedByName: string | null;
         recordId: string | null;
         resultRecordId: string | null;
     }>, "many">;
@@ -3476,12 +3489,12 @@ export declare const MyAttendanceRequestList: z.ZodObject<{
         clockInAt: string;
         clockOutAt: string;
         routedToMe: boolean;
+        decidedByName: string | null;
         routedTo: {
             employeeId: string;
             displayName: string;
             jobPositionTitle: string | null;
         } | null;
-        decidedByName: string | null;
         recordId: string | null;
         resultRecordId: string | null;
     }[];
@@ -3503,12 +3516,12 @@ export declare const MyAttendanceRequestList: z.ZodObject<{
         clockInAt: string;
         clockOutAt: string;
         routedToMe: boolean;
+        decidedByName: string | null;
         routedTo: {
             employeeId: string;
             displayName: string;
             jobPositionTitle: string | null;
         } | null;
-        decidedByName: string | null;
         recordId: string | null;
         resultRecordId: string | null;
     }[];
@@ -4019,17 +4032,17 @@ export declare const MyTeamAttendance: z.ZodObject<{
 }>;
 export type MyTeamAttendance = z.infer<typeof MyTeamAttendance>;
 /** Which requests routed to a manager to read: a swap is a shift request that names a colleague. */
-export declare const TeamRequestKind: z.ZodEnum<["shift", "swap", "attendance"]>;
+export declare const TeamRequestKind: z.ZodEnum<["shift", "swap", "attendance", "leave", "allocation"]>;
 export type TeamRequestKind = z.infer<typeof TeamRequestKind>;
 export declare const TeamRequestsQuery: z.ZodObject<{
-    kind: z.ZodOptional<z.ZodEnum<["shift", "swap", "attendance"]>>;
+    kind: z.ZodOptional<z.ZodEnum<["shift", "swap", "attendance", "leave", "allocation"]>>;
     status: z.ZodOptional<z.ZodString>;
 }, "strip", z.ZodTypeAny, {
     status?: string | undefined;
-    kind?: "shift" | "swap" | "attendance" | undefined;
+    kind?: "shift" | "swap" | "attendance" | "leave" | "allocation" | undefined;
 }, {
     status?: string | undefined;
-    kind?: "shift" | "swap" | "attendance" | undefined;
+    kind?: "shift" | "swap" | "attendance" | "leave" | "allocation" | undefined;
 }>;
 export type TeamRequestsQuery = z.infer<typeof TeamRequestsQuery>;
 /** Requests routed to the caller, whatever kind, with their state: nothing here decides. */
@@ -4113,6 +4126,12 @@ export declare const MyTeamRequests: z.ZodObject<{
         createdAt: string;
         branchId: string | null;
         routedToMe: boolean;
+        decidedByName: string | null;
+        routedTo: {
+            employeeId: string;
+            displayName: string;
+            jobPositionTitle: string | null;
+        } | null;
         fromDate: string;
         toDate: string;
         shiftTemplate: {
@@ -4125,12 +4144,6 @@ export declare const MyTeamRequests: z.ZodObject<{
             jobPositionTitle: string | null;
         } | null;
         colleagueAcceptedAt: string | null;
-        routedTo: {
-            employeeId: string;
-            displayName: string;
-            jobPositionTitle: string | null;
-        } | null;
-        decidedByName: string | null;
     }, {
         status: "approved" | "rejected" | "cancelled" | "requested" | "awaiting_colleague";
         kind: "change" | "swap";
@@ -4146,6 +4159,12 @@ export declare const MyTeamRequests: z.ZodObject<{
         createdAt: string;
         branchId: string | null;
         routedToMe: boolean;
+        decidedByName: string | null;
+        routedTo: {
+            employeeId: string;
+            displayName: string;
+            jobPositionTitle: string | null;
+        } | null;
         fromDate: string;
         toDate: string;
         shiftTemplate: {
@@ -4158,12 +4177,6 @@ export declare const MyTeamRequests: z.ZodObject<{
             jobPositionTitle: string | null;
         } | null;
         colleagueAcceptedAt: string | null;
-        routedTo: {
-            employeeId: string;
-            displayName: string;
-            jobPositionTitle: string | null;
-        } | null;
-        decidedByName: string | null;
     }>, "many">;
     attendance: z.ZodArray<z.ZodObject<{
         id: z.ZodString;
@@ -4224,12 +4237,12 @@ export declare const MyTeamRequests: z.ZodObject<{
         clockInAt: string;
         clockOutAt: string;
         routedToMe: boolean;
+        decidedByName: string | null;
         routedTo: {
             employeeId: string;
             displayName: string;
             jobPositionTitle: string | null;
         } | null;
-        decidedByName: string | null;
         recordId: string | null;
         resultRecordId: string | null;
     }, {
@@ -4249,14 +4262,265 @@ export declare const MyTeamRequests: z.ZodObject<{
         clockInAt: string;
         clockOutAt: string;
         routedToMe: boolean;
+        decidedByName: string | null;
         routedTo: {
             employeeId: string;
             displayName: string;
             jobPositionTitle: string | null;
         } | null;
-        decidedByName: string | null;
         recordId: string | null;
         resultRecordId: string | null;
+    }>, "many">;
+    /** 058-leave: leave and allocation requests routed to the caller. */
+    leave: z.ZodArray<z.ZodObject<{
+        id: z.ZodString;
+        employee: z.ZodObject<{
+            employeeId: z.ZodString;
+            displayName: z.ZodString;
+            jobPositionTitle: z.ZodNullable<z.ZodString>;
+        }, "strip", z.ZodTypeAny, {
+            employeeId: string;
+            displayName: string;
+            jobPositionTitle: string | null;
+        }, {
+            employeeId: string;
+            displayName: string;
+            jobPositionTitle: string | null;
+        }>;
+        branchId: z.ZodNullable<z.ZodString>;
+        leaveType: z.ZodObject<{
+            id: z.ZodString;
+            code: z.ZodString;
+            name: z.ZodString;
+        }, "strip", z.ZodTypeAny, {
+            code: string;
+            name: string;
+            id: string;
+        }, {
+            code: string;
+            name: string;
+            id: string;
+        }>;
+        startsOn: z.ZodString;
+        endsOn: z.ZodString;
+        startHalf: z.ZodEnum<["full", "second_half"]>;
+        endHalf: z.ZodEnum<["full", "first_half"]>;
+        days: z.ZodNumber;
+        reason: z.ZodNullable<z.ZodString>;
+        status: z.ZodEnum<["requested", "approved", "rejected", "cancelled"]>;
+        routedToEmployeeId: z.ZodNullable<z.ZodString>;
+        routedToName: z.ZodNullable<z.ZodString>;
+        routedToMe: z.ZodBoolean;
+        decidedAt: z.ZodNullable<z.ZodString>;
+        decisionNote: z.ZodNullable<z.ZodString>;
+        createdAt: z.ZodString;
+        payment: z.ZodEnum<["paid", "unpaid", "partial"]>;
+        paymentPercent: z.ZodNullable<z.ZodNumber>;
+        approvalSteps: z.ZodNumber;
+        currentStep: z.ZodNumber;
+        approvals: z.ZodArray<z.ZodObject<{
+            step: z.ZodNumber;
+            decision: z.ZodEnum<["approved", "rejected", "skipped"]>;
+            decidedByName: z.ZodNullable<z.ZodString>;
+            note: z.ZodNullable<z.ZodString>;
+            decidedAt: z.ZodString;
+        }, "strip", z.ZodTypeAny, {
+            decision: "approved" | "rejected" | "skipped";
+            decidedAt: string;
+            note: string | null;
+            step: number;
+            decidedByName: string | null;
+        }, {
+            decision: "approved" | "rejected" | "skipped";
+            decidedAt: string;
+            note: string | null;
+            step: number;
+            decidedByName: string | null;
+        }>, "many">;
+        hasAttachment: z.ZodBoolean;
+    }, "strip", z.ZodTypeAny, {
+        status: "approved" | "rejected" | "cancelled" | "requested";
+        decidedAt: string | null;
+        reason: string | null;
+        id: string;
+        startsOn: string;
+        decisionNote: string | null;
+        payment: "paid" | "unpaid" | "partial";
+        employee: {
+            employeeId: string;
+            displayName: string;
+            jobPositionTitle: string | null;
+        };
+        createdAt: string;
+        branchId: string | null;
+        endsOn: string;
+        paymentPercent: number | null;
+        approvalSteps: number;
+        days: number;
+        leaveType: {
+            code: string;
+            name: string;
+            id: string;
+        };
+        startHalf: "full" | "second_half";
+        endHalf: "full" | "first_half";
+        routedToEmployeeId: string | null;
+        routedToName: string | null;
+        routedToMe: boolean;
+        currentStep: number;
+        approvals: {
+            decision: "approved" | "rejected" | "skipped";
+            decidedAt: string;
+            note: string | null;
+            step: number;
+            decidedByName: string | null;
+        }[];
+        hasAttachment: boolean;
+    }, {
+        status: "approved" | "rejected" | "cancelled" | "requested";
+        decidedAt: string | null;
+        reason: string | null;
+        id: string;
+        startsOn: string;
+        decisionNote: string | null;
+        payment: "paid" | "unpaid" | "partial";
+        employee: {
+            employeeId: string;
+            displayName: string;
+            jobPositionTitle: string | null;
+        };
+        createdAt: string;
+        branchId: string | null;
+        endsOn: string;
+        paymentPercent: number | null;
+        approvalSteps: number;
+        days: number;
+        leaveType: {
+            code: string;
+            name: string;
+            id: string;
+        };
+        startHalf: "full" | "second_half";
+        endHalf: "full" | "first_half";
+        routedToEmployeeId: string | null;
+        routedToName: string | null;
+        routedToMe: boolean;
+        currentStep: number;
+        approvals: {
+            decision: "approved" | "rejected" | "skipped";
+            decidedAt: string;
+            note: string | null;
+            step: number;
+            decidedByName: string | null;
+        }[];
+        hasAttachment: boolean;
+    }>, "many">;
+    allocation: z.ZodArray<z.ZodObject<{
+        id: z.ZodString;
+        employee: z.ZodObject<{
+            employeeId: z.ZodString;
+            displayName: z.ZodString;
+            jobPositionTitle: z.ZodNullable<z.ZodString>;
+        }, "strip", z.ZodTypeAny, {
+            employeeId: string;
+            displayName: string;
+            jobPositionTitle: string | null;
+        }, {
+            employeeId: string;
+            displayName: string;
+            jobPositionTitle: string | null;
+        }>;
+        branchId: z.ZodNullable<z.ZodString>;
+        leaveType: z.ZodObject<{
+            id: z.ZodString;
+            name: z.ZodString;
+        }, "strip", z.ZodTypeAny, {
+            name: string;
+            id: string;
+        }, {
+            name: string;
+            id: string;
+        }>;
+        kind: z.ZodEnum<["extra", "compensatory"]>;
+        days: z.ZodNumber;
+        attendanceRecordId: z.ZodNullable<z.ZodString>;
+        workDate: z.ZodNullable<z.ZodString>;
+        reason: z.ZodString;
+        status: z.ZodEnum<["requested", "approved", "rejected", "cancelled"]>;
+        routedTo: z.ZodNullable<z.ZodObject<{
+            employeeId: z.ZodString;
+            displayName: z.ZodString;
+            jobPositionTitle: z.ZodNullable<z.ZodString>;
+        }, "strip", z.ZodTypeAny, {
+            employeeId: string;
+            displayName: string;
+            jobPositionTitle: string | null;
+        }, {
+            employeeId: string;
+            displayName: string;
+            jobPositionTitle: string | null;
+        }>>;
+        routedToMe: z.ZodBoolean;
+        decidedAt: z.ZodNullable<z.ZodString>;
+        decidedByName: z.ZodNullable<z.ZodString>;
+        decisionNote: z.ZodNullable<z.ZodString>;
+        createdAt: z.ZodString;
+    }, "strip", z.ZodTypeAny, {
+        status: "approved" | "rejected" | "cancelled" | "requested";
+        kind: "compensatory" | "extra";
+        decidedAt: string | null;
+        reason: string;
+        id: string;
+        decisionNote: string | null;
+        employee: {
+            employeeId: string;
+            displayName: string;
+            jobPositionTitle: string | null;
+        };
+        createdAt: string;
+        branchId: string | null;
+        workDate: string | null;
+        days: number;
+        leaveType: {
+            name: string;
+            id: string;
+        };
+        routedToMe: boolean;
+        decidedByName: string | null;
+        attendanceRecordId: string | null;
+        routedTo: {
+            employeeId: string;
+            displayName: string;
+            jobPositionTitle: string | null;
+        } | null;
+    }, {
+        status: "approved" | "rejected" | "cancelled" | "requested";
+        kind: "compensatory" | "extra";
+        decidedAt: string | null;
+        reason: string;
+        id: string;
+        decisionNote: string | null;
+        employee: {
+            employeeId: string;
+            displayName: string;
+            jobPositionTitle: string | null;
+        };
+        createdAt: string;
+        branchId: string | null;
+        workDate: string | null;
+        days: number;
+        leaveType: {
+            name: string;
+            id: string;
+        };
+        routedToMe: boolean;
+        decidedByName: string | null;
+        attendanceRecordId: string | null;
+        routedTo: {
+            employeeId: string;
+            displayName: string;
+            jobPositionTitle: string | null;
+        } | null;
     }>, "many">;
 }, "strip", z.ZodTypeAny, {
     shift: {
@@ -4274,6 +4538,12 @@ export declare const MyTeamRequests: z.ZodObject<{
         createdAt: string;
         branchId: string | null;
         routedToMe: boolean;
+        decidedByName: string | null;
+        routedTo: {
+            employeeId: string;
+            displayName: string;
+            jobPositionTitle: string | null;
+        } | null;
         fromDate: string;
         toDate: string;
         shiftTemplate: {
@@ -4286,12 +4556,6 @@ export declare const MyTeamRequests: z.ZodObject<{
             jobPositionTitle: string | null;
         } | null;
         colleagueAcceptedAt: string | null;
-        routedTo: {
-            employeeId: string;
-            displayName: string;
-            jobPositionTitle: string | null;
-        } | null;
-        decidedByName: string | null;
     }[];
     attendance: {
         status: "approved" | "rejected" | "cancelled" | "requested";
@@ -4310,14 +4574,82 @@ export declare const MyTeamRequests: z.ZodObject<{
         clockInAt: string;
         clockOutAt: string;
         routedToMe: boolean;
+        decidedByName: string | null;
         routedTo: {
             employeeId: string;
             displayName: string;
             jobPositionTitle: string | null;
         } | null;
-        decidedByName: string | null;
         recordId: string | null;
         resultRecordId: string | null;
+    }[];
+    leave: {
+        status: "approved" | "rejected" | "cancelled" | "requested";
+        decidedAt: string | null;
+        reason: string | null;
+        id: string;
+        startsOn: string;
+        decisionNote: string | null;
+        payment: "paid" | "unpaid" | "partial";
+        employee: {
+            employeeId: string;
+            displayName: string;
+            jobPositionTitle: string | null;
+        };
+        createdAt: string;
+        branchId: string | null;
+        endsOn: string;
+        paymentPercent: number | null;
+        approvalSteps: number;
+        days: number;
+        leaveType: {
+            code: string;
+            name: string;
+            id: string;
+        };
+        startHalf: "full" | "second_half";
+        endHalf: "full" | "first_half";
+        routedToEmployeeId: string | null;
+        routedToName: string | null;
+        routedToMe: boolean;
+        currentStep: number;
+        approvals: {
+            decision: "approved" | "rejected" | "skipped";
+            decidedAt: string;
+            note: string | null;
+            step: number;
+            decidedByName: string | null;
+        }[];
+        hasAttachment: boolean;
+    }[];
+    allocation: {
+        status: "approved" | "rejected" | "cancelled" | "requested";
+        kind: "compensatory" | "extra";
+        decidedAt: string | null;
+        reason: string;
+        id: string;
+        decisionNote: string | null;
+        employee: {
+            employeeId: string;
+            displayName: string;
+            jobPositionTitle: string | null;
+        };
+        createdAt: string;
+        branchId: string | null;
+        workDate: string | null;
+        days: number;
+        leaveType: {
+            name: string;
+            id: string;
+        };
+        routedToMe: boolean;
+        decidedByName: string | null;
+        attendanceRecordId: string | null;
+        routedTo: {
+            employeeId: string;
+            displayName: string;
+            jobPositionTitle: string | null;
+        } | null;
     }[];
 }, {
     shift: {
@@ -4335,6 +4667,12 @@ export declare const MyTeamRequests: z.ZodObject<{
         createdAt: string;
         branchId: string | null;
         routedToMe: boolean;
+        decidedByName: string | null;
+        routedTo: {
+            employeeId: string;
+            displayName: string;
+            jobPositionTitle: string | null;
+        } | null;
         fromDate: string;
         toDate: string;
         shiftTemplate: {
@@ -4347,12 +4685,6 @@ export declare const MyTeamRequests: z.ZodObject<{
             jobPositionTitle: string | null;
         } | null;
         colleagueAcceptedAt: string | null;
-        routedTo: {
-            employeeId: string;
-            displayName: string;
-            jobPositionTitle: string | null;
-        } | null;
-        decidedByName: string | null;
     }[];
     attendance: {
         status: "approved" | "rejected" | "cancelled" | "requested";
@@ -4371,14 +4703,82 @@ export declare const MyTeamRequests: z.ZodObject<{
         clockInAt: string;
         clockOutAt: string;
         routedToMe: boolean;
+        decidedByName: string | null;
         routedTo: {
             employeeId: string;
             displayName: string;
             jobPositionTitle: string | null;
         } | null;
-        decidedByName: string | null;
         recordId: string | null;
         resultRecordId: string | null;
+    }[];
+    leave: {
+        status: "approved" | "rejected" | "cancelled" | "requested";
+        decidedAt: string | null;
+        reason: string | null;
+        id: string;
+        startsOn: string;
+        decisionNote: string | null;
+        payment: "paid" | "unpaid" | "partial";
+        employee: {
+            employeeId: string;
+            displayName: string;
+            jobPositionTitle: string | null;
+        };
+        createdAt: string;
+        branchId: string | null;
+        endsOn: string;
+        paymentPercent: number | null;
+        approvalSteps: number;
+        days: number;
+        leaveType: {
+            code: string;
+            name: string;
+            id: string;
+        };
+        startHalf: "full" | "second_half";
+        endHalf: "full" | "first_half";
+        routedToEmployeeId: string | null;
+        routedToName: string | null;
+        routedToMe: boolean;
+        currentStep: number;
+        approvals: {
+            decision: "approved" | "rejected" | "skipped";
+            decidedAt: string;
+            note: string | null;
+            step: number;
+            decidedByName: string | null;
+        }[];
+        hasAttachment: boolean;
+    }[];
+    allocation: {
+        status: "approved" | "rejected" | "cancelled" | "requested";
+        kind: "compensatory" | "extra";
+        decidedAt: string | null;
+        reason: string;
+        id: string;
+        decisionNote: string | null;
+        employee: {
+            employeeId: string;
+            displayName: string;
+            jobPositionTitle: string | null;
+        };
+        createdAt: string;
+        branchId: string | null;
+        workDate: string | null;
+        days: number;
+        leaveType: {
+            name: string;
+            id: string;
+        };
+        routedToMe: boolean;
+        decidedByName: string | null;
+        attendanceRecordId: string | null;
+        routedTo: {
+            employeeId: string;
+            displayName: string;
+            jobPositionTitle: string | null;
+        } | null;
     }[];
 }>;
 export type MyTeamRequests = z.infer<typeof MyTeamRequests>;

@@ -272,6 +272,8 @@ export const attendancePolicies = pgTable(
     staleOpenHours: integer('stale_open_hours').notNull().default(16),
     /** The shift length a stale record is closed at. */
     defaultShiftMinutes: integer('default_shift_minutes').notNull().default(480),
+    /** Worked minutes on a holiday or day off that earn a whole compensatory day; half earns half (058-leave AC-LV8). */
+    compensationThresholdMinutes: integer('compensation_threshold_minutes').notNull().default(360),
     ...timestamps,
   },
   (t) => [
@@ -283,7 +285,8 @@ export const attendancePolicies = pgTable(
         AND ${t.overtimeMinMinutes} BETWEEN 0 AND 1440
         AND ${t.linkWindowMinutes} BETWEEN 0 AND 720
         AND ${t.staleOpenHours} BETWEEN 1 AND 72
-        AND ${t.defaultShiftMinutes} BETWEEN 30 AND 1440`,
+        AND ${t.defaultShiftMinutes} BETWEEN 30 AND 1440
+        AND ${t.compensationThresholdMinutes} BETWEEN 30 AND 1440`,
     ),
   ],
 );

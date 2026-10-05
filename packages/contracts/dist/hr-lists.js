@@ -1,10 +1,11 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.PayRunPage = exports.PAY_RUN_LIST = exports.LeaveBulkRequest = exports.LeaveRequestPage = exports.LEAVE_REQUEST_LIST = exports.TimeRequestBulkRequest = exports.AttendanceRequestPage = exports.ATTENDANCE_REQUEST_LIST = exports.ShiftRequestPage = exports.SHIFT_REQUEST_LIST = exports.AttendancePage = exports.ATTENDANCE_LIST = exports.RosterPage = exports.ROSTER_LIST = exports.EmployeePage = exports.EMPLOYEE_LIST = void 0;
+exports.PayRunPage = exports.PAY_RUN_LIST = exports.LeaveBalancePage = exports.LEAVE_BALANCE_LIST = exports.LeaveAllocationBulkRequest = exports.LeaveAllocationPage = exports.LEAVE_ALLOCATION_LIST = exports.LeaveBulkRequest = exports.LeaveRequestPage = exports.LEAVE_REQUEST_LIST = exports.TimeRequestBulkRequest = exports.AttendanceRequestPage = exports.ATTENDANCE_REQUEST_LIST = exports.ShiftRequestPage = exports.SHIFT_REQUEST_LIST = exports.AttendancePage = exports.ATTENDANCE_LIST = exports.RosterPage = exports.ROSTER_LIST = exports.EmployeePage = exports.EMPLOYEE_LIST = void 0;
 const zod_1 = require("zod");
 const list_query_1 = require("./list-query");
 const payroll_1 = require("./payroll");
 const people_1 = require("./people");
+const leave_1 = require("./leave");
 const time_1 = require("./time");
 /**
  * The HR lists (ADR-058), declared once for the operator app and the API
@@ -237,6 +238,60 @@ exports.LeaveBulkRequest = list_query_1.BulkRequest.extend({
     action: zod_1.z.enum(["approve", "reject"]),
     params: zod_1.z.object({ note: zod_1.z.string().trim().max(300).optional() }).optional(),
 });
+/** `GET /ops/leave/allocation-requests` (058-leave AC-LV8): extra and compensatory days, routed to the caller first. */
+exports.LEAVE_ALLOCATION_LIST = (0, list_query_1.defineListSpec)({
+    key: "staff.leave-allocations",
+    searchFields: ["employee"],
+    statusField: "status",
+    defaultSort: [
+        { field: "routedToMe", dir: "desc" },
+        { field: "createdAt", dir: "desc" },
+    ],
+    fields: [
+        { key: "employee", label: "Person", type: "text", sortable: true },
+        { key: "leaveType", label: "Type", type: "ref", filterable: true, groupable: true },
+        {
+            key: "kind",
+            label: "Kind",
+            type: "enum",
+            enumValues: ["extra", "compensatory"],
+            enumLabels: { extra: "Extra days", compensatory: "Compensatory" },
+            filterable: true,
+            groupable: true,
+        },
+        {
+            key: "status",
+            label: "Status",
+            type: "enum",
+            enumValues: ["requested", "approved", "rejected", "cancelled"],
+            enumLabels: { requested: "Waiting", approved: "Approved", rejected: "Refused", cancelled: "Withdrawn" },
+            filterable: true,
+            groupable: true,
+        },
+        { key: "days", label: "Days", type: "number", filterable: true, sortable: true },
+        { key: "branch", label: "Branch", type: "ref", filterable: true, groupable: true },
+        { key: "routedToMe", label: "Routed to me", type: "bool", filterable: true, sortable: true },
+        { key: "createdAt", label: "Asked", type: "datetime", sortable: true },
+    ],
+});
+exports.LeaveAllocationPage = (0, list_query_1.listPage)(leave_1.LeaveAllocationRequest);
+/** `POST /ops/leave/allocation-requests/bulk`. */
+exports.LeaveAllocationBulkRequest = list_query_1.BulkRequest.extend({
+    action: zod_1.z.enum(["approve", "reject"]),
+    params: zod_1.z.object({ note: zod_1.z.string().trim().max(300).optional() }).optional(),
+});
+/** `GET /ops/leave/balances` (058-leave AC-LV13): a row per person, a balance per type. */
+exports.LEAVE_BALANCE_LIST = (0, list_query_1.defineListSpec)({
+    key: "staff.leave-balances",
+    searchFields: ["employee"],
+    defaultSort: [{ field: "employee", dir: "asc" }],
+    fields: [
+        { key: "employee", label: "Person", type: "text", sortable: true },
+        { key: "branch", label: "Branch", type: "ref", filterable: true, groupable: true },
+        { key: "jobPosition", label: "Position", type: "ref", filterable: true, groupable: true },
+    ],
+});
+exports.LeaveBalancePage = (0, list_query_1.listPage)(leave_1.LeaveBalanceRow);
 /** `GET /ops/pay-runs`. */
 exports.PAY_RUN_LIST = (0, list_query_1.defineListSpec)({
     key: "staff.pay-runs",

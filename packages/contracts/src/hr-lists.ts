@@ -2,6 +2,7 @@ import { z } from "zod";
 import { BulkRequest, defineListSpec, listPage } from "./list-query";
 import { PayRun } from "./payroll";
 import { AttendanceRecord, Employee, LeaveRequest, RosterEntry } from "./people";
+import { LeaveAllocationRequest, LeaveBalanceRow } from "./leave";
 import { AttendanceRequest, ShiftRequest } from "./time";
 /**
  * The HR lists (ADR-058), declared once for the operator app and the API
@@ -242,6 +243,63 @@ export const LeaveBulkRequest = BulkRequest.extend({
     params: z.object({ note: z.string().trim().max(300).optional() }).optional(),
 });
 export type LeaveBulkRequest = z.infer<typeof LeaveBulkRequest>;
+/** `GET /ops/leave/allocation-requests` (058-leave AC-LV8): extra and compensatory days, routed to the caller first. */
+export const LEAVE_ALLOCATION_LIST = defineListSpec({
+    key: "staff.leave-allocations",
+    searchFields: ["employee"],
+    statusField: "status",
+    defaultSort: [
+        { field: "routedToMe", dir: "desc" },
+        { field: "createdAt", dir: "desc" },
+    ],
+    fields: [
+        { key: "employee", label: "Person", type: "text", sortable: true },
+        { key: "leaveType", label: "Type", type: "ref", filterable: true, groupable: true },
+        {
+            key: "kind",
+            label: "Kind",
+            type: "enum",
+            enumValues: ["extra", "compensatory"],
+            enumLabels: { extra: "Extra days", compensatory: "Compensatory" },
+            filterable: true,
+            groupable: true,
+        },
+        {
+            key: "status",
+            label: "Status",
+            type: "enum",
+            enumValues: ["requested", "approved", "rejected", "cancelled"],
+            enumLabels: { requested: "Waiting", approved: "Approved", rejected: "Refused", cancelled: "Withdrawn" },
+            filterable: true,
+            groupable: true,
+        },
+        { key: "days", label: "Days", type: "number", filterable: true, sortable: true },
+        { key: "branch", label: "Branch", type: "ref", filterable: true, groupable: true },
+        { key: "routedToMe", label: "Routed to me", type: "bool", filterable: true, sortable: true },
+        { key: "createdAt", label: "Asked", type: "datetime", sortable: true },
+    ],
+});
+export const LeaveAllocationPage = listPage(LeaveAllocationRequest);
+export type LeaveAllocationPage = z.infer<typeof LeaveAllocationPage>;
+/** `POST /ops/leave/allocation-requests/bulk`. */
+export const LeaveAllocationBulkRequest = BulkRequest.extend({
+    action: z.enum(["approve", "reject"]),
+    params: z.object({ note: z.string().trim().max(300).optional() }).optional(),
+});
+export type LeaveAllocationBulkRequest = z.infer<typeof LeaveAllocationBulkRequest>;
+/** `GET /ops/leave/balances` (058-leave AC-LV13): a row per person, a balance per type. */
+export const LEAVE_BALANCE_LIST = defineListSpec({
+    key: "staff.leave-balances",
+    searchFields: ["employee"],
+    defaultSort: [{ field: "employee", dir: "asc" }],
+    fields: [
+        { key: "employee", label: "Person", type: "text", sortable: true },
+        { key: "branch", label: "Branch", type: "ref", filterable: true, groupable: true },
+        { key: "jobPosition", label: "Position", type: "ref", filterable: true, groupable: true },
+    ],
+});
+export const LeaveBalancePage = listPage(LeaveBalanceRow);
+export type LeaveBalancePage = z.infer<typeof LeaveBalancePage>;
 /** `GET /ops/pay-runs`. */
 export const PAY_RUN_LIST = defineListSpec({
     key: "staff.pay-runs",

@@ -113,8 +113,9 @@ export const hrLeaveAccrualEnum = pgEnum('hr_leave_accrual', [
 ]);
 
 /**
- * What a ledger row records. The first thread writes `accrual`, `taken` and
- * `reversal`; the other three arrive with `058-leave.md`.
+ * What a ledger row records (058-leave AC-LV2). Credits are lots: `accrual`,
+ * `carry_forward` and `adjustment`. Debits name the lot they draw from:
+ * `taken`, `encashed` and `expiry`. A `reversal` undoes one `taken` row.
  */
 export const hrLeaveEntryKindEnum = pgEnum('hr_leave_entry_kind', [
   'accrual',
@@ -123,7 +124,17 @@ export const hrLeaveEntryKindEnum = pgEnum('hr_leave_entry_kind', [
   'carry_forward',
   'expiry',
   'adjustment',
+  'encashed',
 ]);
+
+/** How a leave type is paid (058-leave AC-LV1): `partial` pays `payment_percent` of the day. */
+export const hrLeavePaymentEnum = pgEnum('hr_leave_payment', ['paid', 'unpaid', 'partial']);
+
+/** When a type's unused days stop: each year end, each month end, or never. */
+export const hrLeaveResetEnum = pgEnum('hr_leave_reset', ['yearly', 'monthly', 'never']);
+
+/** What a yearly reset carries into the new year. */
+export const hrLeaveCarryEnum = pgEnum('hr_leave_carry', ['none', 'carry', 'carry_with_expiry']);
 
 export const hrLeaveRequestStatusEnum = pgEnum('hr_leave_request_status', [
   'requested',
@@ -618,7 +629,6 @@ export const leaveTypes = pgTable(
       .references(() => orgs.id, { onDelete: 'cascade' }),
     code: text('code').notNull(),
     name: text('name').notNull(),
-    paid: boolean('paid').notNull(),
     /** Null: no balance is kept, as for unpaid leave. */
     yearlyEntitlementDays: numeric('yearly_entitlement_days', {
       precision: 5,
@@ -626,20 +636,71 @@ export const leaveTypes = pgTable(
       mode: 'number',
     }),
     accrual: hrLeaveAccrualEnum('accrual').notNull(),
-    carryForwardMaxDays: numeric('carry_forward_max_days', {
+    /** The most a yearly reset carries (AC-LV1); the column keeps slice 1's name. */
+    carryMaxDays: numeric('carry_forward_max_days', {
       precision: 5,
       scale: 1,
       mode: 'number',
     })
       .notNull()
       .default(0),
-    needsApproval: boolean('needs_approval').notNull().default(true),
+    // --- 058-leave AC-LV1: one consolidated list of a type's rules ---
+    payment: hrLeavePaymentEnum('payment').notNull().default('paid'),
+    /** The share of a day's wage a `partial` type pays, 0 to 100. */
+    paymentPercent: integer('payment_percent'),
+    reset: hrLeaveResetEnum('reset').notNull().default('yearly'),
+    carry: hrLeaveCarryEnum('carry').notNull().default('none'),
+    /** How long a carried lot lives, 1 to 12 months; a compensatory type's days live as long. */
+    carryExpiresMonths: integer('carry_expires_months'),
+    /** 0: approved at request; 1 or 2 steps. */
+    approvalSteps: integer('approval_steps').notNull().default(1),
+    needsAttachment: boolean('needs_attachment').notNull().default(false),
+    /** Inside a range, a weekly day off counts as a day of this leave. */
+    countsWeeklyOffs: boolean('counts_weekly_offs').notNull().default(false),
+    /** Inside a range, a holiday counts as a day of this leave. */
+    countsHolidays: boolean('counts_holidays').notNull().default(false),
+    eligibleSex: hrSexEnum('eligible_sex'),
+    minServiceMonths: integer('min_service_months').notNull().default(0),
+    oncePerEmployment: boolean('once_per_employment').notNull().default(false),
+    /** Never restricted by a restricted period (AC-LV9). */
+    statutory: boolean('statutory').notNull().default(false),
+    /** Self service may start it up to 30 days back, as for sick leave. */
+    allowsPastRequests: boolean('allows_past_requests').notNull().default(false),
+    encashable: boolean('encashable').notNull().default(false),
+    /** Where compensatory days land (AC-LV8). */
+    compensatory: boolean('compensatory').notNull().default(false),
+    /** Every N completed years of service... */
+    seniorityEveryYears: integer('seniority_every_years'),
+    /** ...M extra days a year... */
+    seniorityExtraDays: numeric('seniority_extra_days', { precision: 5, scale: 1, mode: 'number' }),
+    /** ...up to this many in all. */
+    seniorityCapDays: numeric('seniority_cap_days', { precision: 5, scale: 1, mode: 'number' }),
     /** The defaults row this type came from. */
     configEntryId: uuid('config_entry_id'),
     status: hrCatalogStatusEnum('status').notNull().default('active'),
     ...timestamps,
   },
-  (t) => [unique('leave_types_code_uk').on(t.orgId, t.code)],
+  (t) => [
+    unique('leave_types_code_uk').on(t.orgId, t.code),
+    check(
+      'leave_types_payment_ck',
+      sql`(${t.payment} = 'partial') = (${t.paymentPercent} IS NOT NULL)
+        AND (${t.paymentPercent} IS NULL OR ${t.paymentPercent} BETWEEN 0 AND 100)`,
+    ),
+    check(
+      'leave_types_carry_ck',
+      sql`(${t.carry} <> 'carry_with_expiry' OR ${t.carryExpiresMonths} IS NOT NULL)
+        AND (${t.carryExpiresMonths} IS NULL OR ${t.carryExpiresMonths} BETWEEN 1 AND 12)
+        AND (${t.reset} = 'yearly' OR ${t.carry} = 'none')`,
+    ),
+    check('leave_types_steps_ck', sql`${t.approvalSteps} BETWEEN 0 AND 2`),
+    check('leave_types_service_ck', sql`${t.minServiceMonths} BETWEEN 0 AND 600`),
+    check(
+      'leave_types_seniority_ck',
+      sql`(${t.seniorityEveryYears} IS NULL) = (${t.seniorityExtraDays} IS NULL)
+        AND (${t.seniorityEveryYears} IS NULL OR ${t.seniorityEveryYears} BETWEEN 1 AND 50)`,
+    ),
+  ],
 );
 
 /**
@@ -674,6 +735,17 @@ export const leaveLedgerEntries = pgTable(
       (): AnyPgColumn => leaveLedgerEntries.id,
     ),
     reason: text('reason'),
+    /** A credit's last chance (058-leave AC-LV2): a carried or compensatory lot. Credits only. */
+    expiresOn: date('expires_on'),
+    /**
+     * The credit a debit draws from (AC-LV2). Always set on `expiry` and
+     * `encashed`; set on `taken` when a written lot funds it, null for a part
+     * funded by accrual not yet earned or a type that keeps no balance; a
+     * `reversal` copies the row it reverses.
+     */
+    lotId: uuid('lot_id').references((): AnyPgColumn => leaveLedgerEntries.id),
+    /** The allocation request an `adjustment` answers; its foreign key is in migration 0058. */
+    allocationRequestId: uuid('allocation_request_id'),
     /** Null: the daily job wrote it. */
     createdByUserId: uuid('created_by_user_id').references(() => users.id),
     createdAt: timestamp('created_at', { withTimezone: true })
@@ -682,19 +754,34 @@ export const leaveLedgerEntries = pgTable(
   },
   (t) => [
     index('leave_ledger_employee_type_idx').on(t.employeeId, t.leaveTypeId),
+    index('leave_ledger_lot_idx').on(t.lotId),
     uniqueIndex('leave_ledger_period_uk')
       .on(t.employeeId, t.leaveTypeId, t.kind, t.periodKey)
-      .where(sql`${t.kind} IN ('accrual', 'carry_forward', 'expiry')`),
+      .where(sql`${t.kind} IN ('accrual', 'carry_forward')`),
+    uniqueIndex('leave_ledger_expiry_lot_uk')
+      .on(t.lotId)
+      .where(sql`${t.kind} = 'expiry'`),
     uniqueIndex('leave_ledger_reverses_uk')
       .on(t.reversesId)
       .where(sql`${t.reversesId} IS NOT NULL`),
     check(
       'leave_ledger_period_ck',
-      sql`${t.kind} NOT IN ('accrual', 'carry_forward', 'expiry') OR ${t.periodKey} IS NOT NULL`,
+      sql`${t.kind} NOT IN ('accrual', 'carry_forward') OR ${t.periodKey} IS NOT NULL`,
     ),
     check(
       'leave_ledger_reversal_ck',
       sql`(${t.kind} = 'reversal') = (${t.reversesId} IS NOT NULL)`,
+    ),
+    // Worded without `encashed`: the value is added in the same migration, and
+    // Postgres refuses a new enum value inside the transaction that added it.
+    check(
+      'leave_ledger_lot_ck',
+      sql`(${t.kind} NOT IN ('accrual', 'carry_forward', 'adjustment') OR ${t.lotId} IS NULL)
+        AND (${t.kind} IN ('accrual', 'carry_forward', 'adjustment', 'taken', 'reversal') OR ${t.lotId} IS NOT NULL)`,
+    ),
+    check(
+      'leave_ledger_expires_ck',
+      sql`${t.expiresOn} IS NULL OR ${t.kind} IN ('accrual', 'carry_forward', 'adjustment')`,
     ),
   ],
 );
@@ -733,12 +820,24 @@ export const leaveRequests = pgTable(
     decidedByUserId: uuid('decided_by_user_id').references(() => users.id),
     decidedAt: timestamp('decided_at', { withTimezone: true }),
     decisionNote: text('decision_note'),
+    // --- 058-leave: copied from the type at request, so an edit never rewrites it ---
+    /** A sick note or the like: a private object key (AC-LV6). */
+    attachmentKey: text('attachment_key'),
+    /** The step a waiting request is at, 1 or 2 (AC-LV7). */
+    currentStep: integer('current_step').notNull().default(1),
+    approvalSteps: integer('approval_steps').notNull().default(1),
+    payment: hrLeavePaymentEnum('payment').notNull().default('paid'),
+    paymentPercent: integer('payment_percent'),
     ...timestamps,
   },
   (t) => [
     index('leave_requests_org_status_idx').on(t.orgId, t.status),
     index('leave_requests_employee_idx').on(t.employeeId, t.startsOn),
     check('leave_requests_dates_ck', sql`${t.endsOn} >= ${t.startsOn}`),
+    check(
+      'leave_requests_steps_ck',
+      sql`${t.approvalSteps} BETWEEN 0 AND 2 AND ${t.currentStep} BETWEEN 1 AND 2`,
+    ),
   ],
 );
 

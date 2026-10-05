@@ -29,7 +29,7 @@ exports.PayRunStatus = zod_1.z.enum(["draft", "confirmed"]);
  */
 exports.PayslipLineSide = zod_1.z.enum(["earning", "employee", "employer"]);
 exports.PayslipLine = zod_1.z.object({
-    /** `wage`, `unpaid_leave`, `paye`, or a contribution code from the RSSB rule. */
+    /** `wage`, `unpaid_leave`, `partly_paid_leave`, `paye`, or a contribution code from the RSSB rule. */
     code: zod_1.z.string(),
     label: zod_1.z.string(),
     /** The contract a wage line belongs to; null for a line of the whole payslip. */

@@ -1,7 +1,7 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.CorrectAttendanceRequest = exports.ClockOutRequest = exports.ClockInRequest = exports.AttendanceRecord = exports.AttendanceLocation = exports.AttendanceFigures = exports.CancelRosterEntryRequest = exports.CreateRosterEntryRequest = exports.RosterEntry = exports.CreateShiftTemplateRequest = exports.ShiftTemplateQuery = exports.ShiftTemplateList = exports.ShiftTemplate = exports.ShiftTemplateStatus = exports.OffboardEmployeeRequest = exports.CreateContractResponse = exports.CreateContractRequest = exports.UpdateEmployeeRequest = exports.CreateEmployeeRequest = exports.EmployeeFile = exports.EmployeeDepartment = exports.Employee = exports.EmployeeFull = exports.EmergencyContact = exports.EmployeeAddress = exports.EmployeeBasic = exports.EmploymentContract = exports.EmploymentContractFull = exports.EmploymentContractBasic = exports.RosterCard = exports.EMPLOYEE_MISSING_DETAIL_LABEL = exports.EmployeeMissingDetail = exports.TimeOfDay = exports.LeaveEndHalf = exports.LeaveStartHalf = exports.LeaveRequestStatus = exports.LeaveEntryKind = exports.LeaveAccrual = exports.DayKind = exports.AttendanceStatus = exports.AttendanceSource = exports.RosterStatus = exports.ContractStatus = exports.WageBasis = exports.ContractType = exports.EmployeeStatus = exports.HrIdDocumentType = exports.TagTone = exports.MaritalStatus = exports.HrSex = void 0;
-exports.LeaveDecisionRequest = exports.CreateLeaveRequestRequest = exports.LeaveRequest = exports.LeaveBalances = exports.LeaveBalance = exports.LeaveLedgerEntry = exports.LeaveType = void 0;
+exports.AttendanceRecord = exports.AttendanceLocation = exports.AttendanceFigures = exports.CancelRosterEntryRequest = exports.CreateRosterEntryRequest = exports.RosterEntry = exports.CreateShiftTemplateRequest = exports.ShiftTemplateQuery = exports.ShiftTemplateList = exports.ShiftTemplate = exports.ShiftTemplateStatus = exports.OffboardEmployeeRequest = exports.CreateContractResponse = exports.CreateContractRequest = exports.UpdateEmployeeRequest = exports.CreateEmployeeRequest = exports.EmployeeFile = exports.EmployeeDepartment = exports.Employee = exports.EmployeeFull = exports.EmergencyContact = exports.EmployeeAddress = exports.EmployeeBasic = exports.EmploymentContract = exports.EmploymentContractFull = exports.EmploymentContractBasic = exports.RosterCard = exports.EMPLOYEE_MISSING_DETAIL_LABEL = exports.EmployeeMissingDetail = exports.TimeOfDay = exports.LeaveEndHalf = exports.LeaveStartHalf = exports.LeaveRequestStatus = exports.LeaveCarry = exports.LeaveReset = exports.LeavePayment = exports.LeaveEntryKind = exports.LeaveAccrual = exports.DayKind = exports.AttendanceStatus = exports.AttendanceSource = exports.RosterStatus = exports.ContractStatus = exports.WageBasis = exports.ContractType = exports.EmployeeStatus = exports.HrIdDocumentType = exports.TagTone = exports.MaritalStatus = exports.HrSex = void 0;
+exports.LeaveDecisionRequest = exports.CreateMyLeaveRequestRequest = exports.CreateLeaveRequestRequest = exports.LeaveAsk = exports.LeaveRequest = exports.LeaveBalances = exports.LeaveBalance = exports.LeaveLot = exports.LeaveLedgerEntry = exports.UpdateLeaveTypeRequest = exports.CreateLeaveTypeRequest = exports.LeaveTypeList = exports.LeaveType = exports.LeaveTypeStatus = exports.CorrectAttendanceRequest = exports.ClockOutRequest = exports.ClockInRequest = void 0;
 const zod_1 = require("zod");
 const booking_1 = require("./booking");
 const phone_1 = require("./phone");
@@ -44,6 +44,11 @@ exports.AttendanceStatus = zod_1.z.enum(["open", "closed", "superseded"]);
 /** What kind of day a record's work date was, for pricing overtime (058-time AC-TM7). */
 exports.DayKind = zod_1.z.enum(["weekday", "weekly_off", "public_holiday"]);
 exports.LeaveAccrual = zod_1.z.enum(["yearly_upfront", "monthly", "none"]);
+/**
+ * What a ledger row records (058-leave AC-LV2). Credits are lots (`accrual`,
+ * `carry_forward`, `adjustment`); debits name the lot they draw (`taken`,
+ * `encashed`, `expiry`); a `reversal` undoes one `taken` row.
+ */
 exports.LeaveEntryKind = zod_1.z.enum([
     "accrual",
     "taken",
@@ -51,7 +56,14 @@ exports.LeaveEntryKind = zod_1.z.enum([
     "carry_forward",
     "expiry",
     "adjustment",
+    "encashed",
 ]);
+/** How a type is paid: `partial` pays `paymentPercent` of the day (AC-LV1). */
+exports.LeavePayment = zod_1.z.enum(["paid", "unpaid", "partial"]);
+/** When unused days stop: each year end, each month end, or never. */
+exports.LeaveReset = zod_1.z.enum(["yearly", "monthly", "never"]);
+/** What a yearly reset carries into the new year. */
+exports.LeaveCarry = zod_1.z.enum(["none", "carry", "carry_with_expiry"]);
 exports.LeaveRequestStatus = zod_1.z.enum(["requested", "approved", "rejected", "cancelled"]);
 /** A leave may start in the afternoon of its first day... */
 exports.LeaveStartHalf = zod_1.z.enum(["full", "second_half"]);
@@ -417,31 +429,105 @@ exports.CorrectAttendanceRequest = zod_1.z.object({
 // ---------------------------------------------------------------------------
 // Leave
 // ---------------------------------------------------------------------------
-exports.LeaveType = zod_1.z.object({
+/** Every rule a leave type carries (058-leave AC-LV1), the fields a type's form edits. */
+const LeaveTypeRules = zod_1.z.object({
+    name: zod_1.z.string().trim().min(1).max(80),
+    payment: exports.LeavePayment,
+    /** The share of a day's wage a `partial` type pays, 0 to 100. */
+    paymentPercent: zod_1.z.number().int().min(0).max(100).nullable(),
+    /** Null: no balance is kept, as for unpaid leave. */
+    yearlyEntitlementDays: zod_1.z.number().min(0).max(366).nullable(),
+    accrual: exports.LeaveAccrual,
+    reset: exports.LeaveReset,
+    carry: exports.LeaveCarry,
+    carryMaxDays: zod_1.z.number().min(0).max(366),
+    /** How long a carried lot lives; a compensatory type's days live as long. */
+    carryExpiresMonths: zod_1.z.number().int().min(1).max(12).nullable(),
+    /** 0: approved at request; 1 or 2 steps (AC-LV7). */
+    approvalSteps: zod_1.z.number().int().min(0).max(2),
+    needsAttachment: zod_1.z.boolean(),
+    /** Inside a range a weekly day off counts as a day of leave, as for maternity leave. */
+    countsWeeklyOffs: zod_1.z.boolean(),
+    countsHolidays: zod_1.z.boolean(),
+    eligibleSex: exports.HrSex.nullable(),
+    minServiceMonths: zod_1.z.number().int().min(0).max(600),
+    oncePerEmployment: zod_1.z.boolean(),
+    /** Never restricted by a restricted period (AC-LV9). */
+    statutory: zod_1.z.boolean(),
+    /** Self service may start it up to 30 days back, as for sick leave. */
+    allowsPastRequests: zod_1.z.boolean(),
+    encashable: zod_1.z.boolean(),
+    /** Where compensatory days land (AC-LV8). */
+    compensatory: zod_1.z.boolean(),
+    seniorityEveryYears: zod_1.z.number().int().min(1).max(50).nullable(),
+    seniorityExtraDays: zod_1.z.number().min(0).max(366).nullable(),
+    seniorityCapDays: zod_1.z.number().min(0).max(366).nullable(),
+});
+/** A type is archived, never deleted: requests and the ledger name it. */
+exports.LeaveTypeStatus = zod_1.z.enum(["active", "archived"]);
+exports.LeaveType = LeaveTypeRules.extend({
     id: primitives_1.Uuid,
     code: zod_1.z.string(),
-    name: zod_1.z.string(),
-    paid: zod_1.z.boolean(),
-    /** Null: no balance is kept, as for unpaid leave. */
-    yearlyEntitlementDays: zod_1.z.number().nullable(),
-    accrual: exports.LeaveAccrual,
-    needsApproval: zod_1.z.boolean(),
+    status: exports.LeaveTypeStatus,
 });
+exports.LeaveTypeList = zod_1.z.object({ types: zod_1.z.array(exports.LeaveType) });
+function leaveTypeRefine(b, ctx) {
+    if (b.payment !== undefined && (b.payment === "partial") !== (b.paymentPercent !== null && b.paymentPercent !== undefined)) {
+        ctx.addIssue({ code: "custom", path: ["paymentPercent"], message: "A partly paid type says what share it pays, and only it does." });
+    }
+    if (b.carry === "carry_with_expiry" && (b.carryExpiresMonths === null || b.carryExpiresMonths === undefined)) {
+        ctx.addIssue({ code: "custom", path: ["carryExpiresMonths"], message: "Say after how many months carried days expire." });
+    }
+    if (b.reset !== undefined && b.reset !== "yearly" && b.carry !== undefined && b.carry !== "none") {
+        ctx.addIssue({ code: "custom", path: ["carry"], message: "Only a type that resets each year carries days over." });
+    }
+    if (b.seniorityEveryYears !== undefined && (b.seniorityEveryYears === null) !== (b.seniorityExtraDays === null || b.seniorityExtraDays === undefined)) {
+        ctx.addIssue({ code: "custom", path: ["seniorityExtraDays"], message: "A seniority rule names both its years and its extra days." });
+    }
+}
+/** `POST /ops/leave/types`: a business's own type. */
+exports.CreateLeaveTypeRequest = LeaveTypeRules.extend({
+    code: zod_1.z.string().trim().regex(/^[a-z][a-z0-9_]{1,30}$/, "A code is lower case letters, digits and underscores."),
+}).superRefine(leaveTypeRefine);
+/**
+ * `PATCH /ops/leave/types/:id`: whole rule groups at once, so a check across
+ * fields always sees both. An edit applies to requests made after it.
+ */
+exports.UpdateLeaveTypeRequest = LeaveTypeRules.extend({ status: exports.LeaveTypeStatus })
+    .partial()
+    .superRefine(leaveTypeRefine)
+    .refine((b) => Object.keys(b).length > 0, { message: "Nothing to change." });
 exports.LeaveLedgerEntry = zod_1.z.object({
     id: primitives_1.Uuid,
     kind: exports.LeaveEntryKind,
-    /** Signed: accruals add, leave taken subtracts, a reversal undoes. */
+    /** Signed: credits add, debits subtract, a reversal undoes. */
     days: zod_1.z.number(),
     effectiveOn: booking_1.IsoDate,
     periodKey: zod_1.z.string().nullable(),
     leaveRequestId: primitives_1.Uuid.nullable(),
     reason: zod_1.z.string().nullable(),
+    /** A credit's last day plus one (AC-LV2). */
+    expiresOn: booking_1.IsoDate.nullable(),
+    /** The credit a debit draws from. */
+    lotId: primitives_1.Uuid.nullable(),
+});
+/** One credit and what is left of it (AC-LV2): why a person has 4 days, not 6. */
+exports.LeaveLot = zod_1.z.object({
+    id: primitives_1.Uuid,
+    kind: zod_1.z.enum(["accrual", "carry_forward", "adjustment"]),
+    effectiveOn: booking_1.IsoDate,
+    /** The last day it can be spent: its own expiry or its year's (or month's) end. */
+    usableUntil: booking_1.IsoDate.nullable(),
+    creditDays: zod_1.z.number(),
+    remainingDays: zod_1.z.number(),
 });
 /** A balance is only ever the sum of the ledger (AC-L4). */
 exports.LeaveBalance = zod_1.z.object({
     leaveType: exports.LeaveType,
     /** Null for a type that keeps no balance. */
     balanceDays: zod_1.z.number().nullable(),
+    /** The lots with days left, soonest to expire first. */
+    lots: zod_1.z.array(exports.LeaveLot),
     entries: zod_1.z.array(exports.LeaveLedgerEntry),
 });
 exports.LeaveBalances = zod_1.z.object({
@@ -453,7 +539,7 @@ exports.LeaveRequest = zod_1.z.object({
     employee: exports.RosterCard,
     /** The branch the person works at: what branch limits read and a page groups by. */
     branchId: primitives_1.Uuid.nullable(),
-    leaveType: zod_1.z.object({ id: primitives_1.Uuid, code: zod_1.z.string(), name: zod_1.z.string(), paid: zod_1.z.boolean() }),
+    leaveType: zod_1.z.object({ id: primitives_1.Uuid, code: zod_1.z.string(), name: zod_1.z.string() }),
     startsOn: booking_1.IsoDate,
     endsOn: booking_1.IsoDate,
     startHalf: exports.LeaveStartHalf,
@@ -470,16 +556,38 @@ exports.LeaveRequest = zod_1.z.object({
     decidedAt: zod_1.z.string().nullable(),
     decisionNote: zod_1.z.string().nullable(),
     createdAt: zod_1.z.string(),
+    // --- 058-leave: the terms it was made under, its steps and its note ---
+    payment: exports.LeavePayment,
+    paymentPercent: zod_1.z.number().nullable(),
+    /** 0, 1 or 2, copied from the type at request (AC-LV7). */
+    approvalSteps: zod_1.z.number().int(),
+    /** The step a waiting request is at. */
+    currentStep: zod_1.z.number().int(),
+    /** Each step decided so far, in order. */
+    approvals: zod_1.z.array(zod_1.z.object({
+        step: zod_1.z.number().int(),
+        decision: zod_1.z.enum(["approved", "rejected", "skipped"]),
+        decidedByName: zod_1.z.string().nullable(),
+        note: zod_1.z.string().nullable(),
+        decidedAt: zod_1.z.string(),
+    })),
+    /** A sick note or the like is attached; read it through its own route. */
+    hasAttachment: zod_1.z.boolean(),
 });
-exports.CreateLeaveRequestRequest = zod_1.z.object({
-    employeeId: primitives_1.Uuid,
+/** The fields a person and the office both ask with (058-leave AC-LV6). */
+exports.LeaveAsk = zod_1.z.object({
     leaveTypeId: primitives_1.Uuid,
     startsOn: booking_1.IsoDate,
     endsOn: booking_1.IsoDate,
     startHalf: exports.LeaveStartHalf.optional(),
     endHalf: exports.LeaveEndHalf.optional(),
     reason: zod_1.z.string().trim().max(300).nullable().optional(),
+    /** An uploaded attachment's key (`POST /ops/hr/files` or `/me/work/:id/files`, purpose `attachment`). */
+    attachmentKey: zod_1.z.string().trim().min(1).max(300).nullable().optional(),
 });
+exports.CreateLeaveRequestRequest = exports.LeaveAsk.extend({ employeeId: primitives_1.Uuid });
+/** The same through self service: the person's own file is the path. */
+exports.CreateMyLeaveRequestRequest = exports.LeaveAsk;
 exports.LeaveDecisionRequest = zod_1.z.object({
     note: zod_1.z.string().trim().max(300).nullable().optional(),
 });

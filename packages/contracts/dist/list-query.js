@@ -440,6 +440,9 @@ exports.LIST_READ = {
     // 058-time: shift requests are the roster's; attendance requests are decided by attendance.approve.
     "staff.shift-requests": ["roster.manage"],
     "staff.attendance-requests": ["attendance.approve"],
+    // 058-leave: allocations are decided by leave.approve; balances read by whoever decides or keeps the files.
+    "staff.leave-allocations": ["leave.approve"],
+    "staff.leave-balances": ["leave.approve", "people.manage"],
 };
 function isListKey(key) {
     return Object.prototype.hasOwnProperty.call(exports.LIST_READ, key);

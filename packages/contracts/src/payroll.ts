@@ -29,7 +29,7 @@ export type PayRunStatus = z.infer<typeof PayRunStatus>;
 export const PayslipLineSide = z.enum(["earning", "employee", "employer"]);
 export type PayslipLineSide = z.infer<typeof PayslipLineSide>;
 export const PayslipLine = z.object({
-    /** `wage`, `unpaid_leave`, `paye`, or a contribution code from the RSSB rule. */
+    /** `wage`, `unpaid_leave`, `partly_paid_leave`, `paye`, or a contribution code from the RSSB rule. */
     code: z.string(),
     label: z.string(),
     /** The contract a wage line belongs to; null for a line of the whole payslip. */

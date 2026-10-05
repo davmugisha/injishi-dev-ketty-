@@ -27,7 +27,7 @@ export type PayRunStatus = z.infer<typeof PayRunStatus>;
 export declare const PayslipLineSide: z.ZodEnum<["earning", "employee", "employer"]>;
 export type PayslipLineSide = z.infer<typeof PayslipLineSide>;
 export declare const PayslipLine: z.ZodObject<{
-    /** `wage`, `unpaid_leave`, `paye`, or a contribution code from the RSSB rule. */
+    /** `wage`, `unpaid_leave`, `partly_paid_leave`, `paye`, or a contribution code from the RSSB rule. */
     code: z.ZodString;
     label: z.ZodString;
     /** The contract a wage line belongs to; null for a line of the whole payslip. */
@@ -67,7 +67,7 @@ export declare const Payslip: z.ZodObject<{
     otherDeductionsRwf: z.ZodNumber;
     netRwf: z.ZodNumber;
     lines: z.ZodArray<z.ZodObject<{
-        /** `wage`, `unpaid_leave`, `paye`, or a contribution code from the RSSB rule. */
+        /** `wage`, `unpaid_leave`, `partly_paid_leave`, `paye`, or a contribution code from the RSSB rule. */
         code: z.ZodString;
         label: z.ZodString;
         /** The contract a wage line belongs to; null for a line of the whole payslip. */
@@ -323,7 +323,7 @@ export declare const PayRunDetail: z.ZodObject<{
         otherDeductionsRwf: z.ZodNumber;
         netRwf: z.ZodNumber;
         lines: z.ZodArray<z.ZodObject<{
-            /** `wage`, `unpaid_leave`, `paye`, or a contribution code from the RSSB rule. */
+            /** `wage`, `unpaid_leave`, `partly_paid_leave`, `paye`, or a contribution code from the RSSB rule. */
             code: z.ZodString;
             label: z.ZodString;
             /** The contract a wage line belongs to; null for a line of the whole payslip. */

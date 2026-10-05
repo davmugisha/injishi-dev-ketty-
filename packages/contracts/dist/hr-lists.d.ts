@@ -1573,6 +1573,12 @@ export declare const ShiftRequestPage: z.ZodObject<{
         createdAt: string;
         branchId: string | null;
         routedToMe: boolean;
+        decidedByName: string | null;
+        routedTo: {
+            employeeId: string;
+            displayName: string;
+            jobPositionTitle: string | null;
+        } | null;
         fromDate: string;
         toDate: string;
         shiftTemplate: {
@@ -1585,12 +1591,6 @@ export declare const ShiftRequestPage: z.ZodObject<{
             jobPositionTitle: string | null;
         } | null;
         colleagueAcceptedAt: string | null;
-        routedTo: {
-            employeeId: string;
-            displayName: string;
-            jobPositionTitle: string | null;
-        } | null;
-        decidedByName: string | null;
     }, {
         status: "approved" | "rejected" | "cancelled" | "requested" | "awaiting_colleague";
         kind: "change" | "swap";
@@ -1606,6 +1606,12 @@ export declare const ShiftRequestPage: z.ZodObject<{
         createdAt: string;
         branchId: string | null;
         routedToMe: boolean;
+        decidedByName: string | null;
+        routedTo: {
+            employeeId: string;
+            displayName: string;
+            jobPositionTitle: string | null;
+        } | null;
         fromDate: string;
         toDate: string;
         shiftTemplate: {
@@ -1618,12 +1624,6 @@ export declare const ShiftRequestPage: z.ZodObject<{
             jobPositionTitle: string | null;
         } | null;
         colleagueAcceptedAt: string | null;
-        routedTo: {
-            employeeId: string;
-            displayName: string;
-            jobPositionTitle: string | null;
-        } | null;
-        decidedByName: string | null;
     }>, "many">;
     total: z.ZodNumber;
     page: z.ZodNumber;
@@ -1677,6 +1677,12 @@ export declare const ShiftRequestPage: z.ZodObject<{
         createdAt: string;
         branchId: string | null;
         routedToMe: boolean;
+        decidedByName: string | null;
+        routedTo: {
+            employeeId: string;
+            displayName: string;
+            jobPositionTitle: string | null;
+        } | null;
         fromDate: string;
         toDate: string;
         shiftTemplate: {
@@ -1689,12 +1695,6 @@ export declare const ShiftRequestPage: z.ZodObject<{
             jobPositionTitle: string | null;
         } | null;
         colleagueAcceptedAt: string | null;
-        routedTo: {
-            employeeId: string;
-            displayName: string;
-            jobPositionTitle: string | null;
-        } | null;
-        decidedByName: string | null;
     }[];
     total: number;
     page: number;
@@ -1728,6 +1728,12 @@ export declare const ShiftRequestPage: z.ZodObject<{
         createdAt: string;
         branchId: string | null;
         routedToMe: boolean;
+        decidedByName: string | null;
+        routedTo: {
+            employeeId: string;
+            displayName: string;
+            jobPositionTitle: string | null;
+        } | null;
         fromDate: string;
         toDate: string;
         shiftTemplate: {
@@ -1740,12 +1746,6 @@ export declare const ShiftRequestPage: z.ZodObject<{
             jobPositionTitle: string | null;
         } | null;
         colleagueAcceptedAt: string | null;
-        routedTo: {
-            employeeId: string;
-            displayName: string;
-            jobPositionTitle: string | null;
-        } | null;
-        decidedByName: string | null;
     }[];
     total: number;
     page: number;
@@ -1880,12 +1880,12 @@ export declare const AttendanceRequestPage: z.ZodObject<{
         clockInAt: string;
         clockOutAt: string;
         routedToMe: boolean;
+        decidedByName: string | null;
         routedTo: {
             employeeId: string;
             displayName: string;
             jobPositionTitle: string | null;
         } | null;
-        decidedByName: string | null;
         recordId: string | null;
         resultRecordId: string | null;
     }, {
@@ -1905,12 +1905,12 @@ export declare const AttendanceRequestPage: z.ZodObject<{
         clockInAt: string;
         clockOutAt: string;
         routedToMe: boolean;
+        decidedByName: string | null;
         routedTo: {
             employeeId: string;
             displayName: string;
             jobPositionTitle: string | null;
         } | null;
-        decidedByName: string | null;
         recordId: string | null;
         resultRecordId: string | null;
     }>, "many">;
@@ -1968,12 +1968,12 @@ export declare const AttendanceRequestPage: z.ZodObject<{
         clockInAt: string;
         clockOutAt: string;
         routedToMe: boolean;
+        decidedByName: string | null;
         routedTo: {
             employeeId: string;
             displayName: string;
             jobPositionTitle: string | null;
         } | null;
-        decidedByName: string | null;
         recordId: string | null;
         resultRecordId: string | null;
     }[];
@@ -2011,12 +2011,12 @@ export declare const AttendanceRequestPage: z.ZodObject<{
         clockInAt: string;
         clockOutAt: string;
         routedToMe: boolean;
+        decidedByName: string | null;
         routedTo: {
             employeeId: string;
             displayName: string;
             jobPositionTitle: string | null;
         } | null;
-        decidedByName: string | null;
         recordId: string | null;
         resultRecordId: string | null;
     }[];
@@ -2159,17 +2159,14 @@ export declare const LeaveRequestPage: z.ZodObject<{
             id: z.ZodString;
             code: z.ZodString;
             name: z.ZodString;
-            paid: z.ZodBoolean;
         }, "strip", z.ZodTypeAny, {
             code: string;
             name: string;
             id: string;
-            paid: boolean;
         }, {
             code: string;
             name: string;
             id: string;
-            paid: boolean;
         }>;
         startsOn: z.ZodString;
         endsOn: z.ZodString;
@@ -2184,6 +2181,30 @@ export declare const LeaveRequestPage: z.ZodObject<{
         decidedAt: z.ZodNullable<z.ZodString>;
         decisionNote: z.ZodNullable<z.ZodString>;
         createdAt: z.ZodString;
+        payment: z.ZodEnum<["paid", "unpaid", "partial"]>;
+        paymentPercent: z.ZodNullable<z.ZodNumber>;
+        approvalSteps: z.ZodNumber;
+        currentStep: z.ZodNumber;
+        approvals: z.ZodArray<z.ZodObject<{
+            step: z.ZodNumber;
+            decision: z.ZodEnum<["approved", "rejected", "skipped"]>;
+            decidedByName: z.ZodNullable<z.ZodString>;
+            note: z.ZodNullable<z.ZodString>;
+            decidedAt: z.ZodString;
+        }, "strip", z.ZodTypeAny, {
+            decision: "approved" | "rejected" | "skipped";
+            decidedAt: string;
+            note: string | null;
+            step: number;
+            decidedByName: string | null;
+        }, {
+            decision: "approved" | "rejected" | "skipped";
+            decidedAt: string;
+            note: string | null;
+            step: number;
+            decidedByName: string | null;
+        }>, "many">;
+        hasAttachment: z.ZodBoolean;
     }, "strip", z.ZodTypeAny, {
         status: "approved" | "rejected" | "cancelled" | "requested";
         decidedAt: string | null;
@@ -2191,6 +2212,7 @@ export declare const LeaveRequestPage: z.ZodObject<{
         id: string;
         startsOn: string;
         decisionNote: string | null;
+        payment: "paid" | "unpaid" | "partial";
         employee: {
             employeeId: string;
             displayName: string;
@@ -2199,18 +2221,28 @@ export declare const LeaveRequestPage: z.ZodObject<{
         createdAt: string;
         branchId: string | null;
         endsOn: string;
+        paymentPercent: number | null;
+        approvalSteps: number;
         days: number;
         leaveType: {
             code: string;
             name: string;
             id: string;
-            paid: boolean;
         };
         startHalf: "full" | "second_half";
         endHalf: "full" | "first_half";
         routedToEmployeeId: string | null;
         routedToName: string | null;
         routedToMe: boolean;
+        currentStep: number;
+        approvals: {
+            decision: "approved" | "rejected" | "skipped";
+            decidedAt: string;
+            note: string | null;
+            step: number;
+            decidedByName: string | null;
+        }[];
+        hasAttachment: boolean;
     }, {
         status: "approved" | "rejected" | "cancelled" | "requested";
         decidedAt: string | null;
@@ -2218,6 +2250,7 @@ export declare const LeaveRequestPage: z.ZodObject<{
         id: string;
         startsOn: string;
         decisionNote: string | null;
+        payment: "paid" | "unpaid" | "partial";
         employee: {
             employeeId: string;
             displayName: string;
@@ -2226,18 +2259,28 @@ export declare const LeaveRequestPage: z.ZodObject<{
         createdAt: string;
         branchId: string | null;
         endsOn: string;
+        paymentPercent: number | null;
+        approvalSteps: number;
         days: number;
         leaveType: {
             code: string;
             name: string;
             id: string;
-            paid: boolean;
         };
         startHalf: "full" | "second_half";
         endHalf: "full" | "first_half";
         routedToEmployeeId: string | null;
         routedToName: string | null;
         routedToMe: boolean;
+        currentStep: number;
+        approvals: {
+            decision: "approved" | "rejected" | "skipped";
+            decidedAt: string;
+            note: string | null;
+            step: number;
+            decidedByName: string | null;
+        }[];
+        hasAttachment: boolean;
     }>, "many">;
     total: z.ZodNumber;
     page: z.ZodNumber;
@@ -2283,6 +2326,7 @@ export declare const LeaveRequestPage: z.ZodObject<{
         id: string;
         startsOn: string;
         decisionNote: string | null;
+        payment: "paid" | "unpaid" | "partial";
         employee: {
             employeeId: string;
             displayName: string;
@@ -2291,18 +2335,28 @@ export declare const LeaveRequestPage: z.ZodObject<{
         createdAt: string;
         branchId: string | null;
         endsOn: string;
+        paymentPercent: number | null;
+        approvalSteps: number;
         days: number;
         leaveType: {
             code: string;
             name: string;
             id: string;
-            paid: boolean;
         };
         startHalf: "full" | "second_half";
         endHalf: "full" | "first_half";
         routedToEmployeeId: string | null;
         routedToName: string | null;
         routedToMe: boolean;
+        currentStep: number;
+        approvals: {
+            decision: "approved" | "rejected" | "skipped";
+            decidedAt: string;
+            note: string | null;
+            step: number;
+            decidedByName: string | null;
+        }[];
+        hasAttachment: boolean;
     }[];
     total: number;
     page: number;
@@ -2328,6 +2382,7 @@ export declare const LeaveRequestPage: z.ZodObject<{
         id: string;
         startsOn: string;
         decisionNote: string | null;
+        payment: "paid" | "unpaid" | "partial";
         employee: {
             employeeId: string;
             displayName: string;
@@ -2336,18 +2391,28 @@ export declare const LeaveRequestPage: z.ZodObject<{
         createdAt: string;
         branchId: string | null;
         endsOn: string;
+        paymentPercent: number | null;
+        approvalSteps: number;
         days: number;
         leaveType: {
             code: string;
             name: string;
             id: string;
-            paid: boolean;
         };
         startHalf: "full" | "second_half";
         endHalf: "full" | "first_half";
         routedToEmployeeId: string | null;
         routedToName: string | null;
         routedToMe: boolean;
+        currentStep: number;
+        approvals: {
+            decision: "approved" | "rejected" | "skipped";
+            decidedAt: string;
+            note: string | null;
+            step: number;
+            decidedByName: string | null;
+        }[];
+        hasAttachment: boolean;
     }[];
     total: number;
     page: number;
@@ -2396,6 +2461,514 @@ export declare const LeaveBulkRequest: z.ZodObject<{
     } | undefined;
 }>;
 export type LeaveBulkRequest = z.infer<typeof LeaveBulkRequest>;
+/** `GET /ops/leave/allocation-requests` (058-leave AC-LV8): extra and compensatory days, routed to the caller first. */
+export declare const LEAVE_ALLOCATION_LIST: {
+    readonly key: "staff.leave-allocations";
+    readonly searchFields: readonly ["employee"];
+    readonly statusField: "status";
+    readonly defaultSort: readonly [{
+        readonly field: "routedToMe";
+        readonly dir: "desc";
+    }, {
+        readonly field: "createdAt";
+        readonly dir: "desc";
+    }];
+    readonly fields: readonly [{
+        readonly key: "employee";
+        readonly label: "Person";
+        readonly type: "text";
+        readonly sortable: true;
+    }, {
+        readonly key: "leaveType";
+        readonly label: "Type";
+        readonly type: "ref";
+        readonly filterable: true;
+        readonly groupable: true;
+    }, {
+        readonly key: "kind";
+        readonly label: "Kind";
+        readonly type: "enum";
+        readonly enumValues: readonly ["extra", "compensatory"];
+        readonly enumLabels: {
+            readonly extra: "Extra days";
+            readonly compensatory: "Compensatory";
+        };
+        readonly filterable: true;
+        readonly groupable: true;
+    }, {
+        readonly key: "status";
+        readonly label: "Status";
+        readonly type: "enum";
+        readonly enumValues: readonly ["requested", "approved", "rejected", "cancelled"];
+        readonly enumLabels: {
+            readonly requested: "Waiting";
+            readonly approved: "Approved";
+            readonly rejected: "Refused";
+            readonly cancelled: "Withdrawn";
+        };
+        readonly filterable: true;
+        readonly groupable: true;
+    }, {
+        readonly key: "days";
+        readonly label: "Days";
+        readonly type: "number";
+        readonly filterable: true;
+        readonly sortable: true;
+    }, {
+        readonly key: "branch";
+        readonly label: "Branch";
+        readonly type: "ref";
+        readonly filterable: true;
+        readonly groupable: true;
+    }, {
+        readonly key: "routedToMe";
+        readonly label: "Routed to me";
+        readonly type: "bool";
+        readonly filterable: true;
+        readonly sortable: true;
+    }, {
+        readonly key: "createdAt";
+        readonly label: "Asked";
+        readonly type: "datetime";
+        readonly sortable: true;
+    }];
+};
+export declare const LeaveAllocationPage: z.ZodObject<{
+    items: z.ZodArray<z.ZodObject<{
+        id: z.ZodString;
+        employee: z.ZodObject<{
+            employeeId: z.ZodString;
+            displayName: z.ZodString;
+            jobPositionTitle: z.ZodNullable<z.ZodString>;
+        }, "strip", z.ZodTypeAny, {
+            employeeId: string;
+            displayName: string;
+            jobPositionTitle: string | null;
+        }, {
+            employeeId: string;
+            displayName: string;
+            jobPositionTitle: string | null;
+        }>;
+        branchId: z.ZodNullable<z.ZodString>;
+        leaveType: z.ZodObject<{
+            id: z.ZodString;
+            name: z.ZodString;
+        }, "strip", z.ZodTypeAny, {
+            name: string;
+            id: string;
+        }, {
+            name: string;
+            id: string;
+        }>;
+        kind: z.ZodEnum<["extra", "compensatory"]>;
+        days: z.ZodNumber;
+        attendanceRecordId: z.ZodNullable<z.ZodString>;
+        workDate: z.ZodNullable<z.ZodString>;
+        reason: z.ZodString;
+        status: z.ZodEnum<["requested", "approved", "rejected", "cancelled"]>;
+        routedTo: z.ZodNullable<z.ZodObject<{
+            employeeId: z.ZodString;
+            displayName: z.ZodString;
+            jobPositionTitle: z.ZodNullable<z.ZodString>;
+        }, "strip", z.ZodTypeAny, {
+            employeeId: string;
+            displayName: string;
+            jobPositionTitle: string | null;
+        }, {
+            employeeId: string;
+            displayName: string;
+            jobPositionTitle: string | null;
+        }>>;
+        routedToMe: z.ZodBoolean;
+        decidedAt: z.ZodNullable<z.ZodString>;
+        decidedByName: z.ZodNullable<z.ZodString>;
+        decisionNote: z.ZodNullable<z.ZodString>;
+        createdAt: z.ZodString;
+    }, "strip", z.ZodTypeAny, {
+        status: "approved" | "rejected" | "cancelled" | "requested";
+        kind: "compensatory" | "extra";
+        decidedAt: string | null;
+        reason: string;
+        id: string;
+        decisionNote: string | null;
+        employee: {
+            employeeId: string;
+            displayName: string;
+            jobPositionTitle: string | null;
+        };
+        createdAt: string;
+        branchId: string | null;
+        workDate: string | null;
+        days: number;
+        leaveType: {
+            name: string;
+            id: string;
+        };
+        routedToMe: boolean;
+        decidedByName: string | null;
+        attendanceRecordId: string | null;
+        routedTo: {
+            employeeId: string;
+            displayName: string;
+            jobPositionTitle: string | null;
+        } | null;
+    }, {
+        status: "approved" | "rejected" | "cancelled" | "requested";
+        kind: "compensatory" | "extra";
+        decidedAt: string | null;
+        reason: string;
+        id: string;
+        decisionNote: string | null;
+        employee: {
+            employeeId: string;
+            displayName: string;
+            jobPositionTitle: string | null;
+        };
+        createdAt: string;
+        branchId: string | null;
+        workDate: string | null;
+        days: number;
+        leaveType: {
+            name: string;
+            id: string;
+        };
+        routedToMe: boolean;
+        decidedByName: string | null;
+        attendanceRecordId: string | null;
+        routedTo: {
+            employeeId: string;
+            displayName: string;
+            jobPositionTitle: string | null;
+        } | null;
+    }>, "many">;
+    total: z.ZodNumber;
+    page: z.ZodNumber;
+    pageSize: z.ZodUnion<[z.ZodLiteral<10>, z.ZodLiteral<25>, z.ZodLiteral<50>, z.ZodLiteral<100>]>;
+    groups: z.ZodOptional<z.ZodArray<z.ZodObject<{
+        key: z.ZodNullable<z.ZodString>;
+        label: z.ZodString;
+        count: z.ZodNumber;
+    }, "strip", z.ZodTypeAny, {
+        key: string | null;
+        label: string;
+        count: number;
+    }, {
+        key: string | null;
+        label: string;
+        count: number;
+    }>, "many">>;
+    statusCounts: z.ZodOptional<z.ZodArray<z.ZodObject<{
+        value: z.ZodString;
+        count: z.ZodNumber;
+    }, "strip", z.ZodTypeAny, {
+        value: string;
+        count: number;
+    }, {
+        value: string;
+        count: number;
+    }>, "many">>;
+    stages: z.ZodOptional<z.ZodArray<z.ZodObject<{
+        key: z.ZodString;
+        label: z.ZodString;
+    }, "strip", z.ZodTypeAny, {
+        key: string;
+        label: string;
+    }, {
+        key: string;
+        label: string;
+    }>, "many">>;
+}, "strip", z.ZodTypeAny, {
+    items: {
+        status: "approved" | "rejected" | "cancelled" | "requested";
+        kind: "compensatory" | "extra";
+        decidedAt: string | null;
+        reason: string;
+        id: string;
+        decisionNote: string | null;
+        employee: {
+            employeeId: string;
+            displayName: string;
+            jobPositionTitle: string | null;
+        };
+        createdAt: string;
+        branchId: string | null;
+        workDate: string | null;
+        days: number;
+        leaveType: {
+            name: string;
+            id: string;
+        };
+        routedToMe: boolean;
+        decidedByName: string | null;
+        attendanceRecordId: string | null;
+        routedTo: {
+            employeeId: string;
+            displayName: string;
+            jobPositionTitle: string | null;
+        } | null;
+    }[];
+    total: number;
+    page: number;
+    pageSize: 50 | 10 | 100 | 25;
+    groups?: {
+        key: string | null;
+        label: string;
+        count: number;
+    }[] | undefined;
+    statusCounts?: {
+        value: string;
+        count: number;
+    }[] | undefined;
+    stages?: {
+        key: string;
+        label: string;
+    }[] | undefined;
+}, {
+    items: {
+        status: "approved" | "rejected" | "cancelled" | "requested";
+        kind: "compensatory" | "extra";
+        decidedAt: string | null;
+        reason: string;
+        id: string;
+        decisionNote: string | null;
+        employee: {
+            employeeId: string;
+            displayName: string;
+            jobPositionTitle: string | null;
+        };
+        createdAt: string;
+        branchId: string | null;
+        workDate: string | null;
+        days: number;
+        leaveType: {
+            name: string;
+            id: string;
+        };
+        routedToMe: boolean;
+        decidedByName: string | null;
+        attendanceRecordId: string | null;
+        routedTo: {
+            employeeId: string;
+            displayName: string;
+            jobPositionTitle: string | null;
+        } | null;
+    }[];
+    total: number;
+    page: number;
+    pageSize: 50 | 10 | 100 | 25;
+    groups?: {
+        key: string | null;
+        label: string;
+        count: number;
+    }[] | undefined;
+    statusCounts?: {
+        value: string;
+        count: number;
+    }[] | undefined;
+    stages?: {
+        key: string;
+        label: string;
+    }[] | undefined;
+}>;
+export type LeaveAllocationPage = z.infer<typeof LeaveAllocationPage>;
+/** `POST /ops/leave/allocation-requests/bulk`. */
+export declare const LeaveAllocationBulkRequest: z.ZodObject<{
+    ids: z.ZodArray<z.ZodString, "many">;
+} & {
+    action: z.ZodEnum<["approve", "reject"]>;
+    params: z.ZodOptional<z.ZodObject<{
+        note: z.ZodOptional<z.ZodString>;
+    }, "strip", z.ZodTypeAny, {
+        note?: string | undefined;
+    }, {
+        note?: string | undefined;
+    }>>;
+}, "strip", z.ZodTypeAny, {
+    action: "approve" | "reject";
+    ids: string[];
+    params?: {
+        note?: string | undefined;
+    } | undefined;
+}, {
+    action: "approve" | "reject";
+    ids: string[];
+    params?: {
+        note?: string | undefined;
+    } | undefined;
+}>;
+export type LeaveAllocationBulkRequest = z.infer<typeof LeaveAllocationBulkRequest>;
+/** `GET /ops/leave/balances` (058-leave AC-LV13): a row per person, a balance per type. */
+export declare const LEAVE_BALANCE_LIST: {
+    readonly key: "staff.leave-balances";
+    readonly searchFields: readonly ["employee"];
+    readonly defaultSort: readonly [{
+        readonly field: "employee";
+        readonly dir: "asc";
+    }];
+    readonly fields: readonly [{
+        readonly key: "employee";
+        readonly label: "Person";
+        readonly type: "text";
+        readonly sortable: true;
+    }, {
+        readonly key: "branch";
+        readonly label: "Branch";
+        readonly type: "ref";
+        readonly filterable: true;
+        readonly groupable: true;
+    }, {
+        readonly key: "jobPosition";
+        readonly label: "Position";
+        readonly type: "ref";
+        readonly filterable: true;
+        readonly groupable: true;
+    }];
+};
+export declare const LeaveBalancePage: z.ZodObject<{
+    items: z.ZodArray<z.ZodObject<{
+        employee: z.ZodObject<{
+            employeeId: z.ZodString;
+            displayName: z.ZodString;
+            jobPositionTitle: z.ZodNullable<z.ZodString>;
+        }, "strip", z.ZodTypeAny, {
+            employeeId: string;
+            displayName: string;
+            jobPositionTitle: string | null;
+        }, {
+            employeeId: string;
+            displayName: string;
+            jobPositionTitle: string | null;
+        }>;
+        branchId: z.ZodNullable<z.ZodString>;
+        balances: z.ZodArray<z.ZodObject<{
+            leaveTypeId: z.ZodString;
+            days: z.ZodNullable<z.ZodNumber>;
+        }, "strip", z.ZodTypeAny, {
+            days: number | null;
+            leaveTypeId: string;
+        }, {
+            days: number | null;
+            leaveTypeId: string;
+        }>, "many">;
+    }, "strip", z.ZodTypeAny, {
+        employee: {
+            employeeId: string;
+            displayName: string;
+            jobPositionTitle: string | null;
+        };
+        branchId: string | null;
+        balances: {
+            days: number | null;
+            leaveTypeId: string;
+        }[];
+    }, {
+        employee: {
+            employeeId: string;
+            displayName: string;
+            jobPositionTitle: string | null;
+        };
+        branchId: string | null;
+        balances: {
+            days: number | null;
+            leaveTypeId: string;
+        }[];
+    }>, "many">;
+    total: z.ZodNumber;
+    page: z.ZodNumber;
+    pageSize: z.ZodUnion<[z.ZodLiteral<10>, z.ZodLiteral<25>, z.ZodLiteral<50>, z.ZodLiteral<100>]>;
+    groups: z.ZodOptional<z.ZodArray<z.ZodObject<{
+        key: z.ZodNullable<z.ZodString>;
+        label: z.ZodString;
+        count: z.ZodNumber;
+    }, "strip", z.ZodTypeAny, {
+        key: string | null;
+        label: string;
+        count: number;
+    }, {
+        key: string | null;
+        label: string;
+        count: number;
+    }>, "many">>;
+    statusCounts: z.ZodOptional<z.ZodArray<z.ZodObject<{
+        value: z.ZodString;
+        count: z.ZodNumber;
+    }, "strip", z.ZodTypeAny, {
+        value: string;
+        count: number;
+    }, {
+        value: string;
+        count: number;
+    }>, "many">>;
+    stages: z.ZodOptional<z.ZodArray<z.ZodObject<{
+        key: z.ZodString;
+        label: z.ZodString;
+    }, "strip", z.ZodTypeAny, {
+        key: string;
+        label: string;
+    }, {
+        key: string;
+        label: string;
+    }>, "many">>;
+}, "strip", z.ZodTypeAny, {
+    items: {
+        employee: {
+            employeeId: string;
+            displayName: string;
+            jobPositionTitle: string | null;
+        };
+        branchId: string | null;
+        balances: {
+            days: number | null;
+            leaveTypeId: string;
+        }[];
+    }[];
+    total: number;
+    page: number;
+    pageSize: 50 | 10 | 100 | 25;
+    groups?: {
+        key: string | null;
+        label: string;
+        count: number;
+    }[] | undefined;
+    statusCounts?: {
+        value: string;
+        count: number;
+    }[] | undefined;
+    stages?: {
+        key: string;
+        label: string;
+    }[] | undefined;
+}, {
+    items: {
+        employee: {
+            employeeId: string;
+            displayName: string;
+            jobPositionTitle: string | null;
+        };
+        branchId: string | null;
+        balances: {
+            days: number | null;
+            leaveTypeId: string;
+        }[];
+    }[];
+    total: number;
+    page: number;
+    pageSize: 50 | 10 | 100 | 25;
+    groups?: {
+        key: string | null;
+        label: string;
+        count: number;
+    }[] | undefined;
+    statusCounts?: {
+        value: string;
+        count: number;
+    }[] | undefined;
+    stages?: {
+        key: string;
+        label: string;
+    }[] | undefined;
+}>;
+export type LeaveBalancePage = z.infer<typeof LeaveBalancePage>;
 /** `GET /ops/pay-runs`. */
 export declare const PAY_RUN_LIST: {
     readonly key: "staff.pay-runs";

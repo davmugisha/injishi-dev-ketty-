@@ -477,8 +477,8 @@ export declare const EmployeeDocument: z.ZodObject<{
     };
     title: string;
     updatedAt: string;
-    rejectReason: string | null;
     requestId: string | null;
+    rejectReason: string | null;
     remindDaysBefore: number | null;
     formats: ("pdf" | "jpg" | "png" | "heic")[];
     maxMb: number;
@@ -503,8 +503,8 @@ export declare const EmployeeDocument: z.ZodObject<{
     };
     title: string;
     updatedAt: string;
-    rejectReason: string | null;
     requestId: string | null;
+    rejectReason: string | null;
     remindDaysBefore: number | null;
     formats: ("pdf" | "jpg" | "png" | "heic")[];
     maxMb: number;
@@ -580,8 +580,8 @@ export declare const EmployeeDocumentList: z.ZodObject<{
         };
         title: string;
         updatedAt: string;
-        rejectReason: string | null;
         requestId: string | null;
+        rejectReason: string | null;
         remindDaysBefore: number | null;
         formats: ("pdf" | "jpg" | "png" | "heic")[];
         maxMb: number;
@@ -606,8 +606,8 @@ export declare const EmployeeDocumentList: z.ZodObject<{
         };
         title: string;
         updatedAt: string;
-        rejectReason: string | null;
         requestId: string | null;
+        rejectReason: string | null;
         remindDaysBefore: number | null;
         formats: ("pdf" | "jpg" | "png" | "heic")[];
         maxMb: number;
@@ -634,8 +634,8 @@ export declare const EmployeeDocumentList: z.ZodObject<{
         };
         title: string;
         updatedAt: string;
-        rejectReason: string | null;
         requestId: string | null;
+        rejectReason: string | null;
         remindDaysBefore: number | null;
         formats: ("pdf" | "jpg" | "png" | "heic")[];
         maxMb: number;
@@ -662,8 +662,8 @@ export declare const EmployeeDocumentList: z.ZodObject<{
         };
         title: string;
         updatedAt: string;
-        rejectReason: string | null;
         requestId: string | null;
+        rejectReason: string | null;
         remindDaysBefore: number | null;
         formats: ("pdf" | "jpg" | "png" | "heic")[];
         maxMb: number;
@@ -934,13 +934,13 @@ export declare const HrTargets: z.ZodObject<{
     jobPositionIds: z.ZodArray<z.ZodString, "many">;
     employeeIds: z.ZodArray<z.ZodString, "many">;
 }, "strip", z.ZodTypeAny, {
+    jobPositionIds: string[];
     employeeIds: string[];
     departmentIds: string[];
-    jobPositionIds: string[];
 }, {
+    jobPositionIds: string[];
     employeeIds: string[];
     departmentIds: string[];
-    jobPositionIds: string[];
 }>;
 export type HrTargets = z.infer<typeof HrTargets>;
 export declare const StaffPolicy: z.ZodObject<{
@@ -954,13 +954,13 @@ export declare const StaffPolicy: z.ZodObject<{
         jobPositionIds: z.ZodArray<z.ZodString, "many">;
         employeeIds: z.ZodArray<z.ZodString, "many">;
     }, "strip", z.ZodTypeAny, {
+        jobPositionIds: string[];
         employeeIds: string[];
         departmentIds: string[];
-        jobPositionIds: string[];
     }, {
+        jobPositionIds: string[];
         employeeIds: string[];
         departmentIds: string[];
-        jobPositionIds: string[];
     }>;
     status: z.ZodEnum<["published", "archived"]>;
     createdAt: z.ZodString;
@@ -975,9 +975,9 @@ export declare const StaffPolicy: z.ZodObject<{
     updatedAt: string;
     fileKeys: string[];
     targets: {
+        jobPositionIds: string[];
         employeeIds: string[];
         departmentIds: string[];
-        jobPositionIds: string[];
     };
 }, {
     status: "published" | "archived";
@@ -989,9 +989,9 @@ export declare const StaffPolicy: z.ZodObject<{
     updatedAt: string;
     fileKeys: string[];
     targets: {
+        jobPositionIds: string[];
         employeeIds: string[];
         departmentIds: string[];
-        jobPositionIds: string[];
     };
 }>;
 export type StaffPolicy = z.infer<typeof StaffPolicy>;
@@ -1007,13 +1007,13 @@ export declare const StaffPolicyList: z.ZodObject<{
             jobPositionIds: z.ZodArray<z.ZodString, "many">;
             employeeIds: z.ZodArray<z.ZodString, "many">;
         }, "strip", z.ZodTypeAny, {
+            jobPositionIds: string[];
             employeeIds: string[];
             departmentIds: string[];
-            jobPositionIds: string[];
         }, {
+            jobPositionIds: string[];
             employeeIds: string[];
             departmentIds: string[];
-            jobPositionIds: string[];
         }>;
         status: z.ZodEnum<["published", "archived"]>;
         createdAt: z.ZodString;
@@ -1028,9 +1028,9 @@ export declare const StaffPolicyList: z.ZodObject<{
         updatedAt: string;
         fileKeys: string[];
         targets: {
+            jobPositionIds: string[];
             employeeIds: string[];
             departmentIds: string[];
-            jobPositionIds: string[];
         };
     }, {
         status: "published" | "archived";
@@ -1042,9 +1042,9 @@ export declare const StaffPolicyList: z.ZodObject<{
         updatedAt: string;
         fileKeys: string[];
         targets: {
+            jobPositionIds: string[];
             employeeIds: string[];
             departmentIds: string[];
-            jobPositionIds: string[];
         };
     }>, "many">;
 }, "strip", z.ZodTypeAny, {
@@ -1058,9 +1058,9 @@ export declare const StaffPolicyList: z.ZodObject<{
         updatedAt: string;
         fileKeys: string[];
         targets: {
+            jobPositionIds: string[];
             employeeIds: string[];
             departmentIds: string[];
-            jobPositionIds: string[];
         };
     }[];
 }, {
@@ -1074,9 +1074,9 @@ export declare const StaffPolicyList: z.ZodObject<{
         updatedAt: string;
         fileKeys: string[];
         targets: {
+            jobPositionIds: string[];
             employeeIds: string[];
             departmentIds: string[];
-            jobPositionIds: string[];
         };
     }[];
 }>;
@@ -1100,41 +1100,41 @@ export declare const CreateStaffPolicyRequest: z.ZodIntersection<z.ZodObject<{
         jobPositionIds: z.ZodArray<z.ZodString, "many">;
         employeeIds: z.ZodArray<z.ZodString, "many">;
     }, "strip", z.ZodTypeAny, {
+        jobPositionIds: string[];
         employeeIds: string[];
         departmentIds: string[];
-        jobPositionIds: string[];
     }, {
+        jobPositionIds: string[];
         employeeIds: string[];
         departmentIds: string[];
-        jobPositionIds: string[];
     }>>;
 }, "strip", z.ZodTypeAny, {
     audience: "all" | "targeted";
     targets?: {
+        jobPositionIds: string[];
         employeeIds: string[];
         departmentIds: string[];
-        jobPositionIds: string[];
     } | undefined;
 }, {
     audience: "all" | "targeted";
     targets?: {
+        jobPositionIds: string[];
         employeeIds: string[];
         departmentIds: string[];
-        jobPositionIds: string[];
     } | undefined;
 }>, {
     audience: "all" | "targeted";
     targets?: {
+        jobPositionIds: string[];
         employeeIds: string[];
         departmentIds: string[];
-        jobPositionIds: string[];
     } | undefined;
 }, {
     audience: "all" | "targeted";
     targets?: {
+        jobPositionIds: string[];
         employeeIds: string[];
         departmentIds: string[];
-        jobPositionIds: string[];
     } | undefined;
 }>>;
 export type CreateStaffPolicyRequest = z.infer<typeof CreateStaffPolicyRequest>;
@@ -1148,13 +1148,13 @@ export declare const UpdateStaffPolicyRequest: z.ZodEffects<z.ZodObject<{
         jobPositionIds: z.ZodArray<z.ZodString, "many">;
         employeeIds: z.ZodArray<z.ZodString, "many">;
     }, "strip", z.ZodTypeAny, {
+        jobPositionIds: string[];
         employeeIds: string[];
         departmentIds: string[];
-        jobPositionIds: string[];
     }, {
+        jobPositionIds: string[];
         employeeIds: string[];
         departmentIds: string[];
-        jobPositionIds: string[];
     }>>;
     status: z.ZodOptional<z.ZodEnum<["published", "archived"]>>;
 }, "strip", z.ZodTypeAny, {
@@ -1164,9 +1164,9 @@ export declare const UpdateStaffPolicyRequest: z.ZodEffects<z.ZodObject<{
     audience?: "all" | "targeted" | undefined;
     fileKeys?: string[] | undefined;
     targets?: {
+        jobPositionIds: string[];
         employeeIds: string[];
         departmentIds: string[];
-        jobPositionIds: string[];
     } | undefined;
 }, {
     status?: "published" | "archived" | undefined;
@@ -1175,9 +1175,9 @@ export declare const UpdateStaffPolicyRequest: z.ZodEffects<z.ZodObject<{
     audience?: "all" | "targeted" | undefined;
     fileKeys?: string[] | undefined;
     targets?: {
+        jobPositionIds: string[];
         employeeIds: string[];
         departmentIds: string[];
-        jobPositionIds: string[];
     } | undefined;
 }>, {
     status?: "published" | "archived" | undefined;
@@ -1186,9 +1186,9 @@ export declare const UpdateStaffPolicyRequest: z.ZodEffects<z.ZodObject<{
     audience?: "all" | "targeted" | undefined;
     fileKeys?: string[] | undefined;
     targets?: {
+        jobPositionIds: string[];
         employeeIds: string[];
         departmentIds: string[];
-        jobPositionIds: string[];
     } | undefined;
 }, {
     status?: "published" | "archived" | undefined;
@@ -1197,9 +1197,9 @@ export declare const UpdateStaffPolicyRequest: z.ZodEffects<z.ZodObject<{
     audience?: "all" | "targeted" | undefined;
     fileKeys?: string[] | undefined;
     targets?: {
+        jobPositionIds: string[];
         employeeIds: string[];
         departmentIds: string[];
-        jobPositionIds: string[];
     } | undefined;
 }>;
 export type UpdateStaffPolicyRequest = z.infer<typeof UpdateStaffPolicyRequest>;
@@ -1214,13 +1214,13 @@ export declare const StaffAnnouncement: z.ZodObject<{
         jobPositionIds: z.ZodArray<z.ZodString, "many">;
         employeeIds: z.ZodArray<z.ZodString, "many">;
     }, "strip", z.ZodTypeAny, {
+        jobPositionIds: string[];
         employeeIds: string[];
         departmentIds: string[];
-        jobPositionIds: string[];
     }, {
+        jobPositionIds: string[];
         employeeIds: string[];
         departmentIds: string[];
-        jobPositionIds: string[];
     }>;
     expiresOn: z.ZodNullable<z.ZodString>;
     commentsAllowed: z.ZodBoolean;
@@ -1241,9 +1241,9 @@ export declare const StaffAnnouncement: z.ZodObject<{
     updatedAt: string;
     fileKeys: string[];
     targets: {
+        jobPositionIds: string[];
         employeeIds: string[];
         departmentIds: string[];
-        jobPositionIds: string[];
     };
     commentsAllowed: boolean;
     viewCount: number;
@@ -1259,9 +1259,9 @@ export declare const StaffAnnouncement: z.ZodObject<{
     updatedAt: string;
     fileKeys: string[];
     targets: {
+        jobPositionIds: string[];
         employeeIds: string[];
         departmentIds: string[];
-        jobPositionIds: string[];
     };
     commentsAllowed: boolean;
     viewCount: number;
@@ -1280,13 +1280,13 @@ export declare const StaffAnnouncementList: z.ZodObject<{
             jobPositionIds: z.ZodArray<z.ZodString, "many">;
             employeeIds: z.ZodArray<z.ZodString, "many">;
         }, "strip", z.ZodTypeAny, {
+            jobPositionIds: string[];
             employeeIds: string[];
             departmentIds: string[];
-            jobPositionIds: string[];
         }, {
+            jobPositionIds: string[];
             employeeIds: string[];
             departmentIds: string[];
-            jobPositionIds: string[];
         }>;
         expiresOn: z.ZodNullable<z.ZodString>;
         commentsAllowed: z.ZodBoolean;
@@ -1307,9 +1307,9 @@ export declare const StaffAnnouncementList: z.ZodObject<{
         updatedAt: string;
         fileKeys: string[];
         targets: {
+            jobPositionIds: string[];
             employeeIds: string[];
             departmentIds: string[];
-            jobPositionIds: string[];
         };
         commentsAllowed: boolean;
         viewCount: number;
@@ -1325,9 +1325,9 @@ export declare const StaffAnnouncementList: z.ZodObject<{
         updatedAt: string;
         fileKeys: string[];
         targets: {
+            jobPositionIds: string[];
             employeeIds: string[];
             departmentIds: string[];
-            jobPositionIds: string[];
         };
         commentsAllowed: boolean;
         viewCount: number;
@@ -1345,9 +1345,9 @@ export declare const StaffAnnouncementList: z.ZodObject<{
         updatedAt: string;
         fileKeys: string[];
         targets: {
+            jobPositionIds: string[];
             employeeIds: string[];
             departmentIds: string[];
-            jobPositionIds: string[];
         };
         commentsAllowed: boolean;
         viewCount: number;
@@ -1365,9 +1365,9 @@ export declare const StaffAnnouncementList: z.ZodObject<{
         updatedAt: string;
         fileKeys: string[];
         targets: {
+            jobPositionIds: string[];
             employeeIds: string[];
             departmentIds: string[];
-            jobPositionIds: string[];
         };
         commentsAllowed: boolean;
         viewCount: number;
@@ -1400,41 +1400,41 @@ export declare const CreateStaffAnnouncementRequest: z.ZodIntersection<z.ZodObje
         jobPositionIds: z.ZodArray<z.ZodString, "many">;
         employeeIds: z.ZodArray<z.ZodString, "many">;
     }, "strip", z.ZodTypeAny, {
+        jobPositionIds: string[];
         employeeIds: string[];
         departmentIds: string[];
-        jobPositionIds: string[];
     }, {
+        jobPositionIds: string[];
         employeeIds: string[];
         departmentIds: string[];
-        jobPositionIds: string[];
     }>>;
 }, "strip", z.ZodTypeAny, {
     audience: "all" | "targeted";
     targets?: {
+        jobPositionIds: string[];
         employeeIds: string[];
         departmentIds: string[];
-        jobPositionIds: string[];
     } | undefined;
 }, {
     audience: "all" | "targeted";
     targets?: {
+        jobPositionIds: string[];
         employeeIds: string[];
         departmentIds: string[];
-        jobPositionIds: string[];
     } | undefined;
 }>, {
     audience: "all" | "targeted";
     targets?: {
+        jobPositionIds: string[];
         employeeIds: string[];
         departmentIds: string[];
-        jobPositionIds: string[];
     } | undefined;
 }, {
     audience: "all" | "targeted";
     targets?: {
+        jobPositionIds: string[];
         employeeIds: string[];
         departmentIds: string[];
-        jobPositionIds: string[];
     } | undefined;
 }>>;
 export type CreateStaffAnnouncementRequest = z.infer<typeof CreateStaffAnnouncementRequest>;
@@ -1448,13 +1448,13 @@ export declare const UpdateStaffAnnouncementRequest: z.ZodEffects<z.ZodObject<{
         jobPositionIds: z.ZodArray<z.ZodString, "many">;
         employeeIds: z.ZodArray<z.ZodString, "many">;
     }, "strip", z.ZodTypeAny, {
+        jobPositionIds: string[];
         employeeIds: string[];
         departmentIds: string[];
-        jobPositionIds: string[];
     }, {
+        jobPositionIds: string[];
         employeeIds: string[];
         departmentIds: string[];
-        jobPositionIds: string[];
     }>>;
     expiresOn: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     commentsAllowed: z.ZodOptional<z.ZodBoolean>;
@@ -1467,9 +1467,9 @@ export declare const UpdateStaffAnnouncementRequest: z.ZodEffects<z.ZodObject<{
     audience?: "all" | "targeted" | undefined;
     fileKeys?: string[] | undefined;
     targets?: {
+        jobPositionIds: string[];
         employeeIds: string[];
         departmentIds: string[];
-        jobPositionIds: string[];
     } | undefined;
     commentsAllowed?: boolean | undefined;
 }, {
@@ -1480,9 +1480,9 @@ export declare const UpdateStaffAnnouncementRequest: z.ZodEffects<z.ZodObject<{
     audience?: "all" | "targeted" | undefined;
     fileKeys?: string[] | undefined;
     targets?: {
+        jobPositionIds: string[];
         employeeIds: string[];
         departmentIds: string[];
-        jobPositionIds: string[];
     } | undefined;
     commentsAllowed?: boolean | undefined;
 }>, {
@@ -1493,9 +1493,9 @@ export declare const UpdateStaffAnnouncementRequest: z.ZodEffects<z.ZodObject<{
     audience?: "all" | "targeted" | undefined;
     fileKeys?: string[] | undefined;
     targets?: {
+        jobPositionIds: string[];
         employeeIds: string[];
         departmentIds: string[];
-        jobPositionIds: string[];
     } | undefined;
     commentsAllowed?: boolean | undefined;
 }, {
@@ -1506,9 +1506,9 @@ export declare const UpdateStaffAnnouncementRequest: z.ZodEffects<z.ZodObject<{
     audience?: "all" | "targeted" | undefined;
     fileKeys?: string[] | undefined;
     targets?: {
+        jobPositionIds: string[];
         employeeIds: string[];
         departmentIds: string[];
-        jobPositionIds: string[];
     } | undefined;
     commentsAllowed?: boolean | undefined;
 }>;

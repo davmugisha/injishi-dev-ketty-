@@ -3,6 +3,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.CreateOrgHolidayRequest = exports.OrgHolidayList = exports.OrgHoliday = exports.KioskPunchResult = exports.KioskPunchRequest = exports.KioskSession = exports.KioskPairRequest = exports.KioskPinState = exports.ChangeMyKioskPinRequest = exports.SetKioskPinRequest = exports.UnlockKioskPinRequest = exports.KioskPairingCode = exports.CreateKioskRequest = exports.KioskList = exports.Kiosk = exports.KioskStatus = exports.PutBranchClockSettingsRequest = exports.PutAttendancePolicyRequest = exports.AttendanceSettings = exports.BranchClockSettings = exports.AttendancePolicy = exports.DecideOvertimeRequest = exports.CreateMyAttendanceRequestRequest = exports.CreateAttendanceRequestRequest = exports.AttendanceRequest = exports.AttendanceRequestStatus = exports.DecideRequestBody = exports.CreateMyShiftRequestRequest = exports.CreateShiftRequestRequest = exports.ShiftRequest = exports.ShiftRequestStatus = exports.ShiftRequestKind = exports.EndRotationAssignmentRequest = exports.CreateRotationAssignmentRequest = exports.RotationAssignmentQuery = exports.RotationAssignmentList = exports.RotationAssignment = exports.UpdateRotationPatternRequest = exports.CreateRotationPatternRequest = exports.RotationPatternQuery = exports.RotationPatternList = exports.RotationPattern = exports.RotationPatternStatus = exports.RotationStep = exports.RotationRule = exports.RosterWeekQuery = exports.RosterWeek = exports.RosterPublicationList = exports.RosterPublication = exports.PublishRosterRequest = void 0;
 exports.MyTeamRequests = exports.TeamRequestsQuery = exports.TeamRequestKind = exports.MyTeamAttendance = exports.MyTeamRoster = exports.MyTeam = exports.MyMonthlySummary = exports.MonthQuery = exports.MyAttendanceRequestList = exports.MyAttendance = exports.MyShiftRequestList = exports.MyRoster = exports.RangeQuery = exports.PhoneClockResult = exports.PhoneClockRequest = exports.MyWorkFileList = exports.MyWorkFile = exports.MonthlyQuery = exports.InsightsQuery = exports.MonthlySummary = exports.MonthlySummaryRow = exports.LateEarlyReport = exports.LateEarlyRow = exports.UpdateWeeklyOffRequest = exports.CreateWeeklyOffRequest = exports.WeeklyOffList = exports.WeeklyOff = exports.UpdateOrgHolidayRequest = void 0;
 const zod_1 = require("zod");
+const leave_1 = require("./leave");
 const people_1 = require("./people");
 /**
  * Time (ADR-058, 058-time): publishing the roster, rotations, shift and swap
@@ -238,6 +239,8 @@ const PolicyFields = zod_1.z.object({
     linkWindowMinutes: zod_1.z.number().int().min(0).max(720),
     staleOpenHours: zod_1.z.number().int().min(1).max(72),
     defaultShiftMinutes: zod_1.z.number().int().min(30).max(1440),
+    /** 058-leave AC-LV8: minutes on a worked holiday or day off that earn a whole compensatory day; half of it earns half. */
+    compensationThresholdMinutes: zod_1.z.number().int().min(30).max(1440),
 });
 exports.AttendancePolicy = PolicyFields.extend({
     /** Null: the business default every branch without its own row follows. */
@@ -262,7 +265,11 @@ exports.AttendanceSettings = zod_1.z.object({
     policies: zod_1.z.array(exports.AttendancePolicy),
     clock: zod_1.z.array(exports.BranchClockSettings),
 });
-exports.PutAttendancePolicyRequest = PolicyFields.extend({ propertyId: Uuid.nullable() });
+exports.PutAttendancePolicyRequest = PolicyFields.extend({
+    propertyId: Uuid.nullable(),
+    /** Left out, the row keeps what it had. */
+    compensationThresholdMinutes: zod_1.z.number().int().min(30).max(1440).optional(),
+});
 /** The radius, and the centre: null clears it back to the property's pin, absent leaves it. */
 exports.PutBranchClockSettingsRequest = zod_1.z.object({
     geofenceRadiusM: zod_1.z.number().int().min(25).max(2000),
@@ -457,7 +464,7 @@ exports.MyTeamAttendance = zod_1.z.object({
     summaries: zod_1.z.array(exports.MonthlySummaryRow),
 });
 /** Which requests routed to a manager to read: a swap is a shift request that names a colleague. */
-exports.TeamRequestKind = zod_1.z.enum(["shift", "swap", "attendance"]);
+exports.TeamRequestKind = zod_1.z.enum(["shift", "swap", "attendance", "leave", "allocation"]);
 exports.TeamRequestsQuery = zod_1.z.object({
     kind: exports.TeamRequestKind.optional(),
     status: zod_1.z.string().trim().max(40).optional(),
@@ -466,5 +473,8 @@ exports.TeamRequestsQuery = zod_1.z.object({
 exports.MyTeamRequests = zod_1.z.object({
     shift: zod_1.z.array(exports.ShiftRequest),
     attendance: zod_1.z.array(exports.AttendanceRequest),
+    /** 058-leave: leave and allocation requests routed to the caller. */
+    leave: zod_1.z.array(people_1.LeaveRequest),
+    allocation: zod_1.z.array(leave_1.LeaveAllocationRequest),
 });
 //# sourceMappingURL=time.js.map
