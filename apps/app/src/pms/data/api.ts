@@ -208,19 +208,27 @@ export async function readRefusal(res: Response): Promise<ApiError> {
  * Send one file as multipart/form-data, and read the answer.
  *
  * A sibling of `command` rather than an option on it: an upload carries no
- * workspace (the bytes go up before the write that gives them a home, which is
- * the call that names the workspace), no JSON body, and a longer ceiling,
- * because a photograph from a phone camera is megabytes, not a form.
+ * JSON body, and a longer ceiling, because a photograph from a phone camera is
+ * megabytes, not a form. Most uploads carry no workspace either (the bytes go
+ * up before the write that gives them a home, which is the call that names the
+ * workspace); an HR upload does (`POST /ops/hr/files`, 058-people-file), and
+ * names what the file is for in a field beside it.
  */
-export async function upload<T>(path: string, file: File): Promise<T> {
+export async function upload<T>(
+  path: string,
+  file: File,
+  { workspaceId, fields = {} }: { workspaceId?: string; fields?: Record<string, string> } = {},
+): Promise<T> {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), UPLOAD_TIMEOUT_MS);
   const form = new FormData();
+  for (const [name, value] of Object.entries(fields)) form.append(name, value);
   form.append("file", file, file.name);
   try {
     const res = await fetch(`${API_BASE}/api/v1${path}`, {
       method: "POST",
       credentials: "include",
+      headers: workspaceId ? { "x-workspace-id": workspaceId } : undefined,
       body: form,
       signal: controller.signal,
     });

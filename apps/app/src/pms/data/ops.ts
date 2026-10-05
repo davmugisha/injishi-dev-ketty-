@@ -85,6 +85,7 @@ import {
   RraClassificationList,
   type VoidChargeRequest,
   type CreatePropertyRequest,
+  HR_PERMISSIONS,
 } from "@injishi/contracts";
 import {
   useMutation,
@@ -147,6 +148,19 @@ export const OPS_READ = {
   attendance: ["attendance.record", "attendance.approve"],
   leaveRequests: ["leave.approve"],
   payRuns: ["payroll.run"],
+  // The people file (058-people-file AC-PF2): pay accounts are people.manage or
+  // payroll.run; notes, documents and discipline are people.manage alone; what
+  // the whole business shares reads under any HR permission.
+  payAccounts: ["people.manage", "payroll.run"],
+  employeeNotes: ["people.manage"],
+  documents: ["people.manage"],
+  documentRequests: ["people.manage"],
+  discipline: ["people.manage"],
+  orgChart: ["people.view", "people.manage", "payroll.run"],
+  policies: HR_PERMISSIONS,
+  staffAnnouncements: HR_PERMISSIONS,
+  hrCatalog: HR_PERMISSIONS,
+  hrSettings: HR_PERMISSIONS,
 } as const satisfies Record<string, readonly Permission[]>;
 
 /**

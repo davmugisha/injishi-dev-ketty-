@@ -21,7 +21,8 @@
  * The list is the shared `DataView` over `EMPLOYEE_LIST` (058-list-framework):
  * search, filters, sort, grouping, the card view, saved views and the CSV
  * export, all in the URL. What a reader may filter or sort follows their file
- * view, and the server refuses the rest.
+ * view, and the server refuses the rest. Job position, employee type and tag
+ * filter by the business's own catalogs (058-people-file AC-PF13).
  */
 
 import {
@@ -40,11 +41,12 @@ import { ActionButton, Badge, SectionHeading, SelectField } from "../../componen
 import { useCapability, useWorkspaceId } from "../../data/capability";
 import { downloadListCsv, useListPage, useListUrl, useSavedViewsFor } from "../../data/lists";
 import { useCreateEmployee } from "../../data/people";
+import { useHrCatalog } from "../../data/people-file";
 import { dshortIso, fmt, todayIso } from "../../lib/format";
 import { workspaceBase } from "../../lib/nav";
 import { usePms } from "../../store";
 import { currentGrant } from "../../store/helpers";
-import { Field, FormError, inputClass } from "./staff-ui";
+import { Field, FormError, inputClass, toneIntent } from "./staff-ui";
 
 const ROLE_LABEL: Record<string, string> = {
   owner: "Owner",
@@ -63,6 +65,7 @@ const EMPTY_FORM = {
   idDocumentNumber: "",
   hiredOn: "",
   workPropertyId: "",
+  jobPositionId: "",
   rssbNumber: "",
   email: "",
 };
@@ -77,6 +80,12 @@ export function Employees() {
   const [form, setForm] = useState({ ...EMPTY_FORM, hiredOn: todayIso(), workPropertyId: branches[0]?.id ?? "" });
   const base = `${workspaceBase(workspaceId)}/staff`;
   const mayManage = can("people.manage");
+  const positions = useHrCatalog(workspaceId, "job-positions");
+  const types = useHrCatalog(workspaceId, "employee-types");
+  const tags = useHrCatalog(workspaceId, "tags");
+  // Every row of a catalog filters, archived ones too: a file may still carry one.
+  const optionsOf = (items: { id: string; title: string; status: string }[] | undefined) =>
+    (items ?? []).map((i) => ({ value: i.id, label: i.status === "archived" ? `${i.title} (archived)` : i.title }));
 
   const set = (key: keyof typeof EMPTY_FORM) => (value: string) => setForm((f) => ({ ...f, [key]: value }));
 
@@ -91,6 +100,7 @@ export function Employees() {
       idDocumentNumber: form.idDocumentNumber,
       hiredOn: form.hiredOn,
       workPropertyId: form.workPropertyId,
+      jobPositionId: form.jobPositionId || null,
       rssbNumber: form.rssbNumber.trim() || null,
       email: form.email.trim() || null,
     };
@@ -195,6 +205,15 @@ export function Employees() {
                 options={branches.map((b) => ({ value: b.id, label: b.name }))}
               />
             </Field>
+            <Field label="Job position" hint="Optional. Positions are kept under Configuration.">
+              <SelectField
+                label="Job position"
+                value={form.jobPositionId}
+                onChange={set("jobPositionId")}
+                placeholder="None yet"
+                options={(positions.data?.items ?? []).filter((p) => p.status === "active").map((p) => ({ value: p.id, label: p.title }))}
+              />
+            </Field>
             <Field label="Email" hint="Optional." htmlFor="hr-email">
               <Input id="hr-email" type="email" value={form.email} onChange={(e) => set("email")(e.target.value)} className={inputClass} />
             </Field>
@@ -228,7 +247,12 @@ export function Employees() {
         groupKeyOf={employeeGroupKey}
         caption="Staff files"
         searchPlaceholder="Search name, number or phone"
-        refOptions={{ branch: branches.map((b) => ({ value: b.id, label: b.name })) }}
+        refOptions={{
+          branch: branches.map((b) => ({ value: b.id, label: b.name })),
+          jobPosition: optionsOf(positions.data?.items),
+          employeeType: optionsOf(types.data?.items),
+          tag: optionsOf(tags.data?.items),
+        }}
         card={(e) => (
           <Link href={`${base}/${e.id}`} className="flex flex-col gap-1 no-underline">
             <span className="text-sm font-semibold text-foreground">{e.displayName}</span>
@@ -240,6 +264,11 @@ export function Employees() {
                 {e.hasAccount && e.orgRole ? ROLE_LABEL[e.orgRole] : "No account"}
               </Badge>
               {e.detailsMissing.length > 0 && <Badge intent="warn">Details missing</Badge>}
+              {e.tags.map((t) => (
+                <Badge key={t.id} intent={toneIntent(t.tone)}>
+                  {t.title}
+                </Badge>
+              ))}
             </span>
           </Link>
         )}
@@ -278,6 +307,8 @@ function employeeGroupKey(e: Employee, field: string): string | null {
       return e.workPropertyId;
     case "jobPosition":
       return e.jobPositionId;
+    case "employeeType":
+      return e.employeeType?.id ?? null;
     case "hasAccount":
       return String(e.hasAccount);
     default:
@@ -307,6 +338,23 @@ function employeeColumns(base: string, full: boolean): DataColumn<Employee>[] {
       ),
     },
     { key: "jobPosition", header: "Position", cell: (e) => e.jobPositionTitle ?? "None yet" },
+    { key: "employeeType", header: "Type", cell: (e) => e.employeeType?.title ?? "—" },
+    {
+      key: "tags",
+      header: "Tags",
+      cell: (e) =>
+        e.tags.length === 0 ? (
+          "—"
+        ) : (
+          <span className="flex flex-wrap gap-1">
+            {e.tags.map((t) => (
+              <Badge key={t.id} intent={toneIntent(t.tone)}>
+                {t.title}
+              </Badge>
+            ))}
+          </span>
+        ),
+    },
     { key: "branch", header: "Branch", cell: (e) => e.workPropertyName ?? "No branch yet" },
     { key: "hiredOn", header: "Hired", cell: (e) => <span className="pms-num">{dshortIso(e.hiredOn)}</span> },
     {

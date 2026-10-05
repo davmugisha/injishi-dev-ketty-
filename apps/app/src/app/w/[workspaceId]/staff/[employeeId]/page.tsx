@@ -2,9 +2,11 @@ import { AppShell } from "@/pms/components/app-shell";
 import { EmployeeFile } from "@/pms/screens/staff/employee-file";
 
 /**
- * One staff file (ADR-058). The static lens segments beside it (`roster`,
- * `attendance`, `leave`, `payroll`) win over this dynamic one, so only an
- * employee id lands here.
+ * One staff file, its Profile tab (ADR-058, 058-people-file AC-PF13). The
+ * static lens segments beside it (`roster`, `attendance`, `leave`, `payroll`,
+ * `org-chart`, `documents`, `discipline`, `policies`, `announcements`,
+ * `configuration`) win over this dynamic one, so only an employee id lands
+ * here. Each other tab is a segment under it.
  */
 export default async function Page({
   params,
@@ -14,7 +16,7 @@ export default async function Page({
   const { employeeId } = await params;
   return (
     <AppShell title="Staff file">
-      <EmployeeFile employeeId={employeeId} />
+      <EmployeeFile employeeId={employeeId} lens="profile" />
     </AppShell>
   );
 }
