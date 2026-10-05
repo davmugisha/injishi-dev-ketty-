@@ -8,21 +8,45 @@
  * Injishi's knowledge and guides, and its conversation is named by a token kept
  * in the keychain (see `data/assistant.ts`).
  *
+ * A new conversation opens with the API's greeting and the questions asked
+ * most, each sent with one tap exactly as if typed; after every answer the API
+ * offers the next questions. Both come from the API, which offers only what
+ * this caller may ask (D-q). The layout mirrors the web widget
+ * (`apps/web/src/components/assistant/assistant-widget.tsx`): the person's
+ * words on the right in the action colour, the assistant's on the left in a
+ * bordered card beside its avatar, and a round send button on the composer.
+ *
  * It never acts. A change it prepares is a card the person approves or rejects
  * with their own press, and human support is a button the person presses.
  */
-import { useEffect, useState } from 'react';
-import { View } from 'react-native';
+import { useEffect, useRef, useState } from 'react';
+import { Animated, Platform, TextInput, View } from 'react-native';
+import { Image } from 'expo-image';
 import type {
   AssistantConversation,
   AssistantMessage,
   AssistantProposal,
+  AssistantSource,
+  AssistantSuggestion,
   SupportTopic,
 } from '@injishi/contracts';
 import { ASSISTANT_MESSAGE_MAX } from '@injishi/contracts';
 
-import { BackHeader, Button, Card, InputField, Screen, Text, TextArea } from '@/components';
+import {
+  BackHeader,
+  Button,
+  Card,
+  Icon,
+  InputField,
+  PressableScale,
+  Screen,
+  Text,
+  formatMoney,
+  type IconName,
+} from '@/components';
 import { useTheme } from '@/theme/theme';
+import { fontSize, lineHeight } from '@/theme/tokens';
+import { MOTION_MS, useReducedMotion } from '@/motion';
 import { useT } from '@/i18n/i18n';
 import type { MessageKey } from '@/i18n/messages';
 import { useSession } from '@/session';
@@ -38,6 +62,30 @@ import {
 
 type Translate = ReturnType<typeof useT>;
 
+/**
+ * Words the redesign added, in English only for now. They mirror the web
+ * widget's copy one for one. They belong in `i18n/messages/assistant.ts` (EN
+ * and RW) and move there with the next change to that catalogue; this screen's
+ * owner could not edit it in the same change.
+ */
+/** The card and chip words, from the `assistant` catalogue (EN and RW). */
+function copyOf(t: Translate) {
+  return {
+    typing: t('assistant.typing'),
+    suggested: t('assistant.suggested'),
+    places: t('assistant.places'),
+    fromPerNight: (price: string) => t('assistant.fromPerNight', { price }),
+    priceOnRequest: t('assistant.priceOnRequest'),
+    sleeps: (n: number) => t('assistant.sleeps', { count: String(n) }),
+    roomTypes: (n: number) => (n === 1 ? t('assistant.roomType') : t('assistant.roomTypes', { count: String(n) })),
+  };
+}
+
+/** The small avatar's diameter, and the indent everything under a bubble takes. */
+const AVATAR_SMALL = 28;
+const AVATAR_GAP = 8;
+const INDENT = AVATAR_SMALL + AVATAR_GAP;
+
 /** The words for an outcome that is not `ok`. The server's own sentence wins. */
 function failureText<T>(outcome: Exclude<AssistantOutcome<T>, { kind: 'ok' }>, t: Translate): string {
   if (outcome.kind === 'refused') return outcome.message;
@@ -52,9 +100,12 @@ export function AssistantScreen() {
   const signedIn = status === 'authenticated';
   const [enabled, setEnabled] = useState<boolean | null>(null);
   const [conversation, setConversation] = useState<AssistantConversation | null>(null);
+  const [greeting, setGreeting] = useState('');
+  const [starters, setStarters] = useState<AssistantSuggestion[]>([]);
   const [claimable, setClaimable] = useState(false);
   const [draft, setDraft] = useState('');
-  const [pending, setPending] = useState(false);
+  /** The message on its way, drawn as the person's bubble until the answer lands. */
+  const [pending, setPending] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [startFresh, setStartFresh] = useState(false);
 
@@ -69,25 +120,33 @@ export function AssistantScreen() {
       }
       setEnabled(result.data.enabled);
       setConversation(result.data.conversation);
+      setGreeting(result.data.greeting);
+      setStarters(result.data.suggestions);
       setClaimable(result.data.claimable);
     });
     return () => controller.abort();
     // Read once per sign in state; `t` changing language is not a reason to refetch.
   }, [signedIn]);
 
-  async function send() {
-    const message = draft.trim();
-    if (!message || pending) return;
-    setPending(true);
+  /**
+   * Send the draft, or a suggestion's message when `text` is given. A
+   * suggestion is sent exactly as if typed and leaves the draft alone.
+   */
+  async function send(text?: string) {
+    const message = (text ?? draft).trim();
+    if (!message || pending !== null) return;
+    setPending(message);
     setError(null);
+    if (text === undefined) setDraft('');
     const result = await sendAssistantMessage({ message, ...(startFresh ? { startNew: true } : {}) });
-    setPending(false);
+    setPending(null);
     if (result.kind === 'ok') {
       setConversation(result.data.conversation);
-      setDraft('');
       setStartFresh(false);
       return;
     }
+    // Not sent: give the person their words back.
+    if (text === undefined) setDraft(message);
     if (result.kind === 'refused' && result.code === 'conversation_full') {
       setStartFresh(true);
       setError(t('assistant.full'));
@@ -120,6 +179,8 @@ export function AssistantScreen() {
   }
 
   const messages = conversation?.messages ?? [];
+  const lastIsAnswer = messages.at(-1)?.role === 'assistant';
+  const followUps = lastIsAnswer && pending === null ? (conversation?.suggestions ?? []) : [];
 
   return (
     <>
@@ -148,23 +209,44 @@ export function AssistantScreen() {
               </Card>
             ) : null}
 
-            {messages.length === 0 ? (
-              <Text size="sm" color="textMuted">
-                {t('assistant.empty')}
-              </Text>
-            ) : (
-              <View style={{ gap: space[3] }} accessibilityLiveRegion="polite">
-                {messages.map((m) => (
-                  <MessageBubble key={m.id} message={m} signedIn={signedIn} onDecided={replaceProposal} />
-                ))}
-              </View>
-            )}
+            <View style={{ gap: space[4] }} accessibilityLiveRegion="polite">
+              {messages.length === 0 ? (
+                greeting ? (
+                  <View style={{ gap: space[3] }}>
+                    <AssistantBubble text={greeting} />
+                    <SuggestionChips
+                      suggestions={starters}
+                      disabled={pending !== null}
+                      onPick={(m) => void send(m)}
+                    />
+                  </View>
+                ) : pending === null ? (
+                  <Text size="sm" color="textMuted">
+                    {t('assistant.empty')}
+                  </Text>
+                ) : null
+              ) : null}
 
-            {pending ? (
-              <Text size="sm" color="textMuted">
-                {t('assistant.checking')}
-              </Text>
-            ) : null}
+              {messages.map((m) => (
+                <MessageRow key={m.id} message={m} signedIn={signedIn} onDecided={replaceProposal} />
+              ))}
+
+              {pending !== null ? (
+                <>
+                  <UserBubble text={pending} />
+                  <View style={{ flexDirection: 'row', alignItems: 'flex-end', gap: AVATAR_GAP }}>
+                    <AssistantAvatar />
+                    <TypingDots />
+                  </View>
+                </>
+              ) : null}
+
+              {followUps.length > 0 ? (
+                <View style={{ paddingLeft: INDENT }}>
+                  <SuggestionChips suggestions={followUps} disabled={pending !== null} onPick={(m) => void send(m)} />
+                </View>
+              ) : null}
+            </View>
 
             {error ? (
               <Text size="sm" color="danger500" accessibilityRole="alert">
@@ -172,32 +254,25 @@ export function AssistantScreen() {
               </Text>
             ) : null}
 
-            <TextArea
-              label={t('assistant.label')}
+            <Composer
               value={draft}
               onChangeText={setDraft}
-              placeholder={t('assistant.placeholder')}
-              maxLength={ASSISTANT_MESSAGE_MAX}
-              rows={3}
-              testID="assistant-input"
+              sending={pending !== null}
+              onSend={() => void send()}
             />
-            <View style={{ flexDirection: 'row', justifyContent: 'space-between', gap: space[2] }}>
-              <Button
-                variant="ghost"
-                size="sm"
-                disabled={messages.length === 0 || pending}
-                onPress={() => {
-                  setConversation(null);
-                  setStartFresh(true);
-                  setError(null);
-                }}
-              >
-                {t('assistant.newConversation')}
-              </Button>
-              <Button variant="primary" size="sm" leadingIcon="send" disabled={!draft.trim() || pending} onPress={() => void send()}>
-                {pending ? t('assistant.sending') : t('assistant.send')}
-              </Button>
-            </View>
+            <Button
+              variant="ghost"
+              size="sm"
+              leadingIcon="rotateCcw"
+              disabled={messages.length === 0 || pending !== null}
+              onPress={() => {
+                setConversation(null);
+                setStartFresh(true);
+                setError(null);
+              }}
+            >
+              {t('assistant.newConversation')}
+            </Button>
           </>
         )}
       </Screen>
@@ -205,7 +280,188 @@ export function AssistantScreen() {
   );
 }
 
-function MessageBubble({
+/** A small round mark in the action colour, beside every assistant bubble. Decoration. */
+function AssistantAvatar() {
+  const { c } = useTheme();
+  return (
+    <View
+      accessibilityElementsHidden
+      importantForAccessibility="no-hide-descendants"
+      style={{
+        width: AVATAR_SMALL,
+        height: AVATAR_SMALL,
+        borderRadius: AVATAR_SMALL / 2,
+        alignItems: 'center',
+        justifyContent: 'center',
+        backgroundColor: c.action,
+      }}
+    >
+      {/* `bgApp` on `action`, the pair `Button`'s primary fill uses. */}
+      <Icon name="sparkles" size={14} color={c.bgApp} />
+    </View>
+  );
+}
+
+/** The assistant's words: a bordered card on the left, the corner by the avatar squared. */
+function AssistantBubble({ text }: { text: string }) {
+  const t = useT();
+  const { c, radius } = useTheme();
+  return (
+    <View style={{ flexDirection: 'row', alignItems: 'flex-end', gap: AVATAR_GAP }}>
+      <AssistantAvatar />
+      <View
+        accessible
+        accessibilityLabel={`${t('assistant.title')}: ${text}`}
+        style={{
+          flexShrink: 1,
+          maxWidth: '88%',
+          paddingVertical: 12,
+          paddingHorizontal: 16,
+          borderRadius: radius.lg,
+          borderBottomLeftRadius: radius.xs,
+          borderWidth: 1,
+          borderColor: c.borderSubtle,
+          backgroundColor: c.surface1,
+        }}
+      >
+        <Text size="sm" color="textStrong">
+          {text}
+        </Text>
+      </View>
+    </View>
+  );
+}
+
+/** The person's words: the action colour on the right, the corner nearest them squared. */
+function UserBubble({ text }: { text: string }) {
+  const t = useT();
+  const { c, radius } = useTheme();
+  return (
+    <View style={{ alignItems: 'flex-end' }}>
+      <View
+        accessible
+        accessibilityLabel={`${t('assistant.you')}: ${text}`}
+        style={{
+          maxWidth: '85%',
+          paddingVertical: 12,
+          paddingHorizontal: 16,
+          borderRadius: radius.lg,
+          borderBottomRightRadius: radius.xs,
+          backgroundColor: c.action,
+        }}
+      >
+        <Text size="sm" color="bgApp">
+          {text}
+        </Text>
+      </View>
+    </View>
+  );
+}
+
+/**
+ * Three dots while the answer is on its way. Under reduced motion they hold
+ * still: the bubble and its label are the feedback, the pulse is decoration.
+ */
+function TypingDots() {
+  const COPY = copyOf(useT());
+  const { c, radius } = useTheme();
+  const reduced = useReducedMotion();
+  const dots = useRef([0, 1, 2].map(() => new Animated.Value(0.35))).current;
+
+  useEffect(() => {
+    if (reduced) {
+      dots.forEach((d) => d.setValue(0.6));
+      return;
+    }
+    const loop = Animated.loop(
+      Animated.stagger(
+        MOTION_MS / 2,
+        dots.map((d) =>
+          Animated.sequence([
+            Animated.timing(d, { toValue: 1, duration: MOTION_MS, useNativeDriver: true }),
+            Animated.timing(d, { toValue: 0.35, duration: MOTION_MS, useNativeDriver: true }),
+          ]),
+        ),
+      ),
+    );
+    loop.start();
+    return () => loop.stop();
+  }, [reduced, dots]);
+
+  return (
+    <View
+      accessible
+      accessibilityRole="progressbar"
+      accessibilityLabel={COPY.typing}
+      style={{
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 4,
+        paddingVertical: 14,
+        paddingHorizontal: 16,
+        borderRadius: radius.lg,
+        borderBottomLeftRadius: radius.xs,
+        borderWidth: 1,
+        borderColor: c.borderSubtle,
+        backgroundColor: c.surface1,
+      }}
+    >
+      {dots.map((opacity, i) => (
+        <Animated.View
+          key={i}
+          style={{ width: 6, height: 6, borderRadius: 3, backgroundColor: c.textMuted, opacity }}
+        />
+      ))}
+    </View>
+  );
+}
+
+/** Questions sent with one tap, exactly as if typed. The reader hears the whole question. */
+function SuggestionChips({
+  suggestions,
+  disabled,
+  onPick,
+}: {
+  suggestions: AssistantSuggestion[];
+  disabled: boolean;
+  onPick: (message: string) => void;
+}) {
+  const { c, space, radius } = useTheme();
+  const COPY = copyOf(useT());
+  if (suggestions.length === 0) return null;
+  return (
+    <View accessibilityLabel={COPY.suggested} style={{ flexDirection: 'row', flexWrap: 'wrap', gap: space[2] }}>
+      {suggestions.map((s) => (
+        <PressableScale
+          key={s.message}
+          accessibilityRole="button"
+          accessibilityLabel={s.message}
+          accessibilityState={{ disabled }}
+          disabled={disabled}
+          hitSlop={6}
+          onPress={() => onPick(s.message)}
+          style={{
+            minHeight: 32,
+            paddingHorizontal: 14,
+            paddingVertical: 6,
+            justifyContent: 'center',
+            borderRadius: radius.pill,
+            borderWidth: 1,
+            borderColor: c.borderDefault,
+            backgroundColor: c.bgApp,
+            opacity: disabled ? 0.5 : 1,
+          }}
+        >
+          <Text size="xs" weight="medium" color="textStrong">
+            {s.label}
+          </Text>
+        </PressableScale>
+      ))}
+    </View>
+  );
+}
+
+function MessageRow({
   message,
   signedIn,
   onDecided,
@@ -215,36 +471,246 @@ function MessageBubble({
   onDecided: (next: AssistantProposal) => void;
 }) {
   const t = useT();
-  const { c, space, radius } = useTheme();
-  const mine = message.role === 'user';
+  const COPY = copyOf(t);
+  const { space } = useTheme();
+  if (message.role === 'user') return <UserBubble text={message.text} />;
+  const listings = message.sources.filter((s) => s.kind === 'listing' && s.listing);
+  const others = message.sources.filter((s) => !(s.kind === 'listing' && s.listing));
   return (
-    <View style={{ gap: space[2], alignItems: mine ? 'flex-end' : 'flex-start' }}>
+    <View style={{ gap: space[2] }}>
+      <AssistantBubble text={message.text} />
+      <View style={{ paddingLeft: INDENT, gap: space[2] }}>
+        {message.proposals.map((p) => (
+          <ProposalCard key={p.id} proposal={p} onDecided={onDecided} />
+        ))}
+        {listings.length > 0 ? (
+          <View accessibilityLabel={COPY.places} style={{ gap: space[2] }}>
+            {listings.map((s) => (
+              <ListingSourceCard key={s.id} source={s} />
+            ))}
+          </View>
+        ) : null}
+        {others.length > 0 ? (
+          <View
+            accessible
+            accessibilityLabel={t('assistant.sources', { titles: others.map((s) => s.title).join(', ') })}
+            style={{ flexDirection: 'row', flexWrap: 'wrap', gap: space[2] }}
+          >
+            {others.map((s) => (
+              <SourcePill key={s.id} source={s} />
+            ))}
+          </View>
+        ) : null}
+        {message.escalation ? <EscalationBox topic={message.escalation.topic} signedIn={signedIn} /> : null}
+        <FeedbackRow message={message} />
+      </View>
+    </View>
+  );
+}
+
+/**
+ * A published place, as the search returned it: the photo, where it is, the
+ * lowest base nightly rate, how many it sleeps and how many room types. The
+ * rate is the base rate; the property page shows the price for the dates.
+ *
+ * Not pressable. The API's `href` is a web path (`/property/<slug>`), and this
+ * app's property page (`/listing/[id]`) still reads the fixture catalogue, so
+ * no route here opens a real property by slug. When one exists, wrap this in a
+ * `PressableScale` that pushes it.
+ */
+function ListingSourceCard({ source }: { source: AssistantSource }) {
+  const { c, space, radius } = useTheme();
+  const COPY = copyOf(useT());
+  const l = source.listing;
+  if (!l) return null;
+  const price = l.fromNightlyRateRwf !== null ? COPY.fromPerNight(formatMoney(l.fromNightlyRateRwf)) : COPY.priceOnRequest;
+  const facts = [l.maxGuests ? COPY.sleeps(l.maxGuests) : null, l.roomTypes > 0 ? COPY.roomTypes(l.roomTypes) : null].filter(
+    (f): f is string => f !== null,
+  );
+  const spoken = [source.title, l.district, price, ...facts].filter(Boolean).join(', ');
+
+  return (
+    <View
+      accessible
+      accessibilityLabel={spoken}
+      style={{
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: space[3],
+        padding: 10,
+        borderRadius: radius.lg,
+        borderWidth: 1,
+        borderColor: c.borderSubtle,
+        backgroundColor: c.surface1,
+      }}
+    >
       <View
-        accessible
-        accessibilityLabel={`${mine ? t('assistant.you') : t('assistant.title')}: ${message.text}`}
         style={{
-          maxWidth: '92%',
-          padding: space[3],
-          borderRadius: radius.lg,
-          borderWidth: mine ? 0 : 1,
-          borderColor: c.borderSubtle,
-          backgroundColor: mine ? c.surface2 : c.surface1,
+          width: 72,
+          height: 72,
+          borderRadius: radius.md,
+          overflow: 'hidden',
+          alignItems: 'center',
+          justifyContent: 'center',
+          backgroundColor: c.surface2,
         }}
       >
-        <Text size="sm" color="textStrong">
-          {message.text}
-        </Text>
+        {l.photoUrl ? (
+          <Image
+            source={{ uri: l.photoUrl }}
+            contentFit="cover"
+            transition={180}
+            style={{ width: '100%', height: '100%' }}
+            // The card's label already names the place; the photo is decoration.
+            accessibilityElementsHidden
+            importantForAccessibility="no-hide-descendants"
+          />
+        ) : (
+          <Icon name="building" size={24} color={c.textMuted} />
+        )}
       </View>
-      {message.proposals.map((p) => (
-        <ProposalCard key={p.id} proposal={p} onDecided={onDecided} />
-      ))}
-      {!mine && message.escalation ? <EscalationBox topic={message.escalation.topic} signedIn={signedIn} /> : null}
-      {!mine ? <FeedbackRow message={message} /> : null}
-      {message.sources.length > 0 ? (
-        <Text size="xs" color="textMuted">
-          {t('assistant.sources', { titles: message.sources.map((s) => s.title).join(', ') })}
+      <View style={{ flex: 1, minWidth: 0, gap: 2 }}>
+        <Text size="sm" weight="semibold" color="textStrong" numberOfLines={1}>
+          {source.title}
         </Text>
-      ) : null}
+        {l.district ? (
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+            <Icon name="mapPin" size={12} color={c.textMuted} />
+            <Text size="xs" color="textMuted">
+              {l.district}
+            </Text>
+          </View>
+        ) : null}
+        <Text size="sm" weight={l.fromNightlyRateRwf !== null ? 'semibold' : 'regular'} color={l.fromNightlyRateRwf !== null ? 'textStrong' : 'textMuted'}>
+          {price}
+        </Text>
+        {facts.length > 0 ? (
+          <View style={{ flexDirection: 'row', flexWrap: 'wrap', columnGap: space[3], rowGap: 2 }}>
+            {l.maxGuests ? <Fact icon="users" text={COPY.sleeps(l.maxGuests)} /> : null}
+            {l.roomTypes > 0 ? <Fact icon="bed" text={COPY.roomTypes(l.roomTypes)} /> : null}
+          </View>
+        ) : null}
+      </View>
+    </View>
+  );
+}
+
+function Fact({ icon, text }: { icon: IconName; text: string }) {
+  const { c } = useTheme();
+  return (
+    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+      <Icon name={icon} size={12} color={c.textMuted} />
+      <Text size="2xs" color="textMuted">
+        {text}
+      </Text>
+    </View>
+  );
+}
+
+const SOURCE_ICON: Record<AssistantSource['kind'], IconName> = {
+  article: 'fileText',
+  tutorial: 'fileText',
+  task: 'list',
+  listing: 'building',
+  record: 'fileText',
+};
+
+/**
+ * Where an answer came from, as a small label. Not a link: the API's `href` is
+ * a web path, and this app has no route that opens one.
+ */
+function SourcePill({ source }: { source: AssistantSource }) {
+  const { c, radius } = useTheme();
+  return (
+    <View
+      style={{
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 6,
+        paddingHorizontal: 10,
+        paddingVertical: 4,
+        borderRadius: radius.pill,
+        borderWidth: 1,
+        borderColor: c.borderSubtle,
+        backgroundColor: c.bgApp,
+      }}
+    >
+      <Icon name={SOURCE_ICON[source.kind]} size={12} color={c.textMuted} />
+      <Text size="xs" color="textMuted">
+        {source.title}
+      </Text>
+    </View>
+  );
+}
+
+/**
+ * The composer: a rounded field that grows to a few lines, and a round send
+ * button beside it, disabled on an empty draft or while a turn is in flight.
+ * The shape is the inbox composer's (`screens/inbox/composer.tsx`).
+ */
+function Composer({
+  value,
+  onChangeText,
+  sending,
+  onSend,
+}: {
+  value: string;
+  onChangeText: (value: string) => void;
+  sending: boolean;
+  onSend: () => void;
+}) {
+  const t = useT();
+  const { c, space, radius, font } = useTheme();
+  const ready = value.trim().length > 0 && !sending;
+  return (
+    <View style={{ flexDirection: 'row', alignItems: 'flex-end', gap: space[2] }}>
+      <TextInput
+        accessibilityLabel={t('assistant.label')}
+        value={value}
+        onChangeText={onChangeText}
+        placeholder={t('assistant.placeholder')}
+        placeholderTextColor={c.textSubtle}
+        maxLength={ASSISTANT_MESSAGE_MAX}
+        multiline
+        // Return is a newline; the button is send.
+        blurOnSubmit={false}
+        testID="assistant-input"
+        style={{
+          flex: 1,
+          minHeight: 44,
+          maxHeight: 132,
+          paddingTop: Platform.OS === 'ios' ? 12 : 8,
+          paddingBottom: Platform.OS === 'ios' ? 12 : 8,
+          paddingHorizontal: 16,
+          borderRadius: radius.xl,
+          borderWidth: 1,
+          borderColor: c.borderDefault,
+          backgroundColor: c.surface1,
+          color: c.textStrong,
+          fontFamily: font.body,
+          fontSize: fontSize.md,
+          lineHeight: lineHeight.md,
+        }}
+      />
+      <PressableScale
+        accessibilityRole="button"
+        accessibilityLabel={sending ? t('assistant.sending') : t('assistant.send')}
+        accessibilityState={{ disabled: !ready }}
+        disabled={!ready}
+        haptic
+        onPress={onSend}
+        testID="assistant-send"
+        style={{
+          width: 44,
+          height: 44,
+          borderRadius: 22,
+          alignItems: 'center',
+          justifyContent: 'center',
+          backgroundColor: ready ? c.action : c.neutral200,
+        }}
+      >
+        <Icon name="send" size={19} color={ready ? c.bgApp : c.textSubtle} />
+      </PressableScale>
     </View>
   );
 }
@@ -395,26 +861,28 @@ function EscalationBox({ topic, signedIn }: { topic: SupportTopic; signedIn: boo
     }
   }
   return (
-    <View style={{ gap: space[2], alignSelf: 'stretch' }}>
-      {!signedIn ? (
-        <InputField
-          label={t('assistant.escalateEmail')}
-          value={email}
-          onChangeText={setEmail}
-          keyboardType="email-address"
-          autoCapitalize="none"
-          autoCorrect={false}
-          error={error ?? undefined}
-        />
-      ) : null}
-      <Button variant="primary" size="sm" disabled={state === 'sending'} onPress={() => void send()}>
-        {t('assistant.escalate')}
-      </Button>
-      {signedIn && error ? (
-        <Text size="xs" color="danger500" accessibilityRole="alert">
-          {error}
-        </Text>
-      ) : null}
-    </View>
+    <Card>
+      <View style={{ gap: space[2] }}>
+        {!signedIn ? (
+          <InputField
+            label={t('assistant.escalateEmail')}
+            value={email}
+            onChangeText={setEmail}
+            keyboardType="email-address"
+            autoCapitalize="none"
+            autoCorrect={false}
+            error={error ?? undefined}
+          />
+        ) : null}
+        <Button variant="primary" size="sm" disabled={state === 'sending'} onPress={() => void send()}>
+          {t('assistant.escalate')}
+        </Button>
+        {signedIn && error ? (
+          <Text size="xs" color="danger500" accessibilityRole="alert">
+            {error}
+          </Text>
+        ) : null}
+      </View>
+    </Card>
   );
 }

@@ -4,6 +4,7 @@ import {
   type SupportTopic,
   type AssistantConversation,
   type AssistantSource,
+  type AssistantSuggestion,
   type AssistantSurface,
   type SendAssistantMessageInput,
 } from '@injishi/contracts';
@@ -49,8 +50,9 @@ import { presentProposal } from './proposal-view';
 import { AssistantToolbox, type ToolCaller, type ToolSet } from './assistant-tools';
 import { ASSISTANT_SETTINGS, type AssistantSettings } from './assistant-settings';
 import { ASSISTANT_SYSTEM_PROMPT } from './system-prompt';
-import { UNCONFIRMED_FIGURE, guideAnswer } from './answer-templates';
-import { type FallbackReason, type Gathered, RequestRouter } from './request-router';
+import { UNCONFIRMED_FIGURE, greetingText, guideAnswer } from './answer-templates';
+import { type FallbackReason, type Gathered, RequestRouter, abilitiesOf } from './request-router';
+import { followUpSuggestions, openingSuggestions } from './suggestions';
 import { modelInputFor } from './context-window';
 import { type MeteredCall, UsageLedger, type UsageSink } from './usage-ledger';
 import type { CallerRole } from '../domain/usage';
@@ -144,9 +146,28 @@ export class AssistantService {
     holder: ConversationHolder,
     surface: AssistantSurface,
     now = new Date(),
+    context: TurnContext = { catalogueOpen: false },
   ): Promise<AssistantConversation | null> {
     const row = await this.find(holder, surface, now);
-    return row ? await this.view(row, await this.conversations.listMessages(row.id)) : null;
+    return row ? await this.view(row, await this.conversations.listMessages(row.id), this.callerFor(holder, context), now) : null;
+  }
+
+  /**
+   * How a new conversation opens for this caller (D-q): a greeting that names
+   * only what they can really get, and the questions asked most among those
+   * they may ask, each answered without the model when tapped.
+   */
+  async opening(
+    holder: ConversationHolder,
+    surface: AssistantSurface,
+    context: TurnContext = { catalogueOpen: false },
+    now = new Date(),
+  ): Promise<{ greeting: string; suggestions: AssistantSuggestion[] }> {
+    const offered = this.offeredNames(this.callerFor(holder, context));
+    return {
+      greeting: greetingText(abilitiesOf(offered)),
+      suggestions: openingSuggestions(offered, surface, await this.usage.popularity(surface, now)),
+    };
   }
 
   /**
@@ -172,6 +193,7 @@ export class AssistantService {
     surface: AssistantSurface,
     now = new Date(),
     discard = false,
+    context: TurnContext = { catalogueOpen: false },
   ): Promise<{ claimed: boolean; conversation: AssistantConversation | null }> {
     if (tokenHash && discard) {
       await this.conversations.discardAnon(tokenHash, now);
@@ -184,10 +206,11 @@ export class AssistantService {
         expiresAt: expiresAtFor(true, now),
       });
       if (row) {
-        return { claimed: true, conversation: await this.view(row, await this.conversations.listMessages(row.id)) };
+        const holder: ConversationHolder = { kind: 'user', userId };
+        return { claimed: true, conversation: await this.view(row, await this.conversations.listMessages(row.id), this.callerFor(holder, context), now) };
       }
     }
-    return { claimed: false, conversation: await this.current({ kind: 'user', userId }, surface, now) };
+    return { claimed: false, conversation: await this.current({ kind: 'user', userId }, surface, now, context) };
   }
 
   /**
@@ -281,13 +304,7 @@ export class AssistantService {
         message: 'This conversation is full. Start a new one to keep going.',
       });
     }
-    const caller: ToolCaller = {
-      userId: holder.kind === 'user' ? holder.userId : null,
-      catalogueOpen: context.catalogueOpen,
-      requestText: redact(input.message),
-      workspace: holder.kind === 'user' ? (context.workspace ?? null) : null,
-      stepUpNeeded: holder.kind === 'user' && context.stepUpNeeded === true,
-    };
+    const caller: ToolCaller = { ...this.callerFor(holder, context), requestText: redact(input.message) };
     const question: ModelMessage = {
       role: 'user',
       content: [{ type: 'text', text: redact(input.message) }],
@@ -402,7 +419,7 @@ export class AssistantService {
 
       const stored = { ...conversation, expiresAt: expiresAtFor(conversation.ownerUserId !== null, now) };
       return {
-        conversation: await this.view(stored, await this.conversations.listMessages(conversation.id)),
+        conversation: await this.view(stored, await this.conversations.listMessages(conversation.id), caller, now),
         newAnonToken,
       };
     } finally {
@@ -573,7 +590,21 @@ export class AssistantService {
     return row && row.surface === surface ? row : null;
   }
 
-  private async view(row: ConversationRow, messages: MessageRow[]): Promise<AssistantConversation> {
+  /** Who is asking, as the tools see it (D-f): the one place a caller is built. */
+  private callerFor(holder: ConversationHolder, context: TurnContext): ToolCaller {
+    return {
+      userId: holder.kind === 'user' ? holder.userId : null,
+      catalogueOpen: context.catalogueOpen,
+      workspace: holder.kind === 'user' ? (context.workspace ?? null) : null,
+      stepUpNeeded: holder.kind === 'user' && context.stepUpNeeded === true,
+    };
+  }
+
+  private offeredNames(caller: ToolCaller): Set<string> {
+    return new Set(this.tools.offered(caller).map((t) => t.name));
+  }
+
+  private async view(row: ConversationRow, messages: MessageRow[], caller: ToolCaller, at: Date): Promise<AssistantConversation> {
     // The approval cards are drawn from the stored proposals, in their state
     // NOW (proposed, executed, expired...), never from what the model said.
     const ids = messages.flatMap((m) => m.toolCalls.flatMap((t) => t.proposalIds ?? []));
@@ -601,6 +632,13 @@ export class AssistantService {
       })),
       turnsLeft: Math.max(0, ASSISTANT_TURN_LIMIT - userTurns),
       expiresAt: row.expiresAt.toISOString(),
+      suggestions: followUpSuggestions(
+        [...messages].reverse().find((m) => m.role === 'assistant')?.route ?? null,
+        [...messages].reverse().find((m) => m.role === 'user')?.displayText ?? null,
+        this.offeredNames(caller),
+        row.surface,
+        await this.usage.popularity(row.surface, at),
+      ),
     };
   }
 }

@@ -13,7 +13,6 @@ import {
   ROOMS_QUESTION,
   STAY_QUESTION,
   TRIP_QUESTION,
-  placeIn,
 } from '../domain/intents';
 import {
   CANNOT_CHANGE,
@@ -33,6 +32,7 @@ import {
   tripsAnswer,
 } from '../application/answer-templates';
 import { GATHERED_HEADING } from '../application/context-window';
+import { listingSearchOf } from '../application/request-router';
 import type { ModelUsage } from '../domain/usage';
 
 // The fixed sentences, kept under their mock names for the tests that read them.
@@ -115,7 +115,7 @@ export class MockAssistantModel implements AssistantModelPort {
       }
       if (STAY_QUESTION.test(question)) {
         if (!offers('search_listings')) return Promise.resolve(answer(MOCK_LISTINGS_CLOSED));
-        return Promise.resolve(call(request, 'search_listings', { query: placeIn(question) }));
+        return Promise.resolve(call(request, 'search_listings', listingSearchOf(question).input));
       }
       if (!offers('search_help')) return Promise.resolve(answer(MOCK_NO_ANSWER));
       return Promise.resolve(call(request, 'search_help', { query: question.slice(0, 200) }));
@@ -131,7 +131,15 @@ export class MockAssistantModel implements AssistantModelPort {
       return Promise.resolve(answer(proposalAnswer(content) ?? MOCK_NO_ANSWER));
     }
     if (called === 'get_task_guide') {
-      return Promise.resolve(answer(guideAnswer(content)?.text ?? MOCK_NO_ANSWER));
+      const guide = guideAnswer(content)?.text;
+      if (guide) return Promise.resolve(answer(guide));
+      // No guide for it: look in the help articles, as the system prompt asks
+      // of the real model, rather than giving up.
+      const asked = currentQuestion(textIn(request.messages[0]));
+      if (request.toolChoice !== 'none' && request.tools.some((t) => t.name === 'search_help')) {
+        return Promise.resolve(call(request, 'search_help', { query: asked.slice(0, 200) }));
+      }
+      return Promise.resolve(answer(MOCK_NO_ANSWER));
     }
     if (called === 'rooms_on_dates') {
       return Promise.resolve(answer(roomsAnswer(content) ?? MOCK_NO_ANSWER));
@@ -147,7 +155,7 @@ export class MockAssistantModel implements AssistantModelPort {
       return Promise.resolve(answer(tripsAnswer(content) ?? MOCK_NO_TRIPS));
     }
     if (calledTool(request) === 'search_listings') {
-      return Promise.resolve(answer(listingsAnswer(content) ?? MOCK_NO_LISTINGS));
+      return Promise.resolve(answer(listingsAnswer(content, listingSearchOf(currentQuestion(textIn(request.messages[0]))).place) ?? MOCK_NO_LISTINGS));
     }
     const top = (parsed?.results as Array<{ id?: unknown; summary?: unknown }> | undefined)?.[0];
     if (!top || typeof top.id !== 'string' || typeof top.summary !== 'string') {

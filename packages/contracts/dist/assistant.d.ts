@@ -49,18 +49,73 @@ export declare const AssistantSource: z.ZodObject<{
     title: z.ZodString;
     /** A path on the surface that opens it, or null when there is none. */
     href: z.ZodNullable<z.ZodString>;
+    /**
+     * A listing's card details, when the source is a published property: what
+     * a surface draws on its card. Absent on other kinds and on answers stored
+     * before cards existed.
+     */
+    listing: z.ZodOptional<z.ZodObject<{
+        district: z.ZodNullable<z.ZodString>;
+        /** The lowest base nightly rate, before any date specific price. */
+        fromNightlyRateRwf: z.ZodNullable<z.ZodNumber>;
+        maxGuests: z.ZodNullable<z.ZodNumber>;
+        roomTypes: z.ZodNumber;
+        /** The cover photo's URL, or null when the property has none. */
+        photoUrl: z.ZodNullable<z.ZodString>;
+    }, "strip", z.ZodTypeAny, {
+        district: string | null;
+        fromNightlyRateRwf: number | null;
+        maxGuests: number | null;
+        roomTypes: number;
+        photoUrl: string | null;
+    }, {
+        district: string | null;
+        fromNightlyRateRwf: number | null;
+        maxGuests: number | null;
+        roomTypes: number;
+        photoUrl: string | null;
+    }>>;
 }, "strip", z.ZodTypeAny, {
     kind: "listing" | "article" | "task" | "tutorial" | "record";
     id: string;
     title: string;
     href: string | null;
+    listing?: {
+        district: string | null;
+        fromNightlyRateRwf: number | null;
+        maxGuests: number | null;
+        roomTypes: number;
+        photoUrl: string | null;
+    } | undefined;
 }, {
     kind: "listing" | "article" | "task" | "tutorial" | "record";
     id: string;
     title: string;
     href: string | null;
+    listing?: {
+        district: string | null;
+        fromNightlyRateRwf: number | null;
+        maxGuests: number | null;
+        roomTypes: number;
+        photoUrl: string | null;
+    } | undefined;
 }>;
 export type AssistantSource = z.infer<typeof AssistantSource>;
+/**
+ * A question the person can send with one tap. `label` is what the chip
+ * says; `message` is what is sent, exactly as if typed.
+ */
+export declare const AssistantSuggestion: z.ZodObject<{
+    label: z.ZodString;
+    message: z.ZodString;
+}, "strip", z.ZodTypeAny, {
+    message: string;
+    label: string;
+}, {
+    message: string;
+    label: string;
+}>;
+export type AssistantSuggestion = z.infer<typeof AssistantSuggestion>;
 /**
  * A change the assistant prepared and the person has not yet approved
  * (ADR-061 D-k). The surface draws its approval card from THIS, the stored
@@ -174,16 +229,56 @@ export declare const AssistantMessage: z.ZodObject<{
         title: z.ZodString;
         /** A path on the surface that opens it, or null when there is none. */
         href: z.ZodNullable<z.ZodString>;
+        /**
+         * A listing's card details, when the source is a published property: what
+         * a surface draws on its card. Absent on other kinds and on answers stored
+         * before cards existed.
+         */
+        listing: z.ZodOptional<z.ZodObject<{
+            district: z.ZodNullable<z.ZodString>;
+            /** The lowest base nightly rate, before any date specific price. */
+            fromNightlyRateRwf: z.ZodNullable<z.ZodNumber>;
+            maxGuests: z.ZodNullable<z.ZodNumber>;
+            roomTypes: z.ZodNumber;
+            /** The cover photo's URL, or null when the property has none. */
+            photoUrl: z.ZodNullable<z.ZodString>;
+        }, "strip", z.ZodTypeAny, {
+            district: string | null;
+            fromNightlyRateRwf: number | null;
+            maxGuests: number | null;
+            roomTypes: number;
+            photoUrl: string | null;
+        }, {
+            district: string | null;
+            fromNightlyRateRwf: number | null;
+            maxGuests: number | null;
+            roomTypes: number;
+            photoUrl: string | null;
+        }>>;
     }, "strip", z.ZodTypeAny, {
         kind: "listing" | "article" | "task" | "tutorial" | "record";
         id: string;
         title: string;
         href: string | null;
+        listing?: {
+            district: string | null;
+            fromNightlyRateRwf: number | null;
+            maxGuests: number | null;
+            roomTypes: number;
+            photoUrl: string | null;
+        } | undefined;
     }, {
         kind: "listing" | "article" | "task" | "tutorial" | "record";
         id: string;
         title: string;
         href: string | null;
+        listing?: {
+            district: string | null;
+            fromNightlyRateRwf: number | null;
+            maxGuests: number | null;
+            roomTypes: number;
+            photoUrl: string | null;
+        } | undefined;
     }>, "many">;
     /** Changes this answer prepared, each awaiting the person's own approval. */
     proposals: z.ZodArray<z.ZodObject<{
@@ -243,6 +338,13 @@ export declare const AssistantMessage: z.ZodObject<{
         id: string;
         title: string;
         href: string | null;
+        listing?: {
+            district: string | null;
+            fromNightlyRateRwf: number | null;
+            maxGuests: number | null;
+            roomTypes: number;
+            photoUrl: string | null;
+        } | undefined;
     }[];
     proposals: {
         kind: "room_type.price";
@@ -268,6 +370,13 @@ export declare const AssistantMessage: z.ZodObject<{
         id: string;
         title: string;
         href: string | null;
+        listing?: {
+            district: string | null;
+            fromNightlyRateRwf: number | null;
+            maxGuests: number | null;
+            roomTypes: number;
+            photoUrl: string | null;
+        } | undefined;
     }[];
     proposals: {
         kind: "room_type.price";
@@ -300,16 +409,56 @@ export declare const AssistantConversation: z.ZodObject<{
             title: z.ZodString;
             /** A path on the surface that opens it, or null when there is none. */
             href: z.ZodNullable<z.ZodString>;
+            /**
+             * A listing's card details, when the source is a published property: what
+             * a surface draws on its card. Absent on other kinds and on answers stored
+             * before cards existed.
+             */
+            listing: z.ZodOptional<z.ZodObject<{
+                district: z.ZodNullable<z.ZodString>;
+                /** The lowest base nightly rate, before any date specific price. */
+                fromNightlyRateRwf: z.ZodNullable<z.ZodNumber>;
+                maxGuests: z.ZodNullable<z.ZodNumber>;
+                roomTypes: z.ZodNumber;
+                /** The cover photo's URL, or null when the property has none. */
+                photoUrl: z.ZodNullable<z.ZodString>;
+            }, "strip", z.ZodTypeAny, {
+                district: string | null;
+                fromNightlyRateRwf: number | null;
+                maxGuests: number | null;
+                roomTypes: number;
+                photoUrl: string | null;
+            }, {
+                district: string | null;
+                fromNightlyRateRwf: number | null;
+                maxGuests: number | null;
+                roomTypes: number;
+                photoUrl: string | null;
+            }>>;
         }, "strip", z.ZodTypeAny, {
             kind: "listing" | "article" | "task" | "tutorial" | "record";
             id: string;
             title: string;
             href: string | null;
+            listing?: {
+                district: string | null;
+                fromNightlyRateRwf: number | null;
+                maxGuests: number | null;
+                roomTypes: number;
+                photoUrl: string | null;
+            } | undefined;
         }, {
             kind: "listing" | "article" | "task" | "tutorial" | "record";
             id: string;
             title: string;
             href: string | null;
+            listing?: {
+                district: string | null;
+                fromNightlyRateRwf: number | null;
+                maxGuests: number | null;
+                roomTypes: number;
+                photoUrl: string | null;
+            } | undefined;
         }>, "many">;
         /** Changes this answer prepared, each awaiting the person's own approval. */
         proposals: z.ZodArray<z.ZodObject<{
@@ -369,6 +518,13 @@ export declare const AssistantConversation: z.ZodObject<{
             id: string;
             title: string;
             href: string | null;
+            listing?: {
+                district: string | null;
+                fromNightlyRateRwf: number | null;
+                maxGuests: number | null;
+                roomTypes: number;
+                photoUrl: string | null;
+            } | undefined;
         }[];
         proposals: {
             kind: "room_type.price";
@@ -394,6 +550,13 @@ export declare const AssistantConversation: z.ZodObject<{
             id: string;
             title: string;
             href: string | null;
+            listing?: {
+                district: string | null;
+                fromNightlyRateRwf: number | null;
+                maxGuests: number | null;
+                roomTypes: number;
+                photoUrl: string | null;
+            } | undefined;
         }[];
         proposals: {
             kind: "room_type.price";
@@ -414,6 +577,17 @@ export declare const AssistantConversation: z.ZodObject<{
     turnsLeft: z.ZodNumber;
     /** When it is deleted if nothing more is said (ADR-061 D-d). */
     expiresAt: z.ZodString;
+    /** What the person may want to ask next, after the latest answer. */
+    suggestions: z.ZodArray<z.ZodObject<{
+        label: z.ZodString;
+        message: z.ZodString;
+    }, "strip", z.ZodTypeAny, {
+        message: string;
+        label: string;
+    }, {
+        message: string;
+        label: string;
+    }>, "many">;
 }, "strip", z.ZodTypeAny, {
     id: string;
     surface: "admin" | "web" | "app" | "mobile";
@@ -429,6 +603,13 @@ export declare const AssistantConversation: z.ZodObject<{
             id: string;
             title: string;
             href: string | null;
+            listing?: {
+                district: string | null;
+                fromNightlyRateRwf: number | null;
+                maxGuests: number | null;
+                roomTypes: number;
+                photoUrl: string | null;
+            } | undefined;
         }[];
         proposals: {
             kind: "room_type.price";
@@ -446,6 +627,10 @@ export declare const AssistantConversation: z.ZodObject<{
         helpful: boolean | null;
     }[];
     turnsLeft: number;
+    suggestions: {
+        message: string;
+        label: string;
+    }[];
 }, {
     id: string;
     surface: "admin" | "web" | "app" | "mobile";
@@ -461,6 +646,13 @@ export declare const AssistantConversation: z.ZodObject<{
             id: string;
             title: string;
             href: string | null;
+            listing?: {
+                district: string | null;
+                fromNightlyRateRwf: number | null;
+                maxGuests: number | null;
+                roomTypes: number;
+                photoUrl: string | null;
+            } | undefined;
         }[];
         proposals: {
             kind: "room_type.price";
@@ -478,6 +670,10 @@ export declare const AssistantConversation: z.ZodObject<{
         helpful: boolean | null;
     }[];
     turnsLeft: number;
+    suggestions: {
+        message: string;
+        label: string;
+    }[];
 }>;
 export type AssistantConversation = z.infer<typeof AssistantConversation>;
 /** `POST /api/v1/assistant/messages`: the conversation as it now stands. */
@@ -497,16 +693,56 @@ export declare const SendAssistantMessageResult: z.ZodObject<{
                 title: z.ZodString;
                 /** A path on the surface that opens it, or null when there is none. */
                 href: z.ZodNullable<z.ZodString>;
+                /**
+                 * A listing's card details, when the source is a published property: what
+                 * a surface draws on its card. Absent on other kinds and on answers stored
+                 * before cards existed.
+                 */
+                listing: z.ZodOptional<z.ZodObject<{
+                    district: z.ZodNullable<z.ZodString>;
+                    /** The lowest base nightly rate, before any date specific price. */
+                    fromNightlyRateRwf: z.ZodNullable<z.ZodNumber>;
+                    maxGuests: z.ZodNullable<z.ZodNumber>;
+                    roomTypes: z.ZodNumber;
+                    /** The cover photo's URL, or null when the property has none. */
+                    photoUrl: z.ZodNullable<z.ZodString>;
+                }, "strip", z.ZodTypeAny, {
+                    district: string | null;
+                    fromNightlyRateRwf: number | null;
+                    maxGuests: number | null;
+                    roomTypes: number;
+                    photoUrl: string | null;
+                }, {
+                    district: string | null;
+                    fromNightlyRateRwf: number | null;
+                    maxGuests: number | null;
+                    roomTypes: number;
+                    photoUrl: string | null;
+                }>>;
             }, "strip", z.ZodTypeAny, {
                 kind: "listing" | "article" | "task" | "tutorial" | "record";
                 id: string;
                 title: string;
                 href: string | null;
+                listing?: {
+                    district: string | null;
+                    fromNightlyRateRwf: number | null;
+                    maxGuests: number | null;
+                    roomTypes: number;
+                    photoUrl: string | null;
+                } | undefined;
             }, {
                 kind: "listing" | "article" | "task" | "tutorial" | "record";
                 id: string;
                 title: string;
                 href: string | null;
+                listing?: {
+                    district: string | null;
+                    fromNightlyRateRwf: number | null;
+                    maxGuests: number | null;
+                    roomTypes: number;
+                    photoUrl: string | null;
+                } | undefined;
             }>, "many">;
             /** Changes this answer prepared, each awaiting the person's own approval. */
             proposals: z.ZodArray<z.ZodObject<{
@@ -566,6 +802,13 @@ export declare const SendAssistantMessageResult: z.ZodObject<{
                 id: string;
                 title: string;
                 href: string | null;
+                listing?: {
+                    district: string | null;
+                    fromNightlyRateRwf: number | null;
+                    maxGuests: number | null;
+                    roomTypes: number;
+                    photoUrl: string | null;
+                } | undefined;
             }[];
             proposals: {
                 kind: "room_type.price";
@@ -591,6 +834,13 @@ export declare const SendAssistantMessageResult: z.ZodObject<{
                 id: string;
                 title: string;
                 href: string | null;
+                listing?: {
+                    district: string | null;
+                    fromNightlyRateRwf: number | null;
+                    maxGuests: number | null;
+                    roomTypes: number;
+                    photoUrl: string | null;
+                } | undefined;
             }[];
             proposals: {
                 kind: "room_type.price";
@@ -611,6 +861,17 @@ export declare const SendAssistantMessageResult: z.ZodObject<{
         turnsLeft: z.ZodNumber;
         /** When it is deleted if nothing more is said (ADR-061 D-d). */
         expiresAt: z.ZodString;
+        /** What the person may want to ask next, after the latest answer. */
+        suggestions: z.ZodArray<z.ZodObject<{
+            label: z.ZodString;
+            message: z.ZodString;
+        }, "strip", z.ZodTypeAny, {
+            message: string;
+            label: string;
+        }, {
+            message: string;
+            label: string;
+        }>, "many">;
     }, "strip", z.ZodTypeAny, {
         id: string;
         surface: "admin" | "web" | "app" | "mobile";
@@ -626,6 +887,13 @@ export declare const SendAssistantMessageResult: z.ZodObject<{
                 id: string;
                 title: string;
                 href: string | null;
+                listing?: {
+                    district: string | null;
+                    fromNightlyRateRwf: number | null;
+                    maxGuests: number | null;
+                    roomTypes: number;
+                    photoUrl: string | null;
+                } | undefined;
             }[];
             proposals: {
                 kind: "room_type.price";
@@ -643,6 +911,10 @@ export declare const SendAssistantMessageResult: z.ZodObject<{
             helpful: boolean | null;
         }[];
         turnsLeft: number;
+        suggestions: {
+            message: string;
+            label: string;
+        }[];
     }, {
         id: string;
         surface: "admin" | "web" | "app" | "mobile";
@@ -658,6 +930,13 @@ export declare const SendAssistantMessageResult: z.ZodObject<{
                 id: string;
                 title: string;
                 href: string | null;
+                listing?: {
+                    district: string | null;
+                    fromNightlyRateRwf: number | null;
+                    maxGuests: number | null;
+                    roomTypes: number;
+                    photoUrl: string | null;
+                } | undefined;
             }[];
             proposals: {
                 kind: "room_type.price";
@@ -675,6 +954,10 @@ export declare const SendAssistantMessageResult: z.ZodObject<{
             helpful: boolean | null;
         }[];
         turnsLeft: number;
+        suggestions: {
+            message: string;
+            label: string;
+        }[];
     }>;
     /**
      * The anonymous token of a conversation this request STARTED, returned only
@@ -699,6 +982,13 @@ export declare const SendAssistantMessageResult: z.ZodObject<{
                 id: string;
                 title: string;
                 href: string | null;
+                listing?: {
+                    district: string | null;
+                    fromNightlyRateRwf: number | null;
+                    maxGuests: number | null;
+                    roomTypes: number;
+                    photoUrl: string | null;
+                } | undefined;
             }[];
             proposals: {
                 kind: "room_type.price";
@@ -716,6 +1006,10 @@ export declare const SendAssistantMessageResult: z.ZodObject<{
             helpful: boolean | null;
         }[];
         turnsLeft: number;
+        suggestions: {
+            message: string;
+            label: string;
+        }[];
     };
     anonToken?: string | undefined;
 }, {
@@ -734,6 +1028,13 @@ export declare const SendAssistantMessageResult: z.ZodObject<{
                 id: string;
                 title: string;
                 href: string | null;
+                listing?: {
+                    district: string | null;
+                    fromNightlyRateRwf: number | null;
+                    maxGuests: number | null;
+                    roomTypes: number;
+                    photoUrl: string | null;
+                } | undefined;
             }[];
             proposals: {
                 kind: "room_type.price";
@@ -751,6 +1052,10 @@ export declare const SendAssistantMessageResult: z.ZodObject<{
             helpful: boolean | null;
         }[];
         turnsLeft: number;
+        suggestions: {
+            message: string;
+            label: string;
+        }[];
     };
     anonToken?: string | undefined;
 }>;
@@ -776,16 +1081,56 @@ export declare const AssistantCurrentConversation: z.ZodObject<{
                 title: z.ZodString;
                 /** A path on the surface that opens it, or null when there is none. */
                 href: z.ZodNullable<z.ZodString>;
+                /**
+                 * A listing's card details, when the source is a published property: what
+                 * a surface draws on its card. Absent on other kinds and on answers stored
+                 * before cards existed.
+                 */
+                listing: z.ZodOptional<z.ZodObject<{
+                    district: z.ZodNullable<z.ZodString>;
+                    /** The lowest base nightly rate, before any date specific price. */
+                    fromNightlyRateRwf: z.ZodNullable<z.ZodNumber>;
+                    maxGuests: z.ZodNullable<z.ZodNumber>;
+                    roomTypes: z.ZodNumber;
+                    /** The cover photo's URL, or null when the property has none. */
+                    photoUrl: z.ZodNullable<z.ZodString>;
+                }, "strip", z.ZodTypeAny, {
+                    district: string | null;
+                    fromNightlyRateRwf: number | null;
+                    maxGuests: number | null;
+                    roomTypes: number;
+                    photoUrl: string | null;
+                }, {
+                    district: string | null;
+                    fromNightlyRateRwf: number | null;
+                    maxGuests: number | null;
+                    roomTypes: number;
+                    photoUrl: string | null;
+                }>>;
             }, "strip", z.ZodTypeAny, {
                 kind: "listing" | "article" | "task" | "tutorial" | "record";
                 id: string;
                 title: string;
                 href: string | null;
+                listing?: {
+                    district: string | null;
+                    fromNightlyRateRwf: number | null;
+                    maxGuests: number | null;
+                    roomTypes: number;
+                    photoUrl: string | null;
+                } | undefined;
             }, {
                 kind: "listing" | "article" | "task" | "tutorial" | "record";
                 id: string;
                 title: string;
                 href: string | null;
+                listing?: {
+                    district: string | null;
+                    fromNightlyRateRwf: number | null;
+                    maxGuests: number | null;
+                    roomTypes: number;
+                    photoUrl: string | null;
+                } | undefined;
             }>, "many">;
             /** Changes this answer prepared, each awaiting the person's own approval. */
             proposals: z.ZodArray<z.ZodObject<{
@@ -845,6 +1190,13 @@ export declare const AssistantCurrentConversation: z.ZodObject<{
                 id: string;
                 title: string;
                 href: string | null;
+                listing?: {
+                    district: string | null;
+                    fromNightlyRateRwf: number | null;
+                    maxGuests: number | null;
+                    roomTypes: number;
+                    photoUrl: string | null;
+                } | undefined;
             }[];
             proposals: {
                 kind: "room_type.price";
@@ -870,6 +1222,13 @@ export declare const AssistantCurrentConversation: z.ZodObject<{
                 id: string;
                 title: string;
                 href: string | null;
+                listing?: {
+                    district: string | null;
+                    fromNightlyRateRwf: number | null;
+                    maxGuests: number | null;
+                    roomTypes: number;
+                    photoUrl: string | null;
+                } | undefined;
             }[];
             proposals: {
                 kind: "room_type.price";
@@ -890,6 +1249,17 @@ export declare const AssistantCurrentConversation: z.ZodObject<{
         turnsLeft: z.ZodNumber;
         /** When it is deleted if nothing more is said (ADR-061 D-d). */
         expiresAt: z.ZodString;
+        /** What the person may want to ask next, after the latest answer. */
+        suggestions: z.ZodArray<z.ZodObject<{
+            label: z.ZodString;
+            message: z.ZodString;
+        }, "strip", z.ZodTypeAny, {
+            message: string;
+            label: string;
+        }, {
+            message: string;
+            label: string;
+        }>, "many">;
     }, "strip", z.ZodTypeAny, {
         id: string;
         surface: "admin" | "web" | "app" | "mobile";
@@ -905,6 +1275,13 @@ export declare const AssistantCurrentConversation: z.ZodObject<{
                 id: string;
                 title: string;
                 href: string | null;
+                listing?: {
+                    district: string | null;
+                    fromNightlyRateRwf: number | null;
+                    maxGuests: number | null;
+                    roomTypes: number;
+                    photoUrl: string | null;
+                } | undefined;
             }[];
             proposals: {
                 kind: "room_type.price";
@@ -922,6 +1299,10 @@ export declare const AssistantCurrentConversation: z.ZodObject<{
             helpful: boolean | null;
         }[];
         turnsLeft: number;
+        suggestions: {
+            message: string;
+            label: string;
+        }[];
     }, {
         id: string;
         surface: "admin" | "web" | "app" | "mobile";
@@ -937,6 +1318,13 @@ export declare const AssistantCurrentConversation: z.ZodObject<{
                 id: string;
                 title: string;
                 href: string | null;
+                listing?: {
+                    district: string | null;
+                    fromNightlyRateRwf: number | null;
+                    maxGuests: number | null;
+                    roomTypes: number;
+                    photoUrl: string | null;
+                } | undefined;
             }[];
             proposals: {
                 kind: "room_type.price";
@@ -954,6 +1342,10 @@ export declare const AssistantCurrentConversation: z.ZodObject<{
             helpful: boolean | null;
         }[];
         turnsLeft: number;
+        suggestions: {
+            message: string;
+            label: string;
+        }[];
     }>>;
     /**
      * True when a signed in caller still carries an anonymous conversation that
@@ -961,7 +1353,28 @@ export declare const AssistantCurrentConversation: z.ZodObject<{
      * `POST /api/v1/assistant/conversations/claim`.
      */
     claimable: z.ZodBoolean;
+    /**
+     * How the assistant opens a new conversation for this caller and surface,
+     * and the questions it offers first: the kinds asked most, among what this
+     * caller may ask. Shown when there is no conversation, or after "New
+     * conversation".
+     */
+    greeting: z.ZodString;
+    suggestions: z.ZodArray<z.ZodObject<{
+        label: z.ZodString;
+        message: z.ZodString;
+    }, "strip", z.ZodTypeAny, {
+        message: string;
+        label: string;
+    }, {
+        message: string;
+        label: string;
+    }>, "many">;
 }, "strip", z.ZodTypeAny, {
+    suggestions: {
+        message: string;
+        label: string;
+    }[];
     conversation: {
         id: string;
         surface: "admin" | "web" | "app" | "mobile";
@@ -977,6 +1390,13 @@ export declare const AssistantCurrentConversation: z.ZodObject<{
                 id: string;
                 title: string;
                 href: string | null;
+                listing?: {
+                    district: string | null;
+                    fromNightlyRateRwf: number | null;
+                    maxGuests: number | null;
+                    roomTypes: number;
+                    photoUrl: string | null;
+                } | undefined;
             }[];
             proposals: {
                 kind: "room_type.price";
@@ -994,10 +1414,19 @@ export declare const AssistantCurrentConversation: z.ZodObject<{
             helpful: boolean | null;
         }[];
         turnsLeft: number;
+        suggestions: {
+            message: string;
+            label: string;
+        }[];
     } | null;
     enabled: boolean;
     claimable: boolean;
+    greeting: string;
 }, {
+    suggestions: {
+        message: string;
+        label: string;
+    }[];
     conversation: {
         id: string;
         surface: "admin" | "web" | "app" | "mobile";
@@ -1013,6 +1442,13 @@ export declare const AssistantCurrentConversation: z.ZodObject<{
                 id: string;
                 title: string;
                 href: string | null;
+                listing?: {
+                    district: string | null;
+                    fromNightlyRateRwf: number | null;
+                    maxGuests: number | null;
+                    roomTypes: number;
+                    photoUrl: string | null;
+                } | undefined;
             }[];
             proposals: {
                 kind: "room_type.price";
@@ -1030,9 +1466,14 @@ export declare const AssistantCurrentConversation: z.ZodObject<{
             helpful: boolean | null;
         }[];
         turnsLeft: number;
+        suggestions: {
+            message: string;
+            label: string;
+        }[];
     } | null;
     enabled: boolean;
     claimable: boolean;
+    greeting: string;
 }>;
 export type AssistantCurrentConversation = z.infer<typeof AssistantCurrentConversation>;
 /**
@@ -1068,16 +1509,56 @@ export declare const ClaimAssistantConversationResult: z.ZodObject<{
                 title: z.ZodString;
                 /** A path on the surface that opens it, or null when there is none. */
                 href: z.ZodNullable<z.ZodString>;
+                /**
+                 * A listing's card details, when the source is a published property: what
+                 * a surface draws on its card. Absent on other kinds and on answers stored
+                 * before cards existed.
+                 */
+                listing: z.ZodOptional<z.ZodObject<{
+                    district: z.ZodNullable<z.ZodString>;
+                    /** The lowest base nightly rate, before any date specific price. */
+                    fromNightlyRateRwf: z.ZodNullable<z.ZodNumber>;
+                    maxGuests: z.ZodNullable<z.ZodNumber>;
+                    roomTypes: z.ZodNumber;
+                    /** The cover photo's URL, or null when the property has none. */
+                    photoUrl: z.ZodNullable<z.ZodString>;
+                }, "strip", z.ZodTypeAny, {
+                    district: string | null;
+                    fromNightlyRateRwf: number | null;
+                    maxGuests: number | null;
+                    roomTypes: number;
+                    photoUrl: string | null;
+                }, {
+                    district: string | null;
+                    fromNightlyRateRwf: number | null;
+                    maxGuests: number | null;
+                    roomTypes: number;
+                    photoUrl: string | null;
+                }>>;
             }, "strip", z.ZodTypeAny, {
                 kind: "listing" | "article" | "task" | "tutorial" | "record";
                 id: string;
                 title: string;
                 href: string | null;
+                listing?: {
+                    district: string | null;
+                    fromNightlyRateRwf: number | null;
+                    maxGuests: number | null;
+                    roomTypes: number;
+                    photoUrl: string | null;
+                } | undefined;
             }, {
                 kind: "listing" | "article" | "task" | "tutorial" | "record";
                 id: string;
                 title: string;
                 href: string | null;
+                listing?: {
+                    district: string | null;
+                    fromNightlyRateRwf: number | null;
+                    maxGuests: number | null;
+                    roomTypes: number;
+                    photoUrl: string | null;
+                } | undefined;
             }>, "many">;
             /** Changes this answer prepared, each awaiting the person's own approval. */
             proposals: z.ZodArray<z.ZodObject<{
@@ -1137,6 +1618,13 @@ export declare const ClaimAssistantConversationResult: z.ZodObject<{
                 id: string;
                 title: string;
                 href: string | null;
+                listing?: {
+                    district: string | null;
+                    fromNightlyRateRwf: number | null;
+                    maxGuests: number | null;
+                    roomTypes: number;
+                    photoUrl: string | null;
+                } | undefined;
             }[];
             proposals: {
                 kind: "room_type.price";
@@ -1162,6 +1650,13 @@ export declare const ClaimAssistantConversationResult: z.ZodObject<{
                 id: string;
                 title: string;
                 href: string | null;
+                listing?: {
+                    district: string | null;
+                    fromNightlyRateRwf: number | null;
+                    maxGuests: number | null;
+                    roomTypes: number;
+                    photoUrl: string | null;
+                } | undefined;
             }[];
             proposals: {
                 kind: "room_type.price";
@@ -1182,6 +1677,17 @@ export declare const ClaimAssistantConversationResult: z.ZodObject<{
         turnsLeft: z.ZodNumber;
         /** When it is deleted if nothing more is said (ADR-061 D-d). */
         expiresAt: z.ZodString;
+        /** What the person may want to ask next, after the latest answer. */
+        suggestions: z.ZodArray<z.ZodObject<{
+            label: z.ZodString;
+            message: z.ZodString;
+        }, "strip", z.ZodTypeAny, {
+            message: string;
+            label: string;
+        }, {
+            message: string;
+            label: string;
+        }>, "many">;
     }, "strip", z.ZodTypeAny, {
         id: string;
         surface: "admin" | "web" | "app" | "mobile";
@@ -1197,6 +1703,13 @@ export declare const ClaimAssistantConversationResult: z.ZodObject<{
                 id: string;
                 title: string;
                 href: string | null;
+                listing?: {
+                    district: string | null;
+                    fromNightlyRateRwf: number | null;
+                    maxGuests: number | null;
+                    roomTypes: number;
+                    photoUrl: string | null;
+                } | undefined;
             }[];
             proposals: {
                 kind: "room_type.price";
@@ -1214,6 +1727,10 @@ export declare const ClaimAssistantConversationResult: z.ZodObject<{
             helpful: boolean | null;
         }[];
         turnsLeft: number;
+        suggestions: {
+            message: string;
+            label: string;
+        }[];
     }, {
         id: string;
         surface: "admin" | "web" | "app" | "mobile";
@@ -1229,6 +1746,13 @@ export declare const ClaimAssistantConversationResult: z.ZodObject<{
                 id: string;
                 title: string;
                 href: string | null;
+                listing?: {
+                    district: string | null;
+                    fromNightlyRateRwf: number | null;
+                    maxGuests: number | null;
+                    roomTypes: number;
+                    photoUrl: string | null;
+                } | undefined;
             }[];
             proposals: {
                 kind: "room_type.price";
@@ -1246,6 +1770,10 @@ export declare const ClaimAssistantConversationResult: z.ZodObject<{
             helpful: boolean | null;
         }[];
         turnsLeft: number;
+        suggestions: {
+            message: string;
+            label: string;
+        }[];
     }>>;
 }, "strip", z.ZodTypeAny, {
     conversation: {
@@ -1263,6 +1791,13 @@ export declare const ClaimAssistantConversationResult: z.ZodObject<{
                 id: string;
                 title: string;
                 href: string | null;
+                listing?: {
+                    district: string | null;
+                    fromNightlyRateRwf: number | null;
+                    maxGuests: number | null;
+                    roomTypes: number;
+                    photoUrl: string | null;
+                } | undefined;
             }[];
             proposals: {
                 kind: "room_type.price";
@@ -1280,6 +1815,10 @@ export declare const ClaimAssistantConversationResult: z.ZodObject<{
             helpful: boolean | null;
         }[];
         turnsLeft: number;
+        suggestions: {
+            message: string;
+            label: string;
+        }[];
     } | null;
     claimed: boolean;
 }, {
@@ -1298,6 +1837,13 @@ export declare const ClaimAssistantConversationResult: z.ZodObject<{
                 id: string;
                 title: string;
                 href: string | null;
+                listing?: {
+                    district: string | null;
+                    fromNightlyRateRwf: number | null;
+                    maxGuests: number | null;
+                    roomTypes: number;
+                    photoUrl: string | null;
+                } | undefined;
             }[];
             proposals: {
                 kind: "room_type.price";
@@ -1315,6 +1861,10 @@ export declare const ClaimAssistantConversationResult: z.ZodObject<{
             helpful: boolean | null;
         }[];
         turnsLeft: number;
+        suggestions: {
+            message: string;
+            label: string;
+        }[];
     } | null;
     claimed: boolean;
 }>;
