@@ -75,6 +75,12 @@ export function clock(iso: string): string {
   }).format(new Date(iso));
 }
 
+/** Minutes as hours and minutes: `7 h 05`, `45 min`. */
+export function hoursText(minutes: number): string {
+  if (minutes < 60) return `${minutes} min`;
+  return `${Math.floor(minutes / 60)} h ${String(minutes % 60).padStart(2, "0")}`;
+}
+
 /** Days as a person says them: `1 day`, `1.5 days`. */
 export function daysText(days: number): string {
   const n = Number.isInteger(days) ? String(days) : days.toFixed(1);

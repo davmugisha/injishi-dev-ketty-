@@ -322,8 +322,8 @@ export const WORKSPACE_ROUTES: readonly string[] = [
   "settings/plan",
   "settings/policies",
   "setup",
-  // Staff, the HR module (ADR-058): its lenses, a file with its tabs
-  // (058-people-file), and a pay run.
+  // Staff, the HR module (ADR-058): its lenses (058-time's among them), a
+  // file with its tabs (058-people-file), and a pay run.
   "staff",
   "staff/*",
   "staff/*/contracts",
@@ -335,15 +335,21 @@ export const WORKSPACE_ROUTES: readonly string[] = [
   "staff/*/work",
   "staff/announcements",
   "staff/attendance",
+  "staff/attendance-requests",
   "staff/configuration",
   "staff/discipline",
   "staff/documents",
+  "staff/kiosks",
   "staff/leave",
   "staff/org-chart",
   "staff/payroll",
   "staff/payroll/*",
   "staff/policies",
   "staff/roster",
+  "staff/rotations",
+  "staff/shift-requests",
+  "staff/time-insights",
+  "staff/time-settings",
   "stays/*",
   "stays/*/documents",
   "stays/*/folio",

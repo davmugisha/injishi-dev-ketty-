@@ -194,11 +194,17 @@ export const STAFF_LENSES: readonly {
     | "documents"
     | "discipline"
     | "roster"
+    | "rotations"
+    | "shift-requests"
     | "attendance"
+    | "attendance-requests"
+    | "kiosks"
     | "leave"
     | "payroll"
+    | "time-insights"
     | "policies"
     | "announcements"
+    | "time-settings"
     | "configuration";
   label: string;
   /** The route segment under `/staff`; empty for the default lens. */
@@ -210,11 +216,23 @@ export const STAFF_LENSES: readonly {
   { key: "documents", label: "Documents", segment: "documents", anyPermission: ["people.manage"] },
   { key: "discipline", label: "Discipline", segment: "discipline", anyPermission: ["people.manage"] },
   { key: "roster", label: "Roster", segment: "roster", anyPermission: ["roster.manage", "attendance.record", "people.view"] },
+  // Time (058-time AC-TM14). Each lens opens on the reads it makes.
+  { key: "rotations", label: "Rotations", segment: "rotations", anyPermission: ["roster.manage", "attendance.record"] },
+  { key: "shift-requests", label: "Shift requests", segment: "shift-requests", anyPermission: ["roster.manage"] },
   { key: "attendance", label: "Attendance", segment: "attendance", anyPermission: ["attendance.record", "attendance.approve"] },
+  { key: "attendance-requests", label: "Attendance requests", segment: "attendance-requests", anyPermission: ["attendance.approve"] },
+  { key: "kiosks", label: "Kiosks", segment: "kiosks", anyPermission: ["attendance.record"] },
   { key: "leave", label: "Leave", segment: "leave", anyPermission: ["leave.approve"] },
   { key: "payroll", label: "Payroll", segment: "payroll", anyPermission: ["payroll.run"] },
+  { key: "time-insights", label: "Late and monthly", segment: "time-insights", anyPermission: ["people.manage"] },
   { key: "policies", label: "Policies", segment: "policies", anyPermission: HR_PERMISSIONS },
   { key: "announcements", label: "Announcements", segment: "announcements", anyPermission: HR_PERMISSIONS },
+  {
+    key: "time-settings",
+    label: "Time settings",
+    segment: "time-settings",
+    anyPermission: ["roster.manage", "attendance.record", "attendance.approve", "people.manage"],
+  },
   { key: "configuration", label: "Configuration", segment: "configuration", anyPermission: ["people.manage"] },
 ];
 

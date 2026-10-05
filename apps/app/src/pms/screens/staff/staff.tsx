@@ -4,13 +4,14 @@
  * Staff: everyone who works here, account or not, their files, shifts,
  * attendance, leave and pay (ADR-058).
  *
- * Eleven lenses, each opened by the permission its own read needs
+ * Seventeen lenses, each opened by the permission its own read needs
  * (`STAFF_LENSES` in `lib/nav.ts`, the one table). The leaf is reached by any
- * HR permission, so the rail differs by person: an owner sees all eleven, a
- * manager everything but the owner's (documents, discipline, payroll and
- * configuration), the desk Roster, Attendance, Policies and Announcements. A
- * lens the grant does not reach is not offered, and typed by URL it says so
- * rather than opening empty.
+ * HR permission, so the rail differs by person: an owner sees all seventeen, a
+ * manager everything but the owner's (documents, discipline, payroll, the late
+ * and monthly insights and configuration), the desk Roster, Rotations,
+ * Attendance, Kiosks, Policies, Announcements and Time settings. A lens the
+ * grant does not reach is not offered, and typed by URL it says so rather than
+ * opening empty.
  */
 
 import type { ComponentType } from "react";
@@ -23,15 +24,21 @@ import { usePms } from "../../store";
 import { currentGrant } from "../../store/helpers";
 import { Announcements } from "./announcements";
 import { Attendance } from "./attendance";
+import { AttendanceRequests } from "./attendance-requests";
 import { Configuration } from "./configuration";
 import { Discipline } from "./discipline";
 import { Documents } from "./documents";
 import { Employees } from "./employees";
+import { Kiosks } from "./kiosks";
 import { Leave } from "./leave";
 import { OrgChart } from "./org-chart";
 import { Payroll } from "./payroll";
 import { Policies } from "./policies";
 import { Roster } from "./roster";
+import { Rotations } from "./rotations";
+import { ShiftRequests } from "./shift-requests";
+import { TimeInsights } from "./time-insights";
+import { TimeSettings } from "./time-settings";
 
 export type StaffLens = (typeof STAFF_LENSES)[number]["key"];
 
@@ -41,11 +48,17 @@ const LENS_SCREEN: Record<StaffLens, ComponentType> = {
   documents: Documents,
   discipline: Discipline,
   roster: Roster,
+  rotations: Rotations,
+  "shift-requests": ShiftRequests,
   attendance: Attendance,
+  "attendance-requests": AttendanceRequests,
+  kiosks: Kiosks,
   leave: Leave,
   payroll: Payroll,
+  "time-insights": TimeInsights,
   policies: Policies,
   announcements: Announcements,
+  "time-settings": TimeSettings,
   configuration: Configuration,
 };
 

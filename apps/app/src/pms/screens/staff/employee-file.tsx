@@ -45,6 +45,7 @@ import {
   Skeleton,
 } from "../../components/ui";
 import { VillagePicker } from "../../components/village-picker";
+import { KioskPinCard } from "./kiosk-pin-card";
 import { useCapability, useWorkspaceId } from "../../data/capability";
 import {
   useCreateContract,
@@ -147,6 +148,7 @@ function FileBody({ file, lens }: { file: EmployeeFileData; lens: FileLens }) {
         ) : lens === "work" ? (
           <>
             <Work file={file} mayManage={mayManage && !left} />
+            {!left && (mayManage || can("attendance.record")) && <KioskPinCard employeeId={e.id} name={e.displayName} />}
             <Departments file={file} />
             {!left && mayManage && <Offboard file={file} />}
             {left && e.view === "full" && e.offboardReason && (

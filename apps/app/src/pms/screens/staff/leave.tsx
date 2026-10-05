@@ -148,8 +148,9 @@ export function Leave() {
     <div className="pms-enter flex max-w-page flex-col gap-4">
       <div className="flex flex-wrap items-center gap-2">
         <span className="flex-1 text-sm text-muted-foreground">
-          Days are counted on the days a person is rostered, or Monday to Friday where they are not;
-          public holidays never count.
+          Days are counted on the days a person is rostered, or, where they are not, on the days that are not
+          the branch&apos;s weekly days off (Monday to Friday when none are set). Public holidays and the
+          business&apos;s own never count.
         </span>
         {(can("leave.approve") || can("people.manage")) && !filing && (
           <ActionButton variant="primary" onClick={() => setFiling(true)}>

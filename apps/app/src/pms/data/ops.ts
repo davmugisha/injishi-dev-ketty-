@@ -161,6 +161,16 @@ export const OPS_READ = {
   staffAnnouncements: HR_PERMISSIONS,
   hrCatalog: HR_PERMISSIONS,
   hrSettings: HR_PERMISSIONS,
+  // Time (058-time). The week grid reads like the roster (`roster` above).
+  rotationPatterns: ["roster.manage", "attendance.record"],
+  rotationAssignments: ["roster.manage"],
+  shiftRequests: ["roster.manage"],
+  attendanceRequests: ["attendance.approve"],
+  attendanceSettings: ["roster.manage", "attendance.record", "attendance.approve", "people.manage"],
+  kiosks: ["attendance.record"],
+  kioskPin: ["people.manage", "attendance.record"],
+  hrHolidays: ["people.view", "people.manage", "roster.manage", "attendance.approve", "leave.approve"],
+  timeInsights: ["people.manage"],
 } as const satisfies Record<string, readonly Permission[]>;
 
 /**

@@ -1,12 +1,13 @@
 "use client";
 
 /**
- * Staff · Roster (ADR-058, AC-T1 to AC-T3, AC-T6).
+ * Staff · Roster (ADR-058, AC-T1 to AC-T3, AC-T6; 058-time AC-TM1, AC-TM14).
  *
- * Who is on which shift, at the branches you cover. The list is the shared
- * `DataView` over `ROSTER_LIST` (058-list-framework): with no day filter it
- * reads this week, Monday to Sunday, and grouping by day lays it out as one.
- * The week grid per branch and department is 058-time's; this is the list.
+ * Who is on which shift, at the branches you cover. On top, the week grid of
+ * one branch (and department) with its drafts and the publish bar
+ * (`roster-week.tsx`). Beneath it the list, the shared `DataView` over
+ * `ROSTER_LIST` (058-list-framework): with no day filter it reads this week,
+ * Monday to Sunday, and grouping by day lays it out as one.
  *
  * Two people cannot overlap themselves, and the DATABASE refuses it, so two
  * managers rostering the same cook at once cannot both succeed. A day inside
@@ -35,6 +36,7 @@ import {
 import { dshortIso, todayIso } from "../../lib/format";
 import { usePms } from "../../store";
 import { currentGrant } from "../../store/helpers";
+import { RosterWeekGrid } from "./roster-week";
 import { Field, FormError, RowList, clock, inputClass, rowClass } from "./staff-ui";
 
 export function Roster() {
@@ -53,7 +55,15 @@ export function Roster() {
   const createTemplate = useCreateShiftTemplate(workspaceId);
   const branches = currentGrant(state)?.branches ?? [];
   const [pick, setPick] = useState({ employeeId: "", shiftTemplateId: "" });
-  const [shiftForm, setShiftForm] = useState<null | { name: string; propertyId: string; startsAt: string; endsAt: string; breakMinutes: string }>(null);
+  const [shiftForm, setShiftForm] = useState<null | {
+    name: string;
+    propertyId: string;
+    startsAt: string;
+    endsAt: string;
+    breakMinutes: string;
+    minWorkMinutes: string;
+    autoClockOutMinutes: string;
+  }>(null);
 
   const branchName = (id: string) => branches.find((b) => b.id === id)?.name ?? "";
 
@@ -112,6 +122,8 @@ export function Roster() {
 
   return (
     <div className="pms-enter flex max-w-page flex-col gap-4">
+      <RosterWeekGrid />
+
       {mayRoster && (
         <form
           className="flex flex-wrap items-end gap-3 rounded-card border border-card-bd bg-card p-4"
@@ -218,7 +230,15 @@ export function Roster() {
           {mayRoster && !shiftForm && (
             <ActionButton
               onClick={() =>
-                setShiftForm({ name: "", propertyId: branches[0]?.id ?? "", startsAt: "07:00", endsAt: "15:00", breakMinutes: "0" })
+                setShiftForm({
+                  name: "",
+                  propertyId: branches[0]?.id ?? "",
+                  startsAt: "07:00",
+                  endsAt: "15:00",
+                  breakMinutes: "0",
+                  minWorkMinutes: "",
+                  autoClockOutMinutes: "",
+                })
               }
             >
               New shift
@@ -237,6 +257,8 @@ export function Roster() {
                   startsAt: shiftForm.startsAt,
                   endsAt: shiftForm.endsAt,
                   breakMinutes: Number(shiftForm.breakMinutes) || 0,
+                  minWorkMinutes: shiftForm.minWorkMinutes.trim() === "" ? null : Number(shiftForm.minWorkMinutes),
+                  autoClockOutMinutes: shiftForm.autoClockOutMinutes.trim() === "" ? null : Number(shiftForm.autoClockOutMinutes),
                 },
                 {
                   onSuccess: (s) => {
@@ -268,6 +290,12 @@ export function Roster() {
               <Field label="Break (minutes)" htmlFor="hr-shift-break">
                 <Input id="hr-shift-break" inputMode="numeric" value={shiftForm.breakMinutes} onChange={(e) => setShiftForm({ ...shiftForm, breakMinutes: e.target.value })} className={inputClass} />
               </Field>
+              <Field label="Minimum work (minutes)" hint="Overtime counts past this. Empty: the shift's length less its break." htmlFor="hr-shift-min">
+                <Input id="hr-shift-min" inputMode="numeric" value={shiftForm.minWorkMinutes} onChange={(e) => setShiftForm({ ...shiftForm, minWorkMinutes: e.target.value })} className={inputClass} />
+              </Field>
+              <Field label="Clock out by itself after (minutes)" hint="Past the shift's end, for whoever forgets. Empty: never." htmlFor="hr-shift-auto">
+                <Input id="hr-shift-auto" inputMode="numeric" value={shiftForm.autoClockOutMinutes} onChange={(e) => setShiftForm({ ...shiftForm, autoClockOutMinutes: e.target.value })} className={inputClass} />
+              </Field>
             </div>
             <FormError error={createTemplate.error} />
             <div className="flex justify-end gap-2">
@@ -295,6 +323,9 @@ export function Roster() {
                   <span className="flex-1 text-sm font-semibold text-ink">{s.name}</span>
                   {branches.length > 1 && <span className="text-2xs text-muted-foreground">{branchName(s.propertyId)}</span>}
                   {s.crossesMidnight && <Badge intent="info">Overnight</Badge>}
+                  {s.autoClockOutMinutes !== null && (
+                    <span className="text-2xs text-muted-foreground">clocks out {s.autoClockOutMinutes} min after</span>
+                  )}
                 </div>
               ))}
             </RowList>
