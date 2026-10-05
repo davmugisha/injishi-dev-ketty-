@@ -279,6 +279,8 @@ export class ListingRepository {
         name: properties.name,
         description: properties.description,
         districtName: districts.name,
+        latitude: properties.latitude,
+        longitude: properties.longitude,
         fromNightlyRateRwf: sql<number | null>`min(${roomTypes.basePriceRwf}) filter (where ${roomTypes.status} = 'active' and ${roomTypes.domain} = 'hospitality')`,
         maxGuests: sql<number | null>`max(${roomTypes.capacity}) filter (where ${roomTypes.status} = 'active')`,
         roomTypeCount: sql<number>`count(${roomTypes.id}) filter (where ${roomTypes.status} = 'active')::int`,
@@ -319,6 +321,9 @@ export class ListingRepository {
       name: row.name,
       description: row.description ?? null,
       districtName: row.districtName ?? null,
+      // numeric columns come back as strings from pg; normalise to number|null.
+      latitude: row.latitude === null ? null : Number(row.latitude),
+      longitude: row.longitude === null ? null : Number(row.longitude),
       photoIds: photoIdsByProperty.get(row.id) ?? [],
       // Aggregates over bigint come back as strings from pg.
       fromNightlyRateRwf: row.fromNightlyRateRwf === null ? null : Number(row.fromNightlyRateRwf),

@@ -1,4 +1,5 @@
 import type { AccommodationClass } from "@injishi/contracts";
+import { approximateLocation } from "@/data/approximate-location";
 import type { DistrictSlug } from "@/data/search-options";
 import type {
   Amenity,
@@ -82,10 +83,29 @@ export interface Listing {
   image: GalleryImage;
   /** Every photograph, so the result card can run a carousel. */
   gallery: GalleryImage[];
+  /**
+   * Where the Explore map pins the stay: the property's public coordinates
+   * when it has set them, otherwise its neighbourhood's (or district's)
+   * centre — see `data/approximate-location.ts`. Null only when neither is
+   * known; a card without a point simply has no pin.
+   */
+  latitude: number | null;
+  longitude: number | null;
+  /** True when the point above is a neighbourhood centre, not an address. */
+  locationApproximate: boolean;
 }
 
 /** One property as an Explore card. Exported for the database half of discovery (`data/discovery.ts`). */
 export function listingFor(property: PropertyDetail): Listing {
+  const { latitude, longitude } = property.place;
+  const exact = latitude !== null && longitude !== null;
+  const point = exact
+    ? { latitude, longitude }
+    : approximateLocation(
+        property.slug,
+        property.place.addressLines[0] ?? property.location.split(",")[0],
+        property.district,
+      );
   return {
     slug: property.slug,
     nameLead: property.cardName.lead,
@@ -107,6 +127,9 @@ export function listingFor(property: PropertyDetail): Listing {
     // slide one, and a carousel whose first two frames are the same photograph
     // reads as a broken carousel rather than as a short one.
     gallery: dedupeByStem([property.cardImage, ...property.gallery]),
+    latitude: point?.latitude ?? null,
+    longitude: point?.longitude ?? null,
+    locationApproximate: !exact && point !== null,
   };
 }
 

@@ -99,6 +99,7 @@ import { fileURLToPath } from 'node:url';
 import pg from 'pg';
 
 import { assertSampleDatabase } from './sample-database.mjs';
+import { syntheticCoordFor } from './synthetic-coords.mjs';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
@@ -802,6 +803,13 @@ function cheapestRoomType(entry) {
   return entry.roomTypes.reduce((best, rt) => (rt.rateRwf < best.rateRwf ? rt : best));
 }
 
+function syntheticCoordinateFor(entry) {
+  if (entry.latitude != null && entry.longitude != null) {
+    return [entry.latitude, entry.longitude];
+  }
+  return syntheticCoordFor({ district: entry.district, seed: entry.slug });
+}
+
 async function reset(client) {
   // A booking outlives the seed that made its room bookable. Deleting the room
   // type under it would either fail on the foreign key or, worse, succeed and
@@ -930,6 +938,7 @@ async function seed(client) {
     // 5. Property. No photograph: ADR-053 moved them into `property_photos`, and
     //    this seed has no bytes to put in the bucket. So a catalogue property
     //    cannot be published until one is attached — see the header.
+    const [demoLatitude, demoLongitude] = syntheticCoordinateFor(entry);
     await client.query(
       `insert into properties (id, org_id, workspace_id, name, description, district_id,
                                latitude, longitude, location_privacy, check_in_time,
@@ -951,8 +960,8 @@ async function seed(client) {
         `${entry.name}${DEMO_NAME_SUFFIX}`,
         demoDescription(entry, cheapest),
         districtId.get(entry.district.toLowerCase()) ?? null,
-        entry.latitude,
-        entry.longitude,
+        demoLatitude,
+        demoLongitude,
         DEMO_HOUSE_RULES,
         `DEMO SAMPLE — ${entry.address}`,
       ],

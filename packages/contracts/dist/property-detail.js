@@ -74,5 +74,12 @@ exports.PropertyCard = zod_1.z.object({
     /** The most guests any active room type sleeps; null when none states it. */
     maxGuests: zod_1.z.number().int().positive().nullable(),
     roomTypeCount: zod_1.z.number().int().nonnegative(),
+    /**
+     * The property's public coordinates, for the Explore map. Null when the
+     * property has never set them; a card without a point simply has no pin.
+     * The exact lat/lng is the same signal the public address already carries.
+     */
+    latitude: zod_1.z.number().gte(-90).lte(90).nullable(),
+    longitude: zod_1.z.number().gte(-180).lte(180).nullable(),
 });
 //# sourceMappingURL=property-detail.js.map

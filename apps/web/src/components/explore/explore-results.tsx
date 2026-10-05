@@ -1,6 +1,8 @@
 "use client";
 
 import { Button } from "@injishi/ui";
+import { cn } from "@injishi/utils";
+import { CompareToggle } from "@/components/explore/compare";
 import { Pagination } from "@/components/explore/pagination";
 import {
   BrandRail,
@@ -9,6 +11,7 @@ import {
   SupportInterstitial,
 } from "@/components/explore/result-interstitials";
 import { ResultCard } from "@/components/explore/result-card";
+import { ResultCardVertical } from "@/components/explore/result-card-vertical";
 import { LISTINGS, type Listing } from "@/data/listings";
 import { SEARCH_DISTRICTS } from "@/data/search-options";
 import type { ExploreRefinement, StayIntent } from "@/lib/search-params";
@@ -31,6 +34,11 @@ export function ExploreResults({
   onPageChange,
   onClearAll,
   onPickDistrict,
+  hoveredSlug,
+  onCardHover,
+  cardVariant = "horizontal",
+  wide = false,
+  compare,
 }: {
   results: Listing[];
   intent: StayIntent;
@@ -38,7 +46,46 @@ export function ExploreResults({
   onPageChange: (page: number) => void;
   onClearAll: () => void;
   onPickDistrict: (slug: string) => void;
+  hoveredSlug: string | null;
+  onCardHover: (slug: string | null) => void;
+  /** `vertical` is used inside the split-with-map layout; `horizontal` is the
+   * default full-width list. */
+  cardVariant?: "horizontal" | "vertical";
+  /** The grid has the whole width (no map beside it): more columns. */
+  wide?: boolean;
+  /** Compare mode: a checkbox over every card. Absent when the mode is off. */
+  compare?: {
+    selected: readonly string[];
+    full: boolean;
+    onToggle: (slug: string) => void;
+  };
 }) {
+  // The compare checkbox rides over the card's photo, top-left (the save
+  // heart owns top-right), outside the card so neither card shape changes.
+  const withCompare = (listing: Listing, card: React.ReactNode) => {
+    if (!compare) return card;
+    const selected = compare.selected.includes(listing.slug);
+    return (
+      <div
+        key={listing.slug}
+        className={cn(
+          "relative rounded-card transition-shadow duration-quick",
+          selected && "ring-2 ring-accent ring-offset-2 ring-offset-background",
+        )}
+      >
+        {card}
+        <div className="absolute left-3 top-3 z-30">
+          <CompareToggle
+            listing={listing}
+            selected={selected}
+            disabled={compare.full && !selected}
+            onToggle={compare.onToggle}
+          />
+        </div>
+      </div>
+    );
+  };
+
   const firstPageSize = PAGE_SIZE - INTERSTITIAL_SLOTS.length;
   const pageCount =
     results.length <= firstPageSize
@@ -62,12 +109,52 @@ export function ExploreResults({
     );
   }
 
+  if (cardVariant === "vertical") {
+    // Split-view mode: no interstitials (they are designed for the full-width
+    // horizontal list), compact cards, two per row on wider breakpoints.
+    return (
+      <>
+        <div
+          data-result-list
+          data-variant="vertical"
+          className={cn(
+            "grid grid-cols-1 gap-x-6 gap-y-10 sm:grid-cols-2",
+            wide && "lg:grid-cols-3 xl:grid-cols-4",
+          )}
+        >
+          {pageResults.map((listing) =>
+            withCompare(
+              listing,
+              <ResultCardVertical
+                key={listing.slug}
+                listing={listing}
+                intent={intent}
+                highlighted={hoveredSlug === listing.slug}
+                onHover={onCardHover}
+              />,
+            ),
+          )}
+        </div>
+        <Pagination page={currentPage} pageCount={pageCount} onPageChange={onPageChange} />
+      </>
+    );
+  }
+
   return (
     <>
       <div data-result-list className="flex flex-col gap-4">
         {pageResults.flatMap((listing, index) => {
           const row: React.ReactNode[] = [
-            <ResultCard key={listing.slug} listing={listing} intent={intent} />,
+            withCompare(
+              listing,
+              <ResultCard
+                key={listing.slug}
+                listing={listing}
+                intent={intent}
+                highlighted={hoveredSlug === listing.slug}
+                onHover={onCardHover}
+              />,
+            ),
           ];
           // The three interstitials ride the first page only: repeating a
           // promo under every page turn would read as another result rather
