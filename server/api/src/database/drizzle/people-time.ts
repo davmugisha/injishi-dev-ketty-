@@ -13,7 +13,7 @@
  * Three columns on slice 1's tables point INTO this file
  * (`roster_entries.rotation_assignment_id`, `roster_entries.shift_request_id`,
  * `attendance_records.kiosk_id`). Their foreign keys are hand written in
- * migration 0057, below its marker, because declaring them here would make
+ * migration 0059, below its marker, because declaring them here would make
  * people.ts and this file import each other.
  */
 import { sql } from 'drizzle-orm';

@@ -297,7 +297,7 @@ export const employees = pgTable(
     /**
      * Where service based rules count from: the hire date, unless a rehire is
      * credited with the earlier employment (AC-PF14). Backfilled from
-     * `hired_on` by migration 0055, and written with it on every create.
+     * `hired_on` by migration 0057, and written with it on every create.
      */
     serviceFrom: date('service_from').notNull(),
     ...timestamps,
@@ -373,7 +373,7 @@ export const employmentContracts = pgTable(
     status: hrContractStatusEnum('status').notNull(),
     endReason: text('end_reason'),
     // 058-payroll: the components the contract carries, its notice and its paper.
-    /** Its foreign key to `pay_structures` is hand written in migration 0060 (people-pay.ts imports this file). */
+    /** Its foreign key to `pay_structures` is hand written in migration 0062 (people-pay.ts imports this file). */
     payStructureId: uuid('pay_structure_id'),
     noticeDays: integer('notice_days'),
     documentKey: text('document_key'),
@@ -528,13 +528,13 @@ export const rosterEntries = pgTable(
     cancelReason: text('cancel_reason'),
     createdByUserId: uuid('created_by_user_id').references(() => users.id),
     /**
-     * Null: a draft only managers see (058-time AC-TM1). Migration 0057 stamps
+     * Null: a draft only managers see (058-time AC-TM1). Migration 0059 stamps
      * every entry slice 1 wrote with its `created_at`.
      */
     publishedAt: timestamp('published_at', { withTimezone: true }),
-    /** The rotation assignment that generated it (AC-TM3); its foreign key is hand written in 0057. */
+    /** The rotation assignment that generated it (AC-TM3); its foreign key is hand written in 0059. */
     rotationAssignmentId: uuid('rotation_assignment_id'),
-    /** The approved shift or swap request that wrote it (AC-TM5); its foreign key is hand written in 0057. */
+    /** The approved shift or swap request that wrote it (AC-TM5); its foreign key is hand written in 0059. */
     shiftRequestId: uuid('shift_request_id'),
     ...timestamps,
   },
@@ -590,7 +590,7 @@ export const attendanceRecords = pgTable(
     outLongitude: numeric('out_longitude', { precision: 9, scale: 6 }),
     outAccuracyM: integer('out_accuracy_m'),
     outDistanceM: integer('out_distance_m'),
-    /** The kiosk a punch came from (AC-TM10); its foreign key is hand written in 0057. */
+    /** The kiosk a punch came from (AC-TM10); its foreign key is hand written in 0059. */
     kioskId: uuid('kiosk_id'),
     // AC-TM7, computed when the record closes, whole minutes; null while open.
     lateMinutes: integer('late_minutes'),
@@ -750,7 +750,7 @@ export const leaveLedgerEntries = pgTable(
      * `reversal` copies the row it reverses.
      */
     lotId: uuid('lot_id').references((): AnyPgColumn => leaveLedgerEntries.id),
-    /** The allocation request an `adjustment` answers; its foreign key is in migration 0058. */
+    /** The allocation request an `adjustment` answers; its foreign key is in migration 0060. */
     allocationRequestId: uuid('allocation_request_id'),
     /** Null: the daily job wrote it. */
     createdByUserId: uuid('created_by_user_id').references(() => users.id),

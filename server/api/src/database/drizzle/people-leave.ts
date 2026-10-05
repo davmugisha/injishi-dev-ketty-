@@ -7,7 +7,7 @@
  * A restricted period is a setting, edited in place.
  *
  * `leave_ledger_entries.allocation_request_id` points INTO this file; its
- * foreign key is hand written in migration 0058, below its marker, because
+ * foreign key is hand written in migration 0060, below its marker, because
  * declaring it here would make people.ts and this file import each other.
  */
 import { sql } from 'drizzle-orm';

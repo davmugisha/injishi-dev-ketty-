@@ -727,7 +727,7 @@ export const domainEventTypeEnum = pgEnum('domain_event_type', [
   'ebm.sale',
   /**
    * ADR-058 058-reports-automations AC-AU1: the closed list of HR triggers, all
-   * added at once in their own migration (0056) so every HR slice writes its
+   * added at once in their own migration (0058) so every HR slice writes its
    * events as it is built and the delivery slice only adds rules. Ids only in
    * the payload, as every outbox row. The realtime fan out ignores them.
    */

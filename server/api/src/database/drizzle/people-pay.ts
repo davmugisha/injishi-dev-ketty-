@@ -9,7 +9,7 @@
  * claims and installments. Exports and declarations are append only.
  *
  * `employment_contracts.pay_structure_id` points INTO this file; its foreign
- * key is hand written in migration 0060, below its marker, because declaring
+ * key is hand written in migration 0062, below its marker, because declaring
  * it here would make people.ts and this file import each other.
  */
 import { sql } from 'drizzle-orm';
