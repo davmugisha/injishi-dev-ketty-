@@ -48,6 +48,20 @@ x-api-env: &api-env
   # as captured; the API now refuses to boot on `real` with mock or unset
   # (booking audit, 2026-09-13). `live` only once a live adapter is registered.
   PAYMENT_ADAPTER_MODE: "off"
+  # The support assistant (ADR-061). Off unless the host env file turns it on. `live` needs ANTHROPIC_API_KEY from the host env file, never from this file, and the API refuses to boot on `live` without it.
+  ASSISTANT_ADAPTER_MODE: ${ASSISTANT_ADAPTER_MODE:-off}
+  ASSISTANT_MODEL: ${ASSISTANT_MODEL:-claude-sonnet-5-5}
+  ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+  # Spending limits and prices (ADR-061 D-s, D-t), from the host env file. A
+  # blank value means the API's default: no monthly ceiling (the boot log says
+  # so on live), 30 model answers a day, and Sonnet 5.5's published prices.
+  ASSISTANT_MONTHLY_BUDGET_USD: ${ASSISTANT_MONTHLY_BUDGET_USD:-}
+  ASSISTANT_AI_TURNS_PER_DAY: ${ASSISTANT_AI_TURNS_PER_DAY:-}
+  ASSISTANT_MAX_OUTPUT_TOKENS: ${ASSISTANT_MAX_OUTPUT_TOKENS:-}
+  ASSISTANT_PRICE_INPUT_PER_MTOK_USD: ${ASSISTANT_PRICE_INPUT_PER_MTOK_USD:-}
+  ASSISTANT_PRICE_OUTPUT_PER_MTOK_USD: ${ASSISTANT_PRICE_OUTPUT_PER_MTOK_USD:-}
+  ASSISTANT_PRICE_CACHE_READ_PER_MTOK_USD: ${ASSISTANT_PRICE_CACHE_READ_PER_MTOK_USD:-}
+  ASSISTANT_PRICE_CACHE_WRITE_PER_MTOK_USD: ${ASSISTANT_PRICE_CACHE_WRITE_PER_MTOK_USD:-}
   # Money alarms (STUCK MONEY, UNRECORDED COMPENSATION, a refused queue wake)
   # and what breaks (a request that fails with a 500, a fault inside Better
   # Auth, a job failing its last attempt, a process that dies) go to Sentry

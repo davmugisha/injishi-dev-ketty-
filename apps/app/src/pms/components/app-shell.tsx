@@ -19,6 +19,7 @@ import { allowedSegments, navFor, opensOnPhoneSurface, workspaceHome } from "../
 import { navContextOf } from "../lib/nav-context";
 import { usePms } from "../store";
 import { usePmsUi } from "../ui-store";
+import { AssistantPanel } from "./assistant/assistant-panel";
 import { CheckInDrawer } from "./check-in-drawer";
 import { CommandBar } from "./command-bar";
 import { DemoGuide } from "./demo-guide/demo-guide";
@@ -201,6 +202,8 @@ export function AppShell({ title, children }: { title: string; children: ReactNo
       </div>
 
       <CommandBar />
+      {/* The support assistant (ADR-061). Draws nothing when the API has it off. */}
+      <AssistantPanel />
       {/* Check-in / walk-in is a hospitality-only flow — the drawer reads the
           host property, which the landlord workspace does not have. */}
       {state.ws === "host" && <CheckInDrawer />}

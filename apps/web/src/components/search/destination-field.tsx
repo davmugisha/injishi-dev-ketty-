@@ -27,6 +27,8 @@ export function DestinationField({
   placeholder,
   inputRef,
   placement = "bottom",
+  inputClassName,
+  onFocus,
 }: {
   query: string;
   onQueryChange: (value: string) => void;
@@ -35,6 +37,9 @@ export function DestinationField({
   placeholder: string;
   inputRef: React.RefObject<HTMLInputElement | null>;
   placement?: "top" | "bottom";
+  /** Appended to the input's classes; Explore's bar follows the theme. */
+  inputClassName?: string;
+  onFocus?: () => void;
 }) {
   const [active, setActive] = useState(0);
   const listRef = useRef<HTMLUListElement>(null);
@@ -127,7 +132,11 @@ export function DestinationField({
           setActive(0);
         }}
         onKeyDown={onKeyDown}
-        className="w-full min-w-0 border-0 px-0 py-0 text-base leading-tight shadow-none outline-none [--field-foreground:var(--color-ink)] [--field-focus:transparent] [--field-hover:transparent] [--field:transparent] [--focus:transparent] placeholder:text-ink/65"
+        onFocus={onFocus}
+        className={cn(
+          "w-full min-w-0 border-0 px-0 py-0 text-base leading-tight shadow-none outline-none [--field-foreground:var(--color-ink)] [--field-focus:transparent] [--field-hover:transparent] [--field:transparent] [--focus:transparent] placeholder:text-ink/65",
+          inputClassName,
+        )}
       />
 
       {open ? (

@@ -76,13 +76,15 @@ describe('ListingService, public photographs', () => {
     expect(JSON.stringify(detail)).not.toContain('property_photo/');
   });
 
-  it('puts photo route URLs on the discovery cards too, and no key', async () => {
+  it('puts photo route URLs on the discovery cards too, and no key, and passes coords through', async () => {
     const card: PublicPropertyCardRecord = {
       id: record.id,
       slug: 'umurage-guesthouse',
       name: record.name,
       description: null,
       districtName: record.districtName,
+      latitude: -1.9536,
+      longitude: 30.0605,
       photoIds: [PHOTO_B],
       fromNightlyRateRwf: 45_000,
       maxGuests: 2,
@@ -92,6 +94,8 @@ describe('ListingService, public photographs', () => {
     const [listed] = await service.listPublishedProperties();
     expect(listed.photos).toEqual([photoRouteUrl(ORIGIN, PHOTO_B)]);
     expect(listed).not.toHaveProperty('photoIds');
+    expect(listed.latitude).toBe(-1.9536);
+    expect(listed.longitude).toBe(30.0605);
   });
 
   it("puts the cover's photo route URL on the checkout read, or null without a photo", async () => {

@@ -10,7 +10,10 @@ import { PublishedStays } from "@/components/home/published-stays";
 import { StaysForEveryTrip } from "@/components/home/stays-for-every-trip";
 import { StaysThisWeek } from "@/components/home/stays-this-week";
 import { WhyBook } from "@/components/home/why-book";
+import { ContinueBrowsing } from "@/components/stays/recently-viewed";
 import { databaseListings } from "@/data/discovery";
+import { LISTINGS } from "@/data/listings";
+import { toRecentStay } from "@/data/recent-stay";
 
 /**
  * The landing page, in the ADR-022 band order.
@@ -32,6 +35,8 @@ export default async function HomePage() {
   return (
     <div className="flex flex-col overflow-x-hidden">
       <HomeHero />
+      {/* Empty, and so absent, until the visitor has opened a stay. */}
+      <ContinueBrowsing stays={[...published, ...LISTINGS].map(toRecentStay)} />
       <PromoBar />
       <StaysThisWeek />
       <PublishedStays listings={published} />

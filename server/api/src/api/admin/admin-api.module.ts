@@ -1,5 +1,6 @@
 import { Module } from '@nestjs/common';
 
+import { AssistantAdminModule } from './assistant/assistant-admin.module';
 import { FinanceAdminModule } from './finance/finance-admin.module';
 import { OrgsAdminModule } from './orgs/orgs-admin.module';
 import { PlatformAdminModule } from './platform/platform-admin.module';
@@ -56,6 +57,8 @@ import { WaitlistAdminModule } from './waitlist/waitlist-admin.module';
     // ADR-049. The first area whose routes a NON-platform staff role reaches:
     // `trainer` holds `training.*` and no `admin.*` power at all.
     TrainingAdminModule,
+    // ADR-061 D-s: the support assistant's monthly usage and estimated cost.
+    AssistantAdminModule,
   ],
 })
 export class AdminApiModule {}

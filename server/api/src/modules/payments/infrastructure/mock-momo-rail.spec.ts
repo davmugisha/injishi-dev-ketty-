@@ -135,13 +135,16 @@ describe('MockPaymentAdapter — the mobile money rail', () => {
    * exist (booking audit, 2026-09-13).
    */
   it('lets another process read a capture it never made, settled on the same clock', async () => {
-    process.env.MOCK_MOMO_APPROVAL_MS = '40';
+    // A second, not 40 ms: the first read must land inside the window to see
+    // `pending`, and on a busy machine (the full suite, CI) 40 ms was
+    // sometimes gone before it did, failing a correct adapter.
+    process.env.MOCK_MOMO_APPROVAL_MS = '1000';
     const http = new MockPaymentAdapter();
     const worker = new MockPaymentAdapter();
     const pending = await http.captureEscrow(capture());
 
     expect((await worker.fetchTransaction(WORKSPACE, pending.adapterRef))?.settlement).toBe('pending');
-    await new Promise((r) => setTimeout(r, 60));
+    await new Promise((r) => setTimeout(r, 1200));
     expect(await worker.fetchTransaction(WORKSPACE, pending.adapterRef)).toMatchObject({
       settlement: 'settled',
       amountRwf: 94_500,

@@ -58,6 +58,7 @@ import { BUDGET_BANDS, type BudgetBandId } from "@/data/search-options";
  * | `stay`          | refinement | `all`, `hotels` or `homes`  |
  * | `available`     | refinement | `1`, omitted when false     |
  * | `compare`       | refinement | `1`, omitted when false     |
+ * | `cmp`           | refinement | comma separated slugs, ≤ 5  |
  * | `sort`          | refinement | an `ExploreSort`            |
  * | `page`          | refinement | integer, omitted at 1       |
  * | `property`      | checkout   | a property slug             |
@@ -71,6 +72,10 @@ import { BUDGET_BANDS, type BudgetBandId } from "@/data/search-options";
  * order. Two guests who tick the same three amenities in different orders must
  * land on the same URL, or an otherwise-identical view has two addresses and
  * neither the cache nor a shared link can tell they are one thing.
+ *
+ * `cmp` is the one exception. It is not a filter but the guest's comparison,
+ * and its order is the order of the columns they built, so it is written in
+ * pick order. Same picks in a different order is a genuinely different view.
  *
  * RETIRED, and why. `guests` was a second spelling of the party that the
  * `adults` and `children` pair already carries, and two spellings of one fact
@@ -311,9 +316,15 @@ export interface ExploreRefinement {
   available: boolean;
   /** The rail's compare tray. A view preference, not a filter. */
   compare: boolean;
+  /** The stays picked for comparison, in pick order. At most `MAX_PICKS`. */
+  picks: string[];
   sort: ExploreSort;
   page: number;
 }
+
+/** How many stays the compare view holds side by side. */
+export const MAX_PICKS = 5;
+const SLUG_PATTERN = /^[a-z0-9][a-z0-9-]{0,120}$/;
 
 export const DEFAULT_REFINEMENT: ExploreRefinement = {
   priceBasis: "nightly",
@@ -337,6 +348,7 @@ export const DEFAULT_REFINEMENT: ExploreRefinement = {
   stayType: "all",
   available: false,
   compare: false,
+  picks: [],
   sort: "recommended",
   page: 1,
 };
@@ -416,6 +428,14 @@ export function parseRefinement(params: ParamsLike): ExploreRefinement {
 
   refinement.available = params.get("available") === "1";
   refinement.compare = params.get("compare") === "1";
+  refinement.picks = [
+    ...new Set(
+      (params.get("cmp") ?? "")
+        .split(",")
+        .map((slug) => slug.trim())
+        .filter((slug) => SLUG_PATTERN.test(slug)),
+    ),
+  ].slice(0, MAX_PICKS);
 
   const sort = params.get("sort");
   refinement.sort = SORT_OPTIONS.some((option) => option.value === sort)
@@ -439,6 +459,8 @@ export function serialiseRefinement(refinement: ExploreRefinement): QueryValues 
     stay: refinement.stayType === "all" ? undefined : refinement.stayType,
     available: refinement.available ? 1 : undefined,
     compare: refinement.compare ? 1 : undefined,
+    // Pick order, not sorted: see the `cmp` note in the header.
+    cmp: refinement.picks.length ? refinement.picks.slice(0, MAX_PICKS).join(",") : undefined,
     sort: refinement.sort === DEFAULT_REFINEMENT.sort ? undefined : refinement.sort,
     page: refinement.page > 1 ? refinement.page : undefined,
   };

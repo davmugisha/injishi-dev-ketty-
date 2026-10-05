@@ -72,5 +72,12 @@ export const PropertyCard = z.object({
     /** The most guests any active room type sleeps; null when none states it. */
     maxGuests: z.number().int().positive().nullable(),
     roomTypeCount: z.number().int().nonnegative(),
+    /**
+     * The property's public coordinates, for the Explore map. Null when the
+     * property has never set them; a card without a point simply has no pin.
+     * The exact lat/lng is the same signal the public address already carries.
+     */
+    latitude: z.number().gte(-90).lte(90).nullable(),
+    longitude: z.number().gte(-180).lte(180).nullable(),
 });
 export type PropertyCard = z.infer<typeof PropertyCard>;

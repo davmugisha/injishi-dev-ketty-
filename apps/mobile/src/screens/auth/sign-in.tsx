@@ -319,6 +319,12 @@ export function SignInScreen() {
           simply follows the content on a short one. */}
       <View style={{ flexGrow: 1, minHeight: space[6] }} />
 
+      {/* "I can't sign in" is the question the assistant has to be reachable
+          for, so its signed out route sits inside (auth) (ADR-061 slice G). */}
+      <Button variant="ghost" size="sm" leadingIcon="message" onPress={() => router.push('/(auth)/assistant')}>
+        {t('assistant.entrySignIn')}
+      </Button>
+
       <Text size="xs" color="textMuted">
         {t('auth.noDocuments')}
       </Text>

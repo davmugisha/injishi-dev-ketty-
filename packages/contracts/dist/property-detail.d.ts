@@ -286,6 +286,13 @@ export declare const PropertyCard: z.ZodObject<{
     /** The most guests any active room type sleeps; null when none states it. */
     maxGuests: z.ZodNullable<z.ZodNumber>;
     roomTypeCount: z.ZodNumber;
+    /**
+     * The property's public coordinates, for the Explore map. Null when the
+     * property has never set them; a card without a point simply has no pin.
+     * The exact lat/lng is the same signal the public address already carries.
+     */
+    latitude: z.ZodNullable<z.ZodNumber>;
+    longitude: z.ZodNullable<z.ZodNumber>;
 }, "strip", z.ZodTypeAny, {
     name: string;
     districtName: string | null;
@@ -296,6 +303,8 @@ export declare const PropertyCard: z.ZodObject<{
     photos: string[];
     maxGuests: number | null;
     fromNightlyRateRwf: number | null;
+    latitude: number | null;
+    longitude: number | null;
 }, {
     name: string;
     districtName: string | null;
@@ -306,6 +315,8 @@ export declare const PropertyCard: z.ZodObject<{
     photos: string[];
     maxGuests: number | null;
     fromNightlyRateRwf: number | null;
+    latitude: number | null;
+    longitude: number | null;
 }>;
 export type PropertyCard = z.infer<typeof PropertyCard>;
 //# sourceMappingURL=property-detail.d.ts.map

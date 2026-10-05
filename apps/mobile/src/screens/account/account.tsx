@@ -262,6 +262,17 @@ function PreferencesSection({ appearance }: { appearance: Appearance }) {
               not hold, and the licence chain owes a full attribution somewhere
               that a tile-sized credit cannot carry. Session 0 built the screen
               and asked Session 11 to mount the row; this is it. */}
+          {/* The support assistant (ADR-061 slice G). */}
+          <ListRow
+            icon="message"
+            title={t('assistant.entry')}
+            subtitle={t('assistant.entryMeta')}
+            divider
+            onPress={() => router.push('/assistant')}
+            accessibilityLabel={t('assistant.entry')}
+            accessibilityHint={t('assistant.entryMeta')}
+          />
+
           <ListRow
             icon="image"
             title={t('account.photoCredits')}

@@ -49,6 +49,7 @@ import { computeBreakdown } from '@injishi/contracts';
 import pg from 'pg';
 
 import { assertSampleDatabase } from './sample-database.mjs';
+import { syntheticCoordFor } from './synthetic-coords.mjs';
 
 /**
  * Load `server/api/.env` when the variables are not already set.
@@ -1017,19 +1018,27 @@ async function seedAssignment(c, a) {
 // --- Seeding the operational half --------------------------------------------
 
 async function seedProperty(c, pr) {
+  // Synthetic dev-only coordinates (see synthetic-coords.mjs). The demo
+  // roster's businesses are fictional, so no real address is being leaked; the
+  // Explore map needs a point to plot per property.
+  const [demoLatitude, demoLongitude] = syntheticCoordFor({ district: pr.district, seed: pr.slug });
   await c.query(
     `INSERT INTO properties
        (id, org_id, workspace_id, name, description, sector_id, district_id,
+        latitude, longitude,
         address_text, check_in_time, check_out_time, house_rules, slug,
         is_head_office, rra_branch_id, archived_at, archived_by_user_id)
-     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16)
+     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18)
      ON CONFLICT (id) DO UPDATE
        SET slug = coalesce(properties.slug, excluded.slug),
-           rra_branch_id = coalesce(properties.rra_branch_id, excluded.rra_branch_id)`,
+           rra_branch_id = coalesce(properties.rra_branch_id, excluded.rra_branch_id),
+           latitude = coalesce(properties.latitude, excluded.latitude),
+           longitude = coalesce(properties.longitude, excluded.longitude)`,
     [
       pr.id, pr.orgId, pr.workspaceId, pr.name, pr.description,
       await sectorId(c, pr.district, pr.sector),
       await districtId(c, pr.district),
+      demoLatitude, demoLongitude,
       pr.street, pr.checkIn, pr.checkOut, pr.houseRules, pr.slug,
       // ADR-054. A branch is a property: the head office flag, the RRA branch
       // id a receipt declares under, and when it was archived and by whom (the
