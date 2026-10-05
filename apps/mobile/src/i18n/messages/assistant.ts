@@ -48,6 +48,14 @@ export const en = {
   'assistant.entry': 'Ask the assistant',
   'assistant.entryMeta': 'Help with Injishi, any time',
   'assistant.entrySignIn': 'Need help? Ask the assistant',
+  'assistant.typing': 'Finding a verified answer',
+  'assistant.suggested': 'Suggested questions',
+  'assistant.places': 'Places mentioned',
+  'assistant.fromPerNight': 'from {price} / night',
+  'assistant.priceOnRequest': 'Price on request',
+  'assistant.sleeps': 'Sleeps {count}',
+  'assistant.roomType': '1 room type',
+  'assistant.roomTypes': '{count} room types',
 };
 
 export const rw: Record<keyof typeof en, string> = {
@@ -91,4 +99,12 @@ export const rw: Record<keyof typeof en, string> = {
   'assistant.entry': 'Baza umufasha',
   'assistant.entryMeta': 'Ubufasha kuri Injishi, igihe cyose',
   'assistant.entrySignIn': 'Ukeneye ubufasha? Baza umufasha',
+  'assistant.typing': 'Turimo gushaka igisubizo cyizewe',
+  'assistant.suggested': 'Ibibazo wabaza',
+  'assistant.places': 'Amacumbi yavuzwe',
+  'assistant.fromPerNight': 'guhera kuri {price} ku ijoro',
+  'assistant.priceOnRequest': 'Igiciro kibazwa',
+  'assistant.sleeps': 'Yakira abantu {count}',
+  'assistant.roomType': 'Ubwoko 1 bw’icyumba',
+  'assistant.roomTypes': 'Ubwoko {count} bw’ibyumba',
 };

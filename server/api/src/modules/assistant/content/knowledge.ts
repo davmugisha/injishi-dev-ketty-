@@ -201,7 +201,7 @@ const ENTRIES: KnowledgeArticle[] = [
       'Injishi has no passwords: you sign in with your email address and a 6 digit code sent to it, valid for 10 minutes.',
     body:
       'Enter your email address and Injishi emails you a 6 digit code; type it in within 10 minutes. If it does not arrive, check your spam or junk folder, and check the address for a typo. A code stops working after 5 wrong tries, and one address can be sent at most 5 codes an hour and 15 a day, so if you hit the limit, wait before asking again. Business screens in the operator app ask for a second emailed code before they open. If you still cannot get in, ask for human support.',
-    tags: ['sign-in', 'login', 'log-in', 'code', 'otp', 'email', 'password', 'cannot', 'access', 'account', 'arrive'],
+    tags: ['sign-in', 'login', 'log-in', 'code', 'otp', 'email', 'password', 'cannot', 'access', 'account', 'arrive', 'create-account', 'sign-up', 'signup', 'register-account', 'new-account'],
     audience: 'everyone',
     href: '/sign-in',
     lastVerified: '2026-09-30',

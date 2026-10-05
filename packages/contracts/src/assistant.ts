@@ -66,8 +66,34 @@ export const AssistantSource = z.object({
   title: z.string(),
   /** A path on the surface that opens it, or null when there is none. */
   href: z.string().nullable(),
+  /**
+   * A listing's card details, when the source is a published property: what
+   * a surface draws on its card. Absent on other kinds and on answers stored
+   * before cards existed.
+   */
+  listing: z
+    .object({
+      district: z.string().nullable(),
+      /** The lowest base nightly rate, before any date specific price. */
+      fromNightlyRateRwf: z.number().int().nonnegative().nullable(),
+      maxGuests: z.number().int().positive().nullable(),
+      roomTypes: z.number().int().nonnegative(),
+      /** The cover photo's URL, or null when the property has none. */
+      photoUrl: z.string().url().nullable(),
+    })
+    .optional(),
 });
 export type AssistantSource = z.infer<typeof AssistantSource>;
+
+/**
+ * A question the person can send with one tap. `label` is what the chip
+ * says; `message` is what is sent, exactly as if typed.
+ */
+export const AssistantSuggestion = z.object({
+  label: z.string().min(1).max(60),
+  message: z.string().min(1).max(ASSISTANT_MESSAGE_MAX),
+});
+export type AssistantSuggestion = z.infer<typeof AssistantSuggestion>;
 
 /**
  * A change the assistant prepared and the person has not yet approved
@@ -140,6 +166,8 @@ export const AssistantConversation = z.object({
   turnsLeft: z.number().int().nonnegative(),
   /** When it is deleted if nothing more is said (ADR-061 D-d). */
   expiresAt: z.string().datetime({ offset: true }),
+  /** What the person may want to ask next, after the latest answer. */
+  suggestions: z.array(AssistantSuggestion),
 });
 export type AssistantConversation = z.infer<typeof AssistantConversation>;
 
@@ -171,6 +199,14 @@ export const AssistantCurrentConversation = z.object({
    * `POST /api/v1/assistant/conversations/claim`.
    */
   claimable: z.boolean(),
+  /**
+   * How the assistant opens a new conversation for this caller and surface,
+   * and the questions it offers first: the kinds asked most, among what this
+   * caller may ask. Shown when there is no conversation, or after "New
+   * conversation".
+   */
+  greeting: z.string(),
+  suggestions: z.array(AssistantSuggestion),
 });
 export type AssistantCurrentConversation = z.infer<
   typeof AssistantCurrentConversation

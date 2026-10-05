@@ -12,7 +12,9 @@ import { AssistantPanel } from "./assistant-panel";
  * redirect navigation and Next's router threw "Rendered more hooks than during
  * the previous render" (found in the browser walk; `/overview` opened directly
  * was clean). Every other admin read is server rendered, and so is this one
- * now: nothing fires on mount, and the panel starts with what it needs.
+ * now: nothing fires on mount, and the panel starts with what it needs,
+ * including the greeting and the starter questions a new conversation opens
+ * with.
  *
  * Draws nothing when the API has the assistant off or cannot be reached.
  */
@@ -21,5 +23,11 @@ export async function AdminAssistant() {
     surface: "admin",
   });
   if (!result.ok || !result.data.enabled) return null;
-  return <AssistantPanel initialConversation={result.data.conversation} />;
+  return (
+    <AssistantPanel
+      initialConversation={result.data.conversation}
+      greeting={result.data.greeting}
+      starters={result.data.suggestions}
+    />
+  );
 }

@@ -23,6 +23,8 @@ function card(id: string, slug: string, name: string, district: string, rate: nu
     name,
     description: `${name}, a place to stay in ${district}. Call 0788123456.`,
     districtName: district,
+    latitude: -1.5,
+    longitude: 29.6,
     photos: [],
     fromNightlyRateRwf: rate,
     maxGuests: guests,

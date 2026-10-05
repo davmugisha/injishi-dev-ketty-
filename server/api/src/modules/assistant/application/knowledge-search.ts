@@ -8,8 +8,10 @@ import { KNOWLEDGE, type KnowledgeArticle } from '../content/knowledge';
  * A title word counts three times, a tag twice, a summary or body word once.
  * Only `current` entries are ever returned.
  */
+// Filler words a question is built from ("any", "tell me about") never match
+// an article: "any video of how" once matched "at any time".
 const STOPWORDS = new Set(
-  'a an and are as at be can do does for from how i if in is it me my of on or so the to what when where which who why will with you your'.split(
+  'a an and are as at be can do does for from how i if in is it me my of on or so the to what when where which who why will with you your any some there have has get got about please tell know need want would could should like just also this that these those them they here all very really thing things'.split(
     ' ',
   ),
 );

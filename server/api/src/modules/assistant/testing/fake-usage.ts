@@ -6,10 +6,16 @@ export class FakeUsage implements UsageSink {
   readonly asked: AllowanceInput[] = [];
   /** What every allowance check answers; a test sets it to refuse. */
   allow: Allowance = { allowed: true };
+  /** Answered turns per route, as the suggestions read them; a test may set it. */
+  counts = new Map<string, number>();
 
   recordTurn(turn: TurnUsage): Promise<void> {
     this.turns.push(turn);
     return Promise.resolve();
+  }
+
+  popularity(): Promise<Map<string, number>> {
+    return Promise.resolve(this.counts);
   }
 
   allowance(input: AllowanceInput): Promise<Allowance> {

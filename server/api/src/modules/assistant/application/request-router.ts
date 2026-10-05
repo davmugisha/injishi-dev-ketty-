@@ -10,9 +10,16 @@ import {
   STAY_QUESTION,
   STILL_STUCK,
   TRIP_QUESTION,
+  GREETING,
+  THANKS,
+  VIDEO_QUESTION,
+  budgetIn,
   dayIn,
+  guestsIn,
   placeIn,
   priceChangeIn,
+  vagueTopicIn,
+  withoutFilters,
 } from '../domain/intents';
 import type { MessageRow, ToolCallRecord } from '../infrastructure/conversation.repository';
 import {
@@ -26,7 +33,12 @@ import {
   NO_OPERATOR,
   NO_TUTORIAL,
   SIGN_IN_FOR_TRIPS,
+  THANKS_REPLY,
+  VIDEO_ASK,
+  type Abilities,
+  clarifyText,
   errorSentence,
+  greetingText,
   guideAnswer,
   knowledgeAnswer,
   listingsAnswer,
@@ -131,13 +143,19 @@ export class RequestRouter {
     const offered = new Set(this.tools.offered(caller).map((t) => t.name));
 
     // Tiers 1 and 2: application rules, and the authorized service tools.
+    if (GREETING.test(question)) return direct('direct:greeting', greetingText(abilitiesOf(offered)));
+    if (THANKS.test(question)) return direct('direct:thanks', THANKS_REPLY);
+
     if (HUMAN_QUESTION.test(question) && offered.has('suggest_human_support')) {
       return this.answerFrom('direct:escalation', 'suggest_human_support', { topic: 'other' }, caller, (o) =>
         o.escalation ? ESCALATION_OFFERED : null,
       );
     }
 
-    if (PUBLISH_QUESTION.test(question) && offered.has('publish_blockers')) {
+    // "Why can't I publish?" is answered by the live blockers; "how do I
+    // publish my property?" asks for the steps, which the guide gives (tier 4).
+    const howToPublish = HOW_TO_QUESTION.test(question) && !/\b(why|can'?t|cannot|won'?t|not)\b/i.test(question);
+    if (PUBLISH_QUESTION.test(question) && offered.has('publish_blockers') && !howToPublish) {
       return this.answerFrom('direct:publish_blockers', 'publish_blockers', {}, caller, (o) =>
         publishBlockersAnswer(o.content),
       );
@@ -149,7 +167,10 @@ export class RequestRouter {
     // blockers come first because they ARE the answer to "why can't I publish".
     if (ANALYSIS_QUESTION.test(question)) return { kind: 'ai', route: 'ai:analysis', gathered: [] };
 
-    if (PRICE_CHANGE.test(question)) {
+    // "How do I change a room type's price?" asks for the steps (tier 4), not
+    // a change: only a price change with an amount is prepared as a card.
+    const howToNoAmount = HOW_TO_QUESTION.test(question) && priceChangeIn(question) === null;
+    if (PRICE_CHANGE.test(question) && !howToNoAmount) {
       if (!offered.has('propose_room_price')) return direct('direct:price_change', CANNOT_CHANGE);
       const intent = priceChangeIn(question);
       if (!intent) return direct('direct:price_change', NEED_A_PRICE);
@@ -170,10 +191,17 @@ export class RequestRouter {
 
     if (STAY_QUESTION.test(question)) {
       if (!offered.has('search_listings')) return direct('direct:listings', LISTINGS_CLOSED);
-      return this.answerFrom('direct:listings', 'search_listings', { query: placeIn(question) }, caller, (o) =>
-        listingsAnswer(o.content),
+      const search = listingSearchOf(question);
+      return this.answerFrom('direct:listings', 'search_listings', search.input, caller, (o) =>
+        listingsAnswer(o.content, search.place),
       );
     }
+
+    // One ambiguous topic word ("booking", "price") would make the help
+    // search guess which article was meant: ask instead (tier 1).
+    // A single bare word only: "how do I publish my property?" says enough.
+    const topic = /^\W*[a-z]+\W*$/i.test(question) ? vagueTopicIn(question) : null;
+    if (topic && topic !== 'general') return direct(`direct:clarify_${topic}`, clarifyText(topic, abilitiesOf(offered)));
 
     // Tier 3, the knowledge base. For a "how do I" a task guide covers, the
     // guide's steps are the complete answer and an article is only
@@ -207,11 +235,19 @@ export class RequestRouter {
 
     // Tier 5, tutorials: only after a guide's steps, only with a recorded video.
     const guideGiven = lastGuideId(input.history);
-    if (guideGiven && STILL_STUCK.test(question)) {
+    if (guideGiven && (STILL_STUCK.test(question) || VIDEO_QUESTION.test(question))) {
       return this.answerFrom('direct:tutorial', 'find_tutorial', { guideId: guideGiven }, caller, (o) =>
         tutorialAnswer(o.content) ?? NO_TUTORIAL,
       );
     }
+    // Steps always come first: a video asked for before any task's steps
+    // asks which task, rather than offering a video for nothing.
+    if (VIDEO_QUESTION.test(question)) return direct('direct:video_ask', VIDEO_ASK);
+
+    // Too short to answer well ("price"): ask, rather than guess or spend a
+    // model call on a guess (tier 1, asked last so every rule had its chance).
+    const vague = vagueTopicIn(question);
+    if (vague) return direct(`direct:clarify_${vague}`, clarifyText(vague, abilitiesOf(offered)));
 
     // Tier 6, the model.
     return { kind: 'ai', route: 'ai:open', gathered: [] };
@@ -240,7 +276,7 @@ export class RequestRouter {
     if (PUBLISH_QUESTION.test(question) && offered.has('publish_blockers')) wanted.push({ tool: 'publish_blockers', input: {} });
     else if (ROOMS_QUESTION.test(question) && day && offered.has('rooms_on_dates')) wanted.push({ tool: 'rooms_on_dates', input: { from: day } });
     else if (TRIP_QUESTION.test(question) && offered.has('my_trips')) wanted.push({ tool: 'my_trips', input: {} });
-    else if (STAY_QUESTION.test(question) && offered.has('search_listings')) wanted.push({ tool: 'search_listings', input: { query: placeIn(question) } });
+    else if (STAY_QUESTION.test(question) && offered.has('search_listings')) wanted.push({ tool: 'search_listings', input: listingSearchOf(question).input });
 
     const gathered: Gathered[] = [];
     for (const want of wanted) {
@@ -292,6 +328,35 @@ export class RequestRouter {
     if (!text) return { kind: 'ai', route: 'ai:unworded', gathered: outcome.isError ? [] : [{ tool, outcome }] };
     return { kind: 'direct', route, text, available: outcome.sources, toolCalls: [record] };
   }
+}
+
+/** What this caller can get, from the tools they are offered (D-f), never a role name. */
+export function abilitiesOf(offered: Set<string>): Abilities {
+  return {
+    listings: offered.has('search_listings'),
+    trips: offered.has('my_trips'),
+    operator: offered.has('rooms_on_dates') || offered.has('publish_blockers'),
+    priceChange: offered.has('propose_room_price'),
+    guides: offered.has('get_task_guide'),
+  };
+}
+
+/**
+ * A stay question as a listing search: the place it names, its budget and
+ * its guest count. Only figures the person gave are filters, and the place is
+ * searched without them ("hotels under 150000" searches no place called
+ * "150000").
+ */
+export function listingSearchOf(question: string): { input: { query?: string; guests?: number; maxNightlyRwf?: number }; place: string | null } {
+  const rest = withoutFilters(question);
+  const place = /\b(?:in|near|around)\s+[^?.!,]+/i.test(rest) ? placeIn(rest) : null;
+  const query = place ?? rest;
+  const guests = guestsIn(question);
+  const maxNightlyRwf = budgetIn(question);
+  return {
+    input: { ...(query ? { query } : {}), ...(guests ? { guests } : {}), ...(maxNightlyRwf ? { maxNightlyRwf } : {}) },
+    place,
+  };
 }
 
 /** How a tool the router ran is recorded on the stored answer. */

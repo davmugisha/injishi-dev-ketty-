@@ -106,6 +106,21 @@ export class AssistantController {
     this.secureCookie = isProduction(config.get<string>('NODE_ENV'));
   }
 
+  /**
+   * What the request knows that the tools need: the pre launch host rule and,
+   * for an operator, the workspace resolved in WorkspaceGuard's order (ADR-061
+   * D-f). One place, so opening, claiming and asking all see the same caller.
+   */
+  private async contextFor(user: SessionUser | null, req: RawRequest): Promise<TurnContext> {
+    const scope = await this.operatorScope.resolve({
+      userId: user?.id ?? null,
+      sessionId: req.session?.id ?? null,
+      workspaceId: headerOf(req, 'x-workspace-id'),
+      branchHeader: req.headers?.['x-branch-id'],
+    });
+    return { ...contextOf(req), ...scope };
+  }
+
   /** The caller's current conversation on a surface, and whether the assistant is on. */
   @Get('conversations/current')
   @UseGuards(OptionalSessionGuard)
@@ -115,15 +130,20 @@ export class AssistantController {
     @OptionalUser() user: SessionUser | null,
     @Req() req: RawRequest,
   ): Promise<AssistantCurrentConversation> {
-    if (!this.assistant.enabled) return { enabled: false, conversation: null, claimable: false };
+    if (!this.assistant.enabled) return { enabled: false, conversation: null, claimable: false, greeting: '', suggestions: [] };
     const holder = holderOf(user, req);
-    const [conversation, claimable] = await Promise.all([
-      this.assistant.current(holder, query.surface),
+    // The same caller a question would be answered as, operator scope
+    // included, so the suggestions offer only what this person may ask.
+    const context = await this.contextFor(user, req);
+    const now = new Date();
+    const [conversation, claimable, opening] = await Promise.all([
+      this.assistant.current(holder, query.surface, now, context),
       user
         ? this.assistant.claimable(hashFromCookie(assistantTokenOf(req)), query.surface)
         : Promise.resolve(false),
+      this.assistant.opening(holder, query.surface, context, now),
     ]);
-    return { enabled: true, conversation, claimable };
+    return { enabled: true, conversation, claimable, ...opening };
   }
 
   /**
@@ -214,6 +234,7 @@ export class AssistantController {
       body.surface,
       new Date(),
       body.discard === true,
+      await this.contextFor(user, req),
     );
     // A native client keeps its token in the keychain and forgets it itself.
     if (!isNativeAssistantClient(req) && token !== undefined) {
@@ -239,13 +260,7 @@ export class AssistantController {
     @Res({ passthrough: true }) reply: RawReply,
   ): Promise<SendAssistantMessageResult> {
     const holder = holderOf(user, req);
-    const scope = await this.operatorScope.resolve({
-      userId: user?.id ?? null,
-      sessionId: req.session?.id ?? null,
-      workspaceId: headerOf(req, 'x-workspace-id'),
-      branchHeader: req.headers?.['x-branch-id'],
-    });
-    const result = await this.assistant.send(holder, body, new Date(), { ...contextOf(req), ...scope });
+    const result = await this.assistant.send(holder, body, new Date(), await this.contextFor(user, req));
     // A native client is handed the token of a conversation it just started,
     // in the body, and never a cookie (ADR-061 D-c). Its lifetime is the
     // conversation's `expires_at`, which each answer already moves.
