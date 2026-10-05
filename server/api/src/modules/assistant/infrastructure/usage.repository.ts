@@ -13,6 +13,7 @@ import {
   type MonthTurnRow,
   monthUsage,
   type MonthUsageRow,
+  popularRoutes,
   type TurnRow,
   type UsageQuery,
   type UsageRow,
@@ -50,6 +51,10 @@ export class UsageRepository {
     if (!query) return 0;
     const [row] = await this.rows(query);
     return Number(row?.n ?? 0);
+  }
+
+  async popularRoutes(surface: string, since: Date): Promise<Map<string, number>> {
+    return new Map((await this.rows(popularRoutes(surface, since))).map((r) => [String(r.route), Number(r.n)]));
   }
 
   async month(month: string): Promise<{ usage: MonthUsageRow[]; turns: MonthTurnRow[]; tools: MonthToolRow[] }> {

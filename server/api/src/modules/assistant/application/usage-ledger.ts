@@ -58,7 +58,13 @@ export interface TurnUsage {
 export interface UsageSink {
   recordTurn(turn: TurnUsage): Promise<void>;
   allowance(input: AllowanceInput): Promise<Allowance>;
+  /** Answered turns per route on a surface in the last 30 days, for the suggestions. */
+  popularity(surface: string, now: Date): Promise<Map<string, number>>;
 }
+
+/** How far back "asked most" looks, and how long one count is reused. */
+const POPULARITY_WINDOW_MS = 30 * 24 * 60 * 60_000;
+const POPULARITY_CACHE_MS = 10 * 60_000;
 
 /**
  * The usage ledger (ADR-061 D-s): one row per model call with its tokens and
@@ -79,13 +85,33 @@ export class UsageLedger implements UsageSink {
   private readonly logger = new Logger(UsageLedger.name);
   /** `YYYY-MM:80` and `YYYY-MM:100` once warned, so the log says it once. */
   private readonly warned = new Set<string>();
+  /** The last count per surface, so opening a chat never waits on the query. */
+  private readonly popular = new Map<string, { at: number; counts: Map<string, number> }>();
 
   constructor(
     @Inject(ASSISTANT_PRICES) private readonly prices: ModelPrices,
     @Inject(ASSISTANT_LIMITS) private readonly limits: AssistantLimits,
     @Inject(UsageRepository)
-    private readonly repo: Pick<UsageRepository, 'insert' | 'insertTurn' | 'month' | 'monthCostMicroUsd' | 'aiTurnsSince'>,
+    private readonly repo: Pick<UsageRepository, 'insert' | 'insertTurn' | 'month' | 'monthCostMicroUsd' | 'aiTurnsSince' | 'popularRoutes'>,
   ) {}
+
+  /**
+   * Answered turns per route on a surface over the last 30 days, reused for
+   * ten minutes. A failure is an empty count: the suggestions then keep their
+   * written order, and a chat still opens.
+   */
+  async popularity(surface: string, now: Date): Promise<Map<string, number>> {
+    const cached = this.popular.get(surface);
+    if (cached && now.getTime() - cached.at < POPULARITY_CACHE_MS) return cached.counts;
+    try {
+      const counts = await this.repo.popularRoutes(surface, new Date(now.getTime() - POPULARITY_WINDOW_MS));
+      this.popular.set(surface, { at: now.getTime(), counts });
+      return counts;
+    } catch (error) {
+      this.logger.warn(`Assistant suggestion counts unavailable: ${error instanceof Error ? error.message : String(error)}`);
+      return new Map();
+    }
+  }
 
   async allowance(input: AllowanceInput): Promise<Allowance> {
     if (this.limits.monthlyBudgetUsd !== null) {
