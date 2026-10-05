@@ -53,6 +53,11 @@ export const DayKind = z.enum(["weekday", "weekly_off", "public_holiday"]);
 export type DayKind = z.infer<typeof DayKind>;
 export const LeaveAccrual = z.enum(["yearly_upfront", "monthly", "none"]);
 export type LeaveAccrual = z.infer<typeof LeaveAccrual>;
+/**
+ * What a ledger row records (058-leave AC-LV2). Credits are lots (`accrual`,
+ * `carry_forward`, `adjustment`); debits name the lot they draw (`taken`,
+ * `encashed`, `expiry`); a `reversal` undoes one `taken` row.
+ */
 export const LeaveEntryKind = z.enum([
     "accrual",
     "taken",
@@ -60,8 +65,18 @@ export const LeaveEntryKind = z.enum([
     "carry_forward",
     "expiry",
     "adjustment",
+    "encashed",
 ]);
 export type LeaveEntryKind = z.infer<typeof LeaveEntryKind>;
+/** How a type is paid: `partial` pays `paymentPercent` of the day (AC-LV1). */
+export const LeavePayment = z.enum(["paid", "unpaid", "partial"]);
+export type LeavePayment = z.infer<typeof LeavePayment>;
+/** When unused days stop: each year end, each month end, or never. */
+export const LeaveReset = z.enum(["yearly", "monthly", "never"]);
+export type LeaveReset = z.infer<typeof LeaveReset>;
+/** What a yearly reset carries into the new year. */
+export const LeaveCarry = z.enum(["none", "carry", "carry_with_expiry"]);
+export type LeaveCarry = z.infer<typeof LeaveCarry>;
 export const LeaveRequestStatus = z.enum(["requested", "approved", "rejected", "cancelled"]);
 export type LeaveRequestStatus = z.infer<typeof LeaveRequestStatus>;
 /** A leave may start in the afternoon of its first day... */
@@ -314,6 +329,9 @@ export const CreateContractRequest = z.object({
     endsOn: IsoDate.nullable().optional(),
     wageBasis: WageBasis,
     wageRwf: z.number().int().positive("A wage is more than zero."),
+    /** 058-payroll: the components the contract carries, and its notice in days. */
+    payStructureId: Uuid.nullable().optional(),
+    noticeDays: z.number().int().min(0).max(365).nullable().optional(),
 });
 export type CreateContractRequest = z.infer<typeof CreateContractRequest>;
 /** The new contract, and the one it shortened, if any. */
@@ -462,33 +480,112 @@ export type CorrectAttendanceRequest = z.infer<typeof CorrectAttendanceRequest>;
 // ---------------------------------------------------------------------------
 // Leave
 // ---------------------------------------------------------------------------
-export const LeaveType = z.object({
+/** Every rule a leave type carries (058-leave AC-LV1), the fields a type's form edits. */
+const LeaveTypeRules = z.object({
+    name: z.string().trim().min(1).max(80),
+    payment: LeavePayment,
+    /** The share of a day's wage a `partial` type pays, 0 to 100. */
+    paymentPercent: z.number().int().min(0).max(100).nullable(),
+    /** Null: no balance is kept, as for unpaid leave. */
+    yearlyEntitlementDays: z.number().min(0).max(366).nullable(),
+    accrual: LeaveAccrual,
+    reset: LeaveReset,
+    carry: LeaveCarry,
+    carryMaxDays: z.number().min(0).max(366),
+    /** How long a carried lot lives; a compensatory type's days live as long. */
+    carryExpiresMonths: z.number().int().min(1).max(12).nullable(),
+    /** 0: approved at request; 1 or 2 steps (AC-LV7). */
+    approvalSteps: z.number().int().min(0).max(2),
+    needsAttachment: z.boolean(),
+    /** Inside a range a weekly day off counts as a day of leave, as for maternity leave. */
+    countsWeeklyOffs: z.boolean(),
+    countsHolidays: z.boolean(),
+    eligibleSex: HrSex.nullable(),
+    minServiceMonths: z.number().int().min(0).max(600),
+    oncePerEmployment: z.boolean(),
+    /** Never restricted by a restricted period (AC-LV9). */
+    statutory: z.boolean(),
+    /** Self service may start it up to 30 days back, as for sick leave. */
+    allowsPastRequests: z.boolean(),
+    encashable: z.boolean(),
+    /** Where compensatory days land (AC-LV8). */
+    compensatory: z.boolean(),
+    seniorityEveryYears: z.number().int().min(1).max(50).nullable(),
+    seniorityExtraDays: z.number().min(0).max(366).nullable(),
+    seniorityCapDays: z.number().min(0).max(366).nullable(),
+});
+/** A type is archived, never deleted: requests and the ledger name it. */
+export const LeaveTypeStatus = z.enum(["active", "archived"]);
+export type LeaveTypeStatus = z.infer<typeof LeaveTypeStatus>;
+export const LeaveType = LeaveTypeRules.extend({
     id: Uuid,
     code: z.string(),
-    name: z.string(),
-    paid: z.boolean(),
-    /** Null: no balance is kept, as for unpaid leave. */
-    yearlyEntitlementDays: z.number().nullable(),
-    accrual: LeaveAccrual,
-    needsApproval: z.boolean(),
+    status: LeaveTypeStatus,
 });
 export type LeaveType = z.infer<typeof LeaveType>;
+export const LeaveTypeList = z.object({ types: z.array(LeaveType) });
+export type LeaveTypeList = z.infer<typeof LeaveTypeList>;
+function leaveTypeRefine(b: Partial<z.infer<typeof LeaveTypeRules>>, ctx: z.RefinementCtx): void {
+    if (b.payment !== undefined && (b.payment === "partial") !== (b.paymentPercent !== null && b.paymentPercent !== undefined)) {
+        ctx.addIssue({ code: "custom", path: ["paymentPercent"], message: "A partly paid type says what share it pays, and only it does." });
+    }
+    if (b.carry === "carry_with_expiry" && (b.carryExpiresMonths === null || b.carryExpiresMonths === undefined)) {
+        ctx.addIssue({ code: "custom", path: ["carryExpiresMonths"], message: "Say after how many months carried days expire." });
+    }
+    if (b.reset !== undefined && b.reset !== "yearly" && b.carry !== undefined && b.carry !== "none") {
+        ctx.addIssue({ code: "custom", path: ["carry"], message: "Only a type that resets each year carries days over." });
+    }
+    if (b.seniorityEveryYears !== undefined && (b.seniorityEveryYears === null) !== (b.seniorityExtraDays === null || b.seniorityExtraDays === undefined)) {
+        ctx.addIssue({ code: "custom", path: ["seniorityExtraDays"], message: "A seniority rule names both its years and its extra days." });
+    }
+}
+/** `POST /ops/leave/types`: a business's own type. */
+export const CreateLeaveTypeRequest = LeaveTypeRules.extend({
+    code: z.string().trim().regex(/^[a-z][a-z0-9_]{1,30}$/, "A code is lower case letters, digits and underscores."),
+}).superRefine(leaveTypeRefine);
+export type CreateLeaveTypeRequest = z.infer<typeof CreateLeaveTypeRequest>;
+/**
+ * `PATCH /ops/leave/types/:id`: whole rule groups at once, so a check across
+ * fields always sees both. An edit applies to requests made after it.
+ */
+export const UpdateLeaveTypeRequest = LeaveTypeRules.extend({ status: LeaveTypeStatus })
+    .partial()
+    .superRefine(leaveTypeRefine)
+    .refine((b) => Object.keys(b).length > 0, { message: "Nothing to change." });
+export type UpdateLeaveTypeRequest = z.infer<typeof UpdateLeaveTypeRequest>;
 export const LeaveLedgerEntry = z.object({
     id: Uuid,
     kind: LeaveEntryKind,
-    /** Signed: accruals add, leave taken subtracts, a reversal undoes. */
+    /** Signed: credits add, debits subtract, a reversal undoes. */
     days: z.number(),
     effectiveOn: IsoDate,
     periodKey: z.string().nullable(),
     leaveRequestId: Uuid.nullable(),
     reason: z.string().nullable(),
+    /** A credit's last day plus one (AC-LV2). */
+    expiresOn: IsoDate.nullable(),
+    /** The credit a debit draws from. */
+    lotId: Uuid.nullable(),
 });
 export type LeaveLedgerEntry = z.infer<typeof LeaveLedgerEntry>;
+/** One credit and what is left of it (AC-LV2): why a person has 4 days, not 6. */
+export const LeaveLot = z.object({
+    id: Uuid,
+    kind: z.enum(["accrual", "carry_forward", "adjustment"]),
+    effectiveOn: IsoDate,
+    /** The last day it can be spent: its own expiry or its year's (or month's) end. */
+    usableUntil: IsoDate.nullable(),
+    creditDays: z.number(),
+    remainingDays: z.number(),
+});
+export type LeaveLot = z.infer<typeof LeaveLot>;
 /** A balance is only ever the sum of the ledger (AC-L4). */
 export const LeaveBalance = z.object({
     leaveType: LeaveType,
     /** Null for a type that keeps no balance. */
     balanceDays: z.number().nullable(),
+    /** The lots with days left, soonest to expire first. */
+    lots: z.array(LeaveLot),
     entries: z.array(LeaveLedgerEntry),
 });
 export type LeaveBalance = z.infer<typeof LeaveBalance>;
@@ -502,7 +599,7 @@ export const LeaveRequest = z.object({
     employee: RosterCard,
     /** The branch the person works at: what branch limits read and a page groups by. */
     branchId: Uuid.nullable(),
-    leaveType: z.object({ id: Uuid, code: z.string(), name: z.string(), paid: z.boolean() }),
+    leaveType: z.object({ id: Uuid, code: z.string(), name: z.string() }),
     startsOn: IsoDate,
     endsOn: IsoDate,
     startHalf: LeaveStartHalf,
@@ -519,18 +616,41 @@ export const LeaveRequest = z.object({
     decidedAt: z.string().nullable(),
     decisionNote: z.string().nullable(),
     createdAt: z.string(),
+    // --- 058-leave: the terms it was made under, its steps and its note ---
+    payment: LeavePayment,
+    paymentPercent: z.number().nullable(),
+    /** 0, 1 or 2, copied from the type at request (AC-LV7). */
+    approvalSteps: z.number().int(),
+    /** The step a waiting request is at. */
+    currentStep: z.number().int(),
+    /** Each step decided so far, in order. */
+    approvals: z.array(z.object({
+        step: z.number().int(),
+        decision: z.enum(["approved", "rejected", "skipped"]),
+        decidedByName: z.string().nullable(),
+        note: z.string().nullable(),
+        decidedAt: z.string(),
+    })),
+    /** A sick note or the like is attached; read it through its own route. */
+    hasAttachment: z.boolean(),
 });
 export type LeaveRequest = z.infer<typeof LeaveRequest>;
-export const CreateLeaveRequestRequest = z.object({
-    employeeId: Uuid,
+/** The fields a person and the office both ask with (058-leave AC-LV6). */
+export const LeaveAsk = z.object({
     leaveTypeId: Uuid,
     startsOn: IsoDate,
     endsOn: IsoDate,
     startHalf: LeaveStartHalf.optional(),
     endHalf: LeaveEndHalf.optional(),
     reason: z.string().trim().max(300).nullable().optional(),
+    /** An uploaded attachment's key (`POST /ops/hr/files` or `/me/work/:id/files`, purpose `attachment`). */
+    attachmentKey: z.string().trim().min(1).max(300).nullable().optional(),
 });
+export const CreateLeaveRequestRequest = LeaveAsk.extend({ employeeId: Uuid });
 export type CreateLeaveRequestRequest = z.infer<typeof CreateLeaveRequestRequest>;
+/** The same through self service: the person's own file is the path. */
+export const CreateMyLeaveRequestRequest = LeaveAsk;
+export type CreateMyLeaveRequestRequest = z.infer<typeof CreateMyLeaveRequestRequest>;
 export const LeaveDecisionRequest = z.object({
     note: z.string().trim().max(300).nullable().optional(),
 });

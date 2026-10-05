@@ -19,7 +19,7 @@ export class HrFilesService {
   constructor(private readonly storage: StorageService) {}
 
   upload(
-    ws: ScopedWorkspace,
+    ws: Pick<ScopedWorkspace, 'workspaceId'>,
     userId: string,
     input: { body: Buffer; filename: string; purpose: HrFilePurpose },
   ): Promise<{ objectKey: string; purpose: HrFilePurpose; mime: string; sizeBytes: number }> {
@@ -28,7 +28,7 @@ export class HrFilesService {
 
   /** Each key must be this workspace's object of the purpose's kind; answers what each is. */
   async assertOwn(
-    ws: ScopedWorkspace,
+    ws: Pick<ScopedWorkspace, 'workspaceId'>,
     purpose: HrFilePurpose,
     keys: readonly string[],
   ): Promise<Map<string, { mime: string | null; sizeBytes: number | null }>> {

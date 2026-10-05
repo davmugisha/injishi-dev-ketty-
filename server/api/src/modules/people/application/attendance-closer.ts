@@ -42,6 +42,7 @@ export class AttendanceCloser {
       linkWindowMinutes: row.linkWindowMinutes,
       staleOpenHours: row.staleOpenHours,
       defaultShiftMinutes: row.defaultShiftMinutes,
+      compensationThresholdMinutes: row.compensationThresholdMinutes,
     };
   }
 

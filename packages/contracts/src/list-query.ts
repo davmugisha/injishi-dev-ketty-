@@ -520,6 +520,15 @@ export const LIST_READ = {
     // 058-time: shift requests are the roster's; attendance requests are decided by attendance.approve.
     "staff.shift-requests": ["roster.manage"],
     "staff.attendance-requests": ["attendance.approve"],
+    // 058-leave: allocations are decided by leave.approve; balances read by whoever decides or keeps the files.
+    "staff.leave-allocations": ["leave.approve"],
+    "staff.leave-balances": ["leave.approve", "people.manage"],
+    // 058-payroll: everything here is payroll.run's; contracts are the files' too.
+    "staff.payslips": ["payroll.run"],
+    "staff.loans": ["payroll.run"],
+    "staff.pay-claims": ["payroll.run"],
+    "staff.pay-adjustments": ["payroll.run"],
+    "staff.contracts": ["people.manage", "payroll.run"],
 } as const satisfies Record<string, readonly Permission[]>;
 export type ListKey = keyof typeof LIST_READ;
 export function isListKey(key: string): key is ListKey {

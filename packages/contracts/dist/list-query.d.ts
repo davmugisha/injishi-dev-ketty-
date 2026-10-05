@@ -1052,6 +1052,13 @@ export declare const LIST_READ: {
     readonly "staff.pay-runs": readonly ["payroll.run"];
     readonly "staff.shift-requests": readonly ["roster.manage"];
     readonly "staff.attendance-requests": readonly ["attendance.approve"];
+    readonly "staff.leave-allocations": readonly ["leave.approve"];
+    readonly "staff.leave-balances": readonly ["leave.approve", "people.manage"];
+    readonly "staff.payslips": readonly ["payroll.run"];
+    readonly "staff.loans": readonly ["payroll.run"];
+    readonly "staff.pay-claims": readonly ["payroll.run"];
+    readonly "staff.pay-adjustments": readonly ["payroll.run"];
+    readonly "staff.contracts": readonly ["people.manage", "payroll.run"];
 };
 export type ListKey = keyof typeof LIST_READ;
 export declare function isListKey(key: string): key is ListKey;

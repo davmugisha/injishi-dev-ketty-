@@ -42,7 +42,9 @@ export type StoredObjectKind =
   /** ADR-058: a document on a staff file (an ID copy, a permit); `people.manage` only. */
   | 'staff_document'
   /** ADR-058: a file hung on a note, a policy, an announcement or a disciplinary record. */
-  | 'hr_attachment';
+  | 'hr_attachment'
+  /** 058-payroll: a bank or MoMo file, or a declaration; `payroll.run` only. */
+  | 'hr_pay_file';
 
 export interface PutObjectInput {
   /** The raw bytes. Callers must size-check BEFORE reading a stream to here. */
@@ -205,4 +207,6 @@ export const MIME_EXTENSION: Readonly<Record<string, string>> = {
   'image/png': 'png',
   'image/webp': 'webp',
   'image/heic': 'heic',
+  // 058-payroll: the bank and MoMo files and the declarations Injishi builds.
+  'text/csv': 'csv',
 };

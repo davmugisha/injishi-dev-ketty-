@@ -57,6 +57,7 @@ const policyColumns = {
   linkWindowMinutes: attendancePolicies.linkWindowMinutes,
   staleOpenHours: attendancePolicies.staleOpenHours,
   defaultShiftMinutes: attendancePolicies.defaultShiftMinutes,
+  compensationThresholdMinutes: attendancePolicies.compensationThresholdMinutes,
 };
 
 /**
@@ -111,6 +112,7 @@ export class TimeSettingsRepository {
           linkWindowMinutes: values.linkWindowMinutes,
           staleOpenHours: values.staleOpenHours,
           defaultShiftMinutes: values.defaultShiftMinutes,
+          compensationThresholdMinutes: values.compensationThresholdMinutes,
           updatedAt: new Date(),
         },
       });

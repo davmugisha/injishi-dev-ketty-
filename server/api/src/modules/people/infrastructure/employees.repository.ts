@@ -34,6 +34,7 @@ import {
   orgMemberships,
   payRuns,
   payslips,
+  payStructures,
   properties,
   sectors,
   villages,
@@ -729,9 +730,19 @@ export class EmployeesRepository {
     return out;
   }
 
+  /** Is this an active pay structure of the business (058-payroll)? */
+  async ownActiveStructure(orgId: string, id: string): Promise<boolean> {
+    const [row] = await this.db
+      .select({ id: payStructures.id })
+      .from(payStructures)
+      .where(and(eq(payStructures.id, id), eq(payStructures.orgId, orgId), eq(payStructures.status, 'active')))
+      .limit(1);
+    return !!row;
+  }
+
   async insertContract(
     tx: Tx,
-    values: Omit<ContractRow, 'id' | 'endReason'> & { createdByUserId: string },
+    values: Omit<ContractRow, 'id' | 'endReason'> & { createdByUserId: string; payStructureId?: string | null; noticeDays?: number | null },
   ): Promise<string> {
     const [row] = await tx
       .insert(employmentContracts)

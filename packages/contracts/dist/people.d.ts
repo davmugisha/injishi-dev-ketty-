@@ -47,8 +47,22 @@ export declare const DayKind: z.ZodEnum<["weekday", "weekly_off", "public_holida
 export type DayKind = z.infer<typeof DayKind>;
 export declare const LeaveAccrual: z.ZodEnum<["yearly_upfront", "monthly", "none"]>;
 export type LeaveAccrual = z.infer<typeof LeaveAccrual>;
-export declare const LeaveEntryKind: z.ZodEnum<["accrual", "taken", "reversal", "carry_forward", "expiry", "adjustment"]>;
+/**
+ * What a ledger row records (058-leave AC-LV2). Credits are lots (`accrual`,
+ * `carry_forward`, `adjustment`); debits name the lot they draw (`taken`,
+ * `encashed`, `expiry`); a `reversal` undoes one `taken` row.
+ */
+export declare const LeaveEntryKind: z.ZodEnum<["accrual", "taken", "reversal", "carry_forward", "expiry", "adjustment", "encashed"]>;
 export type LeaveEntryKind = z.infer<typeof LeaveEntryKind>;
+/** How a type is paid: `partial` pays `paymentPercent` of the day (AC-LV1). */
+export declare const LeavePayment: z.ZodEnum<["paid", "unpaid", "partial"]>;
+export type LeavePayment = z.infer<typeof LeavePayment>;
+/** When unused days stop: each year end, each month end, or never. */
+export declare const LeaveReset: z.ZodEnum<["yearly", "monthly", "never"]>;
+export type LeaveReset = z.infer<typeof LeaveReset>;
+/** What a yearly reset carries into the new year. */
+export declare const LeaveCarry: z.ZodEnum<["none", "carry", "carry_with_expiry"]>;
+export type LeaveCarry = z.infer<typeof LeaveCarry>;
 export declare const LeaveRequestStatus: z.ZodEnum<["requested", "approved", "rejected", "cancelled"]>;
 export type LeaveRequestStatus = z.infer<typeof LeaveRequestStatus>;
 /** A leave may start in the afternoon of its first day... */
@@ -2235,18 +2249,25 @@ export declare const CreateContractRequest: z.ZodObject<{
     endsOn: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     wageBasis: z.ZodEnum<["monthly", "daily", "hourly"]>;
     wageRwf: z.ZodNumber;
+    /** 058-payroll: the components the contract carries, and its notice in days. */
+    payStructureId: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    noticeDays: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
 }, "strip", z.ZodTypeAny, {
     startsOn: string;
     contractType: "permanent" | "fixed_term" | "casual";
     wageBasis: "monthly" | "daily" | "hourly";
     wageRwf: number;
     endsOn?: string | null | undefined;
+    payStructureId?: string | null | undefined;
+    noticeDays?: number | null | undefined;
 }, {
     startsOn: string;
     contractType: "permanent" | "fixed_term" | "casual";
     wageBasis: "monthly" | "daily" | "hourly";
     wageRwf: number;
     endsOn?: string | null | undefined;
+    payStructureId?: string | null | undefined;
+    noticeDays?: number | null | undefined;
 }>;
 export type CreateContractRequest = z.infer<typeof CreateContractRequest>;
 /** The new contract, and the one it shortened, if any. */
@@ -2853,301 +2874,1240 @@ export declare const CorrectAttendanceRequest: z.ZodObject<{
     clockOutAt: string;
 }>;
 export type CorrectAttendanceRequest = z.infer<typeof CorrectAttendanceRequest>;
+/** A type is archived, never deleted: requests and the ledger name it. */
+export declare const LeaveTypeStatus: z.ZodEnum<["active", "archived"]>;
+export type LeaveTypeStatus = z.infer<typeof LeaveTypeStatus>;
 export declare const LeaveType: z.ZodObject<{
-    id: z.ZodString;
-    code: z.ZodString;
     name: z.ZodString;
-    paid: z.ZodBoolean;
+    payment: z.ZodEnum<["paid", "unpaid", "partial"]>;
+    /** The share of a day's wage a `partial` type pays, 0 to 100. */
+    paymentPercent: z.ZodNullable<z.ZodNumber>;
     /** Null: no balance is kept, as for unpaid leave. */
     yearlyEntitlementDays: z.ZodNullable<z.ZodNumber>;
     accrual: z.ZodEnum<["yearly_upfront", "monthly", "none"]>;
-    needsApproval: z.ZodBoolean;
+    reset: z.ZodEnum<["yearly", "monthly", "never"]>;
+    carry: z.ZodEnum<["none", "carry", "carry_with_expiry"]>;
+    carryMaxDays: z.ZodNumber;
+    /** How long a carried lot lives; a compensatory type's days live as long. */
+    carryExpiresMonths: z.ZodNullable<z.ZodNumber>;
+    /** 0: approved at request; 1 or 2 steps (AC-LV7). */
+    approvalSteps: z.ZodNumber;
+    needsAttachment: z.ZodBoolean;
+    /** Inside a range a weekly day off counts as a day of leave, as for maternity leave. */
+    countsWeeklyOffs: z.ZodBoolean;
+    countsHolidays: z.ZodBoolean;
+    eligibleSex: z.ZodNullable<z.ZodEnum<["female", "male"]>>;
+    minServiceMonths: z.ZodNumber;
+    oncePerEmployment: z.ZodBoolean;
+    /** Never restricted by a restricted period (AC-LV9). */
+    statutory: z.ZodBoolean;
+    /** Self service may start it up to 30 days back, as for sick leave. */
+    allowsPastRequests: z.ZodBoolean;
+    encashable: z.ZodBoolean;
+    /** Where compensatory days land (AC-LV8). */
+    compensatory: z.ZodBoolean;
+    seniorityEveryYears: z.ZodNullable<z.ZodNumber>;
+    seniorityExtraDays: z.ZodNullable<z.ZodNumber>;
+    seniorityCapDays: z.ZodNullable<z.ZodNumber>;
+} & {
+    id: z.ZodString;
+    code: z.ZodString;
+    status: z.ZodEnum<["active", "archived"]>;
+}, "strip", z.ZodTypeAny, {
+    code: string;
+    status: "active" | "archived";
+    name: string;
+    id: string;
+    payment: "paid" | "unpaid" | "partial";
+    accrual: "none" | "monthly" | "yearly_upfront";
+    carry: "none" | "carry" | "carry_with_expiry";
+    paymentPercent: number | null;
+    yearlyEntitlementDays: number | null;
+    reset: "never" | "monthly" | "yearly";
+    carryMaxDays: number;
+    carryExpiresMonths: number | null;
+    approvalSteps: number;
+    needsAttachment: boolean;
+    countsWeeklyOffs: boolean;
+    countsHolidays: boolean;
+    eligibleSex: "female" | "male" | null;
+    minServiceMonths: number;
+    oncePerEmployment: boolean;
+    statutory: boolean;
+    allowsPastRequests: boolean;
+    encashable: boolean;
+    compensatory: boolean;
+    seniorityEveryYears: number | null;
+    seniorityExtraDays: number | null;
+    seniorityCapDays: number | null;
+}, {
+    code: string;
+    status: "active" | "archived";
+    name: string;
+    id: string;
+    payment: "paid" | "unpaid" | "partial";
+    accrual: "none" | "monthly" | "yearly_upfront";
+    carry: "none" | "carry" | "carry_with_expiry";
+    paymentPercent: number | null;
+    yearlyEntitlementDays: number | null;
+    reset: "never" | "monthly" | "yearly";
+    carryMaxDays: number;
+    carryExpiresMonths: number | null;
+    approvalSteps: number;
+    needsAttachment: boolean;
+    countsWeeklyOffs: boolean;
+    countsHolidays: boolean;
+    eligibleSex: "female" | "male" | null;
+    minServiceMonths: number;
+    oncePerEmployment: boolean;
+    statutory: boolean;
+    allowsPastRequests: boolean;
+    encashable: boolean;
+    compensatory: boolean;
+    seniorityEveryYears: number | null;
+    seniorityExtraDays: number | null;
+    seniorityCapDays: number | null;
+}>;
+export type LeaveType = z.infer<typeof LeaveType>;
+export declare const LeaveTypeList: z.ZodObject<{
+    types: z.ZodArray<z.ZodObject<{
+        name: z.ZodString;
+        payment: z.ZodEnum<["paid", "unpaid", "partial"]>;
+        /** The share of a day's wage a `partial` type pays, 0 to 100. */
+        paymentPercent: z.ZodNullable<z.ZodNumber>;
+        /** Null: no balance is kept, as for unpaid leave. */
+        yearlyEntitlementDays: z.ZodNullable<z.ZodNumber>;
+        accrual: z.ZodEnum<["yearly_upfront", "monthly", "none"]>;
+        reset: z.ZodEnum<["yearly", "monthly", "never"]>;
+        carry: z.ZodEnum<["none", "carry", "carry_with_expiry"]>;
+        carryMaxDays: z.ZodNumber;
+        /** How long a carried lot lives; a compensatory type's days live as long. */
+        carryExpiresMonths: z.ZodNullable<z.ZodNumber>;
+        /** 0: approved at request; 1 or 2 steps (AC-LV7). */
+        approvalSteps: z.ZodNumber;
+        needsAttachment: z.ZodBoolean;
+        /** Inside a range a weekly day off counts as a day of leave, as for maternity leave. */
+        countsWeeklyOffs: z.ZodBoolean;
+        countsHolidays: z.ZodBoolean;
+        eligibleSex: z.ZodNullable<z.ZodEnum<["female", "male"]>>;
+        minServiceMonths: z.ZodNumber;
+        oncePerEmployment: z.ZodBoolean;
+        /** Never restricted by a restricted period (AC-LV9). */
+        statutory: z.ZodBoolean;
+        /** Self service may start it up to 30 days back, as for sick leave. */
+        allowsPastRequests: z.ZodBoolean;
+        encashable: z.ZodBoolean;
+        /** Where compensatory days land (AC-LV8). */
+        compensatory: z.ZodBoolean;
+        seniorityEveryYears: z.ZodNullable<z.ZodNumber>;
+        seniorityExtraDays: z.ZodNullable<z.ZodNumber>;
+        seniorityCapDays: z.ZodNullable<z.ZodNumber>;
+    } & {
+        id: z.ZodString;
+        code: z.ZodString;
+        status: z.ZodEnum<["active", "archived"]>;
+    }, "strip", z.ZodTypeAny, {
+        code: string;
+        status: "active" | "archived";
+        name: string;
+        id: string;
+        payment: "paid" | "unpaid" | "partial";
+        accrual: "none" | "monthly" | "yearly_upfront";
+        carry: "none" | "carry" | "carry_with_expiry";
+        paymentPercent: number | null;
+        yearlyEntitlementDays: number | null;
+        reset: "never" | "monthly" | "yearly";
+        carryMaxDays: number;
+        carryExpiresMonths: number | null;
+        approvalSteps: number;
+        needsAttachment: boolean;
+        countsWeeklyOffs: boolean;
+        countsHolidays: boolean;
+        eligibleSex: "female" | "male" | null;
+        minServiceMonths: number;
+        oncePerEmployment: boolean;
+        statutory: boolean;
+        allowsPastRequests: boolean;
+        encashable: boolean;
+        compensatory: boolean;
+        seniorityEveryYears: number | null;
+        seniorityExtraDays: number | null;
+        seniorityCapDays: number | null;
+    }, {
+        code: string;
+        status: "active" | "archived";
+        name: string;
+        id: string;
+        payment: "paid" | "unpaid" | "partial";
+        accrual: "none" | "monthly" | "yearly_upfront";
+        carry: "none" | "carry" | "carry_with_expiry";
+        paymentPercent: number | null;
+        yearlyEntitlementDays: number | null;
+        reset: "never" | "monthly" | "yearly";
+        carryMaxDays: number;
+        carryExpiresMonths: number | null;
+        approvalSteps: number;
+        needsAttachment: boolean;
+        countsWeeklyOffs: boolean;
+        countsHolidays: boolean;
+        eligibleSex: "female" | "male" | null;
+        minServiceMonths: number;
+        oncePerEmployment: boolean;
+        statutory: boolean;
+        allowsPastRequests: boolean;
+        encashable: boolean;
+        compensatory: boolean;
+        seniorityEveryYears: number | null;
+        seniorityExtraDays: number | null;
+        seniorityCapDays: number | null;
+    }>, "many">;
+}, "strip", z.ZodTypeAny, {
+    types: {
+        code: string;
+        status: "active" | "archived";
+        name: string;
+        id: string;
+        payment: "paid" | "unpaid" | "partial";
+        accrual: "none" | "monthly" | "yearly_upfront";
+        carry: "none" | "carry" | "carry_with_expiry";
+        paymentPercent: number | null;
+        yearlyEntitlementDays: number | null;
+        reset: "never" | "monthly" | "yearly";
+        carryMaxDays: number;
+        carryExpiresMonths: number | null;
+        approvalSteps: number;
+        needsAttachment: boolean;
+        countsWeeklyOffs: boolean;
+        countsHolidays: boolean;
+        eligibleSex: "female" | "male" | null;
+        minServiceMonths: number;
+        oncePerEmployment: boolean;
+        statutory: boolean;
+        allowsPastRequests: boolean;
+        encashable: boolean;
+        compensatory: boolean;
+        seniorityEveryYears: number | null;
+        seniorityExtraDays: number | null;
+        seniorityCapDays: number | null;
+    }[];
+}, {
+    types: {
+        code: string;
+        status: "active" | "archived";
+        name: string;
+        id: string;
+        payment: "paid" | "unpaid" | "partial";
+        accrual: "none" | "monthly" | "yearly_upfront";
+        carry: "none" | "carry" | "carry_with_expiry";
+        paymentPercent: number | null;
+        yearlyEntitlementDays: number | null;
+        reset: "never" | "monthly" | "yearly";
+        carryMaxDays: number;
+        carryExpiresMonths: number | null;
+        approvalSteps: number;
+        needsAttachment: boolean;
+        countsWeeklyOffs: boolean;
+        countsHolidays: boolean;
+        eligibleSex: "female" | "male" | null;
+        minServiceMonths: number;
+        oncePerEmployment: boolean;
+        statutory: boolean;
+        allowsPastRequests: boolean;
+        encashable: boolean;
+        compensatory: boolean;
+        seniorityEveryYears: number | null;
+        seniorityExtraDays: number | null;
+        seniorityCapDays: number | null;
+    }[];
+}>;
+export type LeaveTypeList = z.infer<typeof LeaveTypeList>;
+/** `POST /ops/leave/types`: a business's own type. */
+export declare const CreateLeaveTypeRequest: z.ZodEffects<z.ZodObject<{
+    name: z.ZodString;
+    payment: z.ZodEnum<["paid", "unpaid", "partial"]>;
+    /** The share of a day's wage a `partial` type pays, 0 to 100. */
+    paymentPercent: z.ZodNullable<z.ZodNumber>;
+    /** Null: no balance is kept, as for unpaid leave. */
+    yearlyEntitlementDays: z.ZodNullable<z.ZodNumber>;
+    accrual: z.ZodEnum<["yearly_upfront", "monthly", "none"]>;
+    reset: z.ZodEnum<["yearly", "monthly", "never"]>;
+    carry: z.ZodEnum<["none", "carry", "carry_with_expiry"]>;
+    carryMaxDays: z.ZodNumber;
+    /** How long a carried lot lives; a compensatory type's days live as long. */
+    carryExpiresMonths: z.ZodNullable<z.ZodNumber>;
+    /** 0: approved at request; 1 or 2 steps (AC-LV7). */
+    approvalSteps: z.ZodNumber;
+    needsAttachment: z.ZodBoolean;
+    /** Inside a range a weekly day off counts as a day of leave, as for maternity leave. */
+    countsWeeklyOffs: z.ZodBoolean;
+    countsHolidays: z.ZodBoolean;
+    eligibleSex: z.ZodNullable<z.ZodEnum<["female", "male"]>>;
+    minServiceMonths: z.ZodNumber;
+    oncePerEmployment: z.ZodBoolean;
+    /** Never restricted by a restricted period (AC-LV9). */
+    statutory: z.ZodBoolean;
+    /** Self service may start it up to 30 days back, as for sick leave. */
+    allowsPastRequests: z.ZodBoolean;
+    encashable: z.ZodBoolean;
+    /** Where compensatory days land (AC-LV8). */
+    compensatory: z.ZodBoolean;
+    seniorityEveryYears: z.ZodNullable<z.ZodNumber>;
+    seniorityExtraDays: z.ZodNullable<z.ZodNumber>;
+    seniorityCapDays: z.ZodNullable<z.ZodNumber>;
+} & {
+    code: z.ZodString;
 }, "strip", z.ZodTypeAny, {
     code: string;
     name: string;
-    id: string;
-    paid: boolean;
+    payment: "paid" | "unpaid" | "partial";
     accrual: "none" | "monthly" | "yearly_upfront";
+    carry: "none" | "carry" | "carry_with_expiry";
+    paymentPercent: number | null;
     yearlyEntitlementDays: number | null;
-    needsApproval: boolean;
+    reset: "never" | "monthly" | "yearly";
+    carryMaxDays: number;
+    carryExpiresMonths: number | null;
+    approvalSteps: number;
+    needsAttachment: boolean;
+    countsWeeklyOffs: boolean;
+    countsHolidays: boolean;
+    eligibleSex: "female" | "male" | null;
+    minServiceMonths: number;
+    oncePerEmployment: boolean;
+    statutory: boolean;
+    allowsPastRequests: boolean;
+    encashable: boolean;
+    compensatory: boolean;
+    seniorityEveryYears: number | null;
+    seniorityExtraDays: number | null;
+    seniorityCapDays: number | null;
 }, {
     code: string;
     name: string;
-    id: string;
-    paid: boolean;
+    payment: "paid" | "unpaid" | "partial";
     accrual: "none" | "monthly" | "yearly_upfront";
+    carry: "none" | "carry" | "carry_with_expiry";
+    paymentPercent: number | null;
     yearlyEntitlementDays: number | null;
-    needsApproval: boolean;
+    reset: "never" | "monthly" | "yearly";
+    carryMaxDays: number;
+    carryExpiresMonths: number | null;
+    approvalSteps: number;
+    needsAttachment: boolean;
+    countsWeeklyOffs: boolean;
+    countsHolidays: boolean;
+    eligibleSex: "female" | "male" | null;
+    minServiceMonths: number;
+    oncePerEmployment: boolean;
+    statutory: boolean;
+    allowsPastRequests: boolean;
+    encashable: boolean;
+    compensatory: boolean;
+    seniorityEveryYears: number | null;
+    seniorityExtraDays: number | null;
+    seniorityCapDays: number | null;
+}>, {
+    code: string;
+    name: string;
+    payment: "paid" | "unpaid" | "partial";
+    accrual: "none" | "monthly" | "yearly_upfront";
+    carry: "none" | "carry" | "carry_with_expiry";
+    paymentPercent: number | null;
+    yearlyEntitlementDays: number | null;
+    reset: "never" | "monthly" | "yearly";
+    carryMaxDays: number;
+    carryExpiresMonths: number | null;
+    approvalSteps: number;
+    needsAttachment: boolean;
+    countsWeeklyOffs: boolean;
+    countsHolidays: boolean;
+    eligibleSex: "female" | "male" | null;
+    minServiceMonths: number;
+    oncePerEmployment: boolean;
+    statutory: boolean;
+    allowsPastRequests: boolean;
+    encashable: boolean;
+    compensatory: boolean;
+    seniorityEveryYears: number | null;
+    seniorityExtraDays: number | null;
+    seniorityCapDays: number | null;
+}, {
+    code: string;
+    name: string;
+    payment: "paid" | "unpaid" | "partial";
+    accrual: "none" | "monthly" | "yearly_upfront";
+    carry: "none" | "carry" | "carry_with_expiry";
+    paymentPercent: number | null;
+    yearlyEntitlementDays: number | null;
+    reset: "never" | "monthly" | "yearly";
+    carryMaxDays: number;
+    carryExpiresMonths: number | null;
+    approvalSteps: number;
+    needsAttachment: boolean;
+    countsWeeklyOffs: boolean;
+    countsHolidays: boolean;
+    eligibleSex: "female" | "male" | null;
+    minServiceMonths: number;
+    oncePerEmployment: boolean;
+    statutory: boolean;
+    allowsPastRequests: boolean;
+    encashable: boolean;
+    compensatory: boolean;
+    seniorityEveryYears: number | null;
+    seniorityExtraDays: number | null;
+    seniorityCapDays: number | null;
 }>;
-export type LeaveType = z.infer<typeof LeaveType>;
+export type CreateLeaveTypeRequest = z.infer<typeof CreateLeaveTypeRequest>;
+/**
+ * `PATCH /ops/leave/types/:id`: whole rule groups at once, so a check across
+ * fields always sees both. An edit applies to requests made after it.
+ */
+export declare const UpdateLeaveTypeRequest: z.ZodEffects<z.ZodEffects<z.ZodObject<{
+    name: z.ZodOptional<z.ZodString>;
+    payment: z.ZodOptional<z.ZodEnum<["paid", "unpaid", "partial"]>>;
+    paymentPercent: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
+    yearlyEntitlementDays: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
+    accrual: z.ZodOptional<z.ZodEnum<["yearly_upfront", "monthly", "none"]>>;
+    reset: z.ZodOptional<z.ZodEnum<["yearly", "monthly", "never"]>>;
+    carry: z.ZodOptional<z.ZodEnum<["none", "carry", "carry_with_expiry"]>>;
+    carryMaxDays: z.ZodOptional<z.ZodNumber>;
+    carryExpiresMonths: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
+    approvalSteps: z.ZodOptional<z.ZodNumber>;
+    needsAttachment: z.ZodOptional<z.ZodBoolean>;
+    countsWeeklyOffs: z.ZodOptional<z.ZodBoolean>;
+    countsHolidays: z.ZodOptional<z.ZodBoolean>;
+    eligibleSex: z.ZodOptional<z.ZodNullable<z.ZodEnum<["female", "male"]>>>;
+    minServiceMonths: z.ZodOptional<z.ZodNumber>;
+    oncePerEmployment: z.ZodOptional<z.ZodBoolean>;
+    statutory: z.ZodOptional<z.ZodBoolean>;
+    allowsPastRequests: z.ZodOptional<z.ZodBoolean>;
+    encashable: z.ZodOptional<z.ZodBoolean>;
+    compensatory: z.ZodOptional<z.ZodBoolean>;
+    seniorityEveryYears: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
+    seniorityExtraDays: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
+    seniorityCapDays: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
+    status: z.ZodOptional<z.ZodEnum<["active", "archived"]>>;
+}, "strip", z.ZodTypeAny, {
+    status?: "active" | "archived" | undefined;
+    name?: string | undefined;
+    payment?: "paid" | "unpaid" | "partial" | undefined;
+    accrual?: "none" | "monthly" | "yearly_upfront" | undefined;
+    carry?: "none" | "carry" | "carry_with_expiry" | undefined;
+    paymentPercent?: number | null | undefined;
+    yearlyEntitlementDays?: number | null | undefined;
+    reset?: "never" | "monthly" | "yearly" | undefined;
+    carryMaxDays?: number | undefined;
+    carryExpiresMonths?: number | null | undefined;
+    approvalSteps?: number | undefined;
+    needsAttachment?: boolean | undefined;
+    countsWeeklyOffs?: boolean | undefined;
+    countsHolidays?: boolean | undefined;
+    eligibleSex?: "female" | "male" | null | undefined;
+    minServiceMonths?: number | undefined;
+    oncePerEmployment?: boolean | undefined;
+    statutory?: boolean | undefined;
+    allowsPastRequests?: boolean | undefined;
+    encashable?: boolean | undefined;
+    compensatory?: boolean | undefined;
+    seniorityEveryYears?: number | null | undefined;
+    seniorityExtraDays?: number | null | undefined;
+    seniorityCapDays?: number | null | undefined;
+}, {
+    status?: "active" | "archived" | undefined;
+    name?: string | undefined;
+    payment?: "paid" | "unpaid" | "partial" | undefined;
+    accrual?: "none" | "monthly" | "yearly_upfront" | undefined;
+    carry?: "none" | "carry" | "carry_with_expiry" | undefined;
+    paymentPercent?: number | null | undefined;
+    yearlyEntitlementDays?: number | null | undefined;
+    reset?: "never" | "monthly" | "yearly" | undefined;
+    carryMaxDays?: number | undefined;
+    carryExpiresMonths?: number | null | undefined;
+    approvalSteps?: number | undefined;
+    needsAttachment?: boolean | undefined;
+    countsWeeklyOffs?: boolean | undefined;
+    countsHolidays?: boolean | undefined;
+    eligibleSex?: "female" | "male" | null | undefined;
+    minServiceMonths?: number | undefined;
+    oncePerEmployment?: boolean | undefined;
+    statutory?: boolean | undefined;
+    allowsPastRequests?: boolean | undefined;
+    encashable?: boolean | undefined;
+    compensatory?: boolean | undefined;
+    seniorityEveryYears?: number | null | undefined;
+    seniorityExtraDays?: number | null | undefined;
+    seniorityCapDays?: number | null | undefined;
+}>, {
+    status?: "active" | "archived" | undefined;
+    name?: string | undefined;
+    payment?: "paid" | "unpaid" | "partial" | undefined;
+    accrual?: "none" | "monthly" | "yearly_upfront" | undefined;
+    carry?: "none" | "carry" | "carry_with_expiry" | undefined;
+    paymentPercent?: number | null | undefined;
+    yearlyEntitlementDays?: number | null | undefined;
+    reset?: "never" | "monthly" | "yearly" | undefined;
+    carryMaxDays?: number | undefined;
+    carryExpiresMonths?: number | null | undefined;
+    approvalSteps?: number | undefined;
+    needsAttachment?: boolean | undefined;
+    countsWeeklyOffs?: boolean | undefined;
+    countsHolidays?: boolean | undefined;
+    eligibleSex?: "female" | "male" | null | undefined;
+    minServiceMonths?: number | undefined;
+    oncePerEmployment?: boolean | undefined;
+    statutory?: boolean | undefined;
+    allowsPastRequests?: boolean | undefined;
+    encashable?: boolean | undefined;
+    compensatory?: boolean | undefined;
+    seniorityEveryYears?: number | null | undefined;
+    seniorityExtraDays?: number | null | undefined;
+    seniorityCapDays?: number | null | undefined;
+}, {
+    status?: "active" | "archived" | undefined;
+    name?: string | undefined;
+    payment?: "paid" | "unpaid" | "partial" | undefined;
+    accrual?: "none" | "monthly" | "yearly_upfront" | undefined;
+    carry?: "none" | "carry" | "carry_with_expiry" | undefined;
+    paymentPercent?: number | null | undefined;
+    yearlyEntitlementDays?: number | null | undefined;
+    reset?: "never" | "monthly" | "yearly" | undefined;
+    carryMaxDays?: number | undefined;
+    carryExpiresMonths?: number | null | undefined;
+    approvalSteps?: number | undefined;
+    needsAttachment?: boolean | undefined;
+    countsWeeklyOffs?: boolean | undefined;
+    countsHolidays?: boolean | undefined;
+    eligibleSex?: "female" | "male" | null | undefined;
+    minServiceMonths?: number | undefined;
+    oncePerEmployment?: boolean | undefined;
+    statutory?: boolean | undefined;
+    allowsPastRequests?: boolean | undefined;
+    encashable?: boolean | undefined;
+    compensatory?: boolean | undefined;
+    seniorityEveryYears?: number | null | undefined;
+    seniorityExtraDays?: number | null | undefined;
+    seniorityCapDays?: number | null | undefined;
+}>, {
+    status?: "active" | "archived" | undefined;
+    name?: string | undefined;
+    payment?: "paid" | "unpaid" | "partial" | undefined;
+    accrual?: "none" | "monthly" | "yearly_upfront" | undefined;
+    carry?: "none" | "carry" | "carry_with_expiry" | undefined;
+    paymentPercent?: number | null | undefined;
+    yearlyEntitlementDays?: number | null | undefined;
+    reset?: "never" | "monthly" | "yearly" | undefined;
+    carryMaxDays?: number | undefined;
+    carryExpiresMonths?: number | null | undefined;
+    approvalSteps?: number | undefined;
+    needsAttachment?: boolean | undefined;
+    countsWeeklyOffs?: boolean | undefined;
+    countsHolidays?: boolean | undefined;
+    eligibleSex?: "female" | "male" | null | undefined;
+    minServiceMonths?: number | undefined;
+    oncePerEmployment?: boolean | undefined;
+    statutory?: boolean | undefined;
+    allowsPastRequests?: boolean | undefined;
+    encashable?: boolean | undefined;
+    compensatory?: boolean | undefined;
+    seniorityEveryYears?: number | null | undefined;
+    seniorityExtraDays?: number | null | undefined;
+    seniorityCapDays?: number | null | undefined;
+}, {
+    status?: "active" | "archived" | undefined;
+    name?: string | undefined;
+    payment?: "paid" | "unpaid" | "partial" | undefined;
+    accrual?: "none" | "monthly" | "yearly_upfront" | undefined;
+    carry?: "none" | "carry" | "carry_with_expiry" | undefined;
+    paymentPercent?: number | null | undefined;
+    yearlyEntitlementDays?: number | null | undefined;
+    reset?: "never" | "monthly" | "yearly" | undefined;
+    carryMaxDays?: number | undefined;
+    carryExpiresMonths?: number | null | undefined;
+    approvalSteps?: number | undefined;
+    needsAttachment?: boolean | undefined;
+    countsWeeklyOffs?: boolean | undefined;
+    countsHolidays?: boolean | undefined;
+    eligibleSex?: "female" | "male" | null | undefined;
+    minServiceMonths?: number | undefined;
+    oncePerEmployment?: boolean | undefined;
+    statutory?: boolean | undefined;
+    allowsPastRequests?: boolean | undefined;
+    encashable?: boolean | undefined;
+    compensatory?: boolean | undefined;
+    seniorityEveryYears?: number | null | undefined;
+    seniorityExtraDays?: number | null | undefined;
+    seniorityCapDays?: number | null | undefined;
+}>;
+export type UpdateLeaveTypeRequest = z.infer<typeof UpdateLeaveTypeRequest>;
 export declare const LeaveLedgerEntry: z.ZodObject<{
     id: z.ZodString;
-    kind: z.ZodEnum<["accrual", "taken", "reversal", "carry_forward", "expiry", "adjustment"]>;
-    /** Signed: accruals add, leave taken subtracts, a reversal undoes. */
+    kind: z.ZodEnum<["accrual", "taken", "reversal", "carry_forward", "expiry", "adjustment", "encashed"]>;
+    /** Signed: credits add, debits subtract, a reversal undoes. */
     days: z.ZodNumber;
     effectiveOn: z.ZodString;
     periodKey: z.ZodNullable<z.ZodString>;
     leaveRequestId: z.ZodNullable<z.ZodString>;
     reason: z.ZodNullable<z.ZodString>;
+    /** A credit's last day plus one (AC-LV2). */
+    expiresOn: z.ZodNullable<z.ZodString>;
+    /** The credit a debit draws from. */
+    lotId: z.ZodNullable<z.ZodString>;
 }, "strip", z.ZodTypeAny, {
-    kind: "taken" | "adjustment" | "accrual" | "reversal" | "carry_forward" | "expiry";
+    kind: "taken" | "adjustment" | "accrual" | "reversal" | "carry_forward" | "expiry" | "encashed";
+    expiresOn: string | null;
     reason: string | null;
     id: string;
     days: number;
     effectiveOn: string;
     periodKey: string | null;
     leaveRequestId: string | null;
+    lotId: string | null;
 }, {
-    kind: "taken" | "adjustment" | "accrual" | "reversal" | "carry_forward" | "expiry";
+    kind: "taken" | "adjustment" | "accrual" | "reversal" | "carry_forward" | "expiry" | "encashed";
+    expiresOn: string | null;
     reason: string | null;
     id: string;
     days: number;
     effectiveOn: string;
     periodKey: string | null;
     leaveRequestId: string | null;
+    lotId: string | null;
 }>;
 export type LeaveLedgerEntry = z.infer<typeof LeaveLedgerEntry>;
+/** One credit and what is left of it (AC-LV2): why a person has 4 days, not 6. */
+export declare const LeaveLot: z.ZodObject<{
+    id: z.ZodString;
+    kind: z.ZodEnum<["accrual", "carry_forward", "adjustment"]>;
+    effectiveOn: z.ZodString;
+    /** The last day it can be spent: its own expiry or its year's (or month's) end. */
+    usableUntil: z.ZodNullable<z.ZodString>;
+    creditDays: z.ZodNumber;
+    remainingDays: z.ZodNumber;
+}, "strip", z.ZodTypeAny, {
+    kind: "adjustment" | "accrual" | "carry_forward";
+    id: string;
+    effectiveOn: string;
+    usableUntil: string | null;
+    creditDays: number;
+    remainingDays: number;
+}, {
+    kind: "adjustment" | "accrual" | "carry_forward";
+    id: string;
+    effectiveOn: string;
+    usableUntil: string | null;
+    creditDays: number;
+    remainingDays: number;
+}>;
+export type LeaveLot = z.infer<typeof LeaveLot>;
 /** A balance is only ever the sum of the ledger (AC-L4). */
 export declare const LeaveBalance: z.ZodObject<{
     leaveType: z.ZodObject<{
-        id: z.ZodString;
-        code: z.ZodString;
         name: z.ZodString;
-        paid: z.ZodBoolean;
+        payment: z.ZodEnum<["paid", "unpaid", "partial"]>;
+        /** The share of a day's wage a `partial` type pays, 0 to 100. */
+        paymentPercent: z.ZodNullable<z.ZodNumber>;
         /** Null: no balance is kept, as for unpaid leave. */
         yearlyEntitlementDays: z.ZodNullable<z.ZodNumber>;
         accrual: z.ZodEnum<["yearly_upfront", "monthly", "none"]>;
-        needsApproval: z.ZodBoolean;
+        reset: z.ZodEnum<["yearly", "monthly", "never"]>;
+        carry: z.ZodEnum<["none", "carry", "carry_with_expiry"]>;
+        carryMaxDays: z.ZodNumber;
+        /** How long a carried lot lives; a compensatory type's days live as long. */
+        carryExpiresMonths: z.ZodNullable<z.ZodNumber>;
+        /** 0: approved at request; 1 or 2 steps (AC-LV7). */
+        approvalSteps: z.ZodNumber;
+        needsAttachment: z.ZodBoolean;
+        /** Inside a range a weekly day off counts as a day of leave, as for maternity leave. */
+        countsWeeklyOffs: z.ZodBoolean;
+        countsHolidays: z.ZodBoolean;
+        eligibleSex: z.ZodNullable<z.ZodEnum<["female", "male"]>>;
+        minServiceMonths: z.ZodNumber;
+        oncePerEmployment: z.ZodBoolean;
+        /** Never restricted by a restricted period (AC-LV9). */
+        statutory: z.ZodBoolean;
+        /** Self service may start it up to 30 days back, as for sick leave. */
+        allowsPastRequests: z.ZodBoolean;
+        encashable: z.ZodBoolean;
+        /** Where compensatory days land (AC-LV8). */
+        compensatory: z.ZodBoolean;
+        seniorityEveryYears: z.ZodNullable<z.ZodNumber>;
+        seniorityExtraDays: z.ZodNullable<z.ZodNumber>;
+        seniorityCapDays: z.ZodNullable<z.ZodNumber>;
+    } & {
+        id: z.ZodString;
+        code: z.ZodString;
+        status: z.ZodEnum<["active", "archived"]>;
     }, "strip", z.ZodTypeAny, {
         code: string;
+        status: "active" | "archived";
         name: string;
         id: string;
-        paid: boolean;
+        payment: "paid" | "unpaid" | "partial";
         accrual: "none" | "monthly" | "yearly_upfront";
+        carry: "none" | "carry" | "carry_with_expiry";
+        paymentPercent: number | null;
         yearlyEntitlementDays: number | null;
-        needsApproval: boolean;
+        reset: "never" | "monthly" | "yearly";
+        carryMaxDays: number;
+        carryExpiresMonths: number | null;
+        approvalSteps: number;
+        needsAttachment: boolean;
+        countsWeeklyOffs: boolean;
+        countsHolidays: boolean;
+        eligibleSex: "female" | "male" | null;
+        minServiceMonths: number;
+        oncePerEmployment: boolean;
+        statutory: boolean;
+        allowsPastRequests: boolean;
+        encashable: boolean;
+        compensatory: boolean;
+        seniorityEveryYears: number | null;
+        seniorityExtraDays: number | null;
+        seniorityCapDays: number | null;
     }, {
         code: string;
+        status: "active" | "archived";
         name: string;
         id: string;
-        paid: boolean;
+        payment: "paid" | "unpaid" | "partial";
         accrual: "none" | "monthly" | "yearly_upfront";
+        carry: "none" | "carry" | "carry_with_expiry";
+        paymentPercent: number | null;
         yearlyEntitlementDays: number | null;
-        needsApproval: boolean;
+        reset: "never" | "monthly" | "yearly";
+        carryMaxDays: number;
+        carryExpiresMonths: number | null;
+        approvalSteps: number;
+        needsAttachment: boolean;
+        countsWeeklyOffs: boolean;
+        countsHolidays: boolean;
+        eligibleSex: "female" | "male" | null;
+        minServiceMonths: number;
+        oncePerEmployment: boolean;
+        statutory: boolean;
+        allowsPastRequests: boolean;
+        encashable: boolean;
+        compensatory: boolean;
+        seniorityEveryYears: number | null;
+        seniorityExtraDays: number | null;
+        seniorityCapDays: number | null;
     }>;
     /** Null for a type that keeps no balance. */
     balanceDays: z.ZodNullable<z.ZodNumber>;
+    /** The lots with days left, soonest to expire first. */
+    lots: z.ZodArray<z.ZodObject<{
+        id: z.ZodString;
+        kind: z.ZodEnum<["accrual", "carry_forward", "adjustment"]>;
+        effectiveOn: z.ZodString;
+        /** The last day it can be spent: its own expiry or its year's (or month's) end. */
+        usableUntil: z.ZodNullable<z.ZodString>;
+        creditDays: z.ZodNumber;
+        remainingDays: z.ZodNumber;
+    }, "strip", z.ZodTypeAny, {
+        kind: "adjustment" | "accrual" | "carry_forward";
+        id: string;
+        effectiveOn: string;
+        usableUntil: string | null;
+        creditDays: number;
+        remainingDays: number;
+    }, {
+        kind: "adjustment" | "accrual" | "carry_forward";
+        id: string;
+        effectiveOn: string;
+        usableUntil: string | null;
+        creditDays: number;
+        remainingDays: number;
+    }>, "many">;
     entries: z.ZodArray<z.ZodObject<{
         id: z.ZodString;
-        kind: z.ZodEnum<["accrual", "taken", "reversal", "carry_forward", "expiry", "adjustment"]>;
-        /** Signed: accruals add, leave taken subtracts, a reversal undoes. */
+        kind: z.ZodEnum<["accrual", "taken", "reversal", "carry_forward", "expiry", "adjustment", "encashed"]>;
+        /** Signed: credits add, debits subtract, a reversal undoes. */
         days: z.ZodNumber;
         effectiveOn: z.ZodString;
         periodKey: z.ZodNullable<z.ZodString>;
         leaveRequestId: z.ZodNullable<z.ZodString>;
         reason: z.ZodNullable<z.ZodString>;
+        /** A credit's last day plus one (AC-LV2). */
+        expiresOn: z.ZodNullable<z.ZodString>;
+        /** The credit a debit draws from. */
+        lotId: z.ZodNullable<z.ZodString>;
     }, "strip", z.ZodTypeAny, {
-        kind: "taken" | "adjustment" | "accrual" | "reversal" | "carry_forward" | "expiry";
+        kind: "taken" | "adjustment" | "accrual" | "reversal" | "carry_forward" | "expiry" | "encashed";
+        expiresOn: string | null;
         reason: string | null;
         id: string;
         days: number;
         effectiveOn: string;
         periodKey: string | null;
         leaveRequestId: string | null;
+        lotId: string | null;
     }, {
-        kind: "taken" | "adjustment" | "accrual" | "reversal" | "carry_forward" | "expiry";
+        kind: "taken" | "adjustment" | "accrual" | "reversal" | "carry_forward" | "expiry" | "encashed";
+        expiresOn: string | null;
         reason: string | null;
         id: string;
         days: number;
         effectiveOn: string;
         periodKey: string | null;
         leaveRequestId: string | null;
+        lotId: string | null;
     }>, "many">;
 }, "strip", z.ZodTypeAny, {
     entries: {
-        kind: "taken" | "adjustment" | "accrual" | "reversal" | "carry_forward" | "expiry";
+        kind: "taken" | "adjustment" | "accrual" | "reversal" | "carry_forward" | "expiry" | "encashed";
+        expiresOn: string | null;
         reason: string | null;
         id: string;
         days: number;
         effectiveOn: string;
         periodKey: string | null;
         leaveRequestId: string | null;
+        lotId: string | null;
     }[];
     leaveType: {
         code: string;
+        status: "active" | "archived";
         name: string;
         id: string;
-        paid: boolean;
+        payment: "paid" | "unpaid" | "partial";
         accrual: "none" | "monthly" | "yearly_upfront";
+        carry: "none" | "carry" | "carry_with_expiry";
+        paymentPercent: number | null;
         yearlyEntitlementDays: number | null;
-        needsApproval: boolean;
+        reset: "never" | "monthly" | "yearly";
+        carryMaxDays: number;
+        carryExpiresMonths: number | null;
+        approvalSteps: number;
+        needsAttachment: boolean;
+        countsWeeklyOffs: boolean;
+        countsHolidays: boolean;
+        eligibleSex: "female" | "male" | null;
+        minServiceMonths: number;
+        oncePerEmployment: boolean;
+        statutory: boolean;
+        allowsPastRequests: boolean;
+        encashable: boolean;
+        compensatory: boolean;
+        seniorityEveryYears: number | null;
+        seniorityExtraDays: number | null;
+        seniorityCapDays: number | null;
     };
     balanceDays: number | null;
+    lots: {
+        kind: "adjustment" | "accrual" | "carry_forward";
+        id: string;
+        effectiveOn: string;
+        usableUntil: string | null;
+        creditDays: number;
+        remainingDays: number;
+    }[];
 }, {
     entries: {
-        kind: "taken" | "adjustment" | "accrual" | "reversal" | "carry_forward" | "expiry";
+        kind: "taken" | "adjustment" | "accrual" | "reversal" | "carry_forward" | "expiry" | "encashed";
+        expiresOn: string | null;
         reason: string | null;
         id: string;
         days: number;
         effectiveOn: string;
         periodKey: string | null;
         leaveRequestId: string | null;
+        lotId: string | null;
     }[];
     leaveType: {
         code: string;
+        status: "active" | "archived";
         name: string;
         id: string;
-        paid: boolean;
+        payment: "paid" | "unpaid" | "partial";
         accrual: "none" | "monthly" | "yearly_upfront";
+        carry: "none" | "carry" | "carry_with_expiry";
+        paymentPercent: number | null;
         yearlyEntitlementDays: number | null;
-        needsApproval: boolean;
+        reset: "never" | "monthly" | "yearly";
+        carryMaxDays: number;
+        carryExpiresMonths: number | null;
+        approvalSteps: number;
+        needsAttachment: boolean;
+        countsWeeklyOffs: boolean;
+        countsHolidays: boolean;
+        eligibleSex: "female" | "male" | null;
+        minServiceMonths: number;
+        oncePerEmployment: boolean;
+        statutory: boolean;
+        allowsPastRequests: boolean;
+        encashable: boolean;
+        compensatory: boolean;
+        seniorityEveryYears: number | null;
+        seniorityExtraDays: number | null;
+        seniorityCapDays: number | null;
     };
     balanceDays: number | null;
+    lots: {
+        kind: "adjustment" | "accrual" | "carry_forward";
+        id: string;
+        effectiveOn: string;
+        usableUntil: string | null;
+        creditDays: number;
+        remainingDays: number;
+    }[];
 }>;
 export type LeaveBalance = z.infer<typeof LeaveBalance>;
 export declare const LeaveBalances: z.ZodObject<{
     employeeId: z.ZodString;
     balances: z.ZodArray<z.ZodObject<{
         leaveType: z.ZodObject<{
-            id: z.ZodString;
-            code: z.ZodString;
             name: z.ZodString;
-            paid: z.ZodBoolean;
+            payment: z.ZodEnum<["paid", "unpaid", "partial"]>;
+            /** The share of a day's wage a `partial` type pays, 0 to 100. */
+            paymentPercent: z.ZodNullable<z.ZodNumber>;
             /** Null: no balance is kept, as for unpaid leave. */
             yearlyEntitlementDays: z.ZodNullable<z.ZodNumber>;
             accrual: z.ZodEnum<["yearly_upfront", "monthly", "none"]>;
-            needsApproval: z.ZodBoolean;
+            reset: z.ZodEnum<["yearly", "monthly", "never"]>;
+            carry: z.ZodEnum<["none", "carry", "carry_with_expiry"]>;
+            carryMaxDays: z.ZodNumber;
+            /** How long a carried lot lives; a compensatory type's days live as long. */
+            carryExpiresMonths: z.ZodNullable<z.ZodNumber>;
+            /** 0: approved at request; 1 or 2 steps (AC-LV7). */
+            approvalSteps: z.ZodNumber;
+            needsAttachment: z.ZodBoolean;
+            /** Inside a range a weekly day off counts as a day of leave, as for maternity leave. */
+            countsWeeklyOffs: z.ZodBoolean;
+            countsHolidays: z.ZodBoolean;
+            eligibleSex: z.ZodNullable<z.ZodEnum<["female", "male"]>>;
+            minServiceMonths: z.ZodNumber;
+            oncePerEmployment: z.ZodBoolean;
+            /** Never restricted by a restricted period (AC-LV9). */
+            statutory: z.ZodBoolean;
+            /** Self service may start it up to 30 days back, as for sick leave. */
+            allowsPastRequests: z.ZodBoolean;
+            encashable: z.ZodBoolean;
+            /** Where compensatory days land (AC-LV8). */
+            compensatory: z.ZodBoolean;
+            seniorityEveryYears: z.ZodNullable<z.ZodNumber>;
+            seniorityExtraDays: z.ZodNullable<z.ZodNumber>;
+            seniorityCapDays: z.ZodNullable<z.ZodNumber>;
+        } & {
+            id: z.ZodString;
+            code: z.ZodString;
+            status: z.ZodEnum<["active", "archived"]>;
         }, "strip", z.ZodTypeAny, {
             code: string;
+            status: "active" | "archived";
             name: string;
             id: string;
-            paid: boolean;
+            payment: "paid" | "unpaid" | "partial";
             accrual: "none" | "monthly" | "yearly_upfront";
+            carry: "none" | "carry" | "carry_with_expiry";
+            paymentPercent: number | null;
             yearlyEntitlementDays: number | null;
-            needsApproval: boolean;
+            reset: "never" | "monthly" | "yearly";
+            carryMaxDays: number;
+            carryExpiresMonths: number | null;
+            approvalSteps: number;
+            needsAttachment: boolean;
+            countsWeeklyOffs: boolean;
+            countsHolidays: boolean;
+            eligibleSex: "female" | "male" | null;
+            minServiceMonths: number;
+            oncePerEmployment: boolean;
+            statutory: boolean;
+            allowsPastRequests: boolean;
+            encashable: boolean;
+            compensatory: boolean;
+            seniorityEveryYears: number | null;
+            seniorityExtraDays: number | null;
+            seniorityCapDays: number | null;
         }, {
             code: string;
+            status: "active" | "archived";
             name: string;
             id: string;
-            paid: boolean;
+            payment: "paid" | "unpaid" | "partial";
             accrual: "none" | "monthly" | "yearly_upfront";
+            carry: "none" | "carry" | "carry_with_expiry";
+            paymentPercent: number | null;
             yearlyEntitlementDays: number | null;
-            needsApproval: boolean;
+            reset: "never" | "monthly" | "yearly";
+            carryMaxDays: number;
+            carryExpiresMonths: number | null;
+            approvalSteps: number;
+            needsAttachment: boolean;
+            countsWeeklyOffs: boolean;
+            countsHolidays: boolean;
+            eligibleSex: "female" | "male" | null;
+            minServiceMonths: number;
+            oncePerEmployment: boolean;
+            statutory: boolean;
+            allowsPastRequests: boolean;
+            encashable: boolean;
+            compensatory: boolean;
+            seniorityEveryYears: number | null;
+            seniorityExtraDays: number | null;
+            seniorityCapDays: number | null;
         }>;
         /** Null for a type that keeps no balance. */
         balanceDays: z.ZodNullable<z.ZodNumber>;
+        /** The lots with days left, soonest to expire first. */
+        lots: z.ZodArray<z.ZodObject<{
+            id: z.ZodString;
+            kind: z.ZodEnum<["accrual", "carry_forward", "adjustment"]>;
+            effectiveOn: z.ZodString;
+            /** The last day it can be spent: its own expiry or its year's (or month's) end. */
+            usableUntil: z.ZodNullable<z.ZodString>;
+            creditDays: z.ZodNumber;
+            remainingDays: z.ZodNumber;
+        }, "strip", z.ZodTypeAny, {
+            kind: "adjustment" | "accrual" | "carry_forward";
+            id: string;
+            effectiveOn: string;
+            usableUntil: string | null;
+            creditDays: number;
+            remainingDays: number;
+        }, {
+            kind: "adjustment" | "accrual" | "carry_forward";
+            id: string;
+            effectiveOn: string;
+            usableUntil: string | null;
+            creditDays: number;
+            remainingDays: number;
+        }>, "many">;
         entries: z.ZodArray<z.ZodObject<{
             id: z.ZodString;
-            kind: z.ZodEnum<["accrual", "taken", "reversal", "carry_forward", "expiry", "adjustment"]>;
-            /** Signed: accruals add, leave taken subtracts, a reversal undoes. */
+            kind: z.ZodEnum<["accrual", "taken", "reversal", "carry_forward", "expiry", "adjustment", "encashed"]>;
+            /** Signed: credits add, debits subtract, a reversal undoes. */
             days: z.ZodNumber;
             effectiveOn: z.ZodString;
             periodKey: z.ZodNullable<z.ZodString>;
             leaveRequestId: z.ZodNullable<z.ZodString>;
             reason: z.ZodNullable<z.ZodString>;
+            /** A credit's last day plus one (AC-LV2). */
+            expiresOn: z.ZodNullable<z.ZodString>;
+            /** The credit a debit draws from. */
+            lotId: z.ZodNullable<z.ZodString>;
         }, "strip", z.ZodTypeAny, {
-            kind: "taken" | "adjustment" | "accrual" | "reversal" | "carry_forward" | "expiry";
+            kind: "taken" | "adjustment" | "accrual" | "reversal" | "carry_forward" | "expiry" | "encashed";
+            expiresOn: string | null;
             reason: string | null;
             id: string;
             days: number;
             effectiveOn: string;
             periodKey: string | null;
             leaveRequestId: string | null;
+            lotId: string | null;
         }, {
-            kind: "taken" | "adjustment" | "accrual" | "reversal" | "carry_forward" | "expiry";
+            kind: "taken" | "adjustment" | "accrual" | "reversal" | "carry_forward" | "expiry" | "encashed";
+            expiresOn: string | null;
             reason: string | null;
             id: string;
             days: number;
             effectiveOn: string;
             periodKey: string | null;
             leaveRequestId: string | null;
+            lotId: string | null;
         }>, "many">;
     }, "strip", z.ZodTypeAny, {
         entries: {
-            kind: "taken" | "adjustment" | "accrual" | "reversal" | "carry_forward" | "expiry";
+            kind: "taken" | "adjustment" | "accrual" | "reversal" | "carry_forward" | "expiry" | "encashed";
+            expiresOn: string | null;
             reason: string | null;
             id: string;
             days: number;
             effectiveOn: string;
             periodKey: string | null;
             leaveRequestId: string | null;
+            lotId: string | null;
         }[];
         leaveType: {
             code: string;
+            status: "active" | "archived";
             name: string;
             id: string;
-            paid: boolean;
+            payment: "paid" | "unpaid" | "partial";
             accrual: "none" | "monthly" | "yearly_upfront";
+            carry: "none" | "carry" | "carry_with_expiry";
+            paymentPercent: number | null;
             yearlyEntitlementDays: number | null;
-            needsApproval: boolean;
+            reset: "never" | "monthly" | "yearly";
+            carryMaxDays: number;
+            carryExpiresMonths: number | null;
+            approvalSteps: number;
+            needsAttachment: boolean;
+            countsWeeklyOffs: boolean;
+            countsHolidays: boolean;
+            eligibleSex: "female" | "male" | null;
+            minServiceMonths: number;
+            oncePerEmployment: boolean;
+            statutory: boolean;
+            allowsPastRequests: boolean;
+            encashable: boolean;
+            compensatory: boolean;
+            seniorityEveryYears: number | null;
+            seniorityExtraDays: number | null;
+            seniorityCapDays: number | null;
         };
         balanceDays: number | null;
+        lots: {
+            kind: "adjustment" | "accrual" | "carry_forward";
+            id: string;
+            effectiveOn: string;
+            usableUntil: string | null;
+            creditDays: number;
+            remainingDays: number;
+        }[];
     }, {
         entries: {
-            kind: "taken" | "adjustment" | "accrual" | "reversal" | "carry_forward" | "expiry";
+            kind: "taken" | "adjustment" | "accrual" | "reversal" | "carry_forward" | "expiry" | "encashed";
+            expiresOn: string | null;
             reason: string | null;
             id: string;
             days: number;
             effectiveOn: string;
             periodKey: string | null;
             leaveRequestId: string | null;
+            lotId: string | null;
         }[];
         leaveType: {
             code: string;
+            status: "active" | "archived";
             name: string;
             id: string;
-            paid: boolean;
+            payment: "paid" | "unpaid" | "partial";
             accrual: "none" | "monthly" | "yearly_upfront";
+            carry: "none" | "carry" | "carry_with_expiry";
+            paymentPercent: number | null;
             yearlyEntitlementDays: number | null;
-            needsApproval: boolean;
+            reset: "never" | "monthly" | "yearly";
+            carryMaxDays: number;
+            carryExpiresMonths: number | null;
+            approvalSteps: number;
+            needsAttachment: boolean;
+            countsWeeklyOffs: boolean;
+            countsHolidays: boolean;
+            eligibleSex: "female" | "male" | null;
+            minServiceMonths: number;
+            oncePerEmployment: boolean;
+            statutory: boolean;
+            allowsPastRequests: boolean;
+            encashable: boolean;
+            compensatory: boolean;
+            seniorityEveryYears: number | null;
+            seniorityExtraDays: number | null;
+            seniorityCapDays: number | null;
         };
         balanceDays: number | null;
+        lots: {
+            kind: "adjustment" | "accrual" | "carry_forward";
+            id: string;
+            effectiveOn: string;
+            usableUntil: string | null;
+            creditDays: number;
+            remainingDays: number;
+        }[];
     }>, "many">;
 }, "strip", z.ZodTypeAny, {
     employeeId: string;
     balances: {
         entries: {
-            kind: "taken" | "adjustment" | "accrual" | "reversal" | "carry_forward" | "expiry";
+            kind: "taken" | "adjustment" | "accrual" | "reversal" | "carry_forward" | "expiry" | "encashed";
+            expiresOn: string | null;
             reason: string | null;
             id: string;
             days: number;
             effectiveOn: string;
             periodKey: string | null;
             leaveRequestId: string | null;
+            lotId: string | null;
         }[];
         leaveType: {
             code: string;
+            status: "active" | "archived";
             name: string;
             id: string;
-            paid: boolean;
+            payment: "paid" | "unpaid" | "partial";
             accrual: "none" | "monthly" | "yearly_upfront";
+            carry: "none" | "carry" | "carry_with_expiry";
+            paymentPercent: number | null;
             yearlyEntitlementDays: number | null;
-            needsApproval: boolean;
+            reset: "never" | "monthly" | "yearly";
+            carryMaxDays: number;
+            carryExpiresMonths: number | null;
+            approvalSteps: number;
+            needsAttachment: boolean;
+            countsWeeklyOffs: boolean;
+            countsHolidays: boolean;
+            eligibleSex: "female" | "male" | null;
+            minServiceMonths: number;
+            oncePerEmployment: boolean;
+            statutory: boolean;
+            allowsPastRequests: boolean;
+            encashable: boolean;
+            compensatory: boolean;
+            seniorityEveryYears: number | null;
+            seniorityExtraDays: number | null;
+            seniorityCapDays: number | null;
         };
         balanceDays: number | null;
+        lots: {
+            kind: "adjustment" | "accrual" | "carry_forward";
+            id: string;
+            effectiveOn: string;
+            usableUntil: string | null;
+            creditDays: number;
+            remainingDays: number;
+        }[];
     }[];
 }, {
     employeeId: string;
     balances: {
         entries: {
-            kind: "taken" | "adjustment" | "accrual" | "reversal" | "carry_forward" | "expiry";
+            kind: "taken" | "adjustment" | "accrual" | "reversal" | "carry_forward" | "expiry" | "encashed";
+            expiresOn: string | null;
             reason: string | null;
             id: string;
             days: number;
             effectiveOn: string;
             periodKey: string | null;
             leaveRequestId: string | null;
+            lotId: string | null;
         }[];
         leaveType: {
             code: string;
+            status: "active" | "archived";
             name: string;
             id: string;
-            paid: boolean;
+            payment: "paid" | "unpaid" | "partial";
             accrual: "none" | "monthly" | "yearly_upfront";
+            carry: "none" | "carry" | "carry_with_expiry";
+            paymentPercent: number | null;
             yearlyEntitlementDays: number | null;
-            needsApproval: boolean;
+            reset: "never" | "monthly" | "yearly";
+            carryMaxDays: number;
+            carryExpiresMonths: number | null;
+            approvalSteps: number;
+            needsAttachment: boolean;
+            countsWeeklyOffs: boolean;
+            countsHolidays: boolean;
+            eligibleSex: "female" | "male" | null;
+            minServiceMonths: number;
+            oncePerEmployment: boolean;
+            statutory: boolean;
+            allowsPastRequests: boolean;
+            encashable: boolean;
+            compensatory: boolean;
+            seniorityEveryYears: number | null;
+            seniorityExtraDays: number | null;
+            seniorityCapDays: number | null;
         };
         balanceDays: number | null;
+        lots: {
+            kind: "adjustment" | "accrual" | "carry_forward";
+            id: string;
+            effectiveOn: string;
+            usableUntil: string | null;
+            creditDays: number;
+            remainingDays: number;
+        }[];
     }[];
 }>;
 export type LeaveBalances = z.infer<typeof LeaveBalances>;
@@ -3173,17 +4133,14 @@ export declare const LeaveRequest: z.ZodObject<{
         id: z.ZodString;
         code: z.ZodString;
         name: z.ZodString;
-        paid: z.ZodBoolean;
     }, "strip", z.ZodTypeAny, {
         code: string;
         name: string;
         id: string;
-        paid: boolean;
     }, {
         code: string;
         name: string;
         id: string;
-        paid: boolean;
     }>;
     startsOn: z.ZodString;
     endsOn: z.ZodString;
@@ -3201,6 +4158,34 @@ export declare const LeaveRequest: z.ZodObject<{
     decidedAt: z.ZodNullable<z.ZodString>;
     decisionNote: z.ZodNullable<z.ZodString>;
     createdAt: z.ZodString;
+    payment: z.ZodEnum<["paid", "unpaid", "partial"]>;
+    paymentPercent: z.ZodNullable<z.ZodNumber>;
+    /** 0, 1 or 2, copied from the type at request (AC-LV7). */
+    approvalSteps: z.ZodNumber;
+    /** The step a waiting request is at. */
+    currentStep: z.ZodNumber;
+    /** Each step decided so far, in order. */
+    approvals: z.ZodArray<z.ZodObject<{
+        step: z.ZodNumber;
+        decision: z.ZodEnum<["approved", "rejected", "skipped"]>;
+        decidedByName: z.ZodNullable<z.ZodString>;
+        note: z.ZodNullable<z.ZodString>;
+        decidedAt: z.ZodString;
+    }, "strip", z.ZodTypeAny, {
+        decision: "approved" | "rejected" | "skipped";
+        decidedAt: string;
+        note: string | null;
+        step: number;
+        decidedByName: string | null;
+    }, {
+        decision: "approved" | "rejected" | "skipped";
+        decidedAt: string;
+        note: string | null;
+        step: number;
+        decidedByName: string | null;
+    }>, "many">;
+    /** A sick note or the like is attached; read it through its own route. */
+    hasAttachment: z.ZodBoolean;
 }, "strip", z.ZodTypeAny, {
     status: "approved" | "rejected" | "cancelled" | "requested";
     decidedAt: string | null;
@@ -3208,6 +4193,7 @@ export declare const LeaveRequest: z.ZodObject<{
     id: string;
     startsOn: string;
     decisionNote: string | null;
+    payment: "paid" | "unpaid" | "partial";
     employee: {
         employeeId: string;
         displayName: string;
@@ -3216,18 +4202,28 @@ export declare const LeaveRequest: z.ZodObject<{
     createdAt: string;
     branchId: string | null;
     endsOn: string;
+    paymentPercent: number | null;
+    approvalSteps: number;
     days: number;
     leaveType: {
         code: string;
         name: string;
         id: string;
-        paid: boolean;
     };
     startHalf: "full" | "second_half";
     endHalf: "full" | "first_half";
     routedToEmployeeId: string | null;
     routedToName: string | null;
     routedToMe: boolean;
+    currentStep: number;
+    approvals: {
+        decision: "approved" | "rejected" | "skipped";
+        decidedAt: string;
+        note: string | null;
+        step: number;
+        decidedByName: string | null;
+    }[];
+    hasAttachment: boolean;
 }, {
     status: "approved" | "rejected" | "cancelled" | "requested";
     decidedAt: string | null;
@@ -3235,6 +4231,7 @@ export declare const LeaveRequest: z.ZodObject<{
     id: string;
     startsOn: string;
     decisionNote: string | null;
+    payment: "paid" | "unpaid" | "partial";
     employee: {
         employeeId: string;
         displayName: string;
@@ -3243,28 +4240,68 @@ export declare const LeaveRequest: z.ZodObject<{
     createdAt: string;
     branchId: string | null;
     endsOn: string;
+    paymentPercent: number | null;
+    approvalSteps: number;
     days: number;
     leaveType: {
         code: string;
         name: string;
         id: string;
-        paid: boolean;
     };
     startHalf: "full" | "second_half";
     endHalf: "full" | "first_half";
     routedToEmployeeId: string | null;
     routedToName: string | null;
     routedToMe: boolean;
+    currentStep: number;
+    approvals: {
+        decision: "approved" | "rejected" | "skipped";
+        decidedAt: string;
+        note: string | null;
+        step: number;
+        decidedByName: string | null;
+    }[];
+    hasAttachment: boolean;
 }>;
 export type LeaveRequest = z.infer<typeof LeaveRequest>;
-export declare const CreateLeaveRequestRequest: z.ZodObject<{
-    employeeId: z.ZodString;
+/** The fields a person and the office both ask with (058-leave AC-LV6). */
+export declare const LeaveAsk: z.ZodObject<{
     leaveTypeId: z.ZodString;
     startsOn: z.ZodString;
     endsOn: z.ZodString;
     startHalf: z.ZodOptional<z.ZodEnum<["full", "second_half"]>>;
     endHalf: z.ZodOptional<z.ZodEnum<["full", "first_half"]>>;
     reason: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    /** An uploaded attachment's key (`POST /ops/hr/files` or `/me/work/:id/files`, purpose `attachment`). */
+    attachmentKey: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+}, "strip", z.ZodTypeAny, {
+    startsOn: string;
+    endsOn: string;
+    leaveTypeId: string;
+    reason?: string | null | undefined;
+    startHalf?: "full" | "second_half" | undefined;
+    endHalf?: "full" | "first_half" | undefined;
+    attachmentKey?: string | null | undefined;
+}, {
+    startsOn: string;
+    endsOn: string;
+    leaveTypeId: string;
+    reason?: string | null | undefined;
+    startHalf?: "full" | "second_half" | undefined;
+    endHalf?: "full" | "first_half" | undefined;
+    attachmentKey?: string | null | undefined;
+}>;
+export declare const CreateLeaveRequestRequest: z.ZodObject<{
+    leaveTypeId: z.ZodString;
+    startsOn: z.ZodString;
+    endsOn: z.ZodString;
+    startHalf: z.ZodOptional<z.ZodEnum<["full", "second_half"]>>;
+    endHalf: z.ZodOptional<z.ZodEnum<["full", "first_half"]>>;
+    reason: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    /** An uploaded attachment's key (`POST /ops/hr/files` or `/me/work/:id/files`, purpose `attachment`). */
+    attachmentKey: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+} & {
+    employeeId: z.ZodString;
 }, "strip", z.ZodTypeAny, {
     startsOn: string;
     employeeId: string;
@@ -3273,6 +4310,7 @@ export declare const CreateLeaveRequestRequest: z.ZodObject<{
     reason?: string | null | undefined;
     startHalf?: "full" | "second_half" | undefined;
     endHalf?: "full" | "first_half" | undefined;
+    attachmentKey?: string | null | undefined;
 }, {
     startsOn: string;
     employeeId: string;
@@ -3281,8 +4319,37 @@ export declare const CreateLeaveRequestRequest: z.ZodObject<{
     reason?: string | null | undefined;
     startHalf?: "full" | "second_half" | undefined;
     endHalf?: "full" | "first_half" | undefined;
+    attachmentKey?: string | null | undefined;
 }>;
 export type CreateLeaveRequestRequest = z.infer<typeof CreateLeaveRequestRequest>;
+/** The same through self service: the person's own file is the path. */
+export declare const CreateMyLeaveRequestRequest: z.ZodObject<{
+    leaveTypeId: z.ZodString;
+    startsOn: z.ZodString;
+    endsOn: z.ZodString;
+    startHalf: z.ZodOptional<z.ZodEnum<["full", "second_half"]>>;
+    endHalf: z.ZodOptional<z.ZodEnum<["full", "first_half"]>>;
+    reason: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    /** An uploaded attachment's key (`POST /ops/hr/files` or `/me/work/:id/files`, purpose `attachment`). */
+    attachmentKey: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+}, "strip", z.ZodTypeAny, {
+    startsOn: string;
+    endsOn: string;
+    leaveTypeId: string;
+    reason?: string | null | undefined;
+    startHalf?: "full" | "second_half" | undefined;
+    endHalf?: "full" | "first_half" | undefined;
+    attachmentKey?: string | null | undefined;
+}, {
+    startsOn: string;
+    endsOn: string;
+    leaveTypeId: string;
+    reason?: string | null | undefined;
+    startHalf?: "full" | "second_half" | undefined;
+    endHalf?: "full" | "first_half" | undefined;
+    attachmentKey?: string | null | undefined;
+}>;
+export type CreateMyLeaveRequestRequest = z.infer<typeof CreateMyLeaveRequestRequest>;
 export declare const LeaveDecisionRequest: z.ZodObject<{
     note: z.ZodOptional<z.ZodNullable<z.ZodString>>;
 }, "strip", z.ZodTypeAny, {

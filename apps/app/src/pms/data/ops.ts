@@ -171,6 +171,18 @@ export const OPS_READ = {
   kioskPin: ["people.manage", "attendance.record"],
   hrHolidays: ["people.view", "people.manage", "roster.manage", "attendance.approve", "leave.approve"],
   timeInsights: ["people.manage"],
+  // Leave in full (058-leave). The dashboard, everybody's balances and the
+  // restricted periods are read by whoever decides leave or keeps the files; a
+  // type's name by any HR permission; the national defaults by people.manage.
+  leaveViews: ["leave.approve", "people.manage"],
+  leaveAllocations: ["leave.approve"],
+  leaveTypes: HR_PERMISSIONS,
+  leaveDefaults: ["people.manage"],
+  restrictedPeriods: ["leave.approve", "people.manage"],
+  // Payroll in full (058-payroll): every read is payroll.run's, except the
+  // contracts list, which whoever writes contracts reads too.
+  payroll: ["payroll.run"],
+  contracts: ["people.manage", "payroll.run"],
 } as const satisfies Record<string, readonly Permission[]>;
 
 /**
@@ -241,7 +253,7 @@ export async function read<T>(
  * fallback is for a non secure context (plain http on a property network),
  * where it is absent — a weaker key there still beats no key at all.
  */
-function newIdempotencyKey(): string {
+export function newIdempotencyKey(): string {
   if (typeof crypto !== "undefined" && "randomUUID" in crypto) {
     return crypto.randomUUID();
   }

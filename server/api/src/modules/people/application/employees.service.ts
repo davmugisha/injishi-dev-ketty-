@@ -377,10 +377,8 @@ export class EmployeesService {
         `Add ${missing.map((m) => MISSING_WORDS[m]).join(', ')} to the file before a contract can start.`,
       );
     }
-    if (body.wageBasis !== 'monthly') {
-      throw new UnprocessableEntityException(
-        'Only monthly wages can be paid so far. Daily and hourly pay comes with the next payroll release.',
-      );
+    if (body.payStructureId && !(await this.employees.ownActiveStructure(orgId, body.payStructureId))) {
+      throw new UnprocessableEntityException('That pay structure is not one of this business\'s.');
     }
     if (!isCalendarDate(body.startsOn) || (body.endsOn && !isCalendarDate(body.endsOn))) {
       throw new UnprocessableEntityException('Those are not real dates.');
@@ -430,6 +428,8 @@ export class EmployeesService {
         wageRwf: body.wageRwf,
         status,
         createdByUserId: userId,
+        payStructureId: body.payStructureId ?? null,
+        noticeDays: body.noticeDays ?? null,
       });
       await writeHrAudit(tx, {
         actorUserId: userId,

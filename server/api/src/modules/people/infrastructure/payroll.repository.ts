@@ -57,9 +57,14 @@ export interface PayslipRow {
   employeeContributionsRwf: number;
   employerContributionsRwf: number;
   otherDeductionsRwf: number;
+  nonIncomeRwf: number;
   netRwf: number;
   lines: PayslipLine[];
   status: PayRunStatus;
+  paidAt: Date | null;
+  paidMethod: 'bank' | 'momo' | 'cash' | null;
+  paidReference: string | null;
+  sentAt: Date | null;
 }
 
 /** What confirm checks each covered person for (AC-Y3). */
@@ -322,6 +327,7 @@ export class PayrollRepository {
         employeeContributionsRwf: slip.employeeContributionsRwf,
         employerContributionsRwf: slip.employerContributionsRwf,
         otherDeductionsRwf: slip.otherDeductionsRwf,
+        nonIncomeRwf: slip.nonIncomeRwf,
         netRwf: slip.netRwf,
         lines: slip.lines,
         status: input.status,
@@ -365,9 +371,14 @@ export class PayrollRepository {
         employeeContributionsRwf: payslips.employeeContributionsRwf,
         employerContributionsRwf: payslips.employerContributionsRwf,
         otherDeductionsRwf: payslips.otherDeductionsRwf,
+        nonIncomeRwf: payslips.nonIncomeRwf,
         netRwf: payslips.netRwf,
         lines: sql<PayslipLine[]>`${payslips.lines}`,
         status: payslips.status,
+        paidAt: payslips.paidAt,
+        paidMethod: payslips.paidMethod,
+        paidReference: payslips.paidReference,
+        sentAt: payslips.sentAt,
       })
       .from(payslips)
       .innerJoin(employees, eq(employees.id, payslips.employeeId))

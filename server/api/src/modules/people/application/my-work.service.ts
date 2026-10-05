@@ -35,6 +35,7 @@ import { DEFAULT_RADIUS_M, TimeSettingsRepository } from '../infrastructure/time
 import { AttendanceInsightsService } from './attendance-insights.service';
 import { displayNameOf, rosterCard } from './employee-presenter';
 import { KioskService } from './kiosk.service';
+import { MyLeaveService } from './my-leave.service';
 import { presentAttendance, presentShift, TimeRequestsService, type RequestActor } from './time-requests.service';
 import { presentEntry, presentRecord, TimeService, type RecordReader } from './time.service';
 
@@ -65,6 +66,7 @@ export class MyWorkService {
     private readonly requestsService: TimeRequestsService,
     private readonly insights: AttendanceInsightsService,
     private readonly kiosk: KioskService,
+    private readonly myLeave: MyLeaveService,
   ) {}
 
   // --- Files (AC-SS1) --------------------------------------------------------------
@@ -294,9 +296,13 @@ export class MyWorkService {
     const manager = await this.mine(userId, employeeId);
     const wantShift = !query.kind || query.kind === 'shift' || query.kind === 'swap';
     const wantAttendance = !query.kind || query.kind === 'attendance';
-    const [shift, attendance] = await Promise.all([
+    const wantLeave = !query.kind || query.kind === 'leave';
+    const wantAllocation = !query.kind || query.kind === 'allocation';
+    const [shift, attendance, leave, allocation] = await Promise.all([
       wantShift ? this.requests.shiftsRoutedTo(manager.id) : Promise.resolve([]),
       wantAttendance ? this.requests.attendanceRoutedTo(manager.id) : Promise.resolve([]),
+      wantLeave ? this.myLeave.teamLeaveRows(manager.id) : Promise.resolve([]),
+      wantAllocation ? this.myLeave.teamAllocationRows(manager.id) : Promise.resolve([]),
     ]);
     const kindOk = (k: 'change' | 'swap'): boolean =>
       !query.kind || query.kind === 'attendance' || (query.kind === 'swap' ? k === 'swap' : k === 'change');
@@ -304,6 +310,8 @@ export class MyWorkService {
     return {
       shift: shift.filter((r) => kindOk(r.kind) && statusOk(r.status)).map((r) => presentShift(r, manager.id)),
       attendance: attendance.filter((r) => statusOk(r.status)).map((r) => presentAttendance(r, manager.id)),
+      leave: leave.filter((r) => statusOk(r.status)),
+      allocation: allocation.filter((r) => statusOk(r.status)),
     };
   }
 

@@ -115,16 +115,25 @@ export type UpdateHrCatalogItemRequest = z.infer<typeof UpdateHrCatalogItemReque
 export const HrSettings = z.object({
     /** `EMP` makes the next number `EMP0007`. */
     employeeNumberPrefix: z.string().nullable(),
+    /** 058-payroll AC-PY14: the day of the month the draft run is made by itself, 1 to 28. */
+    payRunAutoDraftDay: z.number().int().nullable(),
+    /** 058-payroll AC-PY14: printed on payslips and declarations; a run needs it to confirm. */
+    rssbEmployerNumber: z.string().nullable(),
 });
 export type HrSettings = z.infer<typeof HrSettings>;
-export const UpdateHrSettingsRequest = z.object({
-    employeeNumberPrefix: z
-        .string()
-        .trim()
-        .toUpperCase()
-        .regex(/^[A-Z0-9-]{1,8}$/, "A prefix is up to 8 capital letters, digits or dashes.")
-        .nullable(),
-});
+export const UpdateHrSettingsRequest = z
+    .object({
+        employeeNumberPrefix: z
+            .string()
+            .trim()
+            .toUpperCase()
+            .regex(/^[A-Z0-9-]{1,8}$/, "A prefix is up to 8 capital letters, digits or dashes.")
+            .nullable(),
+        payRunAutoDraftDay: z.number().int().min(1).max(28).nullable(),
+        rssbEmployerNumber: z.string().trim().min(3, "An RSSB employer number is at least 3 characters.").max(30).nullable(),
+    })
+    .partial()
+    .refine((b) => Object.keys(b).length > 0, { message: "Nothing to change." });
 export type UpdateHrSettingsRequest = z.infer<typeof UpdateHrSettingsRequest>;
 // ---------------------------------------------------------------------------
 // Pay accounts (AC-PF3)

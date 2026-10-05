@@ -14,6 +14,7 @@ import {
   BadRequestException,
   Body,
   Controller,
+  ForbiddenException,
   Get,
   Param,
   ParseUUIDPipe,
@@ -84,12 +85,15 @@ export class OpsHrController {
    * at it until a write hangs it on a file, a document, a note, a policy or a
    * record, and that write checks again that the key is this workspace's and
    * of the right kind. Counted against the same per person upload budget as
-   * every other upload route (`UploadThrottlerGuard`).
+   * every other upload route (`UploadThrottlerGuard`). Whoever decides leave
+   * may upload an attachment, the sick note a request carries (058-leave
+   * AC-LV6), and so may whoever runs pay, the receipt a claim carries
+   * (058-payroll AC-PY9); a photo or a document stays `people.manage`'s.
    */
   @Post('files')
   @UseGuards(UploadThrottlerGuard)
   @SkipThrottle({ 'uploads-certificate': true })
-  @RequirePermission('people.manage')
+  @RequireAnyPermission('people.manage', 'leave.approve', 'payroll.run')
   async upload(
     @Req() request: MultipartRequest,
     @CurrentWorkspace() ws: ScopedWorkspace,
@@ -123,6 +127,9 @@ export class OpsHrController {
     const purpose = HrUploadPurpose.safeParse(fields.purpose);
     if (!purpose.success) {
       throw new BadRequestException(`\`purpose\` must be one of: ${HrUploadPurpose.options.join(', ')}.`);
+    }
+    if (purpose.data !== 'attachment' && !ws.permissions.includes('people.manage')) {
+      throw new ForbiddenException('Only someone who keeps the files uploads a photo or a document.');
     }
     return this.files.upload(ws, user.id, { body, filename, purpose: purpose.data });
   }
@@ -166,8 +173,9 @@ export class OpsHrController {
     return this.content.settings(ws);
   }
 
+  /** The files' prefix is people.manage's, the draft day and employer number payroll.run's (058-payroll). */
   @Patch('settings')
-  @RequirePermission('people.manage')
+  @RequireAnyPermission('people.manage', 'payroll.run')
   updateSettings(
     @Body(new ZodValidationPipe(UpdateHrSettingsRequest)) body: UpdateHrSettingsRequest,
     @CurrentWorkspace() ws: ScopedWorkspace,

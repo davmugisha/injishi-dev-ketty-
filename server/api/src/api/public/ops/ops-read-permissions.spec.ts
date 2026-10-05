@@ -25,11 +25,28 @@ import { OpsDocumentRequestsController } from './document-requests.controller';
 import { OpsDocumentsController } from './documents.controller';
 import { OpsEmployeesController } from './employees.controller';
 import { OpsHrController } from './hr.controller';
-import { OpsLeaveController } from './leave.controller';
+import {
+  OpsLeaveAllocationsController,
+  OpsLeaveController,
+  OpsLeaveTypesController,
+  OpsLeaveViewsController,
+  OpsRestrictedPeriodsController,
+} from './leave.controller';
 import { OpsListViewsController } from './list-views.controller';
 import { OpsOrgChartController } from './org-chart.controller';
 import { OpsPayAccountsController } from './pay-accounts.controller';
 import { OpsPayRunsController } from './pay-runs.controller';
+import {
+  OpsContractsController,
+  OpsLoansController,
+  OpsPayAdjustmentsController,
+  OpsPayClaimsController,
+  OpsPayComponentsController,
+  OpsPayFilesController,
+  OpsPayrollController,
+  OpsPayslipsController,
+  OpsPayStructuresController,
+} from './payroll.controller';
 import { OpsPoliciesController } from './policies.controller';
 import { OpsRosterController, OpsShiftTemplatesController } from './roster.controller';
 import { OpsEbmController } from './ebm.controller';
@@ -115,6 +132,10 @@ const CONTROLLERS: Ctor[] = [
   OpsRosterController,
   OpsAttendanceController,
   OpsLeaveController,
+  OpsLeaveViewsController,
+  OpsLeaveTypesController,
+  OpsLeaveAllocationsController,
+  OpsRestrictedPeriodsController,
   OpsPayRunsController,
   OpsListViewsController,
   OpsHrController,
@@ -132,6 +153,15 @@ const CONTROLLERS: Ctor[] = [
   OpsAttendanceSettingsController,
   OpsEmployeeKioskPinController,
   OpsHrTimeSettingsController,
+  OpsPayslipsController,
+  OpsPayAdjustmentsController,
+  OpsLoansController,
+  OpsPayClaimsController,
+  OpsPayComponentsController,
+  OpsPayStructuresController,
+  OpsContractsController,
+  OpsPayrollController,
+  OpsPayFilesController,
 ];
 
 interface Read {
@@ -299,6 +329,39 @@ const EXPECTED: Record<string, readonly OrgRole[]> = {
   // Leave counts days by them, so whoever plans time or decides leave reads them.
   '/ops/hr/holidays': ['owner', 'manager'],
   '/ops/hr/weekly-offs': ['owner', 'manager'],
+  // Leave in full (058-leave). A sick note, everybody's balances, the dashboard,
+  // the asks for more days and the restricted periods are read by whoever
+  // decides leave or keeps the files. A type's name is what every HR screen
+  // draws with, so any HR permission reads the types; the national defaults
+  // compared with them are `people.manage`'s, the owner's by default.
+  '/ops/leave/requests/:id/attachment': ['owner', 'manager'],
+  '/ops/leave/balances': ['owner', 'manager'],
+  '/ops/leave/dashboard': ['owner', 'manager'],
+  '/ops/leave/types': ['owner', 'manager', 'receptionist'],
+  '/ops/leave/types/defaults': ['owner'],
+  '/ops/leave/allocation-requests': ['owner', 'manager'],
+  '/ops/leave/allocation-requests/ids': ['owner', 'manager'],
+  '/ops/leave/restricted-periods': ['owner', 'manager'],
+  // Payroll in full (058-payroll): every read is `payroll.run`, the owner's by
+  // default, because each one says what a named colleague earns or owes. The
+  // contracts list is `people.manage` too, which writes contracts.
+  '/ops/pay-runs/:id/payslips.pdf': ['owner'],
+  '/ops/pay-runs/:id/files': ['owner'],
+  '/ops/payslips': ['owner'],
+  '/ops/payslips/ids': ['owner'],
+  '/ops/payslips/:id/pdf': ['owner'],
+  '/ops/pay-adjustments': ['owner'],
+  '/ops/loans': ['owner'],
+  '/ops/loans/:id': ['owner'],
+  '/ops/pay-claims': ['owner'],
+  '/ops/pay-claims/ids': ['owner'],
+  '/ops/pay-claims/:id/receipt': ['owner'],
+  '/ops/pay-components': ['owner'],
+  '/ops/pay-structures': ['owner'],
+  '/ops/contracts': ['owner'],
+  '/ops/payroll/dashboard': ['owner'],
+  '/ops/payroll/rules': ['owner'],
+  '/ops/pay-files/:id': ['owner'],
 };
 
 describe('operator reads (audit H1)', () => {

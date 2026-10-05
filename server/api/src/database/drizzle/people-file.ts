@@ -61,9 +61,14 @@ export const hrSettings = pgTable(
       .references(() => orgs.id, { onDelete: 'cascade' }),
     /** `EMP` makes the next number `EMP0007`; numbers already issued never change (AC-PF12). */
     employeeNumberPrefix: text('employee_number_prefix'),
+    /** 058-payroll AC-PY14: the Kigali day (1 to 28) the daily job drafts the month's run. */
+    payRunAutoDraftDay: integer('pay_run_auto_draft_day'),
+    /** 058-payroll AC-PY14: printed on payslips and declarations; a run needs it to confirm. */
+    rssbEmployerNumber: text('rssb_employer_number'),
     ...timestamps,
   },
   (t) => [
+    check('hr_settings_draft_day_ck', sql`${t.payRunAutoDraftDay} IS NULL OR ${t.payRunAutoDraftDay} BETWEEN 1 AND 28`),
     check(
       'hr_settings_prefix_ck',
       sql`${t.employeeNumberPrefix} IS NULL OR ${t.employeeNumberPrefix} ~ '^[A-Z0-9-]{1,8}$'`,

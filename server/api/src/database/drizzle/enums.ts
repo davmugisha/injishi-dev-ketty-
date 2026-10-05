@@ -418,6 +418,9 @@ export const storedObjectKindEnum = pgEnum('stored_object_kind', [
   'staff_photo',
   'staff_document',
   'hr_attachment',
+  // 058-payroll: a bank or MoMo file, or a PAYE or RSSB declaration. Wages and
+  // account numbers: `payroll.run` only, never shown to the person.
+  'hr_pay_file',
 ]);
 
 

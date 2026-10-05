@@ -101,8 +101,16 @@ export class TimeSettingsService {
     const orgId = orgOf(ws);
     const propertyId = body.propertyId ?? null;
     await this.assertBranchSetting(ws, orgId, propertyId);
-    const { propertyId: _ignored, ...rules } = body;
+    const { propertyId: _ignored, compensationThresholdMinutes, ...given } = body;
     void _ignored;
+    // Left out, the threshold keeps what the row had, so a client that predates it never resets it.
+    const current = await this.settings.policyFor(orgId, propertyId);
+    const rules = {
+      ...given,
+      compensationThresholdMinutes:
+        compensationThresholdMinutes ??
+        (current && current.propertyId === propertyId ? current.compensationThresholdMinutes : DEFAULT_ATTENDANCE_RULES.compensationThresholdMinutes),
+    };
     await this.db.transaction(async (tx) => {
       await this.settings.putPolicy(tx, { orgId, propertyId, ...rules });
       await writeHrAudit(tx, {
@@ -349,6 +357,7 @@ function presentPolicy(rules: AttendanceRules, propertyId: string | null, saved:
     linkWindowMinutes: rules.linkWindowMinutes,
     staleOpenHours: rules.staleOpenHours,
     defaultShiftMinutes: rules.defaultShiftMinutes,
+    compensationThresholdMinutes: rules.compensationThresholdMinutes,
   };
 }
 

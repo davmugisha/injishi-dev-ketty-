@@ -42,7 +42,8 @@ import { TimeSettings } from "./time-settings";
 
 export type StaffLens = (typeof STAFF_LENSES)[number]["key"];
 
-const LENS_SCREEN: Record<StaffLens, ComponentType> = {
+/** A lens may have sections of its own, each a route segment below it (Leave's, 058-leave). */
+const LENS_SCREEN: Record<StaffLens, ComponentType<{ section?: string }>> = {
   employees: Employees,
   "org-chart": OrgChart,
   documents: Documents,
@@ -62,7 +63,7 @@ const LENS_SCREEN: Record<StaffLens, ComponentType> = {
   configuration: Configuration,
 };
 
-export function Staff({ lens }: { lens: StaffLens }) {
+export function Staff({ lens, section }: { lens: StaffLens; section?: string }) {
   const { state } = usePms();
   const workspaceId = useWorkspaceId();
   const permissions = currentGrant(state)?.permissions ?? [];
@@ -92,7 +93,7 @@ export function Staff({ lens }: { lens: StaffLens }) {
           Team &amp; Departments.
         </EmptyState>
       ) : (
-        <Screen />
+        <Screen section={section} />
       )}
     </LensPage>
   );

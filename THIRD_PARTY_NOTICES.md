@@ -21,3 +21,13 @@ followed: ADR-058 in the documentation corpus, and its child ADRs.
 
 Horilla is the work of its own authors. See the Horilla repository for its
 licence text and copyright notices.
+
+## Figtree: a font, embedded in payslip PDFs
+
+The payslip PDF
+(`server/api/src/modules/people/infrastructure/payslip-pdf.renderer.ts`)
+embeds the regular and bold faces of **Figtree**, Copyright 2022 The Figtree
+Project Authors (https://github.com/erikdkennedy/figtree), licensed under the
+SIL Open Font License, version 1.1. The font files are carried unmodified, as
+base64, in `server/api/src/modules/people/infrastructure/fonts/`, beside the
+licence text (`OFL.txt`); each PDF embeds only the glyphs its payslips use.

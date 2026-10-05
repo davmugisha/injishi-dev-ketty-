@@ -744,9 +744,9 @@ export class TimeRepository {
   }
 
   /** People's records in a range, superseded ones left out, for self service, a team and insights. */
-  async personRecords(input: { employeeIds: readonly string[]; from: string; to: string }): Promise<AttendanceRow[]> {
+  async personRecords(input: { employeeIds: readonly string[]; from: string; to: string }, tx?: Tx): Promise<AttendanceRow[]> {
     if (input.employeeIds.length === 0) return [];
-    return this.records()
+    return this.records(tx)
       .where(
         and(
           inArray(attendanceRecords.employeeId, [...input.employeeIds]),

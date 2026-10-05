@@ -37,6 +37,8 @@ export * from "./identity";
 export * from "./people";
 export * from "./people-file";
 export * from "./time";
+export * from "./leave";
+export * from "./payroll-items";
 export * from "./payroll";
 export * from "./list-query";
 export * from "./hr-lists";

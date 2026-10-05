@@ -1,5 +1,6 @@
 import { z } from "zod";
-import { AttendanceRecord, EmployeeStatus, RosterCard, RosterEntry } from "./people";
+import { LeaveAllocationRequest } from "./leave";
+import { AttendanceRecord, EmployeeStatus, LeaveRequest, RosterCard, RosterEntry } from "./people";
 /**
  * Time (ADR-058, 058-time): publishing the roster, rotations, shift and swap
  * requests, attendance requests, overtime, the attendance policy and geofence
@@ -263,6 +264,8 @@ const PolicyFields = z.object({
     linkWindowMinutes: z.number().int().min(0).max(720),
     staleOpenHours: z.number().int().min(1).max(72),
     defaultShiftMinutes: z.number().int().min(30).max(1440),
+    /** 058-leave AC-LV8: minutes on a worked holiday or day off that earn a whole compensatory day; half of it earns half. */
+    compensationThresholdMinutes: z.number().int().min(30).max(1440),
 });
 export const AttendancePolicy = PolicyFields.extend({
     /** Null: the business default every branch without its own row follows. */
@@ -290,7 +293,11 @@ export const AttendanceSettings = z.object({
     clock: z.array(BranchClockSettings),
 });
 export type AttendanceSettings = z.infer<typeof AttendanceSettings>;
-export const PutAttendancePolicyRequest = PolicyFields.extend({ propertyId: Uuid.nullable() });
+export const PutAttendancePolicyRequest = PolicyFields.extend({
+    propertyId: Uuid.nullable(),
+    /** Left out, the row keeps what it had. */
+    compensationThresholdMinutes: z.number().int().min(30).max(1440).optional(),
+});
 export type PutAttendancePolicyRequest = z.infer<typeof PutAttendancePolicyRequest>;
 /** The radius, and the centre: null clears it back to the property's pin, absent leaves it. */
 export const PutBranchClockSettingsRequest = z.object({
@@ -528,7 +535,7 @@ export const MyTeamAttendance = z.object({
 });
 export type MyTeamAttendance = z.infer<typeof MyTeamAttendance>;
 /** Which requests routed to a manager to read: a swap is a shift request that names a colleague. */
-export const TeamRequestKind = z.enum(["shift", "swap", "attendance"]);
+export const TeamRequestKind = z.enum(["shift", "swap", "attendance", "leave", "allocation"]);
 export type TeamRequestKind = z.infer<typeof TeamRequestKind>;
 export const TeamRequestsQuery = z.object({
     kind: TeamRequestKind.optional(),
@@ -539,5 +546,8 @@ export type TeamRequestsQuery = z.infer<typeof TeamRequestsQuery>;
 export const MyTeamRequests = z.object({
     shift: z.array(ShiftRequest),
     attendance: z.array(AttendanceRequest),
+    /** 058-leave: leave and allocation requests routed to the caller. */
+    leave: z.array(LeaveRequest),
+    allocation: z.array(LeaveAllocationRequest),
 });
 export type MyTeamRequests = z.infer<typeof MyTeamRequests>;
