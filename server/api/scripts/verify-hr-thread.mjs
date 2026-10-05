@@ -111,7 +111,10 @@ const get = (s, p) => call(s, 'GET', p);
 /** A GET whose body is a file, not JSON (the CSV export). */
 async function raw(s, path) {
   const res = await fetch(`${API}/api/v1${path}`, { headers: { cookie: s.cookie, 'x-workspace-id': s.workspaceId } });
-  return { status: res.status, headers: res.headers, text: await res.text() };
+  // Decoded by hand: Response.text() drops a leading byte order mark, which is
+  // exactly what the export check has to see.
+  const text = new TextDecoder('utf-8', { ignoreBOM: true }).decode(await res.arrayBuffer());
+  return { status: res.status, headers: res.headers, text };
 }
 /** A list route with a ListQuery as search parameters (058-list-framework). */
 function listPath(path, { q, filters = [], sort, group, size = 100 } = {}) {
@@ -386,7 +389,7 @@ const allIds = await get(owner, listPath('/ops/employees/ids'));
 check('select all answers the matching ids, up to 200, with the total (AC-LF15)', allIds.status === 200 && allIds.body.ids.length === Math.min(allIds.body.total, 200), allIds.body?.total);
 
 const ownerCsv = await raw(owner, `${listPath('/ops/employees/export.csv', { sort: 'employeeNumber' })}`);
-check('export: a CSV file, not cached, with a byte order mark (AC-LF7)', ownerCsv.status === 200 && /text\/csv/.test(ownerCsv.headers.get('content-type') ?? '') && ownerCsv.headers.get('cache-control') === 'no-store' && ownerCsv.text.charCodeAt(0) === 0xfeff, ownerCsv.status);
+check('export: a CSV file, not cached, with a byte order mark (AC-LF7)', ownerCsv.status === 200 && /text\/csv/.test(ownerCsv.headers.get('content-type') ?? '') && ownerCsv.headers.get('cache-control') === 'no-store' && ownerCsv.text.charCodeAt(0) === 0xfeff, [ownerCsv.status, ownerCsv.headers.get('content-type'), ownerCsv.headers.get('cache-control'), ownerCsv.text.charCodeAt(0)]);
 check('the owner\'s export carries the personal columns', ownerCsv.text.split('\r\n')[0].includes('Date of birth'), ownerCsv.text.split('\r\n')[0]);
 const managerCsv = await raw(manager, listPath('/ops/employees/export.csv'));
 check('a basic reader\'s export carries none of them (AC-LF4)', managerCsv.status === 200 && !managerCsv.text.split('\r\n')[0].includes('Date of birth') && !managerCsv.text.includes(cookBody.idDocumentNumber), managerCsv.text.split('\r\n')[0]);
@@ -415,6 +418,11 @@ for (const day of bulkDays) {
   bulkRequests.push(await post(manager, '/ops/leave/requests', { employeeId: cook?.id, leaveTypeId: unpaidType?.id, startsOn: day, endsOn: day }));
 }
 check('three unpaid days filed for the cook', bulkRequests.every((r) => r.status === 201), bulkRequests.map((r) => r.status));
+const ownerQueue = await get(owner, listPath('/ops/leave/requests'));
+check('the owner, who holds no staff file, reads the queue in its default order: 200', ownerQueue.status === 200 && ownerQueue.body.items.every((r) => r.routedToMe === false), ownerQueue.status);
+const managerQueue = await get(manager, listPath('/ops/leave/requests'));
+const routedFlags = (managerQueue.body?.items ?? []).map((r) => r.routedToMe);
+check('by default what is routed to the caller comes first', managerQueue.status === 200 && (routedFlags.indexOf(false) === -1 || routedFlags.lastIndexOf(true) < routedFlags.indexOf(false)), routedFlags);
 const waiting = await get(manager, listPath('/ops/leave/requests/ids', { filters: [['status', 'eq', 'requested']] }));
 check('select all over the waiting queue includes all three', waiting.status === 200 && bulkRequests.every((r) => waiting.body.ids.includes(r.body?.id)), waiting.body?.total);
 const decidedFirst = await post(manager, `/ops/leave/requests/${bulkRequests[0].body?.id}/reject`, { note: 'Kitchen short that day' });

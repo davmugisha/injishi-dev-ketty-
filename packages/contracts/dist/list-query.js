@@ -184,7 +184,7 @@ function checkListQuery(spec, query, reader) {
             return;
         }
         if (!opsFor(field).includes(filter.op)) {
-            issues.push({ path, message: `${filter.op} does not apply to ${field.label}.` });
+            issues.push({ path, message: `That condition does not apply to ${field.label}.` });
             return;
         }
         const problem = valueProblem(field, filter);
@@ -225,20 +225,20 @@ function scalarFits(field, value) {
 function valueProblem(field, filter) {
     const { op, value } = filter;
     if (op === "isNull" || op === "isNotNull") {
-        return value === undefined ? null : `${op} takes no value.`;
+        return value === undefined ? null : `${field.label}: that condition takes no value.`;
     }
     if (op === "in" || op === "nin") {
         if (!Array.isArray(value) || value.length === 0)
-            return `${op} needs a list of values.`;
+            return `Choose at least one value for ${field.label}.`;
         return value.every((v) => scalarFits(field, v)) ? null : `A value does not fit ${field.label}.`;
     }
     if (op === "between") {
-        if (!Array.isArray(value) || value.length !== 2)
-            return "between needs two values.";
+        if (!Array.isArray(value) || value.length !== 2 || value.some((v) => v === undefined || v === null))
+            return `Give both ends of the range for ${field.label}.`;
         return value.every((v) => scalarFits(field, v)) ? null : `A value does not fit ${field.label}.`;
     }
     if (Array.isArray(value) || value === undefined)
-        return `${op} needs one value.`;
+        return `Give a value for ${field.label}.`;
     return scalarFits(field, value) ? null : `The value does not fit ${field.label}.`;
 }
 /** The query with every part that does not fit the spec removed (for links and saved views). */

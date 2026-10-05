@@ -111,7 +111,7 @@ export function Roster() {
   ];
 
   return (
-    <div className="pms-enter flex max-w-wide flex-col gap-4">
+    <div className="pms-enter flex max-w-page flex-col gap-4">
       {mayRoster && (
         <form
           className="flex flex-wrap items-end gap-3 rounded-card border border-card-bd bg-card p-4"

@@ -245,6 +245,9 @@ function ValueEditor({
 function FilterPanel({ spec, reader, filters, onChange, refOptions, exclude = [] }: FilterPanelProps) {
   const [open, setOpen] = React.useState(false);
   const [draft, setDraft] = React.useState<DraftRow[]>([]);
+  // A row's problem shows once its value has been touched, or after Apply was
+  // pressed: a row just added is empty, and saying so at once only scolds.
+  const [touched, setTouched] = React.useState<ReadonlySet<number>>(new Set());
   const nextId = React.useRef(0);
 
   const fields = React.useMemo(
@@ -259,7 +262,10 @@ function FilterPanel({ spec, reader, filters, onChange, refOptions, exclude = []
 
   const rowOf = (filter: ListFilter): DraftRow => ({ id: nextId.current++, ...filter, value: filter.value });
   const onOpenChange = (next: boolean) => {
-    if (next) setDraft(filters.filter((f) => !exclude.includes(f.field)).map(rowOf));
+    if (next) {
+      setDraft(filters.filter((f) => !exclude.includes(f.field)).map(rowOf));
+      setTouched(new Set());
+    }
     setOpen(next);
   };
 
@@ -276,8 +282,10 @@ function FilterPanel({ spec, reader, filters, onChange, refOptions, exclude = []
     );
   }, [draft, spec, reader]);
 
-  const update = (id: number, patch: Partial<DraftRow>) =>
+  const update = (id: number, patch: Partial<DraftRow>) => {
     setDraft((rows) => rows.map((row) => (row.id === id ? { ...row, ...patch } : row)));
+    if ("value" in patch) setTouched((ids) => new Set(ids).add(id));
+  };
   const addRow = () => {
     const field = fields[0];
     if (!field) return;
@@ -285,6 +293,10 @@ function FilterPanel({ spec, reader, filters, onChange, refOptions, exclude = []
   };
   const kept = filters.filter((f) => exclude.includes(f.field));
   const apply = () => {
+    if (issues.size > 0) {
+      setTouched(new Set(draft.map((row) => row.id)));
+      return;
+    }
     onChange([...kept, ...asFilters(draft)]);
     setOpen(false);
   };
@@ -313,7 +325,7 @@ function FilterPanel({ spec, reader, filters, onChange, refOptions, exclude = []
           {draft.map((row, i) => {
             const field = fieldOf(row.field);
             if (!field) return null;
-            const issue = issues.get(i);
+            const issue = touched.has(row.id) ? issues.get(i) : undefined;
             return (
               <div key={row.id} className="flex flex-col gap-1">
                 <div className="grid grid-cols-1 gap-2 sm:grid-cols-[10rem_9rem_1fr_auto] sm:items-start">
@@ -380,7 +392,7 @@ function FilterPanel({ spec, reader, filters, onChange, refOptions, exclude = []
               <Button variant="outline" size="sm" onClick={clear} disabled={counted === 0 && draft.length === 0}>
                 Clear all
               </Button>
-              <Button size="sm" onClick={apply} disabled={issues.size > 0}>
+              <Button size="sm" onClick={apply}>
                 Apply
               </Button>
             </div>

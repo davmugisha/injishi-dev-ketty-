@@ -33,6 +33,8 @@ export interface DataColumn<Row> {
   readonly cell: (row: Row) => React.ReactNode;
   /** Numbers and money read from the right. */
   readonly align?: "start" | "end";
+  /** Let this column's text wrap. Cells keep to one line otherwise, and a wide table scrolls sideways. */
+  readonly wrap?: boolean;
 }
 
 /** How many columns may sort at once, the same cap `ListQuery` puts on `sort`. */
@@ -119,7 +121,7 @@ function DataTable<Row extends RowData>({
       accessorFn: () => column.key,
       enableSorting: sortable.has(column.key),
       cell: (context) => column.cell(context.row.original),
-      meta: { align: column.align ?? "start" },
+      meta: { align: column.align ?? "start", wrap: column.wrap ?? false },
     }));
     if (!selection) return data;
     const select: ColumnDef<typeof features, Row> = {
@@ -129,7 +131,7 @@ function DataTable<Row extends RowData>({
         <Checkbox
           aria-label="Select every row on this page"
           isSelected={table.getIsAllPageRowsSelected()}
-          isIndeterminate={table.getIsSomePageRowsSelected()}
+          isIndeterminate={table.getIsSomePageRowsSelected() && !table.getIsAllPageRowsSelected()}
           onChange={(value: boolean) => table.toggleAllPageRowsSelected(value)}
         />
       ),
@@ -251,13 +253,14 @@ function DataTable<Row extends RowData>({
                   className="border-b border-border transition-colors duration-quick hover:bg-secondary data-[state=selected]:bg-secondary"
                 >
                   {row.getAllCells().map((cell) => {
-                    const align = (cell.column.columnDef.meta as { align?: string } | undefined)?.align;
+                    const meta = cell.column.columnDef.meta as { align?: string; wrap?: boolean } | undefined;
                     return (
                       <td
                         key={cell.id}
                         className={cn(
                           "px-3 py-2 align-middle text-foreground",
-                          align === "end" && "text-right tabular-nums",
+                          !meta?.wrap && "whitespace-nowrap",
+                          meta?.align === "end" && "text-right tabular-nums",
                         )}
                       >
                         <table.FlexRender cell={cell} />

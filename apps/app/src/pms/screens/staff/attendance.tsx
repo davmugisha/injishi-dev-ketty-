@@ -150,7 +150,7 @@ export function Attendance() {
   ];
 
   return (
-    <div className="pms-enter flex max-w-wide flex-col gap-4">
+    <div className="pms-enter flex max-w-page flex-col gap-4">
       <section>
         <SectionHeading n={onShift.length}>On today&apos;s roster, {dshortIso(today)}</SectionHeading>
         {todayRoster.isPending ? null : onShift.length === 0 ? (

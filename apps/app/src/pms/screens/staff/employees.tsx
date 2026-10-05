@@ -119,7 +119,7 @@ export function Employees() {
   const columns = useMemo(() => employeeColumns(base, view === "full"), [base, view]);
 
   return (
-    <div className="pms-enter flex max-w-wide flex-col gap-4">
+    <div className="pms-enter flex max-w-page flex-col gap-4">
       <div className="flex flex-wrap items-center gap-2">
         <span className="flex-1 text-sm text-muted-foreground">
           Everyone who works here, whether or not they ever sign in. A role comes with an account;
@@ -222,7 +222,7 @@ export function Employees() {
         status={page.isError ? "error" : page.isPending ? "loading" : "ready"}
         onRetry={() => void page.refetch()}
         columns={columns}
-        defaultColumns={["employeeNumber", "name", "branch", "hiredOn", "status", "account", "details"]}
+        defaultColumns={["employeeNumber", "name", "branch", "hiredOn", "status", "account", "details", "wage"]}
         getRowId={(e) => e.id}
         labelOf={(e) => e.displayName}
         groupKeyOf={employeeGroupKey}
@@ -328,7 +328,9 @@ function employeeColumns(base: string, full: boolean): DataColumn<Employee>[] {
       header: "Details",
       cell: (e) =>
         e.detailsMissing.length > 0 ? (
-          <Badge intent="warn">Missing {e.detailsMissing.map((d) => EMPLOYEE_MISSING_DETAIL_LABEL[d]).join(", ")}</Badge>
+          <span title={`Missing ${e.detailsMissing.map((d) => EMPLOYEE_MISSING_DETAIL_LABEL[d]).join(", ")}`}>
+            <Badge intent="warn">{e.detailsMissing.length} missing</Badge>
+          </span>
         ) : (
           <span className="text-2xs text-muted-foreground">Complete</span>
         ),

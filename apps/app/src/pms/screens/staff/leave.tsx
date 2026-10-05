@@ -145,7 +145,7 @@ export function Leave() {
   ];
 
   return (
-    <div className="pms-enter flex max-w-wide flex-col gap-4">
+    <div className="pms-enter flex max-w-page flex-col gap-4">
       <div className="flex flex-wrap items-center gap-2">
         <span className="flex-1 text-sm text-muted-foreground">
           Days are counted on the days a person is rostered, or Monday to Friday where they are not;

@@ -348,9 +348,10 @@ export class LeaveRepository {
       endsOn: leaveRequests.endsOn,
       days: leaveRequests.days,
       branch: employees.workPropertyId,
-      routedToMe: me
-        ? sql`coalesce(${leaveRequests.routedToEmployeeId} = ${me}::uuid, false)`
-        : sql`false`,
+      // Always the comparison, even for a caller with no file: `me` is then a
+      // null parameter and every row reads false. A bare `false` here once
+      // sorted the default queue, and Postgres refuses a constant in ORDER BY.
+      routedToMe: sql`coalesce(${leaveRequests.routedToEmployeeId} = ${me}::uuid, false)`,
       createdAt: leaveRequests.createdAt,
     };
   }

@@ -79,7 +79,7 @@ export function Payroll() {
   ];
 
   return (
-    <div className="pms-enter flex max-w-wide flex-col gap-4">
+    <div className="pms-enter flex max-w-page flex-col gap-4">
       <form
         className="flex flex-wrap items-end gap-3 rounded-card border border-card-bd bg-card p-4"
         onSubmit={(ev) => {
