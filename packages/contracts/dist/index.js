@@ -54,6 +54,7 @@ __exportStar(require("./people"), exports);
 __exportStar(require("./people-file"), exports);
 __exportStar(require("./time"), exports);
 __exportStar(require("./leave"), exports);
+__exportStar(require("./payroll-items"), exports);
 __exportStar(require("./payroll"), exports);
 __exportStar(require("./list-query"), exports);
 __exportStar(require("./hr-lists"), exports);

@@ -1,9 +1,10 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.PayRunPage = exports.PAY_RUN_LIST = exports.LeaveBalancePage = exports.LEAVE_BALANCE_LIST = exports.LeaveAllocationBulkRequest = exports.LeaveAllocationPage = exports.LEAVE_ALLOCATION_LIST = exports.LeaveBulkRequest = exports.LeaveRequestPage = exports.LEAVE_REQUEST_LIST = exports.TimeRequestBulkRequest = exports.AttendanceRequestPage = exports.ATTENDANCE_REQUEST_LIST = exports.ShiftRequestPage = exports.SHIFT_REQUEST_LIST = exports.AttendancePage = exports.ATTENDANCE_LIST = exports.RosterPage = exports.ROSTER_LIST = exports.EmployeePage = exports.EMPLOYEE_LIST = void 0;
+exports.ContractPage = exports.CONTRACT_LIST = exports.PayAdjustmentPage = exports.PAY_ADJUSTMENT_LIST = exports.PayClaimBulkRequest = exports.PayClaimPage = exports.PAY_CLAIM_LIST = exports.LoanPage = exports.LOAN_LIST = exports.PayslipBulkRequest = exports.PayslipPage = exports.PAYSLIP_LIST = exports.PayRunPage = exports.PAY_RUN_LIST = exports.LeaveBalancePage = exports.LEAVE_BALANCE_LIST = exports.LeaveAllocationBulkRequest = exports.LeaveAllocationPage = exports.LEAVE_ALLOCATION_LIST = exports.LeaveBulkRequest = exports.LeaveRequestPage = exports.LEAVE_REQUEST_LIST = exports.TimeRequestBulkRequest = exports.AttendanceRequestPage = exports.ATTENDANCE_REQUEST_LIST = exports.ShiftRequestPage = exports.SHIFT_REQUEST_LIST = exports.AttendancePage = exports.ATTENDANCE_LIST = exports.RosterPage = exports.ROSTER_LIST = exports.EmployeePage = exports.EMPLOYEE_LIST = void 0;
 const zod_1 = require("zod");
 const list_query_1 = require("./list-query");
 const payroll_1 = require("./payroll");
+const payroll_items_1 = require("./payroll-items");
 const people_1 = require("./people");
 const leave_1 = require("./leave");
 const time_1 = require("./time");
@@ -313,4 +314,159 @@ exports.PAY_RUN_LIST = (0, list_query_1.defineListSpec)({
     ],
 });
 exports.PayRunPage = (0, list_query_1.listPage)(payroll_1.PayRun);
+const PAID_LABELS = { bank: "Bank", momo: "MoMo", cash: "Cash" };
+/** `GET /ops/payslips` (058-payroll AC-PY15): every payslip across runs, with paid status. */
+exports.PAYSLIP_LIST = (0, list_query_1.defineListSpec)({
+    key: "staff.payslips",
+    searchFields: ["employee"],
+    statusField: "status",
+    defaultSort: [
+        { field: "period", dir: "desc" },
+        { field: "employee", dir: "asc" },
+    ],
+    fields: [
+        { key: "period", label: "Month", type: "text", filterable: true, sortable: true, groupable: true },
+        { key: "employee", label: "Person", type: "text", sortable: true },
+        { key: "branch", label: "Branch", type: "ref", filterable: true, groupable: true },
+        {
+            key: "status",
+            label: "Run",
+            type: "enum",
+            enumValues: ["draft", "confirmed"],
+            enumLabels: { draft: "Draft", confirmed: "Confirmed" },
+            filterable: true,
+        },
+        { key: "paid", label: "Paid", type: "bool", filterable: true, groupable: true },
+        { key: "paidMethod", label: "Paid by", type: "enum", enumValues: ["bank", "momo", "cash"], enumLabels: PAID_LABELS, filterable: true, groupable: true },
+        { key: "netRwf", label: "Net", type: "money", sortable: true },
+    ],
+});
+exports.PayslipPage = (0, list_query_1.listPage)(payroll_items_1.PayslipRow);
+/** `POST /ops/payslips/bulk`: mark several confirmed payslips paid, one way, one reference. */
+exports.PayslipBulkRequest = list_query_1.BulkRequest.extend({
+    action: zod_1.z.literal("mark_paid"),
+    params: payroll_items_1.MarkPaidParams,
+});
+/** `GET /ops/loans`. */
+exports.LOAN_LIST = (0, list_query_1.defineListSpec)({
+    key: "staff.loans",
+    searchFields: ["employee"],
+    statusField: "status",
+    defaultSort: [{ field: "givenOn", dir: "desc" }],
+    fields: [
+        { key: "employee", label: "Person", type: "text", sortable: true },
+        { key: "kind", label: "Kind", type: "enum", enumValues: ["loan", "advance"], enumLabels: { loan: "Loan", advance: "Advance" }, filterable: true, groupable: true },
+        {
+            key: "status",
+            label: "Status",
+            type: "enum",
+            enumValues: ["open", "settled"],
+            enumLabels: { open: "Being repaid", settled: "Settled" },
+            filterable: true,
+        },
+        { key: "branch", label: "Branch", type: "ref", filterable: true, groupable: true },
+        { key: "givenOn", label: "Given", type: "date", filterable: true, sortable: true },
+        { key: "amountRwf", label: "Amount", type: "money", sortable: true },
+    ],
+});
+exports.LoanPage = (0, list_query_1.listPage)(payroll_items_1.Loan);
+/** `GET /ops/pay-claims`. */
+exports.PAY_CLAIM_LIST = (0, list_query_1.defineListSpec)({
+    key: "staff.pay-claims",
+    searchFields: ["employee"],
+    statusField: "status",
+    defaultSort: [{ field: "createdAt", dir: "desc" }],
+    fields: [
+        { key: "employee", label: "Person", type: "text", sortable: true },
+        {
+            key: "kind",
+            label: "Kind",
+            type: "enum",
+            enumValues: ["reimbursement", "leave_encashment"],
+            enumLabels: { reimbursement: "Reimbursement", leave_encashment: "Leave paid out" },
+            filterable: true,
+            groupable: true,
+        },
+        {
+            key: "status",
+            label: "Status",
+            type: "enum",
+            enumValues: ["requested", "approved", "rejected", "cancelled"],
+            enumLabels: { requested: "Waiting", approved: "Approved", rejected: "Refused", cancelled: "Withdrawn" },
+            filterable: true,
+            groupable: true,
+        },
+        { key: "period", label: "Paid in", type: "text", filterable: true, sortable: true },
+        { key: "branch", label: "Branch", type: "ref", filterable: true, groupable: true },
+        { key: "createdAt", label: "Asked", type: "datetime", sortable: true },
+    ],
+});
+exports.PayClaimPage = (0, list_query_1.listPage)(payroll_items_1.PayClaim);
+exports.PayClaimBulkRequest = list_query_1.BulkRequest.extend({
+    action: zod_1.z.enum(["approve", "reject"]),
+    params: zod_1.z.object({ note: zod_1.z.string().trim().max(300).optional() }).optional(),
+});
+/** `GET /ops/pay-adjustments`. */
+exports.PAY_ADJUSTMENT_LIST = (0, list_query_1.defineListSpec)({
+    key: "staff.pay-adjustments",
+    searchFields: ["employee"],
+    statusField: "status",
+    defaultSort: [{ field: "createdAt", dir: "desc" }],
+    fields: [
+        { key: "employee", label: "Person", type: "text", sortable: true },
+        { key: "side", label: "Side", type: "enum", enumValues: ["earning", "deduction"], enumLabels: { earning: "Pays", deduction: "Takes back" }, filterable: true, groupable: true },
+        {
+            key: "source",
+            label: "From",
+            type: "enum",
+            enumValues: ["manual", "leave", "asset_fine", "held_payslip", "late_claim"],
+            enumLabels: { manual: "By hand", leave: "Leave", asset_fine: "Asset fine", held_payslip: "Held payslip", late_claim: "Late claim" },
+            filterable: true,
+            groupable: true,
+        },
+        {
+            key: "status",
+            label: "Status",
+            type: "enum",
+            enumValues: ["open", "waived", "paid"],
+            enumLabels: { open: "To pay", waived: "Waived", paid: "Paid" },
+            filterable: true,
+        },
+        { key: "correctsPeriod", label: "Corrects", type: "text", filterable: true, sortable: true },
+        { key: "branch", label: "Branch", type: "ref", filterable: true, groupable: true },
+        { key: "createdAt", label: "Recorded", type: "datetime", sortable: true },
+    ],
+});
+exports.PayAdjustmentPage = (0, list_query_1.listPage)(payroll_items_1.PayAdjustment);
+/** `GET /ops/contracts`: every contract of the business. */
+exports.CONTRACT_LIST = (0, list_query_1.defineListSpec)({
+    key: "staff.contracts",
+    searchFields: ["employee"],
+    statusField: "status",
+    defaultSort: [{ field: "startsOn", dir: "desc" }],
+    fields: [
+        { key: "employee", label: "Person", type: "text", sortable: true },
+        {
+            key: "status",
+            label: "Status",
+            type: "enum",
+            enumValues: ["draft", "active", "ended"],
+            enumLabels: { draft: "Starting", active: "Running", ended: "Ended" },
+            filterable: true,
+        },
+        {
+            key: "wageBasis",
+            label: "Paid by",
+            type: "enum",
+            enumValues: ["monthly", "daily", "hourly"],
+            enumLabels: { monthly: "Month", daily: "Day", hourly: "Hour" },
+            filterable: true,
+            groupable: true,
+        },
+        { key: "branch", label: "Branch", type: "ref", filterable: true, groupable: true },
+        { key: "startsOn", label: "Starts", type: "date", filterable: true, sortable: true },
+        { key: "endsOn", label: "Ends", type: "date", filterable: true, sortable: true },
+    ],
+});
+exports.ContractPage = (0, list_query_1.listPage)(payroll_items_1.ContractRow);
 //# sourceMappingURL=hr-lists.js.map

@@ -443,6 +443,12 @@ exports.LIST_READ = {
     // 058-leave: allocations are decided by leave.approve; balances read by whoever decides or keeps the files.
     "staff.leave-allocations": ["leave.approve"],
     "staff.leave-balances": ["leave.approve", "people.manage"],
+    // 058-payroll: everything here is payroll.run's; contracts are the files' too.
+    "staff.payslips": ["payroll.run"],
+    "staff.loans": ["payroll.run"],
+    "staff.pay-claims": ["payroll.run"],
+    "staff.pay-adjustments": ["payroll.run"],
+    "staff.contracts": ["people.manage", "payroll.run"],
 };
 function isListKey(key) {
     return Object.prototype.hasOwnProperty.call(exports.LIST_READ, key);

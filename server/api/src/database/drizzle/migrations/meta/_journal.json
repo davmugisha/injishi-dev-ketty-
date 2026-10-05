@@ -421,6 +421,13 @@
       "when": 1791191810309,
       "tag": "0059_hr_leave_drop_old",
       "breakpoints": true
+    },
+    {
+      "idx": 60,
+      "version": "7",
+      "when": 1791209723197,
+      "tag": "0060_hr_payroll",
+      "breakpoints": true
     }
   ]
 }

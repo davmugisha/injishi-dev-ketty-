@@ -298,6 +298,9 @@ exports.CreateContractRequest = zod_1.z.object({
     endsOn: booking_1.IsoDate.nullable().optional(),
     wageBasis: exports.WageBasis,
     wageRwf: zod_1.z.number().int().positive("A wage is more than zero."),
+    /** 058-payroll: the components the contract carries, and its notice in days. */
+    payStructureId: primitives_1.Uuid.nullable().optional(),
+    noticeDays: zod_1.z.number().int().min(0).max(365).nullable().optional(),
 });
 /** The new contract, and the one it shortened, if any. */
 exports.CreateContractResponse = zod_1.z.object({

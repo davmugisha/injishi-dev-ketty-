@@ -372,6 +372,11 @@ export const employmentContracts = pgTable(
     wageRwf: amount('wage_rwf').notNull(),
     status: hrContractStatusEnum('status').notNull(),
     endReason: text('end_reason'),
+    // 058-payroll: the components the contract carries, its notice and its paper.
+    /** Its foreign key to `pay_structures` is hand written in migration 0060 (people-pay.ts imports this file). */
+    payStructureId: uuid('pay_structure_id'),
+    noticeDays: integer('notice_days'),
+    documentKey: text('document_key'),
     createdByUserId: uuid('created_by_user_id').references(() => users.id),
     ...timestamps,
   },
@@ -390,6 +395,7 @@ export const employmentContracts = pgTable(
       'employment_contracts_fixed_term_ck',
       sql`${t.contractType} <> 'fixed_term' OR ${t.endsOn} IS NOT NULL`,
     ),
+    check('employment_contracts_notice_ck', sql`${t.noticeDays} IS NULL OR ${t.noticeDays} BETWEEN 0 AND 365`),
   ],
 );
 
@@ -843,6 +849,9 @@ export const leaveRequests = pgTable(
 
 // --- Pay ---------------------------------------------------------------------
 
+/** How a confirmed payslip was paid (058-payroll AC-PY10). */
+export const hrPaidMethodEnum = pgEnum('hr_paid_method', ['bank', 'momo', 'cash']);
+
 /**
  * One month's pay for one business. A draft recomputes freely; confirming
  * computes once more and freezes; a confirmed run never changes.
@@ -904,11 +913,21 @@ export const payslips = pgTable(
     payeRwf: amount('paye_rwf').notNull(),
     employeeContributionsRwf: amount('employee_contributions_rwf').notNull(),
     employerContributionsRwf: amount('employer_contributions_rwf').notNull(),
-    /** 0 until `058-payroll.md`. */
+    /** Deductions, loan installments and deduction adjustments (058-payroll AC-PY6). */
     otherDeductionsRwf: amount('other_deductions_rwf').notNull().default(0),
+    /** Money paid with the net that is not income: a reimbursement, a loan paid out (AC-PY6a). */
+    nonIncomeRwf: amount('non_income_rwf').notNull().default(0),
     netRwf: amount('net_rwf').notNull(),
     lines: jsonb('lines').notNull(),
     status: hrPayRunStatusEnum('status').notNull().default('draft'),
+    /** The business and the person as they were on the day the run was confirmed (AC-PY11). */
+    snapshot: jsonb('snapshot'),
+    paidAt: timestamp('paid_at', { withTimezone: true }),
+    paidMethod: hrPaidMethodEnum('paid_method'),
+    paidReference: text('paid_reference'),
+    markedPaidByUserId: uuid('marked_paid_by_user_id').references(() => users.id),
+    /** When the person first had it: the message reached them, or they downloaded it. */
+    sentAt: timestamp('sent_at', { withTimezone: true }),
     ...timestamps,
   },
   (t) => [
@@ -916,7 +935,8 @@ export const payslips = pgTable(
     index('payslips_employee_idx').on(t.employeeId),
     check(
       'payslips_net_ck',
-      sql`${t.netRwf} = ${t.grossRwf} - ${t.payeRwf} - ${t.employeeContributionsRwf} - ${t.otherDeductionsRwf}`,
+      sql`${t.netRwf} = ${t.grossRwf} + ${t.nonIncomeRwf} - ${t.payeRwf} - ${t.employeeContributionsRwf} - ${t.otherDeductionsRwf}`,
     ),
+    check('payslips_paid_ck', sql`(${t.paidAt} IS NULL) = (${t.paidMethod} IS NULL) AND (${t.paidAt} IS NULL OR ${t.status} = 'confirmed')`),
   ],
 );
