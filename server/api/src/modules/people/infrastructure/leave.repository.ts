@@ -755,7 +755,7 @@ export class LeaveRepository {
     orgId: string;
     scope: BranchScope;
     query: ListQuery;
-  }): Promise<ListRows<{ id: string; preferredName: string | null; legalName: string; jobPositionTitle: string | null; workPropertyId: string | null; hiredOn: string; status: 'active' | 'offboarded'; offboardedOn: string | null; orgId: string }>> {
+  }): Promise<ListRows<{ id: string; preferredName: string | null; legalName: string; jobPositionId: string | null; jobPositionTitle: string | null; workPropertyId: string | null; hiredOn: string; status: 'active' | 'offboarded'; offboardedOn: string | null; orgId: string }>> {
     const compiled = compileListQuery({ spec: LEAVE_BALANCE_LIST, columns: this.balanceColumns(), reader: 'basic', query: input.query, tieBreaker: employees.id });
     const own = and(eq(employees.orgId, input.orgId), eq(employees.status, 'active'), inBranchScope(employees.workPropertyId, input.scope));
     const where = compiled.where ? and(own, compiled.where) : own;
@@ -766,6 +766,7 @@ export class LeaveRepository {
           orgId: employees.orgId,
           preferredName: employees.preferredName,
           legalName: employees.legalName,
+          jobPositionId: employees.jobPositionId,
           jobPositionTitle: jobPositions.title,
           workPropertyId: employees.workPropertyId,
           hiredOn: employees.hiredOn,

@@ -2840,6 +2840,7 @@ export declare const LeaveBalancePage: z.ZodObject<{
             jobPositionTitle: string | null;
         }>;
         branchId: z.ZodNullable<z.ZodString>;
+        jobPositionId: z.ZodNullable<z.ZodString>;
         balances: z.ZodArray<z.ZodObject<{
             leaveTypeId: z.ZodString;
             days: z.ZodNullable<z.ZodNumber>;
@@ -2857,6 +2858,7 @@ export declare const LeaveBalancePage: z.ZodObject<{
             jobPositionTitle: string | null;
         };
         branchId: string | null;
+        jobPositionId: string | null;
         balances: {
             days: number | null;
             leaveTypeId: string;
@@ -2868,6 +2870,7 @@ export declare const LeaveBalancePage: z.ZodObject<{
             jobPositionTitle: string | null;
         };
         branchId: string | null;
+        jobPositionId: string | null;
         balances: {
             days: number | null;
             leaveTypeId: string;
@@ -2917,6 +2920,7 @@ export declare const LeaveBalancePage: z.ZodObject<{
             jobPositionTitle: string | null;
         };
         branchId: string | null;
+        jobPositionId: string | null;
         balances: {
             days: number | null;
             leaveTypeId: string;
@@ -2946,6 +2950,7 @@ export declare const LeaveBalancePage: z.ZodObject<{
             jobPositionTitle: string | null;
         };
         branchId: string | null;
+        jobPositionId: string | null;
         balances: {
             days: number | null;
             leaveTypeId: string;

@@ -236,6 +236,7 @@ export class LeaveService {
       page.rows.map((p) => ({
         employee: rosterCard({ id: p.id, preferredName: p.preferredName, legalName: p.legalName, jobPositionTitle: p.jobPositionTitle }),
         branchId: p.workPropertyId,
+        jobPositionId: p.jobPositionId,
         balances: types.map((type) => ({
           leaveTypeId: type.id,
           days:

@@ -104,6 +104,8 @@ export type UpdateRestrictedLeavePeriodRequest = z.infer<typeof UpdateRestricted
 export const LeaveBalanceRow = z.object({
     employee: RosterCard,
     branchId: Uuid.nullable(),
+    /** What the list groups by beside the branch. */
+    jobPositionId: Uuid.nullable(),
     balances: z.array(z.object({
         leaveTypeId: Uuid,
         /** Null for a type that keeps no balance. */

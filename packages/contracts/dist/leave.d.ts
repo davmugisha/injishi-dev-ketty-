@@ -442,6 +442,8 @@ export declare const LeaveBalanceRow: z.ZodObject<{
         jobPositionTitle: string | null;
     }>;
     branchId: z.ZodNullable<z.ZodString>;
+    /** What the list groups by beside the branch. */
+    jobPositionId: z.ZodNullable<z.ZodString>;
     balances: z.ZodArray<z.ZodObject<{
         leaveTypeId: z.ZodString;
         /** Null for a type that keeps no balance. */
@@ -460,6 +462,7 @@ export declare const LeaveBalanceRow: z.ZodObject<{
         jobPositionTitle: string | null;
     };
     branchId: string | null;
+    jobPositionId: string | null;
     balances: {
         days: number | null;
         leaveTypeId: string;
@@ -471,6 +474,7 @@ export declare const LeaveBalanceRow: z.ZodObject<{
         jobPositionTitle: string | null;
     };
     branchId: string | null;
+    jobPositionId: string | null;
     balances: {
         days: number | null;
         leaveTypeId: string;

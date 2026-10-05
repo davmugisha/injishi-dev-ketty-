@@ -407,6 +407,9 @@ check('sick leave without a note: 422', sickNoNote.status === 422 && /attachment
 const docKey = (await upload(owner, '/ops/hr/files', { purpose: 'document' })).body?.objectKey;
 const wrongKind = await request(manager, cookM.id, sick?.id, addDays(today, -1), addDays(today, 1), { attachmentKey: docKey });
 check('a document\'s key where an attachment belongs: 422', wrongKind.status === 422, wrongKind.body);
+const managerNote = await upload(manager, '/ops/hr/files', { purpose: 'attachment' });
+const managerDoc = await upload(manager, '/ops/hr/files', { purpose: 'document' });
+check('whoever decides leave uploads a sick note (201), never a document (403)', managerNote.status === 201 && managerDoc.status === 403, [managerNote.status, managerDoc.status]);
 const noteUp = await upload(owner, '/ops/hr/files', { purpose: 'attachment' });
 check('the office uploads a sick note: 201, a PDF by its bytes', noteUp.status === 201 && noteUp.body?.mime === 'application/pdf', noteUp.body);
 const sickM = await request(manager, cookM.id, sick?.id, addDays(today, -1), addDays(today, 1), { attachmentKey: noteUp.body?.objectKey, reason: 'Flu' });

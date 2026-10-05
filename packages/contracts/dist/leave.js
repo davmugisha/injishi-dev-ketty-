@@ -96,6 +96,8 @@ exports.UpdateRestrictedLeavePeriodRequest = PeriodFields.partial()
 exports.LeaveBalanceRow = zod_1.z.object({
     employee: people_1.RosterCard,
     branchId: Uuid.nullable(),
+    /** What the list groups by beside the branch. */
+    jobPositionId: Uuid.nullable(),
     balances: zod_1.z.array(zod_1.z.object({
         leaveTypeId: Uuid,
         /** Null for a type that keeps no balance. */

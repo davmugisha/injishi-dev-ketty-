@@ -22,7 +22,7 @@ import { LeaveService, presentType } from './leave.service';
 
 /**
  * Self service for leave (058-self-service AC-SS6, the routes marked 5):
- * the types a person may ask for, their balances with the lots behind them,
+ * the types a person may ask for, their balances with the lots that make them,
  * their requests and their asks for more days.
  *
  * Ownership is the guard, as everywhere under `me/work` (index contract 10):
