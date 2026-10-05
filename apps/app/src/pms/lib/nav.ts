@@ -302,6 +302,9 @@ export function hostNav(
         // edit them. The screen refuses per lens instead: the roster and Roles
         // ask for `team.manage` inside.
         { key: "people", label: "Team & Departments", icon: "users", href: `${base}/people`, built: true, anyPermission: ["team.manage", "department.manage"] },
+                { key: "payroll", label: "Payroll", icon: "users", href: `${base}/payroll`, built: true, permission: "team.manage" },
+                { key: "checklists", label: "Checklists", icon: "users", href: `${base}/checklists`, built: true, permission: "employee.manage" },
+                { key: "leave", label: "Leave", icon: "users", href: `${base}/leave`, built: true, permission: "employee.manage" },
         // Settings is behind `ebm.manage`, because Integrations is where the RRA
         // EBM account is connected (ADR-041, D-o). Plan and billing stays the
         // owner's: `Settings` hides that lens and refuses it by URL.

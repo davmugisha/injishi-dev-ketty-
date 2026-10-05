@@ -1,0 +1,548 @@
+]633;E;{ echo "### repo-context.txt"\x3b cat repo-context.txt\x3b echo\x3b echo "### 0011_pms_departments.sql"\x3b cat server/api/src/database/drizzle/migrations/0011_pms_departments.sql\x3b echo\x3b echo "### payroll.ts (schema)"\x3b cat server/api/src/database/drizzle/payroll.ts\x3b echo\x3b echo "### drizzle dir listing"\x3b ls server/api/src/database/drizzle | head -80\x3b echo\x3b echo "### latest migrations"\x3b ls server/api/src/database/drizzle/migrations | tail -5\x3b echo\x3b echo "### payroll module files"\x3b git ls-files | grep -Ei 'payroll|pms-departments|department' | grep -v migrations/meta\x3b echo\x3b echo "### contracts location"\x3b find . -path '*@injishi/contracts*' -maxdepth 6 -not -path '*/.git/*' 2>/dev/null | head -5\x3b echo\x3b echo "### backend tests"\x3b git ls-files server | grep -E '\\.(test|spec)\\.ts$' | head -10\x3b echo\x3b echo "### audit / access log schema"\x3b grep -rIln "record_access_logs\\|audit_events" server/api/src --include=*.ts | head -10\x3b } > context-2.txt 2>&1\x3b wc -l context-2.txt;163bf552-8400-44ec-b8e5-1799107920c6]633;C### repo-context.txt
+]633;E;{ echo "## STRUCTURE"\x3b ls -la\x3b cat package.json\x3b cat pnpm-workspace.yaml 2>/dev/null\x3b cat turbo.json 2>/dev/null\x3b echo\x3b echo "## TOP-LEVEL TREE"\x3b find . -maxdepth 3 -not -path '*/node_modules*' -not -path '*/.git/*' -not -path '*/dist/*' -not -path '*/.next/*' -type d | sort | head -120\x3b echo\x3b echo "## DOCS / ADRs / CONVENTIONS"\x3b ls docs doc adr 2>/dev/null\x3b find . -maxdepth 3 \\( -iname 'CLAUDE.md' -o -iname 'AGENTS.md' -o -iname 'CONTRIBUTING.md' -o -iname 'README.md' -o -iname '*adr*' \\) -not -path '*/node_modules*' | head -30\x3b echo\x3b echo "## DB / ORM"\x3b grep -rIl --include=*.ts --include=*.prisma --include=*.sql -e "department_members" . --exclude-dir=node_modules --exclude-dir=dist | head -20\x3b echo\x3b echo "## MIGRATIONS"\x3b find . -type d \\( -iname 'migrations' -o -iname 'drizzle' -o -iname 'prisma' \\) -not -path '*/node_modules*' | head\x3b echo\x3b echo "## FILE NAMES (kebab-case check)"\x3b git ls-files | grep -E 'payroll|department|stored-object|audit' | head -60\x3b } > repo-context.txt 2>&1;163bf552-8400-44ec-b8e5-1799107920c6]633;C## STRUCTURE
+total 888
+drwxr-xr-x 1 user 197121      0 Sep 28 14:25 ./
+drwxr-xr-x 1 user 197121      0 Sep 28 09:46 ../
+-rw-r--r-- 1 user 197121   1326 Sep 16 10:33 .dockerignore
+-rw-r--r-- 1 user 197121   1929 Sep 16 10:33 .easignore
+-rw-r--r-- 1 user 197121    671 Sep 16 12:11 .env
+-rw-r--r-- 1 user 197121    671 Sep 16 10:33 .env.example
+drwxr-xr-x 1 user 197121      0 Sep 18 09:35 .git/
+drwxr-xr-x 1 user 197121      0 Sep 16 10:33 .github/
+-rw-r--r-- 1 user 197121   4521 Sep 16 10:33 .gitignore
+drwxr-xr-x 1 user 197121      0 Sep 16 10:33 apps/
+drwxr-xr-x 1 user 197121      0 Sep 16 10:33 infra/
+-rw-r--r-- 1 user 197121    646 Sep 16 10:33 mise.toml
+drwxr-xr-x 1 user 197121      0 Sep 16 11:04 node_modules/
+-rw-r--r-- 1 user 197121   1902 Sep 16 10:33 package.json
+drwxr-xr-x 1 user 197121      0 Sep 16 10:33 packages/
+-rw-r--r-- 1 user 197121 780391 Sep 16 10:33 pnpm-lock.yaml
+-rw-r--r-- 1 user 197121    704 Sep 16 10:33 pnpm-workspace.yaml
+-rw-r--r-- 1 user 197121  18009 Sep 16 10:33 README.md
+-rw-r--r-- 1 user 197121   1133 Sep 28 14:25 repo-context.txt
+drwxr-xr-x 1 user 197121      0 Sep 16 10:33 scripts/
+drwxr-xr-x 1 user 197121      0 Sep 16 10:33 server/
+drwxr-xr-x 1 user 197121      0 Sep 16 10:33 tools/
+{
+  "name": "injishi",
+  "private": true,
+  "packageManager": "pnpm@10.33.2",
+  "engines": {
+    "node": ">=20.19"
+  },
+  "pnpm": {
+    "onlyBuiltDependencies": [
+      "esbuild",
+      "msgpackr-extract",
+      "sharp"
+    ],
+    "overrides": {
+      "@types/react": "19.1.17",
+      "@types/react-dom": "19.1.11"
+    }
+  },
+  "scripts": {
+    "typecheck": "pnpm -r typecheck",
+    "lint": "pnpm -r lint",
+    "test": "pnpm -r --workspace-concurrency=1 test",
+    "build": "pnpm --filter @injishi/web --filter @injishi/app --filter @injishi/admin --filter @injishi/api build",
+    "check:manifests": "node scripts/check-workspace-manifests.mjs",
+    "lint:ratchet": "node scripts/lint-ratchet.mjs",
+    "dev": "pnpm --filter @injishi/web dev",
+    "dev:all": "pnpm --parallel --filter @injishi/web --filter @injishi/app dev",
+    "web:dev": "pnpm --filter @injishi/web dev",
+    "web:build": "pnpm --filter @injishi/web build",
+    "web:start": "pnpm --filter @injishi/web start",
+    "web:tokens:sync": "pnpm --filter @injishi/web tokens:sync",
+    "app:dev": "pnpm --filter @injishi/app dev",
+    "app:build": "pnpm --filter @injishi/app build",
+    "app:start": "pnpm --filter @injishi/app start",
+    "mobile:start": "pnpm --filter @injishi/mobile start",
+    "api:dev": "pnpm --filter @injishi/api dev",
+    "api:build": "pnpm --filter @injishi/api build",
+    "api:start": "pnpm --filter @injishi/api start",
+    "api:worker": "pnpm --filter @injishi/api worker",
+    "api:worker:dev": "pnpm --filter @injishi/api worker:dev",
+    "db:seed": "pnpm --filter @injishi/api db:seed",
+    "dev:stack": "node scripts/dev-stack.mjs",
+    "dev:stack:down": "node scripts/dev-stack.mjs --down",
+    "dev:stack:reset": "node scripts/dev-stack.mjs --reset"
+  },
+  "devDependencies": {
+    "@types/react": "19.1.17",
+    "@types/react-dom": "19.1.11"
+  }
+}
+# Standalone workspace for the injishi product repo.
+#
+# `packages/*` holds the five shared packages, and globbing them here is what
+# lets apps keep `workspace:*`.
+#
+# It was called `vendor/` and was a build-output mirror of `injishi.managed`.
+# That repository is deleted, these are the only copies, and ADR-034 renamed the
+# directory to say so: a directory called `vendor` is a directory nobody edits,
+# which is the wrong instruction to leave on the only copy of a design system.
+#
+# `server/*` is globbed because the api lives in this repo. Dropping any of
+# the three breaks the standalone build: apps stop resolving `workspace:*`.
+packages:
+  - apps/*
+  - server/*
+  - packages/*
+
+## TOP-LEVEL TREE
+.
+./.git
+./.github
+./.github/actions
+./.github/actions/pnpm-setup
+./.github/workflows
+./apps
+./apps/admin
+./apps/admin/public
+./apps/admin/src
+./apps/admin/test
+./apps/app
+./apps/app/.next
+./apps/app/public
+./apps/app/src
+./apps/mobile
+./apps/mobile/app
+./apps/mobile/assets
+./apps/mobile/scripts
+./apps/mobile/src
+./apps/web
+./apps/web/.next
+./apps/web/public
+./apps/web/scripts
+./apps/web/src
+./apps/web/tests
+./infra
+./infra/docker
+./infra/docker/minio
+./packages
+./packages/auth
+./packages/auth/dist
+./packages/auth/src
+./packages/auth/tests
+./packages/contracts
+./packages/contracts/dist
+./packages/contracts/src
+./packages/contracts/tests
+./packages/design-tokens
+./packages/design-tokens/dist
+./packages/design-tokens/generated
+./packages/design-tokens/scripts
+./packages/design-tokens/src
+./packages/qr
+./packages/qr/dist
+./packages/qr/src
+./packages/ui
+./packages/ui/.storybook
+./packages/ui/src
+./packages/ui/stories
+./packages/ui/tests
+./packages/ui-contract
+./packages/ui-contract/src
+./packages/utils
+./packages/utils/src
+./scripts
+./server
+./server/api
+./server/api/dist
+./server/api/scripts
+./server/api/src
+./tools
+./tools/eslint-rules
+
+## DOCS / ADRs / CONVENTIONS
+./infra/docker/README.md
+./packages/auth/README.md
+./packages/contracts/README.md
+./packages/design-tokens/README.md
+./packages/ui/README.md
+./packages/ui-contract/README.md
+./packages/utils/README.md
+./README.md
+
+## DB / ORM
+./server/api/src/database/drizzle/migrations/0011_pms_departments.sql
+./server/api/src/database/drizzle/migrations/0048_narrow_shockwave.sql
+./server/api/src/database/drizzle/operations.ts
+./server/api/src/modules/payroll/infrastructure/payroll.repository.ts
+
+## MIGRATIONS
+./server/api/dist/database/drizzle
+./server/api/src/database/drizzle
+./server/api/src/database/drizzle/migrations
+
+## FILE NAMES (kebab-case check)
+apps/admin/src/app/audit/layout.tsx
+apps/admin/src/app/audit/page.tsx
+apps/admin/src/app/businesses/[orgId]/obo-audit/page.tsx
+apps/admin/src/lib/api/audit.ts
+apps/admin/src/lib/present/audit.ts
+apps/app/src/app/w/[workspaceId]/people/departments/page.tsx
+apps/app/src/app/w/[workspaceId]/services/departments/page.tsx
+apps/app/src/pms/screens/departments.tsx
+server/api/scripts/verify-guest-department-chat.mjs
+server/api/src/api/admin/governance/audit.controller.ts
+server/api/src/api/admin/governance/audit.service.ts
+server/api/src/api/public/ops/departments.controller.ts
+server/api/src/database/drizzle/migrations/0011_pms_departments.sql
+server/api/src/database/drizzle/migrations/0035_training_audit_subject.sql
+server/api/src/database/drizzle/migrations/0044_guest_claim_department_refunds_offers.sql
+server/api/src/database/drizzle/payroll.ts
+server/api/src/modules/listing-setup/infrastructure/branch-audit.ts
+server/api/src/modules/operations/application/departments.service.ts
+server/api/src/modules/operations/application/night-audit.service.ts
+server/api/src/modules/operations/domain/usali-departments.ts
+server/api/src/modules/operations/infrastructure/departments.repository.ts
+server/api/src/modules/operations/infrastructure/night-audit.processor.ts
+
+### 0011_pms_departments.sql
+-- ADR-016 migration phase 1 - departments, outlets, department members.
+--
+-- The first of nine phases, and it has to be first: `folio_charges.department_id`
+-- is a required foreign key on a revenue charge, so no charge can post until
+-- every property has a department set to point at (AC-14).
+--
+-- Additive only. No enum is recreated and no column changes type, so this does
+-- not need the recreate dance that migrations 0005 and 0009 record.
+--
+-- The two backfills at the bottom are what make AC-14 true for rows that
+-- ALREADY exist. No later phase would do it, and a property with no Rooms
+-- department is a property whose first room charge fails.
+CREATE TYPE "public"."department_category" AS ENUM('rooms', 'fnb', 'spa_recreation', 'other_operated', 'misc_income', 'admin_general', 'sales_marketing', 'it', 'engineering', 'utilities', 'hr');--> statement-breakpoint
+CREATE TYPE "public"."department_member_status" AS ENUM('active', 'removed');--> statement-breakpoint
+CREATE TYPE "public"."department_position" AS ENUM('department_head', 'supervisor', 'staff');--> statement-breakpoint
+CREATE TYPE "public"."department_status" AS ENUM('active', 'archived');--> statement-breakpoint
+CREATE TYPE "public"."department_type" AS ENUM('operated', 'undistributed');--> statement-breakpoint
+CREATE TYPE "public"."outlet_kind" AS ENUM('restaurant', 'bar', 'lounge', 'banquet', 'room_service', 'spa', 'gym', 'pool', 'gift_shop', 'parking', 'laundry', 'business_center', 'other');--> statement-breakpoint
+CREATE TABLE "department_members" (
+	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
+	"department_id" uuid NOT NULL,
+	"org_membership_id" uuid NOT NULL,
+	"user_id" uuid NOT NULL,
+	"workspace_id" uuid NOT NULL,
+	"department_position" "department_position" DEFAULT 'staff' NOT NULL,
+	"job_titles" jsonb,
+	"is_primary" boolean DEFAULT false NOT NULL,
+	"status" "department_member_status" DEFAULT 'active' NOT NULL,
+	"created_at" timestamp with time zone DEFAULT now() NOT NULL,
+	"updated_at" timestamp with time zone DEFAULT now() NOT NULL
+);
+--> statement-breakpoint
+CREATE TABLE "departments" (
+	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
+	"org_id" uuid NOT NULL,
+	"property_id" uuid,
+	"workspace_id" uuid NOT NULL,
+	"name" text NOT NULL,
+	"department_type" "department_type" NOT NULL,
+	"department_category" "department_category" NOT NULL,
+	"is_revenue_center" boolean DEFAULT false NOT NULL,
+	"guest_requestable" boolean DEFAULT false NOT NULL,
+	"sort_order" integer DEFAULT 0 NOT NULL,
+	"status" "department_status" DEFAULT 'active' NOT NULL,
+	"created_at" timestamp with time zone DEFAULT now() NOT NULL,
+	"updated_at" timestamp with time zone DEFAULT now() NOT NULL,
+	CONSTRAINT "departments_revenue_center_is_operated" CHECK ("departments"."is_revenue_center" = false OR "departments"."department_type" = 'operated')
+);
+--> statement-breakpoint
+CREATE TABLE "outlets" (
+	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
+	"department_id" uuid NOT NULL,
+	"property_id" uuid NOT NULL,
+	"workspace_id" uuid NOT NULL,
+	"name" text NOT NULL,
+	"outlet_kind" "outlet_kind" DEFAULT 'other' NOT NULL,
+	"hours" jsonb,
+	"sort_order" integer DEFAULT 0 NOT NULL,
+	"status" "department_status" DEFAULT 'active' NOT NULL,
+	"created_at" timestamp with time zone DEFAULT now() NOT NULL,
+	"updated_at" timestamp with time zone DEFAULT now() NOT NULL
+);
+--> statement-breakpoint
+ALTER TABLE "room_types" ADD COLUMN "department_id" uuid;--> statement-breakpoint
+ALTER TABLE "department_members" ADD CONSTRAINT "department_members_department_id_departments_id_fk" FOREIGN KEY ("department_id") REFERENCES "public"."departments"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "department_members" ADD CONSTRAINT "department_members_org_membership_id_org_memberships_id_fk" FOREIGN KEY ("org_membership_id") REFERENCES "public"."org_memberships"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "department_members" ADD CONSTRAINT "department_members_user_id_users_id_fk" FOREIGN KEY ("user_id") REFERENCES "public"."users"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "department_members" ADD CONSTRAINT "department_members_workspace_id_workspaces_id_fk" FOREIGN KEY ("workspace_id") REFERENCES "public"."workspaces"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "departments" ADD CONSTRAINT "departments_org_id_orgs_id_fk" FOREIGN KEY ("org_id") REFERENCES "public"."orgs"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "departments" ADD CONSTRAINT "departments_property_id_properties_id_fk" FOREIGN KEY ("property_id") REFERENCES "public"."properties"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "departments" ADD CONSTRAINT "departments_workspace_id_workspaces_id_fk" FOREIGN KEY ("workspace_id") REFERENCES "public"."workspaces"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "outlets" ADD CONSTRAINT "outlets_department_id_departments_id_fk" FOREIGN KEY ("department_id") REFERENCES "public"."departments"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "outlets" ADD CONSTRAINT "outlets_property_id_properties_id_fk" FOREIGN KEY ("property_id") REFERENCES "public"."properties"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "outlets" ADD CONSTRAINT "outlets_workspace_id_workspaces_id_fk" FOREIGN KEY ("workspace_id") REFERENCES "public"."workspaces"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
+CREATE INDEX "department_members_department_idx" ON "department_members" USING btree ("department_id");--> statement-breakpoint
+CREATE INDEX "department_members_user_idx" ON "department_members" USING btree ("user_id");--> statement-breakpoint
+CREATE UNIQUE INDEX "department_members_active_uk" ON "department_members" USING btree ("department_id","user_id") WHERE "department_members"."status" = 'active';--> statement-breakpoint
+CREATE INDEX "departments_property_idx" ON "departments" USING btree ("property_id");--> statement-breakpoint
+CREATE INDEX "departments_workspace_idx" ON "departments" USING btree ("workspace_id");--> statement-breakpoint
+CREATE INDEX "departments_org_idx" ON "departments" USING btree ("org_id");--> statement-breakpoint
+CREATE UNIQUE INDEX "departments_property_category_uk" ON "departments" USING btree ("property_id","department_category") WHERE "departments"."property_id" IS NOT NULL;--> statement-breakpoint
+CREATE INDEX "outlets_department_idx" ON "outlets" USING btree ("department_id");--> statement-breakpoint
+CREATE INDEX "outlets_workspace_idx" ON "outlets" USING btree ("workspace_id");--> statement-breakpoint
+ALTER TABLE "room_types" ADD CONSTRAINT "room_types_department_id_departments_id_fk" FOREIGN KEY ("department_id") REFERENCES "public"."departments"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
+CREATE INDEX "room_types_department_idx" ON "room_types" USING btree ("department_id");
+--> statement-breakpoint
+-- The USALI template, applied to every property that already exists.
+--
+-- One department per accounting category, which is the set §14.2 calls "the
+-- USALI department set". Names are editable afterwards; the categories are not.
+-- `guest_requestable` is true only where a guest genuinely contacts the
+-- department directly: the front desk (Rooms), the restaurant (F and B), the spa,
+-- and Engineering, because a broken tap is reported by the person looking at it.
+--
+-- ON CONFLICT DO NOTHING against `departments_property_category_uk`, so running
+-- this twice cannot double a property's department list. That matters more than
+-- it looks: the Rooms lookup a room charge does would become ambiguous.
+INSERT INTO "departments" (
+  "org_id", "property_id", "workspace_id", "name",
+  "department_type", "department_category",
+  "is_revenue_center", "guest_requestable", "sort_order"
+)
+SELECT
+  p."org_id", p."id", p."workspace_id", t.name,
+  t.dept_type::"public"."department_type",
+  t.dept_category::"public"."department_category",
+  t.is_revenue, t.guest_requestable, t.sort_order
+FROM "properties" p
+CROSS JOIN (VALUES
+  ('Rooms',                              'operated',       'rooms',           true,  true,   10),
+  ('Food and Beverage',                  'operated',       'fnb',             true,  true,   20),
+  ('Spa and Recreation',                 'operated',       'spa_recreation',  true,  true,   30),
+  ('Other Operated Departments',         'operated',       'other_operated',  true,  false,  40),
+  ('Miscellaneous Income',               'operated',       'misc_income',     true,  false,  50),
+  ('Administrative and General',         'undistributed',  'admin_general',   false, false,  60),
+  ('Sales and Marketing',                'undistributed',  'sales_marketing', false, false,  70),
+  ('Information and Telecommunications', 'undistributed',  'it',              false, false,  80),
+  ('Engineering and Maintenance',        'undistributed',  'engineering',     false, true,   90),
+  ('Utilities',                          'undistributed',  'utilities',       false, false, 100),
+  ('Human Resources',                    'undistributed',  'hr',              false, false, 110)
+) AS t(name, dept_type, dept_category, is_revenue, guest_requestable, sort_order)
+ON CONFLICT DO NOTHING;--> statement-breakpoint
+-- Every existing room type now points at its property's Rooms department, so a
+-- room charge is attributable the first time one posts (AC-14). Only fills the
+-- blanks, so a later run never moves a room type an operator repointed by hand.
+UPDATE "room_types" rt
+SET "department_id" = d."id"
+FROM "departments" d
+WHERE d."property_id" = rt."property_id"
+  AND d."department_category" = 'rooms'
+  AND rt."department_id" IS NULL;
+
+### payroll.ts (schema)
+/**
+ * §HR / PAYROLL LAYER (new domain — no ADR yet; this is a first pass built to
+ * match the schema's existing conventions, pending team review).
+ *
+ * Salary is versioned by INSERT, never UPDATE, mirroring `registration_fees`:
+ * a raise must never rewrite what a past payslip was actually calculated
+ * against. PAYE and RSSB rates are computed by app code (mocked for now,
+ * ADR pending on the real Rwandan brackets) and stamped onto each payslip at
+ * calculation time, for the same reason `folio_charges.tax_rate` is
+ * snapshotted rather than joined.
+ */
+import {
+  index,
+  pgEnum,
+  pgTable,
+  text,
+  timestamp,
+  unique,
+  uuid,
+} from 'drizzle-orm/pg-core';
+import { users } from './auth';
+import { amount, currency, timestamps } from './columns';
+import { departmentMembers } from './operations';
+import { workspaces } from './org';
+
+export const compensationStatusEnum = pgEnum('compensation_status', [
+  'active',
+  'archived',
+]);
+
+/**
+ * One employee's pay rate, versioned by insert (mirrors `registration_fees`).
+ * `archived` on the old row when a new one takes effect; never edited in place,
+ * so a payslip calculated in March still points at what March actually paid.
+ */
+export const staffCompensation = pgTable(
+  'staff_compensation',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    departmentMemberId: uuid('department_member_id')
+      .notNull()
+      .references(() => departmentMembers.id, { onDelete: 'cascade' }),
+    workspaceId: uuid('workspace_id')
+      .notNull()
+      .references(() => workspaces.id),
+    baseSalaryRwf: amount('base_salary_rwf').notNull(),
+    currency: currency(),
+    effectiveFrom: timestamp('effective_from', { withTimezone: true }).notNull(),
+    status: compensationStatusEnum('status').notNull().default('active'),
+    ...timestamps,
+  },
+  (t) => [
+    index('staff_compensation_member_idx').on(t.departmentMemberId),
+    index('staff_compensation_workspace_idx').on(t.workspaceId),
+  ],
+);
+
+export const payrollRunStatusEnum = pgEnum('payroll_run_status', [
+  'draft',
+  'pending_approval',
+  'approved',
+  'paid',
+  'cancelled',
+]);
+
+/**
+ * One pay period for one workspace. Nothing pays without passing through
+ * `approved` first — mirroring the booking approval flow elsewhere in this
+ * app, money never moves off a single unreviewed click.
+ */
+export const payrollRuns = pgTable(
+  'payroll_runs',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    workspaceId: uuid('workspace_id')
+      .notNull()
+      .references(() => workspaces.id),
+    periodStart: timestamp('period_start', { withTimezone: true }).notNull(),
+    periodEnd: timestamp('period_end', { withTimezone: true }).notNull(),
+    status: payrollRunStatusEnum('status').notNull().default('draft'),
+    approvedByUserId: uuid('approved_by_user_id').references(() => users.id),
+    approvedAt: timestamp('approved_at', { withTimezone: true }),
+    totalGrossRwf: amount('total_gross_rwf').notNull().default(0),
+    totalNetRwf: amount('total_net_rwf').notNull().default(0),
+    currency: currency(),
+    ...timestamps,
+  },
+  (t) => [
+    index('payroll_runs_workspace_idx').on(t.workspaceId, t.status),
+    unique('payroll_runs_workspace_period_uk').on(
+      t.workspaceId,
+      t.periodStart,
+      t.periodEnd,
+    ),
+  ],
+);
+
+export const payslipStatusEnum = pgEnum('payslip_status', [
+  'pending',
+  'paid',
+  'failed',
+]);
+
+/**
+ * One employee's line within a payroll run. PAYE and RSSB are stamped here at
+ * calculation time (currently mocked flat rates — see PAYROLL_ADAPTER_MODE),
+ * so a later rate change never re-prices a payslip already issued, the same
+ * reasoning `folio_charges.tax_rate` documents.
+ */
+export const payslips = pgTable(
+  'payslips',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    payrollRunId: uuid('payroll_run_id')
+      .notNull()
+      .references(() => payrollRuns.id, { onDelete: 'cascade' }),
+    departmentMemberId: uuid('department_member_id')
+      .notNull()
+      .references(() => departmentMembers.id),
+    workspaceId: uuid('workspace_id')
+      .notNull()
+      .references(() => workspaces.id),
+    grossRwf: amount('gross_rwf').notNull(),
+    payeRwf: amount('paye_rwf').notNull().default(0),
+    rssbEmployeeRwf: amount('rssb_employee_rwf').notNull().default(0),
+    rssbEmployerRwf: amount('rssb_employer_rwf').notNull().default(0),
+    netRwf: amount('net_rwf').notNull(),
+    currency: currency(),
+    status: payslipStatusEnum('status').notNull().default('pending'),
+    paidAt: timestamp('paid_at', { withTimezone: true }),
+    idempotencyKey: text('idempotency_key'),
+    ...timestamps,
+  },
+  (t) => [
+    index('payslips_run_idx').on(t.payrollRunId),
+    index('payslips_member_idx').on(t.departmentMemberId),
+    unique('payslips_run_member_uk').on(t.payrollRunId, t.departmentMemberId),
+    unique('payslips_idempotency_key_uk').on(t.idempotencyKey),
+  ],
+);
+### drizzle dir listing
+auth.ts
+columns.ts
+enums.ts
+events.ts
+geography.ts
+governance.ts
+guest-relations.ts
+hospitality.ts
+inventory.ts
+messaging.ts
+migrations/
+money.ts
+operations.ts
+org.ts
+payroll.ts
+platform.ts
+residence.ts
+schema.ts
+training.ts
+waitlist.ts
+
+### latest migrations
+0045_data_integrity_constraints_and_indexes.sql
+0046_guest_chat_order_lines.sql
+0047_org_role_permissions.sql
+0048_narrow_shockwave.sql
+meta/
+
+### payroll module files
+apps/app/src/app/w/[workspaceId]/people/departments/page.tsx
+apps/app/src/app/w/[workspaceId]/services/departments/page.tsx
+apps/app/src/pms/screens/departments.tsx
+server/api/scripts/verify-guest-department-chat.mjs
+server/api/src/api/public/ops/departments.controller.ts
+server/api/src/database/drizzle/migrations/0011_pms_departments.sql
+server/api/src/database/drizzle/migrations/0044_guest_claim_department_refunds_offers.sql
+server/api/src/database/drizzle/payroll.ts
+server/api/src/modules/operations/application/departments.service.ts
+server/api/src/modules/operations/domain/usali-departments.ts
+server/api/src/modules/operations/infrastructure/departments.repository.ts
+
+### contracts location
+./apps/admin/node_modules/@injishi/contracts
+./apps/app/node_modules/@injishi/contracts
+./apps/mobile/node_modules/@injishi/contracts
+./apps/web/node_modules/@injishi/contracts
+./node_modules/.pnpm/node_modules/@injishi/contracts
+
+### backend tests
+server/api/src/api/admin/governance/moderation.service.spec.ts
+server/api/src/api/admin/orgs/org-transitions.spec.ts
+server/api/src/api/admin/training/training-admin.controller.spec.ts
+server/api/src/api/admin/waitlist/waitlist-admin.controller.spec.ts
+server/api/src/api/admin/waitlist/waitlist-admin.service.spec.ts
+server/api/src/api/public/demo/personas.controller.spec.ts
+server/api/src/api/public/health/health.controller.spec.ts
+server/api/src/api/public/ops/ops-read-permissions.spec.ts
+server/api/src/api/public/uploads/upload-throttler.guard.spec.ts
+server/api/src/api/public/waitlist/waitlist-mail.processor.spec.ts
+
+### audit / access log schema
+server/api/src/api/admin/admin-api.module.ts
+server/api/src/api/admin/brokers/brokers.controller.ts
+server/api/src/api/admin/governance/audit.controller.ts
+server/api/src/api/admin/governance/audit.service.ts
+server/api/src/api/admin/governance/government-bodies.service.ts
+server/api/src/api/admin/orgs/org-actions.service.ts
+server/api/src/api/admin/orgs/orgs.controller.ts
+server/api/src/api/admin/platform/analytics/analytics.controller.ts
+server/api/src/api/admin/platform/overview/overview.service.ts
+server/api/src/api/admin/users/oversight-grants.service.ts

@@ -31,6 +31,7 @@ import {
   type CheckInRequest,
   OperatorAmenityList,
   type OperatorDepartment,
+  type OperatorDepartmentMember,
   OperatorDepartmentList,
   type OperatorDeposit,
   OperatorFolioDetail,
@@ -1410,6 +1411,481 @@ export function useSetAmenity(
       // The command returns the whole list, so the cache is set from the
       // server's answer rather than invalidated and refetched.
       client.setQueryData(queryKeys.amenities(workspaceId, propertyId), list);
+    },
+  });
+}
+
+// ---------------------------------------------------------------------------
+// Payroll (first pass — no ADR yet, pending team review)
+// ---------------------------------------------------------------------------
+
+/** No @injishi/contracts schema exists for payroll yet, so this trusts the
+ * shape rather than validating it — acceptable for a first pass, revisit once
+ * the API's shape is stable and worth adding to contracts. */
+const identityParser = <T>(): Parser<T> => ({ parse: (value) => value as T });
+
+export interface StaffCompensationRow {
+  id: string;
+  departmentMemberId: string;
+  userId: string;
+  name: string | null;
+  baseSalaryRwf: number;
+  effectiveFrom: string;
+}
+
+export interface PayrollRunRow {
+  id: string;
+  periodStart: string;
+  periodEnd: string;
+  status: string;
+  totalGrossRwf: number;
+  totalNetRwf: number;
+}
+
+export interface PayslipRow {
+  id: string;
+  departmentMemberId: string;
+  name: string | null;
+  grossRwf: number;
+  payeRwf: number;
+  rssbEmployeeRwf: number;
+  rssbEmployerRwf: number;
+  netRwf: number;
+  status: string;
+}
+
+export function useStaffCompensation(
+  workspaceId: string | null,
+): UseQueryResult<StaffCompensationRow[]> {
+  return useOpsQuery(
+    ["payroll", "compensation", workspaceId],
+    "/ops/payroll/compensation",
+    workspaceId,
+    identityParser<StaffCompensationRow[]>(),
+    OPS_READ.team,
+  );
+}
+
+export function useSetCompensation(
+  workspaceId: string | null,
+): UseMutationResult<void, Error, { departmentMemberId: string; baseSalaryRwf: number }> {
+  const client = useQueryClient();
+  return useMutation({
+    mutationFn: (body) =>
+      command<void>("/ops/payroll/compensation", {
+        workspaceId: workspaceId as string,
+        body,
+      }),
+    onSuccess: () => {
+      void client.invalidateQueries({ queryKey: ["payroll", "compensation", workspaceId] });
+    },
+  });
+}
+
+export function usePayrollRuns(workspaceId: string | null): UseQueryResult<PayrollRunRow[]> {
+  return useOpsQuery(
+    ["payroll", "runs", workspaceId],
+    "/ops/payroll/runs",
+    workspaceId,
+    identityParser<PayrollRunRow[]>(),
+    OPS_READ.team,
+  );
+}
+
+export function useCreatePayrollRun(
+  workspaceId: string | null,
+): UseMutationResult<PayrollRunRow, Error, { periodStart: string; periodEnd: string }> {
+  const client = useQueryClient();
+  return useMutation({
+    mutationFn: (body) =>
+      command<PayrollRunRow>("/ops/payroll/runs", {
+        workspaceId: workspaceId as string,
+        body,
+        idempotencyKey: newIdempotencyKey(),
+      }),
+    onSuccess: () => {
+      void client.invalidateQueries({ queryKey: ["payroll", "runs", workspaceId] });
+    },
+  });
+}
+
+export function usePayslips(
+  workspaceId: string | null,
+  payrollRunId: string | null,
+): UseQueryResult<PayslipRow[]> {
+  return useOpsQuery(
+    ["payroll", "payslips", payrollRunId],
+    `/ops/payroll/runs/${payrollRunId}/payslips`,
+    workspaceId,
+    identityParser<PayslipRow[]>(),
+    OPS_READ.team,
+  );
+}
+
+export function useApprovePayrollRun(
+  workspaceId: string | null,
+): UseMutationResult<void, Error, { payrollRunId: string }> {
+  const client = useQueryClient();
+  return useMutation({
+    mutationFn: ({ payrollRunId }) =>
+      command<void>(`/ops/payroll/runs/${payrollRunId}/approve`, {
+        workspaceId: workspaceId as string,
+      }),
+    onSuccess: () => {
+      void client.invalidateQueries({ queryKey: ["payroll", "runs", workspaceId] });
+    },
+  });
+}
+
+export function useMarkPayrollRunPaid(
+  workspaceId: string | null,
+): UseMutationResult<void, Error, { payrollRunId: string }> {
+  const client = useQueryClient();
+  return useMutation({
+    mutationFn: ({ payrollRunId }) =>
+      command<void>(`/ops/payroll/runs/${payrollRunId}/pay`, {
+        workspaceId: workspaceId as string,
+        idempotencyKey: newIdempotencyKey(),
+      }),
+    onSuccess: () => {
+      void client.invalidateQueries({ queryKey: ["payroll", "runs", workspaceId] });
+    },
+  });
+}
+
+// ---------------------------------------------------------------------------
+// Employees (HR module, Phase 1 — first pass, no ADR yet)
+// ---------------------------------------------------------------------------
+
+export interface EmployeeRow {
+  departmentMemberId: string;
+  userId: string;
+  name: string | null;
+  email: string | null;
+  departmentId: string;
+  departmentName: string | null;
+  jobTitle: string | null;
+  employmentType: string | null;
+  effectiveFrom: string | null;
+}
+
+export function useEmployees(workspaceId: string | null): UseQueryResult<{ employees: EmployeeRow[] }> {
+  return useOpsQuery(
+    ["employees", workspaceId],
+    "/ops/employees",
+    workspaceId,
+    identityParser<{ employees: EmployeeRow[] }>(),
+    OPS_READ.team,
+  );
+}
+
+export function useRecordEmploymentEvent(
+  workspaceId: string | null,
+): UseMutationResult<
+  void,
+  Error,
+  {
+    departmentMemberId: string;
+    eventType: "hired" | "title_change" | "department_change" | "employment_type_change" | "terminated";
+    jobTitle?: string;
+    employmentType?: "full_time" | "part_time" | "contract" | "casual";
+    note?: string;
+  }
+> {
+  const client = useQueryClient();
+  return useMutation({
+    mutationFn: ({ departmentMemberId, ...body }) =>
+      command<void>(`/ops/employees/${departmentMemberId}/events`, {
+        workspaceId: workspaceId as string,
+        body,
+      }),
+    onSuccess: () => {
+      void client.invalidateQueries({ queryKey: ["employees", workspaceId] });
+    },
+  });
+}
+
+/**
+ * Put an existing colleague onto a department's roster — the assignment half
+ * of hiring. Whoever this is aimed at must already hold an org membership
+ * (accepted a staff invitation); a brand-new person goes through Invites
+ * first. Invalidates the department's member list and the employee roster,
+ * since both change together.
+ */
+export function useAssignDepartmentMember(
+  workspaceId: string | null,
+): UseMutationResult<
+  OperatorDepartmentMember,
+  Error,
+  { departmentId: string; userId: string; departmentPosition?: string; isPrimary?: boolean }
+> {
+  const client = useQueryClient();
+  return useMutation({
+    mutationFn: ({ departmentId, ...body }) =>
+      command<OperatorDepartmentMember>(`/ops/departments/${departmentId}/members`, {
+        workspaceId: workspaceId as string,
+        body,
+      }),
+    onSuccess: () => {
+      void client.invalidateQueries({ queryKey: ["employees", workspaceId] });
+      void client.invalidateQueries({ queryKey: queryKeys.departments(workspaceId) });
+    },
+  });
+}
+
+
+// ---------------------------------------------------------------------------
+// Checklists (HR module, Phase 3 — with assignees and day offsets)
+// ---------------------------------------------------------------------------
+
+export interface ChecklistTemplateRow {
+  id: string;
+  workspaceId: string;
+  kind: "onboarding" | "offboarding";
+  name: string;
+  isDefault: boolean;
+}
+
+export interface ChecklistTemplateItemRow {
+  id: string;
+  templateId: string;
+  label: string;
+  sortOrder: number;
+  assigneeRole: string | null;
+  beginOnDays: number;
+}
+
+export interface ChecklistItemRow {
+  id: string;
+  kind: "onboarding" | "offboarding";
+  label: string;
+  sortOrder: number;
+  assigneeRole: string | null;
+  beginOnDays: number;
+  dueDate: string | null;
+  done: boolean;
+  completedAt: string | null;
+}
+
+export function useChecklistTemplates(
+  workspaceId: string | null,
+): UseQueryResult<ChecklistTemplateRow[]> {
+  return useOpsQuery(
+    ["checklist-templates", workspaceId],
+    "/ops/checklists/templates",
+    workspaceId,
+    identityParser<ChecklistTemplateRow[]>(),
+    OPS_READ.team,
+  );
+}
+
+export function useCreateChecklistTemplate(
+  workspaceId: string | null,
+): UseMutationResult<
+  { id: string },
+  Error,
+  { kind: "onboarding" | "offboarding"; name: string; isDefault?: boolean }
+> {
+  const client = useQueryClient();
+  return useMutation({
+    mutationFn: (body) =>
+      command<{ id: string }>("/ops/checklists/templates", {
+        workspaceId: workspaceId as string,
+        body,
+      }),
+    onSuccess: () => {
+      void client.invalidateQueries({ queryKey: ["checklist-templates", workspaceId] });
+    },
+  });
+}
+
+export function useChecklistTemplateItems(
+  templateId: string | null,
+): UseQueryResult<ChecklistTemplateItemRow[]> {
+  return useOpsQuery(
+    ["checklist-template-items", templateId],
+    `/ops/checklists/templates/${templateId}/items`,
+    templateId,
+    identityParser<ChecklistTemplateItemRow[]>(),
+    OPS_READ.team,
+  );
+}
+
+export function useAddTemplateItem(
+  workspaceId: string | null,
+): UseMutationResult<
+  void,
+  Error,
+  { templateId: string; label: string; sortOrder?: number; assigneeRole?: string; beginOnDays?: number }
+> {
+  const client = useQueryClient();
+  return useMutation({
+    mutationFn: ({ templateId, ...body }) =>
+      command<void>(`/ops/checklists/templates/${templateId}/items`, {
+        workspaceId: workspaceId as string,
+        body,
+      }),
+    onSuccess: (_data, { templateId }) => {
+      void client.invalidateQueries({ queryKey: ["checklist-template-items", templateId] });
+    },
+  });
+}
+
+export function useEmployeeChecklist(
+  workspaceId: string | null,
+  departmentMemberId: string | null,
+): UseQueryResult<ChecklistItemRow[]> {
+  return useOpsQuery(
+    ["checklist-items", departmentMemberId],
+    `/ops/checklists/employees/${departmentMemberId}`,
+    workspaceId,
+    identityParser<ChecklistItemRow[]>(),
+    OPS_READ.team,
+  );
+}
+
+export function useApplyChecklistTemplate(
+  workspaceId: string | null,
+): UseMutationResult<void, Error, { departmentMemberId: string; kind: "onboarding" | "offboarding" }> {
+  const client = useQueryClient();
+  return useMutation({
+    mutationFn: ({ departmentMemberId, ...body }) =>
+      command<void>(`/ops/checklists/employees/${departmentMemberId}/apply-template`, {
+        workspaceId: workspaceId as string,
+        body,
+      }),
+    onSuccess: (_data, { departmentMemberId }) => {
+      void client.invalidateQueries({ queryKey: ["checklist-items", departmentMemberId] });
+    },
+  });
+}
+
+export function useToggleChecklistItem(
+  workspaceId: string | null,
+): UseMutationResult<void, Error, { itemId: string; done: boolean; departmentMemberId: string }> {
+  const client = useQueryClient();
+  return useMutation({
+    mutationFn: ({ itemId, done }) =>
+      command<void>(`/ops/checklists/items/${itemId}`, {
+        workspaceId: workspaceId as string,
+        body: { done },
+        method: "PATCH",
+      }),
+    onSuccess: (_data, { departmentMemberId }) => {
+      void client.invalidateQueries({ queryKey: ["checklist-items", departmentMemberId] });
+    },
+  });
+}
+
+// ---------------------------------------------------------------------------
+// Leave (HR module, Phase 4 — with per-type settings)
+// ---------------------------------------------------------------------------
+
+export interface LeaveRequestRow {
+  id: string;
+  departmentMemberId: string;
+  name: string | null;
+  leaveType: "annual" | "sick" | "unpaid" | "other";
+  startDate: string;
+  endDate: string;
+  reason: string | null;
+  status: "pending" | "approved" | "rejected";
+}
+
+export interface LeaveTypeSettingsRow {
+  leaveType: "annual" | "sick" | "unpaid" | "other";
+  isUnpaid: boolean;
+  carryForward: boolean;
+  applicableAfterDays: number;
+  maxConsecutiveDays: number | null;
+}
+
+export function useLeaveRequests(workspaceId: string | null): UseQueryResult<LeaveRequestRow[]> {
+  return useOpsQuery(
+    ["leave-requests", workspaceId],
+    "/ops/leave/requests",
+    workspaceId,
+    identityParser<LeaveRequestRow[]>(),
+    OPS_READ.team,
+  );
+}
+
+export function useCreateLeaveRequest(
+  workspaceId: string | null,
+): UseMutationResult<
+  { id: string },
+  Error,
+  {
+    departmentMemberId: string;
+    leaveType: "annual" | "sick" | "unpaid" | "other";
+    startDate: string;
+    endDate: string;
+    reason?: string;
+  }
+> {
+  const client = useQueryClient();
+  return useMutation({
+    mutationFn: (body) =>
+      command<{ id: string }>("/ops/leave/requests", {
+        workspaceId: workspaceId as string,
+        body,
+      }),
+    onSuccess: () => {
+      void client.invalidateQueries({ queryKey: ["leave-requests", workspaceId] });
+    },
+  });
+}
+
+export function useDecideLeaveRequest(
+  workspaceId: string | null,
+): UseMutationResult<void, Error, { requestId: string; status: "approved" | "rejected" }> {
+  const client = useQueryClient();
+  return useMutation({
+    mutationFn: ({ requestId, status }) =>
+      command<void>(`/ops/leave/requests/${requestId}/decision`, {
+        workspaceId: workspaceId as string,
+        body: { status },
+      }),
+    onSuccess: () => {
+      void client.invalidateQueries({ queryKey: ["leave-requests", workspaceId] });
+    },
+  });
+}
+
+export function useLeaveTypeSettings(
+  workspaceId: string | null,
+): UseQueryResult<LeaveTypeSettingsRow[]> {
+  return useOpsQuery(
+    ["leave-type-settings", workspaceId],
+    "/ops/leave/type-settings",
+    workspaceId,
+    identityParser<LeaveTypeSettingsRow[]>(),
+    OPS_READ.team,
+  );
+}
+
+export function useSetLeaveTypeSettings(
+  workspaceId: string | null,
+): UseMutationResult<
+  void,
+  Error,
+  {
+    leaveType: "annual" | "sick" | "unpaid" | "other";
+    isUnpaid: boolean;
+    carryForward: boolean;
+    applicableAfterDays: number;
+    maxConsecutiveDays?: number;
+  }
+> {
+  const client = useQueryClient();
+  return useMutation({
+    mutationFn: (body) =>
+      command<void>("/ops/leave/type-settings", {
+        workspaceId: workspaceId as string,
+        body,
+      }),
+    onSuccess: () => {
+      void client.invalidateQueries({ queryKey: ["leave-type-settings", workspaceId] });
     },
   });
 }

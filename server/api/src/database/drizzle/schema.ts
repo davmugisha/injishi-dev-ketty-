@@ -55,3 +55,5 @@ export * from './platform';
 export * from './waitlist';
 export * from './training';
 export * from './payroll';
+export * from './hr';
+export * from './hr-lifecycle';

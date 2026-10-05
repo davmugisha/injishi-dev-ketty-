@@ -108,6 +108,11 @@ export const Permission = z.enum([
      * permission at all.
      */
     "offer.manage",
+        /**
+     * View and manage employee records: profiles, employment history and
+     * documents (HR module, Phase 1 — NO ADR YET).
+     */
+    "employee.manage",
 ]);
 export type Permission = z.infer<typeof Permission>;
 const ALL = Permission.options;
@@ -198,6 +203,7 @@ export const PERMISSION_LABEL: Readonly<Record<Permission, string>> = {
     "outlet.manage": "manage outlets",
     "refund.decide": "answer a guest's refund request",
     "offer.manage": "create and retire offers",
+    "employee.manage": "manage employee records",
 };
 // ---------------------------------------------------------------------------
 // A business's own role customisation
@@ -380,6 +386,7 @@ export const PERMISSION_AREA_OF: Readonly<Record<Permission, PermissionArea>> = 
     "offer.manage": "property",
     "department.manage": "people",
     "team.manage": "people",
+    "employee.manage": "people",
 };
 // ---------------------------------------------------------------------------
 // What each role may do, at THIS business
