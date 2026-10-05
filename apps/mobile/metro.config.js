@@ -118,4 +118,35 @@ config.resolver.resolveRequest = (context, moduleName, platform) => {
   return (originalResolveRequest ?? context.resolveRequest)(context, moduleName, platform);
 };
 
+// Send a phone the bundle gzipped, not as a multipart stream.
+//
+// Expo Go and the dev client ask for the bundle with `Accept: multipart/mixed`
+// so they can draw a progress bar. Metro answers that with the whole dev bundle
+// UNCOMPRESSED — 17.3 MB here — because the dev server's gzip skips multipart
+// content types, and it spends ~4s on a warm graph building the stream. The
+// same request without the multipart ask comes back as plain JavaScript, which
+// IS gzipped: 2.8 MB, built in ~0.2s. On a phone over 2.4 GHz Wi-Fi the 17 MB
+// stream crawled or stalled outright, and Expo Go's bar sat still for minutes
+// (2026-10-05). Dropping the ask costs the percentage on the loading screen
+// and nothing else: React Native's bundle downloader takes a plain response
+// as readily as a multipart one, and has no read timeout to trip during a cold
+// build. Native bundle requests only; web loads its bundle from a script tag.
+const originalEnhanceMiddleware = config.server.enhanceMiddleware;
+config.server.enhanceMiddleware = (metroMiddleware, server) => {
+  const inner = originalEnhanceMiddleware
+    ? originalEnhanceMiddleware(metroMiddleware, server)
+    : metroMiddleware;
+  return (req, res, next) => {
+    const url = req.url ?? '';
+    if (
+      /\.bundle(\?|$)/.test(url) &&
+      /[?&]platform=(android|ios)(&|$)/.test(url) &&
+      req.headers.accept?.includes('multipart/mixed')
+    ) {
+      req.headers.accept = 'application/javascript';
+    }
+    return inner(req, res, next);
+  };
+};
+
 module.exports = config;

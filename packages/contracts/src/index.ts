@@ -29,6 +29,7 @@ export * from "./ebm";
 export * from "./ebm-connection";
 export * from "./admin";
 export * from "./support";
+export * from "./assistant";
 export * from "./waitlist";
 export * from "./platform";
 export * from "./training";

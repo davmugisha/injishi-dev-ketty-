@@ -25,8 +25,9 @@
 // this page never reads would be ~1,500 lines of invented prose nobody will
 // ever check. The seed carries only what the explore surfaces actually use;
 // the builder fills the rest with honest, generic copy.
-import type { AccommodationClass } from "@injishi/contracts";
+import { ACCOMMODATION_CLASS_LABEL, type AccommodationClass } from "@injishi/contracts";
 import type { DistrictSlug } from "@/data/search-options";
+import { perBookingSentence, perBookingSpecs, sizeSummary } from "@/lib/booking-unit";
 import type { Amenity, PropertyDetail } from "@/data/properties";
 
 interface FillerSeed {
@@ -479,6 +480,17 @@ function toProperty(seed: FillerSeed): PropertyDetail {
   }));
 
   const className = seed.starClass ? `${seed.starClass}-star` : "Unrated";
+  // Size in the word for what is booked ("10 cottages", "each has 2
+  // bedrooms"): see `lib/booking-unit.ts` for why two bare numbers misled.
+  const sizeFacts = {
+    kind: seed.kind,
+    name: `${seed.lead} ${seed.rest}`,
+    rooms: seed.rooms,
+    bedrooms: seed.bedrooms,
+    maxGuests: seed.maxGuests,
+    basis: seed.basis,
+  };
+  const size = sizeSummary(sizeFacts);
   const neighbourhood = seed.location.split(",")[0]!.trim();
 
   return {
@@ -493,7 +505,7 @@ function toProperty(seed: FillerSeed): PropertyDetail {
     bedrooms: seed.bedrooms,
     maxGuests: seed.maxGuests,
     capacity: [
-      seed.rooms ? `${seed.rooms} rooms` : `${seed.bedrooms} bedrooms`,
+      size,
       className,
       seed.basis,
     ],
@@ -535,8 +547,8 @@ function toProperty(seed: FillerSeed): PropertyDetail {
       },
       {
         icon: "calendar",
-        title: seed.rooms ? `${seed.rooms} rooms` : `${seed.bedrooms} bedrooms`,
-        body: `Sleeps up to ${seed.maxGuests}.`,
+        title: size,
+        body: perBookingSentence(sizeFacts),
       },
       {
         icon: "sparkle",
@@ -545,9 +557,9 @@ function toProperty(seed: FillerSeed): PropertyDetail {
       },
     ],
     specs: [
-      { label: "Type", value: seed.kind },
+      { label: "Type", value: ACCOMMODATION_CLASS_LABEL[seed.kind] },
       { label: "Class", value: className },
-      { label: "Bedrooms", value: String(seed.bedrooms) },
+      ...perBookingSpecs(sizeFacts),
       { label: "Neighbourhood", value: neighbourhood },
       { label: "Rate basis", value: seed.basis },
       { label: "Included", value: seed.includes },

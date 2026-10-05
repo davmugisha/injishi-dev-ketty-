@@ -1,6 +1,6 @@
 {
-  "id": "851ca1d9-7eaa-4727-bbd5-6690318e2123",
-  "prevId": "dbc0cefc-5198-49cd-a006-e43782fa4d34",
+  "id": "6d01e7ac-972f-41df-9e0d-fce65180d8f9",
+  "prevId": "ca9eca64-5ff3-4155-a19b-1e69d22cce86",
   "version": "7",
   "dialect": "postgresql",
   "tables": {
@@ -14960,6 +14960,18 @@
           "primaryKey": false,
           "notNull": false
         },
+        "assistant_conversation_id": {
+          "name": "assistant_conversation_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "context": {
+          "name": "context",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": false
+        },
         "created_at": {
           "name": "created_at",
           "type": "timestamp with time zone",
@@ -15014,6 +15026,19 @@
             "id"
           ],
           "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "support_tickets_assistant_conversation_id_assistant_conversations_id_fk": {
+          "name": "support_tickets_assistant_conversation_id_assistant_conversations_id_fk",
+          "tableFrom": "support_tickets",
+          "tableTo": "assistant_conversations",
+          "columnsFrom": [
+            "assistant_conversation_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "set null",
           "onUpdate": "no action"
         }
       },
@@ -22847,24 +22872,6 @@
           "primaryKey": false,
           "notNull": false
         },
-        "pay_structure_id": {
-          "name": "pay_structure_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "notice_days": {
-          "name": "notice_days",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "document_key": {
-          "name": "document_key",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
         "created_by_user_id": {
           "name": "created_by_user_id",
           "type": "uuid",
@@ -23002,10 +23009,6 @@
         "employment_contracts_fixed_term_ck": {
           "name": "employment_contracts_fixed_term_ck",
           "value": "\"employment_contracts\".\"contract_type\" <> 'fixed_term' OR \"employment_contracts\".\"ends_on\" IS NOT NULL"
-        },
-        "employment_contracts_notice_ck": {
-          "name": "employment_contracts_notice_ck",
-          "value": "\"employment_contracts\".\"notice_days\" IS NULL OR \"employment_contracts\".\"notice_days\" BETWEEN 0 AND 365"
         }
       },
       "isRLSEnabled": false
@@ -23810,6 +23813,12 @@
           "primaryKey": false,
           "notNull": true
         },
+        "paid": {
+          "name": "paid",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true
+        },
         "yearly_entitlement_days": {
           "name": "yearly_entitlement_days",
           "type": "numeric(5, 1)",
@@ -23829,6 +23838,13 @@
           "primaryKey": false,
           "notNull": true,
           "default": 0
+        },
+        "needs_approval": {
+          "name": "needs_approval",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "default": true
         },
         "payment": {
           "name": "payment",
@@ -24233,13 +24249,6 @@
           "notNull": true,
           "default": 0
         },
-        "non_income_rwf": {
-          "name": "non_income_rwf",
-          "type": "bigint",
-          "primaryKey": false,
-          "notNull": true,
-          "default": 0
-        },
         "net_rwf": {
           "name": "net_rwf",
           "type": "bigint",
@@ -24259,43 +24268,6 @@
           "primaryKey": false,
           "notNull": true,
           "default": "'draft'"
-        },
-        "snapshot": {
-          "name": "snapshot",
-          "type": "jsonb",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "paid_at": {
-          "name": "paid_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "paid_method": {
-          "name": "paid_method",
-          "type": "hr_paid_method",
-          "typeSchema": "public",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "paid_reference": {
-          "name": "paid_reference",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "marked_paid_by_user_id": {
-          "name": "marked_paid_by_user_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "sent_at": {
-          "name": "sent_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": false
         },
         "created_at": {
           "name": "created_at",
@@ -24381,19 +24353,6 @@
           ],
           "onDelete": "no action",
           "onUpdate": "no action"
-        },
-        "payslips_marked_paid_by_user_id_users_id_fk": {
-          "name": "payslips_marked_paid_by_user_id_users_id_fk",
-          "tableFrom": "payslips",
-          "tableTo": "users",
-          "columnsFrom": [
-            "marked_paid_by_user_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "no action",
-          "onUpdate": "no action"
         }
       },
       "compositePrimaryKeys": {},
@@ -24411,11 +24370,7 @@
       "checkConstraints": {
         "payslips_net_ck": {
           "name": "payslips_net_ck",
-          "value": "\"payslips\".\"net_rwf\" = \"payslips\".\"gross_rwf\" + \"payslips\".\"non_income_rwf\" - \"payslips\".\"paye_rwf\" - \"payslips\".\"employee_contributions_rwf\" - \"payslips\".\"other_deductions_rwf\""
-        },
-        "payslips_paid_ck": {
-          "name": "payslips_paid_ck",
-          "value": "(\"payslips\".\"paid_at\" IS NULL) = (\"payslips\".\"paid_method\" IS NULL) AND (\"payslips\".\"paid_at\" IS NULL OR \"payslips\".\"status\" = 'confirmed')"
+          "value": "\"payslips\".\"net_rwf\" = \"payslips\".\"gross_rwf\" - \"payslips\".\"paye_rwf\" - \"payslips\".\"employee_contributions_rwf\" - \"payslips\".\"other_deductions_rwf\""
         }
       },
       "isRLSEnabled": false
@@ -26099,18 +26054,6 @@
           "primaryKey": false,
           "notNull": false
         },
-        "pay_run_auto_draft_day": {
-          "name": "pay_run_auto_draft_day",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "rssb_employer_number": {
-          "name": "rssb_employer_number",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
         "created_at": {
           "name": "created_at",
           "type": "timestamp with time zone",
@@ -26146,10 +26089,6 @@
       "uniqueConstraints": {},
       "policies": {},
       "checkConstraints": {
-        "hr_settings_draft_day_ck": {
-          "name": "hr_settings_draft_day_ck",
-          "value": "\"hr_settings\".\"pay_run_auto_draft_day\" IS NULL OR \"hr_settings\".\"pay_run_auto_draft_day\" BETWEEN 1 AND 28"
-        },
         "hr_settings_prefix_ck": {
           "name": "hr_settings_prefix_ck",
           "value": "\"hr_settings\".\"employee_number_prefix\" IS NULL OR \"hr_settings\".\"employee_number_prefix\" ~ '^[A-Z0-9-]{1,8}$'"
@@ -29536,1608 +29475,6 @@
       },
       "isRLSEnabled": false
     },
-    "public.employee_loans": {
-      "name": "employee_loans",
-      "schema": "",
-      "columns": {
-        "id": {
-          "name": "id",
-          "type": "uuid",
-          "primaryKey": true,
-          "notNull": true,
-          "default": "gen_random_uuid()"
-        },
-        "org_id": {
-          "name": "org_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "employee_id": {
-          "name": "employee_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "kind": {
-          "name": "kind",
-          "type": "hr_loan_kind",
-          "typeSchema": "public",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "amount_rwf": {
-          "name": "amount_rwf",
-          "type": "bigint",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "given_on": {
-          "name": "given_on",
-          "type": "date",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "installments": {
-          "name": "installments",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "first_period": {
-          "name": "first_period",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "paid_out": {
-          "name": "paid_out",
-          "type": "hr_loan_paid_out",
-          "typeSchema": "public",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "reason": {
-          "name": "reason",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "paid_out_payslip_id": {
-          "name": "paid_out_payslip_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "settled_at": {
-          "name": "settled_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "created_by_user_id": {
-          "name": "created_by_user_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "idempotency_key": {
-          "name": "idempotency_key",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "created_at": {
-          "name": "created_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "now()"
-        },
-        "updated_at": {
-          "name": "updated_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "now()"
-        }
-      },
-      "indexes": {
-        "employee_loans_employee_idx": {
-          "name": "employee_loans_employee_idx",
-          "columns": [
-            {
-              "expression": "employee_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        }
-      },
-      "foreignKeys": {
-        "employee_loans_org_id_orgs_id_fk": {
-          "name": "employee_loans_org_id_orgs_id_fk",
-          "tableFrom": "employee_loans",
-          "tableTo": "orgs",
-          "columnsFrom": [
-            "org_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
-        },
-        "employee_loans_employee_id_employees_id_fk": {
-          "name": "employee_loans_employee_id_employees_id_fk",
-          "tableFrom": "employee_loans",
-          "tableTo": "employees",
-          "columnsFrom": [
-            "employee_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "no action",
-          "onUpdate": "no action"
-        },
-        "employee_loans_paid_out_payslip_id_payslips_id_fk": {
-          "name": "employee_loans_paid_out_payslip_id_payslips_id_fk",
-          "tableFrom": "employee_loans",
-          "tableTo": "payslips",
-          "columnsFrom": [
-            "paid_out_payslip_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "no action",
-          "onUpdate": "no action"
-        },
-        "employee_loans_created_by_user_id_users_id_fk": {
-          "name": "employee_loans_created_by_user_id_users_id_fk",
-          "tableFrom": "employee_loans",
-          "tableTo": "users",
-          "columnsFrom": [
-            "created_by_user_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "no action",
-          "onUpdate": "no action"
-        }
-      },
-      "compositePrimaryKeys": {},
-      "uniqueConstraints": {
-        "employee_loans_idempotency_uk": {
-          "name": "employee_loans_idempotency_uk",
-          "nullsNotDistinct": false,
-          "columns": [
-            "org_id",
-            "idempotency_key"
-          ]
-        }
-      },
-      "policies": {},
-      "checkConstraints": {
-        "employee_loans_amount_ck": {
-          "name": "employee_loans_amount_ck",
-          "value": "\"employee_loans\".\"amount_rwf\" > 0"
-        },
-        "employee_loans_installments_ck": {
-          "name": "employee_loans_installments_ck",
-          "value": "\"employee_loans\".\"installments\" BETWEEN 1 AND 120"
-        },
-        "employee_loans_period_ck": {
-          "name": "employee_loans_period_ck",
-          "value": "first_period ~ '^[0-9]{4}-(0[1-9]|1[0-2])$'"
-        }
-      },
-      "isRLSEnabled": false
-    },
-    "public.loan_installments": {
-      "name": "loan_installments",
-      "schema": "",
-      "columns": {
-        "id": {
-          "name": "id",
-          "type": "uuid",
-          "primaryKey": true,
-          "notNull": true,
-          "default": "gen_random_uuid()"
-        },
-        "org_id": {
-          "name": "org_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "loan_id": {
-          "name": "loan_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "period": {
-          "name": "period",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "amount_rwf": {
-          "name": "amount_rwf",
-          "type": "bigint",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "deferred_from": {
-          "name": "deferred_from",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "payslip_id": {
-          "name": "payslip_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "created_at": {
-          "name": "created_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "now()"
-        },
-        "updated_at": {
-          "name": "updated_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "now()"
-        }
-      },
-      "indexes": {
-        "loan_installments_period_idx": {
-          "name": "loan_installments_period_idx",
-          "columns": [
-            {
-              "expression": "org_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            },
-            {
-              "expression": "period",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        }
-      },
-      "foreignKeys": {
-        "loan_installments_org_id_orgs_id_fk": {
-          "name": "loan_installments_org_id_orgs_id_fk",
-          "tableFrom": "loan_installments",
-          "tableTo": "orgs",
-          "columnsFrom": [
-            "org_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
-        },
-        "loan_installments_loan_id_employee_loans_id_fk": {
-          "name": "loan_installments_loan_id_employee_loans_id_fk",
-          "tableFrom": "loan_installments",
-          "tableTo": "employee_loans",
-          "columnsFrom": [
-            "loan_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "no action",
-          "onUpdate": "no action"
-        },
-        "loan_installments_payslip_id_payslips_id_fk": {
-          "name": "loan_installments_payslip_id_payslips_id_fk",
-          "tableFrom": "loan_installments",
-          "tableTo": "payslips",
-          "columnsFrom": [
-            "payslip_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "no action",
-          "onUpdate": "no action"
-        }
-      },
-      "compositePrimaryKeys": {},
-      "uniqueConstraints": {
-        "loan_installments_period_uk": {
-          "name": "loan_installments_period_uk",
-          "nullsNotDistinct": false,
-          "columns": [
-            "loan_id",
-            "period"
-          ]
-        }
-      },
-      "policies": {},
-      "checkConstraints": {
-        "loan_installments_amount_ck": {
-          "name": "loan_installments_amount_ck",
-          "value": "\"loan_installments\".\"amount_rwf\" > 0"
-        },
-        "loan_installments_period_ck": {
-          "name": "loan_installments_period_ck",
-          "value": "period ~ '^[0-9]{4}-(0[1-9]|1[0-2])$'"
-        }
-      },
-      "isRLSEnabled": false
-    },
-    "public.pay_adjustments": {
-      "name": "pay_adjustments",
-      "schema": "",
-      "columns": {
-        "id": {
-          "name": "id",
-          "type": "uuid",
-          "primaryKey": true,
-          "notNull": true,
-          "default": "gen_random_uuid()"
-        },
-        "org_id": {
-          "name": "org_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "employee_id": {
-          "name": "employee_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "side": {
-          "name": "side",
-          "type": "hr_pay_adjustment_side",
-          "typeSchema": "public",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "amount_rwf": {
-          "name": "amount_rwf",
-          "type": "bigint",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "taxable": {
-          "name": "taxable",
-          "type": "boolean",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "contributable": {
-          "name": "contributable",
-          "type": "boolean",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "corrects_period": {
-          "name": "corrects_period",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "reason": {
-          "name": "reason",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "source": {
-          "name": "source",
-          "type": "hr_pay_adjustment_source",
-          "typeSchema": "public",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "source_id": {
-          "name": "source_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "status": {
-          "name": "status",
-          "type": "hr_pay_adjustment_status",
-          "typeSchema": "public",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "'open'"
-        },
-        "payslip_id": {
-          "name": "payslip_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "created_by_user_id": {
-          "name": "created_by_user_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "idempotency_key": {
-          "name": "idempotency_key",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "created_at": {
-          "name": "created_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "now()"
-        },
-        "updated_at": {
-          "name": "updated_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "now()"
-        }
-      },
-      "indexes": {
-        "pay_adjustments_idempotency_uk": {
-          "name": "pay_adjustments_idempotency_uk",
-          "columns": [
-            {
-              "expression": "org_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            },
-            {
-              "expression": "idempotency_key",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": true,
-          "where": "\"pay_adjustments\".\"idempotency_key\" IS NOT NULL",
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        },
-        "pay_adjustments_employee_idx": {
-          "name": "pay_adjustments_employee_idx",
-          "columns": [
-            {
-              "expression": "employee_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            },
-            {
-              "expression": "status",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        }
-      },
-      "foreignKeys": {
-        "pay_adjustments_org_id_orgs_id_fk": {
-          "name": "pay_adjustments_org_id_orgs_id_fk",
-          "tableFrom": "pay_adjustments",
-          "tableTo": "orgs",
-          "columnsFrom": [
-            "org_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
-        },
-        "pay_adjustments_employee_id_employees_id_fk": {
-          "name": "pay_adjustments_employee_id_employees_id_fk",
-          "tableFrom": "pay_adjustments",
-          "tableTo": "employees",
-          "columnsFrom": [
-            "employee_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "no action",
-          "onUpdate": "no action"
-        },
-        "pay_adjustments_payslip_id_payslips_id_fk": {
-          "name": "pay_adjustments_payslip_id_payslips_id_fk",
-          "tableFrom": "pay_adjustments",
-          "tableTo": "payslips",
-          "columnsFrom": [
-            "payslip_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "no action",
-          "onUpdate": "no action"
-        },
-        "pay_adjustments_created_by_user_id_users_id_fk": {
-          "name": "pay_adjustments_created_by_user_id_users_id_fk",
-          "tableFrom": "pay_adjustments",
-          "tableTo": "users",
-          "columnsFrom": [
-            "created_by_user_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "no action",
-          "onUpdate": "no action"
-        }
-      },
-      "compositePrimaryKeys": {},
-      "uniqueConstraints": {},
-      "policies": {},
-      "checkConstraints": {
-        "pay_adjustments_amount_ck": {
-          "name": "pay_adjustments_amount_ck",
-          "value": "\"pay_adjustments\".\"amount_rwf\" > 0"
-        },
-        "pay_adjustments_period_ck": {
-          "name": "pay_adjustments_period_ck",
-          "value": "corrects_period ~ '^[0-9]{4}-(0[1-9]|1[0-2])$'"
-        },
-        "pay_adjustments_paid_ck": {
-          "name": "pay_adjustments_paid_ck",
-          "value": "(\"pay_adjustments\".\"status\" = 'paid') = (\"pay_adjustments\".\"payslip_id\" IS NOT NULL)"
-        }
-      },
-      "isRLSEnabled": false
-    },
-    "public.pay_claims": {
-      "name": "pay_claims",
-      "schema": "",
-      "columns": {
-        "id": {
-          "name": "id",
-          "type": "uuid",
-          "primaryKey": true,
-          "notNull": true,
-          "default": "gen_random_uuid()"
-        },
-        "org_id": {
-          "name": "org_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "employee_id": {
-          "name": "employee_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "kind": {
-          "name": "kind",
-          "type": "hr_pay_claim_kind",
-          "typeSchema": "public",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "amount_rwf": {
-          "name": "amount_rwf",
-          "type": "bigint",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "leave_type_id": {
-          "name": "leave_type_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "days": {
-          "name": "days",
-          "type": "numeric(5, 1)",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "period": {
-          "name": "period",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "receipt_key": {
-          "name": "receipt_key",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "reason": {
-          "name": "reason",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "status": {
-          "name": "status",
-          "type": "hr_pay_claim_status",
-          "typeSchema": "public",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "'requested'"
-        },
-        "requested_by_user_id": {
-          "name": "requested_by_user_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "decided_by_user_id": {
-          "name": "decided_by_user_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "decided_at": {
-          "name": "decided_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "decision_note": {
-          "name": "decision_note",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "payslip_id": {
-          "name": "payslip_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "idempotency_key": {
-          "name": "idempotency_key",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "created_at": {
-          "name": "created_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "now()"
-        },
-        "updated_at": {
-          "name": "updated_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "now()"
-        }
-      },
-      "indexes": {
-        "pay_claims_employee_idx": {
-          "name": "pay_claims_employee_idx",
-          "columns": [
-            {
-              "expression": "employee_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        },
-        "pay_claims_period_idx": {
-          "name": "pay_claims_period_idx",
-          "columns": [
-            {
-              "expression": "org_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            },
-            {
-              "expression": "period",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        }
-      },
-      "foreignKeys": {
-        "pay_claims_org_id_orgs_id_fk": {
-          "name": "pay_claims_org_id_orgs_id_fk",
-          "tableFrom": "pay_claims",
-          "tableTo": "orgs",
-          "columnsFrom": [
-            "org_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
-        },
-        "pay_claims_employee_id_employees_id_fk": {
-          "name": "pay_claims_employee_id_employees_id_fk",
-          "tableFrom": "pay_claims",
-          "tableTo": "employees",
-          "columnsFrom": [
-            "employee_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "no action",
-          "onUpdate": "no action"
-        },
-        "pay_claims_leave_type_id_leave_types_id_fk": {
-          "name": "pay_claims_leave_type_id_leave_types_id_fk",
-          "tableFrom": "pay_claims",
-          "tableTo": "leave_types",
-          "columnsFrom": [
-            "leave_type_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "no action",
-          "onUpdate": "no action"
-        },
-        "pay_claims_requested_by_user_id_users_id_fk": {
-          "name": "pay_claims_requested_by_user_id_users_id_fk",
-          "tableFrom": "pay_claims",
-          "tableTo": "users",
-          "columnsFrom": [
-            "requested_by_user_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "no action",
-          "onUpdate": "no action"
-        },
-        "pay_claims_decided_by_user_id_users_id_fk": {
-          "name": "pay_claims_decided_by_user_id_users_id_fk",
-          "tableFrom": "pay_claims",
-          "tableTo": "users",
-          "columnsFrom": [
-            "decided_by_user_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "no action",
-          "onUpdate": "no action"
-        },
-        "pay_claims_payslip_id_payslips_id_fk": {
-          "name": "pay_claims_payslip_id_payslips_id_fk",
-          "tableFrom": "pay_claims",
-          "tableTo": "payslips",
-          "columnsFrom": [
-            "payslip_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "no action",
-          "onUpdate": "no action"
-        }
-      },
-      "compositePrimaryKeys": {},
-      "uniqueConstraints": {
-        "pay_claims_idempotency_uk": {
-          "name": "pay_claims_idempotency_uk",
-          "nullsNotDistinct": false,
-          "columns": [
-            "org_id",
-            "idempotency_key"
-          ]
-        }
-      },
-      "policies": {},
-      "checkConstraints": {
-        "pay_claims_kind_ck": {
-          "name": "pay_claims_kind_ck",
-          "value": "(\"pay_claims\".\"kind\" = 'reimbursement' AND \"pay_claims\".\"amount_rwf\" IS NOT NULL AND \"pay_claims\".\"amount_rwf\" > 0 AND \"pay_claims\".\"leave_type_id\" IS NULL AND \"pay_claims\".\"days\" IS NULL)\n        OR (\"pay_claims\".\"kind\" = 'leave_encashment' AND \"pay_claims\".\"leave_type_id\" IS NOT NULL AND \"pay_claims\".\"days\" IS NOT NULL AND \"pay_claims\".\"days\" > 0 AND \"pay_claims\".\"amount_rwf\" IS NULL)"
-        },
-        "pay_claims_period_ck": {
-          "name": "pay_claims_period_ck",
-          "value": "period ~ '^[0-9]{4}-(0[1-9]|1[0-2])$'"
-        }
-      },
-      "isRLSEnabled": false
-    },
-    "public.pay_component_targets": {
-      "name": "pay_component_targets",
-      "schema": "",
-      "columns": {
-        "org_id": {
-          "name": "org_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "component_id": {
-          "name": "component_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "employee_id": {
-          "name": "employee_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "mode": {
-          "name": "mode",
-          "type": "hr_pay_target_mode",
-          "typeSchema": "public",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "created_at": {
-          "name": "created_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "now()"
-        }
-      },
-      "indexes": {
-        "pay_component_targets_employee_idx": {
-          "name": "pay_component_targets_employee_idx",
-          "columns": [
-            {
-              "expression": "employee_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        }
-      },
-      "foreignKeys": {
-        "pay_component_targets_org_id_orgs_id_fk": {
-          "name": "pay_component_targets_org_id_orgs_id_fk",
-          "tableFrom": "pay_component_targets",
-          "tableTo": "orgs",
-          "columnsFrom": [
-            "org_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
-        },
-        "pay_component_targets_component_id_pay_components_id_fk": {
-          "name": "pay_component_targets_component_id_pay_components_id_fk",
-          "tableFrom": "pay_component_targets",
-          "tableTo": "pay_components",
-          "columnsFrom": [
-            "component_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
-        },
-        "pay_component_targets_employee_id_employees_id_fk": {
-          "name": "pay_component_targets_employee_id_employees_id_fk",
-          "tableFrom": "pay_component_targets",
-          "tableTo": "employees",
-          "columnsFrom": [
-            "employee_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "no action",
-          "onUpdate": "no action"
-        }
-      },
-      "compositePrimaryKeys": {
-        "pay_component_targets_pk": {
-          "name": "pay_component_targets_pk",
-          "columns": [
-            "component_id",
-            "employee_id"
-          ]
-        }
-      },
-      "uniqueConstraints": {},
-      "policies": {},
-      "checkConstraints": {},
-      "isRLSEnabled": false
-    },
-    "public.pay_components": {
-      "name": "pay_components",
-      "schema": "",
-      "columns": {
-        "id": {
-          "name": "id",
-          "type": "uuid",
-          "primaryKey": true,
-          "notNull": true,
-          "default": "gen_random_uuid()"
-        },
-        "org_id": {
-          "name": "org_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "code": {
-          "name": "code",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "name": {
-          "name": "name",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "kind": {
-          "name": "kind",
-          "type": "hr_pay_component_kind",
-          "typeSchema": "public",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "taxable": {
-          "name": "taxable",
-          "type": "boolean",
-          "primaryKey": false,
-          "notNull": true,
-          "default": true
-        },
-        "in_contribution_base": {
-          "name": "in_contribution_base",
-          "type": "boolean",
-          "primaryKey": false,
-          "notNull": true,
-          "default": false
-        },
-        "before_tax": {
-          "name": "before_tax",
-          "type": "boolean",
-          "primaryKey": false,
-          "notNull": true,
-          "default": false
-        },
-        "amount_type": {
-          "name": "amount_type",
-          "type": "hr_pay_amount_type",
-          "typeSchema": "public",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "amount_rwf": {
-          "name": "amount_rwf",
-          "type": "bigint",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "rate": {
-          "name": "rate",
-          "type": "numeric(5, 2)",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "cap_rwf": {
-          "name": "cap_rwf",
-          "type": "bigint",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "condition_field": {
-          "name": "condition_field",
-          "type": "hr_pay_condition_field",
-          "typeSchema": "public",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "condition_op": {
-          "name": "condition_op",
-          "type": "hr_pay_condition_op",
-          "typeSchema": "public",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "condition_value": {
-          "name": "condition_value",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "applies_all_active": {
-          "name": "applies_all_active",
-          "type": "boolean",
-          "primaryKey": false,
-          "notNull": true,
-          "default": false
-        },
-        "one_off_period": {
-          "name": "one_off_period",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "status": {
-          "name": "status",
-          "type": "hr_catalog_status",
-          "typeSchema": "public",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "'active'"
-        },
-        "created_by_user_id": {
-          "name": "created_by_user_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "created_at": {
-          "name": "created_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "now()"
-        },
-        "updated_at": {
-          "name": "updated_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "now()"
-        }
-      },
-      "indexes": {
-        "pay_components_code_uk": {
-          "name": "pay_components_code_uk",
-          "columns": [
-            {
-              "expression": "org_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            },
-            {
-              "expression": "code",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": true,
-          "where": "\"pay_components\".\"status\" = 'active'",
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        }
-      },
-      "foreignKeys": {
-        "pay_components_org_id_orgs_id_fk": {
-          "name": "pay_components_org_id_orgs_id_fk",
-          "tableFrom": "pay_components",
-          "tableTo": "orgs",
-          "columnsFrom": [
-            "org_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
-        },
-        "pay_components_created_by_user_id_users_id_fk": {
-          "name": "pay_components_created_by_user_id_users_id_fk",
-          "tableFrom": "pay_components",
-          "tableTo": "users",
-          "columnsFrom": [
-            "created_by_user_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "no action",
-          "onUpdate": "no action"
-        }
-      },
-      "compositePrimaryKeys": {},
-      "uniqueConstraints": {},
-      "policies": {},
-      "checkConstraints": {
-        "pay_components_amount_ck": {
-          "name": "pay_components_amount_ck",
-          "value": "(\"pay_components\".\"amount_type\" IN ('percent_basic', 'percent_gross') AND \"pay_components\".\"rate\" IS NOT NULL AND \"pay_components\".\"rate\" > 0 AND \"pay_components\".\"rate\" <= 100 AND \"pay_components\".\"amount_rwf\" IS NULL)\n        OR (\"pay_components\".\"amount_type\" NOT IN ('percent_basic', 'percent_gross') AND \"pay_components\".\"amount_rwf\" IS NOT NULL AND \"pay_components\".\"amount_rwf\" > 0 AND \"pay_components\".\"rate\" IS NULL)"
-        },
-        "pay_components_cap_ck": {
-          "name": "pay_components_cap_ck",
-          "value": "\"pay_components\".\"cap_rwf\" IS NULL OR \"pay_components\".\"cap_rwf\" > 0"
-        },
-        "pay_components_condition_ck": {
-          "name": "pay_components_condition_ck",
-          "value": "(\"pay_components\".\"condition_field\" IS NULL) = (\"pay_components\".\"condition_op\" IS NULL) AND (\"pay_components\".\"condition_field\" IS NULL) = (\"pay_components\".\"condition_value\" IS NULL)"
-        },
-        "pay_components_before_tax_ck": {
-          "name": "pay_components_before_tax_ck",
-          "value": "\"pay_components\".\"kind\" = 'deduction' OR NOT \"pay_components\".\"before_tax\""
-        },
-        "pay_components_period_ck": {
-          "name": "pay_components_period_ck",
-          "value": "one_off_period IS NULL OR one_off_period ~ '^[0-9]{4}-(0[1-9]|1[0-2])$'"
-        }
-      },
-      "isRLSEnabled": false
-    },
-    "public.pay_declarations": {
-      "name": "pay_declarations",
-      "schema": "",
-      "columns": {
-        "id": {
-          "name": "id",
-          "type": "uuid",
-          "primaryKey": true,
-          "notNull": true,
-          "default": "gen_random_uuid()"
-        },
-        "org_id": {
-          "name": "org_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "pay_run_id": {
-          "name": "pay_run_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "kind": {
-          "name": "kind",
-          "type": "hr_pay_declaration_kind",
-          "typeSchema": "public",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "format_version": {
-          "name": "format_version",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "file_key": {
-          "name": "file_key",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "created_by_user_id": {
-          "name": "created_by_user_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "created_at": {
-          "name": "created_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "now()"
-        }
-      },
-      "indexes": {
-        "pay_declarations_run_idx": {
-          "name": "pay_declarations_run_idx",
-          "columns": [
-            {
-              "expression": "pay_run_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        }
-      },
-      "foreignKeys": {
-        "pay_declarations_org_id_orgs_id_fk": {
-          "name": "pay_declarations_org_id_orgs_id_fk",
-          "tableFrom": "pay_declarations",
-          "tableTo": "orgs",
-          "columnsFrom": [
-            "org_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
-        },
-        "pay_declarations_pay_run_id_pay_runs_id_fk": {
-          "name": "pay_declarations_pay_run_id_pay_runs_id_fk",
-          "tableFrom": "pay_declarations",
-          "tableTo": "pay_runs",
-          "columnsFrom": [
-            "pay_run_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "no action",
-          "onUpdate": "no action"
-        },
-        "pay_declarations_created_by_user_id_users_id_fk": {
-          "name": "pay_declarations_created_by_user_id_users_id_fk",
-          "tableFrom": "pay_declarations",
-          "tableTo": "users",
-          "columnsFrom": [
-            "created_by_user_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "no action",
-          "onUpdate": "no action"
-        }
-      },
-      "compositePrimaryKeys": {},
-      "uniqueConstraints": {},
-      "policies": {},
-      "checkConstraints": {},
-      "isRLSEnabled": false
-    },
-    "public.pay_exports": {
-      "name": "pay_exports",
-      "schema": "",
-      "columns": {
-        "id": {
-          "name": "id",
-          "type": "uuid",
-          "primaryKey": true,
-          "notNull": true,
-          "default": "gen_random_uuid()"
-        },
-        "org_id": {
-          "name": "org_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "pay_run_id": {
-          "name": "pay_run_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "kind": {
-          "name": "kind",
-          "type": "hr_pay_export_kind",
-          "typeSchema": "public",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "file_key": {
-          "name": "file_key",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "row_count": {
-          "name": "row_count",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "total_rwf": {
-          "name": "total_rwf",
-          "type": "bigint",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "created_by_user_id": {
-          "name": "created_by_user_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "created_at": {
-          "name": "created_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "now()"
-        }
-      },
-      "indexes": {
-        "pay_exports_run_idx": {
-          "name": "pay_exports_run_idx",
-          "columns": [
-            {
-              "expression": "pay_run_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        }
-      },
-      "foreignKeys": {
-        "pay_exports_org_id_orgs_id_fk": {
-          "name": "pay_exports_org_id_orgs_id_fk",
-          "tableFrom": "pay_exports",
-          "tableTo": "orgs",
-          "columnsFrom": [
-            "org_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
-        },
-        "pay_exports_pay_run_id_pay_runs_id_fk": {
-          "name": "pay_exports_pay_run_id_pay_runs_id_fk",
-          "tableFrom": "pay_exports",
-          "tableTo": "pay_runs",
-          "columnsFrom": [
-            "pay_run_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "no action",
-          "onUpdate": "no action"
-        },
-        "pay_exports_created_by_user_id_users_id_fk": {
-          "name": "pay_exports_created_by_user_id_users_id_fk",
-          "tableFrom": "pay_exports",
-          "tableTo": "users",
-          "columnsFrom": [
-            "created_by_user_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "no action",
-          "onUpdate": "no action"
-        }
-      },
-      "compositePrimaryKeys": {},
-      "uniqueConstraints": {},
-      "policies": {},
-      "checkConstraints": {},
-      "isRLSEnabled": false
-    },
-    "public.pay_structure_components": {
-      "name": "pay_structure_components",
-      "schema": "",
-      "columns": {
-        "org_id": {
-          "name": "org_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "structure_id": {
-          "name": "structure_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "component_id": {
-          "name": "component_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": true
-        }
-      },
-      "indexes": {},
-      "foreignKeys": {
-        "pay_structure_components_org_id_orgs_id_fk": {
-          "name": "pay_structure_components_org_id_orgs_id_fk",
-          "tableFrom": "pay_structure_components",
-          "tableTo": "orgs",
-          "columnsFrom": [
-            "org_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
-        },
-        "pay_structure_components_structure_id_pay_structures_id_fk": {
-          "name": "pay_structure_components_structure_id_pay_structures_id_fk",
-          "tableFrom": "pay_structure_components",
-          "tableTo": "pay_structures",
-          "columnsFrom": [
-            "structure_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
-        },
-        "pay_structure_components_component_id_pay_components_id_fk": {
-          "name": "pay_structure_components_component_id_pay_components_id_fk",
-          "tableFrom": "pay_structure_components",
-          "tableTo": "pay_components",
-          "columnsFrom": [
-            "component_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
-        }
-      },
-      "compositePrimaryKeys": {
-        "pay_structure_components_pk": {
-          "name": "pay_structure_components_pk",
-          "columns": [
-            "structure_id",
-            "component_id"
-          ]
-        }
-      },
-      "uniqueConstraints": {},
-      "policies": {},
-      "checkConstraints": {},
-      "isRLSEnabled": false
-    },
-    "public.pay_structures": {
-      "name": "pay_structures",
-      "schema": "",
-      "columns": {
-        "id": {
-          "name": "id",
-          "type": "uuid",
-          "primaryKey": true,
-          "notNull": true,
-          "default": "gen_random_uuid()"
-        },
-        "org_id": {
-          "name": "org_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "name": {
-          "name": "name",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "status": {
-          "name": "status",
-          "type": "hr_catalog_status",
-          "typeSchema": "public",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "'active'"
-        },
-        "created_at": {
-          "name": "created_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "now()"
-        },
-        "updated_at": {
-          "name": "updated_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "now()"
-        }
-      },
-      "indexes": {
-        "pay_structures_name_uk": {
-          "name": "pay_structures_name_uk",
-          "columns": [
-            {
-              "expression": "org_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            },
-            {
-              "expression": "lower(\"name\")",
-              "asc": true,
-              "isExpression": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": true,
-          "where": "\"pay_structures\".\"status\" = 'active'",
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        }
-      },
-      "foreignKeys": {
-        "pay_structures_org_id_orgs_id_fk": {
-          "name": "pay_structures_org_id_orgs_id_fk",
-          "tableFrom": "pay_structures",
-          "tableTo": "orgs",
-          "columnsFrom": [
-            "org_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
-        }
-      },
-      "compositePrimaryKeys": {},
-      "uniqueConstraints": {},
-      "policies": {},
-      "checkConstraints": {},
-      "isRLSEnabled": false
-    },
     "public.list_saved_views": {
       "name": "list_saved_views",
       "schema": "",
@@ -31438,6 +29775,917 @@
       "uniqueConstraints": {},
       "policies": {},
       "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.assistant_action_proposals": {
+      "name": "assistant_action_proposals",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "user_id": {
+          "name": "user_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "workspace_id": {
+          "name": "workspace_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "kind": {
+          "name": "kind",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "target_id": {
+          "name": "target_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "target_label": {
+          "name": "target_label",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "property_id": {
+          "name": "property_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "current_value": {
+          "name": "current_value",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "proposed_value": {
+          "name": "proposed_value",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "request_text": {
+          "name": "request_text",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "state": {
+          "name": "state",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'proposed'"
+        },
+        "idempotency_key": {
+          "name": "idempotency_key",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "error": {
+          "name": "error",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "expires_at": {
+          "name": "expires_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "decided_at": {
+          "name": "decided_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        }
+      },
+      "indexes": {
+        "assistant_action_proposals_user_idx": {
+          "name": "assistant_action_proposals_user_idx",
+          "columns": [
+            {
+              "expression": "user_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "created_at",
+              "isExpression": false,
+              "asc": false,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "assistant_action_proposals_idempotency_uk": {
+          "name": "assistant_action_proposals_idempotency_uk",
+          "columns": [
+            {
+              "expression": "user_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "idempotency_key",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "assistant_action_proposals_user_id_users_id_fk": {
+          "name": "assistant_action_proposals_user_id_users_id_fk",
+          "tableFrom": "assistant_action_proposals",
+          "tableTo": "users",
+          "columnsFrom": [
+            "user_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {
+        "assistant_action_proposals_kind": {
+          "name": "assistant_action_proposals_kind",
+          "value": "\"assistant_action_proposals\".\"kind\" IN ('room_type.price')"
+        },
+        "assistant_action_proposals_state": {
+          "name": "assistant_action_proposals_state",
+          "value": "\"assistant_action_proposals\".\"state\" IN ('proposed', 'approved', 'executed', 'failed', 'rejected', 'expired')"
+        }
+      },
+      "isRLSEnabled": false
+    },
+    "public.assistant_conversations": {
+      "name": "assistant_conversations",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "owner_user_id": {
+          "name": "owner_user_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "anon_token_hash": {
+          "name": "anon_token_hash",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "surface": {
+          "name": "surface",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "workspace_id": {
+          "name": "workspace_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "page_context": {
+          "name": "page_context",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "last_message_at": {
+          "name": "last_message_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "expires_at": {
+          "name": "expires_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "attached_at": {
+          "name": "attached_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "closed_at": {
+          "name": "closed_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        }
+      },
+      "indexes": {
+        "assistant_conversations_anon_token_uk": {
+          "name": "assistant_conversations_anon_token_uk",
+          "columns": [
+            {
+              "expression": "anon_token_hash",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "assistant_conversations_owner_idx": {
+          "name": "assistant_conversations_owner_idx",
+          "columns": [
+            {
+              "expression": "owner_user_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "last_message_at",
+              "isExpression": false,
+              "asc": false,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "assistant_conversations_expires_idx": {
+          "name": "assistant_conversations_expires_idx",
+          "columns": [
+            {
+              "expression": "expires_at",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "assistant_conversations_owner_user_id_users_id_fk": {
+          "name": "assistant_conversations_owner_user_id_users_id_fk",
+          "tableFrom": "assistant_conversations",
+          "tableTo": "users",
+          "columnsFrom": [
+            "owner_user_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {
+        "assistant_conversations_has_holder": {
+          "name": "assistant_conversations_has_holder",
+          "value": "\"assistant_conversations\".\"owner_user_id\" IS NOT NULL OR \"assistant_conversations\".\"anon_token_hash\" IS NOT NULL"
+        },
+        "assistant_conversations_surface": {
+          "name": "assistant_conversations_surface",
+          "value": "\"assistant_conversations\".\"surface\" IN ('web', 'app', 'admin', 'mobile')"
+        }
+      },
+      "isRLSEnabled": false
+    },
+    "public.assistant_feedback": {
+      "name": "assistant_feedback",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "message_id": {
+          "name": "message_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "helpful": {
+          "name": "helpful",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "assistant_feedback_message_uk": {
+          "name": "assistant_feedback_message_uk",
+          "columns": [
+            {
+              "expression": "message_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "assistant_feedback_message_id_assistant_messages_id_fk": {
+          "name": "assistant_feedback_message_id_assistant_messages_id_fk",
+          "tableFrom": "assistant_feedback",
+          "tableTo": "assistant_messages",
+          "columnsFrom": [
+            "message_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.assistant_messages": {
+      "name": "assistant_messages",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "conversation_id": {
+          "name": "conversation_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "seq": {
+          "name": "seq",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "role": {
+          "name": "role",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "display_text": {
+          "name": "display_text",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "model_content": {
+          "name": "model_content",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "tool_calls": {
+          "name": "tool_calls",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'[]'::jsonb"
+        },
+        "sources": {
+          "name": "sources",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'[]'::jsonb"
+        },
+        "route": {
+          "name": "route",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "assistant_messages_conversation_seq_uk": {
+          "name": "assistant_messages_conversation_seq_uk",
+          "columns": [
+            {
+              "expression": "conversation_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "seq",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "assistant_messages_conversation_id_assistant_conversations_id_fk": {
+          "name": "assistant_messages_conversation_id_assistant_conversations_id_fk",
+          "tableFrom": "assistant_messages",
+          "tableTo": "assistant_conversations",
+          "columnsFrom": [
+            "conversation_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {
+        "assistant_messages_role": {
+          "name": "assistant_messages_role",
+          "value": "\"assistant_messages\".\"role\" IN ('user', 'assistant')"
+        }
+      },
+      "isRLSEnabled": false
+    },
+    "public.assistant_model_usage": {
+      "name": "assistant_model_usage",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "conversation_id": {
+          "name": "conversation_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "message_id": {
+          "name": "message_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "user_id": {
+          "name": "user_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "surface": {
+          "name": "surface",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "caller_role": {
+          "name": "caller_role",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "request_type": {
+          "name": "request_type",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "model": {
+          "name": "model",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "input_tokens": {
+          "name": "input_tokens",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "output_tokens": {
+          "name": "output_tokens",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "cache_read_tokens": {
+          "name": "cache_read_tokens",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "default": 0
+        },
+        "cache_write_tokens": {
+          "name": "cache_write_tokens",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "default": 0
+        },
+        "estimated_cost_micro_usd": {
+          "name": "estimated_cost_micro_usd",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "assistant_model_usage_created_idx": {
+          "name": "assistant_model_usage_created_idx",
+          "columns": [
+            {
+              "expression": "created_at",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "assistant_model_usage_user_created_idx": {
+          "name": "assistant_model_usage_user_created_idx",
+          "columns": [
+            {
+              "expression": "user_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "created_at",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "assistant_model_usage_conversation_created_idx": {
+          "name": "assistant_model_usage_conversation_created_idx",
+          "columns": [
+            {
+              "expression": "conversation_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "created_at",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "assistant_model_usage_conversation_id_assistant_conversations_id_fk": {
+          "name": "assistant_model_usage_conversation_id_assistant_conversations_id_fk",
+          "tableFrom": "assistant_model_usage",
+          "tableTo": "assistant_conversations",
+          "columnsFrom": [
+            "conversation_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "set null",
+          "onUpdate": "no action"
+        },
+        "assistant_model_usage_message_id_assistant_messages_id_fk": {
+          "name": "assistant_model_usage_message_id_assistant_messages_id_fk",
+          "tableFrom": "assistant_model_usage",
+          "tableTo": "assistant_messages",
+          "columnsFrom": [
+            "message_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "set null",
+          "onUpdate": "no action"
+        },
+        "assistant_model_usage_user_id_users_id_fk": {
+          "name": "assistant_model_usage_user_id_users_id_fk",
+          "tableFrom": "assistant_model_usage",
+          "tableTo": "users",
+          "columnsFrom": [
+            "user_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "set null",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {
+        "assistant_model_usage_caller_role": {
+          "name": "assistant_model_usage_caller_role",
+          "value": "\"assistant_model_usage\".\"caller_role\" IN ('anonymous', 'signed_in', 'operator', 'staff')"
+        },
+        "assistant_model_usage_tokens_nonnegative": {
+          "name": "assistant_model_usage_tokens_nonnegative",
+          "value": "\"assistant_model_usage\".\"input_tokens\" >= 0 AND \"assistant_model_usage\".\"output_tokens\" >= 0 AND \"assistant_model_usage\".\"cache_read_tokens\" >= 0 AND \"assistant_model_usage\".\"cache_write_tokens\" >= 0 AND \"assistant_model_usage\".\"estimated_cost_micro_usd\" >= 0"
+        }
+      },
+      "isRLSEnabled": false
+    },
+    "public.assistant_turns": {
+      "name": "assistant_turns",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "conversation_id": {
+          "name": "conversation_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "message_id": {
+          "name": "message_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "surface": {
+          "name": "surface",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "caller_role": {
+          "name": "caller_role",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "route": {
+          "name": "route",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "outcome": {
+          "name": "outcome",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "model_calls": {
+          "name": "model_calls",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "default": 0
+        },
+        "model_tool_calls": {
+          "name": "model_tool_calls",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "default": 0
+        },
+        "tools": {
+          "name": "tools",
+          "type": "text[]",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'{}'::text[]"
+        },
+        "input_tokens": {
+          "name": "input_tokens",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "default": 0
+        },
+        "output_tokens": {
+          "name": "output_tokens",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "default": 0
+        },
+        "cache_read_tokens": {
+          "name": "cache_read_tokens",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "default": 0
+        },
+        "cache_write_tokens": {
+          "name": "cache_write_tokens",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "default": 0
+        },
+        "estimated_cost_micro_usd": {
+          "name": "estimated_cost_micro_usd",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": true,
+          "default": 0
+        },
+        "duration_ms": {
+          "name": "duration_ms",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "assistant_turns_created_idx": {
+          "name": "assistant_turns_created_idx",
+          "columns": [
+            {
+              "expression": "created_at",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "assistant_turns_conversation_id_assistant_conversations_id_fk": {
+          "name": "assistant_turns_conversation_id_assistant_conversations_id_fk",
+          "tableFrom": "assistant_turns",
+          "tableTo": "assistant_conversations",
+          "columnsFrom": [
+            "conversation_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "set null",
+          "onUpdate": "no action"
+        },
+        "assistant_turns_message_id_assistant_messages_id_fk": {
+          "name": "assistant_turns_message_id_assistant_messages_id_fk",
+          "tableFrom": "assistant_turns",
+          "tableTo": "assistant_messages",
+          "columnsFrom": [
+            "message_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "set null",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {
+        "assistant_turns_caller_role": {
+          "name": "assistant_turns_caller_role",
+          "value": "\"assistant_turns\".\"caller_role\" IN ('anonymous', 'signed_in', 'operator', 'staff')"
+        },
+        "assistant_turns_outcome": {
+          "name": "assistant_turns_outcome",
+          "value": "\"assistant_turns\".\"outcome\" IN ('answered', 'fallback', 'withheld', 'truncated', 'out_of_time', 'step_limit', 'refused', 'failed')"
+        },
+        "assistant_turns_counts_nonnegative": {
+          "name": "assistant_turns_counts_nonnegative",
+          "value": "\"assistant_turns\".\"model_calls\" >= 0 AND \"assistant_turns\".\"model_tool_calls\" >= 0 AND \"assistant_turns\".\"input_tokens\" >= 0 AND \"assistant_turns\".\"output_tokens\" >= 0 AND \"assistant_turns\".\"cache_read_tokens\" >= 0 AND \"assistant_turns\".\"cache_write_tokens\" >= 0 AND \"assistant_turns\".\"estimated_cost_micro_usd\" >= 0 AND \"assistant_turns\".\"duration_ms\" >= 0"
+        }
+      },
       "isRLSEnabled": false
     }
   },
@@ -32575,8 +31823,7 @@
         "training_certificate",
         "staff_photo",
         "staff_document",
-        "hr_attachment",
-        "hr_pay_file"
+        "hr_attachment"
       ]
     },
     "public.subscription_invoice_status": {
@@ -33176,15 +32423,6 @@
         "widowed"
       ]
     },
-    "public.hr_paid_method": {
-      "name": "hr_paid_method",
-      "schema": "public",
-      "values": [
-        "bank",
-        "momo",
-        "cash"
-      ]
-    },
     "public.hr_pay_account_kind": {
       "name": "hr_pay_account_kind",
       "schema": "public",
@@ -33348,141 +32586,6 @@
         "all",
         "only",
         "except"
-      ]
-    },
-    "public.hr_loan_kind": {
-      "name": "hr_loan_kind",
-      "schema": "public",
-      "values": [
-        "loan",
-        "advance"
-      ]
-    },
-    "public.hr_loan_paid_out": {
-      "name": "hr_loan_paid_out",
-      "schema": "public",
-      "values": [
-        "payslip",
-        "outside"
-      ]
-    },
-    "public.hr_pay_adjustment_side": {
-      "name": "hr_pay_adjustment_side",
-      "schema": "public",
-      "values": [
-        "earning",
-        "deduction"
-      ]
-    },
-    "public.hr_pay_adjustment_source": {
-      "name": "hr_pay_adjustment_source",
-      "schema": "public",
-      "values": [
-        "manual",
-        "leave",
-        "asset_fine",
-        "held_payslip",
-        "late_claim"
-      ]
-    },
-    "public.hr_pay_adjustment_status": {
-      "name": "hr_pay_adjustment_status",
-      "schema": "public",
-      "values": [
-        "open",
-        "waived",
-        "paid"
-      ]
-    },
-    "public.hr_pay_amount_type": {
-      "name": "hr_pay_amount_type",
-      "schema": "public",
-      "values": [
-        "fixed",
-        "percent_basic",
-        "percent_gross",
-        "per_day_worked",
-        "per_hour_worked",
-        "per_child"
-      ]
-    },
-    "public.hr_pay_claim_kind": {
-      "name": "hr_pay_claim_kind",
-      "schema": "public",
-      "values": [
-        "reimbursement",
-        "leave_encashment"
-      ]
-    },
-    "public.hr_pay_claim_status": {
-      "name": "hr_pay_claim_status",
-      "schema": "public",
-      "values": [
-        "requested",
-        "approved",
-        "rejected",
-        "cancelled"
-      ]
-    },
-    "public.hr_pay_component_kind": {
-      "name": "hr_pay_component_kind",
-      "schema": "public",
-      "values": [
-        "allowance",
-        "deduction"
-      ]
-    },
-    "public.hr_pay_condition_field": {
-      "name": "hr_pay_condition_field",
-      "schema": "public",
-      "values": [
-        "sex",
-        "marital_status",
-        "children",
-        "years_of_service",
-        "prior_experience",
-        "employee_type",
-        "job_position",
-        "department",
-        "branch",
-        "wage_basis"
-      ]
-    },
-    "public.hr_pay_condition_op": {
-      "name": "hr_pay_condition_op",
-      "schema": "public",
-      "values": [
-        "eq",
-        "ne",
-        "gt",
-        "gte",
-        "lt",
-        "lte",
-        "in"
-      ]
-    },
-    "public.hr_pay_declaration_kind": {
-      "name": "hr_pay_declaration_kind",
-      "schema": "public",
-      "values": [
-        "paye",
-        "rssb"
-      ]
-    },
-    "public.hr_pay_export_kind": {
-      "name": "hr_pay_export_kind",
-      "schema": "public",
-      "values": [
-        "bank",
-        "momo"
-      ]
-    },
-    "public.hr_pay_target_mode": {
-      "name": "hr_pay_target_mode",
-      "schema": "public",
-      "values": [
-        "include",
-        "exclude"
       ]
     },
     "public.report_run_kind": {

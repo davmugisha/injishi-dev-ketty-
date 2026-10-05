@@ -33,7 +33,10 @@ export function DatabaseProperty({ property, slug }: { property: PublicProperty;
   const facts = [
     property.districtName,
     rooms.length > 0 ? pluralize(rooms.length, "room type") : null,
-    cheapest?.nightlyRateRwf != null ? `from ${formatPrice(cheapest.nightlyRateRwf)} a night` : null,
+    // Per person: bookings are charged rate × guests × nights.
+    cheapest?.nightlyRateRwf != null
+      ? `from ${formatPrice(cheapest.nightlyRateRwf)} per person, per night`
+      : null,
   ].filter((fact): fact is string => Boolean(fact));
   // The card's guest ceiling: nobody books more people than the largest room sleeps.
   const maxGuests = Math.max(1, ...rooms.map((room) => room.capacity ?? 1));
@@ -155,7 +158,7 @@ function RoomRow({ room }: { room: RoomTypeSummary }) {
         {room.nightlyRateRwf !== null ? (
           <>
             <b className="font-semibold">{formatPrice(room.nightlyRateRwf)}</b>{" "}
-            <span className="text-sm text-page-fg-70">a night</span>
+            <span className="text-sm text-page-fg-70">per person, per night</span>
           </>
         ) : (
           <span className="text-sm text-page-fg-70">Price on request</span>

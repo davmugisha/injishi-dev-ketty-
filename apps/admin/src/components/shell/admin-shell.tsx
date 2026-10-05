@@ -19,11 +19,18 @@ import { useAdminUi } from "@/lib/store";
  * check would be back in the browser, painting the sidebar it is meant to
  * withhold.
  */
-export function AdminShell({ children }: { children: React.ReactNode }) {
-  return <AdminChrome>{children}</AdminChrome>;
+export function AdminShell({
+  children,
+  assistant,
+}: {
+  children: React.ReactNode;
+  /** The support assistant, server rendered by the layout (ADR-061). */
+  assistant?: React.ReactNode;
+}) {
+  return <AdminChrome assistant={assistant}>{children}</AdminChrome>;
 }
 
-function AdminChrome({ children }: { children: React.ReactNode }) {
+function AdminChrome({ children, assistant }: { children: React.ReactNode; assistant?: React.ReactNode }) {
   const [mobileOpen, setMobileOpen] = useState(false);
   // The shared Toaster takes its list as a prop and knows no store (ADR-040
   // call 3); this selector is the whole of the coupling, and it stays here.
@@ -77,6 +84,7 @@ function AdminChrome({ children }: { children: React.ReactNode }) {
 
       <RoleLensDialog />
       <OverrideDialog />
+      {assistant}
       <Toaster toasts={toasts} />
     </>
   );

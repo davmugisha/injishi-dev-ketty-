@@ -33,7 +33,7 @@ import type { ApiPath } from './endpoints';
 export type ApiResult<T> =
   | { status: 'ok'; data: T }
   | { status: 'unauthenticated' }
-  | { status: 'refused'; message: string; httpStatus: number }
+  | { status: 'refused'; message: string; httpStatus: number; code?: string }
   | { status: 'failed' };
 
 export type ApiErrorKind = 'unauthenticated' | 'refused' | 'failed';
@@ -162,6 +162,18 @@ export interface ApiCallOptions {
    * to prevent.
    */
   idempotencyKey?: string;
+  /**
+   * A longer ceiling than `REQUEST_TIMEOUT_MS`, for the one call that needs it:
+   * a support assistant turn, which the API bounds at 55 s (ADR-061 D-p).
+   */
+  timeoutMs?: number;
+  /**
+   * Marks a support assistant call (ADR-061 D-c). This app has no cookie jar,
+   * so it names itself `x-assistant-client: native` and carries a signed out
+   * conversation's token in `x-assistant-token`. Attached HERE, like the other
+   * identity headers, so no call site writes a header of its own.
+   */
+  assistant?: { token: string | null };
 }
 
 /**
@@ -191,11 +203,15 @@ export async function api<T>(
   path: ApiPath,
   options: ApiCallOptions = {},
 ): Promise<ApiResult<T>> {
-  const { method = 'GET', body, formData, signal, withoutWorkspace, idempotencyKey } = options;
+  const { method = 'GET', body, formData, signal, withoutWorkspace, idempotencyKey, timeoutMs, assistant } = options;
   const url = `${API_BASE}${path}`;
 
   const headers: Record<string, string> = { ...authHeaders() };
   if (idempotencyKey) headers['Idempotency-Key'] = idempotencyKey;
+  if (assistant) {
+    headers['x-assistant-client'] = 'native';
+    if (assistant.token) headers['x-assistant-token'] = assistant.token;
+  }
 
   // Never set Content-Type for multipart: fetch has to write the boundary, and
   // a hand-written header without one makes the body unparseable.
@@ -211,7 +227,7 @@ export async function api<T>(
   // mode a phone actually has, and without this it presents as a spinner that
   // never resolves rather than as an error anyone can act on.
   const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
+  const timer = setTimeout(() => controller.abort(), timeoutMs ?? REQUEST_TIMEOUT_MS);
   const onCallerAbort = () => controller.abort();
   signal?.addEventListener('abort', onCallerAbort);
 
@@ -240,7 +256,13 @@ export async function api<T>(
         httpStatus: response.status,
         outcome: 'refused',
       });
-      return { status: 'refused', message, httpStatus: response.status };
+      const code = (parsed as { code?: unknown } | null)?.code;
+      return {
+        status: 'refused',
+        message,
+        httpStatus: response.status,
+        ...(typeof code === 'string' ? { code } : {}),
+      };
     }
 
     // 204, and any other answer with no body, is a success with no data.

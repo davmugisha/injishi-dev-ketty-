@@ -11,7 +11,7 @@ import {
   TabsList,
   TabsTrigger,
 } from "@injishi/ui";
-import { SlidersHorizontal } from "lucide-react";
+import { ChevronDown, Info, List, Map as MapIcon } from "lucide-react";
 import { SORT_EXPLAINER, SORT_OPTIONS, STAY_TYPES, type ExploreSort, type StayType } from "@/lib/search-params";
 
 /**
@@ -27,8 +27,10 @@ export function stayTabId(type: StayType): string {
 }
 
 /**
- * The bar above the result list: the count, the stay-type tabs, the
- * sort-order explainer and the sort control.
+ * The bar above the result list: "61+ stays in Rwanda", the stay-type tabs,
+ * the sort control with its explainer one hover away, and the list/grid
+ * layout switch. The map toggle shows only where the right rail's mini map
+ * is not on screen, and to come back from the map view.
  *
  * The stay-type row is the shared `Tabs`, `underline` variant (2026-09-12).
  * It was three bare `<button>`s with a `border-b-2` each, and the public
@@ -45,90 +47,58 @@ export function stayTabId(type: StayType): string {
 export function ResultsToolbar({
   count,
   totalCatalogue,
+  place,
   stayType,
   onStayTypeChange,
   sort,
   onSortChange,
-  onOpenFilters,
-  activeFilterCount,
+  mapOn,
+  onToggleMap,
 }: {
   count: number;
   /** The whole catalogue's size, so "300+" never overstates what exists. */
   totalCatalogue: number;
+  /** Where the results are: "Rwanda", "Musanze", "2 districts". */
+  place: string;
   stayType: StayType;
   onStayTypeChange: (type: StayType) => void;
   sort: ExploreSort;
   onSortChange: (sort: ExploreSort) => void;
-  /** Opens the mobile filter sheet. Omit to hide the trigger (desktop). */
-  onOpenFilters?: () => void;
-  activeFilterCount?: number;
+  mapOn: boolean;
+  /** Desktop only; a phone has the floating list/map switch instead. */
+  onToggleMap: () => void;
 }) {
   const sortLabel = SORT_OPTIONS.find((option) => option.value === sort)?.label ?? "Sort";
+  const shown = count === totalCatalogue ? `${count}+` : String(count);
 
+  // Two deliberate rows: the count and the controls that act on the whole
+  // list share the first, centred on one line; the stay-type tabs take the
+  // second, over a full-width rule. Packed onto one row they wrapped in the
+  // narrower split-view column and left the controls floating on a line of
+  // their own.
   return (
-    <div data-results-toolbar className="flex flex-col gap-3">
-      <Tabs value={stayType} onValueChange={(value) => onStayTypeChange(value as StayType)}>
-        <TabsList variant="underline" aria-label="Stay type" className="-mx-1 scrollbar overflow-x-auto px-1">
-          {STAY_TYPES.map((type) => (
-            <TabsTrigger
-              key={type.value}
-              value={type.value}
-              id={stayTabId(type.value)}
-              aria-controls={EXPLORE_RESULTS_ID}
-              data-stay-tab
-            >
-              {type.label}
-            </TabsTrigger>
-          ))}
-        </TabsList>
-      </Tabs>
+    <div data-results-toolbar className="flex flex-col gap-4">
+      <div className="flex flex-wrap items-center justify-between gap-x-6 gap-y-3">
+        <h2
+          data-result-count
+          data-count={count}
+          className="text-xl font-bold leading-tight text-foreground"
+        >
+          {count === 1 ? "1 stay" : `${shown} stays`} in {place}
+        </h2>
 
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div className="min-w-0">
-          <p data-result-count data-count={count} className="text-page-fg">
-            {count === 1 ? (
-              "1 property"
-            ) : (
-              <>
-                <b>{count === totalCatalogue ? `${count}+` : count}</b> properties
-              </>
-            )}
-          </p>
-          <p data-sort-explainer className="mt-0.5 text-xs text-page-fg-70">
-            How our sort order works
-            <span className="sr-only">: {SORT_EXPLAINER}</span>
-          </p>
-        </div>
-
-        <div className="flex items-center gap-2">
-          {onOpenFilters ? (
-            <Button
-              variant="outline"
-              size="sm"
-              data-filter-sheet-trigger
-              onClick={onOpenFilters}
-              className="gap-2 border-slate-line px-4 py-2.5 text-page-fg hover:border-ink lg:hidden"
-            >
-              <SlidersHorizontal className="size-4" strokeWidth={2} aria-hidden />
-              Filters
-              {activeFilterCount ? (
-                <span className="flex size-5 items-center justify-center rounded-full bg-accent text-2xs font-bold text-accent-foreground">
-                  {activeFilterCount}
-                </span>
-              ) : null}
-            </Button>
-          ) : null}
-
+        <div className="flex flex-wrap items-center gap-2">
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button
                 variant="outline"
                 size="sm"
                 data-sort-trigger
-                className="gap-2 whitespace-nowrap border-slate-line px-5 py-2.5 text-page-fg hover:border-ink"
+                className="gap-2 whitespace-nowrap border-border bg-card px-4 py-2.5 text-page-fg hover:border-ink"
               >
-                <span className="text-page-fg-70">Sort by</span>
-                {sortLabel}
+                <span className="hidden text-page-fg-70 sm:inline">Sort by</span>
+                <span className="font-bold">{sortLabel}</span>
+                <ChevronDown className="size-4 text-muted-foreground" strokeWidth={2.2} aria-hidden />
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="border border-border">
@@ -144,7 +114,56 @@ export function ResultsToolbar({
               </DropdownMenuRadioGroup>
             </DropdownMenuContent>
           </DropdownMenu>
+
+          {/* How the default order is decided, kept one hover away. */}
+          <span
+            data-sort-explainer
+            title={SORT_EXPLAINER}
+            className="hidden size-9 items-center justify-center rounded-full text-muted-foreground sm:flex"
+          >
+            <Info className="size-4" strokeWidth={2} aria-hidden />
+            <span className="sr-only">How our sort order works: {SORT_EXPLAINER}</span>
+          </span>
+
+          <Button
+            variant="outline"
+            size="sm"
+            data-map-toggle
+            aria-pressed={mapOn}
+            onClick={onToggleMap}
+            className="hidden gap-2 whitespace-nowrap border-border bg-card px-4 py-2.5 text-page-fg hover:border-ink lg:flex"
+          >
+            {mapOn ? (
+              <>
+                <List className="size-4" strokeWidth={2} aria-hidden />
+                Hide map
+              </>
+            ) : (
+              <>
+                <MapIcon className="size-4" strokeWidth={2} aria-hidden />
+                Show map
+              </>
+            )}
+          </Button>
         </div>
+      </div>
+
+      <div className="border-b border-separator">
+        <Tabs value={stayType} onValueChange={(value) => onStayTypeChange(value as StayType)}>
+          <TabsList variant="underline" aria-label="Stay type" className="-mx-1 -mb-px scrollbar overflow-x-auto px-1">
+            {STAY_TYPES.map((type) => (
+              <TabsTrigger
+                key={type.value}
+                value={type.value}
+                id={stayTabId(type.value)}
+                aria-controls={EXPLORE_RESULTS_ID}
+                data-stay-tab
+              >
+                {type.label}
+              </TabsTrigger>
+            ))}
+          </TabsList>
+        </Tabs>
       </div>
     </div>
   );

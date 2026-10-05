@@ -1,5 +1,7 @@
 import type { Metadata } from "next";
 import localFont from "next/font/local";
+import { Suspense } from "react";
+import { AdminAssistant } from "@/components/assistant/admin-assistant";
 import { AdminShell } from "@/components/shell/admin-shell";
 import { StaffBoundary } from "@/components/shell/staff-boundary";
 import "./globals.css";
@@ -59,7 +61,15 @@ export default function RootLayout({
          * who is not staff. See `staff-boundary.tsx` for why that matters.
          */}
         <StaffBoundary>
-          <AdminShell>
+          {/* The support assistant reads its conversation on the server and
+              streams in without holding up the page (ADR-061 slice G). */}
+          <AdminShell
+            assistant={
+              <Suspense fallback={null}>
+                <AdminAssistant />
+              </Suspense>
+            }
+          >
             {/*
              * And the section gate is INSIDE the chrome (ADR-049 AC-25), but
              * it is NOT mounted here: each section's own `layout.tsx` mounts

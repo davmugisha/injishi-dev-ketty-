@@ -150,7 +150,7 @@ ALTER TABLE "attendance_policies" ADD CONSTRAINT "attendance_policies_ranges_ck"
 --
 -- Slice 1's three columns become the new rules (AC-LV1): `paid` is the payment,
 -- `needs_approval` one step or none, a carry maximum carries (only where a
--- balance is kept, since a type with none never resets). Migration 0059 drops
+-- balance is kept, since a type with none never resets). Migration 0061 drops
 -- the old columns once this has read them. `encashed` is not named here: the
 -- value was added above, and Postgres refuses it in the same transaction.
 UPDATE "leave_types" SET

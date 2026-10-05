@@ -76,6 +76,13 @@ export const QUEUES = {
    */
   psfMembershipSweep: 'PsfMembershipSweep',
   /**
+   * ADR-061 D-d: the support assistant's hourly retention sweep. Deletes
+   * expired conversations with what they prepared, expires undecided
+   * proposals, and closes interrupted approvals from the live price. Its own
+   * queue so a privacy deletion never waits behind a backlog of anything else.
+   */
+  assistantRetention: 'AssistantRetention',
+  /**
    * ADR-058: the HR daily job. Moves contract statuses on Kigali dates and
    * writes the leave accruals each person is owed. Its own queue, because a
    * scheduler's policy is per queue.

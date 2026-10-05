@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from "next";
 import { fixed } from "@injishi/design-tokens";
 import { cn } from "@injishi/utils";
 import { pwaMetadata } from "@/lib/pwa-metadata";
+import { AssistantWidget } from "@/components/assistant/assistant-widget";
 import { ThemeProvider } from "@/components/layout/theme-provider";
 import { figtree, spectral } from "@/lib/fonts";
 import "../_injishi-public.css";
@@ -92,7 +93,11 @@ export default function PublicLayout({ children }: { children: React.ReactNode }
       suppressHydrationWarning
     >
       <body className="antialiased">
-        <ThemeProvider>{children}</ThemeProvider>
+        <ThemeProvider>
+          {children}
+          {/* The support assistant (ADR-061). Draws nothing when the API has it off. */}
+          <AssistantWidget />
+        </ThemeProvider>
       </body>
     </html>
   );

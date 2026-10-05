@@ -47,9 +47,12 @@ import { QueuesModule } from './shared/queues/queues.module';
         // anyone who can read the logs, so no environment writes one (ADR-043,
         // AC-15). Redacted at the logger, so every line that carries the
         // request or response, error lines included, is covered at once.
+        // The mobile assistant's `x-assistant-token` opens a signed out
+        // conversation exactly as its cookie does (ADR-061 D-c), so it is one.
         redact: [
           'req.headers.cookie',
           'req.headers.authorization',
+          'req.headers["x-assistant-token"]',
           'res.headers["set-cookie"]',
         ],
         transport:
