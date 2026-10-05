@@ -41,7 +41,7 @@ export class HrDailyProcessor extends WorkerHost implements OnModuleInit {
     }
     const outcome = await this.daily.run();
     this.logger.log(
-      `HR daily: ${outcome.ended} contract(s) ended, ${outcome.started} started, ${outcome.accrued} accrual row(s), ${outcome.skippedOrgs} business(es) skipped`,
+      `HR daily: ${outcome.ended} contract(s) ended, ${outcome.started} started, ${outcome.accrued} accrual row(s), ${outcome.skippedOrgs} business(es) skipped, ${outcome.reminded} document reminder(s)`,
     );
   }
 }

@@ -20,10 +20,17 @@ import {
 import { OpsAmenitiesController } from './amenities.controller';
 import { OpsAttendanceController } from './attendance.controller';
 import { OpsDepartmentsController } from './departments.controller';
+import { OpsDisciplinaryActionsController } from './disciplinary-actions.controller';
+import { OpsDocumentRequestsController } from './document-requests.controller';
+import { OpsDocumentsController } from './documents.controller';
 import { OpsEmployeesController } from './employees.controller';
+import { OpsHrController } from './hr.controller';
 import { OpsLeaveController } from './leave.controller';
 import { OpsListViewsController } from './list-views.controller';
+import { OpsOrgChartController } from './org-chart.controller';
+import { OpsPayAccountsController } from './pay-accounts.controller';
 import { OpsPayRunsController } from './pay-runs.controller';
+import { OpsPoliciesController } from './policies.controller';
 import { OpsRosterController, OpsShiftTemplatesController } from './roster.controller';
 import { OpsEbmController } from './ebm.controller';
 import { OpsFoliosController } from './folios.controller';
@@ -47,6 +54,7 @@ import {
   OpsServiceCatalogController,
   OpsServiceOrdersController,
 } from './service-catalog.controller';
+import { OpsStaffAnnouncementsController } from './staff-announcements.controller';
 import { OpsStaysController } from './stays.controller';
 import { OpsTeamController } from './team.controller';
 import { OpsThreadsController } from './threads.controller';
@@ -100,6 +108,14 @@ const CONTROLLERS: Ctor[] = [
   OpsLeaveController,
   OpsPayRunsController,
   OpsListViewsController,
+  OpsHrController,
+  OpsPayAccountsController,
+  OpsDocumentsController,
+  OpsDocumentRequestsController,
+  OpsPoliciesController,
+  OpsStaffAnnouncementsController,
+  OpsDisciplinaryActionsController,
+  OpsOrgChartController,
 ];
 
 interface Read {
@@ -223,6 +239,30 @@ const EXPECTED: Record<string, readonly OrgRole[]> = {
   // narrowed to the list's own in the service: the desk reads the views of the
   // roster and the attendance sheet it works, and nothing else.
   '/ops/list-views': ['owner', 'manager', 'receptionist'],
+  // The people file (058-people-file AC-PF2). The photo is a work field, so it
+  // reads like the file. Pay accounts are `people.manage` or `payroll.run`;
+  // notes, documents and discipline are `people.manage` alone. All three are
+  // the owner's by default, so a manager reads none of them until granted.
+  '/ops/employees/:id/photo': ['owner', 'manager'],
+  '/ops/employees/:id/pay-accounts': ['owner'],
+  '/ops/employees/:id/notes': ['owner'],
+  '/ops/employees/:id/notes/:noteId/files/:index': ['owner'],
+  '/ops/employees/:id/documents': ['owner'],
+  '/ops/documents': ['owner'],
+  '/ops/documents/:id/file': ['owner'],
+  '/ops/document-requests': ['owner'],
+  '/ops/disciplinary-actions': ['owner'],
+  '/ops/disciplinary-actions/:id/file': ['owner'],
+  // What the whole business shares reads under any HR permission, so the desk
+  // (`attendance.record`) reads the house rules and announcements too.
+  '/ops/hr/catalog/:kind': ['owner', 'manager', 'receptionist'],
+  '/ops/hr/settings': ['owner', 'manager', 'receptionist'],
+  '/ops/policies': ['owner', 'manager', 'receptionist'],
+  '/ops/policies/:id/files/:index': ['owner', 'manager', 'receptionist'],
+  '/ops/staff-announcements': ['owner', 'manager', 'receptionist'],
+  '/ops/staff-announcements/:id/files/:index': ['owner', 'manager', 'receptionist'],
+  // Roster card fields only, as the file list (AC-PF10).
+  '/ops/org-chart': ['owner', 'manager'],
 };
 
 describe('operator reads (audit H1)', () => {

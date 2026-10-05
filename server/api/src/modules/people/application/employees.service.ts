@@ -21,6 +21,7 @@ import {
 } from '@nestjs/common';
 
 import { assertOwnedByOrg } from '../../../shared/auth/assert-owned';
+import { StorageService, hrFileKind } from '../../storage/application/storage.service';
 import { assertInBranchScope, type ScopedWorkspace } from '../../../shared/auth/branch-scope';
 import { DRIZZLE, type Database } from '../../../shared/database/database.module';
 import { toCsv, type CsvColumn } from '../../../shared/lists/csv';
@@ -32,6 +33,7 @@ import {
   EmployeesRepository,
   violatedConstraint,
   type EmployeeRow,
+  type EmployeeTagRow,
   type EmployeeValues,
 } from '../infrastructure/employees.repository';
 import { auditDiff, writeHrAudit } from '../infrastructure/hr-audit';
@@ -63,6 +65,7 @@ export class EmployeesService {
     private readonly time: TimeRepository,
     private readonly leave: LeaveService,
     private readonly exports: ListExportService,
+    private readonly storage: StorageService,
   ) {}
 
   // --- Reads ---------------------------------------------------------------
@@ -75,9 +78,10 @@ export class EmployeesService {
     const orgId = orgOf(ws);
     const view = fileViewFor(ws);
     const page = await this.employees.listPage({ orgId, scope: ws.branchScope, view, query });
-    const contracts = await this.employees.currentContracts(page.rows.map((r) => r.id));
+    const ids = page.rows.map((r) => r.id);
+    const [contracts, tags] = await Promise.all([this.employees.currentContracts(ids), this.employees.tagsOf(ids)]);
     return pageOf(
-      page.rows.map((r) => presentEmployee(r, contracts.get(r.id) ?? null, view)),
+      page.rows.map((r) => presentEmployee(r, contracts.get(r.id) ?? null, view, tags.get(r.id))),
       page.total,
       query,
       { groups: page.groups, statusCounts: page.statusCounts },
@@ -118,7 +122,8 @@ export class EmployeesService {
       rows.push(...chunk.rows);
       if (chunk.rows.length < 100 || rows.length >= total) break;
     }
-    const columns = employeeCsvColumns(view).filter((c) => !columnKeys || columnKeys.includes(c.key));
+    const tags = await this.employees.tagsOf(rows.map((r) => r.id));
+    const columns = employeeCsvColumns(view, tags).filter((c) => !columnKeys || columnKeys.includes(c.key));
     await this.exports.log(ws, userId, EMPLOYEE_LIST.key, query, rows.length);
     return {
       filename: `staff-employees-${kigaliToday()}.csv`,
@@ -138,8 +143,9 @@ export class EmployeesService {
       contracts.find((c) => c.status === 'active') ??
       [...contracts].reverse().find((c) => c.status === 'scheduled') ??
       null;
+    const tags = await this.employees.tagsOf([row.id]);
     return {
-      employee: presentEmployee(row, current, view),
+      employee: presentEmployee(row, current, view, tags.get(row.id)),
       contracts: contracts.map((c) => presentContract(c, view)),
       departments: await this.employees.departmentsOf(row.id),
     };
@@ -153,7 +159,8 @@ export class EmployeesService {
     this.assertDates({ dateOfBirth: body.dateOfBirth, hiredOn: body.hiredOn });
     await this.assertBranch(ws, orgId, body.workPropertyId);
     if (body.reportingManagerId) await this.assertManager(orgId, null, body.reportingManagerId);
-    await this.assertIdFree(orgId, null, body.idDocumentType, body.idDocumentNumber);
+    await this.assertPeopleFileFields(orgId, { jobPositionId: body.jobPositionId }, null);
+    const previousEmployeeId = await this.rehireCheck(orgId, body);
     const typedNumber = body.employeeNumber?.trim();
     if (typedNumber && (await this.employees.numberTaken(orgId, typedNumber))) {
       throw new ConflictException(`Employee number ${typedNumber} is already on a file.`);
@@ -176,7 +183,12 @@ export class EmployeesService {
           rssbNumber: body.rssbNumber?.trim() || null,
           workPropertyId: body.workPropertyId,
           reportingManagerId: body.reportingManagerId ?? null,
+          jobPositionId: body.jobPositionId ?? null,
           hiredOn: body.hiredOn,
+          // A rehire starts a new service unless people.manage credits the old
+          // one later (AC-PF14); either way the new file names the old.
+          serviceFrom: body.hiredOn,
+          previousEmployeeId,
         };
         const created = await this.employees.insert(tx, orgId, values);
         await writeHrAudit(tx, {
@@ -194,7 +206,7 @@ export class EmployeesService {
     }
     const row = await this.employees.find(id);
     if (!row) throw new NotFoundException();
-    return presentEmployee(row, null, fileViewFor(ws));
+    return presentEmployee(row, null, fileViewFor(ws), []);
   }
 
   /** `PATCH /ops/employees/:id` (AC-P3, AC-P6). */
@@ -214,6 +226,12 @@ export class EmployeesService {
     if (typedNumber && typedNumber !== row.employeeNumber && (await this.employees.numberTaken(orgId, typedNumber))) {
       throw new ConflictException(`Employee number ${typedNumber} is already on a file.`);
     }
+    const carried = body.tagIds !== undefined ? (await this.employees.tagsOf([row.id])).get(row.id) ?? [] : [];
+    await this.assertPeopleFileFields(orgId, body, {
+      jobPositionId: row.jobPositionId,
+      employeeTypeId: row.employeeTypeId,
+      tagIds: carried.map((t) => t.id),
+    });
 
     const values: EmployeeValues = {};
     if (body.legalName !== undefined) values.legalName = body.legalName.trim();
@@ -229,6 +247,18 @@ export class EmployeesService {
     if (body.reportingManagerId !== undefined) values.reportingManagerId = body.reportingManagerId;
     if (body.hiredOn !== undefined) values.hiredOn = body.hiredOn;
     if (typedNumber !== undefined) values.employeeNumber = typedNumber;
+    if (body.maritalStatus !== undefined) values.maritalStatus = body.maritalStatus;
+    if (body.childrenCount !== undefined) values.childrenCount = body.childrenCount;
+    if (body.villageId !== undefined) values.villageId = body.villageId;
+    if (body.street !== undefined) values.street = body.street?.trim() || null;
+    if (body.emergencyName !== undefined) values.emergencyName = body.emergencyName?.trim() || null;
+    if (body.emergencyPhone !== undefined) values.emergencyPhone = body.emergencyPhone;
+    if (body.emergencyRelation !== undefined) values.emergencyRelation = body.emergencyRelation?.trim() || null;
+    if (body.qualification !== undefined) values.qualification = body.qualification?.trim() || null;
+    if (body.priorExperienceYears !== undefined) values.priorExperienceYears = body.priorExperienceYears;
+    if (body.employeeTypeId !== undefined) values.employeeTypeId = body.employeeTypeId;
+    if (body.jobPositionId !== undefined) values.jobPositionId = body.jobPositionId;
+    if (body.serviceFrom !== undefined) values.serviceFrom = body.serviceFrom;
 
     try {
       const done = await this.employees.withEmployeeLock(row.id, async (tx, locked) => {
@@ -244,14 +274,27 @@ export class EmployeesService {
         if (values.reportingManagerId && (await this.employees.wouldLoop(locked.id, values.reportingManagerId, tx))) {
           throw new ConflictException('That would make someone their own manager, through the chain.');
         }
+        // Service counts from the hire date unless a rehire was credited, so a
+        // moved hire date carries an uncredited start with it (AC-PF14).
+        const hiredOn = values.hiredOn ?? locked.hiredOn;
+        if (values.hiredOn !== undefined && values.serviceFrom === undefined && locked.serviceFrom === locked.hiredOn) {
+          values.serviceFrom = values.hiredOn;
+        }
+        if ((values.serviceFrom ?? locked.serviceFrom) > hiredOn) {
+          throw new UnprocessableEntityException('Service cannot start after the hire date.');
+        }
         await this.employees.update(tx, locked.id, values);
+        if (body.tagIds !== undefined) await this.employees.setTags(tx, orgId, locked.id, body.tagIds);
         await writeHrAudit(tx, {
           actorUserId: userId,
           subjectType: 'employee',
           subjectId: locked.id,
           eventType: 'hr.employee_updated',
           orgId,
-          diff: auditDiff(locked as unknown as Record<string, unknown>, values as Record<string, unknown>),
+          diff: {
+            ...auditDiff(locked as unknown as Record<string, unknown>, values as Record<string, unknown>),
+            ...(body.tagIds !== undefined ? { tagIds: { to: [...new Set(body.tagIds)] } } : {}),
+          },
         });
         return true;
       });
@@ -261,8 +304,56 @@ export class EmployeesService {
     }
     const updated = await this.employees.find(row.id);
     if (!updated) throw new NotFoundException();
-    const contracts = await this.employees.currentContracts([updated.id]);
-    return presentEmployee(updated, contracts.get(updated.id) ?? null, fileViewFor(ws));
+    const [contracts, tags] = await Promise.all([
+      this.employees.currentContracts([updated.id]),
+      this.employees.tagsOf([updated.id]),
+    ]);
+    return presentEmployee(updated, contracts.get(updated.id) ?? null, fileViewFor(ws), tags.get(updated.id));
+  }
+
+  // --- The photo (058-people-file AC-PF1) ------------------------------------------
+
+  /**
+   * `PUT /ops/employees/:id/photo`: hang an uploaded `staff_photo` on the file,
+   * or take it off. The object must be this workspace's and a photo: a key is
+   * the only thing between a stranger and a file, so it is checked, not trusted.
+   */
+  async setPhoto(ws: ScopedWorkspace, userId: string, id: string, objectKey: string | null): Promise<Employee> {
+    const orgId = orgOf(ws);
+    const row = this.own(ws, await this.employees.find(id));
+    assertPersonInReach(ws, row.workPropertyId);
+    if (objectKey !== null) {
+      const object = await this.storage.describe(objectKey);
+      if (!object || object.kind !== hrFileKind('photo') || object.workspaceId !== ws.workspaceId) {
+        throw new UnprocessableEntityException('That is not a photo uploaded here.');
+      }
+    }
+    await this.db.transaction(async (tx) => {
+      await this.employees.update(tx, row.id, { photoKey: objectKey });
+      await writeHrAudit(tx, {
+        actorUserId: userId,
+        subjectType: 'employee',
+        subjectId: row.id,
+        eventType: objectKey ? 'hr.employee_photo_set' : 'hr.employee_photo_removed',
+        orgId,
+        diff: { photoKey: 'changed' },
+      });
+    });
+    const updated = await this.employees.find(row.id);
+    if (!updated) throw new NotFoundException();
+    const [contracts, tags] = await Promise.all([
+      this.employees.currentContracts([updated.id]),
+      this.employees.tagsOf([updated.id]),
+    ]);
+    return presentEmployee(updated, contracts.get(updated.id) ?? null, fileViewFor(ws), tags.get(updated.id));
+  }
+
+  /** `GET /ops/employees/:id/photo`: a five minute link to the photo, a work field (AC-PF2). */
+  async photoLink(ws: ScopedWorkspace, id: string): Promise<{ url: string; expiresInSeconds: number }> {
+    // `own` answers 404 for a file outside the caller's branches (AC-PF15).
+    const row = this.own(ws, await this.employees.find(id));
+    if (!row.photoKey) throw new NotFoundException('There is no photo on this file.');
+    return { url: await this.storage.signedUrl(row.photoKey, 300), expiresInSeconds: 300 };
   }
 
   // --- Contracts -----------------------------------------------------------
@@ -510,6 +601,10 @@ export class EmployeesService {
   }
 
   /** One file per person per employer, whenever the ID is known (AC-P3). */
+  /**
+   * One ACTIVE file per ID per business (AC-P3). A leaver's file with the same
+   * ID does not block an edit: the database index is on active files only.
+   */
   private async assertIdFree(
     orgId: string,
     selfId: string | null,
@@ -517,10 +612,68 @@ export class EmployeesService {
     number: string,
   ): Promise<void> {
     const existing = await this.employees.findByIdDocument(orgId, type, number.trim());
-    if (existing && existing.id !== selfId) {
+    if (existing && existing.status === 'active' && existing.id !== selfId) {
       throw new ConflictException(
         `That ID is already on file as employee ${existing.employeeNumber}.`,
       );
+    }
+  }
+
+  /**
+   * Creating a file whose ID a leaver's file carries is a rehire (AC-PF14): the
+   * first create answers 409 `rehire_available` naming the old file, and the
+   * same request sent again with `rehireOf` set to it creates the new file,
+   * which names the old one. An active file with the ID is a plain 409.
+   */
+  private async rehireCheck(orgId: string, body: CreateEmployeeRequest): Promise<string | null> {
+    const existing = await this.employees.findByIdDocument(orgId, body.idDocumentType, body.idDocumentNumber.trim());
+    if (existing?.status === 'active') {
+      throw new ConflictException(`That ID is already on file as employee ${existing.employeeNumber}.`);
+    }
+    if (existing && body.rehireOf === existing.id) return existing.id;
+    if (existing) {
+      throw new ConflictException({
+        code: 'rehire_available',
+        message: `Employee ${existing.employeeNumber} with this ID has left. Rehire them as a new file?`,
+        employeeId: existing.id,
+        employeeNumber: existing.employeeNumber,
+      });
+    }
+    if (body.rehireOf) {
+      throw new UnprocessableEntityException('No one who has left carries that ID here, so there is no one to rehire.');
+    }
+    return null;
+  }
+
+  /**
+   * The people file's references must be this business's and live: an employee
+   * type or a tag that is archived is not offered for new files (AC-PF11), but
+   * stays on a file that already carries it, so resending it is no change; and
+   * a village must exist (AC-PF1).
+   */
+  private async assertPeopleFileFields(
+    orgId: string,
+    body: Pick<UpdateEmployeeRequest, 'employeeTypeId' | 'tagIds' | 'villageId' | 'serviceFrom' | 'jobPositionId'>,
+    current: { jobPositionId: string | null; employeeTypeId: string | null; tagIds: readonly string[] } | null,
+  ): Promise<void> {
+    if (body.jobPositionId && body.jobPositionId !== current?.jobPositionId) {
+      const live = await this.employees.activeCatalogIds('job-positions', orgId, [body.jobPositionId]);
+      if (!live.has(body.jobPositionId)) throw new UnprocessableEntityException('That job position is not available here.');
+    }
+    if (body.employeeTypeId && body.employeeTypeId !== current?.employeeTypeId) {
+      const live = await this.employees.activeCatalogIds('employee-types', orgId, [body.employeeTypeId]);
+      if (!live.has(body.employeeTypeId)) throw new UnprocessableEntityException('That employee type is not available here.');
+    }
+    const freshTags = (body.tagIds ?? []).filter((t) => !current?.tagIds.includes(t));
+    if (freshTags.length > 0) {
+      const live = await this.employees.activeCatalogIds('tags', orgId, freshTags);
+      if (freshTags.some((t) => !live.has(t))) throw new UnprocessableEntityException('A tag is not available here.');
+    }
+    if (body.villageId && !(await this.employees.villageExists(body.villageId))) {
+      throw new UnprocessableEntityException('That village is not in the address book.');
+    }
+    if (body.serviceFrom !== undefined && !isCalendarDate(body.serviceFrom)) {
+      throw new UnprocessableEntityException('That is not a real date.');
     }
   }
 
@@ -534,6 +687,7 @@ export class EmployeesService {
   ): Promise<unknown> {
     const constraint = violatedConstraint(error);
     if (constraint === 'employees_id_document_uk' && idType && idNumber) {
+      // The index is on active files only, so a race lost here is to an active one.
       const existing = await this.employees.findByIdDocument(orgId, idType, idNumber.trim());
       return new ConflictException(
         `That ID is already on file as employee ${existing?.employeeNumber ?? 'another'}.`,
@@ -552,7 +706,7 @@ export class EmployeesService {
  * `people.view` holder's export carries no date of birth, ID or RSSB number.
  */
 type EmployeeCsvColumn = CsvColumn<EmployeeRow> & { key: string };
-function employeeCsvColumns(view: 'basic' | 'full'): EmployeeCsvColumn[] {
+function employeeCsvColumns(view: 'basic' | 'full', tags: Map<string, EmployeeTagRow[]>): EmployeeCsvColumn[] {
   const common: EmployeeCsvColumn[] = [
     { key: 'employeeNumber', header: 'Number', value: (r) => r.employeeNumber },
     { key: 'name', header: 'Name', value: (r) => displayNameOf(r) },
@@ -570,6 +724,11 @@ function employeeCsvColumns(view: 'basic' | 'full'): EmployeeCsvColumn[] {
       value: (r) => r.orgMembershipId !== null && r.membershipStatus === 'active',
     },
     { key: 'detailsMissing', header: 'Details missing', value: (r) => detailsMissing(r).join(' ') },
+    // 058-people-file AC-PF2: these are work fields, in both views.
+    { key: 'employeeType', header: 'Employee type', value: (r) => r.employeeTypeTitle },
+    { key: 'tags', header: 'Tags', value: (r) => (tags.get(r.id) ?? []).map((t) => t.title).join(', ') },
+    { key: 'qualification', header: 'Qualification', value: (r) => r.qualification },
+    { key: 'priorExperienceYears', header: 'Years of experience before joining', value: (r) => r.priorExperienceYears },
   ];
   if (view === 'basic') return common;
   return [
@@ -579,7 +738,21 @@ function employeeCsvColumns(view: 'basic' | 'full'): EmployeeCsvColumn[] {
     { key: 'idDocumentType', header: 'ID type', value: (r) => r.idDocumentType },
     { key: 'idDocumentNumber', header: 'ID number', value: (r) => r.idDocumentNumber },
     { key: 'rssbNumber', header: 'RSSB number', value: (r) => r.rssbNumber },
+    // The personal fields of 058-people-file AC-PF2, full view only.
+    { key: 'maritalStatus', header: 'Marital status', value: (r) => r.maritalStatus },
+    { key: 'childrenCount', header: 'Children', value: (r) => r.childrenCount },
+    { key: 'address', header: 'Address', value: (r) => addressLine(r) },
+    { key: 'emergencyName', header: 'Emergency contact', value: (r) => r.emergencyName },
+    { key: 'emergencyPhone', header: 'Emergency phone', value: (r) => r.emergencyPhone },
+    { key: 'emergencyRelation', header: 'Emergency relation', value: (r) => r.emergencyRelation },
+    { key: 'serviceFrom', header: 'Service counts from', value: (r) => r.serviceFrom },
+    { key: 'offboardReason', header: 'Leaving reason', value: (r) => r.offboardReason },
   ];
+}
+
+/** Street, village, cell, sector and district, as one line. */
+function addressLine(r: EmployeeRow): string {
+  return [r.street, r.villageName, r.cellName, r.sectorName, r.districtName].filter(Boolean).join(', ');
 }
 
 const MISSING_WORDS: Record<string, string> = {

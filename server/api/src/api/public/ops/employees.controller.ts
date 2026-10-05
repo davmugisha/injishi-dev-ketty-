@@ -1,15 +1,26 @@
 import {
   CreateContractRequest,
+  CreateEmployeeNoteRequest,
   CreateEmployeeRequest,
+  CreatePayAccountRequest,
   OffboardEmployeeRequest,
+  SetEmployeePhotoRequest,
   UpdateEmployeeRequest,
+  UploadEmployeeDocumentRequest,
   type CreateContractResponse,
   type Employee,
+  type EmployeeDocument,
+  type EmployeeDocumentList,
   type EmployeeFile,
+  type EmployeeNote,
+  type EmployeeNoteList,
   type EmployeePage,
+  type FileLink,
   type ListIds,
   type ListQuery,
   type LeaveBalances,
+  type PayAccount,
+  type PayAccountList,
 } from '@injishi/contracts';
 import {
   Body,
@@ -17,9 +28,11 @@ import {
   Get,
   HttpCode,
   Param,
+  ParseIntPipe,
   ParseUUIDPipe,
   Patch,
   Post,
+  Put,
   Query,
   Res,
   UseGuards,
@@ -27,6 +40,7 @@ import {
 
 import { EmployeesService } from '../../../modules/people/application/employees.service';
 import { LeaveService } from '../../../modules/people/application/leave.service';
+import { PeopleFileService } from '../../../modules/people/application/people-file.service';
 import {
   CurrentUser,
   SessionGuard,
@@ -53,6 +67,12 @@ import { ZodValidationPipe } from '../../../shared/validation/zod-validation.pip
  * Offboarding declares `people.manage`, and the service also asks for
  * `team.manage` when the file holds an account: taking someone's access away
  * is staffing the business, which cannot be granted past the owner (AC-O2).
+ *
+ * **The people file's details have their own routes** (058-people-file AC-PF2):
+ * the photo is a work field, so any file reader may fetch it; pay accounts are
+ * `people.manage` or `payroll.run`; notes and documents are `people.manage`
+ * alone, whatever the file view. A file outside the caller's branches answers
+ * 404 on every one of them (AC-PF15).
  */
 @Controller({ path: 'ops/employees', version: '1' })
 @UseGuards(SessionGuard, WorkspaceGuard)
@@ -60,6 +80,7 @@ export class OpsEmployeesController {
   constructor(
     private readonly employees: EmployeesService,
     private readonly leave: LeaveService,
+    private readonly peopleFile: PeopleFileService,
   ) {}
 
   /** One page through the list contract (058-list-framework AC-LF3, AC-LF4). */
@@ -168,6 +189,105 @@ export class OpsEmployeesController {
     @CurrentWorkspace() workspace: ScopedWorkspace,
   ): Promise<LeaveBalances> {
     return this.leave.balances(workspace, id);
+  }
+
+  // --- The people file (058-people-file) ------------------------------------------
+
+  /** Hang an uploaded photo on the file (`POST /ops/hr/files`, purpose `photo`), or take it off. */
+  @Put(':id/photo')
+  @RequirePermission('people.manage')
+  setPhoto(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body(new ZodValidationPipe(SetEmployeePhotoRequest)) body: SetEmployeePhotoRequest,
+    @CurrentWorkspace() workspace: ScopedWorkspace,
+    @CurrentUser() user: SessionUser,
+  ): Promise<Employee> {
+    return this.employees.setPhoto(workspace, user.id, id, body.objectKey);
+  }
+
+  /** A five minute link to the photo, a work field (AC-PF2). JSON, so a client sends its headers. */
+  @Get(':id/photo')
+  @RequireAnyPermission('people.view', 'people.manage', 'payroll.run')
+  photo(
+    @Param('id', ParseUUIDPipe) id: string,
+    @CurrentWorkspace() workspace: ScopedWorkspace,
+  ): Promise<FileLink> {
+    return this.employees.photoLink(workspace, id);
+  }
+
+  @Get(':id/pay-accounts')
+  @RequireAnyPermission('people.manage', 'payroll.run')
+  payAccounts(
+    @Param('id', ParseUUIDPipe) id: string,
+    @CurrentWorkspace() workspace: ScopedWorkspace,
+  ): Promise<PayAccountList> {
+    return this.peopleFile.payAccounts(workspace, id);
+  }
+
+  @Post(':id/pay-accounts')
+  @RequireAnyPermission('people.manage', 'payroll.run')
+  addPayAccount(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body(new ZodValidationPipe(CreatePayAccountRequest)) body: CreatePayAccountRequest,
+    @CurrentWorkspace() workspace: ScopedWorkspace,
+    @CurrentUser() user: SessionUser,
+  ): Promise<PayAccount> {
+    return this.peopleFile.addPayAccount(workspace, user.id, id, body);
+  }
+
+  /** Reading the notes is itself recorded (AC-PF6). */
+  @Get(':id/notes')
+  @RequirePermission('people.manage')
+  notes(
+    @Param('id', ParseUUIDPipe) id: string,
+    @CurrentWorkspace() workspace: ScopedWorkspace,
+    @CurrentUser() user: SessionUser,
+  ): Promise<EmployeeNoteList> {
+    return this.peopleFile.notes(workspace, user.id, id);
+  }
+
+  @Post(':id/notes')
+  @RequirePermission('people.manage')
+  addNote(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body(new ZodValidationPipe(CreateEmployeeNoteRequest)) body: CreateEmployeeNoteRequest,
+    @CurrentWorkspace() workspace: ScopedWorkspace,
+    @CurrentUser() user: SessionUser,
+  ): Promise<EmployeeNote> {
+    return this.peopleFile.addNote(workspace, user.id, id, body);
+  }
+
+  @Get(':id/notes/:noteId/files/:index')
+  @RequirePermission('people.manage')
+  noteFile(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Param('noteId', ParseUUIDPipe) noteId: string,
+    @Param('index', ParseIntPipe) index: number,
+    @CurrentWorkspace() workspace: ScopedWorkspace,
+    @CurrentUser() user: SessionUser,
+  ): Promise<FileLink> {
+    return this.peopleFile.noteFileLink(workspace, user.id, id, noteId, index);
+  }
+
+  @Get(':id/documents')
+  @RequirePermission('people.manage')
+  documents(
+    @Param('id', ParseUUIDPipe) id: string,
+    @CurrentWorkspace() workspace: ScopedWorkspace,
+  ): Promise<EmployeeDocumentList> {
+    return this.peopleFile.documentsOf(workspace, id);
+  }
+
+  /** Upload for one of the person's requested documents, or a document nobody requested (AC-PF4). */
+  @Post(':id/documents')
+  @RequirePermission('people.manage')
+  uploadDocument(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body(new ZodValidationPipe(UploadEmployeeDocumentRequest)) body: UploadEmployeeDocumentRequest,
+    @CurrentWorkspace() workspace: ScopedWorkspace,
+    @CurrentUser() user: SessionUser,
+  ): Promise<EmployeeDocument> {
+    return this.peopleFile.upload(workspace, user.id, id, body);
   }
 }
 

@@ -36,6 +36,14 @@ import { OpsRolesController } from './ops/roles.controller';
 import { OpsTeamController } from './ops/team.controller';
 import { OpsAttendanceController } from './ops/attendance.controller';
 import { OpsEmployeesController } from './ops/employees.controller';
+import { OpsDisciplinaryActionsController } from './ops/disciplinary-actions.controller';
+import { OpsDocumentRequestsController } from './ops/document-requests.controller';
+import { OpsDocumentsController } from './ops/documents.controller';
+import { OpsHrController } from './ops/hr.controller';
+import { OpsOrgChartController } from './ops/org-chart.controller';
+import { OpsPayAccountsController } from './ops/pay-accounts.controller';
+import { OpsPoliciesController } from './ops/policies.controller';
+import { OpsStaffAnnouncementsController } from './ops/staff-announcements.controller';
 import { OpsListViewsController } from './ops/list-views.controller';
 import { OpsLeaveController } from './ops/leave.controller';
 import { OpsPayRunsController } from './ops/pay-runs.controller';
@@ -167,6 +175,16 @@ import { WaitlistModule } from './waitlist/waitlist.module';
     // The HR module (ADR-058, first thread). Every route behind WorkspaceGuard
     // with one of the seven HR permissions.
     OpsEmployeesController,
+    // The people file (058-people-file): uploads, catalogs and settings, pay
+    // accounts, documents, policies, announcements, discipline, the org chart.
+    OpsHrController,
+    OpsPayAccountsController,
+    OpsDocumentsController,
+    OpsDocumentRequestsController,
+    OpsPoliciesController,
+    OpsStaffAnnouncementsController,
+    OpsDisciplinaryActionsController,
+    OpsOrgChartController,
     // Saved list views for every list (058-list-framework).
     OpsListViewsController,
     OpsShiftTemplatesController,

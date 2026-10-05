@@ -16,6 +16,7 @@ import {
   DRIZZLE,
   type Database,
 } from '../../../shared/database/database.module';
+import { ensureStaffFileTx } from '../../people/infrastructure/staff-file';
 
 /** Any reason an acceptance writes nothing. Rolls the transaction back. */
 export class StaffInvitationRefused extends Error {
@@ -313,6 +314,12 @@ export class StaffInvitationRepository {
         .where(and(eq(orgInvitations.id, invitation.id), eq(orgInvitations.status, 'sent')))
         .returning({ id: orgInvitations.id });
       if (spent.length === 0) throw new StaffInvitationRefused('no_live_invitation');
+
+      // Every way into a business ends with a file (ADR-058, 058-self-service
+      // AC-J2): a thin one is written in this transaction when the membership
+      // has no active file, so the Staff list never misses somebody who joined
+      // through Team.
+      await ensureStaffFileTx(tx, { orgId: input.orgId, membershipId });
 
       const [workspace] = await tx
         .select({ id: workspaces.id })

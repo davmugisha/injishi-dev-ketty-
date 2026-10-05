@@ -5,16 +5,18 @@ import { EmployeesRepository } from '../infrastructure/employees.repository';
 import { LeaveRepository } from '../infrastructure/leave.repository';
 import { PeopleDirectoryRepository } from '../infrastructure/people-directory.repository';
 import { LeaveService } from './leave.service';
+import { PeopleFileService } from './people-file.service';
 
 /**
  * The HR module's daily job (ADR-058): contract statuses on Kigali dates
  * (AC-P4), then leave types and accruals for every business with staff
- * (AC-L1, AC-L2).
+ * (AC-L1, AC-L2), then document expiry reminders (058-people-file AC-PF5).
  *
  * Everything it writes is idempotent: a status move is guarded on the status
  * it moves from, and an accrual is unique per period. So a rerun the same day
  * writes nothing, and the first run after downtime catches up every day and
- * month it missed.
+ * month it missed. A reminder is marked once, in the transaction that writes
+ * its outbox row, so it is raised once whatever the job does.
  */
 @Injectable()
 export class HrDailyService {
@@ -25,9 +27,12 @@ export class HrDailyService {
     private readonly leaveRows: LeaveRepository,
     private readonly directory: PeopleDirectoryRepository,
     private readonly leave: LeaveService,
+    private readonly peopleFile: PeopleFileService,
   ) {}
 
-  async run(now: Date = new Date()): Promise<{ ended: number; started: number; accrued: number; skippedOrgs: number }> {
+  async run(
+    now: Date = new Date(),
+  ): Promise<{ ended: number; started: number; accrued: number; skippedOrgs: number; reminded: number }> {
     const today = kigaliToday(now);
     const { ended, started } = await this.employees.moveContractStatuses(today);
     let accrued = 0;
@@ -47,6 +52,13 @@ export class HrDailyService {
         accrued += await this.leave.catchUpAccruals(employee, types);
       }
     }
-    return { ended, started, accrued, skippedOrgs };
+    let reminded = 0;
+    try {
+      reminded = await this.peopleFile.raiseDueReminders(today);
+    } catch (error) {
+      // A reminder that did not go out today is still due tomorrow: its mark is unset.
+      this.logger.warn(`HR daily: document reminders not raised: ${(error as Error).message}`);
+    }
+    return { ended, started, accrued, skippedOrgs, reminded };
   }
 }
