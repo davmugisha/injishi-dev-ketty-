@@ -22,6 +22,7 @@ import { OpsAttendanceController } from './attendance.controller';
 import { OpsDepartmentsController } from './departments.controller';
 import { OpsEmployeesController } from './employees.controller';
 import { OpsLeaveController } from './leave.controller';
+import { OpsListViewsController } from './list-views.controller';
 import { OpsPayRunsController } from './pay-runs.controller';
 import { OpsRosterController, OpsShiftTemplatesController } from './roster.controller';
 import { OpsEbmController } from './ebm.controller';
@@ -98,6 +99,7 @@ const CONTROLLERS: Ctor[] = [
   OpsAttendanceController,
   OpsLeaveController,
   OpsPayRunsController,
+  OpsListViewsController,
 ];
 
 interface Read {
@@ -204,15 +206,23 @@ const EXPECTED: Record<string, readonly OrgRole[]> = {
   // above, which the desk does not hold; the desk reads the roster and the
   // attendance sheet as roster cards, because it clocks people in.
   '/ops/employees': ['owner', 'manager'],
+  // Select all and the export read the same files as the list (058-list-framework).
+  '/ops/employees/ids': ['owner', 'manager'],
+  '/ops/employees/export.csv': ['owner', 'manager'],
   '/ops/employees/:id': ['owner', 'manager'],
   '/ops/employees/:id/leave-balances': ['owner', 'manager'],
   '/ops/shift-templates': ['owner', 'manager', 'receptionist'],
   '/ops/roster': ['owner', 'manager', 'receptionist'],
   '/ops/attendance': ['owner', 'manager', 'receptionist'],
   '/ops/leave/requests': ['owner', 'manager'],
+  '/ops/leave/requests/ids': ['owner', 'manager'],
   // What each colleague earns: the owner's by default (`payroll.run`).
   '/ops/pay-runs': ['owner'],
   '/ops/pay-runs/:id': ['owner'],
+  // Saved views of every HR list, declared on the union of the lists' reads and
+  // narrowed to the list's own in the service: the desk reads the views of the
+  // roster and the attendance sheet it works, and nothing else.
+  '/ops/list-views': ['owner', 'manager', 'receptionist'],
 };
 
 describe('operator reads (audit H1)', () => {
