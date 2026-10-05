@@ -238,7 +238,7 @@ describe('AssistantController (ADR-061 slice A)', () => {
 
   it('returns the same conversation to the same cookie, and none without it', async () => {
     ({ app } = await boot());
-    expect((await app.inject({ method: 'GET', url: CURRENT })).json()).toEqual({ enabled: true, conversation: null, claimable: false });
+    expect((await app.inject({ method: 'GET', url: CURRENT })).json()).toMatchObject({ enabled: true, conversation: null, claimable: false });
 
     const first = await post({ message: 'what is injishi', surface: 'web' });
     const cookie = `${ASSISTANT_COOKIE}=${cookieFrom(first.headers['set-cookie'])}`;
@@ -569,7 +569,7 @@ describe('AssistantController (ADR-061 slice A)', () => {
 
   it('reports enabled false and refuses sends with 503 assistant_off when off', async () => {
     ({ app } = await boot({ mode: 'off' }));
-    expect((await app.inject({ method: 'GET', url: CURRENT })).json()).toEqual({ enabled: false, conversation: null, claimable: false });
+    expect((await app.inject({ method: 'GET', url: CURRENT })).json()).toEqual({ enabled: false, conversation: null, claimable: false, greeting: '', suggestions: [] });
     const response = await post({ message: 'hi', surface: 'web' });
     expect(response.statusCode).toBe(503);
     expect(response.json()).toMatchObject({ code: 'assistant_off' });
@@ -645,7 +645,7 @@ describe('AssistantController (ADR-061 slice A)', () => {
       const help = answerOf(await post({ message: "I can't publish my property", surface: 'web' }, { host: 'localhost:8000' }));
       expect(help.sources.map((s) => s.id)).toContain('cannot-publish-listing');
       const places = answerOf(await post({ message: 'places to stay in Musanze', surface: 'web' }, { host: 'localhost:8000', 'x-forwarded-for': '198.51.100.21' }));
-      expect(places.text).toMatch(/^Published places that match/);
+      expect(places.text).toMatch(/^I found \d+ places? in Musanze: /);
       expect(places.sources.every((s) => s.kind === 'listing')).toBe(true);
     });
 

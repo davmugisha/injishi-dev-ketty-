@@ -60,6 +60,7 @@ const CONVERSATION = {
   ],
   turnsLeft: 39,
   expiresAt: NOW,
+  suggestions: [{ label: 'What can I list?', message: 'What can I list on Injishi?' }],
 };
 
 function sent(index: number): SentInit {
@@ -82,7 +83,15 @@ beforeEach(() => {
 
 describe('the mobile assistant client', () => {
   it('names itself native on every call, and sends no token before one exists', async () => {
-    mockFetch.mockResolvedValue(answer(200, { enabled: true, conversation: null, claimable: false }));
+    mockFetch.mockResolvedValue(
+      answer(200, {
+        enabled: true,
+        conversation: null,
+        claimable: false,
+        greeting: "Hello, I'm the Injishi assistant.",
+        suggestions: [{ label: 'My trips', message: 'Show my trips' }],
+      }),
+    );
     const result = await fetchAssistant();
     expect(result.kind).toBe('ok');
     expect(sent(0).headers?.['x-assistant-client']).toBe('native');

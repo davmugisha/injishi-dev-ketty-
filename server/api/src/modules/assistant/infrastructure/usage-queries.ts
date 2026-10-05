@@ -193,6 +193,21 @@ export function monthTurns(month: string): UsageQuery {
   };
 }
 
+/**
+ * How many answered turns each route had on a surface since an instant: what
+ * "asked most" means for the opening suggestions (D-q). Counts only; the turn
+ * log holds no question text.
+ */
+export function popularRoutes(surface: string, since: Date): UsageQuery {
+  return {
+    text: `SELECT route, count(*)::int AS n
+             FROM assistant_turns
+            WHERE surface = $1 AND created_at >= $2 AND outcome <> 'failed'
+         GROUP BY route`,
+    values: [surface, since],
+  };
+}
+
 /** How often each tool ran in the month's turns. */
 export function monthTools(month: string): UsageQuery {
   const { from, to } = monthRange(month);

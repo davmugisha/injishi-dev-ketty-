@@ -137,6 +137,7 @@ describe('UsageLedger (ADR-061 D-s)', () => {
       month: () => Promise.resolve({ usage: [], turns: [], tools: [] }),
       monthCostMicroUsd: () => Promise.resolve(0),
       aiTurnsSince: () => Promise.resolve(0),
+      popularRoutes: () => Promise.resolve(new Map<string, number>()),
     };
     return { ledger: new UsageLedger(DEFAULT_PRICES, { monthlyBudgetUsd: null, aiTurnsPerDay: 30 }, repo), inserted, logged };
   }
@@ -219,6 +220,7 @@ describe('the allowance (ADR-061 D-t)', () => {
         turnQueries.push(input);
         return Promise.resolve(options.turns ?? 0);
       },
+      popularRoutes: () => Promise.resolve(new Map<string, number>()),
     };
     const limits = { monthlyBudgetUsd: options.budgetUsd ?? null, aiTurnsPerDay: 30 };
     return { ledger: new UsageLedger(DEFAULT_PRICES, limits, repo), turnQueries };

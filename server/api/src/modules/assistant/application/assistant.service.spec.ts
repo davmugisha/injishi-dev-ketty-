@@ -114,15 +114,15 @@ describe('AssistantService (ADR-061)', () => {
   it('sends one message with a short window of earlier turns, never replaying them (D-r)', async () => {
     const model = new ScriptedModel([]);
     const { service } = build(model);
-    const first = await service.send({ kind: 'user', userId: 'u1' }, ask('one'), NOW);
-    await service.send({ kind: 'user', userId: 'u1' }, ask('two'), NOW);
-    expect(model.requests[0].messages).toEqual([{ role: 'user', content: [{ type: 'text', text: 'one' }] }]);
+    const first = await service.send({ kind: 'user', userId: 'u1' }, ask('zorblat quixel one'), NOW);
+    await service.send({ kind: 'user', userId: 'u1' }, ask('zorblat quixel two'), NOW);
+    expect(model.requests[0].messages).toEqual([{ role: 'user', content: [{ type: 'text', text: 'zorblat quixel one' }] }]);
     const second = model.requests[1].messages;
     expect(second).toHaveLength(1);
     const text = String(second[0].content[0].text);
-    expect(text).toContain('Person: one');
+    expect(text).toContain('Person: zorblat quixel one');
     expect(text).toContain('Assistant: done');
-    expect(text.endsWith('Current question:\ntwo')).toBe(true);
+    expect(text.endsWith('Current question:\nzorblat quixel two')).toBe(true);
     expect(first.conversation.messages[1].text).toBe('done');
   });
 
@@ -156,7 +156,7 @@ describe('AssistantService (ADR-061)', () => {
 
   it('answers a refusal with fixed copy', async () => {
     const { service } = build(new ScriptedModel([{ content: [], stopReason: 'refusal', model: 'x' }]));
-    const result = await service.send({ kind: 'anon', tokenHash: null }, ask('x'), NOW);
+    const result = await service.send({ kind: 'anon', tokenHash: null }, ask('zorblat quixel please'), NOW);
     expect(result.conversation.messages[1].text).toBe(REFUSAL_REPLY);
   });
 
@@ -164,7 +164,7 @@ describe('AssistantService (ADR-061)', () => {
     const loop: ModelTurn = { content: [{ type: 'tool_use', id: 't', name: 'search_help', input: { query: 'x' } }], stopReason: 'tool_use', model: 'x' };
     const model = new ScriptedModel(Array.from({ length: 10 }, () => structuredClone(loop)));
     const { service } = build(model);
-    const result = await service.send({ kind: 'anon', tokenHash: null }, ask('x'), NOW);
+    const result = await service.send({ kind: 'anon', tokenHash: null }, ask('zorblat quixel please'), NOW);
     expect(model.requests).toHaveLength(6);
     expect(result.conversation.messages[1].text).toBe(INCOMPLETE_REPLY);
   });
@@ -178,7 +178,7 @@ describe('AssistantService (ADR-061)', () => {
     model.onCall = () => {
       now += 30_000; // each call takes 30 s
     };
-    const result = await service.send({ kind: 'anon', tokenHash: null }, ask('x'), NOW);
+    const result = await service.send({ kind: 'anon', tokenHash: null }, ask('zorblat quixel please'), NOW);
     // Calls at 0 s and 30 s; at 60 s the budget is gone, so no third call.
     expect(model.requests).toHaveLength(2);
     expect(model.deadlines).toEqual([1_055_000, 1_055_000]);

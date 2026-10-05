@@ -20,8 +20,14 @@ export const PUBLISH_QUESTION = /\bpublish/i;
 export const ROOMS_QUESTION = /\brooms?\b.*\b(free|taken|available|held|tonight|tomorrow|today|\d{4}-\d{2}-\d{2})\b/i;
 export const HOW_TO_QUESTION = /\bhow (do|can|to)\b/i;
 
-/** Checked before places to stay: "my stay" is a trip question. */
-export const TRIP_QUESTION = /\b(trips?|bookings?|reservations?|my stay)\b/i;
+/**
+ * The person's OWN trips: "show my trips", "my bookings", "where is my
+ * reservation". Checked before places to stay, so "my stay" is a trip. A
+ * question about bookings in general ("do hosts have to accept every
+ * booking?") is not one: it once got the asker's own trips.
+ */
+export const TRIP_QUESTION =
+  /\b(my|our|mine|upcoming|past|show|list|see)\b.*\b(trips?|bookings?|reservations?|stays?)\b|\bi (have )?(booked|reserved)\b/i;
 export const STAY_QUESTION = /\b(stay|stays|hotels?|lodges?|places?|guest ?houses?|apartments?|villas?|motels?|camps?)\b/i;
 
 /**
@@ -77,4 +83,77 @@ export function dayIn(question: string, now: Date): string | null {
 export function placeIn(question: string): string {
   const match = question.match(/\b(?:in|near|around)\s+([^?.!,]+)/i);
   return (match ? match[1] : question).trim().slice(0, 120);
+}
+
+/**
+ * A greeting and nothing else ("hello", "good morning", "muraho"). Answered
+ * with a greeting and what the assistant can do, never by the model.
+ */
+export const GREETING =
+  /^\s*(hi|hello|hey|hiya|greetings|good (morning|afternoon|evening|day)|muraho|mwaramutse|mwiriwe|amakuru|bonjour|salut)( there| injishi| assistant)?[\s!.,?]*$/i;
+
+/** Thanks and nothing else. */
+export const THANKS = /^\s*((ok(ay)?|great|perfect|nice),? )?(thanks|thank you( (very|so) much)?|thx|murakoze( cyane)?|merci)[\s!.,]*$/i;
+
+/** Asks for a video or tutorial. */
+export const VIDEO_QUESTION = /\b(videos?|tutorials?|screen ?recordings?|watch (how|a))\b/i;
+
+/**
+ * The nightly budget a stay question names, in RWF: "under 150000",
+ * "below 150,000 RWF", "up to 80k", "budget of 60 000". Null when none is
+ * named, so a search never filters on a figure the person did not give.
+ */
+export function budgetIn(question: string): number | null {
+  const match = question.match(
+    /\b(?:under|below|less than|cheaper than|up to|at most|max(?:imum)?|within|budget(?: of)?|not more than)\s*(?:rwf|frw)?\s*(\d{1,3}(?:[ ,.]\d{3})+|\d+)\s*(k|thousand)?\b/i,
+  );
+  if (!match) return null;
+  const amount = Number(match[1].replace(/[ ,.]/g, '')) * (match[2] ? 1000 : 1);
+  return Number.isFinite(amount) && amount > 0 ? amount : null;
+}
+
+/** "for 4 guests", "3 people", "2 adults": how many must fit. Null when none. */
+export function guestsIn(question: string): number | null {
+  const match = question.match(/\b(\d{1,2})\s*(?:guests?|people|persons?|adults?|pax|of us)\b/i);
+  const n = match ? Number(match[1]) : NaN;
+  return n >= 1 && n <= 50 ? n : null;
+}
+
+/** The question with its budget and guest phrases removed, for the place search. */
+export function withoutFilters(question: string): string {
+  return question
+    .replace(/\b(?:under|below|less than|cheaper than|up to|at most|max(?:imum)?|within|budget(?: of)?|not more than)\s*(?:rwf|frw)?\s*(\d{1,3}(?:[ ,.]\d{3})+|\d+)\s*(k|thousand)?\s*(?:rwf|frw)?(?:\s*(?:a|per)\s*night)?/gi, ' ')
+    .replace(/\b(?:for\s+)?\d{1,2}\s*(?:guests?|people|persons?|adults?|pax|of us)\b/gi, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+const VAGUE_STOP = new Set(
+  'a an and are as at be can do does for from how i if in is it me my of on or so the to what when where which who why will with you your please tell about any some there have has get need want know'.split(' '),
+);
+
+/** What a too short question is about, when it is one of the ambiguous topics. */
+export type VagueTopic = 'price' | 'booking' | 'payment' | 'account' | 'listing' | 'general';
+
+const VAGUE_TOPICS: Array<[VagueTopic, RegExp]> = [
+  ['price', /^(price|prices|pricing|cost|costs|fee|fees|charge|charges|rate|rates|much|cheap|expensive)$/],
+  ['booking', /^(book|booking|bookings|reserve|reservation|reservations|trip|trips)$/],
+  ['payment', /^(pay|payment|payments|paid|payout|payouts|money|refund|refunds)$/],
+  ['account', /^(account|accounts|login|signin|signup|register|registration|profile)$/],
+  ['listing', /^(list|listing|listings|property|properties|host|hosting|publish)$/],
+];
+
+/**
+ * A question too short to answer well: one meaningful word, or two when one
+ * of them names an ambiguous topic ("price", "booking"). The router asks what
+ * the person means instead of guessing (D-q tier 1). Null when the question
+ * says enough.
+ */
+export function vagueTopicIn(question: string): VagueTopic | null {
+  const words = (question.toLowerCase().match(/[a-z]+/g) ?? []).filter((w) => !VAGUE_STOP.has(w));
+  // Only filler words ("what", "how"): nothing to search for, so ask.
+  if (words.length === 0) return /[a-z]/i.test(question) ? 'general' : null;
+  if (words.length > 2) return null;
+  for (const [topic, pattern] of VAGUE_TOPICS) if (words.some((w) => pattern.test(w))) return topic;
+  return words.length === 1 ? 'general' : null;
 }

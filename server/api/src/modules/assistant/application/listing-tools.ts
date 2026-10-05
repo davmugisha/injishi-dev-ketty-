@@ -34,7 +34,7 @@ const DAY_MS = 24 * 60 * 60 * 1000;
 // Words that describe the kind of place rather than which place, so they
 // never narrow a search to nothing ("hotels in Musanze" is a Musanze search).
 const GENERIC = new Set(
-  tokens('hotel hotels lodge lodges place places stay stays room rooms guest guesthouse house apartment villa camp motel listing property show find near around cheap best good'),
+  tokens('hotel hotels lodge lodges place places stay stays room rooms guest guests guesthouse house apartment villa camp motel listing property show find near around cheap cheapest best good price prices cost budget under below night nights per rwf frw available'),
 );
 
 const SearchInput = z
@@ -86,7 +86,9 @@ export function createListingTools(reads: ListingReads): AssistantTool[] {
         .filter((p) => maxNightlyRwf === undefined || (p.fromNightlyRateRwf !== null && p.fromNightlyRateRwf <= maxNightlyRwf))
         .map((p) => ({ p, score: scoreCard(p, wanted) }))
         .filter(({ score }) => wanted.length === 0 || score > 0)
-        .sort((a, b) => b.score - a.score || a.p.name.localeCompare(b.p.name));
+        // Best match first; among equal matches the cheapest, so a budget
+        // search reads cheapest first. A property with no priced room last.
+        .sort((a, b) => b.score - a.score || (a.p.fromNightlyRateRwf ?? Infinity) - (b.p.fromNightlyRateRwf ?? Infinity) || a.p.name.localeCompare(b.p.name));
       const top = scored.slice(0, MAX_SEARCH_RESULTS).map(({ p }) => p);
       const results = top.map((p) => ({
         propertyId: p.id,
@@ -98,10 +100,11 @@ export function createListingTools(reads: ListingReads): AssistantTool[] {
         roomTypes: p.roomTypeCount,
         href: `/property/${p.slug}`,
       }));
+      const filters = { guests: guests ?? null, maxNightlyRwf: maxNightlyRwf ?? null };
       return outcome(
         results.length > 0
-          ? { results, matched: scored.length, note: 'Rates are the lowest base nightly rate, before any date specific price.' }
-          : { results, note: 'No published property matches. Say so; do not suggest properties from memory.' },
+          ? { results, matched: scored.length, filters, note: 'Rates are the lowest base nightly rate, before any date specific price.' }
+          : { results, matched: 0, filters, note: 'No published property matches. Say so; do not suggest properties from memory.' },
         top.map(listingSource),
       );
     },
@@ -236,8 +239,21 @@ function scoreCard(p: PropertyCard, wanted: string[]): number {
   return score;
 }
 
+/** A listing source, carrying what a surface draws on its card. */
 function listingSource(p: PropertyCard): AssistantSource {
-  return { kind: 'listing', id: p.id, title: p.name, href: `/property/${p.slug}` };
+  return {
+    kind: 'listing',
+    id: p.id,
+    title: p.name,
+    href: `/property/${p.slug}`,
+    listing: {
+      district: p.districtName,
+      fromNightlyRateRwf: p.fromNightlyRateRwf,
+      maxGuests: p.maxGuests,
+      roomTypes: p.roomTypeCount,
+      photoUrl: p.photos[0] ?? null,
+    },
+  };
 }
 
 function clip(text: string | null, max: number): string | null {

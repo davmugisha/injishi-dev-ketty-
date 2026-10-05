@@ -1,6 +1,6 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.AssistantUsageReport = exports.AssistantCallerRole = exports.AssistantUsageQuery = exports.AssistantUsageMonth = exports.AssistantFeedbackResult = exports.AssistantFeedbackInput = exports.SendAssistantEscalationResult = exports.SendAssistantEscalationInput = exports.AssistantErrorCode = exports.ClaimAssistantConversationResult = exports.ClaimAssistantConversationInput = exports.AssistantCurrentConversation = exports.SendAssistantMessageResult = exports.AssistantConversation = exports.AssistantMessage = exports.AssistantRole = exports.AssistantProposalResult = exports.AssistantProposal = exports.AssistantProposalState = exports.AssistantProposalKind = exports.AssistantSource = exports.AssistantSourceKind = exports.SendAssistantMessageInput = exports.AssistantSurface = exports.ASSISTANT_TURN_LIMIT = exports.ASSISTANT_PAGE_PATH_MAX = exports.ASSISTANT_MESSAGE_MAX = void 0;
+exports.AssistantUsageReport = exports.AssistantCallerRole = exports.AssistantUsageQuery = exports.AssistantUsageMonth = exports.AssistantFeedbackResult = exports.AssistantFeedbackInput = exports.SendAssistantEscalationResult = exports.SendAssistantEscalationInput = exports.AssistantErrorCode = exports.ClaimAssistantConversationResult = exports.ClaimAssistantConversationInput = exports.AssistantCurrentConversation = exports.SendAssistantMessageResult = exports.AssistantConversation = exports.AssistantMessage = exports.AssistantRole = exports.AssistantProposalResult = exports.AssistantProposal = exports.AssistantProposalState = exports.AssistantProposalKind = exports.AssistantSuggestion = exports.AssistantSource = exports.AssistantSourceKind = exports.SendAssistantMessageInput = exports.AssistantSurface = exports.ASSISTANT_TURN_LIMIT = exports.ASSISTANT_PAGE_PATH_MAX = exports.ASSISTANT_MESSAGE_MAX = void 0;
 const zod_1 = require("zod");
 const primitives_1 = require("./primitives");
 const support_1 = require("./support");
@@ -58,6 +58,30 @@ exports.AssistantSource = zod_1.z.object({
     title: zod_1.z.string(),
     /** A path on the surface that opens it, or null when there is none. */
     href: zod_1.z.string().nullable(),
+    /**
+     * A listing's card details, when the source is a published property: what
+     * a surface draws on its card. Absent on other kinds and on answers stored
+     * before cards existed.
+     */
+    listing: zod_1.z
+        .object({
+        district: zod_1.z.string().nullable(),
+        /** The lowest base nightly rate, before any date specific price. */
+        fromNightlyRateRwf: zod_1.z.number().int().nonnegative().nullable(),
+        maxGuests: zod_1.z.number().int().positive().nullable(),
+        roomTypes: zod_1.z.number().int().nonnegative(),
+        /** The cover photo's URL, or null when the property has none. */
+        photoUrl: zod_1.z.string().url().nullable(),
+    })
+        .optional(),
+});
+/**
+ * A question the person can send with one tap. `label` is what the chip
+ * says; `message` is what is sent, exactly as if typed.
+ */
+exports.AssistantSuggestion = zod_1.z.object({
+    label: zod_1.z.string().min(1).max(60),
+    message: zod_1.z.string().min(1).max(exports.ASSISTANT_MESSAGE_MAX),
 });
 /**
  * A change the assistant prepared and the person has not yet approved
@@ -118,6 +142,8 @@ exports.AssistantConversation = zod_1.z.object({
     turnsLeft: zod_1.z.number().int().nonnegative(),
     /** When it is deleted if nothing more is said (ADR-061 D-d). */
     expiresAt: zod_1.z.string().datetime({ offset: true }),
+    /** What the person may want to ask next, after the latest answer. */
+    suggestions: zod_1.z.array(exports.AssistantSuggestion),
 });
 /** `POST /api/v1/assistant/messages`: the conversation as it now stands. */
 exports.SendAssistantMessageResult = zod_1.z.object({
@@ -143,6 +169,14 @@ exports.AssistantCurrentConversation = zod_1.z.object({
      * `POST /api/v1/assistant/conversations/claim`.
      */
     claimable: zod_1.z.boolean(),
+    /**
+     * How the assistant opens a new conversation for this caller and surface,
+     * and the questions it offers first: the kinds asked most, among what this
+     * caller may ask. Shown when there is no conversation, or after "New
+     * conversation".
+     */
+    greeting: zod_1.z.string(),
+    suggestions: zod_1.z.array(exports.AssistantSuggestion),
 });
 /**
  * `POST /api/v1/assistant/conversations/claim`. `claimed` is false when there
