@@ -57,7 +57,14 @@ export function TimeSettings() {
 }
 
 type PolicyDraft = Record<
-  "graceInMinutes" | "graceOutMinutes" | "overtimeCutoffMinutes" | "overtimeMinMinutes" | "linkWindowMinutes" | "staleOpenHours" | "defaultShiftMinutes",
+  | "graceInMinutes"
+  | "graceOutMinutes"
+  | "overtimeCutoffMinutes"
+  | "overtimeMinMinutes"
+  | "linkWindowMinutes"
+  | "staleOpenHours"
+  | "defaultShiftMinutes"
+  | "compensationThresholdMinutes",
   string
 > & { overtimeAutoApprove: boolean };
 
@@ -70,6 +77,7 @@ function draftOf(p: AttendancePolicy): PolicyDraft {
     linkWindowMinutes: String(p.linkWindowMinutes),
     staleOpenHours: String(p.staleOpenHours),
     defaultShiftMinutes: String(p.defaultShiftMinutes),
+    compensationThresholdMinutes: String(p.compensationThresholdMinutes),
     overtimeAutoApprove: p.overtimeAutoApprove,
   };
 }
@@ -120,6 +128,7 @@ function PolicySection({ mayEdit }: { mayEdit: boolean }) {
               linkWindowMinutes: Number(current.linkWindowMinutes || 0),
               staleOpenHours: Number(current.staleOpenHours || 16),
               defaultShiftMinutes: Number(current.defaultShiftMinutes || 480),
+              compensationThresholdMinutes: Number(current.compensationThresholdMinutes || 360),
             },
             {
               onSuccess: () => {
@@ -161,6 +170,11 @@ function PolicySection({ mayEdit }: { mayEdit: boolean }) {
           {num("linkWindowMinutes", "A clock in links to a shift up to (minutes before it)")}
           {num("staleOpenHours", "Close a forgotten clock in after (hours)")}
           {num("defaultShiftMinutes", "…at clock in plus (minutes)")}
+          {num(
+            "compensationThresholdMinutes",
+            "A day off or holiday worked earns a whole day in lieu from (minutes)",
+            "Half of it earns half a day.",
+          )}
           {current && (
             <Checkbox
               isSelected={current.overtimeAutoApprove}

@@ -62,7 +62,8 @@ import { usePms } from "../../store";
 import { currentGrant } from "../../store/helpers";
 import { DisciplineTab, DocumentsTab, NotesTab, PayTab } from "./employee-records";
 import { HrFileInput } from "./hr-file-input";
-import { Field, FormError, RowList, daysText, inputClass, rowClass, toneIntent } from "./staff-ui";
+import { BalanceDetail } from "./leave-ui";
+import { Field, FormError, RowList, inputClass, rowClass, toneIntent } from "./staff-ui";
 
 const CONTRACT_TYPE: Record<ContractType, string> = {
   permanent: "Permanent",
@@ -818,18 +819,10 @@ function Balances({ employeeId }: { employeeId: string }) {
         </LoadFailed>
       ) : (
         <RowList>
+          {/* Each figure with the lots and ledger rows behind it (058-leave AC-LV2). */}
           {query.data.balances.map((b, i) => (
-            <div key={b.leaveType.id} className={`${rowClass(i)} flex items-center justify-between gap-3`}>
-              <span className="flex flex-col gap-0.5">
-                <span className="text-sm font-semibold text-ink">{b.leaveType.name}</span>
-                <span className="text-2xs text-muted-foreground">
-                  {b.leaveType.paid ? "Paid" : "Unpaid"}
-                  {b.leaveType.yearlyEntitlementDays !== null ? ` · ${daysText(b.leaveType.yearlyEntitlementDays)} a year` : ""}
-                </span>
-              </span>
-              <span className="pms-num text-sm text-ink">
-                {b.balanceDays === null ? "No balance kept" : `${daysText(b.balanceDays)} left`}
-              </span>
+            <div key={b.leaveType.id} className={rowClass(i)}>
+              <BalanceDetail balance={b} />
             </div>
           ))}
         </RowList>

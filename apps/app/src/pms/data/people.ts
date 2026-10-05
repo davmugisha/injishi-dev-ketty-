@@ -291,7 +291,7 @@ export function useRequestLeave(ws: string | null): UseMutationResult<LeaveReque
   return useMutation({
     mutationFn: async (body) =>
       LeaveRequest.parse(await command<unknown>("/ops/leave/requests", { workspaceId: ws as string, body })),
-    onSuccess: () => refresh(client, "leave-requests", "leave-balances"),
+    onSuccess: () => refresh(client, "leave-requests", "leave-balances", "leave-balance-list", "leave-dashboard"),
   });
 }
 
@@ -310,7 +310,7 @@ export function useDecideLeave(
           body: { note: note?.trim() || null },
         }),
       ),
-    onSuccess: () => refresh(client, "leave-requests", "leave-balances", "roster"),
+    onSuccess: () => refresh(client, "leave-requests", "leave-balances", "leave-balance-list", "leave-dashboard", "roster"),
   });
 }
 

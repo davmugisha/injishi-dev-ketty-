@@ -171,6 +171,14 @@ export const OPS_READ = {
   kioskPin: ["people.manage", "attendance.record"],
   hrHolidays: ["people.view", "people.manage", "roster.manage", "attendance.approve", "leave.approve"],
   timeInsights: ["people.manage"],
+  // Leave in full (058-leave). The dashboard, everybody's balances and the
+  // restricted periods are read by whoever decides leave or keeps the files; a
+  // type's name by any HR permission; the national defaults by people.manage.
+  leaveViews: ["leave.approve", "people.manage"],
+  leaveAllocations: ["leave.approve"],
+  leaveTypes: HR_PERMISSIONS,
+  leaveDefaults: ["people.manage"],
+  restrictedPeriods: ["leave.approve", "people.manage"],
 } as const satisfies Record<string, readonly Permission[]>;
 
 /**
