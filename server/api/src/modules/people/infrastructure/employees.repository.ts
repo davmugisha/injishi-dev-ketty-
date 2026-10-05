@@ -640,6 +640,16 @@ export class EmployeesRepository {
   }
 
   /**
+   * Lock files inside a transaction already open, in id order so two locks of
+   * the same pair never deadlock (058-time AC-TM5: a swap locks both people).
+   */
+  async lockTx(tx: Tx, employeeIds: readonly string[]): Promise<void> {
+    for (const id of [...new Set(employeeIds)].sort()) {
+      await tx.select({ id: employees.id }).from(employees).where(eq(employees.id, id)).for('update');
+    }
+  }
+
+  /**
    * Would making `managerId` the reporting manager of `employeeId` close a loop?
    * Walks up from the proposed manager; a chain that reaches the person is one.
    */

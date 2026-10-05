@@ -22,6 +22,8 @@ import { GeographyController } from './geography/geography.controller';
 import { HealthController } from './health/health.controller';
 import { MeController } from './me/me.controller';
 import { MeStaysController } from './me/stays.controller';
+import { MeWorkController } from './me/work.controller';
+import { KioskController } from './kiosk/kiosk.controller';
 import { TwoFactorController } from './me/two-factor.controller';
 import { AvailabilityController } from './properties/availability.controller';
 import {
@@ -48,6 +50,15 @@ import { OpsListViewsController } from './ops/list-views.controller';
 import { OpsLeaveController } from './ops/leave.controller';
 import { OpsPayRunsController } from './ops/pay-runs.controller';
 import { OpsRosterController, OpsShiftTemplatesController } from './ops/roster.controller';
+import {
+  OpsAttendanceRequestsController,
+  OpsAttendanceSettingsController,
+  OpsEmployeeKioskPinController,
+  OpsHrTimeSettingsController,
+  OpsRotationAssignmentsController,
+  OpsRotationPatternsController,
+  OpsShiftRequestsController,
+} from './ops/time.controller';
 import { OpsFoliosController } from './ops/folios.controller';
 import { OpsHousekeepingController } from './ops/housekeeping.controller';
 import { OpsOutletPartiesController } from './ops/outlet-parties.controller';
@@ -190,6 +201,13 @@ import { WaitlistModule } from './waitlist/waitlist.module';
     OpsShiftTemplatesController,
     OpsRosterController,
     OpsAttendanceController,
+    OpsRotationPatternsController,
+    OpsRotationAssignmentsController,
+    OpsShiftRequestsController,
+    OpsAttendanceRequestsController,
+    OpsAttendanceSettingsController,
+    OpsEmployeeKioskPinController,
+    OpsHrTimeSettingsController,
     OpsLeaveController,
     OpsPayRunsController,
     OpsFoliosController,
@@ -226,6 +244,8 @@ import { WaitlistModule } from './waitlist/waitlist.module';
      * authorizes, proved per route.
      */
     MeStaysController,
+    MeWorkController,
+    KioskController,
     TwoFactorController,
     // Answers only in a demo process; 404 everywhere else (AC-S10, ADR-043).
     DemoPersonasController,

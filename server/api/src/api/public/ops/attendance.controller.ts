@@ -2,6 +2,7 @@ import {
   ClockInRequest,
   ClockOutRequest,
   CorrectAttendanceRequest,
+  DecideOvertimeRequest,
   type AttendancePage,
   type ListQuery,
   type AttendanceRecord,
@@ -97,5 +98,18 @@ export class OpsAttendanceController {
     @CurrentUser() user: SessionUser,
   ): Promise<AttendanceRecord> {
     return this.time.validate(workspace, user.id, id);
+  }
+
+  /** Approve all of the overtime, or less (058-time AC-TM8). Only approved overtime reaches pay. */
+  @Post(':id/overtime')
+  @HttpCode(200)
+  @RequirePermission('attendance.approve')
+  overtime(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body(new ZodValidationPipe(DecideOvertimeRequest)) body: DecideOvertimeRequest,
+    @CurrentWorkspace() workspace: ScopedWorkspace,
+    @CurrentUser() user: SessionUser,
+  ): Promise<AttendanceRecord> {
+    return this.time.decideOvertime(workspace, user.id, id, body);
   }
 }

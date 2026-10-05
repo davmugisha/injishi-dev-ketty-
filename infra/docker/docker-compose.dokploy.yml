@@ -63,6 +63,10 @@ x-api-env: &api-env
   REDIS_URL: ${REDIS_URL}
   COOKIE_SECRET: ${COOKIE_SECRET}
   BETTER_AUTH_SECRET: ${BETTER_AUTH_SECRET}
+  # Mixed into every kiosk PIN hash (ADR-058, 058-time AC-TM11), so a leaked
+  # PIN table alone cannot be brute forced. Production refuses to boot without
+  # a strong one, and compose refuses first. Changing it invalidates every PIN.
+  HR_PIN_PEPPER: ${HR_PIN_PEPPER:?set HR_PIN_PEPPER, the kiosk PIN pepper: openssl rand -base64 32}
   BETTER_AUTH_URL: https://${API_HOST:-api.injishi.com}
   AUTH_COOKIE_DOMAIN: ${AUTH_COOKIE_DOMAIN:-.injishi.com}
   # Every browser origin that calls this API. The apex and app.* hosts only

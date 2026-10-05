@@ -1,5 +1,6 @@
 import {
   PAY_RUN_LIST,
+  type AttendanceSource,
   type ListQuery,
   type PayRunRuleVersion,
   type PayRunStatus,
@@ -259,21 +260,22 @@ export class PayrollRepository {
 
   /**
    * Attendance in the month that would make the figures wrong if frozen now: a
-   * record still open, or a self record nobody validated (AC-Y3).
+   * record still open, or a closed one nobody validated, whatever its source:
+   * a self or phone clock in, or one the sweep closed (AC-Y3, 058-time AC-TM16).
    */
   async unsettledAttendance(
     employeeIds: readonly string[],
     first: string,
     last: string,
     tx?: Tx,
-  ): Promise<{ employeeId: string; open: boolean; unvalidatedSelf: boolean }[]> {
+  ): Promise<{ employeeId: string; open: boolean; source: AttendanceSource; autoClosed: boolean }[]> {
     if (employeeIds.length === 0) return [];
     const rows = await (tx ?? this.db)
       .select({
         employeeId: attendanceRecords.employeeId,
         status: attendanceRecords.status,
         source: attendanceRecords.source,
-        validated: attendanceRecords.validated,
+        autoClosed: attendanceRecords.autoClosed,
       })
       .from(attendanceRecords)
       .where(
@@ -283,18 +285,15 @@ export class PayrollRepository {
           lte(attendanceRecords.workDate, last),
           or(
             eq(attendanceRecords.status, 'open'),
-            and(
-              eq(attendanceRecords.source, 'self'),
-              eq(attendanceRecords.validated, false),
-              sql`${attendanceRecords.status} <> 'superseded'`,
-            ),
+            and(eq(attendanceRecords.status, 'closed'), eq(attendanceRecords.validated, false)),
           ),
         ),
       );
     return rows.map((r) => ({
       employeeId: r.employeeId,
       open: r.status === 'open',
-      unvalidatedSelf: r.source === 'self' && !r.validated && r.status !== 'superseded',
+      source: r.source,
+      autoClosed: r.autoClosed,
     }));
   }
 

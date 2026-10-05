@@ -22,8 +22,9 @@ import { assertInBranchScope, type ScopedWorkspace } from '../../../shared/auth/
 import { runBulk } from '../../../shared/lists/bulk';
 import { pageOf } from '../../../shared/lists/list-query';
 import { isCalendarDate } from '../../booking/domain/pricing';
-import { addDays, kigaliToday, monthOf } from '../domain/hr-calendar';
+import { addDays, eachDate, kigaliToday, monthOf } from '../domain/hr-calendar';
 import { HR_RULE, missingRuleMessage } from '../domain/hr-rules';
+import { isOrgHoliday, isWeeklyOff, weeklyOffsFor } from '../domain/time-rules';
 import { dueAccruals } from '../domain/leave-accrual';
 import {
   countLeaveDays,
@@ -46,6 +47,7 @@ import {
   type LeaveTypeRow,
 } from '../infrastructure/leave.repository';
 import { TimeRepository } from '../infrastructure/time.repository';
+import { TimeSettingsRepository } from '../infrastructure/time-settings.repository';
 import { rosterCard } from './employee-presenter';
 import { assertPersonInReach, orgOf } from './hr-access';
 
@@ -65,6 +67,7 @@ export class LeaveService {
     private readonly leave: LeaveRepository,
     private readonly time: TimeRepository,
     private readonly rules: HrRulesRepository,
+    private readonly settings: TimeSettingsRepository,
   ) {}
 
   // --- Types and accrual ---------------------------------------------------
@@ -467,8 +470,21 @@ export class LeaveService {
       }
       for (const d of row.value.dates) holidays.add(d.date);
     }
+    // The business's own holidays and weekly days off for the person's branch (058-time AC-TM12).
+    const person = await this.employees.find(employeeId, tx);
+    let offs = weeklyOffsFor(null, []);
+    if (person) {
+      const [orgHolidays, weeklyOffs] = await Promise.all([
+        this.settings.holidays(person.orgId, tx),
+        this.settings.weeklyOffs(person.orgId, tx),
+      ]);
+      for (const date of eachDate(range.startsOn, range.endsOn)) {
+        if (isOrgHoliday(date, person.workPropertyId, orgHolidays)) holidays.add(date);
+      }
+      offs = weeklyOffsFor(person.workPropertyId, weeklyOffs);
+    }
     const rosteredDates = await this.time.rosteredDates(employeeId, range.startsOn, range.endsOn, tx);
-    return countLeaveDays(range, { rosteredDates, holidays });
+    return countLeaveDays(range, { rosteredDates, holidays, isWeeklyOff: (date) => isWeeklyOff(date, offs) });
   }
 
   /** Write a reversal for each `taken` row of a request not yet reversed. */

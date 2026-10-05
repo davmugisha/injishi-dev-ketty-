@@ -58,6 +58,15 @@ import { OpsStaffAnnouncementsController } from './staff-announcements.controlle
 import { OpsStaysController } from './stays.controller';
 import { OpsTeamController } from './team.controller';
 import { OpsThreadsController } from './threads.controller';
+import {
+  OpsAttendanceRequestsController,
+  OpsAttendanceSettingsController,
+  OpsEmployeeKioskPinController,
+  OpsHrTimeSettingsController,
+  OpsRotationAssignmentsController,
+  OpsRotationPatternsController,
+  OpsShiftRequestsController,
+} from './time.controller';
 
 /**
  * Every operator READ declares who may make it (platform audit, H1).
@@ -116,6 +125,13 @@ const CONTROLLERS: Ctor[] = [
   OpsStaffAnnouncementsController,
   OpsDisciplinaryActionsController,
   OpsOrgChartController,
+  OpsRotationPatternsController,
+  OpsRotationAssignmentsController,
+  OpsShiftRequestsController,
+  OpsAttendanceRequestsController,
+  OpsAttendanceSettingsController,
+  OpsEmployeeKioskPinController,
+  OpsHrTimeSettingsController,
 ];
 
 interface Read {
@@ -263,6 +279,26 @@ const EXPECTED: Record<string, readonly OrgRole[]> = {
   '/ops/staff-announcements/:id/files/:index': ['owner', 'manager', 'receptionist'],
   // Roster card fields only, as the file list (AC-PF10).
   '/ops/org-chart': ['owner', 'manager'],
+  // Time (058-time). The week grid reads like the roster; the desk reads the
+  // rotations it clocks people onto, the policies it punches under, its
+  // kiosks and whether a person has a PIN. Requests are decided by those who
+  // decide them, and only they list them. The insights are `people.manage`
+  // alone (index contract 7), so the owner's by default.
+  '/ops/roster/week': ['owner', 'manager', 'receptionist'],
+  '/ops/rotation-patterns': ['owner', 'manager', 'receptionist'],
+  '/ops/rotation-assignments': ['owner', 'manager'],
+  '/ops/shift-requests': ['owner', 'manager'],
+  '/ops/shift-requests/ids': ['owner', 'manager'],
+  '/ops/attendance-requests': ['owner', 'manager'],
+  '/ops/attendance-requests/ids': ['owner', 'manager'],
+  '/ops/attendance/policies': ['owner', 'manager', 'receptionist'],
+  '/ops/attendance/kiosks': ['owner', 'manager', 'receptionist'],
+  '/ops/attendance/insights/late-early': ['owner'],
+  '/ops/attendance/insights/monthly': ['owner'],
+  '/ops/employees/:id/kiosk-pin': ['owner', 'manager', 'receptionist'],
+  // Leave counts days by them, so whoever plans time or decides leave reads them.
+  '/ops/hr/holidays': ['owner', 'manager'],
+  '/ops/hr/weekly-offs': ['owner', 'manager'],
 };
 
 describe('operator reads (audit H1)', () => {

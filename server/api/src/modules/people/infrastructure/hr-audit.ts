@@ -62,7 +62,8 @@ export function auditDiff(
 export async function writeHrAudit(
   tx: Tx | Database,
   row: {
-    actorUserId: string;
+    /** Null for what nobody signed in did: a kiosk punch, the sweep (058-time). The diff names the source. */
+    actorUserId: string | null;
     /** `org` for what belongs to the whole business: a policy, an announcement, a catalog, the settings. */
     subjectType: 'employee' | 'pay_run' | 'org';
     subjectId: string;

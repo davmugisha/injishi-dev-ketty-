@@ -54,6 +54,9 @@ x-api-env: &api-env
   REDIS_URL: ${REDIS_URL}
   COOKIE_SECRET: ${COOKIE_SECRET}
   BETTER_AUTH_SECRET: ${BETTER_AUTH_SECRET}
+  # The kiosk PIN pepper (058-time AC-TM11). Staging runs the production
+  # platform, so it refuses to boot without one. Never production's.
+  HR_PIN_PEPPER: ${HR_PIN_PEPPER:?set HR_PIN_PEPPER, the kiosk PIN pepper: openssl rand -base64 32}
   BETTER_AUTH_URL: https://api.${STAGING_DOMAIN:?set STAGING_DOMAIN to a domain production does not use}
   AUTH_COOKIE_DOMAIN: .${STAGING_DOMAIN}
   CORS_ORIGINS: https://www.${STAGING_DOMAIN},https://admin.${STAGING_DOMAIN}

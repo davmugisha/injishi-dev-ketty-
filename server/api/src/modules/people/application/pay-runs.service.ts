@@ -264,7 +264,7 @@ export class PayRunsService {
     const seen = new Set<string>();
     for (const a of attendance) {
       const name = names.get(a.employeeId) ?? '';
-      const code = a.open ? 'open_attendance' : 'unvalidated_self_attendance';
+      const code = a.open ? 'open_attendance' : 'unvalidated_attendance';
       const key = `${a.employeeId}:${code}`;
       if (seen.has(key)) continue;
       seen.add(key);
@@ -274,7 +274,11 @@ export class PayRunsService {
         displayName: name,
         message: a.open
           ? `${name} is still clocked in on a day in this month.`
-          : `${name} clocked themselves in on a day nobody has validated yet.`,
+          : a.autoClosed
+            ? `${name} has a record the sweep closed with guessed times. Correct it with the real ones.`
+            : a.source === 'phone'
+              ? `${name} clocked in by phone on a day nobody has validated yet.`
+              : `${name} clocked themselves in on a day nobody has validated yet.`,
       });
     }
     return out;

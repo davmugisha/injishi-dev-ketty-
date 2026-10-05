@@ -4,9 +4,11 @@ import { eachDate, isWeekday, monthOf, yearOf } from './hr-calendar';
  * How many days a leave takes (ADR-058 AC-L3), and how they split by month.
  *
  * A request's days are the person's ROSTERED days in the range; a date with no
- * roster entry counts Monday to Friday; a public holiday never counts. A half
- * day is allowed at either end: the afternoon of the first day, the morning of
- * the last. So a person rostered Saturday and Sunday who takes a weekend is
+ * roster entry counts unless it is a weekly day off of the person's branch
+ * (Saturday and Sunday when the business recorded none, as slice 1 counted);
+ * a public holiday, national or the business's own, never counts (058-time
+ * AC-TM12). A half day is allowed at either end: the afternoon of the first
+ * day, the morning of the last. So a person rostered Saturday and Sunday who takes a weekend is
  * charged two days, and one who takes a public holiday off is charged nothing.
  *
  * Estimated at request and counted again at approval under a lock on the
@@ -23,8 +25,10 @@ export interface LeaveRange {
 export interface LeaveDayContext {
   /** Dates in the range on which the person has a scheduled roster entry. */
   rosteredDates: ReadonlySet<string>;
-  /** Public holidays of every year the range touches. */
+  /** Public holidays of every year the range touches, and the business's own for the branch. */
   holidays: ReadonlySet<string>;
+  /** The branch's weekly days off; absent, Saturday and Sunday. */
+  isWeeklyOff?: (date: string) => boolean;
 }
 
 export interface LeaveMonthShare {
@@ -64,7 +68,8 @@ export function countLeaveDays(range: LeaveRange, context: LeaveDayContext): Lea
   let days = 0;
   for (const date of eachDate(range.startsOn, range.endsOn)) {
     if (context.holidays.has(date)) continue;
-    const counts = context.rosteredDates.has(date) || isWeekday(date);
+    const offDay = context.isWeeklyOff ? context.isWeeklyOff(date) : !isWeekday(date);
+    const counts = context.rosteredDates.has(date) || !offDay;
     if (!counts) continue;
     let value = 1;
     if (date === range.startsOn && range.startHalf === 'second_half') value -= 0.5;

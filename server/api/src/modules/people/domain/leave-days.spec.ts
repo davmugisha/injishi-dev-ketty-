@@ -1,4 +1,5 @@
 import { countLeaveDays, isContradictoryHalfDay, yearsTouched } from './leave-days';
+import { isWeeklyOff, weeklyOffsFor } from './time-rules';
 
 const none = new Set<string>();
 
@@ -22,6 +23,17 @@ describe('leave days (ADR-058 AC-L3)', () => {
     );
     // Mon, Tue, Thu, Fri, and the rostered Sat and Sun; Wednesday is a holiday.
     expect(c.days).toBe(6);
+  });
+
+  it('counts by the weekly days off of the branch when it has them (058-time AC-TM12)', () => {
+    // The branch closes on Sundays only, so Saturday 10 October counts.
+    const rules = weeklyOffsFor('branch-1', [{ propertyId: 'branch-1', weekday: 0, weeks: [] }]);
+    const c = countLeaveDays(
+      { startsOn: '2026-10-05', endsOn: '2026-10-11', startHalf: 'full', endHalf: 'full' },
+      { rosteredDates: none, holidays: new Set(['2026-10-07']), isWeeklyOff: (d) => isWeeklyOff(d, rules) },
+    );
+    // Mon, Tue, Thu, Fri, Sat; Wednesday is the business's holiday, Sunday the day off.
+    expect(c.days).toBe(5);
   });
 
   it('allows a half day at either end', () => {

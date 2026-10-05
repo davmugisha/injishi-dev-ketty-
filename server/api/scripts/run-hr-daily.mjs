@@ -1,6 +1,7 @@
 #!/usr/bin/env node
-// Run the HR daily job once, now (ADR-058): contract statuses, leave accruals
-// and document expiry reminders, against DATABASE_URL.
+// Run the HR daily job once, now (ADR-058): contract statuses, leave accruals,
+// document expiry reminders and rotation shifts, against DATABASE_URL. With
+// --sweep, run the 15 minute attendance sweep once instead (058-time AC-TM4).
 //
 // The worker runs the same job at 00:15 Kigali every day, and every step of it
 // is idempotent, so running it by hand changes nothing a scheduled run would
@@ -13,7 +14,7 @@
 // queue on the Redis it is pointed at.
 //
 //   pnpm -F @injishi/api build
-//   DATABASE_URL=postgres://.../injishi_sample node scripts/run-hr-daily.mjs
+//   DATABASE_URL=postgres://.../injishi_sample node scripts/run-hr-daily.mjs [--sweep]
 import { createRequire } from 'node:module';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -31,10 +32,13 @@ require('reflect-metadata');
 const { NestFactory } = require('@nestjs/core');
 const { AppModule } = require(resolve(dist, 'app.module.js'));
 const { HrDailyService } = require(resolve(dist, 'modules/people/application/hr-daily.service.js'));
+const { AttendanceSweepService } = require(resolve(dist, 'modules/people/application/attendance-sweep.service.js'));
 
 const app = await NestFactory.createApplicationContext(AppModule, { logger: ['error', 'warn'] });
 try {
-  const outcome = await app.get(HrDailyService).run();
+  const outcome = process.argv.includes('--sweep')
+    ? await app.get(AttendanceSweepService).run()
+    : await app.get(HrDailyService).run();
   console.log(JSON.stringify(outcome));
 } finally {
   await app.close();

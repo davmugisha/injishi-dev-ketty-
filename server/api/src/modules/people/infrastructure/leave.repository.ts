@@ -513,6 +513,21 @@ export class LeaveRepository {
     return (row as LeaveRequestRow | undefined) ?? null;
   }
 
+  /** A person's approved leave overlapping a window, for the rotation generator (058-time AC-TM3). */
+  async approvedBetween(employeeId: string, from: string, to: string, tx?: Tx): Promise<{ startsOn: string; endsOn: string }[]> {
+    return (tx ?? this.db)
+      .select({ startsOn: leaveRequests.startsOn, endsOn: leaveRequests.endsOn })
+      .from(leaveRequests)
+      .where(
+        and(
+          eq(leaveRequests.employeeId, employeeId),
+          eq(leaveRequests.status, 'approved'),
+          lte(leaveRequests.startsOn, to),
+          gte(leaveRequests.endsOn, from),
+        ),
+      );
+  }
+
   /** Open requests (requested or approved) of a person ending after `date`. */
   async openEndingAfter(employeeId: string, date: string, tx: Tx): Promise<LeaveRequestRow[]> {
     return (await this.requests(tx).where(
