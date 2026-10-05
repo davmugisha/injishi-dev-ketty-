@@ -25,17 +25,19 @@
  * the position is still theirs, and each one is separately tappable at the 44pt
  * floor.
  *
- * **A pin carries a score, never a price.** A real map app puts the nightly
- * rate in the marker, and this one may not: the design brief §8.6 fixes money
- * at `RWF 145,000` everywhere it appears, and twelve markers of that width
- * would cover the country. The score fits, means something on its own, and the
- * full rate is one tap away on the card below.
+ * **A pin is a plain dot: no price and no score.** A real map app puts the
+ * nightly rate in the marker, and this one may not: the design brief §8.6 fixes
+ * money at `RWF 145,000` everywhere it appears, and twelve markers of that
+ * width would cover the country. The score used to fill the marker instead,
+ * but reviews are hidden in v1 and no endpoint serves one, so it was a fixture
+ * number (mobile audit 2026-10-05, GB-07). The rate is one tap away on the
+ * card below.
  */
 import { useMemo, useState } from 'react';
 import { View } from 'react-native';
 import { Image } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
-import { Icon, MoneyAmount, PressableScale, ScoreChip, Text } from '@/components';
+import { Icon, MoneyAmount, PressableScale, Text } from '@/components';
 import { useTheme } from '@/theme/theme';
 import { useT } from '@/i18n/i18n';
 import { photo as photoAsset } from '@/data/photos';
@@ -281,9 +283,15 @@ export function ExploreMap({ stays, onOpen }: ExploreMapProps) {
                   ...shadow.sm,
                 }}
               >
-                <Text family="mono" weight="semibold" size="xs" color="bgApp">
-                  {pin.stay.score.toFixed(1)}
-                </Text>
+                {/* A dot, not a label: see the header (GB-07). */}
+                <View
+                  style={{
+                    width: 10,
+                    height: 10,
+                    borderRadius: radius.pill,
+                    backgroundColor: c.bgApp,
+                  }}
+                />
               </PressableScale>
             </View>
           );
@@ -388,14 +396,11 @@ function SelectedStay({ stay, onOpen }: { stay: Stay; onOpen: () => void }) {
         <Text size="xs" color="textMuted" numberOfLines={1}>
           {stay.place}
         </Text>
-        <View style={{ flexDirection: 'row', alignItems: 'center', gap: space[2], marginTop: 2 }}>
-          <View style={{ flexDirection: 'row', alignItems: 'baseline', gap: 3 }}>
-            <MoneyAmount value={stay.price} strong tone="brand" size="sm" />
-            <Text size="xs" color="textMuted">
-              {`/ ${t('explore.perNight')}`}
-            </Text>
-          </View>
-          <ScoreChip score={stay.score} size="sm" />
+        <View style={{ flexDirection: 'row', alignItems: 'baseline', gap: 3, marginTop: 2 }}>
+          <MoneyAmount value={stay.price} strong tone="brand" size="sm" />
+          <Text size="xs" color="textMuted">
+            {t('explore.perNight')}
+          </Text>
         </View>
       </View>
       <Icon name="chevronRight" size={18} color={c.textMuted} />

@@ -69,9 +69,9 @@
  * this file.
  */
 import { Tabs } from 'expo-router';
-import { Platform, type ColorValue } from 'react-native';
+import { type ColorValue } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Icon, type IconName } from '@/components';
+import { Icon, tabBarContentHeight, type IconName } from '@/components';
 import { useTheme } from '@/theme/theme';
 import { useDomain } from '@/domain';
 import { useInboxCounts } from '@/data/inbox-unread';
@@ -128,13 +128,23 @@ const MIDDLE: MiddleTab[] = [
 ];
 
 /**
- * Registered, reachable by deep link, never drawn. Either `index` already
- * serves the screen for that surface, or the surface is parked.
+ * Registered, never drawn: `index` already serves the screen for that surface.
+ * Each opens only for its own surface, so `injishi://queue` no longer shows a
+ * guest the Work queue (mobile audit 2026-10-05, SA-12).
  */
-const UNLINKED: { name: string; label: MessageKey }[] = [
+const UNLINKED: { name: string; label: MessageKey; surface: Surface }[] = [
+  { name: 'queue', label: 'nav.queue', surface: 'work' },
+  { name: 'today', label: 'nav.today', surface: 'host' },
+];
+
+/**
+ * Registered and refused for every seat. `rent-roll` and `directory` were
+ * duplicates of `index` that left no tab highlighted (ADR-044 AC-17), and
+ * `portfolio` is the screen ADR-044 decided to delete. Hidden here rather than
+ * deleted; removing the files is the owner's call.
+ */
+const RETIRED: { name: string; label: MessageKey }[] = [
   { name: 'rent-roll', label: 'nav.rentRoll' },
-  { name: 'queue', label: 'nav.queue' },
-  { name: 'today', label: 'nav.today' },
   { name: 'directory', label: 'nav.directory' },
   { name: 'portfolio', label: 'nav.portfolio' },
 ];
@@ -161,7 +171,8 @@ export default function TabsLayout() {
   // Content height, above the system inset. See note 3 above before changing a
   // number: iOS keeps the 88/96 it draws today on a home-indicator phone
   // (54 + 34, 62 + 34) and stops over-drawing on one without.
-  const barContent = Platform.OS === 'ios' ? (work ? 62 : 54) : work ? 72 : 64;
+  // One source with the footers that sit on this bar (`pinned-footer.ts`).
+  const barContent = tabBarContentHeight(work);
 
   return (
     <Tabs
@@ -202,28 +213,40 @@ export default function TabsLayout() {
         }}
       />
 
+      {/* A tab outside this surface's set is PROTECTED, not merely unlinked:
+          `href: null` hid the button and left the route open to any link.
+          Protected, it refuses before its screen mounts, and a seat switch
+          that closes the open tab lands on `index` (mobile audit SA-12). */}
       {MIDDLE.map((tab) => (
-        <Tabs.Screen
-          key={tab.name}
-          name={tab.name}
-          options={{
-            title: t(tab.label),
-            href: LINKED[tab.name].includes(surface) ? undefined : null,
-            tabBarBadge: tab.name === 'inbox' ? inbox.badge : undefined,
-            tabBarAccessibilityLabel:
-              tab.name === 'inbox' && inbox.badge !== undefined
-                ? `${t(tab.label)}, ${t('inbox.badgeLabel', { count: inbox.badge })}`
-                : undefined,
-            tabBarIcon: ({ color, size }) => (
-              <Icon name={tab.icon} size={work ? size + 3 : size} color={iconColor(color)} />
-            ),
-          }}
-        />
+        <Tabs.Protected key={tab.name} guard={LINKED[tab.name].includes(surface)}>
+          <Tabs.Screen
+            name={tab.name}
+            options={{
+              title: t(tab.label),
+              tabBarBadge: tab.name === 'inbox' ? inbox.badge : undefined,
+              tabBarAccessibilityLabel:
+                tab.name === 'inbox' && inbox.badge !== undefined
+                  ? `${t(tab.label)}, ${t('inbox.badgeLabel', { count: inbox.badge })}`
+                  : undefined,
+              tabBarIcon: ({ color, size }) => (
+                <Icon name={tab.icon} size={work ? size + 3 : size} color={iconColor(color)} />
+              ),
+            }}
+          />
+        </Tabs.Protected>
       ))}
 
       {UNLINKED.map((tab) => (
-        <Tabs.Screen key={tab.name} name={tab.name} options={{ title: t(tab.label), href: null }} />
+        <Tabs.Protected key={tab.name} guard={tab.surface === surface}>
+          <Tabs.Screen name={tab.name} options={{ title: t(tab.label), href: null }} />
+        </Tabs.Protected>
       ))}
+
+      <Tabs.Protected guard={false}>
+        {RETIRED.map((tab) => (
+          <Tabs.Screen key={tab.name} name={tab.name} options={{ title: t(tab.label), href: null }} />
+        ))}
+      </Tabs.Protected>
 
       {/* The one tab in every set, and therefore the one the switcher can
           always land on. Last on purpose: it is the escape, not a destination. */}

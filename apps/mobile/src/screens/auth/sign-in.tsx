@@ -57,15 +57,14 @@ import {
   SectionLabel,
   Text,
   useOffline,
-  useToast,
 } from '@/components';
 import { useTheme } from '@/theme/theme';
 import { useT, type MessageKey } from '@/i18n/i18n';
 import { requestSignInCode } from '@/lib/auth';
 import { useDemoPersonas, type DemoPersona } from '@/queries/demo';
-import { AuthCanvas, OrDivider } from './auth-canvas';
+import { consumeSignOutReason } from '@/session';
+import { AuthCanvas } from './auth-canvas';
 import { BrandMark } from './brand-mark';
-import { GoogleButton } from './google-button';
 import { isPlausibleEmail, trimEmail } from './email';
 import { DEMO_CODE } from './otp';
 
@@ -73,7 +72,12 @@ export function SignInScreen() {
   const { space } = useTheme();
   const t = useT();
   const router = useRouter();
-  const toast = useToast();
+  /**
+   * Why the last session ended, read once (mobile audit SA-34): somebody
+   * dropped here by an expired session, or signed out with no signal, is told
+   * so rather than left to guess whether the app broke.
+   */
+  const [signedOut] = useState(() => consumeSignOutReason());
 
   /** Exactly what the person typed. Trimmed where it is read, never as they type. */
   const [email, setEmail] = useState('');
@@ -214,6 +218,22 @@ export function SignInScreen() {
         </Text>
       </View>
 
+      {signedOut ? (
+        <View
+          accessible
+          accessibilityRole="alert"
+          style={{ marginTop: space[5], gap: space[1] }}
+          testID="signed-out-notice"
+        >
+          <Text weight="semibold" size="sm" color="textStrong">
+            {t('session.signedOutTitle')}
+          </Text>
+          <Text size="sm" color="textMuted">
+            {signedOut === 'offline' ? t('session.signedOutOffline') : t('session.signedOutBody')}
+          </Text>
+        </View>
+      ) : null}
+
       <View style={{ marginTop: space[6], gap: space[3] }}>
         <InputField
           label={t('auth.emailLabel')}
@@ -290,12 +310,10 @@ export function SignInScreen() {
         <DemoPersonas personas={personas} onPick={pickPersona} />
       ) : null}
 
-      <OrDivider label={t('auth.or')} />
-
-      <GoogleButton
-        label={t('auth.google')}
-        onPress={() => toast.show(t('auth.googleNotWired'), 'neutral')}
-      />
+      {/* No "Sign in with Google": v1.0 signs in with an emailed code only
+          (owner, 2026-10-01), and the button only ever toasted "not wired"
+          (device rig 2026-10-01; mobile audit SA-13). Google returns when its
+          deep link return is solved (scope, Deferred). */}
 
       {/* Pushes the closing note to the foot of the canvas on a tall phone and
           simply follows the content on a short one. */}

@@ -1,0 +1,16 @@
+# Crashes the app in native code, then relaunches: a native crash is saved on
+# the phone and sent on the next launch (ADR-063 AC-2, AC-5).
+#
+# What to check after: one native issue with readable frames and the release,
+# and its JSON against "What a mobile event may carry", with no `[Filtered]`.
+appId: rw.injishi.mobile
+name: Crash reporting, a native crash
+---
+- runFlow: ../subflows/launch-release-build.yaml
+- runFlow: ../subflows/open-diagnostics.yaml
+- tapOn:
+    id: "diagnostics-native-crash"
+- runFlow: ../subflows/launch-release-build.yaml
+- waitForAnimationToEnd:
+    timeout: 10000
+- takeScreenshot: crash-native-1-relaunched

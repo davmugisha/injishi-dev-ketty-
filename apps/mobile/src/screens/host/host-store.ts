@@ -32,6 +32,7 @@ import {
   useFixtureMutation,
   useFixtureValue,
   writeFixture,
+  type MutationOutcome,
 } from '@/data/use-fixture-mutation';
 import { useOfflineSubmit } from '@/data/offline-submit';
 import type { WriteOutcome } from '@/data/write-queue';
@@ -44,7 +45,6 @@ import {
 import { SEED_ROOMS, SEED_TASKS, floorOf, roomTypeOf } from '@/screens/work/work-fixtures';
 import type { WorkRoom, WorkTask } from '@/screens/work/work-fixtures';
 import {
-  DISPUTE_BUFFER_MS,
   HOST_BOOKINGS,
   HOST_PAYOUTS,
   type HostBooking,
@@ -89,7 +89,8 @@ export type BookingChange =
   /** The undo behind the toast: the row exactly as it was. */
   | { op: 'restore'; booking: HostBooking }
   | { op: 'check-in'; id: string; room: string; at: number }
-  | { op: 'check-out'; id: string; invoice: string; at: number };
+  /** No invoice rides on it: the phone never mints one (mobile audit HO-04). */
+  | { op: 'check-out'; id: string; at: number };
 
 /**
  * Why a request cannot be approved or declined, or `null` when it can.
@@ -167,16 +168,15 @@ export function applyBookingChange(
         };
 
       case 'check-out':
-        // Exactly one tax invoice per stay, issued here (F-B17). The balance
-        // settles with it, and escrow moves to `released` because checkout is
-        // what starts the payout clock.
-        return {
-          ...booking,
-          checkedOutAt: change.at,
-          invoice: change.invoice,
-          balanceRwf: 0,
-          escrowStatus: 'released',
-        };
+        // The departure, and nothing the server answers. F-B17 has the server
+        // issue the one tax invoice, settle the folio and release escrow to
+        // start the payout clock; a write that never leaves the phone did none
+        // of that. This used to mint an `EBM-2026-…` number, zero the balance
+        // and release escrow, so the screens went on to print an invoice, a
+        // settled bill and a running payout that did not exist (mobile audit
+        // 2026-10-05, HO-04). The invoice, the balance and escrow stay exactly
+        // as they were until a real checkout answers for them.
+        return { ...booking, checkedOutAt: change.at };
     }
   });
 }
@@ -313,35 +313,46 @@ export function clockOf(at: number): string {
   return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
 }
 
-/**
- * The next EBM invoice number. Derived from what the store already holds so a
- * demo never issues the same one twice, and shaped like the seeded one.
- */
-export function nextInvoice(bookings: readonly HostBooking[]): string {
-  const highest = bookings.reduce((most, b) => {
-    const n = Number(b.invoice?.split('-').at(-1) ?? 0);
-    return Number.isFinite(n) ? Math.max(most, n) : most;
-  }, 4417);
-  return `EBM-2026-${String(highest + 1).padStart(6, '0')}`;
-}
-
 /* --------------------------------------------------------------- the actions */
 
+/**
+ * How a decision that moves money ended: `MutationOutcome`, plus `offline`.
+ *
+ * Approve, decline and checkout are REFUSED without signal rather than queued
+ * (mobile audit 2026-10-05, HO-10). Decline is a full refund and checkout is
+ * the closing sale, and AC-2 is that money never moves on an intent nobody
+ * confirmed at the moment it fires, which is what a queued one replayed hours
+ * later would be. The refusal lives here as well as on the buttons, so a
+ * connection lost between the render and the tap is still refused.
+ */
+export type HostDecisionOutcome = MutationOutcome | 'offline';
+
+/**
+ * How a check-in ended. `queued` is the one write on this desk that may wait
+ * for signal, and it is NOT a success: the guest is not checked in until it
+ * sends, so a screen must word it differently (mobile audit HO-06).
+ */
+export type CheckInOutcome = MutationOutcome | 'queued';
+
 export interface HostActions {
-  approve: (id: string) => Promise<void>;
+  approve: (id: string) => Promise<HostDecisionOutcome>;
   /** `note` is the sentence the guest is told. The sheet requires one. */
-  decline: (id: string, note: string) => Promise<void>;
-  expire: (id: string) => Promise<void>;
+  decline: (id: string, note: string) => Promise<HostDecisionOutcome>;
+  expire: (id: string) => Promise<MutationOutcome>;
   /** The undo behind an approve or decline toast. */
-  restore: (booking: HostBooking) => Promise<void>;
-  checkIn: (capture: CheckInCapture) => Promise<void>;
-  /** The capture did not save. The screen must not claim the guest is in. */
-  checkInFailed: boolean;
-  /** It is in the offline queue. Not a failure, and worded differently. */
-  checkInQueued: boolean;
-  /** Resolves to the invoice it issued and the task it handed over. */
-  checkOut: (id: string) => Promise<{ invoice: string; room: string | null }>;
+  restore: (booking: HostBooking) => Promise<MutationOutcome>;
+  /**
+   * Resolves to how THIS check-in ended. There used to be `checkInFailed` and
+   * `checkInQueued` flags beside it, and the screen read them after `await`
+   * from the render that pressed the button, so a failed capture toasted its
+   * success and an offline one said the guest was in (gaps.md §0.3, HO-06).
+   */
+  checkIn: (capture: CheckInCapture) => Promise<CheckInOutcome>;
+  /** Closes the stay on this phone and hands the room to housekeeping. */
+  checkOut: (id: string) => Promise<HostDecisionOutcome>;
   saving: boolean;
+  /** No reachable network. Approve, decline and checkout are refused while true. */
+  offline: boolean;
 }
 
 /**
@@ -374,14 +385,6 @@ export function useHostActions(): HostActions {
     () => [...HOST_BOOKINGS],
   );
 
-  const approve = useCallback((id: string) => mutate({ op: 'approve', id, at: Date.now() }), [mutate]);
-  const decline = useCallback(
-    (id: string, note: string) => mutate({ op: 'decline', id, at: Date.now(), note }),
-    [mutate],
-  );
-  const expire = useCallback((id: string) => mutate({ op: 'expire', id }), [mutate]);
-  const restore = useCallback((booking: HostBooking) => mutate({ op: 'restore', booking }), [mutate]);
-
   /**
    * Identity capture, offline (gaps.md §6, P1).
    *
@@ -399,55 +402,67 @@ export function useHostActions(): HostActions {
     label: (capture) => capture.fullName,
     idFor: (capture) => `checkIn-${capture.bookingId}`,
   });
+  const { offline, submit } = queued;
+
+  const approve = useCallback(
+    async (id: string): Promise<HostDecisionOutcome> =>
+      offline ? 'offline' : mutate({ op: 'approve', id, at: Date.now() }),
+    [mutate, offline],
+  );
+  const decline = useCallback(
+    async (id: string, note: string): Promise<HostDecisionOutcome> =>
+      offline ? 'offline' : mutate({ op: 'decline', id, at: Date.now(), note }),
+    [mutate, offline],
+  );
+  const expire = useCallback((id: string) => mutate({ op: 'expire', id }), [mutate]);
+  const restore = useCallback((booking: HostBooking) => mutate({ op: 'restore', booking }), [mutate]);
 
   const checkIn = useCallback(
-    async (capture: CheckInCapture) => {
-      if (queued.offline) {
-        await queued.submit(capture);
-        return;
+    async (capture: CheckInCapture): Promise<CheckInOutcome> => {
+      if (offline) {
+        await submit(capture);
+        return 'queued';
       }
+      const outcome = await mutate({
+        op: 'check-in',
+        id: capture.bookingId,
+        room: capture.room,
+        at: capture.at,
+      });
       // The identity is kept beside the booking rather than on it: a booking is
       // a wire shape and a captured document is not part of it. The stay screen
-      // reads this to say a document was seen, and nothing else does.
-      const captures = readFixture<CaptureMap>(HOST_CAPTURES_KEY, {});
-      writeFixture<CaptureMap>(HOST_CAPTURES_KEY, { ...captures, [capture.bookingId]: capture });
-      await mutate({ op: 'check-in', id: capture.bookingId, room: capture.room, at: capture.at });
+      // reads this to say a document was seen, and nothing else does. Written
+      // only once the check-in itself landed, so a failed one leaves no record
+      // of a document seen for a guest who is not in.
+      if (outcome === 'done') {
+        const captures = readFixture<CaptureMap>(HOST_CAPTURES_KEY, {});
+        writeFixture<CaptureMap>(HOST_CAPTURES_KEY, { ...captures, [capture.bookingId]: capture });
+      }
+      return outcome;
     },
-    [mutate, queued],
+    [mutate, offline, submit],
   );
 
   const checkOut = useCallback(
-    async (id: string) => {
+    async (id: string): Promise<HostDecisionOutcome> => {
+      if (offline) return 'offline';
       const now = Date.now();
-      const bookings = readFixture<HostBooking[]>(HOST_BOOKINGS_KEY, [...HOST_BOOKINGS]);
-      const booking = bookings.find((b) => b.id === id);
-      const invoice = nextInvoice(bookings);
+      const booking = readFixture<HostBooking[]>(HOST_BOOKINGS_KEY, [...HOST_BOOKINGS]).find(
+        (b) => b.id === id,
+      );
 
-      await mutate({ op: 'check-out', id, invoice, at: now });
+      const outcome = await mutate({ op: 'check-out', id, at: now });
+      if (outcome !== 'done') return outcome;
 
-      // Two things follow a checkout and neither is optional: the attendant
-      // gets the room, and the payout clock starts (F-B17, F-B12).
+      // The attendant gets the room (F-P04), and only once the stay has closed:
+      // a failed checkout used to hand a room to housekeeping with the guest
+      // still in it. No payout is written: this used to add a `PO-2026-…`
+      // payout with a release countdown for a checkout that never reached the
+      // server (mobile audit 2026-10-05, HO-04).
       if (booking?.room) handOverToHousekeeping(booking.room, booking.guest.name, now);
-      if (booking) {
-        const payouts = readFixture<HostPayout[]>(HOST_PAYOUTS_KEY, [...HOST_PAYOUTS]);
-        writeFixture<HostPayout[]>(HOST_PAYOUTS_KEY, [
-          {
-            id: `PO-2026-${String(3120 + payouts.length).slice(-4)}`,
-            bookingId: booking.id,
-            guest: booking.guest.name,
-            // The FULL amount. F-B12 deducts no commission.
-            amountRwf: booking.breakdown.accommodationRwf,
-            status: 'scheduled',
-            releasesAt: now + DISPUTE_BUFFER_MS,
-            destination: 'momo',
-          },
-          ...payouts,
-        ]);
-      }
-
-      return { invoice, room: booking?.room ?? null };
+      return 'done';
     },
-    [mutate],
+    [mutate, offline],
   );
 
   return {
@@ -458,7 +473,6 @@ export function useHostActions(): HostActions {
     checkIn,
     checkOut,
     saving: status === 'saving',
-    checkInFailed: status === 'error' || queued.state === 'error',
-    checkInQueued: queued.state === 'queued',
+    offline,
   };
 }

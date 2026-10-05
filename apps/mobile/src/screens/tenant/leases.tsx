@@ -19,6 +19,9 @@
  * callouts, the live cards and the PAST label go in the header slot; the past
  * rows are the list. That split is deliberate: live leases are bounded by how
  * many units a person can rent at once, past ones grow with a lifetime.
+ *
+ * The renewal-pending note is gone with renewal itself, which is P2 and hidden
+ * in v1.0 (mobile audit 2026-10-05, TN-13).
  */
 import { View } from 'react-native';
 import { useRouter } from 'expo-router';
@@ -28,6 +31,7 @@ import {
   Card,
   EmptyState,
   ErrorState,
+  formatMoney,
   Icon,
   MoneyAmount,
   OfflineNote,
@@ -48,7 +52,7 @@ import { useTenancies } from '@/data/tenancy-store';
 import { isLiveTenancy, nextDuePeriod, type Tenancy } from '@/data/rentals';
 import { photo as photoAsset } from '@/data/photos';
 import { PhotoTile } from './photo-tile';
-import { formatFullDay, formatMonthYear } from './dates';
+import { formatFullDay, formatMonthYear, rentStatusWord } from './dates';
 
 /** The chip beside the state on both R11 and R15. */
 export function TenureBadge({ tenancy, t }: { tenancy: Tenancy; t: Translate }) {
@@ -68,10 +72,28 @@ function LiveLeaseCard({ tenancy, t }: { tenancy: Tenancy; t: Translate }) {
   const { c, space, radius } = useTheme();
   const router = useRouter();
   const due = nextDuePeriod(tenancy);
+  const dueDay = due ? (due.dueOn ? formatFullDay(due.dueOn, t) : due.month) : null;
+
+  // The card is one button, and a button's label replaces everything inside
+  // it. "Open the lease for Unit A2" alone dropped the rent, the due date and
+  // the overdue pill, which is the one thing this card exists to say (mobile
+  // audit 2026-10-05, TN-17).
+  const label = [
+    t('leases.open', { unit: tenancy.unit }),
+    `${t('leases.rent')} ${formatMoney(tenancy.rent)}`,
+    due && dueDay
+      ? `${t('leases.nextDue')} ${dueDay}, ${rentStatusWord(due.status, t)}`
+      : t('leases.upToDate'),
+    tenancy.notice
+      ? t('leases.noticeFiled', { date: formatFullDay(tenancy.notice.moveOutOn, t) })
+      : '',
+  ]
+    .filter(Boolean)
+    .join('. ');
 
   return (
     <PressableScale
-      accessibilityLabel={t('leases.open', { unit: tenancy.unit })}
+      accessibilityLabel={label}
       onPress={() => router.push({ pathname: '/lease/[id]', params: { id: tenancy.id } })}
       style={{
         borderRadius: radius.lg,
@@ -130,9 +152,21 @@ function LiveLeaseCard({ tenancy, t }: { tenancy: Tenancy; t: Translate }) {
               {t('leases.nextDue')}
             </Text>
             {due ? (
-              <View style={{ flexDirection: 'row', alignItems: 'center', gap: space[2] }}>
-                <Text weight="semibold" size="md" color="textStrong">
-                  {due.dueOn ? formatFullDay(due.dueOn, t) : due.month}
+              // Wraps, and the date gives way. Neither did, so at 360dp the
+              // full month ("1 November 2026") pushed the Due pill off the
+              // card's clipped edge, and the overdue state was the part lost
+              // (rig finding 2026-10-01; mobile audit 2026-10-05, TN-15).
+              <View
+                style={{
+                  flexDirection: 'row',
+                  flexWrap: 'wrap',
+                  alignItems: 'center',
+                  columnGap: space[2],
+                  rowGap: 4,
+                }}
+              >
+                <Text weight="semibold" size="md" color="textStrong" style={{ flexShrink: 1 }}>
+                  {dueDay}
                 </Text>
                 <PaymentStatus status={due.status} />
               </View>
@@ -147,38 +181,25 @@ function LiveLeaseCard({ tenancy, t }: { tenancy: Tenancy; t: Translate }) {
           </View>
         </View>
 
-        {/* What has been asked for on this lease and not yet answered. Both
-            are outstanding requests rather than states of the tenancy, so they
-            sit under the numbers rather than replacing the status chip. */}
+        {/* A notice is an outstanding request rather than a state of the
+            tenancy, so it sits under the numbers rather than replacing the
+            status chip. */}
         {tenancy.notice ? (
           <NoteRow
-            icon="clock"
-            tone="warning600"
             text={t('leases.noticeFiled', { date: formatFullDay(tenancy.notice.moveOutOn, t) })}
           />
-        ) : null}
-        {tenancy.renewal?.state === 'pending' ? (
-          <NoteRow icon="repeat" tone="textMuted" text={t('leases.renewalPending')} />
         ) : null}
       </View>
     </PressableScale>
   );
 }
 
-function NoteRow({
-  icon,
-  tone,
-  text,
-}: {
-  icon: 'clock' | 'repeat';
-  tone: 'warning600' | 'textMuted';
-  text: string;
-}) {
+function NoteRow({ text }: { text: string }) {
   const { c, space } = useTheme();
   return (
     <View style={{ flexDirection: 'row', alignItems: 'center', gap: space[2] }}>
-      <Icon name={icon} size={15} color={c[tone]} />
-      <Text size="xs" color={tone} style={{ flex: 1 }}>
+      <Icon name="clock" size={15} color={c.warning600} />
+      <Text size="xs" color="warning600" style={{ flex: 1 }}>
         {text}
       </Text>
     </View>
@@ -211,6 +232,10 @@ function PastLeaseRow({ tenancy, t }: { tenancy: Tenancy; t: Translate }) {
         source={asset?.source}
         placeholder={asset?.placeholder}
         contentFit="cover"
+        // A FlashList row is reused for another lease as it scrolls, and
+        // without a key expo-image shows the old row's photograph until the
+        // new one loads (gaps.md B8; mobile audit 2026-10-05, TN-23).
+        recyclingKey={tenancy.id}
         style={{ width: 44, height: 44, borderRadius: radius.sm }}
         accessibilityElementsHidden
         importantForAccessibility="no-hide-descendants"
@@ -242,9 +267,14 @@ export function Leases() {
   const unsigned = live.filter((x) => x.leaseState === 'pending_signature');
   const running = live.filter((x) => x.leaseState !== 'pending_signature');
 
+  // Only the parts that exist. Before `/me/workspaces` answers, the placeholder
+  // seat has an empty name and role, and the greeting was a lone "·" (rig
+  // finding, scope feature 3; mobile audit 2026-10-05, TN-22).
+  const greeting = [workspace.name, workspace.role].filter(Boolean).join(' · ') || undefined;
+
   return (
     <Screen.List<Tenancy>
-      greeting={`${workspace.name} · ${workspace.role}`}
+      greeting={greeting}
       title={t('leases.title')}
       action={
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: space[2] }}>

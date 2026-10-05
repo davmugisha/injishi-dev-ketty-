@@ -29,12 +29,24 @@
  * old surface's Account underneath in the stack.
  *
  * **4. "Anything half-captured is held, not dropped."** That is FL16 §5 Path A
- * — *switch mid-task → unsaved capture autosaved* — and in this build it is
- * already true rather than newly implemented: every draft lives in the fixture
- * store (`useFixtureMutation`), which is module state keyed by fixture and
- * indexed by nothing to do with the active workspace. Switching re-renders the
- * shell; it does not clear a key. `switchKeepsDrafts()` below is the assertion
- * of that, so the guarantee has a test rather than a comment.
+ * — *switch mid-task → unsaved capture autosaved* — and the footnote no longer
+ * promises it (mobile audit 2026-10-05, SA-35). What holds across a switch is
+ * the fixture store, which is module state keyed by fixture id and indexed by
+ * nothing to do with the active workspace, so a started check-in or booking
+ * survives. A draft kept in a screen's own state does not, and that is most of
+ * them. The frame's promise is owed a real draft store before it can be
+ * printed again. `switchKeepsDrafts()` below asserts the narrow thing that is
+ * true.
+ *
+ * ## The person and the rows say only what is there (SA-01, SA-10)
+ *
+ * The header names the person from `GET /api/v1/me/profile` through the same
+ * three states as the Account card: the name, a skeleton while it loads, or
+ * "Name not added yet", with a phone line only when there is a phone. Each row
+ * reads its role as a word (`seatRoleLabel`) and joins it to the tab it opens
+ * with `joinParts`, which drops an empty part along with its separator. The rig
+ * found "owner ·", "Guest · Tenant ·", a lone "·" on the Broker row, and a
+ * header read aloud as "Samuel Kayitare, " over an empty line.
  *
  * ## One control, not two
  *
@@ -66,7 +78,6 @@
 import { View } from 'react-native';
 import { useRouter } from 'expo-router';
 import {
-  Avatar,
   Icon,
   ListRow,
   PressableScale,
@@ -80,6 +91,8 @@ import { useDomain, surfaceFor } from '@/domain';
 import { useT, type MessageKey } from '@/i18n/i18n';
 import { useMyIdentity } from '@/queries/profile';
 import type { Surface, WorkspaceEntry } from '@/data/rentals';
+import { joinParts, seatRoleLabel } from '@/screens/account/account-format';
+import { PersonAvatar, PersonName, spokenName } from '@/screens/account/identity-card';
 
 const GROUPS: { key: WorkspaceEntry['type']; label: MessageKey }[] = [
   { key: 'personal', label: 'switch.personal' },
@@ -98,18 +111,31 @@ const SURFACE_LABEL: Record<Surface, MessageKey> = {
 };
 
 /**
- * Whether a switch may drop a half-typed draft. It may not, and this says so
+ * Whether a switch clears the fixture store. It does not, and this says so
  * where a test can read it.
  *
- * Drafts live in the fixture store, which is module state keyed by fixture id.
- * Nothing in `setWorkspace` or `setDomain` touches it: they write two keychain
- * values and two pieces of React state. The only thing that clears the store is
- * `resetFixtures()`, which exists for tests. So the frame's promise — "anything
- * half-captured is held, not dropped" — holds by construction rather than by
- * anybody remembering to preserve it, and this is the assertion of that.
+ * Nothing in `setWorkspace` or `setDomain` touches the store: they write two
+ * keychain values and two pieces of React state. What clears it is
+ * `resetFixtures()`, which signing out calls and a switch never does. So a
+ * draft kept THERE (a started check-in or booking) holds across a switch by
+ * construction.
+ *
+ * It is narrower than the frame's "anything half-captured is held, not
+ * dropped", and that is why the footnote stopped promising it (SA-35): a draft
+ * kept in a screen's own state goes when its tab does.
  */
 export function switchKeepsDrafts(): boolean {
   return true;
+}
+
+/**
+ * A row's second line: the role the seat is held in, then the tab it opens.
+ *
+ * The role is left out when it only repeats the row's title, which is what the
+ * server's own label does for a broker seat ("Broker" over "Broker").
+ */
+function seatLine(entry: WorkspaceEntry, role: string, tab: string): string {
+  return joinParts([role === entry.name ? null : role, tab]);
 }
 
 export default function SwitchScreen() {
@@ -124,7 +150,8 @@ export default function SwitchScreen() {
    * already the server's answer. Reading the person from `ME` while the rows
    * came from `GET /api/v1/me/workspaces` was the remaining half-truth on this
    * sheet: a device signed in as somebody else listed their real seats under a
-   * stranger's name. It is `GET /api/v1/me/profile` now.
+   * stranger's name. It is `GET /api/v1/me/profile` now, and when that holds no
+   * name the header says so rather than borrowing one (SA-01).
    */
   const me = useMyIdentity();
 
@@ -188,7 +215,9 @@ export default function SwitchScreen() {
     <Sheet grabber title={t('switch.title')} subtitle={t('switch.subtitle')}>
       <View
         accessible
-        accessibilityLabel={`${me.name}, ${me.phone}`}
+        // Only the parts that are there: a missing phone used to leave the
+        // label as "Name, " and an empty line under the name (SA-10).
+        accessibilityLabel={joinParts([spokenName(me, t), me.phone], ', ')}
         style={{
           flexDirection: 'row',
           alignItems: 'center',
@@ -198,14 +227,14 @@ export default function SwitchScreen() {
           backgroundColor: c.surface2,
         }}
       >
-        <Avatar name={me.name} size={40} />
+        <PersonAvatar me={me} size={40} />
         <View style={{ flex: 1, gap: 2 }}>
-          <Text weight="semibold" size="md" color="textStrong">
-            {me.name}
-          </Text>
-          <Text family="mono" size="xs" color="textMuted">
-            {me.phone}
-          </Text>
+          <PersonName me={me} size="md" />
+          {me.phone ? (
+            <Text family="mono" size="xs" color="textMuted">
+              {me.phone}
+            </Text>
+          ) : null}
         </View>
       </View>
 
@@ -228,20 +257,25 @@ export default function SwitchScreen() {
               {rows.map((entry, i) => {
                 const active = entry.id === workspace.id;
                 const opens = surfaceFor(entry, domain);
+                const tab = t(SURFACE_LABEL[opens]);
+                const role = seatRoleLabel(entry, opens, t);
                 return (
                   <ListRow
                     key={entry.id}
                     title={entry.name}
-                    subtitle={`${entry.role} · ${entry.note ?? ''}`.trim()}
+                    subtitle={seatLine(entry, role, tab) || undefined}
                     avatar={entry.name}
                     divider={i < rows.length - 1}
                     chevron={false}
                     onPress={() => void choose(entry)}
-                    accessibilityLabel={`${entry.name}, ${entry.role}`}
+                    // The tab is the hint's to say, so the label is the seat
+                    // and its role: "Kayitare Court, Owner".
+                    accessibilityLabel={joinParts(
+                      [entry.name, role === entry.name ? null : role],
+                      ', ',
+                    )}
                     accessibilityHint={
-                      active
-                        ? t('switch.currentHint')
-                        : t('switch.opens', { tab: t(SURFACE_LABEL[opens]) })
+                      active ? t('switch.currentHint') : t('switch.opens', { tab })
                     }
                     trailing={
                       active ? (

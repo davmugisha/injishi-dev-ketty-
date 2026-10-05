@@ -16,26 +16,29 @@
  * **"NEXT DUE" is not drawn as the frame draws it.** R7 prints "NEXT DUE Aug
  * 01" beside a lease whose August rent the rent roll shows as already paid on
  * Aug 01 — the frame is quoting a date, not deriving one. Rather than invent a
- * next-due the fixtures cannot support, the card prints THIS month's real
- * standing off the roll: "August 2026 · Paid Aug 01", or Due, or Overdue. A
- * number a landlord might act on has to be a number the system actually holds.
+ * next-due the fixtures cannot support, the card prints the lease's LATEST
+ * charge off the roll, named by that charge's own month: "August 2026 · Paid
+ * Aug 01", or Due, or Overdue. It was headed "This month" over a fixed "August
+ * 2026" whatever the date (mobile audit 2026-10-05, LL-01).
  *
- * Visitors and the message thread belong to other sessions (7 and 6). This
- * routes into them and passes `seat=landlord` on the visitor log, because R7
- * says that log is READ ONLY from here — it is the tenant's record, and a
- * landlord reading it must not be able to add a row to it.
+ * Visitors belongs to another session (7). This routes into it and passes
+ * `seat=landlord`, because R7 says that log is READ ONLY from here — it is the
+ * tenant's record, and a landlord reading it must not be able to add a row to
+ * it. R7's second button, "Message", is gone: it opened a thread by the
+ * LEASE's id, which is not a thread id, and the thread screen is not open to a
+ * landlord at all (mobile audit 2026-10-05, LL-16).
  */
 import { View, ScrollView } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
-  AdapterChip,
   Avatar,
   BackHeader,
   Badge,
   Button,
   Card,
   EmptyState,
+  ErrorState,
   Icon,
   ListRow,
   MoneyAmount,
@@ -49,7 +52,8 @@ import { useT, type Translate } from '@/i18n/i18n';
 import {
   findLease,
   LEASES_KEY,
-  RENT_PERIOD,
+  newestPerLease,
+  periodLabel,
   RENT_ROLL_KEY,
   seedLeases,
   seedRentRoll,
@@ -57,18 +61,19 @@ import {
   type RentRow,
 } from '@/data/landlord';
 
-/** The lease's standing on this month's roll, as one sentence. */
-function thisMonthLine(row: RentRow | undefined, t: Translate): string {
+/** The lease's latest charge on the roll, as one sentence, named by its month. */
+function latestRentLine(row: RentRow | undefined, t: Translate): string {
   if (!row) return t('landlord.lease.notBilled');
-  if (row.state === 'paid') {
-    return row.mock
-      ? `${RENT_PERIOD} · ${t('landlord.rent.chipPaidMock')}`
-      : `${RENT_PERIOD} · ${t('landlord.rent.chipPaid', { date: row.on ?? '' })}`;
-  }
-  if (row.state === 'due') {
-    return `${RENT_PERIOD} · ${t('landlord.rent.chipDue', { date: row.on ?? '' })}`;
-  }
-  return `${RENT_PERIOD} · ${t('landlord.rent.chipOverdue', { days: row.days ?? 0 })}`;
+  const standing =
+    row.state === 'paid'
+      ? row.mock
+        ? t('landlord.rent.chipPaidMock')
+        : t('landlord.rent.chipPaid', { date: row.on ?? '' })
+      : row.state === 'due'
+        ? t('landlord.rent.chipDue', { date: row.on ?? '' })
+        : t('landlord.rent.chipOverdue', { days: row.days ?? 0 });
+  const month = periodLabel(row.periodMonth, t);
+  return month ? `${month} · ${standing}` : standing;
 }
 
 export function LandlordLeaseDetail({ id }: { id: string }) {
@@ -82,7 +87,7 @@ export function LandlordLeaseDetail({ id }: { id: string }) {
   const roll = useLandlordRead(RENT_ROLL_KEY, seedRentRoll);
 
   const lease = findLease(leases.data ?? [], id);
-  const row = (roll.data ?? []).find((r) => r.leaseId === lease?.id);
+  const row = newestPerLease(roll.data ?? []).find((r) => r.leaseId === lease?.id);
 
   // Loading is a real state here: `useLandlordRead` skeletons the cold read,
   // and rendering "not found" underneath it would accuse the reader of
@@ -100,6 +105,25 @@ export function LandlordLeaseDetail({ id }: { id: string }) {
           >
             {t('state.loading')}
           </Text>
+        </View>
+      </View>
+    );
+  }
+
+  // A read that failed is not a lease that is missing. It used to fall through
+  // to "That lease is not here", which tells the reader the record is gone when
+  // all that happened is a failed read (mobile audit 2026-10-05, LL-21).
+  if (leases.status === 'error') {
+    return (
+      <View style={{ flex: 1, backgroundColor: c.bgApp }}>
+        <BackHeader />
+        <View style={{ flex: 1, justifyContent: 'center', paddingHorizontal: space[4] }}>
+          <ErrorState
+            title={t('state.errorTitle')}
+            body={t('state.errorBody', { label: t('landlord.leaseLabel') })}
+            detail={leases.error?.message}
+            onRetry={leases.retry}
+          />
         </View>
       </View>
     );
@@ -242,10 +266,10 @@ export function LandlordLeaseDetail({ id }: { id: string }) {
                 color="brand900"
                 style={{ letterSpacing: 0.9, textTransform: 'uppercase', opacity: 0.7 }}
               >
-                {t('landlord.lease.thisMonth')}
+                {t('landlord.lease.latestRent')}
               </Text>
               <Text weight="semibold" size="sm" color="brand900" style={{ lineHeight: 19 }}>
-                {thisMonthLine(row, t)}
+                {latestRentLine(row, t)}
               </Text>
             </View>
           </View>
@@ -296,52 +320,39 @@ export function LandlordLeaseDetail({ id }: { id: string }) {
                   ? t('landlord.lease.rentNone')
                   : t('landlord.lease.rentPeriods', { count: lease.periodsPaid })
               }
-              // The roll is the only ledger this build has, and it is the
-              // whole building rather than this lease. Saying where the row
-              // goes beats a chevron that lands somewhere wider than expected.
-              accessibilityHint={t('landlord.lease.rentHint', { month: RENT_PERIOD })}
-              onPress={() => router.push('/rent-roll')}
+              // The roll is the only ledger there is, and it is the whole
+              // workspace rather than this lease. Saying where the row goes
+              // beats a chevron that lands somewhere wider than expected.
+              accessibilityHint={t('landlord.lease.rentHint')}
+              onPress={() => router.push('/')}
             />
           </View>
         </Card>
 
-        {/* R7's two outline buttons. Both leave this surface for a record
-            another session owns, so neither pretends to do the work here. */}
-        <View style={{ flexDirection: 'row', gap: space[2] }}>
-          <View style={{ flex: 1 }}>
-            <Button
-              variant="outline"
-              block
-              leadingIcon="message"
-              accessibilityLabel={t('landlord.lease.messageA11y', { name: lease.tenant })}
-              onPress={() =>
-                router.push({ pathname: '/thread/[threadId]', params: { threadId: lease.id } })
-              }
-            >
-              {t('landlord.lease.message')}
-            </Button>
-          </View>
-          <View style={{ flex: 1 }}>
-            <Button
-              variant="outline"
-              block
-              leadingIcon="users"
-              accessibilityLabel={t('landlord.lease.visitorsA11y', { name: lease.tenant })}
-              onPress={() =>
-                router.push({
-                  pathname: '/lease/[leaseId]/visitors',
-                  // R7: the landlord reads this log, never writes to it. The
-                  // tenant's own screen (session 7) owns the route; this is the
-                  // contract between the two seats.
-                  params: { leaseId: lease.id, seat: 'landlord' },
-                })
-              }
-            >
-              {t('landlord.lease.visitors')}
-            </Button>
-          </View>
-        </View>
+        {/* R7's outline button. It leaves this surface for a record another
+            session owns, so it does not pretend to do the work here. */}
+        <Button
+          variant="outline"
+          block
+          leadingIcon="users"
+          accessibilityLabel={t('landlord.lease.visitorsA11y', { name: lease.tenant })}
+          onPress={() =>
+            router.push({
+              pathname: '/lease/[leaseId]/visitors',
+              // R7: the landlord reads this log, never writes to it. The
+              // tenant's own screen (session 7) owns the route; this is the
+              // contract between the two seats.
+              params: { leaseId: lease.id, seat: 'landlord' },
+            })
+          }
+        >
+          {t('landlord.lease.visitors')}
+        </Button>
 
+        {/* The two rules a landlord must not get wrong. The "Payments · mock
+            adapter" chip that sat on this card is gone: nothing on this
+            screen moves money, so there was no payment for it to describe
+            (mobile audit 2026-10-05, LL-13). */}
         <View
           style={{
             gap: 10,
@@ -350,7 +361,6 @@ export function LandlordLeaseDetail({ id }: { id: string }) {
             backgroundColor: c.surface2,
           }}
         >
-          <AdapterChip label={t('landlord.mockAdapter')} hint={t('landlord.mockAdapterHint')} />
           <Text size="xs" color="textMuted" style={{ lineHeight: 17 }}>
             {t('landlord.filing.note')}
           </Text>

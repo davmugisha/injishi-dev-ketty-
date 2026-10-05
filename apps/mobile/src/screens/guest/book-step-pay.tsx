@@ -28,6 +28,11 @@
  *
  * **No stored payment methods** (FL07 §9, F-B05 §6 out of scope). Nothing here
  * offers to remember a number, and the escrow note says so in as many words.
+ *
+ * **Locked while a prompt is out.** Once the payment prompt has gone to a
+ * handset, changing the method or the number on screen would describe a
+ * payment that is not the one in flight, so both are read-only until the rail
+ * answers (mobile audit 2026-10-05, GK-13).
  */
 import { View } from 'react-native';
 import type { MoneyBreakdown } from '@injishi/contracts';
@@ -43,11 +48,21 @@ export interface StepPayProps {
   money: MoneyBreakdown;
   method: PayMethod;
   handset: string;
+  /** A prompt is out with the rail. See the header. */
+  locked?: boolean;
   onMethod: (method: PayMethod) => void;
   onHandset: (value: string) => void;
 }
 
-export function BookStepPay({ room, money, method, handset, onMethod, onHandset }: StepPayProps) {
+export function BookStepPay({
+  room,
+  money,
+  method,
+  handset,
+  locked = false,
+  onMethod,
+  onHandset,
+}: StepPayProps) {
   const { space } = useTheme();
   const t = useT();
 
@@ -73,6 +88,7 @@ export function BookStepPay({ room, money, method, handset, onMethod, onHandset 
               title={t(spec.label)}
               hint={t(spec.hint)}
               icon={spec.icon}
+              disabled={locked}
               onPress={() => onMethod(spec.id)}
               testID={`book-method-${spec.id}`}
             >
@@ -88,6 +104,7 @@ export function BookStepPay({ room, money, method, handset, onMethod, onHandset 
                 keyboardType="phone-pad"
                 autoComplete="tel"
                 maxLength={11}
+                editable={!locked}
                 helper={phone.tone === 'hint' ? (phone.text ?? undefined) : undefined}
                 error={phone.tone === 'error' ? (phone.text ?? undefined) : undefined}
                 testID={`book-handset-${spec.id}`}

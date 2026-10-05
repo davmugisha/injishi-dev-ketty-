@@ -23,6 +23,21 @@
  * **The success motion is a scale and a fade, and reduced motion keeps the
  * fade.** §7.6's rule is that reduced motion removes the travel and never the
  * feedback, so the mark still arrives — it simply stops springing.
+ *
+ * ## Mobile audit 2026-10-05 (GK-16, GK-15)
+ *
+ * **A failed read is an error, not "not on this device".** It used to fall
+ * through to the not-found state; it now says the read failed and offers a
+ * retry, and not-found is kept for a booking that really is not here.
+ *
+ * **The booking reference can be selected and copied** from the system's own
+ * text menu. A Copy button needs `expo-clipboard`, which this app does not
+ * ship, and React Native's own clipboard is deprecated and absent on some
+ * builds; selectable text works everywhere and claims nothing it cannot do.
+ *
+ * **"Room type" names the room.** The row printed the PROPERTY's name; a
+ * booking made in the app now carries the room's, and the property sits on its
+ * own "Stay" row.
  */
 import { useEffect } from 'react';
 import { ScrollView, View } from 'react-native';
@@ -39,6 +54,7 @@ import {
   Button,
   Card,
   EmptyState,
+  ErrorState,
   Icon,
   MoneyAmount,
   Skeleton,
@@ -55,9 +71,10 @@ import { nightsLabel } from './listing-format';
 import { AdapterChip, FactRow } from './book-parts';
 
 export function BookConfirmedScreen({ bookingId }: { bookingId: string | undefined }) {
-  const { trip, status } = useTrip(bookingId);
+  const { trip, status, retry } = useTrip(bookingId);
 
   if (status === 'loading') return <ConfirmedSkeleton />;
+  if (status === 'error') return <ReadFailed onRetry={retry} />;
   if (!trip) return <NotFound />;
   return <Confirmed trip={trip} />;
 }
@@ -190,7 +207,7 @@ function Confirmed({ trip }: { trip: Trip }) {
                 flexDirection: 'row',
                 alignItems: 'center',
                 gap: 8,
-                height: 32,
+                minHeight: 32,
                 paddingHorizontal: 12,
                 borderRadius: radius.sm,
                 backgroundColor: c.surface2,
@@ -201,11 +218,15 @@ function Confirmed({ trip }: { trip: Trip }) {
               <Text size="xs" color="textMuted">
                 {t('book.reference')}
               </Text>
+              {/* Selectable, so it can be copied from the system menu and read
+                  to an agent. See the header for why there is no Copy button. */}
               <Text
                 family="mono"
                 weight="semibold"
                 size="sm"
                 color="textStrong"
+                selectable
+                testID="book-reference"
                 style={{ letterSpacing: 0.3 }}
               >
                 {trip.id}
@@ -220,7 +241,10 @@ function Confirmed({ trip }: { trip: Trip }) {
           {/* --------------------------------------------------- the facts */}
           <Card variant="flat">
             <View style={{ gap: 11 }}>
-              <FactRow label={t('book.factRoom')} value={trip.property} />
+              <FactRow label={t('book.factStay')} value={trip.property} />
+              {trip.roomName ? (
+                <FactRow label={t('book.factRoom')} value={trip.roomName} />
+              ) : null}
               <FactRow label={t('book.factDates')} value={dates} />
               <FactRow
                 label={t('book.factGuests')}
@@ -292,6 +316,34 @@ function Confirmed({ trip }: { trip: Trip }) {
 }
 
 /* ------------------------------------------------------------ the states */
+
+/**
+ * The read failed. Distinct from not-found on purpose: a booking we could not
+ * read is not a booking that is missing, and saying "not on this device" about
+ * a failed read sends the guest looking in the wrong place (GK-16).
+ */
+function ReadFailed({ onRetry }: { onRetry: () => void }) {
+  const { c, space } = useTheme();
+  const insets = useSafeAreaInsets();
+  const t = useT();
+
+  return (
+    <View
+      style={{
+        flex: 1,
+        backgroundColor: c.bgApp,
+        paddingTop: insets.top + 56,
+        paddingHorizontal: space[4],
+      }}
+    >
+      <ErrorState
+        title={t('state.errorTitle')}
+        body={t('state.errorBody', { label: t('book.bookingLabel') })}
+        onRetry={onRetry}
+      />
+    </View>
+  );
+}
 
 /**
  * A confirmation whose booking is not on this device.

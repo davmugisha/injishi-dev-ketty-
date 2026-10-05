@@ -23,6 +23,8 @@ export { SubscriptionScreen } from './subscription';
 export { RevealCreditsScreen } from './reveal-credits';
 export { PersonalDetailsScreen } from './personal-details';
 export { SecurityScreen } from './security';
+export { PrivacyScreen, useCrashReportingChoice } from './privacy';
+export { DiagnosticsScreen } from './diagnostics';
 export { AppearanceSheet, APPEARANCE_GLYPH } from './appearance';
 export { SignOutSheet } from './sign-out';
 

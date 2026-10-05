@@ -7,7 +7,7 @@
  * the only place in the Guest flow where the app tells someone their input is
  * wrong, and getting THAT wrong is how a correct number gets rejected.
  */
-import { computeBreakdown, type MoneyBreakdown } from '@injishi/contracts';
+import { MAX_NIGHTS, computeBreakdown, type MoneyBreakdown } from '@injishi/contracts';
 import type { MessageKey, Translate } from '@/i18n/i18n';
 import type { DateRange, IsoDay } from '@/components';
 import { nightsBetween } from '@/components';
@@ -192,6 +192,12 @@ export interface StepInput {
 export function blockedOnDates(input: StepInput): MessageKey | null {
   if (input.soldOut) return 'book.blockedSoldOut';
   if (!input.dates.start || !input.dates.end) return 'book.blockedDates';
+  // The API refuses a stay longer than `MAX_NIGHTS` (the contract's one
+  // number), so the step does too, before any payment. The calendar already
+  // stops a new pick there; this catches a range handed in from the search or
+  // the property page (mobile audit 2026-10-05, GK-30). The copy takes the
+  // number as `{count}`, filled from the same constant.
+  if (nightsBetween(input.dates.start, input.dates.end) > MAX_NIGHTS) return 'book.blockedTooLong';
   if (billableGuests(input.party) > input.sleeps) return 'book.blockedParty';
   return null;
 }
@@ -244,6 +250,47 @@ export function quote(args: {
 /** Nights in the range, or 0 while it is incomplete. */
 export function nightsIn(dates: DateRange): number {
   return dates.start && dates.end ? nightsBetween(dates.start, dates.end) : 0;
+}
+
+/* ------------------------------------------------------ the calendar's edges */
+
+const pad = (n: number): string => String(n).padStart(2, '0');
+
+/**
+ * Today as `YYYY-MM-DD` where the property is, not where the phone is.
+ *
+ * Every stay in the catalogue is in Rwanda (`PROPERTY_TIME_ZONE` in
+ * `@injishi/contracts` is `Africa/Kigali`), and the step tells the guest dates
+ * are read there. The calendar's own default is the PHONE's day, which for a
+ * guest booking from Toronto at 20:00 is still yesterday in Kigali's terms, or
+ * from Kigali at 01:00 is today while a phone left on UTC says yesterday
+ * (mobile audit 2026-10-05, GK-30).
+ *
+ * Arithmetic rather than `Intl`, on purpose: Rwanda keeps Central Africa Time,
+ * UTC+2 all year with no daylight saving, so the day there is the UTC day of
+ * the instant two hours on. That is exact, and it does not depend on which
+ * time zone data a given Hermes build carries.
+ */
+export function kigaliToday(now: Date = new Date()): IsoDay {
+  const there = new Date(now.getTime() + 2 * 60 * 60 * 1000);
+  return `${there.getUTCFullYear()}-${pad(there.getUTCMonth() + 1)}-${pad(there.getUTCDate())}`;
+}
+
+/** `2026-09-04` plus `n` calendar days. UTC arithmetic, so no zone can move it. */
+export function addIsoDays(day: IsoDay, n: number): IsoDay {
+  const at = new Date(Date.UTC(+day.slice(0, 4), +day.slice(5, 7) - 1, +day.slice(8, 10) + n));
+  return `${at.getUTCFullYear()}-${pad(at.getUTCMonth() + 1)}-${pad(at.getUTCDate())}`;
+}
+
+/**
+ * The last day the calendar may offer for the tap that comes next.
+ *
+ * Choosing a check-out: the check-in plus `MAX_NIGHTS`, so a stay the API
+ * would refuse cannot be picked. Choosing a check-in (nothing picked, or a full
+ * range that the next tap restarts): no bound beyond the calendar's own.
+ */
+export function lastPickableDay(dates: DateRange): IsoDay | undefined {
+  return dates.start && !dates.end ? addIsoDays(dates.start, MAX_NIGHTS) : undefined;
 }
 
 /* --------------------------------------------------------------- the mint */

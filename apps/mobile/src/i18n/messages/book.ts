@@ -38,7 +38,7 @@ export const en = {
 
   /* ----------------------------------------------- step 1, dates and guests */
   'book.roomAt': '{room} · {place}',
-  'book.perNight': '/ night',
+  'book.perNight': 'per guest / night',
   'book.when': 'When',
   'book.who': 'Who is coming',
   'book.pickDates': 'Pick your check-in and check-out.',
@@ -49,12 +49,12 @@ export const en = {
   'book.increment': 'One more {label}',
   'book.decrement': 'One fewer {label}',
   'book.stepperValue': '{label}: {count}',
-  'book.rateTimesNights': '{rate} × {nights}',
   'book.runningTotal': 'Accommodation so far',
   'book.totalLabel': 'Total',
   'book.beforeFees': 'Fees are added at the next step.',
 
   /* --------------------------------------------------- step 2, your booking */
+  'book.factStay': 'Stay',
   'book.factRoom': 'Room type',
   'book.factDates': 'Dates',
   'book.factGuests': 'Guests',
@@ -110,9 +110,18 @@ export const en = {
   'book.blockedRules': 'Tick the house rules to continue.',
   'book.blockedHandset': 'Enter the number the payment prompt goes to.',
   'book.blockedSoldOut': 'This room type is gone for those dates.',
+  // The API refuses a stay over `MAX_NIGHTS`, so the stepper says so before
+  // the payment rather than after it (mobile audit 2026-10-05, GK-30).
+  'book.blockedTooLong': 'A stay can be at most {count} nights. Pick an earlier check-out.',
   'book.blockedOffline': 'You are offline. Paying needs a connection, and your choices are kept until you have one.',
   'book.payFailedTitle': 'The payment did not go through',
   'book.payFailedBody': 'Nothing was charged. Check the details and try again.',
+  // The rail said yes and the booking did not save on this phone. Said as it
+  // is, with the reference kept in view (brief item 1: no success after a
+  // failed write).
+  'book.saveFailedTitle': 'The booking did not save',
+  'book.saveFailedBody':
+    'Your payment was confirmed, but the booking did not save on this phone. Keep the reference above and try again.',
 
   /* ----------------------------------------------------------- 8. confirmed */
   'book.confirmedTitle': 'Booking confirmed',
@@ -132,6 +141,7 @@ export const en = {
   'book.confirmedNotFoundBody':
     'The booking this link points at is not on this device. Your Trips tab has every booking you have made.',
   'book.confirmedNotFoundAction': 'Open Trips',
+  'book.bookingLabel': 'your booking',
 } as const;
 
 /**
@@ -154,7 +164,8 @@ export const rw: Record<keyof typeof en, string> = {
   'book.notFoundAction': 'Subira mu gushakisha',
 
   'book.roomAt': '{room} · {place}',
-  'book.perNight': '/ ijoro',
+  // English until Kinyarwanda work starts: the unit changed meaning (GB-08).
+  'book.perNight': en['book.perNight'],
   'book.when': 'Ryari',
   'book.who': 'Abaza',
   'book.pickDates': 'Hitamo itariki wizamo n’iyo uzasohokaho.',
@@ -165,11 +176,11 @@ export const rw: Record<keyof typeof en, string> = {
   'book.increment': 'Ongeraho {label} umwe',
   'book.decrement': 'Kuraho {label} umwe',
   'book.stepperValue': '{label}: {count}',
-  'book.rateTimesNights': '{rate} × {nights}',
   'book.runningTotal': 'Icumbi kugeza ubu',
   'book.totalLabel': 'Igiteranyo',
   'book.beforeFees': 'Amafaranga ya serivisi yiyongera ku ntambwe ikurikira.',
 
+  'book.factStay': en['book.factStay'],
   'book.factRoom': 'Ubwoko bw’icyumba',
   'book.factDates': 'Amatariki',
   'book.factGuests': 'Abashyitsi',
@@ -219,10 +230,13 @@ export const rw: Record<keyof typeof en, string> = {
   'book.blockedRules': 'Emeza amabwiriza y’urugo kugira ngo ukomeze.',
   'book.blockedHandset': 'Andika numero ubutumwa bwo kwishyura buzagendaho.',
   'book.blockedSoldOut': 'Iki cyumba nticyakiboneka kuri ayo matariki.',
+  'book.blockedTooLong': en['book.blockedTooLong'],
   'book.blockedOffline':
     'Nta murandasi ufite. Kwishyura bisaba umurandasi, kandi ibyo wahisemo birabikwa kugeza ubonye.',
   'book.payFailedTitle': 'Ubwishyu ntibwagenze neza',
   'book.payFailedBody': 'Nta mafaranga yavuyeho. Reba amakuru maze wongere ugerageze.',
+  'book.saveFailedTitle': en['book.saveFailedTitle'],
+  'book.saveFailedBody': en['book.saveFailedBody'],
 
   'book.confirmedTitle': 'Ifatabuguzi ryemejwe',
   'book.requestedTitle': 'Icyifuzo cyoherejwe',
@@ -241,4 +255,5 @@ export const rw: Record<keyof typeof en, string> = {
   'book.confirmedNotFoundBody':
     'Ifatabuguzi iyi link yerekeza kuri ryo ntiriri kuri iyi telefone. Igice cy’Ingendo gifite ayo wafashe yose.',
   'book.confirmedNotFoundAction': 'Fungura Ingendo',
+  'book.bookingLabel': en['book.bookingLabel'],
 };

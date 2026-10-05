@@ -29,6 +29,17 @@ jest.mock('expo-network', () => ({
 }));
 
 /**
+ * Who is holding the phone, as `useMyIdentity()` reports it. Mocked rather
+ * than served, because the greeting's rule is about the three answers the hook
+ * gives (a server name, a read in flight, no name on file) and nothing else.
+ */
+const mockIdentity = { name: '', initials: '', phone: '', fromServer: false, pending: false };
+jest.mock('@/queries/profile', () => ({
+  ...jest.requireActual('@/queries/profile'),
+  useMyIdentity: () => mockIdentity,
+}));
+
+/**
  * Explore reads the active workspace for its chip and shows a toast when a
  * heart lands, so both providers are real here rather than mocked — a toast
  * that never mounts is the assertion this file most wants to make.
@@ -47,6 +58,13 @@ beforeEach(() => {
   resetFixtures();
   mockNetwork.isConnected = true;
   mockNetwork.isInternetReachable = true;
+  Object.assign(mockIdentity, {
+    name: '',
+    initials: '',
+    phone: '',
+    fromServer: false,
+    pending: false,
+  });
 });
 
 /**
@@ -60,10 +78,29 @@ afterEach(async () => {
   resetFixtures();
 });
 
+/**
+ * The cold read, and it has to run FIRST: `useFixture` keeps its warm keys at
+ * module scope, so only the first render of the list in this file is cold.
+ */
+describe('the cold read', () => {
+  it('counts nothing on the List tab until the list has loaded', async () => {
+    renderInScheme(guest(<Explore />), 'light');
+    // "List, 0" while the read is in flight is a misleading zero (GB-18).
+    expect(screen.getByLabelText(en['explore.viewList'])).toBeTruthy();
+    expect(screen.queryByLabelText(`${en['explore.viewList']}, 0`)).toBeNull();
+
+    await settled();
+    expect(
+      screen.getByLabelText(`${en['explore.viewList']}, ${searchStays(DEFAULT_SEARCH).length}`),
+    ).toBeTruthy();
+  });
+});
+
 describe.each(SCHEMES)('Explore in the %s scheme', (scheme) => {
-  it('greets the persona by their first name and asks the artboard’s question', async () => {
+  it('greets with the name the server holds, and asks the artboard’s question', async () => {
+    Object.assign(mockIdentity, { name: 'Aline Uwase', initials: 'AU', fromServer: true });
     renderInScheme(guest(<Explore />), scheme);
-    expect(screen.getByText(en['explore.greeting'].replace('{name}', 'Samuel'))).toBeTruthy();
+    expect(screen.getByText(en['explore.greeting'].replace('{name}', 'Aline'))).toBeTruthy();
     expect(screen.getByText(en['explore.title'])).toBeTruthy();
     await settled();
   });
@@ -113,8 +150,9 @@ describe.each(SCHEMES)('Explore in the %s scheme', (scheme) => {
     // The count line is the load-bearing assertion because it is in the list
     // HEADER: which rows FlashList has mounted at any instant is a
     // virtualization detail, and asserting on one under load is a flake.
-    // Nyungwe is request-to-book, so it must go; Karongi is the highest-scoring
-    // instant-book stay, so it is the first row either way.
+    // Umurage and Nyungwe are request-to-book, so they must go; Lake Kivu Suite
+    // is the first instant-book stay in the catalogue's own order, which is
+    // what "Recommended" now is (GB-07), so it is the first row.
     const instant = searchStays({ ...DEFAULT_SEARCH, instantBook: true }).length;
     await waitFor(() => {
       expect(
@@ -124,8 +162,8 @@ describe.each(SCHEMES)('Explore in the %s scheme', (scheme) => {
           }`,
         ),
       ).toBeTruthy();
-      expect(screen.queryByText('Nyungwe Forest Lodge')).toBeNull();
-      expect(screen.getByText('Karongi Lake House')).toBeTruthy();
+      expect(screen.queryByText('Umurage Guesthouse')).toBeNull();
+      expect(screen.getByText('Lake Kivu Suite')).toBeTruthy();
     });
   });
 
@@ -158,6 +196,9 @@ describe.each(SCHEMES)('Explore in the %s scheme', (scheme) => {
     fireEvent.press(screen.getByLabelText(en['explore.viewMap']));
 
     await waitFor(() => expect(screen.getByText(en['explore.mapNoteTitle'])).toBeTruthy());
+    // In the reader's words: no build, endpoint or ticket talk (GB-14).
+    expect(en['explore.mapNoteTitle']).not.toMatch(/API|endpoint|F-B\d/i);
+    expect(en['explore.mapNoteBody']).not.toMatch(/API|endpoint|F-B\d/i);
     // The prompt to choose a pin stands where a selected stay will.
     expect(screen.getByText(en['explore.mapPick'])).toBeTruthy();
 
@@ -173,7 +214,7 @@ describe.each(SCHEMES)('Explore in the %s scheme', (scheme) => {
     );
   });
 
-  it('saves from the tile and says so, without waiting on the write', async () => {
+  it('fills the heart at once, and says "Saved" only once the write has landed', async () => {
     renderInScheme(guest(<Explore />), scheme);
     await settled();
 
@@ -184,7 +225,31 @@ describe.each(SCHEMES)('Explore in the %s scheme', (scheme) => {
     // overlay in `useSavedStays`, and a heart that lagged its own tap would be
     // the bug it exists to prevent.
     expect(screen.getAllByLabelText(en['a11y.unsave']).length).toBeGreaterThan(0);
-    await waitFor(() => expect(screen.getByText(en['explore.savedToast'])).toBeTruthy());
+    // The words wait for the write: a toast picked from the intent claimed
+    // saves that had failed (brief item 1).
+    expect(screen.queryByText(en['explore.savedToast'])).toBeNull();
+    await waitFor(() => expect(screen.getByText(en['explore.savedToast'])).toBeTruthy(), {
+      timeout: 5000,
+    });
+  });
+
+  it('shows no score chip and no review count on a card (GB-07)', async () => {
+    renderInScheme(guest(<Explore />), scheme);
+    await settled();
+    // Lake Kivu Suite's fixture score is 8.5 ("Excellent"); nothing may print it.
+    expect(screen.queryByText('8.5')).toBeNull();
+    expect(screen.queryByText(/Excellent/)).toBeNull();
+    // And its rate is per guest per night (GB-08).
+    expect(screen.getAllByText(en['explore.perNight']).length).toBeGreaterThan(0);
+  });
+
+  it('keys each card image to its stay, so a recycled row never shows the last one', async () => {
+    // gaps.md B8; mobile audit 2026-10-05, GB-11.
+    renderInScheme(guest(<Explore />), scheme);
+    await settled();
+    expect(
+      screen.UNSAFE_getAllByProps({ recyclingKey: 'kivu-sunbird-suite' }).length,
+    ).toBeGreaterThan(0);
   });
 
   it('opens the property when a tile is pressed', async () => {
@@ -212,6 +277,20 @@ describe.each(SCHEMES)('Explore in the %s scheme', (scheme) => {
     expect(screen.getByLabelText(rw['explore.filterKigali'])).toBeTruthy();
     expect(screen.getByLabelText(rw['search.instantBook'])).toBeTruthy();
     expect(screen.getByLabelText(rw['explore.view'])).toBeTruthy();
+  });
+
+  it('greets with no name at all when the server has none, never a fixture one', async () => {
+    renderInScheme(guest(<Explore />), scheme);
+    expect(screen.getByText(en['explore.greetingNoName'])).toBeTruthy();
+    expect(screen.queryByText(/Samuel/)).toBeNull();
+    await settled();
+  });
+
+  it('greets with no name while the profile read is still in flight', async () => {
+    Object.assign(mockIdentity, { pending: true });
+    renderInScheme(guest(<Explore />), scheme);
+    expect(screen.getByText(en['explore.greetingNoName'])).toBeTruthy();
+    await settled();
   });
 
   it('says the list is the last one that loaded when the connection is gone', async () => {

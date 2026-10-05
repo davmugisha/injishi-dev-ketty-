@@ -28,6 +28,16 @@
  * some Android builds, and a draft in `useState` would be gone when the camera
  * came back. The step index is in the draft too, so backing out to the trip and
  * returning lands on the step the guest left.
+ *
+ * ## Mobile audit 2026-10-05
+ *
+ * **A failed read is an error with a retry** (GK-17). It used to draw "This
+ * check-in is not open", which tells a guest in the window that they are
+ * outside it.
+ *
+ * **"You are checked in" only after the write lands** (brief item 1). The
+ * toast and the return to the trip used to follow the write whatever it did;
+ * now a write that did not land keeps the draft and the screen, and says so.
  */
 import { useState } from 'react';
 import { View, ScrollView } from 'react-native';
@@ -40,6 +50,7 @@ import {
   Card,
   ChipGroup,
   EmptyState,
+  ErrorState,
   Icon,
   InputField,
   PhotoPicker,
@@ -71,7 +82,7 @@ export function TripCheckIn({ bookingId }: { bookingId: string | undefined }) {
   const router = useRouter();
   const toast = useToast();
 
-  const { trip, status } = useTrip(bookingId);
+  const { trip, status, retry } = useTrip(bookingId);
   const now = useNow();
   const handle = useCheckInDraft(bookingId ?? 'unknown');
   const { checkIn, status: writeStatus } = useCheckInTrip();
@@ -87,6 +98,19 @@ export function TripCheckIn({ bookingId }: { bookingId: string | undefined }) {
     return (
       <Frame insetsTop={insets.top}>
         <SkeletonList rows={3} label={t('state.loadingList', { label: t('checkin.title') })} />
+      </Frame>
+    );
+  }
+
+  if (status === 'error') {
+    // A read that failed is not a check-in that is closed (GK-17).
+    return (
+      <Frame insetsTop={insets.top}>
+        <ErrorState
+          title={t('state.errorTitle')}
+          body={t('state.errorBody', { label: t('trips.listLabel') })}
+          onRetry={retry}
+        />
       </Frame>
     );
   }
@@ -142,10 +166,16 @@ export function TripCheckIn({ bookingId }: { bookingId: string | undefined }) {
         return;
       }
     }
-    await checkIn(trip.id);
+    const outcome = await checkIn(trip.id);
+    setCommitting(false);
+    if (outcome !== 'done') {
+      // Nothing changed: the trip is not checked in and the guide stays
+      // locked, so the draft and the screen stay too (brief item 1).
+      toast.show(t('checkin.saveFailed'), 'danger');
+      return;
+    }
     handle.clear();
     toast.show(t('checkin.doneToast'), 'success');
-    setCommitting(false);
     // Back to the trip, where the arrival guide is now unlocked. `replace` so
     // the back gesture does not walk into a flow that has already committed.
     router.replace({ pathname: '/trip/[id]', params: { id: trip.id } });

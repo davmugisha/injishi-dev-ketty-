@@ -17,6 +17,21 @@
  * An `ended` lease is the mirror of that: the record stays readable and the
  * write actions go, because a tenancy that has closed is history rather than a
  * thing you can file a notice against.
+ *
+ * What the mobile audit of 2026-10-05 took off this screen, and why:
+ *
+ *   - **Request renewal and the renewal-pending note** (TN-13). Renewal is P2
+ *     in the owner's v1.0 cut and its route is hidden, so the button bounced
+ *     the reader home. The visitor log stays linked; its place in the cut is
+ *     undecided.
+ *   - **The documents list** (TN-14). Every row offered a download that only
+ *     showed a toast saying the download was mocked, over file sizes nobody
+ *     measured. The contract is still one tap away, in its own viewer.
+ *   - **Pay rent outside the demo** (TN-07). The sticky bar's button exists
+ *     only where the pay sheet does, which is the demo stack. It opens THIS
+ *     lease's sheet now; it used to open Rent, which showed whichever lease
+ *     came first (TN-16). Rent history opens this lease's ledger for the same
+ *     reason.
  */
 import { View, ScrollView } from 'react-native';
 import { useRouter } from 'expo-router';
@@ -36,13 +51,13 @@ import {
   TaxBadge,
   Text,
   todayIso,
-  useToast,
 } from '@/components';
 import { useTheme } from '@/theme/theme';
 import { useT, type Translate } from '@/i18n/i18n';
 import { useTenancy } from '@/data/tenancy-store';
-import { useTickets, ticketsForLease } from '@/data/tickets';
+import { useTickets, openTicketsForLease } from '@/data/tickets';
 import { nextDuePeriod, paidToDate, type Tenancy } from '@/data/rentals';
+import { usePlatform } from '@/queries/platform';
 import { HeroCard, HeroLabel, HeroMoney, useHeroTones } from './hero-card';
 import { TenureBadge } from './leases';
 import { dueCaption, formatFullDay, formatMonthYear } from './dates';
@@ -103,19 +118,11 @@ function StatusNote({ tenancy, t }: { tenancy: Tenancy; t: Translate }) {
               icon: 'clock' as const,
               title: t('lease.noticeFiledTitle'),
               body: t('lease.noticeFiledBody', {
+                landlord: tenancy.landlord,
                 date: formatFullDay(tenancy.notice.moveOutOn, t),
               }),
             }
-          : tenancy.renewal?.state === 'pending'
-            ? {
-                icon: 'repeat' as const,
-                title: t('lease.renewalPendingTitle'),
-                body: t('lease.renewalPendingBody', {
-                  date: formatFullDay(tenancy.renewal.endOn, t),
-                  landlord: tenancy.landlord,
-                }),
-              }
-            : null;
+          : null;
 
   if (!note) return null;
 
@@ -143,8 +150,8 @@ export function LeaseDetail({ id }: { id: string | undefined }) {
   const insets = useSafeAreaInsets();
   const router = useRouter();
   const t = useT();
-  const toast = useToast();
   const tones = useHeroTones();
+  const { isDemo } = usePlatform();
   const today = todayIso();
 
   const read = useTenancy(id);
@@ -160,7 +167,16 @@ export function LeaseDetail({ id }: { id: string | undefined }) {
   const live = !unsigned && !closed;
   const due = nextDuePeriod(lease);
   const collected = paidToDate(lease);
-  const open = ticketsForLease(tickets.data ?? [], lease.id).filter((x) => x.state !== 'resolved');
+  const open = openTicketsForLease(tickets.data ?? [], lease.id);
+  // A count is said only once the tickets have been read. Before that, "Report
+  // something broken" was drawn as if there were none and then flipped to
+  // "1 open" (mobile audit 2026-10-05, TN-25).
+  const ticketLine =
+    tickets.status === 'loading'
+      ? t('lease.ticketsChecking')
+      : open.length > 0
+        ? t('lease.openTicketCount', { count: open.length })
+        : t('lease.noTickets');
 
   return (
     <View style={{ flex: 1, backgroundColor: c.bgApp }}>
@@ -300,11 +316,7 @@ export function LeaseDetail({ id }: { id: string | undefined }) {
               <ListRow
                 icon="wrench"
                 title={t('lease.logMaintenance')}
-                subtitle={
-                  open.length > 0
-                    ? t('lease.openTicketCount', { count: open.length })
-                    : t('lease.noTickets')
-                }
+                subtitle={ticketLine}
                 divider
                 chevron={live}
                 trailing={live ? undefined : <Icon name="lock" size={17} color={c.textSubtle} />}
@@ -330,32 +342,21 @@ export function LeaseDetail({ id }: { id: string | undefined }) {
                     <MoneyAmount value={collected} strong size="sm" />
                   )
                 }
-                onPress={unsigned ? undefined : () => router.push('/rent')}
+                onPress={
+                  unsigned
+                    ? undefined
+                    : () => router.push({ pathname: '/rent', params: { leaseId: lease.id } })
+                }
               />
             </View>
           </Card>
 
-          {/* Frame R15's two outline buttons. Both are gone on a lease that has
-              not started and on one that has closed — neither can be renewed
-              and neither can be moved out of. */}
+          {/* Frame R15 drew two outline buttons here. Renewal is hidden in
+              v1.0 (see the header), so move-out stands alone, and it is gone
+              on a lease that has not started and on one that has closed:
+              neither can be moved out of. */}
           {live ? (
-            <View style={{ flexDirection: 'row', gap: space[3] }}>
-              <View style={{ flex: 1 }}>
-                <Button
-                  variant="outline"
-                  size="md"
-                  block
-                  leadingIcon="repeat"
-                  onPress={() =>
-                    router.push({
-                      pathname: '/lease/[leaseId]/renew',
-                      params: { leaseId: lease.id },
-                    })
-                  }
-                >
-                  {t('lease.requestRenewal')}
-                </Button>
-              </View>
+            <View style={{ flexDirection: 'row' }}>
               <DangerOutlineButton
                 onPress={() =>
                   router.push({
@@ -368,37 +369,6 @@ export function LeaseDetail({ id }: { id: string | undefined }) {
               </DangerOutlineButton>
             </View>
           ) : null}
-
-          <SectionLabel>{t('lease.documents')}</SectionLabel>
-          <Card bodyStyle={{ paddingVertical: 4 }}>
-            <View>
-              {lease.documents.map((d, i) => (
-                <ListRow
-                  key={d.label}
-                  icon="fileText"
-                  title={d.label}
-                  subtitle={d.meta}
-                  divider={i < lease.documents.length - 1}
-                  chevron={false}
-                  accessibilityLabel={
-                    unsigned
-                      ? t('lease.documentLocked', { document: d.label })
-                      : t('lease.downloadDocument', { document: d.label })
-                  }
-                  trailing={
-                    <Icon
-                      name={unsigned ? 'clock' : 'download'}
-                      size={17}
-                      color={c.textSubtle}
-                    />
-                  }
-                  onPress={
-                    unsigned ? undefined : () => toast.show(t('contract.downloadToast'), 'neutral')
-                  }
-                />
-              ))}
-            </View>
-          </Card>
 
           <SectionLabel>{t('lease.compliance')}</SectionLabel>
           <Card variant="tint">
@@ -455,7 +425,7 @@ export function LeaseDetail({ id }: { id: string | undefined }) {
             {t('leases.reviewAndSign')}
           </Button>
         </StickyBar>
-      ) : due ? (
+      ) : due && isDemo ? (
         <StickyBar>
           <View style={{ flex: 1, paddingRight: space[3] }}>
             <Text size="xs" color="textMuted">
@@ -465,7 +435,16 @@ export function LeaseDetail({ id }: { id: string | undefined }) {
             </Text>
             <MoneyAmount value={due.amount} strong tone="brand" size="lg" />
           </View>
-          <Button variant="primary" leadingIcon="wallet" onPress={() => router.push('/rent')}>
+          <Button
+            variant="primary"
+            leadingIcon="wallet"
+            onPress={() =>
+              router.push({
+                pathname: '/pay-rent',
+                params: { leaseId: lease.id, month: due.month },
+              })
+            }
+          >
             {t('lease.payRent')}
           </Button>
         </StickyBar>

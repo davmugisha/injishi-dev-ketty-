@@ -7,6 +7,12 @@
  * this app, and until a gateway exists no card rail does (see
  * `screens/guest/book-format.ts`).
  *
+ * **The demo's alone.** The rail behind this sheet is a client timer, not a
+ * gateway, so `app/_layout.tsx` opens the route only when `usePlatform().isDemo`
+ * says so, and every entry point (Rent's hero, lease detail's sticky bar) is
+ * drawn on the same test (mobile audit 2026-10-05, TN-07). On the demo stack
+ * the "mock adapter" wording below is true, which is why it stays.
+ *
  * ## What gaps.md B2 changed here, and why it is not a screen change
  *
  * This sheet used to collect a method and settle: press, wait, done. That
@@ -21,6 +27,16 @@
  * hands the rest to `data/payment-attempt.ts`. That machine is shared with the
  * guest checkout, so the two cannot come to describe the same rail differently,
  * and the four states are drawn by one component.
+ *
+ * ## The period is frozen at the press
+ *
+ * The attempt token is keyed by the period being paid, and the period used to
+ * be re-derived on every render from what was still owed. Paying it is exactly
+ * what makes it stop being owed, so the moment the ledger recorded the payment
+ * the token moved, the attempt read as nothing, and the confirmation and its
+ * reference vanished about a third of a second after they appeared (TN-08).
+ * The press now freezes the period, and with it the token, until the sheet
+ * closes.
  *
  * ## The refusal, which is the most deliberate thing on this screen
  *
@@ -50,6 +66,8 @@ import { useLocalSearchParams, useRouter } from 'expo-router';
 import {
   Button,
   EmptyState,
+  ErrorState,
+  formatMoney,
   Icon,
   InputField,
   MoneyAmount,
@@ -61,13 +79,15 @@ import {
   todayIso,
   useOffline,
   useToast,
+  WriteError,
   type IconName,
 } from '@/components';
 import { useTheme } from '@/theme/theme';
 import { useT, type MessageKey } from '@/i18n/i18n';
 import { useSettleRent, useTenancy } from '@/data/tenancy-store';
-import { nextDuePeriod, type PayMethod } from '@/data/rentals';
+import { nextDuePeriod, type PayMethod, type RentPeriod } from '@/data/rentals';
 import { isSettled, usePaymentAttempt } from '@/data/payment-attempt';
+import { useMyIdentity } from '@/queries/profile';
 import { digitsOf, displayPhone, formatPhone, isComplete, isPlausible } from '../auth/phone';
 import { formatFullDay } from './dates';
 
@@ -102,12 +122,16 @@ const METHODS: MethodRow[] = [
   },
 ];
 
+/** How the ledger write for a confirmed payment stands. */
+type LedgerState = 'idle' | 'saving' | 'done' | 'error';
+
 export function PayRent() {
   const { c, space, radius } = useTheme();
   const router = useRouter();
   const t = useT();
   const toast = useToast();
   const offline = useOffline();
+  const identity = useMyIdentity();
   const { leaseId, month } = useLocalSearchParams<{ leaseId?: string; month?: string }>();
 
   const read = useTenancy(leaseId);
@@ -121,11 +145,41 @@ export function PayRent() {
   const [method, setMethod] = useState<PayMethod>('mtn_momo');
   const [handset, setHandset] = useState('');
   const [touched, setTouched] = useState(false);
+  const methodPicked = useRef(false);
 
-  const period = tenancy
+  /**
+   * The handset starts as the number on the account, when the server has one
+   * (mobile audit 2026-10-05, TN-28; `038-tenant-surface.md`).
+   *
+   * Only a server answer counts: the placeholder identity is nobody, and a
+   * guessed number would send a prompt to a stranger. The rail follows the
+   * number's own network, or an Airtel number would open on MoMo with the
+   * button disabled and no error said, because an untouched field is never
+   * red. Anything the person has typed or picked wins over all of this.
+   */
+  const prefilled = useRef(false);
+  useEffect(() => {
+    if (prefilled.current || touched || !identity.fromServer || !identity.phone) return;
+    const digits = digitsOf(identity.phone);
+    if (!isPlausible(digits)) return;
+    prefilled.current = true;
+    setHandset(digits);
+    const network = METHODS.find((m) => m.prefixes.some((p) => digits.startsWith(p)));
+    if (network && !methodPicked.current) setMethod(network.value);
+  }, [identity.fromServer, identity.phone, touched]);
+
+  const owed = tenancy
     ? (tenancy.history.find((p) => p.month === month && p.status !== 'paid') ??
       nextDuePeriod(tenancy))
     : undefined;
+
+  /**
+   * The period this sheet is paying, fixed at the press. See "The period is
+   * frozen at the press" in the header: re-deriving it after the ledger wrote
+   * the payment is what made the confirmation disappear (TN-08).
+   */
+  const [pressed, setPressed] = useState<RentPeriod | null>(null);
+  const period = pressed ?? owed;
 
   const spec = METHODS.find((m) => m.value === method) ?? METHODS[0];
 
@@ -139,9 +193,11 @@ export function PayRent() {
    * the number is the same intent and re-minting there would charge twice.
    */
   const [nonce, setNonce] = useState(0);
+  const tenancyId = tenancy?.id;
+  const periodMonth = period?.month;
   const token = useMemo(
-    () => (tenancy && period ? `rent:${tenancy.id}:${period.month}:${nonce}` : null),
-    [tenancy, period, nonce],
+    () => (tenancyId && periodMonth ? `rent:${tenancyId}:${periodMonth}:${nonce}` : null),
+    [tenancyId, periodMonth, nonce],
   );
   const { attempt, submit, checkAgain, dismiss } = usePaymentAttempt(token);
 
@@ -155,8 +211,6 @@ export function PayRent() {
 
   const ready = isPlausible(national) && spec.prefixes.some((p) => national.startsWith(p));
 
-  const saving = settle.status === 'saving';
-
   /**
    * Start the prompt.
    *
@@ -167,6 +221,9 @@ export function PayRent() {
    */
   const pay = useCallback(() => {
     if (!tenancy || !period || !token || !ready) return;
+    // Freeze what is being paid before anything can change it (TN-08). The
+    // token derived from it is the one `submit` is about to use.
+    setPressed(period);
     // Submit, and stop. What happens next is the rail's, and the screen has no
     // way to reach it — `confirm` and `settle` are not exported to a screen.
     submit({ handset: displayPhone(national), rail: spec.rail, amountRwf: period.amount });
@@ -178,29 +235,79 @@ export function PayRent() {
    * An effect rather than a callback, because the confirmation may arrive while
    * the tenant is in the MoMo app and this component has been remounted since.
    * A `.then()` on the press would have been lost with the press.
+   *
+   * The toast follows the write's OUTCOME (mobile audit 2026-10-05, TN-12). It
+   * used to fire on every settle, so a ledger that failed to record a payment
+   * was announced as settled. A failure now says the payment went through and
+   * was not recorded, keeps the reference on screen, and offers a retry.
    */
+  const [ledger, setLedger] = useState<LedgerState>('idle');
+  const record = useCallback(async () => {
+    if (!tenancy || !period) return;
+    setLedger('saving');
+    const outcome = await settle.mutate({
+      leaseId: tenancy.id,
+      month: period.month,
+      paidOn: todayIso(),
+      method,
+    });
+    if (outcome === 'done') {
+      setLedger('done');
+      toast.show(t('payRent.toast', { month: period.month }), 'success');
+    } else if (outcome === 'error') {
+      setLedger('error');
+    } else {
+      // Dropped by a sign out mid flight: nothing was written and nobody is
+      // left to tell.
+      setLedger('idle');
+    }
+  }, [tenancy, period, settle.mutate, method, toast, t]);
+
   const settled = attempt?.state === 'confirmed';
-  const wrote = useRef(false);
+  /** The token whose confirmation has been handed to the ledger, once. */
+  const recordedFor = useRef<string | null>(null);
   useEffect(() => {
-    if (!settled || wrote.current || !tenancy || !period) return;
-    wrote.current = true;
-    void settle
-      .mutate({ leaseId: tenancy.id, month: period.month, paidOn: todayIso(), method })
-      .then(() => toast.show(t('payRent.toast', { month: period.month }), 'success'));
-  }, [settled, tenancy, period, settle, method, toast, t]);
+    if (!settled || !token || recordedFor.current === token) return;
+    recordedFor.current = token;
+    void record();
+  }, [settled, token, record]);
+
+  /**
+   * Forget a confirmed attempt once the sheet that showed it goes away, by
+   * Done or by a swipe (TN-08: the journal never dropped one).
+   *
+   * Only once the ledger holds it. A confirmation whose ledger write failed is
+   * kept, so reopening the sheet for the same month finds the confirmed attempt
+   * and records it again rather than offering to take the money twice. An open
+   * attempt is never forgotten here: the prompt outliving the sheet is the
+   * whole point of the journal.
+   */
+  const forgetOnClose = useRef<{ dismiss: () => void; forget: boolean }>({
+    dismiss,
+    forget: false,
+  });
+  forgetOnClose.current = { dismiss, forget: settled && ledger === 'done' };
+  useEffect(
+    () => () => {
+      if (forgetOnClose.current.forget) forgetOnClose.current.dismiss();
+    },
+    [],
+  );
 
   const tryAgain = useCallback(() => {
     dismiss();
     // A fresh press is a NEW intent and therefore a new token. Reusing the old
     // one would ask the rail about the attempt the tenant has just been told
-    // failed.
+    // failed. The period is unfrozen with it, so the form shows what is owed
+    // now.
+    setPressed(null);
     setNonce((n) => n + 1);
   }, [dismiss]);
 
-  const done = useCallback(() => {
-    dismiss();
-    router.back();
-  }, [dismiss, router]);
+  // Leaving is the whole of Done. The attempt is forgotten as the sheet
+  // unmounts, above, so the confirmation stays on screen through the close
+  // rather than flashing back to the form for the length of the animation.
+  const done = useCallback(() => router.back(), [router]);
 
   if (read.status === 'loading') {
     return (
@@ -210,19 +317,27 @@ export function PayRent() {
     );
   }
 
-  if (read.status === 'error' || !tenancy) {
+  // A read that failed might not fail next time, so it gets a retry. It used to
+  // share a branch with a missing lease and read "Lease not found" over a body
+  // about signing (TN-21).
+  if (read.status === 'error') {
     return (
       <Sheet title={t('payRent.title')} grabber>
-        <EmptyState
-          icon="alertCircle"
-          title={t('lease.notFound')}
-          body={t('rent.noneBody')}
-          action={
-            <Button variant="outline" onPress={read.retry} leadingIcon="refreshCw">
-              {t('state.retry')}
-            </Button>
-          }
+        <ErrorState
+          title={t('state.errorTitle')}
+          body={t('state.errorBody', { label: t('lease.listLabel') })}
+          detail={read.error?.message}
+          onRetry={read.retry}
         />
+      </Sheet>
+    );
+  }
+
+  // The read succeeded and there is no such lease: a stable fact, so no retry.
+  if (!tenancy) {
+    return (
+      <Sheet title={t('payRent.title')} grabber>
+        <EmptyState icon="alertCircle" title={t('lease.notFound')} body={t('leases.emptyBody')} />
       </Sheet>
     );
   }
@@ -239,6 +354,10 @@ export function PayRent() {
     );
   }
 
+  const dueLine = period.dueOn
+    ? t('rent.due', { date: formatFullDay(period.dueOn, t) })
+    : period.month;
+
   /* ------------------------------------------------ the rail is answering */
 
   if (attempt) {
@@ -250,8 +369,17 @@ export function PayRent() {
             onCheckAgain={checkAgain}
             onTryAgain={tryAgain}
             onDone={isSettled(attempt) ? done : undefined}
-            doneLabel="payRent.cancel"
+            // "Not now" under a payment that has gone through read as though it
+            // had not (TN-20).
+            doneLabel="payRent.done"
           />
+          {ledger === 'error' ? (
+            <WriteError
+              title="payRent.ledgerFailedTitle"
+              body="payRent.ledgerFailedBody"
+              onRetry={() => void record()}
+            />
+          ) : null}
           {/* The obligation stays visible under every state that is not a
               confirmation. A tenant looking at "not approved" still owes the
               rent, and a screen that dropped the amount at that moment would be
@@ -309,21 +437,23 @@ export function PayRent() {
             size="lg"
             block
             leadingIcon="wallet"
-            disabled={saving || !ready}
+            disabled={!ready}
             onPress={pay}
           >
-            {saving ? t('payRent.paying') : t('payRent.action')}
+            {t('payRent.action')}
           </Button>
-          <Button variant="ghost" size="md" block disabled={saving} onPress={() => router.back()}>
+          <Button variant="ghost" size="md" block onPress={() => router.back()}>
             {t('payRent.cancel')}
           </Button>
         </>
       }
     >
-      {/* What is being paid, before how. */}
+      {/* What is being paid, before how. The label carries the amount and the
+          due date: a wrapper's label replaces what is inside it, and "Amount,
+          September 2026" alone never said how much (TN-17). */}
       <View
         accessible
-        accessibilityLabel={`${t('payRent.amount')}, ${period.month}`}
+        accessibilityLabel={[t('payRent.amount'), formatMoney(period.amount), dueLine].join(', ')}
         style={{
           flexDirection: 'row',
           alignItems: 'center',
@@ -339,7 +469,7 @@ export function PayRent() {
             {t('payRent.amount')}
           </Text>
           <Text weight="semibold" size="sm" color="textStrong">
-            {period.dueOn ? t('rent.due', { date: formatFullDay(period.dueOn, t) }) : period.month}
+            {dueLine}
           </Text>
         </View>
         <MoneyAmount value={period.amount} strong size="xl" />
@@ -367,8 +497,10 @@ export function PayRent() {
               accessibilityRole="radio"
               accessibilityLabel={`${t(row.label)}, ${t(row.meta)}`}
               accessibilityState={{ selected: on }}
-              disabled={saving}
-              onPress={() => setMethod(row.value)}
+              onPress={() => {
+                methodPicked.current = true;
+                setMethod(row.value);
+              }}
               style={{
                 flexDirection: 'row',
                 alignItems: 'center',
@@ -464,7 +596,8 @@ function StillOwed({ amount, month }: { amount: number; month: string }) {
   return (
     <View
       accessible
-      accessibilityLabel={`${t('payRent.stillOwed')}, ${month}`}
+      // The amount is in the label, not only on the screen (TN-17).
+      accessibilityLabel={[t('payRent.stillOwed'), formatMoney(amount), month].join(', ')}
       style={{
         flexDirection: 'row',
         alignItems: 'center',

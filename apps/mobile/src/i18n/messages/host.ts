@@ -29,9 +29,10 @@ export const en = {
   /* ------------------------------------------------------------ the shell */
   'host.today': 'Today',
   'host.todayGreeting': 'Front desk',
-  'host.bookings': 'Reservations',
+  // Bookings, not Reservations: the route keeps the industry word and every
+  // label says Booking (see the header, and mobile audit 2026-10-05, HO-16).
+  'host.bookings': 'Bookings',
   'host.bookingsGreeting': 'Every booking',
-  'host.timezone': '{date} · Africa/Kigali',
   'host.desk': '{property} · front desk',
 
   /* ------------------------------------------------------- today's groups */
@@ -41,17 +42,23 @@ export const en = {
   'host.groupInHouse': 'In house tonight',
   'host.emptyRequests':
     'No requests waiting. A new booking request appears here the moment it arrives.',
-  'host.emptyArriving': 'Nobody is arriving today. Tomorrow’s arrivals are under Reservations.',
+  'host.emptyArriving': 'Nobody is arriving today. Tomorrow’s arrivals are under Bookings.',
   'host.emptyDeparting': 'Nobody is leaving today.',
   'host.emptyInHouse': 'No guests in house tonight.',
   'host.emptyToday': 'Nothing needs you today',
   'host.emptyTodayBody':
-    'No requests, no arrivals, no departures and nobody in house. Reservations has the whole book.',
-  'host.emptyTodayAction': 'Open Reservations',
+    'No requests, no arrivals, no departures and nobody in house. Bookings has the whole book.',
+  'host.emptyTodayAction': 'Open Bookings',
   'host.errorTitle': 'The desk would not load',
   'host.errorBody':
     'This is a connection problem, not an empty desk. Your bookings are still there.',
-  'host.offlineNote': 'Showing the last list. Decisions you make now are kept and sent on.',
+  // Promises only what is queued: the check-in capture. Approve, decline and
+  // checkout move money and are refused offline, never kept and sent on
+  // (mobile audit 2026-10-05, HO-10).
+  'host.offlineNote':
+    'You are offline. A check-in you finish now is saved on this phone and sent when you reconnect. Approving, declining and checking out wait for a connection.',
+  'host.needsConnectionDecision': 'You are offline. Approving or declining needs a connection.',
+  'host.needsConnectionCheckOut': 'You are offline. Checking out needs a connection.',
 
   /* ------------------------------------------------------- the count chips */
   'host.countAll': 'All',
@@ -77,7 +84,7 @@ export const en = {
   'host.clearSearch': 'Clear the search',
   'host.searchLabel': 'Search bookings',
   'host.searchPlaceholder': 'Guest, reference or room',
-  'host.listLabel': 'Reservations',
+  'host.listLabel': 'your bookings',
   'host.resultCount': '{count} bookings',
   'host.resultOne': '1 booking',
 
@@ -90,7 +97,6 @@ export const en = {
   'host.nightOf': 'Night {night} of {nights}',
   'host.arrivesAt': 'Arrives {time}',
   'host.arrivesUnknown': 'No arrival time given',
-  'host.checkoutBy': 'Checkout by {time}',
   'host.returning': 'Stayed here {count} times before',
   'host.firstStay': 'First stay here',
   'host.balanceDue': '{amount} due',
@@ -110,9 +116,15 @@ export const en = {
     'A request answers itself after 24 hours, or at check-in, whichever comes first.',
   'host.approvedToast': '{guest} is confirmed. Assign a room before they arrive.',
   'host.declinedToast': '{guest} was declined and refunded in full.',
+  // What a decision that did not save says instead of its success
+  // (mobile audit 2026-10-05, HO-06). The row is unchanged, so the request is
+  // still open and the sentence says so.
+  'host.approveFailed': 'The approval did not save. {guest} is still waiting on you.',
+  'host.declineFailed': 'The decline did not save. {guest} is still waiting on you.',
   'host.undo': 'Undo',
   'host.undoAnnounce': '{text} Undo is available for a few seconds.',
   'host.undoneToast': 'Put back. {guest} is waiting on you again.',
+  'host.undoFailed': 'That could not be put back. The booking stays as it is now.',
   'host.staleTitle': 'That request has already been answered',
   'host.staleBody':
     'It expired and was refunded in full before this tap landed. Nothing was charged twice.',
@@ -130,14 +142,14 @@ export const en = {
   'host.declineConfirm': 'Decline and refund',
   'host.declineCancel': 'Keep the request',
   'host.declineWireNote':
-    'Every host decline is recorded as one reason on the wire. Your words go to the guest, not to the record.',
+    'Every host decline is recorded with the same reason, whichever you pick. Your words go to the guest, not to the record.',
 
   /* ---------------------------------------------------------- the detail */
   'host.bookingTitle': 'Booking',
   'host.notFoundTitle': 'That booking is not on this desk',
   'host.notFoundBody':
     'The reference belongs to another property, or the booking has been removed.',
-  'host.notFoundAction': 'Back to Reservations',
+  'host.notFoundAction': 'Back to Bookings',
   'host.stay': 'The stay',
   'host.factGuest': 'Guest',
   'host.factReference': 'Reference',
@@ -160,11 +172,21 @@ export const en = {
   'host.lineTotal': 'Guest paid',
   'host.yourShare': 'Your share',
   'host.noCommission': 'The full accommodation amount. Injishi takes no commission.',
-  'host.escrowHeld': 'Held in escrow until the guest checks in.',
+  // Held until the stay is settled, which is F-B06's rule. It used to say
+  // "until the guest checks in", which was wrong for every guest already in.
+  'host.escrowHeld': 'Held in escrow until the stay is settled.',
   'host.escrowReleased': 'Released. The payout clock is running.',
   'host.escrowRefunded': 'Refunded in full to the guest.',
   'host.invoice': 'Tax invoice',
   'host.invoiceAtCheckout': 'Issued at checkout',
+  // A stay closed on the phone has no invoice: the phone never issues one
+  // (mobile audit 2026-10-05, HO-04). "Issued at checkout" there would read as
+  // done.
+  'host.invoiceNotIssued': 'Not issued',
+  // The captured document, shown by its last four characters only. The server
+  // masks an ID number in everything it sends a browser, and the desk needs
+  // only enough to match the card in front of it (mobile audit HO-17).
+  'host.documentEnding': 'Ending in {digits}',
   'host.balance': 'Balance',
   'host.balanceNone': 'Nothing outstanding',
   'host.guestSection': 'The guest',
@@ -177,13 +199,15 @@ export const en = {
   'host.eventConfirmed': 'Confirmed',
   'host.eventDeclined': 'Declined and refunded',
   'host.eventCheckedIn': 'Checked in',
-  'host.eventCheckedOut': 'Checked out, invoice issued',
+  // Just the departure. The invoice, where there is one, is the line under it;
+  // "invoice issued" here claimed one for a checkout that issued none (HO-04).
+  'host.eventCheckedOut': 'Checked out',
 
   /* --------------------------------------------------------- what is elsewhere */
   'host.onTheWeb': 'On the web desk',
   'host.folioTitle': 'The folio',
   'host.folioBody':
-    'Posting charges, splitting a bill and taking a part payment stay on the operator web app. The phone shows what is owed and settles it at checkout.',
+    'Posting charges, splitting a bill and taking a payment stay on the operator web app. The phone shows what is owed.',
   'host.tapeChartTitle': 'The tape chart',
   'host.tapeChartBody':
     'Moving a booking between rooms and reading the whole month at once needs a screen this size cannot give it. It stays on the web desk.',
@@ -206,8 +230,10 @@ export const en = {
   'host.numberHelperNid': 'Sixteen digits on a Rwandan national ID.',
   'host.numberHelperPassport': 'As printed, including any letters.',
   'host.photoTitle': 'Photograph the document',
+  // True of every build today: the photograph is never uploaded (HO-07), and
+  // the sentence says so in plain words rather than naming a "prototype".
   'host.photoBody':
-    'One clear photograph of the page with the number on it. It stays on this device in the prototype.',
+    'One clear photograph of the page with the number on it. The photograph stays on this phone and is not uploaded.',
   'host.photoHint': 'Hold the document flat and fill the frame.',
   'host.roomTitle': 'Which room are they in?',
   'host.roomBody': 'Only rooms that are free tonight are offered.',
@@ -236,22 +262,28 @@ export const en = {
   'host.checkedInToast': '{guest} is in room {room}. The stay is open.',
   'host.checkInClosedTitle': 'There is nothing to check in',
   'host.checkInClosedBody':
-    'This booking is not a confirmed stay waiting at the door. Reservations has the current state.',
+    'This booking is not a confirmed stay waiting at the door. Bookings has the current state.',
 
   /* -------------------------------------------------------------- checkout */
+  // Only what a checkout on the phone actually does. It closes the stay here
+  // and hands the room over; it issues no tax invoice, collects nothing and
+  // schedules no payout, and the copy used to say it did all three
+  // (mobile audit 2026-10-05, HO-04).
   'host.checkOut': 'Check out',
   'host.checkOutTitle': 'Check {guest} out?',
   'host.checkOutBody':
-    'This closes the stay, issues the tax invoice and hands room {room} to housekeeping. There is no undo.',
+    'This closes the stay and hands room {room} to housekeeping. No tax invoice is issued from this phone. There is no undo.',
   'host.checkOutBalance':
-    '{amount} is still on the folio. Checking out settles it and marks it paid on the mock adapter.',
-  'host.checkOutEarly':
-    'They are leaving {count} nights early. The stay closes tonight and the nights actually stayed are what is invoiced.',
-  'host.checkOutConfirm': 'Check out and invoice',
+    '{amount} is still owed on the folio. Checking out on the phone does not collect it.',
+  'host.checkOutEarly': 'They are leaving {count} nights before the booking ends.',
+  'host.checkOutConfirm': 'Confirm checkout',
   'host.checkOutCancel': 'Not yet',
   'host.checkOutWorking': 'Closing the stay…',
-  'host.checkedOutToast': '{guest} is out. Invoice {invoice}. Room {room} goes to housekeeping.',
-  'host.checkedOutNoRoom': '{guest} is out. Invoice {invoice} issued.',
+  'host.checkedOutToast': '{guest} is checked out. Room {room} goes to housekeeping.',
+  'host.checkedOutNoRoom': '{guest} is checked out.',
+  'host.checkOutFailedTitle': 'The checkout did not save',
+  'host.checkOutFailedBody':
+    'The guest is still checked in and the room has not gone to housekeeping. Try again.',
   'host.viewBill': 'View bill',
 
   /* -------------------------------------------------------------- payouts */
@@ -281,9 +313,12 @@ export const en = {
   'host.payoutAccountNote': 'Setting up where money lands is on the web desk.',
 
   /* ---------------------------------------------------------- the adapter */
-  'host.mockAdapter': 'Mock adapter',
+  // Nothing on this desk reaches a payment adapter, mock or live: every Host
+  // write stays on the phone. "Runs on the mock adapter" was untrue on every
+  // build, so the chip says the plain fact instead (mobile audit 2026-10-05).
+  'host.mockAdapter': 'No real money',
   'host.mockAdapterNote':
-    'No real money moves. Refunds, invoices and payouts run on the mock adapter.',
+    'No real money moves on this desk. Refunds, invoices and payouts shown here are not sent anywhere.',
 
   /* ------------------ the check-in capture failing (gaps.md §6) ----------- */
   // `err=0` on identity capture. A front desk told the guest is checked in when
@@ -291,7 +326,15 @@ export const en = {
   // took it.
   'host.checkInFailedTitle': 'The check-in did not save',
   'host.checkInFailedBody': 'The guest is not checked in and no room has been assigned. Your photos are still here — try again.',
-  'host.checkInQueued': 'Saved on this phone. It will be submitted when you reconnect.',
+  // Not a success: the guest is not in until it sends (mobile audit HO-06).
+  'host.checkInQueued':
+    '{guest}’s check-in is saved on this phone. It will be sent when the phone reconnects.',
+  // The booking read failed. Not "there is nothing to check in", which is a
+  // different fact and one a desk would act on (mobile audit HO-19).
+  'host.checkInReadFailed': 'This booking would not load',
+  'host.roomsReadFailed': 'The rooms would not load',
+  'host.roomsReadFailedBody':
+    'No room has been assigned. Try again to see which rooms are free tonight.',
 } as const;
 
 /**
@@ -317,7 +360,6 @@ export const rw: Record<keyof typeof en, string> = {
   'host.todayGreeting': 'Akazi ko ku biro',
   'host.bookings': 'Ubwandikishe',
   'host.bookingsGreeting': 'Ubwandikishe bwose',
-  'host.timezone': '{date} · Africa/Kigali',
   'host.desk': '{property} · ibiro byakira',
 
   'host.groupRequests': 'Ubusabe bwo kwemeza',
@@ -336,8 +378,12 @@ export const rw: Record<keyof typeof en, string> = {
   'host.errorTitle': 'Ibiro ntibyafunguye',
   'host.errorBody':
     'Iki ni ikibazo cy’umuyoboro, si ibiro bidafite abantu. Ubwandikishe bwawe buracyahari.',
-  'host.offlineNote':
-    'Urimo kureba urutonde rwa nyuma. Ibyemezo ufata ubu birabikwa bikazoherezwa.',
+  // English until Kinyarwanda work starts (v1 is English only). The old
+  // translation said decisions are kept and sent on, which they are not
+  // (mobile audit 2026-10-05, HO-10), so it went with the English it matched.
+  'host.offlineNote': en['host.offlineNote'],
+  'host.needsConnectionDecision': en['host.needsConnectionDecision'],
+  'host.needsConnectionCheckOut': en['host.needsConnectionCheckOut'],
 
   'host.countAll': 'Byose',
   'host.countRequests': 'Ubusabe',
@@ -374,7 +420,6 @@ export const rw: Record<keyof typeof en, string> = {
   'host.nightOf': 'Ijoro rya {night} kuri {nights}',
   'host.arrivesAt': 'Aza saa {time}',
   'host.arrivesUnknown': 'Nta saa yatanzwe',
-  'host.checkoutBy': 'Asohoka mbere ya {time}',
   'host.returning': 'Yaraye hano inshuro {count} mbere',
   'host.firstStay': 'Ubwa mbere araye hano',
   'host.balanceDue': '{amount} asigaye',
@@ -393,9 +438,12 @@ export const rw: Record<keyof typeof en, string> = {
     'Ubusabe bwisubiza nyuma y’amasaha 24, cyangwa igihe cyo kwinjira, icyabanza.',
   'host.approvedToast': '{guest} yemejwe. Muhe icyumba mbere y’uko aza.',
   'host.declinedToast': '{guest} yanzwe kandi yasubijwe amafaranga yose.',
+  'host.approveFailed': en['host.approveFailed'],
+  'host.declineFailed': en['host.declineFailed'],
   'host.undo': 'Subiza',
   'host.undoAnnounce': '{text} Gusubiza birashoboka mu masegonda make.',
   'host.undoneToast': 'Byasubijwe. {guest} aracyagutegereje.',
+  'host.undoFailed': en['host.undoFailed'],
   'host.staleTitle': 'Ubwo busabe bwamaze gusubizwa',
   'host.staleBody':
     'Bwarangiye kandi amafaranga yasubijwe yose mbere y’uko ukanda. Nta kintu cyishyuwe kabiri.',
@@ -443,11 +491,15 @@ export const rw: Record<keyof typeof en, string> = {
   'host.lineTotal': 'Umushyitsi yishyuye',
   'host.yourShare': 'Umugabane wawe',
   'host.noCommission': 'Amafaranga y’icumbi yose. Injishi ntacyo ikuraho.',
-  'host.escrowHeld': 'Afatiwe muri escrow kugeza umushyitsi yinjiye.',
+  // English until Kinyarwanda work starts: the old line named check-in as the
+  // release, which the English no longer says.
+  'host.escrowHeld': en['host.escrowHeld'],
   'host.escrowReleased': 'Yarekuwe. Isaha yo kwishyurwa iratangiye.',
   'host.escrowRefunded': 'Yasubijwe yose ku mushyitsi.',
   'host.invoice': 'Fagitire y’umusoro',
   'host.invoiceAtCheckout': 'Itangwa igihe cyo gusohoka',
+  'host.invoiceNotIssued': en['host.invoiceNotIssued'],
+  'host.documentEnding': en['host.documentEnding'],
   'host.balance': 'Asigaye',
   'host.balanceNone': 'Nta kintu gisigaye',
   'host.guestSection': 'Umushyitsi',
@@ -460,12 +512,14 @@ export const rw: Record<keyof typeof en, string> = {
   'host.eventConfirmed': 'Byemejwe',
   'host.eventDeclined': 'Byanzwe, amafaranga asubizwa',
   'host.eventCheckedIn': 'Yinjiye',
-  'host.eventCheckedOut': 'Yasohotse, fagitire yatanzwe',
+  // English until Kinyarwanda work starts. These five changed meaning with the
+  // English (mobile audit 2026-10-05, HO-04 and XC-16), and the old
+  // translations still claimed an invoice, a settled bill or a "trial".
+  'host.eventCheckedOut': en['host.eventCheckedOut'],
 
   'host.onTheWeb': 'Ku rubuga rw’akazi',
   'host.folioTitle': 'Fagitire y’icumbi',
-  'host.folioBody':
-    'Kwandika ibiciro, kugabanya fagitire no kwakira ubwishyu bwa buke bikorerwa ku rubuga. Telefoni yerekana ibisigaye ikanabyishyura igihe cyo gusohoka.',
+  'host.folioBody': en['host.folioBody'],
   'host.tapeChartTitle': 'Ikarita y’ibyumba',
   'host.tapeChartBody':
     'Kwimura ubwandikishe hagati y’ibyumba no kureba ukwezi kose icyarimwe bisaba ecran nini. Bigumaho ku rubuga.',
@@ -489,8 +543,7 @@ export const rw: Record<keyof typeof en, string> = {
   'host.numberHelperNid': 'Imibare cumi n’itandatu ku ndangamuntu y’u Rwanda.',
   'host.numberHelperPassport': 'Nk’uko yanditse, hamwe n’inyuguti zose.',
   'host.photoTitle': 'Fata ifoto y’icyangombwa',
-  'host.photoBody':
-    'Ifoto imwe isobanutse y’urupapuro rufite inomero. Iguma kuri iyi telefoni muri iki gerageza.',
+  'host.photoBody': en['host.photoBody'],
   'host.photoHint': 'Shyira icyangombwa ku buriri usuzume ko cyuzuye mu ifoto.',
   'host.roomTitle': 'Ni ikihe cyumba bagiyemo?',
   'host.roomBody': 'Ibyumba bisa gusa muri iri joro ni byo byerekanwa.',
@@ -523,18 +576,18 @@ export const rw: Record<keyof typeof en, string> = {
 
   'host.checkOut': 'Musohore',
   'host.checkOutTitle': 'Gusohora {guest}?',
-  'host.checkOutBody':
-    'Ibi bifunga icumbi, bigatanga fagitire y’umusoro, kandi bigaha icyumba {room} abasukura. Nta gusubiza inyuma.',
-  'host.checkOutBalance':
-    '{amount} aracyari kuri fagitire. Gusohora birabyishyura bikabyandika nk’ibyishyuwe ku buryo bw’igerageza.',
-  'host.checkOutEarly':
-    'Bagenda hasigaye amajoro {count}. Icumbi gifunga iri joro, kandi amajoro baraye ni yo yandikwa.',
-  'host.checkOutConfirm': 'Sohora utange fagitire',
+  // English until Kinyarwanda work starts: each old line promised an invoice,
+  // a settled balance or a payout the phone does not produce (HO-04).
+  'host.checkOutBody': en['host.checkOutBody'],
+  'host.checkOutBalance': en['host.checkOutBalance'],
+  'host.checkOutEarly': en['host.checkOutEarly'],
+  'host.checkOutConfirm': en['host.checkOutConfirm'],
   'host.checkOutCancel': 'Ntabwo ari ubu',
   'host.checkOutWorking': 'Gufunga icumbi…',
-  'host.checkedOutToast':
-    '{guest} yasohotse. Fagitire {invoice}. Icyumba {room} kijya ku basukura.',
-  'host.checkedOutNoRoom': '{guest} yasohotse. Fagitire {invoice} yatanzwe.',
+  'host.checkedOutToast': en['host.checkedOutToast'],
+  'host.checkedOutNoRoom': en['host.checkedOutNoRoom'],
+  'host.checkOutFailedTitle': en['host.checkOutFailedTitle'],
+  'host.checkOutFailedBody': en['host.checkOutFailedBody'],
   'host.viewBill': 'Reba fagitire',
 
   'host.payouts': 'Kwishyurwa',
@@ -564,10 +617,14 @@ export const rw: Record<keyof typeof en, string> = {
   'host.addPayoutAccount': 'Shyiraho konti yo kwishyurirwaho',
   'host.payoutAccountNote': 'Gushyiraho aho amafaranga ajya bikorerwa ku rubuga.',
 
-  'host.mockAdapter': 'Uburyo bw’igerageza',
-  'host.mockAdapterNote':
-    'Nta mafaranga nyayo agenda. Gusubiza, fagitire no kwishyurwa bikoresha uburyo bw’igerageza.',
+  // English until Kinyarwanda work starts: the old pair named a mock adapter
+  // this desk never reaches.
+  'host.mockAdapter': en['host.mockAdapter'],
+  'host.mockAdapterNote': en['host.mockAdapterNote'],
   'host.checkInFailedTitle': `${en['host.checkInFailedTitle']} (RW)`,
   'host.checkInFailedBody': `${en['host.checkInFailedBody']} (RW)`,
   'host.checkInQueued': `${en['host.checkInQueued']} (RW)`,
+  'host.checkInReadFailed': en['host.checkInReadFailed'],
+  'host.roomsReadFailed': en['host.roomsReadFailed'],
+  'host.roomsReadFailedBody': en['host.roomsReadFailedBody'],
 };

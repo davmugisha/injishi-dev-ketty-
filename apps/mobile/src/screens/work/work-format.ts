@@ -13,16 +13,15 @@
  * place on the surface that could not be read in Kinyarwanda.
  */
 import type { MessageKey } from '@/i18n/i18n';
-import {
-  WORK_PROFILE,
-  type BufferedChange,
-  type FaultCategory,
-  type HkStatus,
-  type Severity,
-  type TaskKind,
-  type WorkRoom,
-  type WorkTask,
-  type WorkTicket,
+import type {
+  BufferedChange,
+  FaultCategory,
+  HkStatus,
+  Severity,
+  TaskKind,
+  WorkRoom,
+  WorkTask,
+  WorkTicket,
 } from './work-fixtures';
 
 /** A key and the values it interpolates, so a caller does `t(...spread)`. */
@@ -144,19 +143,55 @@ export function queueEmptyReason(filter: FloorFilter): Phrase {
     : { key: 'work.queue.emptyFloor', values: { floor: filter } };
 }
 
-/** The sync line under the title. Offline it counts the buffer, not the clock. */
+/**
+ * What a filter tab says to a screen reader: its label, then the count WITH its
+ * noun. The rig heard a floor tab as "Floor 1 2", two numbers side by side,
+ * which is also what the eye read (mobile audit 2026-10-05, WK-12). The count
+ * is drawn as its own pill; this is the sentence that goes with it.
+ */
+export function tabCountPhrase(label: string, count: number, noun: 'rooms' | 'tickets'): Phrase {
+  const one = count === 1;
+  if (noun === 'tickets') {
+    return { key: one ? 'work.tabs.ticketsOne' : 'work.tabs.tickets', values: { label, count } };
+  }
+  return { key: one ? 'work.tabs.roomsOne' : 'work.tabs.rooms', values: { label, count } };
+}
+
+/** `14:03`, in the phone's own time, the way every other time on this surface reads. */
+export function clockOf(epochMs: number): string {
+  const at = new Date(epochMs);
+  return `${String(at.getHours()).padStart(2, '0')}:${String(at.getMinutes()).padStart(2, '0')}`;
+}
+
+/**
+ * The sync line under the title. Offline it counts the buffer, not the clock.
+ *
+ * **Online it used to read "Synced · 6 tasks · 10:24" whatever the time was.**
+ * The device rig caught it at 14:03: the time was a fixture constant kept so a
+ * screenshot was reproducible, and "Synced" claimed a sync nothing performs
+ * (mobile audit 2026-10-05, WK-13). It now prints the time the list was last
+ * actually read, or no time at all, and nothing before the read has landed
+ * (WK-24): a count from the seed is a number nobody loaded.
+ */
 export function syncLine(args: {
   online: boolean;
+  /** The read has landed. Until then the online line says nothing. */
+  ready: boolean;
   openCount: number;
   bufferCount: number;
-}): Phrase {
+  /** When the list was last read, epoch ms. */
+  readAt?: number;
+}): Phrase | undefined {
   if (!args.online) {
     return { key: 'work.queue.syncOffline', values: { count: args.bufferCount } };
   }
-  return {
-    key: 'work.queue.syncOnline',
-    values: { count: args.openCount, time: WORK_PROFILE.clock },
-  };
+  if (!args.ready) return undefined;
+  return args.readAt === undefined
+    ? { key: 'work.queue.syncOnlineNoTime', values: { count: args.openCount } }
+    : {
+        key: 'work.queue.syncOnline',
+        values: { count: args.openCount, time: clockOf(args.readAt) },
+      };
 }
 
 /* ------------------------------------------------------------------ rooms */
@@ -256,30 +291,25 @@ export function replayOrder(buffer: readonly BufferedChange[]): BufferedChange[]
   return [...buffer].sort((a, b) => a.at - b.at);
 }
 
-/** What the flush toast says. The twin's copy, with its singular. */
-export function flushPhrase(count: number): Phrase {
-  if (count === 0) return { key: 'work.offline.backOnlineToast' };
-  return count === 1
-    ? { key: 'work.offline.syncedToastOne' }
-    : { key: 'work.offline.syncedToast', values: { count } };
-}
-
 /* ------------------------------------------------------------------ shift */
 
-/** Frame W7's three numbers, and the twin's own arithmetic for them. */
+/**
+ * What frame W7 can honestly say about the shift: what is left on the queue,
+ * and the rooms finished on it.
+ *
+ * **It used to say more, and the rest was invented.** "Rooms cleaned" started
+ * from eleven rooms nobody cleaned, the average was a fixed 22 minutes, and the
+ * finished list opened with eleven fixture room numbers (mobile audit
+ * 2026-10-05, WK-02). Those come back when `GET /ops/shift-summary` exists
+ * (WK-19); until then the summary is only what the queue itself knows.
+ */
 export function shiftSummary(tasks: readonly WorkTask[]): {
-  cleaned: number;
-  averageMinutes: number;
   left: number;
   rooms: string[];
 } {
-  const finished = finishedTasks(tasks);
   return {
-    cleaned: WORK_PROFILE.cleanedBefore + finished.length,
-    averageMinutes: WORK_PROFILE.averageMinutes,
     left: liveTasks(tasks).length,
-    // Newest last, so the wrap reads as the shift went.
-    rooms: [...WORK_PROFILE.roomsFinished, ...finished.map((task) => task.id)],
+    rooms: finishedTasks(tasks).map((task) => task.id),
   };
 }
 

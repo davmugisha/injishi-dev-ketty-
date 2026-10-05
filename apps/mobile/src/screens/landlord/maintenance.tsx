@@ -52,7 +52,6 @@ import { useT, type MessageKey, type Translate } from '@/i18n/i18n';
 import { useFixtureMutation } from '@/data/use-fixture-mutation';
 import {
   applyAssign,
-  LANDLORD_TOWN,
   REPAIRS_KEY,
   seedRepairs,
   TECHNICIAN,
@@ -97,6 +96,11 @@ function EvidenceTiles({ ticket, t }: { ticket: RepairTicket; t: Translate }) {
           <Image
             key={uri}
             source={{ uri }}
+            // This card is a FlashList row, and a recycled row keeps its
+            // native image view: without the key it shows the previous
+            // ticket's photograph until the new one loads (mobile audit
+            // 2026-10-05, LL-19; gaps.md B8).
+            recyclingKey={uri}
             accessibilityLabel={t('landlord.repairs.photoTile', { index: i + 1, total })}
             contentFit="cover"
             style={{
@@ -253,6 +257,10 @@ export function Maintenance() {
   const read = useLandlordRead(REPAIRS_KEY, seedRepairs);
   const offline = useOffline();
   const all = read.data ?? [];
+  // The summary and the chip counts wait for the data: "0 open · 0 assigned"
+  // over a list still loading is a zero stated as a fact (mobile audit
+  // 2026-10-05, LL-12).
+  const loaded = read.data !== undefined;
 
   const assign = useFixtureMutation(REPAIRS_KEY, applyAssign, seedRepairs);
 
@@ -262,15 +270,26 @@ export function Maintenance() {
     .sort((a, b) => RANK[a.state] - RANK[b.state]);
 
   const count = (s: RepairState) => all.filter((k) => k.state === s).length;
+  const chipCount = (s: RepairState) => (loaded ? count(s) : undefined);
 
+  /**
+   * Assigning, and saying so only when it happened (mobile audit 2026-10-05,
+   * LL-08). The toast used to follow the write unconditionally, so a failed
+   * assign still announced a technician on the job.
+   */
   const onAssign = async (ticket: RepairTicket) => {
     setPending(ticket.ref);
-    await assign.mutate({ ref: ticket.ref, assignee: TECHNICIAN });
+    const outcome = await assign.mutate({ ref: ticket.ref, assignee: TECHNICIAN });
     setPending(null);
-    toast.show(
-      t('landlord.repairs.assignedToast', { ref: ticket.ref, name: TECHNICIAN }),
-      'success',
-    );
+    if (outcome === 'done') {
+      toast.show(
+        t('landlord.repairs.assignedToast', { ref: ticket.ref, name: TECHNICIAN }),
+        'success',
+      );
+    } else if (outcome === 'error') {
+      toast.show(t('landlord.repairs.assignFailed', { ref: ticket.ref }), 'danger');
+    }
+    // `cancelled` changed nothing and was asked for by nobody on this screen.
   };
 
   const empty: { icon: IconName; title: MessageKey; body: MessageKey } =
@@ -284,7 +303,8 @@ export function Maintenance() {
 
   return (
     <Screen.List<RepairTicket>
-      greeting={t('landlord.seat', { org: workspace.name, town: LANDLORD_TOWN })}
+      // The workspace's own name. It used to carry a fixture town as well.
+      greeting={workspace.name}
       title={t('landlord.repairs.title')}
       header={
         <>
@@ -294,30 +314,36 @@ export function Maintenance() {
               a rent ledger that is quietly stale is one somebody acts on.
               Session 11's audit found all three landlord lists without it. */}
           {offline ? <OfflineNote /> : null}
-          <Text size="sm" color="textMuted" style={{ lineHeight: 19 }}>
-            {t('landlord.repairs.summary', {
-              open: count('open'),
-              assigned: count('assigned'),
-              org: workspace.name,
-            })}
-          </Text>
+          {loaded ? (
+            <Text size="sm" color="textMuted" style={{ lineHeight: 19 }}>
+              {t('landlord.repairs.summary', {
+                open: count('open'),
+                assigned: count('assigned'),
+                org: workspace.name,
+              })}
+            </Text>
+          ) : null}
 
           <ChipGroup
             value={filter}
             onChange={(v) => setFilter(v as Filter)}
             items={[
-              { value: 'open', label: t('landlord.repairs.filterOpen'), count: count('open') },
+              { value: 'open', label: t('landlord.repairs.filterOpen'), count: chipCount('open') },
               {
                 value: 'assigned',
                 label: t('landlord.repairs.filterAssigned'),
-                count: count('assigned'),
+                count: chipCount('assigned'),
               },
               {
                 value: 'resolved',
                 label: t('landlord.repairs.filterResolved'),
-                count: count('resolved'),
+                count: chipCount('resolved'),
               },
-              { value: 'all', label: t('landlord.repairs.filterAll'), count: all.length },
+              {
+                value: 'all',
+                label: t('landlord.repairs.filterAll'),
+                count: loaded ? all.length : undefined,
+              },
             ]}
           />
 

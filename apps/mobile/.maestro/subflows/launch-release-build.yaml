@@ -1,0 +1,36 @@
+# Starts the installed release build (an EAS `preview` APK) by its id, and signs
+# in with a demo persona only if it is signed out (ADR-063 Build plan task 2).
+#
+# Never `clearState`: the crash flows kill and relaunch the app between steps,
+# and a native crash or an offline report waits on the phone for the next
+# launch, so wiping the app's data would wipe the report under test. A fresh
+# install starts signed out, which is the one sign in a run needs.
+#
+# A preview build talks to the demo API (`eas.json`), whose code screen fills the
+# published code and submits it by itself.
+appId: rw.injishi.mobile
+---
+- launchApp:
+    appId: rw.injishi.mobile
+    stopApp: true
+- extendedWaitUntil:
+    visible: "Demo accounts|Profile"
+    timeout: 60000
+- runFlow:
+    when:
+      visible: "Demo accounts"
+    commands:
+      - scrollUntilVisible:
+          element: "Samuel Kayitare"
+          direction: DOWN
+          timeout: 20000
+          centerElement: true
+      - tapOn: "Samuel Kayitare"
+      - scrollUntilVisible:
+          element: "Continue"
+          direction: UP
+          timeout: 10000
+      - tapOn: "Continue"
+- extendedWaitUntil:
+    visible: "Profile"
+    timeout: 60000

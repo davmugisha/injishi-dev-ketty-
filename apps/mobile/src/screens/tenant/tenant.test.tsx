@@ -10,31 +10,47 @@
  * test flips it, which is the only way that branch is reachable in a suite with
  * no radio.
  *
- * The `mock` prefix on those three closures is jest's rule, not a style: a mock
- * factory is hoisted above the file, so only names it can prove are lazily read
- * may be captured.
+ * Two more seams are mocked for the mobile audit of 2026-10-05, and both start
+ * where a production build starts:
+ *
+ *   - `usePlatform().isDemo` is false until a test says this is the demo. Pay
+ *     rent exists only on the demo stack (TN-07), so the tests that pay opt in.
+ *   - `useMyIdentity()` is the placeholder, which is nobody, until a test gives
+ *     the server's answer. The contract's Tenant party and a repair's reporter
+ *     come from here and never from the fixture persona (TN-03).
+ *
+ * The `mock` prefix on the captured variables is jest's rule, not a style: a
+ * mock factory is hoisted above the file, so only names it can prove are lazily
+ * read may be captured.
  *
  * The substantive assertions are the ones a wrong screen would pass without:
  * the sign button refusing until both conditions are met, the move-out banner
  * reading its notice period off the lease rather than a constant, the locked
- * rows on an unsigned lease, and the ticket a tenant files turning up in the
- * store the landlord reads.
+ * rows on an unsigned lease, the ticket a tenant files turning up in the store
+ * the landlord reads, and (TN-29) a FORCED FAILURE for every write, because
+ * every one of them used to toast its success whatever happened.
  */
 import { act, fireEvent, screen, waitFor } from '@testing-library/react-native';
-import { ToastProvider } from '@/components';
-import { SCHEMES, renderInScheme } from '@/test-utils';
+import { formatMoney, ToastProvider } from '@/components';
+import { SCHEMES, flattenStyle, renderInScheme } from '@/test-utils';
 import { en } from '@/i18n/messages';
 import { translate } from '@/i18n/i18n';
 import { addDays, addMonths, formatFullDay } from './dates';
-import { resetFixtures, readFixture } from '@/data/use-fixture-mutation';
+import { resetFixtures, readFixture, writeFixture } from '@/data/use-fixture-mutation';
 // The attempt journal is module-level and outlives a test on purpose — that is
 // what "survives backgrounding and app kill" means. So a test file has to clear
 // it, or the second test on the same lease opens straight into the first test's
 // settled attempt rather than onto the form.
-import { resetAttempts } from '@/data/payment-attempt';
-import { TENANCIES, type Tenancy } from '@/data/rentals';
+import { begin, resetAttempts, settle } from '@/data/payment-attempt';
+// The write queue is module-level for the same reason, and a report queued in
+// one test would otherwise drain into the next.
+import { resetQueue } from '@/data/write-queue';
+import { TENANCIES, nextDuePeriod, type Tenancy } from '@/data/rentals';
+import * as tenancyStore from '@/data/tenancy-store';
 import { TENANCIES_KEY } from '@/data/tenancy-store';
-import { TICKETS_KEY, type Ticket } from '@/data/tickets';
+import * as ticketStore from '@/data/tickets';
+import { TICKETS, TICKETS_KEY, type Ticket } from '@/data/tickets';
+import type { MyIdentity } from '@/queries/profile';
 import { Leases } from './leases';
 import { Rent } from './rent';
 import { LeaseDetail } from './lease-detail';
@@ -63,14 +79,38 @@ jest.mock('expo-network', () => ({
   useNetworkState: () => ({ isConnected: mockOnline, isInternetReachable: mockOnline }),
 }));
 
+const SEAT = { id: 'personal', name: 'Personal', role: 'Tenant', kind: 'personal' };
+let mockWorkspace = SEAT;
 jest.mock('@/domain', () => ({
   useDomain: () => ({
     domain: 'residence',
     setDomain: jest.fn(),
-    workspace: { id: 'personal', name: 'Personal', role: 'Tenant', kind: 'personal' },
+    workspace: mockWorkspace,
     setWorkspace: jest.fn(),
     surface: 'tenant',
   }),
+}));
+
+let mockIsDemo = false;
+jest.mock('@/queries/platform', () => ({
+  ...jest.requireActual('@/queries/platform'),
+  usePlatform: () => ({ platform: null, isDemo: mockIsDemo, seededAt: null }),
+}));
+
+/** The placeholder `useMyIdentity()` returns for an account with no name. */
+const NOBODY: MyIdentity = { name: '', initials: '', phone: '', fromServer: false, pending: false };
+/** What the server answers for a person who has completed Step 1. */
+const ALINE: MyIdentity = {
+  name: 'Aline Uwase',
+  initials: 'AU',
+  phone: '+250 732 123 456',
+  fromServer: true,
+  pending: false,
+};
+let mockIdentity: MyIdentity = NOBODY;
+jest.mock('@/queries/profile', () => ({
+  ...jest.requireActual('@/queries/profile'),
+  useMyIdentity: () => mockIdentity,
 }));
 
 /** Frames R11, R12 and R15's own lease: Ingoro A2, active, 30-day notice. */
@@ -78,6 +118,11 @@ const RUNNING = 'ingoro-apartments-a2';
 /** The invite's lease, awaiting signature. Frames X3 and R16. */
 const UNSIGNED = 'kimironko-flat-3';
 const CLOSED = 'gikondo-garden-flat';
+/** The second running lease, which owes an overdue month. */
+const SECOND = 'nyamirambo-flat-1';
+
+/** The fixture persona's name. It must never reach a tenant screen (TN-03). */
+const FIXTURE_PERSON = 'Samuel Kayitare';
 
 const lease = (id: string): Tenancy => TENANCIES.find((x) => x.id === id)!;
 
@@ -93,12 +138,18 @@ beforeEach(() => {
   mockPushed.length = 0;
   mockParams = {};
   mockOnline = true;
+  mockIsDemo = false;
+  mockIdentity = NOBODY;
+  mockWorkspace = SEAT;
   resetFixtures();
   resetAttempts();
+  resetQueue();
 });
 afterEach(() => {
+  jest.restoreAllMocks();
   resetFixtures();
   resetAttempts();
+  resetQueue();
 });
 
 const page = (ui: React.ReactElement) => <ToastProvider>{ui}</ToastProvider>;
@@ -120,6 +171,82 @@ async function open(
   const view = renderInScheme(page(ui), scheme, locale ? { locale } : undefined);
   await waitFor(() => expect(screen.getAllByText(settled).length).toBeGreaterThan(0));
   return view;
+}
+
+/** Long enough for the 300ms write and a loaded machine, short of the test cap. */
+const WRITE = { timeout: 5000 };
+
+/* ------------------------------------------------- forcing a write to fail */
+
+/**
+ * Make every tenancy write fail inside `useFixtureMutation`, the way a write a
+ * server refuses will (TN-29).
+ *
+ * Each applier in `tenancy-store.ts` goes through `mapTenancy`, which calls the
+ * stored array's own `map`. A stored array whose `map` throws therefore fails
+ * the write inside the mutation's try and resolves it to `error`, while every
+ * read (`find`, `filter`) still works, so the screen renders normally right up
+ * to the press. `writeFixture` with a plain array undoes it.
+ */
+function failTenancyWrites(tenancies: Tenancy[] = TENANCIES): void {
+  const poisoned = [...tenancies];
+  Object.defineProperty(poisoned, 'map', {
+    value: () => {
+      throw new Error('forced write failure');
+    },
+  });
+  writeFixture(TENANCIES_KEY, poisoned);
+}
+
+/** The same for the ticket store, whose filing counts references with `reduce`. */
+function failTicketWrites(tickets: Ticket[] = TICKETS): void {
+  const poisoned = [...tickets];
+  Object.defineProperty(poisoned, 'reduce', {
+    value: () => {
+      throw new Error('forced write failure');
+    },
+  });
+  writeFixture(TICKETS_KEY, poisoned);
+}
+
+const storedLease = (id: string): Tenancy | undefined =>
+  readFixture<Tenancy[]>(TENANCIES_KEY, TENANCIES).find((x) => x.id === id);
+
+/* --------------------------------------------------------- small helpers */
+
+/** The first value of `key` on `node` or the nearest ancestor that sets it. */
+interface Node {
+  props?: { style?: unknown };
+  parent: Node | null;
+}
+function styleUp(node: Node | null, key: string): unknown {
+  for (let cur = node; cur; cur = cur.parent) {
+    const value = flattenStyle(cur.props?.style)[key];
+    if (value !== undefined) return value;
+  }
+  return undefined;
+}
+
+/**
+ * Ink on the signature pad. `PanResponder`'s grant is the first touch of a
+ * stroke, and one point is a mark (the pad draws a dot for a tap).
+ */
+function drawSignature(): void {
+  const pad = screen.getByLabelText(en['sign.padLabel']);
+  act(() => {
+    pad.props.onResponderGrant({
+      nativeEvent: { locationX: 24, locationY: 40 },
+      touchHistory: { touchBank: [], numberActiveTouches: 0, indexOfSingleActiveTouch: -1 },
+    });
+  });
+}
+
+/** Choose the first day the notice period allows, and close the calendar. */
+function pickMoveOutDate(): void {
+  fireEvent.press(screen.getByLabelText(en['moveOut.pickDate']));
+  const available = en['calendar.dayAvailable'].replace('{day}', '');
+  fireEvent.press(screen.getAllByLabelText(new RegExp(`${available}$`))[0]);
+  fireEvent.press(screen.getByLabelText(en['moveOut.useDate']));
 }
 
 /* ------------------------------------------------ R11 · My leases -------- */
@@ -170,8 +297,6 @@ describe('R11 My leases, the other states', () => {
   });
 
   it('offers an empty state with a reason when there are no leases at all', async () => {
-    resetFixtures();
-    const { writeFixture } = require('@/data/use-fixture-mutation');
     writeFixture(TENANCIES_KEY, [] as Tenancy[]);
     await open(<Leases />, 'light', en['leases.emptyTitle']);
     expect(screen.getByText(en['leases.emptyBody'])).toBeTruthy();
@@ -183,17 +308,88 @@ describe('R11 My leases, the other states', () => {
   });
 });
 
+describe('R11 My leases, the audit fixes', () => {
+  /** TN-15, the rig's finding: the pill ran off the card's clipped edge. */
+  it('lets the next due date give way so the status pill stays on the card', async () => {
+    await open(<Leases />, 'light', 'Ingoro Apartments');
+    const dueDay = formatFullDay(nextDuePeriod(lease(RUNNING))!.dueOn!, translate);
+    const date = screen.getByText(dueDay);
+    expect(flattenStyle(date.props.style).flexShrink).toBe(1);
+    expect(styleUp(date.parent as Node, 'flexWrap')).toBe('wrap');
+  });
+
+  /** TN-17: a button's label replaces everything inside it. */
+  it('names the rent, the next due date and its status in the card label', async () => {
+    await open(<Leases />, 'light', 'Ingoro Apartments');
+    const opener = en['leases.open'].replace('{unit}', lease(RUNNING).unit);
+    const card = screen.getByLabelText(new RegExp(`^${opener}\\.`));
+    const label: string = card.props.accessibilityLabel;
+    expect(label).toContain(formatMoney(lease(RUNNING).rent));
+    expect(label).toContain(formatFullDay(nextDuePeriod(lease(RUNNING))!.dueOn!, translate));
+    expect(label).toContain(en['payment.due']);
+  });
+
+  /** TN-13: renewal is hidden in v1.0, and so is any note that one is pending. */
+  it('says nothing about a renewal, even one already requested', async () => {
+    writeFixture(
+      TENANCIES_KEY,
+      TENANCIES.map((x) =>
+        x.id === RUNNING
+          ? {
+              ...x,
+              renewal: {
+                requestedOn: '2026-08-01',
+                termMonths: 12,
+                startOn: '2027-02-02',
+                endOn: '2028-02-01',
+                rent: x.rent,
+                note: '',
+                state: 'pending' as const,
+              },
+            }
+          : x,
+      ),
+    );
+    await open(<Leases />, 'light', 'Ingoro Apartments');
+    expect(screen.queryByText(/renew/i)).toBeNull();
+  });
+
+  /** TN-22, the rig's finding: a lone "·" before `/me/workspaces` answers. */
+  it('draws no lone separator before the workspace has loaded', async () => {
+    mockWorkspace = { id: '', name: '', role: '', kind: 'personal' };
+    await open(<Leases />, 'light', 'Ingoro Apartments');
+    expect(screen.queryByText('·')).toBeNull();
+    expect(screen.queryByText(' · ')).toBeNull();
+  });
+
+  it('greets with the seat once it is known', async () => {
+    await open(<Leases />, 'light', 'Ingoro Apartments');
+    expect(screen.getByText('Personal · Tenant')).toBeTruthy();
+  });
+
+  /** TN-23: a recycled row must not show the last lease's photograph. */
+  it('keys each past lease thumbnail to its own lease', async () => {
+    await open(<Leases />, 'light', 'Kivu Breeze Studios');
+    const keyed = screen.root.findAll(
+      (node) => node.props.recyclingKey === 'kivu-breeze-studios-4',
+    );
+    expect(keyed.length).toBeGreaterThan(0);
+  });
+});
+
 /* ------------------------------------------------------ R12 · Rent ------- */
 
 describe.each(SCHEMES)('R12 Rent in the %s scheme', (scheme) => {
   it('leads with the next payment on the hero plate', async () => {
+    mockIsDemo = true;
     await open(<Rent />, scheme, en['rent.nextPayment']);
     // The figure is on the plate and on every ledger row of the same amount.
     expect(screen.getAllByText('310,000').length).toBeGreaterThan(0);
     expect(screen.getByText(en['rent.payRent'])).toBeTruthy();
   });
 
-  it('prints the adapter provenance under the button, not after it', async () => {
+  it('prints the adapter provenance under the button on the demo, not after it', async () => {
+    mockIsDemo = true;
     await open(<Rent />, scheme, en['rent.nextPayment']);
     expect(
       screen.getByText(en['rent.settledVia'].replace('{adapter}', en['tenant.mockAdapter'])),
@@ -217,12 +413,57 @@ describe.each(SCHEMES)('R12 Rent in the %s scheme', (scheme) => {
 
 describe('R12 Rent, paying', () => {
   it('opens the sheet with the lease and the period it is settling', async () => {
+    mockIsDemo = true;
     await open(<Rent />, 'light', en['rent.nextPayment']);
     fireEvent.press(screen.getByText(en['rent.payRent']));
     expect(mockPushed[0]).toEqual({
       pathname: '/pay-rent',
       params: { leaseId: RUNNING, month: NEXT_DUE },
     });
+  });
+
+  /**
+   * TN-07 (ADR-061 AC-4): the rail is a client timer, so outside the demo the
+   * app says nothing about paying in it, and one neutral line about paying
+   * the landlord. No "coming soon".
+   */
+  it('offers no way to pay in the app outside the demo', async () => {
+    await open(<Rent />, 'light', en['rent.nextPayment']);
+    expect(screen.queryByText(en['rent.payRent'])).toBeNull();
+    expect(
+      screen.queryByText(en['rent.settledVia'].replace('{adapter}', en['tenant.mockAdapter'])),
+    ).toBeNull();
+    expect(screen.getByText(en['rent.payDirectly'])).toBeTruthy();
+    expect(screen.queryByText(/coming soon/i)).toBeNull();
+  });
+});
+
+describe('R12 Rent, the audit fixes', () => {
+  /** TN-16: lease detail's "Rent history" names the lease it came from. */
+  it('opens on the lease a Rent history row asked for', async () => {
+    mockParams = { leaseId: SECOND };
+    await open(<Rent />, 'light', en['rent.nextPayment']);
+    expect(
+      screen.getByText(`${lease(SECOND).landlordOrg} · ${lease(SECOND).unit}`),
+    ).toBeTruthy();
+  });
+
+  /** TN-17: the row's label is all a screen reader hears of it. */
+  it('speaks each ledger row with its amount and its status', async () => {
+    await open(<Rent />, 'light', en['rent.nextPayment']);
+    const row = screen.getByLabelText(new RegExp(`^${SETTLED.month}, `));
+    const label: string = row.props.accessibilityLabel;
+    expect(label).toContain(formatMoney(SETTLED.amount));
+    expect(label).toContain(en['payment.paid']);
+  });
+
+  /** TN-26: a text link is still a target. */
+  it('gives the lease link a 44pt target', async () => {
+    await open(<Rent />, 'light', en['rent.nextPayment']);
+    const link = screen.getByLabelText(en['rent.openLease']);
+    expect(link.props.accessibilityRole).toBe('link');
+    const tall = link.findAll((node) => flattenStyle(node.props.style).minHeight === 44);
+    expect(tall.length).toBeGreaterThan(0);
   });
 });
 
@@ -244,6 +485,52 @@ describe.each(SCHEMES)('the pay-rent sheet in the %s scheme', (scheme) => {
     expect(screen.getByText(en['payRent.mockBody'])).toBeTruthy();
   });
 });
+
+/**
+ * A month label whose attempt the fixture rail CONFIRMS.
+ *
+ * The rail's answer is a pure function of the attempt token (`settle` seeds on
+ * it), and the token carries the month. So a test that needs the confirmed
+ * state picks a label the rail will confirm, rather than hoping today's month
+ * happens to be one; the machine itself says which.
+ */
+function confirmingMonth(leaseId: string): string {
+  for (let i = 0; i < 200; i += 1) {
+    const label = `Test month ${i}`;
+    const attempt = begin({
+      token: `rent:${leaseId}:${label}:0`,
+      handset: '',
+      rail: 'momo',
+      amountRwf: 1,
+    });
+    if (settle(attempt, 'REF').state === 'confirmed') return label;
+  }
+  throw new Error('no label in 200 that the fixture rail confirms');
+}
+
+/** The running lease, owing exactly one period, under `label`. */
+function owingOnly(label: string): Tenancy[] {
+  return TENANCIES.map((x) =>
+    x.id === RUNNING
+      ? {
+          ...x,
+          history: [
+            { month: label, amount: 310000, status: 'due' as const, dueOn: '2026-11-01' },
+            ...x.history.filter((p) => p.status === 'paid'),
+          ],
+        }
+      : x,
+  );
+}
+
+/** Enter a MoMo number and press pay. */
+function payWithMomo(): void {
+  fireEvent.changeText(screen.getByTestId('pay-rent-handset'), '788123456');
+  fireEvent.press(screen.getByText(en['payRent.action']));
+}
+
+/** Long enough for the rail's 1.2s answer and the ledger's write behind it. */
+const RAIL = { timeout: 8000 };
 
 /**
  * Paying, since gaps.md B2.
@@ -275,8 +562,7 @@ describe('the pay-rent sheet, settling', () => {
   it('sends the prompt to the handset and says so, rather than spinning', async () => {
     mockParams = { leaseId: RUNNING, month: NEXT_DUE };
     await open(<PayRent />, 'light', en['payRent.action']);
-    fireEvent.changeText(screen.getByTestId('pay-rent-handset'), '788123456');
-    fireEvent.press(screen.getByText(en['payRent.action']));
+    payWithMomo();
 
     // Never a bare spinner: the state names the handset the prompt went to and
     // says the PIN is entered there, not here (benchmarks.md §4).
@@ -293,8 +579,7 @@ describe('the pay-rent sheet, settling', () => {
     // go away for the wrong person.
     mockParams = { leaseId: RUNNING, month: NEXT_DUE };
     await open(<PayRent />, 'light', en['payRent.action']);
-    fireEvent.changeText(screen.getByTestId('pay-rent-handset'), '788123456');
-    fireEvent.press(screen.getByText(en['payRent.action']));
+    payWithMomo();
     expect(await screen.findByText(en['payRent.stillOwed'])).toBeTruthy();
   });
 
@@ -302,6 +587,113 @@ describe('the pay-rent sheet, settling', () => {
     mockParams = { leaseId: CLOSED };
     await open(<PayRent />, 'light', en['payRent.nothingDueTitle']);
     expect(screen.queryByText(en['payRent.action'])).toBeNull();
+  });
+
+  /**
+   * TN-08 and TN-20. Paying a period is what makes it stop being owed, and the
+   * token used to be re-derived from what was owed: the moment the ledger
+   * recorded the payment, the confirmation and its reference vanished and the
+   * sheet said "Nothing to pay". The only button under it said "Not now".
+   */
+  it('keeps the confirmation and its reference on screen after the ledger records it', async () => {
+    const label = confirmingMonth(RUNNING);
+    writeFixture(TENANCIES_KEY, owingOnly(label));
+    mockParams = { leaseId: RUNNING, month: label };
+    await open(<PayRent />, 'light', en['payRent.action']);
+    payWithMomo();
+
+    expect(await screen.findByText(en['pay.confirmedTitle'], undefined, RAIL)).toBeTruthy();
+    await waitFor(
+      () =>
+        expect(storedLease(RUNNING)?.history.find((p) => p.month === label)?.status).toBe('paid'),
+      RAIL,
+    );
+    expect(
+      await screen.findByText(en['payRent.toast'].replace('{month}', label), undefined, WRITE),
+    ).toBeTruthy();
+
+    // Still the confirmation, with its reference and a Done, after the write.
+    expect(screen.getByText(en['pay.confirmedTitle'])).toBeTruthy();
+    expect(screen.getByText(en['pay.reference'].toUpperCase())).toBeTruthy();
+    expect(screen.getByText(en['payRent.done'])).toBeTruthy();
+    expect(screen.queryByText(en['payRent.nothingDueTitle'])).toBeNull();
+    expect(screen.queryByText(en['payRent.cancel'])).toBeNull();
+  });
+
+  /** TN-12: the ledger write branches on its result like every other write. */
+  it('says the payment went through but was not recorded when the ledger write fails', async () => {
+    const label = confirmingMonth(RUNNING);
+    failTenancyWrites(owingOnly(label));
+    mockParams = { leaseId: RUNNING, month: label };
+    await open(<PayRent />, 'light', en['payRent.action']);
+    payWithMomo();
+
+    expect(
+      await screen.findByText(en['payRent.ledgerFailedTitle'], undefined, RAIL),
+    ).toBeTruthy();
+    expect(screen.getByText(en['payRent.ledgerFailedBody'])).toBeTruthy();
+    // Never the success toast over a write that did not land.
+    expect(screen.queryByText(en['payRent.toast'].replace('{month}', label))).toBeNull();
+    // The reference stays, because it is the one thing to keep.
+    expect(screen.getByText(en['pay.confirmedTitle'])).toBeTruthy();
+
+    // The retry records it once the store accepts writes again.
+    writeFixture(TENANCIES_KEY, owingOnly(label));
+    fireEvent.press(screen.getByLabelText(en['write.retry']));
+    expect(
+      await screen.findByText(en['payRent.toast'].replace('{month}', label), undefined, WRITE),
+    ).toBeTruthy();
+    expect(storedLease(RUNNING)?.history.find((p) => p.month === label)?.status).toBe('paid');
+  });
+});
+
+describe('the pay-rent sheet, the audit fixes', () => {
+  /** TN-21: a failed read is not a missing lease. */
+  it('offers a retry when the read fails, rather than saying the lease is gone', async () => {
+    const retry = jest.fn();
+    jest.spyOn(tenancyStore, 'useTenancy').mockReturnValue({
+      status: 'error',
+      data: undefined,
+      error: new Error('read failed'),
+      retry,
+    });
+    mockParams = { leaseId: RUNNING };
+    await open(<PayRent />, 'light', en['state.errorTitle']);
+    expect(screen.queryByText(en['lease.notFound'])).toBeNull();
+    fireEvent.press(screen.getByText(en['state.retry']));
+    expect(retry).toHaveBeenCalled();
+  });
+
+  it('says a missing lease is missing, with no retry that cannot help', async () => {
+    mockParams = { leaseId: 'no-such-lease' };
+    await open(<PayRent />, 'light', en['lease.notFound']);
+    expect(screen.queryByText(en['state.retry'])).toBeNull();
+  });
+
+  /** TN-17: the amount is in the label, not only on the screen. */
+  it('speaks the amount being paid', async () => {
+    mockParams = { leaseId: RUNNING, month: NEXT_DUE };
+    await open(<PayRent />, 'light', en['payRent.action']);
+    const block = screen.getByLabelText(new RegExp(`^${en['payRent.amount']}, `));
+    expect(block.props.accessibilityLabel).toContain(formatMoney(310000));
+  });
+
+  /** TN-28: the number on the account, and the rail it belongs to. */
+  it('starts the handset as the number the server holds, on its own network', async () => {
+    mockIdentity = ALINE;
+    mockParams = { leaseId: RUNNING, month: NEXT_DUE };
+    await open(<PayRent />, 'light', en['payRent.action']);
+    await waitFor(() =>
+      expect(screen.getByTestId('pay-rent-handset').props.value).toBe('732 123 456'),
+    );
+    const airtel = screen.getByLabelText(`${en['payRent.airtel']}, ${en['payRent.airtelMeta']}`);
+    expect(airtel.props.accessibilityState.selected).toBe(true);
+  });
+
+  it('leaves the handset empty when the server has no number for the person', async () => {
+    mockParams = { leaseId: RUNNING, month: NEXT_DUE };
+    await open(<PayRent />, 'light', en['payRent.action']);
+    expect(screen.getByTestId('pay-rent-handset').props.value).toBe('');
   });
 });
 
@@ -321,10 +713,11 @@ describe.each(SCHEMES)('R15 Lease detail in the %s scheme', (scheme) => {
     expect(screen.getByText(en['lease.logMaintenance'])).toBeTruthy();
   });
 
-  it('offers renewal and move-out on a running lease', async () => {
+  /** TN-13: renewal is P2 and hidden; its button bounced the reader home. */
+  it('offers move-out on a running lease, and no renewal', async () => {
     await open(<LeaseDetail id={RUNNING} />, scheme, lease(RUNNING).ref);
-    expect(screen.getByText(en['lease.requestRenewal'])).toBeTruthy();
     expect(screen.getByText(en['lease.fileMoveOut'])).toBeTruthy();
+    expect(screen.queryByText(/renew/i)).toBeNull();
   });
 });
 
@@ -334,7 +727,7 @@ describe('R15 Lease detail, the locked and closed arms', () => {
     await open(<LeaseDetail id={UNSIGNED} />, 'light', lease(UNSIGNED).ref);
     expect(screen.getByText(en['lease.contractLocked'])).toBeTruthy();
     expect(screen.getByText(en['leases.reviewAndSign'])).toBeTruthy();
-    expect(screen.queryByText(en['lease.requestRenewal'])).toBeNull();
+    expect(screen.queryByText(/renew/i)).toBeNull();
     expect(screen.queryByText(en['lease.fileMoveOut'])).toBeNull();
   });
 
@@ -347,6 +740,101 @@ describe('R15 Lease detail, the locked and closed arms', () => {
   it('says so rather than rendering blanks for a lease that is gone', async () => {
     await open(<LeaseDetail id="no-such-lease" />, 'light', en['lease.notFound']);
     expect(screen.getByText(en['lease.notFound'])).toBeTruthy();
+  });
+});
+
+describe('R15 Lease detail, the audit fixes', () => {
+  /** TN-07: the pay sheet is the demo's alone, and so is its button. */
+  it('draws no Pay rent outside the demo', async () => {
+    await open(<LeaseDetail id={RUNNING} />, 'light', lease(RUNNING).ref);
+    expect(screen.queryByText(en['lease.payRent'])).toBeNull();
+  });
+
+  /** TN-16: it opened Rent, which showed whichever lease came first. */
+  it('opens THIS lease and its month when Pay rent is pressed on the demo', async () => {
+    mockIsDemo = true;
+    await open(<LeaseDetail id={SECOND} />, 'light', lease(SECOND).ref);
+    fireEvent.press(screen.getByText(en['lease.payRent']));
+    expect(mockPushed).toContainEqual({
+      pathname: '/pay-rent',
+      params: { leaseId: SECOND, month: nextDuePeriod(lease(SECOND))!.month },
+    });
+  });
+
+  it('opens THIS lease when Rent history is pressed', async () => {
+    await open(<LeaseDetail id={SECOND} />, 'light', lease(SECOND).ref);
+    fireEvent.press(screen.getByText(en['lease.rentHistory']));
+    expect(mockPushed).toContainEqual({ pathname: '/rent', params: { leaseId: SECOND } });
+  });
+
+  /** TN-14: every document row offered a download that only showed a toast. */
+  it('offers no download and lists no documents it cannot open', async () => {
+    await open(<LeaseDetail id={RUNNING} />, 'light', lease(RUNNING).ref);
+    expect(screen.queryByText(/download/i)).toBeNull();
+    expect(screen.queryByLabelText(/download/i)).toBeNull();
+    expect(screen.queryByText('Caution receipt')).toBeNull();
+  });
+
+  /** TN-13: no renewal-pending note either. */
+  it('says nothing about a renewal, even one already requested', async () => {
+    writeFixture(
+      TENANCIES_KEY,
+      TENANCIES.map((x) =>
+        x.id === RUNNING
+          ? {
+              ...x,
+              renewal: {
+                requestedOn: '2026-08-01',
+                termMonths: 12,
+                startOn: '2027-02-02',
+                endOn: '2028-02-01',
+                rent: x.rent,
+                note: '',
+                state: 'pending' as const,
+              },
+            }
+          : x,
+      ),
+    );
+    await open(<LeaseDetail id={RUNNING} />, 'light', lease(RUNNING).ref);
+    expect(screen.queryByText(/renew/i)).toBeNull();
+  });
+
+  /** TN-25: "Report something broken", then "1 open", while tickets loaded. */
+  it('claims no ticket count until the tickets have been read', async () => {
+    jest.spyOn(ticketStore, 'useTickets').mockReturnValue({
+      status: 'loading',
+      data: undefined,
+      error: undefined,
+      retry: jest.fn(),
+    });
+    await open(<LeaseDetail id={RUNNING} />, 'light', lease(RUNNING).ref);
+    expect(screen.getByText(en['lease.ticketsChecking'])).toBeTruthy();
+    expect(screen.queryByText(en['lease.noTickets'])).toBeNull();
+  });
+
+  /** TN-05: the notice is on this phone, and the landlord is not told. */
+  it('says a saved notice has not reached the landlord', async () => {
+    writeFixture(
+      TENANCIES_KEY,
+      TENANCIES.map((x) =>
+        x.id === RUNNING
+          ? {
+              ...x,
+              leaseState: 'ending' as const,
+              notice: { filedOn: '2026-10-01', moveOutOn: '2026-11-15', message: '' },
+            }
+          : x,
+      ),
+    );
+    await open(<LeaseDetail id={RUNNING} />, 'light', en['lease.noticeFiledTitle']);
+    expect(
+      screen.getByText(
+        en['lease.noticeFiledBody']
+          .replace('{landlord}', lease(RUNNING).landlord)
+          .replace('{date}', formatFullDay('2026-11-15', translate)),
+      ),
+    ).toBeTruthy();
   });
 });
 
@@ -397,6 +885,61 @@ describe('R16 e-Sign, the two conditions', () => {
   });
 });
 
+describe('R16 e-Sign, what it may claim', () => {
+  const landlord = lease(UNSIGNED).landlord;
+
+  /** TN-04: the consent promised a record nothing keeps. */
+  it('says before the press that the signature stays on this phone', async () => {
+    mockParams = { leaseId: UNSIGNED };
+    await open(<LeaseSign />, 'light', en['sign.consent']);
+    expect(screen.getByText(en['sign.localNote'].replace('{landlord}', landlord))).toBeTruthy();
+    expect(screen.queryByText(/recorded with the contract/)).toBeNull();
+  });
+
+  it('says a signature is saved here, the landlord not told and nothing filed', async () => {
+    mockParams = { leaseId: UNSIGNED };
+    await open(<LeaseSign />, 'light', en['sign.action']);
+    drawSignature();
+    fireEvent.press(screen.getByLabelText(en['sign.consentLabel']));
+    fireEvent.press(screen.getByLabelText(en['sign.action']));
+
+    expect(await screen.findByText(en['sign.toast'], undefined, WRITE)).toBeTruthy();
+    expect(screen.getAllByText(en['sign.savedTitle']).length).toBeGreaterThan(0);
+    expect(
+      screen.getByText(
+        en['sign.savedBody']
+          .replace('{landlord}', landlord)
+          .replace('{date}', formatFullDay(lease(UNSIGNED).startOn, translate)),
+      ),
+    ).toBeTruthy();
+    // Not "nothing further is needed", and never the old claims.
+    expect(screen.queryByText(en['sign.alreadyActiveTitle'])).toBeNull();
+    expect(screen.queryByText(/queued to file|wired/)).toBeNull();
+    expect(storedLease(UNSIGNED)?.signedOnDevice).toBe(true);
+  });
+
+  /** TN-12 and TN-29: a signature that failed to save was confirmed as active. */
+  it('renders the failure and toasts nothing when the signature does not save', async () => {
+    failTenancyWrites();
+    mockParams = { leaseId: UNSIGNED };
+    await open(<LeaseSign />, 'light', en['sign.action']);
+    drawSignature();
+    fireEvent.press(screen.getByLabelText(en['sign.consentLabel']));
+    fireEvent.press(screen.getByLabelText(en['sign.action']));
+
+    expect(await screen.findByText(en['write.failedLegalBody'], undefined, WRITE)).toBeTruthy();
+    expect(screen.getByText(en['write.failedTitle'])).toBeTruthy();
+    expect(screen.queryByText(en['sign.toast'])).toBeNull();
+    expect(storedLease(UNSIGNED)?.leaseState).toBe('pending_signature');
+
+    // The ink and the tick are still there, so the retry is one press.
+    writeFixture(TENANCIES_KEY, [...TENANCIES]);
+    fireEvent.press(screen.getByLabelText(en['write.retry']));
+    expect(await screen.findByText(en['sign.toast'], undefined, WRITE)).toBeTruthy();
+    expect(storedLease(UNSIGNED)?.leaseState).toBe('active');
+  });
+});
+
 /* ------------------------------------------------ R17 · Move-out --------- */
 
 describe.each(SCHEMES)('R17 Move-out in the %s scheme', (scheme) => {
@@ -421,7 +964,7 @@ describe('R17 Move-out, the rule per lease', () => {
    * banner reads whichever lease the reader is actually ending.
    */
   it('reads fourteen days on the contract that asks for fourteen', async () => {
-    mockParams = { leaseId: 'nyamirambo-flat-1' };
+    mockParams = { leaseId: SECOND };
     await open(<LeaseMoveOut />, 'light', en['moveOut.rule'].replace('{days}', '14'));
     expect(screen.queryByText(en['moveOut.rule'].replace('{days}', '30'))).toBeNull();
   });
@@ -441,7 +984,53 @@ describe('R17 Move-out, the rule per lease', () => {
   });
 });
 
+describe('R17 Move-out, what it may claim', () => {
+  const landlord = lease(RUNNING).landlord;
+
+  /** TN-05: "{landlord} has been notified" was false. */
+  it('says the notice is saved here and the landlord is not told', async () => {
+    mockParams = { leaseId: RUNNING };
+    await open(<LeaseMoveOut />, 'light', en['moveOut.action']);
+    pickMoveOutDate();
+    fireEvent.press(screen.getByLabelText(en['moveOut.action']));
+    // The confirm says what pressing it does, before it is pressed.
+    expect(screen.getByText(new RegExp(`${landlord} is not told yet`))).toBeTruthy();
+    fireEvent.press(screen.getByLabelText(en['moveOut.confirmAction']));
+
+    expect(await screen.findByText(en['moveOut.toast'], undefined, WRITE)).toBeTruthy();
+    expect(screen.getByText(en['moveOut.alreadyFiledTitle'])).toBeTruthy();
+    expect(screen.getByText(new RegExp(`^${landlord} is not told yet, so give them`))).toBeTruthy();
+    expect(screen.queryByText(/has been notified|wired/)).toBeNull();
+    expect(storedLease(RUNNING)?.leaseState).toBe('ending');
+  });
+
+  /** TN-12 and TN-29. */
+  it('renders the failure and toasts nothing when the notice does not save', async () => {
+    failTenancyWrites();
+    mockParams = { leaseId: RUNNING };
+    await open(<LeaseMoveOut />, 'light', en['moveOut.action']);
+    pickMoveOutDate();
+    fireEvent.press(screen.getByLabelText(en['moveOut.action']));
+    fireEvent.press(screen.getByLabelText(en['moveOut.confirmAction']));
+
+    expect(await screen.findByText(en['write.failedLegalBody'], undefined, WRITE)).toBeTruthy();
+    expect(screen.queryByText(en['moveOut.toast'])).toBeNull();
+    expect(storedLease(RUNNING)?.notice).toBeUndefined();
+
+    // The date the person confirmed is kept, so the retry does not ask again.
+    writeFixture(TENANCIES_KEY, [...TENANCIES]);
+    fireEvent.press(screen.getByLabelText(en['write.retry']));
+    expect(await screen.findByText(en['moveOut.toast'], undefined, WRITE)).toBeTruthy();
+    expect(storedLease(RUNNING)?.leaseState).toBe('ending');
+  });
+});
+
 /* -------------------------------------------------- R18 · Renew ---------- */
+
+/*
+ * The route is hidden in v1.0 (`guard={false}`) and nothing links here, but the
+ * screen is kept and held to the same rules as the live ones meanwhile.
+ */
 
 describe.each(SCHEMES)('R18 Renew in the %s scheme', (scheme) => {
   it('offers the three terms and derives the new dates from the current end', async () => {
@@ -474,18 +1063,18 @@ describe('R18 Renew, sending', () => {
   });
 
   /**
-   * Same state, two moments. "Already with your landlord" one second after you
-   * pressed Send reads as though the app lost the request.
+   * Same state, two moments. "Already saved" one second after you pressed Send
+   * reads as though the app lost the request.
    */
-  it('says the request was sent, not that one was already waiting', async () => {
+  it('says the request was saved, not that one was already waiting', async () => {
     mockParams = { leaseId: RUNNING };
     await open(<LeaseRenew />, 'light', en['renew.action']);
     await act(async () => {
       fireEvent.press(screen.getByLabelText(en['renew.action']));
     });
 
-    // The page header names the state in either moment ("Request sent"); the
-    // card body is what distinguishes them, so that is what is asserted.
+    // The page header names the state in either moment; the card body is what
+    // distinguishes them, so that is what is asserted.
     const sent = en['renew.sentBody']
       .replace('{landlord}', lease(RUNNING).landlord)
       // A 12 month term from the day after the current end, the default the
@@ -499,7 +1088,6 @@ describe('R18 Renew, sending', () => {
   });
 
   it('says a request is already waiting when one was there on arrival', async () => {
-    const { writeFixture } = require('@/data/use-fixture-mutation');
     writeFixture(
       TENANCIES_KEY,
       TENANCIES.map((x) =>
@@ -525,6 +1113,18 @@ describe('R18 Renew, sending', () => {
       .replace('{on}', '1 August 2026')
       .replace('{date}', '1 February 2028');
     expect(screen.getByText(pendingBody)).toBeTruthy();
+  });
+
+  /** TN-12 and TN-29. */
+  it('renders the failure and toasts nothing when the request does not save', async () => {
+    failTenancyWrites();
+    mockParams = { leaseId: RUNNING };
+    await open(<LeaseRenew />, 'light', en['renew.action']);
+    fireEvent.press(screen.getByLabelText(en['renew.action']));
+
+    expect(await screen.findByText(en['write.failedTitle'], undefined, WRITE)).toBeTruthy();
+    expect(screen.queryByText(en['renew.toast'])).toBeNull();
+    expect(storedLease(RUNNING)?.renewal).toBeUndefined();
   });
 });
 
@@ -568,12 +1168,39 @@ describe('R19 Visitor log, writing', () => {
       const stored = readFixture<Tenancy[]>(TENANCIES_KEY, []).find((x) => x.id === RUNNING);
       expect(stored?.visitors[0].name).toBe('Aline Uwera');
     });
+    expect(
+      await screen.findByText(en['visitors.toast'].replace('{name}', 'Aline Uwera'), undefined, WRITE),
+    ).toBeTruthy();
   });
 
   it('is read-only history on a lease that has ended', async () => {
     mockParams = { leaseId: CLOSED };
     await open(<LeaseVisitors />, 'light', en['visitors.readOnlyTitle']);
     expect(screen.queryByLabelText(en['visitors.add'])).toBeNull();
+  });
+
+  /**
+   * TN-12 and TN-29. The sheet used to close on the press and toast "logged"
+   * whatever happened, so a failed save threw the name away.
+   */
+  it('keeps the entry in front of the person when it does not save', async () => {
+    failTenancyWrites();
+    mockParams = { leaseId: RUNNING };
+    await open(<LeaseVisitors />, 'light', en['visitors.add']);
+    fireEvent.press(screen.getByLabelText(en['visitors.add']));
+    fireEvent.changeText(screen.getByLabelText(en['visitors.nameLabel']), 'Aline Uwera');
+    fireEvent.press(screen.getByLabelText(en['visitors.save']));
+
+    expect(await screen.findByText(en['write.failedTitle'], undefined, WRITE)).toBeTruthy();
+    expect(screen.queryByText(en['visitors.toast'].replace('{name}', 'Aline Uwera'))).toBeNull();
+    expect(screen.getByDisplayValue('Aline Uwera')).toBeTruthy();
+
+    writeFixture(TENANCIES_KEY, [...TENANCIES]);
+    fireEvent.press(screen.getByLabelText(en['write.retry']));
+    expect(
+      await screen.findByText(en['visitors.toast'].replace('{name}', 'Aline Uwera'), undefined, WRITE),
+    ).toBeTruthy();
+    expect(storedLease(RUNNING)?.visitors[0].name).toBe('Aline Uwera');
   });
 });
 
@@ -588,7 +1215,7 @@ describe.each(SCHEMES)('R20 Report an issue in the %s scheme', (scheme) => {
     expect(screen.getByText(en['issue.priority'])).toBeTruthy();
   });
 
-  it('says where the ticket is going', async () => {
+  it('says who the ticket is for', async () => {
     mockParams = { leaseId: RUNNING };
     const goesTo = en['issue.goesTo'].replace('{org}', lease(RUNNING).landlordOrg);
     // The unit and the destination are one line, so the assertion is on the
@@ -597,7 +1224,17 @@ describe.each(SCHEMES)('R20 Report an issue in the %s scheme', (scheme) => {
   });
 });
 
+/** Fill the form's one required field and press submit. */
+async function fileLeak(): Promise<void> {
+  fireEvent.changeText(screen.getByLabelText(en['issue.whatLabel']), 'Leaking kitchen tap');
+  await act(async () => {
+    fireEvent.press(screen.getByLabelText(en['issue.action']));
+  });
+}
+
 describe('R20 Report an issue, filing', () => {
+  const org = lease(RUNNING).landlordOrg;
+
   it('will not submit without saying what is wrong', async () => {
     mockParams = { leaseId: RUNNING };
     await open(<LeaseMaintenanceNew />, 'light', en['issue.needTitle']);
@@ -608,13 +1245,7 @@ describe('R20 Report an issue, filing', () => {
   it('writes a ticket into the store the landlord surface reads', async () => {
     mockParams = { leaseId: RUNNING };
     await open(<LeaseMaintenanceNew />, 'light', en['issue.whatLabel']);
-    fireEvent.changeText(
-      screen.getByLabelText(en['issue.whatLabel']),
-      'Leaking kitchen tap',
-    );
-    await act(async () => {
-      fireEvent.press(screen.getByLabelText(en['issue.action']));
-    });
+    await fileLeak();
 
     await waitFor(() => {
       const stored = readFixture<Ticket[]>(TICKETS_KEY, []);
@@ -630,6 +1261,97 @@ describe('R20 Report an issue, filing', () => {
     mockParams = { leaseId: CLOSED };
     await open(<LeaseMaintenanceNew />, 'light', en['issue.closedTitle']);
     expect(screen.queryByLabelText(en['issue.action'])).toBeNull();
+  });
+
+  /** TN-03: the reporter is the person on the server, never the fixture. */
+  it('names the reporter from the server', async () => {
+    mockIdentity = ALINE;
+    mockParams = { leaseId: RUNNING };
+    await open(<LeaseMaintenanceNew />, 'light', en['issue.whatLabel']);
+    await fileLeak();
+    await waitFor(() =>
+      expect(readFixture<Ticket[]>(TICKETS_KEY, [])[0]?.reporter).toBe('Aline Uwase'),
+    );
+  });
+
+  it('says the reporter has no name on file rather than borrowing one', async () => {
+    mockParams = { leaseId: RUNNING };
+    await open(<LeaseMaintenanceNew />, 'light', en['issue.whatLabel']);
+    await fileLeak();
+    await waitFor(() =>
+      expect(readFixture<Ticket[]>(TICKETS_KEY, [])[0]?.reporter).toBe(en['identity.unnamed']),
+    );
+    expect(readFixture<Ticket[]>(TICKETS_KEY, [])[0]?.reporter).not.toBe(FIXTURE_PERSON);
+  });
+
+  /** TN-06: "{org} sees it now" and "you get a message here" were both false. */
+  it('says the report is saved here and the landlord is not told', async () => {
+    mockParams = { leaseId: RUNNING };
+    await open(<LeaseMaintenanceNew />, 'light', en['issue.whatLabel']);
+    await fileLeak();
+
+    expect(await screen.findByText(en['issue.toast'], undefined, WRITE)).toBeTruthy();
+    expect(screen.getByText(en['issue.filedBody'].replace('{org}', org))).toBeTruthy();
+    expect(screen.queryByText(/sees it|message here|wired/)).toBeNull();
+  });
+
+  /** TN-11: the queued state is its own, and never "filed". */
+  it('says a report made offline will be sent when the phone reconnects', async () => {
+    mockOnline = false;
+    mockParams = { leaseId: RUNNING };
+    await open(<LeaseMaintenanceNew />, 'light', en['issue.whatLabel']);
+    await fileLeak();
+
+    expect(await screen.findByText(en['queue.submittedWhenOnline'], undefined, WRITE)).toBeTruthy();
+    expect(screen.getByText(en['issue.queuedBody'])).toBeTruthy();
+    expect(screen.queryByText(en['issue.filedTitle'])).toBeNull();
+    expect(screen.queryByText(en['issue.toast'])).toBeNull();
+  });
+
+  /**
+   * TN-11 and TN-29. The screen read the write's state from the render that
+   * pressed the button, so a send that failed was confirmed as filed.
+   */
+  it('renders the failure, keeps the report, and sends it on retry', async () => {
+    failTicketWrites();
+    mockParams = { leaseId: RUNNING };
+    await open(<LeaseMaintenanceNew />, 'light', en['issue.whatLabel']);
+    await fileLeak();
+
+    expect(await screen.findByText(en['issue.keptBody'], undefined, WRITE)).toBeTruthy();
+    expect(screen.getByText(en['queue.sendFailed'])).toBeTruthy();
+    expect(screen.queryByText(en['issue.toast'])).toBeNull();
+    expect(screen.queryByText(en['issue.filedTitle'])).toBeNull();
+    // The form is gone while the report is kept, so it cannot be filed twice.
+    expect(screen.queryByLabelText(en['issue.action'])).toBeNull();
+
+    writeFixture(TICKETS_KEY, [...TICKETS]);
+    fireEvent.press(screen.getByLabelText(en['write.retry']));
+    expect(await screen.findByText(en['issue.toast'], undefined, WRITE)).toBeTruthy();
+    const filed = readFixture<Ticket[]>(TICKETS_KEY, []).filter(
+      (x) => x.title === 'Leaking kitchen tap',
+    );
+    expect(filed).toHaveLength(1);
+  });
+
+  /** TN-19: lease detail dropped resolved tickets and this list did not. */
+  it('lists only the tickets on this lease that are still open', async () => {
+    const mine = (ref: string, title: string, state: Ticket['state']): Ticket => ({
+      ...TICKETS[0],
+      ref,
+      title,
+      state,
+      leaseId: RUNNING,
+    });
+    writeFixture(TICKETS_KEY, [
+      mine('T-301', 'Window latch loose', 'open'),
+      mine('T-300', 'Bathroom fan replaced', 'resolved'),
+      ...TICKETS,
+    ]);
+    mockParams = { leaseId: RUNNING };
+    await open(<LeaseMaintenanceNew />, 'light', en['issue.openOnLease']);
+    expect(screen.getByText('Window latch loose')).toBeTruthy();
+    expect(screen.queryByText('Bathroom fan replaced')).toBeNull();
   });
 });
 
@@ -661,5 +1383,51 @@ describe('the contract viewer, the empty arm', () => {
     mockParams = { leaseId: CLOSED };
     await open(<LeaseContract />, 'light', en['contract.emptyTitle']);
     expect(screen.getByText(en['contract.emptyBody'])).toBeTruthy();
+  });
+});
+
+describe('the contract viewer, the audit fixes', () => {
+  /** TN-03: the Tenant party was the fixture persona for whoever held the phone. */
+  it('names the person holding the phone as the tenant, from the server', async () => {
+    mockIdentity = ALINE;
+    mockParams = { leaseId: RUNNING };
+    await open(<LeaseContract />, 'light', en['contract.clauses']);
+    expect(screen.getByText('Aline Uwase')).toBeTruthy();
+    expect(screen.queryByText(FIXTURE_PERSON)).toBeNull();
+  });
+
+  it('says the tenant has no name on file rather than borrowing one', async () => {
+    mockParams = { leaseId: RUNNING };
+    await open(<LeaseContract />, 'light', en['contract.clauses']);
+    expect(screen.getByText(en['identity.unnamed'])).toBeTruthy();
+    expect(screen.queryByText(FIXTURE_PERSON)).toBeNull();
+  });
+
+  it('draws no name while the profile is still being read', async () => {
+    mockIdentity = { ...NOBODY, pending: true };
+    mockParams = { leaseId: RUNNING };
+    await open(<LeaseContract />, 'light', en['contract.clauses']);
+    expect(
+      screen.getByLabelText(`${en['contract.tenant']}: ${en['state.loading']}`),
+    ).toBeTruthy();
+    expect(screen.queryByText(en['identity.unnamed'])).toBeNull();
+  });
+
+  /** TN-14: "Download PDF" only ever showed a toast saying it was mocked. */
+  it('offers no download', async () => {
+    mockParams = { leaseId: RUNNING };
+    await open(<LeaseContract />, 'light', en['contract.clauses']);
+    expect(screen.queryByText(/download/i)).toBeNull();
+  });
+
+  /** TN-26: a fixed 82dp column broke "Landlord" mid-word at large sizes. */
+  it('gives the label column a floor rather than a fixed width', async () => {
+    mockParams = { leaseId: RUNNING };
+    await open(<LeaseContract />, 'light', en['contract.clauses']);
+    const label = screen.getByText(en['contract.landlord']);
+    const style = flattenStyle(label.props.style);
+    expect(style.minWidth).toBe(82);
+    expect(style.width).toBeUndefined();
+    expect(styleUp(label.parent as Node, 'flexWrap')).toBe('wrap');
   });
 });

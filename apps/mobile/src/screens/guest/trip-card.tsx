@@ -3,7 +3,7 @@
  *
  * Guest canvas artboard 9, `tripCard` in `screens-b.mjs`: title, location, a
  * status pill, then a footer of dates, nights, total and a chevron. The
- * anatomy is the artboard's; three things are Session 5's.
+ * anatomy is the artboard's; two things are Session 5's.
  *
  * **A past trip is muted, and mutes with opacity rather than with a paler
  * palette key.** The design brief's greyscale rule means a "dimmer" colour has
@@ -11,16 +11,15 @@
  * how a surface ends up with two vocabularies for one idea. One opacity on the
  * whole card says "this is history" without inventing a colour.
  *
- * **The review row is part of the card, not a second card.** F-B14 gives the
- * CTA once per completed stay within the window, and a separate card for it
- * would be a card whose only content is a button — the "orphaned control" the
- * quality bar rules out. So it sits in the footer, under a hairline, and it
- * appears only where a review does not already exist.
+ * **No review row in v1.** It used to sit in the footer of a completed stay
+ * and open `trip/[id]/review`. Reviews are hidden in the v1.0 cut and that
+ * route is closed for everyone, so the row bounced the guest home, and the
+ * footer's "you rated this stay" lines described a feature nobody can use
+ * (mobile audit 2026-10-05, GK-11). It returns with the review feature.
  *
- * **A cancelled stay never offers a review.** "Past" and "completed" are not
- * the same word: nobody stayed in a cancelled booking, and F-B14 is explicit
- * that the CTA belongs to a completed stay. The card says what happened
- * instead, so the row is not simply missing without explanation.
+ * **A cancelled stay says so.** "Past" and "completed" are not the same word:
+ * nobody stayed in a cancelled booking, so its card names what happened rather
+ * than looking like any other past stay.
  */
 import { View } from 'react-native';
 import {
@@ -32,28 +31,20 @@ import {
 } from '@/components';
 import { useTheme } from '@/theme/theme';
 import { useT } from '@/i18n/i18n';
-import { departureAt, REVIEW_WINDOW_MS, reviewWindowOpen, type Trip } from '@/data/trips';
-import { overallFromScores, type TripReview } from '@/data/trip-reviews';
+import type { Trip } from '@/data/trips';
 import { tripDateLine } from './trip-format';
 
 export interface TripCardProps {
   trip: Trip;
-  /** The guest's own review of this stay, if they have written one. */
-  review: TripReview | undefined;
   onPress: () => void;
-  /** Opens the review sheet. Absent on a card that cannot be reviewed. */
-  onReview?: () => void;
-  /** Injected so the whole list shares one clock rather than one each. */
-  now: number;
 }
 
-export function TripCard({ trip, review, onPress, onReview, now }: TripCardProps) {
+export function TripCard({ trip, onPress }: TripCardProps) {
   const { c, space, radius, shadow } = useTheme();
   const t = useT();
 
   const past = trip.state === 'completed' || trip.state === 'cancelled';
-  const canReview = !review && reviewWindowOpen(trip, now) && !!onReview;
-  const footer = pastFooter();
+  const cancelled = trip.state === 'cancelled';
 
   return (
     <View
@@ -108,37 +99,7 @@ export function TripCard({ trip, review, onPress, onReview, now }: TripCardProps
         </View>
       </PressableScale>
 
-      {canReview ? (
-        <PressableScale
-          accessibilityLabel={t('trips.leaveReview')}
-          accessibilityHint={t('trips.reviewPrompt', { property: trip.property })}
-          haptic
-          onPress={onReview}
-          style={{
-            flexDirection: 'row',
-            alignItems: 'center',
-            gap: space[3],
-            // 44pt floor without growing the card: the row is the target.
-            minHeight: 52,
-            paddingHorizontal: space[4],
-            paddingVertical: space[2],
-            backgroundColor: c.bgTint,
-            borderTopWidth: 1,
-            borderTopColor: c.borderSubtle,
-          }}
-        >
-          <Icon name="star" size={17} color={c.brand700} />
-          <View style={{ flex: 1, gap: 1 }}>
-            <Text weight="semibold" size="sm" color="brand900">
-              {t('trips.leaveReview')}
-            </Text>
-            <Text size="xs" color="textMuted" numberOfLines={1}>
-              {reviewWindowText(trip, now, t)}
-            </Text>
-          </View>
-          <Icon name="chevronRight" size={17} color={c.brand700} />
-        </PressableScale>
-      ) : footer ? (
+      {cancelled ? (
         <View
           accessible
           accessibilityRole="summary"
@@ -153,40 +114,12 @@ export function TripCard({ trip, review, onPress, onReview, now }: TripCardProps
             borderTopColor: c.borderSubtle,
           }}
         >
-          <Icon name={footer.icon} size={15} color={c.textMuted} />
+          <Icon name="xCircle" size={15} color={c.textMuted} />
           <Text size="xs" color="textMuted" style={{ flex: 1, lineHeight: 18 }}>
-            {footer.text}
+            {t('trip.cancelledNote')}
           </Text>
         </View>
       ) : null}
     </View>
   );
-
-  /**
-   * What a past card says where the review row would be. Four answers, and
-   * every one of them is a different fact:
-   * reviewed and published, reviewed and waiting on the host, the window has
-   * closed, or the booking was cancelled and there is nothing to review.
-   */
-  function pastFooter(): { icon: 'star' | 'clock' | 'xCircle'; text: string } | null {
-    if (trip.state === 'cancelled') {
-      return { icon: 'xCircle', text: t('trip.cancelledNote') };
-    }
-    if (review) {
-      const score = overallFromScores(review.scores).toFixed(1);
-      const status = review.published ? t('trips.reviewPublished') : t('trips.reviewPending');
-      return { icon: 'star', text: `${t('trips.reviewed', { score })} ${status}` };
-    }
-    if (trip.state === 'completed') {
-      return { icon: 'clock', text: t('trips.reviewClosed') };
-    }
-    return null;
-  }
-}
-
-/** How long is left of F-B14's ~14 days, as the sentence under the CTA. */
-function reviewWindowText(trip: Trip, now: number, t: ReturnType<typeof useT>): string {
-  const left = REVIEW_WINDOW_MS - (now - departureAt(trip));
-  const days = Math.max(1, Math.ceil(left / (24 * 60 * 60 * 1000)));
-  return days === 1 ? t('trips.reviewDay') : t('trips.reviewDays', { count: days });
 }

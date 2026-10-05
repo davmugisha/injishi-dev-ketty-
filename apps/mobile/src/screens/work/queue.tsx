@@ -13,21 +13,20 @@
  *     state rather than as a banner over the normal screen.
  *
  * **Nothing here blocks on the network.** A room marked clean in a dead
- * corridor is clean on this phone the moment it is tapped, is listed as waiting
- * to sync, and replays in order with its idempotency key when signal returns
- * (F-P10 §6). The tick is the attendant's; the clock is the network's.
+ * corridor is clean on this phone the moment it is tapped and is listed as
+ * waiting. (Nothing replays that list yet: scope feature 15, mobile audit
+ * 2026-10-05 WK-03.)
  *
- * The live arrival is the one thing on the surface that has to feel real-time:
- * room 208's checkout lands a few seconds after mount, once per session, drawn
- * as an arrival rather than as a refresh. F-P04's success criterion is "on the
- * queue within one second of checkout", and this is that criterion made
- * visible.
+ * An arrival — a checkout landing on the queue — is drawn as an arrival rather
+ * than as a refresh, F-P04's "on the queue within one second of checkout" made
+ * visible. It comes from the store, the way Host's checkout delivers one. The
+ * screen used to manufacture one itself: room 208, 6.5 seconds after every
+ * launch, with a success toast, for every real housekeeper (WK-02).
  */
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useMemo, useRef, useState } from 'react';
 import { View } from 'react-native';
 import { useRouter } from 'expo-router';
 import {
-  Button,
   Card,
   EmptyState,
   ErrorState,
@@ -36,13 +35,15 @@ import {
   SectionLabel,
   Text,
   WorkspaceChip,
+  WriteError,
+  useToast,
 } from '@/components';
-import { useToast } from '@/components';
 import { useTheme } from '@/theme/theme';
 import { useT } from '@/i18n/i18n';
 import { useDomain } from '@/domain';
 import {
   STICKY_ACTION_CLEARANCE,
+  WorkButton,
   WorkFilterTabs,
   WorkOfflineBar,
   WorkPageHead,
@@ -50,14 +51,8 @@ import {
   WorkSyncLine,
 } from './work-chrome';
 import { ArrivalBanner, InspectionCallout, QueueRow } from './queue-row';
+import { WORK_PROFILE, type BufferedChange, type WorkTask } from './work-fixtures';
 import {
-  ARRIVAL_DELAY_MS,
-  ARRIVAL_TASK,
-  WORK_PROFILE,
-  type WorkTask,
-} from './work-fixtures';
-import {
-  arrivalHasFired,
   useConnection,
   useWorkActions,
   useWorkInspections,
@@ -68,13 +63,13 @@ import {
   changeLabel,
   finishedTasks,
   floorTabs,
-  flushPhrase,
   liveTasks,
   nextPending,
   onFloor,
   queueEmptyReason,
   replayOrder,
   syncLine,
+  tabCountPhrase,
   type FloorFilter,
 } from './work-format';
 
@@ -88,7 +83,14 @@ type QueueItem =
   | { kind: 'task'; key: string; task: WorkTask; queued: boolean }
   | { kind: 'caughtUp'; key: string }
   /** Clearance for the sticky primary, which the scaffold cannot know about. */
-  | { kind: 'spacer'; key: string };
+  | { kind: 'spacer'; key: string; height: number };
+
+/** A start that did not land, kept so Try again can run it again. */
+interface FailedStart {
+  /** Take next also opens the room; a swipe only starts it. */
+  kind: 'start' | 'takeNext';
+  id: string;
+}
 
 export function WorkQueue() {
   const router = useRouter();
@@ -102,6 +104,14 @@ export function WorkQueue() {
   const connection = useConnection();
   const actions = useWorkActions();
 
+  const [failed, setFailed] = useState<FailedStart | null>(null);
+  /** The pinned bar's measured height, so the last row can scroll clear of it. */
+  const [barHeight, setBarHeight] = useState(0);
+  /** Take next opens a screen, so a second tap while the first saves must not. */
+  const taking = useRef(false);
+
+  // Empty until the read lands (`useWorkList`), so nothing below counts from
+  // the seed in the meantime (mobile audit 2026-10-05, WK-24).
   const rows = tasks.rows;
   const live = liveTasks(rows);
   const finished = finishedTasks(rows);
@@ -112,29 +122,8 @@ export function WorkQueue() {
     [connection.buffer],
   );
 
-  /* ---- the desk's checkout, landing live ------------------------------- */
-
-  // Held on refs so the timer is armed once and never restarted by a re-render:
-  // `actions` is a new object whenever a mutation changes status, and an effect
-  // that depended on it would push the arrival further away on every write.
-  const arrive = useRef(actions.arrive);
-  arrive.current = actions.arrive;
-  const announce = useRef(toast.show);
-  announce.current = toast.show;
-
-  useEffect(() => {
-    if (arrivalHasFired()) return undefined;
-    const timer = setTimeout(() => {
-      void arrive.current().then(() => {
-        announce.current(t('work.queue.arrivalToast', { room: ARRIVAL_TASK.id }), 'success');
-      });
-    }, ARRIVAL_DELAY_MS);
-    return () => clearTimeout(timer);
-    // Deliberately empty: this effect arms a one-shot timer, and every value
-    // it needs at fire time is read off a ref above rather than captured.
-  }, []);
-
-  const arrival = rows.find((task) => task.id === ARRIVAL_TASK.id && task.isNew);
+  /** A real arrival: a task that landed and has not been opened yet. */
+  const arrival = rows.find((task) => task.isNew);
 
   /* ---- what a row does ------------------------------------------------- */
 
@@ -146,13 +135,39 @@ export function WorkQueue() {
     [actions, router],
   );
 
-  const startTask = useCallback(
-    (task: WorkTask) => {
-      void actions.start(task).then(() => {
-        toast.show(t('work.task.startedToast', { room: task.id }), 'success');
+  /**
+   * Start a room, and say so only if it started.
+   *
+   * Both callers used to `void` the write and toast or navigate in its
+   * `.then` whatever happened, so a start that never landed still said "Room
+   * 205 started" or opened the room as if it had (mobile audit 2026-10-05,
+   * WK-04). The outcome decides now: done is said, a failure is kept for Try
+   * again, and a write cancelled by a reset says nothing at all.
+   */
+  const run = useCallback(
+    (attempt: FailedStart, task: WorkTask) => {
+      setFailed(null);
+      if (attempt.kind === 'takeNext') taking.current = true;
+      void actions.start(task).then((outcome) => {
+        if (attempt.kind === 'takeNext') taking.current = false;
+        if (outcome === 'error') {
+          setFailed(attempt);
+          return;
+        }
+        if (outcome !== 'done') return;
+        if (attempt.kind === 'takeNext') {
+          router.push({ pathname: '/task/[taskId]', params: { taskId: task.id } });
+        } else {
+          toast.show(t('work.task.startedToast', { room: task.id }), 'success');
+        }
       });
     },
-    [actions, t, toast],
+    [actions, router, t, toast],
+  );
+
+  const startTask = useCallback(
+    (task: WorkTask) => run({ kind: 'start', id: task.id }, task),
+    [run],
   );
 
   /**
@@ -172,26 +187,53 @@ export function WorkQueue() {
   );
 
   const takeNext = useCallback(() => {
+    // Before the read lands there is nothing to take, and "you are caught up"
+    // would be a claim about a list nobody has loaded.
+    if (!tasks.ready || taking.current) return;
     if (!pending) {
       toast.show(t('work.queue.caughtUpToast'), 'neutral');
       return;
     }
-    void actions.start(pending).then(() => {
-      router.push({ pathname: '/task/[taskId]', params: { taskId: pending.id } });
-    });
-  }, [actions, pending, router, t, toast]);
+    run({ kind: 'takeNext', id: pending.id }, pending);
+  }, [pending, run, t, tasks.ready, toast]);
 
+  /** Try again runs the start that failed, not whatever is pending now (WK-05). */
+  const retry = useCallback(() => {
+    if (!failed) return;
+    actions.clearFailure();
+    const task = rows.find((row) => row.id === failed.id);
+    // The room may have moved on since: started from its own screen, or
+    // blocked by a fault. Starting it again would undo that, so let it go.
+    if (!task || task.status !== 'pending') {
+      setFailed(null);
+      return;
+    }
+    run(failed, task);
+  }, [actions, failed, rows, run]);
+
+  const dismiss = useCallback(() => {
+    actions.clearFailure();
+    setFailed(null);
+  }, [actions]);
+
+  /**
+   * Ends the simulated outage and empties the list of changes waiting. It says
+   * "Back online" and nothing more: the toast used to say "3 changes synced, in
+   * order, no duplicates", and nothing is sent anywhere (WK-03, WK-32).
+   */
   const reconnect = useCallback(() => {
-    void connection.flush().then((count) => {
-      const phrase = flushPhrase(count);
-      toast.show(t(phrase.key, phrase.values), 'success');
+    void connection.flush().then((outcome) => {
+      if (outcome === 'error') toast.show(t('work.writeFailedTitle'), 'danger');
+      else if (outcome === 'done') toast.show(t('work.offline.backOnlineToast'), 'success');
     });
   }, [connection, t, toast]);
 
   /* ---- the list -------------------------------------------------------- */
 
+  const clearance = Math.max(STICKY_ACTION_CLEARANCE, barHeight + 12);
+
   const items = useMemo<QueueItem[]>(() => {
-    if (tasks.status === 'error') return [];
+    if (!tasks.ready) return [];
     const out: QueueItem[] = [];
 
     if (!connection.online) {
@@ -208,10 +250,10 @@ export function WorkQueue() {
       for (const task of visible) {
         out.push({ kind: 'task', key: `t-${task.id}`, task, queued: false });
       }
-      const synced = finished.filter((task) => !queuedRooms.has(task.id));
-      if (synced.length > 0) {
+      const kept = finished.filter((task) => !queuedRooms.has(task.id));
+      if (kept.length > 0) {
         out.push({ kind: 'section', key: 'done', label: t('work.queue.sectionDone') });
-        for (const task of synced) {
+        for (const task of kept) {
           out.push({ kind: 'task', key: `d-${task.id}`, task, queued: false });
         }
       }
@@ -238,17 +280,28 @@ export function WorkQueue() {
       }
     }
 
-    if (out.length > 0) out.push({ kind: 'spacer', key: 'spacer' });
+    if (out.length > 0) out.push({ kind: 'spacer', key: 'spacer', height: clearance });
     return out;
-  }, [connection.online, finished, queuedRooms, t, tasks.status, visible]);
+  }, [clearance, connection.online, finished, queuedRooms, t, tasks.ready, visible]);
 
   const sync = syncLine({
     online: connection.online,
+    ready: tasks.ready,
     openCount: live.length,
     bufferCount: connection.buffer.length,
+    readAt: tasks.readAt,
   });
   const buffer = bufferLabel({ online: connection.online, buffer: connection.buffer });
   const reason = queueEmptyReason(filter);
+
+  const goToRooms = (
+    <WorkButton
+      variant="outline"
+      leadingIcon="bed"
+      label={t('state.emptyGoTo', { tab: t('nav.rooms') })}
+      onPress={() => router.push('/rooms')}
+    />
+  );
 
   return (
     /* The surface's own accessibility (gaps.md §5.3).
@@ -257,17 +310,27 @@ export function WorkQueue() {
        matter most, not least. The list announces its own length and how much of
        the shift is done, because "how many rooms have I got left" is the
        question this screen exists to answer and scrolling to count is not an
-       answer for somebody holding a trolley. */
+       answer for somebody holding a trolley. Until the read lands it says
+       nothing, rather than "0 rooms": the skeleton is what says it is loading
+       (WK-24). */
     <View
       accessibilityRole="summary"
-      accessibilityLabel={t('work.queue.a11yList', {
-        count: String(live.length),
-        done: String(finished.length),
-      })}
-      accessibilityHint={t('work.queue.a11yProgress', {
-        done: String(finished.length),
-        total: String(live.length + finished.length),
-      })}
+      accessibilityLabel={
+        tasks.ready
+          ? t('work.queue.a11yList', {
+              count: String(live.length),
+              done: String(finished.length),
+            })
+          : undefined
+      }
+      accessibilityHint={
+        tasks.ready
+          ? t('work.queue.a11yProgress', {
+              done: String(finished.length),
+              total: String(live.length + finished.length),
+            })
+          : undefined
+      }
       style={{ flex: 1 }}
     >
       <Screen.List<QueueItem>
@@ -285,52 +348,64 @@ export function WorkQueue() {
                 />
               }
             >
-              <WorkSyncLine online={connection.online}>{t(sync.key, sync.values)}</WorkSyncLine>
+              {sync ? (
+                <WorkSyncLine online={connection.online}>{t(sync.key, sync.values)}</WorkSyncLine>
+              ) : null}
             </WorkPageHead>
 
+            {/* The Work bar for the simulated outage only. A real one already
+                has the app-wide banner, and this under it was the second of
+                two notices saying the same thing (WK-25). */}
+            {connection.simulatedOnly ? (
+              <WorkOfflineBar
+                title={t('work.offline.bannerTitle')}
+                detail={t(buffer.key, buffer.values)}
+                actionLabel={t('work.offline.reconnect')}
+                onAction={reconnect}
+                busy={actions.busy}
+              />
+            ) : null}
             {!connection.online ? (
-              <>
-                <WorkOfflineBar
-                  title={t('work.offline.bannerTitle')}
-                  detail={t(buffer.key, buffer.values)}
-                  actionLabel={t('work.offline.reconnect')}
-                  onAction={reconnect}
-                  busy={actions.busy}
-                />
-                {/* The note is about the LIST rather than about the connection:
-                    a reader who has scrolled past the banner still has to be
-                    told that what they are looking at may be behind the desk. */}
-                <Text size="xs" color="textMuted" style={{ lineHeight: 18 }}>
-                  {t('state.offlineLastList')}
-                </Text>
-              </>
+              // The note is about the LIST rather than about the connection: a
+              // reader who has scrolled past the banner still has to be told
+              // that what they are looking at may be behind the desk.
+              <Text size="xs" color="textMuted" style={{ lineHeight: 18 }}>
+                {t('state.offlineLastList')}
+              </Text>
             ) : null}
 
             {arrival ? <ArrivalBanner task={arrival} onOpen={() => openTask(arrival)} /> : null}
 
-            {WORK_PROFILE.supervisor && inspections.rows.length > 0 ? (
+            {WORK_PROFILE.supervisor && inspections.ready && inspections.rows.length > 0 ? (
               <InspectionCallout
                 count={inspections.rows.length}
                 onOpen={() => router.push('/inspection')}
               />
             ) : null}
 
-            <WorkFilterTabs
-              label={t('work.queue.listLabel')}
-              value={String(filter)}
-              onChange={(next) => setFilter(next === 'all' ? 'all' : Number(next))}
-              items={floorTabs(rows).map((tab) => ({
-                value: tab.value,
-                label: t(tab.label.key, tab.label.values),
-                count: tab.count,
-              }))}
-            />
+            {tasks.ready ? (
+              <WorkFilterTabs
+                label={t('work.queue.listLabel')}
+                value={String(filter)}
+                onChange={(next) => setFilter(next === 'all' ? 'all' : Number(next))}
+                items={floorTabs(rows).map((tab) => {
+                  const label = t(tab.label.key, tab.label.values);
+                  const spoken = tabCountPhrase(label, tab.count, 'rooms');
+                  return {
+                    value: tab.value,
+                    label,
+                    count: tab.count,
+                    a11yLabel: t(spoken.key, spoken.values),
+                  };
+                })}
+              />
+            ) : null}
 
             {!connection.online ? <ReconnectCard buffer={connection.buffer} /> : null}
           </>
         }
         renderItem={({ item }) => {
-          if (item.kind === 'spacer') return <View style={{ height: STICKY_ACTION_CLEARANCE }} />;
+          if (item.kind === 'spacer') return <View style={{ height: item.height }} />;
           if (item.kind === 'section') return <SectionLabel>{item.label}</SectionLabel>;
           if (item.kind === 'caughtUp') {
             return (
@@ -340,16 +415,7 @@ export function WorkQueue() {
                 body={t(reason.key, reason.values)}
                 // Caught up is good news, and it is still a dead end without a
                 // way on. Rooms is what an attendant looks at next.
-                action={
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    leadingIcon="bed"
-                    onPress={() => router.push('/rooms')}
-                  >
-                    {t('state.emptyGoTo', { tab: t('nav.rooms') })}
-                  </Button>
-                }
+                action={goToRooms}
               />
             );
           }
@@ -381,16 +447,7 @@ export function WorkQueue() {
               icon="checkCircle"
               title={t('work.queue.emptyTitle')}
               body={t(reason.key, reason.values)}
-              action={
-                <Button
-                  variant="outline"
-                  size="sm"
-                  leadingIcon="bed"
-                  onPress={() => router.push('/rooms')}
-                >
-                  {t('state.emptyGoTo', { tab: t('nav.rooms') })}
-                </Button>
-              }
+              action={goToRooms}
             />
           )
         }
@@ -398,25 +455,40 @@ export function WorkQueue() {
 
       <WorkStickyAction
         icon="sparkles"
-        label={pending ? t('work.queue.takeNext') : t('work.queue.nothingPending')}
-        hint={pending ? t('work.queue.takeNextHint') : undefined}
-        muted={!pending}
+        label={!tasks.ready || pending ? t('work.queue.takeNext') : t('work.queue.nothingPending')}
+        hint={tasks.ready && pending ? t('work.queue.takeNextHint') : undefined}
+        muted={tasks.ready && !pending}
+        disabled={!tasks.ready}
         onPress={takeNext}
+        onHeight={setBarHeight}
+        // A failed start is said where the thumb is, above the primary, rather
+        // than at the head of a list the attendant may have scrolled away from.
+        notice={
+          failed ? (
+            <WriteError
+              title="work.writeFailedTitle"
+              body="work.writeFailedBody"
+              onRetry={retry}
+              secondary={{ label: 'work.dismiss', onPress: dismiss }}
+            />
+          ) : undefined
+        }
       />
     </View>
   );
 }
 
 /**
- * Frame W2's "What happens on reconnect", with the buffer printed under it.
+ * Frame W2's card, with the waiting changes printed under it in the order they
+ * were made, so the reader can check them rather than take them on trust.
  *
- * The card in the frame ASSERTS that changes replay in order with their
- * idempotency keys. Printing the buffer in that order turns the assertion into
- * something the reader can check, which is the difference between a promise and
- * a receipt — and it is the honest thing to show someone whose work is
- * currently sitting on one phone.
+ * **It used to promise a replay that does not exist**: changes replaying "with
+ * their idempotency keys, so nothing double-posts", rooms turning green on the
+ * front desk grid, and a conflict card no screen has (mobile audit 2026-10-05,
+ * WK-29). It now says what is true: these are saved on this phone, and the
+ * desk has not seen them.
  */
-function ReconnectCard({ buffer }: { buffer: readonly { key: string; room: string; kind: 'clean' | 'started' | 'blocked' | 'status' | 'ticket'; at: number }[] }) {
+function ReconnectCard({ buffer }: { buffer: readonly BufferedChange[] }) {
   const t = useT();
   const { c, space } = useTheme();
   const ordered = replayOrder(buffer);
@@ -425,9 +497,7 @@ function ReconnectCard({ buffer }: { buffer: readonly { key: string; room: strin
     <Card variant="flat" title={t('work.offline.cardTitle')}>
       <View style={{ gap: space[3] }}>
         <Text size="sm" color="textBody" style={{ lineHeight: 20 }}>
-          {ordered.length > 0
-            ? t('work.offline.cardBody', { count: ordered.length })
-            : t('work.offline.cardBodyEmpty')}
+          {ordered.length > 0 ? t('work.offline.cardBody') : t('work.offline.cardBodyEmpty')}
         </Text>
 
         {ordered.length > 0 ? (

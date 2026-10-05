@@ -1,0 +1,40 @@
+# The Privacy switch (ADR-063 AC-8): off stops reports at once and on every
+# later launch; on starts again at the next launch.
+#
+# What to check after: nothing from the forced error while the switch is off,
+# and no session for that launch; reporting works again after it is turned on.
+appId: rw.injishi.mobile
+name: Crash reporting, the switch
+---
+- runFlow: ../subflows/launch-release-build.yaml
+- tapOn: "Profile"
+- scrollUntilVisible:
+    element: "Privacy"
+    direction: DOWN
+    timeout: 15000
+- tapOn: "Privacy"
+- tapOn:
+    id: "privacy-crash-switch"
+- extendedWaitUntil:
+    visible: "Reports have stopped.*"
+    timeout: 10000
+- takeScreenshot: crash-switch-0-off
+# Off survives a relaunch: Sentry is never started on a later launch.
+- runFlow: ../subflows/launch-release-build.yaml
+- runFlow: ../subflows/open-diagnostics.yaml
+- tapOn:
+    id: "diagnostics-js-error"
+- runFlow: ../subflows/launch-release-build.yaml
+- tapOn: "Profile"
+- scrollUntilVisible:
+    element: "Crash reports · Off"
+    direction: DOWN
+    timeout: 15000
+- tapOn: "Privacy"
+- tapOn:
+    id: "privacy-crash-switch"
+- extendedWaitUntil:
+    visible: "Reports start the next time you open the app."
+    timeout: 10000
+- takeScreenshot: crash-switch-1-on
+- runFlow: ../subflows/launch-release-build.yaml

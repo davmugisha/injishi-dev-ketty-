@@ -17,6 +17,7 @@ import {
   formatMonthYear,
   monthsBetween,
   noticeCaption,
+  rentStatusWord,
 } from './dates';
 
 /** The provider-free half of the catalogue, so these need no render. */
@@ -161,5 +162,18 @@ describe('noticeCaption', () => {
         required: 30,
       }),
     );
+  });
+});
+
+/**
+ * The status word a screen reader hears inside a row's label (mobile audit
+ * 2026-10-05, TN-17). The same keys `PaymentStatus` prints, so the pill and the
+ * label cannot disagree.
+ */
+describe('rentStatusWord', () => {
+  it('says each status the way the pill prints it', () => {
+    expect(rentStatusWord('paid', t)).toBe(say('payment.paid'));
+    expect(rentStatusWord('due', t)).toBe(say('payment.due'));
+    expect(rentStatusWord('overdue', t)).toBe(say('payment.overdue'));
   });
 });

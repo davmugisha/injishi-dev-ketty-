@@ -273,18 +273,13 @@ export const WORKSPACE = {
 
 /* ── Tenant side ─────────────────────────────────────────────────────────── */
 
-/**
- * The Personal workspace, as the Tenant wears it. FL25 §9: Guest and Tenant are
- * one Personal workspace, not two contexts — so this is the same identity
- * `stays.GUEST` carries, and only the role label moves with the active domain.
- * `WORKSPACE` above is the same person's *Business* workspace.
+/*
+ * There is deliberately no `TENANT` persona here any more. It put the fixture
+ * person `ME` ("Samuel Kayitare") in the contract's Tenant party for whoever
+ * held the phone (mobile audit 2026-10-05, TN-03). The person holding the
+ * phone comes from `useMyIdentity()` in `@/queries/profile`, and from nowhere
+ * in this file.
  */
-export const TENANT = {
-  name: 'Personal',
-  role: 'Tenant',
-  user: ME.name,
-  email: ME.email,
-};
 
 export type CautionState = 'held' | 'refunded' | 'forfeited';
 
@@ -426,6 +421,14 @@ export interface Tenancy {
   visitors: VisitorEntry[];
   /** `YYYY-MM-DD`, set when the tenant signs (FL21 step 3). */
   signedOn?: string;
+  /**
+   * Signed in this app, which today means on this phone and nowhere else: no
+   * tenant endpoint takes a signature yet, so the landlord is not told and
+   * nothing is filed. The sign screen reads it to say so, rather than drawing
+   * the "already signed, nothing further is needed" card a lease signed on
+   * paper gets (mobile audit 2026-10-05, TN-04).
+   */
+  signedOnDevice?: boolean;
   /** Present once a move-out notice is filed (FL23). */
   notice?: MoveOutNotice;
   /** The outstanding or decided renewal request (FL26). */
@@ -580,13 +583,18 @@ export const TENANCIES: Tenancy[] = [
       { label: 'Lease contract', meta: `PDF · 229 KB · signed ${shortDay(A2_SIGNED)}` },
       { label: 'Caution receipt', meta: 'PDF · 84 KB' },
     ],
+    // The notice clause in all three contracts used to add "Notice filed in the
+    // Injishi tenant portal satisfies this clause", in both languages. A notice
+    // filed in this app reaches nobody yet, so that sentence told a tenant they
+    // had given notice when they had not, against the move-out screen telling
+    // them to give it directly (mobile audit 2026-10-05, TN-05).
     terms: [
       'The Landlord lets and the Tenant takes the Room described above for the term stated, at the monthly Rent stated, payable in advance on the first day of each month.',
       'The Caution is held in escrow for the duration of the tenancy. It is not rent and may not be set off against rent. It settles at the close of the Lease, less any agreed deduction.',
       'Rent begins on the commencement date and is not prorated for a part month at the start of the term.',
       'The Tenant shall keep the Room in good repair, fair wear and tear excepted, and shall report any defect to the Landlord without delay.',
       'The Tenant shall not sublet the Room, in whole or in part, without the written consent of the Landlord.',
-      'Either party may end this Lease by written notice of not less than thirty (30) days. Notice filed in the Injishi tenant portal satisfies this clause.',
+      'Either party may end this Lease by written notice of not less than thirty (30) days.',
       'This Lease is filed with the tax administration within fifteen (15) days of signature. No EBM invoice is emitted for rent.',
       'This Lease is governed by the laws of the Republic of Rwanda. The English and Kinyarwanda texts are equally authoritative.',
     ],
@@ -596,7 +604,7 @@ export const TENANCIES: Tenancy[] = [
       'Ubukode butangira ku munsi wo gutangira kandi ntibugabanywa ku kwezi kutuzuye mu ntangiriro y’igihe.',
       'Ukodesha agomba kubungabunga Icyumba neza, uretse gusaza gusanzwe, kandi akamenyesha Nyir’inzu ikibazo cyose nta gutinda.',
       'Ukodesha ntashobora gukodesha undi Icyumba, cyose cyangwa igice cyacyo, atabanje guhabwa uruhushya rwanditse na Nyir’inzu.',
-      'Buri ruhande rushobora kurangiza aya masezerano rubimenyesheje mu nyandiko nibura mu minsi mirongo itatu (30). Ubutumwa butanzwe muri porogaramu ya Injishi buhagije kuri iyi ngingo.',
+      'Buri ruhande rushobora kurangiza aya masezerano rubimenyesheje mu nyandiko nibura mu minsi mirongo itatu (30).',
       'Aya masezerano yohererezwa ubuyobozi bw’imisoro mu minsi cumi n’itanu (15) nyuma yo gusinya. Nta fagitire ya EBM isohorwa ku bukode.',
       'Aya masezerano ayoborwa n’amategeko ya Repubulika y’u Rwanda. Inyandiko y’Icyongereza n’iy’Ikinyarwanda zifite agaciro kangana.',
     ],
@@ -669,7 +677,7 @@ export const TENANCIES: Tenancy[] = [
       'The Caution is held in escrow for the duration of the tenancy. It is not rent and may not be set off against rent. It settles at the close of the Lease, less any agreed deduction.',
       'The Tenant shall keep the Room in good repair, fair wear and tear excepted, and shall report any defect to the Landlord without delay.',
       'The Tenant shall not sublet the Room, in whole or in part, without the written consent of the Landlord.',
-      'Either party may end this Lease by written notice of not less than fourteen (14) days. Notice filed in the Injishi tenant portal satisfies this clause.',
+      'Either party may end this Lease by written notice of not less than fourteen (14) days.',
       'This Lease is filed with the tax administration within fifteen (15) days of signature. No EBM invoice is emitted for rent.',
       'This Lease is governed by the laws of the Republic of Rwanda. The English and Kinyarwanda texts are equally authoritative.',
     ],
@@ -678,7 +686,7 @@ export const TENANCIES: Tenancy[] = [
       'Ingwate ibikwa mu bubiko mu gihe cyose cy’ubukode. Si ubukode kandi ntishobora gukurwa ku bukode. Itangwa amasezerano arangiye, hakurwaho ibyumvikanyweho.',
       'Ukodesha agomba kubungabunga Icyumba neza, uretse gusaza gusanzwe, kandi akamenyesha Nyir’inzu ikibazo cyose nta gutinda.',
       'Ukodesha ntashobora gukodesha undi Icyumba, cyose cyangwa igice cyacyo, atabanje guhabwa uruhushya rwanditse na Nyir’inzu.',
-      'Buri ruhande rushobora kurangiza aya masezerano rubimenyesheje mu nyandiko nibura mu minsi cumi n’ine (14). Ubutumwa butanzwe muri porogaramu ya Injishi buhagije kuri iyi ngingo.',
+      'Buri ruhande rushobora kurangiza aya masezerano rubimenyesheje mu nyandiko nibura mu minsi cumi n’ine (14).',
       'Aya masezerano yohererezwa ubuyobozi bw’imisoro mu minsi cumi n’itanu (15) nyuma yo gusinya. Nta fagitire ya EBM isohorwa ku bukode.',
       'Aya masezerano ayoborwa n’amategeko ya Repubulika y’u Rwanda. Inyandiko y’Icyongereza n’iy’Ikinyarwanda zifite agaciro kangana.',
     ],
@@ -742,7 +750,7 @@ export const TENANCIES: Tenancy[] = [
       'Rent begins on the commencement date and is not prorated for a part month at the start of the term.',
       'The Tenant shall keep the Room in good repair, fair wear and tear excepted, and shall report any defect to the Landlord without delay.',
       'The Tenant shall not sublet the Room, in whole or in part, without the written consent of the Landlord.',
-      'Either party may end this Lease by written notice of not less than fourteen (14) days. Notice filed in the Injishi tenant portal satisfies this clause.',
+      'Either party may end this Lease by written notice of not less than fourteen (14) days.',
       'This Lease is filed with the tax administration within fifteen (15) days of signature. No EBM invoice is emitted for rent.',
       'This Lease is governed by the laws of the Republic of Rwanda. The English and Kinyarwanda texts are equally authoritative.',
     ],
@@ -752,7 +760,7 @@ export const TENANCIES: Tenancy[] = [
       'Ubukode butangira ku munsi wo gutangira kandi ntibugabanywa ku kwezi kutuzuye mu ntangiriro y’igihe.',
       'Ukodesha agomba kubungabunga Icyumba neza, uretse gusaza gusanzwe, kandi akamenyesha Nyir’inzu ikibazo cyose nta gutinda.',
       'Ukodesha ntashobora gukodesha undi Icyumba, cyose cyangwa igice cyacyo, atabanje guhabwa uruhushya rwanditse na Nyir’inzu.',
-      'Buri ruhande rushobora kurangiza aya masezerano rubimenyesheje mu nyandiko nibura mu minsi cumi n’ine (14). Ubutumwa butanzwe muri porogaramu ya Injishi buhagije kuri iyi ngingo.',
+      'Buri ruhande rushobora kurangiza aya masezerano rubimenyesheje mu nyandiko nibura mu minsi cumi n’ine (14).',
       'Aya masezerano yohererezwa ubuyobozi bw’imisoro mu minsi cumi n’itanu (15) nyuma yo gusinya. Nta fagitire ya EBM isohorwa ku bukode.',
       'Aya masezerano ayoborwa n’amategeko ya Repubulika y’u Rwanda. Inyandiko y’Icyongereza n’iy’Ikinyarwanda zifite agaciro kangana.',
     ],

@@ -93,14 +93,27 @@ jest.mock('expo-router', () => {
     </RNView>
   );
   Stack.Screen = () => null;
+  // ADR-063: Diagnostics is registered inside a guard.
+  Stack.Protected = ({ children }: { children?: React.ReactNode }) => <>{children}</>;
   return {
     Stack,
+    // ADR-063: the root layout hands this to the crash reporter's trail.
+    useNavigationContainerRef: () => ({ current: null }),
     useRouter: () => ({ push: jest.fn(), back: jest.fn(), replace: mockReplace }),
     useSegments: () => mockSegments,
   };
 });
 
 import RootLayout from '../app/_layout';
+
+/**
+ * The navigator is asked for even when hidden from assistive tech. A signed-in
+ * cold start here has no API answering `/me/workspaces`, so the shell puts its
+ * "your account did not load" cover over the tabs, modal to a screen reader
+ * (mobile audit SA-08, SA-09). The navigator is still MOUNTED under it, which
+ * is the fact these tests are about.
+ */
+const MOUNTED = { includeHiddenElements: true } as const;
 
 const getItem = SecureStore.getItemAsync as jest.MockedFunction<typeof SecureStore.getItemAsync>;
 const hideSplash = SplashScreen.hideAsync as jest.MockedFunction<typeof SplashScreen.hideAsync>;
@@ -136,7 +149,7 @@ beforeEach(() => {
  * rendered with — the same value, one layer down.
  */
 async function resolvedLocaleCopy(): Promise<string> {
-  await waitFor(() => expect(screen.getByTestId('navigator')).toBeTruthy());
+  await waitFor(() => expect(screen.getByTestId('navigator', MOUNTED)).toBeTruthy());
   return translate('nav.account');
 }
 
@@ -146,8 +159,8 @@ async function resolvedLocaleCopy(): Promise<string> {
  * appearance resolved before the first frame or the phone won by default.
  */
 async function resolvedGround(): Promise<string> {
-  await waitFor(() => expect(screen.getByTestId('navigator')).toBeTruthy());
-  const style = screen.getByTestId('navigator').props.style as { backgroundColor?: string };
+  await waitFor(() => expect(screen.getByTestId('navigator', MOUNTED)).toBeTruthy());
+  const style = screen.getByTestId('navigator', MOUNTED).props.style as { backgroundColor?: string };
   return style?.backgroundColor as string;
 }
 
@@ -164,7 +177,7 @@ describe('the cold start', () => {
 
     // The shell paints only once all three have landed, so seeing it at all is
     // the evidence that they did.
-    await waitFor(() => expect(screen.getByTestId('navigator')).toBeTruthy());
+    await waitFor(() => expect(screen.getByTestId('navigator', MOUNTED)).toBeTruthy());
     expect(getItem).toHaveBeenCalledWith('injishi.active-domain');
     expect(getItem).toHaveBeenCalledWith('injishi.auth-token');
     expect(getItem).toHaveBeenCalledWith('injishi.locale');
@@ -177,7 +190,7 @@ describe('the cold start', () => {
 
     // Nothing painted and the splash is still up: a session that has not
     // resolved is not a signed-out visitor, and must not be drawn as one.
-    expect(screen.queryByTestId('navigator')).toBeNull();
+    expect(screen.queryByTestId('navigator', MOUNTED)).toBeNull();
     expect(hideSplash).not.toHaveBeenCalled();
 
     stored({});
@@ -200,7 +213,7 @@ describe('the cold start', () => {
     stored({ 'injishi.auth-token': 'a-stored-bearer-token' });
     render(<RootLayout />);
 
-    await waitFor(() => expect(screen.getByTestId('navigator')).toBeTruthy());
+    await waitFor(() => expect(screen.getByTestId('navigator', MOUNTED)).toBeTruthy());
     expect(mockReplace).not.toHaveBeenCalled();
   });
 
@@ -220,24 +233,28 @@ describe('the cold start', () => {
     mockSegments.splice(0, mockSegments.length, '(auth)');
 
     render(<RootLayout />);
-    await waitFor(() => expect(screen.getByTestId('navigator')).toBeTruthy());
+    await waitFor(() => expect(screen.getByTestId('navigator', MOUNTED)).toBeTruthy());
     expect(mockReplace).not.toHaveBeenCalled();
   });
 
-  it('opens in the stored language, not in English', async () => {
+  // v1.0 is English only (mobile audit SA-18): the RW catalogue is still
+  // partly placeholders, so neither a stored choice nor the phone's language
+  // may open the app in it. `i18n.test.tsx` keeps the order of the two for the
+  // day Kinyarwanda is available.
+  it('opens in English in v1 even when Kinyarwanda is stored', async () => {
     stored({ 'injishi.locale': 'rw' });
     render(<RootLayout />);
 
-    expect(await resolvedLocaleCopy()).toBe(rw['nav.account']);
+    expect(await resolvedLocaleCopy()).toBe(en['nav.account']);
   });
 
-  it('follows the device language on a first launch with nothing stored', async () => {
+  it('opens in English in v1 on a phone set to Kinyarwanda', async () => {
     const { getLocales } = jest.requireMock('expo-localization');
     getLocales.mockReturnValue([{ languageCode: 'rw' }]);
     stored({});
 
     render(<RootLayout />);
-    expect(await resolvedLocaleCopy()).toBe(rw['nav.account']);
+    expect(await resolvedLocaleCopy()).toBe(en['nav.account']);
   });
 
   it('keeps an explicit stored choice over the device language', async () => {
@@ -294,7 +311,7 @@ describe('the cold start', () => {
     getItem.mockRejectedValue(new Error('keychain unavailable'));
     render(<RootLayout />);
 
-    await waitFor(() => expect(screen.getByTestId('navigator')).toBeTruthy());
+    await waitFor(() => expect(screen.getByTestId('navigator', MOUNTED)).toBeTruthy());
     expect(hideSplash).toHaveBeenCalled();
   });
 
@@ -319,13 +336,13 @@ describe('the cold start', () => {
 
     try {
       render(<RootLayout />);
-      expect(screen.queryByTestId('navigator')).toBeNull();
+      expect(screen.queryByTestId('navigator', MOUNTED)).toBeNull();
 
       await act(async () => {
         jest.advanceTimersByTime(1200);
       });
 
-      expect(screen.getByTestId('navigator')).toBeTruthy();
+      expect(screen.getByTestId('navigator', MOUNTED)).toBeTruthy();
     } finally {
       jest.useRealTimers();
     }
@@ -334,7 +351,7 @@ describe('the cold start', () => {
   it('paints when the font loader fails outright', async () => {
     fonts.mockReturnValue([false, new Error('font download failed')]);
     render(<RootLayout />);
-    await waitFor(() => expect(screen.getByTestId('navigator')).toBeTruthy());
+    await waitFor(() => expect(screen.getByTestId('navigator', MOUNTED)).toBeTruthy());
   });
 });
 

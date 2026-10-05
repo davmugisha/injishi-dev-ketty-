@@ -84,6 +84,11 @@ export function UnitCard({ unit, onPress }: { unit: DirectoryUnit; onPress: () =
             placeholder={asset.placeholder}
             contentFit="cover"
             transition={180}
+            // This card is a FlashList row, and a recycled row keeps its
+            // native image view: without the key it shows the previous unit's
+            // photograph until the new one loads (mobile audit 2026-10-05,
+            // BR-08; gaps.md B8).
+            recyclingKey={unit.id}
             style={{ width: '100%', height: '100%' }}
             // The caption below names the unit and the place, so the picture is
             // decoration; the subject reaches the reader through the credit,

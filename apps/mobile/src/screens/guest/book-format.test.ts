@@ -6,9 +6,11 @@
  * wrong. Every assertion below is a way that could go wrong for a guest holding
  * a correct number.
  */
+import { MAX_NIGHTS } from '@injishi/contracts';
 import { en } from '@/i18n/messages';
 import type { MessageKey, Translate } from '@/i18n/i18n';
 import {
+  addIsoDays,
   blockedOnDates,
   blockedOnPay,
   blockedOnSummary,
@@ -16,6 +18,8 @@ import {
   confirmationFor,
   groupHandset,
   initialsOf,
+  kigaliToday,
+  lastPickableDay,
   mintReference,
   nationalDigits,
   networkFor,
@@ -148,6 +152,42 @@ describe('blockedOnDates', () => {
     expect(blockedOnDates({ ...BASE, party: { adults: 4, children: 1, infants: 0 } })).toBe(
       'book.blockedParty',
     );
+  });
+
+  it('refuses a stay longer than the contract allows, before any payment (GK-30)', () => {
+    const start = '2026-11-01';
+    const atCap = { start, end: addIsoDays(start, MAX_NIGHTS) };
+    const overCap = { start, end: addIsoDays(start, MAX_NIGHTS + 1) };
+    expect(blockedOnDates({ ...BASE, dates: atCap })).toBeNull();
+    expect(blockedOnDates({ ...BASE, dates: overCap })).toBe('book.blockedTooLong');
+    // The sentence names the contract's own number.
+    expect(t('book.blockedTooLong', { count: MAX_NIGHTS })).toContain(String(MAX_NIGHTS));
+  });
+});
+
+/* ------------------------------------------------------- the calendar's edges */
+
+describe('kigaliToday', () => {
+  it('is the day in Kigali (UTC+2), not the phone’s', () => {
+    // 23:30 UTC on 4 October is 01:30 on 5 October in Kigali.
+    expect(kigaliToday(new Date(Date.UTC(2026, 9, 4, 23, 30)))).toBe('2026-10-05');
+    // 21:59 UTC is still the 4th there.
+    expect(kigaliToday(new Date(Date.UTC(2026, 9, 4, 21, 59)))).toBe('2026-10-04');
+  });
+});
+
+describe('addIsoDays and lastPickableDay', () => {
+  it('rolls over a month and a year', () => {
+    expect(addIsoDays('2026-12-30', 3)).toBe('2027-01-02');
+  });
+
+  it('stops a check-out at MAX_NIGHTS after the check-in, and only while one is being picked', () => {
+    expect(lastPickableDay({ start: '2026-11-01', end: null })).toBe(
+      addIsoDays('2026-11-01', MAX_NIGHTS),
+    );
+    // Nothing picked, or a full range the next tap restarts: no bound here.
+    expect(lastPickableDay({ start: null, end: null })).toBeUndefined();
+    expect(lastPickableDay({ start: '2026-11-01', end: '2026-11-04' })).toBeUndefined();
   });
 });
 

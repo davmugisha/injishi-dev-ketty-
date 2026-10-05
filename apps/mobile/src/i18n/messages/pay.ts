@@ -44,8 +44,11 @@ export const en = {
   // The two facts a guest needs while they are somewhere else: which handset,
   // and that the PIN is entered THERE and not here.
   'pay.checkYourPhoneBody': 'We sent a payment prompt to {handset}. Enter your PIN on that phone — not in this app.',
-  'pay.ussdMomo': 'No prompt? Dial *182*7*1# on {handset} to approve it.',
-  'pay.ussdAirtel': 'No prompt? Dial *500*4# on {handset} to approve it.',
+  // Only codes a Rwandan source confirms: MTN's `*182#`, and no Airtel code
+  // until one is confirmed (benchmarks.md rows 29 and 46; mobile audit
+  // 2026-10-05, GK-19). Shown as text, never as a dial link.
+  'pay.ussdMomo': 'No prompt? Dial *182# on {handset} to open MTN MoMo.',
+  'pay.ussdAirtel': 'No prompt? Open the Airtel Money app on {handset}.',
   'pay.leavingNote': 'You can leave this app. We will still be here when you come back.',
   'pay.waitingLabel': 'Waiting for your approval',
 

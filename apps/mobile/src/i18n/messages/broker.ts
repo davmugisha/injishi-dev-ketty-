@@ -134,9 +134,11 @@ export const en = {
   'unit.revealed': 'Reveal logged',
   'unit.revealedOn': 'Revealed {day}',
   'unit.revealCta': 'Reveal landlord contact',
-  'unit.revealCreditsLeft': '{count} reveal credits left this month',
-  'unit.revealCreditsOne': '1 reveal credit left this month',
-  'unit.revealCreditsNone': 'No reveal credits left this month',
+  // No "this month": nothing renews the balance monthly (mobile audit
+  // 2026-10-05, BR-04).
+  'unit.revealCreditsLeft': '{count} reveal credits left',
+  'unit.revealCreditsOne': '1 reveal credit left',
+  'unit.revealCreditsNone': 'No reveal credits left',
   'unit.callLandlord': 'Call {name}',
   'unit.emailLandlord': 'Email {name}',
 
@@ -145,8 +147,8 @@ export const en = {
   'unit.placementOpenOne': 'Intent open · expires tomorrow',
   'unit.placementLastDay': 'Intent open · expires today',
   'unit.placementNamed': 'Placing {client}',
-  'unit.placeTenant': 'Place a tenant',
-  'unit.placeTenantHint': 'Hands the lease to the landlord with you recorded on it',
+  // "Place a tenant" is gone: it opened the landlord's register form, a route
+  // a broker cannot open, so it bounced to the home tab.
   'unit.viewPlacements': 'See it in Placements',
 
   'unit.leasedTitle': 'This unit is let',
@@ -158,17 +160,23 @@ export const en = {
   'reveal.body':
     'Revealing marks a placement intent on this unit. If your client signs, the placement fee is recorded on the lease.',
   'reveal.logged': 'Every reveal is logged. That log is what stops landlords having their numbers harvested.',
-  'reveal.credits': 'Reveal credits · {count} left this month',
-  'reveal.creditsOne': 'Reveal credits · 1 left this month',
+  'reveal.credits': 'Reveal credits · {count} left',
+  'reveal.creditsOne': 'Reveal credits · 1 left',
+  'reveal.creditsLeftLabel': 'Credits left',
   'reveal.confirm': 'Reveal contact · 1 credit',
   'reveal.cancel': 'Not now',
   'reveal.consequence': 'Spends one credit and opens a {days}-day intent on this unit.',
   'reveal.working': 'Revealing…',
   'reveal.toast': 'Contact revealed · placement opened',
+  // Offline the reveal waits in the queue: nothing is spent and nothing is
+  // shown yet, so the sheet says it will happen, not that it did (BR-02).
+  'reveal.queued': 'You are offline. The contact is revealed when your phone reconnects.',
 
-  'reveal.spentTitle': 'No credits left this month',
+  // Credits do not reset at the start of the month, or on any schedule: the
+  // server grants none (mobile audit 2026-10-05, BR-04).
+  'reveal.spentTitle': 'No reveal credits left',
   'reveal.spentBody':
-    'Credits reset at the start of the month. An open placement keeps running in the meantime, and a lease that activates still pays its fee.',
+    'Each reveal uses one credit, and you have none left. Placements you have already opened are not affected.',
   'reveal.spentAction': 'Back to the unit',
 
   'reveal.alreadyTitle': 'Already revealed',
@@ -219,8 +227,8 @@ export const en = {
     'Reveal a landlord in the Directory and an intent opens here for {days} days. That intent is what records you on the lease.',
   'placements.emptyActiveAction': 'Open the directory',
   'placements.emptySignedTitle': 'Nothing signed yet',
-  'placements.emptySignedBody':
-    'A placement lands here the day its lease activates, and the fee disburses in full on the same day.',
+  // No payout is built, so no day is promised for one (BR-03).
+  'placements.emptySignedBody': 'A placement lands here the day its lease activates.',
   'placements.emptyExpiredTitle': 'Nothing has lapsed',
   'placements.emptyExpiredBody':
     'An intent lapses after {days} days with no lease. None of yours has, which is the reading you want.',
@@ -229,8 +237,10 @@ export const en = {
   'earnings.greeting': 'Placement fees, in full',
   'earnings.title': 'Earnings',
   'earnings.listLabel': 'recent fees',
-  'earnings.mock': 'mock',
-  'earnings.mockHint': 'Figures are fixtures. No payout adapter is wired yet.',
+  // These figures are not read from this broker's account (BR-03), so they
+  // say so in plain words. "Fixtures" and "not wired" were developer copy.
+  'earnings.mock': 'Sample',
+  'earnings.mockHint': 'These are sample figures, not your own earnings.',
 
   'earnings.heroLabel': '{year} to date',
   'earnings.heroMeta': '{count} placements signed',
@@ -245,11 +255,12 @@ export const en = {
   'earnings.chartNothing': 'Nothing has disbursed in the last six months.',
 
   'earnings.sectionRecent': 'Recent fees',
-  'earnings.paidOn': 'Paid {day} · MoMo',
+  // No payout channel exists, so neither line names one (BR-03).
+  'earnings.paidOn': 'Paid {day}',
   'earnings.pendingSignature': 'Pending signature',
   'earnings.pendingIntent': 'Intent open',
   'earnings.rowSummary': '{client} at {unit}, {amount}, {state}',
-  'earnings.noCut': 'Placement fees disburse in full to your mobile money. Injishi takes no cut of them.',
+  'earnings.noCut': 'Injishi takes no cut of your placement fees.',
 
   'earnings.emptyTitle': 'Nothing earned yet',
   'earnings.emptyBody':
@@ -388,9 +399,12 @@ export const rw: Record<keyof typeof en, string> = {
   'unit.revealed': 'Igaragazwa ryanditswe',
   'unit.revealedOn': 'Byagaragajwe {day}',
   'unit.revealCta': 'Garagaza aderesi ya nyir’inzu',
-  'unit.revealCreditsLeft': 'Hasigaye amahirwe {count} yo kugaragaza muri uku kwezi',
-  'unit.revealCreditsOne': 'Hasigaye ihirwe 1 ryo kugaragaza muri uku kwezi',
-  'unit.revealCreditsNone': 'Nta hirwe ryo kugaragaza risigaye muri uku kwezi',
+  // Keys the 2026-10-05 honesty pass added or reworded carry the English: v1
+  // ships English only, and the older RW sentence kept the claim the English
+  // dropped ("muri uku kwezi", this month).
+  'unit.revealCreditsLeft': en['unit.revealCreditsLeft'],
+  'unit.revealCreditsOne': en['unit.revealCreditsOne'],
+  'unit.revealCreditsNone': en['unit.revealCreditsNone'],
   'unit.callLandlord': 'Hamagara {name}',
   'unit.emailLandlord': 'Andikira {name}',
 
@@ -399,8 +413,6 @@ export const rw: Record<keyof typeof en, string> = {
   'unit.placementOpenOne': 'Icyifuzo gifunguye · kirangira ejo',
   'unit.placementLastDay': 'Icyifuzo gifunguye · kirangira uyu munsi',
   'unit.placementNamed': 'Urimo gushyiraho {client}',
-  'unit.placeTenant': 'Shyiramo ukodesha',
-  'unit.placeTenantHint': 'Bishyikiriza nyir’inzu amasezerano, izina ryawe riyanditseho',
   'unit.viewPlacements': 'Bireba mu Buhuza',
 
   'unit.leasedTitle': 'Iyi nzu yarakodeshejwe',
@@ -413,17 +425,18 @@ export const rw: Record<keyof typeof en, string> = {
     'Kugaragaza bishyira icyifuzo cy’ubuhuza kuri iyi nzu. Umukiriya wawe nasinya, amafaranga y’ubuhuza yandikwa ku masezerano.',
   'reveal.logged':
     'Buri igaragazwa ryandikwa. Urwo rutonde ni rwo rubuza ko nimero za ba nyir’amazu zisahurwa.',
-  'reveal.credits': 'Amahirwe yo kugaragaza · hasigaye {count} muri uku kwezi',
-  'reveal.creditsOne': 'Amahirwe yo kugaragaza · hasigaye 1 muri uku kwezi',
+  'reveal.credits': en['reveal.credits'],
+  'reveal.creditsOne': en['reveal.creditsOne'],
+  'reveal.creditsLeftLabel': en['reveal.creditsLeftLabel'],
   'reveal.confirm': 'Garagaza aderesi · ihirwe 1',
   'reveal.cancel': 'Ntabwo ubu',
   'reveal.consequence': 'Bikoresha ihirwe rimwe kandi bifungura icyifuzo cy’iminsi {days} kuri iyi nzu.',
   'reveal.working': 'Biragaragazwa…',
   'reveal.toast': 'Aderesi yagaragajwe · ubuhuza bwafunguwe',
+  'reveal.queued': en['reveal.queued'],
 
-  'reveal.spentTitle': 'Nta hirwe risigaye muri uku kwezi',
-  'reveal.spentBody':
-    'Amahirwe asubukurwa mu ntangiriro z’ukwezi. Ubuhuza bufunguye bukomeza muri icyo gihe, kandi amasezerano atangiye akora aracyishyura amafaranga yayo.',
+  'reveal.spentTitle': en['reveal.spentTitle'],
+  'reveal.spentBody': en['reveal.spentBody'],
   'reveal.spentAction': 'Subira ku nzu',
 
   'reveal.alreadyTitle': 'Byaramaze kugaragazwa',
@@ -474,8 +487,7 @@ export const rw: Record<keyof typeof en, string> = {
     'Garagaza nyir’inzu ku rutonde, icyifuzo gifungurwe hano mu minsi {days}. Icyo cyifuzo ni cyo kikwandika ku masezerano.',
   'placements.emptyActiveAction': 'Fungura urutonde',
   'placements.emptySignedTitle': 'Nta kirasinywa',
-  'placements.emptySignedBody':
-    'Ubuhuza bugera hano umunsi amasezerano yabwo atangiye gukora, kandi amafaranga yishyurwa yose uwo munsi.',
+  'placements.emptySignedBody': en['placements.emptySignedBody'],
   'placements.emptyExpiredTitle': 'Nta kirarangira',
   'placements.emptyExpiredBody':
     'Icyifuzo kirangira nyuma y’iminsi {days} nta masezerano abaye. Nta kimwe cyawe kirangiye, ni byo ushaka kubona.',
@@ -484,8 +496,8 @@ export const rw: Record<keyof typeof en, string> = {
   'earnings.greeting': 'Amafaranga y’ubuhuza, yose uko angana',
   'earnings.title': 'Amafaranga yinjiye',
   'earnings.listLabel': 'amafaranga aheruka',
-  'earnings.mock': 'agerageza',
-  'earnings.mockHint': 'Imibare ni iy’ikitegererezo. Nta buryo bwo kwishyura buraterwa.',
+  'earnings.mock': en['earnings.mock'],
+  'earnings.mockHint': en['earnings.mockHint'],
 
   'earnings.heroLabel': 'Kuva mu ntangiriro za {year}',
   'earnings.heroMeta': 'Ubuhuza {count} bwasinywe',
@@ -500,12 +512,11 @@ export const rw: Record<keyof typeof en, string> = {
   'earnings.chartNothing': 'Nta mafaranga yishyuwe mu mezi atandatu ashize.',
 
   'earnings.sectionRecent': 'Amafaranga aheruka',
-  'earnings.paidOn': 'Yishyuwe {day} · MoMo',
+  'earnings.paidOn': en['earnings.paidOn'],
   'earnings.pendingSignature': 'Hategerejwe umukono',
   'earnings.pendingIntent': 'Icyifuzo gifunguye',
   'earnings.rowSummary': '{client} kuri {unit}, {amount}, {state}',
-  'earnings.noCut':
-    'Amafaranga y’ubuhuza yishyurwa yose kuri telefone yawe. Injishi nta kintu ibivanamo.',
+  'earnings.noCut': en['earnings.noCut'],
 
   'earnings.emptyTitle': 'Nta mafaranga arinjira',
   'earnings.emptyBody':

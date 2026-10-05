@@ -132,6 +132,40 @@ describe('draining', () => {
     expect(readQueue().every((i) => i.state === 'sent')).toBe(true);
   });
 
+  it('sends each item once when two drains start together', async () => {
+    // The shell and every mounted offline form drain on reconnect. Each drain
+    // used to walk its own snapshot, so the second sent what the first had not
+    // reached yet, and the first sent it again (mobile audit, IN-11).
+    const sent: number[] = [];
+    registerHandler<number>('message', async (n) => {
+      await new Promise((resolve) => setTimeout(resolve, 5));
+      sent.push(n);
+      return { status: 'ok' as const };
+    });
+    enqueue({ id: 'a', kind: 'message', payload: 1, label: '1' });
+    enqueue({ id: 'b', kind: 'message', payload: 2, label: '2' });
+
+    await Promise.all([drain(), drain(), drain()]);
+
+    expect(sent).toEqual([1, 2]);
+  });
+
+  it('picks up an item queued while a drain is running', async () => {
+    const sent: number[] = [];
+    registerHandler<number>('message', async (n) => {
+      if (n === 1) enqueue({ id: 'late', kind: 'message', payload: 9, label: '9' });
+      sent.push(n);
+      return { status: 'ok' as const };
+    });
+    enqueue({ id: 'a', kind: 'message', payload: 1, label: '1' });
+
+    const first = drain();
+    const joined = drain();
+    await Promise.all([first, joined]);
+
+    expect(sent).toEqual([1, 9]);
+  });
+
   it('keeps a failure IN the queue with a reason, rather than dropping it', async () => {
     registerHandler('fault', () => ({ status: 'failed' as const }));
     enqueue({ id: 'f', kind: 'fault', payload: {}, label: 'Lift on 3' });

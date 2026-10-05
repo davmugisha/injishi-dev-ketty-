@@ -18,7 +18,6 @@ import { View } from 'react-native';
 import { useRouter } from 'expo-router';
 import {
   Badge,
-  Button,
   Card,
   EmptyState,
   ErrorState,
@@ -29,15 +28,39 @@ import {
   Text,
 } from '@/components';
 import { useTheme } from '@/theme/theme';
-import { useT } from '@/i18n/i18n';
-import { WorkFilterTabs, WorkOfflineBar, WorkPageHead } from './work-chrome';
-import { FAULT_KEY, SEVERITY_KEY, ticketAge } from './work-format';
-import type { TicketStatus, WorkTicket } from './work-fixtures';
-import { useConnection, useWorkTickets } from './work-store';
+import { useT, type MessageKey } from '@/i18n/i18n';
+import { WorkButton, WorkFilterTabs, WorkOfflineBar, WorkPageHead } from './work-chrome';
+import { FAULT_KEY, SEVERITY_KEY, tabCountPhrase, ticketAge } from './work-format';
+import type { TicketStatus, WorkRoom, WorkTask, WorkTicket } from './work-fixtures';
+import { useConnection, useWorkRooms, useWorkTasks, useWorkTickets } from './work-store';
 
 type TicketFilter = 'all' | TicketStatus;
 
 const FILTERS: TicketFilter[] = ['all', 'open', 'assigned', 'resolved'];
+
+/**
+ * What a ticket is doing to its room right now, read off the room and the task
+ * rather than assumed.
+ *
+ * Every unresolved card used to say "Room out of order · task blocked", whether
+ * or not either was true (mobile audit 2026-10-05, WK-29): a room someone put
+ * back into service, or a task that was never there, still read as blocked.
+ */
+function consequenceOf(
+  ticket: WorkTicket,
+  rooms: readonly WorkRoom[],
+  tasks: readonly WorkTask[],
+): MessageKey | null {
+  if (ticket.status === 'resolved') return null;
+  const outOfOrder = rooms.some(
+    (room) => room.id === ticket.room && room.status === 'out_of_order' && room.ticket === ticket.ref,
+  );
+  if (!outOfOrder) return null;
+  const blocked = tasks.some(
+    (task) => task.id === ticket.room && task.status === 'blocked' && task.blockedBy === ticket.ref,
+  );
+  return blocked ? 'work.tickets.blocks' : 'work.tickets.outOfOrder';
+}
 
 export function TicketsBoard() {
   const router = useRouter();
@@ -45,6 +68,8 @@ export function TicketsBoard() {
   const { c, space } = useTheme();
   const [filter, setFilter] = useState<TicketFilter>('all');
   const tickets = useWorkTickets();
+  const rooms = useWorkRooms();
+  const tasks = useWorkTasks();
   const connection = useConnection();
 
   // One clock for the whole render, so eight cards cannot disagree about how
@@ -54,10 +79,14 @@ export function TicketsBoard() {
   const rows = tickets.rows;
   const shown = filter === 'all' ? rows : rows.filter((ticket) => ticket.status === filter);
 
+  // No room preset from here, so the sheet asks which room (WK-07).
   const report = (
-    <Button variant="primary" size="md" leadingIcon="camera" onPress={() => router.push('/report-fault')}>
-      {t('work.tickets.report')}
-    </Button>
+    <WorkButton
+      variant="primary"
+      leadingIcon="camera"
+      label={t('work.tickets.report')}
+      onPress={() => router.push('/report-fault')}
+    />
   );
 
   return (
@@ -68,16 +97,18 @@ export function TicketsBoard() {
         </Text>
       </WorkPageHead>
 
+      {/* The Work bar for the simulated outage only; a real one already has
+          the app-wide banner (WK-25). */}
+      {connection.simulatedOnly ? (
+        <WorkOfflineBar
+          title={t('work.offline.bannerTitle')}
+          detail={t('work.offline.simulatedDetail')}
+        />
+      ) : null}
       {!connection.online ? (
-        <>
-          <WorkOfflineBar
-            title={t('work.offline.bannerTitle')}
-            detail={t('work.offline.realOffline')}
-          />
-          <Text size="xs" color="textMuted" style={{ lineHeight: 18 }}>
-            {t('state.offlineLastList')}
-          </Text>
-        </>
+        <Text size="xs" color="textMuted" style={{ lineHeight: 18 }}>
+          {t('state.offlineLastList')}
+        </Text>
       ) : null}
 
       {rows.length > 0 ? (
@@ -85,14 +116,16 @@ export function TicketsBoard() {
           label={t('work.tickets.listLabel')}
           value={filter}
           onChange={(next) => setFilter(next as TicketFilter)}
-          items={FILTERS.map((value) => ({
-            value,
-            label:
+          items={FILTERS.map((value) => {
+            const label =
               value === 'all'
                 ? t('work.rooms.filterAll')
-                : t(`status.ticket.${value}` as 'status.ticket.open'),
-            count: value === 'all' ? rows.length : rows.filter((x) => x.status === value).length,
-          }))}
+                : t(`status.ticket.${value}` as 'status.ticket.open');
+            const count =
+              value === 'all' ? rows.length : rows.filter((x) => x.status === value).length;
+            const spoken = tabCountPhrase(label, count, 'tickets');
+            return { value, label, count, a11yLabel: t(spoken.key, spoken.values) };
+          })}
         />
       ) : null}
 
@@ -125,13 +158,28 @@ export function TicketsBoard() {
           action={report}
         />
       ) : (
-        shown.map((ticket) => <TicketCard key={ticket.ref} ticket={ticket} now={now} />)
+        shown.map((ticket) => (
+          <TicketCard
+            key={ticket.ref}
+            ticket={ticket}
+            now={now}
+            consequence={consequenceOf(ticket, rooms.rows, tasks.rows)}
+          />
+        ))
       )}
     </Screen>
   );
 }
 
-function TicketCard({ ticket, now }: { ticket: WorkTicket; now: number }) {
+function TicketCard({
+  ticket,
+  now,
+  consequence,
+}: {
+  ticket: WorkTicket;
+  now: number;
+  consequence: MessageKey | null;
+}) {
   const t = useT();
   const { c, space } = useTheme();
   const age = ticketAge(ticket, now);
@@ -197,9 +245,9 @@ function TicketCard({ ticket, now }: { ticket: WorkTicket; now: number }) {
           <Text size="xs" color="textSubtle">
             {t('work.tickets.filed', { age: t(age.key, age.values) })}
           </Text>
-          {ticket.status !== 'resolved' ? (
+          {consequence ? (
             <Text size="xs" weight="medium" color="danger600">
-              {t('work.tickets.blocks')}
+              {t(consequence)}
             </Text>
           ) : null}
         </View>

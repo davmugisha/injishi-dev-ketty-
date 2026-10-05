@@ -202,10 +202,13 @@ function Cell({
   }
 
   if (cell === 'departure') {
+    // The stay, not a checkout deadline. "Checkout by 11:00" was a constant
+    // printed as this property's policy, which the phone never reads (mobile
+    // audit 2026-10-05, HO-16); the group heading already says today.
     return (
       <>
         <Line>{roomLine(booking, t)}</Line>
-        <Line>{t('host.checkoutBy', { time: '11:00' })}</Line>
+        <Line>{stay}</Line>
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 4 }}>
           {booking.balanceRwf > 0 ? (
             <Badge tone="warning">

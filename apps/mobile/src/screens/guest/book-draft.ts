@@ -31,8 +31,15 @@
  *
  * The token is minted here rather than at the press so the rule is testable
  * without a button: `tokenFor` is pure given a draft and a signature.
+ *
+ * **A booked draft is cleared.** Once a draft has become a Trip it is spent,
+ * and `clear()` sets the stored value to `null`, which reads as "no draft": the
+ * next open of the same Room type seeds afresh from ITS route params. A draft
+ * that survived its booking reopened the next booking of that room at "Confirm
+ * and pay" with the old dates, and the next payment routed to the previous
+ * booking's confirmation (mobile audit 2026-10-05, GK-12).
  */
-import { useCallback, useRef } from 'react';
+import { useCallback, useMemo, useRef } from 'react';
 import type { BookingMode } from '@injishi/contracts';
 import type { DateRange } from '@/components';
 import { nightsBetween } from '@/components';
@@ -116,11 +123,12 @@ export interface BookDraftHandle {
    * Returns it and stores it, so a retry of the same press gets the same value.
    */
   tokenForPress: (signature: string) => string;
+  /** Forget the draft once it has become a booking. See the header (GK-12). */
+  clear: () => void;
 }
 
 export function useBookDraft(roomTypeId: string, seed: () => BookDraft): BookDraftHandle {
   const key = bookDraftKey(roomTypeId);
-  const draft = useFixtureValue<BookDraft>(key, seed);
 
   // `seed` is written inline at the call site and is therefore new on every
   // render. Holding it on a ref keeps both callbacks stable, so a screen can
@@ -129,28 +137,43 @@ export function useBookDraft(roomTypeId: string, seed: () => BookDraft): BookDra
   const seedRef = useRef(seed);
   seedRef.current = seed;
 
+  // Nothing stored, or a draft cleared by a booking, both read as `null`, and
+  // both mean the same thing: this room has no draft, so the seed stands in.
+  // The seed is computed once per seed function (the stepper memoises it on
+  // its route params), so an untouched draft keeps one identity across renders.
+  const stored = useFixtureValue<BookDraft | null>(key, () => null);
+  const fresh = useMemo(() => seed(), [seed]);
+  const draft = stored ?? fresh;
+
+  /** What is stored, or the seed when nothing is. Read back, never closed over. */
+  const current = useCallback(
+    () => readFixture<BookDraft | null>(key, null) ?? seedRef.current(),
+    [key],
+  );
+
   const patch = useCallback(
     (next: Partial<BookDraft>) => {
       // Read back rather than closing over `draft`: the policy sheet is another
       // writer on a neighbouring key and a step can patch twice in one tick.
-      const current = readFixture<BookDraft>(key, seedRef.current());
-      writeFixture<BookDraft>(key, { ...current, ...next });
+      writeFixture<BookDraft>(key, { ...current(), ...next });
     },
-    [key],
+    [current, key],
   );
 
   const tokenForPress = useCallback(
     (signature: string) => {
-      const current = readFixture<BookDraft>(key, seedRef.current());
-      if (current.attemptToken && current.tokenFor === signature) return current.attemptToken;
+      const now = current();
+      if (now.attemptToken && now.tokenFor === signature) return now.attemptToken;
       const token = uuidV4();
-      writeFixture<BookDraft>(key, { ...current, attemptToken: token, tokenFor: signature });
+      writeFixture<BookDraft>(key, { ...now, attemptToken: token, tokenFor: signature });
       return token;
     },
-    [key],
+    [current, key],
   );
 
-  return { draft, patch, tokenForPress };
+  const clear = useCallback(() => writeFixture<BookDraft | null>(key, null), [key]);
+
+  return { draft, patch, tokenForPress, clear };
 }
 
 /* ------------------------------------------------------------- the booking */
@@ -248,6 +271,9 @@ export function mintTrip(args: MintArgs): Trip {
     id: reference,
     stayId: detail.property.id,
     property: detail.stay.title,
+    // The room the guest booked, so the confirmation names it rather than the
+    // property under "Room type" (GK-15).
+    roomName: room.summary.name,
     location: detail.stay.location,
     checkInDay: dates.start,
     checkOutDay: dates.end,

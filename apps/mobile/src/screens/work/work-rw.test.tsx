@@ -93,14 +93,21 @@ describe('the Work surface in Kinyarwanda (frame W8)', () => {
 
     // W8's transcription, string for string.
     expect(screen.getByText(rw['work.queue.title'])).toBeTruthy();
-    // The tab renders its label and count as one string — "Byose 6", "Igorofa 1 2".
-    expect(screen.getByLabelText(`${rw['work.queue.tabAll']} 6`)).toBeTruthy();
+    // The tab's count is its own pill, and the tab says it with its noun. It
+    // used to join them into one string, which on a floor tab read as two
+    // numbers: "Igorofa 1 2" (mobile audit 2026-10-05, WK-12).
+    const tab = (label: string, count: number) =>
+      rw[count === 1 ? 'work.tabs.roomsOne' : 'work.tabs.rooms']
+        .replace('{label}', label)
+        .replace('{count}', String(count));
+    expect(screen.getByLabelText(tab(rw['work.queue.tabAll'], 6))).toBeTruthy();
     expect(
-      screen.getByLabelText(`${rw['work.queue.tabFloor'].replace('{floor}', '1')} 2`),
+      screen.getByLabelText(tab(rw['work.queue.tabFloor'].replace('{floor}', '1'), 2)),
     ).toBeTruthy();
+    // Twice: the floor's tab label, its own text now, and its section heading.
     expect(
-      screen.getByText(rw['work.queue.sectionFloor'].replace('{floor}', '1')),
-    ).toBeTruthy();
+      screen.getAllByText(rw['work.queue.sectionFloor'].replace('{floor}', '1')),
+    ).toHaveLength(2);
     expect(screen.getAllByText(rw['work.kind.checkoutClean']).length).toBeGreaterThan(0);
     expect(screen.getByText(rw['work.kind.turndown'])).toBeTruthy();
     expect(

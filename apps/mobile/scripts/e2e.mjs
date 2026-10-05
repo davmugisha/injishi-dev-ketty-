@@ -5,6 +5,19 @@
  *   pnpm --filter @injishi/mobile e2e -- --theme dark  # one theme
  *   pnpm --filter @injishi/mobile e2e -- --device emulator-5554 --flow .maestro/flows/sign-in-switch.yaml
  *
+ * **Release mode** (ADR-063 Build plan task 2), for what only a release build
+ * can show, crash reporting first among them:
+ *
+ *   pnpm --filter @injishi/mobile e2e -- --release --apk path/to/preview.apk
+ *   pnpm --filter @injishi/mobile e2e -- --release --flow .maestro/crash/js-error.yaml
+ *
+ * It installs an EAS `preview` APK with `adb install -r` (removing the
+ * development build first when Android refuses the install over it), skips
+ * Metro and `adb reverse` because a release build carries its own bundle and
+ * talks to the demo API, and runs the flows in `.maestro/crash/`, which a
+ * default run never touches. Light theme unless `--theme` says otherwise.
+ * Without `--apk` it runs against whatever release build is installed.
+ *
  * What it needs running first: the `injishi-lowend` emulator (or a phone on a
  * cable), the development build installed on it, the local API on :8000, and
  * Metro on :8081 started with `EXPO_PUBLIC_API_URL=http://localhost:8000`.
@@ -33,6 +46,11 @@ function arg(name, fallback) {
   const args = process.argv.slice(2).filter((a) => a !== '--');
   const at = args.indexOf(`--${name}`);
   return at >= 0 && args[at + 1] ? args[at + 1] : fallback;
+}
+
+/** Whether a bare flag such as `--release` was passed. */
+function flag(name) {
+  return process.argv.slice(2).includes(`--${name}`);
 }
 
 function fail(message) {
@@ -106,15 +124,46 @@ function reversePorts() {
   }
 }
 
-const themeArg = arg('theme', 'both');
+const APP_ID = 'rw.injishi.mobile';
+const release = flag('release');
+
+/**
+ * Installs a release APK over whatever is on the device. Android refuses to
+ * replace a build signed with another key (the development build) or to go
+ * down a version, so on either refusal the old app is removed and the install
+ * tried once more. Removing it wipes its data, which is the point: a release
+ * run starts signed out.
+ */
+function installRelease(apk) {
+  if (!existsSync(apk)) fail(`no APK at ${apk}.`);
+  console.log(`e2e: installing ${apk} on ${device}`);
+  let install = onDevice(['install', '-r', apk]);
+  const refused = `${install.stdout ?? ''}${install.stderr ?? ''}`;
+  if (install.status !== 0 && /INSTALL_FAILED_(UPDATE_INCOMPATIBLE|VERSION_DOWNGRADE)/.test(refused)) {
+    console.log('e2e: the installed build will not be replaced; removing it first.');
+    onDevice(['uninstall', APP_ID]);
+    install = onDevice(['install', apk]);
+  }
+  if (install.status !== 0) fail(`adb install failed: ${`${install.stdout ?? ''}${install.stderr ?? ''}`.trim()}`);
+}
+
+if (release) {
+  const apk = arg('apk', null);
+  if (apk) installRelease(path.resolve(process.cwd(), apk));
+} else if (arg('apk', null)) {
+  fail('--apk installs a release build, so it needs --release.');
+}
+
+const themeArg = arg('theme', release ? 'light' : 'both');
 if (!['light', 'dark', 'both'].includes(themeArg)) fail('--theme is light, dark or both.');
 const themes = themeArg === 'both' ? ['light', 'dark'] : [themeArg];
-const flow = path.resolve(appDir, arg('flow', '.maestro/flows'));
+const flow = path.resolve(appDir, arg('flow', release ? '.maestro/crash' : '.maestro/flows'));
 const maestro = maestroPath();
 
 const results = [];
 for (const theme of themes) {
-  reversePorts();
+  // A release build has no Metro to reach and talks to the demo API itself.
+  if (!release) reversePorts();
   onDevice(['shell', 'cmd', 'uimode', 'night', theme === 'dark' ? 'yes' : 'no']);
   const out = path.join(os.tmpdir(), 'injishi-maestro', theme);
   mkdirSync(out, { recursive: true });

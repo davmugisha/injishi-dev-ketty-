@@ -13,8 +13,9 @@
  * A `/me/` route carries no workspace header, because it is person scoped and
  * `WorkspaceGuard` does not run on it.
  */
-import { API_BASE, REQUEST_TIMEOUT_MS } from './env';
+import { API_BASE, API_ORIGIN, REQUEST_TIMEOUT_MS } from './env';
 import { authHeaders, clearToken } from './auth';
+import { recordCall } from './crash-reporter';
 import { logFailure } from './log';
 import type { ApiPath } from './endpoints';
 
@@ -28,13 +29,29 @@ import type { ApiPath } from './endpoints';
  *   ok              it worked
  *   unauthenticated you are signed out
  *   refused         the server said no, and said why
- *   failed          we could not reach it
+ *   failed          we could not reach it, or it could not answer
+ *
+ * `failed` also covers an answer that is not a decision: a 5xx, a 408 or a
+ * 429. The server was reached, but it did not say no to THIS request; it was
+ * deploying, overloaded or rate limiting, and the same request can succeed in a
+ * moment. Calling that `refused` meant no retry, a queued record payment parked
+ * as refused during a deploy, and "Internal server error" printed as though it
+ * were the server's reason (mobile audit 2026-10-05, XC-04). `httpStatus` is
+ * there for logs, never for a screen to branch on.
  */
 export type ApiResult<T> =
   | { status: 'ok'; data: T }
   | { status: 'unauthenticated' }
   | { status: 'refused'; message: string; httpStatus: number }
-  | { status: 'failed' };
+  | { status: 'failed'; httpStatus?: number };
+
+/**
+ * An HTTP answer that is not a decision about the request (see `ApiResult`).
+ * Exported so the write queue and its tests agree with this file on the list.
+ */
+export function isTransientStatus(httpStatus: number): boolean {
+  return httpStatus >= 500 || httpStatus === 408 || httpStatus === 429;
+}
 
 export type ApiErrorKind = 'unauthenticated' | 'refused' | 'failed';
 
@@ -116,6 +133,33 @@ async function reactToUnauthenticated(): Promise<void> {
 /** Reset the 401 latch. Tests only; a stuck latch would hide a real expiry. */
 export function resetUnauthenticatedLatch(): void {
   handlingUnauthenticated = false;
+  lastForbiddenAt = 0;
+}
+
+/**
+ * What to do when the server refuses a permission (a 403).
+ *
+ * The permissions this app renders from arrive on `GET /me/workspaces` and are
+ * cached for minutes, so a power revoked on the server stays on offer here
+ * until the cache ages out. Web refreshes them on any 403; this is the same
+ * rule. Registered by `workspace.tsx`, which owns that read. Throttled, because
+ * one screen can fire several refused calls at once and one refresh answers
+ * all of them.
+ */
+type ForbiddenHandler = () => void;
+let onForbidden: ForbiddenHandler | null = null;
+let lastForbiddenAt = 0;
+const FORBIDDEN_REFRESH_GAP_MS = 10_000;
+
+export function setForbiddenHandler(handler: ForbiddenHandler | null): void {
+  onForbidden = handler;
+}
+
+function reactToForbidden(): void {
+  const now = Date.now();
+  if (now - lastForbiddenAt < FORBIDDEN_REFRESH_GAP_MS) return;
+  lastForbiddenAt = now;
+  onForbidden?.();
 }
 
 /**
@@ -193,6 +237,9 @@ export async function api<T>(
 ): Promise<ApiResult<T>> {
   const { method = 'GET', body, formData, signal, withoutWorkspace, idempotencyKey } = options;
   const url = `${API_BASE}${path}`;
+  // The crash trail's copy of this call (ADR-063 AC-6): no host, and
+  // `recordCall` masks every id and drops the query before it keeps it.
+  const trailPath = url.slice(API_ORIGIN.length);
 
   const headers: Record<string, string> = { ...authHeaders() };
   if (idempotencyKey) headers['Idempotency-Key'] = idempotencyKey;
@@ -227,11 +274,25 @@ export async function api<T>(
     });
 
     if (response.status === 401) {
+      recordCall({ method, path: trailPath, httpStatus: 401, outcome: 'unauthenticated' });
       await reactToUnauthenticated();
       return { status: 'unauthenticated' };
     }
 
+    if (!response.ok && isTransientStatus(response.status)) {
+      // Not a decision: retryable, and never shown as the server's reason.
+      logFailure('call failed on the server', {
+        method,
+        url,
+        httpStatus: response.status,
+        outcome: 'failed',
+      });
+      recordCall({ method, path: trailPath, httpStatus: response.status, outcome: 'failed' });
+      return { status: 'failed', httpStatus: response.status };
+    }
+
     if (!response.ok) {
+      if (response.status === 403) reactToForbidden();
       const parsed = await response.json().catch(() => null);
       const message = messageOf(parsed, 'That request was refused.');
       logFailure('call refused', {
@@ -240,10 +301,12 @@ export async function api<T>(
         httpStatus: response.status,
         outcome: 'refused',
       });
+      recordCall({ method, path: trailPath, httpStatus: response.status, outcome: 'refused' });
       return { status: 'refused', message, httpStatus: response.status };
     }
 
     // 204, and any other answer with no body, is a success with no data.
+    recordCall({ method, path: trailPath, httpStatus: response.status, outcome: 'ok' });
     if (response.status === 204) return { status: 'ok', data: undefined as T };
 
     const data = (await response.json().catch(() => null)) as T;
@@ -256,6 +319,7 @@ export async function api<T>(
       url,
       outcome: 'failed',
     });
+    recordCall({ method, path: trailPath, outcome: 'failed' });
     return { status: 'failed' };
   } finally {
     clearTimeout(timer);

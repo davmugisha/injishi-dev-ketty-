@@ -65,6 +65,12 @@ export { ModalSheet, type ModalSheetProps } from './modal-sheet';
 export { WorkspaceChip } from './workspace-chip';
 export { BackHeader } from './back-header';
 export { StickyBar } from './sticky-bar';
+export {
+  usePinnedFooter,
+  usePinnedFooterHeight,
+  tabBarContentHeight,
+  resetPinnedFooters,
+} from './pinned-footer';
 export { ComingSoon, type ComingSoonProps } from './coming-soon';
 
 /* Photography, and the licence obligation that travels with it */

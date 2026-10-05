@@ -273,6 +273,21 @@ export function openAttempts(): PaymentAttempt[] {
   return Object.values(attempts).filter((a) => isOpen(a));
 }
 
+/**
+ * Drop every attempt, in memory and on disk, when a session ends.
+ *
+ * The journal holds the payer's handset number, and nothing used to clear it:
+ * sign out removed the token and left the last person's MoMo number in the
+ * keychain for whoever signed in next (mobile audit GK-27). Unlike
+ * `resetAttempts` the journal stays hydrated: it is now known to be empty,
+ * which is a read, not an unread.
+ */
+export function clearAttempts(): void {
+  attempts = {};
+  emit();
+  void persist();
+}
+
 /** Tests only: drop the journal, in memory and on disk. */
 export function resetAttempts(): void {
   attempts = {};

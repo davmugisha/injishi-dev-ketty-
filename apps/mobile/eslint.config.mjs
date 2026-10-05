@@ -75,6 +75,29 @@ export default [
         'error',
         { classes: false, allowHexIn: ['/src/theme/', '/src/data/photos.ts'] },
       ],
+
+      // ADR-063 invariant 1. Every privacy rule for crash reports lives in
+      // `src/lib/crash-reporter.ts`: the allowlist, the scrubber, the switch.
+      // A second importer of the SDK could set a user, attach a screenshot or
+      // send an event around all three, so the SDK has exactly one importer.
+      // Type imports are refused too: the reporter re-exports what callers need.
+      'no-restricted-imports': [
+        'error',
+        {
+          paths: [
+            {
+              name: '@sentry/react-native',
+              message:
+                'Only src/lib/crash-reporter.ts may import the Sentry SDK (ADR-063). Call its exports instead.',
+            },
+          ],
+        },
+      ],
     },
+  },
+  {
+    // The one importer, and its tests, which read the SDK's types.
+    files: ['src/lib/crash-reporter.ts', 'src/lib/crash-reporter.test.ts'],
+    rules: { 'no-restricted-imports': 'off' },
   },
 ];

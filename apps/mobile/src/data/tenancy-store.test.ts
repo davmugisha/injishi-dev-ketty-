@@ -60,6 +60,20 @@ describe('applySignature', () => {
     expect(lease.signedOn).toBe('2026-08-20');
   });
 
+  /**
+   * Nothing sends a signature anywhere yet, so the lease carries the mark that
+   * makes the sign screen say so (mobile audit 2026-10-05, TN-04). A lease
+   * signed before this app never gets it, which is what keeps the two apart.
+   */
+  it('marks the signature as made on this phone', () => {
+    const [lease] = applySignature([base(UNSIGNED)], {
+      leaseId: UNSIGNED,
+      signedOn: '2026-08-20',
+    });
+    expect(lease.signedOnDevice).toBe(true);
+    expect(base(RUNNING).signedOnDevice).toBeUndefined();
+  });
+
   /** FL21 step 4. Without this the lease goes active owing nothing. */
   it('starts the rent schedule at the commencement date', () => {
     const [lease] = applySignature([base(UNSIGNED)], {

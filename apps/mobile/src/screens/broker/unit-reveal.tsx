@@ -4,7 +4,7 @@
  *
  * ## Why it is a sheet and not a button
  *
- * Pressing it does three irreversible things: spends one of the month's reveal
+ * Pressing it does three irreversible things: spends one of the broker's reveal
  * credits, writes a row to the reveal log that a landlord's number was handed
  * out, and opens a placement intent with this broker recorded on it (FL18 step
  * 3, FL19 step 1). The canvas rule is that consequences are printed under the
@@ -14,7 +14,7 @@
  *
  * ## The four states it can open in
  *
- * A reveal that can go ahead, a month with no credits left, a contact that was
+ * A reveal that can go ahead, a balance with no credits left, a contact that was
  * already revealed (which costs nothing to look at again), and a unit that is
  * already let — FL18 path B, where spending a credit would buy a placement
  * nobody can be made into. Each is a whole sheet with its own way out, not a
@@ -134,19 +134,31 @@ export function UnitReveal({ id }: { id: string }) {
    * Spending the credit (gaps.md §5.2, P1 — the screen scored zero on every
    * state, and it is the one that spends money).
    *
-   * Three things changed here. The write is now idempotent per unit in
-   * `useReveal`, so a double-fired press cannot spend twice. The toast and the
-   * navigation wait for the write, so a failure does not report a reveal that
-   * did not happen — which on this screen means a broker who believes they have
-   * paid for a number they were never given. And `done` is released on failure,
-   * because a permanently disabled button on a sheet with no error was the old
-   * behaviour and it is indistinguishable from the app hanging.
+   * The write is idempotent per unit in `useReveal`, so a double-fired press
+   * cannot spend twice. The toast and the navigation wait for the write, so a
+   * failure does not report a reveal that did not happen — which on this
+   * screen means a broker who believes they have paid for a number they were
+   * never given. And `done` is released on failure, because a permanently
+   * disabled button on a sheet with no error is indistinguishable from the app
+   * hanging.
+   *
+   * **It branches on what `reveal` RETURNS** (mobile audit 2026-10-05, BR-02).
+   * It used to read `failed` after the `await`, which is the value from the
+   * render that pressed the button: a failure toasted "Contact revealed" and
+   * closed, and a retry that then succeeded was treated as failed. Offline it
+   * toasted the same success over a reveal that was only queued; it now says
+   * the contact is revealed when the phone reconnects.
    */
   const onConfirm = async () => {
     setDone(true);
     reset();
-    await reveal(unit);
-    if (failed) {
+    const outcome = await reveal(unit);
+    if (outcome === 'queued') {
+      toast.show(t('reveal.queued'), 'warning');
+      router.back();
+      return;
+    }
+    if (outcome !== 'done') {
       setDone(false);
       return;
     }
