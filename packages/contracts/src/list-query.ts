@@ -517,6 +517,9 @@ export const LIST_READ = {
     "staff.attendance": ["attendance.record", "attendance.approve"],
     "staff.leave-requests": ["leave.approve"],
     "staff.pay-runs": ["payroll.run"],
+    // 058-time: shift requests are the roster's; attendance requests are decided by attendance.approve.
+    "staff.shift-requests": ["roster.manage"],
+    "staff.attendance-requests": ["attendance.approve"],
 } as const satisfies Record<string, readonly Permission[]>;
 export type ListKey = keyof typeof LIST_READ;
 export function isListKey(key: string): key is ListKey {

@@ -36,11 +36,15 @@ export type ContractStatus = z.infer<typeof ContractStatus>;
 export declare const RosterStatus: z.ZodEnum<["scheduled", "cancelled"]>;
 export type RosterStatus = z.infer<typeof RosterStatus>;
 /** Who wrote the record. A `self` record waits for validation. */
-export declare const AttendanceSource: z.ZodEnum<["supervisor", "self"]>;
+/** `phone` and `kiosk` arrive with 058-time (AC-TM9, AC-TM10). */
+export declare const AttendanceSource: z.ZodEnum<["supervisor", "self", "phone", "kiosk"]>;
 export type AttendanceSource = z.infer<typeof AttendanceSource>;
 /** `closed` becomes `superseded` only when a correction replaces it. */
 export declare const AttendanceStatus: z.ZodEnum<["open", "closed", "superseded"]>;
 export type AttendanceStatus = z.infer<typeof AttendanceStatus>;
+/** What kind of day a record's work date was, for pricing overtime (058-time AC-TM7). */
+export declare const DayKind: z.ZodEnum<["weekday", "weekly_off", "public_holiday"]>;
+export type DayKind = z.infer<typeof DayKind>;
 export declare const LeaveAccrual: z.ZodEnum<["yearly_upfront", "monthly", "none"]>;
 export type LeaveAccrual = z.infer<typeof LeaveAccrual>;
 export declare const LeaveEntryKind: z.ZodEnum<["accrual", "taken", "reversal", "carry_forward", "expiry", "adjustment"]>;
@@ -2397,6 +2401,10 @@ export declare const ShiftTemplate: z.ZodObject<{
     breakMinutes: z.ZodNumber;
     /** An end at or before the start runs past midnight. */
     crossesMidnight: z.ZodBoolean;
+    /** Overtime counts past this much work; null: the shift's length less its break (058-time AC-TM7). */
+    minWorkMinutes: z.ZodNullable<z.ZodNumber>;
+    /** Minutes after the end the sweep closes a record still open (AC-TM4); null: never. */
+    autoClockOutMinutes: z.ZodNullable<z.ZodNumber>;
     status: z.ZodEnum<["active", "archived"]>;
 }, "strip", z.ZodTypeAny, {
     status: "active" | "archived";
@@ -2408,6 +2416,8 @@ export declare const ShiftTemplate: z.ZodObject<{
     endsAt: string;
     breakMinutes: number;
     crossesMidnight: boolean;
+    minWorkMinutes: number | null;
+    autoClockOutMinutes: number | null;
 }, {
     status: "active" | "archived";
     name: string;
@@ -2418,6 +2428,8 @@ export declare const ShiftTemplate: z.ZodObject<{
     endsAt: string;
     breakMinutes: number;
     crossesMidnight: boolean;
+    minWorkMinutes: number | null;
+    autoClockOutMinutes: number | null;
 }>;
 export type ShiftTemplate = z.infer<typeof ShiftTemplate>;
 export declare const ShiftTemplateList: z.ZodObject<{
@@ -2431,6 +2443,10 @@ export declare const ShiftTemplateList: z.ZodObject<{
         breakMinutes: z.ZodNumber;
         /** An end at or before the start runs past midnight. */
         crossesMidnight: z.ZodBoolean;
+        /** Overtime counts past this much work; null: the shift's length less its break (058-time AC-TM7). */
+        minWorkMinutes: z.ZodNullable<z.ZodNumber>;
+        /** Minutes after the end the sweep closes a record still open (AC-TM4); null: never. */
+        autoClockOutMinutes: z.ZodNullable<z.ZodNumber>;
         status: z.ZodEnum<["active", "archived"]>;
     }, "strip", z.ZodTypeAny, {
         status: "active" | "archived";
@@ -2442,6 +2458,8 @@ export declare const ShiftTemplateList: z.ZodObject<{
         endsAt: string;
         breakMinutes: number;
         crossesMidnight: boolean;
+        minWorkMinutes: number | null;
+        autoClockOutMinutes: number | null;
     }, {
         status: "active" | "archived";
         name: string;
@@ -2452,6 +2470,8 @@ export declare const ShiftTemplateList: z.ZodObject<{
         endsAt: string;
         breakMinutes: number;
         crossesMidnight: boolean;
+        minWorkMinutes: number | null;
+        autoClockOutMinutes: number | null;
     }>, "many">;
 }, "strip", z.ZodTypeAny, {
     templates: {
@@ -2464,6 +2484,8 @@ export declare const ShiftTemplateList: z.ZodObject<{
         endsAt: string;
         breakMinutes: number;
         crossesMidnight: boolean;
+        minWorkMinutes: number | null;
+        autoClockOutMinutes: number | null;
     }[];
 }, {
     templates: {
@@ -2476,6 +2498,8 @@ export declare const ShiftTemplateList: z.ZodObject<{
         endsAt: string;
         breakMinutes: number;
         crossesMidnight: boolean;
+        minWorkMinutes: number | null;
+        autoClockOutMinutes: number | null;
     }[];
 }>;
 export type ShiftTemplateList = z.infer<typeof ShiftTemplateList>;
@@ -2494,6 +2518,8 @@ export declare const CreateShiftTemplateRequest: z.ZodObject<{
     startsAt: z.ZodString;
     endsAt: z.ZodString;
     breakMinutes: z.ZodOptional<z.ZodNumber>;
+    minWorkMinutes: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
+    autoClockOutMinutes: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
 }, "strip", z.ZodTypeAny, {
     name: string;
     propertyId: string;
@@ -2501,6 +2527,8 @@ export declare const CreateShiftTemplateRequest: z.ZodObject<{
     endsAt: string;
     departmentId?: string | null | undefined;
     breakMinutes?: number | undefined;
+    minWorkMinutes?: number | null | undefined;
+    autoClockOutMinutes?: number | null | undefined;
 }, {
     name: string;
     propertyId: string;
@@ -2508,6 +2536,8 @@ export declare const CreateShiftTemplateRequest: z.ZodObject<{
     endsAt: string;
     departmentId?: string | null | undefined;
     breakMinutes?: number | undefined;
+    minWorkMinutes?: number | null | undefined;
+    autoClockOutMinutes?: number | null | undefined;
 }>;
 export type CreateShiftTemplateRequest = z.infer<typeof CreateShiftTemplateRequest>;
 export declare const RosterEntry: z.ZodObject<{
@@ -2536,14 +2566,22 @@ export declare const RosterEntry: z.ZodObject<{
     endsAt: z.ZodString;
     status: z.ZodEnum<["scheduled", "cancelled"]>;
     cancelReason: z.ZodNullable<z.ZodString>;
+    /** Null: a draft, seen only by those who manage the roster (058-time AC-TM1). */
+    publishedAt: z.ZodNullable<z.ZodString>;
+    /** Written by a rotation (AC-TM3). */
+    generated: z.ZodBoolean;
+    /** Written by an approved shift or swap request (AC-TM5). */
+    fromRequest: z.ZodBoolean;
 }, "strip", z.ZodTypeAny, {
     status: "scheduled" | "cancelled";
+    generated: boolean;
     id: string;
     employee: {
         employeeId: string;
         displayName: string;
         jobPositionTitle: string | null;
     };
+    publishedAt: string | null;
     propertyId: string;
     departmentId: string | null;
     startsAt: string;
@@ -2552,14 +2590,17 @@ export declare const RosterEntry: z.ZodObject<{
     shiftName: string;
     workDate: string;
     cancelReason: string | null;
+    fromRequest: boolean;
 }, {
     status: "scheduled" | "cancelled";
+    generated: boolean;
     id: string;
     employee: {
         employeeId: string;
         displayName: string;
         jobPositionTitle: string | null;
     };
+    publishedAt: string | null;
     propertyId: string;
     departmentId: string | null;
     startsAt: string;
@@ -2568,6 +2609,7 @@ export declare const RosterEntry: z.ZodObject<{
     shiftName: string;
     workDate: string;
     cancelReason: string | null;
+    fromRequest: boolean;
 }>;
 export type RosterEntry = z.infer<typeof RosterEntry>;
 export declare const CreateRosterEntryRequest: z.ZodObject<{
@@ -2592,6 +2634,48 @@ export declare const CancelRosterEntryRequest: z.ZodObject<{
     reason: string;
 }>;
 export type CancelRosterEntryRequest = z.infer<typeof CancelRosterEntryRequest>;
+/** Whole minutes, floored (058-time AC-TM7). A record with no roster entry has worked minutes and a day kind only. */
+export declare const AttendanceFigures: z.ZodObject<{
+    lateMinutes: z.ZodNullable<z.ZodNumber>;
+    earlyMinutes: z.ZodNullable<z.ZodNumber>;
+    workedMinutes: z.ZodNumber;
+    overtimeMinutes: z.ZodNullable<z.ZodNumber>;
+    /** Null until the policy or a person decides it (AC-TM8). */
+    approvedOvertimeMinutes: z.ZodNullable<z.ZodNumber>;
+    dayKind: z.ZodNullable<z.ZodEnum<["weekday", "weekly_off", "public_holiday"]>>;
+}, "strip", z.ZodTypeAny, {
+    lateMinutes: number | null;
+    earlyMinutes: number | null;
+    workedMinutes: number;
+    overtimeMinutes: number | null;
+    approvedOvertimeMinutes: number | null;
+    dayKind: "weekday" | "weekly_off" | "public_holiday" | null;
+}, {
+    lateMinutes: number | null;
+    earlyMinutes: number | null;
+    workedMinutes: number;
+    overtimeMinutes: number | null;
+    approvedOvertimeMinutes: number | null;
+    dayKind: "weekday" | "weekly_off" | "public_holiday" | null;
+}>;
+export type AttendanceFigures = z.infer<typeof AttendanceFigures>;
+export declare const AttendanceLocation: z.ZodObject<{
+    inDistanceM: z.ZodNullable<z.ZodNumber>;
+    inAccuracyM: z.ZodNullable<z.ZodNumber>;
+    outDistanceM: z.ZodNullable<z.ZodNumber>;
+    outAccuracyM: z.ZodNullable<z.ZodNumber>;
+}, "strip", z.ZodTypeAny, {
+    inDistanceM: number | null;
+    inAccuracyM: number | null;
+    outDistanceM: number | null;
+    outAccuracyM: number | null;
+}, {
+    inDistanceM: number | null;
+    inAccuracyM: number | null;
+    outDistanceM: number | null;
+    outAccuracyM: number | null;
+}>;
+export type AttendanceLocation = z.infer<typeof AttendanceLocation>;
 export declare const AttendanceRecord: z.ZodObject<{
     id: z.ZodString;
     employee: z.ZodObject<{
@@ -2614,15 +2698,62 @@ export declare const AttendanceRecord: z.ZodObject<{
     workDate: z.ZodString;
     clockInAt: z.ZodString;
     clockOutAt: z.ZodNullable<z.ZodString>;
-    source: z.ZodEnum<["supervisor", "self"]>;
+    source: z.ZodEnum<["supervisor", "self", "phone", "kiosk"]>;
     validated: z.ZodBoolean;
     status: z.ZodEnum<["open", "closed", "superseded"]>;
     supersedesId: z.ZodNullable<z.ZodString>;
     note: z.ZodNullable<z.ZodString>;
+    /** Closed by the sweep, not by a person: unvalidated until someone puts the times right (AC-TM4). */
+    autoClosed: z.ZodBoolean;
+    /**
+     * A closed record's work figures (AC-TM7). Null while open, and for a reader
+     * outside the figure audience (`attendance.approve` and `people.manage`,
+     * AC-TM13): the desk's sheet carries none.
+     */
+    figures: z.ZodNullable<z.ZodObject<{
+        lateMinutes: z.ZodNullable<z.ZodNumber>;
+        earlyMinutes: z.ZodNullable<z.ZodNumber>;
+        workedMinutes: z.ZodNumber;
+        overtimeMinutes: z.ZodNullable<z.ZodNumber>;
+        /** Null until the policy or a person decides it (AC-TM8). */
+        approvedOvertimeMinutes: z.ZodNullable<z.ZodNumber>;
+        dayKind: z.ZodNullable<z.ZodEnum<["weekday", "weekly_off", "public_holiday"]>>;
+    }, "strip", z.ZodTypeAny, {
+        lateMinutes: number | null;
+        earlyMinutes: number | null;
+        workedMinutes: number;
+        overtimeMinutes: number | null;
+        approvedOvertimeMinutes: number | null;
+        dayKind: "weekday" | "weekly_off" | "public_holiday" | null;
+    }, {
+        lateMinutes: number | null;
+        earlyMinutes: number | null;
+        workedMinutes: number;
+        overtimeMinutes: number | null;
+        approvedOvertimeMinutes: number | null;
+        dayKind: "weekday" | "weekly_off" | "public_holiday" | null;
+    }>>;
+    /** How far from the branch a phone punch was, for whoever validates it (AC-TM9); never the coordinates. */
+    location: z.ZodNullable<z.ZodObject<{
+        inDistanceM: z.ZodNullable<z.ZodNumber>;
+        inAccuracyM: z.ZodNullable<z.ZodNumber>;
+        outDistanceM: z.ZodNullable<z.ZodNumber>;
+        outAccuracyM: z.ZodNullable<z.ZodNumber>;
+    }, "strip", z.ZodTypeAny, {
+        inDistanceM: number | null;
+        inAccuracyM: number | null;
+        outDistanceM: number | null;
+        outAccuracyM: number | null;
+    }, {
+        inDistanceM: number | null;
+        inAccuracyM: number | null;
+        outDistanceM: number | null;
+        outAccuracyM: number | null;
+    }>>;
 }, "strip", z.ZodTypeAny, {
     status: "superseded" | "open" | "closed";
     id: string;
-    source: "supervisor" | "self";
+    source: "phone" | "supervisor" | "self" | "kiosk";
     note: string | null;
     employee: {
         employeeId: string;
@@ -2630,16 +2761,31 @@ export declare const AttendanceRecord: z.ZodObject<{
         jobPositionTitle: string | null;
     };
     branchId: string | null;
+    figures: {
+        lateMinutes: number | null;
+        earlyMinutes: number | null;
+        workedMinutes: number;
+        overtimeMinutes: number | null;
+        approvedOvertimeMinutes: number | null;
+        dayKind: "weekday" | "weekly_off" | "public_holiday" | null;
+    } | null;
     workDate: string;
     rosterEntryId: string | null;
     clockInAt: string;
     clockOutAt: string | null;
     validated: boolean;
     supersedesId: string | null;
+    autoClosed: boolean;
+    location: {
+        inDistanceM: number | null;
+        inAccuracyM: number | null;
+        outDistanceM: number | null;
+        outAccuracyM: number | null;
+    } | null;
 }, {
     status: "superseded" | "open" | "closed";
     id: string;
-    source: "supervisor" | "self";
+    source: "phone" | "supervisor" | "self" | "kiosk";
     note: string | null;
     employee: {
         employeeId: string;
@@ -2647,12 +2793,27 @@ export declare const AttendanceRecord: z.ZodObject<{
         jobPositionTitle: string | null;
     };
     branchId: string | null;
+    figures: {
+        lateMinutes: number | null;
+        earlyMinutes: number | null;
+        workedMinutes: number;
+        overtimeMinutes: number | null;
+        approvedOvertimeMinutes: number | null;
+        dayKind: "weekday" | "weekly_off" | "public_holiday" | null;
+    } | null;
     workDate: string;
     rosterEntryId: string | null;
     clockInAt: string;
     clockOutAt: string | null;
     validated: boolean;
     supersedesId: string | null;
+    autoClosed: boolean;
+    location: {
+        inDistanceM: number | null;
+        inAccuracyM: number | null;
+        outDistanceM: number | null;
+        outAccuracyM: number | null;
+    } | null;
 }>;
 export type AttendanceRecord = z.infer<typeof AttendanceRecord>;
 export declare const ClockInRequest: z.ZodObject<{

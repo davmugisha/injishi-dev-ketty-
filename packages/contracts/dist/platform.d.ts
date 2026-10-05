@@ -153,16 +153,16 @@ export declare const DemoStory: z.ZodObject<{
         href: string | null;
     }>, "many">;
 }, "strip", z.ZodTypeAny, {
-    headline: string;
     summary: string;
+    headline: string;
     tryThis: {
         title: string;
         detail: string;
         href: string | null;
     }[];
 }, {
-    headline: string;
     summary: string;
+    headline: string;
     tryThis: {
         title: string;
         detail: string;
@@ -233,16 +233,16 @@ export declare const DemoPersona: z.ZodObject<{
             href: string | null;
         }>, "many">;
     }, "strip", z.ZodTypeAny, {
-        headline: string;
         summary: string;
+        headline: string;
         tryThis: {
             title: string;
             detail: string;
             href: string | null;
         }[];
     }, {
-        headline: string;
         summary: string;
+        headline: string;
         tryThis: {
             title: string;
             detail: string;
@@ -260,8 +260,8 @@ export declare const DemoPersona: z.ZodObject<{
         roleKey: string;
     }[];
     story?: {
-        headline: string;
         summary: string;
+        headline: string;
         tryThis: {
             title: string;
             detail: string;
@@ -279,8 +279,8 @@ export declare const DemoPersona: z.ZodObject<{
         roleKey: string;
     }[];
     story?: {
-        headline: string;
         summary: string;
+        headline: string;
         tryThis: {
             title: string;
             detail: string;

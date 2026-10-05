@@ -206,9 +206,9 @@ export declare const PayAccount: z.ZodObject<{
     createdAt: string;
     isPrimary: boolean;
     employeeId: string;
+    branchName: string | null;
     bankName: string | null;
     accountNumber: string | null;
-    branchName: string | null;
     momoPhone: string | null;
 }, {
     status: "active" | "retired";
@@ -217,9 +217,9 @@ export declare const PayAccount: z.ZodObject<{
     createdAt: string;
     isPrimary: boolean;
     employeeId: string;
+    branchName: string | null;
     bankName: string | null;
     accountNumber: string | null;
-    branchName: string | null;
     momoPhone: string | null;
 }>;
 export type PayAccount = z.infer<typeof PayAccount>;
@@ -242,9 +242,9 @@ export declare const PayAccountList: z.ZodObject<{
         createdAt: string;
         isPrimary: boolean;
         employeeId: string;
+        branchName: string | null;
         bankName: string | null;
         accountNumber: string | null;
-        branchName: string | null;
         momoPhone: string | null;
     }, {
         status: "active" | "retired";
@@ -253,9 +253,9 @@ export declare const PayAccountList: z.ZodObject<{
         createdAt: string;
         isPrimary: boolean;
         employeeId: string;
+        branchName: string | null;
         bankName: string | null;
         accountNumber: string | null;
-        branchName: string | null;
         momoPhone: string | null;
     }>, "many">;
 }, "strip", z.ZodTypeAny, {
@@ -266,9 +266,9 @@ export declare const PayAccountList: z.ZodObject<{
         createdAt: string;
         isPrimary: boolean;
         employeeId: string;
+        branchName: string | null;
         bankName: string | null;
         accountNumber: string | null;
-        branchName: string | null;
         momoPhone: string | null;
     }[];
 }, {
@@ -279,9 +279,9 @@ export declare const PayAccountList: z.ZodObject<{
         createdAt: string;
         isPrimary: boolean;
         employeeId: string;
+        branchName: string | null;
         bankName: string | null;
         accountNumber: string | null;
-        branchName: string | null;
         momoPhone: string | null;
     }[];
 }>;

@@ -2,6 +2,7 @@ import { z } from "zod";
 import { BulkRequest, defineListSpec, listPage } from "./list-query";
 import { PayRun } from "./payroll";
 import { AttendanceRecord, Employee, LeaveRequest, RosterEntry } from "./people";
+import { AttendanceRequest, ShiftRequest } from "./time";
 /**
  * The HR lists (ADR-058), declared once for the operator app and the API
  * (058-list-framework). Each declaration says which fields a person may filter,
@@ -9,9 +10,10 @@ import { AttendanceRecord, Employee, LeaveRequest, RosterEntry } from "./people"
  *
  * The no ranking rule (contract 7) is part of these declarations: a field that
  * measures a person's work is declared `figure`, which `defineListSpec`
- * refuses to make sortable or groupable (AC-LF12). None of these five carries
- * one: a leave request's length belongs to the request, not to a summary of
- * the person.
+ * refuses to make sortable or groupable (AC-LF12). The attendance records
+ * carry the only ones (058-time AC-TM13): late, early and overtime minutes,
+ * filtered by equality at most, and seen only by the figure audience. A leave
+ * request's length belongs to the request, not to a summary of the person.
  */
 const EMPLOYEE_STATUS_LABELS = { active: "Working", offboarded: "Left" };
 /** `GET /ops/employees`. Date of birth is sensitive: a `basic` caller cannot see or use it (AC-LF4). */
@@ -103,16 +105,102 @@ export const ATTENDANCE_LIST = defineListSpec({
             key: "source",
             label: "Recorded by",
             type: "enum",
-            enumValues: ["supervisor", "self"],
-            enumLabels: { supervisor: "Supervisor", self: "Themselves" },
+            enumValues: ["supervisor", "self", "phone", "kiosk"],
+            enumLabels: { supervisor: "Supervisor", self: "Themselves", phone: "Their phone", kiosk: "Kiosk" },
             filterable: true,
             groupable: true,
         },
         { key: "validated", label: "Validated", type: "bool", filterable: true, groupable: true },
+        // 058-time AC-TM4: closed by the sweep, waiting for someone to put the times right.
+        { key: "autoClosed", label: "Closed by the sweep", type: "bool", filterable: true },
+        // AC-TM13: work figures, for attendance.approve and people.manage only, never ordered.
+        { key: "lateMinutes", label: "Late minutes", type: "number", filterable: true, figure: true },
+        { key: "earlyMinutes", label: "Early minutes", type: "number", filterable: true, figure: true },
+        { key: "overtimeMinutes", label: "Overtime minutes", type: "number", filterable: true, figure: true },
+        // AC-TM8: overtime nobody has decided yet, the approver's queue.
+        { key: "overtimePending", label: "Overtime to decide", type: "bool", filterable: true, figure: true },
     ],
 });
 export const AttendancePage = listPage(AttendanceRecord);
 export type AttendancePage = z.infer<typeof AttendancePage>;
+/** `GET /ops/shift-requests` (058-time AC-TM5): what is routed to the caller first. */
+export const SHIFT_REQUEST_LIST = defineListSpec({
+    key: "staff.shift-requests",
+    searchFields: ["employee"],
+    statusField: "status",
+    defaultSort: [
+        { field: "routedToMe", dir: "desc" },
+        { field: "fromDate", dir: "asc" },
+    ],
+    fields: [
+        { key: "employee", label: "Person", type: "text", sortable: true },
+        { key: "fromDate", label: "From", type: "date", filterable: true, sortable: true },
+        { key: "toDate", label: "To", type: "date", filterable: true },
+        {
+            key: "kind",
+            label: "Kind",
+            type: "enum",
+            enumValues: ["change", "swap"],
+            enumLabels: { change: "Different shift", swap: "Swap" },
+            filterable: true,
+            groupable: true,
+        },
+        {
+            key: "status",
+            label: "Status",
+            type: "enum",
+            enumValues: ["requested", "awaiting_colleague", "approved", "rejected", "cancelled"],
+            enumLabels: {
+                requested: "Waiting",
+                awaiting_colleague: "Waiting for the colleague",
+                approved: "Approved",
+                rejected: "Refused",
+                cancelled: "Cancelled",
+            },
+            filterable: true,
+            groupable: true,
+        },
+        { key: "branch", label: "Branch", type: "ref", filterable: true, groupable: true },
+        { key: "routedToMe", label: "Routed to me", type: "bool", filterable: true, sortable: true },
+        { key: "createdAt", label: "Asked", type: "datetime", sortable: true },
+    ],
+});
+export const ShiftRequestPage = listPage(ShiftRequest);
+export type ShiftRequestPage = z.infer<typeof ShiftRequestPage>;
+/** `GET /ops/attendance-requests` (058-time AC-TM6). */
+export const ATTENDANCE_REQUEST_LIST = defineListSpec({
+    key: "staff.attendance-requests",
+    searchFields: ["employee"],
+    statusField: "status",
+    defaultSort: [
+        { field: "routedToMe", dir: "desc" },
+        { field: "workDate", dir: "desc" },
+    ],
+    fields: [
+        { key: "employee", label: "Person", type: "text", sortable: true },
+        { key: "workDate", label: "Day", type: "date", filterable: true, sortable: true, groupable: true },
+        {
+            key: "status",
+            label: "Status",
+            type: "enum",
+            enumValues: ["requested", "approved", "rejected", "cancelled"],
+            enumLabels: { requested: "Waiting", approved: "Approved", rejected: "Refused", cancelled: "Cancelled" },
+            filterable: true,
+            groupable: true,
+        },
+        { key: "branch", label: "Branch", type: "ref", filterable: true, groupable: true },
+        { key: "routedToMe", label: "Routed to me", type: "bool", filterable: true, sortable: true },
+        { key: "createdAt", label: "Asked", type: "datetime", sortable: true },
+    ],
+});
+export const AttendanceRequestPage = listPage(AttendanceRequest);
+export type AttendanceRequestPage = z.infer<typeof AttendanceRequestPage>;
+/** `POST /ops/shift-requests/bulk` and `/ops/attendance-requests/bulk`: approve or refuse many, one command each. */
+export const TimeRequestBulkRequest = BulkRequest.extend({
+    action: z.enum(["approve", "reject"]),
+    params: z.object({ note: z.string().trim().max(500).optional() }).optional(),
+});
+export type TimeRequestBulkRequest = z.infer<typeof TimeRequestBulkRequest>;
 /** `GET /ops/leave/requests`. */
 export const LEAVE_REQUEST_LIST = defineListSpec({
     key: "staff.leave-requests",

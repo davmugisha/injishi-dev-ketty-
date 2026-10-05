@@ -42,11 +42,15 @@ export type ContractStatus = z.infer<typeof ContractStatus>;
 export const RosterStatus = z.enum(["scheduled", "cancelled"]);
 export type RosterStatus = z.infer<typeof RosterStatus>;
 /** Who wrote the record. A `self` record waits for validation. */
-export const AttendanceSource = z.enum(["supervisor", "self"]);
+/** `phone` and `kiosk` arrive with 058-time (AC-TM9, AC-TM10). */
+export const AttendanceSource = z.enum(["supervisor", "self", "phone", "kiosk"]);
 export type AttendanceSource = z.infer<typeof AttendanceSource>;
 /** `closed` becomes `superseded` only when a correction replaces it. */
 export const AttendanceStatus = z.enum(["open", "closed", "superseded"]);
 export type AttendanceStatus = z.infer<typeof AttendanceStatus>;
+/** What kind of day a record's work date was, for pricing overtime (058-time AC-TM7). */
+export const DayKind = z.enum(["weekday", "weekly_off", "public_holiday"]);
+export type DayKind = z.infer<typeof DayKind>;
 export const LeaveAccrual = z.enum(["yearly_upfront", "monthly", "none"]);
 export type LeaveAccrual = z.infer<typeof LeaveAccrual>;
 export const LeaveEntryKind = z.enum([
@@ -339,6 +343,10 @@ export const ShiftTemplate = z.object({
     breakMinutes: z.number().int().nonnegative(),
     /** An end at or before the start runs past midnight. */
     crossesMidnight: z.boolean(),
+    /** Overtime counts past this much work; null: the shift's length less its break (058-time AC-TM7). */
+    minWorkMinutes: z.number().int().nullable(),
+    /** Minutes after the end the sweep closes a record still open (AC-TM4); null: never. */
+    autoClockOutMinutes: z.number().int().nullable(),
     status: ShiftTemplateStatus,
 });
 export type ShiftTemplate = z.infer<typeof ShiftTemplate>;
@@ -353,6 +361,8 @@ export const CreateShiftTemplateRequest = z.object({
     startsAt: TimeOfDay,
     endsAt: TimeOfDay,
     breakMinutes: z.number().int().min(0).max(720).optional(),
+    minWorkMinutes: z.number().int().min(0).max(1440).nullable().optional(),
+    autoClockOutMinutes: z.number().int().min(0).max(720).nullable().optional(),
 });
 export type CreateShiftTemplateRequest = z.infer<typeof CreateShiftTemplateRequest>;
 export const RosterEntry = z.object({
@@ -368,6 +378,12 @@ export const RosterEntry = z.object({
     endsAt: z.string(),
     status: RosterStatus,
     cancelReason: z.string().nullable(),
+    /** Null: a draft, seen only by those who manage the roster (058-time AC-TM1). */
+    publishedAt: z.string().nullable(),
+    /** Written by a rotation (AC-TM3). */
+    generated: z.boolean(),
+    /** Written by an approved shift or swap request (AC-TM5). */
+    fromRequest: z.boolean(),
 });
 export type RosterEntry = z.infer<typeof RosterEntry>;
 export const CreateRosterEntryRequest = z.object({
@@ -383,6 +399,24 @@ export type CancelRosterEntryRequest = z.infer<typeof CancelRosterEntryRequest>;
 // ---------------------------------------------------------------------------
 // Attendance
 // ---------------------------------------------------------------------------
+/** Whole minutes, floored (058-time AC-TM7). A record with no roster entry has worked minutes and a day kind only. */
+export const AttendanceFigures = z.object({
+    lateMinutes: z.number().int().nullable(),
+    earlyMinutes: z.number().int().nullable(),
+    workedMinutes: z.number().int(),
+    overtimeMinutes: z.number().int().nullable(),
+    /** Null until the policy or a person decides it (AC-TM8). */
+    approvedOvertimeMinutes: z.number().int().nullable(),
+    dayKind: DayKind.nullable(),
+});
+export type AttendanceFigures = z.infer<typeof AttendanceFigures>;
+export const AttendanceLocation = z.object({
+    inDistanceM: z.number().int().nullable(),
+    inAccuracyM: z.number().int().nullable(),
+    outDistanceM: z.number().int().nullable(),
+    outAccuracyM: z.number().int().nullable(),
+});
+export type AttendanceLocation = z.infer<typeof AttendanceLocation>;
 export const AttendanceRecord = z.object({
     id: Uuid,
     employee: RosterCard,
@@ -397,6 +431,16 @@ export const AttendanceRecord = z.object({
     status: AttendanceStatus,
     supersedesId: Uuid.nullable(),
     note: z.string().nullable(),
+    /** Closed by the sweep, not by a person: unvalidated until someone puts the times right (AC-TM4). */
+    autoClosed: z.boolean(),
+    /**
+     * A closed record's work figures (AC-TM7). Null while open, and for a reader
+     * outside the figure audience (`attendance.approve` and `people.manage`,
+     * AC-TM13): the desk's sheet carries none.
+     */
+    figures: AttendanceFigures.nullable(),
+    /** How far from the branch a phone punch was, for whoever validates it (AC-TM9); never the coordinates. */
+    location: AttendanceLocation.nullable(),
 });
 export type AttendanceRecord = z.infer<typeof AttendanceRecord>;
 const Instant = z.string().datetime({ offset: true, message: "A time is an ISO instant." });

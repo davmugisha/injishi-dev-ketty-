@@ -70,7 +70,8 @@ export const PayRunBlockerCode = z.enum([
     "missing_rssb_number",
     "missing_id",
     "open_attendance",
-    "unvalidated_self_attendance",
+    /** A closed record nobody has validated: a self or phone clock in, or one the sweep closed (058-time AC-TM16). */
+    "unvalidated_attendance",
 ]);
 export type PayRunBlockerCode = z.infer<typeof PayRunBlockerCode>;
 export const PayRunBlocker = z.object({

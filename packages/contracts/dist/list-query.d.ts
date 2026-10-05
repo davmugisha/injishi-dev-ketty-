@@ -1050,6 +1050,8 @@ export declare const LIST_READ: {
     readonly "staff.attendance": readonly ["attendance.record", "attendance.approve"];
     readonly "staff.leave-requests": readonly ["leave.approve"];
     readonly "staff.pay-runs": readonly ["payroll.run"];
+    readonly "staff.shift-requests": readonly ["roster.manage"];
+    readonly "staff.attendance-requests": readonly ["attendance.approve"];
 };
 export type ListKey = keyof typeof LIST_READ;
 export declare function isListKey(key: string): key is ListKey;

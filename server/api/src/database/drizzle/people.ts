@@ -92,7 +92,13 @@ export const hrRosterStatusEnum = pgEnum('hr_roster_status', [
 export const hrAttendanceSourceEnum = pgEnum('hr_attendance_source', [
   'supervisor',
   'self',
+  // 058-time AC-TM9, AC-TM10: a person's own phone, and a shared kiosk with a PIN.
+  'phone',
+  'kiosk',
 ]);
+
+/** What kind of day a record's work date was, for pricing overtime (058-time AC-TM7). */
+export const hrDayKindEnum = pgEnum('hr_day_kind', ['weekday', 'weekly_off', 'public_holiday']);
 
 export const hrAttendanceStatusEnum = pgEnum('hr_attendance_status', [
   'open',
@@ -451,10 +457,19 @@ export const shiftTemplates = pgTable(
     startsAt: time('starts_at').notNull(),
     endsAt: time('ends_at').notNull(),
     breakMinutes: integer('break_minutes').notNull().default(0),
+    /** Overtime counts only past this much work; null: the shift's length less its break (058-time AC-TM7). */
+    minWorkMinutes: integer('min_work_minutes'),
+    /** Minutes after the shift's end the sweep closes a record still open (AC-TM4); null: never. */
+    autoClockOutMinutes: integer('auto_clock_out_minutes'),
     status: hrCatalogStatusEnum('status').notNull().default('active'),
     ...timestamps,
   },
   (t) => [
+    check(
+      'shift_templates_minutes_ck',
+      sql`(${t.minWorkMinutes} IS NULL OR ${t.minWorkMinutes} BETWEEN 0 AND 1440)
+        AND (${t.autoClockOutMinutes} IS NULL OR ${t.autoClockOutMinutes} BETWEEN 0 AND 720)`,
+    ),
     uniqueIndex('shift_templates_name_uk')
       .on(t.propertyId, sql`lower(${t.name})`)
       .where(sql`${t.status} = 'active'`),
@@ -495,10 +510,22 @@ export const rosterEntries = pgTable(
     status: hrRosterStatusEnum('status').notNull().default('scheduled'),
     cancelReason: text('cancel_reason'),
     createdByUserId: uuid('created_by_user_id').references(() => users.id),
+    /**
+     * Null: a draft only managers see (058-time AC-TM1). Migration 0057 stamps
+     * every entry slice 1 wrote with its `created_at`.
+     */
+    publishedAt: timestamp('published_at', { withTimezone: true }),
+    /** The rotation assignment that generated it (AC-TM3); its foreign key is hand written in 0057. */
+    rotationAssignmentId: uuid('rotation_assignment_id'),
+    /** The approved shift or swap request that wrote it (AC-TM5); its foreign key is hand written in 0057. */
+    shiftRequestId: uuid('shift_request_id'),
     ...timestamps,
   },
   (t) => [
     index('roster_entries_property_date_idx').on(t.propertyId, t.workDate),
+    index('roster_entries_rotation_idx')
+      .on(t.rotationAssignmentId, t.workDate)
+      .where(sql`${t.rotationAssignmentId} IS NOT NULL`),
     index('roster_entries_employee_date_idx').on(t.employeeId, t.workDate),
     check('roster_entries_times_ck', sql`${t.endsAt} > ${t.startsAt}`),
   ],
@@ -535,6 +562,29 @@ export const attendanceRecords = pgTable(
       (): AnyPgColumn => attendanceRecords.id,
     ),
     note: text('note'),
+    // 058-time AC-TM9: where a phone punch was sent from, and how far from the
+    // branch, for the clock in and the clock out apart. Personal data: read only
+    // by `attendance.approve` holders working the validation queue.
+    inLatitude: numeric('in_latitude', { precision: 9, scale: 6 }),
+    inLongitude: numeric('in_longitude', { precision: 9, scale: 6 }),
+    inAccuracyM: integer('in_accuracy_m'),
+    inDistanceM: integer('in_distance_m'),
+    outLatitude: numeric('out_latitude', { precision: 9, scale: 6 }),
+    outLongitude: numeric('out_longitude', { precision: 9, scale: 6 }),
+    outAccuracyM: integer('out_accuracy_m'),
+    outDistanceM: integer('out_distance_m'),
+    /** The kiosk a punch came from (AC-TM10); its foreign key is hand written in 0057. */
+    kioskId: uuid('kiosk_id'),
+    // AC-TM7, computed when the record closes, whole minutes; null while open.
+    lateMinutes: integer('late_minutes'),
+    earlyMinutes: integer('early_minutes'),
+    workedMinutes: integer('worked_minutes'),
+    overtimeMinutes: integer('overtime_minutes'),
+    /** What of the overtime pay may count (AC-TM8): set by the policy or by a person. */
+    approvedOvertimeMinutes: integer('approved_overtime_minutes'),
+    dayKind: hrDayKindEnum('day_kind'),
+    /** Closed by the sweep, not by a person (AC-TM4). */
+    autoClosed: boolean('auto_closed').notNull().default(false),
     ...timestamps,
   },
   (t) => [

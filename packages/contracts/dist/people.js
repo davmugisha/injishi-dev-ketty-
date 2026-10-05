@@ -1,7 +1,7 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.LeaveBalance = exports.LeaveLedgerEntry = exports.LeaveType = exports.CorrectAttendanceRequest = exports.ClockOutRequest = exports.ClockInRequest = exports.AttendanceRecord = exports.CancelRosterEntryRequest = exports.CreateRosterEntryRequest = exports.RosterEntry = exports.CreateShiftTemplateRequest = exports.ShiftTemplateQuery = exports.ShiftTemplateList = exports.ShiftTemplate = exports.ShiftTemplateStatus = exports.OffboardEmployeeRequest = exports.CreateContractResponse = exports.CreateContractRequest = exports.UpdateEmployeeRequest = exports.CreateEmployeeRequest = exports.EmployeeFile = exports.EmployeeDepartment = exports.Employee = exports.EmployeeFull = exports.EmergencyContact = exports.EmployeeAddress = exports.EmployeeBasic = exports.EmploymentContract = exports.EmploymentContractFull = exports.EmploymentContractBasic = exports.RosterCard = exports.EMPLOYEE_MISSING_DETAIL_LABEL = exports.EmployeeMissingDetail = exports.TimeOfDay = exports.LeaveEndHalf = exports.LeaveStartHalf = exports.LeaveRequestStatus = exports.LeaveEntryKind = exports.LeaveAccrual = exports.AttendanceStatus = exports.AttendanceSource = exports.RosterStatus = exports.ContractStatus = exports.WageBasis = exports.ContractType = exports.EmployeeStatus = exports.HrIdDocumentType = exports.TagTone = exports.MaritalStatus = exports.HrSex = void 0;
-exports.LeaveDecisionRequest = exports.CreateLeaveRequestRequest = exports.LeaveRequest = exports.LeaveBalances = void 0;
+exports.CorrectAttendanceRequest = exports.ClockOutRequest = exports.ClockInRequest = exports.AttendanceRecord = exports.AttendanceLocation = exports.AttendanceFigures = exports.CancelRosterEntryRequest = exports.CreateRosterEntryRequest = exports.RosterEntry = exports.CreateShiftTemplateRequest = exports.ShiftTemplateQuery = exports.ShiftTemplateList = exports.ShiftTemplate = exports.ShiftTemplateStatus = exports.OffboardEmployeeRequest = exports.CreateContractResponse = exports.CreateContractRequest = exports.UpdateEmployeeRequest = exports.CreateEmployeeRequest = exports.EmployeeFile = exports.EmployeeDepartment = exports.Employee = exports.EmployeeFull = exports.EmergencyContact = exports.EmployeeAddress = exports.EmployeeBasic = exports.EmploymentContract = exports.EmploymentContractFull = exports.EmploymentContractBasic = exports.RosterCard = exports.EMPLOYEE_MISSING_DETAIL_LABEL = exports.EmployeeMissingDetail = exports.TimeOfDay = exports.LeaveEndHalf = exports.LeaveStartHalf = exports.LeaveRequestStatus = exports.LeaveEntryKind = exports.LeaveAccrual = exports.DayKind = exports.AttendanceStatus = exports.AttendanceSource = exports.RosterStatus = exports.ContractStatus = exports.WageBasis = exports.ContractType = exports.EmployeeStatus = exports.HrIdDocumentType = exports.TagTone = exports.MaritalStatus = exports.HrSex = void 0;
+exports.LeaveDecisionRequest = exports.CreateLeaveRequestRequest = exports.LeaveRequest = exports.LeaveBalances = exports.LeaveBalance = exports.LeaveLedgerEntry = exports.LeaveType = void 0;
 const zod_1 = require("zod");
 const booking_1 = require("./booking");
 const phone_1 = require("./phone");
@@ -37,9 +37,12 @@ exports.WageBasis = zod_1.z.enum(["monthly", "daily", "hourly"]);
 exports.ContractStatus = zod_1.z.enum(["scheduled", "active", "ended"]);
 exports.RosterStatus = zod_1.z.enum(["scheduled", "cancelled"]);
 /** Who wrote the record. A `self` record waits for validation. */
-exports.AttendanceSource = zod_1.z.enum(["supervisor", "self"]);
+/** `phone` and `kiosk` arrive with 058-time (AC-TM9, AC-TM10). */
+exports.AttendanceSource = zod_1.z.enum(["supervisor", "self", "phone", "kiosk"]);
 /** `closed` becomes `superseded` only when a correction replaces it. */
 exports.AttendanceStatus = zod_1.z.enum(["open", "closed", "superseded"]);
+/** What kind of day a record's work date was, for pricing overtime (058-time AC-TM7). */
+exports.DayKind = zod_1.z.enum(["weekday", "weekly_off", "public_holiday"]);
 exports.LeaveAccrual = zod_1.z.enum(["yearly_upfront", "monthly", "none"]);
 exports.LeaveEntryKind = zod_1.z.enum([
     "accrual",
@@ -308,6 +311,10 @@ exports.ShiftTemplate = zod_1.z.object({
     breakMinutes: zod_1.z.number().int().nonnegative(),
     /** An end at or before the start runs past midnight. */
     crossesMidnight: zod_1.z.boolean(),
+    /** Overtime counts past this much work; null: the shift's length less its break (058-time AC-TM7). */
+    minWorkMinutes: zod_1.z.number().int().nullable(),
+    /** Minutes after the end the sweep closes a record still open (AC-TM4); null: never. */
+    autoClockOutMinutes: zod_1.z.number().int().nullable(),
     status: exports.ShiftTemplateStatus,
 });
 exports.ShiftTemplateList = zod_1.z.object({ templates: zod_1.z.array(exports.ShiftTemplate) });
@@ -319,6 +326,8 @@ exports.CreateShiftTemplateRequest = zod_1.z.object({
     startsAt: exports.TimeOfDay,
     endsAt: exports.TimeOfDay,
     breakMinutes: zod_1.z.number().int().min(0).max(720).optional(),
+    minWorkMinutes: zod_1.z.number().int().min(0).max(1440).nullable().optional(),
+    autoClockOutMinutes: zod_1.z.number().int().min(0).max(720).nullable().optional(),
 });
 exports.RosterEntry = zod_1.z.object({
     id: primitives_1.Uuid,
@@ -333,6 +342,12 @@ exports.RosterEntry = zod_1.z.object({
     endsAt: zod_1.z.string(),
     status: exports.RosterStatus,
     cancelReason: zod_1.z.string().nullable(),
+    /** Null: a draft, seen only by those who manage the roster (058-time AC-TM1). */
+    publishedAt: zod_1.z.string().nullable(),
+    /** Written by a rotation (AC-TM3). */
+    generated: zod_1.z.boolean(),
+    /** Written by an approved shift or swap request (AC-TM5). */
+    fromRequest: zod_1.z.boolean(),
 });
 exports.CreateRosterEntryRequest = zod_1.z.object({
     employeeId: primitives_1.Uuid,
@@ -345,6 +360,22 @@ exports.CancelRosterEntryRequest = zod_1.z.object({
 // ---------------------------------------------------------------------------
 // Attendance
 // ---------------------------------------------------------------------------
+/** Whole minutes, floored (058-time AC-TM7). A record with no roster entry has worked minutes and a day kind only. */
+exports.AttendanceFigures = zod_1.z.object({
+    lateMinutes: zod_1.z.number().int().nullable(),
+    earlyMinutes: zod_1.z.number().int().nullable(),
+    workedMinutes: zod_1.z.number().int(),
+    overtimeMinutes: zod_1.z.number().int().nullable(),
+    /** Null until the policy or a person decides it (AC-TM8). */
+    approvedOvertimeMinutes: zod_1.z.number().int().nullable(),
+    dayKind: exports.DayKind.nullable(),
+});
+exports.AttendanceLocation = zod_1.z.object({
+    inDistanceM: zod_1.z.number().int().nullable(),
+    inAccuracyM: zod_1.z.number().int().nullable(),
+    outDistanceM: zod_1.z.number().int().nullable(),
+    outAccuracyM: zod_1.z.number().int().nullable(),
+});
 exports.AttendanceRecord = zod_1.z.object({
     id: primitives_1.Uuid,
     employee: exports.RosterCard,
@@ -359,6 +390,16 @@ exports.AttendanceRecord = zod_1.z.object({
     status: exports.AttendanceStatus,
     supersedesId: primitives_1.Uuid.nullable(),
     note: zod_1.z.string().nullable(),
+    /** Closed by the sweep, not by a person: unvalidated until someone puts the times right (AC-TM4). */
+    autoClosed: zod_1.z.boolean(),
+    /**
+     * A closed record's work figures (AC-TM7). Null while open, and for a reader
+     * outside the figure audience (`attendance.approve` and `people.manage`,
+     * AC-TM13): the desk's sheet carries none.
+     */
+    figures: exports.AttendanceFigures.nullable(),
+    /** How far from the branch a phone punch was, for whoever validates it (AC-TM9); never the coordinates. */
+    location: exports.AttendanceLocation.nullable(),
 });
 const Instant = zod_1.z.string().datetime({ offset: true, message: "A time is an ISO instant." });
 exports.ClockInRequest = zod_1.z.object({

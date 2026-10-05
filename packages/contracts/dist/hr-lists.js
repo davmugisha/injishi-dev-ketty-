@@ -1,10 +1,11 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.PayRunPage = exports.PAY_RUN_LIST = exports.LeaveBulkRequest = exports.LeaveRequestPage = exports.LEAVE_REQUEST_LIST = exports.AttendancePage = exports.ATTENDANCE_LIST = exports.RosterPage = exports.ROSTER_LIST = exports.EmployeePage = exports.EMPLOYEE_LIST = void 0;
+exports.PayRunPage = exports.PAY_RUN_LIST = exports.LeaveBulkRequest = exports.LeaveRequestPage = exports.LEAVE_REQUEST_LIST = exports.TimeRequestBulkRequest = exports.AttendanceRequestPage = exports.ATTENDANCE_REQUEST_LIST = exports.ShiftRequestPage = exports.SHIFT_REQUEST_LIST = exports.AttendancePage = exports.ATTENDANCE_LIST = exports.RosterPage = exports.ROSTER_LIST = exports.EmployeePage = exports.EMPLOYEE_LIST = void 0;
 const zod_1 = require("zod");
 const list_query_1 = require("./list-query");
 const payroll_1 = require("./payroll");
 const people_1 = require("./people");
+const time_1 = require("./time");
 /**
  * The HR lists (ADR-058), declared once for the operator app and the API
  * (058-list-framework). Each declaration says which fields a person may filter,
@@ -12,9 +13,10 @@ const people_1 = require("./people");
  *
  * The no ranking rule (contract 7) is part of these declarations: a field that
  * measures a person's work is declared `figure`, which `defineListSpec`
- * refuses to make sortable or groupable (AC-LF12). None of these five carries
- * one: a leave request's length belongs to the request, not to a summary of
- * the person.
+ * refuses to make sortable or groupable (AC-LF12). The attendance records
+ * carry the only ones (058-time AC-TM13): late, early and overtime minutes,
+ * filtered by equality at most, and seen only by the figure audience. A leave
+ * request's length belongs to the request, not to a summary of the person.
  */
 const EMPLOYEE_STATUS_LABELS = { active: "Working", offboarded: "Left" };
 /** `GET /ops/employees`. Date of birth is sensitive: a `basic` caller cannot see or use it (AC-LF4). */
@@ -104,15 +106,98 @@ exports.ATTENDANCE_LIST = (0, list_query_1.defineListSpec)({
             key: "source",
             label: "Recorded by",
             type: "enum",
-            enumValues: ["supervisor", "self"],
-            enumLabels: { supervisor: "Supervisor", self: "Themselves" },
+            enumValues: ["supervisor", "self", "phone", "kiosk"],
+            enumLabels: { supervisor: "Supervisor", self: "Themselves", phone: "Their phone", kiosk: "Kiosk" },
             filterable: true,
             groupable: true,
         },
         { key: "validated", label: "Validated", type: "bool", filterable: true, groupable: true },
+        // 058-time AC-TM4: closed by the sweep, waiting for someone to put the times right.
+        { key: "autoClosed", label: "Closed by the sweep", type: "bool", filterable: true },
+        // AC-TM13: work figures, for attendance.approve and people.manage only, never ordered.
+        { key: "lateMinutes", label: "Late minutes", type: "number", filterable: true, figure: true },
+        { key: "earlyMinutes", label: "Early minutes", type: "number", filterable: true, figure: true },
+        { key: "overtimeMinutes", label: "Overtime minutes", type: "number", filterable: true, figure: true },
+        // AC-TM8: overtime nobody has decided yet, the approver's queue.
+        { key: "overtimePending", label: "Overtime to decide", type: "bool", filterable: true, figure: true },
     ],
 });
 exports.AttendancePage = (0, list_query_1.listPage)(people_1.AttendanceRecord);
+/** `GET /ops/shift-requests` (058-time AC-TM5): what is routed to the caller first. */
+exports.SHIFT_REQUEST_LIST = (0, list_query_1.defineListSpec)({
+    key: "staff.shift-requests",
+    searchFields: ["employee"],
+    statusField: "status",
+    defaultSort: [
+        { field: "routedToMe", dir: "desc" },
+        { field: "fromDate", dir: "asc" },
+    ],
+    fields: [
+        { key: "employee", label: "Person", type: "text", sortable: true },
+        { key: "fromDate", label: "From", type: "date", filterable: true, sortable: true },
+        { key: "toDate", label: "To", type: "date", filterable: true },
+        {
+            key: "kind",
+            label: "Kind",
+            type: "enum",
+            enumValues: ["change", "swap"],
+            enumLabels: { change: "Different shift", swap: "Swap" },
+            filterable: true,
+            groupable: true,
+        },
+        {
+            key: "status",
+            label: "Status",
+            type: "enum",
+            enumValues: ["requested", "awaiting_colleague", "approved", "rejected", "cancelled"],
+            enumLabels: {
+                requested: "Waiting",
+                awaiting_colleague: "Waiting for the colleague",
+                approved: "Approved",
+                rejected: "Refused",
+                cancelled: "Cancelled",
+            },
+            filterable: true,
+            groupable: true,
+        },
+        { key: "branch", label: "Branch", type: "ref", filterable: true, groupable: true },
+        { key: "routedToMe", label: "Routed to me", type: "bool", filterable: true, sortable: true },
+        { key: "createdAt", label: "Asked", type: "datetime", sortable: true },
+    ],
+});
+exports.ShiftRequestPage = (0, list_query_1.listPage)(time_1.ShiftRequest);
+/** `GET /ops/attendance-requests` (058-time AC-TM6). */
+exports.ATTENDANCE_REQUEST_LIST = (0, list_query_1.defineListSpec)({
+    key: "staff.attendance-requests",
+    searchFields: ["employee"],
+    statusField: "status",
+    defaultSort: [
+        { field: "routedToMe", dir: "desc" },
+        { field: "workDate", dir: "desc" },
+    ],
+    fields: [
+        { key: "employee", label: "Person", type: "text", sortable: true },
+        { key: "workDate", label: "Day", type: "date", filterable: true, sortable: true, groupable: true },
+        {
+            key: "status",
+            label: "Status",
+            type: "enum",
+            enumValues: ["requested", "approved", "rejected", "cancelled"],
+            enumLabels: { requested: "Waiting", approved: "Approved", rejected: "Refused", cancelled: "Cancelled" },
+            filterable: true,
+            groupable: true,
+        },
+        { key: "branch", label: "Branch", type: "ref", filterable: true, groupable: true },
+        { key: "routedToMe", label: "Routed to me", type: "bool", filterable: true, sortable: true },
+        { key: "createdAt", label: "Asked", type: "datetime", sortable: true },
+    ],
+});
+exports.AttendanceRequestPage = (0, list_query_1.listPage)(time_1.AttendanceRequest);
+/** `POST /ops/shift-requests/bulk` and `/ops/attendance-requests/bulk`: approve or refuse many, one command each. */
+exports.TimeRequestBulkRequest = list_query_1.BulkRequest.extend({
+    action: zod_1.z.enum(["approve", "reject"]),
+    params: zod_1.z.object({ note: zod_1.z.string().trim().max(500).optional() }).optional(),
+});
 /** `GET /ops/leave/requests`. */
 exports.LEAVE_REQUEST_LIST = (0, list_query_1.defineListSpec)({
     key: "staff.leave-requests",

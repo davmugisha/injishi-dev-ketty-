@@ -58,5 +58,6 @@ export * from './psf';
 // A leaf over operations, inventory and org: nothing imports it back.
 export * from './people';
 export * from './people-file';
+export * from './people-time';
 // The list framework (ADR-058 slice 2): saved views and the export log.
 export * from './lists';

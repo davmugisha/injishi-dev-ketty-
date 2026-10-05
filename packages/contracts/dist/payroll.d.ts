@@ -154,20 +154,20 @@ export declare const PayRunRuleVersion: z.ZodObject<{
 }>;
 export type PayRunRuleVersion = z.infer<typeof PayRunRuleVersion>;
 /** Why a run cannot be confirmed yet. Every blocker is listed, never only the first. */
-export declare const PayRunBlockerCode: z.ZodEnum<["missing_rssb_number", "missing_id", "open_attendance", "unvalidated_self_attendance"]>;
+export declare const PayRunBlockerCode: z.ZodEnum<["missing_rssb_number", "missing_id", "open_attendance", "unvalidated_attendance"]>;
 export type PayRunBlockerCode = z.infer<typeof PayRunBlockerCode>;
 export declare const PayRunBlocker: z.ZodObject<{
-    code: z.ZodEnum<["missing_rssb_number", "missing_id", "open_attendance", "unvalidated_self_attendance"]>;
+    code: z.ZodEnum<["missing_rssb_number", "missing_id", "open_attendance", "unvalidated_attendance"]>;
     employeeId: z.ZodString;
     displayName: z.ZodString;
     message: z.ZodString;
 }, "strip", z.ZodTypeAny, {
-    code: "missing_rssb_number" | "missing_id" | "open_attendance" | "unvalidated_self_attendance";
+    code: "missing_rssb_number" | "missing_id" | "open_attendance" | "unvalidated_attendance";
     message: string;
     employeeId: string;
     displayName: string;
 }, {
-    code: "missing_rssb_number" | "missing_id" | "open_attendance" | "unvalidated_self_attendance";
+    code: "missing_rssb_number" | "missing_id" | "open_attendance" | "unvalidated_attendance";
     message: string;
     employeeId: string;
     displayName: string;
@@ -394,17 +394,17 @@ export declare const PayRunDetail: z.ZodObject<{
         }[];
     }>, "many">;
     blockers: z.ZodArray<z.ZodObject<{
-        code: z.ZodEnum<["missing_rssb_number", "missing_id", "open_attendance", "unvalidated_self_attendance"]>;
+        code: z.ZodEnum<["missing_rssb_number", "missing_id", "open_attendance", "unvalidated_attendance"]>;
         employeeId: z.ZodString;
         displayName: z.ZodString;
         message: z.ZodString;
     }, "strip", z.ZodTypeAny, {
-        code: "missing_rssb_number" | "missing_id" | "open_attendance" | "unvalidated_self_attendance";
+        code: "missing_rssb_number" | "missing_id" | "open_attendance" | "unvalidated_attendance";
         message: string;
         employeeId: string;
         displayName: string;
     }, {
-        code: "missing_rssb_number" | "missing_id" | "open_attendance" | "unvalidated_self_attendance";
+        code: "missing_rssb_number" | "missing_id" | "open_attendance" | "unvalidated_attendance";
         message: string;
         employeeId: string;
         displayName: string;
@@ -454,7 +454,7 @@ export declare const PayRunDetail: z.ZodObject<{
         }[];
     }[];
     blockers: {
-        code: "missing_rssb_number" | "missing_id" | "open_attendance" | "unvalidated_self_attendance";
+        code: "missing_rssb_number" | "missing_id" | "open_attendance" | "unvalidated_attendance";
         message: string;
         employeeId: string;
         displayName: string;
@@ -504,7 +504,7 @@ export declare const PayRunDetail: z.ZodObject<{
         }[];
     }[];
     blockers: {
-        code: "missing_rssb_number" | "missing_id" | "open_attendance" | "unvalidated_self_attendance";
+        code: "missing_rssb_number" | "missing_id" | "open_attendance" | "unvalidated_attendance";
         message: string;
         employeeId: string;
         displayName: string;
