@@ -17,10 +17,11 @@
  * `none` the app actually draws with. A second declaration that nobody reads is
  * how a design system acquires values that are true nowhere.
  *
- * The values here are `apps/mobile`'s, unchanged. That direction is deliberate:
+ * The values here were `apps/mobile`'s, unchanged. That direction is deliberate:
  * ADR-034 decision 3 is *"reconstruction, never redesign"*, and the app's set is
  * the one that ships on a device today. Moving a corner or a step is a separate
- * change with its own before-and-after.
+ * change with its own before-and-after, and ADR-064 is the first: it moved the
+ * corners to HeroUI's, with screenshots before and after.
  *
  * WHAT IS NOT HERE, and why:
  *
@@ -41,7 +42,7 @@
  * tidy-up. It is owed, and it is not this change.
  */
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.rnLineHeight = exports.rnFontSize = exports.rnRadius = exports.rnSpace = void 0;
+exports.rnLineHeight = exports.rnFontSize = exports.rnRadius = exports.rnRadiusRoles = exports.rnSpace = void 0;
 /** The 4px base grid. Every gap, pad and margin in the app is a step on it. */
 exports.rnSpace = {
     0: 0,
@@ -57,21 +58,41 @@ exports.rnSpace = {
     16: 64,
 };
 /**
- * Corners.
+ * Corners, as five ROLES (ADR-064 AC-6).
  *
- * `parity.md` §5.2 maps these onto web's enforced set of three rather than the
- * reverse — `md` is the control corner, `lg` the card corner, `pill` the round
- * one — and keeps `xs`, `sm`, `xl` and `none` as deprecated aliases rather than
- * deleting them, because deleting breaks call sites for no visual gain.
+ * The values are HeroUI Native 1.0.10's, read from its stylesheets: 8 for small
+ * boxes, 14 for fields (its `field` radius), 24 for surfaces, 32 for a sheet's
+ * top corners. A corner is chosen by what the element IS and how big it is,
+ * never by eye: an element 48pt or smaller takes `sm` or `pill`, fields and
+ * tiles `md`, surfaces `lg` (AC-21). This supersedes `parity.md` §5.2's map onto
+ * web's three corners, for mobile.
+ *
+ * The keys kept their names and took new values, so every screen follows at
+ * once. That is right for most uses and wrong for some (a token that suited a
+ * card can be wrong on a thumbnail), which is why slice 4 reviews each use.
+ */
+exports.rnRadiusRoles = {
+    sm: 8, // skeleton lines, small boxes, credit plates, thumbnails of 48pt or less
+    md: 14, // fields, the signature pad, search, icon tiles, larger photo tiles
+    lg: 24, // cards, panels, alerts, toasts, dialogs
+    xl: 32, // a sheet's and a modal sheet's top corners
+    pill: 999, // buttons, chips, tabs, avatars, discs
+};
+/**
+ * The roles, plus two names that are retiring.
+ *
+ * `xs` and `none` are not roles and slice 4 of ADR-064 deletes them, with every
+ * read moved to a role. Until then they alias, on the restyle branch only, so
+ * the screens that still spell them compile: `xs` was the smallest corner, so it
+ * reads `sm`, and `none` stays 0 because nothing draws with it. Never add a
+ * read of either.
  */
 exports.rnRadius = {
+    ...exports.rnRadiusRoles,
+    /** @deprecated ADR-064 slice 4 removes it. Read `sm`. */
+    xs: exports.rnRadiusRoles.sm,
+    /** @deprecated ADR-064 slice 4 removes it. Not a corner. */
     none: 0,
-    xs: 4,
-    sm: 8, // badges, chips, small controls
-    md: 10, // inputs, buttons
-    lg: 14, // cards, panels, sheets, images
-    xl: 20, // feature blocks, modals
-    pill: 999,
 };
 /** The type scale, in device pixels. 16px base. */
 exports.rnFontSize = {

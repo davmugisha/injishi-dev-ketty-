@@ -16,10 +16,11 @@
  * `none` the app actually draws with. A second declaration that nobody reads is
  * how a design system acquires values that are true nowhere.
  *
- * The values here are `apps/mobile`'s, unchanged. That direction is deliberate:
+ * The values here were `apps/mobile`'s, unchanged. That direction is deliberate:
  * ADR-034 decision 3 is *"reconstruction, never redesign"*, and the app's set is
  * the one that ships on a device today. Moving a corner or a step is a separate
- * change with its own before-and-after.
+ * change with its own before-and-after, and ADR-064 is the first: it moved the
+ * corners to HeroUI's, with screenshots before and after.
  *
  * WHAT IS NOT HERE, and why:
  *
@@ -54,20 +55,44 @@ export declare const rnSpace: {
     readonly 16: 64;
 };
 /**
- * Corners.
+ * Corners, as five ROLES (ADR-064 AC-6).
  *
- * `parity.md` §5.2 maps these onto web's enforced set of three rather than the
- * reverse — `md` is the control corner, `lg` the card corner, `pill` the round
- * one — and keeps `xs`, `sm`, `xl` and `none` as deprecated aliases rather than
- * deleting them, because deleting breaks call sites for no visual gain.
+ * The values are HeroUI Native 1.0.10's, read from its stylesheets: 8 for small
+ * boxes, 14 for fields (its `field` radius), 24 for surfaces, 32 for a sheet's
+ * top corners. A corner is chosen by what the element IS and how big it is,
+ * never by eye: an element 48pt or smaller takes `sm` or `pill`, fields and
+ * tiles `md`, surfaces `lg` (AC-21). This supersedes `parity.md` §5.2's map onto
+ * web's three corners, for mobile.
+ *
+ * The keys kept their names and took new values, so every screen follows at
+ * once. That is right for most uses and wrong for some (a token that suited a
+ * card can be wrong on a thumbnail), which is why slice 4 reviews each use.
+ */
+export declare const rnRadiusRoles: {
+    readonly sm: 8;
+    readonly md: 14;
+    readonly lg: 24;
+    readonly xl: 32;
+    readonly pill: 999;
+};
+/**
+ * The roles, plus two names that are retiring.
+ *
+ * `xs` and `none` are not roles and slice 4 of ADR-064 deletes them, with every
+ * read moved to a role. Until then they alias, on the restyle branch only, so
+ * the screens that still spell them compile: `xs` was the smallest corner, so it
+ * reads `sm`, and `none` stays 0 because nothing draws with it. Never add a
+ * read of either.
  */
 export declare const rnRadius: {
+    /** @deprecated ADR-064 slice 4 removes it. Read `sm`. */
+    readonly xs: 8;
+    /** @deprecated ADR-064 slice 4 removes it. Not a corner. */
     readonly none: 0;
-    readonly xs: 4;
     readonly sm: 8;
-    readonly md: 10;
-    readonly lg: 14;
-    readonly xl: 20;
+    readonly md: 14;
+    readonly lg: 24;
+    readonly xl: 32;
     readonly pill: 999;
 };
 /** The type scale, in device pixels. 16px base. */
@@ -105,5 +130,6 @@ export declare const rnLineHeight: {
 };
 export type RnSpaceStep = keyof typeof rnSpace;
 export type RnRadiusStep = keyof typeof rnRadius;
+export type RnRadiusRole = keyof typeof rnRadiusRoles;
 export type RnTextSize = keyof typeof rnFontSize;
 //# sourceMappingURL=rn.d.ts.map

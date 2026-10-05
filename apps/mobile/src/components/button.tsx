@@ -14,26 +14,36 @@
  * `secondary` and `subtle` live and doing the second rename alone would have
  * made two variants called `secondary`:
  *
- *   before       after       what it paints
+ *   before       after       what it painted then
  *   secondary -> outline     surface1 fill with a borderDefault hairline
  *   subtle    -> secondary   actionSubtle fill, action ink
  *
  * They are HeroUI's names for those two looks, which is what `design-system.md`
  * section 3 asked for. The ADR's mobile child keeps the same table.
  *
- * ## What Session 11's motion pass changed
+ * ## HeroUI's look (ADR-064)
  *
- * It draws on `PressableScale` now rather than on a bare `Pressable` with an
- * opacity dip. The prompt pack's rule is one sentence — *"press feedback is a
- * scale to 0.98 plus a light haptic on the primary action"* — and `Button` met
- * neither half of it, which mattered more than it sounds: almost every primary
- * action in the app is a `Button`, so the one control the rule was written for
- * was the one control that did not follow it.
+ * Every button is a pill, and **primary is teal**: `domainHospitality` with
+ * `textOnBrand`, the near-ink the accent carries at 5.7:1 (white on it is
+ * 3.10:1). The ink `action` fill this used to draw appears on no button now.
+ * Heights are HeroUI's 40, 48 and 56, and they are MINIMUMS: a label wraps
+ * rather than being cut, so the largest system text grows the button instead
+ * of clipping it (audit XC-03). There is deliberately no line clamp: frame W8
+ * promises that nothing on Work truncates and `work-rw.test.tsx` enforces it,
+ * and ADR-064 lets a rule our tests enforce win over HeroUI's look. Every
+ * number is a `kitMetrics` name.
  *
- * `PressableScale` already owned the whole decision (feedback on press-in,
- * commit on press-out; reduced motion drops the travel and keeps the opacity;
- * scale and opacity only, so a press costs no layout). Reimplementing a second
- * copy of that here would have been a second thing to keep in agreement.
+ * **`pending`** is the one prop ADR-064 adds. The leading icon slot shows a
+ * busy ring, the label stays readable, and the button holds its width so the
+ * row around it does not jump. A busy button answers nothing and is announced
+ * busy; it keeps its full strength, because it is working, not unavailable.
+ *
+ * ## Press feel
+ *
+ * Drawn on `PressableScale`, which owns the whole decision (feedback on
+ * press-in, commit on press-out; reduced motion drops the travel and keeps the
+ * tone). This passes it the label's colour as the highlight, so a pressed
+ * button darkens toward its own ink, as HeroUI's pressed fill does.
  *
  * **`haptic` defaults to on for `primary` and `danger` and off elsewhere.**
  * Session 7 built `screens/tenant/haptics.ts` to fire the buzz from its own
@@ -45,30 +55,47 @@
  * haptics off system-wide, at which point the one place it mattered is gone
  * too. Any caller can override in either direction.
  */
-import { type ReactNode } from 'react';
-import { View, type ViewStyle } from 'react-native';
+import { useEffect, useRef, type ReactNode } from 'react';
+import { View, type LayoutChangeEvent, type ViewStyle } from 'react-native';
+import Animated, {
+  Easing,
+  ReduceMotion,
+  cancelAnimation,
+  useAnimatedStyle,
+  useSharedValue,
+  withRepeat,
+  withTiming,
+} from 'react-native-reanimated';
 import type { ButtonSize, ButtonVariant } from '@injishi/ui-contract';
 import { Text } from './text';
 import { Icon, type IconName } from './icon';
 import { PressableScale } from './pressable-scale';
 import { useTheme } from '@/theme/theme';
-import { fontSize, type Palette } from '@/theme/tokens';
+import { kitMetrics, type Palette } from '@/theme/tokens';
 
 type Variant = ButtonVariant<'native'>;
 type Size = ButtonSize<'native'>;
 
 /**
- * Per size: the box height, the side padding, the label's type STEP, and which
- * corner. A `Record` rather than the ternaries it replaced, so a size the
- * contract adds fails here instead of falling through to `md` unnoticed.
+ * Per size: the label's type STEP; every measurement is `kitMetrics.button`.
+ * A `Record` rather than ternaries, so a size the contract adds fails here
+ * instead of falling through to `md` unnoticed.
  */
-const SIZE: Record<
-  Size,
-  { height: number; paddingH: number; label: 'xs' | 'sm' | 'md'; corner: 'sm' | 'md' }
-> = {
-  sm: { height: 32, paddingH: 12, label: 'xs', corner: 'sm' },
-  md: { height: 40, paddingH: 18, label: 'sm', corner: 'md' },
-  lg: { height: 48, paddingH: 24, label: 'md', corner: 'md' },
+const LABEL: Record<Size, 'sm' | 'md' | 'lg'> = { sm: 'sm', md: 'md', lg: 'lg' };
+
+/**
+ * What each variant paints, as palette KEYS (AC-1, AC-3). Keys rather than
+ * colours, because the label key is also the press highlight's colour.
+ */
+const PAINT: Record<Variant, { fill: keyof Palette | 'none'; ink: keyof Palette; edge?: keyof Palette }> = {
+  primary: { fill: 'domainHospitality', ink: 'textOnBrand' },
+  secondary: { fill: 'surface3', ink: 'textLink' },
+  outline: { fill: 'none', ink: 'textBody', edge: 'borderDefault' },
+  ghost: { fill: 'none', ink: 'textBody' },
+  // `textOnDanger` is near-white and DERIVED, not a literal: the danger fill
+  // sits at L 58 precisely so it can carry it (ADR-025 #2), and
+  // `derive-palette.mjs` measures the pair at 4.66:1 on every run.
+  danger: { fill: 'danger500', ink: 'textOnDanger' },
 };
 
 /** The two that commit something. See the header on why the rest stay quiet. */
@@ -81,6 +108,12 @@ export interface ButtonProps {
   block?: boolean;
   leadingIcon?: IconName;
   disabled?: boolean;
+  /**
+   * The write this button started is in flight. Shows a busy ring in the icon
+   * slot, keeps the label, holds the button's width, and refuses presses until
+   * it clears. Pass the request's own in-flight state, never a timer.
+   */
+  pending?: boolean;
   onPress?: () => void;
   /** Overrides the label a reader hears. Default: the button's own text. */
   accessibilityLabel?: string;
@@ -102,6 +135,7 @@ export function Button({
   block = false,
   leadingIcon,
   disabled = false,
+  pending = false,
   onPress,
   accessibilityLabel,
   accessibilityHint,
@@ -109,46 +143,33 @@ export function Button({
   testID,
 }: ButtonProps) {
   const { c, radius } = useTheme();
+  const m = kitMetrics.button[size];
+  const paint = PAINT[variant];
+  const ink = c[paint.ink];
 
-  const { height, paddingH, label: labelSize, corner } = SIZE[size];
-  // The label's STEP, and the glyph's pixel size beside it. They are two
-  // different kinds of number: the label is chosen from the type scale, the
-  // glyph is measured against the label so the two share an optical size.
-  const glyphPx = fontSize[labelSize] + 3;
-  const br = radius[corner];
-
-  const fills: Record<Variant, { bg: string; fg: keyof Palette | string; border?: string }> = {
-    // `action` is the solid NEUTRAL button (HeroUI `primary`, which aliases
-    // `foreground`), so its text is `bgApp` — HeroUI's `primaryForeground`
-    // aliases `background`. `textOnBrand` belongs on an ACCENT fill, and using
-    // it here would paint near-ink on near-ink in the light scheme.
-    primary: { bg: c.action, fg: c.bgApp },
-    outline: { bg: c.surface1, fg: 'textStrong', border: c.borderDefault },
-    secondary: { bg: c.actionSubtle, fg: c.action },
-    ghost: { bg: 'transparent', fg: 'textBody' },
-    // `textOnDanger` is near-white and DERIVED, not a literal: the danger
-    // fill sits at L 58 precisely so it can carry it (ADR-025 #2), and
-    // `derive-palette.mjs` measures the pair at 4.66:1 on every run. The
-    // hex that used to be here could not move when the palette did.
-    danger: { bg: c.danger500, fg: c.textOnDanger },
+  // The width the button last laid out at while NOT busy. Read when it goes
+  // busy, so a label that changes ("Send" to "Sending") or a ring that replaces
+  // a wider icon can never make it narrower and shift the row (AC-4).
+  const idleWidth = useRef(0);
+  const onLayout = (e: LayoutChangeEvent) => {
+    if (!pending) idleWidth.current = e.nativeEvent.layout.width;
   };
-  const v = fills[variant];
 
-  const base: ViewStyle = {
-    height,
-    paddingHorizontal: paddingH,
-    borderRadius: br,
+  const box: ViewStyle = {
+    minHeight: m.minHeight,
+    minWidth: pending && idleWidth.current > 0 ? idleWidth.current : undefined,
+    paddingHorizontal: m.insetX,
+    paddingVertical: m.insetY,
+    borderRadius: radius.pill,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 8,
-    backgroundColor: v.bg,
-    borderWidth: v.border ? 1 : 0,
-    borderColor: v.border,
+    gap: m.gap,
+    backgroundColor: paint.fill === 'none' ? 'transparent' : c[paint.fill],
+    borderWidth: paint.edge ? kitMetrics.hairline : 0,
+    borderColor: paint.edge ? c[paint.edge] : undefined,
     ...(block ? { alignSelf: 'stretch' } : { alignSelf: 'flex-start' }),
   };
-
-  const fgColor = (typeof v.fg === 'string' && v.fg in c ? c[v.fg as keyof Palette] : v.fg) as string;
 
   return (
     <PressableScale
@@ -156,18 +177,29 @@ export function Button({
       accessibilityLabel={accessibilityLabel ?? children}
       accessibilityHint={accessibilityHint}
       disabled={disabled}
+      busy={pending}
       haptic={haptic ?? HAPTIC_BY_DEFAULT.includes(variant)}
-      // sm (32) and md (40) both draw under the 44px floor; the hit area makes
-      // up the difference without changing the visual scale (design brief §7.2).
-      hitSlop={Math.max(0, (44 - height) / 2)}
+      highlight={paint.ink}
+      filled={paint.fill !== 'none'}
+      // md and lg draw at or above the 44pt floor; sm draws 40 and the hit
+      // area makes up the difference without changing the visual scale.
+      hitSlop={m.hitSlop}
       onPress={onPress}
-      style={base}
+      onLayout={onLayout}
+      style={box}
       testID={testID}
     >
-      {leadingIcon ? (
-        <ButtonGlyph name={leadingIcon} size={glyphPx} color={fgColor} />
+      {pending ? (
+        <Spinner color={ink} slot={m.icon} />
+      ) : leadingIcon ? (
+        <ButtonGlyph name={leadingIcon} size={m.icon} color={ink} />
       ) : null}
-      <Text weight="semibold" size={labelSize} color={fgColor}>
+      <Text
+        weight="medium"
+        size={LABEL[size]}
+        color={ink}
+        style={{ flexShrink: 1, textAlign: 'center' }}
+      >
         {children}
       </Text>
     </PressableScale>
@@ -187,6 +219,66 @@ function ButtonGlyph({
   return (
     <View accessible={false} importantForAccessibility="no-hide-descendants">
       <Icon name={name} size={size} color={color} />
+    </View>
+  );
+}
+
+/**
+ * One turn of the busy ring. A named exception to the motion tokens (ADR-064
+ * AC-15): a spinner turns at a constant speed, and an eased one reads as a
+ * stutter at the top of every turn. It also ignores Reduce Motion, as the
+ * platforms' own progress indicators do, because a ring that stops looks like a
+ * hung app rather than a calm one.
+ */
+const TURN_MS = 900;
+
+/**
+ * The busy ring: three quarters of a circle in the label's colour, centred in
+ * a slot as wide as the size's icon, so the row stays centred whether or not
+ * the button had an icon to replace. Hidden from screen readers: the button
+ * itself is announced busy.
+ */
+function Spinner({ color, slot }: { color: string; slot: number }): ReactNode {
+  const { radius } = useTheme();
+  const turn = useSharedValue(0);
+
+  useEffect(() => {
+    turn.set(
+      withRepeat(
+        withTiming(1, { duration: TURN_MS, easing: Easing.linear, reduceMotion: ReduceMotion.Never }),
+        -1,
+        false,
+        undefined,
+        ReduceMotion.Never,
+      ),
+    );
+    return () => cancelAnimation(turn);
+  }, [turn]);
+
+  const spin = useAnimatedStyle(() => ({ transform: [{ rotate: `${turn.get() * 360}deg` }] }));
+  const { size, stroke } = kitMetrics.spinner;
+
+  return (
+    <View
+      accessible={false}
+      importantForAccessibility="no-hide-descendants"
+      testID="button-spinner"
+      style={{ width: slot, alignItems: 'center', justifyContent: 'center' }}
+    >
+      <Animated.View
+        style={[
+          {
+            width: size,
+            height: size,
+            borderRadius: radius.pill,
+            borderWidth: stroke,
+            borderColor: color,
+            // The quarter that is not drawn is what makes it read as turning.
+            borderTopColor: 'transparent',
+          },
+          spin,
+        ]}
+      />
     </View>
   );
 }

@@ -48,5 +48,5 @@ export { typeSteps, typeScale, containers, rhythm } from "./layout";
 export type { TypeStep, TypeStepName, ContainerName, RhythmName } from "./layout";
 export { motionMs, easingCurves } from "./motion";
 export type { MotionStep, EasingName } from "./motion";
-export { rnSpace, rnRadius, rnFontSize, rnLineHeight } from "./rn";
-export type { RnSpaceStep, RnRadiusStep, RnTextSize } from "./rn";
+export { rnSpace, rnRadius, rnRadiusRoles, rnFontSize, rnLineHeight } from "./rn";
+export type { RnSpaceStep, RnRadiusStep, RnRadiusRole, RnTextSize } from "./rn";

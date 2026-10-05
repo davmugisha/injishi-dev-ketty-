@@ -22,6 +22,7 @@
  * "a table that only ever measures the canvas cannot see a card bug."
  */
 import { palettes, type ColorScheme, type Palette } from './palette';
+import { kitMetrics } from './tokens';
 
 /**
  * Every scheme, so a pair cannot be correct in two of them and wrong in the
@@ -96,16 +97,20 @@ const resolve = (p: Palette, ink: Ink) => (ink === WHITE ? WHITE : p[ink]);
  * failure points at a file rather than at a colour.
  */
 const PAIRS: Pair[] = [
-  /* The kit's own controls */
-  { where: 'Button primary — label on action', ink: 'bgApp', ground: 'action', floor: 4.5 },
-  { where: 'Button danger — label on danger500', ink: WHITE, ground: 'danger500', floor: 4.5 },
-  { where: 'Button secondary — label on actionSubtle', ink: 'action', ground: 'actionSubtle', floor: 4.5 },
-  { where: 'Button outline — label on surface1', ink: 'textStrong', ground: 'surface1', floor: 4.5 },
+  /* The kit's own controls. ADR-064 repainted the button and the badge; each
+     row it changed names the AC that changed it. */
+  { where: 'Button primary — textOnBrand on teal (ADR-064 AC-1)', ink: 'textOnBrand', ground: 'domainHospitality', floor: 4.5 },
+  { where: 'Button danger — textOnDanger on danger500 (ADR-064 AC-3)', ink: 'textOnDanger', ground: 'danger500', floor: 4.5 },
+  { where: 'Button secondary — textLink on surface3 (ADR-064 AC-3)', ink: 'textLink', ground: 'surface3', floor: 4.5 },
+  { where: 'Button outline — textBody on surface1 (ADR-064 AC-3)', ink: 'textBody', ground: 'surface1', floor: 4.5 },
+  { where: 'Button outline — textBody on the app ground (ADR-064 AC-3)', ink: 'textBody', ground: 'bgApp', floor: 4.5 },
   { where: 'Badge success — label on success100', ink: 'success600', ground: 'success100', over: 'surface1', floor: 4.5 },
   { where: 'Badge warning — label on warning100', ink: 'warning600', ground: 'warning100', over: 'surface1', floor: 4.5 },
   { where: 'Badge danger — label on danger100', ink: 'danger600', ground: 'danger100', over: 'surface1', floor: 4.5 },
-  { where: 'Badge brand — label on brand100', ink: 'brand700', ground: 'brand100', over: 'surface1', floor: 4.5 },
-  { where: 'Badge neutral — label on neutral100', ink: 'textBody', ground: 'neutral100', over: 'surface1', floor: 4.5 },
+  { where: 'Badge brand — textLink on surface2 (ADR-064 AC-10)', ink: 'textLink', ground: 'surface2', floor: 4.5 },
+  { where: 'Badge neutral — textBody on surface3 (ADR-064 AC-10)', ink: 'textBody', ground: 'surface3', floor: 4.5 },
+  { where: 'Badge brand solid — textOnBrand on teal (ADR-064 AC-10)', ink: 'textOnBrand', ground: 'domainHospitality', floor: 4.5 },
+  { where: 'Badge neutral solid — bgApp on textMuted (ADR-064 AC-10)', ink: 'bgApp', ground: 'textMuted', floor: 4.5 },
   { where: 'Tag selected — label on actionSubtle', ink: 'brand700', ground: 'actionSubtle', floor: 4.5 },
   { where: 'Tag — label on surface2', ink: 'textBody', ground: 'surface2', floor: 4.5 },
   { where: 'Card tint — body on elevate1', ink: 'brand900', ground: 'elevate1', floor: 4.5 },
@@ -140,6 +145,24 @@ describe.each(SCHEMES)('%s scheme', (scheme) => {
     const painted = composite(p[ground], p[over ?? 'bgApp']);
     const ratio = contrast(composite(resolve(p, ink), painted), painted);
     expect(ratio).toBeGreaterThanOrEqual(floor);
+  });
+});
+
+describe('the pressed primary button (ADR-064 AC-17)', () => {
+  /**
+   * A pressed button draws its own label colour over its fill at 10%
+   * (`kitMetrics.press.highlightFilled`, AC-5), which darkens the teal toward
+   * the near-ink on it. The label has to stay readable while the finger is
+   * down, so the pair is measured on the darkened ground, not the resting one.
+   * About 4.8:1 in both schemes, against 5.7:1 at rest.
+   */
+  it.each(SCHEMES)('keeps textOnBrand above 4.5:1 on teal under its highlight in %s', (scheme) => {
+    const p = palettes[scheme];
+    const alpha = Math.round(kitMetrics.press.highlightFilled * 255)
+      .toString(16)
+      .padStart(2, '0');
+    const pressed = composite(p.textOnBrand + alpha, p.domainHospitality);
+    expect(contrast(p.textOnBrand, pressed)).toBeGreaterThanOrEqual(4.5);
   });
 });
 
