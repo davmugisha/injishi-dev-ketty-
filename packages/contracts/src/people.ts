@@ -329,6 +329,9 @@ export const CreateContractRequest = z.object({
     endsOn: IsoDate.nullable().optional(),
     wageBasis: WageBasis,
     wageRwf: z.number().int().positive("A wage is more than zero."),
+    /** 058-payroll: the components the contract carries, and its notice in days. */
+    payStructureId: Uuid.nullable().optional(),
+    noticeDays: z.number().int().min(0).max(365).nullable().optional(),
 });
 export type CreateContractRequest = z.infer<typeof CreateContractRequest>;
 /** The new contract, and the one it shortened, if any. */

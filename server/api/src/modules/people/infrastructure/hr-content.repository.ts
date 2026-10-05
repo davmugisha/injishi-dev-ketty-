@@ -261,13 +261,30 @@ export class HrContentRepository {
 
   // --- Settings (AC-PF12) -------------------------------------------------------
 
-  async settings(orgId: string): Promise<{ employeeNumberPrefix: string | null }> {
+  async settings(orgId: string): Promise<{ employeeNumberPrefix: string | null; payRunAutoDraftDay: number | null; rssbEmployerNumber: string | null }> {
     const [row] = await this.db
-      .select({ employeeNumberPrefix: hrSettings.employeeNumberPrefix })
+      .select({
+        employeeNumberPrefix: hrSettings.employeeNumberPrefix,
+        payRunAutoDraftDay: hrSettings.payRunAutoDraftDay,
+        rssbEmployerNumber: hrSettings.rssbEmployerNumber,
+      })
       .from(hrSettings)
       .where(eq(hrSettings.orgId, orgId))
       .limit(1);
-    return { employeeNumberPrefix: row?.employeeNumberPrefix ?? null };
+    return {
+      employeeNumberPrefix: row?.employeeNumberPrefix ?? null,
+      payRunAutoDraftDay: row?.payRunAutoDraftDay ?? null,
+      rssbEmployerNumber: row?.rssbEmployerNumber ?? null,
+    };
+  }
+
+  /** 058-payroll AC-PY14: the automatic draft day and the RSSB employer number, written on first use. */
+  async setPayrollSettings(tx: Tx, orgId: string, values: { payRunAutoDraftDay?: number | null; rssbEmployerNumber?: string | null }): Promise<void> {
+    if (Object.keys(values).length === 0) return;
+    await tx
+      .insert(hrSettings)
+      .values({ orgId, ...values })
+      .onConflictDoUpdate({ target: hrSettings.orgId, set: { ...values, updatedAt: new Date() } });
   }
 
   /** One row per business, written on first use (index contract 13). */

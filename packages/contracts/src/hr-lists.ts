@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { BulkRequest, defineListSpec, listPage } from "./list-query";
 import { PayRun } from "./payroll";
+import { ContractRow, Loan, PayAdjustment, PayClaim, PayslipRow, MarkPaidParams } from "./payroll-items";
 import { AttendanceRecord, Employee, LeaveRequest, RosterEntry } from "./people";
 import { LeaveAllocationRequest, LeaveBalanceRow } from "./leave";
 import { AttendanceRequest, ShiftRequest } from "./time";
@@ -322,3 +323,165 @@ export const PAY_RUN_LIST = defineListSpec({
 });
 export const PayRunPage = listPage(PayRun);
 export type PayRunPage = z.infer<typeof PayRunPage>;
+const PAID_LABELS = { bank: "Bank", momo: "MoMo", cash: "Cash" };
+/** `GET /ops/payslips` (058-payroll AC-PY15): every payslip across runs, with paid status. */
+export const PAYSLIP_LIST = defineListSpec({
+    key: "staff.payslips",
+    searchFields: ["employee"],
+    statusField: "status",
+    defaultSort: [
+        { field: "period", dir: "desc" },
+        { field: "employee", dir: "asc" },
+    ],
+    fields: [
+        { key: "period", label: "Month", type: "text", filterable: true, sortable: true, groupable: true },
+        { key: "employee", label: "Person", type: "text", sortable: true },
+        { key: "branch", label: "Branch", type: "ref", filterable: true, groupable: true },
+        {
+            key: "status",
+            label: "Run",
+            type: "enum",
+            enumValues: ["draft", "confirmed"],
+            enumLabels: { draft: "Draft", confirmed: "Confirmed" },
+            filterable: true,
+        },
+        { key: "paid", label: "Paid", type: "bool", filterable: true, groupable: true },
+        { key: "paidMethod", label: "Paid by", type: "enum", enumValues: ["bank", "momo", "cash"], enumLabels: PAID_LABELS, filterable: true, groupable: true },
+        { key: "netRwf", label: "Net", type: "money", sortable: true },
+    ],
+});
+export const PayslipPage = listPage(PayslipRow);
+export type PayslipPage = z.infer<typeof PayslipPage>;
+/** `POST /ops/payslips/bulk`: mark several confirmed payslips paid, one way, one reference. */
+export const PayslipBulkRequest = BulkRequest.extend({
+    action: z.literal("mark_paid"),
+    params: MarkPaidParams,
+});
+export type PayslipBulkRequest = z.infer<typeof PayslipBulkRequest>;
+/** `GET /ops/loans`. */
+export const LOAN_LIST = defineListSpec({
+    key: "staff.loans",
+    searchFields: ["employee"],
+    statusField: "status",
+    defaultSort: [{ field: "givenOn", dir: "desc" }],
+    fields: [
+        { key: "employee", label: "Person", type: "text", sortable: true },
+        { key: "kind", label: "Kind", type: "enum", enumValues: ["loan", "advance"], enumLabels: { loan: "Loan", advance: "Advance" }, filterable: true, groupable: true },
+        {
+            key: "status",
+            label: "Status",
+            type: "enum",
+            enumValues: ["open", "settled"],
+            enumLabels: { open: "Being repaid", settled: "Settled" },
+            filterable: true,
+        },
+        { key: "branch", label: "Branch", type: "ref", filterable: true, groupable: true },
+        { key: "givenOn", label: "Given", type: "date", filterable: true, sortable: true },
+        { key: "amountRwf", label: "Amount", type: "money", sortable: true },
+    ],
+});
+export const LoanPage = listPage(Loan);
+export type LoanPage = z.infer<typeof LoanPage>;
+/** `GET /ops/pay-claims`. */
+export const PAY_CLAIM_LIST = defineListSpec({
+    key: "staff.pay-claims",
+    searchFields: ["employee"],
+    statusField: "status",
+    defaultSort: [{ field: "createdAt", dir: "desc" }],
+    fields: [
+        { key: "employee", label: "Person", type: "text", sortable: true },
+        {
+            key: "kind",
+            label: "Kind",
+            type: "enum",
+            enumValues: ["reimbursement", "leave_encashment"],
+            enumLabels: { reimbursement: "Reimbursement", leave_encashment: "Leave paid out" },
+            filterable: true,
+            groupable: true,
+        },
+        {
+            key: "status",
+            label: "Status",
+            type: "enum",
+            enumValues: ["requested", "approved", "rejected", "cancelled"],
+            enumLabels: { requested: "Waiting", approved: "Approved", rejected: "Refused", cancelled: "Withdrawn" },
+            filterable: true,
+            groupable: true,
+        },
+        { key: "period", label: "Paid in", type: "text", filterable: true, sortable: true },
+        { key: "branch", label: "Branch", type: "ref", filterable: true, groupable: true },
+        { key: "createdAt", label: "Asked", type: "datetime", sortable: true },
+    ],
+});
+export const PayClaimPage = listPage(PayClaim);
+export type PayClaimPage = z.infer<typeof PayClaimPage>;
+export const PayClaimBulkRequest = BulkRequest.extend({
+    action: z.enum(["approve", "reject"]),
+    params: z.object({ note: z.string().trim().max(300).optional() }).optional(),
+});
+export type PayClaimBulkRequest = z.infer<typeof PayClaimBulkRequest>;
+/** `GET /ops/pay-adjustments`. */
+export const PAY_ADJUSTMENT_LIST = defineListSpec({
+    key: "staff.pay-adjustments",
+    searchFields: ["employee"],
+    statusField: "status",
+    defaultSort: [{ field: "createdAt", dir: "desc" }],
+    fields: [
+        { key: "employee", label: "Person", type: "text", sortable: true },
+        { key: "side", label: "Side", type: "enum", enumValues: ["earning", "deduction"], enumLabels: { earning: "Pays", deduction: "Takes back" }, filterable: true, groupable: true },
+        {
+            key: "source",
+            label: "From",
+            type: "enum",
+            enumValues: ["manual", "leave", "asset_fine", "held_payslip", "late_claim"],
+            enumLabels: { manual: "By hand", leave: "Leave", asset_fine: "Asset fine", held_payslip: "Held payslip", late_claim: "Late claim" },
+            filterable: true,
+            groupable: true,
+        },
+        {
+            key: "status",
+            label: "Status",
+            type: "enum",
+            enumValues: ["open", "waived", "paid"],
+            enumLabels: { open: "To pay", waived: "Waived", paid: "Paid" },
+            filterable: true,
+        },
+        { key: "correctsPeriod", label: "Corrects", type: "text", filterable: true, sortable: true },
+        { key: "branch", label: "Branch", type: "ref", filterable: true, groupable: true },
+        { key: "createdAt", label: "Recorded", type: "datetime", sortable: true },
+    ],
+});
+export const PayAdjustmentPage = listPage(PayAdjustment);
+export type PayAdjustmentPage = z.infer<typeof PayAdjustmentPage>;
+/** `GET /ops/contracts`: every contract of the business. */
+export const CONTRACT_LIST = defineListSpec({
+    key: "staff.contracts",
+    searchFields: ["employee"],
+    statusField: "status",
+    defaultSort: [{ field: "startsOn", dir: "desc" }],
+    fields: [
+        { key: "employee", label: "Person", type: "text", sortable: true },
+        {
+            key: "status",
+            label: "Status",
+            type: "enum",
+            enumValues: ["draft", "active", "ended"],
+            enumLabels: { draft: "Starting", active: "Running", ended: "Ended" },
+            filterable: true,
+        },
+        {
+            key: "wageBasis",
+            label: "Paid by",
+            type: "enum",
+            enumValues: ["monthly", "daily", "hourly"],
+            enumLabels: { monthly: "Month", daily: "Day", hourly: "Hour" },
+            filterable: true,
+            groupable: true,
+        },
+        { key: "branch", label: "Branch", type: "ref", filterable: true, groupable: true },
+        { key: "startsOn", label: "Starts", type: "date", filterable: true, sortable: true },
+        { key: "endsOn", label: "Ends", type: "date", filterable: true, sortable: true },
+    ],
+});
+export const ContractPage = listPage(ContractRow);
+export type ContractPage = z.infer<typeof ContractPage>;

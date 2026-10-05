@@ -24,6 +24,7 @@ import type {
 } from '@injishi/contracts';
 import {
   ConflictException,
+  ForbiddenException,
   Inject,
   Injectable,
   NotFoundException,
@@ -165,20 +166,46 @@ export class HrContentService {
     return this.content.settings(orgOf(ws));
   }
 
-  /** A prefix changes how NEW numbers read; no issued number is renamed (AC-PF12). */
+  /**
+   * A prefix changes how NEW numbers read; no issued number is renamed
+   * (AC-PF12). Only what the body names changes: the payroll settings
+   * (058-payroll AC-PY14) ride the same row.
+   */
   async updateSettings(ws: ScopedWorkspace, userId: string, body: UpdateHrSettingsRequest): Promise<HrSettings> {
     const orgId = orgOf(ws);
+    // The number prefix is the files' and the draft day and employer number
+    // are pay's (058-payroll AC-PY14): each field asks its own permission.
+    if (body.employeeNumberPrefix !== undefined && !ws.permissions.includes('people.manage')) {
+      throw new ForbiddenException('Changing how employee numbers start needs the people.manage permission.');
+    }
+    if ((body.payRunAutoDraftDay !== undefined || body.rssbEmployerNumber !== undefined) && !ws.permissions.includes('payroll.run')) {
+      throw new ForbiddenException('The draft day and the RSSB employer number need the payroll.run permission.');
+    }
     const before = await this.content.settings(orgId);
-    if (before.employeeNumberPrefix !== body.employeeNumberPrefix) {
+    const diff: Record<string, { from: unknown; to: unknown }> = {};
+    if (body.employeeNumberPrefix !== undefined && before.employeeNumberPrefix !== body.employeeNumberPrefix) {
+      diff.employeeNumberPrefix = { from: before.employeeNumberPrefix, to: body.employeeNumberPrefix };
+    }
+    const payroll: { payRunAutoDraftDay?: number | null; rssbEmployerNumber?: string | null } = {};
+    if (body.payRunAutoDraftDay !== undefined && body.payRunAutoDraftDay !== before.payRunAutoDraftDay) {
+      payroll.payRunAutoDraftDay = body.payRunAutoDraftDay;
+      diff.payRunAutoDraftDay = { from: before.payRunAutoDraftDay, to: body.payRunAutoDraftDay };
+    }
+    if (body.rssbEmployerNumber !== undefined && body.rssbEmployerNumber !== before.rssbEmployerNumber) {
+      payroll.rssbEmployerNumber = body.rssbEmployerNumber;
+      diff.rssbEmployerNumber = { from: before.rssbEmployerNumber, to: body.rssbEmployerNumber };
+    }
+    if (Object.keys(diff).length > 0) {
       await this.db.transaction(async (tx) => {
-        await this.content.setNumberPrefix(tx, orgId, body.employeeNumberPrefix);
+        if (diff.employeeNumberPrefix) await this.content.setNumberPrefix(tx, orgId, body.employeeNumberPrefix ?? null);
+        await this.content.setPayrollSettings(tx, orgId, payroll);
         await writeHrAudit(tx, {
           actorUserId: userId,
           subjectType: 'org',
           subjectId: orgId,
           eventType: 'hr.settings_changed',
           orgId,
-          diff: { employeeNumberPrefix: { from: before.employeeNumberPrefix, to: body.employeeNumberPrefix } },
+          diff,
         });
       });
     }

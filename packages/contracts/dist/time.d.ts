@@ -4039,10 +4039,10 @@ export declare const TeamRequestsQuery: z.ZodObject<{
     status: z.ZodOptional<z.ZodString>;
 }, "strip", z.ZodTypeAny, {
     status?: string | undefined;
-    kind?: "shift" | "swap" | "attendance" | "leave" | "allocation" | undefined;
+    kind?: "shift" | "leave" | "swap" | "attendance" | "allocation" | undefined;
 }, {
     status?: string | undefined;
-    kind?: "shift" | "swap" | "attendance" | "leave" | "allocation" | undefined;
+    kind?: "shift" | "leave" | "swap" | "attendance" | "allocation" | undefined;
 }>;
 export type TeamRequestsQuery = z.infer<typeof TeamRequestsQuery>;
 /** Requests routed to the caller, whatever kind, with their state: nothing here decides. */
@@ -4557,32 +4557,6 @@ export declare const MyTeamRequests: z.ZodObject<{
         } | null;
         colleagueAcceptedAt: string | null;
     }[];
-    attendance: {
-        status: "approved" | "rejected" | "cancelled" | "requested";
-        decidedAt: string | null;
-        reason: string;
-        id: string;
-        decisionNote: string | null;
-        employee: {
-            employeeId: string;
-            displayName: string;
-            jobPositionTitle: string | null;
-        };
-        createdAt: string;
-        branchId: string | null;
-        workDate: string;
-        clockInAt: string;
-        clockOutAt: string;
-        routedToMe: boolean;
-        decidedByName: string | null;
-        routedTo: {
-            employeeId: string;
-            displayName: string;
-            jobPositionTitle: string | null;
-        } | null;
-        recordId: string | null;
-        resultRecordId: string | null;
-    }[];
     leave: {
         status: "approved" | "rejected" | "cancelled" | "requested";
         decidedAt: string | null;
@@ -4621,6 +4595,32 @@ export declare const MyTeamRequests: z.ZodObject<{
             decidedByName: string | null;
         }[];
         hasAttachment: boolean;
+    }[];
+    attendance: {
+        status: "approved" | "rejected" | "cancelled" | "requested";
+        decidedAt: string | null;
+        reason: string;
+        id: string;
+        decisionNote: string | null;
+        employee: {
+            employeeId: string;
+            displayName: string;
+            jobPositionTitle: string | null;
+        };
+        createdAt: string;
+        branchId: string | null;
+        workDate: string;
+        clockInAt: string;
+        clockOutAt: string;
+        routedToMe: boolean;
+        decidedByName: string | null;
+        routedTo: {
+            employeeId: string;
+            displayName: string;
+            jobPositionTitle: string | null;
+        } | null;
+        recordId: string | null;
+        resultRecordId: string | null;
     }[];
     allocation: {
         status: "approved" | "rejected" | "cancelled" | "requested";
@@ -4686,32 +4686,6 @@ export declare const MyTeamRequests: z.ZodObject<{
         } | null;
         colleagueAcceptedAt: string | null;
     }[];
-    attendance: {
-        status: "approved" | "rejected" | "cancelled" | "requested";
-        decidedAt: string | null;
-        reason: string;
-        id: string;
-        decisionNote: string | null;
-        employee: {
-            employeeId: string;
-            displayName: string;
-            jobPositionTitle: string | null;
-        };
-        createdAt: string;
-        branchId: string | null;
-        workDate: string;
-        clockInAt: string;
-        clockOutAt: string;
-        routedToMe: boolean;
-        decidedByName: string | null;
-        routedTo: {
-            employeeId: string;
-            displayName: string;
-            jobPositionTitle: string | null;
-        } | null;
-        recordId: string | null;
-        resultRecordId: string | null;
-    }[];
     leave: {
         status: "approved" | "rejected" | "cancelled" | "requested";
         decidedAt: string | null;
@@ -4750,6 +4724,32 @@ export declare const MyTeamRequests: z.ZodObject<{
             decidedByName: string | null;
         }[];
         hasAttachment: boolean;
+    }[];
+    attendance: {
+        status: "approved" | "rejected" | "cancelled" | "requested";
+        decidedAt: string | null;
+        reason: string;
+        id: string;
+        decisionNote: string | null;
+        employee: {
+            employeeId: string;
+            displayName: string;
+            jobPositionTitle: string | null;
+        };
+        createdAt: string;
+        branchId: string | null;
+        workDate: string;
+        clockInAt: string;
+        clockOutAt: string;
+        routedToMe: boolean;
+        decidedByName: string | null;
+        routedTo: {
+            employeeId: string;
+            displayName: string;
+            jobPositionTitle: string | null;
+        } | null;
+        recordId: string | null;
+        resultRecordId: string | null;
     }[];
     allocation: {
         status: "approved" | "rejected" | "cancelled" | "requested";

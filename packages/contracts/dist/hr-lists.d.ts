@@ -3194,4 +3194,1320 @@ export declare const PayRunPage: z.ZodObject<{
     }[] | undefined;
 }>;
 export type PayRunPage = z.infer<typeof PayRunPage>;
+/** `GET /ops/payslips` (058-payroll AC-PY15): every payslip across runs, with paid status. */
+export declare const PAYSLIP_LIST: {
+    readonly key: "staff.payslips";
+    readonly searchFields: readonly ["employee"];
+    readonly statusField: "status";
+    readonly defaultSort: readonly [{
+        readonly field: "period";
+        readonly dir: "desc";
+    }, {
+        readonly field: "employee";
+        readonly dir: "asc";
+    }];
+    readonly fields: readonly [{
+        readonly key: "period";
+        readonly label: "Month";
+        readonly type: "text";
+        readonly filterable: true;
+        readonly sortable: true;
+        readonly groupable: true;
+    }, {
+        readonly key: "employee";
+        readonly label: "Person";
+        readonly type: "text";
+        readonly sortable: true;
+    }, {
+        readonly key: "branch";
+        readonly label: "Branch";
+        readonly type: "ref";
+        readonly filterable: true;
+        readonly groupable: true;
+    }, {
+        readonly key: "status";
+        readonly label: "Run";
+        readonly type: "enum";
+        readonly enumValues: readonly ["draft", "confirmed"];
+        readonly enumLabels: {
+            readonly draft: "Draft";
+            readonly confirmed: "Confirmed";
+        };
+        readonly filterable: true;
+    }, {
+        readonly key: "paid";
+        readonly label: "Paid";
+        readonly type: "bool";
+        readonly filterable: true;
+        readonly groupable: true;
+    }, {
+        readonly key: "paidMethod";
+        readonly label: "Paid by";
+        readonly type: "enum";
+        readonly enumValues: readonly ["bank", "momo", "cash"];
+        readonly enumLabels: {
+            bank: string;
+            momo: string;
+            cash: string;
+        };
+        readonly filterable: true;
+        readonly groupable: true;
+    }, {
+        readonly key: "netRwf";
+        readonly label: "Net";
+        readonly type: "money";
+        readonly sortable: true;
+    }];
+};
+export declare const PayslipPage: z.ZodObject<{
+    items: z.ZodArray<z.ZodObject<{
+        id: z.ZodString;
+        payRunId: z.ZodString;
+        period: z.ZodString;
+        employee: z.ZodObject<{
+            employeeId: z.ZodString;
+            displayName: z.ZodString;
+            jobPositionTitle: z.ZodNullable<z.ZodString>;
+        }, "strip", z.ZodTypeAny, {
+            employeeId: string;
+            displayName: string;
+            jobPositionTitle: string | null;
+        }, {
+            employeeId: string;
+            displayName: string;
+            jobPositionTitle: string | null;
+        }>;
+        employeeNumber: z.ZodString;
+        branchId: z.ZodNullable<z.ZodString>;
+        grossRwf: z.ZodNumber;
+        netRwf: z.ZodNumber;
+        status: z.ZodEnum<["draft", "confirmed"]>;
+        paidAt: z.ZodNullable<z.ZodString>;
+        paidMethod: z.ZodNullable<z.ZodEnum<["bank", "momo", "cash"]>>;
+        paidReference: z.ZodNullable<z.ZodString>;
+        sentAt: z.ZodNullable<z.ZodString>;
+    }, "strip", z.ZodTypeAny, {
+        status: "draft" | "confirmed";
+        id: string;
+        employee: {
+            employeeId: string;
+            displayName: string;
+            jobPositionTitle: string | null;
+        };
+        grossRwf: number;
+        paidAt: string | null;
+        branchId: string | null;
+        employeeNumber: string;
+        netRwf: number;
+        paidMethod: "cash" | "bank" | "momo" | null;
+        paidReference: string | null;
+        sentAt: string | null;
+        period: string;
+        payRunId: string;
+    }, {
+        status: "draft" | "confirmed";
+        id: string;
+        employee: {
+            employeeId: string;
+            displayName: string;
+            jobPositionTitle: string | null;
+        };
+        grossRwf: number;
+        paidAt: string | null;
+        branchId: string | null;
+        employeeNumber: string;
+        netRwf: number;
+        paidMethod: "cash" | "bank" | "momo" | null;
+        paidReference: string | null;
+        sentAt: string | null;
+        period: string;
+        payRunId: string;
+    }>, "many">;
+    total: z.ZodNumber;
+    page: z.ZodNumber;
+    pageSize: z.ZodUnion<[z.ZodLiteral<10>, z.ZodLiteral<25>, z.ZodLiteral<50>, z.ZodLiteral<100>]>;
+    groups: z.ZodOptional<z.ZodArray<z.ZodObject<{
+        key: z.ZodNullable<z.ZodString>;
+        label: z.ZodString;
+        count: z.ZodNumber;
+    }, "strip", z.ZodTypeAny, {
+        key: string | null;
+        label: string;
+        count: number;
+    }, {
+        key: string | null;
+        label: string;
+        count: number;
+    }>, "many">>;
+    statusCounts: z.ZodOptional<z.ZodArray<z.ZodObject<{
+        value: z.ZodString;
+        count: z.ZodNumber;
+    }, "strip", z.ZodTypeAny, {
+        value: string;
+        count: number;
+    }, {
+        value: string;
+        count: number;
+    }>, "many">>;
+    stages: z.ZodOptional<z.ZodArray<z.ZodObject<{
+        key: z.ZodString;
+        label: z.ZodString;
+    }, "strip", z.ZodTypeAny, {
+        key: string;
+        label: string;
+    }, {
+        key: string;
+        label: string;
+    }>, "many">>;
+}, "strip", z.ZodTypeAny, {
+    items: {
+        status: "draft" | "confirmed";
+        id: string;
+        employee: {
+            employeeId: string;
+            displayName: string;
+            jobPositionTitle: string | null;
+        };
+        grossRwf: number;
+        paidAt: string | null;
+        branchId: string | null;
+        employeeNumber: string;
+        netRwf: number;
+        paidMethod: "cash" | "bank" | "momo" | null;
+        paidReference: string | null;
+        sentAt: string | null;
+        period: string;
+        payRunId: string;
+    }[];
+    total: number;
+    page: number;
+    pageSize: 50 | 10 | 100 | 25;
+    groups?: {
+        key: string | null;
+        label: string;
+        count: number;
+    }[] | undefined;
+    statusCounts?: {
+        value: string;
+        count: number;
+    }[] | undefined;
+    stages?: {
+        key: string;
+        label: string;
+    }[] | undefined;
+}, {
+    items: {
+        status: "draft" | "confirmed";
+        id: string;
+        employee: {
+            employeeId: string;
+            displayName: string;
+            jobPositionTitle: string | null;
+        };
+        grossRwf: number;
+        paidAt: string | null;
+        branchId: string | null;
+        employeeNumber: string;
+        netRwf: number;
+        paidMethod: "cash" | "bank" | "momo" | null;
+        paidReference: string | null;
+        sentAt: string | null;
+        period: string;
+        payRunId: string;
+    }[];
+    total: number;
+    page: number;
+    pageSize: 50 | 10 | 100 | 25;
+    groups?: {
+        key: string | null;
+        label: string;
+        count: number;
+    }[] | undefined;
+    statusCounts?: {
+        value: string;
+        count: number;
+    }[] | undefined;
+    stages?: {
+        key: string;
+        label: string;
+    }[] | undefined;
+}>;
+export type PayslipPage = z.infer<typeof PayslipPage>;
+/** `POST /ops/payslips/bulk`: mark several confirmed payslips paid, one way, one reference. */
+export declare const PayslipBulkRequest: z.ZodObject<{
+    ids: z.ZodArray<z.ZodString, "many">;
+} & {
+    action: z.ZodLiteral<"mark_paid">;
+    params: z.ZodObject<{
+        paidOn: z.ZodString;
+        method: z.ZodEnum<["bank", "momo", "cash"]>;
+        reference: z.ZodString;
+    }, "strip", z.ZodTypeAny, {
+        reference: string;
+        method: "cash" | "bank" | "momo";
+        paidOn: string;
+    }, {
+        reference: string;
+        method: "cash" | "bank" | "momo";
+        paidOn: string;
+    }>;
+}, "strip", z.ZodTypeAny, {
+    params: {
+        reference: string;
+        method: "cash" | "bank" | "momo";
+        paidOn: string;
+    };
+    action: "mark_paid";
+    ids: string[];
+}, {
+    params: {
+        reference: string;
+        method: "cash" | "bank" | "momo";
+        paidOn: string;
+    };
+    action: "mark_paid";
+    ids: string[];
+}>;
+export type PayslipBulkRequest = z.infer<typeof PayslipBulkRequest>;
+/** `GET /ops/loans`. */
+export declare const LOAN_LIST: {
+    readonly key: "staff.loans";
+    readonly searchFields: readonly ["employee"];
+    readonly statusField: "status";
+    readonly defaultSort: readonly [{
+        readonly field: "givenOn";
+        readonly dir: "desc";
+    }];
+    readonly fields: readonly [{
+        readonly key: "employee";
+        readonly label: "Person";
+        readonly type: "text";
+        readonly sortable: true;
+    }, {
+        readonly key: "kind";
+        readonly label: "Kind";
+        readonly type: "enum";
+        readonly enumValues: readonly ["loan", "advance"];
+        readonly enumLabels: {
+            readonly loan: "Loan";
+            readonly advance: "Advance";
+        };
+        readonly filterable: true;
+        readonly groupable: true;
+    }, {
+        readonly key: "status";
+        readonly label: "Status";
+        readonly type: "enum";
+        readonly enumValues: readonly ["open", "settled"];
+        readonly enumLabels: {
+            readonly open: "Being repaid";
+            readonly settled: "Settled";
+        };
+        readonly filterable: true;
+    }, {
+        readonly key: "branch";
+        readonly label: "Branch";
+        readonly type: "ref";
+        readonly filterable: true;
+        readonly groupable: true;
+    }, {
+        readonly key: "givenOn";
+        readonly label: "Given";
+        readonly type: "date";
+        readonly filterable: true;
+        readonly sortable: true;
+    }, {
+        readonly key: "amountRwf";
+        readonly label: "Amount";
+        readonly type: "money";
+        readonly sortable: true;
+    }];
+};
+export declare const LoanPage: z.ZodObject<{
+    items: z.ZodArray<z.ZodObject<{
+        id: z.ZodString;
+        employee: z.ZodObject<{
+            employeeId: z.ZodString;
+            displayName: z.ZodString;
+            jobPositionTitle: z.ZodNullable<z.ZodString>;
+        }, "strip", z.ZodTypeAny, {
+            employeeId: string;
+            displayName: string;
+            jobPositionTitle: string | null;
+        }, {
+            employeeId: string;
+            displayName: string;
+            jobPositionTitle: string | null;
+        }>;
+        branchId: z.ZodNullable<z.ZodString>;
+        kind: z.ZodEnum<["loan", "advance"]>;
+        amountRwf: z.ZodNumber;
+        givenOn: z.ZodString;
+        installments: z.ZodNumber;
+        firstPeriod: z.ZodString;
+        paidOut: z.ZodEnum<["payslip", "outside"]>;
+        reason: z.ZodNullable<z.ZodString>;
+        paidRwf: z.ZodNumber;
+        remainingRwf: z.ZodNumber;
+        settledAt: z.ZodNullable<z.ZodString>;
+        schedule: z.ZodArray<z.ZodObject<{
+            id: z.ZodString;
+            period: z.ZodString;
+            amountRwf: z.ZodNumber;
+            deferredFrom: z.ZodNullable<z.ZodString>;
+            paid: z.ZodBoolean;
+        }, "strip", z.ZodTypeAny, {
+            amountRwf: number;
+            id: string;
+            paid: boolean;
+            period: string;
+            deferredFrom: string | null;
+        }, {
+            amountRwf: number;
+            id: string;
+            paid: boolean;
+            period: string;
+            deferredFrom: string | null;
+        }>, "many">;
+        createdAt: z.ZodString;
+    }, "strip", z.ZodTypeAny, {
+        kind: "loan" | "advance";
+        amountRwf: number;
+        reason: string | null;
+        id: string;
+        employee: {
+            employeeId: string;
+            displayName: string;
+            jobPositionTitle: string | null;
+        };
+        createdAt: string;
+        settledAt: string | null;
+        paidRwf: number;
+        branchId: string | null;
+        givenOn: string;
+        installments: number;
+        firstPeriod: string;
+        paidOut: "payslip" | "outside";
+        remainingRwf: number;
+        schedule: {
+            amountRwf: number;
+            id: string;
+            paid: boolean;
+            period: string;
+            deferredFrom: string | null;
+        }[];
+    }, {
+        kind: "loan" | "advance";
+        amountRwf: number;
+        reason: string | null;
+        id: string;
+        employee: {
+            employeeId: string;
+            displayName: string;
+            jobPositionTitle: string | null;
+        };
+        createdAt: string;
+        settledAt: string | null;
+        paidRwf: number;
+        branchId: string | null;
+        givenOn: string;
+        installments: number;
+        firstPeriod: string;
+        paidOut: "payslip" | "outside";
+        remainingRwf: number;
+        schedule: {
+            amountRwf: number;
+            id: string;
+            paid: boolean;
+            period: string;
+            deferredFrom: string | null;
+        }[];
+    }>, "many">;
+    total: z.ZodNumber;
+    page: z.ZodNumber;
+    pageSize: z.ZodUnion<[z.ZodLiteral<10>, z.ZodLiteral<25>, z.ZodLiteral<50>, z.ZodLiteral<100>]>;
+    groups: z.ZodOptional<z.ZodArray<z.ZodObject<{
+        key: z.ZodNullable<z.ZodString>;
+        label: z.ZodString;
+        count: z.ZodNumber;
+    }, "strip", z.ZodTypeAny, {
+        key: string | null;
+        label: string;
+        count: number;
+    }, {
+        key: string | null;
+        label: string;
+        count: number;
+    }>, "many">>;
+    statusCounts: z.ZodOptional<z.ZodArray<z.ZodObject<{
+        value: z.ZodString;
+        count: z.ZodNumber;
+    }, "strip", z.ZodTypeAny, {
+        value: string;
+        count: number;
+    }, {
+        value: string;
+        count: number;
+    }>, "many">>;
+    stages: z.ZodOptional<z.ZodArray<z.ZodObject<{
+        key: z.ZodString;
+        label: z.ZodString;
+    }, "strip", z.ZodTypeAny, {
+        key: string;
+        label: string;
+    }, {
+        key: string;
+        label: string;
+    }>, "many">>;
+}, "strip", z.ZodTypeAny, {
+    items: {
+        kind: "loan" | "advance";
+        amountRwf: number;
+        reason: string | null;
+        id: string;
+        employee: {
+            employeeId: string;
+            displayName: string;
+            jobPositionTitle: string | null;
+        };
+        createdAt: string;
+        settledAt: string | null;
+        paidRwf: number;
+        branchId: string | null;
+        givenOn: string;
+        installments: number;
+        firstPeriod: string;
+        paidOut: "payslip" | "outside";
+        remainingRwf: number;
+        schedule: {
+            amountRwf: number;
+            id: string;
+            paid: boolean;
+            period: string;
+            deferredFrom: string | null;
+        }[];
+    }[];
+    total: number;
+    page: number;
+    pageSize: 50 | 10 | 100 | 25;
+    groups?: {
+        key: string | null;
+        label: string;
+        count: number;
+    }[] | undefined;
+    statusCounts?: {
+        value: string;
+        count: number;
+    }[] | undefined;
+    stages?: {
+        key: string;
+        label: string;
+    }[] | undefined;
+}, {
+    items: {
+        kind: "loan" | "advance";
+        amountRwf: number;
+        reason: string | null;
+        id: string;
+        employee: {
+            employeeId: string;
+            displayName: string;
+            jobPositionTitle: string | null;
+        };
+        createdAt: string;
+        settledAt: string | null;
+        paidRwf: number;
+        branchId: string | null;
+        givenOn: string;
+        installments: number;
+        firstPeriod: string;
+        paidOut: "payslip" | "outside";
+        remainingRwf: number;
+        schedule: {
+            amountRwf: number;
+            id: string;
+            paid: boolean;
+            period: string;
+            deferredFrom: string | null;
+        }[];
+    }[];
+    total: number;
+    page: number;
+    pageSize: 50 | 10 | 100 | 25;
+    groups?: {
+        key: string | null;
+        label: string;
+        count: number;
+    }[] | undefined;
+    statusCounts?: {
+        value: string;
+        count: number;
+    }[] | undefined;
+    stages?: {
+        key: string;
+        label: string;
+    }[] | undefined;
+}>;
+export type LoanPage = z.infer<typeof LoanPage>;
+/** `GET /ops/pay-claims`. */
+export declare const PAY_CLAIM_LIST: {
+    readonly key: "staff.pay-claims";
+    readonly searchFields: readonly ["employee"];
+    readonly statusField: "status";
+    readonly defaultSort: readonly [{
+        readonly field: "createdAt";
+        readonly dir: "desc";
+    }];
+    readonly fields: readonly [{
+        readonly key: "employee";
+        readonly label: "Person";
+        readonly type: "text";
+        readonly sortable: true;
+    }, {
+        readonly key: "kind";
+        readonly label: "Kind";
+        readonly type: "enum";
+        readonly enumValues: readonly ["reimbursement", "leave_encashment"];
+        readonly enumLabels: {
+            readonly reimbursement: "Reimbursement";
+            readonly leave_encashment: "Leave paid out";
+        };
+        readonly filterable: true;
+        readonly groupable: true;
+    }, {
+        readonly key: "status";
+        readonly label: "Status";
+        readonly type: "enum";
+        readonly enumValues: readonly ["requested", "approved", "rejected", "cancelled"];
+        readonly enumLabels: {
+            readonly requested: "Waiting";
+            readonly approved: "Approved";
+            readonly rejected: "Refused";
+            readonly cancelled: "Withdrawn";
+        };
+        readonly filterable: true;
+        readonly groupable: true;
+    }, {
+        readonly key: "period";
+        readonly label: "Paid in";
+        readonly type: "text";
+        readonly filterable: true;
+        readonly sortable: true;
+    }, {
+        readonly key: "branch";
+        readonly label: "Branch";
+        readonly type: "ref";
+        readonly filterable: true;
+        readonly groupable: true;
+    }, {
+        readonly key: "createdAt";
+        readonly label: "Asked";
+        readonly type: "datetime";
+        readonly sortable: true;
+    }];
+};
+export declare const PayClaimPage: z.ZodObject<{
+    items: z.ZodArray<z.ZodObject<{
+        id: z.ZodString;
+        employee: z.ZodObject<{
+            employeeId: z.ZodString;
+            displayName: z.ZodString;
+            jobPositionTitle: z.ZodNullable<z.ZodString>;
+        }, "strip", z.ZodTypeAny, {
+            employeeId: string;
+            displayName: string;
+            jobPositionTitle: string | null;
+        }, {
+            employeeId: string;
+            displayName: string;
+            jobPositionTitle: string | null;
+        }>;
+        branchId: z.ZodNullable<z.ZodString>;
+        kind: z.ZodEnum<["reimbursement", "leave_encashment"]>;
+        amountRwf: z.ZodNullable<z.ZodNumber>;
+        leaveType: z.ZodNullable<z.ZodObject<{
+            id: z.ZodString;
+            name: z.ZodString;
+        }, "strip", z.ZodTypeAny, {
+            name: string;
+            id: string;
+        }, {
+            name: string;
+            id: string;
+        }>>;
+        days: z.ZodNullable<z.ZodNumber>;
+        period: z.ZodString;
+        hasReceipt: z.ZodBoolean;
+        reason: z.ZodString;
+        status: z.ZodEnum<["requested", "approved", "rejected", "cancelled"]>;
+        decidedAt: z.ZodNullable<z.ZodString>;
+        decidedByName: z.ZodNullable<z.ZodString>;
+        decisionNote: z.ZodNullable<z.ZodString>;
+        paid: z.ZodBoolean;
+        createdAt: z.ZodString;
+    }, "strip", z.ZodTypeAny, {
+        status: "approved" | "rejected" | "cancelled" | "requested";
+        kind: "reimbursement" | "leave_encashment";
+        decidedAt: string | null;
+        amountRwf: number | null;
+        reason: string;
+        id: string;
+        decisionNote: string | null;
+        employee: {
+            employeeId: string;
+            displayName: string;
+            jobPositionTitle: string | null;
+        };
+        paid: boolean;
+        createdAt: string;
+        branchId: string | null;
+        period: string;
+        days: number | null;
+        leaveType: {
+            name: string;
+            id: string;
+        } | null;
+        decidedByName: string | null;
+        hasReceipt: boolean;
+    }, {
+        status: "approved" | "rejected" | "cancelled" | "requested";
+        kind: "reimbursement" | "leave_encashment";
+        decidedAt: string | null;
+        amountRwf: number | null;
+        reason: string;
+        id: string;
+        decisionNote: string | null;
+        employee: {
+            employeeId: string;
+            displayName: string;
+            jobPositionTitle: string | null;
+        };
+        paid: boolean;
+        createdAt: string;
+        branchId: string | null;
+        period: string;
+        days: number | null;
+        leaveType: {
+            name: string;
+            id: string;
+        } | null;
+        decidedByName: string | null;
+        hasReceipt: boolean;
+    }>, "many">;
+    total: z.ZodNumber;
+    page: z.ZodNumber;
+    pageSize: z.ZodUnion<[z.ZodLiteral<10>, z.ZodLiteral<25>, z.ZodLiteral<50>, z.ZodLiteral<100>]>;
+    groups: z.ZodOptional<z.ZodArray<z.ZodObject<{
+        key: z.ZodNullable<z.ZodString>;
+        label: z.ZodString;
+        count: z.ZodNumber;
+    }, "strip", z.ZodTypeAny, {
+        key: string | null;
+        label: string;
+        count: number;
+    }, {
+        key: string | null;
+        label: string;
+        count: number;
+    }>, "many">>;
+    statusCounts: z.ZodOptional<z.ZodArray<z.ZodObject<{
+        value: z.ZodString;
+        count: z.ZodNumber;
+    }, "strip", z.ZodTypeAny, {
+        value: string;
+        count: number;
+    }, {
+        value: string;
+        count: number;
+    }>, "many">>;
+    stages: z.ZodOptional<z.ZodArray<z.ZodObject<{
+        key: z.ZodString;
+        label: z.ZodString;
+    }, "strip", z.ZodTypeAny, {
+        key: string;
+        label: string;
+    }, {
+        key: string;
+        label: string;
+    }>, "many">>;
+}, "strip", z.ZodTypeAny, {
+    items: {
+        status: "approved" | "rejected" | "cancelled" | "requested";
+        kind: "reimbursement" | "leave_encashment";
+        decidedAt: string | null;
+        amountRwf: number | null;
+        reason: string;
+        id: string;
+        decisionNote: string | null;
+        employee: {
+            employeeId: string;
+            displayName: string;
+            jobPositionTitle: string | null;
+        };
+        paid: boolean;
+        createdAt: string;
+        branchId: string | null;
+        period: string;
+        days: number | null;
+        leaveType: {
+            name: string;
+            id: string;
+        } | null;
+        decidedByName: string | null;
+        hasReceipt: boolean;
+    }[];
+    total: number;
+    page: number;
+    pageSize: 50 | 10 | 100 | 25;
+    groups?: {
+        key: string | null;
+        label: string;
+        count: number;
+    }[] | undefined;
+    statusCounts?: {
+        value: string;
+        count: number;
+    }[] | undefined;
+    stages?: {
+        key: string;
+        label: string;
+    }[] | undefined;
+}, {
+    items: {
+        status: "approved" | "rejected" | "cancelled" | "requested";
+        kind: "reimbursement" | "leave_encashment";
+        decidedAt: string | null;
+        amountRwf: number | null;
+        reason: string;
+        id: string;
+        decisionNote: string | null;
+        employee: {
+            employeeId: string;
+            displayName: string;
+            jobPositionTitle: string | null;
+        };
+        paid: boolean;
+        createdAt: string;
+        branchId: string | null;
+        period: string;
+        days: number | null;
+        leaveType: {
+            name: string;
+            id: string;
+        } | null;
+        decidedByName: string | null;
+        hasReceipt: boolean;
+    }[];
+    total: number;
+    page: number;
+    pageSize: 50 | 10 | 100 | 25;
+    groups?: {
+        key: string | null;
+        label: string;
+        count: number;
+    }[] | undefined;
+    statusCounts?: {
+        value: string;
+        count: number;
+    }[] | undefined;
+    stages?: {
+        key: string;
+        label: string;
+    }[] | undefined;
+}>;
+export type PayClaimPage = z.infer<typeof PayClaimPage>;
+export declare const PayClaimBulkRequest: z.ZodObject<{
+    ids: z.ZodArray<z.ZodString, "many">;
+} & {
+    action: z.ZodEnum<["approve", "reject"]>;
+    params: z.ZodOptional<z.ZodObject<{
+        note: z.ZodOptional<z.ZodString>;
+    }, "strip", z.ZodTypeAny, {
+        note?: string | undefined;
+    }, {
+        note?: string | undefined;
+    }>>;
+}, "strip", z.ZodTypeAny, {
+    action: "approve" | "reject";
+    ids: string[];
+    params?: {
+        note?: string | undefined;
+    } | undefined;
+}, {
+    action: "approve" | "reject";
+    ids: string[];
+    params?: {
+        note?: string | undefined;
+    } | undefined;
+}>;
+export type PayClaimBulkRequest = z.infer<typeof PayClaimBulkRequest>;
+/** `GET /ops/pay-adjustments`. */
+export declare const PAY_ADJUSTMENT_LIST: {
+    readonly key: "staff.pay-adjustments";
+    readonly searchFields: readonly ["employee"];
+    readonly statusField: "status";
+    readonly defaultSort: readonly [{
+        readonly field: "createdAt";
+        readonly dir: "desc";
+    }];
+    readonly fields: readonly [{
+        readonly key: "employee";
+        readonly label: "Person";
+        readonly type: "text";
+        readonly sortable: true;
+    }, {
+        readonly key: "side";
+        readonly label: "Side";
+        readonly type: "enum";
+        readonly enumValues: readonly ["earning", "deduction"];
+        readonly enumLabels: {
+            readonly earning: "Pays";
+            readonly deduction: "Takes back";
+        };
+        readonly filterable: true;
+        readonly groupable: true;
+    }, {
+        readonly key: "source";
+        readonly label: "From";
+        readonly type: "enum";
+        readonly enumValues: readonly ["manual", "leave", "asset_fine", "held_payslip", "late_claim"];
+        readonly enumLabels: {
+            readonly manual: "By hand";
+            readonly leave: "Leave";
+            readonly asset_fine: "Asset fine";
+            readonly held_payslip: "Held payslip";
+            readonly late_claim: "Late claim";
+        };
+        readonly filterable: true;
+        readonly groupable: true;
+    }, {
+        readonly key: "status";
+        readonly label: "Status";
+        readonly type: "enum";
+        readonly enumValues: readonly ["open", "waived", "paid"];
+        readonly enumLabels: {
+            readonly open: "To pay";
+            readonly waived: "Waived";
+            readonly paid: "Paid";
+        };
+        readonly filterable: true;
+    }, {
+        readonly key: "correctsPeriod";
+        readonly label: "Corrects";
+        readonly type: "text";
+        readonly filterable: true;
+        readonly sortable: true;
+    }, {
+        readonly key: "branch";
+        readonly label: "Branch";
+        readonly type: "ref";
+        readonly filterable: true;
+        readonly groupable: true;
+    }, {
+        readonly key: "createdAt";
+        readonly label: "Recorded";
+        readonly type: "datetime";
+        readonly sortable: true;
+    }];
+};
+export declare const PayAdjustmentPage: z.ZodObject<{
+    items: z.ZodArray<z.ZodObject<{
+        id: z.ZodString;
+        employee: z.ZodObject<{
+            employeeId: z.ZodString;
+            displayName: z.ZodString;
+            jobPositionTitle: z.ZodNullable<z.ZodString>;
+        }, "strip", z.ZodTypeAny, {
+            employeeId: string;
+            displayName: string;
+            jobPositionTitle: string | null;
+        }, {
+            employeeId: string;
+            displayName: string;
+            jobPositionTitle: string | null;
+        }>;
+        branchId: z.ZodNullable<z.ZodString>;
+        side: z.ZodEnum<["earning", "deduction"]>;
+        amountRwf: z.ZodNumber;
+        taxable: z.ZodBoolean;
+        contributable: z.ZodBoolean;
+        correctsPeriod: z.ZodString;
+        reason: z.ZodString;
+        source: z.ZodEnum<["manual", "leave", "asset_fine", "held_payslip", "late_claim"]>;
+        status: z.ZodEnum<["open", "waived", "paid"]>;
+        paidInPeriod: z.ZodNullable<z.ZodString>;
+        createdAt: z.ZodString;
+    }, "strip", z.ZodTypeAny, {
+        status: "open" | "paid" | "waived";
+        amountRwf: number;
+        reason: string;
+        id: string;
+        source: "manual" | "leave" | "asset_fine" | "held_payslip" | "late_claim";
+        employee: {
+            employeeId: string;
+            displayName: string;
+            jobPositionTitle: string | null;
+        };
+        createdAt: string;
+        branchId: string | null;
+        side: "earning" | "deduction";
+        taxable: boolean;
+        contributable: boolean;
+        correctsPeriod: string;
+        paidInPeriod: string | null;
+    }, {
+        status: "open" | "paid" | "waived";
+        amountRwf: number;
+        reason: string;
+        id: string;
+        source: "manual" | "leave" | "asset_fine" | "held_payslip" | "late_claim";
+        employee: {
+            employeeId: string;
+            displayName: string;
+            jobPositionTitle: string | null;
+        };
+        createdAt: string;
+        branchId: string | null;
+        side: "earning" | "deduction";
+        taxable: boolean;
+        contributable: boolean;
+        correctsPeriod: string;
+        paidInPeriod: string | null;
+    }>, "many">;
+    total: z.ZodNumber;
+    page: z.ZodNumber;
+    pageSize: z.ZodUnion<[z.ZodLiteral<10>, z.ZodLiteral<25>, z.ZodLiteral<50>, z.ZodLiteral<100>]>;
+    groups: z.ZodOptional<z.ZodArray<z.ZodObject<{
+        key: z.ZodNullable<z.ZodString>;
+        label: z.ZodString;
+        count: z.ZodNumber;
+    }, "strip", z.ZodTypeAny, {
+        key: string | null;
+        label: string;
+        count: number;
+    }, {
+        key: string | null;
+        label: string;
+        count: number;
+    }>, "many">>;
+    statusCounts: z.ZodOptional<z.ZodArray<z.ZodObject<{
+        value: z.ZodString;
+        count: z.ZodNumber;
+    }, "strip", z.ZodTypeAny, {
+        value: string;
+        count: number;
+    }, {
+        value: string;
+        count: number;
+    }>, "many">>;
+    stages: z.ZodOptional<z.ZodArray<z.ZodObject<{
+        key: z.ZodString;
+        label: z.ZodString;
+    }, "strip", z.ZodTypeAny, {
+        key: string;
+        label: string;
+    }, {
+        key: string;
+        label: string;
+    }>, "many">>;
+}, "strip", z.ZodTypeAny, {
+    items: {
+        status: "open" | "paid" | "waived";
+        amountRwf: number;
+        reason: string;
+        id: string;
+        source: "manual" | "leave" | "asset_fine" | "held_payslip" | "late_claim";
+        employee: {
+            employeeId: string;
+            displayName: string;
+            jobPositionTitle: string | null;
+        };
+        createdAt: string;
+        branchId: string | null;
+        side: "earning" | "deduction";
+        taxable: boolean;
+        contributable: boolean;
+        correctsPeriod: string;
+        paidInPeriod: string | null;
+    }[];
+    total: number;
+    page: number;
+    pageSize: 50 | 10 | 100 | 25;
+    groups?: {
+        key: string | null;
+        label: string;
+        count: number;
+    }[] | undefined;
+    statusCounts?: {
+        value: string;
+        count: number;
+    }[] | undefined;
+    stages?: {
+        key: string;
+        label: string;
+    }[] | undefined;
+}, {
+    items: {
+        status: "open" | "paid" | "waived";
+        amountRwf: number;
+        reason: string;
+        id: string;
+        source: "manual" | "leave" | "asset_fine" | "held_payslip" | "late_claim";
+        employee: {
+            employeeId: string;
+            displayName: string;
+            jobPositionTitle: string | null;
+        };
+        createdAt: string;
+        branchId: string | null;
+        side: "earning" | "deduction";
+        taxable: boolean;
+        contributable: boolean;
+        correctsPeriod: string;
+        paidInPeriod: string | null;
+    }[];
+    total: number;
+    page: number;
+    pageSize: 50 | 10 | 100 | 25;
+    groups?: {
+        key: string | null;
+        label: string;
+        count: number;
+    }[] | undefined;
+    statusCounts?: {
+        value: string;
+        count: number;
+    }[] | undefined;
+    stages?: {
+        key: string;
+        label: string;
+    }[] | undefined;
+}>;
+export type PayAdjustmentPage = z.infer<typeof PayAdjustmentPage>;
+/** `GET /ops/contracts`: every contract of the business. */
+export declare const CONTRACT_LIST: {
+    readonly key: "staff.contracts";
+    readonly searchFields: readonly ["employee"];
+    readonly statusField: "status";
+    readonly defaultSort: readonly [{
+        readonly field: "startsOn";
+        readonly dir: "desc";
+    }];
+    readonly fields: readonly [{
+        readonly key: "employee";
+        readonly label: "Person";
+        readonly type: "text";
+        readonly sortable: true;
+    }, {
+        readonly key: "status";
+        readonly label: "Status";
+        readonly type: "enum";
+        readonly enumValues: readonly ["draft", "active", "ended"];
+        readonly enumLabels: {
+            readonly draft: "Starting";
+            readonly active: "Running";
+            readonly ended: "Ended";
+        };
+        readonly filterable: true;
+    }, {
+        readonly key: "wageBasis";
+        readonly label: "Paid by";
+        readonly type: "enum";
+        readonly enumValues: readonly ["monthly", "daily", "hourly"];
+        readonly enumLabels: {
+            readonly monthly: "Month";
+            readonly daily: "Day";
+            readonly hourly: "Hour";
+        };
+        readonly filterable: true;
+        readonly groupable: true;
+    }, {
+        readonly key: "branch";
+        readonly label: "Branch";
+        readonly type: "ref";
+        readonly filterable: true;
+        readonly groupable: true;
+    }, {
+        readonly key: "startsOn";
+        readonly label: "Starts";
+        readonly type: "date";
+        readonly filterable: true;
+        readonly sortable: true;
+    }, {
+        readonly key: "endsOn";
+        readonly label: "Ends";
+        readonly type: "date";
+        readonly filterable: true;
+        readonly sortable: true;
+    }];
+};
+export declare const ContractPage: z.ZodObject<{
+    items: z.ZodArray<z.ZodObject<{
+        id: z.ZodString;
+        employee: z.ZodObject<{
+            employeeId: z.ZodString;
+            displayName: z.ZodString;
+            jobPositionTitle: z.ZodNullable<z.ZodString>;
+        }, "strip", z.ZodTypeAny, {
+            employeeId: string;
+            displayName: string;
+            jobPositionTitle: string | null;
+        }, {
+            employeeId: string;
+            displayName: string;
+            jobPositionTitle: string | null;
+        }>;
+        employeeNumber: z.ZodString;
+        branchId: z.ZodNullable<z.ZodString>;
+        contractType: z.ZodString;
+        startsOn: z.ZodString;
+        endsOn: z.ZodNullable<z.ZodString>;
+        wageBasis: z.ZodEnum<["monthly", "daily", "hourly"]>;
+        wageRwf: z.ZodNumber;
+        status: z.ZodString;
+        payStructureId: z.ZodNullable<z.ZodString>;
+        noticeDays: z.ZodNullable<z.ZodNumber>;
+    }, "strip", z.ZodTypeAny, {
+        status: string;
+        id: string;
+        startsOn: string;
+        employee: {
+            employeeId: string;
+            displayName: string;
+            jobPositionTitle: string | null;
+        };
+        branchId: string | null;
+        employeeNumber: string;
+        contractType: string;
+        endsOn: string | null;
+        wageBasis: "monthly" | "daily" | "hourly";
+        wageRwf: number;
+        payStructureId: string | null;
+        noticeDays: number | null;
+    }, {
+        status: string;
+        id: string;
+        startsOn: string;
+        employee: {
+            employeeId: string;
+            displayName: string;
+            jobPositionTitle: string | null;
+        };
+        branchId: string | null;
+        employeeNumber: string;
+        contractType: string;
+        endsOn: string | null;
+        wageBasis: "monthly" | "daily" | "hourly";
+        wageRwf: number;
+        payStructureId: string | null;
+        noticeDays: number | null;
+    }>, "many">;
+    total: z.ZodNumber;
+    page: z.ZodNumber;
+    pageSize: z.ZodUnion<[z.ZodLiteral<10>, z.ZodLiteral<25>, z.ZodLiteral<50>, z.ZodLiteral<100>]>;
+    groups: z.ZodOptional<z.ZodArray<z.ZodObject<{
+        key: z.ZodNullable<z.ZodString>;
+        label: z.ZodString;
+        count: z.ZodNumber;
+    }, "strip", z.ZodTypeAny, {
+        key: string | null;
+        label: string;
+        count: number;
+    }, {
+        key: string | null;
+        label: string;
+        count: number;
+    }>, "many">>;
+    statusCounts: z.ZodOptional<z.ZodArray<z.ZodObject<{
+        value: z.ZodString;
+        count: z.ZodNumber;
+    }, "strip", z.ZodTypeAny, {
+        value: string;
+        count: number;
+    }, {
+        value: string;
+        count: number;
+    }>, "many">>;
+    stages: z.ZodOptional<z.ZodArray<z.ZodObject<{
+        key: z.ZodString;
+        label: z.ZodString;
+    }, "strip", z.ZodTypeAny, {
+        key: string;
+        label: string;
+    }, {
+        key: string;
+        label: string;
+    }>, "many">>;
+}, "strip", z.ZodTypeAny, {
+    items: {
+        status: string;
+        id: string;
+        startsOn: string;
+        employee: {
+            employeeId: string;
+            displayName: string;
+            jobPositionTitle: string | null;
+        };
+        branchId: string | null;
+        employeeNumber: string;
+        contractType: string;
+        endsOn: string | null;
+        wageBasis: "monthly" | "daily" | "hourly";
+        wageRwf: number;
+        payStructureId: string | null;
+        noticeDays: number | null;
+    }[];
+    total: number;
+    page: number;
+    pageSize: 50 | 10 | 100 | 25;
+    groups?: {
+        key: string | null;
+        label: string;
+        count: number;
+    }[] | undefined;
+    statusCounts?: {
+        value: string;
+        count: number;
+    }[] | undefined;
+    stages?: {
+        key: string;
+        label: string;
+    }[] | undefined;
+}, {
+    items: {
+        status: string;
+        id: string;
+        startsOn: string;
+        employee: {
+            employeeId: string;
+            displayName: string;
+            jobPositionTitle: string | null;
+        };
+        branchId: string | null;
+        employeeNumber: string;
+        contractType: string;
+        endsOn: string | null;
+        wageBasis: "monthly" | "daily" | "hourly";
+        wageRwf: number;
+        payStructureId: string | null;
+        noticeDays: number | null;
+    }[];
+    total: number;
+    page: number;
+    pageSize: 50 | 10 | 100 | 25;
+    groups?: {
+        key: string | null;
+        label: string;
+        count: number;
+    }[] | undefined;
+    statusCounts?: {
+        value: string;
+        count: number;
+    }[] | undefined;
+    stages?: {
+        key: string;
+        label: string;
+    }[] | undefined;
+}>;
+export type ContractPage = z.infer<typeof ContractPage>;
 //# sourceMappingURL=hr-lists.d.ts.map

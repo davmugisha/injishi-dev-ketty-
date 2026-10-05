@@ -5,7 +5,11 @@
  *
  * Pay and leave read four `config_entries` rows and refuse to compute without
  * them (index contract 8): `hr.rw.paye`, `hr.rw.rssb`, `hr.rw.leave_defaults`
- * and one `hr.rw.public_holidays` row per year. The real values come from an
+ * and one `hr.rw.public_holidays` row per year. Payroll in full (058-payroll)
+ * reads three more: `hr.rw.overtime` and `hr.rw.final_settlement` block only
+ * a run that needs them (approved overtime, a person leaving in the month),
+ * and `hr.rw.declaration_formats` only names the declaration files' format.
+ * The real values come from an
  * accountant's sheet, checked against current RRA and RSSB rules and Labour Law
  * N° 66/2018, and the production migration is written from that sheet.
  *
@@ -138,6 +142,33 @@ const RULES = [
           compensatory: true,
         },
       ],
+    },
+  },
+  {
+    type: 'hr.rw.overtime',
+    value: {
+      note: NOTE,
+      // An hour of a monthly wage is the wage over this many hours.
+      monthlyHoursDivisor: 200,
+      multipliers: { weekday: 1.5, weekly_off: 2, public_holiday: 2 },
+      taxable: true,
+      contributable: true,
+    },
+  },
+  {
+    type: 'hr.rw.final_settlement',
+    value: {
+      note: NOTE,
+      // Notice pay and severance wait for exit cases (058-offboarding).
+      unusedLeave: { taxable: true, contributable: false },
+    },
+  },
+  {
+    type: 'hr.rw.declaration_formats',
+    value: {
+      note: NOTE,
+      paye: { format: 'provisional_csv' },
+      rssb: { format: 'provisional_csv' },
     },
   },
 ];

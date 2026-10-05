@@ -2249,18 +2249,25 @@ export declare const CreateContractRequest: z.ZodObject<{
     endsOn: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     wageBasis: z.ZodEnum<["monthly", "daily", "hourly"]>;
     wageRwf: z.ZodNumber;
+    /** 058-payroll: the components the contract carries, and its notice in days. */
+    payStructureId: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    noticeDays: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
 }, "strip", z.ZodTypeAny, {
     startsOn: string;
     contractType: "permanent" | "fixed_term" | "casual";
     wageBasis: "monthly" | "daily" | "hourly";
     wageRwf: number;
     endsOn?: string | null | undefined;
+    payStructureId?: string | null | undefined;
+    noticeDays?: number | null | undefined;
 }, {
     startsOn: string;
     contractType: "permanent" | "fixed_term" | "casual";
     wageBasis: "monthly" | "daily" | "hourly";
     wageRwf: number;
     endsOn?: string | null | undefined;
+    payStructureId?: string | null | undefined;
+    noticeDays?: number | null | undefined;
 }>;
 export type CreateContractRequest = z.infer<typeof CreateContractRequest>;
 /** The new contract, and the one it shortened, if any. */

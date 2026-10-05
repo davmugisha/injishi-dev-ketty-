@@ -224,7 +224,8 @@ export const STAFF_LENSES: readonly {
   { key: "kiosks", label: "Kiosks", segment: "kiosks", anyPermission: ["attendance.record"] },
   // 058-leave: five sections below it; whoever keeps the files reaches balances, periods and types.
   { key: "leave", label: "Leave", segment: "leave", anyPermission: ["leave.approve", "people.manage"] },
-  { key: "payroll", label: "Payroll", segment: "payroll", anyPermission: ["payroll.run"] },
+  // 058-payroll: nine sections below it; whoever writes contracts reaches the Contracts list.
+  { key: "payroll", label: "Payroll", segment: "payroll", anyPermission: ["payroll.run", "people.manage"] },
   { key: "time-insights", label: "Late and monthly", segment: "time-insights", anyPermission: ["people.manage"] },
   { key: "policies", label: "Policies", segment: "policies", anyPermission: HR_PERMISSIONS },
   { key: "announcements", label: "Announcements", segment: "announcements", anyPermission: HR_PERMISSIONS },

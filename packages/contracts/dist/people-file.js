@@ -100,15 +100,24 @@ exports.UpdateHrCatalogItemRequest = zod_1.z
 exports.HrSettings = zod_1.z.object({
     /** `EMP` makes the next number `EMP0007`. */
     employeeNumberPrefix: zod_1.z.string().nullable(),
+    /** 058-payroll AC-PY14: the day of the month the draft run is made by itself, 1 to 28. */
+    payRunAutoDraftDay: zod_1.z.number().int().nullable(),
+    /** 058-payroll AC-PY14: printed on payslips and declarations; a run needs it to confirm. */
+    rssbEmployerNumber: zod_1.z.string().nullable(),
 });
-exports.UpdateHrSettingsRequest = zod_1.z.object({
+exports.UpdateHrSettingsRequest = zod_1.z
+    .object({
     employeeNumberPrefix: zod_1.z
         .string()
         .trim()
         .toUpperCase()
         .regex(/^[A-Z0-9-]{1,8}$/, "A prefix is up to 8 capital letters, digits or dashes.")
         .nullable(),
-});
+    payRunAutoDraftDay: zod_1.z.number().int().min(1).max(28).nullable(),
+    rssbEmployerNumber: zod_1.z.string().trim().min(3, "An RSSB employer number is at least 3 characters.").max(30).nullable(),
+})
+    .partial()
+    .refine((b) => Object.keys(b).length > 0, { message: "Nothing to change." });
 // ---------------------------------------------------------------------------
 // Pay accounts (AC-PF3)
 // ---------------------------------------------------------------------------

@@ -179,6 +179,10 @@ export const OPS_READ = {
   leaveTypes: HR_PERMISSIONS,
   leaveDefaults: ["people.manage"],
   restrictedPeriods: ["leave.approve", "people.manage"],
+  // Payroll in full (058-payroll): every read is payroll.run's, except the
+  // contracts list, which whoever writes contracts reads too.
+  payroll: ["payroll.run"],
+  contracts: ["people.manage", "payroll.run"],
 } as const satisfies Record<string, readonly Permission[]>;
 
 /**
@@ -249,7 +253,7 @@ export async function read<T>(
  * fallback is for a non secure context (plain http on a property network),
  * where it is absent — a weaker key there still beats no key at all.
  */
-function newIdempotencyKey(): string {
+export function newIdempotencyKey(): string {
   if (typeof crypto !== "undefined" && "randomUUID" in crypto) {
     return crypto.randomUUID();
   }

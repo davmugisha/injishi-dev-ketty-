@@ -87,12 +87,13 @@ export class OpsHrController {
    * of the right kind. Counted against the same per person upload budget as
    * every other upload route (`UploadThrottlerGuard`). Whoever decides leave
    * may upload an attachment, the sick note a request carries (058-leave
-   * AC-LV6); a photo or a document stays `people.manage`'s.
+   * AC-LV6), and so may whoever runs pay, the receipt a claim carries
+   * (058-payroll AC-PY9); a photo or a document stays `people.manage`'s.
    */
   @Post('files')
   @UseGuards(UploadThrottlerGuard)
   @SkipThrottle({ 'uploads-certificate': true })
-  @RequireAnyPermission('people.manage', 'leave.approve')
+  @RequireAnyPermission('people.manage', 'leave.approve', 'payroll.run')
   async upload(
     @Req() request: MultipartRequest,
     @CurrentWorkspace() ws: ScopedWorkspace,
@@ -172,8 +173,9 @@ export class OpsHrController {
     return this.content.settings(ws);
   }
 
+  /** The files' prefix is people.manage's, the draft day and employer number payroll.run's (058-payroll). */
   @Patch('settings')
-  @RequirePermission('people.manage')
+  @RequireAnyPermission('people.manage', 'payroll.run')
   updateSettings(
     @Body(new ZodValidationPipe(UpdateHrSettingsRequest)) body: UpdateHrSettingsRequest,
     @CurrentWorkspace() ws: ScopedWorkspace,
