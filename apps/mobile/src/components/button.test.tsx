@@ -3,9 +3,15 @@
  *
  * What earns a test here is the branching: five variants that each resolve a
  * different fill and a different foreground, a disabled state that has to both
- * look and *announce* disabled, and the hit area that keeps a 32px button
+ * look and *announce* disabled, a busy state that has to refuse presses while
+ * staying at full strength, and the hit area that keeps a 40px button
  * reachable. The visual details around them are not asserted; they change with
  * the design and a test that pins them only makes the design harder to change.
+ *
+ * **ADR-064 changed what three of these pin, on purpose**, and each changed test
+ * names its AC: primary is teal now (AC-1), the heights are HeroUI's 40, 48 and
+ * 56 as minimums (AC-2), and the other variants repaint (AC-3). `pending` is new
+ * (AC-4).
  *
  * **The fill is read with `enclosingFill` rather than off the pressable's own
  * style.** Session 11 moved `Button` onto `PressableScale`, which carries the
@@ -15,21 +21,40 @@
  * between a label and its ground is a layout detail, which is the case
  * `test-utils`' own `enclosingFill` was written for.
  */
-import { fireEvent, screen } from '@testing-library/react-native';
+import { act, fireEvent, screen } from '@testing-library/react-native';
+import * as Haptics from 'expo-haptics';
 import { Button } from './button';
 import { SCHEMES, enclosingFill, flattenStyle, paletteFor, renderInScheme } from '@/test-utils';
+import { kitMetrics, radius } from '@/theme/tokens';
+
+jest.mock('expo-haptics', () => ({
+  impactAsync: jest.fn(() => Promise.resolve()),
+  ImpactFeedbackStyle: { Light: 'light' },
+}));
+
+const impact = Haptics.impactAsync as jest.Mock;
+
+beforeEach(() => impact.mockClear());
 
 /** The ground behind a button's label, whatever it is nested in. */
 const fillBehind = (label: string) => enclosingFill(screen.getByText(label));
 
-/** The button's own box, wherever `PressableScale` puts it. */
-const boxOf = (node: { props?: { style?: unknown }; parent: unknown }) => {
-  for (let cur = node as { props?: { style?: unknown }; parent: unknown } | null; cur; cur = (cur as { parent: unknown }).parent as never) {
-    const style = flattenStyle((cur as { props?: { style?: unknown } }).props?.style);
-    if (style.height !== undefined) return style;
+type Node = { props?: { style?: unknown }; parent: unknown };
+
+/** The button's own box, wherever `PressableScale` puts it: the view with the minimum height. */
+const boxOf = (node: Node) => {
+  for (let cur = node as Node | null; cur; cur = cur.parent as Node | null) {
+    const style = flattenStyle(cur.props?.style);
+    if (style.minHeight !== undefined) return style;
   }
   return {} as Record<string, unknown>;
 };
+
+/** Lay the button out at a width, as the platform would after a render. */
+const layOut = (label: string, width: number) =>
+  fireEvent(screen.getByText(label), 'layout', {
+    nativeEvent: { layout: { x: 0, y: 0, width, height: 48 } },
+  });
 
 describe.each(SCHEMES)('Button in the %s scheme', (scheme) => {
   const c = paletteFor(scheme);
@@ -70,14 +95,27 @@ describe.each(SCHEMES)('Button in the %s scheme', (scheme) => {
     expect(onPress).not.toHaveBeenCalled();
   });
 
-  it('paints the primary fill from the palette, not from a literal', () => {
+  it('paints primary teal with its near-ink label, never the ink action fill (ADR-064 AC-1)', () => {
     renderInScheme(<Button>Continue</Button>, scheme);
-    expect(fillBehind('Continue')).toBe(c.action);
+    expect(fillBehind('Continue')).toBe(c.domainHospitality);
+    expect(flattenStyle(screen.getByText('Continue').props.style).color).toBe(c.textOnBrand);
   });
 
-  it('paints the danger fill from the palette', () => {
-    renderInScheme(<Button variant="danger">Cancel the lease</Button>, scheme);
-    expect(fillBehind('Cancel the lease')).toBe(c.danger500);
+  it.each([
+    ['secondary', 'surface3', 'textLink'],
+    ['danger', 'danger500', 'textOnDanger'],
+  ] as const)('paints %s from the palette (ADR-064 AC-3)', (variant, fill, ink) => {
+    renderInScheme(<Button variant={variant}>Go</Button>, scheme);
+    expect(fillBehind('Go')).toBe(c[fill]);
+    expect(flattenStyle(screen.getByText('Go').props.style).color).toBe(c[ink]);
+  });
+
+  it('draws outline with no fill and a hairline borderDefault edge (ADR-064 AC-3)', () => {
+    renderInScheme(<Button variant="outline">Later</Button>, scheme);
+    expect(fillBehind('Later')).toBe('transparent');
+    const box = boxOf(screen.getByText('Later'));
+    expect(box.borderWidth).toBe(kitMetrics.hairline);
+    expect(box.borderColor).toBe(c.borderDefault);
   });
 
   it('draws a ghost button with no fill at all', () => {
@@ -85,16 +123,107 @@ describe.each(SCHEMES)('Button in the %s scheme', (scheme) => {
     expect(fillBehind('Not now')).toBe('transparent');
   });
 
-  it.each([
-    ['sm', 32],
-    ['md', 40],
-    ['lg', 48],
-  ] as const)('makes up the 44px touch target on a %s button with hit slop', (size, height) => {
+  it.each(['sm', 'md', 'lg'] as const)('draws a %s button as a pill (ADR-064 AC-2)', (size) => {
     renderInScheme(<Button size={size}>Tap</Button>, scheme);
-    const button = screen.getByRole('button');
-    expect(boxOf(screen.getByText('Tap')).height).toBe(height);
-    // The visual scale stays; the reachable area does not (design brief §7.2).
-    const slop = button.props.hitSlop as number;
-    expect(height + slop * 2).toBeGreaterThanOrEqual(44);
+    expect(boxOf(screen.getByText('Tap')).borderRadius).toBe(radius.pill);
+  });
+
+  it.each([
+    ['sm', 40],
+    ['md', 48],
+    ['lg', 56],
+  ] as const)(
+    'gives a %s button a minimum height of %i that reaches 44 with hit slop (ADR-064 AC-2)',
+    (size, minHeight) => {
+      renderInScheme(<Button size={size}>Tap</Button>, scheme);
+      const box = boxOf(screen.getByText('Tap'));
+      // A minimum, not a height: large text grows the button instead of cutting it.
+      expect(box.minHeight).toBe(minHeight);
+      expect(box.height).toBeUndefined();
+      const slop = screen.getByRole('button').props.hitSlop as number;
+      expect(minHeight + slop * 2).toBeGreaterThanOrEqual(44);
+    },
+  );
+
+  it('lets a long label wrap rather than cutting it (ADR-064 AC-2, AC-23)', () => {
+    renderInScheme(<Button>Confirm and pay for the whole stay</Button>, scheme);
+    expect(screen.getByText('Confirm and pay for the whole stay').props.numberOfLines).toBeUndefined();
+  });
+
+  describe('while pending (ADR-064 AC-4)', () => {
+    it('shows the busy ring, keeps the label, and is announced busy', () => {
+      renderInScheme(<Button pending>Send</Button>, scheme);
+      expect(screen.getByTestId('button-spinner', { includeHiddenElements: true })).toBeTruthy();
+      expect(screen.getByText('Send')).toBeTruthy();
+      expect(screen.getByRole('button', { name: 'Send' })).toBeBusy();
+    });
+
+    it('keeps the ring out of the screen reader, which hears the button busy instead', () => {
+      renderInScheme(<Button pending>Send</Button>, scheme);
+      expect(screen.queryByTestId('button-spinner')).toBeNull();
+    });
+
+    it('replaces the leading icon rather than adding a second one beside it', () => {
+      renderInScheme(
+        <Button pending leadingIcon="check">
+          Save
+        </Button>,
+        scheme,
+      );
+      expect(screen.getAllByTestId('button-spinner', { includeHiddenElements: true })).toHaveLength(1);
+    });
+
+    it('refuses presses and stays quiet', () => {
+      const onPress = jest.fn();
+      renderInScheme(
+        <Button pending onPress={onPress}>
+          Confirm booking
+        </Button>,
+        scheme,
+      );
+      fireEvent.press(screen.getByRole('button', { name: 'Confirm booking' }));
+      expect(onPress).not.toHaveBeenCalled();
+      expect(impact).not.toHaveBeenCalled();
+    });
+
+    it('keeps full strength alone and drops to half with disabled', () => {
+      const { rerender } = renderInScheme(<Button pending>Send</Button>, scheme);
+      expect(boxOf(screen.getByText('Send')).opacity).toBe(1);
+      rerender(
+        <Button pending disabled>
+          Send
+        </Button>,
+      );
+      expect(boxOf(screen.getByText('Send')).opacity).toBe(kitMetrics.disabledOpacity);
+    });
+
+    it('never gets narrower than it was before it went busy', () => {
+      const { rerender } = renderInScheme(<Button>Send message</Button>, scheme);
+      act(() => {
+        layOut('Send message', 184);
+      });
+      // The screen swaps in a shorter label while the write is in flight.
+      rerender(<Button pending>Send</Button>);
+      expect(boxOf(screen.getByText('Send')).minWidth).toBe(184);
+      // And lets go once it is done.
+      rerender(<Button>Send message</Button>);
+      expect(boxOf(screen.getByText('Send message')).minWidth).toBeUndefined();
+    });
+  });
+
+  it('buzzes on a primary press and stays quiet on a ghost one', () => {
+    renderInScheme(
+      <>
+        <Button onPress={() => {}}>Book</Button>
+        <Button variant="ghost" onPress={() => {}}>
+          Skip
+        </Button>
+      </>,
+      scheme,
+    );
+    fireEvent.press(screen.getByRole('button', { name: 'Skip' }));
+    expect(impact).not.toHaveBeenCalled();
+    fireEvent.press(screen.getByRole('button', { name: 'Book' }));
+    expect(impact).toHaveBeenCalledTimes(1);
   });
 });
