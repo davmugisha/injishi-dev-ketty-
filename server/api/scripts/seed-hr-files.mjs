@@ -18,14 +18,46 @@
  * The department roster rows of those people are pointed at their file, as the
  * migration does.
  *
- * Idempotent: a membership that already has a file is skipped, so a rerun
- * writes nothing.
+ * Then every business with staff gets a starter set of its own HR lists (job
+ * positions, employee types, tags and disciplinary types, 058-people-file
+ * AC-PF11), the kind an owner would type on day one, and each seeded file with
+ * no position takes the one its account's role suggests. They are ordinary
+ * rows the owner may rename or archive under Staff, Configuration; nothing in
+ * them is a fact about a real person.
+ *
+ * Idempotent: a membership that already has a file is skipped, a list row is
+ * added only when no active row of that name exists, and a position is set
+ * only on a file that has none, so a rerun writes nothing.
  *
  *   DATABASE_URL=... node scripts/seed-hr-files.mjs
  */
 import pg from 'pg';
 
 import { assertSampleDatabase } from './sample-database.mjs';
+
+/** What an owner would type on day one (058-people-file AC-PF11). */
+const STARTER = {
+  job_positions: ['General manager', 'Front desk agent', 'Room attendant', 'Line cook', 'Waiter', 'Security guard'],
+  employee_types: ['Permanent staff', 'Fixed term', 'Casual'],
+  employee_tags: [
+    ['First aid', 'ok'],
+    ['Speaks French', 'info'],
+    ['Night shift', 'neutral'],
+  ],
+  disciplinary_types: [
+    ['Verbal warning', 'warning'],
+    ['Written warning', 'warning'],
+    ['Suspension', 'suspension'],
+    ['Dismissal', 'dismissal'],
+  ],
+};
+
+/** The position a seeded account's role suggests. */
+const POSITION_FOR_ROLE = {
+  manager: 'General manager',
+  receptionist: 'Front desk agent',
+  housekeeper: 'Room attendant',
+};
 
 const url = process.env.DATABASE_URL?.trim();
 if (!url) {
@@ -75,11 +107,69 @@ try {
     if (number === null) throw new Error(`could not mint an employee number for org ${m.org_id}`);
 
     await client.query(
-      `insert into employees (org_id, org_membership_id, employee_number, legal_name, phone, email, hired_on)
-       values ($1, $2, $3, $4, $5, $6, $7)`,
+      `insert into employees (org_id, org_membership_id, employee_number, legal_name, phone, email, hired_on, service_from)
+       values ($1, $2, $3, $4, $5, $6, $7, $7)`,
       [m.org_id, m.membership_id, number, m.legal_name, m.phone, m.email, m.hired_on],
     );
     written += 1;
+  }
+
+  // The starter lists, for every business that has staff on file.
+  const { rows: orgs } = await client.query('select distinct org_id from employees');
+  let listed = 0;
+  for (const { org_id: orgId } of orgs) {
+    for (const title of STARTER.job_positions) {
+      const r = await client.query(
+        `insert into job_positions (org_id, title)
+         select $1, $2 where not exists
+           (select 1 from job_positions where org_id = $1 and lower(title) = lower($2) and status = 'active')`,
+        [orgId, title],
+      );
+      listed += r.rowCount ?? 0;
+    }
+    for (const title of STARTER.employee_types) {
+      const r = await client.query(
+        `insert into employee_types (org_id, title)
+         select $1, $2 where not exists
+           (select 1 from employee_types where org_id = $1 and lower(title) = lower($2) and status = 'active')`,
+        [orgId, title],
+      );
+      listed += r.rowCount ?? 0;
+    }
+    for (const [title, tone] of STARTER.employee_tags) {
+      const r = await client.query(
+        `insert into employee_tags (org_id, title, tone)
+         select $1, $2, $3::hr_tag_tone where not exists
+           (select 1 from employee_tags where org_id = $1 and lower(title) = lower($2) and status = 'active')`,
+        [orgId, title, tone],
+      );
+      listed += r.rowCount ?? 0;
+    }
+    for (const [title, kind] of STARTER.disciplinary_types) {
+      const r = await client.query(
+        `insert into disciplinary_types (org_id, title, kind)
+         select $1, $2, $3::hr_disciplinary_kind where not exists
+           (select 1 from disciplinary_types where org_id = $1 and lower(title) = lower($2) and status = 'active')`,
+        [orgId, title, kind],
+      );
+      listed += r.rowCount ?? 0;
+    }
+  }
+
+  // A position on each seeded file that has none, from its account's role.
+  let placed = 0;
+  for (const [role, title] of Object.entries(POSITION_FOR_ROLE)) {
+    const r = await client.query(
+      `update employees e
+          set job_position_id = jp.id, updated_at = now()
+         from org_memberships om, job_positions jp
+        where om.id = e.org_membership_id
+          and om.org_role = $1
+          and jp.org_id = e.org_id and lower(jp.title) = lower($2) and jp.status = 'active'
+          and e.job_position_id is null`,
+      [role, title],
+    );
+    placed += r.rowCount ?? 0;
   }
 
   const { rowCount: linked } = await client.query(
@@ -91,7 +181,9 @@ try {
   );
 
   await client.query('commit');
-  console.log(`HR staff files: ${written} written for seeded staff accounts, ${linked ?? 0} department row(s) linked.`);
+  console.log(
+    `HR staff files: ${written} written for seeded staff accounts, ${linked ?? 0} department row(s) linked, ${listed} starter list row(s), ${placed} position(s) set.`,
+  );
 } catch (error) {
   await client.query('rollback').catch(() => {});
   throw error;

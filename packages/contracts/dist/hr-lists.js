@@ -40,6 +40,9 @@ exports.EMPLOYEE_LIST = (0, list_query_1.defineListSpec)({
         { key: "branch", label: "Branch", type: "ref", filterable: true, groupable: true },
         { key: "department", label: "Department", type: "ref", filterable: true },
         { key: "jobPosition", label: "Job position", type: "ref", filterable: true, groupable: true },
+        // 058-people-file AC-PF13. A file carries many tags, so `tag` filters and never groups.
+        { key: "employeeType", label: "Employee type", type: "ref", filterable: true, groupable: true },
+        { key: "tag", label: "Tag", type: "ref", filterable: true },
         { key: "hiredOn", label: "Hired on", type: "date", filterable: true, sortable: true },
         { key: "hasAccount", label: "Has an account", type: "bool", filterable: true, groupable: true },
         { key: "detailsMissing", label: "Details missing", type: "bool", filterable: true },

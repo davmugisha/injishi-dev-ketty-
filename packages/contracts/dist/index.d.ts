@@ -35,6 +35,7 @@ export * from "./training";
 export * from "./psf";
 export * from "./identity";
 export * from "./people";
+export * from "./people-file";
 export * from "./payroll";
 export * from "./list-query";
 export * from "./hr-lists";

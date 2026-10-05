@@ -69,9 +69,15 @@ describe("the seven HR permissions (AC-U6)", () => {
     for (const p of HR) assert.equal(c.isLockedPermission(p), false, p);
     assert.deepEqual(c.LOCKED_PERMISSIONS, ["team.manage"]);
   });
+
+  test("HR_PERMISSIONS is the seven, the one list the nav and the routes share (058-people-file)", () => {
+    assert.deepEqual([...c.HR_PERMISSIONS], HR);
+    // The people area also holds the two that decide who works here; neither is an HR read.
+    for (const p of ["team.manage", "department.manage"]) assert.equal(c.HR_PERMISSIONS.includes(p), false, p);
+  });
 });
 
-describe("the two file shapes (AC-P2)", () => {
+describe("the two file shapes (AC-P2, 058-people-file AC-PF2)", () => {
   const base = {
     id: "0f9a1b00-0000-4000-8000-000000000001",
     employeeNumber: "0001",
@@ -80,7 +86,7 @@ describe("the two file shapes (AC-P2)", () => {
     displayName: "Uwase Aline",
     phone: "+250788123456",
     email: null,
-    sex: "female",
+    hasPhoto: false,
     workPropertyId: null,
     workPropertyName: null,
     jobPositionId: null,
@@ -90,17 +96,36 @@ describe("the two file shapes (AC-P2)", () => {
     hiredOn: "2026-01-05",
     status: "active",
     offboardedOn: null,
-    offboardReason: null,
+    employeeType: null,
+    tags: [],
+    qualification: null,
+    priorExperienceYears: null,
     hasAccount: false,
     orgRole: null,
     detailsMissing: [],
     currentContract: null,
   };
+  // Every personal field of the matrix: the basic view must drop each one.
   const sensitive = {
+    sex: "female",
     dateOfBirth: "1994-03-02",
     idDocumentType: "national_id",
     idDocumentNumber: "1199480000000000",
     rssbNumber: "RS-1",
+    maritalStatus: "married",
+    childrenCount: 2,
+    address: {
+      villageId: 1,
+      villageName: "Rugando",
+      cellName: "Rukiri I",
+      sectorName: "Remera",
+      districtName: "Gasabo",
+      street: "KG 11 Ave",
+    },
+    emergencyContact: { name: "Mukamana Béatrice", phone: "+250788000111", relation: "Sister" },
+    offboardReason: "Moved to Musanze",
+    serviceFrom: "2026-01-05",
+    previousEmployeeId: null,
   };
 
   test("the basic shape strips every sensitive field", () => {
@@ -120,15 +145,39 @@ describe("the two file shapes (AC-P2)", () => {
       endsOn: null,
       wageBasis: "monthly",
       status: "active",
-      endReason: null,
+      endReason: "Replaced by a new contract",
       wageRwf: 250000,
     });
     assert.equal("wageRwf" in parsed, false);
+    assert.equal("endReason" in parsed, false, "an end reason can say why someone left");
   });
 
   test("the full shape carries them", () => {
     const parsed = c.EmployeeFull.parse({ ...base, ...sensitive, view: "full" });
-    assert.equal(parsed.idDocumentNumber, sensitive.idDocumentNumber);
+    for (const key of Object.keys(sensitive)) {
+      assert.deepEqual(parsed[key], sensitive[key], `${key} survives the full shape`);
+    }
+  });
+
+  test("a rehire is a create naming the old file", () => {
+    const parsed = c.CreateEmployeeRequest.parse({
+      legalName: "Habimana Eric",
+      phone: "0788 123 456",
+      dateOfBirth: "1990-06-01",
+      sex: "male",
+      idDocumentType: "national_id",
+      idDocumentNumber: "1199080000000000",
+      hiredOn: "2026-02-01",
+      workPropertyId: "0f9a1b00-0000-4000-8000-000000000002",
+      rehireOf: "0f9a1b00-0000-4000-8000-000000000009",
+    });
+    assert.equal(parsed.rehireOf, "0f9a1b00-0000-4000-8000-000000000009");
+  });
+
+  test("an edit refuses children past 30 and experience past 60 (AC-PF1)", () => {
+    assert.equal(c.UpdateEmployeeRequest.safeParse({ childrenCount: 31 }).success, false);
+    assert.equal(c.UpdateEmployeeRequest.safeParse({ priorExperienceYears: 61 }).success, false);
+    assert.equal(c.UpdateEmployeeRequest.safeParse({ childrenCount: 30, priorExperienceYears: 60 }).success, true);
   });
 });
 
@@ -155,8 +204,89 @@ describe("requests", () => {
     );
   });
 
+  test("a job position travels on create and edit, and null clears it (AC-PF11)", () => {
+    const position = "0f9a1b00-0000-4000-8000-0000000000aa";
+    assert.equal(c.UpdateEmployeeRequest.parse({ jobPositionId: position }).jobPositionId, position);
+    assert.equal(c.UpdateEmployeeRequest.parse({ jobPositionId: null }).jobPositionId, null);
+    assert.equal(c.UpdateEmployeeRequest.safeParse({ jobPositionId: "not-a-uuid" }).success, false);
+  });
+
+  test("the file's new fields are bounded as AC-PF1 says", () => {
+    assert.equal(c.UpdateEmployeeRequest.safeParse({ childrenCount: 30 }).success, true);
+    assert.equal(c.UpdateEmployeeRequest.safeParse({ childrenCount: 31 }).success, false);
+    assert.equal(c.UpdateEmployeeRequest.safeParse({ priorExperienceYears: 60 }).success, true);
+    assert.equal(c.UpdateEmployeeRequest.safeParse({ priorExperienceYears: 61 }).success, false);
+    assert.equal(c.UpdateEmployeeRequest.parse({ emergencyPhone: "0788 123 999" }).emergencyPhone, "+250788123999");
+    assert.equal(c.UpdateEmployeeRequest.safeParse({ tagIds: Array(21).fill("0f9a1b00-0000-4000-8000-0000000000aa") }).success, false);
+  });
+
+  test("the Employees lens filters by employee type and tag; a tag never groups (AC-PF13)", () => {
+    const fields = Object.fromEntries(c.EMPLOYEE_LIST.fields.map((f) => [f.key, f]));
+    assert.equal(fields.employeeType.filterable && fields.employeeType.groupable, true);
+    assert.equal(fields.tag.filterable, true);
+    assert.equal(Boolean(fields.tag.groupable), false);
+  });
+
   test("a pay period is YYYY-MM", () => {
     assert.equal(c.CreatePayRunRequest.safeParse({ period: "2026-09" }).success, true);
     assert.equal(c.CreatePayRunRequest.safeParse({ period: "2026-13" }).success, false);
+  });
+});
+
+describe("the people file's requests (058-people-file)", () => {
+  const someone = "0f9a1b00-0000-4000-8000-0000000000bb";
+
+  test("a document request names closed formats and at most 10 MB (AC-PF4)", () => {
+    const ok = { title: "National ID copy", formats: ["pdf", "jpg"], maxMb: 10, employeeIds: [someone] };
+    assert.equal(c.CreateDocumentRequestRequest.safeParse(ok).success, true);
+    assert.equal(c.CreateDocumentRequestRequest.safeParse({ ...ok, formats: ["docx"] }).success, false);
+    assert.equal(c.CreateDocumentRequestRequest.safeParse({ ...ok, maxMb: 11 }).success, false);
+    assert.equal(c.CreateDocumentRequestRequest.safeParse({ ...ok, formats: [] }).success, false);
+  });
+
+  test("an upload names its requested document or a new title, never both", () => {
+    const fileKey = "staff_document/abc.pdf";
+    assert.equal(c.UploadEmployeeDocumentRequest.safeParse({ documentId: someone, fileKey }).success, true);
+    assert.equal(c.UploadEmployeeDocumentRequest.safeParse({ title: "Food handler certificate", fileKey }).success, true);
+    assert.equal(c.UploadEmployeeDocumentRequest.safeParse({ fileKey }).success, false);
+    assert.equal(c.UploadEmployeeDocumentRequest.safeParse({ documentId: someone, title: "Both", fileKey }).success, false);
+  });
+
+  test("a refusal says why; an approval needs nothing", () => {
+    assert.equal(c.DecideDocumentRequest.safeParse({ decision: "approve" }).success, true);
+    assert.equal(c.DecideDocumentRequest.safeParse({ decision: "reject" }).success, false);
+    assert.equal(c.DecideDocumentRequest.safeParse({ decision: "reject", reason: "Cut off." }).success, true);
+  });
+
+  test("a pay account is a bank account or MoMo, never a mix (AC-PF3)", () => {
+    assert.equal(c.CreatePayAccountRequest.safeParse({ kind: "bank", bankName: "Bank of Kigali", accountNumber: "00040-0123456-78" }).success, true);
+    assert.equal(c.CreatePayAccountRequest.safeParse({ kind: "bank", bankName: "BK", accountNumber: "abc12" }).success, false);
+    assert.equal(c.CreatePayAccountRequest.safeParse({ kind: "momo", momoPhone: "0788 765 432" }).success, true);
+    assert.equal(c.CreatePayAccountRequest.safeParse({ kind: "momo", bankName: "BK" }).success, false);
+  });
+
+  test("a targeted policy names somebody; everyone needs no targets (AC-PF7)", () => {
+    const none = { departmentIds: [], jobPositionIds: [], employeeIds: [] };
+    assert.equal(c.CreateStaffPolicyRequest.safeParse({ title: "Uniform", body: "Badge on.", audience: "all" }).success, true);
+    assert.equal(c.CreateStaffPolicyRequest.safeParse({ title: "Uniform", body: "Badge on.", audience: "targeted", targets: none }).success, false);
+    assert.equal(
+      c.CreateStaffPolicyRequest.safeParse({ title: "Uniform", body: "Badge on.", audience: "targeted", targets: { ...none, employeeIds: [someone] } }).success,
+      true,
+    );
+  });
+
+  test("a disciplinary length comes with its unit, or neither (AC-PF8)", () => {
+    const base = { employeeIds: [someone], typeId: someone, description: "Late again.", startsOn: "2026-10-05" };
+    assert.equal(c.CreateDisciplinaryActionRequest.safeParse(base).success, true);
+    assert.equal(c.CreateDisciplinaryActionRequest.safeParse({ ...base, unit: "days", length: 3 }).success, true);
+    assert.equal(c.CreateDisciplinaryActionRequest.safeParse({ ...base, unit: "days" }).success, false);
+    assert.equal(c.CreateDisciplinaryActionRequest.safeParse({ ...base, length: 3 }).success, false);
+  });
+
+  test("an HR number prefix is up to 8 capitals, digits or dashes, upper cased on the way in (AC-PF12)", () => {
+    assert.equal(c.UpdateHrSettingsRequest.parse({ employeeNumberPrefix: "amh-" }).employeeNumberPrefix, "AMH-");
+    assert.equal(c.UpdateHrSettingsRequest.parse({ employeeNumberPrefix: null }).employeeNumberPrefix, null);
+    assert.equal(c.UpdateHrSettingsRequest.safeParse({ employeeNumberPrefix: "TOOLONGPREFIX" }).success, false);
+    assert.equal(c.UpdateHrSettingsRequest.safeParse({ employeeNumberPrefix: "A B" }).success, false);
   });
 });

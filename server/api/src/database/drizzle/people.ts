@@ -33,6 +33,7 @@ import {
 } from 'drizzle-orm/pg-core';
 import { users } from './auth';
 import { amount, timestamps } from './columns';
+import { villages } from './geography';
 import { properties } from './inventory';
 import {
   departmentCategoryEnum,
@@ -140,7 +141,63 @@ export const hrPayRunStatusEnum = pgEnum('hr_pay_run_status', [
   'confirmed',
 ]);
 
+// The people file (ADR-058, 058-people-file). The tables are in people-file.ts;
+// the vocabulary sits here with the rest, and employee types beside the file
+// that points at them.
+export const hrMaritalStatusEnum = pgEnum('hr_marital_status', [
+  'single',
+  'married',
+  'divorced',
+  'widowed',
+]);
+/** A tag's colour, by the status vocabulary the screens already draw, never a hex. */
+export const hrTagToneEnum = pgEnum('hr_tag_tone', ['neutral', 'info', 'ok', 'warn', 'bad']);
+export const hrPayAccountKindEnum = pgEnum('hr_pay_account_kind', ['bank', 'momo']);
+export const hrPayAccountStatusEnum = pgEnum('hr_pay_account_status', ['active', 'retired']);
+export const hrDocumentStatusEnum = pgEnum('hr_document_status', [
+  'requested',
+  'submitted',
+  'approved',
+  'rejected',
+]);
+export const hrDocumentVersionStatusEnum = pgEnum('hr_document_version_status', [
+  'submitted',
+  'approved',
+  'rejected',
+]);
+export const hrPublishStatusEnum = pgEnum('hr_publish_status', ['published', 'archived']);
+export const hrAudienceEnum = pgEnum('hr_audience', ['all', 'targeted']);
+export const hrDisciplinaryKindEnum = pgEnum('hr_disciplinary_kind', [
+  'warning',
+  'suspension',
+  'dismissal',
+]);
+export const hrLengthUnitEnum = pgEnum('hr_length_unit', ['days', 'hours']);
+
 // --- Positions and the file --------------------------------------------------
+
+/**
+ * A business's kinds of employment (full time, seasonal, intern...). Archived,
+ * never deleted: an archived type stays on the files that carry it and is not
+ * offered for new ones (058-people-file AC-PF11).
+ */
+export const employeeTypes = pgTable(
+  'employee_types',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    orgId: uuid('org_id')
+      .notNull()
+      .references(() => orgs.id, { onDelete: 'cascade' }),
+    title: text('title').notNull(),
+    status: hrCatalogStatusEnum('status').notNull().default('active'),
+    ...timestamps,
+  },
+  (t) => [
+    uniqueIndex('employee_types_title_uk')
+      .on(t.orgId, sql`lower(${t.title})`)
+      .where(sql`${t.status} = 'active'`),
+  ],
+);
 
 /** A business's job titles. Slice 2 builds their screens; the table is here now. */
 export const jobPositions = pgTable(
@@ -203,17 +260,54 @@ export const employees = pgTable(
     status: hrEmployeeStatusEnum('status').notNull().default('active'),
     offboardedOn: date('offboarded_on'),
     offboardReason: text('offboard_reason'),
+    // --- The people file (058-people-file AC-PF1). Personal fields are read in
+    // the full view only (AC-PF2); the presenter, not this table, decides that.
+    /** A stored object of kind `staff_photo`; read through a short signed link. */
+    photoKey: text('photo_key'),
+    maritalStatus: hrMaritalStatusEnum('marital_status'),
+    childrenCount: integer('children_count'),
+    villageId: integer('village_id').references(() => villages.id),
+    street: text('street'),
+    emergencyName: text('emergency_name'),
+    /** E.164, as `phone`. */
+    emergencyPhone: text('emergency_phone'),
+    emergencyRelation: text('emergency_relation'),
+    qualification: text('qualification'),
+    priorExperienceYears: integer('prior_experience_years'),
+    employeeTypeId: uuid('employee_type_id').references(() => employeeTypes.id),
+    /** The file this one rehired, when a leaver came back (AC-PF14). */
+    previousEmployeeId: uuid('previous_employee_id').references((): AnyPgColumn => employees.id),
+    /**
+     * Where service based rules count from: the hire date, unless a rehire is
+     * credited with the earlier employment (AC-PF14). Backfilled from
+     * `hired_on` by migration 0055, and written with it on every create.
+     */
+    serviceFrom: date('service_from').notNull(),
     ...timestamps,
   },
   (t) => [
     unique('employees_number_uk').on(t.orgId, t.employeeNumber),
+    // One ACTIVE file per account per employer. A leaver's old file keeps the
+    // membership it had, and a returning member reuses that same membership row
+    // (staff-invitation.repository), so only the active file is unique.
     uniqueIndex('employees_membership_uk')
       .on(t.orgMembershipId)
-      .where(sql`${t.orgMembershipId} IS NOT NULL`),
-    // One file per person per employer, whenever the ID is known (AC-P3).
+      .where(sql`${t.orgMembershipId} IS NOT NULL AND ${t.status} = 'active'`),
+    // One ACTIVE file per person per employer, whenever the ID is known (AC-P3).
+    // Active only since 058-people-file AC-PF14: a leaver may be rehired as a
+    // new file, which names the old one in `previous_employee_id`.
     uniqueIndex('employees_id_document_uk')
       .on(t.orgId, t.idDocumentType, t.idDocumentNumber)
-      .where(sql`${t.idDocumentNumber} IS NOT NULL`),
+      .where(sql`${t.idDocumentNumber} IS NOT NULL AND ${t.status} = 'active'`),
+    check(
+      'employees_children_ck',
+      sql`${t.childrenCount} IS NULL OR ${t.childrenCount} BETWEEN 0 AND 30`,
+    ),
+    check(
+      'employees_experience_ck',
+      sql`${t.priorExperienceYears} IS NULL OR ${t.priorExperienceYears} BETWEEN 0 AND 60`,
+    ),
+    check('employees_service_from_ck', sql`${t.serviceFrom} <= ${t.hiredOn}`),
     index('employees_org_status_idx').on(t.orgId, t.status),
     index('employees_work_property_idx').on(t.workPropertyId),
     index('employees_reporting_manager_idx').on(t.reportingManagerId),

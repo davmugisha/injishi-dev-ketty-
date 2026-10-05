@@ -20,6 +20,12 @@ import { OrgRole, RwfAmount, Uuid } from "./primitives";
 // Vocabulary
 // ---------------------------------------------------------------------------
 export const HrSex = z.enum(["female", "male"]);
+/** 058-people-file AC-PF1. */
+export const MaritalStatus = z.enum(["single", "married", "divorced", "widowed"]);
+export type MaritalStatus = z.infer<typeof MaritalStatus>;
+/** A tag's colour, named by the status vocabulary the screens draw, never a hex. */
+export const TagTone = z.enum(["neutral", "info", "ok", "warn", "bad"]);
+export type TagTone = z.infer<typeof TagTone>;
 export type HrSex = z.infer<typeof HrSex>;
 export const HrIdDocumentType = z.enum(["national_id", "passport"]);
 export type HrIdDocumentType = z.infer<typeof HrIdDocumentType>;
@@ -104,15 +110,16 @@ const ContractBase = z.object({
     endsOn: IsoDate.nullable(),
     wageBasis: WageBasis,
     status: ContractStatus,
-    endReason: z.string().nullable(),
 });
-/** A contract as `people.view` reads it: no wage. */
+/** A contract as `people.view` reads it: no wage, and no end reason. */
 export const EmploymentContractBasic = ContractBase.extend({ view: z.literal("basic") });
 export type EmploymentContractBasic = z.infer<typeof EmploymentContractBasic>;
 /** A contract as `people.manage` or `payroll.run` reads it. */
 export const EmploymentContractFull = ContractBase.extend({
     view: z.literal("full"),
     wageRwf: RwfAmount,
+    /** Why it ended, which can say why the person left (058-people-file AC-PF2). */
+    endReason: z.string().nullable(),
 });
 export type EmploymentContractFull = z.infer<typeof EmploymentContractFull>;
 export const EmploymentContract = z.discriminatedUnion("view", [
@@ -128,7 +135,8 @@ const EmployeeBase = z.object({
     displayName: z.string(),
     phone: z.string().nullable(),
     email: z.string().nullable(),
-    sex: HrSex.nullable(),
+    /** Read through `GET /ops/employees/:id/photo`, a short signed link; a work field. */
+    hasPhoto: z.boolean(),
     workPropertyId: Uuid.nullable(),
     workPropertyName: z.string().nullable(),
     jobPositionId: Uuid.nullable(),
@@ -138,7 +146,10 @@ const EmployeeBase = z.object({
     hiredOn: IsoDate,
     status: EmployeeStatus,
     offboardedOn: IsoDate.nullable(),
-    offboardReason: z.string().nullable(),
+    employeeType: z.object({ id: Uuid, title: z.string() }).nullable(),
+    tags: z.array(z.object({ id: Uuid, title: z.string(), tone: TagTone })),
+    qualification: z.string().nullable(),
+    priorExperienceYears: z.number().int().nullable(),
     /** Whether the file is linked to an account (an `org_memberships` row). */
     hasAccount: z.boolean(),
     /** The role that account holds here, when it does. Never held by the file. */
@@ -152,12 +163,39 @@ export const EmployeeBasic = EmployeeBase.extend({
 });
 export type EmployeeBasic = z.infer<typeof EmployeeBasic>;
 /** A file with the sensitive fields, for `people.manage` or `payroll.run`. */
+/** A home address: a village of the geography tables, and a street line. */
+export const EmployeeAddress = z.object({
+    villageId: z.number().int(),
+    villageName: z.string(),
+    cellName: z.string(),
+    sectorName: z.string(),
+    districtName: z.string(),
+    street: z.string().nullable(),
+});
+export type EmployeeAddress = z.infer<typeof EmployeeAddress>;
+export const EmergencyContact = z.object({
+    name: z.string(),
+    phone: z.string().nullable(),
+    relation: z.string().nullable(),
+});
+export type EmergencyContact = z.infer<typeof EmergencyContact>;
 export const EmployeeFull = EmployeeBase.extend({
     view: z.literal("full"),
+    sex: HrSex.nullable(),
     dateOfBirth: IsoDate.nullable(),
     idDocumentType: HrIdDocumentType.nullable(),
     idDocumentNumber: z.string().nullable(),
     rssbNumber: z.string().nullable(),
+    maritalStatus: MaritalStatus.nullable(),
+    childrenCount: z.number().int().nullable(),
+    address: EmployeeAddress.nullable(),
+    emergencyContact: EmergencyContact.nullable(),
+    /** Why they left, when they have. */
+    offboardReason: z.string().nullable(),
+    /** Where service based rules count from; the hire date unless a rehire was credited (AC-PF14). */
+    serviceFrom: IsoDate,
+    /** The file this one rehired. */
+    previousEmployeeId: Uuid.nullable(),
     currentContract: EmploymentContractFull.nullable(),
 });
 export type EmployeeFull = z.infer<typeof EmployeeFull>;
@@ -203,6 +241,13 @@ export const CreateEmployeeRequest = z.object({
     email: OptionalEmail.nullable().optional(),
     rssbNumber: RssbNumber.nullable().optional(),
     reportingManagerId: Uuid.nullable().optional(),
+    /** An active job position of the business (058-people-file AC-PF11). */
+    jobPositionId: Uuid.nullable().optional(),
+    /**
+     * Rehire a leaver as a new file (058-people-file AC-PF14). Sent after a create
+     * answered 409 `rehire_available` naming the offboarded file with this ID.
+     */
+    rehireOf: Uuid.optional(),
 });
 export type CreateEmployeeRequest = z.infer<typeof CreateEmployeeRequest>;
 /**
@@ -226,6 +271,24 @@ export const UpdateEmployeeRequest = z
     workPropertyId: Uuid,
     employeeNumber: EmployeeNumber,
     reportingManagerId: Uuid.nullable(),
+    /** An active job position; an archived one stays on files that carry it (AC-PF11). */
+    jobPositionId: Uuid.nullable(),
+    // 058-people-file AC-PF1. Each optional and nullable; a personal value is
+    // audited as "changed", never as itself.
+    maritalStatus: MaritalStatus.nullable(),
+    childrenCount: z.number().int().min(0).max(30).nullable(),
+    villageId: z.number().int().positive().nullable(),
+    street: z.string().trim().min(1).max(200).nullable(),
+    emergencyName: z.string().trim().min(2).max(120).nullable(),
+    emergencyPhone: RwPhoneNumber.nullable(),
+    emergencyRelation: z.string().trim().min(2).max(60).nullable(),
+    qualification: z.string().trim().min(2).max(120).nullable(),
+    priorExperienceYears: z.number().int().min(0).max(60).nullable(),
+    employeeTypeId: Uuid.nullable(),
+    /** The whole set of tags; it replaces the file's tags. */
+    tagIds: z.array(Uuid).max(20),
+    /** Credit an earlier employment: no later than the hire date (AC-PF14). */
+    serviceFrom: IsoDate,
 })
     .partial()
     .refine((b) => (b.idDocumentType === undefined) === (b.idDocumentNumber === undefined), {

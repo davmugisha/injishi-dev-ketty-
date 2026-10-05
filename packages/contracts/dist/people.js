@@ -1,6 +1,7 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.LeaveDecisionRequest = exports.CreateLeaveRequestRequest = exports.LeaveRequest = exports.LeaveBalances = exports.LeaveBalance = exports.LeaveLedgerEntry = exports.LeaveType = exports.CorrectAttendanceRequest = exports.ClockOutRequest = exports.ClockInRequest = exports.AttendanceRecord = exports.CancelRosterEntryRequest = exports.CreateRosterEntryRequest = exports.RosterEntry = exports.CreateShiftTemplateRequest = exports.ShiftTemplateQuery = exports.ShiftTemplateList = exports.ShiftTemplate = exports.ShiftTemplateStatus = exports.OffboardEmployeeRequest = exports.CreateContractResponse = exports.CreateContractRequest = exports.UpdateEmployeeRequest = exports.CreateEmployeeRequest = exports.EmployeeFile = exports.EmployeeDepartment = exports.Employee = exports.EmployeeFull = exports.EmployeeBasic = exports.EmploymentContract = exports.EmploymentContractFull = exports.EmploymentContractBasic = exports.RosterCard = exports.EMPLOYEE_MISSING_DETAIL_LABEL = exports.EmployeeMissingDetail = exports.TimeOfDay = exports.LeaveEndHalf = exports.LeaveStartHalf = exports.LeaveRequestStatus = exports.LeaveEntryKind = exports.LeaveAccrual = exports.AttendanceStatus = exports.AttendanceSource = exports.RosterStatus = exports.ContractStatus = exports.WageBasis = exports.ContractType = exports.EmployeeStatus = exports.HrIdDocumentType = exports.HrSex = void 0;
+exports.LeaveBalance = exports.LeaveLedgerEntry = exports.LeaveType = exports.CorrectAttendanceRequest = exports.ClockOutRequest = exports.ClockInRequest = exports.AttendanceRecord = exports.CancelRosterEntryRequest = exports.CreateRosterEntryRequest = exports.RosterEntry = exports.CreateShiftTemplateRequest = exports.ShiftTemplateQuery = exports.ShiftTemplateList = exports.ShiftTemplate = exports.ShiftTemplateStatus = exports.OffboardEmployeeRequest = exports.CreateContractResponse = exports.CreateContractRequest = exports.UpdateEmployeeRequest = exports.CreateEmployeeRequest = exports.EmployeeFile = exports.EmployeeDepartment = exports.Employee = exports.EmployeeFull = exports.EmergencyContact = exports.EmployeeAddress = exports.EmployeeBasic = exports.EmploymentContract = exports.EmploymentContractFull = exports.EmploymentContractBasic = exports.RosterCard = exports.EMPLOYEE_MISSING_DETAIL_LABEL = exports.EmployeeMissingDetail = exports.TimeOfDay = exports.LeaveEndHalf = exports.LeaveStartHalf = exports.LeaveRequestStatus = exports.LeaveEntryKind = exports.LeaveAccrual = exports.AttendanceStatus = exports.AttendanceSource = exports.RosterStatus = exports.ContractStatus = exports.WageBasis = exports.ContractType = exports.EmployeeStatus = exports.HrIdDocumentType = exports.TagTone = exports.MaritalStatus = exports.HrSex = void 0;
+exports.LeaveDecisionRequest = exports.CreateLeaveRequestRequest = exports.LeaveRequest = exports.LeaveBalances = void 0;
 const zod_1 = require("zod");
 const booking_1 = require("./booking");
 const phone_1 = require("./phone");
@@ -23,6 +24,10 @@ const primitives_1 = require("./primitives");
 // Vocabulary
 // ---------------------------------------------------------------------------
 exports.HrSex = zod_1.z.enum(["female", "male"]);
+/** 058-people-file AC-PF1. */
+exports.MaritalStatus = zod_1.z.enum(["single", "married", "divorced", "widowed"]);
+/** A tag's colour, named by the status vocabulary the screens draw, never a hex. */
+exports.TagTone = zod_1.z.enum(["neutral", "info", "ok", "warn", "bad"]);
 exports.HrIdDocumentType = zod_1.z.enum(["national_id", "passport"]);
 /** `active` then `offboarded`, with no way back (rehiring is a later decision). */
 exports.EmployeeStatus = zod_1.z.enum(["active", "offboarded"]);
@@ -90,14 +95,15 @@ const ContractBase = zod_1.z.object({
     endsOn: booking_1.IsoDate.nullable(),
     wageBasis: exports.WageBasis,
     status: exports.ContractStatus,
-    endReason: zod_1.z.string().nullable(),
 });
-/** A contract as `people.view` reads it: no wage. */
+/** A contract as `people.view` reads it: no wage, and no end reason. */
 exports.EmploymentContractBasic = ContractBase.extend({ view: zod_1.z.literal("basic") });
 /** A contract as `people.manage` or `payroll.run` reads it. */
 exports.EmploymentContractFull = ContractBase.extend({
     view: zod_1.z.literal("full"),
     wageRwf: primitives_1.RwfAmount,
+    /** Why it ended, which can say why the person left (058-people-file AC-PF2). */
+    endReason: zod_1.z.string().nullable(),
 });
 exports.EmploymentContract = zod_1.z.discriminatedUnion("view", [
     exports.EmploymentContractBasic,
@@ -111,7 +117,8 @@ const EmployeeBase = zod_1.z.object({
     displayName: zod_1.z.string(),
     phone: zod_1.z.string().nullable(),
     email: zod_1.z.string().nullable(),
-    sex: exports.HrSex.nullable(),
+    /** Read through `GET /ops/employees/:id/photo`, a short signed link; a work field. */
+    hasPhoto: zod_1.z.boolean(),
     workPropertyId: primitives_1.Uuid.nullable(),
     workPropertyName: zod_1.z.string().nullable(),
     jobPositionId: primitives_1.Uuid.nullable(),
@@ -121,7 +128,10 @@ const EmployeeBase = zod_1.z.object({
     hiredOn: booking_1.IsoDate,
     status: exports.EmployeeStatus,
     offboardedOn: booking_1.IsoDate.nullable(),
-    offboardReason: zod_1.z.string().nullable(),
+    employeeType: zod_1.z.object({ id: primitives_1.Uuid, title: zod_1.z.string() }).nullable(),
+    tags: zod_1.z.array(zod_1.z.object({ id: primitives_1.Uuid, title: zod_1.z.string(), tone: exports.TagTone })),
+    qualification: zod_1.z.string().nullable(),
+    priorExperienceYears: zod_1.z.number().int().nullable(),
     /** Whether the file is linked to an account (an `org_memberships` row). */
     hasAccount: zod_1.z.boolean(),
     /** The role that account holds here, when it does. Never held by the file. */
@@ -134,12 +144,37 @@ exports.EmployeeBasic = EmployeeBase.extend({
     currentContract: exports.EmploymentContractBasic.nullable(),
 });
 /** A file with the sensitive fields, for `people.manage` or `payroll.run`. */
+/** A home address: a village of the geography tables, and a street line. */
+exports.EmployeeAddress = zod_1.z.object({
+    villageId: zod_1.z.number().int(),
+    villageName: zod_1.z.string(),
+    cellName: zod_1.z.string(),
+    sectorName: zod_1.z.string(),
+    districtName: zod_1.z.string(),
+    street: zod_1.z.string().nullable(),
+});
+exports.EmergencyContact = zod_1.z.object({
+    name: zod_1.z.string(),
+    phone: zod_1.z.string().nullable(),
+    relation: zod_1.z.string().nullable(),
+});
 exports.EmployeeFull = EmployeeBase.extend({
     view: zod_1.z.literal("full"),
+    sex: exports.HrSex.nullable(),
     dateOfBirth: booking_1.IsoDate.nullable(),
     idDocumentType: exports.HrIdDocumentType.nullable(),
     idDocumentNumber: zod_1.z.string().nullable(),
     rssbNumber: zod_1.z.string().nullable(),
+    maritalStatus: exports.MaritalStatus.nullable(),
+    childrenCount: zod_1.z.number().int().nullable(),
+    address: exports.EmployeeAddress.nullable(),
+    emergencyContact: exports.EmergencyContact.nullable(),
+    /** Why they left, when they have. */
+    offboardReason: zod_1.z.string().nullable(),
+    /** Where service based rules count from; the hire date unless a rehire was credited (AC-PF14). */
+    serviceFrom: booking_1.IsoDate,
+    /** The file this one rehired. */
+    previousEmployeeId: primitives_1.Uuid.nullable(),
     currentContract: exports.EmploymentContractFull.nullable(),
 });
 exports.Employee = zod_1.z.discriminatedUnion("view", [exports.EmployeeBasic, exports.EmployeeFull]);
@@ -181,6 +216,13 @@ exports.CreateEmployeeRequest = zod_1.z.object({
     email: OptionalEmail.nullable().optional(),
     rssbNumber: RssbNumber.nullable().optional(),
     reportingManagerId: primitives_1.Uuid.nullable().optional(),
+    /** An active job position of the business (058-people-file AC-PF11). */
+    jobPositionId: primitives_1.Uuid.nullable().optional(),
+    /**
+     * Rehire a leaver as a new file (058-people-file AC-PF14). Sent after a create
+     * answered 409 `rehire_available` naming the offboarded file with this ID.
+     */
+    rehireOf: primitives_1.Uuid.optional(),
 });
 /**
  * `PATCH /ops/employees/:id`. Any file field; null clears a nullable one.
@@ -203,6 +245,24 @@ exports.UpdateEmployeeRequest = zod_1.z
     workPropertyId: primitives_1.Uuid,
     employeeNumber: EmployeeNumber,
     reportingManagerId: primitives_1.Uuid.nullable(),
+    /** An active job position; an archived one stays on files that carry it (AC-PF11). */
+    jobPositionId: primitives_1.Uuid.nullable(),
+    // 058-people-file AC-PF1. Each optional and nullable; a personal value is
+    // audited as "changed", never as itself.
+    maritalStatus: exports.MaritalStatus.nullable(),
+    childrenCount: zod_1.z.number().int().min(0).max(30).nullable(),
+    villageId: zod_1.z.number().int().positive().nullable(),
+    street: zod_1.z.string().trim().min(1).max(200).nullable(),
+    emergencyName: zod_1.z.string().trim().min(2).max(120).nullable(),
+    emergencyPhone: phone_1.RwPhoneNumber.nullable(),
+    emergencyRelation: zod_1.z.string().trim().min(2).max(60).nullable(),
+    qualification: zod_1.z.string().trim().min(2).max(120).nullable(),
+    priorExperienceYears: zod_1.z.number().int().min(0).max(60).nullable(),
+    employeeTypeId: primitives_1.Uuid.nullable(),
+    /** The whole set of tags; it replaces the file's tags. */
+    tagIds: zod_1.z.array(primitives_1.Uuid).max(20),
+    /** Credit an earlier employment: no later than the hire date (AC-PF14). */
+    serviceFrom: booking_1.IsoDate,
 })
     .partial()
     .refine((b) => (b.idDocumentType === undefined) === (b.idDocumentNumber === undefined), {

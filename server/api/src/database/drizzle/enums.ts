@@ -411,6 +411,13 @@ export const storedObjectKindEnum = pgEnum('stored_object_kind', [
   // kind would put the two under one retention rule and one access rule, and
   // they need neither in common.
   'training_certificate',
+  // ADR-058, the people file. Three kinds because they are read by three
+  // different sets of people: a photo is a work field anyone reading files
+  // may see, a document is `people.manage` only, and an attachment follows the
+  // record it hangs on (a note, a policy, an announcement, a disciplinary act).
+  'staff_photo',
+  'staff_document',
+  'hr_attachment',
 ]);
 
 
@@ -715,6 +722,39 @@ export const domainEventTypeEnum = pgEnum('domain_event_type', [
   'folio.balance',
   'ebm.health',
   'ebm.sale',
+  /**
+   * ADR-058 058-reports-automations AC-AU1: the closed list of HR triggers, all
+   * added at once in their own migration (0056) so every HR slice writes its
+   * events as it is built and the delivery slice only adds rules. Ids only in
+   * the payload, as every outbox row. The realtime fan out ignores them.
+   */
+  'leave.requested',
+  'leave.step2_pending',
+  'leave.decided',
+  'allocation.decided',
+  'roster.published',
+  'roster.changed',
+  'shift_request.decided',
+  'swap.requested',
+  'attendance.flagged',
+  'attendance_request.decided',
+  'document.requested',
+  'document.expiring',
+  'contract.ending',
+  'payslip.confirmed',
+  'claim.decided',
+  'pay_account.changed',
+  'ticket.created',
+  'ticket.status_changed',
+  'interview.scheduled',
+  'offer.sent',
+  'onboarding.link_sent',
+  'resignation.decided',
+  'asset.expiring',
+  'announcement.published',
+  'feedback.requested',
+  'exit_task.assigned',
+  'onboarding_task.assigned',
 ]);
 
 export const notificationCategoryEnum = pgEnum('notification_category', [
