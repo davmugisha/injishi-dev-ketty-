@@ -18,6 +18,7 @@ import { currentGrant, workspaceName } from "../store/helpers";
 import { usePms } from "../store";
 import { usePmsUi } from "../ui-store";
 import { useBranchInView } from "./branch-scope";
+import { AssistantLauncher } from "./assistant/assistant-panel";
 import { Icon } from "./icon";
 
 export function Topbar({ title }: { title: string }) {
@@ -192,6 +193,10 @@ export function Topbar({ title }: { title: string }) {
           and the bell is not a second destination. The count stays off until a
           feed answers for it — `nav-context.ts` holds the same line for every
           sidebar pill, that a fixture supplied number is not a count. */}
+      {/* The support assistant (ADR-061). In the bar, not floating: a floating
+          button sat under the demo guide and over table rows. */}
+      <AssistantLauncher />
+
       <Button asChild variant="outline" size="icon" shape="rounded" className="shrink-0">
         <Link href={wsHref("/inbox")} aria-label="Inbox">
           <Icon name="bell" size={18} />

@@ -145,10 +145,16 @@ export async function apiFetch<T>(
      * intent: a fresh key per attempt is exactly the double order it prevents.
      */
     idempotencyKey?: string;
+    /**
+     * A longer ceiling for the one kind of call that legitimately takes longer
+     * than a lookup: an assistant turn, which the API itself caps at 60 s
+     * (ADR-061 D-p). Everything else keeps the default.
+     */
+    timeoutMs?: number;
   },
 ): Promise<ApiResult<T>> {
   const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), API_TIMEOUT_MS);
+  const timer = setTimeout(() => controller.abort(), init?.timeoutMs ?? API_TIMEOUT_MS);
   const headers: Record<string, string> = {};
   if (init?.body) headers["content-type"] = "application/json";
   if (init?.idempotencyKey) headers["idempotency-key"] = init.idempotencyKey;

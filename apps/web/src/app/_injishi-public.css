@@ -48,6 +48,10 @@
  * listed directory happened to spell too, so the hero headline, the photo
  * frames and every grid on it compiled to nothing. */
 @source "../components/waitlist";
+/* The support assistant widget (ADR-061), mounted on every marketplace page.
+ * Missing when it landed: its launcher lost `fixed` and rendered at the foot of
+ * the page, where no visitor would find it. Caught in the browser walk. */
+@source "../components/assistant";
 
 @custom-variant dark (&:where(.dark, .dark *));
 

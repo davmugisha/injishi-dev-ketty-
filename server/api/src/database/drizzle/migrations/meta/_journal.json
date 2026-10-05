@@ -379,6 +379,20 @@
       "when": 1790843253806,
       "tag": "0053_hr_first_thread",
       "breakpoints": true
+    },
+    {
+      "idx": 54,
+      "version": "7",
+      "when": 1791036526276,
+      "tag": "0054_support_assistant",
+      "breakpoints": true
+    },
+    {
+      "idx": 55,
+      "version": "7",
+      "when": 1791036529323,
+      "tag": "0055_assistant_data_first",
+      "breakpoints": true
     }
   ]
 }
