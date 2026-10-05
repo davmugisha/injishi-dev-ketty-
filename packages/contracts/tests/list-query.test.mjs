@@ -1,11 +1,12 @@
 /**
  * The one list contract, pinned (ADR-058, 058-list-framework AC-LF3, AC-LF4).
  *
- * Three things carry the framework's safety and each is tested here: a list
+ * Four things carry the framework's safety and each is tested here: a list
  * refuses any field, operator or value its spec does not allow; a sensitive
  * field does not exist for a `basic` caller in any role (filter, sort, group);
- * and a query survives the trip through search parameters unchanged, so a
- * copied link opens the same view.
+ * a work figure can never be sorted, grouped or threshold filtered, and only
+ * its audience sees it (AC-LF12); and a query survives the trip through search
+ * parameters unchanged, so a copied link opens the same view.
  *
  *   pnpm --filter @injishi/contracts test
  */
@@ -18,7 +19,7 @@ const c = require("../dist/index.js");
 
 const SPEC = c.defineListSpec({
   key: "test.people",
-  searchable: true,
+  searchFields: ["name"],
   statusField: "status",
   defaultSort: [{ field: "name", dir: "asc" }],
   fields: [
@@ -27,6 +28,7 @@ const SPEC = c.defineListSpec({
     { key: "hiredOn", label: "Hired on", type: "date", filterable: true, sortable: true },
     { key: "wage", label: "Wage", type: "money", filterable: true, sortable: true, sensitive: true },
     { key: "branch", label: "Branch", type: "ref", filterable: true, groupable: true },
+    { key: "lateMinutes", label: "Late minutes", type: "number", filterable: true, figure: true },
   ],
 });
 
@@ -51,6 +53,29 @@ describe("defineListSpec refuses a broken declaration at load", () => {
     assert.throws(() =>
       c.defineListSpec({ key: "x", defaultSort: [{ field: "a", dir: "asc" }], fields: [{ key: "a", label: "A", type: "text" }] }),
     );
+  });
+  test("a work figure that could be sorted or grouped (AC-LF12)", () => {
+    for (const ability of ["sortable", "groupable"]) {
+      assert.throws(
+        () => c.defineListSpec({ key: "x", fields: [{ key: "a", label: "A", type: "number", figure: true, [ability]: true }] }),
+        /work figure/,
+      );
+    }
+  });
+  test("a search field that is undeclared, not text, sensitive or a figure (AC-LF13)", () => {
+    const fields = [
+      { key: "t", label: "T", type: "text" },
+      { key: "n", label: "N", type: "number" },
+      { key: "s", label: "S", type: "text", sensitive: true },
+    ];
+    assert.doesNotThrow(() => c.defineListSpec({ key: "x", searchFields: ["t"], fields }));
+    for (const name of ["missing", "n", "s"]) {
+      assert.throws(() => c.defineListSpec({ key: "x", searchFields: [name], fields }), /search field/);
+    }
+  });
+  test("a stage field may be an enum or a ref, nothing else (AC-LF14)", () => {
+    assert.doesNotThrow(() => c.defineListSpec({ key: "x", stageField: "a", fields: [{ key: "a", label: "A", type: "ref" }] }));
+    assert.throws(() => c.defineListSpec({ key: "x", stageField: "a", fields: [{ key: "a", label: "A", type: "text" }] }));
   });
 });
 
@@ -120,6 +145,36 @@ describe("a sensitive field does not exist for a basic caller (AC-LF4)", () => {
   });
 });
 
+describe("a work figure never ranks anyone (AC-LF12, contract 7)", () => {
+  const audience = { view: "full", figures: true };
+  test("only an equality kind of filter applies to it", () => {
+    assert.deepEqual([...c.opsFor({ type: "number", figure: true })], ["eq", "ne", "isNull", "isNotNull"]);
+    const threshold = { filters: [{ field: "lateMinutes", op: "gte", value: 30 }] };
+    assert.deepEqual(c.checkListQuery(SPEC, parse(threshold), audience).map((i) => i.path), ["filters.0"]);
+    const exact = { filters: [{ field: "lateMinutes", op: "eq", value: 0 }] };
+    assert.deepEqual(c.checkListQuery(SPEC, parse(exact), audience), []);
+  });
+  test("outside its audience the field does not exist, whatever the file view", () => {
+    const exact = { filters: [{ field: "lateMinutes", op: "eq", value: 0 }] };
+    assert.deepEqual(issues(exact, "full"), ["filters.0"]);
+    assert.ok(!c.visibleFields(SPEC, "full").some((f) => f.key === "lateMinutes"));
+    assert.ok(c.visibleFields(SPEC, audience).some((f) => f.key === "lateMinutes"));
+  });
+});
+
+describe("the page and select all", () => {
+  test("a page may carry the stages of a ref stage field", () => {
+    const Page = c.listPage(c.ListStage);
+    const page = { items: [], total: 0, page: 1, pageSize: 25, stages: [{ key: "s1", label: "Screening" }] };
+    assert.deepEqual(Page.parse(page), page);
+  });
+  test("the ids answer is capped at the bulk limit", () => {
+    const id = "00000000-0000-4000-8000-000000000000";
+    assert.ok(c.ListIds.safeParse({ ids: Array(c.MAX_BULK_IDS).fill(id), total: 900 }).success);
+    assert.ok(!c.ListIds.safeParse({ ids: Array(c.MAX_BULK_IDS + 1).fill(id), total: 900 }).success);
+  });
+});
+
 describe("the query survives search parameters (AC-LF2)", () => {
   test("encode then decode returns the same query", () => {
     const query = parse({
@@ -147,6 +202,20 @@ describe("the query survives search parameters (AC-LF2)", () => {
   });
   test("a page size outside the list is refused", () => {
     assert.equal(c.decodeListQuery(new URLSearchParams({ size: "1000" })).ok, false);
+  });
+});
+
+describe("the HR lists keep their declarations sound", () => {
+  test("each searches only plain text fields, and the pay run list has no search", () => {
+    for (const spec of [c.EMPLOYEE_LIST, c.ROSTER_LIST, c.ATTENDANCE_LIST, c.LEAVE_REQUEST_LIST]) {
+      assert.ok((spec.searchFields ?? []).length > 0, spec.key);
+    }
+    assert.equal(c.PAY_RUN_LIST.searchFields, undefined);
+    assert.deepEqual(c.checkListQuery(c.PAY_RUN_LIST, parse({ q: "march" }), "full").map((i) => i.path), ["q"]);
+  });
+  test("a basic reader cannot touch the employee list's date of birth", () => {
+    const query = parse({ sort: [{ field: "dateOfBirth", dir: "asc" }] });
+    assert.deepEqual(c.checkListQuery(c.EMPLOYEE_LIST, query, "basic").map((i) => i.path), ["sort.0"]);
   });
 });
 

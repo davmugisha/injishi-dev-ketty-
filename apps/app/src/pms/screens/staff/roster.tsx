@@ -120,7 +120,7 @@ export function Roster() {
                 value={pick.employeeId}
                 onChange={(v) => setPick({ ...pick, employeeId: v })}
                 placeholder="Choose someone"
-                options={(employees.data?.items ?? []).map((e) => ({ value: e.id, label: e.displayName }))}
+                options={(employees.data ?? []).map((e) => ({ value: e.id, label: e.displayName }))}
               />
             </Field>
           </div>

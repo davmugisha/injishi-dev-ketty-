@@ -117,7 +117,7 @@ export function Employees() {
     );
   }
 
-  const all = query.data.items;
+  const all = query.data;
   const shown = all.filter((e) => e.status === filter);
   const working = all.filter((e) => e.status === "active").length;
   const full = all.some((e) => e.view === "full");

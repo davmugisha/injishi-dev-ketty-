@@ -172,7 +172,7 @@ const asOwner = await get(owner, `/ops/employees/${cook?.id}`);
 check('owner reads the same route in full, with the ID', asOwner.body?.employee?.view === 'full' && asOwner.body?.employee?.idDocumentNumber === cookBody.idDocumentNumber, asOwner.body?.employee?.view);
 const deskList = await get(desk, '/ops/employees');
 check('the desk cannot read files: 403', deskList.status === 403, deskList.status);
-const managerList = await get(manager, '/ops/employees?limit=200');
+const managerList = await get(manager, '/ops/employees?size=100');
 check('manager list is basic too', managerList.status === 200 && managerList.body.items.every((e) => e.view === 'basic' && !('idDocumentNumber' in e)), managerList.status);
 check('backfilled files read detailsMissing', managerList.body?.items?.some((e) => e.hasAccount && e.detailsMissing.length > 0), '');
 

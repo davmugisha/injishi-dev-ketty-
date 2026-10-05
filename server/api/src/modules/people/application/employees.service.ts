@@ -4,11 +4,13 @@ import type {
   CreateEmployeeRequest,
   Employee,
   EmployeeFile,
-  EmployeeListQuery,
   EmployeePage,
+  ListIds,
+  ListQuery,
   OffboardEmployeeRequest,
   UpdateEmployeeRequest,
 } from '@injishi/contracts';
+import { EMPLOYEE_LIST } from '@injishi/contracts';
 import {
   ConflictException,
   ForbiddenException,
@@ -21,6 +23,9 @@ import {
 import { assertOwnedByOrg } from '../../../shared/auth/assert-owned';
 import { assertInBranchScope, type ScopedWorkspace } from '../../../shared/auth/branch-scope';
 import { DRIZZLE, type Database } from '../../../shared/database/database.module';
+import { toCsv, type CsvColumn } from '../../../shared/lists/csv';
+import { pageOf } from '../../../shared/lists/list-query';
+import { ListExportService } from '../../lists/application/list-export.service';
 import { isCalendarDate } from '../../booking/domain/pricing';
 import { addDays, kigaliToday, lastOfMonth, monthOf } from '../domain/hr-calendar';
 import {
@@ -33,6 +38,7 @@ import { auditDiff, writeHrAudit } from '../infrastructure/hr-audit';
 import { TimeRepository } from '../infrastructure/time.repository';
 import {
   detailsMissing,
+  displayNameOf,
   presentContract,
   presentContractFull,
   presentEmployee,
@@ -40,7 +46,6 @@ import {
 import { assertPersonInReach, fileViewFor, orgOf } from './hr-access';
 import { LeaveService } from './leave.service';
 
-const DEFAULT_LIMIT = 50;
 
 /**
  * HR files, contracts and offboarding (ADR-058, first thread).
@@ -57,29 +62,67 @@ export class EmployeesService {
     private readonly employees: EmployeesRepository,
     private readonly time: TimeRepository,
     private readonly leave: LeaveService,
+    private readonly exports: ListExportService,
   ) {}
 
   // --- Reads ---------------------------------------------------------------
 
-  /** `GET /ops/employees`: a page, in the shape the caller may read (AC-P2). */
-  async list(ws: ScopedWorkspace, query: EmployeeListQuery): Promise<EmployeePage> {
+  /**
+   * `GET /ops/employees`: one page through the list contract, in the shape the
+   * caller may read (AC-P2, AC-LF3, AC-LF4).
+   */
+  async list(ws: ScopedWorkspace, query: ListQuery): Promise<EmployeePage> {
     const orgId = orgOf(ws);
-    const limit = query.limit ?? DEFAULT_LIMIT;
-    const rows = await this.employees.list({
-      orgId,
-      scope: ws.branchScope,
-      status: query.status,
-      propertyId: query.propertyId,
-      departmentId: query.departmentId,
-      after: query.cursor,
-      limit: limit + 1,
-    });
-    const page = rows.slice(0, limit);
-    const contracts = await this.employees.currentContracts(page.map((r) => r.id));
     const view = fileViewFor(ws);
+    const page = await this.employees.listPage({ orgId, scope: ws.branchScope, view, query });
+    const contracts = await this.employees.currentContracts(page.rows.map((r) => r.id));
+    return pageOf(
+      page.rows.map((r) => presentEmployee(r, contracts.get(r.id) ?? null, view)),
+      page.total,
+      query,
+      { groups: page.groups, statusCounts: page.statusCounts },
+    );
+  }
+
+  /** `GET /ops/employees/ids`: select all, under the same view rule as the list (AC-LF15). */
+  ids(ws: ScopedWorkspace, query: ListQuery): Promise<ListIds> {
+    return this.employees.listIds({ orgId: orgOf(ws), scope: ws.branchScope, view: fileViewFor(ws), query });
+  }
+
+  /**
+   * `GET /ops/employees/export.csv`: the current view as CSV (AC-LF7). The same
+   * query and the same view rule as the list, every page of it up to the cap,
+   * the personal columns only for a `full` view, and one `report_runs` row.
+   */
+  async exportCsv(
+    ws: ScopedWorkspace,
+    userId: string,
+    query: ListQuery,
+    columnKeys: readonly string[] | null,
+  ): Promise<{ filename: string; body: string }> {
+    const orgId = orgOf(ws);
+    const view = fileViewFor(ws);
+    const rows: EmployeeRow[] = [];
+    let total = 0;
+    for (let page = 1; ; page += 1) {
+      const chunk = await this.employees.listPage({
+        orgId,
+        scope: ws.branchScope,
+        view,
+        query: { ...query, page, pageSize: 100, groupBy: undefined },
+      });
+      if (page === 1) {
+        total = chunk.total;
+        this.exports.assertExportable(total);
+      }
+      rows.push(...chunk.rows);
+      if (chunk.rows.length < 100 || rows.length >= total) break;
+    }
+    const columns = employeeCsvColumns(view).filter((c) => !columnKeys || columnKeys.includes(c.key));
+    await this.exports.log(ws, userId, EMPLOYEE_LIST.key, query, rows.length);
     return {
-      items: page.map((r) => presentEmployee(r, contracts.get(r.id) ?? null, view)),
-      nextCursor: rows.length > limit ? page[page.length - 1].employeeNumber : null,
+      filename: `staff-employees-${kigaliToday()}.csv`,
+      body: toCsv(columns, rows),
     };
   }
 
@@ -501,6 +544,42 @@ export class EmployeesService {
     }
     return error;
   }
+}
+
+/**
+ * The employee export's columns (AC-LF7). The personal ones exist only for a
+ * `full` view, the same split as the presenter's two file shapes (AC-P2), so a
+ * `people.view` holder's export carries no date of birth, ID or RSSB number.
+ */
+type EmployeeCsvColumn = CsvColumn<EmployeeRow> & { key: string };
+function employeeCsvColumns(view: 'basic' | 'full'): EmployeeCsvColumn[] {
+  const common: EmployeeCsvColumn[] = [
+    { key: 'employeeNumber', header: 'Number', value: (r) => r.employeeNumber },
+    { key: 'name', header: 'Name', value: (r) => displayNameOf(r) },
+    { key: 'legalName', header: 'Legal name', value: (r) => r.legalName },
+    { key: 'status', header: 'Status', value: (r) => (r.status === 'active' ? 'Working' : 'Left') },
+    { key: 'branch', header: 'Branch', value: (r) => r.workPropertyName },
+    { key: 'jobPosition', header: 'Job position', value: (r) => r.jobPositionTitle },
+    { key: 'hiredOn', header: 'Hired on', value: (r) => r.hiredOn },
+    { key: 'offboardedOn', header: 'Last day', value: (r) => r.offboardedOn },
+    { key: 'phone', header: 'Phone', value: (r) => r.phone },
+    { key: 'email', header: 'Email', value: (r) => r.email },
+    {
+      key: 'hasAccount',
+      header: 'Has an account',
+      value: (r) => r.orgMembershipId !== null && r.membershipStatus === 'active',
+    },
+    { key: 'detailsMissing', header: 'Details missing', value: (r) => detailsMissing(r).join(' ') },
+  ];
+  if (view === 'basic') return common;
+  return [
+    ...common,
+    { key: 'dateOfBirth', header: 'Date of birth', value: (r) => r.dateOfBirth },
+    { key: 'sex', header: 'Sex', value: (r) => r.sex },
+    { key: 'idDocumentType', header: 'ID type', value: (r) => r.idDocumentType },
+    { key: 'idDocumentNumber', header: 'ID number', value: (r) => r.idDocumentNumber },
+    { key: 'rssbNumber', header: 'RSSB number', value: (r) => r.rssbNumber },
+  ];
 }
 
 const MISSING_WORDS: Record<string, string> = {

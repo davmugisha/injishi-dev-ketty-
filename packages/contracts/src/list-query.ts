@@ -13,6 +13,12 @@ import type { Permission } from "./authz";
  * A field marked `sensitive` (date of birth, ID number, RSSB number, wages,
  * bank details) is invisible to a caller whose file view is `basic`: it cannot
  * be returned, filtered, sorted, grouped or exported for them (AC-LF4).
+ *
+ * A field marked `figure` measures a person's work (late minutes, overtime,
+ * leave taken, objective progress). The no ranking rule (contract 7) is
+ * enforced here rather than on each screen: such a field can never be sorted,
+ * grouped or filtered by a threshold, and only a reader the list counts in its
+ * figure audience sees it at all (AC-LF12).
  */
 // ---------------------------------------------------------------------------
 // Vocabulary
@@ -66,8 +72,26 @@ export const OPS_FOR_TYPE: Readonly<Record<ListFieldType, readonly ListFilterOp[
     bool: ["eq", "isNull", "isNotNull"],
     ref: ["eq", "ne", "in", "nin", "isNull", "isNotNull"],
 };
+/** The operators a work figure allows: never one that orders, so no threshold rebuilds a ranking. */
+const FIGURE_OPS: readonly ListFilterOp[] = ["eq", "ne", "in", "nin", "isNull", "isNotNull"];
+/** The operators one field allows: its type's, narrowed for a work figure. */
+export function opsFor(field: Pick<ListField, "type" | "figure">): readonly ListFilterOp[] {
+    const ops = OPS_FOR_TYPE[field.type];
+    return field.figure ? ops.filter((op) => FIGURE_OPS.includes(op)) : ops;
+}
 /** The file view a caller reads (058-first-thread AC-P2). */
 export type ListView = "basic" | "full";
+/**
+ * Who reads a list: their file view, and whether the list's route counts them
+ * in its figure audience (AC-LF12). A bare view means no figures.
+ */
+export interface ListReader {
+    readonly view: ListView;
+    readonly figures?: boolean;
+}
+function readerOf(reader: ListView | ListReader): ListReader {
+    return typeof reader === "string" ? { view: reader } : reader;
+}
 export interface ListField {
     /** The wire name. Never a column name. */
     readonly key: string;
@@ -78,6 +102,8 @@ export interface ListField {
     readonly groupable?: boolean;
     /** Shown, filtered, sorted, grouped and exported for a `full` view only. */
     readonly sensitive?: boolean;
+    /** A measure of a person's work: never sortable, groupable or threshold filtered (AC-LF12). */
+    readonly figure?: boolean;
     /** Required for `enum` fields: the values, in display order. */
     readonly enumValues?: readonly string[];
     /** Labels for enum values, when the raw value is not fit to show. */
@@ -91,19 +117,24 @@ export interface ListSpec {
     /** Unique across the product, e.g. `staff.employees`. Saved views key on it. */
     readonly key: string;
     readonly fields: readonly ListField[];
-    /** An enum field whose values are the kanban columns, when the list has a board. */
+    /**
+     * The kanban columns, when the list has a board: an enum field, or a `ref`
+     * whose stages the route supplies in `ListPage.stages` (AC-LF14).
+     */
     readonly stageField?: string;
     /** An enum field the status chips count and filter by. */
     readonly statusField?: string;
-    /** Whether the toolbar offers free text search (`q`). */
-    readonly searchable?: boolean;
+    /** The text fields free text search (`q`) runs over; none means the list has no search (AC-LF13). */
+    readonly searchFields?: readonly string[];
     /** The order when the query names none. */
     readonly defaultSort?: readonly ListSort[];
 }
 /**
  * Declare a list. Refuses at module load (so a mistake fails the build and the
- * tests, never a request) a duplicate key, an enum without values, or a stage
- * or status field that is not a declared enum.
+ * tests, never a request) a duplicate key, an enum without values, a stage or
+ * status field of the wrong type, a default sort on an unsortable field, a
+ * search field that is not a plain text field, and a work figure that could be
+ * sorted or grouped.
  */
 export function defineListSpec<const S extends ListSpec>(spec: S): S {
     const keys = new Set<string>();
@@ -114,26 +145,36 @@ export function defineListSpec<const S extends ListSpec>(spec: S): S {
         if (field.type === "enum" && !(field.enumValues && field.enumValues.length > 0)) {
             throw new Error(`List ${spec.key}: enum field ${field.key} has no values.`);
         }
+        if (field.figure && (field.sortable || field.groupable)) {
+            throw new Error(`List ${spec.key}: ${field.key} is a work figure, which is never sorted or grouped.`);
+        }
     }
-    for (const role of ["stageField", "statusField"] as const) {
-        const name = spec[role];
-        if (name === undefined)
-            continue;
-        const field = spec.fields.find((f) => f.key === name);
-        if (!field || field.type !== "enum") {
-            throw new Error(`List ${spec.key}: ${role} ${name} must be a declared enum field.`);
+    const fieldOf = (name: string) => spec.fields.find((f) => f.key === name);
+    if (spec.stageField !== undefined) {
+        const type = fieldOf(spec.stageField)?.type;
+        if (type !== "enum" && type !== "ref") {
+            throw new Error(`List ${spec.key}: stageField ${spec.stageField} must be a declared enum or ref field.`);
+        }
+    }
+    if (spec.statusField !== undefined && fieldOf(spec.statusField)?.type !== "enum") {
+        throw new Error(`List ${spec.key}: statusField ${spec.statusField} must be a declared enum field.`);
+    }
+    for (const name of spec.searchFields ?? []) {
+        const field = fieldOf(name);
+        if (!field || field.type !== "text" || field.sensitive || field.figure) {
+            throw new Error(`List ${spec.key}: search field ${name} must be a declared text field that is neither sensitive nor a figure.`);
         }
     }
     for (const sort of spec.defaultSort ?? []) {
-        const field = spec.fields.find((f) => f.key === sort.field);
-        if (!field?.sortable)
+        if (!fieldOf(sort.field)?.sortable)
             throw new Error(`List ${spec.key}: default sort ${sort.field} is not sortable.`);
     }
     return Object.freeze(spec);
 }
-/** The fields a caller with this view may see at all. */
-export function visibleFields(spec: ListSpec, view: ListView): readonly ListField[] {
-    return view === "full" ? spec.fields : spec.fields.filter((f) => !f.sensitive);
+/** The fields a reader may see at all: no sensitive field for a `basic` view, no figure outside the figure audience. */
+export function visibleFields(spec: ListSpec, reader: ListView | ListReader): readonly ListField[] {
+    const { view, figures } = readerOf(reader);
+    return spec.fields.filter((f) => (view === "full" || !f.sensitive) && (figures || !f.figure));
 }
 // ---------------------------------------------------------------------------
 // The query
@@ -176,10 +217,10 @@ export interface ListQueryIssue {
  * to drop the parts of a saved view or a pasted link that no longer fit, so the
  * two can never disagree about what a list allows.
  */
-export function checkListQuery(spec: ListSpec, query: ListQuery, view: ListView): ListQueryIssue[] {
+export function checkListQuery(spec: ListSpec, query: ListQuery, reader: ListView | ListReader): ListQueryIssue[] {
     const issues: ListQueryIssue[] = [];
-    const fields = new Map(visibleFields(spec, view).map((f) => [f.key, f]));
-    if (query.q !== undefined && query.q !== "" && !spec.searchable) {
+    const fields = new Map(visibleFields(spec, reader).map((f) => [f.key, f]));
+    if (query.q !== undefined && query.q !== "" && (spec.searchFields ?? []).length === 0) {
         issues.push({ path: "q", message: "This list has no search." });
     }
     query.filters.forEach((filter, i) => {
@@ -189,7 +230,7 @@ export function checkListQuery(spec: ListSpec, query: ListQuery, view: ListView)
             issues.push({ path, message: `${filter.field} cannot be filtered.` });
             return;
         }
-        if (!OPS_FOR_TYPE[field.type].includes(filter.op)) {
+        if (!opsFor(field).includes(filter.op)) {
             issues.push({ path, message: `${filter.op} does not apply to ${field.label}.` });
             return;
         }
@@ -248,8 +289,8 @@ function valueProblem(field: ListField, filter: ListFilter): string | null {
     return scalarFits(field, value) ? null : `The value does not fit ${field.label}.`;
 }
 /** The query with every part that does not fit the spec removed (for links and saved views). */
-export function fitListQuery(spec: ListSpec, query: ListQuery, view: ListView): ListQuery {
-    const issues = new Set(checkListQuery(spec, query, view).map((i) => i.path));
+export function fitListQuery(spec: ListSpec, query: ListQuery, reader: ListView | ListReader): ListQuery {
+    const issues = new Set(checkListQuery(spec, query, reader).map((i) => i.path));
     return {
         ...query,
         q: issues.has("q") ? undefined : query.q,
@@ -273,6 +314,12 @@ export const ListCount = z.object({
     count: z.number().int().nonnegative(),
 });
 export type ListCount = z.infer<typeof ListCount>;
+/** A kanban column for a `ref` stage field, in board order (per opening stages, for example). */
+export const ListStage = z.object({
+    key: z.string(),
+    label: z.string(),
+});
+export type ListStage = z.infer<typeof ListStage>;
 /** `ListPage` of a given row schema. */
 export function listPage<T extends z.ZodTypeAny>(item: T) {
     return z.object({
@@ -282,6 +329,7 @@ export function listPage<T extends z.ZodTypeAny>(item: T) {
         pageSize: ListPageSize,
         groups: z.array(ListGroup).optional(),
         statusCounts: z.array(ListCount).optional(),
+        stages: z.array(ListStage).optional(),
     });
 }
 export type ListPage<T> = {
@@ -291,6 +339,7 @@ export type ListPage<T> = {
     pageSize: ListPageSize;
     groups?: ListGroup[];
     statusCounts?: ListCount[];
+    stages?: ListStage[];
 };
 // ---------------------------------------------------------------------------
 // On the wire: a GET's search parameters
@@ -442,6 +491,16 @@ export const BulkResult = z.object({
 });
 export const BulkResponse = z.object({ results: z.array(BulkResult) });
 export type BulkResponse = z.infer<typeof BulkResponse>;
+/**
+ * What a list's `ids` route answers for select all (AC-LF15): the ids matching
+ * the filter, at most `MAX_BULK_IDS`, and how many match. Above the cap the
+ * screen asks to narrow the filter rather than act on part of it.
+ */
+export const ListIds = z.object({
+    ids: z.array(z.string().uuid()).max(MAX_BULK_IDS),
+    total: z.number().int().nonnegative(),
+});
+export type ListIds = z.infer<typeof ListIds>;
 /** Export caps (AC-LF7). */
 export const MAX_EXPORT_ROWS = 10000;
 // ---------------------------------------------------------------------------

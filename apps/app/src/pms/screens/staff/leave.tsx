@@ -217,7 +217,7 @@ function FileLeave({ onDone }: { onDone: () => void }) {
             value={draft.employeeId}
             onChange={(v) => setDraft({ ...draft, employeeId: v, leaveTypeId: "" })}
             placeholder="Choose someone"
-            options={(employees.data?.items ?? []).map((e) => ({ value: e.id, label: e.displayName }))}
+            options={(employees.data ?? []).map((e) => ({ value: e.id, label: e.displayName }))}
           />
         </Field>
         <Field

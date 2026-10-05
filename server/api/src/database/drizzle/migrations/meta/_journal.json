@@ -379,6 +379,13 @@
       "when": 1790843253806,
       "tag": "0053_hr_first_thread",
       "breakpoints": true
+    },
+    {
+      "idx": 54,
+      "version": "7",
+      "when": 1791165973069,
+      "tag": "0054_list_framework",
+      "breakpoints": true
     }
   ]
 }

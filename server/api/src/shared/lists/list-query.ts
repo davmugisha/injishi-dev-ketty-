@@ -3,11 +3,14 @@ import {
   decodeListQuery,
   type ListCount,
   type ListField,
+  type ListFilterOp,
   type ListGroup,
   type ListPage,
   type ListQuery,
+  type ListReader,
   type ListSort,
   type ListSpec,
+  type ListStage,
   type ListView,
 } from '@injishi/contracts';
 import {
@@ -20,7 +23,6 @@ import {
   and,
   asc,
   between,
-  desc,
   eq,
   gt,
   gte,
@@ -32,6 +34,7 @@ import {
   lte,
   ne,
   notInArray,
+  or,
   sql,
   type AnyColumn,
   type SQL,
@@ -48,12 +51,27 @@ import {
  *
  * Nothing here accepts a column name from a request. A field key the spec does
  * not allow is refused 422 before any SQL is built, a sensitive field is
- * refused for a `basic` caller the same way (AC-LF3, AC-LF4), and a key the
- * spec allows but the map lacks is a programming error, not a request error.
+ * refused for a `basic` caller the same way (AC-LF3, AC-LF4), a work figure for
+ * a reader outside its audience too (AC-LF12), and a key the spec allows but
+ * the map lacks is a programming error, not a request error.
  */
 
-/** Field key to column or expression. The only place a list names a column. */
-export type ListColumns = Readonly<Record<string, AnyColumn | SQL>>;
+/**
+ * A field that is not one column: its filter is built by the repository (a
+ * person in several departments is an EXISTS, not an equality). Such a field
+ * may still sort or group by an expression when the spec allows it.
+ */
+export interface CustomListColumn {
+  readonly filter: (op: ListFilterOp, value: unknown) => SQL;
+  readonly expr?: AnyColumn | SQL;
+}
+
+/** Field key to column, expression or custom field. The only place a list names a column. */
+export type ListColumns = Readonly<Record<string, AnyColumn | SQL | CustomListColumn>>;
+
+function isCustom(column: AnyColumn | SQL | CustomListColumn): column is CustomListColumn {
+  return typeof (column as CustomListColumn).filter === 'function';
+}
 
 export interface CompiledList {
   /** Spec filters and search, ANDed. Undefined when there are none. */
@@ -72,10 +90,9 @@ export interface CompiledList {
 export interface CompileInput {
   readonly spec: ListSpec;
   readonly columns: ListColumns;
-  readonly view: ListView;
+  /** The caller's file view, and whether the route counts them in the list's figure audience. */
+  readonly reader: ListView | ListReader;
   readonly query: ListQuery;
-  /** Builds the search condition for `q`; required when the spec is searchable. */
-  readonly search?: (q: string) => SQL | undefined;
   /** Appended to every order, so pages never shuffle rows with equal sort values. */
   readonly tieBreaker: AnyColumn | SQL;
 }
@@ -85,10 +102,18 @@ export function escapeLike(value: string): string {
   return value.replace(/[\\%_]/g, (c) => `\\${c}`);
 }
 
-function columnFor(columns: ListColumns, spec: ListSpec, key: string): AnyColumn | SQL {
+function entryFor(columns: ListColumns, spec: ListSpec, key: string): AnyColumn | SQL | CustomListColumn {
   const column = columns[key];
   if (!column) throw new Error(`List ${spec.key}: field ${key} has no column mapped.`);
   return column;
+}
+
+/** The column or expression a field sorts and groups by. */
+function columnFor(columns: ListColumns, spec: ListSpec, key: string): AnyColumn | SQL {
+  const entry = entryFor(columns, spec, key);
+  if (!isCustom(entry)) return entry;
+  if (!entry.expr) throw new Error(`List ${spec.key}: custom field ${key} has no expression to sort or group by.`);
+  return entry.expr;
 }
 
 function asValue(field: ListField, value: unknown): unknown {
@@ -137,8 +162,8 @@ function filterSql(field: ListField, column: AnyColumn | SQL, op: string, value:
  * Check the query against the spec (422 with every issue) and compile it.
  */
 export function compileListQuery(input: CompileInput): CompiledList {
-  const { spec, columns, view, query } = input;
-  const issues = checkListQuery(spec, query, view);
+  const { spec, columns, reader, query } = input;
+  const issues = checkListQuery(spec, query, reader);
   if (issues.length > 0) {
     throw new UnprocessableEntityException({
       code: 'list_query_not_allowed',
@@ -150,19 +175,21 @@ export function compileListQuery(input: CompileInput): CompiledList {
 
   const filterParts: { field: string; sql: SQL }[] = query.filters.map((filter) => {
     const field = fields.get(filter.field) as ListField;
+    const entry = entryFor(columns, spec, filter.field);
     return {
       field: filter.field,
-      sql: filterSql(field, columnFor(columns, spec, filter.field), filter.op, filter.value),
+      sql: isCustom(entry)
+        ? entry.filter(filter.op, filter.value)
+        : filterSql(field, entry, filter.op, filter.value),
     };
   });
 
-  const searchPart =
-    query.q && spec.searchable
-      ? (() => {
-          if (!input.search) throw new Error(`List ${spec.key} is searchable but has no search builder.`);
-          return input.search(query.q);
-        })()
-      : undefined;
+  // Search runs over the spec's search fields and nothing else (AC-LF13);
+  // `checkListQuery` has already refused `q` on a list that names none.
+  const like = query.q ? `%${escapeLike(query.q)}%` : undefined;
+  const searchPart = like
+    ? or(...(spec.searchFields ?? []).map((key) => ilike(columnFor(columns, spec, key) as AnyColumn, like)))
+    : undefined;
 
   const all = [...filterParts.map((p) => p.sql), ...(searchPart ? [searchPart] : [])];
   const withoutStatus = [
@@ -170,12 +197,18 @@ export function compileListQuery(input: CompileInput): CompiledList {
     ...(searchPart ? [searchPart] : []),
   ];
 
+  // With grouping on, rows come group by group, in the order `groupsOf` lists
+  // the groups, so a page never interleaves two groups (AC-LF14).
+  const groupColumn = query.groupBy ? columnFor(columns, spec, query.groupBy) : undefined;
   const sorts: readonly ListSort[] = query.sort.length > 0 ? query.sort : (spec.defaultSort ?? []);
-  const orderBy = sorts.map((s) => {
-    const column = columnFor(columns, spec, s.field);
-    return s.dir === 'desc' ? sql`${column} desc nulls last` : sql`${column} asc nulls last`;
-  });
-  orderBy.push(asc(input.tieBreaker as AnyColumn));
+  const orderBy = [
+    ...(groupColumn ? [groupOrder(groupColumn)] : []),
+    ...sorts.map((s) => {
+      const column = columnFor(columns, spec, s.field);
+      return s.dir === 'desc' ? sql`${column} desc nulls last` : sql`${column} asc nulls last`;
+    }),
+    asc(input.tieBreaker as AnyColumn),
+  ];
 
   return {
     where: all.length > 0 ? and(...all) : undefined,
@@ -183,9 +216,14 @@ export function compileListQuery(input: CompileInput): CompiledList {
     orderBy,
     limit: query.pageSize,
     offset: (query.page - 1) * query.pageSize,
-    groupColumn: query.groupBy ? columnFor(columns, spec, query.groupBy) : undefined,
+    groupColumn,
     statusColumn: spec.statusField ? columnFor(columns, spec, spec.statusField) : undefined,
   };
+}
+
+/** The one order groups take, for the rows and for the group counts alike. */
+export function groupOrder(groupColumn: AnyColumn | SQL): SQL {
+  return sql`${groupColumn} asc nulls last`;
 }
 
 /** `count(*)` as an int, for the total and the group and status counts. */
@@ -208,7 +246,11 @@ export function groupsOf(
     const label =
       key === null
         ? 'None'
-        : (labels.get(key) ?? field?.enumLabels?.[key] ?? key);
+        : field?.type === 'bool'
+          ? key === 'true'
+            ? 'Yes'
+            : 'No'
+          : (labels.get(key) ?? field?.enumLabels?.[key] ?? key);
     return { key, label, count: Number(row.count) };
   });
 }
@@ -224,7 +266,7 @@ export function pageOf<T>(
   items: T[],
   total: number,
   query: ListQuery,
-  extras: { groups?: ListGroup[]; statusCounts?: ListCount[] } = {},
+  extras: { groups?: ListGroup[]; statusCounts?: ListCount[]; stages?: ListStage[] } = {},
 ): ListPage<T> {
   return {
     items,
@@ -233,6 +275,7 @@ export function pageOf<T>(
     pageSize: query.pageSize,
     ...(extras.groups ? { groups: extras.groups } : {}),
     ...(extras.statusCounts ? { statusCounts: extras.statusCounts } : {}),
+    ...(extras.stages ? { stages: extras.stages } : {}),
   };
 }
 

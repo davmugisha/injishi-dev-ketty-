@@ -1,7 +1,7 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.LeaveType = exports.CorrectAttendanceRequest = exports.ClockOutRequest = exports.ClockInRequest = exports.AttendanceQuery = exports.AttendanceList = exports.AttendanceRecord = exports.CancelRosterEntryRequest = exports.CreateRosterEntryRequest = exports.RosterQuery = exports.RosterList = exports.RosterEntry = exports.CreateShiftTemplateRequest = exports.ShiftTemplateQuery = exports.ShiftTemplateList = exports.ShiftTemplate = exports.ShiftTemplateStatus = exports.OffboardEmployeeRequest = exports.CreateContractResponse = exports.CreateContractRequest = exports.UpdateEmployeeRequest = exports.CreateEmployeeRequest = exports.EmployeeListQuery = exports.EmployeePage = exports.EmployeeFile = exports.EmployeeDepartment = exports.Employee = exports.EmployeeFull = exports.EmployeeBasic = exports.EmploymentContract = exports.EmploymentContractFull = exports.EmploymentContractBasic = exports.RosterCard = exports.EMPLOYEE_MISSING_DETAIL_LABEL = exports.EmployeeMissingDetail = exports.TimeOfDay = exports.LeaveEndHalf = exports.LeaveStartHalf = exports.LeaveRequestStatus = exports.LeaveEntryKind = exports.LeaveAccrual = exports.AttendanceStatus = exports.AttendanceSource = exports.RosterStatus = exports.ContractStatus = exports.WageBasis = exports.ContractType = exports.EmployeeStatus = exports.HrIdDocumentType = exports.HrSex = void 0;
-exports.LeaveDecisionRequest = exports.CreateLeaveRequestRequest = exports.LeaveRequestQuery = exports.LeaveRequestList = exports.LeaveRequest = exports.LeaveBalances = exports.LeaveBalance = exports.LeaveLedgerEntry = void 0;
+exports.LeaveBalance = exports.LeaveLedgerEntry = exports.LeaveType = exports.CorrectAttendanceRequest = exports.ClockOutRequest = exports.ClockInRequest = exports.AttendanceQuery = exports.AttendanceList = exports.AttendanceRecord = exports.CancelRosterEntryRequest = exports.CreateRosterEntryRequest = exports.RosterQuery = exports.RosterList = exports.RosterEntry = exports.CreateShiftTemplateRequest = exports.ShiftTemplateQuery = exports.ShiftTemplateList = exports.ShiftTemplate = exports.ShiftTemplateStatus = exports.OffboardEmployeeRequest = exports.CreateContractResponse = exports.CreateContractRequest = exports.UpdateEmployeeRequest = exports.CreateEmployeeRequest = exports.EmployeeFile = exports.EmployeeDepartment = exports.Employee = exports.EmployeeFull = exports.EmployeeBasic = exports.EmploymentContract = exports.EmploymentContractFull = exports.EmploymentContractBasic = exports.RosterCard = exports.EMPLOYEE_MISSING_DETAIL_LABEL = exports.EmployeeMissingDetail = exports.TimeOfDay = exports.LeaveEndHalf = exports.LeaveStartHalf = exports.LeaveRequestStatus = exports.LeaveEntryKind = exports.LeaveAccrual = exports.AttendanceStatus = exports.AttendanceSource = exports.RosterStatus = exports.ContractStatus = exports.WageBasis = exports.ContractType = exports.EmployeeStatus = exports.HrIdDocumentType = exports.HrSex = void 0;
+exports.LeaveDecisionRequest = exports.CreateLeaveRequestRequest = exports.LeaveRequestQuery = exports.LeaveRequestList = exports.LeaveRequest = exports.LeaveBalances = void 0;
 const zod_1 = require("zod");
 const booking_1 = require("./booking");
 const phone_1 = require("./phone");
@@ -156,17 +156,8 @@ exports.EmployeeFile = zod_1.z.object({
     contracts: zod_1.z.array(exports.EmploymentContract),
     departments: zod_1.z.array(exports.EmployeeDepartment),
 });
-exports.EmployeePage = zod_1.z.object({
-    items: zod_1.z.array(exports.Employee),
-    nextCursor: zod_1.z.string().nullable(),
-});
-exports.EmployeeListQuery = zod_1.z.object({
-    status: exports.EmployeeStatus.optional(),
-    propertyId: primitives_1.Uuid.optional(),
-    departmentId: primitives_1.Uuid.optional(),
-    cursor: zod_1.z.string().trim().max(200).optional(),
-    limit: zod_1.z.coerce.number().int().min(1).max(200).optional(),
-});
+// The employee list's page and query are `EMPLOYEE_LIST` and `EmployeePage` in
+// `hr-lists.ts` (058-list-framework), which replaced the first thread's cursor.
 const LegalName = zod_1.z.string().trim().min(2, "Enter the name as it is on the ID.").max(200);
 const IdDocumentNumber = zod_1.z.string().trim().min(3, "Enter the ID number.").max(40);
 const RssbNumber = zod_1.z.string().trim().min(3, "Enter the RSSB number.").max(40);

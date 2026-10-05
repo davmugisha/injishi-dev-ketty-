@@ -1,9 +1,9 @@
-import { defineListSpec, ListQuery } from '@injishi/contracts';
+import { defineListSpec, ListQuery, type ListReader } from '@injishi/contracts';
 import { BadRequestException, UnprocessableEntityException } from '@nestjs/common';
-import { ilike, or, sql } from 'drizzle-orm';
+import { sql } from 'drizzle-orm';
 import { PgDialect, date, integer, pgTable, text, uuid } from 'drizzle-orm/pg-core';
 
-import { compileListQuery, escapeLike, groupsOf, ListQueryPipe, pageOf } from './list-query';
+import { compileListQuery, groupsOf, ListQueryPipe, pageOf, type CompiledList } from './list-query';
 
 /**
  * The server half of the list contract (058-list-framework AC-LF3, AC-LF4).
@@ -14,15 +14,17 @@ import { compileListQuery, escapeLike, groupsOf, ListQueryPipe, pageOf } from '.
 const people = pgTable('people', {
   id: uuid('id').primaryKey(),
   name: text('name').notNull(),
+  phone: text('phone'),
   status: text('status').notNull(),
   hiredOn: date('hired_on').notNull(),
   wage: integer('wage'),
   branchId: uuid('branch_id'),
+  lateMinutes: integer('late_minutes'),
 });
 
 const SPEC = defineListSpec({
   key: 'test.people',
-  searchable: true,
+  searchFields: ['name', 'phone'],
   statusField: 'status',
   defaultSort: [{ field: 'name', dir: 'asc' }],
   fields: [
@@ -31,6 +33,8 @@ const SPEC = defineListSpec({
     { key: 'hiredOn', label: 'Hired on', type: 'date', filterable: true, sortable: true },
     { key: 'wage', label: 'Wage', type: 'money', filterable: true, sortable: true, sensitive: true },
     { key: 'branch', label: 'Branch', type: 'ref', filterable: true, groupable: true },
+    { key: 'phone', label: 'Phone', type: 'text' },
+    { key: 'lateMinutes', label: 'Late minutes', type: 'number', filterable: true, figure: true },
   ],
 });
 
@@ -40,19 +44,20 @@ const COLUMNS = {
   hiredOn: people.hiredOn,
   wage: people.wage,
   branch: people.branchId,
+  phone: people.phone,
+  lateMinutes: people.lateMinutes,
 };
 
 const dialect = new PgDialect();
-const render = (fragment: ReturnType<typeof sql> | undefined) =>
+const render = (fragment: ReturnType<typeof sql> | undefined): { sql: string; params: unknown[] } | undefined =>
   fragment ? dialect.sqlToQuery(fragment) : undefined;
 
-function compile(input: object, view: 'basic' | 'full' = 'full') {
+function compile(input: object, reader: 'basic' | 'full' | ListReader = 'full'): CompiledList {
   return compileListQuery({
     spec: SPEC,
     columns: COLUMNS,
-    view,
+    reader,
     query: ListQuery.parse(input),
-    search: (q) => or(ilike(people.name, `%${escapeLike(q)}%`)),
     tieBreaker: people.id,
   });
 }
@@ -73,11 +78,11 @@ describe('compileListQuery', () => {
     expect(where.params).toEqual(['active', '2026-01-01', '2026-06-30']);
   });
 
-  it('searches with the repository builder and escapes wildcards a person typed', () => {
+  it('searches the spec search fields and nothing else, escaping wildcards a person typed (AC-LF13)', () => {
     const compiled = compile({ q: '50%_off' });
     const where = render(compiled.where)!;
-    expect(where.sql).toContain('ilike');
-    expect(where.params).toEqual(['%50\\%\\_off%']);
+    expect(where.sql).toBe('("people"."name" ilike $1 or "people"."phone" ilike $2)');
+    expect(where.params).toEqual(['%50\\%\\_off%', '%50\\%\\_off%']);
   });
 
   it('leaves the status filter out of the status count condition only', () => {
@@ -129,6 +134,23 @@ describe('compileListQuery', () => {
     expect(compile({}).groupColumn).toBeUndefined();
     expect(compile({ groupBy: 'branch' }).groupColumn).toBe(people.branchId);
   });
+
+  it('orders by the group first, so a page never interleaves groups (AC-LF14)', () => {
+    const grouped = compile({ groupBy: 'status', sort: [{ field: 'hiredOn', dir: 'desc' }] });
+    expect(grouped.orderBy.map((o) => dialect.sqlToQuery(o).sql)).toEqual([
+      '"people"."status" asc nulls last',
+      '"people"."hired_on" desc nulls last',
+      '"people"."id" asc',
+    ]);
+  });
+
+  it('allows a work figure only to its audience, and never with a threshold (AC-LF12)', () => {
+    const exact = { filters: [{ field: 'lateMinutes', op: 'eq', value: 0 }] };
+    expect(() => compile(exact, 'full')).toThrow(UnprocessableEntityException);
+    expect(() => compile(exact, { view: 'full', figures: true })).not.toThrow();
+    const threshold = { filters: [{ field: 'lateMinutes', op: 'gte', value: 30 }] };
+    expect(() => compile(threshold, { view: 'full', figures: true })).toThrow(UnprocessableEntityException);
+  });
 });
 
 describe('groupsOf and pageOf', () => {
@@ -152,6 +174,11 @@ describe('groupsOf and pageOf', () => {
   it('assembles the page with the query paging', () => {
     const page = pageOf(['a'], 41, ListQuery.parse({ page: 2, pageSize: 10 }));
     expect(page).toEqual({ items: ['a'], total: 41, page: 2, pageSize: 10 });
+  });
+
+  it('carries the stages a ref stage field needs, only when given', () => {
+    const stages = [{ key: 's1', label: 'Screening' }];
+    expect(pageOf([], 0, ListQuery.parse({}), { stages }).stages).toEqual(stages);
   });
 });
 

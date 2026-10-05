@@ -1,14 +1,22 @@
-import type {
-  ContractStatus,
-  ContractType,
-  EmployeeStatus,
-  HrIdDocumentType,
-  HrSex,
-  OrgRole,
-  WageBasis,
+import {
+  EMPLOYEE_LIST,
+  type ContractStatus,
+  type ContractType,
+  type EmployeeStatus,
+  type HrIdDocumentType,
+  type HrSex,
+  type ListCount,
+  type ListFilterOp,
+  type ListGroup,
+  type ListIds,
+  type ListQuery,
+  type ListView,
+  MAX_BULK_IDS,
+  type OrgRole,
+  type WageBasis,
 } from '@injishi/contracts';
 import { Inject, Injectable } from '@nestjs/common';
-import { and, asc, desc, eq, gt, inArray, isNotNull, lte, ne, or, sql } from 'drizzle-orm';
+import { and, asc, desc, eq, inArray, isNotNull, lte, ne, or, sql, type SQL } from 'drizzle-orm';
 import { alias } from 'drizzle-orm/pg-core';
 
 import {
@@ -26,6 +34,15 @@ import {
 } from '../../../database/drizzle/schema';
 import { inBranchScope, type BranchScope } from '../../../shared/auth/branch-scope';
 import { DRIZZLE, type Database } from '../../../shared/database/database.module';
+import {
+  compileListQuery,
+  countAll,
+  groupOrder,
+  groupsOf,
+  statusCountsOf,
+  type CompiledList,
+  type ListColumns,
+} from '../../../shared/lists/list-query';
 
 export type Tx = Parameters<Parameters<Database['transaction']>[0]>[0];
 
@@ -102,6 +119,31 @@ export function violatedConstraint(error: unknown, code = '23505'): string | nul
 const manager = alias(employees, 'reporting_manager');
 
 /**
+ * "In department X" for a person who may sit in several departments: an
+ * EXISTS over the active roster rows, never a join that would repeat the file.
+ */
+function inDepartment(op: ListFilterOp, value: unknown): SQL {
+  const member = (extra?: SQL): SQL =>
+    sql`exists (select 1 from ${departmentMembers} where ${departmentMembers.employeeId} = ${employees.id} and ${departmentMembers.status} = 'active'${extra ? sql` and ${extra}` : sql``})`;
+  switch (op) {
+    case 'eq':
+      return member(eq(departmentMembers.departmentId, value as string));
+    case 'ne':
+      return sql`not ${member(eq(departmentMembers.departmentId, value as string))}`;
+    case 'in':
+      return member(inArray(departmentMembers.departmentId, value as string[]));
+    case 'nin':
+      return sql`not ${member(inArray(departmentMembers.departmentId, value as string[]))}`;
+    case 'isNull':
+      return sql`not ${member()}`;
+    case 'isNotNull':
+      return member();
+    default:
+      throw new Error(`The department field does not support ${op}.`);
+  }
+}
+
+/**
  * HR files and contracts (ADR-058). The only place that touches Drizzle for
  * them.
  *
@@ -155,32 +197,136 @@ export class EmployeesRepository {
       .leftJoin(orgMemberships, eq(orgMemberships.id, employees.orgMembershipId));
   }
 
-  /** One page of a business's files, by employee number, in the caller's branches. */
-  async list(input: {
+  /**
+   * The employee list's one field to column map (058-list-framework). The only
+   * place the list names a column; `EMPLOYEE_LIST` in contracts says which
+   * fields may be filtered, sorted and grouped.
+   */
+  private readonly listColumns: ListColumns = {
+    employeeNumber: employees.employeeNumber,
+    name: sql`coalesce(nullif(btrim(${employees.preferredName}), ''), ${employees.legalName})`,
+    legalName: employees.legalName,
+    phone: employees.phone,
+    status: employees.status,
+    branch: employees.workPropertyId,
+    department: { filter: (op, value) => inDepartment(op, value) },
+    jobPosition: employees.jobPositionId,
+    hiredOn: employees.hiredOn,
+    hasAccount: sql`(${employees.orgMembershipId} is not null and ${orgMemberships.status} = 'active')`,
+    // The same four checks as `detailsMissing` in the presenter.
+    detailsMissing: sql`(${employees.phone} is null or ${employees.dateOfBirth} is null or ${employees.sex} is null or ${employees.idDocumentType} is null or ${employees.idDocumentNumber} is null)`,
+    dateOfBirth: employees.dateOfBirth,
+  };
+
+  /** The list query compiled, and the business and branch condition it is added to. */
+  private compiled(input: { orgId: string; scope: BranchScope; view: ListView; query: ListQuery }): {
+    compiled: CompiledList;
+    own: SQL | undefined;
+    where: SQL | undefined;
+  } {
+    const compiled = compileListQuery({
+      spec: EMPLOYEE_LIST,
+      columns: this.listColumns,
+      reader: input.view,
+      query: input.query,
+      tieBreaker: employees.id,
+    });
+    const own = and(eq(employees.orgId, input.orgId), inBranchScope(employees.workPropertyId, input.scope));
+    return { compiled, own, where: compiled.where ? and(own, compiled.where) : own };
+  }
+
+  /**
+   * One page of a business's files in the caller's branches, filtered, sorted
+   * and grouped as the query asks and the spec allows (AC-LF3, AC-LF4). The org
+   * and branch conditions come first and the list query only adds to them.
+   */
+  async listPage(input: {
     orgId: string;
     scope: BranchScope;
-    status?: EmployeeStatus;
-    propertyId?: string;
-    departmentId?: string;
-    after?: string;
-    limit: number;
-  }): Promise<EmployeeRow[]> {
-    const where = [
-      eq(employees.orgId, input.orgId),
-      inBranchScope(employees.workPropertyId, input.scope),
-    ];
-    if (input.status) where.push(eq(employees.status, input.status));
-    if (input.propertyId) where.push(eq(employees.workPropertyId, input.propertyId));
-    if (input.departmentId) {
-      where.push(
-        sql`exists (select 1 from ${departmentMembers} where ${departmentMembers.employeeId} = ${employees.id} and ${departmentMembers.departmentId} = ${input.departmentId} and ${departmentMembers.status} = 'active')`,
-      );
+    view: ListView;
+    query: ListQuery;
+  }): Promise<{ rows: EmployeeRow[]; total: number; groups: ListGroup[] | undefined; statusCounts: ListCount[] }> {
+    const { compiled, own, where } = this.compiled(input);
+    const [rows, [{ count }], statusRows, groupRows] = await Promise.all([
+      this.base()
+        .where(where)
+        .orderBy(...compiled.orderBy)
+        .limit(compiled.limit)
+        .offset(compiled.offset) as Promise<EmployeeRow[]>,
+      this.db
+        .select({ count: countAll })
+        .from(employees)
+        .leftJoin(orgMemberships, eq(orgMemberships.id, employees.orgMembershipId))
+        .where(where),
+      this.db
+        .select({ value: employees.status, count: countAll })
+        .from(employees)
+        .leftJoin(orgMemberships, eq(orgMemberships.id, employees.orgMembershipId))
+        .where(compiled.whereForStatusCounts ? and(own, compiled.whereForStatusCounts) : own)
+        .groupBy(employees.status),
+      compiled.groupColumn
+        ? this.db
+            .select({ key: sql`${compiled.groupColumn}`, count: countAll })
+            .from(employees)
+            .leftJoin(orgMemberships, eq(orgMemberships.id, employees.orgMembershipId))
+            .where(where)
+            .groupBy(sql`${compiled.groupColumn}`)
+            .orderBy(groupOrder(compiled.groupColumn))
+        : Promise.resolve([] as { key: unknown; count: number }[]),
+    ]);
+
+    const labels = await this.groupLabels(input.query.groupBy, groupRows.map((g) => g.key));
+    return {
+      rows,
+      total: Number(count),
+      groups: groupsOf(EMPLOYEE_LIST, input.query.groupBy, groupRows, labels),
+      statusCounts: statusCountsOf(statusRows),
+    };
+  }
+
+  /**
+   * Select all (AC-LF15): the ids matching the query in list order, at most the
+   * bulk cap, and how many match, so the screen can refuse to act on part of a
+   * filter silently.
+   */
+  async listIds(input: { orgId: string; scope: BranchScope; view: ListView; query: ListQuery }): Promise<ListIds> {
+    const { compiled, where } = this.compiled(input);
+    const [rows, [{ count }]] = await Promise.all([
+      this.db
+        .select({ id: employees.id })
+        .from(employees)
+        .leftJoin(orgMemberships, eq(orgMemberships.id, employees.orgMembershipId))
+        .where(where)
+        .orderBy(...compiled.orderBy)
+        .limit(MAX_BULK_IDS),
+      this.db
+        .select({ count: countAll })
+        .from(employees)
+        .leftJoin(orgMemberships, eq(orgMemberships.id, employees.orgMembershipId))
+        .where(where),
+    ]);
+    return { ids: rows.map((r) => r.id), total: Number(count) };
+  }
+
+  /** Names for grouped ids: a branch's name, a position's title. */
+  private async groupLabels(groupBy: string | undefined, keys: readonly unknown[]): Promise<Map<string, string>> {
+    const ids = keys.filter((k): k is string => typeof k === 'string');
+    if (ids.length === 0) return new Map();
+    if (groupBy === 'branch') {
+      const rows = await this.db
+        .select({ id: properties.id, name: properties.name })
+        .from(properties)
+        .where(inArray(properties.id, ids));
+      return new Map(rows.map((r) => [r.id, r.name]));
     }
-    if (input.after) where.push(gt(employees.employeeNumber, input.after));
-    return (await this.base()
-      .where(and(...where))
-      .orderBy(asc(employees.employeeNumber))
-      .limit(input.limit)) as EmployeeRow[];
+    if (groupBy === 'jobPosition') {
+      const rows = await this.db
+        .select({ id: jobPositions.id, name: jobPositions.title })
+        .from(jobPositions)
+        .where(inArray(jobPositions.id, ids));
+      return new Map(rows.map((r) => [r.id, r.name]));
+    }
+    return new Map();
   }
 
   async find(id: string, tx?: Tx): Promise<EmployeeRow | null> {

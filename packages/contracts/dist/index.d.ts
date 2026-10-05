@@ -37,4 +37,5 @@ export * from "./identity";
 export * from "./people";
 export * from "./payroll";
 export * from "./list-query";
+export * from "./hr-lists";
 //# sourceMappingURL=index.d.ts.map

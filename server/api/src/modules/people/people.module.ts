@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common';
 
 import { isWorkerProcess } from '../../shared/process/process-role';
+import { ListsModule } from '../lists/lists.module';
 import { EmployeesService } from './application/employees.service';
 import { HrDailyService } from './application/hr-daily.service';
 import { LeaveService } from './application/leave.service';
@@ -28,6 +29,8 @@ import { TimeRepository } from './infrastructure/time.repository';
  * daily processor runs ONLY in the worker process.
  */
 @Module({
+  // The list framework: export rules and the export log (058-list-framework).
+  imports: [ListsModule],
   providers: [
     EmployeesRepository,
     TimeRepository,

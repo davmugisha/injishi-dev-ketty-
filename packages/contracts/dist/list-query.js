@@ -1,6 +1,7 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.LIST_READ = exports.MAX_EXPORT_ROWS = exports.BulkResponse = exports.BulkResult = exports.BulkRequest = exports.MAX_BULK_IDS = exports.UpdateSavedViewRequest = exports.CreateSavedViewRequest = exports.SavedViewList = exports.SavedView = exports.SavedViewConfig = exports.ListViewKind = exports.ListCount = exports.ListGroup = exports.ListQuery = exports.ListPageSize = exports.DEFAULT_PAGE_SIZE = exports.LIST_PAGE_SIZES = exports.ListSortSchema = exports.ListFilter = exports.OPS_FOR_TYPE = exports.ListFilterOp = exports.ListFieldType = void 0;
+exports.LIST_READ = exports.MAX_EXPORT_ROWS = exports.ListIds = exports.BulkResponse = exports.BulkResult = exports.BulkRequest = exports.MAX_BULK_IDS = exports.UpdateSavedViewRequest = exports.CreateSavedViewRequest = exports.SavedViewList = exports.SavedView = exports.SavedViewConfig = exports.ListViewKind = exports.ListStage = exports.ListCount = exports.ListGroup = exports.ListQuery = exports.ListPageSize = exports.DEFAULT_PAGE_SIZE = exports.LIST_PAGE_SIZES = exports.ListSortSchema = exports.ListFilter = exports.OPS_FOR_TYPE = exports.ListFilterOp = exports.ListFieldType = void 0;
+exports.opsFor = opsFor;
 exports.defineListSpec = defineListSpec;
 exports.visibleFields = visibleFields;
 exports.checkListQuery = checkListQuery;
@@ -23,6 +24,12 @@ const zod_1 = require("zod");
  * A field marked `sensitive` (date of birth, ID number, RSSB number, wages,
  * bank details) is invisible to a caller whose file view is `basic`: it cannot
  * be returned, filtered, sorted, grouped or exported for them (AC-LF4).
+ *
+ * A field marked `figure` measures a person's work (late minutes, overtime,
+ * leave taken, objective progress). The no ranking rule (contract 7) is
+ * enforced here rather than on each screen: such a field can never be sorted,
+ * grouped or filtered by a threshold, and only a reader the list counts in its
+ * figure audience sees it at all (AC-LF12).
  */
 // ---------------------------------------------------------------------------
 // Vocabulary
@@ -74,10 +81,22 @@ exports.OPS_FOR_TYPE = {
     bool: ["eq", "isNull", "isNotNull"],
     ref: ["eq", "ne", "in", "nin", "isNull", "isNotNull"],
 };
+/** The operators a work figure allows: never one that orders, so no threshold rebuilds a ranking. */
+const FIGURE_OPS = ["eq", "ne", "in", "nin", "isNull", "isNotNull"];
+/** The operators one field allows: its type's, narrowed for a work figure. */
+function opsFor(field) {
+    const ops = exports.OPS_FOR_TYPE[field.type];
+    return field.figure ? ops.filter((op) => FIGURE_OPS.includes(op)) : ops;
+}
+function readerOf(reader) {
+    return typeof reader === "string" ? { view: reader } : reader;
+}
 /**
  * Declare a list. Refuses at module load (so a mistake fails the build and the
- * tests, never a request) a duplicate key, an enum without values, or a stage
- * or status field that is not a declared enum.
+ * tests, never a request) a duplicate key, an enum without values, a stage or
+ * status field of the wrong type, a default sort on an unsortable field, a
+ * search field that is not a plain text field, and a work figure that could be
+ * sorted or grouped.
  */
 function defineListSpec(spec) {
     const keys = new Set();
@@ -88,26 +107,36 @@ function defineListSpec(spec) {
         if (field.type === "enum" && !(field.enumValues && field.enumValues.length > 0)) {
             throw new Error(`List ${spec.key}: enum field ${field.key} has no values.`);
         }
+        if (field.figure && (field.sortable || field.groupable)) {
+            throw new Error(`List ${spec.key}: ${field.key} is a work figure, which is never sorted or grouped.`);
+        }
     }
-    for (const role of ["stageField", "statusField"]) {
-        const name = spec[role];
-        if (name === undefined)
-            continue;
-        const field = spec.fields.find((f) => f.key === name);
-        if (!field || field.type !== "enum") {
-            throw new Error(`List ${spec.key}: ${role} ${name} must be a declared enum field.`);
+    const fieldOf = (name) => spec.fields.find((f) => f.key === name);
+    if (spec.stageField !== undefined) {
+        const type = fieldOf(spec.stageField)?.type;
+        if (type !== "enum" && type !== "ref") {
+            throw new Error(`List ${spec.key}: stageField ${spec.stageField} must be a declared enum or ref field.`);
+        }
+    }
+    if (spec.statusField !== undefined && fieldOf(spec.statusField)?.type !== "enum") {
+        throw new Error(`List ${spec.key}: statusField ${spec.statusField} must be a declared enum field.`);
+    }
+    for (const name of spec.searchFields ?? []) {
+        const field = fieldOf(name);
+        if (!field || field.type !== "text" || field.sensitive || field.figure) {
+            throw new Error(`List ${spec.key}: search field ${name} must be a declared text field that is neither sensitive nor a figure.`);
         }
     }
     for (const sort of spec.defaultSort ?? []) {
-        const field = spec.fields.find((f) => f.key === sort.field);
-        if (!field?.sortable)
+        if (!fieldOf(sort.field)?.sortable)
             throw new Error(`List ${spec.key}: default sort ${sort.field} is not sortable.`);
     }
     return Object.freeze(spec);
 }
-/** The fields a caller with this view may see at all. */
-function visibleFields(spec, view) {
-    return view === "full" ? spec.fields : spec.fields.filter((f) => !f.sensitive);
+/** The fields a reader may see at all: no sensitive field for a `basic` view, no figure outside the figure audience. */
+function visibleFields(spec, reader) {
+    const { view, figures } = readerOf(reader);
+    return spec.fields.filter((f) => (view === "full" || !f.sensitive) && (figures || !f.figure));
 }
 // ---------------------------------------------------------------------------
 // The query
@@ -141,10 +170,10 @@ exports.ListQuery = zod_1.z.object({
  * to drop the parts of a saved view or a pasted link that no longer fit, so the
  * two can never disagree about what a list allows.
  */
-function checkListQuery(spec, query, view) {
+function checkListQuery(spec, query, reader) {
     const issues = [];
-    const fields = new Map(visibleFields(spec, view).map((f) => [f.key, f]));
-    if (query.q !== undefined && query.q !== "" && !spec.searchable) {
+    const fields = new Map(visibleFields(spec, reader).map((f) => [f.key, f]));
+    if (query.q !== undefined && query.q !== "" && (spec.searchFields ?? []).length === 0) {
         issues.push({ path: "q", message: "This list has no search." });
     }
     query.filters.forEach((filter, i) => {
@@ -154,7 +183,7 @@ function checkListQuery(spec, query, view) {
             issues.push({ path, message: `${filter.field} cannot be filtered.` });
             return;
         }
-        if (!exports.OPS_FOR_TYPE[field.type].includes(filter.op)) {
+        if (!opsFor(field).includes(filter.op)) {
             issues.push({ path, message: `${filter.op} does not apply to ${field.label}.` });
             return;
         }
@@ -213,8 +242,8 @@ function valueProblem(field, filter) {
     return scalarFits(field, value) ? null : `The value does not fit ${field.label}.`;
 }
 /** The query with every part that does not fit the spec removed (for links and saved views). */
-function fitListQuery(spec, query, view) {
-    const issues = new Set(checkListQuery(spec, query, view).map((i) => i.path));
+function fitListQuery(spec, query, reader) {
+    const issues = new Set(checkListQuery(spec, query, reader).map((i) => i.path));
     return {
         ...query,
         q: issues.has("q") ? undefined : query.q,
@@ -236,6 +265,11 @@ exports.ListCount = zod_1.z.object({
     value: zod_1.z.string(),
     count: zod_1.z.number().int().nonnegative(),
 });
+/** A kanban column for a `ref` stage field, in board order (per opening stages, for example). */
+exports.ListStage = zod_1.z.object({
+    key: zod_1.z.string(),
+    label: zod_1.z.string(),
+});
 /** `ListPage` of a given row schema. */
 function listPage(item) {
     return zod_1.z.object({
@@ -245,6 +279,7 @@ function listPage(item) {
         pageSize: exports.ListPageSize,
         groups: zod_1.z.array(exports.ListGroup).optional(),
         statusCounts: zod_1.z.array(exports.ListCount).optional(),
+        stages: zod_1.z.array(exports.ListStage).optional(),
     });
 }
 // ---------------------------------------------------------------------------
@@ -377,6 +412,15 @@ exports.BulkResult = zod_1.z.object({
     status: zod_1.z.number().int().optional(),
 });
 exports.BulkResponse = zod_1.z.object({ results: zod_1.z.array(exports.BulkResult) });
+/**
+ * What a list's `ids` route answers for select all (AC-LF15): the ids matching
+ * the filter, at most `MAX_BULK_IDS`, and how many match. Above the cap the
+ * screen asks to narrow the filter rather than act on part of it.
+ */
+exports.ListIds = zod_1.z.object({
+    ids: zod_1.z.array(zod_1.z.string().uuid()).max(exports.MAX_BULK_IDS),
+    total: zod_1.z.number().int().nonnegative(),
+});
 /** Export caps (AC-LF7). */
 exports.MAX_EXPORT_ROWS = 10000;
 // ---------------------------------------------------------------------------

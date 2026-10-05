@@ -31,6 +31,7 @@ import {
   RosterList,
   ShiftTemplate,
   ShiftTemplateList,
+  encodeListQuery,
   type CorrectAttendanceRequest,
   type CreateContractRequest,
   type CreateEmployeeRequest,
@@ -74,13 +75,29 @@ function refresh(client: QueryClient, ...nouns: string[]): void {
 
 // --- Reads ---------------------------------------------------------------------
 
+/** The most files one read gathers, a page of 100 at a time. Past it a picker needs search, not a longer list. */
+const MAX_FILES_READ = 1000;
+
+/** Every file of a status in the caller's branches, page after page of the list route (058-list-framework). */
+async function readEmployees(ws: string, status?: EmployeeStatus): Promise<Employee[]> {
+  const items: Employee[] = [];
+  for (let page = 1; items.length < MAX_FILES_READ; page += 1) {
+    const params = new URLSearchParams(
+      encodeListQuery({ filters: status ? [{ field: "status", op: "eq", value: status }] : [], page, pageSize: 100 }),
+    );
+    const chunk = await read(`/ops/employees?${params.toString()}`, ws, EmployeePage);
+    items.push(...chunk.items);
+    if (chunk.items.length < 100 || items.length >= chunk.total) break;
+  }
+  return items;
+}
+
 /** Every file in the caller's branches, in the shape their grant reads (AC-P2). */
-export function useEmployees(ws: string | null, status?: EmployeeStatus): UseQueryResult<EmployeePage> {
+export function useEmployees(ws: string | null, status?: EmployeeStatus): UseQueryResult<Employee[]> {
   const mayRead = useMayRead(OPS_READ.employees);
   return useQuery({
     queryKey: peopleKeys.employees(ws, status),
-    queryFn: () =>
-      read(`/ops/employees?limit=200${status ? `&status=${status}` : ""}`, ws as string, EmployeePage),
+    queryFn: () => readEmployees(ws as string, status),
     enabled: ws !== null && mayRead,
   });
 }

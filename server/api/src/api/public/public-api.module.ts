@@ -8,6 +8,7 @@ import { ListingSetupModule } from '../../modules/listing-setup/listing-setup.mo
 import { ListingModule } from '../../modules/listing/listing.module';
 import { OperationsModule } from '../../modules/operations/operations.module';
 import { OrganizationModule } from '../../modules/organization/organization.module';
+import { ListsModule } from '../../modules/lists/lists.module';
 import { PeopleModule } from '../../modules/people/people.module';
 import { StorageModule } from '../../modules/storage/storage.module';
 import { UserModule } from '../../modules/user/user.module';
@@ -35,6 +36,7 @@ import { OpsRolesController } from './ops/roles.controller';
 import { OpsTeamController } from './ops/team.controller';
 import { OpsAttendanceController } from './ops/attendance.controller';
 import { OpsEmployeesController } from './ops/employees.controller';
+import { OpsListViewsController } from './ops/list-views.controller';
 import { OpsLeaveController } from './ops/leave.controller';
 import { OpsPayRunsController } from './ops/pay-runs.controller';
 import { OpsRosterController, OpsShiftTemplatesController } from './ops/roster.controller';
@@ -106,6 +108,8 @@ import { WaitlistModule } from './waitlist/waitlist.module';
     OrganizationModule,
     // The HR module (ADR-058): files, roster, attendance, leave and pay.
     PeopleModule,
+    // The list framework (ADR-058 slice 2): saved views and the export log.
+    ListsModule,
     StorageModule,
     UserModule,
     // POST /support/tickets, the public support intake; limits and caps are
@@ -163,6 +167,8 @@ import { WaitlistModule } from './waitlist/waitlist.module';
     // The HR module (ADR-058, first thread). Every route behind WorkspaceGuard
     // with one of the seven HR permissions.
     OpsEmployeesController,
+    // Saved list views for every list (058-list-framework).
+    OpsListViewsController,
     OpsShiftTemplatesController,
     OpsRosterController,
     OpsAttendanceController,

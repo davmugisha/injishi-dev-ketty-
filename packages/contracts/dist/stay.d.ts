@@ -80,7 +80,7 @@ export declare const MyStay: z.ZodObject<{
     balanceRwf: number | null;
     folioId: string | null;
     bookingReference: string | null;
-    checkInMode: "staffed" | "self";
+    checkInMode: "self" | "staffed";
     openRefundRequestId: string | null;
 }, {
     id: string;
@@ -96,7 +96,7 @@ export declare const MyStay: z.ZodObject<{
     balanceRwf: number | null;
     folioId: string | null;
     bookingReference: string | null;
-    checkInMode: "staffed" | "self";
+    checkInMode: "self" | "staffed";
     openRefundRequestId: string | null;
 }>;
 export type MyStay = z.infer<typeof MyStay>;
@@ -136,7 +136,7 @@ export declare const MyStays: z.ZodObject<{
         balanceRwf: number | null;
         folioId: string | null;
         bookingReference: string | null;
-        checkInMode: "staffed" | "self";
+        checkInMode: "self" | "staffed";
         openRefundRequestId: string | null;
     }, {
         id: string;
@@ -152,7 +152,7 @@ export declare const MyStays: z.ZodObject<{
         balanceRwf: number | null;
         folioId: string | null;
         bookingReference: string | null;
-        checkInMode: "staffed" | "self";
+        checkInMode: "self" | "staffed";
         openRefundRequestId: string | null;
     }>, "many">;
 }, "strip", z.ZodTypeAny, {
@@ -170,7 +170,7 @@ export declare const MyStays: z.ZodObject<{
         balanceRwf: number | null;
         folioId: string | null;
         bookingReference: string | null;
-        checkInMode: "staffed" | "self";
+        checkInMode: "self" | "staffed";
         openRefundRequestId: string | null;
     }[];
 }, {
@@ -188,7 +188,7 @@ export declare const MyStays: z.ZodObject<{
         balanceRwf: number | null;
         folioId: string | null;
         bookingReference: string | null;
-        checkInMode: "staffed" | "self";
+        checkInMode: "self" | "staffed";
         openRefundRequestId: string | null;
     }[];
 }>;
@@ -236,7 +236,7 @@ export declare const ClaimStayResult: z.ZodObject<{
         balanceRwf: number | null;
         folioId: string | null;
         bookingReference: string | null;
-        checkInMode: "staffed" | "self";
+        checkInMode: "self" | "staffed";
         openRefundRequestId: string | null;
     }, {
         id: string;
@@ -252,7 +252,7 @@ export declare const ClaimStayResult: z.ZodObject<{
         balanceRwf: number | null;
         folioId: string | null;
         bookingReference: string | null;
-        checkInMode: "staffed" | "self";
+        checkInMode: "self" | "staffed";
         openRefundRequestId: string | null;
     }>;
     /** True when this call did the binding, false when it had already happened. */
@@ -272,7 +272,7 @@ export declare const ClaimStayResult: z.ZodObject<{
         balanceRwf: number | null;
         folioId: string | null;
         bookingReference: string | null;
-        checkInMode: "staffed" | "self";
+        checkInMode: "self" | "staffed";
         openRefundRequestId: string | null;
     };
     claimed: boolean;
@@ -291,7 +291,7 @@ export declare const ClaimStayResult: z.ZodObject<{
         balanceRwf: number | null;
         folioId: string | null;
         bookingReference: string | null;
-        checkInMode: "staffed" | "self";
+        checkInMode: "self" | "staffed";
         openRefundRequestId: string | null;
     };
     claimed: boolean;

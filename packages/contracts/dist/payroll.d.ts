@@ -96,6 +96,16 @@ export declare const Payslip: z.ZodObject<{
     status: "draft" | "confirmed";
     id: string;
     grossRwf: number;
+    contractId: string;
+    employeeId: string;
+    employeeNumber: string;
+    displayName: string;
+    payableDays: number;
+    payeRwf: number;
+    employeeContributionsRwf: number;
+    employerContributionsRwf: number;
+    otherDeductionsRwf: number;
+    netRwf: number;
     lines: {
         code: string;
         amountRwf: number;
@@ -104,20 +114,20 @@ export declare const Payslip: z.ZodObject<{
         basis: string;
         side: "employee" | "earning" | "employer";
     }[];
-    employeeId: string;
-    displayName: string;
-    employeeNumber: string;
-    contractId: string;
-    payableDays: number;
-    payeRwf: number;
-    employeeContributionsRwf: number;
-    employerContributionsRwf: number;
-    otherDeductionsRwf: number;
-    netRwf: number;
 }, {
     status: "draft" | "confirmed";
     id: string;
     grossRwf: number;
+    contractId: string;
+    employeeId: string;
+    employeeNumber: string;
+    displayName: string;
+    payableDays: number;
+    payeRwf: number;
+    employeeContributionsRwf: number;
+    employerContributionsRwf: number;
+    otherDeductionsRwf: number;
+    netRwf: number;
     lines: {
         code: string;
         amountRwf: number;
@@ -126,16 +136,6 @@ export declare const Payslip: z.ZodObject<{
         basis: string;
         side: "employee" | "earning" | "employer";
     }[];
-    employeeId: string;
-    displayName: string;
-    employeeNumber: string;
-    contractId: string;
-    payableDays: number;
-    payeRwf: number;
-    employeeContributionsRwf: number;
-    employerContributionsRwf: number;
-    otherDeductionsRwf: number;
-    netRwf: number;
 }>;
 export type Payslip = z.infer<typeof Payslip>;
 /** The rule rows a run was computed from, so the figures can be traced. */
@@ -463,6 +463,16 @@ export declare const PayRunDetail: z.ZodObject<{
         status: "draft" | "confirmed";
         id: string;
         grossRwf: number;
+        contractId: string;
+        employeeId: string;
+        employeeNumber: string;
+        displayName: string;
+        payableDays: number;
+        payeRwf: number;
+        employeeContributionsRwf: number;
+        employerContributionsRwf: number;
+        otherDeductionsRwf: number;
+        netRwf: number;
         lines: {
             code: string;
             amountRwf: number;
@@ -471,20 +481,20 @@ export declare const PayRunDetail: z.ZodObject<{
             basis: string;
             side: "employee" | "earning" | "employer";
         }[];
-        employeeId: string;
-        displayName: string;
-        employeeNumber: string;
-        contractId: string;
-        payableDays: number;
-        payeRwf: number;
-        employeeContributionsRwf: number;
-        employerContributionsRwf: number;
-        otherDeductionsRwf: number;
-        netRwf: number;
     }, {
         status: "draft" | "confirmed";
         id: string;
         grossRwf: number;
+        contractId: string;
+        employeeId: string;
+        employeeNumber: string;
+        displayName: string;
+        payableDays: number;
+        payeRwf: number;
+        employeeContributionsRwf: number;
+        employerContributionsRwf: number;
+        otherDeductionsRwf: number;
+        netRwf: number;
         lines: {
             code: string;
             amountRwf: number;
@@ -493,16 +503,6 @@ export declare const PayRunDetail: z.ZodObject<{
             basis: string;
             side: "employee" | "earning" | "employer";
         }[];
-        employeeId: string;
-        displayName: string;
-        employeeNumber: string;
-        contractId: string;
-        payableDays: number;
-        payeRwf: number;
-        employeeContributionsRwf: number;
-        employerContributionsRwf: number;
-        otherDeductionsRwf: number;
-        netRwf: number;
     }>, "many">;
     blockers: z.ZodArray<z.ZodObject<{
         code: z.ZodEnum<["missing_rssb_number", "missing_id", "open_attendance", "unvalidated_self_attendance"]>;
@@ -545,6 +545,16 @@ export declare const PayRunDetail: z.ZodObject<{
         status: "draft" | "confirmed";
         id: string;
         grossRwf: number;
+        contractId: string;
+        employeeId: string;
+        employeeNumber: string;
+        displayName: string;
+        payableDays: number;
+        payeRwf: number;
+        employeeContributionsRwf: number;
+        employerContributionsRwf: number;
+        otherDeductionsRwf: number;
+        netRwf: number;
         lines: {
             code: string;
             amountRwf: number;
@@ -553,16 +563,6 @@ export declare const PayRunDetail: z.ZodObject<{
             basis: string;
             side: "employee" | "earning" | "employer";
         }[];
-        employeeId: string;
-        displayName: string;
-        employeeNumber: string;
-        contractId: string;
-        payableDays: number;
-        payeRwf: number;
-        employeeContributionsRwf: number;
-        employerContributionsRwf: number;
-        otherDeductionsRwf: number;
-        netRwf: number;
     }[];
     blockers: {
         code: "missing_rssb_number" | "missing_id" | "open_attendance" | "unvalidated_self_attendance";
@@ -595,6 +595,16 @@ export declare const PayRunDetail: z.ZodObject<{
         status: "draft" | "confirmed";
         id: string;
         grossRwf: number;
+        contractId: string;
+        employeeId: string;
+        employeeNumber: string;
+        displayName: string;
+        payableDays: number;
+        payeRwf: number;
+        employeeContributionsRwf: number;
+        employerContributionsRwf: number;
+        otherDeductionsRwf: number;
+        netRwf: number;
         lines: {
             code: string;
             amountRwf: number;
@@ -603,16 +613,6 @@ export declare const PayRunDetail: z.ZodObject<{
             basis: string;
             side: "employee" | "earning" | "employer";
         }[];
-        employeeId: string;
-        displayName: string;
-        employeeNumber: string;
-        contractId: string;
-        payableDays: number;
-        payeRwf: number;
-        employeeContributionsRwf: number;
-        employerContributionsRwf: number;
-        otherDeductionsRwf: number;
-        netRwf: number;
     }[];
     blockers: {
         code: "missing_rssb_number" | "missing_id" | "open_attendance" | "unvalidated_self_attendance";

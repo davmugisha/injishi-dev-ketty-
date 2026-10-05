@@ -53,4 +53,5 @@ __exportStar(require("./identity"), exports);
 __exportStar(require("./people"), exports);
 __exportStar(require("./payroll"), exports);
 __exportStar(require("./list-query"), exports);
+__exportStar(require("./hr-lists"), exports);
 //# sourceMappingURL=index.js.map

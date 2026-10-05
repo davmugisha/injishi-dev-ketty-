@@ -606,8 +606,8 @@ export declare const OperatorRatePlan: z.ZodObject<{
     nonRefundable: boolean;
     roomTypeName: string | null;
     cautionRwf: number | null;
-    basePriceRwf: number | null;
     isDefault: boolean;
+    basePriceRwf: number | null;
     baseOccupancy: number | null;
     singleOccupancyPriceRwf: number | null;
     maxStay: number | null;
@@ -626,8 +626,8 @@ export declare const OperatorRatePlan: z.ZodObject<{
     nonRefundable: boolean;
     roomTypeName: string | null;
     cautionRwf: number | null;
-    basePriceRwf: number | null;
     isDefault: boolean;
+    basePriceRwf: number | null;
     baseOccupancy: number | null;
     singleOccupancyPriceRwf: number | null;
     maxStay: number | null;
@@ -671,8 +671,8 @@ export declare const OperatorRatePlanList: z.ZodObject<{
         nonRefundable: boolean;
         roomTypeName: string | null;
         cautionRwf: number | null;
-        basePriceRwf: number | null;
         isDefault: boolean;
+        basePriceRwf: number | null;
         baseOccupancy: number | null;
         singleOccupancyPriceRwf: number | null;
         maxStay: number | null;
@@ -691,8 +691,8 @@ export declare const OperatorRatePlanList: z.ZodObject<{
         nonRefundable: boolean;
         roomTypeName: string | null;
         cautionRwf: number | null;
-        basePriceRwf: number | null;
         isDefault: boolean;
+        basePriceRwf: number | null;
         baseOccupancy: number | null;
         singleOccupancyPriceRwf: number | null;
         maxStay: number | null;
@@ -713,8 +713,8 @@ export declare const OperatorRatePlanList: z.ZodObject<{
         nonRefundable: boolean;
         roomTypeName: string | null;
         cautionRwf: number | null;
-        basePriceRwf: number | null;
         isDefault: boolean;
+        basePriceRwf: number | null;
         baseOccupancy: number | null;
         singleOccupancyPriceRwf: number | null;
         maxStay: number | null;
@@ -735,8 +735,8 @@ export declare const OperatorRatePlanList: z.ZodObject<{
         nonRefundable: boolean;
         roomTypeName: string | null;
         cautionRwf: number | null;
-        basePriceRwf: number | null;
         isDefault: boolean;
+        basePriceRwf: number | null;
         baseOccupancy: number | null;
         singleOccupancyPriceRwf: number | null;
         maxStay: number | null;
@@ -1150,8 +1150,8 @@ export declare const UpdateRatePlanRequest: z.ZodObject<{
     bookingMode?: "instant_book" | "request_to_book" | undefined;
     cancellationTier?: "flexible" | "moderate" | "limited" | "firm" | "strict_extended_stay" | undefined;
     nonRefundable?: boolean | undefined;
-    basePriceRwf?: number | null | undefined;
     isDefault?: boolean | undefined;
+    basePriceRwf?: number | null | undefined;
     baseOccupancy?: number | undefined;
 }, {
     workspaceId: string;
@@ -1160,8 +1160,8 @@ export declare const UpdateRatePlanRequest: z.ZodObject<{
     bookingMode?: "instant_book" | "request_to_book" | undefined;
     cancellationTier?: "flexible" | "moderate" | "limited" | "firm" | "strict_extended_stay" | undefined;
     nonRefundable?: boolean | undefined;
-    basePriceRwf?: number | null | undefined;
     isDefault?: boolean | undefined;
+    basePriceRwf?: number | null | undefined;
     baseOccupancy?: number | undefined;
 }>;
 export type UpdateRatePlanRequest = z.infer<typeof UpdateRatePlanRequest>;

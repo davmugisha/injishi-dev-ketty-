@@ -1,13 +1,14 @@
 import {
   CreateContractRequest,
   CreateEmployeeRequest,
-  EmployeeListQuery,
   OffboardEmployeeRequest,
   UpdateEmployeeRequest,
   type CreateContractResponse,
   type Employee,
   type EmployeeFile,
   type EmployeePage,
+  type ListIds,
+  type ListQuery,
   type LeaveBalances,
 } from '@injishi/contracts';
 import {
@@ -20,6 +21,7 @@ import {
   Patch,
   Post,
   Query,
+  Res,
   UseGuards,
 } from '@nestjs/common';
 
@@ -37,6 +39,7 @@ import {
   WorkspaceGuard,
 } from '../../../shared/auth/workspace.guard';
 import type { ScopedWorkspace } from '../../../shared/auth/branch-scope';
+import { ListQueryPipe } from '../../../shared/lists/list-query';
 import { ZodValidationPipe } from '../../../shared/validation/zod-validation.pipe';
 
 /**
@@ -59,13 +62,48 @@ export class OpsEmployeesController {
     private readonly leave: LeaveService,
   ) {}
 
+  /** One page through the list contract (058-list-framework AC-LF3, AC-LF4). */
   @Get()
   @RequireAnyPermission('people.view', 'people.manage', 'payroll.run')
   list(
-    @Query(new ZodValidationPipe(EmployeeListQuery)) query: EmployeeListQuery,
-    @CurrentWorkspace() workspace: ScopedWorkspace,
+    @CurrentWorkspace() ws: ScopedWorkspace,
+    @Query(ListQueryPipe) query: ListQuery,
   ): Promise<EmployeePage> {
-    return this.employees.list(workspace, query);
+    return this.employees.list(ws, query);
+  }
+
+  /** Select all: the matching ids up to the bulk cap, and how many match (AC-LF15). Before `:id`. */
+  @Get('ids')
+  @RequireAnyPermission('people.view', 'people.manage', 'payroll.run')
+  ids(
+    @CurrentWorkspace() ws: ScopedWorkspace,
+    @Query(ListQueryPipe) query: ListQuery,
+  ): Promise<ListIds> {
+    return this.employees.ids(ws, query);
+  }
+
+  /**
+   * The current view as CSV (AC-LF7). Declared before `:id`: Nest matches in
+   * declaration order, and a literal segment after a parameter one is shadowed.
+   * `columns`, when given, is a comma list of column keys to keep.
+   */
+  @Get('export.csv')
+  @RequireAnyPermission('people.view', 'people.manage', 'payroll.run')
+  async export(
+    @CurrentWorkspace() ws: ScopedWorkspace,
+    @CurrentUser() user: SessionUser,
+    @Query(ListQueryPipe) query: ListQuery,
+    @Query('columns') columns: string | undefined,
+    @Res({ passthrough: true }) reply: CsvReply,
+  ): Promise<void> {
+    const keys = columns ? columns.split(',').map((c) => c.trim()).filter(Boolean) : null;
+    const file = await this.employees.exportCsv(ws, user.id, query, keys);
+    reply
+      .header('content-type', 'text/csv; charset=utf-8')
+      .header('content-disposition', `attachment; filename="${file.filename}"`)
+      // A file of people's details must not sit in a proxy cache.
+      .header('cache-control', 'no-store')
+      .send(file.body);
   }
 
   @Post()
@@ -131,4 +169,10 @@ export class OpsEmployeesController {
   ): Promise<LeaveBalances> {
     return this.leave.balances(workspace, id);
   }
+}
+
+/** The slice of Fastify's reply the CSV route uses. */
+interface CsvReply {
+  header(key: string, value: string): CsvReply;
+  send(payload: string): CsvReply;
 }

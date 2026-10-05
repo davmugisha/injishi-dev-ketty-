@@ -177,19 +177,8 @@ export const EmployeeFile = z.object({
     departments: z.array(EmployeeDepartment),
 });
 export type EmployeeFile = z.infer<typeof EmployeeFile>;
-export const EmployeePage = z.object({
-    items: z.array(Employee),
-    nextCursor: z.string().nullable(),
-});
-export type EmployeePage = z.infer<typeof EmployeePage>;
-export const EmployeeListQuery = z.object({
-    status: EmployeeStatus.optional(),
-    propertyId: Uuid.optional(),
-    departmentId: Uuid.optional(),
-    cursor: z.string().trim().max(200).optional(),
-    limit: z.coerce.number().int().min(1).max(200).optional(),
-});
-export type EmployeeListQuery = z.infer<typeof EmployeeListQuery>;
+// The employee list's page and query are `EMPLOYEE_LIST` and `EmployeePage` in
+// `hr-lists.ts` (058-list-framework), which replaced the first thread's cursor.
 const LegalName = z.string().trim().min(2, "Enter the name as it is on the ID.").max(200);
 const IdDocumentNumber = z.string().trim().min(3, "Enter the ID number.").max(40);
 const RssbNumber = z.string().trim().min(3, "Enter the RSSB number.").max(40);

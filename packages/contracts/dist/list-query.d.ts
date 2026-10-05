@@ -12,6 +12,12 @@ import { z } from "zod";
  * A field marked `sensitive` (date of birth, ID number, RSSB number, wages,
  * bank details) is invisible to a caller whose file view is `basic`: it cannot
  * be returned, filtered, sorted, grouped or exported for them (AC-LF4).
+ *
+ * A field marked `figure` measures a person's work (late minutes, overtime,
+ * leave taken, objective progress). The no ranking rule (contract 7) is
+ * enforced here rather than on each screen: such a field can never be sorted,
+ * grouped or filtered by a threshold, and only a reader the list counts in its
+ * figure audience sees it at all (AC-LF12).
  */
 export declare const ListFieldType: z.ZodEnum<["text", "number", "money", "date", "datetime", "enum", "bool", "ref"]>;
 export type ListFieldType = z.infer<typeof ListFieldType>;
@@ -20,8 +26,18 @@ export declare const ListFilterOp: z.ZodEnum<["eq", "ne", "in", "nin", "contains
 export type ListFilterOp = z.infer<typeof ListFilterOp>;
 /** Which operators make sense for each field type. Anything else is refused. */
 export declare const OPS_FOR_TYPE: Readonly<Record<ListFieldType, readonly ListFilterOp[]>>;
+/** The operators one field allows: its type's, narrowed for a work figure. */
+export declare function opsFor(field: Pick<ListField, "type" | "figure">): readonly ListFilterOp[];
 /** The file view a caller reads (058-first-thread AC-P2). */
 export type ListView = "basic" | "full";
+/**
+ * Who reads a list: their file view, and whether the list's route counts them
+ * in its figure audience (AC-LF12). A bare view means no figures.
+ */
+export interface ListReader {
+    readonly view: ListView;
+    readonly figures?: boolean;
+}
 export interface ListField {
     /** The wire name. Never a column name. */
     readonly key: string;
@@ -32,6 +48,8 @@ export interface ListField {
     readonly groupable?: boolean;
     /** Shown, filtered, sorted, grouped and exported for a `full` view only. */
     readonly sensitive?: boolean;
+    /** A measure of a person's work: never sortable, groupable or threshold filtered (AC-LF12). */
+    readonly figure?: boolean;
     /** Required for `enum` fields: the values, in display order. */
     readonly enumValues?: readonly string[];
     /** Labels for enum values, when the raw value is not fit to show. */
@@ -45,23 +63,28 @@ export interface ListSpec {
     /** Unique across the product, e.g. `staff.employees`. Saved views key on it. */
     readonly key: string;
     readonly fields: readonly ListField[];
-    /** An enum field whose values are the kanban columns, when the list has a board. */
+    /**
+     * The kanban columns, when the list has a board: an enum field, or a `ref`
+     * whose stages the route supplies in `ListPage.stages` (AC-LF14).
+     */
     readonly stageField?: string;
     /** An enum field the status chips count and filter by. */
     readonly statusField?: string;
-    /** Whether the toolbar offers free text search (`q`). */
-    readonly searchable?: boolean;
+    /** The text fields free text search (`q`) runs over; none means the list has no search (AC-LF13). */
+    readonly searchFields?: readonly string[];
     /** The order when the query names none. */
     readonly defaultSort?: readonly ListSort[];
 }
 /**
  * Declare a list. Refuses at module load (so a mistake fails the build and the
- * tests, never a request) a duplicate key, an enum without values, or a stage
- * or status field that is not a declared enum.
+ * tests, never a request) a duplicate key, an enum without values, a stage or
+ * status field of the wrong type, a default sort on an unsortable field, a
+ * search field that is not a plain text field, and a work figure that could be
+ * sorted or grouped.
  */
 export declare function defineListSpec<const S extends ListSpec>(spec: S): S;
-/** The fields a caller with this view may see at all. */
-export declare function visibleFields(spec: ListSpec, view: ListView): readonly ListField[];
+/** The fields a reader may see at all: no sensitive field for a `basic` view, no figure outside the figure audience. */
+export declare function visibleFields(spec: ListSpec, reader: ListView | ListReader): readonly ListField[];
 export declare const ListFilter: z.ZodObject<{
     field: z.ZodString;
     op: z.ZodEnum<["eq", "ne", "in", "nin", "contains", "gt", "gte", "lt", "lte", "between", "isNull", "isNotNull"]>;
@@ -163,9 +186,9 @@ export interface ListQueryIssue {
  * to drop the parts of a saved view or a pasted link that no longer fit, so the
  * two can never disagree about what a list allows.
  */
-export declare function checkListQuery(spec: ListSpec, query: ListQuery, view: ListView): ListQueryIssue[];
+export declare function checkListQuery(spec: ListSpec, query: ListQuery, reader: ListView | ListReader): ListQueryIssue[];
 /** The query with every part that does not fit the spec removed (for links and saved views). */
-export declare function fitListQuery(spec: ListSpec, query: ListQuery, view: ListView): ListQuery;
+export declare function fitListQuery(spec: ListSpec, query: ListQuery, reader: ListView | ListReader): ListQuery;
 export declare const ListGroup: z.ZodObject<{
     /** The group's raw value; null for rows with none. */
     key: z.ZodNullable<z.ZodString>;
@@ -192,6 +215,18 @@ export declare const ListCount: z.ZodObject<{
     count: number;
 }>;
 export type ListCount = z.infer<typeof ListCount>;
+/** A kanban column for a `ref` stage field, in board order (per opening stages, for example). */
+export declare const ListStage: z.ZodObject<{
+    key: z.ZodString;
+    label: z.ZodString;
+}, "strip", z.ZodTypeAny, {
+    key: string;
+    label: string;
+}, {
+    key: string;
+    label: string;
+}>;
+export type ListStage = z.infer<typeof ListStage>;
 /** `ListPage` of a given row schema. */
 export declare function listPage<T extends z.ZodTypeAny>(item: T): z.ZodObject<{
     items: z.ZodArray<T, "many">;
@@ -222,6 +257,16 @@ export declare function listPage<T extends z.ZodTypeAny>(item: T): z.ZodObject<{
         value: string;
         count: number;
     }>, "many">>;
+    stages: z.ZodOptional<z.ZodArray<z.ZodObject<{
+        key: z.ZodString;
+        label: z.ZodString;
+    }, "strip", z.ZodTypeAny, {
+        key: string;
+        label: string;
+    }, {
+        key: string;
+        label: string;
+    }>, "many">>;
 }, "strip", z.ZodTypeAny, {
     items: T["_output"][];
     total: number;
@@ -235,6 +280,10 @@ export declare function listPage<T extends z.ZodTypeAny>(item: T): z.ZodObject<{
     statusCounts?: {
         value: string;
         count: number;
+    }[] | undefined;
+    stages?: {
+        key: string;
+        label: string;
     }[] | undefined;
 }, {
     items: T["_input"][];
@@ -250,6 +299,10 @@ export declare function listPage<T extends z.ZodTypeAny>(item: T): z.ZodObject<{
         value: string;
         count: number;
     }[] | undefined;
+    stages?: {
+        key: string;
+        label: string;
+    }[] | undefined;
 }>;
 export type ListPage<T> = {
     items: T[];
@@ -258,6 +311,7 @@ export type ListPage<T> = {
     pageSize: ListPageSize;
     groups?: ListGroup[];
     statusCounts?: ListCount[];
+    stages?: ListStage[];
 };
 /**
  * `q`, `f` (filters as compact JSON: `[["status","eq","active"]]`), `s` (sort as
@@ -435,9 +489,9 @@ export declare const SavedView: z.ZodObject<{
     };
     authorName: string | null;
     updatedAt: string;
-    isDefault: boolean;
     listKey: string;
     shared: boolean;
+    isDefault: boolean;
     mine: boolean;
 }, {
     name: string;
@@ -460,9 +514,9 @@ export declare const SavedView: z.ZodObject<{
     };
     authorName: string | null;
     updatedAt: string;
-    isDefault: boolean;
     listKey: string;
     shared: boolean;
+    isDefault: boolean;
     mine: boolean;
 }>;
 export type SavedView = z.infer<typeof SavedView>;
@@ -558,9 +612,9 @@ export declare const SavedViewList: z.ZodObject<{
         };
         authorName: string | null;
         updatedAt: string;
-        isDefault: boolean;
         listKey: string;
         shared: boolean;
+        isDefault: boolean;
         mine: boolean;
     }, {
         name: string;
@@ -583,9 +637,9 @@ export declare const SavedViewList: z.ZodObject<{
         };
         authorName: string | null;
         updatedAt: string;
-        isDefault: boolean;
         listKey: string;
         shared: boolean;
+        isDefault: boolean;
         mine: boolean;
     }>, "many">;
 }, "strip", z.ZodTypeAny, {
@@ -610,9 +664,9 @@ export declare const SavedViewList: z.ZodObject<{
         };
         authorName: string | null;
         updatedAt: string;
-        isDefault: boolean;
         listKey: string;
         shared: boolean;
+        isDefault: boolean;
         mine: boolean;
     }[];
 }, {
@@ -637,9 +691,9 @@ export declare const SavedViewList: z.ZodObject<{
         };
         authorName: string | null;
         updatedAt: string;
-        isDefault: boolean;
         listKey: string;
         shared: boolean;
+        isDefault: boolean;
         mine: boolean;
     }[];
 }>;
@@ -728,9 +782,9 @@ export declare const CreateSavedViewRequest: z.ZodObject<{
         groupBy?: string | undefined;
         columns?: string[] | undefined;
     };
-    isDefault: boolean;
     listKey: string;
     shared: boolean;
+    isDefault: boolean;
 }, {
     name: string;
     config: {
@@ -750,8 +804,8 @@ export declare const CreateSavedViewRequest: z.ZodObject<{
         columns?: string[] | undefined;
     };
     listKey: string;
-    isDefault?: boolean | undefined;
     shared?: boolean | undefined;
+    isDefault?: boolean | undefined;
 }>;
 export type CreateSavedViewRequest = z.infer<typeof CreateSavedViewRequest>;
 export declare const UpdateSavedViewRequest: z.ZodEffects<z.ZodObject<{
@@ -837,8 +891,8 @@ export declare const UpdateSavedViewRequest: z.ZodEffects<z.ZodObject<{
         groupBy?: string | undefined;
         columns?: string[] | undefined;
     } | undefined;
-    isDefault?: boolean | undefined;
     shared?: boolean | undefined;
+    isDefault?: boolean | undefined;
 }, {
     name?: string | undefined;
     config?: {
@@ -857,8 +911,8 @@ export declare const UpdateSavedViewRequest: z.ZodEffects<z.ZodObject<{
         groupBy?: string | undefined;
         columns?: string[] | undefined;
     } | undefined;
-    isDefault?: boolean | undefined;
     shared?: boolean | undefined;
+    isDefault?: boolean | undefined;
 }>, {
     name?: string | undefined;
     config?: {
@@ -877,8 +931,8 @@ export declare const UpdateSavedViewRequest: z.ZodEffects<z.ZodObject<{
         groupBy?: string | undefined;
         columns?: string[] | undefined;
     } | undefined;
-    isDefault?: boolean | undefined;
     shared?: boolean | undefined;
+    isDefault?: boolean | undefined;
 }, {
     name?: string | undefined;
     config?: {
@@ -897,8 +951,8 @@ export declare const UpdateSavedViewRequest: z.ZodEffects<z.ZodObject<{
         groupBy?: string | undefined;
         columns?: string[] | undefined;
     } | undefined;
-    isDefault?: boolean | undefined;
     shared?: boolean | undefined;
+    isDefault?: boolean | undefined;
 }>;
 export type UpdateSavedViewRequest = z.infer<typeof UpdateSavedViewRequest>;
 export declare const MAX_BULK_IDS = 200;
@@ -967,6 +1021,22 @@ export declare const BulkResponse: z.ZodObject<{
     }[];
 }>;
 export type BulkResponse = z.infer<typeof BulkResponse>;
+/**
+ * What a list's `ids` route answers for select all (AC-LF15): the ids matching
+ * the filter, at most `MAX_BULK_IDS`, and how many match. Above the cap the
+ * screen asks to narrow the filter rather than act on part of it.
+ */
+export declare const ListIds: z.ZodObject<{
+    ids: z.ZodArray<z.ZodString, "many">;
+    total: z.ZodNumber;
+}, "strip", z.ZodTypeAny, {
+    total: number;
+    ids: string[];
+}, {
+    total: number;
+    ids: string[];
+}>;
+export type ListIds = z.infer<typeof ListIds>;
 /** Export caps (AC-LF7). */
 export declare const MAX_EXPORT_ROWS = 10000;
 /**
