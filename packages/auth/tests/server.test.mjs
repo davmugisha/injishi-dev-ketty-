@@ -35,3 +35,58 @@ test("OTP codes are still stored hashed", () => {
   assert.ok(otp, "emailOTP plugin missing");
   assert.equal(otp.options?.storeOTP, "hashed");
 });
+
+// ADR-063 AC-12: Better Auth's routes are mounted outside Nest, so their faults
+// reach the API's crash reporter only through this hook.
+import { APIError } from "better-auth/api";
+
+function hookWith(onServerError) {
+  return build({ onServerError }).options.onAPIError?.onError;
+}
+
+function recordingLogger() {
+  const lines = [];
+  return { lines, logger: { error: (...args) => lines.push(args) } };
+}
+
+test("with no reporter, Better Auth's own error handling is left alone", () => {
+  assert.equal(build().options.onAPIError, undefined);
+});
+
+test("a fault reaches the reporter, after Better Auth's own log line", () => {
+  const seen = [];
+  const { lines, logger } = recordingLogger();
+  const fault = new TypeError("sendOtp failed");
+  hookWith((error) => seen.push(error))(fault, { logger });
+  assert.deepEqual(seen, [fault]);
+  assert.deepEqual(lines, [["TypeError", fault]]);
+});
+
+test("a 500 APIError is a fault; an answer below 500 never is", () => {
+  const seen = [];
+  const { lines, logger } = recordingLogger();
+  const onError = hookWith((error) => seen.push(error));
+  const internal = new APIError("INTERNAL_SERVER_ERROR");
+  onError(new APIError("BAD_REQUEST", { message: "Invalid OTP" }), { logger });
+  onError(new APIError("TOO_MANY_REQUESTS"), { logger });
+  onError(new APIError("FORBIDDEN", { message: "Invalid origin" }), { logger });
+  onError(internal, { logger });
+  assert.deepEqual(seen, [internal]);
+  assert.deepEqual(lines, [["INTERNAL_SERVER_ERROR", internal]]);
+});
+
+test("a schema error logs its message, as Better Auth does, and is reported", () => {
+  const seen = [];
+  const { lines, logger } = recordingLogger();
+  const fault = new Error('relation "verifications" does not exist');
+  hookWith((error) => seen.push(error))(fault, { logger });
+  assert.deepEqual(lines, [['relation "verifications" does not exist']]);
+  assert.deepEqual(seen, [fault]);
+});
+
+test("a reporter that throws never makes the hook throw", () => {
+  const onError = hookWith(() => {
+    throw new Error("reporter down");
+  });
+  assert.doesNotThrow(() => onError(new Error("fault"), { logger: { error: () => {} } }));
+});

@@ -1,4 +1,4 @@
-import { Processor, WorkerHost } from '@nestjs/bullmq';
+import { OnWorkerEvent, Processor, WorkerHost } from '@nestjs/bullmq';
 import { Inject, Injectable, Logger } from '@nestjs/common';
 import { Job } from 'bullmq';
 import { eq } from 'drizzle-orm';
@@ -31,6 +31,7 @@ import {
   type TrainingReminderScheduleJob,
 } from '../domain/training-mail';
 import { TrainingMailer } from './training-mailer';
+import { reportJobFailure } from '../../../shared/observability/report-job-failure';
 
 /**
  * Sends the training emails, in the worker (ADR-049 AC-20, AC-21).
@@ -293,6 +294,12 @@ export class TrainingMailProcessor extends WorkerHost {
         contentType: 'application/pdf',
       },
     };
+  }
+
+  /** A job failing its last attempt is reported (ADR-063 AC-12). Earlier attempts are retries. */
+  @OnWorkerEvent('failed')
+  onFailed(job: Job | undefined, error: Error): void {
+    reportJobFailure(QUEUES.trainingEmail, job, error);
   }
 }
 

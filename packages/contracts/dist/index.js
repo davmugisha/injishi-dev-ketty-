@@ -52,4 +52,5 @@ __exportStar(require("./psf"), exports);
 __exportStar(require("./identity"), exports);
 __exportStar(require("./people"), exports);
 __exportStar(require("./payroll"), exports);
+__exportStar(require("./redaction"), exports);
 //# sourceMappingURL=index.js.map

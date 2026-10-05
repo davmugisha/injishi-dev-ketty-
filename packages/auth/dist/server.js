@@ -1,8 +1,60 @@
 import { betterAuth } from "better-auth";
 import { drizzleAdapter } from "better-auth/adapters/drizzle";
 import { bearer, emailOTP } from "better-auth/plugins";
+import { isAPIError } from "better-auth/api";
 import { AUTH_BASE_PATH, OTP_EXPIRY_SECONDS, OTP_LENGTH, OTP_MAX_ATTEMPTS, } from "./options.js";
 import { injishiPhone, otpSendCap, } from "./phone.js";
+/**
+ * Better Auth's `onAPIError.onError`, when the API asks to hear about faults.
+ *
+ * Setting the hook skips Better Auth's own logging, so the first half below
+ * repeats it as 1.6.11 writes it (`better-auth/dist/api/index.mjs`): a schema
+ * error logs its message, an `APIError` logs only when it is a 500, anything
+ * else logs its name and itself. Then the fault goes to the callback. Neither
+ * half may throw: an error handler that throws turns one fault into two.
+ */
+function serverErrorHook(onServerError) {
+    return (error, ctx) => {
+        try {
+            logAsBetterAuthWould(error, ctx?.logger);
+        }
+        catch {
+            // The log is a courtesy; the report below is the point.
+        }
+        if (isClientError(error))
+            return;
+        try {
+            onServerError(error);
+        }
+        catch {
+            // A reporter failure never changes what the person is told.
+        }
+    };
+}
+/** An `APIError` whose status is below 500: an answer the route meant to give. */
+function isClientError(error) {
+    if (!isAPIError(error))
+        return false;
+    const statusCode = error.statusCode;
+    return typeof statusCode === "number" && statusCode < 500;
+}
+function logAsBetterAuthWould(error, logger) {
+    const message = error && typeof error === "object" && "message" in error && typeof error.message === "string"
+        ? error.message
+        : null;
+    if (message !== null && /no column|column|relation|table|does not exist/.test(message)) {
+        logger?.error(message);
+        return;
+    }
+    if (isAPIError(error)) {
+        const status = error.status;
+        if (status === "INTERNAL_SERVER_ERROR")
+            logger?.error(status, error);
+        return;
+    }
+    const name = error && typeof error === "object" && "name" in error ? error.name : "";
+    logger?.error(typeof name === "string" ? name : "", error);
+}
 /**
  * The single Injishi Better Auth instance (F-S01, D7).
  *
@@ -138,6 +190,11 @@ export function createAuth(config) {
          * Production passes no `demoOtpCode` and keeps every limit.
          */
         ...(config.demoOtpCode ? { rateLimit: { enabled: false } } : {}),
+        // ADR-063 AC-12. Omitted unless asked for, so an instance with no
+        // reporter keeps Better Auth's own error handling untouched.
+        ...(config.onServerError
+            ? { onAPIError: { onError: serverErrorHook(config.onServerError) } }
+            : {}),
         // Passwordless by default (F-S01 §6): password is an optional add-on,
         // never prompted at signup, so email+password sign-in stays off.
         emailAndPassword: { enabled: false },

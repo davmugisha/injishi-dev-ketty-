@@ -36,4 +36,5 @@ export * from "./psf";
 export * from "./identity";
 export * from "./people";
 export * from "./payroll";
+export * from "./redaction";
 //# sourceMappingURL=index.d.ts.map

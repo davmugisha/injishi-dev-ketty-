@@ -1,4 +1,4 @@
-import { Processor, WorkerHost } from '@nestjs/bullmq';
+import { OnWorkerEvent, Processor, WorkerHost } from '@nestjs/bullmq';
 import { Inject, Injectable, Logger } from '@nestjs/common';
 import { Job } from 'bullmq';
 import { and, eq, inArray, isNotNull } from 'drizzle-orm';
@@ -22,6 +22,7 @@ import {
   type BookingMailJob,
 } from '../domain/booking-mail';
 import { BookingMailer } from './booking-mailer';
+import { reportJobFailure } from '../../../shared/observability/report-job-failure';
 
 /**
  * Sends the booking emails, in the worker (ADR-047).
@@ -165,6 +166,12 @@ export class BookingMailProcessor extends WorkerHost {
     await this.mailer.send(event, { ...facts, guestEmail: row.guestEmail });
 
     this.log.log(`Sent the "${event}" mail for ${row.reference}.`);
+  }
+
+  /** A job failing its last attempt is reported (ADR-063 AC-12). Earlier attempts are retries. */
+  @OnWorkerEvent('failed')
+  onFailed(job: Job | undefined, error: Error): void {
+    reportJobFailure(QUEUES.email, job, error);
   }
 }
 

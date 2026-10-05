@@ -1,9 +1,10 @@
-import { InjectQueue, Processor, WorkerHost } from '@nestjs/bullmq';
+import { InjectQueue, OnWorkerEvent, Processor, WorkerHost } from '@nestjs/bullmq';
 import { Logger, OnModuleInit } from '@nestjs/common';
 import { Job, Queue } from 'bullmq';
 
 import { QUEUES } from '../../../shared/queues/queues.module';
 import { PsfMembershipService } from '../application/psf-membership.service';
+import { reportJobFailure } from '../../../shared/observability/report-job-failure';
 
 export const PSF_MEMBERSHIP_SWEEP = 'psf-membership-sweep';
 
@@ -46,5 +47,11 @@ export class PsfMembershipSweepProcessor extends WorkerHost implements OnModuleI
         `PSF sweep: ${outcome.ended} ended, ${outcome.reminded} reminded, ${outcome.stamped} queue stamp(s) caught up`,
       );
     }
+  }
+
+  /** A job failing its last attempt is reported (ADR-063 AC-12). Earlier attempts are retries. */
+  @OnWorkerEvent('failed')
+  onFailed(job: Job | undefined, error: Error): void {
+    reportJobFailure(QUEUES.psfMembershipSweep, job, error);
   }
 }

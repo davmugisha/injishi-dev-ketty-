@@ -49,7 +49,10 @@ x-api-env: &api-env
   # (booking audit, 2026-09-13). `live` only once a live adapter is registered.
   PAYMENT_ADAPTER_MODE: "off"
   # Money alarms (STUCK MONEY, UNRECORDED COMPENSATION, a refused queue wake)
-  # go to Sentry when this is set, and nowhere but the log when it is not.
+  # and what breaks (a request that fails with a 500, a fault inside Better
+  # Auth, a job failing its last attempt, a process that dies) go to Sentry
+  # when this is set, and nowhere but the log when it is not (ADR-063). Left
+  # empty until the NCSA registration names Sentry (ADR-063 AC-13).
   SENTRY_DSN: ${SENTRY_DSN:-}
   NODE_ENV: production
   PORT: "8000"
