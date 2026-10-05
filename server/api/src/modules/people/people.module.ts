@@ -14,7 +14,11 @@ import { HrContentService } from './application/hr-content.service';
 import { HrDailyService } from './application/hr-daily.service';
 import { HrFilesService } from './application/hr-files.service';
 import { KioskService } from './application/kiosk.service';
+import { LeaveAllocationsService } from './application/leave-allocations.service';
+import { LeaveTypesService } from './application/leave-types.service';
 import { LeaveService } from './application/leave.service';
+import { MyLeaveService } from './application/my-leave.service';
+import { RestrictedPeriodsService } from './application/restricted-periods.service';
 import { MyWorkService } from './application/my-work.service';
 import { PayRunsService } from './application/pay-runs.service';
 import { PeopleFileService } from './application/people-file.service';
@@ -27,6 +31,7 @@ import { HrContentRepository } from './infrastructure/hr-content.repository';
 import { HrDailyProcessor } from './infrastructure/hr-daily.processor';
 import { HrRulesRepository } from './infrastructure/hr-rules.repository';
 import { KioskRepository } from './infrastructure/kiosk.repository';
+import { LeaveExtraRepository } from './infrastructure/leave-extra.repository';
 import { LeaveRepository } from './infrastructure/leave.repository';
 import { MyWorkRepository } from './infrastructure/my-work.repository';
 import { PayrollRepository } from './infrastructure/payroll.repository';
@@ -65,6 +70,7 @@ import { TimeSettingsRepository } from './infrastructure/time-settings.repositor
     EmployeesRepository,
     TimeRepository,
     LeaveRepository,
+    LeaveExtraRepository,
     PayrollRepository,
     HrRulesRepository,
     PeopleDirectoryRepository,
@@ -99,6 +105,10 @@ import { TimeSettingsRepository } from './infrastructure/time-settings.repositor
     MyWorkService,
     AttendanceSweepService,
     LeaveService,
+    LeaveTypesService,
+    LeaveAllocationsService,
+    RestrictedPeriodsService,
+    MyLeaveService,
     PayRunsService,
     HrDailyService,
     ...(isWorkerProcess() ? [HrDailyProcessor] : []),
@@ -113,6 +123,10 @@ import { TimeSettingsRepository } from './infrastructure/time-settings.repositor
     AttendanceInsightsService,
     MyWorkService,
     LeaveService,
+    LeaveTypesService,
+    LeaveAllocationsService,
+    RestrictedPeriodsService,
+    MyLeaveService,
     PayRunsService,
     HrDailyService,
     HrFilesService,

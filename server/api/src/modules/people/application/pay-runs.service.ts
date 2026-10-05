@@ -192,8 +192,11 @@ export class PayRunsService {
 
     // Unpaid leave in the month, each ledger row attributed to the contract in
     // force on the day it is dated.
+    // A partly paid request carries the share pay does not cover (058-leave
+    // AC-LV1), and those days are kept apart by share.
     const unpaid = await this.leave.unpaidInMonth(orgId, first, last, tx);
     const unpaidByContract = new Map<string, number>();
+    const partialByContract = new Map<string, Map<number, number>>();
     for (const row of unpaid) {
       const own = byEmployee.get(row.employeeId);
       if (!own) continue;
@@ -202,7 +205,13 @@ export class PayRunsService {
         own[own.length - 1];
       // `taken` rows are negative and reversals positive, so unpaid days are
       // the negated sum.
-      unpaidByContract.set(contract.id, (unpaidByContract.get(contract.id) ?? 0) - row.days);
+      if (row.unpaidPercent >= 100) {
+        unpaidByContract.set(contract.id, (unpaidByContract.get(contract.id) ?? 0) - row.days);
+      } else {
+        const shares = partialByContract.get(contract.id) ?? new Map<number, number>();
+        shares.set(row.unpaidPercent, (shares.get(row.unpaidPercent) ?? 0) - row.days);
+        partialByContract.set(contract.id, shares);
+      }
     }
 
     const slips = [...byEmployee.entries()].map(([employeeId, own]) => ({
@@ -220,6 +229,12 @@ export class PayRunsService {
         ),
         unpaidDaysByContract: new Map(
           own.map((c) => [c.id, Math.max(0, unpaidByContract.get(c.id) ?? 0)]),
+        ),
+        partialLeaveByContract: new Map(
+          own.map((c) => [
+            c.id,
+            new Map([...(partialByContract.get(c.id) ?? new Map<number, number>())].filter(([, d]) => d > 0)),
+          ]),
         ),
         paye: paye.value,
         rssb: rssb.value,

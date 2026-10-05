@@ -20,6 +20,8 @@ export interface AttendanceRules {
   linkWindowMinutes: number;
   staleOpenHours: number;
   defaultShiftMinutes: number;
+  /** A worked holiday or day off earns a whole compensatory day from this many minutes, half from half of it (058-leave AC-LV8). */
+  compensationThresholdMinutes: number;
 }
 
 /** No grace, no cutoff, nothing approved by itself: what a business that set nothing gets. */
@@ -32,6 +34,7 @@ export const DEFAULT_ATTENDANCE_RULES: AttendanceRules = {
   linkWindowMinutes: 180,
   staleOpenHours: 16,
   defaultShiftMinutes: 480,
+  compensationThresholdMinutes: 360,
 };
 
 const MINUTE = 60_000;

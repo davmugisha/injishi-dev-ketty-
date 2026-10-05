@@ -25,7 +25,13 @@ import { OpsDocumentRequestsController } from './document-requests.controller';
 import { OpsDocumentsController } from './documents.controller';
 import { OpsEmployeesController } from './employees.controller';
 import { OpsHrController } from './hr.controller';
-import { OpsLeaveController } from './leave.controller';
+import {
+  OpsLeaveAllocationsController,
+  OpsLeaveController,
+  OpsLeaveTypesController,
+  OpsLeaveViewsController,
+  OpsRestrictedPeriodsController,
+} from './leave.controller';
 import { OpsListViewsController } from './list-views.controller';
 import { OpsOrgChartController } from './org-chart.controller';
 import { OpsPayAccountsController } from './pay-accounts.controller';
@@ -115,6 +121,10 @@ const CONTROLLERS: Ctor[] = [
   OpsRosterController,
   OpsAttendanceController,
   OpsLeaveController,
+  OpsLeaveViewsController,
+  OpsLeaveTypesController,
+  OpsLeaveAllocationsController,
+  OpsRestrictedPeriodsController,
   OpsPayRunsController,
   OpsListViewsController,
   OpsHrController,
@@ -299,6 +309,19 @@ const EXPECTED: Record<string, readonly OrgRole[]> = {
   // Leave counts days by them, so whoever plans time or decides leave reads them.
   '/ops/hr/holidays': ['owner', 'manager'],
   '/ops/hr/weekly-offs': ['owner', 'manager'],
+  // Leave in full (058-leave). A sick note, everybody's balances, the dashboard,
+  // the asks for more days and the restricted periods are read by whoever
+  // decides leave or keeps the files. A type's name is what every HR screen
+  // draws with, so any HR permission reads the types; the national defaults
+  // compared with them are `people.manage`'s, the owner's by default.
+  '/ops/leave/requests/:id/attachment': ['owner', 'manager'],
+  '/ops/leave/balances': ['owner', 'manager'],
+  '/ops/leave/dashboard': ['owner', 'manager'],
+  '/ops/leave/types': ['owner', 'manager', 'receptionist'],
+  '/ops/leave/types/defaults': ['owner'],
+  '/ops/leave/allocation-requests': ['owner', 'manager'],
+  '/ops/leave/allocation-requests/ids': ['owner', 'manager'],
+  '/ops/leave/restricted-periods': ['owner', 'manager'],
 };
 
 describe('operator reads (audit H1)', () => {

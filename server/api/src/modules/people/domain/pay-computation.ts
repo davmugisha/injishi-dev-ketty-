@@ -36,6 +36,12 @@ export interface PayInput {
    * the contract in force on the day its ledger row is dated.
    */
   unpaidDaysByContract: ReadonlyMap<string, number>;
+  /**
+   * Partly paid leave in the month (058-leave AC-LV1), per contract: the days,
+   * halves counted, at each share of the day pay does NOT cover. Sick leave paid
+   * at 60% is 40 here.
+   */
+  partialLeaveByContract?: ReadonlyMap<string, ReadonlyMap<number, number>>;
   paye: PayeRule;
   rssb: RssbRule;
 }
@@ -94,6 +100,16 @@ export function wageForDays(wageRwf: number, days: number): number {
   // division stays exact.
   const halves = Math.round(days * 2);
   return divide(BigInt(wageRwf) * BigInt(halves), 60n, 'half_up');
+}
+
+/**
+ * `wage × days × percent / (30 × 100)`, half up: the share of a day's wage a
+ * partly paid leave does not pay. Halves and a whole percentage keep it exact.
+ */
+export function wageForPartialDays(wageRwf: number, days: number, percent: number): number {
+  if (!Number.isInteger(percent) || percent < 0 || percent > 100) throw new Error(`Cannot take ${percent}% of a day.`);
+  const halves = Math.round(days * 2);
+  return divide(BigInt(wageRwf) * BigInt(halves) * BigInt(percent), 6000n, 'half_up');
 }
 
 /** Progressive PAYE on a taxable base. */
@@ -159,11 +175,28 @@ export function computePayslip(input: PayInput): ComputedPayslip {
         side: 'earning',
       });
     }
+    // Partly paid leave, one line per share, the largest share first; together
+    // with unpaid leave it never reaches past the days the contract paid.
+    let room = thirtieths - Math.max(0, unpaid);
+    const partial = [...(input.partialLeaveByContract?.get(contract.id) ?? new Map<number, number>())].sort((a, b) => b[0] - a[0]);
+    for (const [percent, days] of partial) {
+      const taken = Math.min(days, room);
+      if (taken <= 0 || percent === 0) continue;
+      room -= taken;
+      lines.push({
+        code: 'partly_paid_leave',
+        label: 'Partly paid leave',
+        contractId: contract.id,
+        basis: `${taken} day${taken === 1 ? '' : 's'} × ${percent}% unpaid × ${contract.wageRwf}/30`,
+        amountRwf: -wageForPartialDays(contract.wageRwf, taken, percent),
+        side: 'earning',
+      });
+    }
   }
   const gross = sum(lines.filter((l) => l.side === 'earning'));
   // Until allowances exist (`058-payroll.md`), basic pay is the wage lines net
   // of unpaid leave, which is all of gross.
-  const basic = sum(lines.filter((l) => l.code === 'wage' || l.code === 'unpaid_leave'));
+  const basic = sum(lines.filter((l) => l.code === 'wage' || l.code === 'unpaid_leave' || l.code === 'partly_paid_leave'));
 
   // (2) Contributions, each on its own base, the two shares apart.
   const contributionRounding = input.rssb.rounding ?? 'half_up';

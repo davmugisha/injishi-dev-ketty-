@@ -16,7 +16,10 @@
  * script refuses any database without the `sample` marker, like every seed.
  *
  * Idempotent: a type (or a holiday year) that already has a row is skipped, so
- * a real row written later is never overwritten by a rerun.
+ * a real row written later is never overwritten by a rerun. The one exception
+ * is a leave defaults row this seed wrote itself (its note says so) that lacks
+ * a type the sample set now has: the newer sample set is added as the next
+ * version beside it, never written over it (058-leave AC-LV12).
  *
  *   DATABASE_URL=... node scripts/seed-hr-rules.mjs
  */
@@ -53,24 +56,86 @@ const RULES = [
     type: 'hr.rw.leave_defaults',
     value: {
       note: NOTE,
+      // Every rule of 058-leave AC-LV1 (AC-LV12). The entitlements, shares and
+      // months are invented, like every figure here.
       types: [
         {
           code: 'annual',
           name: 'Annual leave',
-          paid: true,
+          payment: 'paid',
           yearlyEntitlementDays: 18,
           accrual: 'monthly',
-          carryForwardMaxDays: 0,
-          needsApproval: true,
+          reset: 'yearly',
+          carry: 'none',
+          approvalSteps: 1,
+          encashable: true,
         },
         {
           code: 'unpaid',
           name: 'Unpaid leave',
-          paid: false,
+          payment: 'unpaid',
           yearlyEntitlementDays: null,
           accrual: 'none',
-          carryForwardMaxDays: 0,
-          needsApproval: true,
+          approvalSteps: 1,
+        },
+        {
+          code: 'sick',
+          name: 'Sick leave',
+          payment: 'partial',
+          paymentPercent: 60,
+          yearlyEntitlementDays: 10,
+          accrual: 'yearly_upfront',
+          reset: 'yearly',
+          approvalSteps: 1,
+          needsAttachment: true,
+          allowsPastRequests: true,
+          statutory: true,
+        },
+        {
+          code: 'maternity',
+          name: 'Maternity leave',
+          payment: 'paid',
+          yearlyEntitlementDays: 84,
+          accrual: 'yearly_upfront',
+          reset: 'yearly',
+          approvalSteps: 1,
+          countsWeeklyOffs: true,
+          countsHolidays: true,
+          eligibleSex: 'female',
+          statutory: true,
+        },
+        {
+          code: 'paternity',
+          name: 'Paternity leave',
+          payment: 'paid',
+          yearlyEntitlementDays: 4,
+          accrual: 'yearly_upfront',
+          reset: 'yearly',
+          approvalSteps: 1,
+          eligibleSex: 'male',
+          statutory: true,
+        },
+        {
+          code: 'study',
+          name: 'Study leave',
+          payment: 'paid',
+          yearlyEntitlementDays: 5,
+          accrual: 'yearly_upfront',
+          reset: 'yearly',
+          approvalSteps: 2,
+          minServiceMonths: 12,
+        },
+        {
+          code: 'compensatory',
+          name: 'Time off in lieu',
+          payment: 'paid',
+          yearlyEntitlementDays: 0,
+          accrual: 'none',
+          reset: 'never',
+          carry: 'none',
+          carryExpiresMonths: 3,
+          approvalSteps: 1,
+          compensatory: true,
         },
       ],
     },
@@ -99,6 +164,22 @@ try {
       [rule.type, JSON.stringify(rule.value)],
     );
     written += rowCount ?? 0;
+  }
+  // A leave defaults row an older run of this seed wrote, missing a type the
+  // sample set has now: the sample set again, as the next version.
+  const leaveDefaults = RULES.find((r) => r.type === 'hr.rw.leave_defaults');
+  const { rows: latest } = await client.query(
+    `select version, value from config_entries where config_type = 'hr.rw.leave_defaults' order by version desc limit 1`,
+  );
+  const current = latest[0];
+  const codes = new Set((current?.value?.types ?? []).map((t) => t.code));
+  if (current && current.value?.note === NOTE && leaveDefaults.value.types.some((t) => !codes.has(t.code))) {
+    await client.query(
+      `insert into config_entries (config_type, value, effective_from, version, locked_on_use)
+       values ('hr.rw.leave_defaults', $1::jsonb, '2020-01-01T00:00:00+02:00', $2, false)`,
+      [JSON.stringify(leaveDefaults.value), current.version + 1],
+    );
+    written += 1;
   }
   for (const year of HOLIDAY_YEARS) {
     const { rowCount } = await client.query(

@@ -97,23 +97,64 @@ export const RssbRule = z.object({
 });
 export type RssbRule = z.infer<typeof RssbRule>;
 
-export const LeaveDefaultsRule = z.object({
-  types: z
-    .array(
-      z.object({
-        code: z.string().regex(/^[a-z][a-z0-9_]{1,30}$/),
-        name: z.string().min(1),
-        paid: z.boolean(),
-        /** Null: no balance is kept (unpaid leave). */
-        yearlyEntitlementDays: z.number().min(0).max(366).nullable(),
-        accrual: z.enum(['yearly_upfront', 'monthly', 'none']),
-        carryForwardMaxDays: z.number().min(0).max(366).default(0),
-        needsApproval: z.boolean().default(true),
-      }),
-    )
-    .min(1),
-});
-export type LeaveDefaultsRule = z.infer<typeof LeaveDefaultsRule>;
+/**
+ * One default leave type: every rule of 058-leave AC-LV1 (AC-LV12). A row
+ * written for slice 1 carries only `paid`, `carryForwardMaxDays` and
+ * `needsApproval` beside the entitlement; it reads with them mapped onto
+ * `payment`, `carryMaxDays` and `approvalSteps`, and every newer rule at its
+ * default.
+ */
+const LeaveDefaultType = z
+  .object({
+    code: z.string().regex(/^[a-z][a-z0-9_]{1,30}$/),
+    name: z.string().min(1),
+    payment: z.enum(['paid', 'unpaid', 'partial']).optional(),
+    paymentPercent: z.number().int().min(0).max(100).nullable().default(null),
+    /** Null: no balance is kept (unpaid leave). */
+    yearlyEntitlementDays: z.number().min(0).max(366).nullable(),
+    accrual: z.enum(['yearly_upfront', 'monthly', 'none']),
+    reset: z.enum(['yearly', 'monthly', 'never']).optional(),
+    carry: z.enum(['none', 'carry', 'carry_with_expiry']).optional(),
+    carryMaxDays: z.number().min(0).max(366).optional(),
+    carryExpiresMonths: z.number().int().min(1).max(12).nullable().default(null),
+    approvalSteps: z.number().int().min(0).max(2).optional(),
+    needsAttachment: z.boolean().default(false),
+    countsWeeklyOffs: z.boolean().default(false),
+    countsHolidays: z.boolean().default(false),
+    eligibleSex: z.enum(['female', 'male']).nullable().default(null),
+    minServiceMonths: z.number().int().min(0).max(600).default(0),
+    oncePerEmployment: z.boolean().default(false),
+    statutory: z.boolean().default(false),
+    allowsPastRequests: z.boolean().default(false),
+    encashable: z.boolean().default(false),
+    compensatory: z.boolean().default(false),
+    seniorityEveryYears: z.number().int().min(1).max(50).nullable().default(null),
+    seniorityExtraDays: z.number().min(0).max(366).nullable().default(null),
+    seniorityCapDays: z.number().min(0).max(366).nullable().default(null),
+    // Slice 1's names, read when the newer ones are absent.
+    paid: z.boolean().optional(),
+    carryForwardMaxDays: z.number().min(0).max(366).optional(),
+    needsApproval: z.boolean().optional(),
+  })
+  .transform(({ paid, carryForwardMaxDays, needsApproval, ...t }) => {
+    const keepsBalance = t.yearlyEntitlementDays !== null;
+    const carryMaxDays = t.carryMaxDays ?? carryForwardMaxDays ?? 0;
+    const reset = t.reset ?? (keepsBalance ? 'yearly' : 'never');
+    const payment = t.payment ?? (paid === false ? 'unpaid' : 'paid');
+    return {
+      ...t,
+      payment,
+      paymentPercent: payment === 'partial' ? t.paymentPercent : null,
+      reset,
+      carry: t.carry ?? (carryMaxDays > 0 && keepsBalance && reset === 'yearly' ? 'carry' : 'none'),
+      carryMaxDays,
+      approvalSteps: t.approvalSteps ?? (needsApproval === false ? 0 : 1),
+    };
+  });
+
+export const LeaveDefaultsRule = z.object({ types: z.array(LeaveDefaultType).min(1) });
+export type LeaveDefaultsRule = z.output<typeof LeaveDefaultsRule>;
+export type LeaveDefaultType = z.output<typeof LeaveDefaultType>;
 
 /** One row per year: the dates and their names. */
 export const PublicHolidaysRule = z.object({

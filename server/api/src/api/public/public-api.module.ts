@@ -23,6 +23,7 @@ import { HealthController } from './health/health.controller';
 import { MeController } from './me/me.controller';
 import { MeStaysController } from './me/stays.controller';
 import { MeWorkController } from './me/work.controller';
+import { MeWorkLeaveController } from './me/work-leave.controller';
 import { KioskController } from './kiosk/kiosk.controller';
 import { TwoFactorController } from './me/two-factor.controller';
 import { AvailabilityController } from './properties/availability.controller';
@@ -47,7 +48,13 @@ import { OpsPayAccountsController } from './ops/pay-accounts.controller';
 import { OpsPoliciesController } from './ops/policies.controller';
 import { OpsStaffAnnouncementsController } from './ops/staff-announcements.controller';
 import { OpsListViewsController } from './ops/list-views.controller';
-import { OpsLeaveController } from './ops/leave.controller';
+import {
+  OpsLeaveAllocationsController,
+  OpsLeaveController,
+  OpsLeaveTypesController,
+  OpsLeaveViewsController,
+  OpsRestrictedPeriodsController,
+} from './ops/leave.controller';
 import { OpsPayRunsController } from './ops/pay-runs.controller';
 import { OpsRosterController, OpsShiftTemplatesController } from './ops/roster.controller';
 import {
@@ -209,6 +216,10 @@ import { WaitlistModule } from './waitlist/waitlist.module';
     OpsEmployeeKioskPinController,
     OpsHrTimeSettingsController,
     OpsLeaveController,
+    OpsLeaveViewsController,
+    OpsLeaveTypesController,
+    OpsLeaveAllocationsController,
+    OpsRestrictedPeriodsController,
     OpsPayRunsController,
     OpsFoliosController,
     // §6.8. Answering a guest who asked for money back, and the offers a
@@ -245,6 +256,7 @@ import { WaitlistModule } from './waitlist/waitlist.module';
      */
     MeStaysController,
     MeWorkController,
+    MeWorkLeaveController,
     KioskController,
     TwoFactorController,
     // Answers only in a demo process; 404 everywhere else (AC-S10, ADR-043).

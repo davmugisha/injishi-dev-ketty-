@@ -85,6 +85,24 @@ describe('pay computation (ADR-058 AC-Y1, AC-Y2, AC-Y4)', () => {
     expect(p.grossRwf).toBe(190_000);
   });
 
+  it('takes partly paid leave at the unpaid share of a thirtieth, exactly (058-leave AC-LV1)', () => {
+    // 200,000 a month: a day is 6,666.67. Two and a half days paid at 60% leave
+    // 40% unpaid: 200,000 × 2.5 × 40 / 3,000 = 6,666.67, half up 6,667.
+    const p = slip({ partialLeaveByContract: new Map([['c1', new Map([[40, 2.5]])]]) });
+    const partial = p.lines.find((l) => l.code === 'partly_paid_leave');
+    expect(partial?.amountRwf).toBe(-6_667);
+    expect(p.grossRwf).toBe(193_333);
+  });
+
+  it('never lets unpaid and partly paid leave together pass the days the contract paid', () => {
+    const p = slip({
+      unpaidDaysByContract: new Map([['c1', 29]]),
+      partialLeaveByContract: new Map([['c1', new Map([[50, 3]])]]),
+    });
+    const partial = p.lines.find((l) => l.code === 'partly_paid_leave');
+    expect(partial?.basis.startsWith('1 day ')).toBe(true);
+  });
+
   it('keeps every amount column equal to the sum of its lines', () => {
     const p = slip({
       contracts: [
