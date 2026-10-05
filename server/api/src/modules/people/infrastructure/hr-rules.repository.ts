@@ -12,6 +12,9 @@ import {
   type PayeRule,
   type PublicHolidaysRule,
   type RssbRule,
+  type OvertimeRule,
+  type FinalSettlementRule,
+  type DeclarationFormatsRule,
 } from '../domain/hr-rules';
 
 type Tx = Parameters<Parameters<Database['transaction']>[0]>[0];
@@ -60,6 +63,21 @@ export class HrRulesRepository {
 
   rssb(date: string, tx?: Tx): Promise<HrRuleRow<RssbRule> | null> {
     return this.inForce(HR_RULE.rssb, date, tx).then((r) => parseHrRule(HR_RULE.rssb, r));
+  }
+
+  /** 058-payroll AC-PY4: how approved overtime is paid. */
+  overtime(date: string, tx?: Tx): Promise<HrRuleRow<OvertimeRule> | null> {
+    return this.inForce(HR_RULE.overtime, date, tx).then((r) => parseHrRule(HR_RULE.overtime, r));
+  }
+
+  /** 058-payroll AC-PY13: what a leaver's last payslip adds. */
+  finalSettlement(date: string, tx?: Tx): Promise<HrRuleRow<FinalSettlementRule> | null> {
+    return this.inForce(HR_RULE.finalSettlement, date, tx).then((r) => parseHrRule(HR_RULE.finalSettlement, r));
+  }
+
+  /** 058-payroll AC-PY12: the declaration formats; none in force means provisional CSV. */
+  declarationFormats(date: string, tx?: Tx): Promise<HrRuleRow<DeclarationFormatsRule> | null> {
+    return this.inForce(HR_RULE.declarationFormats, date, tx).then((r) => parseHrRule(HR_RULE.declarationFormats, r));
   }
 
   leaveDefaults(date: string, tx?: Tx): Promise<HrRuleRow<LeaveDefaultsRule> | null> {

@@ -20,6 +20,9 @@ export const HR_RULE = {
   rssb: 'hr.rw.rssb',
   leaveDefaults: 'hr.rw.leave_defaults',
   publicHolidays: 'hr.rw.public_holidays',
+  overtime: 'hr.rw.overtime',
+  finalSettlement: 'hr.rw.final_settlement',
+  declarationFormats: 'hr.rw.declaration_formats',
 } as const;
 export type HrRuleType = (typeof HR_RULE)[keyof typeof HR_RULE];
 
@@ -29,6 +32,9 @@ export const HR_RULE_LABEL: Readonly<Record<HrRuleType, string>> = {
   'hr.rw.rssb': 'the RSSB contribution rates',
   'hr.rw.leave_defaults': 'the default leave types',
   'hr.rw.public_holidays': 'the public holidays',
+  'hr.rw.overtime': 'how overtime is paid',
+  'hr.rw.final_settlement': 'what a leaver is paid at the end',
+  'hr.rw.declaration_formats': 'the PAYE and RSSB declaration formats',
 };
 
 /**
@@ -48,10 +54,17 @@ const PayeBand = z.object({
 });
 
 /**
- * The taxable base is a closed list (index contract 8). The accountant's sheet
- * picks one; adding a value is a change to the ADR, not to a row.
+ * The taxable base is a closed list (index contract 8, grown by 058-payroll
+ * AC-PY6). The accountant's sheet picks one; adding a value is a change to the
+ * ADR, not to a row. `taxable` is the earnings marked taxable, less the
+ * deductions taken before tax.
  */
-const PayeTaxableBase = z.enum(['gross', 'gross_less_employee_contributions']);
+const PayeTaxableBase = z.enum([
+  'gross',
+  'gross_less_employee_contributions',
+  'taxable',
+  'taxable_less_employee_contributions',
+]);
 export type PayeTaxableBase = z.infer<typeof PayeTaxableBase>;
 
 export const PayeRule = z
@@ -75,8 +88,11 @@ export const PayeRule = z
   );
 export type PayeRule = z.infer<typeof PayeRule>;
 
-/** The base a contribution is charged on: another closed list. */
-const ContributionBase = z.enum(['gross', 'basic']);
+/**
+ * The base a contribution is charged on: another closed list. `contributable`
+ * is the earnings that count in the contribution base (058-payroll AC-PY6).
+ */
+const ContributionBase = z.enum(['gross', 'basic', 'contributable']);
 export type ContributionBase = z.infer<typeof ContributionBase>;
 
 export const RssbRule = z.object({
@@ -168,6 +184,51 @@ export const PublicHolidaysRule = z.object({
 });
 export type PublicHolidaysRule = z.infer<typeof PublicHolidaysRule>;
 
+/** How much more an hour of overtime pays, by the kind of day it was worked. */
+const Multiplier = z.number().min(0).max(10);
+
+/**
+ * How approved overtime is paid (058-payroll AC-PY4): the hourly rate of a
+ * monthly wage is the wage over `monthlyHoursDivisor`, a daily wage's is the
+ * wage over 8, an hourly wage is its own; each day kind has its multiplier.
+ */
+export const OvertimeRule = z.object({
+  monthlyHoursDivisor: z.number().positive().max(744),
+  multipliers: z.object({ weekday: Multiplier, weekly_off: Multiplier, public_holiday: Multiplier }),
+  taxable: z.boolean(),
+  contributable: z.boolean(),
+  rounding: Rounding.optional(),
+});
+export type OvertimeRule = z.infer<typeof OvertimeRule>;
+
+const LineTreatment = z.object({ taxable: z.boolean(), contributable: z.boolean() });
+
+/**
+ * What a leaver's last payslip adds (058-payroll AC-PY13), and how each line is
+ * taxed. Notice pay and severance arrive with exit cases (058-offboarding);
+ * their parts are optional until then.
+ */
+export const FinalSettlementRule = z.object({
+  unusedLeave: LineTreatment,
+  notice: LineTreatment.optional(),
+  severance: LineTreatment.extend({
+    /** Months of the day rate × 30 per completed year band, from the first band a person reaches. */
+    table: z.array(z.object({ fromYears: z.number().int().min(0).max(60), monthsOfPay: z.number().min(0).max(36) })).min(1),
+  }).optional(),
+});
+export type FinalSettlementRule = z.infer<typeof FinalSettlementRule>;
+
+/**
+ * The formats the declaration files are written in (058-payroll AC-PY12).
+ * Until the accountant's sheet sets the row, the files are Injishi's own CSV,
+ * labelled provisional.
+ */
+export const DeclarationFormatsRule = z.object({
+  paye: z.object({ format: z.literal('provisional_csv') }),
+  rssb: z.object({ format: z.literal('provisional_csv') }),
+});
+export type DeclarationFormatsRule = z.infer<typeof DeclarationFormatsRule>;
+
 /** A rule as read: the parsed value and the row it came from, for the trail. */
 export interface HrRuleRow<T> {
   readonly configEntryId: string;
@@ -180,6 +241,9 @@ const PARSERS = {
   'hr.rw.rssb': RssbRule,
   'hr.rw.leave_defaults': LeaveDefaultsRule,
   'hr.rw.public_holidays': PublicHolidaysRule,
+  'hr.rw.overtime': OvertimeRule,
+  'hr.rw.final_settlement': FinalSettlementRule,
+  'hr.rw.declaration_formats': DeclarationFormatsRule,
 } as const;
 
 /**

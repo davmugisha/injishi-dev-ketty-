@@ -27,7 +27,7 @@ import { assertInBranchScope, type ScopedWorkspace } from '../../../shared/auth/
 import { runBulk } from '../../../shared/lists/bulk';
 import { pageOf } from '../../../shared/lists/list-query';
 import { isCalendarDate } from '../../booking/domain/pricing';
-import { addDays, eachDate, kigaliToday, lastOfMonth, mondayOf, monthOf } from '../domain/hr-calendar';
+import { addDays, eachDate, kigaliToday, mondayOf, monthOf } from '../domain/hr-calendar';
 import { HR_RULE, missingRuleMessage } from '../domain/hr-rules';
 import { dueAccruals } from '../domain/leave-accrual';
 import {
@@ -64,6 +64,7 @@ import { TimeRepository } from '../infrastructure/time.repository';
 import { TimeSettingsRepository } from '../infrastructure/time-settings.repository';
 import { rosterCard } from './employee-presenter';
 import { HrFilesService } from './hr-files.service';
+import { PayAdjustmentsService, sharesByPeriod } from './pay-adjustments.service';
 import { assertPersonInReach, orgOf } from './hr-access';
 
 /** How far back self service may start a type that allows past dates, such as sick leave (AC-LV6). */
@@ -101,6 +102,7 @@ export class LeaveService {
     private readonly rules: HrRulesRepository,
     private readonly settings: TimeSettingsRepository,
     private readonly files: HrFilesService,
+    private readonly payAdjustments: PayAdjustmentsService,
   ) {}
 
   // --- Types, accrual and lots ---------------------------------------------------------
@@ -544,7 +546,17 @@ export class LeaveService {
         );
       }
     }
-    await this.assertPayOpen(employee.orgId, current, count, tx);
+    // Unpaid days landing in a month whose pay is confirmed become a pay
+    // adjustment on the next run, in this transaction (AC-LV9a).
+    await this.payAdjustments.forLeave(tx, {
+      employee,
+      requestId: current.id,
+      payment: current.payment,
+      paymentPercent: current.paymentPercent,
+      byMonth: count.byMonth.map((share) => ({ period: share.period, days: share.days })),
+      direction: 'approve',
+      userId,
+    });
     const moved = await this.leave.decide(tx, { id: current.id, from: 'requested', to: 'approved', userId, note, days: count.days });
     if (!moved) throw new ConflictException('Someone decided that request a moment ago.');
 
@@ -647,8 +659,17 @@ export class LeaveService {
         throw new ConflictException(`That request is ${current.status}, so there is nothing to cancel${onlyWaiting ? ' here' : ''}.`);
       }
       if (current.status === 'approved') {
-        const count = await this.count(employee.id, current, (await this.leave.findType(current.leaveTypeId, tx)) as LeaveTypeRow, tx);
-        await this.assertPayOpen(actor.orgId, current, count, tx);
+        // What was taken in a confirmed month is given back on the next run (AC-LV9a).
+        const taken = await this.leave.unreversedTaken(current.id, tx);
+        await this.payAdjustments.forLeave(tx, {
+          employee,
+          requestId: current.id,
+          payment: current.payment,
+          paymentPercent: current.paymentPercent,
+          byMonth: sharesByPeriod(taken.map((t) => ({ effectiveOn: t.effectiveOn, days: -t.days }))),
+          direction: 'cancel',
+          userId: actor.userId,
+        });
       }
       const moved = await this.leave.decide(tx, { id, from: current.status, to: 'cancelled', userId: actor.userId, note });
       if (!moved) throw new ConflictException('Someone decided that request a moment ago.');
@@ -735,9 +756,9 @@ export class LeaveService {
    * today, soonest to expire first. Refused for a type that is not encashable,
    * or a balance short of the days. Runs inside the claim's transaction.
    */
-  async encash(tx: Tx, employee: EmployeeRow, type: LeaveTypeRow, days: number, userId: string, reason: string): Promise<void> {
+  async encash(tx: Tx, employee: EmployeeRow, type: LeaveTypeRow, days: number, userId: string, reason: string, on: string = kigaliToday()): Promise<void> {
     if (!type.encashable) throw new UnprocessableEntityException(`${type.name} cannot be paid out.`);
-    const today = kigaliToday();
+    const today = on;
     await this.catchUpAccruals(employee, [type], tx);
     const items = await this.leave.ledgerOf(employee.id, type.id, tx);
     const draws = drawLots(items, type.reset, today, days);
@@ -757,6 +778,21 @@ export class LeaveService {
         reason,
         createdByUserId: userId,
       })),
+    );
+  }
+
+  /**
+   * What is left of the lots valid on a date, from the ledger as written: a
+   * leaver's unused days on their last day (058-payroll AC-PY13). Unlike
+   * `availableOn`, nothing not yet earned is counted.
+   */
+  async remainingOn(employee: Pick<EmployeeRow, 'id' | 'orgId' | 'hiredOn' | 'status' | 'offboardedOn'>, type: LeaveTypeRow, date: string, tx?: Tx): Promise<number> {
+    await this.catchUpAccruals(employee, [type], tx);
+    const items = await this.leave.ledgerOf(employee.id, type.id, tx);
+    return tenth(
+      lotStates(items, type.reset)
+        .filter((l) => validOn(l, date))
+        .reduce((sum, l) => sum + Math.max(0, l.remaining), 0),
     );
   }
 
@@ -821,24 +857,6 @@ export class LeaveService {
     });
     if (hit) {
       throw new UnprocessableEntityException(`Leave is restricted during ${hit.title} (${hit.fromDate} to ${hit.toDate}).`);
-    }
-  }
-
-  /**
-   * Unpaid or partly paid days in a month whose pay is confirmed are history:
-   * that is a pay adjustment (AC-LV9a, index contract 17), which arrives with
-   * payroll in full, so until then the decision is refused rather than leaving
-   * a confirmed month wrong.
-   */
-  private async assertPayOpen(orgId: string, request: Pick<LeaveRequestRow, 'payment'>, count: LeaveCount, tx: Tx): Promise<void> {
-    if (request.payment === 'paid') return;
-    const frozen = await this.employees.latestConfirmedPeriod(orgId, tx);
-    if (!frozen) return;
-    const through = lastOfMonth(monthOf(frozen));
-    if (count.byMonth.some((s) => s.effectiveOn <= through)) {
-      throw new ConflictException(
-        `Pay for ${monthOf(frozen)} is confirmed, so unpaid leave in it cannot change now. It needs a pay adjustment, which comes with payroll in full.`,
-      );
     }
   }
 

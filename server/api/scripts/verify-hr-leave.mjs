@@ -719,15 +719,27 @@ const unpaidLast = await request(manager, cookF.id, unpaid?.id, lastMonthDay, la
 const lastRun = await post(owner, '/ops/pay-runs', { period: lastMonth.slice(0, 7) });
 let confirmed = lastRun.body?.run?.id ? await post(owner, `/ops/pay-runs/${lastRun.body.run.id}/confirm`, {}) : lastRun;
 if (confirmed.status === 409 && Array.isArray(confirmed.body?.blockers)) {
-  // Earlier rows of the sample may block it; the RSSB numbers the office can type.
+  // Earlier rows of the sample may block it; the RSSB numbers, and the
+  // business's own employer number (058-payroll AC-PY14), the office can type.
   for (const b of confirmed.body.blockers.filter((x) => x.code === 'missing_rssb_number')) {
     await patch(owner, `/ops/employees/${b.employeeId}`, { rssbNumber: `RB${stamp.slice(-4)}${b.employeeId.slice(-4)}` });
+  }
+  if (confirmed.body.blockers.some((x) => x.code === 'missing_rssb_employer_number')) {
+    await patch(owner, '/ops/hr/settings', { rssbEmployerNumber: `DEMO-${stamp}` });
   }
   confirmed = await post(owner, `/ops/pay-runs/${lastRun.body.run.id}/confirm`, {});
 }
 if (confirmed.status === 200) {
+  // Since 058-payroll the decision goes through, and the unpaid day becomes a
+  // deduction on the next month's pay: the confirmed payslip never changes.
   const frozenDecision = await post(manager, `/ops/leave/requests/${unpaidLast.body?.id}/approve`, {});
-  check('unpaid leave in a confirmed month: 409, it needs a pay adjustment', frozenDecision.status === 409 && /pay adjustment|confirmed/i.test(frozenDecision.body?.message ?? ''), frozenDecision.body);
+  const adjustments = (await get(owner, listPath('/ops/pay-adjustments', { filters: [['source', 'eq', 'leave']] }))).body?.items ?? [];
+  const adjustment = adjustments.find((a) => a.employee?.employeeId === cookF.id && a.correctsPeriod === lastMonth.slice(0, 7));
+  check(
+    'unpaid leave in a confirmed month: approved, and a day\'s pay (10,000) is deducted next month as an adjustment',
+    frozenDecision.status === 200 && adjustment?.side === 'deduction' && adjustment?.amountRwf === 10000 && adjustment?.status === 'open',
+    [frozenDecision.status, frozenDecision.body?.message, adjustment],
+  );
 } else {
   skip('unpaid leave in a confirmed month', `last month's run could not be confirmed here: ${JSON.stringify(confirmed.body?.blockers?.slice(0, 2) ?? confirmed.body?.message)}`);
 }

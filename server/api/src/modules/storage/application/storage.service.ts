@@ -465,6 +465,28 @@ export class StorageService {
     return { objectKey: put.objectKey, purpose: input.purpose, mime, sizeBytes: put.sizeBytes };
   }
 
+  /**
+   * Store a file payroll built: a bank or MoMo file, or a declaration
+   * (058-payroll AC-PY10, AC-PY12). Like a training certificate, these bytes
+   * were made here a moment ago, so there is no client to distrust and no
+   * mime to sniff. They carry wages and account numbers: kept private, against
+   * the workspace, read only through a five minute link.
+   */
+  async putHrPayFile(input: { body: Buffer; filename: string; workspaceId: string; createdByUserId: string }): Promise<string> {
+    const kind = 'hr_pay_file' as const;
+    const mime = 'text/csv';
+    const put = await this.storage.put({ body: input.body, mime, filename: input.filename, kind });
+    await this.db.insert(storedObjects).values({
+      objectKey: put.objectKey,
+      kind,
+      mime,
+      sizeBytes: put.sizeBytes,
+      uploadedByUserId: input.createdByUserId,
+      workspaceId: input.workspaceId,
+    });
+    return put.objectKey;
+  }
+
   /** A short-lived read, for showing back what was attached. */
   signedUrl(objectKey: string, ttlSeconds = 300): Promise<string> {
     return this.storage.signedUrl(objectKey, ttlSeconds);

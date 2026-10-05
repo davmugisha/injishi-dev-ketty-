@@ -1,4 +1,4 @@
-import { applyRate, computePayslip, payeOn, wageForDays } from './pay-computation';
+import { applyRate, computePayslip, dayRatePay, dayUnits, overtimePay, payeOn, percentOf, wageForDays, type PayComponentInput } from './pay-computation';
 import type { PayeRule, RssbRule } from './hr-rules';
 
 /**
@@ -121,12 +121,106 @@ describe('pay computation (ADR-058 AC-Y1, AC-Y2, AC-Y4)', () => {
     for (const l of p.lines) expect(Number.isInteger(l.amountRwf)).toBe(true);
   });
 
-  it('refuses a daily or hourly contract rather than paying it nothing', () => {
-    expect(() =>
-      slip({
-        contracts: [{ id: 'd', startsOn: '2025-01-01', endsOn: null, wageBasis: 'daily', wageRwf: 5_000 }],
-      }),
-    ).toThrow();
+  it('splits a 31 day month 14.52 and 15.48 on a raise on the 16th, adding to exactly 30 (058-payroll AC-PY1)', () => {
+    const p = slip({
+      period: '2026-10',
+      contracts: [
+        { id: 'old', startsOn: '2025-01-01', endsOn: '2026-10-15', wageBasis: 'monthly', wageRwf: 150_000 },
+        { id: 'new', startsOn: '2026-10-16', endsOn: null, wageBasis: 'monthly', wageRwf: 210_000 },
+      ],
+    });
+    // 150,000 × 14.52 ÷ 30 and 210,000 × 15.48 ÷ 30.
+    expect(p.lines.filter((l) => l.code === 'wage').map((l) => l.amountRwf)).toEqual([72_600, 108_360]);
+    expect(p.payableDays).toBe(30);
+  });
+
+  it('pays a daily wage per date worked: a whole day from the threshold, half from half of it (AC-PY2)', () => {
+    const p = slip({
+      contracts: [{ id: 'd', startsOn: '2025-01-01', endsOn: null, wageBasis: 'daily', wageRwf: 5_000 }],
+      workDays: [
+        { workDate: '2026-09-01', contractId: 'd', workedMinutes: 420 },
+        { workDate: '2026-09-02', contractId: 'd', workedMinutes: 200 },
+        { workDate: '2026-09-03', contractId: 'd', workedMinutes: 100 },
+        // Two shifts on one date are one day.
+        { workDate: '2026-09-04', contractId: 'd', workedMinutes: 200 },
+        { workDate: '2026-09-04', contractId: 'd', workedMinutes: 200 },
+      ],
+    });
+    const days = p.lines.find((l) => l.code === 'daily_wage');
+    expect(days?.basis).toBe('2.5 days × 5000');
+    expect(days?.amountRwf).toBe(12_500);
+  });
+
+  it('pays an hourly wage to the minute, and paid leave at the day rate (AC-PY2)', () => {
+    const p = slip({
+      contracts: [{ id: 'h', startsOn: '2025-01-01', endsOn: null, wageBasis: 'hourly', wageRwf: 2_000 }],
+      workDays: [{ workDate: '2026-09-01', contractId: 'h', workedMinutes: 450 }],
+      paidLeaveByContract: new Map([['h', new Map([[100, 1], [60, 1]])]]),
+    });
+    expect(p.lines.find((l) => l.code === 'hourly_wage')?.amountRwf).toBe(15_000);
+    // Eight hours a day: 16,000 for the paid day, 60% of it for the other.
+    expect(p.lines.filter((l) => l.code === 'paid_leave').map((l) => l.amountRwf)).toEqual([16_000, 9_600]);
+  });
+
+  it('pays approved overtime at the hourly rate times the kind of day (AC-PY4)', () => {
+    const rule = { monthlyHoursDivisor: 173.33, multipliers: { weekday: 1.5, weekly_off: 2, public_holiday: 2.5 }, taxable: true, contributable: false };
+    const p = slip({
+      contracts: [{ id: 'c1', startsOn: '2025-01-01', endsOn: null, wageBasis: 'monthly', wageRwf: 173_330 }],
+      overtime: [
+        { contractId: 'c1', dayKind: 'weekday', approvedMinutes: 90 },
+        { contractId: 'c1', dayKind: 'weekly_off', approvedMinutes: 60 },
+      ],
+      overtimeRule: rule,
+    });
+    // 1,000 an hour: 1.5 h × 1.5 and 1 h × 2.
+    expect(p.lines.filter((l) => l.code === 'overtime').map((l) => l.amountRwf)).toEqual([2_250, 2_000]);
+    expect(p.lines.find((l) => l.code === 'overtime')?.contributable).toBe(false);
+    expect(overtimePay({ wageBasis: 'daily', wageRwf: 8_000 }, 60, 1.5, rule)).toBe(1_500);
+  });
+
+  it('applies allowances and deductions in order, the taxable base less what is taken before tax (AC-PY5, AC-PY6)', () => {
+    const component = (c: Partial<PayComponentInput> & Pick<PayComponentInput, 'code' | 'kind' | 'amountType'>): PayComponentInput => ({
+      name: c.code,
+      amountRwf: null,
+      rate: null,
+      capRwf: null,
+      taxable: true,
+      contributable: false,
+      beforeTax: false,
+      ...c,
+    });
+    const p = slip({
+      paye: { ...PAYE, taxableBase: 'taxable' },
+      childrenCount: 2,
+      components: [
+        component({ code: 'transport', kind: 'allowance', amountType: 'fixed', amountRwf: 20_000 }),
+        component({ code: 'children', kind: 'allowance', amountType: 'per_child', amountRwf: 5_000, taxable: false }),
+        component({ code: 'housing', kind: 'allowance', amountType: 'percent_basic', rate: 10, capRwf: 15_000 }),
+        component({ code: 'pension_top_up', kind: 'deduction', amountType: 'percent_basic', rate: 2, beforeTax: true }),
+        component({ code: 'canteen', kind: 'deduction', amountType: 'fixed', amountRwf: 1_000 }),
+      ],
+      passthrough: [{ code: 'reimbursement', label: 'Taxi fare', contractId: null, basis: 'receipt', amountRwf: 7_000, side: 'passthrough' }],
+    });
+    expect(p.grossRwf).toBe(200_000 + 20_000 + 10_000 + 15_000);
+    // Taxable: 235,000 (the per child allowance is not), less 4,000 taken before tax.
+    expect(p.lines.find((l) => l.code === 'paye')?.taxBase).toBe(231_000);
+    expect(p.otherDeductionsRwf).toBe(4_000 + 1_000);
+    expect(p.nonIncomeRwf).toBe(7_000);
+    expect(p.netRwf).toBe(p.grossRwf + 7_000 - p.payeRwf - p.employeeContributionsRwf - 5_000);
+  });
+
+  it('can net below zero, which the run blocks rather than hides (AC-PY7)', () => {
+    const p = slip({ extraDeductions: [{ code: 'loan', label: 'Loan', contractId: null, basis: 'installment', amountRwf: 300_000, side: 'deduction' }] });
+    expect(p.netRwf).toBeLessThan(0);
+  });
+
+  it('prices days at the day rate of each wage basis', () => {
+    expect(dayRatePay({ wageBasis: 'monthly', wageRwf: 300_000 }, 2)).toBe(20_000);
+    expect(dayRatePay({ wageBasis: 'daily', wageRwf: 5_000 }, 1.5)).toBe(7_500);
+    expect(dayRatePay({ wageBasis: 'hourly', wageRwf: 1_000 }, 1)).toBe(8_000);
+    expect(dayUnits(359, 360)).toBe(0.5);
+    expect(dayUnits(179, 360)).toBe(0);
+    expect(percentOf(123_457, 12.5)).toBe(15_432);
   });
 
   describe('exact rounding', () => {

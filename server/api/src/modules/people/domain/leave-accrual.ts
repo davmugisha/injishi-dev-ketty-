@@ -2,7 +2,7 @@ import {
   eachMonth,
   firstOfMonth,
   monthOf,
-  payableThirtieths,
+  shareOfMonth,
   yearOf,
 } from './hr-calendar';
 import { entitlementFor, tenth, type SeniorityType } from './leave-lots';
@@ -62,7 +62,7 @@ export function dueAccruals(input: {
       // 21.6, and a year must add to its entitlement exactly.
       const firstMonth = y === yearOf(hiredOn) ? monthOf(hiredOn) : `${y}-01`;
       const lastMonth = y === yearOf(through) ? monthOf(through) : `${y}-12`;
-      const firstFraction = y === yearOf(hiredOn) ? payableThirtieths({ startsOn: hiredOn, endsOn: null }, firstMonth) / 30 : 1;
+      const firstFraction = y === yearOf(hiredOn) ? shareOfMonth({ startsOn: hiredOn, endsOn: null }, firstMonth) / 30 : 1;
       let previous = 0;
       eachMonth(firstMonth, lastMonth).forEach((period, i) => {
         const cumulative = tenth((entitlement * (firstFraction + i)) / 12);

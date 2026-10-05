@@ -36,6 +36,17 @@ import { OpsListViewsController } from './list-views.controller';
 import { OpsOrgChartController } from './org-chart.controller';
 import { OpsPayAccountsController } from './pay-accounts.controller';
 import { OpsPayRunsController } from './pay-runs.controller';
+import {
+  OpsContractsController,
+  OpsLoansController,
+  OpsPayAdjustmentsController,
+  OpsPayClaimsController,
+  OpsPayComponentsController,
+  OpsPayFilesController,
+  OpsPayrollController,
+  OpsPayslipsController,
+  OpsPayStructuresController,
+} from './payroll.controller';
 import { OpsPoliciesController } from './policies.controller';
 import { OpsRosterController, OpsShiftTemplatesController } from './roster.controller';
 import { OpsEbmController } from './ebm.controller';
@@ -142,6 +153,15 @@ const CONTROLLERS: Ctor[] = [
   OpsAttendanceSettingsController,
   OpsEmployeeKioskPinController,
   OpsHrTimeSettingsController,
+  OpsPayslipsController,
+  OpsPayAdjustmentsController,
+  OpsLoansController,
+  OpsPayClaimsController,
+  OpsPayComponentsController,
+  OpsPayStructuresController,
+  OpsContractsController,
+  OpsPayrollController,
+  OpsPayFilesController,
 ];
 
 interface Read {
@@ -322,6 +342,26 @@ const EXPECTED: Record<string, readonly OrgRole[]> = {
   '/ops/leave/allocation-requests': ['owner', 'manager'],
   '/ops/leave/allocation-requests/ids': ['owner', 'manager'],
   '/ops/leave/restricted-periods': ['owner', 'manager'],
+  // Payroll in full (058-payroll): every read is `payroll.run`, the owner's by
+  // default, because each one says what a named colleague earns or owes. The
+  // contracts list is `people.manage` too, which writes contracts.
+  '/ops/pay-runs/:id/payslips.pdf': ['owner'],
+  '/ops/pay-runs/:id/files': ['owner'],
+  '/ops/payslips': ['owner'],
+  '/ops/payslips/ids': ['owner'],
+  '/ops/payslips/:id/pdf': ['owner'],
+  '/ops/pay-adjustments': ['owner'],
+  '/ops/loans': ['owner'],
+  '/ops/loans/:id': ['owner'],
+  '/ops/pay-claims': ['owner'],
+  '/ops/pay-claims/ids': ['owner'],
+  '/ops/pay-claims/:id/receipt': ['owner'],
+  '/ops/pay-components': ['owner'],
+  '/ops/pay-structures': ['owner'],
+  '/ops/contracts': ['owner'],
+  '/ops/payroll/dashboard': ['owner'],
+  '/ops/payroll/rules': ['owner'],
+  '/ops/pay-files/:id': ['owner'],
 };
 
 describe('operator reads (audit H1)', () => {

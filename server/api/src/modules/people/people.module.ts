@@ -17,10 +17,18 @@ import { KioskService } from './application/kiosk.service';
 import { LeaveAllocationsService } from './application/leave-allocations.service';
 import { LeaveTypesService } from './application/leave-types.service';
 import { LeaveService } from './application/leave.service';
+import { LoansService } from './application/loans.service';
 import { MyLeaveService } from './application/my-leave.service';
+import { MyPayService } from './application/my-pay.service';
 import { RestrictedPeriodsService } from './application/restricted-periods.service';
 import { MyWorkService } from './application/my-work.service';
+import { PayAdjustmentsService } from './application/pay-adjustments.service';
+import { PayClaimsService } from './application/pay-claims.service';
+import { PayComponentsService } from './application/pay-components.service';
+import { PayFilesService } from './application/pay-files.service';
 import { PayRunsService } from './application/pay-runs.service';
+import { PayrollViewsService } from './application/payroll-views.service';
+import { PayslipsService } from './application/payslips.service';
 import { PeopleFileService } from './application/people-file.service';
 import { RotationService } from './application/rotation.service';
 import { TimeRequestsService } from './application/time-requests.service';
@@ -34,7 +42,10 @@ import { KioskRepository } from './infrastructure/kiosk.repository';
 import { LeaveExtraRepository } from './infrastructure/leave-extra.repository';
 import { LeaveRepository } from './infrastructure/leave.repository';
 import { MyWorkRepository } from './infrastructure/my-work.repository';
+import { PayItemsRepository } from './infrastructure/pay-items.repository';
+import { PayRecordsRepository } from './infrastructure/pay-records.repository';
 import { PayrollRepository } from './infrastructure/payroll.repository';
+import { PayslipPdfRenderer } from './infrastructure/payslip-pdf.renderer';
 import { PeopleDirectoryRepository } from './infrastructure/people-directory.repository';
 import { PeopleFileRepository } from './infrastructure/people-file.repository';
 import { HR_PIN_PEPPER } from './infrastructure/pin-hash';
@@ -45,7 +56,9 @@ import { TimeSettingsRepository } from './infrastructure/time-settings.repositor
 
 /**
  * The HR module (ADR-058), behind `/api/v1/ops/employees`, `shift-templates`,
- * `roster`, `attendance`, `leave`, `pay-runs` and the people file's routes
+ * `roster`, `attendance`, `leave`, `pay-runs`, payroll's own routes (058-payroll:
+ * payslips, loans, claims, adjustments, components, structures and contracts)
+ * and the people file's routes
  * (058-people-file: documents, pay accounts, policies, announcements,
  * discipline, the org chart and the HR catalogs and settings).
  *
@@ -72,6 +85,9 @@ import { TimeSettingsRepository } from './infrastructure/time-settings.repositor
     LeaveRepository,
     LeaveExtraRepository,
     PayrollRepository,
+    PayItemsRepository,
+    PayRecordsRepository,
+    PayslipPdfRenderer,
     HrRulesRepository,
     PeopleDirectoryRepository,
     PeopleFileRepository,
@@ -109,7 +125,15 @@ import { TimeSettingsRepository } from './infrastructure/time-settings.repositor
     LeaveAllocationsService,
     RestrictedPeriodsService,
     MyLeaveService,
+    PayAdjustmentsService,
     PayRunsService,
+    PayslipsService,
+    PayFilesService,
+    LoansService,
+    PayClaimsService,
+    PayComponentsService,
+    PayrollViewsService,
+    MyPayService,
     HrDailyService,
     ...(isWorkerProcess() ? [HrDailyProcessor] : []),
   ],
@@ -128,6 +152,14 @@ import { TimeSettingsRepository } from './infrastructure/time-settings.repositor
     RestrictedPeriodsService,
     MyLeaveService,
     PayRunsService,
+    PayslipsService,
+    PayFilesService,
+    LoansService,
+    PayClaimsService,
+    PayAdjustmentsService,
+    PayComponentsService,
+    PayrollViewsService,
+    MyPayService,
     HrDailyService,
     HrFilesService,
     PeopleFileService,

@@ -198,8 +198,8 @@ check('backfilled files read detailsMissing', managerList.body?.items?.some((e) 
 console.log('\nContracts (AC-P4)');
 const fixedNoEnd = await post(owner, `/ops/employees/${cook?.id}/contracts`, { contractType: 'fixed_term', startsOn: first, wageBasis: 'monthly', wageRwf: 180000 });
 check('a fixed term contract without an end: 422', fixedNoEnd.status === 422, fixedNoEnd.body);
-const daily = await post(owner, `/ops/employees/${cook?.id}/contracts`, { contractType: 'casual', startsOn: first, wageBasis: 'daily', wageRwf: 5000 });
-check('a daily wage is refused in the first thread: 422', daily.status === 422, daily.status);
+// Daily and hourly wages were refused here until 058-payroll pays them;
+// verify-hr-payroll.mjs proves them now (AC-PY2).
 const c1 = await post(owner, `/ops/employees/${cook?.id}/contracts`, { contractType: 'permanent', startsOn: first, wageBasis: 'monthly', wageRwf: 180000 });
 check('a monthly contract from the first: 201, active', c1.status === 201 && c1.body?.contract?.status === 'active', c1.body);
 const early = await post(owner, `/ops/employees/${cook?.id}/contracts`, { contractType: 'permanent', startsOn: first, wageBasis: 'monthly', wageRwf: 190000 });
@@ -329,24 +329,39 @@ check('owner creates the draft run: 201', run.status === 201 && run.body?.run?.s
 const slip = run.body?.payslips?.find((p) => p.employeeId === cook?.id);
 check('the cook has one payslip with two wage line groups (the raise on the 16th)', slip?.lines?.filter((l) => l.code === 'wage').length === 2, slip?.lines);
 const wage = slip?.lines?.filter((l) => l.code === 'wage').reduce((s, l) => s + l.amountRwf, 0);
-// Index contract 9, restated here rather than imported: 30, less the days of
-// the month before a start, less the days after an end. In a 31 day month the
-// two halves of a raise on the 16th are 14/30 and 15/30; in a 30 day month,
-// 15/30 each.
+// 058-payroll AC-PY1, restated here rather than imported: a split month is
+// shared by its own days, in hundredths of a thirtieth, and a month covered
+// end to end comes to exactly 30/30, the last contract taking what is left. A
+// raise on the 16th of a 31 day month is 14.52/30 and 15.48/30. (Slice 1 had
+// 14/30 and 15/30 here, which paid a 31 day month as 29.)
 const monthDays = new Date(Date.UTC(py, pm, 0)).getUTCDate();
-const firstHalf = 30 - (monthDays - 15);
-const expectedGross = Math.round((180000 * firstHalf) / 30) + Math.round((210000 * 15) / 30);
-check(`${firstHalf}/30 of 180,000 plus 15/30 of 210,000 is gross ${expectedGross}`, slip?.grossRwf === expectedGross && wage === expectedGross, slip?.grossRwf);
+const firstShare = Math.floor((6000 * 15 + monthDays) / (2 * monthDays));
+const halfUp = (a, b) => Math.floor((2 * a + b) / (2 * b));
+const expectedGross = halfUp(180000 * firstShare, 3000) + halfUp(210000 * (3000 - firstShare), 3000);
+check(
+  `${firstShare / 100}/30 of 180,000 plus ${(3000 - firstShare) / 100}/30 of 210,000 is gross ${expectedGross}`,
+  slip?.grossRwf === expectedGross && wage === expectedGross,
+  slip?.grossRwf,
+);
 const sumSide = (side, pred = () => true) => slip.lines.filter((l) => l.side === side && pred(l)).reduce((s, l) => s + l.amountRwf, 0);
 check('net is gross less PAYE and employee contributions (AC-Y4)', slip && slip.netRwf === slip.grossRwf - slip.payeRwf - slip.employeeContributionsRwf - slip.otherDeductionsRwf, slip);
 check('each amount column equals the sum of its lines (AC-Y4)', slip && slip.payeRwf === sumSide('employee', (l) => l.code === 'paye') && slip.employeeContributionsRwf === sumSide('employee', (l) => l.code !== 'paye') && slip.employerContributionsRwf === sumSide('employer'), slip);
 check('the leaver is covered too, whatever the file says (AC-Y1)', run.body?.payslips?.some((p) => p.employeeId === cook2?.id), '');
-check('the run records the rule rows it used (AC-Y2)', run.body?.run?.ruleVersions?.length === 2, run.body?.run?.ruleVersions);
+// PAYE and RSSB always; a rule only some months need (overtime, a leaver's
+// settlement) is recorded too when this month read it (058-payroll).
+const ruleTypes = (run.body?.run?.ruleVersions ?? []).map((r) => r.configType);
+check('the run records the rule rows it used (AC-Y2)', ruleTypes.includes('hr.rw.paye') && ruleTypes.includes('hr.rw.rssb'), run.body?.run?.ruleVersions);
 const blocked = await post(owner, `/ops/pay-runs/${run.body?.run?.id}/confirm`, {});
 check('confirm is refused, listing the cook missing an RSSB number (AC-Y3)', blocked.status === 409 && blocked.body?.blockers?.some((b) => b.employeeId === cook?.id && b.code === 'missing_rssb_number'), blocked.body);
 const fix = await patch(owner, `/ops/employees/${cook?.id}`, { rssbNumber: `RS${stamp}1` });
 check('owner adds the RSSB number: 200', fix.status === 200, fix.status);
-const others = blocked.body?.blockers?.filter((b) => b.employeeId !== cook?.id) ?? [];
+// A business with no RSSB employer number in HR settings cannot confirm either
+// (058-payroll AC-PY14); the office types it once.
+if (blocked.body?.blockers?.some((b) => b.code === 'missing_rssb_employer_number')) {
+  const employer = await patch(owner, '/ops/hr/settings', { rssbEmployerNumber: `DEMO-${stamp}` });
+  check('owner records the business\'s RSSB employer number: 200', employer.status === 200, employer.body);
+}
+const others = blocked.body?.blockers?.filter((b) => b.employeeId !== cook?.id && b.code !== 'missing_rssb_employer_number') ?? [];
 if (others.length > 0) console.log(`  NOTE  ${others.length} other blocker(s) from earlier rows in this database; confirm may stay refused`);
 const confirmed = await post(owner, `/ops/pay-runs/${run.body?.run?.id}/confirm`, {});
 check('confirm: 200, confirmed', confirmed.status === 200 && confirmed.body?.run?.status === 'confirmed', confirmed.body?.message ?? confirmed.status);
