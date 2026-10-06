@@ -1,3 +1,4 @@
+import Link from "next/link";
 import {
   Accordion,
   AccordionContent,
@@ -96,6 +97,17 @@ export function HostFaq() {
           </TabsContent>
         ))}
       </Tabs>
+
+      {/* The way out for someone not ready to register. It sat on
+          `/host/start` ("Not ready? Talk to our team"), which is a redirect
+          now, and it belongs after the questions rather than before them. */}
+      <p className="mt-8 text-base text-page-fg-70">
+        Still have a question?{" "}
+        <Link href="/support" className="font-medium text-page-fg underline underline-offset-2">
+          Talk to our team
+        </Link>
+        .
+      </p>
     </section>
   );
 }

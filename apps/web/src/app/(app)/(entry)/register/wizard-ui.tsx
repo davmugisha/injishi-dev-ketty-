@@ -326,9 +326,9 @@ export function StepActions({
 /**
  * RWF, grouped, with no currency guessing.
  *
- * Re-exported rather than defined here: `/host/start` shows the same fee and is
- * a Server Component, so the definition lives in `lib/money.ts` where a server
- * render can reach it without pulling this `"use client"` module in.
+ * Re-exported rather than defined here: the definition lives in `lib/money.ts`,
+ * where a server render can reach it without pulling this `"use client"`
+ * module in (`/host/start` was that server render, and printed the fee).
  */
 export { formatRwf } from "@/lib/money";
 
