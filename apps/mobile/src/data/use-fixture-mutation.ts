@@ -34,6 +34,18 @@ export const MUTATION_LATENCY_MS = 300;
 
 export type MutationStatus = 'idle' | 'saving' | 'error' | 'done';
 
+/**
+ * How ONE write ended, as `mutate` resolves it.
+ *
+ * A screen branches on this, never on the `status` it read from the render that
+ * pressed the button. That render predates the write, so a `status` or `failed`
+ * read after `await mutate(...)` is the value from before it, and a failed write
+ * goes on to toast its success and navigate away (gaps.md §0.3, found on nine
+ * screens). `cancelled` is a write dropped by `resetFixtures()` mid flight; it
+ * changed nothing, so a screen treats it as not done.
+ */
+export type MutationOutcome = 'done' | 'error' | 'cancelled';
+
 /* ------------------------------------------------------------ the store --- */
 
 /**
@@ -112,7 +124,9 @@ export function resetFixtures(): void {
 /* ------------------------------------------------------------- the hook --- */
 
 export interface FixtureMutation<TInput> {
-  mutate: (input: TInput) => Promise<void>;
+  /** Resolves to how THIS write ended. See `MutationOutcome` for why a screen
+   *  reads the result rather than `status`. */
+  mutate: (input: TInput) => Promise<MutationOutcome>;
   status: MutationStatus;
   error: Error | undefined;
   /** Back to `idle`, so a screen can dismiss a "done" without remounting. */
@@ -151,7 +165,7 @@ export function useFixtureMutation<TValue, TInput = void>(
   }, []);
 
   const mutate = useCallback(
-    async (input: TInput) => {
+    async (input: TInput): Promise<MutationOutcome> => {
       setStatus('saving');
       setError(undefined);
       const started = epoch;
@@ -159,7 +173,7 @@ export function useFixtureMutation<TValue, TInput = void>(
       // The store was reset while this was in flight. See `epoch`.
       if (epoch !== started) {
         if (alive.current) setStatus('idle');
-        return;
+        return 'cancelled';
       }
       try {
         const current = readFixture<TValue>(key, seedRef.current());
@@ -168,12 +182,14 @@ export function useFixtureMutation<TValue, TInput = void>(
         // unmounted mid-flight still gets its data written — only its own
         // status is dropped, because there is nobody left to show it to.
         if (alive.current) setStatus('done');
+        return 'done';
       } catch (e) {
         const err = e instanceof Error ? e : new Error(String(e));
         if (alive.current) {
           setError(err);
           setStatus('error');
         }
+        return 'error';
       }
     },
     [key],

@@ -11,7 +11,9 @@
  *
  *   - **The screen is reachable only when the seat holds the supervisor flag**
  *     (`WORK_PROFILE.supervisor`). The Queue's callout is the only way in, and
- *     an attendant without the flag never sees a control they cannot use.
+ *     an attendant without the flag never sees a control they cannot use. (The
+ *     flag is true for every seat today: who may inspect is an owner decision,
+ *     mobile audit 2026-10-05 WK-17.)
  *   - **A supervisor cannot sign off a room they cleaned themselves.** The rows
  *     here are other attendants' rooms; the viewer's own finished rooms are
  *     deliberately absent and the footnote says why. Decision D7 puts one
@@ -24,15 +26,18 @@
  * destructive action to hide behind a menu — it is half of what the screen is
  * for — but it does open a sheet, because sending a room back without saying
  * what was wrong is a message the attendant cannot act on.
+ *
+ * **Neither used to check whether it worked.** Both toasted in the write's
+ * `.then` whatever happened, and the screen had no failure state at all
+ * (mobile audit 2026-10-05, WK-04 and WK-05). Both wait for the outcome now,
+ * and a failure is said at the top with a Try again that sends it again.
  */
 import { useCallback, useState } from 'react';
 import { View } from 'react-native';
 import { useRouter } from 'expo-router';
 import {
   Badge,
-  Button,
   Card,
-  ChipGroup,
   EmptyState,
   ErrorState,
   Icon,
@@ -41,13 +46,14 @@ import {
   Screen,
   SkeletonList,
   Text,
+  WriteError,
   useToast,
 } from '@/components';
 import { useTheme } from '@/theme/theme';
 import { useT, type MessageKey } from '@/i18n/i18n';
-import { WorkBackRow, WorkOfflineBar } from './work-chrome';
+import { useMyIdentity } from '@/queries/profile';
+import { WORK_TARGET, WorkBackRow, WorkButton, WorkChips, WorkOfflineBar } from './work-chrome';
 import { TASK_KIND_KEY } from './work-format';
-import { ME } from '@/data/personas';
 import type { FailReason, InspectionRow } from './work-fixtures';
 import { useConnection, useWorkActions, useWorkInspections } from './work-store';
 
@@ -58,6 +64,12 @@ const REASONS: { value: FailReason; key: MessageKey }[] = [
   { value: 'bin', key: 'work.reason.bin' },
 ];
 
+/** A sign-off that did not land, kept so Try again can send the same one. */
+interface FailedSignOff {
+  kind: 'pass' | 'fail';
+  row: InspectionRow;
+}
+
 export function Inspection() {
   const router = useRouter();
   const t = useT();
@@ -67,17 +79,47 @@ export function Inspection() {
   const inspections = useWorkInspections();
   const actions = useWorkActions();
   const connection = useConnection();
+  const me = useMyIdentity();
 
   /** The row whose fail sheet is open, and what has been ticked on it. */
   const [failing, setFailing] = useState<InspectionRow | null>(null);
   const [reasons, setReasons] = useState<string[]>([]);
+  const [failed, setFailed] = useState<FailedSignOff | null>(null);
 
   const rows = inspections.rows;
 
+  // Frame W5's eyebrow names the PERSON signing. It used to print the personas
+  // fixture, "Samuel Kayitare · Housekeeping supervisor", to every real seat
+  // (mobile audit 2026-10-05, WK-02). It is the server's name for this person
+  // or nothing, and no title: whether this seat is a supervisor at all is
+  // WK-17's question, and the eyebrow will not answer it for them.
+  const signer = me.fromServer ? me.name : me.pending ? '' : t('identity.unnamed');
+
   const pass = useCallback(
     (row: InspectionRow) => {
-      void actions.passInspection(row).then(() => {
+      setFailed(null);
+      void actions.passInspection(row).then((outcome) => {
+        if (outcome === 'error') {
+          setFailed({ kind: 'pass', row });
+          return;
+        }
+        if (outcome !== 'done') return;
         toast.show(t('work.inspection.passToast', { room: row.room }), 'success');
+      });
+    },
+    [actions, t, toast],
+  );
+
+  const sendBack = useCallback(
+    (row: InspectionRow) => {
+      setFailed(null);
+      void actions.failInspection(row).then((outcome) => {
+        if (outcome === 'error') {
+          setFailed({ kind: 'fail', row });
+          return;
+        }
+        if (outcome !== 'done') return;
+        toast.show(t('work.inspection.failToast', { room: row.room, name: row.by }), 'warning');
       });
     },
     [actions, t, toast],
@@ -96,10 +138,15 @@ export function Inspection() {
     }
     const row = failing;
     setFailing(null);
-    void actions.failInspection(row).then(() => {
-      toast.show(t('work.inspection.failToast', { room: row.room, name: row.by }), 'warning');
-    });
-  }, [actions, failing, reasons.length, t, toast]);
+    sendBack(row);
+  }, [failing, reasons.length, sendBack, t, toast]);
+
+  const retry = () => {
+    if (!failed) return;
+    actions.clearFailure();
+    if (failed.kind === 'pass') pass(failed.row);
+    else sendBack(failed.row);
+  };
 
   return (
     <View style={{ flex: 1 }}>
@@ -107,18 +154,18 @@ export function Inspection() {
         <WorkBackRow label={t('work.queue.title')} onPress={() => router.back()} />
 
         <View style={{ gap: space[2] }}>
-          {/* Frame W5's eyebrow names the PERSON, not the property: this is the
-              one Work screen where the question is who is signing, not where.
-              Drawn in caps by `textTransform` rather than by upper-casing the
+          {/* Drawn in caps by `textTransform` rather than by upper-casing the
               string, which a screen reader would spell out letter by letter. */}
-          <Text
-            weight="bold"
-            size="xs"
-            color="textMuted"
-            style={{ letterSpacing: 1.1, textTransform: 'uppercase' }}
-          >
-            {t('work.inspection.eyebrow', { name: ME.name })}
-          </Text>
+          {signer ? (
+            <Text
+              weight="bold"
+              size="xs"
+              color="textMuted"
+              style={{ letterSpacing: 1.1, textTransform: 'uppercase' }}
+            >
+              {signer}
+            </Text>
+          ) : null}
           <Text
             accessibilityRole="header"
             family="display"
@@ -129,26 +176,37 @@ export function Inspection() {
           >
             {t('work.inspection.title')}
           </Text>
-          <Text size="sm" color="textMuted">
-            {rows.length === 1
-              ? t('work.inspection.leadOne')
-              : t('work.inspection.lead', { count: rows.length })}
-          </Text>
+          {/* The count waits for the read: before it lands there is no list to
+              count, and the seed's three rows are not this property's (WK-24). */}
+          {inspections.ready ? (
+            <Text size="sm" color="textMuted">
+              {rows.length === 1
+                ? t('work.inspection.leadOne')
+                : t('work.inspection.lead', { count: rows.length })}
+            </Text>
+          ) : null}
         </View>
 
+        {failed ? (
+          <WriteError title="work.writeFailedTitle" body="work.writeFailedBody" onRetry={retry} />
+        ) : null}
+
+        {/* The Work bar for the simulated outage only; a real one already has
+            the app-wide banner (WK-25). The note is about the list, and holds
+            for both. */}
+        {connection.simulatedOnly ? (
+          <WorkOfflineBar
+            title={t('work.offline.bannerTitle')}
+            detail={t('work.offline.simulatedDetail')}
+          />
+        ) : null}
         {!connection.online ? (
-          <>
-            <WorkOfflineBar
-              title={t('work.offline.bannerTitle')}
-              detail={t('work.offline.realOffline')}
-            />
-            {/* A sign-off made without signal is still the supervisor's, and it
-                replays like any other change — but the list they are deciding
-                from may be behind the desk, and they have to be told. */}
-            <Text size="xs" color="textMuted" style={{ lineHeight: 18 }}>
-              {t('state.offlineLastList')}
-            </Text>
-          </>
+          // A sign-off made without signal is still the supervisor's, but the
+          // list they are deciding from may be behind the desk, and they have
+          // to be told.
+          <Text size="xs" color="textMuted" style={{ lineHeight: 18 }}>
+            {t('state.offlineLastList')}
+          </Text>
         ) : null}
 
         {inspections.status === 'loading' ? (
@@ -169,9 +227,11 @@ export function Inspection() {
             title={t('work.inspection.emptyTitle')}
             body={t('work.inspection.emptyBody')}
             action={
-              <Button variant="outline" onPress={() => router.back()}>
-                {t('work.task.backToQueue')}
-              </Button>
+              <WorkButton
+                variant="outline"
+                label={t('work.task.backToQueue')}
+                onPress={() => router.back()}
+              />
             }
           />
         ) : (
@@ -207,13 +267,18 @@ export function Inspection() {
                       alignItems: 'center',
                       justifyContent: 'center',
                       gap: 8,
-                      minHeight: 50,
+                      minHeight: WORK_TARGET,
                       borderRadius: 10,
+                      // The success fill carries its own designed ink,
+                      // `textOnSuccess`, near-black. White on this green
+                      // measured about 2.2:1 in light against a 4.5 floor
+                      // (WK-16). The swipe Start panel paints the same pair,
+                      // so the two greens on this surface agree.
                       backgroundColor: c.success500,
                     }}
                   >
-                    <Icon name="check" size={19} color={c.surface1} />
-                    <Text weight="semibold" size="md" color={c.surface1}>
+                    <Icon name="check" size={19} color={c.textOnSuccess} />
+                    <Text weight="semibold" size="md" color="textOnSuccess">
                       {t('work.inspection.pass')}
                     </Text>
                   </PressableScale>
@@ -228,7 +293,7 @@ export function Inspection() {
                       alignItems: 'center',
                       justifyContent: 'center',
                       gap: 8,
-                      minHeight: 50,
+                      minHeight: WORK_TARGET,
                       borderRadius: 10,
                       backgroundColor: c.surface1,
                       borderWidth: 1.5,
@@ -262,24 +327,22 @@ export function Inspection() {
         onClose={() => setFailing(null)}
         footer={
           <>
-            <Button
+            <WorkButton
               variant="danger"
-              size="lg"
-              block
+              align="stretch"
+              label={t('work.inspection.failReturn', { name: failing?.by ?? '' })}
               onPress={confirmFail}
               // Disabled until a reason is ticked: the sheet's whole purpose is
               // that the attendant is told what to redo.
               disabled={reasons.length === 0 || actions.busy}
-            >
-              {t('work.inspection.failReturn', { name: failing?.by ?? '' })}
-            </Button>
+            />
             <Text size="xs" color="textMuted" center style={{ lineHeight: 18 }}>
               {t('work.inspection.blockNote', { room: failing?.room ?? '' })}
             </Text>
           </>
         }
       >
-        <ChipGroup
+        <WorkChips
           mode="multi"
           wrap
           legend={t('work.inspection.failLegend')}
@@ -291,4 +354,3 @@ export function Inspection() {
     </View>
   );
 }
-

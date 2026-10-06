@@ -39,11 +39,22 @@ export function useFixture<T>(key: string, read: () => T): FixtureResult<T> {
 
   const [attempt, setAttempt] = useState(0);
   const warm = resolved.has(key);
-  const [state, setState] = useState<Omit<FixtureResult<T>, 'retry'>>(() =>
-    warm
-      ? { status: 'ready', data: read(), error: undefined }
-      : { status: 'loading', data: undefined, error: undefined },
-  );
+  const [state, setState] = useState<Omit<FixtureResult<T>, 'retry'>>(() => {
+    if (!warm) return { status: 'loading', data: undefined, error: undefined };
+    // A warm read that throws must reach the screen as an error state, the way
+    // the cold path's `settle` does. Thrown from this initializer it crashed
+    // the render instead, past every branch the screen had for it (mobile
+    // audit 2026-10-05, raised by the Work fixes).
+    try {
+      return { status: 'ready', data: read(), error: undefined };
+    } catch (e) {
+      return {
+        status: 'error',
+        data: undefined,
+        error: e instanceof Error ? e : new Error(String(e)),
+      };
+    }
+  });
 
   useEffect(() => {
     let cancelled = false;

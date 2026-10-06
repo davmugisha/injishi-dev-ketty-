@@ -115,10 +115,18 @@ interface NotificationSeed extends Omit<AppNotification, 'createdAt' | 'readAt'>
 /**
  * The seeds, newest first within each surface.
  *
- * The three tenant rows at the top are frame R13's own, in its words: the
- * maintenance ticket in progress and the July rent receipt. The rest fill the
- * two lists out to a length where the segment reads as a real surface rather
- * than as a demo of one row.
+ * The tenant row at the top is frame R13's own, in its words: the maintenance
+ * ticket in progress. The rest fill the two lists out to a length where the
+ * segment reads as a real surface rather than as a demo of one row.
+ *
+ * **No seed claims money moved** (mobile audit 2026-10-05, IN-02). There were
+ * three receipts here, "July rent received", "June rent received" and "RWF
+ * 464,850 charged to MTN MoMo", and every real guest and tenant read them as
+ * their own: a payment nobody made, confirmed by the app. They are gone, and so
+ * is "Review your stay", which invited a review the app has hidden. Nothing on
+ * the server raises a notification yet (F-S07 is planned), so what is left is
+ * still a fixture; whether the segment shows anything at all before then is
+ * the owner's call, and the report says so.
  */
 const SEEDS: NotificationSeed[] = [
   /* ---- Tenant, frame R13 ------------------------------------------------- */
@@ -130,16 +138,6 @@ const SEEDS: NotificationSeed[] = [
     agoMs: 26 * HOUR,
     surface: 'tenant',
     href: '/leases',
-  },
-  {
-    id: 'n-tenant-receipt-jul',
-    type: 'rent_receipt',
-    title: 'Rent receipt',
-    body: 'July rent received — RWF 310,000.',
-    agoMs: 5 * DAY,
-    surface: 'tenant',
-    href: '/rent',
-    read: true,
   },
   {
     id: 'n-tenant-signature',
@@ -156,16 +154,6 @@ const SEEDS: NotificationSeed[] = [
     title: 'Rent due soon',
     body: 'August rent is due on the 1st — RWF 310,000.',
     agoMs: 3 * DAY,
-    surface: 'tenant',
-    href: '/rent',
-    read: true,
-  },
-  {
-    id: 'n-tenant-receipt-jun',
-    type: 'rent_receipt',
-    title: 'Rent receipt',
-    body: 'June rent received — RWF 310,000.',
-    agoMs: 36 * DAY,
     surface: 'tenant',
     href: '/rent',
     read: true,
@@ -196,25 +184,6 @@ const SEEDS: NotificationSeed[] = [
     title: 'Waiting on the host',
     body: 'Musanze Volcano Cabin has your request. Most hosts answer within a day.',
     agoMs: 20 * HOUR,
-    surface: 'guest',
-    href: '/trips',
-    read: true,
-  },
-  {
-    id: 'n-guest-review',
-    type: 'review_invite',
-    title: 'Review your stay',
-    body: 'Nyungwe Forest Lodge — reviews stay hidden until both sides have written.',
-    agoMs: 9 * DAY,
-    surface: 'guest',
-    href: '/trips',
-  },
-  {
-    id: 'n-guest-receipt',
-    type: 'rent_receipt',
-    title: 'Payment receipt',
-    body: 'Lake Kivu Suite — RWF 464,850 charged to MTN MoMo.',
-    agoMs: 12 * DAY,
     surface: 'guest',
     href: '/trips',
     read: true,

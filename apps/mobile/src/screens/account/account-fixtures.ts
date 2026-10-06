@@ -1,62 +1,22 @@
 /**
- * What Account reads, per seat.
+ * The fixture state behind the Account screens still waiting on their reads.
  *
- * The frames give the row sets (R5 Landlord, R14 Tenant, B25 Broker, W7 Work,
- * Guest artboard 12) but they name a different person on each surface. Under
- * decision D7 one account holds every seat, so the identity is `ME` from
- * `data/personas.ts` everywhere and **only the role line and the verification
- * badge move**. That is not a simplification of the frames, it is the product
- * rule they were drawn before: a Workspace is the context a User acts within,
- * so a landlord seat's TIN and a broker seat's licence belong to the SEAT, and
- * the person is the same person in both.
+ * None of it reaches a screen anybody can open today. The payout account, the
+ * organisation, the staff list and the subscription back screens whose routes
+ * are closed for every seat and whose Account rows are gone (mobile audit
+ * 2026-10-05, SA-03, SA-04, SA-05, HO-05), and the devices list is no longer
+ * drawn on Security (SA-06). They stay typed and seeded, per decision D9, so
+ * each swap to a real read is a hook change per screen rather than a rewrite,
+ * and ADR-038 child 7 deletes this file when the last one moves (AC-A10).
  *
- * Everything here is typed and seeded rather than inlined into a screen, per
- * decision D9, so the swap to a real read later is a hook change per screen and
- * not a rewrite of the surface.
- *
- * ## The verification badge is per seat and it is the frames' own
- *
- * R5 draws "⊙ TIN verified" on the landlord, B25 draws "⊙ Licensed ·
- * RW-BK-0221" on the broker, R14 draws a plain "Personal workspace" chip on the
- * tenant, and the Guest artboard draws "Verified". Four different claims about
- * four different things, and collapsing them into one "Verified" badge would
- * say the platform had checked something it had not. `tone` carries whether the
- * claim is a check the platform performed (`success`) or a statement of which
- * workspace you are in (`neutral`), because the two must not read alike.
+ * The identity this file used to hold is gone. The person is
+ * `GET /api/v1/me/profile` (`useMyIdentity`), and the per-seat verification
+ * claims ("ID verified", "TIN verified", a broker licence number taken from the
+ * frame) were drawn for everybody with nothing checked behind them (SA-01,
+ * SA-02). `seatChipLabel` in `account-format.ts` records that design and what
+ * each claim waits on.
  */
-import type { Surface } from '@/data/rentals';
 import type { MessageKey } from '@/i18n/i18n';
-
-/* ------------------------------------------------------------- the identity */
-
-export interface SeatIdentity {
-  /** The line under the name: "Landlord · Kayitare Court". */
-  roleKey: MessageKey;
-  /** What the seat has proved, or which workspace it is. Never both. */
-  badgeKey: MessageKey;
-  /** `success` is a check the platform ran; `neutral` is a statement of fact. */
-  badgeTone: 'success' | 'neutral';
-}
-
-export const SEAT_IDENTITY: Record<Surface, SeatIdentity> = {
-  guest: { roleKey: 'account.roleGuest', badgeKey: 'account.badgeIdVerified', badgeTone: 'success' },
-  tenant: { roleKey: 'account.roleTenant', badgeKey: 'account.badgePersonal', badgeTone: 'neutral' },
-  landlord: {
-    roleKey: 'account.roleLandlord',
-    badgeKey: 'account.badgeTinVerified',
-    badgeTone: 'success',
-  },
-  broker: {
-    roleKey: 'account.roleBroker',
-    badgeKey: 'account.badgeLicensed',
-    badgeTone: 'success',
-  },
-  work: { roleKey: 'account.roleWork', badgeKey: 'account.badgeStaffSeat', badgeTone: 'neutral' },
-  host: { roleKey: 'account.roleHost', badgeKey: 'account.badgeTinVerified', badgeTone: 'success' },
-};
-
-/** B25's "Licensed · RW-BK-0221". The number is the frame's own. */
-export const BROKER_LICENCE = 'RW-BK-0221';
 
 /* --------------------------------------------------------------- the payout */
 
@@ -239,28 +199,3 @@ export const SESSIONS: DeviceSession[] = [
 ];
 
 export const SESSIONS_KEY = 'account.sessions';
-export const TWO_FACTOR_KEY = 'account.twoFactor';
-
-/** F-S12 §8: 2FA is off or on, and the frames all draw it on. */
-export const TWO_FACTOR_SEED = true;
-
-/* ------------------------------------------------------ the personal details */
-
-export interface PersonalDetails {
-  displayName: string;
-  phone: string;
-  email: string;
-  /**
-   * F-S01: the system is passwordless, so a "linked method" is a way in rather
-   * than a credential. The Account page lists them because F-S12 §6 says to.
-   */
-  methods: { id: 'phone' | 'google'; linked: boolean }[];
-  /**
-   * F-S12 §6: "Email never on public profile; reviews show first name + last
-   * initial only." The screen prints what a stranger would see, because a rule
-   * nobody can check is a rule nobody believes.
-   */
-  publicName: string;
-}
-
-export const PERSONAL_KEY = 'account.personal';

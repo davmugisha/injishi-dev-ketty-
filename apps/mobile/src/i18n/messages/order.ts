@@ -24,7 +24,12 @@ export const en = {
   'order.place': 'Place order',
   'order.placing': 'Placing your order',
   'order.placeHint': 'Sends the order to {outlet} and charges it to your room.',
-  'order.failed': 'The order did not go through, and nothing was charged. Please try again.',
+  // A `failed` call is one the phone could not hear the end of, so it cannot
+  // say nothing was charged (mobile audit 2026-10-05, GK-09). The same cart
+  // reuses its key, which is what makes "try again" safe.
+  'order.failed': 'We could not confirm your order. Try again without changing it, so it cannot be placed twice.',
+  // A food order is never queued (benchmarks.md row 40), so offline refuses it.
+  'order.offline': 'You are offline. An order needs a connection, so it cannot be placed now. Your choices stay here.',
   'order.pickOutlet': 'Where from',
 
   'order.placedTitle': 'Order placed',

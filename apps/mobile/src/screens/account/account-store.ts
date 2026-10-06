@@ -1,48 +1,92 @@
 /**
  * The reads and writes behind Account's sheets and screens.
  *
- * Decision D9: every local write goes through `useFixtureMutation`, so the swap
- * to TanStack Query later is a hook change per screen rather than a rewrite of
- * the surface. Each hook here is one key, and the `apply` functions are pure
- * because they are the only description of the change — a later `useMutation`
- * calls the same function to build its optimistic update.
+ * Two kinds live here, and the difference is the point:
  *
- * `useFixture` (the cold read with a status) is used where the screen has a
- * list to draw and therefore owes four states; `useFixtureValue` (the warm read
- * with no status) is used where the value is a toggle the screen already has on
- * the page, because a switch that spends 220ms in a skeleton is a switch that
- * looks broken.
+ *   - **Real reads.** `useTwoFactorState` is `GET /api/v1/me/two-factor`, the
+ *     route the step-up screen already calls.
+ *   - **Fixture state** for the screens still waiting on their reads (staff,
+ *     and the devices list Security no longer draws). Decision D9: every local
+ *     write goes through `useFixtureMutation`, so the swap to TanStack Query
+ *     later is a hook change per screen rather than a rewrite of the surface,
+ *     and the `apply` functions are pure because they are the only description
+ *     of the change.
+ *
+ * Personal details used to keep a third kind: a fixture store seeded from the
+ * `ME` persona, with Samuel Kayitare's name and his email `samuel@kayitare.rw`
+ * as its starting values, which every edit "saved" into and the server never
+ * heard about (mobile audit 2026-10-05, SA-01 and SA-14). That store is gone;
+ * the screen reads `GET /api/v1/me/profile` and nothing else. `publicForm` is
+ * all that is left of it, because it is a rule about a name rather than a store.
  */
+import { useQuery } from '@tanstack/react-query';
 import { useFixture, type FixtureResult } from '@/data/use-fixture';
-import { useFixtureMutation, useFixtureValue, type FixtureMutation } from '@/data/use-fixture-mutation';
-import { ME } from '@/data/personas';
+import { useFixtureMutation, type FixtureMutation } from '@/data/use-fixture-mutation';
+import { api, unwrap } from '@/lib/api';
+import { ENDPOINTS } from '@/lib/endpoints';
+import { meKeys } from '@/lib/query-keys';
+import { useOptionalSession } from '@/session';
 import {
-  PERSONAL_KEY,
   SESSIONS,
   SESSIONS_KEY,
   STAFF,
   STAFF_KEY,
-  TWO_FACTOR_KEY,
-  TWO_FACTOR_SEED,
   type DeviceSession,
-  type PersonalDetails,
   type StaffMember,
 } from './account-fixtures';
 
 /* ------------------------------------------------------------ two-factor -- */
 
-/** F-S12 §8: off or on, and nothing else. Warm, because it is a switch. */
-export function useTwoFactor(): { on: boolean; toggle: FixtureMutation<boolean> } {
-  const on = useFixtureValue<boolean>(TWO_FACTOR_KEY, () => TWO_FACTOR_SEED);
-  const toggle = useFixtureMutation<boolean, boolean>(
-    TWO_FACTOR_KEY,
-    (_current, next) => next,
-    () => TWO_FACTOR_SEED,
-  );
-  return { on, toggle };
+/**
+ * What `GET /api/v1/me/two-factor` answers (`two-factor.controller.ts`).
+ *
+ * The same shape the step-up screen reads, under the same cache key, so a code
+ * verified there refreshes what Security and Account show without a second
+ * definition of the route.
+ */
+export interface TwoFactorState {
+  /** Does this person need the emailed step-up at all? Operators and brokers do. */
+  required: boolean;
+  /** Has THIS session passed it? Signing in with an emailed code counts. */
+  verified: boolean;
+  /** Where a code would go, already masked by the server. Never unmasked here. */
+  sentTo: string;
+}
+
+export function fetchTwoFactorState(signal?: AbortSignal): Promise<TwoFactorState> {
+  return unwrap(api<TwoFactorState>(ENDPOINTS.meTwoFactor, { signal }));
+}
+
+/**
+ * The step-up state, read only.
+ *
+ * It replaced a fixture switch seeded "on" for everyone, whose toggle flipped
+ * the fixture and toasted success (mobile audit 2026-10-05, SA-06). The server
+ * has no switch: whether the step-up applies follows from the workspaces a
+ * person holds, so the app reports it and offers nothing to change.
+ *
+ * Gated on the session through the OPTIONAL hook, for the reason
+ * `useMyIdentity` gives: a `/me/` call without a session earns a 401, and a 401
+ * signs the phone out.
+ */
+export function useTwoFactorState() {
+  const session = useOptionalSession();
+  return useQuery({
+    queryKey: meKeys.twoFactor(),
+    queryFn: ({ signal }) => fetchTwoFactorState(signal),
+    enabled: session?.status === 'authenticated',
+    staleTime: 5 * 60 * 1000,
+  });
 }
 
 /* -------------------------------------------------------------- sessions -- */
+
+/*
+ * Not drawn. Security listed these invented devices, and its sign out buttons
+ * only edited them (SA-06). They stay as the shape the real list will take, from
+ * Better Auth's `list-sessions`, `revoke-session` and `revoke-other-sessions`,
+ * because the rule in `applySessionChange` is one that list will need as well.
+ */
 
 export type SessionChange =
   | { kind: 'revoke'; id: string }
@@ -120,38 +164,11 @@ export function useStaffMutation(): FixtureMutation<StaffChange> {
 /* ------------------------------------------------------- personal details -- */
 
 /**
- * Seeded from `ME` rather than from a literal, so the one identity decision D7
- * makes has exactly one home. `publicName` is F-S12 §6's rule made visible:
- * first name plus last initial is what a review shows, and printing it beside
- * the private name is the only way a reader can check that the rule holds.
+ * `Claudine Uwase` → `Claudine U.` — F-S12 §6's rule as one function.
  *
- * `identity` overrides the placeholder once `GET /api/v1/me/profile` has
- * answered — `personal-details.tsx` is the one caller that passes it, and it
- * does so only when the store has never been written. The EMAIL is deliberately
- * not defaulted from `ME` in that case: `/me/profile` serves a name, a phone, a
- * document and an address and no address of the electronic kind, so printing
- * the placeholder's email beside a real person's real name would be inventing a
- * fact about them. An empty string is what the screen draws a dash for.
- */
-export function seedPersonal(identity?: {
-  name: string;
-  phone: string;
-}): PersonalDetails {
-  const name = identity?.name ?? ME.name;
-  return {
-    displayName: name,
-    phone: identity?.phone ?? ME.phone,
-    email: identity ? '' : ME.email,
-    methods: [
-      { id: 'phone', linked: true },
-      { id: 'google', linked: false },
-    ],
-    publicName: publicForm(name),
-  };
-}
-
-/**
- * `Samuel Kayitare` → `Samuel K.` — F-S12 §6's rule as one function.
+ * Personal details prints it beside the name the server holds, because a rule
+ * nobody can check is a rule nobody believes. It is derived rather than stored,
+ * so it cannot fall out of step with the name it comes from.
  *
  * One name gets no initial and no full stop. Session 11's own test caught that:
  * the first version appended `${last?.[0] ?? ''}.` and trimmed, which turns
@@ -164,46 +181,4 @@ export function publicForm(name: string): string {
   if (parts.length === 0) return '';
   if (parts.length === 1) return parts[0];
   return `${parts[0]} ${parts[parts.length - 1][0]}.`;
-}
-
-export type PersonalChange =
-  | { kind: 'name'; value: string }
-  | { kind: 'email'; value: string }
-  | { kind: 'link'; id: 'google'; linked: boolean };
-
-export function applyPersonalChange(
-  current: PersonalDetails,
-  change: PersonalChange,
-): PersonalDetails {
-  switch (change.kind) {
-    case 'name':
-      return {
-        ...current,
-        displayName: change.value.trim(),
-        // The public form follows the private one, because the rule is derived
-        // rather than stored — otherwise a rename leaves a stale public name.
-        publicName: publicForm(change.value),
-      };
-    case 'email':
-      return { ...current, email: change.value.trim() };
-    case 'link':
-      return {
-        ...current,
-        methods: current.methods.map((m) =>
-          m.id === change.id ? { ...m, linked: change.linked } : m,
-        ),
-      };
-  }
-}
-
-export function usePersonalDetails(): PersonalDetails {
-  return useFixtureValue<PersonalDetails>(PERSONAL_KEY, seedPersonal);
-}
-
-export function usePersonalMutation(): FixtureMutation<PersonalChange> {
-  return useFixtureMutation<PersonalDetails, PersonalChange>(
-    PERSONAL_KEY,
-    applyPersonalChange,
-    seedPersonal,
-  );
 }

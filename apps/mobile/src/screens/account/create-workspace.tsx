@@ -35,16 +35,26 @@
 import { View } from 'react-native';
 import * as Linking from 'expo-linking';
 import { Button, Icon, Sheet, Text, useToast } from '@/components';
+import { WEB_ORIGIN } from '@/lib/env';
 import { useTheme } from '@/theme/theme';
 import { useT, type MessageKey } from '@/i18n/i18n';
 
 /**
- * Where the flow actually lives. Demo and production are separated by hostname
- * rather than by an environment variable (`AGENTS.md` § Deploy), so this is a
- * literal rather than a value read from config — there is no config in this
- * build to read it from, and inventing one would hide the decision.
+ * Web sign in, which then opens the registration wizard at `/register`.
+ *
+ * Not `/register` itself: on production a browser with no web session is sent
+ * from `/register` to the waitlist until launch (ADR-048), while sign in stays
+ * open and honours a same origin `redirect` (`apps/web/src/lib/redirect.ts`).
+ * This replaced `https://injishi.rw/business/new`, a page that never existed.
  */
-export const ONBOARDING_URL = 'https://injishi.rw/business/new';
+export const ONBOARDING_PATH = '/sign-in?redirect=/register';
+
+/**
+ * Where the flow actually lives, on the web of the same stack as the API:
+ * production for a production build, the demo for a preview build (see
+ * `WEB_ORIGIN`). `null` only on a local build that can say neither.
+ */
+export const ONBOARDING_URL: string | null = WEB_ORIGIN ? `${WEB_ORIGIN}${ONBOARDING_PATH}` : null;
 
 /** What the web flow asks for, so the reader can arrive with it ready. */
 const NEEDS: MessageKey[] = [
@@ -59,6 +69,7 @@ const NEEDS: MessageKey[] = [
  * rather than leaving a reader looking at a button that did nothing.
  */
 export async function openOnboarding(): Promise<boolean> {
+  if (!ONBOARDING_URL) return false;
   try {
     await Linking.openURL(ONBOARDING_URL);
     return true;
@@ -91,37 +102,39 @@ export function CreateWorkspaceSheet() {
         </Button>
       }
     >
-      <View
-        accessible
-        accessibilityLabel={`${t('createWorkspace.urlLabel')}: ${ONBOARDING_URL}`}
-        style={{
-          flexDirection: 'row',
-          alignItems: 'center',
-          gap: space[3],
-          padding: space[4],
-          borderRadius: radius.lg,
-          borderWidth: 1,
-          borderColor: c.borderSubtle,
-          backgroundColor: c.surface2,
-        }}
-      >
-        <Icon name="globe" size={19} color={c.brand700} />
-        <View style={{ flex: 1, gap: 2 }}>
-          <Text
-            weight="bold"
-            size="2xs"
-            color="textMuted"
-            style={{ letterSpacing: 1, textTransform: 'uppercase' }}
-          >
-            {t('createWorkspace.urlLabel')}
-          </Text>
-          {/* No `numberOfLines`: a URL a reader is being asked to type must not
-              be the one string on the screen that clips. */}
-          <Text family="mono" weight="medium" size="sm" color="textStrong" selectable>
-            {ONBOARDING_URL}
-          </Text>
+      {ONBOARDING_URL ? (
+        <View
+          accessible
+          accessibilityLabel={`${t('createWorkspace.urlLabel')}: ${ONBOARDING_URL}`}
+          style={{
+            flexDirection: 'row',
+            alignItems: 'center',
+            gap: space[3],
+            padding: space[4],
+            borderRadius: radius.lg,
+            borderWidth: 1,
+            borderColor: c.borderSubtle,
+            backgroundColor: c.surface2,
+          }}
+        >
+          <Icon name="globe" size={19} color={c.brand700} />
+          <View style={{ flex: 1, gap: 2 }}>
+            <Text
+              weight="bold"
+              size="2xs"
+              color="textMuted"
+              style={{ letterSpacing: 1, textTransform: 'uppercase' }}
+            >
+              {t('createWorkspace.urlLabel')}
+            </Text>
+            {/* No `numberOfLines`: a URL a reader is being asked to type must
+                not be the one string on the screen that clips. */}
+            <Text family="mono" weight="medium" size="sm" color="textStrong" selectable>
+              {ONBOARDING_URL}
+            </Text>
+          </View>
         </View>
-      </View>
+      ) : null}
 
       <View style={{ gap: space[2] }}>
         <Text

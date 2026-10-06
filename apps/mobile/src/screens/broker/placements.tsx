@@ -116,10 +116,18 @@ export function Placements() {
           ) : null}
 
           {/* The pair is what carries the "one of these three" meaning;
-              `SegmentedTabs` reports each tab and cannot name the group. */}
+              `SegmentedTabs` reports each tab and cannot name the group.
+              No counts until the read has landed: this header draws while it
+              is in flight, and "Active 0 · Signed 0 · Expired 0" read as an
+              empty book rather than a slow one (mobile audit 2026-10-05,
+              BR-06). */}
           <View accessibilityRole="tablist" accessibilityLabel={t('placements.title')}>
             <SegmentedTabs
-              items={BUCKETS.map((b) => ({ value: b, label: label[b], count: counts[b] }))}
+              items={BUCKETS.map((b) => ({
+                value: b,
+                label: label[b],
+                count: read.status === 'ready' ? counts[b] : undefined,
+              }))}
               value={bucket}
               onChange={(next) => setBucket(next as PlacementBucket)}
             />
@@ -153,7 +161,7 @@ export function Placements() {
             onRetry={read.retry}
           />
         ) : (
-          <NoPlacements bucket={bucket} onOpenDirectory={() => router.push('/directory')} />
+          <NoPlacements bucket={bucket} onOpenDirectory={() => router.push('/')} />
         )
       }
     />

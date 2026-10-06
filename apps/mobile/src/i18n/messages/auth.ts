@@ -19,10 +19,10 @@
  *     brief 8.1 bans an emoji or a dingbat glyph in an icon slot or in copy, so
  *     the arrow is dropped and the tick is drawn as an `Icon`, which is what
  *     the rule asks for and what a screen reader can actually name.
- *   - **`auth.demoCode` and `auth.googleNotWired` say out loud what is and is
- *     not wired.** The canvas rule is that consequences are printed rather than
- *     discovered later. `auth.demoCode` is now shown only where the API reports
- *     the demo environment (AC-E14), never unconditionally.
+ *   - **`auth.demoCode` says out loud what the demo accepts.** The canvas rule
+ *     is that consequences are printed rather than discovered later. It is
+ *     shown only where the API reports the demo environment (AC-E14), never
+ *     unconditionally, and never in a production build.
  *
  * ## The `rw` column
  *
@@ -57,9 +57,9 @@ export const en = {
   'auth.noDocuments':
     'Signing in never asks for identity documents. Booking a stay does not need them either.',
   'auth.or': 'or',
+  // Kept for the day Google sign in returns; the button is gone in v1.0
+  // (mobile audit 2026-10-05, SA-13), and with it the "not wired" notice.
   'auth.google': 'Sign in with Google',
-  'auth.googleNotWired':
-    'Google sign-in is drawn here, not wired. Sign in with your email address.',
 
   /* X2 - Verify code */
   'auth.verifyTitle': 'Enter the code',
@@ -168,7 +168,6 @@ export const rw: Record<keyof typeof en, string> = {
     'Kwinjira ntibigusaba ibyangombwa by’irangamuntu. No kwandikisha aho kuraramo ntibibisaba.',
   'auth.or': 'cyangwa',
   'auth.google': 'Injira ukoresheje Google',
-  'auth.googleNotWired': `${en['auth.googleNotWired']} (RW)`,
 
   /* X2 - Verify code */
   'auth.verifyTitle': 'Andika kode',

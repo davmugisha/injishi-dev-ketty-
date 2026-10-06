@@ -17,6 +17,9 @@
  */
 process.env.EXPO_PUBLIC_API_URL ??= 'http://api.test.invalid';
 
+/** The web origin of the same stack, for the flows that live on the web. Same rule: not a real address. */
+process.env.EXPO_PUBLIC_WEB_URL ??= 'http://web.test.invalid';
+
 /**
  * Runs before every test file.
  *
@@ -83,13 +86,41 @@ jest.mock('expo-network', () => ({
  *
  * `getItemAsync` resolves NULL by default: nothing stored, which is a fresh
  * install and the state most suites should start from. A default of some token
- * would silently sign every test in.
+ * would silently sign every test in. `getItem` is the synchronous read the crash
+ * reporter's switch uses at launch (ADR-063), NULL for the same reason.
  */
 jest.mock('expo-secure-store', () => ({
+  getItem: jest.fn(() => null),
   getItemAsync: jest.fn(async () => null),
   setItemAsync: jest.fn(async () => undefined),
   deleteItemAsync: jest.fn(async () => undefined),
 }));
+
+/**
+ * `@sentry/react-native` (ADR-063), mocked because it is native code with no
+ * native side here, and because no test may ever send a report. Only
+ * `src/lib/crash-reporter.ts` imports it; its tests read these mocks through
+ * `jest.requireMock`. The integration factories return plain named objects, so
+ * the options test can assert the integration list by name.
+ */
+jest.mock('@sentry/react-native', () => {
+  const client = { getOptions: jest.fn() };
+  return {
+    init: jest.fn(),
+    close: jest.fn(async () => true),
+    getClient: jest.fn(() => client),
+    captureException: jest.fn(() => '0123456789abcdef0123456789abcdef'),
+    addBreadcrumb: jest.fn(),
+    setTag: jest.fn(),
+    appLoaded: jest.fn(),
+    nativeCrash: jest.fn(),
+    reactNavigationIntegration: jest.fn(() => ({
+      name: 'ReactNavigation',
+      registerNavigationContainer: jest.fn(),
+    })),
+    reactNativeTracingIntegration: jest.fn((options) => ({ name: 'ReactNativeTracing', options })),
+  };
+});
 
 /**
  * NATIVE VIEWS, for the packages jest-expo does not carry a mock for.

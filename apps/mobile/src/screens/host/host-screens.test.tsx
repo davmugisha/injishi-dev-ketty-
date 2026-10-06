@@ -12,19 +12,29 @@
  * entirely. Session 11 should lift this into `jest.setup.js` once every branch
  * has merged; doing it now would change what everyone else's failures mean.
  */
-import { act, fireEvent, screen, waitFor } from '@testing-library/react-native';
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react-native';
+import { Text as RNText } from 'react-native';
 import { ToastProvider } from '@/components';
 import { DomainProvider } from '@/domain';
 import { SCHEMES, renderInScheme } from '@/test-utils';
 import { en, rw } from '@/i18n/messages';
-import { resetFixtures } from '@/data/use-fixture-mutation';
-import { HOST_BOOKINGS } from './host-fixtures';
-import { rowStateOf } from './host-store';
+import { readFixture, resetFixtures, writeFixture } from '@/data/use-fixture-mutation';
+import { readQueue, resetQueue } from '@/data/write-queue';
+import { TASKS_KEY } from '@/screens/work/work-store';
+import { HOST_BOOKINGS, type HostBooking } from './host-fixtures';
+import {
+  HOST_BOOKINGS_KEY,
+  HOST_CAPTURES_KEY,
+  HOST_PAYOUTS_KEY,
+  rowStateOf,
+  useHostActions,
+  type HostActions,
+} from './host-store';
 import { todayIso } from '@/components';
 import { HostToday } from './today';
 import { HostBookingsScreen } from './bookings';
-import { HostBookingDetail } from './booking-detail';
-import { HostCheckInCapture } from './check-in-capture';
+import { HostBookingDetail, lastFour } from './booking-detail';
+import { HostCheckInCapture, captureDraftKey, type CaptureDraft } from './check-in-capture';
 
 const pushed: unknown[] = [];
 
@@ -37,9 +47,60 @@ jest.mock('expo-router', () => ({
   useLocalSearchParams: () => ({}),
 }));
 
+/** Mutable, so a test can take the desk offline. Read at call time, not at mock time. */
+const mockNetwork = { isConnected: true, isInternetReachable: true };
 jest.mock('expo-network', () => ({
-  useNetworkState: () => ({ isConnected: true, isInternetReachable: true }),
+  useNetworkState: () => mockNetwork,
 }));
+
+/**
+ * Forces the next fixture writes to fail (mobile audit 2026-10-05, HO-20).
+ *
+ * The fixture store cannot fail on its own, which is exactly how the §0.3
+ * defect survived: no test could make a write come back `error`, so none saw
+ * a failed check-in toast its success. This wraps the real hook and swaps its
+ * `mutate` for one that answers `error` while `fail` is set.
+ */
+const mockWrites = { fail: false };
+jest.mock('@/data/use-fixture-mutation', () => {
+  const actual = jest.requireActual('@/data/use-fixture-mutation');
+  return {
+    ...actual,
+    useFixtureMutation: (...args: unknown[]) => {
+      const real = actual.useFixtureMutation(...args);
+      return {
+        ...real,
+        mutate: async (input: unknown) => (mockWrites.fail ? 'error' : real.mutate(input)),
+      };
+    },
+  };
+});
+
+/**
+ * Forces a fixture READ to fail, by key, until its retry is pressed (HO-19).
+ * The real hook always runs, so the hooks a screen calls never change order.
+ */
+const mockFailedReads = new Set<string>();
+jest.mock('@/data/use-fixture', () => {
+  const actual = jest.requireActual('@/data/use-fixture');
+  return {
+    ...actual,
+    useFixture: (key: string, read: () => unknown) => {
+      const real = actual.useFixture(key, read);
+      if (!mockFailedReads.has(key)) return real;
+      return {
+        ...real,
+        status: 'error',
+        data: undefined,
+        error: new Error('read failed'),
+        retry: () => {
+          mockFailedReads.delete(key);
+          real.retry();
+        },
+      };
+    },
+  };
+});
 
 /**
  * The active seat, as the server answers it.
@@ -76,7 +137,41 @@ beforeEach(() => {
   pushed.length = 0;
   resetFixtures();
 });
-afterEach(() => resetFixtures());
+afterEach(() => {
+  resetFixtures();
+  resetQueue();
+  mockWrites.fail = false;
+  mockFailedReads.clear();
+  mockNetwork.isConnected = true;
+  mockNetwork.isInternetReachable = true;
+});
+
+/** No signal, as `useOffline()` reads it. */
+function goOffline() {
+  mockNetwork.isConnected = false;
+  mockNetwork.isInternetReachable = false;
+}
+
+/** A booking as the store holds it now, after whatever the test wrote. */
+function stored(id: string): HostBooking | undefined {
+  return readFixture<HostBooking[]>(HOST_BOOKINGS_KEY, [...HOST_BOOKINGS]).find((b) => b.id === id);
+}
+
+/** A capture on its last step with everything filled in, ready to commit. */
+function readyToCheckIn(booking: HostBooking) {
+  writeFixture<CaptureDraft>(captureDraftKey(booking.id), {
+    step: 2,
+    fullName: booking.guest.name,
+    documentType: 'national_id',
+    documentNumber: '1199780012345678',
+    photos: [{ uri: 'file:///id-front.jpg', width: 1200, height: 800 }],
+    room: '301',
+  });
+}
+
+/** The toast's own words, with the guest put in. */
+const said = (key: keyof typeof en, values: Record<string, string>) =>
+  Object.entries(values).reduce((text, [k, v]) => text.replace(`{${k}}`, v), en[key] as string);
 
 /**
  * `useFixture` is slow on a cold key, so every test waits for the read.
@@ -93,6 +188,14 @@ afterEach(() => resetFixtures());
  * per-test ceiling is 20s and is what should catch a real hang.
  */
 const COLD = { timeout: 15000 };
+
+/**
+ * The wait after a press: a 300ms fixture write and the renders around it.
+ * Above the 1000ms default, which a loaded machine can lose, and low enough
+ * that a test with two cold waits and two of these stays under the 60s
+ * `testTimeout` (see `jest.config.js` before raising either).
+ */
+const SETTLE = { timeout: 8000 };
 
 async function open(node: React.ReactElement, scheme: (typeof SCHEMES)[number], locale?: 'rw') {
   const view = renderInScheme(host(node), scheme, locale ? { locale } : undefined);
@@ -165,9 +268,18 @@ describe.each(SCHEMES)('Today in the %s scheme', (scheme) => {
     expect(screen.getByText(en['host.walkInTitle'])).toBeTruthy();
   });
 
-  it('carries the mock adapter line wherever money is', async () => {
+  it('carries the no-real-money line wherever money is', async () => {
     await open(<HostToday />, scheme);
     await waitFor(() => expect(screen.getAllByText(en['host.mockAdapter']).length).toBeGreaterThan(0));
+    // Plain words, not a "mock adapter" this desk never reaches.
+    expect(screen.queryByText(/mock adapter/i)).toBeNull();
+  });
+
+  it('prints the date alone and no checkout time it never read (HO-16)', async () => {
+    await open(<HostToday />, scheme);
+    await waitFor(() => expect(screen.getByText(en['host.groupDeparting'])).toBeTruthy(), COLD);
+    expect(screen.queryByText(/Africa\/Kigali/)).toBeNull();
+    expect(screen.queryByText(/Checkout by/)).toBeNull();
   });
 });
 
@@ -271,6 +383,234 @@ describe.each(SCHEMES)('the check-in capture in the %s scheme', (scheme) => {
   it('refuses a booking that is not waiting at the door', async () => {
     await open(<HostCheckInCapture id={IN_HOUSE.id} />, scheme);
     await waitFor(() => expect(screen.getByText(en['host.checkInClosedTitle'])).toBeTruthy());
+  });
+});
+
+/* ------------------------------------------- writes that fail, queue or are refused */
+
+/**
+ * Every Host write, forced to fail, queued or refused offline (mobile audit
+ * 2026-10-05, HO-06, HO-10, HO-20). Light scheme only: what is under test is
+ * which branch each outcome takes, and no colour changes that.
+ */
+describe('a decision that does not land', () => {
+  it('says an approval did not save, and offers no undo', async () => {
+    mockWrites.fail = true;
+    await open(<HostToday />, 'light');
+    await waitFor(() => expect(screen.getByText(PENDING.guest.name)).toBeTruthy(), COLD);
+
+    await act(async () => {
+      fireEvent.press(screen.getAllByLabelText(en['host.approve'])[0]);
+    });
+
+    await waitFor(
+      () =>
+        expect(screen.getByText(said('host.approveFailed', { guest: PENDING.guest.name }))).toBeTruthy(),
+      SETTLE,
+    );
+    expect(screen.queryByText(said('host.approvedToast', { guest: PENDING.guest.name }))).toBeNull();
+    expect(screen.queryByLabelText(en['host.undo'])).toBeNull();
+    expect(stored(PENDING.id)?.status).toBe('pending_approval');
+  });
+
+  it('says a decline did not save, and does not claim the refund', async () => {
+    mockWrites.fail = true;
+    await open(<HostToday />, 'light');
+    await waitFor(() => expect(screen.getByText(PENDING.guest.name)).toBeTruthy(), COLD);
+
+    fireEvent.press(screen.getAllByLabelText(en['host.decline'])[0]);
+    await waitFor(() => expect(screen.getByLabelText(en['host.declineConfirm'])).toBeTruthy(), SETTLE);
+    await act(async () => {
+      fireEvent.press(screen.getByLabelText(en['host.declineConfirm']));
+    });
+
+    await waitFor(
+      () =>
+        expect(screen.getByText(said('host.declineFailed', { guest: PENDING.guest.name }))).toBeTruthy(),
+      SETTLE,
+    );
+    expect(screen.queryByText(said('host.declinedToast', { guest: PENDING.guest.name }))).toBeNull();
+    expect(stored(PENDING.id)?.status).toBe('pending_approval');
+  });
+
+  it('refuses approve and decline offline, and says why above the rows', async () => {
+    goOffline();
+    await open(<HostToday />, 'light');
+    await waitFor(() => expect(screen.getByText(PENDING.guest.name)).toBeTruthy(), COLD);
+
+    expect(screen.getByText(en['host.offlineNote'])).toBeTruthy();
+    for (const button of [
+      ...screen.getAllByLabelText(en['host.approve']),
+      ...screen.getAllByLabelText(en['host.decline']),
+    ]) {
+      expect(button).toBeDisabled();
+    }
+    // Check-in is the one write that queues, so it stays live.
+    expect(screen.getAllByLabelText(en['host.checkIn'])[0]).not.toBeDisabled();
+  });
+
+  it('carries no offline note on a working connection', async () => {
+    await open(<HostToday />, 'light');
+    await waitFor(() => expect(screen.getByText(PENDING.guest.name)).toBeTruthy(), COLD);
+    expect(screen.queryByText(en['host.offlineNote'])).toBeNull();
+  });
+
+  it('refuses all three in the store too, so a connection lost mid tap moves nothing', async () => {
+    goOffline();
+    let actions: HostActions | undefined;
+    function Probe() {
+      actions = useHostActions();
+      return <RNText>ready</RNText>;
+    }
+    render(host(<Probe />));
+
+    await expect(actions!.approve(PENDING.id)).resolves.toBe('offline');
+    await expect(actions!.decline(PENDING.id, 'Those dates are not free')).resolves.toBe('offline');
+    await expect(actions!.checkOut(IN_HOUSE.id)).resolves.toBe('offline');
+    expect(stored(PENDING.id)?.status).toBe('pending_approval');
+    expect(stored(IN_HOUSE.id)?.checkedOutAt).toBeNull();
+    // Refused, not queued: nothing waits to fire later.
+    expect(readQueue()).toHaveLength(0);
+  });
+});
+
+describe('checking out', () => {
+  async function confirmCheckOut() {
+    await open(<HostBookingDetail id={IN_HOUSE.id} />, 'light');
+    await waitFor(() => expect(screen.getByLabelText(en['host.checkOut'])).toBeTruthy(), COLD);
+    fireEvent.press(screen.getByLabelText(en['host.checkOut']));
+    await waitFor(() => expect(screen.getByLabelText(en['host.checkOutConfirm'])).toBeTruthy(), SETTLE);
+    await act(async () => {
+      fireEvent.press(screen.getByLabelText(en['host.checkOutConfirm']));
+    });
+  }
+
+  const doneToast = () =>
+    IN_HOUSE.room
+      ? said('host.checkedOutToast', { guest: IN_HOUSE.guest.name, room: IN_HOUSE.room })
+      : said('host.checkedOutNoRoom', { guest: IN_HOUSE.guest.name });
+
+  it('closes the stay with no invoice number and no payout (HO-04)', async () => {
+    await confirmCheckOut();
+
+    await waitFor(() => expect(screen.getByText(doneToast())).toBeTruthy(), SETTLE);
+    // No `EBM-2026-…` was minted, and the bill says so rather than "issued".
+    expect(screen.queryByText(/EBM-/)).toBeNull();
+    expect(screen.getByText(en['host.invoiceNotIssued'])).toBeTruthy();
+    expect(stored(IN_HOUSE.id)?.checkedOutAt).not.toBeNull();
+    expect(stored(IN_HOUSE.id)?.invoice).toBeNull();
+    // And no payout row written for a checkout that never left the phone.
+    expect(readFixture(HOST_PAYOUTS_KEY, 'untouched')).toBe('untouched');
+  });
+
+  it('keeps the sheet open with a retry when it does not save, and hands no room over', async () => {
+    mockWrites.fail = true;
+    await confirmCheckOut();
+
+    await waitFor(() => expect(screen.getByText(en['host.checkOutFailedTitle'])).toBeTruthy(), SETTLE);
+    expect(screen.queryByText(doneToast())).toBeNull();
+    expect(stored(IN_HOUSE.id)?.checkedOutAt).toBeNull();
+    // A failed checkout used to hand the room to housekeeping anyway.
+    expect(readFixture(TASKS_KEY, 'untouched')).toBe('untouched');
+  });
+
+  it('refuses checkout offline, with the reason beside the button', async () => {
+    goOffline();
+    await open(<HostBookingDetail id={IN_HOUSE.id} />, 'light');
+    await waitFor(() => expect(screen.getByLabelText(en['host.checkOut'])).toBeTruthy(), COLD);
+
+    expect(screen.getByLabelText(en['host.checkOut'])).toBeDisabled();
+    expect(screen.getByText(en['host.needsConnectionCheckOut'])).toBeTruthy();
+  });
+});
+
+describe('checking in', () => {
+  async function finish() {
+    readyToCheckIn(ARRIVING);
+    await open(<HostCheckInCapture id={ARRIVING.id} />, 'light');
+    await waitFor(() => expect(screen.getByText(en['host.roomTitle'])).toBeTruthy(), COLD);
+    await act(async () => {
+      fireEvent.press(screen.getByLabelText(en['host.checkInFinish']));
+    });
+  }
+
+  const inRoom = () => said('host.checkedInToast', { guest: ARRIVING.guest.name, room: '301' });
+
+  it('checks the guest in and says which room', async () => {
+    await finish();
+
+    await waitFor(() => expect(screen.getByText(inRoom())).toBeTruthy(), SETTLE);
+    expect(stored(ARRIVING.id)?.checkedInAt).not.toBeNull();
+    expect(readFixture<Record<string, unknown>>(HOST_CAPTURES_KEY, {})[ARRIVING.id]).toBeTruthy();
+  });
+
+  it('says a failed check-in did not save, keeps the draft and stays on the screen', async () => {
+    mockWrites.fail = true;
+    await finish();
+
+    await waitFor(() => expect(screen.getByText(en['host.checkInFailedTitle'])).toBeTruthy(), SETTLE);
+    expect(screen.queryByText(inRoom())).toBeNull();
+    expect(pushed).toHaveLength(0);
+    // The photograph is the expensive part, and it is still there.
+    expect(readFixture<CaptureDraft | null>(captureDraftKey(ARRIVING.id), null)?.photos).toHaveLength(1);
+    expect(stored(ARRIVING.id)?.checkedInAt).toBeNull();
+    // No record of a document seen for a guest who is not in.
+    expect(readFixture(HOST_CAPTURES_KEY, 'untouched')).toBe('untouched');
+  });
+
+  it('says an offline check-in is saved on the phone, never that the guest is in', async () => {
+    goOffline();
+    await finish();
+
+    await waitFor(
+      () =>
+        expect(screen.getByText(said('host.checkInQueued', { guest: ARRIVING.guest.name }))).toBeTruthy(),
+      SETTLE,
+    );
+    expect(screen.queryByText(inRoom())).toBeNull();
+    // Kept in the queue under the booking's own id, and not written as done.
+    expect(readQueue().map((item) => item.id)).toContain(`checkIn-${ARRIVING.id}`);
+    expect(stored(ARRIVING.id)?.checkedInAt).toBeNull();
+  });
+
+  it('says the booking did not load, and retries it, rather than calling it closed (HO-19)', async () => {
+    mockFailedReads.add(HOST_BOOKINGS_KEY);
+    await open(<HostCheckInCapture id={ARRIVING.id} />, 'light');
+
+    await waitFor(() => expect(screen.getByText(en['host.checkInReadFailed'])).toBeTruthy(), COLD);
+    expect(screen.queryByText(en['host.checkInClosedTitle'])).toBeNull();
+
+    fireEvent.press(screen.getByLabelText(en['state.retry']));
+    await waitFor(() => expect(screen.getByText(en['host.identityTitle'])).toBeTruthy(), COLD);
+  });
+});
+
+describe('what the desk is shown again', () => {
+  it('shows a captured document number by its last four only (HO-17)', async () => {
+    writeFixture(HOST_CAPTURES_KEY, {
+      [IN_HOUSE.id]: {
+        bookingId: IN_HOUSE.id,
+        fullName: IN_HOUSE.guest.name,
+        documentType: 'national_id',
+        documentNumber: '1199780012345678',
+        photos: [],
+        room: '301',
+        at: Date.now(),
+      },
+    });
+    await open(<HostBookingDetail id={IN_HOUSE.id} />, 'light');
+
+    await waitFor(
+      () => expect(screen.getByText(said('host.documentEnding', { digits: '5678' }))).toBeTruthy(),
+      COLD,
+    );
+    expect(screen.queryByText(/1199780012345678/)).toBeNull();
+  });
+
+  it('never shows a number short enough that its last four are all of it', () => {
+    expect(lastFour('1199 7800 1234 5678')).toBe('5678');
+    expect(lastFour('PA1234')).toBe('1234');
+    expect(lastFour('1234')).toBe('');
   });
 });
 

@@ -202,8 +202,11 @@ export function WebDeskNote({
  * The adapter chip, rendered inline wherever money or compliance state is.
  *
  * Design brief §4.3's rule, and the Guest canvas draws the same thing on all
- * three of its money screens. A refund, an invoice and a payout are all mocked
- * here, so every screen that shows one owes this line.
+ * three of its money screens. No refund, invoice or payout on this desk is
+ * real: every Host write stays on the phone and reaches no payment adapter,
+ * mock or live. So every screen that shows one owes this line, and its words
+ * say that plainly rather than naming a "mock adapter" (mobile audit
+ * 2026-10-05).
  *
  * **Session 11 lifted the shape into the kit** once three surfaces had drawn it
  * three ways. This keeps the name the host screens already call, and supplies

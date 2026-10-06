@@ -1,6 +1,6 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.rnLineHeight = exports.rnFontSize = exports.rnRadius = exports.rnSpace = exports.easingCurves = exports.motionMs = exports.rhythm = exports.containers = exports.typeScale = exports.typeSteps = exports.herouiFixedGrounds = exports.herouiFieldRadius = exports.herouiRadius = exports.herouiAliases = exports.herouiDark = exports.herouiLight = exports.herouiFixed = exports.palettes = exports.shadowControl = exports.radiusCard = exports.fixedGrounds = exports.aliases = exports.dark = exports.light = exports.fixed = exports.status = exports.green = exports.ink = void 0;
+exports.rnLineHeight = exports.rnFontSize = exports.rnRadiusRoles = exports.rnRadius = exports.rnSpace = exports.easingCurves = exports.motionMs = exports.rhythm = exports.containers = exports.typeScale = exports.typeSteps = exports.herouiFixedGrounds = exports.herouiFieldRadius = exports.herouiRadius = exports.herouiAliases = exports.herouiDark = exports.herouiLight = exports.herouiFixed = exports.palettes = exports.shadowControl = exports.radiusCard = exports.fixedGrounds = exports.aliases = exports.dark = exports.light = exports.fixed = exports.status = exports.green = exports.ink = void 0;
 /**
  * @injishi/design-tokens — one vocabulary everywhere.
  *
@@ -55,5 +55,6 @@ Object.defineProperty(exports, "easingCurves", { enumerable: true, get: function
 var rn_1 = require("./rn");
 Object.defineProperty(exports, "rnSpace", { enumerable: true, get: function () { return rn_1.rnSpace; } });
 Object.defineProperty(exports, "rnRadius", { enumerable: true, get: function () { return rn_1.rnRadius; } });
+Object.defineProperty(exports, "rnRadiusRoles", { enumerable: true, get: function () { return rn_1.rnRadiusRoles; } });
 Object.defineProperty(exports, "rnFontSize", { enumerable: true, get: function () { return rn_1.rnFontSize; } });
 Object.defineProperty(exports, "rnLineHeight", { enumerable: true, get: function () { return rn_1.rnLineHeight; } });

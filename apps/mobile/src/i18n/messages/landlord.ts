@@ -36,10 +36,11 @@ export const en = {
   'portfolio.openLease': 'Open the lease for {tenant}',
 
   /* ── Shared across the seat ─────────────────────────────────────────── */
-  'landlord.seat': '{org} · {town}',
-  'landlord.mockAdapter': 'Payments · mock adapter',
-  'landlord.mockAdapterHint':
-    'Rent settles through a mocked adapter in this build. Nothing here moves money.',
+  // `landlord.seat` ("{org} · {town}") and the two "Payments · mock adapter"
+  // strings are gone. The town was a fixture every landlord was told they lived
+  // in, and the chip called a real rent ledger a mock (mobile audit 2026-10-05,
+  // LL-01 and LL-13). The eyebrow is the workspace name on its own.
+  'landlord.leaseLabel': 'this lease',
   'landlord.notFoundTitle': 'That lease is not here',
   'landlord.notFoundBody':
     'It may belong to another workspace, or it may have been removed since this screen was opened.',
@@ -67,6 +68,8 @@ export const en = {
   'landlord.rent.progressLabel': 'Collection for {month}, {percent} per cent of what is billed',
   'landlord.rent.billedCount': '{count} leases billed · {month}',
   'landlord.rent.oneBilled': '1 lease billed · {month}',
+  // Rows from more than one month: "August 2026 to October 2026".
+  'landlord.rent.monthRange': '{from} to {to}',
   'landlord.rent.filterAll': 'All',
   'landlord.rent.filterPaid': 'Paid',
   'landlord.rent.filterDue': 'Due',
@@ -75,17 +78,18 @@ export const en = {
   'landlord.rent.chipPaidMock': 'Paid · mock',
   'landlord.rent.chipDue': 'Due · {date}',
   'landlord.rent.chipOverdue': 'Overdue · {days}d',
-  'landlord.rent.remind': 'Remind',
+  'landlord.rent.chipPartPaid': 'Part paid',
+  // "Remind" is gone with its three strings: it toasted an SMS that was never
+  // sent (mobile audit 2026-10-05, LL-09).
   'landlord.rent.record': 'Record',
-  'landlord.rent.remindA11y': 'Send {name} a rent reminder by SMS',
-  'landlord.rent.recordA11y': 'Record a payment for {name}, {unit}',
-  'landlord.rent.openRow': 'Open the lease for {name}, {unit}',
-  'landlord.rent.reminderSent': 'Reminder sent to {name} by SMS (mock)',
+  'landlord.rent.recordA11y': 'Record a payment for {name}, {unit}, rent for {month}',
+  'landlord.rent.openRow': 'Open the lease for {name}, {unit}. Rent for {month}: {status}, {amount}',
   'landlord.rent.footnote':
-    'Rent settles through the mocked payments adapter — a mocked success is labelled as one and never counted as banked. No platform commission on rent.',
-  'landlord.rent.emptyAllTitle': 'Nothing billed this month',
+    'Recording a payment adds it to this rent ledger for everyone in the workspace. It moves no money. Injishi takes no commission on rent.',
+  'landlord.rent.refusedTitle': 'Injishi would not show the rent roll',
+  'landlord.rent.emptyAllTitle': 'Nothing billed yet',
   'landlord.rent.emptyAllBody':
-    'A lease starts billing the month it goes active. Register a tenant and their first charge lands here.',
+    'A lease starts billing the month it goes active, and its first charge lands here.',
   'landlord.rent.emptyPaidTitle': 'Nothing paid yet',
   'landlord.rent.emptyPaidBody': 'No rent has been collected for {month}. Try All.',
   'landlord.rent.emptyDueTitle': 'Nothing due',
@@ -105,8 +109,9 @@ export const en = {
   'landlord.record.cancel': 'Cancel',
   'landlord.record.done': 'Recorded as paid',
   'landlord.record.goneTitle': 'That line has moved',
+  // The line is for the row's own month, which is not always this one (LL-01).
   'landlord.record.goneBody':
-    'This rent line is no longer on the roll for this month. Close this and open it again from the row.',
+    'This rent line is no longer owed on the roll. Close this and open it again from the row.',
 
   /* ── R3 Leases ──────────────────────────────────────────────────────── */
   'landlord.leases.title': 'Leases',
@@ -121,10 +126,9 @@ export const en = {
   'landlord.leases.filterDraft': 'Draft',
   'landlord.leases.rowMeta': '{tenure} · {ref}',
   'landlord.leases.actionSign': 'Review & sign',
-  'landlord.leases.actionNudge': 'Nudge tenant to sign',
-  'landlord.leases.actionRenew': 'Send renewal offer',
-  'landlord.leases.nudgeSent': 'Signing reminder sent to {name}',
-  'landlord.leases.renewalSent': 'Renewal offer sent to {name}',
+  // "Nudge tenant to sign" and "Send renewal offer" are gone with their toasts:
+  // each reported a message that was never sent, and renewal is out of the
+  // release (mobile audit 2026-10-05, LL-16).
   'landlord.leases.open': 'Open the lease for {name}, {unit}',
   'landlord.leases.listLabel': 'your leases',
   'landlord.leases.placedBy': 'Placed by {broker}',
@@ -158,11 +162,12 @@ export const en = {
   'landlord.repairs.assign': 'Assign a technician',
   'landlord.repairs.assignA11y': 'Assign {ref}, {title}, to a technician',
   'landlord.repairs.assignedToast': '{ref} assigned to {name}',
+  'landlord.repairs.assignFailed': 'That did not save. {ref} is still open, and nobody was assigned.',
   'landlord.repairs.assignedTo': 'Assigned to {name}',
   'landlord.repairs.photoCount': '{count} photos from {reporter}',
   'landlord.repairs.onePhoto': '1 photo from {reporter}',
   'landlord.repairs.photoTile': 'Photograph {index} of {total}',
-  'landlord.repairs.photoOnPhone': 'Taken on the reporter’s phone. The prototype holds no copy.',
+  'landlord.repairs.photoOnPhone': 'They are on the reporter’s phone and are not shown here.',
   'landlord.repairs.listLabel': 'maintenance tickets',
   'landlord.repairs.emptyOpenTitle': 'Nothing open',
   'landlord.repairs.emptyOpenBody': 'Every reported fault has somebody against it.',
@@ -184,7 +189,10 @@ export const en = {
   'landlord.new.placementFeeNote': 'recorded on the lease',
   'landlord.new.sectionTenant': 'Tenant',
   'landlord.new.name': 'Full name',
-  'landlord.new.namePlaceholder': 'Liliane Mukamurenzi',
+  // A shape, not a person: the placeholder used to be a stranger's full name,
+  // and the consequence line printed it as the tenant (mobile audit LL-03).
+  'landlord.new.namePlaceholder': 'As on their national ID',
+  'landlord.new.theTenant': 'the tenant',
   'landlord.new.nameError': 'The lease needs the tenant’s name on it.',
   'landlord.new.phone': 'Phone',
   'landlord.new.phonePlaceholder': '788 000 000',
@@ -209,15 +217,17 @@ export const en = {
   'landlord.new.create': 'Create lease & send to sign',
   'landlord.new.creating': 'Creating…',
   'landlord.new.blocked': 'Fill the tenant and the terms',
+  // No e-sign link is sent and nothing files with RRA, so neither is promised
+  // (mobile audit 2026-10-05, LL-03 and LL-15).
   'landlord.new.consequence':
-    'This creates a draft in your name. Nothing reaches {name} until you sign it on the next screen.',
-  'landlord.new.footnote':
-    'The tenant receives an e-sign link. Once both of you have signed, the contract auto-files with RRA within 15 days.',
-  'landlord.new.created': 'Lease {ref} created — sign it and it goes to {name}',
+    'This creates a draft lease for {name}. You review and sign it on the next screen.',
+  'landlord.new.footnote': 'A lease takes effect once you and the tenant have both signed it.',
+  'landlord.new.created': 'Draft lease {ref} created for {name}. Review and sign it next.',
 
   /* ── R7 Lease detail, landlord seat ─────────────────────────────────── */
   'landlord.lease.monthlyRent': 'Monthly rent',
-  'landlord.lease.thisMonth': 'This month',
+  // The newest charge on the lease, which is not always this month's.
+  'landlord.lease.latestRent': 'Latest rent',
   'landlord.lease.notBilled': 'Not billed yet',
   'landlord.lease.term': '{start} — {end}',
   'landlord.lease.records': 'Records',
@@ -230,9 +240,9 @@ export const en = {
   'landlord.lease.rowRent': 'Rent history',
   'landlord.lease.rentPeriods': '{count} paid',
   'landlord.lease.rentNone': 'Nothing billed yet',
-  'landlord.lease.rentHint': 'Opens the rent roll, where this lease has its line for {month}',
-  'landlord.lease.message': 'Message',
-  'landlord.lease.messageA11y': 'Open the message thread with {name}',
+  'landlord.lease.rentHint': 'Opens the rent roll for every lease in this workspace',
+  // "Message" is gone: it opened a thread by the LEASE's id, and the thread
+  // screen is not open to a landlord (mobile audit 2026-10-05, LL-16).
   'landlord.lease.visitors': 'Visitors',
   'landlord.lease.visitorsA11y': 'Open {name}’s visitor log, read only',
   'landlord.lease.placement': 'Placed by {broker} · fee {fee}',
@@ -253,25 +263,24 @@ export const en = {
   'landlord.contract.templatePlain': 'Standard bilingual template · no clauses added.',
   'landlord.contract.signatures': 'Signatures',
   'landlord.contract.landlord': 'Landlord — {name}',
+  // While the signer's name is still loading: the role alone, never a guess.
+  'landlord.contract.landlordRole': 'Landlord',
   'landlord.contract.tenant': 'Tenant — {name}',
   'landlord.contract.awaiting': 'awaiting',
   'landlord.contract.signedOn': 'signed {date}',
   'landlord.contract.confirm': 'Confirm & sign as landlord',
   'landlord.contract.blocked': 'Sign above to continue',
   'landlord.contract.signing': 'Signing…',
+  // Nothing is sent to the tenant, no signature image is kept for seven years
+  // and nothing files with RRA, so the sheet promises none of it. The footnote,
+  // "Read the full contract" and "Download" went with those promises: the two
+  // controls only ever toasted that a service was "not wired" (mobile audit
+  // 2026-10-05, LL-04).
   'landlord.contract.consequence':
-    'Signing sends the contract to {tenant} and moves this lease to pending signature.',
-  'landlord.contract.footnote':
-    'e-Signature stored 7 years per Law 058/2021. Filing begins when both parties sign.',
-  'landlord.contract.done': 'Signed — the contract is with {tenant} now',
+    'Signing moves this lease to pending signature, waiting for {tenant} to sign.',
+  'landlord.contract.done': 'Signed. The lease now waits for {tenant} to sign.',
   'landlord.contract.bothSigned':
     'Both parties have signed. The contract is immutable from here — a change of terms is a new lease, not an edit.',
-  'landlord.contract.download': 'Download the contract',
-  'landlord.contract.downloadMock':
-    'Nothing to download yet — the signed PDF lands here once the storage adapter is wired.',
-  'landlord.contract.readFull': 'Read the full contract',
-  'landlord.contract.readFullMock':
-    'The bilingual contract body opens here once the contract service is wired.',
 
   /* ── R9 Caution deposit ─────────────────────────────────────────────── */
   'landlord.caution.title': 'Caution deposit',
@@ -296,9 +305,11 @@ export const en = {
   'landlord.caution.deductAction': 'Deduct & settle',
   'landlord.caution.lockedNote':
     'A caution settles at the close of the lease. There is nothing to settle while the tenancy runs.',
-  'landlord.caution.refundConsequence': 'The full {amount} goes back to {tenant} by mobile money.',
-  'landlord.caution.refundedToast': 'Caution refunded in full — {amount} back to {tenant}',
-  'landlord.caution.settledToast': 'Settled — {amount} returned, {deducted} deducted',
+  // Recorded, not paid: nothing on this screen moves money, by mobile money or
+  // any other way (mobile audit 2026-10-05, LL-05).
+  'landlord.caution.refundConsequence': 'This records the full {amount} as returned to {tenant}.',
+  'landlord.caution.refundedToast': 'Caution refund recorded: {amount} to {tenant}',
+  'landlord.caution.settledToast': 'Settlement recorded: {amount} to return, {deducted} deducted',
   'landlord.caution.sheetTitle': 'Deduct & settle',
   'landlord.caution.sheetBody':
     'Every deduction carries a reason. The tenant reads the same line, and a number without a reason is how deposit disputes start.',
@@ -331,19 +342,16 @@ export const en = {
   'landlord.filing.stepFiled': 'Filed & acknowledged',
   'landlord.filing.stepAwaiting': 'Awaiting the second signature',
   'landlord.filing.stepAwaitingBody': 'The 15-day clock starts the day both parties have signed.',
-  'landlord.filing.download': 'Download filed contract',
-  'landlord.filing.downloadMock':
-    'Nothing to download yet — the filed copy lands here once the filing adapter is wired.',
+  // Nothing files with RRA from Injishi today, so no line promises it will,
+  // and "Download" and "Retry the filing" are gone: one toasted that the filing
+  // adapter was "not wired", the other that a retry was queued when nothing was
+  // (mobile audit 2026-10-05, LL-15 and XC-16).
   'landlord.filing.pendingTitle': 'Not filed yet',
-  'landlord.filing.pendingBody':
-    'This lease files itself within 15 days of the second signature. No action from you.',
+  'landlord.filing.pendingBody': 'Nothing has been sent to RRA for this lease.',
   'landlord.filing.failedTitle': 'Filing failed',
-  'landlord.filing.failedBody':
-    'RRA did not accept the submission. It retries on its own, and the ready-to-file copy is here if you would rather submit it yourself.',
-  'landlord.filing.retry': 'Retry the filing',
-  'landlord.filing.retried': 'Queued for another attempt',
+  'landlord.filing.failedBody': 'RRA did not accept the submission.',
   'landlord.filing.note':
-    'Injishi files the contract and keeps the rent ledger for your declaration. It does not compute or remit the tax, and a lease never emits an EBM invoice.',
+    'Injishi keeps the rent ledger for your declaration. It does not compute or remit the tax, and a lease never emits an EBM invoice.',
 
   /* ----------------- record-payment's accessibility (gaps.md §5.1) -------- */
   // The screen scored `a11y=0` alongside `err=0`, which gaps.md calls the worst
@@ -351,7 +359,7 @@ export const en = {
   // a screen reader to announce. The confirm button is the whole screen, so it
   // says WHO and WHICH UNIT rather than "confirm".
   'landlord.record.a11yConfirm': 'Record cash received from {name}, {unit}',
-  'landlord.record.a11yHint': 'Marks this month paid in the rent roll. It cannot be undone here.',
+  'landlord.record.a11yHint': 'Marks the month paid in the rent roll. It cannot be undone here.',
   'landlord.record.a11yAmount': 'Amount received, {amount}',
   'landlord.record.a11ySheet': 'Record a payment received in cash',
 } as const;
@@ -385,10 +393,10 @@ export const rw: Record<keyof typeof en, string> = {
   'portfolio.openLease': 'Fungura amasezerano ya {tenant}',
 
   /* ── Shared across the seat ─────────────────────────────────────────── */
-  'landlord.seat': '{org} · {town}',
-  'landlord.mockAdapter': 'Ubwishyu · igerageza',
-  'landlord.mockAdapterHint':
-    'Ubukode bunyura mu igerageza muri iyi verisiyo. Nta mafaranga agenda hano.',
+  // Keys added or reworded by the 2026-10-05 honesty pass carry the English:
+  // v1 ships English only, and an older RW sentence would keep the claim the
+  // English no longer makes.
+  'landlord.leaseLabel': en['landlord.leaseLabel'],
   'landlord.notFoundTitle': 'Ayo masezerano ntabwo ari hano',
   'landlord.notFoundBody':
     'Ashobora kuba ari ay’ahandi hantu ukorera, cyangwa yarakuweho kuva ufunguye uru rupapuro.',
@@ -416,6 +424,7 @@ export const rw: Record<keyof typeof en, string> = {
   'landlord.rent.progressLabel': 'Ubukode bwa {month}, {percent} ku ijana by’ibyasabwe',
   'landlord.rent.billedCount': 'amasezerano {count} yasabwe · {month}',
   'landlord.rent.oneBilled': 'amasezerano 1 yasabwe · {month}',
+  'landlord.rent.monthRange': en['landlord.rent.monthRange'],
   'landlord.rent.filterAll': 'Byose',
   'landlord.rent.filterPaid': 'Bwishyuwe',
   'landlord.rent.filterDue': 'Bugomba',
@@ -424,17 +433,14 @@ export const rw: Record<keyof typeof en, string> = {
   'landlord.rent.chipPaidMock': 'Bwishyuwe · igerageza',
   'landlord.rent.chipDue': 'Bugomba · {date}',
   'landlord.rent.chipOverdue': 'Bwarengeje · iminsi {days}',
-  'landlord.rent.remind': 'Ibutsa',
+  'landlord.rent.chipPartPaid': en['landlord.rent.chipPartPaid'],
   'landlord.rent.record': 'Andika',
-  'landlord.rent.remindA11y': 'Ohereza {name} ubutumwa bumwibutsa ubukode',
-  'landlord.rent.recordA11y': 'Andika ubwishyu bwa {name}, {unit}',
-  'landlord.rent.openRow': 'Fungura amasezerano ya {name}, {unit}',
-  'landlord.rent.reminderSent': 'Ubutumwa bwoherejwe kuri {name} (igerageza)',
-  'landlord.rent.footnote':
-    'Ubukode bunyura mu igerageza ry’ubwishyu — intsinzi y’igerageza iravugwa uko iri kandi ntibarwa nk’amafaranga yinjiye. Nta gice Injishi ifata ku bukode.',
-  'landlord.rent.emptyAllTitle': 'Nta bukode bwasabwe uku kwezi',
-  'landlord.rent.emptyAllBody':
-    'Amasezerano atangira gusaba ubukode ukwezi atangiriye. Andika umukode maze ubwishyu bwe bwa mbere buze hano.',
+  'landlord.rent.recordA11y': en['landlord.rent.recordA11y'],
+  'landlord.rent.openRow': en['landlord.rent.openRow'],
+  'landlord.rent.footnote': en['landlord.rent.footnote'],
+  'landlord.rent.refusedTitle': en['landlord.rent.refusedTitle'],
+  'landlord.rent.emptyAllTitle': en['landlord.rent.emptyAllTitle'],
+  'landlord.rent.emptyAllBody': en['landlord.rent.emptyAllBody'],
   'landlord.rent.emptyPaidTitle': 'Nta bwishyuwe',
   'landlord.rent.emptyPaidBody': 'Nta bukode bwakiriwe muri {month}. Gerageza Byose.',
   'landlord.rent.emptyDueTitle': 'Nta bugomba kwishyurwa',
@@ -455,8 +461,7 @@ export const rw: Record<keyof typeof en, string> = {
   'landlord.record.cancel': 'Reka',
   'landlord.record.done': 'Byanditswe nk’ubwishyuwe',
   'landlord.record.goneTitle': 'Uwo murongo wimutse',
-  'landlord.record.goneBody':
-    'Uyu murongo w’ubukode ntukiri ku rutonde rw’uku kwezi. Funga hanyuma uwufungurire ku murongo.',
+  'landlord.record.goneBody': en['landlord.record.goneBody'],
 
   /* ── R3 Leases ──────────────────────────────────────────────────────── */
   'landlord.leases.title': 'Amasezerano',
@@ -471,10 +476,6 @@ export const rw: Record<keyof typeof en, string> = {
   'landlord.leases.filterDraft': 'Umushinga',
   'landlord.leases.rowMeta': '{tenure} · {ref}',
   'landlord.leases.actionSign': 'Soma usinye',
-  'landlord.leases.actionNudge': 'Ibutsa umukode gusinya',
-  'landlord.leases.actionRenew': 'Ohereza kongera amasezerano',
-  'landlord.leases.nudgeSent': 'Kwibutsa gusinya byoherejwe kuri {name}',
-  'landlord.leases.renewalSent': 'Icyifuzo cyo kongera cyoherejwe kuri {name}',
   'landlord.leases.open': 'Fungura amasezerano ya {name}, {unit}',
   'landlord.leases.listLabel': 'amasezerano yawe',
   'landlord.leases.placedBy': 'Yashyizweho na {broker}',
@@ -509,11 +510,12 @@ export const rw: Record<keyof typeof en, string> = {
   'landlord.repairs.assign': 'Shyiraho umutekinisiye',
   'landlord.repairs.assignA11y': 'Ha {ref}, {title}, umutekinisiye',
   'landlord.repairs.assignedToast': '{ref} yahawe {name}',
+  'landlord.repairs.assignFailed': en['landlord.repairs.assignFailed'],
   'landlord.repairs.assignedTo': 'Byahawe {name}',
   'landlord.repairs.photoCount': 'amafoto {count} ava kuri {reporter}',
   'landlord.repairs.onePhoto': 'ifoto 1 iva kuri {reporter}',
   'landlord.repairs.photoTile': 'Ifoto {index} kuri {total}',
-  'landlord.repairs.photoOnPhone': 'Yafatiwe kuri terefone y’uwatanze ikibazo. Icyitegererezo nta kopi gifite.',
+  'landlord.repairs.photoOnPhone': en['landlord.repairs.photoOnPhone'],
   'landlord.repairs.listLabel': 'ibibazo by’ibisanwa',
   'landlord.repairs.emptyOpenTitle': 'Nta gifunguye',
   'landlord.repairs.emptyOpenBody': 'Buri kibazo cyatanzwe gifite uwagihawe.',
@@ -535,7 +537,8 @@ export const rw: Record<keyof typeof en, string> = {
   'landlord.new.placementFeeNote': 'yanditswe ku masezerano',
   'landlord.new.sectionTenant': 'Umukode',
   'landlord.new.name': 'Amazina yose',
-  'landlord.new.namePlaceholder': 'Liliane Mukamurenzi',
+  'landlord.new.namePlaceholder': en['landlord.new.namePlaceholder'],
+  'landlord.new.theTenant': en['landlord.new.theTenant'],
   'landlord.new.nameError': 'Amasezerano akeneye amazina y’umukode.',
   'landlord.new.phone': 'Telefone',
   'landlord.new.phonePlaceholder': '788 000 000',
@@ -560,15 +563,13 @@ export const rw: Record<keyof typeof en, string> = {
   'landlord.new.create': 'Kora amasezerano uyohereze gusinywa',
   'landlord.new.creating': 'Birakorwa…',
   'landlord.new.blocked': 'Uzuza umukode n’amasezerano',
-  'landlord.new.consequence':
-    'Ibi bikora umushinga mu izina ryawe. Nta kigera kuri {name} kugeza usinye ku rupapuro rukurikira.',
-  'landlord.new.footnote':
-    'Umukode ahabwa ihuza ryo gusinya kuri interineti. Igihe mwembi mumaze gusinya, amasezerano yoherezwa RRA mu minsi 15.',
-  'landlord.new.created': 'Amasezerano {ref} yakozwe — yasinye maze ajye kuri {name}',
+  'landlord.new.consequence': en['landlord.new.consequence'],
+  'landlord.new.footnote': en['landlord.new.footnote'],
+  'landlord.new.created': en['landlord.new.created'],
 
   /* ── R7 Lease detail, landlord seat ─────────────────────────────────── */
   'landlord.lease.monthlyRent': 'Ubukode bw’ukwezi',
-  'landlord.lease.thisMonth': 'Uku kwezi',
+  'landlord.lease.latestRent': en['landlord.lease.latestRent'],
   'landlord.lease.notBilled': 'Ntibarasabwa',
   'landlord.lease.term': '{start} — {end}',
   'landlord.lease.records': 'Inyandiko',
@@ -581,9 +582,7 @@ export const rw: Record<keyof typeof en, string> = {
   'landlord.lease.rowRent': 'Amateka y’ubukode',
   'landlord.lease.rentPeriods': '{count} byishyuwe',
   'landlord.lease.rentNone': 'Nta cyasabwe',
-  'landlord.lease.rentHint': 'Bifungura urutonde rw’ubukode, aho aya masezerano afite umurongo wayo wa {month}',
-  'landlord.lease.message': 'Ubutumwa',
-  'landlord.lease.messageA11y': 'Fungura ibiganiro na {name}',
+  'landlord.lease.rentHint': en['landlord.lease.rentHint'],
   'landlord.lease.visitors': 'Abashyitsi',
   'landlord.lease.visitorsA11y': 'Fungura urutonde rw’abashyitsi ba {name}, wo gusoma gusa',
   'landlord.lease.placement': 'Yashyizweho na {broker} · amafaranga {fee}',
@@ -604,25 +603,17 @@ export const rw: Record<keyof typeof en, string> = {
   'landlord.contract.templatePlain': 'Inyandiko isanzwe mu ndimi ebyiri · nta ngingo zongewemo.',
   'landlord.contract.signatures': 'Imikono',
   'landlord.contract.landlord': 'Nyir’inzu — {name}',
+  'landlord.contract.landlordRole': en['landlord.contract.landlordRole'],
   'landlord.contract.tenant': 'Umukode — {name}',
   'landlord.contract.awaiting': 'ategereje',
   'landlord.contract.signedOn': 'yasinye {date}',
   'landlord.contract.confirm': 'Emeza usinye nka nyir’inzu',
   'landlord.contract.blocked': 'Sinya haruguru kugira ngo ukomeze',
   'landlord.contract.signing': 'Birasinywa…',
-  'landlord.contract.consequence':
-    'Gusinya byohereza amasezerano kuri {tenant} kandi bishyira aya masezerano mu gutegereza umukono.',
-  'landlord.contract.footnote':
-    'Umukono wa elegitoroniki ubikwa imyaka 7 nk’uko Itegeko 058/2021 ribiteganya. Kohereza bitangira igihe impande zombi zisinye.',
-  'landlord.contract.done': 'Byasinywe — amasezerano ubu ari kuri {tenant}',
+  'landlord.contract.consequence': en['landlord.contract.consequence'],
+  'landlord.contract.done': en['landlord.contract.done'],
   'landlord.contract.bothSigned':
     'Impande zombi zarasinye. Amasezerano ntashobora guhinduka — guhindura ibiyakubiyemo ni amasezerano mashya, si ivugurura.',
-  'landlord.contract.download': 'Kuramo amasezerano',
-  'landlord.contract.downloadMock':
-    'Nta cyo kuramo kiraboneka — PDF yasinywe iza hano igihe ububiko buzaba bwahujwe.',
-  'landlord.contract.readFull': 'Soma amasezerano yose',
-  'landlord.contract.readFullMock':
-    'Umubiri w’amasezerano mu ndimi ebyiri ufungurwa hano igihe serivisi izaba yahujwe.',
 
   /* ── R9 Caution deposit ─────────────────────────────────────────────── */
   'landlord.caution.title': 'Ingwate',
@@ -647,9 +638,9 @@ export const rw: Record<keyof typeof en, string> = {
   'landlord.caution.deductAction': 'Kuramo maze ukemure',
   'landlord.caution.lockedNote':
     'Ingwate ikemurwa amasezerano arangiye. Nta cyo gukemura mu gihe ubukode bugikomeje.',
-  'landlord.caution.refundConsequence': '{amount} yose isubira kuri {tenant} inyuze kuri telefone.',
-  'landlord.caution.refundedToast': 'Ingwate yasubijwe yose — {amount} isubiye kuri {tenant}',
-  'landlord.caution.settledToast': 'Byakemuwe — {amount} yasubijwe, {deducted} yakuwemo',
+  'landlord.caution.refundConsequence': en['landlord.caution.refundConsequence'],
+  'landlord.caution.refundedToast': en['landlord.caution.refundedToast'],
+  'landlord.caution.settledToast': en['landlord.caution.settledToast'],
   'landlord.caution.sheetTitle': 'Kuramo maze ukemure',
   'landlord.caution.sheetBody':
     'Buri gikurwamo kigira impamvu. Umukode asoma umurongo umwe, kandi umubare udafite impamvu ni ko impaka z’ingwate zitangira.',
@@ -682,19 +673,11 @@ export const rw: Record<keyof typeof en, string> = {
   'landlord.filing.stepFiled': 'Byoherejwe kandi byakiriwe',
   'landlord.filing.stepAwaiting': 'Bitegereje umukono wa kabiri',
   'landlord.filing.stepAwaitingBody': 'Iminsi 15 itangira umunsi impande zombi zisinye.',
-  'landlord.filing.download': 'Kuramo amasezerano yoherejwe',
-  'landlord.filing.downloadMock':
-    'Nta cyo kuramo kiraboneka — kopi yoherejwe iza hano igihe serivisi izaba yahujwe.',
   'landlord.filing.pendingTitle': 'Ntibirohererezwa',
-  'landlord.filing.pendingBody':
-    'Aya masezerano yoherezwa mu minsi 15 nyuma y’umukono wa kabiri. Nta cyo ukora.',
+  'landlord.filing.pendingBody': en['landlord.filing.pendingBody'],
   'landlord.filing.failedTitle': 'Kohereza byanze',
-  'landlord.filing.failedBody':
-    'RRA ntiyakiriye ibyoherejwe. Bizongera bigerageze ubwabyo, kandi kopi yiteguye iri hano niba wifuza kuyohereza ubwawe.',
-  'landlord.filing.retry': 'Ongera ugerageze kohereza',
-  'landlord.filing.retried': 'Byashyizwe ku murongo wo kongera kugerageza',
-  'landlord.filing.note':
-    'Injishi yohereza amasezerano kandi ibika inyandiko y’ubukode ku bw’imenyekanisha ryawe. Ntibara cyangwa ngo yishyure umusoro, kandi amasezerano ntasohora fagitire ya EBM.',
+  'landlord.filing.failedBody': en['landlord.filing.failedBody'],
+  'landlord.filing.note': en['landlord.filing.note'],
   'landlord.record.a11yConfirm': `${en['landlord.record.a11yConfirm']} (RW)`,
   'landlord.record.a11yHint': `${en['landlord.record.a11yHint']} (RW)`,
   'landlord.record.a11yAmount': `${en['landlord.record.a11yAmount']} (RW)`,

@@ -65,6 +65,7 @@ import { DaySeparator, MessageBubble } from './message-bubble';
 import { Composer, ClosedNote } from './composer';
 import { dayText } from './time-text';
 import { sameDay } from './relative-time';
+import { useMinuteClock } from './minute-clock';
 
 /** A drawn row: a bubble, or the day line that goes above one. */
 type Row = { kind: 'message'; message: Message } | { kind: 'day'; at: number; key: string };
@@ -107,7 +108,11 @@ export function Thread() {
   const { send, status: sendStatus, pending, retry: retrySend, discard } = useSendMessage();
 
   const archived = thread?.status === 'archived';
-  const now = Date.now();
+  // The Inbox's own minute clock, not `Date.now()` read once per render. A
+  // thread left open past midnight kept calling yesterday's messages "Today"
+  // until something else happened to re-render it (mobile audit 2026-10-05,
+  // IN-13).
+  const now = useMinuteClock();
 
   // Once per thread, on mount. `markRead` is stable, so the effect keys on the
   // id alone and does not re-fire when the list re-renders under it.
@@ -119,10 +124,12 @@ export function Thread() {
     markRead(threadId);
   }, [threadId, status, archived, markRead]);
 
-  const rows = useMemo(() => {
-    const all = pending && pending.threadId === threadId ? [...messages, pending] : messages;
-    return invertedRows(all);
-  }, [messages, pending, threadId]);
+  // Every pending message in THIS thread, each its own bubble. Two sent
+  // offline are two bubbles now, not one (mobile audit IN-07).
+  const rows = useMemo(
+    () => invertedRows([...messages, ...pending.filter((m) => m.threadId === threadId)]),
+    [messages, pending, threadId],
+  );
 
   const goBack = useCallback(
     () => (router.canGoBack() ? router.back() : router.replace('/inbox')),
@@ -132,10 +139,13 @@ export function Thread() {
   const onSend = useCallback(
     (body: string) => {
       if (!threadId) return;
-      void send(threadId, body).catch(() => {
-        // The store refused. In the prototype that can only be the archived
-        // rule, which is exactly the stale-client case AC-19 is about.
-        toast.show(t('inbox.archivedRefused'), 'warning');
+      void send(threadId, body).then((outcome) => {
+        // Only a refusal of the thread itself is "closed" — the stale-client
+        // case AC-19 is about. A send that failed stays on screen as its own
+        // bubble, marked Not sent with Try again and Discard, and a queued one
+        // says it is waiting for signal. Every failure used to be worded as a
+        // closed conversation (mobile audit 2026-10-05, IN-12).
+        if (outcome === 'closed') toast.show(t('inbox.archivedRefused'), 'warning');
       });
     },
     [send, t, threadId, toast],
@@ -199,6 +209,9 @@ export function Thread() {
         <FlatList
           data={rows}
           inverted
+          // The day lines read the clock, so a tick has to reach the rows even
+          // when the messages have not changed.
+          extraData={now}
           keyExtractor={(row) => (row.kind === 'message' ? row.message.id : row.key)}
           renderItem={({ item }) =>
             item.kind === 'message' ? (
@@ -207,9 +220,16 @@ export function Thread() {
                 counterpartyName={thread.counterpartyName}
                 // Offered on a failed message only. `benchmarks.md` §5's third
                 // state: a message that will not send must be something the
-                // person can act on, not a bubble with a permanent clock.
-                onRetry={item.message.delivery === 'failed' ? retrySend : undefined}
-                onDiscard={item.message.delivery === 'failed' ? discard : undefined}
+                // person can act on, not a bubble with a permanent clock. Both
+                // act on THIS message's id (IN-07).
+                onRetry={
+                  item.message.delivery === 'failed'
+                    ? () => retrySend(item.message.id)
+                    : undefined
+                }
+                onDiscard={
+                  item.message.delivery === 'failed' ? () => discard(item.message.id) : undefined
+                }
               />
             ) : (
               <DaySeparator label={dayText(item.at, now, t, locale)} />
@@ -347,12 +367,15 @@ function ThreadFrame({
           <>
             <Avatar name={thread.counterpartyName} size="sm" square />
             <View style={{ flex: 1 }}>
+              {/* The page's heading, so a screen reader can land on it and
+                  hear whose conversation this is (mobile audit IN-14). */}
               <Text
                 family="display"
                 weight="semibold"
                 size="md"
                 color="textStrong"
                 numberOfLines={1}
+                accessibilityRole="header"
               >
                 {thread.counterpartyName}
               </Text>
@@ -371,7 +394,13 @@ function ThreadFrame({
             ) : null}
           </>
         ) : (
-          <Text family="display" weight="semibold" size="md" color="textStrong">
+          <Text
+            family="display"
+            weight="semibold"
+            size="md"
+            color="textStrong"
+            accessibilityRole="header"
+          >
             {t('inbox.title')}
           </Text>
         )}

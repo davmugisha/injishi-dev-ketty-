@@ -443,7 +443,47 @@ function guessMime(filename: string): string {
   return 'image/jpeg';
 }
 
-export async function drain(): Promise<void> {
+/**
+ * One drain at a time.
+ *
+ * The shell drains after a cold start and every mounted `useOfflineSubmit`
+ * drains on reconnect, so two drains routinely start together. Each used to
+ * snapshot the owed items and walk them, so a second drain starting while the
+ * first was awaiting picked up the items the first had not reached yet, and
+ * both sent them: a message posted twice, and any write without an
+ * idempotency key landing twice (mobile audit 2026-10-05, raised by the inbox
+ * fix for IN-11). Now a call made during a drain joins it, and asks for one
+ * more pass so an item queued meanwhile is not left waiting for the next
+ * reconnect.
+ */
+let inFlight: Promise<void> | null = null;
+let passAgain = false;
+
+export function drain(): Promise<void> {
+  if (inFlight) {
+    passAgain = true;
+    return inFlight;
+  }
+  inFlight = (async () => {
+    try {
+      do {
+        passAgain = false;
+        await drainOnce();
+      } while (passAgain);
+    } finally {
+      inFlight = null;
+    }
+  })();
+  return inFlight;
+}
+
+/** Still owed, read from the live queue rather than from a snapshot. */
+function stillOwed(id: string): boolean {
+  const current = queue.find((q) => q.id === id);
+  return current?.state === 'queued' || current?.state === 'failed-retryable';
+}
+
+async function drainOnce(): Promise<void> {
   // A REFUSED item is deliberately not picked up here. The server answered, and
   // asking again gets the same answer; it waits for the person to read the
   // message and either fix the intent or abandon it (AC-S17).
@@ -452,6 +492,9 @@ export async function drain(): Promise<void> {
   );
 
   for (const item of owed) {
+    // Cancelled, dropped by a sign out, or sent while an earlier item was in
+    // flight: the snapshot above is older than the queue.
+    if (!stillOwed(item.id)) continue;
     const handler = handlers.get(item.kind);
     if (!handler) {
       // Nothing can send this in this build. Retryable rather than refused:
@@ -538,10 +581,27 @@ export function isHydrated(): boolean {
   return hydrated;
 }
 
+/**
+ * Drop every queued write, keeping the handlers, when a session ends.
+ *
+ * A queued item carries a workspace but no person, so the next account signed
+ * in on this phone would drain the previous one's writes under its own token: a
+ * record payment queued at a shared front desk would be filed as somebody else
+ * (mobile audit SA-19). After a 401 the items cannot be sent as their author
+ * anyway. The sign out screen says how many are waiting before it drops them.
+ */
+export function dropAll(): void {
+  queue = [];
+  emit();
+  void persist();
+}
+
 /** Tests only. */
 export function resetQueue(): void {
   queue = [];
   hydrated = false;
+  inFlight = null;
+  passAgain = false;
   handlers.clear();
   fixtureBacked.clear();
   emit();

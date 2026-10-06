@@ -38,7 +38,6 @@
  */
 import type { AccommodationClass, BookingMode } from '@injishi/contracts';
 import type { DirectoryListing } from './rentals';
-import { ME } from './personas';
 
 /**
  * A district as a FACET, not as the geography entity.
@@ -480,9 +479,9 @@ export function getStay(id: string): Stay | undefined {
  * exported from `./trips` now, unchanged in name.
  */
 
-export const GUEST = {
-  name: 'Personal',
-  role: 'Guest',
-  user: ME.name,
-  email: ME.email,
-};
+/*
+ * There is deliberately no `GUEST` persona here any more. Its `user` was the
+ * fixture person `ME`, and Explore greeted every account by that name
+ * (mobile audit 2026-10-05, GB-02). The person holding the phone comes from
+ * `useMyIdentity()` in `@/queries/profile`, and from nowhere in this file.
+ */

@@ -74,21 +74,22 @@
  * seat, and this form registers a different tenant into our own building
  * through a broker we do not own. R6's figures are unchanged; two names moved.
  */
+import type { MessageKey, Translate } from '@/i18n/i18n';
 import { useFixture, type FixtureStatus } from './use-fixture';
 import { readFixture, useFixtureValue } from './use-fixture-mutation';
 import type { LeaseState, RentState } from './rentals';
 
 /* ─────────────────────────────────────────────────────────── the seat ──── */
 
-/**
- * The eyebrow every landlord list screen carries, as frames R1, R3 and R4 draw
- * it, plus the town the interactive twin adds ("Ingoro Apartments · Kicukiro").
- *
- * The NAME is not duplicated here: it comes off the active workspace row in
- * `./personas`, so a switch cannot leave a screen labelled with the seat the
- * reader just left. Only the town, which no workspace row carries, lives here.
+/*
+ * The eyebrow every landlord list screen carries is the workspace's own name,
+ * and nothing else. It used to append a town, `LANDLORD_TOWN = 'Kicukiro'`,
+ * which no workspace row carries, so every real landlord was told their
+ * business sat in Kicukiro. A month, `RENT_PERIOD = 'August 2026'`, labelled the
+ * live rent roll the same way. Both are gone: the month now comes from the rows
+ * the server sent (`periodLabel`), and the town from nowhere (mobile audit
+ * 2026-10-05, LL-01).
  */
-export const LANDLORD_TOWN = 'Kicukiro';
 
 /**
  * The brokerage on the placements below. **Not `Aline K. Brokerage`**, which
@@ -98,8 +99,55 @@ export const LANDLORD_TOWN = 'Kicukiro';
  */
 export const THIRD_PARTY_BROKER = 'Nsengimana Lettings';
 
-/** The month the roll is about. One string, because seven rows quote it. */
-export const RENT_PERIOD = 'August 2026';
+/* ──────────────────────────────────────────────────────── the calendar ──── */
+
+/**
+ * `2026-10-01` → `October 2026`, or `undefined` when there is no month.
+ *
+ * A rent charge's `periodMonth` is a calendar DATE, the first of the month in
+ * Kigali as the server counts it, not an instant. So it is read by its parts
+ * rather than through `Date`, which would shift it by the device's offset and
+ * name the wrong month on any phone west of Greenwich. The month name comes
+ * from the catalogue, so it follows the reader's language.
+ */
+export function periodLabel(periodMonth: string | undefined, t: Translate): string | undefined {
+  const match = periodMonth ? /^(\d{4})-(\d{2})/.exec(periodMonth) : null;
+  if (!match) return undefined;
+  const month = Number(match[2]);
+  if (month < 1 || month > 12) return undefined;
+  return `${t(`calendar.m${month}` as MessageKey)} ${match[1]}`;
+}
+
+/**
+ * The month a whole roll is about, from its rows: one month when they agree,
+ * `August 2026 to October 2026` when they do not, `undefined` with no rows.
+ *
+ * Rows can disagree, because the roll shows each lease's NEWEST charge and a
+ * lease the server has not billed this month yet still has an older one. A
+ * single month printed over rows from three would be the old `RENT_PERIOD`
+ * problem again, one level down.
+ */
+export function rollPeriodLabel(rows: readonly RentRow[], t: Translate): string | undefined {
+  const months = [...new Set(rows.map((r) => r.periodMonth).filter((m): m is string => !!m))].sort();
+  if (months.length === 0) return undefined;
+  const first = periodLabel(months[0], t);
+  const last = periodLabel(months[months.length - 1], t);
+  if (!first || !last) return undefined;
+  return first === last ? first : t('landlord.rent.monthRange', { from: first, to: last });
+}
+
+/**
+ * `2026-10-05` → `5 Oct 2026`, the shape every stamp on these screens prints.
+ *
+ * Fed today's date by the screens that stamp a signature or a settlement. They
+ * used to stamp a fixed `4 Aug 2026` whatever the day (mobile audit 2026-10-05,
+ * LL-04 and LL-05).
+ */
+export function dayStamp(isoDay: string, t: Translate): string {
+  const month = Number(isoDay.slice(5, 7));
+  const name = t(`calendar.m${month}` as MessageKey).slice(0, 3);
+  return `${Number(isoDay.slice(8, 10))} ${name} ${isoDay.slice(0, 4)}`;
+}
 
 /* ──────────────────────────────────────────────────────────── the rows ──── */
 
@@ -422,12 +470,12 @@ export interface RentRow {
    */
   mock?: boolean;
   /**
-   * `YYYY-MM-DD`, the first of the month this charge covers. Set only on a row
-   * read from the API, because `POST /ops/leases/:id/rent` has to name the
-   * month it settles; the fixture rows all belong to `RENT_PERIOD`.
+   * `YYYY-MM-DD`, the first of the month this charge covers. Every API row
+   * carries it, because `POST /ops/leases/:id/rent` has to name the month it
+   * settles, and it is what the roll labels its month from (`periodLabel`).
    */
   periodMonth?: string;
-  /** What has already been recorded against this month, in RWF. API rows only. */
+  /** What has already been recorded against this month, in RWF. */
   paidAmount?: number;
 }
 
@@ -436,22 +484,75 @@ export interface RentRow {
  * draft bills nothing, so `l-0176` is absent and the roll's count line reads
  * seven where the Leases tab reads eight. That gap is the product being honest
  * about what a draft is, not a bug.
+ *
+ * Each row names its own month, as an API row does, so nothing that draws one
+ * has to borrow a month from a constant.
  */
 export const RENT_ROLL: RentRow[] = [
-  { leaseId: 'l-0142', initials: 'ET', name: 'Eric T.', unit: 'A2', amount: 310000, state: 'paid', on: 'Aug 01' },
-  { leaseId: 'l-0158', initials: 'GM', name: 'Grace M.', unit: 'B1', amount: 250000, state: 'paid', on: 'Aug 02' },
-  { leaseId: 'l-0163', initials: 'CM', name: 'Chantal M.', unit: 'C2', amount: 380000, state: 'paid', on: 'Aug 01' },
-  { leaseId: 'l-0171', initials: 'IR', name: 'Innocent R.', unit: 'A3', amount: 300000, state: 'paid', on: 'Aug 03' },
-  { leaseId: 'l-0155', initials: 'YR', name: 'Yves R.', unit: 'B3', amount: 190000, state: 'due', on: 'Aug 05' },
-  { leaseId: 'l-0129', initials: 'DI', name: 'Diane I.', unit: 'C1', amount: 190000, state: 'due', on: 'Aug 05' },
-  { leaseId: 'l-0166', initials: 'SK', name: 'Solange K.', unit: 'A1', amount: 120000, state: 'overdue', days: 9 },
+  { leaseId: 'l-0142', initials: 'ET', name: 'Eric T.', unit: 'A2', amount: 310000, state: 'paid', on: 'Aug 01', periodMonth: '2026-08-01' },
+  { leaseId: 'l-0158', initials: 'GM', name: 'Grace M.', unit: 'B1', amount: 250000, state: 'paid', on: 'Aug 02', periodMonth: '2026-08-01' },
+  { leaseId: 'l-0163', initials: 'CM', name: 'Chantal M.', unit: 'C2', amount: 380000, state: 'paid', on: 'Aug 01', periodMonth: '2026-08-01' },
+  { leaseId: 'l-0171', initials: 'IR', name: 'Innocent R.', unit: 'A3', amount: 300000, state: 'paid', on: 'Aug 03', periodMonth: '2026-08-01' },
+  { leaseId: 'l-0155', initials: 'YR', name: 'Yves R.', unit: 'B3', amount: 190000, state: 'due', on: 'Aug 05', periodMonth: '2026-08-01' },
+  { leaseId: 'l-0129', initials: 'DI', name: 'Diane I.', unit: 'C1', amount: 190000, state: 'due', on: 'Aug 05', periodMonth: '2026-08-01' },
+  { leaseId: 'l-0166', initials: 'SK', name: 'Solange K.', unit: 'A1', amount: 120000, state: 'overdue', days: 9, periodMonth: '2026-08-01' },
 ];
 
+/**
+ * The newest charge for each lease, in the order the leases first appear.
+ *
+ * `GET /ops/rent-roll` returns every month every lease has ever been billed,
+ * and the roll used to draw all of them: the same tenant once per month, every
+ * month totalled into one set of tiles (mobile audit 2026-10-05, LL-01). The
+ * line a rent roll is about is the latest one, which is what the operator web
+ * app's rent roll shows too (`newestPerLease` in `apps/app`).
+ *
+ * Compared on `periodMonth` rather than trusting the server's order, so a mock
+ * or a later change of sort cannot quietly pick an older month. What this
+ * cannot show is an EARLIER month still owed behind a newer one; the server
+ * raises only a lease's first charge today (LL-02), so no lease has one yet,
+ * and the fix for that belongs with the server's `period` parameter.
+ */
+export function newestPerLease(rows: readonly RentRow[]): RentRow[] {
+  const newest = new Map<string, RentRow>();
+  for (const row of rows) {
+    const held = newest.get(row.leaseId);
+    if (!held || (row.periodMonth ?? '') > (held.periodMonth ?? '')) newest.set(row.leaseId, row);
+  }
+  return [...newest.values()];
+}
+
+/**
+ * What has been recorded against a row, in RWF.
+ *
+ * A paid row with no amount on it (a fixture row, or an API row whose column is
+ * null) counts as paid in full, because its state says it is. An unpaid row
+ * counts what was actually recorded, never more than the charge.
+ */
+export function paidOf(row: RentRow): number {
+  if (row.state === 'paid') return row.paidAmount && row.paidAmount > 0 ? row.paidAmount : row.amount;
+  return Math.min(Math.max(row.paidAmount ?? 0, 0), row.amount);
+}
+
+/** What is still owed on a row. Zero once it is paid. */
+export function outstandingOf(row: RentRow): number {
+  return row.state === 'paid' ? 0 : Math.max(0, row.amount - paidOf(row));
+}
+
+/** A month with money recorded against it and money still owed. */
+export function isPartPaid(row: RentRow): boolean {
+  return row.state !== 'paid' && paidOf(row) > 0;
+}
+
 export interface RentTotals {
+  /** Every franc recorded, part payments included. */
   collected: number;
+  /** Leases with money recorded against them. */
   collectedCount: number;
+  /** What is still owed on rows not yet late. */
   due: number;
   dueCount: number;
+  /** What is still owed on rows already late. */
   overdue: number;
   overdueCount: number;
   /** The worst lateness on the roll — R1's "OVERDUE 120K · 9 days". */
@@ -459,26 +560,42 @@ export interface RentTotals {
   billed: number;
   /** Whole per cent, as R2 prints it. 0 when nothing is billed. */
   percent: number;
+  /** How many leases the rows belong to. Not how many rows there are. */
+  leases: number;
 }
 
+/**
+ * The tiles and the bar, from the rows on screen.
+ *
+ * Collected is every franc recorded and Due and Overdue are what is still
+ * OWED, as the operator web app counts them. Summing whole charges by state
+ * showed a part-paid month at its full amount under Overdue and counted its
+ * paid half nowhere, so collected read low and owed read high, by the same
+ * amount (mobile audit 2026-10-05, LL-10). Every count is of LEASES: a count
+ * of rows read "7 leases" for one lease billed seven times (LL-01).
+ */
 export function rentTotals(rows: readonly RentRow[]): RentTotals {
-  const sum = (s: RentState) =>
-    rows.filter((r) => r.state === s).reduce((a, r) => a + r.amount, 0);
-  const count = (s: RentState) => rows.filter((r) => r.state === s).length;
+  const leasesWhere = (keep: (r: RentRow) => boolean) =>
+    new Set(rows.filter(keep).map((r) => r.leaseId)).size;
+  const owed = (s: RentState) =>
+    rows.filter((r) => r.state === s).reduce((a, r) => a + outstandingOf(r), 0);
 
-  const collected = sum('paid');
+  const collected = rows.reduce((a, r) => a + paidOf(r), 0);
   const billed = rows.reduce((a, r) => a + r.amount, 0);
 
   return {
     collected,
-    collectedCount: count('paid'),
-    due: sum('due'),
-    dueCount: count('due'),
-    overdue: sum('overdue'),
-    overdueCount: count('overdue'),
-    worstDays: rows.reduce((a, r) => Math.max(a, r.days ?? 0), 0),
+    collectedCount: leasesWhere((r) => paidOf(r) > 0),
+    due: owed('due'),
+    dueCount: leasesWhere((r) => r.state === 'due'),
+    overdue: owed('overdue'),
+    overdueCount: leasesWhere((r) => r.state === 'overdue'),
+    worstDays: rows
+      .filter((r) => r.state === 'overdue')
+      .reduce((a, r) => Math.max(a, r.days ?? 0), 0),
     billed,
     percent: billed === 0 ? 0 : Math.round((collected / billed) * 100),
+    leases: leasesWhere(() => true),
   };
 }
 
@@ -591,12 +708,11 @@ export const TECHNICIAN = 'Innocent M.';
 
 /**
  * The placement waiting to become a lease — frame R6's banner, and the reason
- * `lease/new` opens prefilled rather than blank. A landlord who has been sent a
- * tenant by a broker should not retype the tenant.
+ * `lease/new` would open prefilled. A landlord who has been sent a tenant by a
+ * broker should not retype the tenant.
  *
- * FL19 hands this over from the Broker surface (session 9). Until that wiring
- * exists it is a fixture, and it is deliberately ONE: R6 draws the banner only
- * when a placement is attached, and the screen has to render both ways.
+ * FL19 hands this over from the Broker surface, and that hand-off does not
+ * exist: nothing on the server passes a broker's tenant to a landlord's form.
  */
 export interface PendingPlacement {
   broker: string;
@@ -610,35 +726,19 @@ export interface PendingPlacement {
   caution: number;
 }
 
-const PLACEMENT_FIXTURE: PendingPlacement = {
-  broker: THIRD_PARTY_BROKER,
-  fee: 140000,
-  // Not `Claudine Uwase`: session 9 seeds a live placement of `Claudine U.`
-  // into Ingoro B2 through our own broker seat, and two Claudines going into
-  // two different B2s is the collision this whole note is about, recreated.
-  tenantName: 'Liliane Mukamurenzi',
-  tenantPhone: '788 402 116',
-  tenantNationalId: '1199480123456078',
-  unit: 'Unit B2',
-  unitType: '2-bedroom',
-  rent: 280000,
-  caution: 280000,
-};
-
 /**
- * The placement `lease/new` opens against, or `null` when the landlord came to
- * the form on their own (FL20 path C — "landlord registers a known tenant
- * directly, no broker").
+ * The placement `lease/new` opens against, and today always `null`: the
+ * landlord came to the form on their own (FL20 path C).
  *
- * A FUNCTION rather than the constant, so the no-broker path is real code that
- * renders rather than a branch nobody can reach: R6 draws the banner only when
- * a placement is attached, and a form that has never been seen blank is a form
- * with an unproven empty state. Session 9 replaces the body with FL19's
- * hand-off; today it always answers with the fixture, and flipping it to `null`
- * is the one-line way to walk the other path.
+ * It used to answer with a fixture, so every landlord's form opened filled in
+ * with a stranger's full name, phone number and national ID, under a broker
+ * banner and a RWF 140,000 fee nobody had agreed (mobile audit 2026-10-05,
+ * LL-03). The function stays, rather than the banner going with it, so the
+ * hand-off has one place to arrive when FL19 is built, and so the banner path
+ * is still exercised by a test that stubs this.
  */
 export function readPendingPlacement(): PendingPlacement | null {
-  return PLACEMENT_FIXTURE;
+  return null;
 }
 
 /** Units with no live lease on them. R6's unit selector, and F-R03's rule that

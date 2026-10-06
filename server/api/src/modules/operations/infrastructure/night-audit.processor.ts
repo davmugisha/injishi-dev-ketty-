@@ -1,9 +1,10 @@
-import { InjectQueue, Processor, WorkerHost } from '@nestjs/bullmq';
+import { InjectQueue, OnWorkerEvent, Processor, WorkerHost } from '@nestjs/bullmq';
 import { Logger, OnModuleInit } from '@nestjs/common';
 import { Job, Queue } from 'bullmq';
 
 import { QUEUES } from '../../../shared/queues/queues.module';
 import { NightAuditService } from '../application/night-audit.service';
+import { reportJobFailure } from '../../../shared/observability/report-job-failure';
 
 /** The single job name this processor handles on the NightAudit queue. */
 export const POST_ROOM_CHARGES = 'post-room-charges';
@@ -57,5 +58,11 @@ export class NightAuditProcessor extends WorkerHost implements OnModuleInit {
       return;
     }
     await this.nightAudit.postRoomCharges();
+  }
+
+  /** A job failing its last attempt is reported (ADR-063 AC-12). Earlier attempts are retries. */
+  @OnWorkerEvent('failed')
+  onFailed(job: Job | undefined, error: Error): void {
+    reportJobFailure(QUEUES.nightAudit, job, error);
   }
 }

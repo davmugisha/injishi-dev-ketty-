@@ -1,4 +1,6 @@
 import 'reflect-metadata';
+// First, so crash reporting exists before any module below loads (ADR-063).
+import './instrument';
 import { AppModule } from './app.module';
 import { isWorkerProcess } from './shared/process/process-role';
 

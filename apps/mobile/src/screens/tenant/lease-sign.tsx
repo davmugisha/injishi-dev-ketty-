@@ -19,8 +19,21 @@
  *
  * Signing writes through `useFixtureMutation`: the lease flips to `active`, the
  * rent schedule starts (FL21 step 4 — see `applySignature`), and My leases and
- * Rent both re-render from the same store. The screen says plainly that the
- * signature never leaves the device in this build.
+ * Rent both re-render from the same store.
+ *
+ * **The signature stays on this phone, and the screen says so before and after
+ * the press.** No tenant endpoint takes a signature yet. The consent used to
+ * promise that "your name, the moment you signed and this device are recorded
+ * with the contract", the signed card that the contract "is queued to file with
+ * the tax administration", and a footnote that the app was "not yet wired to
+ * the backend". All three were false or developer copy (mobile audit
+ * 2026-10-05, TN-04, XC-16). The truth is shorter: saved here, the landlord not
+ * told, nothing filed.
+ *
+ * **The toast follows the write's outcome** (TN-12). It used to fire on every
+ * settle, so a signature that failed to save was confirmed as active. A failure
+ * now renders `WriteError` with a retry, and the ink and the tick stay where
+ * the person left them.
  */
 import { useState } from 'react';
 import { View, ScrollView } from 'react-native';
@@ -41,6 +54,7 @@ import {
   Text,
   todayIso,
   useToast,
+  WriteError,
 } from '@/components';
 import { useTheme } from '@/theme/theme';
 import { useT, type Translate } from '@/i18n/i18n';
@@ -102,6 +116,7 @@ export function LeaseSign() {
 
   const [hasSignature, setHasSignature] = useState(false);
   const [consented, setConsented] = useState(false);
+  const [failed, setFailed] = useState(false);
 
   const signing = sign.status === 'saving';
 
@@ -110,11 +125,18 @@ export function LeaseSign() {
   if (!lease) return <LeaseMissing />;
 
   const signed = lease.leaseState !== 'pending_signature';
+  // Signed here, which today means here alone. See `Tenancy.signedOnDevice`.
+  const savedHere = signed && lease.signedOnDevice === true;
+  const signedTitle = savedHere ? t('sign.savedTitle') : t('sign.signedTitle');
 
-  const activate = () => {
-    void sign.mutate({ leaseId: lease.id, signedOn: todayIso() }).then(() => {
-      toast.show(t('sign.toast', { date: formatFullDay(lease.startOn, t) }), 'success');
-    });
+  const activate = async () => {
+    setFailed(false);
+    const outcome = await sign.mutate({ leaseId: lease.id, signedOn: todayIso() });
+    // THIS write's outcome, never a `status` read from the render that pressed
+    // the button (mobile audit 2026-10-05, TN-12). `cancelled` is a write
+    // dropped by a sign out mid flight: nothing changed and nobody is waiting.
+    if (outcome === 'done') toast.show(t('sign.toast'), 'success');
+    else if (outcome === 'error') setFailed(true);
   };
 
   return (
@@ -138,7 +160,7 @@ export function LeaseSign() {
             color="textStrong"
             style={{ letterSpacing: -0.3 }}
           >
-            {signed ? t('sign.signedTitle') : t('sign.title')}
+            {signed ? signedTitle : t('sign.title')}
           </Text>
           <Text size="sm" color="textMuted" style={{ lineHeight: 20 }}>
             {lease.ref} · {lease.landlordOrg}
@@ -178,19 +200,23 @@ export function LeaseSign() {
                 }}
               >
                 <Text weight="semibold" size="md" color="brand900" style={{ flexShrink: 1 }}>
-                  {lease.signedOn
-                    ? t('sign.alreadyActiveTitle')
-                    : t('sign.signedTitle')}
+                  {savedHere
+                    ? t('sign.savedTitle')
+                    : lease.signedOn
+                      ? t('sign.alreadyActiveTitle')
+                      : t('sign.signedTitle')}
                 </Text>
                 <StatusBadge domain="lease" state={lease.leaseState} />
               </View>
               <Text size="sm" color="brand900" style={{ opacity: 0.82, lineHeight: 19 }}>
-                {lease.signedOn
-                  ? t('sign.alreadyActiveBody', { date: formatFullDay(lease.signedOn, t) })
-                  : t('sign.signedBody', { date: formatFullDay(lease.startOn, t) })}
-              </Text>
-              <Text size="xs" color="brand900" style={{ opacity: 0.6, lineHeight: 18 }}>
-                {t('sign.notWired')}
+                {savedHere
+                  ? t('sign.savedBody', {
+                      landlord: lease.landlord,
+                      date: formatFullDay(lease.startOn, t),
+                    })
+                  : lease.signedOn
+                    ? t('sign.alreadyActiveBody', { date: formatFullDay(lease.signedOn, t) })
+                    : t('sign.signedBody', { date: formatFullDay(lease.startOn, t) })}
               </Text>
             </View>
           </Card>
@@ -244,6 +270,19 @@ export function LeaseSign() {
                 </Text>
               </View>
             </PressableScale>
+
+            {/* Where the signature goes, before the button that makes it:
+                this phone, and nowhere else yet (TN-04). */}
+            <View style={{ flexDirection: 'row', gap: space[2], alignItems: 'flex-start' }}>
+              <Icon name="info" size={15} color={c.textMuted} />
+              <Text size="xs" color="textMuted" style={{ flex: 1, lineHeight: 18 }}>
+                {t('sign.localNote', { landlord: lease.landlord })}
+              </Text>
+            </View>
+
+            {failed ? (
+              <WriteError body="write.failedLegalBody" onRetry={() => void activate()} />
+            ) : null}
           </>
         )}
       </ScrollView>
@@ -253,7 +292,7 @@ export function LeaseSign() {
           <>
             <View style={{ flex: 1, paddingRight: space[3] }}>
               <Text size="xs" color="textMuted">
-                {t('sign.signedTitle')}
+                {signedTitle}
               </Text>
               <Text weight="semibold" size="md" color="textStrong" numberOfLines={1}>
                 {lease.unit}
@@ -286,7 +325,7 @@ export function LeaseSign() {
               variant="primary"
               leadingIcon="check"
               disabled={!hasSignature || !consented || signing}
-              onPress={activate}
+              onPress={() => void activate()}
             >
               {signing ? t('sign.signing') : t('sign.action')}
             </Button>

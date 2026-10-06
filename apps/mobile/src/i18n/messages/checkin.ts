@@ -70,6 +70,8 @@ export const en = {
 
   /* What it says when it lands */
   'checkin.doneToast': 'You are checked in — the arrival guide is open',
+  // The write did not land: the draft is kept and nothing is unlocked.
+  'checkin.saveFailed': 'Your check-in did not save. Nothing you entered is lost. Try again.',
   'checkin.reviewTitle': 'Ready to check in',
   'checkin.reviewBody': 'Everything below goes to {property}. Nothing else is shared.',
 
@@ -160,6 +162,8 @@ export const rw: Record<keyof typeof en, string> = {
   'checkin.blockedAddressText': 'Andika aderesi utuyeho.',
 
   'checkin.doneToast': 'Wamaze kwinjira — ubuyobozi bwo kugera burafunguye',
+  // English until Kinyarwanda work starts (v1 is English only).
+  'checkin.saveFailed': en['checkin.saveFailed'],
   'checkin.reviewTitle': 'Witeguye kwinjira',
   'checkin.reviewBody': 'Ibiri hepfo byose bijya kuri {property}. Nta kindi gisangirwa.',
 

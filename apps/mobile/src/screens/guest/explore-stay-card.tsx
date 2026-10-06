@@ -27,6 +27,11 @@
  * differ by the rating atom and nothing else, and by then Saved and the
  * Directory will have said whether they want the score or the stars.
  *
+ * **The score chip is not drawn in v1.** Reviews are hidden in the v1.0 cut and
+ * no endpoint serves a review aggregate, so the score was a fixture number on
+ * every card (mobile audit 2026-10-05, GB-07). It returns with the review
+ * feature and its data; the price row keeps its shape without it.
+ *
  * Everything else is the kit's: `PhotoCredit` renders itself from the stem and
  * cannot be opted out of (ADR-015 call 5), and `HeartButton` is controlled by
  * the saved store so a tile and the Saved tab cannot disagree.
@@ -42,7 +47,6 @@ import {
   MoneyAmount,
   PhotoCredit,
   PressableScale,
-  ScoreChip,
   Text,
 } from '@/components';
 import { useTheme } from '@/theme/theme';
@@ -87,6 +91,10 @@ export function ExploreStayCard({ stay, saved, onToggleSave, onPress }: ExploreS
         {asset ? (
           <Image
             source={asset.source}
+            // A FlashList row is reused for another stay; without a key the
+            // reused image shows the PREVIOUS stay's photo until the new one
+            // decodes (gaps.md B8; mobile audit 2026-10-05, GB-11).
+            recyclingKey={stay.id}
             // The photograph's own average colour, sampled at import, so the
             // tile fills with its tone rather than flashing the surface.
             placeholder={asset.placeholder}
@@ -181,15 +189,14 @@ export function ExploreStayCard({ stay, saved, onToggleSave, onPress }: ExploreS
             gap: space[2],
           }}
         >
+          {/* Per guest per night: the rate is multiplied by the party at
+              booking (owner decision 2026-09-15; GB-08). */}
           <View style={{ flexDirection: 'row', alignItems: 'baseline', gap: 3 }}>
             <MoneyAmount value={stay.price} strong tone="brand" size="md" />
             <Text size="xs" color="textMuted">
-              {`/ ${t('explore.perNight')}`}
+              {t('explore.perNight')}
             </Text>
           </View>
-          {/* The word is derived from the score inside the chip; the fixture
-              never stores the two side by side. */}
-          <ScoreChip score={stay.score} size="sm" />
         </View>
 
         <View

@@ -38,6 +38,7 @@ import Animated, { useAnimatedStyle, useSharedValue, withTiming } from 'react-na
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Text } from './text';
 import { Icon, type IconName } from './icon';
+import { usePinnedFooterHeight } from './pinned-footer';
 import { useTheme } from '@/theme/theme';
 import type { Palette } from '@/theme/tokens';
 import { useT } from '@/i18n/i18n';
@@ -108,6 +109,7 @@ export function ToastProvider({ children }: { children: ReactNode }) {
 function ToastView({ text, tone }: { text: string; tone: ToastTone }) {
   const { c, space, radius, shadow } = useTheme();
   const insets = useSafeAreaInsets();
+  const pinnedFooter = usePinnedFooterHeight();
   const t = useT();
   const reduced = useReducedMotion();
   const enter = useSharedValue(0);
@@ -147,9 +149,10 @@ function ToastView({ text, tone }: { text: string; tone: ToastTone }) {
           position: 'absolute',
           left: space[4],
           right: space[4],
-          // Clear of the tab bar and the home indicator, so it never covers
-          // the control that caused it.
-          bottom: insets.bottom + 78,
+          // Clear of the tab bar and the home indicator, and of any action bar
+          // the screen pins above them (`pinned-footer.ts`), so it never
+          // covers, or hides behind, the control that caused it.
+          bottom: Math.max(insets.bottom + 78, pinnedFooter + 12),
         },
         animated,
       ]}

@@ -25,6 +25,12 @@
  * The credit travels here too. ADR-015 call 5 says "where it appears", and
  * full screen is where a stand-in photograph is most likely to be mistaken for
  * the property.
+ *
+ * **The counter and the credit start on the tapped photograph too.** The
+ * scroller used to open on it while the index stayed at 0, or wherever the
+ * last viewing left it, so the viewer said "1 / 5" and showed photo 1's licence
+ * over photo 3 until the first swipe (mobile audit 2026-10-05, GB-19). The
+ * index now lives in the body the `key` remounts, seeded from `openAt`.
  */
 import { useCallback, useState } from 'react';
 import { Modal, View, useWindowDimensions } from 'react-native';
@@ -45,24 +51,10 @@ export interface ListingPhotoViewerProps {
 }
 
 export function ListingPhotoViewer({ stems, openAt, onClose }: ListingPhotoViewerProps) {
-  const { width, height } = useWindowDimensions();
-  const { radius, space, scrim, onPhoto } = useTheme();
-  const insets = useSafeAreaInsets();
-  const t = useT();
   const reduced = useReducedMotion();
-  const [index, setIndex] = useState(0);
-
-  const onScroll = useCallback(
-    (e: { nativeEvent: { contentOffset: { x: number } } }) => {
-      const next = Math.round(e.nativeEvent.contentOffset.x / width);
-      if (next >= 0 && next < stems.length) setIndex(next);
-    },
-    [stems.length, width],
-  );
 
   const open = openAt !== null;
   const start = openAt ?? 0;
-  const current = stems[index] ?? stems[start] ?? '';
 
   return (
     <Modal
@@ -72,101 +64,134 @@ export function ListingPhotoViewer({ stems, openAt, onClose }: ListingPhotoViewe
       // what `fade` is: the same transition with the slide taken out.
       animationType={reduced ? 'fade' : 'slide'}
       onRequestClose={onClose}
-      // Remounts the scroller when the viewer opens, so `contentOffset` below
-      // lands on the photograph the guest tapped rather than the first one.
+      // Remounts the body when the viewer opens, so `contentOffset` lands on
+      // the photograph the guest tapped AND the index, the counter and the
+      // credit start there with it.
       key={open ? `viewer-${start}` : 'viewer-closed'}
       supportedOrientations={['portrait', 'landscape']}
     >
-      <View style={{ flex: 1, backgroundColor: scrim.caption[1] }}>
-        <ScrollView
-          horizontal
-          pagingEnabled
-          showsHorizontalScrollIndicator={false}
-          contentOffset={{ x: start * width, y: 0 }}
-          onScroll={onScroll}
-          scrollEventThrottle={16}
-          style={{ flex: 1 }}
-        >
-          {stems.map((stem, i) => (
-            <View
-              key={`${stem}-${i}`}
-              style={{ width, height, alignItems: 'center', justifyContent: 'center' }}
-            >
-              <Image
-                source={photoAsset(stem)?.source}
-                placeholder={photoAsset(stem)?.placeholder}
-                contentFit="contain"
-                transition={reduced ? 0 : 160}
-                style={{ width, height: height * 0.72 }}
-                // The counter and the credit below carry the meaning; two
-                // announcements of the same photograph is worse than one.
-                accessibilityElementsHidden
-                importantForAccessibility="no-hide-descendants"
-              />
-            </View>
-          ))}
-        </ScrollView>
+      <ViewerBody stems={stems} start={start} onClose={onClose} />
+    </Modal>
+  );
+}
 
-        <View
-          style={{
-            position: 'absolute',
-            top: insets.top + 8,
-            left: space[4],
-            right: space[4],
-            flexDirection: 'row',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-            gap: space[3],
-          }}
-        >
-          <PressableScale
-            accessibilityLabel={t('listing.viewerClose')}
-            onPress={onClose}
-            hitSlop={5}
-            testID="viewer-close"
-            style={{
-              width: 38,
-              height: 38,
-              borderRadius: radius.pill,
-              alignItems: 'center',
-              justifyContent: 'center',
-              backgroundColor: scrim.caption[0],
-            }}
-          >
-            <Icon name="x" size={19} color={onPhoto} />
-          </PressableScale>
+/** What the Modal shows. Mounted fresh per opening; see the header (GB-19). */
+function ViewerBody({
+  stems,
+  start,
+  onClose,
+}: {
+  stems: readonly string[];
+  start: number;
+  onClose: () => void;
+}) {
+  const { width, height } = useWindowDimensions();
+  const { radius, space, scrim, onPhoto } = useTheme();
+  const insets = useSafeAreaInsets();
+  const t = useT();
+  const reduced = useReducedMotion();
+  const [index, setIndex] = useState(start);
 
+  const onScroll = useCallback(
+    (e: { nativeEvent: { contentOffset: { x: number } } }) => {
+      const next = Math.round(e.nativeEvent.contentOffset.x / width);
+      if (next >= 0 && next < stems.length) setIndex(next);
+    },
+    [stems.length, width],
+  );
+
+  const current = stems[index] ?? stems[start] ?? '';
+
+  return (
+    <View style={{ flex: 1, backgroundColor: scrim.caption[1] }}>
+      <ScrollView
+        horizontal
+        pagingEnabled
+        showsHorizontalScrollIndicator={false}
+        contentOffset={{ x: start * width, y: 0 }}
+        onScroll={onScroll}
+        scrollEventThrottle={16}
+        style={{ flex: 1 }}
+      >
+        {stems.map((stem, i) => (
           <View
-            accessible
-            accessibilityRole="text"
-            accessibilityLabel={t('listing.viewerCounter', {
-              index: index + 1,
-              total: stems.length,
-            })}
-            style={{
-              paddingVertical: 5,
-              paddingHorizontal: 12,
-              borderRadius: radius.pill,
-              backgroundColor: scrim.caption[0],
-            }}
+            key={`${stem}-${i}`}
+            style={{ width, height, alignItems: 'center', justifyContent: 'center' }}
           >
-            <Text family="mono" weight="semibold" size="xs" color={onPhoto}>
-              {`${index + 1} / ${stems.length}`}
-            </Text>
+            <Image
+              source={photoAsset(stem)?.source}
+              placeholder={photoAsset(stem)?.placeholder}
+              contentFit="contain"
+              transition={reduced ? 0 : 160}
+              style={{ width, height: height * 0.72 }}
+              // The counter and the credit below carry the meaning; two
+              // announcements of the same photograph is worse than one.
+              accessibilityElementsHidden
+              importantForAccessibility="no-hide-descendants"
+            />
           </View>
-        </View>
+        ))}
+      </ScrollView>
 
-        <View
+      <View
+        style={{
+          position: 'absolute',
+          top: insets.top + 8,
+          left: space[4],
+          right: space[4],
+          flexDirection: 'row',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          gap: space[3],
+        }}
+      >
+        <PressableScale
+          accessibilityLabel={t('listing.viewerClose')}
+          onPress={onClose}
+          hitSlop={5}
+          testID="viewer-close"
           style={{
-            position: 'absolute',
-            left: space[4],
-            right: space[4],
-            bottom: insets.bottom + space[4],
+            width: 38,
+            height: 38,
+            borderRadius: radius.pill,
+            alignItems: 'center',
+            justifyContent: 'center',
+            backgroundColor: scrim.caption[0],
           }}
         >
-          <PhotoCredit stem={current} placement="over" />
+          <Icon name="x" size={19} color={onPhoto} />
+        </PressableScale>
+
+        <View
+          accessible
+          accessibilityRole="text"
+          accessibilityLabel={t('listing.viewerCounter', {
+            index: index + 1,
+            total: stems.length,
+          })}
+          style={{
+            paddingVertical: 5,
+            paddingHorizontal: 12,
+            borderRadius: radius.pill,
+            backgroundColor: scrim.caption[0],
+          }}
+        >
+          <Text family="mono" weight="semibold" size="xs" color={onPhoto}>
+            {`${index + 1} / ${stems.length}`}
+          </Text>
         </View>
       </View>
-    </Modal>
+
+      <View
+        style={{
+          position: 'absolute',
+          left: space[4],
+          right: space[4],
+          bottom: insets.bottom + space[4],
+        }}
+      >
+        <PhotoCredit stem={current} placement="over" />
+      </View>
+    </View>
   );
 }

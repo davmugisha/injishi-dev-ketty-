@@ -54,7 +54,13 @@ import {
   type MutationStatus,
 } from './use-fixture-mutation';
 import { useOfflineSubmit } from './offline-submit';
-import { cancel as cancelWrite, type WriteOutcome } from './write-queue';
+import {
+  cancel as cancelWrite,
+  drain as drainQueue,
+  useWriteQueue,
+  type WriteOutcome,
+  type WriteState,
+} from './write-queue';
 import { TRIPS, type Trip } from './trips';
 import { TENANCIES, type Surface, type Tenancy } from './rentals';
 
@@ -651,7 +657,17 @@ interface SendInput {
   createdAt: number;
 }
 
+/**
+ * Add a sent message, once.
+ *
+ * Idempotent by the message's own id, which is the token the queue dedupes on.
+ * A queued send can be replayed: the root layout drains the queue on reconnect
+ * and so does every mounted `useOfflineSubmit`, and two drains in one tick can
+ * both pick up the same item. Without this the replay drew the message twice.
+ */
 function appendMessage(current: SentMessages, input: SendInput): SentMessages {
+  const thread = current[input.threadId] ?? [];
+  if (thread.some((m) => m.id === input.id)) return current;
   const next: Message = {
     id: input.id,
     threadId: input.threadId,
@@ -659,7 +675,7 @@ function appendMessage(current: SentMessages, input: SendInput): SentMessages {
     fromUs: true,
     createdAt: input.createdAt,
   };
-  return { ...current, [input.threadId]: [...(current[input.threadId] ?? []), next] };
+  return { ...current, [input.threadId]: [...thread, next] };
 }
 
 /**
@@ -681,17 +697,71 @@ export function sendMessageHandler(input: SendInput): WriteOutcome {
   return { status: 'ok' };
 }
 
+/**
+ * How one send ended, as `send` resolves it.
+ *
+ * A screen branches on this. It used to catch any rejection and say "This
+ * conversation is closed", which once the send reaches the API would have
+ * worded a 401, a 422 and a dropped connection all the same way (mobile audit
+ * 2026-10-05, IN-12).
+ */
+export type SendOutcome =
+  /** The store holds it. */
+  | 'done'
+  /** No signal. It is in the write queue, and its bubble says it is waiting. */
+  | 'queued'
+  /** The write failed. The bubble stays, marked Not sent, with Try again and Discard. */
+  | 'error'
+  /** Refused before anything was written: the thread is archived or not yours (AC-19). */
+  | 'closed'
+  /** Dropped by a reset mid flight. Nothing changed. */
+  | 'cancelled';
+
 export interface SendMessage {
-  /** Resolves when the store holds the message. Rejects on an archived thread. */
-  send: (threadId: string, body: string) => Promise<void>;
+  /** Resolves to how THIS send ended. Never rejects. */
+  send: (threadId: string, body: string) => Promise<SendOutcome>;
   status: MutationStatus;
   error: Error | undefined;
-  /** The bubble to draw while the write is in flight, or `undefined`. */
-  pending: Message | undefined;
-  /** Send it again. The same client id, so a retry cannot duplicate it. */
-  retry: () => void;
-  /** Abandon a message that will not send. */
-  discard: () => void;
+  /**
+   * Every message this device wrote that the store does not hold yet, oldest
+   * first, each with its own `delivery`. All threads; a screen keeps its own.
+   */
+  pending: Message[];
+  /** Send one message again, by id. The same id, so a retry cannot duplicate it. */
+  retry: (id: string) => void;
+  /** Abandon one message that will not send, by id, and only that one. */
+  discard: (id: string) => void;
+}
+
+/**
+ * Bumped per send, so two sends in the same millisecond still get two ids.
+ * They used to share one, and the queue, which treats a known id as a repeat
+ * press, kept only the first of two messages typed quickly offline.
+ */
+let sendSeq = 0;
+
+function mintMessageId(threadId: string): string {
+  sendSeq += 1;
+  return `${threadId}-sent-${Date.now()}-${sendSeq}`;
+}
+
+/** A bubble for a message the store does not hold yet. */
+function pendingBubble(input: SendInput, delivery: NonNullable<Message['delivery']>): Message {
+  return { ...input, fromUs: true, pending: true, delivery };
+}
+
+/**
+ * What a queued intent's state means on its bubble.
+ *
+ * A retryable failure while there is no signal is drawn as waiting, because it
+ * is: the drain on reconnect picks it up again. It only asks something of the
+ * reader once there is a connection to retry on.
+ */
+function deliveryOf(state: WriteState, offline: boolean): NonNullable<Message['delivery']> {
+  if (state === 'sending') return 'sending';
+  if (state === 'failed-refused') return 'failed';
+  if (state === 'failed-retryable') return offline ? 'queued' : 'failed';
+  return 'queued';
 }
 
 /**
@@ -704,6 +774,14 @@ export interface SendMessage {
  * when it becomes `useMutation`. `./saved.ts` uses the same two-step for the
  * same reason.
  *
+ * **A list of pending messages, keyed by id, not one.** This used to hold a
+ * single in-flight bubble, so a second message sent offline replaced the first:
+ * the first stayed in the queue and vanished from the conversation, and
+ * Discard could only reach the last (mobile audit 2026-10-05, IN-07, AC-I5).
+ * Queued messages are now read back from the write queue itself, which also
+ * means one queued before a restart is drawn again after it; a send that is in
+ * flight or failed online is held here, by its id, until the store holds it.
+ *
  * **An archived thread is refused HERE, not only hidden by the screen.** The
  * ADR is explicit that the rule has to hold with a stale client, and in the
  * prototype this module is the only server there is. AC-19.
@@ -715,7 +793,9 @@ export function useSendMessage(): SendMessage {
     () => ({}),
   );
   const sent = useFixtureValue<SentMessages>(THREADS_KEY, () => ({}));
-  const [inFlight, setInFlight] = useState<Message | undefined>(undefined);
+  const { items } = useWriteQueue();
+  /** Online sends this screen holds: in flight, or failed and waiting for the person. */
+  const [held, setHeld] = useState<Record<string, Message>>({});
 
   /**
    * The queue half (gaps.md B4, benchmarks.md §5).
@@ -727,65 +807,124 @@ export function useSendMessage(): SendMessage {
    *
    * The message's own id is the idempotency key — it already had one, minted
    * before the write — so a retry cannot duplicate it and the queue dedupes on
-   * the same value the store does.
+   * the same value the store does. Used for its `submit` while offline, its
+   * drain on reconnect and its handler fallback; its single `state` is not
+   * read, because there can be several messages waiting at once.
    */
-  const queued = useOfflineSubmit<SendInput>({
+  const { offline, submit } = useOfflineSubmit<SendInput>({
     kind: 'message',
     handler: sendMessageHandler,
     label: (input) => input.body.slice(0, 40),
     idFor: (input) => input.id,
   });
 
-  // The store is the truth the moment it holds the row, so the local copy is
-  // dropped as soon as it appears there. Keeping both would draw the bubble
-  // twice for one message.
-  const settled = inFlight ? (sent[inFlight.threadId] ?? []).some((m) => m.id === inFlight.id) : false;
+  const pending = useMemo(() => {
+    // The store is the truth the moment it holds the row, so a pending copy is
+    // dropped as soon as it appears there. Keeping both would draw the bubble
+    // twice for one message.
+    const stored = new Set(
+      Object.values(sent)
+        .flat()
+        .map((m) => m.id),
+    );
+    const fromQueue = items
+      .filter((item) => item.kind === 'message' && item.state !== 'sent')
+      .map((item) => pendingBubble(item.payload as SendInput, deliveryOf(item.state, offline)));
+    const inQueue = new Set(fromQueue.map((m) => m.id));
+    return [...Object.values(held).filter((m) => !inQueue.has(m.id)), ...fromQueue]
+      .filter((m) => !stored.has(m.id))
+      .sort((a, b) => a.createdAt - b.createdAt);
+  }, [held, items, offline, sent]);
 
-  // The three states, from the queue rather than from one boolean. `queued` is
-  // not a failure — it is a message waiting for signal — and drawing it the
-  // same as `failed` would train someone to ignore the one that needs them.
-  const delivery: Message['delivery'] =
-    queued.state === 'error' ? 'failed' : queued.state === 'queued' ? 'queued' : 'sending';
-
-  const pending = settled ? undefined : inFlight && { ...inFlight, delivery };
-
-  const send = useCallback(
-    async (threadId: string, body: string) => {
-      const thread = getThread(threadId);
-      if (!thread) throw new Error(`no thread ${threadId}`);
-      if (thread.status === 'archived') throw new Error('thread archived');
-
-      const input: SendInput = {
-        threadId,
-        body: body.trim(),
-        id: `${threadId}-sent-${Date.now()}`,
-        createdAt: Date.now(),
-      };
-      setInFlight({ ...input, fromUs: true, pending: true });
-      if (queued.offline) {
-        await queued.submit(input);
-        return;
-      }
-      await mutate(input);
-    },
-    [mutate, queued],
+  const hold = useCallback(
+    (message: Message) => setHeld((current) => ({ ...current, [message.id]: message })),
+    [],
+  );
+  const release = useCallback(
+    (id: string) =>
+      setHeld((current) => {
+        if (!(id in current)) return current;
+        const next = { ...current };
+        delete next[id];
+        return next;
+      }),
+    [],
   );
 
-  const retry = useCallback(() => {
-    if (!inFlight) return;
-    void queued.submit({
-      threadId: inFlight.threadId,
-      body: inFlight.body,
-      id: inFlight.id,
-      createdAt: inFlight.createdAt,
-    });
-  }, [inFlight, queued]);
+  /** One attempt at a message that already has its id. */
+  const attempt = useCallback(
+    async (input: SendInput): Promise<SendOutcome> => {
+      if (offline) {
+        // The queue holds it from here, and its bubble is read from there.
+        release(input.id);
+        await submit(input);
+        return 'queued';
+      }
+      hold(pendingBubble(input, 'sending'));
+      const outcome = await mutate(input);
+      if (outcome === 'error') {
+        // Kept, marked Not sent, until the person retries or discards it.
+        hold(pendingBubble(input, 'failed'));
+        return 'error';
+      }
+      release(input.id);
+      return outcome;
+    },
+    [hold, mutate, offline, release, submit],
+  );
 
-  const discard = useCallback(() => {
-    if (inFlight && queued.queuedId) cancelWrite(queued.queuedId);
-    setInFlight(undefined);
-    queued.reset();
-  }, [inFlight, queued]);
+  const send = useCallback(
+    async (threadId: string, body: string): Promise<SendOutcome> => {
+      const thread = getThread(threadId);
+      if (!thread || thread.status === 'archived') return 'closed';
+      return attempt({
+        threadId,
+        body: body.trim(),
+        id: mintMessageId(threadId),
+        createdAt: Date.now(),
+      });
+    },
+    [attempt],
+  );
+
+  const retry = useCallback(
+    (id: string) => {
+      const item = items.find((i) => i.kind === 'message' && i.id === id);
+      if (item?.state === 'failed-retryable') {
+        // Owed again, and the drain is what sends it. It is only offered with
+        // a connection: offline the bubble reads as waiting (see `deliveryOf`).
+        void drainQueue();
+        return;
+      }
+      if (item?.state === 'failed-refused') {
+        // The queue never retries a refusal on its own. The person asking to is
+        // a new attempt at the same message, under the same id.
+        cancelWrite(id);
+        void attempt(item.payload as SendInput);
+        return;
+      }
+      const message = held[id];
+      if (message?.delivery === 'failed') {
+        void attempt({
+          threadId: message.threadId,
+          body: message.body,
+          id: message.id,
+          createdAt: message.createdAt,
+        });
+      }
+    },
+    [attempt, held, items],
+  );
+
+  const discard = useCallback(
+    (id: string) => {
+      // Exactly this message: its own queued intent, if it has one, and its
+      // own held bubble. Never "the last one sent".
+      if (items.some((i) => i.id === id)) cancelWrite(id);
+      release(id);
+    },
+    [items, release],
+  );
 
   return { send, status, error, pending, retry, discard };
 }

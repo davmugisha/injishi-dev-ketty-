@@ -99,11 +99,28 @@ export async function readStoredLocale(): Promise<Locale | null> {
 }
 
 /**
+ * Whether this build may open in a language other than English.
+ *
+ * v1.0 ships in English only (owner decision). The Kinyarwanda catalogue is
+ * still partly placeholders, 133 values ending in " (RW)" (sign in read "Email
+ * address (RW)"), and a phone set to Kinyarwanda used to open straight into
+ * them (mobile audit 2026-10-05, SA-18). The catalogue and the stored choice
+ * are kept, so turning this on is the whole of the change when the Kinyarwanda
+ * work lands.
+ */
+export const KINYARWANDA_AVAILABLE = false;
+
+/**
  * The locale the app opens in: an explicit stored choice first, then the device
  * language. The order is load bearing — someone who deliberately switched to
- * English on a Kinyarwanda phone stays in English.
+ * English on a Kinyarwanda phone stays in English. While Kinyarwanda is not
+ * available, always English.
  */
-export function resolveInitialLocale(stored: Locale | null): Locale {
+export function resolveInitialLocale(
+  stored: Locale | null,
+  kinyarwandaAvailable: boolean = KINYARWANDA_AVAILABLE,
+): Locale {
+  if (!kinyarwandaAvailable) return 'en';
   return stored ?? deviceLocale();
 }
 

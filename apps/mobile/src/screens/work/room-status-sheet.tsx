@@ -10,16 +10,34 @@
  *
  * The options are rows rather than chips: they are 56pt tall, full width, and
  * aimed at one-handed with a glove on.
+ *
+ * **gaps.md calls this "the most-used write of the surface"**, and its failure
+ * path was the weakest: it read `actions.failed` after the write, from the
+ * render before it, so a status that did not save still toasted and closed the
+ * sheet; its Try again only cleared the error; and a room it could not READ
+ * still offered four options (mobile audit 2026-10-05, WK-04, WK-05, WK-06).
  */
+import { useState } from 'react';
 import { View } from 'react-native';
 import { useRouter } from 'expo-router';
-import { Badge, Button, Icon, PressableScale, Sheet, Text, WriteError, useToast } from '@/components';
+import {
+  Badge,
+  ErrorState,
+  Icon,
+  PressableScale,
+  Sheet,
+  SkeletonList,
+  Text,
+  WriteError,
+  useToast,
+} from '@/components';
 import { statusTone } from '@/components';
 import { useTheme } from '@/theme/theme';
 import { useT } from '@/i18n/i18n';
 import { HK_OPTIONS } from './work-format';
 import { STATUS_KEY } from './rooms-board';
-import { floorOf, roomTypeOf, type HkStatus } from './work-fixtures';
+import { WORK_TARGET, WorkButton } from './work-chrome';
+import { floorOf, type HkStatus } from './work-fixtures';
 import { useConnection, useWorkActions, useWorkRooms } from './work-store';
 
 export function RoomStatusSheet({ roomId }: { roomId: string }) {
@@ -32,27 +50,67 @@ export function RoomStatusSheet({ roomId }: { roomId: string }) {
   const actions = useWorkActions();
   const connection = useConnection();
 
+  /** The status that did not save, so Try again sends that one (WK-05). */
+  const [failed, setFailed] = useState<HkStatus | null>(null);
+
   const room = rooms.rows.find((row) => row.id === roomId);
   const current = room?.status;
-  const type = room?.type ?? roomTypeOf(roomId);
 
   const set = (status: HkStatus) => {
-    void actions.setRoomStatus(roomId, status).then(() => {
-      // gaps.md calls this "the most-used write of the surface", and it had no
-      // states at all. An attendant who marks a room clean and is told it
-      // worked walks away; the desk sees dirty and sends someone back.
-      if (actions.failed) return;
+    setFailed(null);
+    // Decided before the write, from the same connection the write is
+    // buffered on, so the toast and the buffer can never disagree.
+    const buffered = !connection.online;
+    void actions.setRoomStatus(roomId, status).then((outcome) => {
+      // An attendant who marks a room clean and is told it worked walks away;
+      // the desk sees dirty and sends someone back. So only a write that
+      // landed is said, and only then does the sheet close.
+      if (outcome === 'error') {
+        setFailed(status);
+        return;
+      }
+      if (outcome !== 'done') return;
       toast.show(
-        connection.online
-          ? t('work.rooms.setToast', { room: roomId, status: t(STATUS_KEY[status]) })
-          : t('work.offline.savedToast'),
-        connection.online ? 'success' : 'warning',
+        buffered
+          ? t('work.offline.savedToast')
+          : t('work.rooms.setToast', { room: roomId, status: t(STATUS_KEY[status]) }),
+        buffered ? 'warning' : 'success',
       );
       router.back();
     });
   };
 
-  if (!room && rooms.status === 'ready') {
+  const retry = () => {
+    if (!failed) return;
+    actions.clearFailure();
+    set(failed);
+  };
+
+  if (rooms.status === 'loading') {
+    return (
+      <Sheet title={t('work.rooms.sheetTitle')} grabber>
+        <SkeletonList
+          rows={2}
+          label={t('state.loadingList', { label: t('work.rooms.sheetListLabel') })}
+        />
+      </Sheet>
+    );
+  }
+
+  if (rooms.status === 'error') {
+    return (
+      <Sheet title={t('work.rooms.sheetTitle')} grabber>
+        <ErrorState
+          title={t('state.errorTitle')}
+          body={t('state.errorBody', { label: t('work.rooms.sheetListLabel') })}
+          detail={rooms.error?.message}
+          onRetry={rooms.retry}
+        />
+      </Sheet>
+    );
+  }
+
+  if (!room) {
     return (
       <Sheet title={t('work.rooms.notFoundTitle')} grabber>
         <Text size="sm" color="textMuted" style={{ lineHeight: 20 }}>
@@ -67,36 +125,30 @@ export function RoomStatusSheet({ roomId }: { roomId: string }) {
       title={t('work.rooms.sheetTitle')}
       subtitle={t('work.rooms.sheetSubtitle', {
         room: roomId,
-        type,
+        type: room.type,
         floor: floorOf(roomId),
       })}
       grabber
       footer={
         // The escape hatch frame W4 draws under the four options. It is a real
         // route rather than a fifth status, because a fault is a ticket.
-        <Button
+        <WorkButton
           variant="outline"
-          size="lg"
-          block
+          align="stretch"
           leadingIcon="wrench"
+          label={t('work.rooms.reportIssue')}
           onPress={() => {
             router.back();
             router.push({ pathname: '/report-fault', params: { room: roomId } });
           }}
-        >
-          {t('work.rooms.reportIssue')}
-        </Button>
+        />
       }
     >
       {/* A status that did not save, above the options rather than below
           them: the attendant is about to press another one, and a failure they
           scroll past is a failure they press through. */}
-      {actions.failed ? (
-        <WriteError
-          title="work.writeFailedTitle"
-          body="work.writeFailedBody"
-          onRetry={actions.clearFailure}
-        />
+      {failed ? (
+        <WriteError title="work.writeFailedTitle" body="work.writeFailedBody" onRetry={retry} />
       ) : null}
 
       <View style={{ gap: space[2] }}>
@@ -117,7 +169,7 @@ export function RoomStatusSheet({ roomId }: { roomId: string }) {
                 flexDirection: 'row',
                 alignItems: 'center',
                 gap: space[3],
-                minHeight: 56,
+                minHeight: WORK_TARGET,
                 paddingHorizontal: space[4],
                 borderRadius: radius.md,
                 backgroundColor: active ? c.actionSubtle : c.surface2,

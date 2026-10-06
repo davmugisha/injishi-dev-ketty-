@@ -23,6 +23,20 @@
  * A surface with no Inbox — landlord, broker, work — never calls this, because
  * the tab is unlinked for those sets. Host links the tab and has no fixtures
  * behind it yet, so it correctly reads zero and draws nothing.
+ *
+ * ## No badge until the Inbox reads the API
+ *
+ * **`badge` is always `undefined` for now** (mobile audit 2026-10-05, IN-03).
+ * Every thread and notification behind these counts is a fixture, so the tab
+ * bar told every real guest "6 unread" and every tenant "3" about messages and
+ * receipts nobody sent them, and the number came back after every restart
+ * because the read marks are never saved. A badge is the one Inbox signal that
+ * follows the person to every other tab, so it is the one that must not count
+ * what they never received. The two segment counts stay: they sit beside the
+ * rows they count, inside the screen. The badge returns with the real read in
+ * the next phase (ADR-038, feature 7): the sum of `unreadCount` over
+ * `GET /me/threads`, invalidated by `POST /me/threads/:id/read`, with the
+ * notification half once those exist on the server (IN-02).
  */
 import { useFixtureValue } from './use-fixture-mutation';
 import {
@@ -51,9 +65,14 @@ export function inboxSurface(surface: Surface): InboxSurface | undefined {
 }
 
 export interface InboxCounts {
+  /** Unread threads, for the Messages segment inside the Inbox. */
   messages: number;
+  /** Unread notifications, for the Notifications segment inside the Inbox. */
   notifications: number;
-  /** The sum, or `undefined` when it is zero. What the tab bar renders. */
+  /**
+   * What the tab bar renders: `undefined` draws nothing. Always `undefined`
+   * until the Inbox reads the API; see the header (IN-03).
+   */
   badge: number | undefined;
 }
 
@@ -82,6 +101,7 @@ export function useInboxCounts(surface: Surface): InboxCounts {
     ? NOTIFICATIONS.filter((n) => n.surface === inbox && isUnread(n, notificationReads)).length
     : 0;
 
-  const total = messages + notifications;
-  return { messages, notifications, badge: total > 0 ? total : undefined };
+  // Not `messages + notifications`: those count fixtures this person never
+  // received. No badge until the counts come from the server (IN-03).
+  return { messages, notifications, badge: undefined };
 }

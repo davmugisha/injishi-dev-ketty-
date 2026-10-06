@@ -63,6 +63,11 @@ x-api-env: &api-env
   CORS_ORIGINS: https://${WEB_HOST:-www-demo.injishi.com},https://${ADMIN_HOST:-admin-demo.injishi.com}
   GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:-}
   GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET:-}
+  # Money alarms and what breaks (a 500, a fault inside Better Auth, a job's
+  # last failed attempt, a process that dies) go to Sentry under the `demo`
+  # environment when this is set, and nowhere but the log when it is not
+  # (ADR-063). The API and the worker both merge this anchor.
+  SENTRY_DSN: ${SENTRY_DSN:-}
   # Never live. A demo process refuses to boot on either (AC-13); pinning them
   # means a line in the env file cannot even try.
   PAYMENT_ADAPTER_MODE: mock

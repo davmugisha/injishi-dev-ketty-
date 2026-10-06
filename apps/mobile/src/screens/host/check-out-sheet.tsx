@@ -6,26 +6,42 @@
  * desk with a confirm step: approve and decline both get an undo bar instead,
  * because both can be taken back.
  *
- * Three consequences follow one tap, and all three are printed above the button
- * rather than discovered after it:
+ * What follows one tap is printed above the button rather than discovered
+ * after it, and it is only what a checkout on this phone actually does:
  *
- *   - the stay closes and exactly one tax invoice is issued (F-B17);
+ *   - the stay closes;
  *   - the room goes to housekeeping as a pending `checkout_clean` (F-P04), so
- *     an attendant's queue changes because a receptionist tapped something;
- *   - the payout clock starts, and the dispute buffer runs from here (F-B12).
+ *     an attendant's queue changes because a receptionist tapped something.
+ *
+ * F-B17 also has the server issue the one tax invoice, settle the folio and
+ * start the payout clock. This sheet used to promise all three and its toast
+ * printed an invented `EBM-2026-…` number, for a write that never leaves the
+ * phone (mobile audit 2026-10-05, HO-04). It now says no invoice is issued
+ * here, and that an open balance is not collected.
  *
  * Two cases the sheet has to say out loud:
  *
- *   - **Money still on the folio.** Checkout settles it, on the mock adapter,
- *     which is a thing a desk should know it is doing rather than discover in
- *     a toast.
+ *   - **Money still on the folio.** Checking out here does not collect it,
+ *     which a desk should know before the guest walks out.
  *   - **Leaving early.** F-B17 asks for an alert before the confirm when the
- *     guest is going before `plannedExitAt`, because the nights invoiced are
- *     the nights actually stayed and that changes the bill.
+ *     guest is going before `plannedExitAt`, because the nights billed are the
+ *     nights actually stayed and that changes the bill.
+ *
+ * And one it refuses: checkout is the closing sale, so it is never queued
+ * offline. The confirm is disabled with its reason beside it (HO-10).
  */
 import { useState } from 'react';
 import { View } from 'react-native';
-import { Button, formatMoney, Icon, ModalSheet, MoneyAmount, Text, useToast } from '@/components';
+import {
+  Button,
+  formatMoney,
+  Icon,
+  ModalSheet,
+  MoneyAmount,
+  Text,
+  useToast,
+  WriteError,
+} from '@/components';
 import { todayIso } from '@/components';
 import { useTheme } from '@/theme/theme';
 import { useT } from '@/i18n/i18n';
@@ -43,8 +59,10 @@ export function CheckOutSheet({
   const { c, space } = useTheme();
   const t = useT();
   const toast = useToast();
-  const { checkOut } = useHostActions();
+  const { checkOut, offline } = useHostActions();
   const [working, setWorking] = useState(false);
+  /** The last confirm did not save. Set from its RESULT (HO-06). */
+  const [failed, setFailed] = useState(false);
 
   if (!booking) {
     return <ModalSheet visible={false} title="" onClose={onClose}>{null}</ModalSheet>;
@@ -64,15 +82,37 @@ export function CheckOutSheet({
       )
     : 0;
 
+  const close = () => {
+    setFailed(false);
+    onClose();
+  };
+
   const commit = async () => {
     setWorking(true);
-    const { invoice, room } = await checkOut(booking.id);
+    setFailed(false);
+    const outcome = await checkOut(booking.id);
     setWorking(false);
-    onClose();
+
+    // Branch on how THIS checkout ended (mobile audit 2026-10-05, HO-06). The
+    // sheet used to close and toast success whatever happened. A failure keeps
+    // the sheet open with a retry; offline is refused (the confirm is already
+    // disabled, so this is the connection dropping mid tap); `cancelled`
+    // changed nothing.
+    if (outcome === 'error') {
+      setFailed(true);
+      return;
+    }
+    if (outcome === 'offline') {
+      toast.show(t('host.needsConnectionCheckOut'), 'warning');
+      return;
+    }
+    if (outcome !== 'done') return;
+
+    close();
     toast.show(
-      room
-        ? t('host.checkedOutToast', { guest: booking.guest.name, invoice, room })
-        : t('host.checkedOutNoRoom', { guest: booking.guest.name, invoice }),
+      booking.room
+        ? t('host.checkedOutToast', { guest: booking.guest.name, room: booking.room })
+        : t('host.checkedOutNoRoom', { guest: booking.guest.name }),
       'success',
     );
   };
@@ -81,25 +121,46 @@ export function CheckOutSheet({
     <ModalSheet
       visible
       title={t('host.checkOutTitle', { guest: booking.guest.name })}
-      onClose={onClose}
+      onClose={close}
       footer={
         <View style={{ gap: space[2] }}>
+          {offline ? (
+            <View
+              accessible
+              accessibilityRole="alert"
+              accessibilityLabel={t('host.needsConnectionCheckOut')}
+              style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}
+            >
+              <Icon name="wifiOff" size={15} color={c.warning600} />
+              <Text size="xs" color="textBody" style={{ flex: 1, lineHeight: 18 }}>
+                {t('host.needsConnectionCheckOut')}
+              </Text>
+            </View>
+          ) : null}
           <Button
             variant="primary"
             size="lg"
             block
             leadingIcon="checkCircle"
-            disabled={working}
+            disabled={working || offline}
             onPress={() => void commit()}
           >
             {working ? t('host.checkOutWorking') : t('host.checkOutConfirm')}
           </Button>
-          <Button variant="ghost" size="lg" block disabled={working} onPress={onClose}>
+          <Button variant="ghost" size="lg" block disabled={working} onPress={close}>
             {t('host.checkOutCancel')}
           </Button>
         </View>
       }
     >
+      {failed ? (
+        <WriteError
+          title="host.checkOutFailedTitle"
+          body="host.checkOutFailedBody"
+          onRetry={() => void commit()}
+        />
+      ) : null}
+
       <Text size="sm" color="textBody" style={{ lineHeight: 22 }}>
         {t('host.checkOutBody', { room: booking.room ?? '—' })}
       </Text>

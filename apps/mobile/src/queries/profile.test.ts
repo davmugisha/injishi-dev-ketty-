@@ -74,10 +74,29 @@ describe('toIdentity', () => {
     const me = toIdentity(profile({ phoneE164: null }));
 
     expect(me.name).toBe('Aline Uwase');
-    // The placeholder's number must not follow a real name onto the screen.
+    // No number of anyone else's may follow a real name onto the screen.
     expect(me.phone).toBe('');
-    expect(me.phone).not.toBe(PLACEHOLDER_IDENTITY.phone);
     expect(me.fromServer).toBe(true);
+  });
+
+  it('never names anybody in the placeholder', () => {
+    // It used to be the fixture persona, so every account the server had no
+    // name for was shown as "Samuel Kayitare, +250 788 431 209" (mobile audit
+    // 2026-10-05, SA-01). A placeholder that names a real-looking person is a
+    // fabricated fact about whoever holds the phone.
+    expect(PLACEHOLDER_IDENTITY.name).toBe('');
+    expect(PLACEHOLDER_IDENTITY.initials).toBe('');
+    expect(PLACEHOLDER_IDENTITY.phone).toBe('');
+    expect(toIdentity(profile({ fullName: null })).name).toBe('');
+  });
+
+  it('marks a read still in flight as pending, and an unnamed answer as not', () => {
+    expect(toIdentity(undefined, true).pending).toBe(true);
+    expect(toIdentity(undefined, true).fromServer).toBe(false);
+    // Answered, with no name on file: not pending, so a screen says "Name not
+    // added yet" rather than drawing a skeleton forever.
+    expect(toIdentity(profile({ fullName: null }), false).pending).toBe(false);
+    expect(toIdentity(profile()).pending).toBe(false);
   });
 });
 

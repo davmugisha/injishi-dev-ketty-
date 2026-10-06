@@ -341,6 +341,30 @@ an env file: production `https://${WEB_HOST:-www.injishi.com}`, demo
 refuses to boot under `NODE_ENV=production` without it, exactly as it does
 without `SMTP_URL`.
 
+## Error reporting
+
+The API and the worker report to Sentry (ADR-063), in its EU region, through
+`SENTRY_DSN`: the `injishi-api` project's DSN, a public send only key. What they
+report is the four money alarms and what breaks: a request that fails with a
+500, a fault inside Better Auth's `/api/auth/*` routes, a job failing its last
+attempt, and an unhandled rejection or uncaught exception, which still exits
+the process. Nothing from a request, a user or a job goes with any of it.
+
+| Stack | Reports | Environment in Sentry | Where the DSN comes from |
+| --- | --- | --- | --- |
+| Production | yes, once the DSN is set | `production` | `SENTRY_DSN` in the env file; empty until the NCSA registration names Sentry (ADR-063 AC-13) |
+| Demo | yes, once the DSN is set | `demo` | `SENTRY_DSN` in `/opt/injishi-demo/.env` |
+| Staging | never | none | no line, and the API stays inert even if one reaches it |
+
+The API decides at boot, from the two pinned values above: it reports only as
+`production` over a `real` database or `demo` over a `sample` one. Staging
+(`production` over `sample`) and a laptop (neither pinned) never report. The
+release on every event is the commit the image was built from
+(`INJISHI_COMMIT`, baked by `Dockerfile.api`); no deploy step sets anything
+else. To prove the wiring on the demo, a staff session with
+`admin.system.view` may call `GET /api/v1/demo/crash`, which answers a 500 and
+is a 404 on every other stack.
+
 ## Admin network gate
 
 `admin`, `admin-demo` and the demo's `mail-demo` inbox answer only to

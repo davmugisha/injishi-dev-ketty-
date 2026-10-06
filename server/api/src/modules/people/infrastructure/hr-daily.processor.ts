@@ -1,9 +1,10 @@
-import { InjectQueue, Processor, WorkerHost } from '@nestjs/bullmq';
+import { InjectQueue, OnWorkerEvent, Processor, WorkerHost } from '@nestjs/bullmq';
 import { Logger, OnModuleInit } from '@nestjs/common';
 import { Job, Queue } from 'bullmq';
 
 import { QUEUES } from '../../../shared/queues/queues.module';
 import { HrDailyService } from '../application/hr-daily.service';
+import { reportJobFailure } from '../../../shared/observability/report-job-failure';
 
 export const HR_DAILY = 'hr-daily';
 
@@ -43,5 +44,11 @@ export class HrDailyProcessor extends WorkerHost implements OnModuleInit {
     this.logger.log(
       `HR daily: ${outcome.ended} contract(s) ended, ${outcome.started} started, ${outcome.accrued} accrual row(s), ${outcome.skippedOrgs} business(es) skipped`,
     );
+  }
+
+  /** A job failing its last attempt is reported (ADR-063 AC-12). Earlier attempts are retries. */
+  @OnWorkerEvent('failed')
+  onFailed(job: Job | undefined, error: Error): void {
+    reportJobFailure(QUEUES.hrDaily, job, error);
   }
 }

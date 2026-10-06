@@ -1,10 +1,11 @@
-import { InjectQueue, Processor, WorkerHost } from '@nestjs/bullmq';
+import { InjectQueue, OnWorkerEvent, Processor, WorkerHost } from '@nestjs/bullmq';
 import { Logger, OnModuleInit } from '@nestjs/common';
 import { Job, Queue } from 'bullmq';
 
 import { QUEUES } from '../../../shared/queues/queues.module';
 import { BookingLifecycleService } from '../application/booking-lifecycle.service';
 import { PaymentAttemptService } from '../application/payment-attempt.service';
+import { reportJobFailure } from '../../../shared/observability/report-job-failure';
 
 /** The request-to-book auto-decline sweep on the BookingLifecycle queue. */
 export const EXPIRE_STALE_REQUESTS = 'expire-stale-requests';
@@ -92,5 +93,11 @@ export class BookingLifecycleProcessor
     this.logger.warn(
       `Ignoring unknown job "${job.name}" on ${QUEUES.bookingLifecycle}`,
     );
+  }
+
+  /** A job failing its last attempt is reported (ADR-063 AC-12). Earlier attempts are retries. */
+  @OnWorkerEvent('failed')
+  onFailed(job: Job | undefined, error: Error): void {
+    reportJobFailure(QUEUES.bookingLifecycle, job, error);
   }
 }

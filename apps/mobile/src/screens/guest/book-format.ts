@@ -7,7 +7,7 @@
  * the only place in the Guest flow where the app tells someone their input is
  * wrong, and getting THAT wrong is how a correct number gets rejected.
  */
-import { computeBreakdown, type MoneyBreakdown } from '@injishi/contracts';
+import { MAX_NIGHTS, computeBreakdown, type MoneyBreakdown } from '@injishi/contracts';
 import type { MessageKey, Translate } from '@/i18n/i18n';
 import type { DateRange, IsoDay } from '@/components';
 import { nightsBetween } from '@/components';
@@ -15,26 +15,37 @@ import { billableGuests, type GuestParty } from '@/data/search';
 
 /* ------------------------------------------------------------ the methods */
 
-export type PayMethod = 'momo' | 'airtel' | 'card';
+/**
+ * **The app never takes card details** (the owner's decision of 2026-10-01).
+ * Card payments are wanted, but a card number, expiry and security code are
+ * typed into the payment gateway's own secure page, never into a field of
+ * ours, so Injishi neither sees nor keeps them (an app that did would be in
+ * card security, PCI, scope; ADR-047 removed web's hand-built form for the same
+ * reason).
+ *
+ * **Card is not offered yet** because there is no gateway: the API refuses a
+ * card instrument today, and a method that can only fail is worse than none. It
+ * comes back as a method when the gateway lands (scope/mobile feature 30), as a
+ * hand off to the gateway's page rather than as fields here.
+ */
+export type PayMethod = 'momo' | 'airtel';
 
 export interface PayMethodSpec {
   id: PayMethod;
   label: MessageKey;
   hint: MessageKey;
-  icon: 'smartphone' | 'creditCard';
+  icon: 'smartphone';
   /**
-   * The two-digit national prefixes this network issues, or `null` for a
-   * method that takes no handset. Rwanda's mobile money numbering, as the
-   * canvas's `bookPay` logic block has it: MTN on 78 and 79, Airtel on 72
-   * and 73.
+   * The two-digit national prefixes this network issues. Rwanda's mobile money
+   * numbering, as the canvas's `bookPay` logic block has it: MTN on 78 and 79,
+   * Airtel on 72 and 73.
    */
-  prefixes: readonly string[] | null;
+  prefixes: readonly string[];
 }
 
 /**
- * MoMo first, then Airtel, then card — the canvas order, and it is not
- * alphabetical or arbitrary. Mobile money is how Rwanda pays; a card list that
- * opened with Visa would be an app built for somebody else's market.
+ * MoMo first, then Airtel — the canvas order, and it is not alphabetical or
+ * arbitrary. Mobile money is how Rwanda pays.
  */
 export const PAY_METHODS: readonly PayMethodSpec[] = [
   {
@@ -50,13 +61,6 @@ export const PAY_METHODS: readonly PayMethodSpec[] = [
     hint: 'book.methodHint.airtel',
     icon: 'smartphone',
     prefixes: ['72', '73'],
-  },
-  {
-    id: 'card',
-    label: 'book.method.card',
-    hint: 'book.methodHint.card',
-    icon: 'creditCard',
-    prefixes: null,
   },
 ];
 
@@ -109,7 +113,7 @@ export function groupHandset(raw: string): string {
 /** Which method, if any, issues this number. Drives the cross-network note. */
 export function networkFor(national: string): PayMethodSpec | undefined {
   const head = national.slice(0, 2);
-  return PAY_METHODS.find((m) => m.prefixes?.includes(head));
+  return PAY_METHODS.find((m) => m.prefixes.includes(head));
 }
 
 /**
@@ -138,7 +142,6 @@ const CLEAN: FieldNote = { ok: false, tone: 'none', text: null };
  */
 export function checkHandset(raw: string, method: PayMethod, t: Translate): FieldNote {
   const spec = payMethod(method);
-  if (!spec.prefixes) return CLEAN;
   if (raw.trim() === '') return CLEAN;
 
   const national = nationalDigits(raw);
@@ -163,84 +166,6 @@ export function checkHandset(raw: string, method: PayMethod, t: Translate): Fiel
   return { ok: true, tone: 'hint', text: t('book.phonePrompt', { number: formatHandset(national) }) };
 }
 
-/* -------------------------------------------------------------- the card */
-
-/**
- * The Luhn check digit.
- *
- * Worth having even in a prototype with a mock adapter, because it is the one
- * card check that catches a real typo — a transposed pair or a single wrong
- * digit — before the guest waits on a decline they cannot read.
- */
-export function luhn(digits: string): boolean {
-  let sum = 0;
-  let double = false;
-  for (let i = digits.length - 1; i >= 0; i--) {
-    let d = digits.charCodeAt(i) - 48;
-    if (double) {
-      d *= 2;
-      if (d > 9) d -= 9;
-    }
-    sum += d;
-    double = !double;
-  }
-  return digits.length > 0 && sum % 10 === 0;
-}
-
-/** `4242424242424242` -> `4242 4242 4242 4242`, capped at 19 digits. */
-export function groupCard(raw: string): string {
-  const d = digitsOf(raw).slice(0, 19);
-  return (d.match(/.{1,4}/g) ?? []).join(' ');
-}
-
-export function checkCardNumber(raw: string, t: Translate): FieldNote {
-  if (raw.trim() === '') return CLEAN;
-  const d = digitsOf(raw);
-  if (d.length < 13 || d.length > 19) {
-    return { ok: false, tone: 'error', text: t('book.cardShort') };
-  }
-  if (!luhn(d)) return { ok: false, tone: 'error', text: t('book.cardChecksum') };
-  return { ok: true, tone: 'none', text: null };
-}
-
-/** `0928` -> `09 / 28`. Typed straight through, never re-parsed from display. */
-export function groupExpiry(raw: string): string {
-  const d = digitsOf(raw).slice(0, 4);
-  return d.length <= 2 ? d : `${d.slice(0, 2)} / ${d.slice(2)}`;
-}
-
-/**
- * `now` is an argument rather than a `Date.now()` inside, so the "expired"
- * boundary is testable. A card expires at the END of its month, which is why
- * the comparison is on the month and not on a day.
- */
-export function checkExpiry(raw: string, t: Translate, now = new Date()): FieldNote {
-  if (raw.trim() === '') return CLEAN;
-  const d = digitsOf(raw);
-  if (d.length !== 4) return { ok: false, tone: 'error', text: t('book.expiryFormat') };
-
-  const month = Number(d.slice(0, 2));
-  const year = 2000 + Number(d.slice(2));
-  if (month < 1 || month > 12) {
-    return { ok: false, tone: 'error', text: t('book.expiryFormat') };
-  }
-
-  const thisMonth = now.getFullYear() * 12 + now.getMonth();
-  const cardMonth = year * 12 + (month - 1);
-  if (cardMonth < thisMonth) return { ok: false, tone: 'error', text: t('book.expiryPast') };
-
-  return { ok: true, tone: 'none', text: null };
-}
-
-export function checkCvv(raw: string, t: Translate): FieldNote {
-  if (raw.trim() === '') return CLEAN;
-  const d = digitsOf(raw);
-  if (d.length < 3 || d.length > 4) {
-    return { ok: false, tone: 'error', text: t('book.cvvShort') };
-  }
-  return { ok: true, tone: 'none', text: null };
-}
-
 /* ------------------------------------------------------------- the gates */
 
 /**
@@ -262,14 +187,17 @@ export interface StepInput {
   acceptedRules: boolean;
   method: PayMethod;
   handset: string;
-  cardNumber: string;
-  cardExpiry: string;
-  cardCvv: string;
 }
 
 export function blockedOnDates(input: StepInput): MessageKey | null {
   if (input.soldOut) return 'book.blockedSoldOut';
   if (!input.dates.start || !input.dates.end) return 'book.blockedDates';
+  // The API refuses a stay longer than `MAX_NIGHTS` (the contract's one
+  // number), so the step does too, before any payment. The calendar already
+  // stops a new pick there; this catches a range handed in from the search or
+  // the property page (mobile audit 2026-10-05, GK-30). The copy takes the
+  // number as `{count}`, filled from the same constant.
+  if (nightsBetween(input.dates.start, input.dates.end) > MAX_NIGHTS) return 'book.blockedTooLong';
   if (billableGuests(input.party) > input.sleeps) return 'book.blockedParty';
   return null;
 }
@@ -278,36 +206,19 @@ export function blockedOnSummary(input: StepInput): MessageKey | null {
   return input.acceptedRules ? null : 'book.blockedRules';
 }
 
-export function blockedOnPay(input: StepInput, now = new Date()): MessageKey | null {
-  if (payMethod(input.method).prefixes) {
-    const national = nationalDigits(input.handset);
-    return /^[0-9]{9}$/.test(national) &&
-      (payMethod(input.method).prefixes as readonly string[]).includes(national.slice(0, 2))
-      ? null
-      : 'book.blockedHandset';
-  }
-
-  const d = digitsOf(input.cardNumber);
-  const okNumber = d.length >= 13 && d.length <= 19 && luhn(d);
-  const okExpiry = expiryOk(input.cardExpiry, now);
-  const okCvv = digitsOf(input.cardCvv).length >= 3 && digitsOf(input.cardCvv).length <= 4;
-  return okNumber && okExpiry && okCvv ? null : 'book.blockedCard';
-}
-
-function expiryOk(raw: string, now: Date): boolean {
-  const d = digitsOf(raw);
-  if (d.length !== 4) return false;
-  const month = Number(d.slice(0, 2));
-  if (month < 1 || month > 12) return false;
-  const cardMonth = (2000 + Number(d.slice(2))) * 12 + (month - 1);
-  return cardMonth >= now.getFullYear() * 12 + now.getMonth();
+export function blockedOnPay(input: StepInput): MessageKey | null {
+  const national = nationalDigits(input.handset);
+  return /^[0-9]{9}$/.test(national) &&
+    payMethod(input.method).prefixes.includes(national.slice(0, 2))
+    ? null
+    : 'book.blockedHandset';
 }
 
 /** The three gates, indexed by step, so the container asks one question. */
 export const STEP_GATES: readonly ((input: StepInput) => MessageKey | null)[] = [
   blockedOnDates,
   blockedOnSummary,
-  (input) => blockedOnPay(input),
+  blockedOnPay,
 ];
 
 /* --------------------------------------------------------- the arithmetic */
@@ -339,6 +250,47 @@ export function quote(args: {
 /** Nights in the range, or 0 while it is incomplete. */
 export function nightsIn(dates: DateRange): number {
   return dates.start && dates.end ? nightsBetween(dates.start, dates.end) : 0;
+}
+
+/* ------------------------------------------------------ the calendar's edges */
+
+const pad = (n: number): string => String(n).padStart(2, '0');
+
+/**
+ * Today as `YYYY-MM-DD` where the property is, not where the phone is.
+ *
+ * Every stay in the catalogue is in Rwanda (`PROPERTY_TIME_ZONE` in
+ * `@injishi/contracts` is `Africa/Kigali`), and the step tells the guest dates
+ * are read there. The calendar's own default is the PHONE's day, which for a
+ * guest booking from Toronto at 20:00 is still yesterday in Kigali's terms, or
+ * from Kigali at 01:00 is today while a phone left on UTC says yesterday
+ * (mobile audit 2026-10-05, GK-30).
+ *
+ * Arithmetic rather than `Intl`, on purpose: Rwanda keeps Central Africa Time,
+ * UTC+2 all year with no daylight saving, so the day there is the UTC day of
+ * the instant two hours on. That is exact, and it does not depend on which
+ * time zone data a given Hermes build carries.
+ */
+export function kigaliToday(now: Date = new Date()): IsoDay {
+  const there = new Date(now.getTime() + 2 * 60 * 60 * 1000);
+  return `${there.getUTCFullYear()}-${pad(there.getUTCMonth() + 1)}-${pad(there.getUTCDate())}`;
+}
+
+/** `2026-09-04` plus `n` calendar days. UTC arithmetic, so no zone can move it. */
+export function addIsoDays(day: IsoDay, n: number): IsoDay {
+  const at = new Date(Date.UTC(+day.slice(0, 4), +day.slice(5, 7) - 1, +day.slice(8, 10) + n));
+  return `${at.getUTCFullYear()}-${pad(at.getUTCMonth() + 1)}-${pad(at.getUTCDate())}`;
+}
+
+/**
+ * The last day the calendar may offer for the tap that comes next.
+ *
+ * Choosing a check-out: the check-in plus `MAX_NIGHTS`, so a stay the API
+ * would refuse cannot be picked. Choosing a check-in (nothing picked, or a full
+ * range that the next tap restarts): no bound beyond the calendar's own.
+ */
+export function lastPickableDay(dates: DateRange): IsoDay | undefined {
+  return dates.start && !dates.end ? addIsoDays(dates.start, MAX_NIGHTS) : undefined;
 }
 
 /* --------------------------------------------------------------- the mint */

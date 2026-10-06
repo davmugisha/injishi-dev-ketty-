@@ -30,7 +30,7 @@
  */
 import { useEffect, useState } from 'react';
 import { View } from 'react-native';
-import { Button, ChipGroup, Icon, ModalSheet, Text, TextArea } from '@/components';
+import { Button, ChipGroup, Icon, ModalSheet, Text, TextArea, useOffline } from '@/components';
 import { useTheme } from '@/theme/theme';
 import { useT, type MessageKey } from '@/i18n/i18n';
 import type { HostBooking } from './host-fixtures';
@@ -74,6 +74,10 @@ export function DeclineSheet({
   }, [booking]);
 
   const needsNote = reason === 'other' && note.trim().length === 0;
+  // A decline is a full refund, so it is refused without signal rather than
+  // queued, and the confirm says why instead of accepting the tap and losing
+  // the note the host just wrote (mobile audit 2026-10-05, HO-10).
+  const offline = useOffline();
 
   return (
     <ModalSheet
@@ -83,7 +87,19 @@ export function DeclineSheet({
       onClose={onClose}
       footer={
         <View style={{ gap: space[2] }}>
-          {needsNote ? (
+          {offline ? (
+            <View
+              accessible
+              accessibilityRole="alert"
+              accessibilityLabel={t('host.needsConnectionDecision')}
+              style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}
+            >
+              <Icon name="wifiOff" size={15} color={c.warning600} />
+              <Text size="xs" color="textBody" style={{ flex: 1, lineHeight: 18 }}>
+                {t('host.needsConnectionDecision')}
+              </Text>
+            </View>
+          ) : needsNote ? (
             <View
               accessible
               accessibilityRole="alert"
@@ -101,9 +117,9 @@ export function DeclineSheet({
             variant="danger"
             size="lg"
             block
-            disabled={needsNote}
+            disabled={needsNote || offline}
             onPress={() => {
-              if (!booking || needsNote) return;
+              if (!booking || needsNote || offline) return;
               // A named chip carries its own sentence, so a host who typed
               // nothing still sends something the guest can act on.
               const written = note.trim();

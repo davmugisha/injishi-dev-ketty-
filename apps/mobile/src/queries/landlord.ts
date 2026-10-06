@@ -35,12 +35,28 @@ function initialsOf(name: string): string {
   return (first + last).toUpperCase();
 }
 
-/** `2026-08-05` → `Aug 05`, for the chip. Undefined when there is no date. */
+/** Rwanda keeps one offset all year, so Kigali's calendar is UTC plus two hours. */
+const KIGALI_OFFSET_MS = 2 * 60 * 60 * 1000;
+
+/**
+ * `2026-08-05` → `05 Aug`, for the chip, on KIGALI's calendar. Undefined when
+ * there is no date.
+ *
+ * A due date arrives as a bare date and parses as UTC midnight; a paid-at
+ * arrives as an instant. Formatting either in the phone's own zone printed the
+ * day before on any phone set west of Greenwich, so both are shifted by
+ * Kigali's fixed offset and read in UTC: the day a Rwandan landlord means,
+ * wherever the phone thinks it is (mobile audit 2026-10-05, LL-01).
+ */
 function shortDate(iso: string | null): string | undefined {
   if (!iso) return undefined;
-  const date = new Date(iso);
-  if (Number.isNaN(date.getTime())) return undefined;
-  return date.toLocaleDateString('en-GB', { month: 'short', day: '2-digit' });
+  const at = Date.parse(iso);
+  if (Number.isNaN(at)) return undefined;
+  return new Date(at + KIGALI_OFFSET_MS).toLocaleDateString('en-GB', {
+    month: 'short',
+    day: '2-digit',
+    timeZone: 'UTC',
+  });
 }
 
 /**

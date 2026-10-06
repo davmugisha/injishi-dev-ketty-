@@ -13,6 +13,7 @@ import { type ReactNode } from 'react';
 import { fireEvent, screen, waitFor } from '@testing-library/react-native';
 import { useQueryClient } from '@tanstack/react-query';
 import type { GuestOrder, OrderableList } from '@injishi/contracts';
+import { useNetworkState } from 'expo-network';
 
 import { ToastProvider } from '@/components';
 import { renderInScheme, SCHEMES } from '@/test-utils';
@@ -95,11 +96,14 @@ const PLACED: GuestOrder = {
 
 const withToast = (ui: ReactNode) => <ToastProvider>{ui}</ToastProvider>;
 
+const network = useNetworkState as jest.Mock;
+
 beforeEach(() => {
   mockPush.mockReset();
   mockBack.mockReset();
   mockFetchOrderable.mockReset();
   mockPlaceOrder.mockReset();
+  network.mockReturnValue({ isConnected: true, isInternetReachable: true });
 });
 
 describe.each(SCHEMES)('OrderScreen (%s)', (scheme) => {
@@ -160,6 +164,49 @@ describe('placing an order', () => {
     fireEvent.press(screen.getByRole('button', { name: 'Place order' }));
     await waitFor(() => expect(mockPlaceOrder).toHaveBeenCalledTimes(2));
     expect(mockPlaceOrder.mock.calls[1]![1]).toBe(mockPlaceOrder.mock.calls[0]![1]);
+  });
+
+  /**
+   * A `failed` call is one whose end the phone never heard, so it may have
+   * placed the order: the toast says it could not be confirmed, never that
+   * nothing was charged (mobile audit 2026-10-05, GK-09).
+   */
+  it('does not claim nothing was charged when it cannot hear the answer', async () => {
+    mockFetchOrderable.mockResolvedValue(MENU);
+    mockPlaceOrder.mockResolvedValue({ status: 'failed' });
+    renderInScheme(withToast(<OrderScreen />), 'light');
+
+    fireEvent.press(await screen.findByRole('button', { name: 'One more Coffee' }));
+    fireEvent.press(screen.getByRole('button', { name: 'Place order' }));
+
+    expect(await screen.findByText(/could not confirm your order/)).toBeTruthy();
+    expect(screen.queryByText(/nothing was charged/)).toBeNull();
+    expect(mockPush).not.toHaveBeenCalled();
+  });
+
+  it('refuses an order offline with a sentence, and keeps the cart (GK-09)', async () => {
+    mockFetchOrderable.mockResolvedValue(MENU);
+    renderInScheme(withToast(<OrderScreen />), 'light');
+    fireEvent.press(await screen.findByRole('button', { name: 'One more Coffee' }));
+
+    network.mockReturnValue({ isConnected: false, isInternetReachable: false });
+    // Any re-render reads the new network state; a second item is one.
+    fireEvent.press(screen.getByRole('button', { name: 'One more Coffee' }));
+
+    expect(await screen.findByText(/You are offline\. An order needs a connection/)).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Place order' })).toBeDisabled();
+    fireEvent.press(screen.getByRole('button', { name: 'Place order' }));
+    expect(mockPlaceOrder).not.toHaveBeenCalled();
+    // The cart is still there.
+    expect(screen.getByText('2 items')).toBeTruthy();
+  });
+
+  it('gives the quantity buttons a 44pt target (GK-24)', async () => {
+    mockFetchOrderable.mockResolvedValue(MENU);
+    renderInScheme(withToast(<OrderScreen />), 'light');
+    const plus = await screen.findByRole('button', { name: 'One more Coffee' });
+    // Drawn at 36; the slop is what reaches the floor: 36 + 2 × 4.
+    expect(plus.props.hitSlop).toBe(4);
   });
 
   it("shows the server's own sentence when it refuses", async () => {

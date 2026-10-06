@@ -217,6 +217,44 @@ describe('the catalogue', () => {
     }
   });
 
+  /**
+   * Keys that ship English in Kinyarwanda on purpose (mobile audit 2026-10-05).
+   *
+   * v1 is English only. A key the honesty pass added, or whose English changed
+   * meaning, takes `en[key]` as its `rw` value, the rule `common.ts` follows:
+   * an old translation would still say the false thing, and a ` (RW)` suffix is
+   * visible to a reader. Named here so the rule below stays sharp: any OTHER
+   * long value that is simply the English still fails, and this list is the
+   * Kinyarwanda pass's work list.
+   */
+  const ENGLISH_IN_V1 = new Set<string>([
+    'host.offlineNote',
+    'host.needsConnectionDecision',
+    'host.needsConnectionCheckOut',
+    'host.approveFailed',
+    'host.declineFailed',
+    'host.undoFailed',
+    'host.escrowHeld',
+    'host.invoiceNotIssued',
+    'host.documentEnding',
+    'host.eventCheckedOut',
+    'host.folioBody',
+    'host.photoBody',
+    'host.checkOutBody',
+    'host.checkOutBalance',
+    'host.checkOutEarly',
+    'host.checkOutConfirm',
+    'host.checkedOutToast',
+    'host.checkedOutNoRoom',
+    'host.checkOutFailedTitle',
+    'host.checkOutFailedBody',
+    'host.mockAdapter',
+    'host.mockAdapterNote',
+    'host.checkInReadFailed',
+    'host.roomsReadFailed',
+    'host.roomsReadFailedBody',
+  ]);
+
   it('leaves no host key untranslated by accident', () => {
     // A ` (RW)` suffix is the deliberate marker for a string this session had
     // no confident Kinyarwanda for. What must never happen is a value that is
@@ -228,8 +266,20 @@ describe('the catalogue', () => {
     for (const key of keys) {
       const same = rw[key] === en[key];
       // Identical is allowed only where the string is a proper noun, a format
-      // placeholder or a number — never for a sentence.
-      if (same) expect(en[key].length).toBeLessThan(40);
+      // placeholder or a number — never for a sentence — or where it is named
+      // above as English until the Kinyarwanda pass.
+      if (same && !ENGLISH_IN_V1.has(key)) {
+        expect({ key, short: en[key].length < 40 }).toEqual({ key, short: true });
+      }
+    }
+  });
+
+  it('names only keys that exist and really are English, so the list cannot rot', () => {
+    for (const key of ENGLISH_IN_V1) {
+      expect({ key, english: rw[key as keyof typeof rw] === en[key as keyof typeof en] }).toEqual({
+        key,
+        english: true,
+      });
     }
   });
 });

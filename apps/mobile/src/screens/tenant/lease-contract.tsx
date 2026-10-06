@@ -16,8 +16,16 @@
  * choices and conflating them is how a reader ends up unable to find their way
  * back out of a language they cannot read.
  *
- * Download is mocked and says so, because storage is not wired (F-S09) and
- * ui-rules.md's adapter rule is that a mocked success must never look real.
+ * **There is no download, and nothing says there is.** The button used to show
+ * a toast that downloading was "mocked in this build", which is a fake control
+ * carrying developer copy (mobile audit 2026-10-05, TN-14, XC-16). It returns
+ * with the stored contract and its offline read (gaps.md B6).
+ *
+ * **The Tenant party is the person holding the phone**, from the server's
+ * profile, and never the fixture persona that used to fill it (TN-03): a name
+ * only when the server has one, a skeleton while it is being read, and "Name
+ * not added yet" otherwise. Once the tenant API lands the party comes from the
+ * lease record instead, which is where a signed contract's names belong.
  */
 import { useState } from 'react';
 import { View, ScrollView } from 'react-native';
@@ -25,19 +33,18 @@ import { useLocalSearchParams } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
   BackHeader,
-  Button,
   Card,
   EmptyState,
   MoneyAmount,
   SectionLabel,
   SegmentedTabs,
+  Skeleton,
   Text,
-  useToast,
 } from '@/components';
 import { useTheme } from '@/theme/theme';
 import { useT } from '@/i18n/i18n';
 import { useTenancy } from '@/data/tenancy-store';
-import { TENANT } from '@/data/rentals';
+import { useMyIdentity } from '@/queries/profile';
 import { formatFullDay } from './dates';
 import { LeaseError, LeaseLoading, LeaseMissing } from './lease-gate';
 
@@ -47,7 +54,7 @@ export function LeaseContract() {
   const { c, space, radius } = useTheme();
   const insets = useSafeAreaInsets();
   const t = useT();
-  const toast = useToast();
+  const identity = useMyIdentity();
   const { leaseId } = useLocalSearchParams<{ leaseId?: string }>();
 
   const read = useTenancy(leaseId);
@@ -60,9 +67,17 @@ export function LeaseContract() {
 
   const clauses = locale === 'en' ? lease.terms : lease.termsRw;
 
-  const rows: { label: string; value: string }[] = [
+  /** `null` is a value still being read, drawn as a skeleton. */
+  const rows: { label: string; value: string | null }[] = [
     { label: t('contract.landlord'), value: `${lease.landlord} · ${lease.landlordOrg}` },
-    { label: t('contract.tenant'), value: TENANT.user },
+    {
+      label: t('contract.tenant'),
+      value: identity.fromServer
+        ? identity.name
+        : identity.pending
+          ? null
+          : t('identity.unnamed'),
+    },
     { label: t('contract.room'), value: `${lease.unit}, ${lease.address}` },
     {
       label: t('contract.term'),
@@ -114,18 +129,32 @@ export function LeaseContract() {
         <Card title={t('contract.parties')}>
           <View style={{ gap: space[3] }}>
             {rows.map((row) => (
+              // The label column is a floor, not a width, and the value drops
+              // under it when the two no longer fit side by side. A fixed 82dp
+              // broke "Landlord" mid-word at large text sizes (mobile audit
+              // 2026-10-05, TN-26).
               <View
                 key={row.label}
                 accessible
-                accessibilityLabel={`${row.label}: ${row.value}`}
-                style={{ flexDirection: 'row', gap: space[3] }}
+                accessibilityLabel={`${row.label}: ${row.value ?? t('state.loading')}`}
+                style={{ flexDirection: 'row', flexWrap: 'wrap', columnGap: space[3], rowGap: 2 }}
               >
-                <Text size="sm" color="textSubtle" style={{ width: 82 }}>
+                <Text size="sm" color="textSubtle" style={{ minWidth: 82, flexShrink: 0 }}>
                   {row.label}
                 </Text>
-                <Text size="sm" color="textBody" style={{ flex: 1, lineHeight: 19 }}>
-                  {row.value}
-                </Text>
+                {row.value === null ? (
+                  <View style={{ flexGrow: 1, flexBasis: 160, justifyContent: 'center' }}>
+                    <Skeleton width={140} height={14} />
+                  </View>
+                ) : (
+                  <Text
+                    size="sm"
+                    color="textBody"
+                    style={{ flexGrow: 1, flexShrink: 1, flexBasis: 160, lineHeight: 19 }}
+                  >
+                    {row.value}
+                  </Text>
+                )}
               </View>
             ))}
             <View style={{ height: 1, backgroundColor: c.borderSubtle }} />
@@ -192,16 +221,6 @@ export function LeaseContract() {
             </Text>
           </View>
         )}
-
-        <Button
-          variant="outline"
-          size="lg"
-          block
-          leadingIcon="download"
-          onPress={() => toast.show(t('contract.downloadToast'), 'neutral')}
-        >
-          {t('contract.download')}
-        </Button>
       </ScrollView>
     </View>
   );

@@ -8,12 +8,10 @@
  * flipped between the two forms and typecheck failed on alternate runs. A flat
  * file has no `index` to collapse, so both forms are the same form.
  *
- * Not registered in `app/_layout.tsx`: that file is frozen until Session 11
- * (MOBILE-PROTOTYPE-PROMPTS.md Part 3), and Expo Router discovers a route from
- * the file system regardless — a `Stack.Screen` entry only sets OPTIONS. The
- * stack's `screenOptions` already hide the header and paint the app ground, so
- * this presents as a card like every other detail route. Session 11 should add
- * the two `reservation/` lines beside the rest for the sake of the table.
+ * Registered in `app/_layout.tsx` as a card, with `reservation/[id]/check-in`,
+ * inside a `Stack.Protected` that opens only for the host seat: a deep link
+ * from any other seat is refused before this screen reads anything (mobile
+ * audit 2026-10-05, HO-14 and HO-15).
  */
 import { useLocalSearchParams } from 'expo-router';
 import { HostBookingDetail } from '@/screens/host';

@@ -70,7 +70,11 @@ export interface WorkTask {
   isNew?: boolean;
   /** Epoch ms the arrival landed, for the banner's "4s ago". */
   arrivedAt?: number;
-  /** Recorded when the task is finished, for the shift summary. */
+  /**
+   * Recorded when a TIMED task is finished. Absent when no timer ran on this
+   * phone: it used to default to a 22 minute "shift average" that was itself
+   * invented (mobile audit 2026-10-05, WK-02).
+   */
   minutes?: number;
 }
 
@@ -111,11 +115,12 @@ export interface InspectionRow {
 /**
  * One local write held on the phone while there is no signal (F-P10 §6).
  *
- * `key` is the idempotency key F-P10 requires: the replay carries it, the
- * server dedupes on it, and it is what lets frame W2's reconnect card promise
- * that nothing double-posts. It is minted when the change is MADE rather than
- * when it is sent — a key generated at flush time would be a new key on every
- * retry, which is the exact bug the mechanism exists to prevent.
+ * F-P10 wants `key` to be the idempotency key: minted when the change is MADE,
+ * carried by the replay, deduped by the server. **It is not one yet.** It is a
+ * marker with no payload, its counter restarts at 1 on every launch, and
+ * nothing replays it, which is why the reconnect card no longer promises that
+ * nothing double-posts (mobile audit 2026-10-05, WK-03 and WK-29). Making it
+ * real is scope feature 15, an owner decision.
  */
 export interface BufferedChange {
   key: string;
@@ -191,9 +196,15 @@ export const SEED_TASKS: readonly WorkTask[] = [
 ];
 
 /**
- * The task the desk pushes a few seconds after the queue mounts, drawn as an
- * arrival rather than as a refresh (frame W1's note, and F-P04's own success
- * criterion: on the queue within one second of checkout).
+ * The shape of a checkout landing on the queue, drawn as an arrival rather than
+ * as a refresh (frame W1's note, and F-P04's own success criterion: on the queue
+ * within one second of checkout).
+ *
+ * **Nothing pushes it any more.** The queue used to arm a 6.5 second timer on
+ * every launch that dropped this room in with a success toast, so every real
+ * housekeeper was told room 208 had just checked out when nobody had (mobile
+ * audit 2026-10-05, WK-02). An arrival now comes from the store, the way Host's
+ * checkout already delivers one, and this row is the reducer tests' example.
  */
 export const ARRIVAL_TASK: WorkTask = {
   id: '208',
@@ -206,9 +217,6 @@ export const ARRIVAL_TASK: WorkTask = {
   note: 'Checked out at 10:24. Late checkout, guest arriving 16:30.',
   noteBy: 'Denise L. · Front desk · 10:24',
 };
-
-/** The twin's own delay before the desk's checkout lands. */
-export const ARRIVAL_DELAY_MS = 6500;
 
 /** `ROOM_TYPE`, transcribed. The board is floor 3, which frame W4 draws. */
 const ROOM_TYPE: Record<string, string> = {
@@ -280,29 +288,25 @@ export const SEED_INSPECTIONS: readonly InspectionRow[] = [
 ];
 
 /**
- * The persona's own seat on this property, and the flags the screens branch on.
+ * The seat's flags the screens branch on.
  *
  * It lives here rather than in `src/data/personas.ts`, which Session 0 froze: a
  * seat-level attribute this one surface reads belongs beside the surface, and
  * Session 11 can lift it the day a second surface needs it.
+ *
+ * **It used to carry the person's shift as well**, and every one of those
+ * values was invented: the supervisor a check went to ("Solange U."), the shift
+ * hours, a wall clock frozen at 10:24 "so a screenshot is reproducible", eleven
+ * rooms already cleaned and a 22 minute average. The screens printed them as
+ * the viewer's own facts to every real housekeeper (mobile audit 2026-10-05,
+ * WK-02 and WK-13). They are gone rather than hidden, so nothing can print them
+ * again by accident; the shift numbers come back when `GET /ops/shift-summary`
+ * exists (WK-19).
  */
 export const WORK_PROFILE = {
-  /** Frame W5 is reachable from the Queue only when this is true. */
+  /**
+   * Frame W5 is reachable from the Queue only when this is true. Still true for
+   * every seat: who may inspect is an owner decision (WK-17), not this pass's.
+   */
   supervisor: true,
-  /** Who a "Request check" goes to (frame W3's toast). */
-  signsOff: 'Solange U.',
-  /** Frame W7's eyebrow. */
-  shiftStart: '06:00',
-  shiftEnd: '14:00',
-  /** The clock every Work screen prints, so a screenshot is reproducible. */
-  clock: '10:24',
-  /** Frame W7's chip wrap: rooms finished before this session started. */
-  roomsFinished: ['101', '102', '105', '108', '201', '203', '206', '211', '301', '303', '308'],
-  /** The twin's `cleanedCount: 11 + done.length`. */
-  cleanedBefore: 11,
-  /** Frame W3: "your average is 22 min". */
-  averageMinutes: 22,
 } as const;
-
-/** What a finished room is recorded as taking when no timer reading is held. */
-export const DEFAULT_TASK_MINUTES = 22;

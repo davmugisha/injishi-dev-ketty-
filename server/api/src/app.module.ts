@@ -8,7 +8,7 @@ import {
   VersioningType,
 } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
-import { NestFactory, Reflector } from '@nestjs/core';
+import { APP_FILTER, NestFactory, Reflector } from '@nestjs/core';
 import {
   FastifyAdapter,
   NestFastifyApplication,
@@ -36,6 +36,7 @@ import {
 import { resolveTrustProxy } from './shared/config/trust-proxy';
 import { DatabaseModule } from './shared/database/database.module';
 import { QueuesModule } from './shared/queues/queues.module';
+import { ReportingExceptionFilter } from './shared/observability/reporting-exception.filter';
 
 @Module({
   imports: [
@@ -73,6 +74,9 @@ import { QueuesModule } from './shared/queues/queues.module';
     PublicApiModule,
     AdminApiModule,
   ],
+  // ADR-063 AC-12: a request that fails with a 500 is reported, then answered
+  // exactly as Nest's own handler would. The worker has no HTTP, so it never runs.
+  providers: [{ provide: APP_FILTER, useClass: ReportingExceptionFilter }],
 })
 export class AppModule {
   /** HTTP + WS process (:8000). */

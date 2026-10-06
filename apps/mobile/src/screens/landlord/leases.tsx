@@ -12,16 +12,17 @@
  * tenancy moves left to right and nothing skips a step"), which does not
  * survive a 393-point phone. What survives is the part a landlord actually
  * needs on a phone: which lease is waiting on ME, and the one control that
- * unblocks it. So a row with `action` grows a footer and a row without one does
- * not, and the three actions map onto the three states that can be blocked:
+ * unblocks it. So a row whose lease waits on the landlord grows a footer and a
+ * row without one does not:
  *
  *   - `draft` → **Review & sign**, which opens the contract (frame R8).
- *   - `pending_signature` → **Nudge tenant to sign**, a reminder.
- *   - `ending` → **Send renewal offer**, unless a move-out notice is filed
- *     against it, in which case there is nothing to renew and the row stays
- *     plain. That last clause is why the fixtures carry two ending leases: R3
- *     drew one, and the interactive twin put a renewal offer on it that its own
- *     "Move-out notice filed" line contradicts.
+ *
+ * The frame's two other actions are gone, and the data still carries them so
+ * they can come back with a channel behind them. **Nudge tenant to sign**
+ * toasted "Signing reminder sent" and sent nothing; **Send renewal offer**
+ * toasted "Renewal offer sent" for a renewal the release does not include
+ * (mobile audit 2026-10-05, LL-16). A pending lease's status chip already says
+ * it is waiting on the tenant.
  *
  * The chip set carries `pending_signature` even though R3 does not draw it,
  * because signing a draft on frame R8 moves a lease INTO that state and a
@@ -48,13 +49,11 @@ import {
   StatusBadge,
   Text,
   useOffline,
-  useToast,
 } from '@/components';
 import { useTheme } from '@/theme/theme';
 import { useDomain } from '@/domain';
 import { useT, type MessageKey, type Translate } from '@/i18n/i18n';
 import {
-  LANDLORD_TOWN,
   LEASES_KEY,
   seedLeases,
   useLandlordRead,
@@ -73,22 +72,16 @@ const RANK: Record<LeaseState, number> = {
   ended: 4,
 };
 
-const ACTION_LABEL = {
-  sign: 'landlord.leases.actionSign',
-  nudge: 'landlord.leases.actionNudge',
-  renew: 'landlord.leases.actionRenew',
-} as const;
-
 function LeaseRow({
   lease,
   t,
   onOpen,
-  onAct,
+  onSign,
 }: {
   lease: LandlordLease;
   t: Translate;
   onOpen: () => void;
-  onAct: () => void;
+  onSign: () => void;
 }) {
   const { c, radius, shadow } = useTheme();
   const tenure = t(lease.tenure === 'long_term' ? 'landlord.tenureLong' : 'landlord.tenureShort');
@@ -143,7 +136,9 @@ function LeaseRow({
         </View>
       </PressableScale>
 
-      {lease.action ? (
+      {/* Only the action that does something: signing opens the contract.
+          See the header for the two that are gone. */}
+      {lease.action === 'sign' ? (
         <View
           style={{
             flexDirection: 'row',
@@ -155,15 +150,8 @@ function LeaseRow({
             backgroundColor: c.surface2,
           }}
         >
-          <Button
-            variant={lease.action === 'sign' ? 'primary' : 'outline'}
-            size="sm"
-            leadingIcon={
-              lease.action === 'sign' ? 'edit' : lease.action === 'nudge' ? 'bell' : 'repeat'
-            }
-            onPress={onAct}
-          >
-            {t(ACTION_LABEL[lease.action])}
+          <Button variant="primary" size="sm" leadingIcon="edit" onPress={onSign}>
+            {t('landlord.leases.actionSign')}
           </Button>
         </View>
       ) : null}
@@ -175,7 +163,6 @@ export function LandlordLeases() {
   const { space } = useTheme();
   const router = useRouter();
   const t = useT();
-  const toast = useToast();
   const { workspace } = useDomain();
   const [filter, setFilter] = useState<Filter>('all');
   const [query, setQuery] = useState('');
@@ -183,6 +170,9 @@ export function LandlordLeases() {
   const read = useLandlordRead(LEASES_KEY, seedLeases);
   const offline = useOffline();
   const all = read.data ?? [];
+  // Counts wait for the data: "All · 0" over a list still loading is a zero
+  // stated as a fact (mobile audit 2026-10-05, LL-12).
+  const loaded = read.data !== undefined;
 
   const shown = useMemo(() => {
     const needle = query.trim().toLowerCase();
@@ -199,19 +189,10 @@ export function LandlordLeases() {
       .sort((a, b) => RANK[a.state] - RANK[b.state]);
   }, [all, filter, query]);
 
-  const count = (s: LeaseState) => all.filter((l) => l.state === s).length;
+  const count = (s: LeaseState) => (loaded ? all.filter((l) => l.state === s).length : undefined);
 
-  const act = (lease: LandlordLease) => {
-    if (lease.action === 'sign') {
-      router.push({ pathname: '/lease/[leaseId]/contract', params: { leaseId: lease.id } });
-      return;
-    }
-    if (lease.action === 'nudge') {
-      toast.show(t('landlord.leases.nudgeSent', { name: lease.tenant }), 'warning');
-      return;
-    }
-    toast.show(t('landlord.leases.renewalSent', { name: lease.tenant }), 'success');
-  };
+  const sign = (lease: LandlordLease) =>
+    router.push({ pathname: '/lease/[leaseId]/contract', params: { leaseId: lease.id } });
 
   /** Why THIS list is empty. A search miss is a different fact from a state
    *  with nothing in it, and offering "clear the search" on the second would
@@ -231,7 +212,8 @@ export function LandlordLeases() {
 
   return (
     <Screen.List<LandlordLease>
-      greeting={t('landlord.seat', { org: workspace.name, town: LANDLORD_TOWN })}
+      // The workspace's own name. It used to carry a fixture town as well.
+      greeting={workspace.name}
       title={t('landlord.leases.title')}
       action={
         <Button
@@ -262,7 +244,9 @@ export function LandlordLeases() {
               query === '' ? null : (
                 <PressableScale
                   accessibilityLabel={t('landlord.leases.clearSearch')}
-                  hitSlop={10}
+                  // 18pt glyph + 13 each side = 44pt, the floor. It was 10, a
+                  // 38pt target (mobile audit 2026-10-05, LL-24).
+                  hitSlop={13}
                   onPress={() => setQuery('')}
                 >
                   <Icon name="xCircle" size={18} />
@@ -275,7 +259,11 @@ export function LandlordLeases() {
             value={filter}
             onChange={(v) => setFilter(v as Filter)}
             items={[
-              { value: 'all', label: t('landlord.leases.filterAll'), count: all.length },
+              {
+                value: 'all',
+                label: t('landlord.leases.filterAll'),
+                count: loaded ? all.length : undefined,
+              },
               { value: 'active', label: t('landlord.leases.filterActive'), count: count('active') },
               { value: 'ending', label: t('landlord.leases.filterEnding'), count: count('ending') },
               {
@@ -295,7 +283,7 @@ export function LandlordLeases() {
           lease={item}
           t={t}
           onOpen={() => router.push({ pathname: '/lease/[id]', params: { id: item.id } })}
-          onAct={() => act(item)}
+          onSign={() => sign(item)}
         />
       )}
       loading={read.status === 'loading'}

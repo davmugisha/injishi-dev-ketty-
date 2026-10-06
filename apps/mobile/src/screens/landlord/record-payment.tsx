@@ -41,23 +41,16 @@ import {
 import { useTheme } from '@/theme/theme';
 import { useT } from '@/i18n/i18n';
 import { useOfflineSubmit } from '@/data/offline-submit';
-import { RENT_PERIOD } from '@/data/landlord';
+import { outstandingOf, periodLabel } from '@/data/landlord';
 import {
   fetchRentRoll,
   recordPaymentHandler,
   type RecordRentIntent,
 } from '@/queries/landlord';
+import { ApiError } from '@/lib/api';
 import { landlordKeys } from '@/lib/query-keys';
 import { useWorkspace } from '@/workspace';
 import { uuidV4 } from '@/screens/guest/book-format';
-
-/** `2026-08-01` → `August 2026`. Falls back to the fixtures' period. */
-function periodLabel(periodMonth: string | undefined): string {
-  if (!periodMonth) return RENT_PERIOD;
-  const date = new Date(`${periodMonth}T00:00:00Z`);
-  if (Number.isNaN(date.getTime())) return RENT_PERIOD;
-  return date.toLocaleDateString('en-GB', { month: 'long', year: 'numeric', timeZone: 'UTC' });
-}
 
 export function RecordPayment({
   leaseId,
@@ -90,7 +83,13 @@ export function RecordPayment({
       r.state !== 'paid' &&
       (!periodMonth || r.periodMonth === periodMonth),
   );
-  const outstanding = row ? Math.max(0, row.amount - (row.paidAmount ?? 0)) : 0;
+  // The same arithmetic the roll's row prints, so the sheet and the row it was
+  // opened from can never name two different figures (mobile audit LL-10).
+  const outstanding = row ? outstandingOf(row) : 0;
+  // The row's own month. Never a fixed one: while loading there is no row,
+  // and the amount line waits for it rather than saying "August 2026 · RWF 0"
+  // (mobile audit 2026-10-05, LL-01).
+  const month = row ? periodLabel(row.periodMonth, t) : undefined;
 
   /** One intent per sheet: the queue id AND the server's Idempotency-Key. */
   const [intentKey] = useState(uuidV4);
@@ -156,14 +155,22 @@ export function RecordPayment({
   };
 
   if (status === 'error') {
+    // A refusal is the server's answer and reads as one, with no Retry that
+    // could only be refused again; `failed` keeps its retry (mobile audit LL-14).
+    const refusal =
+      query.error instanceof ApiError && query.error.kind === 'refused' ? query.error.message : null;
     return (
       <Sheet title={t('landlord.record.title')} grabber>
-        <ErrorState
-          title={t('state.errorTitle')}
-          body={t('state.errorBody', { label: t('landlord.rent.listLabel') })}
-          detail={query.error?.message}
-          onRetry={() => void query.refetch()}
-        />
+        {refusal ? (
+          <ErrorState title={t('landlord.rent.refusedTitle')} body={refusal} />
+        ) : (
+          <ErrorState
+            title={t('state.errorTitle')}
+            body={t('state.errorBody', { label: t('landlord.rent.listLabel') })}
+            detail={query.error?.message}
+            onRetry={() => void query.refetch()}
+          />
+        )}
       </Sheet>
     );
   }
@@ -246,22 +253,24 @@ export function RecordPayment({
         </>
       }
     >
-      <View
-        style={{
-          flexDirection: 'row',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-          gap: 12,
-          padding: space[3],
-          borderRadius: radius.md,
-          backgroundColor: c.surface2,
-        }}
-      >
-        <Text size="sm" color="textBody" style={{ flexShrink: 1 }}>
-          {t('landlord.record.amount', { month: periodLabel(row?.periodMonth) })}
-        </Text>
-        <MoneyAmount value={outstanding} strong size="lg" />
-      </View>
+      {row ? (
+        <View
+          style={{
+            flexDirection: 'row',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            gap: 12,
+            padding: space[3],
+            borderRadius: radius.md,
+            backgroundColor: c.surface2,
+          }}
+        >
+          <Text size="sm" color="textBody" style={{ flexShrink: 1 }}>
+            {t('landlord.record.amount', { month: month ?? '' })}
+          </Text>
+          <MoneyAmount value={outstanding} strong size="lg" />
+        </View>
+      ) : null}
 
       {/* The disclosure. A warning ground rather than a muted note, because the
           one thing this sheet must not do is look routine: it writes a ledger

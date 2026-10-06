@@ -36,13 +36,28 @@
  * guest who reaches this route is authenticated. A second gate here would be a
  * check that can never fire, and ADR-020 AC-16's "lands back on the same quote"
  * is satisfied by the draft outliving the trip through sign-in.
+ *
+ * ## Mobile audit 2026-10-05, what this screen now refuses
+ *
+ *   - **No booking from a write that did not land.** The Trip is written after
+ *     the rail confirms; if that write fails the screen says so and offers a
+ *     retry, rather than routing to a confirmation of nothing (brief item 1).
+ *   - **No hidden payment.** While a prompt is out (`isOpen`), back and the
+ *     step's edits are locked and the attempt stays on screen even if the quote
+ *     moved under it (GK-13).
+ *   - **No spent draft.** A confirmed booking clears its draft, so the next
+ *     booking of the same room starts from its own dates (GK-12).
+ *   - **No silent money.** The bar's spoken label carries the amount, and a
+ *     change of payment state is announced on iOS, where the prompt's live
+ *     region does nothing (GK-18).
  */
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 import { billableGuests } from '@/data/search';
-import { Pressable, ScrollView, View } from 'react-native';
+import { AccessibilityInfo, Platform, Pressable, ScrollView, View } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { MAX_NIGHTS } from '@injishi/contracts';
 import {
   Button,
   EmptyState,
@@ -54,6 +69,8 @@ import {
   Stepper,
   StickyBar,
   Text,
+  WriteError,
+  formatMoney,
   type DateRange,
   useOffline,
 } from '@/components';
@@ -64,7 +81,13 @@ import { readFixture } from '@/data/use-fixture-mutation';
 import { useBookingDraft } from '@/data/booking-draft';
 import { DEFAULT_SEARCH, SEARCH_KEY, type GuestParty, type StaySearch } from '@/data/search';
 import { getRoomType, getStayDetail, type RoomCard, type StayDetail } from '@/data/property-detail';
-import { isSettled, usePaymentAttempt } from '@/data/payment-attempt';
+import {
+  get as readAttempt,
+  isOpen,
+  isSettled,
+  usePaymentAttempt,
+  type AttemptState,
+} from '@/data/payment-attempt';
 import {
   EMPTY_BOOK_DRAFT,
   mintTrip,
@@ -75,7 +98,6 @@ import {
 } from './book-draft';
 import {
   STEP_GATES,
-  nightsIn,
   quote,
   type PayMethod,
   type StepInput,
@@ -87,6 +109,19 @@ import { BookStepPay } from './book-step-pay';
 
 const STEP_TITLES: readonly MessageKey[] = ['book.step1', 'book.step2', 'book.step3'];
 const STEP_SHORT: readonly MessageKey[] = ['book.stepShort1', 'book.stepShort2', 'book.stepShort3'];
+
+/**
+ * The payment state, as the words VoiceOver says when it changes. The same
+ * titles `PaymentPrompt` draws; announced here because iOS ignores the
+ * prompt's live region (GK-18).
+ */
+const ATTEMPT_SPOKEN: Record<Exclude<AttemptState, 'idle'>, MessageKey> = {
+  prompting: 'pay.checkYourPhone',
+  confirmed: 'pay.confirmedTitle',
+  unknown: 'pay.stillConfirming',
+  refused: 'pay.refusedTitle',
+  expired: 'pay.expiredTitle',
+};
 
 export interface BookStepperScreenProps {
   roomTypeId: string | undefined;
@@ -112,10 +147,10 @@ export function BookStepperScreen({
   if (read.status === 'error') {
     return (
       <Framed>
+        {/* No raw server text as the detail (GB-27). */}
         <ErrorState
           title={t('state.errorTitle')}
-          body={t('state.errorBody')}
-          detail={read.error?.message}
+          body={t('state.errorBody', { label: t('book.bookingLabel') })}
           onRetry={read.retry}
         />
       </Framed>
@@ -182,7 +217,7 @@ function Loaded({
     };
   }, [seedCheckIn, seedCheckOut]);
 
-  const { draft, patch, tokenForPress } = useBookDraft(roomTypeId, seed);
+  const { draft, patch, tokenForPress, clear } = useBookDraft(roomTypeId, seed);
 
   // The non-refundable switch belongs to Session 3's per-property draft, which
   // the policy sheet also writes. Reading it here rather than copying it is
@@ -243,9 +278,6 @@ function Loaded({
     acceptedRules: draft.acceptedRules,
     method: draft.method,
     handset: draft.handset,
-    cardNumber: draft.cardNumber,
-    cardExpiry: draft.cardExpiry,
-    cardCvv: draft.cardCvv,
   };
 
   const step = Math.min(Math.max(draft.step, 0), 2);
@@ -289,9 +321,32 @@ function Loaded({
    * rule is the same rule the machine needs, and minting a second here would be
    * a second charge.
    */
-  const token = draft.attemptToken && draft.tokenFor === signature ? draft.attemptToken : null;
+  const quoted = draft.attemptToken && draft.tokenFor === signature ? draft.attemptToken : null;
+  // An attempt still out with the rail stays on screen even when the quote has
+  // moved under it, from the policy sheet or the property page. Looking it up
+  // by the NEW quote alone made the prompt vanish while the old payment
+  // settled unseen (mobile audit 2026-10-05, GK-13).
+  const held =
+    draft.attemptToken && isOpen(readAttempt(draft.attemptToken)) ? draft.attemptToken : null;
+  const token = quoted ?? held;
   const { attempt, submit, checkAgain, dismiss } = usePaymentAttempt(token);
   const paying = attempt?.state === 'prompting';
+  /** Out with the rail: back and the step's edits are locked until it answers. */
+  const open = isOpen(attempt);
+
+  /**
+   * Say a change of payment state out loud on iOS. The prompt's live region
+   * and its label sit on a plain `View`, which VoiceOver never announces, so a
+   * guest using it heard neither "Payment confirmed" nor a decline (GK-18).
+   * Android has the live region, and announcing there too would say it twice.
+   */
+  const attemptState = attempt?.state;
+  useEffect(() => {
+    if (Platform.OS !== 'ios' || !attemptState || attemptState === 'idle') return;
+    AccessibilityInfo.announceForAccessibility(
+      t('pay.a11yState', { state: t(ATTEMPT_SPOKEN[attemptState]) }),
+    );
+  }, [attemptState, t]);
 
   /**
    * The booking is minted when — and only when — the rail confirms.
@@ -308,35 +363,61 @@ function Loaded({
    */
   const settled = attempt?.state === 'confirmed';
   const minted = useRef(false);
+  /**
+   * The Trip write after the money settled did not land. Its `bookingId` is
+   * set only from a `done` outcome, so a failed write never routes to a
+   * confirmation of a booking that does not exist; the screen says so and
+   * offers the retry instead (brief item 1).
+   */
+  const [mintFailed, setMintFailed] = useState(false);
+  const [mintRound, setMintRound] = useState(0);
+  const writeTrip = create.mutate;
   useEffect(() => {
-    if (!settled || minted.current || draft.bookingId) return;
+    if (!settled || minted.current || draft.bookingId || mintFailed) return;
     minted.current = true;
+    let trip: ReturnType<typeof mintTrip>;
     try {
-      const trip = mintTrip({
+      trip = mintTrip({
         detail,
         room,
         dates: draft.dates,
         party: draft.party,
         nonRefundable: takesNonRefundable,
       });
-      void create.mutate(trip).then(() => patch({ bookingId: trip.id }));
     } catch {
       // AC-17: the checkout says WHICH failure happened. A booking that cannot
       // be minted after the money moved is the one case a guest must not be
       // left guessing about, so it surfaces rather than stalling.
       minted.current = false;
+      setMintFailed(true);
+      return;
     }
+    void writeTrip(trip).then((outcome) => {
+      if (outcome === 'done') {
+        patch({ bookingId: trip.id });
+        return;
+      }
+      minted.current = false;
+      setMintFailed(true);
+    });
   }, [
     settled,
     draft.bookingId,
     draft.dates,
     draft.party,
-    create,
+    writeTrip,
     detail,
     patch,
     room,
     takesNonRefundable,
+    mintFailed,
+    mintRound,
   ]);
+
+  const retryMint = useCallback(() => {
+    setMintFailed(false);
+    setMintRound((n) => n + 1);
+  }, []);
 
   const onPrimary = useCallback(() => {
     if (step < 2) {
@@ -350,22 +431,11 @@ function Loaded({
     // reads it back from on the next render.
     tokenForPress(signature);
     submit({
-      handset: draft.method === 'card' ? t('book.method.card') : `+250 ${draft.handset}`,
-      rail: draft.method === 'momo' ? 'momo' : draft.method === 'airtel' ? 'airtel' : 'card',
+      handset: `+250 ${draft.handset}`,
+      rail: draft.method,
       amountRwf: money.grossRwf,
     });
-  }, [
-    draft.handset,
-    draft.method,
-    money,
-    paying,
-    patch,
-    signature,
-    step,
-    submit,
-    t,
-    tokenForPress,
-  ]);
+  }, [draft.handset, draft.method, money, paying, patch, signature, step, submit, tokenForPress]);
 
   /** A fresh press after a refusal is a NEW intent, so it needs a new token. */
   const onTryAgain = useCallback(() => {
@@ -373,7 +443,12 @@ function Loaded({
     patch({ attemptToken: null, tokenFor: null });
   }, [dismiss, patch]);
 
-  /** The guest has seen the reference. Now they may go to the confirmation. */
+  /**
+   * The guest has seen the reference. Now they may go to the confirmation, and
+   * the draft is spent: it is cleared, so the next booking of this room starts
+   * from its own dates rather than reopening this one at "Confirm and pay"
+   * (GK-12).
+   */
   const onPaid = useCallback(() => {
     const bookingId = draft.bookingId;
     dismiss();
@@ -382,20 +457,27 @@ function Loaded({
       pathname: '/book/[roomTypeId]/confirmed',
       params: { roomTypeId, bookingId },
     });
-  }, [dismiss, draft.bookingId, roomTypeId, router]);
+    clear();
+  }, [clear, dismiss, draft.bookingId, roomTypeId, router]);
 
   /* ------------------------------------------------------------- the back */
 
   const onBack = useCallback(() => {
+    // Locked while a prompt is out: stepping back to change the quote is what
+    // hid a live payment (GK-13).
+    if (open) return;
     if (step > 0) patch({ step: step - 1 });
     else router.back();
-  }, [patch, router, step]);
+  }, [open, patch, router, step]);
 
   /* ------------------------------------------------------------- the bar */
 
-  const nights = nightsIn(draft.dates);
-  const rate = room.summary.nightlyRateRwf;
-  const barTotal = money?.grossRwf ?? (rate !== null && nights > 0 ? rate * nights : null);
+  // Step 1 is accommodation only, the figure its own card prints (rate x
+  // guests x nights) and the label says; the fee joins on step 2. The bar used
+  // to show the gross under "Accommodation so far", about 2.1 times the card
+  // for the default party (GK-14).
+  const barTotal = !money ? null : step === 0 ? money.accommodationRwf : money.grossRwf;
+  const barLabel = step === 0 ? t('book.runningTotal') : t('book.totalLabel');
   const instant = room.summary.bookingMode === 'instant_book';
 
   const primaryLabel =
@@ -417,6 +499,8 @@ function Loaded({
             accessibilityLabel={
               step > 0 ? t('book.backToStep', { step: t(STEP_SHORT[step - 1]) }) : t('a11y.back')
             }
+            accessibilityState={{ disabled: open }}
+            disabled={open}
             hitSlop={3}
             onPress={onBack}
             testID="book-back"
@@ -429,6 +513,7 @@ function Loaded({
               backgroundColor: c.surface1,
               borderWidth: 1,
               borderColor: c.borderDefault,
+              opacity: open ? 0.45 : 1,
             }}
           >
             <Icon name="chevronLeft" size={22} color={c.textStrong} />
@@ -482,6 +567,15 @@ function Loaded({
               onDone={isSettled(attempt) && draft.bookingId ? onPaid : undefined}
               doneLabel="book.continue"
             />
+            {mintFailed ? (
+              <View style={{ marginTop: space[3] }}>
+                <WriteError
+                  title="book.saveFailedTitle"
+                  body="book.saveFailedBody"
+                  onRetry={retryMint}
+                />
+              </View>
+            ) : null}
           </View>
         ) : null}
 
@@ -491,6 +585,7 @@ function Loaded({
             room={room}
             dates={draft.dates}
             party={draft.party}
+            money={money}
             onDates={(dates: DateRange) => patch({ dates })}
             onParty={(party: GuestParty) => patch({ party })}
           />
@@ -522,14 +617,9 @@ function Loaded({
             money={money}
             method={draft.method}
             handset={draft.handset}
-            cardNumber={draft.cardNumber}
-            cardExpiry={draft.cardExpiry}
-            cardCvv={draft.cardCvv}
+            locked={open}
             onMethod={(method: PayMethod) => patch({ method })}
             onHandset={(handset) => patch({ handset })}
-            onCardNumber={(cardNumber) => patch({ cardNumber })}
-            onCardExpiry={(cardExpiry) => patch({ cardExpiry })}
-            onCardCvv={(cardCvv) => patch({ cardCvv })}
           />
         ) : null}
       </ScrollView>
@@ -540,7 +630,11 @@ function Loaded({
           {barTotal === null ? null : (
             <View
               accessible
-              accessibilityLabel={`${step === 0 ? t('book.runningTotal') : t('book.totalLabel')}`}
+              // The amount is IN the label. An accessible row is one element,
+              // so a label of "Total" alone hid the price from a screen-reader
+              // user right up to the payment (GK-18).
+              accessibilityLabel={`${barLabel}, ${formatMoney(barTotal)}`}
+              testID="book-bar-total"
               style={{
                 flexDirection: 'row',
                 alignItems: 'baseline',
@@ -549,7 +643,7 @@ function Loaded({
               }}
             >
               <Text size="xs" color="textMuted" numberOfLines={1} style={{ flexShrink: 1 }}>
-                {step === 0 ? t('book.runningTotal') : t('book.totalLabel')}
+                {barLabel}
               </Text>
               <MoneyAmount value={barTotal} strong tone="brand" size="lg" />
             </View>
@@ -559,7 +653,9 @@ function Loaded({
             label={primaryLabel}
             busyLabel={t('book.paying')}
             busy={paying}
-            blockedReason={blockedKey ? t(blockedKey) : null}
+            // `{count}` is read only by the too-long reason; it is MAX_NIGHTS,
+            // the contract's own number (GK-30).
+            blockedReason={blockedKey ? t(blockedKey, { count: MAX_NIGHTS }) : null}
             onPress={() => void onPrimary()}
             testID="book-primary"
           />

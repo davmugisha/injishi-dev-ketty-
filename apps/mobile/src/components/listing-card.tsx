@@ -112,6 +112,10 @@ export function ListingCard({
         {asset ? (
           <Image
             source={asset.source}
+            // A FlashList row is reused for another item; without a key the
+            // reused image shows the PREVIOUS stay's photo until the new one
+            // decodes (gaps.md B8; mobile audit 2026-10-05, XC-09).
+            recyclingKey={stem}
             // The photograph's own average colour, sampled at import: the tile
             // fills with its tone instead of flashing the surface colour.
             placeholder={asset.placeholder}

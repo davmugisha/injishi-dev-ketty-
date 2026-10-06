@@ -15,6 +15,7 @@ import { TwoFactorService } from '../../shared/auth/two-factor.service';
 import { WorkspaceService } from '../../shared/auth/workspace.service';
 import { BookingDecisionsController } from './bookings/booking-decisions.controller';
 import { BookingsController } from './bookings/bookings.controller';
+import { DemoCrashController } from './demo/crash.controller';
 import { DemoPersonasController } from './demo/personas.controller';
 import { EbmOauthController } from './ebm/ebm-oauth.controller';
 import { GeographyController } from './geography/geography.controller';
@@ -209,6 +210,7 @@ import { WaitlistModule } from './waitlist/waitlist.module';
     TwoFactorController,
     // Answers only in a demo process; 404 everywhere else (AC-S10, ADR-043).
     DemoPersonasController,
+    DemoCrashController,
   ],
   // WorkspaceService is the one resolver of "which workspaces does this user
   // hold" (Spec 0004). WorkspaceGuard depends on it; DatabaseModule is @Global

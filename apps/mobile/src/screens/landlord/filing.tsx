@@ -15,10 +15,16 @@
  * never-silent guarantee, on one screen.
  *
  * Two sentences on this page are business rules rather than copy, and both are
- * load-bearing: Injishi files the contract but does not compute or remit the
- * tax, and **a Lease never emits an EBM invoice** (blueprint business rule 4).
- * A landlord who believes either of the opposites has a compliance problem the
- * product caused.
+ * load-bearing: Injishi does not compute or remit the tax, and **a Lease never
+ * emits an EBM invoice** (blueprint business rule 4). A landlord who believes
+ * either of the opposites has a compliance problem the product caused.
+ *
+ * **Nothing files with RRA from Injishi today** (there is no RRA contract
+ * channel; F-R10 O-4), so no line here promises that a lease "files itself
+ * within 15 days". "Download" and "Retry the filing" are gone: one toasted
+ * that the filing adapter was "not wired", the other that a retry was queued
+ * when nothing was (mobile audit 2026-10-05, LL-15 and XC-16). Whether this
+ * screen stays in the release at all is the owner's call (X7).
  */
 import { View, ScrollView } from 'react-native';
 import { useRouter } from 'expo-router';
@@ -29,13 +35,13 @@ import {
   Button,
   Card,
   EmptyState,
+  ErrorState,
   Icon,
   SectionLabel,
   StatusBadge,
   Text,
   Timeline,
   type TimelineEntry,
-  useToast,
 } from '@/components';
 import { useTheme } from '@/theme/theme';
 import { useT } from '@/i18n/i18n';
@@ -46,7 +52,6 @@ export function LandlordFiling({ leaseId }: { leaseId: string }) {
   const insets = useSafeAreaInsets();
   const router = useRouter();
   const t = useT();
-  const toast = useToast();
 
   const read = useLandlordRead(LEASES_KEY, seedLeases);
   const lease = findLease(read.data ?? [], leaseId);
@@ -64,6 +69,23 @@ export function LandlordFiling({ leaseId }: { leaseId: string }) {
           >
             {t('state.loading')}
           </Text>
+        </View>
+      </View>
+    );
+  }
+
+  // A failed read is not a missing lease (mobile audit 2026-10-05, LL-21).
+  if (read.status === 'error') {
+    return (
+      <View style={{ flex: 1, backgroundColor: c.bgApp }}>
+        <BackHeader />
+        <View style={{ flex: 1, justifyContent: 'center', paddingHorizontal: space[4] }}>
+          <ErrorState
+            title={t('state.errorTitle')}
+            body={t('state.errorBody', { label: t('landlord.leaseLabel') })}
+            detail={read.error?.message}
+            onRetry={read.retry}
+          />
         </View>
       </View>
     );
@@ -178,8 +200,9 @@ export function LandlordFiling({ leaseId }: { leaseId: string }) {
             </View>
           </Card>
         ) : failed ? (
-          /* FL27 §6: never silently dropped. The failure, the retry and the
-             fallback copy, all on the screen at once. */
+          /* FL27 §6: never silently dropped. The failure is on the screen; a
+             retry and the fallback copy return when there is a filing service
+             to retry and a copy to give (see the header). */
           <View
             style={{
               gap: 11,
@@ -199,14 +222,6 @@ export function LandlordFiling({ leaseId }: { leaseId: string }) {
             <Text size="sm" color={c.danger600} style={{ lineHeight: 19 }}>
               {t('landlord.filing.failedBody')}
             </Text>
-            <Button
-              variant="outline"
-              size="sm"
-              leadingIcon="refreshCw"
-              onPress={() => toast.show(t('landlord.filing.retried'), 'warning')}
-            >
-              {t('landlord.filing.retry')}
-            </Button>
           </View>
         ) : (
           <Card variant="tint">
@@ -236,16 +251,6 @@ export function LandlordFiling({ leaseId }: { leaseId: string }) {
         <Card>
           <Timeline entries={entries} />
         </Card>
-
-        <Button
-          variant="outline"
-          size="lg"
-          block
-          leadingIcon="download"
-          onPress={() => toast.show(t('landlord.filing.downloadMock'), 'neutral')}
-        >
-          {t('landlord.filing.download')}
-        </Button>
 
         <Text size="xs" color="textSubtle" style={{ lineHeight: 17 }}>
           {t('landlord.filing.note')}

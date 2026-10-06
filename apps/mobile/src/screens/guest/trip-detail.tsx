@@ -22,6 +22,17 @@
  * **The screen never reads `trip.arrival`.** It calls `arrivalGuideFor`, which
  * returns `undefined` until the stay is open (F-B18). That is the difference
  * between a gate and a hidden field.
+ *
+ * ## Mobile audit 2026-10-05
+ *
+ *   - **No review link** (GK-11): reviews are hidden in v1 and the route is
+ *     closed, so the link bounced the guest home.
+ *   - **No reply-time promise under the host** (GK-26): "Usually answers within
+ *     an hour" was the same sentence on every trip, from no data.
+ *   - **The price lines say what they are** (GK-15): the accommodation total
+ *     was labelled "Nightly rate", the guest service fee "Service and taxes",
+ *     and a non-refundable discount was left out, so the lines did not add up
+ *     to "Total paid". They now read from `trip.breakdown`, line for line.
  */
 import { View, ScrollView } from 'react-native';
 import { useRouter } from 'expo-router';
@@ -38,7 +49,6 @@ import {
   ImageHeader,
   ListRow,
   MoneyBreakdown,
-  PressableScale,
   SectionLabel,
   SkeletonList,
   StatusBadge,
@@ -46,9 +56,8 @@ import {
   useToast,
 } from '@/components';
 import { useTheme } from '@/theme/theme';
-import { useT, type Translate } from '@/i18n/i18n';
-import { arrivalGuideFor, checkInGate, reviewWindowOpen, useTrip, type Trip } from '@/data/trips';
-import { useTripReviews } from '@/data/trip-reviews';
+import { useT } from '@/i18n/i18n';
+import { arrivalGuideFor, checkInGate, useTrip } from '@/data/trips';
 import { checkInText, checkOutText, gateCopy, tripDateLine } from './trip-format';
 import { openDirections } from './trip-platform';
 import { useNow } from './trip-clock';
@@ -60,18 +69,17 @@ export function TripDetail({ id }: { id: string | undefined }) {
   const router = useRouter();
   const toast = useToast();
 
-  const { trip, status, error, retry } = useTrip(id);
-  const { reviewFor } = useTripReviews();
+  const { trip, status, retry } = useTrip(id);
   const now = useNow();
 
   if (status === 'loading') return <Loading />;
   if (status === 'error') {
     return (
       <Shell>
+        {/* No raw server text as the detail (GB-27). */}
         <ErrorState
           title={t('state.errorTitle')}
           body={t('state.errorBody', { label: t('trips.listLabel') })}
-          detail={error?.message}
           onRetry={retry}
         />
       </Shell>
@@ -155,16 +163,26 @@ export function TripDetail({ id }: { id: string | undefined }) {
           <SectionLabel>{t('trip.price')}</SectionLabel>
           <Card>
             <View style={{ gap: space[3] }}>
+              {/* The booking's own lines, in the booking stepper's words, so
+                  they add up to the total on every booking (GK-15). */}
               <MoneyBreakdown
                 items={[
                   {
-                    label: t('trip.nightlyRate'),
+                    label: t('book.accommodation'),
                     sub: tripDateLine(trip, t),
                     value: trip.breakdown.accommodationRwf,
                   },
-                  { label: t('trip.serviceAndTaxes'), value: trip.fees, muted: true },
+                  ...(trip.breakdown.nonRefundableDiscountRwf > 0
+                    ? [
+                        {
+                          label: t('book.discount'),
+                          value: -trip.breakdown.nonRefundableDiscountRwf,
+                        },
+                      ]
+                    : []),
+                  { label: t('book.fee'), value: trip.breakdown.serviceFeeRwf, muted: true },
                 ]}
-                total={{ label: t('trip.totalPaid'), value: trip.total }}
+                total={{ label: t('trip.totalPaid'), value: trip.breakdown.grossRwf }}
               />
               {/* The adapter mode is rendered inline wherever money is, per the
                   canvas rule (§4.3): the guest is told the payment was mocked
@@ -182,9 +200,11 @@ export function TripDetail({ id }: { id: string | undefined }) {
 
           <SectionLabel>{t('trip.host')}</SectionLabel>
           <Card variant="flat" bodyStyle={{ paddingVertical: 6 }}>
+            {/* No reply-time line under an open thread: nothing measures it
+                (GK-26). An ended booking still says its thread is read-only. */}
             <ListRow
               title={trip.host.name}
-              subtitle={archived ? t('trip.threadArchived') : t('trip.threadActive')}
+              subtitle={archived ? t('trip.threadArchived') : undefined}
               avatar={trip.host.initials}
               accessibilityLabel={t('trip.messageHost', { host: trip.host.name })}
               accessibilityHint={t('trip.messageHostHint')}
@@ -271,13 +291,6 @@ export function TripDetail({ id }: { id: string | undefined }) {
                   {t(copy.ctaKey)}
                 </Button>
               ) : null}
-
-              {/* The link appears only where the sheet would actually open:
-                  inside F-B14's 14-day window and with no review already in.
-                  A row that led to a refusal is the orphaned control again. */}
-              {reviewWindowOpen(trip, now) && !reviewFor(trip.id) ? (
-                <ReviewLink trip={trip} t={t} />
-              ) : null}
             </View>
           </Card>
         </View>
@@ -306,38 +319,6 @@ export function TripDetail({ id }: { id: string | undefined }) {
       </View>
     );
   }
-}
-
-/** The way into the review sheet from the detail screen, once a stay is over. */
-function ReviewLink({ trip, t }: { trip: Trip; t: Translate }) {
-  const { c, space, radius } = useTheme();
-  const router = useRouter();
-
-  return (
-    <PressableScale
-      accessibilityLabel={t('trips.leaveReview')}
-      accessibilityHint={t('trips.reviewPrompt', { property: trip.property })}
-      haptic
-      onPress={() => router.push({ pathname: '/trip/[id]/review', params: { id: trip.id } })}
-      style={{
-        flexDirection: 'row',
-        alignItems: 'center',
-        gap: space[2],
-        minHeight: 44,
-        paddingHorizontal: space[3],
-        borderRadius: radius.md,
-        backgroundColor: c.surface1,
-        borderWidth: 1,
-        borderColor: c.borderDefault,
-      }}
-    >
-      <Icon name="star" size={16} color={c.brand700} />
-      <Text weight="semibold" size="sm" color="textStrong" style={{ flex: 1 }}>
-        {t('trips.leaveReview')}
-      </Text>
-      <Icon name="chevronRight" size={17} color={c.textSubtle} />
-    </PressableScale>
-  );
 }
 
 function Row({

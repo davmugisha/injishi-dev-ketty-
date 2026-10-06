@@ -1,0 +1,32 @@
+# Switches seat from Account, the one tab every seat has, then opens the new
+# surface's first tab and saves a screenshot of it (ADR-062).
+#
+#   SEAT  the switcher row to tap: its accessibility label ("Kayitare Court,
+#         owner"), or "As Guest" / "As Tenant" for the Personal seat. A bare
+#         name is not enough: "Broker" also matches the BROKER heading.
+#   HOME  the first tab of the surface that seat opens ("Rent roll").
+#   SHOT  the screenshot's name, after the theme ("2-landlord").
+#
+# The switch is proved by the new tab bar, which stays, not by the "Switched
+# to" toast, which is gone in seconds.
+appId: rw.injishi.mobile
+---
+- tapOn: "Profile"
+- tapOn: "Switch workspace"
+- extendedWaitUntil:
+    visible: "One account · the tab bar follows your role."
+    timeout: 10000
+- scrollUntilVisible:
+    element: ${SEAT}
+    direction: DOWN
+    timeout: 10000
+- tapOn: ${SEAT}
+# Longer than the app's own 15 second request limit plus a redraw on the low end
+# emulator. A refused switch still fails here: the app stays on the old seat.
+- extendedWaitUntil:
+    visible: ${HOME}
+    timeout: 45000
+- tapOn: ${HOME}
+- waitForAnimationToEnd:
+    timeout: 5000
+- takeScreenshot: ${THEME}-${SHOT}

@@ -6,26 +6,25 @@
  * wrong. Every assertion below is a way that could go wrong for a guest holding
  * a correct number.
  */
+import { MAX_NIGHTS } from '@injishi/contracts';
 import { en } from '@/i18n/messages';
 import type { MessageKey, Translate } from '@/i18n/i18n';
 import {
+  addIsoDays,
   blockedOnDates,
   blockedOnPay,
   blockedOnSummary,
-  checkCardNumber,
-  checkCvv,
-  checkExpiry,
   checkHandset,
   confirmationFor,
-  groupCard,
-  groupExpiry,
   groupHandset,
   initialsOf,
-  luhn,
+  kigaliToday,
+  lastPickableDay,
   mintReference,
   nationalDigits,
   networkFor,
   nightsIn,
+  PAY_METHODS,
   payMethod,
   quote,
   uuidV4,
@@ -96,9 +95,6 @@ describe('checkHandset', () => {
     expect(note.text).toBe('MTN MoMo numbers start 78 or 79.');
   });
 
-  it('holds its peace on the card method, which takes no handset', () => {
-    expect(checkHandset('anything', 'card', t).tone).toBe('none');
-  });
 });
 
 describe('networkFor', () => {
@@ -120,71 +116,6 @@ describe('groupHandset', () => {
   });
 });
 
-/* ---------------------------------------------------------------- the card */
-
-describe('luhn', () => {
-  it('passes the test numbers and fails a transposed pair', () => {
-    expect(luhn('4242424242424242')).toBe(true);
-    expect(luhn('5555555555554444')).toBe(true);
-    expect(luhn('378282246310005')).toBe(true);
-    // One digit moved: the single typo Luhn exists to catch.
-    expect(luhn('4242424242424252')).toBe(false);
-  });
-
-  it('refuses an empty string rather than dividing zero by ten', () => {
-    expect(luhn('')).toBe(false);
-  });
-});
-
-describe('checkCardNumber', () => {
-  it('is silent on an empty field, complains about length, then about the checksum', () => {
-    expect(checkCardNumber('', t).tone).toBe('none');
-    expect(checkCardNumber('4242 4242', t).text).toBe('A card number is 13 to 19 digits.');
-    expect(checkCardNumber('4242 4242 4242 4252', t).text).toBe(
-      'Check the card number, a digit is off.',
-    );
-    expect(checkCardNumber('4242 4242 4242 4242', t).ok).toBe(true);
-  });
-});
-
-describe('checkExpiry', () => {
-  const now = new Date(2026, 8, 6); // September 2026
-
-  it('takes the current month and refuses the one before it', () => {
-    // A card expires at the END of its month, so this month is still good.
-    expect(checkExpiry('09 / 26', t, now).ok).toBe(true);
-    expect(checkExpiry('08 / 26', t, now).text).toBe('That card has expired.');
-  });
-
-  it('refuses a month that does not exist', () => {
-    expect(checkExpiry('13 / 28', t, now).text).toBe('Use MM / YY, like 09 / 28.');
-    expect(checkExpiry('00 / 28', t, now).text).toBe('Use MM / YY, like 09 / 28.');
-  });
-
-  it('asks for four digits before judging them', () => {
-    expect(checkExpiry('9', t, now).text).toBe('Use MM / YY, like 09 / 28.');
-    expect(checkExpiry('', t, now).tone).toBe('none');
-  });
-});
-
-describe('checkCvv', () => {
-  it('takes three or four digits', () => {
-    expect(checkCvv('123', t).ok).toBe(true);
-    expect(checkCvv('1234', t).ok).toBe(true);
-    expect(checkCvv('12', t).text).toBe(
-      'The security code is 3 digits, or 4 on American Express.',
-    );
-  });
-});
-
-describe('groupCard and groupExpiry', () => {
-  it('groups a card in fours and an expiry as MM / YY', () => {
-    expect(groupCard('4242424242424242')).toBe('4242 4242 4242 4242');
-    expect(groupExpiry('09')).toBe('09');
-    expect(groupExpiry('0928')).toBe('09 / 28');
-  });
-});
-
 /* --------------------------------------------------------------- the gates */
 
 const BASE: StepInput = {
@@ -195,9 +126,6 @@ const BASE: StepInput = {
   acceptedRules: false,
   method: 'momo',
   handset: '',
-  cardNumber: '',
-  cardExpiry: '',
-  cardCvv: '',
 };
 
 describe('blockedOnDates', () => {
@@ -225,6 +153,42 @@ describe('blockedOnDates', () => {
       'book.blockedParty',
     );
   });
+
+  it('refuses a stay longer than the contract allows, before any payment (GK-30)', () => {
+    const start = '2026-11-01';
+    const atCap = { start, end: addIsoDays(start, MAX_NIGHTS) };
+    const overCap = { start, end: addIsoDays(start, MAX_NIGHTS + 1) };
+    expect(blockedOnDates({ ...BASE, dates: atCap })).toBeNull();
+    expect(blockedOnDates({ ...BASE, dates: overCap })).toBe('book.blockedTooLong');
+    // The sentence names the contract's own number.
+    expect(t('book.blockedTooLong', { count: MAX_NIGHTS })).toContain(String(MAX_NIGHTS));
+  });
+});
+
+/* ------------------------------------------------------- the calendar's edges */
+
+describe('kigaliToday', () => {
+  it('is the day in Kigali (UTC+2), not the phone’s', () => {
+    // 23:30 UTC on 4 October is 01:30 on 5 October in Kigali.
+    expect(kigaliToday(new Date(Date.UTC(2026, 9, 4, 23, 30)))).toBe('2026-10-05');
+    // 21:59 UTC is still the 4th there.
+    expect(kigaliToday(new Date(Date.UTC(2026, 9, 4, 21, 59)))).toBe('2026-10-04');
+  });
+});
+
+describe('addIsoDays and lastPickableDay', () => {
+  it('rolls over a month and a year', () => {
+    expect(addIsoDays('2026-12-30', 3)).toBe('2027-01-02');
+  });
+
+  it('stops a check-out at MAX_NIGHTS after the check-in, and only while one is being picked', () => {
+    expect(lastPickableDay({ start: '2026-11-01', end: null })).toBe(
+      addIsoDays('2026-11-01', MAX_NIGHTS),
+    );
+    // Nothing picked, or a full range the next tap restarts: no bound here.
+    expect(lastPickableDay({ start: null, end: null })).toBeUndefined();
+    expect(lastPickableDay({ start: '2026-11-01', end: '2026-11-04' })).toBeUndefined();
+  });
 });
 
 describe('blockedOnSummary', () => {
@@ -235,33 +199,14 @@ describe('blockedOnSummary', () => {
 });
 
 describe('blockedOnPay', () => {
-  const now = new Date(2026, 8, 6);
-
   it('wants a handset on the number-based methods', () => {
-    expect(blockedOnPay(BASE, now)).toBe('book.blockedHandset');
-    expect(blockedOnPay({ ...BASE, handset: '0788431209' }, now)).toBeNull();
+    expect(blockedOnPay(BASE)).toBe('book.blockedHandset');
+    expect(blockedOnPay({ ...BASE, handset: '0788431209' })).toBeNull();
   });
 
   it('refuses a number on the wrong network, not just a malformed one', () => {
-    expect(blockedOnPay({ ...BASE, handset: '0730000000' }, now)).toBe('book.blockedHandset');
-    expect(blockedOnPay({ ...BASE, method: 'airtel', handset: '0730000000' }, now)).toBeNull();
-  });
-
-  it('wants all three card fields, each of them valid', () => {
-    const card: StepInput = { ...BASE, method: 'card' };
-    expect(blockedOnPay(card, now)).toBe('book.blockedCard');
-    expect(
-      blockedOnPay(
-        { ...card, cardNumber: '4242424242424242', cardExpiry: '0928', cardCvv: '123' },
-        now,
-      ),
-    ).toBeNull();
-    expect(
-      blockedOnPay(
-        { ...card, cardNumber: '4242424242424242', cardExpiry: '0825', cardCvv: '123' },
-        now,
-      ),
-    ).toBe('book.blockedCard');
+    expect(blockedOnPay({ ...BASE, handset: '0730000000' })).toBe('book.blockedHandset');
+    expect(blockedOnPay({ ...BASE, method: 'airtel', handset: '0730000000' })).toBeNull();
   });
 });
 
@@ -366,9 +311,24 @@ describe('initialsOf and confirmationFor', () => {
 });
 
 describe('payMethod', () => {
-  it('orders MoMo, then Airtel, then card, and card takes no handset', () => {
+  it('orders MoMo, then Airtel', () => {
     expect(payMethod('momo').prefixes).toEqual(['78', '79']);
     expect(payMethod('airtel').prefixes).toEqual(['72', '73']);
-    expect(payMethod('card').prefixes).toBeNull();
+  });
+
+  it('offers the two mobile money rails until a payment gateway brings card', () => {
+    // Today's list, not a rule: card returns with the gateway (scope/mobile
+    // feature 30), as a hand off to the gateway's own secure page.
+    expect(PAY_METHODS.map((m) => m.id)).toEqual(['momo', 'airtel']);
+  });
+
+  it('never asks for a card number, expiry or security code', () => {
+    // The rule, by the owner's decision of 2026-10-01: card details are typed
+    // into the gateway's page, never into the app, so the app never holds them
+    // and stays out of card security (PCI) scope.
+    const cardDetailKeys = Object.keys(en).filter((key) =>
+      /^book\.(card(Number|Expiry|Cvv|Short|Checksum)|cvv|expiry|blockedCard)/.test(key),
+    );
+    expect(cardDetailKeys).toEqual([]);
   });
 });

@@ -18,7 +18,7 @@
  * org from `useDomain().workspace.name`.
  */
 import { View } from 'react-native';
-import { BackHeader, Badge, Button, Card, Screen, StatRow, Text, useToast } from '@/components';
+import { BackHeader, Button, Card, Screen, StatRow, Text, useToast } from '@/components';
 import { useTheme } from '@/theme/theme';
 import { useDomain } from '@/domain';
 import { useT } from '@/i18n/i18n';
@@ -36,15 +36,11 @@ export function OrganisationScreen() {
     <>
       <BackHeader />
       <Screen title={t('org.title')} greeting={workspace.name}>
-        <Card
-          title={t('org.identityTitle')}
-          subtitle={t('org.identityBody')}
-          action={
-            <Badge tone="success" dot>
-              {t('account.badgeTinVerified')}
-            </Badge>
-          }
-        >
+        {/* No "TIN verified" badge: it was drawn over a fixture TIN with
+            nothing checked behind it (mobile audit 2026-10-05, SA-02, SA-03).
+            The real claim is the org's `registrationStatus`, which the read
+            that replaces this fixture will carry. */}
+        <Card title={t('org.identityTitle')} subtitle={t('org.identityBody')}>
           <View>
             <StatRow label={t('org.legalName')} value={org.legalName} divider />
             <StatRow label={t('org.tradingName')} value={workspace.name} divider />

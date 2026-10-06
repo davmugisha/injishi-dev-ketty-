@@ -217,7 +217,20 @@ export function fileTicketHandler(input: FileTicketInput): WriteOutcome {
   return { status: 'ok' };
 }
 
-/** The tickets filed against one lease, newest first. Frame R15's row count. */
+/** The tickets filed against one lease, newest first. */
 export function ticketsForLease(all: readonly Ticket[], leaseId: string): Ticket[] {
   return all.filter((t) => t.leaseId === leaseId);
+}
+
+/**
+ * The tickets on one lease that are still open: frame R15's row count, and the
+ * "Open tickets on this lease" list on the report screen.
+ *
+ * One definition for both, because they used to be two. Lease detail dropped
+ * resolved tickets and the report screen did not, so a leak fixed last month
+ * was listed as open under the form that reports a new one (mobile audit
+ * 2026-10-05, TN-19).
+ */
+export function openTicketsForLease(all: readonly Ticket[], leaseId: string): Ticket[] {
+  return ticketsForLease(all, leaseId).filter((t) => t.state !== 'resolved');
 }

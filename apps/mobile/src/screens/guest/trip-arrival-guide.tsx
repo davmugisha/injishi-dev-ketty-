@@ -18,6 +18,10 @@
  * rule from the design brief: a control that does something has a button. The
  * code is also large and monospaced, because the other half of using it is
  * reading it off the screen while typing it into a keypad.
+ *
+ * **A failed read says so, with a retry.** It used to fall through to "Trip
+ * not found", which sends a guest standing at a gate to look for a booking
+ * that is in fact there (mobile audit 2026-10-05, GK-17).
  */
 import { View, ScrollView } from 'react-native';
 import { useRouter } from 'expo-router';
@@ -27,6 +31,7 @@ import {
   Button,
   Card,
   EmptyState,
+  ErrorState,
   Icon,
   PressableScale,
   SectionLabel,
@@ -50,7 +55,7 @@ export function TripArrivalGuide({ id }: { id: string | undefined }) {
   const router = useRouter();
   const toast = useToast();
 
-  const { trip, status } = useTrip(id);
+  const { trip, status, retry } = useTrip(id);
   const now = useNow();
   const guide = trip ? arrivalGuideFor(trip, now) : undefined;
   const detail = trip ? getStayDetail(trip.stayId) : undefined;
@@ -64,6 +69,16 @@ export function TripArrivalGuide({ id }: { id: string | undefined }) {
   const body = () => {
     if (status === 'loading') {
       return <SkeletonList rows={3} label={t('state.loadingList', { label: t('trip.arrival') })} />;
+    }
+    if (status === 'error') {
+      // A read that failed, not a trip that is missing (GK-17).
+      return (
+        <ErrorState
+          title={t('state.errorTitle')}
+          body={t('state.errorBody', { label: t('trip.arrival') })}
+          onRetry={retry}
+        />
+      );
     }
     if (!trip) {
       return (

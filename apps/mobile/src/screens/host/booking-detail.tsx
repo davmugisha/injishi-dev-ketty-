@@ -131,14 +131,37 @@ function Loaded({ booking }: { booking: HostBooking }) {
       return;
     }
     const before = booking;
-    if (kind === 'approve') await actions.approve(booking.id);
-    else await actions.decline(booking.id, note);
+    const outcome =
+      kind === 'approve'
+        ? await actions.approve(booking.id)
+        : await actions.decline(booking.id, note);
+
+    // The same branches Today takes, for the same reason: the undo bar is a
+    // claim that the decision landed (mobile audit 2026-10-05, HO-06).
+    if (outcome === 'offline') {
+      toast.show(t('host.needsConnectionDecision'), 'warning');
+      return;
+    }
+    if (outcome === 'error') {
+      toast.show(
+        t(kind === 'approve' ? 'host.approveFailed' : 'host.declineFailed', {
+          guest: booking.guest.name,
+        }),
+        'danger',
+      );
+      return;
+    }
+    if (outcome !== 'done') return;
+
     setUndo({
       text:
         kind === 'approve'
           ? t('host.approvedToast', { guest: booking.guest.name })
           : t('host.declinedToast', { guest: booking.guest.name }),
-      onUndo: () => void actions.restore(before),
+      onUndo: () =>
+        void actions.restore(before).then((undone) => {
+          if (undone === 'error') toast.show(t('host.undoFailed'), 'danger');
+        }),
     });
   };
 
@@ -267,9 +290,14 @@ function Loaded({ booking }: { booking: HostBooking }) {
                 }
                 strong={booking.balanceRwf > 0}
               />
+              {/* A stay closed on this phone has no invoice, and says so rather
+                  than "Issued at checkout", which reads as done (HO-04). */}
               <FactRow
                 label={t('host.invoice')}
-                value={booking.invoice ?? t('host.invoiceAtCheckout')}
+                value={
+                  booking.invoice ??
+                  t(booking.checkedOutAt !== null ? 'host.invoiceNotIssued' : 'host.invoiceAtCheckout')
+                }
               />
 
               <View style={{ flexDirection: 'row', alignItems: 'flex-start', gap: 9 }}>
@@ -309,14 +337,20 @@ function Loaded({ booking }: { booking: HostBooking }) {
                 {/* The two document types are Session 5's keys, not this
                     surface's: a national ID is a national ID at the desk too,
                     and a second spelling would be a second vocabulary. */}
-                <FactRow
-                  label={t(
-                    capture.documentType === 'passport'
-                      ? 'checkin.docPassport'
-                      : 'checkin.docNationalId',
-                  )}
-                  value={capture.documentNumber}
-                />
+                {/* The last four characters only. The server masks an ID
+                    number in everything it sends a browser, and a phone left
+                    on a front desk is read by whoever stands at it (mobile
+                    audit 2026-10-05, HO-17). */}
+                {lastFour(capture.documentNumber) ? (
+                  <FactRow
+                    label={t(
+                      capture.documentType === 'passport'
+                        ? 'checkin.docPassport'
+                        : 'checkin.docNationalId',
+                    )}
+                    value={t('host.documentEnding', { digits: lastFour(capture.documentNumber) })}
+                  />
+                ) : null}
                 <Text size="xs" color="textMuted" style={{ lineHeight: 18 }}>
                   {t('host.checkInVerified')}
                 </Text>
@@ -338,6 +372,7 @@ function Loaded({ booking }: { booking: HostBooking }) {
         booking={booking}
         state={state}
         saving={actions.saving}
+        offline={actions.offline}
         onApprove={() => void decide('approve')}
         onDecline={() => setDeclining(true)}
         onCheckIn={() =>
@@ -377,11 +412,17 @@ function Loaded({ booking }: { booking: HostBooking }) {
  * A booking with nothing to decide gets no bar at all rather than a disabled
  * one: a permanently grey button is the orphaned control the quality bar rules
  * out, and there is nothing here a desk could do to make it live.
+ *
+ * Offline is the one disabled state it does draw, because reconnecting makes
+ * it live again, and it carries its reason beside the buttons. Approve,
+ * decline and check out move money and are refused offline; check-in queues
+ * and stays enabled (mobile audit 2026-10-05, HO-10).
  */
 function ActionBar({
   booking,
   state,
   saving,
+  offline,
   onApprove,
   onDecline,
   onCheckIn,
@@ -390,6 +431,7 @@ function ActionBar({
   booking: HostBooking;
   state: ReturnType<typeof rowStateOf>;
   saving: boolean;
+  offline: boolean;
   onApprove: () => void;
   onDecline: () => void;
   onCheckIn: () => void;
@@ -401,14 +443,17 @@ function ActionBar({
   if (state === 'awaiting') {
     return (
       <StickyBar>
-        <View style={{ flex: 1, flexDirection: 'row', alignItems: 'center', gap: space[3] }}>
-          <Button variant="ghost" size="lg" disabled={saving} onPress={onDecline}>
-            {t('host.decline')}
-          </Button>
-          <View style={{ flex: 1 }} />
-          <Button variant="primary" size="lg" disabled={saving} onPress={onApprove}>
-            {t('host.approve')}
-          </Button>
+        <View style={{ flex: 1, gap: offline ? 10 : 0 }}>
+          {offline ? <NeedsConnection text={t('host.needsConnectionDecision')} /> : null}
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: space[3] }}>
+            <Button variant="ghost" size="lg" disabled={saving || offline} onPress={onDecline}>
+              {t('host.decline')}
+            </Button>
+            <View style={{ flex: 1 }} />
+            <Button variant="primary" size="lg" disabled={saving || offline} onPress={onApprove}>
+              {t('host.approve')}
+            </Button>
+          </View>
         </View>
       </StickyBar>
     );
@@ -436,8 +481,9 @@ function ActionBar({
   if (state === 'departing' || state === 'in_house') {
     return (
       <StickyBar>
-        <View style={{ flex: 1 }}>
-          <Button variant="primary" size="lg" block disabled={saving} onPress={onCheckOut}>
+        <View style={{ flex: 1, gap: offline ? 10 : 0 }}>
+          {offline ? <NeedsConnection text={t('host.needsConnectionCheckOut')} /> : null}
+          <Button variant="primary" size="lg" block disabled={saving || offline} onPress={onCheckOut}>
             {t('host.checkOut')}
           </Button>
         </View>
@@ -449,6 +495,38 @@ function ActionBar({
 }
 
 /* ----------------------------------------------------------------- the parts */
+
+/**
+ * Why a money action is disabled, beside it. An `alert`, the same shape the
+ * check-in stepper draws its blocked reason in, because a disabled control
+ * always carries its reason (design brief §7.5).
+ */
+function NeedsConnection({ text }: { text: string }) {
+  const { c } = useTheme();
+  return (
+    <View
+      accessible
+      accessibilityRole="alert"
+      accessibilityLabel={text}
+      style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}
+    >
+      <Icon name="wifiOff" size={15} color={c.warning600} />
+      <Text size="xs" color="textBody" style={{ flex: 1, lineHeight: 18 }}>
+        {text}
+      </Text>
+    </View>
+  );
+}
+
+/**
+ * The last four characters of a document number, which is all the desk is
+ * shown again after the capture (mobile audit HO-17). A number of four or
+ * fewer is not shown at all: its last four would be the whole of it.
+ */
+export function lastFour(documentNumber: string): string {
+  const clean = documentNumber.replace(/\s/g, '');
+  return clean.length > 4 ? clean.slice(-4) : '';
+}
 
 function ExpiryLine({ booking, now }: { booking: HostBooking; now: number }) {
   const { c, space, radius } = useTheme();

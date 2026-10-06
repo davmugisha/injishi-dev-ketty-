@@ -59,6 +59,28 @@ export function nightsLabel(nights: number, t: Translate): string {
   return nights === 1 ? t('calendar.oneNight') : t('calendar.nights', { count: nights });
 }
 
+/** `1 guest` or `2 guests`: billable guests, the count a stay is priced by. */
+export function guestsLabel(guests: number, t: Translate): string {
+  return guests === 1 ? t('search.oneGuest') : t('search.guestCount', { count: guests });
+}
+
+/**
+ * `RWF 145,000 × 2 guests × 3 nights`, the line under an accommodation total.
+ *
+ * The rate is per guest per night (owner decision 2026-09-15) and
+ * `computeBreakdown` multiplies by both, so the line names both. A line that
+ * left the guests out printed half the figure beside it for the default party
+ * of two (mobile audit 2026-10-05, GB-08, GK-14). One function, so the policy
+ * sheet and the two booking steps cannot word it three ways.
+ */
+export function rateLine(rate: number, guests: number, nights: number, t: Translate): string {
+  return t('listing.rateLine', {
+    rate: moneyText(rate),
+    guests: guestsLabel(guests, t),
+    nights: nightsLabel(nights, t),
+  });
+}
+
 /** One sentence a screen reader hears for a whole room card. */
 export function roomSpokenLabel(room: RoomCard, t: Translate): string {
   const rate = room.summary.nightlyRateRwf;

@@ -123,6 +123,7 @@ export function Choice({
   title,
   hint,
   icon,
+  disabled = false,
   onPress,
   testID,
   children,
@@ -131,6 +132,8 @@ export function Choice({
   title: string;
   hint?: string;
   icon?: IconName;
+  /** Read-only, e.g. while a payment prompt is out (GK-13). */
+  disabled?: boolean;
   onPress: () => void;
   testID?: string;
   /** Revealed under the row when it is the selected one. */
@@ -151,7 +154,8 @@ export function Choice({
       <PressableScale
         accessibilityRole="radio"
         accessibilityLabel={hint ? `${title}. ${hint}` : title}
-        accessibilityState={{ selected }}
+        accessibilityState={{ selected, disabled }}
+        disabled={disabled}
         onPress={onPress}
         testID={testID}
         style={{

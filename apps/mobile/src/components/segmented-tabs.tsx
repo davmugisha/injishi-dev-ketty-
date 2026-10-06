@@ -30,7 +30,12 @@ export function SegmentedTabs({
 }) {
   const { c, radius } = useTheme();
   return (
-    <View style={{ flexDirection: 'row', gap: 4, borderBottomWidth: 1, borderBottomColor: c.borderSubtle }}>
+    <View
+      // The group a `tab` belongs to, so a screen reader can say "tab 2 of 3"
+      // rather than announcing loose buttons (mobile audit 2026-10-05, XC-19).
+      accessibilityRole="tablist"
+      style={{ flexDirection: 'row', gap: 4, borderBottomWidth: 1, borderBottomColor: c.borderSubtle }}
+    >
       {items.map((it) => {
         const active = value === it.value;
         return (

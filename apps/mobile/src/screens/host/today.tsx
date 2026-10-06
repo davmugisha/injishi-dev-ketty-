@@ -38,6 +38,7 @@ import {
   ErrorState,
   Icon,
   MoneyAmount,
+  OfflineNote,
   PressableScale,
   Screen,
   SkeletonList,
@@ -84,7 +85,7 @@ const CELL: Record<TodayGroup, 'request' | 'arrival' | 'departure' | 'in_house'>
 
 export function HostToday() {
   const t = useT();
-  const { c, space } = useTheme();
+  const { space } = useTheme();
   const router = useRouter();
   const toast = useToast();
   const { workspace } = useDomain();
@@ -122,8 +123,29 @@ export function HostToday() {
       }
 
       const before = booking;
-      if (kind === 'approve') await actions.approve(booking.id);
-      else await actions.decline(booking.id, note);
+      const outcome =
+        kind === 'approve'
+          ? await actions.approve(booking.id)
+          : await actions.decline(booking.id, note);
+
+      // Branch on how THIS write ended, never on a flag from the render that
+      // pressed the button: the toast and its undo used to follow every tap,
+      // saved or not (mobile audit 2026-10-05, HO-06). `cancelled` changed
+      // nothing and says nothing.
+      if (outcome === 'offline') {
+        toast.show(t('host.needsConnectionDecision'), 'warning');
+        return;
+      }
+      if (outcome === 'error') {
+        toast.show(
+          t(kind === 'approve' ? 'host.approveFailed' : 'host.declineFailed', {
+            guest: booking.guest.name,
+          }),
+          'danger',
+        );
+        return;
+      }
+      if (outcome !== 'done') return;
 
       setUndo({
         text:
@@ -131,8 +153,12 @@ export function HostToday() {
             ? t('host.approvedToast', { guest: booking.guest.name })
             : t('host.declinedToast', { guest: booking.guest.name }),
         onUndo: () => {
-          void actions.restore(before).then(() => {
-            toast.show(t('host.undoneToast', { guest: before.guest.name }), 'neutral');
+          void actions.restore(before).then((undone) => {
+            if (undone === 'done') {
+              toast.show(t('host.undoneToast', { guest: before.guest.name }), 'neutral');
+            } else if (undone === 'error') {
+              toast.show(t('host.undoFailed'), 'danger');
+            }
           });
         },
       });
@@ -169,14 +195,25 @@ export function HostToday() {
     <>
       <Screen title={t('host.today')} greeting={t('host.todayGreeting')}>
         {/* ------------------------------------------------------- the date line */}
+        {/* The date alone. A time-zone id under it ("Africa/Kigali") is a
+            developer's label, not something a desk reads (mobile audit HO-16). */}
         <View style={{ gap: space[2] }}>
           <Text size="sm" color="textMuted">
-            {t('host.timezone', { date: formatDay(today, t) })}
+            {formatDay(today, t)}
           </Text>
           <Text size="sm" color="textSubtle">
             {t('host.desk', { property: workspace.name })}
           </Text>
         </View>
+
+        {/* The shell mounts `OfflineBanner` once in `app/_layout.tsx`, so this
+            screen owes only the sentence that says what offline means HERE:
+            a check-in is kept and sent on, and the three decisions that move
+            money are refused until the connection is back (mobile audit
+            HO-10). Above the rows, because it is the reason their Approve,
+            Decline and Check out are disabled, and only while offline: it
+            used to say "showing the last list" on a working connection. */}
+        {actions.offline ? <OfflineNote label={t('host.offlineNote')} /> : null}
 
         <CountChips
           value={filter}
@@ -227,6 +264,7 @@ export function HostToday() {
                   group,
                   t,
                   saving: actions.saving,
+                  offline: actions.offline,
                   onApprove: () => void decide(booking, 'approve'),
                   onDecline: () => setDeclining(booking),
                   onCheckIn: () =>
@@ -255,16 +293,6 @@ export function HostToday() {
         <WebDeskNote icon="fileText" title={t('host.walkInTitle')} body={t('host.walkInBody')} />
 
         <AdapterNote />
-
-        {/* The shell mounts `OfflineBanner` once in `app/_layout.tsx`, so this
-            screen owes only the sentence that says what the banner means HERE:
-            a decision made without signal is kept, not lost. */}
-        <View style={{ flexDirection: 'row', gap: space[2], alignItems: 'flex-start' }}>
-          <Icon name="wifiOff" size={14} color={c.textSubtle} />
-          <Text size="xs" color="textSubtle" style={{ flex: 1, lineHeight: 17 }}>
-            {t('host.offlineNote')}
-          </Text>
-        </View>
       </Screen>
 
       <UndoBar state={undo} onDismiss={clearUndo} actionLabel={t('host.undo')} />
@@ -298,12 +326,17 @@ export function HostToday() {
  * One primary per row and the escape beside it, which is the canvas's
  * cross-cutting rule for every surface in the pack. A departure is the one row
  * with two, and even there only one of them changes anything.
+ *
+ * `offline` disables the three that move money (approve, decline, check out)
+ * and leaves check-in alone, which is the one write that queues. The reason is
+ * the offline note above the groups (mobile audit 2026-10-05, HO-10).
  */
 function rowActions({
   booking,
   group,
   t,
   saving,
+  offline,
   onApprove,
   onDecline,
   onCheckIn,
@@ -314,6 +347,7 @@ function rowActions({
   group: TodayGroup;
   t: Translate;
   saving: boolean;
+  offline: boolean;
   onApprove: () => void;
   onDecline: () => void;
   onCheckIn: () => void;
@@ -323,10 +357,10 @@ function rowActions({
   if (group === 'awaiting') {
     return (
       <>
-        <Button variant="ghost" size="md" disabled={saving} onPress={onDecline}>
+        <Button variant="ghost" size="md" disabled={saving || offline} onPress={onDecline}>
           {t('host.decline')}
         </Button>
-        <Button variant="primary" size="md" disabled={saving} onPress={onApprove}>
+        <Button variant="primary" size="md" disabled={saving || offline} onPress={onApprove}>
           {t('host.approve')}
         </Button>
       </>
@@ -347,7 +381,7 @@ function rowActions({
         <Button variant="ghost" size="md" onPress={onBill}>
           {t('host.viewBill')}
         </Button>
-        <Button variant="primary" size="md" disabled={saving} onPress={onCheckOut}>
+        <Button variant="primary" size="md" disabled={saving || offline} onPress={onCheckOut}>
           {t('host.checkOut')}
         </Button>
       </>
@@ -371,8 +405,9 @@ function rowActions({
  * The next payout and its dispute buffer, as one row on Today.
  *
  * It is here rather than on Account because it is the one piece of money a host
- * checks daily, and because checkout is what starts its clock — the action that
- * creates it is two rows up this same screen.
+ * checks daily, and because checkout is what starts its clock on the server.
+ * A checkout made on this phone creates no payout here: the rows are the
+ * fixture's, and the phone used to add an invented one (mobile audit HO-04).
  */
 function PayoutRow({
   payouts,
