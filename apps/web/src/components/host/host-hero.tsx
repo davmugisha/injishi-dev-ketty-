@@ -1,3 +1,5 @@
+import Link from "next/link";
+import { Receipt } from "lucide-react";
 import { HostChooser } from "@/components/host/host-chooser";
 import { ArtDirectedImage } from "@/components/shared/art-directed-image";
 
@@ -73,8 +75,32 @@ export function HostHero() {
           {/* The Body role at 16px, capped near the reference's ~40-character
               measure so it stays a lede rather than a column. */}
           <p className="mt-5 max-w-[40ch] text-white/80">
-            Tell us about your place and we will verify it, photograph it, and get it
-            live. Payouts are made in full, and Injishi takes no commission from the host.
+            Register your business, and we verify your place, photograph it and get
+            it live. The rate you set is the rate you are paid: Injishi takes no
+            commission on a booking.
+          </p>
+
+          {/* What it costs, before the choice is made. It was the fee line on
+              `/host/start`, the page between the chooser and the form, which
+              a tile no longer passes through. Here rather than under the
+              tiles: under nine tiles it fell below the fold at 1440x900, and
+              on a phone this is read before the card, which is when it is
+              worth knowing. Both charges and the commission, and no figure:
+              the fee is named on the pay step and nowhere before it
+              (`HOST_CHARGES` in `data/host.ts`). The link drops to the section
+              that says each one in full. */}
+          <p className="mt-4 flex max-w-[40ch] items-start gap-2.5 text-sm text-white/80">
+            <Receipt size={18} strokeWidth={1.5} aria-hidden className="mt-0.5 shrink-0 text-white" />
+            <span>
+              A one time registration fee, then a monthly plan once you are
+              live.{" "}
+              <Link
+                href="#host-charges"
+                className="font-medium text-white underline underline-offset-2"
+              >
+                What it costs
+              </Link>
+            </span>
           </p>
         </div>
 

@@ -3,13 +3,13 @@ import { HostBenefits } from "@/components/host/host-benefits";
 import { HostCta } from "@/components/host/host-cta";
 import { HostFaq } from "@/components/host/host-faq";
 import { HostHero } from "@/components/host/host-hero";
-import { HostProof } from "@/components/host/host-proof";
+import { HostCharges } from "@/components/host/host-charges";
 import { HostSteps } from "@/components/host/host-steps";
 
 export const metadata: Metadata = {
   title: "List your accommodation",
   description:
-    "Tell us about your place and we will verify it, photograph it, and get it live. Payouts are made in full, and Injishi takes no commission from the host.",
+    "Register your business, and we verify your place, photograph it and get it live. A one time registration fee, a monthly plan once you are live, and no commission on a booking.",
 };
 
 /**
@@ -20,8 +20,13 @@ export const metadata: Metadata = {
  * is not the obvious order: the page opens on a chooser rather than a pitch,
  * asking what kind of place you have before it argues that you should list at
  * all. Everything after it answers a question that choice raises — will anyone
- * come, what does it cost me, what actually happens next, who else has done it,
- * and what am I still worried about.
+ * come, what actually happens next, what does it cost me, and what am I still
+ * worried about.
+ *
+ * A tile goes straight into registration (`hostKindHref`). There used to be a
+ * page in between, `/host/start`, and what it said that was worth keeping is
+ * here now: the step overview in `HostSteps`, and the charges beside the
+ * chooser and in full in `HostCharges`.
  *
  * `overflow-x-hidden` because the hero's scrim and the steps' connector rules
  * both run past the content column by design.
@@ -32,7 +37,7 @@ export default function HostPage() {
       <HostHero />
       <HostBenefits />
       <HostSteps />
-      <HostProof />
+      <HostCharges />
       <HostFaq />
       <HostCta />
     </div>
