@@ -11,8 +11,8 @@
     "test": "node --test \"src/**/*.test.mjs\""
   },
   "dependencies": {
-    "@heroui/react": "^3.2.4",
-    "@heroui/styles": "^3.2.4",
+    "@heroui/react": "^3.2.6",
+    "@heroui/styles": "^3.2.6",
     "@injishi/design-tokens": "workspace:*",
     "@injishi/auth": "workspace:*",
     "@injishi/contracts": "workspace:*",

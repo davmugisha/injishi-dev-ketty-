@@ -20,6 +20,7 @@
  * same specificity, so the later one wins and the earlier import would leave
  * every surface on HeroUI's stock blue. */
 @import "@heroui/styles";
+@import "@injishi/ui/pro.css"; /* HeroUI Pro, after HeroUI OSS, as Pro requires */
 @import "@injishi/design-tokens/heroui.css";
 
 /* source(none) turns off automatic detection, so this list is the complete

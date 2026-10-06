@@ -28,7 +28,17 @@ COPY packages/design-tokens/package.json ./packages/design-tokens/
 COPY packages/ui/package.json ./packages/ui/
 COPY packages/ui-contract/package.json ./packages/ui-contract/
 COPY packages/utils/package.json ./packages/utils/
-RUN pnpm install --frozen-lockfile
+# HeroUI Pro (a paid licence) ships a stub on npm; its postinstall downloads
+# the real code with HEROUI_AUTH_TOKEN, the team's CI/CD token (never a
+# personal one). It arrives as a BuildKit secret, so it is never written into
+# a layer; compose passes it from the stack's .env (`secrets: heroui_token`).
+# An empty one stops the build HERE, not at `next build`: Docker's layer cache
+# never sees a secret's value, so an install that ran without it would be
+# reused, Pro-less, by every later build until the lockfile changed.
+RUN --mount=type=secret,id=heroui_token \
+    export HEROUI_AUTH_TOKEN="$(cat /run/secrets/heroui_token 2>/dev/null)"; \
+    [ -n "$HEROUI_AUTH_TOKEN" ] || { echo "HEROUI_AUTH_TOKEN is empty: set it in this stack's .env (DOKPLOY.md, Required secrets with no default)" >&2; exit 1; }; \
+    pnpm install --frozen-lockfile
 
 # ---- build -----------------------------------------------------------------
 FROM base AS build
