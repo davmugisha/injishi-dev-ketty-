@@ -1,6 +1,6 @@
 import type { AccommodationClass } from "@injishi/contracts";
 import { pluralize } from "@injishi/utils";
-import { isPerPerson } from "@/lib/party-price";
+import { isPerPerson } from "@/lib/rate-basis";
 
 /**
  * How to say a property's size so a guest can picture it.
