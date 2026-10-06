@@ -335,14 +335,30 @@ export function Reservations() {
           No reservations in this view. New booking requests land under Pending the moment they arrive.
         </EmptyState>
       ) : (
-        /* The table keeps its designed width and scrolls INSIDE this box on a
-           narrow screen, so the page itself never scrolls sideways; the guest
-           column stays pinned while the rest moves under it. `relative` is
-           what makes the box hold on a phone: it is the containing block of
-           every `sr-only` label in the table, which is absolutely positioned
-           and otherwise hung off the page at the table's far edge, outside
-           the scroll box, so the page grew to 893px on a 390px screen. */
-        <div className="relative overflow-x-auto overscroll-x-contain rounded-card border border-panel-bd bg-card">
+        <>
+          {/* A phone gets cards: the same facts and commands as a row, with the
+              primary button within reach of a thumb. The table from 640px. */}
+          <ul aria-label="Reservations" className="flex flex-col gap-2.5 sm:hidden">
+            {shown.map((r) => (
+              <DeskCard
+                key={r.id}
+                r={r}
+                heldBookings={heldBookings}
+                approving={approve.isPending && approve.variables === r.id}
+                declining={decline.isPending && decline.variables === r.id}
+                onDecide={decide}
+              />
+            ))}
+          </ul>
+          {/* The table keeps its designed width and scrolls INSIDE this box when
+              the screen is narrower than it (a tablet, a split window), so the
+              page itself never scrolls sideways; the guest column stays pinned
+              while the rest moves under it. `relative` is what makes the box
+              hold: it is the containing block of every `sr-only` label in the
+              table, which is absolutely positioned and otherwise hung off the
+              page at the table's far edge, outside the scroll box, so the page
+              grew to 893px on a 390px screen. */}
+          <div className="relative hidden overflow-x-auto overscroll-x-contain rounded-card border border-panel-bd bg-card sm:block">
           <table className="w-full min-w-[56rem] table-fixed border-separate border-spacing-0 text-left">
             <caption className="sr-only">Reservations{filter === "all" ? "" : `, ${chips.find((c) => c.key === filter)?.label}`}</caption>
             <colgroup>
@@ -370,7 +386,6 @@ export function Reservations() {
                 <DeskRowView
                   key={r.id}
                   r={r}
-                  live={live}
                   heldBookings={heldBookings}
                   approving={approve.isPending && approve.variables === r.id}
                   declining={decline.isPending && decline.variables === r.id}
@@ -379,7 +394,8 @@ export function Reservations() {
               ))}
             </tbody>
           </table>
-        </div>
+          </div>
+        </>
       )}
     </div>
   );
@@ -405,25 +421,35 @@ const STICKY_HOVER = "group-hover:shadow-[inset_0_0_0_100vmax_var(--hover)]";
  */
 const NO_STAY = "We can't find an open stay for this booking, so there is no bill to open.";
 
+/** What a row offers, built once for either of its two layouts. */
+interface RowCommands {
+  primary: React.ReactNode;
+  more: MenuAction[];
+  /** The decline and host cancel dialogs, closed until a menu item opens one. */
+  dialogs: React.ReactNode;
+  moreRef: React.RefObject<HTMLButtonElement | null>;
+  recordHref: string;
+}
+
 /**
- * One booking. A component of its own because its actions hold state: the
- * decline dialog's open flag and the host cancel's, each scoped to this row.
+ * One booking's commands: the primary one for its state, the rest for its menu,
+ * and the dialogs two of them open. A hook rather than a component because the
+ * same booking is drawn as a table row on a wide screen and as a card on a
+ * phone, and both must offer exactly the same thing. Each layout holds its own
+ * dialog state, so the decline and the cancel are scoped to the row that
+ * opened them.
  */
-function DeskRowView({
+function useRowCommands({
   r,
-  live,
   heldBookings,
   approving,
   declining,
   onDecide,
-}: {
-  r: DeskRow;
-  live: boolean;
-  heldBookings: ReadonlySet<string>;
-  approving: boolean;
-  declining: boolean;
-  onDecide: (row: DeskRow, action: "approve" | "decline", settled?: () => void) => void;
-}) {
+  primaryClass,
+}: RowProps & {
+  /** The primary button's width: one column width in the table, the rest of the line on a card. */
+  primaryClass: string;
+}): RowCommands {
   const router = useRouter();
   // Every jump stays inside the workspace in the address bar (ADR-018).
   const href = useWorkspaceHref();
@@ -433,7 +459,7 @@ function DeskRowView({
   const [declineOpen, setDeclineOpen] = useState(false);
   // Confirmed bookings only: a pending one already has Decline, which is the
   // same refund. The hook gates on `reservation.approve` and offers nothing
-  // once the guest is in.
+  // once the guest is in. Focus goes back to this row's menu when it closes.
   const hostCancel = useHostCancel(r.bucket === "confirmed" ? r.live : undefined, () => moreRef.current?.focus());
 
   // `reasonFor` returns undefined when the caller MAY act, which is exactly the
@@ -444,7 +470,7 @@ function DeskRowView({
   const recordHref = href(`/reservations/${r.id}`);
   const gridHref = href(r.source === "live" ? withQuery("/calendar", { booking: r.id }) : "/calendar");
   const onGrid = Boolean(r.room) || heldBookings.has(r.id);
-  const PRIMARY = "w-32 justify-center";
+  const PRIMARY = cn("justify-center", primaryClass);
 
   const openRecord: MenuAction = {
     key: "record",
@@ -558,6 +584,41 @@ function DeskRowView({
     );
   }
 
+  const dialogs = (
+    <>
+      {r.bucket === "pending" && (
+        <DeclineDialog
+          open={declineOpen}
+          onOpenChange={setDeclineOpen}
+          guest={r.guest}
+          reference={r.reference}
+          dates={r.dates}
+          pending={declining}
+          onConfirm={() => onDecide(r, "decline", () => setDeclineOpen(false))}
+          onClosed={() => moreRef.current?.focus()}
+        />
+      )}
+      {hostCancel.dialog}
+    </>
+  );
+
+  return { primary, more, dialogs, moreRef, recordHref };
+}
+
+interface RowProps {
+  r: DeskRow;
+  heldBookings: ReadonlySet<string>;
+  approving: boolean;
+  declining: boolean;
+  onDecide: (row: DeskRow, action: "approve" | "decline", settled?: () => void) => void;
+}
+
+/** One booking as a table row: the wide layout. */
+function DeskRowView(props: RowProps) {
+  const { r } = props;
+  // One width for every row's main button, so the column reads as a column.
+  const c = useRowCommands({ ...props, primaryClass: "w-32" });
+
   return (
     <tr data-res-row className="group">
       <th scope="row" className={cn(CELL, STICKY, "pl-4 font-normal", STICKY_HOVER)}>
@@ -565,7 +626,7 @@ function DeskRowView({
             seen (ADR-018, AC-9). This link is what a duty manager copies into
             a handover message. */}
         <Link
-          href={recordHref}
+          href={c.recordHref}
           className="block truncate text-sm font-semibold text-foreground no-underline hover:underline"
         >
           {r.guest}
@@ -588,22 +649,54 @@ function DeskRowView({
         </span>
       </td>
       <td className={cn(CELL, "pr-4 group-hover:bg-hover")}>
-        <RowActions primary={primary} more={more} moreLabel={`More for ${r.guest}`} triggerRef={moreRef} />
-        {r.bucket === "pending" && (
-          <DeclineDialog
-            open={declineOpen}
-            onOpenChange={setDeclineOpen}
-            guest={r.guest}
-            reference={r.reference}
-            dates={r.dates}
-            pending={declining}
-            onConfirm={() => onDecide(r, "decline", () => setDeclineOpen(false))}
-            onClosed={() => moreRef.current?.focus()}
-          />
-        )}
-        {live && hostCancel.dialog}
+        <RowActions primary={c.primary} more={c.more} moreLabel={`More for ${r.guest}`} triggerRef={c.moreRef} />
+        {c.dialogs}
       </td>
     </tr>
+  );
+}
+
+/**
+ * One booking as a card: the phone layout. The same facts and the same
+ * commands as the row, stacked, with the primary button across the card rather
+ * than at the far end of a table the thumb had to scroll sideways to reach.
+ */
+function DeskCard(props: RowProps) {
+  const { r } = props;
+  const c = useRowCommands({ ...props, primaryClass: "flex-1" });
+
+  return (
+    <li data-res-card className="rounded-card border border-panel-bd bg-card px-3.5 py-3">
+      <div className="flex items-start justify-between gap-3">
+        <span className="min-w-0">
+          <Link
+            href={c.recordHref}
+            className="block truncate text-sm font-semibold text-foreground no-underline hover:underline"
+          >
+            {r.guest}
+          </Link>
+          <span className="pms-num block truncate text-2xs text-muted-foreground">{r.sub}</span>
+        </span>
+        <Badge intent={r.badgeIntent}>{r.badgeLabel}</Badge>
+      </div>
+      <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1.5">
+        <span className="pms-num text-sm whitespace-nowrap text-ink2">
+          {r.dates} <span className="text-2xs text-muted-foreground">· {nights(r.nights)}</span>
+        </span>
+        <RoomCell r={r} />
+        {r.total !== null && (
+          <span className="pms-num ml-auto text-sm font-semibold whitespace-nowrap text-foreground">{fmt(r.total)}</span>
+        )}
+      </div>
+      <RowActions
+        primary={c.primary}
+        more={c.more}
+        moreLabel={`More for ${r.guest}`}
+        triggerRef={c.moreRef}
+        className="mt-3"
+      />
+      {c.dialogs}
+    </li>
   );
 }
 

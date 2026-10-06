@@ -62,6 +62,7 @@ export function RowActions({
   more,
   moreLabel,
   triggerRef,
+  className,
 }: {
   /** The row's one command, already a button. */
   primary: ReactNode;
@@ -70,11 +71,12 @@ export function RowActions({
   /** The trigger's accessible name: "More for Josiane Mukamana". */
   moreLabel: string;
   triggerRef?: React.Ref<HTMLButtonElement>;
+  className?: string;
 }) {
   const safe = more.filter((a) => !a.danger);
   const danger = more.filter((a) => a.danger);
   return (
-    <span className="flex items-center justify-end gap-2">
+    <span className={cn("flex items-center justify-end gap-2", className)}>
       {primary}
       {more.length === 0 ? (
         /* Holds the menu's width so this row's primary button lines up with
