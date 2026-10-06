@@ -292,7 +292,10 @@ export function Today() {
    */
   const occupiedTonight = byGroup("inhouse").length + arriving.length;
   const totalRooms = live ? (rooms.data?.rooms.length ?? null) : P.rooms.length;
-  const owed = mayReadBills ? owing.reduce((sum, r) => sum + (r.balance ?? 0), 0) : null;
+  // Only once the bills have answered: before that every balance is unknown,
+  // and a sum of unknowns would print "RWF 0 owed" for a moment.
+  const owed =
+    mayReadBills && (!live || folios.isSuccess) ? owing.reduce((sum, r) => sum + (r.balance ?? 0), 0) : null;
   const showFigures = can("money.view") && !loading && !failed;
 
   /** Approve or decline, from whichever source this row came. */
@@ -406,11 +409,11 @@ export function Today() {
 
       {/* The tiles, and beside them on a wide screen the owner's two figures.
           On a narrower one the figures drop to a line under the tiles: the
-          same grid, the fifth cell spanning it. 1400px (written 87.5rem, in
-          the breakpoints' own unit, or Tailwind cannot order it after `md:`
-          and the narrow layout wins) rather than the 1280
-          the board turns at, because beside the figures a tile at 1280 is
-          too narrow for its own label. */}
+          same grid, its fifth cell spanning it. The turn is at 1400px rather
+          than the board's 1280, because beside the figures a tile at 1280 is
+          too narrow for its own label. It is written 87.5rem, in the unit
+          the theme's breakpoints use: in px, Tailwind cannot order it after
+          `md:` and the narrow layout wins on every width. */}
       <div className="grid grid-cols-2 gap-2.5 md:grid-cols-4 min-[87.5rem]:grid-cols-[repeat(4,minmax(0,1fr))_auto]">
         <div role="group" aria-label="Filter today's guests" className="contents">
           {GROUPS.map((g) => (
@@ -431,7 +434,6 @@ export function Today() {
 
         {showFigures && (
           <dl
-            aria-label="Tonight's figures"
             className="col-span-2 flex flex-wrap items-center gap-x-6 gap-y-1 text-sm text-ink2 md:col-span-4 min-[87.5rem]:col-span-1 min-[87.5rem]:flex-col min-[87.5rem]:flex-nowrap min-[87.5rem]:items-start min-[87.5rem]:justify-center min-[87.5rem]:border-l min-[87.5rem]:border-line min-[87.5rem]:pl-4"
           >
             <div className="flex items-center gap-1.5 whitespace-nowrap">

@@ -119,8 +119,8 @@ export function TodayRow({
   onBill: () => void;
 }) {
   /* The primary action takes the rest of the line on a card and its own width
-     once the row has room; `min-w-26` keeps the main button one size down a
-     column of rows so the eye finds it in the same place. */
+     once the row has room; `min-w-26` gives every row's main button the same
+     floor, so down a column of rows the eye finds it in the same place. */
   const primary = "min-w-26 flex-1 @md:flex-none";
 
   return (
