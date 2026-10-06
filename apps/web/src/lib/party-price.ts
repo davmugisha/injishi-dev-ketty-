@@ -1,6 +1,7 @@
 import { computeBreakdown } from "@injishi/contracts";
 import { nightsBetween, pluralize } from "@injishi/utils";
 import { formatRateNumber } from "@/lib/price";
+import { isPerPerson } from "@/lib/rate-basis";
 import { billableGuests, fromParamDate, type StayIntent } from "@/lib/search-params";
 
 /**
@@ -19,10 +20,6 @@ import { billableGuests, fromParamDate, type StayIntent } from "@/lib/search-par
  * A rate quoted per room or per apartment (sample listings only; none of
  * them is bookable) is not multiplied by guests; it gets the nights alone.
  */
-
-export function isPerPerson(basis: string): boolean {
-  return /person|guest/i.test(basis);
-}
 
 export type PartyPrice = {
   /** "2 guests · 3 nights", "2 guests", "3 nights". */
