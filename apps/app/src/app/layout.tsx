@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { THEME_BOOT } from "@/pms/lib/theme";
 import { Providers } from "./providers";
 // Tailwind v4 + the shadcn theme bridge; it imports pms-tokens.css, which stays
-// the single source of colour. Fonts (Figtree/Spectral) are self-hosted via the
+// the single source of colour. Fonts (Figtree, the one family) are self-hosted via the
 // linked stylesheet below.
 import "./globals.css";
 

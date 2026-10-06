@@ -22,7 +22,14 @@ import { SectionHeading } from "@/components/shared/section-heading";
  * steps.
  *
  * Two audiences, as in the reference's close: the primary pill for a host who
- * is ready to start, and a quiet link for one who already has an account. The
+ * is ready to start, and a quiet link for one who already has an account.
+ *
+ * The pill goes straight to `/register` (it went to `/host/start`, the page in
+ * between, which is a redirect now). With no kind in the query the wizard
+ * opens on its own kind question, which is the chooser's question asked once,
+ * so nobody is sent back up the page to answer it. The lede used to promise
+ * "no documents yet" on the way into a form that checks an ID and a TIN; it
+ * now says what to have to hand and which part may wait. The
  * primary is `variant="primary"` (Injishi Ink), not `accent` — see the note in
  * the report about the Spent Accent Rule and the hero.
  *
@@ -46,9 +53,11 @@ export function HostCta() {
           />
 
           <p className="max-w-narrow text-page-fg-70">
-            Ten minutes to describe your place, and no documents yet. We visit
-            it, photograph it at our cost, and register it with the RRA before
-            your first guest arrives.
+            About ten minutes to register: have your ID and your RRA TIN (or
+            the UPI of a home you let) to hand, and leave the certificates for
+            the visit if you need to. We
+            check it, photograph it at our cost, and get it live before your
+            first guest arrives.
           </p>
 
           <div className="mt-2 flex flex-col items-center gap-2 sm:flex-row sm:gap-4">
@@ -58,7 +67,7 @@ export function HostCta() {
                 was ink on an ink card and vanished entirely. `solid` reads the
                 semantic `--primary` pair, which inverts with the ground. */}
             <Button asChild size="lg" variant="primary">
-              <Link href="/host/start">Get started</Link>
+              <Link href="/register">Register your business</Link>
             </Button>
 
             <Button asChild variant="link" size="md">

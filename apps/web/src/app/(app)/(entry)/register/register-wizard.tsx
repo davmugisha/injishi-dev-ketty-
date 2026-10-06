@@ -21,7 +21,7 @@ import {
   businessTypeFor,
   isRwandanAddress,
 } from "@injishi/contracts";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { Button } from "@heroui/react";
 import { BadgeCheck } from "lucide-react";
 
@@ -84,6 +84,13 @@ import { StepPlace } from "./step-place";
 import { StepPsf, psfCandidate, psfDraftFrom, type PsfDraft } from "./step-psf";
 import { StepReviewPay } from "./step-review-pay";
 import { Notice } from "./wizard-ui";
+import {
+  openingPhase,
+  resumePhase,
+  savesOnEntry,
+  showsRail,
+  stepsToShow,
+} from "./wizard-path";
 
 /**
  * The business registration wizard (F-S03 / FL01), on the real API.
@@ -101,6 +108,13 @@ import { Notice } from "./wizard-ui";
  * broker, and step 2 asked what kind of place you have again. Those are one
  * answer wearing three hats, and `registrationForKind` is now the only thing
  * that derives the other two from it.
+ *
+ * AND AN ANSWER GIVEN ON `/host` IS NOT ASKED A FOURTH TIME. A kind that
+ * arrives in the URL opens the wizard on About you, with the kind shown back
+ * and changeable there, and the rail drops Place (`wizard-path.ts`). From the
+ * `/host` chooser to the first payment screen a signed in registrant now
+ * passes five screens where they passed seven (`/host/start` and the Place
+ * confirmation are gone).
  *
  * Nothing here can skip the fee: `POST /registrations/:id/pay` is the only door
  * into `submitted`, and the server owns it. A broker pays nothing and passes no
@@ -175,9 +189,12 @@ const EMPTY_BUSINESS: BusinessDraft = {
  * `initialKind` is the answer the person already gave on `/host`. The chooser
  * writes it into the query and `page.tsx` validates it before it gets here.
  *
- * It is CARRIED, not skipped and not re-asked. Step 1 shows it back with a
- * Change control, so the choice made on another page is confirmed on the page
- * that uses it (ADR-026, AC-1).
+ * It is TAKEN AS ANSWERED. The wizard opens past the kind question, on About
+ * you, and the rail leaves Place out (`wizard-path.ts`); About you and Business
+ * show the kind back with a Change control, so the answer is still seen and
+ * still changeable, on the screens that use it. It used to open on step 1 as a
+ * confirmation with one button, which was the second screen in a row (after
+ * `/host/start`) repeating an answer given one click earlier.
  */
 export default function RegisterWizard({
   initialKind = null,
@@ -189,11 +206,12 @@ export default function RegisterWizard({
   const [phase, setPhase] = useState<Phase>("resume");
   const [kind, setKind] = useState<RegistrationKind | null>(arrivalKind);
   /**
-   * Whether step 1 renders as a confirmation or as the ten tiles.
+   * Whether the kind is still the one that arrived in the URL, which is what
+   * skips the kind question and drops Place from the rail.
    *
    * True only while the answer is still the one that arrived. Pressing Change
    * clears it and never sets it again, because at that point the person is
-   * answering here rather than confirming something they answered elsewhere.
+   * answering here, and Place is a step they have walked.
    */
   const [carried, setCarried] = useState(arrivalKind !== null);
   const [capacity, setCapacity] = useState<RegistrantCapacity>("owner");
@@ -287,7 +305,13 @@ export default function RegisterWizard({
               phoneE164: p.phoneE164 || (prof.status === "ok" ? (prof.data.phoneE164 ?? "") : ""),
             }
           : p;
-      setPersonal(fillVerified);
+      // What an incomplete profile already holds (a name, a phone, a birth
+      // date from an earlier visit or from sign up) fills the boxes rather
+      // than being asked again. A COMPLETE profile is shown as a card instead
+      // and is not copied into the form at all (see About you).
+      const fromProfile = (p: PersonalDraft): PersonalDraft =>
+        prof.status === "ok" && !prof.data.complete ? seedFromPartialProfile(prof.data, p) : p;
+      setPersonal((p) => fillVerified(fromProfile(p)));
       const inFlight =
         ws.status === "ok"
           ? ws.workspaces.filter(
@@ -319,8 +343,9 @@ export default function RegisterWizard({
           ? (saved.kind as RegistrationKind)
           : null;
       if (saved && (arrivalKind === null || savedKind === arrivalKind)) {
+        const carriedNow = savedKind !== null && savedKind === arrivalKind;
         setKind(savedKind);
-        setCarried(savedKind !== null && savedKind === arrivalKind);
+        setCarried(carriedNow);
         setCapacity(saved.capacity);
         setIntendedOwner(saved.intendedOwner);
         // The verified identity, where there is one, overrides what the draft
@@ -330,7 +355,7 @@ export default function RegisterWizard({
         setBranches(saved.branches);
         const verifiedNow = ident.status === "ok" && ident.data.kycStatus === "verified";
         const resume = restoredPhase(saved, verifiedNow);
-        setPhase(resume.phase);
+        setPhase(resumePhase(resume.phase, carriedNow));
         if (resume.owesId && resume.phase === "about") {
           setFormError(
             "We kept your answers from before. An ID number is never kept in a draft, so give it again here.",
@@ -338,7 +363,7 @@ export default function RegisterWizard({
         }
         return;
       }
-      setPhase("place");
+      setPhase(openingPhase(arrivalKind));
     })();
     return () => {
       cancelled = true;
@@ -351,9 +376,16 @@ export default function RegisterWizard({
    * back to it later. Keyed on the phase alone: typing does not save, finishing
    * a step does. Past Documents the server creates the registration, which
    * clears the draft there.
+   *
+   * The wizard OPENING on a phase is not a step left (`savesOnEntry`): an
+   * arrival now opens straight on About you, and saving then would overwrite a
+   * draft kept for a different kind before this person had done anything.
    */
+  const previousPhase = useRef<Phase>("resume");
   useEffect(() => {
-    if (!isDraftPhase(phase) || phase === "place") return;
+    const previous = previousPhase.current;
+    previousPhase.current = phase;
+    if (!isDraftPhase(phase) || !savesOnEntry(previous, phase)) return;
     void saveRegistrationDraft(
       toServerDraft({
         phase,
@@ -829,6 +861,18 @@ export default function RegisterWizard({
   };
 
   // --- render ---------------------------------------------------------------
+  // The rail names only the steps this person walks: Place drops out while
+  // the kind is the one that arrived (`wizard-path.ts`).
+  const railSteps = stepsToShow(
+    role === "broker" ? BROKER_STEPS : role === "landlord" ? RESIDENCE_STEPS : REGISTRATION_STEPS,
+    carried,
+  );
+  const changeKind = () => {
+    setCarried(false);
+    setFormError("");
+    setPhase("place");
+  };
+
   if (phase === "pipeline" && summary) {
     return (
       <>
@@ -868,30 +912,21 @@ export default function RegisterWizard({
         busy={busy}
         error={formError}
         onOpen={(orgId) => void openPending(orgId)}
-        onStartNew={() => setPhase("place")}
+        onStartNew={() => setPhase(openingPhase(carried ? kind : null))}
       />
     );
   }
 
   return (
     <>
-      <RegistrationStepRail
-        active={stepRailActive(phase)}
-        steps={
-          role === "broker"
-            ? BROKER_STEPS
-            : role === "landlord"
-              ? RESIDENCE_STEPS
-              : REGISTRATION_STEPS
-        }
-      />
+      {showsRail(railSteps.length) ? (
+        <RegistrationStepRail active={stepRailActive(phase)} steps={railSteps} />
+      ) : null}
       <div className="mt-8">
         {phase === "place" ? (
           <StepPlace
             kind={kind}
-            carried={carried}
             onChoose={chooseKind}
-            onReopen={() => setCarried(false)}
             onNext={() => setPhase("about")}
           />
         ) : null}
@@ -913,9 +948,13 @@ export default function RegisterWizard({
             errors={errors}
             formError={formError}
             busy={busy}
-            onBack={() => setPhase("place")}
+            // No Back when the kind arrived answered: this is the first
+            // screen, and the kind line's Change is the way to the tiles.
+            onBack={carried ? undefined : () => setPhase("place")}
             onNext={submitAbout}
             verification={verification}
+            kind={kind}
+            onChangeKind={changeKind}
           />
         ) : null}
 
@@ -935,10 +974,7 @@ export default function RegisterWizard({
                 ? personalFromProfile(profile, personal).address
                 : personal.address
             }
-            onChangeKind={() => {
-              setCarried(false);
-              setPhase("place");
-            }}
+            onChangeKind={changeKind}
             branches={branches}
             onBranchesChange={setBranches}
             registry={registry}
@@ -1008,7 +1044,10 @@ export default function RegisterWizard({
             onEditPsf={openPsf}
             onBack={() => setPhase(needsPsf ? "psf" : "documents")}
             onEditStep={(step) => {
-              if (step === "place") setCarried(false);
+              if (step === "place") {
+                changeKind();
+                return;
+              }
               setFormError("");
               setPhase(step);
             }}
@@ -1120,7 +1159,7 @@ function ResumePanel({
   );
 }
 
-/** Where you are on the rail — the same rail `/host/start` previews. */
+/** Where you are on the rail. */
 function stepRailActive(phase: Phase): RegistrationStepId | null {
   switch (phase) {
     case "place":
@@ -1394,6 +1433,33 @@ function personalFromProfile(
               country: a.country,
               addressText: a.addressText,
             },
+  };
+}
+
+/**
+ * What an INCOMPLETE profile already holds, laid over the form, and nothing
+ * else.
+ *
+ * A complete profile is confirmed as a card on About you and never retyped. An
+ * incomplete one used to be ignored entirely, so a person who had given their
+ * name and phone at sign up, or got halfway on an earlier visit, met every box
+ * empty and typed it all again. Only the fields the profile holds are written,
+ * so a box it has no answer for keeps whatever is already there. The document
+ * NUMBER is never written: the profile holds it masked, and dots in that box
+ * would be sent as the number.
+ */
+function seedFromPartialProfile(profile: MyProfile, current: PersonalDraft): PersonalDraft {
+  const stored = personalFromProfile(profile, current);
+  return {
+    ...current,
+    ...(profile.fullName?.trim() ? splitFullName(profile.fullName) : {}),
+    ...(profile.dateOfBirth ? { dateOfBirth: profile.dateOfBirth } : {}),
+    ...(profile.gender ? { gender: profile.gender } : {}),
+    ...(profile.phoneE164 ? { phoneE164: profile.phoneE164 } : {}),
+    ...(profile.document
+      ? { documentType: stored.documentType, issuingCountry: stored.issuingCountry }
+      : {}),
+    ...(profile.address ? { address: stored.address } : {}),
   };
 }
 

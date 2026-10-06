@@ -6,7 +6,7 @@ import BaseChrome from "@/components/app/base-chrome";
 // Build-time Tailwind for this whole layer. One import, one group (ADR-021).
 import "../_injishi-app.css";
 import { pwaMetadata, pwaViewport } from "@/lib/pwa-metadata";
-import { figtree, spectral } from "@/lib/fonts";
+import { figtree } from "@/lib/fonts";
 
 /**
  * THE ONE ROOT DOCUMENT for the signed-in layer (ADR-021).
@@ -60,7 +60,7 @@ export default function AppLayout({ children }: { children: ReactNode }) {
   return (
     <html
       lang="en"
-      className={cn(figtree.variable, spectral.variable)}
+      className={cn(figtree.variable)}
       suppressHydrationWarning
     >
       <body className="antialiased">

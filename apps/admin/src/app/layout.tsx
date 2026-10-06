@@ -13,16 +13,6 @@ const figtree = localFont({
   display: "swap",
 });
 
-const spectral = localFont({
-  src: [
-    { path: "../fonts/Spectral-Medium.woff2", weight: "500", style: "normal" },
-    { path: "../fonts/Spectral-Bold.woff2", weight: "700", style: "normal" },
-    { path: "../fonts/Spectral-ExtraBold.woff2", weight: "800", style: "normal" },
-  ],
-  variable: "--font-spectral",
-  display: "swap",
-});
-
 export const metadata: Metadata = {
   title: {
     default: "Injishi Admin",
@@ -44,7 +34,7 @@ export default function RootLayout({
     <html
       lang="en"
       suppressHydrationWarning
-      className={`${figtree.variable} ${spectral.variable}`}
+      className={figtree.variable}
     >
       <head>
         <script dangerouslySetInnerHTML={{ __html: THEME_SCRIPT }} />

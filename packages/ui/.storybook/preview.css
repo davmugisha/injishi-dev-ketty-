@@ -40,29 +40,15 @@
   font-style: normal;
   font-display: swap;
 }
-@font-face {
-  font-family: "Spectral";
-  src: url("/fonts/Spectral-Medium.woff2") format("woff2");
-  font-weight: 500;
-  font-style: normal;
-  font-display: swap;
-}
-@font-face {
-  font-family: "Spectral";
-  src: url("/fonts/Spectral-Bold.woff2") format("woff2");
-  font-weight: 700;
-  font-style: normal;
-  font-display: swap;
-}
 
 :root {
   --font-figtree: "Figtree";
-  --font-spectral: "Spectral";
 }
 
 @theme inline {
   --font-sans: var(--font-figtree), ui-sans-serif, system-ui, sans-serif;
-  --font-display: var(--font-spectral), ui-serif, Georgia, serif;
+  /* One family since 2026-10-06, as in every app: the display role is Figtree. */
+  --font-display: var(--font-figtree), ui-sans-serif, system-ui, sans-serif;
 }
 
 body {

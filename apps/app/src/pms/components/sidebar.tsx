@@ -36,6 +36,7 @@ import { cn } from "@/lib/utils";
 import { workspaces as demoWorkspaces } from "../data/demo";
 import type { PropertyKey, WorkspaceRef } from "../data/types";
 import { useCapability, useWorkspaceId } from "../data/capability";
+import { useNavCounts } from "../data/nav-counts";
 import { useSignOut } from "../data/sign-out";
 import { leafFor, navFor, screenSegment, workspaceHome, type NavSection } from "../lib/nav";
 import { navContextOf } from "../lib/nav-context";
@@ -207,7 +208,10 @@ export function Sidebar() {
   // demo fixture that has none. Two hotels are two addresses.
   const workspaceValue = (w: WorkspaceRef) => w.workspaceId ?? w.key;
 
-  const sections: NavSection[] = navFor(navContextOf(pms, workspaceId));
+  // Pills for a hotel's requests and rooms to clean, counted from the lists
+  // Today and Room status already read; nothing for another kind of workspace.
+  const counts = useNavCounts(isHost ? workspaceId : null);
+  const sections: NavSection[] = navFor(navContextOf(pms, workspaceId, counts));
   // The leaf this screen belongs to. A record is lit through the leaf that
   // grants it, so a stay keeps Reservations active (ADR-044, D-d). Matching
   // the href prefix alone left no leaf active on `/stays/*`.

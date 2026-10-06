@@ -1,7 +1,6 @@
 import {
   ACCOMMODATION_CLASS_LABEL,
   type AccommodationClass,
-  type RegistrantRole,
 } from "@injishi/contracts";
 
 /**
@@ -49,7 +48,7 @@ export interface HostPropertyKind {
  *
  * Seven values are `AccommodationClass`, the same vocabulary the registration
  * wizard offers and the API stores, so a choice here carries straight through
- * to `/host/start` and on into registration. It used to be a plain `string`
+ * into registration (`hostKindHref`). It used to be a plain `string`
  * that happened to look like the search options, which is how `guesthouse`
  * survived here after the real model had renamed it `guest_house` — a rename
  * that produced a missing icon and no error (ADR-011 call 7).
@@ -92,48 +91,39 @@ export const HOST_PROPERTY_KINDS: HostPropertyKind[] = CHOOSER.map(
 );
 
 /**
+ * Where a tile on the chooser goes: straight into registration, with the
+ * answer in the query.
+ *
+ * It went to `/host/start` first, a page that named the choice back and held
+ * one button, "Register your business". That button was the only way on, so
+ * the page cost a screen and decided nothing. The wizard now takes the kind as
+ * answered and opens on the first question it does not yet know
+ * (`register/wizard-path.ts`), and `/host/start` redirects here for the links
+ * that still name it.
+ *
+ * A signed out visitor is sent to sign in by the register gate, and `/sign-in`
+ * hands back the whole path and query, so the kind survives the round trip
+ * (`safeRedirect` keeps the search string).
+ */
+export function hostKindHref(kind: HostKind): string {
+  return `/register?kind=${encodeURIComponent(kind)}`;
+}
+
+/**
  * Read a `kind` back off the query string.
  *
- * The chooser writes `?kind=` and two later screens read it, so the string is
- * checked against the same list that wrote it rather than trusted: a hand typed
- * `/register?kind=castle` has to land as if no choice was made, not prefill a
- * class the contract does not have. The whole entry is returned rather than the
- * bare value, so the label travels with it and neither reader looks it up twice.
+ * `/host/start` reads it back for the old links that still name that page, so
+ * the string is checked against the same list that wrote it rather than
+ * trusted: a hand typed `?kind=castle` has to land as
+ * if no choice was made, not prefill a class the contract does not have. The
+ * whole entry is returned rather than the bare value, so the label travels with
+ * it and no reader looks it up twice.
  */
 export function findHostKind(
   value: string | null | undefined,
 ): HostPropertyKind | null {
   if (!value) return null;
   return HOST_PROPERTY_KINDS.find((k) => k.value === value) ?? null;
-}
-
-/**
- * What registration a chosen kind opens (D23, D24).
- *
- * This is the whole join between the `/host` funnel and `/register`, and none
- * of it is a preference. `businessTypeFor` in `@injishi/contracts` sends `host`
- * to the hospitality fee and domain and `landlord` to the residence one, and
- * `residence` is precisely the kind that carries a UPI rather than a TIN — so a
- * residence can only open a landlord registration and the seven classes can
- * only open host ones. `accommodationClass` is null for a residence because the
- * residence branch of the wizard never asks that question.
- *
- * `bar_restaurant` is a HOST too — it pays the hospitality fee and carries a
- * TIN, exactly like a hotel. What it does not carry is an accommodation class,
- * so this returns null and `registrationForKind` (which owns the wire shape)
- * supplies the `other` + free-text pair the database `check` requires.
- *
- * The role this returns is PRE-SELECTED, never skipped. D23 asks the role first
- * because it picks the whole path and its price, and an answer given on another
- * page is still worth showing to the person who gave it.
- */
-export function registrationForHostKind(kind: HostKind): {
-  role: RegistrantRole;
-  accommodationClass: AccommodationClass | null;
-} {
-  if (kind === "residence") return { role: "landlord", accommodationClass: null };
-  if (kind === "bar_restaurant") return { role: "host", accommodationClass: null };
-  return { role: "host", accommodationClass: kind };
 }
 
 export interface HostBenefit {
@@ -166,30 +156,49 @@ export interface HostStep {
   n: number;
   title: string;
   body: string;
+  icon: "register" | "verify" | "photograph" | "live";
 }
 
-/** The four things that happen after the chooser. Kept concrete: each step is
- *  a thing Injishi does, not a thing the host has to prepare. */
+/**
+ * The four things that happen after the chooser.
+ *
+ * Step one is the only one the host does, and it used to describe a form that
+ * does not exist: "where it is, how many rooms, what a guest gets. Ten minutes,
+ * no documents yet." Registration asks for none of the rooms. It asks who you
+ * are and what business you run, and it opens on an identity check and a TIN,
+ * which are documents whatever the copy said. So the step now names what to
+ * have to hand, says which part honestly may wait (the certificates: the
+ * documents step can be skipped and the officer asks at the visit), and says
+ * the fee is paid at the end of it.
+ *
+ * Step two names the checks the pay screen names (RRA, then the officer), and
+ * step four is where the monthly plan begins, the promise the pay screen makes
+ * too ("your subscription only starts once you are live").
+ */
 export const HOST_STEPS: HostStep[] = [
   {
     n: 1,
-    title: "Tell us about your place",
-    body: "Where it is, how many rooms, what a guest gets. Ten minutes, no documents yet.",
+    icon: "register",
+    title: "Register your business",
+    body: "Your ID, your RRA TIN (or the UPI of a home you let) and the address. About ten minutes online. Certificates can wait for the visit, and the one time registration fee is paid at the end.",
   },
   {
     n: 2,
+    icon: "verify",
     title: "We verify it",
-    body: "Someone from our team visits, checks the place matches the description, and confirms the address and ownership.",
+    body: "We check your TIN with RRA, then a district officer visits to confirm the place, the address and your documents.",
   },
   {
     n: 3,
+    icon: "photograph",
     title: "We photograph it",
     body: "A photographer shoots the accommodation at our cost. The images are yours to keep whether or not you list.",
   },
   {
     n: 4,
+    icon: "live",
     title: "You go live",
-    body: "Your listing opens to guests with escrow-backed payment and self check-in already switched on.",
+    body: "Your listing opens to guests with escrow-backed payment and self check-in switched on. Your monthly plan starts here, not before.",
   },
 ];
 
@@ -233,9 +242,13 @@ export const HOST_FAQ: HostFaqGroup[] = [
     label: "Payouts",
     entries: [
       {
+        // This answer used to be "Nothing ... no commission and no listing
+        // fee", on the same site as a registration flow that bills a one time
+        // fee. Two charges exist and commission is not one of them; the answer
+        // names both, and `HOST_CHARGES` below says the same thing at length.
         question: "What does Injishi charge the host?",
         answer:
-          "Nothing. We take no commission from the host and no listing fee. The rate you set is the rate you are paid.",
+          "Two things, and no commission. A one time registration fee when you register your business: you see the amount on the last step, before you pay. Then a monthly plan, which starts only once your listing is live. The rate you set for a stay is the rate you are paid.",
       },
       {
         question: "When am I paid?",
@@ -260,8 +273,11 @@ export const HOST_FAQ: HostFaqGroup[] = [
       },
       {
         question: "What documents do you need from me?",
+        // It said "after the verification visit, not before", while the form
+        // checks an ID and a TIN on its first two steps. What may truly wait
+        // is the certificates, and that is what it now says.
         answer:
-          "Proof of identity and proof that you own or are entitled to let the accommodation. We ask for these after the verification visit, not before.",
+          "To register: your National ID or passport, and your 9 digit RRA TIN, or the UPI of the property if you let a home on a lease. Certificates and licences are optional when you register. Attach them as you go, or show them to the officer at the verification visit.",
       },
       {
         question: "Who is liable if something goes wrong during a stay?",
@@ -272,19 +288,53 @@ export const HOST_FAQ: HostFaqGroup[] = [
   },
 ];
 
+export interface HostCharge {
+  icon: "fee" | "plan" | "commission";
+  title: string;
+  body: string;
+}
+
 /**
- * The proof block.
+ * What Injishi charges a host, said once and plainly.
  *
- * This carried a quote from "Claudine U., Guesthouse host, Musanze" about the
- * booking she took in her first month. She does not exist, and Injishi has no
- * hosts yet to quote — which the component's own note had already ruled out
- * when it said DESIGN.md forbids inventing proof.
+ * This block was the proof block, and before that a quote from a host who did
+ * not exist. What it kept was the one claim that is ours to make, the 0%
+ * commission, under the heading "What Injishi takes from hosts". Read alone,
+ * that heading and that figure say a host pays nothing, on a site whose
+ * registration bills a fee. The business model is three facts and all three
+ * belong here: a one time fee to register, a monthly plan once live, and no
+ * commission on a booking.
  *
- * What is left is the part that is ours to state: the commission we take, and
- * what that means for a payout. When there are real hosts, their words replace
- * this body copy.
+ * NO FIGURES, ON PURPOSE. The registration fee is a row in the API's
+ * effective dated `registration_fees` table, keyed by business type, and the
+ * owner ruled on 2026-09-21 that no screen before the pay step names it (the
+ * pay step does, since 2026-09-27). The plans are `subscription_plans` rows
+ * with no public read at all. So this says when each charge falls and where
+ * the amount is shown, and quotes neither. `data/registration-fees.ts` holds
+ * invented amounts for a demo with no API and must never be quoted.
  */
-export const HOST_PROOF = {
-  body: "We take no commission. A guest pays the rate you set, the payment is held in escrow until they check in, and what lands in your account is the number you listed, less only what your bank or mobile money provider charges to move it.",
-  stat: { value: "0%", label: "commission taken from hosts" },
+export const HOST_CHARGES: {
+  lede: string;
+  items: HostCharge[];
+  stat: { value: string; label: string };
+} = {
+  lede: "Two charges, each at a moment you can see coming, and nothing taken from a booking.",
+  items: [
+    {
+      icon: "fee",
+      title: "A one time registration fee",
+      body: "Paid once, on the last step of registering your business. The amount is on that screen, before you pay, and correcting and resubmitting is never charged again.",
+    },
+    {
+      icon: "plan",
+      title: "A monthly plan",
+      body: "Starts only once your listing is live. No month is billed while your registration is in review.",
+    },
+    {
+      icon: "commission",
+      title: "No commission",
+      body: "A guest pays the rate you set, the payment is held in escrow until they check in, and what lands in your account is the number you listed, less only what your bank or mobile money provider charges to move it.",
+    },
+  ],
+  stat: { value: "0%", label: "commission on your bookings" },
 };

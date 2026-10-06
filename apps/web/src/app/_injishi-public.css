@@ -56,10 +56,14 @@
 @custom-variant dark (&:where(.dark, .dark *));
 
 @theme {
-  /* The two families are mounted by next/font/local (src/lib/fonts.ts),
-   * which exposes each as a CSS variable on the <html> element. */
+  /* One family, Figtree, mounted by next/font/local (src/lib/fonts.ts) as a
+   * CSS variable on the <html> element. Display and body share it: the
+   * Injishi Design System sets everything in Figtree, and Spectral, the serif
+   * the display role used to take, is retired (2026-10-06). `--font-display`
+   * stays as its own token so a heading's role is still named, and so a
+   * future display face is one line. */
   --font-sans: var(--font-figtree), ui-sans-serif, system-ui, sans-serif;
-  --font-display: var(--font-spectral), ui-serif, Georgia, serif;
+  --font-display: var(--font-figtree), ui-sans-serif, system-ui, sans-serif;
 
   /* The accent teal used AS INK, held fixed in both themes.
    *
@@ -142,7 +146,10 @@
     cursor: pointer;
   }
 
-  /* Headings are set in Spectral; everything else stays Figtree. ADR-010 call 6
+  /* Headings take the display role (Figtree since 2026-10-06, when the serif
+     was retired); a heading with no weight of its own sets at 600 with a
+     slight negative track, which is what keeps a sans heading reading as a
+     heading at the sizes Spectral used to carry at 400. ADR-010 call 6
      scopes this rule to the public layer: the four app route groups keep
      opting in per heading, and a heading on an (app) route must not move.
 
@@ -172,6 +179,8 @@
   h5,
   h6 {
     font-family: var(--font-display);
+    font-weight: 600;
+    letter-spacing: -0.015em;
   }
 
   h2,

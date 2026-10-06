@@ -62,9 +62,11 @@
   --radius: 0.5rem;
   --radius-surface: var(--radius-card);
 
-  /* Self-hosted via /shared/css/injishi-fonts.css (linked in the layout). */
+  /* Self-hosted via /shared/css/injishi-fonts.css (linked in the layout).
+     One family since 2026-10-06: the Injishi Design System sets everything
+     in Figtree, so the display role (titles) takes it too. */
   --font-ui: "Figtree", system-ui, sans-serif;
-  --font-display: "Spectral", Georgia, serif;
+  --font-display: "Figtree", system-ui, sans-serif;
 }
 
 /* ── Light ──────────────────────────────────────────────────────────────── */
@@ -236,6 +238,7 @@
 
 .pms-display {
   font-family: var(--font-display);
+  letter-spacing: -0.015em;
 }
 
 .pms-num {
