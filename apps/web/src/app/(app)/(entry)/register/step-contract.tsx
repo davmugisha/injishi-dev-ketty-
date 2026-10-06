@@ -57,8 +57,16 @@ export function ContractSigner({
   error,
   onBack,
   onSign,
+  partiesShownAbove = false,
 }: {
   input: RegistrationContractInput;
+  /**
+   * True when the review cards above already read back the business and the
+   * registrant. The parties card then repeats seven of their rows on the same
+   * screen, so it gives way to a one line title; the downloaded copy still
+   * prints every party, because it is built from `input`, not from this view.
+   */
+  partiesShownAbove?: boolean;
   actionLabel: string;
   busyLabel: string;
   busy: boolean;
@@ -108,6 +116,14 @@ export function ContractSigner({
         drew. Clause 9 says the same inside the document itself.
       </Notice>
 
+      {partiesShownAbove ? (
+        <h3 className="text-sm font-semibold">
+          {`${CONTRACT_TITLE} · Version ${input.contractVersion}`}
+          <span className="block text-xs font-normal text-muted-foreground">
+            Between {CONTRACT_OPERATOR} and you, for the business read back above.
+          </span>
+        </h3>
+      ) : (
       <SummaryCard title={`${CONTRACT_TITLE} · Version ${input.contractVersion}`}>
         <SummaryRow label="Registration" value={input.reference} />
         <SummaryRow label="Business" value={input.businessName} />
@@ -123,6 +139,7 @@ export function ContractSigner({
           <SummaryRow label="ID" value={input.registrantIdLabel} />
         ) : null}
       </SummaryCard>
+      )}
 
       {/* Scrollable, focusable and labelled. A long agreement in a fixed box
           that a keyboard cannot scroll is a document a keyboard user cannot

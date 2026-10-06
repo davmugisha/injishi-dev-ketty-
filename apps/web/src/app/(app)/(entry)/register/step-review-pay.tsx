@@ -2,7 +2,6 @@
 
 import { Button } from "@heroui/react";
 import {
-  ACCOMMODATION_CLASS_LABEL,
   CERTIFICATE_KIND_LABEL,
   type MyProfile,
   type RegistrantCapacity,
@@ -40,7 +39,7 @@ import { Notice, SummaryCard, SummaryRow, formatRwf } from "./wizard-ui";
  * NO FIGURE UNTIL THE MOMENT OF PAYING, and then it is stated plainly.
  *
  * The owner reversed ADR-026 AC-3 on 2026-09-21, so the flow no longer quotes a
- * price early: `/host/start`, step 1 and the read back say THAT a one time fee
+ * price early: `/host`, step 1 and the read back say THAT a one time fee
  * is charged and never how much. A second instruction that day took the figure
  * out of the operator contract and out of this screen as well, and THAT half is
  * amended here (2026-09-27): a person about to press Pay is told the amount
@@ -213,19 +212,17 @@ export function StepReviewPay({
           />
           {isHospitality ? (
             <>
-              <SummaryRow
-                label="Class"
-                value={
-                  business.accommodationClass === "other"
-                    ? business.accommodationClassOther || "Other"
-                    : business.accommodationClass
-                      ? ACCOMMODATION_CLASS_LABEL[
-                          business.accommodationClass as keyof typeof ACCOMMODATION_CLASS_LABEL
-                        ]
-                      : "—"
-                }
-                onEdit={() => onEditStep("place")}
-              />
+              {/* The class only where it says something the Kind row does not:
+                  for every other tile the class IS the kind ("Guest house",
+                  then "Guest house" again), and for a bar & restaurant it is
+                  the tile's own name. Only Other carries a typed answer. */}
+              {kind === "other" ? (
+                <SummaryRow
+                  label="What it is"
+                  value={business.accommodationClassOther || "—"}
+                  onEdit={() => onEditStep("business")}
+                />
+              ) : null}
               <SummaryRow
                 label="TIN"
                 value={business.tin || "—"}
@@ -480,6 +477,9 @@ export function StepReviewPay({
             error={error}
             onBack={summary === null ? onBack : undefined}
             onSign={(signature) => onSignAndPay(signature)}
+            // The read back is on this screen until the registration exists,
+            // so the agreement's own parties card would repeat it row for row.
+            partiesShownAbove={summary === null}
           />
         )}
       </div>

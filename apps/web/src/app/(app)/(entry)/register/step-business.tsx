@@ -7,19 +7,17 @@ import {
   type TinCheckResult,
 } from "@injishi/contracts";
 import { Button } from "@heroui/react";
-import { Building2, CheckCircle2, Home, MapPin } from "lucide-react";
+import { CheckCircle2, Home, MapPin } from "lucide-react";
 import { useState } from "react";
 
 import { checkTin } from "@/data/registration";
 import { upiError } from "@/lib/upi";
 
 import { AddressPicker, type AddressDraft } from "./address-picker";
+import { KindSummary } from "./kind-summary";
 import { IntendedOwnerFields } from "./step-about-you";
 import { BranchesEditor, type BranchDraft } from "./step-branches";
-import {
-  findRegistrationKind,
-  type RegistrationKind,
-} from "./registration-kinds";
+import { type RegistrationKind } from "./registration-kinds";
 import {
   ChoiceCard,
   Field,
@@ -127,15 +125,6 @@ export function StepBusiness({
 }) {
   const isHospitality = role === "host";
   /**
-   * Named from the TILE rather than from the class, because the two are no
-   * longer the same word. A bar & restaurant is stored as `other` plus its own
-   * name — RDB has no accommodation class for a venue with no rooms — so
-   * reading the class back would print "Registering a other" on the one tile
-   * whose whole point is that it is not an accommodation.
-   */
-  const kindLabel =
-    isHospitality && kind ? (findRegistrationKind(kind)?.label ?? null) : null;
-  /**
    * Only `other` asks. Every other tile already knows what it is, and
    * `bar_restaurant` fills the same free-text field from step 1 — asking again
    * would invite an answer that contradicts the tile.
@@ -234,25 +223,11 @@ export function StepBusiness({
         {/* The answer from step 1, shown rather than asked. It is here because
             this is the step where it MATTERS — it is what decides which of the
             fields below appear — and a person filling in a TIN should be able
-            to see that they are filling it in for a hotel. */}
-        {kindLabel ? (
-          <div className="flex items-center gap-3 rounded-card border border-border bg-secondary p-3">
-            <span className="flex size-9 shrink-0 items-center justify-center rounded-full border border-border text-muted-foreground">
-              <Building2 size={16} aria-hidden />
-            </span>
-            <span className="min-w-0 flex-1 text-sm">
-              <span className="text-muted-foreground">Registering a </span>
-              <b className="font-semibold">{kindLabel.toLowerCase()}</b>
-            </span>
-            <button
-              type="button"
-              onClick={onChangeKind}
-              className="shrink-0 text-xs font-semibold text-accent-text underline underline-offset-2"
-            >
-              Change
-            </button>
-          </div>
-        ) : null}
+            to see that they are filling it in for a hotel. Named from the
+            TILE, never from the class: a bar & restaurant is stored as `other`
+            plus its name. Shown for a residence too now, where it decides the
+            UPI just as much as it decides a TIN for a hotel. */}
+        {kind ? <KindSummary kind={kind} onChange={onChangeKind} /> : null}
 
         <Field
           label="Registered business name"

@@ -22,7 +22,9 @@ import {
   PassportScanner,
   VerifiedIdentityCard,
 } from "./identity-verifier";
+import { KindSummary } from "./kind-summary";
 import { PhoneInput } from "./phone-input";
+import type { RegistrationKind } from "./registration-kinds";
 import {
   ChoiceCard,
   Field,
@@ -154,8 +156,17 @@ export function StepAboutYou({
   onBack,
   onNext,
   verification,
+  kind,
+  onChangeKind,
 }: {
   verification: IdentityVerification | null;
+  /**
+   * What is being registered, shown back at the top with a Change control.
+   * When the kind arrived from `/host` this is the first screen, and this line
+   * is the only place the answer is seen before Business (`wizard-path.ts`).
+   */
+  kind: RegistrationKind | null;
+  onChangeKind: () => void;
   profile: MyProfile | null;
   editing: boolean;
   onEdit: () => void;
@@ -172,7 +183,12 @@ export function StepAboutYou({
   errors: Record<string, string>;
   formError: string;
   busy: boolean;
-  onBack: () => void;
+  /**
+   * Back to the kind question, when it was a step this person walked. Absent
+   * when the kind arrived answered: this is then the first screen, and the
+   * Change control above is the way back to the tiles.
+   */
+  onBack?: () => void;
   onNext: () => void;
 }) {
   const showStored = profile?.complete === true && !editing;
@@ -188,6 +204,8 @@ export function StepAboutYou({
       </p>
 
       <div className="mt-6 space-y-6">
+        {kind ? <KindSummary kind={kind} onChange={onChangeKind} /> : null}
+
         {showStored ? (
           <>
             <StoredProfile profile={profile} onEdit={onEdit} verified={Boolean(verification?.verified)} />
@@ -232,13 +250,13 @@ export function StepAboutYou({
       </div>
 
       <StepActions
+        // Plain "Back": the kind line at the top already says "Change", and
+        // two controls on one screen naming the same act read as two acts.
         onBack={onBack}
-        // Step 1 asks what you are registering, not what role you hold — the
-        // role is derived from the tile now (ADR-026). "Change role" pointed
-        // at a question that no longer exists.
-        backLabel="Change what you are registering"
         onNext={onNext}
-        nextLabel="Continue to your business"
+        // A broker's registration ends on this press (no business, no fee),
+        // so promising "your business" next was untrue for exactly them.
+        nextLabel={kind === "broker" ? "Register as a broker" : "Continue to your business"}
         busy={busy}
       />
     </section>

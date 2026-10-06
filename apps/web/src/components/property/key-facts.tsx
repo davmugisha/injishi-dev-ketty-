@@ -2,7 +2,7 @@ import { ACCOMMODATION_CLASS_LABEL } from "@injishi/contracts";
 import { BedDouble, Building2, type LucideIcon, Star, Users, Wallet } from "lucide-react";
 import type { PropertyDetail } from "@/data/properties";
 import { bookingUnit } from "@/lib/booking-unit";
-import { isPerPerson } from "@/lib/party-price";
+import { isPerPerson } from "@/lib/rate-basis";
 
 /**
  * The at-a-glance strip under a property's description: one fact per tile,
