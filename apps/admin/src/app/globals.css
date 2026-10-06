@@ -227,7 +227,7 @@
   --color-ramp-5: var(--ink-100);
   --color-ramp-6: var(--ink-50);
   --font-sans: var(--font-figtree), ui-sans-serif, system-ui, sans-serif;
-  --font-display: var(--font-spectral), ui-serif, Georgia, serif;
+  --font-display: var(--font-figtree), ui-sans-serif, system-ui, sans-serif;
   --font-mono: var(--font-figtree), ui-sans-serif, system-ui, sans-serif;
   --radius-sm: calc(var(--radius) - 4px);
   --radius-md: calc(var(--radius) - 2px);
