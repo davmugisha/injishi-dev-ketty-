@@ -382,6 +382,18 @@ the build when one is empty, so a build can never silently fall back to
 production's URLs. Each compose file passes all of them from its
 `x-*-public` block.
 
+`HEROUI_AUTH_TOKEN` has no default either, and it is the one value all three
+stacks share: it is HeroUI Pro's CI/CD token, one per licence, copied from
+heroui.pro/dashboard by the licence owner (never a developer's personal
+token). `@heroui-pro/react` is a stub on npm whose postinstall downloads the
+real code with it. Each compose file hands it to the web, app and admin builds
+as a BuildKit secret (`secrets: heroui_token`), so it never reaches an image
+layer. Unset, the install still passes and `next build` fails on the first Pro
+import ("Can't resolve '@heroui-pro/react'"), which `demo-nightly.sh` reports
+before its swap, so the running demo is left as it was. A rejected token fails
+the install itself. CI reads the same value from the repository secret of that
+name, the one stack value GitHub also holds.
+
 ## Process order
 
 Compose `depends_on` is the order, the same in all three stacks. Do not invert
