@@ -28,6 +28,7 @@
  * that does not invert, so leaving it to overlay would have frozen dark mode.
  */
 @import "@heroui/styles";
+@import "@injishi/ui/pro.css"; /* HeroUI Pro, after HeroUI OSS, as Pro requires */
 @import "@injishi/design-tokens/heroui.css";
 
 /* ============================================================================

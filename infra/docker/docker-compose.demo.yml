@@ -386,6 +386,8 @@ services:
     build:
       context: ../..
       dockerfile: infra/docker/Dockerfile.web
+      secrets:
+        - heroui_token
       args:
         <<: *demo-public
         OPERATOR_APP_URL: http://app:3002
@@ -456,6 +458,8 @@ services:
     build:
       context: ../..
       dockerfile: infra/docker/Dockerfile.app
+      secrets:
+        - heroui_token
       args:
         <<: *demo-public
         OPERATOR_ASSET_PREFIX: /operator-static
@@ -481,6 +485,8 @@ services:
     build:
       context: ../..
       dockerfile: infra/docker/Dockerfile.admin
+      secrets:
+        - heroui_token
       args:
         <<: *demo-public
     restart: unless-stopped
@@ -511,3 +517,10 @@ services:
     networks:
       - default
       - dokploy-network
+
+# HeroUI Pro's CI/CD token for the three frontend builds, read from this
+# stack's .env (stack settings live on the host, never in GitHub). See the
+# note in Dockerfile.web.
+secrets:
+  heroui_token:
+    environment: HEROUI_AUTH_TOKEN

@@ -22,8 +22,8 @@
     "catalogue:export": "node scripts/export-catalogue.mjs"
   },
   "dependencies": {
-    "@heroui/react": "^3.2.4",
-    "@heroui/styles": "^3.2.4",
+    "@heroui/react": "^3.2.6",
+    "@heroui/styles": "^3.2.6",
     "@injishi/auth": "workspace:*",
     "@injishi/contracts": "workspace:*",
     "@injishi/qr": "workspace:*",

@@ -34,7 +34,15 @@ COPY packages/design-tokens/package.json ./packages/design-tokens/
 COPY packages/ui/package.json ./packages/ui/
 COPY packages/ui-contract/package.json ./packages/ui-contract/
 COPY packages/utils/package.json ./packages/utils/
+# HeroUI Pro (a paid licence) ships a stub on npm; its postinstall downloads
+# the real code with HEROUI_AUTH_TOKEN, the team's CI/CD token (never a
+# personal one). It arrives as an optional BuildKit secret, so it is never
+# written into a layer; compose passes it from the stack's .env
+# (`secrets: heroui_token`). Without it the install still succeeds and the
+# first Pro import is what fails `next build`.
 RUN --mount=type=cache,id=pnpm,target=/pnpm/store \
+    --mount=type=secret,id=heroui_token \
+    HEROUI_AUTH_TOKEN="$(cat /run/secrets/heroui_token 2>/dev/null || true)" \
     pnpm install --frozen-lockfile --filter @injishi/web...
 
 # ---- build -----------------------------------------------------------------
