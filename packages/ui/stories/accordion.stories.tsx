@@ -147,7 +147,11 @@ export const AlwaysOneOpen: Story = {
   ),
 };
 
-/** A row that cannot be opened, beside two that can. */
+/**
+ * A row that cannot be opened, beside two that can. It fades, as every
+ * disabled HeroUI control does, and the arrow keys pass over it. On Radix it
+ * looked exactly like the rows that open.
+ */
 export const DisabledItem: Story = {
   render: () => (
     <Accordion type="single" collapsible defaultValue={HOST_FAQ[0].question}>
