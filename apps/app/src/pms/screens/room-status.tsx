@@ -252,7 +252,10 @@ export function RoomStatus() {
       {floors.map((f) => (
         <section key={f.label}>
           <SectionHeading n={f.rooms.length}>{f.label}</SectionHeading>
-          <div style={{ marginTop: 10, display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(160px, 1fr))", gap: 10 }}>
+          {/* `start`, not the grid's default stretch: one card opening its
+              status panel used to pull every card in its row down to the same
+              height, five tall empty boxes around the one that was open. */}
+          <div style={{ marginTop: 10, display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(160px, 1fr))", gap: 10, alignItems: "start" }}>
             {f.rooms.map((rm) => {
               const h = HK_BY[rm.hk];
               const sel = selected === rm.id;
