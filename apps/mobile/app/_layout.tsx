@@ -29,7 +29,7 @@
  * groups sits inside a `Stack.Protected` keyed on the session and the active
  * surface (mobile audit 2026-10-05, SA-12). `href: null` and an unlinked row
  * only hid a button: any route opened from an `injishi://` link for any seat,
- * and started reading data before anything could refuse it (ADR-061 AC-1). A
+ * and started reading data before anything could refuse it (ADR-066 AC-1). A
  * guarded route that is not open for this seat now redirects to the tabs root
  * before its screen mounts, and a seat switch that closes the screen someone
  * is on takes them home. The routes the owner decided to hide (reviews and
@@ -558,7 +558,7 @@ function Shell() {
           <Stack.Screen name="lease/[leaseId]/maintenance/new" options={{ presentation: 'card' }} />
         </Stack.Protected>
         {/* Money that moves on a timer rather than a rail is the demo's alone
-            (ADR-061 AC-4): a production build hides pay rent until a gateway
+            (ADR-066 AC-4): a production build hides pay rent until a gateway
             works, and `isDemo` is false in every production build. */}
         <Stack.Protected guard={on('tenant') && isDemo}>
           <Stack.Screen name="pay-rent" options={FORM_SHEET} />

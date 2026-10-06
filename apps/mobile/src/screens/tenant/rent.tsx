@@ -20,7 +20,7 @@
  * drawn — ui-rules.md's adapter rule is that a mocked success must never look
  * like a real one, wherever it is read.
  *
- * **Paying in the app is the demo's alone** (ADR-061 AC-4; mobile audit
+ * **Paying in the app is the demo's alone** (ADR-066 AC-4; mobile audit
  * 2026-10-05, TN-07). The rail is a client timer, so the Pay rent button and
  * the line about how it settles are drawn only when `usePlatform().isDemo`
  * says so, which is false in every production build and until the API has

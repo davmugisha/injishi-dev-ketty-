@@ -423,7 +423,7 @@ describe('R12 Rent, paying', () => {
   });
 
   /**
-   * TN-07 (ADR-061 AC-4): the rail is a client timer, so outside the demo the
+   * TN-07 (ADR-066 AC-4): the rail is a client timer, so outside the demo the
    * app says nothing about paying in it, and one neutral line about paying
    * the landlord. No "coming soon".
    */
