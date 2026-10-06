@@ -317,8 +317,7 @@ describe('the cold start', () => {
 
   it('paints anyway when the font loader never settles', async () => {
     // Some web and export environments no-op the loader silently. A splash that
-    // never lifts is worse than a late typeface, which is what the 1.2s bound
-    // is for.
+    // never lifts is worse than a late typeface, which is what the bound is for.
     //
     // **`setImmediate` must stay real, and this suite hung outright without
     // that.** React Native's scheduler flushes its work through `setImmediate`,
@@ -338,8 +337,16 @@ describe('the cold start', () => {
       render(<RootLayout />);
       expect(screen.queryByTestId('navigator', MOUNTED)).toBeNull();
 
+      // Jest runs as `__DEV__`, where the bound is ten seconds rather than a
+      // release build's 1.2: in development the fonts come from Metro over the
+      // LAN, and painting before they land clips labels (FONT_FALLBACK_MS).
       await act(async () => {
         jest.advanceTimersByTime(1200);
+      });
+      expect(screen.queryByTestId('navigator')).toBeNull();
+
+      await act(async () => {
+        jest.advanceTimersByTime(10_000 - 1200);
       });
 
       expect(screen.getByTestId('navigator', MOUNTED)).toBeTruthy();

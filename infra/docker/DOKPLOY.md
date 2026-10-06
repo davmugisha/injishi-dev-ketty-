@@ -406,6 +406,22 @@ the build when one is empty, so a build can never silently fall back to
 production's URLs. Each compose file passes all of them from its
 `x-*-public` block.
 
+`HEROUI_AUTH_TOKEN` has no default either, and it is the one value all three
+stacks share: it is HeroUI Pro's CI/CD token, one per licence, copied from
+heroui.pro/dashboard by the licence owner (never a developer's personal
+token). `@heroui-pro/react` is a stub on npm whose postinstall downloads the
+real code with it. Each compose file hands it to the web, app and admin builds
+as a BuildKit secret (`secrets: heroui_token`), so it never reaches an image
+layer. Unset or empty, each frontend build stops at its install step with
+`HEROUI_AUTH_TOKEN is empty`, which `demo-nightly.sh` reports before its swap,
+so the running demo is left as it was; a rejected token fails the install too.
+It stops there on purpose: BuildKit's layer cache never sees a secret's value,
+so an install allowed to finish without the token would be reused, without Pro,
+by every later build until the lockfile changed, and so would pnpm's own side
+effects cache, which `pnpm-workspace.yaml` turns off for the same reason. CI
+reads the same value from the repository secret of that name, the one stack
+value GitHub also holds.
+
 ## Process order
 
 Compose `depends_on` is the order, the same in all three stacks. Do not invert

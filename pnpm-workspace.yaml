@@ -14,3 +14,14 @@ packages:
   - apps/*
   - server/*
   - packages/*
+
+# Run every allowed build script on every install, never reuse a cached result.
+# `@heroui-pro/react`'s postinstall downloads Pro's real code only when
+# HEROUI_AUTH_TOKEN (or a developer's login) is present, and pnpm's side effects
+# cache is keyed on the package, not on that variable: one install without the
+# token cached the empty stub, and every later install, token or not, reused it
+# without running the script. CI restores the store from the Actions cache and
+# the web and admin images keep one in a cache mount, so both fell into it
+# (PR #22's first run with the secret set built nothing). The cost is esbuild's
+# and sharp's install checks, and Pro's download, on every install.
+sideEffectsCache: false

@@ -31,6 +31,13 @@ concurrency:
   group: integration-${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
+# HeroUI Pro's CI/CD token (a paid licence): `@heroui-pro/react`'s postinstall
+# downloads Pro's real code with it, and without it the first Pro import fails
+# `next build`. Never a personal token. A pull request from a fork gets no
+# secrets, so its build of a Pro screen fails; this repository takes none.
+env:
+  HEROUI_AUTH_TOKEN: ${{ secrets.HEROUI_AUTH_TOKEN }}
+
 jobs:
   database:
     name: against a real database

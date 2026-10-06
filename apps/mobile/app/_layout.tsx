@@ -116,8 +116,19 @@ import { ErrorState, OfflineBanner, QueueBanner, ToastProvider, useOffline } fro
 
 SplashScreen.preventAutoHideAsync().catch(() => {});
 
-/** How long the shell will wait on the font loader before painting anyway. */
-const FONT_FALLBACK_MS = 1200;
+/**
+ * How long the shell will wait on the font loader before painting anyway.
+ *
+ * Longer in development, because there the fonts are not in the app: Expo Go
+ * and the dev client fetch all six from Metro over the LAN (about 680 KB, most
+ * of it Spectral), which on a slow Wi-Fi link takes several seconds. Painting
+ * before they land is not a graceful fallback on Android: text laid out before
+ * a family registers keeps that layout, so a semibold label drawn once Figtree
+ * arrives loses its last letter ("Continu" on sign in, Expo Go, 2026-10-06). A
+ * release build carries the fonts in the binary and settles well inside the
+ * short cap, which stays as the guard against a font that never arrives.
+ */
+const FONT_FALLBACK_MS = __DEV__ ? 10_000 : 1200;
 
 interface Bootstrap {
   domain: Domain;
