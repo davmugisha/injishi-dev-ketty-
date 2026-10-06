@@ -71,6 +71,7 @@ import {
 import { useRoomAssignments, useStays } from "../data/ops";
 import { seedFromDemoReservation, seedFromServerReservation } from "../lib/check-in-seed";
 import { buildFolio } from "../lib/folio";
+import { matchesBookingQuery } from "../lib/booking-search";
 import { addDaysIso, dateRange, dateRangeIso, fmt, nights, todayIso } from "../lib/format";
 import { ActionButton, Badge, Chip, EmptyState, LoadFailed, Skeleton, surfaceClass } from "../components/ui";
 import { HOST_CANCEL_ICON, useHostCancel } from "../components/reservations/host-cancel-action";
@@ -147,29 +148,6 @@ interface DeskRow {
   demo?: Reservation;
 }
 
-/**
- * Lowercase, accents off. "Immaculée" is found by "immaculee", which is how a
- * receptionist types it on a phone keyboard.
- */
-function fold(s: string): string {
-  return s.normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase();
-}
-
-/** A reference compared on its letters and digits: "bk 4460" finds "BKG-4460". */
-function refKey(s: string): string {
-  return fold(s).replace(/[^a-z0-9]/g, "");
-}
-
-/** Does this row answer the search? Every word must appear in the name, or the query in the reference. */
-function matches(r: DeskRow, query: string): boolean {
-  const q = fold(query).trim();
-  if (!q) return true;
-  const name = fold(r.guest);
-  if (q.split(/\s+/).every((word) => name.includes(word))) return true;
-  const key = refKey(query);
-  return key.length > 0 && refKey(r.reference).includes(key);
-}
-
 export function Reservations() {
   const { dispatch, toast, toastError } = usePms();
   const P = useHost();
@@ -228,7 +206,7 @@ export function Reservations() {
   );
   // The search narrows first, so every chip counts what the search found: a
   // desk looking for "Uwase" sees at a glance which state she is in.
-  const found = all.filter((r) => matches(r, query));
+  const found = all.filter((r) => matchesBookingQuery(r.guest, r.reference, query));
   const shown = found.filter((r) => filter === "all" || r.bucket === filter);
   const searching = query.trim().length > 0;
 
