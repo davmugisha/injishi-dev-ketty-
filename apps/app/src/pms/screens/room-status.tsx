@@ -28,6 +28,7 @@
  */
 
 import { useState } from "react";
+import { DoorOpen, UserRound } from "lucide-react";
 import { useHost, usePms } from "../store";
 import type { HkStatus } from "../data/types";
 import type { HousekeepingStatus } from "@injishi/contracts";
@@ -42,17 +43,12 @@ import {
   SectionHeading,
   Skeleton,
 } from "../components/ui";
-import { HOUSEKEEPING as HK, HOUSEKEEPING_BY as HK_BY } from "../lib/housekeeping";
+import {
+  HOUSEKEEPING as HK,
+  HOUSEKEEPING_BY as HK_BY,
+  HOUSEKEEPING_FROM_DEMO as FROM_DEMO,
+} from "../lib/housekeeping";
 
-/** The demo store's own vocabulary, mapped onto the real one. */
-const FROM_DEMO: Record<HkStatus, HousekeepingStatus> = {
-  ready: "clean",
-  needs: "dirty",
-  // The demo's middle state. It has no column, so on the way in it reads as
-  // what it actually means to a desk: this room is not ready yet.
-  cleaning: "dirty",
-  inspected: "inspected",
-};
 const TO_DEMO: Record<HousekeepingStatus, HkStatus> = {
   clean: "ready",
   dirty: "needs",
@@ -149,7 +145,7 @@ export function RoomStatus() {
 
   if (live && query.isPending) {
     return (
-      <div className="pms-enter" style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(148px, 1fr))", gap: 10 }}>
+      <div className="pms-enter" style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(160px, 1fr))", gap: 10 }}>
         {[0, 1, 2, 3, 4, 5].map((i) => (
           <Skeleton key={i} height={104} delay={i * 60} />
         ))}
@@ -185,6 +181,7 @@ export function RoomStatus() {
             label={h.label}
             n={rooms.filter((r) => r.hk === h.key).length}
             dot={h.dot}
+            icon={h.icon}
             active={filter === h.key}
             onClick={() => setFilter(filter === h.key ? null : h.key)}
             size="sm"
@@ -255,7 +252,10 @@ export function RoomStatus() {
       {floors.map((f) => (
         <section key={f.label}>
           <SectionHeading n={f.rooms.length}>{f.label}</SectionHeading>
-          <div style={{ marginTop: 10, display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(148px, 1fr))", gap: 10 }}>
+          {/* `start`, not the grid's default stretch: one card opening its
+              status panel used to pull every card in its row down to the same
+              height, five tall empty boxes around the one that was open. */}
+          <div style={{ marginTop: 10, display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(160px, 1fr))", gap: 10, alignItems: "start" }}>
             {f.rooms.map((rm) => {
               const h = HK_BY[rm.hk];
               const sel = selected === rm.id;
@@ -297,27 +297,55 @@ export function RoomStatus() {
                         : "calc(var(--radius-surface) - 2px)",
                     }}
                   >
-                    <span style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                      <span aria-hidden style={{ width: 9, height: 9, borderRadius: 99, background: h.dot, flexShrink: 0 }} />
-                      {/* `minWidth: 0` is what makes the ellipsis work at all:
-                          a flex item refuses to shrink below its content
-                          without it, so a long label would push "occupied"
-                          out of the card instead of truncating. */}
-                      <span className="pms-num" style={{ minWidth: 0, fontSize: 16, fontWeight: 700, color: "var(--foreground)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>Room {rm.label}</span>
+                    {/* THE NUMBER IN FULL. It was "Room 101" in a nowrap line
+                        beside an "occupied" tag that would not shrink, so every
+                        occupied room truncated to "Room…" and the one fact the
+                        card exists to show was the one it hid. The word "Room"
+                        is for a screen reader now; the number stands alone and
+                        wraps rather than cuts if a named room is long. Who is
+                        in it moved to an icon on this line and a line of its
+                        own below. */}
+                    <span className="flex items-start gap-2">
+                      <span data-room-label className="pms-num min-w-0 text-xl leading-tight font-bold break-words text-foreground">
+                        <span className="sr-only">Room </span>
+                        {rm.label}
+                      </span>
                       {rm.occupantName && (
-                        <span style={{ marginLeft: "auto", fontSize: 10.5, color: "var(--faint)", flexShrink: 0 }}>occupied</span>
+                        <span title={`Occupied by ${rm.occupantName}`} className="mt-0.5 ml-auto flex shrink-0">
+                          <UserRound aria-hidden="true" className="size-4 text-accent-text" strokeWidth={2.2} />
+                        </span>
                       )}
                     </span>
-                    <span style={{ display: "block", marginTop: 6 }}><Badge intent={h.intent}>{h.label}</Badge></span>
+                    <span className="mt-1.5 block">
+                      <Badge intent={h.intent} icon={h.icon}>
+                        {h.label}
+                      </Badge>
+                    </span>
                     {/* The room TYPE, always. The guest's name used to REPLACE
                         it the moment a room was occupied, so the one screen
                         that says what a room is stopped saying it exactly when
                         a desk was deciding where to move somebody. Both lines
                         fit; neither has to win. */}
-                    <span style={{ display: "block", marginTop: 5, fontSize: 11, color: "var(--muted)", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{rm.typeName}</span>
-                    {rm.occupantName && (
-                      <span style={{ display: "block", marginTop: 2, fontSize: 11, color: "var(--foreground)", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{rm.occupantName}</span>
-                    )}
+                    <span className="mt-1.5 block truncate text-2xs text-muted-foreground">{rm.typeName}</span>
+                    {/* Occupancy said in words as well as by the icon above,
+                        both ways: "Vacant" is what a desk deciding where to put
+                        a walk-in is looking for. */}
+                    <span className="mt-0.5 flex min-w-0 items-center gap-1 text-2xs">
+                      {rm.occupantName ? (
+                        <>
+                          <UserRound aria-hidden="true" className="size-3 shrink-0 text-accent-text" strokeWidth={2.2} />
+                          <span className="truncate font-semibold text-foreground">
+                            <span className="sr-only">Occupied by </span>
+                            {rm.occupantName}
+                          </span>
+                        </>
+                      ) : (
+                        <>
+                          <DoorOpen aria-hidden="true" className="size-3 shrink-0 text-muted-foreground" strokeWidth={2.2} />
+                          <span className="text-muted-foreground">Vacant</span>
+                        </>
+                      )}
+                    </span>
                   </button>
                   {sel && (
                     <div
@@ -368,7 +396,7 @@ export function RoomStatus() {
                                 : null),
                             }}
                           >
-                            <span aria-hidden style={{ width: 8, height: 8, borderRadius: 99, background: x.dot, flexShrink: 0 }} />
+                            <x.icon aria-hidden="true" className="size-4 shrink-0" strokeWidth={2.2} style={{ color: x.dot }} />
                             {x.label}
                           </ActionButton>
                         );

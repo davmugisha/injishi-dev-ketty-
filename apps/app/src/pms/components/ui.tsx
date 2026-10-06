@@ -19,6 +19,7 @@
 
 import { ListBox, Select } from "@heroui/react";
 import { cva, type VariantProps } from "class-variance-authority";
+import { CloudOff, RotateCw, type LucideIcon } from "lucide-react";
 import { useId, type CSSProperties, type ReactNode } from "react";
 import { Badge as ShadBadge, Button, Card, Skeleton as ShadSkeleton } from "@injishi/ui";
 import { cn } from "@/lib/utils";
@@ -58,17 +59,101 @@ const badgeIntent = cva("rounded-full font-semibold whitespace-nowrap border-tra
 export function Badge({
   children,
   intent = "neutral",
+  icon: IconCmp,
   className,
 }: {
   children: ReactNode;
+  /**
+   * A mark beside the word, never instead of it. Decorative to a screen
+   * reader, which already hears the word.
+   */
+  icon?: LucideIcon;
   className?: string;
 } & VariantProps<typeof badgeIntent>) {
   // `ghost` maps to HeroUI's transparent chip, so the only thing setting
   // --chip-bg is the intent above.
   return (
-    <ShadBadge variant="ghost" size="sm" className={cn(badgeIntent({ intent }), className)}>
+    <ShadBadge variant="ghost" size="sm" className={cn(badgeIntent({ intent }), IconCmp && "gap-1", className)}>
+      {IconCmp && <IconCmp aria-hidden="true" className="size-3.5 shrink-0" strokeWidth={2.2} />}
       {children}
     </ShadBadge>
+  );
+}
+
+/* ── Stat tile ──────────────────────────────────────────────────────────── */
+
+/** The tint behind a tile's icon, one per intent. Fill and ink move together. */
+const TILE_TONE: Record<Intent, string> = {
+  ok: "bg-ok-bg text-ok",
+  warn: "bg-warn-bg text-warn",
+  bad: "bg-bad-bg text-bad",
+  info: "bg-info-bg text-info",
+  accent: "bg-accent-soft text-accent-text",
+  neutral: "bg-hover text-ink2",
+};
+
+/**
+ * A headline count that is also a filter (blueprint §7: counts are actionable).
+ *
+ * It replaced Today's row of pill chips. A chip said "3 Pending"; a tile says
+ * the same thing larger, with an icon a desk learns to find without reading,
+ * and a hint line that answers the next question ("2 rooms not ready") so the
+ * number is not a dead end.
+ *
+ * A NATIVE `<button>`, for the reason Room status's card header is one: the
+ * shared `Button` is a HeroUI button with a fixed height, centred content and
+ * `nowrap`, and a tile is three lines of content, not a control in that
+ * vocabulary. It is still a toggle: `aria-pressed` carries the state, the
+ * border and fill repeat it, and the text names it. The icon is decorative:
+ * the label already says which group it is.
+ */
+export function StatTile({
+  icon: IconCmp,
+  label,
+  n,
+  hint,
+  intent = "neutral",
+  active,
+  onPress,
+}: {
+  icon: LucideIcon;
+  label: string;
+  /** The count. A string while it is not known yet ("—"). */
+  n: number | string;
+  /** One short line under the label; it truncates rather than wraps. */
+  hint?: string;
+  intent?: Intent;
+  active: boolean;
+  onPress: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      data-stat-tile
+      aria-pressed={active}
+      onClick={onPress}
+      className={cn(
+        // Tighter on a phone, where two tiles share 358px and the hint is
+        // the first thing to lose its last word.
+        "flex min-h-13 min-w-0 cursor-pointer items-center gap-2 rounded-card border px-2.5 py-1.5 text-left sm:gap-2.5 sm:px-3",
+        "transition-colors duration-quick ease-settle",
+        active ? "border-accent-text bg-accent-soft" : "border-card-bd bg-card hover:bg-hover",
+      )}
+    >
+      <span
+        aria-hidden="true"
+        className={cn("flex size-8 shrink-0 items-center justify-center rounded-full sm:size-9", TILE_TONE[intent])}
+      >
+        <IconCmp className="size-[18px]" strokeWidth={2} />
+      </span>
+      <span className="pms-num shrink-0 text-xl leading-none font-bold text-foreground sm:text-2xl">{n}</span>
+      <span className="flex min-w-0 flex-col">
+        <span className={cn("truncate text-sm leading-tight font-semibold", active ? "text-accent-text" : "text-ink2")}>
+          {label}
+        </span>
+        {hint && <span className="truncate text-xs leading-tight text-muted-foreground">{hint}</span>}
+      </span>
+    </button>
   );
 }
 
@@ -84,14 +169,21 @@ export function Chip({
   active,
   onClick,
   dot,
+  icon: IconCmp,
   size = "md",
 }: {
   n?: number | string;
   label: string;
   active: boolean;
   onClick: () => void;
-  /** A status dot instead of a count (Room status). */
+  /** A status dot beside the count (Room status). */
   dot?: string;
+  /**
+   * The state's own mark, drawn in the dot's colour when both are given: the
+   * colour says which state, the shape says it again for anyone who cannot
+   * tell the colours apart.
+   */
+  icon?: LucideIcon;
   size?: "md" | "sm";
 }) {
   return (
@@ -108,13 +200,17 @@ export function Chip({
       shape="pill"
       className={cn(
         "gap-2 font-semibold",
-        dot ? "items-center" : "items-baseline",
+        dot || IconCmp ? "items-center" : "items-baseline",
         active
           ? "border-accent-text bg-accent-soft text-accent-text hover:bg-accent-soft"
           : "border-card-bd bg-card text-ink2 hover:bg-hover",
       )}
     >
-      {dot && <span className="size-[9px] rounded-full" style={{ background: dot }} />}
+      {IconCmp ? (
+        <IconCmp aria-hidden="true" className="size-4 shrink-0" strokeWidth={2.2} style={dot ? { color: dot } : undefined} />
+      ) : (
+        dot && <span className="size-[9px] rounded-full" style={{ background: dot }} />
+      )}
       {n !== undefined && (
         <span className={cn("pms-num font-bold", size === "md" ? "text-lg" : "text-base")}>{n}</span>
       )}
@@ -169,6 +265,7 @@ export function ActionButton({
   children,
   onClick,
   variant = "secondary",
+  icon: IconCmp,
   className,
   style,
   deniedReason,
@@ -178,6 +275,11 @@ export function ActionButton({
   children: ReactNode;
   onClick?: () => void;
   variant?: ButtonVariant;
+  /**
+   * A mark before the label: the same icon on the same command everywhere
+   * (check in, check out, the bill). Decorative; the label is the name.
+   */
+  icon?: LucideIcon;
   className?: string;
   style?: CSSProperties;
   /** Why this action is unavailable. Omit when it is available. */
@@ -215,9 +317,10 @@ export function ActionButton({
         shape="rounded"
         style={style}
         pending={pending}
-        className={cn(actionButtonClass(variant, denied), className)}
+        className={cn(actionButtonClass(variant, denied), IconCmp && "gap-1.5", className)}
         {...rest}
       >
+        {IconCmp && <IconCmp aria-hidden="true" className="size-4 shrink-0" strokeWidth={2} />}
         {children}
       </Button>
       {denied && (
@@ -281,35 +384,67 @@ export function StatCard({ n, label }: { n: string; label: string }) {
   );
 }
 
-/** A section's uppercase eyebrow, with an optional count. */
-export function SectionHeading({ children, n }: { children: ReactNode; n?: string | number }) {
+/**
+ * A section's uppercase eyebrow, with an optional count, icon and action.
+ *
+ * The icon is the section's mark wherever the section appears (Today's
+ * requests, arrivals, departures and in-house share their tile's icon), so a
+ * desk finds a group by shape before it reads the word. `action` sits at the
+ * far end of the line: a way back out of a filter, a link to the full list.
+ */
+export function SectionHeading({
+  children,
+  n,
+  icon: IconCmp,
+  action,
+  id,
+}: {
+  children: ReactNode;
+  n?: string | number;
+  icon?: LucideIcon;
+  action?: ReactNode;
+  /** For a list that names itself by this heading (`aria-labelledby`). */
+  id?: string;
+}) {
   return (
-    <div className="flex items-baseline gap-2">
-      <h2 className="text-2xs font-bold tracking-[0.09em] uppercase text-[var(--muted2)]">{children}</h2>
+    <div className="flex min-h-5 items-center gap-2">
+      {IconCmp && <IconCmp aria-hidden="true" className="size-4 shrink-0 text-[var(--muted2)]" strokeWidth={2} />}
+      <h2 id={id} className="text-2xs font-bold tracking-[0.09em] uppercase text-[var(--muted2)]">
+        {children}
+      </h2>
       {n !== undefined && <span className="pms-num text-2xs text-faint">{n}</span>}
+      {action && <span className="ml-auto flex items-center">{action}</span>}
     </div>
   );
 }
 
 /**
  * An empty state. It always gives direction — never a bare zero
- * (blueprint §5 copy rules).
+ * (blueprint §5 copy rules). An icon, when given, says which kind of empty
+ * this is before the sentence does.
  */
 export function EmptyState({
   children,
+  icon: IconCmp,
   className,
   style,
 }: {
   children: ReactNode;
+  icon?: LucideIcon;
   className?: string;
   style?: CSSProperties;
 }) {
   return (
     <div
       style={style}
-      className={cn("border border-dashed border-line2 px-5 py-[18px] text-sm text-muted-foreground rounded", className)}
+      className={cn(
+        "border border-dashed border-line2 px-5 py-[18px] text-sm text-muted-foreground rounded",
+        IconCmp && "flex items-start gap-3",
+        className,
+      )}
     >
-      {children}
+      {IconCmp && <IconCmp aria-hidden="true" className="mt-px size-[18px] shrink-0 text-faint" strokeWidth={1.8} />}
+      {IconCmp ? <span className="min-w-0">{children}</span> : children}
     </div>
   );
 }
@@ -349,9 +484,12 @@ export function LoadFailed({
       className={cn("flex flex-col items-center gap-3 text-center", className)}
       style={{ padding: 26, fontSize: 13.5, ...style }}
     >
+      {/* A cloud struck through: the answer did not arrive. Not a warning
+          triangle, which would say something is wrong with the hotel. */}
+      <CloudOff aria-hidden="true" className="size-6 text-faint" strokeWidth={1.8} />
       <span className="max-w-form">{children}</span>
       {onRetry && (
-        <ActionButton onClick={onRetry} pending={retrying}>
+        <ActionButton onClick={onRetry} pending={retrying} icon={RotateCw}>
           {retrying ? "Trying again" : "Try again"}
         </ActionButton>
       )}

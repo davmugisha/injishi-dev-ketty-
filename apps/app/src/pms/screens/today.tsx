@@ -3,9 +3,9 @@
 /**
  * Today — the temporal home of the front desk (F-B07, blueprint §4).
  *
- * Actionable stat chips filter the grouped list beneath them; each row carries
+ * Actionable stat tiles filter the grouped list beneath them; each row carries
  * exactly one primary action. This is the "start the day" journey: scan, tap a
- * chip to narrow, act per row.
+ * tile to narrow, act per row.
  *
  * **ON REAL DATA.** This screen is the host workspace's landing page — it is
  * the first thing an operator sees every morning — and it was the largest
@@ -23,6 +23,28 @@
  *    read only when the caller holds `folio.charge`, the same permission the
  *    Bills screen gates on — a desk that may not open a bill is not shown its
  *    number, and the badge says "bill" instead of a figure it could not check.
+ *  - `GET /ops/rooms` supplies each arriving guest's ROOM READINESS (2026-10-06):
+ *    the question a desk asks about an arrival is whether the room is clean, and
+ *    the answer was one screen away on Room status. Same read, same cache, same
+ *    four words; gated by the hook on the read's own permissions.
+ *
+ * **THE BOARD (2026-10-06).** The pill chips became stat tiles with an icon and
+ * a hint line, the setup card became one line, and the list became a board:
+ *
+ *  - From 1280px wide the groups sit in two columns. Requests and departures
+ *    on the left, because both are a decision with money on it (approve or
+ *    refund; settle the bill and let them go). Arrivals on the right, each with
+ *    its room's readiness, because that column is the afternoon's work and is
+ *    read top to bottom as guests turn up. In-house runs full width under both:
+ *    it is the longest list and the least urgent, and a full line per guest
+ *    fits the bill figure. One column below 1280px, in the same order, since
+ *    two columns of cards on a laptop or a phone would be narrower than a card.
+ *  - Rows lay themselves out by the column they are in (`today-row.tsx`), so a
+ *    phone gets cards with a full width primary button rather than a page that
+ *    scrolled sideways.
+ *  - An owner (`money.view`) gets one line of figures under the tiles: rooms
+ *    occupied tonight and what today's departures still owe. Both are counted
+ *    from the rows already on this screen; neither is a new read.
  *
  * Commands: approve and decline (`reservation.approve`), check in through the
  * shared drawer (`stay.checkin`), and check out (`stay.checkout`). Each is
@@ -40,27 +62,30 @@
  * receptionist nobody is coming when in fact nobody asked.
  */
 
-import { SetupBanner } from "../components/setup-banner";
-import { Button } from "@injishi/ui";
-import { useState } from "react";
+import { BedDouble, Inbox, LogIn, LogOut, Wallet, type LucideIcon } from "lucide-react";
+import { useId, useState } from "react";
 import { useRouter } from "next/navigation";
+import type { HousekeepingStatus, OperatorFolio, OperatorReservation, OperatorRoomAssignment, OperatorStay } from "@injishi/contracts";
+
+import { SetupBanner } from "../components/setup-banner";
+import { TodayRow, type DayRow, type Group, type Readiness } from "../components/today-row";
 import { useWorkspaceHref } from "../lib/workspace-href";
 import { useHost, usePms } from "../store";
 import { usePmsUi } from "../ui-store";
-import type { HospitalityProperty, Reservation } from "../data/types";
-import type { OperatorFolio, OperatorReservation, OperatorRoomAssignment, OperatorStay } from "@injishi/contracts";
+import type { HospitalityProperty, Intent, Reservation } from "../data/types";
 import { useCapability, useWorkspaceId } from "../data/capability";
 import {
   useApproveReservation,
   useDeclineReservation,
   useReservations,
 } from "../data/reservations";
-import { useCheckOut, useFolios, useRoomAssignments, useStays } from "../data/ops";
+import { useCheckOut, useFolios, useRoomAssignments, useRooms, useStays } from "../data/ops";
 import { seedFromDemoReservation, seedFromServerReservation } from "../lib/check-in-seed";
 import { buildFolio } from "../lib/folio";
-import { addDaysIso, dateRange, dateRangeIso, ds, dshort, dshortIso, fmt, initials, nights, todayIso, TIMEZONE } from "../lib/format";
-import { ActionButton, Badge, EmptyState, Initials, LoadFailed, SectionHeading, Skeleton, surface } from "../components/ui";
-import { ConfirmAction } from "../components/confirm-action";
+import { addDaysIso, dateRange, dateRangeIso, dshort, dshortIso, fmt, nights, todayIso } from "../lib/format";
+import { HOUSEKEEPING_FROM_DEMO } from "../lib/housekeeping";
+import { EmptyState, LoadFailed, SectionHeading, Skeleton, StatTile, surfaceClass } from "../components/ui";
+import { cn } from "@/lib/utils";
 
 /**
  * What a decision on a request is worded as, on BOTH screens that offer it.
@@ -75,47 +100,70 @@ export function decisionToast(action: "approve" | "decline", guest: string): str
     : `${guest}'s request is declined and their money is going back.`;
 }
 
-type Group = "pending" | "arriving" | "departing" | "inhouse";
 type ChipKey = "all" | Group;
 
 /**
- * One row of the day, from either source.
- *
- * The two middle lines are rendered strings rather than raw fields on purpose:
- * a live row and a demo row phrase "night 2 of 3" from different inputs (an ISO
- * date against today, versus a day offset), and normalising them here keeps one
- * table instead of two.
+ * The four groups, once. The tile, the section heading and the empty state all
+ * read this, so a group has one name, one icon and one colour wherever it shows.
  */
-interface DayRow {
-  /** The reservation id. The React key and, for a demo row, the bill address. */
-  id: string;
-  guest: string;
-  /** Raw name, which may be null. What the check-in drawer is seeded with. */
-  guestName: string | null;
-  nights: number;
-  /** Reference line under the name. */
-  sub: string;
-  /** Middle cell, top line. */
-  top: string;
-  /** Middle cell, bottom line. */
-  bottom: string;
-  group: Group;
-  /**
-   * The OPEN stay this reservation became, when it has become one.
-   *
-   * Null on a live row means the server has no open stay against this booking,
-   * which is the honest state for an arrival that has not been checked in — and
-   * it is why check out and the bill link are offered from this field rather
-   * than from the reservation id.
-   */
-  stayId: string | null;
-  /** Balance on the bill, or null when there is no bill to read. */
-  balance: number | null;
-  /** Whether a walk-in badge belongs on an arriving row. */
-  walkIn: boolean;
-  source: "live" | "demo";
-  demo?: Reservation;
-}
+const GROUPS: readonly {
+  key: Group;
+  /** The section heading. */
+  label: string;
+  /** The tile's shorter word. */
+  tile: string;
+  icon: LucideIcon;
+  intent: Intent;
+  emptyTxt: string;
+}[] = [
+  {
+    key: "pending",
+    label: "Requests to approve",
+    tile: "Requests",
+    icon: Inbox,
+    intent: "warn",
+    emptyTxt: "No pending requests. New booking requests appear here the moment they arrive.",
+  },
+  {
+    key: "arriving",
+    label: "Arriving today",
+    tile: "Arriving",
+    icon: LogIn,
+    intent: "info",
+    emptyTxt: "No arrivals today. Tomorrow's arrivals are on the Calendar.",
+  },
+  {
+    key: "departing",
+    label: "Departing today",
+    tile: "Departing",
+    icon: LogOut,
+    intent: "neutral",
+    emptyTxt: "No departures today.",
+  },
+  {
+    key: "inhouse",
+    label: "In-house tonight",
+    tile: "In-house",
+    icon: BedDouble,
+    intent: "accent",
+    emptyTxt: "No guests in-house tonight. Walk-ins open a bill in under two minutes.",
+  },
+];
+
+/**
+ * Where each group sits on the two column board, from 1280px. The DOM order is
+ * the single column order (requests, arriving, departing, in-house); the grid
+ * places them, so a keyboard and a screen reader meet them in the same order
+ * on every width. Departing takes the `1fr` row, so a long arrivals column
+ * stretches the space under departures rather than opening a gap between the
+ * two sections on the left.
+ */
+const BOARD_PLACE: Record<Group, string> = {
+  pending: "xl:col-start-1 xl:row-start-1",
+  arriving: "xl:col-start-2 xl:row-span-2 xl:row-start-1",
+  departing: "xl:col-start-1 xl:row-start-2",
+  inhouse: "xl:col-span-2 xl:row-start-3",
+};
 
 export function Today() {
   const { dispatch, toast, toastError } = usePms();
@@ -156,6 +204,13 @@ export function Today() {
     addDaysIso(todayIso(), 1),
   );
   const folios = useFolios(mayReadBills && live ? workspaceId : null);
+  /*
+   * The rooms list, for readiness. `useRooms` gates itself on the read's own
+   * permissions (`OPS_READ.rooms`), so a caller who may not read it sends
+   * nothing and every arrival simply shows no readiness rather than a refusal.
+   * One read, shared with Room status and the sidebar through the query cache.
+   */
+  const rooms = useRooms(workspaceId);
   const checkOut = useCheckOut(workspaceId);
   // The SAME two hooks Reservations uses, not a second pair. They own the cache
   // patching that makes an approved request move group without a reload, and
@@ -169,32 +224,79 @@ export function Today() {
   const checkInReason = can("stay.checkin") ? undefined : reasonFor("stay.checkin");
   const checkOutReason = can("stay.checkout") ? undefined : reasonFor("stay.checkout");
 
+  /* Room label -> housekeeping state, or null when the rooms read has not
+     answered (or may not be made): readiness then stays unknown, never "ready". */
+  const roomState: Map<string, HousekeepingStatus> | null = live
+    ? rooms.data
+      ? new Map(rooms.data.rooms.flatMap((rm) => (rm.label ? [[rm.label, rm.housekeeping] as const] : [])))
+      : null
+    : new Map(P.rooms.map((rm) => [rm.id, HOUSEKEEPING_FROM_DEMO[rm.hk]] as const));
+
   const rows = live
     ? fromServer(
         reservations.data?.reservations ?? [],
         stays.data?.stays ?? [],
         mayReadBills ? (folios.data?.folios ?? []) : null,
         holds.data?.assignments ?? [],
+        roomState,
       )
-    : fromDemo(P);
+    : fromDemo(P, roomState);
 
-  const groups: { key: Group; label: string; emptyTxt: string }[] = [
-    { key: "pending", label: "Requests to approve", emptyTxt: "No pending requests. New booking requests appear here the moment they arrive." },
-    { key: "arriving", label: "Arriving today", emptyTxt: "No arrivals today. Tomorrow's arrivals are on the Calendar." },
-    { key: "departing", label: "Departing today", emptyTxt: "No departures today." },
-    { key: "inhouse", label: "In-house tonight", emptyTxt: "No guests in-house tonight. Walk-ins open a bill in under two minutes." },
-  ];
+  const loading = live && (reservations.isPending || stays.isPending);
+  const failed = live && (reservations.isError || stays.isError);
 
-  const chips: { key: ChipKey; label: string; n: number }[] = [
-    { key: "all", label: "All", n: rows.length },
-    ...groups.map((g) => ({
-      key: g.key as ChipKey,
-      label: g.key === "pending" ? "Pending" : g.key === "arriving" ? "Arriving" : g.key === "departing" ? "Departing" : "In-house",
-      n: rows.filter((r) => r.group === g.key).length,
-    })),
-  ];
+  const byGroup = (g: Group) => rows.filter((r) => r.group === g);
+  const arriving = byGroup("arriving");
+  const departing = byGroup("departing");
 
-  const shown = groups.filter((g) => chip === "all" || chip === g.key);
+  /* The hint under each tile answers the next question about its number. */
+  const noRoom = arriving.filter((r) => r.readiness === "no-room").length;
+  const notReady = arriving.filter((r) => r.readiness === "dirty" || r.readiness === "out_of_order").length;
+  const owing = departing.filter((r) => r.balance !== null && r.balance > 0);
+  const leavingTomorrow = byGroup("inhouse").filter((r) => r.leavesTomorrow).length;
+  /* Short on purpose: a tile is a fifth of a 1280px screen, and a hint that
+     truncates answers nothing. */
+  const hint: Record<Group, string> = {
+    pending: byGroup("pending").length > 0 ? "To decide" : "Nothing waiting",
+    arriving:
+      arriving.length === 0
+        ? "Nobody due"
+        : noRoom > 0
+          ? `${noRoom} need a room`
+          : notReady > 0
+            ? `${notReady} ${notReady === 1 ? "room" : "rooms"} not ready`
+            : roomState
+              ? "Rooms ready"
+              : "Due today",
+    departing:
+      departing.length === 0
+        ? "Nobody leaving"
+        : mayReadBills && owing.length > 0
+          ? `${owing.length} ${owing.length === 1 ? "owes" : "owe"} money`
+          : "Leaving today",
+    // Tomorrow's departures, which are what a desk plans tonight around.
+    inhouse:
+      byGroup("inhouse").length === 0
+        ? "Nobody in"
+        : leavingTomorrow > 0
+          ? `${leavingTomorrow} out tomorrow`
+          : "None out tomorrow",
+  };
+
+  /*
+   * The owner's line (`money.view`). Counted from the rows on this screen and
+   * nothing else: tonight's rooms are everybody staying past today plus
+   * everybody arriving today, and what is owed is the sum of the departures'
+   * open balances. The room count is the denominator only when the rooms read
+   * answered; without it the line still says how many, just not out of what.
+   */
+  const occupiedTonight = byGroup("inhouse").length + arriving.length;
+  const totalRooms = live ? (rooms.data?.rooms.length ?? null) : P.rooms.length;
+  // Only once the bills have answered: before that every balance is unknown,
+  // and a sum of unknowns would print "RWF 0 owed" for a moment.
+  const owed =
+    mayReadBills && (!live || folios.isSuccess) ? owing.reduce((sum, r) => sum + (r.balance ?? 0), 0) : null;
+  const showFigures = can("money.view") && !loading && !failed;
 
   /** Approve or decline, from whichever source this row came. */
   function decide(row: DayRow, action: "approve" | "decline") {
@@ -237,48 +339,133 @@ export function Today() {
     return row.stayId ? href(`/stays/${row.stayId}/folio`) : null;
   }
 
-  const loading = live && (reservations.isPending || stays.isPending);
-  const failed = live && (reservations.isError || stays.isError);
+  function section(g: (typeof GROUPS)[number], filtered: boolean) {
+    const list = byGroup(g.key);
+    return (
+      <DaySection
+        key={g.key}
+        group={g}
+        count={list.length}
+        className={filtered ? undefined : BOARD_PLACE[g.key]}
+        action={
+          filtered ? (
+            <button
+              type="button"
+              onClick={() => setChip("all")}
+              className="cursor-pointer rounded px-1 text-xs font-semibold text-accent-text hover:underline"
+            >
+              Show all {rows.length}
+            </button>
+          ) : undefined
+        }
+      >
+        {list.length === 0 ? null : (
+          list.map((r) => (
+            <TodayRow
+              key={r.id}
+              r={r}
+              decideReason={decideReason}
+              checkInReason={checkInReason}
+              checkOutReason={checkOutReason}
+              /* ONE row's pending, not the board's. `variables` is the id the
+                 mutation was called with, so the guest whose button was pressed
+                 is the only one that shimmers — a shared `isPending` relabelled
+                 every row at once. */
+              pendingAction={
+                approve.isPending && approve.variables === r.id
+                  ? "approve"
+                  : decline.isPending && decline.variables === r.id
+                    ? "decline"
+                    : checkOut.isPending && r.stayId !== null && checkOut.variables?.stayId === r.stayId
+                      ? "checkout"
+                      : null
+              }
+              billHref={billHref(r)}
+              mayReadBills={!live || mayReadBills}
+              onApprove={() => decide(r, "approve")}
+              onDecline={() => decide(r, "decline")}
+              onCheckIn={() =>
+                openCheckIn(
+                  r.demo
+                    ? seedFromDemoReservation(r.demo)
+                    : seedFromServerReservation({ id: r.id, guestName: r.guestName, nights: r.nights }),
+                )
+              }
+              onCheckout={() => departGuest(r)}
+              onBill={() => {
+                const to = billHref(r);
+                if (to) router.push(to);
+              }}
+            />
+          ))
+        )}
+      </DaySection>
+    );
+  }
 
   return (
-    <div className="pms-enter" style={{ display: "flex", flexDirection: "column", gap: 20 }}>
+    <div className="pms-enter flex min-w-0 flex-col gap-3">
       <SetupBanner />
-      <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
-        {chips.map((c) => {
-          const on = chip === c.key;
-          return (
-            <Button variant="ghost"
-              key={c.key}
-              onClick={() => setChip(c.key)}
-              aria-pressed={on}
-              style={{
-                display: "flex",
-                alignItems: "baseline",
-                gap: 8,
-                border: `1.5px solid ${on ? "var(--accent-text)" : "var(--card-bd)"}`,
-                background: on ? "var(--accent-soft)" : "var(--card)",
-                color: on ? "var(--accent-text)" : "var(--ink2)",
-                borderRadius: 999,
-                padding: "9px 16px",
-                fontSize: 13,
-                fontWeight: 600,
-                cursor: "pointer",
-                minHeight: 44,
-              }}
-            >
-              <span className="pms-num" style={{ fontSize: 17, fontWeight: 700 }}>
-                {loading ? "—" : c.n}
-              </span>
-              {c.label}
-            </Button>
-          );
-        })}
-        <span style={{ flex: 1 }} />
-        <span style={{ fontSize: 12.5, color: "var(--muted)" }}>{`${ds(0)} · ${TIMEZONE}`}</span>
+
+      {/* The tiles, and beside them on a wide screen the owner's two figures.
+          On a narrower one the figures drop to a line under the tiles: the
+          same grid, its fifth cell spanning it. The turn is at 1400px rather
+          than the board's 1280, because beside the figures a tile at 1280 is
+          too narrow for its own label. It is written 87.5rem, in the unit
+          the theme's breakpoints use: in px, Tailwind cannot order it after
+          `md:` and the narrow layout wins on every width. */}
+      <div className="grid grid-cols-2 gap-2.5 md:grid-cols-4 min-[87.5rem]:grid-cols-[repeat(4,minmax(0,1fr))_auto]">
+        <div role="group" aria-label="Filter today's guests" className="contents">
+          {GROUPS.map((g) => (
+            <StatTile
+              key={g.key}
+              icon={g.icon}
+              label={g.tile}
+              n={loading ? "—" : byGroup(g.key).length}
+              hint={loading || failed ? undefined : hint[g.key]}
+              intent={g.intent}
+              active={chip === g.key}
+              // Pressing the lit tile again is the way back to everything, as
+              // pressing a lit filter chip always was.
+              onPress={() => setChip(chip === g.key ? "all" : g.key)}
+            />
+          ))}
+        </div>
+
+        {showFigures && (
+          <dl
+            className="col-span-2 flex flex-wrap items-center gap-x-6 gap-y-1 text-sm text-ink2 md:col-span-4 min-[87.5rem]:col-span-1 min-[87.5rem]:flex-col min-[87.5rem]:flex-nowrap min-[87.5rem]:items-start min-[87.5rem]:justify-center min-[87.5rem]:border-l min-[87.5rem]:border-line min-[87.5rem]:pl-4"
+          >
+            <div className="flex items-center gap-1.5 whitespace-nowrap">
+              <dt className="flex">
+                <BedDouble aria-hidden="true" className="size-4 text-muted-foreground" strokeWidth={2} />
+                <span className="sr-only">Rooms occupied tonight</span>
+              </dt>
+              <dd>
+                <strong className="pms-num font-semibold text-foreground">{occupiedTonight}</strong>
+                {totalRooms !== null && totalRooms > 0
+                  ? ` of ${totalRooms} rooms tonight · ${Math.round((occupiedTonight / totalRooms) * 100)}%`
+                  : ` ${occupiedTonight === 1 ? "room" : "rooms"} tonight`}
+              </dd>
+            </div>
+            {owed !== null && (
+              <div className="flex items-center gap-1.5 whitespace-nowrap">
+                <dt className="flex">
+                  <Wallet aria-hidden="true" className="size-4 text-muted-foreground" strokeWidth={2} />
+                  <span className="sr-only">Still owed by today&apos;s departures</span>
+                </dt>
+                <dd>
+                  <strong className="pms-num font-semibold text-foreground">{fmt(owed)}</strong>
+                  <span aria-hidden="true"> owed by departures</span>
+                </dd>
+              </div>
+            )}
+          </dl>
+        )}
       </div>
 
       {loading ? (
-        <div style={{ ...surface, padding: 18, display: "flex", flexDirection: "column", gap: 10 }}>
+        <div className={cn(surfaceClass, "flex flex-col gap-2.5 p-[18px]")}>
           {[0, 1, 2].map((i) => (
             <Skeleton key={i} height={38} delay={i * 80} />
           ))}
@@ -296,62 +483,47 @@ export function Today() {
           We couldn&apos;t load today. Your arrivals and departures are safe — this is on
           our side, not an empty hotel.
         </LoadFailed>
+      ) : chip === "all" ? (
+        <div className="grid min-w-0 grid-cols-1 gap-5 xl:grid-cols-2 xl:grid-rows-[auto_1fr_auto] xl:items-start">
+          {GROUPS.map((g) => section(g, false))}
+        </div>
       ) : (
-        shown.map((g) => {
-          const list = rows.filter((r) => r.group === g.key);
-          return (
-            <section key={g.key}>
-              <SectionHeading n={list.length}>{g.label}</SectionHeading>
-              {list.length === 0 ? (
-                <EmptyState style={{ marginTop: 10 }}>{g.emptyTxt}</EmptyState>
-              ) : (
-                <div className="pms-tablescroll" style={{ ...surface, marginTop: 10 }}>
-                  {list.map((r, i) => (
-                    <TodayRow
-                      key={r.id}
-                      r={r}
-                      first={i === 0}
-                      decideReason={decideReason}
-                      checkInReason={checkInReason}
-                      checkOutReason={checkOutReason}
-                      /* ONE row's pending, not the board's. `variables` is the
-                         id the mutation was called with, so the guest whose
-                         button was pressed is the only one that shimmers — a
-                         shared `isPending` relabelled every row at once. */
-                      pendingAction={
-                        approve.isPending && approve.variables === r.id
-                          ? "approve"
-                          : decline.isPending && decline.variables === r.id
-                            ? "decline"
-                            : checkOut.isPending && r.stayId !== null && checkOut.variables?.stayId === r.stayId
-                              ? "checkout"
-                              : null
-                      }
-                      billHref={billHref(r)}
-                      mayReadBills={!live || mayReadBills}
-                      onApprove={() => decide(r, "approve")}
-                      onDecline={() => decide(r, "decline")}
-                      onCheckIn={() =>
-                        openCheckIn(
-                          r.demo
-                            ? seedFromDemoReservation(r.demo)
-                            : seedFromServerReservation({ id: r.id, guestName: r.guestName, nights: r.nights }),
-                        )
-                      }
-                      onCheckout={() => departGuest(r)}
-                      onBill={() => {
-                        const to = billHref(r);
-                        if (to) router.push(to);
-                      }}
-                    />
-                  ))}
-                </div>
-              )}
-            </section>
-          );
-        })
+        section(GROUPS.find((g) => g.key === chip) ?? GROUPS[0], true)
       )}
     </div>
+  );
+}
+
+/** One group: its heading, then its rows as a list, or its empty state. */
+function DaySection({
+  group,
+  count,
+  action,
+  className,
+  children,
+}: {
+  group: (typeof GROUPS)[number];
+  count: number;
+  action?: React.ReactNode;
+  className?: string;
+  children: React.ReactNode;
+}) {
+  const headingId = useId();
+  return (
+    <section aria-labelledby={headingId} className={cn("flex min-w-0 flex-col gap-2", className)}>
+      <SectionHeading id={headingId} n={count} icon={group.icon} action={action}>
+        {group.label}
+      </SectionHeading>
+      {count === 0 ? (
+        <EmptyState icon={group.icon}>{group.emptyTxt}</EmptyState>
+      ) : (
+        /* The list is the CONTAINER its rows measure (`@container`), so a row
+           reads the column it is in rather than the window. */
+        <ul aria-labelledby={headingId} className="@container min-w-0 rounded-card border border-panel-bd bg-card">
+          {children}
+        </ul>
+      )}
+    </section>
   );
 }
 
@@ -371,12 +543,17 @@ export function Today() {
  * `folios` is null, not empty, when the caller may not read bills. Empty would
  * mean "no bills", which renders as "settled" — telling a receptionist a
  * departing guest owes nothing is exactly the mistake that costs money.
+ *
+ * `roomState` is null, not empty, for the same reason on rooms: an empty map
+ * would make every arrival "no room yet"'s cousin, "unknown room", look like a
+ * fact. Null leaves readiness unknown.
  */
 function fromServer(
   reservations: readonly OperatorReservation[],
   stays: readonly OperatorStay[],
   folios: readonly OperatorFolio[] | null,
   holds: readonly OperatorRoomAssignment[] = [],
+  roomState: ReadonlyMap<string, HousekeepingStatus> | null = null,
 ): DayRow[] {
   const today = todayIso();
   const heldRoomFor = new Map<string, string>();
@@ -410,8 +587,11 @@ function fromServer(
       sub: r.reference,
       ...linesFor(r, group, room, today),
       group,
+      room,
+      readiness: group === "arriving" ? readinessOf(room, roomState) : null,
       stayId: stay?.id ?? null,
       balance: folio ? folio.balanceRwf : null,
+      leavesTomorrow: group === "inhouse" && r.checkOut === addDaysIso(today, 1),
       // The server has no walk-in flag on a reservation, and it does not need
       // one: a walk-in never had a booking, so it is never in this list.
       walkIn: false,
@@ -419,6 +599,16 @@ function fromServer(
     });
   }
   return rows;
+}
+
+/**
+ * An arrival's readiness. No room is a fact we can state; a room whose state we
+ * cannot read is not, so it stays null. A label the rooms list does not carry
+ * is the second kind: say nothing rather than call it ready.
+ */
+function readinessOf(room: string | null, roomState: ReadonlyMap<string, HousekeepingStatus> | null): Readiness {
+  if (!room) return "no-room";
+  return roomState?.get(room) ?? null;
 }
 
 /** Which group a server reservation belongs to, or null when it is not today's work. */
@@ -442,9 +632,10 @@ function linesFor(
     return { top: nights(r.nights), bottom: dateRangeIso(r.checkIn, r.checkOut) };
   }
   if (group === "arriving") {
+    // The badge says "No room yet"; the line says what to do about it.
     return room
       ? { top: `Room ${room}`, bottom: `${nights(r.nights)} · ${dateRangeIso(r.checkIn, r.checkOut)}` }
-      : { top: "No room yet", bottom: "Pick one at check-in, from the rooms that are actually free" };
+      : { top: `${nights(r.nights)} · ${dateRangeIso(r.checkIn, r.checkOut)}`, bottom: "Pick a room at check-in, from the ones actually free" };
   }
   if (group === "departing") {
     return { top: room ? `Room ${room}` : "No room on file", bottom: `Checkout today · ${dshortIso(r.checkOut)}` };
@@ -475,7 +666,7 @@ function daysBetween(from: string, to: string): number {
  * leaving today. The two rules say the same thing about different inputs, which
  * is why they are two functions rather than one with a flag.
  */
-function fromDemo(P: HospitalityProperty): DayRow[] {
+function fromDemo(P: HospitalityProperty, roomState: ReadonlyMap<string, HousekeepingStatus> | null): DayRow[] {
   const roomType = (r: Reservation) => P.rooms.find((x) => x.id === r.room)?.type ?? "";
 
   return P.res.flatMap((r): DayRow[] => {
@@ -493,7 +684,7 @@ function fromDemo(P: HospitalityProperty): DayRow[] {
         : group === "arriving"
           ? r.room
             ? { top: `Room ${r.room} · ${roomType(r)}`, bottom: `${nights(r.nights)} · ${dateRange(r.start, r.nights)}` }
-            : { top: "No room yet", bottom: "Assign one on the Room grid, or pick at check-in" }
+            : { top: `${nights(r.nights)} · ${dateRange(r.start, r.nights)}`, bottom: "Assign one on the Room grid, or pick at check-in" }
           : group === "departing"
             ? { top: `Room ${r.room} · ${roomType(r)}`, bottom: `Checkout by ${r.time ?? "11:00"}` }
             : {
@@ -508,167 +699,22 @@ function fromDemo(P: HospitalityProperty): DayRow[] {
       nights: r.nights,
       sub:
         group === "pending" ? `${r.id} · ${r.rep ?? ""}`
-        : group === "arriving" && r.walkin ? "Walk-in · no reservation"
+        // The readiness badge now holds the arrival's status slot, so a walk-in
+        // still waiting on its ID says so here rather than losing it.
+        : group === "arriving" && r.walkin ? "Walk-in · awaiting ID"
         : r.id,
       ...lines,
       group,
+      room: r.room,
+      readiness: group === "arriving" ? readinessOf(r.room, roomState) : null,
       // The fixture has no stay rows. The demo bill is addressed by the
       // reservation id, which is what `billHref` special-cases.
       stayId: null,
       balance: r.room ? buildFolio(r, P).bal : 0,
+      leavesTomorrow: group === "inhouse" && r.start + r.nights === 1,
       walkIn: Boolean(r.walkin),
       source: "demo",
       demo: r,
     }];
   });
-}
-
-function TodayRow({
-  r,
-  first,
-  decideReason,
-  checkInReason,
-  checkOutReason,
-  pendingAction,
-  billHref,
-  mayReadBills,
-  onApprove,
-  onDecline,
-  onCheckIn,
-  onCheckout,
-  onBill,
-}: {
-  r: DayRow;
-  first: boolean;
-  decideReason?: string;
-  checkInReason?: string;
-  checkOutReason?: string;
-  /** Which of THIS row's commands is in flight, if any. */
-  pendingAction: "approve" | "decline" | "checkout" | null;
-  billHref: string | null;
-  mayReadBills: boolean;
-  onApprove: () => void;
-  onDecline: () => void;
-  onCheckIn: () => void;
-  onCheckout: () => void;
-  onBill: () => void;
-}) {
-  const nameCell = (
-    <span style={{ minWidth: 0 }}>
-      <span style={{ display: "block", fontSize: 13.5, fontWeight: 600, color: "var(--foreground)", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
-        {r.guest}
-      </span>
-      <span className="pms-num" style={{ display: "block", fontSize: 11, color: "var(--muted)" }}>
-        {r.sub}
-      </span>
-    </span>
-  );
-
-  const midCell = (
-    <span style={{ minWidth: 0 }}>
-      <span style={{ display: "block", fontSize: 13, color: "var(--ink2)", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{r.top}</span>
-      <span className="pms-num" style={{ display: "block", fontSize: 11.5, color: "var(--muted)" }}>{r.bottom}</span>
-    </span>
-  );
-
-  const NO_BILL = "This booking has no open stay yet, so there is no bill to open.";
-
-  return (
-    <Row first={first}>
-      <Initials>{initials(r.guest)}</Initials>
-      {nameCell}
-      {midCell}
-      <span style={{ justifySelf: "end" }}>
-        {r.group === "pending" ? (
-          <Badge intent="warn">Request</Badge>
-        ) : r.group === "arriving" ? (
-          r.walkIn ? <Badge intent="warn">Awaiting ID</Badge> : <Badge intent="info">Arrives today</Badge>
-        ) : r.group === "departing" ? (
-          /* A balance nobody is allowed to read is not reported as zero. */
-          !mayReadBills ? (
-            <Badge intent="neutral">Bill</Badge>
-          ) : r.balance === null ? (
-            <Badge intent="neutral">No bill</Badge>
-          ) : r.balance > 0 ? (
-            <Badge intent="warn">{`${fmt(r.balance)} due`}</Badge>
-          ) : (
-            <Badge intent="ok">Settled</Badge>
-          )
-        ) : (
-          <Badge intent="accent">In-house</Badge>
-        )}
-      </span>
-      <span style={{ display: "flex", gap: 8, justifySelf: "end" }}>
-        {r.group === "pending" && (
-          <>
-            {/* Declining sends the guest's money back, and nothing here can
-                undo it — so it asks once, in place, without a modal. */}
-            <ConfirmAction
-              onConfirm={onDecline}
-              confirmLabel="Yes, decline and refund"
-              deniedReason={decideReason}
-              pending={pendingAction === "decline"}
-            >
-              {pendingAction === "decline" ? "Declining" : "Decline"}
-            </ConfirmAction>
-            <ActionButton
-              variant="primary"
-              onClick={onApprove}
-              deniedReason={decideReason}
-              pending={pendingAction === "approve"}
-              style={{ minWidth: 104 }}
-            >
-              {pendingAction === "approve" ? "Approving" : "Approve"}
-            </ActionButton>
-          </>
-        )}
-        {r.group === "arriving" && (
-          <ActionButton variant="primary" onClick={onCheckIn} deniedReason={checkInReason} style={{ minWidth: 104 }}>
-            Check in
-          </ActionButton>
-        )}
-        {r.group === "departing" && (
-          <>
-            <ActionButton onClick={onBill} deniedReason={billHref ? undefined : NO_BILL}>
-              View bill
-            </ActionButton>
-            {/* ONE press, and it stays one press: check-out is the fast path
-                and never grows a confirm step. What it gains is the wait made
-                visible, so nobody presses it twice wondering. */}
-            <ActionButton
-              variant="primary"
-              onClick={onCheckout}
-              deniedReason={checkOutReason}
-              pending={pendingAction === "checkout"}
-              style={{ minWidth: 104 }}
-            >
-              {pendingAction === "checkout" ? "Checking out" : "Check out"}
-            </ActionButton>
-          </>
-        )}
-        {r.group === "inhouse" && (
-          <ActionButton onClick={onBill} deniedReason={billHref ? undefined : NO_BILL} style={{ minWidth: 104 }}>
-            View bill
-          </ActionButton>
-        )}
-      </span>
-    </Row>
-  );
-}
-
-function Row({ children, first }: { children: React.ReactNode; first: boolean }) {
-  return (
-    <div
-      style={{
-        display: "grid",
-        gridTemplateColumns: "40px 1.4fr 1.5fr auto auto",
-        gap: 14,
-        alignItems: "center",
-        padding: "11px 18px",
-        borderTop: `1px solid ${first ? "transparent" : "var(--line)"}`,
-      }}
-    >
-      {children}
-    </div>
-  );
 }
