@@ -31,9 +31,11 @@
 # a swap back: the restored database then points at uploads that are gone,
 # which a demo tolerates until the next night. Sessions die at the swap.
 #
-# It never reads a secret itself. The candidate database's URL is derived inside
-# the candidate container from the service's own DATABASE_URL, and MinIO's root
-# pair is read inside the minio-init container, from its own environment.
+# It reads one secret, and only to hand it on: HeroUI Pro's build token, passed
+# to `compose build` (see "the HeroUI Pro build token" below). The candidate
+# database's URL is derived inside the candidate container from the service's
+# own DATABASE_URL, and MinIO's root pair is read inside the minio-init
+# container, from its own environment.
 #
 # Settings, all optional:
 #   DEMO_ROOT        /opt/injishi-demo          the demo's home (.env, src/)
@@ -79,6 +81,25 @@ PREV_DB=injishi_demo_prev
 log() { printf '%s demo-nightly: %s\n' "$(date -u +%FT%TZ)" "$*"; }
 die() { log "FAILED: $*" >&2; exit 1; }
 
+# One value from the stack's .env, read as compose's dotenv reads a plain line:
+# the last assignment wins, an `export ` prefix, a trailing CR, one pair of
+# surrounding quotes and an unquoted value's ` #` comment are dropped. Plain
+# bash, no grep: a failing pipeline inside $(...) would fire the ERR trap.
+env_file_value() {
+  local key=$1 line value=""
+  while IFS= read -r line || [[ -n $line ]]; do
+    line=${line%$'\r'}
+    [[ $line =~ ^[[:space:]]*(export[[:space:]]+)?${key}=(.*)$ ]] && value=${BASH_REMATCH[2]}
+  done <"$ENV_FILE"
+  if [[ ${#value} -ge 2 && ( $value == \"*\" || $value == \'*\' ) ]]; then
+    value=${value:1:${#value}-2}
+  else
+    value=${value%%[[:space:]]#*}
+    value=${value%"${value##*[![:space:]]}"}
+  fi
+  printf '%s' "$value"
+}
+
 # Step 1 rewrites this very file (it lives in the checkout it updates), and
 # bash reads a script as it runs. So run from a private copy.
 if [[ -z ${DEMO_NIGHTLY_COPY:-} ]]; then
@@ -114,6 +135,22 @@ fi
 [[ -f $ENV_FILE ]] || die "$ENV_FILE is missing (copy infra/docker/dokploy-demo.env.example)"
 [[ -d $DEMO_SRC/.git ]] || die "$DEMO_SRC is not a git checkout of the injishi repo"
 [[ -d $STAGING_SRC/.git ]] || die "$STAGING_SRC is not staging's checkout"
+
+# ── the HeroUI Pro build token ────────────────────────────────────────────────
+# The web, app and admin builds need HeroUI Pro's CI/CD token (DOKPLOY.md,
+# Required secrets with no default), which the compose file hands them as a
+# BuildKit secret sourced from HEROUI_AUTH_TOKEN. Compose before v2.40 reads
+# that variable from its own process environment only, never from --env-file
+# (docker/compose, pkg/compose/build_bake.go), so a token kept in this .env
+# never reached a build: every run from the Pro install (fc51e25) on stopped at
+# "HEROUI_AUTH_TOKEN is empty". So it is read here and put in the environment of
+# each `compose build` alone, never exported to the rest of the run and never
+# logged. Missing, the run stops before anything is built and the running demo
+# is untouched.
+heroui_token=$(env_file_value HEROUI_AUTH_TOKEN)
+[[ -n $heroui_token && $heroui_token != change-me ]] \
+  || die "HEROUI_AUTH_TOKEN is not set in $ENV_FILE. Add HeroUI Pro's CI/CD token there (DOKPLOY.md, Required secrets with no default). The running demo is untouched"
+log "HEROUI_AUTH_TOKEN is set in $ENV_FILE; docker compose $(docker compose version --short 2>/dev/null || echo '(version unknown)')"
 
 compose() {
   docker compose -p "$PROJECT" -f "$DEMO_SRC/$COMPOSE_FILE" --env-file "$ENV_FILE" "$@"
@@ -169,7 +206,7 @@ log "building :demo-next images at $short"
 # (2026-09-14). Slower, and it finishes.
 for service in api web app admin; do
   log "building $service"
-  DEMO_IMAGE_TAG=demo-next INJISHI_COMMIT=$short compose build "$service"
+  HEROUI_AUTH_TOKEN=$heroui_token DEMO_IMAGE_TAG=demo-next INJISHI_COMMIT=$short compose build "$service"
 done
 
 # ── 3. a fresh candidate database: migrate, mark, seed ────────────────────────────

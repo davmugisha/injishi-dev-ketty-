@@ -412,9 +412,25 @@ heroui.pro/dashboard by the licence owner (never a developer's personal
 token). `@heroui-pro/react` is a stub on npm whose postinstall downloads the
 real code with it. Each compose file hands it to the web, app and admin builds
 as a BuildKit secret (`secrets: heroui_token`), so it never reaches an image
-layer. Unset or empty, each frontend build stops at its install step with
-`HEROUI_AUTH_TOKEN is empty`, which `demo-nightly.sh` reports before its swap,
-so the running demo is left as it was; a rejected token fails the install too.
+layer.
+
+That secret is sourced from the variable `HEROUI_AUTH_TOKEN`, and **Compose
+before v2.40 reads it from its own process environment only, never from
+`--env-file`** (`pkg/compose/build_bake.go`; v2.40.0 is the first release that
+looks in the project's env file). So a token that sits only in the stack's
+`.env` never reaches a build on those versions: from the Pro install (`fc51e25`,
+2026-10-06) until this was found on 2026-10-07, every demo run stopped at
+`HEROUI_AUTH_TOKEN is empty`. `demo-nightly.sh` and `deploy-stack.sh` now read
+the value from the stack's `.env` themselves and put it in the environment of
+`compose build` alone. A build run by hand needs the same, for example
+`HEROUI_AUTH_TOKEN=$(sed -n 's/^HEROUI_AUTH_TOKEN=//p' /opt/injishi-demo/.env)
+docker compose ... build web`, or an `up --build` with no token fails the same
+way.
+
+Unset or `change-me` in the stack's `.env`, both scripts stop before building
+with `HEROUI_AUTH_TOKEN is not set in <.env>`, so the running stack is left as
+it was. A token that reaches the build but is rejected fails the frontend
+install step instead.
 It stops there on purpose: BuildKit's layer cache never sees a secret's value,
 so an install allowed to finish without the token would be reused, without Pro,
 by every later build until the lockfile changed, and so would pnpm's own side
