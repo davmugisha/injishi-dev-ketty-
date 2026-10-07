@@ -1049,7 +1049,7 @@ export declare const LIST_READ: {
     readonly "staff.roster": readonly ["roster.manage", "attendance.record", "people.view"];
     readonly "staff.attendance": readonly ["attendance.record", "attendance.approve"];
     readonly "staff.leave-requests": readonly ["leave.approve"];
-    readonly "staff.pay-runs": readonly ["payroll.run"];
+    readonly "staff.pay-runs": readonly ["payroll.draft", "payroll.run"];
     readonly "staff.shift-requests": readonly ["roster.manage"];
     readonly "staff.attendance-requests": readonly ["attendance.approve"];
     readonly "staff.leave-allocations": readonly ["leave.approve"];

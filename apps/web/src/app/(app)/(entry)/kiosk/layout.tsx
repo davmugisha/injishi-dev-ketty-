@@ -1,11 +1,11 @@
 import type { Metadata } from "next";
 
 /**
- * `page.tsx` here is a Client Component and cannot name the screen, so this
+ * `page.tsx` here renders a Client Component and names no screen, so this
  * segment layout does (as `/activate`'s does). No robots: a kiosk is a tablet
  * at a staff door, not a page anyone should find.
  */
-export const metadata: Metadata = { title: "Kiosk — Injishi", robots: { index: false, follow: false } };
+export const metadata: Metadata = { title: "Attendance kiosk — Injishi", robots: { index: false, follow: false } };
 
 export default function Layout({ children }: { children: React.ReactNode }) {
   return children;

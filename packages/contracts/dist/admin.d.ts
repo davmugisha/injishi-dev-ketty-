@@ -1545,7 +1545,7 @@ export declare const AdminOrgMember: z.ZodObject<{
     userId: z.ZodString;
     name: z.ZodNullable<z.ZodString>;
     email: z.ZodString;
-    orgRole: z.ZodEnum<["owner", "manager", "receptionist", "housekeeper"]>;
+    orgRole: z.ZodEnum<["owner", "manager", "receptionist", "finance", "hr", "housekeeper"]>;
     status: z.ZodEnum<["active", "removed"]>;
     joinedAt: z.ZodString;
     removedAt: z.ZodNullable<z.ZodString>;
@@ -1554,7 +1554,7 @@ export declare const AdminOrgMember: z.ZodObject<{
     name: string | null;
     email: string;
     userId: string;
-    orgRole: "owner" | "manager" | "receptionist" | "housekeeper";
+    orgRole: "owner" | "manager" | "receptionist" | "finance" | "hr" | "housekeeper";
     joinedAt: string;
     removedAt: string | null;
 }, {
@@ -1562,7 +1562,7 @@ export declare const AdminOrgMember: z.ZodObject<{
     name: string | null;
     email: string;
     userId: string;
-    orgRole: "owner" | "manager" | "receptionist" | "housekeeper";
+    orgRole: "owner" | "manager" | "receptionist" | "finance" | "hr" | "housekeeper";
     joinedAt: string;
     removedAt: string | null;
 }>;
@@ -1572,7 +1572,7 @@ export declare const AdminOrgPeopleResponse: z.ZodObject<{
         userId: z.ZodString;
         name: z.ZodNullable<z.ZodString>;
         email: z.ZodString;
-        orgRole: z.ZodEnum<["owner", "manager", "receptionist", "housekeeper"]>;
+        orgRole: z.ZodEnum<["owner", "manager", "receptionist", "finance", "hr", "housekeeper"]>;
         status: z.ZodEnum<["active", "removed"]>;
         joinedAt: z.ZodString;
         removedAt: z.ZodNullable<z.ZodString>;
@@ -1581,7 +1581,7 @@ export declare const AdminOrgPeopleResponse: z.ZodObject<{
         name: string | null;
         email: string;
         userId: string;
-        orgRole: "owner" | "manager" | "receptionist" | "housekeeper";
+        orgRole: "owner" | "manager" | "receptionist" | "finance" | "hr" | "housekeeper";
         joinedAt: string;
         removedAt: string | null;
     }, {
@@ -1589,7 +1589,7 @@ export declare const AdminOrgPeopleResponse: z.ZodObject<{
         name: string | null;
         email: string;
         userId: string;
-        orgRole: "owner" | "manager" | "receptionist" | "housekeeper";
+        orgRole: "owner" | "manager" | "receptionist" | "finance" | "hr" | "housekeeper";
         joinedAt: string;
         removedAt: string | null;
     }>, "many">;
@@ -1612,7 +1612,7 @@ export declare const AdminOrgPeopleResponse: z.ZodObject<{
         name: string | null;
         email: string;
         userId: string;
-        orgRole: "owner" | "manager" | "receptionist" | "housekeeper";
+        orgRole: "owner" | "manager" | "receptionist" | "finance" | "hr" | "housekeeper";
         joinedAt: string;
         removedAt: string | null;
     }[];
@@ -1627,7 +1627,7 @@ export declare const AdminOrgPeopleResponse: z.ZodObject<{
         name: string | null;
         email: string;
         userId: string;
-        orgRole: "owner" | "manager" | "receptionist" | "housekeeper";
+        orgRole: "owner" | "manager" | "receptionist" | "finance" | "hr" | "housekeeper";
         joinedAt: string;
         removedAt: string | null;
     }[];
@@ -2689,7 +2689,7 @@ export declare const AdminUserMembership: z.ZodObject<{
     orgId: z.ZodString;
     orgName: z.ZodString;
     domain: z.ZodEnum<["hospitality", "residence"]>;
-    orgRole: z.ZodEnum<["owner", "manager", "receptionist", "housekeeper"]>;
+    orgRole: z.ZodEnum<["owner", "manager", "receptionist", "finance", "hr", "housekeeper"]>;
     /**
      * A property of this person's relationship to this business, not of the
      * business: an OBO registrant holds the owner role with payouts locked
@@ -2701,13 +2701,13 @@ export declare const AdminUserMembership: z.ZodObject<{
     orgId: string;
     payoutLocked: boolean;
     orgName: string;
-    orgRole: "owner" | "manager" | "receptionist" | "housekeeper";
+    orgRole: "owner" | "manager" | "receptionist" | "finance" | "hr" | "housekeeper";
 }, {
     domain: "hospitality" | "residence";
     orgId: string;
     payoutLocked: boolean;
     orgName: string;
-    orgRole: "owner" | "manager" | "receptionist" | "housekeeper";
+    orgRole: "owner" | "manager" | "receptionist" | "finance" | "hr" | "housekeeper";
 }>;
 export type AdminUserMembership = z.infer<typeof AdminUserMembership>;
 /**
@@ -2831,7 +2831,7 @@ export declare const AdminUserRow: z.ZodObject<{
         orgId: z.ZodString;
         orgName: z.ZodString;
         domain: z.ZodEnum<["hospitality", "residence"]>;
-        orgRole: z.ZodEnum<["owner", "manager", "receptionist", "housekeeper"]>;
+        orgRole: z.ZodEnum<["owner", "manager", "receptionist", "finance", "hr", "housekeeper"]>;
         /**
          * A property of this person's relationship to this business, not of the
          * business: an OBO registrant holds the owner role with payouts locked
@@ -2843,13 +2843,13 @@ export declare const AdminUserRow: z.ZodObject<{
         orgId: string;
         payoutLocked: boolean;
         orgName: string;
-        orgRole: "owner" | "manager" | "receptionist" | "housekeeper";
+        orgRole: "owner" | "manager" | "receptionist" | "finance" | "hr" | "housekeeper";
     }, {
         domain: "hospitality" | "residence";
         orgId: string;
         payoutLocked: boolean;
         orgName: string;
-        orgRole: "owner" | "manager" | "receptionist" | "housekeeper";
+        orgRole: "owner" | "manager" | "receptionist" | "finance" | "hr" | "housekeeper";
     }>, "many">;
     staffRoles: z.ZodArray<z.ZodEnum<["super_admin", "ops", "compliance", "finance", "trainer"]>, "many">;
     oversight: z.ZodNullable<z.ZodObject<{
@@ -2901,9 +2901,9 @@ export declare const AdminUserRow: z.ZodObject<{
         orgId: string;
         payoutLocked: boolean;
         orgName: string;
-        orgRole: "owner" | "manager" | "receptionist" | "housekeeper";
+        orgRole: "owner" | "manager" | "receptionist" | "finance" | "hr" | "housekeeper";
     }[];
-    staffRoles: ("super_admin" | "ops" | "compliance" | "finance" | "trainer")[];
+    staffRoles: ("finance" | "super_admin" | "ops" | "compliance" | "trainer")[];
     oversight: {
         oversightRole: "tax_compliance_officer" | "business_field_verifier" | "business_approver" | "psf_membership_officer";
         governmentBodyCode: string;
@@ -2929,9 +2929,9 @@ export declare const AdminUserRow: z.ZodObject<{
         orgId: string;
         payoutLocked: boolean;
         orgName: string;
-        orgRole: "owner" | "manager" | "receptionist" | "housekeeper";
+        orgRole: "owner" | "manager" | "receptionist" | "finance" | "hr" | "housekeeper";
     }[];
-    staffRoles: ("super_admin" | "ops" | "compliance" | "finance" | "trainer")[];
+    staffRoles: ("finance" | "super_admin" | "ops" | "compliance" | "trainer")[];
     oversight: {
         oversightRole: "tax_compliance_officer" | "business_field_verifier" | "business_approver" | "psf_membership_officer";
         governmentBodyCode: string;
@@ -2980,7 +2980,7 @@ export declare const AdminUserListResponse: z.ZodObject<{
             orgId: z.ZodString;
             orgName: z.ZodString;
             domain: z.ZodEnum<["hospitality", "residence"]>;
-            orgRole: z.ZodEnum<["owner", "manager", "receptionist", "housekeeper"]>;
+            orgRole: z.ZodEnum<["owner", "manager", "receptionist", "finance", "hr", "housekeeper"]>;
             /**
              * A property of this person's relationship to this business, not of the
              * business: an OBO registrant holds the owner role with payouts locked
@@ -2992,13 +2992,13 @@ export declare const AdminUserListResponse: z.ZodObject<{
             orgId: string;
             payoutLocked: boolean;
             orgName: string;
-            orgRole: "owner" | "manager" | "receptionist" | "housekeeper";
+            orgRole: "owner" | "manager" | "receptionist" | "finance" | "hr" | "housekeeper";
         }, {
             domain: "hospitality" | "residence";
             orgId: string;
             payoutLocked: boolean;
             orgName: string;
-            orgRole: "owner" | "manager" | "receptionist" | "housekeeper";
+            orgRole: "owner" | "manager" | "receptionist" | "finance" | "hr" | "housekeeper";
         }>, "many">;
         staffRoles: z.ZodArray<z.ZodEnum<["super_admin", "ops", "compliance", "finance", "trainer"]>, "many">;
         oversight: z.ZodNullable<z.ZodObject<{
@@ -3050,9 +3050,9 @@ export declare const AdminUserListResponse: z.ZodObject<{
             orgId: string;
             payoutLocked: boolean;
             orgName: string;
-            orgRole: "owner" | "manager" | "receptionist" | "housekeeper";
+            orgRole: "owner" | "manager" | "receptionist" | "finance" | "hr" | "housekeeper";
         }[];
-        staffRoles: ("super_admin" | "ops" | "compliance" | "finance" | "trainer")[];
+        staffRoles: ("finance" | "super_admin" | "ops" | "compliance" | "trainer")[];
         oversight: {
             oversightRole: "tax_compliance_officer" | "business_field_verifier" | "business_approver" | "psf_membership_officer";
             governmentBodyCode: string;
@@ -3078,9 +3078,9 @@ export declare const AdminUserListResponse: z.ZodObject<{
             orgId: string;
             payoutLocked: boolean;
             orgName: string;
-            orgRole: "owner" | "manager" | "receptionist" | "housekeeper";
+            orgRole: "owner" | "manager" | "receptionist" | "finance" | "hr" | "housekeeper";
         }[];
-        staffRoles: ("super_admin" | "ops" | "compliance" | "finance" | "trainer")[];
+        staffRoles: ("finance" | "super_admin" | "ops" | "compliance" | "trainer")[];
         oversight: {
             oversightRole: "tax_compliance_officer" | "business_field_verifier" | "business_approver" | "psf_membership_officer";
             governmentBodyCode: string;
@@ -3121,9 +3121,9 @@ export declare const AdminUserListResponse: z.ZodObject<{
             orgId: string;
             payoutLocked: boolean;
             orgName: string;
-            orgRole: "owner" | "manager" | "receptionist" | "housekeeper";
+            orgRole: "owner" | "manager" | "receptionist" | "finance" | "hr" | "housekeeper";
         }[];
-        staffRoles: ("super_admin" | "ops" | "compliance" | "finance" | "trainer")[];
+        staffRoles: ("finance" | "super_admin" | "ops" | "compliance" | "trainer")[];
         oversight: {
             oversightRole: "tax_compliance_officer" | "business_field_verifier" | "business_approver" | "psf_membership_officer";
             governmentBodyCode: string;
@@ -3156,9 +3156,9 @@ export declare const AdminUserListResponse: z.ZodObject<{
             orgId: string;
             payoutLocked: boolean;
             orgName: string;
-            orgRole: "owner" | "manager" | "receptionist" | "housekeeper";
+            orgRole: "owner" | "manager" | "receptionist" | "finance" | "hr" | "housekeeper";
         }[];
-        staffRoles: ("super_admin" | "ops" | "compliance" | "finance" | "trainer")[];
+        staffRoles: ("finance" | "super_admin" | "ops" | "compliance" | "trainer")[];
         oversight: {
             oversightRole: "tax_compliance_officer" | "business_field_verifier" | "business_approver" | "psf_membership_officer";
             governmentBodyCode: string;

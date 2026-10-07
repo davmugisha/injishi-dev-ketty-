@@ -1228,6 +1228,8 @@ export const ORG_ROLE_LABEL: Readonly<Record<OrgRole, string>> = {
     owner: "Owner",
     manager: "Manager",
     receptionist: "Front office / Receptionist",
+    finance: "Finance",
+    hr: "HR",
     housekeeper: "Housekeeper",
 };
 export const InviteStaffRequest = z.object({

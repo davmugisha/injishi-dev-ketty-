@@ -75,8 +75,13 @@ import type { FileReply } from './pay-runs.controller';
 
 /**
  * Payroll beyond the run itself (ADR-058, 058-payroll). Every route needs
- * `payroll.run`, reads included, except the contracts list and its pay terms,
- * which `people.manage` reaches too because a contract is written there.
+ * `payroll.run`, reads included, with two exceptions. The contracts list and
+ * its pay terms admit `people.manage` too, because a contract is written
+ * there. The payroll dashboard and the national rules admit `payroll.draft`
+ * too (ADR-069 D-e): they are what a draft is created from and computed by,
+ * business totals and published rates with no person's file in them. Payslips,
+ * adjustments, loans, claims, components, structures and pay files act on
+ * confirmed pay or change how everyone is paid, so they stay `payroll.run`'s.
  *
  * Three commands that create money take an `Idempotency-Key`: a loan, a claim
  * and an adjustment, each answered with the first record on a retry. Marking a
@@ -454,14 +459,14 @@ export class OpsPayrollController {
   constructor(private readonly views: PayrollViewsService) {}
 
   @Get('dashboard')
-  @RequirePermission('payroll.run')
+  @RequireAnyPermission('payroll.draft', 'payroll.run')
   dashboard(@CurrentWorkspace() workspace: ScopedWorkspace): Promise<PayrollDashboard> {
     return this.views.dashboard(workspace);
   }
 
   /** Read only: a rule changes by a new config version, never from this screen. */
   @Get('rules')
-  @RequirePermission('payroll.run')
+  @RequireAnyPermission('payroll.draft', 'payroll.run')
   rules(): Promise<PayrollRules> {
     return this.views.rules();
   }

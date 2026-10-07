@@ -48,14 +48,27 @@ const ACTIVE = {
 
 describe("which roles a business may customise", () => {
   test("every role except owner", () => {
+    // ADR-069 D-a: `finance` and `hr` are customisable like any other role.
     assert.deepEqual([...CustomisableOrgRole.options].sort(), [
+      "finance",
       "housekeeper",
+      "hr",
       "manager",
       "receptionist",
     ]);
     assert.equal(isCustomisableOrgRole("owner"), false);
     for (const role of CustomisableOrgRole.options) {
       assert.equal(isCustomisableOrgRole(role), true, role);
+    }
+  });
+
+  test("the override shape takes finance and hr", () => {
+    for (const orgRole of ["finance", "hr"]) {
+      assert.equal(
+        RolePermissionOverride.safeParse({ orgRole, permission: "message.send", granted: true }).success,
+        true,
+        orgRole,
+      );
     }
   });
 
@@ -113,6 +126,41 @@ describe("effectivePermissionsForRole", () => {
     assert.deepEqual(
       held,
       base.filter((p) => p !== "ebm.refund"),
+    );
+  });
+
+  test("finance and hr move like any other role (ADR-069 D-a)", () => {
+    // An owner who wants HR on the guest inbox grants `message.send` (D-d); one
+    // who shuts Finance withdraws `money.view` (D-f rule 2).
+    const hr = effectivePermissionsForRole("hr", [
+      { orgRole: "hr", permission: "message.send", granted: true },
+    ]);
+    assert.deepEqual(
+      hr,
+      Permission.options.filter((p) => p === "message.send" || permissionsForRole("hr").includes(p)),
+    );
+    const finance = effectivePermissionsForRole("finance", [
+      { orgRole: "finance", permission: "money.view", granted: false },
+    ]);
+    assert.deepEqual(
+      finance,
+      permissionsForRole("finance").filter((p) => p !== "money.view"),
+    );
+  });
+
+  test("payroll.draft is grantable to a manager and withdrawable from hr (ADR-069 D-e)", () => {
+    assert.equal(isLockedPermission("payroll.draft"), false);
+    assert.equal(
+      effectivePermissionsForRole("manager", [
+        { orgRole: "manager", permission: "payroll.draft", granted: true },
+      ]).includes("payroll.draft"),
+      true,
+    );
+    assert.equal(
+      effectivePermissionsForRole("hr", [
+        { orgRole: "hr", permission: "payroll.draft", granted: false },
+      ]).includes("payroll.draft"),
+      false,
     );
   });
 

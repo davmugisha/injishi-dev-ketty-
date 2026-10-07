@@ -24,6 +24,9 @@ import type { BusinessDraft } from "./step-business";
 
 export type DraftPhase = RegistrationDraft["phase"];
 
+/** A phase a draft can resume at: every saved phase but the retired Documents. */
+export type ResumablePhase = Exclude<DraftPhase, "documents">;
+
 export function isDraftPhase(phase: string): phase is DraftPhase {
   return (REGISTRATION_DRAFT_PHASES as readonly string[]).includes(phase);
 }
@@ -93,15 +96,19 @@ export function fromServerDraft(
 
 /**
  * Where a restored draft resumes. An ID number is never kept, so a draft that
- * still OWES one — a typed identity nobody verified, or an owner's National ID
- * on the on behalf path — resumes at About you, where it is asked.
+ * still OWES one resumes where it is asked: a typed identity nobody verified at
+ * You, and an owner's National ID on the on behalf path at Business, where the
+ * owner's fields sit since ADR-069 (RegisterIA). Documents is no longer a step:
+ * a draft saved there resumes at Business, whose optional section holds them.
  */
 export function restoredPhase(
   answers: WizardAnswers,
   identityVerified: boolean,
-): { phase: DraftPhase; owesId: boolean } {
-  const owesId =
-    (answers.typedPersonal && !identityVerified) || answers.capacity === "on_behalf_of";
-  const pastAbout = answers.phase !== "place" && answers.phase !== "about";
-  return owesId && pastAbout ? { phase: "about", owesId } : { phase: answers.phase, owesId };
+): { phase: ResumablePhase; owesId: boolean } {
+  const owesOwn = answers.typedPersonal && !identityVerified;
+  const owesOwner = answers.capacity === "on_behalf_of";
+  const phase: ResumablePhase = answers.phase === "documents" ? "business" : answers.phase;
+  const pastAbout = phase !== "place" && phase !== "about";
+  if (owesOwn && pastAbout) return { phase: "about", owesId: true };
+  return { phase, owesId: owesOwn || (owesOwner && pastAbout) };
 }

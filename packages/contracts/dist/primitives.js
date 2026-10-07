@@ -17,11 +17,17 @@ exports.WorkspaceKind = zod_1.z.enum(["business", "broker", "personal"]);
  * role, not a job title: it is the only role whose surface is the housekeeping
  * phone rather than the desk (Spec 0002, D-b). Mirrors the `org_role` Postgres
  * enum after migration 0004.
+ *
+ * `finance` and `hr` are ADR-069 D-a: an accountant and an HR officer, each
+ * with a default set of its own rather than a manager's. Their migration adds
+ * each `BEFORE 'housekeeper'`, so the database's order is this order.
  */
 exports.OrgRole = zod_1.z.enum([
     "owner",
     "manager",
     "receptionist",
+    "finance",
+    "hr",
     "housekeeper",
 ]);
 /**

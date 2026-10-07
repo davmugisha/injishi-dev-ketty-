@@ -1961,7 +1961,7 @@ export declare const OperatorDepartment: z.ZodObject<{
     phone: string | null;
     propertyId: string | null;
     departmentType: "operated" | "undistributed";
-    departmentCategory: "rooms" | "fnb" | "spa_recreation" | "other_operated" | "misc_income" | "admin_general" | "sales_marketing" | "it" | "engineering" | "utilities" | "hr";
+    departmentCategory: "hr" | "rooms" | "fnb" | "spa_recreation" | "other_operated" | "misc_income" | "admin_general" | "sales_marketing" | "it" | "engineering" | "utilities";
     isRevenueCenter: boolean;
     guestRequestable: boolean;
     headName: string | null;
@@ -1974,7 +1974,7 @@ export declare const OperatorDepartment: z.ZodObject<{
     phone: string | null;
     propertyId: string | null;
     departmentType: "operated" | "undistributed";
-    departmentCategory: "rooms" | "fnb" | "spa_recreation" | "other_operated" | "misc_income" | "admin_general" | "sales_marketing" | "it" | "engineering" | "utilities" | "hr";
+    departmentCategory: "hr" | "rooms" | "fnb" | "spa_recreation" | "other_operated" | "misc_income" | "admin_general" | "sales_marketing" | "it" | "engineering" | "utilities";
     isRevenueCenter: boolean;
     guestRequestable: boolean;
     headName: string | null;
@@ -2008,7 +2008,7 @@ export declare const OperatorDepartmentList: z.ZodObject<{
         phone: string | null;
         propertyId: string | null;
         departmentType: "operated" | "undistributed";
-        departmentCategory: "rooms" | "fnb" | "spa_recreation" | "other_operated" | "misc_income" | "admin_general" | "sales_marketing" | "it" | "engineering" | "utilities" | "hr";
+        departmentCategory: "hr" | "rooms" | "fnb" | "spa_recreation" | "other_operated" | "misc_income" | "admin_general" | "sales_marketing" | "it" | "engineering" | "utilities";
         isRevenueCenter: boolean;
         guestRequestable: boolean;
         headName: string | null;
@@ -2021,7 +2021,7 @@ export declare const OperatorDepartmentList: z.ZodObject<{
         phone: string | null;
         propertyId: string | null;
         departmentType: "operated" | "undistributed";
-        departmentCategory: "rooms" | "fnb" | "spa_recreation" | "other_operated" | "misc_income" | "admin_general" | "sales_marketing" | "it" | "engineering" | "utilities" | "hr";
+        departmentCategory: "hr" | "rooms" | "fnb" | "spa_recreation" | "other_operated" | "misc_income" | "admin_general" | "sales_marketing" | "it" | "engineering" | "utilities";
         isRevenueCenter: boolean;
         guestRequestable: boolean;
         headName: string | null;
@@ -2036,7 +2036,7 @@ export declare const OperatorDepartmentList: z.ZodObject<{
         phone: string | null;
         propertyId: string | null;
         departmentType: "operated" | "undistributed";
-        departmentCategory: "rooms" | "fnb" | "spa_recreation" | "other_operated" | "misc_income" | "admin_general" | "sales_marketing" | "it" | "engineering" | "utilities" | "hr";
+        departmentCategory: "hr" | "rooms" | "fnb" | "spa_recreation" | "other_operated" | "misc_income" | "admin_general" | "sales_marketing" | "it" | "engineering" | "utilities";
         isRevenueCenter: boolean;
         guestRequestable: boolean;
         headName: string | null;
@@ -2051,7 +2051,7 @@ export declare const OperatorDepartmentList: z.ZodObject<{
         phone: string | null;
         propertyId: string | null;
         departmentType: "operated" | "undistributed";
-        departmentCategory: "rooms" | "fnb" | "spa_recreation" | "other_operated" | "misc_income" | "admin_general" | "sales_marketing" | "it" | "engineering" | "utilities" | "hr";
+        departmentCategory: "hr" | "rooms" | "fnb" | "spa_recreation" | "other_operated" | "misc_income" | "admin_general" | "sales_marketing" | "it" | "engineering" | "utilities";
         isRevenueCenter: boolean;
         guestRequestable: boolean;
         headName: string | null;
@@ -2079,7 +2079,7 @@ export declare const CreateDepartmentRequest: z.ZodObject<{
     name: string;
     propertyId: string;
     departmentType: "operated" | "undistributed";
-    departmentCategory: "rooms" | "fnb" | "spa_recreation" | "other_operated" | "misc_income" | "admin_general" | "sales_marketing" | "it" | "engineering" | "utilities" | "hr";
+    departmentCategory: "hr" | "rooms" | "fnb" | "spa_recreation" | "other_operated" | "misc_income" | "admin_general" | "sales_marketing" | "it" | "engineering" | "utilities";
     sortOrder?: number | undefined;
     phone?: string | null | undefined;
     guestRequestable?: boolean | undefined;
@@ -2089,7 +2089,7 @@ export declare const CreateDepartmentRequest: z.ZodObject<{
     name: string;
     propertyId: string;
     departmentType: "operated" | "undistributed";
-    departmentCategory: "rooms" | "fnb" | "spa_recreation" | "other_operated" | "misc_income" | "admin_general" | "sales_marketing" | "it" | "engineering" | "utilities" | "hr";
+    departmentCategory: "hr" | "rooms" | "fnb" | "spa_recreation" | "other_operated" | "misc_income" | "admin_general" | "sales_marketing" | "it" | "engineering" | "utilities";
     sortOrder?: number | undefined;
     phone?: string | null | undefined;
     guestRequestable?: boolean | undefined;
@@ -2986,13 +2986,13 @@ export declare const OperatorRevenueDepartment: z.ZodObject<{
 }, "strip", z.ZodTypeAny, {
     status: "active" | "archived";
     name: string;
-    departmentCategory: "rooms" | "fnb" | "spa_recreation" | "other_operated" | "misc_income" | "admin_general" | "sales_marketing" | "it" | "engineering" | "utilities" | "hr";
+    departmentCategory: "hr" | "rooms" | "fnb" | "spa_recreation" | "other_operated" | "misc_income" | "admin_general" | "sales_marketing" | "it" | "engineering" | "utilities";
     departmentId: string;
     revenueRwf: number;
 }, {
     status: "active" | "archived";
     name: string;
-    departmentCategory: "rooms" | "fnb" | "spa_recreation" | "other_operated" | "misc_income" | "admin_general" | "sales_marketing" | "it" | "engineering" | "utilities" | "hr";
+    departmentCategory: "hr" | "rooms" | "fnb" | "spa_recreation" | "other_operated" | "misc_income" | "admin_general" | "sales_marketing" | "it" | "engineering" | "utilities";
     departmentId: string;
     revenueRwf: number;
 }>;
@@ -3026,13 +3026,13 @@ export declare const OperatorRevenue: z.ZodObject<{
     }, "strip", z.ZodTypeAny, {
         status: "active" | "archived";
         name: string;
-        departmentCategory: "rooms" | "fnb" | "spa_recreation" | "other_operated" | "misc_income" | "admin_general" | "sales_marketing" | "it" | "engineering" | "utilities" | "hr";
+        departmentCategory: "hr" | "rooms" | "fnb" | "spa_recreation" | "other_operated" | "misc_income" | "admin_general" | "sales_marketing" | "it" | "engineering" | "utilities";
         departmentId: string;
         revenueRwf: number;
     }, {
         status: "active" | "archived";
         name: string;
-        departmentCategory: "rooms" | "fnb" | "spa_recreation" | "other_operated" | "misc_income" | "admin_general" | "sales_marketing" | "it" | "engineering" | "utilities" | "hr";
+        departmentCategory: "hr" | "rooms" | "fnb" | "spa_recreation" | "other_operated" | "misc_income" | "admin_general" | "sales_marketing" | "it" | "engineering" | "utilities";
         departmentId: string;
         revenueRwf: number;
     }>, "many">;
@@ -3045,7 +3045,7 @@ export declare const OperatorRevenue: z.ZodObject<{
     departments: {
         status: "active" | "archived";
         name: string;
-        departmentCategory: "rooms" | "fnb" | "spa_recreation" | "other_operated" | "misc_income" | "admin_general" | "sales_marketing" | "it" | "engineering" | "utilities" | "hr";
+        departmentCategory: "hr" | "rooms" | "fnb" | "spa_recreation" | "other_operated" | "misc_income" | "admin_general" | "sales_marketing" | "it" | "engineering" | "utilities";
         departmentId: string;
         revenueRwf: number;
     }[];
@@ -3057,7 +3057,7 @@ export declare const OperatorRevenue: z.ZodObject<{
     departments: {
         status: "active" | "archived";
         name: string;
-        departmentCategory: "rooms" | "fnb" | "spa_recreation" | "other_operated" | "misc_income" | "admin_general" | "sales_marketing" | "it" | "engineering" | "utilities" | "hr";
+        departmentCategory: "hr" | "rooms" | "fnb" | "spa_recreation" | "other_operated" | "misc_income" | "admin_general" | "sales_marketing" | "it" | "engineering" | "utilities";
         departmentId: string;
         revenueRwf: number;
     }[];
@@ -3240,7 +3240,7 @@ export declare const OperatorTeamMember: z.ZodObject<{
     userId: z.ZodString;
     name: z.ZodNullable<z.ZodString>;
     email: z.ZodNullable<z.ZodString>;
-    orgRole: z.ZodEnum<["owner", "manager", "receptionist", "housekeeper"]>;
+    orgRole: z.ZodEnum<["owner", "manager", "receptionist", "finance", "hr", "housekeeper"]>;
     /** `active` or `removed`. A removed member keeps their history. */
     status: z.ZodString;
     joinedAt: z.ZodString;
@@ -3255,7 +3255,7 @@ export declare const OperatorTeamMember: z.ZodObject<{
     name: string | null;
     email: string | null;
     userId: string;
-    orgRole: "owner" | "manager" | "receptionist" | "housekeeper";
+    orgRole: "owner" | "manager" | "receptionist" | "finance" | "hr" | "housekeeper";
     joinedAt: string;
     branchIds: string[] | null;
 }, {
@@ -3263,7 +3263,7 @@ export declare const OperatorTeamMember: z.ZodObject<{
     name: string | null;
     email: string | null;
     userId: string;
-    orgRole: "owner" | "manager" | "receptionist" | "housekeeper";
+    orgRole: "owner" | "manager" | "receptionist" | "finance" | "hr" | "housekeeper";
     joinedAt: string;
     branchIds: string[] | null;
 }>;
@@ -3300,7 +3300,7 @@ export declare const OperatorTeamList: z.ZodObject<{
         userId: z.ZodString;
         name: z.ZodNullable<z.ZodString>;
         email: z.ZodNullable<z.ZodString>;
-        orgRole: z.ZodEnum<["owner", "manager", "receptionist", "housekeeper"]>;
+        orgRole: z.ZodEnum<["owner", "manager", "receptionist", "finance", "hr", "housekeeper"]>;
         /** `active` or `removed`. A removed member keeps their history. */
         status: z.ZodString;
         joinedAt: z.ZodString;
@@ -3315,7 +3315,7 @@ export declare const OperatorTeamList: z.ZodObject<{
         name: string | null;
         email: string | null;
         userId: string;
-        orgRole: "owner" | "manager" | "receptionist" | "housekeeper";
+        orgRole: "owner" | "manager" | "receptionist" | "finance" | "hr" | "housekeeper";
         joinedAt: string;
         branchIds: string[] | null;
     }, {
@@ -3323,7 +3323,7 @@ export declare const OperatorTeamList: z.ZodObject<{
         name: string | null;
         email: string | null;
         userId: string;
-        orgRole: "owner" | "manager" | "receptionist" | "housekeeper";
+        orgRole: "owner" | "manager" | "receptionist" | "finance" | "hr" | "housekeeper";
         joinedAt: string;
         branchIds: string[] | null;
     }>, "many">;
@@ -3333,7 +3333,7 @@ export declare const OperatorTeamList: z.ZodObject<{
         name: string | null;
         email: string | null;
         userId: string;
-        orgRole: "owner" | "manager" | "receptionist" | "housekeeper";
+        orgRole: "owner" | "manager" | "receptionist" | "finance" | "hr" | "housekeeper";
         joinedAt: string;
         branchIds: string[] | null;
     }[];
@@ -3343,7 +3343,7 @@ export declare const OperatorTeamList: z.ZodObject<{
         name: string | null;
         email: string | null;
         userId: string;
-        orgRole: "owner" | "manager" | "receptionist" | "housekeeper";
+        orgRole: "owner" | "manager" | "receptionist" | "finance" | "hr" | "housekeeper";
         joinedAt: string;
         branchIds: string[] | null;
     }[];
@@ -3356,22 +3356,22 @@ export type OperatorTeamList = z.infer<typeof OperatorTeamList>;
  * (FL02), which checks an identity document; an emailed link that could make
  * somebody an owner would be a way round that check.
  */
-export declare const InvitableOrgRole: z.ZodEnum<["manager", "receptionist", "housekeeper"]>;
+export declare const InvitableOrgRole: z.ZodEnum<["manager", "receptionist", "finance", "hr", "housekeeper"]>;
 export type InvitableOrgRole = z.infer<typeof InvitableOrgRole>;
 /** What a role is called on screens and in the invitation mail. */
 export declare const ORG_ROLE_LABEL: Readonly<Record<OrgRole, string>>;
 export declare const InviteStaffRequest: z.ZodObject<{
     email: z.ZodString;
-    orgRole: z.ZodEnum<["manager", "receptionist", "housekeeper"]>;
+    orgRole: z.ZodEnum<["manager", "receptionist", "finance", "hr", "housekeeper"]>;
     /** The branches the invitee will cover; absent or null is every branch (ADR-054). */
     branchIds: z.ZodDefault<z.ZodNullable<z.ZodArray<z.ZodString, "many">>>;
 }, "strip", z.ZodTypeAny, {
     email: string;
-    orgRole: "manager" | "receptionist" | "housekeeper";
+    orgRole: "manager" | "receptionist" | "finance" | "hr" | "housekeeper";
     branchIds: string[] | null;
 }, {
     email: string;
-    orgRole: "manager" | "receptionist" | "housekeeper";
+    orgRole: "manager" | "receptionist" | "finance" | "hr" | "housekeeper";
     branchIds?: string[] | null | undefined;
 }>;
 export type InviteStaffRequest = z.infer<typeof InviteStaffRequest>;
@@ -3387,7 +3387,7 @@ export type StaffInvitationStatus = z.infer<typeof StaffInvitationStatus>;
 export declare const OperatorStaffInvitation: z.ZodObject<{
     id: z.ZodString;
     email: z.ZodString;
-    orgRole: z.ZodEnum<["owner", "manager", "receptionist", "housekeeper"]>;
+    orgRole: z.ZodEnum<["owner", "manager", "receptionist", "finance", "hr", "housekeeper"]>;
     /** `expired` is derived at read time from `expiresAt`, not stored. */
     status: z.ZodEnum<["sent", "accepted", "revoked", "expired"]>;
     expiresAt: z.ZodString;
@@ -3399,7 +3399,7 @@ export declare const OperatorStaffInvitation: z.ZodObject<{
     email: string;
     id: string;
     createdAt: string;
-    orgRole: "owner" | "manager" | "receptionist" | "housekeeper";
+    orgRole: "owner" | "manager" | "receptionist" | "finance" | "hr" | "housekeeper";
     expiresAt: string;
     branchIds: string[] | null;
 }, {
@@ -3407,7 +3407,7 @@ export declare const OperatorStaffInvitation: z.ZodObject<{
     email: string;
     id: string;
     createdAt: string;
-    orgRole: "owner" | "manager" | "receptionist" | "housekeeper";
+    orgRole: "owner" | "manager" | "receptionist" | "finance" | "hr" | "housekeeper";
     expiresAt: string;
     branchIds: string[] | null;
 }>;
@@ -3416,7 +3416,7 @@ export declare const OperatorStaffInvitationList: z.ZodObject<{
     invitations: z.ZodArray<z.ZodObject<{
         id: z.ZodString;
         email: z.ZodString;
-        orgRole: z.ZodEnum<["owner", "manager", "receptionist", "housekeeper"]>;
+        orgRole: z.ZodEnum<["owner", "manager", "receptionist", "finance", "hr", "housekeeper"]>;
         /** `expired` is derived at read time from `expiresAt`, not stored. */
         status: z.ZodEnum<["sent", "accepted", "revoked", "expired"]>;
         expiresAt: z.ZodString;
@@ -3428,7 +3428,7 @@ export declare const OperatorStaffInvitationList: z.ZodObject<{
         email: string;
         id: string;
         createdAt: string;
-        orgRole: "owner" | "manager" | "receptionist" | "housekeeper";
+        orgRole: "owner" | "manager" | "receptionist" | "finance" | "hr" | "housekeeper";
         expiresAt: string;
         branchIds: string[] | null;
     }, {
@@ -3436,7 +3436,7 @@ export declare const OperatorStaffInvitationList: z.ZodObject<{
         email: string;
         id: string;
         createdAt: string;
-        orgRole: "owner" | "manager" | "receptionist" | "housekeeper";
+        orgRole: "owner" | "manager" | "receptionist" | "finance" | "hr" | "housekeeper";
         expiresAt: string;
         branchIds: string[] | null;
     }>, "many">;
@@ -3446,7 +3446,7 @@ export declare const OperatorStaffInvitationList: z.ZodObject<{
         email: string;
         id: string;
         createdAt: string;
-        orgRole: "owner" | "manager" | "receptionist" | "housekeeper";
+        orgRole: "owner" | "manager" | "receptionist" | "finance" | "hr" | "housekeeper";
         expiresAt: string;
         branchIds: string[] | null;
     }[];
@@ -3456,7 +3456,7 @@ export declare const OperatorStaffInvitationList: z.ZodObject<{
         email: string;
         id: string;
         createdAt: string;
-        orgRole: "owner" | "manager" | "receptionist" | "housekeeper";
+        orgRole: "owner" | "manager" | "receptionist" | "finance" | "hr" | "housekeeper";
         expiresAt: string;
         branchIds: string[] | null;
     }[];
@@ -3474,31 +3474,31 @@ export type StaffInvitationTokenRequest = z.infer<typeof StaffInvitationTokenReq
 /** What the join page shows before somebody accepts. */
 export declare const StaffInvitationPreview: z.ZodObject<{
     legalName: z.ZodString;
-    orgRole: z.ZodEnum<["owner", "manager", "receptionist", "housekeeper"]>;
+    orgRole: z.ZodEnum<["owner", "manager", "receptionist", "finance", "hr", "housekeeper"]>;
     /** The address it was sent to, so a person signed in as someone else sees why it refuses. */
     email: z.ZodString;
 }, "strip", z.ZodTypeAny, {
     email: string;
     legalName: string;
-    orgRole: "owner" | "manager" | "receptionist" | "housekeeper";
+    orgRole: "owner" | "manager" | "receptionist" | "finance" | "hr" | "housekeeper";
 }, {
     email: string;
     legalName: string;
-    orgRole: "owner" | "manager" | "receptionist" | "housekeeper";
+    orgRole: "owner" | "manager" | "receptionist" | "finance" | "hr" | "housekeeper";
 }>;
 export type StaffInvitationPreview = z.infer<typeof StaffInvitationPreview>;
 export declare const AcceptedStaffInvitation: z.ZodObject<{
     orgId: z.ZodString;
     workspaceId: z.ZodString;
-    orgRole: z.ZodEnum<["owner", "manager", "receptionist", "housekeeper"]>;
+    orgRole: z.ZodEnum<["owner", "manager", "receptionist", "finance", "hr", "housekeeper"]>;
 }, "strip", z.ZodTypeAny, {
     orgId: string;
     workspaceId: string;
-    orgRole: "owner" | "manager" | "receptionist" | "housekeeper";
+    orgRole: "owner" | "manager" | "receptionist" | "finance" | "hr" | "housekeeper";
 }, {
     orgId: string;
     workspaceId: string;
-    orgRole: "owner" | "manager" | "receptionist" | "housekeeper";
+    orgRole: "owner" | "manager" | "receptionist" | "finance" | "hr" | "housekeeper";
 }>;
 export type AcceptedStaffInvitation = z.infer<typeof AcceptedStaffInvitation>;
 export declare const HousekeepingTaskType: z.ZodEnum<["checkout_clean", "stayover_clean", "inspection", "deep_clean", "turndown"]>;

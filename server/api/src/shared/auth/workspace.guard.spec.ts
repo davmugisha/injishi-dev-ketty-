@@ -5,7 +5,7 @@ import {
 } from '@nestjs/common';
 import type { ExecutionContext } from '@nestjs/common';
 import type { Reflector } from '@nestjs/core';
-import type { WorkspaceAccess } from '@injishi/contracts';
+import { permissionsForRole, type WorkspaceAccess } from '@injishi/contracts';
 
 // The guard only needs the service as a DI token here; every case stubs it.
 // Mocked at the module boundary because the real service reaches the vendored
@@ -300,6 +300,65 @@ describe('WorkspaceGuard', () => {
 
       await expect(guard.canActivate(context)).rejects.toThrow(
         'Your role cannot close a bill and sign its receipt in this workspace.',
+      );
+    });
+  });
+
+  describe('finance and hr: a pay run drafted by one, signed by another (ADR-069)', () => {
+    // The default sets, resolved by the model itself rather than retyped, so a
+    // drift in `ROLE_PERMISSIONS` shows here as a refusal that moved.
+    const FINANCE_ACCESS: WorkspaceAccess = {
+      ...OWNER_ACCESS,
+      orgRole: 'finance',
+      permissions: [...permissionsForRole('finance')],
+    };
+    const HR_ACCESS: WorkspaceAccess = {
+      ...OWNER_ACCESS,
+      orgRole: 'hr',
+      permissions: [...permissionsForRole('hr')],
+    };
+    const DRAFT = ['payroll.draft', 'payroll.run'];
+
+    function context(): ExecutionContext {
+      return contextFor({
+        headers: { host: 'demo.localhost', 'x-workspace-id': 'ws-owned' },
+        user: signedIn,
+      });
+    }
+
+    it('lets hr build a draft', async () => {
+      const { guard } = guardWith(HR_ACCESS, undefined, DRAFT);
+      await expect(guard.canActivate(context())).resolves.toBe(true);
+    });
+
+    it('refuses hr the confirm, in the words of the missing power', async () => {
+      const { guard } = guardWith(HR_ACCESS, 'payroll.run');
+      await expect(guard.canActivate(context())).rejects.toThrow(
+        'Your role cannot confirm the pay run in this workspace.',
+      );
+    });
+
+    it('refuses finance a draft, worded from the draft permission', async () => {
+      const { guard } = guardWith(FINANCE_ACCESS, undefined, DRAFT);
+      await expect(guard.canActivate(context())).rejects.toThrow(
+        'Your role cannot draft the pay run in this workspace.',
+      );
+    });
+
+    it('lets finance read the bookings through money.view (D-d)', async () => {
+      const { guard } = guardWith(FINANCE_ACCESS, undefined, [
+        'reservation.approve',
+        'reservation.assign',
+        'stay.checkin',
+        'money.view',
+      ]);
+      await expect(guard.canActivate(context())).resolves.toBe(true);
+    });
+
+    it('refuses hr the money', async () => {
+      const { guard } = guardWith(HR_ACCESS, undefined, ['folio.charge', 'money.view']);
+      await expect(guard.canActivate(context())).rejects.toThrow(
+        'Your role cannot add charges to a bill in this workspace.',
       );
     });
   });

@@ -108,6 +108,8 @@ const ROLE_TITLE: Record<OrgRole, string> = {
   owner: "Owner",
   manager: "Manager",
   receptionist: "Front desk",
+  finance: "Finance",
+  hr: "HR",
   housekeeper: "Housekeeping",
 };
 

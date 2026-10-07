@@ -117,6 +117,28 @@ export const DEMO_PERMISSIONS: Readonly<Record<OrgRole, readonly Permission[]>> 
     "order.advance",
     "message.send",
   ],
+  // The accountant (ADR-069 D-b): the money, bills, payments, the EBM account
+  // and refunds. No rooms, no reservations to write, no staff files.
+  finance: [
+    "money.view",
+    "folio.charge",
+    "folio.payment",
+    "folio.close",
+    "ebm.manage",
+    "ebm.refund",
+    "refund.decide",
+  ],
+  // The HR officer (ADR-069 D-b): files, roster, attendance, leave, and the
+  // pay run drafted for the owner to confirm. No money, no front desk.
+  hr: [
+    "people.view",
+    "people.manage",
+    "roster.manage",
+    "attendance.record",
+    "attendance.approve",
+    "leave.approve",
+    "payroll.draft",
+  ],
   // The phone: room status and maintenance tickets only.
   housekeeper: ["housekeeping.set", "ticket.advance"],
 };

@@ -1,10 +1,11 @@
 import { z } from "zod";
 /**
- * Every HR permission (ADR-058). Any one of them opens the Staff leaf and reads
- * what the whole business shares: its policies, staff announcements, HR catalogs
- * and HR settings. One list, so the app's nav and the API's routes cannot drift.
+ * Every HR permission (ADR-058, and ADR-069 D-e's `payroll.draft`). Any one of
+ * them opens the Staff leaf and reads what the whole business shares: its
+ * policies, staff announcements, HR catalogs and HR settings. One list, so the
+ * app's nav and the API's routes cannot drift.
  */
-export declare const HR_PERMISSIONS: readonly ["people.view", "people.manage", "roster.manage", "attendance.record", "attendance.approve", "leave.approve", "payroll.run"];
+export declare const HR_PERMISSIONS: readonly ["people.view", "people.manage", "roster.manage", "attendance.record", "attendance.approve", "leave.approve", "payroll.draft", "payroll.run"];
 export declare const PayAccountKind: z.ZodEnum<["bank", "momo"]>;
 export type PayAccountKind = z.infer<typeof PayAccountKind>;
 export declare const PayAccountStatus: z.ZodEnum<["active", "retired"]>;

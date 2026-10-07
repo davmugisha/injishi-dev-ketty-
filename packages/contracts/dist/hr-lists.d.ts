@@ -138,7 +138,7 @@ export declare const EmployeePage: z.ZodObject<{
         qualification: z.ZodNullable<z.ZodString>;
         priorExperienceYears: z.ZodNullable<z.ZodNumber>;
         hasAccount: z.ZodBoolean;
-        orgRole: z.ZodNullable<z.ZodEnum<["owner", "manager", "receptionist", "housekeeper"]>>;
+        orgRole: z.ZodNullable<z.ZodEnum<["owner", "manager", "receptionist", "finance", "hr", "housekeeper"]>>;
         detailsMissing: z.ZodArray<z.ZodEnum<["phone", "dateOfBirth", "sex", "idDocument"]>, "many">;
     } & {
         view: z.ZodLiteral<"basic">;
@@ -176,7 +176,7 @@ export declare const EmployeePage: z.ZodObject<{
         email: string | null;
         legalName: string;
         id: string;
-        orgRole: "owner" | "manager" | "receptionist" | "housekeeper" | null;
+        orgRole: "owner" | "manager" | "receptionist" | "finance" | "hr" | "housekeeper" | null;
         phone: string | null;
         view: "basic";
         employeeNumber: string;
@@ -219,7 +219,7 @@ export declare const EmployeePage: z.ZodObject<{
         email: string | null;
         legalName: string;
         id: string;
-        orgRole: "owner" | "manager" | "receptionist" | "housekeeper" | null;
+        orgRole: "owner" | "manager" | "receptionist" | "finance" | "hr" | "housekeeper" | null;
         phone: string | null;
         view: "basic";
         employeeNumber: string;
@@ -301,7 +301,7 @@ export declare const EmployeePage: z.ZodObject<{
         qualification: z.ZodNullable<z.ZodString>;
         priorExperienceYears: z.ZodNullable<z.ZodNumber>;
         hasAccount: z.ZodBoolean;
-        orgRole: z.ZodNullable<z.ZodEnum<["owner", "manager", "receptionist", "housekeeper"]>>;
+        orgRole: z.ZodNullable<z.ZodEnum<["owner", "manager", "receptionist", "finance", "hr", "housekeeper"]>>;
         detailsMissing: z.ZodArray<z.ZodEnum<["phone", "dateOfBirth", "sex", "idDocument"]>, "many">;
     } & {
         view: z.ZodLiteral<"full">;
@@ -401,7 +401,7 @@ export declare const EmployeePage: z.ZodObject<{
         id: string;
         idDocumentType: "national_id" | "passport" | null;
         idDocumentNumber: string | null;
-        orgRole: "owner" | "manager" | "receptionist" | "housekeeper" | null;
+        orgRole: "owner" | "manager" | "receptionist" | "finance" | "hr" | "housekeeper" | null;
         phone: string | null;
         view: "full";
         employeeNumber: string;
@@ -469,7 +469,7 @@ export declare const EmployeePage: z.ZodObject<{
         id: string;
         idDocumentType: "national_id" | "passport" | null;
         idDocumentNumber: string | null;
-        orgRole: "owner" | "manager" | "receptionist" | "housekeeper" | null;
+        orgRole: "owner" | "manager" | "receptionist" | "finance" | "hr" | "housekeeper" | null;
         phone: string | null;
         view: "full";
         employeeNumber: string;
@@ -564,7 +564,7 @@ export declare const EmployeePage: z.ZodObject<{
         email: string | null;
         legalName: string;
         id: string;
-        orgRole: "owner" | "manager" | "receptionist" | "housekeeper" | null;
+        orgRole: "owner" | "manager" | "receptionist" | "finance" | "hr" | "housekeeper" | null;
         phone: string | null;
         view: "basic";
         employeeNumber: string;
@@ -618,7 +618,7 @@ export declare const EmployeePage: z.ZodObject<{
         id: string;
         idDocumentType: "national_id" | "passport" | null;
         idDocumentNumber: string | null;
-        orgRole: "owner" | "manager" | "receptionist" | "housekeeper" | null;
+        orgRole: "owner" | "manager" | "receptionist" | "finance" | "hr" | "housekeeper" | null;
         phone: string | null;
         view: "full";
         employeeNumber: string;
@@ -693,7 +693,7 @@ export declare const EmployeePage: z.ZodObject<{
         email: string | null;
         legalName: string;
         id: string;
-        orgRole: "owner" | "manager" | "receptionist" | "housekeeper" | null;
+        orgRole: "owner" | "manager" | "receptionist" | "finance" | "hr" | "housekeeper" | null;
         phone: string | null;
         view: "basic";
         employeeNumber: string;
@@ -747,7 +747,7 @@ export declare const EmployeePage: z.ZodObject<{
         id: string;
         idDocumentType: "national_id" | "passport" | null;
         idDocumentNumber: string | null;
-        orgRole: "owner" | "manager" | "receptionist" | "housekeeper" | null;
+        orgRole: "owner" | "manager" | "receptionist" | "finance" | "hr" | "housekeeper" | null;
         phone: string | null;
         view: "full";
         employeeNumber: string;

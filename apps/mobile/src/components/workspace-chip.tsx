@@ -12,7 +12,7 @@
  * the server's `orgRole` enum passed straight through: "owner" and
  * "housekeeper" in lower case, and an empty string on a broker seat, which drew
  * a blank second line and was read out as "Broker, " (mobile audit 2026-10-05,
- * SA-10). The chip turns the four enums into their words and drops an empty
+ * SA-10). The chip turns the six enums into their words and drops an empty
  * line, so every tab is right without each caller translating. Account's own
  * rows use `seatRoleLabel`, which also knows the surface.
  */
@@ -29,6 +29,8 @@ const ORG_ROLE: Readonly<Record<string, MessageKey>> = {
   owner: 'role.owner',
   manager: 'role.manager',
   receptionist: 'role.receptionist',
+  finance: 'role.finance',
+  hr: 'role.hr',
   housekeeper: 'role.housekeeper',
 };
 

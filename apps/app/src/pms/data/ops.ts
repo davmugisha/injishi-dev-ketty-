@@ -116,12 +116,17 @@ import { queryKeys } from "./queries";
  */
 export const OPS_READ = {
   amenities: ["listing.manage", "amenity.manage", "unit.manage", "outlet.manage", "order.advance"],
-  departments: ["department.manage", "folio.charge", "order.advance", "outlet.manage"],
+  // ADR-069 D-d: `people.view` reads departments and their members, so the HR
+  // officer opens Departments read only without taking `department.manage`.
+  departments: ["department.manage", "folio.charge", "order.advance", "outlet.manage", "people.view"],
+  departmentMembers: ["team.manage", "department.manage", "people.view"],
   folios: ["folio.charge", "money.view"],
   housekeepingTasks: ["housekeeping.set", "task.assign"],
   outlets: ["outlet.manage", "order.advance", "menu.manage"],
   outletParties: ["outlet.manage"],
-  reservations: ["reservation.approve", "reservation.assign", "stay.checkin"],
+  // ADR-069 D-d: the list and the record admit `money.view` too, so the
+  // accountant reads bookings. The room assignment reads below did not widen.
+  reservations: ["reservation.approve", "reservation.assign", "stay.checkin", "money.view"],
   roomAssignments: ["reservation.assign", "reservation.approve", "stay.checkin"],
   leases: ["lease.advance", "rent.record", "deposit.return"],
   rentRoll: ["rent.record", "money.view"],
@@ -147,7 +152,9 @@ export const OPS_READ = {
   roster: ["roster.manage", "attendance.record", "people.view"],
   attendance: ["attendance.record", "attendance.approve"],
   leaveRequests: ["leave.approve"],
-  payRuns: ["payroll.run"],
+  // ADR-069 D-e: a draft route admits `payroll.draft` or `payroll.run`; the
+  // run's PDF and files stay `payroll` below.
+  payRuns: ["payroll.draft", "payroll.run"],
   // The people file (058-people-file AC-PF2): pay accounts are people.manage or
   // payroll.run; notes, documents and discipline are people.manage alone; what
   // the whole business shares reads under any HR permission.
@@ -180,8 +187,11 @@ export const OPS_READ = {
   leaveDefaults: ["people.manage"],
   restrictedPeriods: ["leave.approve", "people.manage"],
   // Payroll in full (058-payroll): every read is payroll.run's, except the
-  // contracts list, which whoever writes contracts reads too.
+  // contracts list, which whoever writes contracts reads too, and the dashboard
+  // and national rules a draft is built from, which `payroll.draft` reads too
+  // (ADR-069 D-e, `payrollOverview`).
   payroll: ["payroll.run"],
+  payrollOverview: ["payroll.draft", "payroll.run"],
   contracts: ["people.manage", "payroll.run"],
 } as const satisfies Record<string, readonly Permission[]>;
 

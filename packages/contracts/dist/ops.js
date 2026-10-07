@@ -1143,6 +1143,8 @@ exports.ORG_ROLE_LABEL = {
     owner: "Owner",
     manager: "Manager",
     receptionist: "Front office / Receptionist",
+    finance: "Finance",
+    hr: "HR",
     housekeeper: "Housekeeper",
 };
 exports.InviteStaffRequest = zod_1.z.object({

@@ -1,10 +1,13 @@
 /**
  * The PMS information architecture — grouped by how a property is run, not by
- * how the platform is built (blueprint §3.2).
+ * how the platform is built (blueprint §3.2), in the vocabulary a hotel already
+ * uses (the Navigation board, 2026-10-07: three groups, sixteen destinations,
+ * Settings in the footer, the OPERA renames).
  *
  * Two things shape what renders:
  *  - the permissions the grant carries (a receptionist holds no `money.view`, so
- *    never sees Money), each leaf declaring the one it needs (ADR-053),
+ *    never sees Finance), each entry declaring the permission it needs
+ *    (ADR-053), which is the read its screen makes wherever a screen exists,
  *  - the property's departments, which are config (F-P01) — so a 2-department
  *    guesthouse gets a shorter nav than a 5-department hotel with no code change.
  *
@@ -15,10 +18,13 @@
  * they can never be resolved from different reads and a permission change
  * reaches the nav with no second file edited.
  *
+ * **No entry here reads a role name.** The role decides only which door is
+ * shown FIRST (`home.ts`, ADR-069 D-f), never which doors exist.
+ *
  * COUNT PILLS ARE DIFFERENT, and the difference is the point. A count is an
- * affordance and may be stale or absent; a SECTION is a door, and
+ * affordance and may be stale or absent; a DESTINATION is a door, and
  * `allowedSegments` below turns the doors into the route guard's whole input.
- * So a section is decided by the grant, and a count is `null` until a live
+ * So a destination is decided by the grant, and a count is `null` until a live
  * query has answered. A count that has not loaded shows nothing, which is what
  * it means.
  *
@@ -35,7 +41,55 @@ import { HR_PERMISSIONS, type DepartmentCategory, type Permission } from "@injis
 // department list and some optional counts now, none of which it can invent.
 import type { WorkspaceKey } from "../data/types";
 
-export interface NavItem {
+/**
+ * Who may open an entry (ADR-053, ADR-055).
+ *
+ * At most ONE of the three is declared. None declared is a decision, not a gap:
+ * such an entry is offered to every member of the workspace, and the outer gate
+ * still holds, because a business that is not `active` holds no permissions.
+ */
+interface NavGate {
+  /** The one permission this entry needs. */
+  permission?: Permission;
+  /**
+   * Any ONE of these opens it (ADR-055), for a screen that several
+   * capabilities legitimately reach. It is the API's `@RequireAnyPermission`,
+   * and an entry declares exactly the set its screen's read declares, so an
+   * offered door never meets a refusal. The screen behind such an entry must
+   * refuse per action, because reaching it no longer implies holding every
+   * power it offers.
+   */
+  anyPermission?: readonly Permission[];
+  /**
+   * EVERY one of these is needed. For a destination that is the meeting point
+   * of two powers (Revenue: reading the money AND setting the price), where
+   * either alone would offer the door to somebody whose job it is not.
+   */
+  allPermissions?: readonly Permission[];
+}
+
+/**
+ * One way to look at a destination, with an address of its own (ADR-018, D-c).
+ *
+ * A destination that merges several existing screens (Housekeeping: Room
+ * status, Tasks, Maintenance) has no lens rail of its own to move between them,
+ * so the sidebar shows its lenses under it while it is open, as the Sidebar
+ * board does for Finance and Reservations. Each lens carries its own gate,
+ * because the screens it merges were gated differently.
+ */
+export interface NavLens extends NavGate {
+  key: string;
+  label: string;
+  href: string;
+  /**
+   * Other addresses this lens is the place for. Team & roles is reached at
+   * Roles, and Invites sits beside it on that screen's rail; both are the one
+   * lens in the sidebar.
+   */
+  activeOn?: readonly string[];
+}
+
+export interface NavItem extends NavGate {
   key: string;
   label: string;
   icon: string;
@@ -45,39 +99,28 @@ export interface NavItem {
   /** False while the screen is still a placeholder. */
   built?: boolean;
   /**
-   * The permission this leaf gates, or absent when it gates none (ADR-053,
-   * AC-A1). Absent is a decision, not a gap: such a leaf is offered to every
-   * member of the workspace. The outer gate still holds, because a business
-   * that is not `active` holds no permissions and its app is closed anyway.
+   * Designed for later, not in v1 (the Sidebar board's Horizon chip). The door
+   * exists so the shape of the product is visible; what it opens says what is
+   * there today.
    */
-  permission?: Permission;
+  horizon?: boolean;
   /**
-   * Any ONE of these opens the leaf (ADR-055), for a screen that several
-   * capabilities legitimately reach.
-   *
-   * It exists because moving Departments under Team & Departments would
-   * otherwise have taken it away from a manager. Under Services the leaf was
-   * gated on `order.advance`; here the obvious gate is `team.manage`, which is
-   * the owner's alone — so a manager who may edit departments
-   * (`department.manage`) would have lost the only door to them. The API already
-   * has this shape as `@RequireAnyPermission`; this is the nav's half of it.
-   *
-   * A leaf declares this OR `permission`, never both. The screen behind such a
-   * leaf must refuse per lens, because reaching it no longer implies holding
-   * every power it offers.
+   * The lenses this grant reaches, in the order the sidebar shows them. An
+   * entry that declares NO gate of its own and carries lenses is opened by any
+   * of them, and opens on the first one the grant reaches.
    */
-  anyPermission?: readonly Permission[];
+  lenses?: NavLens[];
   /**
-   * Object routes this leaf opens (ADR-018, move 3).
+   * Screen segments this entry opens without a link of their own (ADR-018,
+   * move 3).
    *
    * A record page is not a nav leaf: nobody navigates to "stays", they open one
    * stay from the reservation it came from. But screen access in this app has
    * exactly ONE mechanism, the allowed set built from `navFor` (invariant 6), so
-   * a record route has to be granted by the leaf a person reaches it through
-   * rather than by a second check somewhere else.
-   *
-   * Reservations grants `stays` because that is where a stay is linked from: a
-   * stay does not exist until someone arrives, so the booking is the way in.
+   * a record route has to be granted by the entry a person reaches it through
+   * rather than by a second check somewhere else. The same holds for an old
+   * address that a destination absorbed (`today` under Dashboard, `setup`
+   * under Rates & Inventory).
    */
   grants?: readonly string[];
 }
@@ -85,10 +128,69 @@ export interface NavItem {
 export interface NavSection {
   label: string;
   items: NavItem[];
+  /**
+   * `footer` sits below the scrolling list (Settings, per the Sidebar board).
+   * Absent is the body.
+   */
+  placement?: "footer";
 }
 
-/** Screens still awaiting their design pass, keyed for the placeholder copy. */
-export const PLACEHOLDER_COPY: Record<string, { icon: string; title: string; line: string; hint?: string }> = {
+/** Screens still awaiting their build, keyed for the placeholder copy. */
+export const PLACEHOLDER_COPY: Record<
+  string,
+  {
+    icon: string;
+    title: string;
+    line: string;
+    hint?: string;
+    /** The ways to look at it the design gives it, named so the shape is visible. */
+    lenses?: readonly string[];
+    /** The chip under it. Absent is "Next design pass". */
+    status?: string;
+  }
+> = {
+  // The five destinations of the Navigation board with no screen yet. The
+  // line is the board's own description of each.
+  "front-desk": {
+    icon: "concierge-bell",
+    title: "Front desk",
+    line: "Check-in on one page, the queue for rooms not ready, room moves, and check-out by bill window.",
+    hint: "Until it is built, arrivals, departures and requests are on the Dashboard.",
+    lenses: ["Arrivals", "In-house", "Departures", "Queue"],
+    status: "Not built yet",
+  },
+  guests: {
+    icon: "contact-round",
+    title: "Guests",
+    line: "A guest profile across stays, with preferences the desk, housekeeping and the restaurant act on, and the property’s own loyalty programme.",
+    hint: "It needs a guest read the API does not have yet. Each booking’s guest is on Reservations.",
+    lenses: ["Directory", "Stay history", "Loyalty"],
+    status: "Horizon",
+  },
+  "night-audit": {
+    icon: "moon-star",
+    title: "Night audit",
+    line: "End of day. The business date rolls only once the checks are clear.",
+    hint: "Today it runs as a server job with no screen: each night it posts every in-house stay’s room charge to its folio.",
+    lenses: ["Checks", "No-shows", "Post room and tax", "Cashier", "Roll the date", "Reports"],
+    status: "Not built yet",
+  },
+  sales: {
+    icon: "handshake",
+    title: "Sales & events",
+    line: "The sales pipeline, the function diary and banquet event orders.",
+    hint: "Billing for accounts and events will stay on Finance.",
+    lenses: ["Accounts", "Leads", "Activities", "Events", "Catering"],
+    status: "Horizon",
+  },
+  reports: {
+    icon: "chart-column",
+    title: "Reports",
+    line: "Occupancy, ADR and RevPAR over time, the trial balance, and the 14-day house forecast.",
+    hint: "This month’s takings per department are on Finance, under Revenue.",
+    lenses: ["Performance", "Revenue", "Financial", "Forecast", "Housekeeping"],
+    status: "Not built yet",
+  },
   payouts: {
     icon: "wallet",
     title: "Earnings & payouts",
@@ -160,11 +262,13 @@ export const PLACEHOLDER_COPY: Record<string, { icon: string; title: string; lin
  * Counts for the pills, when a live source has answered.
  *
  * Every field is optional and every absent field renders no pill. This is what
- * lets a section exist on the server's say-so while its badge waits for a real
- * query, instead of a fixture supplying a number nobody counted.
+ * lets a destination exist on the server's say-so while its badge waits for a
+ * real query, instead of a fixture supplying a number nobody counted.
  */
 export interface NavCounts {
   pendingReservations?: number | null;
+  /** Confirmed bookings arriving today that nobody has checked in yet. */
+  arrivalsToCheckIn?: number | null;
   housekeepingOpen?: number | null;
   ticketsOpen?: number | null;
   ordersLive?: number | null;
@@ -176,11 +280,11 @@ export interface NavCounts {
  * contract 10), in the order the rail shows them.
  *
  * In this file rather than in the screen because it is the same class of fact
- * as a nav leaf's gate: which doors a grant reaches. The leaf below is opened by
- * ANY of the seven HR permissions, and the screen offers only the lenses this
- * table lets through, so a receptionist who clocks people in reaches Staff and
- * sees Roster and Attendance, never Employees or Payroll. Each gate is exactly
- * the read its lens makes, so an offered lens never meets a refusal.
+ * as a nav entry's gate: which doors a grant reaches. The People destination is
+ * opened by the HR permissions, and the screen offers only the lenses this table
+ * lets through, so a grant reaches exactly the lenses whose reads it may make.
+ * Each gate is exactly the read its lens makes, so an offered lens never meets a
+ * refusal.
  *
  * The people file (058-people-file) adds six. Documents, Discipline and
  * Configuration are `people.manage`'s; the org chart reads like the file list;
@@ -224,8 +328,11 @@ export const STAFF_LENSES: readonly {
   { key: "kiosks", label: "Kiosks", segment: "kiosks", anyPermission: ["attendance.record"] },
   // 058-leave: five sections below it; whoever keeps the files reaches balances, periods and types.
   { key: "leave", label: "Leave", segment: "leave", anyPermission: ["leave.approve", "people.manage"] },
-  // 058-payroll: nine sections below it; whoever writes contracts reaches the Contracts list.
-  { key: "payroll", label: "Payroll", segment: "payroll", anyPermission: ["payroll.run", "people.manage"] },
+  // 058-payroll: nine sections below it; whoever writes contracts reaches the
+  // Contracts list. ADR-069 D-e: whoever drafts the pay run (`payroll.draft`,
+  // the HR officer) opens it too, on the Overview the draft is built from; the
+  // confirm stays `payroll.run`'s inside the screen.
+  { key: "payroll", label: "Payroll", segment: "payroll", anyPermission: ["payroll.draft", "payroll.run", "people.manage"] },
   { key: "time-insights", label: "Late and monthly", segment: "time-insights", anyPermission: ["people.manage"] },
   { key: "policies", label: "Policies", segment: "policies", anyPermission: HR_PERMISSIONS },
   { key: "announcements", label: "Announcements", segment: "announcements", anyPermission: HR_PERMISSIONS },
@@ -243,53 +350,185 @@ export function staffLenses(permissions: readonly Permission[]): typeof STAFF_LE
   return STAFF_LENSES.filter((lens) => lens.anyPermission.some((p) => permissions.includes(p)));
 }
 
-/** Every HR permission: any one of them opens the Staff leaf. The contracts' list, so the API's reads agree. */
-const STAFF_PERMISSIONS: readonly Permission[] = HR_PERMISSIONS;
+/* ── The reads each door declares ───────────────────────────────────────── */
 
-/** The Staff leaf, the same in a hotel and a residence business (ADR-058). */
-function staffLeaf(base: string): NavItem {
-  return { key: "staff", label: "Staff", icon: "id-card", href: `${base}/staff`, built: true, anyPermission: STAFF_PERMISSIONS };
-}
+/*
+ * Each set below is the declaration of the API read behind a door, the same
+ * set `OPS_READ` in `data/ops.ts` mirrors for the client's own requests. They
+ * are spelled here rather than imported because that module is a client
+ * module and this one is also read on the server (`legacy-redirect.ts`).
+ * `home.test.mjs` holds each door against the six default roles, so a drift
+ * shows up as a role gaining or losing a door.
+ */
+
+/** `GET /ops/reservations` and `/:id` (`OPS_READ.reservations`; ADR-069 D-d). */
+const RESERVATIONS_READ: readonly Permission[] = ["reservation.approve", "reservation.assign", "stay.checkin", "money.view"];
+
+/** `GET /ops/room-assignments` (`OPS_READ.roomAssignments`): the room rack's holds. */
+const ROOM_PLAN_READ: readonly Permission[] = ["reservation.assign", "reservation.approve", "stay.checkin"];
+
+/** `GET /ops/rooms` (`OPS_READ.rooms`): the state of every room. */
+const ROOMS_READ: readonly Permission[] = ["stay.checkin", "housekeeping.set", "reservation.assign", "listing.manage"];
+
+/** `GET /ops/housekeeping-tasks` (`OPS_READ.housekeepingTasks`). */
+const TASKS_READ: readonly Permission[] = ["housekeeping.set", "task.assign"];
+
+/**
+ * The day's movements: who decides a request, gives a guest a room or checks
+ * them in. The operations dashboard is today's arrivals, departures and
+ * requests (ADR-069 D-f), and these are the powers that act on them. Not
+ * `money.view`: the accountant's first screen is Finance, and an operations
+ * board of guests to check in is a door that leads nowhere for them (ADR-069,
+ * Consequences: "the role-aware nav must not offer it").
+ */
+const DAY_MOVEMENTS: readonly Permission[] = ["reservation.approve", "reservation.assign", "stay.checkin"];
+
+/** Who checks a guest in or out: the front office (Front desk, Night audit). */
+const FRONT_OFFICE: readonly Permission[] = ["stay.checkin", "stay.checkout"];
+
+/**
+ * The People destination: whoever keeps the files, the roster, leave or pay.
+ *
+ * Every HR permission but `attendance.record`. The desk holds that one alone,
+ * because it is at the door when the night shift arrives (ADR-058 contract 4),
+ * and the Sidebar board gives the desk no People destination: clocking a shift
+ * in is not running HR. The desk keeps the one lens it uses, as a lens of Front
+ * desk (`hostNav`).
+ */
+const PEOPLE_DOOR: readonly Permission[] = HR_PERMISSIONS.filter((p) => p !== "attendance.record");
 
 /** A pill shows a positive number or nothing. Zero is quiet, absent is quiet. */
 function pill(n: number | null | undefined): number | null {
   return typeof n === "number" && n > 0 ? n : null;
 }
 
+function declaresGate(gate: NavGate): boolean {
+  return gate.permission !== undefined || gate.anyPermission !== undefined || gate.allPermissions !== undefined;
+}
+
+/** Whether a grant holding `permissions` opens a door with this gate. */
+function opens(gate: NavGate, permissions: readonly Permission[]): boolean {
+  if (gate.anyPermission !== undefined) return gate.anyPermission.some((p) => permissions.includes(p));
+  if (gate.allPermissions !== undefined) return gate.allPermissions.every((p) => permissions.includes(p));
+  return gate.permission === undefined || permissions.includes(gate.permission);
+}
+
 /**
- * Keep the leaves this grant reaches (ADR-053, AC-A1).
+ * Keep the entries this grant reaches (ADR-053, AC-A1), each with the lenses it
+ * reaches.
  *
- * A leaf that declares a permission is kept when the grant holds it. A leaf that
- * declares NONE is kept for every member of the workspace, and that is the rule
- * rather than an omission: Today, Calendar and the tenancy lists gate no
- * capability, and inventing a permission for each would refuse nobody.
- *
- * No branch in this file reads a role name any more. The role used to decide
- * People, Settings and the receptionist's and housekeeper's surfaces, as hand
- * mirrors of `team.manage`, `ebm.manage` and the rest, so a permission change
- * had to be made twice and the second edit was the one that got forgotten. The
- * permission array is the server's answer, already resolved; this only reads it.
+ * An entry that declares a gate is kept when the grant opens it. One that
+ * declares none and carries lenses is kept when any lens is, and opens on the
+ * first. One that declares nothing at all is kept for every member of the
+ * workspace, and that is the rule rather than an omission.
  */
-function reachable(
-  items: readonly NavItem[],
-  permissions: readonly Permission[],
-): NavItem[] {
-  return items.filter((item) => {
-    if (item.anyPermission !== undefined)
-      return item.anyPermission.some((p) => permissions.includes(p));
-    return item.permission === undefined || permissions.includes(item.permission);
+function reachable(items: readonly NavItem[], permissions: readonly Permission[]): NavItem[] {
+  return items.flatMap((item) => {
+    const lenses = item.lenses?.filter((lens) => opens(lens, permissions));
+    if (declaresGate(item)) {
+      return opens(item, permissions) ? [{ ...item, lenses }] : [];
+    }
+    if (lenses === undefined) return [item];
+    if (lenses.length === 0) return [];
+    return [{ ...item, href: lenses[0].href, lenses }];
   });
 }
 
-/** A section with the leaves this grant reaches, or nothing when it reaches none. */
+/** A section with the entries this grant reaches, or nothing when it reaches none. */
 function sectionOf(
   label: string,
   items: readonly NavItem[],
   permissions: readonly Permission[],
+  placement?: NavSection["placement"],
 ): NavSection[] {
   const kept = reachable(items, permissions);
   // A header with nothing under it reads as a broken screen, not as an absent power.
-  return kept.length > 0 ? [{ label, items: kept }] : [];
+  if (kept.length === 0) return [];
+  return [placement ? { label, items: kept, placement } : { label, items: kept }];
+}
+
+/**
+ * Settings, in the footer (the Navigation board: it "absorbs Team &
+ * Departments and PSF membership: administration in one place").
+ *
+ * The Settings screen keeps its own rail (Property, Branches, Policies, Plan and
+ * billing, Integrations). The lenses here are the places that rail does not
+ * reach, plus the two ways in, so administration is one door:
+ *
+ *  - **Property** needs `ebm.manage` as well as `listing.manage`: the Settings
+ *    screen offers Integrations on every lens, and Integrations reads the EBM
+ *    account (ADR-041, D-o).
+ *  - **Integrations** alone is the accountant's way in (ADR-069 D-c: "the nav
+ *    should open Settings on Integrations for a grant without
+ *    `listing.manage`").
+ *  - **Team & roles** is the owner's (`team.manage`, ADR-055). It opens on
+ *    Roles; the team and its invitations are lenses beside it on that screen.
+ *  - **Departments** is read by `people.view` too (ADR-069 D-d), so the HR
+ *    officer opens it read only. A residence portfolio runs none.
+ *  - **Memberships** is PSF (ADR-056), gated on the server's `canManage`, never
+ *    on a permission: the owner applies at every registration stage.
+ */
+function settingsItem(base: string, opts: { departments: boolean; psfManage: boolean }): NavItem {
+  const lenses: NavLens[] = [
+    { key: "property", label: "Property", href: `${base}/settings`, allPermissions: ["ebm.manage", "listing.manage"] },
+    { key: "integrations", label: "Integrations", href: `${base}/settings/integrations`, permission: "ebm.manage" },
+    {
+      key: "team",
+      label: "Team & roles",
+      href: `${base}/people/roles`,
+      permission: "team.manage",
+      activeOn: [`${base}/people/invites`],
+    },
+    ...(opts.departments
+      ? [
+          {
+            key: "departments",
+            label: "Departments",
+            href: `${base}/people/departments`,
+            anyPermission: ["team.manage", "department.manage", "people.view"],
+          } satisfies NavLens,
+        ]
+      : []),
+    ...(opts.psfManage
+      ? [{ key: "psf-membership", label: "Memberships", href: `${base}/psf-membership` } satisfies NavLens]
+      : []),
+  ];
+  return { key: "settings", label: "Settings", icon: "settings", href: `${base}/settings`, built: true, lenses };
+}
+
+/**
+ * People (was Staff, ADR-058): everyone who works here, with or without an
+ * account. The same in a hotel and a residence business.
+ *
+ * It opens at `/people`, the HR officer's home (ADR-069 D-f), and grants the
+ * HR module's own screens under `/staff`. The four lenses are the Navigation
+ * board's, each gated exactly as the Staff rail gates it.
+ */
+function peopleItem(base: string): NavItem {
+  const staffLens = (key: (typeof STAFF_LENSES)[number]["key"], label: string): NavLens => {
+    const lens = STAFF_LENSES.find((l) => l.key === key)!;
+    return {
+      key: `staff-${key}`,
+      label,
+      href: lens.segment ? `${base}/staff/${lens.segment}` : `${base}/staff`,
+      anyPermission: lens.anyPermission,
+    };
+  };
+  return {
+    key: "staff",
+    label: "People",
+    icon: "users",
+    href: `${base}/people`,
+    built: true,
+    anyPermission: PEOPLE_DOOR,
+    grants: ["staff"],
+    lenses: [
+      staffLens("employees", "Employees"),
+      staffLens("roster", "Roster"),
+      staffLens("leave", "Leave"),
+      staffLens("payroll", "Payroll"),
+    ],
+  };
 }
 
 export function hostNav(
@@ -302,106 +541,158 @@ export function hostNav(
   // The USALI category, not the display name. Two hotels spell "Restaurant"
   // and "Dining" for the same thing; `fnb` is what both of them are.
   const has = (d: DepartmentCategory) => departments.includes(d);
-  const pending = pill(counts.pendingReservations);
+  const holds = (p: Permission) => permissions.includes(p);
+
+  /*
+   * A pill names work for whoever does it. The Sidebar board keeps the
+   * accountant's Reservations QUIET: they read bookings and decide none, so
+   * "requests to decide" is not theirs. Said as the power that answers the
+   * request, never as a role.
+   */
+  const pending = holds("reservation.approve") ? pill(counts.pendingReservations) : null;
+  const arrivals = holds("stay.checkin") ? pill(counts.arrivalsToCheckIn) : null;
   const hkOpen = pill(counts.housekeepingOpen);
-  const ticketsOpen = pill(counts.ticketsOpen);
   const ordersLive = pill(counts.ordersLive);
   const unread = pill(counts.unreadThreads);
+
+  /*
+   * A business still in the registration pipeline holds no permission at all,
+   * and lands where it always has: the Dashboard, which is the one screen that
+   * opens without a power and the one its owner watches the stage from
+   * (ADR-069 D-f rule 6). Once the business is active, the Dashboard is the
+   * day's movements and asks for a power that acts on them.
+   */
+  const inPipeline = permissions.length === 0;
+
+  /*
+   * The one HR task the desk holds, kept for a grant that has no People door
+   * (see `PEOPLE_DOOR`). Whoever reaches People reaches it there.
+   */
+  const deskAttendance: NavLens[] =
+    !opens({ anyPermission: PEOPLE_DOOR }, permissions)
+      ? [{ key: "staff-attendance", label: "Staff attendance", href: `${base}/staff/attendance`, permission: "attendance.record" }]
+      : [];
 
   return [
     ...sectionOf(
       "Front desk",
       [
-        { key: "today", label: "Today", icon: "layout-dashboard", href: `${base}/today`, built: true },
-        { key: "reservations", label: "Reservations", icon: "book-marked", href: `${base}/reservations`, count: pending, built: true, grants: ["stays"], permission: "reservation.approve" },
+        // Was Today. "Today" stays as its default period; the old address
+        // still opens, under this door.
+        {
+          key: "today",
+          label: "Dashboard",
+          icon: "layout-dashboard",
+          href: `${base}/dashboard`,
+          built: true,
+          grants: ["today"],
+          ...(inPipeline ? {} : { anyPermission: DAY_MOVEMENTS }),
+        },
+        {
+          key: "front-desk",
+          label: "Front desk",
+          icon: "concierge-bell",
+          href: `${base}/front-desk`,
+          count: arrivals,
+          built: false,
+          anyPermission: FRONT_OFFICE,
+          lenses: deskAttendance,
+        },
+        // The list's own read, widened for the accountant (ADR-069 D-d). The
+        // screen asks per action, so approve, decline and assign stay the desk's.
+        { key: "reservations", label: "Reservations", icon: "book-marked", href: `${base}/reservations`, count: pending, built: true, grants: ["stays"], anyPermission: RESERVATIONS_READ },
         // Was `grid`, `availability` and the rate calendar inside `rooms-rates`:
         // three entries over one question, which is what is sellable, when, at
-        // what price. One route, three views (ADR-018, move 5).
-        { key: "calendar", label: "Calendar", icon: "calendar-days", href: `${base}/calendar`, built: true },
-        { key: "inbox", label: "Inbox", icon: "message-square", href: `${base}/inbox`, count: unread, built: true, permission: "message.send" },
+        // what price. One route, three views (ADR-018, move 5). Gated on the
+        // room plan it is drawn from, so the accountant, who reads bookings and
+        // not the room plan, is not offered an empty rack.
+        { key: "calendar", label: "Calendar", icon: "calendar-days", href: `${base}/calendar`, built: true, anyPermission: ROOM_PLAN_READ },
+        // No guest read exists yet (the board marks it Horizon). The profile is
+        // built from the bookings and stays the reservations read returns, so
+        // the door declares that read: the accountant and the desk reach it,
+        // and neither HR nor the housekeeper does (ADR-069 D-c).
+        { key: "guests", label: "Guests", icon: "contact-round", href: `${base}/guests`, built: false, horizon: true, anyPermission: RESERVATIONS_READ },
+        // Was Inbox: the word guests see on Airbnb and Booking.com. HR is not
+        // offered it: the only messaging built is the guest inbox (ADR-069 D-d).
+        { key: "inbox", label: "Messages", icon: "message-square", href: `${base}/inbox`, count: unread, built: true, permission: "message.send" },
       ],
       permissions,
     ),
     ...sectionOf(
-      "Rooms",
+      "Operations",
       [
-        // Room status is TODAY's operations. Inventory below is setup. The two
-        // used to be one word apart, `rooms` and `rooms-rates`, and the names
-        // did not say which was which.
-        { key: "rooms", label: "Room status", icon: "bed-double", href: `${base}/rooms`, built: true, permission: "housekeeping.set" },
-        { key: "housekeeping", label: "Housekeeping", icon: "sparkles", href: `${base}/housekeeping`, count: hkOpen, built: true, permission: "housekeeping.set" },
-        // Only where an engineering department exists, and to whoever advances a
-        // ticket: the owner, the manager and the housekeeper, exactly the three
-        // roles the old branches let through.
-        ...(has("engineering")
-          ? [{ key: "maintenance", label: "Maintenance", icon: "wrench", href: `${base}/maintenance`, count: ticketsOpen, built: true, permission: "ticket.advance" } satisfies NavItem]
+        /*
+         * Room status, Housekeeping and Maintenance were three leaves under
+         * "Rooms". One destination now, opening on the first lens the grant
+         * reads, each lens gated on its own screen's read. Room status reads
+         * `GET /ops/rooms`, which the desk holds, so the desk sees the rooms it
+         * gives out; marking one clean stays `housekeeping.set` inside it.
+         * Maintenance only where an engineering department exists.
+         */
+        {
+          key: "housekeeping",
+          label: "Housekeeping",
+          icon: "sparkles",
+          href: `${base}/rooms`,
+          count: hkOpen,
+          built: true,
+          lenses: [
+            { key: "rooms", label: "Room status", href: `${base}/rooms`, anyPermission: ROOMS_READ },
+            { key: "tasks", label: "Tasks", href: `${base}/housekeeping`, anyPermission: TASKS_READ },
+            ...(has("engineering")
+              ? [{ key: "maintenance", label: "Maintenance", href: `${base}/maintenance`, permission: "ticket.advance" } satisfies NavLens]
+              : []),
+          ],
+        },
+        // Only where a service department exists: a two department guesthouse
+        // gets no Services. `order.advance` rather than `menu.manage`, because
+        // the destination opens on Orders, which a receptionist works; the Menus
+        // lens refuses editing inside the screen (ADR-053, ruled 2026-09-13).
+        ...(has("fnb") || has("spa_recreation")
+          ? [{ key: "services", label: "Services", icon: "bell-ring", href: `${base}/services`, count: ordersLive, built: true, permission: "order.advance" } satisfies NavItem]
           : []),
+        { key: "night-audit", label: "Night audit", icon: "moon-star", href: `${base}/night-audit`, built: false, anyPermission: FRONT_OFFICE },
       ],
       permissions,
     ),
-    // Only where a service department exists: a two department guesthouse gets
-    // no Services. `order.advance` rather than `menu.manage`, because the leaf
-    // opens on Live orders, which a receptionist works; the Menu lens refuses
-    // editing inside the screen (ADR-053, ruled 2026-09-13).
-    ...(has("fnb") || has("spa_recreation")
-      ? sectionOf(
-          "Services",
-          [{ key: "services", label: "Services", icon: "bell-ring", href: `${base}/services`, count: ordersLive, built: true, permission: "order.advance" }],
-          permissions,
-        )
-      : []),
     ...sectionOf(
-      "Property",
+      "Business",
       [
-        // The setup checklist an approved business lands on (2026-09-13). It
-        // opens nothing of its own: every step links to the leaf that edits it,
-        // so it is gated like Inventory and adds no second door.
-        { key: "setup", label: "Setup", icon: "list-checks", href: `${base}/setup`, built: true, permission: "listing.manage" },
-        { key: "inventory", label: "Inventory", icon: "building-2", href: `${base}/inventory`, built: true, permission: "listing.manage" },
+        // Setup and Inventory merged. The setup checklist moves to the
+        // Dashboard until it is done, and its address still opens under here.
+        { key: "inventory", label: "Rates & Inventory", icon: "building-2", href: `${base}/inventory`, built: true, permission: "listing.manage", grants: ["setup"] },
+        /*
+         * The revenue manager's screen (Horizon): forecast, pickup and pricing.
+         * What exists today is the takings per department, Finance's Revenue
+         * lens, so the door opens there. It needs the money AND the price:
+         * revenue management is acting on rates (`listing.manage`) from the
+         * figures (`money.view`). Either alone is somebody else's job.
+         */
+        {
+          key: "revenue",
+          label: "Revenue",
+          icon: "trending-up",
+          href: `${base}/finance/revenue`,
+          built: false,
+          horizon: true,
+          allPermissions: ["money.view", "listing.manage"],
+        },
+        // Selling group and corporate business is pricing packages and
+        // negotiated rates, which is the offer power (`offer.manage`).
+        { key: "sales", label: "Sales & events", icon: "handshake", href: `${base}/sales`, built: false, horizon: true, permission: "offer.manage" },
+        // Bills, payouts, invoices and revenue were four leaves, and "why is
+        // this month short" crossed all four and was answered by none. One
+        // route, its lenses on the screen.
+        { key: "finance", label: "Finance", icon: "receipt", href: `${base}/finance`, built: true, permission: "money.view" },
+        // ADR-069 D-c: the money report built today is Finance, Revenue, read
+        // on `money.view`; `reports.view` is designed and not in the code, so
+        // no permission is invented for it.
+        { key: "reports", label: "Reports", icon: "chart-column", href: `${base}/reports`, built: false, permission: "money.view" },
+        peopleItem(base),
       ],
       permissions,
     ),
-    // Four leaves used to sit here — bills, payouts, invoices, revenue — and
-    // "why is this month short" crossed all four and was answered by none. One
-    // route, four lenses, so the question has somewhere to be asked.
-    ...sectionOf(
-      "Money",
-      [{ key: "finance", label: "Finance", icon: "receipt", href: `${base}/finance`, built: true, permission: "money.view" }],
-      permissions,
-    ),
-    // The HR module (ADR-058): everyone who works here, with or without an
-    // account, their shifts, attendance, leave and pay. Beside Team &
-    // Departments rather than inside it, because that screen is about who holds
-    // an ACCOUNT and what it may do, and most of a hotel's staff never sign in.
-    ...sectionOf("People", [staffLeaf(base)], permissions),
-    ...sectionOf(
-      "Property admin",
-      [
-        // **Team & Departments**, not People (ADR-055). Departments used to sit
-        // under Services, which read as "the restaurant's settings": a department
-        // is where revenue is reported and where an order routes, so a hotel
-        // with no restaurant had nowhere to see its own departments at all.
-        // **Reached by EITHER power**, which the move made necessary: under
-        // Services the leaf was gated on `order.advance`, so a manager could
-        // open Departments. `team.manage` alone is the owner's, so gating it
-        // there would have taken departments away from the very role that may
-        // edit them. The screen refuses per lens instead: the roster and Roles
-        // ask for `team.manage` inside.
-        { key: "people", label: "Team & Departments", icon: "users", href: `${base}/people`, built: true, anyPermission: ["team.manage", "department.manage"] },
-        // Settings is behind `ebm.manage`, because Integrations is where the RRA
-        // EBM account is connected (ADR-041, D-o). Plan and billing stays the
-        // owner's: `Settings` hides that lens and refuses it by URL.
-        { key: "settings", label: "Settings", icon: "settings", href: `${base}/settings`, built: true, permission: "ebm.manage" },
-        // PSF membership (ADR-056). Gated on the server's `canManage`, never on
-        // a permission: the owner applies at every registration stage, and a
-        // business in the pipeline holds no permission at all. It carries none,
-        // so `sectionOf` keeps it once it is in the list.
-        ...(psfManage
-          ? [{ key: "psf-membership", label: "PSF membership", icon: "badge-check", href: `${base}/psf-membership`, built: true } satisfies NavItem]
-          : []),
-      ],
-      permissions,
-    ),
+    ...sectionOf("Settings", [settingsItem(base, { departments: true, psfManage })], permissions, "footer"),
   ];
 }
 
@@ -433,6 +724,7 @@ export function landlordNav(
         { key: "rent-roll", label: "Rent roll", icon: "wallet", href: `${base}/rent-roll`, count: overdue, built: true },
         { key: "leases", label: "Leases", icon: "file-text", href: `${base}/leases`, count: awaiting, built: true },
         { key: "move-outs", label: "Move-outs & deposits", icon: "log-out", href: `${base}/move-outs`, count: depositReview, built: true },
+        { key: "inbox", label: "Messages", icon: "message-square", href: `${base}/inbox`, count: tenantUnread, built: true, permission: "message.send" },
       ],
       permissions,
     ),
@@ -456,34 +748,21 @@ export function landlordNav(
       ],
       permissions,
     ),
-    ...sectionOf(
-      "People",
-      [
-        { key: "inbox", label: "Inbox", icon: "message-square", href: `${base}/inbox`, count: tenantUnread, built: true, permission: "message.send" },
-        // A residence portfolio runs no departments, so this leaf keeps the
-        // shorter name; the screen behind it offers Team, Roles and Invites and
-        // omits the Departments lens rather than opening it empty.
-        { key: "people", label: "Team & roles", icon: "users", href: `${base}/people`, built: true, permission: "team.manage" },
-        // Every business type gets HR (ADR-058): a caretaker or a guard on a
-        // residence payroll is on file like a hotel cook.
-        staffLeaf(base),
-      ],
-      permissions,
-    ),
     // `compliance` is gone as a leaf. Half of it is the `filing` lens on the
     // lease it describes (move 3); half is the portfolio monitor, which is a
     // Finance lens. It named a regime rather than something you do.
     ...sectionOf(
-      "Money",
-      [{ key: "finance", label: "Finance", icon: "receipt", href: `${base}/finance`, built: true, permission: "money.view" }],
-      permissions,
-    ),
-    // Integrations is behind `ebm.manage`, as on the hotel side (ADR-041, D-o).
-    ...sectionOf(
       "Business",
-      [{ key: "settings", label: "Settings", icon: "settings", href: `${base}/settings`, built: true, permission: "ebm.manage" }],
+      [
+        { key: "finance", label: "Finance", icon: "receipt", href: `${base}/finance`, built: true, permission: "money.view" },
+        // Every business type gets HR (ADR-058): a caretaker or a guard on a
+        // residence payroll is on file like a hotel cook.
+        peopleItem(base),
+      ],
       permissions,
     ),
+    // A residence portfolio runs no departments and has no PSF membership.
+    ...sectionOf("Settings", [settingsItem(base, { departments: false, psfManage: false })], permissions, "footer"),
   ];
 }
 
@@ -525,33 +804,27 @@ export function workspaceBase(workspaceId: string | null): string {
   return workspaceId ? `${WORKSPACE_PREFIX}/${workspaceId}` : "";
 }
 
-/** The screen each workspace opens on, inside its own address. */
-const WORKSPACE_LANDING_SCREEN: Record<WorkspaceKey, string> = {
-  host: "/today",
-  landlord: "/rent-roll",
-  broker: "/directory",
-};
-
 /**
- * Where a workspace lands when you switch into it.
+ * Where a workspace lands when you switch into it: its own bare address.
  *
- * A function of the RESOLVED workspace rather than a map keyed by segment
- * (ADR-017, D-b). The old map could only answer "a host lands on Today"; this
- * answers "THIS host lands on THIS Today", which is the whole point of the id.
+ * Which SCREEN that is depends on the person, not the kind (ADR-069 D-f: an
+ * accountant opens on Finance, an HR officer on People), and the kind is all a
+ * caller of this function has. So it names the workspace and lets
+ * `/w/<id>`'s resolver choose the screen through `homeFor`, which reads the
+ * grant. One answer, in one place, for every way in: the root, the switcher,
+ * the old-address shim and "Back to your workspace".
  *
- * Every workspace this app serves is addressable, because the two that were not
- * — the government consoles — left for their own app (ADR-018, move 2), and
- * Personal left for the marketplace app (move 4).
+ * `ws` is kept in the signature because every caller has it and the rule
+ * "a workspace with no id is not an address" is stated once here.
  */
 export function workspaceHome(
-  ws: WorkspaceKey,
+  _ws: WorkspaceKey,
   workspaceId: string | null,
 ): string {
   const base = workspaceBase(workspaceId);
   // No id is not a screen we can name. Send them to the resolver at the root,
   // which asks the API again rather than guessing.
-  if (!base) return "/";
-  return `${base}${WORKSPACE_LANDING_SCREEN[ws]}`;
+  return base || "/";
 }
 
 /**
@@ -677,12 +950,12 @@ export interface NavContext {
   workspaceId: string | null;
   /**
    * The grant's `permissions[]`, resolved by the server (ADR-053, AC-A1). The
-   * only input that decides which leaves a person reaches; no role is read.
+   * only input that decides which doors a person reaches; no role is read.
    */
   permissions: readonly Permission[];
   /**
    * From the GRANT (ADR-035, D-a). This is what decides which optional
-   * sections exist, so it must never be derived from a fixture again.
+   * destinations exist, so it must never be derived from a fixture again.
    */
   departments: readonly DepartmentCategory[];
   /**
@@ -720,18 +993,38 @@ export function opensOnPhoneSurface(ctx: Pick<NavContext, "ws" | "permissions">)
 }
 
 /**
+ * The screen segment an address opens: the part after `/w/<id>/`, or the first
+ * part of a path built before the workspace id was known.
+ */
+function segmentOf(href: string): string | undefined {
+  const parts = href.split("/").filter(Boolean);
+  return parts[0] === WORKSPACE_PREFIX.slice(1) ? parts[2] : parts[0];
+}
+
+/** Whether an address is a bare screen (`/w/<id>/finance`), not a lens under one. */
+function isBareScreen(href: string): boolean {
+  const parts = href.split("/").filter(Boolean);
+  return parts[0] === WORKSPACE_PREFIX.slice(1) ? parts.length === 3 : parts.length === 1;
+}
+
+/**
  * Every screen segment this nav opens.
  *
- * The route guard's whole input. It is the nav's own hrefs plus the object
- * routes those leaves grant, and nothing else: one mechanism, as invariant 6
- * requires. A second list somewhere would be a locked door the day it drifted.
+ * The route guard's whole input. It is the nav's own addresses (each entry's
+ * and each lens it reaches) plus the segments those entries grant, and nothing
+ * else: one mechanism, as invariant 6 requires. A second list somewhere would
+ * be a locked door the day it drifted.
  */
 export function allowedSegments(sections: NavSection[]): Set<string> {
   const allowed = new Set<string>();
+  const add = (href: string) => {
+    const segment = segmentOf(href);
+    if (segment) allowed.add(segment);
+  };
   for (const section of sections) {
     for (const item of section.items) {
-      const last = item.href.split("/").pop();
-      if (last) allowed.add(last);
+      add(item.href);
+      for (const lens of item.lenses ?? []) add(lens.href);
       for (const granted of item.grants ?? []) allowed.add(granted);
     }
   }
@@ -739,30 +1032,79 @@ export function allowedSegments(sections: NavSection[]): Set<string> {
 }
 
 /**
- * The leaf a screen segment belongs to, and the section that holds it.
+ * The entry a screen segment belongs to, and the section that holds it.
  *
- * A record is not a nav leaf, but it has a parent: the leaf that GRANTS it
+ * A record is not a nav entry, but it has a parent: the entry that GRANTS it
  * (ADR-044, D-d). A stay belongs to Reservations because Reservations is what
- * grants `stays`, whatever path the viewer took to reach it. The sidebar marks
- * that leaf active and the record's breadcrumb names it, so both read the same
- * answer from the same model `allowedSegments` reads. No second list.
+ * grants `stays`, whatever path the viewer took to reach it. Record breadcrumbs
+ * name that entry. No second list.
+ *
+ * An entry that IS the screen wins over one that opens a lens of it: a bill
+ * belongs to Finance, not to Revenue, which opens Finance's revenue lens.
  */
 export function leafFor(
   sections: NavSection[],
   segment: string | undefined,
 ): { section: NavSection; item: NavItem } | null {
   if (!segment) return null;
+  const find = (match: (item: NavItem) => boolean) => {
+    for (const section of sections) {
+      for (const item of section.items) {
+        if (match(item)) return { section, item };
+      }
+    }
+    return null;
+  };
+  return (
+    find((item) => isBareScreen(item.href) && segmentOf(item.href) === segment) ??
+    find((item) => item.grants?.includes(segment) === true) ??
+    find((item) => segmentOf(item.href) === segment) ??
+    find((item) => (item.lenses ?? []).some((lens) => segmentOf(lens.href) === segment))
+  );
+}
+
+/**
+ * The entry, and the lens within it, that an address belongs to: what the
+ * sidebar lights.
+ *
+ * By the longest address that contains this one, so `/people/departments`
+ * lights Settings, Departments, while `/people` lights People; then by a
+ * granted segment, so a stay lights Reservations and an old `/today` lights
+ * the Dashboard.
+ */
+export function activeEntry(
+  sections: NavSection[],
+  pathname: string,
+): { section: NavSection; item: NavItem; lens: NavLens | null } | null {
+  const path = pathname.replace(/\/+$/, "") || "/";
+  const covers = (href: string, deep: boolean) =>
+    href.length > 0 && (path === href || (deep && path.startsWith(`${href}/`)));
+
+  /*
+   * A lens that is a whole screen (`/staff`, `/rooms`) lights on its own
+   * address only: `/staff/attendance` is another lens of the Staff screen, not
+   * a page of Employees. A lens beneath a screen (`/staff/leave`) lights on
+   * what is under it too (`/staff/leave/types`). An entry lights on anything
+   * under its address.
+   */
+  const candidates: { section: NavSection; item: NavItem; lens: NavLens | null; href: string; deep: boolean }[] = [];
   for (const section of sections) {
     for (const item of section.items) {
-      if (item.href.split("/").pop() === segment) return { section, item };
+      candidates.push({ section, item, lens: null, href: item.href, deep: true });
+      for (const lens of item.lenses ?? []) {
+        candidates.push({ section, item, lens, href: lens.href, deep: !isBareScreen(lens.href) });
+        for (const also of lens.activeOn ?? []) candidates.push({ section, item, lens, href: also, deep: false });
+      }
     }
   }
-  for (const section of sections) {
-    for (const item of section.items) {
-      if (item.grants?.includes(segment)) return { section, item };
-    }
-  }
-  return null;
+  // Longer wins; on a tie the lens wins, because it says more.
+  const best = candidates
+    .filter((c) => covers(c.href, c.deep))
+    .sort((a, b) => b.href.length - a.href.length || Number(b.lens !== null) - Number(a.lens !== null))[0];
+  if (best) return { section: best.section, item: best.item, lens: best.lens };
+
+  const granted = leafFor(sections, segmentOf(path));
+  return granted ? { ...granted, lens: null } : null;
 }
 
 /**
@@ -777,8 +1119,8 @@ export function screenSegment(pathname: string): string | undefined {
 
 /**
  * The one place a workspace turns into a nav. Every consumer — the sidebar, the
- * command bar, the route guard — goes through here, so they can never disagree
- * about what a workspace contains.
+ * command bar, the route guard, the home resolver — goes through here, so they
+ * can never disagree about what a workspace contains.
  */
 export function navFor(ctx: NavContext): NavSection[] {
   // Every link a workspace offers is addressed inside that workspace (ADR-018,
