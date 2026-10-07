@@ -2,11 +2,7 @@
 
 import {
   type IdentityStatus,
-  type MyProfile,
-  type RegistrantCapacity,
   type VerifiedPerson,
-  countryName,
-  isRwandanAddress,
 } from "@injishi/contracts";
 
 import { nationalIdError, nationalIdFacts } from "@/lib/rwanda-id";
@@ -15,28 +11,26 @@ import {
   AddressPicker,
   type AddressDraft,
 } from "./address-picker";
-import { Button } from "@heroui/react";
 import { COUNTRY_OPTIONS } from "./country-options";
 import {
   NationalIdVerifier,
   PassportScanner,
   VerifiedIdentityCard,
 } from "./identity-verifier";
-import { KindSummary } from "./kind-summary";
 import { PhoneInput } from "./phone-input";
-import type { RegistrationKind } from "./registration-kinds";
 import {
   ChoiceCard,
   Field,
   Fieldset,
-  Notice,
   SelectField,
-  StepActions,
   TextInput,
 } from "./wizard-ui";
 
 /**
- * Step 1 — About you (F-S03 §6).
+ * The person registering: their draft, their name, and the typed fallback form
+ * (F-S03 §6). The step itself is `step-you.tsx` (RegisterIA board).
+ *
+ * Formerly Step 1, About you.
  *
  * Two shapes, decided by whether this account already has a profile. A new
  * registrant fills the form; a returning one is SHOWN their details to confirm
@@ -140,129 +134,6 @@ export interface IdentityVerification {
   onVerified: (person: VerifiedPerson) => void;
 }
 
-export function StepAboutYou({
-  profile,
-  editing,
-  onEdit,
-  draft,
-  onDraftChange,
-  capacity,
-  onCapacityChange,
-  intendedOwner,
-  onIntendedOwnerChange,
-  errors,
-  formError,
-  busy,
-  onBack,
-  onNext,
-  verification,
-  kind,
-  onChangeKind,
-}: {
-  verification: IdentityVerification | null;
-  /**
-   * What is being registered, shown back at the top with a Change control.
-   * When the kind arrived from `/host` this is the first screen, and this line
-   * is the only place the answer is seen before Business (`wizard-path.ts`).
-   */
-  kind: RegistrationKind | null;
-  onChangeKind: () => void;
-  profile: MyProfile | null;
-  editing: boolean;
-  onEdit: () => void;
-  draft: PersonalDraft;
-  onDraftChange: (next: PersonalDraft) => void;
-  capacity: RegistrantCapacity;
-  onCapacityChange: (next: RegistrantCapacity) => void;
-  intendedOwner: { name: string; nationalId: string; email: string };
-  onIntendedOwnerChange: (next: {
-    name: string;
-    nationalId: string;
-    email: string;
-  }) => void;
-  errors: Record<string, string>;
-  formError: string;
-  busy: boolean;
-  /**
-   * Back to the kind question, when it was a step this person walked. Absent
-   * when the kind arrived answered: this is then the first screen, and the
-   * Change control above is the way back to the tiles.
-   */
-  onBack?: () => void;
-  onNext: () => void;
-}) {
-  const showStored = profile?.complete === true && !editing;
-
-  return (
-    <section aria-labelledby="step-about">
-      <h2 id="step-about" className="text-xl font-semibold tracking-tight">
-        About you
-      </h2>
-      <p className="mt-1 text-sm text-muted-foreground">
-        A business belongs to the person who registers it, so we need to know who
-        that is.
-      </p>
-
-      <div className="mt-6 space-y-6">
-        {kind ? <KindSummary kind={kind} onChange={onChangeKind} /> : null}
-
-        {showStored ? (
-          <>
-            <StoredProfile profile={profile} onEdit={onEdit} verified={Boolean(verification?.verified)} />
-            {verification && verification.required && !verification.verified ? (
-              <StoredIdentityCheck profile={profile} verification={verification} draft={draft} onDraftChange={onDraftChange} />
-            ) : null}
-          </>
-        ) : (
-          <PersonalForm draft={draft} onChange={onDraftChange} errors={errors} verification={verification} />
-        )}
-
-        <Fieldset
-          legend="Are you the owner?"
-          hint="An agent may register for an owner who will claim the business later. The agent never becomes the owner and never receives its money."
-          error={errors["capacity"]}
-        >
-          <div className="grid gap-3 sm:grid-cols-2">
-            <ChoiceCard
-              name="capacity"
-              value="owner"
-              checked={capacity === "owner"}
-              title="I own this business"
-              description="You will be its owner on Injishi."
-              onSelect={() => onCapacityChange("owner")}
-            />
-            <ChoiceCard
-              name="capacity"
-              value="on_behalf_of"
-              checked={capacity === "on_behalf_of"}
-              title="I'm registering for someone else"
-              description="Payouts stay locked until they claim it."
-              onSelect={() => onCapacityChange("on_behalf_of")}
-            />
-          </div>
-        </Fieldset>
-
-        {capacity === "on_behalf_of" ? (
-          <IntendedOwnerFields value={intendedOwner} onChange={onIntendedOwnerChange} errors={errors} />
-        ) : null}
-
-        {formError ? <Notice tone="danger">{formError}</Notice> : null}
-      </div>
-
-      <StepActions
-        // Plain "Back": the kind line at the top already says "Change", and
-        // two controls on one screen naming the same act read as two acts.
-        onBack={onBack}
-        onNext={onNext}
-        // A broker's registration ends on this press (no business, no fee),
-        // so promising "your business" next was untrue for exactly them.
-        nextLabel={kind === "broker" ? "Register as a broker" : "Continue to your business"}
-        busy={busy}
-      />
-    </section>
-  );
-}
-
 /**
  * Who a registration is for, when it is registered on someone's behalf: the
  * three answers the claim binds to (ADR-053 J25). Shared by About you and, when
@@ -344,111 +215,11 @@ export function IntendedOwnerFields({
 }
 
 /**
- * A returning registrant whose details are on file but not verified: registering
- * is held to a verified identity here, so they validate the document they hold.
+ * The typed form, for a deployment where no identity check can run (ADR-060
+ * keeps it: a check nobody can run cannot be required). `step-you.tsx` is the
+ * step; this is its fallback.
  */
-function StoredIdentityCheck({
-  profile,
-  verification,
-  draft,
-  onDraftChange,
-}: {
-  profile: MyProfile;
-  verification: IdentityVerification;
-  draft: PersonalDraft;
-  onDraftChange: (next: PersonalDraft) => void;
-}) {
-  const passport = profile.document?.documentType === "passport";
-  return (
-    <div className="space-y-3 rounded-card border border-border p-4">
-      <p className="text-sm font-semibold">Verify your identity</p>
-      <p className="text-sm text-muted-foreground">
-        Registering a business needs a verified identity. {passport ? "Scan the passport on your account." : "Validate the National ID on your account; we send a code to the phone the register holds for it."}
-      </p>
-      {passport ? (
-        verification.available.passport ? (
-          <PassportScanner onVerified={verification.onVerified} />
-        ) : (
-          <Notice tone="warning">Passport scanning is not available here yet.</Notice>
-        )
-      ) : verification.available.nationalId ? (
-        <NationalIdVerifier
-          documentNumber={draft.documentNumber}
-          onDocumentNumberChange={(documentNumber) => onDraftChange({ ...draft, documentNumber })}
-          onVerified={verification.onVerified}
-        />
-      ) : (
-        <Notice tone="warning">National ID lookup is not available here yet.</Notice>
-      )}
-    </div>
-  );
-}
-
-/** What a returning registrant confirms rather than retypes. */
-function StoredProfile({
-  profile,
-  onEdit,
-  verified,
-}: {
-  profile: MyProfile;
-  onEdit: () => void;
-  verified: boolean;
-}) {
-  const address = profile.address;
-  const addressLine =
-    address === null
-      ? "Not given"
-      : isRwandanAddress(address)
-        ? [address.street, "Rwanda"].filter(Boolean).join(" · ")
-        : `${address.addressText} · ${countryName(address.country)}`;
-
-  return (
-    <div className="rounded-card border border-border p-4">
-      <div className="flex items-start gap-3">
-        <div className="grow">
-          <p className="text-sm font-semibold">{profile.fullName}</p>
-          <dl className="mt-2 grid gap-x-6 gap-y-1 text-sm sm:grid-cols-2">
-            <Row label="Date of birth" value={profile.dateOfBirth} />
-            <Row label="Phone" value={profile.phoneE164} />
-            <Row
-              label={
-                profile.document?.documentType === "passport"
-                  ? "Passport"
-                  : "National ID"
-              }
-              value={
-                profile.document
-                  ? `${profile.document.documentNumberMasked} · ${countryName(profile.document.issuingCountry)}`
-                  : null
-              }
-            />
-            <Row label="Address" value={addressLine} />
-          </dl>
-        </div>
-        <Button variant="ghost" size="sm" onPress={onEdit}>
-          Edit
-        </Button>
-      </div>
-      <p className="mt-3 text-xs text-muted-foreground">
-        {verified
-          ? "Your identity is verified. Government reviewers see these details alongside your business."
-          : "These are the details on your Injishi account. Government reviewers see them alongside your business."}
-      </p>
-    </div>
-  );
-}
-
-function Row({ label, value }: { label: string; value: string | null }) {
-  return (
-    <div className="flex gap-2">
-      <dt className="text-muted-foreground">{label}</dt>
-      <dd className="font-medium">{value ?? "Not given"}</dd>
-    </div>
-  );
-}
-
-/** The form a new registrant fills in. */
-function PersonalForm({
+export function PersonalForm({
   draft,
   onChange,
   errors,
