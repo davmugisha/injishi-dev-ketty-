@@ -48,8 +48,18 @@ import { currentGrant } from "../store/helpers";
 const ROLE_NOTE: Record<InvitableOrgRole, string> = {
   manager: "Runs the property day to day: bookings, rooms, rates, departments and money. Cannot change the team.",
   receptionist: "Front office: reservations, check-in and check-out, bills and payments, guest messages.",
+  finance:
+    "The accountant: the money, charges and payments on bills, closing bills with their RRA receipts, the EBM account and refund requests. Cannot move guests between rooms, change rates, read staff files or reply to guest messages.",
+  hr: "The HR officer: staff files and contracts, the roster, attendance and leave, and drafting the pay run for you to confirm. Cannot see money or reservations.",
   housekeeper: "Room status and cleaning tasks, on their phone.",
 };
+
+/**
+ * What a residence business may invite. The desk and the housekeeping phone are
+ * a hotel's; an accountant and an HR officer exist in every business domain
+ * (ADR-069 D-a), so a landlord may invite them beside a manager.
+ */
+const LANDLORD_ROLES: readonly InvitableOrgRole[] = ["manager", "finance", "hr"];
 
 const STATUS: Record<OperatorStaffInvitation["status"], { text: string; intent: "ok" | "info" | "neutral" | "warn" }> = {
   sent: { text: "Waiting to accept", intent: "info" },
@@ -67,7 +77,7 @@ export function Invites({ landlord }: { landlord: boolean }) {
   const query = useStaffInvitations(can("team.manage") ? workspaceId : null);
   const invite = useInviteStaff(workspaceId);
   const revoke = useRevokeStaffInvitation(workspaceId);
-  const roles = InvitableOrgRole.options.filter((r) => !landlord || r === "manager");
+  const roles = InvitableOrgRole.options.filter((r) => !landlord || LANDLORD_ROLES.includes(r));
   const [email, setEmail] = useState("");
   const [role, setRole] = useState<InvitableOrgRole>(landlord ? "manager" : "receptionist");
   const [branchIds, setBranchIds] = useState<MemberBranchIds>(null);
