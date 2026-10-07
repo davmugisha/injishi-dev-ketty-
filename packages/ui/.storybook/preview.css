@@ -17,6 +17,7 @@
 @import "tailwindcss" source(none);
 @import "../src/styles.css";
 @import "@heroui/styles";
+@import "../src/pro.css"; /* HeroUI Pro, after HeroUI OSS, as Pro requires */
 @import "@injishi/design-tokens/heroui.css";
 
 /* The theme class the toolbar stamps on <html>, the same line all three apps

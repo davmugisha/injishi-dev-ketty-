@@ -33,10 +33,33 @@ import {
 } from 'react';
 
 import { setUnauthenticatedHandler } from './lib/api';
-import { readStoredToken, signOut as signOutRequest } from './lib/auth';
+import { currentToken, readStoredToken, signOut as signOutRequest } from './lib/auth';
+import { clearPersonState } from './lib/device-reset';
 
 export type SessionStatus = 'loading' | 'authenticated' | 'anonymous';
 export type ResolvedSession = Exclude<SessionStatus, 'loading'>;
+
+/**
+ * Why the last session ended, said once on the sign-in screen (mobile audit
+ * SA-34). A person dropped on sign in with no sentence cannot tell an expired
+ * session from a bug, and one who signed out with no signal does not know the
+ * server may still hold the session.
+ *
+ *   revoked  the server answered 401: the session ended elsewhere or expired
+ *   offline  signed out on this phone, but the server could not be told
+ *
+ * Module state rather than context: it has to survive the tree flipping to
+ * anonymous, and it is read exactly once.
+ */
+export type SignOutReason = 'revoked' | 'offline';
+let lastSignOutReason: SignOutReason | null = null;
+
+/** The reason the last session ended, once; null after it has been read. */
+export function consumeSignOutReason(): SignOutReason | null {
+  const reason = lastSignOutReason;
+  lastSignOutReason = null;
+  return reason;
+}
 
 /**
  * Resolved during bootstrap, before the shell paints.
@@ -58,9 +81,11 @@ export interface SessionState {
    *
    * Called by `(auth)/verify-otp` AFTER `verifySignInCode()` has stored a
    * token. It does not sign anybody in itself: the token is what does that, and
-   * this only tells the tree the token is there.
+   * this only tells the tree the token is there. With no token it refuses and
+   * returns false: the old fixture activate screen called it bare and opened the
+   * shell with no credential at all (mobile audit SA-20).
    */
-  signIn: () => void;
+  signIn: () => boolean;
   /**
    * Sign out, locally for certain and on the server if it can be reached.
    *
@@ -84,7 +109,10 @@ export function SessionProvider({
   const queryClient = useQueryClient();
 
   const signIn = useCallback(() => {
+    if (!currentToken()) return false;
+    lastSignOutReason = null;
     setStatus('authenticated');
+    return true;
   }, []);
 
   const signOut = useCallback(async () => {
@@ -92,7 +120,9 @@ export function SessionProvider({
     // the best-effort server call is still in flight.
     setStatus('anonymous');
     queryClient.clear();
-    await signOutRequest();
+    clearPersonState();
+    const { serverConfirmed } = await signOutRequest();
+    lastSignOutReason = serverConfirmed ? null : 'offline';
   }, [queryClient]);
 
   /**
@@ -106,8 +136,10 @@ export function SessionProvider({
    */
   useEffect(() => {
     setUnauthenticatedHandler(() => {
+      lastSignOutReason = 'revoked';
       setStatus('anonymous');
       queryClient.clear();
+      clearPersonState();
     });
     return () => setUnauthenticatedHandler(null);
   }, [queryClient]);

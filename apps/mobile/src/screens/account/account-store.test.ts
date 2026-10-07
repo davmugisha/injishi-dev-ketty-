@@ -1,27 +1,27 @@
 /**
- * The three `apply` functions behind Account's writes.
+ * The `apply` functions behind Account's fixture-backed screens, and the one
+ * rule left of the personal details store.
  *
  * They are asserted directly rather than through a screen because each is the
  * ONLY description of its change — a later `useMutation` calls the same
  * function to build its optimistic update (decision D9), so a bug here would be
  * a bug the server and the client both told the same way.
  *
- * Each of the three carries one rule that is easy to get wrong and impossible
- * to see from a rendered screen:
+ * Each carries one rule that is easy to get wrong and impossible to see from a
+ * rendered screen:
  *
  *   - a session list may not revoke the device it is running on;
  *   - resending an invitation changes nothing about the row;
- *   - the public name is DERIVED from the private one, so a rename cannot
- *     leave a stale one behind.
+ *   - the public name is DERIVED from the private one.
+ *
+ * The personal details store these tests used to cover is gone. It was seeded
+ * from the `ME` persona, Samuel Kayitare and his email, and its edits never
+ * reached the server (mobile audit 2026-10-05, SA-01 and SA-14). The screen
+ * reads `GET /api/v1/me/profile` now; `account.test.tsx` covers it.
  */
-import {
-  applyPersonalChange,
-  applySessionChange,
-  applyStaffChange,
-  seedPersonal,
-} from './account-store';
+import * as store from './account-store';
+import { applySessionChange, applyStaffChange, publicForm } from './account-store';
 import { SESSIONS, STAFF } from './account-fixtures';
-import { ME } from '@/data/personas';
 
 describe('revoking a session', () => {
   it('drops the one named', () => {
@@ -102,56 +102,49 @@ describe('a staff change', () => {
   });
 });
 
-describe('personal details', () => {
-  it('seeds from the one identity rather than from a literal', () => {
-    const seed = seedPersonal();
-    expect(seed.displayName).toBe(ME.name);
-    expect(seed.phone).toBe(ME.phone);
-    expect(seed.email).toBe(ME.email);
-  });
-
+describe('the public form of a name', () => {
   /**
    * F-S12 §6: "reviews show first name + last initial only". Derived rather
-   * than stored, so a rename cannot leave a stale public name behind — which is
-   * the failure this whole rule would otherwise have.
+   * than stored, so it cannot fall out of step with the name it comes from.
    */
-  it('derives the public name, and re-derives it on a rename', () => {
-    expect(seedPersonal().publicName).toBe('Samuel K.');
-    const renamed = applyPersonalChange(seedPersonal(), {
-      kind: 'name',
-      value: 'Claudine Uwase',
-    });
-    expect(renamed.displayName).toBe('Claudine Uwase');
-    expect(renamed.publicName).toBe('Claudine U.');
-  });
-
-  it('never puts the email on the public form', () => {
-    const next = applyPersonalChange(seedPersonal(), {
-      kind: 'email',
-      value: 'someone@example.rw',
-    });
-    expect(next.email).toBe('someone@example.rw');
-    expect(next.publicName).not.toContain('@');
+  it('is the first name and the last initial', () => {
+    expect(publicForm('Claudine Uwase')).toBe('Claudine U.');
+    expect(publicForm('Marie Claire Uwimana')).toBe('Marie U.');
   });
 
   it('trims what it is given, so a stray space is not a name', () => {
-    const next = applyPersonalChange(seedPersonal(), { kind: 'name', value: '  Eric Twagirimana ' });
-    expect(next.displayName).toBe('Eric Twagirimana');
-    expect(next.publicName).toBe('Eric T.');
+    expect(publicForm('  Eric Twagirimana ')).toBe('Eric T.');
   });
 
-  it('survives a one-word name rather than printing "Eric undefined."', () => {
-    const next = applyPersonalChange(seedPersonal(), { kind: 'name', value: 'Eric' });
-    expect(next.publicName).toBe('Eric');
+  it('survives a one-word name rather than printing "Eric ."', () => {
+    expect(publicForm('Eric')).toBe('Eric');
   });
 
-  it('links and unlinks a method without touching the others', () => {
-    const linked = applyPersonalChange(seedPersonal(), {
-      kind: 'link',
-      id: 'google',
-      linked: true,
-    });
-    expect(linked.methods.find((m) => m.id === 'google')?.linked).toBe(true);
-    expect(linked.methods.find((m) => m.id === 'phone')?.linked).toBe(true);
+  it('is nothing at all for no name', () => {
+    expect(publicForm('')).toBe('');
+    expect(publicForm('   ')).toBe('');
+  });
+});
+
+describe('what the store no longer holds', () => {
+  /**
+   * The fixture switch for two-step sign-in, and the personal details store
+   * seeded from the `ME` persona. Asserted gone, so neither comes back by an
+   * innocent re-export: each one put a fixture fact in front of a real person
+   * (SA-01, SA-06, SA-14).
+   */
+  it('has no fixture two-factor switch and no personal details store', () => {
+    const exported = Object.keys(store);
+    for (const gone of [
+      'useTwoFactor',
+      'seedPersonal',
+      'usePersonalDetails',
+      'usePersonalMutation',
+      'applyPersonalChange',
+    ]) {
+      expect(exported).not.toContain(gone);
+    }
+    // The real read that replaced the switch.
+    expect(exported).toContain('useTwoFactorState');
   });
 });

@@ -14,23 +14,34 @@
  *     already actionable; blocking on prose would be the thing that stops it
  *     being filed at all.
  *
- * **The primary is disabled until a fault and a severity are chosen, and it
- * says so** — its label becomes "Pick a fault and severity", which is frame
- * W6's own behaviour. A disabled button with the finished label leaves the
- * reader hunting for what is missing.
+ * **Opened with no room — from the Tickets tab — no room is chosen.** It used
+ * to quietly select the first room in the list and call it "the room you are
+ * standing in", and filing then took THAT room out of order and blocked its
+ * task (mobile audit 2026-10-05, WK-07). The person picks one now, and the hint
+ * appears only when the room really did come from where they are standing.
+ *
+ * **The primary is inert until everything a ticket needs is chosen, and it
+ * says what is missing** — its label becomes "Pick the room" or "Pick a fault
+ * and severity", which is frame W6's own behaviour. A disabled button with the
+ * finished label leaves the reader hunting for what is missing.
+ *
+ * **It files once.** The primary stayed pressable while saving and the filing
+ * ignored the busy flag, so two taps filed two tickets with the same reference
+ * (WK-08). A second tap now does nothing, and the primary says so by greying.
  *
  * The consequence is printed under the button rather than discovered after it:
  * filing takes the room out of order and blocks its cleaning task, and someone
  * standing in that room should know that before they press, not from a toast.
  */
-import { useMemo, useState } from 'react';
+import { useMemo, useRef, useState } from 'react';
 import { View } from 'react-native';
 import { useRouter } from 'expo-router';
 import {
-  ChipGroup,
+  ErrorState,
   PhotoPicker,
   PressableScale,
   Sheet,
+  SkeletonList,
   Text,
   TextArea,
   useToast,
@@ -38,16 +49,24 @@ import {
   WriteError,
 } from '@/components';
 import { useTheme } from '@/theme/theme';
-import type { Palette } from '@/theme/tokens';
-import { useT } from '@/i18n/i18n';
+import { useT, type MessageKey } from '@/i18n/i18n';
 import {
   FAULTS,
   FAULT_KEY,
   SEVERITIES,
   SEVERITY_KEY,
 } from './work-format';
+import { WORK_TARGET, WorkButton, WorkChips, type WorkChipItem } from './work-chrome';
 import { roomTypeOf, type FaultCategory, type Severity } from './work-fixtures';
 import { useConnection, useWorkActions, useWorkRooms, useWorkTasks } from './work-store';
+
+/** Frame W6 draws High in warning fill and Urgent in danger: a severity IS a risk. */
+const SEVERITY_TONE: Record<Severity, WorkChipItem['tone']> = {
+  low: 'brand',
+  normal: 'brand',
+  high: 'warning',
+  urgent: 'danger',
+};
 
 export function ReportFault({ presetRoom }: { presetRoom?: string }) {
   const router = useRouter();
@@ -63,8 +82,8 @@ export function ReportFault({ presetRoom }: { presetRoom?: string }) {
   /**
    * Every room this phone could be standing in: the board's own, plus any room
    * on the queue that the board does not draw (the queue spans three floors,
-   * the board draws one). Sorted, deduplicated, and with the preset first so
-   * the common case needs no scrolling.
+   * the board draws one). Sorted, deduplicated, and with the preset kept even
+   * when neither list carries it.
    */
   const candidates = useMemo(() => {
     const ids = new Set<string>([
@@ -75,22 +94,40 @@ export function ReportFault({ presetRoom }: { presetRoom?: string }) {
     return [...ids].sort((a, b) => a.localeCompare(b));
   }, [presetRoom, rooms.rows, tasks.rows]);
 
-  const [room, setRoom] = useState(() => presetRoom ?? candidates[0] ?? '');
+  const [room, setRoom] = useState(presetRoom ?? '');
   const [fault, setFault] = useState<FaultCategory | ''>('');
   const [severity, setSeverity] = useState<Severity | ''>('');
   const [line, setLine] = useState('');
   const [photos, setPhotos] = useState<PickedPhoto[]>([]);
 
-  const ready = fault !== '' && severity !== '';
+  /** In flight. The ref answers a second tap in the same frame; the state draws it. */
+  const filing = useRef(false);
+  const [saving, setSaving] = useState(false);
+  const [failed, setFailed] = useState(false);
+
+  const roomsLoading = rooms.status === 'loading' || tasks.status === 'loading';
+  const roomsFailed = rooms.status === 'error' || tasks.status === 'error';
+
+  /** What is still missing, as the sentence the primary says; none when ready. */
+  const missing: MessageKey | null =
+    room === '' ? 'work.report.needRoom' : fault === '' || severity === '' ? 'work.report.needBoth' : null;
+  const ready = missing === null;
+
   const blocksTask = tasks.rows.some(
     (task) => task.id === room && task.status !== 'done' && task.status !== 'inspected',
   );
 
   const file = () => {
-    if (!ready) {
-      toast.show(t('work.report.needBoth'), 'warning');
+    if (filing.current) return;
+    if (missing !== null || fault === '' || severity === '') {
+      toast.show(t(missing ?? 'work.report.needBoth'), 'warning');
       return;
     }
+    filing.current = true;
+    setSaving(true);
+    setFailed(false);
+    // Decided before the write, from the connection it is buffered on.
+    const buffered = !connection.online;
     void actions
       .fileFault({
         room,
@@ -99,12 +136,16 @@ export function ReportFault({ presetRoom }: { presetRoom?: string }) {
         line: line.trim(),
         photos: photos.length,
       })
-      .then((ref) => {
-        if (actions.failed) return;
+      .then(({ outcome, ref }) => {
+        filing.current = false;
+        setSaving(false);
+        if (outcome === 'error') {
+          setFailed(true);
+          return;
+        }
+        if (outcome !== 'done') return;
         toast.show(
-          connection.online
-            ? t('work.report.filedToast', { ref, room })
-            : t('work.offline.savedToast'),
+          buffered ? t('work.offline.savedToast') : t('work.report.filedToast', { ref, room }),
           'warning',
         );
         // Back out of the sheet first, then land on the board the ticket went
@@ -122,7 +163,7 @@ export function ReportFault({ presetRoom }: { presetRoom?: string }) {
       grabber
       footer={
         <>
-          {actions.failed ? (
+          {failed ? (
             <WriteError
               title="work.faultFailedTitle"
               body="work.faultFailedBody"
@@ -133,16 +174,18 @@ export function ReportFault({ presetRoom }: { presetRoom?: string }) {
             />
           ) : null}
           <PrimaryAction
-            label={ready ? t('work.report.send') : t('work.report.needBoth')}
+            label={missing === null ? t('work.report.send') : t(missing)}
             ready={ready}
-            busy={actions.busy}
+            busy={saving}
             onPress={file}
           />
-          <Text size="xs" color="textMuted" center style={{ lineHeight: 18 }}>
-            {blocksTask
-              ? t('work.report.consequence', { room })
-              : t('work.report.consequenceNoTask', { room })}
-          </Text>
+          {room !== '' ? (
+            <Text size="xs" color="textMuted" center style={{ lineHeight: 18 }}>
+              {blocksTask
+                ? t('work.report.consequence', { room })
+                : t('work.report.consequenceNoTask', { room })}
+            </Text>
+          ) : null}
         </>
       }
     >
@@ -157,22 +200,42 @@ export function ReportFault({ presetRoom }: { presetRoom?: string }) {
         />
       </View>
 
-      {/* 2. The room, already chosen. */}
-      <ChipGroup
-        legend={t('work.report.roomLegend')}
-        value={room}
-        onChange={setRoom}
-        items={candidates.map((id) => ({
-          value: id,
-          label: t('work.report.roomOption', { room: id }),
-        }))}
-      />
-      <Text size="xs" color="textMuted" style={{ marginTop: -space[2] }}>
-        {`${roomTypeOf(room)} · ${t('work.report.roomHint')}`}
-      </Text>
+      {/* 2. The room: chosen already when the sheet knows where it was opened. */}
+      {roomsLoading ? (
+        <SkeletonList
+          rows={1}
+          label={t('state.loadingList', { label: t('work.report.roomListLabel') })}
+        />
+      ) : roomsFailed ? (
+        <ErrorState
+          title={t('state.errorTitle')}
+          body={t('state.errorBody', { label: t('work.report.roomListLabel') })}
+          onRetry={() => {
+            rooms.retry();
+            tasks.retry();
+          }}
+        />
+      ) : (
+        <WorkChips
+          legend={t('work.report.roomLegend')}
+          value={room}
+          onChange={setRoom}
+          items={candidates.map((id) => ({
+            value: id,
+            label: t('work.report.roomOption', { room: id }),
+          }))}
+        />
+      )}
+      {room !== '' ? (
+        <Text size="xs" color="textMuted" style={{ marginTop: -space[2] }}>
+          {room === presetRoom
+            ? `${roomTypeOf(room)} · ${t('work.report.roomHint')}`
+            : roomTypeOf(room)}
+        </Text>
+      ) : null}
 
       {/* 3 and 4. What, and how bad. */}
-      <ChipGroup
+      <WorkChips
         wrap
         legend={t('work.report.faultLegend')}
         value={fault}
@@ -180,7 +243,17 @@ export function ReportFault({ presetRoom }: { presetRoom?: string }) {
         items={FAULTS.map((value) => ({ value, label: t(FAULT_KEY[value]) }))}
       />
 
-      <SeverityChips legend={t('work.report.severityLegend')} value={severity} onChange={setSeverity} />
+      <WorkChips
+        wrap
+        legend={t('work.report.severityLegend')}
+        value={severity}
+        onChange={(value) => setSeverity(value as Severity)}
+        items={SEVERITIES.map((value) => ({
+          value,
+          label: t(SEVERITY_KEY[value]),
+          tone: SEVERITY_TONE[value],
+        }))}
+      />
 
       {/* 5. One line, and it is optional. */}
       <TextArea
@@ -193,15 +266,12 @@ export function ReportFault({ presetRoom }: { presetRoom?: string }) {
         maxLength={140}
       />
 
-      <PressableScale
-        accessibilityLabel={t('work.report.cancel')}
+      <WorkButton
+        variant="ghost"
+        align="center"
+        label={t('work.report.cancel')}
         onPress={() => router.back()}
-        style={{ alignSelf: 'center', minHeight: 44, justifyContent: 'center', paddingHorizontal: 16 }}
-      >
-        <Text weight="medium" size="sm" color="textMuted">
-          {t('work.report.cancel')}
-        </Text>
-      </PressableScale>
+      />
     </Sheet>
   );
 }
@@ -216,74 +286,6 @@ function Legend({ children }: { children: string }) {
     >
       {children}
     </Text>
-  );
-}
-
-/**
- * Severity, with the tone the frame draws.
- *
- * `ChipGroup` is the right control everywhere else and is used for the fault
- * category above, but it paints every selection in one accent — and frame W6
- * draws High in warning fill for a reason a generic chip cannot express: a
- * severity IS a risk, and a supervisor scanning the board needs the hot ones to
- * look hot. The accessibility contract is the same as `ChipGroup`'s: a
- * `radiogroup` of `radio`s that report their selected state.
- */
-function SeverityChips({
-  legend,
-  value,
-  onChange,
-}: {
-  legend: string;
-  value: Severity | '';
-  onChange: (value: Severity) => void;
-}) {
-  const { c, space, radius } = useTheme();
-  const t = useT();
-
-  const tone = (severity: Severity): { bg: keyof Palette; fg: keyof Palette; edge: keyof Palette } =>
-    severity === 'urgent'
-      ? { bg: 'danger100', fg: 'danger600', edge: 'danger500' }
-      : severity === 'high'
-        ? { bg: 'warning100', fg: 'warning600', edge: 'warning500' }
-        : { bg: 'actionSubtle', fg: 'brand700', edge: 'brand300' };
-
-  return (
-    <View style={{ gap: space[2] }}>
-      <Legend>{legend}</Legend>
-      <View
-        accessibilityRole="radiogroup"
-        accessibilityLabel={legend}
-        style={{ flexDirection: 'row', flexWrap: 'wrap', gap: space[2] }}
-      >
-        {SEVERITIES.map((severity) => {
-          const on = value === severity;
-          const paint = tone(severity);
-          return (
-            <PressableScale
-              key={severity}
-              accessibilityRole="radio"
-              accessibilityLabel={t(SEVERITY_KEY[severity])}
-              accessibilityState={{ selected: on }}
-              onPress={() => onChange(severity)}
-              style={{
-                minHeight: 44,
-                justifyContent: 'center',
-                paddingHorizontal: 16,
-                borderRadius: radius.sm,
-                backgroundColor: on ? c[paint.bg] : c.surface2,
-                borderWidth: on ? 1.5 : 1,
-                borderColor: on ? c[paint.edge] : c.borderSubtle,
-              }}
-            >
-              <Text weight={on ? 'semibold' : 'medium'} size="sm" color={on ? paint.fg : 'textBody'}>
-                {t(SEVERITY_KEY[severity])}
-              </Text>
-            </PressableScale>
-          );
-        })}
-      </View>
-    </View>
   );
 }
 
@@ -305,20 +307,20 @@ function PrimaryAction({
     <PressableScale
       accessibilityLabel={label}
       accessibilityState={{ disabled: !ready || busy }}
-      haptic={ready}
-      // Not `disabled`: the control stays reachable so a tap explains what is
-      // missing rather than doing nothing, which is the same reasoning the
-      // Queue's "Nothing pending" primary uses.
+      haptic={ready && !busy}
+      // Pressable while not ready, so a tap explains what is missing rather
+      // than doing nothing — the same reasoning the Queue's "Nothing pending"
+      // primary uses. NOT pressable while saving: that tap would file twice.
+      disabled={busy}
       onPress={onPress}
       style={{
         alignItems: 'center',
         justifyContent: 'center',
-        minHeight: 54,
+        minHeight: WORK_TARGET,
         paddingHorizontal: space[4],
         paddingVertical: 12,
         borderRadius: radius.md,
         backgroundColor: ready ? c.action : c.surface3,
-        opacity: busy ? 0.6 : 1,
       }}
     >
       <Text weight="semibold" size="md" center color={ready ? c.bgApp : 'textMuted'}>

@@ -2411,7 +2411,6 @@ export declare const PhoneClockResult: z.ZodObject<{
     pendingReason: z.ZodNullable<z.ZodString>;
     distanceM: z.ZodNullable<z.ZodNumber>;
 }, "strip", z.ZodTypeAny, {
-    validated: boolean;
     record: {
         status: "superseded" | "open" | "closed";
         id: string;
@@ -2445,10 +2444,10 @@ export declare const PhoneClockResult: z.ZodObject<{
             outAccuracyM: number | null;
         } | null;
     };
+    validated: boolean;
     pendingReason: string | null;
     distanceM: number | null;
 }, {
-    validated: boolean;
     record: {
         status: "superseded" | "open" | "closed";
         id: string;
@@ -2482,6 +2481,7 @@ export declare const PhoneClockResult: z.ZodObject<{
             outAccuracyM: number | null;
         } | null;
     };
+    validated: boolean;
     pendingReason: string | null;
     distanceM: number | null;
 }>;

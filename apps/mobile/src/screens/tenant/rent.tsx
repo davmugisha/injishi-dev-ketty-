@@ -19,19 +19,32 @@
  * so the row still says so on the lease detail page and anywhere else it is
  * drawn — ui-rules.md's adapter rule is that a mocked success must never look
  * like a real one, wherever it is read.
+ *
+ * **Paying in the app is the demo's alone** (ADR-066 AC-4; mobile audit
+ * 2026-10-05, TN-07). The rail is a client timer, so the Pay rent button and
+ * the line about how it settles are drawn only when `usePlatform().isDemo`
+ * says so, which is false in every production build and until the API has
+ * answered. Everywhere else the plate says one neutral thing: pay the landlord
+ * directly. No "coming soon": nothing here promises a date.
+ *
+ * `leaseId`, when a lease's own "Rent history" row opened this tab, chooses
+ * which lease is shown. It used to open whichever lease came first, so the
+ * second of two running leases showed the first one's ledger (TN-16).
  */
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { View } from 'react-native';
-import { useRouter } from 'expo-router';
+import { useLocalSearchParams, useRouter } from 'expo-router';
 import {
   Button,
   Card,
   EmptyState,
   ErrorState,
+  formatMoney,
   Icon,
   MoneyAmount,
   OfflineNote,
   PaymentStatus,
+  PressableScale,
   Screen,
   SectionLabel,
   SegmentedTabs,
@@ -50,8 +63,9 @@ import {
   type RentPeriod,
   type Tenancy,
 } from '@/data/rentals';
+import { usePlatform } from '@/queries/platform';
 import { HeroCard, HeroLabel, HeroMoney, useHeroTones } from './hero-card';
-import { dueCaption, formatFullDay } from './dates';
+import { dueCaption, formatFullDay, rentStatusWord } from './dates';
 
 /** One ledger row: the period, what it cost, and how it stands. */
 function HistoryRow({ period, t }: { period: RentPeriod; t: Translate }) {
@@ -61,9 +75,18 @@ function HistoryRow({ period, t }: { period: RentPeriod; t: Translate }) {
   return (
     <View
       accessible
+      // The amount and the status are in the label as well as on the row: a
+      // label replaces what it wraps, and "September 2026" alone never said
+      // how much or whether it was paid (mobile audit 2026-10-05, TN-17).
       accessibilityLabel={[
         period.month,
-        settled && period.paidOn ? t('rent.paidOn', { date: formatFullDay(period.paidOn, t) }) : '',
+        formatMoney(period.amount),
+        rentStatusWord(period.status, t),
+        settled && period.paidOn
+          ? t('rent.paidOn', { date: formatFullDay(period.paidOn, t) })
+          : period.dueOn
+            ? t('rent.due', { date: formatFullDay(period.dueOn, t) })
+            : '',
         period.mock ? t('rent.mockSettled') : '',
       ]
         .filter(Boolean)
@@ -132,6 +155,8 @@ export function Rent() {
   const t = useT();
   const tones = useHeroTones();
   const offline = useOffline();
+  const { isDemo } = usePlatform();
+  const { leaseId } = useLocalSearchParams<{ leaseId?: string }>();
   const today = todayIso();
 
   const read = useTenancies();
@@ -143,7 +168,12 @@ export function Rent() {
     (x) => isLiveTenancy(x) && x.leaseState !== 'pending_signature',
   );
 
-  const [activeId, setActiveId] = useState('');
+  const [activeId, setActiveId] = useState(leaseId ?? '');
+  // A tab stays mounted, so a second lease's "Rent history" arrives as a new
+  // param on the same screen rather than as a new screen (TN-16).
+  useEffect(() => {
+    if (leaseId) setActiveId(leaseId);
+  }, [leaseId]);
   const tenancy: Tenancy | undefined = paying.find((x) => x.id === activeId) ?? paying[0];
 
   const due = tenancy ? nextDuePeriod(tenancy) : undefined;
@@ -186,25 +216,34 @@ export function Rent() {
                           )}`
                         : due.month}
                     </Text>
-                    <Button
-                      variant={tones.button}
-                      size="lg"
-                      block
-                      leadingIcon="wallet"
-                      onPress={() =>
-                        router.push({
-                          pathname: '/pay-rent',
-                          params: { leaseId: tenancy.id, month: due.month },
-                        })
-                      }
-                    >
-                      {t('rent.payRent')}
-                    </Button>
-                    {/* The consequence printed under the button, not
-                        discovered after it (the canvas's cross-cutting rule). */}
-                    <Text size="xs" color={tones.fgDim} style={{ lineHeight: 17 }}>
-                      {t('rent.settledVia', { adapter: t('tenant.mockAdapter') })}
-                    </Text>
+                    {isDemo ? (
+                      <>
+                        <Button
+                          variant={tones.button}
+                          size="lg"
+                          block
+                          leadingIcon="wallet"
+                          onPress={() =>
+                            router.push({
+                              pathname: '/pay-rent',
+                              params: { leaseId: tenancy.id, month: due.month },
+                            })
+                          }
+                        >
+                          {t('rent.payRent')}
+                        </Button>
+                        {/* The consequence printed under the button, not
+                            discovered after it (the canvas's cross-cutting
+                            rule). On the demo the mock adapter is the truth. */}
+                        <Text size="xs" color={tones.fgDim} style={{ lineHeight: 17 }}>
+                          {t('rent.settledVia', { adapter: t('tenant.mockAdapter') })}
+                        </Text>
+                      </>
+                    ) : (
+                      <Text size="sm" color={tones.fgMuted} style={{ lineHeight: 19 }}>
+                        {t('rent.payDirectly')}
+                      </Text>
+                    )}
                   </>
                 ) : (
                   <>
@@ -248,17 +287,20 @@ export function Rent() {
                 <Text size="xs" color="textSubtle" style={{ lineHeight: 17 }}>
                   {t('rent.commissionNote')}
                 </Text>
-                <Text
-                  weight="semibold"
-                  size="sm"
-                  color="brand700"
+                {/* A link is still a target: 44pt tall, which the bare text
+                    line was not (mobile audit 2026-10-05, TN-26). */}
+                <PressableScale
                   accessibilityRole="link"
+                  accessibilityLabel={t('rent.openLease')}
                   onPress={() =>
                     router.push({ pathname: '/lease/[id]', params: { id: tenancy.id } })
                   }
+                  style={{ minHeight: 44, justifyContent: 'center', alignSelf: 'flex-start' }}
                 >
-                  {t('rent.openLease')}
-                </Text>
+                  <Text weight="semibold" size="sm" color="brand700">
+                    {t('rent.openLease')}
+                  </Text>
+                </PressableScale>
               </View>
 
               <View

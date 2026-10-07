@@ -15,8 +15,10 @@
  */
 import { act, render, screen, waitFor } from '@testing-library/react-native';
 import { Text as RNText, View } from 'react-native';
+import { useNetworkState } from 'expo-network';
 import { resetFixtures, writeFixture } from './use-fixture-mutation';
-import { SAVED_KEY, SEEDED_SAVED, useSavedStays } from './saved';
+import { resetQueue } from './write-queue';
+import { SAVED_KEY, SEEDED_SAVED, useSavedStays, type SaveOutcome } from './saved';
 
 afterEach(() => resetFixtures());
 
@@ -106,7 +108,7 @@ describe('the saved set', () => {
     function Probe() {
       const saved = useSavedStays();
       return (
-        <RNText testID="go" onPress={() => moves.push(saved.toggle('kigali-cbd-loft'))}>
+        <RNText testID="go" onPress={() => moves.push(saved.toggle('kigali-cbd-loft').next)}>
           go
         </RNText>
       );
@@ -122,5 +124,76 @@ describe('the saved set', () => {
       screen.getByTestId('go').props.onPress();
     });
     await waitFor(() => expect(moves).toEqual([true, false]));
+  });
+});
+
+/**
+ * How the write ENDED, which is what a toast may speak from (brief item 1).
+ *
+ * The toast used to be picked from the intent the instant the heart was
+ * pressed, so a save that never landed still said "Saved". These pin the three
+ * answers a screen branches on, and that the heart goes back to the truth when
+ * the write does not land.
+ */
+describe('how a heart press ended', () => {
+  const network = useNetworkState as jest.Mock;
+  afterEach(() => {
+    network.mockReturnValue({ isConnected: true, isInternetReachable: true });
+    // The offline case leaves an intent in the module-level queue.
+    act(() => resetQueue());
+  });
+
+  /** One reader that records what its presses resolved to. */
+  function Probe({ outcomes }: { outcomes: SaveOutcome[] }) {
+    const saved = useSavedStays();
+    return (
+      <View>
+        <RNText testID="heart">{saved.isSaved('kigali-cbd-loft') ? 'on' : 'off'}</RNText>
+        <RNText
+          testID="go"
+          onPress={() => {
+            void saved.toggle('kigali-cbd-loft').settled.then((o) => outcomes.push(o));
+          }}
+        >
+          go
+        </RNText>
+      </View>
+    );
+  }
+
+  it('resolves done once the write has landed', async () => {
+    const outcomes: SaveOutcome[] = [];
+    render(<Probe outcomes={outcomes} />);
+    act(() => {
+      screen.getByTestId('go').props.onPress();
+    });
+    await waitFor(() => expect(outcomes).toEqual(['done']));
+    expect(screen.getByTestId('heart').props.children).toBe('on');
+  });
+
+  it('rolls the heart back and says so when the write never lands', async () => {
+    const outcomes: SaveOutcome[] = [];
+    render(<Probe outcomes={outcomes} />);
+    act(() => {
+      screen.getByTestId('go').props.onPress();
+    });
+    // Optimistic: on at once.
+    expect(screen.getByTestId('heart').props.children).toBe('on');
+
+    // A reset mid flight drops the write (`cancelled`): nothing was saved, so
+    // the heart must not stay filled and the caller must not toast a save.
+    act(() => resetFixtures());
+    await waitFor(() => expect(outcomes).toEqual(['cancelled']));
+    expect(screen.getByTestId('heart').props.children).toBe('off');
+  });
+
+  it('answers queued offline, rather than done', async () => {
+    network.mockReturnValue({ isConnected: false, isInternetReachable: false });
+    const outcomes: SaveOutcome[] = [];
+    render(<Probe outcomes={outcomes} />);
+    act(() => {
+      screen.getByTestId('go').props.onPress();
+    });
+    await waitFor(() => expect(outcomes).toEqual(['queued']));
   });
 });

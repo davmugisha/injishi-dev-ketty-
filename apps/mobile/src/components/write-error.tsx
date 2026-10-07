@@ -29,8 +29,15 @@
  * tells them something untrue. Rendering this is half the fix; not navigating
  * past a failure is the other half, and it is at each call site because only
  * the call site knows where it was going.
+ *
+ * **The alert is the words, the buttons are its siblings.** The whole box used
+ * to be one `accessible` element, which on iOS swallowed Retry: a VoiceOver
+ * user heard the failure and could not reach the one control that fixes it
+ * (mobile audit 2026-10-05, XC-02). iOS also ignores role `alert` and live
+ * regions, so the failure is announced there by hand.
  */
-import { View } from 'react-native';
+import { useEffect } from 'react';
+import { AccessibilityInfo, Platform, View } from 'react-native';
 import { Text } from './text';
 import { Icon } from './icon';
 import { Button } from './button';
@@ -55,16 +62,14 @@ export function WriteError({
 }: WriteErrorProps) {
   const { c, space, radius } = useTheme();
   const t = useT();
+  const announcement = `${t(title)}. ${t(body)}`;
+
+  useEffect(() => {
+    if (Platform.OS === 'ios') AccessibilityInfo.announceForAccessibility(announcement);
+  }, [announcement]);
 
   return (
     <View
-      // `alert` and a live region: a save that failed while the person was
-      // reading further down the form has to reach them without being looked
-      // at, which is the whole difference between an error state and a red box.
-      accessible
-      accessibilityRole="alert"
-      accessibilityLiveRegion="assertive"
-      accessibilityLabel={`${t(title)}. ${t(body)}`}
       style={{
         gap: space[3],
         padding: space[4],
@@ -74,15 +79,26 @@ export function WriteError({
         borderColor: c.danger500,
       }}
     >
-      <View style={{ flexDirection: 'row', alignItems: 'center', gap: space[2] }}>
-        <Icon name="alertCircle" size={18} color={c.danger600} />
-        <Text weight="semibold" size="sm" color="textStrong" style={{ flex: 1 }}>
-          {t(title)}
+      <View
+        // `alert` and a live region: a save that failed while the person was
+        // reading further down the form has to reach them without being looked
+        // at, which is the whole difference between an error state and a red box.
+        accessible
+        accessibilityRole="alert"
+        accessibilityLiveRegion="assertive"
+        accessibilityLabel={announcement}
+        style={{ gap: space[3] }}
+      >
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: space[2] }}>
+          <Icon name="alertCircle" size={18} color={c.danger600} />
+          <Text weight="semibold" size="sm" color="textStrong" style={{ flex: 1 }}>
+            {t(title)}
+          </Text>
+        </View>
+        <Text size="sm" color="textBody">
+          {t(body)}
         </Text>
       </View>
-      <Text size="sm" color="textBody">
-        {t(body)}
-      </Text>
       {onRetry || secondary ? (
         <View style={{ flexDirection: 'row', gap: space[2], flexWrap: 'wrap' }}>
           {onRetry ? (

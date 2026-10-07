@@ -34,8 +34,18 @@ export const en = {
 
   /* States the grid owes its reader */
   'saved.errorLabel': 'your saved stays',
+  // A heart pressed offline is queued and sent later, so the note says that
+  // rather than that saving stops (mobile audit 2026-10-05, GB-23).
   'saved.offlineNote':
-    'Showing the stays that were already loaded. Saving works again when the connection is back.',
+    'Showing the stays that were already loaded. Anything you save or remove now is sent when the connection is back.',
+
+  /* How a heart press ended. Said only once the write has (mobile audit
+     2026-10-05: a toast from intent claimed saves that had failed). */
+  'saved.toggleFailed': 'That change did not save. Try again.',
+  'saved.queuedSave': 'Saved on this phone. It is sent when you are back online.',
+  'saved.queuedRemove': 'Removed on this phone. It is sent when you are back online.',
+  /* The unit `ListingCard` prints after its own slash: "/ guest / night". */
+  'saved.perGuestNight': 'guest / night',
 } as const;
 
 /**
@@ -58,6 +68,10 @@ export const rw: Record<keyof typeof en, string> = {
   'saved.unavailableA11y': '{title}, ntibishoboka kwandika ubu',
 
   'saved.errorLabel': 'aho wabitse',
-  'saved.offlineNote':
-    'Turerekana aho hari hamaze gupakirwa. Kubika bizongera gukora nimuramuka mubonye interineti.',
+  /* English until Kinyarwanda work starts (v1 is English only). */
+  'saved.offlineNote': en['saved.offlineNote'],
+  'saved.toggleFailed': en['saved.toggleFailed'],
+  'saved.queuedSave': en['saved.queuedSave'],
+  'saved.queuedRemove': en['saved.queuedRemove'],
+  'saved.perGuestNight': en['saved.perGuestNight'],
 };

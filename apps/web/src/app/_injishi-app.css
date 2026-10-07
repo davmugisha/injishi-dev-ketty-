@@ -7,6 +7,7 @@
 @import "tailwindcss" source(none);
 @import "@injishi/ui/styles.css";
 @import "@heroui/styles";
+@import "@injishi/ui/pro.css"; /* HeroUI Pro, after HeroUI OSS, as Pro requires */
 
 @source "./(app)";
 @source "../components/app";

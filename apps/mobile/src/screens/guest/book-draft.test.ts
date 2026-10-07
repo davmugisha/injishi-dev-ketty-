@@ -167,6 +167,9 @@ describe('mintTrip', () => {
   it('copies the property fields a trip row needs so it never joins back', () => {
     const trip = mintTrip({ ...args, reference: 'BK-EEEEEE' });
     expect(trip.property).toBe(UMURAGE.stay.title);
+    // The room booked, by name, so the confirmation's "Room type" row names
+    // the room rather than the property (mobile audit 2026-10-05, GK-15).
+    expect(trip.roomName).toBe(GARDEN.summary.name);
     expect(trip.address).toBe(UMURAGE.address);
     expect(trip.selfCheckIn).toBe(UMURAGE.selfCheckIn);
     expect(trip.checkInTime).toBe(UMURAGE.property.checkInTime);

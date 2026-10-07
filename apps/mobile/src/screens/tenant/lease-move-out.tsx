@@ -19,6 +19,15 @@
  * sheet on this screen rather than a route: a confirmation you can arrive at
  * without the action behind it — by a back gesture, by a deep link — is worse
  * than no confirmation. `ModalSheet`'s header has the rest of that reasoning.
+ *
+ * **The notice is saved on this phone and the landlord is not told.** No tenant
+ * endpoint takes a notice yet. The filed card used to say "{landlord} has been
+ * notified" and that the unit was flagged as coming available, and a footnote
+ * said the app was "not yet wired to the backend" (mobile audit 2026-10-05,
+ * TN-05, XC-16). A tenant who believes notice was given when it was not can
+ * owe a month they meant to leave, so the screen now says to give the notice
+ * directly as well. The toast follows THIS write's outcome (TN-12): a notice
+ * that failed to save renders `WriteError`, never "saved".
  */
 import { useState } from 'react';
 import { View, ScrollView } from 'react-native';
@@ -40,6 +49,7 @@ import {
   TextArea,
   todayIso,
   useToast,
+  WriteError,
 } from '@/components';
 import { useTheme } from '@/theme/theme';
 import { useT } from '@/i18n/i18n';
@@ -63,6 +73,7 @@ export function LeaseMoveOut() {
   const [message, setMessage] = useState('');
   const [calendarOpen, setCalendarOpen] = useState(false);
   const [confirmOpen, setConfirmOpen] = useState(false);
+  const [failed, setFailed] = useState(false);
 
   const today = todayIso();
   const filing = file.status === 'saving';
@@ -76,17 +87,20 @@ export function LeaseMoveOut() {
   const filed = lease.notice;
   const eligible = lease.leaseState === 'active' || lease.leaseState === 'ending';
 
-  const submit = () => {
+  // Retry goes straight here: the person already confirmed this date, and a
+  // failed save is not a reason to ask them twice.
+  const submit = async () => {
     if (!date) return;
     setConfirmOpen(false);
-    void file
-      .mutate({
-        leaseId: lease.id,
-        notice: { filedOn: today, moveOutOn: date, message: message.trim() },
-      })
-      .then(() => {
-        toast.show(t('moveOut.toast', { date: formatFullDay(date, t) }), 'warning');
-      });
+    setFailed(false);
+    const outcome = await file.mutate({
+      leaseId: lease.id,
+      notice: { filedOn: today, moveOutOn: date, message: message.trim() },
+    });
+    // THIS write's outcome (mobile audit 2026-10-05, TN-12). `cancelled` is a
+    // write dropped by a sign out mid flight, and nobody is left to tell.
+    if (outcome === 'done') toast.show(t('moveOut.toast'), 'warning');
+    else if (outcome === 'error') setFailed(true);
   };
 
   /* A lease that has not started or has already closed cannot be moved out of.
@@ -183,10 +197,6 @@ export function LeaseMoveOut() {
                 ))}
               </View>
             </Card>
-
-            <Text size="xs" color="textSubtle" style={{ lineHeight: 18 }}>
-              {t('moveOut.notWired')}
-            </Text>
           </>
         ) : (
           <>
@@ -263,7 +273,7 @@ export function LeaseMoveOut() {
               value={message}
               onChangeText={setMessage}
               placeholder={t('moveOut.messagePlaceholder')}
-              helper={t('moveOut.messageHelper', { landlord: lease.landlord })}
+              helper={t('moveOut.messageHelper')}
               rows={4}
             />
 
@@ -304,6 +314,10 @@ export function LeaseMoveOut() {
                 </View>
               </View>
             </Card>
+
+            {failed ? (
+              <WriteError body="write.failedLegalBody" onRetry={() => void submit()} />
+            ) : null}
           </>
         )}
       </ScrollView>
@@ -386,7 +400,7 @@ export function LeaseMoveOut() {
               size="lg"
               block
               disabled={filing}
-              onPress={submit}
+              onPress={() => void submit()}
             >
               {filing ? t('moveOut.filing') : t('moveOut.confirmAction')}
             </Button>

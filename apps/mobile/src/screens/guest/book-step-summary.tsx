@@ -40,7 +40,7 @@ import { useT } from '@/i18n/i18n';
 import { useReducedMotion, MOTION_MS } from '@/motion';
 import { formatDates, type GuestParty, billableGuests } from '@/data/search';
 import { houseRuleLines, type RoomCard, type StayDetail } from '@/data/property-detail';
-import { moneyText, nightsLabel, tierBodyKey, tierKey } from './listing-format';
+import { nightsLabel, rateLine, tierBodyKey, tierKey } from './listing-format';
 import { nightsIn } from './book-format';
 import { AdapterChip, CheckRow, FactRow, Note } from './book-parts';
 
@@ -123,7 +123,10 @@ export function BookStepSummary({
             items={[
               {
                 label: t('book.accommodation'),
-                sub: `${moneyText(money.nightlyRateRwf)} × ${nightsLabel(money.nights, t)}`,
+                // The guests are named because they are multiplied: the line
+                // used to read "rate × nights" beside a per-person total
+                // (mobile audit 2026-10-05, GK-14).
+                sub: rateLine(money.nightlyRateRwf, money.guests ?? heads, money.nights, t),
                 value: money.accommodationRwf,
               },
               ...(money.nonRefundableDiscountRwf > 0

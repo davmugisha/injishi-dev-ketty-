@@ -26,8 +26,24 @@
  *   - **The figures are for one night until dates exist**, and the sheet says
  *     so on the line above them. A total that silently assumed a night would be
  *     a number the guest could act on and be wrong about.
+ *
+ * ## Priced for the party, like everywhere else
+ *
+ * The rate is per guest per night (owner decision 2026-09-15) and
+ * `computeBreakdown` multiplies by the billable guests. This sheet used to
+ * leave them out, so for the default party of two its "Total" was half of what
+ * the booking stepper and the server charge. It passes the search's party now
+ * and names the count on the line under the accommodation (mobile audit
+ * 2026-10-05, GB-08).
+ *
+ * ## It reads like the page it sits on
+ *
+ * Through `useFixture`, on the PAGE's key, so arriving from the property page
+ * is a warm read and a deep link gets a skeleton, an error with a retry, and a
+ * Done on not-found, the way the amenities sheet does (GB-15). It used to read
+ * synchronously, which is why it had none of the three.
  */
-import { useCallback } from 'react';
+import { useCallback, type ReactNode } from 'react';
 import { View } from 'react-native';
 import { useRouter } from 'expo-router';
 import { computeBreakdown, NON_REFUNDABLE_DISCOUNT } from '@injishi/contracts';
@@ -35,40 +51,85 @@ import Animated, { useAnimatedStyle, useDerivedValue, withTiming } from 'react-n
 import {
   Badge,
   Button,
+  ErrorState,
   Icon,
   MoneyBreakdown,
   PressableScale,
   Sheet,
+  SkeletonList,
   Text,
   nightsBetween,
 } from '@/components';
 import { useTheme } from '@/theme/theme';
 import { useT } from '@/i18n/i18n';
 import { useReducedMotion, MOTION_MS } from '@/motion';
+import { useFixture } from '@/data/use-fixture';
 import { useFixtureValue } from '@/data/use-fixture-mutation';
 import { useBookingDraft } from '@/data/booking-draft';
-import { DEFAULT_SEARCH, SEARCH_KEY, type StaySearch } from '@/data/search';
-import { getStayDetail, initialRoom } from '@/data/property-detail';
-import { moneyText, nightsLabel, tierBodyKey, tierKey } from './listing-format';
+import { DEFAULT_SEARCH, SEARCH_KEY, billableGuests, type StaySearch } from '@/data/search';
+import { getStayDetail, initialRoom, type StayDetail } from '@/data/property-detail';
+import { rateLine, tierBodyKey, tierKey } from './listing-format';
 
 export function ListingPolicySheet({ id }: { id: string }) {
-  const { c, space } = useTheme();
   const t = useT();
   const router = useRouter();
 
-  const detail = getStayDetail(id);
-  const search = useFixtureValue<StaySearch>(SEARCH_KEY, () => DEFAULT_SEARCH);
-  const { draft, setNonRefundable } = useBookingDraft(id);
+  // The page's own key (`listing-detail.tsx`), so a sheet opened from the page
+  // is a warm read and the two can never disagree about the property.
+  const read = useFixture<StayDetail | undefined>(`listing:${id}`, () => getStayDetail(id));
 
-  if (!detail) {
+  const done = (
+    <Button variant="primary" size="lg" block onPress={() => router.back()}>
+      {t('listing.policyDone')}
+    </Button>
+  );
+
+  if (read.status === 'loading') {
     return (
-      <Sheet title={t('listing.notFoundTitle')} grabber>
-        <Text size="sm" color="textMuted" style={{ lineHeight: 21 }}>
+      <Sheet title={t('listing.policy')} grabber>
+        <SkeletonList rows={4} label={t('state.loadingList', { label: t('listing.policy') })} />
+      </Sheet>
+    );
+  }
+
+  if (read.status === 'error') {
+    return (
+      <Sheet title={t('listing.policy')} grabber footer={done}>
+        <ErrorState
+          title={t('listing.errorTitle')}
+          body={t('listing.errorBody')}
+          onRetry={read.retry}
+        />
+      </Sheet>
+    );
+  }
+
+  if (!read.data) {
+    // A deep link to an id that resolves to nothing: say so, with a way out.
+    return (
+      <Sheet title={t('listing.notFoundTitle')} grabber footer={done}>
+        <Text accessibilityRole="alert" size="sm" color="textMuted" style={{ lineHeight: 21 }}>
           {t('listing.notFoundBody')}
         </Text>
       </Sheet>
     );
   }
+
+  return <PolicyBody detail={read.data} done={done} />;
+}
+
+/**
+ * The sheet with a property behind it. Split so the draft and the search are
+ * read only once there is a property to read them for.
+ */
+function PolicyBody({ detail, done }: { detail: StayDetail; done: ReactNode }) {
+  const { c, space } = useTheme();
+  const t = useT();
+  // The id the route matched on (`getStayDetail` reads `property.id`).
+  const id = detail.property.id;
+
+  const search = useFixtureValue<StaySearch>(SEARCH_KEY, () => DEFAULT_SEARCH);
+  const { draft, setNonRefundable } = useBookingDraft(id);
 
   const selectedId = draft.roomTypeId ?? initialRoom(detail)?.summary.id ?? null;
   const room = detail.rooms.find((r) => r.summary.id === selectedId);
@@ -80,6 +141,8 @@ export function ListingPolicySheet({ id }: { id: string }) {
     ? nightsBetween(search.dates.start as string, search.dates.end as string)
     : 1;
 
+  // Per guest per night: the party is part of the price (GB-08).
+  const guests = billableGuests(search.guests);
   const rate = room?.summary.nightlyRateRwf ?? null;
   const money =
     rate === null
@@ -88,6 +151,7 @@ export function ListingPolicySheet({ id }: { id: string }) {
           nightlyRateRwf: rate,
           nights,
           nonRefundable: draft.nonRefundable && eligible,
+          guests,
         });
 
   return (
@@ -95,11 +159,7 @@ export function ListingPolicySheet({ id }: { id: string }) {
       title={t('listing.policy')}
       eyebrow={room ? t('listing.policyForRoom', { room: room.summary.name }) : undefined}
       grabber
-      footer={
-        <Button variant="primary" size="lg" block onPress={() => router.back()}>
-          {t('listing.policyDone')}
-        </Button>
-      }
+      footer={done}
     >
       {/* ------------------------------------------------------- the tier -- */}
       <View style={{ gap: 10 }}>
@@ -156,7 +216,7 @@ export function ListingPolicySheet({ id }: { id: string }) {
               items={[
                 {
                   label: t('listing.policyAccommodation'),
-                  sub: `${moneyText(money.nightlyRateRwf)} × ${nightsLabel(nights, t)}`,
+                  sub: rateLine(money.nightlyRateRwf, money.guests ?? guests, nights, t),
                   value: money.accommodationRwf,
                 },
                 // Only when it is actually applied. A zero line for a discount

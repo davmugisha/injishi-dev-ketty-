@@ -131,6 +131,26 @@ export function dueCaption(dueOn: string, today: string, t: Translate): string {
 }
 
 /**
+ * The word a rent period's status pill prints, as one string for a screen
+ * reader label.
+ *
+ * `PaymentStatus` draws the same words as a badge, and a label that wraps a row
+ * replaces what is inside it: a row labelled "September 2026" alone never told
+ * a VoiceOver user whether September was paid or overdue (mobile audit
+ * 2026-10-05, TN-17). The keys are the ones `PaymentStatus` reads, so the two
+ * cannot disagree.
+ */
+const RENT_STATUS_WORD: Record<'paid' | 'due' | 'overdue', MessageKey> = {
+  paid: 'payment.paid',
+  due: 'payment.due',
+  overdue: 'payment.overdue',
+};
+
+export function rentStatusWord(status: 'paid' | 'due' | 'overdue', t: Translate): string {
+  return t(RENT_STATUS_WORD[status]);
+}
+
+/**
  * The caption under a move-out date: how much notice it actually gives, against
  * how much the contract asks for. Both numbers, because FL23 Path A shows the
  * minimum and does not enforce it, and a tenant choosing a short date has to be

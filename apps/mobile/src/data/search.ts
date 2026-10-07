@@ -79,14 +79,21 @@ export const PARTY_MAX = EXPLORABLE_STAYS.reduce((most, s) => Math.max(most, s.m
 
 /* --------------------------------------------------------------- the state */
 
-export const SORTS = ['recommended', 'price_low', 'price_high', 'score'] as const;
+/**
+ * No "Guest score" sort, and nothing here ranks by score.
+ *
+ * Reviews are hidden in v1 and no endpoint serves a review aggregate, so a
+ * score is a fixture number with nothing behind it; sorting on it would order
+ * real stays by an invented opinion (mobile audit 2026-10-05, GB-07). The sort
+ * comes back with the review feature, and with data.
+ */
+export const SORTS = ['recommended', 'price_low', 'price_high'] as const;
 export type StaySort = (typeof SORTS)[number];
 
 export const SORT_LABEL: Record<StaySort, MessageKey> = {
   recommended: 'search.sortRecommended',
   price_low: 'search.sortPriceLow',
   price_high: 'search.sortPriceHigh',
-  score: 'search.sortScore',
 };
 
 export interface PriceBand {
@@ -371,27 +378,29 @@ export function isDefaultSearch(search: StaySearch): boolean {
   );
 }
 
-function compare(a: Stay, b: Stay, sort: StaySort): number {
+function compare(a: Stay, b: Stay, sort: Exclude<StaySort, 'recommended'>): number {
   switch (sort) {
     case 'price_low':
       return a.price - b.price;
     case 'price_high':
       return b.price - a.price;
-    case 'score':
-      return b.score - a.score;
-    case 'recommended':
-      // Score first, then the cheaper of two equals. A stable, explainable
-      // order beats a hidden weighting nobody can reproduce.
-      return b.score - a.score || a.price - b.price;
   }
 }
 
-/** Filter, then sort. Pure; `EXPLORABLE_STAYS` is the default catalogue. */
+/**
+ * Filter, then sort. Pure; `EXPLORABLE_STAYS` is the default catalogue.
+ *
+ * "Recommended" is the catalogue's own order, untouched. It used to rank by
+ * score first, and the score has no source in v1 (GB-07); the filter keeps the
+ * order it was given, so nothing is weighted that nobody can explain.
+ */
 export function searchStays(search: StaySearch, catalogue: Stay[] = EXPLORABLE_STAYS): Stay[] {
   const kept = catalogue.filter((stay) =>
     DIMENSIONS.every((d) => !d.active(search) || d.matches(stay, search)),
   );
-  return [...kept].sort((a, b) => compare(a, b, search.sort));
+  if (search.sort === 'recommended') return kept;
+  const sort = search.sort;
+  return [...kept].sort((a, b) => compare(a, b, sort));
 }
 
 /**

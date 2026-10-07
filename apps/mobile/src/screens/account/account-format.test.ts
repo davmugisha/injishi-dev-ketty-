@@ -1,6 +1,6 @@
 /**
- * The pure half of Account: dates, plan names, staff states, and how long ago a
- * device was last used.
+ * The pure half of Account: the seat's role and chip, lines built from parts,
+ * dates, plan names, staff states, and how long ago a device was last used.
  *
  * All of it asserted without rendering, which is the point of these living in
  * `account-format.ts` rather than inline in the screens — and which is what
@@ -9,7 +9,9 @@
  */
 import { formatLongDay, planKey, staffStateKey, staffStateTone } from './account-format';
 import { daysSince, isStaleSession, sessionMeta, STALE_SESSION_DAYS } from './account-format';
+import { joinParts, seatChipLabel, seatRoleKey, seatRoleLabel } from './account-format';
 import type { DeviceSession } from './account-fixtures';
+import type { WorkspaceEntry } from '@/data/rentals';
 import { en, rw } from '@/i18n/messages';
 import type { MessageKey } from '@/i18n/i18n';
 
@@ -22,6 +24,111 @@ const trw = (key: MessageKey, values?: Record<string, string | number>) =>
   rw[key].replace(/\{(\w+)\}/g, (whole, name: string) =>
     values && name in values ? String(values[name]) : whole,
   );
+
+/**
+ * A seat as `toWorkspaceEntry` hands it to the screens: the server's `orgRole`
+ * passed through as `role`, and nothing at all for a broker. Defaults to a
+ * business seat; each case says what it changes.
+ */
+function seat(over: Partial<WorkspaceEntry>): WorkspaceEntry {
+  return {
+    id: 'ws-1',
+    type: 'business',
+    kind: 'landlord',
+    surface: 'landlord',
+    name: 'Kayitare Court',
+    role: 'owner',
+    org: 'Kayitare Court',
+    ...over,
+  };
+}
+
+describe('a line built from parts', () => {
+  /**
+   * The rig read "owner ·", "Guest · Tenant ·" and a lone "·" on a Broker row
+   * (mobile audit 2026-10-05, SA-10): a template prints its separator whether
+   * or not the part after it exists.
+   */
+  it('drops an empty part along with its separator', () => {
+    expect(joinParts(['Owner', ''])).toBe('Owner');
+    expect(joinParts(['', 'Rent roll'])).toBe('Rent roll');
+    expect(joinParts([null, undefined, '  '])).toBe('');
+    expect(joinParts(['Owner', 'Rent roll'])).toBe('Owner · Rent roll');
+  });
+
+  it('joins with whatever a screen reader label needs instead', () => {
+    expect(joinParts(['Grace Mukamana', ''], ', ')).toBe('Grace Mukamana');
+    expect(joinParts(['Grace Mukamana', '+250 788 123 456'], ', ')).toBe(
+      'Grace Mukamana, +250 788 123 456',
+    );
+  });
+});
+
+describe('the role a seat is held in', () => {
+  it('turns every org role the contract has into a word', () => {
+    expect(seatRoleLabel(seat({ role: 'owner' }), 'landlord', t)).toBe(en['role.owner']);
+    expect(seatRoleLabel(seat({ role: 'manager' }), 'host', t)).toBe(en['role.manager']);
+    expect(seatRoleLabel(seat({ role: 'receptionist' }), 'host', t)).toBe(en['role.receptionist']);
+    expect(seatRoleLabel(seat({ role: 'housekeeper' }), 'work', t)).toBe(en['role.housekeeper']);
+  });
+
+  it('never prints the server enum', () => {
+    for (const role of ['owner', 'manager', 'receptionist', 'housekeeper']) {
+      expect(seatRoleLabel(seat({ role }), 'landlord', t)).not.toBe(role);
+    }
+  });
+
+  /** The server sends no `orgRole` on a broker seat, which left the row blank. */
+  it('gives a broker seat its own word rather than nothing', () => {
+    const broker = seat({ type: 'broker', kind: 'broker', name: 'Broker', role: '', org: undefined });
+    expect(seatRoleKey(broker, 'broker')).toBe('role.broker');
+    expect(seatRoleLabel(broker, 'broker', t)).toBe(en['role.broker']);
+  });
+
+  /** FL25 §9: one Personal workspace, two hats. The open side is the role. */
+  it('names a personal seat by the side of it that is open', () => {
+    const personal = seat({ type: 'personal', kind: 'personal', name: 'Personal', role: 'Guest · Tenant' });
+    expect(seatRoleLabel(personal, 'guest', t)).toBe(en['role.guest']);
+    expect(seatRoleLabel(personal, 'tenant', t)).toBe(en['role.tenant']);
+  });
+
+  it('reads a role the contract does not know as nothing, not as an enum', () => {
+    expect(seatRoleKey(seat({ role: 'concierge' }), 'host')).toBeNull();
+    expect(seatRoleLabel(seat({ role: 'constructor' }), 'host', t)).toBe('');
+    expect(seatRoleLabel(seat({ role: '' }), 'landlord', t)).toBe('');
+  });
+});
+
+describe('the seat chip', () => {
+  /**
+   * It used to be a verification claim nobody checked: "ID verified", "TIN
+   * verified", "Licensed · RW-BK-0221" (mobile audit 2026-10-05, SA-02). It now
+   * says which workspace this is, and nothing else.
+   */
+  it('says where you stand, never what was checked', () => {
+    expect(seatChipLabel(seat({ type: 'personal', kind: 'personal', org: undefined }), t)).toBe(
+      en['account.badgePersonal'],
+    );
+    expect(seatChipLabel(seat({ kind: 'staff', org: 'Kivu Crest Hotel' }), t)).toBe(
+      en['account.badgeStaffSeat'],
+    );
+    expect(seatChipLabel(seat({ org: 'Kayitare Court' }), t)).toBe('Kayitare Court');
+  });
+
+  it('is empty when the seat names no organisation, rather than repeating the role', () => {
+    // A broker seat as the server sends it: no org name at all.
+    expect(seatChipLabel(seat({ type: 'broker', kind: 'broker', org: undefined }), t)).toBe('');
+  });
+
+  it('has no word in the catalogue that claims a check', () => {
+    for (const key of ['account.badgePersonal', 'account.badgeStaffSeat'] as const) {
+      expect(en[key]).not.toMatch(/verified|licen[cs]ed|checked/i);
+    }
+    expect(Object.keys(en)).not.toContain('account.badgeTinVerified');
+    expect(Object.keys(en)).not.toContain('account.badgeIdVerified');
+    expect(Object.keys(en)).not.toContain('account.badgeLicensed');
+  });
+});
 
 describe('the long date', () => {
   /**

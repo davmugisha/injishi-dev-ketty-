@@ -475,16 +475,16 @@ export declare const StayRegistrationDetails: z.ZodObject<{
     addressText?: string | undefined;
     fullName?: string | undefined;
     email?: string | undefined;
-    idNumber?: string | undefined;
     phone?: string | undefined;
+    idNumber?: string | undefined;
     invite?: boolean | undefined;
 }, {
     documentType?: "national_id" | "passport" | "other" | undefined;
     addressText?: string | undefined;
     fullName?: string | undefined;
     email?: string | undefined;
-    idNumber?: string | undefined;
     phone?: string | undefined;
+    idNumber?: string | undefined;
     invite?: boolean | undefined;
 }>;
 export type StayRegistrationDetails = z.infer<typeof StayRegistrationDetails>;
@@ -697,16 +697,16 @@ export declare const CheckInRequest: z.ZodObject<{
         addressText?: string | undefined;
         fullName?: string | undefined;
         email?: string | undefined;
-        idNumber?: string | undefined;
         phone?: string | undefined;
+        idNumber?: string | undefined;
         invite?: boolean | undefined;
     }, {
         documentType?: "national_id" | "passport" | "other" | undefined;
         addressText?: string | undefined;
         fullName?: string | undefined;
         email?: string | undefined;
-        idNumber?: string | undefined;
         phone?: string | undefined;
+        idNumber?: string | undefined;
         invite?: boolean | undefined;
     }>>;
 }, "strip", z.ZodTypeAny, {
@@ -715,8 +715,8 @@ export declare const CheckInRequest: z.ZodObject<{
         addressText?: string | undefined;
         fullName?: string | undefined;
         email?: string | undefined;
-        idNumber?: string | undefined;
         phone?: string | undefined;
+        idNumber?: string | undefined;
         invite?: boolean | undefined;
     } | undefined;
     nightlyRateRwf?: number | undefined;
@@ -727,8 +727,8 @@ export declare const CheckInRequest: z.ZodObject<{
         addressText?: string | undefined;
         fullName?: string | undefined;
         email?: string | undefined;
-        idNumber?: string | undefined;
         phone?: string | undefined;
+        idNumber?: string | undefined;
         invite?: boolean | undefined;
     } | undefined;
     nightlyRateRwf?: number | undefined;
@@ -807,16 +807,16 @@ export declare const WalkInRequest: z.ZodObject<{
         addressText?: string | undefined;
         fullName?: string | undefined;
         email?: string | undefined;
-        idNumber?: string | undefined;
         phone?: string | undefined;
+        idNumber?: string | undefined;
         invite?: boolean | undefined;
     }, {
         documentType?: "national_id" | "passport" | "other" | undefined;
         addressText?: string | undefined;
         fullName?: string | undefined;
         email?: string | undefined;
-        idNumber?: string | undefined;
         phone?: string | undefined;
+        idNumber?: string | undefined;
         invite?: boolean | undefined;
     }>>;
 }, "strip", z.ZodTypeAny, {
@@ -827,8 +827,8 @@ export declare const WalkInRequest: z.ZodObject<{
         addressText?: string | undefined;
         fullName?: string | undefined;
         email?: string | undefined;
-        idNumber?: string | undefined;
         phone?: string | undefined;
+        idNumber?: string | undefined;
         invite?: boolean | undefined;
     } | undefined;
     nightlyRateRwf?: number | undefined;
@@ -841,8 +841,8 @@ export declare const WalkInRequest: z.ZodObject<{
         addressText?: string | undefined;
         fullName?: string | undefined;
         email?: string | undefined;
-        idNumber?: string | undefined;
         phone?: string | undefined;
+        idNumber?: string | undefined;
         invite?: boolean | undefined;
     } | undefined;
     nightlyRateRwf?: number | undefined;
@@ -3039,8 +3039,9 @@ export declare const OperatorRevenue: z.ZodObject<{
     totalRwf: z.ZodNumber;
 }, "strip", z.ZodTypeAny, {
     from: string;
-    totalRwf: number;
+    month: string;
     to: string;
+    totalRwf: number;
     departments: {
         status: "active" | "archived";
         name: string;
@@ -3048,11 +3049,11 @@ export declare const OperatorRevenue: z.ZodObject<{
         departmentId: string;
         revenueRwf: number;
     }[];
-    month: string;
 }, {
     from: string;
-    totalRwf: number;
+    month: string;
     to: string;
+    totalRwf: number;
     departments: {
         status: "active" | "archived";
         name: string;
@@ -3060,7 +3061,6 @@ export declare const OperatorRevenue: z.ZodObject<{
         departmentId: string;
         revenueRwf: number;
     }[];
-    month: string;
 }>;
 export type OperatorRevenue = z.infer<typeof OperatorRevenue>;
 export declare const RoomAssignmentStatus: z.ZodEnum<["assigned", "released"]>;
@@ -3086,20 +3086,20 @@ export declare const OperatorRoomAssignment: z.ZodObject<{
     status: "released" | "assigned";
     id: string;
     from: string;
+    to: string;
     bookingId: string;
     roomId: string;
     roomLabel: string | null;
-    to: string;
     assignedByUserId: string | null;
     releasedAt: string | null;
 }, {
     status: "released" | "assigned";
     id: string;
     from: string;
+    to: string;
     bookingId: string;
     roomId: string;
     roomLabel: string | null;
-    to: string;
     assignedByUserId: string | null;
     releasedAt: string | null;
 }>;
@@ -3119,20 +3119,20 @@ export declare const OperatorRoomAssignmentList: z.ZodObject<{
         status: "released" | "assigned";
         id: string;
         from: string;
+        to: string;
         bookingId: string;
         roomId: string;
         roomLabel: string | null;
-        to: string;
         assignedByUserId: string | null;
         releasedAt: string | null;
     }, {
         status: "released" | "assigned";
         id: string;
         from: string;
+        to: string;
         bookingId: string;
         roomId: string;
         roomLabel: string | null;
-        to: string;
         assignedByUserId: string | null;
         releasedAt: string | null;
     }>, "many">;
@@ -3141,10 +3141,10 @@ export declare const OperatorRoomAssignmentList: z.ZodObject<{
         status: "released" | "assigned";
         id: string;
         from: string;
+        to: string;
         bookingId: string;
         roomId: string;
         roomLabel: string | null;
-        to: string;
         assignedByUserId: string | null;
         releasedAt: string | null;
     }[];
@@ -3153,10 +3153,10 @@ export declare const OperatorRoomAssignmentList: z.ZodObject<{
         status: "released" | "assigned";
         id: string;
         from: string;
+        to: string;
         bookingId: string;
         roomId: string;
         roomLabel: string | null;
-        to: string;
         assignedByUserId: string | null;
         releasedAt: string | null;
     }[];
@@ -4954,7 +4954,7 @@ export declare const OperatorServiceOrder: z.ZodObject<{
     fulfillmentType: "in_room_delivery" | "pickup" | "appointment" | "onsite" | "instant";
     orderNumber: string;
     folioId: string | null;
-    channel: "guest_app" | "in_room_device" | "front_desk" | "staff" | "api";
+    channel: "staff" | "guest_app" | "in_room_device" | "front_desk" | "api";
     orderContext: "in_house_folio" | "pay_now";
     subtotalRwf: number;
     taxRwf: number;
@@ -4991,7 +4991,7 @@ export declare const OperatorServiceOrder: z.ZodObject<{
     fulfillmentType: "in_room_delivery" | "pickup" | "appointment" | "onsite" | "instant";
     orderNumber: string;
     folioId: string | null;
-    channel: "guest_app" | "in_room_device" | "front_desk" | "staff" | "api";
+    channel: "staff" | "guest_app" | "in_room_device" | "front_desk" | "api";
     orderContext: "in_house_folio" | "pay_now";
     subtotalRwf: number;
     taxRwf: number;
@@ -5120,7 +5120,7 @@ export declare const OperatorServiceOrderList: z.ZodObject<{
         fulfillmentType: "in_room_delivery" | "pickup" | "appointment" | "onsite" | "instant";
         orderNumber: string;
         folioId: string | null;
-        channel: "guest_app" | "in_room_device" | "front_desk" | "staff" | "api";
+        channel: "staff" | "guest_app" | "in_room_device" | "front_desk" | "api";
         orderContext: "in_house_folio" | "pay_now";
         subtotalRwf: number;
         taxRwf: number;
@@ -5157,7 +5157,7 @@ export declare const OperatorServiceOrderList: z.ZodObject<{
         fulfillmentType: "in_room_delivery" | "pickup" | "appointment" | "onsite" | "instant";
         orderNumber: string;
         folioId: string | null;
-        channel: "guest_app" | "in_room_device" | "front_desk" | "staff" | "api";
+        channel: "staff" | "guest_app" | "in_room_device" | "front_desk" | "api";
         orderContext: "in_house_folio" | "pay_now";
         subtotalRwf: number;
         taxRwf: number;
@@ -5196,7 +5196,7 @@ export declare const OperatorServiceOrderList: z.ZodObject<{
         fulfillmentType: "in_room_delivery" | "pickup" | "appointment" | "onsite" | "instant";
         orderNumber: string;
         folioId: string | null;
-        channel: "guest_app" | "in_room_device" | "front_desk" | "staff" | "api";
+        channel: "staff" | "guest_app" | "in_room_device" | "front_desk" | "api";
         orderContext: "in_house_folio" | "pay_now";
         subtotalRwf: number;
         taxRwf: number;
@@ -5235,7 +5235,7 @@ export declare const OperatorServiceOrderList: z.ZodObject<{
         fulfillmentType: "in_room_delivery" | "pickup" | "appointment" | "onsite" | "instant";
         orderNumber: string;
         folioId: string | null;
-        channel: "guest_app" | "in_room_device" | "front_desk" | "staff" | "api";
+        channel: "staff" | "guest_app" | "in_room_device" | "front_desk" | "api";
         orderContext: "in_house_folio" | "pay_now";
         subtotalRwf: number;
         taxRwf: number;
@@ -5303,7 +5303,7 @@ export declare const CreateServiceOrderRequest: z.ZodEffects<z.ZodEffects<z.ZodO
     }[];
     context: "in_house_folio" | "pay_now";
     guestStayId?: string | undefined;
-    channel?: "guest_app" | "in_room_device" | "front_desk" | "staff" | "api" | undefined;
+    channel?: "staff" | "guest_app" | "in_room_device" | "front_desk" | "api" | undefined;
     guestNote?: string | undefined;
 }, {
     items: {
@@ -5316,7 +5316,7 @@ export declare const CreateServiceOrderRequest: z.ZodEffects<z.ZodEffects<z.ZodO
         }[] | undefined;
     }[];
     guestStayId?: string | undefined;
-    channel?: "guest_app" | "in_room_device" | "front_desk" | "staff" | "api" | undefined;
+    channel?: "staff" | "guest_app" | "in_room_device" | "front_desk" | "api" | undefined;
     guestNote?: string | undefined;
     context?: "in_house_folio" | "pay_now" | undefined;
 }>, {
@@ -5331,7 +5331,7 @@ export declare const CreateServiceOrderRequest: z.ZodEffects<z.ZodEffects<z.ZodO
     }[];
     context: "in_house_folio" | "pay_now";
     guestStayId?: string | undefined;
-    channel?: "guest_app" | "in_room_device" | "front_desk" | "staff" | "api" | undefined;
+    channel?: "staff" | "guest_app" | "in_room_device" | "front_desk" | "api" | undefined;
     guestNote?: string | undefined;
 }, {
     items: {
@@ -5344,7 +5344,7 @@ export declare const CreateServiceOrderRequest: z.ZodEffects<z.ZodEffects<z.ZodO
         }[] | undefined;
     }[];
     guestStayId?: string | undefined;
-    channel?: "guest_app" | "in_room_device" | "front_desk" | "staff" | "api" | undefined;
+    channel?: "staff" | "guest_app" | "in_room_device" | "front_desk" | "api" | undefined;
     guestNote?: string | undefined;
     context?: "in_house_folio" | "pay_now" | undefined;
 }>, {
@@ -5359,7 +5359,7 @@ export declare const CreateServiceOrderRequest: z.ZodEffects<z.ZodEffects<z.ZodO
     }[];
     context: "in_house_folio" | "pay_now";
     guestStayId?: string | undefined;
-    channel?: "guest_app" | "in_room_device" | "front_desk" | "staff" | "api" | undefined;
+    channel?: "staff" | "guest_app" | "in_room_device" | "front_desk" | "api" | undefined;
     guestNote?: string | undefined;
 }, {
     items: {
@@ -5372,7 +5372,7 @@ export declare const CreateServiceOrderRequest: z.ZodEffects<z.ZodEffects<z.ZodO
         }[] | undefined;
     }[];
     guestStayId?: string | undefined;
-    channel?: "guest_app" | "in_room_device" | "front_desk" | "staff" | "api" | undefined;
+    channel?: "staff" | "guest_app" | "in_room_device" | "front_desk" | "api" | undefined;
     guestNote?: string | undefined;
     context?: "in_house_folio" | "pay_now" | undefined;
 }>;
@@ -5517,7 +5517,7 @@ export declare const MarkOrderPaidCashResult: z.ZodObject<{
     fulfillmentType: "in_room_delivery" | "pickup" | "appointment" | "onsite" | "instant";
     orderNumber: string;
     folioId: string | null;
-    channel: "guest_app" | "in_room_device" | "front_desk" | "staff" | "api";
+    channel: "staff" | "guest_app" | "in_room_device" | "front_desk" | "api";
     orderContext: "in_house_folio" | "pay_now";
     subtotalRwf: number;
     taxRwf: number;
@@ -5555,7 +5555,7 @@ export declare const MarkOrderPaidCashResult: z.ZodObject<{
     fulfillmentType: "in_room_delivery" | "pickup" | "appointment" | "onsite" | "instant";
     orderNumber: string;
     folioId: string | null;
-    channel: "guest_app" | "in_room_device" | "front_desk" | "staff" | "api";
+    channel: "staff" | "guest_app" | "in_room_device" | "front_desk" | "api";
     orderContext: "in_house_folio" | "pay_now";
     subtotalRwf: number;
     taxRwf: number;

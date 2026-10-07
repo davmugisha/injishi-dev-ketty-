@@ -25,6 +25,7 @@ import {
   resetFixtures,
   writeFixture,
 } from '@/data/use-fixture-mutation';
+import * as tripsData from '@/data/trips';
 import { TRIPS, TRIPS_KEY, type Trip } from '@/data/trips';
 import { readCheckInDraft } from '@/data/check-in';
 import { REVIEWS_KEY, TRIP_REVIEW_SEEDS, type TripReview } from '@/data/trip-reviews';
@@ -202,6 +203,38 @@ describe('completing the check-in', () => {
     expect(mockReplace).toHaveBeenCalledWith({ pathname: '/trip/[id]', params: { id: ARRIVING } });
   });
 
+  /**
+   * Brief item 1: "You are checked in" only after the write lands. A write
+   * that did not land keeps the draft and the screen, unlocks nothing, and
+   * says so.
+   */
+  it('keeps the draft and the screen, and says so, when the write does not land', async () => {
+    writeFixture(`checkin.draft:${ARRIVING}`, {
+      documentType: 'national_id',
+      documentNumber: '1199080012345678',
+      issuingCountry: 'RW',
+      photos: [{ uri: 'file:///doc.jpg', width: 1200, height: 800 }],
+      address: { country: 'RW', street: 'KG 11 Ave 24', district: 'Gasabo', addressText: '' },
+      step: 2,
+    });
+    const spy = jest
+      .spyOn(tripsData, 'useCheckInTrip')
+      .mockReturnValue({ checkIn: async () => 'error', status: 'idle' });
+    try {
+      renderInScheme(guest(<TripCheckIn bookingId={ARRIVING} />), 'light');
+      await waitFor(() => expect(screen.getByText(en['checkin.finish'])).toBeTruthy());
+      fireEvent.press(screen.getByLabelText(en['checkin.finish']));
+
+      await waitFor(() => expect(screen.getByText(en['checkin.saveFailed'])).toBeTruthy());
+      expect(screen.queryByText(en['checkin.doneToast'])).toBeNull();
+      expect(mockReplace).not.toHaveBeenCalled();
+      // Nothing typed is lost.
+      expect(readCheckInDraft(ARRIVING).documentNumber).toBe('1199080012345678');
+    } finally {
+      spy.mockRestore();
+    }
+  });
+
   it('clears the draft once it has committed', async () => {
     writeFixture(`checkin.draft:${ARRIVING}`, {
       documentType: 'national_id',
@@ -218,6 +251,41 @@ describe('completing the check-in', () => {
 
     await settle();
     expect(readCheckInDraft(ARRIVING).documentNumber).toBe('');
+  });
+});
+
+describe('a trip read that failed', () => {
+  it('is an error with a retry, not "this check-in is not open" (GK-17)', async () => {
+    const spy = jest.spyOn(tripsData, 'useTrip').mockReturnValue({
+      trip: undefined,
+      status: 'error',
+      error: new Error('Not Found'),
+      retry: jest.fn(),
+    });
+    try {
+      renderInScheme(guest(<TripCheckIn bookingId={ARRIVING} />), 'light');
+      await waitFor(() => expect(screen.getByText(en['state.errorTitle'])).toBeTruthy());
+      expect(screen.queryByText(en['checkin.notFoundTitle'])).toBeNull();
+      expect(screen.getByText(en['state.retry'])).toBeTruthy();
+    } finally {
+      spy.mockRestore();
+    }
+  });
+
+  it('is an error with a retry on the review sheet too (GK-17)', async () => {
+    const spy = jest.spyOn(tripsData, 'useTrip').mockReturnValue({
+      trip: undefined,
+      status: 'error',
+      error: new Error('Not Found'),
+      retry: jest.fn(),
+    });
+    try {
+      renderInScheme(guest(<TripReviewSheet id={COMPLETED} />), 'light');
+      await waitFor(() => expect(screen.getByText(en['state.errorTitle'])).toBeTruthy());
+      expect(screen.queryByText(en['review.notFoundTitle'])).toBeNull();
+    } finally {
+      spy.mockRestore();
+    }
   });
 });
 
@@ -243,7 +311,8 @@ describe.each(SCHEMES)('The review sheet in the %s scheme', (scheme) => {
   it('asks the six categories and explains the double blind before the button', async () => {
     renderInScheme(guest(<TripReviewSheet id={COMPLETED} />), scheme);
 
-    await waitFor(() => expect(screen.getByText(en['review.title'])).toBeTruthy());
+    await waitFor(() => expect(screen.getByText(en['review.cleanliness'])).toBeTruthy());
+    expect(screen.getByText(en['review.title'])).toBeTruthy();
     for (const label of [
       en['review.cleanliness'],
       en['review.accuracy'],
@@ -285,9 +354,17 @@ describe('the review sheet', () => {
     expect(screen.getByLabelText(en['review.submit']).props.accessibilityState.disabled).toBe(true);
   });
 
+  it('names no reviewer the server has not given, never the fixture persona', async () => {
+    renderInScheme(guest(<TripReviewSheet id={COMPLETED} />), 'light');
+    await waitFor(() => expect(screen.getByText(en['review.doubleBlindTitle'])).toBeTruthy());
+    // No session here, so no server name: the name line is left out entirely.
+    expect(screen.queryByText(/Yours appears as/)).toBeNull();
+    expect(screen.queryByText(/Samuel/)).toBeNull();
+  });
+
   it('writes a review that is not published, and says so', async () => {
     renderInScheme(guest(<TripReviewSheet id={COMPLETED} />), 'light');
-    await waitFor(() => expect(screen.getByText(en['review.title'])).toBeTruthy());
+    await waitFor(() => expect(screen.getByText(en['review.cleanliness'])).toBeTruthy());
 
     rateAll();
     await waitFor(() =>

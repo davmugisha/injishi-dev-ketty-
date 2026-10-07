@@ -38,7 +38,7 @@ export const en = {
 
   /* ----------------------------------------------- step 1, dates and guests */
   'book.roomAt': '{room} · {place}',
-  'book.perNight': '/ night',
+  'book.perNight': 'per guest / night',
   'book.when': 'When',
   'book.who': 'Who is coming',
   'book.pickDates': 'Pick your check-in and check-out.',
@@ -49,12 +49,12 @@ export const en = {
   'book.increment': 'One more {label}',
   'book.decrement': 'One fewer {label}',
   'book.stepperValue': '{label}: {count}',
-  'book.rateTimesNights': '{rate} × {nights}',
   'book.runningTotal': 'Accommodation so far',
   'book.totalLabel': 'Total',
   'book.beforeFees': 'Fees are added at the next step.',
 
   /* --------------------------------------------------- step 2, your booking */
+  'book.factStay': 'Stay',
   'book.factRoom': 'Room type',
   'book.factDates': 'Dates',
   'book.factGuests': 'Guests',
@@ -80,10 +80,8 @@ export const en = {
   'book.howYouPay': 'How you pay',
   'book.method.momo': 'MTN MoMo',
   'book.method.airtel': 'Airtel Money',
-  'book.method.card': 'Credit or debit card',
   'book.methodHint.momo': 'Approve the prompt on your handset',
   'book.methodHint.airtel': 'Approve the prompt on your handset',
-  'book.methodHint.card': 'Visa, Mastercard, American Express',
   'book.mobileNumber': 'Mobile number',
   'book.mobilePlaceholder': '78X XXX XXX',
   'book.phoneNineDigits': 'A Rwandan mobile number is nine digits, like 0788 123 456.',
@@ -95,17 +93,6 @@ export const en = {
   'book.phoneOtherNetwork': 'That number is on {network}. Pick {network} above.',
   'book.phonePrompt': 'We will send the prompt to {number}.',
   'book.or': 'or',
-  'book.cardNumber': 'Card number',
-  'book.cardExpiry': 'Expiry',
-  'book.cardCvv': 'Security code',
-  'book.cardNumberPlaceholder': '4242 4242 4242 4242',
-  'book.cardExpiryPlaceholder': 'MM / YY',
-  'book.cardCvvPlaceholder': 'CVV',
-  'book.cardShort': 'A card number is 13 to 19 digits.',
-  'book.cardChecksum': 'Check the card number, a digit is off.',
-  'book.expiryFormat': 'Use MM / YY, like 09 / 28.',
-  'book.expiryPast': 'That card has expired.',
-  'book.cvvShort': 'The security code is 3 digits, or 4 on American Express.',
   'book.escrowTitle': 'Accommodation and fee',
   'book.escrowBody':
     'Paid into escrow at booking and released to the host after check-in. Nothing is stored for a future charge.',
@@ -122,11 +109,19 @@ export const en = {
   'book.blockedParty': 'Too many guests for this room type.',
   'book.blockedRules': 'Tick the house rules to continue.',
   'book.blockedHandset': 'Enter the number the payment prompt goes to.',
-  'book.blockedCard': 'Complete the card details.',
   'book.blockedSoldOut': 'This room type is gone for those dates.',
+  // The API refuses a stay over `MAX_NIGHTS`, so the stepper says so before
+  // the payment rather than after it (mobile audit 2026-10-05, GK-30).
+  'book.blockedTooLong': 'A stay can be at most {count} nights. Pick an earlier check-out.',
   'book.blockedOffline': 'You are offline. Paying needs a connection, and your choices are kept until you have one.',
   'book.payFailedTitle': 'The payment did not go through',
   'book.payFailedBody': 'Nothing was charged. Check the details and try again.',
+  // The rail said yes and the booking did not save on this phone. Said as it
+  // is, with the reference kept in view (brief item 1: no success after a
+  // failed write).
+  'book.saveFailedTitle': 'The booking did not save',
+  'book.saveFailedBody':
+    'Your payment was confirmed, but the booking did not save on this phone. Keep the reference above and try again.',
 
   /* ----------------------------------------------------------- 8. confirmed */
   'book.confirmedTitle': 'Booking confirmed',
@@ -146,6 +141,7 @@ export const en = {
   'book.confirmedNotFoundBody':
     'The booking this link points at is not on this device. Your Trips tab has every booking you have made.',
   'book.confirmedNotFoundAction': 'Open Trips',
+  'book.bookingLabel': 'your booking',
 } as const;
 
 /**
@@ -168,7 +164,8 @@ export const rw: Record<keyof typeof en, string> = {
   'book.notFoundAction': 'Subira mu gushakisha',
 
   'book.roomAt': '{room} · {place}',
-  'book.perNight': '/ ijoro',
+  // English until Kinyarwanda work starts: the unit changed meaning (GB-08).
+  'book.perNight': en['book.perNight'],
   'book.when': 'Ryari',
   'book.who': 'Abaza',
   'book.pickDates': 'Hitamo itariki wizamo n’iyo uzasohokaho.',
@@ -179,11 +176,11 @@ export const rw: Record<keyof typeof en, string> = {
   'book.increment': 'Ongeraho {label} umwe',
   'book.decrement': 'Kuraho {label} umwe',
   'book.stepperValue': '{label}: {count}',
-  'book.rateTimesNights': '{rate} × {nights}',
   'book.runningTotal': 'Icumbi kugeza ubu',
   'book.totalLabel': 'Igiteranyo',
   'book.beforeFees': 'Amafaranga ya serivisi yiyongera ku ntambwe ikurikira.',
 
+  'book.factStay': en['book.factStay'],
   'book.factRoom': 'Ubwoko bw’icyumba',
   'book.factDates': 'Amatariki',
   'book.factGuests': 'Abashyitsi',
@@ -208,10 +205,8 @@ export const rw: Record<keyof typeof en, string> = {
   'book.howYouPay': 'Uko wishyura',
   'book.method.momo': 'MTN MoMo',
   'book.method.airtel': 'Airtel Money',
-  'book.method.card': 'Ikarita yo kwishyura',
   'book.methodHint.momo': 'Emeza ubutumwa buza kuri telefone yawe',
   'book.methodHint.airtel': 'Emeza ubutumwa buza kuri telefone yawe',
-  'book.methodHint.card': 'Visa, Mastercard, American Express',
   'book.mobileNumber': 'Numero ya telefone',
   'book.mobilePlaceholder': '78X XXX XXX',
   'book.phoneNineDigits': 'Numero yo mu Rwanda igizwe n’imibare icyenda, urugero 0788 123 456.',
@@ -219,17 +214,6 @@ export const rw: Record<keyof typeof en, string> = {
   'book.phoneOtherNetwork': 'Iyo numero iri kuri {network}. Hitamo {network} haruguru.',
   'book.phonePrompt': 'Ubutumwa tuzabwohereza kuri {number}.',
   'book.or': 'cyangwa',
-  'book.cardNumber': 'Numero y’ikarita',
-  'book.cardExpiry': 'Itariki irangiriraho',
-  'book.cardCvv': 'Umubare w’umutekano',
-  'book.cardNumberPlaceholder': '4242 4242 4242 4242',
-  'book.cardExpiryPlaceholder': 'MM / YY',
-  'book.cardCvvPlaceholder': 'CVV',
-  'book.cardShort': 'Numero y’ikarita igizwe n’imibare 13 kugeza kuri 19.',
-  'book.cardChecksum': 'Reba numero y’ikarita, hari umubare utari wo.',
-  'book.expiryFormat': 'Koresha MM / YY, urugero 09 / 28.',
-  'book.expiryPast': 'Iyo karita yararangiye.',
-  'book.cvvShort': 'Umubare w’umutekano ni 3, cyangwa 4 kuri American Express.',
   'book.escrowTitle': 'Icumbi n’amafaranga ya serivisi',
   'book.escrowBody':
     'Ashyirwa mu bubiko bwizewe igihe ufata, agahabwa nyir’aho umaze kwinjira. Nta kintu kibikwa ngo kizishyuzwe ubutaha.',
@@ -245,12 +229,14 @@ export const rw: Record<keyof typeof en, string> = {
   'book.blockedParty': 'Abashyitsi barenze ubushobozi bw’iki cyumba.',
   'book.blockedRules': 'Emeza amabwiriza y’urugo kugira ngo ukomeze.',
   'book.blockedHandset': 'Andika numero ubutumwa bwo kwishyura buzagendaho.',
-  'book.blockedCard': 'Uzuza amakuru y’ikarita.',
   'book.blockedSoldOut': 'Iki cyumba nticyakiboneka kuri ayo matariki.',
+  'book.blockedTooLong': en['book.blockedTooLong'],
   'book.blockedOffline':
     'Nta murandasi ufite. Kwishyura bisaba umurandasi, kandi ibyo wahisemo birabikwa kugeza ubonye.',
   'book.payFailedTitle': 'Ubwishyu ntibwagenze neza',
   'book.payFailedBody': 'Nta mafaranga yavuyeho. Reba amakuru maze wongere ugerageze.',
+  'book.saveFailedTitle': en['book.saveFailedTitle'],
+  'book.saveFailedBody': en['book.saveFailedBody'],
 
   'book.confirmedTitle': 'Ifatabuguzi ryemejwe',
   'book.requestedTitle': 'Icyifuzo cyoherejwe',
@@ -269,4 +255,5 @@ export const rw: Record<keyof typeof en, string> = {
   'book.confirmedNotFoundBody':
     'Ifatabuguzi iyi link yerekeza kuri ryo ntiriri kuri iyi telefone. Igice cy’Ingendo gifite ayo wafashe yose.',
   'book.confirmedNotFoundAction': 'Fungura Ingendo',
+  'book.bookingLabel': en['book.bookingLabel'],
 };

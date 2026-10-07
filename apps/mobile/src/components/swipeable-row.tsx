@@ -53,6 +53,20 @@ export interface SwipeableRowProps {
 /** The width the panel opens to. One action, one comfortable target. */
 const PANEL = 88;
 
+/**
+ * The ink the palette pairs with a fill. The label used to be `surface1` on
+ * every tone, which put light text on the success green (about 2.2:1 in light)
+ * and dark text on the danger red in dark (about 3.7:1), under the 4.5:1 floor
+ * for 12pt text (mobile audit 2026-10-05, XC-13). The status fills each carry
+ * a designed foreground (ADR-025); anything else keeps the old ink.
+ */
+function inkOn(tone: keyof Palette, c: Palette): string {
+  if (tone.startsWith('success')) return c.textOnSuccess;
+  if (tone.startsWith('warning')) return c.textOnWarning;
+  if (tone.startsWith('danger')) return c.textOnDanger;
+  return c.surface1;
+}
+
 function ActionPanel({
   action,
   side,
@@ -87,8 +101,8 @@ function ActionPanel({
       }}
     >
       <Animated.View style={[{ alignItems: 'center', gap: 4 }, animated]}>
-        <Icon name={action.icon} size={20} color={c.surface1} />
-        <Text weight="semibold" size="xs" color={c.surface1}>
+        <Icon name={action.icon} size={20} color={inkOn(action.tone, c)} />
+        <Text weight="semibold" size="xs" color={inkOn(action.tone, c)}>
           {action.label}
         </Text>
       </Animated.View>

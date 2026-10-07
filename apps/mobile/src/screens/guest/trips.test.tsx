@@ -20,10 +20,12 @@
  */
 import { type ReactElement } from 'react';
 import { fireEvent, screen, waitFor } from '@testing-library/react-native';
+import { computeBreakdown } from '@injishi/contracts';
 import { renderInScheme, SCHEMES } from '@/test-utils';
 import { DomainProvider } from '@/domain';
 import { ToastProvider } from '@/components';
 import { resetFixtures, writeFixture } from '@/data/use-fixture-mutation';
+import * as tripsData from '@/data/trips';
 import { TRIPS_KEY, TRIPS, arrivalAt, checkInOpensAt, type Trip } from '@/data/trips';
 import { REVIEWS_KEY, TRIP_REVIEW_SEEDS } from '@/data/trip-reviews';
 import { en, rw } from '@/i18n/messages';
@@ -99,11 +101,19 @@ beforeEach(() => {
  * describe sits at the top rather than beside the other list states.
  */
 describe('the cold read', () => {
-  it('skeletons before any row exists', () => {
+  it('skeletons before any row exists, and counts nothing on the tabs yet', async () => {
     renderInScheme(guest(<Trips />), 'light');
     expect(
       screen.getByLabelText(en['state.loadingList'].replace('{label}', en['trips.listLabel'])),
     ).toBeTruthy();
+    // "Upcoming 0" and "Past 0" while the read is in flight are misleading
+    // zeros (mobile audit 2026-10-05, GK-23): the tabs carry no count yet.
+    expect(screen.getByLabelText(en['trips.tabUpcoming'])).toBeTruthy();
+    expect(screen.getByLabelText(en['trips.tabPast'])).toBeTruthy();
+    expect(screen.queryByLabelText(`${en['trips.tabUpcoming']}, 0`)).toBeNull();
+
+    // Once it lands, they count.
+    await screen.findByLabelText(`${en['trips.tabPast']}, ${tripsData.pastTrips(TRIPS).length}`);
   });
 });
 
@@ -148,31 +158,45 @@ describe('the Trips list states', () => {
   });
 });
 
-describe('the review row', () => {
-  it('offers a review on a completed stay inside the window', async () => {
+/**
+ * No way into reviews (mobile audit 2026-10-05, GK-11). They are hidden in the
+ * v1.0 cut and `trip/[id]/review` is closed for everyone, so a row that pushed
+ * it bounced the guest home.
+ */
+describe('reviews, hidden in v1', () => {
+  it('offers no review on a completed stay, even inside the window', async () => {
     only(fixture(COMPLETED));
     renderInScheme(guest(<Trips />), 'light');
     await showPast(1);
 
-    await waitFor(() => expect(screen.getByText(en['trips.leaveReview'])).toBeTruthy());
+    await waitFor(() => expect(screen.getByText(fixture(COMPLETED).property)).toBeTruthy());
+    expect(screen.queryByText(en['trips.leaveReview'])).toBeNull();
+    expect(screen.queryByText(en['trips.reviewClosed'])).toBeNull();
   });
 
-  it('shows the rating instead once one exists', async () => {
+  it('shows no rating line on a stay that was reviewed', async () => {
     writeFixture<Trip[]>(TRIPS_KEY, [fixture(REVIEWED)]);
     writeFixture(REVIEWS_KEY, TRIP_REVIEW_SEEDS);
     renderInScheme(guest(<Trips />), 'light');
     await showPast(1);
 
     await waitFor(() => expect(screen.getByText(fixture(REVIEWED).property)).toBeTruthy());
-    expect(screen.queryByText(en['trips.leaveReview'])).toBeNull();
+    expect(screen.queryByText(/You rated this stay/)).toBeNull();
   });
 
-  it('never offers one on a cancelled stay — nobody stayed in it', async () => {
+  it('still says a cancelled stay was cancelled', async () => {
     only(fixture(CANCELLED));
     renderInScheme(guest(<Trips />), 'light');
     await showPast(1);
 
     await waitFor(() => expect(screen.getByText(en['trip.cancelledNote'])).toBeTruthy());
+    expect(screen.queryByText(en['trips.leaveReview'])).toBeNull();
+  });
+
+  it('has no review link on trip detail either', async () => {
+    only(fixture(COMPLETED));
+    renderInScheme(guest(<TripDetail id={COMPLETED} />), 'light');
+    await waitFor(() => expect(screen.getByText(en['trip.arrivalClosed'])).toBeTruthy());
     expect(screen.queryByText(en['trips.leaveReview'])).toBeNull();
   });
 });
@@ -188,6 +212,84 @@ describe.each(SCHEMES)('Trip detail in the %s scheme', (scheme) => {
     expect(screen.getByText(en['trip.getDirections'])).toBeTruthy();
     // The adapter mode is printed where the money is, not discovered later.
     expect(screen.getByText(en['trip.mockAdapter'])).toBeTruthy();
+  });
+});
+
+/** Mobile audit 2026-10-05: the money lines say what they are (GK-15). */
+describe('the price on trip detail', () => {
+  it('labels the lines as the booking did, not "Nightly rate" or "Service and taxes"', async () => {
+    renderInScheme(guest(<TripDetail id={ARRIVING} />), 'light');
+    await waitFor(() => expect(screen.getByText(en['book.accommodation'])).toBeTruthy());
+    expect(screen.getByText(en['book.fee'])).toBeTruthy();
+    expect(screen.queryByText('Nightly rate')).toBeNull();
+    expect(screen.queryByText('Service and taxes')).toBeNull();
+  });
+
+  it('prints the non-refundable discount, so the lines add up to the total', async () => {
+    const base = fixture(ARRIVING);
+    const breakdown = computeBreakdown({
+      nightlyRateRwf: 145000,
+      nights: 3,
+      nonRefundable: true,
+      guests: 2,
+    });
+    only({
+      ...base,
+      breakdown,
+      fees: breakdown.serviceFeeRwf,
+      total: breakdown.grossRwf,
+    });
+    renderInScheme(guest(<TripDetail id={ARRIVING} />), 'light');
+
+    await waitFor(() => expect(screen.getByText(en['book.discount'])).toBeTruthy());
+    expect(
+      breakdown.accommodationRwf - breakdown.nonRefundableDiscountRwf + breakdown.serviceFeeRwf,
+    ).toBe(breakdown.grossRwf);
+    expect(screen.getByText(breakdown.grossRwf.toLocaleString('en-US'))).toBeTruthy();
+  });
+
+  it('promises no reply time under the host (GK-26)', async () => {
+    renderInScheme(guest(<TripDetail id={ARRIVING} />), 'light');
+    await waitFor(() => expect(screen.getByText(fixture(ARRIVING).host.name)).toBeTruthy());
+    expect(screen.queryByText(/answers within an hour/i)).toBeNull();
+  });
+});
+
+/**
+ * A failed read is an error with a retry, never "not found" or "locked", and
+ * never the server's raw text (mobile audit 2026-10-05, GK-17 and GB-27).
+ */
+describe('a trip read that failed', () => {
+  const failed = () =>
+    jest.spyOn(tripsData, 'useTrip').mockReturnValue({
+      trip: undefined,
+      status: 'error',
+      error: new Error('Not Found'),
+      retry: jest.fn(),
+    });
+
+  it('on trip detail', async () => {
+    const spy = failed();
+    try {
+      renderInScheme(guest(<TripDetail id={ARRIVING} />), 'light');
+      await waitFor(() => expect(screen.getByText(en['state.errorTitle'])).toBeTruthy());
+      expect(screen.queryByText('Not Found')).toBeNull();
+      expect(screen.getByText(en['state.retry'])).toBeTruthy();
+    } finally {
+      spy.mockRestore();
+    }
+  });
+
+  it('on the arrival guide', async () => {
+    const spy = failed();
+    try {
+      renderInScheme(guest(<TripArrivalGuide id={ARRIVING} />), 'light');
+      await waitFor(() => expect(screen.getByText(en['state.errorTitle'])).toBeTruthy());
+      expect(screen.queryByText(en['trip.notFound'])).toBeNull();
+      expect(screen.getByText(en['state.retry'])).toBeTruthy();
+    } finally {
+      spy.mockRestore();
+    }
   });
 });
 

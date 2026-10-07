@@ -36,13 +36,24 @@
  * the stored surface is what restores it, so a seat that has been revoked
  * cannot come back from the keychain.
  */
-import { createContext, useCallback, useContext, useMemo, useState, type ReactNode } from 'react';
+import {
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type ReactNode,
+} from 'react';
 import { Platform } from 'react-native';
 import * as SecureStore from 'expo-secure-store';
 import type { WorkspaceAccess } from '@injishi/contracts';
 import type { Domain } from '@/components/domain-badge';
 import type { Surface, WorkspaceEntry, WorkspaceKind } from '@/data/rentals';
+import { useOptionalSession } from '@/session';
 import { useOptionalWorkspace } from '@/workspace';
+import { setCrashTags } from '@/lib/crash-reporter';
 
 export type { Domain, Surface };
 
@@ -264,6 +275,17 @@ async function writeStoredSurface(s: Surface): Promise<void> {
   }
 }
 
+/** Forget the stored seat. A failed delete costs the next person one flash. */
+async function clearStoredSeat(): Promise<void> {
+  if (!persistable) return;
+  try {
+    await SecureStore.deleteItemAsync(STORE_KEY);
+    await SecureStore.deleteItemAsync(SURFACE_KEY);
+  } catch {
+    // Same trade as the writes above.
+  }
+}
+
 export function DomainProvider({
   initial = 'residence',
   initialSurface,
@@ -291,6 +313,30 @@ export function DomainProvider({
   // has not answered yet" as far as this file is concerned. See
   // `useOptionalWorkspace`.
   const resolved = useOptionalWorkspace();
+
+  /**
+   * A session that ends takes its seat with it (mobile audit SA-19).
+   *
+   * The stored domain and surface belong to the person who chose them. Kept
+   * across a sign out, the next person to sign in on this phone opened on the
+   * previous one's tab set until their own seats resolved. Only the TRANSITION
+   * from signed in to signed out clears it, so a cold start never throws away
+   * a stored seat it has not yet had the chance to confirm.
+   */
+  const sessionStatus = useOptionalSession()?.status;
+  const wasSignedIn = useRef(sessionStatus === 'authenticated');
+  useEffect(() => {
+    if (sessionStatus === 'authenticated') {
+      wasSignedIn.current = true;
+      return;
+    }
+    if (sessionStatus === 'anonymous' && wasSignedIn.current) {
+      wasSignedIn.current = false;
+      setDomainState('residence');
+      setStoredSurface('tenant');
+      void clearStoredSeat();
+    }
+  }, [sessionStatus]);
 
   /**
    * Every seat, in the shape the screens read.
@@ -323,6 +369,12 @@ export function DomainProvider({
    * person left rather than a default.
    */
   const surface = resolved?.active ? surfaceFor(workspace, domain) : storedSurface;
+
+  // Every crash report names the seat it happened in (ADR-063 AC-6): two tags,
+  // never a workspace or a person. A no op when reporting is not running.
+  useEffect(() => {
+    setCrashTags({ surface, domain });
+  }, [surface, domain]);
 
   // Both setters read the current values out of the closure rather than out of
   // a state updater. A `setState(prev => { write(prev); return prev })` fires

@@ -28,7 +28,13 @@ import {
   type ReactNode,
 } from 'react';
 
-import { api, setActiveWorkspaceId, unwrap, type ApiResult } from './lib/api';
+import {
+  api,
+  setActiveWorkspaceId,
+  setForbiddenHandler,
+  unwrap,
+  type ApiResult,
+} from './lib/api';
 import { ENDPOINTS } from './lib/endpoints';
 import { meKeys } from './lib/query-keys';
 import { useSession } from './session';
@@ -114,6 +120,24 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
    * waiting for the list to be refetched.
    */
   const [chosenId, setChosenId] = useState<string | null>(null);
+
+  // A session that ends takes its seat choice with it. Without this, the next
+  // person to sign in on this phone starts in the previous one's workspace
+  // whenever they happen to hold the same id (a shared front desk phone), and
+  // their first queries go out under it (mobile audit SA-19).
+  useEffect(() => {
+    if (status === 'anonymous') setChosenId(null);
+  }, [status]);
+
+  // A 403 means a permission this app is offering may have been revoked since
+  // `/me/workspaces` last answered. Ask again (mobile audit XC-04). `api.ts`
+  // throttles the burst; this only says what to refresh.
+  useEffect(() => {
+    setForbiddenHandler(() => {
+      void queryClient.invalidateQueries({ queryKey: meKeys.workspaces() });
+    });
+    return () => setForbiddenHandler(null);
+  }, [queryClient]);
 
   const workspaces = useMemo(() => data?.workspaces ?? [], [data]);
 

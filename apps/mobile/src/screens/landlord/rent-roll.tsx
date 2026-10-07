@@ -8,7 +8,7 @@
  * line — the progress bar under the tiles is R2's hero card, folded into R1's
  * grid rather than drawn twice.
  *
- * Three departures from the drawing, each deliberate:
+ * Four departures from the drawing, each deliberate:
  *
  *   - **R1's bell is a `WorkspaceChip`.** The landlord tab set is Rent roll ·
  *     Leases · Repairs · Account — there is no Inbox behind a bell, so the bell
@@ -17,9 +17,23 @@
  *     goes somewhere: the switcher.
  *   - **R1's "Filter" link is gone.** R2's segmented control is on the same
  *     screen and does the same job; two filters for one list is one too many.
+ *   - **R1's "Remind" is gone.** It toasted "Reminder sent by SMS" and sent
+ *     nothing. There is no SMS channel, and the one honest channel, the lease
+ *     thread the web app writes into, has nowhere for the reply to land: the
+ *     landlord tab set has no Inbox. A button that can only say "nothing was
+ *     sent" is a dead control, so the row carries Record alone until that
+ *     decision is made (mobile audit 2026-10-05, LL-09).
  *   - **The count line reads seven where the Leases tab reads eight.** A draft
  *     lease bills no rent (FL21 — the schedule starts at signing), so it is not
  *     on the roll. See `src/data/landlord.ts` for the full reconciliation.
+ *
+ * **One row per lease, labelled from its own month.** The server returns every
+ * month every lease was ever billed, and this screen used to draw them all
+ * under a fixed "August 2026": the same tenant once per month, every month in
+ * one set of tiles, and the eyebrow naming a town no workspace carries. It now
+ * shows each lease's newest charge, names the month from the rows themselves,
+ * puts that month on every row and in what a screen reader hears, and counts
+ * leases rather than rows (mobile audit 2026-10-05, LL-01).
  *
  * `Screen.List` rather than `Screen` (ADR-031): one row per billing lease, and
  * that grows with the building.
@@ -28,20 +42,19 @@ import { useState } from 'react';
 import { View } from 'react-native';
 import { useRouter } from 'expo-router';
 import {
-  AdapterChip,
   Avatar,
   Badge,
   Button,
   ChipGroup,
   EmptyState,
   ErrorState,
+  formatMoney,
   MoneyAmount,
   OfflineNote,
   PressableScale,
   Screen,
   Text,
   useOffline,
-  useToast,
   WorkspaceChip,
 } from '@/components';
 import { useTheme } from '@/theme/theme';
@@ -50,14 +63,18 @@ import { useQuery } from '@tanstack/react-query';
 import { useDomain } from '@/domain';
 import { useT, type MessageKey, type Translate } from '@/i18n/i18n';
 import {
-  LANDLORD_TOWN,
-  RENT_PERIOD,
+  isPartPaid,
+  newestPerLease,
+  outstandingOf,
+  periodLabel,
   rentTotals,
+  rollPeriodLabel,
   shortMoney,
   type RentRow,
   type RentTotals,
 } from '@/data/landlord';
 import { fetchRentRoll } from '@/queries/landlord';
+import { ApiError } from '@/lib/api';
 import { landlordKeys } from '@/lib/query-keys';
 import { useWorkspace } from '@/workspace';
 import type { RentState } from '@/data/rentals';
@@ -132,7 +149,15 @@ function StatTile({
   );
 }
 
-function CollectionBar({ totals, t }: { totals: RentTotals; t: Translate }) {
+function CollectionBar({
+  totals,
+  month,
+  t,
+}: {
+  totals: RentTotals;
+  month: string;
+  t: Translate;
+}) {
   const { c, radius } = useTheme();
 
   return (
@@ -140,7 +165,7 @@ function CollectionBar({ totals, t }: { totals: RentTotals; t: Translate }) {
       accessible
       accessibilityRole="progressbar"
       accessibilityLabel={t('landlord.rent.progressLabel', {
-        month: RENT_PERIOD,
+        month,
         percent: totals.percent,
       })}
       accessibilityValue={{ min: 0, max: 100, now: totals.percent }}
@@ -196,16 +221,26 @@ function RentRowCard({
   row,
   t,
   onOpen,
-  onRemind,
   onRecord,
 }: {
   row: RentRow;
   t: Translate;
   onOpen: () => void;
-  onRemind: () => void;
   onRecord: () => void;
 }) {
   const { c, radius, shadow } = useTheme();
+  const month = periodLabel(row.periodMonth, t) ?? '';
+  const partPaid = isPartPaid(row);
+  /**
+   * The figure on the row is what is still OWED until the month settles, then
+   * the charge. A part-paid month used to show its full charge, so a tenant who
+   * had handed over 150,000 of 410,000 read as owing 410,000, and the Record
+   * sheet one tap away said 260,000 (mobile audit 2026-10-05, LL-10).
+   */
+  const figure = row.state === 'paid' ? row.amount : outstandingOf(row);
+  const status = partPaid
+    ? `${t(`status.rent.${row.state}` as const)}, ${t('landlord.rent.chipPartPaid')}`
+    : t(`status.rent.${row.state}` as const);
 
   const chip =
     row.state === 'paid'
@@ -237,7 +272,15 @@ function RentRowCard({
       }}
     >
       <PressableScale
-        accessibilityLabel={t('landlord.rent.openRow', { name: row.name, unit: row.unit })}
+        // The pressable is one element to a screen reader, so its label is
+        // the whole row: who, which month, where it stands and what is owed.
+        accessibilityLabel={t('landlord.rent.openRow', {
+          name: row.name,
+          unit: row.unit,
+          month,
+          status,
+          amount: formatMoney(figure),
+        })}
         onPress={onOpen}
       >
         <View
@@ -254,9 +297,19 @@ function RentRowCard({
             <Text weight="semibold" size="sm" color="textStrong" numberOfLines={1}>
               {row.name} · {row.unit}
             </Text>
-            <Badge tone={chip.tone}>{chip.label}</Badge>
+            {/* The month on the row itself: a "Paid 05 Oct" chip alone does
+                not say WHICH month was paid. */}
+            {month ? (
+              <Text size="xs" color="textMuted">
+                {month}
+              </Text>
+            ) : null}
+            <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6 }}>
+              <Badge tone={chip.tone}>{chip.label}</Badge>
+              {partPaid ? <Badge tone="warning">{t('landlord.rent.chipPartPaid')}</Badge> : null}
+            </View>
           </View>
-          <MoneyAmount value={row.amount} strong size="md" />
+          <MoneyAmount value={figure} strong size="md" />
         </View>
       </PressableScale>
 
@@ -277,19 +330,14 @@ function RentRowCard({
           }}
         >
           <Button
-            variant="ghost"
-            size="sm"
-            leadingIcon="bell"
-            accessibilityLabel={t('landlord.rent.remindA11y', { name: row.name })}
-            onPress={onRemind}
-          >
-            {t('landlord.rent.remind')}
-          </Button>
-          <Button
             variant={overdue ? 'primary' : 'outline'}
             size="sm"
             leadingIcon="check"
-            accessibilityLabel={t('landlord.rent.recordA11y', { name: row.name, unit: row.unit })}
+            accessibilityLabel={t('landlord.rent.recordA11y', {
+              name: row.name,
+              unit: row.unit,
+              month,
+            })}
             onPress={onRecord}
           >
             {t('landlord.rent.record')}
@@ -302,11 +350,11 @@ function RentRowCard({
 
 /* ── The screen ─────────────────────────────────────────────────────────── */
 
+
 export function RentRoll() {
   const { space } = useTheme();
   const router = useRouter();
   const t = useT();
-  const toast = useToast();
   const { workspace } = useDomain();
   const [filter, setFilter] = useState<Filter>('all');
 
@@ -355,31 +403,66 @@ export function RentRoll() {
   };
 
   const offline = useOffline();
-  const rows = read.data ?? [];
+  // One row per lease: its newest charge. See `newestPerLease`.
+  const rows = read.data ? newestPerLease(read.data) : [];
   const totals = rentTotals(rows);
+  // The month comes from the rows, never from a constant. Undefined until there
+  // are rows to read it from.
+  const period = rollPeriodLabel(rows, t);
+  /**
+   * Figures only once there are figures (mobile audit 2026-10-05, LL-12).
+   *
+   * `Screen.List` draws this header while the read is in flight, and the tiles
+   * used to be totalled from `read.data ?? []` meanwhile: "RWF 0 · 0 leases",
+   * "nothing late", "0% collected" and "Overdue · 0", stated as facts about a
+   * money screen that had not answered yet. So the counts wait for the data,
+   * and the tiles and the legend wait for a row to describe.
+   */
+  const loaded = read.data !== undefined;
+  const billed = rows.length > 0;
 
   const shown = rows
     .filter((r) => filter === 'all' || r.state === filter)
     .slice()
     .sort((a, b) => RANK[a.state] - RANK[b.state]);
 
-  const count = (s: RentState) => rows.filter((r) => r.state === s).length;
+  // Rows are one per lease, so a count of rows here IS a count of leases.
+  const count = (s: RentState) => (loaded ? rows.filter((r) => r.state === s).length : undefined);
   const leases = (n: number) =>
     n === 1 ? t('landlord.rent.oneLease') : t('landlord.rent.leaseCount', { count: n });
 
-  /** Why THIS list is empty, per filter. A reason, never a bare zero. */
+  /**
+   * Why THIS list is empty, per filter. A reason, never a bare zero. A roll
+   * with no rows at all gets the "nothing billed" reason whatever the filter,
+   * because it is the truer of the two and the only one with no month in it.
+   */
   const empty: { title: MessageKey; body: MessageKey } =
-    filter === 'paid'
-      ? { title: 'landlord.rent.emptyPaidTitle', body: 'landlord.rent.emptyPaidBody' }
-      : filter === 'due'
-        ? { title: 'landlord.rent.emptyDueTitle', body: 'landlord.rent.emptyDueBody' }
-        : filter === 'overdue'
-          ? { title: 'landlord.rent.emptyOverdueTitle', body: 'landlord.rent.emptyOverdueBody' }
-          : { title: 'landlord.rent.emptyAllTitle', body: 'landlord.rent.emptyAllBody' };
+    !billed
+      ? { title: 'landlord.rent.emptyAllTitle', body: 'landlord.rent.emptyAllBody' }
+      : filter === 'paid'
+        ? { title: 'landlord.rent.emptyPaidTitle', body: 'landlord.rent.emptyPaidBody' }
+        : filter === 'due'
+          ? { title: 'landlord.rent.emptyDueTitle', body: 'landlord.rent.emptyDueBody' }
+          : filter === 'overdue'
+            ? { title: 'landlord.rent.emptyOverdueTitle', body: 'landlord.rent.emptyOverdueBody' }
+            : { title: 'landlord.rent.emptyAllTitle', body: 'landlord.rent.emptyAllBody' };
+
+  /**
+   * A refusal is an ANSWER, so it reads as one (mobile audit 2026-10-05, LL-14).
+   *
+   * A business still registering, a suspended one, or a member without the
+   * permission gets the server's own sentence as the message. It used to sit
+   * as small print under "It is worth another try", beside a Retry that could
+   * only ask the same question and get the same no. Retry stays for `failed`,
+   * where the server was not reached and another try can work.
+   */
+  const refusal =
+    read.error instanceof ApiError && read.error.kind === 'refused' ? read.error.message : null;
 
   return (
     <Screen.List<RentRow>
-      greeting={t('landlord.seat', { org: workspace.name, town: LANDLORD_TOWN })}
+      // The workspace's own name. It used to carry a fixture town as well.
+      greeting={workspace.name}
       title={t('landlord.rent.title')}
       action={
         <WorkspaceChip
@@ -396,67 +479,72 @@ export function RentRoll() {
               a rent ledger that is quietly stale is one somebody acts on.
               Session 11's audit found all three landlord lists without it. */}
           {offline ? <OfflineNote /> : null}
-          {/* The chip and the sentence under it are one disclosure, so they
-              sit together at the top rather than the sentence being a footnote
-              under a list nobody scrolls to the bottom of. R1 prints it last;
-              a mocked success is worth reading before the figures, not after. */}
-          <View style={{ gap: 8 }}>
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
-              <AdapterChip
-                label={t('landlord.mockAdapter')}
-                hint={t('landlord.mockAdapterHint')}
-              />
+          {/* What this ledger is, said before the figures. It used to be a
+              "Payments · mock adapter" chip over rows that ARE the ledger:
+              recording a payment here writes a real entry every seat in the
+              workspace reads, and it moves no money. That is the sentence now,
+              in every environment (mobile audit 2026-10-05, LL-13). */}
+          <View style={{ gap: 6 }}>
+            {period ? (
               <Text weight="semibold" size="sm" color="textMuted">
-                {RENT_PERIOD}
+                {period}
               </Text>
-            </View>
+            ) : null}
             <Text size="xs" color="textMuted" style={{ lineHeight: 17 }}>
               {t('landlord.rent.footnote')}
             </Text>
           </View>
 
-          <View style={{ gap: space[3] }}>
-            {/* `alignItems: stretch` so a tile whose label wrapped does not
-                leave its two neighbours short. */}
-            <View style={{ flexDirection: 'row', alignItems: 'stretch', gap: space[2] }}>
-              <StatTile
-                label={t('landlord.rent.collected')}
-                value={shortMoney(totals.collected)}
-                caption={leases(totals.collectedCount)}
-                tone="success"
-              />
-              <StatTile
-                label={t('landlord.rent.due')}
-                value={shortMoney(totals.due)}
-                caption={leases(totals.dueCount)}
-                tone="neutral"
-              />
-              <StatTile
-                label={t('landlord.rent.overdue')}
-                value={shortMoney(totals.overdue)}
-                caption={
-                  totals.worstDays === 0
-                    ? t('landlord.rent.nothingLate')
-                    : totals.worstDays === 1
-                      ? t('landlord.rent.oneDay')
-                      : t('landlord.rent.dayCount', { count: totals.worstDays })
-                }
-                tone="danger"
-              />
+          {billed ? (
+            <View style={{ gap: space[3] }}>
+              {/* `alignItems: stretch` so a tile whose label wrapped does not
+                  leave its two neighbours short. */}
+              <View style={{ flexDirection: 'row', alignItems: 'stretch', gap: space[2] }}>
+                <StatTile
+                  label={t('landlord.rent.collected')}
+                  value={shortMoney(totals.collected)}
+                  caption={leases(totals.collectedCount)}
+                  tone="success"
+                />
+                <StatTile
+                  label={t('landlord.rent.due')}
+                  value={shortMoney(totals.due)}
+                  caption={leases(totals.dueCount)}
+                  tone="neutral"
+                />
+                <StatTile
+                  label={t('landlord.rent.overdue')}
+                  value={shortMoney(totals.overdue)}
+                  caption={
+                    totals.worstDays === 0
+                      ? t('landlord.rent.nothingLate')
+                      : totals.worstDays === 1
+                        ? t('landlord.rent.oneDay')
+                        : t('landlord.rent.dayCount', { count: totals.worstDays })
+                  }
+                  tone="danger"
+                />
+              </View>
+              <CollectionBar totals={totals} month={period ?? ''} t={t} />
             </View>
-            <CollectionBar totals={totals} t={t} />
-          </View>
+          ) : null}
 
           <ChipGroup
             legend={
-              rows.length === 1
-                ? t('landlord.rent.oneBilled', { month: RENT_PERIOD })
-                : t('landlord.rent.billedCount', { count: rows.length, month: RENT_PERIOD })
+              billed
+                ? totals.leases === 1
+                  ? t('landlord.rent.oneBilled', { month: period ?? '' })
+                  : t('landlord.rent.billedCount', { count: totals.leases, month: period ?? '' })
+                : undefined
             }
             value={filter}
             onChange={(v) => setFilter(v as Filter)}
             items={[
-              { value: 'all', label: t('landlord.rent.filterAll'), count: rows.length },
+              {
+                value: 'all',
+                label: t('landlord.rent.filterAll'),
+                count: loaded ? rows.length : undefined,
+              },
               { value: 'paid', label: t('landlord.rent.filterPaid'), count: count('paid') },
               { value: 'due', label: t('landlord.rent.filterDue'), count: count('due') },
               {
@@ -469,7 +557,6 @@ export function RentRoll() {
         </>
       }
       data={shown}
-      // The API returns every charge, so one lease can hold a row per month.
       keyExtractor={(r) => `${r.leaseId}:${r.periodMonth ?? ''}`}
       renderItem={({ item }) => (
         <RentRowCard
@@ -477,9 +564,6 @@ export function RentRoll() {
           t={t}
           onOpen={() =>
             router.push({ pathname: '/lease/[id]', params: { id: item.leaseId } })
-          }
-          onRemind={() =>
-            toast.show(t('landlord.rent.reminderSent', { name: item.name }), 'warning')
           }
           onRecord={() =>
             router.push({
@@ -496,20 +580,24 @@ export function RentRoll() {
       loadingRows={4}
       empty={
         read.status === 'error' ? (
-          <ErrorState
-            title={t('state.errorTitle')}
-            body={t('state.errorBody', { label: t('landlord.rent.listLabel') })}
-            detail={read.error?.message}
-            onRetry={read.retry}
-          />
+          refusal ? (
+            <ErrorState title={t('landlord.rent.refusedTitle')} body={refusal} />
+          ) : (
+            <ErrorState
+              title={t('state.errorTitle')}
+              body={t('state.errorBody', { label: t('landlord.rent.listLabel') })}
+              detail={read.error?.message}
+              onRetry={read.retry}
+            />
+          )
         ) : (
           <View style={{ gap: space[4] }}>
             <EmptyState
               icon="coins"
               title={t(empty.title)}
-              body={t(empty.body, { month: RENT_PERIOD })}
+              body={t(empty.body, { month: period ?? '' })}
               action={
-                filter === 'all' ? null : (
+                filter === 'all' || !billed ? null : (
                   <Button variant="outline" size="sm" onPress={() => setFilter('all')}>
                     {t('landlord.rent.filterAll')}
                   </Button>

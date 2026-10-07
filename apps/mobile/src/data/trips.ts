@@ -35,6 +35,7 @@ import {
   readFixture,
   useFixtureMutation,
   useFixtureValue,
+  type MutationOutcome,
   type MutationStatus,
 } from './use-fixture-mutation';
 import { useFixture, type FixtureResult } from './use-fixture';
@@ -91,6 +92,13 @@ export interface Trip {
   id: string;
   stayId: string;
   property: string;
+  /**
+   * The Room type booked, by name. Optional because the seeded trips never
+   * recorded one; a booking made in the app does, so its confirmation can name
+   * the room rather than printing the property under "Room type" (mobile audit
+   * 2026-10-05, GK-15).
+   */
+  roomName?: string;
   location: string;
   /**
    * `YYYY-MM-DD`. A check-in is a calendar DAY, never an instant — see
@@ -538,7 +546,7 @@ function applyCheckIn(current: Trip[], bookingId: string): Trip[] {
  * identity itself is in `./check-in`.
  */
 export function useCheckInTrip(): {
-  checkIn: (bookingId: string) => Promise<void>;
+  checkIn: (bookingId: string) => Promise<MutationOutcome>;
   status: MutationStatus;
 } {
   const { mutate, status } = useFixtureMutation<Trip[], string>(

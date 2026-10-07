@@ -38,6 +38,16 @@
  * retry, not found with a way back to Explore, a property not taking bookings,
  * a property with every room gone, and a Room type with none left. Offline is
  * the shell's `OfflineBanner`, mounted once in `app/_layout.tsx`.
+ *
+ * ## What it does not say, because no data says it
+ *
+ * The page used to print a "Verified" badge on every host, "TIN on file ·
+ * usually replies within an hour", an escrow promise, an EBM e-invoice
+ * promise, and a guest score with a review count. `PropertyDetail` carries
+ * none of those facts, money is mock until a gateway exists, and reviews are
+ * hidden in v1 (mobile audit 2026-10-05, GB-03 and GB-07). Each comes back
+ * when a field from the API supports it: a verified mark, a payment mode from
+ * `/platform`, a review aggregate.
  */
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { ScrollView, View, type NativeScrollEvent, type NativeSyntheticEvent } from 'react-native';
@@ -56,9 +66,7 @@ import {
   HeartButton,
   Icon,
   ListRow,
-  ScoreChip,
   SectionLabel,
-  StatusBadge,
   Text,
   nightsBetween,
   useToast,
@@ -104,10 +112,11 @@ export function ListingDetailScreen({ id }: { id: string }) {
   if (read.status === 'error') {
     return (
       <Framed>
+        {/* No `detail`: it printed the server's raw text ("Property not
+            found.") under our own sentence (mobile audit 2026-10-05, GB-27). */}
         <ErrorState
           title={t('listing.errorTitle')}
           body={t('listing.errorBody')}
-          detail={read.error?.message}
           onRetry={read.retry}
         />
       </Framed>
@@ -173,12 +182,25 @@ function Loaded({ detail }: { detail: StayDetail }) {
 
   const saved = useSavedStays();
   const isSaved = saved.isSaved(stay.id);
+  /**
+   * The heart flips at once; the toast waits for the write and says what it
+   * did. Picking it from the intent claimed saves that had failed (brief item
+   * 1). Offline, the press is queued and the toast says so.
+   */
   const onToggleSave = useCallback(() => {
-    const next = saved.toggle(stay.id);
-    toast.show(
-      next ? t('listing.savedToast') : t('listing.unsavedToast'),
-      next ? 'success' : 'neutral',
-    );
+    const { next, settled } = saved.toggle(stay.id);
+    void settled.then((outcome) => {
+      if (outcome === 'done') {
+        toast.show(
+          next ? t('listing.savedToast') : t('listing.unsavedToast'),
+          next ? 'success' : 'neutral',
+        );
+      } else if (outcome === 'queued') {
+        toast.show(next ? t('saved.queuedSave') : t('saved.queuedRemove'), 'neutral');
+      } else {
+        toast.show(t('saved.toggleFailed'), 'danger');
+      }
+    });
   }, [saved, stay.id, t, toast]);
 
   /* -------------------------------------------------- the overlays it owns */
@@ -276,16 +298,8 @@ function Loaded({ detail }: { detail: StayDetail }) {
               </Text>
             </View>
 
-            {/* The score band. `ScoreChip` derives the word from the number
-                (ADR-022), so the two can never disagree. */}
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, marginTop: 2 }}>
-              <ScoreChip score={stay.score} />
-              <Text size="sm" color="textMuted">
-                {stay.reviews > 0
-                  ? t('listing.reviews', { count: stay.reviews })
-                  : t('listing.noReviews')}
-              </Text>
-            </View>
+            {/* No score and no review count: reviews are hidden in v1 and no
+                endpoint serves an aggregate (GB-07). See the header. */}
           </View>
 
           {stay.active ? null : (
@@ -309,17 +323,14 @@ function Loaded({ detail }: { detail: StayDetail }) {
             }}
           >
             <Avatar name={stay.agent} />
+            {/* The name only. The "Verified" badge and the reply-time line
+                stated facts no field carries (GB-03); a verified mark comes
+                back when the API sends one. */}
             <View style={{ flex: 1, gap: 2 }}>
               <Text weight="semibold" size="sm" color="textStrong">
                 {t('listing.hostedBy', { name: stay.agent })}
               </Text>
-              <Text size="xs" color="textMuted">
-                {t('listing.hostMeta')}
-              </Text>
             </View>
-            {/* Colour is never the only signal (design brief §7.5): the badge
-                carries the word as well as the success tone. */}
-            <StatusBadge domain="identity" state="verified" />
           </View>
 
           {/* ------------------------------------------------ what it is like */}
@@ -427,18 +438,11 @@ function Loaded({ detail }: { detail: StayDetail }) {
           <View style={{ gap: space[3] }}>
             <SectionLabel>{t('listing.trust')}</SectionLabel>
             <Card variant="tint" bodyStyle={{ paddingVertical: 6, paddingHorizontal: 18 }}>
-              <ListRow
-                icon="shield"
-                title={t('listing.trustEscrow')}
-                subtitle={t('listing.trustEscrowBody')}
-                divider
-              />
-              <ListRow
-                icon="receipt"
-                title={t('listing.trustRra')}
-                subtitle={t('listing.trustRraBody')}
-                divider
-              />
+              {/* The escrow and EBM e-invoice rows are hidden until a field
+                  says either is true: money is mock until a gateway exists and
+                  the demo records no EBM sale (GB-03). Their copy stays in the
+                  catalogue for that day. The check-in row is the property's own
+                  `selfCheckIn` flag, so it stays. */}
               <ListRow
                 icon="key"
                 title={

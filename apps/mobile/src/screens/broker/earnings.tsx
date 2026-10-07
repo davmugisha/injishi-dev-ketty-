@@ -9,10 +9,14 @@
  * ledger that kept its own copy would be a second answer to a question the
  * lease already settles.
  *
- * **The mock chip is not decoration.** No payout adapter is wired — F-S08 is
- * the seam and it is external — so the chip and the line under it say the
- * figures are fixtures. A money screen that looks live and is not is the one
- * screen in the prototype that could actually mislead somebody.
+ * **The "Sample" chip is not decoration.** These figures are not read from the
+ * broker's account (`GET /ops/broker/earnings` is the next phase), so the chip
+ * and the line under it say they are sample figures, not the reader's own. A
+ * money screen that looks live and is not is the one screen that could
+ * actually mislead somebody. The line used to say "Figures are fixtures. No
+ * payout adapter is wired yet", which is the same fact in developer words, and
+ * the footnote promised fees "disburse in full to your mobile money" when no
+ * payout exists (mobile audit 2026-10-05, BR-03).
  *
  * The frame draws this one dark. That is the scheme, not a design: the canvas's
  * ink ramp is retired (decision D1) and this renders in whichever scheme the
@@ -170,7 +174,7 @@ export function Earnings() {
                 variant="outline"
                 size="md"
                 leadingIcon="grid"
-                onPress={() => router.push('/directory')}
+                onPress={() => router.push('/')}
               >
                 {t('earnings.emptyAction')}
               </Button>

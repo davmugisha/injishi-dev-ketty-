@@ -116,7 +116,11 @@ export function Directory() {
 
             <UnitRail
               search={search}
-              counts={counts}
+              // No counts until the catalogue is read: `Screen.List` draws
+              // this header while the read is in flight, and the counts of an
+              // empty `read.data ?? []` printed "Vacant now · 0" (mobile audit
+              // 2026-10-05, BR-06; the device rig's finding).
+              counts={read.data ? counts : undefined}
               onChange={setSearch}
               onOpenFilters={() => setFiltersOpen(true)}
             />

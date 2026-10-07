@@ -142,3 +142,13 @@ export {
   type UseListState,
   type UseListStateOptions,
 } from "./lib/use-list-state";
+
+/* HeroUI Pro (a paid licence, `@heroui-pro/react`) is NOT exported from this
+ * barrel, on purpose. Import each Pro adapter from its own subpath:
+ *   import { KPI, KPIGroup } from "@injishi/ui/kpi";
+ *   import { DataGrid } from "@injishi/ui/data-grid";
+ *   (also empty-state, stepper, trend-chip, number-value, segment)
+ * A barrel export would put Pro, and recharts behind KPI, into the module graph
+ * of every page that imports anything from here, admin included, which uses no
+ * Pro. Pro's own package keeps its heavy components subpath only for the same
+ * reason. Every build that imports one needs Pro's code downloaded (kpi.tsx). */

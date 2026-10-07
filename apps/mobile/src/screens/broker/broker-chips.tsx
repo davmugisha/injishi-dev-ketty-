@@ -65,7 +65,11 @@ export function UnitSearchField({ summary, filled, filterCount, onPress }: UnitS
 
 export interface UnitRailProps {
   search: UnitSearch;
-  counts: { now: number; soon: number };
+  /**
+   * Absent until the directory has been read. The rail then draws the chips
+   * with no count rather than with a zero (mobile audit 2026-10-05, BR-06).
+   */
+  counts?: { now: number; soon: number };
   onChange: (next: UnitSearch) => void;
   onOpenFilters: () => void;
 }
@@ -77,6 +81,10 @@ export interface UnitRailProps {
  * and because a count is what tells a broker whether the filter is worth
  * pressing. The district chips live in the sheet: there are eight of them and a
  * rail that scrolls past the fold stops being a rail.
+ *
+ * A count is only ever a count of something read. The device rig caught the
+ * rail printing "Vacant now · 0" and "Vacant soon · 0" while the directory was
+ * still loading, which reads as an empty market rather than a slow one.
  */
 export function UnitRail({ search, counts, onChange, onOpenFilters }: UnitRailProps) {
   const { space } = useTheme();
@@ -107,8 +115,8 @@ export function UnitRail({ search, counts, onChange, onOpenFilters }: UnitRailPr
         style={{ flexDirection: 'row', gap: space[2] }}
       >
         {vacancy('any', t('directory.chipAll'))}
-        {vacancy('now', t('directory.chipVacantNow'), counts.now)}
-        {vacancy('soon', t('directory.chipVacantSoon'), counts.soon)}
+        {vacancy('now', t('directory.chipVacantNow'), counts?.now)}
+        {vacancy('soon', t('directory.chipVacantSoon'), counts?.soon)}
       </View>
 
       <Chip

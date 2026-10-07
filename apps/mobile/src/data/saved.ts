@@ -22,6 +22,12 @@
  * the intended value locally, fires the mutation, and drops the local record
  * once the store agrees — which is exactly what `onMutate` will do when this
  * becomes `useMutation`.
+ *
+ * **The heart is optimistic; the words are not.** The toast that names what
+ * happened used to be picked from the INTENT, the instant the heart was
+ * pressed, so a save that failed still said "Saved". `toggle` now hands back a
+ * promise of how the write ended, and a failed one drops the optimistic record
+ * so the heart goes back to the truth (mobile audit 2026-10-05, brief item 1).
  */
 import { useCallback, useState } from 'react';
 import {
@@ -29,6 +35,7 @@ import {
   useFixtureMutation,
   useFixtureValue,
   writeFixture,
+  type MutationOutcome,
 } from './use-fixture-mutation';
 import { useOfflineSubmit } from './offline-submit';
 import type { WriteOutcome } from './write-queue';
@@ -71,12 +78,26 @@ export const SEEDED_SAVED: readonly string[] = [
   'lavender-hill-apartment',
 ];
 
+/**
+ * How one heart press ended. `queued` is a press made offline: it is in the
+ * write queue and is sent when the connection is back, so it is neither done
+ * nor failed yet, and a screen says exactly that.
+ */
+export type SaveOutcome = MutationOutcome | 'queued';
+
+export interface SaveToggle {
+  /** The state the heart moved to, at once. */
+  next: boolean;
+  /** How the write ended. Pick the words from this, never from `next` alone. */
+  settled: Promise<SaveOutcome>;
+}
+
 export interface SavedStays {
   /** Property ids, in the order they were saved. */
   ids: readonly string[];
   isSaved: (propertyId: string) => boolean;
-  /** Returns the state it moved to, so a caller can pick its toast copy. */
-  toggle: (propertyId: string) => boolean;
+  /** Flips the heart now and reports how the write ended. See the header. */
+  toggle: (propertyId: string) => SaveToggle;
   /** `saving` while a write is in flight, for a screen that shows progress. */
   status: ReturnType<typeof useFixtureMutation<string[], Toggle>>['status'];
 }
@@ -145,22 +166,25 @@ export function useSavedStays(): SavedStays {
   );
 
   const toggle = useCallback(
-    (propertyId: string) => {
+    (propertyId: string): SaveToggle => {
       const next = !isSaved(propertyId);
       setPending((now) => ({ ...now, [propertyId]: next }));
       if (queued.offline) {
         void queued.submit({ propertyId, next });
-        return next;
+        return { next, settled: Promise.resolve<SaveOutcome>('queued') };
       }
-      void mutate({ propertyId, next }).then(() => {
-        // The store is the truth again; drop the local record so a later write
-        // from another screen is not masked by a stale optimistic value.
+      const settled = mutate({ propertyId, next }).then((outcome) => {
+        // Either way the store is the truth again, so the local record goes:
+        // after a landed write the store now says `next`, and after a failed
+        // one it still says what it said before, which rolls the heart back
+        // rather than leaving a save on screen that never happened.
         setPending((now) => {
           const { [propertyId]: _settled, ...rest } = now;
           return rest;
         });
+        return outcome;
       });
-      return next;
+      return { next, settled };
     },
     [isSaved, mutate, queued],
   );

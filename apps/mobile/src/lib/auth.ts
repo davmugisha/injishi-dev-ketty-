@@ -15,7 +15,8 @@
 import * as SecureStore from 'expo-secure-store';
 import { Platform } from 'react-native';
 
-import { AUTH_BASE, REQUEST_TIMEOUT_MS } from './env';
+import { API_ORIGIN, AUTH_BASE, REQUEST_TIMEOUT_MS } from './env';
+import { recordCall } from './crash-reporter';
 import { logFailure } from './log';
 
 /**
@@ -132,6 +133,13 @@ async function authCall(
       signal: controller.signal,
     });
 
+    // The crash trail's copy (ADR-063 AC-6): method, masked path, status.
+    recordCall({
+      method: 'POST',
+      path: `${AUTH_BASE}${path}`.slice(API_ORIGIN.length),
+      httpStatus: response.status,
+      outcome: response.ok ? 'ok' : response.status === 401 ? 'unauthenticated' : 'refused',
+    });
     if (response.ok) return { outcome: { status: 'ok' }, response };
 
     const parsed = await response.json().catch(() => null);
@@ -149,6 +157,7 @@ async function authCall(
       url: `${AUTH_BASE}${path}`,
       outcome: 'failed',
     });
+    recordCall({ method: 'POST', path: `${AUTH_BASE}${path}`.slice(API_ORIGIN.length), outcome: 'failed' });
     return { outcome: { status: 'failed' } };
   } finally {
     clearTimeout(timer);
@@ -241,8 +250,15 @@ export async function signOut(): Promise<{ serverConfirmed: boolean }> {
         signal: controller.signal,
       });
       serverConfirmed = response.ok;
+      recordCall({
+        method: 'POST',
+        path: `${AUTH_BASE}/sign-out`.slice(API_ORIGIN.length),
+        httpStatus: response.status,
+        outcome: response.ok ? 'ok' : response.status === 401 ? 'unauthenticated' : 'refused',
+      });
     } catch {
       serverConfirmed = false;
+      recordCall({ method: 'POST', path: `${AUTH_BASE}/sign-out`.slice(API_ORIGIN.length), outcome: 'failed' });
     } finally {
       clearTimeout(timer);
     }

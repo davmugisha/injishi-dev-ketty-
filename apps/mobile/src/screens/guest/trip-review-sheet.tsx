@@ -27,14 +27,36 @@
  * DB-enforced on the server; enforced here by refusing to open on a stay that
  * already has one, with the date it went in. A form that accepted a second
  * review would be a form whose submit is a 409 nobody can act on.
+ *
+ * ## Hidden in v1, and honest while it waits
+ *
+ * Reviews are out of the v1.0 cut and the route is closed for everyone in
+ * `app/_layout.tsx`; nothing links here any more (GK-11). What the sheet still
+ * owes, for the day it returns (mobile audit 2026-10-05):
+ *
+ *   - a loading and an error state, rather than flashing "nothing to review"
+ *     on a cold read or a failed one (GK-17);
+ *   - the success toast only after the write lands (brief item 1);
+ *   - the reviewer's name from the server, never the fixture persona, and no
+ *     name line at all when the server has none (brief item 2).
  */
 import { useState } from 'react';
 import { View } from 'react-native';
 import { useRouter } from 'expo-router';
-import { Icon, PressableScale, Sheet, Button, Text, TextArea, useToast } from '@/components';
+import {
+  Button,
+  ErrorState,
+  Icon,
+  PressableScale,
+  Sheet,
+  SkeletonList,
+  Text,
+  TextArea,
+  useToast,
+} from '@/components';
 import { useTheme } from '@/theme/theme';
 import { useT, type Translate } from '@/i18n/i18n';
-import { ME } from '@/data/personas';
+import { useMyIdentity } from '@/queries/profile';
 import { formatDay } from '@/data/search';
 import { reviewWindowOpen, useTrip } from '@/data/trips';
 import {
@@ -59,10 +81,11 @@ export function TripReviewSheet({ id }: { id: string | undefined }) {
   const router = useRouter();
   const toast = useToast();
 
-  const { trip } = useTrip(id);
+  const { trip, status: readStatus, retry } = useTrip(id);
   const { reviewFor } = useTripReviews();
   const { submit, status } = useSubmitReview();
   const now = useNow();
+  const me = useMyIdentity();
 
   const [scores, setScores] = useState<CategoryScores>(EMPTY_SCORES);
   const [comment, setComment] = useState('');
@@ -70,6 +93,26 @@ export function TripReviewSheet({ id }: { id: string | undefined }) {
   const existing = trip ? reviewFor(trip.id) : undefined;
   const open = !!trip && reviewWindowOpen(trip, now);
   const saving = status === 'saving';
+
+  if (readStatus === 'loading') {
+    return (
+      <Sheet title={t('review.title')} grabber>
+        <SkeletonList rows={3} label={t('state.loadingList', { label: t('trips.listLabel') })} />
+      </Sheet>
+    );
+  }
+
+  if (readStatus === 'error') {
+    return (
+      <Sheet title={t('review.title')} grabber>
+        <ErrorState
+          title={t('state.errorTitle')}
+          body={t('state.errorBody', { label: t('trips.listLabel') })}
+          onRetry={retry}
+        />
+      </Sheet>
+    );
+  }
 
   if (!trip || (!open && !existing)) {
     return (
@@ -104,7 +147,12 @@ export function TripReviewSheet({ id }: { id: string | undefined }) {
   const ready = reviewComplete(scores);
 
   const send = async () => {
-    await submit({ bookingId: trip.id, scores, comment });
+    const outcome = await submit({ bookingId: trip.id, scores, comment });
+    if (outcome !== 'done') {
+      // The review did not go in. Stay on the sheet with what was written.
+      toast.show(t('write.failedTitle'), 'danger');
+      return;
+    }
     toast.show(t('review.doneToast'), 'success');
     router.back();
   };
@@ -183,10 +231,13 @@ export function TripReviewSheet({ id }: { id: string | undefined }) {
         <Text size="sm" color="brand900" style={{ lineHeight: 19 }}>
           {t('review.doubleBlindBody')}
         </Text>
-        <Text size="sm" color="brand900" style={{ lineHeight: 19 }}>
-          {/* F-B14: individual reviews show as first name plus last initial. */}
-          {t('review.nameShown', { name: shortName(ME.name) })}
-        </Text>
+        {/* F-B14: individual reviews show as first name plus last initial, and
+            only a name the server holds; never a guessed one. */}
+        {me.fromServer ? (
+          <Text size="sm" color="brand900" style={{ lineHeight: 19 }}>
+            {t('review.nameShown', { name: shortName(me.name) })}
+          </Text>
+        ) : null}
       </View>
     </Sheet>
   );

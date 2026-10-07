@@ -66,6 +66,11 @@ x-api-env: &api-env
   CORS_ORIGINS: https://${WEB_HOST:-www-demo.injishi.com},https://${ADMIN_HOST:-admin-demo.injishi.com}
   GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:-}
   GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET:-}
+  # Money alarms and what breaks (a 500, a fault inside Better Auth, a job's
+  # last failed attempt, a process that dies) go to Sentry under the `demo`
+  # environment when this is set, and nowhere but the log when it is not
+  # (ADR-063). The API and the worker both merge this anchor.
+  SENTRY_DSN: ${SENTRY_DSN:-}
   # Never live. A demo process refuses to boot on either (AC-13); pinning them
   # means a line in the env file cannot even try.
   PAYMENT_ADAPTER_MODE: mock
@@ -389,6 +394,8 @@ services:
     build:
       context: ../..
       dockerfile: infra/docker/Dockerfile.web
+      secrets:
+        - heroui_token
       args:
         <<: *demo-public
         OPERATOR_APP_URL: http://app:3002
@@ -459,6 +466,8 @@ services:
     build:
       context: ../..
       dockerfile: infra/docker/Dockerfile.app
+      secrets:
+        - heroui_token
       args:
         <<: *demo-public
         OPERATOR_ASSET_PREFIX: /operator-static
@@ -484,6 +493,8 @@ services:
     build:
       context: ../..
       dockerfile: infra/docker/Dockerfile.admin
+      secrets:
+        - heroui_token
       args:
         <<: *demo-public
     restart: unless-stopped
@@ -514,3 +525,10 @@ services:
     networks:
       - default
       - dokploy-network
+
+# HeroUI Pro's CI/CD token for the three frontend builds, read from this
+# stack's .env (stack settings live on the host, never in GitHub). See the
+# note in Dockerfile.web.
+secrets:
+  heroui_token:
+    environment: HEROUI_AUTH_TOKEN

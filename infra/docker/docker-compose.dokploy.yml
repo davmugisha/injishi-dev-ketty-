@@ -63,7 +63,10 @@ x-api-env: &api-env
   ASSISTANT_PRICE_CACHE_READ_PER_MTOK_USD: ${ASSISTANT_PRICE_CACHE_READ_PER_MTOK_USD:-}
   ASSISTANT_PRICE_CACHE_WRITE_PER_MTOK_USD: ${ASSISTANT_PRICE_CACHE_WRITE_PER_MTOK_USD:-}
   # Money alarms (STUCK MONEY, UNRECORDED COMPENSATION, a refused queue wake)
-  # go to Sentry when this is set, and nowhere but the log when it is not.
+  # and what breaks (a request that fails with a 500, a fault inside Better
+  # Auth, a job failing its last attempt, a process that dies) go to Sentry
+  # when this is set, and nowhere but the log when it is not (ADR-063). Left
+  # empty until the NCSA registration names Sentry (ADR-063 AC-13).
   SENTRY_DSN: ${SENTRY_DSN:-}
   NODE_ENV: production
   PORT: "8000"
@@ -346,6 +349,8 @@ services:
     build:
       context: ../..
       dockerfile: infra/docker/Dockerfile.web
+      secrets:
+        - heroui_token
       args:
         <<: *production-public
         OPERATOR_APP_URL: http://app:3002
@@ -414,6 +419,8 @@ services:
     build:
       context: ../..
       dockerfile: infra/docker/Dockerfile.app
+      secrets:
+        - heroui_token
       args:
         <<: *production-public
         OPERATOR_ASSET_PREFIX: /operator-static
@@ -439,6 +446,8 @@ services:
     build:
       context: ../..
       dockerfile: infra/docker/Dockerfile.admin
+      secrets:
+        - heroui_token
       args:
         <<: *production-public
     restart: unless-stopped
@@ -468,3 +477,10 @@ services:
     networks:
       - default
       - dokploy-network
+
+# HeroUI Pro's CI/CD token for the three frontend builds, read from this
+# stack's .env (stack settings live on the host, never in GitHub). See the
+# note in Dockerfile.web.
+secrets:
+  heroui_token:
+    environment: HEROUI_AUTH_TOKEN

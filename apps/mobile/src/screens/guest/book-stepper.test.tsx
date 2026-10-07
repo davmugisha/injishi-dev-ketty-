@@ -10,6 +10,8 @@
  * money the contract computed.
  */
 import { act, fireEvent, screen, waitFor } from '@testing-library/react-native';
+import { AccessibilityInfo, Platform } from 'react-native';
+import { MAX_NIGHTS } from '@injishi/contracts';
 import { ToastProvider } from '@/components';
 import { SCHEMES, renderInScheme } from '@/test-utils';
 import { en, rw } from '@/i18n/messages';
@@ -153,9 +155,6 @@ describe('the gate on each step', () => {
       acceptedRules: true,
       method: 'momo',
       handset: '',
-      cardNumber: '',
-      cardExpiry: '',
-      cardCvv: '',
       attemptToken: null,
       tokenFor: null,
       bookingId: null,
@@ -220,6 +219,52 @@ describe('the money', () => {
     expect(screen.getByText(en['book.runningTotal'])).toBeTruthy();
     expect(screen.getByText(en['book.beforeFees'])).toBeTruthy();
   });
+
+  /**
+   * Per guest per night (GK-14). Step 1's card printed `rate × nights` while
+   * the bar under it carried the per-person gross, about 2.1 times apart for
+   * the default two. Both are now the contract's accommodation figure.
+   */
+  it('prices step 1 as rate × guests × nights, and the bar says the same', async () => {
+    await open({ roomTypeId: GARDEN.summary.id, ...DATES });
+    // Garden Suite: 240,000 per guest per night, 2 guests, 3 nights.
+    expect(screen.getByText('RWF 240,000 × 2 guests × 3 nights')).toBeTruthy();
+    expect(screen.getAllByText('1,440,000').length).toBe(2);
+    expect(screen.queryByText('1,512,000')).toBeNull();
+  });
+
+  it('names the guests on step 2’s accommodation line', async () => {
+    await open({ roomTypeId: GARDEN.summary.id, ...DATES });
+    fireEvent.press(screen.getByTestId('book-primary'));
+    await waitFor(() => expect(screen.getByText(en['book.step2'])).toBeTruthy());
+    expect(screen.getByText('RWF 240,000 × 2 guests × 3 nights')).toBeTruthy();
+  });
+
+  /**
+   * The bar is one accessible element, so its label is all a screen-reader
+   * user hears. "Total" alone hid the price right up to the payment (GK-18).
+   */
+  it('speaks the amount on the bar, not just its label', async () => {
+    await open({ roomTypeId: GARDEN.summary.id, ...DATES });
+    // Read off the bar itself: the breakdown's own total row may carry the
+    // same words, and it is the BAR this is about.
+    expect(screen.getByTestId('book-bar-total').props.accessibilityLabel).toBe(
+      `${en['book.runningTotal']}, RWF 1,440,000`,
+    );
+
+    fireEvent.press(screen.getByTestId('book-primary'));
+    await waitFor(() => expect(screen.getByText(en['book.step2'])).toBeTruthy());
+    expect(screen.getByTestId('book-bar-total').props.accessibilityLabel).toBe(
+      `${en['book.totalLabel']}, RWF 1,512,000`,
+    );
+  });
+
+  it('refuses a stay longer than MAX_NIGHTS, and says so with the number (GK-30)', async () => {
+    await open({ roomTypeId: GARDEN.summary.id, checkIn: '2026-11-01', checkOut: '2027-02-15' });
+    expect(
+      screen.getByText(en['book.blockedTooLong'].replace('{count}', String(MAX_NIGHTS))),
+    ).toBeTruthy();
+  });
 });
 
 describe('the booking mode', () => {
@@ -232,9 +277,6 @@ describe('the booking mode', () => {
       acceptedRules: true,
       method: 'momo',
       handset: '0788431209',
-      cardNumber: '',
-      cardExpiry: '',
-      cardCvv: '',
       attemptToken: null,
       tokenFor: null,
       bookingId: null,
@@ -254,9 +296,6 @@ describe('the booking mode', () => {
       acceptedRules: true,
       method: 'momo',
       handset: '0788431209',
-      cardNumber: '',
-      cardExpiry: '',
-      cardCvv: '',
       attemptToken: null,
       tokenFor: null,
       bookingId: null,
@@ -307,9 +346,6 @@ describe('confirming', () => {
       acceptedRules: true,
       method: 'momo',
       handset: '0788431209',
-      cardNumber: '',
-      cardExpiry: '',
-      cardCvv: '',
       attemptToken: token,
       tokenFor: token ? signature : null,
       bookingId: null,
@@ -429,6 +465,215 @@ describe('confirming', () => {
     }
   });
 
+  /**
+   * While the prompt is out, back and the pay step's edits are locked, so the
+   * quote cannot move under a live payment and hide it (GK-13).
+   */
+  it('locks back and the payment fields while a prompt is out', async () => {
+    jest.useFakeTimers();
+    try {
+      ready(GARDEN.summary.id, TOKENS.unknown);
+      renderInScheme(page({ roomTypeId: GARDEN.summary.id, ...DATES }), 'light');
+      await act(async () => {
+        jest.advanceTimersByTime(300);
+      });
+
+      fireEvent.press(screen.getByTestId('book-primary'));
+      await act(async () => {
+        jest.advanceTimersByTime(100);
+      });
+      expect(screen.getByText(en['pay.checkYourPhone'])).toBeTruthy();
+
+      const back = screen.getByTestId('book-back');
+      expect(back.props.accessibilityState.disabled).toBe(true);
+      fireEvent.press(back);
+      expect(draftOf(GARDEN.summary.id).step).toBe(2);
+      expect(screen.getByTestId('book-handset-momo').props.editable).toBe(false);
+
+      // Still out with the rail after it answers "unknown": still locked.
+      await act(async () => {
+        jest.advanceTimersByTime(1500);
+      });
+      expect(screen.getByText(en['pay.stillConfirming'])).toBeTruthy();
+      expect(screen.getByTestId('book-back').props.accessibilityState.disabled).toBe(true);
+    } finally {
+      jest.useRealTimers();
+    }
+  });
+
+  it('keeps an open prompt on screen when the quote moves under it', async () => {
+    jest.useFakeTimers();
+    try {
+      ready(GARDEN.summary.id, TOKENS.unknown);
+      renderInScheme(page({ roomTypeId: GARDEN.summary.id, ...DATES }), 'light');
+      await act(async () => {
+        jest.advanceTimersByTime(300);
+      });
+      fireEvent.press(screen.getByTestId('book-primary'));
+      await act(async () => {
+        jest.advanceTimersByTime(100);
+      });
+
+      // The non-refundable switch flipped from the policy sheet, another route.
+      act(() => {
+        writeFixture(draftKey(UMURAGE.property.id), {
+          roomTypeId: GARDEN.summary.id,
+          nonRefundable: true,
+        });
+      });
+      // The attempt is still drawn: a payment in flight never vanishes.
+      expect(screen.getByText(en['pay.checkYourPhone'])).toBeTruthy();
+    } finally {
+      jest.useRealTimers();
+    }
+  });
+
+  it('names only *182# for MTN, as text, and no Airtel code (GK-19)', async () => {
+    jest.useFakeTimers();
+    try {
+      ready(GARDEN.summary.id, TOKENS.unknown);
+      renderInScheme(page({ roomTypeId: GARDEN.summary.id, ...DATES }), 'light');
+      await act(async () => {
+        jest.advanceTimersByTime(300);
+      });
+      fireEvent.press(screen.getByTestId('book-primary'));
+      await act(async () => {
+        jest.advanceTimersByTime(100);
+      });
+      expect(screen.getByText(/Dial \*182# on/)).toBeTruthy();
+      expect(screen.queryByText(/\*182\*7\*1#/)).toBeNull();
+      expect(en['pay.ussdAirtel']).not.toMatch(/[*#]/);
+    } finally {
+      jest.useRealTimers();
+    }
+  });
+
+  it('announces a change of payment state on iOS, where the live region is silent (GK-18)', async () => {
+    const announce = jest.spyOn(AccessibilityInfo, 'announceForAccessibility');
+    const realPlatform = Platform.OS;
+    Platform.OS = 'ios';
+    jest.useFakeTimers();
+    try {
+      ready(GARDEN.summary.id, TOKENS.refused);
+      renderInScheme(page({ roomTypeId: GARDEN.summary.id, ...DATES }), 'light');
+      await act(async () => {
+        jest.advanceTimersByTime(300);
+      });
+      fireEvent.press(screen.getByTestId('book-primary'));
+      await act(async () => {
+        jest.advanceTimersByTime(100);
+      });
+      expect(announce).toHaveBeenCalledWith(
+        en['pay.a11yState'].replace('{state}', en['pay.checkYourPhone']),
+      );
+
+      await act(async () => {
+        jest.advanceTimersByTime(1500);
+      });
+      expect(announce).toHaveBeenCalledWith(
+        en['pay.a11yState'].replace('{state}', en['pay.refusedTitle']),
+      );
+    } finally {
+      jest.useRealTimers();
+      Platform.OS = realPlatform;
+      announce.mockRestore();
+    }
+  });
+
+  /**
+   * GK-12. A draft that outlived its booking reopened the next booking of the
+   * same room at "Confirm and pay" with the old dates. Continuing past the
+   * reference clears it, so the next open starts from its own params.
+   */
+  it('clears the draft once booked, so the next booking of the room starts fresh', async () => {
+    jest.useFakeTimers();
+    try {
+      ready(GARDEN.summary.id, TOKENS.confirmed);
+      const first = renderInScheme(page({ roomTypeId: GARDEN.summary.id, ...DATES }), 'light');
+      await act(async () => {
+        jest.advanceTimersByTime(300);
+      });
+      fireEvent.press(screen.getByTestId('book-primary'));
+      await act(async () => {
+        jest.advanceTimersByTime(1500);
+      });
+      await act(async () => {
+        jest.advanceTimersByTime(1000);
+      });
+
+      const bookingId = draftOf(GARDEN.summary.id).bookingId;
+      expect(bookingId).toMatch(/^BK-/);
+      fireEvent.press(screen.getByText(en['book.continue']));
+
+      expect(replaced).toContainEqual({
+        pathname: '/book/[roomTypeId]/confirmed',
+        params: { roomTypeId: GARDEN.summary.id, bookingId },
+      });
+      expect(readFixture(bookDraftKey(GARDEN.summary.id), 'untouched')).toBeNull();
+      first.unmount();
+
+      // The same room, booked again for other nights: step 1, the new dates.
+      renderInScheme(
+        page({ roomTypeId: GARDEN.summary.id, checkIn: '2026-11-10', checkOut: '2026-11-12' }),
+        'light',
+      );
+      await act(async () => {
+        jest.advanceTimersByTime(300);
+      });
+      expect(screen.getByText(en['book.step1'])).toBeTruthy();
+      fireEvent.press(screen.getByTestId('book-primary'));
+      await act(async () => {
+        jest.advanceTimersByTime(50);
+      });
+      expect(draftOf(GARDEN.summary.id).dates).toEqual({ start: '2026-11-10', end: '2026-11-12' });
+      expect(draftOf(GARDEN.summary.id).bookingId).toBeNull();
+    } finally {
+      jest.useRealTimers();
+    }
+  });
+
+  /**
+   * Brief item 1. The Trip is written after the rail confirms; a write that
+   * did not land must not route to a confirmation of a booking that does not
+   * exist. It says so, keeps the reference in view, and retries.
+   */
+  it('says the booking did not save when the write fails, and retries it', async () => {
+    jest.useFakeTimers();
+    try {
+      ready(GARDEN.summary.id, TOKENS.confirmed);
+      // A store the booking write cannot apply to: the write ends in `error`.
+      writeFixture<Trip[] | null>(TRIPS_KEY, null);
+      renderInScheme(page({ roomTypeId: GARDEN.summary.id, ...DATES }), 'light');
+      await act(async () => {
+        jest.advanceTimersByTime(300);
+      });
+      fireEvent.press(screen.getByTestId('book-primary'));
+      await act(async () => {
+        jest.advanceTimersByTime(1500);
+      });
+      await act(async () => {
+        jest.advanceTimersByTime(1000);
+      });
+
+      expect(screen.getByText(en['book.saveFailedTitle'])).toBeTruthy();
+      expect(draftOf(GARDEN.summary.id).bookingId).toBeNull();
+      // No way on to a confirmation of nothing.
+      expect(screen.queryByText(en['book.continue'])).toBeNull();
+
+      // The store recovers, and the retry writes the booking.
+      writeFixture<Trip[]>(TRIPS_KEY, TRIPS);
+      fireEvent.press(screen.getByText(en['write.retry']));
+      await act(async () => {
+        jest.advanceTimersByTime(1000);
+      });
+      expect(draftOf(GARDEN.summary.id).bookingId).toMatch(/^BK-/);
+      expect(screen.queryByText(en['book.saveFailedTitle'])).toBeNull();
+      expect(bookedTrips()).toHaveLength(1);
+    } finally {
+      jest.useRealTimers();
+    }
+  });
+
   it('holds one token across two presses of the same quote', async () => {
     jest.useFakeTimers();
     try {
@@ -520,9 +765,6 @@ describe('offline', () => {
       acceptedRules: true,
       method: 'momo',
       handset: '0788431209',
-      cardNumber: '',
-      cardExpiry: '',
-      cardCvv: '',
       attemptToken: null,
       tokenFor: null,
       bookingId: null,

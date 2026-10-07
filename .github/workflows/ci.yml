@@ -30,6 +30,13 @@ concurrency:
 permissions:
   contents: read
 
+# HeroUI Pro's CI/CD token (a paid licence): `@heroui-pro/react`'s postinstall
+# downloads Pro's real code with it, and without it the first Pro import fails
+# `next build`. Never a personal token. A pull request from a fork gets no
+# secrets, so its build of a Pro screen fails; this repository takes none.
+env:
+  HEROUI_AUTH_TOKEN: ${{ secrets.HEROUI_AUTH_TOKEN }}
+
 jobs:
   # AC-17b. Runs first and on every change, not only when a workflow file is
   # touched: the point is that the answer is on the record for every run.

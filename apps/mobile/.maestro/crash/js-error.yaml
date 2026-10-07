@@ -1,0 +1,21 @@
+# Throws the Diagnostics JavaScript error, which carries the canary text (an
+# email, a phone number, a file on the phone), then relaunches so a report the
+# crash left on the phone is sent (ADR-063 AC-1, AC-5, AC-6).
+#
+# What to check after, in Sentry's `injishi-mobile` project, `environment:preview`:
+# one issue `DiagnosticsTestTimerError` with original file names and lines, the
+# release, the `diagnostic` tag, a trail of route names, and none of the canary.
+appId: rw.injishi.mobile
+name: Crash reporting, a JavaScript error
+---
+- runFlow: ../subflows/launch-release-build.yaml
+- runFlow: ../subflows/open-diagnostics.yaml
+- takeScreenshot: crash-js-0-diagnostics
+- tapOn:
+    id: "diagnostics-js-error"
+# The error is fatal in a release build: the app closes. Relaunching gives the
+# SDK a live process to send anything it saved.
+- runFlow: ../subflows/launch-release-build.yaml
+- waitForAnimationToEnd:
+    timeout: 10000
+- takeScreenshot: crash-js-1-relaunched

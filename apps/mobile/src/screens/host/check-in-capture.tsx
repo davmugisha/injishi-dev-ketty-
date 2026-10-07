@@ -45,6 +45,7 @@ import {
   Card,
   ChipGroup,
   EmptyState,
+  ErrorState,
   Icon,
   InputField,
   PhotoPicker,
@@ -169,7 +170,7 @@ export function HostCheckInCapture({ id }: { id: string | undefined }) {
   const router = useRouter();
   const toast = useToast();
 
-  const { booking, status } = useHostBooking(id);
+  const { booking, status, error, retry } = useHostBooking(id);
   const all = useHostBookings();
   const roomList = useWorkRooms();
   const actions = useHostActions();
@@ -191,11 +192,33 @@ export function HostCheckInCapture({ id }: { id: string | undefined }) {
   );
 
   const [committing, setCommitting] = useState(false);
+  /**
+   * The last commit did not save. Local state set from the RESULT of that
+   * commit, not a flag read off the render that pressed the button, which is
+   * what let a failed capture toast its success (gaps.md §0.3, HO-06).
+   */
+  const [failed, setFailed] = useState(false);
 
   if (status === 'loading') {
     return (
       <Framed insetsTop={insets.top}>
         <SkeletonList rows={3} label={t('state.loadingList', { label: t('host.checkIn') })} />
+      </Framed>
+    );
+  }
+
+  // A read that failed is not a closed check-in. Falling through to the gate
+  // below told the desk "there is nothing to check in" about a guest standing
+  // at the counter (mobile audit 2026-10-05, HO-19).
+  if (status === 'error') {
+    return (
+      <Framed insetsTop={insets.top}>
+        <ErrorState
+          title={t('host.checkInReadFailed')}
+          body={t('host.errorBody')}
+          detail={error?.message}
+          onRetry={retry}
+        />
       </Framed>
     );
   }
@@ -248,14 +271,16 @@ export function HostCheckInCapture({ id }: { id: string | undefined }) {
 
   const commit = async () => {
     if (!draft.room) return;
+    const room = draft.room;
     setCommitting(true);
-    await actions.checkIn({
+    setFailed(false);
+    const outcome = await actions.checkIn({
       bookingId: booking.id,
       fullName: draft.fullName.trim(),
       documentType: draft.documentType,
       documentNumber: normaliseDocumentNumber(draft.documentNumber),
       photos: draft.photos,
-      room: draft.room,
+      room,
       at: Date.now(),
     });
     setCommitting(false);
@@ -263,16 +288,23 @@ export function HostCheckInCapture({ id }: { id: string | undefined }) {
     // The capture did not save. The room is not assigned and nobody is checked
     // in, so the draft is KEPT — the photographs are the expensive part and a
     // front desk that has to ask for an ID twice has already lost the guest's
-    // patience.
-    if (actions.checkInFailed) return;
+    // patience. `cancelled` changed nothing either, and says nothing.
+    if (outcome === 'error') {
+      setFailed(true);
+      return;
+    }
+    if (outcome === 'cancelled') return;
 
+    // Done, or kept in the queue. The queued intent carries the whole capture,
+    // so the draft can go either way; what differs is the claim. A queued
+    // check-in is not a guest in a room, and saying so was the success toast
+    // an offline desk used to get (mobile audit 2026-10-05, HO-06).
     writeFixture<CaptureDraft>(key, EMPTY_CAPTURE);
-    toast.show(
-      actions.checkInQueued
-        ? t('host.checkInQueued')
-        : t('host.checkedInToast', { guest: booking.guest.name, room: draft.room }),
-      actions.checkInQueued ? 'warning' : 'success',
-    );
+    if (outcome === 'queued') {
+      toast.show(t('host.checkInQueued', { guest: booking.guest.name }), 'warning');
+    } else {
+      toast.show(t('host.checkedInToast', { guest: booking.guest.name, room }), 'success');
+    }
     // `replace` so the back gesture does not walk into a flow that has already
     // committed — the same call the guest's check-in makes for the same reason.
     router.replace({ pathname: '/reservation/[id]', params: { id: booking.id } });
@@ -292,7 +324,7 @@ export function HostCheckInCapture({ id }: { id: string | undefined }) {
             flow, because the alternative — a front desk that believes the guest
             is checked in — means a room handed out with no record of who took
             it. The draft is still here, so retrying costs nothing. */}
-        {actions.checkInFailed ? (
+        {failed ? (
           <WriteError
             title="host.checkInFailedTitle"
             body="host.checkInFailedBody"
@@ -337,7 +369,15 @@ export function HostCheckInCapture({ id }: { id: string | undefined }) {
         ) : null}
         {step === 'photo' ? <PhotoStep draft={draft} patch={patch} t={t} /> : null}
         {step === 'room' ? (
-          <RoomStep draft={draft} patch={patch} rooms={free} loading={roomList.status === 'loading'} t={t} />
+          <RoomStep
+            draft={draft}
+            patch={patch}
+            rooms={free}
+            loading={roomList.status === 'loading'}
+            failed={roomList.status === 'error'}
+            onRetry={roomList.retry}
+            t={t}
+          />
         ) : null}
 
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: space[2] }}>
@@ -500,12 +540,17 @@ function RoomStep({
   patch,
   rooms,
   loading,
+  failed,
+  onRetry,
   t,
 }: {
   draft: CaptureDraft;
   patch: (next: Partial<CaptureDraft>) => void;
   rooms: readonly WorkRoom[];
   loading: boolean;
+  /** The floor board did not load. Its rows would be stale or empty. */
+  failed: boolean;
+  onRetry: () => void;
   t: Translate;
 }) {
   const { c, space, radius } = useTheme();
@@ -521,8 +566,16 @@ function RoomStep({
         </Text>
       </View>
 
+      {/* A failed read used to fall through to whatever rows the store held,
+          offered as "free tonight" with nothing to say they had not loaded. */}
       {loading ? (
         <SkeletonList rows={4} label={t('state.loadingList', { label: t('host.stepRoom') })} />
+      ) : failed ? (
+        <ErrorState
+          title={t('host.roomsReadFailed')}
+          body={t('host.roomsReadFailedBody')}
+          onRetry={onRetry}
+        />
       ) : rooms.length === 0 ? (
         <EmptyState
           icon="bed"

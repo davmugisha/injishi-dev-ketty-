@@ -9,7 +9,7 @@
     "userInterfaceStyle": "automatic",
     "backgroundColor": "#EEF7F9",
     "ios": {
-      "supportsTablet": true,
+      "supportsTablet": false,
       "bundleIdentifier": "rw.injishi.mobile"
     },
     "android": {
@@ -39,7 +39,23 @@
       ],
       "expo-font",
       "expo-localization",
-      "expo-secure-store"
+      "expo-secure-store",
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "Injishi opens your photos only when you choose a picture to attach, such as a repair photo or your ID at check in.",
+          "cameraPermission": "Injishi uses the camera only when you take a picture to attach, such as a repair photo or your ID at check in.",
+          "microphonePermission": false
+        }
+      ],
+      [
+        "@sentry/react-native/expo",
+        {
+          "organization": "injishi",
+          "project": "injishi-mobile",
+          "url": "https://de.sentry.io/"
+        }
+      ]
     ],
     "experiments": {
       "typedRoutes": true

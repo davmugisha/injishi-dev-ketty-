@@ -26,7 +26,11 @@ export const en = {
   /* Frame W1 / W2 / W8 - the queue */
   'work.queue.title': 'Queue',
   'work.queue.listLabel': 'your queue',
-  'work.queue.syncOnline': 'Synced · {count} tasks · {time}',
+  // Mobile audit 2026-10-05, WK-13: this read "Synced · 6 tasks · 10:24" at
+  // 14:03. Nothing syncs, and the time was a fixture constant. It is the time
+  // the list was last read now, or no time.
+  'work.queue.syncOnline': 'Online · {count} tasks · updated {time}',
+  'work.queue.syncOnlineNoTime': 'Online · {count} tasks',
   'work.queue.syncOffline': 'Offline · {count} saved on this phone',
   'work.queue.tabAll': 'All',
   'work.queue.tabFloor': 'Floor {floor}',
@@ -48,17 +52,24 @@ export const en = {
   'work.queue.metaHighPriority': 'High priority',
   'work.queue.metaBlocked': 'Blocked · {ref}',
   'work.queue.doneQueued': 'Done · Queued',
-  'work.queue.doneSynced': 'Done · Synced',
+  // "Done · Synced" claimed a sync nothing performs (WK-13, WK-32).
+  'work.queue.doneSynced': 'Done',
   'work.queue.swipeStart': 'Start',
   'work.queue.swipeBlock': 'Block',
   'work.queue.arrivalTitle': 'Room {room} just checked out',
   'work.queue.arrivalAgoSeconds': 'Added to your queue {seconds}s ago',
   'work.queue.arrivalAgoMinutes': 'Added to your queue {minutes} min ago',
   'work.queue.arrivalOpen': 'Open room {room}',
-  'work.queue.arrivalToast': 'Room {room} checked out — task added live',
   'work.queue.inspectionTitle': '{count} rooms marked done, waiting on you',
   'work.queue.inspectionOne': '1 room marked done, waiting on you',
   'work.queue.inspectionOpen': 'Inspect',
+
+  /* What a filter tab says to a screen reader: the count with its noun. The
+     rig heard a floor tab as "Floor 1 2" (mobile audit 2026-10-05, WK-12). */
+  'work.tabs.rooms': '{label}, {count} rooms',
+  'work.tabs.roomsOne': '{label}, 1 room',
+  'work.tabs.tickets': '{label}, {count} tickets',
+  'work.tabs.ticketsOne': '{label}, 1 ticket',
 
   /* F-P04 task_type */
   'work.kind.checkoutClean': 'Checkout clean',
@@ -73,27 +84,32 @@ export const en = {
   'work.offline.bannerNone': 'Nothing waiting yet',
   'work.offline.connected': 'Connected · nothing waiting',
   'work.offline.reconnect': 'Reconnect',
-  'work.offline.cardTitle': 'What happens on reconnect',
+  // WK-29: the card promised a replay "with idempotency keys", rooms turning
+  // green on the desk's grid and a conflict card. None of the three exists.
+  'work.offline.cardTitle': 'Saved on this phone',
   'work.offline.cardBody':
-    'Your {count} changes replay in order with their idempotency keys, so nothing double-posts. The rooms you finished turn green on the front desk grid. If the desk changed a room while you were dark, you get one conflict card — never a silent overwrite.',
+    'The changes below are saved on this phone. The front desk has not seen them yet.',
   'work.offline.cardBodyEmpty':
-    'Nothing is waiting. A room you finish without signal is saved here with its idempotency key, replays in order when you reconnect, and cannot double-post.',
-  'work.offline.replayTitle': 'Waiting to replay, in order',
+    'Nothing is waiting. A change you make without signal is saved on this phone and listed here.',
+  'work.offline.replayTitle': 'Waiting, oldest first',
   'work.offline.queuedRoom': 'Room {room} · {what}',
   'work.offline.changeClean': 'marked clean',
   'work.offline.changeStarted': 'started',
   'work.offline.changeBlocked': 'blocked',
   'work.offline.changeStatus': 'status set',
   'work.offline.changeTicket': 'fault filed',
-  'work.offline.syncedToast': '{count} changes synced, in order, no duplicates',
-  'work.offline.syncedToastOne': '1 change synced, in order, no duplicates',
+  // Reconnect sends nothing: the waiting list is markers, and emptying it is
+  // all it does. It used to toast "3 changes synced, in order, no duplicates"
+  // (mobile audit 2026-10-05, WK-03 and WK-32).
   'work.offline.backOnlineToast': 'Back online',
   'work.offline.lostToast': 'Signal lost — your work is saved on this phone',
-  'work.offline.savedToast': 'Saved on this phone — will sync when you have signal',
+  'work.offline.savedToast': 'Saved on this phone. The front desk has not seen it yet.',
   'work.offline.title': 'Connection',
   'work.offline.simulateLabel': 'Simulate no signal',
+  // WK-29: it said the switch "drops this phone off the network". It does not.
   'work.offline.simulateHint':
-    'Drops this phone off the network so you can walk the corridor case. Your real connection still counts: lose signal for real and the same banner appears.',
+    'Shows the screens as they work with no signal. The phone itself stays connected.',
+  'work.offline.simulatedDetail': 'No signal is being simulated. Turn it off under Account.',
   'work.offline.realOffline': 'This phone has no connection right now.',
 
   /* Frame W3 - task detail */
@@ -103,8 +119,10 @@ export const en = {
   'work.task.stepProgress': 'In progress',
   'work.task.stepDone': 'Done',
   'work.task.elapsed': 'Elapsed',
-  'work.task.startedAt': 'Started {time} · your average is {minutes} min',
-  'work.task.notStarted': 'Not started · your average is {minutes} min',
+  // WK-13: the task's own start time. The "average" was a fixture number.
+  'work.task.startedAt': 'Started {time}',
+  'work.task.notStarted': 'Not started',
+  'work.task.listLabel': 'this task',
   'work.task.notesTitle': 'Notes from the desk',
   'work.task.noNotes': 'The desk left no note on this room.',
   'work.task.start': 'Start cleaning',
@@ -117,10 +135,13 @@ export const en = {
   'work.task.reportFault': 'Report a fault',
   'work.task.requestCheck': 'Request check',
   'work.task.startedToast': 'Room {room} started',
-  'work.task.cleanToast': 'Room {room} is clean — the front desk sees it live',
-  'work.task.checkToast':
-    'Sent to {name} for sign-off — desk stays blocked until it passes',
+  // These said "the front desk sees it live" and "Sent to Solange U.": a desk
+  // that was told nothing, and a supervisor from the fixtures (WK-02).
+  'work.task.cleanToast': 'Room {room} marked clean',
+  'work.task.checkToast': 'Room {room} marked done and waiting on a check',
   'work.task.consequenceDone': 'Marking done releases {room} to the front desk.',
+  'work.task.consequenceOffline':
+    'No signal: marking done saves it on this phone, and the front desk will not see it yet.',
   'work.task.notFoundTitle': 'This task is not on your queue',
   'work.task.notFoundBody':
     'It was finished, signed off, or it belongs to another attendant. The queue below is yours.',
@@ -140,6 +161,7 @@ export const en = {
   'work.rooms.emptyTitle': 'Nothing in this state',
   'work.rooms.emptyBody': 'No room on this board is {status} right now. Try All.',
   'work.rooms.sheetTitle': 'Set housekeeping status',
+  'work.rooms.sheetListLabel': 'this room',
   'work.rooms.sheetSubtitle': 'Room {room} · {type} · Floor {floor}',
   'work.rooms.reportIssue': 'Report an issue in this room',
   'work.rooms.setToast': 'Room {room} · {status}',
@@ -167,7 +189,9 @@ export const en = {
   'work.tickets.photosOne': '1 photo',
   'work.tickets.noPhoto': 'No photo',
   'work.tickets.card': 'Ticket {ref}, room {room}, {status}',
+  // Printed only when true of the room and its task (WK-29).
   'work.tickets.blocks': 'Room out of order · task blocked',
+  'work.tickets.outOfOrder': 'Room out of order',
 
   /* Frame W6 - what is wrong, and how bad */
   'work.fault.electrical': 'Electrical',
@@ -191,6 +215,9 @@ export const en = {
   'work.report.lineHint': 'One line is enough. The photo does the rest.',
   'work.report.send': 'Send to Maintenance',
   'work.report.needBoth': 'Pick a fault and severity',
+  // Opened from Tickets there is no room to assume (WK-07).
+  'work.report.needRoom': 'Pick the room',
+  'work.report.roomListLabel': 'the room list',
   'work.report.consequence': 'Room {room} goes out of order · its task blocks',
   'work.report.consequenceNoTask': 'Room {room} goes out of order',
   'work.report.filedToast': '{ref} filed · room {room} out of order, task blocked',
@@ -201,14 +228,14 @@ export const en = {
   /* Frame W5 - inspection */
   'work.inspection.title': 'Inspection',
   'work.inspection.listLabel': 'rooms awaiting sign-off',
-  'work.inspection.eyebrow': '{name} · Housekeeping supervisor',
   'work.inspection.lead': '{count} rooms marked done, waiting on you.',
   'work.inspection.leadOne': '1 room marked done, waiting on you.',
   'work.inspection.doneAt': 'Done {time} · {minutes} min',
   'work.inspection.pass': 'Pass',
   'work.inspection.fail': 'Fail',
   'work.inspection.blockNote': 'Front desk cannot re-sell {room} until this passes.',
-  'work.inspection.passToast': 'Room {room} inspected — the front desk can sell it',
+  // Not "the front desk can sell it": no desk was told (WK-02's class).
+  'work.inspection.passToast': 'Room {room} passed inspection',
   'work.inspection.failTitle': 'Send {room} back',
   'work.inspection.failBody':
     '{name} gets the room again with your reason. The task returns to pending; the desk stays blocked.',
@@ -226,13 +253,11 @@ export const en = {
   'work.reason.dusting': 'Dusting',
   'work.reason.bin': 'Bin not emptied',
 
-  /* Frame W7 - the shift summary, on the Work Account section */
-  'work.shift.eyebrow': '{name} · {start} – {end}',
+  /* Frame W7 - the shift summary, on the Work Account section. Rooms cleaned,
+     the average and the shift hours are gone until the server has them: all
+     three were fixture values (mobile audit 2026-10-05, WK-02). */
   'work.shift.title': 'Your shift',
-  'work.shift.cleaned': 'Rooms cleaned',
-  'work.shift.average': 'Average per room',
   'work.shift.left': 'Tasks left',
-  'work.shift.minutes': 'min',
   'work.shift.finishedTitle': 'Rooms you finished',
   'work.shift.footnote':
     'Only you and your supervisor see this. It is not ranked against anyone.',
@@ -248,6 +273,7 @@ export const en = {
   'work.writeFailedBody': 'The room is unchanged and nobody has been told. Try again.',
   'work.faultFailedTitle': 'The fault was not filed',
   'work.faultFailedBody': 'Nothing was sent and no ticket was opened. Try again — your photos and notes are still here.',
+  'work.dismiss': 'Dismiss',
   // The queue tab's own accessibility. gaps.md: "a11y=0 on the home screen of a
   // gloved, one-handed surface", which is the surface where a screen reader and
   // a large target matter most.
@@ -276,7 +302,11 @@ export const rw: Record<keyof typeof en, string> = {
   /* Frame W8 gives this screen verbatim */
   'work.queue.title': 'Imirimo',
   'work.queue.listLabel': 'imirimo yawe',
-  'work.queue.syncOnline': 'Byahujwe · Imirimo {count} · {time}',
+  // Mobile audit 2026-10-05: the keys whose English changed meaning in the
+  // honesty pass carry the English until the Kinyarwanda work lands, rather
+  // than a translation of the old, untrue sentence.
+  'work.queue.syncOnline': en['work.queue.syncOnline'],
+  'work.queue.syncOnlineNoTime': en['work.queue.syncOnlineNoTime'],
   'work.queue.syncOffline': 'Nta murandasi · {count} byabitswe kuri iyi telefone',
   'work.queue.tabAll': 'Byose',
   'work.queue.tabFloor': 'Igorofa {floor}',
@@ -298,17 +328,21 @@ export const rw: Record<keyof typeof en, string> = {
   'work.queue.metaHighPriority': 'Byihutirwa',
   'work.queue.metaBlocked': 'Byahagaritswe · {ref}',
   'work.queue.doneQueued': 'Byarangiye · Bitegereje',
-  'work.queue.doneSynced': 'Byarangiye · Byahujwe',
+  'work.queue.doneSynced': en['work.queue.doneSynced'],
   'work.queue.swipeStart': 'Tangira',
   'work.queue.swipeBlock': 'Hagarika',
   'work.queue.arrivalTitle': 'Icyumba {room} cyasohotse',
   'work.queue.arrivalAgoSeconds': 'Cyongewe ku rutonde hashize amasegonda {seconds}',
   'work.queue.arrivalAgoMinutes': 'Cyongewe ku rutonde hashize iminota {minutes}',
   'work.queue.arrivalOpen': 'Fungura icyumba {room}',
-  'work.queue.arrivalToast': 'Icyumba {room} cyasohotse — umurimo wongewe ako kanya',
   'work.queue.inspectionTitle': 'Ibyumba {count} byaranzwe nk’ibyarangiye, bitegereje wowe',
   'work.queue.inspectionOne': 'Icyumba 1 cyaranzwe nk’icyarangiye, gitegereje wowe',
   'work.queue.inspectionOpen': 'Genzura',
+
+  'work.tabs.rooms': en['work.tabs.rooms'],
+  'work.tabs.roomsOne': en['work.tabs.roomsOne'],
+  'work.tabs.tickets': en['work.tabs.tickets'],
+  'work.tabs.ticketsOne': en['work.tabs.ticketsOne'],
 
   'work.kind.checkoutClean': 'Isuku yo gusohoka',
   'work.kind.stayoverClean': 'Isuku y’uri mu cyumba',
@@ -321,28 +355,23 @@ export const rw: Record<keyof typeof en, string> = {
   'work.offline.bannerNone': 'Nta kintu gitegereje',
   'work.offline.connected': 'Uhujwe · nta kintu gitegereje',
   'work.offline.reconnect': 'Ongera uhuze',
-  'work.offline.cardTitle': 'Ibiba iyo wongeye guhuza',
-  'work.offline.cardBody':
-    'Impinduka zawe {count} zisubirwamo ku murongo hamwe n’ibimenyetso byazo, bityo nta na kimwe cyandikwa kabiri. Ibyumba wasoje bihinduka icyatsi ku rutonde rw’ibiro. Niba ibiro byahinduye icyumba wari uri hanze y’umuyoboro, uhabwa ikarita imwe y’impaka — nta na rimwe bisimburwa mu ibanga.',
-  'work.offline.cardBodyEmpty':
-    'Nta kintu gitegereje. Icyumba usoje udafite umuyoboro kibikwa hano n’ikimenyetso cyacyo, kikisubiramo ku murongo iyo wongeye guhuza, kandi ntikishobora kwandikwa kabiri.',
-  'work.offline.replayTitle': 'Bitegereje kongera koherezwa, ku murongo',
+  'work.offline.cardTitle': en['work.offline.cardTitle'],
+  'work.offline.cardBody': en['work.offline.cardBody'],
+  'work.offline.cardBodyEmpty': en['work.offline.cardBodyEmpty'],
+  'work.offline.replayTitle': en['work.offline.replayTitle'],
   'work.offline.queuedRoom': 'Icyumba {room} · {what}',
   'work.offline.changeClean': 'cyaranzwe nk’igisukuye',
   'work.offline.changeStarted': 'cyatangijwe',
   'work.offline.changeBlocked': 'cyahagaritswe',
   'work.offline.changeStatus': 'imiterere yahinduwe',
   'work.offline.changeTicket': 'ikibazo cyatanzwe',
-  'work.offline.syncedToast': 'Impinduka {count} zahujwe ku murongo, nta gusubiramo',
-  'work.offline.syncedToastOne': 'Impinduka 1 yahujwe ku murongo, nta gusubiramo',
   'work.offline.backOnlineToast': 'Wongeye guhuzwa',
   'work.offline.lostToast': 'Umurandasi wagiye — akazi kawe kabitswe kuri iyi telefone',
-  'work.offline.savedToast':
-    'Byabitswe kuri iyi telefone — bizahuzwa umurandasi ugarutse',
+  'work.offline.savedToast': en['work.offline.savedToast'],
   'work.offline.title': 'Umurandasi',
   'work.offline.simulateLabel': 'Igerageze nk’aho nta murandasi uhari',
-  'work.offline.simulateHint':
-    'Bikura iyi telefoni ku muyoboro kugira ngo ugerageze uko bigenda mu nzira. Umuyoboro wawe nyawo uracyabarwa: ubuze umuyoboro by’ukuri, ubu butumwa bumwe buragaragara.',
+  'work.offline.simulateHint': en['work.offline.simulateHint'],
+  'work.offline.simulatedDetail': en['work.offline.simulatedDetail'],
   'work.offline.realOffline': 'Iyi telefone nta murandasi ifite ubu.',
 
   'work.task.eyebrow': 'Igorofa {floor} · {type}',
@@ -351,8 +380,9 @@ export const rw: Record<keyof typeof en, string> = {
   'work.task.stepProgress': 'Biragenda',
   'work.task.stepDone': 'Byarangiye',
   'work.task.elapsed': 'Igihe cyakoreshejwe',
-  'work.task.startedAt': 'Byatangiye {time} · impuzandengo yawe ni iminota {minutes}',
-  'work.task.notStarted': 'Ntibiratangira · impuzandengo yawe ni iminota {minutes}',
+  'work.task.startedAt': en['work.task.startedAt'],
+  'work.task.notStarted': en['work.task.notStarted'],
+  'work.task.listLabel': en['work.task.listLabel'],
   'work.task.notesTitle': 'Amakuru avuye ku kakiriro',
   'work.task.noNotes': 'Akakiriro nta kintu kanditse kuri iki cyumba.',
   'work.task.start': 'Tangira gusukura',
@@ -365,10 +395,10 @@ export const rw: Record<keyof typeof en, string> = {
   'work.task.reportFault': 'Tanga ikibazo',
   'work.task.requestCheck': 'Saba kugenzurwa',
   'work.task.startedToast': 'Icyumba {room} cyatangiye',
-  'work.task.cleanToast': 'Icyumba {room} gisukuye — akakiriro karabibona ako kanya',
-  'work.task.checkToast':
-    'Byoherejwe kuri {name} ngo byemezwe — akakiriro kagumye gahagaze kugeza binyuze',
+  'work.task.cleanToast': en['work.task.cleanToast'],
+  'work.task.checkToast': en['work.task.checkToast'],
   'work.task.consequenceDone': 'Kwemeza ko byarangiye bituma {room} kigera ku kakiriro.',
+  'work.task.consequenceOffline': en['work.task.consequenceOffline'],
   'work.task.notFoundTitle': 'Uyu murimo ntabwo uri ku rutonde rwawe',
   'work.task.notFoundBody':
     'Cyararangiye, cyaremejwe, cyangwa ni icy’undi mukozi. Urutonde rwo hasi ni urwawe.',
@@ -387,6 +417,7 @@ export const rw: Record<keyof typeof en, string> = {
   'work.rooms.emptyTitle': 'Nta kintu kiri muri iyi miterere',
   'work.rooms.emptyBody': 'Nta cyumba kiri kuri uru rutonde ari {status} ubu. Gerageza Byose.',
   'work.rooms.sheetTitle': 'Shyiraho imiterere y’isuku',
+  'work.rooms.sheetListLabel': en['work.rooms.sheetListLabel'],
   'work.rooms.sheetSubtitle': 'Icyumba {room} · {type} · Igorofa {floor}',
   'work.rooms.reportIssue': 'Tanga ikibazo cyo muri iki cyumba',
   'work.rooms.setToast': 'Icyumba {room} · {status}',
@@ -414,6 +445,7 @@ export const rw: Record<keyof typeof en, string> = {
   'work.tickets.noPhoto': 'Nta foto',
   'work.tickets.card': 'Ikibazo {ref}, icyumba {room}, {status}',
   'work.tickets.blocks': 'Icyumba ntigikoreshwa · umurimo wahagaritswe',
+  'work.tickets.outOfOrder': en['work.tickets.outOfOrder'],
 
   'work.fault.electrical': 'Amashanyarazi',
   'work.fault.plumbing': 'Amazi',
@@ -435,6 +467,8 @@ export const rw: Record<keyof typeof en, string> = {
   'work.report.lineHint': 'Umurongo umwe urahagije. Ifoto ivuga ibisigaye.',
   'work.report.send': 'Ohereza ku bakora ibisanwa',
   'work.report.needBoth': 'Hitamo ikibazo n’uko gikomeye',
+  'work.report.needRoom': en['work.report.needRoom'],
+  'work.report.roomListLabel': en['work.report.roomListLabel'],
   'work.report.consequence':
     'Icyumba {room} ntikizakoreshwa · umurimo wacyo urahagarara',
   'work.report.consequenceNoTask': 'Icyumba {room} ntikizakoreshwa',
@@ -446,7 +480,6 @@ export const rw: Record<keyof typeof en, string> = {
 
   'work.inspection.title': 'Igenzura',
   'work.inspection.listLabel': 'ibyumba bitegereje kwemezwa',
-  'work.inspection.eyebrow': '{name} · Ushinzwe isuku',
   'work.inspection.lead': 'Ibyumba {count} byaranzwe nk’ibyarangiye, bitegereje wowe.',
   'work.inspection.leadOne': 'Icyumba 1 cyaranzwe nk’icyarangiye, gitegereje wowe.',
   'work.inspection.doneAt': 'Byarangiye {time} · iminota {minutes}',
@@ -454,7 +487,7 @@ export const rw: Record<keyof typeof en, string> = {
   'work.inspection.fail': 'Byanzwe',
   'work.inspection.blockNote':
     'Akakiriro ntigashobora kongera kugurisha {room} kugeza ibi byemewe.',
-  'work.inspection.passToast': 'Icyumba {room} cyagenzuwe — akakiriro gashobora kukigurisha',
+  'work.inspection.passToast': en['work.inspection.passToast'],
   'work.inspection.failTitle': 'Subiza icyumba {room}',
   'work.inspection.failBody':
     '{name} yongera guhabwa icyumba n’impamvu yawe. Umurimo usubira mu bitegereje; ibiro bigumana ko kidakoreshwa.',
@@ -472,12 +505,8 @@ export const rw: Record<keyof typeof en, string> = {
   'work.reason.dusting': 'Guhanagura umukungugu',
   'work.reason.bin': 'Agatebo katamenwe',
 
-  'work.shift.eyebrow': '{name} · {start} – {end}',
   'work.shift.title': 'Shifti yawe',
-  'work.shift.cleaned': 'Ibyumba wasukuye',
-  'work.shift.average': 'Impuzandengo ku cyumba',
   'work.shift.left': 'Imirimo isigaye',
-  'work.shift.minutes': 'iminota',
   'work.shift.finishedTitle': 'Ibyumba warangije',
   'work.shift.footnote':
     'Ni wowe n’umugenzuzi wawe gusa mubibona. Ntibigereranywa n’undi muntu.',
@@ -486,6 +515,7 @@ export const rw: Record<keyof typeof en, string> = {
   'work.writeFailedBody': `${en['work.writeFailedBody']} (RW)`,
   'work.faultFailedTitle': `${en['work.faultFailedTitle']} (RW)`,
   'work.faultFailedBody': `${en['work.faultFailedBody']} (RW)`,
+  'work.dismiss': en['work.dismiss'],
   'work.queue.a11yList': `${en['work.queue.a11yList']} (RW)`,
   'work.queue.a11yHeader': `${en['work.queue.a11yHeader']} (RW)`,
   'work.queue.a11yProgress': `${en['work.queue.a11yProgress']} (RW)`,

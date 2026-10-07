@@ -21,8 +21,19 @@
  * 2. A number labelled "total" that grows by 5% on the next screen is the
  * pattern the design brief's "consequences are printed under the button" rule
  * exists to stop, so this one is labelled as what it is.
+ *
+ * **It is the contract's accommodation figure: rate × guests × nights.** A
+ * stay is priced per guest per night (owner decision 2026-09-15). This card
+ * used to print `rate × nights` while the bar under it carried the per-person
+ * gross, so the two disagreed by about 2.1 times for the default party (mobile
+ * audit 2026-10-05, GK-14). Both now read `money.accommodationRwf`.
+ *
+ * **The calendar starts on Kigali's today and stops at `MAX_NIGHTS`.** Dates
+ * are read in the property's time zone, as the note under the grid says, and
+ * a check-out past the platform's cap is a stay the API refuses (GK-30).
  */
 import { View } from 'react-native';
+import type { MoneyBreakdown } from '@injishi/contracts';
 import {
   CalendarRange,
   Card,
@@ -42,8 +53,8 @@ import {
   type GuestParty,
 } from '@/data/search';
 import type { RoomCard, StayDetail } from '@/data/property-detail';
-import { moneyText, nightsLabel } from './listing-format';
-import { nightsIn } from './book-format';
+import { nightsLabel, rateLine } from './listing-format';
+import { kigaliToday, lastPickableDay, nightsIn } from './book-format';
 import { Note } from './book-parts';
 
 export interface StepDatesProps {
@@ -51,6 +62,8 @@ export interface StepDatesProps {
   room: RoomCard;
   dates: DateRange;
   party: GuestParty;
+  /** The stepper's one quote, from `computeBreakdown`. Undefined until dated. */
+  money: MoneyBreakdown | undefined;
   onDates: (dates: DateRange) => void;
   onParty: (party: GuestParty) => void;
 }
@@ -60,6 +73,7 @@ export function BookStepDates({
   room,
   dates,
   party,
+  money,
   onDates,
   onParty,
 }: StepDatesProps) {
@@ -99,7 +113,12 @@ export function BookStepDates({
       {/* -------------------------------------------------------------- when */}
       <View style={{ gap: space[3] }}>
         <SectionLabel>{t('book.when')}</SectionLabel>
-        <CalendarRange value={dates} onChange={onDates} />
+        <CalendarRange
+          value={dates}
+          onChange={onDates}
+          min={kigaliToday()}
+          max={lastPickableDay(dates)}
+        />
         <Note icon="clock">{t('book.timezoneNote')}</Note>
       </View>
 
@@ -161,7 +180,7 @@ export function BookStepDates({
       </View>
 
       {/* ---------------------------------------------------- what it is so far */}
-      {nights > 0 && rate !== null ? (
+      {nights > 0 && money ? (
         <Card variant="tint">
           <View style={{ gap: 10 }}>
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
@@ -180,12 +199,9 @@ export function BookStepDates({
               }}
             >
               <Text size="sm" color="textMuted" style={{ flexShrink: 1 }}>
-                {t('book.rateTimesNights', {
-                  rate: moneyText(rate),
-                  nights: nightsLabel(nights, t),
-                })}
+                {rateLine(money.nightlyRateRwf, money.guests ?? heads, money.nights, t)}
               </Text>
-              <MoneyAmount value={rate * nights} strong size="md" />
+              <MoneyAmount value={money.accommodationRwf} strong size="md" />
             </View>
 
             <Text size="xs" color="textMuted" style={{ lineHeight: 18 }}>

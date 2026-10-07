@@ -7,6 +7,9 @@
 
 export const en = {
   'explore.greeting': 'Muraho, {name}',
+  // Said when the server has no name for this person, or has not answered yet.
+  // Never a guessed or fixture name (mobile audit 2026-10-05, GB-02).
+  'explore.greetingNoName': 'Muraho',
   'explore.title': 'Where to?',
   'explore.searchPlaceholder': 'Where · When · Who',
   'explore.searchHint': 'Search stays by place, dates and guests',
@@ -35,7 +38,9 @@ export const en = {
   'explore.viewMap': 'Map',
   'explore.resultsCount': '{count} stays',
   'explore.resultsOne': '1 stay',
-  'explore.perNight': 'night',
+  // Rates are per guest per night (owner decision 2026-09-15), so the unit
+  // says so (mobile audit 2026-10-05, GB-08).
+  'explore.perNight': 'per guest / night',
 
   /* Saving from the tile */
   'explore.savedToast': 'Saved — it is on your Saved tab',
@@ -51,10 +56,11 @@ export const en = {
     'Nothing in the catalogue satisfies every one of your filters at once. Clearing one or two brings results back.',
   'explore.emptyAllAction': 'Clear every filter',
 
-  /* The map view, which is a placed-pin diagram until the search endpoint lands */
-  'explore.mapNoteTitle': 'Map view arrives with the API',
+  /* The map view: real pin positions over a drawn ground. Said in the reader's
+     words, with no build or ticket talk (mobile audit 2026-10-05, GB-14). */
+  'explore.mapNoteTitle': 'A drawing, not a street map',
   'explore.mapNoteBody':
-    'The pins are placed from each stay’s own coordinates and move with your filters, but the ground under them is drawn, not a real map. A pannable map lands with the search endpoint; which provider draws it is still an open question on F-B04.',
+    'Each pin sits where its stay is and moves with your filters. The ground under the pins is a simple drawing of Rwanda that does not pan or zoom.',
   'explore.mapLabel': 'Map of Rwanda showing {count} stays',
   'explore.mapPin': '{title} in {location}',
   'explore.mapLake': 'Lake Kivu',
@@ -130,8 +136,6 @@ export const en = {
   'trip.guestsCount': '{count} guests',
   'trip.confirmation': 'Confirmation',
   'trip.price': 'Price',
-  'trip.nightlyRate': 'Nightly rate',
-  'trip.serviceAndTaxes': 'Service and taxes',
   'trip.totalPaid': 'Total paid',
   'trip.mockAdapter': 'Mock adapter',
   'trip.mockAdapterNote':
@@ -141,7 +145,6 @@ export const en = {
   'trip.host': 'Your host',
   'trip.messageHost': 'Message {host}',
   'trip.messageHostHint': 'Opens the conversation for this booking',
-  'trip.threadActive': 'Usually answers within an hour',
   'trip.threadArchived': 'Read-only — this booking has ended',
 
   /* Getting there */
@@ -224,7 +227,6 @@ export const en = {
   'listing.reviews': '{count} reviews',
   'listing.noReviews': 'No reviews yet',
   'listing.hostedBy': 'Hosted by {name}',
-  'listing.hostMeta': 'TIN on file · usually replies within an hour',
   'listing.about': 'About this place',
 
   /* Amenities */
@@ -272,7 +274,10 @@ export const en = {
   'listing.rooms': 'Room types',
   'listing.roomsSubtitle': 'Pick one. The bar at the foot of the page follows your choice.',
   'listing.sleeps': 'Sleeps {count}',
-  'listing.perNight': '/ night',
+  'listing.perNight': 'per guest / night',
+  /* `RWF 145,000 × 2 guests × 3 nights`: the policy sheet and the booking steps
+     print the same line, because the rate is per guest per night. */
+  'listing.rateLine': '{rate} × {guests} × {nights}',
   'listing.remainingLast': 'Last one at this rate',
   'listing.remainingFew': 'Only {count} left',
   'listing.remainingMany': '{count} rooms left',
@@ -392,7 +397,7 @@ export const en = {
   'listing.unsavedToast': 'Removed from Saved',
 
   /* Spoken labels this page builds itself */
-  'listing.a11yRoom': '{name}. {sleeps}, {beds}. {rate} per night. {availability}',
+  'listing.a11yRoom': '{name}. {sleeps}, {beds}. {rate} per guest per night. {availability}',
   'listing.a11yDates': '{dates}, {nights}. Tap to change them.',
   'listing.a11yNoDates': 'No dates chosen. Tap to add them.',
   'listing.a11yScoreRow': 'Guest score {score} out of 10, {word}, from {reviews}',
@@ -417,6 +422,7 @@ export const en = {
  */
 export const rw: Record<keyof typeof en, string> = {
   'explore.greeting': 'Muraho, {name}',
+  'explore.greetingNoName': en['explore.greetingNoName'],
   'explore.title': 'Ujya he?',
   'explore.searchPlaceholder': 'Ahantu · Igihe · Abantu',
   'explore.searchHint': 'Shakisha aho kuraramo ukurikije ahantu, itariki n’umubare w’abantu',
@@ -445,7 +451,8 @@ export const rw: Record<keyof typeof en, string> = {
   'explore.viewMap': 'Ikarita',
   'explore.resultsCount': 'aho kuraramo {count}',
   'explore.resultsOne': 'hantu 1',
-  'explore.perNight': 'ijoro',
+  // English until Kinyarwanda work starts: the unit changed meaning (GB-08).
+  'explore.perNight': en['explore.perNight'],
 
   /* Saving from the tile */
   'explore.savedToast': 'Byabitswe — biri ku ikadiri y’Ibyabitswe',
@@ -461,10 +468,10 @@ export const rw: Record<keyof typeof en, string> = {
     'Nta hantu ho kuraramo huzuza muyunguruzi zawe zose icyarimwe. Gusiba imwe cyangwa ebyiri bigarura ibisubizo.',
   'explore.emptyAllAction': 'Siba muyunguruzi zose',
 
-  /* The map view, which is a placed-pin diagram until the search endpoint lands */
-  'explore.mapNoteTitle': 'Ikarita izaza n’API',
-  'explore.mapNoteBody':
-    'Utudomo dushyirwa ahantu hakurikije aho buri hantu heri, kandi tugendana na muyunguruzi zawe, ariko ikarita iri munsi yatwo yarashushanyijwe, si iy’ukuri. Ikarita nyayo izaza n’aho gushakira; uzayishushanya ntiragenwa kuri F-B04.',
+  /* The map view. English until Kinyarwanda work starts: the old translation
+     carried the developer copy GB-14 removed. */
+  'explore.mapNoteTitle': en['explore.mapNoteTitle'],
+  'explore.mapNoteBody': en['explore.mapNoteBody'],
   'explore.mapLabel': 'Ikarita y’u Rwanda yerekana aho kuraramo {count}',
   'explore.mapPin': '{title} i {location}',
   'explore.mapLake': 'Ikiyaga cya Kivu',
@@ -540,8 +547,6 @@ export const rw: Record<keyof typeof en, string> = {
   'trip.guestsCount': 'Abashyitsi {count}',
   'trip.confirmation': 'Inomero y’ubwemeza',
   'trip.price': 'Igiciro',
-  'trip.nightlyRate': 'Igiciro cy’ijoro',
-  'trip.serviceAndTaxes': 'Serivisi n’imisoro',
   'trip.totalPaid': 'Igiteranyo cyishyuwe',
   'trip.mockAdapter': 'Uburyo bw’igerageza',
   'trip.mockAdapterNote':
@@ -551,7 +556,6 @@ export const rw: Record<keyof typeof en, string> = {
   'trip.host': 'Nyir’aho uraramo',
   'trip.messageHost': 'Andikira {host}',
   'trip.messageHostHint': 'Bifungura ikiganiro cy’uku kwandika',
-  'trip.threadActive': 'Akenshi asubiza mu isaha imwe',
   'trip.threadArchived': 'Gusoma gusa — uku kwandika kwararangiye',
 
   /* Uko ugera aho ugiye */
@@ -633,7 +637,6 @@ export const rw: Record<keyof typeof en, string> = {
   'listing.reviews': 'ibitekerezo {count}',
   'listing.noReviews': 'Nta bitekerezo birabaho',
   'listing.hostedBy': 'Hakirwa na {name}',
-  'listing.hostMeta': 'TIN yanditse · akunda gusubiza mu isaha imwe',
   'listing.about': 'Ibyerekeye aha hantu',
 
   /* Amenities */
@@ -681,7 +684,8 @@ export const rw: Record<keyof typeof en, string> = {
   'listing.rooms': 'Ubwoko bw’ibyumba',
   'listing.roomsSubtitle': 'Hitamo bumwe. Umurongo wo hasi ukurikira icyo watoranyije.',
   'listing.sleeps': 'Bararamo {count}',
-  'listing.perNight': '/ ijoro',
+  'listing.perNight': en['listing.perNight'],
+  'listing.rateLine': en['listing.rateLine'],
   'listing.remainingLast': 'Ni cyo cya nyuma kuri iki giciro',
   'listing.remainingFew': 'Hasigaye {count} gusa',
   'listing.remainingMany': 'Hasigaye ibyumba {count}',
@@ -803,7 +807,7 @@ export const rw: Record<keyof typeof en, string> = {
   'listing.unsavedToast': 'Byakuwe mu byabitswe',
 
   /* Spoken labels this page builds itself */
-  'listing.a11yRoom': '{name}. {sleeps}, {beds}. {rate} ku ijoro. {availability}',
+  'listing.a11yRoom': en['listing.a11yRoom'],
   'listing.a11yDates': '{dates}, {nights}. Kanda uhindure.',
   'listing.a11yNoDates': 'Nta tariki zatoranyijwe. Kanda uzongereho.',
   'listing.a11yScoreRow': 'Amanota y’abashyitsi {score} kuri 10, {word}, ava kuri {reviews}',

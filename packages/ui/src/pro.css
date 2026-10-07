@@ -1,0 +1,14 @@
+/*
+ * HeroUI Pro's stylesheet, re-exported by `@injishi/ui` as `@injishi/ui/pro.css`.
+ *
+ * An app reaches Pro only through this package (library-docs.md § Shared
+ * Packages), and that holds for CSS too: `@heroui-pro/react` is a dependency of
+ * `packages/ui` alone, so under pnpm's strict layout an app's own stylesheet
+ * cannot resolve it. This file resolves it from here.
+ *
+ * Import it in an app's stylesheet straight AFTER `@import "@heroui/styles";`
+ * and BEFORE `@injishi/design-tokens/heroui.css`. Pro's layer builds on HeroUI's
+ * (its docs require that order), and the Injishi token sheet that follows still
+ * decides every colour, radius and font.
+ */
+@import "@heroui-pro/react/css";

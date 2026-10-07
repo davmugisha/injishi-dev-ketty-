@@ -26,6 +26,16 @@
  * clause body is editable, and clause editing is a Tiptap surface the mobile
  * client does not carry. Drawing an editable rent here would let a landlord
  * change a number the contract is generated from.
+ *
+ * **What signing here is today, said plainly** (mobile audit 2026-10-05,
+ * LL-04). `POST /ops/leases/:id/sign` does not exist, so the signature lands in
+ * this phone's own store and nowhere else. So the screen claims no more than
+ * that: the signatory is the person holding the phone, by their own name from
+ * the server and never the fixture persona `ME`; the stamp is today's date,
+ * not a fixed "4 Aug 2026"; nothing says the contract went to the tenant, was
+ * stored for seven years or will be filed with RRA; and "Read the full
+ * contract" and "Download", which only ever toasted that a service was "not
+ * wired", are gone.
  */
 import { useState } from 'react';
 import { View, ScrollView } from 'react-native';
@@ -37,22 +47,24 @@ import {
   Button,
   Card,
   EmptyState,
+  ErrorState,
   Icon,
-  ListRow,
   SectionLabel,
   SignaturePad,
   StickyBar,
   Text,
+  todayIso,
   useToast,
   WriteError,
 } from '@/components';
 import { useTheme } from '@/theme/theme';
 import { useDomain } from '@/domain';
 import { useT, type MessageKey } from '@/i18n/i18n';
-import { ME } from '@/data/personas';
+import { useMyIdentity } from '@/queries/profile';
 import { useFixtureMutation } from '@/data/use-fixture-mutation';
 import {
   applyLandlordSignature,
+  dayStamp,
   findLease,
   LEASES_KEY,
   seedLeases,
@@ -68,9 +80,6 @@ const CLAUSES: MessageKey[] = [
   'landlord.contract.clause4',
 ];
 
-/** The day a signature is stamped. Fixed to the fixtures' own "today". */
-const TODAY = '4 Aug 2026';
-
 export function LandlordContract({ leaseId }: { leaseId: string }) {
   const { c, space, radius } = useTheme();
   const insets = useSafeAreaInsets();
@@ -78,6 +87,7 @@ export function LandlordContract({ leaseId }: { leaseId: string }) {
   const t = useT();
   const toast = useToast();
   const { workspace } = useDomain();
+  const me = useMyIdentity();
   const [inked, setInked] = useState(false);
 
   const read = useLandlordRead(LEASES_KEY, seedLeases);
@@ -97,6 +107,23 @@ export function LandlordContract({ leaseId }: { leaseId: string }) {
           >
             {t('state.loading')}
           </Text>
+        </View>
+      </View>
+    );
+  }
+
+  // A failed read is not a missing lease (mobile audit 2026-10-05, LL-21).
+  if (read.status === 'error') {
+    return (
+      <View style={{ flex: 1, backgroundColor: c.bgApp }}>
+        <BackHeader />
+        <View style={{ flex: 1, justifyContent: 'center', paddingHorizontal: space[4] }}>
+          <ErrorState
+            title={t('state.errorTitle')}
+            body={t('state.errorBody', { label: t('landlord.leaseLabel') })}
+            detail={read.error?.message}
+            onRetry={read.retry}
+          />
         </View>
       </View>
     );
@@ -138,16 +165,28 @@ export function LandlordContract({ leaseId }: { leaseId: string }) {
    * reports itself signed is the worst outcome this surface has — the landlord
    * believes the lease is executed and the tenant's copy says otherwise.
    *
-   * So the toast and the navigation now sit behind the write's own status, and
-   * a failure keeps the person on the screen with their signature intact.
+   * So the toast and the navigation now sit behind the write's own RESULT, and
+   * a failure keeps the person on the screen with their signature intact. Not
+   * behind `sign.status`: read after the `await`, that is the value from the
+   * render that pressed the button, from before the write, and it let a failed
+   * signature toast and go back anyway (gaps.md §0.3).
    */
   const confirm = async () => {
     if (!inked || busy) return;
-    await sign.mutate({ id: lease.id, on: TODAY });
-    if (sign.status === 'error') return;
+    const outcome = await sign.mutate({ id: lease.id, on: dayStamp(todayIso(), t) });
+    if (outcome !== 'done') return;
     toast.show(t('landlord.contract.done', { tenant: lease.tenant }), 'success');
     router.back();
   };
+
+  // The person signing is the person holding the phone. Their name only when
+  // the server has one; the role alone while it loads; "Name not added yet"
+  // when the account has none. Never the fixture persona.
+  const signatory = me.fromServer
+    ? t('landlord.contract.landlord', { name: me.name })
+    : me.pending
+      ? t('landlord.contract.landlordRole')
+      : t('landlord.contract.landlord', { name: t('identity.unnamed') });
 
   return (
     <View style={{ flex: 1, backgroundColor: c.bgApp }}>
@@ -215,15 +254,6 @@ export function LandlordContract({ leaseId }: { leaseId: string }) {
           </View>
         </Card>
 
-        <Card bodyStyle={{ paddingVertical: 4 }}>
-          <ListRow
-            icon="fileText"
-            title={t('landlord.contract.readFull')}
-            subtitle={t('landlord.contract.bilingual')}
-            onPress={() => toast.show(t('landlord.contract.readFullMock'), 'neutral')}
-          />
-        </Card>
-
         <SectionLabel>{t('landlord.contract.signatures')}</SectionLabel>
 
         {/* Landlord */}
@@ -237,7 +267,7 @@ export function LandlordContract({ leaseId }: { leaseId: string }) {
             }}
           >
             <Text weight="semibold" size="sm" color="textStrong" style={{ flexShrink: 1 }}>
-              {t('landlord.contract.landlord', { name: ME.name })}
+              {signatory}
             </Text>
             {landlordSigned ? (
               <Badge tone="success">
@@ -286,21 +316,6 @@ export function LandlordContract({ leaseId }: { leaseId: string }) {
             </View>
           </Card>
         ) : null}
-
-        {landlordSigned ? (
-          <Button
-            variant="outline"
-            block
-            leadingIcon="download"
-            onPress={() => toast.show(t('landlord.contract.downloadMock'), 'neutral')}
-          >
-            {t('landlord.contract.download')}
-          </Button>
-        ) : null}
-
-        <Text size="xs" color="textSubtle">
-          {t('landlord.contract.footnote')}
-        </Text>
 
         {/* A signature that did not save. It sits at the FOOT of the scroll,
             beside the signature pad, rather than at the top: the landlord is

@@ -20,6 +20,7 @@ import { useTheme } from '@/theme/theme';
 import { useT } from '@/i18n/i18n';
 import { useReducedMotion } from '@/motion';
 import { TASK_KIND_KEY, arrivalAge, taskMeta } from './work-format';
+import { WORK_TARGET } from './work-chrome';
 import type { WorkTask } from './work-fixtures';
 
 export function QueueRow({
@@ -136,6 +137,10 @@ export function QueueRow({
  * checkable rather than decorative — a banner frozen at "4s ago" would be a
  * screenshot, and this is the one place on the surface that has to feel live.
  *
+ * It draws only a task that genuinely arrived (`isNew`, which Host's checkout
+ * sets). The queue used to manufacture one, room 208 on a 6.5 second timer
+ * after every launch (mobile audit 2026-10-05, WK-02).
+ *
  * The tick is a 1s interval on a mounted banner and stops the moment it
  * unmounts. It is not an animation and never touches a frame budget.
  */
@@ -244,9 +249,10 @@ export function InspectionCallout({
           accessibilityLabel={`${t('work.queue.inspectionOpen')}. ${title}`}
           onPress={onOpen}
           style={{
-            minHeight: 44,
+            // Work's floor, not the app's (mobile audit 2026-10-05, WK-15).
+            minHeight: WORK_TARGET,
             justifyContent: 'center',
-            paddingHorizontal: 16,
+            paddingHorizontal: 18,
             borderRadius: 10,
             backgroundColor: c.surface1,
             borderWidth: 1,

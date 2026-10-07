@@ -16,6 +16,13 @@ import { z } from "zod";
  * implies the number is unknown to us — that would be enumeration.
  */
 export const RW_MOBILE_PREFIXES = ["72", "73", "78", "79"] as const;
+/**
+ * One character a person may put between the digits of a phone number: a
+ * space, a dash, a bracket or a dot. The one definition, read by
+ * `normalizeRwPhone` below and by `redactText` (ADR-063), so a spelling this
+ * file accepts as a number is a spelling the crash scrubber recognises.
+ */
+export const RW_PHONE_SEPARATOR = /[\s\-().]/;
 /** `+250` and nine digits, which is every Rwandan mobile number. */
 const RW_E164 = /^\+250(72|73|78|79)\d{7}$/;
 /**
@@ -31,7 +38,7 @@ const RW_E164 = /^\+250(72|73|78|79)\d{7}$/;
  * `send-code` route) want to branch, not to catch.
  */
 export function normalizeRwPhone(raw: string): string | null {
-    const bare = raw.replace(/[\s\-().]/g, "");
+    const bare = raw.replace(new RegExp(RW_PHONE_SEPARATOR.source, "g"), "");
     if (!/^\+?\d+$/.test(bare)) return null;
     const digits = bare.replace(/^\+/, "");
     // Reduce every accepted spelling to the nine national digits first, so the

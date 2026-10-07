@@ -22,7 +22,7 @@ import {
   searchStays,
   type StaySearch,
 } from '@/data/search';
-import { EXPLORABLE_STAYS } from '@/data/stays';
+import { EXPLORABLE_STAYS, STAYS } from '@/data/stays';
 
 const mockBack = jest.fn();
 
@@ -156,6 +156,20 @@ describe.each(SCHEMES)('the search sheet in the %s scheme', (scheme) => {
     expect(screen.getByText(rw['search.whenNote'])).toBeTruthy();
     expect(screen.getByText(rw['search.adults'])).toBeTruthy();
     expect(screen.getByText(rw['search.clearAll'])).toBeTruthy();
+  });
+
+  it('offers no guest-score sort, because v1 has no scores to sort by (GB-07)', () => {
+    renderInScheme(sheet(<ExploreSearchSheet />), scheme);
+    expect(screen.getByText(en['search.sortRecommended'])).toBeTruthy();
+    expect(screen.queryByText('Guest score')).toBeNull();
+  });
+
+  it('names places in its placeholder, never a property (XC-16)', () => {
+    // A placeholder that names a listing reads as a recommendation. It named
+    // Umurage, a seed property; places only now.
+    const placeholder = en['search.wherePlaceholder'];
+    expect(placeholder).not.toMatch(/Umurage/);
+    for (const stay of STAYS) expect(placeholder).not.toContain(stay.title);
   });
 
   it('says nothing matches rather than lying about a count', async () => {

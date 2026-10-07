@@ -11,9 +11,11 @@ import { en, rw } from '@/i18n/messages';
 import type { MessageKey } from '@/i18n/i18n';
 import {
   blockedReasonKey,
+  guestsLabel,
   modeKey,
   moneyText,
   nightsLabel,
+  rateLine,
   remainingLabel,
   roomSpokenLabel,
   tierBodyKey,
@@ -63,6 +65,28 @@ describe('nights', () => {
   });
 });
 
+/**
+ * The rate is per guest per night (owner decision 2026-09-15), so the line
+ * under an accommodation total names both multipliers (mobile audit
+ * 2026-10-05, GB-08 and GK-14).
+ */
+describe('the rate line', () => {
+  it('names the guests and the nights it multiplied by', () => {
+    expect(rateLine(145000, 2, 3, tEn)).toBe('RWF 145,000 × 2 guests × 3 nights');
+  });
+
+  it('does not print "1 guests"', () => {
+    expect(guestsLabel(1, tEn)).toBe(en['search.oneGuest']);
+    expect(rateLine(145000, 1, 1, tEn)).toBe(`RWF 145,000 × 1 guest × ${en['calendar.oneNight']}`);
+  });
+
+  it('labels a rate per guest per night wherever it is printed', () => {
+    expect(en['listing.perNight']).toBe('per guest / night');
+    expect(en['explore.perNight']).toBe('per guest / night');
+    expect(en['book.perNight']).toBe('per guest / night');
+  });
+});
+
 describe('booking mode and cancellation tier', () => {
   it('labels the two modes F-B03 names', () => {
     expect(tEn(modeKey('instant_book'))).toBe('Book now');
@@ -98,7 +122,7 @@ describe('what a screen reader hears for a room card', () => {
     const room = getRoomType('kivu-lake-suite')!;
     const spoken = roomSpokenLabel(room, tEn);
     expect(spoken).toContain('Lake Suite');
-    expect(spoken).toContain('RWF 145,000');
+    expect(spoken).toContain('RWF 145,000 per guest per night');
     expect(spoken).toContain('Sleeps 2');
     expect(spoken).toContain(en['listing.beds.oneKing']);
   });

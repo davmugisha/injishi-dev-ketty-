@@ -7,20 +7,24 @@
  * destination — `payout`, `org`, `staff`, `plan`, `subscription`, `credits`,
  * `personal`, `security`, `appearance`, `signOut`, `createWorkspace` — rather
  * than everything under `account.`, because a hundred and eighty keys under one
- * prefix is a file nobody can find anything in.
+ * prefix is a file nobody can find anything in. `role` is the one prefix that
+ * is not a destination: the word for each role a seat is held in, read by
+ * Account and the switcher through `seatRoleLabel` in `account-format.ts`.
  *
- * ## The Kinyarwanda here is written rather than stubbed
+ * ## The Kinyarwanda here is written rather than stubbed, mostly
  *
  * Session 11's audit brief asks for every ` (RW)` placeholder to be replaced
- * where possible and the rest listed for native review. This namespace carries
- * no placeholders: every key below has Kinyarwanda. It is working translation
- * for LAYOUT — the point of having it is that switching language stresses the
- * lines — and it still wants a native pass before it ships. Two habits it
- * follows, both from `ui-rules.md`: the RW runs longer than the EN and nothing
- * may truncate, so no string here is written to fit a fixed width; and a
- * borrowed technical term ("TIN", "MoMo", "2FA") stays in its borrowed form
- * rather than being invented, because a reader looking for it on a document
- * will be looking for the borrowed word.
+ * where possible and the rest listed for native review. Most keys below have
+ * Kinyarwanda. The ones added or rewritten by the mobile honesty pass
+ * (2026-10-05) carry their English (`en['…']`) instead, because v1 ships in
+ * English only and Kinyarwanda work has not started. The rest is working
+ * translation for LAYOUT — the point of having it is that switching language
+ * stresses the lines — and it still wants a native pass before it ships. Two
+ * habits it follows, both from `ui-rules.md`: the RW runs longer than the EN
+ * and nothing may truncate, so no string here is written to fit a fixed width;
+ * and a borrowed technical term ("TIN", "MoMo", "2FA") stays in its borrowed
+ * form rather than being invented, because a reader looking for it on a
+ * document will be looking for the borrowed word.
  */
 
 export const en = {
@@ -53,8 +57,24 @@ export const en = {
   'switch.personalSurfaces': 'Which side of Personal to open',
   'switch.create': 'Create a business workspace',
   'switch.createHint': 'Registering a business continues on the web.',
+  // It also promised "Anything half-captured is held, not dropped", which is
+  // true only of a started check-in or booking, the drafts kept in the fixture
+  // store (mobile audit 2026-10-05, SA-35), so the promise is gone rather than
+  // narrowed.
   'switch.note':
-    'Switching keeps you on Account, the one tab every workspace has, so the tab you are standing on never disappears under you. Anything half-captured is held, not dropped.',
+    'Switching keeps you on Account, the one tab every workspace has, so the tab you are standing on never disappears under you.',
+
+  /* ------------------------------------------------- the role a seat is held in */
+  // The server sends `orgRole` as a lowercase enum, and nothing at all for a
+  // broker or a personal seat, so the switcher printed "owner ·" and a blank
+  // Broker row (mobile audit 2026-10-05, SA-10). Each role has its own word.
+  'role.owner': 'Owner',
+  'role.manager': 'Manager',
+  'role.receptionist': 'Receptionist',
+  'role.housekeeper': 'Housekeeper',
+  'role.broker': 'Broker',
+  'role.guest': 'Guest',
+  'role.tenant': 'Tenant',
 
   /* ------------------------------------------------------------- Account (R5, R14, B25, W7) */
   'account.title': 'Account',
@@ -64,40 +84,26 @@ export const en = {
   'account.isolationNote':
     'Money never crosses a workspace. A payout as a host, rent as a tenant and a placement fee as a broker each stay inside the workspace that earned them.',
 
-  /* The role line, per seat. `{org}` and `{place}` come off the active seat. */
-  'account.roleGuest': 'Guest · Personal workspace',
-  'account.roleTenant': 'Tenant · Personal workspace',
-  'account.roleLandlord': 'Landlord · {org}',
-  'account.roleBroker': 'Broker · Kigali City',
-  'account.roleWork': 'Housekeeping · {place}',
-  'account.roleHost': 'Host · {org}',
-
-  /* What the seat has proved. Four different claims — see account-fixtures.ts. */
-  'account.badgeIdVerified': 'ID verified',
-  'account.badgeTinVerified': 'TIN verified',
-  'account.badgeLicensed': 'Licensed · {licence}',
-  'account.badgePersonal': 'Personal workspace',
+  /* Which workspace the seat is: a plain chip, never a check. The verification
+     claims ("ID verified", "TIN verified", a broker licence) went with mobile
+     audit SA-02, because no field said any of them had been checked. */
+  'account.badgePersonal': 'Personal',
   'account.badgeStaffSeat': 'Staff seat',
 
   /* The rows */
   'account.rowCredits': 'Reveal credits',
-  'account.creditsLeft': '{count} left',
-  'account.creditsHint': '{count} contact reveals left this month.',
-  'account.rowPayout': 'Payout account',
-  'account.payoutValue': 'MoMo ••{tail}',
-  'account.payoutHint': 'Where money owed to this workspace is sent.',
-  'account.rowOrganisation': 'Organisation profile',
-  'account.organisationHint': 'Legal name, TIN and where the business is registered.',
-  'account.rowStaff': 'People',
-  'account.staffHint': 'Who can act inside this workspace.',
-  'account.rowSubscription': 'Subscription',
-  'account.subscriptionHint': 'You are on {plan}.',
+  // No count: the one on the row was the fixture's seed (SA-24). The balance
+  // comes back with the real read.
+  'account.creditsHint': 'Your contact reveals, and the log of every one.',
   'account.rowPersonal': 'Personal details',
-  'account.personalHint': 'Your name, phone, email and how you sign in.',
+  'account.personalHint': 'Your name and phone, and how you sign in.',
   'account.rowSecurity': 'Security',
-  'account.securityHint': 'Two-step sign-in, and the devices signed in as you.',
+  'account.securityHint': 'Two-step sign-in, and whether your account needs it.',
+  'account.rowPrivacy': 'Privacy',
+  'account.privacyHint': 'Crash reports, and what the app sends.',
+  'account.privacyOn': 'Crash reports · On',
+  'account.privacyOff': 'Crash reports · Off',
   'account.twoFactorOn': '2FA · On',
-  'account.twoFactorOff': '2FA · Off',
   'account.language': 'Language',
   'account.localeEn': 'EN',
   'account.localeRw': 'RW',
@@ -121,7 +127,7 @@ export const en = {
   'payout.days': 'days',
   'payout.verified': 'Destination checked',
   'payout.bufferBody':
-    'Money is held for {days} days after a stay ends, so a dispute can be settled before it leaves. Nothing has moved in this build.',
+    'Money is held for {days} days after a stay ends, so a dispute can be settled before it leaves.',
   'payout.adapterMock': 'Payments · mock adapter',
   'payout.adapterMockBody': 'Nothing is sent. Amounts are stamped, not settled.',
   'payout.adapterLive': 'Payments · live',
@@ -222,7 +228,7 @@ export const en = {
   'subscription.invoices': 'Invoices',
   'subscription.onWeb': 'On the web',
   'subscription.adapterMock': 'Billing · mock adapter',
-  'subscription.adapterMockBody': 'No card is charged in this build.',
+  'subscription.adapterMockBody': 'No card is charged.',
   'subscription.upgradeTitle': 'Move up to {plan}',
   'subscription.upgradeBody.starter': 'Ten rooms, self check-in and one staff seat.',
   'subscription.upgradeBody.growth':
@@ -236,11 +242,12 @@ export const en = {
 
   /* ------------------------------------------------------------- Reveal credits */
   'credits.title': 'Reveal credits',
-  'credits.greeting': 'Aline K. Brokerage',
-  'credits.left': 'Left this month',
+  // `credits.greeting` ("Aline K. Brokerage", a seed persona's business),
+  // `credits.left`, `credits.ofMonthly` and `credits.thisMonth` are gone with
+  // mobile audit 2026-10-05 (XC-16, BR-04): the screen greets with the seat's
+  // own name now, and the monthly allowance they described does not exist. The
+  // server keeps a ledger with no monthly grant.
   'credits.spent': 'Spent',
-  'credits.ofMonthly': 'of {total} a month',
-  'credits.thisMonth': 'this month',
   'credits.whyBody':
     'A landlord’s number is personal data. A credit is a rate limit, not a paywall: it is what stops the directory being scraped and every landlord on it being harvested.',
   'credits.logTitle': 'Contacts you have revealed',
@@ -254,73 +261,50 @@ export const en = {
   'credits.emptyAction': 'Open the Directory',
 
   /* ------------------------------------------------------------- Personal */
+  /* Read only since mobile audit 2026-10-05, SA-14: the edits never reached the
+     server and said "Saved." anyway, and the sign-in methods it listed (a phone
+     number, Google) are not how anybody signs in. */
   'personal.title': 'Personal details',
   'personal.youTitle': 'You',
   'personal.youBody': 'The same person in every workspace you hold.',
   'personal.name': 'Name',
   'personal.phone': 'Phone',
-  'personal.email': 'Email',
-  'personal.editName': 'Change name',
-  'personal.editNameBody': 'This is what a landlord or a host sees on a booking.',
-  'personal.nameHelper': 'Your first and last name.',
-  'personal.editEmail': 'Change email',
-  'personal.editEmailBody': 'Receipts and lease documents go here.',
-  'personal.emailHelper': 'It is never shown on your public profile.',
-  'personal.save': 'Save',
-  'personal.saving': 'Saving',
-  'personal.savedToast': 'Saved.',
+  'personal.changeBody':
+    'You cannot change your name or phone in the app yet. For now, they are changed on the Injishi website.',
   'personal.publicTitle': 'What other people see',
   'personal.publicBody':
     'Reviews and public profiles show your first name and last initial. Your email and phone are never on them.',
   'personal.methodsTitle': 'How you sign in',
-  'personal.methodsBody': 'There is no password. Each of these is a way in.',
-  'personal.methodPhone': 'Phone number',
-  'personal.methodGoogle': 'Google',
-  'personal.googleBody': 'Not linked. Linking gives you a second way in.',
-  'personal.googleLinkedBody': 'Linked. You can sign in with either.',
-  'personal.linked': 'Linked',
-  'personal.notLinked': 'Not linked',
-  'personal.link': 'Link',
-  'personal.unlink': 'Unlink',
-  'personal.linkedToast': 'Google linked. You can sign in with either now.',
-  'personal.unlinkedToast': 'Google unlinked. Your phone number still signs you in.',
-  'personal.lastMethodNote':
-    'Your phone number cannot be unlinked while it is your only way in. Link Google first if you want to change it.',
+  'personal.signInBody': 'With a code sent to your email address. There is no password.',
+  'personal.signInBodyTo': 'With a code sent to {address}. There is no password.',
 
   /* ------------------------------------------------------------- Security */
+  /* What `GET /api/v1/me/two-factor` says, read only. There is no switch on
+     the server, so the toggle that used to be here changed nothing (SA-06). */
   'security.title': 'Security',
-  'security.label': 'your devices',
+  'security.label': 'your two-step sign-in',
   'security.twoFactorTitle': 'Two-step sign-in',
-  'security.twoFactorBody': 'A code as well as your number, every time you sign in on a new device.',
+  'security.twoFactorBody':
+    'People who hold a business or broker workspace confirm each sign in with a code emailed to them. Signing in with an emailed code counts as that check.',
   'security.twoFactorLabel': 'Two-step sign-in (2FA)',
-  'security.twoFactorOn': 'On. A code is asked for on a new device.',
-  'security.twoFactorOff': 'Off. Your number alone signs you in.',
-  'security.twoFactorHint': 'Turns the second step on or off for this account.',
+  'security.on': 'On',
+  'security.notNeeded': 'Not needed',
+  'security.statusPassed': 'Needed for your account, and this sign in has passed it.',
+  'security.statusOwed': 'Needed for your account. This sign in has not passed it yet.',
+  'security.statusNotNeeded':
+    'Your account does not need it. It is asked only of people who hold a business or broker workspace.',
+  // The devices list was invented and its sign out buttons ended no session
+  // (SA-06). Until the real list is read, the screen says it is not there.
+  'security.devicesNote': 'The app cannot list or sign out your other devices yet.',
+  // The two labels the Privacy screen's crash reports switch reads. Security
+  // has no switch of its own any more.
   'security.turnOn': 'Turn on',
   'security.turnOff': 'Turn off',
-  'security.twoFactorOnToast': 'Two-step sign-in is on.',
-  'security.twoFactorOffToast': 'Two-step sign-in is off. Your number alone signs you in.',
-  'security.devicesTitle': 'Signed in as you',
-  'security.devicesBody': '{count} devices',
-  'security.thisDevice': 'This device',
-  'security.stale': 'Not used lately',
+  // Kept for the devices list when it is read from the server: `sessionMeta`
+  // in account-format.ts words a row's last use with these.
   'security.seenToday': 'used today',
   'security.seenYesterday': 'used yesterday',
   'security.seenDaysAgo': 'used {days} days ago',
-  'security.revoke': 'Sign out',
-  'security.revokeOne': 'Sign out {device}',
-  'security.revokedToast': '{device} has been signed out.',
-  'security.revokeAll': 'Sign out everywhere else',
-  'security.revokeAllNote':
-    'Signs out {count} other devices. This one stays signed in, and anyone using another will have to sign in again.',
-  'security.revokeAllNone': 'Nothing else is signed in as you.',
-  'security.revokedAllToast': '{count} other devices signed out.',
-  'security.confirmTitle': 'Sign out everywhere else?',
-  'security.confirmBody': '{count} devices will be signed out. This one will not.',
-  'security.confirmDetail':
-    'Use this if you see a device you do not recognise. Anyone using one of them — including you, on your own computer — will have to sign in again.',
-  'security.confirmAction': 'Sign the others out',
-  'security.confirmCancel': 'Keep them signed in',
 
   /* ------------------------------------------------------------- Appearance */
   'appearance.title': 'Appearance',
@@ -337,8 +321,16 @@ export const en = {
   /* ------------------------------------------------------------- Sign out */
   'signOut.title': 'Sign out?',
   'signOut.subtitle': 'You are signed in as {name}.',
+  // For an account with no name on file, or one still loading. It used to
+  // name the fixture persona instead (mobile audit 2026-10-05, SA-01).
+  'signOut.subtitleNoName': 'You are signed in on this phone.',
   'signOut.scope':
     'This signs you out of all {count} of your workspaces, not just this one. Signing back in restores every seat.',
+  // Signing out drops the offline write queue (`lib/device-reset.ts`), so a
+  // change still waiting for a connection is lost. Said only when there is one.
+  'signOut.queuedOne': 'One change on this phone has not been saved yet, and signing out discards it.',
+  'signOut.queuedMany':
+    '{count} changes on this phone have not been saved yet, and signing out discards them.',
   'signOut.switchInstead':
     'If you only wanted to leave {name}, use Switch workspace instead — it keeps you signed in.',
   'signOut.confirm': 'Sign out',
@@ -353,10 +345,13 @@ export const en = {
   'createWorkspace.needAddress': 'The district and sector the business is registered in',
   'createWorkspace.needEvidence': 'A photograph of the registration document',
   'createWorkspace.needReview': 'A review, which a verification officer works through',
+  // Both rewritten for mobile audit 2026-10-05: the first was developer copy
+  // (XC-16), the second named injishi.rw, which is not the web (SA-35). The
+  // address the button opens is printed on the sheet, so the hint names none.
   'createWorkspace.whyWeb':
-    'It is not a screen we have not built yet. Verification is document-heavy and is reviewed by a person, so it lives where documents are easy to attach.',
+    'A person reviews every registration and the documents that come with it, so it is done on the web, where documents are easy to attach.',
   'createWorkspace.open': 'Open the web form',
-  'createWorkspace.openHint': 'Opens injishi.rw in your browser.',
+  'createWorkspace.openHint': 'Opens the registration form in your browser.',
   'createWorkspace.openFailed': 'No browser on this device. The address above can be copied by hand.',
 
   /* ------------------- payout-account's states (gaps.md §6, P1) ----------- */
@@ -369,6 +364,30 @@ export const en = {
   'payout.loading': 'Loading your payout account',
   'payout.noneTitle': 'No payout account yet',
   'payout.noneBody': 'Money is being held until you add one. Nothing is lost — it is waiting.',
+
+  /* -------------------- privacy and diagnostics (ADR-063) ---------------- */
+  // Copy owned by ADR-063 copy.md; put here as written. A build that does not
+  // report shows `privacy.notReporting` in place of the switch's effect lines.
+  'privacy.title': 'Privacy',
+  'privacy.crashReports': 'Send crash reports',
+  'privacy.crashReportsBody':
+    "When the app crashes, freezes or hits an error, it sends a report so we can fix it. A report holds the app version, your phone's model and system, and the screens and steps just before the problem. It never holds your name, email, phone number, ID, photos, messages or anything you typed.",
+  'privacy.whereStored':
+    'Reports are stored by Sentry, our crash reporting service, in the European Union, and deleted after at most 90 days.',
+  'privacy.offNow': 'Reports have stopped. A report already saved on this phone is sent only if you turn this back on.',
+  'privacy.onNextLaunch': 'Reports start the next time you open the app.',
+  'privacy.saveFailed': 'We could not save this choice. Reports stay off until you close the app; try again then.',
+  'privacy.saveFailedOn': 'We could not save this choice. Try again.',
+  'privacy.notReporting': 'This version of the app does not send crash reports.',
+  'diagnostics.row': 'Diagnostics',
+  'diagnostics.title': 'Diagnostics',
+  'diagnostics.body':
+    'For testing crash reporting. Each button breaks the app on purpose. Test reports are marked as tests and never alert anyone.',
+  'diagnostics.jsError': 'Throw a JavaScript error',
+  'diagnostics.renderError': 'Break this screen',
+  'diagnostics.nativeCrash': 'Crash the app',
+  'diagnostics.freeze': 'Freeze the app for 10 seconds',
+  'diagnostics.freezeHint': 'On Android, tap the screen while it is frozen.',
 } as const;
 
 /**
@@ -404,7 +423,17 @@ export const rw: Record<keyof typeof en, string> = {
   'switch.create': 'Fungura urwego rw’ubucuruzi',
   'switch.createHint': 'Kwiyandikisha nk’ubucuruzi bikomerezwa ku rubuga.',
   'switch.note':
-    'Guhindura bigusigira kuri Konti, isakoshi rimwe buri rwego rufite, bityo isakoshi uhagazeho ntirizigera ribura. Ibyari byatangiye bibikwa, ntibitakara.',
+    'Guhindura bigusigira kuri Konti, isakoshi rimwe buri rwego rufite, bityo isakoshi uhagazeho ntirizigera ribura.',
+
+  /* ------------------------------------------------- the role a seat is held in */
+  // English until Kinyarwanda work starts (v1 is English only).
+  'role.owner': en['role.owner'],
+  'role.manager': en['role.manager'],
+  'role.receptionist': en['role.receptionist'],
+  'role.housekeeper': en['role.housekeeper'],
+  'role.broker': en['role.broker'],
+  'role.guest': en['role.guest'],
+  'role.tenant': en['role.tenant'],
 
   /* ------------------------------------------------------------- Account */
   'account.title': 'Konti',
@@ -414,37 +443,20 @@ export const rw: Record<keyof typeof en, string> = {
   'account.isolationNote':
     'Amafaranga ntiyambuka urwego. Ayo wahembwe nk’umucuruzi, ubukode nk’ukodesha n’ikiguzi cy’umuhuza buri kimwe gisigara mu rwego cyakivuyemo.',
 
-  'account.roleGuest': 'Umushyitsi · Urwego bwite',
-  'account.roleTenant': 'Ukodesha · Urwego bwite',
-  'account.roleLandlord': 'Nyir’inzu · {org}',
-  'account.roleBroker': 'Umuhuza · Umujyi wa Kigali',
-  'account.roleWork': 'Isuku · {place}',
-  'account.roleHost': 'Uwakira · {org}',
-
-  'account.badgeIdVerified': 'Indangamuntu yemejwe',
-  'account.badgeTinVerified': 'TIN yemejwe',
-  'account.badgeLicensed': 'Uruhushya · {licence}',
-  'account.badgePersonal': 'Urwego bwite',
+  'account.badgePersonal': 'Bwite',
   'account.badgeStaffSeat': 'Umwanya w’umukozi',
 
   'account.rowCredits': 'Amanota yo kubona aderesi',
-  'account.creditsLeft': 'Asigaye {count}',
-  'account.creditsHint': 'Hasigaye kubona aderesi {count} muri uku kwezi.',
-  'account.rowPayout': 'Konti yo kwishyurirwaho',
-  'account.payoutValue': 'MoMo ••{tail}',
-  'account.payoutHint': 'Aho amafaranga y’uru rwego yoherezwa.',
-  'account.rowOrganisation': 'Umwirondoro w’ubucuruzi',
-  'account.organisationHint': 'Izina ryemewe, TIN, n’aho ubucuruzi bwanditswe.',
-  'account.rowStaff': 'Abakozi n’ubutumire',
-  'account.staffHint': 'Abashobora gukora muri uru rwego.',
-  'account.rowSubscription': 'Ifatabuguzi',
-  'account.subscriptionHint': 'Uri kuri gahunda ya {plan}.',
+  'account.creditsHint': en['account.creditsHint'],
   'account.rowPersonal': 'Umwirondoro wawe',
-  'account.personalHint': 'Amazina, telefoni, imeyili, n’uko winjira.',
+  'account.personalHint': en['account.personalHint'],
   'account.rowSecurity': 'Umutekano',
-  'account.securityHint': 'Kwinjira mu ntambwe ebyiri, n’ibyuma byinjiye nka wowe.',
+  'account.securityHint': en['account.securityHint'],
+  'account.rowPrivacy': en['account.rowPrivacy'],
+  'account.privacyHint': en['account.privacyHint'],
+  'account.privacyOn': en['account.privacyOn'],
+  'account.privacyOff': en['account.privacyOff'],
   'account.twoFactorOn': '2FA · Birafunguye',
-  'account.twoFactorOff': '2FA · Bifunze',
   'account.language': 'Ururimi',
   'account.localeEn': 'EN',
   'account.localeRw': 'RW',
@@ -468,7 +480,7 @@ export const rw: Record<keyof typeof en, string> = {
   'payout.days': 'iminsi',
   'payout.verified': 'Aho yoherezwa hemejwe',
   'payout.bufferBody':
-    'Amafaranga abikwa iminsi {days} nyuma y’uko kuraramo birangiye, kugira ngo ikibazo gishobore gukemuka mbere y’uko asohoka. Muri iki cyitegererezo nta yimuwe.',
+    'Amafaranga abikwa iminsi {days} nyuma y’uko kuraramo birangiye, kugira ngo ikibazo gishobore gukemuka mbere y’uko asohoka.',
   'payout.adapterMock': 'Kwishyura · icyitegererezo',
   'payout.adapterMockBody': 'Nta kintu cyoherezwa. Amafaranga arandikwa, ntiyimurwa.',
   'payout.adapterLive': 'Kwishyura · nyakuri',
@@ -569,7 +581,7 @@ export const rw: Record<keyof typeof en, string> = {
   'subscription.invoices': 'Fagitire',
   'subscription.onWeb': 'Ku rubuga',
   'subscription.adapterMock': 'Kwishyura · icyitegererezo',
-  'subscription.adapterMockBody': 'Nta karita yishyuzwa muri iki cyitegererezo.',
+  'subscription.adapterMockBody': 'Nta karita yishyuzwa.',
   'subscription.upgradeTitle': 'Zamukira kuri {plan}',
   'subscription.upgradeBody.starter': 'Ibyumba icumi, kwiyinjiza, n’umwanya w’umukozi umwe.',
   'subscription.upgradeBody.growth':
@@ -583,11 +595,7 @@ export const rw: Record<keyof typeof en, string> = {
 
   /* ------------------------------------------------------------- Reveal credits */
   'credits.title': 'Amanota yo kubona aderesi',
-  'credits.greeting': 'Aline K. Brokerage',
-  'credits.left': 'Asigaye muri uku kwezi',
   'credits.spent': 'Yakoreshejwe',
-  'credits.ofMonthly': 'kuri {total} ku kwezi',
-  'credits.thisMonth': 'muri uku kwezi',
   'credits.whyBody':
     'Nimero ya nyir’inzu ni amakuru ye bwite. Inota ni urugero rw’umubare, si urugomero rw’amafaranga: ni rwo rubuza ko urutonde rwibwa n’uko nimero za ba nyir’inzu zose zikusanywa.',
   'credits.logTitle': 'Aderesi wamaze kubona',
@@ -606,68 +614,31 @@ export const rw: Record<keyof typeof en, string> = {
   'personal.youBody': 'Umuntu umwe muri buri rwego ufite.',
   'personal.name': 'Amazina',
   'personal.phone': 'Telefoni',
-  'personal.email': 'Imeyili',
-  'personal.editName': 'Hindura amazina',
-  'personal.editNameBody': 'Ni yo nyir’inzu cyangwa uwakira abona ku ifatabuguzi.',
-  'personal.nameHelper': 'Izina ryawe n’irya nyuma.',
-  'personal.editEmail': 'Hindura imeyili',
-  'personal.editEmailBody': 'Inyemezabwishyu n’inyandiko z’amasezerano bijya hano.',
-  'personal.emailHelper': 'Ntiyigera igaragara ku mwirondoro rusange.',
-  'personal.save': 'Bika',
-  'personal.saving': 'Kubika',
-  'personal.savedToast': 'Byabitswe.',
+  'personal.changeBody': en['personal.changeBody'],
   'personal.publicTitle': 'Ibyo abandi babona',
   'personal.publicBody':
     'Ibitekerezo n’imyirondoro rusange byerekana izina ryawe n’inyuguti ya mbere y’irya nyuma. Imeyili na telefoni ntibigaragara.',
   'personal.methodsTitle': 'Uko winjira',
-  'personal.methodsBody': 'Nta ijambobanga rihari. Buri kimwe muri ibi ni inzira yo kwinjira.',
-  'personal.methodPhone': 'Nimero ya telefoni',
-  'personal.methodGoogle': 'Google',
-  'personal.googleBody': 'Ntibihujwe. Guhuza bikuha inzira ya kabiri yo kwinjira.',
-  'personal.googleLinkedBody': 'Byahujwe. Ushobora kwinjira ukoresheje iyo ari yo yose.',
-  'personal.linked': 'Byahujwe',
-  'personal.notLinked': 'Ntibihujwe',
-  'personal.link': 'Huza',
-  'personal.unlink': 'Tandukanya',
-  'personal.linkedToast': 'Google yahujwe. Ubu ushobora kwinjira ukoresheje iyo ari yo yose.',
-  'personal.unlinkedToast': 'Google yatandukanyijwe. Nimero yawe iracyagushobozа kwinjira.',
-  'personal.lastMethodNote':
-    'Nimero yawe ntishobora gutandukanywa igihe ari yo nzira yonyine yo kwinjira. Banza uhuze Google niba ushaka kuyihindura.',
+  'personal.signInBody': en['personal.signInBody'],
+  'personal.signInBodyTo': en['personal.signInBodyTo'],
 
   /* ------------------------------------------------------------- Security */
   'security.title': 'Umutekano',
-  'security.label': 'ibyuma byawe',
+  'security.label': en['security.label'],
   'security.twoFactorTitle': 'Kwinjira mu ntambwe ebyiri',
-  'security.twoFactorBody': 'Kode hamwe na nimero yawe, buri gihe winjiye ku gikoresho gishya.',
+  'security.twoFactorBody': en['security.twoFactorBody'],
   'security.twoFactorLabel': 'Kwinjira mu ntambwe ebyiri (2FA)',
-  'security.twoFactorOn': 'Birafunguye. Kode isabwa ku gikoresho gishya.',
-  'security.twoFactorOff': 'Bifunze. Nimero yawe yonyine irakwinjiza.',
-  'security.twoFactorHint': 'Bifungura cyangwa bifunga intambwe ya kabiri kuri iyi konti.',
+  'security.on': en['security.on'],
+  'security.notNeeded': en['security.notNeeded'],
+  'security.statusPassed': en['security.statusPassed'],
+  'security.statusOwed': en['security.statusOwed'],
+  'security.statusNotNeeded': en['security.statusNotNeeded'],
+  'security.devicesNote': en['security.devicesNote'],
   'security.turnOn': 'Fungura',
   'security.turnOff': 'Funga',
-  'security.twoFactorOnToast': 'Kwinjira mu ntambwe ebyiri birafunguye.',
-  'security.twoFactorOffToast': 'Kwinjira mu ntambwe ebyiri bifunze. Nimero yawe yonyine irakwinjiza.',
-  'security.devicesTitle': 'Ibyinjiye nka wowe',
-  'security.devicesBody': 'Ibikoresho {count}',
-  'security.thisDevice': 'Iki gikoresho',
-  'security.stale': 'Ntikoreshejwe vuba',
   'security.seenToday': 'cyakoreshejwe uyu munsi',
   'security.seenYesterday': 'cyakoreshejwe ejo',
   'security.seenDaysAgo': 'cyakoreshejwe hashize iminsi {days}',
-  'security.revoke': 'Gisohore',
-  'security.revokeOne': 'Sohora {device}',
-  'security.revokedToast': '{device} cyasohowe.',
-  'security.revokeAll': 'Sohora ibindi byose',
-  'security.revokeAllNote':
-    'Bisohora ibindi bikoresho {count}. Iki gisigara cyinjiye, naho ukoresha ikindi azasabwa kongera kwinjira.',
-  'security.revokeAllNone': 'Nta kindi kiriho cyinjiye nka wowe.',
-  'security.revokedAllToast': 'Ibindi bikoresho {count} byasohowe.',
-  'security.confirmTitle': 'Gusohora ibindi byose?',
-  'security.confirmBody': 'Ibikoresho {count} bizasohorwa. Iki ntikizasohorwa.',
-  'security.confirmDetail':
-    'Bikoreshe niba ubonye igikoresho utazi. Uwo ari we wese ukoresha kimwe muri byo — nawe ubwawe, kuri mudasobwa yawe — azasabwa kongera kwinjira.',
-  'security.confirmAction': 'Sohora ibindi',
-  'security.confirmCancel': 'Bisige byinjiye',
 
   /* ------------------------------------------------------------- Appearance */
   'appearance.title': 'Isura',
@@ -682,8 +653,11 @@ export const rw: Record<keyof typeof en, string> = {
   /* ------------------------------------------------------------- Sign out */
   'signOut.title': 'Gusohoka?',
   'signOut.subtitle': 'Winjiye nka {name}.',
+  'signOut.subtitleNoName': en['signOut.subtitleNoName'],
   'signOut.scope':
     'Ibi bigusohora mu nzego zawe zose {count}, atari muri uru rwonyine. Kongera kwinjira bigarura buri mwanya.',
+  'signOut.queuedOne': en['signOut.queuedOne'],
+  'signOut.queuedMany': en['signOut.queuedMany'],
   'signOut.switchInstead':
     'Niba washakaga gusa kuva muri {name}, koresha Hindura urwego — bigusigira winjiye.',
   'signOut.confirm': 'Sohoka',
@@ -698,14 +672,31 @@ export const rw: Record<keyof typeof en, string> = {
   'createWorkspace.needAddress': 'Akarere n’umurenge ubucuruzi bwanditsemo',
   'createWorkspace.needEvidence': 'Ifoto y’icyemezo cy’iyandikwa',
   'createWorkspace.needReview': 'Isuzuma, rikorwa n’umukozi ushinzwe kwemeza',
-  'createWorkspace.whyWeb':
-    'Si urupapuro tutarubaka. Isuzuma risaba inyandiko nyinshi kandi rikorwa n’umuntu, bityo ribera aho inyandiko zoroshye gushyirwaho.',
+  'createWorkspace.whyWeb': en['createWorkspace.whyWeb'],
   'createWorkspace.open': 'Fungura ifishi yo ku rubuga',
-  'createWorkspace.openHint': 'Ifungura injishi.rw muri mushakisha yawe.',
+  'createWorkspace.openHint': en['createWorkspace.openHint'],
   'createWorkspace.openFailed': 'Nta mushakisha iri kuri iki gikoresho. Aderesi iri hejuru ishobora kwandikwa n’intoki.',
   'payout.errorTitle': `${en['payout.errorTitle']} (RW)`,
   'payout.errorBody': `${en['payout.errorBody']} (RW)`,
   'payout.loading': `${en['payout.loading']} (RW)`,
   'payout.noneTitle': `${en['payout.noneTitle']} (RW)`,
   'payout.noneBody': `${en['payout.noneBody']} (RW)`,
+  // ADR-063: English until Kinyarwanda work starts.
+  'privacy.title': en['privacy.title'],
+  'privacy.crashReports': en['privacy.crashReports'],
+  'privacy.crashReportsBody': en['privacy.crashReportsBody'],
+  'privacy.whereStored': en['privacy.whereStored'],
+  'privacy.offNow': en['privacy.offNow'],
+  'privacy.onNextLaunch': en['privacy.onNextLaunch'],
+  'privacy.saveFailed': en['privacy.saveFailed'],
+  'privacy.saveFailedOn': en['privacy.saveFailedOn'],
+  'privacy.notReporting': en['privacy.notReporting'],
+  'diagnostics.row': en['diagnostics.row'],
+  'diagnostics.title': en['diagnostics.title'],
+  'diagnostics.body': en['diagnostics.body'],
+  'diagnostics.jsError': en['diagnostics.jsError'],
+  'diagnostics.renderError': en['diagnostics.renderError'],
+  'diagnostics.nativeCrash': en['diagnostics.nativeCrash'],
+  'diagnostics.freeze': en['diagnostics.freeze'],
+  'diagnostics.freezeHint': en['diagnostics.freezeHint'],
 };

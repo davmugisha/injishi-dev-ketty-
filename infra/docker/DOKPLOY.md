@@ -341,6 +341,30 @@ an env file: production `https://${WEB_HOST:-www.injishi.com}`, demo
 refuses to boot under `NODE_ENV=production` without it, exactly as it does
 without `SMTP_URL`.
 
+## Error reporting
+
+The API and the worker report to Sentry (ADR-063), in its EU region, through
+`SENTRY_DSN`: the `injishi-api` project's DSN, a public send only key. What they
+report is the four money alarms and what breaks: a request that fails with a
+500, a fault inside Better Auth's `/api/auth/*` routes, a job failing its last
+attempt, and an unhandled rejection or uncaught exception, which still exits
+the process. Nothing from a request, a user or a job goes with any of it.
+
+| Stack | Reports | Environment in Sentry | Where the DSN comes from |
+| --- | --- | --- | --- |
+| Production | yes, once the DSN is set | `production` | `SENTRY_DSN` in the env file; empty until the NCSA registration names Sentry (ADR-063 AC-13) |
+| Demo | yes, once the DSN is set | `demo` | `SENTRY_DSN` in `/opt/injishi-demo/.env` |
+| Staging | never | none | no line, and the API stays inert even if one reaches it |
+
+The API decides at boot, from the two pinned values above: it reports only as
+`production` over a `real` database or `demo` over a `sample` one. Staging
+(`production` over `sample`) and a laptop (neither pinned) never report. The
+release on every event is the commit the image was built from
+(`INJISHI_COMMIT`, baked by `Dockerfile.api`); no deploy step sets anything
+else. To prove the wiring on the demo, a staff session with
+`admin.system.view` may call `GET /api/v1/demo/crash`, which answers a 500 and
+is a 404 on every other stack.
+
 ## Admin network gate
 
 `admin`, `admin-demo` and the demo's `mail-demo` inbox answer only to
@@ -381,6 +405,22 @@ The frontend Dockerfiles have no default for any `NEXT_PUBLIC_*` origin and fail
 the build when one is empty, so a build can never silently fall back to
 production's URLs. Each compose file passes all of them from its
 `x-*-public` block.
+
+`HEROUI_AUTH_TOKEN` has no default either, and it is the one value all three
+stacks share: it is HeroUI Pro's CI/CD token, one per licence, copied from
+heroui.pro/dashboard by the licence owner (never a developer's personal
+token). `@heroui-pro/react` is a stub on npm whose postinstall downloads the
+real code with it. Each compose file hands it to the web, app and admin builds
+as a BuildKit secret (`secrets: heroui_token`), so it never reaches an image
+layer. Unset or empty, each frontend build stops at its install step with
+`HEROUI_AUTH_TOKEN is empty`, which `demo-nightly.sh` reports before its swap,
+so the running demo is left as it was; a rejected token fails the install too.
+It stops there on purpose: BuildKit's layer cache never sees a secret's value,
+so an install allowed to finish without the token would be reused, without Pro,
+by every later build until the lockfile changed, and so would pnpm's own side
+effects cache, which `pnpm-workspace.yaml` turns off for the same reason. CI
+reads the same value from the repository secret of that name, the one stack
+value GitHub also holds.
 
 ## Process order
 

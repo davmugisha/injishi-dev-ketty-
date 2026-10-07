@@ -162,11 +162,18 @@ export function Countdown({ endsAt, onDone, label, render }: CountdownProps) {
 
   const text = render ? render(reading) : reading;
 
+  // A live region announces EVERY change, and this changes every second: on
+  // the sign-in screens TalkBack read the clock aloud once a second for 42
+  // seconds (mobile audit 2026-10-05, GK-29). So it speaks only at the moments
+  // worth hearing, ten seconds out and at zero, and stays readable on focus.
+  const whole = Math.ceil(remaining);
+  const worthSaying = whole === 10 || done;
+
   return (
     <Text
       accessible
       accessibilityLabel={label ? t('a11y.timer', { label, time: reading }) : text}
-      accessibilityLiveRegion="polite"
+      accessibilityLiveRegion={worthSaying ? 'polite' : 'none'}
       family="mono"
       size="sm"
       color="textMuted"

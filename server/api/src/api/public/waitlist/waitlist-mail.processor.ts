@@ -1,4 +1,4 @@
-import { Processor, WorkerHost } from '@nestjs/bullmq';
+import { OnWorkerEvent, Processor, WorkerHost } from '@nestjs/bullmq';
 import { Inject, Injectable, Logger } from '@nestjs/common';
 import { Job } from 'bullmq';
 import { eq } from 'drizzle-orm';
@@ -15,6 +15,7 @@ import {
   type WaitlistWelcomeJob,
 } from './waitlist-mail';
 import { WaitlistWelcomeMailer } from './waitlist-welcome.mailer';
+import { reportJobFailure } from '../../../shared/observability/report-job-failure';
 
 /**
  * Sends the waitlist welcome note, in the worker (ADR-048 AC-11).
@@ -86,5 +87,11 @@ export class WaitlistMailProcessor extends WorkerHost {
       businessName: row.businessName,
       districtName: row.districtName,
     });
+  }
+
+  /** A job failing its last attempt is reported (ADR-063 AC-12). Earlier attempts are retries. */
+  @OnWorkerEvent('failed')
+  onFailed(job: Job | undefined, error: Error): void {
+    reportJobFailure(QUEUES.waitlistEmail, job, error);
   }
 }

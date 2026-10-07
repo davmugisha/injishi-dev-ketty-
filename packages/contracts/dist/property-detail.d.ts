@@ -178,13 +178,6 @@ export declare const PropertyDetail: z.ZodObject<{
     name: string;
     districtName: string | null;
     id: string;
-    slug: string | null;
-    checkInTime: string | null;
-    checkOutTime: string | null;
-    description: string | null;
-    houseRules: string | null;
-    locationPrivacy: boolean;
-    photos: string[];
     roomTypes: {
         name: string;
         domain: "hospitality" | "residence";
@@ -198,6 +191,13 @@ export declare const PropertyDetail: z.ZodObject<{
         nonrefundableEligible: boolean;
         minStay: number | null;
     }[];
+    slug: string | null;
+    checkInTime: string | null;
+    checkOutTime: string | null;
+    description: string | null;
+    houseRules: string | null;
+    locationPrivacy: boolean;
+    photos: string[];
     latitude: number | null;
     longitude: number | null;
     facilities: {
@@ -220,13 +220,6 @@ export declare const PropertyDetail: z.ZodObject<{
     name: string;
     districtName: string | null;
     id: string;
-    slug: string | null;
-    checkInTime: string | null;
-    checkOutTime: string | null;
-    description: string | null;
-    houseRules: string | null;
-    locationPrivacy: boolean;
-    photos: string[];
     roomTypes: {
         name: string;
         domain: "hospitality" | "residence";
@@ -240,6 +233,13 @@ export declare const PropertyDetail: z.ZodObject<{
         nonrefundableEligible: boolean;
         minStay: number | null;
     }[];
+    slug: string | null;
+    checkInTime: string | null;
+    checkOutTime: string | null;
+    description: string | null;
+    houseRules: string | null;
+    locationPrivacy: boolean;
+    photos: string[];
     latitude: number | null;
     longitude: number | null;
     facilities: {
@@ -298,11 +298,11 @@ export declare const PropertyCard: z.ZodObject<{
     districtName: string | null;
     id: string;
     roomTypeCount: number;
+    fromNightlyRateRwf: number | null;
+    maxGuests: number | null;
     slug: string;
     description: string | null;
     photos: string[];
-    maxGuests: number | null;
-    fromNightlyRateRwf: number | null;
     latitude: number | null;
     longitude: number | null;
 }, {
@@ -310,11 +310,11 @@ export declare const PropertyCard: z.ZodObject<{
     districtName: string | null;
     id: string;
     roomTypeCount: number;
+    fromNightlyRateRwf: number | null;
+    maxGuests: number | null;
     slug: string;
     description: string | null;
     photos: string[];
-    maxGuests: number | null;
-    fromNightlyRateRwf: number | null;
     latitude: number | null;
     longitude: number | null;
 }>;

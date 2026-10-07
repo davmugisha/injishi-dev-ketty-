@@ -22,6 +22,7 @@ import {
   resolveAllowedOrigins,
 } from '../../shared/config/security.config';
 import { DRIZZLE, type Database } from '../../shared/database/database.module';
+import { reportException } from '../../shared/observability/error-reporter';
 import { isWorkerProcess } from '../../shared/process/process-role';
 import { MailerModule } from '../mailer/mailer.module';
 import { OtpMailer } from './infrastructure/otp-mailer';
@@ -169,6 +170,11 @@ export function createAuthRegistry(
       // (`shared/config/platform.ts`). Production is constructed without it
       // and therefore uses Better Auth's random generator, unconditionally.
       demoOtpCode: demo ? DEMO_OTP_CODE : undefined,
+      // ADR-063 AC-12. Better Auth's routes are mounted on Fastify, outside
+      // Nest's exception filter, so their faults reach the reporter here. A
+      // refused code or a rate limit is an answer and never arrives.
+      onServerError: (error) =>
+        reportException(error, { method: '*', route: '/api/auth/*', status: 500 }),
       // Every code is mailed, the demo's included. The demo stack has a
       // Mailpit of its own and no relay credential (ADR-043 AC-4), so its
       // mail cannot reach a stranger's inbox, and locally Mailpit shows

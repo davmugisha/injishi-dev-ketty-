@@ -119,6 +119,20 @@ export interface CreateAuthConfig {
      * production.
      */
     demoOtpCode?: string;
+    /**
+     * Told about a server fault inside Better Auth's own routes, `/api/auth/*`
+     * (ADR-063 AC-12): any error that is not an `APIError` below 500. A refused
+     * code, a bad origin or a rate limit is an answer, not a fault, and is never
+     * passed on.
+     *
+     * Those routes are mounted on Fastify directly, outside Nest, so the API's
+     * exception filter never sees them; this is how their faults reach the same
+     * reporter. This package never imports Sentry: the API passes a callback.
+     *
+     * Setting it does not quiet Better Auth: its own log line for the error is
+     * still written first, exactly as it would have been without the hook.
+     */
+    onServerError?: (error: unknown) => void;
 }
 /**
  * The single Injishi Better Auth instance (F-S01, D7).

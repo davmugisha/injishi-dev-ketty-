@@ -17,6 +17,13 @@ import { z } from "zod";
  */
 export declare const RW_MOBILE_PREFIXES: readonly ["72", "73", "78", "79"];
 /**
+ * One character a person may put between the digits of a phone number: a
+ * space, a dash, a bracket or a dot. The one definition, read by
+ * `normalizeRwPhone` below and by `redactText` (ADR-063), so a spelling this
+ * file accepts as a number is a spelling the crash scrubber recognises.
+ */
+export declare const RW_PHONE_SEPARATOR: RegExp;
+/**
  * Bring a typed number to the one stored form, `+250788123456`, or say it is
  * not a Rwandan mobile number.
  *

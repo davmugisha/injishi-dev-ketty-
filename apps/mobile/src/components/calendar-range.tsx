@@ -169,6 +169,10 @@ function Month({ year, month, range, min, max, unavailable, onPick, t }: MonthPr
                 accessibilityState={{ selected, disabled }}
                 disabled={disabled}
                 onPress={() => onPick(iso)}
+                // The circle is 38pt and `PressableScale` makes the drawn size
+                // the hit area, so the slop is what reaches the 44pt floor
+                // (mobile audit 2026-10-05, XC-10).
+                hitSlop={3}
                 style={{
                   width: 38,
                   height: 38,

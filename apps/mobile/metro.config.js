@@ -10,13 +10,24 @@
 // 'useMemo')". We pin react + react-dom (and their subpaths) to this app's own
 // copy so exactly one React is ever bundled, whatever the rest of the workspace
 // resolves. Keep it even while the versions agree. Scoped to this app only.
-const { getDefaultConfig } = require('expo/metro-config');
+const { getSentryExpoConfig } = require('@sentry/react-native/metro');
 const path = require('path');
 
 const projectRoot = __dirname;
 const workspaceRoot = path.resolve(projectRoot, '../..');
 
-const config = getDefaultConfig(projectRoot);
+// Expo's default config with Sentry's additions (ADR-063): a debug id stamped
+// into every bundle and its source map, which is how a release build's stack
+// trace is read back to the original file and line. Web replay and the web
+// feedback widget are left out because this app turns both off. The Expo
+// Router error boundary is NOT auto wrapped: the root crash screen reports
+// through `reportRenderError`, which keeps the reference it shows and the
+// event it sends the same thing. Every customisation below is unchanged, and
+// the resolveRequest shim at the bottom chains to Sentry's resolver.
+const config = getSentryExpoConfig(projectRoot, {
+  includeWebReplay: false,
+  includeWebFeedback: false,
+});
 
 // Resolve node_modules from this app first, then the workspace root.
 config.resolver.nodeModulesPaths = [

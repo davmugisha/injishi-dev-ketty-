@@ -45,27 +45,25 @@
  * down. A row with its own timer would be one interval per row, and the whole
  * list would tick at slightly different moments.
  */
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import { View } from 'react-native';
 import { useRouter } from 'expo-router';
 import {
   Button,
   EmptyState,
   ErrorState,
-  Icon,
+  OfflineNote,
   Screen,
   SegmentedTabs,
-  Text,
   useOffline,
   WorkspaceChip,
 } from '@/components';
-import { useTheme } from '@/theme/theme';
 import { useDomain } from '@/domain';
 import { useT } from '@/i18n/i18n';
 import { useThreads, type Thread } from '@/data/threads';
 import { useMarkNotificationRead, useNotifications, type AppNotification } from '@/data/notifications';
 import { inboxSurface, useInboxCounts } from '@/data/inbox-unread';
-import { MINUTE_MS } from './relative-time';
+import { useMinuteClock } from './minute-clock';
 import { ThreadRow } from './thread-row';
 import { NotificationRow } from './notification-row';
 
@@ -74,25 +72,7 @@ type Segment = 'messages' | 'notifications';
 /** A row of either list, so one `Screen.List` can draw both segments. */
 type Row = { kind: 'thread'; thread: Thread } | { kind: 'notification'; item: AppNotification };
 
-/**
- * The clock the rows share.
- *
- * A minute is the finest granularity any stamp on this screen has ("3m"), so
- * ticking faster would re-render the list for no visible change. `trip-clock.ts`
- * makes the same trade at a different rate, because a countdown to check-in
- * genuinely needs seconds and a thread list does not.
- */
-function useMinuteClock(): number {
-  const [now, setNow] = useState(() => Date.now());
-  useEffect(() => {
-    const timer = setInterval(() => setNow(Date.now()), MINUTE_MS);
-    return () => clearInterval(timer);
-  }, []);
-  return now;
-}
-
 export function Inbox() {
-  const { c, space } = useTheme();
   const router = useRouter();
   const t = useT();
   const { surface, workspace } = useDomain();
@@ -151,6 +131,9 @@ export function Inbox() {
       }
       header={
         <>
+          {/* The kit's note, not one declared inside this render. A component
+              defined in a render is a new type every render, so it remounted
+              on each one (mobile audit 2026-10-05, IN-14). */}
           {offline ? <OfflineNote /> : null}
 
           {/* The pair is what carries the "one of these two" meaning;
@@ -254,29 +237,6 @@ export function Inbox() {
           </Button>
         }
       />
-    );
-  }
-
-  function OfflineNote() {
-    return (
-      <View
-        accessible
-        accessibilityRole="summary"
-        accessibilityLabel={t('state.offlineLastList')}
-        style={{
-          flexDirection: 'row',
-          alignItems: 'flex-start',
-          gap: space[2],
-          padding: space[3],
-          borderRadius: 10,
-          backgroundColor: c.warning100,
-        }}
-      >
-        <Icon name="wifiOff" size={16} color={c.warning600} />
-        <Text size="xs" color="textBody" style={{ flex: 1, lineHeight: 18 }}>
-          {t('state.offlineLastList')}
-        </Text>
-      </View>
     );
   }
 }

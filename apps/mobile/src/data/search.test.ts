@@ -25,6 +25,7 @@ import {
   PARTY_MAX,
   PRICE_BANDS,
   QUICK_FILTERS,
+  SORTS,
   activeFilterCount,
   activeQuick,
   billableGuests,
@@ -174,19 +175,21 @@ describe('sorting', () => {
     expect([...high]).toEqual([...high].sort((a, b) => b - a));
   });
 
-  it('runs score descending', () => {
-    const scores = sorted('score').map((s) => s.score);
-    expect([...scores]).toEqual([...scores].sort((a, b) => b - a));
+  /**
+   * Reviews are hidden in v1 and no endpoint serves a score, so nothing may be
+   * ordered by one (mobile audit 2026-10-05, GB-07).
+   */
+  it('offers no guest-score sort', () => {
+    expect(SORTS).toEqual(['recommended', 'price_low', 'price_high']);
   });
 
-  it('breaks a recommended tie on price, so the order is reproducible', () => {
-    const rows = sorted('recommended');
-    for (let i = 1; i < rows.length; i += 1) {
-      const before = rows[i - 1];
-      const after = rows[i];
-      if (before.score === after.score) expect(before.price).toBeLessThanOrEqual(after.price);
-      else expect(before.score).toBeGreaterThan(after.score);
-    }
+  it('keeps the catalogue order for recommended, ranking nothing by score', () => {
+    expect(ids(sorted('recommended'))).toEqual(ids(EXPLORABLE_STAYS));
+    // And a filtered list keeps that order too.
+    const instant = searchStays(withSearch({ instantBook: true }));
+    expect(ids(instant)).toEqual(
+      ids(EXPLORABLE_STAYS.filter((s) => s.bookingMode === 'instant_book')),
+    );
   });
 });
 

@@ -41,6 +41,17 @@
  * looking for something they know they saved. `virunga-tea-retreat` is the
  * fixture behind it: `active: false` in `src/data/stays.ts`, which Explore
  * already excludes and this deliberately does not.
+ *
+ * ## Mobile audit 2026-10-05
+ *
+ *   - **The undo bar waits for the write.** "Removed X from saved" appears once
+ *     the unsave has landed; a write that did not land puts the card back and
+ *     says so, and an unsave made offline says it is queued (brief item 1).
+ *   - **No stars and no review counts** on the cards (GB-07): reviews are
+ *     hidden in v1 and no endpoint serves them. The rate is labelled per guest
+ *     per night (GB-08).
+ *   - **The offline note says saves are sent later**, which is what the queue
+ *     does (GB-23), and errors print no raw server text (GB-27).
  */
 import { useCallback, useMemo, useState } from 'react';
 import { View } from 'react-native';
@@ -121,21 +132,41 @@ export function Saved() {
 
   const unsave = useCallback(
     (stay: Stay) => {
-      toggle(stay.id);
-      setUndoable((prev) => ({ stay, seq: (prev?.seq ?? 0) + 1 }));
+      const { settled } = toggle(stay.id);
+      void settled.then((outcome) => {
+        if (outcome === 'done') {
+          setUndoable((prev) => ({ stay, seq: (prev?.seq ?? 0) + 1 }));
+        } else if (outcome === 'queued') {
+          // Offline: the card stays until the queue sends, so there is nothing
+          // to undo yet, and the toast says where the change is.
+          toast.show(t('saved.queuedRemove'), 'neutral');
+        } else {
+          toast.show(t('saved.toggleFailed'), 'danger');
+        }
+      });
     },
-    [toggle],
+    [t, toast, toggle],
   );
 
   const undo = useCallback(() => {
     if (!undoable) return;
-    toggle(undoable.stay.id);
+    const { stay } = undoable;
+    const { settled } = toggle(stay.id);
     setUndoable(undefined);
     // The bar goes the instant it is pressed, so without this the undo has no
     // acknowledgement at all — the card reappearing three rows down is not one.
     // The shared toast is right here and the bar was not: this carries no
-    // control, so it may announce and disappear.
-    toast.show(t('saved.restored', { title: undoable.stay.title }), 'success');
+    // control, so it may announce and disappear. It waits for the write, so it
+    // never says "saved again" about a save that did not land.
+    void settled.then((outcome) => {
+      if (outcome === 'done') {
+        toast.show(t('saved.restored', { title: stay.title }), 'success');
+      } else if (outcome === 'queued') {
+        toast.show(t('saved.queuedSave'), 'neutral');
+      } else {
+        toast.show(t('saved.toggleFailed'), 'danger');
+      }
+    });
   }, [t, toast, toggle, undoable]);
 
   const dismissUndo = useCallback(() => setUndoable(undefined), []);
@@ -210,10 +241,10 @@ export function Saved() {
   function emptySlot() {
     if (catalogue.status === 'error') {
       return (
+        // No raw server text as the detail (GB-27).
         <ErrorState
           title={t('state.errorTitle')}
           body={t('state.errorBody', { label: t('saved.errorLabel') })}
-          detail={catalogue.error?.message}
           onRetry={catalogue.retry}
         />
       );
@@ -278,7 +309,9 @@ function SavedCard({
   return (
     <View style={{ gap: space[2] }}>
       <ListingCard
-        item={stay}
+        // No rating and no review count (GB-07), and the rate's unit is per
+        // guest per night (GB-08). `ListingCard` prints its own "/ ".
+        item={{ ...stay, rating: undefined, reviews: undefined, per: t('saved.perGuestNight') }}
         onPress={onOpen}
         saved
         onToggleSave={onUnsave}

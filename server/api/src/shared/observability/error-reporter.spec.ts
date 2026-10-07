@@ -51,6 +51,13 @@ const sentry = Sentry as unknown as {
  * inert without a DSN, reports through Sentry with one, and the three money
  * alarms are raised from the code paths that used to only log them.
  */
+/** The production stack: its DSN, over its real database (ADR-063). */
+const PRODUCTION = {
+  SENTRY_DSN: 'https://k@o0.ingest.sentry.io/1',
+  INJISHI_ENVIRONMENT: 'production',
+  INJISHI_DATABASE_KIND: 'real',
+};
+
 describe('createErrorReporter', () => {
   beforeEach(() => jest.clearAllMocks());
 
@@ -66,7 +73,7 @@ describe('createErrorReporter', () => {
   });
 
   it('initialises Sentry with a DSN and reports an alarm, tagged and fatal', () => {
-    const reporter = createErrorReporter({ SENTRY_DSN: 'https://k@o0.ingest.sentry.io/1', INJISHI_ENVIRONMENT: 'production' });
+    const reporter = createErrorReporter(PRODUCTION);
 
     reporter.alarm('UNRECORDED_COMPENSATION', 'row refused', { idempotencyKey: 'k' });
 
@@ -79,7 +86,7 @@ describe('createErrorReporter', () => {
   });
 
   it('reports the underlying error when there is one', () => {
-    const reporter = createErrorReporter({ SENTRY_DSN: 'https://k@o0.ingest.sentry.io/1' });
+    const reporter = createErrorReporter(PRODUCTION);
     const boom = new Error('refund endpoint down');
 
     reporter.alarm('STUCK_MONEY', 'refund failed', {}, boom);
@@ -93,6 +100,7 @@ describe('the money alarms, from their call sites', () => {
   const recording: ErrorReporter = {
     enabled: true,
     alarm: (alarm, _message, context) => void raised.push({ alarm, context }),
+    exception: () => undefined,
   };
 
   beforeEach(() => {

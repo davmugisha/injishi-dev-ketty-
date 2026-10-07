@@ -18,13 +18,14 @@
  *
  * Both schemes on the grid, per the runbook.
  */
-import { fireEvent, screen, waitFor } from '@testing-library/react-native';
+import { act, fireEvent, screen, waitFor } from '@testing-library/react-native';
 import { Saved } from './saved';
 import { SCHEMES, renderInScheme } from '@/test-utils';
 import { DomainProvider } from '@/domain';
 import { ToastProvider } from '@/components';
 import { resetFixtures, writeFixture } from '@/data/use-fixture-mutation';
 import { SAVED_KEY, SEEDED_SAVED } from '@/data/saved';
+import { resetQueue } from '@/data/write-queue';
 import { STAYS } from '@/data/stays';
 import { en, rw } from '@/i18n/messages';
 import { AccessibilityInfo, Platform } from 'react-native';
@@ -205,14 +206,48 @@ describe('the remaining list states', () => {
     expect(mockPush).toHaveBeenCalledWith('/');
   });
 
-  it('says saving resumes when the connection is back, and blocks nothing', async () => {
+  it('says saves made offline are sent later, and blocks nothing (GB-23)', async () => {
     mockNetwork.isConnected = false;
     renderInScheme(guest, 'light');
 
-    expect(await screen.findByLabelText(/Saving works again when the connection is back/))
-      .toBeTruthy();
+    // A heart pressed offline is queued and sent later; the note used to say
+    // saving stopped until the connection came back.
+    expect(await screen.findByLabelText(en['saved.offlineNote'])).toBeTruthy();
+    expect(en['saved.offlineNote']).toMatch(/sent when the connection is back/);
     // The grid is still there. Offline is a state, not an error (frames.md).
     expect(screen.getByText(title(OLDEST))).toBeTruthy();
+  });
+
+  it('says an unsave made offline is queued, and offers no undo for it yet', async () => {
+    mockNetwork.isConnected = false;
+    renderInScheme(guest, 'light');
+    await screen.findByText(title(OLDEST));
+
+    try {
+      fireEvent.press(screen.getAllByLabelText('Remove from saved')[0]);
+      await waitFor(() => expect(screen.getByText(en['saved.queuedRemove'])).toBeTruthy(), GONE);
+      // Nothing has been removed yet, so there is nothing to undo.
+      expect(screen.queryByText(`Removed ${title(NEWEST)} from saved`)).toBeNull();
+    } finally {
+      // The intent sits in the module-level queue; a later online mount would
+      // drain it into the next test's store.
+      act(() => resetQueue());
+    }
+  });
+});
+
+/** Mobile audit 2026-10-05: what a card may claim (GB-07, GB-08). */
+describe('the cards', () => {
+  it('print no stars and no review counts, because v1 has none', async () => {
+    renderInScheme(guest, 'light');
+    await screen.findByText(title(OLDEST));
+    expect(screen.queryByLabelText(/^Rated .* out of 5$/)).toBeNull();
+  });
+
+  it('label the rate per guest per night', async () => {
+    renderInScheme(guest, 'light');
+    await screen.findByText(title(OLDEST));
+    expect(screen.getAllByText(`/ ${en['saved.perGuestNight']}`).length).toBeGreaterThan(0);
   });
 });
 

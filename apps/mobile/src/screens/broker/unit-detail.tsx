@@ -20,7 +20,7 @@
  *
  * ## What a reveal actually does, and why it is a confirm rather than a tap
  *
- * It spends one of the month's credits, writes a row to the reveal log, and
+ * It spends one of the broker's credits, writes a row to the reveal log, and
  * opens a placement intent with the broker recorded on it (FL18 step 3, FL19
  * step 1). Three consequences, none of them undoable, which is why the sheet
  * exists and why the credit count and the intent window are printed under the
@@ -328,27 +328,14 @@ function Loaded({ unit }: { unit: DirectoryUnit }) {
                   subtitle={intentLine(placement, t)}
                   onPress={() => router.push('/placements')}
                   accessibilityHint={t('unit.viewPlacements')}
-                  divider
                 />
-                {/* FL19 step 2: the handoff to the landlord's register-tenant
-                    screen (frame R6, Session 8), which draws the broker
-                    placement banner and records the broker on the lease.
-
-                    **The unit does not travel with it yet, and no param is
-                    passed pretending it does.** R6 reads its placement from
-                    `readPendingPlacement()` in `@/data/landlord`, whose unit
-                    selector offers the LANDLORD's own vacant units — a
-                    different catalogue from this directory, with no id in
-                    common. Wiring the two together is a fixture-model decision
-                    that spans both surfaces rather than a param, so it is named
-                    in Session 9's report and left for whoever reconciles them.
-                    The route lands on a real R6 either way. */}
-                <ListRow
-                  icon="plus"
-                  title={t('unit.placeTenant')}
-                  subtitle={t('unit.placeTenantHint')}
-                  onPress={() => router.push('/lease/new')}
-                />
+                {/* "Place a tenant" used to follow, and pushed `/lease/new`:
+                    the LANDLORD's register form, which is closed to a broker,
+                    so the press bounced to the home tab. Removed rather than
+                    repointed, because the server's placement model has its own
+                    start (`POST /ops/broker/directory/:listingId/placements`)
+                    and adopting it is a model change for the next phase
+                    (mobile audit 2026-10-05, BR-05). */}
               </Card>
             </View>
           ) : null}
@@ -599,7 +586,7 @@ function NotFound() {
           {t('unit.notFoundBody')}
         </Text>
         <View style={{ marginTop: 4 }}>
-          <Button variant="outline" leadingIcon="grid" onPress={() => router.replace('/directory')}>
+          <Button variant="outline" leadingIcon="grid" onPress={() => router.replace('/')}>
             {t('unit.notFoundAction')}
           </Button>
         </View>

@@ -24,11 +24,17 @@
  *     the connection is gone; this adds the note that the list is the last one
  *     that loaded, and neither blocks anything.
  *
- * ## One clock for the whole screen
+ * ## One clock, on the hero
  *
- * The hero ticks, and every past card computes how much of the review window is
- * left. Those are the same question asked twice, so `now` is read once here and
- * passed down. A card with its own `useNow` would be one more interval per row.
+ * Only the hero ticks, through its own `useNow`. The rows used to read the
+ * time too, to count down the review window; that row is gone (below), so the
+ * list no longer runs a clock of its own.
+ *
+ * ## No way into reviews
+ *
+ * Reviews are hidden in the v1.0 cut and `trip/[id]/review` is closed for
+ * everyone, so pushing it bounces the guest home. The row that opened it is
+ * gone from the cards (mobile audit 2026-10-05, GK-11).
  */
 import { useState } from 'react';
 import { View } from 'react-native';
@@ -49,10 +55,8 @@ import { useTheme } from '@/theme/theme';
 import { useDomain } from '@/domain';
 import { useT } from '@/i18n/i18n';
 import { pastTrips, upcomingTrips, useTrips, type Trip } from '@/data/trips';
-import { useTripReviews } from '@/data/trip-reviews';
 import { TripCard } from './trip-card';
 import { TripHeroCard } from './trip-hero-card';
-import { useNow } from './trip-clock';
 
 type Segment = 'upcoming' | 'past';
 
@@ -64,8 +68,6 @@ export function Trips() {
 
   const [segment, setSegment] = useState<Segment>('upcoming');
   const trips = useTrips();
-  const { reviewFor } = useTripReviews();
-  const now = useNow();
 
   const all = trips.data ?? [];
   const upcoming = upcomingTrips(all);
@@ -100,10 +102,21 @@ export function Trips() {
           {/* The pair is what carries the "one of these two" meaning;
               `SegmentedTabs` reports each tab and cannot name the group. */}
           <View accessibilityRole="tablist" accessibilityLabel={t('trips.title')}>
+            {/* No counts until the list has loaded: "Upcoming 0" while the
+                read is in flight is a misleading zero (mobile audit
+                2026-10-05, GK-23). */}
             <SegmentedTabs
               items={[
-                { value: 'upcoming', label: t('trips.tabUpcoming'), count: upcoming.length },
-                { value: 'past', label: t('trips.tabPast'), count: past.length },
+                {
+                  value: 'upcoming',
+                  label: t('trips.tabUpcoming'),
+                  count: trips.data ? upcoming.length : undefined,
+                },
+                {
+                  value: 'past',
+                  label: t('trips.tabPast'),
+                  count: trips.data ? past.length : undefined,
+                },
               ]}
               value={segment}
               onChange={(next) => setSegment(next as Segment)}
@@ -149,15 +162,7 @@ export function Trips() {
       data={rows}
       keyExtractor={(trip) => trip.id}
       renderItem={({ item }) => (
-        <TripCard
-          trip={item}
-          review={reviewFor(item.id)}
-          now={now}
-          onPress={() => openTrip(item)}
-          onReview={() =>
-            router.push({ pathname: '/trip/[id]/review', params: { id: item.id } })
-          }
-        />
+        <TripCard trip={item} onPress={() => openTrip(item)} />
       )}
       loading={trips.status === 'loading'}
       loadingLabel={t('state.loadingList', { label: t('trips.listLabel') })}
@@ -174,10 +179,10 @@ export function Trips() {
   function emptySlot() {
     if (trips.status === 'error') {
       return (
+        // No raw server text as the detail (GB-27).
         <ErrorState
           title={t('state.errorTitle')}
           body={t('state.errorBody', { label: t('trips.listLabel') })}
-          detail={trips.error?.message}
           onRetry={trips.retry}
         />
       );

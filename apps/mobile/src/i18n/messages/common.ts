@@ -34,19 +34,32 @@ export const en = {
   'state.offlineTitle': 'You are offline',
   'state.offlineBody': 'Showing what was already loaded. New reads resume when the connection is back.',
   'state.notFoundTitle': 'This page does not exist',
-  'state.notFoundBody':
-    'The link you followed points at a screen this app does not have. It may have moved, or it may never have shipped.',
+  'state.notFoundBody': 'There is nothing at the link you followed. It may have moved.',
   'state.notFoundAction': 'Go to the start',
   'state.crashTitle': 'The app hit an error',
   'state.crashBody':
-    'This screen stopped rather than showing you something wrong. The details below are for whoever is debugging it.',
+    'This screen stopped rather than showing you something wrong. Reload it to carry on.',
+  // ADR-063: the reference a release build shows in place of the message.
+  'state.crashRef': 'Reference {ref}',
+  'state.crashRefHint': 'If you contact support, quote this reference.',
+  'state.crashOffline': 'If you are offline, the report is sent once you are back online.',
+  'state.crashNoReport': 'No report was sent.',
   'state.crashRetry': 'Reload the screen',
 
-  /* Session bootstrap */
-  'session.signedOutTitle': 'Signed out',
-  'session.signedOutBody':
-    'Sign-in is not built yet. This is the placeholder that stands where the email-OTP screens will go.',
-  'session.signBackIn': 'Continue without signing in',
+  /* Session: said once on the sign-in screen after a session ends, so nobody
+     lands there wondering what happened (mobile audit SA-34). */
+  'session.signedOutTitle': 'You were signed out',
+  'session.signedOutBody': 'Your session ended. Sign in again to carry on.',
+  'session.signedOutOffline':
+    'Signed out on this phone. Injishi could not be reached, so the session may still be open elsewhere until it expires.',
+
+  /* The shell, while it learns which seats this person holds. */
+  'shell.opening': 'Opening your account',
+  'shell.loadErrorTitle': 'Your account did not load',
+  'shell.loadErrorBody': 'Injishi did not answer. Check your connection, then try again.',
+
+  /* Identity: an account the server has no name for (mobile audit SA-01). */
+  'identity.unnamed': 'Name not added yet',
 
   /* Explore */
   'status.booking.pending_approval': 'Pending approval',
@@ -105,7 +118,9 @@ export const en = {
   'nav.rooms': 'Rooms',
   'nav.tickets': 'Maintenance',
   'nav.today': 'Today',
-  'nav.reservations': 'Reservations',
+  // "Bookings", the word every Host screen uses (the route's own rule; mobile
+  // audit HO-16). The route keeps its `reservations` name.
+  'nav.reservations': 'Bookings',
 
   /* What assistive tech hears on the shared kit */
   'a11y.dismiss': 'Dismiss',
@@ -163,7 +178,7 @@ export const en = {
   'photo.actualProperty': 'Shows this property',
   'photo.licence': 'Licence',
   'photo.creditsEmptyTitle': 'No photographs to credit',
-  'photo.creditsEmptyBody': 'This build ships no photography that carries a credit line.',
+  'photo.creditsEmptyBody': 'None of the photographs here needs a credit line.',
 
   /* PhotoPicker, including the permission-denied state */
   'picker.addPhoto': 'Add photo',
@@ -284,14 +299,23 @@ export const rw: Record<keyof typeof en, string> = {
   'state.notFoundAction': 'Subira ku ntangiriro',
   'state.crashTitle': 'Porogaramu yagize ikibazo',
   'state.crashBody':
-    'Uru rupapuro rwarahagaze aho kukwereka ikitari cyo. Ibisobanuro bikurikira ni iby’ukemura ikibazo.',
+    en['state.crashBody'],
+  // ADR-063: English until Kinyarwanda work starts. The body above changed
+  // with it: its old translation described details a release build no longer shows.
+  'state.crashRef': en['state.crashRef'],
+  'state.crashRefHint': en['state.crashRefHint'],
+  'state.crashOffline': en['state.crashOffline'],
+  'state.crashNoReport': en['state.crashNoReport'],
   'state.crashRetry': 'Ongera utangire urupapuro',
 
-  /* Session bootstrap */
-  'session.signedOutTitle': 'Wasohotse',
-  'session.signedOutBody':
-    'Kwinjira ntiburubakwa. Uyu ni umwanya ubitse aho amapaji yo kwinjira na kode ya imeyili azajya.',
-  'session.signBackIn': 'Komeza utinjiye',
+  /* Session: English until Kinyarwanda work starts (v1 is English only). */
+  'session.signedOutTitle': en['session.signedOutTitle'],
+  'session.signedOutBody': en['session.signedOutBody'],
+  'session.signedOutOffline': en['session.signedOutOffline'],
+  'shell.opening': en['shell.opening'],
+  'shell.loadErrorTitle': en['shell.loadErrorTitle'],
+  'shell.loadErrorBody': en['shell.loadErrorBody'],
+  'identity.unnamed': en['identity.unnamed'],
 
   /* Explore */
   'status.booking.pending_approval': 'Bitegereje kwemezwa',
