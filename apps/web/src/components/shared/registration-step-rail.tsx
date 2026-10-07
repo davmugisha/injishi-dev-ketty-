@@ -2,7 +2,6 @@ import {
   Building2,
   Check,
   CreditCard,
-  FileText,
   House,
   UserRound,
   type LucideIcon,
@@ -12,6 +11,13 @@ import { cn } from "@injishi/utils";
 /**
  * The registration wizard's progress rail, and the step overview `/host` shows
  * before it.
+ *
+ * SINCE THE JOURNEY BOARD'S CUT (ADR-069 D-g, 2026-10-07) the wizard draws its
+ * own rail (`app/(app)/(entry)/register/register-rail.tsx`) and `/host` is the
+ * only reader of `REGISTRATION_STEPS`. Documents moved into the Business step's
+ * optional section, so the list is Place, You, Business, and "Check, sign and
+ * pay". The paragraphs below record why ADR-060 named five, and stay as its
+ * history; where they say five, read four.
  *
  * `/host/start` used to preview this rail (`active={null}`) on the page between
  * the chooser and the wizard. That page is a redirect now, so the wizard is the
@@ -52,7 +58,6 @@ export type RegistrationStepId =
   | "place"
   | "about"
   | "business"
-  | "documents"
   | "pay";
 
 export interface RegistrationStep {
@@ -62,19 +67,19 @@ export interface RegistrationStep {
 }
 
 /**
- * A business's path, every screen of it (ADR-060): its branches are declared
- * on the Business step, and the read back, the agreement and the fee are one
- * screen at the end.
+ * A business's path, every screen of it (ADR-060, cut by the Journey board):
+ * its branches and its documents are declared in the Business step's optional
+ * section, and the read back, the agreement and the fee are one screen at the
+ * end, "Check, sign and pay".
  */
 export const REGISTRATION_STEPS: ReadonlyArray<RegistrationStep> = [
   { id: "place", label: "Place", icon: House },
   { id: "about", label: "You", icon: UserRound },
   { id: "business", label: "Business", icon: Building2 },
-  { id: "documents", label: "Documents", icon: FileText },
-  { id: "pay", label: "Review & pay", icon: CreditCard },
+  { id: "pay", label: "Check, sign and pay", icon: CreditCard },
 ];
 
-/** A residence walks the same five screens; it simply declares no branches. */
+/** A residence walks the same screens; it simply declares no branches. */
 export const RESIDENCE_STEPS: ReadonlyArray<RegistrationStep> = REGISTRATION_STEPS;
 
 /** A broker registers a person, not a business — two steps and no fee. */
