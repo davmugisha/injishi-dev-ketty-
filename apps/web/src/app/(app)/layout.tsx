@@ -3,6 +3,7 @@ import type { ReactNode } from "react";
 import { cn } from "@injishi/utils";
 
 import BaseChrome from "@/components/app/base-chrome";
+import { HeroRouter } from "@/components/heroui/router";
 // Build-time Tailwind for this whole layer. One import, one group (ADR-021).
 import "../_injishi-app.css";
 import { pwaMetadata, pwaViewport } from "@/lib/pwa-metadata";
@@ -65,7 +66,7 @@ export default function AppLayout({ children }: { children: ReactNode }) {
     >
       <body className="antialiased">
         <BaseChrome />
-        {children}
+        <HeroRouter>{children}</HeroRouter>
       </body>
     </html>
   );

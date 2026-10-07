@@ -4,6 +4,7 @@ import { cn } from "@injishi/utils";
 import { pwaMetadata } from "@/lib/pwa-metadata";
 import { AssistantWidget } from "@/components/assistant/assistant-widget";
 import { ThemeProvider } from "@/components/layout/theme-provider";
+import { HeroRouter } from "@/components/heroui/router";
 import { inter } from "@/lib/fonts";
 import "../_injishi-public.css";
 
@@ -94,9 +95,11 @@ export default function PublicLayout({ children }: { children: React.ReactNode }
     >
       <body className="antialiased">
         <ThemeProvider>
-          {children}
-          {/* The support assistant (ADR-061). Draws nothing when the API has it off. */}
-          <AssistantWidget />
+          <HeroRouter>
+            {children}
+            {/* The support assistant (ADR-061). Draws nothing when the API has it off. */}
+            <AssistantWidget />
+          </HeroRouter>
         </ThemeProvider>
       </body>
     </html>
