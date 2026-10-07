@@ -141,12 +141,14 @@ fi
 # Required secrets with no default), which the compose file hands them as a
 # BuildKit secret sourced from HEROUI_AUTH_TOKEN. Compose before v2.40 reads
 # that variable from its own process environment only, never from --env-file
-# (docker/compose, pkg/compose/build_bake.go), so a token kept in this .env
-# never reached a build: every run from the Pro install (fc51e25) on stopped at
-# "HEROUI_AUTH_TOKEN is empty". So it is read here and put in the environment of
-# each `compose build` alone, never exported to the rest of the run and never
-# logged. Missing, the run stops before anything is built and the running demo
-# is untouched.
+# (docker/compose, pkg/compose/build_bake.go), so on those versions a token kept
+# in this .env would never reach a build. So it is read here and put in the
+# environment of each `compose build` alone, never exported to the rest of the
+# run and never logged. Missing, the run stops before anything is built and the
+# running demo is untouched. (The Hangaa VPS runs Compose 5.5.1, which reads the
+# .env itself: the demo runs that failed from the Pro install, fc51e25, to
+# 2026-10-07 failed because this .env had no token line, and this check is what
+# said so.)
 heroui_token=$(env_file_value HEROUI_AUTH_TOKEN)
 [[ -n $heroui_token && $heroui_token != change-me ]] \
   || die "HEROUI_AUTH_TOKEN is not set in $ENV_FILE. Add HeroUI Pro's CI/CD token there (DOKPLOY.md, Required secrets with no default). The running demo is untouched"

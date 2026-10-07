@@ -417,12 +417,14 @@ layer.
 That secret is sourced from the variable `HEROUI_AUTH_TOKEN`, and **Compose
 before v2.40 reads it from its own process environment only, never from
 `--env-file`** (`pkg/compose/build_bake.go`; v2.40.0 is the first release that
-looks in the project's env file). So a token that sits only in the stack's
-`.env` never reaches a build on those versions: from the Pro install (`fc51e25`,
-2026-10-06) until this was found on 2026-10-07, every demo run stopped at
-`HEROUI_AUTH_TOKEN is empty`. `demo-nightly.sh` and `deploy-stack.sh` now read
-the value from the stack's `.env` themselves and put it in the environment of
-`compose build` alone. A build run by hand needs the same, for example
+looks in the project's env file). So on those versions a token that sits only
+in the stack's `.env` never reaches a build. `demo-nightly.sh` and
+`deploy-stack.sh` therefore read the value from the stack's `.env` themselves
+and put it in the environment of `compose build` alone, whatever the host runs.
+The Hangaa VPS runs Compose 5.5.1, which reads the `.env` itself: the demo runs
+that failed from the Pro install (`fc51e25`, 2026-10-06) to 2026-10-07 failed
+because the demo's `.env` had no token line at all, and the scripts' early
+check below is what named it. A build run by hand needs the same, for example
 `HEROUI_AUTH_TOKEN=$(sed -n 's/^HEROUI_AUTH_TOKEN=//p' /opt/injishi-demo/.env)
 docker compose ... build web`, or an `up --build` with no token fails the same
 way.
