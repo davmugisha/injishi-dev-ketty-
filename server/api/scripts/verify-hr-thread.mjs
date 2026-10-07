@@ -108,6 +108,23 @@ async function call(s, method, path, body) {
   return { status: res.status, body: json };
 }
 const get = (s, p) => call(s, 'GET', p);
+/** A GET whose body is a file, not JSON (the CSV export). */
+async function raw(s, path) {
+  const res = await fetch(`${API}/api/v1${path}`, { headers: { cookie: s.cookie, 'x-workspace-id': s.workspaceId } });
+  // Decoded by hand: Response.text() drops a leading byte order mark, which is
+  // exactly what the export check has to see.
+  const text = new TextDecoder('utf-8', { ignoreBOM: true }).decode(await res.arrayBuffer());
+  return { status: res.status, headers: res.headers, text };
+}
+/** A list route with a ListQuery as search parameters (058-list-framework). */
+function listPath(path, { q, filters = [], sort, group, size = 100 } = {}) {
+  const params = new URLSearchParams({ size: String(size) });
+  if (q) params.set('q', q);
+  if (filters.length > 0) params.set('f', JSON.stringify(filters));
+  if (sort) params.set('s', sort);
+  if (group) params.set('g', group);
+  return `${path}?${params}`;
+}
 const post = (s, p, b = {}) => call(s, 'POST', p, b);
 const patch = (s, p, b) => call(s, 'PATCH', p, b);
 
@@ -172,7 +189,7 @@ const asOwner = await get(owner, `/ops/employees/${cook?.id}`);
 check('owner reads the same route in full, with the ID', asOwner.body?.employee?.view === 'full' && asOwner.body?.employee?.idDocumentNumber === cookBody.idDocumentNumber, asOwner.body?.employee?.view);
 const deskList = await get(desk, '/ops/employees');
 check('the desk cannot read files: 403', deskList.status === 403, deskList.status);
-const managerList = await get(manager, '/ops/employees?limit=200');
+const managerList = await get(manager, listPath('/ops/employees'));
 check('manager list is basic too', managerList.status === 200 && managerList.body.items.every((e) => e.view === 'basic' && !('idDocumentNumber' in e)), managerList.status);
 check('backfilled files read detailsMissing', managerList.body?.items?.some((e) => e.hasAccount && e.detailsMissing.length > 0), '');
 
@@ -181,8 +198,8 @@ check('backfilled files read detailsMissing', managerList.body?.items?.some((e) 
 console.log('\nContracts (AC-P4)');
 const fixedNoEnd = await post(owner, `/ops/employees/${cook?.id}/contracts`, { contractType: 'fixed_term', startsOn: first, wageBasis: 'monthly', wageRwf: 180000 });
 check('a fixed term contract without an end: 422', fixedNoEnd.status === 422, fixedNoEnd.body);
-const daily = await post(owner, `/ops/employees/${cook?.id}/contracts`, { contractType: 'casual', startsOn: first, wageBasis: 'daily', wageRwf: 5000 });
-check('a daily wage is refused in the first thread: 422', daily.status === 422, daily.status);
+// Daily and hourly wages were refused here until 058-payroll pays them;
+// verify-hr-payroll.mjs proves them now (AC-PY2).
 const c1 = await post(owner, `/ops/employees/${cook?.id}/contracts`, { contractType: 'permanent', startsOn: first, wageBasis: 'monthly', wageRwf: 180000 });
 check('a monthly contract from the first: 201, active', c1.status === 201 && c1.body?.contract?.status === 'active', c1.body);
 const early = await post(owner, `/ops/employees/${cook?.id}/contracts`, { contractType: 'permanent', startsOn: first, wageBasis: 'monthly', wageRwf: 190000 });
@@ -214,8 +231,8 @@ check('the same shift again overlaps: 409', overlap.status === 409, overlap.stat
 const raceDay = addDays(leaveDay, 2);
 const race = await Promise.all([1, 2, 3].map(() => post(manager, '/ops/roster', { employeeId: cook?.id, shiftTemplateId: morning.body?.id, workDate: raceDay })));
 check('three racing roster writes: exactly one wins (the database refuses the rest)', race.filter((r) => r.status === 201).length === 1 && race.filter((r) => r.status === 409).length === 2, race.map((r) => r.status));
-const limitedRoster = await get(limitedDesk, `/ops/roster?from=${rosterDay}&to=${rosterDay}`);
-check('a desk limited to Musanze does not see the Boutique roster (AC-T6)', limitedRoster.status === 200 && limitedRoster.body.entries.every((e) => e.propertyId !== BOUTIQUE), limitedRoster.status);
+const limitedRoster = await get(limitedDesk, listPath('/ops/roster', { filters: [['workDate', 'eq', rosterDay]] }));
+check('a desk limited to Musanze does not see the Boutique roster (AC-T6)', limitedRoster.status === 200 && limitedRoster.body.items.every((e) => e.propertyId !== BOUTIQUE), limitedRoster.status);
 
 // --- Attendance (AC-T4, AC-T6) -------------------------------------------------------
 
@@ -233,8 +250,8 @@ const outEarly = await post(desk, `/ops/attendance/${clockIn.body?.id}/clock-out
 check('a clock out before the clock in: 422', outEarly.status === 422, outEarly.status);
 const clockOut = await post(desk, `/ops/attendance/${clockIn.body?.id}/clock-out`, {});
 check('clock out: 200, closed', clockOut.status === 200 && clockOut.body?.status === 'closed', clockOut.body);
-const sheet = await get(desk, `/ops/attendance?date=${today}`);
-check('the desk reads the day sheet as roster cards', sheet.status === 200 && sheet.body.records.some((r) => r.id === clockIn.body?.id), sheet.status);
+const sheet = await get(desk, listPath('/ops/attendance'));
+check('with no day named, the desk reads today\'s sheet as roster cards', sheet.status === 200 && sheet.body.items.some((r) => r.id === clockIn.body?.id), sheet.status);
 
 // --- Leave (AC-L1, AC-L4, AC-L5, AC-T3) ------------------------------------------------
 
@@ -255,8 +272,8 @@ check('two racing approvals: one wins, one 409', approvals.filter((r) => r.statu
 const after = await get(manager, `/ops/employees/${cook?.id}/leave-balances`);
 const annualAfter = after.body?.balances?.find((b) => b.leaveType.code === 'annual');
 check('the balance is the ledger: one day less, one taken row', Math.abs((annualAfter?.balanceDays ?? 0) - (balanceBefore - 1)) < 0.01 && annualAfter.entries.filter((e) => e.kind === 'taken').length === 1, annualAfter);
-const rosterAfter = await get(manager, `/ops/roster?from=${leaveDay}&to=${leaveDay}`);
-const leaveShift = rosterAfter.body?.entries?.find((e) => e.id === rosterLeaveDay.body?.id);
+const rosterAfter = await get(manager, listPath('/ops/roster', { filters: [['workDate', 'eq', leaveDay]] }));
+const leaveShift = rosterAfter.body?.items?.find((e) => e.id === rosterLeaveDay.body?.id);
 check('approving cancelled the shift in the range (AC-T3)', leaveShift?.status === 'cancelled', leaveShift);
 const clash = await post(manager, '/ops/roster', { employeeId: cook?.id, shiftTemplateId: morning.body?.id, workDate: leaveDay });
 check('rostering on approved leave: 409 naming it', clash.status === 409 && /leave/i.test(clash.body?.message ?? ''), clash.body);
@@ -312,24 +329,39 @@ check('owner creates the draft run: 201', run.status === 201 && run.body?.run?.s
 const slip = run.body?.payslips?.find((p) => p.employeeId === cook?.id);
 check('the cook has one payslip with two wage line groups (the raise on the 16th)', slip?.lines?.filter((l) => l.code === 'wage').length === 2, slip?.lines);
 const wage = slip?.lines?.filter((l) => l.code === 'wage').reduce((s, l) => s + l.amountRwf, 0);
-// Index contract 9, restated here rather than imported: 30, less the days of
-// the month before a start, less the days after an end. In a 31 day month the
-// two halves of a raise on the 16th are 14/30 and 15/30; in a 30 day month,
-// 15/30 each.
+// 058-payroll AC-PY1, restated here rather than imported: a split month is
+// shared by its own days, in hundredths of a thirtieth, and a month covered
+// end to end comes to exactly 30/30, the last contract taking what is left. A
+// raise on the 16th of a 31 day month is 14.52/30 and 15.48/30. (Slice 1 had
+// 14/30 and 15/30 here, which paid a 31 day month as 29.)
 const monthDays = new Date(Date.UTC(py, pm, 0)).getUTCDate();
-const firstHalf = 30 - (monthDays - 15);
-const expectedGross = Math.round((180000 * firstHalf) / 30) + Math.round((210000 * 15) / 30);
-check(`${firstHalf}/30 of 180,000 plus 15/30 of 210,000 is gross ${expectedGross}`, slip?.grossRwf === expectedGross && wage === expectedGross, slip?.grossRwf);
+const firstShare = Math.floor((6000 * 15 + monthDays) / (2 * monthDays));
+const halfUp = (a, b) => Math.floor((2 * a + b) / (2 * b));
+const expectedGross = halfUp(180000 * firstShare, 3000) + halfUp(210000 * (3000 - firstShare), 3000);
+check(
+  `${firstShare / 100}/30 of 180,000 plus ${(3000 - firstShare) / 100}/30 of 210,000 is gross ${expectedGross}`,
+  slip?.grossRwf === expectedGross && wage === expectedGross,
+  slip?.grossRwf,
+);
 const sumSide = (side, pred = () => true) => slip.lines.filter((l) => l.side === side && pred(l)).reduce((s, l) => s + l.amountRwf, 0);
 check('net is gross less PAYE and employee contributions (AC-Y4)', slip && slip.netRwf === slip.grossRwf - slip.payeRwf - slip.employeeContributionsRwf - slip.otherDeductionsRwf, slip);
 check('each amount column equals the sum of its lines (AC-Y4)', slip && slip.payeRwf === sumSide('employee', (l) => l.code === 'paye') && slip.employeeContributionsRwf === sumSide('employee', (l) => l.code !== 'paye') && slip.employerContributionsRwf === sumSide('employer'), slip);
 check('the leaver is covered too, whatever the file says (AC-Y1)', run.body?.payslips?.some((p) => p.employeeId === cook2?.id), '');
-check('the run records the rule rows it used (AC-Y2)', run.body?.run?.ruleVersions?.length === 2, run.body?.run?.ruleVersions);
+// PAYE and RSSB always; a rule only some months need (overtime, a leaver's
+// settlement) is recorded too when this month read it (058-payroll).
+const ruleTypes = (run.body?.run?.ruleVersions ?? []).map((r) => r.configType);
+check('the run records the rule rows it used (AC-Y2)', ruleTypes.includes('hr.rw.paye') && ruleTypes.includes('hr.rw.rssb'), run.body?.run?.ruleVersions);
 const blocked = await post(owner, `/ops/pay-runs/${run.body?.run?.id}/confirm`, {});
 check('confirm is refused, listing the cook missing an RSSB number (AC-Y3)', blocked.status === 409 && blocked.body?.blockers?.some((b) => b.employeeId === cook?.id && b.code === 'missing_rssb_number'), blocked.body);
 const fix = await patch(owner, `/ops/employees/${cook?.id}`, { rssbNumber: `RS${stamp}1` });
 check('owner adds the RSSB number: 200', fix.status === 200, fix.status);
-const others = blocked.body?.blockers?.filter((b) => b.employeeId !== cook?.id) ?? [];
+// A business with no RSSB employer number in HR settings cannot confirm either
+// (058-payroll AC-PY14); the office types it once.
+if (blocked.body?.blockers?.some((b) => b.code === 'missing_rssb_employer_number')) {
+  const employer = await patch(owner, '/ops/hr/settings', { rssbEmployerNumber: `DEMO-${stamp}` });
+  check('owner records the business\'s RSSB employer number: 200', employer.status === 200, employer.body);
+}
+const others = blocked.body?.blockers?.filter((b) => b.employeeId !== cook?.id && b.code !== 'missing_rssb_employer_number') ?? [];
 if (others.length > 0) console.log(`  NOTE  ${others.length} other blocker(s) from earlier rows in this database; confirm may stay refused`);
 const confirmed = await post(owner, `/ops/pay-runs/${run.body?.run?.id}/confirm`, {});
 check('confirm: 200, confirmed', confirmed.status === 200 && confirmed.body?.run?.status === 'confirmed', confirmed.body?.message ?? confirmed.status);
@@ -337,7 +369,7 @@ const twice = await post(owner, `/ops/pay-runs/${run.body?.run?.id}/confirm`, {}
 check('a second confirm answers 200 with the same run', twice.status === 200 && twice.body?.run?.confirmedAt === confirmed.body?.run?.confirmedAt, twice.status);
 const recompute = await post(owner, `/ops/pay-runs/${run.body?.run?.id}/recompute`, {});
 check('a confirmed run cannot be recomputed: 409', recompute.status === 409, recompute.status);
-const listed = (await get(owner, '/ops/pay-runs')).body?.runs?.find((r) => r.id === run.body?.run?.id);
+const listed = (await get(owner, listPath('/ops/pay-runs'))).body?.items?.find((r) => r.id === run.body?.run?.id);
 const slips = confirmed.body?.payslips ?? [];
 check(
   'the run list totals its payslips (headcount, gross, net)',
@@ -347,10 +379,92 @@ check(
   listed,
 );
 
+// --- Lists (058-list-framework) ------------------------------------------------------
+
+console.log('\nEvery HR list speaks one contract (058-list-framework)');
+const sortedPage = await get(owner, listPath('/ops/employees', { sort: '-hiredOn', size: 10 }));
+check('a page answers items, total, page and size (AC-LF3)', sortedPage.status === 200 && Array.isArray(sortedPage.body?.items) && sortedPage.body.page === 1 && sortedPage.body.pageSize === 10 && sortedPage.body.total >= sortedPage.body.items.length, sortedPage.body && Object.keys(sortedPage.body));
+check('sorted on the server, newest hire first', sortedPage.body.items.every((e, i, all) => i === 0 || all[i - 1].hiredOn >= e.hiredOn), sortedPage.body.items.map((e) => e.hiredOn));
+const rawColumn = await get(owner, listPath('/ops/employees', { filters: [['date_of_birth', 'eq', '1990-01-01']] }));
+check('a field the spec does not declare: 422, so no request names a column', rawColumn.status === 422, rawColumn.status);
+const basicSort = await get(manager, listPath('/ops/employees', { sort: 'dateOfBirth' }));
+check('a basic reader sorting by date of birth: 422 (AC-LF4)', basicSort.status === 422, basicSort.status);
+check('the owner may sort by it: 200', (await get(owner, listPath('/ops/employees', { sort: 'dateOfBirth' }))).status === 200, '');
+const searched = await get(owner, listPath('/ops/employees', { q: 'Iribagiza' }));
+check('search runs over the declared fields (AC-LF13)', searched.status === 200 && searched.body.items.some((e) => e.legalName === 'Denise Iribagiza'), searched.body?.total);
+const groupedPage = await get(owner, listPath('/ops/employees', { group: 'branch' }));
+const keys = (groupedPage.body?.items ?? []).map((e) => e.workPropertyId ?? null);
+const runsOf = keys.filter((k, i) => i === 0 || k !== keys[i - 1]);
+check('grouped: rows come group by group, never interleaved (AC-LF14)', groupedPage.status === 200 && new Set(runsOf).size === runsOf.length, runsOf);
+check('grouped: the group counts add up to the total, named by branch', (groupedPage.body?.groups ?? []).reduce((n, g) => n + g.count, 0) === groupedPage.body?.total && groupedPage.body.groups.every((g) => g.key === null || g.label !== g.key), groupedPage.body?.groups);
+check('the status chips carry counts', (groupedPage.body?.statusCounts ?? []).some((c) => c.value === 'active' && c.count > 0), groupedPage.body?.statusCounts);
+const runSearch = await get(owner, listPath('/ops/pay-runs', { q: 'march' }));
+check('a list with no search fields refuses q: 422', runSearch.status === 422, runSearch.status);
+const allIds = await get(owner, listPath('/ops/employees/ids'));
+check('select all answers the matching ids, up to 200, with the total (AC-LF15)', allIds.status === 200 && allIds.body.ids.length === Math.min(allIds.body.total, 200), allIds.body?.total);
+
+const ownerCsv = await raw(owner, `${listPath('/ops/employees/export.csv', { sort: 'employeeNumber' })}`);
+check('export: a CSV file, not cached, with a byte order mark (AC-LF7)', ownerCsv.status === 200 && /text\/csv/.test(ownerCsv.headers.get('content-type') ?? '') && ownerCsv.headers.get('cache-control') === 'no-store' && ownerCsv.text.charCodeAt(0) === 0xfeff, [ownerCsv.status, ownerCsv.headers.get('content-type'), ownerCsv.headers.get('cache-control'), ownerCsv.text.charCodeAt(0)]);
+check('the owner\'s export carries the personal columns', ownerCsv.text.split('\r\n')[0].includes('Date of birth'), ownerCsv.text.split('\r\n')[0]);
+const managerCsv = await raw(manager, listPath('/ops/employees/export.csv'));
+check('a basic reader\'s export carries none of them (AC-LF4)', managerCsv.status === 200 && !managerCsv.text.split('\r\n')[0].includes('Date of birth') && !managerCsv.text.includes(cookBody.idDocumentNumber), managerCsv.text.split('\r\n')[0]);
+
+const viewName = `Kitchen ${stamp}`;
+const viewConfig = { filters: [{ field: 'status', op: 'eq', value: 'active' }], sort: [{ field: 'hiredOn', dir: 'desc' }], pageSize: 25, view: 'list' };
+const shared = await post(manager, '/ops/list-views', { listKey: 'staff.employees', name: viewName, config: viewConfig, shared: true });
+check('a manager saves a shared view (AC-LF5)', shared.status === 201 && shared.body?.shared === true && shared.body?.mine === true, shared.body);
+const sameName = await post(manager, '/ops/list-views', { listKey: 'staff.employees', name: viewName.toUpperCase(), config: viewConfig });
+check('the same name again, in any case: 409', sameName.status === 409, sameName.status);
+const ownerViews = await get(owner, '/ops/list-views?listKey=staff.employees');
+const seenByOwner = ownerViews.body?.views?.find((v) => v.id === shared.body?.id);
+check('the owner sees it as shared, not theirs', ownerViews.status === 200 && seenByOwner?.mine === false, seenByOwner);
+const ownerEdit = await patch(owner, `/ops/list-views/${shared.body?.id}`, { name: 'Taken over' });
+check('only its author changes a view: 404 for anyone else', ownerEdit.status === 404, ownerEdit.status);
+const deskViews = await get(desk, '/ops/list-views?listKey=staff.employees');
+check('a reader without the list\'s permission reads no views of it: 403', deskViews.status === 403, deskViews.status);
+const unknownList = await get(owner, '/ops/list-views?listKey=staff.nothing');
+check('an unknown list: 404', unknownList.status === 404, unknownList.status);
+const removed = await call(manager, 'DELETE', `/ops/list-views/${shared.body?.id}`);
+check('the author deletes it: 204', removed.status === 204, removed.status);
+
+const bulkDays = [14, 15, 16].map((n) => addDays(leaveDay, n));
+const bulkRequests = [];
+for (const day of bulkDays) {
+  bulkRequests.push(await post(manager, '/ops/leave/requests', { employeeId: cook?.id, leaveTypeId: unpaidType?.id, startsOn: day, endsOn: day }));
+}
+check('three unpaid days filed for the cook', bulkRequests.every((r) => r.status === 201), bulkRequests.map((r) => r.status));
+const ownerQueue = await get(owner, listPath('/ops/leave/requests'));
+check('the owner, who holds no staff file, reads the queue in its default order: 200', ownerQueue.status === 200 && ownerQueue.body.items.every((r) => r.routedToMe === false), ownerQueue.status);
+const managerQueue = await get(manager, listPath('/ops/leave/requests'));
+const routedFlags = (managerQueue.body?.items ?? []).map((r) => r.routedToMe);
+check('by default what is routed to the caller comes first', managerQueue.status === 200 && (routedFlags.indexOf(false) === -1 || routedFlags.lastIndexOf(true) < routedFlags.indexOf(false)), routedFlags);
+const waiting = await get(manager, listPath('/ops/leave/requests/ids', { filters: [['status', 'eq', 'requested']] }));
+check('select all over the waiting queue includes all three', waiting.status === 200 && bulkRequests.every((r) => waiting.body.ids.includes(r.body?.id)), waiting.body?.total);
+const decidedFirst = await post(manager, `/ops/leave/requests/${bulkRequests[0].body?.id}/reject`, { note: 'Kitchen short that day' });
+check('one of them refused on its own first', decidedFirst.status === 200, decidedFirst.status);
+const bulk = await post(manager, '/ops/leave/requests/bulk', { action: 'reject', ids: bulkRequests.map((r) => r.body?.id), params: { note: 'Kitchen short' } });
+const okCount = bulk.body?.results?.filter((r) => r.ok).length;
+const refusedRow = bulk.body?.results?.find((r) => !r.ok);
+check('a bulk refusal over three, one already decided: two done, one 409 in its own words (AC-LF6)', bulk.status === 200 && okCount === 2 && refusedRow?.id === bulkRequests[0].body?.id && refusedRow?.status === 409, bulk.body);
+const deskBulk = await post(desk, '/ops/leave/requests/bulk', { action: 'approve', ids: [bulkRequests[1].body?.id] });
+check('bulk needs the single command\'s permission: 403 for the desk', deskBulk.status === 403, deskBulk.status);
+if (DB) {
+  const client = new pg.Client({ connectionString: DB });
+  await client.connect();
+  const { rows } = await client.query(
+    `select count(*)::int as n from audit_events where subject_id = $1 and event_type like 'hr.leave%reject%'`,
+    [cook?.id],
+  );
+  const exports = await client.query(`select count(*)::int as n from report_runs where kind = 'export' and subject = 'staff.employees'`);
+  check('each refusal wrote its own audit row, as three single commands would', rows[0].n >= 3, rows[0].n);
+  check('every export wrote a report run (AC-LF7)', exports.rows[0].n >= 2, exports.rows[0].n);
+  await client.end();
+}
+
 // --- Offboarding a linked receptionist (AC-O1, AC-O2) -----------------------------------
 
 console.log('\nOffboarding a receptionist with an account (AC-O1, AC-O2)');
-const denise = (await get(owner, '/ops/employees?limit=200')).body.items.find((e) => e.legalName === 'Denise Iribagiza');
+const denise = (await get(owner, listPath('/ops/employees', { q: 'Iribagiza' }))).body.items.find((e) => e.legalName === 'Denise Iribagiza');
 const inFrozen = await post(owner, `/ops/employees/${denise?.id}/offboard`, { lastDay: today, reason: 'Dismissed' });
 check('a last day inside a confirmed month: 409', inFrozen.status === 409, inFrozen.body);
 const before = await get(desk, '/ops/rooms');

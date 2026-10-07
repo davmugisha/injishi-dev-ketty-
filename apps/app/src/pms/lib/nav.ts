@@ -26,7 +26,7 @@
  * on the API refuses the request.
  */
 
-import type { DepartmentCategory, Permission } from "@injishi/contracts";
+import { HR_PERMISSIONS, type DepartmentCategory, type Permission } from "@injishi/contracts";
 
 // No property, lease or thread type is imported any more, and that absence is
 // the change (ADR-035, D-a). This module used to take a `HospitalityProperty`,
@@ -181,19 +181,61 @@ export interface NavCounts {
  * table lets through, so a receptionist who clocks people in reaches Staff and
  * sees Roster and Attendance, never Employees or Payroll. Each gate is exactly
  * the read its lens makes, so an offered lens never meets a refusal.
+ *
+ * The people file (058-people-file) adds six. Documents, Discipline and
+ * Configuration are `people.manage`'s; the org chart reads like the file list;
+ * Policies and Announcements are the whole business's, so any HR permission
+ * reads them, the desk included.
  */
 export const STAFF_LENSES: readonly {
-  key: "employees" | "roster" | "attendance" | "leave" | "payroll";
+  key:
+    | "employees"
+    | "org-chart"
+    | "documents"
+    | "discipline"
+    | "roster"
+    | "rotations"
+    | "shift-requests"
+    | "attendance"
+    | "attendance-requests"
+    | "kiosks"
+    | "leave"
+    | "payroll"
+    | "time-insights"
+    | "policies"
+    | "announcements"
+    | "time-settings"
+    | "configuration";
   label: string;
   /** The route segment under `/staff`; empty for the default lens. */
   segment: string;
   anyPermission: readonly Permission[];
 }[] = [
   { key: "employees", label: "Employees", segment: "", anyPermission: ["people.view", "people.manage", "payroll.run"] },
+  { key: "org-chart", label: "Org chart", segment: "org-chart", anyPermission: ["people.view", "people.manage", "payroll.run"] },
+  { key: "documents", label: "Documents", segment: "documents", anyPermission: ["people.manage"] },
+  { key: "discipline", label: "Discipline", segment: "discipline", anyPermission: ["people.manage"] },
   { key: "roster", label: "Roster", segment: "roster", anyPermission: ["roster.manage", "attendance.record", "people.view"] },
+  // Time (058-time AC-TM14). Each lens opens on the reads it makes.
+  { key: "rotations", label: "Rotations", segment: "rotations", anyPermission: ["roster.manage", "attendance.record"] },
+  { key: "shift-requests", label: "Shift requests", segment: "shift-requests", anyPermission: ["roster.manage"] },
   { key: "attendance", label: "Attendance", segment: "attendance", anyPermission: ["attendance.record", "attendance.approve"] },
-  { key: "leave", label: "Leave", segment: "leave", anyPermission: ["leave.approve"] },
-  { key: "payroll", label: "Payroll", segment: "payroll", anyPermission: ["payroll.run"] },
+  { key: "attendance-requests", label: "Attendance requests", segment: "attendance-requests", anyPermission: ["attendance.approve"] },
+  { key: "kiosks", label: "Kiosks", segment: "kiosks", anyPermission: ["attendance.record"] },
+  // 058-leave: five sections below it; whoever keeps the files reaches balances, periods and types.
+  { key: "leave", label: "Leave", segment: "leave", anyPermission: ["leave.approve", "people.manage"] },
+  // 058-payroll: nine sections below it; whoever writes contracts reaches the Contracts list.
+  { key: "payroll", label: "Payroll", segment: "payroll", anyPermission: ["payroll.run", "people.manage"] },
+  { key: "time-insights", label: "Late and monthly", segment: "time-insights", anyPermission: ["people.manage"] },
+  { key: "policies", label: "Policies", segment: "policies", anyPermission: HR_PERMISSIONS },
+  { key: "announcements", label: "Announcements", segment: "announcements", anyPermission: HR_PERMISSIONS },
+  {
+    key: "time-settings",
+    label: "Time settings",
+    segment: "time-settings",
+    anyPermission: ["roster.manage", "attendance.record", "attendance.approve", "people.manage"],
+  },
+  { key: "configuration", label: "Configuration", segment: "configuration", anyPermission: ["people.manage"] },
 ];
 
 /** The Staff lenses a grant reaches. */
@@ -201,16 +243,8 @@ export function staffLenses(permissions: readonly Permission[]): typeof STAFF_LE
   return STAFF_LENSES.filter((lens) => lens.anyPermission.some((p) => permissions.includes(p)));
 }
 
-/** Every HR permission: any one of them opens the Staff leaf. */
-const STAFF_PERMISSIONS: readonly Permission[] = [
-  "people.view",
-  "people.manage",
-  "roster.manage",
-  "attendance.record",
-  "attendance.approve",
-  "leave.approve",
-  "payroll.run",
-];
+/** Every HR permission: any one of them opens the Staff leaf. The contracts' list, so the API's reads agree. */
+const STAFF_PERMISSIONS: readonly Permission[] = HR_PERMISSIONS;
 
 /** The Staff leaf, the same in a hotel and a residence business (ADR-058). */
 function staffLeaf(base: string): NavItem {

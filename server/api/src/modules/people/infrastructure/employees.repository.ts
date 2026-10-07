@@ -1,31 +1,56 @@
-import type {
-  ContractStatus,
-  ContractType,
-  EmployeeStatus,
-  HrIdDocumentType,
-  HrSex,
-  OrgRole,
-  WageBasis,
+import {
+  EMPLOYEE_LIST,
+  type ContractStatus,
+  type ContractType,
+  type EmployeeStatus,
+  type HrIdDocumentType,
+  type HrSex,
+  type ListCount,
+  type ListFilterOp,
+  type ListGroup,
+  type ListIds,
+  type ListQuery,
+  type ListView,
+  MAX_BULK_IDS,
+  type OrgRole,
+  type WageBasis,
 } from '@injishi/contracts';
 import { Inject, Injectable } from '@nestjs/common';
-import { and, asc, desc, eq, gt, inArray, isNotNull, lte, ne, or, sql } from 'drizzle-orm';
+import { and, asc, desc, eq, inArray, isNotNull, lte, ne, or, sql, type SQL } from 'drizzle-orm';
 import { alias } from 'drizzle-orm/pg-core';
 
 import {
+  cells,
   departmentMembers,
   departments,
+  districts,
+  employeeTagLinks,
+  employeeTags,
+  employeeTypes,
   employees,
   employmentContracts,
-  hrCounters,
   jobPositions,
   leaveLedgerEntries,
   orgMemberships,
   payRuns,
   payslips,
+  payStructures,
   properties,
+  sectors,
+  villages,
 } from '../../../database/drizzle/schema';
 import { inBranchScope, type BranchScope } from '../../../shared/auth/branch-scope';
 import { DRIZZLE, type Database } from '../../../shared/database/database.module';
+import {
+  compileListQuery,
+  countAll,
+  groupOrder,
+  groupsOf,
+  statusCountsOf,
+  type CompiledList,
+  type ListColumns,
+} from '../../../shared/lists/list-query';
+import { mintEmployeeNumberTx } from './staff-file';
 
 export type Tx = Parameters<Parameters<Database['transaction']>[0]>[0];
 
@@ -56,6 +81,32 @@ export interface EmployeeRow {
   membershipRole: OrgRole | null;
   membershipStatus: 'active' | 'removed' | null;
   membershipUserId: string | null;
+  // The people file (058-people-file AC-PF1).
+  photoKey: string | null;
+  maritalStatus: 'single' | 'married' | 'divorced' | 'widowed' | null;
+  childrenCount: number | null;
+  villageId: number | null;
+  villageName: string | null;
+  cellName: string | null;
+  sectorName: string | null;
+  districtName: string | null;
+  street: string | null;
+  emergencyName: string | null;
+  emergencyPhone: string | null;
+  emergencyRelation: string | null;
+  qualification: string | null;
+  priorExperienceYears: number | null;
+  employeeTypeId: string | null;
+  employeeTypeTitle: string | null;
+  previousEmployeeId: string | null;
+  serviceFrom: string;
+}
+
+/** A tag on a file, as the file shows it. */
+export interface EmployeeTagRow {
+  id: string;
+  title: string;
+  tone: 'neutral' | 'info' | 'ok' | 'warn' | 'bad';
 }
 
 export interface ContractRow {
@@ -87,6 +138,19 @@ export interface EmployeeValues {
   reportingManagerId?: string | null;
   hiredOn?: string;
   employeeNumber?: string;
+  photoKey?: string | null;
+  maritalStatus?: 'single' | 'married' | 'divorced' | 'widowed' | null;
+  childrenCount?: number | null;
+  villageId?: number | null;
+  street?: string | null;
+  emergencyName?: string | null;
+  emergencyPhone?: string | null;
+  emergencyRelation?: string | null;
+  qualification?: string | null;
+  priorExperienceYears?: number | null;
+  employeeTypeId?: string | null;
+  previousEmployeeId?: string | null;
+  serviceFrom?: string;
 }
 
 /** A unique constraint that broke on this write, by name, or null. */
@@ -100,6 +164,53 @@ export function violatedConstraint(error: unknown, code = '23505'): string | nul
 }
 
 const manager = alias(employees, 'reporting_manager');
+
+/**
+ * "In department X" for a person who may sit in several departments: an
+ * EXISTS over the active roster rows, never a join that would repeat the file.
+ */
+/** `tag` matches a file carrying the tag (058-people-file AC-PF13), as `department` matches a member. */
+function hasTag(op: ListFilterOp, value: unknown): SQL {
+  const tagged = (extra?: SQL): SQL =>
+    sql`exists (select 1 from ${employeeTagLinks} where ${employeeTagLinks.employeeId} = ${employees.id}${extra ? sql` and ${extra}` : sql``})`;
+  switch (op) {
+    case 'eq':
+      return tagged(eq(employeeTagLinks.tagId, value as string));
+    case 'ne':
+      return sql`not ${tagged(eq(employeeTagLinks.tagId, value as string))}`;
+    case 'in':
+      return tagged(inArray(employeeTagLinks.tagId, value as string[]));
+    case 'nin':
+      return sql`not ${tagged(inArray(employeeTagLinks.tagId, value as string[]))}`;
+    case 'isNull':
+      return sql`not ${tagged()}`;
+    case 'isNotNull':
+      return tagged();
+    default:
+      throw new Error(`The tag field does not support ${op}.`);
+  }
+}
+
+function inDepartment(op: ListFilterOp, value: unknown): SQL {
+  const member = (extra?: SQL): SQL =>
+    sql`exists (select 1 from ${departmentMembers} where ${departmentMembers.employeeId} = ${employees.id} and ${departmentMembers.status} = 'active'${extra ? sql` and ${extra}` : sql``})`;
+  switch (op) {
+    case 'eq':
+      return member(eq(departmentMembers.departmentId, value as string));
+    case 'ne':
+      return sql`not ${member(eq(departmentMembers.departmentId, value as string))}`;
+    case 'in':
+      return member(inArray(departmentMembers.departmentId, value as string[]));
+    case 'nin':
+      return sql`not ${member(inArray(departmentMembers.departmentId, value as string[]))}`;
+    case 'isNull':
+      return sql`not ${member()}`;
+    case 'isNotNull':
+      return member();
+    default:
+      throw new Error(`The department field does not support ${op}.`);
+  }
+}
 
 /**
  * HR files and contracts (ADR-058). The only place that touches Drizzle for
@@ -140,6 +251,24 @@ export class EmployeesRepository {
     membershipRole: orgMemberships.orgRole,
     membershipStatus: orgMemberships.status,
     membershipUserId: orgMemberships.userId,
+    photoKey: employees.photoKey,
+    maritalStatus: employees.maritalStatus,
+    childrenCount: employees.childrenCount,
+    villageId: employees.villageId,
+    villageName: villages.name,
+    cellName: cells.name,
+    sectorName: sectors.name,
+    districtName: districts.name,
+    street: employees.street,
+    emergencyName: employees.emergencyName,
+    emergencyPhone: employees.emergencyPhone,
+    emergencyRelation: employees.emergencyRelation,
+    qualification: employees.qualification,
+    priorExperienceYears: employees.priorExperienceYears,
+    employeeTypeId: employees.employeeTypeId,
+    employeeTypeTitle: employeeTypes.title,
+    previousEmployeeId: employees.previousEmployeeId,
+    serviceFrom: employees.serviceFrom,
   };
 
   // The joined select builder's type is drizzle's to spell, and every caller
@@ -152,35 +281,153 @@ export class EmployeesRepository {
       .leftJoin(properties, eq(properties.id, employees.workPropertyId))
       .leftJoin(jobPositions, eq(jobPositions.id, employees.jobPositionId))
       .leftJoin(manager, eq(manager.id, employees.reportingManagerId))
-      .leftJoin(orgMemberships, eq(orgMemberships.id, employees.orgMembershipId));
+      .leftJoin(orgMemberships, eq(orgMemberships.id, employees.orgMembershipId))
+      .leftJoin(employeeTypes, eq(employeeTypes.id, employees.employeeTypeId))
+      .leftJoin(villages, eq(villages.id, employees.villageId))
+      .leftJoin(cells, eq(cells.id, villages.cellId))
+      .leftJoin(sectors, eq(sectors.id, cells.sectorId))
+      .leftJoin(districts, eq(districts.id, sectors.districtId));
   }
 
-  /** One page of a business's files, by employee number, in the caller's branches. */
-  async list(input: {
+  /**
+   * The employee list's one field to column map (058-list-framework). The only
+   * place the list names a column; `EMPLOYEE_LIST` in contracts says which
+   * fields may be filtered, sorted and grouped.
+   */
+  private readonly listColumns: ListColumns = {
+    employeeNumber: employees.employeeNumber,
+    name: sql`coalesce(nullif(btrim(${employees.preferredName}), ''), ${employees.legalName})`,
+    legalName: employees.legalName,
+    phone: employees.phone,
+    status: employees.status,
+    branch: employees.workPropertyId,
+    department: { filter: (op, value) => inDepartment(op, value) },
+    jobPosition: employees.jobPositionId,
+    employeeType: employees.employeeTypeId,
+    tag: { filter: (op, value) => hasTag(op, value) },
+    hiredOn: employees.hiredOn,
+    hasAccount: sql`(${employees.orgMembershipId} is not null and ${orgMemberships.status} = 'active')`,
+    // The same four checks as `detailsMissing` in the presenter.
+    detailsMissing: sql`(${employees.phone} is null or ${employees.dateOfBirth} is null or ${employees.sex} is null or ${employees.idDocumentType} is null or ${employees.idDocumentNumber} is null)`,
+    dateOfBirth: employees.dateOfBirth,
+  };
+
+  /** The list query compiled, and the business and branch condition it is added to. */
+  private compiled(input: { orgId: string; scope: BranchScope; view: ListView; query: ListQuery }): {
+    compiled: CompiledList;
+    own: SQL | undefined;
+    where: SQL | undefined;
+  } {
+    const compiled = compileListQuery({
+      spec: EMPLOYEE_LIST,
+      columns: this.listColumns,
+      reader: input.view,
+      query: input.query,
+      tieBreaker: employees.id,
+    });
+    const own = and(eq(employees.orgId, input.orgId), inBranchScope(employees.workPropertyId, input.scope));
+    return { compiled, own, where: compiled.where ? and(own, compiled.where) : own };
+  }
+
+  /**
+   * One page of a business's files in the caller's branches, filtered, sorted
+   * and grouped as the query asks and the spec allows (AC-LF3, AC-LF4). The org
+   * and branch conditions come first and the list query only adds to them.
+   */
+  async listPage(input: {
     orgId: string;
     scope: BranchScope;
-    status?: EmployeeStatus;
-    propertyId?: string;
-    departmentId?: string;
-    after?: string;
-    limit: number;
-  }): Promise<EmployeeRow[]> {
-    const where = [
-      eq(employees.orgId, input.orgId),
-      inBranchScope(employees.workPropertyId, input.scope),
-    ];
-    if (input.status) where.push(eq(employees.status, input.status));
-    if (input.propertyId) where.push(eq(employees.workPropertyId, input.propertyId));
-    if (input.departmentId) {
-      where.push(
-        sql`exists (select 1 from ${departmentMembers} where ${departmentMembers.employeeId} = ${employees.id} and ${departmentMembers.departmentId} = ${input.departmentId} and ${departmentMembers.status} = 'active')`,
-      );
+    view: ListView;
+    query: ListQuery;
+  }): Promise<{ rows: EmployeeRow[]; total: number; groups: ListGroup[] | undefined; statusCounts: ListCount[] }> {
+    const { compiled, own, where } = this.compiled(input);
+    const [rows, [{ count }], statusRows, groupRows] = await Promise.all([
+      this.base()
+        .where(where)
+        .orderBy(...compiled.orderBy)
+        .limit(compiled.limit)
+        .offset(compiled.offset) as Promise<EmployeeRow[]>,
+      this.db
+        .select({ count: countAll })
+        .from(employees)
+        .leftJoin(orgMemberships, eq(orgMemberships.id, employees.orgMembershipId))
+        .where(where),
+      this.db
+        .select({ value: employees.status, count: countAll })
+        .from(employees)
+        .leftJoin(orgMemberships, eq(orgMemberships.id, employees.orgMembershipId))
+        .where(compiled.whereForStatusCounts ? and(own, compiled.whereForStatusCounts) : own)
+        .groupBy(employees.status),
+      compiled.groupColumn
+        ? this.db
+            .select({ key: sql`${compiled.groupColumn}`, count: countAll })
+            .from(employees)
+            .leftJoin(orgMemberships, eq(orgMemberships.id, employees.orgMembershipId))
+            .where(where)
+            .groupBy(sql`${compiled.groupColumn}`)
+            .orderBy(groupOrder(compiled.groupColumn))
+        : Promise.resolve([] as { key: unknown; count: number }[]),
+    ]);
+
+    const labels = await this.groupLabels(input.query.groupBy, groupRows.map((g) => g.key));
+    return {
+      rows,
+      total: Number(count),
+      groups: groupsOf(EMPLOYEE_LIST, input.query.groupBy, groupRows, labels),
+      statusCounts: statusCountsOf(statusRows),
+    };
+  }
+
+  /**
+   * Select all (AC-LF15): the ids matching the query in list order, at most the
+   * bulk cap, and how many match, so the screen can refuse to act on part of a
+   * filter silently.
+   */
+  async listIds(input: { orgId: string; scope: BranchScope; view: ListView; query: ListQuery }): Promise<ListIds> {
+    const { compiled, where } = this.compiled(input);
+    const [rows, [{ count }]] = await Promise.all([
+      this.db
+        .select({ id: employees.id })
+        .from(employees)
+        .leftJoin(orgMemberships, eq(orgMemberships.id, employees.orgMembershipId))
+        .where(where)
+        .orderBy(...compiled.orderBy)
+        .limit(MAX_BULK_IDS),
+      this.db
+        .select({ count: countAll })
+        .from(employees)
+        .leftJoin(orgMemberships, eq(orgMemberships.id, employees.orgMembershipId))
+        .where(where),
+    ]);
+    return { ids: rows.map((r) => r.id), total: Number(count) };
+  }
+
+  /** Names for grouped ids: a branch's name, a position's title. */
+  private async groupLabels(groupBy: string | undefined, keys: readonly unknown[]): Promise<Map<string, string>> {
+    const ids = keys.filter((k): k is string => typeof k === 'string');
+    if (ids.length === 0) return new Map();
+    if (groupBy === 'branch') {
+      const rows = await this.db
+        .select({ id: properties.id, name: properties.name })
+        .from(properties)
+        .where(inArray(properties.id, ids));
+      return new Map(rows.map((r) => [r.id, r.name]));
     }
-    if (input.after) where.push(gt(employees.employeeNumber, input.after));
-    return (await this.base()
-      .where(and(...where))
-      .orderBy(asc(employees.employeeNumber))
-      .limit(input.limit)) as EmployeeRow[];
+    if (groupBy === 'jobPosition') {
+      const rows = await this.db
+        .select({ id: jobPositions.id, name: jobPositions.title })
+        .from(jobPositions)
+        .where(inArray(jobPositions.id, ids));
+      return new Map(rows.map((r) => [r.id, r.name]));
+    }
+    if (groupBy === 'employeeType') {
+      const rows = await this.db
+        .select({ id: employeeTypes.id, name: employeeTypes.title })
+        .from(employeeTypes)
+        .where(inArray(employeeTypes.id, ids));
+      return new Map(rows.map((r) => [r.id, r.name]));
+    }
+    return new Map();
   }
 
   async find(id: string, tx?: Tx): Promise<EmployeeRow | null> {
@@ -204,6 +451,9 @@ export class EmployeesRepository {
       .from(employees)
       .innerJoin(orgMemberships, eq(orgMemberships.id, employees.orgMembershipId))
       .where(and(eq(employees.orgId, orgId), eq(orgMemberships.userId, userId)))
+      // A returning member's old file keeps the same membership (AC-PF14): the
+      // active file is the one that is them now.
+      .orderBy(sql`${employees.status} = 'active' desc`, desc(employees.hiredOn))
       .limit(1);
     return row?.id ?? null;
   }
@@ -218,15 +468,23 @@ export class EmployeesRepository {
     return row ?? null;
   }
 
-  /** The file holding this ID at this business, if any (AC-P3). */
+  /**
+   * The file holding this ID at this business, if any (AC-P3): an active one
+   * first, else the most recent leaver, which a create may rehire (AC-PF14).
+   */
   async findByIdDocument(
     orgId: string,
     type: HrIdDocumentType,
     number: string,
     tx?: Tx,
-  ): Promise<{ id: string; employeeNumber: string } | null> {
+  ): Promise<{ id: string; employeeNumber: string; status: EmployeeStatus; hiredOn: string } | null> {
     const [row] = await (tx ?? this.db)
-      .select({ id: employees.id, employeeNumber: employees.employeeNumber })
+      .select({
+        id: employees.id,
+        employeeNumber: employees.employeeNumber,
+        status: employees.status,
+        hiredOn: employees.hiredOn,
+      })
       .from(employees)
       .where(
         and(
@@ -235,6 +493,7 @@ export class EmployeesRepository {
           eq(employees.idDocumentNumber, number),
         ),
       )
+      .orderBy(sql`${employees.status} = 'active' desc`, desc(employees.offboardedOn))
       .limit(1);
     return row ?? null;
   }
@@ -248,36 +507,15 @@ export class EmployeesRepository {
     return !!row;
   }
 
-  /**
-   * The next free employee number for a business: `0001`, `0002`, … (AC-P1).
-   *
-   * `INSERT … ON CONFLICT DO UPDATE … RETURNING` takes the number and moves the
-   * counter in one statement, so two creates at once take two numbers. A number
-   * somebody TYPED onto a file is skipped rather than minted a second time.
-   */
-  async mintEmployeeNumber(tx: Tx, orgId: string): Promise<string> {
-    for (let attempt = 0; attempt < 1000; attempt++) {
-      const [row] = await tx
-        .insert(hrCounters)
-        .values({ orgId, nextEmployeeNumber: 2 })
-        .onConflictDoUpdate({
-          target: hrCounters.orgId,
-          set: {
-            nextEmployeeNumber: sql`${hrCounters.nextEmployeeNumber} + 1`,
-            updatedAt: new Date(),
-          },
-        })
-        .returning({ minted: sql<number>`${hrCounters.nextEmployeeNumber} - 1` });
-      const candidate = String(row.minted).padStart(4, '0');
-      if (!(await this.numberTaken(orgId, candidate, tx))) return candidate;
-    }
-    throw new Error('Could not mint an employee number.');
+  /** The next free employee number, with the business's prefix (AC-P1, AC-PF12). */
+  mintEmployeeNumber(tx: Tx, orgId: string): Promise<string> {
+    return mintEmployeeNumberTx(tx, orgId);
   }
 
   async insert(
     tx: Tx,
     orgId: string,
-    values: EmployeeValues & { legalName: string; hiredOn: string; employeeNumber: string },
+    values: EmployeeValues & { legalName: string; hiredOn: string; employeeNumber: string; serviceFrom: string },
   ): Promise<string> {
     const [row] = await tx
       .insert(employees)
@@ -291,6 +529,92 @@ export class EmployeesRepository {
       .update(employees)
       .set({ ...values, updatedAt: new Date() })
       .where(eq(employees.id, id));
+  }
+
+  /** The tags on each of these files, in title order (058-people-file AC-PF1). */
+  async tagsOf(employeeIds: readonly string[], tx?: Tx): Promise<Map<string, EmployeeTagRow[]>> {
+    const out = new Map<string, EmployeeTagRow[]>();
+    if (employeeIds.length === 0) return out;
+    const rows = await (tx ?? this.db)
+      .select({
+        employeeId: employeeTagLinks.employeeId,
+        id: employeeTags.id,
+        title: employeeTags.title,
+        tone: employeeTags.tone,
+      })
+      .from(employeeTagLinks)
+      .innerJoin(employeeTags, eq(employeeTags.id, employeeTagLinks.tagId))
+      .where(inArray(employeeTagLinks.employeeId, [...employeeIds]))
+      .orderBy(asc(employeeTags.title));
+    for (const r of rows) {
+      const list = out.get(r.employeeId) ?? [];
+      list.push({ id: r.id, title: r.title, tone: r.tone });
+      out.set(r.employeeId, list);
+    }
+    return out;
+  }
+
+  /** Replace a file's tags with exactly this set. Links are a set, so the old ones go. */
+  async setTags(tx: Tx, orgId: string, employeeId: string, tagIds: readonly string[]): Promise<void> {
+    await tx.delete(employeeTagLinks).where(eq(employeeTagLinks.employeeId, employeeId));
+    if (tagIds.length > 0) {
+      await tx
+        .insert(employeeTagLinks)
+        .values([...new Set(tagIds)].map((tagId) => ({ orgId, employeeId, tagId })));
+    }
+  }
+
+  /** The active catalog rows of a business among these ids, for checking a write. */
+  async activeCatalogIds(
+    kind: 'employee-types' | 'tags' | 'job-positions',
+    orgId: string,
+    ids: readonly string[],
+    tx?: Tx,
+  ): Promise<Set<string>> {
+    if (ids.length === 0) return new Set();
+    const table = kind === 'tags' ? employeeTags : kind === 'job-positions' ? jobPositions : employeeTypes;
+    const rows = await (tx ?? this.db)
+      .select({ id: table.id })
+      .from(table)
+      .where(and(eq(table.orgId, orgId), eq(table.status, 'active'), inArray(table.id, [...ids])));
+    return new Set(rows.map((r) => r.id));
+  }
+
+  /** Whether a village exists, for checking an address. */
+  async villageExists(villageId: number, tx?: Tx): Promise<boolean> {
+    const [row] = await (tx ?? this.db)
+      .select({ id: villages.id })
+      .from(villages)
+      .where(eq(villages.id, villageId))
+      .limit(1);
+    return !!row;
+  }
+
+  /**
+   * Everyone active in the caller's branches, by reporting manager (AC-PF10).
+   * Roster card fields only, so `people.view` is enough to draw it.
+   */
+  async orgChart(input: { orgId: string; scope: BranchScope }): Promise<
+    { id: string; displayName: string; jobPositionTitle: string | null; reportingManagerId: string | null; hasPhoto: boolean }[]
+  > {
+    return this.db
+      .select({
+        id: employees.id,
+        displayName: sql<string>`coalesce(nullif(btrim(${employees.preferredName}), ''), ${employees.legalName})`,
+        jobPositionTitle: jobPositions.title,
+        reportingManagerId: employees.reportingManagerId,
+        hasPhoto: sql<boolean>`(${employees.photoKey} IS NOT NULL)`,
+      })
+      .from(employees)
+      .leftJoin(jobPositions, eq(jobPositions.id, employees.jobPositionId))
+      .where(
+        and(
+          eq(employees.orgId, input.orgId),
+          eq(employees.status, 'active'),
+          inBranchScope(employees.workPropertyId, input.scope),
+        ),
+      )
+      .orderBy(asc(employees.legalName));
   }
 
   /**
@@ -314,6 +638,16 @@ export class EmployeesRepository {
       if (!row) return null;
       return fn(tx, row);
     });
+  }
+
+  /**
+   * Lock files inside a transaction already open, in id order so two locks of
+   * the same pair never deadlock (058-time AC-TM5: a swap locks both people).
+   */
+  async lockTx(tx: Tx, employeeIds: readonly string[]): Promise<void> {
+    for (const id of [...new Set(employeeIds)].sort()) {
+      await tx.select({ id: employees.id }).from(employees).where(eq(employees.id, id)).for('update');
+    }
   }
 
   /**
@@ -396,9 +730,19 @@ export class EmployeesRepository {
     return out;
   }
 
+  /** Is this an active pay structure of the business (058-payroll)? */
+  async ownActiveStructure(orgId: string, id: string): Promise<boolean> {
+    const [row] = await this.db
+      .select({ id: payStructures.id })
+      .from(payStructures)
+      .where(and(eq(payStructures.id, id), eq(payStructures.orgId, orgId), eq(payStructures.status, 'active')))
+      .limit(1);
+    return !!row;
+  }
+
   async insertContract(
     tx: Tx,
-    values: Omit<ContractRow, 'id' | 'endReason'> & { createdByUserId: string },
+    values: Omit<ContractRow, 'id' | 'endReason'> & { createdByUserId: string; payStructureId?: string | null; noticeDays?: number | null },
   ): Promise<string> {
     const [row] = await tx
       .insert(employmentContracts)

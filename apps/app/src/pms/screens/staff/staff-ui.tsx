@@ -5,7 +5,9 @@
  * decides a permission; each lens does both itself.
  */
 
-import type { ReactNode } from "react";
+import type { TagTone } from "@injishi/contracts";
+import { Checkbox, Input } from "@injishi/ui";
+import { useState, type ReactNode } from "react";
 
 import { ApiError, humanError } from "../../data/api";
 import { TIMEZONE } from "../../lib/format";
@@ -73,6 +75,12 @@ export function clock(iso: string): string {
   }).format(new Date(iso));
 }
 
+/** Minutes as hours and minutes: `7 h 05`, `45 min`. */
+export function hoursText(minutes: number): string {
+  if (minutes < 60) return `${minutes} min`;
+  return `${Math.floor(minutes / 60)} h ${String(minutes % 60).padStart(2, "0")}`;
+}
+
 /** Days as a person says them: `1 day`, `1.5 days`. */
 export function daysText(days: number): string {
   const n = Number.isInteger(days) ? String(days) : days.toFixed(1);
@@ -98,4 +106,76 @@ export function toLocalInput(iso: string): string {
 export function fromLocalInput(value: string): string {
   // Rwanda keeps UTC+2 all year, which is also what the API assumes.
   return new Date(`${value}:00+02:00`).toISOString();
+}
+
+/** A tag's tone as a badge intent: the five tones are five of the badge's six intents. */
+export function toneIntent(tone: TagTone): "neutral" | "info" | "ok" | "warn" | "bad" {
+  return tone;
+}
+
+/** One person a picker offers: their file id, the name to show, and what tells namesakes apart. */
+export interface PersonOption {
+  id: string;
+  label: string;
+  detail?: string | null;
+}
+
+/**
+ * Choose several people from a list, with a search over it (058-people-file:
+ * a document request, a disciplinary record, a policy's audience). A list of
+ * checkboxes rather than a dropdown, so the choice stays in view while it grows.
+ */
+export function PeoplePicker({
+  people,
+  selected,
+  onChange,
+  label,
+}: {
+  people: readonly PersonOption[];
+  selected: readonly string[];
+  onChange: (ids: string[]) => void;
+  /** The group's accessible name, as a sentence: "People to ask". */
+  label: string;
+}) {
+  const [q, setQ] = useState("");
+  const needle = q.trim().toLowerCase();
+  const shown = needle
+    ? people.filter((p) => p.label.toLowerCase().includes(needle) || (p.detail ?? "").toLowerCase().includes(needle))
+    : people;
+  const chosen = new Set(selected);
+  const toggle = (id: string, on: boolean) => onChange(on ? [...chosen, id] : [...chosen].filter((x) => x !== id));
+
+  return (
+    <div className="flex flex-col gap-2">
+      <Input
+        aria-label={`Search: ${label}`}
+        placeholder="Search by name"
+        value={q}
+        onChange={(ev) => setQ(ev.target.value)}
+        className={inputClass}
+      />
+      <div role="group" aria-label={label} className="max-h-56 overflow-y-auto rounded border border-line2 bg-card px-3 py-2">
+        {shown.length === 0 ? (
+          <p className="py-1 text-sm text-muted-foreground">Nobody matches that.</p>
+        ) : (
+          <div className="flex flex-col gap-1.5">
+            {shown.map((p) => (
+              <Checkbox
+                key={p.id}
+                isSelected={chosen.has(p.id)}
+                onChange={(on) => toggle(p.id, on)}
+                className="flex w-full items-center gap-2.5 text-sm font-normal text-ink"
+              >
+                {p.label}
+                {p.detail && <span className="text-2xs text-muted-foreground">{p.detail}</span>}
+              </Checkbox>
+            ))}
+          </div>
+        )}
+      </div>
+      <span className="pms-num text-2xs text-muted-foreground">
+        {chosen.size === 0 ? "Nobody chosen yet" : `${chosen.size} chosen`}
+      </span>
+    </div>
+  );
 }

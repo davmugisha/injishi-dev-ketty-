@@ -861,11 +861,11 @@ export declare const PaymentAttemptStatus: z.ZodObject<{
         approvalExpiresAt: string | null;
     } | null;
     failureReason: string | null;
-    state: "expired" | "confirmed" | "prompting" | "refused";
+    state: "expired" | "refused" | "confirmed" | "prompting";
+    expiresAt: string;
     network: "mtn_momo" | "airtel_money" | null;
     attemptToken: string;
     payerMasked: string | null;
-    expiresAt: string;
 }, {
     amountRwf: number | null;
     booking: {
@@ -892,11 +892,11 @@ export declare const PaymentAttemptStatus: z.ZodObject<{
         approvalExpiresAt: string | null;
     } | null;
     failureReason: string | null;
-    state: "expired" | "confirmed" | "prompting" | "refused";
+    state: "expired" | "refused" | "confirmed" | "prompting";
+    expiresAt: string;
     network: "mtn_momo" | "airtel_money" | null;
     attemptToken: string;
     payerMasked: string | null;
-    expiresAt: string;
 }>;
 export type PaymentAttemptStatus = z.infer<typeof PaymentAttemptStatus>;
 /**
@@ -1191,11 +1191,11 @@ export declare const CreateBookingOutcome: z.ZodDiscriminatedUnion<"status", [z.
             approvalExpiresAt: string | null;
         } | null;
         failureReason: string | null;
-        state: "expired" | "confirmed" | "prompting" | "refused";
+        state: "expired" | "refused" | "confirmed" | "prompting";
+        expiresAt: string;
         network: "mtn_momo" | "airtel_money" | null;
         attemptToken: string;
         payerMasked: string | null;
-        expiresAt: string;
     }, {
         amountRwf: number | null;
         booking: {
@@ -1222,11 +1222,11 @@ export declare const CreateBookingOutcome: z.ZodDiscriminatedUnion<"status", [z.
             approvalExpiresAt: string | null;
         } | null;
         failureReason: string | null;
-        state: "expired" | "confirmed" | "prompting" | "refused";
+        state: "expired" | "refused" | "confirmed" | "prompting";
+        expiresAt: string;
         network: "mtn_momo" | "airtel_money" | null;
         attemptToken: string;
         payerMasked: string | null;
-        expiresAt: string;
     }>;
 }, "strip", z.ZodTypeAny, {
     status: "awaiting_payment";
@@ -1256,11 +1256,11 @@ export declare const CreateBookingOutcome: z.ZodDiscriminatedUnion<"status", [z.
             approvalExpiresAt: string | null;
         } | null;
         failureReason: string | null;
-        state: "expired" | "confirmed" | "prompting" | "refused";
+        state: "expired" | "refused" | "confirmed" | "prompting";
+        expiresAt: string;
         network: "mtn_momo" | "airtel_money" | null;
         attemptToken: string;
         payerMasked: string | null;
-        expiresAt: string;
     };
 }, {
     status: "awaiting_payment";
@@ -1290,11 +1290,11 @@ export declare const CreateBookingOutcome: z.ZodDiscriminatedUnion<"status", [z.
             approvalExpiresAt: string | null;
         } | null;
         failureReason: string | null;
-        state: "expired" | "confirmed" | "prompting" | "refused";
+        state: "expired" | "refused" | "confirmed" | "prompting";
+        expiresAt: string;
         network: "mtn_momo" | "airtel_money" | null;
         attemptToken: string;
         payerMasked: string | null;
-        expiresAt: string;
     };
 }>]>;
 export type CreateBookingOutcome = z.infer<typeof CreateBookingOutcome>;

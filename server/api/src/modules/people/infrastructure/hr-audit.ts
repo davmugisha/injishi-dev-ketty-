@@ -26,6 +26,20 @@ const PERSONAL = new Set([
   'idDocumentNumber',
   'rssbNumber',
   'wageRwf',
+  // 058-people-file AC-PF1: family, home, emergency contact and the photo.
+  'maritalStatus',
+  'childrenCount',
+  'villageId',
+  'street',
+  'emergencyName',
+  'emergencyPhone',
+  'emergencyRelation',
+  'photoKey',
+  // Where pay goes (AC-PF3).
+  'bankName',
+  'accountNumber',
+  'branchName',
+  'momoPhone',
 ]);
 
 /**
@@ -48,8 +62,10 @@ export function auditDiff(
 export async function writeHrAudit(
   tx: Tx | Database,
   row: {
-    actorUserId: string;
-    subjectType: 'employee' | 'pay_run';
+    /** Null for what nobody signed in did: a kiosk punch, the sweep (058-time). The diff names the source. */
+    actorUserId: string | null;
+    /** `org` for what belongs to the whole business: a policy, an announcement, a catalog, the settings. */
+    subjectType: 'employee' | 'pay_run' | 'org';
     subjectId: string;
     eventType: string;
     orgId: string;

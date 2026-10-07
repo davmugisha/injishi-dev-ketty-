@@ -16,7 +16,7 @@
  */
 
 import {
-  AttendanceList,
+  AttendancePage,
   AttendanceRecord,
   CreateContractResponse,
   Employee,
@@ -24,13 +24,15 @@ import {
   EmployeePage,
   LeaveBalances,
   LeaveRequest,
-  LeaveRequestList,
+  LeaveRequestPage,
+  PayRun,
   PayRunDetail,
-  PayRunList,
+  PayRunPage,
   RosterEntry,
-  RosterList,
+  RosterPage,
   ShiftTemplate,
   ShiftTemplateList,
+  encodeListQuery,
   type CorrectAttendanceRequest,
   type CreateContractRequest,
   type CreateEmployeeRequest,
@@ -38,7 +40,8 @@ import {
   type CreateRosterEntryRequest,
   type CreateShiftTemplateRequest,
   type EmployeeStatus,
-  type LeaveRequestStatus,
+  type ListPage,
+  type ListQuery,
   type OffboardEmployeeRequest,
   type UpdateEmployeeRequest,
 } from "@injishi/contracts";
@@ -52,6 +55,7 @@ import {
 } from "@tanstack/react-query";
 
 import { command } from "./api";
+import { useListPage } from "./lists";
 import { OPS_READ, read, useMayRead } from "./ops";
 
 export const peopleKeys = {
@@ -60,10 +64,8 @@ export const peopleKeys = {
   employee: (ws: string | null, id: string) => ["ops", "employee", ws, id] as const,
   balances: (ws: string | null, id: string) => ["ops", "leave-balances", ws, id] as const,
   templates: (ws: string | null) => ["ops", "shift-templates", ws] as const,
-  roster: (ws: string | null, from: string, to: string) => ["ops", "roster", ws, from, to] as const,
-  attendance: (ws: string | null, date: string) => ["ops", "attendance", ws, date] as const,
-  leave: (ws: string | null, status?: LeaveRequestStatus) => ["ops", "leave-requests", ws, status ?? "all"] as const,
-  payRuns: (ws: string | null) => ["ops", "pay-runs", ws] as const,
+  // The four list nouns ("roster", "attendance", "leave-requests", "pay-runs")
+  // are keyed by `useListPage` in `lists.ts`, one key per page of each.
   payRun: (ws: string | null, id: string) => ["ops", "pay-run", ws, id] as const,
 };
 
@@ -74,13 +76,29 @@ function refresh(client: QueryClient, ...nouns: string[]): void {
 
 // --- Reads ---------------------------------------------------------------------
 
+/** The most files one read gathers, a page of 100 at a time. Past it a picker needs search, not a longer list. */
+const MAX_FILES_READ = 1000;
+
+/** Every file of a status in the caller's branches, page after page of the list route (058-list-framework). */
+async function readEmployees(ws: string, status?: EmployeeStatus): Promise<Employee[]> {
+  const items: Employee[] = [];
+  for (let page = 1; items.length < MAX_FILES_READ; page += 1) {
+    const params = new URLSearchParams(
+      encodeListQuery({ filters: status ? [{ field: "status", op: "eq", value: status }] : [], page, pageSize: 100 }),
+    );
+    const chunk = await read(`/ops/employees?${params.toString()}`, ws, EmployeePage);
+    items.push(...chunk.items);
+    if (chunk.items.length < 100 || items.length >= chunk.total) break;
+  }
+  return items;
+}
+
 /** Every file in the caller's branches, in the shape their grant reads (AC-P2). */
-export function useEmployees(ws: string | null, status?: EmployeeStatus): UseQueryResult<EmployeePage> {
+export function useEmployees(ws: string | null, status?: EmployeeStatus): UseQueryResult<Employee[]> {
   const mayRead = useMayRead(OPS_READ.employees);
   return useQuery({
     queryKey: peopleKeys.employees(ws, status),
-    queryFn: () =>
-      read(`/ops/employees?limit=200${status ? `&status=${status}` : ""}`, ws as string, EmployeePage),
+    queryFn: () => readEmployees(ws as string, status),
     enabled: ws !== null && mayRead,
   });
 }
@@ -112,44 +130,28 @@ export function useShiftTemplates(ws: string | null): UseQueryResult<ShiftTempla
   });
 }
 
-export function useRoster(ws: string | null, from: string, to: string): UseQueryResult<RosterList> {
-  const mayRead = useMayRead(OPS_READ.roster);
-  return useQuery({
-    queryKey: peopleKeys.roster(ws, from, to),
-    queryFn: () => read(`/ops/roster?from=${from}&to=${to}`, ws as string, RosterList),
-    enabled: ws !== null && mayRead,
-  });
+/** One page of the roster (058-list-framework); with no day named, this week. */
+export function useRosterPage(ws: string | null, query: ListQuery): UseQueryResult<ListPage<RosterEntry>> {
+  return useListPage(ws, "roster", "/ops/roster", query, RosterPage, OPS_READ.roster);
 }
 
-export function useAttendance(ws: string | null, date: string): UseQueryResult<AttendanceList> {
-  const mayRead = useMayRead(OPS_READ.attendance);
-  return useQuery({
-    queryKey: peopleKeys.attendance(ws, date),
-    queryFn: () => read(`/ops/attendance?date=${date}`, ws as string, AttendanceList),
-    enabled: ws !== null && mayRead,
-    // The desk works the sheet live, and a colleague may clock someone in
-    // from another screen.
+/** One page of attendance; with no day named, today's sheet and anything still open. */
+export function useAttendancePage(ws: string | null, query: ListQuery): UseQueryResult<ListPage<AttendanceRecord>> {
+  // The desk works the sheet live, and a colleague may clock someone in from
+  // another screen.
+  return useListPage(ws, "attendance", "/ops/attendance", query, AttendancePage, OPS_READ.attendance, {
     refetchInterval: 30_000,
   });
 }
 
-export function useLeaveRequests(ws: string | null, status?: LeaveRequestStatus): UseQueryResult<LeaveRequestList> {
-  const mayRead = useMayRead(OPS_READ.leaveRequests);
-  return useQuery({
-    queryKey: peopleKeys.leave(ws, status),
-    queryFn: () =>
-      read(`/ops/leave/requests${status ? `?status=${status}` : ""}`, ws as string, LeaveRequestList),
-    enabled: ws !== null && mayRead,
-  });
+/** One page of the leave queue; by default what is routed to the caller comes first. */
+export function useLeavePage(ws: string | null, query: ListQuery): UseQueryResult<ListPage<LeaveRequest>> {
+  return useListPage(ws, "leave-requests", "/ops/leave/requests", query, LeaveRequestPage, OPS_READ.leaveRequests);
 }
 
-export function usePayRuns(ws: string | null): UseQueryResult<PayRunList> {
-  const mayRead = useMayRead(OPS_READ.payRuns);
-  return useQuery({
-    queryKey: peopleKeys.payRuns(ws),
-    queryFn: () => read("/ops/pay-runs", ws as string, PayRunList),
-    enabled: ws !== null && mayRead,
-  });
+/** One page of pay runs, newest month first by default. */
+export function usePayRunPage(ws: string | null, query: ListQuery): UseQueryResult<ListPage<PayRun>> {
+  return useListPage(ws, "pay-runs", "/ops/pay-runs", query, PayRunPage, OPS_READ.payRuns);
 }
 
 export function usePayRun(ws: string | null, id: string): UseQueryResult<PayRunDetail> {
@@ -289,7 +291,7 @@ export function useRequestLeave(ws: string | null): UseMutationResult<LeaveReque
   return useMutation({
     mutationFn: async (body) =>
       LeaveRequest.parse(await command<unknown>("/ops/leave/requests", { workspaceId: ws as string, body })),
-    onSuccess: () => refresh(client, "leave-requests", "leave-balances"),
+    onSuccess: () => refresh(client, "leave-requests", "leave-balances", "leave-balance-list", "leave-dashboard"),
   });
 }
 
@@ -308,7 +310,7 @@ export function useDecideLeave(
           body: { note: note?.trim() || null },
         }),
       ),
-    onSuccess: () => refresh(client, "leave-requests", "leave-balances", "roster"),
+    onSuccess: () => refresh(client, "leave-requests", "leave-balances", "leave-balance-list", "leave-dashboard", "roster"),
   });
 }
 

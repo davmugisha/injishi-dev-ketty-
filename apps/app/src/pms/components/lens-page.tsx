@@ -42,8 +42,10 @@ export function LensPage({
 }) {
   return (
     <div className="pms-enter">
+      {/* Not "Sections": the sidebar's navigation already has that name, and two
+          landmarks with one name cannot be told apart by a screen reader. */}
       <nav
-        aria-label="Sections"
+        aria-label="Page sections"
         style={{
           display: "flex",
           gap: 4,

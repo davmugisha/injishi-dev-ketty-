@@ -1,16 +1,20 @@
 "use client";
 
 /**
- * Staff: everyone who works here, account or not, their shifts, attendance,
- * leave and pay (ADR-058, first thread).
+ * Staff: everyone who works here, account or not, their files, shifts,
+ * attendance, leave and pay (ADR-058).
  *
- * Five lenses, each opened by the permission its own read needs
+ * Seventeen lenses, each opened by the permission its own read needs
  * (`STAFF_LENSES` in `lib/nav.ts`, the one table). The leaf is reached by any
- * HR permission, so the rail differs by person: an owner sees all five, a
- * manager everything but Payroll, the desk Roster and Attendance. A lens the
+ * HR permission, so the rail differs by person: an owner sees all seventeen, a
+ * manager everything but the owner's (documents, discipline, payroll, the late
+ * and monthly insights and configuration), the desk Roster, Rotations,
+ * Attendance, Kiosks, Policies, Announcements and Time settings. A lens the
  * grant does not reach is not offered, and typed by URL it says so rather than
  * opening empty.
  */
+
+import type { ComponentType } from "react";
 
 import { LensPage, type LensLink } from "../../components/lens-page";
 import { EmptyState } from "../../components/ui";
@@ -18,15 +22,48 @@ import { useWorkspaceId } from "../../data/capability";
 import { staffLenses, workspaceBase, type STAFF_LENSES } from "../../lib/nav";
 import { usePms } from "../../store";
 import { currentGrant } from "../../store/helpers";
+import { Announcements } from "./announcements";
 import { Attendance } from "./attendance";
+import { AttendanceRequests } from "./attendance-requests";
+import { Configuration } from "./configuration";
+import { Discipline } from "./discipline";
+import { Documents } from "./documents";
 import { Employees } from "./employees";
+import { Kiosks } from "./kiosks";
 import { Leave } from "./leave";
+import { OrgChart } from "./org-chart";
 import { Payroll } from "./payroll";
+import { Policies } from "./policies";
 import { Roster } from "./roster";
+import { Rotations } from "./rotations";
+import { ShiftRequests } from "./shift-requests";
+import { TimeInsights } from "./time-insights";
+import { TimeSettings } from "./time-settings";
 
 export type StaffLens = (typeof STAFF_LENSES)[number]["key"];
 
-export function Staff({ lens }: { lens: StaffLens }) {
+/** A lens may have sections of its own, each a route segment below it (Leave's, 058-leave). */
+const LENS_SCREEN: Record<StaffLens, ComponentType<{ section?: string }>> = {
+  employees: Employees,
+  "org-chart": OrgChart,
+  documents: Documents,
+  discipline: Discipline,
+  roster: Roster,
+  rotations: Rotations,
+  "shift-requests": ShiftRequests,
+  attendance: Attendance,
+  "attendance-requests": AttendanceRequests,
+  kiosks: Kiosks,
+  leave: Leave,
+  payroll: Payroll,
+  "time-insights": TimeInsights,
+  policies: Policies,
+  announcements: Announcements,
+  "time-settings": TimeSettings,
+  configuration: Configuration,
+};
+
+export function Staff({ lens, section }: { lens: StaffLens; section?: string }) {
   const { state } = usePms();
   const workspaceId = useWorkspaceId();
   const permissions = currentGrant(state)?.permissions ?? [];
@@ -46,6 +83,7 @@ export function Staff({ lens }: { lens: StaffLens }) {
       ? (reachable[0]?.key ?? lens)
       : lens;
   const allowed = reachable.some((l) => l.key === active);
+  const Screen = LENS_SCREEN[active];
 
   return (
     <LensPage lenses={links} active={active}>
@@ -54,16 +92,8 @@ export function Staff({ lens }: { lens: StaffLens }) {
           Your role does not open this part of Staff. An owner can change what your role allows in
           Team &amp; Departments.
         </EmptyState>
-      ) : active === "roster" ? (
-        <Roster />
-      ) : active === "attendance" ? (
-        <Attendance />
-      ) : active === "leave" ? (
-        <Leave />
-      ) : active === "payroll" ? (
-        <Payroll />
       ) : (
-        <Employees />
+        <Screen section={section} />
       )}
     </LensPage>
   );

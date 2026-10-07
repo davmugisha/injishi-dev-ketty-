@@ -17,30 +17,36 @@
  * A file backfilled from a membership starts without its statutory details
  * (`detailsMissing`). The row says so, because a contract cannot start until
  * they are in.
+ *
+ * The list is the shared `DataView` over `EMPLOYEE_LIST` (058-list-framework):
+ * search, filters, sort, grouping, the card view, saved views and the CSV
+ * export, all in the URL. What a reader may filter or sort follows their file
+ * view, and the server refuses the rest. Job position, employee type and tag
+ * filter by the business's own catalogs (058-people-file AC-PF13).
  */
 
-import { EMPLOYEE_MISSING_DETAIL_LABEL, type CreateEmployeeRequest, type Employee } from "@injishi/contracts";
-import { Input } from "@injishi/ui";
-import Link from "next/link";
-import { useState } from "react";
-
 import {
-  ActionButton,
-  Badge,
-  Chip,
-  EmptyState,
-  LoadFailed,
-  SectionHeading,
-  SelectField,
-  Skeleton,
-} from "../../components/ui";
+  EMPLOYEE_LIST,
+  EMPLOYEE_MISSING_DETAIL_LABEL,
+  EmployeePage,
+  LIST_READ,
+  type CreateEmployeeRequest,
+  type Employee,
+} from "@injishi/contracts";
+import { DataView, Input, type DataColumn } from "@injishi/ui";
+import Link from "next/link";
+import { useMemo, useState } from "react";
+
+import { ActionButton, Badge, SectionHeading, SelectField } from "../../components/ui";
 import { useCapability, useWorkspaceId } from "../../data/capability";
-import { useCreateEmployee, useEmployees } from "../../data/people";
+import { downloadListCsv, useListPage, useListUrl, useSavedViewsFor } from "../../data/lists";
+import { useCreateEmployee } from "../../data/people";
+import { useHrCatalog } from "../../data/people-file";
 import { dshortIso, fmt, todayIso } from "../../lib/format";
 import { workspaceBase } from "../../lib/nav";
 import { usePms } from "../../store";
 import { currentGrant } from "../../store/helpers";
-import { Field, FormError, RowList, inputClass, rowClass } from "./staff-ui";
+import { Field, FormError, inputClass, toneIntent } from "./staff-ui";
 
 const ROLE_LABEL: Record<string, string> = {
   owner: "Owner",
@@ -59,6 +65,7 @@ const EMPTY_FORM = {
   idDocumentNumber: "",
   hiredOn: "",
   workPropertyId: "",
+  jobPositionId: "",
   rssbNumber: "",
   email: "",
 };
@@ -67,14 +74,18 @@ export function Employees() {
   const { state, toast } = usePms();
   const workspaceId = useWorkspaceId();
   const { can } = useCapability();
-  const [filter, setFilter] = useState<"active" | "offboarded">("active");
   const [adding, setAdding] = useState(false);
-  const query = useEmployees(workspaceId);
   const create = useCreateEmployee(workspaceId);
   const branches = currentGrant(state)?.branches ?? [];
   const [form, setForm] = useState({ ...EMPTY_FORM, hiredOn: todayIso(), workPropertyId: branches[0]?.id ?? "" });
   const base = `${workspaceBase(workspaceId)}/staff`;
   const mayManage = can("people.manage");
+  const positions = useHrCatalog(workspaceId, "job-positions");
+  const types = useHrCatalog(workspaceId, "employee-types");
+  const tags = useHrCatalog(workspaceId, "tags");
+  // Every row of a catalog filters, archived ones too: a file may still carry one.
+  const optionsOf = (items: { id: string; title: string; status: string }[] | undefined) =>
+    (items ?? []).map((i) => ({ value: i.id, label: i.status === "archived" ? `${i.title} (archived)` : i.title }));
 
   const set = (key: keyof typeof EMPTY_FORM) => (value: string) => setForm((f) => ({ ...f, [key]: value }));
 
@@ -89,6 +100,7 @@ export function Employees() {
       idDocumentNumber: form.idDocumentNumber,
       hiredOn: form.hiredOn,
       workPropertyId: form.workPropertyId,
+      jobPositionId: form.jobPositionId || null,
       rssbNumber: form.rssbNumber.trim() || null,
       email: form.email.trim() || null,
     };
@@ -101,66 +113,23 @@ export function Employees() {
     });
   };
 
-  if (query.isPending) {
-    return (
-      <div className="pms-enter flex max-w-wide flex-col gap-4">
-        <Skeleton height={40} />
-        <Skeleton height={220} delay={60} />
-      </div>
-    );
-  }
-  if (query.isError) {
-    return (
-      <LoadFailed onRetry={() => void query.refetch()} retrying={query.isFetching}>
-        We couldn&apos;t load your staff files. They are all still there — this is on our side.
-      </LoadFailed>
-    );
-  }
-
-  const all = query.data.items;
-  const shown = all.filter((e) => e.status === filter);
-  const working = all.filter((e) => e.status === "active").length;
-  const full = all.some((e) => e.view === "full");
-
-  const row = (e: Employee, i: number) => {
-    const contract = e.currentContract;
-    return (
-      <Link
-        key={e.id}
-        href={`${base}/${e.id}`}
-        data-employee={e.employeeNumber}
-        className={`${rowClass(i)} flex items-center gap-3 no-underline hover:bg-hover`}
-      >
-        <span className="pms-num w-14 shrink-0 text-2xs text-muted-foreground">{e.employeeNumber}</span>
-        <span className="flex min-w-0 flex-1 flex-col gap-0.5">
-          <span className="truncate text-sm font-semibold text-ink">{e.displayName}</span>
-          <span className="truncate text-2xs text-muted-foreground">
-            {[e.jobPositionTitle, e.workPropertyName ?? "No branch yet", `since ${dshortIso(e.hiredOn)}`]
-              .filter(Boolean)
-              .join(" · ")}
-          </span>
-        </span>
-        {e.detailsMissing.length > 0 && (
-          <Badge intent="warn">
-            Missing {e.detailsMissing.map((d) => EMPLOYEE_MISSING_DETAIL_LABEL[d]).join(", ")}
-          </Badge>
-        )}
-        {e.view === "full" ? (
-          <span className="pms-num hidden w-32 shrink-0 text-right text-sm text-ink2 md:block">
-            {e.currentContract ? fmt(e.currentContract.wageRwf) : "No contract"}
-          </span>
-        ) : (
-          !contract && <span className="text-2xs text-muted-foreground">No contract</span>
-        )}
-        <Badge intent={e.hasAccount ? "info" : "neutral"}>
-          {e.hasAccount && e.orgRole ? ROLE_LABEL[e.orgRole] : "No account"}
-        </Badge>
-      </Link>
-    );
-  };
+  // The file view decides what a reader may filter, sort and see; the server
+  // decides what it sends, so this only keeps the screen from asking for more.
+  const view = can("people.manage") || can("payroll.run") ? "full" : "basic";
+  const { defaultView, savedViews } = useSavedViewsFor(workspaceId, EMPLOYEE_LIST.key);
+  const list = useListUrl(EMPLOYEE_LIST, view, defaultView);
+  const page = useListPage(
+    workspaceId,
+    "employees",
+    "/ops/employees",
+    list.state.query,
+    EmployeePage,
+    LIST_READ["staff.employees"],
+  );
+  const columns = useMemo(() => employeeColumns(base, view === "full"), [base, view]);
 
   return (
-    <div className="pms-enter flex max-w-wide flex-col gap-4">
+    <div className="pms-enter flex max-w-page flex-col gap-4">
       <div className="flex flex-wrap items-center gap-2">
         <span className="flex-1 text-sm text-muted-foreground">
           Everyone who works here, whether or not they ever sign in. A role comes with an account;
@@ -236,6 +205,15 @@ export function Employees() {
                 options={branches.map((b) => ({ value: b.id, label: b.name }))}
               />
             </Field>
+            <Field label="Job position" hint="Optional. Positions are kept under Configuration.">
+              <SelectField
+                label="Job position"
+                value={form.jobPositionId}
+                onChange={set("jobPositionId")}
+                placeholder="None yet"
+                options={(positions.data?.items ?? []).filter((p) => p.status === "active").map((p) => ({ value: p.id, label: p.title }))}
+              />
+            </Field>
             <Field label="Email" hint="Optional." htmlFor="hr-email">
               <Input id="hr-email" type="email" value={form.email} onChange={(e) => set("email")(e.target.value)} className={inputClass} />
             </Field>
@@ -252,32 +230,65 @@ export function Employees() {
         </form>
       )}
 
-      <div className="flex flex-wrap gap-2">
-        <Chip active={filter === "active"} onClick={() => setFilter("active")} n={working} label="Working here" />
-        <Chip
-          active={filter === "offboarded"}
-          onClick={() => setFilter("offboarded")}
-          n={all.length - working}
-          label="Left"
-        />
-      </div>
-
-      <section>
-        <SectionHeading n={shown.length}>{filter === "active" ? "Working here" : "No longer here"}</SectionHeading>
-        {shown.length === 0 ? (
-          <EmptyState className="mt-2.5 p-6">
-            {filter === "active"
-              ? mayManage
-                ? "Nobody is on file yet. Put your first person on file to roster and pay them."
-                : "Nobody is on file yet. The owner puts people on file."
-              : "Nobody has left yet. A file is kept when someone leaves, so their history stays."}
-          </EmptyState>
-        ) : (
-          <RowList>{shown.map((e, i) => row(e, i))}</RowList>
+      <DataView
+        spec={EMPLOYEE_LIST}
+        reader={view}
+        state={list.state}
+        onStateChange={list.setState}
+        dropped={list.dropped}
+        onDismissDropped={list.dismissDropped}
+        page={page.data}
+        status={page.isError ? "error" : page.isPending ? "loading" : "ready"}
+        onRetry={() => void page.refetch()}
+        columns={columns}
+        defaultColumns={["employeeNumber", "name", "branch", "hiredOn", "status", "account", "details", "wage"]}
+        getRowId={(e) => e.id}
+        labelOf={(e) => e.displayName}
+        groupKeyOf={employeeGroupKey}
+        caption="Staff files"
+        searchPlaceholder="Search name, number or phone"
+        refOptions={{
+          branch: branches.map((b) => ({ value: b.id, label: b.name })),
+          jobPosition: optionsOf(positions.data?.items),
+          employeeType: optionsOf(types.data?.items),
+          tag: optionsOf(tags.data?.items),
+        }}
+        card={(e) => (
+          <Link href={`${base}/${e.id}`} className="flex flex-col gap-1 no-underline">
+            <span className="text-sm font-semibold text-foreground">{e.displayName}</span>
+            <span className="text-2xs text-muted-foreground">
+              {[e.employeeNumber, e.jobPositionTitle, e.workPropertyName ?? "No branch yet"].filter(Boolean).join(" · ")}
+            </span>
+            <span className="flex flex-wrap gap-1.5 pt-1">
+              <Badge intent={e.hasAccount ? "info" : "neutral"}>
+                {e.hasAccount && e.orgRole ? ROLE_LABEL[e.orgRole] : "No account"}
+              </Badge>
+              {e.detailsMissing.length > 0 && <Badge intent="warn">Details missing</Badge>}
+              {e.tags.map((t) => (
+                <Badge key={t.id} intent={toneIntent(t.tone)}>
+                  {t.title}
+                </Badge>
+              ))}
+            </span>
+          </Link>
         )}
-      </section>
+        savedViews={savedViews}
+        onExport={(shown) => void downloadListCsv(workspaceId as string, "/ops/employees", list.state.query, shown)}
+        empty={{
+          title: "Nobody is on file yet",
+          body: mayManage
+            ? "Put your first person on file to roster and pay them."
+            : "The owner puts people on file.",
+          action:
+            mayManage && !adding ? (
+              <ActionButton variant="primary" onClick={() => setAdding(true)}>
+                Put someone on file
+              </ActionButton>
+            ) : undefined,
+        }}
+      />
 
-      {!full && (
+      {view === "basic" && (
         <p className="text-2xs text-muted-foreground">
           Dates of birth, ID and RSSB numbers and wages are shown only to people who manage staff files
           or run payroll.
@@ -285,4 +296,103 @@ export function Employees() {
       )}
     </div>
   );
+}
+
+/** How the server keys each groupable field of a file, so a grouped page heads its groups. */
+function employeeGroupKey(e: Employee, field: string): string | null {
+  switch (field) {
+    case "status":
+      return e.status;
+    case "branch":
+      return e.workPropertyId;
+    case "jobPosition":
+      return e.jobPositionId;
+    case "employeeType":
+      return e.employeeType?.id ?? null;
+    case "hasAccount":
+      return String(e.hasAccount);
+    default:
+      return null;
+  }
+}
+
+/**
+ * The Employees columns. Keys that name an `EMPLOYEE_LIST` field sort by it when
+ * the spec allows; the wage column exists only for a full reader, because a
+ * `people.view` row carries no wage to show.
+ */
+function employeeColumns(base: string, full: boolean): DataColumn<Employee>[] {
+  return [
+    {
+      key: "employeeNumber",
+      header: "Number",
+      cell: (e) => <span className="pms-num text-2xs text-muted-foreground">{e.employeeNumber}</span>,
+    },
+    {
+      key: "name",
+      header: "Name",
+      cell: (e) => (
+        <Link href={`${base}/${e.id}`} data-employee={e.employeeNumber} className="font-semibold text-foreground no-underline hover:underline">
+          {e.displayName}
+        </Link>
+      ),
+    },
+    { key: "jobPosition", header: "Position", cell: (e) => e.jobPositionTitle ?? "None yet" },
+    { key: "employeeType", header: "Type", cell: (e) => e.employeeType?.title ?? "—" },
+    {
+      key: "tags",
+      header: "Tags",
+      cell: (e) =>
+        e.tags.length === 0 ? (
+          "—"
+        ) : (
+          <span className="flex flex-wrap gap-1">
+            {e.tags.map((t) => (
+              <Badge key={t.id} intent={toneIntent(t.tone)}>
+                {t.title}
+              </Badge>
+            ))}
+          </span>
+        ),
+    },
+    { key: "branch", header: "Branch", cell: (e) => e.workPropertyName ?? "No branch yet" },
+    { key: "hiredOn", header: "Hired", cell: (e) => <span className="pms-num">{dshortIso(e.hiredOn)}</span> },
+    {
+      key: "status",
+      header: "Status",
+      cell: (e) => <Badge intent={e.status === "active" ? "ok" : "neutral"}>{e.status === "active" ? "Working" : "Left"}</Badge>,
+    },
+    {
+      key: "account",
+      header: "Account",
+      cell: (e) => (
+        <Badge intent={e.hasAccount ? "info" : "neutral"}>
+          {e.hasAccount && e.orgRole ? ROLE_LABEL[e.orgRole] : "No account"}
+        </Badge>
+      ),
+    },
+    {
+      key: "details",
+      header: "Details",
+      cell: (e) =>
+        e.detailsMissing.length > 0 ? (
+          <span title={`Missing ${e.detailsMissing.map((d) => EMPLOYEE_MISSING_DETAIL_LABEL[d]).join(", ")}`}>
+            <Badge intent="warn">{e.detailsMissing.length} missing</Badge>
+          </span>
+        ) : (
+          <span className="text-2xs text-muted-foreground">Complete</span>
+        ),
+    },
+    ...(full
+      ? [
+          {
+            key: "wage",
+            header: "Wage",
+            align: "end" as const,
+            cell: (e: Employee) =>
+              e.view === "full" && e.currentContract ? fmt(e.currentContract.wageRwf) : "No contract",
+          },
+        ]
+      : []),
+  ];
 }

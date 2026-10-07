@@ -143,9 +143,9 @@ export declare const TrainingPublicSession: z.ZodObject<{
 }, "strip", z.ZodTypeAny, {
     currency: "RWF";
     id: string;
-    courseId: string;
     startsAt: string;
     endsAt: string;
+    courseId: string;
     venue: {
         name: string;
         provinceId: number;
@@ -164,9 +164,9 @@ export declare const TrainingPublicSession: z.ZodObject<{
 }, {
     currency: "RWF";
     id: string;
-    courseId: string;
     startsAt: string;
     endsAt: string;
+    courseId: string;
     venue: {
         name: string;
         provinceId: number;
@@ -235,9 +235,9 @@ export declare const TrainingPublicCourse: z.ZodObject<{
     }, "strip", z.ZodTypeAny, {
         currency: "RWF";
         id: string;
-        courseId: string;
         startsAt: string;
         endsAt: string;
+        courseId: string;
         venue: {
             name: string;
             provinceId: number;
@@ -256,9 +256,9 @@ export declare const TrainingPublicCourse: z.ZodObject<{
     }, {
         currency: "RWF";
         id: string;
-        courseId: string;
         startsAt: string;
         endsAt: string;
+        courseId: string;
         venue: {
             name: string;
             provinceId: number;
@@ -284,9 +284,9 @@ export declare const TrainingPublicCourse: z.ZodObject<{
     sessions: {
         currency: "RWF";
         id: string;
-        courseId: string;
         startsAt: string;
         endsAt: string;
+        courseId: string;
         venue: {
             name: string;
             provinceId: number;
@@ -312,9 +312,9 @@ export declare const TrainingPublicCourse: z.ZodObject<{
     sessions: {
         currency: "RWF";
         id: string;
-        courseId: string;
         startsAt: string;
         endsAt: string;
+        courseId: string;
         venue: {
             name: string;
             provinceId: number;
@@ -396,9 +396,9 @@ export declare const TrainingCourseListResponse: z.ZodObject<{
         }, "strip", z.ZodTypeAny, {
             currency: "RWF";
             id: string;
-            courseId: string;
             startsAt: string;
             endsAt: string;
+            courseId: string;
             venue: {
                 name: string;
                 provinceId: number;
@@ -417,9 +417,9 @@ export declare const TrainingCourseListResponse: z.ZodObject<{
         }, {
             currency: "RWF";
             id: string;
-            courseId: string;
             startsAt: string;
             endsAt: string;
+            courseId: string;
             venue: {
                 name: string;
                 provinceId: number;
@@ -445,9 +445,9 @@ export declare const TrainingCourseListResponse: z.ZodObject<{
         sessions: {
             currency: "RWF";
             id: string;
-            courseId: string;
             startsAt: string;
             endsAt: string;
+            courseId: string;
             venue: {
                 name: string;
                 provinceId: number;
@@ -473,9 +473,9 @@ export declare const TrainingCourseListResponse: z.ZodObject<{
         sessions: {
             currency: "RWF";
             id: string;
-            courseId: string;
             startsAt: string;
             endsAt: string;
+            courseId: string;
             venue: {
                 name: string;
                 provinceId: number;
@@ -516,9 +516,9 @@ export declare const TrainingCourseListResponse: z.ZodObject<{
         sessions: {
             currency: "RWF";
             id: string;
-            courseId: string;
             startsAt: string;
             endsAt: string;
+            courseId: string;
             venue: {
                 name: string;
                 provinceId: number;
@@ -551,9 +551,9 @@ export declare const TrainingCourseListResponse: z.ZodObject<{
         sessions: {
             currency: "RWF";
             id: string;
-            courseId: string;
             startsAt: string;
             endsAt: string;
+            courseId: string;
             venue: {
                 name: string;
                 provinceId: number;
@@ -643,9 +643,9 @@ export declare const TrainingSessionDetail: z.ZodObject<{
 }, "strip", z.ZodTypeAny, {
     currency: "RWF";
     id: string;
-    courseId: string;
     startsAt: string;
     endsAt: string;
+    courseId: string;
     venue: {
         name: string;
         provinceId: number;
@@ -671,9 +671,9 @@ export declare const TrainingSessionDetail: z.ZodObject<{
 }, {
     currency: "RWF";
     id: string;
-    courseId: string;
     startsAt: string;
     endsAt: string;
+    courseId: string;
     venue: {
         name: string;
         provinceId: number;
@@ -2545,54 +2545,54 @@ export declare const CreateAdminTrainingSession: z.ZodEffects<z.ZodEffects<z.Zod
     leadTrainerId: z.ZodString;
     coTrainerIds: z.ZodOptional<z.ZodArray<z.ZodString, "many">>;
 }, "strip", z.ZodTypeAny, {
-    courseId: string;
     startsAt: string;
     endsAt: string;
+    courseId: string;
     feeRwf: number;
     seatCount: number;
     venueId: string;
     leadTrainerId: string;
     coTrainerIds?: string[] | undefined;
 }, {
-    courseId: string;
     startsAt: string;
     endsAt: string;
+    courseId: string;
     feeRwf: number;
     seatCount: number;
     venueId: string;
     leadTrainerId: string;
     coTrainerIds?: string[] | undefined;
 }>, {
-    courseId: string;
     startsAt: string;
     endsAt: string;
+    courseId: string;
     feeRwf: number;
     seatCount: number;
     venueId: string;
     leadTrainerId: string;
     coTrainerIds?: string[] | undefined;
 }, {
-    courseId: string;
     startsAt: string;
     endsAt: string;
+    courseId: string;
     feeRwf: number;
     seatCount: number;
     venueId: string;
     leadTrainerId: string;
     coTrainerIds?: string[] | undefined;
 }>, {
-    courseId: string;
     startsAt: string;
     endsAt: string;
+    courseId: string;
     feeRwf: number;
     seatCount: number;
     venueId: string;
     leadTrainerId: string;
     coTrainerIds?: string[] | undefined;
 }, {
-    courseId: string;
     startsAt: string;
     endsAt: string;
+    courseId: string;
     feeRwf: number;
     seatCount: number;
     venueId: string;

@@ -186,14 +186,14 @@ export declare const NationalIdLookupResult: z.ZodDiscriminatedUnion<"status", [
     expiresInSeconds: z.ZodNumber;
 }, "strip", z.ZodTypeAny, {
     status: "code_sent";
+    expiresInSeconds: number;
     challengeId: string;
     sentTo: string;
-    expiresInSeconds: number;
 }, {
     status: "code_sent";
+    expiresInSeconds: number;
     challengeId: string;
     sentTo: string;
-    expiresInSeconds: number;
 }>, z.ZodObject<{
     status: z.ZodLiteral<"not_found">;
     message: z.ZodString;

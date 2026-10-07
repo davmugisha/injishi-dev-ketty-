@@ -479,6 +479,14 @@ cookie for a domain its own host is not in. `BETTER_AUTH_SECRET` and
 between stacks. `OVERSIGHT_AUTH_SECRET` must not equal `BETTER_AUTH_SECRET` if
 it is ever set. Never set `OTP_DEBUG_LOG` on this host.
 
+`HR_PIN_PEPPER` (ADR-058, 058-time AC-TM11) is mixed into every kiosk PIN hash,
+so a copy of the PIN table without it is useless to a guesser. Production and
+staging compose refuse to start without it and the API refuses a short one; the
+demo falls back to a fixed pepper, because its PINs guard sample people only.
+Keep it beside the other secrets in each stack's `.env`, distinct per stack.
+Changing it invalidates every PIN already set, so each person's PIN must be set
+again; losing it has the same effect.
+
 ## The self hosted runner
 
 Every workflow that touches this host (`deploy-staging`, `deploy-production`,

@@ -478,6 +478,14 @@ export declare const OperatorProperty: z.ZodObject<{
     archivedAt: string | null;
     contactEmail: string | null;
     contactPhone: string | null;
+    roomTypes: {
+        status: "active" | "archived";
+        name: string;
+        domain: "hospitality" | "residence";
+        id: string;
+        sellableRoomCount: number;
+        basePriceRwf: number | null;
+    }[];
     slug: string | null;
     publishedAt: string | null;
     checkInTime: string | null;
@@ -495,14 +503,6 @@ export declare const OperatorProperty: z.ZodObject<{
         position: number;
         isCover: boolean;
         caption: string | null;
-    }[];
-    roomTypes: {
-        status: "active" | "archived";
-        name: string;
-        domain: "hospitality" | "residence";
-        id: string;
-        sellableRoomCount: number;
-        basePriceRwf: number | null;
     }[];
 }, {
     name: string;
@@ -522,6 +522,14 @@ export declare const OperatorProperty: z.ZodObject<{
     archivedAt: string | null;
     contactEmail: string | null;
     contactPhone: string | null;
+    roomTypes: {
+        status: "active" | "archived";
+        name: string;
+        domain: "hospitality" | "residence";
+        id: string;
+        sellableRoomCount: number;
+        basePriceRwf: number | null;
+    }[];
     slug: string | null;
     publishedAt: string | null;
     checkInTime: string | null;
@@ -539,14 +547,6 @@ export declare const OperatorProperty: z.ZodObject<{
         position: number;
         isCover: boolean;
         caption: string | null;
-    }[];
-    roomTypes: {
-        status: "active" | "archived";
-        name: string;
-        domain: "hospitality" | "residence";
-        id: string;
-        sellableRoomCount: number;
-        basePriceRwf: number | null;
     }[];
 }>;
 export type OperatorProperty = z.infer<typeof OperatorProperty>;
@@ -606,8 +606,8 @@ export declare const OperatorRatePlan: z.ZodObject<{
     nonRefundable: boolean;
     roomTypeName: string | null;
     cautionRwf: number | null;
-    basePriceRwf: number | null;
     isDefault: boolean;
+    basePriceRwf: number | null;
     baseOccupancy: number | null;
     singleOccupancyPriceRwf: number | null;
     maxStay: number | null;
@@ -626,8 +626,8 @@ export declare const OperatorRatePlan: z.ZodObject<{
     nonRefundable: boolean;
     roomTypeName: string | null;
     cautionRwf: number | null;
-    basePriceRwf: number | null;
     isDefault: boolean;
+    basePriceRwf: number | null;
     baseOccupancy: number | null;
     singleOccupancyPriceRwf: number | null;
     maxStay: number | null;
@@ -671,8 +671,8 @@ export declare const OperatorRatePlanList: z.ZodObject<{
         nonRefundable: boolean;
         roomTypeName: string | null;
         cautionRwf: number | null;
-        basePriceRwf: number | null;
         isDefault: boolean;
+        basePriceRwf: number | null;
         baseOccupancy: number | null;
         singleOccupancyPriceRwf: number | null;
         maxStay: number | null;
@@ -691,8 +691,8 @@ export declare const OperatorRatePlanList: z.ZodObject<{
         nonRefundable: boolean;
         roomTypeName: string | null;
         cautionRwf: number | null;
-        basePriceRwf: number | null;
         isDefault: boolean;
+        basePriceRwf: number | null;
         baseOccupancy: number | null;
         singleOccupancyPriceRwf: number | null;
         maxStay: number | null;
@@ -713,8 +713,8 @@ export declare const OperatorRatePlanList: z.ZodObject<{
         nonRefundable: boolean;
         roomTypeName: string | null;
         cautionRwf: number | null;
-        basePriceRwf: number | null;
         isDefault: boolean;
+        basePriceRwf: number | null;
         baseOccupancy: number | null;
         singleOccupancyPriceRwf: number | null;
         maxStay: number | null;
@@ -735,8 +735,8 @@ export declare const OperatorRatePlanList: z.ZodObject<{
         nonRefundable: boolean;
         roomTypeName: string | null;
         cautionRwf: number | null;
-        basePriceRwf: number | null;
         isDefault: boolean;
+        basePriceRwf: number | null;
         baseOccupancy: number | null;
         singleOccupancyPriceRwf: number | null;
         maxStay: number | null;
@@ -933,8 +933,8 @@ export declare const CreateRoomTypeRequest: z.ZodObject<{
 }, "strip", z.ZodTypeAny, {
     name: string;
     workspaceId: string;
-    basePriceRwf: number | null;
     maxGuests: number;
+    basePriceRwf: number | null;
     roomCount?: number | undefined;
     bookingMode?: "instant_book" | "request_to_book" | undefined;
     cancellationTier?: "flexible" | "moderate" | "limited" | "firm" | "strict_extended_stay" | undefined;
@@ -942,8 +942,8 @@ export declare const CreateRoomTypeRequest: z.ZodObject<{
 }, {
     name: string;
     workspaceId: string;
-    basePriceRwf: number | null;
     maxGuests: number;
+    basePriceRwf: number | null;
     roomCount?: number | undefined;
     bookingMode?: "instant_book" | "request_to_book" | undefined;
     cancellationTier?: "flexible" | "moderate" | "limited" | "firm" | "strict_extended_stay" | undefined;
@@ -969,19 +969,19 @@ export declare const UpdateRoomTypeRequest: z.ZodObject<{
     status?: "active" | "archived" | undefined;
     name?: string | undefined;
     roomCount?: number | undefined;
+    maxGuests?: number | undefined;
     bookingMode?: "instant_book" | "request_to_book" | undefined;
     cancellationTier?: "flexible" | "moderate" | "limited" | "firm" | "strict_extended_stay" | undefined;
     basePriceRwf?: number | null | undefined;
-    maxGuests?: number | undefined;
 }, {
     workspaceId: string;
     status?: "active" | "archived" | undefined;
     name?: string | undefined;
     roomCount?: number | undefined;
+    maxGuests?: number | undefined;
     bookingMode?: "instant_book" | "request_to_book" | undefined;
     cancellationTier?: "flexible" | "moderate" | "limited" | "firm" | "strict_extended_stay" | undefined;
     basePriceRwf?: number | null | undefined;
-    maxGuests?: number | undefined;
 }>;
 export type UpdateRoomTypeRequest = z.infer<typeof UpdateRoomTypeRequest>;
 /** A room type, as its owner sees it. */
@@ -1005,12 +1005,12 @@ export declare const OperatorRoomType: z.ZodObject<{
     domain: "hospitality" | "residence";
     id: string;
     roomCount: number;
+    maxGuests: number | null;
     bookingMode: "instant_book" | "request_to_book" | null;
     cancellationTier: "flexible" | "moderate" | "limited" | "firm" | "strict_extended_stay" | null;
     propertyId: string;
     sellableRoomCount: number;
     basePriceRwf: number | null;
-    maxGuests: number | null;
     defaultRatePlanId: string | null;
 }, {
     status: "active" | "archived";
@@ -1018,12 +1018,12 @@ export declare const OperatorRoomType: z.ZodObject<{
     domain: "hospitality" | "residence";
     id: string;
     roomCount: number;
+    maxGuests: number | null;
     bookingMode: "instant_book" | "request_to_book" | null;
     cancellationTier: "flexible" | "moderate" | "limited" | "firm" | "strict_extended_stay" | null;
     propertyId: string;
     sellableRoomCount: number;
     basePriceRwf: number | null;
-    maxGuests: number | null;
     defaultRatePlanId: string | null;
 }>;
 export type OperatorRoomType = z.infer<typeof OperatorRoomType>;
@@ -1048,12 +1048,12 @@ export declare const OperatorRoomTypeList: z.ZodObject<{
         domain: "hospitality" | "residence";
         id: string;
         roomCount: number;
+        maxGuests: number | null;
         bookingMode: "instant_book" | "request_to_book" | null;
         cancellationTier: "flexible" | "moderate" | "limited" | "firm" | "strict_extended_stay" | null;
         propertyId: string;
         sellableRoomCount: number;
         basePriceRwf: number | null;
-        maxGuests: number | null;
         defaultRatePlanId: string | null;
     }, {
         status: "active" | "archived";
@@ -1061,12 +1061,12 @@ export declare const OperatorRoomTypeList: z.ZodObject<{
         domain: "hospitality" | "residence";
         id: string;
         roomCount: number;
+        maxGuests: number | null;
         bookingMode: "instant_book" | "request_to_book" | null;
         cancellationTier: "flexible" | "moderate" | "limited" | "firm" | "strict_extended_stay" | null;
         propertyId: string;
         sellableRoomCount: number;
         basePriceRwf: number | null;
-        maxGuests: number | null;
         defaultRatePlanId: string | null;
     }>, "many">;
 }, "strip", z.ZodTypeAny, {
@@ -1076,12 +1076,12 @@ export declare const OperatorRoomTypeList: z.ZodObject<{
         domain: "hospitality" | "residence";
         id: string;
         roomCount: number;
+        maxGuests: number | null;
         bookingMode: "instant_book" | "request_to_book" | null;
         cancellationTier: "flexible" | "moderate" | "limited" | "firm" | "strict_extended_stay" | null;
         propertyId: string;
         sellableRoomCount: number;
         basePriceRwf: number | null;
-        maxGuests: number | null;
         defaultRatePlanId: string | null;
     }[];
 }, {
@@ -1091,12 +1091,12 @@ export declare const OperatorRoomTypeList: z.ZodObject<{
         domain: "hospitality" | "residence";
         id: string;
         roomCount: number;
+        maxGuests: number | null;
         bookingMode: "instant_book" | "request_to_book" | null;
         cancellationTier: "flexible" | "moderate" | "limited" | "firm" | "strict_extended_stay" | null;
         propertyId: string;
         sellableRoomCount: number;
         basePriceRwf: number | null;
-        maxGuests: number | null;
         defaultRatePlanId: string | null;
     }[];
 }>;
@@ -1150,8 +1150,8 @@ export declare const UpdateRatePlanRequest: z.ZodObject<{
     bookingMode?: "instant_book" | "request_to_book" | undefined;
     cancellationTier?: "flexible" | "moderate" | "limited" | "firm" | "strict_extended_stay" | undefined;
     nonRefundable?: boolean | undefined;
-    basePriceRwf?: number | null | undefined;
     isDefault?: boolean | undefined;
+    basePriceRwf?: number | null | undefined;
     baseOccupancy?: number | undefined;
 }, {
     workspaceId: string;
@@ -1160,8 +1160,8 @@ export declare const UpdateRatePlanRequest: z.ZodObject<{
     bookingMode?: "instant_book" | "request_to_book" | undefined;
     cancellationTier?: "flexible" | "moderate" | "limited" | "firm" | "strict_extended_stay" | undefined;
     nonRefundable?: boolean | undefined;
-    basePriceRwf?: number | null | undefined;
     isDefault?: boolean | undefined;
+    basePriceRwf?: number | null | undefined;
     baseOccupancy?: number | undefined;
 }>;
 export type UpdateRatePlanRequest = z.infer<typeof UpdateRatePlanRequest>;
@@ -1448,12 +1448,12 @@ export declare const PropertySetupCounts: z.ZodObject<{
     published: z.ZodNumber;
 }, "strip", z.ZodTypeAny, {
     published: number;
+    roomTypes: number;
+    staff: number;
     rooms: number;
     amenities: number;
     departments: number;
-    staff: number;
     photos: number;
-    roomTypes: number;
     properties: number;
     contactDetails: number;
     departmentHeads: number;
@@ -1461,12 +1461,12 @@ export declare const PropertySetupCounts: z.ZodObject<{
     outlets: number;
 }, {
     published: number;
+    roomTypes: number;
+    staff: number;
     rooms: number;
     amenities: number;
     departments: number;
-    staff: number;
     photos: number;
-    roomTypes: number;
     properties: number;
     contactDetails: number;
     departmentHeads: number;
@@ -1497,12 +1497,12 @@ export declare const PropertySetupProgress: z.ZodObject<{
         published: z.ZodNumber;
     }, "strip", z.ZodTypeAny, {
         published: number;
+        roomTypes: number;
+        staff: number;
         rooms: number;
         amenities: number;
         departments: number;
-        staff: number;
         photos: number;
-        roomTypes: number;
         properties: number;
         contactDetails: number;
         departmentHeads: number;
@@ -1510,12 +1510,12 @@ export declare const PropertySetupProgress: z.ZodObject<{
         outlets: number;
     }, {
         published: number;
+        roomTypes: number;
+        staff: number;
         rooms: number;
         amenities: number;
         departments: number;
-        staff: number;
         photos: number;
-        roomTypes: number;
         properties: number;
         contactDetails: number;
         departmentHeads: number;
@@ -1531,12 +1531,12 @@ export declare const PropertySetupProgress: z.ZodObject<{
     propertyId: string | null;
     counts: {
         published: number;
+        roomTypes: number;
+        staff: number;
         rooms: number;
         amenities: number;
         departments: number;
-        staff: number;
         photos: number;
-        roomTypes: number;
         properties: number;
         contactDetails: number;
         departmentHeads: number;
@@ -1552,12 +1552,12 @@ export declare const PropertySetupProgress: z.ZodObject<{
     propertyId: string | null;
     counts: {
         published: number;
+        roomTypes: number;
+        staff: number;
         rooms: number;
         amenities: number;
         departments: number;
-        staff: number;
         photos: number;
-        roomTypes: number;
         properties: number;
         contactDetails: number;
         departmentHeads: number;

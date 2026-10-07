@@ -1,0 +1,27 @@
+ALTER TYPE "public"."domain_event_type" ADD VALUE 'leave.requested';--> statement-breakpoint
+ALTER TYPE "public"."domain_event_type" ADD VALUE 'leave.step2_pending';--> statement-breakpoint
+ALTER TYPE "public"."domain_event_type" ADD VALUE 'leave.decided';--> statement-breakpoint
+ALTER TYPE "public"."domain_event_type" ADD VALUE 'allocation.decided';--> statement-breakpoint
+ALTER TYPE "public"."domain_event_type" ADD VALUE 'roster.published';--> statement-breakpoint
+ALTER TYPE "public"."domain_event_type" ADD VALUE 'roster.changed';--> statement-breakpoint
+ALTER TYPE "public"."domain_event_type" ADD VALUE 'shift_request.decided';--> statement-breakpoint
+ALTER TYPE "public"."domain_event_type" ADD VALUE 'swap.requested';--> statement-breakpoint
+ALTER TYPE "public"."domain_event_type" ADD VALUE 'attendance.flagged';--> statement-breakpoint
+ALTER TYPE "public"."domain_event_type" ADD VALUE 'attendance_request.decided';--> statement-breakpoint
+ALTER TYPE "public"."domain_event_type" ADD VALUE 'document.requested';--> statement-breakpoint
+ALTER TYPE "public"."domain_event_type" ADD VALUE 'document.expiring';--> statement-breakpoint
+ALTER TYPE "public"."domain_event_type" ADD VALUE 'contract.ending';--> statement-breakpoint
+ALTER TYPE "public"."domain_event_type" ADD VALUE 'payslip.confirmed';--> statement-breakpoint
+ALTER TYPE "public"."domain_event_type" ADD VALUE 'claim.decided';--> statement-breakpoint
+ALTER TYPE "public"."domain_event_type" ADD VALUE 'pay_account.changed';--> statement-breakpoint
+ALTER TYPE "public"."domain_event_type" ADD VALUE 'ticket.created';--> statement-breakpoint
+ALTER TYPE "public"."domain_event_type" ADD VALUE 'ticket.status_changed';--> statement-breakpoint
+ALTER TYPE "public"."domain_event_type" ADD VALUE 'interview.scheduled';--> statement-breakpoint
+ALTER TYPE "public"."domain_event_type" ADD VALUE 'offer.sent';--> statement-breakpoint
+ALTER TYPE "public"."domain_event_type" ADD VALUE 'onboarding.link_sent';--> statement-breakpoint
+ALTER TYPE "public"."domain_event_type" ADD VALUE 'resignation.decided';--> statement-breakpoint
+ALTER TYPE "public"."domain_event_type" ADD VALUE 'asset.expiring';--> statement-breakpoint
+ALTER TYPE "public"."domain_event_type" ADD VALUE 'announcement.published';--> statement-breakpoint
+ALTER TYPE "public"."domain_event_type" ADD VALUE 'feedback.requested';--> statement-breakpoint
+ALTER TYPE "public"."domain_event_type" ADD VALUE 'exit_task.assigned';--> statement-breakpoint
+ALTER TYPE "public"."domain_event_type" ADD VALUE 'onboarding_task.assigned';

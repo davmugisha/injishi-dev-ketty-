@@ -5,38 +5,63 @@ import {
   isWeekday,
   kigaliDateOf,
   lastOfMonth,
-  payableThirtieths,
+  monthShares,
+  mondayOf,
   roundHalfUp,
   shiftInstants,
 } from './hr-calendar';
 
 describe('hr calendar (ADR-058 index contract 9)', () => {
-  describe('payable thirtieths', () => {
-    it('pays a full month as 30, whatever its length', () => {
-      expect(payableThirtieths({ startsOn: '2025-01-01', endsOn: null }, '2026-02')).toBe(30);
-      expect(payableThirtieths({ startsOn: '2025-01-01', endsOn: null }, '2026-07')).toBe(30);
+  describe('the share of a month a contract pays (058-payroll AC-PY1)', () => {
+    const one = (startsOn: string, endsOn: string | null, period: string): number =>
+      monthShares([{ id: 'c', startsOn, endsOn }], period).get('c') ?? 0;
+
+    it('is a full 30 for a covered month, whatever its length', () => {
+      expect(one('2025-01-01', null, '2026-02')).toBe(3000);
+      expect(one('2025-01-01', null, '2026-07')).toBe(3000);
     });
 
-    it('takes off the days before a start inside the month', () => {
-      // 30 less the 15 days of September before the 16th.
-      expect(payableThirtieths({ startsOn: '2026-09-16', endsOn: null }, '2026-09')).toBe(15);
+    it('is 30 × d ÷ N for a start or an end inside the month, to two decimals', () => {
+      // Hired on the 16th of a 30 day month: 15 days, 15.00.
+      expect(one('2026-09-16', null, '2026-09')).toBe(1500);
+      // Ending on the 15th of a 31 day month: 30 × 15 ÷ 31 = 14.516, so 14.52.
+      expect(one('2025-01-01', '2026-10-15', '2026-10')).toBe(1452);
+      // One day of a 28 day February is 1.07; one day of October 0.97, never 0.
+      expect(one('2026-02-28', null, '2026-02')).toBe(107);
+      expect(one('2025-01-01', '2026-10-01', '2026-10')).toBe(97);
     });
 
-    it('takes off the days after an end inside the month', () => {
-      // A 31 day month ending on the 15th: 30 less 16 days after it.
-      expect(payableThirtieths({ startsOn: '2025-01-01', endsOn: '2026-10-15' }, '2026-10')).toBe(14);
+    it('gives a fully covered split month exactly 30, the last contract taking the rest', () => {
+      // A raise on the 16th of a 31 day month: 14.52 and 15.48.
+      const s = monthShares(
+        [
+          { id: 'old', startsOn: '2025-01-01', endsOn: '2026-10-15' },
+          { id: 'new', startsOn: '2026-10-16', endsOn: null },
+        ],
+        '2026-10',
+      );
+      expect([s.get('old'), s.get('new')]).toEqual([1452, 1548]);
     });
 
-    it('keeps the figure between 0 and 30', () => {
-      // February: hired on the 28th, 27 days before it, so 3.
-      expect(payableThirtieths({ startsOn: '2026-02-28', endsOn: null }, '2026-02')).toBe(3);
-      // Ending on the 1st of a 31 day month: 30 less 30 is 0, never negative.
-      expect(payableThirtieths({ startsOn: '2025-01-01', endsOn: '2026-10-01' }, '2026-10')).toBe(0);
+    it('leaves a month with a gap short of 30', () => {
+      const s = monthShares(
+        [
+          { id: 'a', startsOn: '2025-01-01', endsOn: '2026-10-10' },
+          { id: 'b', startsOn: '2026-10-21', endsOn: null },
+        ],
+        '2026-10',
+      );
+      // 30 × 10 ÷ 31 = 9.68 and 30 × 11 ÷ 31 = 10.65.
+      expect([s.get('a'), s.get('b')]).toEqual([968, 1065]);
     });
 
-    it('pays nothing for a contract that does not touch the month', () => {
-      expect(payableThirtieths({ startsOn: '2026-11-01', endsOn: null }, '2026-10')).toBe(0);
-      expect(payableThirtieths({ startsOn: '2025-01-01', endsOn: '2026-09-30' }, '2026-10')).toBe(0);
+    it('ends a contract by a planned last day', () => {
+      expect(monthShares([{ id: 'c', startsOn: '2025-01-01', endsOn: null }], '2026-09', '2026-09-15').get('c')).toBe(1500);
+    });
+
+    it('is 0 for a contract that does not touch the month', () => {
+      expect(one('2026-11-01', null, '2026-10')).toBe(0);
+      expect(one('2025-01-01', '2026-09-30', '2026-10')).toBe(0);
     });
   });
 
@@ -67,6 +92,12 @@ describe('hr calendar (ADR-058 index contract 9)', () => {
     expect(eachMonth('2026-11', '2027-02')).toEqual(['2026-11', '2026-12', '2027-01', '2027-02']);
     expect(isWeekday('2026-10-03')).toBe(false); // a Saturday
     expect(isWeekday('2026-10-05')).toBe(true); // a Monday
+  });
+
+  it('finds the Monday of a week that runs Monday to Sunday', () => {
+    expect(mondayOf('2026-10-05')).toBe('2026-10-05'); // a Monday is its own
+    expect(mondayOf('2026-10-11')).toBe('2026-10-05'); // a Sunday ends the week before it
+    expect(mondayOf('2027-01-01')).toBe('2026-12-28'); // across a year
   });
 
   it('rounds half up, symmetric around zero', () => {

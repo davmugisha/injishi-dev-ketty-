@@ -49,6 +49,11 @@ export function daysBetween(from: string, to: string): number {
   return Math.round((noon(to).getTime() - noon(from).getTime()) / 86_400_000);
 }
 
+/** The Monday of the week a date falls in (weeks run Monday to Sunday). */
+export function mondayOf(date: string): string {
+  return addDays(date, -((noon(date).getUTCDay() + 6) % 7));
+}
+
 /** Monday to Friday. */
 export function isWeekday(date: string): boolean {
   const day = noon(date).getUTCDay();
@@ -131,26 +136,54 @@ export function shiftInstants(
 }
 
 /**
- * Payable thirtieths of one contract in one month (index contract 9).
+ * Each contract's share of a month, in hundredths of a thirtieth (058-payroll
+ * AC-PY1, which replaced index contract 9's rule): `30 × d ÷ N`, d the
+ * contract's days in the month and N the month's days, rounded half up to two
+ * decimals. When the contracts together cover every day of the month, the last
+ * to start takes 30 less the others, so a fully covered month is exactly 30
+ * whatever its length and however it was split. A contract that does not touch
+ * the month has a share of 0.
  *
- * A day of a monthly wage is the wage divided by 30, whatever the month's
- * length, and a full month is always 30. For a contract that starts or ends
- * inside the month: 30, less the days of the month before it starts, less the
- * days after it ends, kept between 0 and 30. A contract that does not touch the
- * month is paid nothing.
+ * `endsBy` is a planned last day that ends every contract running past it (an
+ * open exit case, 058-offboarding).
  */
-export function payableThirtieths(
-  contract: { startsOn: string; endsOn: string | null },
+export function monthShares(
+  contracts: readonly { id: string; startsOn: string; endsOn: string | null }[],
   period: string,
-): number {
+  endsBy: string | null = null,
+): Map<string, number> {
   const first = firstOfMonth(period);
   const last = lastOfMonth(period);
-  if (contract.startsOn > last) return 0;
-  if (contract.endsOn !== null && contract.endsOn < first) return 0;
-  const before = contract.startsOn > first ? daysBetween(first, contract.startsOn) : 0;
-  const after =
-    contract.endsOn !== null && contract.endsOn < last ? daysBetween(contract.endsOn, last) : 0;
-  return Math.min(30, Math.max(0, 30 - before - after));
+  const n = daysInMonth(period);
+  const shares = new Map<string, number>();
+  const covered = new Set<string>();
+  const ordered = [...contracts].sort((a, b) => a.startsOn.localeCompare(b.startsOn) || a.id.localeCompare(b.id));
+  const touching: string[] = [];
+  for (const c of ordered) {
+    const from = c.startsOn > first ? c.startsOn : first;
+    let to = c.endsOn !== null && c.endsOn < last ? c.endsOn : last;
+    if (endsBy !== null && endsBy < to) to = endsBy;
+    if (to < from) {
+      shares.set(c.id, 0);
+      continue;
+    }
+    const days = daysBetween(from, to) + 1;
+    for (const d of eachDate(from, to)) covered.add(d);
+    // Half up of 3000 d / n, in integers: floor((2 × 3000 d + n) / 2n).
+    shares.set(c.id, Math.floor((6000 * days + n) / (2 * n)));
+    touching.push(c.id);
+  }
+  if (covered.size === n && touching.length > 1) {
+    const lastId = touching[touching.length - 1];
+    const others = touching.slice(0, -1).reduce((s, id) => s + (shares.get(id) ?? 0), 0);
+    shares.set(lastId, 3000 - others);
+  }
+  return shares;
+}
+
+/** One contract's share of a month in thirtieths (AC-PY1), such as 14.52. */
+export function shareOfMonth(contract: { startsOn: string; endsOn: string | null }, period: string): number {
+  return (monthShares([{ id: 'one', ...contract }], period).get('one') ?? 0) / 100;
 }
 
 /**

@@ -1,6 +1,13 @@
-import type { PayRunRuleVersion, PayRunStatus, PayslipLine } from '@injishi/contracts';
+import {
+  PAY_RUN_LIST,
+  type AttendanceSource,
+  type ListQuery,
+  type PayRunRuleVersion,
+  type PayRunStatus,
+  type PayslipLine,
+} from '@injishi/contracts';
 import { Inject, Injectable } from '@nestjs/common';
-import { and, asc, desc, eq, gte, inArray, isNull, lte, notInArray, or, sql, type SQL } from 'drizzle-orm';
+import { and, asc, eq, gte, inArray, isNull, lte, notInArray, or, sql, type SQL } from 'drizzle-orm';
 
 import {
   attendanceRecords,
@@ -10,6 +17,13 @@ import {
   payslips,
 } from '../../../database/drizzle/schema';
 import { DRIZZLE, type Database } from '../../../shared/database/database.module';
+import {
+  compileListQuery,
+  countAll,
+  statusCountsOf,
+  type ListColumns,
+  type ListRows,
+} from '../../../shared/lists/list-query';
 import type { ComputedPayslip } from '../domain/pay-computation';
 import type { ContractRow, Tx } from './employees.repository';
 
@@ -43,9 +57,14 @@ export interface PayslipRow {
   employeeContributionsRwf: number;
   employerContributionsRwf: number;
   otherDeductionsRwf: number;
+  nonIncomeRwf: number;
   netRwf: number;
   lines: PayslipLine[];
   status: PayRunStatus;
+  paidAt: Date | null;
+  paidMethod: 'bank' | 'momo' | 'cash' | null;
+  paidReference: string | null;
+  sentAt: Date | null;
 }
 
 /** What confirm checks each covered person for (AC-Y3). */
@@ -110,13 +129,47 @@ export class PayrollRepository {
     };
   }
 
-  async listRuns(orgId: string): Promise<PayRunRow[]> {
-    const rows = await this.db
-      .select(this.runColumns)
-      .from(payRuns)
-      .where(eq(payRuns.orgId, orgId))
-      .orderBy(desc(payRuns.periodStart));
-    return rows.map((r) => this.toRun(r));
+  /** The pay run list's field to column map (`PAY_RUN_LIST`); the totals are the business's, never a person's. */
+  private readonly runListColumns: ListColumns = {
+    periodStart: payRuns.periodStart,
+    status: payRuns.status,
+    headcount: this.runColumns.headcount,
+    grossRwf: this.runColumns.grossRwf,
+    netRwf: this.runColumns.netRwf,
+  };
+
+  /** One page of the business's pay runs, newest month first by default (AC-LF3). */
+  async listRunsPage(orgId: string, query: ListQuery): Promise<ListRows<PayRunRow>> {
+    const compiled = compileListQuery({
+      spec: PAY_RUN_LIST,
+      columns: this.runListColumns,
+      reader: 'full',
+      query,
+      tieBreaker: payRuns.id,
+    });
+    const own = eq(payRuns.orgId, orgId);
+    const where = compiled.where ? and(own, compiled.where) : own;
+    const [rows, [{ count }], statusRows] = await Promise.all([
+      this.db
+        .select(this.runColumns)
+        .from(payRuns)
+        .where(where)
+        .orderBy(...compiled.orderBy)
+        .limit(compiled.limit)
+        .offset(compiled.offset),
+      this.db.select({ count: countAll }).from(payRuns).where(where),
+      this.db
+        .select({ value: payRuns.status, count: countAll })
+        .from(payRuns)
+        .where(compiled.whereForStatusCounts ? and(own, compiled.whereForStatusCounts) : own)
+        .groupBy(payRuns.status),
+    ]);
+    return {
+      rows: rows.map((r) => this.toRun(r)),
+      total: Number(count),
+      groups: undefined,
+      statusCounts: statusCountsOf(statusRows),
+    };
   }
 
   async findRun(id: string, tx?: Tx): Promise<PayRunRow | null> {
@@ -212,21 +265,22 @@ export class PayrollRepository {
 
   /**
    * Attendance in the month that would make the figures wrong if frozen now: a
-   * record still open, or a self record nobody validated (AC-Y3).
+   * record still open, or a closed one nobody validated, whatever its source:
+   * a self or phone clock in, or one the sweep closed (AC-Y3, 058-time AC-TM16).
    */
   async unsettledAttendance(
     employeeIds: readonly string[],
     first: string,
     last: string,
     tx?: Tx,
-  ): Promise<{ employeeId: string; open: boolean; unvalidatedSelf: boolean }[]> {
+  ): Promise<{ employeeId: string; open: boolean; source: AttendanceSource; autoClosed: boolean }[]> {
     if (employeeIds.length === 0) return [];
     const rows = await (tx ?? this.db)
       .select({
         employeeId: attendanceRecords.employeeId,
         status: attendanceRecords.status,
         source: attendanceRecords.source,
-        validated: attendanceRecords.validated,
+        autoClosed: attendanceRecords.autoClosed,
       })
       .from(attendanceRecords)
       .where(
@@ -236,18 +290,15 @@ export class PayrollRepository {
           lte(attendanceRecords.workDate, last),
           or(
             eq(attendanceRecords.status, 'open'),
-            and(
-              eq(attendanceRecords.source, 'self'),
-              eq(attendanceRecords.validated, false),
-              sql`${attendanceRecords.status} <> 'superseded'`,
-            ),
+            and(eq(attendanceRecords.status, 'closed'), eq(attendanceRecords.validated, false)),
           ),
         ),
       );
     return rows.map((r) => ({
       employeeId: r.employeeId,
       open: r.status === 'open',
-      unvalidatedSelf: r.source === 'self' && !r.validated && r.status !== 'superseded',
+      source: r.source,
+      autoClosed: r.autoClosed,
     }));
   }
 
@@ -276,6 +327,7 @@ export class PayrollRepository {
         employeeContributionsRwf: slip.employeeContributionsRwf,
         employerContributionsRwf: slip.employerContributionsRwf,
         otherDeductionsRwf: slip.otherDeductionsRwf,
+        nonIncomeRwf: slip.nonIncomeRwf,
         netRwf: slip.netRwf,
         lines: slip.lines,
         status: input.status,
@@ -319,9 +371,14 @@ export class PayrollRepository {
         employeeContributionsRwf: payslips.employeeContributionsRwf,
         employerContributionsRwf: payslips.employerContributionsRwf,
         otherDeductionsRwf: payslips.otherDeductionsRwf,
+        nonIncomeRwf: payslips.nonIncomeRwf,
         netRwf: payslips.netRwf,
         lines: sql<PayslipLine[]>`${payslips.lines}`,
         status: payslips.status,
+        paidAt: payslips.paidAt,
+        paidMethod: payslips.paidMethod,
+        paidReference: payslips.paidReference,
+        sentAt: payslips.sentAt,
       })
       .from(payslips)
       .innerJoin(employees, eq(employees.id, payslips.employeeId))

@@ -36,7 +36,15 @@ export type StoredObjectKind =
    * signed url. One kind for both would put them under one access rule and one
    * retention rule, and they share neither.
    */
-  | 'training_certificate';
+  | 'training_certificate'
+  /** ADR-058: a staff file's photograph, a work field read by anyone who reads files. */
+  | 'staff_photo'
+  /** ADR-058: a document on a staff file (an ID copy, a permit); `people.manage` only. */
+  | 'staff_document'
+  /** ADR-058: a file hung on a note, a policy, an announcement or a disciplinary record. */
+  | 'hr_attachment'
+  /** 058-payroll: a bank or MoMo file, or a declaration; `payroll.run` only. */
+  | 'hr_pay_file';
 
 export interface PutObjectInput {
   /** The raw bytes. Callers must size-check BEFORE reading a stream to here. */
@@ -199,4 +207,6 @@ export const MIME_EXTENSION: Readonly<Record<string, string>> = {
   'image/png': 'png',
   'image/webp': 'webp',
   'image/heic': 'heic',
+  // 058-payroll: the bank and MoMo files and the declarations Injishi builds.
+  'text/csv': 'csv',
 };

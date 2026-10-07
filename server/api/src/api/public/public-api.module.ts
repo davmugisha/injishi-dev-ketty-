@@ -8,6 +8,7 @@ import { ListingSetupModule } from '../../modules/listing-setup/listing-setup.mo
 import { ListingModule } from '../../modules/listing/listing.module';
 import { OperationsModule } from '../../modules/operations/operations.module';
 import { OrganizationModule } from '../../modules/organization/organization.module';
+import { ListsModule } from '../../modules/lists/lists.module';
 import { PeopleModule } from '../../modules/people/people.module';
 import { StorageModule } from '../../modules/storage/storage.module';
 import { UserModule } from '../../modules/user/user.module';
@@ -22,6 +23,10 @@ import { GeographyController } from './geography/geography.controller';
 import { HealthController } from './health/health.controller';
 import { MeController } from './me/me.controller';
 import { MeStaysController } from './me/stays.controller';
+import { MeWorkController } from './me/work.controller';
+import { MeWorkLeaveController } from './me/work-leave.controller';
+import { MeWorkPayController } from './me/work-pay.controller';
+import { KioskController } from './kiosk/kiosk.controller';
 import { TwoFactorController } from './me/two-factor.controller';
 import { AvailabilityController } from './properties/availability.controller';
 import {
@@ -36,9 +41,44 @@ import { OpsRolesController } from './ops/roles.controller';
 import { OpsTeamController } from './ops/team.controller';
 import { OpsAttendanceController } from './ops/attendance.controller';
 import { OpsEmployeesController } from './ops/employees.controller';
-import { OpsLeaveController } from './ops/leave.controller';
+import { OpsDisciplinaryActionsController } from './ops/disciplinary-actions.controller';
+import { OpsDocumentRequestsController } from './ops/document-requests.controller';
+import { OpsDocumentsController } from './ops/documents.controller';
+import { OpsHrController } from './ops/hr.controller';
+import { OpsOrgChartController } from './ops/org-chart.controller';
+import { OpsPayAccountsController } from './ops/pay-accounts.controller';
+import { OpsPoliciesController } from './ops/policies.controller';
+import { OpsStaffAnnouncementsController } from './ops/staff-announcements.controller';
+import { OpsListViewsController } from './ops/list-views.controller';
+import {
+  OpsLeaveAllocationsController,
+  OpsLeaveController,
+  OpsLeaveTypesController,
+  OpsLeaveViewsController,
+  OpsRestrictedPeriodsController,
+} from './ops/leave.controller';
 import { OpsPayRunsController } from './ops/pay-runs.controller';
+import {
+  OpsContractsController,
+  OpsLoansController,
+  OpsPayAdjustmentsController,
+  OpsPayClaimsController,
+  OpsPayComponentsController,
+  OpsPayFilesController,
+  OpsPayrollController,
+  OpsPayslipsController,
+  OpsPayStructuresController,
+} from './ops/payroll.controller';
 import { OpsRosterController, OpsShiftTemplatesController } from './ops/roster.controller';
+import {
+  OpsAttendanceRequestsController,
+  OpsAttendanceSettingsController,
+  OpsEmployeeKioskPinController,
+  OpsHrTimeSettingsController,
+  OpsRotationAssignmentsController,
+  OpsRotationPatternsController,
+  OpsShiftRequestsController,
+} from './ops/time.controller';
 import { OpsFoliosController } from './ops/folios.controller';
 import { OpsHousekeepingController } from './ops/housekeeping.controller';
 import { OpsOutletPartiesController } from './ops/outlet-parties.controller';
@@ -108,6 +148,8 @@ import { WaitlistModule } from './waitlist/waitlist.module';
     OrganizationModule,
     // The HR module (ADR-058): files, roster, attendance, leave and pay.
     PeopleModule,
+    // The list framework (ADR-058 slice 2): saved views and the export log.
+    ListsModule,
     StorageModule,
     UserModule,
     // POST /support/tickets, the public support intake; limits and caps are
@@ -168,11 +210,43 @@ import { WaitlistModule } from './waitlist/waitlist.module';
     // The HR module (ADR-058, first thread). Every route behind WorkspaceGuard
     // with one of the seven HR permissions.
     OpsEmployeesController,
+    // The people file (058-people-file): uploads, catalogs and settings, pay
+    // accounts, documents, policies, announcements, discipline, the org chart.
+    OpsHrController,
+    OpsPayAccountsController,
+    OpsDocumentsController,
+    OpsDocumentRequestsController,
+    OpsPoliciesController,
+    OpsStaffAnnouncementsController,
+    OpsDisciplinaryActionsController,
+    OpsOrgChartController,
+    // Saved list views for every list (058-list-framework).
+    OpsListViewsController,
     OpsShiftTemplatesController,
     OpsRosterController,
     OpsAttendanceController,
+    OpsRotationPatternsController,
+    OpsRotationAssignmentsController,
+    OpsShiftRequestsController,
+    OpsAttendanceRequestsController,
+    OpsAttendanceSettingsController,
+    OpsEmployeeKioskPinController,
+    OpsHrTimeSettingsController,
     OpsLeaveController,
+    OpsLeaveViewsController,
+    OpsLeaveTypesController,
+    OpsLeaveAllocationsController,
+    OpsRestrictedPeriodsController,
     OpsPayRunsController,
+    OpsPayslipsController,
+    OpsPayAdjustmentsController,
+    OpsLoansController,
+    OpsPayClaimsController,
+    OpsPayComponentsController,
+    OpsPayStructuresController,
+    OpsContractsController,
+    OpsPayrollController,
+    OpsPayFilesController,
     OpsFoliosController,
     // §6.8. Answering a guest who asked for money back, and the offers a
     // property writes. Both behind `WorkspaceGuard` with their own permissions.
@@ -207,6 +281,10 @@ import { WaitlistModule } from './waitlist/waitlist.module';
      * authorizes, proved per route.
      */
     MeStaysController,
+    MeWorkController,
+    MeWorkLeaveController,
+    MeWorkPayController,
+    KioskController,
     TwoFactorController,
     // Answers only in a demo process; 404 everywhere else (AC-S10, ADR-043).
     DemoPersonasController,

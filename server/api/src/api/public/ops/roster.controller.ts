@@ -2,10 +2,14 @@ import {
   CancelRosterEntryRequest,
   CreateRosterEntryRequest,
   CreateShiftTemplateRequest,
-  RosterQuery,
+  PublishRosterRequest,
+  RosterWeekQuery,
   ShiftTemplateQuery,
   type RosterEntry,
-  type RosterList,
+  type ListQuery,
+  type RosterPage,
+  type RosterPublication,
+  type RosterWeek,
   type ShiftTemplate,
   type ShiftTemplateList,
 } from '@injishi/contracts';
@@ -34,6 +38,7 @@ import {
   WorkspaceGuard,
 } from '../../../shared/auth/workspace.guard';
 import type { ScopedWorkspace } from '../../../shared/auth/branch-scope';
+import { ListQueryPipe } from '../../../shared/lists/list-query';
 import { ZodValidationPipe } from '../../../shared/validation/zod-validation.pipe';
 
 /**
@@ -67,10 +72,12 @@ export class OpsShiftTemplatesController {
 }
 
 /**
- * The roster -> /api/v1/ops/roster (ADR-058, AC-T1 to AC-T3, AC-T6).
+ * The roster -> /api/v1/ops/roster (ADR-058, AC-T1 to AC-T3, AC-T6; 058-time
+ * AC-TM1, AC-TM14).
  *
  * Entries carry roster cards (a name and a job title) and nothing else from the
- * HR file, so reading the roster exposes no sensitive field to the desk.
+ * HR file, so reading the roster exposes no sensitive field to the desk. Drafts
+ * reach only those who manage the roster, until it is published.
  */
 @Controller({ path: 'ops/roster', version: '1' })
 @UseGuards(SessionGuard, WorkspaceGuard)
@@ -80,10 +87,30 @@ export class OpsRosterController {
   @Get()
   @RequireAnyPermission('roster.manage', 'attendance.record', 'people.view')
   list(
-    @Query(new ZodValidationPipe(RosterQuery)) query: RosterQuery,
+    @Query(ListQueryPipe) query: ListQuery,
     @CurrentWorkspace() workspace: ScopedWorkspace,
-  ): Promise<RosterList> {
+  ): Promise<RosterPage> {
     return this.time.listRoster(workspace, query);
+  }
+
+  /** One branch, Monday to Sunday, for the week grid, with the publishes that touched it. */
+  @Get('week')
+  @RequireAnyPermission('roster.manage', 'attendance.record', 'people.view')
+  week(
+    @Query(new ZodValidationPipe(RosterWeekQuery)) query: RosterWeekQuery,
+    @CurrentWorkspace() workspace: ScopedWorkspace,
+  ): Promise<RosterWeek> {
+    return this.time.week(workspace, query);
+  }
+
+  @Post('publish')
+  @RequirePermission('roster.manage')
+  publish(
+    @Body(new ZodValidationPipe(PublishRosterRequest)) body: PublishRosterRequest,
+    @CurrentWorkspace() workspace: ScopedWorkspace,
+    @CurrentUser() user: SessionUser,
+  ): Promise<RosterPublication> {
+    return this.time.publish(workspace, user.id, body);
   }
 
   @Post()

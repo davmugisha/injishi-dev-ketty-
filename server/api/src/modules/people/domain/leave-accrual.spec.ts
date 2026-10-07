@@ -40,6 +40,18 @@ describe('leave accrual (ADR-058 AC-L2)', () => {
     expect(dueAccruals({ type: { accrual: 'monthly', yearlyEntitlementDays: 18 }, hiredOn: '2026-10-01', through: '2026-09-30' })).toEqual([]);
   });
 
+  it('starts each year afresh at the entitlement of that year, seniority included (058-leave AC-LV5)', () => {
+    const rows = dueAccruals({
+      type: { accrual: 'monthly', yearlyEntitlementDays: 18, seniorityEveryYears: 1, seniorityExtraDays: 1.2, seniorityCapDays: null },
+      hiredOn: '2025-01-01',
+      through: '2026-12-31',
+    });
+    const sum = (y: string): number => Math.round(rows.filter((r) => r.periodKey.startsWith(y)).reduce((s, r) => s + r.days, 0) * 10) / 10;
+    expect(sum('2025')).toBe(18);
+    expect(sum('2026')).toBe(19.2);
+    expect(rows.find((r) => r.periodKey === '2026-01')?.days).toBe(1.6);
+  });
+
   it('returns the same periods whenever it runs, so a rerun writes nothing new', () => {
     const early = dueAccruals({ type: { accrual: 'monthly', yearlyEntitlementDays: 18 }, hiredOn: '2026-01-01', through: '2026-03-02' });
     const late = dueAccruals({ type: { accrual: 'monthly', yearlyEntitlementDays: 18 }, hiredOn: '2026-01-01', through: '2026-05-20' });

@@ -20,9 +20,34 @@ import {
 import { OpsAmenitiesController } from './amenities.controller';
 import { OpsAttendanceController } from './attendance.controller';
 import { OpsDepartmentsController } from './departments.controller';
+import { OpsDisciplinaryActionsController } from './disciplinary-actions.controller';
+import { OpsDocumentRequestsController } from './document-requests.controller';
+import { OpsDocumentsController } from './documents.controller';
 import { OpsEmployeesController } from './employees.controller';
-import { OpsLeaveController } from './leave.controller';
+import { OpsHrController } from './hr.controller';
+import {
+  OpsLeaveAllocationsController,
+  OpsLeaveController,
+  OpsLeaveTypesController,
+  OpsLeaveViewsController,
+  OpsRestrictedPeriodsController,
+} from './leave.controller';
+import { OpsListViewsController } from './list-views.controller';
+import { OpsOrgChartController } from './org-chart.controller';
+import { OpsPayAccountsController } from './pay-accounts.controller';
 import { OpsPayRunsController } from './pay-runs.controller';
+import {
+  OpsContractsController,
+  OpsLoansController,
+  OpsPayAdjustmentsController,
+  OpsPayClaimsController,
+  OpsPayComponentsController,
+  OpsPayFilesController,
+  OpsPayrollController,
+  OpsPayslipsController,
+  OpsPayStructuresController,
+} from './payroll.controller';
+import { OpsPoliciesController } from './policies.controller';
 import { OpsRosterController, OpsShiftTemplatesController } from './roster.controller';
 import { OpsEbmController } from './ebm.controller';
 import { OpsFoliosController } from './folios.controller';
@@ -46,9 +71,19 @@ import {
   OpsServiceCatalogController,
   OpsServiceOrdersController,
 } from './service-catalog.controller';
+import { OpsStaffAnnouncementsController } from './staff-announcements.controller';
 import { OpsStaysController } from './stays.controller';
 import { OpsTeamController } from './team.controller';
 import { OpsThreadsController } from './threads.controller';
+import {
+  OpsAttendanceRequestsController,
+  OpsAttendanceSettingsController,
+  OpsEmployeeKioskPinController,
+  OpsHrTimeSettingsController,
+  OpsRotationAssignmentsController,
+  OpsRotationPatternsController,
+  OpsShiftRequestsController,
+} from './time.controller';
 
 /**
  * Every operator READ declares who may make it (platform audit, H1).
@@ -97,7 +132,36 @@ const CONTROLLERS: Ctor[] = [
   OpsRosterController,
   OpsAttendanceController,
   OpsLeaveController,
+  OpsLeaveViewsController,
+  OpsLeaveTypesController,
+  OpsLeaveAllocationsController,
+  OpsRestrictedPeriodsController,
   OpsPayRunsController,
+  OpsListViewsController,
+  OpsHrController,
+  OpsPayAccountsController,
+  OpsDocumentsController,
+  OpsDocumentRequestsController,
+  OpsPoliciesController,
+  OpsStaffAnnouncementsController,
+  OpsDisciplinaryActionsController,
+  OpsOrgChartController,
+  OpsRotationPatternsController,
+  OpsRotationAssignmentsController,
+  OpsShiftRequestsController,
+  OpsAttendanceRequestsController,
+  OpsAttendanceSettingsController,
+  OpsEmployeeKioskPinController,
+  OpsHrTimeSettingsController,
+  OpsPayslipsController,
+  OpsPayAdjustmentsController,
+  OpsLoansController,
+  OpsPayClaimsController,
+  OpsPayComponentsController,
+  OpsPayStructuresController,
+  OpsContractsController,
+  OpsPayrollController,
+  OpsPayFilesController,
 ];
 
 interface Read {
@@ -204,15 +268,100 @@ const EXPECTED: Record<string, readonly OrgRole[]> = {
   // above, which the desk does not hold; the desk reads the roster and the
   // attendance sheet as roster cards, because it clocks people in.
   '/ops/employees': ['owner', 'manager'],
+  // Select all and the export read the same files as the list (058-list-framework).
+  '/ops/employees/ids': ['owner', 'manager'],
+  '/ops/employees/export.csv': ['owner', 'manager'],
   '/ops/employees/:id': ['owner', 'manager'],
   '/ops/employees/:id/leave-balances': ['owner', 'manager'],
   '/ops/shift-templates': ['owner', 'manager', 'receptionist'],
   '/ops/roster': ['owner', 'manager', 'receptionist'],
   '/ops/attendance': ['owner', 'manager', 'receptionist'],
   '/ops/leave/requests': ['owner', 'manager'],
+  '/ops/leave/requests/ids': ['owner', 'manager'],
   // What each colleague earns: the owner's by default (`payroll.run`).
   '/ops/pay-runs': ['owner'],
   '/ops/pay-runs/:id': ['owner'],
+  // Saved views of every HR list, declared on the union of the lists' reads and
+  // narrowed to the list's own in the service: the desk reads the views of the
+  // roster and the attendance sheet it works, and nothing else.
+  '/ops/list-views': ['owner', 'manager', 'receptionist'],
+  // The people file (058-people-file AC-PF2). The photo is a work field, so it
+  // reads like the file. Pay accounts are `people.manage` or `payroll.run`;
+  // notes, documents and discipline are `people.manage` alone. All three are
+  // the owner's by default, so a manager reads none of them until granted.
+  '/ops/employees/:id/photo': ['owner', 'manager'],
+  '/ops/employees/:id/pay-accounts': ['owner'],
+  '/ops/employees/:id/notes': ['owner'],
+  '/ops/employees/:id/notes/:noteId/files/:index': ['owner'],
+  '/ops/employees/:id/documents': ['owner'],
+  '/ops/documents': ['owner'],
+  '/ops/documents/:id/file': ['owner'],
+  '/ops/document-requests': ['owner'],
+  '/ops/disciplinary-actions': ['owner'],
+  '/ops/disciplinary-actions/:id/file': ['owner'],
+  // What the whole business shares reads under any HR permission, so the desk
+  // (`attendance.record`) reads the house rules and announcements too.
+  '/ops/hr/catalog/:kind': ['owner', 'manager', 'receptionist'],
+  '/ops/hr/settings': ['owner', 'manager', 'receptionist'],
+  '/ops/policies': ['owner', 'manager', 'receptionist'],
+  '/ops/policies/:id/files/:index': ['owner', 'manager', 'receptionist'],
+  '/ops/staff-announcements': ['owner', 'manager', 'receptionist'],
+  '/ops/staff-announcements/:id/files/:index': ['owner', 'manager', 'receptionist'],
+  // Roster card fields only, as the file list (AC-PF10).
+  '/ops/org-chart': ['owner', 'manager'],
+  // Time (058-time). The week grid reads like the roster; the desk reads the
+  // rotations it clocks people onto, the policies it punches under, its
+  // kiosks and whether a person has a PIN. Requests are decided by those who
+  // decide them, and only they list them. The insights are `people.manage`
+  // alone (index contract 7), so the owner's by default.
+  '/ops/roster/week': ['owner', 'manager', 'receptionist'],
+  '/ops/rotation-patterns': ['owner', 'manager', 'receptionist'],
+  '/ops/rotation-assignments': ['owner', 'manager'],
+  '/ops/shift-requests': ['owner', 'manager'],
+  '/ops/shift-requests/ids': ['owner', 'manager'],
+  '/ops/attendance-requests': ['owner', 'manager'],
+  '/ops/attendance-requests/ids': ['owner', 'manager'],
+  '/ops/attendance/policies': ['owner', 'manager', 'receptionist'],
+  '/ops/attendance/kiosks': ['owner', 'manager', 'receptionist'],
+  '/ops/attendance/insights/late-early': ['owner'],
+  '/ops/attendance/insights/monthly': ['owner'],
+  '/ops/employees/:id/kiosk-pin': ['owner', 'manager', 'receptionist'],
+  // Leave counts days by them, so whoever plans time or decides leave reads them.
+  '/ops/hr/holidays': ['owner', 'manager'],
+  '/ops/hr/weekly-offs': ['owner', 'manager'],
+  // Leave in full (058-leave). A sick note, everybody's balances, the dashboard,
+  // the asks for more days and the restricted periods are read by whoever
+  // decides leave or keeps the files. A type's name is what every HR screen
+  // draws with, so any HR permission reads the types; the national defaults
+  // compared with them are `people.manage`'s, the owner's by default.
+  '/ops/leave/requests/:id/attachment': ['owner', 'manager'],
+  '/ops/leave/balances': ['owner', 'manager'],
+  '/ops/leave/dashboard': ['owner', 'manager'],
+  '/ops/leave/types': ['owner', 'manager', 'receptionist'],
+  '/ops/leave/types/defaults': ['owner'],
+  '/ops/leave/allocation-requests': ['owner', 'manager'],
+  '/ops/leave/allocation-requests/ids': ['owner', 'manager'],
+  '/ops/leave/restricted-periods': ['owner', 'manager'],
+  // Payroll in full (058-payroll): every read is `payroll.run`, the owner's by
+  // default, because each one says what a named colleague earns or owes. The
+  // contracts list is `people.manage` too, which writes contracts.
+  '/ops/pay-runs/:id/payslips.pdf': ['owner'],
+  '/ops/pay-runs/:id/files': ['owner'],
+  '/ops/payslips': ['owner'],
+  '/ops/payslips/ids': ['owner'],
+  '/ops/payslips/:id/pdf': ['owner'],
+  '/ops/pay-adjustments': ['owner'],
+  '/ops/loans': ['owner'],
+  '/ops/loans/:id': ['owner'],
+  '/ops/pay-claims': ['owner'],
+  '/ops/pay-claims/ids': ['owner'],
+  '/ops/pay-claims/:id/receipt': ['owner'],
+  '/ops/pay-components': ['owner'],
+  '/ops/pay-structures': ['owner'],
+  '/ops/contracts': ['owner'],
+  '/ops/payroll/dashboard': ['owner'],
+  '/ops/payroll/rules': ['owner'],
+  '/ops/pay-files/:id': ['owner'],
 };
 
 describe('operator reads (audit H1)', () => {

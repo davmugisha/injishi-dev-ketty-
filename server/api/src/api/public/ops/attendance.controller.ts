@@ -1,9 +1,10 @@
 import {
-  AttendanceQuery,
   ClockInRequest,
   ClockOutRequest,
   CorrectAttendanceRequest,
-  type AttendanceList,
+  DecideOvertimeRequest,
+  type AttendancePage,
+  type ListQuery,
   type AttendanceRecord,
 } from '@injishi/contracts';
 import {
@@ -31,6 +32,7 @@ import {
   WorkspaceGuard,
 } from '../../../shared/auth/workspace.guard';
 import type { ScopedWorkspace } from '../../../shared/auth/branch-scope';
+import { ListQueryPipe } from '../../../shared/lists/list-query';
 import { ZodValidationPipe } from '../../../shared/validation/zod-validation.pipe';
 
 /**
@@ -48,9 +50,9 @@ export class OpsAttendanceController {
   @Get()
   @RequireAnyPermission('attendance.record', 'attendance.approve')
   list(
-    @Query(new ZodValidationPipe(AttendanceQuery)) query: AttendanceQuery,
+    @Query(ListQueryPipe) query: ListQuery,
     @CurrentWorkspace() workspace: ScopedWorkspace,
-  ): Promise<AttendanceList> {
+  ): Promise<AttendancePage> {
     return this.time.listAttendance(workspace, query);
   }
 
@@ -96,5 +98,18 @@ export class OpsAttendanceController {
     @CurrentUser() user: SessionUser,
   ): Promise<AttendanceRecord> {
     return this.time.validate(workspace, user.id, id);
+  }
+
+  /** Approve all of the overtime, or less (058-time AC-TM8). Only approved overtime reaches pay. */
+  @Post(':id/overtime')
+  @HttpCode(200)
+  @RequirePermission('attendance.approve')
+  overtime(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body(new ZodValidationPipe(DecideOvertimeRequest)) body: DecideOvertimeRequest,
+    @CurrentWorkspace() workspace: ScopedWorkspace,
+    @CurrentUser() user: SessionUser,
+  ): Promise<AttendanceRecord> {
+    return this.time.decideOvertime(workspace, user.id, id, body);
   }
 }

@@ -1016,7 +1016,6 @@ export declare const GuestOrder: z.ZodObject<{
     taxRwf: number;
     paymentMethod: string | null;
     context: "in_house_folio" | "pay_now";
-    outletName: string;
     lines: {
         name: string;
         quantity: number;
@@ -1030,6 +1029,7 @@ export declare const GuestOrder: z.ZodObject<{
             }[];
         }[];
     }[];
+    outletName: string;
 }, {
     status: "pending_payment" | "submitted" | "rejected" | "cancelled" | "in_progress" | "acknowledged" | "ready" | "delivered" | "completed" | "payment_failed";
     id: string;
@@ -1044,7 +1044,6 @@ export declare const GuestOrder: z.ZodObject<{
     taxRwf: number;
     paymentMethod: string | null;
     context: "in_house_folio" | "pay_now";
-    outletName: string;
     lines: {
         name: string;
         quantity: number;
@@ -1058,6 +1057,7 @@ export declare const GuestOrder: z.ZodObject<{
             }[];
         }[];
     }[];
+    outletName: string;
 }>;
 export type GuestOrder = z.infer<typeof GuestOrder>;
 /**
@@ -1161,7 +1161,6 @@ export declare const OrderPaymentAttemptStatus: z.ZodObject<{
         taxRwf: number;
         paymentMethod: string | null;
         context: "in_house_folio" | "pay_now";
-        outletName: string;
         lines: {
             name: string;
             quantity: number;
@@ -1175,6 +1174,7 @@ export declare const OrderPaymentAttemptStatus: z.ZodObject<{
                 }[];
             }[];
         }[];
+        outletName: string;
     }, {
         status: "pending_payment" | "submitted" | "rejected" | "cancelled" | "in_progress" | "acknowledged" | "ready" | "delivered" | "completed" | "payment_failed";
         id: string;
@@ -1189,7 +1189,6 @@ export declare const OrderPaymentAttemptStatus: z.ZodObject<{
         taxRwf: number;
         paymentMethod: string | null;
         context: "in_house_folio" | "pay_now";
-        outletName: string;
         lines: {
             name: string;
             quantity: number;
@@ -1203,16 +1202,17 @@ export declare const OrderPaymentAttemptStatus: z.ZodObject<{
                 }[];
             }[];
         }[];
+        outletName: string;
     }>;
     failureReason: z.ZodNullable<z.ZodString>;
 }, "strip", z.ZodTypeAny, {
     amountRwf: number | null;
     failureReason: string | null;
-    state: "expired" | "confirmed" | "prompting" | "refused";
+    state: "expired" | "refused" | "confirmed" | "prompting";
+    expiresAt: string;
     network: "mtn_momo" | "airtel_money" | null;
     attemptToken: string;
     payerMasked: string | null;
-    expiresAt: string;
     order: {
         status: "pending_payment" | "submitted" | "rejected" | "cancelled" | "in_progress" | "acknowledged" | "ready" | "delivered" | "completed" | "payment_failed";
         id: string;
@@ -1227,7 +1227,6 @@ export declare const OrderPaymentAttemptStatus: z.ZodObject<{
         taxRwf: number;
         paymentMethod: string | null;
         context: "in_house_folio" | "pay_now";
-        outletName: string;
         lines: {
             name: string;
             quantity: number;
@@ -1241,15 +1240,16 @@ export declare const OrderPaymentAttemptStatus: z.ZodObject<{
                 }[];
             }[];
         }[];
+        outletName: string;
     };
 }, {
     amountRwf: number | null;
     failureReason: string | null;
-    state: "expired" | "confirmed" | "prompting" | "refused";
+    state: "expired" | "refused" | "confirmed" | "prompting";
+    expiresAt: string;
     network: "mtn_momo" | "airtel_money" | null;
     attemptToken: string;
     payerMasked: string | null;
-    expiresAt: string;
     order: {
         status: "pending_payment" | "submitted" | "rejected" | "cancelled" | "in_progress" | "acknowledged" | "ready" | "delivered" | "completed" | "payment_failed";
         id: string;
@@ -1264,7 +1264,6 @@ export declare const OrderPaymentAttemptStatus: z.ZodObject<{
         taxRwf: number;
         paymentMethod: string | null;
         context: "in_house_folio" | "pay_now";
-        outletName: string;
         lines: {
             name: string;
             quantity: number;
@@ -1278,6 +1277,7 @@ export declare const OrderPaymentAttemptStatus: z.ZodObject<{
                 }[];
             }[];
         }[];
+        outletName: string;
     };
 }>;
 export type OrderPaymentAttemptStatus = z.infer<typeof OrderPaymentAttemptStatus>;
@@ -1459,7 +1459,6 @@ export declare const PlaceOrderResult: z.ZodObject<{
             taxRwf: number;
             paymentMethod: string | null;
             context: "in_house_folio" | "pay_now";
-            outletName: string;
             lines: {
                 name: string;
                 quantity: number;
@@ -1473,6 +1472,7 @@ export declare const PlaceOrderResult: z.ZodObject<{
                     }[];
                 }[];
             }[];
+            outletName: string;
         }, {
             status: "pending_payment" | "submitted" | "rejected" | "cancelled" | "in_progress" | "acknowledged" | "ready" | "delivered" | "completed" | "payment_failed";
             id: string;
@@ -1487,7 +1487,6 @@ export declare const PlaceOrderResult: z.ZodObject<{
             taxRwf: number;
             paymentMethod: string | null;
             context: "in_house_folio" | "pay_now";
-            outletName: string;
             lines: {
                 name: string;
                 quantity: number;
@@ -1501,24 +1500,25 @@ export declare const PlaceOrderResult: z.ZodObject<{
                     }[];
                 }[];
             }[];
+            outletName: string;
         }>;
         failureReason: z.ZodNullable<z.ZodString>;
     }, "order">, "strip", z.ZodTypeAny, {
         amountRwf: number | null;
         failureReason: string | null;
-        state: "expired" | "confirmed" | "prompting" | "refused";
+        state: "expired" | "refused" | "confirmed" | "prompting";
+        expiresAt: string;
         network: "mtn_momo" | "airtel_money" | null;
         attemptToken: string;
         payerMasked: string | null;
-        expiresAt: string;
     }, {
         amountRwf: number | null;
         failureReason: string | null;
-        state: "expired" | "confirmed" | "prompting" | "refused";
+        state: "expired" | "refused" | "confirmed" | "prompting";
+        expiresAt: string;
         network: "mtn_momo" | "airtel_money" | null;
         attemptToken: string;
         payerMasked: string | null;
-        expiresAt: string;
     }>>;
 }, "strip", z.ZodTypeAny, {
     status: "pending_payment" | "submitted" | "rejected" | "cancelled" | "in_progress" | "acknowledged" | "ready" | "delivered" | "completed" | "payment_failed";
@@ -1528,11 +1528,11 @@ export declare const PlaceOrderResult: z.ZodObject<{
     attempt: {
         amountRwf: number | null;
         failureReason: string | null;
-        state: "expired" | "confirmed" | "prompting" | "refused";
+        state: "expired" | "refused" | "confirmed" | "prompting";
+        expiresAt: string;
         network: "mtn_momo" | "airtel_money" | null;
         attemptToken: string;
         payerMasked: string | null;
-        expiresAt: string;
     } | null;
     cancellable: boolean;
     totalRwf: number;
@@ -1543,7 +1543,6 @@ export declare const PlaceOrderResult: z.ZodObject<{
     taxRwf: number;
     paymentMethod: string | null;
     context: "in_house_folio" | "pay_now";
-    outletName: string;
     lines: {
         name: string;
         quantity: number;
@@ -1557,6 +1556,7 @@ export declare const PlaceOrderResult: z.ZodObject<{
             }[];
         }[];
     }[];
+    outletName: string;
 }, {
     status: "pending_payment" | "submitted" | "rejected" | "cancelled" | "in_progress" | "acknowledged" | "ready" | "delivered" | "completed" | "payment_failed";
     id: string;
@@ -1565,11 +1565,11 @@ export declare const PlaceOrderResult: z.ZodObject<{
     attempt: {
         amountRwf: number | null;
         failureReason: string | null;
-        state: "expired" | "confirmed" | "prompting" | "refused";
+        state: "expired" | "refused" | "confirmed" | "prompting";
+        expiresAt: string;
         network: "mtn_momo" | "airtel_money" | null;
         attemptToken: string;
         payerMasked: string | null;
-        expiresAt: string;
     } | null;
     cancellable: boolean;
     totalRwf: number;
@@ -1580,7 +1580,6 @@ export declare const PlaceOrderResult: z.ZodObject<{
     taxRwf: number;
     paymentMethod: string | null;
     context: "in_house_folio" | "pay_now";
-    outletName: string;
     lines: {
         name: string;
         quantity: number;
@@ -1594,6 +1593,7 @@ export declare const PlaceOrderResult: z.ZodObject<{
             }[];
         }[];
     }[];
+    outletName: string;
 }>;
 export type PlaceOrderResult = z.infer<typeof PlaceOrderResult>;
 export declare const GuestOrderList: z.ZodObject<{
@@ -1686,7 +1686,6 @@ export declare const GuestOrderList: z.ZodObject<{
         taxRwf: number;
         paymentMethod: string | null;
         context: "in_house_folio" | "pay_now";
-        outletName: string;
         lines: {
             name: string;
             quantity: number;
@@ -1700,6 +1699,7 @@ export declare const GuestOrderList: z.ZodObject<{
                 }[];
             }[];
         }[];
+        outletName: string;
     }, {
         status: "pending_payment" | "submitted" | "rejected" | "cancelled" | "in_progress" | "acknowledged" | "ready" | "delivered" | "completed" | "payment_failed";
         id: string;
@@ -1714,7 +1714,6 @@ export declare const GuestOrderList: z.ZodObject<{
         taxRwf: number;
         paymentMethod: string | null;
         context: "in_house_folio" | "pay_now";
-        outletName: string;
         lines: {
             name: string;
             quantity: number;
@@ -1728,6 +1727,7 @@ export declare const GuestOrderList: z.ZodObject<{
                 }[];
             }[];
         }[];
+        outletName: string;
     }>, "many">;
 }, "strip", z.ZodTypeAny, {
     orders: {
@@ -1744,7 +1744,6 @@ export declare const GuestOrderList: z.ZodObject<{
         taxRwf: number;
         paymentMethod: string | null;
         context: "in_house_folio" | "pay_now";
-        outletName: string;
         lines: {
             name: string;
             quantity: number;
@@ -1758,6 +1757,7 @@ export declare const GuestOrderList: z.ZodObject<{
                 }[];
             }[];
         }[];
+        outletName: string;
     }[];
 }, {
     orders: {
@@ -1774,7 +1774,6 @@ export declare const GuestOrderList: z.ZodObject<{
         taxRwf: number;
         paymentMethod: string | null;
         context: "in_house_folio" | "pay_now";
-        outletName: string;
         lines: {
             name: string;
             quantity: number;
@@ -1788,6 +1787,7 @@ export declare const GuestOrderList: z.ZodObject<{
                 }[];
             }[];
         }[];
+        outletName: string;
     }[];
 }>;
 export type GuestOrderList = z.infer<typeof GuestOrderList>;
@@ -1907,7 +1907,6 @@ export declare const GuestOrderDetail: z.ZodObject<{
     taxRwf: number;
     paymentMethod: string | null;
     context: "in_house_folio" | "pay_now";
-    outletName: string;
     lines: {
         name: string;
         quantity: number;
@@ -1921,6 +1920,7 @@ export declare const GuestOrderDetail: z.ZodObject<{
             }[];
         }[];
     }[];
+    outletName: string;
 }, {
     status: "pending_payment" | "submitted" | "rejected" | "cancelled" | "in_progress" | "acknowledged" | "ready" | "delivered" | "completed" | "payment_failed";
     id: string;
@@ -1939,7 +1939,6 @@ export declare const GuestOrderDetail: z.ZodObject<{
     taxRwf: number;
     paymentMethod: string | null;
     context: "in_house_folio" | "pay_now";
-    outletName: string;
     lines: {
         name: string;
         quantity: number;
@@ -1953,6 +1952,7 @@ export declare const GuestOrderDetail: z.ZodObject<{
             }[];
         }[];
     }[];
+    outletName: string;
 }>;
 export type GuestOrderDetail = z.infer<typeof GuestOrderDetail>;
 //# sourceMappingURL=ordering.d.ts.map
