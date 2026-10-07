@@ -45,7 +45,12 @@ interface Computation {
 }
 
 /**
- * Pay runs (ADR-058; 058-payroll in full). Every route needs `payroll.run`.
+ * Pay runs (ADR-058; 058-payroll in full). Drafting (list, create, read,
+ * recompute, hold) admits `payroll.draft` or `payroll.run`; the confirm and
+ * what it produces are `payroll.run`'s alone (ADR-069 D-e). The routes declare
+ * it, and nothing here reads a sensitive field into what a run answers: a
+ * payslip carries wages and lines, never an ID number, RSSB number or pay
+ * account, which only the confirm's snapshot holds (read through the PDF).
  *
  * A draft is only a preview. Confirming computes the run AGAIN inside its own
  * transaction, under the run's row lock, and freezes what it computed, because

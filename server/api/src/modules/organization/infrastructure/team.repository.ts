@@ -1,3 +1,4 @@
+import type { OrgRole } from '@injishi/contracts';
 import { Inject, Injectable } from '@nestjs/common';
 import { and, asc, eq, inArray } from 'drizzle-orm';
 
@@ -17,7 +18,7 @@ export interface TeamMemberRow {
   userId: string;
   name: string | null;
   email: string | null;
-  orgRole: 'owner' | 'manager' | 'receptionist' | 'housekeeper';
+  orgRole: OrgRole;
   status: string;
   joinedAt: Date;
   /** Null: every branch. An owner is always null (ADR-054 invariant 5). */

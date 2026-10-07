@@ -28,8 +28,11 @@ import { RolePermissionsRepository } from '../infrastructure/role-permissions.re
 /**
  * What each staff role may do AT THIS BUSINESS (ADR-055).
  *
- * The four roles were the whole model: what the platform means by
- * "receptionist", the same in every hotel in the country. Two real properties
+ * The default roles were the whole model: what the platform means by
+ * "receptionist", the same in every hotel in the country. There are six since
+ * ADR-069 added `finance` and `hr`, and every one but `owner` is listed
+ * and edited here the same way: nothing below names a role, so a role the
+ * model gains is customisable the day it lands. Two real properties
  * never agree with that — one lets the front desk read the month's takings,
  * another will not let a manager withdraw a signed receipt — so a business may
  * now move a permission on or off any of its own staff roles, and the platform's
@@ -198,7 +201,7 @@ export class RolePermissionsService {
       permissions: effectivePermissionsForRole(role, overrides),
       // Locked applies to a customisable role only. The owner's row is read
       // only in its entirety, so singling out one permission there would say
-      // something untrue about the other twenty six.
+      // something untrue about every other permission it holds.
       lockedPermissions: isCustomisableOrgRole(role)
         ? [...LOCKED_PERMISSIONS]
         : [],

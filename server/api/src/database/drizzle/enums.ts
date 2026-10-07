@@ -26,6 +26,12 @@ export const orgRoleEnum = pgEnum('org_role', [
   'owner',
   'manager',
   'receptionist',
+  // ADR-069 D-a: the accountant and the HR officer, each with a default set of
+  // its own rather than a manager's. Migration 0063 adds both `BEFORE
+  // 'housekeeper'`, so the database lists the roles in the order
+  // `@injishi/contracts` does.
+  'finance',
+  'hr',
   // Spec 0002 (D-b): the operator app has always shipped a housekeeper role
   // driving its own surface (the housekeeping phone, not a desktop), while this
   // enum stopped at `receptionist`. Promoting the database closes that drift.

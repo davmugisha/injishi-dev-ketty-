@@ -17,6 +17,11 @@ export type FileView = 'basic' | 'full';
  * Only `people.manage` and `payroll.run` see date of birth, ID, RSSB number
  * and wages. Read from the grant `WorkspaceGuard` resolved, so an ADR-055
  * override moves it like any other permission.
+ *
+ * `payroll.draft` is deliberately NOT here (ADR-069 D-e). A drafter sees the
+ * wages a pay run computes, on the run, and reads a file in the basic view
+ * only when they also hold `people.view`: never an ID number, a date of birth,
+ * an RSSB number or a pay account.
  */
 export function fileViewFor(ws: Pick<ScopedWorkspace, 'permissions'>): FileView {
   return ws.permissions.includes('people.manage') || ws.permissions.includes('payroll.run')

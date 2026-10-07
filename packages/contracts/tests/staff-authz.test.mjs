@@ -234,8 +234,10 @@ const UNENFORCED = [
   // later slice. `guest-ordering.service.ts` names it as the power that route will
   // require.
   "ebm.refund",
-  // ADR-069 D-e: its draft routes land with ADR-069's API leaf, which removes it.
-  "payroll.draft",
+  // `payroll.draft` left this list when its draft routes declared it (ADR-069
+  // D-e): `@RequireAnyPermission('payroll.draft', 'payroll.run')` on the pay
+  // run's list, create, read, recompute and hold, the payroll dashboard and the
+  // national rules.
 ];
 
 describe("the unenforced permissions", () => {
