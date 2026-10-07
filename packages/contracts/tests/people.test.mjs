@@ -22,19 +22,31 @@ const HR = [
   "attendance.record",
   "attendance.approve",
   "leave.approve",
+  // ADR-069 D-e split the pay run: `payroll.draft` prepares, `payroll.run` confirms.
+  "payroll.draft",
   "payroll.run",
 ];
 
-/** Contract 4's table, row by row. */
+/** Contract 4's table, row by row, with ADR-069 D-b's two roles beside it. */
 const DEFAULTS = {
   owner: HR,
   manager: ["people.view", "roster.manage", "attendance.record", "attendance.approve", "leave.approve"],
   receptionist: ["attendance.record"],
+  finance: [],
+  hr: [
+    "people.view",
+    "people.manage",
+    "roster.manage",
+    "attendance.record",
+    "attendance.approve",
+    "leave.approve",
+    "payroll.draft",
+  ],
   housekeeper: [],
 };
 
-describe("the seven HR permissions (AC-U6)", () => {
-  test("all seven exist, each labelled, each in the people area", () => {
+describe("the eight HR permissions (AC-U6, ADR-069 D-e)", () => {
+  test("all eight exist, each labelled, each in the people area", () => {
     for (const p of HR) {
       assert.ok(c.Permission.options.includes(p), `${p} is a permission`);
       assert.ok(c.PERMISSION_LABEL[p].length > 0, `${p} has a label`);
@@ -50,7 +62,7 @@ describe("the seven HR permissions (AC-U6)", () => {
   }
 
   test("an owner may grant every HR permission to a manager, one by one", () => {
-    for (const p of ["people.manage", "payroll.run"]) {
+    for (const p of ["people.manage", "payroll.draft", "payroll.run"]) {
       const held = c.effectivePermissionsForRole("manager", [
         { orgRole: "manager", permission: p, granted: true },
       ]);
@@ -65,12 +77,13 @@ describe("the seven HR permissions (AC-U6)", () => {
     assert.equal(held.includes("attendance.record"), false);
   });
 
-  test("none of the seven is locked; team.manage stays the only one", () => {
+  test("none of the eight is locked; team.manage stays the only one", () => {
     for (const p of HR) assert.equal(c.isLockedPermission(p), false, p);
     assert.deepEqual(c.LOCKED_PERMISSIONS, ["team.manage"]);
   });
 
-  test("HR_PERMISSIONS is the seven, the one list the nav and the routes share (058-people-file)", () => {
+  test("HR_PERMISSIONS is the eight, the one list the nav and the routes share (058-people-file)", () => {
+    // ADR-069 D-e: a grant holding `payroll.draft` alone opens Staff too.
     assert.deepEqual([...c.HR_PERMISSIONS], HR);
     // The people area also holds the two that decide who works here; neither is an HR read.
     for (const p of ["team.manage", "department.manage"]) assert.equal(c.HR_PERMISSIONS.includes(p), false, p);

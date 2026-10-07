@@ -62,6 +62,10 @@ export function seatRoleKey(
       return 'role.manager';
     case 'receptionist':
       return 'role.receptionist';
+    case 'finance':
+      return 'role.finance';
+    case 'hr':
+      return 'role.hr';
     case 'housekeeper':
       return 'role.housekeeper';
     default:
