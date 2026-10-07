@@ -22,9 +22,10 @@ const IsoDate = zod_1.z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "A date is YYYY-MM
 const PhoneInput = zod_1.z.string().trim().min(9, "Enter a phone number.").max(20);
 const ObjectKey = zod_1.z.string().min(3).max(300);
 /**
- * Every HR permission (ADR-058). Any one of them opens the Staff leaf and reads
- * what the whole business shares: its policies, staff announcements, HR catalogs
- * and HR settings. One list, so the app's nav and the API's routes cannot drift.
+ * Every HR permission (ADR-058, and ADR-069 D-e's `payroll.draft`). Any one of
+ * them opens the Staff leaf and reads what the whole business shares: its
+ * policies, staff announcements, HR catalogs and HR settings. One list, so the
+ * app's nav and the API's routes cannot drift.
  */
 exports.HR_PERMISSIONS = [
     "people.view",
@@ -33,6 +34,7 @@ exports.HR_PERMISSIONS = [
     "attendance.record",
     "attendance.approve",
     "leave.approve",
+    "payroll.draft",
     "payroll.run",
 ];
 // ---------------------------------------------------------------------------

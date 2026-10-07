@@ -436,7 +436,8 @@ exports.LIST_READ = {
     "staff.roster": ["roster.manage", "attendance.record", "people.view"],
     "staff.attendance": ["attendance.record", "attendance.approve"],
     "staff.leave-requests": ["leave.approve"],
-    "staff.pay-runs": ["payroll.run"],
+    // ADR-069 D-e: the pay-run list is a draft route, so a drafter reads it too.
+    "staff.pay-runs": ["payroll.draft", "payroll.run"],
     // 058-time: shift requests are the roster's; attendance requests are decided by attendance.approve.
     "staff.shift-requests": ["roster.manage"],
     "staff.attendance-requests": ["attendance.approve"],

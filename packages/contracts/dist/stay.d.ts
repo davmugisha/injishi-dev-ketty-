@@ -322,7 +322,7 @@ export declare const StayDepartment: z.ZodObject<{
     phone: string | null;
     lastMessageAt: string | null;
     threadId: string | null;
-    departmentCategory: "rooms" | "fnb" | "spa_recreation" | "other_operated" | "misc_income" | "admin_general" | "sales_marketing" | "it" | "engineering" | "utilities" | "hr";
+    departmentCategory: "hr" | "rooms" | "fnb" | "spa_recreation" | "other_operated" | "misc_income" | "admin_general" | "sales_marketing" | "it" | "engineering" | "utilities";
     unreadCount: number;
 }, {
     name: string;
@@ -330,7 +330,7 @@ export declare const StayDepartment: z.ZodObject<{
     phone: string | null;
     lastMessageAt: string | null;
     threadId: string | null;
-    departmentCategory: "rooms" | "fnb" | "spa_recreation" | "other_operated" | "misc_income" | "admin_general" | "sales_marketing" | "it" | "engineering" | "utilities" | "hr";
+    departmentCategory: "hr" | "rooms" | "fnb" | "spa_recreation" | "other_operated" | "misc_income" | "admin_general" | "sales_marketing" | "it" | "engineering" | "utilities";
     unreadCount: number;
 }>;
 export type StayDepartment = z.infer<typeof StayDepartment>;
@@ -352,7 +352,7 @@ export declare const StayDepartments: z.ZodObject<{
         phone: string | null;
         lastMessageAt: string | null;
         threadId: string | null;
-        departmentCategory: "rooms" | "fnb" | "spa_recreation" | "other_operated" | "misc_income" | "admin_general" | "sales_marketing" | "it" | "engineering" | "utilities" | "hr";
+        departmentCategory: "hr" | "rooms" | "fnb" | "spa_recreation" | "other_operated" | "misc_income" | "admin_general" | "sales_marketing" | "it" | "engineering" | "utilities";
         unreadCount: number;
     }, {
         name: string;
@@ -360,7 +360,7 @@ export declare const StayDepartments: z.ZodObject<{
         phone: string | null;
         lastMessageAt: string | null;
         threadId: string | null;
-        departmentCategory: "rooms" | "fnb" | "spa_recreation" | "other_operated" | "misc_income" | "admin_general" | "sales_marketing" | "it" | "engineering" | "utilities" | "hr";
+        departmentCategory: "hr" | "rooms" | "fnb" | "spa_recreation" | "other_operated" | "misc_income" | "admin_general" | "sales_marketing" | "it" | "engineering" | "utilities";
         unreadCount: number;
     }>, "many">;
 }, "strip", z.ZodTypeAny, {
@@ -371,7 +371,7 @@ export declare const StayDepartments: z.ZodObject<{
         phone: string | null;
         lastMessageAt: string | null;
         threadId: string | null;
-        departmentCategory: "rooms" | "fnb" | "spa_recreation" | "other_operated" | "misc_income" | "admin_general" | "sales_marketing" | "it" | "engineering" | "utilities" | "hr";
+        departmentCategory: "hr" | "rooms" | "fnb" | "spa_recreation" | "other_operated" | "misc_income" | "admin_general" | "sales_marketing" | "it" | "engineering" | "utilities";
         unreadCount: number;
     }[];
 }, {
@@ -382,7 +382,7 @@ export declare const StayDepartments: z.ZodObject<{
         phone: string | null;
         lastMessageAt: string | null;
         threadId: string | null;
-        departmentCategory: "rooms" | "fnb" | "spa_recreation" | "other_operated" | "misc_income" | "admin_general" | "sales_marketing" | "it" | "engineering" | "utilities" | "hr";
+        departmentCategory: "hr" | "rooms" | "fnb" | "spa_recreation" | "other_operated" | "misc_income" | "admin_general" | "sales_marketing" | "it" | "engineering" | "utilities";
         unreadCount: number;
     }[];
 }>;
