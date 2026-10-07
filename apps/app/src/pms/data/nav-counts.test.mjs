@@ -32,20 +32,50 @@ async function load() {
 
 const { navCountsFrom } = await load();
 
+const TODAY = "2026-10-07";
+
 describe("navCountsFrom", () => {
-  test("counts pending requests and rooms needing a clean", () => {
+  test("counts pending requests, arrivals still to check in, and rooms needing a clean", () => {
     const counts = navCountsFrom(
-      { reservations: [{ state: "pending" }, { state: "confirmed" }, { state: "pending" }, { state: "inhouse" }] },
+      {
+        reservations: [
+          { state: "pending", checkIn: TODAY },
+          { state: "confirmed", checkIn: TODAY },
+          { state: "pending", checkIn: "2026-10-09" },
+          { state: "inhouse", checkIn: TODAY },
+          { state: "confirmed", checkIn: TODAY },
+          { state: "confirmed", checkIn: "2026-10-08" },
+        ],
+      },
       { rooms: [{ housekeeping: "dirty" }, { housekeeping: "clean" }, { housekeeping: "inspected" }, { housekeeping: "dirty" }] },
+      TODAY,
     );
-    assert.deepEqual(counts, { pendingReservations: 2, housekeepingOpen: 2 });
+    assert.deepEqual(counts, { pendingReservations: 2, arrivalsToCheckIn: 2, housekeepingOpen: 2 });
+  });
+
+  test("a guest already checked in is not an arrival to check in", () => {
+    const counts = navCountsFrom({ reservations: [{ state: "inhouse", checkIn: TODAY }] }, undefined, TODAY);
+    assert.equal(counts.arrivalsToCheckIn, 0);
+  });
+
+  test("tomorrow's arrival is not today's", () => {
+    const counts = navCountsFrom({ reservations: [{ state: "confirmed", checkIn: "2026-10-08" }] }, undefined, TODAY);
+    assert.equal(counts.arrivalsToCheckIn, 0);
   });
 
   test("a read that has not answered is null, not zero", () => {
-    assert.deepEqual(navCountsFrom(undefined, undefined), { pendingReservations: null, housekeepingOpen: null });
+    assert.deepEqual(navCountsFrom(undefined, undefined, TODAY), {
+      pendingReservations: null,
+      arrivalsToCheckIn: null,
+      housekeepingOpen: null,
+    });
   });
 
   test("an answered read with nothing in it is a real zero", () => {
-    assert.deepEqual(navCountsFrom({ reservations: [] }, { rooms: [] }), { pendingReservations: 0, housekeepingOpen: 0 });
+    assert.deepEqual(navCountsFrom({ reservations: [] }, { rooms: [] }, TODAY), {
+      pendingReservations: 0,
+      arrivalsToCheckIn: 0,
+      housekeepingOpen: 0,
+    });
   });
 });

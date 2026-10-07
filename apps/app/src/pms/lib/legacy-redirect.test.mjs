@@ -40,7 +40,7 @@ async function load() {
   return import(`data:text/javascript;base64,${Buffer.from(outputText).toString("base64")}`);
 }
 
-const { legacyScreenPath, WORKSPACE_ROUTES } = await load();
+const { legacyScreenPath, WORKSPACE_ROUTES, MOVED_IN_WORKSPACE } = await load();
 
 /** Every page under the workspace segment, as `a/*\/b` patterns. */
 function routesOnDisk() {
@@ -87,13 +87,24 @@ describe("legacyScreenPath", () => {
     ["landlord", ["tenant-messages"], "/inbox"],
     ["host", ["cleaning"], "/housekeeping"],
     ["host", ["tickets"], "/maintenance"],
-    ["host", ["team"], "/people"],
+    // Team & Departments went to Settings › Team & roles (2026-10-07).
+    ["host", ["team"], "/people/roles"],
     ["landlord", ["plan"], "/settings/plan"],
     // `directory` meant opposite jobs per kind.
     ["landlord", ["directory"], "/listing"],
     ["broker", ["directory"], "/directory"],
     // Unchanged names pass through, records and lenses included.
-    ["host", ["today"], "/today"],
+    // Today became the Dashboard (the Navigation board's renames).
+    ["host", ["today"], "/dashboard"],
+    ["host", ["inbox"], "/inbox"],
+    ["host", ["inventory", "rate-plans"], "/inventory/rate-plans"],
+    ["host", ["staff", "payroll"], "/staff/payroll"],
+    ["host", ["rooms"], "/rooms"],
+    ["host", ["maintenance"], "/maintenance"],
+    ["host", ["people", "departments"], "/people/departments"],
+    // The destinations that are new in 2026-10-07 resolve as themselves.
+    ["host", ["front-desk"], "/front-desk"],
+    ["host", ["night-audit"], "/night-audit"],
     ["host", ["reservations", "r-9", "payment"], "/reservations/r-9/payment"],
     ["landlord", ["leases", "l-2", "filing"], "/leases/l-2/filing"],
     ["broker", ["earnings"], "/earnings"],
@@ -130,6 +141,22 @@ describe("legacyScreenPath", () => {
           pattern.every((part, i) => part === "*" || part === segments[i]);
       });
       assert.ok(real, `${path} is not a route`);
+    }
+  });
+});
+
+describe("MOVED_IN_WORKSPACE", () => {
+  // An old address inside a workspace keeps its page; the nav lights the
+  // destination that absorbed it (`home.test.mjs` holds the nav to the table).
+  test("every moved address is still a route, so a bookmark still opens", () => {
+    for (const old of Object.keys(MOVED_IN_WORKSPACE)) {
+      assert.ok(WORKSPACE_ROUTES.includes(old), `/w/<id>/${old} is no longer a route`);
+    }
+  });
+
+  test("the old addresses the navigation moved are all accounted for", () => {
+    for (const old of ["today", "inbox", "inventory", "staff", "people/roles", "people/departments", "rooms", "maintenance", "setup", "psf-membership"]) {
+      assert.ok(MOVED_IN_WORKSPACE[old], `${old} has no recorded destination`);
     }
   });
 });
