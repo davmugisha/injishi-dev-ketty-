@@ -23,9 +23,10 @@
  *
  * ## HeroUI's look (ADR-064)
  *
- * Every button is a pill, and **primary is teal**: `domainHospitality` with
- * `textOnBrand`, the near-ink the accent carries at 5.7:1 (white on it is
- * 3.10:1). The ink `action` fill this used to draw appears on no button now.
+ * Every button is a pill, and **primary is the accent**: `domainHospitality`
+ * with `textOnBrand`. Under ADR-068 that is the design system's green carrying
+ * snow at 4.63:1 (under ADR-064's teal it was near-ink at 5.7:1). The ink
+ * `action` fill this used to draw appears on no button now.
  * Heights are HeroUI's 40, 48 and 56, and they are MINIMUMS: a label wraps
  * rather than being cut, so the largest system text grows the button instead
  * of clipping it (audit XC-03). There is deliberately no line clamp: frame W8
@@ -43,7 +44,10 @@
  * Drawn on `PressableScale`, which owns the whole decision (feedback on
  * press-in, commit on press-out; reduced motion drops the travel and keeps the
  * tone). This passes it the label's colour as the highlight, so a pressed
- * button darkens toward its own ink, as HeroUI's pressed fill does.
+ * button moves toward its own ink, as HeroUI's pressed fill does, EXCEPT where
+ * the label is lighter than the fill (primary and danger): there the press
+ * would lighten the fill under a light label, so it darkens toward `pressInk`
+ * instead (`PAINT.press`, ADR-068).
  *
  * **`haptic` defaults to on for `primary` and `danger` and off elsewhere.**
  * Session 7 built `screens/tenant/haptics.ts` to fire the buzz from its own
@@ -86,16 +90,25 @@ const LABEL: Record<Size, 'sm' | 'md' | 'lg'> = { sm: 'sm', md: 'md', lg: 'lg' }
 /**
  * What each variant paints, as palette KEYS (AC-1, AC-3). Keys rather than
  * colours, because the label key is also the press highlight's colour.
+ *
+ * `press` overrides that highlight where the label is LIGHTER than its fill.
+ * Drawn in the label's own snow, a press lightens the green or red under it
+ * (snow on the pressed accent measures 3.91:1, against 4.63:1 at rest), so
+ * those two press toward `pressInk` instead: 5.24:1 and 5.32:1 at worst
+ * (ADR-068, the owner's call of 2026-10-07).
  */
-const PAINT: Record<Variant, { fill: keyof Palette | 'none'; ink: keyof Palette; edge?: keyof Palette }> = {
-  primary: { fill: 'domainHospitality', ink: 'textOnBrand' },
+const PAINT: Record<
+  Variant,
+  { fill: keyof Palette | 'none'; ink: keyof Palette; edge?: keyof Palette; press?: keyof Palette }
+> = {
+  primary: { fill: 'domainHospitality', ink: 'textOnBrand', press: 'pressInk' },
   secondary: { fill: 'surface3', ink: 'textLink' },
   outline: { fill: 'none', ink: 'textBody', edge: 'borderDefault' },
   ghost: { fill: 'none', ink: 'textBody' },
   // `textOnDanger` is near-white and DERIVED, not a literal: the danger fill
   // sits at L 58 precisely so it can carry it (ADR-025 #2), and
   // `derive-palette.mjs` measures the pair at 4.66:1 on every run.
-  danger: { fill: 'danger500', ink: 'textOnDanger' },
+  danger: { fill: 'danger500', ink: 'textOnDanger', press: 'pressInk' },
 };
 
 /** The two that commit something. See the header on why the rest stay quiet. */
@@ -179,7 +192,7 @@ export function Button({
       disabled={disabled}
       busy={pending}
       haptic={haptic ?? HAPTIC_BY_DEFAULT.includes(variant)}
-      highlight={paint.ink}
+      highlight={paint.press ?? paint.ink}
       filled={paint.fill !== 'none'}
       // md and lg draw at or above the 44pt floor; sm draws 40 and the hit
       // area makes up the difference without changing the visual scale.

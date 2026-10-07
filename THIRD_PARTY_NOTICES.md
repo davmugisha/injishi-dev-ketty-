@@ -31,3 +31,13 @@ Project Authors (https://github.com/erikdkennedy/figtree), licensed under the
 SIL Open Font License, version 1.1. The font files are carried unmodified, as
 base64, in `server/api/src/modules/people/infrastructure/fonts/`, beside the
 licence text (`OFL.txt`); each PDF embeds only the glyphs its payslips use.
+
+## Inter: the product typeface
+
+`Inter-Variable.woff2` in `apps/web/public/shared/fonts/`,
+`apps/app/public/shared/fonts/` and `apps/admin/src/fonts/` is a subset of
+`InterVariable.woff2` from rsms/inter v4.1, Copyright (c) 2016 The Inter
+Project Authors, licensed under the SIL Open Font License, version 1.1. The
+subset keeps Latin through Latin Extended-B and pins the optical size axis;
+it is otherwise the upstream face, and it keeps the font's own name. The
+licence text sits beside each copy as `Inter-LICENSE.txt`.

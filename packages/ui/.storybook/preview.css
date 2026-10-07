@@ -35,21 +35,21 @@
  * `_injishi-public.css` exactly, reading the same binaries through the
  * `staticDirs` entry in main.ts. */
 @font-face {
-  font-family: "Figtree";
-  src: url("/fonts/Figtree-Variable.woff2") format("woff2");
+  font-family: "Inter";
+  src: url("/fonts/Inter-Variable.woff2") format("woff2");
   font-weight: 300 900;
   font-style: normal;
   font-display: swap;
 }
 
 :root {
-  --font-figtree: "Figtree";
+  --font-inter: "Inter";
 }
 
 @theme inline {
-  --font-sans: var(--font-figtree), ui-sans-serif, system-ui, sans-serif;
-  /* One family since 2026-10-06, as in every app: the display role is Figtree. */
-  --font-display: var(--font-figtree), ui-sans-serif, system-ui, sans-serif;
+  --font-sans: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
+  /* One family since 2026-10-06, as in every app: the display role is Inter (ADR-068). */
+  --font-display: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
 }
 
 body {

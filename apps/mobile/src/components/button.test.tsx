@@ -95,7 +95,7 @@ describe.each(SCHEMES)('Button in the %s scheme', (scheme) => {
     expect(onPress).not.toHaveBeenCalled();
   });
 
-  it('paints primary teal with its near-ink label, never the ink action fill (ADR-064 AC-1)', () => {
+  it('paints primary with the accent and its own label, never the ink action fill (ADR-064 AC-1)', () => {
     renderInScheme(<Button>Continue</Button>, scheme);
     expect(fillBehind('Continue')).toBe(c.domainHospitality);
     expect(flattenStyle(screen.getByText('Continue').props.style).color).toBe(c.textOnBrand);
@@ -108,6 +108,17 @@ describe.each(SCHEMES)('Button in the %s scheme', (scheme) => {
     renderInScheme(<Button variant={variant}>Go</Button>, scheme);
     expect(fillBehind('Go')).toBe(c[fill]);
     expect(flattenStyle(screen.getByText('Go').props.style).color).toBe(c[ink]);
+  });
+
+  it.each([
+    ['primary', 'pressInk'],
+    ['danger', 'pressInk'],
+    ['secondary', 'textLink'],
+    ['ghost', 'textBody'],
+  ] as const)('presses %s toward %s, never lightening a fill under a light label (ADR-068)', (variant, highlight) => {
+    renderInScheme(<Button variant={variant}>Go</Button>, scheme);
+    const glow = flattenStyle(screen.UNSAFE_getAllByProps({ pointerEvents: 'none' })[0].props.style);
+    expect(glow.backgroundColor).toBe(c[highlight]);
   });
 
   it('draws outline with no fill and a hairline borderDefault edge (ADR-064 AC-3)', () => {
