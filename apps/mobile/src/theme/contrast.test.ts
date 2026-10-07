@@ -148,36 +148,59 @@ describe.each(SCHEMES)('%s scheme', (scheme) => {
   });
 });
 
-describe('the pressed primary button (ADR-064 AC-17)', () => {
+describe('the pressed primary and danger buttons (ADR-064 AC-17)', () => {
   /**
-   * A pressed button draws its own label colour over its fill at 10%
-   * (`kitMetrics.press.highlightFilled`, AC-5), which darkens the teal toward
-   * the near-ink on it. The label has to stay readable while the finger is
-   * down, so the pair is measured on the darkened ground, not the resting one.
-   * About 4.8:1 in both schemes, against 5.7:1 at rest.
+   * A pressed button draws a highlight over its fill at 10%
+   * (`kitMetrics.press.highlightFilled`, AC-5). The label has to stay readable
+   * while the finger is down, so the pair is measured on the pressed ground,
+   * not the resting one.
+   *
+   * Under ADR-064's teal the highlight was the near-ink label itself, which
+   * darkened the fill. Under ADR-068 both labels here are snow, and snow over
+   * the fill LIGHTENS it: 3.91:1 on the accent. So `Button` presses these two
+   * toward `pressInk` instead (`PAINT.press`, which `button.test.tsx` pins),
+   * and that is the highlight measured here: about 5.2:1, against 4.63:1 and
+   * 4.59:1 at rest.
    */
-  it.each(SCHEMES)('keeps textOnBrand above 4.5:1 on teal under its highlight in %s', (scheme) => {
+  const alpha = Math.round(kitMetrics.press.highlightFilled * 255)
+    .toString(16)
+    .padStart(2, '0');
+
+  it.each(SCHEMES)('keeps textOnBrand above 4.5:1 on the pressed accent in %s', (scheme) => {
     const p = palettes[scheme];
-    const alpha = Math.round(kitMetrics.press.highlightFilled * 255)
-      .toString(16)
-      .padStart(2, '0');
-    const pressed = composite(p.textOnBrand + alpha, p.domainHospitality);
+    const pressed = composite(p.pressInk + alpha, p.domainHospitality);
     expect(contrast(p.textOnBrand, pressed)).toBeGreaterThanOrEqual(4.5);
+  });
+
+  it.each(SCHEMES)('keeps textOnDanger above 4.5:1 on the pressed danger fill in %s', (scheme) => {
+    const p = palettes[scheme];
+    const pressed = composite(p.pressInk + alpha, p.danger500);
+    expect(contrast(p.textOnDanger, pressed)).toBeGreaterThanOrEqual(4.5);
+  });
+
+  it.each(SCHEMES)('would fail with the label drawn as its own highlight in %s', (scheme) => {
+    // The control: what ADR-064 drew before ADR-068 turned the label light.
+    const p = palettes[scheme];
+    const pressed = composite(p.textOnBrand + alpha, p.domainHospitality);
+    expect(contrast(p.textOnBrand, pressed)).toBeLessThan(4.5);
   });
 });
 
 describe('the two pairs the audit found', () => {
   /**
-   * Asserted as failures rather than only fixed, so the reason this file exists
-   * cannot be deleted along with the memory of it. If somebody puts
-   * `textOnBrand` back on either ground, these say what happens.
+   * Under ADR-025's teal these two pairs FAILED: `textOnBrand` was near-ink, so
+   * on `action` it measured about 1:1 and on `brand500` 3.18:1. That is why
+   * the send glyph and the bubble moved off it, and they stay off it. ADR-068
+   * made the accent ink snow, so both pairs now read; they are pinned at the
+   * floor so the next palette that breaks them again fails here, by name,
+   * rather than on a screen.
    */
-  it('textOnBrand on action is invisible in light, which is why the send glyph moved', () => {
-    expect(contrast(palettes.light.textOnBrand, palettes.light.action)).toBeLessThan(1.1);
+  it('textOnBrand on action reads under ADR-068 (it was invisible under ADR-025)', () => {
+    expect(contrast(palettes.light.textOnBrand, palettes.light.action)).toBeGreaterThanOrEqual(4.5);
   });
 
-  it('textOnBrand on brand500 is under the floor in light, which is why the bubble moved', () => {
-    expect(contrast(palettes.light.textOnBrand, palettes.light.brand500)).toBeLessThan(4.5);
+  it('textOnBrand on brand500 clears the floor under ADR-068 (3.18:1 under ADR-025)', () => {
+    expect(contrast(palettes.light.textOnBrand, palettes.light.brand500)).toBeGreaterThanOrEqual(4.5);
   });
 
   /**

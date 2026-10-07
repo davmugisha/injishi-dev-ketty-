@@ -7,7 +7,6 @@
 @import "tailwindcss" source(none);
 @import "@injishi/ui/styles.css";
 @import "@heroui/styles";
-@import "@injishi/ui/pro.css"; /* HeroUI Pro, after HeroUI OSS, as Pro requires */
 
 @source "./(app)";
 @source "../components/app";
@@ -202,7 +201,7 @@
   --color-ramp-5: var(--ink-100);
   --color-ramp-6: var(--ink-50);
   /* The family is named through a variable with the literal as its
-     fallback. The (app) root layout sets --font-figtree from next/font/local
+     fallback. The (app) root layout sets --font-inter from next/font/local
      from next/font/local and ships no @font-face of its own, so every
      screen in the signed-in layer resolves to the self-hosted faces with no
      second request. The fallback literal is what the deleted
@@ -211,9 +210,9 @@
      safety net rather than a live path. Dropping the var() breaks the whole
      layer silently, back to Arial, because @theme inline writes this value
      verbatim into .font-sans and there is no --font-sans to override. */
-  --font-sans: var(--font-figtree, "Figtree"), ui-sans-serif, system-ui, sans-serif;
-  --font-display: var(--font-figtree, "Figtree"), ui-sans-serif, system-ui, sans-serif;
-  --font-mono: var(--font-figtree, "Figtree"), ui-sans-serif, system-ui, sans-serif;
+  --font-sans: var(--font-inter, "Inter"), ui-sans-serif, system-ui, sans-serif;
+  --font-display: var(--font-inter, "Inter"), ui-sans-serif, system-ui, sans-serif;
+  --font-mono: var(--font-inter, "Inter"), ui-sans-serif, system-ui, sans-serif;
   --radius-sm: calc(var(--radius) - 4px);
   --radius-md: calc(var(--radius) - 2px);
   --radius-lg: var(--radius);
@@ -231,7 +230,7 @@
   body {
     background-color: var(--background);
     color: var(--foreground);
-    font-family: "Figtree", ui-sans-serif, system-ui, sans-serif;
+    font-family: "Inter", ui-sans-serif, system-ui, sans-serif;
     -webkit-font-smoothing: antialiased;
   }
   :focus-visible {
@@ -286,8 +285,8 @@
   }
   .field::placeholder { color: var(--field-placeholder, var(--muted-foreground)); }
 
-  /* Money / numerics — Figtree with tabular figures (no mono family) */
-  .money { font-family: "Figtree", ui-sans-serif, system-ui, sans-serif; font-variant-numeric: tabular-nums; letter-spacing: -0.01em; }
+  /* Money / numerics — Inter with tabular figures (no mono family) */
+  .money { font-family: "Inter", ui-sans-serif, system-ui, sans-serif; font-variant-numeric: tabular-nums; letter-spacing: -0.01em; }
 }
 
 /* --- HeroUI palette, inlined from @injishi/design-tokens/heroui.css.
@@ -304,53 +303,75 @@
 [data-theme="light"],
 [data-theme="default"] {
   /* fixed - one value in both themes (ADR-010 call 2) */
-  --ink: oklch(21.03% 0.0059 208.00);
+  --ink: oklch(25.00% 0.0093 145.10);
   --white: #FFFFFF;
   --black: var(--ink);
-  --slate-line: oklch(51.50% 0.0199 208.00);
-  --surface-tint: oklch(95.24% 0.0080 208.00);
-  --canvas: oklch(97.02% 0.0100 208.00);
-  --control-wash: oklch(51.50% 0.0199 208.00);
-  --placeholder-dim: oklch(51.50% 0.0199 208.00);
-  --accent-ink: oklch(49.00% 0.1100 208.00);
+  --snow: oklch(99.11% 0 0);
+  --eclipse: oklch(25.00% 0.0093 145.10);
+  --slate-line: oklch(50.50% 0.0140 145.10);
+  --surface-tint: oklch(95.00% 0.0056 145.10);
+  --canvas: oklch(95.50% 0.0056 145.10);
+  --control-wash: oklch(50.50% 0.0140 145.10);
+  --placeholder-dim: oklch(50.50% 0.0140 145.10);
 
   /* HeroUI roles (light) */
-  --accent: oklch(65.00% 0.1100 208.00);
-  --accent-foreground: oklch(21.03% 0.0059 208.00);
-  --background: oklch(97.02% 0.0100 208.00);
-  --border: oklch(90.00% 0.0100 208.00);
-  --danger: oklch(58.00% 0.2374 20.24);
+  --accent: oklch(54.00% 0.1594 145.10);
+  --accent-foreground: oklch(99.11% 0 0);
+  --background: oklch(95.50% 0.0056 145.10);
+  --backdrop: oklch(50.00% 0.0187 145.10 / 0.4);
+  --border: oklch(88.00% 0.0070 145.10);
+  --danger: oklch(58.50% 0.2328 25.74);
   --danger-foreground: oklch(99.11% 0 0);
-  --default: oklch(94.00% 0.0100 208.00);
-  --default-foreground: oklch(21.03% 0.0059 208.00);
-  --field-background: oklch(100.00% 0.0050 208.00);
-  --field-border: transparent;
-  --field-foreground: oklch(21.03% 0.0100 208.00);
-  --field-placeholder: oklch(51.50% 0.0199 208.00);
-  --focus: oklch(59.00% 0.1100 208.00);
-  --foreground: oklch(21.03% 0.0100 208.00);
-  --muted: oklch(51.50% 0.0199 208.00);
-  --overlay: oklch(100.00% 0.0030 208.00);
-  --overlay-foreground: oklch(21.03% 0.0100 208.00);
-  --scrollbar: oklch(87.10% 0.0100 208.00);
-  --segment: oklch(100.00% 0.0100 208.00);
-  --segment-foreground: oklch(21.03% 0.0100 208.00);
-  --separator: oklch(92.00% 0.0100 208.00);
-  --success: oklch(73.29% 0.1974 145.31);
-  --success-foreground: oklch(21.03% 0.0059 145.31);
-  --surface: oklch(100.00% 0.0050 208.00);
-  --surface-foreground: oklch(21.03% 0.0100 208.00);
-  --surface-secondary: oklch(95.24% 0.0080 208.00);
-  --surface-secondary-foreground: oklch(21.03% 0.0100 208.00);
-  --surface-tertiary: oklch(93.73% 0.0080 208.00);
-  --surface-tertiary-foreground: oklch(21.03% 0.0100 208.00);
-  --warning: oklch(78.19% 0.1617 66.83);
-  --warning-foreground: oklch(21.03% 0.0059 66.83);
-  --accent-text: oklch(49.00% 0.1100 208.00);
-  --success-text: oklch(45.00% 0.1400 145.31);
-  --info: oklch(52.50% 0.1600 285.00);
-  --foreground-hover: oklch(32.00% 0.0100 208.00);
-  --field-outline: oklch(60.00% 0.0199 208.00);
+  --default: oklch(92.00% 0.0056 145.10);
+  --default-foreground: oklch(25.00% 0.0093 145.10);
+  --field-background: oklch(97.00% 0.0028 145.10);
+  --field-border: oklch(88.00% 0.0093 145.10);
+  --field-foreground: oklch(25.00% 0.0093 145.10);
+  --field-placeholder: oklch(50.50% 0.0140 145.10);
+  --focus: oklch(54.00% 0.1594 145.10);
+  --foreground: oklch(25.00% 0.0093 145.10);
+  --muted: oklch(50.50% 0.0140 145.10);
+  --overlay: oklch(97.50% 0.0037 145.10);
+  --overlay-foreground: oklch(25.00% 0.0093 145.10);
+  --scrollbar: oklch(82.00% 0.0093 145.10);
+  --segment: #FFFFFF;
+  --segment-foreground: oklch(25.00% 0.0093 145.10);
+  --separator: oklch(92.00% 0.0047 145.10);
+  --success: oklch(73.29% 0.1935 150.81);
+  --success-foreground: oklch(25.00% 0.0093 145.10);
+  --surface: oklch(97.50% 0.0037 145.10);
+  --surface-foreground: oklch(25.00% 0.0093 145.10);
+  --surface-secondary: oklch(95.00% 0.0056 145.10);
+  --surface-secondary-foreground: oklch(25.00% 0.0093 145.10);
+  --surface-tertiary: oklch(93.50% 0.0075 145.10);
+  --surface-tertiary-foreground: oklch(25.00% 0.0093 145.10);
+  --warning: oklch(78.19% 0.1585 72.33);
+  --warning-foreground: oklch(25.00% 0.0093 145.10);
+  --accent-text: oklch(49.00% 0.1594 145.10);
+  --danger-text: oklch(52.50% 0.2328 25.74);
+  --info: oklch(51.50% 0.1600 285.00);
+  --foreground-hover: oklch(34.00% 0.0093 145.10);
+  --field-outline: oklch(59.50% 0.0199 145.10);
+  --chart-1: oklch(42.00% 0.1400 145.10);
+  --chart-2: oklch(50.00% 0.1600 145.10);
+  --chart-3: oklch(55.00% 0.1800 145.10);
+  --chart-4: oklch(65.00% 0.1400 145.10);
+  --chart-5: oklch(75.00% 0.1000 145.10);
+  --chart-track: oklch(93.00% 0.0250 145.10);
+  --chart-muted: oklch(80.00% 0.0150 145.10);
+
+  /* elevation (light) - HeroUI shadows and the mouve layer's own */
+  --surface-shadow: 0 0 5px 0 rgba(0, 0, 0, 0.02), 0 2px 10px 0 rgba(0, 0, 0, 0.06), 0 0 1px 0 rgba(0, 0, 0, 0.2);
+  --overlay-shadow: 0 24px 40px -12px rgb(0 0 0 / 0.08), 0 16px 28px -8px rgb(0 0 0 / 0.04), 0 4px 6px -2px rgb(0 0 0 / 0.04), 0 0 2px 0 rgb(0 0 0 / 0.04), 0 0 0 1px rgb(0 0 0 / 0.04);
+  --field-shadow: inset 0 0 2px 0 rgba(0, 0, 0, 0.04), inset 0 0 4px 0 rgba(0, 0, 0, 0.03), inset 0 0 2px 0 rgba(0, 0, 0, 0.03);
+  --mouve-raised-shadow: 0 1px 2px -0.5px rgba(255, 255, 255, 0.12) inset, 0 0.5px 0.5px rgba(255, 255, 255, 0.16) inset, 0 8px 24px -4px rgba(255, 255, 255, 0.16) inset, 0 8px 8px -3px rgba(0, 0, 0, 0.03), 0 5px 5px -2.5px rgba(0, 0, 0, 0.03), 0 3px 3px -1.5px rgba(0, 0, 0, 0.03), 0 2px 2px -1px rgba(0, 0, 0, 0.03), 0 1px 1px -0.5px rgba(0, 0, 0, 0.03), 0 0.5px 0.5px rgba(0, 0, 0, 0.03);
+  --mouve-accent-fill-shadow: 0 1px 2px -0.5px rgba(255, 255, 255, 0.12) inset, 0 0.5px 0.5px rgba(255, 255, 255, 0.16) inset, 0 8px 24px -4px rgba(255, 255, 255, 0.16) inset;
+  --mouve-pressed-shadow: inset 0 1px 2px 0 rgba(0, 0, 0, 0.08), inset 0 0 4px 0 rgba(0, 0, 0, 0.06), inset 0 1px 1px 0 rgba(0, 0, 0, 0.05);
+
+  /* the design system's own mixes for roles HeroUI derives (ADR-068) */
+  --accent-soft: color-mix(in oklab, var(--accent) 15%, transparent);
+  --accent-hover: color-mix(in oklab, var(--accent) 90%, var(--ink) 10%);
+  --danger-hover: color-mix(in oklab, var(--danger) 90%, var(--ink) 10%);
 
   /* legacy Injishi role names, aliased onto the HeroUI roles */
   --card: var(--surface);
@@ -375,12 +396,7 @@
 
   /* non-color */
   --radius: 0.5rem;
-  --field-radius: 0;
-  /* The card corner as a RUNTIME variable too (ADR-037 call 3). The
-     theme inline entry below registers rounded-card as a utility and inlines
-     its value, so it never emits a custom property; a hand written rule or an
-     inline style reading var(--radius-card) got nothing. */
-  --radius-card: 1rem;
+  --field-radius: 0.75rem;
 }
 
 .dark,
@@ -388,53 +404,76 @@
   color-scheme: dark;
 
   /* fixed - repeated verbatim so a dark scope cannot invert them */
-  --ink: oklch(21.03% 0.0059 208.00);
+  --ink: oklch(25.00% 0.0093 145.10);
   --white: #FFFFFF;
   --black: var(--ink);
-  --slate-line: oklch(51.50% 0.0199 208.00);
-  --surface-tint: oklch(95.24% 0.0080 208.00);
-  --canvas: oklch(97.02% 0.0100 208.00);
-  --control-wash: oklch(51.50% 0.0199 208.00);
-  --placeholder-dim: oklch(51.50% 0.0199 208.00);
-  --accent-ink: oklch(49.00% 0.1100 208.00);
+  --snow: oklch(99.11% 0 0);
+  --eclipse: oklch(25.00% 0.0093 145.10);
+  --slate-line: oklch(50.50% 0.0140 145.10);
+  --surface-tint: oklch(95.00% 0.0056 145.10);
+  --canvas: oklch(95.50% 0.0056 145.10);
+  --control-wash: oklch(50.50% 0.0140 145.10);
+  --placeholder-dim: oklch(50.50% 0.0140 145.10);
 
   /* HeroUI roles (dark) */
-  --accent: oklch(65.00% 0.1100 208.00);
-  --accent-foreground: oklch(21.03% 0.0059 208.00);
-  --background: oklch(12.00% 0.0100 208.00);
-  --border: oklch(28.00% 0.0100 208.00);
-  --danger: oklch(57.50% 0.2006 19.13);
+  --accent: oklch(54.00% 0.1594 145.10);
+  --accent-foreground: oklch(99.11% 0 0);
+  --background: oklch(16.00% 0.0093 145.10);
+  --backdrop: oklch(0% 0 0 / 0.5);
+  --border: oklch(30.00% 0.0093 145.10);
+  --danger: oklch(58.00% 0.1967 24.63);
   --danger-foreground: oklch(99.11% 0 0);
-  --default: oklch(27.40% 0.0100 208.00);
-  --default-foreground: oklch(99.11% 0.0059 208.00);
-  --field-background: oklch(21.03% 0.0199 208.00);
-  --field-border: transparent;
-  --field-foreground: oklch(99.11% 0.0100 208.00);
-  --field-placeholder: oklch(70.50% 0.0199 208.00);
-  --focus: oklch(65.00% 0.1100 208.00);
-  --foreground: oklch(99.11% 0.0100 208.00);
-  --muted: oklch(70.50% 0.0199 208.00);
-  --overlay: oklch(21.03% 0.0199 208.00);
-  --overlay-foreground: oklch(99.11% 0.0100 208.00);
-  --scrollbar: oklch(70.50% 0.0100 208.00);
-  --segment: oklch(39.64% 0.0100 208.00);
-  --segment-foreground: oklch(99.11% 0.0100 208.00);
-  --separator: oklch(25.00% 0.0100 208.00);
-  --success: oklch(73.29% 0.1974 145.31);
-  --success-foreground: oklch(21.03% 0.0059 145.31);
-  --surface: oklch(21.03% 0.0199 208.00);
-  --surface-foreground: oklch(99.11% 0.0100 208.00);
-  --surface-secondary: oklch(25.70% 0.0149 208.00);
-  --surface-secondary-foreground: oklch(99.11% 0.0100 208.00);
-  --surface-tertiary: oklch(27.21% 0.0149 208.00);
-  --surface-tertiary-foreground: oklch(99.11% 0.0100 208.00);
-  --warning: oklch(82.03% 0.1416 70.84);
-  --warning-foreground: oklch(21.03% 0.0059 70.84);
-  --accent-text: oklch(72.00% 0.1100 208.00);
-  --success-text: oklch(80.00% 0.1974 145.31);
+  --default: oklch(26.00% 0.0093 145.10);
+  --default-foreground: oklch(99.11% 0 0);
+  --field-background: oklch(22.00% 0.0084 145.10);
+  --field-border: oklch(32.00% 0.0117 145.10);
+  --field-foreground: oklch(99.11% 0 0);
+  --field-placeholder: oklch(65.00% 0.0093 145.10);
+  --focus: oklch(54.00% 0.1594 145.10);
+  --foreground: oklch(99.11% 0 0);
+  --muted: oklch(65.00% 0.0093 145.10);
+  --overlay: oklch(20.00% 0.0093 145.10);
+  --overlay-foreground: oklch(99.11% 0 0);
+  --scrollbar: oklch(35.00% 0.0093 145.10);
+  --segment: oklch(28.00% 0.0117 145.10);
+  --segment-foreground: oklch(99.11% 0 0);
+  --separator: oklch(28.00% 0.0084 145.10);
+  --success: oklch(73.29% 0.1935 150.81);
+  --success-foreground: oklch(20.00% 0.0093 145.10);
+  --surface: oklch(20.00% 0.0093 145.10);
+  --surface-foreground: oklch(99.11% 0 0);
+  --surface-secondary: oklch(24.00% 0.0093 145.10);
+  --surface-secondary-foreground: oklch(99.11% 0 0);
+  --surface-tertiary: oklch(27.00% 0.0093 145.10);
+  --surface-tertiary-foreground: oklch(99.11% 0 0);
+  --warning: oklch(82.03% 0.1388 76.34);
+  --warning-foreground: oklch(20.00% 0.0093 145.10);
+  --accent-text: oklch(63.50% 0.1594 145.10);
+  --danger-text: oklch(67.50% 0.1967 24.63);
   --info: oklch(67.00% 0.1600 285.00);
-  --foreground-hover: oklch(88.00% 0.0100 208.00);
-  --field-outline: oklch(56.00% 0.0199 208.00);
+  --foreground-hover: oklch(88.00% 0.0093 145.10);
+  --field-outline: oklch(55.00% 0.0199 145.10);
+  --chart-1: oklch(54.00% 0.1200 145.10);
+  --chart-2: oklch(60.00% 0.1400 145.10);
+  --chart-3: oklch(70.00% 0.1600 145.10);
+  --chart-4: oklch(78.00% 0.1200 145.10);
+  --chart-5: oklch(85.00% 0.0800 145.10);
+  --chart-track: oklch(32.00% 0.0300 145.10);
+  --chart-muted: oklch(46.00% 0.0150 145.10);
+
+  /* elevation (dark) */
+  --surface-shadow: inset 0 1px 0 0 #ffffff0a, inset 0 0 0 1px #ffffff0a, 0 0 0 1px #00000029, 0 1px 1px -0.5px #0000002e, 0 3px 3px -1.5px #0000002e, 0 6px 6px -3px #0000002e, 0 12px 12px -6px #0000002e;
+  --overlay-shadow: 0 1px 3px rgba(255, 255, 255, 0.04) inset, 0 0.5px 0.5px rgba(255, 255, 255, 0.04) inset, 0 16px 56px rgba(0, 0, 0, 0.24), 0 4px 16px rgba(0, 0, 0, 0.24), 0 1px 2px rgba(0, 0, 0, 0.24), 0 0 0 1px rgba(0, 0, 0, 0.1);
+  --field-shadow: inset 0 1px 1px 0 rgba(255, 255, 255, 0.02), inset 0 -0.5px 1px 0 rgba(255, 255, 255, 0.06), inset 1px 1.5px 4px 0 rgba(0, 0, 0, 0.06), inset 1px 1.5px 4px 0 rgba(0, 0, 0, 0.08);
+  --mouve-raised-shadow: inset 0 1px 0 0 rgba(255, 255, 255, 0.2), inset 0 1px 2px -0.5px rgba(255, 255, 255, 0.14), inset 0 8px 24px -4px rgba(255, 255, 255, 0.1), 0 0 0 1px rgba(0, 0, 0, 0.4), 0 1px 1px -0.5px #0000004d, 0 3px 3px -1.5px #0000004d, 0 6px 6px -3px #0000004d, 0 12px 12px -6px #0000004d;
+  --mouve-accent-fill-shadow: inset 0 1px 0 0 rgba(255, 255, 255, 0.2), inset 0 1px 2px -0.5px rgba(255, 255, 255, 0.14), inset 0 8px 24px -4px rgba(255, 255, 255, 0.1);
+  --mouve-pressed-shadow: inset 0 1px 2px 0 rgba(255, 255, 255, 0.05), inset 0 1px 1px 0 rgba(255, 255, 255, 0.1);
+
+  /* the design system's own mixes for roles HeroUI derives (ADR-068) */
+  --accent-soft: color-mix(in oklab, var(--accent) 15%, transparent);
+  --accent-hover: color-mix(in oklab, var(--accent) 90%, var(--ink) 10%);
+  --danger-hover: color-mix(in oklab, var(--danger) 90%, var(--ink) 10%);
+  --accent-soft-foreground: color-mix(in oklab, var(--accent) 80%, var(--foreground) 34%);
 
   /* legacy Injishi role names, aliased onto the HeroUI roles */
   --card: var(--surface);
@@ -463,42 +502,50 @@
 .bg-white,
 .bg-surface-tint {
   color-scheme: light;
-  --accent: oklch(65.00% 0.1100 208.00);
-  --accent-foreground: oklch(21.03% 0.0059 208.00);
-  --background: oklch(97.02% 0.0100 208.00);
-  --border: oklch(90.00% 0.0100 208.00);
-  --danger: oklch(58.00% 0.2374 20.24);
+  --accent: oklch(54.00% 0.1594 145.10);
+  --accent-foreground: oklch(99.11% 0 0);
+  --background: oklch(95.50% 0.0056 145.10);
+  --backdrop: oklch(50.00% 0.0187 145.10 / 0.4);
+  --border: oklch(88.00% 0.0070 145.10);
+  --danger: oklch(58.50% 0.2328 25.74);
   --danger-foreground: oklch(99.11% 0 0);
-  --default: oklch(94.00% 0.0100 208.00);
-  --default-foreground: oklch(21.03% 0.0059 208.00);
-  --field-background: oklch(100.00% 0.0050 208.00);
-  --field-border: transparent;
-  --field-foreground: oklch(21.03% 0.0100 208.00);
-  --field-placeholder: oklch(51.50% 0.0199 208.00);
-  --focus: oklch(59.00% 0.1100 208.00);
-  --foreground: oklch(21.03% 0.0100 208.00);
-  --muted: oklch(51.50% 0.0199 208.00);
-  --overlay: oklch(100.00% 0.0030 208.00);
-  --overlay-foreground: oklch(21.03% 0.0100 208.00);
-  --scrollbar: oklch(87.10% 0.0100 208.00);
-  --segment: oklch(100.00% 0.0100 208.00);
-  --segment-foreground: oklch(21.03% 0.0100 208.00);
-  --separator: oklch(92.00% 0.0100 208.00);
-  --success: oklch(73.29% 0.1974 145.31);
-  --success-foreground: oklch(21.03% 0.0059 145.31);
-  --surface: oklch(100.00% 0.0050 208.00);
-  --surface-foreground: oklch(21.03% 0.0100 208.00);
-  --surface-secondary: oklch(95.24% 0.0080 208.00);
-  --surface-secondary-foreground: oklch(21.03% 0.0100 208.00);
-  --surface-tertiary: oklch(93.73% 0.0080 208.00);
-  --surface-tertiary-foreground: oklch(21.03% 0.0100 208.00);
-  --warning: oklch(78.19% 0.1617 66.83);
-  --warning-foreground: oklch(21.03% 0.0059 66.83);
-  --accent-text: oklch(49.00% 0.1100 208.00);
-  --success-text: oklch(45.00% 0.1400 145.31);
-  --info: oklch(52.50% 0.1600 285.00);
-  --foreground-hover: oklch(32.00% 0.0100 208.00);
-  --field-outline: oklch(60.00% 0.0199 208.00);
+  --default: oklch(92.00% 0.0056 145.10);
+  --default-foreground: oklch(25.00% 0.0093 145.10);
+  --field-background: oklch(97.00% 0.0028 145.10);
+  --field-border: oklch(88.00% 0.0093 145.10);
+  --field-foreground: oklch(25.00% 0.0093 145.10);
+  --field-placeholder: oklch(50.50% 0.0140 145.10);
+  --focus: oklch(54.00% 0.1594 145.10);
+  --foreground: oklch(25.00% 0.0093 145.10);
+  --muted: oklch(50.50% 0.0140 145.10);
+  --overlay: oklch(97.50% 0.0037 145.10);
+  --overlay-foreground: oklch(25.00% 0.0093 145.10);
+  --scrollbar: oklch(82.00% 0.0093 145.10);
+  --segment: #FFFFFF;
+  --segment-foreground: oklch(25.00% 0.0093 145.10);
+  --separator: oklch(92.00% 0.0047 145.10);
+  --success: oklch(73.29% 0.1935 150.81);
+  --success-foreground: oklch(25.00% 0.0093 145.10);
+  --surface: oklch(97.50% 0.0037 145.10);
+  --surface-foreground: oklch(25.00% 0.0093 145.10);
+  --surface-secondary: oklch(95.00% 0.0056 145.10);
+  --surface-secondary-foreground: oklch(25.00% 0.0093 145.10);
+  --surface-tertiary: oklch(93.50% 0.0075 145.10);
+  --surface-tertiary-foreground: oklch(25.00% 0.0093 145.10);
+  --warning: oklch(78.19% 0.1585 72.33);
+  --warning-foreground: oklch(25.00% 0.0093 145.10);
+  --accent-text: oklch(49.00% 0.1594 145.10);
+  --danger-text: oklch(52.50% 0.2328 25.74);
+  --info: oklch(51.50% 0.1600 285.00);
+  --foreground-hover: oklch(34.00% 0.0093 145.10);
+  --field-outline: oklch(59.50% 0.0199 145.10);
+  --chart-1: oklch(42.00% 0.1400 145.10);
+  --chart-2: oklch(50.00% 0.1600 145.10);
+  --chart-3: oklch(55.00% 0.1800 145.10);
+  --chart-4: oklch(65.00% 0.1400 145.10);
+  --chart-5: oklch(75.00% 0.1000 145.10);
+  --chart-track: oklch(93.00% 0.0250 145.10);
+  --chart-muted: oklch(80.00% 0.0150 145.10);
   --card: var(--surface);
   --card-foreground: var(--surface-foreground);
   --popover: var(--overlay);
@@ -524,42 +571,50 @@
 .bg-black,
 .bg-control-wash {
   color-scheme: dark;
-  --accent: oklch(65.00% 0.1100 208.00);
-  --accent-foreground: oklch(21.03% 0.0059 208.00);
-  --background: oklch(12.00% 0.0100 208.00);
-  --border: oklch(28.00% 0.0100 208.00);
-  --danger: oklch(57.50% 0.2006 19.13);
+  --accent: oklch(54.00% 0.1594 145.10);
+  --accent-foreground: oklch(99.11% 0 0);
+  --background: oklch(16.00% 0.0093 145.10);
+  --backdrop: oklch(0% 0 0 / 0.5);
+  --border: oklch(30.00% 0.0093 145.10);
+  --danger: oklch(58.00% 0.1967 24.63);
   --danger-foreground: oklch(99.11% 0 0);
-  --default: oklch(27.40% 0.0100 208.00);
-  --default-foreground: oklch(99.11% 0.0059 208.00);
-  --field-background: oklch(21.03% 0.0199 208.00);
-  --field-border: transparent;
-  --field-foreground: oklch(99.11% 0.0100 208.00);
-  --field-placeholder: oklch(70.50% 0.0199 208.00);
-  --focus: oklch(65.00% 0.1100 208.00);
-  --foreground: oklch(99.11% 0.0100 208.00);
-  --muted: oklch(70.50% 0.0199 208.00);
-  --overlay: oklch(21.03% 0.0199 208.00);
-  --overlay-foreground: oklch(99.11% 0.0100 208.00);
-  --scrollbar: oklch(70.50% 0.0100 208.00);
-  --segment: oklch(39.64% 0.0100 208.00);
-  --segment-foreground: oklch(99.11% 0.0100 208.00);
-  --separator: oklch(25.00% 0.0100 208.00);
-  --success: oklch(73.29% 0.1974 145.31);
-  --success-foreground: oklch(21.03% 0.0059 145.31);
-  --surface: oklch(21.03% 0.0199 208.00);
-  --surface-foreground: oklch(99.11% 0.0100 208.00);
-  --surface-secondary: oklch(25.70% 0.0149 208.00);
-  --surface-secondary-foreground: oklch(99.11% 0.0100 208.00);
-  --surface-tertiary: oklch(27.21% 0.0149 208.00);
-  --surface-tertiary-foreground: oklch(99.11% 0.0100 208.00);
-  --warning: oklch(82.03% 0.1416 70.84);
-  --warning-foreground: oklch(21.03% 0.0059 70.84);
-  --accent-text: oklch(72.00% 0.1100 208.00);
-  --success-text: oklch(80.00% 0.1974 145.31);
+  --default: oklch(26.00% 0.0093 145.10);
+  --default-foreground: oklch(99.11% 0 0);
+  --field-background: oklch(22.00% 0.0084 145.10);
+  --field-border: oklch(32.00% 0.0117 145.10);
+  --field-foreground: oklch(99.11% 0 0);
+  --field-placeholder: oklch(65.00% 0.0093 145.10);
+  --focus: oklch(54.00% 0.1594 145.10);
+  --foreground: oklch(99.11% 0 0);
+  --muted: oklch(65.00% 0.0093 145.10);
+  --overlay: oklch(20.00% 0.0093 145.10);
+  --overlay-foreground: oklch(99.11% 0 0);
+  --scrollbar: oklch(35.00% 0.0093 145.10);
+  --segment: oklch(28.00% 0.0117 145.10);
+  --segment-foreground: oklch(99.11% 0 0);
+  --separator: oklch(28.00% 0.0084 145.10);
+  --success: oklch(73.29% 0.1935 150.81);
+  --success-foreground: oklch(20.00% 0.0093 145.10);
+  --surface: oklch(20.00% 0.0093 145.10);
+  --surface-foreground: oklch(99.11% 0 0);
+  --surface-secondary: oklch(24.00% 0.0093 145.10);
+  --surface-secondary-foreground: oklch(99.11% 0 0);
+  --surface-tertiary: oklch(27.00% 0.0093 145.10);
+  --surface-tertiary-foreground: oklch(99.11% 0 0);
+  --warning: oklch(82.03% 0.1388 76.34);
+  --warning-foreground: oklch(20.00% 0.0093 145.10);
+  --accent-text: oklch(63.50% 0.1594 145.10);
+  --danger-text: oklch(67.50% 0.1967 24.63);
   --info: oklch(67.00% 0.1600 285.00);
-  --foreground-hover: oklch(88.00% 0.0100 208.00);
-  --field-outline: oklch(56.00% 0.0199 208.00);
+  --foreground-hover: oklch(88.00% 0.0093 145.10);
+  --field-outline: oklch(55.00% 0.0199 145.10);
+  --chart-1: oklch(54.00% 0.1200 145.10);
+  --chart-2: oklch(60.00% 0.1400 145.10);
+  --chart-3: oklch(70.00% 0.1600 145.10);
+  --chart-4: oklch(78.00% 0.1200 145.10);
+  --chart-5: oklch(85.00% 0.0800 145.10);
+  --chart-track: oklch(32.00% 0.0300 145.10);
+  --chart-muted: oklch(46.00% 0.0150 145.10);
   --card: var(--surface);
   --card-foreground: var(--surface-foreground);
   --popover: var(--overlay);
@@ -586,42 +641,50 @@
 [data-theme="dark"] .ground-theme,
 .th-dark .ground-theme {
   color-scheme: dark;
-  --accent: oklch(65.00% 0.1100 208.00);
-  --accent-foreground: oklch(21.03% 0.0059 208.00);
-  --background: oklch(12.00% 0.0100 208.00);
-  --border: oklch(28.00% 0.0100 208.00);
-  --danger: oklch(57.50% 0.2006 19.13);
+  --accent: oklch(54.00% 0.1594 145.10);
+  --accent-foreground: oklch(99.11% 0 0);
+  --background: oklch(16.00% 0.0093 145.10);
+  --backdrop: oklch(0% 0 0 / 0.5);
+  --border: oklch(30.00% 0.0093 145.10);
+  --danger: oklch(58.00% 0.1967 24.63);
   --danger-foreground: oklch(99.11% 0 0);
-  --default: oklch(27.40% 0.0100 208.00);
-  --default-foreground: oklch(99.11% 0.0059 208.00);
-  --field-background: oklch(21.03% 0.0199 208.00);
-  --field-border: transparent;
-  --field-foreground: oklch(99.11% 0.0100 208.00);
-  --field-placeholder: oklch(70.50% 0.0199 208.00);
-  --focus: oklch(65.00% 0.1100 208.00);
-  --foreground: oklch(99.11% 0.0100 208.00);
-  --muted: oklch(70.50% 0.0199 208.00);
-  --overlay: oklch(21.03% 0.0199 208.00);
-  --overlay-foreground: oklch(99.11% 0.0100 208.00);
-  --scrollbar: oklch(70.50% 0.0100 208.00);
-  --segment: oklch(39.64% 0.0100 208.00);
-  --segment-foreground: oklch(99.11% 0.0100 208.00);
-  --separator: oklch(25.00% 0.0100 208.00);
-  --success: oklch(73.29% 0.1974 145.31);
-  --success-foreground: oklch(21.03% 0.0059 145.31);
-  --surface: oklch(21.03% 0.0199 208.00);
-  --surface-foreground: oklch(99.11% 0.0100 208.00);
-  --surface-secondary: oklch(25.70% 0.0149 208.00);
-  --surface-secondary-foreground: oklch(99.11% 0.0100 208.00);
-  --surface-tertiary: oklch(27.21% 0.0149 208.00);
-  --surface-tertiary-foreground: oklch(99.11% 0.0100 208.00);
-  --warning: oklch(82.03% 0.1416 70.84);
-  --warning-foreground: oklch(21.03% 0.0059 70.84);
-  --accent-text: oklch(72.00% 0.1100 208.00);
-  --success-text: oklch(80.00% 0.1974 145.31);
+  --default: oklch(26.00% 0.0093 145.10);
+  --default-foreground: oklch(99.11% 0 0);
+  --field-background: oklch(22.00% 0.0084 145.10);
+  --field-border: oklch(32.00% 0.0117 145.10);
+  --field-foreground: oklch(99.11% 0 0);
+  --field-placeholder: oklch(65.00% 0.0093 145.10);
+  --focus: oklch(54.00% 0.1594 145.10);
+  --foreground: oklch(99.11% 0 0);
+  --muted: oklch(65.00% 0.0093 145.10);
+  --overlay: oklch(20.00% 0.0093 145.10);
+  --overlay-foreground: oklch(99.11% 0 0);
+  --scrollbar: oklch(35.00% 0.0093 145.10);
+  --segment: oklch(28.00% 0.0117 145.10);
+  --segment-foreground: oklch(99.11% 0 0);
+  --separator: oklch(28.00% 0.0084 145.10);
+  --success: oklch(73.29% 0.1935 150.81);
+  --success-foreground: oklch(20.00% 0.0093 145.10);
+  --surface: oklch(20.00% 0.0093 145.10);
+  --surface-foreground: oklch(99.11% 0 0);
+  --surface-secondary: oklch(24.00% 0.0093 145.10);
+  --surface-secondary-foreground: oklch(99.11% 0 0);
+  --surface-tertiary: oklch(27.00% 0.0093 145.10);
+  --surface-tertiary-foreground: oklch(99.11% 0 0);
+  --warning: oklch(82.03% 0.1388 76.34);
+  --warning-foreground: oklch(20.00% 0.0093 145.10);
+  --accent-text: oklch(63.50% 0.1594 145.10);
+  --danger-text: oklch(67.50% 0.1967 24.63);
   --info: oklch(67.00% 0.1600 285.00);
-  --foreground-hover: oklch(88.00% 0.0100 208.00);
-  --field-outline: oklch(56.00% 0.0199 208.00);
+  --foreground-hover: oklch(88.00% 0.0093 145.10);
+  --field-outline: oklch(55.00% 0.0199 145.10);
+  --chart-1: oklch(54.00% 0.1200 145.10);
+  --chart-2: oklch(60.00% 0.1400 145.10);
+  --chart-3: oklch(70.00% 0.1600 145.10);
+  --chart-4: oklch(78.00% 0.1200 145.10);
+  --chart-5: oklch(85.00% 0.0800 145.10);
+  --chart-track: oklch(32.00% 0.0300 145.10);
+  --chart-muted: oklch(46.00% 0.0150 145.10);
   --card: var(--surface);
   --card-foreground: var(--surface-foreground);
   --popover: var(--overlay);
@@ -648,42 +711,50 @@
 [data-theme="light"] .ground-theme,
 .th-light .ground-theme {
   color-scheme: light;
-  --accent: oklch(65.00% 0.1100 208.00);
-  --accent-foreground: oklch(21.03% 0.0059 208.00);
-  --background: oklch(97.02% 0.0100 208.00);
-  --border: oklch(90.00% 0.0100 208.00);
-  --danger: oklch(58.00% 0.2374 20.24);
+  --accent: oklch(54.00% 0.1594 145.10);
+  --accent-foreground: oklch(99.11% 0 0);
+  --background: oklch(95.50% 0.0056 145.10);
+  --backdrop: oklch(50.00% 0.0187 145.10 / 0.4);
+  --border: oklch(88.00% 0.0070 145.10);
+  --danger: oklch(58.50% 0.2328 25.74);
   --danger-foreground: oklch(99.11% 0 0);
-  --default: oklch(94.00% 0.0100 208.00);
-  --default-foreground: oklch(21.03% 0.0059 208.00);
-  --field-background: oklch(100.00% 0.0050 208.00);
-  --field-border: transparent;
-  --field-foreground: oklch(21.03% 0.0100 208.00);
-  --field-placeholder: oklch(51.50% 0.0199 208.00);
-  --focus: oklch(59.00% 0.1100 208.00);
-  --foreground: oklch(21.03% 0.0100 208.00);
-  --muted: oklch(51.50% 0.0199 208.00);
-  --overlay: oklch(100.00% 0.0030 208.00);
-  --overlay-foreground: oklch(21.03% 0.0100 208.00);
-  --scrollbar: oklch(87.10% 0.0100 208.00);
-  --segment: oklch(100.00% 0.0100 208.00);
-  --segment-foreground: oklch(21.03% 0.0100 208.00);
-  --separator: oklch(92.00% 0.0100 208.00);
-  --success: oklch(73.29% 0.1974 145.31);
-  --success-foreground: oklch(21.03% 0.0059 145.31);
-  --surface: oklch(100.00% 0.0050 208.00);
-  --surface-foreground: oklch(21.03% 0.0100 208.00);
-  --surface-secondary: oklch(95.24% 0.0080 208.00);
-  --surface-secondary-foreground: oklch(21.03% 0.0100 208.00);
-  --surface-tertiary: oklch(93.73% 0.0080 208.00);
-  --surface-tertiary-foreground: oklch(21.03% 0.0100 208.00);
-  --warning: oklch(78.19% 0.1617 66.83);
-  --warning-foreground: oklch(21.03% 0.0059 66.83);
-  --accent-text: oklch(49.00% 0.1100 208.00);
-  --success-text: oklch(45.00% 0.1400 145.31);
-  --info: oklch(52.50% 0.1600 285.00);
-  --foreground-hover: oklch(32.00% 0.0100 208.00);
-  --field-outline: oklch(60.00% 0.0199 208.00);
+  --default: oklch(92.00% 0.0056 145.10);
+  --default-foreground: oklch(25.00% 0.0093 145.10);
+  --field-background: oklch(97.00% 0.0028 145.10);
+  --field-border: oklch(88.00% 0.0093 145.10);
+  --field-foreground: oklch(25.00% 0.0093 145.10);
+  --field-placeholder: oklch(50.50% 0.0140 145.10);
+  --focus: oklch(54.00% 0.1594 145.10);
+  --foreground: oklch(25.00% 0.0093 145.10);
+  --muted: oklch(50.50% 0.0140 145.10);
+  --overlay: oklch(97.50% 0.0037 145.10);
+  --overlay-foreground: oklch(25.00% 0.0093 145.10);
+  --scrollbar: oklch(82.00% 0.0093 145.10);
+  --segment: #FFFFFF;
+  --segment-foreground: oklch(25.00% 0.0093 145.10);
+  --separator: oklch(92.00% 0.0047 145.10);
+  --success: oklch(73.29% 0.1935 150.81);
+  --success-foreground: oklch(25.00% 0.0093 145.10);
+  --surface: oklch(97.50% 0.0037 145.10);
+  --surface-foreground: oklch(25.00% 0.0093 145.10);
+  --surface-secondary: oklch(95.00% 0.0056 145.10);
+  --surface-secondary-foreground: oklch(25.00% 0.0093 145.10);
+  --surface-tertiary: oklch(93.50% 0.0075 145.10);
+  --surface-tertiary-foreground: oklch(25.00% 0.0093 145.10);
+  --warning: oklch(78.19% 0.1585 72.33);
+  --warning-foreground: oklch(25.00% 0.0093 145.10);
+  --accent-text: oklch(49.00% 0.1594 145.10);
+  --danger-text: oklch(52.50% 0.2328 25.74);
+  --info: oklch(51.50% 0.1600 285.00);
+  --foreground-hover: oklch(34.00% 0.0093 145.10);
+  --field-outline: oklch(59.50% 0.0199 145.10);
+  --chart-1: oklch(42.00% 0.1400 145.10);
+  --chart-2: oklch(50.00% 0.1600 145.10);
+  --chart-3: oklch(55.00% 0.1800 145.10);
+  --chart-4: oklch(65.00% 0.1400 145.10);
+  --chart-5: oklch(75.00% 0.1000 145.10);
+  --chart-track: oklch(93.00% 0.0250 145.10);
+  --chart-muted: oklch(80.00% 0.0150 145.10);
   --card: var(--surface);
   --card-foreground: var(--surface-foreground);
   --popover: var(--overlay);
@@ -737,15 +808,17 @@ html {
   --color-ink: var(--ink);
   --color-white: var(--white);
   --color-black: var(--black);
+  --color-snow: var(--snow);
+  --color-eclipse: var(--eclipse);
   --color-slate-line: var(--slate-line);
   --color-surface-tint: var(--surface-tint);
   --color-canvas: var(--canvas);
   --color-control-wash: var(--control-wash);
   --color-placeholder-dim: var(--placeholder-dim);
-  --color-accent-ink: var(--accent-ink);
   --color-accent: var(--accent);
   --color-accent-foreground: var(--accent-foreground);
   --color-background: var(--background);
+  --color-backdrop: var(--backdrop);
   --color-border: var(--border);
   --color-danger: var(--danger);
   --color-danger-foreground: var(--danger-foreground);
@@ -775,10 +848,17 @@ html {
   --color-warning: var(--warning);
   --color-warning-foreground: var(--warning-foreground);
   --color-accent-text: var(--accent-text);
-  --color-success-text: var(--success-text);
+  --color-danger-text: var(--danger-text);
   --color-info: var(--info);
   --color-foreground-hover: var(--foreground-hover);
   --color-field-outline: var(--field-outline);
+  --color-chart-1: var(--chart-1);
+  --color-chart-2: var(--chart-2);
+  --color-chart-3: var(--chart-3);
+  --color-chart-4: var(--chart-4);
+  --color-chart-5: var(--chart-5);
+  --color-chart-track: var(--chart-track);
+  --color-chart-muted: var(--chart-muted);
   --color-card: var(--card);
   --color-card-foreground: var(--card-foreground);
   --color-popover: var(--popover);
@@ -798,60 +878,27 @@ html {
   --color-accent-brand-hover: var(--accent-brand-hover);
   --color-accent-brand-foreground: var(--accent-brand-foreground);
   --color-scrollbar-thumb: var(--scrollbar-thumb);
-  /* The DERIVED hover, mapped so it has a utility.
-     Nothing declares --accent-hover here or anywhere else in this workspace:
-     @heroui/styles derives it from --accent with color-mix, which is the one
-     hover convention and the reason no *-hover value is authored in heroui.ts.
-     But a derived VARIABLE is not a CLASS. Without this line hover:bg-accent-hover
-     compiles to nothing, silently, and the four call sites that wear it just
-     stop changing on hover - which is what they were doing in the marketplace
-     stylesheet before ADR-027 measured it. Mapping the name costs nothing and
-     authors no value: move --accent and this moves with it. */
-  --color-accent-hover: var(--accent-hover);
   --radius-sm: calc(var(--radius) - 4px);
   --radius-md: calc(var(--radius) - 2px);
   --radius-lg: var(--radius);
   --radius-xl: calc(var(--radius) + 4px);
   --radius-2xl: calc(var(--radius) + 8px);
   --radius-3xl: calc(var(--radius) + 16px);
-  --radius-field: 0;
+  --radius-field: 0.75rem;
   --radius-card: 1rem;
   --shadow-control: 0 2px 8px rgba(4, 35, 48, 0.25);
 }
 
-/* The LAYOUT scale (ADR-027): one type scale, one container scale, one spacing
-   rhythm. Authored in src/layout.ts.
-
-   A plain "@theme", not "@theme inline", and the difference matters. These are
-   LITERAL values with nothing to point at, so inline would buy nothing, and a
-   plain block additionally emits each name as a :root custom property - which
-   is what makes the paren form "max-w-(--container-page)" resolve for the rare
-   case that needs a raw reference. The colour blocks above are inline for the
-   opposite reason: their values ARE var() references to the role variables
-   declared in the theme selectors, and inlining is what stops a utility
-   resolving through two hops.
-
-   The named utility is always preferred over the paren form: "max-w-page", not
-   "max-w-(--container-page)". Note that the v3 spelling of that paren form,
-   with square brackets, is WRONG on Tailwind 4 and fails SILENTLY rather than
-   erroring, which is why it appears nowhere in this workspace. */
+/* The design system's base spacing unit (ADR-068). A plain @theme, so it
+   replaces Tailwind's own --spacing instead of shadowing it at :root. */
 @theme {
-  /* --radius is ALSO declared as a plain custom property in the two theme
-     selectors above, and that is not a duplicate - the two do different jobs
-     and both are needed.
+  --spacing: 0.265625rem;
+}
 
-     The plain declaration is what a hand-written rule reads. THIS one is what
-     registers the name with Tailwind, and only a registered token reaches the
-     bare "rounded" utility. Without this line "rounded" compiles to Tailwind's
-     own literal 0.25rem and quietly disagrees with "rounded-lg", which does
-     resolve to --radius through the inline block. That is exactly the kind of
-     silent second answer ADR-027 exists to remove, and it was found by
-     compiling the utilities rather than by reading the spec.
-
-     The value is herouiRadius, the same constant the plain declaration uses, so
-     there is still one authored source. */
-  --radius: 0.5rem;
-
+/* ADR-027 layout scale: eleven named type steps (four authored here, seven
+   Tailwind's), six page widths, three spacing rhythms. A plain @theme, not
+   @theme inline: these are literal lengths, not aliases of a role. */
+@theme {
   --text-2xs: 0.6875rem;
   --text-2xs--line-height: 1.4;
   --text-display-sm: 2rem;
