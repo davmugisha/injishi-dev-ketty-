@@ -595,10 +595,13 @@ export class ResidenceRepository {
         // later signature is when it became a contract, and one signature is
         // not a contract at all — `greatest` on its own would have reported a
         // half-signed lease as signed, because Postgres ignores nulls in it.
+        // A raw expression, so no timestamptz parser runs on it: Postgres hands
+        // back a string, and `sql<Date>` alone would only assert the type
+        // (see messaging.repository.ts). Converted here, in the one place.
         signedAt: sql<Date | null>`case
           when ${leases.landlordSignedAt} is not null and ${leases.tenantSignedAt} is not null
           then greatest(${leases.landlordSignedAt}, ${leases.tenantSignedAt})
-        end`,
+        end`.mapWith((v: string | Date) => new Date(v)),
         status: contractFilings.status,
         clockStartAt: contractFilings.clockStartAt,
         dueBy: contractFilings.dueBy,
