@@ -181,21 +181,41 @@ await section('hotel', async () => {
    * seed writes a delta row, and what has to be true is that the affected
    * colleague's resolved permissions changed on the server. A check that read
    * `/ops/roles` back would only prove the table round trips.
+   *
+   * H30 and H31 read the lens itself, for what no grant shows: which roles a
+   * business has (six since ADR-069 added finance and hr, in `OrgRole`'s order)
+   * and what the platform gives the two new ones by default. The sets are
+   * ADR-069 D-b's, typed here rather than imported, so a change to the model
+   * has to be made in this oracle on purpose.
    */
+  const SIX_ROLES = ['owner', 'manager', 'receptionist', 'finance', 'hr', 'housekeeper'];
+  const EDITABLE = SIX_ROLES.filter((r) => r !== 'owner');
+  const ADR069_DEFAULTS = {
+    finance: ['money.view', 'folio.charge', 'folio.payment', 'folio.close', 'ebm.manage', 'ebm.refund', 'refund.decide'],
+    hr: ['people.view', 'people.manage', 'roster.manage', 'attendance.record', 'attendance.approve', 'leave.approve', 'payroll.draft'],
+  };
+  const sameSet = (a, b) => Array.isArray(a) && a.length === b.length && b.every((p) => a.includes(p));
   const roleView = await yves('/ops/roles', W_HOTEL);
   const byRole = Object.fromEntries(roleView.roles.map((r) => [r.orgRole, r]));
+  const listed = roleView.roles.map((r) => r.orgRole);
   check(
     S,
-    'H30 the Roles lens lists all four roles, with owner marked not editable',
-    roleView.roles.length === 4 && byRole.owner?.customisable === false,
-    `got ${roleView.roles.length}`,
+    'H30 the Roles lens lists all six roles in order, with owner marked not editable',
+    listed.join(',') === SIX_ROLES.join(',') && byRole.owner?.customisable === false,
+    `got ${listed.join(',')}`,
   );
   check(
     S,
-    'H31 team.manage is locked on every editable role',
-    ['manager', 'receptionist', 'housekeeper'].every((r) =>
-      byRole[r]?.lockedPermissions?.includes('team.manage'),
-    ),
+    'H31 team.manage is locked on every editable role, finance and hr included, and owner stays not customisable',
+    EDITABLE.every((r) => byRole[r]?.customisable === true && byRole[r]?.lockedPermissions?.includes('team.manage')) &&
+      byRole.owner?.customisable === false,
+    EDITABLE.filter((r) => !byRole[r]?.lockedPermissions?.includes('team.manage')).join(','),
+  );
+  check(
+    S,
+    'H31b finance and hr carry exactly their ADR-069 default sets',
+    Object.entries(ADR069_DEFAULTS).every(([r, want]) => sameSet(byRole[r]?.basePermissions, want)),
+    Object.keys(ADR069_DEFAULTS).map((r) => `${r}: ${(byRole[r]?.basePermissions ?? []).join(' ')}`).join('; '),
   );
 
   const deniseGrants = await (await as('denise@demo.injishi.com'))('/me/workspaces');
@@ -282,7 +302,7 @@ await section('personas', async () => {
   const r = await fetch(`${API}/api/v1/demo/personas`, { headers: { origin: ORIGIN } });
   const personas = r.ok ? await r.json() : [];
   check(S, 'P1 the roster answers', r.ok && personas.length >= 10, `status ${r.status}`);
-  const want = ['yves', 'solange', 'denise', 'beatha', 'josephine', 'aimable', 'jeanbosco', 'claudine', 'ops', 'rayan'];
+  const want = ['yves', 'solange', 'denise', 'beatha', 'josephine', 'aimable', 'jeanbosco', 'claudine', 'ops', 'rayan', 'grace.uwera', 'diane.ingabire'];
   for (const who of want) {
     const p = personas.find((x) => x.email.startsWith(`${who}@`));
     const story = p?.story;
@@ -292,6 +312,21 @@ await section('personas', async () => {
       Boolean(story && story.headline && story.summary && Array.isArray(story.tryThis) && story.tryThis.length >= 3),
     );
   }
+  // ADR-069 D-h: the accountant and the HR officer join the hotel's roster,
+  // each holding their role at Amahoro (`seed-ui2/00-personas.mjs`).
+  const office = [
+    { email: 'grace.uwera@demo.injishi.com', name: 'Grace Uwera', roleKey: 'finance' },
+    { email: 'diane.ingabire@demo.injishi.com', name: 'Diane Ingabire', roleKey: 'hr' },
+  ];
+  const seatOf = (o) =>
+    personas.find((x) => x.email === o.email && x.name === o.name)
+      ?.seats?.find((s) => s.label === 'Amahoro Hospitality Group' && s.roleKey === o.roleKey);
+  check(
+    S,
+    'P3 the roster lists Grace Uwera as Finance and Diane Ingabire as HR at Amahoro',
+    office.every((o) => seatOf(o)),
+    office.filter((o) => !seatOf(o)).map((o) => o.email).join(', '),
+  );
 });
 
 // --- Money integrity, straight from the database
