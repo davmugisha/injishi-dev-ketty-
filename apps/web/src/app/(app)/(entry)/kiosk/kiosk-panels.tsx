@@ -168,7 +168,15 @@ export function LockedPanel({ until, onNext }: { until: Date | null; onNext: () 
       <Eyebrow tone="no">Not recorded</Eyebrow>
       <PanelHeading>This number is locked on this kiosk</PanelHeading>
       <p className="max-w-form text-base">
-        Five wrong PINs in a row. It unlocks at {until ? <time dateTime={until.toISOString()}>{clockTime(until)}</time> : "the end of 15 minutes"}, or
+        Five wrong PINs in a row. It unlocks{" "}
+        {until ? (
+          <>
+            at <time dateTime={until.toISOString()}>{clockTime(until)}</time>
+          </>
+        ) : (
+          "within 15 minutes"
+        )}
+        , or
         sooner if the front desk lifts the lock. The desk can also record your time for you.
       </p>
       <p className="text-base text-muted-foreground">Colleagues can still clock in here.</p>

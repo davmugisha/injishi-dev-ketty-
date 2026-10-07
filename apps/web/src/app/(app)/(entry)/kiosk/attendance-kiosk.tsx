@@ -372,7 +372,7 @@ export function AttendanceKiosk() {
     if (!isEntry || busy || e.ctrlKey || e.metaKey || e.altKey) return;
     const target = e.target as HTMLElement | null;
     if (target && (target.tagName === "INPUT" || target.tagName === "TEXTAREA")) return;
-    if (/^d$/.test(e.key) || (field === "number" && /^[A-Za-z-]$/.test(e.key))) {
+    if (/^\d$/.test(e.key) || (field === "number" && /^[A-Za-z-]$/.test(e.key))) {
       e.preventDefault();
       put(value + e.key);
     } else if (e.key === "Backspace") {
