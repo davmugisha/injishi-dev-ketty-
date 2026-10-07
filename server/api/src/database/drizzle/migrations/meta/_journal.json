@@ -442,6 +442,13 @@
       "when": 1791209723197,
       "tag": "0062_hr_payroll",
       "breakpoints": true
+    },
+    {
+      "idx": 63,
+      "version": "7",
+      "when": 1791375851682,
+      "tag": "0063_finance_and_hr_roles",
+      "breakpoints": true
     }
   ]
 }

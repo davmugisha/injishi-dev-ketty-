@@ -50,8 +50,12 @@ export class OpsDepartmentsController {
 
   /**
    * Consumers: the Departments lens (`department.manage`), the bill's charge
-   * picker (`folio.charge`), and the Services lenses a receptionist opens,
-   * Outlets among them (`order.advance`, `outlet.manage`).
+   * picker (`folio.charge`), the Services lenses a receptionist opens,
+   * Outlets among them (`order.advance`, `outlet.manage`), and the HR
+   * officer's read only Departments lens (`people.view`, ADR-069 D-d):
+   * `department_members` is the HR roster (ADR-058 contract 5), so reading
+   * it is HR's job, while deciding where revenue reports and orders route
+   * (`department.manage`) is not.
    */
   @Get()
   @RequireAnyPermission(
@@ -59,6 +63,7 @@ export class OpsDepartmentsController {
     'folio.charge',
     'order.advance',
     'outlet.manage',
+    'people.view',
   )
   async list(
     @CurrentWorkspace() workspace: ScopedWorkspace,
@@ -104,8 +109,10 @@ export class OpsDepartmentsController {
    * department is the same act as staffing the business.
    */
   @Get(':id/members')
-  // Names colleagues, so it belongs to whoever staffs or runs departments.
-  @RequireAnyPermission('team.manage', 'department.manage')
+  // Names colleagues, so it belongs to whoever staffs or runs departments, and
+  // to whoever reads the staff files (`people.view`, ADR-069 D-d). Staffing
+  // one below stays `team.manage`'s.
+  @RequireAnyPermission('team.manage', 'department.manage', 'people.view')
   async listMembers(
     @Param('id', ParseUUIDPipe) id: string,
     @CurrentWorkspace() workspace: ScopedWorkspace,

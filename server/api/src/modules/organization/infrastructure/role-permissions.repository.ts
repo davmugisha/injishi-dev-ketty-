@@ -1,3 +1,4 @@
+import type { CustomisableOrgRole } from '@injishi/contracts';
 import { Inject, Injectable } from '@nestjs/common';
 import { and, eq, inArray, sql } from 'drizzle-orm';
 
@@ -14,7 +15,7 @@ import {
 
 /** One stored departure from the platform's default set. */
 export interface RoleOverrideRow {
-  orgRole: 'manager' | 'receptionist' | 'housekeeper';
+  orgRole: CustomisableOrgRole;
   permission: string;
   granted: boolean;
 }
@@ -130,7 +131,7 @@ export class RolePermissionsRepository {
    */
   async replaceForRole(input: {
     orgId: string;
-    orgRole: 'manager' | 'receptionist' | 'housekeeper';
+    orgRole: CustomisableOrgRole;
     overrides: readonly { permission: string; granted: boolean }[];
     setByUserId: string;
     /** What the role held before and after, for the audit row. */

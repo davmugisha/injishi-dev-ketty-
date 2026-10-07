@@ -32,6 +32,7 @@ import {
 } from '../../../shared/auth/session.guard';
 import {
   CurrentWorkspace,
+  RequireAnyPermission,
   RequirePermission,
   WorkspaceGuard,
 } from '../../../shared/auth/workspace.guard';
@@ -48,10 +49,22 @@ export interface FileReply {
 /**
  * Pay runs -> /api/v1/ops/pay-runs (ADR-058, AC-Y1 to AC-Y4; 058-payroll).
  *
- * Every route, reads included, needs `payroll.run`: a payslip is what one
- * named colleague earns. A draft may hold a person's payslip to next month
+ * Every route, reads included, declares a payroll permission: a payslip is what
+ * one named colleague earns. A draft may hold a person's payslip to next month
  * (AC-PY7); a confirmed run prints as one PDF (AC-PY11) and builds the bank and
  * MoMo files and the declarations (AC-PY10, AC-PY12).
+ *
+ * ADR-069 D-e splits preparing the month from signing it. The DRAFT routes
+ * (list, create, read, recompute, hold) admit `payroll.draft` OR
+ * `payroll.run`, so the HR officer builds the month and a role a business
+ * granted `payroll.run` before the split still prepares the month it
+ * confirms. The confirm, and everything a confirmed run produces (the payslips
+ * PDF, the bank and MoMo files, the declarations), stay `payroll.run`'s
+ * alone. A drafter reads a confirmed run too: those are the figures they
+ * computed. What a run answers carries wages and no ID number, date of birth,
+ * RSSB number or pay account; those stay behind `people.manage` or
+ * `payroll.run` (`fileViewFor`), and the confirmed payslip's snapshot that
+ * holds them is read only through the PDF routes, which stay `payroll.run`'s.
  */
 @Controller({ path: 'ops/pay-runs', version: '1' })
 @UseGuards(SessionGuard, WorkspaceGuard)
@@ -63,7 +76,7 @@ export class OpsPayRunsController {
   ) {}
 
   @Get()
-  @RequirePermission('payroll.run')
+  @RequireAnyPermission('payroll.draft', 'payroll.run')
   list(
     @CurrentWorkspace() workspace: ScopedWorkspace,
     @Query(ListQueryPipe) query: ListQuery,
@@ -72,7 +85,7 @@ export class OpsPayRunsController {
   }
 
   @Post()
-  @RequirePermission('payroll.run')
+  @RequireAnyPermission('payroll.draft', 'payroll.run')
   create(
     @Body(new ZodValidationPipe(CreatePayRunRequest)) body: CreatePayRunRequest,
     @CurrentWorkspace() workspace: ScopedWorkspace,
@@ -82,7 +95,7 @@ export class OpsPayRunsController {
   }
 
   @Get(':id')
-  @RequirePermission('payroll.run')
+  @RequireAnyPermission('payroll.draft', 'payroll.run')
   get(
     @Param('id', ParseUUIDPipe) id: string,
     @CurrentWorkspace() workspace: ScopedWorkspace,
@@ -92,7 +105,7 @@ export class OpsPayRunsController {
 
   @Post(':id/recompute')
   @HttpCode(200)
-  @RequirePermission('payroll.run')
+  @RequireAnyPermission('payroll.draft', 'payroll.run')
   recompute(
     @Param('id', ParseUUIDPipe) id: string,
     @CurrentWorkspace() workspace: ScopedWorkspace,
@@ -104,7 +117,7 @@ export class OpsPayRunsController {
   /** Leave a person out of this draft: their month is carried to the next as an adjustment. */
   @Post(':id/hold')
   @HttpCode(200)
-  @RequirePermission('payroll.run')
+  @RequireAnyPermission('payroll.draft', 'payroll.run')
   hold(
     @Param('id', ParseUUIDPipe) id: string,
     @Body(new ZodValidationPipe(HoldPayslipRequest)) body: HoldPayslipRequest,
@@ -114,7 +127,11 @@ export class OpsPayRunsController {
     return this.payRuns.hold(workspace, user.id, id, body);
   }
 
-  /** Computes once more and freezes. A second confirm answers with the same run. */
+  /**
+   * Computes once more and freezes. A second confirm answers with the same run.
+   * `payroll.run` alone (ADR-069 D-e): whoever prepares the month is not, by
+   * default, whoever signs it.
+   */
   @Post(':id/confirm')
   @HttpCode(200)
   @RequirePermission('payroll.run')

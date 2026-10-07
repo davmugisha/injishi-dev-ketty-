@@ -27,6 +27,7 @@
 // one per shape of access — were never checked at all. Both rosters are now.
 import pg from 'pg';
 import {
+  OrgRole,
   Permission,
   can,
   isOperational,
@@ -48,10 +49,32 @@ import {
  * count nobody meant to assert.
  *
  * Receptionist and housekeeper stay literal below, deliberately. Those two sets
- * are narrow ON PURPOSE, so a set that grew is the bug this script is for.
+ * are narrow ON PURPOSE, so a set that grew is the bug this script is for. So do
+ * `finance` and `hr` (ADR-069 D-b), written out permission by permission: each
+ * is a job's seven powers and nothing else, and a grown set is a leak.
  */
 const OWNER_ALL = permissionsForRole('owner').length;
 const MANAGER_ALL = permissionsForRole('manager').length;
+
+/** ADR-069 D-b, exactly. Sorted, so a comparison reads the same either way round. */
+const FINANCE_SET = [
+  'ebm.manage',
+  'ebm.refund',
+  'folio.charge',
+  'folio.close',
+  'folio.payment',
+  'money.view',
+  'refund.decide',
+];
+const HR_SET = [
+  'attendance.approve',
+  'attendance.record',
+  'leave.approve',
+  'payroll.draft',
+  'people.manage',
+  'people.view',
+  'roster.manage',
+];
 
 const url = process.env.DATABASE_URL;
 if (!url) {
@@ -150,27 +173,65 @@ async function main() {
     // ---------------------------------------------------------------------
     // The model itself, before any row is read. These hold on every database.
     // ---------------------------------------------------------------------
-    console.log('\n=== The four org roles, from @injishi/contracts alone ===');
+    console.log('\n=== The six org roles, from @injishi/contracts alone ===');
+    check(
+      'the roles, in the order the enum and the migration keep (ADR-069 D-a)',
+      OrgRole.options,
+      ['owner', 'manager', 'receptionist', 'finance', 'hr', 'housekeeper'],
+    );
     const forRole = (role) =>
       permissionsForWorkspace({ kind: 'business', orgRole: role, registrationStatus: 'active' });
     check(`owner holds all ${OWNER_ALL}`, forRole('owner').length, OWNER_ALL);
     check(`manager holds ${MANAGER_ALL}`, forRole('manager').length, MANAGER_ALL);
     // The definition behind the two numbers above, which is what actually
     // matters: owner is the whole enum, and manager is that minus team.manage
-    // (OWNER_ONLY) and, since ADR-058, minus the two HR disclosures an owner
-    // holds by default and may grant (OWNER_BY_DEFAULT).
+    // (OWNER_ONLY) and, since ADR-058, minus the HR disclosures an owner holds
+    // by default and may grant (OWNER_BY_DEFAULT): the full file, and since
+    // ADR-069 D-e both halves of the pay run, drafting it and confirming it.
     check('owner is the whole permission enum', OWNER_ALL, Permission.options.length);
     const managerLacks = forRole('owner').filter((p) => !forRole('manager').includes(p)).sort();
     check(
-      'manager is the owner minus team.manage, people.manage and payroll.run',
+      'manager is the owner minus team.manage, people.manage, payroll.draft and payroll.run',
       managerLacks,
-      ['payroll.run', 'people.manage', 'team.manage'],
+      ['payroll.draft', 'payroll.run', 'people.manage', 'team.manage'],
     );
     // 9 until ADR-058, which gave the desk attendance.record: the desk is who is
     // at the door when the night shift arrives.
     check('receptionist holds 10', forRole('receptionist').length, 10);
     check('receptionist may clock staff in (ADR-058)', can('receptionist', 'attendance.record'), true);
     check('housekeeper holds 2', forRole('housekeeper').length, 2);
+
+    console.log('\n=== finance and hr: a job each, and nothing beside it (ADR-069 D-b) ===');
+    check('finance holds exactly its seven', [...forRole('finance')].sort(), FINANCE_SET);
+    check('hr holds exactly its seven', [...forRole('hr')].sort(), HR_SET);
+    // The lock on the door stays the owner's (OWNER_ONLY, LOCKED_PERMISSIONS).
+    check('finance may NOT manage the team', can('finance', 'team.manage'), false);
+    check('hr may NOT manage the team', can('hr', 'team.manage'), false);
+    // The pay run is prepared by one person and signed by another (D-e).
+    check('hr drafts the pay run', can('hr', 'payroll.draft'), true);
+    check('hr may NOT confirm it', can('hr', 'payroll.run'), false);
+    check(
+      'finance neither drafts nor confirms it',
+      [can('finance', 'payroll.draft'), can('finance', 'payroll.run')],
+      [false, false],
+    );
+    // Each is refused the other's work, and the guest inbox, by default.
+    check('finance reads no staff file', can('finance', 'people.view'), false);
+    check('hr reads no money', [can('hr', 'money.view'), can('hr', 'folio.charge')], [false, false]);
+    check(
+      'neither replies to guests',
+      [can('finance', 'message.send'), can('hr', 'message.send')],
+      [false, false],
+    );
+    // The database holds the same six, in the same order (migration 0063).
+    const { rows: enumRows } = await c.query(
+      'SELECT unnest(enum_range(NULL::org_role))::text AS role',
+    );
+    check(
+      'the org_role enum in this database is the same six, in order',
+      enumRows.map((r) => r.role),
+      [...OrgRole.options],
+    );
 
     console.log('\n=== owner and manager are no longer the same role ===');
     // They were byte-identical until 2026-09-12 — `new Set(ALL)` twice — so
