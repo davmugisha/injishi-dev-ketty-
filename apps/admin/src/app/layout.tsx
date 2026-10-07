@@ -6,9 +6,9 @@ import { AdminShell } from "@/components/shell/admin-shell";
 import { StaffBoundary } from "@/components/shell/staff-boundary";
 import "./globals.css";
 
-const figtree = localFont({
-  src: "../fonts/Figtree-Variable.woff2",
-  variable: "--font-figtree",
+const inter = localFont({
+  src: "../fonts/Inter-Variable.woff2",
+  variable: "--font-inter",
   weight: "300 900",
   display: "swap",
 });
@@ -34,7 +34,7 @@ export default function RootLayout({
     <html
       lang="en"
       suppressHydrationWarning
-      className={figtree.variable}
+      className={inter.variable}
     >
       <head>
         <script dangerouslySetInnerHTML={{ __html: THEME_SCRIPT }} />

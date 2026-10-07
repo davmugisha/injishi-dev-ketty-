@@ -4,7 +4,7 @@ import { cn } from "@injishi/utils";
 import { pwaMetadata } from "@/lib/pwa-metadata";
 import { AssistantWidget } from "@/components/assistant/assistant-widget";
 import { ThemeProvider } from "@/components/layout/theme-provider";
-import { figtree } from "@/lib/fonts";
+import { inter } from "@/lib/fonts";
 import "../_injishi-public.css";
 
 /**
@@ -89,7 +89,7 @@ export default function PublicLayout({ children }: { children: React.ReactNode }
   return (
     <html
       lang="en"
-      className={cn(figtree.variable)}
+      className={cn(inter.variable)}
       suppressHydrationWarning
     >
       <body className="antialiased">

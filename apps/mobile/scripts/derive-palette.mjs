@@ -122,7 +122,7 @@ const TINT_ALPHA = { light: 0.14, dark: 0.16 };
 /**
  * The status hues have no text-safe step, and neither does `info`.
  *
- * `success` is `oklch(73.29% 0.1974 145.31)` — a FILL lightness paired with a
+ * `success` is `oklch(73.29% 0.1935 150.81)` — a FILL lightness paired with a
  * near-ink foreground. As badge ink on its own tint it falls far below 4.5:1.
  * So four darker (light scheme) / lighter (dark scheme) steps are pinned here,
  * hue and chroma held, lightness moved only as far as the floor requires — the
@@ -137,7 +137,7 @@ const TINT_ALPHA = { light: 0.14, dark: 0.16 };
  * ADR-025 authored for exactly this reason. Until they are, they live here.
  */
 const TEXT_STEPS = {
-  light: { success: 0.48, warning: 0.505, danger: 0.47, info: 0.485 },
+  light: { success: 0.47, warning: 0.505, danger: 0.47, info: 0.485 },
   dark: { success: 0.71, warning: 0.75, danger: 0.705, info: 0.745 },
 };
 
@@ -207,8 +207,8 @@ function build(scheme) {
     entry('textBody', 'foreground — HeroUI has one body step, not two', r('foreground')),
     entry('textMuted', 'muted', r('muted')),
     entry('textSubtle', 'muted — collapses onto muted', r('muted')),
-    entry('textOnBrand', 'accentForeground — NEAR-INK, not white: the accent fill carries white at 3.10:1 and ink at 5.70:1', r('accentForeground')),
-    entry('textLink', 'accentText — teal authored for use as text', r('accentText')),
+    entry('textOnBrand', 'accentForeground — snow on the green accent fill (ADR-068); never pure white', r('accentForeground')),
+    entry('textLink', 'accentText — the accent hue authored for use as text', r('accentText')),
 
     ["/* Foregrounds for a SOLID status fill. Each is HeroUI's own answer for its own fill; none is white. */"],
     entry('textOnSuccess', 'successForeground — near-ink at the success hue. White on this fill measures ~2:1', r('successForeground')),
@@ -224,6 +224,7 @@ function build(scheme) {
     entry('actionHover', 'primaryHover -> foregroundHover — RN has no hover; this is the pressed step', r('primaryHover')),
     entry('actionActive', 'foregroundHover', r('foregroundHover')),
     entry('actionSubtle', 'surfaceSecondary', r('surfaceSecondary')),
+    entry('pressInk', 'ink — the fixed near-black; the press highlight on a fill whose label is lighter than it, so a press darkens away from the label (ADR-068)', r('ink')),
     entry('focusRing', 'focus', r('focus')),
 
     [`/* Tint fills — the hue at ${a} alpha, eight-digit #RRGGBBAA. */`],
@@ -338,7 +339,7 @@ const file = `/**
  * \`@injishi/design-tokens\`. To change a colour, change the token and re-run
  * the script; re-running it on unchanged tokens produces no diff (AC-10).
  *
- * This is the teal HeroUI palette the rest of the platform already renders,
+ * This is the green HeroUI palette the rest of the platform already renders,
  * converted from \`oklch()\` to hex once, at build time, because React Native's
  * colour parser does not dependably accept \`oklch()\`. Out-of-gamut roles were
  * gamut-mapped by reducing chroma with lightness and hue held, so a value here
@@ -362,9 +363,9 @@ ${SCHEMES.map((s) =>
   ].join('\n'),
 ).join('\n')}
  *
- * \`textOnBrand\` is near-INK, not white. The accent fill sits at L 0.65, which
- * carries white at 3.10:1 and ink at ${round2(measurements['light/textOnBrand'])} — so anything drawn on an
- * accent fill takes this value (ADR-025 correction #1).
+ * \`textOnBrand\` is snow, the ink the design system puts on its accent. ADR-068
+ * set the accent fill at L 0.54 so that snow measures ${round2(measurements['light/textOnBrand'])} on it; anything
+ * drawn on an accent fill takes this value, and nothing else does.
  */
 
 export type ColorScheme = 'light' | 'dark';
