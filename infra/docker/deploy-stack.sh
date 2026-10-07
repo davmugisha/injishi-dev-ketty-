@@ -108,8 +108,9 @@ env_file_value() {
 # Required secrets with no default), which the compose file hands them as a
 # BuildKit secret sourced from HEROUI_AUTH_TOKEN. Compose before v2.40 reads
 # that variable from its own process environment only, never from --env-file
-# (docker/compose, pkg/compose/build_bake.go), so a token kept in this .env
-# would never reach a build. It is read here and put in the environment of
+# (docker/compose, pkg/compose/build_bake.go), so on those versions a token kept
+# in this .env would never reach a build. It is read here, whatever the host
+# runs (the Hangaa VPS runs Compose 5.5.1), and put in the environment of
 # `compose build` alone, never exported to the rest of the run and never
 # logged. Missing, the deploy stops before it pulls or builds anything.
 heroui_token=$(env_file_value HEROUI_AUTH_TOKEN)
