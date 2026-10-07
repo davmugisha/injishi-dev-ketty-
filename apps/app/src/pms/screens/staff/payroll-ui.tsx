@@ -18,14 +18,23 @@ import { ActionButton } from "../../components/ui";
 import { fmt } from "../../lib/format";
 import { FormError, inputClass } from "./staff-ui";
 
-/** The sections of the Payroll lens, each a route segment under `/staff/payroll` (058-payroll AC-PY15). */
+/**
+ * The sections of the Payroll lens, each a route segment under `/staff/payroll` (058-payroll AC-PY15).
+ *
+ * Each section's `anyPermission` is the declaration of the reads it makes, so a
+ * grant is offered exactly the sections whose reads the API answers. The
+ * Overview and the Rules in force admit `payroll.draft` beside `payroll.run`
+ * (ADR-069 D-e): the dashboard, the runs and the national rules are what a
+ * draft is built from, and the HR officer who drafts the month holds the first
+ * and not the second. Everything a CONFIRMED run produces stays `payroll.run`'s.
+ */
 export const PAYROLL_SECTIONS: readonly {
   key: "overview" | "payslips" | "contracts" | "loans" | "claims" | "adjustments" | "components" | "rules" | "settings";
   label: string;
   segment: string;
   anyPermission: readonly Permission[];
 }[] = [
-  { key: "overview", label: "Overview", segment: "", anyPermission: ["payroll.run"] },
+  { key: "overview", label: "Overview", segment: "", anyPermission: ["payroll.draft", "payroll.run"] },
   { key: "payslips", label: "Payslips", segment: "payslips", anyPermission: ["payroll.run"] },
   // A contract is written on a person's file, so whoever writes them reads the list too.
   { key: "contracts", label: "Contracts", segment: "contracts", anyPermission: ["people.manage", "payroll.run"] },
@@ -33,7 +42,7 @@ export const PAYROLL_SECTIONS: readonly {
   { key: "claims", label: "Claims", segment: "claims", anyPermission: ["payroll.run"] },
   { key: "adjustments", label: "Adjustments", segment: "adjustments", anyPermission: ["payroll.run"] },
   { key: "components", label: "Allowances and deductions", segment: "components", anyPermission: ["payroll.run"] },
-  { key: "rules", label: "Rules in force", segment: "rules", anyPermission: ["payroll.run"] },
+  { key: "rules", label: "Rules in force", segment: "rules", anyPermission: ["payroll.draft", "payroll.run"] },
   { key: "settings", label: "Settings", segment: "settings", anyPermission: ["payroll.run"] },
 ];
 
