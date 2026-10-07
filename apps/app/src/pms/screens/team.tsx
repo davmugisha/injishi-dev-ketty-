@@ -84,6 +84,18 @@ const ROLE: Record<OrgRole, { label: string; note: string; intent: "accent" | "i
     note: "Front desk and service orders only",
     intent: "info",
   },
+  // ADR-069 D-b. Each note is the role's working day, after the Roles board,
+  // cut to what its default set can actually do.
+  finance: {
+    label: "Finance",
+    note: "Posts charges and payments, closes bills",
+    intent: "info",
+  },
+  hr: {
+    label: "HR",
+    note: "Roster, leave and attendance; drafts the pay run",
+    intent: "info",
+  },
   housekeeper: {
     label: "Housekeeper",
     note: "Room status and maintenance only",
@@ -92,7 +104,7 @@ const ROLE: Record<OrgRole, { label: string; note: string; intent: "accent" | "i
 };
 
 /** Owner first, then down. The order the refusals stack in. */
-const ORDER: OrgRole[] = ["owner", "manager", "receptionist", "housekeeper"];
+const ORDER: OrgRole[] = ["owner", "manager", "receptionist", "finance", "hr", "housekeeper"];
 
 export function Team({ landlord = false }: { landlord?: boolean }) {
   const { state, toast } = usePms();

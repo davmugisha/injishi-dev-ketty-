@@ -53,18 +53,21 @@ export const Permission = z.enum([
      * Connect the business's RRA EBM account and choose the catalog items its
      * sales are invoiced against (ADR-041).
      *
-     * The twenty third permission, and owner plus manager only. This is the
+     * The twenty third permission: owner, manager and finance. This is the
      * taxpayer's own fiscal identity: whoever holds it decides which RRA account
      * every sale of this business is declared under, and can disconnect the
      * account and stop the declarations. A receptionist taking a booking must
-     * never be able to re-point where that booking is taxed.
+     * never be able to re-point where that booking is taxed. The accountant
+     * keeps it (ADR-069 D-b): the account and its item mapping, on Settings →
+     * Integrations.
      */
     "ebm.manage",
     /**
      * Close a bill, which SIGNS ITS SALE with RRA (ADR-050 D-t, AC-8).
      *
-     * Owner, manager and receptionist. Signing a correct sale at the desk is the
-     * desk's job, and a hotel cannot wake a manager per departure. Check out
+     * Owner, manager, receptionist and finance (ADR-069 D-b). Signing a correct
+     * sale at the desk is the desk's job, and a hotel cannot wake a manager per
+     * departure; closing a bill left open is the accountant's. Check out
      * requires it alongside `stay.checkout`, because check out is what signs:
      * gating only the close route would leave the fiscal act reachable through
      * a permission the receptionist already held.
@@ -73,8 +76,9 @@ export const Permission = z.enum([
     /**
      * Withdraw a signed sale with an `NR` refund receipt (ADR-050 D-t, AC-8).
      *
-     * Owner and manager only. Creating a declaration is routine; withdrawing one
-     * reduces declared turnover, and §14 wants a named person's justification.
+     * Owner, manager and finance (ADR-069 D-b), never the desk. Creating a
+     * declaration is routine; withdrawing one reduces declared turnover, and §14
+     * wants a named person's justification.
      */
     "ebm.refund",
     /**
@@ -87,14 +91,15 @@ export const Permission = z.enum([
      * Answer a guest's request for money back on a stay that has already begun
      * (§6.8).
      *
-     * OWNER AND MANAGER, never the desk. A booking cancellation is arithmetic —
-     * `cancellationRefund` reads a locked tier and a clock, and nobody exercises
-     * judgement — but this is the opposite: the entitlement the rules compute is
-     * a SUGGESTION, and the person deciding may approve more than it (goodwill)
-     * or refuse what it owed by citing a rule the engine cannot see. That is a
-     * discretionary spend of the business's money in front of an unhappy guest,
-     * which is exactly the decision a receptionist must be able to escalate
-     * rather than be pressed into making at the counter.
+     * OWNER, MANAGER AND FINANCE (ADR-069 D-b), never the desk. A booking
+     * cancellation is arithmetic — `cancellationRefund` reads a locked tier and a
+     * clock, and nobody exercises judgement — but this is the opposite: the
+     * entitlement the rules compute is a SUGGESTION, and the person deciding may
+     * approve more than it (goodwill) or refuse what it owed by citing a rule the
+     * engine cannot see. That is a discretionary spend of the business's money in
+     * front of an unhappy guest, which is exactly the decision a receptionist
+     * must be able to escalate rather than be pressed into making at the
+     * counter.
      */
     "refund.decide",
     /**
@@ -110,17 +115,20 @@ export const Permission = z.enum([
     "offer.manage",
     /**
      * The HR module (ADR-058, cross child contract 4). Seven permissions in the
-     * `people` area, each moveable per role under ADR-055.
+     * `people` area, and ADR-069 D-e's `payroll.draft` makes eight, each
+     * moveable per role under ADR-055.
      *
      * `people.view` reads the HR file WITHOUT the sensitive fields (date of
      * birth, ID number, RSSB number, wages). Only `people.manage` and
      * `payroll.run` see those, and the API answers with a different schema for
-     * each, so a missed check cannot leak a field.
+     * each, so a missed check cannot leak a field. `payroll.draft` sees the
+     * wages a pay run computes and none of the file's other sensitive fields.
      */
     "people.view",
     /**
      * Create and edit HR files and contracts, see the sensitive fields, and
-     * offboard. OWNER BY DEFAULT (`OWNER_BY_DEFAULT` below), but grantable: an
+     * offboard. The owner's and `hr`'s by default (ADR-069 D-b), and in
+     * `OWNER_BY_DEFAULT` below so a manager does not inherit it; grantable: an
      * owner may hand it to a manager. Offboarding a person who holds an account
      * still needs `team.manage` as well, which cannot be granted.
      */
@@ -138,9 +146,31 @@ export const Permission = z.enum([
     /** Decide leave, and file leave on someone's behalf. */
     "leave.approve",
     /**
-     * Pay runs, payslips and declarations, and the sensitive fields they need.
+     * Build and revise a DRAFT pay run, and see the wages that takes (ADR-069
+     * D-e): list the runs, create a month's draft, read a run with its payslips,
+     * recompute it, hold one person out of it, and read the payroll dashboard
+     * and the national rules a draft is computed by. Never the confirm.
+     *
+     * The owner's and `hr`'s by default, so whoever prepares the month is not
+     * whoever signs it. In `OWNER_BY_DEFAULT` below, and that is required rather
+     * than stylistic: `manager` is every permission minus `OWNER_ONLY` minus
+     * `OWNER_BY_DEFAULT`, so leaving it out would hand it to every manager.
+     *
+     * A draft route admits this OR `payroll.run`, so a role a business granted
+     * `payroll.run` before the split still prepares the month it confirms and
+     * no override row needs migrating. Alone it never reaches an ID number, a
+     * date of birth, an RSSB number or a pay account.
+     */
+    "payroll.draft",
+    /**
+     * CONFIRM the pay run (ADR-069 D-e), and everything a confirmed run
+     * produces: payslips, bank and mobile money files, the RSSB and PAYE
+     * declarations, loans, claims and adjustments, how pay is computed, and the
+     * sensitive fields they need. A draft route admits it too, so it still does
+     * everything it did before `payroll.draft` existed.
+     *
      * OWNER BY DEFAULT, like `people.manage`: what the business pays each person
-     * is the owner's to disclose.
+     * is the owner's to disclose, and to sign. No other default role holds it.
      */
     "payroll.run",
 ]);
@@ -175,29 +205,46 @@ const OWNER_ONLY: readonly Permission[] = ["team.manage"];
  * cross child contract 4).
  *
  * Different from `OWNER_ONLY` in kind, not degree. `team.manage` is the lock on
- * the door and can never be granted; these two are disclosures (a person's ID
+ * the door and can never be granted; these are disclosures (a person's ID
  * number, what each colleague earns) that a hotel may well want its general
  * manager to hold, so they start with the owner and move with an ADR-055
  * override like any other permission.
+ *
+ * `payroll.draft` (ADR-069 D-e) is here because `manager` is derived by
+ * subtraction: a permission left off this list is a permission every manager
+ * holds. `hr` holds `people.manage` and `payroll.draft` by its own set, not by
+ * inheriting from here, and `payroll.run` stays the owner's alone.
  */
-const OWNER_BY_DEFAULT: readonly Permission[] = ["people.manage", "payroll.run"];
+const OWNER_BY_DEFAULT: readonly Permission[] = ["people.manage", "payroll.draft", "payroll.run"];
 /**
  * Role to permissions, inside a business workspace.
  *
  * owner runs and OWNS the property: everything, the roster included.
  * manager runs the property: everything operational, money and the fiscal
  * account included — but does not decide who works here (`OWNER_ONLY`), and by
- * default neither reads HR files in full nor runs payroll (`OWNER_BY_DEFAULT`).
+ * default neither reads HR files in full nor drafts or confirms payroll
+ * (`OWNER_BY_DEFAULT`).
  * receptionist works the front desk and takes service orders: no money, no
  * team, no housekeeping board, no menu editing. Clocks staff in and out.
+ * finance is the accountant (ADR-069 D-b): reads the money, posts and voids
+ * charges, records payments, closes bills, keeps the EBM account, withdraws a
+ * signed sale and answers refund requests. No rooms, no reservations to
+ * write, no rates, no staff files, no guest inbox.
+ * hr is the HR officer (ADR-069 D-b): reads and keeps the staff files, the
+ * roster, attendance and leave, and DRAFTS the pay run; the owner confirms it.
+ * No money, no folios, no reservations, no guest inbox.
  * housekeeper is the phone: room status and maintenance tickets only.
+ *
+ * Neither `finance` nor `hr` holds `team.manage`, and no override can give it
+ * to them (`LOCKED_PERMISSIONS`). Typed by `OrgRole`, so a role added to the
+ * enum without a set here does not compile.
  */
-const ROLE_PERMISSIONS = {
+const ROLE_PERMISSIONS: Readonly<Record<OrgRole, ReadonlySet<Permission>>> = {
     owner: new Set(ALL),
     manager: new Set(
         ALL.filter((p) => !OWNER_ONLY.includes(p) && !OWNER_BY_DEFAULT.includes(p)),
     ),
-    receptionist: new Set([
+    receptionist: new Set<Permission>([
         "reservation.approve",
         "reservation.assign",
         "stay.checkin",
@@ -209,7 +256,25 @@ const ROLE_PERMISSIONS = {
         "message.send",
         "attendance.record",
     ]),
-    housekeeper: new Set(["housekeeping.set", "ticket.advance"]),
+    finance: new Set<Permission>([
+        "money.view",
+        "folio.charge",
+        "folio.payment",
+        "folio.close",
+        "ebm.manage",
+        "ebm.refund",
+        "refund.decide",
+    ]),
+    hr: new Set<Permission>([
+        "people.view",
+        "people.manage",
+        "roster.manage",
+        "attendance.record",
+        "attendance.approve",
+        "leave.approve",
+        "payroll.draft",
+    ]),
+    housekeeper: new Set<Permission>(["housekeeping.set", "ticket.advance"]),
 };
 /** Does this role hold this permission? The single predicate both sides use. */
 export function can(role: OrgRole, permission: Permission): boolean {
@@ -254,7 +319,8 @@ export const PERMISSION_LABEL: Readonly<Record<Permission, string>> = {
     "attendance.record": "clock staff in and out",
     "attendance.approve": "correct and approve attendance",
     "leave.approve": "decide leave",
-    "payroll.run": "run payroll",
+    "payroll.draft": "draft the pay run",
+    "payroll.run": "confirm the pay run",
 };
 // ---------------------------------------------------------------------------
 // A business's own role customisation
@@ -262,8 +328,10 @@ export const PERMISSION_LABEL: Readonly<Record<Permission, string>> = {
 /**
  * The roles a business may customise, and the fact that `owner` is not one.
  *
- * The four roles above are the PLATFORM's defaults: what a hotel means by
- * "receptionist" before anybody says otherwise. They were the whole model, and
+ * The six roles above are the PLATFORM's defaults: what a hotel means by
+ * "receptionist" before anybody says otherwise. `finance` and `hr` (ADR-069
+ * D-a) are customisable like the rest, and appear on the Roles screen with
+ * their own defaults beside the others. The defaults were the whole model, and
  * two real properties never agree with them — one lets the front desk read the
  * month's takings, another does not let a manager withdraw a signed receipt.
  * The choice belongs to whoever owns the business, so a business may move a
@@ -443,6 +511,7 @@ export const PERMISSION_AREA_OF: Readonly<Record<Permission, PermissionArea>> = 
     "attendance.record": "people",
     "attendance.approve": "people",
     "leave.approve": "people",
+    "payroll.draft": "people",
     "payroll.run": "people",
 };
 // ---------------------------------------------------------------------------

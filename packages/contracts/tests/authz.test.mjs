@@ -55,11 +55,11 @@ const NOT_ACTIVE = [
   "suspended",
 ];
 
-const ROLES = ["owner", "manager", "receptionist", "housekeeper"];
+const ROLES = ["owner", "manager", "receptionist", "finance", "hr", "housekeeper"];
 
 // ---------------------------------------------------------------------------
 
-describe("the four org roles", () => {
+describe("the six org roles", () => {
   /*
    * Pinned as exact sets rather than as counts. A count catches a permission
    * being dropped and misses one being SWAPPED for another, which is the
@@ -70,13 +70,15 @@ describe("the four org roles", () => {
     assert.deepEqual(permissionsForRole("owner"), Permission.options);
     // 27: ADR-054 removed `property.switch` (AC-S4) from the 28 origin carried.
     // 34: ADR-058 added the seven HR permissions (cross child contract 4).
-    assert.equal(permissionsForRole("owner").length, 34);
+    // 35: ADR-069 D-e added `payroll.draft`.
+    assert.equal(permissionsForRole("owner").length, 35);
   });
 
-  test("manager holds everything except team.manage and the two HR disclosures", () => {
+  test("manager holds everything except team.manage and the three HR disclosures", () => {
     // ADR-058: `people.manage` and `payroll.run` start with the owner, and an
-    // owner may grant them. `team.manage` never moves.
-    const withheld = ["team.manage", "people.manage", "payroll.run"];
+    // owner may grant them. `team.manage` never moves. ADR-069 D-e: so does
+    // `payroll.draft`, because a manager is ALL minus what is withheld.
+    const withheld = ["team.manage", "people.manage", "payroll.draft", "payroll.run"];
     assert.deepEqual(
       permissionsForRole("manager"),
       Permission.options.filter((p) => !withheld.includes(p)),
@@ -110,6 +112,85 @@ describe("the four org roles", () => {
     assert.equal(can("housekeeper", "refund.decide"), false);
     assert.equal(can("manager", "refund.decide"), true);
     assert.equal(can("manager", "offer.manage"), true);
+    // ADR-069 D-b: the accountant answers refund requests; nobody else new does.
+    assert.equal(can("finance", "refund.decide"), true);
+    assert.equal(can("finance", "offer.manage"), false);
+    assert.equal(can("hr", "refund.decide"), false);
+  });
+
+  test("finance is the accountant: exactly the seven the owner named (ADR-069 D-b)", () => {
+    assert.deepEqual(permissionsForRole("finance"), [
+      "folio.charge",
+      "folio.payment",
+      "money.view",
+      "ebm.manage",
+      "folio.close",
+      "ebm.refund",
+      "refund.decide",
+    ]);
+  });
+
+  test("finance holds nothing of the desk, the rooms, the property or the people", () => {
+    // D-b's "holds nothing else" list. Reservations open for finance by widening
+    // a READ (D-d), never by handing it a front desk write.
+    for (const p of [
+      "people.view",
+      "people.manage",
+      "roster.manage",
+      "attendance.record",
+      "attendance.approve",
+      "leave.approve",
+      "payroll.draft",
+      "payroll.run",
+      "reservation.approve",
+      "reservation.assign",
+      "stay.checkin",
+      "stay.checkout",
+      "listing.manage",
+      "unit.manage",
+      "amenity.manage",
+      "offer.manage",
+      "menu.manage",
+      "outlet.manage",
+      "department.manage",
+      "message.send",
+      "housekeeping.set",
+      "rent.record",
+      "team.manage",
+    ]) {
+      assert.equal(can("finance", p), false, `finance must not hold ${p}`);
+    }
+  });
+
+  test("hr is the HR officer: exactly the seven the owner named (ADR-069 D-b)", () => {
+    assert.deepEqual(permissionsForRole("hr"), [
+      "people.view",
+      "people.manage",
+      "roster.manage",
+      "attendance.record",
+      "attendance.approve",
+      "leave.approve",
+      "payroll.draft",
+    ]);
+  });
+
+  test("hr holds no money, no bill, no reservation, no guest inbox and no confirm", () => {
+    for (const p of [
+      "money.view",
+      "folio.charge",
+      "folio.payment",
+      "folio.close",
+      "reservation.approve",
+      "reservation.assign",
+      "stay.checkin",
+      "stay.checkout",
+      "payroll.run",
+      "message.send",
+      "department.manage",
+      "team.manage",
+    ]) {
+      assert.equal(can("hr", p), false, `hr must not hold ${p}`);
+    }
   });
 
   test("housekeeper is the phone: room status and tickets, nothing else", () => {
@@ -146,6 +227,13 @@ describe("owner and manager are different roles", () => {
     assert.equal(can("manager", "team.manage"), false);
     assert.equal(can("receptionist", "team.manage"), false);
     assert.equal(can("housekeeper", "team.manage"), false);
+    // ADR-069 D-b: neither new role holds it either.
+    assert.equal(can("finance", "team.manage"), false);
+    assert.equal(can("hr", "team.manage"), false);
+    assert.deepEqual(
+      ROLES.filter((r) => can(r, "team.manage")),
+      ["owner"],
+    );
   });
 
   test("ebm.manage stays with the manager, as ADR-041 D-o ratified", () => {
@@ -155,6 +243,9 @@ describe("owner and manager are different roles", () => {
     assert.equal(can("owner", "ebm.manage"), true);
     assert.equal(can("manager", "ebm.manage"), true);
     assert.equal(can("receptionist", "ebm.manage"), false);
+    // ADR-069 D-b: the accountant keeps the EBM account; HR does not.
+    assert.equal(can("finance", "ebm.manage"), true);
+    assert.equal(can("hr", "ebm.manage"), false);
   });
 
   test("a receptionist may sign a sale and may not withdraw one (ADR-050 AC-8)", () => {
@@ -175,6 +266,39 @@ describe("owner and manager are different roles", () => {
       assert.equal(can("receptionist", p), false, `receptionist must not hold ${p}`);
       assert.equal(can("housekeeper", p), false, `housekeeper must not hold ${p}`);
     }
+  });
+});
+
+describe("the pay run is drafted by one person and confirmed by another (ADR-069 D-e)", () => {
+  /*
+   * `payroll.run` used to gate every pay run route from create to confirm, so
+   * whoever prepared the month also signed it. `payroll.draft` prepares;
+   * `payroll.run` confirms.
+   */
+  test("payroll.draft is the owner's and hr's, and nobody else's", () => {
+    assert.deepEqual(
+      ROLES.filter((r) => can(r, "payroll.draft")),
+      ["owner", "hr"],
+    );
+  });
+
+  test("payroll.run, the confirm, is the owner's alone", () => {
+    assert.deepEqual(
+      ROLES.filter((r) => can(r, "payroll.run")),
+      ["owner"],
+    );
+  });
+
+  test("a manager holds neither payroll permission by default", () => {
+    // `manager` is ALL minus what is withheld, so leaving `payroll.draft` off
+    // OWNER_BY_DEFAULT would have handed it to every manager.
+    assert.equal(can("manager", "payroll.draft"), false);
+    assert.equal(can("manager", "payroll.run"), false);
+  });
+
+  test("both are worded as the two halves of one act", () => {
+    assert.equal(PERMISSION_LABEL["payroll.draft"], "draft the pay run");
+    assert.equal(PERMISSION_LABEL["payroll.run"], "confirm the pay run");
   });
 });
 
