@@ -16,8 +16,12 @@
  * **THE ROLE IS THE POINT, NOT DECORATION.** `orgRole` is the same field
  * `permissionsForWorkspace` resolves every refusal from, so this list is the one
  * place an owner can see WHY their receptionist cannot open Finance. A roster
- * without it would be an address book. The badge names what the role can do
- * rather than repeating the enum.
+ * without it would be an address book. The badge is the role's name
+ * (`ORG_ROLE_LABEL`) and the line under it what the role is for (`ROLE_COPY`,
+ * shared with Invites and Roles), and a role this business changed under
+ * ADR-055 says so, read from the same `GET /ops/roles` the Roles lens edits.
+ * Six roles since ADR-069: finance and hr sort between the desk and the
+ * housekeeper, in the contract's own order.
  *
  * **THE READ IS GATED ON `team.manage`**, unusually for this app. Most `/ops`
  * reads need only the workspace, because a receptionist has to see rooms and
@@ -43,14 +47,18 @@
 
 import {
   MEMBER_BRANCHES_REFUSAL,
+  ORG_ROLE_LABEL,
+  OrgRole,
+  Permission,
   type MemberBranchIds,
   type OperatorTeamMember,
-  type OrgRole,
 } from "@injishi/contracts";
 import Link from "next/link";
 import { useState } from "react";
 
 import { BranchPicker, coverageText } from "../components/branch-picker";
+import { departures } from "../components/roles/permission-rows";
+import { ROLE_COPY } from "../components/roles/role-copy";
 import {
   ActionButton,
   Badge,
@@ -62,55 +70,32 @@ import {
 } from "../components/ui";
 import { humanError } from "../data/api";
 import { useCapability, useWorkspaceId } from "../data/capability";
-import { useTeam } from "../data/ops";
+import { useRoles, useTeam } from "../data/ops";
 import { useSetMemberBranches } from "../data/setup";
 import { dshortIso, initials } from "../lib/format";
 import { workspaceBase } from "../lib/nav";
 import { usePms } from "../store";
 import { currentGrant } from "../store/helpers";
 
-/**
- * What a role MEANS, not what it is called.
- *
- * The enum value is already on screen as the heading; repeating it in the badge
- * would tell an owner nothing they did not just read. What they actually need to
- * know is the surface it opens, which is what every refusal is decided from.
- */
-const ROLE: Record<OrgRole, { label: string; note: string; intent: "accent" | "info" | "neutral" }> = {
-  owner: { label: "Owner", note: "Everything, including Settings", intent: "accent" },
-  manager: { label: "Manager", note: "Everything except Settings", intent: "accent" },
-  receptionist: {
-    label: "Receptionist",
-    note: "Front desk and service orders only",
-    intent: "info",
-  },
-  // ADR-069 D-b. Each note is the role's working day, after the Roles board,
-  // cut to what its default set can actually do.
-  finance: {
-    label: "Finance",
-    note: "Posts charges and payments, closes bills",
-    intent: "info",
-  },
-  hr: {
-    label: "HR",
-    note: "Roster, leave and attendance; drafts the pay run",
-    intent: "info",
-  },
-  housekeeper: {
-    label: "Housekeeper",
-    note: "Room status and maintenance only",
-    intent: "neutral",
-  },
-};
-
-/** Owner first, then down. The order the refusals stack in. */
-const ORDER: OrgRole[] = ["owner", "manager", "receptionist", "finance", "hr", "housekeeper"];
+/** Owner first, then down: the contract's own order, so a seventh role sorts itself. */
+const ORDER = OrgRole.options;
 
 export function Team({ landlord = false }: { landlord?: boolean }) {
   const { state, toast } = usePms();
   const workspaceId = useWorkspaceId();
   const { can, reasonFor } = useCapability();
   const query = useTeam(workspaceId);
+  // Which roles this business changed (ADR-055). The same `team.manage` read as
+  // the roster; while it loads, or if it fails, the roster simply says nothing.
+  const roles = useRoles(workspaceId);
+  const customised = new Set<OrgRole>(
+    (roles.data?.roles ?? [])
+      .filter((r) => {
+        const d = departures(Permission.options, r.basePermissions, r.permissions);
+        return d.granted.length + d.withdrawn.length > 0;
+      })
+      .map((r) => r.orgRole),
+  );
   const setBranches = useSetMemberBranches(workspaceId);
   const [editing, setEditing] = useState<{ userId: string; branchIds: MemberBranchIds } | null>(null);
   const [editError, setEditError] = useState<string | null>(null);
@@ -166,7 +151,7 @@ export function Team({ landlord = false }: { landlord?: boolean }) {
   const removed = members.filter((m) => m.status !== "active");
 
   const row = (m: OperatorTeamMember, i: number, live: boolean) => {
-    const role = ROLE[m.orgRole];
+    const role = ROLE_COPY[m.orgRole];
     const open = editing?.userId === m.userId;
     const mayLimit = showsBranches && live && m.orgRole !== "owner";
     return (
@@ -198,9 +183,17 @@ export function Team({ landlord = false }: { landlord?: boolean }) {
             )}
           </span>
           <span style={{ textAlign: "right", minWidth: 0 }}>
-            <Badge intent={role.intent}>{role.label}</Badge>
+            <Badge intent={role.intent}>{ORG_ROLE_LABEL[m.orgRole]}</Badge>
             <span style={{ display: "block", marginTop: 3, fontSize: 11, color: "var(--faint)" }}>
-              {live ? role.note : "Removed"}
+              {live ? role.short : "Removed"}
+              {live && customised.has(m.orgRole) && (
+                <>
+                  {" · "}
+                  <Link href={`${base}/people/roles`} className="underline underline-offset-2">
+                    changed here
+                  </Link>
+                </>
+              )}
             </span>
           </span>
           {mayLimit && !open && (

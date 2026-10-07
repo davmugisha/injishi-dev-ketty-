@@ -87,8 +87,14 @@ function refresh(client: QueryClient, ...nouns: string[]): void {
 
 // --- The dashboard, the rules in force and every contract (AC-PY15) --------------------------
 
+/**
+ * The Payroll overview a draft is created from: business totals, never a
+ * person's. Read under `payrollOverview`, not `payroll`, because the route
+ * admits `payroll.draft` as well as `payroll.run` (ADR-069 D-e): asked under
+ * `payroll` alone, the HR officer who drafts the month would never fetch it.
+ */
 export function usePayrollDashboard(ws: string | null): UseQueryResult<PayrollDashboard> {
-  const mayRead = useMayRead(OPS_READ.payroll);
+  const mayRead = useMayRead(OPS_READ.payrollOverview);
   return useQuery({
     queryKey: payrollKeys.dashboard(ws),
     queryFn: () => read("/ops/payroll/dashboard", ws as string, PayrollDashboard),
@@ -96,9 +102,12 @@ export function usePayrollDashboard(ws: string | null): UseQueryResult<PayrollDa
   });
 }
 
-/** The national rules, read only: a rule changes by a new config version, never here. */
+/**
+ * The national rules, read only: a rule changes by a new config version, never
+ * here. A draft is computed by them, so a drafter reads them too (ADR-069 D-e).
+ */
 export function usePayrollRules(ws: string | null): UseQueryResult<PayrollRules> {
-  const mayRead = useMayRead(OPS_READ.payroll);
+  const mayRead = useMayRead(OPS_READ.payrollOverview);
   return useQuery({
     queryKey: payrollKeys.rules(ws),
     queryFn: () => read("/ops/payroll/rules", ws as string, PayrollRules),
