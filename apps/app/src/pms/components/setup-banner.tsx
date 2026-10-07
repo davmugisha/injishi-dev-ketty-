@@ -50,7 +50,8 @@ export function SetupBanner() {
       done={done.requiredDone}
       total={done.requiredTotal}
       next={next?.title}
-      href={`${workspaceBase(workspaceId)}/setup`}
+      // Straight to the step it names: set-up keys its steps by the contract's own keys.
+      href={`${workspaceBase(workspaceId)}/setup${next ? `?step=${next.key}` : ""}`}
     />
   );
 }

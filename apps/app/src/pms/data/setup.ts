@@ -15,6 +15,7 @@
  */
 
 import {
+  IdentityStatus,
   InventoryRoomList,
   OperatorStaffInvitationList,
   PropertySetupProgress,
@@ -32,10 +33,81 @@ import {
   type UseMutationResult,
   type UseQueryResult,
 } from "@tanstack/react-query";
+import { useEffect, useRef } from "react";
 
 import { command } from "./api";
 import { read, useMayRead } from "./ops";
 import { queryKeys } from "./queries";
+
+/**
+ * Keep the checklist in step with every write made while it is on screen.
+ *
+ * The guided set-up embeds the screens that edit each step (room types,
+ * photographs, departments, outlets, amenities, invitations), and only some of
+ * their writes invalidate the `inventory` prefix the checklist sits under: an
+ * amenity, a department head or an outlet moves a count without touching it.
+ * Rather than teach every one of those hooks about the checklist, the set-up
+ * listens for ANY write that settles and asks for the counts again. One small
+ * read per save, and a step can never show "not done" over a thing just finished.
+ *
+ * A FAILED write is followed too, and that is not caution for its own sake:
+ * `POST /inventory/properties` creates the property and then answers 404,
+ * because the read back is checked against the branch scope resolved BEFORE the
+ * property existed. The property is there; only the answer says otherwise. So
+ * after an error the whole inventory prefix is asked again, and whatever landed
+ * shows.
+ */
+export function useSetupFollowsWrites(): void {
+  const client = useQueryClient();
+  useEffect(
+    () =>
+      client.getMutationCache().subscribe((event) => {
+        if (event.type !== "updated") return;
+        if (event.action.type === "success") {
+          void client.invalidateQueries({ queryKey: ["inventory", "setup"] });
+        } else if (event.action.type === "error") {
+          void client.invalidateQueries({ queryKey: ["inventory"] });
+        }
+      }),
+    [client],
+  );
+}
+
+/**
+ * The business's first property is also its first BRANCH, which the grant
+ * lists (the branch switcher, the branch header every read sends). When the
+ * checklist's property count grows, the grant is asked again so the shell stops
+ * saying "No property yet" over the property just created.
+ */
+export function useGrantFollowsProperties(count: number | undefined): void {
+  const client = useQueryClient();
+  const seen = useRef<number | undefined>(undefined);
+  useEffect(() => {
+    if (count === undefined) return;
+    if (seen.current !== undefined && count > seen.current) {
+      void client.invalidateQueries({ queryKey: queryKeys.meWorkspaces });
+    }
+    seen.current = count;
+  }, [count, client]);
+}
+
+/**
+ * The signed-in person's own identity check (ADR-060), for the "verify your
+ * identity for payouts" task once the listing is live.
+ *
+ * `/me/identity` is the caller's own record behind the session alone, so it is
+ * asked whatever the workspace grants. The workspace header rides along only
+ * because `read` always sends it; the route ignores it.
+ */
+export function useOwnIdentity(workspaceId: string | null, enabled: boolean): UseQueryResult<IdentityStatus> {
+  return useQuery({
+    queryKey: ["me", "identity"] as const,
+    queryFn: () => read("/me/identity", workspaceId as string, IdentityStatus),
+    enabled: enabled && workspaceId !== null,
+    // A verification happens elsewhere and rarely; one read per visit is plenty.
+    staleTime: 5 * 60_000,
+  });
+}
 
 function useInvalidateInventory(): () => void {
   const client = useQueryClient();
