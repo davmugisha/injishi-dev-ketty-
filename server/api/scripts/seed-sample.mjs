@@ -25,6 +25,10 @@
  *   seed-demo-portfolio.mjs   the landlord's full rent roll, the district
  *                             registration pipeline, and the admin console's
  *                             reviews and support tickets
+ *   seed-demo-psf.mjs, seed-broker.mjs, seed-hr-files.mjs
+ *                             PSF membership, brokers, a staff file per account
+ *   seed-ui2.mjs              LAST: Amahoro's finance and hr personas and what
+ *                             the role homes show, from seed-ui2/NN-*.mjs
  *
  * then gives every property the seeds wrote the USALI department set (ADR-016
  * AC-14), which they skip by INSERTing properties directly, and records the
@@ -86,6 +90,11 @@ const STEPS = [
   // only for memberships that existed when it ran, which on a migrate-then-seed
   // database is none (ADR-058 AC-P5).
   { script: 'seed-hr-files.mjs', what: 'HR: a staff file for every seeded staff account (ADR-058)' },
+  // LAST: every seed-ui2/NN-*.mjs reads the rows the steps above write, and
+  // 00-personas.mjs gives its two new staff their own files, because the step
+  // above ran before their memberships existed. Before the head office and
+  // department passes below, so a property a ui2 file adds is covered by both.
+  { script: 'seed-ui2.mjs', what: 'ui2: the finance and hr personas, and what the six role homes show (ADR-069)' },
 ];
 
 function fail(message) {
