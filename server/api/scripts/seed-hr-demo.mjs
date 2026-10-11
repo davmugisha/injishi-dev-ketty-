@@ -23,6 +23,8 @@
 //               published, a week of clock ins and outs with a few late
 //               arrivals, and whoever is on shift now clocked in
 //   leave       one request approved, one waiting, one refused
+//   checklists  a joining and a leaving list, and somebody who started three
+//               days ago partway through hers
 //   the rest    a business holiday, a policy and an announcement
 //
 // IT DRIVES THE REAL API, as the verify scripts do, signed in as the demo
@@ -242,6 +244,7 @@ async function seedBusiness(business) {
 
   const people = await files(api, business, branch);
   await pay(api, business, people);
+  await checklists(api, business, branch);
   const shifts = await time(api, branch, people, settings.body.policies ?? []);
   await leave(api, people);
   await attendance(api, people, shifts);
@@ -370,6 +373,84 @@ async function pay(api, business, people) {
     if (!res.ok) note('RSSB employer number', res);
   }
   say(`pay: ${contracts} contract(s), ${accounts} pay account(s)`);
+}
+
+/** The tasks most hotels do. An owner rewords them under Staff, Checklists. */
+const JOINING = [
+  { label: 'Sign the contract and give a copy', dueAfterDays: 0 },
+  { label: 'Bring a copy of your ID and your RSSB number', byEmployee: true, dueAfterDays: 0 },
+  { label: 'Issue a uniform and a name tag', dueAfterDays: 0 },
+  { label: 'Walk the fire exits and the assembly point', dueAfterDays: 1 },
+  { label: 'Read the house rules', byEmployee: true, dueAfterDays: 3 },
+  { label: 'First month review with their manager', dueAfterDays: 30 },
+];
+const LEAVING = [
+  { label: "Take them off next week's roster", dueAfterDays: -3 },
+  { label: 'Hand back the uniform, name tag and locker key', byEmployee: true, dueAfterDays: 0 },
+  { label: 'Collect master keys and any hotel phone', dueAfterDays: 0 },
+  { label: 'Certificate of service handed over', dueAfterDays: 7 },
+  { label: 'Final pay settled on the next run', dueAfterDays: 30 },
+];
+/** Who joins this week, after the lists are written, so the product starts hers itself. */
+const NEW_STARTER = { legalName: 'Divine Ishimwe', sex: 'female', dateOfBirth: '2001-04-18', job: 'Room attendant', startedDaysAgo: 3 };
+
+/**
+ * The two lists, then one hire. In that order on purpose: a file created once
+ * a joining list is the default starts its own checklist, which is the thing
+ * to show. The people above were put on file before any list existed, as a
+ * real office's long standing staff were, and have none.
+ */
+async function checklists(api, business, branch) {
+  const listed = await api.get('/ops/hr/checklist-templates');
+  if (!listed.ok) {
+    note('checklists', listed);
+    return;
+  }
+  let written = 0;
+  for (const [kind, name, items] of [['onboarding', 'Joining the hotel', JOINING], ['offboarding', 'Leaving the hotel', LEAVING]]) {
+    if (listed.body.templates.some((t) => t.kind === kind)) continue;
+    const res = await api.post('/ops/hr/checklist-templates', { kind, name, isDefault: true, items });
+    if (res.ok) written += 1;
+    else note(`${name} checklist`, res);
+  }
+
+  let started = 'nobody new';
+  const everyone = await all(api, '/ops/employees');
+  if (!everyone.some((e) => e.legalName === NEW_STARTER.legalName)) {
+    const jobs = await positions(api);
+    const hiredOn = addDays(today, -NEW_STARTER.startedDaysAgo);
+    const file = await api.post('/ops/employees', {
+      legalName: NEW_STARTER.legalName,
+      phone: `0788 7${business.code} 300`,
+      dateOfBirth: NEW_STARTER.dateOfBirth,
+      sex: NEW_STARTER.sex,
+      idDocumentType: 'national_id',
+      idDocumentNumber: nationalId(business, 80, NEW_STARTER),
+      hiredOn,
+      workPropertyId: branch.propertyId,
+      rssbNumber: `RSSB-DEMO-${business.code}081`,
+      jobPositionId: jobs.get(NEW_STARTER.job.toLowerCase()) ?? null,
+    });
+    if (!file.ok) note(`file for ${NEW_STARTER.legalName}`, file);
+    else {
+      const contract = await api.post(`/ops/employees/${file.body.id}/contracts`, {
+        contractType: 'permanent',
+        startsOn: hiredOn,
+        wageBasis: 'monthly',
+        wageRwf: WAGE[NEW_STARTER.job],
+      });
+      if (!contract.ok) note(`contract of ${NEW_STARTER.legalName}`, contract);
+      await api.post(`/ops/employees/${file.body.id}/pay-accounts`, { kind: 'momo', momoPhone: file.body.phone, makePrimary: true });
+      // Day one was done on day one; the rest of her first week is still open.
+      const board = await api.get('/ops/hr/checklists');
+      const hers = (board.body?.checklists ?? []).find((c) => c.employee.employeeId === file.body.id && c.kind === 'onboarding');
+      for (const task of (hers?.tasks ?? []).filter((t) => !t.byEmployee && t.dueOn <= hiredOn)) {
+        await api.post(`/ops/hr/checklist-tasks/${task.id}/done`);
+      }
+      started = hers ? `${NEW_STARTER.legalName} on hers` : `${NEW_STARTER.legalName} on file, no checklist started`;
+    }
+  }
+  say(`checklists: ${written} list(s) written, ${started}`);
 }
 
 async function time(api, branch, people, policies) {

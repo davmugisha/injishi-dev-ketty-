@@ -19,6 +19,7 @@ import {
 } from '../../../shared/auth/workspace.guard';
 import { OpsAmenitiesController } from './amenities.controller';
 import { OpsAttendanceController } from './attendance.controller';
+import { OpsChecklistsController } from './checklists.controller';
 import { OpsDepartmentsController } from './departments.controller';
 import { OpsDisciplinaryActionsController } from './disciplinary-actions.controller';
 import { OpsDocumentRequestsController } from './document-requests.controller';
@@ -143,6 +144,7 @@ const CONTROLLERS: Ctor[] = [
   OpsDocumentsController,
   OpsDocumentRequestsController,
   OpsPoliciesController,
+  OpsChecklistsController,
   OpsStaffAnnouncementsController,
   OpsDisciplinaryActionsController,
   OpsOrgChartController,
@@ -340,6 +342,9 @@ const EXPECTED: Record<string, readonly OrgRole[]> = {
   // (`attendance.record`) reads the house rules and announcements too.
   '/ops/hr/catalog/:kind': ['owner', 'manager', 'receptionist', 'hr'],
   '/ops/hr/settings': ['owner', 'manager', 'receptionist', 'hr'],
+  // Checklists are read by whoever reads files; the desk reads neither.
+  '/ops/hr/checklist-templates': ['owner', 'manager', 'hr'],
+  '/ops/hr/checklists': ['owner', 'manager', 'hr'],
   '/ops/policies': ['owner', 'manager', 'receptionist', 'hr'],
   '/ops/policies/:id/files/:index': ['owner', 'manager', 'receptionist', 'hr'],
   '/ops/staff-announcements': ['owner', 'manager', 'receptionist', 'hr'],

@@ -38,6 +38,7 @@ import {
   UseGuards,
 } from '@nestjs/common';
 
+import { ChecklistsService } from '../../../modules/people/application/checklists.service';
 import { EmployeesService } from '../../../modules/people/application/employees.service';
 import { LeaveService } from '../../../modules/people/application/leave.service';
 import { PeopleFileService } from '../../../modules/people/application/people-file.service';
@@ -81,6 +82,7 @@ export class OpsEmployeesController {
     private readonly employees: EmployeesService,
     private readonly leave: LeaveService,
     private readonly peopleFile: PeopleFileService,
+    private readonly checklists: ChecklistsService,
   ) {}
 
   /** One page through the list contract (058-list-framework AC-LF3, AC-LF4). */
@@ -127,14 +129,21 @@ export class OpsEmployeesController {
       .send(file.body);
   }
 
+  /**
+   * A new file starts the business's default joining checklist, when it has
+   * written one. After the file is committed, and never the reason a hire
+   * fails: `startDefault` swallows its own errors.
+   */
   @Post()
   @RequirePermission('people.manage')
-  create(
+  async create(
     @Body(new ZodValidationPipe(CreateEmployeeRequest)) body: CreateEmployeeRequest,
     @CurrentWorkspace() workspace: ScopedWorkspace,
     @CurrentUser() user: SessionUser,
   ): Promise<Employee> {
-    return this.employees.create(workspace, user.id, body);
+    const employee = await this.employees.create(workspace, user.id, body);
+    await this.checklists.startDefault(workspace, user.id, employee.id, 'onboarding');
+    return employee;
   }
 
   @Get(':id')
@@ -169,16 +178,19 @@ export class OpsEmployeesController {
     return this.employees.createContract(workspace, user.id, id, body);
   }
 
+  /** Offboarding starts the default leaving checklist, counted from the last day, on the same terms as a hire. */
   @Post(':id/offboard')
   @HttpCode(200)
   @RequirePermission('people.manage')
-  offboard(
+  async offboard(
     @Param('id', ParseUUIDPipe) id: string,
     @Body(new ZodValidationPipe(OffboardEmployeeRequest)) body: OffboardEmployeeRequest,
     @CurrentWorkspace() workspace: ScopedWorkspace,
     @CurrentUser() user: SessionUser,
   ): Promise<Employee> {
-    return this.employees.offboard(workspace, user.id, id, body);
+    const employee = await this.employees.offboard(workspace, user.id, id, body);
+    await this.checklists.startDefault(workspace, user.id, employee.id, 'offboarding');
+    return employee;
   }
 
   /** The balance per type is the sum of the ledger, and the rows are beside it. */

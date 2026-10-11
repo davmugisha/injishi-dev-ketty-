@@ -24,6 +24,7 @@ import { HealthController } from './health/health.controller';
 import { MeController } from './me/me.controller';
 import { MeStaysController } from './me/stays.controller';
 import { MeWorkController } from './me/work.controller';
+import { MeWorkChecklistsController } from './me/work-checklists.controller';
 import { MeWorkLeaveController } from './me/work-leave.controller';
 import { MeWorkPayController } from './me/work-pay.controller';
 import { KioskController } from './kiosk/kiosk.controller';
@@ -47,6 +48,7 @@ import { OpsDocumentsController } from './ops/documents.controller';
 import { OpsHrController } from './ops/hr.controller';
 import { OpsOrgChartController } from './ops/org-chart.controller';
 import { OpsPayAccountsController } from './ops/pay-accounts.controller';
+import { OpsChecklistsController } from './ops/checklists.controller';
 import { OpsPoliciesController } from './ops/policies.controller';
 import { OpsStaffAnnouncementsController } from './ops/staff-announcements.controller';
 import { OpsListViewsController } from './ops/list-views.controller';
@@ -217,6 +219,7 @@ import { WaitlistModule } from './waitlist/waitlist.module';
     OpsDocumentsController,
     OpsDocumentRequestsController,
     OpsPoliciesController,
+    OpsChecklistsController,
     OpsStaffAnnouncementsController,
     OpsDisciplinaryActionsController,
     OpsOrgChartController,
@@ -284,6 +287,7 @@ import { WaitlistModule } from './waitlist/waitlist.module';
     MeWorkController,
     MeWorkLeaveController,
     MeWorkPayController,
+    MeWorkChecklistsController,
     KioskController,
     TwoFactorController,
     // Answers only in a demo process; 404 everywhere else (AC-S10, ADR-043).

@@ -449,6 +449,13 @@
       "when": 1791375851682,
       "tag": "0063_finance_and_hr_roles",
       "breakpoints": true
+    },
+    {
+      "idx": 64,
+      "version": "7",
+      "when": 1791741728653,
+      "tag": "0064_hr_checklists",
+      "breakpoints": true
     }
   ]
 }

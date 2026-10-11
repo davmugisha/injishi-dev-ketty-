@@ -9,6 +9,7 @@ import { StorageModule } from '../storage/storage.module';
 import { AttendanceCloser } from './application/attendance-closer';
 import { AttendanceInsightsService } from './application/attendance-insights.service';
 import { AttendanceSweepService } from './application/attendance-sweep.service';
+import { ChecklistsService } from './application/checklists.service';
 import { EmployeesService } from './application/employees.service';
 import { HrContentService } from './application/hr-content.service';
 import { HrDailyService } from './application/hr-daily.service';
@@ -34,6 +35,7 @@ import { RotationService } from './application/rotation.service';
 import { TimeRequestsService } from './application/time-requests.service';
 import { TimeSettingsService } from './application/time-settings.service';
 import { TimeService } from './application/time.service';
+import { ChecklistsRepository } from './infrastructure/checklists.repository';
 import { EmployeesRepository } from './infrastructure/employees.repository';
 import { HrContentRepository } from './infrastructure/hr-content.repository';
 import { HrDailyProcessor } from './infrastructure/hr-daily.processor';
@@ -97,6 +99,7 @@ import { TimeSettingsRepository } from './infrastructure/time-settings.repositor
     TimeRequestsRepository,
     KioskRepository,
     MyWorkRepository,
+    ChecklistsRepository,
     {
       provide: HR_PIN_PEPPER,
       inject: [ConfigService, PLATFORM],
@@ -112,6 +115,7 @@ import { TimeSettingsRepository } from './infrastructure/time-settings.repositor
     HrFilesService,
     PeopleFileService,
     HrContentService,
+    ChecklistsService,
     TimeService,
     RotationService,
     TimeRequestsService,
@@ -164,6 +168,7 @@ import { TimeSettingsRepository } from './infrastructure/time-settings.repositor
     HrFilesService,
     PeopleFileService,
     HrContentService,
+    ChecklistsService,
   ],
 })
 export class PeopleModule {}
