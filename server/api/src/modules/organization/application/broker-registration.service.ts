@@ -12,6 +12,8 @@ import {
   BrokerRepository,
   DuplicateBrokerError,
 } from '../infrastructure/broker.repository';
+import { IdentityService } from '../../user/application/identity.service';
+import { RegistrationDraftService } from './registration-draft.service';
 import { ProfileService } from '../../user/application/profile.service';
 
 /**
@@ -35,6 +37,9 @@ export class BrokerRegistrationService {
   constructor(
     private readonly brokers: BrokerRepository,
     private readonly profiles: ProfileService,
+    /** A broker is a verified person, where a check can run (ADR-060, MFP PRD KYC table). */
+    private readonly identity: IdentityService,
+    private readonly drafts: RegistrationDraftService,
   ) {}
 
   /**
@@ -68,6 +73,7 @@ export class BrokerRegistrationService {
         'We still need your personal details before you can register as a broker.',
       );
     }
+    await this.identity.assertMayRegister(userId);
 
     // The full number, from the STORED document rather than from the request.
     // A returning registrant sends no `personal` block at all — their profile
@@ -88,6 +94,8 @@ export class BrokerRegistrationService {
         phone: profile.phoneE164,
         email: null,
       });
+      // A broker's registration ends here, so the wizard's draft does too (ADR-060).
+      await this.drafts.clear(userId);
       return {
         brokerId: created.brokerId,
         workspaceId: created.workspaceId,

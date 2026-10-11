@@ -50,7 +50,15 @@ function workerCount() {
   const GB_PER_WORKER = 1.2;
   const BUDGET = 0.4;
   const byMemory = Math.floor((os.totalmem() / 1024 ** 3) * BUDGET / GB_PER_WORKER);
-  const byCores = Math.floor(os.cpus().length / 2);
+  // Halving the cores is a reservation for the REST of the machine, not a
+  // memory fact: a laptop is also running the editor, a dev server and a
+  // browser. A CI runner is dedicated, so the reservation only leaves it idle —
+  // a GitHub hosted `ubuntu-latest` is 4 cores against 16GB, which took this to
+  // 2 workers and made mobile's suite the longest job in the pipeline at 577s.
+  // The MEMORY bound is untouched and still decides on every machine that has
+  // cores to spare, so this cannot reach the oversubscribed counts the note
+  // below measured as red: 16GB still allows 5 workers, not 22.
+  const byCores = process.env.CI ? os.cpus().length : Math.floor(os.cpus().length / 2);
   return Math.max(1, Math.min(byCores, byMemory));
 }
 

@@ -13,15 +13,56 @@
  *
  *   pnpm --filter @injishi/mobile build:dev
  *   pnpm --filter @injishi/mobile build:dev -- --platform ios
+ *   pnpm --filter @injishi/mobile build:dev -- --profile preview
+ *
+ * `--profile` picks the `eas.json` profile, `development` by default. A
+ * `preview` build is the release build the rig's release mode installs
+ * (ADR-063); its Sentry upload needs `SENTRY_AUTH_TOKEN` in EAS.
+ *
+ * **A release profile without an API address is refused HERE, before EAS
+ * spends a build on it.** `src/lib/env.ts` throws at launch when
+ * `EXPO_PUBLIC_API_URL` is unset, so such a build compiled, installed, and then
+ * crashed on its first frame with nothing able to report it (mobile audit
+ * 2026-10-05, SA-28; scope feature 24: "a missing API address fails the build
+ * rather than the launch"). `production` must also point at an https origin
+ * that is not a LAN address. `development` reads a local `.env` and is exempt.
  */
 import { spawnSync } from 'node:child_process';
+import { readFileSync } from 'node:fs';
 
 // pnpm hands the `--` separator through as a literal argument and eas rejects
 // it as a stray positional, so it is dropped here.
-const passthrough = process.argv.slice(2).filter((arg) => arg !== '--');
+const given = process.argv.slice(2).filter((arg) => arg !== '--');
+const profileAt = given.indexOf('--profile');
+const profile = profileAt >= 0 && given[profileAt + 1] ? given[profileAt + 1] : 'development';
+const passthrough = profileAt >= 0 ? given.filter((_, i) => i !== profileAt && i !== profileAt + 1) : given;
 const hasPlatform = passthrough.includes('--platform') || passthrough.includes('-p');
 
-const args = ['eas', 'build', '--profile', 'development'];
+/** The profile's env, following `extends` the way EAS does (parent first). */
+function profileEnv(build, name, seen = new Set()) {
+  const entry = build?.[name];
+  if (!entry || seen.has(name)) return {};
+  seen.add(name);
+  const parent = entry.extends ? profileEnv(build, entry.extends, seen) : {};
+  return { ...parent, ...(entry.env ?? {}) };
+}
+
+if (profile !== 'development') {
+  const easJson = JSON.parse(readFileSync(new URL('../eas.json', import.meta.url), 'utf8'));
+  const apiUrl = (profileEnv(easJson.build, profile).EXPO_PUBLIC_API_URL ?? '').trim();
+  const lan = /^https?:\/\/(localhost|127\.|10\.|192\.168\.|172\.(1[6-9]|2\d|3[01])\.)/i;
+  const problem = !apiUrl
+    ? `the "${profile}" profile in eas.json sets no EXPO_PUBLIC_API_URL, so the app would crash on launch`
+    : profile === 'production' && (!apiUrl.startsWith('https://') || lan.test(apiUrl))
+      ? `the "production" profile points at ${apiUrl}, which is not a public https origin`
+      : null;
+  if (problem) {
+    console.error(`Refusing to build: ${problem}. Set it in eas.json under build.${profile}.env.`);
+    process.exit(1);
+  }
+}
+
+const args = ['eas', 'build', '--profile', profile];
 if (!hasPlatform) args.push('--platform', 'android');
 args.push(...passthrough);
 

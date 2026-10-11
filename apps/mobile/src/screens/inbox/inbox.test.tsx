@@ -11,7 +11,7 @@
  * what these prove is that neither scheme throws and that the copy is the same
  * in both, which is the failure mode a scheme-specific branch actually has.
  */
-import { fireEvent, render, screen, waitFor } from '@testing-library/react-native';
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react-native';
 import { Text as RNText } from 'react-native';
 import { Inbox } from './inbox';
 import { Thread } from './thread';
@@ -20,6 +20,7 @@ import { SCHEMES, renderInScheme } from '@/test-utils';
 import { DomainProvider } from '@/domain';
 import { ToastProvider } from '@/components';
 import { readFixture, resetFixtures, writeFixture } from '@/data/use-fixture-mutation';
+import { readQueue, registerHandler, resetQueue } from '@/data/write-queue';
 import {
   READS_KEY,
   SEEDED_READS,
@@ -27,8 +28,10 @@ import {
   THREADS_KEY,
   guestThreadId,
   messagesOf,
+  sendMessageHandler,
   unreadIn,
   type Message,
+  type SentMessages,
 } from '@/data/threads';
 import { NOTIFICATIONS, NOTIFICATIONS_KEY } from '@/data/notifications';
 import { useInboxCounts } from '@/data/inbox-unread';
@@ -60,6 +63,28 @@ jest.mock('expo-router', () => ({
 const mockNetwork = { isConnected: true, isInternetReachable: true };
 jest.mock('expo-network', () => ({ useNetworkState: () => mockNetwork }));
 
+/**
+ * Forces an online send to fail (mobile audit 2026-10-05, IN-15).
+ *
+ * The fixture store cannot fail by itself, so no test could reach the failed
+ * bubble an online send produces. This wraps the real hook and answers `error`
+ * from `mutate` while `fail` is set; everything else is the real store.
+ */
+const mockWrites = { fail: false };
+jest.mock('@/data/use-fixture-mutation', () => {
+  const actual = jest.requireActual('@/data/use-fixture-mutation');
+  return {
+    ...actual,
+    useFixtureMutation: (...args: unknown[]) => {
+      const real = actual.useFixtureMutation(...args);
+      return {
+        ...real,
+        mutate: async (input: unknown) => (mockWrites.fail ? 'error' : real.mutate(input)),
+      };
+    },
+  };
+});
+
 const inSurface = (surface: Surface, node: React.ReactElement) => (
   <DomainProvider
     initial={surface === 'guest' ? 'hospitality' : 'residence'}
@@ -76,9 +101,13 @@ beforeEach(() => {
   mockParams.current = {};
   mockNetwork.isConnected = true;
   mockNetwork.isInternetReachable = true;
+  mockWrites.fail = false;
 });
 
-afterEach(() => resetFixtures());
+afterEach(() => {
+  resetFixtures();
+  resetQueue();
+});
 
 /** The fixture ids these tests lean on, named once. */
 const KIVU_THREAD = guestThreadId('BK-4821');
@@ -191,7 +220,7 @@ describe.each(SCHEMES)('the Inbox tab in %s', (scheme) => {
 });
 
 describe('the Inbox segments', () => {
-  it('shows notifications with their type word, so colour never carries it alone', async () => {
+  it('shows the notifications in their own list, each with its own word', async () => {
     renderInScheme(inSurface('tenant', <Inbox />), 'light');
     await screen.findByText('Jean Bosco Habimana');
 
@@ -200,14 +229,25 @@ describe('the Inbox segments', () => {
     // moves whenever a fixture's read state does.
     fireEvent.press(screen.getByRole('tab', { name: /^Notifications/ }));
 
-    // Two receipts in the fixture, July and June, so the title is not unique;
-    // the bodies are, and the body is what a reader actually distinguishes on.
-    expect(await screen.findByText('July rent received — RWF 310,000.')).toBeTruthy();
-    expect(screen.getAllByText('Rent receipt').length).toBe(2);
     // Frame R13's maintenance row, with its own word rather than a bare glyph.
-    expect(screen.getByText('Maintenance')).toBeTruthy();
+    expect(await screen.findByText('Maintenance')).toBeTruthy();
+    expect(screen.getByText('Signature needed')).toBeTruthy();
     // And the thread list is gone, not merely scrolled past.
     expect(screen.queryByText('Jean Bosco Habimana')).toBeNull();
+  });
+
+  it('claims no payment or receipt that never happened (IN-02)', () => {
+    // Every seed is still a fixture, so none may say money moved: no
+    // "July rent received", no "RWF 464,850 charged to MTN MoMo".
+    for (const n of NOTIFICATIONS) {
+      expect({ id: n.id, claim: /received|charged|receipt|paid/i.test(`${n.title} ${n.body}`) }).toEqual({
+        id: n.id,
+        claim: false,
+      });
+      expect(n.type).not.toBe('rent_receipt');
+      // Nor an invitation to the review screen the app has hidden.
+      expect(n.type).not.toBe('review_invite');
+    }
   });
 
   it('counts unread notifications separately from unread messages', () => {
@@ -367,7 +407,10 @@ describe('the thread screen', () => {
     }
 
     render(inSurface('guest', <Probe />));
-    await expect(send!(CANCELLED_THREAD, 'let me back in')).rejects.toThrow('thread archived');
+    // An outcome, not a throw, so a screen branches on it rather than wording
+    // every failure as a closed conversation (IN-12). Nothing is written.
+    await expect(send!(CANCELLED_THREAD, 'let me back in')).resolves.toBe('closed');
+    expect(readFixture<SentMessages>(THREADS_KEY, {})[CANCELLED_THREAD]).toBeUndefined();
   });
 
   it('says the conversation is not yours for an id that resolves to nothing', async () => {
@@ -377,6 +420,231 @@ describe('the thread screen', () => {
     // `404`, never `403`: the copy must not confirm that the id exists.
     expect(await screen.findByText('That conversation is not yours')).toBeTruthy();
     expect(screen.queryByLabelText('Your message')).toBeNull();
+  });
+
+  it('names whose conversation it is as the page heading (IN-14)', async () => {
+    mockParams.current = { threadId: KIVU_THREAD };
+    renderInScheme(inSurface('guest', <Thread />), 'light');
+    await screen.findByText(/Muraho!/);
+
+    const kivu = THREADS.find((t) => t.id === KIVU_THREAD)!;
+    expect(screen.getByRole('header', { name: kivu.counterpartyName })).toBeTruthy();
+  });
+});
+
+/* ------------------------------------------------------ the delivery states -- */
+
+/**
+ * Queued, failed, retried and discarded bubbles (mobile audit 2026-10-05,
+ * IN-07, IN-12, IN-15). Each pending message is its own bubble with its own
+ * actions, and a failure is worded as a failure, never as a closed thread.
+ */
+describe('a message that has not landed', () => {
+  /**
+   * The wait for a queue drain or a 300ms write and the renders around it.
+   * Above the 1000ms default, which a loaded machine loses, and low enough
+   * that the longest test here (four waits) stays under the 60s `testTimeout`.
+   */
+  const SLOW = { timeout: 10000 };
+
+  /**
+   * Type a message and press send, the way a person does.
+   *
+   * The two events are NOT wrapped in one `act`: inside a single scope the
+   * typing is not rendered before the press, so the press reads the previous
+   * render's text. Each `fireEvent` is its own `act`, and the empty one after
+   * lets the send's own promise settle.
+   */
+  async function sendText(body: string) {
+    fireEvent.changeText(screen.getByLabelText(en['inbox.composerLabel']), body);
+    fireEvent.press(screen.getByLabelText(en['inbox.sendLabel']));
+    await act(async () => {});
+  }
+
+  /** The bodies of this thread's queued intents, in the order they were queued. */
+  const queuedBodies = () =>
+    readQueue()
+      .filter((item) => item.kind === 'message')
+      .map((item) => (item.payload as { body: string }).body);
+
+  /**
+   * Two sends a few milliseconds apart, so "newest" is a fact and not a tie
+   * the sort happens to break one way.
+   */
+  async function sendTwo(first: string, second: string) {
+    await sendText(first);
+    await act(async () => {
+      await new Promise((resolve) => setTimeout(resolve, 5));
+    });
+    await sendText(second);
+  }
+
+  async function openKivu() {
+    mockParams.current = { threadId: KIVU_THREAD };
+    const view = renderInScheme(inSurface('guest', <Thread />), 'light');
+    await screen.findByText(/Muraho!/, {}, SLOW);
+    return view;
+  }
+
+  it('draws two messages sent offline as two waiting bubbles, then sends both', async () => {
+    mockNetwork.isConnected = false;
+    const view = await openKivu();
+
+    await sendTwo('First, from the lift.', 'Second, still in the lift.');
+
+    // Both are on screen and both say they are waiting. It used to be one
+    // bubble: the second replaced the first, which stayed in the queue unseen.
+    expect(screen.getByText('First, from the lift.')).toBeTruthy();
+    expect(screen.getByText('Second, still in the lift.')).toBeTruthy();
+    expect(screen.getAllByText(en['inbox.queued'])).toHaveLength(2);
+    expect(queuedBodies()).toEqual(['First, from the lift.', 'Second, still in the lift.']);
+
+    // Signal returns: the reconnect drain sends both, and neither is pending.
+    mockNetwork.isConnected = true;
+    await act(async () => view.rerender(inSurface('guest', <Thread />)));
+    await waitFor(() => {
+      expect(screen.queryByText(en['inbox.queued'])).toBeNull();
+      expect(screen.queryByText(en['inbox.sending'])).toBeNull();
+    }, SLOW);
+    expect(screen.getByText('First, from the lift.')).toBeTruthy();
+    expect(screen.getByText('Second, still in the lift.')).toBeTruthy();
+    const stored = readFixture<SentMessages>(THREADS_KEY, {})[KIVU_THREAD] ?? [];
+    expect(stored.map((m) => m.body)).toEqual(['First, from the lift.', 'Second, still in the lift.']);
+  });
+
+  it('discards exactly the message chosen, and retries the other until it sends', async () => {
+    // A queue that cannot reach the server, so both sends come back failed.
+    registerHandler('message', () => ({ status: 'failed' as const }), { fixtureBacked: true });
+    mockNetwork.isConnected = false;
+    const view = await openKivu();
+
+    await sendTwo('Keep this one.', 'Throw this one away.');
+
+    mockNetwork.isConnected = true;
+    await act(async () => view.rerender(inSurface('guest', <Thread />)));
+    await waitFor(() => expect(screen.getAllByText(en['inbox.failed'])).toHaveLength(2), SLOW);
+    // Never worded as a closed conversation.
+    expect(screen.queryByText(en['inbox.archivedRefused'])).toBeNull();
+
+    // An inverted list draws newest first, so the first Discard is the newest.
+    fireEvent.press(screen.getAllByLabelText(en['inbox.discardSend'])[0]);
+
+    await waitFor(() => expect(screen.queryByText('Throw this one away.')).toBeNull(), SLOW);
+    expect(screen.getByText('Keep this one.')).toBeTruthy();
+    expect(queuedBodies()).toEqual(['Keep this one.']);
+
+    // The connection recovers, and Try again sends the one that is left.
+    registerHandler('message', sendMessageHandler, { fixtureBacked: true });
+    await act(async () => {
+      fireEvent.press(screen.getByLabelText(en['inbox.retrySend']));
+    });
+
+    await waitFor(() => {
+      expect(screen.queryByText(en['inbox.failed'])).toBeNull();
+      expect(screen.queryByText(en['inbox.sending'])).toBeNull();
+    }, SLOW);
+    expect(screen.getByText('Keep this one.')).toBeTruthy();
+    const stored = readFixture<SentMessages>(THREADS_KEY, {})[KIVU_THREAD] ?? [];
+    expect(stored.map((m) => m.body)).toEqual(['Keep this one.']);
+  });
+
+  it('keeps a message whose online send failed, says Not sent, and sends it on Try again', async () => {
+    mockWrites.fail = true;
+    await openKivu();
+
+    await sendText('Is breakfast included?');
+
+    await waitFor(() => expect(screen.getByText(en['inbox.failed'])).toBeTruthy(), SLOW);
+    expect(screen.getByText('Is breakfast included?')).toBeTruthy();
+    // A failed write is not a closed conversation (IN-12).
+    expect(screen.queryByText(en['inbox.archivedRefused'])).toBeNull();
+    // Both actions are reachable on their own, not folded into one label.
+    expect(screen.getByLabelText(en['inbox.retrySend'])).toBeTruthy();
+    expect(screen.getByLabelText(en['inbox.discardSend'])).toBeTruthy();
+
+    mockWrites.fail = false;
+    await act(async () => {
+      fireEvent.press(screen.getByLabelText(en['inbox.retrySend']));
+    });
+
+    // It goes back to Sending for the write's 300ms, then settles.
+    await waitFor(
+      () => {
+        expect(screen.queryByText(en['inbox.failed'])).toBeNull();
+        expect(screen.queryByText(en['inbox.sending'])).toBeNull();
+      },
+      SLOW,
+    );
+    expect(screen.getByText('Is breakfast included?')).toBeTruthy();
+    const stored = readFixture<SentMessages>(THREADS_KEY, {})[KIVU_THREAD] ?? [];
+    expect(stored.map((m) => m.body)).toEqual(['Is breakfast included?']);
+  });
+
+  it('drops a failed online message on Discard and sends nothing', async () => {
+    mockWrites.fail = true;
+    await openKivu();
+
+    await sendText('Never mind.');
+    await waitFor(() => expect(screen.getByText(en['inbox.failed'])).toBeTruthy(), SLOW);
+
+    fireEvent.press(screen.getByLabelText(en['inbox.discardSend']));
+
+    await waitFor(() => expect(screen.queryByText('Never mind.')).toBeNull(), SLOW);
+    expect(readFixture<SentMessages>(THREADS_KEY, {})[KIVU_THREAD]).toBeUndefined();
+    expect(readQueue()).toHaveLength(0);
+  });
+});
+
+/* ---------------------------------------------------------- the day lines -- */
+
+/**
+ * A thread left open across midnight (mobile audit 2026-10-05, IN-13).
+ *
+ * Fake timers, so the minute clock can be walked past midnight. `setImmediate`
+ * stays real: React Native's scheduler flushes through it, and faking it hangs
+ * `act` (see `bootstrap.test.tsx`).
+ */
+describe('the day lines in a thread left open', () => {
+  afterEach(() => jest.useRealTimers());
+
+  it('turn Today into Yesterday when the clock passes midnight', async () => {
+    const lateTonight = new Date();
+    lateTonight.setHours(23, 59, 0, 0);
+    jest.useFakeTimers({
+      now: lateTonight,
+      doNotFake: ['setImmediate', 'clearImmediate'],
+    });
+
+    // A short thread, with one message from this evening, so every day line
+    // fits in the rows the list renders first.
+    const thread = guestThreadId('BK-4790');
+    writeFixture<SentMessages>(THREADS_KEY, {
+      [thread]: [
+        {
+          id: 'evening',
+          threadId: thread,
+          body: 'See you in the morning.',
+          fromUs: true,
+          createdAt: lateTonight.getTime() - 30 * 60_000,
+        },
+      ],
+    });
+    mockParams.current = { threadId: thread };
+    renderInScheme(inSurface('guest', <Thread />), 'light');
+    await act(async () => {
+      jest.advanceTimersByTime(1000);
+    });
+
+    expect(screen.getByText('See you in the morning.')).toBeTruthy();
+    expect(screen.getAllByLabelText(en['inbox.dayToday']).length).toBeGreaterThan(0);
+
+    // Two minutes on, it is tomorrow, and nothing on screen is from today.
+    await act(async () => {
+      jest.advanceTimersByTime(2 * 60_000);
+    });
+
+    expect(screen.queryByLabelText(en['inbox.dayToday'])).toBeNull();
+    expect(screen.getAllByLabelText(en['inbox.dayYesterday']).length).toBeGreaterThan(0);
   });
 });
 
@@ -423,9 +691,12 @@ describe('the tab badge', () => {
   function Probe({ surface }: { surface: Surface }) {
     const counts = useInboxCounts(surface);
     return (
-      <RNText testID="badge">
-        {counts.badge === undefined ? 'absent' : String(counts.badge)}
-      </RNText>
+      <>
+        <RNText testID="badge">
+          {counts.badge === undefined ? 'absent' : String(counts.badge)}
+        </RNText>
+        <RNText testID="segments">{`${counts.messages}/${counts.notifications}`}</RNText>
+      </>
     );
   }
 
@@ -434,17 +705,34 @@ describe('the tab badge', () => {
     return screen.getByTestId('badge').props.children as string;
   };
 
-  it('counts unread messages and unread notifications together', () => {
-    // Both halves live one tap apart under the same tab, so a badge counting
-    // only threads would sit at zero while an unread receipt waited.
+  it('draws nothing while every unread behind it is a fixture (IN-03)', () => {
+    // The fixtures hold unread threads and notifications for a guest, and the
+    // tab bar used to show their sum to every real guest as their own unread
+    // count. Nothing is counted until the Inbox reads the server.
     const guestUnread =
       THREADS.filter((t) => t.surface === 'guest').reduce(
         (total, thread) => total + unreadIn(thread, messagesOf(thread.id, {}), SEEDED_READS),
         0,
       ) + NOTIFICATIONS.filter((n) => n.surface === 'guest' && n.readAt === undefined).length;
 
-    expect(badgeFor('guest')).toBe(String(guestUnread));
     expect(guestUnread).toBeGreaterThan(0);
+    expect(badgeFor('guest')).toBe('absent');
+    expect(badgeFor('tenant')).toBe('absent');
+  });
+
+  it('still counts each segment, which sits beside the rows it counts', () => {
+    const guestMessages = THREADS.filter((t) => t.surface === 'guest').reduce(
+      (total, thread) => total + unreadIn(thread, messagesOf(thread.id, {}), SEEDED_READS),
+      0,
+    );
+    const guestNotifications = NOTIFICATIONS.filter(
+      (n) => n.surface === 'guest' && n.readAt === undefined,
+    ).length;
+
+    render(inSurface('guest', <Probe surface="guest" />));
+    expect(screen.getByTestId('segments').props.children).toBe(
+      `${guestMessages}/${guestNotifications}`,
+    );
   });
 
   it('is absent rather than zero once everything has been read', () => {

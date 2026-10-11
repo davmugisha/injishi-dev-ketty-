@@ -16,8 +16,12 @@
  * **THE ROLE IS THE POINT, NOT DECORATION.** `orgRole` is the same field
  * `permissionsForWorkspace` resolves every refusal from, so this list is the one
  * place an owner can see WHY their receptionist cannot open Finance. A roster
- * without it would be an address book. The badge names what the role can do
- * rather than repeating the enum.
+ * without it would be an address book. The badge is the role's name
+ * (`ORG_ROLE_LABEL`) and the line under it what the role is for (`ROLE_COPY`,
+ * shared with Invites and Roles), and a role this business changed under
+ * ADR-055 says so, read from the same `GET /ops/roles` the Roles lens edits.
+ * Six roles since ADR-069: finance and hr sort between the desk and the
+ * housekeeper, in the contract's own order.
  *
  * **THE READ IS GATED ON `team.manage`**, unusually for this app. Most `/ops`
  * reads need only the workspace, because a receptionist has to see rooms and
@@ -32,13 +36,29 @@
  * (`screens/invites.tsx`, `/ops/team/invitations`). This lens links to it rather
  * than growing a second way in.
  *
+ * **BRANCHES** (ADR-054 AC-T1). In a hotel with more than one branch, each
+ * member shows the branches they cover, and the owner may limit a member to some
+ * of them or give every branch back. An owner always covers every branch, so
+ * their row offers no change. The API enforces the limit on every ops read.
+ *
  * A REMOVED member is shown, dimmed, rather than filtered out. The membership
  * is never deleted, because the rows they posted and charged still name them.
  */
 
-import type { OperatorTeamMember, OrgRole } from "@injishi/contracts";
+import {
+  MEMBER_BRANCHES_REFUSAL,
+  ORG_ROLE_LABEL,
+  OrgRole,
+  Permission,
+  type MemberBranchIds,
+  type OperatorTeamMember,
+} from "@injishi/contracts";
 import Link from "next/link";
+import { useState } from "react";
 
+import { BranchPicker, coverageText } from "../components/branch-picker";
+import { departures } from "../components/roles/permission-rows";
+import { ROLE_COPY } from "../components/roles/role-copy";
 import {
   ActionButton,
   Badge,
@@ -48,45 +68,57 @@ import {
   SectionHeading,
   Skeleton,
 } from "../components/ui";
+import { humanError } from "../data/api";
 import { useCapability, useWorkspaceId } from "../data/capability";
-import { useTeam } from "../data/ops";
+import { useRoles, useTeam } from "../data/ops";
+import { useSetMemberBranches } from "../data/setup";
 import { dshortIso, initials } from "../lib/format";
 import { workspaceBase } from "../lib/nav";
 import { usePms } from "../store";
+import { currentGrant } from "../store/helpers";
 
-/**
- * What a role MEANS, not what it is called.
- *
- * The enum value is already on screen as the heading; repeating it in the badge
- * would tell an owner nothing they did not just read. What they actually need to
- * know is the surface it opens, which is what every refusal is decided from.
- */
-const ROLE: Record<OrgRole, { label: string; note: string; intent: "accent" | "info" | "neutral" }> = {
-  owner: { label: "Owner", note: "Everything, including Settings", intent: "accent" },
-  manager: { label: "Manager", note: "Everything except Settings", intent: "accent" },
-  receptionist: {
-    label: "Receptionist",
-    note: "Front desk and service orders only",
-    intent: "info",
-  },
-  housekeeper: {
-    label: "Housekeeper",
-    note: "Room status and maintenance only",
-    intent: "neutral",
-  },
-};
-
-/** Owner first, then down. The order the refusals stack in. */
-const ORDER: OrgRole[] = ["owner", "manager", "receptionist", "housekeeper"];
+/** Owner first, then down: the contract's own order, so a seventh role sorts itself. */
+const ORDER = OrgRole.options;
 
 export function Team({ landlord = false }: { landlord?: boolean }) {
-  const { state } = usePms();
+  const { state, toast } = usePms();
   const workspaceId = useWorkspaceId();
   const { can, reasonFor } = useCapability();
   const query = useTeam(workspaceId);
+  // Which roles this business changed (ADR-055). The same `team.manage` read as
+  // the roster; while it loads, or if it fails, the roster simply says nothing.
+  const roles = useRoles(workspaceId);
+  const customised = new Set<OrgRole>(
+    (roles.data?.roles ?? [])
+      .filter((r) => {
+        const d = departures(Permission.options, r.basePermissions, r.permissions);
+        return d.granted.length + d.withdrawn.length > 0;
+      })
+      .map((r) => r.orgRole),
+  );
+  const setBranches = useSetMemberBranches(workspaceId);
+  const [editing, setEditing] = useState<{ userId: string; branchIds: MemberBranchIds } | null>(null);
+  const [editError, setEditError] = useState<string | null>(null);
 
   const base = workspaceBase(workspaceId);
   const showsDepartments = !landlord && state.ws !== "landlord";
+  const branches = currentGrant(state)?.branches ?? [];
+  const showsBranches = showsDepartments && branches.length > 1;
+
+  const saveBranches = () => {
+    if (!editing) return;
+    setEditError(null);
+    if (editing.branchIds !== null && editing.branchIds.length === 0) {
+      return setEditError(MEMBER_BRANCHES_REFUSAL.empty);
+    }
+    setBranches.mutate(editing, {
+      onSuccess: (m) => {
+        setEditing(null);
+        toast(`${m.name ?? m.email ?? "Member"} now covers ${coverageText(m.branchIds, branches)}`, "ok");
+      },
+      onError: (err) => setEditError(humanError(err)),
+    });
+  };
 
   if (!can("team.manage")) {
     return (
@@ -119,37 +151,91 @@ export function Team({ landlord = false }: { landlord?: boolean }) {
   const removed = members.filter((m) => m.status !== "active");
 
   const row = (m: OperatorTeamMember, i: number, live: boolean) => {
-    const role = ROLE[m.orgRole];
+    const role = ROLE_COPY[m.orgRole];
+    const open = editing?.userId === m.userId;
+    const mayLimit = showsBranches && live && m.orgRole !== "owner";
     return (
       <div
         key={m.userId}
+        data-member={m.email ?? m.userId}
         style={{
-          display: "flex",
-          alignItems: "center",
-          gap: 12,
           padding: "12px 18px",
           borderTop: i === 0 ? "1px solid transparent" : "1px solid var(--line)",
           opacity: live ? 1 : 0.55,
         }}
       >
-        <Initials size={34}>{initials(m.name ?? m.email ?? "?")}</Initials>
-        <span style={{ minWidth: 0, flex: 1 }}>
-          <span style={{ display: "block", fontSize: 13.5, fontWeight: 600, color: "var(--ink)" }}>
-            {/* A membership can exist before its person has a profile. An
-                invited account that never signed in is a real row, and hiding
-                it would hide the invitation. */}
-            {m.name ?? "Not signed in yet"}
+        <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+          <Initials size={34}>{initials(m.name ?? m.email ?? "?")}</Initials>
+          <span style={{ minWidth: 0, flex: 1 }}>
+            <span style={{ display: "block", fontSize: 13.5, fontWeight: 600, color: "var(--ink)" }}>
+              {/* A membership can exist before its person has a profile. An
+                  invited account that never signed in is a real row, and hiding
+                  it would hide the invitation. */}
+              {m.name ?? "Not signed in yet"}
+            </span>
+            <span style={{ display: "block", fontSize: 11.5, color: "var(--muted)" }}>
+              {[m.email, `joined ${dshortIso(m.joinedAt)}`].filter(Boolean).join(" · ")}
+            </span>
+            {showsBranches && (
+              <span data-coverage style={{ display: "block", fontSize: 11.5, color: "var(--muted)" }}>
+                {coverageText(m.branchIds, branches)}
+              </span>
+            )}
           </span>
-          <span style={{ display: "block", fontSize: 11.5, color: "var(--muted)" }}>
-            {[m.email, `joined ${dshortIso(m.joinedAt)}`].filter(Boolean).join(" · ")}
+          <span style={{ textAlign: "right", minWidth: 0 }}>
+            <Badge intent={role.intent}>{ORG_ROLE_LABEL[m.orgRole]}</Badge>
+            <span style={{ display: "block", marginTop: 3, fontSize: 11, color: "var(--faint)" }}>
+              {live ? role.short : "Removed"}
+              {live && customised.has(m.orgRole) && (
+                <>
+                  {" · "}
+                  <Link href={`${base}/people/roles`} className="underline underline-offset-2">
+                    changed here
+                  </Link>
+                </>
+              )}
+            </span>
           </span>
-        </span>
-        <span style={{ textAlign: "right", minWidth: 0 }}>
-          <Badge intent={role.intent}>{role.label}</Badge>
-          <span style={{ display: "block", marginTop: 3, fontSize: 11, color: "var(--faint)" }}>
-            {live ? role.note : "Removed"}
-          </span>
-        </span>
+          {mayLimit && !open && (
+            <ActionButton
+              onClick={() => {
+                setEditError(null);
+                setEditing({ userId: m.userId, branchIds: m.branchIds });
+              }}
+            >
+              Branches
+            </ActionButton>
+          )}
+        </div>
+        {open && editing && (
+          <form
+            className="mt-3 flex flex-col gap-3 border-t border-line pt-3"
+            onSubmit={(e) => {
+              e.preventDefault();
+              saveBranches();
+            }}
+          >
+            <BranchPicker
+              name={`branches-${m.userId}`}
+              branches={branches}
+              value={editing.branchIds}
+              onChange={(branchIds) => setEditing({ userId: m.userId, branchIds })}
+            />
+            {editError && (
+              <p role="alert" className="text-sm text-danger">
+                {editError}
+              </p>
+            )}
+            <div className="flex justify-end gap-2">
+              <ActionButton type="button" onClick={() => setEditing(null)}>
+                Cancel
+              </ActionButton>
+              <ActionButton variant="primary" type="submit" pending={setBranches.isPending}>
+                {setBranches.isPending ? "Saving" : "Save branches"}
+              </ActionButton>
+            </div>
+          </form>
+        )}
       </div>
     );
   };

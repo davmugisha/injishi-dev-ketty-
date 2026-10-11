@@ -1,11 +1,13 @@
 /**
  * 404 — Expo Router renders this for any path with no route behind it.
  *
- * The app ships 8 of the MVP's 13 routes, so a deep link written against the
- * design (`/book/:roomTypeId`, `/self-check-in/:bookingId`, `/(auth)/sign-in`)
- * lands here today. That is worth saying plainly rather than showing a blank
- * screen: `ui-screens.md` §6 asks for an error surface that is human-readable
- * and bilingual, and "it may never have shipped" is the honest half of it.
+ * A link to a path the app does not have lands here: an old link, a mistyped
+ * one, or a route since retired. That is worth saying plainly rather than
+ * showing a blank screen (`ui-screens.md` §6), in the reader's words rather
+ * than the builder's: the copy used to say the screen "may never have
+ * shipped", which is a sentence about the prototype (mobile audit 2026-10-05,
+ * SA-31). A route that exists but is not open for this seat never reaches this
+ * screen: its guard in `app/_layout.tsx` sends the reader home instead.
  */
 import { View } from 'react-native';
 import { Stack, useRouter } from 'expo-router';

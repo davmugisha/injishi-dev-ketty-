@@ -2,10 +2,10 @@
 
 import Link from "next/link";
 import * as React from "react";
-import { Button } from "@injishi/ui";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@injishi/ui";
 import { SectionHeading } from "@/components/shared/section-heading";
 import { ListingCard } from "@/components/stays/listing-card";
-import { MOST_BOOKED_CITIES } from "@/data/home-curations";
+import { MOST_BOOKED_CITIES, type CityTab } from "@/data/home-curations";
 import { EMPTY_INTENT, exploreHref } from "@/lib/search-params";
 
 /**
@@ -19,6 +19,16 @@ import { EMPTY_INTENT, exploreHref } from "@/lib/search-params";
  *
  * The band sits on a canvas ground so it reads as its own chapter between two
  * white sections, the role the ink band played for the coverflow.
+ *
+ * THE TABS ARE THE SHARED TAB SET, and they were not. This band wrote
+ * `<div role="tablist">` around five `<Button role="tab">`, which rendered a
+ * tab list holding **zero** tabs: `Button` passes its rest props to React
+ * Aria's Button, which filters unrecognised DOM props, so `role` never reached
+ * the element. Measured in the browser on 2026-09-17, and `apps/app`'s
+ * Calendar view switcher had the identical hand-rolled strip with the
+ * identical result. Neither had arrow keys either, because a `role` string is
+ * a label and not a behaviour. `@injishi/ui`'s Radix `Tabs` owns the roving
+ * tabindex, Home/End, the wrapping arrows and the panel wiring.
  */
 export function MostBookedCities() {
   const [activeId, setActiveId] = React.useState(MOST_BOOKED_CITIES[0]?.id);
@@ -38,74 +48,82 @@ export function MostBookedCities() {
           action={{ label: "All stays", href: "/explore" }}
         />
 
-        <div
-          role="tablist"
-          aria-label="Cities"
-          className="flex flex-wrap items-center gap-2.5"
-        >
-          {MOST_BOOKED_CITIES.map((city) => {
-            const selected = city.id === active.id;
-            return (
-              /* The two variants carry the selected state, not a `bg-*`
-                 override: HeroUI paints buttons from unlayered rules that
-                 beat the utility layer (the coverflow dots documented it). */
-              <Button
-                key={city.id}
-                role="tab"
-                aria-selected={selected}
-                variant={selected ? "primary" : "outline"}
-                onClick={() => setActiveId(city.id)}
-                className="rounded-full px-5"
-              >
+        <Tabs value={active.id} onValueChange={setActiveId}>
+          <TabsList aria-label="Cities" className="flex-wrap gap-2.5">
+            {MOST_BOOKED_CITIES.map((city) => (
+              <TabsTrigger key={city.id} value={city.id} className="px-5">
                 {city.label}
-              </Button>
-            );
-          })}
-        </div>
-
-        {active.stays.length > 0 ? (
-          <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 xl:grid-cols-4">
-            {active.stays.map((listing) => (
-              <ListingCard
-                key={listing.slug}
-                listing={listing}
-                showRating
-                showVerified
-                compact
-              />
+              </TabsTrigger>
             ))}
-          </div>
-        ) : (
-          /* The empty state, not borrowed cards: a city with no verified
-             stays says so (AC-6). */
-          <div className="flex flex-col items-start gap-3 rounded-card border border-border bg-background p-8">
-            <p className="text-lg font-medium text-page-fg">
-              No stays listed in {active.label} yet.
-            </p>
-            <p className="max-w-form text-sm text-page-fg-70">
-              Every stay on Injishi is verified before it lists. When a
-              {" "}{active.label} property clears verification, it shows here.
-            </p>
-            <Link
-              href="/explore"
-              className="text-sm text-page-fg underline underline-offset-[4px]"
-            >
-              Browse all stays
-            </Link>
-          </div>
-        )}
+          </TabsList>
 
-        {active.district ? (
-          <div>
-            <Link
-              href={exploreHref({ ...EMPTY_INTENT, districts: [active.district] })}
-              className="inline-flex w-max items-center justify-center rounded-full bg-accent px-9 py-4 text-lg font-medium text-accent-foreground transition-all duration-300 hover:bg-accent-hover"
-            >
-              Explore {active.label}
-            </Link>
-          </div>
-        ) : null}
+          {/* One panel per city, so the tab that names a city is wired to the
+              stays it names. Radix mounts only the selected panel, so this is
+              the same work the single conditional block did. */}
+          {MOST_BOOKED_CITIES.map((city) => (
+            <TabsContent key={city.id} value={city.id} tabIndex={-1} className="mt-6">
+              <CityStays city={city} />
+            </TabsContent>
+          ))}
+        </Tabs>
+
       </div>
     </section>
+  );
+}
+
+/**
+ * One city's stays, its empty state, and its own "Explore" link.
+ *
+ * All three were derived from the selected city already; they live in the
+ * panel now so the tab that names a city is wired by `aria-controls` to
+ * everything that city's tab produces, rather than to a fragment of it.
+ */
+function CityStays({ city }: { city: CityTab }) {
+  return (
+    <div className="flex flex-col gap-6">
+      {city.stays.length > 0 ? (
+        <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 xl:grid-cols-4">
+          {city.stays.map((listing) => (
+            <ListingCard
+              key={listing.slug}
+              listing={listing}
+              showRating
+              showVerified
+              compact
+            />
+          ))}
+        </div>
+      ) : (
+        /* The empty state, not borrowed cards: a city with no verified
+           stays says so (AC-6). */
+        <div className="flex flex-col items-start gap-3 rounded-card border border-border bg-background p-8">
+          <p className="text-lg font-medium text-page-fg">
+            No stays listed in {city.label} yet.
+          </p>
+          <p className="max-w-form text-sm text-page-fg-70">
+            Every stay on Injishi is verified before it lists. When a
+            {" "}{city.label} property clears verification, it shows here.
+          </p>
+          <Link
+            href="/explore"
+            className="text-sm text-page-fg underline underline-offset-[4px]"
+          >
+            Browse all stays
+          </Link>
+        </div>
+      )}
+
+      {city.district ? (
+        <div>
+          <Link
+            href={exploreHref({ ...EMPTY_INTENT, districts: [city.district] })}
+            className="inline-flex w-max items-center justify-center rounded-full bg-accent px-9 py-4 text-lg font-medium text-accent-foreground transition-all duration-300 hover:bg-accent-hover"
+          >
+            Explore {city.label}
+          </Link>
+        </div>
+      ) : null}
+    </div>
   );
 }

@@ -1,6 +1,11 @@
 import Link from "next/link";
 
-import type { StaffPermission } from "@injishi/contracts";
+import {
+  PSF_APPLICATION_STATUS_LABEL,
+  PSF_DECLINE_REASON_LABEL,
+  PSF_MEMBERSHIP_SOURCE_LABEL,
+  type StaffPermission,
+} from "@injishi/contracts";
 import { Badge, Card, CardDescription, CardTitle } from "@injishi/ui";
 import { Zap } from "lucide-react";
 import { FailureNextStep } from "@/components/failure/failure-next-step";
@@ -235,6 +240,8 @@ function ProfileLens({ detail }: { detail: AdminOrgDetail }) {
         <p className="text-sm text-muted-foreground">{detail.addressText}</p>
       ) : null}
 
+      {detail.psf ? <PsfSection psf={detail.psf} psfMember={detail.psfMember} /> : null}
+
       <p className="text-xs text-muted-foreground">
         TIN state is authoritative only when the RRA adapter is live — currently{" "}
         <Badge variant="warning">
@@ -244,6 +251,48 @@ function ProfileLens({ detail }: { detail: AdminOrgDetail }) {
         .
       </p>
     </div>
+  );
+}
+
+/**
+ * PSF membership (ADR-056 AC-20), read only. Each application's state, tier
+ * and decision, never its filed form: that holds an ID number and a date of
+ * birth, and this lens is opened without a reason.
+ */
+function PsfSection({ psf, psfMember }: { psf: NonNullable<AdminOrgDetail["psf"]>; psfMember: boolean }) {
+  const m = psf.membership;
+  return (
+    <section aria-label="PSF membership" className="space-y-3 rounded-card border border-border p-4">
+      <h3 className="text-sm font-bold uppercase tracking-wider text-muted-foreground">PSF membership</h3>
+      <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+        <Fact label="PSF member" value={psfMember ? "Yes" : "No"} />
+        {m ? (
+          <>
+            <Fact label="Membership" value={`${m.tierName ?? "Membership"} · ${m.membershipNumber}`} />
+            <Fact label="Source" value={PSF_MEMBERSHIP_SOURCE_LABEL[m.source]} />
+            {m.startsOn && m.expiresOn ? <Fact label="Valid" value={`${m.startsOn} to ${m.expiresOn}`} /> : null}
+          </>
+        ) : null}
+      </div>
+      {psf.applications.length > 0 ? (
+        <ul className="space-y-2">
+          {psf.applications.map((a) => (
+            <li key={a.id} className="flex flex-wrap items-center gap-2 text-sm">
+              <Badge variant={a.status === "member" ? "success" : a.status === "declined" ? "danger" : a.status === "submitted" ? "accent" : "default"}>
+                {PSF_APPLICATION_STATUS_LABEL[a.status]}
+              </Badge>
+              <span className="font-semibold">{a.requestedTierName}</span>
+              <span className="text-muted-foreground">
+                sent {a.submittedAt.slice(0, 10)}
+                {a.declineReason ? ` · ${PSF_DECLINE_REASON_LABEL[a.declineReason]}${a.decisionNote ? `: ${a.decisionNote}` : ""}` : ""}
+              </span>
+            </li>
+          ))}
+        </ul>
+      ) : (
+        <p className="text-sm text-muted-foreground">No PSF application has been sent through Injishi.</p>
+      )}
+    </section>
   );
 }
 

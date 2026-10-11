@@ -21,6 +21,7 @@ import { LensPage, type LensLink } from "../components/lens-page";
 import { Placeholder } from "../components/placeholder";
 import { Bills } from "./bills";
 import { Revenue } from "./revenue";
+import { Filings } from "./landlord/filings";
 import { RentLedger } from "./landlord/rent-ledger";
 import { useCapability, useWorkspaceId } from "../data/capability";
 import { workspaceBase } from "../lib/nav";
@@ -88,13 +89,17 @@ function Body({ lens, landlord }: { lens: string; landlord: boolean }) {
   // produces an invoice. A typed URL for either opens the rent ledger rather
   // than a hotel screen over a residence.
   if (landlord && (lens === "invoices" || lens === "revenue")) return <RentLedger />;
+  // And the mirror of it. Filings is the contract filing clock on a TENANCY
+  // (F-R10); a hotel has no lease and so has nothing to file. A typed URL opens
+  // what Finance defaults to here, rather than a residence screen over a hotel.
+  if (!landlord && lens === "filings") return <Bills />;
   switch (lens) {
     case "payouts":
       return <Placeholder screenKey="payouts" />;
     case "invoices":
       return <Placeholder screenKey="invoices" />;
     case "filings":
-      return <Placeholder screenKey="filings" />;
+      return <Filings />;
     case "revenue":
       return <Revenue />;
     default:

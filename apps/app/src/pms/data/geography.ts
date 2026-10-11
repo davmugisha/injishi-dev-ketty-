@@ -1,10 +1,11 @@
 /**
  * Rwandan geography for the operator property create form — Province → District
  * → Sector (D24). Same cascade the registration wizard uses; a separate client
- * so the operator app does not import web's data layer.
+ * so the operator app does not import web's data layer. A staff file's home
+ * address goes two steps further, to the cell and the village (058-people-file).
  */
 
-import { District, Province, Sector } from "@injishi/contracts";
+import { Cell, District, Province, Sector, Village } from "@injishi/contracts";
 
 import { API_BASE, ApiError, REQUEST_TIMEOUT_MS } from "./api";
 
@@ -49,4 +50,12 @@ export function fetchSectors(districtId: number): Promise<Sector[]> {
     `/geography/sectors?districtId=${districtId}`,
     (row) => Sector.parse(row),
   );
+}
+
+export function fetchCells(sectorId: number): Promise<Cell[]> {
+  return readList(`/geography/cells?sectorId=${sectorId}`, (row) => Cell.parse(row));
+}
+
+export function fetchVillages(cellId: number): Promise<Village[]> {
+  return readList(`/geography/villages?cellId=${cellId}`, (row) => Village.parse(row));
 }

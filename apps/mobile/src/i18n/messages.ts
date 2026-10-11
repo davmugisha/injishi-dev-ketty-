@@ -38,6 +38,7 @@
  */
 import * as common from './messages/common';
 import * as account from './messages/account';
+import * as assistant from './messages/assistant';
 import * as auth from './messages/auth';
 import * as book from './messages/book';
 import * as broker from './messages/broker';
@@ -57,6 +58,7 @@ import * as work from './messages/work';
 export const en = {
   ...common.en,
   ...account.en,
+  ...assistant.en,
   ...auth.en,
   ...book.en,
   ...broker.en,
@@ -79,6 +81,7 @@ export type MessageKey = keyof typeof en;
 export const rw: Record<MessageKey, string> = {
   ...common.rw,
   ...account.rw,
+  ...assistant.rw,
   ...auth.rw,
   ...book.rw,
   ...broker.rw,

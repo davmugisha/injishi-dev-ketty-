@@ -33,6 +33,7 @@
  * the copy is derived from it. `INTENT_WINDOW_DAYS` is the one number that
  * makes the pair consistent by construction.
  */
+import { useRef } from 'react';
 import { nightsBetween, todayIso, type IsoDay } from '@/components';
 import type { DirectoryListing, PhotoSet } from './rentals';
 import {
@@ -40,6 +41,7 @@ import {
   useFixtureMutation,
   useFixtureValue,
   writeFixture,
+  type MutationOutcome,
 } from './use-fixture-mutation';
 import { useOfflineSubmit } from './offline-submit';
 import type { WriteOutcome } from './write-queue';
@@ -794,6 +796,14 @@ export function useBrokerState(): BrokerState {
 }
 
 /**
+ * How ONE reveal ended, as `reveal` resolves it: one of the write's own
+ * outcomes, or `queued` when the phone is offline and the reveal waits in the
+ * queue. `queued` is not a failure and not a reveal: nothing is spent or shown
+ * until it sends.
+ */
+export type RevealOutcome = MutationOutcome | 'queued';
+
+/**
  * The write: spend a credit, log the reveal, open a placement.
  *
  * Three `useFixtureMutation` calls because the store is keyed and each hook
@@ -802,9 +812,14 @@ export function useBrokerState(): BrokerState {
  * is the shape it is written for.
  */
 export interface RevealMutation {
-  reveal: (unit: DirectoryUnit) => Promise<void>;
+  /**
+   * Resolves to how THIS reveal ended. The sheet branches on it, never on
+   * `failed` read after the `await`, which is the value from the render that
+   * pressed the button (gaps.md §0.3; mobile audit 2026-10-05, BR-02).
+   */
+  reveal: (unit: DirectoryUnit) => Promise<RevealOutcome>;
   saving: boolean;
-  /** True when any of the three writes failed. The sheet must not claim a reveal. */
+  /** True when any of the three writes failed. For DRAWING the error only. */
   failed: boolean;
   /** The reveal is in the offline queue rather than done. Not a failure. */
   queuedOffline: boolean;
@@ -889,6 +904,14 @@ export function useReveal(): RevealMutation {
     idFor: (u) => `reveal-${u.id}`,
   });
 
+  /**
+   * Units whose credit was spent by THIS hook but whose log write has not
+   * landed. The spend decides "already paid" by reading the log, so a retry
+   * after a failed log would have charged a second credit for one exposure.
+   * Held on a ref so it survives the re-render a failure causes.
+   */
+  const chargedNotLogged = useRef(new Set<string>());
+
   return {
     saving: spend.status === 'saving' || log.status === 'saving' || place.status === 'saving',
     failed: spend.status === 'error' || log.status === 'error' || place.status === 'error',
@@ -902,14 +925,25 @@ export function useReveal(): RevealMutation {
       const day = todayIso();
       if (queued.offline) {
         await queued.submit(u);
-        return;
+        return 'queued';
       }
       // Order matters and is deliberate: SPEND FIRST, then log. The spend reads
       // the log to decide whether it has already been paid for, so logging
       // first would make every spend a no-op and reveals would be free.
-      await spend.mutate(u.id);
-      await log.mutate({ unitId: u.id, day });
-      await place.mutate({
+      //
+      // Each step stops the sequence on anything but `done`, and the result is
+      // returned rather than left in a status for the caller to misread: a
+      // failed spend used to go on to log and open a placement, and the sheet
+      // to toast "Contact revealed" (mobile audit 2026-10-05, BR-02).
+      if (!chargedNotLogged.current.has(u.id)) {
+        const spent = await spend.mutate(u.id);
+        if (spent !== 'done') return spent;
+        chargedNotLogged.current.add(u.id);
+      }
+      const logged = await log.mutate({ unitId: u.id, day });
+      if (logged !== 'done') return logged;
+      chargedNotLogged.current.delete(u.id);
+      return place.mutate({
         id: `pl-${u.id}`,
         // FL19 step 1: the tenant is named when the placement is initiated, not
         // when the number is revealed. A lead with a made-up name would be a

@@ -21,7 +21,9 @@ export const en = {
   /* Where */
   'search.where': 'Where',
   'search.whereLabel': 'Property or place',
-  'search.wherePlaceholder': 'Umurage, Kimihurura, Lake Kivu…',
+  // Places only, never a property: a placeholder that names a listing reads as
+  // a recommendation (mobile audit 2026-10-05, XC-16).
+  'search.wherePlaceholder': 'Kimihurura, Musanze, Lake Kivu…',
   'search.whereHelper': 'Matches a property name or a neighbourhood.',
   'search.districts': 'Districts',
   'search.districtKigali': 'Kigali',
@@ -54,7 +56,7 @@ export const en = {
   /* Narrowing */
   'search.refine': 'Narrow it down',
   'search.propertyType': 'Property type',
-  'search.priceBand': 'Price per night',
+  'search.priceBand': 'Price per guest per night',
   'search.bandAny': 'Any price',
   'search.bandUnder100k': 'Under RWF 100,000',
   'search.band100kTo200k': 'RWF 100,000 to 200,000',
@@ -73,7 +75,6 @@ export const en = {
   'search.sortRecommended': 'Recommended',
   'search.sortPriceLow': 'Price, lowest first',
   'search.sortPriceHigh': 'Price, highest first',
-  'search.sortScore': 'Guest score',
 
   /* The footer */
   'search.apply': 'Search',
@@ -114,7 +115,7 @@ export const rw: Record<keyof typeof en, string> = {
   /* Where */
   'search.where': 'Ahantu',
   'search.whereLabel': 'Izina ry’inzu cyangwa ahantu',
-  'search.wherePlaceholder': 'Umurage, Kimihurura, Ikiyaga cya Kivu…',
+  'search.wherePlaceholder': 'Kimihurura, Musanze, Ikiyaga cya Kivu…',
   'search.whereHelper': 'Bihuza n’izina ry’inzu cyangwa iry’agace.',
   'search.districts': 'Uturere',
   'search.districtKigali': 'Kigali',
@@ -147,7 +148,8 @@ export const rw: Record<keyof typeof en, string> = {
   /* Narrowing */
   'search.refine': 'Yigereranye neza',
   'search.propertyType': 'Ubwoko bw’inzu',
-  'search.priceBand': 'Igiciro cy’ijoro',
+  // English until Kinyarwanda work starts: the band is per guest now (GB-08).
+  'search.priceBand': en['search.priceBand'],
   'search.bandAny': 'Igiciro icyo ari cyo cyose',
   'search.bandUnder100k': 'Munsi ya RWF 100,000',
   'search.band100kTo200k': 'RWF 100,000 kugeza 200,000',
@@ -166,7 +168,6 @@ export const rw: Record<keyof typeof en, string> = {
   'search.sortRecommended': 'Ibyifuzwa',
   'search.sortPriceLow': 'Igiciro, gito mbere',
   'search.sortPriceHigh': 'Igiciro, kinini mbere',
-  'search.sortScore': 'Amanota y’abashyitsi',
 
   /* The footer */
   'search.apply': 'Shakisha',

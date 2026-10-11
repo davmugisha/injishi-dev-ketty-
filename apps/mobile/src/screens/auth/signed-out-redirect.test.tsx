@@ -56,8 +56,12 @@ jest.mock('expo-router', () => {
     <RNView testID="navigator">{children}</RNView>
   );
   Stack.Screen = () => null;
+  // ADR-063: Diagnostics is registered inside a guard.
+  Stack.Protected = ({ children }: { children?: React.ReactNode }) => <>{children}</>;
   return {
     Stack,
+    // ADR-063: the root layout hands this to the crash reporter's trail.
+    useNavigationContainerRef: () => ({ current: null }),
     useRouter: () => ({ push: jest.fn(), back: jest.fn(), replace: mockReplace }),
     useSegments: () => mockSegments,
   };
@@ -76,6 +80,14 @@ jest.mock('@/session', () => {
 
 import RootLayout from '../../../app/_layout';
 
+/**
+ * Asked for even when hidden from assistive tech: with no API answering
+ * `/me/workspaces`, a signed-in shell shows its "your account did not load"
+ * cover, modal to a screen reader, over a navigator that is still mounted
+ * (mobile audit SA-08, SA-09).
+ */
+const MOUNTED = { includeHiddenElements: true } as const;
+
 beforeEach(() => {
   jest.clearAllMocks();
   setColorScheme('light');
@@ -88,7 +100,7 @@ describe('the signed-out gate', () => {
     const { rerender } = render(<RootLayout />);
 
     // Standing in the shell, on a tab, signed in. Nothing to redirect.
-    await waitFor(() => expect(screen.getByTestId('navigator')).toBeTruthy());
+    await waitFor(() => expect(screen.getByTestId('navigator', MOUNTED)).toBeTruthy());
     expect(mockReplace).not.toHaveBeenCalled();
 
     // What Account's "Sign out" row does.
@@ -98,13 +110,23 @@ describe('the signed-out gate', () => {
     await waitFor(() => expect(mockReplace).toHaveBeenCalledWith('/(auth)/sign-in'));
   });
 
+  it('covers the tabs with a retry when the seats cannot load, never a stand-in surface', async () => {
+    // Signed in, and nothing answers `/me/workspaces` in this file. The shell
+    // used to draw the stored surface (Tenant by default) under an empty seat
+    // chip until the app was killed (mobile audit SA-08, SA-09).
+    render(<RootLayout />);
+
+    expect(await screen.findByText('Your account did not load')).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Try again' })).toBeTruthy();
+  });
+
   it('does not redirect again once the reader is already in the auth stack', async () => {
     mockStatus = 'anonymous';
     mockSegments.splice(0, mockSegments.length, '(auth)');
 
     render(<RootLayout />);
 
-    await waitFor(() => expect(screen.getByTestId('navigator')).toBeTruthy());
+    await waitFor(() => expect(screen.getByTestId('navigator', MOUNTED)).toBeTruthy());
     // Otherwise every keystroke on verify-otp would bounce the reader back to
     // sign-in, and an invite link could never open activate.
     expect(mockReplace).not.toHaveBeenCalled();

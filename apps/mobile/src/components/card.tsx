@@ -12,12 +12,21 @@
  * No haptic: a card is navigation, and the prompt pack reserves the buzz for a
  * primary action that commits something. A buzz on every card in a list is what
  * makes people turn haptics off system-wide.
+ *
+ * **HeroUI's surface (ADR-064 AC-7).** Corner `lg` (24), inset 16, `surface1`,
+ * and no border: the hairline is gone, and the soft three layer `surface`
+ * shadow does the separating in light. In dark it draws nothing, because depth
+ * there is the surface step (ADR-019); the theme decides that, not this file.
+ * `flat` casts no shadow and `tint` fills `surface2` and casts none.
  */
 import { type ReactNode } from 'react';
 import { View, type ViewStyle } from 'react-native';
 import { Text } from './text';
 import { PressableScale } from './pressable-scale';
 import { useTheme } from '@/theme/theme';
+import { kitMetrics } from '@/theme/tokens';
+
+const { card } = kitMetrics;
 
 export interface CardProps {
   title?: string;
@@ -50,12 +59,11 @@ export function Card({
   const hasHeader = title || subtitle || action;
 
   const container: ViewStyle = {
-    backgroundColor: variant === 'tint' ? c.elevate1 : c.surface1,
-    borderWidth: 1,
-    borderColor: variant === 'tint' ? 'transparent' : c.borderSubtle,
+    backgroundColor: variant === 'tint' ? c.surface2 : c.surface1,
     borderRadius: radius.lg,
+    // Clips `media` to the corner. The shadow is the card's own and is not cut.
     overflow: 'hidden',
-    ...(variant === 'flat' ? null : shadow.sm),
+    ...(variant === 'default' ? shadow.surface : null),
   };
 
   const body = (
@@ -67,15 +75,17 @@ export function Card({
             flexDirection: 'row',
             alignItems: 'flex-start',
             justifyContent: 'space-between',
-            gap: 12,
-            paddingHorizontal: 18,
-            paddingTop: 18,
-            paddingBottom: children ? 0 : 18,
+            gap: card.gap,
+            paddingHorizontal: card.inset,
+            paddingTop: card.inset,
+            paddingBottom: children ? 0 : card.inset,
           }}
         >
-          <View style={{ flexShrink: 1, gap: 2 }}>
+          <View style={{ flexShrink: 1, gap: card.titleGap }}>
             {title ? (
-              <Text family="display" weight="medium" size="xl" color="textStrong" style={{ lineHeight: 24 }}>
+              // HeroUI's title size and weight in our display face, on the
+              // step's own leading rather than a typed one.
+              <Text family="display" weight="medium" size="lg" color="textBody">
                 {title}
               </Text>
             ) : null}
@@ -88,17 +98,17 @@ export function Card({
           {action}
         </View>
       ) : null}
-      {children ? <View style={[{ padding: 18 }, bodyStyle]}>{children}</View> : null}
+      {children ? <View style={[{ padding: card.inset }, bodyStyle]}>{children}</View> : null}
       {footer ? (
         <View
           style={{
             flexDirection: 'row',
             alignItems: 'center',
             justifyContent: 'space-between',
-            gap: 12,
-            paddingHorizontal: 18,
-            paddingVertical: 14,
-            borderTopWidth: 1,
+            gap: card.gap,
+            paddingHorizontal: card.inset,
+            paddingVertical: card.footerInsetY,
+            borderTopWidth: kitMetrics.hairline,
             borderTopColor: c.borderSubtle,
             backgroundColor: c.surface2,
           }}
@@ -117,6 +127,7 @@ export function Card({
     <PressableScale
       accessibilityRole="button"
       accessibilityLabel={accessibilityLabel ?? title ?? ''}
+      filled
       onPress={onPress}
       style={[container, style]}
     >

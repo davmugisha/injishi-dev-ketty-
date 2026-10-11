@@ -19,7 +19,8 @@ import { rankDestinations } from "@/lib/destination-search";
 import {
   dateSummary,
   EMPTY_SEARCH,
-  guestSummary,
+  GUESTS_PLACEHOLDER,
+  searchGuestSummary,
   toDateRange,
   withDateRange,
   type StaySearch,
@@ -154,7 +155,7 @@ export function SearchSheet({
 
           <StepCard
             title="Who's coming?"
-            summary={guestSummary(search.guests)}
+            summary={searchGuestSummary(search) ?? GUESTS_PLACEHOLDER}
             expanded={step === "guests"}
             onExpand={() => setStep("guests")}
           >

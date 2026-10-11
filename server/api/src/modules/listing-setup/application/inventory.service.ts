@@ -2,7 +2,6 @@ import {
   BRANCH_ARCHIVE_BLOCKER_LABEL,
   type BranchArchiveReason,
   type CreatePropertyRequest,
-  NEEDS_EVERY_BRANCH_MESSAGE,
   type OperatorProperty,
   type OperatorPropertySummary,
   PUBLISH_BLOCKER_LABEL,
@@ -18,6 +17,7 @@ import {
 } from '@nestjs/common';
 
 import {
+  assertCoversEveryBranch,
   assertInBranchScope,
   type ScopedWorkspace,
 } from '../../../shared/auth/branch-scope';
@@ -102,7 +102,7 @@ export class InventoryService {
     // Adding a branch reshapes the whole business, so a member limited to some
     // branches may not (ADR-054 AC-M6). No fee and no review: a branch created
     // here is usable at once (AC-M1).
-    this.assertCoversEveryBranch(workspace);
+    assertCoversEveryBranch(workspace);
 
     const districtId = await this.districtFor(request.sectorId);
 
@@ -224,21 +224,7 @@ export class InventoryService {
     const existing = await this.repo.findProperty(propertyId);
     assertContained(existing, workspace.workspaceId, 'Property');
     assertInBranchScope(workspace, existing.id, 'Property');
-    this.assertCoversEveryBranch(workspace);
-  }
-
-  /**
-   * Refuse a member limited to some branches (ADR-054 AC-M6).
-   *
-   * A 403 in plain words rather than a 404: the member knows the action exists,
-   * and what they lack is coverage, not knowledge of the row. Coverage is read
-   * from the grant `WorkspaceGuard` resolved, so it narrows the moment branch
-   * limits are read there (slice 4), with nothing to change here.
-   */
-  private assertCoversEveryBranch(workspace: ScopedWorkspace): void {
-    if (workspace.branchCoverage === 'limited') {
-      throw new ForbiddenException(NEEDS_EVERY_BRANCH_MESSAGE);
-    }
+    assertCoversEveryBranch(workspace);
   }
 
   private throwUnlessDone(result: BranchMoveResult, stateMessage: string): void {
@@ -357,6 +343,27 @@ export class InventoryService {
     }
 
     return this.getProperty(workspace, propertyId);
+  }
+
+  /**
+   * What would stop `publish` today, without publishing (ADR-061 slice D).
+   *
+   * The same containment, branch scope and blocker rule `publish` applies, in
+   * the same order, so the support assistant's answer to "why can't I publish"
+   * is exactly what pressing Publish would refuse with. Writes nothing. An
+   * empty list means publishing would pass its checks now.
+   */
+  async publishBlockers(
+    workspace: ScopedWorkspace,
+    propertyId: string,
+  ): Promise<PublishBlocker[]> {
+    const existing = await this.repo.findProperty(propertyId);
+    assertContained(existing, workspace.workspaceId, 'Property');
+    assertInBranchScope(workspace, existing.id, 'Property');
+
+    const facts = await this.repo.publishFactsFor(propertyId);
+    if (!facts) throw new NotFoundException('No such property.');
+    return publishBlockersFor(facts);
   }
 
   /**

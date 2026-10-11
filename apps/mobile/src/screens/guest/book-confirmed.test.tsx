@@ -7,11 +7,12 @@
  * host has not answered yet, and telling a guest their request is confirmed is
  * the worst thing this screen could do.
  */
-import { screen, waitFor } from '@testing-library/react-native';
+import { fireEvent, screen, waitFor } from '@testing-library/react-native';
 import { SCHEMES, renderInScheme } from '@/test-utils';
 import { en, rw } from '@/i18n/messages';
 import { resetFixtures, writeFixture } from '@/data/use-fixture-mutation';
 import { getStayDetail } from '@/data/property-detail';
+import * as tripsData from '@/data/trips';
 import { TRIPS, TRIPS_KEY, type Trip } from '@/data/trips';
 import { mintTrip } from './book-draft';
 import { BookConfirmedScreen } from './book-confirmed';
@@ -69,7 +70,8 @@ async function open(bookingId: string | undefined, scheme: (typeof SCHEMES)[numb
         screen.queryByText(en['book.requestedTitle']) ??
         screen.queryByText(rw['book.confirmedTitle']) ??
         screen.queryByText(rw['book.requestedTitle']) ??
-        screen.queryByText(en['book.confirmedNotFoundTitle']);
+        screen.queryByText(en['book.confirmedNotFoundTitle']) ??
+        screen.queryByText(en['state.errorTitle']);
       expect(settled).not.toBeNull();
     },
     { timeout: 5000 },
@@ -87,7 +89,49 @@ describe.each(SCHEMES)('a confirmed booking in %s', (scheme) => {
     expect(screen.getByText(en['status.booking.confirmed'])).toBeTruthy();
     expect(screen.getByText(en['book.paidIntoEscrow'])).toBeTruthy();
     // The money is the breakdown stored on the trip, never recomputed here.
-    expect(screen.getByText('756,000')).toBeTruthy();
+    expect(screen.getByText('1,512,000')).toBeTruthy();
+  });
+});
+
+/**
+ * Mobile audit 2026-10-05: the reference can be copied (GK-16), and the facts
+ * card names the room under "Room type" rather than the property (GK-15).
+ */
+describe('the reference and the facts', () => {
+  it('makes the booking reference selectable, so it can be copied', async () => {
+    const trip = seed();
+    await open(trip.id);
+    expect(screen.getByTestId('book-reference').props.selectable).toBe(true);
+  });
+
+  it('names the room under "Room type", and the property under "Stay"', async () => {
+    const trip = seed();
+    await open(trip.id);
+    expect(screen.getByLabelText(`${en['book.factStay']}: ${UMURAGE.stay.title}`)).toBeTruthy();
+    expect(screen.getByLabelText(`${en['book.factRoom']}: ${GARDEN.summary.name}`)).toBeTruthy();
+    expect(screen.queryByLabelText(`${en['book.factRoom']}: ${UMURAGE.stay.title}`)).toBeNull();
+  });
+});
+
+describe('a read that failed', () => {
+  it('says it failed and offers a retry, rather than "not on this device" (GK-16)', async () => {
+    const retry = jest.fn();
+    const spy = jest.spyOn(tripsData, 'useTrip').mockReturnValue({
+      trip: undefined,
+      status: 'error',
+      error: new Error('Not Found'),
+      retry,
+    });
+    try {
+      await open('BK-7Q2M4X');
+      expect(screen.getByText(en['state.errorTitle'])).toBeTruthy();
+      expect(screen.queryByText(en['book.confirmedNotFoundTitle'])).toBeNull();
+      expect(screen.queryByText('Not Found')).toBeNull();
+      fireEvent.press(screen.getByText(en['state.retry']));
+      expect(retry).toHaveBeenCalled();
+    } finally {
+      spy.mockRestore();
+    }
   });
 });
 

@@ -10,6 +10,7 @@ import * as SecureStore from 'expo-secure-store';
 import { getLocales, type Locale } from 'expo-localization';
 import { Text } from 'react-native';
 import {
+  KINYARWANDA_AVAILABLE,
   LocaleProvider,
   deviceLocale,
   readStoredLocale,
@@ -135,14 +136,25 @@ describe('readStoredLocale()', () => {
 });
 
 describe('resolveInitialLocale()', () => {
-  it('takes the stored choice over the device language', () => {
+  it('opens in English in v1, whatever is stored or set on the phone', () => {
+    // v1.0 is English only; the RW catalogue is still partly placeholders, and
+    // a Kinyarwanda phone used to open into them (mobile audit SA-18).
     locales.mockReturnValue(asLocales({ languageCode: 'rw' }));
-    expect(resolveInitialLocale('en')).toBe('en');
+    expect(KINYARWANDA_AVAILABLE).toBe(false);
+    expect(resolveInitialLocale('rw')).toBe('en');
+    expect(resolveInitialLocale(null)).toBe('en');
   });
 
-  it('falls back to the device language when nothing is stored', () => {
-    locales.mockReturnValue(asLocales({ languageCode: 'rw' }));
-    expect(resolveInitialLocale(null)).toBe('rw');
+  describe('once Kinyarwanda is available', () => {
+    it('takes the stored choice over the device language', () => {
+      locales.mockReturnValue(asLocales({ languageCode: 'rw' }));
+      expect(resolveInitialLocale('en', true)).toBe('en');
+    });
+
+    it('falls back to the device language when nothing is stored', () => {
+      locales.mockReturnValue(asLocales({ languageCode: 'rw' }));
+      expect(resolveInitialLocale(null, true)).toBe('rw');
+    });
   });
 });
 

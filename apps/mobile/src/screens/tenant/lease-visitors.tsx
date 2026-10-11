@@ -27,6 +27,12 @@
  * lands underneath it. A visitor log is also bounded by one tenancy, so
  * ADR-031's virtualization threshold does not apply the way it does to My
  * leases. The four states are still all here, hand-rolled above the rows.
+ *
+ * **The sheet stays open until the entry is saved** (mobile audit 2026-10-05,
+ * TN-12). It used to close on the press and toast "logged" on every settle, so
+ * an entry that failed to save was announced and its name thrown away. Now the
+ * outcome decides: `done` closes and toasts, `error` keeps the name in front of
+ * the person with `WriteError` and a retry.
  */
 import { useState } from 'react';
 import { View, ScrollView } from 'react-native';
@@ -48,6 +54,7 @@ import {
   todayIso,
   useOffline,
   useToast,
+  WriteError,
 } from '@/components';
 import { useTheme } from '@/theme/theme';
 import { useT, type MessageKey, type Translate } from '@/i18n/i18n';
@@ -157,9 +164,19 @@ export function LeaseVisitors() {
   const [name, setName] = useState('');
   const [relation, setRelation] = useState<VisitorEntry['relation']>('family');
   const [stay, setStay] = useState<VisitorEntry['stay']>('overnight');
+  const [failed, setFailed] = useState(false);
 
   const today = todayIso();
   const saving = log.status === 'saving';
+
+  const openSheet = () => {
+    setFailed(false);
+    setOpen(true);
+  };
+  const closeSheet = () => {
+    setFailed(false);
+    setOpen(false);
+  };
 
   if (read.status === 'loading')
     return <LeaseLoading rows={3} label={t('visitors.listLabel')} />;
@@ -174,29 +191,33 @@ export function LeaseVisitors() {
   const thisMonth = entries.filter((e) => e.arrivedOn.slice(0, 7) === today.slice(0, 7));
   const earlier = entries.filter((e) => e.arrivedOn.slice(0, 7) !== today.slice(0, 7));
 
-  const save = () => {
-    if (!name.trim()) return;
-    setOpen(false);
-    void log
-      .mutate({
-        leaseId: lease.id,
-        visitor: {
-          id: `v-${Date.now()}`,
-          name: name.trim(),
-          relation,
-          stay,
-          arrivedOn: today,
-          // An overnight visitor logged today has not left yet, so no
-          // departure is recorded; a day visit ends the day it starts.
-          ...(stay === 'day' ? { leftOn: today } : null),
-        },
-      })
-      .then(() => {
-        toast.show(t('visitors.toast', { name: name.trim() }), 'success');
-        setName('');
-        setRelation('family');
-        setStay('overnight');
-      });
+  const save = async () => {
+    const visitorName = name.trim();
+    if (!visitorName || saving) return;
+    setFailed(false);
+    const outcome = await log.mutate({
+      leaseId: lease.id,
+      visitor: {
+        id: `v-${Date.now()}`,
+        name: visitorName,
+        relation,
+        stay,
+        arrivedOn: today,
+        // An overnight visitor logged today has not left yet, so no
+        // departure is recorded; a day visit ends the day it starts.
+        ...(stay === 'day' ? { leftOn: today } : null),
+      },
+    });
+    // THIS write's outcome, never a `status` read after the await (TN-12).
+    if (outcome === 'done') {
+      setOpen(false);
+      toast.show(t('visitors.toast', { name: visitorName }), 'success');
+      setName('');
+      setRelation('family');
+      setStay('overnight');
+    } else if (outcome === 'error') {
+      setFailed(true);
+    }
   };
 
   return (
@@ -249,7 +270,7 @@ export function LeaseVisitors() {
                 </Text>
               </View>
             ) : (
-              <Button variant="outline" size="lg" block leadingIcon="plus" onPress={() => setOpen(true)}>
+              <Button variant="outline" size="lg" block leadingIcon="plus" onPress={openSheet}>
                 {t('visitors.add')}
               </Button>
             )}
@@ -264,7 +285,7 @@ export function LeaseVisitors() {
                 // that points at nothing makes a reader look for what is
                 // missing rather than at what is right there.
                 action={
-                  <Button variant="outline" size="sm" leadingIcon="plus" onPress={() => setOpen(true)}>
+                  <Button variant="outline" size="sm" leadingIcon="plus" onPress={openSheet}>
                     {t('visitors.add')}
                   </Button>
                 }
@@ -321,7 +342,7 @@ export function LeaseVisitors() {
 
       <ModalSheet
         visible={open}
-        onClose={() => setOpen(false)}
+        onClose={closeSheet}
         title={t('visitors.add')}
         eyebrow={lease.ref}
         footer={
@@ -331,16 +352,18 @@ export function LeaseVisitors() {
               size="lg"
               block
               disabled={!name.trim() || saving}
-              onPress={save}
+              onPress={() => void save()}
             >
               {saving ? t('visitors.saving') : t('visitors.save')}
             </Button>
-            <Button variant="ghost" size="md" block onPress={() => setOpen(false)}>
+            <Button variant="ghost" size="md" block onPress={closeSheet}>
               {t('visitors.cancel')}
             </Button>
           </>
         }
       >
+        {failed ? <WriteError onRetry={() => void save()} /> : null}
+
         <InputField
           label={t('visitors.nameLabel')}
           value={name}

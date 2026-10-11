@@ -5,6 +5,7 @@ import { and, desc, eq, inArray, sql, type SQL } from 'drizzle-orm';
 import {
   bookings,
   guestStays,
+  ratePlans,
   rooms,
   roomTypes,
   users,
@@ -192,6 +193,29 @@ export class FrontDeskRepository {
       .where(eq(rooms.id, roomId));
   }
 
+  /**
+   * The nightly price a room type sells at by default: its default, active
+   * rate plan's base price. Null when the type has no such plan or no price.
+   *
+   * Read by a walk in that arrives with no rate agreed. The night audit bills a
+   * walk in from the stay's own price, so a stay opened without one would be a
+   * room nobody is ever charged for.
+   */
+  async defaultNightlyRate(roomTypeId: string): Promise<number | null> {
+    const [row] = await this.db
+      .select({ price: ratePlans.basePriceRwf })
+      .from(ratePlans)
+      .where(
+        and(
+          eq(ratePlans.roomTypeId, roomTypeId),
+          eq(ratePlans.isDefault, true),
+          eq(ratePlans.status, 'active'),
+        ),
+      )
+      .limit(1);
+    return row?.price ?? null;
+  }
+
   // --- Stays ---------------------------------------------------------------
 
   async findCheckInSubject(bookingId: string): Promise<CheckInSubject | null> {
@@ -344,11 +368,28 @@ export class FrontDeskRepository {
     roomId: string;
     workspaceId: string;
     propertyId: string | null;
+    /**
+     * What the desk wrote down on the way out, or undefined for nothing.
+     *
+     * It is set in the SAME statement that closes the stay, and only when the
+     * guard matched. Writing it separately would let a note land on a stay this
+     * call did not close — which is precisely the second-press case below.
+     */
+    departureNote?: string;
   }): Promise<boolean> {
     return this.db.transaction(async (tx) => {
       const [updated] = await tx
         .update(guestStays)
-        .set({ lifecycle: 'closed', actualExitAt: new Date() })
+        .set({
+          lifecycle: 'closed',
+          actualExitAt: new Date(),
+          // Absent rather than null when nothing was typed, so a check out with
+          // no note never erases one. Nothing writes this twice today, but the
+          // column is the kind that grows a second writer.
+          ...(input.departureNote === undefined
+            ? {}
+            : { departureNote: input.departureNote }),
+        })
         .where(
           and(eq(guestStays.id, input.stayId), eq(guestStays.lifecycle, 'open')),
         )

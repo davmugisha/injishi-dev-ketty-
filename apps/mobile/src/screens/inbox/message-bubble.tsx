@@ -137,7 +137,15 @@ export function MessageBubble({
         ) : message.pending ? (
           <Icon name={message.delivery === 'queued' ? 'wifiOff' : 'clock'} size={11} color={c.textSubtle} />
         ) : null}
-        <Text size="2xs" color={message.delivery === 'failed' ? 'danger600' : 'textSubtle'}>
+        <Text
+          size="2xs"
+          color={message.delivery === 'failed' ? 'danger600' : 'textSubtle'}
+          // The sentence a screen reader needs for a failed message, on the
+          // status line itself. It used to label a wrapper around the two
+          // actions, which made that wrapper one element and hid both buttons
+          // from VoiceOver (mobile audit 2026-10-05, IN-14).
+          accessibilityLabel={message.delivery === 'failed' ? t('inbox.failedA11y') : undefined}
+        >
           {message.delivery === 'failed'
             ? t('inbox.failed')
             : message.delivery === 'queued'
@@ -149,11 +157,7 @@ export function MessageBubble({
       </View>
 
       {message.delivery === 'failed' && (onRetry || onDiscard) ? (
-        <View
-          accessible
-          accessibilityLabel={t('inbox.failedA11y')}
-          style={{ flexDirection: 'row', gap: space[2], paddingHorizontal: space[1] }}
-        >
+        <View style={{ flexDirection: 'row', gap: space[3], paddingHorizontal: space[1] }}>
           {onRetry ? (
             <BubbleAction label={t('inbox.retrySend')} tone="textLink" onPress={onRetry} />
           ) : null}
@@ -205,7 +209,9 @@ export { shortDate };
  *
  * A 44px target, because a control on a message is still a control and this one
  * is pressed by someone who has just had a message not send — the worst moment
- * to hand them a 20px tap area.
+ * to hand them a 20px tap area. And body-sized words, for the same reason: the
+ * two actions were drawn at `2xs`, the size of a timestamp, so the one thing on
+ * the screen asking for a decision was its smallest text (mobile audit IN-14).
  */
 function BubbleAction({
   label,
@@ -224,7 +230,7 @@ function BubbleAction({
       hitSlop={12}
       style={{ minHeight: 44, justifyContent: 'center' }}
     >
-      <Text size="2xs" weight="semibold" color={tone}>
+      <Text size="sm" weight="semibold" color={tone}>
         {label}
       </Text>
     </PressableScale>

@@ -24,6 +24,20 @@ import { sessionDisplayName, useSessionUser } from "@/lib/session";
  * empty tabs, because a tab that does nothing reads as broken and a sentence does
  * not.
  */
+
+/**
+ * What a guest who has booked comes to their account FOR.
+ *
+ * The screen said what it would grow into and offered nothing that worked, so
+ * the only live control on it was "Sign out". These three all exist, and the
+ * sidebar is not always in view — it is a drawer below `lg`.
+ */
+const ACCOUNT_LINKS = [
+  { href: "/trips", icon: "map-pin", label: "Trips", detail: "Dates, receipts and cancelling" },
+  { href: "/inbox", icon: "inbox", label: "Messages", detail: "The property and its departments" },
+  { href: "/saved", icon: "heart", label: "Saved", detail: "Stays kept for later" },
+] as const;
+
 export default function Page() {
   const { status, user, signOut, refresh } = useSessionUser();
   const { signingOut, signOutAndLeave } = useSignOutAndLeave(signOut);
@@ -85,6 +99,27 @@ export default function Page() {
           </dl>
         )}
       </section>
+
+      {/* Offered only to somebody signed in: every one of these screens asks
+          for a session, so an anonymous reader would be sent to three dead
+          ends from a panel that already told them to sign in. */}
+      {status === "authenticated" ? (
+        <nav aria-label="Your stays" className="mt-4 grid gap-3 sm:grid-cols-3">
+          {ACCOUNT_LINKS.map((link) => (
+            <a
+              key={link.href}
+              href={link.href}
+              className="flex items-start gap-3 rounded-card border border-border bg-card p-4 hover:bg-secondary"
+            >
+              <Icon name={link.icon} className="mt-0.5 h-5 w-5 shrink-0 text-muted-foreground" />
+              <span>
+                <span className="block text-sm font-semibold">{link.label}</span>
+                <span className="mt-0.5 block text-xs text-muted-foreground">{link.detail}</span>
+              </span>
+            </a>
+          ))}
+        </nav>
+      ) : null}
 
       <section className="mt-4 rounded-card border border-dashed border-border p-5">
         <h2 className="text-sm font-semibold">Coming to this screen</h2>

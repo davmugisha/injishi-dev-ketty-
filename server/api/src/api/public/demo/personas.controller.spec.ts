@@ -46,6 +46,7 @@ function business(
     propertyName: null,
     branches: [],
     branchCoverage: 'all',
+    psfMembership: null,
     ...over,
   };
 }
@@ -64,6 +65,7 @@ function personalSeat(kind: 'personal' | 'broker'): WorkspaceAccess {
     propertyName: null,
     branches: [],
     branchCoverage: null,
+    psfMembership: null,
   };
 }
 

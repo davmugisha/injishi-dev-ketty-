@@ -60,3 +60,30 @@ export const SectorListQuery = z.object({
     districtId: z.coerce.number().int().positive().optional(),
 });
 export type SectorListQuery = z.infer<typeof SectorListQuery>;
+export const CellListResponse = z.array(Cell);
+export type CellListResponse = z.infer<typeof CellListResponse>;
+/**
+ * Query params for GET /api/v1/geography/cells (optionally scoped).
+ *
+ * Optional like the two above it, for the same reason: the address picker
+ * always narrows by sector, and a caller listing a whole district's cells
+ * should not have to loop over its sectors to do it.
+ */
+export const CellListQuery = z.object({
+    sectorId: z.coerce.number().int().positive().optional(),
+});
+export type CellListQuery = z.infer<typeof CellListQuery>;
+export const VillageListResponse = z.array(Village);
+export type VillageListResponse = z.infer<typeof VillageListResponse>;
+/**
+ * Query params for GET /api/v1/geography/villages (optionally scoped).
+ *
+ * The one level where the scope is worth thinking about: there are ~14,800
+ * villages, so an unscoped list is a real payload. It stays optional for
+ * symmetry and for the rare full export, and every client the wizard owns
+ * passes a cell.
+ */
+export const VillageListQuery = z.object({
+    cellId: z.coerce.number().int().positive().optional(),
+});
+export type VillageListQuery = z.infer<typeof VillageListQuery>;

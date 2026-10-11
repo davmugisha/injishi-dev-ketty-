@@ -5,6 +5,7 @@ import { useState } from "react";
 import { Button } from "@injishi/ui";
 import { SaveStayButton } from "@/components/stays/save-stay-button";
 import { formatRateNumber } from "@/lib/price";
+import { sizeSummary } from "@/lib/booking-unit";
 import type { PropertyDetail } from "@/data/properties";
 
 /**
@@ -54,7 +55,16 @@ export function PropertyTitle({ property }: { property: PropertyDetail }) {
   const facts = [
     property.starClass ? `${property.starClass}-star` : null,
     property.location,
-    property.rooms ? `${property.rooms} rooms` : null,
+    // In the word for what is booked: "10 cottages", "292 rooms".
+    property.rooms
+      ? sizeSummary({
+          kind: property.kind,
+          name: `${property.cardName.lead} ${property.cardName.rest}`,
+          rooms: property.rooms,
+          bedrooms: property.bedrooms,
+          maxGuests: property.maxGuests,
+        })
+      : null,
     formatRateNumber(property.price.fromRwf)
       ? `from ${formatRateNumber(property.price.fromRwf)} RWF ${property.price.basis}`
       : "Rate on request",

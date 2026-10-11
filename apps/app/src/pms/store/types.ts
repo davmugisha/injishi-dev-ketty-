@@ -120,9 +120,6 @@ export type Action =
   /* What you offer */
   | { type: "toggleAmenity"; scope: "prop" | "room"; code: string; typeKey?: string }
   | { type: "toggleShared"; label: string }
-  /* Broker */
-  | { type: "revealContact"; id: string }
-  | { type: "startPlacement"; id: string }
   /* Personal */
   | { type: "payOwnRent" }
 ;
@@ -138,6 +135,8 @@ export interface CheckInDraft {
   name: string;
   nid: string;
   phone: string;
+  /** Where the claim invitation is mailed (§6.8). Optional, like the rest of the card. */
+  email: string;
   room: string;
   nights: number;
   rate: string;

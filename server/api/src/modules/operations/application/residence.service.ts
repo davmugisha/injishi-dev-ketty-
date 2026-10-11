@@ -4,6 +4,7 @@ import type {
   LeaseStatus,
   MaintenanceStatus,
   RaiseTicketRequest,
+  OperatorContractFiling,
   OperatorDeposit,
   OperatorLease,
   OperatorRentCharge,
@@ -21,6 +22,7 @@ import {
 import { assertOwned } from '../../../shared/auth/assert-owned';
 import { firstRentCharge, kigaliToday } from './first-rent-charge';
 import {
+  type ContractFilingRow,
   type DepositRow,
   type LeaseRow,
   type RentChargeRow,
@@ -303,6 +305,50 @@ export class ResidenceService {
     const updated = await this.residence.findRentCharge(lease.id, body.periodMonth);
     if (!updated) throw this.vanished();
     return this.presentRentCharge(updated);
+  }
+
+  // --- Contract filings ----------------------------------------------------
+
+  /**
+   * Every lease and the filing of its contract (F-R10).
+   *
+   * Ordered so the rows that need a person come first: a refused filing, then
+   * one whose fifteen days have run out, then the rest newest tenancy first.
+   * A landlord opens this lens to find out what is wrong, and a list that
+   * buries the one refusal under nine successes has answered a different
+   * question.
+   */
+  async listContractFilings(ws: WorkspaceAccess): Promise<OperatorContractFiling[]> {
+    const rows = await this.residence.listContractFilings(ws.workspaceId);
+    const now = this.now();
+    const urgency = (row: ContractFilingRow): number => {
+      if (row.status === 'failed') return 0;
+      if (row.status === 'pending' && row.dueBy && row.dueBy < now) return 1;
+      if (row.status === 'pending') return 2;
+      // A live lease with no filing at all is a gap, not a success.
+      if (row.status === null && row.leaseStatus !== 'cancelled') return 3;
+      return 4;
+    };
+    return rows
+      .map((row, i) => ({ row, i }))
+      .sort((a, b) => urgency(a.row) - urgency(b.row) || a.i - b.i)
+      .map(({ row }) => this.presentContractFiling(row));
+  }
+
+  private presentContractFiling(row: ContractFilingRow): OperatorContractFiling {
+    return {
+      leaseId: row.leaseId,
+      unitLabel: row.unitLabel,
+      tenantName: row.tenantName,
+      leaseStatus: row.leaseStatus,
+      status: row.status,
+      clockStartAt: row.clockStartAt?.toISOString() ?? null,
+      dueBy: row.dueBy?.toISOString() ?? null,
+      attempts: row.attempts ?? 0,
+      failureReason: row.failureReason,
+      adapterMode: row.adapterMode,
+      signedAt: row.signedAt?.toISOString() ?? null,
+    };
   }
 
   // --- Deposits ------------------------------------------------------------

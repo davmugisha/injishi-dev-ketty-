@@ -75,6 +75,10 @@ export const ENDPOINTS = {
   meOrderable: apiPath('/me/orderable'),
   /** `POST` — place an order charged to the room. Needs an `Idempotency-Key`. */
   meOrders: apiPath('/me/orders'),
+  /** `POST` — the guest's own check-in before arrival for booking `:p`: the
+   *  document, the key of the ID photo uploaded first, and an address (ADR-060). */
+  meBookingCheckIn: (bookingId: string) =>
+    apiPath(`/me/bookings/${encodeURIComponent(bookingId)}/check-in`),
 
   /** `GET` — which platform the API is: demo or production, sample data, last
    *  reset (ADR-043). Public; the app's one demo signal, see `queries/platform.ts`. */
@@ -95,6 +99,26 @@ export const ENDPOINTS = {
    *  UUID `Idempotency-Key` and the `rent.record` permission. */
   opsLeaseRent: (leaseId: string) =>
     apiPath(`/ops/leases/${encodeURIComponent(leaseId)}/rent`),
+
+  /* -- The support assistant (ADR-061). Signed in or out; `api.ts` sends the
+        workspace header when one is active, so the API resolves the same
+        grant the screens act under, and the assistant headers when asked. -- */
+
+  /** `GET` — the open conversation on this surface, and whether it is on. */
+  assistantCurrent: apiPath('/assistant/conversations/current?surface=mobile'),
+  /** `POST` — one turn. */
+  assistantMessages: apiPath('/assistant/messages'),
+  /** `POST` — attach a signed out conversation to the account, with consent. */
+  assistantClaim: apiPath('/assistant/conversations/claim'),
+  /** `POST` — send the conversation to Injishi support. */
+  assistantEscalations: apiPath('/assistant/escalations'),
+  /** `POST` — helpful or not, once, on answer `:p`. */
+  assistantFeedback: (messageId: string) =>
+    apiPath(`/assistant/messages/${encodeURIComponent(messageId)}/feedback`),
+  /** `POST` — approve or reject prepared change `:p`. Approve needs a UUID
+   *  `Idempotency-Key` and `listing.manage`. */
+  assistantDecide: (proposalId: string, decision: 'approve' | 'reject') =>
+    apiPath(`/assistant/actions/${encodeURIComponent(proposalId)}/${decision}`),
 
   /* -- Uploads. Multipart, so `api.ts` sets no Content-Type. --------------- */
 

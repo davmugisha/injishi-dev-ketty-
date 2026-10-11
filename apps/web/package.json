@@ -3,8 +3,8 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "next dev --port 3000",
-    "build": "next build",
+    "dev": "node scripts/copy-maplibre-worker.mjs && next dev --port 3000",
+    "build": "node scripts/copy-maplibre-worker.mjs && next build",
     "start": "next start --port 3000",
     "typecheck": "tsc --noEmit",
     "lint": "eslint \"src/**/*.{ts,tsx}\"",
@@ -22,8 +22,8 @@
     "catalogue:export": "node scripts/export-catalogue.mjs"
   },
   "dependencies": {
-    "@heroui/react": "^3.2.4",
-    "@heroui/styles": "^3.2.4",
+    "@heroui/react": "^3.2.6",
+    "@heroui/styles": "^3.2.6",
     "@injishi/auth": "workspace:*",
     "@injishi/contracts": "workspace:*",
     "@injishi/qr": "workspace:*",
@@ -32,11 +32,13 @@
     "@paper-design/shaders-react": "^0.0.80",
     "class-variance-authority": "^0.7.1",
     "lucide-react": "1.23.0",
+    "maplibre-gl": "^6.11.2",
     "next": "15.5.24",
     "next-themes": "0.4.6",
     "react": "19.1.0",
     "react-day-picker": "9.14.0",
-    "react-dom": "19.1.0"
+    "react-dom": "19.1.0",
+    "react-map-gl": "^8.1.3"
   },
   "devDependencies": {
     "@injishi/design-tokens": "workspace:*",

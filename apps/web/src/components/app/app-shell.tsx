@@ -32,13 +32,17 @@
  */
 
 import { usePathname } from "next/navigation";
-import { useState, type ReactNode } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import { Button } from "@injishi/ui";
 import { useSignOutAndLeave } from "@/components/auth/sign-out";
+import { fetchMyThreads } from "@/data/inbox";
 import { displayNameFrom, initialsFrom } from "@/lib/avatar";
 import { useSessionUser, type SessionState } from "@/lib/session";
 import { Icon } from "./icon";
 import { NAV, PERSONAL, PRIMARY_CTA, resolveRoute } from "@/lib/app-nav";
+
+/** The bell is ambient, so it asks less often than an open conversation does. */
+const BELL_POLL_MS = 30_000;
 
 /**
  * The bell, and it is a link.
@@ -46,14 +50,56 @@ import { NAV, PERSONAL, PRIMARY_CTA, resolveRoute } from "@/lib/app-nav";
  * It used to open a dropdown listing notifications, which made notifications a
  * second place to read your mail. Move 4 collapsed messages and notifications
  * into one stream (D-g, AC-11), so the bell now goes where that stream lives.
- * A count would have to come from an endpoint that does not exist yet, and a
- * hardcoded one is a lie on every screen, so there is none.
+ *
+ * THE COUNT IS REAL: the sum of `unreadCount` across `GET /me/threads`, which
+ * the server computes from `thread_reads` at read time. Asked once on mount,
+ * again while the page is visible, and again on navigation — so a reply from
+ * the front desk lights the bell on whatever screen the guest is on, and
+ * opening a thread clears it on the way back rather than half a minute later.
+ *
+ * IT DEGRADES SILENTLY, in both directions. Only an `ok` answer moves the
+ * number, so a failure or an expired session leaves the bell with no badge
+ * rather than an error or a guess — the shell wraps every signed-in screen, and
+ * a broken chrome takes all of them with it. Nothing here is awaited before the
+ * shell renders, for the same reason.
  */
-function NotificationsLink() {
+function NotificationsLink({ pathname }: { pathname: string }) {
+  const [unread, setUnread] = useState(0);
+
+  useEffect(() => {
+    const refresh = () => {
+      void fetchMyThreads().then((result) => {
+        if (result.status === "ok") {
+          setUnread(result.data.reduce((sum, t) => sum + t.unreadCount, 0));
+        }
+      });
+    };
+    refresh();
+    const timer = window.setInterval(() => {
+      if (document.visibilityState === "visible") refresh();
+    }, BELL_POLL_MS);
+    return () => window.clearInterval(timer);
+  }, [pathname]);
+
+  const label =
+    unread > 0
+      ? `Inbox — ${unread} unread message${unread === 1 ? "" : "s"}`
+      : "Inbox — messages and notifications";
+
   return (
     <Button asChild variant="ghost" size="icon" className="relative">
-      <a href="/inbox" aria-label="Inbox — messages and notifications">
+      <a href="/inbox" aria-label={label}>
         <Icon name="bell" className="h-5 w-5" />
+        {/* `aria-hidden`: the count is already in the link's own label, and
+            read twice it sounds like two different numbers. */}
+        {unread > 0 ? (
+          <span
+            aria-hidden
+            className="absolute -right-0.5 -top-0.5 flex min-w-4 items-center justify-center rounded-full bg-accent px-1 text-2xs font-bold leading-none text-accent-foreground"
+          >
+            {unread > 9 ? "9+" : unread}
+          </span>
+        ) : null}
       </a>
     </Button>
   );
@@ -106,7 +152,8 @@ function IdentityName({ me, width }: { me: ShellIdentity; width: number }) {
 export function AppShell({ children }: { children: ReactNode }) {
   // The route IS the shell state, and every route here is a plain path
   // (ADR-018, D-f), so no page declares its own shell props.
-  const { active, title, mainClass } = resolveRoute(usePathname() ?? "");
+  const pathname = usePathname() ?? "";
+  const { active, title, mainClass } = resolveRoute(pathname);
   // One session lookup for the whole shell: the name beside the avatar and the
   // sign-out control are the same fact asked once.
   const session = useSessionUser();
@@ -315,7 +362,7 @@ export function AppShell({ children }: { children: ReactNode }) {
             </a>
           </Button>
 
-          <NotificationsLink />
+          <NotificationsLink pathname={pathname} />
 
           {/* The "EN" button is GONE, not restyled. It flipped its own label to
               "RW" and announced "Kinyarwanda active" while swapping no strings

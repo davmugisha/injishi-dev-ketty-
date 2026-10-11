@@ -1,5 +1,7 @@
 /**
- * Every sentence Account builds out of a fixture value, as a pure function.
+ * Every sentence Account builds out of a value, as a pure function: a fixture
+ * value on the screens still waiting for their reads, and the server's seat
+ * (`/me/workspaces`) for the role and the chip.
  *
  * Here rather than inline in the screens for the reason `broker-format.ts`
  * gives: the same fact is printed in more than one place and has to read the
@@ -10,8 +12,106 @@
  * exercised by the same call.
  */
 import { formatDay } from '@/data/search';
+import type { Surface, WorkspaceEntry } from '@/data/rentals';
 import type { MessageKey, Translate } from '@/i18n/i18n';
 import type { DeviceSession, PlanId, StaffState } from './account-fixtures';
+
+/**
+ * The parts of a line that are actually there, joined with a middle dot.
+ *
+ * The seat lines on Account and the switcher were template strings, and a
+ * template prints its separator whether or not the part after it exists. The
+ * rig read "owner ·", "Guest · Tenant ·" and a lone "·" on a Broker row (mobile
+ * audit 2026-10-05, SA-10). An empty part is dropped here, separator and all.
+ */
+export function joinParts(
+  parts: readonly (string | null | undefined)[],
+  separator = ' · ',
+): string {
+  return parts
+    .map((part) => part?.trim() ?? '')
+    .filter(Boolean)
+    .join(separator);
+}
+
+/**
+ * The role a seat is held in, as a message key, or null when it names none.
+ *
+ * The server sends `orgRole` on a business seat as a lowercase enum and nothing
+ * at all on a broker or a personal seat (`WorkspaceAccess`), and
+ * `toWorkspaceEntry` passes the enum straight through as `role`. Printed as it
+ * came, that was "housekeeper" on one row and an empty line on the next
+ * (SA-10). This is where it becomes a word.
+ *
+ * A personal seat's role is whichever side of it is open, because Guest and
+ * Tenant are the two hats one Personal workspace holds (FL25 §9).
+ *
+ * A `switch` rather than a lookup table, so a role the contract does not know
+ * yet reads as nothing rather than as a raw enum.
+ */
+export function seatRoleKey(
+  seat: Pick<WorkspaceEntry, 'type' | 'role'>,
+  surface: Surface,
+): MessageKey | null {
+  if (seat.type === 'personal') return surface === 'guest' ? 'role.guest' : 'role.tenant';
+  if (seat.type === 'broker') return 'role.broker';
+  switch (seat.role) {
+    case 'owner':
+      return 'role.owner';
+    case 'manager':
+      return 'role.manager';
+    case 'receptionist':
+      return 'role.receptionist';
+    case 'finance':
+      return 'role.finance';
+    case 'hr':
+      return 'role.hr';
+    case 'housekeeper':
+      return 'role.housekeeper';
+    default:
+      return null;
+  }
+}
+
+/** `seatRoleKey`, translated. Empty when the seat names no role. */
+export function seatRoleLabel(
+  seat: Pick<WorkspaceEntry, 'type' | 'role'>,
+  surface: Surface,
+  t: Translate,
+): string {
+  const key = seatRoleKey(seat, surface);
+  return key ? t(key) : '';
+}
+
+/**
+ * The chip on the identity card: which workspace this seat is, and nothing
+ * about what anybody checked.
+ *
+ * It used to be a verification claim per seat: "ID verified" on a guest, "TIN
+ * verified" on a landlord or a host, and "Licensed · RW-BK-0221" (the frame's
+ * own licence number) on every broker. No field said any of them had been
+ * checked (mobile audit 2026-10-05, SA-02), so each one was a fabricated fact
+ * about whoever held the phone.
+ *
+ * The design those claims came from is still right and is kept for when the
+ * data exists (ADR-038 child 7, AC-A2): four different claims rendered as four
+ * different claims, a checked one in the success tone and a statement of where
+ * you stand in the neutral one. Their sources are a guest's verified identity
+ * (`GET /api/v1/me/identity`), a business's `registrationStatus` (already on
+ * `/me/workspaces`), and a broker licence the API does not serve yet. Until a
+ * field says a claim was checked, no claim is drawn.
+ *
+ * Empty when there is nothing true to say: a broker seat carries no org name on
+ * the server, and a chip repeating the role line would only say it twice.
+ */
+export function seatChipLabel(
+  seat: Pick<WorkspaceEntry, 'type' | 'kind' | 'org'>,
+  t: Translate,
+): string {
+  if (seat.type === 'personal') return t('account.badgePersonal');
+  if (seat.kind === 'staff') return t('account.badgeStaffSeat');
+  return seat.org?.trim() ?? '';
+}
 
 /**
  * `14 Jul 2026`. `formatDay` gives the day and the month, which is right

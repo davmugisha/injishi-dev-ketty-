@@ -30,6 +30,8 @@ export { WorkConnection } from './work-connection';
    ever needs one — see the report. */
 export {
   WorkBackRow,
+  WorkButton,
+  WorkChips,
   WorkEyebrow,
   WorkFilterTabs,
   WorkOfflineBar,
@@ -38,6 +40,7 @@ export {
   WorkStickyAction,
   WorkSyncLine,
   STICKY_ACTION_CLEARANCE,
+  WORK_TARGET,
 } from './work-chrome';
 
 /* The state and its vocabulary, for a test or for Session 11's audit. */

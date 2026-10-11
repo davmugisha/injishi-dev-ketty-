@@ -22,7 +22,6 @@ import { useMemo, useState } from 'react';
 import { View } from 'react-native';
 import { useRouter } from 'expo-router';
 import {
-  Button,
   Card,
   EmptyState,
   ErrorState,
@@ -37,8 +36,14 @@ import { statusTone } from '@/components';
 import { useTheme } from '@/theme/theme';
 import type { Palette } from '@/theme/tokens';
 import { useT, type MessageKey } from '@/i18n/i18n';
-import { WorkFilterTabs, WorkOfflineBar, WorkPageHead } from './work-chrome';
-import { filterRooms, isCalm, roomFilters, type RoomFilter } from './work-format';
+import { WorkButton, WorkFilterTabs, WorkOfflineBar, WorkPageHead } from './work-chrome';
+import {
+  filterRooms,
+  isCalm,
+  roomFilters,
+  tabCountPhrase,
+  type RoomFilter,
+} from './work-format';
 import type { HkStatus, WorkRoom } from './work-fixtures';
 import { useConnection, useWorkRooms, useWorkTasks } from './work-store';
 
@@ -100,34 +105,48 @@ export function RoomsBoard() {
   return (
     <Screen>
       {/* Frame W4's eyebrow swaps the town for the room count: on this screen
-          the useful second fact is how much building there is. */}
+          the useful second fact is how much building there is. Only once the
+          board is read: a count from the seed is a number nobody loaded
+          (mobile audit 2026-10-05, WK-24). */}
       <WorkPageHead
         title={t('work.rooms.title')}
-        eyebrowSuffix={t('work.rooms.eyebrow', { count: rooms.rows.length })}
+        eyebrowSuffix={
+          rooms.ready ? t('work.rooms.eyebrow', { count: rooms.rows.length }) : undefined
+        }
       />
 
+      {/* The Work bar for the simulated outage only; a real one already has
+          the app-wide banner (WK-25). The note is about the board, and holds
+          for both. */}
+      {connection.simulatedOnly ? (
+        <WorkOfflineBar
+          title={t('work.offline.bannerTitle')}
+          detail={t('work.offline.simulatedDetail')}
+        />
+      ) : null}
       {!connection.online ? (
-        <>
-          <WorkOfflineBar
-            title={t('work.offline.bannerTitle')}
-            detail={t('work.offline.realOffline')}
-          />
-          <Text size="xs" color="textMuted" style={{ lineHeight: 18 }}>
-            {t('state.offlineLastList')}
-          </Text>
-        </>
+        <Text size="xs" color="textMuted" style={{ lineHeight: 18 }}>
+          {t('state.offlineLastList')}
+        </Text>
       ) : null}
 
-      <WorkFilterTabs
-        label={t('work.rooms.listLabel')}
-        value={String(filter)}
-        onChange={(next) => setFilter(next as RoomFilter)}
-        items={filters.map((row) => ({
-          value: String(row.value),
-          label: row.value === 'all' ? t('work.rooms.filterAll') : statusWord(row.value),
-          count: row.count,
-        }))}
-      />
+      {rooms.ready ? (
+        <WorkFilterTabs
+          label={t('work.rooms.listLabel')}
+          value={String(filter)}
+          onChange={(next) => setFilter(next as RoomFilter)}
+          items={filters.map((row) => {
+            const label = row.value === 'all' ? t('work.rooms.filterAll') : statusWord(row.value);
+            const spoken = tabCountPhrase(label, row.count, 'rooms');
+            return {
+              value: String(row.value),
+              label,
+              count: row.count,
+              a11yLabel: t(spoken.key, spoken.values),
+            };
+          })}
+        />
+      ) : null}
 
       {rooms.status === 'loading' ? (
         <SkeletonList
@@ -153,9 +172,11 @@ export function RoomsBoard() {
           // rather than inventing one.
           action={
             filter === 'all' ? undefined : (
-              <Button variant="outline" size="sm" onPress={() => setFilter('all')}>
-                {t('work.rooms.filterAll')}
-              </Button>
+              <WorkButton
+                variant="outline"
+                label={t('work.rooms.filterAll')}
+                onPress={() => setFilter('all')}
+              />
             )
           }
         />

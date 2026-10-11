@@ -134,10 +134,10 @@ export function stepBlockedKey(draft: CheckInDraft, step: CheckInStep): MessageK
       // 16 digits, and the message names the count rather than saying "invalid".
       if (!/^\d{16}$/.test(number)) return 'checkin.blockedNidShape';
     } else {
-      // Deliberately loose: issuing states disagree on length and alphabet, and
-      // rejecting a valid foreign passport is worse than accepting a typo the
-      // front desk will catch against the document itself (`PassportNumber`).
-      if (number.length < 5) return 'checkin.blockedPassportShort';
+      // Loose on alphabet, but no looser than the server: `PassportNumber`
+      // takes 6 to 12, and a check-in the API would refuse must not look ready
+      // here (ADR-060, now that it is actually sent).
+      if (number.length < 6) return 'checkin.blockedPassportShort';
       if (!isKnownCountry(draft.issuingCountry)) return 'checkin.blockedCountry';
     }
     return null;

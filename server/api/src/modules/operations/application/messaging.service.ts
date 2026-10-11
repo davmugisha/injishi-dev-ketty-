@@ -3,9 +3,11 @@ import type {
   GuestMessage,
   GuestMessagePage,
   GuestThread,
+  MyDepartments,
   OperatorMessage,
   OpenDepartmentRequest,
   OpenDepartmentResult,
+  OpenThreadRequest,
   OperatorThread,
   SendGuestMessageInput,
   SendMessageRequest,
@@ -16,6 +18,7 @@ import { GUEST_MESSAGE_PAGE, GUEST_MESSAGE_PAGE_MAX } from '@injishi/contracts';
 import {
   BadRequestException,
   ConflictException,
+  ForbiddenException,
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
@@ -25,8 +28,12 @@ import {
   assertInBranchScope,
   type ScopedWorkspace,
 } from '../../../shared/auth/branch-scope';
+import { localToday } from '../../booking/domain/pricing';
 import { scrubPhoneNumbers } from './scrub';
 import {
+  type DeskSubject,
+  type DeskThreadRow,
+  type GuestPlaceRow,
   type GuestThreadRow,
   type MessageRow,
   type ThreadRow,
@@ -98,8 +105,24 @@ function assertWritable(status: 'active' | 'archived'): void {
 export class MessagingService {
   constructor(private readonly messaging: MessagingRepository) {}
 
-  async listThreads(ws: ScopedWorkspace): Promise<OperatorThread[]> {
-    const rows = await this.messaging.listThreads(ws.workspaceId, ws.branchScope);
+  /**
+   * The desk's inbox, all of it or one department's (ADR-050 D-q).
+   *
+   * The department filter is passed down to the query rather than applied to
+   * the answer: see `MessagingRepository.listThreads`. A department that cannot
+   * find its own conversations is the complaint this exists to answer — one
+   * flat list per workspace made Housekeeping read the restaurant's messages to
+   * find its own.
+   */
+  async listThreads(
+    ws: ScopedWorkspace,
+    departmentId?: string,
+  ): Promise<OperatorThread[]> {
+    const rows = await this.messaging.listThreads(
+      ws.workspaceId,
+      ws.branchScope,
+      departmentId,
+    );
     const summaries = await this.messaging.summarise(rows.map((r) => r.id));
     const counterparts = await this.messaging.counterparts(rows);
 
@@ -219,6 +242,10 @@ export class MessagingService {
         subjectId: scoped.subjectId,
         status: scoped.status,
         kind: row.kind,
+        // The id as well as the name: a screen that can only NAME the property
+        // cannot ask what is orderable there, which is why ordering from inside
+        // a conversation had to be a link out to a screen that knew.
+        propertyId: row.propertyId,
         propertyName: row.propertyName,
         departmentName: row.departmentName,
         lastMessageAt: summary?.lastMessageAt?.toISOString() ?? null,
@@ -319,27 +346,150 @@ export class MessagingService {
   ): Promise<StayDepartments> {
     if (!stay.propertyId) return { stayId: stay.id, departments: [] };
 
-    const rows = await this.messaging.requestableDepartments(
-      stay.propertyId,
-      stay.id,
-    );
-    const threadIds = rows
-      .map((r) => r.threadId)
-      .filter((id): id is string => id !== null);
-    const unread = await this.messaging.unreadCounts(threadIds, userId);
+    const desks = await this.desksFor(userId, [
+      { propertyId: stay.propertyId, on: { kind: 'stay', guestStayId: stay.id } },
+    ]);
+    return { stayId: stay.id, departments: desks.get(stay.id) ?? [] };
+  }
 
-    const departments: StayDepartment[] = rows.map((row) => ({
-      id: row.id,
-      name: row.name,
-      departmentCategory: row.departmentCategory as DepartmentCategory,
-      phone: row.phone,
-      threadId: row.threadId,
-      unreadCount: row.threadId ? (unread.get(row.threadId) ?? 0) : 0,
-      lastMessageAt: row.threadId
-        ? (row.lastMessageAt?.toISOString() ?? null)
-        : null,
-    }));
-    return { stayId: stay.id, departments };
+  /**
+   * EVERY DESK THIS PERSON MAY WRITE TO, anywhere (ADR-050 D-q).
+   *
+   * The answer `/inbox` opens with, and the reason it exists: the stay-scoped
+   * route above can only be reached by a guest who HAS a stay, so a person who
+   * had booked and not yet arrived saw no departments at all — the whole
+   * capability was invisible until a receptionist checked them in, which is the
+   * opposite of when a guest most wants to ask something.
+   *
+   * A place is a property plus the record that opens its desks: an open stay,
+   * else a live booking. In house wins when a person is both — they are HERE,
+   * and the conversation should hang off the stay the desk is working, not off
+   * a booking for next month.
+   *
+   * A KNOWN SEAM, recorded rather than hidden: a conversation opened before
+   * arrival hangs off the booking, and checking in does not move it. From that
+   * moment the desk picker offers the STAY's conversation with that department,
+   * and the pre-arrival one stays in the guest's inbox where they left it,
+   * readable and writable by its id. Moving it would mean rewriting a thread's
+   * subject, which `threads_scope_exactly_one` and both partial uniques are
+   * built to make impossible; carrying it over is a decision for ADR-050, not
+   * something to improvise here.
+   *
+   * Session scoped and parameterless. Every property in the answer was resolved
+   * from the caller's own rows; there is no id to pass and so nothing to pass
+   * somebody else's.
+   */
+  async myDepartments(userId: string): Promise<MyDepartments> {
+    const today = localToday();
+    const [stays, bookings] = await Promise.all([
+      this.messaging.openStaysForGuest(userId),
+      this.messaging.liveBookingsForGuest(userId, today),
+    ]);
+
+    const places: Array<GuestPlaceRow & { context: 'stay' | 'booking' }> = [
+      ...stays.map((row) => ({ ...row, context: 'stay' as const })),
+      ...bookings.map((row) => ({ ...row, context: 'booking' as const })),
+    ];
+
+    // One row per property. Stays are first in the list above, so a guest who
+    // is in house at a property they also hold a future booking with is
+    // answered with the stay — and a person holding two live bookings at one
+    // property gets the soonest, which is the order the repository read them in.
+    const byProperty = new Map<string, (typeof places)[number]>();
+    for (const place of places) {
+      if (!byProperty.has(place.propertyId)) byProperty.set(place.propertyId, place);
+    }
+    const chosen = [...byProperty.values()];
+
+    const desks = await this.desksFor(
+      userId,
+      chosen.map((place) => ({
+        propertyId: place.propertyId,
+        on:
+          place.context === 'stay'
+            ? ({ kind: 'stay', guestStayId: place.subjectId } as const)
+            : ({ kind: 'booking', bookingId: place.subjectId } as const),
+      })),
+    );
+
+    return {
+      places: chosen.map((place) => ({
+        propertyId: place.propertyId,
+        propertyName: place.propertyName,
+        context: place.context,
+        subjectId: place.subjectId,
+        bookingReference: place.bookingReference,
+        checkIn: place.checkIn,
+        inHouse: place.context === 'stay',
+        departments: desks.get(place.subjectId) ?? [],
+      })),
+    };
+  }
+
+  /**
+   * The desks at each place, with the conversation that already exists there.
+   *
+   * ONE implementation for the stay route and the inbox route. They answer the
+   * same question about the same table and a second copy would drift on the
+   * detail that matters least and breaks most: whether an archived department
+   * still counts, whether unread means what it means everywhere else.
+   *
+   * Two reads however many places a person has — the desks by property, the
+   * conversations by subject — because the alternative is a query per place,
+   * and a guest with four bookings is not a rare shape.
+   */
+  private async desksFor(
+    userId: string,
+    places: ReadonlyArray<{ propertyId: string; on: DeskSubject }>,
+  ): Promise<Map<string, StayDepartment[]>> {
+    const bySubject = new Map<string, StayDepartment[]>();
+    if (places.length === 0) return bySubject;
+
+    const [rows, threads] = await Promise.all([
+      this.messaging.requestableDepartments([
+        ...new Set(places.map((p) => p.propertyId)),
+      ]),
+      this.messaging.deskThreadsFor(places.map((p) => p.on)),
+    ]);
+    const unread = await this.messaging.unreadCounts(
+      threads.map((t) => t.threadId),
+      userId,
+    );
+
+    const threadFor = (
+      on: DeskSubject,
+      departmentId: string,
+    ): DeskThreadRow | null =>
+      threads.find(
+        (t) =>
+          t.departmentId === departmentId &&
+          (on.kind === 'stay'
+            ? t.guestStayId === on.guestStayId
+            : t.bookingId === on.bookingId),
+      ) ?? null;
+
+    for (const place of places) {
+      const subjectId =
+        place.on.kind === 'stay' ? place.on.guestStayId : place.on.bookingId;
+      bySubject.set(
+        subjectId,
+        rows
+          .filter((row) => row.propertyId === place.propertyId)
+          .map((row) => {
+            const thread = threadFor(place.on, row.id);
+            return {
+              id: row.id,
+              name: row.name,
+              departmentCategory: row.departmentCategory as DepartmentCategory,
+              phone: row.phone,
+              threadId: thread?.threadId ?? null,
+              unreadCount: thread ? (unread.get(thread.threadId) ?? 0) : 0,
+              lastMessageAt: thread?.updatedAt.toISOString() ?? null,
+            };
+          }),
+      );
+    }
+    return bySubject;
   }
 
   /**
@@ -374,20 +524,107 @@ export class MessagingService {
       throw new NotFoundException('That desk is not at this property.');
     }
 
-    const department = await this.messaging.findRequestableDepartment(
+    const department = await this.messaging.findGuestRequestableDepartment(
       body.departmentId,
-      stay.propertyId,
     );
-    if (!department) {
-      // 404 rather than 403: a department that does not take guest messages is
-      // not a department this guest has, and saying "exists but refuses you"
-      // maps the property's internal structure for anybody who asks.
+    // Matched against the STAY's property, not against the workspace: a chain
+    // running two hotels holds one workspace, and "the caller's workspace owns
+    // this department" would let a guest in the Kigali hotel message the
+    // Musanze kitchen. Same 404 either way — a department that does not take
+    // guest messages is not a department this guest has, and saying "exists but
+    // refuses you" maps the property's internal structure for anybody who asks.
+    if (!department || department.propertyId !== stay.propertyId) {
       throw new NotFoundException('That desk is not taking messages here.');
     }
 
-    const opened = await this.messaging.openDepartmentThread({
+    return this.writeToDesk(userId, department, body, {
       workspaceId: stay.workspaceId,
-      guestStayId: stay.id,
+      on: { kind: 'stay', guestStayId: stay.id },
+    });
+  }
+
+  /**
+   * SAY SOMETHING TO ONE DESK, named by the department alone (ADR-050 D-q).
+   *
+   * `POST /api/v1/me/threads`. The route the stay-scoped one above could not
+   * be: a guest who has booked and not yet arrived holds no stay, so every path
+   * into a department was closed to them and the property's desks did not exist
+   * as far as their account was concerned.
+   *
+   * ## The server resolves which record this hangs off, not the client
+   *
+   * In house first, then a live booking at the same property. The guest tapped
+   * "Housekeeping" and has no idea their conversation is filed against a stay
+   * or against a booking; a request that named one would be a request that
+   * could name somebody else's.
+   *
+   * ## What is refused, and why each one
+   *
+   * - **A department that does not take guest messages, or does not exist:**
+   *   404, never 403. "Exists but refuses you" maps the property's internal
+   *   structure for anybody who asks, which is the reasoning the stay route
+   *   already records.
+   * - **A caller with neither a stay nor a live booking there:** 403. They are
+   *   not being told the department is unreal — it plainly is, they were given
+   *   its id — only that it is not theirs to write to. The refusal names what
+   *   would fix it, because for most people reading it the answer is "book".
+   */
+  async openThreadWithDepartment(
+    userId: string,
+    body: OpenThreadRequest,
+  ): Promise<OpenDepartmentResult> {
+    const department = await this.messaging.findGuestRequestableDepartment(
+      body.departmentId,
+    );
+    if (!department?.propertyId) {
+      throw new NotFoundException('That desk is not taking messages here.');
+    }
+
+    // In house wins: a guest who is HERE is talking to the desk about the stay
+    // being worked, not about a booking for next month.
+    const stay = (await this.messaging.openStaysForGuest(userId)).find(
+      (row) => row.propertyId === department.propertyId,
+    );
+    if (stay) {
+      return this.writeToDesk(userId, department, body, {
+        workspaceId: stay.workspaceId,
+        on: { kind: 'stay', guestStayId: stay.subjectId },
+      });
+    }
+
+    const booking = (
+      await this.messaging.liveBookingsForGuest(userId, localToday())
+    ).find((row) => row.propertyId === department.propertyId);
+    if (!booking) {
+      throw new ForbiddenException(
+        "You can message this property's desks while you have a booking with " +
+          'them or are staying there. If your stay has ended and something went ' +
+          'wrong, ask for a refund and they will answer in writing.',
+      );
+    }
+    return this.writeToDesk(userId, department, body, {
+      workspaceId: booking.workspaceId,
+      on: { kind: 'booking', bookingId: booking.subjectId },
+    });
+  }
+
+  /**
+   * The write itself, once, for both routes.
+   *
+   * Everything above this line decides WHICH record the conversation hangs off;
+   * this is what happens next, and it is identical either way — including the
+   * one answer that is easy to get wrong in a second copy: a conversation the
+   * property archived is not reopened by a guest writing into it.
+   */
+  private async writeToDesk(
+    userId: string,
+    department: { id: string; name: string },
+    body: OpenDepartmentRequest | OpenThreadRequest,
+    at: { workspaceId: string; on: DeskSubject },
+  ): Promise<OpenDepartmentResult> {
+    const opened = await this.messaging.openDepartmentThread({
+      workspaceId: at.workspaceId,
+      on: at.on,
       departmentId: department.id,
       subject: body.subject ?? null,
       body: body.body,

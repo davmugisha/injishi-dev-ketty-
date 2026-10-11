@@ -11,6 +11,19 @@
  * One cart per outlet, because one order goes to one outlet's board. The
  * `Idempotency-Key` is minted once per cart and survives a retry of the same
  * cart, so a press that times out and is pressed again is one order on the bill.
+ *
+ * ## Mobile audit 2026-10-05 (GK-09, GK-24)
+ *
+ * **Offline, an order is refused with a sentence.** A food order is never
+ * queued (benchmarks.md row 40: a meal that reaches a kitchen hours late is
+ * worse than none), so the button is off and the bar says why. The cart stays.
+ *
+ * **A `failed` call does not say nothing was charged.** It is a call whose end
+ * the phone never heard, a timeout or a gateway error, so the order may well
+ * have been placed. The toast says it could not be confirmed and to retry the
+ * SAME cart, which reuses its key and cannot order twice.
+ *
+ * **The minus and plus buttons reach 44pt** through their hit slop.
  */
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { ScrollView, View } from 'react-native';
@@ -33,6 +46,7 @@ import {
   SkeletonList,
   StickyBar,
   Text,
+  useOffline,
   useToast,
 } from '@/components';
 import { useTheme } from '@/theme/theme';
@@ -72,6 +86,7 @@ export function OrderScreen() {
 
   const [busy, setBusy] = useState(false);
   const [refusal, setRefusal] = useState<string | null>(null);
+  const offline = useOffline();
 
   // One key per cart. A different cart is a different intent; the same cart
   // pressed again is the same one.
@@ -90,7 +105,7 @@ export function OrderScreen() {
   };
 
   const submit = async () => {
-    if (!outlet || summary.count === 0 || busy) return;
+    if (!outlet || summary.count === 0 || busy || offline) return;
     if (key.current?.signature !== cartSignature) {
       key.current = { signature: cartSignature, value: uuidV4() };
     }
@@ -127,10 +142,10 @@ export function OrderScreen() {
   if (orderable.status === 'error') {
     return (
       <Frame>
+        {/* No raw server text as the detail (GB-27). */}
         <ErrorState
           title={t('state.errorTitle')}
           body={t('state.errorBody', { label: t('order.listLabel') })}
-          detail={orderable.error?.message}
           onRetry={() => void orderable.refetch()}
         />
       </Frame>
@@ -205,6 +220,18 @@ export function OrderScreen() {
 
       <StickyBar>
         <View style={{ flex: 1, gap: 10 }}>
+          {offline ? (
+            <View
+              accessible
+              accessibilityRole="alert"
+              style={{ flexDirection: 'row', alignItems: 'flex-start', gap: space[2] }}
+            >
+              <Icon name="wifiOff" size={16} color={c.warning600} />
+              <Text size="sm" color="textBody" style={{ flex: 1, lineHeight: 19 }}>
+                {t('order.offline')}
+              </Text>
+            </View>
+          ) : null}
           {refusal ? (
             <View
               accessible
@@ -233,7 +260,7 @@ export function OrderScreen() {
               variant="primary"
               size="lg"
               leadingIcon="send"
-              disabled={summary.count === 0 || busy}
+              disabled={summary.count === 0 || busy || offline}
               accessibilityHint={t('order.placeHint', { outlet: outlet.name })}
               onPress={() => void submit()}
             >
@@ -383,6 +410,8 @@ function Quantity({
       disabled={disabled}
       haptic
       onPress={() => onChange(next)}
+      // Drawn at 36; the slop carries the target to the 44pt floor (GK-24).
+      hitSlop={4}
       style={{
         width: 36,
         height: 36,

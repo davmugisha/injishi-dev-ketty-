@@ -307,6 +307,7 @@ export function OfficerQueue() {
                       <span className="pms-num text-sm font-semibold text-ink">{sel.tin}</span>
                       <Badge intent={sel.tinOk ? "ok" : "bad"}>
                         {sel.tinOk ? "Matches RRA register" : "Does not match"}
+                        {sel.tinMode === "mock" ? " · mock check" : ""}
                       </Badge>
                     </span>
                   </div>

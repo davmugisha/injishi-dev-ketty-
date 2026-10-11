@@ -49,6 +49,11 @@ import {
   recordRegistrationEvent,
   type RegistrationMover,
 } from './registration-events';
+import {
+  insertPsfApplication,
+  insertSelfDeclaredMembership,
+  type NewPsfApplication,
+} from './psf-membership.repository';
 import { pendingTinAttemptsSql } from './tin-recheck.sql';
 
 /** A TIN that already belongs to another org (KYB dedup, F-S03 §9). */
@@ -56,6 +61,20 @@ export class DuplicateTinError extends Error {
   constructor() {
     super('An organization with this TIN already exists.');
   }
+}
+
+/** What the officer queue shows about a business beyond its own row. */
+export interface QueueEvidence {
+  onBehalfOf: boolean;
+  certificates: { kind: string; kindOther: string | null; certificateNumber: string | null }[];
+  registrantUserId: string | null;
+  registrantName: string | null;
+  intendedOwnerName: string | null;
+  tinCheck: {
+    result: 'pending' | 'verified' | 'failed';
+    adapterMode: 'mock' | 'live';
+    checkedAt: string;
+  } | null;
 }
 
 /** No effective fee row for this business type — nothing can be quoted. */
@@ -83,6 +102,8 @@ export interface CreateOrgRow {
   upi: string | null;
   districtId: number | null;
   sectorId: number | null;
+  /** D24, optional: the finest level of the address, or null when unanswered. */
+  villageId: number | null;
   addressText: string | null;
   ownerUserId: string;
   businessType: RegistrationBusinessType;
@@ -120,6 +141,14 @@ export interface CreateOrgRow {
     street: string | null;
     isHeadOffice: boolean;
   }[];
+  /**
+   * A PSF membership application the registration carries (ADR-056 AC-6),
+   * written in the create transaction through the one shared insert. Null
+   * when the registrant did not apply.
+   */
+  psfApplication: Omit<NewPsfApplication, 'orgId'> | null;
+  /** A Yes with a membership number (ADR-056 AC-7). Null otherwise. */
+  psfMembershipNumber: string | null;
 }
 
 export interface CreatedOrg {
@@ -186,6 +215,20 @@ export class OrganizationRepository {
    * is a state that OWES something: without the row there is nothing for the
    * registrant to settle and nothing for the partial-unique to protect.
    */
+  /**
+   * Whether a business on the platform already holds this TIN. The same
+   * question `createRegistration` asks before inserting, asked early so the
+   * Business step can say so while the TIN is still editable.
+   */
+  async tinTaken(tin: string): Promise<boolean> {
+    const [clash] = await this.db
+      .select({ id: orgs.id })
+      .from(orgs)
+      .where(eq(orgs.tin, tin))
+      .limit(1);
+    return Boolean(clash);
+  }
+
   async createRegistration(input: CreateOrgRow): Promise<CreatedOrg> {
     const amountDueRwf = await this.currentFee(input.businessType);
     if (amountDueRwf === null) throw new MissingFeeError(input.businessType);
@@ -217,6 +260,7 @@ export class OrganizationRepository {
           upi: input.upi,
           districtId: input.districtId,
           sectorId: input.sectorId,
+          villageId: input.villageId,
           addressText: input.addressText,
           registrationStatus: 'pending_payment',
         })
@@ -247,6 +291,18 @@ export class OrganizationRepository {
         userId: input.ownerUserId,
         orgRole: 'owner',
       });
+
+      // ADR-056: PSF membership, committed or rolled back with the business.
+      if (input.psfApplication) {
+        await insertPsfApplication(tx, { ...input.psfApplication, orgId: org.id });
+      }
+      if (input.psfMembershipNumber) {
+        await insertSelfDeclaredMembership(tx, {
+          orgId: org.id,
+          membershipNumber: input.psfMembershipNumber,
+          recordedByUserId: input.ownerUserId,
+        });
+      }
 
       // ADR-054 AC-R2: one property per location, in THIS transaction, so the
       // branches commit or roll back with the org. They go through the same
@@ -896,6 +952,110 @@ export class OrganizationRepository {
   }
 
   /**
+   * What each queued business declared beyond its own row: the certificates
+   * it attached (metadata, never the file), whether an agent registered it for
+   * its owner, who registered it, and the newest RRA answer on record
+   * (ADR-059, ADR-060). One read per concern for the whole page, like
+   * `branchesForOrgs`.
+   */
+  async queueEvidenceFor(orgIds: string[]): Promise<Map<string, QueueEvidence>> {
+    const out = new Map<string, QueueEvidence>();
+    if (orgIds.length === 0) return out;
+    for (const id of orgIds) {
+      out.set(id, {
+        onBehalfOf: false,
+        certificates: [],
+        registrantUserId: null,
+        registrantName: null,
+        intendedOwnerName: null,
+        tinCheck: null,
+      });
+    }
+
+    const certificates = await this.db
+      .select({
+        orgId: orgCertificates.orgId,
+        kind: orgCertificates.kind,
+        kindOther: orgCertificates.kindOther,
+        certificateNumber: orgCertificates.certificateNumber,
+      })
+      .from(orgCertificates)
+      .where(inArray(orgCertificates.orgId, orgIds))
+      .orderBy(orgCertificates.createdAt);
+    for (const { orgId, ...certificate } of certificates) {
+      out.get(orgId)?.certificates.push(certificate);
+    }
+
+    const obo = await this.db
+      .select({
+        orgId: oboRegistrations.orgId,
+        registrantUserId: oboRegistrations.registrantUserId,
+        intendedOwnerName: oboRegistrations.intendedOwnerName,
+      })
+      .from(oboRegistrations)
+      .where(inArray(oboRegistrations.orgId, orgIds));
+    for (const row of obo) {
+      const entry = out.get(row.orgId);
+      if (!entry) continue;
+      entry.onBehalfOf = true;
+      entry.registrantUserId = row.registrantUserId;
+      entry.intendedOwnerName = row.intendedOwnerName;
+    }
+
+    // Who registered the rest: the first owner membership, which the create
+    // transaction wrote for the registrant (ADR-060).
+    const owners = await this.db
+      .select({ orgId: orgMemberships.orgId, userId: orgMemberships.userId })
+      .from(orgMemberships)
+      .where(and(inArray(orgMemberships.orgId, orgIds), eq(orgMemberships.orgRole, 'owner')))
+      .orderBy(orgMemberships.createdAt);
+    for (const row of owners) {
+      const entry = out.get(row.orgId);
+      if (entry && entry.registrantUserId === null) entry.registrantUserId = row.userId;
+    }
+
+    const registrantIds = [...new Set([...out.values()].map((e) => e.registrantUserId).filter((id): id is string => id !== null))];
+    if (registrantIds.length > 0) {
+      const names = await this.db
+        .select({
+          userId: users.id,
+          legalFullName: verifiedIdentities.legalFullName,
+          name: users.name,
+        })
+        .from(users)
+        .leftJoin(verifiedIdentities, eq(verifiedIdentities.userId, users.id))
+        .where(inArray(users.id, registrantIds));
+      const byId = new Map(names.map((n) => [n.userId, n.legalFullName?.trim() || n.name?.trim() || null]));
+      for (const entry of out.values()) {
+        if (entry.registrantUserId) entry.registrantName = byId.get(entry.registrantUserId) ?? null;
+      }
+    }
+
+    // The newest RRA answer per business, with the side of the seam that gave it.
+    const checks = await this.db
+      .selectDistinctOn([tinVerifications.orgId], {
+        orgId: tinVerifications.orgId,
+        result: tinVerifications.result,
+        adapterMode: tinVerifications.adapterMode,
+        checkedAt: tinVerifications.checkedAt,
+      })
+      .from(tinVerifications)
+      .where(inArray(tinVerifications.orgId, orgIds))
+      .orderBy(tinVerifications.orgId, desc(tinVerifications.checkedAt));
+    for (const check of checks) {
+      const entry = out.get(check.orgId);
+      if (entry) {
+        entry.tinCheck = {
+          result: check.result,
+          adapterMode: check.adapterMode,
+          checkedAt: check.checkedAt.toISOString(),
+        };
+      }
+    }
+    return out;
+  }
+
+  /**
    * The businesses waiting at one gate, inside one officer's region.
    *
    * Scope is applied as a WHERE clause, not as a filter over a full list: an
@@ -919,6 +1079,7 @@ export class OrganizationRepository {
       districtName: string | null;
       sectorName: string | null;
       addressText: string | null;
+      tourismLicenseNumber: string | null;
       status: OrgRegistrationStatus;
       waitingSince: Date;
     }[]
@@ -942,6 +1103,7 @@ export class OrganizationRepository {
         districtName: districts.name,
         sectorName: sectors.name,
         addressText: orgs.addressText,
+        tourismLicenseNumber: orgs.tourismLicenseNumber,
         status: orgs.registrationStatus,
         waitingSince: orgs.updatedAt,
       })

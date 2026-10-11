@@ -7,14 +7,16 @@
  * replacement for the READ half, and the read half only. See the note on
  * `PUT /me/profile` at the bottom of this file for why the write is not here.
  *
- * ## Why the placeholder is still in the tree
+ * ## The placeholder is nobody
  *
- * `ME` stands in while the call is in flight, and on any surface that has no
- * session above it. That is the same arrangement `apps/web` documents for
- * `DEMO_PERMISSIONS` in `data/demo.ts`: fixture data that keeps the app
- * runnable standalone, never a second model. Where the two disagree the server
- * is right, and `fromServer` is on the return value so a caller can tell which
- * one it is holding rather than having to guess from the string.
+ * It used to be `ME`, the fixture persona, and that put a stranger's name and
+ * phone number on every account the server had no name for: every new account
+ * (Step 1 unanswered, `fullName: null`), the load window, and any failed read
+ * (mobile audit 2026-10-05, SA-01). A placeholder that names a real looking
+ * person is a fabricated fact about whoever is holding the phone. So it is now
+ * empty, and `fromServer` and `pending` tell a caller which of three things it
+ * holds: a name, a read still in flight (draw a skeleton), or an account with
+ * no name on file (draw `identity.unnamed`, never a guess).
  *
  * ## Person scoped, so no workspace header
  *
@@ -29,7 +31,6 @@ import { useQuery } from '@tanstack/react-query';
 import { api, unwrap } from '../lib/api';
 import { ENDPOINTS } from '../lib/endpoints';
 import { meKeys } from '../lib/query-keys';
-import { ME } from '../data/personas';
 import { useOptionalSession } from '../session';
 
 /** The caller's own Step 1 answers. Every field is nullable on a new account. */
@@ -74,19 +75,26 @@ export interface MyIdentity {
    * True only when the server answered AND had a name on file.
    *
    * A brand new account has `fullName: null` — Step 1 is unanswered — and that
-   * is NOT a server-sourced identity: printing an empty name where a name goes
-   * is worse than printing the placeholder, so the placeholder stands and this
-   * stays false.
+   * is NOT a server-sourced identity. When this is false, `name`, `initials` and
+   * `phone` are empty strings: a caller draws a skeleton while `pending`, and
+   * `identity.unnamed` once it is not. It never prints a name of its own.
    */
   fromServer: boolean;
+  /** The profile read has not answered yet. Draw a skeleton, not "unnamed". */
+  pending: boolean;
 }
 
-/** What the app shows before the server has answered, and where it has no session. */
+/**
+ * What the app holds before the server has answered, where it has no session,
+ * and for an account with no name on file. Deliberately nobody: see the module
+ * header for why this is not the fixture persona any more.
+ */
 export const PLACEHOLDER_IDENTITY: MyIdentity = {
-  name: ME.name,
-  initials: ME.initials,
-  phone: ME.phone,
+  name: '',
+  initials: '',
+  phone: '',
   fromServer: false,
+  pending: false,
 };
 
 /**
@@ -104,15 +112,19 @@ export const PLACEHOLDER_IDENTITY: MyIdentity = {
  */
 export function useMyIdentity(): MyIdentity {
   const session = useOptionalSession();
+  const enabled = session?.status === 'authenticated';
 
-  const { data } = useQuery({
+  const { data, isPending } = useQuery({
     queryKey: meKeys.profile(),
     queryFn: ({ signal }) => fetchMyProfile(signal),
-    enabled: session?.status === 'authenticated',
+    enabled,
     staleTime: 5 * 60 * 1000,
   });
 
-  return toIdentity(data);
+  // A disabled query reports `isPending` forever, so only an ENABLED one that
+  // has not answered is a read in flight. A failed read is not pending: it is
+  // an account whose name we do not know, and says so.
+  return toIdentity(data, enabled && isPending);
 }
 
 /**
@@ -121,13 +133,13 @@ export function useMyIdentity(): MyIdentity {
  * Exported so it can be tested without a React tree — the mapping is where the
  * null handling lives, and null handling is the whole of the risk here.
  */
-export function toIdentity(profile: MyProfile | undefined): MyIdentity {
+export function toIdentity(profile: MyProfile | undefined, pending = false): MyIdentity {
   const name = profile?.fullName?.trim();
   if (!name) {
     // Either we have not asked yet, or Step 1 is unanswered. Both mean the
     // same thing on screen: we do not know this person's name. A phone number
     // on its own under a blank line is not an improvement on the placeholder.
-    return PLACEHOLDER_IDENTITY;
+    return pending ? { ...PLACEHOLDER_IDENTITY, pending: true } : PLACEHOLDER_IDENTITY;
   }
 
   const phone = profile?.phoneE164?.trim();
@@ -138,6 +150,7 @@ export function toIdentity(profile: MyProfile | undefined): MyIdentity {
     // about a real person, so an absent number reads as absent.
     phone: phone ? formatPhone(phone) : '',
     fromServer: true,
+    pending: false,
   };
 }
 

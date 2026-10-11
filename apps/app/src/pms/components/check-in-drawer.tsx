@@ -16,14 +16,17 @@
  * is exactly why the walk in route had to be written. Sending both through one
  * call would have meant inventing a booking for somebody who never made one.
  *
- * **THE NATIONAL ID IS NO LONGER REQUIRED, AND THAT IS A CORRECTION.** The form
- * demanded it and then threw it away: nothing on the wire carries it, and
- * `guest_stays` has no column for it. Refusing a check in over a field that is
- * discarded is worse than not asking — it stops a guest at the desk to collect
- * something nobody keeps. It stays on the form, marked optional, because the
- * desk really does look at the ID; storing it needs its own decision (identity
- * documents are their own table, and a scanned ID is personal data with its own
- * retention rules).
+ * **THE ID, PHONE AND EMAIL ARE THE REGISTRATION CARD (§6.8), AND THEY ARE
+ * SENT.** This form used to collect an ID number and a phone and drop both on
+ * the floor, while telling the desk the ID was "not kept yet" — which stopped
+ * being true the day `StayRegistrationDetails` landed. They travel as `guest`
+ * on both commands now: the phone and email go on the stay, the ID number on
+ * its identity record, and the email is where the claim invitation is mailed.
+ * For a walk in that mail is the ONLY way the guest ever reaches the app —
+ * there is no account behind them — so the email field exists for that.
+ * `lib/walk-in-body.ts` decides what goes on the wire and what is refused at
+ * the field; nothing here is required beyond a name and a room, because a
+ * stay nobody could open is worse than a stay with a name and no document.
  *
  * **NIGHTS BECAME A DEPARTURE DATE for a walk in.** The command takes
  * `plannedExitAt`, and it is optional on purpose: a walk in often does not know
@@ -39,6 +42,7 @@ import { usePmsUi } from "../ui-store";
 import { useCapability, useWorkspaceId } from "../data/capability";
 import { useCheckIn, useRooms, useWalkIn } from "../data/ops";
 import { fmt, nights as nightsLabel, parseAmount } from "../lib/format";
+import { registrationCardFrom, registrationProblems } from "../lib/walk-in-body";
 import { fieldStyle, FieldLabel, SelectField } from "./ui";
 import { Icon } from "./icon";
 
@@ -84,8 +88,11 @@ export function CheckInDrawer() {
   );
   const room = rooms.find((x) => x.id === c.room);
   const rateN = parseAmount(c.rate) || 0;
-  // The national ID is asked for and NOT required — nothing stores it yet.
+  // Only a name and a room are required. The card is optional, but what is
+  // typed on it must be something the contract will accept.
   const missing = !c.name.trim() || !c.room;
+  const problems = registrationProblems(c);
+  const malformed = Object.keys(problems).length > 0;
 
   const set = <K extends keyof typeof c>(key: K, value: (typeof c)[K]) => {
     setCheckIn({ ...c, [key]: value });
@@ -96,10 +103,17 @@ export function CheckInDrawer() {
     setCheckIn(null);
   };
 
+  const fieldBorder = (bad: boolean) => (showErr && bad ? "var(--bad)" : "var(--line2)");
+
   function submit() {
     if (missing) {
       setShowErr(true);
       toast("Add a name and pick a room to open the stay.", "warn");
+      return;
+    }
+    if (malformed) {
+      setShowErr(true);
+      toast(problems.phone ?? problems.email ?? problems.nid ?? "Check the registration card.", "warn");
       return;
     }
     if (denied) {
@@ -108,6 +122,8 @@ export function CheckInDrawer() {
     }
 
     const rate = rateN > 0 ? rateN : undefined;
+    const guest = registrationCardFrom(c);
+    const invited = guest?.email ? ` The invitation is on its way to ${guest.email}.` : "";
 
     if (c.walk || !c.resId) {
       walkIn.mutate(
@@ -116,12 +132,16 @@ export function CheckInDrawer() {
           guestName: c.name.trim(),
           plannedExitAt: departureFrom(c.nights),
           nightlyRateRwf: rate,
+          guest,
         },
         {
           onSuccess: (stay) => {
             setShowErr(false);
             setCheckIn(null);
-            toast(`${c.name.trim()} is in room ${room?.label ?? ""}. Their bill is open.`.trim(), "ok");
+            toast(
+              `${c.name.trim()} is in room ${room?.label ?? ""}. Their bill is open.${invited}`.replace(/\s+/g, " "),
+              "ok",
+            );
             // The stay exists now, so the record is a real address. The demo
             // sent a walk in to the Bills list because it had no id to go to.
             router.push(href(`/stays/${stay.id}/folio`));
@@ -133,13 +153,13 @@ export function CheckInDrawer() {
     }
 
     checkInGuest.mutate(
-      { bookingId: c.resId, roomId: c.room, nightlyRateRwf: rate },
+      { bookingId: c.resId, roomId: c.room, nightlyRateRwf: rate, guest },
       {
         onSuccess: (stay) => {
           setShowErr(false);
           setCheckIn(null);
           toast(
-            `${c.name.trim() || "Guest"} is in room ${room?.label ?? ""}. Their bill is open.`.replace(
+            `${c.name.trim() || "Guest"} is in room ${room?.label ?? ""}. Their bill is open.${invited}`.replace(
               /\s+/g,
               " ",
             ),
@@ -204,7 +224,7 @@ export function CheckInDrawer() {
             value={c.name}
             onChange={(e) => set("name", e.target.value)}
             placeholder="As on the ID"
-            style={{ ...fieldStyle, marginTop: 6, minHeight: 44, fontSize: 14, borderColor: showErr && !c.name.trim() ? "var(--bad)" : "var(--line2)" }}
+            style={{ ...fieldStyle, marginTop: 6, minHeight: 44, fontSize: 14, borderColor: fieldBorder(!c.name.trim()) }}
           />
         </div>
         <div>
@@ -215,13 +235,10 @@ export function CheckInDrawer() {
             onChange={(e) => set("nid", e.target.value)}
             placeholder="1 19XX X XXXXXXX X XX"
             className="pms-num"
-            style={{ ...fieldStyle, marginTop: 6, minHeight: 44, fontSize: 14 }}
+            style={{ ...fieldStyle, marginTop: 6, minHeight: 44, fontSize: 14, borderColor: fieldBorder(Boolean(problems.nid)) }}
           />
-          {/* Said out loud rather than implied. A field that looks stored and
-              is not is worse than one that admits it. */}
-          <div style={{ marginTop: 5, fontSize: 11.5, color: "var(--muted)" }}>
-            Not kept yet. Identity documents get their own record, with their own
-            retention rules.
+          <div style={{ marginTop: 5, fontSize: 11.5, color: showErr && problems.nid ? "var(--bad)" : "var(--muted)" }}>
+            {showErr && problems.nid ? problems.nid : "Kept on the stay's registration card, with the document it came from."}
           </div>
         </div>
         <div>
@@ -232,8 +249,32 @@ export function CheckInDrawer() {
             onChange={(e) => set("phone", e.target.value)}
             placeholder="+250 7XX XXX XXX"
             className="pms-num"
-            style={{ ...fieldStyle, marginTop: 6, minHeight: 44, fontSize: 14 }}
+            inputMode="tel"
+            style={{ ...fieldStyle, marginTop: 6, minHeight: 44, fontSize: 14, borderColor: fieldBorder(Boolean(problems.phone)) }}
           />
+          {showErr && problems.phone && (
+            <div style={{ marginTop: 5, fontSize: 11.5, color: "var(--bad)" }}>{problems.phone}</div>
+          )}
+        </div>
+        <div>
+          <FieldLabel>Email · optional</FieldLabel>
+          <Input
+            aria-label="Email"
+            type="email"
+            value={c.email}
+            onChange={(e) => set("email", e.target.value)}
+            placeholder="Where their code to continue in the app is sent"
+            inputMode="email"
+            autoComplete="off"
+            style={{ ...fieldStyle, marginTop: 6, minHeight: 44, fontSize: 14, borderColor: fieldBorder(Boolean(problems.email)) }}
+          />
+          {/* Said out loud: the email is not decoration, it is the one address the
+              stay's claim invitation is ever mailed to. */}
+          <div style={{ marginTop: 5, fontSize: 11.5, color: showErr && problems.email ? "var(--bad)" : "var(--muted)" }}>
+            {showErr && problems.email
+              ? problems.email
+              : "The guest gets a code here to see their bill, message the desk and order to the room."}
+          </div>
         </div>
 
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(150px, 1fr))", gap: 10 }}>

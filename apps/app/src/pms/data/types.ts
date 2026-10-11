@@ -199,7 +199,6 @@ export interface ResidenceProperty {
   dirListed: string[];
   /** Contact reveals spent by brokers against this portfolio. */
   reveals: number;
-  filing: Filing;
   msgs: number;
 }
 
@@ -235,13 +234,6 @@ export interface Thread {
   ref?: string;
   unread: boolean;
   msgs: Message[];
-}
-
-/** Rental income by month, in the shape the RRA declaration asks for. */
-export interface Filing {
-  due: string;
-  /** [month label, income]. */
-  months: [string, number][];
 }
 
 /* ── Rooms & rates (the sell-side of inventory) ─────────────────────────── */
@@ -297,47 +289,6 @@ export interface RoomType {
   amen: string[];
   bedrooms: Bedroom[];
   plans: RatePlan[];
-}
-
-/* ── Broker workspace ───────────────────────────────────────────────────── */
-
-export interface DirectoryListing {
-  id: string;
-  type: string;
-  loc: string;
-  rent: number;
-  /** Deposit, expressed the way Rwandan lettings do — "1 month". */
-  caution: string;
-  landlord: string;
-  phone: string;
-  /** A reveal is spent, logged, and cannot be taken back. */
-  revealed: boolean;
-}
-
-export type PlacementState = "none" | "progress" | "awaiting" | "disbursed";
-
-export interface Placement {
-  tenant: string | null;
-  unit: string | null;
-  landlord: string;
-  lease: string | null;
-  fee: number | null;
-  st: PlacementState;
-}
-
-export type LedgerState = "pending" | "disbursed";
-
-/** [label, when, amount, state]. A fee is pending until its lease activates. */
-export type LedgerLine = [string, string, number, LedgerState];
-
-export interface BrokerData {
-  key: "broker";
-  name: string;
-  dir: DirectoryListing[];
-  placements: Placement[];
-  ledger: LedgerLine[];
-  /** Reveals left this period. */
-  reveals: number;
 }
 
 /* ── Personal workspace ─────────────────────────────────────────────────── */
@@ -417,5 +368,4 @@ export interface Db {
   hotel: HospitalityProperty;
   guesthouse: HospitalityProperty;
   residence: ResidenceProperty;
-  broker: BrokerData;
 }

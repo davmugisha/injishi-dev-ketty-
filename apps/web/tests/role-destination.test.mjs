@@ -187,6 +187,9 @@ const PERSONAS = [
   { email: "fidele@demo.injishi.com", personal: true, consoles: 0, to: HOME },
   { email: "ops@demo.injishi.com", staff: true, to: ADMIN },
   { email: "aimable@demo.injishi.com", operator: [biz("w-aimable")], to: "/w/w-aimable" },
+  // Limited to one branch (ADR-054 AC-D2). A branch limit narrows what she
+  // sees inside the workspace, never which door she opens: same seat as Denise.
+  { email: "clarisse@demo.injishi.com", operator: [biz("w-amahoro")], to: "/w/w-amahoro" },
 ];
 
 const holdsSomethingGuarded = (p) =>

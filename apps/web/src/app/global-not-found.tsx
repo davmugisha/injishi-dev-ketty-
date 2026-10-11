@@ -42,7 +42,7 @@ export default function GlobalNotFound() {
           background: `light-dark(${WHITE}, ${INK})`,
           color: `light-dark(${INK}, ${PAPER})`,
           fontFamily:
-            "Figtree, ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, sans-serif",
+            "Inter, ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, sans-serif",
           WebkitFontSmoothing: "antialiased",
         }}
       >
@@ -70,7 +70,7 @@ export default function GlobalNotFound() {
           <h1
             style={{
               margin: 0,
-              fontFamily: "Spectral, ui-serif, Georgia, serif",
+              fontFamily: "Inter, ui-sans-serif, system-ui, sans-serif",
               fontSize: "clamp(2rem, 6vw, 3rem)",
               lineHeight: 1.2,
               fontWeight: 500,

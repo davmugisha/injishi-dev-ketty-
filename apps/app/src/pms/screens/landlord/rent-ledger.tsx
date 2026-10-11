@@ -20,13 +20,23 @@ import Link from "next/link";
 import { useState } from "react";
 import { cn } from "@/lib/utils";
 
-import { Badge, Chip, EmptyState, LoadFailed, SectionHeading, Skeleton, StatCard, surfaceClass } from "../../components/ui";
+import { Badge, Chip, EmptyState, LoadFailed, SectionHeading, SelectField, Skeleton, StatCard, surfaceClass } from "../../components/ui";
 import { useWorkspaceId } from "../../data/capability";
 import { useRentRoll } from "../../data/ops";
 import { dshortIso, fmt } from "../../lib/format";
 import { useWorkspaceHref } from "../../lib/workspace-href";
 
 const COLS = "minmax(64px,.6fr) minmax(150px,1.4fr) minmax(100px,1fr) minmax(100px,1fr) minmax(120px,1fr) auto";
+
+/**
+ * How many months get a chip of their own.
+ *
+ * The rest are reachable through the select beside them. Six chips was the
+ * whole control while the demo held two months of rent; against a portfolio
+ * with two years of history it made every month but the newest six
+ * unreachable, which is a filter that silently hides most of the ledger.
+ */
+const CHIPPED_MONTHS = 6;
 
 /** `Sep 2026` from the first-of-month date the server sends. */
 function monthLabel(iso: string): string {
@@ -86,7 +96,7 @@ export function RentLedger() {
     <div className="flex flex-col gap-4">
       <div className="flex flex-wrap items-center gap-2.5">
         <Chip label="All months" n={months.length} active={month === "all"} onClick={() => setMonth("all")} />
-        {months.slice(0, 6).map((m) => (
+        {months.slice(0, CHIPPED_MONTHS).map((m) => (
           <Chip
             key={m}
             label={monthLabel(m)}
@@ -95,6 +105,20 @@ export function RentLedger() {
             onClick={() => setMonth(m)}
           />
         ))}
+        {months.length > CHIPPED_MONTHS && (
+          /* The complete control. Its value always mirrors the chips, so a
+             month picked here and a month picked there cannot disagree. */
+          <SelectField
+            className="w-56"
+            label="Jump to a month"
+            value={month}
+            onChange={(v) => setMonth(v === "" ? "all" : v)}
+            options={[
+              { value: "all", label: `All ${months.length} months` },
+              ...months.map((m) => ({ value: m, label: monthLabel(m) })),
+            ]}
+          />
+        )}
       </div>
 
       <div className="grid gap-3 [grid-template-columns:repeat(auto-fit,minmax(170px,1fr))]">

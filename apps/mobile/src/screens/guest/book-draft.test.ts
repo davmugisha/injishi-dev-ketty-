@@ -110,6 +110,10 @@ describe('mintTrip', () => {
       nightlyRateRwf: GARDEN.summary.nightlyRateRwf!,
       nights: 3,
       nonRefundable: false,
+      // The party, because a stay is priced per person (owner ruling,
+      // 2026-09-15). `mintTrip` passes the billable guests; a caller that
+      // omits them prices one guest and disagrees with the screen.
+      guests: 2,
     });
     expect(trip.breakdown).toEqual(expected);
     expect(trip.total).toBe(expected.grossRwf);
@@ -117,10 +121,12 @@ describe('mintTrip', () => {
   });
 
   it('carries the canvas worked example', () => {
-    // Garden Suite at 240,000 for three nights: 720,000 + 36,000 = 756,000.
+    // Garden Suite at 240,000 per guest per night, two guests, three nights:
+    // 1,440,000 + 72,000 = 1,512,000. The canvas quoted 756,000, which was the
+    // same stay priced for one; per-person pricing doubled it.
     const trip = mintTrip({ ...args, reference: 'BK-7Q2M4X' });
-    expect(trip.breakdown.accommodationRwf).toBe(720_000);
-    expect(trip.total).toBe(756_000);
+    expect(trip.breakdown.accommodationRwf).toBe(1_440_000);
+    expect(trip.total).toBe(1_512_000);
   });
 
   it('takes the state from the room, not the property', () => {
@@ -148,8 +154,8 @@ describe('mintTrip', () => {
 
   it('applies the non-refundable discount when it is taken', () => {
     const trip = mintTrip({ ...args, nonRefundable: true, reference: 'BK-DDDDDD' });
-    expect(trip.breakdown.nonRefundableDiscountRwf).toBe(72_000);
-    expect(trip.total).toBe(680_400);
+    expect(trip.breakdown.nonRefundableDiscountRwf).toBe(144_000);
+    expect(trip.total).toBe(1_360_800);
   });
 
   it('throws rather than minting a trip with a zero total', () => {
@@ -161,6 +167,9 @@ describe('mintTrip', () => {
   it('copies the property fields a trip row needs so it never joins back', () => {
     const trip = mintTrip({ ...args, reference: 'BK-EEEEEE' });
     expect(trip.property).toBe(UMURAGE.stay.title);
+    // The room booked, by name, so the confirmation's "Room type" row names
+    // the room rather than the property (mobile audit 2026-10-05, GK-15).
+    expect(trip.roomName).toBe(GARDEN.summary.name);
     expect(trip.address).toBe(UMURAGE.address);
     expect(trip.selfCheckIn).toBe(UMURAGE.selfCheckIn);
     expect(trip.checkInTime).toBe(UMURAGE.property.checkInTime);

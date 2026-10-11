@@ -96,6 +96,11 @@ export interface SignInput {
  * "Contract · Download" row reads `documents` and a signed lease whose only
  * document still says "awaiting your signature" is a screen contradicting
  * itself.
+ *
+ * `signedOnDevice` marks the signature as this phone's alone. Nothing sends it
+ * anywhere yet, and the sign screen says so for as long as the lease carries
+ * the mark, not only in the render that signed it (mobile audit 2026-10-05,
+ * TN-04).
  */
 export function applySignature(all: Tenancy[], { leaseId, signedOn }: SignInput): Tenancy[] {
   return mapTenancy(all, leaseId, (t) => {
@@ -110,6 +115,7 @@ export function applySignature(all: Tenancy[], { leaseId, signedOn }: SignInput)
       ...t,
       leaseState: 'active',
       signedOn,
+      signedOnDevice: true,
       history: t.history.length > 0 ? t.history : [first],
       documents: t.documents.map((d) =>
         d.label === 'Draft contract'

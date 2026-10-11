@@ -1,23 +1,15 @@
 import type { Metadata } from "next";
 import localFont from "next/font/local";
+import { Suspense } from "react";
+import { AdminAssistant } from "@/components/assistant/admin-assistant";
 import { AdminShell } from "@/components/shell/admin-shell";
 import { StaffBoundary } from "@/components/shell/staff-boundary";
 import "./globals.css";
 
-const figtree = localFont({
-  src: "../fonts/Figtree-Variable.woff2",
-  variable: "--font-figtree",
+const inter = localFont({
+  src: "../fonts/Inter-Variable.woff2",
+  variable: "--font-inter",
   weight: "300 900",
-  display: "swap",
-});
-
-const spectral = localFont({
-  src: [
-    { path: "../fonts/Spectral-Medium.woff2", weight: "500", style: "normal" },
-    { path: "../fonts/Spectral-Bold.woff2", weight: "700", style: "normal" },
-    { path: "../fonts/Spectral-ExtraBold.woff2", weight: "800", style: "normal" },
-  ],
-  variable: "--font-spectral",
   display: "swap",
 });
 
@@ -42,7 +34,7 @@ export default function RootLayout({
     <html
       lang="en"
       suppressHydrationWarning
-      className={`${figtree.variable} ${spectral.variable}`}
+      className={inter.variable}
     >
       <head>
         <script dangerouslySetInnerHTML={{ __html: THEME_SCRIPT }} />
@@ -59,7 +51,15 @@ export default function RootLayout({
          * who is not staff. See `staff-boundary.tsx` for why that matters.
          */}
         <StaffBoundary>
-          <AdminShell>
+          {/* The support assistant reads its conversation on the server and
+              streams in without holding up the page (ADR-061 slice G). */}
+          <AdminShell
+            assistant={
+              <Suspense fallback={null}>
+                <AdminAssistant />
+              </Suspense>
+            }
+          >
             {/*
              * And the section gate is INSIDE the chrome (ADR-049 AC-25), but
              * it is NOT mounted here: each section's own `layout.tsx` mounts

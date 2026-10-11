@@ -70,12 +70,59 @@ import { usePmsUi } from "../ui-store";
 const COL = 72;
 const LABEL_W = 178;
 const ROW_H = 44;
+/** What one extra overlapping bar adds to a row. Bar height plus its gap. */
+const LANE_H = 38;
 const DAYS = 14;
 const PAST = 2; // days of history shown left of today
 const GRID_W = LABEL_W + DAYS * COL; // 1186
 const HEADER_H = 46;
 /** Tall enough for the popover's three rows, badge and actions. */
 const POP_H = 214;
+
+/**
+ * Is this a calendar day the grid can open on?
+ *
+ * `?from=` is typed by hand and pasted between people, so it is checked rather
+ * than trusted: the shape, and then that the date EXISTS. `2026-02-31` passes
+ * a regexp and rolls over to March in a `Date`, which would silently open the
+ * grid on a day nobody asked for.
+ */
+/**
+ * Stack overlapping bars into LANES, so two stays on one room are both there.
+ *
+ * Bars were drawn at one `top` with one height, so any two that shared a room
+ * and a night landed exactly on top of each other: the topmost was the only
+ * one a pointer could reach and the only one anybody could see. Ten of them
+ * sat on Deluxe Room 1 for 17–18 Sep on the local stack (2026-09-17).
+ *
+ * Overlap on one room is not a display accident to be hidden — a same-day
+ * turnover is two bars touching, and a genuine double-book is exactly what a
+ * duty manager opens this screen to find. So every bar gets a lane: the first
+ * one it does not collide in, by the usual interval-graph sweep over bars
+ * sorted by start. The row grows to hold the lanes it needs.
+ */
+function assignLanes(bars: Bar[]): { lane: Map<string, number>; lanes: number } {
+  const lane = new Map<string, number>();
+  /** The exclusive end of the last bar placed in each lane. */
+  const ends: string[] = [];
+  for (const bar of [...bars].sort((a, b) => (a.from < b.from ? -1 : a.from > b.from ? 1 : 0))) {
+    let i = ends.findIndex((end) => end <= bar.from);
+    if (i === -1) {
+      i = ends.length;
+      ends.push(bar.to);
+    } else {
+      ends[i] = bar.to;
+    }
+    lane.set(bar.key, i);
+  }
+  return { lane, lanes: Math.max(ends.length, 1) };
+}
+
+function isIsoDay(value: string): boolean {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) return false;
+  const d = new Date(`${value}T00:00:00Z`);
+  return !Number.isNaN(d.getTime()) && d.toISOString().slice(0, 10) === value;
+}
 
 type BarKind = "reserved" | "inhouse" | "out";
 
@@ -225,7 +272,10 @@ function buildBars(
   return bars;
 }
 
-export function RoomGrid({ focusBookingId = null }: { focusBookingId?: string | null } = {}) {
+export function RoomGrid({
+  focusBookingId = null,
+  windowStart = null,
+}: { focusBookingId?: string | null; windowStart?: string | null } = {}) {
   const { toast, toastError } = usePms();
   const { openCheckIn } = usePmsUi();
   const router = useRouter();
@@ -240,10 +290,27 @@ export function RoomGrid({ focusBookingId = null }: { focusBookingId?: string | 
   const stays = useStays(workspaceId);
 
   /*
-   * The window. Two days of history and twelve ahead, unless a focused booking
-   * arrives outside that, in which case the window starts two days before its
-   * arrival instead. Waiting for the reservations read before asking for holds
-   * keeps the grid from fetching one window and then another.
+   * The window, and WHY IT MOVES NOW.
+   *
+   * It was two days of history and twelve ahead, derived from `today` and from
+   * nothing else, with no control that changed it. A hotel calendar that
+   * cannot be paged is a fortnight's report: a booking three weeks out could
+   * not be looked at on this screen at all, and the only thing that ever
+   * shifted the window was arriving on a `?booking=` link. Measured
+   * 2026-09-17.
+   *
+   * `?from=` is the window's address, for the same reason `?booking=` is the
+   * focus's: a duty manager sends "the grid for the last week of the month" as
+   * a link, and a window kept in component state cannot be sent. An unreadable
+   * or absent value is the home window, never an error — this parameter is
+   * typed by hand.
+   *
+   * A focused booking still WINS over `?from=`, because following a link to a
+   * booking is a request to look at that booking, and the two parameters only
+   * ever arrive together when something built a link out of both.
+   *
+   * Waiting for the reservations read before asking for holds keeps the grid
+   * from fetching one window and then another.
    */
   const focusRes = focusBookingId
     ? (reservations.data?.reservations.find((r) => r.id === focusBookingId) ?? null)
@@ -251,8 +318,15 @@ export function RoomGrid({ focusBookingId = null }: { focusBookingId?: string | 
   const homeFrom = addDaysIso(today, -PAST);
   const homeTo = addDaysIso(today, DAYS - PAST);
   const shifted = focusRes !== null && (focusRes.checkIn < homeFrom || focusRes.checkIn >= homeTo);
-  const windowFrom = shifted && focusRes ? addDaysIso(focusRes.checkIn, -PAST) : homeFrom;
+  const paged = !shifted && windowStart !== null && isIsoDay(windowStart) ? windowStart : null;
+  const windowFrom = shifted && focusRes
+    ? addDaysIso(focusRes.checkIn, -PAST)
+    : (paged ?? homeFrom);
   const windowTo = addDaysIso(windowFrom, DAYS);
+  /** Where the arrows and "Today" send you. Paging drops a stale focus. */
+  const windowHref = (from: string | null) =>
+    from === null ? href("/calendar") : href(`/calendar?from=${from}`);
+  const atHome = windowFrom === homeFrom;
   const holdsReady = !focusBookingId || !reservations.isPending;
   const holds = useRoomAssignments(holdsReady ? workspaceId : null, windowFrom, windowTo);
   const holdRoom = useHoldRoom(workspaceId);
@@ -332,6 +406,23 @@ export function RoomGrid({ focusBookingId = null }: { focusBookingId?: string | 
   const roomById = new Map(roomList.map((r) => [r.id, r]));
   const resList = reservations.data?.reservations ?? [];
   const bars = buildBars(holds.data?.assignments ?? [], stays.data?.stays ?? [], resList, today, windowFrom);
+
+  /*
+   * Row geometry, computed ONCE, because three things read it: the rows as
+   * drawn, the drag's "which room is under the pointer", and where a bar's
+   * popover opens. Rows used to be one fixed height and all three divided by
+   * it; a row that grows to hold a second lane made that arithmetic wrong for
+   * every row below the clash, so the drag landed a bar one room off.
+   */
+  const rowLanes = roomList.map((rm) =>
+    assignLanes(bars.filter((b) => b.roomId === rm.id && overlaps(b.from, b.to, windowFrom, windowTo))),
+  );
+  const rowHeights = rowLanes.map(({ lanes }) => ROW_H + (lanes - 1) * LANE_H);
+  const rowTops = rowHeights.reduce<number[]>((tops, h, i) => {
+    tops.push(i === 0 ? 0 : tops[i - 1] + rowHeights[i - 1]);
+    return tops;
+  }, []);
+  const rowsHeight = rowHeights.reduce((a, h) => a + h, 0);
   const heldBookings = new Set((holds.data?.assignments ?? []).map((h) => h.bookingId));
 
   const occupied = roomList.filter((r) => r.occupiedBy !== null).length;
@@ -370,7 +461,9 @@ export function RoomGrid({ focusBookingId = null }: { focusBookingId?: string | 
   const rowAt = (clientY: number): OperatorRoom | undefined => {
     const rect = rowsRef.current?.getBoundingClientRect();
     if (!rect || roomList.length === 0) return undefined;
-    const i = Math.max(0, Math.min(roomList.length - 1, Math.floor((clientY - rect.top) / ROW_H)));
+    const y = clientY - rect.top;
+    let i = rowTops.findIndex((top, k) => y >= top && y < top + rowHeights[k]);
+    if (i === -1) i = y < 0 ? 0 : roomList.length - 1;
     return roomList[i];
   };
 
@@ -444,10 +537,10 @@ export function RoomGrid({ focusBookingId = null }: { focusBookingId?: string | 
     // Below the bar unless that runs off the bottom of the chart, which clips
     // it inside its own scroll box: on a small property the last rows opened a
     // popover whose buttons could not be seen. Above it then, if that fits.
-    const rowTop = HEADER_H + ri * ROW_H;
+    const rowTop = HEADER_H + (rowTops[ri] ?? 0) + (rowLanes[ri]?.lane.get(bar.key) ?? 0) * LANE_H;
     const below = rowTop + 42;
     const above = rowTop - POP_H + 2;
-    const chartH = HEADER_H + roomList.length * ROW_H;
+    const chartH = HEADER_H + rowsHeight;
     setPop({ key: bar.key, x, y: below + POP_H > chartH && above >= 0 ? above : below });
   };
 
@@ -544,6 +637,50 @@ export function RoomGrid({ focusBookingId = null }: { focusBookingId?: string | 
         </span>
       </div>
 
+      {/*
+        The window control. A week a press, because the chart is a fortnight
+        wide and a fortnight a press would leave no overlap to read across.
+        "Today" appears only when the window has moved, so the row does not
+        carry a control that does nothing — the same rule the focus panel's
+        "Back to today" already followed.
+      */}
+      <div
+        role="group"
+        aria-label="Calendar window"
+        style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}
+      >
+        <span style={{ display: "inline-flex", alignItems: "center", gap: 4 }}>
+          <ActionButton
+            onClick={() => router.push(windowHref(addDaysIso(windowFrom, -7)))}
+            aria-label="Previous week"
+            title="Previous week"
+          >
+            <Icon name="chevron-left" size={15} strokeWidth={2.2} />
+          </ActionButton>
+          <ActionButton
+            onClick={() => router.push(windowHref(addDaysIso(windowFrom, 7)))}
+            aria-label="Next week"
+            title="Next week"
+          >
+            <Icon name="chevron-right" size={15} strokeWidth={2.2} />
+          </ActionButton>
+        </span>
+
+        <span
+          className="pms-num"
+          aria-live="polite"
+          style={{ fontSize: 13, fontWeight: 600, color: "var(--foreground)" }}
+        >
+          {dateRangeIso(windowFrom, addDaysIso(windowTo, -1))}
+        </span>
+
+        {!atHome && (
+          <Link href={windowHref(null)} className="text-sm underline underline-offset-2">
+            Today
+          </Link>
+        )}
+      </div>
+
       {/* Tray of approved arrivals with no room held */}
       {tray.length > 0 ? (
         <div style={{ ...surface, padding: "12px 16px", display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
@@ -606,8 +743,13 @@ export function RoomGrid({ focusBookingId = null }: { focusBookingId?: string | 
                 <div style={{ position: "absolute", top: 0, bottom: 0, left: LABEL_W + todayCol * COL, width: COL, background: "var(--td)", borderLeft: "2px solid var(--accent2)" }} />
               )}
 
-              {roomList.map((rm) => {
+              {roomList.map((rm, ri) => {
                 const rowBars = bars.filter((b) => b.roomId === rm.id && overlaps(b.from, b.to, windowFrom, windowTo));
+                const { lane } = rowLanes[ri];
+                // One lane is the old single-row height; each extra lane adds
+                // its own band, so a row with a clash is visibly taller rather
+                // than hiding the clash.
+                const rowHeight = rowHeights[ri];
                 const gh = ghost && ghost.roomId === rm.id ? ghost : null;
                 // While a bar is in the air, every row it cannot land on says
                 // so before the drop rather than after it.
@@ -615,7 +757,7 @@ export function RoomGrid({ focusBookingId = null }: { focusBookingId?: string | 
                 const dragFrom = dragRef.current?.bar?.from ?? dragging?.checkIn ?? windowFrom;
                 const dragTo = dragRef.current?.bar?.to ?? dragging?.checkOut ?? windowFrom;
                 return (
-                  <div key={rm.id} style={{ display: "flex", height: ROW_H, borderTop: "1px solid var(--line)", position: "relative", opacity: wrongType ? 0.4 : 1 }}>
+                  <div key={rm.id} style={{ display: "flex", height: rowHeight, borderTop: "1px solid var(--line)", position: "relative", opacity: wrongType ? 0.4 : 1 }}>
                     <div style={{ width: LABEL_W, flex: `0 0 ${LABEL_W}px`, position: "sticky", left: 0, zIndex: 5, background: "var(--card)", display: "flex", alignItems: "center", gap: 9, padding: "0 14px", borderRight: "1px solid var(--line2)" }}>
                       {/* The same colour Room status gives this state, and a
                           name a screen reader speaks; `title` alone reached
@@ -664,7 +806,7 @@ export function RoomGrid({ focusBookingId = null }: { focusBookingId?: string | 
                             }}
                             title={`${c.label} · ${b.guest} · ${dateRangeIso(b.from, b.to)}`}
                             data-focus-bar={focused ? "bar" : undefined}
-                            style={{ boxShadow: focused ? "0 0 0 2px var(--accent-text)" : undefined, position: "absolute", left: gs * COL + 2, width: Math.max(24, (ge - gs) * COL - 4), top: 5, height: 33, borderRadius: rad, background: c.bg, border: `1.5px solid ${c.bd}`, display: "flex", alignItems: "center", gap: 5, padding: "0 9px", cursor: movable ? "grab" : "pointer", touchAction: "none", userSelect: "none", overflow: "hidden", zIndex: 2, opacity: dragRef.current?.bar?.key === b.key && ghost ? 0.5 : 1 }}
+                            style={{ boxShadow: focused ? "0 0 0 2px var(--accent-text)" : undefined, position: "absolute", left: gs * COL + 2, width: Math.max(24, (ge - gs) * COL - 4), top: 5 + (lane.get(b.key) ?? 0) * LANE_H, height: 33, borderRadius: rad, background: c.bg, border: `1.5px solid ${c.bd}`, display: "flex", alignItems: "center", gap: 5, padding: "0 9px", cursor: movable ? "grab" : "pointer", touchAction: "none", userSelect: "none", overflow: "hidden", zIndex: 2, opacity: dragRef.current?.bar?.key === b.key && ghost ? 0.5 : 1 }}
                           >
                             <Icon name={c.icon} size={12} strokeWidth={2} color={b.kind === "out" ? c.fg : c.bd} />
                             <span style={{ fontSize: 11.5, fontWeight: 600, color: c.fg, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{b.guest}</span>

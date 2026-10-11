@@ -38,6 +38,13 @@
  * The **map is drawn rather than mapped**, and says so on itself. F-B04's own
  * open question is which provider to use, no map dependency is installed, and
  * this session may not add one. See `explore-map.tsx`.
+ *
+ * ## Whose name is in the greeting
+ *
+ * The person's own, from `useMyIdentity()`, and only once the server has given
+ * one. Anything else greets with "Muraho" alone: the line used to read the
+ * fixture persona and greeted every account as Samuel (mobile audit
+ * 2026-10-05, GB-02).
  */
 import { useMemo, useState } from 'react';
 import { View } from 'react-native';
@@ -60,7 +67,8 @@ import { useDomain } from '@/domain';
 import { useT } from '@/i18n/i18n';
 import { useFixture } from '@/data/use-fixture';
 import { useSavedStays } from '@/data/saved';
-import { EXPLORABLE_STAYS, GUEST, type Stay } from '@/data/stays';
+import { EXPLORABLE_STAYS, type Stay } from '@/data/stays';
+import { useMyIdentity } from '@/queries/profile';
 import {
   DEFAULT_SEARCH,
   SORT_LABEL,
@@ -88,6 +96,7 @@ export function Explore() {
   const { search, setSearch } = useStaySearch();
   const { isSaved, toggle } = useSavedStays();
   const [view, setView] = useState<ResultView>('list');
+  const me = useMyIdentity();
 
   const stays = useFixture('stays', () => EXPLORABLE_STAYS);
   const catalogue = stays.data ?? [];
@@ -103,17 +112,35 @@ export function Explore() {
   const openStay = (stay: Stay) =>
     router.push({ pathname: '/listing/[id]', params: { id: stay.id } });
 
+  /**
+   * The heart flips at once; the toast waits for the write. It used to be
+   * picked from the intent, so a save that failed still said "Saved" (brief
+   * item 1). Offline, the press is queued, and the toast says that instead.
+   */
   const onToggleSave = (stay: Stay) => {
-    const nowSaved = toggle(stay.id);
-    toast.show(
-      nowSaved ? t('explore.savedToast') : t('explore.unsavedToast'),
-      nowSaved ? 'success' : 'neutral',
-    );
+    const { next, settled } = toggle(stay.id);
+    void settled.then((outcome) => {
+      if (outcome === 'done') {
+        toast.show(
+          next ? t('explore.savedToast') : t('explore.unsavedToast'),
+          next ? 'success' : 'neutral',
+        );
+      } else if (outcome === 'queued') {
+        toast.show(next ? t('saved.queuedSave') : t('saved.queuedRemove'), 'neutral');
+      } else {
+        toast.show(t('saved.toggleFailed'), 'danger');
+      }
+    });
   };
+
+  // The first name only, and only from the server. See the header (GB-02).
+  const greeting = me.fromServer
+    ? t('explore.greeting', { name: me.name.split(/\s+/)[0] })
+    : t('explore.greetingNoName');
 
   return (
     <Screen.List<Stay>
-      greeting={t('explore.greeting', { name: GUEST.user.split(' ')[0] })}
+      greeting={greeting}
       title={t('explore.title')}
       action={
         <WorkspaceChip
@@ -146,7 +173,14 @@ export function Explore() {
           <View accessibilityRole="tablist" accessibilityLabel={t('explore.view')}>
             <SegmentedTabs
               items={[
-                { value: 'list', label: t('explore.viewList'), count: results.length },
+                // No count until the list has loaded: "List 0" while the read
+                // is in flight is a misleading zero (mobile audit 2026-10-05,
+                // GB-18; the rig found the same on the Directory chips).
+                {
+                  value: 'list',
+                  label: t('explore.viewList'),
+                  count: stays.data ? results.length : undefined,
+                },
                 { value: 'map', label: t('explore.viewMap') },
               ]}
               value={view}
@@ -196,10 +230,11 @@ export function Explore() {
       loadingRows={3}
       empty={
         stays.status === 'error' ? (
+          // No `detail`: it printed the server's raw text ("Not Found") under
+          // the sentence (mobile audit 2026-10-05, GB-27).
           <ErrorState
             title={t('state.errorTitle')}
             body={t('state.errorBody', { label: t('explore.listLabel') })}
-            detail={stays.error?.message}
             onRetry={stays.retry}
           />
         ) : results.length === 0 ? (

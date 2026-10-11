@@ -1,5 +1,5 @@
-import Image from "next/image";
 import type { Amenity } from "@/data/properties";
+import { amenityMark } from "@/lib/amenity-icon";
 
 /**
  * The catalogue's editorial amenities, as an icon list.
@@ -18,24 +18,29 @@ import type { Amenity } from "@/data/properties";
  * amenities detail route to point it at, so the link went rather than moved.
  * Add one back only when this list starts cutting itself short and something
  * else holds the rest.
+ *
+ * The mark is read off the LABEL (`lib/amenity-icon.ts`, as the result cards
+ * do), not loaded from `/assets/<icon>.svg`. The `icon` field is empty on the
+ * sample listings, which requested `/assets/.svg` and drew a broken image on
+ * every row, and on the catalogue records it holds names that never matched
+ * the thing ("kayak" on an outdoor pool).
  */
 export function AmenityList({ items }: { items: Amenity[] }) {
   return (
-    <ul className="m-0 grid list-none grid-cols-2 gap-4 p-0 md:grid-cols-3 lg:grid-cols-4">
+    <ul className="m-0 grid list-none grid-cols-[repeat(auto-fill,minmax(13rem,1fr))] gap-x-6 gap-y-4 p-0">
       {items.map((item) => {
         // `available: false` means the house does not have it. Striking it
         // through rather than dropping it is what the reference does, and it
         // answers the question a guest actually came with.
         const unavailable = item.available === false;
+        const { Icon } = amenityMark(item.label);
         return (
           <li key={item.label} className="flex items-center gap-3">
-            <Image
-              src={`/assets/${item.icon}.svg`}
-              alt=""
-              width={24}
-              height={24}
-              className={`size-6 shrink-0 ${unavailable ? "opacity-40" : "opacity-70"}`}
-            />
+            <span
+              className={`flex size-9 shrink-0 items-center justify-center rounded-full bg-surface-secondary text-accent-text ${unavailable ? "opacity-40" : ""}`}
+            >
+              <Icon className="size-4" strokeWidth={2} aria-hidden />
+            </span>
             <span
               className={
                 unavailable

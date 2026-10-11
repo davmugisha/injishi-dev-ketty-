@@ -117,6 +117,11 @@ export const CONFIGURATION_SUBNAV: {
     detail: "The one-time fee, per accommodation type",
   },
   {
+    href: "/configuration/psf-tiers",
+    label: "PSF tiers",
+    detail: "What a business can apply for to join PSF",
+  },
+  {
     href: "/configuration/government-bodies",
     label: "Government bodies",
     detail: "The institutions officers are appointed from",

@@ -25,6 +25,13 @@
  * The deduction carries a reason because the operator app's move-out screen
  * says why in one line worth keeping: "a number without a reason is how deposit
  * disputes start", and F-R06 §9 asks for the evidence trail.
+ *
+ * **What settling here is today** (mobile audit 2026-10-05, LL-05). The
+ * deposit endpoints exist but this screen does not call them yet, so a
+ * settlement lands in this phone's own store and moves no money. The screen
+ * says no more than that: it stamps today's date rather than a fixed "4 Aug
+ * 2026", reports a settlement only when the write's own result says it landed,
+ * and no longer promises the caution "goes back by mobile money".
  */
 import { useState } from 'react';
 import { View, ScrollView } from 'react-native';
@@ -37,6 +44,7 @@ import {
   Button,
   Card,
   EmptyState,
+  ErrorState,
   Icon,
   InputField,
   MoneyAmount,
@@ -45,6 +53,7 @@ import {
   Text,
   Timeline,
   type TimelineEntry,
+  todayIso,
   useToast,
   WriteError,
 } from '@/components';
@@ -53,14 +62,13 @@ import { useT, type Translate } from '@/i18n/i18n';
 import { useFixtureMutation } from '@/data/use-fixture-mutation';
 import {
   applyCautionSettlement,
+  dayStamp,
   findLease,
   LEASES_KEY,
   seedLeases,
   useLandlordRead,
   type LandlordLease,
 } from '@/data/landlord';
-
-const TODAY = '4 Aug 2026';
 
 const digits = (s: string) => s.replace(/\D/g, '');
 
@@ -70,12 +78,15 @@ function DeductSheet({
   lease,
   t,
   busy,
+  failed,
   onCancel,
   onConfirm,
 }: {
   lease: LandlordLease;
   t: Translate;
   busy: boolean;
+  /** The last settlement did not save. Said here, where the landlord is looking. */
+  failed: boolean;
   onCancel: () => void;
   onConfirm: (deduction: { label: string; amount: number }) => void;
 }) {
@@ -185,6 +196,12 @@ function DeductSheet({
           <MoneyAmount value={returns} strong size="md" tone="brand" />
         </View>
 
+        {/* A deduction that did not save is reported on the sheet, over the
+            figures the landlord typed. The primary below is the retry: it
+            sends the same reason and amount again. The error used to sit on
+            the screen BEHIND this sheet, where its Retry refunded in full. */}
+        {failed ? <WriteError body="write.failedMoneyBody" /> : null}
+
         <View style={{ flexDirection: 'row', gap: space[2] }}>
           <Button variant="ghost" size="lg" onPress={onCancel}>
             {t('landlord.caution.cancel')}
@@ -250,6 +267,23 @@ export function LandlordCaution({ leaseId }: { leaseId: string }) {
           >
             {t('state.loading')}
           </Text>
+        </View>
+      </View>
+    );
+  }
+
+  // A failed read is not a missing lease (mobile audit 2026-10-05, LL-21).
+  if (read.status === 'error') {
+    return (
+      <View style={{ flex: 1, backgroundColor: c.bgApp }}>
+        <BackHeader />
+        <View style={{ flex: 1, justifyContent: 'center', paddingHorizontal: space[4] }}>
+          <ErrorState
+            title={t('state.errorTitle')}
+            body={t('state.errorBody', { label: t('landlord.leaseLabel') })}
+            detail={read.error?.message}
+            onRetry={read.retry}
+          />
         </View>
       </View>
     );
@@ -324,12 +358,17 @@ export function LandlordCaution({ leaseId }: { leaseId: string }) {
         },
   ];
 
+  /**
+   * A deposit screen with no error state told the landlord money had been
+   * returned when it had not. The toast waits for the write, and on the
+   * write's OWN result: `settle.status` read after the `await` is the value
+   * from the render that pressed the button, from before the write, so a
+   * failed refund still toasted "refunded" (gaps.md §0.3; LL-05).
+   */
   const refund = async () => {
     if (busy) return;
-    await settle.mutate({ id: lease.id, on: TODAY });
-    // A deposit screen with no error state told the landlord money had been
-    // returned when it had not. The toast now waits for the write.
-    if (settle.status === 'error') return;
+    const outcome = await settle.mutate({ id: lease.id, on: dayStamp(todayIso(), t) });
+    if (outcome !== 'done') return;
     toast.show(
       t('landlord.caution.refundedToast', {
         amount: `RWF ${caution.amount.toLocaleString('en-US')}`,
@@ -341,8 +380,10 @@ export function LandlordCaution({ leaseId }: { leaseId: string }) {
 
   const deduct = async (deduction: { label: string; amount: number }) => {
     if (busy) return;
-    await settle.mutate({ id: lease.id, on: TODAY, deduction });
-    if (settle.status === 'error') return;
+    const outcome = await settle.mutate({ id: lease.id, on: dayStamp(todayIso(), t), deduction });
+    // The sheet stays open on a failure, with the reason and the amount the
+    // landlord typed still in it.
+    if (outcome !== 'done') return;
     setSheet(false);
     toast.show(
       t('landlord.caution.settledToast', {
@@ -490,7 +531,10 @@ export function LandlordCaution({ leaseId }: { leaseId: string }) {
           </Badge>
         ) : (
           <View style={{ gap: 10 }}>
-            {settle.status === 'error' ? (
+            {/* Only a REFUND's failure shows here, so its Retry refunds. A
+                deduction's failure shows on its own sheet, and closing the
+                sheet clears it. */}
+            {settle.status === 'error' && !sheet ? (
               <WriteError body="write.failedMoneyBody" onRetry={() => void refund()} />
             ) : null}
             <Button
@@ -509,7 +553,11 @@ export function LandlordCaution({ leaseId }: { leaseId: string }) {
               block
               leadingIcon="minus"
               disabled={!canSettle || busy}
-              onPress={() => setSheet(true)}
+              onPress={() => {
+                // A fresh sheet starts clean, whatever the last attempt was.
+                settle.reset();
+                setSheet(true);
+              }}
             >
               {t('landlord.caution.deductAction')}
             </Button>
@@ -534,7 +582,14 @@ export function LandlordCaution({ leaseId }: { leaseId: string }) {
           lease={lease}
           t={t}
           busy={busy}
-          onCancel={() => setSheet(false)}
+          failed={settle.status === 'error'}
+          onCancel={() => {
+            // Giving up on a deduction that failed clears its error, rather
+            // than leaving it on the screen beneath with a Retry that would
+            // refund in full instead.
+            settle.reset();
+            setSheet(false);
+          }}
           onConfirm={(d) => void deduct(d)}
         />
       ) : null}

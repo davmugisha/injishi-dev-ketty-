@@ -13,7 +13,7 @@ import { Domain, OrgRegistrationStatus, OrgRole, OversightRole, OversightScopeLe
  * authentication only.
  */
 /** What an action needs. A permission absent from a role's set is denied. */
-export declare const Permission: z.ZodEnum<["reservation.approve", "reservation.assign", "stay.checkin", "stay.checkout", "folio.charge", "folio.payment", "housekeeping.set", "ticket.advance", "order.advance", "menu.manage", "team.manage", "money.view", "rent.record", "lease.advance", "deposit.return", "unit.manage", "listing.manage", "message.send", "task.assign", "amenity.manage", "department.manage", "ebm.manage", "folio.close", "ebm.refund", "outlet.manage", "refund.decide", "offer.manage", "employee.manage"]>;
+export declare const Permission: z.ZodEnum<["reservation.approve", "reservation.assign", "stay.checkin", "stay.checkout", "folio.charge", "folio.payment", "housekeeping.set", "ticket.advance", "order.advance", "menu.manage", "team.manage", "money.view", "rent.record", "lease.advance", "deposit.return", "unit.manage", "listing.manage", "message.send", "task.assign", "amenity.manage", "department.manage", "ebm.manage", "folio.close", "ebm.refund", "outlet.manage", "refund.decide", "offer.manage", "people.view", "people.manage", "roster.manage", "attendance.record", "attendance.approve", "leave.approve", "payroll.draft", "payroll.run"]>;
 export type Permission = z.infer<typeof Permission>;
 /** Does this role hold this permission? The single predicate both sides use. */
 export declare function can(role: OrgRole, permission: Permission): boolean;
@@ -24,8 +24,10 @@ export declare const PERMISSION_LABEL: Readonly<Record<Permission, string>>;
 /**
  * The roles a business may customise, and the fact that `owner` is not one.
  *
- * The four roles above are the PLATFORM's defaults: what a hotel means by
- * "receptionist" before anybody says otherwise. They were the whole model, and
+ * The six roles above are the PLATFORM's defaults: what a hotel means by
+ * "receptionist" before anybody says otherwise. `finance` and `hr` (ADR-069
+ * D-a) are customisable like the rest, and appear on the Roles screen with
+ * their own defaults beside the others. The defaults were the whole model, and
  * two real properties never agree with them — one lets the front desk read the
  * month's takings, another does not let a manager withdraw a signed receipt.
  * The choice belongs to whoever owns the business, so a business may move a
@@ -37,7 +39,7 @@ export declare const PERMISSION_LABEL: Readonly<Record<Permission, string>>;
  * only an owner holds, so an owner who could edit `owner` could remove their
  * own access to the screen that would put it back. There is no other door.
  */
-export declare const CustomisableOrgRole: z.ZodEnum<["manager", "receptionist", "housekeeper"]>;
+export declare const CustomisableOrgRole: z.ZodEnum<["manager", "receptionist", "finance", "hr", "housekeeper"]>;
 export type CustomisableOrgRole = z.infer<typeof CustomisableOrgRole>;
 /** Is this a role a business may customise? Narrows, so callers stay honest. */
 export declare function isCustomisableOrgRole(role: OrgRole): role is CustomisableOrgRole;
@@ -53,17 +55,17 @@ export declare function isCustomisableOrgRole(role: OrgRole): role is Customisab
  * it, and the two kinds of fact stay apart.
  */
 export declare const RolePermissionOverride: z.ZodObject<{
-    orgRole: z.ZodEnum<["manager", "receptionist", "housekeeper"]>;
-    permission: z.ZodEnum<["reservation.approve", "reservation.assign", "stay.checkin", "stay.checkout", "folio.charge", "folio.payment", "housekeeping.set", "ticket.advance", "order.advance", "menu.manage", "team.manage", "money.view", "rent.record", "lease.advance", "deposit.return", "unit.manage", "listing.manage", "message.send", "task.assign", "amenity.manage", "department.manage", "ebm.manage", "folio.close", "ebm.refund", "outlet.manage", "refund.decide", "offer.manage", "employee.manage"]>;
+    orgRole: z.ZodEnum<["manager", "receptionist", "finance", "hr", "housekeeper"]>;
+    permission: z.ZodEnum<["reservation.approve", "reservation.assign", "stay.checkin", "stay.checkout", "folio.charge", "folio.payment", "housekeeping.set", "ticket.advance", "order.advance", "menu.manage", "team.manage", "money.view", "rent.record", "lease.advance", "deposit.return", "unit.manage", "listing.manage", "message.send", "task.assign", "amenity.manage", "department.manage", "ebm.manage", "folio.close", "ebm.refund", "outlet.manage", "refund.decide", "offer.manage", "people.view", "people.manage", "roster.manage", "attendance.record", "attendance.approve", "leave.approve", "payroll.draft", "payroll.run"]>;
     /** True grants a permission the default set withholds; false withdraws one it gives. */
     granted: z.ZodBoolean;
 }, "strip", z.ZodTypeAny, {
-    orgRole: "manager" | "receptionist" | "housekeeper";
-    permission: "reservation.approve" | "reservation.assign" | "stay.checkin" | "stay.checkout" | "folio.charge" | "folio.payment" | "housekeeping.set" | "ticket.advance" | "order.advance" | "menu.manage" | "team.manage" | "money.view" | "rent.record" | "lease.advance" | "deposit.return" | "unit.manage" | "listing.manage" | "message.send" | "task.assign" | "amenity.manage" | "department.manage" | "ebm.manage" | "folio.close" | "ebm.refund" | "outlet.manage" | "refund.decide" | "offer.manage" | "employee.manage";
+    orgRole: "manager" | "receptionist" | "finance" | "hr" | "housekeeper";
+    permission: "reservation.approve" | "reservation.assign" | "stay.checkin" | "stay.checkout" | "folio.charge" | "folio.payment" | "housekeeping.set" | "ticket.advance" | "order.advance" | "menu.manage" | "team.manage" | "money.view" | "rent.record" | "lease.advance" | "deposit.return" | "unit.manage" | "listing.manage" | "message.send" | "task.assign" | "amenity.manage" | "department.manage" | "ebm.manage" | "folio.close" | "ebm.refund" | "outlet.manage" | "refund.decide" | "offer.manage" | "people.view" | "people.manage" | "roster.manage" | "attendance.record" | "attendance.approve" | "leave.approve" | "payroll.draft" | "payroll.run";
     granted: boolean;
 }, {
-    orgRole: "manager" | "receptionist" | "housekeeper";
-    permission: "reservation.approve" | "reservation.assign" | "stay.checkin" | "stay.checkout" | "folio.charge" | "folio.payment" | "housekeeping.set" | "ticket.advance" | "order.advance" | "menu.manage" | "team.manage" | "money.view" | "rent.record" | "lease.advance" | "deposit.return" | "unit.manage" | "listing.manage" | "message.send" | "task.assign" | "amenity.manage" | "department.manage" | "ebm.manage" | "folio.close" | "ebm.refund" | "outlet.manage" | "refund.decide" | "offer.manage" | "employee.manage";
+    orgRole: "manager" | "receptionist" | "finance" | "hr" | "housekeeper";
+    permission: "reservation.approve" | "reservation.assign" | "stay.checkin" | "stay.checkout" | "folio.charge" | "folio.payment" | "housekeeping.set" | "ticket.advance" | "order.advance" | "menu.manage" | "team.manage" | "money.view" | "rent.record" | "lease.advance" | "deposit.return" | "unit.manage" | "listing.manage" | "message.send" | "task.assign" | "amenity.manage" | "department.manage" | "ebm.manage" | "folio.close" | "ebm.refund" | "outlet.manage" | "refund.decide" | "offer.manage" | "people.view" | "people.manage" | "roster.manage" | "attendance.record" | "attendance.approve" | "leave.approve" | "payroll.draft" | "payroll.run";
     granted: boolean;
 }>;
 export type RolePermissionOverride = z.infer<typeof RolePermissionOverride>;
@@ -165,86 +167,86 @@ export declare const PERMISSION_AREA_OF: Readonly<Record<Permission, PermissionA
  * close the month" must be able to see the owner's own set.
  */
 export declare const OperatorRolePermissions: z.ZodObject<{
-    orgRole: z.ZodEnum<["owner", "manager", "receptionist", "housekeeper"]>;
+    orgRole: z.ZodEnum<["owner", "manager", "receptionist", "finance", "hr", "housekeeper"]>;
     /** `ORG_ROLE_LABEL[orgRole]` (in `ops.ts`), resolved server side so one table words it. */
     label: z.ZodString;
     customisable: z.ZodBoolean;
     /** The platform default for this role. */
-    basePermissions: z.ZodArray<z.ZodEnum<["reservation.approve", "reservation.assign", "stay.checkin", "stay.checkout", "folio.charge", "folio.payment", "housekeeping.set", "ticket.advance", "order.advance", "menu.manage", "team.manage", "money.view", "rent.record", "lease.advance", "deposit.return", "unit.manage", "listing.manage", "message.send", "task.assign", "amenity.manage", "department.manage", "ebm.manage", "folio.close", "ebm.refund", "outlet.manage", "refund.decide", "offer.manage", "employee.manage"]>, "many">;
+    basePermissions: z.ZodArray<z.ZodEnum<["reservation.approve", "reservation.assign", "stay.checkin", "stay.checkout", "folio.charge", "folio.payment", "housekeeping.set", "ticket.advance", "order.advance", "menu.manage", "team.manage", "money.view", "rent.record", "lease.advance", "deposit.return", "unit.manage", "listing.manage", "message.send", "task.assign", "amenity.manage", "department.manage", "ebm.manage", "folio.close", "ebm.refund", "outlet.manage", "refund.decide", "offer.manage", "people.view", "people.manage", "roster.manage", "attendance.record", "attendance.approve", "leave.approve", "payroll.draft", "payroll.run"]>, "many">;
     /** What the role actually holds here: the default, plus grants, minus withdrawals. */
-    permissions: z.ZodArray<z.ZodEnum<["reservation.approve", "reservation.assign", "stay.checkin", "stay.checkout", "folio.charge", "folio.payment", "housekeeping.set", "ticket.advance", "order.advance", "menu.manage", "team.manage", "money.view", "rent.record", "lease.advance", "deposit.return", "unit.manage", "listing.manage", "message.send", "task.assign", "amenity.manage", "department.manage", "ebm.manage", "folio.close", "ebm.refund", "outlet.manage", "refund.decide", "offer.manage", "employee.manage"]>, "many">;
+    permissions: z.ZodArray<z.ZodEnum<["reservation.approve", "reservation.assign", "stay.checkin", "stay.checkout", "folio.charge", "folio.payment", "housekeeping.set", "ticket.advance", "order.advance", "menu.manage", "team.manage", "money.view", "rent.record", "lease.advance", "deposit.return", "unit.manage", "listing.manage", "message.send", "task.assign", "amenity.manage", "department.manage", "ebm.manage", "folio.close", "ebm.refund", "outlet.manage", "refund.decide", "offer.manage", "people.view", "people.manage", "roster.manage", "attendance.record", "attendance.approve", "leave.approve", "payroll.draft", "payroll.run"]>, "many">;
     /** Permissions this business may not move in either direction. */
-    lockedPermissions: z.ZodArray<z.ZodEnum<["reservation.approve", "reservation.assign", "stay.checkin", "stay.checkout", "folio.charge", "folio.payment", "housekeeping.set", "ticket.advance", "order.advance", "menu.manage", "team.manage", "money.view", "rent.record", "lease.advance", "deposit.return", "unit.manage", "listing.manage", "message.send", "task.assign", "amenity.manage", "department.manage", "ebm.manage", "folio.close", "ebm.refund", "outlet.manage", "refund.decide", "offer.manage", "employee.manage"]>, "many">;
+    lockedPermissions: z.ZodArray<z.ZodEnum<["reservation.approve", "reservation.assign", "stay.checkin", "stay.checkout", "folio.charge", "folio.payment", "housekeeping.set", "ticket.advance", "order.advance", "menu.manage", "team.manage", "money.view", "rent.record", "lease.advance", "deposit.return", "unit.manage", "listing.manage", "message.send", "task.assign", "amenity.manage", "department.manage", "ebm.manage", "folio.close", "ebm.refund", "outlet.manage", "refund.decide", "offer.manage", "people.view", "people.manage", "roster.manage", "attendance.record", "attendance.approve", "leave.approve", "payroll.draft", "payroll.run"]>, "many">;
     /** Active memberships holding this role. */
     memberCount: z.ZodNumber;
 }, "strip", z.ZodTypeAny, {
     label: string;
     memberCount: number;
-    orgRole: "owner" | "manager" | "receptionist" | "housekeeper";
+    orgRole: "owner" | "manager" | "receptionist" | "finance" | "hr" | "housekeeper";
     customisable: boolean;
-    basePermissions: ("reservation.approve" | "reservation.assign" | "stay.checkin" | "stay.checkout" | "folio.charge" | "folio.payment" | "housekeeping.set" | "ticket.advance" | "order.advance" | "menu.manage" | "team.manage" | "money.view" | "rent.record" | "lease.advance" | "deposit.return" | "unit.manage" | "listing.manage" | "message.send" | "task.assign" | "amenity.manage" | "department.manage" | "ebm.manage" | "folio.close" | "ebm.refund" | "outlet.manage" | "refund.decide" | "offer.manage" | "employee.manage")[];
-    permissions: ("reservation.approve" | "reservation.assign" | "stay.checkin" | "stay.checkout" | "folio.charge" | "folio.payment" | "housekeeping.set" | "ticket.advance" | "order.advance" | "menu.manage" | "team.manage" | "money.view" | "rent.record" | "lease.advance" | "deposit.return" | "unit.manage" | "listing.manage" | "message.send" | "task.assign" | "amenity.manage" | "department.manage" | "ebm.manage" | "folio.close" | "ebm.refund" | "outlet.manage" | "refund.decide" | "offer.manage" | "employee.manage")[];
-    lockedPermissions: ("reservation.approve" | "reservation.assign" | "stay.checkin" | "stay.checkout" | "folio.charge" | "folio.payment" | "housekeeping.set" | "ticket.advance" | "order.advance" | "menu.manage" | "team.manage" | "money.view" | "rent.record" | "lease.advance" | "deposit.return" | "unit.manage" | "listing.manage" | "message.send" | "task.assign" | "amenity.manage" | "department.manage" | "ebm.manage" | "folio.close" | "ebm.refund" | "outlet.manage" | "refund.decide" | "offer.manage" | "employee.manage")[];
+    basePermissions: ("reservation.approve" | "reservation.assign" | "stay.checkin" | "stay.checkout" | "folio.charge" | "folio.payment" | "housekeeping.set" | "ticket.advance" | "order.advance" | "menu.manage" | "team.manage" | "money.view" | "rent.record" | "lease.advance" | "deposit.return" | "unit.manage" | "listing.manage" | "message.send" | "task.assign" | "amenity.manage" | "department.manage" | "ebm.manage" | "folio.close" | "ebm.refund" | "outlet.manage" | "refund.decide" | "offer.manage" | "people.view" | "people.manage" | "roster.manage" | "attendance.record" | "attendance.approve" | "leave.approve" | "payroll.draft" | "payroll.run")[];
+    permissions: ("reservation.approve" | "reservation.assign" | "stay.checkin" | "stay.checkout" | "folio.charge" | "folio.payment" | "housekeeping.set" | "ticket.advance" | "order.advance" | "menu.manage" | "team.manage" | "money.view" | "rent.record" | "lease.advance" | "deposit.return" | "unit.manage" | "listing.manage" | "message.send" | "task.assign" | "amenity.manage" | "department.manage" | "ebm.manage" | "folio.close" | "ebm.refund" | "outlet.manage" | "refund.decide" | "offer.manage" | "people.view" | "people.manage" | "roster.manage" | "attendance.record" | "attendance.approve" | "leave.approve" | "payroll.draft" | "payroll.run")[];
+    lockedPermissions: ("reservation.approve" | "reservation.assign" | "stay.checkin" | "stay.checkout" | "folio.charge" | "folio.payment" | "housekeeping.set" | "ticket.advance" | "order.advance" | "menu.manage" | "team.manage" | "money.view" | "rent.record" | "lease.advance" | "deposit.return" | "unit.manage" | "listing.manage" | "message.send" | "task.assign" | "amenity.manage" | "department.manage" | "ebm.manage" | "folio.close" | "ebm.refund" | "outlet.manage" | "refund.decide" | "offer.manage" | "people.view" | "people.manage" | "roster.manage" | "attendance.record" | "attendance.approve" | "leave.approve" | "payroll.draft" | "payroll.run")[];
 }, {
     label: string;
     memberCount: number;
-    orgRole: "owner" | "manager" | "receptionist" | "housekeeper";
+    orgRole: "owner" | "manager" | "receptionist" | "finance" | "hr" | "housekeeper";
     customisable: boolean;
-    basePermissions: ("reservation.approve" | "reservation.assign" | "stay.checkin" | "stay.checkout" | "folio.charge" | "folio.payment" | "housekeeping.set" | "ticket.advance" | "order.advance" | "menu.manage" | "team.manage" | "money.view" | "rent.record" | "lease.advance" | "deposit.return" | "unit.manage" | "listing.manage" | "message.send" | "task.assign" | "amenity.manage" | "department.manage" | "ebm.manage" | "folio.close" | "ebm.refund" | "outlet.manage" | "refund.decide" | "offer.manage" | "employee.manage")[];
-    permissions: ("reservation.approve" | "reservation.assign" | "stay.checkin" | "stay.checkout" | "folio.charge" | "folio.payment" | "housekeeping.set" | "ticket.advance" | "order.advance" | "menu.manage" | "team.manage" | "money.view" | "rent.record" | "lease.advance" | "deposit.return" | "unit.manage" | "listing.manage" | "message.send" | "task.assign" | "amenity.manage" | "department.manage" | "ebm.manage" | "folio.close" | "ebm.refund" | "outlet.manage" | "refund.decide" | "offer.manage" | "employee.manage")[];
-    lockedPermissions: ("reservation.approve" | "reservation.assign" | "stay.checkin" | "stay.checkout" | "folio.charge" | "folio.payment" | "housekeeping.set" | "ticket.advance" | "order.advance" | "menu.manage" | "team.manage" | "money.view" | "rent.record" | "lease.advance" | "deposit.return" | "unit.manage" | "listing.manage" | "message.send" | "task.assign" | "amenity.manage" | "department.manage" | "ebm.manage" | "folio.close" | "ebm.refund" | "outlet.manage" | "refund.decide" | "offer.manage" | "employee.manage")[];
+    basePermissions: ("reservation.approve" | "reservation.assign" | "stay.checkin" | "stay.checkout" | "folio.charge" | "folio.payment" | "housekeeping.set" | "ticket.advance" | "order.advance" | "menu.manage" | "team.manage" | "money.view" | "rent.record" | "lease.advance" | "deposit.return" | "unit.manage" | "listing.manage" | "message.send" | "task.assign" | "amenity.manage" | "department.manage" | "ebm.manage" | "folio.close" | "ebm.refund" | "outlet.manage" | "refund.decide" | "offer.manage" | "people.view" | "people.manage" | "roster.manage" | "attendance.record" | "attendance.approve" | "leave.approve" | "payroll.draft" | "payroll.run")[];
+    permissions: ("reservation.approve" | "reservation.assign" | "stay.checkin" | "stay.checkout" | "folio.charge" | "folio.payment" | "housekeeping.set" | "ticket.advance" | "order.advance" | "menu.manage" | "team.manage" | "money.view" | "rent.record" | "lease.advance" | "deposit.return" | "unit.manage" | "listing.manage" | "message.send" | "task.assign" | "amenity.manage" | "department.manage" | "ebm.manage" | "folio.close" | "ebm.refund" | "outlet.manage" | "refund.decide" | "offer.manage" | "people.view" | "people.manage" | "roster.manage" | "attendance.record" | "attendance.approve" | "leave.approve" | "payroll.draft" | "payroll.run")[];
+    lockedPermissions: ("reservation.approve" | "reservation.assign" | "stay.checkin" | "stay.checkout" | "folio.charge" | "folio.payment" | "housekeeping.set" | "ticket.advance" | "order.advance" | "menu.manage" | "team.manage" | "money.view" | "rent.record" | "lease.advance" | "deposit.return" | "unit.manage" | "listing.manage" | "message.send" | "task.assign" | "amenity.manage" | "department.manage" | "ebm.manage" | "folio.close" | "ebm.refund" | "outlet.manage" | "refund.decide" | "offer.manage" | "people.view" | "people.manage" | "roster.manage" | "attendance.record" | "attendance.approve" | "leave.approve" | "payroll.draft" | "payroll.run")[];
 }>;
 export type OperatorRolePermissions = z.infer<typeof OperatorRolePermissions>;
 export declare const OperatorRoleList: z.ZodObject<{
     roles: z.ZodArray<z.ZodObject<{
-        orgRole: z.ZodEnum<["owner", "manager", "receptionist", "housekeeper"]>;
+        orgRole: z.ZodEnum<["owner", "manager", "receptionist", "finance", "hr", "housekeeper"]>;
         /** `ORG_ROLE_LABEL[orgRole]` (in `ops.ts`), resolved server side so one table words it. */
         label: z.ZodString;
         customisable: z.ZodBoolean;
         /** The platform default for this role. */
-        basePermissions: z.ZodArray<z.ZodEnum<["reservation.approve", "reservation.assign", "stay.checkin", "stay.checkout", "folio.charge", "folio.payment", "housekeeping.set", "ticket.advance", "order.advance", "menu.manage", "team.manage", "money.view", "rent.record", "lease.advance", "deposit.return", "unit.manage", "listing.manage", "message.send", "task.assign", "amenity.manage", "department.manage", "ebm.manage", "folio.close", "ebm.refund", "outlet.manage", "refund.decide", "offer.manage", "employee.manage"]>, "many">;
+        basePermissions: z.ZodArray<z.ZodEnum<["reservation.approve", "reservation.assign", "stay.checkin", "stay.checkout", "folio.charge", "folio.payment", "housekeeping.set", "ticket.advance", "order.advance", "menu.manage", "team.manage", "money.view", "rent.record", "lease.advance", "deposit.return", "unit.manage", "listing.manage", "message.send", "task.assign", "amenity.manage", "department.manage", "ebm.manage", "folio.close", "ebm.refund", "outlet.manage", "refund.decide", "offer.manage", "people.view", "people.manage", "roster.manage", "attendance.record", "attendance.approve", "leave.approve", "payroll.draft", "payroll.run"]>, "many">;
         /** What the role actually holds here: the default, plus grants, minus withdrawals. */
-        permissions: z.ZodArray<z.ZodEnum<["reservation.approve", "reservation.assign", "stay.checkin", "stay.checkout", "folio.charge", "folio.payment", "housekeeping.set", "ticket.advance", "order.advance", "menu.manage", "team.manage", "money.view", "rent.record", "lease.advance", "deposit.return", "unit.manage", "listing.manage", "message.send", "task.assign", "amenity.manage", "department.manage", "ebm.manage", "folio.close", "ebm.refund", "outlet.manage", "refund.decide", "offer.manage", "employee.manage"]>, "many">;
+        permissions: z.ZodArray<z.ZodEnum<["reservation.approve", "reservation.assign", "stay.checkin", "stay.checkout", "folio.charge", "folio.payment", "housekeeping.set", "ticket.advance", "order.advance", "menu.manage", "team.manage", "money.view", "rent.record", "lease.advance", "deposit.return", "unit.manage", "listing.manage", "message.send", "task.assign", "amenity.manage", "department.manage", "ebm.manage", "folio.close", "ebm.refund", "outlet.manage", "refund.decide", "offer.manage", "people.view", "people.manage", "roster.manage", "attendance.record", "attendance.approve", "leave.approve", "payroll.draft", "payroll.run"]>, "many">;
         /** Permissions this business may not move in either direction. */
-        lockedPermissions: z.ZodArray<z.ZodEnum<["reservation.approve", "reservation.assign", "stay.checkin", "stay.checkout", "folio.charge", "folio.payment", "housekeeping.set", "ticket.advance", "order.advance", "menu.manage", "team.manage", "money.view", "rent.record", "lease.advance", "deposit.return", "unit.manage", "listing.manage", "message.send", "task.assign", "amenity.manage", "department.manage", "ebm.manage", "folio.close", "ebm.refund", "outlet.manage", "refund.decide", "offer.manage", "employee.manage"]>, "many">;
+        lockedPermissions: z.ZodArray<z.ZodEnum<["reservation.approve", "reservation.assign", "stay.checkin", "stay.checkout", "folio.charge", "folio.payment", "housekeeping.set", "ticket.advance", "order.advance", "menu.manage", "team.manage", "money.view", "rent.record", "lease.advance", "deposit.return", "unit.manage", "listing.manage", "message.send", "task.assign", "amenity.manage", "department.manage", "ebm.manage", "folio.close", "ebm.refund", "outlet.manage", "refund.decide", "offer.manage", "people.view", "people.manage", "roster.manage", "attendance.record", "attendance.approve", "leave.approve", "payroll.draft", "payroll.run"]>, "many">;
         /** Active memberships holding this role. */
         memberCount: z.ZodNumber;
     }, "strip", z.ZodTypeAny, {
         label: string;
         memberCount: number;
-        orgRole: "owner" | "manager" | "receptionist" | "housekeeper";
+        orgRole: "owner" | "manager" | "receptionist" | "finance" | "hr" | "housekeeper";
         customisable: boolean;
-        basePermissions: ("reservation.approve" | "reservation.assign" | "stay.checkin" | "stay.checkout" | "folio.charge" | "folio.payment" | "housekeeping.set" | "ticket.advance" | "order.advance" | "menu.manage" | "team.manage" | "money.view" | "rent.record" | "lease.advance" | "deposit.return" | "unit.manage" | "listing.manage" | "message.send" | "task.assign" | "amenity.manage" | "department.manage" | "ebm.manage" | "folio.close" | "ebm.refund" | "outlet.manage" | "refund.decide" | "offer.manage" | "employee.manage")[];
-        permissions: ("reservation.approve" | "reservation.assign" | "stay.checkin" | "stay.checkout" | "folio.charge" | "folio.payment" | "housekeeping.set" | "ticket.advance" | "order.advance" | "menu.manage" | "team.manage" | "money.view" | "rent.record" | "lease.advance" | "deposit.return" | "unit.manage" | "listing.manage" | "message.send" | "task.assign" | "amenity.manage" | "department.manage" | "ebm.manage" | "folio.close" | "ebm.refund" | "outlet.manage" | "refund.decide" | "offer.manage" | "employee.manage")[];
-        lockedPermissions: ("reservation.approve" | "reservation.assign" | "stay.checkin" | "stay.checkout" | "folio.charge" | "folio.payment" | "housekeeping.set" | "ticket.advance" | "order.advance" | "menu.manage" | "team.manage" | "money.view" | "rent.record" | "lease.advance" | "deposit.return" | "unit.manage" | "listing.manage" | "message.send" | "task.assign" | "amenity.manage" | "department.manage" | "ebm.manage" | "folio.close" | "ebm.refund" | "outlet.manage" | "refund.decide" | "offer.manage" | "employee.manage")[];
+        basePermissions: ("reservation.approve" | "reservation.assign" | "stay.checkin" | "stay.checkout" | "folio.charge" | "folio.payment" | "housekeeping.set" | "ticket.advance" | "order.advance" | "menu.manage" | "team.manage" | "money.view" | "rent.record" | "lease.advance" | "deposit.return" | "unit.manage" | "listing.manage" | "message.send" | "task.assign" | "amenity.manage" | "department.manage" | "ebm.manage" | "folio.close" | "ebm.refund" | "outlet.manage" | "refund.decide" | "offer.manage" | "people.view" | "people.manage" | "roster.manage" | "attendance.record" | "attendance.approve" | "leave.approve" | "payroll.draft" | "payroll.run")[];
+        permissions: ("reservation.approve" | "reservation.assign" | "stay.checkin" | "stay.checkout" | "folio.charge" | "folio.payment" | "housekeeping.set" | "ticket.advance" | "order.advance" | "menu.manage" | "team.manage" | "money.view" | "rent.record" | "lease.advance" | "deposit.return" | "unit.manage" | "listing.manage" | "message.send" | "task.assign" | "amenity.manage" | "department.manage" | "ebm.manage" | "folio.close" | "ebm.refund" | "outlet.manage" | "refund.decide" | "offer.manage" | "people.view" | "people.manage" | "roster.manage" | "attendance.record" | "attendance.approve" | "leave.approve" | "payroll.draft" | "payroll.run")[];
+        lockedPermissions: ("reservation.approve" | "reservation.assign" | "stay.checkin" | "stay.checkout" | "folio.charge" | "folio.payment" | "housekeeping.set" | "ticket.advance" | "order.advance" | "menu.manage" | "team.manage" | "money.view" | "rent.record" | "lease.advance" | "deposit.return" | "unit.manage" | "listing.manage" | "message.send" | "task.assign" | "amenity.manage" | "department.manage" | "ebm.manage" | "folio.close" | "ebm.refund" | "outlet.manage" | "refund.decide" | "offer.manage" | "people.view" | "people.manage" | "roster.manage" | "attendance.record" | "attendance.approve" | "leave.approve" | "payroll.draft" | "payroll.run")[];
     }, {
         label: string;
         memberCount: number;
-        orgRole: "owner" | "manager" | "receptionist" | "housekeeper";
+        orgRole: "owner" | "manager" | "receptionist" | "finance" | "hr" | "housekeeper";
         customisable: boolean;
-        basePermissions: ("reservation.approve" | "reservation.assign" | "stay.checkin" | "stay.checkout" | "folio.charge" | "folio.payment" | "housekeeping.set" | "ticket.advance" | "order.advance" | "menu.manage" | "team.manage" | "money.view" | "rent.record" | "lease.advance" | "deposit.return" | "unit.manage" | "listing.manage" | "message.send" | "task.assign" | "amenity.manage" | "department.manage" | "ebm.manage" | "folio.close" | "ebm.refund" | "outlet.manage" | "refund.decide" | "offer.manage" | "employee.manage")[];
-        permissions: ("reservation.approve" | "reservation.assign" | "stay.checkin" | "stay.checkout" | "folio.charge" | "folio.payment" | "housekeeping.set" | "ticket.advance" | "order.advance" | "menu.manage" | "team.manage" | "money.view" | "rent.record" | "lease.advance" | "deposit.return" | "unit.manage" | "listing.manage" | "message.send" | "task.assign" | "amenity.manage" | "department.manage" | "ebm.manage" | "folio.close" | "ebm.refund" | "outlet.manage" | "refund.decide" | "offer.manage" | "employee.manage")[];
-        lockedPermissions: ("reservation.approve" | "reservation.assign" | "stay.checkin" | "stay.checkout" | "folio.charge" | "folio.payment" | "housekeeping.set" | "ticket.advance" | "order.advance" | "menu.manage" | "team.manage" | "money.view" | "rent.record" | "lease.advance" | "deposit.return" | "unit.manage" | "listing.manage" | "message.send" | "task.assign" | "amenity.manage" | "department.manage" | "ebm.manage" | "folio.close" | "ebm.refund" | "outlet.manage" | "refund.decide" | "offer.manage" | "employee.manage")[];
+        basePermissions: ("reservation.approve" | "reservation.assign" | "stay.checkin" | "stay.checkout" | "folio.charge" | "folio.payment" | "housekeeping.set" | "ticket.advance" | "order.advance" | "menu.manage" | "team.manage" | "money.view" | "rent.record" | "lease.advance" | "deposit.return" | "unit.manage" | "listing.manage" | "message.send" | "task.assign" | "amenity.manage" | "department.manage" | "ebm.manage" | "folio.close" | "ebm.refund" | "outlet.manage" | "refund.decide" | "offer.manage" | "people.view" | "people.manage" | "roster.manage" | "attendance.record" | "attendance.approve" | "leave.approve" | "payroll.draft" | "payroll.run")[];
+        permissions: ("reservation.approve" | "reservation.assign" | "stay.checkin" | "stay.checkout" | "folio.charge" | "folio.payment" | "housekeeping.set" | "ticket.advance" | "order.advance" | "menu.manage" | "team.manage" | "money.view" | "rent.record" | "lease.advance" | "deposit.return" | "unit.manage" | "listing.manage" | "message.send" | "task.assign" | "amenity.manage" | "department.manage" | "ebm.manage" | "folio.close" | "ebm.refund" | "outlet.manage" | "refund.decide" | "offer.manage" | "people.view" | "people.manage" | "roster.manage" | "attendance.record" | "attendance.approve" | "leave.approve" | "payroll.draft" | "payroll.run")[];
+        lockedPermissions: ("reservation.approve" | "reservation.assign" | "stay.checkin" | "stay.checkout" | "folio.charge" | "folio.payment" | "housekeeping.set" | "ticket.advance" | "order.advance" | "menu.manage" | "team.manage" | "money.view" | "rent.record" | "lease.advance" | "deposit.return" | "unit.manage" | "listing.manage" | "message.send" | "task.assign" | "amenity.manage" | "department.manage" | "ebm.manage" | "folio.close" | "ebm.refund" | "outlet.manage" | "refund.decide" | "offer.manage" | "people.view" | "people.manage" | "roster.manage" | "attendance.record" | "attendance.approve" | "leave.approve" | "payroll.draft" | "payroll.run")[];
     }>, "many">;
 }, "strip", z.ZodTypeAny, {
     roles: {
         label: string;
         memberCount: number;
-        orgRole: "owner" | "manager" | "receptionist" | "housekeeper";
+        orgRole: "owner" | "manager" | "receptionist" | "finance" | "hr" | "housekeeper";
         customisable: boolean;
-        basePermissions: ("reservation.approve" | "reservation.assign" | "stay.checkin" | "stay.checkout" | "folio.charge" | "folio.payment" | "housekeeping.set" | "ticket.advance" | "order.advance" | "menu.manage" | "team.manage" | "money.view" | "rent.record" | "lease.advance" | "deposit.return" | "unit.manage" | "listing.manage" | "message.send" | "task.assign" | "amenity.manage" | "department.manage" | "ebm.manage" | "folio.close" | "ebm.refund" | "outlet.manage" | "refund.decide" | "offer.manage" | "employee.manage")[];
-        permissions: ("reservation.approve" | "reservation.assign" | "stay.checkin" | "stay.checkout" | "folio.charge" | "folio.payment" | "housekeeping.set" | "ticket.advance" | "order.advance" | "menu.manage" | "team.manage" | "money.view" | "rent.record" | "lease.advance" | "deposit.return" | "unit.manage" | "listing.manage" | "message.send" | "task.assign" | "amenity.manage" | "department.manage" | "ebm.manage" | "folio.close" | "ebm.refund" | "outlet.manage" | "refund.decide" | "offer.manage" | "employee.manage")[];
-        lockedPermissions: ("reservation.approve" | "reservation.assign" | "stay.checkin" | "stay.checkout" | "folio.charge" | "folio.payment" | "housekeeping.set" | "ticket.advance" | "order.advance" | "menu.manage" | "team.manage" | "money.view" | "rent.record" | "lease.advance" | "deposit.return" | "unit.manage" | "listing.manage" | "message.send" | "task.assign" | "amenity.manage" | "department.manage" | "ebm.manage" | "folio.close" | "ebm.refund" | "outlet.manage" | "refund.decide" | "offer.manage" | "employee.manage")[];
+        basePermissions: ("reservation.approve" | "reservation.assign" | "stay.checkin" | "stay.checkout" | "folio.charge" | "folio.payment" | "housekeeping.set" | "ticket.advance" | "order.advance" | "menu.manage" | "team.manage" | "money.view" | "rent.record" | "lease.advance" | "deposit.return" | "unit.manage" | "listing.manage" | "message.send" | "task.assign" | "amenity.manage" | "department.manage" | "ebm.manage" | "folio.close" | "ebm.refund" | "outlet.manage" | "refund.decide" | "offer.manage" | "people.view" | "people.manage" | "roster.manage" | "attendance.record" | "attendance.approve" | "leave.approve" | "payroll.draft" | "payroll.run")[];
+        permissions: ("reservation.approve" | "reservation.assign" | "stay.checkin" | "stay.checkout" | "folio.charge" | "folio.payment" | "housekeeping.set" | "ticket.advance" | "order.advance" | "menu.manage" | "team.manage" | "money.view" | "rent.record" | "lease.advance" | "deposit.return" | "unit.manage" | "listing.manage" | "message.send" | "task.assign" | "amenity.manage" | "department.manage" | "ebm.manage" | "folio.close" | "ebm.refund" | "outlet.manage" | "refund.decide" | "offer.manage" | "people.view" | "people.manage" | "roster.manage" | "attendance.record" | "attendance.approve" | "leave.approve" | "payroll.draft" | "payroll.run")[];
+        lockedPermissions: ("reservation.approve" | "reservation.assign" | "stay.checkin" | "stay.checkout" | "folio.charge" | "folio.payment" | "housekeeping.set" | "ticket.advance" | "order.advance" | "menu.manage" | "team.manage" | "money.view" | "rent.record" | "lease.advance" | "deposit.return" | "unit.manage" | "listing.manage" | "message.send" | "task.assign" | "amenity.manage" | "department.manage" | "ebm.manage" | "folio.close" | "ebm.refund" | "outlet.manage" | "refund.decide" | "offer.manage" | "people.view" | "people.manage" | "roster.manage" | "attendance.record" | "attendance.approve" | "leave.approve" | "payroll.draft" | "payroll.run")[];
     }[];
 }, {
     roles: {
         label: string;
         memberCount: number;
-        orgRole: "owner" | "manager" | "receptionist" | "housekeeper";
+        orgRole: "owner" | "manager" | "receptionist" | "finance" | "hr" | "housekeeper";
         customisable: boolean;
-        basePermissions: ("reservation.approve" | "reservation.assign" | "stay.checkin" | "stay.checkout" | "folio.charge" | "folio.payment" | "housekeeping.set" | "ticket.advance" | "order.advance" | "menu.manage" | "team.manage" | "money.view" | "rent.record" | "lease.advance" | "deposit.return" | "unit.manage" | "listing.manage" | "message.send" | "task.assign" | "amenity.manage" | "department.manage" | "ebm.manage" | "folio.close" | "ebm.refund" | "outlet.manage" | "refund.decide" | "offer.manage" | "employee.manage")[];
-        permissions: ("reservation.approve" | "reservation.assign" | "stay.checkin" | "stay.checkout" | "folio.charge" | "folio.payment" | "housekeeping.set" | "ticket.advance" | "order.advance" | "menu.manage" | "team.manage" | "money.view" | "rent.record" | "lease.advance" | "deposit.return" | "unit.manage" | "listing.manage" | "message.send" | "task.assign" | "amenity.manage" | "department.manage" | "ebm.manage" | "folio.close" | "ebm.refund" | "outlet.manage" | "refund.decide" | "offer.manage" | "employee.manage")[];
-        lockedPermissions: ("reservation.approve" | "reservation.assign" | "stay.checkin" | "stay.checkout" | "folio.charge" | "folio.payment" | "housekeeping.set" | "ticket.advance" | "order.advance" | "menu.manage" | "team.manage" | "money.view" | "rent.record" | "lease.advance" | "deposit.return" | "unit.manage" | "listing.manage" | "message.send" | "task.assign" | "amenity.manage" | "department.manage" | "ebm.manage" | "folio.close" | "ebm.refund" | "outlet.manage" | "refund.decide" | "offer.manage" | "employee.manage")[];
+        basePermissions: ("reservation.approve" | "reservation.assign" | "stay.checkin" | "stay.checkout" | "folio.charge" | "folio.payment" | "housekeeping.set" | "ticket.advance" | "order.advance" | "menu.manage" | "team.manage" | "money.view" | "rent.record" | "lease.advance" | "deposit.return" | "unit.manage" | "listing.manage" | "message.send" | "task.assign" | "amenity.manage" | "department.manage" | "ebm.manage" | "folio.close" | "ebm.refund" | "outlet.manage" | "refund.decide" | "offer.manage" | "people.view" | "people.manage" | "roster.manage" | "attendance.record" | "attendance.approve" | "leave.approve" | "payroll.draft" | "payroll.run")[];
+        permissions: ("reservation.approve" | "reservation.assign" | "stay.checkin" | "stay.checkout" | "folio.charge" | "folio.payment" | "housekeeping.set" | "ticket.advance" | "order.advance" | "menu.manage" | "team.manage" | "money.view" | "rent.record" | "lease.advance" | "deposit.return" | "unit.manage" | "listing.manage" | "message.send" | "task.assign" | "amenity.manage" | "department.manage" | "ebm.manage" | "folio.close" | "ebm.refund" | "outlet.manage" | "refund.decide" | "offer.manage" | "people.view" | "people.manage" | "roster.manage" | "attendance.record" | "attendance.approve" | "leave.approve" | "payroll.draft" | "payroll.run")[];
+        lockedPermissions: ("reservation.approve" | "reservation.assign" | "stay.checkin" | "stay.checkout" | "folio.charge" | "folio.payment" | "housekeeping.set" | "ticket.advance" | "order.advance" | "menu.manage" | "team.manage" | "money.view" | "rent.record" | "lease.advance" | "deposit.return" | "unit.manage" | "listing.manage" | "message.send" | "task.assign" | "amenity.manage" | "department.manage" | "ebm.manage" | "folio.close" | "ebm.refund" | "outlet.manage" | "refund.decide" | "offer.manage" | "people.view" | "people.manage" | "roster.manage" | "attendance.record" | "attendance.approve" | "leave.approve" | "payroll.draft" | "payroll.run")[];
     }[];
 }>;
 export type OperatorRoleList = z.infer<typeof OperatorRoleList>;
@@ -261,11 +263,11 @@ export type OperatorRoleList = z.infer<typeof OperatorRoleList>;
  * same as deleting the role, and the screen says so before it saves.
  */
 export declare const SetRolePermissionsRequest: z.ZodObject<{
-    permissions: z.ZodArray<z.ZodEnum<["reservation.approve", "reservation.assign", "stay.checkin", "stay.checkout", "folio.charge", "folio.payment", "housekeeping.set", "ticket.advance", "order.advance", "menu.manage", "team.manage", "money.view", "rent.record", "lease.advance", "deposit.return", "unit.manage", "listing.manage", "message.send", "task.assign", "amenity.manage", "department.manage", "ebm.manage", "folio.close", "ebm.refund", "outlet.manage", "refund.decide", "offer.manage", "employee.manage"]>, "many">;
+    permissions: z.ZodArray<z.ZodEnum<["reservation.approve", "reservation.assign", "stay.checkin", "stay.checkout", "folio.charge", "folio.payment", "housekeeping.set", "ticket.advance", "order.advance", "menu.manage", "team.manage", "money.view", "rent.record", "lease.advance", "deposit.return", "unit.manage", "listing.manage", "message.send", "task.assign", "amenity.manage", "department.manage", "ebm.manage", "folio.close", "ebm.refund", "outlet.manage", "refund.decide", "offer.manage", "people.view", "people.manage", "roster.manage", "attendance.record", "attendance.approve", "leave.approve", "payroll.draft", "payroll.run"]>, "many">;
 }, "strip", z.ZodTypeAny, {
-    permissions: ("reservation.approve" | "reservation.assign" | "stay.checkin" | "stay.checkout" | "folio.charge" | "folio.payment" | "housekeeping.set" | "ticket.advance" | "order.advance" | "menu.manage" | "team.manage" | "money.view" | "rent.record" | "lease.advance" | "deposit.return" | "unit.manage" | "listing.manage" | "message.send" | "task.assign" | "amenity.manage" | "department.manage" | "ebm.manage" | "folio.close" | "ebm.refund" | "outlet.manage" | "refund.decide" | "offer.manage" | "employee.manage")[];
+    permissions: ("reservation.approve" | "reservation.assign" | "stay.checkin" | "stay.checkout" | "folio.charge" | "folio.payment" | "housekeeping.set" | "ticket.advance" | "order.advance" | "menu.manage" | "team.manage" | "money.view" | "rent.record" | "lease.advance" | "deposit.return" | "unit.manage" | "listing.manage" | "message.send" | "task.assign" | "amenity.manage" | "department.manage" | "ebm.manage" | "folio.close" | "ebm.refund" | "outlet.manage" | "refund.decide" | "offer.manage" | "people.view" | "people.manage" | "roster.manage" | "attendance.record" | "attendance.approve" | "leave.approve" | "payroll.draft" | "payroll.run")[];
 }, {
-    permissions: ("reservation.approve" | "reservation.assign" | "stay.checkin" | "stay.checkout" | "folio.charge" | "folio.payment" | "housekeeping.set" | "ticket.advance" | "order.advance" | "menu.manage" | "team.manage" | "money.view" | "rent.record" | "lease.advance" | "deposit.return" | "unit.manage" | "listing.manage" | "message.send" | "task.assign" | "amenity.manage" | "department.manage" | "ebm.manage" | "folio.close" | "ebm.refund" | "outlet.manage" | "refund.decide" | "offer.manage" | "employee.manage")[];
+    permissions: ("reservation.approve" | "reservation.assign" | "stay.checkin" | "stay.checkout" | "folio.charge" | "folio.payment" | "housekeeping.set" | "ticket.advance" | "order.advance" | "menu.manage" | "team.manage" | "money.view" | "rent.record" | "lease.advance" | "deposit.return" | "unit.manage" | "listing.manage" | "message.send" | "task.assign" | "amenity.manage" | "department.manage" | "ebm.manage" | "folio.close" | "ebm.refund" | "outlet.manage" | "refund.decide" | "offer.manage" | "people.view" | "people.manage" | "roster.manage" | "attendance.record" | "attendance.approve" | "leave.approve" | "payroll.draft" | "payroll.run")[];
 }>;
 export type SetRolePermissionsRequest = z.infer<typeof SetRolePermissionsRequest>;
 /**
@@ -285,15 +287,15 @@ export declare const WorkspaceBranch: z.ZodObject<{
     districtName: z.ZodNullable<z.ZodString>;
     isHeadOffice: z.ZodBoolean;
 }, "strip", z.ZodTypeAny, {
-    districtName: string | null;
-    id: string;
     name: string;
+    districtName: string | null;
     isHeadOffice: boolean;
+    id: string;
 }, {
-    districtName: string | null;
-    id: string;
     name: string;
+    districtName: string | null;
     isHeadOffice: boolean;
+    id: string;
 }>;
 export type WorkspaceBranch = z.infer<typeof WorkspaceBranch>;
 export declare const WorkspaceAccess: z.ZodObject<{
@@ -305,7 +307,7 @@ export declare const WorkspaceAccess: z.ZodObject<{
     /** Host vs Landlord. Set only for `business`. */
     domain: z.ZodNullable<z.ZodEnum<["hospitality", "residence"]>>;
     /** The person's role in that org. Set only for `business`. */
-    orgRole: z.ZodNullable<z.ZodEnum<["owner", "manager", "receptionist", "housekeeper"]>>;
+    orgRole: z.ZodNullable<z.ZodEnum<["owner", "manager", "receptionist", "finance", "hr", "housekeeper"]>>;
     /**
      * Where the org sits in the registration pipeline. Set only for `business`.
      *
@@ -315,7 +317,7 @@ export declare const WorkspaceAccess: z.ZodObject<{
      */
     registrationStatus: z.ZodNullable<z.ZodEnum<["pending_payment", "submitted", "tin_verified", "field_verified", "approved", "active", "rejected", "suspended"]>>;
     /** Resolved for this workspace, never global to the person. */
-    permissions: z.ZodArray<z.ZodEnum<["reservation.approve", "reservation.assign", "stay.checkin", "stay.checkout", "folio.charge", "folio.payment", "housekeeping.set", "ticket.advance", "order.advance", "menu.manage", "team.manage", "money.view", "rent.record", "lease.advance", "deposit.return", "unit.manage", "listing.manage", "message.send", "task.assign", "amenity.manage", "department.manage", "ebm.manage", "folio.close", "ebm.refund", "outlet.manage", "refund.decide", "offer.manage", "employee.manage"]>, "many">;
+    permissions: z.ZodArray<z.ZodEnum<["reservation.approve", "reservation.assign", "stay.checkin", "stay.checkout", "folio.charge", "folio.payment", "housekeeping.set", "ticket.advance", "order.advance", "menu.manage", "team.manage", "money.view", "rent.record", "lease.advance", "deposit.return", "unit.manage", "listing.manage", "message.send", "task.assign", "amenity.manage", "department.manage", "ebm.manage", "folio.close", "ebm.refund", "outlet.manage", "refund.decide", "offer.manage", "people.view", "people.manage", "roster.manage", "attendance.record", "attendance.approve", "leave.approve", "payroll.draft", "payroll.run"]>, "many">;
     /**
      * The USALI categories this business actually runs (ADR-035, D-a).
      *
@@ -365,54 +367,77 @@ export declare const WorkspaceAccess: z.ZodObject<{
         districtName: z.ZodNullable<z.ZodString>;
         isHeadOffice: z.ZodBoolean;
     }, "strip", z.ZodTypeAny, {
-        districtName: string | null;
-        id: string;
         name: string;
+        districtName: string | null;
         isHeadOffice: boolean;
+        id: string;
     }, {
-        districtName: string | null;
-        id: string;
         name: string;
+        districtName: string | null;
         isHeadOffice: boolean;
+        id: string;
     }>, "many">;
     /** `limited` when the member is limited to some branches. Null outside `business`. */
     branchCoverage: z.ZodNullable<z.ZodEnum<["all", "limited"]>>;
+    /**
+     * Whether this person may see and act on the business's PSF membership
+     * (ADR-056). Computed on the server by `isPsfApplicant`, which reads the
+     * owner membership and the on behalf claim, never a permission: a pending
+     * business holds none (ADR-053 rule 2), and the application must be
+     * reachable at every registration stage. Null outside hospitality.
+     *
+     * Defaults to null when absent, so a client built after this field landed
+     * still parses a grant from an API built before it.
+     */
+    psfMembership: z.ZodDefault<z.ZodNullable<z.ZodObject<{
+        canManage: z.ZodBoolean;
+    }, "strip", z.ZodTypeAny, {
+        canManage: boolean;
+    }, {
+        canManage: boolean;
+    }>>>;
 }, "strip", z.ZodTypeAny, {
-    domain: "hospitality" | "residence" | null;
-    registrationStatus: "pending_payment" | "submitted" | "tin_verified" | "field_verified" | "approved" | "active" | "rejected" | "suspended" | null;
-    orgId: string | null;
-    orgName: string | null;
-    orgRole: "owner" | "manager" | "receptionist" | "housekeeper" | null;
-    workspaceId: string;
     kind: "business" | "broker" | "personal";
-    propertyName: string | null;
+    domain: "hospitality" | "residence" | null;
     branches: {
-        districtName: string | null;
-        id: string;
         name: string;
+        districtName: string | null;
         isHeadOffice: boolean;
+        id: string;
     }[];
-    departments: ("rooms" | "fnb" | "spa_recreation" | "other_operated" | "misc_income" | "admin_general" | "sales_marketing" | "it" | "engineering" | "utilities" | "hr")[];
-    permissions: ("reservation.approve" | "reservation.assign" | "stay.checkin" | "stay.checkout" | "folio.charge" | "folio.payment" | "housekeeping.set" | "ticket.advance" | "order.advance" | "menu.manage" | "team.manage" | "money.view" | "rent.record" | "lease.advance" | "deposit.return" | "unit.manage" | "listing.manage" | "message.send" | "task.assign" | "amenity.manage" | "department.manage" | "ebm.manage" | "folio.close" | "ebm.refund" | "outlet.manage" | "refund.decide" | "offer.manage" | "employee.manage")[];
+    orgId: string | null;
+    workspaceId: string;
+    registrationStatus: "pending_payment" | "submitted" | "tin_verified" | "field_verified" | "approved" | "active" | "rejected" | "suspended" | null;
+    orgName: string | null;
+    orgRole: "owner" | "manager" | "receptionist" | "finance" | "hr" | "housekeeper" | null;
+    propertyName: string | null;
+    departments: ("hr" | "rooms" | "fnb" | "spa_recreation" | "other_operated" | "misc_income" | "admin_general" | "sales_marketing" | "it" | "engineering" | "utilities")[];
+    permissions: ("reservation.approve" | "reservation.assign" | "stay.checkin" | "stay.checkout" | "folio.charge" | "folio.payment" | "housekeeping.set" | "ticket.advance" | "order.advance" | "menu.manage" | "team.manage" | "money.view" | "rent.record" | "lease.advance" | "deposit.return" | "unit.manage" | "listing.manage" | "message.send" | "task.assign" | "amenity.manage" | "department.manage" | "ebm.manage" | "folio.close" | "ebm.refund" | "outlet.manage" | "refund.decide" | "offer.manage" | "people.view" | "people.manage" | "roster.manage" | "attendance.record" | "attendance.approve" | "leave.approve" | "payroll.draft" | "payroll.run")[];
     branchCoverage: "limited" | "all" | null;
+    psfMembership: {
+        canManage: boolean;
+    } | null;
 }, {
-    domain: "hospitality" | "residence" | null;
-    registrationStatus: "pending_payment" | "submitted" | "tin_verified" | "field_verified" | "approved" | "active" | "rejected" | "suspended" | null;
-    orgId: string | null;
-    orgName: string | null;
-    orgRole: "owner" | "manager" | "receptionist" | "housekeeper" | null;
-    workspaceId: string;
     kind: "business" | "broker" | "personal";
-    propertyName: string | null;
+    domain: "hospitality" | "residence" | null;
     branches: {
-        districtName: string | null;
-        id: string;
         name: string;
+        districtName: string | null;
         isHeadOffice: boolean;
+        id: string;
     }[];
-    departments: ("rooms" | "fnb" | "spa_recreation" | "other_operated" | "misc_income" | "admin_general" | "sales_marketing" | "it" | "engineering" | "utilities" | "hr")[];
-    permissions: ("reservation.approve" | "reservation.assign" | "stay.checkin" | "stay.checkout" | "folio.charge" | "folio.payment" | "housekeeping.set" | "ticket.advance" | "order.advance" | "menu.manage" | "team.manage" | "money.view" | "rent.record" | "lease.advance" | "deposit.return" | "unit.manage" | "listing.manage" | "message.send" | "task.assign" | "amenity.manage" | "department.manage" | "ebm.manage" | "folio.close" | "ebm.refund" | "outlet.manage" | "refund.decide" | "offer.manage" | "employee.manage")[];
+    orgId: string | null;
+    workspaceId: string;
+    registrationStatus: "pending_payment" | "submitted" | "tin_verified" | "field_verified" | "approved" | "active" | "rejected" | "suspended" | null;
+    orgName: string | null;
+    orgRole: "owner" | "manager" | "receptionist" | "finance" | "hr" | "housekeeper" | null;
+    propertyName: string | null;
+    departments: ("hr" | "rooms" | "fnb" | "spa_recreation" | "other_operated" | "misc_income" | "admin_general" | "sales_marketing" | "it" | "engineering" | "utilities")[];
+    permissions: ("reservation.approve" | "reservation.assign" | "stay.checkin" | "stay.checkout" | "folio.charge" | "folio.payment" | "housekeeping.set" | "ticket.advance" | "order.advance" | "menu.manage" | "team.manage" | "money.view" | "rent.record" | "lease.advance" | "deposit.return" | "unit.manage" | "listing.manage" | "message.send" | "task.assign" | "amenity.manage" | "department.manage" | "ebm.manage" | "folio.close" | "ebm.refund" | "outlet.manage" | "refund.decide" | "offer.manage" | "people.view" | "people.manage" | "roster.manage" | "attendance.record" | "attendance.approve" | "leave.approve" | "payroll.draft" | "payroll.run")[];
     branchCoverage: "limited" | "all" | null;
+    psfMembership?: {
+        canManage: boolean;
+    } | null | undefined;
 }>;
 export type WorkspaceAccess = z.infer<typeof WorkspaceAccess>;
 /**
@@ -470,26 +495,26 @@ export declare function workspaceAllows(access: Pick<WorkspaceAccess, "permissio
  * "no assignment" and "no console" are the same thing.
  */
 export declare const OversightGrant: z.ZodObject<{
-    oversightRole: z.ZodEnum<["tax_compliance_officer", "business_field_verifier", "business_approver"]>;
+    oversightRole: z.ZodEnum<["tax_compliance_officer", "business_field_verifier", "business_approver", "psf_membership_officer"]>;
     governmentBodyCode: z.ZodString;
     governmentTitle: z.ZodNullable<z.ZodString>;
     scopeLevel: z.ZodEnum<["country", "province", "district"]>;
     provinceId: z.ZodNullable<z.ZodNumber>;
     districtId: z.ZodNullable<z.ZodNumber>;
 }, "strip", z.ZodTypeAny, {
+    provinceId: number | null;
     districtId: number | null;
-    oversightRole: "tax_compliance_officer" | "business_field_verifier" | "business_approver";
+    oversightRole: "tax_compliance_officer" | "business_field_verifier" | "business_approver" | "psf_membership_officer";
     governmentBodyCode: string;
     governmentTitle: string | null;
     scopeLevel: "country" | "province" | "district";
-    provinceId: number | null;
 }, {
+    provinceId: number | null;
     districtId: number | null;
-    oversightRole: "tax_compliance_officer" | "business_field_verifier" | "business_approver";
+    oversightRole: "tax_compliance_officer" | "business_field_verifier" | "business_approver" | "psf_membership_officer";
     governmentBodyCode: string;
     governmentTitle: string | null;
     scopeLevel: "country" | "province" | "district";
-    provinceId: number | null;
 }>;
 export type OversightGrant = z.infer<typeof OversightGrant>;
 /**
@@ -515,8 +540,8 @@ export type OversightGrant = z.infer<typeof OversightGrant>;
 export declare const OversightConsoleGrant: z.ZodObject<{
     /** The assignment row, so a console can name the seat it is rendering. */
     assignmentId: z.ZodString;
-    console: z.ZodEnum<["verification", "approval", "tax"]>;
-    oversightRole: z.ZodEnum<["tax_compliance_officer", "business_field_verifier", "business_approver"]>;
+    console: z.ZodEnum<["verification", "approval", "tax", "membership"]>;
+    oversightRole: z.ZodEnum<["tax_compliance_officer", "business_field_verifier", "business_approver", "psf_membership_officer"]>;
     bodyCode: z.ZodString;
     bodyName: z.ZodNullable<z.ZodString>;
     title: z.ZodNullable<z.ZodString>;
@@ -525,25 +550,25 @@ export declare const OversightConsoleGrant: z.ZodObject<{
     districtId: z.ZodNullable<z.ZodNumber>;
     scopeLabel: z.ZodString;
 }, "strip", z.ZodTypeAny, {
+    provinceId: number | null;
     districtId: number | null;
+    oversightRole: "tax_compliance_officer" | "business_field_verifier" | "business_approver" | "psf_membership_officer";
     title: string | null;
-    oversightRole: "tax_compliance_officer" | "business_field_verifier" | "business_approver";
     scopeLevel: "country" | "province" | "district";
     scopeLabel: string;
-    provinceId: number | null;
     assignmentId: string;
-    console: "tax" | "verification" | "approval";
+    console: "membership" | "tax" | "verification" | "approval";
     bodyCode: string;
     bodyName: string | null;
 }, {
+    provinceId: number | null;
     districtId: number | null;
+    oversightRole: "tax_compliance_officer" | "business_field_verifier" | "business_approver" | "psf_membership_officer";
     title: string | null;
-    oversightRole: "tax_compliance_officer" | "business_field_verifier" | "business_approver";
     scopeLevel: "country" | "province" | "district";
     scopeLabel: string;
-    provinceId: number | null;
     assignmentId: string;
-    console: "tax" | "verification" | "approval";
+    console: "membership" | "tax" | "verification" | "approval";
     bodyCode: string;
     bodyName: string | null;
 }>;
@@ -560,7 +585,7 @@ export declare const OVERSIGHT_COUNTRY_SCOPE_LABEL = "Rwanda";
  */
 export declare const OVERSIGHT_CONSOLE_NOT_BUILT_MESSAGE: string;
 /** Which console a function opens. */
-export declare function oversightConsoleFor(role: OversightRole): "verification" | "approval" | "tax";
+export declare function oversightConsoleFor(role: OversightRole): "verification" | "approval" | "tax" | "membership";
 /**
  * Every district a province holds, as the caller read it from `districts`.
  *
@@ -644,5 +669,5 @@ export declare function mayElevate(identity: {
     kycStatus: string;
     activeDocumentCount: number;
 }): boolean;
-export declare const ELEVATION_REFUSED_MESSAGE = "This needs a verified identity. Add a national ID or passport to continue.";
+export declare const ELEVATION_REFUSED_MESSAGE = "This needs a verified identity. Validate your National ID or scan your passport on the About you step, then try again.";
 //# sourceMappingURL=authz.d.ts.map

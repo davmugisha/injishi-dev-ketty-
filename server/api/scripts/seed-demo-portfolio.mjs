@@ -13,6 +13,12 @@
 //              who has paid half, one moving out at the end of the month, a
 //              deposit on every lease and one already settled after a move-out,
 //              and a maintenance board with work in five different states.
+//              Behind those two months, THE REST OF THE HISTORY: every month
+//              every tenancy has actually run, back two years, settled
+//              (rent-history.mjs). Without it the rent ledger on Finance showed
+//              a lease that started eighteen months ago with two rows against
+//              it. And a contract filing per lease (contract-filings.mjs),
+//              which is what the Filings lens on Finance reads.
 //
 //   OVERSIGHT  The Gasabo and Kicukiro registration pipeline. Businesses waiting
 //              on a field visit (Jean-Bosco, Gasabo; Alice, Kicukiro), waiting on
@@ -54,6 +60,12 @@ import fs from 'node:fs';
 import path from 'node:path';
 import pg from 'pg';
 
+import {
+  GREEN_HILLS_FILING_PLAN,
+  contractFilings,
+  filingEntries,
+} from './contract-filings.mjs';
+import { rentHistory } from './rent-history.mjs';
 import { assertSampleDatabase } from './sample-database.mjs';
 
 function loadDotEnv() {
@@ -318,6 +330,53 @@ function rentCharges() {
   return rows.map((r, i) => ({ ...r, id: L('04', i + 1) }));
 }
 
+/** Whole months from the month `from` falls in to the month `to` does. */
+const monthsBetween = (from, to) =>
+  (to.getUTCFullYear() - from.getUTCFullYear()) * 12 + (to.getUTCMonth() - from.getUTCMonth());
+
+/**
+ * How many months ago the five seed-demo.mjs tenancies began.
+ *
+ * That script starts all five on 1 February of last year, so this offset walks
+ * with the calendar exactly as every other date in this file does.
+ */
+const DEMO_LEASE_START_MONTH = () => monthsBetween(monthStart(0), new Date(Date.UTC(TODAY_YEAR - 1, 1, 1)));
+
+/**
+ * Every settled month of rent behind the two `rentCharges()` writes by hand.
+ *
+ * The two it writes are the story — Patrick two months behind, Aline half paid.
+ * These are the eighteen months of ordinary settled rent underneath, which is
+ * what makes the rent ledger a ledger and gives the Filings lens a year of
+ * rental income to declare.
+ */
+function rentHistoryRows() {
+  const leases = [
+    ...DEMO_LEASES.map((l) => ({ id: l.id, rent: l.rent, startMonth: DEMO_LEASE_START_MONTH() })),
+    ...LEASES.map((l) => ({
+      id: l.id,
+      rent: l.rent,
+      startMonth: l.startMonth,
+      // An ended tenancy stops owing rent the month it handed the keys back.
+      endMonth: l.status === 'ended' && l.endDate ? monthsBetween(monthStart(0), l.endDate) : null,
+    })),
+  ];
+  return rentHistory(leases, { year: TODAY_YEAR, month0: TODAY_MONTH0 }, { idFor: (n) => L('11', n) });
+}
+
+/**
+ * The filing plan's symbolic keys against the leases they name.
+ *
+ * Eleven leases, five of them seed-demo.mjs's. `contract-filings.mjs` refuses a
+ * lease listed here that the plan does not name, so a tenancy can never end up
+ * with no contract filed and nothing saying so.
+ */
+const FILING_LEASE_KEYS = {
+  a1: DEMO.leaseA1, a2: DEMO.leaseA2, b1: DEMO.leaseB1, b2: DEMO.leaseB2, c1: DEMO.leaseC1,
+  didier: L('03', 1), aline: L('03', 2), patrick: L('03', 3),
+  olive: L('03', 4), jeanpaul: L('03', 5), esther: L('03', 6),
+};
+
 /** A deposit on every lease; C3's previous tenant's is settled. */
 function deposits() {
   const demoStart = new Date(Date.UTC(TODAY_YEAR - 1, 1, 1)); // seed-demo.mjs: Feb 1 last year
@@ -381,6 +440,45 @@ const TICKETS = [
   },
 ];
 
+/**
+ * One contract filing per Ingoro lease — F-R10's fifteen day clock, as rows.
+ *
+ * `contract_filings` has existed since the first migration and has never been
+ * written by anything, so the Filings lens on Finance had nothing to read and
+ * was a placeholder.
+ *
+ * The clock starts AT SIGNING, and it is read back off the lease rather than
+ * recomputed here, so a filing can never be dated before the contract it files.
+ * seed-demo.mjs writes its five Ingoro leases with no signature at all — a
+ * lease cannot go active unsigned, so that is a gap in that script rather than
+ * a fact about those tenancies — and this backfills them, only where they are
+ * still null, and the purge puts them back.
+ */
+async function seedContractFilings(c) {
+  const ids = Object.values(FILING_LEASE_KEYS);
+  await c.query(
+    `UPDATE leases
+        SET landlord_signed_at = ((start_date - 6)::timestamp AT TIME ZONE 'UTC') + interval '8 hours',
+            tenant_signed_at   = ((start_date - 5)::timestamp AT TIME ZONE 'UTC') + interval '8 hours'
+      WHERE id = ANY($1::uuid[]) AND tenant_signed_at IS NULL AND start_date IS NOT NULL`,
+    [ids],
+  );
+
+  const { rows } = await c.query(
+    `SELECT id, tenant_signed_at FROM leases WHERE id = ANY($1::uuid[])`,
+    [ids],
+  );
+  const signedAt = new Map(rows.map((r) => [r.id, r.tenant_signed_at]));
+  const leases = Object.fromEntries(
+    Object.entries(FILING_LEASE_KEYS).map(([key, id]) => [key, { id, signedAt: signedAt.get(id) }]),
+  );
+
+  const entries = filingEntries(GREEN_HILLS_FILING_PLAN, leases, new Date(NOW));
+  for (const row of contractFilings(entries, { idFor: (n) => L('12', n) })) {
+    await insert(c, 'contract_filings', row);
+  }
+}
+
 async function seedLandlord(c) {
   const { rows: ingoro } = await c.query(
     `SELECT p.id, p.workspace_id, p.org_id FROM properties p WHERE p.id = $1`,
@@ -422,12 +520,18 @@ async function seedLandlord(c) {
     notice_given_days: 40, is_short_notice: false, filed_at: addDays(MOVE_OUT, -40),
   });
 
-  for (const r of rentCharges()) {
+  // The two months that carry the narrative, and then everything behind them.
+  // Order matters only for reading: both go in ON CONFLICT DO NOTHING, and
+  // `rentHistory` never reaches those two months, so neither can overwrite the
+  // other on `rent_charges_lease_period_uk`.
+  for (const r of [...rentCharges(), ...rentHistoryRows()]) {
     await insert(c, 'rent_charges', {
       id: r.id, lease_id: r.lease, period_month: r.period, amount_rwf: r.amount,
       paid_amount_rwf: r.paid, status: r.status, due_date: r.due, paid_at: r.paidAt,
     });
   }
+
+  await seedContractFilings(c);
 
   for (const d of deposits()) {
     const settled = d.lease === SETTLED.lease;
@@ -499,6 +603,9 @@ const PIPELINE = [
     owner: { n: 1, name: 'Innocent Niyonsaba', gender: 'male', dob: '1984-03-09' },
     certificates: [{ kind: 'tourism_license', number: 'TL-2026-GSB-0412', issuedBy: 'Rwanda Development Board', issuedDaysAgo: 40, validYears: 3 }],
     steps: [],
+    // Answered No to PSF, so seed-demo-psf.mjs can give it an application
+    // waiting in the PSF membership queue (ADR-056 AC-21).
+    psfMember: false,
   },
   {
     n: 2, name: 'Kacyiru Jacaranda Suites', cls: 'serviced_apartment', district: 'Gasabo', sector: 'Kacyiru',
@@ -654,7 +761,7 @@ async function seedPipeline(c) {
 
     await insert(c, 'orgs', {
       id: orgId, legal_name: b.name, domain: 'hospitality', rdb_entity_group: 'accommodation',
-      accommodation_class: b.cls, tin: b.tin, psf_member: true,
+      accommodation_class: b.cls, tin: b.tin, psf_member: b.psfMember ?? true,
       registration_status: status, district_id: place.district_id, sector_id: place.sector_id,
       address_text: b.street, created_at: created, updated_at: lastMove,
       contract_version: CONTRACT_VERSION, contract_accepted_at: accepted, contract_accepted_by_user_id: owner.id,
@@ -958,6 +1065,13 @@ async function purge(c) {
     await q(`DELETE FROM caution_holds WHERE id::text LIKE $1 OR lease_id::text LIKE $1`);
     await q(`DELETE FROM maintenance_tickets WHERE id::text LIKE $1 OR lease_id::text LIKE $1 OR room_id::text LIKE $1`);
     await q(`DELETE FROM move_out_notices WHERE id::text LIKE $1 OR lease_id::text LIKE $1`);
+    await q(`DELETE FROM contract_filings WHERE id::text LIKE $1 OR lease_id::text LIKE $1`);
+    // The signatures this script backfilled onto seed-demo.mjs's five leases.
+    // It owns them: they were null before it ran, and nothing else writes them.
+    await c.query(
+      `UPDATE leases SET landlord_signed_at = NULL, tenant_signed_at = NULL WHERE id = ANY($1::uuid[])`,
+      [[DEMO.leaseA1, DEMO.leaseA2, DEMO.leaseB1, DEMO.leaseB2, DEMO.leaseC1]],
+    );
     await q(`DELETE FROM rent_charges WHERE id::text LIKE $1 OR lease_id::text LIKE $1`);
     await sweepReferences(c, 'leases', MY_ROWS);
     await q(`DELETE FROM leases WHERE id::text LIKE $1 OR room_id::text LIKE $1`);
@@ -999,9 +1113,21 @@ async function summary(c) {
     [MY_ROWS],
   );
   const reviews = await one(`SELECT moderation_state s, count(*)::int n FROM reviews WHERE id::text LIKE $1 GROUP BY 1`, [MY_ROWS]);
+  const rent = await one(
+    `SELECT count(*)::int n, count(DISTINCT rc.period_month)::int months
+       FROM rent_charges rc JOIN leases l ON l.id = rc.lease_id WHERE l.workspace_id = $1`,
+    [DEMO.greenHillsWorkspace],
+  );
+  const filings = await one(
+    `SELECT cf.status s, count(*)::int n FROM contract_filings cf
+       JOIN leases l ON l.id = cf.lease_id WHERE l.workspace_id = $1 GROUP BY 1 ORDER BY 1`,
+    [DEMO.greenHillsWorkspace],
+  );
   console.log('\nIngoro Apartments leases:', leases.map((r) => `${r.status}=${r.n}`).join(' '));
   console.log('Registration pipeline:', pipeline.map((r) => `${r.district}/${r.s}=${r.n}`).join(' '));
   console.log('Reviews:', reviews.map((r) => `${r.s}=${r.n}`).join(' '));
+  console.log(`Rent ledger: ${rent[0]?.n ?? 0} charges across ${rent[0]?.months ?? 0} months`);
+  console.log('Contract filings:', filings.map((r) => `${r.s}=${r.n}`).join(' ') || 'none');
   const touched = Object.entries(written).filter(([, n]) => n > 0);
   console.log(touched.length ? `Rows written: ${touched.map(([t, n]) => `${t}=${n}`).join(' ')}` : 'Rows written: none (already seeded)');
 }

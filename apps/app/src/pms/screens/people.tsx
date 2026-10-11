@@ -29,11 +29,6 @@
  * then refusing, because a tab that always says no is a worse answer than no
  * tab. Both screens refuse inside as well — the rail is an affordance, and
  * `WorkspaceGuard` is the control.
- *
- * NOTE: the Employees screen (job titles, HR facts) moved out of this tab and
- * into its own HR section (screens/hr.tsx), alongside Checklists, Leave and
- * Payroll — one place for HR work rather than split across two sections. This
- * tab is back to being the plain staff roster it was before that experiment.
  */
 
 import { LensPage, type LensLink } from "../components/lens-page";
@@ -52,6 +47,8 @@ export function People({ lens }: { lens: string }) {
   const base = `${workspaceBase(workspaceId)}/people`;
   const landlord = state.ws === "landlord";
 
+  // A residence portfolio has no departments to run, so the lens it would open
+  // is not offered rather than opened empty.
   const showsDepartments = !landlord;
   const managesTeam = can("team.manage");
 
@@ -68,6 +65,14 @@ export function People({ lens }: { lens: string }) {
       : []),
   ];
 
+  /*
+   * Which lens `/people` itself opens.
+   *
+   * The leaf's href has no lens segment, so it lands here as `team`. For
+   * somebody who reached the screen on `department.manage` alone, that is the
+   * one lens they may not read, and they would meet a refusal on the door of a
+   * screen they are entitled to. They open on Departments instead.
+   */
   const active = lens === "team" && !managesTeam && showsDepartments ? "departments" : lens;
 
   return (

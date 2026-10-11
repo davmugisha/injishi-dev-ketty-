@@ -1,11 +1,12 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.DecideStayRefundRequest = exports.StayRefundQuote = exports.StayRefundRequestList = exports.StayRefundRequestView = exports.RaiseStayRefundRequest = exports.REFUND_DETAIL_MAX = exports.REFUND_SERVICE_FAILURE_NIGHTS = exports.REFUND_REPORTING_WINDOW_HOURS = exports.REFUND_REFUSAL_LABEL = exports.StayRefundRefusalReason = exports.StayRefundReason = exports.StayRefundState = exports.OpenDepartmentResult = exports.OpenDepartmentRequest = exports.STAY_REQUEST_MAX = exports.StayDepartments = exports.StayDepartment = exports.ClaimStayResult = exports.MyStays = exports.MyStay = exports.ClaimStayRequest = exports.StayRegistrationDetails = exports.StayClaimInvite = exports.IssueStayClaimInviteRequest = exports.CLAIM_CODE_PATTERN = void 0;
+exports.SelfCheckInReceipt = exports.SelfCheckInRequest = exports.DecideStayRefundRequest = exports.StayRefundQuote = exports.StayRefundRequestList = exports.StayRefundRequestView = exports.RaiseStayRefundRequest = exports.REFUND_DETAIL_MAX = exports.REFUND_SERVICE_FAILURE_NIGHTS = exports.REFUND_REPORTING_WINDOW_HOURS = exports.REFUND_REFUSAL_LABEL = exports.StayRefundRefusalReason = exports.StayRefundReason = exports.StayRefundState = exports.OpenDepartmentResult = exports.OpenDepartmentRequest = exports.STAY_REQUEST_MAX = exports.StayDepartments = exports.StayDepartment = exports.ClaimStayResult = exports.MyStays = exports.MyStay = exports.ClaimStayRequest = exports.StayRegistrationDetails = exports.StayClaimInvite = exports.IssueStayClaimInviteRequest = exports.CLAIM_CODE_PATTERN = void 0;
 exports.stayRefundAssessment = stayRefundAssessment;
 const zod_1 = require("zod");
 const booking_1 = require("./booking");
 const ops_1 = require("./ops");
 const primitives_1 = require("./primitives");
+const registration_1 = require("./registration");
 /**
  * THE GUEST'S OWN STAY — `/api/v1/me/stays*` and the desk commands behind it
  * (§6.8).
@@ -494,5 +495,28 @@ exports.DecideStayRefundRequest = zod_1.z.discriminatedUnion("decision", [
             path: ["note"],
         });
     }
+});
+// ---------------------------------------------------------------------------
+// Self check-in before arrival (F-B09, ADR-038 child 5 AC-G8, ADR-060)
+// ---------------------------------------------------------------------------
+/**
+ * `POST /api/v1/me/bookings/:id/check-in`: the guest's own identity for a
+ * booking, sent from the phone before they reach the desk.
+ *
+ * The photo is uploaded first through `POST /api/v1/uploads` as `kind=id_photo`,
+ * and only its key comes here, so a poor connection retries a small JSON body
+ * rather than the image. The document is the same account rule registration
+ * uses, which is why a passport number is 6 to 12 characters here too.
+ */
+exports.SelfCheckInRequest = zod_1.z.object({
+    document: registration_1.IdentityDocumentInput,
+    idPhotoObjectKey: zod_1.z.string().trim().min(1).max(300),
+    addressText: zod_1.z.string().trim().min(3, "Give the address you live at.").max(300),
+});
+exports.SelfCheckInReceipt = zod_1.z.object({
+    bookingId: primitives_1.Uuid,
+    submittedAt: zod_1.z.string(),
+    /** False only if the photo could not be attached; the identity still stands. */
+    idPhotoStored: zod_1.z.boolean(),
 });
 //# sourceMappingURL=stay.js.map

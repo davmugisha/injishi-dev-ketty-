@@ -13,6 +13,13 @@
  * prefills from it. Without one the same form opens blank. A screen written
  * only for the prefilled path is a screen that has never been seen empty.
  *
+ * **Today it always opens blank.** No hand-off exists, and the fixture that
+ * stood in for one filled every landlord's form with a stranger's name, phone
+ * number and national ID under a broker fee nobody agreed, then printed that
+ * stranger's name as the tenant (mobile audit 2026-10-05, LL-03). The create
+ * still lands in this phone's own store rather than on the server, because
+ * `POST /ops/leases` does not exist yet; it now reports only what landed.
+ *
  * **The unit selector offers vacant units only.** F-R03: a Room holds at most
  * one active Lease, and FL20 §6 says a second one is prevented. Enforcing that
  * by not offering the unit is better than enforcing it with an error after the
@@ -67,9 +74,9 @@ export function RegisterTenant() {
   const create = useFixtureMutation(LEASES_KEY, applyCreateLease, seedLeases);
 
   // FL19's hand-off, or `null` on FL20 path C — a landlord registering a known
-  // tenant with no broker involved. Read once into the initial form state
-  // rather than held as a source of truth, so editing a prefilled field is
-  // just editing a field.
+  // tenant with no broker involved, which is every case today (see the
+  // header). Read once into the initial form state rather than held as a
+  // source of truth, so editing a prefilled field is just editing a field.
   const placement = readPendingPlacement();
 
   const [name, setName] = useState(placement?.tenantName ?? '');
@@ -105,7 +112,7 @@ export function RegisterTenant() {
     // same pair from the same list and the route that follows has to address
     // the row the write is about to create.
     const { id, ref } = nextLeaseRef(leases);
-    await create.mutate({
+    const outcome = await create.mutate({
       tenant: name.trim(),
       unit: chosen.unit,
       unitType: chosen.unitType,
@@ -119,7 +126,12 @@ export function RegisterTenant() {
     // had typed — name, NID, rent, the unit — and told them it had been
     // created. Staying on the screen keeps the form; `ui-rules.md` asks the
     // same of a workspace switch, and a failed save is the same loss.
-    if (create.status === 'error') return;
+    //
+    // Branch on the write's OWN result. `create.status` read here is the value
+    // from the render that pressed the button, from before the write, so a
+    // failed create used to toast "created" and navigate to its contract
+    // (gaps.md §0.3; mobile audit 2026-10-05, LL-03).
+    if (outcome !== 'done') return;
 
     toast.show(t('landlord.new.created', { ref, name: name.trim() }), 'success');
     // FL20's own arrow: the create lands on the contract, because the lease is
@@ -313,7 +325,9 @@ export function RegisterTenant() {
 
         <View style={{ gap: 8 }}>
           <Text size="xs" color="textMuted" style={{ lineHeight: 18 }}>
-            {t('landlord.new.consequence', { name: name.trim() || t('landlord.new.namePlaceholder') })}
+            {/* "the tenant" until a name is typed. It used to fall back to the
+                placeholder, which was a stranger's full name. */}
+            {t('landlord.new.consequence', { name: name.trim() || t('landlord.new.theTenant') })}
           </Text>
           <Text size="xs" color="textSubtle" style={{ lineHeight: 17 }}>
             {t('landlord.new.footnote')}

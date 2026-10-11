@@ -76,9 +76,16 @@ export class OpsReservationsController {
    * Anyone who works the desk: Reservations (`reservation.approve`), the
    * calendar grid (`reservation.assign`) and Today (`stay.checkin`). A
    * housekeeper holds none of them and is refused.
+   *
+   * And whoever reads the money (`money.view`, ADR-069 D-d): the accountant
+   * opens Reservations to see bookings and what they are worth without taking
+   * a desk write to get there. Only this read and the record below widen; the
+   * room assignment reads stay the desk's, and every command on this
+   * controller still declares its own write, so approve, decline, cancel and
+   * assign stay closed to a grant that holds `money.view` alone.
    */
   @Get()
-  @RequireAnyPermission('reservation.approve', 'reservation.assign', 'stay.checkin')
+  @RequireAnyPermission('reservation.approve', 'reservation.assign', 'stay.checkin', 'money.view')
   async list(
     @Query(new ZodValidationPipe(OperatorReservationQuery))
     query: OperatorReservationQuery,
@@ -87,6 +94,31 @@ export class OpsReservationsController {
     // The query is honoured now (review 4.3): a state narrows the desk, and
     // the read is windowed and capped either way (review 2.5).
     return { reservations: await this.reservations.list(workspace, query) };
+  }
+
+  /**
+   * ONE reservation, by its own id.
+   *
+   * **The record page had no route and paid for it.** It resolved its booking
+   * out of the desk list above, which is windowed to `DESK_WINDOW_DAYS` of
+   * departures and capped at `DESK_LIMIT` rows — so a booking older than the
+   * window rendered the app's "that page isn't here" refusal to the operator
+   * who owns it. A window bounds a LIST; it must not decide whether a RECORD
+   * exists.
+   *
+   * It carries the SAME permission set as the list above, deliberately. A
+   * record read that was easier to reach than the list it came from would let
+   * a housekeeper open by id exactly what the desk refuses to show them; and
+   * one harder to reach would leave the accountant a list whose rows do not
+   * open (ADR-069 D-d).
+   */
+  @Get(':id')
+  @RequireAnyPermission('reservation.approve', 'reservation.assign', 'stay.checkin', 'money.view')
+  get(
+    @Param('id', ParseUUIDPipe) id: string,
+    @CurrentWorkspace() workspace: ScopedWorkspace,
+  ): Promise<OperatorReservation> {
+    return this.reservations.get(workspace, id);
   }
 
   /**

@@ -2,6 +2,7 @@ import {
   type AdminOversightGrant,
   type CreateOversightGrantRequest,
   OVERSIGHT_ORG_ROLE_CONFLICT_MESSAGE,
+  OVERSIGHT_ROLE_POSTING,
   OVERSIGHT_SCOPE_CONFLICT_MESSAGE,
   opposingGateRole,
   type OversightScope,
@@ -13,6 +14,7 @@ import {
   Inject,
   Injectable,
   NotFoundException,
+  UnprocessableEntityException,
 } from '@nestjs/common';
 import { and, eq, isNull } from 'drizzle-orm';
 
@@ -84,6 +86,18 @@ export class OversightGrantsService {
     reason: string;
   }): Promise<AdminOversightGrant> {
     const r = input.request;
+
+    // ADR-056 AC-10: a role with a posting rule is appointed only where the
+    // rule says. Only `psf_membership_officer` has one (PSF, country scope);
+    // the registration roles have none and are unchanged.
+    const posting = OVERSIGHT_ROLE_POSTING[r.oversightRole];
+    if (
+      posting &&
+      (r.governmentBodyCode !== posting.governmentBodyCode ||
+        !posting.scopeLevels.includes(r.scopeLevel))
+    ) {
+      throw new UnprocessableEntityException(posting.message);
+    }
 
     return this.db.transaction(async (tx) => {
       const [person] = await tx

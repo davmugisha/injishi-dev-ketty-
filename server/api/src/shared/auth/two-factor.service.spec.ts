@@ -60,7 +60,7 @@ describe('TwoFactorService.sendCode', () => {
   const hash = (code: string): string => createHash('sha256').update(code).digest('hex');
 
   it('a demo process stores and mails the fixed code', async () => {
-    const { service, send, stored } = build({ environment: 'demo', sampleData: true });
+    const { service, send, stored } = build({ environment: 'demo', sampleData: true, commit: null });
 
     const result = await service.sendCode('user-1', 'session-1');
 
@@ -74,7 +74,7 @@ describe('TwoFactorService.sendCode', () => {
   });
 
   it('a production process mails a fresh random code, never the demo one', async () => {
-    const { service, send, stored } = build({ environment: 'production', sampleData: false });
+    const { service, send, stored } = build({ environment: 'production', sampleData: false, commit: null });
 
     await service.sendCode('user-1', 'session-1');
 
@@ -90,7 +90,7 @@ describe('TwoFactorService.sendCode', () => {
     // Random codes: five draws that all came out the same would be a constant.
     const otps = new Set<string>();
     for (let i = 0; i < 5; i += 1) {
-      const { service, send } = build({ environment: 'production', sampleData: true });
+      const { service, send } = build({ environment: 'production', sampleData: true, commit: null });
       await service.sendCode('user-1', 'session-1');
       otps.add(send.mock.calls[0][0].otp);
     }

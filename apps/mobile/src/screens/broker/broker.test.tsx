@@ -26,15 +26,20 @@ import { DomainProvider } from '@/domain';
 import { SCHEMES, renderInScheme } from '@/test-utils';
 import { en, rw } from '@/i18n/messages';
 import { MUTATION_LATENCY_MS, resetFixtures } from '@/data/use-fixture-mutation';
+import * as fixtureStore from '@/data/use-fixture-mutation';
+import { dropAll } from '@/data/write-queue';
 import {
   CREDITS_KEY,
   DIRECTORY_UNITS,
   PLACEMENTS_KEY,
+  REVEALS_KEY,
   SEED_CREDITS,
   SEED_PLACEMENTS,
+  SEED_REVEALS,
   countByBucket,
   getUnit,
   summariseEarnings,
+  type Reveal,
 } from '@/data/broker';
 import { readFixture, writeFixture } from '@/data/use-fixture-mutation';
 import type { Placement } from '@/data/broker';
@@ -93,6 +98,10 @@ afterEach(async () => {
   await act(async () => {
     await new Promise((resolve) => setTimeout(resolve, MUTATION_LATENCY_MS + 60));
   });
+  // A reveal queued offline would drain in the NEXT test the moment it renders
+  // online, and spend a credit in that test's store. Spies come off too.
+  act(() => dropAll());
+  jest.restoreAllMocks();
   resetFixtures();
 });
 
@@ -110,14 +119,25 @@ describe('every list skeletons its first read rather than flashing an empty one'
   const loading = (label: string) =>
     screen.getByLabelText(en['state.loadingList'].replace('{label}', label));
 
-  it('does it on the Directory', () => {
+  /**
+   * The device rig's finding (BR-06): while the directory loaded, the rail
+   * read "Vacant now · 0" and "Vacant soon · 0", an empty market rather than a
+   * slow one. The chips are drawn with no count until the read lands.
+   */
+  it('does it on the Directory, with no count on the rail yet', () => {
     renderInScheme(asBroker(<Directory />), 'light');
     expect(loading(en['directory.listLabel'])).toBeTruthy();
+    expect(screen.getByLabelText(en['directory.chipVacantNow'])).toBeTruthy();
+    expect(screen.queryByText(`${en['directory.chipVacantNow']} · 0`)).toBeNull();
+    expect(screen.queryByText(`${en['directory.chipVacantSoon']} · 0`)).toBeNull();
   });
 
-  it('does it on Placements', () => {
+  it('does it on Placements, with no count on the tabs yet', () => {
     renderInScheme(asBroker(<Placements />), 'light');
     expect(loading(en['placements.listLabel'])).toBeTruthy();
+    expect(screen.getByLabelText(en['placements.bucketActive'])).toBeTruthy();
+    expect(screen.queryByLabelText(`${en['placements.bucketActive']}, 0`)).toBeNull();
+    expect(screen.queryByLabelText(`${en['placements.bucketExpired']}, 0`)).toBeNull();
   });
 
   it('does it on Earnings', () => {
@@ -265,6 +285,15 @@ describe.each(SCHEMES)('Unit detail in the %s scheme', (scheme) => {
     expect(screen.getByText(en['unit.revealed'])).toBeTruthy();
   });
 
+  it('offers no "Place a tenant", which opened a form a broker cannot open', async () => {
+    renderInScheme(asBroker(<UnitDetail id={UMURAVA.id} />), scheme);
+    await settled();
+    // Umurava B4 carries a seeded placement, so the placement card is drawn.
+    expect(screen.getByText(en['unit.sectionPlacement'])).toBeTruthy();
+    expect(screen.queryByText('Place a tenant')).toBeNull();
+    expect(mockPush).not.toHaveBeenCalledWith('/lease/new');
+  });
+
   it('says a let unit cannot take a placement instead of offering one', async () => {
     renderInScheme(asBroker(<UnitDetail id="ingoro-apartments-b2" />), scheme);
     await waitFor(() => expect(screen.getByText(en['unit.leasedTitle'])).toBeTruthy());
@@ -320,11 +349,13 @@ describe.each(SCHEMES)('the reveal sheet in the %s scheme', (scheme) => {
     expect(screen.queryByText(en['reveal.confirm'])).toBeNull();
   });
 
-  it('explains a spent month instead of disabling a button with no way out', () => {
+  it('explains a spent balance instead of disabling a button with no way out', () => {
     writeFixture(CREDITS_KEY, 0);
     renderInScheme(asBroker(<UnitReveal id={FRESH.id} />), scheme);
     expect(screen.getByText(en['reveal.spentTitle'])).toBeTruthy();
     expect(screen.queryByText(en['reveal.confirm'])).toBeNull();
+    // Nothing resets the balance, monthly or otherwise (BR-04).
+    expect(screen.queryByText(/start of the month/)).toBeNull();
   });
 
   it('costs nothing to look at a contact that is already revealed', () => {
@@ -332,6 +363,62 @@ describe.each(SCHEMES)('the reveal sheet in the %s scheme', (scheme) => {
     // Umurava B4 carries a seeded placement, so its reveal is already logged.
     expect(screen.getByText(en['reveal.alreadyTitle'])).toBeTruthy();
     expect(screen.getByText(UMURAVA.landlord.phone)).toBeTruthy();
+  });
+});
+
+/**
+ * BR-02. The sheet used to read `failed` after the `await`, the value from the
+ * render that pressed the button: a failed spend toasted "Contact revealed"
+ * and closed, a retry that then landed was treated as failed, and offline it
+ * toasted the same success over a reveal that was only queued.
+ */
+describe('a reveal that does not land at once', () => {
+  it('claims no reveal when the spend fails, and a retry that lands is a reveal', async () => {
+    // The spend reads the reveal log through the store's exported reader to
+    // decide whether this unit is already paid for. The first such read
+    // throws, which fails the spend and nothing else.
+    const real = fixtureStore.readFixture;
+    let thrown = false;
+    jest.spyOn(fixtureStore, 'readFixture').mockImplementation(((key: string, fallback: unknown) => {
+      if (key === REVEALS_KEY && !thrown) {
+        thrown = true;
+        throw new Error('the store refused');
+      }
+      return real(key, fallback);
+    }) as typeof fixtureStore.readFixture);
+    renderInScheme(asBroker(<UnitReveal id={FRESH.id} />), 'light');
+
+    fireEvent.press(screen.getByText(en['reveal.confirm']));
+    await waitFor(() => expect(screen.getByText(en['reveal.failedTitle'])).toBeTruthy(), {
+      timeout: 4000,
+    });
+    expect(screen.queryByText(en['reveal.toast'])).toBeNull();
+    expect(mockBack).not.toHaveBeenCalled();
+    expect(readFixture<number>(CREDITS_KEY, SEED_CREDITS)).toBe(SEED_CREDITS);
+    expect(
+      readFixture<Reveal[]>(REVEALS_KEY, SEED_REVEALS).some((r) => r.unitId === FRESH.id),
+    ).toBe(false);
+
+    fireEvent.press(screen.getByText(en['write.retry']));
+    await waitFor(() => expect(screen.getByText(en['reveal.toast'])).toBeTruthy(), {
+      timeout: 4000,
+    });
+    expect(mockBack).toHaveBeenCalled();
+    // One credit for one exposure, the failed attempt included.
+    expect(readFixture<number>(CREDITS_KEY, SEED_CREDITS)).toBe(SEED_CREDITS - 1);
+  });
+
+  it('says the contact is revealed when the phone reconnects, rather than that it was', async () => {
+    mockNetwork.isConnected = false;
+    mockNetwork.isInternetReachable = false;
+    renderInScheme(asBroker(<UnitReveal id={FRESH.id} />), 'light');
+
+    fireEvent.press(screen.getByText(en['reveal.confirm']));
+    await waitFor(() => expect(screen.getByText(en['reveal.queued'])).toBeTruthy());
+    expect(screen.queryByText(en['reveal.toast'])).toBeNull();
+    expect(mockBack).toHaveBeenCalled();
+    // Queued, not spent: nothing has been revealed yet.
+    expect(readFixture<number>(CREDITS_KEY, SEED_CREDITS)).toBe(SEED_CREDITS);
   });
 });
 
@@ -395,10 +482,13 @@ describe.each(SCHEMES)('Earnings in the %s scheme', (scheme) => {
       ).toBeTruthy(),
     );
 
-  it('says the figures are fixtures, on a screen that would otherwise look live', async () => {
+  it('says the figures are samples, in the reader’s words, on a screen that would otherwise look live', async () => {
     renderInScheme(asBroker(<Earnings />), scheme);
     expect(screen.getByText(en['earnings.mock'])).toBeTruthy();
     expect(screen.getByText(en['earnings.mockHint'])).toBeTruthy();
+    // "Figures are fixtures. No payout adapter is wired yet." was developer
+    // copy (BR-03, XC-16).
+    expect(screen.queryByText(/fixture|wired/i)).toBeNull();
     await settled();
   });
 
@@ -432,12 +522,15 @@ describe.each(SCHEMES)('Earnings in the %s scheme', (scheme) => {
     await settled();
     expect(screen.getByText(en['earnings.pendingSignature'])).toBeTruthy();
     expect(screen.getAllByText(/^Paid /).length).toBeGreaterThan(0);
+    // No payout channel exists, so no row names one (BR-03).
+    expect(screen.queryByText(/MoMo/)).toBeNull();
   });
 
-  it('says Injishi takes no cut, because that is the promise the fee rests on', async () => {
+  it('says Injishi takes no cut, and promises no payout that does not exist', async () => {
     renderInScheme(asBroker(<Earnings />), scheme);
     await settled();
     expect(screen.getByText(en['earnings.noCut'])).toBeTruthy();
+    expect(screen.queryByText(/mobile money|disburse/i)).toBeNull();
   });
 });
 

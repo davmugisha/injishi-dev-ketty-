@@ -1,6 +1,6 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.AttachPhoneResponse = exports.AttachPhoneRequest = exports.ClaimVerifyResponse = exports.ClaimVerifyRequest = exports.ClaimEmailRequest = exports.VerifyPhoneCodeResponse = exports.VerifyPhoneCodeRequest = exports.CodeSentResponse = exports.SendPhoneCodeRequest = exports.PhoneErrorResponse = exports.PhoneErrorCode = exports.RwPhoneNumber = exports.RW_MOBILE_PREFIXES = void 0;
+exports.AttachPhoneResponse = exports.AttachPhoneRequest = exports.ClaimVerifyResponse = exports.ClaimVerifyRequest = exports.ClaimEmailRequest = exports.VerifyPhoneCodeResponse = exports.VerifyPhoneCodeRequest = exports.CodeSentResponse = exports.SendPhoneCodeRequest = exports.PhoneErrorResponse = exports.PhoneErrorCode = exports.RwPhoneNumber = exports.RW_PHONE_SEPARATOR = exports.RW_MOBILE_PREFIXES = void 0;
 exports.normalizeRwPhone = normalizeRwPhone;
 exports.isRwMobile = isRwMobile;
 const zod_1 = require("zod");
@@ -21,6 +21,13 @@ const zod_1 = require("zod");
  * implies the number is unknown to us — that would be enumeration.
  */
 exports.RW_MOBILE_PREFIXES = ["72", "73", "78", "79"];
+/**
+ * One character a person may put between the digits of a phone number: a
+ * space, a dash, a bracket or a dot. The one definition, read by
+ * `normalizeRwPhone` below and by `redactText` (ADR-063), so a spelling this
+ * file accepts as a number is a spelling the crash scrubber recognises.
+ */
+exports.RW_PHONE_SEPARATOR = /[\s\-().]/;
 /** `+250` and nine digits, which is every Rwandan mobile number. */
 const RW_E164 = /^\+250(72|73|78|79)\d{7}$/;
 /**
@@ -36,7 +43,7 @@ const RW_E164 = /^\+250(72|73|78|79)\d{7}$/;
  * `send-code` route) want to branch, not to catch.
  */
 function normalizeRwPhone(raw) {
-    const bare = raw.replace(/[\s\-().]/g, "");
+    const bare = raw.replace(new RegExp(exports.RW_PHONE_SEPARATOR.source, "g"), "");
     if (!/^\+?\d+$/.test(bare))
         return null;
     const digits = bare.replace(/^\+/, "");

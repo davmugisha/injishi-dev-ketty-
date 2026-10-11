@@ -26,7 +26,11 @@ import type { DemoStory } from '@injishi/contracts';
  *   own host and is linked absolutely.
  */
 
-/** Amahoro Hospitality Group: Yves, Solange, Denise, Beatha. */
+/**
+ * Amahoro Hospitality Group: Yves, Solange, Denise, Beatha, and the two office
+ * roles of ADR-069, Grace (finance) and Diane (hr), seeded by
+ * `scripts/seed-ui2/00-personas.mjs`.
+ */
 const AMAHORO = '/w/de300000-0000-4000-8000-000000000201';
 /** Green Hills Properties (Ingoro Apartments): Josephine. */
 const GREEN_HILLS = '/w/de300000-0000-4000-8000-000000000202';
@@ -63,10 +67,16 @@ const STORIES: Readonly<Record<string, DemoStory>> = {
         href: `${AMAHORO}/finance/revenue`,
       },
       {
-        title: 'See who works here',
+        title: 'See who works here, and which departments you run',
         detail:
-          'People lists your team with their roles. Only the owner can open it: your manager runs the hotel but does not decide who is on the staff.',
+          'Team & Departments lists your staff with their roles, and the departments every charge and order routes through. The roster stays yours — your manager runs the hotel but does not decide who is on the staff.',
         href: `${AMAHORO}/people`,
+      },
+      {
+        title: 'Decide what each role may do',
+        detail:
+          'Roles starts from the access Injishi gives each role and lets you change it. You have already granted your front desk "view money", and taken "refund a signed receipt" away from your manager. Managing the team is the one thing you cannot hand to anybody else.',
+        href: `${AMAHORO}/people/roles`,
       },
       {
         title: 'See the hotel the way a guest does',
@@ -148,6 +158,72 @@ const STORIES: Readonly<Record<string, DemoStory>> = {
         title: 'Try to open Finance',
         detail:
           'You are refused. A receptionist holds no money permission, so Finance is not in the menu and typing its address does not open it.',
+        href: `${AMAHORO}/finance`,
+      },
+    ],
+  },
+
+  // Keyed `grace.uwera`, not `grace`: `grace@demo.injishi.com` is Grace
+  // Kwizera, the guest with no ID on file, further down.
+  'grace.uwera': {
+    headline: 'Accountant at Amahoro Hospitality Group',
+    summary:
+      'You keep the books for the whole group: the head office in Kigali and the branches in Musanze and Rubavu. Instead of collecting the desk\'s cash book and a pile of receipts at the end of the month and typing them into a spreadsheet, you see every guest bill as it is written and every payment as it is taken, with the bookings they came from. You see the money and nothing else: no staff files, no guest messages, no cleaning board.',
+    tryThis: [
+      {
+        title: 'Start the day on Finance',
+        detail:
+          'Finance is the first screen you see: every guest bill, open and closed, with what is still owed on each. Open one to read every charge and payment on it.',
+        href: `${AMAHORO}/finance`,
+      },
+      {
+        title: 'Take a payment on a departing guest\'s bill',
+        detail:
+          'Every guest due out today has an open bill with money still owed. Open one and record what the guest pays, by mobile money, card or cash; the balance falls as you post it.',
+        href: `${AMAHORO}/finance`,
+      },
+      {
+        title: 'See the bookings behind the bills',
+        detail:
+          'Reservations lists every booking with its dates and price, so a bill can be traced to the stay it came from. Approving requests and moving guests between rooms stay with the front desk: you read them, you do not change them.',
+        href: `${AMAHORO}/reservations`,
+      },
+      {
+        title: 'Try to open People',
+        detail:
+          'You are refused. An accountant holds no staff permission, so People is not in the menu and typing its address does not open it. Diane in HR drafts the pay run and Yves confirms it.',
+        href: `${AMAHORO}/people`,
+      },
+    ],
+  },
+
+  'diane.ingabire': {
+    headline: 'HR officer at Amahoro Hospitality Group',
+    summary:
+      'You look after the people who work across the group\'s hotels in Kigali, Musanze and Rubavu, and you head its Human Resources department. Staff files, the roster, attendance, leave and the monthly pay run used to live in a binder, a WhatsApp group and the accountant\'s spreadsheet; here they are one screen, and every change to a file is recorded under your name. You see the staff and nothing else: no guest bills, no takings, no guest messages.',
+    tryThis: [
+      {
+        title: 'Start the day on People',
+        detail:
+          'People is the first screen you see: who is in today, who is late or not in yet, the leave waiting for your decision and where this month\'s pay run stands.',
+        href: `${AMAHORO}/people`,
+      },
+      {
+        title: 'Open a staff file',
+        detail:
+          'Everyone on the staff has a file, yours included. A file still missing an ID or RSSB number says what is missing, so you know what to ask for before a contract can start.',
+        href: `${AMAHORO}/people`,
+      },
+      {
+        title: 'Draft this month\'s pay run',
+        detail:
+          'Payroll builds the month\'s draft from each contract and recomputes it as attendance and leave change. You draft and revise it; only Yves, the owner, confirms it, so your screen has no confirm button.',
+        href: `${AMAHORO}/people/payroll`,
+      },
+      {
+        title: 'Try to open Finance',
+        detail:
+          'You are refused. HR holds no money permission: the wages on the pay run, yes; guest bills and the hotel\'s takings, no. Finance is not in the menu and typing its address does not open it.',
         href: `${AMAHORO}/finance`,
       },
     ],

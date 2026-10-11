@@ -31,6 +31,12 @@ interface NavSource {
 export function navContextOf(
   pms: NavSource,
   workspaceId: string | null,
+  /**
+   * Pill numbers a live read has counted (`useNavCounts`). Only the sidebar
+   * draws pills, so only the sidebar passes them; the route guard and the
+   * command bar build the same sections without.
+   */
+  counts?: NavContext["counts"],
 ): NavContext {
   // BY ID, never by kind, once the route has named one (ADR-018, invariant 1).
   // Two hotels are two grants with the same `key`, and matching on kind hands
@@ -55,8 +61,11 @@ export function navContextOf(
       workspaceId: workspaceId ?? pms.state.workspaceId,
     }),
     departments: grant?.departments ?? [],
-    // No counts yet. Every pill stays absent until a live query answers it
-    // (ADR-035, D-a); a fixture supplied number is not a count.
-    counts: undefined,
+    // ADR-056: the server decides; the nav only renders it.
+    psfManage: grant?.psfCanManage === true,
+    // Every pill stays absent until a live query answers it (ADR-035, D-a); a
+    // fixture supplied number is not a count. What the caller passes is
+    // counted from the server's own lists (`data/nav-counts.ts`).
+    counts,
   };
 }

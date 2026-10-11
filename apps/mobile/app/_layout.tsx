@@ -25,12 +25,17 @@
  *
  * ## The route table
  *
- * **Session 0 registers every route in the prototype, all at once, and this
- * file is frozen until Session 11.** That is the rule that lets eight sessions
- * run in parallel: each one edits the screen behind a route that already
- * exists, so nobody edits this file and nobody collides here. A route with no
- * screen yet renders `ComingSoon`, which names the frame and the session, so
- * the app is fully walkable on day one and a tap never dead-ends.
+ * Every route is registered here, and every route outside the two always open
+ * groups sits inside a `Stack.Protected` keyed on the session and the active
+ * surface (mobile audit 2026-10-05, SA-12). `href: null` and an unlinked row
+ * only hid a button: any route opened from an `injishi://` link for any seat,
+ * and started reading data before anything could refuse it (ADR-066 AC-1). A
+ * guarded route that is not open for this seat now redirects to the tabs root
+ * before its screen mounts, and a seat switch that closes the screen someone
+ * is on takes them home. The routes the owner decided to hide (reviews and
+ * lease renewal, P2 in the v1.0 cut; subscription, which no API serves) and
+ * the Account rows that showed fixture facts as the person's own sit in a
+ * `guard={false}` group: hidden and reversible, not deleted.
  *
  * ### Sheets
  *
@@ -52,12 +57,20 @@
 import { QueryClientProvider } from '@tanstack/react-query';
 import { useEffect, useState, type ComponentProps, type ReactNode } from 'react';
 import { useFonts } from 'expo-font';
-import { Stack, useRouter, useSegments, type ErrorBoundaryProps } from 'expo-router';
+import {
+  Stack,
+  router as rootRouter,
+  useNavigationContainerRef,
+  useRouter,
+  useSegments,
+  type ErrorBoundaryProps,
+} from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 import { StatusBar } from 'expo-status-bar';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import {
+  ActivityIndicator,
   useColorScheme,
   useWindowDimensions,
   Platform,
@@ -72,12 +85,18 @@ import {
   DomainProvider,
   readStoredDomain,
   readStoredSurface,
+  useDomain,
   type Domain,
   type Surface,
 } from '@/domain';
 import { SessionProvider, readStoredSession, useSession, type ResolvedSession } from '@/session';
 import { WorkspaceProvider, useWorkspace } from '@/workspace';
 import { queryClient } from '@/lib/query-client';
+import { wireQueryLifecycle } from '@/lib/query-lifecycle';
+import { DIAGNOSTICS_ALLOWED, IS_DEVELOPMENT_BUILD } from '@/lib/crash-env';
+import { markAppLoaded, registerNavigationContainer, reportRenderError } from '@/lib/crash-reporter';
+import { usePlatform } from '@/queries/platform';
+import { BrandMark } from '@/screens/auth/brand-mark';
 // Registers every queued write's handler at import, before any screen mounts,
 // so the drain below can send what a previous process left in the queue.
 import '@/data/write-handlers';
@@ -87,17 +106,29 @@ import {
   readStoredLocale,
   resolveInitialLocale,
   translate,
+  useT,
   type Locale,
 } from '@/i18n/i18n';
 import { fontMap } from '@/theme/fonts';
 import { palettes } from '@/theme/tokens';
 import { useReducedMotion } from '@/motion';
-import { OfflineBanner, QueueBanner, ToastProvider, useOffline } from '@/components';
+import { ErrorState, OfflineBanner, QueueBanner, ToastProvider, useOffline } from '@/components';
 
 SplashScreen.preventAutoHideAsync().catch(() => {});
 
-/** How long the shell will wait on the font loader before painting anyway. */
-const FONT_FALLBACK_MS = 1200;
+/**
+ * How long the shell will wait on the font loader before painting anyway.
+ *
+ * Longer in development, because there the fonts are not in the app: Expo Go
+ * and the dev client fetch all six from Metro over the LAN (about 680 KB, most
+ * of it Spectral), which on a slow Wi-Fi link takes several seconds. Painting
+ * before they land is not a graceful fallback on Android: text laid out before
+ * a family registers keeps that layout, so a semibold label drawn once Figtree
+ * arrives loses its last letter ("Continu" on sign in, Expo Go, 2026-10-06). A
+ * release build carries the fonts in the binary and settles well inside the
+ * short cap, which stays as the guard against a font that never arrives.
+ */
+const FONT_FALLBACK_MS = __DEV__ ? 10_000 : 1200;
 
 interface Bootstrap {
   domain: Domain;
@@ -282,10 +313,19 @@ function useBootstrap(): Bootstrap | undefined {
 
 export default function RootLayout() {
   const boot = useBootstrap();
+  const navigationRef = useNavigationContainerRef();
 
   useEffect(() => {
-    if (boot) SplashScreen.hideAsync().catch(() => {});
+    if (!boot) return;
+    SplashScreen.hideAsync().catch(() => {});
+    // ADR-063 AC-9: app start ends where the person first sees the app.
+    markAppLoaded();
   }, [boot]);
+
+  // ADR-063 AC-6: the screens visited, by route name, on the crash trail.
+  useEffect(() => {
+    registerNavigationContainer(navigationRef);
+  }, [navigationRef]);
 
   if (!boot) return null;
 
@@ -366,9 +406,15 @@ function Shell() {
   // dark app and a light background flash behind every push.
   const { scheme } = useTheme();
   const { status } = useSession();
+  const { surface } = useDomain();
+  const { isDemo } = usePlatform();
   const reduced = useReducedMotion();
   const router = useRouter();
   const segments = useSegments();
+
+  // TanStack Query learns when the app is in front and when the phone is
+  // online. Without this nothing ever refetched (mobile audit SA-09, XC-14).
+  useEffect(() => wireQueryLifecycle(), []);
 
   // **Session 1's one edit to this file: the redirect.** An anonymous session
   // goes to `(auth)/sign-in`, which is now a real screen rather than the
@@ -376,18 +422,25 @@ function Shell() {
   //
   // Two details are load-bearing:
   //
-  //   - **It is guarded on the group, not fired on mount.** An invite link
-  //     opens `(auth)/activate` directly, and a redirect that did not ask
-  //     where it already was would bounce that reader to sign-in and lose the
-  //     invitation.
-  //   - **The navigator stays mounted.** `(auth)/activate` hands off to
-  //     `lease/[leaseId]/sign` at the moment the session flips, and a route
-  //     tree that is assembled by that same flip is a route tree the hand-off
-  //     navigates into before it exists.
+  //   - **It is guarded on the group, not fired on mount**, so it cannot bounce
+  //     somebody already standing on a signed-out screen.
+  //   - **The navigator stays mounted.** Verify navigates into `(tabs)` at the
+  //     moment the session flips, and a route tree assembled by that same flip
+  //     is a route tree the hand-off navigates into before it exists.
   const inAuth = segments[0] === '(auth)';
   useEffect(() => {
     if (status === 'anonymous' && !inAuth) router.replace('/(auth)/sign-in');
   }, [status, inAuth, router]);
+
+  /**
+   * Which routes are open, by session and surface (mobile audit SA-12).
+   *
+   * Presentation, not authorization: the API refuses what a seat may not do,
+   * whatever this allows. It exists so a link cannot open a screen that reads
+   * another seat's data, and so a hidden route refuses before its reads start.
+   */
+  const signedIn = status === 'authenticated';
+  const on = (...surfaces: Surface[]) => signedIn && surfaces.includes(surface);
 
   /**
    * **ADR-038 child 0 task 10: the step-up gate (AC-S7).**
@@ -411,12 +464,32 @@ function Shell() {
    *     which is a visible flash of the operator surface this exists to
    *     prevent.
    */
-  const { twoFactor, isResolving } = useWorkspace();
+  const { twoFactor, isResolving, error: seatsError, workspaces, refetch } = useWorkspace();
   const owesStepUp = twoFactor.required && !twoFactor.verified;
   useEffect(() => {
     if (status !== 'authenticated' || isResolving || inAuth) return;
     if (owesStepUp) router.replace('/(auth)/step-up');
   }, [status, isResolving, inAuth, owesStepUp, router]);
+
+  /**
+   * What covers the tabs until this person's seats are known.
+   *
+   * The surface is a guess until `/me/workspaces` answers: the stored one, or
+   * Tenant on a first sign in. Drawing it meant a stranger saw Tenant fixture
+   * cards under an empty seat chip and a lone "·", then watched the app flip to
+   * their real seat (device rig 2026-10-01; mobile audit SA-08). So the guess is
+   * covered, not drawn. And if the answer never comes, the cover says so with a
+   * retry, where it used to leave an empty chip and screens that never loaded
+   * until the app was killed (SA-09).
+   */
+  const cover: 'opening' | 'failed' | null =
+    !signedIn || inAuth
+      ? null
+      : isResolving
+        ? 'opening'
+        : seatsError && workspaces.length === 0
+          ? 'failed'
+          : null;
 
   /**
    * The offline queue, after a cold start.
@@ -465,86 +538,124 @@ function Shell() {
         <Stack.Screen name="(auth)" options={{ animation: 'fade' }} />
 
         {/* Guest */}
-        <Stack.Screen name="search" options={FORM_SHEET} />
-        <Stack.Screen name="listing/[id]/index" options={{ presentation: 'card' }} />
-        <Stack.Screen name="listing/[id]/amenities" options={FORM_SHEET} />
-        <Stack.Screen name="listing/[id]/policy" options={FORM_SHEET} />
-        <Stack.Screen name="book/[roomTypeId]/index" options={{ presentation: 'card' }} />
-        <Stack.Screen name="book/[roomTypeId]/confirmed" options={{ presentation: 'card' }} />
-        <Stack.Screen name="trip/[id]/index" options={{ presentation: 'card' }} />
-        <Stack.Screen name="trip/[id]/arrival-guide" options={{ presentation: 'card' }} />
-        <Stack.Screen name="trip/[id]/review" options={FORM_SHEET} />
-        <Stack.Screen name="order" options={{ presentation: 'card' }} />
-        <Stack.Screen name="order-placed" options={{ presentation: 'card' }} />
-        <Stack.Screen name="self-check-in/[bookingId]" options={{ presentation: 'card' }} />
-        <Stack.Screen name="thread/[threadId]" options={{ presentation: 'card' }} />
+        <Stack.Protected guard={on('guest')}>
+          <Stack.Screen name="search" options={FORM_SHEET} />
+          <Stack.Screen name="listing/[id]/index" options={{ presentation: 'card' }} />
+          <Stack.Screen name="listing/[id]/amenities" options={FORM_SHEET} />
+          <Stack.Screen name="listing/[id]/policy" options={FORM_SHEET} />
+          <Stack.Screen name="book/[roomTypeId]/index" options={{ presentation: 'card' }} />
+          <Stack.Screen name="book/[roomTypeId]/confirmed" options={{ presentation: 'card' }} />
+          <Stack.Screen name="trip/[id]/index" options={{ presentation: 'card' }} />
+          <Stack.Screen name="trip/[id]/arrival-guide" options={{ presentation: 'card' }} />
+          <Stack.Screen name="order" options={{ presentation: 'card' }} />
+          <Stack.Screen name="order-placed" options={{ presentation: 'card' }} />
+          <Stack.Screen name="self-check-in/[bookingId]" options={{ presentation: 'card' }} />
+        </Stack.Protected>
+        {/* The two surfaces whose tab set carries the Inbox. */}
+        <Stack.Protected guard={on('guest', 'tenant')}>
+          <Stack.Screen name="thread/[threadId]" options={{ presentation: 'card' }} />
+        </Stack.Protected>
 
         {/* Residence — the lease aggregate, both seats. Decision D6 keeps the
             repo's `[id]` / `[leaseId]` split rather than renaming folders. */}
-        <Stack.Screen name="lease/[id]" options={{ presentation: 'card' }} />
-        <Stack.Screen name="lease/new" options={{ presentation: 'card' }} />
-        <Stack.Screen name="lease/[leaseId]/sign" options={{ presentation: 'card' }} />
-        <Stack.Screen name="lease/[leaseId]/move-out" options={{ presentation: 'card' }} />
-        <Stack.Screen name="lease/[leaseId]/renew" options={{ presentation: 'card' }} />
-        <Stack.Screen name="lease/[leaseId]/visitors" options={{ presentation: 'card' }} />
-        <Stack.Screen name="lease/[leaseId]/maintenance/new" options={{ presentation: 'card' }} />
-        <Stack.Screen name="lease/[leaseId]/contract" options={{ presentation: 'card' }} />
-        <Stack.Screen name="lease/[leaseId]/caution" options={{ presentation: 'card' }} />
-        <Stack.Screen name="lease/[leaseId]/filing" options={{ presentation: 'card' }} />
+        <Stack.Protected guard={on('tenant', 'landlord')}>
+          <Stack.Screen name="lease/[id]" options={{ presentation: 'card' }} />
+          <Stack.Screen name="lease/[leaseId]/contract" options={{ presentation: 'card' }} />
+          <Stack.Screen name="lease/[leaseId]/visitors" options={{ presentation: 'card' }} />
+        </Stack.Protected>
+        <Stack.Protected guard={on('tenant')}>
+          <Stack.Screen name="lease/[leaseId]/sign" options={{ presentation: 'card' }} />
+          <Stack.Screen name="lease/[leaseId]/move-out" options={{ presentation: 'card' }} />
+          <Stack.Screen name="lease/[leaseId]/maintenance/new" options={{ presentation: 'card' }} />
+        </Stack.Protected>
+        {/* Money that moves on a timer rather than a rail is the demo's alone
+            (ADR-066 AC-4): a production build hides pay rent until a gateway
+            works, and `isDemo` is false in every production build. */}
+        <Stack.Protected guard={on('tenant') && isDemo}>
+          <Stack.Screen name="pay-rent" options={FORM_SHEET} />
+        </Stack.Protected>
+        <Stack.Protected guard={on('landlord')}>
+          <Stack.Screen name="lease/new" options={{ presentation: 'card' }} />
+          <Stack.Screen name="lease/[leaseId]/caution" options={{ presentation: 'card' }} />
+          <Stack.Screen name="lease/[leaseId]/filing" options={{ presentation: 'card' }} />
+          {/* Records rent received; moves no money, so no demo gate. */}
+          <Stack.Screen name="record-payment" options={CONFIRM_SHEET} />
+        </Stack.Protected>
 
         {/* Broker */}
-        <Stack.Screen name="directory/[unitId]/index" options={{ presentation: 'card' }} />
-        <Stack.Screen name="directory/[unitId]/reveal" options={CONFIRM_SHEET} />
+        <Stack.Protected guard={on('broker')}>
+          <Stack.Screen name="directory/[unitId]/index" options={{ presentation: 'card' }} />
+          <Stack.Screen name="directory/[unitId]/reveal" options={CONFIRM_SHEET} />
+          <Stack.Screen name="reveal-credits" options={{ presentation: 'card' }} />
+        </Stack.Protected>
 
         {/* Work · Housekeeping */}
-        <Stack.Screen name="task/[taskId]" options={{ presentation: 'card' }} />
-        <Stack.Screen name="inspection" options={{ presentation: 'card' }} />
-        {/* Tall: frame W6 is photos, two chip groups and a line of text, and
-            the room behind it is what the reporter is looking at. */}
-        <Stack.Screen name="report-fault" options={TALL_SHEET} />
-        {/* **Session 10's one edit to this file.** Frame W4's tile opens a
-            sheet of four housekeeping states, and the route was missing from
-            Session 0's table. A confirm sheet rather than a form one: four
-            rows and an escape, and a taller detent would open a dead zone
-            under the last option. */}
-        <Stack.Screen name="room-status" options={CONFIRM_SHEET} />
+        <Stack.Protected guard={on('work')}>
+          <Stack.Screen name="task/[taskId]" options={{ presentation: 'card' }} />
+          <Stack.Screen name="inspection" options={{ presentation: 'card' }} />
+          {/* Tall: frame W6 is photos, two chip groups and a line of text, and
+              the room behind it is what the reporter is looking at. */}
+          <Stack.Screen name="report-fault" options={TALL_SHEET} />
+          {/* Frame W4's tile opens a sheet of four housekeeping states. A
+              confirm sheet rather than a form one: four rows and an escape,
+              and a taller detent would open a dead zone under the last one. */}
+          <Stack.Screen name="room-status" options={CONFIRM_SHEET} />
+        </Stack.Protected>
 
-        {/* Money. Both say on the screen that they move none. */}
-        <Stack.Screen name="pay-rent" options={FORM_SHEET} />
-        <Stack.Screen name="record-payment" options={CONFIRM_SHEET} />
+        {/* Host. Parked in the switcher, and still the surface a hospitality
+            owner, manager or receptionist resolves to (scope feature 17). */}
+        <Stack.Protected guard={on('host')}>
+          <Stack.Screen name="reservation/[id]" options={{ presentation: 'card' }} />
+          <Stack.Screen name="reservation/[id]/check-in" options={{ presentation: 'card' }} />
+        </Stack.Protected>
 
-        {/* The licence chain's other half: the full attribution the CC BY and
-            CC BY-SA licences ask to travel with the work, which does not fit
-            on a tile. Session 11 mounts the Account row that opens it. */}
-        <Stack.Screen name="photo-credits" options={{ presentation: 'card' }} />
+        {/* Every signed-in seat: the Account tab's rows and the switcher. A
+            card is for something with a list on it, a sheet is for one fact
+            and one escape. */}
+        <Stack.Protected guard={signedIn}>
+          {/* The licence chain's other half: the full attribution the CC BY
+              and CC BY-SA licences ask to travel with the work. */}
+          <Stack.Screen name="photo-credits" options={{ presentation: 'card' }} />
+          <Stack.Screen name="personal-details" options={{ presentation: 'card' }} />
+          <Stack.Screen name="security" options={{ presentation: 'card' }} />
+          <Stack.Screen name="privacy" options={{ presentation: 'card' }} />
+          {/* Three rows and an escape. */}
+          <Stack.Screen name="appearance" options={CONFIRM_SHEET} />
+          <Stack.Screen name="sign-out" options={CONFIRM_SHEET} />
+          {/* Opened from the switcher rather than from Account, and therefore
+              a sheet over a sheet, which the platform handles and a modal would
+              not. */}
+          <Stack.Screen name="create-workspace" options={FORM_SHEET} />
+          {/* Reached from wherever you are, so it overlays the surface it
+              switches away from rather than replacing it (FL16). */}
+          <Stack.Screen name="switch" options={FORM_SHEET} />
+        </Stack.Protected>
 
-        {/* Account, and the ten places its rows go. **Session 11's own half of
-            this table**, registered when the freeze lifted. Which of them is a
-            sheet and which is a card is a per-route decision rather than a
-            house style: a card is for something with a list on it, a sheet is
-            for one fact and one escape. */}
-        <Stack.Screen name="payout-account" options={FORM_SHEET} />
-        <Stack.Screen name="organisation" options={{ presentation: 'card' }} />
-        <Stack.Screen name="staff" options={{ presentation: 'card' }} />
-        <Stack.Screen name="subscription" options={{ presentation: 'card' }} />
-        <Stack.Screen name="reveal-credits" options={{ presentation: 'card' }} />
-        <Stack.Screen name="personal-details" options={{ presentation: 'card' }} />
-        <Stack.Screen name="security" options={{ presentation: 'card' }} />
-        {/* Three rows and an escape. F0 gave this its own taller detent for a
-            fourth row, White; that row is gone, so it is back on the shared one. */}
-        <Stack.Screen name="appearance" options={CONFIRM_SHEET} />
-        <Stack.Screen name="sign-out" options={CONFIRM_SHEET} />
-        {/* Opened from the switcher rather than from Account, and therefore a
-            sheet over a sheet — which the platform handles and a modal would
-            not. */}
-        <Stack.Screen name="create-workspace" options={FORM_SHEET} />
+        {/* ADR-063 AC-7: forced failures, in development and tester builds
+            only. The route file also refuses on its own, for a direct link. */}
+        <Stack.Protected guard={DIAGNOSTICS_ALLOWED}>
+          <Stack.Screen name="diagnostics" options={{ presentation: 'card' }} />
+        </Stack.Protected>
 
-        {/* The workspace switcher is reached from wherever you are, so it
-            overlays the surface it switches away from rather than replacing it
-            (FL16). A sheet rather than a modal since frame X4, which draws it
-            with a grabber over a dimmed Account. */}
-        <Stack.Screen name="switch" options={FORM_SHEET} />
+        {/* Hidden, not deleted (mobile audit 2026-10-05):
+              - trip review and lease renewal are P2, hidden by the owner's
+                v1.0 cut of 2026-10-01;
+              - subscription has no API, and the owner chose to unlink it;
+              - organisation, payout account and staff showed a fixture
+                company, payout and team as the person's own (SA-03, SA-04,
+                HO-05). Each comes back when its read exists (ADR-038 child 7)
+                or the v1.0 cut (scope feature 16) says otherwise. */}
+        <Stack.Protected guard={false}>
+          <Stack.Screen name="trip/[id]/review" options={FORM_SHEET} />
+          <Stack.Screen name="lease/[leaseId]/renew" options={{ presentation: 'card' }} />
+          <Stack.Screen name="subscription" options={{ presentation: 'card' }} />
+          <Stack.Screen name="organisation" options={{ presentation: 'card' }} />
+          <Stack.Screen name="payout-account" options={FORM_SHEET} />
+          <Stack.Screen name="staff" options={{ presentation: 'card' }} />
+        </Stack.Protected>
       </Stack>
+
+      {cover ? <ShellCover kind={cover} onRetry={refetch} /> : null}
 
       <OfflineBanner />
       {/* Under the offline banner, and the pairing is the point: that one says
@@ -558,15 +669,68 @@ function Shell() {
 }
 
 /**
+ * What sits over the tabs while this person's seats are unknown: the brand
+ * mark and a spinner, or the failure with a retry. A sibling ABOVE the Stack,
+ * not a replacement for it, because the navigator has to stay mounted (see the
+ * redirect in `Shell`). Modal to assistive tech, so a screen reader cannot
+ * wander into the guessed surface underneath.
+ */
+function ShellCover({ kind, onRetry }: { kind: 'opening' | 'failed'; onRetry: () => void }) {
+  const { c } = useTheme();
+  const t = useT();
+  return (
+    <View
+      accessibilityViewIsModal
+      style={{
+        position: 'absolute',
+        top: 0,
+        right: 0,
+        bottom: 0,
+        left: 0,
+        alignItems: 'center',
+        justifyContent: 'center',
+        gap: 20,
+        padding: 24,
+        backgroundColor: c.bgApp,
+      }}
+    >
+      {kind === 'opening' ? (
+        <>
+          <BrandMark width={56} />
+          <ActivityIndicator color={c.textMuted} accessibilityLabel={t('shell.opening')} />
+        </>
+      ) : (
+        <View style={{ alignSelf: 'stretch' }}>
+          <ErrorState
+            title={t('shell.loadErrorTitle')}
+            body={t('shell.loadErrorBody')}
+            onRetry={onRetry}
+          />
+        </View>
+      )}
+    </View>
+  );
+}
+
+/**
  * Expo Router mounts this for any render that throws below the root layout.
  * It renders *instead of* the provider tree — a boundary that needs the thing
  * that crashed is not a boundary — so it reads the palette from the OS scheme
  * directly and takes its copy from `translate()`, the provider-free half of the
  * message catalogue.
+ *
+ * ADR-063 AC-3: the error is reported from here, once, as unhandled, so the
+ * session counts as crashed. `reportRenderError` is memoised per error, so a
+ * re-render (the phone's theme changing under it) shows the same reference and
+ * never sends twice. A release build never prints the message: it may hold
+ * text the server wrote or something the person typed. It shows the reference
+ * instead, which finds exactly this event in Sentry (`crash_ref:<reference>`),
+ * or says plainly that no report was sent.
  */
 export function ErrorBoundary({ error, retry }: ErrorBoundaryProps) {
   const scheme = useColorScheme() === 'dark' ? 'dark' : 'light';
   const c = palettes[scheme];
+  const reference = reportRenderError(error);
 
   return (
     <View style={{ flex: 1, backgroundColor: c.bgApp, justifyContent: 'center' }}>
@@ -577,26 +741,45 @@ export function ErrorBoundary({ error, retry }: ErrorBoundaryProps) {
         <RawText color={c.textMuted} size={14}>
           {translate('state.crashBody')}
         </RawText>
-        <View
-          style={{
-            padding: 14,
-            borderRadius: 10,
-            backgroundColor: c.surface2,
-            borderWidth: 1,
-            borderColor: c.borderSubtle,
-          }}
-        >
-          <RawText color={c.danger600} size={12.5}>
-            {error.message}
+        {reference ? (
+          <View style={{ gap: 4 }}>
+            <RawText testID="crash-ref" selectable color={c.textStrong} size={14} weight="600">
+              {translate('state.crashRef', { ref: reference })}
+            </RawText>
+            <RawText color={c.textMuted} size={14}>
+              {translate('state.crashRefHint')}
+            </RawText>
+            <RawText color={c.textMuted} size={14}>
+              {translate('state.crashOffline')}
+            </RawText>
+          </View>
+        ) : (
+          <RawText testID="crash-no-report" color={c.textMuted} size={14}>
+            {translate('state.crashNoReport')}
           </RawText>
-        </View>
+        )}
+        {IS_DEVELOPMENT_BUILD ? (
+          <View
+            style={{
+              padding: 14,
+              borderRadius: 10,
+              backgroundColor: c.surface2,
+              borderWidth: 1,
+              borderColor: c.borderSubtle,
+            }}
+          >
+            <RawText color={c.danger600} size={12.5}>
+              {error.message}
+            </RawText>
+          </View>
+        ) : null}
         <Pressable
           accessibilityRole="button"
           accessibilityLabel={translate('state.crashRetry')}
           onPress={retry}
           style={{
             alignSelf: 'flex-start',
-            height: 44,
+            minHeight: 44,
             justifyContent: 'center',
             paddingHorizontal: 20,
             borderRadius: 10,
@@ -605,6 +788,32 @@ export function ErrorBoundary({ error, retry }: ErrorBoundaryProps) {
         >
           <RawText color={c.bgApp} size={14} weight="600">
             {translate('state.crashRetry')}
+          </RawText>
+        </Pressable>
+        {/* The way out of an error that recurs on every render, where Reload
+            only loops and killing the app was the only escape (mobile audit
+            SA-29). Navigation first, so the retry renders the tabs root rather
+            than the screen that threw. */}
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel={translate('state.notFoundAction')}
+          onPress={() => {
+            try {
+              rootRouter.replace('/');
+            } catch {
+              // No navigator to ask: the retry below is still the best offer.
+            }
+            retry();
+          }}
+          style={{
+            alignSelf: 'flex-start',
+            minHeight: 44,
+            justifyContent: 'center',
+            paddingHorizontal: 20,
+          }}
+        >
+          <RawText color={c.textStrong} size={14} weight="600">
+            {translate('state.notFoundAction')}
           </RawText>
         </Pressable>
       </ScrollView>
@@ -622,14 +831,22 @@ function RawText({
   color,
   size,
   weight,
+  selectable,
+  testID,
 }: {
   children: React.ReactNode;
   color: string;
   size: number;
   weight?: '400' | '600';
+  selectable?: boolean;
+  testID?: string;
 }) {
   return (
-    <RNText style={{ color, fontSize: size, fontWeight: weight ?? '400', lineHeight: size * 1.5 }}>
+    <RNText
+      testID={testID}
+      selectable={selectable}
+      style={{ color, fontSize: size, fontWeight: weight ?? '400', lineHeight: size * 1.5 }}
+    >
       {children}
     </RNText>
   );

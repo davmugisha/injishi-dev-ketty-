@@ -2,14 +2,14 @@
 
 import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
-import type { GuestThread, MyStay } from "@injishi/contracts";
+import type { GuestDeskPlace, GuestThread } from "@injishi/contracts";
 import { Button, Skeleton } from "@injishi/ui";
 import { EmptyPanel } from "@/components/app/empty-panel";
 import { Icon } from "@/components/app/icon";
-import { DesksPanel } from "@/components/stay/my-stay-panel";
-import { fetchMyThreads, threadTitle } from "@/data/inbox";
-import { currentStay, fetchMyStays } from "@/data/my-stay";
+import { InboxDesks } from "@/components/app/inbox-desks";
+import { fetchMyDepartments, fetchMyThreads, threadTitle } from "@/data/inbox";
 import { apiResultMessage, type ApiResult } from "@/lib/api";
+import { deskOffer, desksLeadTheInbox } from "@/lib/guest-desks";
 
 /** How often the conversation list asks for new lines. */
 const INBOX_POLL_MS = 15_000;
@@ -50,19 +50,36 @@ export function InboxScreen() {
 
   useEffect(load, [load]);
 
-  // The stay the guest is in, so its desks can be messaged from here as well as
-  // from /stay (ADR-050 D-q). Loaded beside the list and never blocking it.
-  const [stay, setStay] = useState<MyStay | null>(null);
-  useEffect(() => {
+  /*
+   * The desks this person may write to, at every property they are in house at
+   * OR HOLD A LIVE BOOKING WITH (ADR-050 D-q).
+   *
+   * This used to be `fetchMyStays()` and `currentStay()`, so the panel rendered
+   * only for a guest with an OPEN stay — and every guest who had booked and not
+   * yet arrived was offered no desk at all, on the screen their own persona
+   * story sends them to in order to message the hotel. `GET /me/departments`
+   * answers for both, and the screen owns the call rather than the section
+   * because the empty state below has to know whether there is anything else
+   * on the page before it says "nothing here".
+   *
+   * Loaded beside the conversation list and never blocking it.
+   */
+  const [desks, setDesks] = useState<ApiResult<GuestDeskPlace[]> | null>(null);
+  const loadDesks = useCallback(() => {
+    // Back to the shimmer, so pressing "Try again" visibly does something. On
+    // first mount it is already null and this changes nothing.
+    setDesks(null);
     let cancelled = false;
     void (async () => {
-      const stays = await fetchMyStays();
-      if (!cancelled && stays.status === "ok") setStay(currentStay(stays.data));
+      const next = await fetchMyDepartments();
+      if (!cancelled) setDesks(next);
     })();
     return () => {
       cancelled = true;
     };
   }, []);
+
+  useEffect(loadDesks, [loadDesks]);
 
   // New lines and unread counts arrive without a reload. Quietly: a refresh
   // that fails keeps the list already on screen rather than replacing it with
@@ -113,7 +130,20 @@ export function InboxScreen() {
     );
   }
 
-  if (result.data.length === 0 && !stay) {
+  /*
+   * The offer, once — the screen composes two answers and both decide what it
+   * says. `null` means the desks call has not come back or did not succeed, in
+   * which case the section below owns saying so and this screen must not
+   * conclude the account is empty.
+   */
+  const offer = desks?.status === "ok" ? deskOffer(desks.data) : null;
+  const nowhereToWrite = offer !== null && offer.kind === "nowhere";
+
+  // Nothing to read AND nowhere to write: the only state that is honestly
+  // empty. It waits for the desks answer rather than racing it, because
+  // "No messages yet" that flips into a list of desks a moment later is a
+  // screen telling a guest they have no hotel and then correcting itself.
+  if (result.data.length === 0 && nowhereToWrite) {
     return (
       <EmptyPanel icon="inbox" title="No messages yet" action={{ label: "Explore stays", href: "/explore" }}>
         Every stay you book opens a conversation with the property, so you can ask
@@ -123,16 +153,21 @@ export function InboxScreen() {
     );
   }
 
+  const deskSection = <InboxDesks result={desks} onReload={loadDesks} />;
+
+  // Where the desks sit is a decision, and `desksLeadTheInbox` owns it: above
+  // the list while nothing has ever been said, below it once something has.
+  const deskFirst = desksLeadTheInbox(result.data);
+
   return (
     <div className="mx-auto flex w-full max-w-wide animate-arrive flex-col gap-section px-4 py-8">
-      {stay ? <DesksPanel stay={stay} /> : null}
+      {deskFirst ? deskSection : null}
+
       {result.data.length > 0 ? (
         <section aria-labelledby="your-conversations" className="flex flex-col gap-3">
-          {stay ? (
-            <h2 id="your-conversations" className="font-display text-lg font-bold tracking-tight">
-              Your conversations
-            </h2>
-          ) : null}
+          <h2 id="your-conversations" className="font-display text-lg font-bold tracking-tight">
+            Your conversations
+          </h2>
           <ul className="m-0 flex list-none flex-col gap-2 p-0">
             {result.data.map((thread) => (
               <li key={thread.id}>
@@ -141,7 +176,20 @@ export function InboxScreen() {
             ))}
           </ul>
         </section>
+      ) : offer !== null && offer.kind === "places" ? (
+        // Desks to write to, but nothing written yet. Said as a line rather than
+        // as the big empty panel above: the panel is for an account with nothing
+        // in it, and this one has a hotel waiting to be asked something.
+        //
+        // Only for `places`. On `no-desks` there is no desk above to write to,
+        // and pointing at one would be the screen inventing an affordance the
+        // property has not opened.
+        <p className="text-sm text-muted-foreground">
+          No conversations yet. Write to a desk above and the reply arrives here.
+        </p>
       ) : null}
+
+      {deskFirst ? null : deskSection}
     </div>
   );
 }

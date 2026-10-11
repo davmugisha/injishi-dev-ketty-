@@ -44,13 +44,16 @@ import {
   radius,
   fontSize,
   fontFamily,
-  shadow,
+  isLegacyShadowPlatform,
+  segmentRoles,
+  shadowFor,
   scrim,
   onPhoto,
   onPhotoMuted,
   onPhotoDim,
   type ColorScheme,
   type Palette,
+  type ShadowSet,
 } from './tokens';
 
 /** What the reader chose, which is one value wider than what gets drawn. */
@@ -70,7 +73,15 @@ export interface Theme {
   radius: typeof radius;
   fontSize: typeof fontSize;
   font: typeof fontFamily;
-  shadow: typeof shadow;
+  /**
+   * The two depths, `surface` and `overlay`, for the scheme being drawn and the
+   * platform drawing it (ADR-064). Dark draws no surface shadow, and Android
+   * below 9 gets a plain elevation, so a component spreads `shadow.surface`
+   * and never asks which case it is in.
+   */
+  shadow: ShadowSet;
+  /** A segmented control's track and sliding indicator, which swap by scheme (AC-11). */
+  segment: { track: string; indicator: string };
   /**
    * The photographic scrims, and the two FIXED foregrounds they carry. On the
    * theme so a component never reaches into `tokens.ts` for a colour, and
@@ -171,7 +182,13 @@ export function ThemeProvider({
       radius,
       fontSize,
       font: fontFamily,
-      shadow,
+      // Read here rather than once at import, so a test can stand in for an
+      // old Android. A real device's platform never changes while it runs.
+      shadow: shadowFor(scheme, isLegacyShadowPlatform(Platform)),
+      segment: {
+        track: palettes[scheme][segmentRoles[scheme].track],
+        indicator: palettes[scheme][segmentRoles[scheme].indicator],
+      },
       scrim,
       onPhoto,
       onPhotoMuted,

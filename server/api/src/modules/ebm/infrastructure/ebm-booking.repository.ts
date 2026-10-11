@@ -53,6 +53,11 @@ export interface BookingForReceipt {
   /** The instant the receipt is stamped with. See the service for the choice. */
   confirmedAt: Date | null;
   createdAt: Date;
+  /**
+   * The fiscal rule this booking was confirmed under (ADR-050 D-a), raw. Read
+   * through `receiptSignPoint`, which decides between an `NS` and a `PS`.
+   */
+  ebmSignAt: string | null;
 }
 
 /**
@@ -147,6 +152,7 @@ export class EbmBookingRepository {
         paymentAdapterMode: escrows.adapterMode,
         confirmedAt: bookings.confirmedAt,
         createdAt: bookings.createdAt,
+        ebmSignAt: bookings.ebmSignAt,
       })
       .from(bookings)
       .innerJoin(roomTypes, eq(roomTypes.id, bookings.roomTypeId))

@@ -85,6 +85,11 @@ function reasonFor(destination: string, unwrap = true): string | null {
   if (path.startsWith("/inbox")) {
     return "Sign in to read your messages. We'll take you straight there.";
   }
+  // The register gate sends signed-out visitors here rather than signing them
+  // in itself (ADR-060): one sign-in screen, with Google on it.
+  if (path.startsWith("/register")) {
+    return "Sign in to register your business. A business belongs to the person who registers it, so we need to know who that is. We'll bring you straight back.";
+  }
   if (path.startsWith("/saved")) {
     return "Sign in to see the stays you've saved.";
   }

@@ -3,7 +3,8 @@
  *
  * A pushed card rather than a sheet: it is three steps deep, opens a camera,
  * and is the one flow on this surface a desk can be interrupted in the middle
- * of. See the note in `app/reservation/[id]/index.tsx` about registration.
+ * of. Registered beside `reservation/[id]`, behind the same host-only guard;
+ * the note in `app/reservation/[id].tsx` says why the detail route is flat.
  */
 import { useLocalSearchParams } from 'expo-router';
 import { HostCheckInCapture } from '@/screens/host';

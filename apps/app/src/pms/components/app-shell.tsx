@@ -8,6 +8,11 @@
  * like one (room status and no front desk power, `opensOnPhoneSurface`) renders
  * the phone PWA instead of the desktop shell (blueprint §3.3). No role name
  * decides it (ADR-053, AC-A1). Everyone else gets sidebar + topbar + the screen.
+ *
+ * The sidebar lists the grant's destinations (the Sidebar board, 2026-10-07),
+ * the top bar carries Walk-in and New reservation, and this shell refuses any
+ * screen the same nav does not open. One mechanism: the doors the sidebar
+ * draws ARE the screens this guard lets through, lenses included.
  */
 
 import Link from "next/link";
@@ -19,6 +24,7 @@ import { allowedSegments, navFor, opensOnPhoneSurface, workspaceHome } from "../
 import { navContextOf } from "../lib/nav-context";
 import { usePms } from "../store";
 import { usePmsUi } from "../ui-store";
+import { AssistantPanel } from "./assistant/assistant-panel";
 import { CheckInDrawer } from "./check-in-drawer";
 import { CommandBar } from "./command-bar";
 import { DemoGuide } from "./demo-guide/demo-guide";
@@ -138,12 +144,13 @@ export function AppShell({ title, children }: { title: string; children: ReactNo
     setNavOpen(false);
   }, [pathname, setNavOpen]);
 
-  // Route-access authz: a grant may open only the screens its own nav grants.
-  // This is the enforcement behind the nav hiding — a receptionist typing
-  // /host/revenue is refused, not just un-linked.
-  // Built once per store change. `navFor` walks every reservation, room,
-  // ticket, order and thread for its count pills, and this shell re-renders on
-  // every pathname and drawer change, none of which move a count. Computed
+  // Route-access authz: a grant may open only the screens its own nav grants,
+  // each destination's address and every lens of it the grant reaches. This is
+  // the enforcement behind the nav hiding — a receptionist typing
+  // /w/<id>/people is refused, not just un-linked.
+  // Built once per store change: this shell re-renders on every pathname and
+  // drawer change, none of which move a door. It carries no counts; only the
+  // sidebar draws pills. Computed
   // before the phone surface's early return, so the hooks run in the same order
   // on every render whichever surface a grant opens.
   const navContext = useMemo(() => navContextOf(pms, workspaceId), [pms, workspaceId]);
@@ -201,6 +208,8 @@ export function AppShell({ title, children }: { title: string; children: ReactNo
       </div>
 
       <CommandBar />
+      {/* The support assistant (ADR-061). Draws nothing when the API has it off. */}
+      <AssistantPanel />
       {/* Check-in / walk-in is a hospitality-only flow — the drawer reads the
           host property, which the landlord workspace does not have. */}
       {state.ws === "host" && <CheckInDrawer />}

@@ -5,7 +5,7 @@ import {
 } from '@nestjs/common';
 import type { ExecutionContext } from '@nestjs/common';
 import type { Reflector } from '@nestjs/core';
-import type { WorkspaceAccess } from '@injishi/contracts';
+import { permissionsForRole, type WorkspaceAccess } from '@injishi/contracts';
 
 // The guard only needs the service as a DI token here; every case stubs it.
 // Mocked at the module boundary because the real service reaches the vendored
@@ -14,6 +14,7 @@ jest.mock('./two-factor.service', () => ({ TwoFactorService: class {} }));
 
 import {
   REQUIRE_ANY_PERMISSION,
+  REQUIRE_EVERY_BRANCH,
   REQUIRE_PERMISSION,
   WorkspaceGuard,
 } from './workspace.guard';
@@ -45,6 +46,7 @@ describe('WorkspaceGuard', () => {
     propertyName: 'Kivu Crest Hotel',
     branches: [],
     branchCoverage: 'all',
+    psfMembership: { canManage: true },
   };
 
   const REMERA = '11111111-1111-4111-8111-111111111111';
@@ -77,16 +79,25 @@ describe('WorkspaceGuard', () => {
     resolved: WorkspaceAccess | null,
     requiredPermission?: string | string[],
     anyOfPermissions?: string[],
+    everyBranch?: boolean,
   ): { guard: WorkspaceGuard; workspaces: WorkspaceService } {
+    // A limited member covers Rubavu only; everyone else covers both.
     const workspaces = {
       resolveForUser: jest.fn().mockResolvedValue(resolved),
-      propertyIdsForWorkspace: jest.fn().mockResolvedValue([REMERA, RUBAVU]),
+      coveredProperties: jest.fn((_userId: string, access: WorkspaceAccess) =>
+        Promise.resolve(
+          access.branchCoverage === 'limited'
+            ? { coverage: 'limited', propertyIds: [RUBAVU] }
+            : { coverage: 'all', propertyIds: [REMERA, RUBAVU] },
+        ),
+      ),
     } as unknown as WorkspaceService;
     // Answers per metadata key, the way Nest's reflector does: the all-of and
     // the any-of declarations are two separate keys on the same handler.
     const metadata: Record<string, unknown> = {
       [REQUIRE_PERMISSION]: requiredPermission,
       [REQUIRE_ANY_PERMISSION]: anyOfPermissions,
+      [REQUIRE_EVERY_BRANCH]: everyBranch,
     };
     const reflector = {
       getAllAndOverride: jest.fn((key: string) => metadata[key]),
@@ -206,6 +217,7 @@ describe('WorkspaceGuard', () => {
         propertyName: null,
         branches: [],
         branchCoverage: null,
+        psfMembership: null,
       };
       const { guard } = guardWith(broker, 'money.view');
       const context = contextFor({
@@ -288,6 +300,65 @@ describe('WorkspaceGuard', () => {
 
       await expect(guard.canActivate(context)).rejects.toThrow(
         'Your role cannot close a bill and sign its receipt in this workspace.',
+      );
+    });
+  });
+
+  describe('finance and hr: a pay run drafted by one, signed by another (ADR-069)', () => {
+    // The default sets, resolved by the model itself rather than retyped, so a
+    // drift in `ROLE_PERMISSIONS` shows here as a refusal that moved.
+    const FINANCE_ACCESS: WorkspaceAccess = {
+      ...OWNER_ACCESS,
+      orgRole: 'finance',
+      permissions: [...permissionsForRole('finance')],
+    };
+    const HR_ACCESS: WorkspaceAccess = {
+      ...OWNER_ACCESS,
+      orgRole: 'hr',
+      permissions: [...permissionsForRole('hr')],
+    };
+    const DRAFT = ['payroll.draft', 'payroll.run'];
+
+    function context(): ExecutionContext {
+      return contextFor({
+        headers: { host: 'demo.localhost', 'x-workspace-id': 'ws-owned' },
+        user: signedIn,
+      });
+    }
+
+    it('lets hr build a draft', async () => {
+      const { guard } = guardWith(HR_ACCESS, undefined, DRAFT);
+      await expect(guard.canActivate(context())).resolves.toBe(true);
+    });
+
+    it('refuses hr the confirm, in the words of the missing power', async () => {
+      const { guard } = guardWith(HR_ACCESS, 'payroll.run');
+      await expect(guard.canActivate(context())).rejects.toThrow(
+        'Your role cannot confirm the pay run in this workspace.',
+      );
+    });
+
+    it('refuses finance a draft, worded from the draft permission', async () => {
+      const { guard } = guardWith(FINANCE_ACCESS, undefined, DRAFT);
+      await expect(guard.canActivate(context())).rejects.toThrow(
+        'Your role cannot draft the pay run in this workspace.',
+      );
+    });
+
+    it('lets finance read the bookings through money.view (D-d)', async () => {
+      const { guard } = guardWith(FINANCE_ACCESS, undefined, [
+        'reservation.approve',
+        'reservation.assign',
+        'stay.checkin',
+        'money.view',
+      ]);
+      await expect(guard.canActivate(context())).resolves.toBe(true);
+    });
+
+    it('refuses hr the money', async () => {
+      const { guard } = guardWith(HR_ACCESS, undefined, ['folio.charge', 'money.view']);
+      await expect(guard.canActivate(context())).rejects.toThrow(
+        'Your role cannot add charges to a bill in this workspace.',
       );
     });
   });
@@ -538,6 +609,52 @@ describe('WorkspaceGuard', () => {
       await expect(guard.canActivate(contextFor(withBranch(branch)))).rejects.toThrow(
         NotFoundException,
       );
+    });
+  });
+
+  describe('a member limited to some branches (ADR-054 slice 4)', () => {
+    const LIMITED_ACCESS: WorkspaceAccess = {
+      ...RECEPTIONIST_ACCESS,
+      branchCoverage: 'limited',
+    };
+    const request = (branch?: string): FakeRequest => ({
+      headers: {
+        host: 'd',
+        'x-workspace-id': 'ws-owned',
+        ...(branch ? { 'x-branch-id': branch } : {}),
+      },
+      user: signedIn,
+    });
+
+    it('scopes to the covered branches and hides rows of no branch (AC-T2, AC-T3)', async () => {
+      const { guard } = guardWith(LIMITED_ACCESS);
+      const req = request();
+      await guard.canActivate(contextFor(req));
+      expect(req.workspace?.branchScope).toEqual({
+        coverage: 'limited',
+        selectedPropertyId: null,
+        propertyIds: [RUBAVU],
+        includesUnbranched: false,
+      });
+    });
+
+    it('answers 404 for a branch of the business it does not cover (AC-S2)', async () => {
+      const { guard } = guardWith(LIMITED_ACCESS);
+      await expect(guard.canActivate(contextFor(request(REMERA)))).rejects.toThrow(
+        NotFoundException,
+      );
+    });
+
+    it('refuses an org wide write with 403 in words (AC-M6)', async () => {
+      const { guard } = guardWith(LIMITED_ACCESS, undefined, undefined, true);
+      await expect(guard.canActivate(contextFor(request()))).rejects.toThrow(
+        'This needs access to every branch.',
+      );
+    });
+
+    it('lets a member covering every branch through the same write', async () => {
+      const { guard } = guardWith(OWNER_ACCESS, undefined, undefined, true);
+      await expect(guard.canActivate(contextFor(request()))).resolves.toBe(true);
     });
   });
 });

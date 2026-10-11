@@ -23,16 +23,57 @@ import { DemoGuide } from "../../components/demo-guide/demo-guide";
 import { useSignOut } from "../../data/sign-out";
 import { useShownToasts } from "../../lib/toast-queue";
 import { usePms } from "../../store";
-import { oversightNav } from "../lib/nav";
+import type { QueuedToast } from "../../lib/toast-queue";
+import { oversightNav, type NavSection } from "../lib/nav";
 import { useConsole } from "../store";
 import { Icon } from "./icon";
 
+/** The registration consoles (verifier, approver), fed by their store. */
 export function ConsoleShell({ title, children }: { title: string; children: ReactNode }) {
   const { state, oversight, officer } = useConsole();
+  return (
+    <ConsoleFrame
+      title={title}
+      seal={officer.seal}
+      officerTitle={officer.title}
+      bodyName={officer.bodyName}
+      scope={officer.scope}
+      sections={oversightNav(officer, oversight)}
+      toasts={state.toasts}
+    >
+      {children}
+    </ConsoleFrame>
+  );
+}
+
+/**
+ * The console frame every oversight console shares: who is acting, under which
+ * body and region, the console's own nav, and the work. Presentational, so a
+ * console with its own data (the PSF Membership console, ADR-056) wears the
+ * same frame without the registration store.
+ */
+export function ConsoleFrame({
+  title,
+  seal,
+  officerTitle,
+  bodyName,
+  scope,
+  sections,
+  toasts: queued,
+  children,
+}: {
+  title: string;
+  seal: string;
+  officerTitle: string;
+  bodyName: string;
+  scope: string;
+  sections: NavSection[];
+  toasts: readonly QueuedToast[];
+  children: ReactNode;
+}) {
   const { signOut, signingOut } = useSignOut();
   const pathname = usePathname();
-  const sections = oversightNav(officer, oversight);
-  const toasts = useShownToasts(state.toasts);
+  const toasts = useShownToasts(queued);
   /*
    * WHO IS ACTING IS THE SIGNED-IN PERSON, and the POSTING is the server's answer.
    *
@@ -106,7 +147,7 @@ export function ConsoleShell({ title, children }: { title: string; children: Rea
               height: 34,
               flex: "0 0 auto",
               borderRadius: "var(--radius-surface)",
-              background: officer.seal,
+              background: seal,
               display: "flex",
               alignItems: "center",
               justifyContent: "center",
@@ -136,10 +177,10 @@ export function ConsoleShell({ title, children }: { title: string; children: Rea
                 three layers of name ADR-053 keeps apart: the database's, the
                 console's label, and the employer's. */}
             <span style={{ display: "block", fontSize: 11.5, color: "var(--sb-muted)" }}>
-              {officer.title}
+              {officerTitle}
             </span>
             <span style={{ display: "block", fontSize: 11.5, color: "var(--sb-muted)" }}>
-              {officer.bodyName} · {officer.scope}
+              {bodyName} · {scope}
             </span>
           </span>
           {/*
@@ -265,7 +306,7 @@ export function ConsoleShell({ title, children }: { title: string; children: Rea
               beside it came from the officer fixture, not from the assignment
               the API checked, so it is gone rather than stated wrongly. */}
           <span className="pms-num" style={{ fontSize: 12.5, color: "var(--muted)" }}>
-            {officer.bodyName}
+            {bodyName}
           </span>
         </header>
 

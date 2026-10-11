@@ -1,6 +1,6 @@
 {
-  "id": "7bfac168-0975-408d-8819-48ec7f74d46a",
-  "prevId": "1b66e340-874e-430e-b16c-f30e58452b7a",
+  "id": "4dafe92e-6c41-4006-ac9c-710059086477",
+  "prevId": "63cf856d-d5cf-4e1f-8b44-dedd7e308561",
   "version": "7",
   "dialect": "postgresql",
   "tables": {
@@ -1038,6 +1038,101 @@
       },
       "indexes": {},
       "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.identity_challenges": {
+      "name": "identity_challenges",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "user_id": {
+          "name": "user_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "document_number": {
+          "name": "document_number",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "code_hash": {
+          "name": "code_hash",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "expires_at": {
+          "name": "expires_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "attempts": {
+          "name": "attempts",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "default": 0
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "identity_challenges_user_id_idx": {
+          "name": "identity_challenges_user_id_idx",
+          "columns": [
+            {
+              "expression": "user_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "identity_challenges_user_id_users_id_fk": {
+          "name": "identity_challenges_user_id_users_id_fk",
+          "tableFrom": "identity_challenges",
+          "tableTo": "users",
+          "columnsFrom": [
+            "user_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
       "compositePrimaryKeys": {},
       "uniqueConstraints": {},
       "policies": {},
@@ -2791,6 +2886,59 @@
             "code"
           ],
           "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.registration_drafts": {
+      "name": "registration_drafts",
+      "schema": "",
+      "columns": {
+        "user_id": {
+          "name": "user_id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "payload": {
+          "name": "payload",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "registration_drafts_user_id_users_id_fk": {
+          "name": "registration_drafts_user_id_users_id_fk",
+          "tableFrom": "registration_drafts",
+          "tableTo": "users",
+          "columnsFrom": [
+            "user_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
           "onUpdate": "no action"
         }
       },
@@ -5478,6 +5626,10 @@
         "room_types_approval_policy_shape": {
           "name": "room_types_approval_policy_shape",
           "value": "(\"room_types\".\"booking_mode\" = 'request_to_book') OR (\"room_types\".\"approval_policy\" IS NULL)"
+        },
+        "room_types_residence_not_bookable": {
+          "name": "room_types_residence_not_bookable",
+          "value": "(\"room_types\".\"domain\" = 'hospitality') OR (\"room_types\".\"booking_mode\" IS NULL)"
         }
       },
       "isRLSEnabled": false
@@ -6493,6 +6645,12 @@
           "primaryKey": false,
           "notNull": false
         },
+        "departure_note": {
+          "name": "departure_note",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
         "price_rwf": {
           "name": "price_rwf",
           "type": "bigint",
@@ -6720,6 +6878,169 @@
           "value": "\"guest_stays\".\"claim_status\" = 'unclaimed'\n           OR (\"guest_stays\".\"claimed_by_user_id\" IS NOT NULL AND \"guest_stays\".\"claimed_at\" IS NOT NULL)"
         }
       },
+      "isRLSEnabled": false
+    },
+    "public.pre_arrival_identities": {
+      "name": "pre_arrival_identities",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "booking_id": {
+          "name": "booking_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "guest_user_id": {
+          "name": "guest_user_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "document_type": {
+          "name": "document_type",
+          "type": "document_type",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "document_number": {
+          "name": "document_number",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "issuing_country": {
+          "name": "issuing_country",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "id_photo_object_id": {
+          "name": "id_photo_object_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "address_text": {
+          "name": "address_text",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "submitted_at": {
+          "name": "submitted_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "pre_arrival_identities_guest_user_idx": {
+          "name": "pre_arrival_identities_guest_user_idx",
+          "columns": [
+            {
+              "expression": "guest_user_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "pre_arrival_identities_id_photo_idx": {
+          "name": "pre_arrival_identities_id_photo_idx",
+          "columns": [
+            {
+              "expression": "id_photo_object_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "pre_arrival_identities_booking_id_bookings_id_fk": {
+          "name": "pre_arrival_identities_booking_id_bookings_id_fk",
+          "tableFrom": "pre_arrival_identities",
+          "tableTo": "bookings",
+          "columnsFrom": [
+            "booking_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "restrict",
+          "onUpdate": "no action"
+        },
+        "pre_arrival_identities_guest_user_id_users_id_fk": {
+          "name": "pre_arrival_identities_guest_user_id_users_id_fk",
+          "tableFrom": "pre_arrival_identities",
+          "tableTo": "users",
+          "columnsFrom": [
+            "guest_user_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "pre_arrival_identities_id_photo_object_id_stored_objects_id_fk": {
+          "name": "pre_arrival_identities_id_photo_object_id_stored_objects_id_fk",
+          "tableFrom": "pre_arrival_identities",
+          "tableTo": "stored_objects",
+          "columnsFrom": [
+            "id_photo_object_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {
+        "pre_arrival_identities_booking_id_unique": {
+          "name": "pre_arrival_identities_booking_id_unique",
+          "nullsNotDistinct": false,
+          "columns": [
+            "booking_id"
+          ]
+        }
+      },
+      "policies": {},
+      "checkConstraints": {},
       "isRLSEnabled": false
     },
     "public.reviews": {
@@ -10400,6 +10721,28 @@
           ],
           "isUnique": true,
           "where": "\"threads\".\"thread_kind\" = 'department_request'\n             AND \"threads\".\"guest_stay_id\" IS NOT NULL\n             AND \"threads\".\"department_id\" IS NOT NULL",
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "threads_booking_department_request_uk": {
+          "name": "threads_booking_department_request_uk",
+          "columns": [
+            {
+              "expression": "booking_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "department_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "where": "\"threads\".\"thread_kind\" = 'department_request'\n             AND \"threads\".\"guest_stay_id\" IS NULL\n             AND \"threads\".\"booking_id\" IS NOT NULL\n             AND \"threads\".\"department_id\" IS NOT NULL\n             AND \"threads\".\"status\" = 'active'",
           "concurrently": false,
           "method": "btree",
           "with": {}
@@ -14617,6 +14960,18 @@
           "primaryKey": false,
           "notNull": false
         },
+        "assistant_conversation_id": {
+          "name": "assistant_conversation_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "context": {
+          "name": "context",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": false
+        },
         "created_at": {
           "name": "created_at",
           "type": "timestamp with time zone",
@@ -14671,6 +15026,19 @@
             "id"
           ],
           "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "support_tickets_assistant_conversation_id_assistant_conversations_id_fk": {
+          "name": "support_tickets_assistant_conversation_id_assistant_conversations_id_fk",
+          "tableFrom": "support_tickets",
+          "tableTo": "assistant_conversations",
+          "columnsFrom": [
+            "assistant_conversation_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "set null",
           "onUpdate": "no action"
         }
       },
@@ -14761,210 +15129,6 @@
       "uniqueConstraints": {},
       "policies": {},
       "checkConstraints": {},
-      "isRLSEnabled": false
-    },
-    "public.department_members": {
-      "name": "department_members",
-      "schema": "",
-      "columns": {
-        "id": {
-          "name": "id",
-          "type": "uuid",
-          "primaryKey": true,
-          "notNull": true,
-          "default": "gen_random_uuid()"
-        },
-        "department_id": {
-          "name": "department_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "org_membership_id": {
-          "name": "org_membership_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "user_id": {
-          "name": "user_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "display_name": {
-          "name": "display_name",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "workspace_id": {
-          "name": "workspace_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "department_position": {
-          "name": "department_position",
-          "type": "department_position",
-          "typeSchema": "public",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "'staff'"
-        },
-        "job_titles": {
-          "name": "job_titles",
-          "type": "jsonb",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "is_primary": {
-          "name": "is_primary",
-          "type": "boolean",
-          "primaryKey": false,
-          "notNull": true,
-          "default": false
-        },
-        "status": {
-          "name": "status",
-          "type": "department_member_status",
-          "typeSchema": "public",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "'active'"
-        },
-        "created_at": {
-          "name": "created_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "now()"
-        },
-        "updated_at": {
-          "name": "updated_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "now()"
-        }
-      },
-      "indexes": {
-        "department_members_department_idx": {
-          "name": "department_members_department_idx",
-          "columns": [
-            {
-              "expression": "department_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        },
-        "department_members_user_idx": {
-          "name": "department_members_user_idx",
-          "columns": [
-            {
-              "expression": "user_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        },
-        "department_members_active_uk": {
-          "name": "department_members_active_uk",
-          "columns": [
-            {
-              "expression": "department_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            },
-            {
-              "expression": "user_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": true,
-          "where": "\"department_members\".\"status\" = 'active'",
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        }
-      },
-      "foreignKeys": {
-        "department_members_department_id_departments_id_fk": {
-          "name": "department_members_department_id_departments_id_fk",
-          "tableFrom": "department_members",
-          "tableTo": "departments",
-          "columnsFrom": [
-            "department_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
-        },
-        "department_members_org_membership_id_org_memberships_id_fk": {
-          "name": "department_members_org_membership_id_org_memberships_id_fk",
-          "tableFrom": "department_members",
-          "tableTo": "org_memberships",
-          "columnsFrom": [
-            "org_membership_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
-        },
-        "department_members_user_id_users_id_fk": {
-          "name": "department_members_user_id_users_id_fk",
-          "tableFrom": "department_members",
-          "tableTo": "users",
-          "columnsFrom": [
-            "user_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "no action",
-          "onUpdate": "no action"
-        },
-        "department_members_workspace_id_workspaces_id_fk": {
-          "name": "department_members_workspace_id_workspaces_id_fk",
-          "tableFrom": "department_members",
-          "tableTo": "workspaces",
-          "columnsFrom": [
-            "workspace_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "no action",
-          "onUpdate": "no action"
-        }
-      },
-      "compositePrimaryKeys": {},
-      "uniqueConstraints": {},
-      "policies": {},
-      "checkConstraints": {
-        "department_members_person_ck": {
-          "name": "department_members_person_ck",
-          "value": "(\"department_members\".\"user_id\" is not null and \"department_members\".\"org_membership_id\" is not null) or (\"department_members\".\"user_id\" is null and \"department_members\".\"org_membership_id\" is null and \"department_members\".\"display_name\" is not null)"
-        }
-      },
       "isRLSEnabled": false
     },
     "public.departments": {
@@ -20723,8 +20887,8 @@
       "checkConstraints": {},
       "isRLSEnabled": false
     },
-    "public.payroll_runs": {
-      "name": "payroll_runs",
+    "public.psf_membership_applications": {
+      "name": "psf_membership_applications",
       "schema": "",
       "columns": {
         "id": {
@@ -20734,64 +20898,257 @@
           "notNull": true,
           "default": "gen_random_uuid()"
         },
-        "workspace_id": {
-          "name": "workspace_id",
+        "org_id": {
+          "name": "org_id",
           "type": "uuid",
           "primaryKey": false,
           "notNull": true
         },
-        "period_start": {
-          "name": "period_start",
-          "type": "timestamp with time zone",
+        "submitted_by_user_id": {
+          "name": "submitted_by_user_id",
+          "type": "uuid",
           "primaryKey": false,
           "notNull": true
         },
-        "period_end": {
-          "name": "period_end",
-          "type": "timestamp with time zone",
+        "submitted_capacity": {
+          "name": "submitted_capacity",
+          "type": "psf_submitted_capacity",
+          "typeSchema": "public",
           "primaryKey": false,
           "notNull": true
         },
         "status": {
           "name": "status",
-          "type": "payroll_run_status",
+          "type": "psf_application_status",
           "typeSchema": "public",
           "primaryKey": false,
           "notNull": true,
-          "default": "'draft'"
+          "default": "'submitted'"
         },
-        "approved_by_user_id": {
-          "name": "approved_by_user_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "approved_at": {
-          "name": "approved_at",
+        "queued_at": {
+          "name": "queued_at",
           "type": "timestamp with time zone",
           "primaryKey": false,
           "notNull": false
         },
-        "total_gross_rwf": {
-          "name": "total_gross_rwf",
+        "requested_tier_code": {
+          "name": "requested_tier_code",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "quoted_price_kind": {
+          "name": "quoted_price_kind",
+          "type": "psf_price_kind",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "quoted_fee_rwf": {
+          "name": "quoted_fee_rwf",
           "type": "bigint",
           "primaryKey": false,
-          "notNull": true,
-          "default": 0
+          "notNull": false
         },
-        "total_net_rwf": {
-          "name": "total_net_rwf",
+        "quoted_fee_min_rwf": {
+          "name": "quoted_fee_min_rwf",
           "type": "bigint",
           "primaryKey": false,
-          "notNull": true,
-          "default": 0
+          "notNull": false
         },
-        "currency": {
-          "name": "currency",
-          "type": "char(3)",
+        "quoted_fee_max_rwf": {
+          "name": "quoted_fee_max_rwf",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "company_name": {
+          "name": "company_name",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "registration_type": {
+          "name": "registration_type",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "registration_number": {
+          "name": "registration_number",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "website": {
+          "name": "website",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "street_address": {
+          "name": "street_address",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "company_type": {
+          "name": "company_type",
+          "type": "psf_company_type",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "ownership": {
+          "name": "ownership",
+          "type": "psf_ownership",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "ownership_other": {
+          "name": "ownership_other",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "business_activity": {
+          "name": "business_activity",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "trade_direction": {
+          "name": "trade_direction",
+          "type": "psf_trade_direction",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "trade_goods": {
+          "name": "trade_goods",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "trade_countries": {
+          "name": "trade_countries",
+          "type": "text[]",
           "primaryKey": false,
           "notNull": true,
-          "default": "'RWF'"
+          "default": "'{}'::text[]"
+        },
+        "contact_role": {
+          "name": "contact_role",
+          "type": "psf_contact_role",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "first_name": {
+          "name": "first_name",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "last_name": {
+          "name": "last_name",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "gender": {
+          "name": "gender",
+          "type": "gender",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "phone_e164": {
+          "name": "phone_e164",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "email": {
+          "name": "email",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "id_document_type": {
+          "name": "id_document_type",
+          "type": "document_type",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "id_document_number": {
+          "name": "id_document_number",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "date_of_birth": {
+          "name": "date_of_birth",
+          "type": "date",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "consent_given_at": {
+          "name": "consent_given_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "consent_version": {
+          "name": "consent_version",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "decided_at": {
+          "name": "decided_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "decided_by_user_id": {
+          "name": "decided_by_user_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "decision_body_code": {
+          "name": "decision_body_code",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "decline_reason": {
+          "name": "decline_reason",
+          "type": "psf_decline_reason",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "decision_note": {
+          "name": "decision_note",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "withdrawn_at": {
+          "name": "withdrawn_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "withdrawn_by_user_id": {
+          "name": "withdrawn_by_user_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
         },
         "created_at": {
           "name": "created_at",
@@ -20809,17 +21166,48 @@
         }
       },
       "indexes": {
-        "payroll_runs_workspace_idx": {
-          "name": "payroll_runs_workspace_idx",
+        "psf_membership_applications_one_open_uk": {
+          "name": "psf_membership_applications_one_open_uk",
           "columns": [
             {
-              "expression": "workspace_id",
+              "expression": "org_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "where": "\"psf_membership_applications\".\"status\" = 'submitted'",
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "psf_membership_applications_org_idx": {
+          "name": "psf_membership_applications_org_idx",
+          "columns": [
+            {
+              "expression": "org_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "psf_membership_applications_queue_idx": {
+          "name": "psf_membership_applications_queue_idx",
+          "columns": [
+            {
+              "expression": "status",
               "isExpression": false,
               "asc": true,
               "nulls": "last"
             },
             {
-              "expression": "status",
+              "expression": "queued_at",
               "isExpression": false,
               "asc": true,
               "nulls": "last"
@@ -20832,12 +21220,25 @@
         }
       },
       "foreignKeys": {
-        "payroll_runs_workspace_id_workspaces_id_fk": {
-          "name": "payroll_runs_workspace_id_workspaces_id_fk",
-          "tableFrom": "payroll_runs",
-          "tableTo": "workspaces",
+        "psf_membership_applications_org_id_orgs_id_fk": {
+          "name": "psf_membership_applications_org_id_orgs_id_fk",
+          "tableFrom": "psf_membership_applications",
+          "tableTo": "orgs",
           "columnsFrom": [
-            "workspace_id"
+            "org_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "psf_membership_applications_submitted_by_user_id_users_id_fk": {
+          "name": "psf_membership_applications_submitted_by_user_id_users_id_fk",
+          "tableFrom": "psf_membership_applications",
+          "tableTo": "users",
+          "columnsFrom": [
+            "submitted_by_user_id"
           ],
           "columnsTo": [
             "id"
@@ -20845,12 +21246,38 @@
           "onDelete": "no action",
           "onUpdate": "no action"
         },
-        "payroll_runs_approved_by_user_id_users_id_fk": {
-          "name": "payroll_runs_approved_by_user_id_users_id_fk",
-          "tableFrom": "payroll_runs",
+        "psf_membership_applications_requested_tier_code_psf_membership_tiers_code_fk": {
+          "name": "psf_membership_applications_requested_tier_code_psf_membership_tiers_code_fk",
+          "tableFrom": "psf_membership_applications",
+          "tableTo": "psf_membership_tiers",
+          "columnsFrom": [
+            "requested_tier_code"
+          ],
+          "columnsTo": [
+            "code"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "psf_membership_applications_decided_by_user_id_users_id_fk": {
+          "name": "psf_membership_applications_decided_by_user_id_users_id_fk",
+          "tableFrom": "psf_membership_applications",
           "tableTo": "users",
           "columnsFrom": [
-            "approved_by_user_id"
+            "decided_by_user_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "psf_membership_applications_withdrawn_by_user_id_users_id_fk": {
+          "name": "psf_membership_applications_withdrawn_by_user_id_users_id_fk",
+          "tableFrom": "psf_membership_applications",
+          "tableTo": "users",
+          "columnsFrom": [
+            "withdrawn_by_user_id"
           ],
           "columnsTo": [
             "id"
@@ -20860,23 +21287,158 @@
         }
       },
       "compositePrimaryKeys": {},
-      "uniqueConstraints": {
-        "payroll_runs_workspace_period_uk": {
-          "name": "payroll_runs_workspace_period_uk",
-          "nullsNotDistinct": false,
-          "columns": [
-            "workspace_id",
-            "period_start",
-            "period_end"
-          ]
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {
+        "psf_membership_applications_ownership_shape": {
+          "name": "psf_membership_applications_ownership_shape",
+          "value": "(\"psf_membership_applications\".\"ownership\" = 'other') = (\"psf_membership_applications\".\"ownership_other\" IS NOT NULL)"
+        },
+        "psf_membership_applications_trade_shape": {
+          "name": "psf_membership_applications_trade_shape",
+          "value": "(\"psf_membership_applications\".\"trade_direction\" = 'none' AND \"psf_membership_applications\".\"trade_goods\" IS NULL AND cardinality(\"psf_membership_applications\".\"trade_countries\") = 0)\n          OR (\"psf_membership_applications\".\"trade_direction\" <> 'none' AND \"psf_membership_applications\".\"trade_goods\" IS NOT NULL AND cardinality(\"psf_membership_applications\".\"trade_countries\") > 0)"
+        },
+        "psf_membership_applications_person_shape": {
+          "name": "psf_membership_applications_person_shape",
+          "value": "\"psf_membership_applications\".\"gender\" IN ('male', 'female') AND \"psf_membership_applications\".\"id_document_type\" IN ('national_id', 'passport')"
+        },
+        "psf_membership_applications_decision_shape": {
+          "name": "psf_membership_applications_decision_shape",
+          "value": "(\"psf_membership_applications\".\"status\" IN ('member', 'declined')) = (\"psf_membership_applications\".\"decided_at\" IS NOT NULL AND \"psf_membership_applications\".\"decided_by_user_id\" IS NOT NULL AND \"psf_membership_applications\".\"decision_body_code\" IS NOT NULL)\n          AND (\"psf_membership_applications\".\"status\" = 'declined') = (\"psf_membership_applications\".\"decline_reason\" IS NOT NULL)\n          AND (\"psf_membership_applications\".\"decline_reason\" IS DISTINCT FROM 'other' OR \"psf_membership_applications\".\"decision_note\" IS NOT NULL)\n          AND (\"psf_membership_applications\".\"status\" = 'withdrawn') = (\"psf_membership_applications\".\"withdrawn_at\" IS NOT NULL AND \"psf_membership_applications\".\"withdrawn_by_user_id\" IS NOT NULL)"
         }
       },
-      "policies": {},
-      "checkConstraints": {},
       "isRLSEnabled": false
     },
-    "public.payslips": {
-      "name": "payslips",
+    "public.psf_membership_tiers": {
+      "name": "psf_membership_tiers",
+      "schema": "",
+      "columns": {
+        "code": {
+          "name": "code",
+          "type": "text",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "family": {
+          "name": "family",
+          "type": "psf_membership_family",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "name_en": {
+          "name": "name_en",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "name_rw": {
+          "name": "name_rw",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "price_kind": {
+          "name": "price_kind",
+          "type": "psf_price_kind",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "annual_fee_rwf": {
+          "name": "annual_fee_rwf",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "annual_fee_min_rwf": {
+          "name": "annual_fee_min_rwf",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "annual_fee_max_rwf": {
+          "name": "annual_fee_max_rwf",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "benefits_en": {
+          "name": "benefits_en",
+          "type": "text[]",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'{}'::text[]"
+        },
+        "benefits_rw": {
+          "name": "benefits_rw",
+          "type": "text[]",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "sort_order": {
+          "name": "sort_order",
+          "type": "smallint",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "active": {
+          "name": "active",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "default": true
+        },
+        "updated_by_user_id": {
+          "name": "updated_by_user_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "psf_membership_tiers_updated_by_user_id_users_id_fk": {
+          "name": "psf_membership_tiers_updated_by_user_id_users_id_fk",
+          "tableFrom": "psf_membership_tiers",
+          "tableTo": "users",
+          "columnsFrom": [
+            "updated_by_user_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {
+        "psf_membership_tiers_price_shape": {
+          "name": "psf_membership_tiers_price_shape",
+          "value": "(\"psf_membership_tiers\".\"price_kind\" = 'fixed' AND \"psf_membership_tiers\".\"annual_fee_rwf\" IS NOT NULL AND \"psf_membership_tiers\".\"annual_fee_rwf\" > 0\n            AND \"psf_membership_tiers\".\"annual_fee_min_rwf\" IS NULL AND \"psf_membership_tiers\".\"annual_fee_max_rwf\" IS NULL)\n          OR (\"psf_membership_tiers\".\"price_kind\" = 'range' AND \"psf_membership_tiers\".\"annual_fee_rwf\" IS NULL\n            AND \"psf_membership_tiers\".\"annual_fee_min_rwf\" IS NOT NULL AND \"psf_membership_tiers\".\"annual_fee_max_rwf\" IS NOT NULL\n            AND \"psf_membership_tiers\".\"annual_fee_min_rwf\" > 0 AND \"psf_membership_tiers\".\"annual_fee_min_rwf\" < \"psf_membership_tiers\".\"annual_fee_max_rwf\")\n          OR (\"psf_membership_tiers\".\"price_kind\" = 'set_by_psf' AND \"psf_membership_tiers\".\"annual_fee_rwf\" IS NULL\n            AND \"psf_membership_tiers\".\"annual_fee_min_rwf\" IS NULL AND \"psf_membership_tiers\".\"annual_fee_max_rwf\" IS NULL)"
+        }
+      },
+      "isRLSEnabled": false
+    },
+    "public.psf_memberships": {
+      "name": "psf_memberships",
       "schema": "",
       "columns": {
         "id": {
@@ -20886,80 +21448,275 @@
           "notNull": true,
           "default": "gen_random_uuid()"
         },
-        "payroll_run_id": {
-          "name": "payroll_run_id",
+        "org_id": {
+          "name": "org_id",
           "type": "uuid",
           "primaryKey": false,
           "notNull": true
         },
-        "department_member_id": {
-          "name": "department_member_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "workspace_id": {
-          "name": "workspace_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "gross_rwf": {
-          "name": "gross_rwf",
-          "type": "bigint",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "paye_rwf": {
-          "name": "paye_rwf",
-          "type": "bigint",
-          "primaryKey": false,
-          "notNull": true,
-          "default": 0
-        },
-        "rssb_employee_rwf": {
-          "name": "rssb_employee_rwf",
-          "type": "bigint",
-          "primaryKey": false,
-          "notNull": true,
-          "default": 0
-        },
-        "rssb_employer_rwf": {
-          "name": "rssb_employer_rwf",
-          "type": "bigint",
-          "primaryKey": false,
-          "notNull": true,
-          "default": 0
-        },
-        "net_rwf": {
-          "name": "net_rwf",
-          "type": "bigint",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "currency": {
-          "name": "currency",
-          "type": "char(3)",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "'RWF'"
-        },
-        "status": {
-          "name": "status",
-          "type": "payslip_status",
+        "source": {
+          "name": "source",
+          "type": "psf_membership_source",
           "typeSchema": "public",
           "primaryKey": false,
-          "notNull": true,
-          "default": "'pending'"
+          "notNull": true
         },
-        "paid_at": {
-          "name": "paid_at",
+        "application_id": {
+          "name": "application_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "tier_code": {
+          "name": "tier_code",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "membership_number": {
+          "name": "membership_number",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "annual_fee_rwf": {
+          "name": "annual_fee_rwf",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "starts_on": {
+          "name": "starts_on",
+          "type": "date",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "expires_on": {
+          "name": "expires_on",
+          "type": "date",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "recorded_by_user_id": {
+          "name": "recorded_by_user_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "expiry_reminded_at": {
+          "name": "expiry_reminded_at",
           "type": "timestamp with time zone",
           "primaryKey": false,
           "notNull": false
         },
-        "idempotency_key": {
-          "name": "idempotency_key",
+        "ended_at": {
+          "name": "ended_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "psf_memberships_one_current_uk": {
+          "name": "psf_memberships_one_current_uk",
+          "columns": [
+            {
+              "expression": "org_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "where": "\"psf_memberships\".\"ended_at\" IS NULL",
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "psf_memberships_expiry_idx": {
+          "name": "psf_memberships_expiry_idx",
+          "columns": [
+            {
+              "expression": "expires_on",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "psf_memberships_org_id_orgs_id_fk": {
+          "name": "psf_memberships_org_id_orgs_id_fk",
+          "tableFrom": "psf_memberships",
+          "tableTo": "orgs",
+          "columnsFrom": [
+            "org_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "psf_memberships_application_id_psf_membership_applications_id_fk": {
+          "name": "psf_memberships_application_id_psf_membership_applications_id_fk",
+          "tableFrom": "psf_memberships",
+          "tableTo": "psf_membership_applications",
+          "columnsFrom": [
+            "application_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "psf_memberships_tier_code_psf_membership_tiers_code_fk": {
+          "name": "psf_memberships_tier_code_psf_membership_tiers_code_fk",
+          "tableFrom": "psf_memberships",
+          "tableTo": "psf_membership_tiers",
+          "columnsFrom": [
+            "tier_code"
+          ],
+          "columnsTo": [
+            "code"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "psf_memberships_recorded_by_user_id_users_id_fk": {
+          "name": "psf_memberships_recorded_by_user_id_users_id_fk",
+          "tableFrom": "psf_memberships",
+          "tableTo": "users",
+          "columnsFrom": [
+            "recorded_by_user_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {
+        "psf_memberships_source_shape": {
+          "name": "psf_memberships_source_shape",
+          "value": "(\"psf_memberships\".\"source\" = 'psf_confirmed' AND \"psf_memberships\".\"application_id\" IS NOT NULL AND \"psf_memberships\".\"tier_code\" IS NOT NULL\n            AND \"psf_memberships\".\"annual_fee_rwf\" IS NOT NULL AND \"psf_memberships\".\"starts_on\" IS NOT NULL AND \"psf_memberships\".\"expires_on\" IS NOT NULL\n            AND \"psf_memberships\".\"expires_on\" > \"psf_memberships\".\"starts_on\")\n          OR (\"psf_memberships\".\"source\" = 'self_declared' AND \"psf_memberships\".\"application_id\" IS NULL)"
+        }
+      },
+      "isRLSEnabled": false
+    },
+    "public.attendance_records": {
+      "name": "attendance_records",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "org_id": {
+          "name": "org_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "employee_id": {
+          "name": "employee_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "roster_entry_id": {
+          "name": "roster_entry_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "work_date": {
+          "name": "work_date",
+          "type": "date",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "clock_in_at": {
+          "name": "clock_in_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "clock_out_at": {
+          "name": "clock_out_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "source": {
+          "name": "source",
+          "type": "hr_attendance_source",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "recorded_by_user_id": {
+          "name": "recorded_by_user_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "validated": {
+          "name": "validated",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "default": false
+        },
+        "validated_by_user_id": {
+          "name": "validated_by_user_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "status": {
+          "name": "status",
+          "type": "hr_attendance_status",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'open'"
+        },
+        "supersedes_id": {
+          "name": "supersedes_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "note": {
+          "name": "note",
           "type": "text",
           "primaryKey": false,
           "notNull": false
@@ -20980,11 +21737,49 @@
         }
       },
       "indexes": {
-        "payslips_run_idx": {
-          "name": "payslips_run_idx",
+        "attendance_records_one_open_uk": {
+          "name": "attendance_records_one_open_uk",
           "columns": [
             {
-              "expression": "payroll_run_id",
+              "expression": "employee_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "where": "\"attendance_records\".\"status\" = 'open'",
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "attendance_records_supersedes_uk": {
+          "name": "attendance_records_supersedes_uk",
+          "columns": [
+            {
+              "expression": "supersedes_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "where": "\"attendance_records\".\"supersedes_id\" IS NOT NULL",
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "attendance_records_employee_date_idx": {
+          "name": "attendance_records_employee_date_idx",
+          "columns": [
+            {
+              "expression": "employee_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "work_date",
               "isExpression": false,
               "asc": true,
               "nulls": "last"
@@ -20995,11 +21790,17 @@
           "method": "btree",
           "with": {}
         },
-        "payslips_member_idx": {
-          "name": "payslips_member_idx",
+        "attendance_records_org_date_idx": {
+          "name": "attendance_records_org_date_idx",
           "columns": [
             {
-              "expression": "department_member_id",
+              "expression": "org_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "work_date",
               "isExpression": false,
               "asc": true,
               "nulls": "last"
@@ -21012,12 +21813,12 @@
         }
       },
       "foreignKeys": {
-        "payslips_payroll_run_id_payroll_runs_id_fk": {
-          "name": "payslips_payroll_run_id_payroll_runs_id_fk",
-          "tableFrom": "payslips",
-          "tableTo": "payroll_runs",
+        "attendance_records_org_id_orgs_id_fk": {
+          "name": "attendance_records_org_id_orgs_id_fk",
+          "tableFrom": "attendance_records",
+          "tableTo": "orgs",
           "columnsFrom": [
-            "payroll_run_id"
+            "org_id"
           ],
           "columnsTo": [
             "id"
@@ -21025,12 +21826,12 @@
           "onDelete": "cascade",
           "onUpdate": "no action"
         },
-        "payslips_department_member_id_department_members_id_fk": {
-          "name": "payslips_department_member_id_department_members_id_fk",
-          "tableFrom": "payslips",
-          "tableTo": "department_members",
+        "attendance_records_employee_id_employees_id_fk": {
+          "name": "attendance_records_employee_id_employees_id_fk",
+          "tableFrom": "attendance_records",
+          "tableTo": "employees",
           "columnsFrom": [
-            "department_member_id"
+            "employee_id"
           ],
           "columnsTo": [
             "id"
@@ -21038,12 +21839,51 @@
           "onDelete": "no action",
           "onUpdate": "no action"
         },
-        "payslips_workspace_id_workspaces_id_fk": {
-          "name": "payslips_workspace_id_workspaces_id_fk",
-          "tableFrom": "payslips",
-          "tableTo": "workspaces",
+        "attendance_records_roster_entry_id_roster_entries_id_fk": {
+          "name": "attendance_records_roster_entry_id_roster_entries_id_fk",
+          "tableFrom": "attendance_records",
+          "tableTo": "roster_entries",
           "columnsFrom": [
-            "workspace_id"
+            "roster_entry_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "attendance_records_recorded_by_user_id_users_id_fk": {
+          "name": "attendance_records_recorded_by_user_id_users_id_fk",
+          "tableFrom": "attendance_records",
+          "tableTo": "users",
+          "columnsFrom": [
+            "recorded_by_user_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "attendance_records_validated_by_user_id_users_id_fk": {
+          "name": "attendance_records_validated_by_user_id_users_id_fk",
+          "tableFrom": "attendance_records",
+          "tableTo": "users",
+          "columnsFrom": [
+            "validated_by_user_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "attendance_records_supersedes_id_attendance_records_id_fk": {
+          "name": "attendance_records_supersedes_id_attendance_records_id_fk",
+          "tableFrom": "attendance_records",
+          "tableTo": "attendance_records",
+          "columnsFrom": [
+            "supersedes_id"
           ],
           "columnsTo": [
             "id"
@@ -21053,29 +21893,18 @@
         }
       },
       "compositePrimaryKeys": {},
-      "uniqueConstraints": {
-        "payslips_run_member_uk": {
-          "name": "payslips_run_member_uk",
-          "nullsNotDistinct": false,
-          "columns": [
-            "payroll_run_id",
-            "department_member_id"
-          ]
-        },
-        "payslips_idempotency_key_uk": {
-          "name": "payslips_idempotency_key_uk",
-          "nullsNotDistinct": false,
-          "columns": [
-            "idempotency_key"
-          ]
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {
+        "attendance_records_times_ck": {
+          "name": "attendance_records_times_ck",
+          "value": "\"attendance_records\".\"clock_out_at\" IS NULL OR \"attendance_records\".\"clock_out_at\" > \"attendance_records\".\"clock_in_at\""
         }
       },
-      "policies": {},
-      "checkConstraints": {},
       "isRLSEnabled": false
     },
-    "public.staff_compensation": {
-      "name": "staff_compensation",
+    "public.department_members": {
+      "name": "department_members",
       "schema": "",
       "columns": {
         "id": {
@@ -21085,11 +21914,29 @@
           "notNull": true,
           "default": "gen_random_uuid()"
         },
-        "department_member_id": {
-          "name": "department_member_id",
+        "department_id": {
+          "name": "department_id",
           "type": "uuid",
           "primaryKey": false,
           "notNull": true
+        },
+        "org_membership_id": {
+          "name": "org_membership_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "user_id": {
+          "name": "user_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "employee_id": {
+          "name": "employee_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
         },
         "workspace_id": {
           "name": "workspace_id",
@@ -21097,28 +21944,30 @@
           "primaryKey": false,
           "notNull": true
         },
-        "base_salary_rwf": {
-          "name": "base_salary_rwf",
-          "type": "bigint",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "currency": {
-          "name": "currency",
-          "type": "char(3)",
+        "department_position": {
+          "name": "department_position",
+          "type": "department_position",
+          "typeSchema": "public",
           "primaryKey": false,
           "notNull": true,
-          "default": "'RWF'"
+          "default": "'staff'"
         },
-        "effective_from": {
-          "name": "effective_from",
-          "type": "timestamp with time zone",
+        "job_titles": {
+          "name": "job_titles",
+          "type": "jsonb",
           "primaryKey": false,
-          "notNull": true
+          "notNull": false
+        },
+        "is_primary": {
+          "name": "is_primary",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "default": false
         },
         "status": {
           "name": "status",
-          "type": "compensation_status",
+          "type": "department_member_status",
           "typeSchema": "public",
           "primaryKey": false,
           "notNull": true,
@@ -21140,11 +21989,11 @@
         }
       },
       "indexes": {
-        "staff_compensation_member_idx": {
-          "name": "staff_compensation_member_idx",
+        "department_members_department_idx": {
+          "name": "department_members_department_idx",
           "columns": [
             {
-              "expression": "department_member_id",
+              "expression": "department_id",
               "isExpression": false,
               "asc": true,
               "nulls": "last"
@@ -21155,11 +22004,11 @@
           "method": "btree",
           "with": {}
         },
-        "staff_compensation_workspace_idx": {
-          "name": "staff_compensation_workspace_idx",
+        "department_members_user_idx": {
+          "name": "department_members_user_idx",
           "columns": [
             {
-              "expression": "workspace_id",
+              "expression": "user_id",
               "isExpression": false,
               "asc": true,
               "nulls": "last"
@@ -21169,482 +22018,71 @@
           "concurrently": false,
           "method": "btree",
           "with": {}
-        }
-      },
-      "foreignKeys": {
-        "staff_compensation_department_member_id_department_members_id_fk": {
-          "name": "staff_compensation_department_member_id_department_members_id_fk",
-          "tableFrom": "staff_compensation",
-          "tableTo": "department_members",
-          "columnsFrom": [
-            "department_member_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
         },
-        "staff_compensation_workspace_id_workspaces_id_fk": {
-          "name": "staff_compensation_workspace_id_workspaces_id_fk",
-          "tableFrom": "staff_compensation",
-          "tableTo": "workspaces",
-          "columnsFrom": [
-            "workspace_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "no action",
-          "onUpdate": "no action"
-        }
-      },
-      "compositePrimaryKeys": {},
-      "uniqueConstraints": {},
-      "policies": {},
-      "checkConstraints": {},
-      "isRLSEnabled": false
-    },
-    "public.employment_history": {
-      "name": "employment_history",
-      "schema": "",
-      "columns": {
-        "id": {
-          "name": "id",
-          "type": "uuid",
-          "primaryKey": true,
-          "notNull": true,
-          "default": "gen_random_uuid()"
-        },
-        "department_member_id": {
-          "name": "department_member_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "workspace_id": {
-          "name": "workspace_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "event_type": {
-          "name": "event_type",
-          "type": "employment_event_type",
-          "typeSchema": "public",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "job_title": {
-          "name": "job_title",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "employment_type": {
-          "name": "employment_type",
-          "type": "employment_type",
-          "typeSchema": "public",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "note": {
-          "name": "note",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "effective_from": {
-          "name": "effective_from",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "recorded_by_user_id": {
-          "name": "recorded_by_user_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "created_at": {
-          "name": "created_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "now()"
-        },
-        "updated_at": {
-          "name": "updated_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "now()"
-        }
-      },
-      "indexes": {
-        "employment_history_member_idx": {
-          "name": "employment_history_member_idx",
+        "department_members_employee_idx": {
+          "name": "department_members_employee_idx",
           "columns": [
             {
-              "expression": "department_member_id",
+              "expression": "employee_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "department_members_active_uk": {
+          "name": "department_members_active_uk",
+          "columns": [
+            {
+              "expression": "department_id",
               "isExpression": false,
               "asc": true,
               "nulls": "last"
             },
             {
-              "expression": "effective_from",
+              "expression": "user_id",
               "isExpression": false,
               "asc": true,
               "nulls": "last"
             }
           ],
-          "isUnique": false,
+          "isUnique": true,
+          "where": "\"department_members\".\"status\" = 'active'",
           "concurrently": false,
           "method": "btree",
           "with": {}
         },
-        "employment_history_workspace_idx": {
-          "name": "employment_history_workspace_idx",
+        "department_members_active_employee_uk": {
+          "name": "department_members_active_employee_uk",
           "columns": [
             {
-              "expression": "workspace_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        }
-      },
-      "foreignKeys": {
-        "employment_history_department_member_id_department_members_id_fk": {
-          "name": "employment_history_department_member_id_department_members_id_fk",
-          "tableFrom": "employment_history",
-          "tableTo": "department_members",
-          "columnsFrom": [
-            "department_member_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
-        },
-        "employment_history_workspace_id_workspaces_id_fk": {
-          "name": "employment_history_workspace_id_workspaces_id_fk",
-          "tableFrom": "employment_history",
-          "tableTo": "workspaces",
-          "columnsFrom": [
-            "workspace_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "no action",
-          "onUpdate": "no action"
-        },
-        "employment_history_recorded_by_user_id_users_id_fk": {
-          "name": "employment_history_recorded_by_user_id_users_id_fk",
-          "tableFrom": "employment_history",
-          "tableTo": "users",
-          "columnsFrom": [
-            "recorded_by_user_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "no action",
-          "onUpdate": "no action"
-        }
-      },
-      "compositePrimaryKeys": {},
-      "uniqueConstraints": {},
-      "policies": {},
-      "checkConstraints": {},
-      "isRLSEnabled": false
-    },
-    "public.checklist_items": {
-      "name": "checklist_items",
-      "schema": "",
-      "columns": {
-        "id": {
-          "name": "id",
-          "type": "uuid",
-          "primaryKey": true,
-          "notNull": true,
-          "default": "gen_random_uuid()"
-        },
-        "department_member_id": {
-          "name": "department_member_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "workspace_id": {
-          "name": "workspace_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "kind": {
-          "name": "kind",
-          "type": "checklist_kind",
-          "typeSchema": "public",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "label": {
-          "name": "label",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "sort_order": {
-          "name": "sort_order",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true,
-          "default": 0
-        },
-        "assignee_role": {
-          "name": "assignee_role",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "begin_on_days": {
-          "name": "begin_on_days",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true,
-          "default": 0
-        },
-        "due_date": {
-          "name": "due_date",
-          "type": "date",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "done": {
-          "name": "done",
-          "type": "boolean",
-          "primaryKey": false,
-          "notNull": true,
-          "default": false
-        },
-        "completed_at": {
-          "name": "completed_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "completed_by_user_id": {
-          "name": "completed_by_user_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "created_at": {
-          "name": "created_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "now()"
-        },
-        "updated_at": {
-          "name": "updated_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "now()"
-        }
-      },
-      "indexes": {
-        "checklist_items_member_idx": {
-          "name": "checklist_items_member_idx",
-          "columns": [
-            {
-              "expression": "department_member_id",
+              "expression": "department_id",
               "isExpression": false,
               "asc": true,
               "nulls": "last"
             },
             {
-              "expression": "kind",
+              "expression": "employee_id",
               "isExpression": false,
               "asc": true,
               "nulls": "last"
             }
           ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        },
-        "checklist_items_workspace_idx": {
-          "name": "checklist_items_workspace_idx",
-          "columns": [
-            {
-              "expression": "workspace_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
+          "isUnique": true,
+          "where": "\"department_members\".\"status\" = 'active' AND \"department_members\".\"employee_id\" IS NOT NULL",
           "concurrently": false,
           "method": "btree",
           "with": {}
         }
       },
       "foreignKeys": {
-        "checklist_items_department_member_id_department_members_id_fk": {
-          "name": "checklist_items_department_member_id_department_members_id_fk",
-          "tableFrom": "checklist_items",
-          "tableTo": "department_members",
-          "columnsFrom": [
-            "department_member_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
-        },
-        "checklist_items_workspace_id_workspaces_id_fk": {
-          "name": "checklist_items_workspace_id_workspaces_id_fk",
-          "tableFrom": "checklist_items",
-          "tableTo": "workspaces",
-          "columnsFrom": [
-            "workspace_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "no action",
-          "onUpdate": "no action"
-        },
-        "checklist_items_completed_by_user_id_users_id_fk": {
-          "name": "checklist_items_completed_by_user_id_users_id_fk",
-          "tableFrom": "checklist_items",
-          "tableTo": "users",
-          "columnsFrom": [
-            "completed_by_user_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "no action",
-          "onUpdate": "no action"
-        }
-      },
-      "compositePrimaryKeys": {},
-      "uniqueConstraints": {},
-      "policies": {},
-      "checkConstraints": {},
-      "isRLSEnabled": false
-    },
-    "public.checklist_template_items": {
-      "name": "checklist_template_items",
-      "schema": "",
-      "columns": {
-        "id": {
-          "name": "id",
-          "type": "uuid",
-          "primaryKey": true,
-          "notNull": true,
-          "default": "gen_random_uuid()"
-        },
-        "template_id": {
-          "name": "template_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "label": {
-          "name": "label",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "sort_order": {
-          "name": "sort_order",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true,
-          "default": 0
-        },
-        "assignee_role": {
-          "name": "assignee_role",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "begin_on_days": {
-          "name": "begin_on_days",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true,
-          "default": 0
-        },
-        "department_id": {
-          "name": "department_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "created_at": {
-          "name": "created_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "now()"
-        },
-        "updated_at": {
-          "name": "updated_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "now()"
-        }
-      },
-      "indexes": {
-        "checklist_template_items_template_idx": {
-          "name": "checklist_template_items_template_idx",
-          "columns": [
-            {
-              "expression": "template_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        }
-      },
-      "foreignKeys": {
-        "checklist_template_items_template_id_checklist_templates_id_fk": {
-          "name": "checklist_template_items_template_id_checklist_templates_id_fk",
-          "tableFrom": "checklist_template_items",
-          "tableTo": "checklist_templates",
-          "columnsFrom": [
-            "template_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
-        },
-        "checklist_template_items_department_id_departments_id_fk": {
-          "name": "checklist_template_items_department_id_departments_id_fk",
-          "tableFrom": "checklist_template_items",
+        "department_members_department_id_departments_id_fk": {
+          "name": "department_members_department_id_departments_id_fk",
+          "tableFrom": "department_members",
           "tableTo": "departments",
           "columnsFrom": [
             "department_id"
@@ -21652,18 +22090,75 @@
           "columnsTo": [
             "id"
           ],
-          "onDelete": "set null",
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "department_members_org_membership_id_org_memberships_id_fk": {
+          "name": "department_members_org_membership_id_org_memberships_id_fk",
+          "tableFrom": "department_members",
+          "tableTo": "org_memberships",
+          "columnsFrom": [
+            "org_membership_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "department_members_user_id_users_id_fk": {
+          "name": "department_members_user_id_users_id_fk",
+          "tableFrom": "department_members",
+          "tableTo": "users",
+          "columnsFrom": [
+            "user_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "department_members_employee_id_employees_id_fk": {
+          "name": "department_members_employee_id_employees_id_fk",
+          "tableFrom": "department_members",
+          "tableTo": "employees",
+          "columnsFrom": [
+            "employee_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "department_members_workspace_id_workspaces_id_fk": {
+          "name": "department_members_workspace_id_workspaces_id_fk",
+          "tableFrom": "department_members",
+          "tableTo": "workspaces",
+          "columnsFrom": [
+            "workspace_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
           "onUpdate": "no action"
         }
       },
       "compositePrimaryKeys": {},
       "uniqueConstraints": {},
       "policies": {},
-      "checkConstraints": {},
+      "checkConstraints": {
+        "department_members_person_ck": {
+          "name": "department_members_person_ck",
+          "value": "\"department_members\".\"employee_id\" IS NOT NULL OR \"department_members\".\"org_membership_id\" IS NOT NULL"
+        }
+      },
       "isRLSEnabled": false
     },
-    "public.checklist_templates": {
-      "name": "checklist_templates",
+    "public.employees": {
+      "name": "employees",
       "schema": "",
       "columns": {
         "id": {
@@ -21673,31 +22168,123 @@
           "notNull": true,
           "default": "gen_random_uuid()"
         },
-        "workspace_id": {
-          "name": "workspace_id",
+        "org_id": {
+          "name": "org_id",
           "type": "uuid",
           "primaryKey": false,
           "notNull": true
         },
-        "kind": {
-          "name": "kind",
-          "type": "checklist_kind",
-          "typeSchema": "public",
+        "org_membership_id": {
+          "name": "org_membership_id",
+          "type": "uuid",
           "primaryKey": false,
-          "notNull": true
+          "notNull": false
         },
-        "name": {
-          "name": "name",
+        "employee_number": {
+          "name": "employee_number",
           "type": "text",
           "primaryKey": false,
           "notNull": true
         },
-        "is_default": {
-          "name": "is_default",
-          "type": "boolean",
+        "legal_name": {
+          "name": "legal_name",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "preferred_name": {
+          "name": "preferred_name",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "phone": {
+          "name": "phone",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "email": {
+          "name": "email",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "date_of_birth": {
+          "name": "date_of_birth",
+          "type": "date",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "sex": {
+          "name": "sex",
+          "type": "hr_sex",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "id_document_type": {
+          "name": "id_document_type",
+          "type": "hr_id_document_type",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "id_document_number": {
+          "name": "id_document_number",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "rssb_number": {
+          "name": "rssb_number",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "work_property_id": {
+          "name": "work_property_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "job_position_id": {
+          "name": "job_position_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "reporting_manager_id": {
+          "name": "reporting_manager_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "hired_on": {
+          "name": "hired_on",
+          "type": "date",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "status": {
+          "name": "status",
+          "type": "hr_employee_status",
+          "typeSchema": "public",
           "primaryKey": false,
           "notNull": true,
-          "default": false
+          "default": "'active'"
+        },
+        "offboarded_on": {
+          "name": "offboarded_on",
+          "type": "date",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "offboard_reason": {
+          "name": "offboard_reason",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
         },
         "created_at": {
           "name": "created_at",
@@ -21715,17 +22302,61 @@
         }
       },
       "indexes": {
-        "checklist_templates_workspace_idx": {
-          "name": "checklist_templates_workspace_idx",
+        "employees_membership_uk": {
+          "name": "employees_membership_uk",
           "columns": [
             {
-              "expression": "workspace_id",
+              "expression": "org_membership_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "where": "\"employees\".\"org_membership_id\" IS NOT NULL",
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "employees_id_document_uk": {
+          "name": "employees_id_document_uk",
+          "columns": [
+            {
+              "expression": "org_id",
               "isExpression": false,
               "asc": true,
               "nulls": "last"
             },
             {
-              "expression": "kind",
+              "expression": "id_document_type",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "id_document_number",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "where": "\"employees\".\"id_document_number\" IS NOT NULL",
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "employees_org_status_idx": {
+          "name": "employees_org_status_idx",
+          "columns": [
+            {
+              "expression": "org_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "status",
               "isExpression": false,
               "asc": true,
               "nulls": "last"
@@ -21736,36 +22367,306 @@
           "method": "btree",
           "with": {}
         },
-        "checklist_templates_one_default_uk": {
-          "name": "checklist_templates_one_default_uk",
+        "employees_work_property_idx": {
+          "name": "employees_work_property_idx",
           "columns": [
             {
-              "expression": "workspace_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            },
-            {
-              "expression": "kind",
+              "expression": "work_property_id",
               "isExpression": false,
               "asc": true,
               "nulls": "last"
             }
           ],
-          "isUnique": true,
-          "where": "\"checklist_templates\".\"is_default\"",
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "employees_reporting_manager_idx": {
+          "name": "employees_reporting_manager_idx",
+          "columns": [
+            {
+              "expression": "reporting_manager_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
           "concurrently": false,
           "method": "btree",
           "with": {}
         }
       },
       "foreignKeys": {
-        "checklist_templates_workspace_id_workspaces_id_fk": {
-          "name": "checklist_templates_workspace_id_workspaces_id_fk",
-          "tableFrom": "checklist_templates",
-          "tableTo": "workspaces",
+        "employees_org_id_orgs_id_fk": {
+          "name": "employees_org_id_orgs_id_fk",
+          "tableFrom": "employees",
+          "tableTo": "orgs",
           "columnsFrom": [
-            "workspace_id"
+            "org_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "employees_org_membership_id_org_memberships_id_fk": {
+          "name": "employees_org_membership_id_org_memberships_id_fk",
+          "tableFrom": "employees",
+          "tableTo": "org_memberships",
+          "columnsFrom": [
+            "org_membership_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "employees_work_property_id_properties_id_fk": {
+          "name": "employees_work_property_id_properties_id_fk",
+          "tableFrom": "employees",
+          "tableTo": "properties",
+          "columnsFrom": [
+            "work_property_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "employees_job_position_id_job_positions_id_fk": {
+          "name": "employees_job_position_id_job_positions_id_fk",
+          "tableFrom": "employees",
+          "tableTo": "job_positions",
+          "columnsFrom": [
+            "job_position_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "employees_reporting_manager_id_employees_id_fk": {
+          "name": "employees_reporting_manager_id_employees_id_fk",
+          "tableFrom": "employees",
+          "tableTo": "employees",
+          "columnsFrom": [
+            "reporting_manager_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {
+        "employees_number_uk": {
+          "name": "employees_number_uk",
+          "nullsNotDistinct": false,
+          "columns": [
+            "org_id",
+            "employee_number"
+          ]
+        }
+      },
+      "policies": {},
+      "checkConstraints": {
+        "employees_offboarded_ck": {
+          "name": "employees_offboarded_ck",
+          "value": "(\"employees\".\"status\" = 'offboarded') = (\"employees\".\"offboarded_on\" IS NOT NULL)"
+        }
+      },
+      "isRLSEnabled": false
+    },
+    "public.employment_contracts": {
+      "name": "employment_contracts",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "org_id": {
+          "name": "org_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "employee_id": {
+          "name": "employee_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "contract_type": {
+          "name": "contract_type",
+          "type": "hr_contract_type",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "starts_on": {
+          "name": "starts_on",
+          "type": "date",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "ends_on": {
+          "name": "ends_on",
+          "type": "date",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "wage_basis": {
+          "name": "wage_basis",
+          "type": "hr_wage_basis",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "wage_rwf": {
+          "name": "wage_rwf",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "status": {
+          "name": "status",
+          "type": "hr_contract_status",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "end_reason": {
+          "name": "end_reason",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "created_by_user_id": {
+          "name": "created_by_user_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "employment_contracts_one_active_uk": {
+          "name": "employment_contracts_one_active_uk",
+          "columns": [
+            {
+              "expression": "employee_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "where": "\"employment_contracts\".\"status\" = 'active'",
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "employment_contracts_employee_idx": {
+          "name": "employment_contracts_employee_idx",
+          "columns": [
+            {
+              "expression": "employee_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "starts_on",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "employment_contracts_org_dates_idx": {
+          "name": "employment_contracts_org_dates_idx",
+          "columns": [
+            {
+              "expression": "org_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "starts_on",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "employment_contracts_org_id_orgs_id_fk": {
+          "name": "employment_contracts_org_id_orgs_id_fk",
+          "tableFrom": "employment_contracts",
+          "tableTo": "orgs",
+          "columnsFrom": [
+            "org_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "employment_contracts_employee_id_employees_id_fk": {
+          "name": "employment_contracts_employee_id_employees_id_fk",
+          "tableFrom": "employment_contracts",
+          "tableTo": "employees",
+          "columnsFrom": [
+            "employee_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "employment_contracts_created_by_user_id_users_id_fk": {
+          "name": "employment_contracts_created_by_user_id_users_id_fk",
+          "tableFrom": "employment_contracts",
+          "tableTo": "users",
+          "columnsFrom": [
+            "created_by_user_id"
           ],
           "columnsTo": [
             "id"
@@ -21777,50 +22678,38 @@
       "compositePrimaryKeys": {},
       "uniqueConstraints": {},
       "policies": {},
-      "checkConstraints": {},
+      "checkConstraints": {
+        "employment_contracts_wage_ck": {
+          "name": "employment_contracts_wage_ck",
+          "value": "\"employment_contracts\".\"wage_rwf\" > 0"
+        },
+        "employment_contracts_dates_ck": {
+          "name": "employment_contracts_dates_ck",
+          "value": "\"employment_contracts\".\"ends_on\" IS NULL OR \"employment_contracts\".\"ends_on\" >= \"employment_contracts\".\"starts_on\""
+        },
+        "employment_contracts_fixed_term_ck": {
+          "name": "employment_contracts_fixed_term_ck",
+          "value": "\"employment_contracts\".\"contract_type\" <> 'fixed_term' OR \"employment_contracts\".\"ends_on\" IS NOT NULL"
+        }
+      },
       "isRLSEnabled": false
     },
-    "public.leave_balances": {
-      "name": "leave_balances",
+    "public.hr_counters": {
+      "name": "hr_counters",
       "schema": "",
       "columns": {
-        "id": {
-          "name": "id",
+        "org_id": {
+          "name": "org_id",
           "type": "uuid",
           "primaryKey": true,
+          "notNull": true
+        },
+        "next_employee_number": {
+          "name": "next_employee_number",
+          "type": "integer",
+          "primaryKey": false,
           "notNull": true,
-          "default": "gen_random_uuid()"
-        },
-        "department_member_id": {
-          "name": "department_member_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "workspace_id": {
-          "name": "workspace_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "leave_type": {
-          "name": "leave_type",
-          "type": "leave_type",
-          "typeSchema": "public",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "year": {
-          "name": "year",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "allocated_days": {
-          "name": "allocated_days",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true
+          "default": 1
         },
         "created_at": {
           "name": "created_at",
@@ -21839,12 +22728,290 @@
       },
       "indexes": {},
       "foreignKeys": {
-        "leave_balances_department_member_id_department_members_id_fk": {
-          "name": "leave_balances_department_member_id_department_members_id_fk",
-          "tableFrom": "leave_balances",
-          "tableTo": "department_members",
+        "hr_counters_org_id_orgs_id_fk": {
+          "name": "hr_counters_org_id_orgs_id_fk",
+          "tableFrom": "hr_counters",
+          "tableTo": "orgs",
           "columnsFrom": [
-            "department_member_id"
+            "org_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.job_positions": {
+      "name": "job_positions",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "org_id": {
+          "name": "org_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "title": {
+          "name": "title",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "department_category": {
+          "name": "department_category",
+          "type": "department_category",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "status": {
+          "name": "status",
+          "type": "hr_catalog_status",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'active'"
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "job_positions_title_uk": {
+          "name": "job_positions_title_uk",
+          "columns": [
+            {
+              "expression": "org_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "lower(\"title\")",
+              "asc": true,
+              "isExpression": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "where": "\"job_positions\".\"status\" = 'active'",
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "job_positions_org_id_orgs_id_fk": {
+          "name": "job_positions_org_id_orgs_id_fk",
+          "tableFrom": "job_positions",
+          "tableTo": "orgs",
+          "columnsFrom": [
+            "org_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.leave_ledger_entries": {
+      "name": "leave_ledger_entries",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "org_id": {
+          "name": "org_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "employee_id": {
+          "name": "employee_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "leave_type_id": {
+          "name": "leave_type_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "kind": {
+          "name": "kind",
+          "type": "hr_leave_entry_kind",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "days": {
+          "name": "days",
+          "type": "numeric(5, 1)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "effective_on": {
+          "name": "effective_on",
+          "type": "date",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "period_key": {
+          "name": "period_key",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "leave_request_id": {
+          "name": "leave_request_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "reverses_id": {
+          "name": "reverses_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "reason": {
+          "name": "reason",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "created_by_user_id": {
+          "name": "created_by_user_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "leave_ledger_employee_type_idx": {
+          "name": "leave_ledger_employee_type_idx",
+          "columns": [
+            {
+              "expression": "employee_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "leave_type_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "leave_ledger_period_uk": {
+          "name": "leave_ledger_period_uk",
+          "columns": [
+            {
+              "expression": "employee_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "leave_type_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "kind",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "period_key",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "where": "\"leave_ledger_entries\".\"kind\" IN ('accrual', 'carry_forward', 'expiry')",
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "leave_ledger_reverses_uk": {
+          "name": "leave_ledger_reverses_uk",
+          "columns": [
+            {
+              "expression": "reverses_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "where": "\"leave_ledger_entries\".\"reverses_id\" IS NOT NULL",
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "leave_ledger_entries_org_id_orgs_id_fk": {
+          "name": "leave_ledger_entries_org_id_orgs_id_fk",
+          "tableFrom": "leave_ledger_entries",
+          "tableTo": "orgs",
+          "columnsFrom": [
+            "org_id"
           ],
           "columnsTo": [
             "id"
@@ -21852,12 +23019,64 @@
           "onDelete": "cascade",
           "onUpdate": "no action"
         },
-        "leave_balances_workspace_id_workspaces_id_fk": {
-          "name": "leave_balances_workspace_id_workspaces_id_fk",
-          "tableFrom": "leave_balances",
-          "tableTo": "workspaces",
+        "leave_ledger_entries_employee_id_employees_id_fk": {
+          "name": "leave_ledger_entries_employee_id_employees_id_fk",
+          "tableFrom": "leave_ledger_entries",
+          "tableTo": "employees",
           "columnsFrom": [
-            "workspace_id"
+            "employee_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "leave_ledger_entries_leave_type_id_leave_types_id_fk": {
+          "name": "leave_ledger_entries_leave_type_id_leave_types_id_fk",
+          "tableFrom": "leave_ledger_entries",
+          "tableTo": "leave_types",
+          "columnsFrom": [
+            "leave_type_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "leave_ledger_entries_leave_request_id_leave_requests_id_fk": {
+          "name": "leave_ledger_entries_leave_request_id_leave_requests_id_fk",
+          "tableFrom": "leave_ledger_entries",
+          "tableTo": "leave_requests",
+          "columnsFrom": [
+            "leave_request_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "leave_ledger_entries_reverses_id_leave_ledger_entries_id_fk": {
+          "name": "leave_ledger_entries_reverses_id_leave_ledger_entries_id_fk",
+          "tableFrom": "leave_ledger_entries",
+          "tableTo": "leave_ledger_entries",
+          "columnsFrom": [
+            "reverses_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "leave_ledger_entries_created_by_user_id_users_id_fk": {
+          "name": "leave_ledger_entries_created_by_user_id_users_id_fk",
+          "tableFrom": "leave_ledger_entries",
+          "tableTo": "users",
+          "columnsFrom": [
+            "created_by_user_id"
           ],
           "columnsTo": [
             "id"
@@ -21867,19 +23086,18 @@
         }
       },
       "compositePrimaryKeys": {},
-      "uniqueConstraints": {
-        "leave_balances_member_type_year_uk": {
-          "name": "leave_balances_member_type_year_uk",
-          "nullsNotDistinct": false,
-          "columns": [
-            "department_member_id",
-            "leave_type",
-            "year"
-          ]
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {
+        "leave_ledger_period_ck": {
+          "name": "leave_ledger_period_ck",
+          "value": "\"leave_ledger_entries\".\"kind\" NOT IN ('accrual', 'carry_forward', 'expiry') OR \"leave_ledger_entries\".\"period_key\" IS NOT NULL"
+        },
+        "leave_ledger_reversal_ck": {
+          "name": "leave_ledger_reversal_ck",
+          "value": "(\"leave_ledger_entries\".\"kind\" = 'reversal') = (\"leave_ledger_entries\".\"reverses_id\" IS NOT NULL)"
         }
       },
-      "policies": {},
-      "checkConstraints": {},
       "isRLSEnabled": false
     },
     "public.leave_requests": {
@@ -21893,34 +23111,55 @@
           "notNull": true,
           "default": "gen_random_uuid()"
         },
-        "department_member_id": {
-          "name": "department_member_id",
+        "org_id": {
+          "name": "org_id",
           "type": "uuid",
           "primaryKey": false,
           "notNull": true
         },
-        "workspace_id": {
-          "name": "workspace_id",
+        "employee_id": {
+          "name": "employee_id",
           "type": "uuid",
           "primaryKey": false,
           "notNull": true
         },
-        "leave_type": {
-          "name": "leave_type",
-          "type": "leave_type",
+        "leave_type_id": {
+          "name": "leave_type_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "starts_on": {
+          "name": "starts_on",
+          "type": "date",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "ends_on": {
+          "name": "ends_on",
+          "type": "date",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "start_half": {
+          "name": "start_half",
+          "type": "hr_leave_start_half",
           "typeSchema": "public",
           "primaryKey": false,
-          "notNull": true
+          "notNull": true,
+          "default": "'full'"
         },
-        "start_date": {
-          "name": "start_date",
-          "type": "date",
+        "end_half": {
+          "name": "end_half",
+          "type": "hr_leave_end_half",
+          "typeSchema": "public",
           "primaryKey": false,
-          "notNull": true
+          "notNull": true,
+          "default": "'full'"
         },
-        "end_date": {
-          "name": "end_date",
-          "type": "date",
+        "days": {
+          "name": "days",
+          "type": "numeric(5, 1)",
           "primaryKey": false,
           "notNull": true
         },
@@ -21932,11 +23171,23 @@
         },
         "status": {
           "name": "status",
-          "type": "leave_request_status",
+          "type": "hr_leave_request_status",
           "typeSchema": "public",
           "primaryKey": false,
           "notNull": true,
-          "default": "'pending'"
+          "default": "'requested'"
+        },
+        "routed_to_employee_id": {
+          "name": "routed_to_employee_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "requested_by_user_id": {
+          "name": "requested_by_user_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
         },
         "decided_by_user_id": {
           "name": "decided_by_user_id",
@@ -21947,6 +23198,12 @@
         "decided_at": {
           "name": "decided_at",
           "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "decision_note": {
+          "name": "decision_note",
+          "type": "text",
           "primaryKey": false,
           "notNull": false
         },
@@ -21966,26 +23223,11 @@
         }
       },
       "indexes": {
-        "leave_requests_member_idx": {
-          "name": "leave_requests_member_idx",
+        "leave_requests_org_status_idx": {
+          "name": "leave_requests_org_status_idx",
           "columns": [
             {
-              "expression": "department_member_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        },
-        "leave_requests_workspace_status_idx": {
-          "name": "leave_requests_workspace_status_idx",
-          "columns": [
-            {
-              "expression": "workspace_id",
+              "expression": "org_id",
               "isExpression": false,
               "asc": true,
               "nulls": "last"
@@ -22001,15 +23243,36 @@
           "concurrently": false,
           "method": "btree",
           "with": {}
+        },
+        "leave_requests_employee_idx": {
+          "name": "leave_requests_employee_idx",
+          "columns": [
+            {
+              "expression": "employee_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "starts_on",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
         }
       },
       "foreignKeys": {
-        "leave_requests_department_member_id_department_members_id_fk": {
-          "name": "leave_requests_department_member_id_department_members_id_fk",
+        "leave_requests_org_id_orgs_id_fk": {
+          "name": "leave_requests_org_id_orgs_id_fk",
           "tableFrom": "leave_requests",
-          "tableTo": "department_members",
+          "tableTo": "orgs",
           "columnsFrom": [
-            "department_member_id"
+            "org_id"
           ],
           "columnsTo": [
             "id"
@@ -22017,12 +23280,51 @@
           "onDelete": "cascade",
           "onUpdate": "no action"
         },
-        "leave_requests_workspace_id_workspaces_id_fk": {
-          "name": "leave_requests_workspace_id_workspaces_id_fk",
+        "leave_requests_employee_id_employees_id_fk": {
+          "name": "leave_requests_employee_id_employees_id_fk",
           "tableFrom": "leave_requests",
-          "tableTo": "workspaces",
+          "tableTo": "employees",
           "columnsFrom": [
-            "workspace_id"
+            "employee_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "leave_requests_leave_type_id_leave_types_id_fk": {
+          "name": "leave_requests_leave_type_id_leave_types_id_fk",
+          "tableFrom": "leave_requests",
+          "tableTo": "leave_types",
+          "columnsFrom": [
+            "leave_type_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "leave_requests_routed_to_employee_id_employees_id_fk": {
+          "name": "leave_requests_routed_to_employee_id_employees_id_fk",
+          "tableFrom": "leave_requests",
+          "tableTo": "employees",
+          "columnsFrom": [
+            "routed_to_employee_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "leave_requests_requested_by_user_id_users_id_fk": {
+          "name": "leave_requests_requested_by_user_id_users_id_fk",
+          "tableFrom": "leave_requests",
+          "tableTo": "users",
+          "columnsFrom": [
+            "requested_by_user_id"
           ],
           "columnsTo": [
             "id"
@@ -22047,11 +23349,16 @@
       "compositePrimaryKeys": {},
       "uniqueConstraints": {},
       "policies": {},
-      "checkConstraints": {},
+      "checkConstraints": {
+        "leave_requests_dates_ck": {
+          "name": "leave_requests_dates_ck",
+          "value": "\"leave_requests\".\"ends_on\" >= \"leave_requests\".\"starts_on\""
+        }
+      },
       "isRLSEnabled": false
     },
-    "public.leave_type_settings": {
-      "name": "leave_type_settings",
+    "public.leave_types": {
+      "name": "leave_types",
       "schema": "",
       "columns": {
         "id": {
@@ -22061,43 +23368,169 @@
           "notNull": true,
           "default": "gen_random_uuid()"
         },
-        "workspace_id": {
-          "name": "workspace_id",
+        "org_id": {
+          "name": "org_id",
           "type": "uuid",
           "primaryKey": false,
           "notNull": true
         },
-        "leave_type": {
-          "name": "leave_type",
-          "type": "leave_type",
+        "code": {
+          "name": "code",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "name": {
+          "name": "name",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "paid": {
+          "name": "paid",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "yearly_entitlement_days": {
+          "name": "yearly_entitlement_days",
+          "type": "numeric(5, 1)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "accrual": {
+          "name": "accrual",
+          "type": "hr_leave_accrual",
           "typeSchema": "public",
           "primaryKey": false,
           "notNull": true
         },
-        "is_unpaid": {
-          "name": "is_unpaid",
-          "type": "boolean",
-          "primaryKey": false,
-          "notNull": true,
-          "default": false
-        },
-        "carry_forward": {
-          "name": "carry_forward",
-          "type": "boolean",
-          "primaryKey": false,
-          "notNull": true,
-          "default": false
-        },
-        "applicable_after_days": {
-          "name": "applicable_after_days",
-          "type": "integer",
+        "carry_forward_max_days": {
+          "name": "carry_forward_max_days",
+          "type": "numeric(5, 1)",
           "primaryKey": false,
           "notNull": true,
           "default": 0
         },
-        "max_consecutive_days": {
-          "name": "max_consecutive_days",
-          "type": "integer",
+        "needs_approval": {
+          "name": "needs_approval",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "default": true
+        },
+        "config_entry_id": {
+          "name": "config_entry_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "status": {
+          "name": "status",
+          "type": "hr_catalog_status",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'active'"
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "leave_types_org_id_orgs_id_fk": {
+          "name": "leave_types_org_id_orgs_id_fk",
+          "tableFrom": "leave_types",
+          "tableTo": "orgs",
+          "columnsFrom": [
+            "org_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {
+        "leave_types_code_uk": {
+          "name": "leave_types_code_uk",
+          "nullsNotDistinct": false,
+          "columns": [
+            "org_id",
+            "code"
+          ]
+        }
+      },
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.pay_runs": {
+      "name": "pay_runs",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "org_id": {
+          "name": "org_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "period_start": {
+          "name": "period_start",
+          "type": "date",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "status": {
+          "name": "status",
+          "type": "hr_pay_run_status",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'draft'"
+        },
+        "computed_at": {
+          "name": "computed_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "rule_versions": {
+          "name": "rule_versions",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "confirmed_at": {
+          "name": "confirmed_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "confirmed_by_user_id": {
+          "name": "confirmed_by_user_id",
+          "type": "uuid",
           "primaryKey": false,
           "notNull": false
         },
@@ -22118,12 +23551,25 @@
       },
       "indexes": {},
       "foreignKeys": {
-        "leave_type_settings_workspace_id_workspaces_id_fk": {
-          "name": "leave_type_settings_workspace_id_workspaces_id_fk",
-          "tableFrom": "leave_type_settings",
-          "tableTo": "workspaces",
+        "pay_runs_org_id_orgs_id_fk": {
+          "name": "pay_runs_org_id_orgs_id_fk",
+          "tableFrom": "pay_runs",
+          "tableTo": "orgs",
           "columnsFrom": [
-            "workspace_id"
+            "org_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "pay_runs_confirmed_by_user_id_users_id_fk": {
+          "name": "pay_runs_confirmed_by_user_id_users_id_fk",
+          "tableFrom": "pay_runs",
+          "tableTo": "users",
+          "columnsFrom": [
+            "confirmed_by_user_id"
           ],
           "columnsTo": [
             "id"
@@ -22134,17 +23580,1122 @@
       },
       "compositePrimaryKeys": {},
       "uniqueConstraints": {
-        "leave_type_settings_workspace_type_uk": {
-          "name": "leave_type_settings_workspace_type_uk",
+        "pay_runs_period_uk": {
+          "name": "pay_runs_period_uk",
           "nullsNotDistinct": false,
           "columns": [
-            "workspace_id",
-            "leave_type"
+            "org_id",
+            "period_start"
           ]
         }
       },
       "policies": {},
+      "checkConstraints": {
+        "pay_runs_period_start_ck": {
+          "name": "pay_runs_period_start_ck",
+          "value": "extract(day from \"pay_runs\".\"period_start\") = 1"
+        }
+      },
+      "isRLSEnabled": false
+    },
+    "public.payslips": {
+      "name": "payslips",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "org_id": {
+          "name": "org_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "pay_run_id": {
+          "name": "pay_run_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "employee_id": {
+          "name": "employee_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "contract_id": {
+          "name": "contract_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "payable_days": {
+          "name": "payable_days",
+          "type": "numeric(6, 2)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "gross_rwf": {
+          "name": "gross_rwf",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "paye_rwf": {
+          "name": "paye_rwf",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "employee_contributions_rwf": {
+          "name": "employee_contributions_rwf",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "employer_contributions_rwf": {
+          "name": "employer_contributions_rwf",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "other_deductions_rwf": {
+          "name": "other_deductions_rwf",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": true,
+          "default": 0
+        },
+        "net_rwf": {
+          "name": "net_rwf",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "lines": {
+          "name": "lines",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "status": {
+          "name": "status",
+          "type": "hr_pay_run_status",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'draft'"
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "payslips_employee_idx": {
+          "name": "payslips_employee_idx",
+          "columns": [
+            {
+              "expression": "employee_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "payslips_org_id_orgs_id_fk": {
+          "name": "payslips_org_id_orgs_id_fk",
+          "tableFrom": "payslips",
+          "tableTo": "orgs",
+          "columnsFrom": [
+            "org_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "payslips_pay_run_id_pay_runs_id_fk": {
+          "name": "payslips_pay_run_id_pay_runs_id_fk",
+          "tableFrom": "payslips",
+          "tableTo": "pay_runs",
+          "columnsFrom": [
+            "pay_run_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "payslips_employee_id_employees_id_fk": {
+          "name": "payslips_employee_id_employees_id_fk",
+          "tableFrom": "payslips",
+          "tableTo": "employees",
+          "columnsFrom": [
+            "employee_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "payslips_contract_id_employment_contracts_id_fk": {
+          "name": "payslips_contract_id_employment_contracts_id_fk",
+          "tableFrom": "payslips",
+          "tableTo": "employment_contracts",
+          "columnsFrom": [
+            "contract_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {
+        "payslips_run_employee_uk": {
+          "name": "payslips_run_employee_uk",
+          "nullsNotDistinct": false,
+          "columns": [
+            "pay_run_id",
+            "employee_id"
+          ]
+        }
+      },
+      "policies": {},
+      "checkConstraints": {
+        "payslips_net_ck": {
+          "name": "payslips_net_ck",
+          "value": "\"payslips\".\"net_rwf\" = \"payslips\".\"gross_rwf\" - \"payslips\".\"paye_rwf\" - \"payslips\".\"employee_contributions_rwf\" - \"payslips\".\"other_deductions_rwf\""
+        }
+      },
+      "isRLSEnabled": false
+    },
+    "public.roster_entries": {
+      "name": "roster_entries",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "org_id": {
+          "name": "org_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "employee_id": {
+          "name": "employee_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "shift_template_id": {
+          "name": "shift_template_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "property_id": {
+          "name": "property_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "department_id": {
+          "name": "department_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "work_date": {
+          "name": "work_date",
+          "type": "date",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "starts_at": {
+          "name": "starts_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "ends_at": {
+          "name": "ends_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "status": {
+          "name": "status",
+          "type": "hr_roster_status",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'scheduled'"
+        },
+        "cancel_reason": {
+          "name": "cancel_reason",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "created_by_user_id": {
+          "name": "created_by_user_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "roster_entries_property_date_idx": {
+          "name": "roster_entries_property_date_idx",
+          "columns": [
+            {
+              "expression": "property_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "work_date",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "roster_entries_employee_date_idx": {
+          "name": "roster_entries_employee_date_idx",
+          "columns": [
+            {
+              "expression": "employee_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "work_date",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "roster_entries_org_id_orgs_id_fk": {
+          "name": "roster_entries_org_id_orgs_id_fk",
+          "tableFrom": "roster_entries",
+          "tableTo": "orgs",
+          "columnsFrom": [
+            "org_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "roster_entries_employee_id_employees_id_fk": {
+          "name": "roster_entries_employee_id_employees_id_fk",
+          "tableFrom": "roster_entries",
+          "tableTo": "employees",
+          "columnsFrom": [
+            "employee_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "roster_entries_shift_template_id_shift_templates_id_fk": {
+          "name": "roster_entries_shift_template_id_shift_templates_id_fk",
+          "tableFrom": "roster_entries",
+          "tableTo": "shift_templates",
+          "columnsFrom": [
+            "shift_template_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "roster_entries_property_id_properties_id_fk": {
+          "name": "roster_entries_property_id_properties_id_fk",
+          "tableFrom": "roster_entries",
+          "tableTo": "properties",
+          "columnsFrom": [
+            "property_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "roster_entries_department_id_departments_id_fk": {
+          "name": "roster_entries_department_id_departments_id_fk",
+          "tableFrom": "roster_entries",
+          "tableTo": "departments",
+          "columnsFrom": [
+            "department_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "roster_entries_created_by_user_id_users_id_fk": {
+          "name": "roster_entries_created_by_user_id_users_id_fk",
+          "tableFrom": "roster_entries",
+          "tableTo": "users",
+          "columnsFrom": [
+            "created_by_user_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {
+        "roster_entries_times_ck": {
+          "name": "roster_entries_times_ck",
+          "value": "\"roster_entries\".\"ends_at\" > \"roster_entries\".\"starts_at\""
+        }
+      },
+      "isRLSEnabled": false
+    },
+    "public.shift_templates": {
+      "name": "shift_templates",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "org_id": {
+          "name": "org_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "property_id": {
+          "name": "property_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "department_id": {
+          "name": "department_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "name": {
+          "name": "name",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "starts_at": {
+          "name": "starts_at",
+          "type": "time",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "ends_at": {
+          "name": "ends_at",
+          "type": "time",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "break_minutes": {
+          "name": "break_minutes",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "default": 0
+        },
+        "status": {
+          "name": "status",
+          "type": "hr_catalog_status",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'active'"
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "shift_templates_name_uk": {
+          "name": "shift_templates_name_uk",
+          "columns": [
+            {
+              "expression": "property_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "lower(\"name\")",
+              "asc": true,
+              "isExpression": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "where": "\"shift_templates\".\"status\" = 'active'",
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "shift_templates_org_id_orgs_id_fk": {
+          "name": "shift_templates_org_id_orgs_id_fk",
+          "tableFrom": "shift_templates",
+          "tableTo": "orgs",
+          "columnsFrom": [
+            "org_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "shift_templates_property_id_properties_id_fk": {
+          "name": "shift_templates_property_id_properties_id_fk",
+          "tableFrom": "shift_templates",
+          "tableTo": "properties",
+          "columnsFrom": [
+            "property_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "shift_templates_department_id_departments_id_fk": {
+          "name": "shift_templates_department_id_departments_id_fk",
+          "tableFrom": "shift_templates",
+          "tableTo": "departments",
+          "columnsFrom": [
+            "department_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {
+        "shift_templates_times_ck": {
+          "name": "shift_templates_times_ck",
+          "value": "\"shift_templates\".\"starts_at\" <> \"shift_templates\".\"ends_at\""
+        },
+        "shift_templates_break_ck": {
+          "name": "shift_templates_break_ck",
+          "value": "\"shift_templates\".\"break_minutes\" >= 0"
+        }
+      },
+      "isRLSEnabled": false
+    },
+    "public.assistant_action_proposals": {
+      "name": "assistant_action_proposals",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "user_id": {
+          "name": "user_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "workspace_id": {
+          "name": "workspace_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "kind": {
+          "name": "kind",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "target_id": {
+          "name": "target_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "target_label": {
+          "name": "target_label",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "property_id": {
+          "name": "property_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "current_value": {
+          "name": "current_value",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "proposed_value": {
+          "name": "proposed_value",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "request_text": {
+          "name": "request_text",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "state": {
+          "name": "state",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'proposed'"
+        },
+        "idempotency_key": {
+          "name": "idempotency_key",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "error": {
+          "name": "error",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "expires_at": {
+          "name": "expires_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "decided_at": {
+          "name": "decided_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        }
+      },
+      "indexes": {
+        "assistant_action_proposals_user_idx": {
+          "name": "assistant_action_proposals_user_idx",
+          "columns": [
+            {
+              "expression": "user_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "created_at",
+              "isExpression": false,
+              "asc": false,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "assistant_action_proposals_idempotency_uk": {
+          "name": "assistant_action_proposals_idempotency_uk",
+          "columns": [
+            {
+              "expression": "user_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "idempotency_key",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "assistant_action_proposals_user_id_users_id_fk": {
+          "name": "assistant_action_proposals_user_id_users_id_fk",
+          "tableFrom": "assistant_action_proposals",
+          "tableTo": "users",
+          "columnsFrom": [
+            "user_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {
+        "assistant_action_proposals_kind": {
+          "name": "assistant_action_proposals_kind",
+          "value": "\"assistant_action_proposals\".\"kind\" IN ('room_type.price')"
+        },
+        "assistant_action_proposals_state": {
+          "name": "assistant_action_proposals_state",
+          "value": "\"assistant_action_proposals\".\"state\" IN ('proposed', 'approved', 'executed', 'failed', 'rejected', 'expired')"
+        }
+      },
+      "isRLSEnabled": false
+    },
+    "public.assistant_conversations": {
+      "name": "assistant_conversations",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "owner_user_id": {
+          "name": "owner_user_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "anon_token_hash": {
+          "name": "anon_token_hash",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "surface": {
+          "name": "surface",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "workspace_id": {
+          "name": "workspace_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "page_context": {
+          "name": "page_context",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "last_message_at": {
+          "name": "last_message_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "expires_at": {
+          "name": "expires_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "attached_at": {
+          "name": "attached_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "closed_at": {
+          "name": "closed_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        }
+      },
+      "indexes": {
+        "assistant_conversations_anon_token_uk": {
+          "name": "assistant_conversations_anon_token_uk",
+          "columns": [
+            {
+              "expression": "anon_token_hash",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "assistant_conversations_owner_idx": {
+          "name": "assistant_conversations_owner_idx",
+          "columns": [
+            {
+              "expression": "owner_user_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "last_message_at",
+              "isExpression": false,
+              "asc": false,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "assistant_conversations_expires_idx": {
+          "name": "assistant_conversations_expires_idx",
+          "columns": [
+            {
+              "expression": "expires_at",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "assistant_conversations_owner_user_id_users_id_fk": {
+          "name": "assistant_conversations_owner_user_id_users_id_fk",
+          "tableFrom": "assistant_conversations",
+          "tableTo": "users",
+          "columnsFrom": [
+            "owner_user_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {
+        "assistant_conversations_has_holder": {
+          "name": "assistant_conversations_has_holder",
+          "value": "\"assistant_conversations\".\"owner_user_id\" IS NOT NULL OR \"assistant_conversations\".\"anon_token_hash\" IS NOT NULL"
+        },
+        "assistant_conversations_surface": {
+          "name": "assistant_conversations_surface",
+          "value": "\"assistant_conversations\".\"surface\" IN ('web', 'app', 'admin', 'mobile')"
+        }
+      },
+      "isRLSEnabled": false
+    },
+    "public.assistant_feedback": {
+      "name": "assistant_feedback",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "message_id": {
+          "name": "message_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "helpful": {
+          "name": "helpful",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "assistant_feedback_message_uk": {
+          "name": "assistant_feedback_message_uk",
+          "columns": [
+            {
+              "expression": "message_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "assistant_feedback_message_id_assistant_messages_id_fk": {
+          "name": "assistant_feedback_message_id_assistant_messages_id_fk",
+          "tableFrom": "assistant_feedback",
+          "tableTo": "assistant_messages",
+          "columnsFrom": [
+            "message_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
       "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.assistant_messages": {
+      "name": "assistant_messages",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "conversation_id": {
+          "name": "conversation_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "seq": {
+          "name": "seq",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "role": {
+          "name": "role",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "display_text": {
+          "name": "display_text",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "model_content": {
+          "name": "model_content",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "tool_calls": {
+          "name": "tool_calls",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'[]'::jsonb"
+        },
+        "sources": {
+          "name": "sources",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'[]'::jsonb"
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "assistant_messages_conversation_seq_uk": {
+          "name": "assistant_messages_conversation_seq_uk",
+          "columns": [
+            {
+              "expression": "conversation_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "seq",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "assistant_messages_conversation_id_assistant_conversations_id_fk": {
+          "name": "assistant_messages_conversation_id_assistant_conversations_id_fk",
+          "tableFrom": "assistant_messages",
+          "tableTo": "assistant_conversations",
+          "columnsFrom": [
+            "conversation_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {
+        "assistant_messages_role": {
+          "name": "assistant_messages_role",
+          "value": "\"assistant_messages\".\"role\" IN ('user', 'assistant')"
+        }
+      },
       "isRLSEnabled": false
     }
   },
@@ -22207,7 +24758,9 @@
         "property",
         "broker",
         "guest_stay",
-        "training_certificate"
+        "training_certificate",
+        "employee",
+        "pay_run"
       ]
     },
     "public.booking_mode": {
@@ -22831,7 +25384,8 @@
       "values": [
         "tax_compliance_officer",
         "business_field_verifier",
-        "business_approver"
+        "business_approver",
+        "psf_membership_officer"
       ]
     },
     "public.oversight_scope_level": {
@@ -22940,6 +25494,105 @@
       "schema": "public",
       "values": [
         "monthly"
+      ]
+    },
+    "public.psf_application_status": {
+      "name": "psf_application_status",
+      "schema": "public",
+      "values": [
+        "submitted",
+        "member",
+        "declined",
+        "withdrawn"
+      ]
+    },
+    "public.psf_company_type": {
+      "name": "psf_company_type",
+      "schema": "public",
+      "values": [
+        "cooperative",
+        "ngo",
+        "partly_state_owned",
+        "private_company",
+        "public_company",
+        "sole_trader"
+      ]
+    },
+    "public.psf_contact_role": {
+      "name": "psf_contact_role",
+      "schema": "public",
+      "values": [
+        "owner",
+        "managing_director",
+        "ceo",
+        "chairman"
+      ]
+    },
+    "public.psf_decline_reason": {
+      "name": "psf_decline_reason",
+      "schema": "public",
+      "values": [
+        "details_incomplete",
+        "not_eligible_for_tier",
+        "business_not_recognised",
+        "other"
+      ]
+    },
+    "public.psf_membership_family": {
+      "name": "psf_membership_family",
+      "schema": "public",
+      "values": [
+        "golden_circle",
+        "indashyikirwa",
+        "ordinary",
+        "junior_giants"
+      ]
+    },
+    "public.psf_membership_source": {
+      "name": "psf_membership_source",
+      "schema": "public",
+      "values": [
+        "psf_confirmed",
+        "self_declared"
+      ]
+    },
+    "public.psf_ownership": {
+      "name": "psf_ownership",
+      "schema": "public",
+      "values": [
+        "foreign_100",
+        "rwandan_100",
+        "franchise",
+        "joint_venture",
+        "foreign_representative",
+        "other"
+      ]
+    },
+    "public.psf_price_kind": {
+      "name": "psf_price_kind",
+      "schema": "public",
+      "values": [
+        "fixed",
+        "range",
+        "set_by_psf"
+      ]
+    },
+    "public.psf_submitted_capacity": {
+      "name": "psf_submitted_capacity",
+      "schema": "public",
+      "values": [
+        "owner",
+        "on_behalf_of"
+      ]
+    },
+    "public.psf_trade_direction": {
+      "name": "psf_trade_direction",
+      "schema": "public",
+      "values": [
+        "none",
+        "export",
+        "import",
+        "both"
       ]
     },
     "public.rate_derivation_kind": {
@@ -23551,80 +26204,143 @@
         "payment_failed"
       ]
     },
-    "public.compensation_status": {
-      "name": "compensation_status",
+    "public.hr_attendance_source": {
+      "name": "hr_attendance_source",
+      "schema": "public",
+      "values": [
+        "supervisor",
+        "self"
+      ]
+    },
+    "public.hr_attendance_status": {
+      "name": "hr_attendance_status",
+      "schema": "public",
+      "values": [
+        "open",
+        "closed",
+        "superseded"
+      ]
+    },
+    "public.hr_catalog_status": {
+      "name": "hr_catalog_status",
       "schema": "public",
       "values": [
         "active",
         "archived"
       ]
     },
-    "public.payroll_run_status": {
-      "name": "payroll_run_status",
+    "public.hr_contract_status": {
+      "name": "hr_contract_status",
       "schema": "public",
       "values": [
-        "draft",
-        "pending_approval",
-        "approved",
-        "paid",
-        "cancelled"
+        "scheduled",
+        "active",
+        "ended"
       ]
     },
-    "public.payslip_status": {
-      "name": "payslip_status",
+    "public.hr_contract_type": {
+      "name": "hr_contract_type",
       "schema": "public",
       "values": [
-        "pending",
-        "paid",
-        "failed"
-      ]
-    },
-    "public.employment_event_type": {
-      "name": "employment_event_type",
-      "schema": "public",
-      "values": [
-        "hired",
-        "title_change",
-        "department_change",
-        "employment_type_change",
-        "terminated"
-      ]
-    },
-    "public.employment_type": {
-      "name": "employment_type",
-      "schema": "public",
-      "values": [
-        "full_time",
-        "part_time",
-        "contract",
+        "permanent",
+        "fixed_term",
         "casual"
       ]
     },
-    "public.checklist_kind": {
-      "name": "checklist_kind",
+    "public.hr_employee_status": {
+      "name": "hr_employee_status",
       "schema": "public",
       "values": [
-        "onboarding",
-        "offboarding"
+        "active",
+        "offboarded"
       ]
     },
-    "public.leave_request_status": {
-      "name": "leave_request_status",
+    "public.hr_id_document_type": {
+      "name": "hr_id_document_type",
       "schema": "public",
       "values": [
-        "pending",
+        "national_id",
+        "passport"
+      ]
+    },
+    "public.hr_leave_accrual": {
+      "name": "hr_leave_accrual",
+      "schema": "public",
+      "values": [
+        "yearly_upfront",
+        "monthly",
+        "none"
+      ]
+    },
+    "public.hr_leave_end_half": {
+      "name": "hr_leave_end_half",
+      "schema": "public",
+      "values": [
+        "full",
+        "first_half"
+      ]
+    },
+    "public.hr_leave_entry_kind": {
+      "name": "hr_leave_entry_kind",
+      "schema": "public",
+      "values": [
+        "accrual",
+        "taken",
+        "reversal",
+        "carry_forward",
+        "expiry",
+        "adjustment"
+      ]
+    },
+    "public.hr_leave_request_status": {
+      "name": "hr_leave_request_status",
+      "schema": "public",
+      "values": [
+        "requested",
         "approved",
-        "rejected"
+        "rejected",
+        "cancelled"
       ]
     },
-    "public.leave_type": {
-      "name": "leave_type",
+    "public.hr_leave_start_half": {
+      "name": "hr_leave_start_half",
       "schema": "public",
       "values": [
-        "annual",
-        "sick",
-        "unpaid",
-        "other"
+        "full",
+        "second_half"
+      ]
+    },
+    "public.hr_pay_run_status": {
+      "name": "hr_pay_run_status",
+      "schema": "public",
+      "values": [
+        "draft",
+        "confirmed"
+      ]
+    },
+    "public.hr_roster_status": {
+      "name": "hr_roster_status",
+      "schema": "public",
+      "values": [
+        "scheduled",
+        "cancelled"
+      ]
+    },
+    "public.hr_sex": {
+      "name": "hr_sex",
+      "schema": "public",
+      "values": [
+        "female",
+        "male"
+      ]
+    },
+    "public.hr_wage_basis": {
+      "name": "hr_wage_basis",
+      "schema": "public",
+      "values": [
+        "monthly",
+        "daily",
+        "hourly"
       ]
     }
   },

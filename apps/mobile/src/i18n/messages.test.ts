@@ -44,4 +44,24 @@ describe('the message catalogues', () => {
     );
     expect(mismatched).toEqual([]);
   });
+
+  it('speaks to the reader, never about how the app was built', () => {
+    // Nineteen English values reached real screens saying "not wired", "this
+    // build", "prototype" or "fixtures", or naming a seed persona or property
+    // (mobile audit 2026-10-05, XC-16). Nothing stopped the next one. These
+    // words describe the build to its builders; a person using the app can do
+    // nothing with them.
+    const builderWords =
+      /\bnot (yet )?wired\b|\bwired yet\b|\bthis build\b|\bprototype\b|\bfixtures?\b|\bsession \d|\bframe [A-Z]\d|\bF-[A-Z]\d{2}\b|\bendpoint\b|\bSamuel\b|\bKayitare\b|\bAline K\b|\bUmurage\b/i;
+    // Kept on purpose, each unreachable by a person using the app: the
+    // `ComingSoon` stub no route renders (gaps.md X4, its deletion is the
+    // owner's call), and the Diagnostics screen, which exists only in
+    // development and tester builds (ADR-063 AC-7).
+    const unreachable = (k: string) => k.startsWith('comingSoon.') || k.startsWith('diagnostics.');
+    const offending = keys
+      .filter((k) => !unreachable(k))
+      .filter((k) => builderWords.test(en[k]))
+      .map((k) => `${k}: ${en[k]}`);
+    expect(offending).toEqual([]);
+  });
 });

@@ -130,13 +130,25 @@ export type IdentityDocumentInput = z.infer<typeof IdentityDocumentInput>;
  *
  * Province is collected but not stored: `sectors` already resolves upward to
  * its district and province, and storing a fourth copy invites the four to
- * disagree. It is on the wire so the picker can validate its own cascade.
+ * disagree. It is on the wire so the picker can validate its own cascade. Cell
+ * is the same kind of field one level down — `villages` resolves upward to its
+ * cell — so `village_id` is the only one of the two that any table holds.
+ *
+ * Cell and village are OPTIONAL, and that is a product decision, not an
+ * oversight: village is the level that actually locates a plot in Rwanda, and
+ * it is also the level a registrant is most likely not to know by name. A
+ * registration must not be blocked on it. Optional means absent, never zero:
+ * the positive bound below refuses `0` rather than storing it as an id.
  */
 export const RwandanAddress = z.object({
     country: z.literal("RW"),
     provinceId: z.number().int().positive("Choose a province."),
     districtId: z.number().int().positive("Choose a district."),
     sectorId: z.number().int().positive("Choose a sector."),
+    /** Fourth level. Collected to drive the village picker, never stored. */
+    cellId: z.number().int().positive("Choose a cell.").optional(),
+    /** Fifth level, and the finest one. Stored; see `orgs.village_id`. */
+    villageId: z.number().int().positive("Choose a village.").optional(),
     /** Street line, e.g. "KG 11 Ave". Optional: not every plot has one. */
     street: z.string().trim().max(200).optional(),
 });
@@ -187,7 +199,13 @@ export const PersonalDetails = z.object({
         .trim()
         .min(2, "Tell us your full name, as written on your document.")
         .max(160, "That name is too long for our records."),
-    document: IdentityDocumentInput,
+    /**
+     * Absent only when the person's identity is already VERIFIED (ADR-060): the
+     * server then keeps the verified document, whose full number the browser
+     * never holds again after a reload. For anyone unverified the server
+     * refuses its absence at this path.
+     */
+    document: IdentityDocumentInput.optional(),
     gender: Gender.optional(),
     /** ISO date. Bounds are sanity rails, not a policy on who may register. */
     dateOfBirth: z
@@ -256,6 +274,164 @@ export type RegistrationBranch = z.infer<typeof RegistrationBranch>;
 export function branchNameKey(name: string): string {
     return name.trim().toLocaleLowerCase("en");
 }
+// ---------------------------------------------------------------------------
+// PSF membership application (ADR-056)
+// ---------------------------------------------------------------------------
+/**
+ * The input lives here, beside the rest of what a registration can carry,
+ * because `HospitalityBusiness` embeds it and it reuses this file's ID, phone
+ * and country rules. `psf.ts` holds everything else about PSF membership and
+ * imports from here, never the other way round.
+ */
+/** PSF's form, "Company type", as printed. */
+export const PsfCompanyType = z.enum([
+    "cooperative",
+    "ngo",
+    "partly_state_owned",
+    "private_company",
+    "public_company",
+    "sole_trader",
+]);
+export type PsfCompanyType = z.infer<typeof PsfCompanyType>;
+/** PSF's form, "Ownership", as printed. `other` carries a text. */
+export const PsfOwnership = z.enum([
+    "foreign_100",
+    "rwandan_100",
+    "franchise",
+    "joint_venture",
+    "foreign_representative",
+    "other",
+]);
+export type PsfOwnership = z.infer<typeof PsfOwnership>;
+export const PsfTradeDirection = z.enum(["none", "export", "import", "both"]);
+export type PsfTradeDirection = z.infer<typeof PsfTradeDirection>;
+/** PSF's form, "Role/Function", as printed. */
+export const PsfContactRole = z.enum(["owner", "managing_director", "ceo", "chairman"]);
+export type PsfContactRole = z.infer<typeof PsfContactRole>;
+/**
+ * PSF's form knows two genders. This never changes the person's own profile,
+ * which keeps all four answers (ADR-056 AC-4).
+ */
+export const PsfGender = z.enum(["male", "female"], {
+    errorMap: () => ({ message: "PSF's form needs Male or Female." }),
+});
+export type PsfGender = z.infer<typeof PsfGender>;
+/**
+ * The version of the consent text the applicant ticked. Bump it whenever the
+ * wording in `PSF_CONSENT_TEXT` changes, so every stored consent names the
+ * words it agreed to.
+ */
+export const PSF_CONSENT_VERSION = "2026-09-27";
+/** What the consent box says. Rendered verbatim by every surface that asks. */
+export const PSF_CONSENT_TEXT: string = "I agree that Injishi shares this application with the Private Sector Federation (PSF): " +
+    "the business details above, and my name, ID number, date of birth, phone and email, " +
+    "so that PSF can decide my membership.";
+const psfText = (max: number, required: string) => z.string().trim().min(1, required).max(max, "That is too long for PSF's form.");
+/**
+ * One PSF membership application, as the wizard or the workspace sends it.
+ *
+ * The registration type and number are NOT inputs: the server copies the TIN
+ * from the business, which is what makes AC-3's "not editable" true on the
+ * wire and not only on the screen.
+ */
+/** The ID a PSF application names its contact by. */
+export const PsfIdDocument = z.discriminatedUnion("documentType", [
+    z.object({ documentType: z.literal("national_id"), documentNumber: RwandanNationalId }),
+    z.object({ documentType: z.literal("passport"), documentNumber: PassportNumber }),
+]);
+export type PsfIdDocument = z.infer<typeof PsfIdDocument>;
+export const PsfApplicationInput = z
+    .object({
+    requestedTierCode: z.string().trim().min(1, "Pick a membership tier.").max(60),
+    companyName: psfText(200, "Give the name PSF should record."),
+    streetAddress: psfText(200, "Give the business's street address."),
+    website: z
+        .string()
+        .trim()
+        .max(200)
+        .url("Give the full address, like https://example.rw.")
+        .optional(),
+    companyType: PsfCompanyType,
+    ownership: PsfOwnership,
+    ownershipOther: z.string().trim().min(1).max(120).optional(),
+    businessActivity: psfText(300, "Say what the business does."),
+    tradeDirection: PsfTradeDirection,
+    tradeGoods: z.string().trim().min(1).max(300).optional(),
+    tradeCountries: z.array(CountryCode).max(50).default([]),
+    contactRole: PsfContactRole,
+    firstName: psfText(80, "Give a first name."),
+    lastName: psfText(80, "Give a last name."),
+    gender: PsfGender,
+    phoneE164: z
+        .string()
+        .trim()
+        .transform((v) => v.replace(/[\s-]/g, ""))
+        .pipe(z.string().regex(/^\+\d{7,15}$/, "Include the country code, like +250788123456.")),
+    email: z.string().trim().email("That email address does not look right."),
+    /** Absent only when `useDocumentOnFile` asks the server for it instead. */
+    idDocument: PsfIdDocument.optional(),
+    /**
+     * "Use the document on my profile" (registration Phase 0). The profile read
+     * masks the number, so a returning registrant could only retype it; with
+     * this the server copies the full number from the profile it holds, and the
+     * browser never sees it.
+     */
+    useDocumentOnFile: z.literal(true).optional(),
+    dateOfBirth: z
+        .string()
+        .regex(/^\d{4}-\d{2}-\d{2}$/, "Use the date picker.")
+        .refine((v) => {
+        const d = new Date(`${v}T00:00:00Z`);
+        if (Number.isNaN(d.getTime()))
+            return false;
+        const years = (Date.now() - d.getTime()) / (365.25 * 24 * 3600 * 1000);
+        return years >= 18 && years <= 120;
+    }, "The person named here must be at least 18."),
+    /** Must be ticked: an unticked box and a Yes are different acts (AC-5). */
+    consent: z.literal(true, {
+        errorMap: () => ({ message: "Tick the box to agree to share this with PSF." }),
+    }),
+})
+    .superRefine((value, ctx) => {
+    // One source for the ID: typed, or the one on file. Never both, never none.
+    if (!value.idDocument && !value.useDocumentOnFile) {
+        ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["idDocument", "documentNumber"], message: "Give an ID number." });
+    }
+    if (value.idDocument && value.useDocumentOnFile) {
+        ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["idDocument"], message: "Give an ID number or use the one on file, not both." });
+    }
+    // Mirrors `psf_membership_applications_ownership_shape`.
+    if (value.ownership === "other" && !value.ownershipOther) {
+        ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["ownershipOther"], message: "Say what the ownership is." });
+    }
+    if (value.ownership !== "other" && value.ownershipOther) {
+        ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["ownershipOther"], message: "Only fill this in when you pick Other." });
+    }
+    // Mirrors `psf_membership_applications_trade_shape`.
+    if (value.tradeDirection === "none") {
+        if (value.tradeGoods) {
+            ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["tradeGoods"], message: "Leave this empty when you do not export or import." });
+        }
+        if (value.tradeCountries.length > 0) {
+            ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["tradeCountries"], message: "Leave this empty when you do not export or import." });
+        }
+    }
+    else {
+        if (!value.tradeGoods) {
+            ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["tradeGoods"], message: "Say which goods or services." });
+        }
+        if (value.tradeCountries.length === 0) {
+            ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["tradeCountries"], message: "Pick at least one country." });
+        }
+    }
+});
+export type PsfApplicationInput = z.infer<typeof PsfApplicationInput>;
+/** The membership number a business that answered Yes may give (ADR-056 AC-1). */
+export const PsfMembershipNumber = z
+    .string()
+    .trim()
+    .min(1, "Give the number, or leave it empty.")
+    .max(40, "That number is too long.");
 const businessBase = z.object({
     legalName: z
         .string()
@@ -281,6 +457,16 @@ export const HospitalityBusiness = businessBase.extend({
     chamberOfTourismMember: z.boolean().default(false),
     /** Optional, and hospitality only. Not the PSF oversight body (D24). */
     psfMember: z.boolean().default(false),
+    /**
+     * A Yes may carry the PSF membership number; nobody checks it (ADR-056
+     * AC-7). Forbidden with a No (see `BusinessDetails`).
+     */
+    psfMembershipNumber: PsfMembershipNumber.optional(),
+    /**
+     * A No may carry an application to join (ADR-056 AC-6), written in the
+     * same transaction as the business. Forbidden with a Yes.
+     */
+    psfApplication: PsfApplicationInput.optional(),
     eacStarGrade: z.number().int().min(1).max(5).optional(),
     /** The locations beyond the head office (ADR-054). Empty for a single site business. */
     branches: z
@@ -301,6 +487,17 @@ export const ResidenceBusiness = businessBase.extend({
     branches: z
         .array(z.unknown())
         .max(0, "A residence registers without branches.")
+        .optional(),
+    /**
+     * Refused, not stripped, for the same reason (ADR-056 AC-6): PSF
+     * membership through Injishi is hospitality only, and the database's
+     * `orgs_domain_shape` forbids it on a residence too.
+     */
+    psfApplication: z
+        .never({ errorMap: () => ({ message: "A residence cannot apply for PSF membership here." }) })
+        .optional(),
+    psfMembershipNumber: z
+        .never({ errorMap: () => ({ message: "A residence cannot hold a PSF membership here." }) })
         .optional(),
 });
 export const BusinessDetails = z
@@ -323,6 +520,21 @@ export const BusinessDetails = z
             code: z.ZodIssueCode.custom,
             path: ["accommodationClassOther"],
             message: "Only fill this in when you pick Other.",
+        });
+    }
+    // ADR-056 AC-1: a number goes with a Yes, an application with a No.
+    if (value.psfMembershipNumber && !value.psfMember) {
+        ctx.addIssue({
+            code: z.ZodIssueCode.custom,
+            path: ["psfMembershipNumber"],
+            message: "Only give a membership number when you answer Yes.",
+        });
+    }
+    if (value.psfApplication && value.psfMember) {
+        ctx.addIssue({
+            code: z.ZodIssueCode.custom,
+            path: ["psfApplication"],
+            message: "A business that is already a member does not apply.",
         });
     }
     // ADR-054 AC-R3: no two branch names equal after trimming and ignoring
@@ -537,6 +749,38 @@ export const OversightQueueItem = z.object({
         districtName: z.string().nullable(),
         isHeadOffice: z.boolean(),
     })),
+    /**
+     * What the registrant declared, sent so the queue stops flagging every
+     * hotel "No tourism license" and every file "Missing documents" for want
+     * of fields it was never given (registration Phase 0).
+     */
+    tourismLicenseNumber: z.string().nullable(),
+    /** Registered by an agent for its owner; payouts stay locked until claimed. */
+    onBehalfOf: z.boolean(),
+    /**
+     * The certificates attached, as metadata only: kind and number. The files
+     * are not linked here; opening one is a PII read with its own access log.
+     */
+    certificates: z.array(z.object({
+        kind: z.string(),
+        kindOther: z.string().nullable(),
+        certificateNumber: z.string().nullable(),
+    })),
+    /**
+     * The latest RRA answer on record, with the side of the seam that gave it,
+     * so an officer can tell a register's verdict from a mock's (ADR-060).
+     */
+    tinCheck: z
+        .object({
+        result: z.enum(["pending", "verified", "failed"]),
+        adapterMode: z.enum(["mock", "live"]),
+        checkedAt: z.string(),
+    })
+        .nullable(),
+    /** Who registered it, by their verified name where there is one. */
+    registrantName: z.string().nullable(),
+    /** On an on behalf registration, the owner it was registered for. */
+    intendedOwnerName: z.string().nullable(),
 });
 export type OversightQueueItem = z.infer<typeof OversightQueueItem>;
 /**
@@ -634,12 +878,115 @@ export type AcceptContractRequest = z.infer<typeof AcceptContractRequest>;
  * `contract_version_stale` are accept's. Sent as `code` on the error body so a
  * page can word the refusal without matching on English.
  */
+/**
+ * The wizard's answers, kept on the server between steps (ADR-059 call 5,
+ * moved server side by ADR-060) at `GET|PUT|DELETE /api/v1/me/registration-draft`.
+ *
+ * It NEVER holds an ID number, and that is structural rather than promised:
+ * the personal block has no document number field and is strict, the intended
+ * owner carries no National ID, and the whole draft is refused if a run of
+ * sixteen digits appears anywhere in it. A verified identity lives in
+ * `verified_identities`; the draft only has to remember what was typed around it.
+ */
+const DraftText = z.string().max(300);
+const DraftAddress = z.record(z.string().max(40), DraftText);
+export const REGISTRATION_DRAFT_PHASES = ["place", "about", "business", "documents"] as const;
+export const RegistrationDraft = z
+    .object({
+    v: z.literal(1),
+    phase: z.enum(REGISTRATION_DRAFT_PHASES),
+    kind: z.string().max(40).nullable(),
+    capacity: RegistrantCapacity,
+    /** False when the stored profile answered About you. */
+    typedPersonal: z.boolean(),
+    personal: z
+        .object({
+        firstName: DraftText,
+        middleName: DraftText,
+        lastName: DraftText,
+        documentType: AccountDocumentType,
+        issuingCountry: DraftText,
+        gender: DraftText,
+        dateOfBirth: DraftText,
+        phoneE164: DraftText,
+        address: DraftAddress,
+    })
+        .strict(),
+    intendedOwner: z.object({ name: DraftText, email: DraftText }).strict(),
+    business: z.record(z.string().max(60), z.union([DraftText, z.boolean(), z.null(), DraftAddress])),
+    branches: z.array(z.object({ name: DraftText, address: DraftAddress }).strict()).max(50),
+})
+    .strict()
+    .refine((draft) => !/\d{16}/.test(JSON.stringify(draft)), {
+    message: "A registration draft never holds an ID number.",
+});
+export type RegistrationDraft = z.infer<typeof RegistrationDraft>;
 export const RegistrationConflictCode = z.enum([
+    /** 403: registering a business needs a verified identity here (ADR-060). */
+    "identity_not_verified",
     "contract_not_accepted",
     "contract_not_open",
     "contract_version_stale",
 ]);
 export type RegistrationConflictCode = z.infer<typeof RegistrationConflictCode>;
+// ---------------------------------------------------------------------------
+// The TIN pre-check (registration Phase 0)
+// ---------------------------------------------------------------------------
+/**
+ * `POST /api/v1/registrations/tin-check`. Asked at the Business step, before
+ * anything is created or billed, so a TIN RRA will refuse is found while the
+ * registrant can still change it rather than after a non-refundable fee.
+ */
+export const TinCheckRequest = z.object({ tin: Tin });
+export type TinCheckRequest = z.infer<typeof TinCheckRequest>;
+/**
+ * A business as the company register states it (ADR-060). Directors are NAMES
+ * only: their document numbers stay on the server, which compares them.
+ */
+export const RegistryBusiness = z.object({
+    legalName: z.string().min(1),
+    /** `YYYY-MM-DD`, when the register gives one. */
+    registeredOn: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).nullable(),
+    companyType: PsfCompanyType.nullable(),
+    /** The registered address, as geography ids the picker can take directly. */
+    address: z
+        .object({
+        provinceId: z.number().int(),
+        districtId: z.number().int(),
+        sectorId: z.number().int(),
+        street: z.string().nullable(),
+    })
+        .nullable(),
+    directors: z.array(z.object({ name: z.string().min(1) })),
+    /** True when a MOCK adapter made this business up. */
+    generated: z.boolean(),
+});
+export type RegistryBusiness = z.infer<typeof RegistryBusiness>;
+/**
+ * - `verified`: RRA knows the TIN.
+ * - `failed`: RRA does not; registration with it is refused.
+ * - `taken`: another business on Injishi already holds it.
+ * - `pending`: RRA could not be reached. Not a refusal: the check runs again
+ *   after payment, exactly as it did before this pre-check existed.
+ */
+export const TinCheckResult = z.object({
+    tin: z.string(),
+    result: z.enum(["verified", "failed", "taken", "pending"]),
+    message: z.string(),
+    /**
+     * The business as the register holds it (ADR-060), or null when the
+     * register returned no details. The Business step fills itself from this
+     * and locks the legal name; `create` refuses a legal name that disagrees.
+     */
+    business: RegistryBusiness.nullable(),
+    /**
+     * Whether the caller's own verified document is among the directors. Null
+     * when the register lists no directors, or the caller holds no document to
+     * compare. `false` is what moves a registrant to the on behalf path.
+     */
+    registrantIsDirector: z.boolean().nullable(),
+});
+export type TinCheckResult = z.infer<typeof TinCheckResult>;
 // ---------------------------------------------------------------------------
 // The owner claim (FL02, ADR-053)
 // ---------------------------------------------------------------------------

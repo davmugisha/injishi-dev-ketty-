@@ -1,3 +1,4 @@
+import type { CustomisableOrgRole } from '@injishi/contracts';
 import { Inject, Injectable } from '@nestjs/common';
 import { and, eq, inArray, sql } from 'drizzle-orm';
 
@@ -6,6 +7,7 @@ import {
   type Database,
 } from '../../../shared/database/database.module';
 import {
+  auditEvents,
   orgMemberships,
   orgRolePermissions,
   workspaces,
@@ -13,7 +15,7 @@ import {
 
 /** One stored departure from the platform's default set. */
 export interface RoleOverrideRow {
-  orgRole: 'manager' | 'receptionist' | 'housekeeper';
+  orgRole: CustomisableOrgRole;
   permission: string;
   granted: boolean;
 }
@@ -129,9 +131,11 @@ export class RolePermissionsRepository {
    */
   async replaceForRole(input: {
     orgId: string;
-    orgRole: 'manager' | 'receptionist' | 'housekeeper';
+    orgRole: CustomisableOrgRole;
     overrides: readonly { permission: string; granted: boolean }[];
     setByUserId: string;
+    /** What the role held before and after, for the audit row. */
+    effective: { from: readonly string[]; to: readonly string[] };
   }): Promise<void> {
     await this.db.transaction(async (tx) => {
       await tx
@@ -143,17 +147,47 @@ export class RolePermissionsRepository {
           ),
         );
 
-      if (input.overrides.length === 0) return;
+      if (input.overrides.length > 0) {
+        await tx.insert(orgRolePermissions).values(
+          input.overrides.map((o) => ({
+            orgId: input.orgId,
+            orgRole: input.orgRole,
+            permission: o.permission,
+            granted: o.granted,
+            setByUserId: input.setByUserId,
+          })),
+        );
+      }
 
-      await tx.insert(orgRolePermissions).values(
-        input.overrides.map((o) => ({
-          orgId: input.orgId,
+      /*
+       * One `audit_events` row, on the SAME transaction (ADR-054's rule for a
+       * branch move, and this is at least as consequential: it decides which
+       * named colleague may take money, close a bill or withdraw a signed RRA
+       * receipt). A change with no row is a change nobody can explain later, and
+       * a row for a change that rolled back is a trail that lies.
+       *
+       * The subject is the ORG rather than the role, because `org_role` is an
+       * enum value and not a row with an id — "every audit row about this
+       * business" is the question somebody actually asks.
+       *
+       * The diff is the EFFECTIVE sets, not the stored deltas. An owner reading
+       * this back wants "the receptionist gained view money", not "a row was
+       * written"; and the effective set is the thing the API then enforces.
+       */
+      const before = new Set(input.effective.from);
+      const after = new Set(input.effective.to);
+      await tx.insert(auditEvents).values({
+        actorUserId: input.setByUserId,
+        subjectType: 'org',
+        subjectId: input.orgId,
+        eventType: 'org.role_permissions_changed',
+        payloadDiff: {
           orgRole: input.orgRole,
-          permission: o.permission,
-          granted: o.granted,
-          setByUserId: input.setByUserId,
-        })),
-      );
+          granted: input.effective.to.filter((p) => !before.has(p)),
+          withdrawn: input.effective.from.filter((p) => !after.has(p)),
+          permissions: { from: input.effective.from, to: input.effective.to },
+        } as never,
+      });
     });
   }
 }

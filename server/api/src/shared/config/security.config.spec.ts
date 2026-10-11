@@ -3,7 +3,33 @@ import {
   requireStrongSecret,
   resolveAllowedOrigins,
   resolveCookieSecret,
+  resolvePinPepper,
 } from './security.config';
+
+describe('resolvePinPepper', () => {
+  const strong = 'p'.repeat(32);
+
+  it('refuses to boot the production platform without a pepper', () => {
+    expect(() => resolvePinPepper({ nodeEnv: 'production', environment: 'production' })).toThrow(
+      /HR_PIN_PEPPER is required in production/,
+    );
+  });
+
+  it('refuses a short pepper on the production platform', () => {
+    expect(() =>
+      resolvePinPepper({ nodeEnv: 'production', environment: 'production', pinPepper: 'short' }),
+    ).toThrow(/at least 32 characters/);
+  });
+
+  it('takes a strong pepper on the production platform', () => {
+    expect(resolvePinPepper({ nodeEnv: 'production', environment: 'production', pinPepper: strong })).toBe(strong);
+  });
+
+  it('lets the demo platform and a laptop boot without one', () => {
+    expect(resolvePinPepper({ nodeEnv: 'production', environment: 'demo' })).toMatch(/dev-only/);
+    expect(resolvePinPepper({ nodeEnv: 'development', environment: 'production' })).toMatch(/dev-only/);
+  });
+});
 
 describe('resolveAllowedOrigins', () => {
   it('parses and trims the configured allowlist', () => {

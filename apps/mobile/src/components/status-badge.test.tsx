@@ -26,19 +26,21 @@ describe.each(SCHEMES)('StatusBadge in the %s scheme', (scheme) => {
     ['lease', 'cancelled', en['status.lease.cancelled'], c.danger100],
     ['rent', 'overdue', en['status.rent.overdue'], c.danger100],
     ['rent', 'paid', en['status.rent.paid'], c.success100],
-    ['booking', 'confirmed', en['status.booking.confirmed'], c.brand100],
-  ] as const)('renders %s/%s as "%s" in its tone', (domain, state, label, fill) => {
+    // The brand and neutral fills are ADR-064 AC-10's roles; the retiring
+    // `brand100` and `neutral100` they replaced are no longer read.
+    ['booking', 'confirmed', en['status.booking.confirmed'], c.surface2],
+  ] as const)('renders %s/%s as "%s" in its tone (fills per ADR-064 AC-10)', (domain, state, label, fill) => {
     renderInScheme(<StatusBadge domain={domain} state={state} />, scheme);
     expect(screen.getByText(label)).toBeTruthy();
     expect(fillOf(label)).toBe(fill);
   });
 
-  it('falls back to the state name for a state the map does not know', () => {
+  it('falls back to the state name, on the neutral fill (ADR-064 AC-10), for a state the map does not know', () => {
     // A blank badge would hide the state entirely, which is worse than showing
     // a raw name that a reviewer can spot.
     renderInScheme(<StatusBadge domain="lease" state="repossessed" />, scheme);
     expect(screen.getByText('repossessed')).toBeTruthy();
-    expect(fillOf('repossessed')).toBe(c.neutral100);
+    expect(fillOf('repossessed')).toBe(c.surface3);
   });
 
   it('takes an explicit label over the mapped one', () => {
@@ -59,8 +61,8 @@ describe.each(SCHEMES)('PaymentStatus in the %s scheme', (scheme) => {
     ['paid', en['payment.paid'], c.success100],
     ['due', en['payment.due'], c.warning100],
     ['overdue', en['payment.overdue'], c.danger100],
-    ['refunded', en['payment.refunded'], c.neutral100],
-  ] as const)('renders %s as "%s" in its tone', (status, label, fill) => {
+    ['refunded', en['payment.refunded'], c.surface3],
+  ] as const)('renders %s as "%s" in its tone (fills per ADR-064 AC-10)', (status, label, fill) => {
     renderInScheme(<PaymentStatus status={status} />, scheme);
     expect(screen.getByText(label)).toBeTruthy();
     expect(fillOf(label)).toBe(fill);

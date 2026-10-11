@@ -382,7 +382,7 @@ function specs(): GroupSpec[] {
     },
     {
       id: "bedrooms",
-      title: "Number of bedrooms",
+      title: "Bedrooms per booking",
       shape: "radio",
       field: "bedrooms",
       visible: 4,
@@ -405,16 +405,23 @@ function specs(): GroupSpec[] {
  */
 export function buildFacetGroups(
   poolFor: (groupId: string, field: FacetField) => Listing[],
+  /**
+   * What is ticked per field. A ticked option is kept at a count of 0 rather
+   * than dropped: other filters can narrow its pool to nothing, and an option
+   * that vanishes while ticked is a filter nobody can untick.
+   */
+  selectedFor?: (field: FacetField) => readonly string[],
 ): FacetGroup[] {
   const groups: FacetGroup[] = [];
 
   for (const spec of specs()) {
     const pool = poolFor(spec.id, spec.field);
+    const ticked = selectedFor?.(spec.field) ?? [];
     const options: FacetOption[] = [];
 
     for (const option of spec.options) {
       const hits = pool.filter(option.matches);
-      if (hits.length === 0) continue;
+      if (hits.length === 0 && !ticked.includes(option.value)) continue;
       options.push({
         value: option.value,
         label: option.label,

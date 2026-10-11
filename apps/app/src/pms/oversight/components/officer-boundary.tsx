@@ -48,14 +48,19 @@ export function OfficerBoundary({
   requires,
   children,
 }: {
-  /** The console this route serves, or null on the resolver at the root. */
-  requires: OfficerKey | null;
+  /**
+   * The console this route serves, or null on the resolver at the root.
+   * `membership` is the PSF Membership console (ADR-056), which sits beside
+   * the two registration gates rather than among them.
+   */
+  requires: OfficerKey | "membership" | null;
   children: ReactNode;
 }) {
   const [access, setAccess] = useState<OfficerAccess>({
     status: "loading",
     consoles: [],
     grants: [],
+    membership: null,
     unbuiltConsoles: [],
     twoFactor: null,
   });
@@ -135,7 +140,10 @@ export function OfficerBoundary({
    * Checked BEFORE the empty case, because it is a more specific answer to the
    * same situation.
    */
-  if (access.consoles.length === 0 && access.unbuiltConsoles.length > 0) {
+  // Any console this person may open, the Membership one included.
+  const holdsAny = access.consoles.length > 0 || access.membership !== null;
+
+  if (!holdsAny && access.unbuiltConsoles.length > 0) {
     return (
       <Centered
         title="Console not built yet"
@@ -145,7 +153,7 @@ export function OfficerBoundary({
     );
   }
 
-  if (access.consoles.length === 0) {
+  if (!holdsAny) {
     return (
       <Centered
         title="No console yet"
@@ -166,7 +174,10 @@ export function OfficerBoundary({
 
   // Holding an assignment for one console is not permission to open the other.
   // The API refuses either way; this is what stops the screen rendering first.
-  if (requires !== null && !access.consoles.includes(requires)) {
+  const holdsRequired =
+    requires === null ||
+    (requires === "membership" ? access.membership !== null : access.consoles.includes(requires));
+  if (!holdsRequired) {
     return (
       <Centered
         title="Not your console"

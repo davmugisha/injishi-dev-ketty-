@@ -18,8 +18,10 @@ import { resetFixtures, writeFixture } from '@/data/use-fixture-mutation';
 import { DEFAULT_SEARCH, SEARCH_KEY } from '@/data/search';
 import { draftKey } from '@/data/booking-draft';
 import { SAVED_KEY } from '@/data/saved';
+import * as propertyDetail from '@/data/property-detail';
 import { getStayDetail } from '@/data/property-detail';
 import { ListingDetailScreen } from './listing-detail';
+import { ListingPhotoViewer } from './listing-photo-viewer';
 
 const pushed: unknown[] = [];
 
@@ -68,26 +70,31 @@ describe.each(SCHEMES)('the property detail page in the %s scheme', (scheme) => 
     expect(loading ?? screen.getByText('Lake Kivu Suite')).toBeTruthy();
   });
 
-  it('names the property, its district and its host', async () => {
+  it('names the property, its district and its host, and claims nothing about the host', async () => {
     await open(KIVU, scheme);
     expect(screen.getByText('Rubavu, Western Province')).toBeTruthy();
     expect(screen.getByText('Hosted by Kivu Shores Hotel')).toBeTruthy();
-    expect(screen.getByText(en['listing.hostMeta'])).toBeTruthy();
+    // No data carries a verified mark or a reply time, so neither is printed
+    // (mobile audit 2026-10-05, GB-03).
+    expect(screen.queryByText(/replies within/i)).toBeNull();
+    expect(screen.queryByText(/TIN on file/i)).toBeNull();
+    expect(screen.queryByText(en['status.identity.verified'])).toBeNull();
   });
 
-  it('prints the guest score with the word derived from it, and the review count', async () => {
+  it('shows no guest score and no review count, because v1 has none (GB-07)', async () => {
     await open(KIVU, scheme);
-    // 8.5 out of ten is "Excellent" on the ADR-022 bands. The word is derived,
-    // never stored beside the number.
-    expect(screen.getByLabelText('Guest score 8.5 out of 10, Excellent')).toBeTruthy();
-    expect(screen.getByText('212 reviews')).toBeTruthy();
+    expect(screen.queryByLabelText('Guest score 8.5 out of 10, Excellent')).toBeNull();
+    expect(screen.queryByText('212 reviews')).toBeNull();
+    expect(screen.queryByText(en['listing.noReviews'])).toBeNull();
   });
 
-  it('lists every room type, with what is left of each', async () => {
+  it('lists every room type, with what is left of each, priced per guest per night', async () => {
     await open(KIVU, scheme);
     expect(screen.getByText('Lake Suite')).toBeTruthy();
     expect(screen.getByText('Balcony Double')).toBeTruthy();
     expect(screen.getByText('Only 2 left')).toBeTruthy();
+    // The room cards and the sticky bar name the unit (GB-08).
+    expect(screen.getAllByText(en['listing.perNight']).length).toBeGreaterThan(1);
   });
 
   it('states the check-in times and the house rules', async () => {
@@ -97,10 +104,13 @@ describe.each(SCHEMES)('the property detail page in the %s scheme', (scheme) => 
     expect(screen.getByText('No smoking indoors.')).toBeTruthy();
   });
 
-  it('carries the three trust rows a guest books on', async () => {
+  it('states only the trust facts a field supports', async () => {
     await open(KIVU, scheme);
-    expect(screen.getByText(en['listing.trustEscrow'])).toBeTruthy();
-    expect(screen.getByText(en['listing.trustRra'])).toBeTruthy();
+    // Escrow and the EBM e-invoice have no field behind them yet: money is mock
+    // until a gateway exists and the demo records no EBM sale (GB-03).
+    expect(screen.queryByText(en['listing.trustEscrow'])).toBeNull();
+    expect(screen.queryByText(en['listing.trustRra'])).toBeNull();
+    // Self check-in is the property's own flag, so it stays.
     expect(screen.getByText(en['listing.trustSelfCheckIn'])).toBeTruthy();
   });
 
@@ -257,6 +267,22 @@ describe('the sheets and the saved set', () => {
 describe('the states with no property behind them', () => {
   const scheme = SCHEMES[0];
 
+  it('says a read failed without printing the server’s raw text (GB-27)', async () => {
+    // A cold id, so the read goes through `useFixture`'s failure branch.
+    const spy = jest.spyOn(propertyDetail, 'getStayDetail').mockImplementation(() => {
+      throw new Error('Property not found.');
+    });
+    try {
+      renderInScheme(page('rusizi-river-lodge'), scheme);
+      await waitFor(() => expect(screen.getByText(en['listing.errorTitle'])).toBeTruthy());
+      expect(screen.getByText(en['listing.errorBody'])).toBeTruthy();
+      expect(screen.queryByText('Property not found.')).toBeNull();
+      expect(screen.getByRole('button', { name: en['state.retry'] })).toBeTruthy();
+    } finally {
+      spy.mockRestore();
+    }
+  });
+
   it('offers a way back to Explore rather than a dead end', async () => {
     renderInScheme(page('no-such-property'), scheme);
     await waitFor(() => expect(screen.getByText(en['listing.notFoundTitle'])).toBeTruthy());
@@ -273,7 +299,39 @@ describe('the Kinyarwanda catalogue', () => {
     await waitFor(() => expect(screen.getByText('Lake Kivu Suite')).toBeTruthy());
     expect(screen.getByText(rw['listing.about'])).toBeTruthy();
     expect(screen.getByText(rw['listing.rooms'])).toBeTruthy();
-    expect(screen.getByText(rw['listing.trustEscrow'])).toBeTruthy();
+    expect(screen.getByText(rw['listing.trustSelfCheckIn'])).toBeTruthy();
     expect(screen.getByText(rw['listing.blockedBoth'])).toBeTruthy();
+  });
+});
+
+/**
+ * The full-screen viewer opens on the photograph the guest tapped, and its
+ * counter and credit start there too. They used to start at 0, or wherever the
+ * last viewing ended, so it said "1 / 5" over photo 3 (GB-19).
+ */
+describe('the photo viewer', () => {
+  const stems = getStayDetail(KIVU)!.property.photos;
+
+  it('counts from the photo that was tapped, not from the first', () => {
+    renderInScheme(
+      <ListingPhotoViewer stems={stems} openAt={2} onClose={jest.fn()} />,
+      SCHEMES[0],
+    );
+    expect(screen.getByText(`3 / ${stems.length}`)).toBeTruthy();
+    expect(
+      screen.getByLabelText(
+        en['listing.viewerCounter'].replace('{index}', '3').replace('{total}', String(stems.length)),
+      ),
+    ).toBeTruthy();
+  });
+
+  it('starts over from the new photo when it is opened again elsewhere', () => {
+    const view = renderInScheme(
+      <ListingPhotoViewer stems={stems} openAt={2} onClose={jest.fn()} />,
+      SCHEMES[0],
+    );
+    view.rerender(<ListingPhotoViewer stems={stems} openAt={null} onClose={jest.fn()} />);
+    view.rerender(<ListingPhotoViewer stems={stems} openAt={1} onClose={jest.fn()} />);
+    expect(screen.getByText(`2 / ${stems.length}`)).toBeTruthy();
   });
 });

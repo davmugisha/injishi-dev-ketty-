@@ -1,10 +1,11 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.BookingCancellationResult = exports.CancellationQuote = exports.CancellationParty = exports.CANCELLATION_TIERS = exports.BookingApprovalResult = exports.PAYMENT_PROMPT_TTL_SECONDS = exports.CreateBookingOutcome = exports.PaymentAttemptStatus = exports.PaymentAttemptState = exports.BookingResult = exports.GUEST_SERVICE_FEE_RATE = exports.NON_REFUNDABLE_DISCOUNT = exports.MoneyBreakdown = exports.CreateBookingInput = exports.PaymentInstrument = exports.NationalMsisdn = exports.NETWORK_PREFIXES = exports.MobileMoneyNetwork = exports.RoomAvailability = exports.NightAvailability = exports.PROPERTY_TIME_ZONE = exports.DEFAULT_CAPACITY = exports.MAX_HORIZON_DAYS = exports.MAX_NIGHTS = exports.BookableRoom = exports.BookablePropertySummary = exports.SitemapProperty = exports.RoomTypeSummary = exports.IsoDate = exports.EscrowStatus = exports.DeclineReason = exports.PaymentStatus = exports.BookingStatus = exports.CancellationTier = exports.ApprovalPolicy = exports.BookingMode = void 0;
+exports.BookingCancellationResult = exports.CancellationQuote = exports.CancellationParty = exports.CANCELLATION_TIERS = exports.BookingApprovalResult = exports.PAYMENT_PROMPT_TTL_SECONDS = exports.CreateBookingOutcome = exports.PaymentAttemptStatus = exports.PaymentAttemptState = exports.BookingResult = exports.MAX_INFANTS = exports.GUEST_SERVICE_FEE_RATE = exports.NON_REFUNDABLE_DISCOUNT = exports.MoneyBreakdown = exports.CreateBookingInput = exports.PaymentInstrument = exports.NationalMsisdn = exports.NETWORK_PREFIXES = exports.MobileMoneyNetwork = exports.RoomAvailability = exports.NightAvailability = exports.PROPERTY_TIME_ZONE = exports.DEFAULT_CAPACITY = exports.MAX_HORIZON_DAYS = exports.MAX_NIGHTS = exports.BookableRoom = exports.BookablePropertySummary = exports.SitemapProperty = exports.RoomTypeSummary = exports.IsoDate = exports.EscrowStatus = exports.DeclineReason = exports.PaymentStatus = exports.BookingStatus = exports.CancellationTier = exports.ApprovalPolicy = exports.BookingMode = void 0;
 exports.soldOutNights = soldOutNights;
 exports.networkForMsisdn = networkForMsisdn;
 exports.instrumentProblem = instrumentProblem;
 exports.computeBreakdown = computeBreakdown;
+exports.stayNightlyRateRwf = stayNightlyRateRwf;
 exports.cancellationRefund = cancellationRefund;
 const zod_1 = require("zod");
 const primitives_1 = require("./primitives");
@@ -324,6 +325,13 @@ exports.CreateBookingInput = zod_1.z.object({
 /** Server-computed price breakdown, echoed back so the UI can show what was charged. */
 exports.MoneyBreakdown = zod_1.z.object({
     nights: zod_1.z.number().int().positive(),
+    /**
+     * The billable guests the accommodation line was multiplied by. Optional
+     * so a breakdown written before per-person pricing still parses; absent
+     * means one.
+     */
+    guests: zod_1.z.number().int().positive().optional(),
+    /** Per guest, per night. */
     nightlyRateRwf: primitives_1.RwfAmount,
     accommodationRwf: primitives_1.RwfAmount,
     nonRefundableDiscountRwf: primitives_1.RwfAmount,
@@ -352,7 +360,8 @@ exports.GUEST_SERVICE_FEE_RATE = 0.05;
  */
 function computeBreakdown(args) {
     const { nightlyRateRwf, nights, nonRefundable } = args;
-    const accommodationRwf = nightlyRateRwf * nights;
+    const guests = Math.max(1, Math.trunc(args.guests ?? 1));
+    const accommodationRwf = nightlyRateRwf * guests * nights;
     const nonRefundableDiscountRwf = nonRefundable
         ? Math.round(accommodationRwf * exports.NON_REFUNDABLE_DISCOUNT)
         : 0;
@@ -360,6 +369,7 @@ function computeBreakdown(args) {
     const serviceFeeRwf = Math.round(discounted * exports.GUEST_SERVICE_FEE_RATE);
     return {
         nights,
+        guests,
         nightlyRateRwf,
         accommodationRwf,
         nonRefundableDiscountRwf,
@@ -367,6 +377,17 @@ function computeBreakdown(args) {
         grossRwf: discounted + serviceFeeRwf,
     };
 }
+/**
+ * What one night of this stay costs the whole party: the per-guest rate times
+ * the billable guests. This is the figure a booking LOCKS, so everything that
+ * later reads the locked rate (the night audit's room charge, the front desk,
+ * the folio, the EBM receipt) posts what the guest actually paid per night.
+ */
+function stayNightlyRateRwf(breakdown) {
+    return breakdown.nightlyRateRwf * (breakdown.guests ?? 1);
+}
+/** Infants are free and do not count toward capacity, but a party carries at most this many. */
+exports.MAX_INFANTS = 5;
 exports.BookingResult = zod_1.z.object({
     id: zod_1.z.string().uuid(),
     /** Human-facing reference, e.g. `BK-7Q2M4X`. */

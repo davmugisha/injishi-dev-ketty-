@@ -211,11 +211,14 @@ export async function redirectLegacyPath(
 /**
  * Where each old screen segment lives now (ADR-018, move 5).
  *
- * Only segments that MOVED are listed. A segment that kept its name (`today`,
- * `reservations`, `leases`, …) passes through unchanged and is then checked
- * against `WORKSPACE_ROUTES` like everything else. The `from` column is the
- * pre-move route table in `Product-v1.0-MFP/mfp-fe.md`; the `to` column is the
- * route tree under `src/app/w/[workspaceId]/`.
+ * Only segments that MOVED are listed. A segment that kept its name
+ * (`reservations`, `leases`, `inbox`, …) passes through unchanged and is then
+ * checked against `WORKSPACE_ROUTES` like everything else. The `from` column is
+ * the pre-move route table in `Product-v1.0-MFP/mfp-fe.md` and the 2026-10-07
+ * navigation; the `to` column is the route tree under
+ * `src/app/w/[workspaceId]/`. A tail that is no screen at all lands on the
+ * workspace's bare address, whose resolver opens this person's home
+ * (`homeFor`, ADR-069 D-f), not the kind's.
  *
  * A value is a path of segments, so a rename can land inside a lens
  * (`revenue` → `finance/revenue`).
@@ -244,10 +247,41 @@ const LEGACY_RENAMES: Readonly<Record<string, readonly string[]>> = {
   "tenant-messages": ["inbox"],
   cleaning: ["housekeeping"],
   tickets: ["maintenance"],
-  // People took over Team, with departments and invites as lenses.
-  team: ["people"],
+  // Team became Team & Departments, which Settings absorbed (the Navigation
+  // board, 2026-10-07): Settings › Team & roles, with the team and its
+  // invitations as lenses beside Roles. `people` itself is the People
+  // destination now (ADR-069 D-f), so an old Team link does not land there.
+  team: ["people", "roles"],
   // Settings absorbed Plan and billing.
   plan: ["settings", "plan"],
+  // Today became the Dashboard (the Navigation board's renames).
+  today: ["dashboard"],
+};
+
+/**
+ * Where each screen that MOVED in the 2026-10-07 navigation now lives, for the
+ * addresses inside a workspace (`/w/<id>/<old>`).
+ *
+ * Those addresses keep their pages: each is the lens or the screen the new
+ * destination opens, so a bookmark or a handover note still opens the same
+ * screen, and the sidebar lights the destination that holds it. This table
+ * says which, and `home.test.mjs` holds the nav to it. Only the kind-prefixed
+ * shim above REDIRECTS; an in-workspace address never needs to.
+ */
+export const MOVED_IN_WORKSPACE: Readonly<Record<string, { destination: string; lens?: string }>> = {
+  today: { destination: "Dashboard" },
+  inbox: { destination: "Messages" },
+  inventory: { destination: "Rates & Inventory" },
+  setup: { destination: "Rates & Inventory" },
+  rooms: { destination: "Housekeeping", lens: "Room status" },
+  housekeeping: { destination: "Housekeeping", lens: "Tasks" },
+  maintenance: { destination: "Housekeeping", lens: "Maintenance" },
+  staff: { destination: "People", lens: "Employees" },
+  "people/roles": { destination: "Settings", lens: "Team & roles" },
+  "people/invites": { destination: "Settings", lens: "Team & roles" },
+  "people/departments": { destination: "Settings", lens: "Departments" },
+  "psf-membership": { destination: "Settings", lens: "Memberships" },
+  "settings/integrations": { destination: "Settings", lens: "Integrations" },
 };
 
 /**
@@ -273,6 +307,9 @@ const LEGACY_KIND_RENAMES: Readonly<
 export const WORKSPACE_ROUTES: readonly string[] = [
   "account",
   "calendar",
+  // The Dashboard (was Today) and the four destinations of the 2026-10-07
+  // navigation that have no screen yet, each a placeholder that says so.
+  "dashboard",
   "directory",
   "earnings",
   "finance",
@@ -281,14 +318,9 @@ export const WORKSPACE_ROUTES: readonly string[] = [
   "finance/invoices",
   "finance/payouts",
   "finance/revenue",
+  "front-desk",
+  "guests",
   "housekeeping",
-  "hr",
-  "hr/attendance",
-  "hr/checklists",
-  "hr/employees",
-  "hr/leave",
-  "hr/payroll",
-  "hr/roster",
   "inbox",
   "inbox/*",
   "inventory",
@@ -305,16 +337,15 @@ export const WORKSPACE_ROUTES: readonly string[] = [
   "listing",
   "maintenance",
   "move-outs",
-  "my-hr",
-  "my-hr/payslips",
-  "my-hr/tasks",
-  "my-hr/time",
+  "night-audit",
   "people",
   "people/departments",
   "people/invites",
   "people/roles",
   "placements",
+  "psf-membership",
   "rent-roll",
+  "reports",
   "reservations",
   "reservations/*",
   "reservations/*/guests",
@@ -322,6 +353,7 @@ export const WORKSPACE_ROUTES: readonly string[] = [
   "reservations/*/messages",
   "reservations/*/payment",
   "rooms",
+  "sales",
   "services",
   "services/departments",
   "services/menu",
@@ -332,6 +364,46 @@ export const WORKSPACE_ROUTES: readonly string[] = [
   "settings/plan",
   "settings/policies",
   "setup",
+  // Staff, the HR module (ADR-058): its lenses (058-time's among them), a
+  // file with its tabs (058-people-file), and a pay run.
+  "staff",
+  "staff/*",
+  "staff/*/contracts",
+  "staff/*/discipline",
+  "staff/*/documents",
+  "staff/*/leave",
+  "staff/*/notes",
+  "staff/*/pay",
+  "staff/*/work",
+  "staff/announcements",
+  "staff/attendance",
+  "staff/attendance-requests",
+  "staff/configuration",
+  "staff/discipline",
+  "staff/documents",
+  "staff/kiosks",
+  "staff/leave",
+  "staff/leave/allocations",
+  "staff/leave/balances",
+  "staff/leave/restricted",
+  "staff/leave/types",
+  "staff/org-chart",
+  "staff/payroll",
+  "staff/payroll/*",
+  "staff/payroll/adjustments",
+  "staff/payroll/claims",
+  "staff/payroll/components",
+  "staff/payroll/contracts",
+  "staff/payroll/loans",
+  "staff/payroll/payslips",
+  "staff/payroll/rules",
+  "staff/payroll/settings",
+  "staff/policies",
+  "staff/roster",
+  "staff/rotations",
+  "staff/shift-requests",
+  "staff/time-insights",
+  "staff/time-settings",
   "stays/*",
   "stays/*/documents",
   "stays/*/folio",

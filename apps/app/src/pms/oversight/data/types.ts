@@ -86,6 +86,8 @@ export interface RegOrg {
   /** Registered on behalf of the owner by an agent — payouts stay locked. */
   obo: boolean;
   tinOk: boolean;
+  /** Which side of the RRA seam gave that answer, when the live queue says (ADR-060). */
+  tinMode?: "mock" | "live";
   fieldVerifiedBy: string | null;
   approvedBy: string | null;
   rejectReason: string | null;

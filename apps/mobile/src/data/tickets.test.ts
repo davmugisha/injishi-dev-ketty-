@@ -8,7 +8,14 @@
  * off-platform with no record; a store where the two seats disagree about which
  * tickets exist is that problem with extra steps.
  */
-import { TICKETS, applyFiling, nextRef, ticketsForLease, type Ticket } from './tickets';
+import {
+  TICKETS,
+  applyFiling,
+  nextRef,
+  openTicketsForLease,
+  ticketsForLease,
+  type Ticket,
+} from './tickets';
 
 const seed = (): Ticket[] => JSON.parse(JSON.stringify(TICKETS)) as Ticket[];
 
@@ -81,5 +88,36 @@ describe('ticketsForLease', () => {
   /** The seeded tickets belong to other units and carry no lease id at all. */
   it('is empty for a lease nothing has been filed against', () => {
     expect(ticketsForLease(seed(), 'nyamirambo-flat-1')).toEqual([]);
+  });
+});
+
+/**
+ * The one definition of "open" both tenant screens read. Lease detail dropped
+ * resolved tickets and the report screen did not, so a fixed leak was listed as
+ * open under the form that reports a new one (mobile audit 2026-10-05, TN-19).
+ */
+describe('openTicketsForLease', () => {
+  const onLease = (ref: string, state: Ticket['state']): Ticket => ({
+    ...seed()[0],
+    ref,
+    state,
+    leaseId: 'nyamirambo-flat-1',
+  });
+
+  it('keeps open and assigned tickets and drops resolved ones', () => {
+    const all = [
+      onLease('T-3', 'open'),
+      onLease('T-2', 'assigned'),
+      onLease('T-1', 'resolved'),
+      ...seed(),
+    ];
+    expect(openTicketsForLease(all, 'nyamirambo-flat-1').map((x) => x.ref)).toEqual([
+      'T-3',
+      'T-2',
+    ]);
+  });
+
+  it('never reaches another lease', () => {
+    expect(openTicketsForLease([onLease('T-3', 'open')], 'ingoro-apartments-a2')).toEqual([]);
   });
 });

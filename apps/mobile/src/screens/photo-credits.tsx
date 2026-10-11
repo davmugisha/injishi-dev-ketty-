@@ -56,6 +56,9 @@ function CreditRow({ credit }: { credit: Credit }) {
       <View style={{ flexDirection: 'row', gap: space[3] }}>
         <Image
           source={asset?.source}
+          // A recycled row would otherwise show the previous credit's photo
+          // until this one decodes (gaps.md B8; mobile audit 2026-10-05, GB-11).
+          recyclingKey={credit.stem}
           placeholder={asset?.placeholder}
           contentFit="cover"
           transition={140}
@@ -135,10 +138,10 @@ export function PhotoCreditsScreen() {
             {t('photo.creditsIntro')}
           </Text>
           {read.status === 'error' ? (
+            // No raw server text as the detail (GB-27).
             <ErrorState
               title={t('state.errorTitle')}
               body={t('state.errorBody', { label: t('photo.creditsListLabel') })}
-              detail={read.error?.message}
               onRetry={read.retry}
             />
           ) : null}

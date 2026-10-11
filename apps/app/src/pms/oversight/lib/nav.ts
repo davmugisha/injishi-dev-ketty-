@@ -80,6 +80,27 @@ export function oversightNav(officer: Officer, O: OversightData): NavSection[] {
   ];
 }
 
+/** The PSF Membership console (ADR-056): its own route, beside the two gates. */
+export const MEMBERSHIP_CONSOLE_HOME = `${CONSOLE_BASE}/membership/queue`;
+
+/** The Membership console's nav. One queue: membership has no district view. */
+export function membershipNav(queued: number | null): NavSection[] {
+  return [
+    {
+      label: "PSF membership",
+      items: [
+        {
+          key: "queue",
+          label: "Membership queue",
+          icon: "inbox",
+          href: MEMBERSHIP_CONSOLE_HOME,
+          count: queued || null,
+        },
+      ],
+    },
+  ];
+}
+
 /** Where a console lands when it opens. The queue is the job. */
 export function consoleHome(officerKey: OfficerKey): string {
   return `${CONSOLE_BASE}/${CONSOLE_SEGMENT[officerKey]}/queue`;

@@ -1,0 +1,26 @@
+# Breaks the Diagnostics screen while it renders, so the root crash screen
+# catches it, reports it and shows its reference (ADR-063 AC-3, AC-10).
+#
+# What to check after: searching `crash_ref:<the reference on the screenshot>`
+# in Sentry finds exactly one event, with `mechanism.handled: false`.
+appId: rw.injishi.mobile
+name: Crash reporting, the crash screen
+---
+- runFlow: ../subflows/launch-release-build.yaml
+- runFlow: ../subflows/open-diagnostics.yaml
+- tapOn:
+    id: "diagnostics-render-error"
+- extendedWaitUntil:
+    visible:
+      id: "crash-ref"
+    timeout: 15000
+# A release build never prints the error's message.
+- assertNotVisible: "Diagnostics test render error"
+- copyTextFrom:
+    id: "crash-ref"
+- takeScreenshot: crash-render-0-reference
+- tapOn: "Reload the screen"
+- extendedWaitUntil:
+    visible: "Profile|Diagnostics"
+    timeout: 15000
+- takeScreenshot: crash-render-1-recovered

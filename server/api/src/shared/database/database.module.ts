@@ -86,13 +86,15 @@ function poolLimits(config: ConfigService): {
         const platform = await bootPlatform(pool, {
           INJISHI_ENVIRONMENT: config.get<string>('INJISHI_ENVIRONMENT'),
           INJISHI_DATABASE_KIND: config.get<string>('INJISHI_DATABASE_KIND'),
+          INJISHI_COMMIT: config.get<string>('INJISHI_COMMIT'),
           NODE_ENV: config.get<string>('NODE_ENV'),
           PAYMENT_ADAPTER_MODE: config.get<string>('PAYMENT_ADAPTER_MODE'),
           VSDC_ADAPTER_MODE: config.get<string>('VSDC_ADAPTER_MODE'),
         });
         new Logger('Platform').log(
           `Environment ${platform.environment}, ` +
-            `${platform.sampleData ? 'sample' : 'real'} database.`,
+            `${platform.sampleData ? 'sample' : 'real'} database, ` +
+            `commit ${platform.commit ?? 'unstamped'}.`,
         );
         return platform;
       },

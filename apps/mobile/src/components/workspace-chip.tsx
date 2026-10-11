@@ -7,6 +7,14 @@
  * the top right of six different tabs and it did not answer a press at all,
  * which on the one control that changes the whole shell is the worst place in
  * the app for that to be true.
+ *
+ * **The role is a word, or nothing.** Callers pass the seat's `role`, which is
+ * the server's `orgRole` enum passed straight through: "owner" and
+ * "housekeeper" in lower case, and an empty string on a broker seat, which drew
+ * a blank second line and was read out as "Broker, " (mobile audit 2026-10-05,
+ * SA-10). The chip turns the six enums into their words and drops an empty
+ * line, so every tab is right without each caller translating. Account's own
+ * rows use `seatRoleLabel`, which also knows the surface.
  */
 import { View } from 'react-native';
 import { Text } from './text';
@@ -14,7 +22,17 @@ import { Avatar } from './avatar';
 import { Icon } from './icon';
 import { PressableScale } from './pressable-scale';
 import { useTheme } from '@/theme/theme';
-import { useT } from '@/i18n/i18n';
+import { useT, type MessageKey } from '@/i18n/i18n';
+
+/** The server's org roles, as the words a person reads. */
+const ORG_ROLE: Readonly<Record<string, MessageKey>> = {
+  owner: 'role.owner',
+  manager: 'role.manager',
+  receptionist: 'role.receptionist',
+  finance: 'role.finance',
+  hr: 'role.hr',
+  housekeeper: 'role.housekeeper',
+};
 
 export function WorkspaceChip({
   name,
@@ -27,10 +45,14 @@ export function WorkspaceChip({
 }) {
   const { c, radius } = useTheme();
   const t = useT();
+  const roleKey = ORG_ROLE[role.trim().toLowerCase()];
+  const roleLine = roleKey ? t(roleKey) : role.trim();
   return (
     <PressableScale
       accessibilityRole="button"
-      accessibilityLabel={`${t('switch.open')}: ${name}, ${role}`}
+      accessibilityLabel={
+        roleLine ? `${t('switch.open')}: ${name}, ${roleLine}` : `${t('switch.open')}: ${name}`
+      }
       // Drawn at 40; hitSlop carries it to the 44pt floor (design brief §7.2).
       hitSlop={2}
       onPress={onPress}
@@ -52,9 +74,11 @@ export function WorkspaceChip({
         <Text weight="semibold" size="xs" color="textStrong" style={{ lineHeight: 14 }}>
           {name}
         </Text>
-        <Text size="2xs" color="textMuted" style={{ lineHeight: 12 }}>
-          {role}
-        </Text>
+        {roleLine ? (
+          <Text size="2xs" color="textMuted" style={{ lineHeight: 12 }}>
+            {roleLine}
+          </Text>
+        ) : null}
       </View>
       <Icon name="chevronDown" size={15} color={c.textSubtle} />
     </PressableScale>

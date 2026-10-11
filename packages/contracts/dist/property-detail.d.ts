@@ -46,11 +46,11 @@ export declare const PropertyDetail: z.ZodObject<{
         nonrefundableEligible: z.ZodBoolean;
         minStay: z.ZodNullable<z.ZodNumber>;
     }, "strip", z.ZodTypeAny, {
-        id: string;
-        domain: "hospitality" | "residence";
         name: string;
-        roomCount: number;
+        domain: "hospitality" | "residence";
         capacity: number | null;
+        id: string;
+        roomCount: number;
         nightlyRateRwf: number | null;
         bookingMode: "instant_book" | "request_to_book" | null;
         approvalPolicy: "approve_all" | "approve_first_three" | null;
@@ -58,11 +58,11 @@ export declare const PropertyDetail: z.ZodObject<{
         nonrefundableEligible: boolean;
         minStay: number | null;
     }, {
-        id: string;
-        domain: "hospitality" | "residence";
         name: string;
-        roomCount: number;
+        domain: "hospitality" | "residence";
         capacity: number | null;
+        id: string;
+        roomCount: number;
         nightlyRateRwf: number | null;
         bookingMode: "instant_book" | "request_to_book" | null;
         approvalPolicy: "approve_all" | "approve_first_three" | null;
@@ -99,17 +99,17 @@ export declare const PropertyDetail: z.ZodObject<{
             hours: z.ZodNullable<z.ZodRecord<z.ZodString, z.ZodUnknown>>;
             operatorLabel: z.ZodNullable<z.ZodString>;
         }, "strip", z.ZodTypeAny, {
-            id: string;
             name: string;
+            id: string;
             outletKind: "other" | "restaurant" | "bar" | "lounge" | "banquet" | "room_service" | "spa" | "gym" | "pool" | "gift_shop" | "parking" | "laundry" | "business_center";
-            orderingAccess: "in_house_only" | "walk_in_only" | "both";
+            orderingAccess: "both" | "in_house_only" | "walk_in_only";
             hours: Record<string, unknown> | null;
             operatorLabel: string | null;
         }, {
-            id: string;
             name: string;
+            id: string;
             outletKind: "other" | "restaurant" | "bar" | "lounge" | "banquet" | "room_service" | "spa" | "gym" | "pool" | "gift_shop" | "parking" | "laundry" | "business_center";
-            orderingAccess: "in_house_only" | "walk_in_only" | "both";
+            orderingAccess: "both" | "in_house_only" | "walk_in_only";
             hours: Record<string, unknown> | null;
             operatorLabel: string | null;
         }>>;
@@ -121,10 +121,10 @@ export declare const PropertyDetail: z.ZodObject<{
             category: string | null;
         } | null;
         outlet: {
-            id: string;
             name: string;
+            id: string;
             outletKind: "other" | "restaurant" | "bar" | "lounge" | "banquet" | "room_service" | "spa" | "gym" | "pool" | "gift_shop" | "parking" | "laundry" | "business_center";
-            orderingAccess: "in_house_only" | "walk_in_only" | "both";
+            orderingAccess: "both" | "in_house_only" | "walk_in_only";
             hours: Record<string, unknown> | null;
             operatorLabel: string | null;
         } | null;
@@ -136,10 +136,10 @@ export declare const PropertyDetail: z.ZodObject<{
             category: string | null;
         } | null;
         outlet: {
-            id: string;
             name: string;
+            id: string;
             outletKind: "other" | "restaurant" | "bar" | "lounge" | "banquet" | "room_service" | "spa" | "gym" | "pool" | "gift_shop" | "parking" | "laundry" | "business_center";
-            orderingAccess: "in_house_only" | "walk_in_only" | "both";
+            orderingAccess: "both" | "in_house_only" | "walk_in_only";
             hours: Record<string, unknown> | null;
             operatorLabel: string | null;
         } | null;
@@ -151,10 +151,10 @@ export declare const PropertyDetail: z.ZodObject<{
             category: string | null;
         } | null;
         outlet: {
-            id: string;
             name: string;
+            id: string;
             outletKind: "other" | "restaurant" | "bar" | "lounge" | "banquet" | "room_service" | "spa" | "gym" | "pool" | "gift_shop" | "parking" | "laundry" | "business_center";
-            orderingAccess: "in_house_only" | "walk_in_only" | "both";
+            orderingAccess: "both" | "in_house_only" | "walk_in_only";
             hours: Record<string, unknown> | null;
             operatorLabel: string | null;
         } | null;
@@ -166,31 +166,24 @@ export declare const PropertyDetail: z.ZodObject<{
             category: string | null;
         } | null;
         outlet: {
-            id: string;
             name: string;
+            id: string;
             outletKind: "other" | "restaurant" | "bar" | "lounge" | "banquet" | "room_service" | "spa" | "gym" | "pool" | "gift_shop" | "parking" | "laundry" | "business_center";
-            orderingAccess: "in_house_only" | "walk_in_only" | "both";
+            orderingAccess: "both" | "in_house_only" | "walk_in_only";
             hours: Record<string, unknown> | null;
             operatorLabel: string | null;
         } | null;
     }>, "many">;
 }, "strip", z.ZodTypeAny, {
+    name: string;
     districtName: string | null;
     id: string;
-    name: string;
-    slug: string | null;
-    checkInTime: string | null;
-    checkOutTime: string | null;
-    description: string | null;
-    houseRules: string | null;
-    locationPrivacy: boolean;
-    photos: string[];
     roomTypes: {
-        id: string;
-        domain: "hospitality" | "residence";
         name: string;
-        roomCount: number;
+        domain: "hospitality" | "residence";
         capacity: number | null;
+        id: string;
+        roomCount: number;
         nightlyRateRwf: number | null;
         bookingMode: "instant_book" | "request_to_book" | null;
         approvalPolicy: "approve_all" | "approve_first_three" | null;
@@ -198,6 +191,13 @@ export declare const PropertyDetail: z.ZodObject<{
         nonrefundableEligible: boolean;
         minStay: number | null;
     }[];
+    slug: string | null;
+    checkInTime: string | null;
+    checkOutTime: string | null;
+    description: string | null;
+    houseRules: string | null;
+    locationPrivacy: boolean;
+    photos: string[];
     latitude: number | null;
     longitude: number | null;
     facilities: {
@@ -208,31 +208,24 @@ export declare const PropertyDetail: z.ZodObject<{
             category: string | null;
         } | null;
         outlet: {
-            id: string;
             name: string;
+            id: string;
             outletKind: "other" | "restaurant" | "bar" | "lounge" | "banquet" | "room_service" | "spa" | "gym" | "pool" | "gift_shop" | "parking" | "laundry" | "business_center";
-            orderingAccess: "in_house_only" | "walk_in_only" | "both";
+            orderingAccess: "both" | "in_house_only" | "walk_in_only";
             hours: Record<string, unknown> | null;
             operatorLabel: string | null;
         } | null;
     }[];
 }, {
+    name: string;
     districtName: string | null;
     id: string;
-    name: string;
-    slug: string | null;
-    checkInTime: string | null;
-    checkOutTime: string | null;
-    description: string | null;
-    houseRules: string | null;
-    locationPrivacy: boolean;
-    photos: string[];
     roomTypes: {
-        id: string;
-        domain: "hospitality" | "residence";
         name: string;
-        roomCount: number;
+        domain: "hospitality" | "residence";
         capacity: number | null;
+        id: string;
+        roomCount: number;
         nightlyRateRwf: number | null;
         bookingMode: "instant_book" | "request_to_book" | null;
         approvalPolicy: "approve_all" | "approve_first_three" | null;
@@ -240,6 +233,13 @@ export declare const PropertyDetail: z.ZodObject<{
         nonrefundableEligible: boolean;
         minStay: number | null;
     }[];
+    slug: string | null;
+    checkInTime: string | null;
+    checkOutTime: string | null;
+    description: string | null;
+    houseRules: string | null;
+    locationPrivacy: boolean;
+    photos: string[];
     latitude: number | null;
     longitude: number | null;
     facilities: {
@@ -250,10 +250,10 @@ export declare const PropertyDetail: z.ZodObject<{
             category: string | null;
         } | null;
         outlet: {
-            id: string;
             name: string;
+            id: string;
             outletKind: "other" | "restaurant" | "bar" | "lounge" | "banquet" | "room_service" | "spa" | "gym" | "pool" | "gift_shop" | "parking" | "laundry" | "business_center";
-            orderingAccess: "in_house_only" | "walk_in_only" | "both";
+            orderingAccess: "both" | "in_house_only" | "walk_in_only";
             hours: Record<string, unknown> | null;
             operatorLabel: string | null;
         } | null;
@@ -286,26 +286,37 @@ export declare const PropertyCard: z.ZodObject<{
     /** The most guests any active room type sleeps; null when none states it. */
     maxGuests: z.ZodNullable<z.ZodNumber>;
     roomTypeCount: z.ZodNumber;
+    /**
+     * The property's public coordinates, for the Explore map. Null when the
+     * property has never set them; a card without a point simply has no pin.
+     * The exact lat/lng is the same signal the public address already carries.
+     */
+    latitude: z.ZodNullable<z.ZodNumber>;
+    longitude: z.ZodNullable<z.ZodNumber>;
 }, "strip", z.ZodTypeAny, {
+    name: string;
     districtName: string | null;
     id: string;
-    name: string;
     roomTypeCount: number;
+    fromNightlyRateRwf: number | null;
+    maxGuests: number | null;
     slug: string;
     description: string | null;
     photos: string[];
-    maxGuests: number | null;
-    fromNightlyRateRwf: number | null;
+    latitude: number | null;
+    longitude: number | null;
 }, {
+    name: string;
     districtName: string | null;
     id: string;
-    name: string;
     roomTypeCount: number;
+    fromNightlyRateRwf: number | null;
+    maxGuests: number | null;
     slug: string;
     description: string | null;
     photos: string[];
-    maxGuests: number | null;
-    fromNightlyRateRwf: number | null;
+    latitude: number | null;
+    longitude: number | null;
 }>;
 export type PropertyCard = z.infer<typeof PropertyCard>;
 //# sourceMappingURL=property-detail.d.ts.map

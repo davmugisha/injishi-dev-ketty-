@@ -25,8 +25,14 @@
  *   seed-demo-portfolio.mjs   the landlord's full rent roll, the district
  *                             registration pipeline, and the admin console's
  *                             reviews and support tickets
+ *   seed-demo-psf.mjs, seed-broker.mjs, seed-hr-files.mjs
+ *                             PSF membership, brokers, a staff file per account
+ *   seed-ui2.mjs              LAST: Amahoro's finance and hr personas and what
+ *                             the role homes show, from seed-ui2/NN-*.mjs
  *
- * then records the finish in `database_identity.seeded_at`, which
+ * then gives every property the seeds wrote the USALI department set (ADR-016
+ * AC-14), which they skip by INSERTing properties directly, and records the
+ * finish in `database_identity.seeded_at`, which
  * `GET /api/v1/platform` reports as the last reset time.
  *
  * It refuses, before running anything, a database that carries no sample
@@ -43,6 +49,10 @@ import { fileURLToPath } from 'node:url';
 import pg from 'pg';
 
 import { markHeadOffices } from './head-offices.mjs';
+import {
+  propertiesWithoutDepartments,
+  seedMissingDepartments,
+} from './property-departments.mjs';
 import { assertSampleDatabase, describeDatabase } from './sample-database.mjs';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
@@ -56,6 +66,9 @@ const STEPS = [
     what: 'RRA item classifications: the VSDC specification sample codes (ADR-050 D-m)',
     env: { RRA_CLASSIFICATION_SOURCE: path.join(here, 'data', 'rra-item-classifications.sample.json') },
   },
+  // Invented placeholder PAYE, RSSB, leave and holiday rows, marked DEMO SAMPLE
+  // DATA, so pay and leave compute on a sample database (ADR-058 slice 1).
+  { script: 'seed-hr-rules.mjs', what: 'HR rules: placeholder PAYE, RSSB, leave and holidays (ADR-058)' },
   { script: 'seed-users.mjs', what: 'sign in accounts and their grants' },
   { script: 'seed-content.mjs', what: 'second pass: the residence side seed-users unlocked' },
   { script: 'seed-demo.mjs', what: 'the demo roster and the rows it trades on' },
@@ -69,6 +82,19 @@ const STEPS = [
   // Both read rows seed-demo.mjs writes, so they run after it.
   { script: 'seed-demo-hotel.mjs', what: 'Amahoro as a working hotel: the hotel personas\' day' },
   { script: 'seed-demo-portfolio.mjs', what: 'rent roll, registration pipeline, reviews and support' },
+  // Reads two pipeline businesses seed-demo-portfolio.mjs writes.
+  { script: 'seed-demo-psf.mjs', what: 'PSF membership: tiers, an officer, an application (ADR-056)' },
+  // Last: it places tenants on leases the two residence seeds above write.
+  { script: 'seed-broker.mjs', what: 'brokers: credits, reveals, placements and fees (ADR-038 child 6)' },
+  // After every step that creates a membership: migration 0053 backfilled files
+  // only for memberships that existed when it ran, which on a migrate-then-seed
+  // database is none (ADR-058 AC-P5).
+  { script: 'seed-hr-files.mjs', what: 'HR: a staff file for every seeded staff account (ADR-058)' },
+  // LAST: every seed-ui2/NN-*.mjs reads the rows the steps above write, and
+  // 00-personas.mjs gives its two new staff their own files, because the step
+  // above ran before their memberships existed. Before the head office and
+  // department passes below, so a property a ui2 file adds is covered by both.
+  { script: 'seed-ui2.mjs', what: 'ui2: the finance and hr personas, and what the six role homes show (ADR-069)' },
 ];
 
 function fail(message) {
@@ -125,6 +151,26 @@ for (const [i, step] of STEPS.entries()) {
 // offices, so the rule is applied once more to what they wrote.
 const marked = await withClient((client) => markHeadOffices(client));
 console.log(`\nHead offices marked for ${marked} hospitality org(s) that had none.`);
+
+// ADR-016 AC-14, for the same reason: a seed INSERTs its properties, so it
+// misses both migration 0011's backfill and the department set listing-setup
+// writes inside the transaction that creates a property. A property with no
+// departments offers a guest an EMPTY list of desks to write to — which is what
+// the demo showed for every property except Amahoro Boutique Hotel, the only
+// one any seed in this recipe gives departments to.
+const filled = await withClient(async (client) => {
+  const written = await seedMissingDepartments(client);
+  const missing = await propertiesWithoutDepartments(client);
+  return { ...written, missing };
+});
+console.log(
+  `USALI departments: ${filled.departments} row(s) written, ${filled.roomTypes} room type(s) pointed at Rooms.`,
+);
+if (filled.missing > 0) {
+  fail(
+    `${filled.missing} propert(ies) still hold no department, so a guest there has nobody to message.`,
+  );
+}
 
 // Only a complete run is a reset. The update trigger allows `seeded_at` alone.
 const seededAt = await withClient(async (client) => {

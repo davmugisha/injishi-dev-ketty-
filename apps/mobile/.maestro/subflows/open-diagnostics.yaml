@@ -1,0 +1,14 @@
+# Opens Diagnostics from Account (ADR-063 AC-7). Present only in development
+# and tester builds; a production build has no row, so this fails there.
+appId: rw.injishi.mobile
+---
+- tapOn: "Profile"
+- scrollUntilVisible:
+    element: "Diagnostics"
+    direction: DOWN
+    timeout: 15000
+- tapOn: "Diagnostics"
+- extendedWaitUntil:
+    visible:
+      id: "diagnostics-js-error"
+    timeout: 15000

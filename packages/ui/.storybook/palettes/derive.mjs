@@ -71,7 +71,7 @@ const P = {
   hue: num("hue"),
   lightness: num("lightness"),
   formRadius: q.get("formRadius") ?? "none",
-  fontFamily: q.get("fontFamily") ?? "figtree",
+  fontFamily: q.get("fontFamily") ?? "inter",
 };
 if (!(P.formRadius in FORM_RADIUS)) throw new Error(`unknown formRadius "${P.formRadius}"`);
 
@@ -264,8 +264,8 @@ writeFileSync(join(here, `${name}.json`), `${JSON.stringify(manifest, null, 2)}\
 // ------------------------------------------------------------------ report
 console.log(`wrote palettes/${name}.css and palettes/${name}.json`);
 console.log(`accent ${light.accent}${manifest.accentOutOfSrgb ? "  (OUTSIDE sRGB: clipped on ordinary screens)" : ""}`);
-if (P.fontFamily.toLowerCase() !== "figtree") {
-  console.log(`note: fontFamily "${P.fontFamily}" is ignored; the product face is Figtree.`);
+if (P.fontFamily.toLowerCase() !== "inter") {
+  console.log(`note: fontFamily "${P.fontFamily}" is ignored; the product face is Inter.`);
 }
 for (const r of report) {
   const mark = r.corrected ? "CORRECTED" : "ok       ";

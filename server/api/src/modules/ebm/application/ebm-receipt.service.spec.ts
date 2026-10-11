@@ -1,5 +1,7 @@
+import { EbmReceipt } from '@injishi/contracts';
 import { ConflictException, NotFoundException } from '@nestjs/common';
 
+import type { SignPoint } from '../domain/sign-point';
 import type {
   BookingForReceipt,
   EbmBookingRepository,
@@ -37,6 +39,7 @@ describe('EbmReceiptService', () => {
       paymentAdapterMode: 'mock',
       confirmedAt: new Date('2026-06-04T21:40:00.000Z'),
       createdAt: new Date('2026-06-04T21:39:00.000Z'),
+      ebmSignAt: null,
       ...overrides,
     };
   }
@@ -49,6 +52,7 @@ describe('EbmReceiptService', () => {
   function serviceFor(
     result: BookingForReceipt | null,
     seen: { reference?: string; guestUserId?: string } = {},
+    signPoint: SignPoint = 'booking',
   ): EbmReceiptService {
     const repository = {
       findGuestBooking: async (reference: string, guestUserId: string) => {
@@ -57,7 +61,7 @@ describe('EbmReceiptService', () => {
         return result;
       },
     } as unknown as EbmBookingRepository;
-    return new EbmReceiptService(repository, new MockVsdcSigner());
+    return new EbmReceiptService(repository, new MockVsdcSigner(), signPoint);
   }
 
   it('issues an NS receipt that totals what the guest was charged', async () => {
@@ -220,5 +224,65 @@ describe('EbmReceiptService', () => {
     // not collected for a stay. A user id in that slot would be noise where an
     // auditor expects a TIN.
     expect(receipt.clientId).toBeNull();
+  });
+
+  /**
+   * ADR-050 AC-1, the display half. A booking confirmed under `checkout` holds
+   * a PROFORMA until its bill is closed: the same priced stay, carrying no
+   * signature (clause 17), with the sale itself signed once at check out.
+   */
+  describe('the proforma (ADR-050 AC-1)', () => {
+    it('issues a PS for a booking stamped checkout, priced like the sale', async () => {
+      const proforma = await serviceFor(
+        row({ ebmSignAt: 'checkout' }),
+      ).receiptForGuest('BK-7Q2M-4XKD', GUEST);
+      const sale = await serviceFor(row()).receiptForGuest('BK-7Q2M-4XKD', GUEST);
+
+      expect(proforma.receiptType).toBe('PS');
+      expect(proforma.transaction).toBe('SALE');
+      expect(proforma.sdc.receiptLabel).toBe('PS');
+      expect(proforma.items).toEqual(sale.items);
+      expect(proforma.totalRwf).toBe(189_000);
+      expect(proforma.totalTaxRwf).toBe(28_831);
+      expect(EbmReceipt.safeParse(proforma).success).toBe(true);
+    });
+
+    it('carries no signature and no internal data on a proforma (clause 17)', async () => {
+      const proforma = await serviceFor(
+        row({ ebmSignAt: 'checkout' }),
+      ).receiptForGuest('BK-7Q2M-4XKD', GUEST);
+
+      expect(proforma.sdc.internalData).toBe('');
+      expect(proforma.sdc.receiptSignature).toBe('');
+    });
+
+    it('keeps the rule a booking was stamped with, whatever this process runs', async () => {
+      // A booking confirmed before the switch already had its room declared as
+      // an NS; showing it a proforma now would contradict that declaration.
+      const receipt = await serviceFor(
+        row({ ebmSignAt: 'booking' }),
+        {},
+        'checkout',
+      ).receiptForGuest('BK-7Q2M-4XKD', GUEST);
+
+      expect(receipt.receiptType).toBe('NS');
+    });
+
+    it("shows a request awaiting its host the proforma it will hold once approved", async () => {
+      const pending = await serviceFor(
+        row({ status: 'pending_approval', confirmedAt: null }),
+        {},
+        'checkout',
+      ).receiptForGuest('BK-7Q2M-4XKD', GUEST);
+      const confirmedUnstamped = await serviceFor(row(), {}, 'checkout').receiptForGuest(
+        'BK-7Q2M-4XKD',
+        GUEST,
+      );
+
+      expect(pending.receiptType).toBe('PS');
+      // A confirmed row with no stamp reads `booking`, as the emission trigger
+      // reads it: that is the answer that cannot declare a room twice.
+      expect(confirmedUnstamped.receiptType).toBe('NS');
+    });
   });
 });

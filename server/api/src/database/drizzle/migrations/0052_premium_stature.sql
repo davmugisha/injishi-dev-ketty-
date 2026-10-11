@@ -1,4 +1,0 @@
-ALTER TABLE "department_members" ALTER COLUMN "org_membership_id" DROP NOT NULL;--> statement-breakpoint
-ALTER TABLE "department_members" ALTER COLUMN "user_id" DROP NOT NULL;--> statement-breakpoint
-ALTER TABLE "department_members" ADD COLUMN "display_name" text;--> statement-breakpoint
-ALTER TABLE "department_members" ADD CONSTRAINT "department_members_person_ck" CHECK (("department_members"."user_id" is not null and "department_members"."org_membership_id" is not null) or ("department_members"."user_id" is null and "department_members"."org_membership_id" is null and "department_members"."display_name" is not null));

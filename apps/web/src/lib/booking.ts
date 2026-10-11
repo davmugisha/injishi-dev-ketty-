@@ -27,18 +27,23 @@ export interface QuotePreview extends MoneyBreakdown {
 export function computeQuote({
   nightlyRateRwf,
   nights,
+  guests,
   nonRefundable = false,
 }: {
+  /** Per guest, per night. */
   nightlyRateRwf: number;
   nights: number;
+  /** Billable guests (adults plus children). Infants are free and never counted. */
+  guests: number;
   nonRefundable?: boolean;
 }): QuotePreview | null {
   if (nights <= 0) return null;
 
-  const amounts = computeBreakdown({ nightlyRateRwf, nights, nonRefundable });
+  const amounts = computeBreakdown({ nightlyRateRwf, nights, nonRefundable, guests });
+  const party = amounts.guests ?? 1;
 
   const lines: MoneyLine[] = buildMoneyLines(amounts, {
-    accommodation: `${formatPrice(nightlyRateRwf)} × ${nights} night${nights === 1 ? "" : "s"}`,
+    accommodation: `${formatPrice(nightlyRateRwf)} × ${party} guest${party === 1 ? "" : "s"} × ${nights} night${nights === 1 ? "" : "s"}`,
     nonRefundableDiscount: "Non-refundable discount",
     serviceFee: "Guest service fee",
   });

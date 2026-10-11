@@ -49,6 +49,7 @@ const REQUEST_TIMEOUT_MS = 6_000;
 const NO_ACCESS = {
   consoles: [] as OfficerKey[],
   grants: [] as OversightConsoleGrant[],
+  membership: null,
   unbuiltConsoles: [] as OversightConsoleGrant[],
   twoFactor: null,
 } as const;
@@ -75,6 +76,12 @@ export interface OfficerAccess {
    * of two invented officers. Every one of them is on the grant now.
    */
   grants: OversightConsoleGrant[];
+  /**
+   * The PSF membership officer posting (ADR-056), when this person holds one.
+   * Its console is its own route with its own data, not one of the two
+   * registration gates `consoles` lists, so it is carried apart from them.
+   */
+  membership: OversightConsoleGrant | null;
   /**
    * A posting whose console is NOT BUILT, and is refused honestly (AC-G7).
    *
@@ -132,7 +139,10 @@ export async function fetchMyConsoles(): Promise<OfficerAccess> {
       status: "resolved",
       consoles,
       grants: grants.filter((g) => officerKeyForConsole(g.console) !== null),
-      unbuiltConsoles: grants.filter((g) => officerKeyForConsole(g.console) === null),
+      membership: grants.find((g) => g.console === "membership") ?? null,
+      unbuiltConsoles: grants.filter(
+        (g) => officerKeyForConsole(g.console) === null && g.console !== "membership",
+      ),
       twoFactor: toTwoFactorState(body.twoFactor),
     };
   } catch {

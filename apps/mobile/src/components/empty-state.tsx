@@ -6,6 +6,13 @@
  * a bug; one that says why it is empty and what fills it reads as a state. The
  * `action` slot is what carries the direction when there is something the
  * reader can actually do — widen a filter, sign a lease.
+ *
+ * **The summary is the words; the action is its sibling.** The card used to be
+ * one `accessible` element, and on iOS that is ONE stop: the action inside it
+ * ("Find a stay", "Go to the start") could not be reached with VoiceOver, so
+ * the direction this component exists to give was the one thing a screen
+ * reader user could not take (the same trap as `ErrorState`, mobile audit
+ * 2026-10-05, XC-02).
  */
 import { type ReactNode } from 'react';
 import { View } from 'react-native';
@@ -28,9 +35,6 @@ export function EmptyState({
 
   return (
     <View
-      accessible
-      accessibilityRole="summary"
-      accessibilityLabel={`${title}. ${body}`}
       style={{
         alignItems: 'center',
         gap: 10,
@@ -43,23 +47,30 @@ export function EmptyState({
       }}
     >
       <View
-        style={{
-          width: 44,
-          height: 44,
-          borderRadius: 22,
-          backgroundColor: c.surface2,
-          alignItems: 'center',
-          justifyContent: 'center',
-        }}
+        accessible
+        accessibilityRole="summary"
+        accessibilityLabel={`${title}. ${body}`}
+        style={{ alignItems: 'center', gap: 10 }}
       >
-        <Icon name={icon} size={20} color={c.textMuted} />
+        <View
+          style={{
+            width: 44,
+            height: 44,
+            borderRadius: 22,
+            backgroundColor: c.surface2,
+            alignItems: 'center',
+            justifyContent: 'center',
+          }}
+        >
+          <Icon name={icon} size={20} color={c.textMuted} />
+        </View>
+        <Text family="display" weight="semibold" size="lg" color="textStrong" center>
+          {title}
+        </Text>
+        <Text size="sm" color="textMuted" center style={{ lineHeight: 20, maxWidth: 280 }}>
+          {body}
+        </Text>
       </View>
-      <Text family="display" weight="semibold" size="lg" color="textStrong" center>
-        {title}
-      </Text>
-      <Text size="sm" color="textMuted" center style={{ lineHeight: 20, maxWidth: 280 }}>
-        {body}
-      </Text>
       {action ? <View style={{ marginTop: 4 }}>{action}</View> : null}
     </View>
   );

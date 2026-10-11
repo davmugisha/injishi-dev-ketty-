@@ -49,6 +49,26 @@ export interface CheckInSeed {
   rate?: number;
 }
 
+/**
+ * The stay a check-out drawer was opened for.
+ *
+ * Deliberately only the stay id plus what the ROW already knew. Everything the
+ * drawer shows — the room, the nights, the bill and what it still owes — is
+ * read from the server when it opens, because the row that opened it may be a
+ * minute stale and the one number that must not be stale is the balance the
+ * operator is about to acknowledge.
+ *
+ * `guestName` is carried anyway so the panel has a heading before the reads
+ * land. A drawer that opens on "…" while a receptionist is talking to the
+ * person named in it is worse than one that opens on a name it was handed.
+ */
+export interface CheckOutSeed {
+  stayId: string;
+  guestName: string;
+  /** What the row showed, for the heading only. The drawer re-reads the room. */
+  roomLabel?: string | null;
+}
+
 interface UiContextValue {
   checkIn: CheckInDraft | null;
   /**
@@ -57,6 +77,18 @@ interface UiContextValue {
    */
   openCheckIn: (seed?: CheckInSeed | null) => void;
   setCheckIn: (draft: CheckInDraft | null) => void;
+  /** The stay whose check-out drawer is open, or null for none. */
+  checkOut: CheckOutSeed | null;
+  /**
+   * Open the check-out drawer on a stay.
+   *
+   * It lives here, beside `openCheckIn`, for the reason that one does: the
+   * departure is reachable from Today, from the room grid and from the stay
+   * record, and three screens owning three copies of the overlay is three
+   * places for the balance warning to be missing from.
+   */
+  openCheckOut: (seed: CheckOutSeed) => void;
+  setCheckOut: (seed: CheckOutSeed | null) => void;
   cmdkOpen: boolean;
   setCmdkOpen: (open: boolean) => void;
   /**
@@ -92,6 +124,7 @@ const UiContext = createContext<UiContextValue | null>(null);
 
 export function PmsUiProvider({ children }: { children: ReactNode }) {
   const [checkIn, setCheckIn] = useState<CheckInDraft | null>(null);
+  const [checkOut, setCheckOut] = useState<CheckOutSeed | null>(null);
   const [cmdkOpen, setCmdkOpen] = useState(false);
   const [navOpen, setNavOpen] = useState(false);
   const [record, setRecord] = useState<RecordInView | null>(null);
@@ -106,10 +139,16 @@ export function PmsUiProvider({ children }: { children: ReactNode }) {
       name: seed?.guestName ?? "",
       nid: "",
       phone: "",
+      email: "",
       room: seed?.roomId ?? "",
       nights: seed?.nights ?? 1,
       rate: seed?.rate != null ? String(seed.rate) : "",
     });
+  }, []);
+
+  const openCheckOut = useCallback((seed: CheckOutSeed) => {
+    setCmdkOpen(false);
+    setCheckOut(seed);
   }, []);
 
   const value = useMemo(
@@ -117,6 +156,9 @@ export function PmsUiProvider({ children }: { children: ReactNode }) {
       checkIn,
       openCheckIn,
       setCheckIn,
+      checkOut,
+      openCheckOut,
+      setCheckOut,
       cmdkOpen,
       setCmdkOpen,
       navOpen,
@@ -124,7 +166,7 @@ export function PmsUiProvider({ children }: { children: ReactNode }) {
       record,
       setRecord,
     }),
-    [checkIn, openCheckIn, cmdkOpen, navOpen, record],
+    [checkIn, openCheckIn, checkOut, openCheckOut, cmdkOpen, navOpen, record],
   );
 
   return <UiContext.Provider value={value}>{children}</UiContext.Provider>;

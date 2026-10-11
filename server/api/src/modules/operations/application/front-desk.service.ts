@@ -1,5 +1,6 @@
 import type {
   CheckInRequest,
+  CheckOutRequest,
   OperatorRoom,
   OperatorStay,
   OperatorStayList,
@@ -26,6 +27,7 @@ import {
   FrontDeskRepository,
 } from '../infrastructure/front-desk.repository';
 import { RoomAssignmentService } from './room-assignment.service';
+import { SelfCheckInService } from './self-check-in.service';
 import { StayClaimService } from './stay-claim.service';
 
 /**
@@ -58,6 +60,8 @@ export class FrontDeskService {
      * it may fail a check in — lives in one place with the reason written down.
      */
     private readonly onboarding: StayClaimService,
+    /** The identity a guest sent ahead of arrival, carried onto the stay (ADR-060). */
+    private readonly selfCheckIn: SelfCheckInService,
   ) {}
 
   /** Every room in this workspace, with who is in it. */
@@ -202,6 +206,9 @@ export class FrontDeskService {
     // the claim code and the "continue in the app" mail. A booked guest usually
     // sends nothing here and nothing happens.
     await this.onboarding.registerAndInvite(created.id, body.guest);
+    // What the guest sent from their phone before arriving, photo included.
+    // After the desk card, so anything the desk typed wins; never throws.
+    await this.selfCheckIn.carryToStay(booking.id, created.id);
 
     return this.presentStay(created);
   }
@@ -251,6 +258,49 @@ export class FrontDeskService {
     if (plannedExitAt && Number.isNaN(plannedExitAt.getTime())) {
       throw new BadRequestException('That departure date is not a real date.');
     }
+    const now = new Date();
+    if (plannedExitAt && plannedExitAt.getTime() <= now.getTime()) {
+      throw new BadRequestException('The departure has to be after now.');
+    }
+
+    const roomName = room.label ? `Room ${room.label}` : 'That room';
+
+    /*
+     * A ROOM HELD FOR A GUEST WHO IS COMING IS NOT FREE (ADR-016 D-g).
+     *
+     * The exclusion constraint compares holds with holds, and a walk in has no
+     * hold, so nothing refused this: the desk could sell tonight's arrival's
+     * room to whoever walked in first, and that guest was then turned away at
+     * check in with a 409 nobody at the counter could fix. An open ended walk
+     * in is asked about tonight only, which is all the desk is promising.
+     */
+    const today = now.toISOString().slice(0, 10);
+    const lastNight = plannedExitAt
+      ? plannedExitAt.toISOString().slice(0, 10)
+      : today;
+    const until = lastNight > today ? lastNight : this.dayAfter(today);
+    const hold = await this.assignments.firstHoldOnRoom(room.id, today, until);
+    if (hold) {
+      throw new ConflictException(
+        `${roomName} is held for a reservation arriving ${hold.from}. Choose another room, or move that reservation first.`,
+      );
+    }
+
+    /*
+     * THE RATE IS WHAT GETS THE ROOM PAID FOR. The night audit bills a walk in
+     * from the stay's price, so a stay opened without one is a room nobody is
+     * ever charged for — and check out then closed its zero bill on its own.
+     * Absent means the room type's default rate; a type with no priced default
+     * plan leaves the desk to say the figure out loud.
+     */
+    const priceRwf =
+      body.nightlyRateRwf ??
+      (await this.rooms.defaultNightlyRate(room.roomTypeId));
+    if (!priceRwf) {
+      throw new BadRequestException(
+        `${room.roomTypeName} has no default rate. Enter the nightly rate agreed with the guest.`,
+      );
+    }
 
     const stayId = await this.rooms.openStay({
       bookingId: null,
@@ -260,7 +310,7 @@ export class FrontDeskService {
       guestName: body.guestName.trim(),
       roomId: room.id,
       plannedExitAt,
-      priceRwf: body.nightlyRateRwf ?? null,
+      priceRwf,
     });
 
     if (!stayId) {
@@ -307,7 +357,11 @@ export class FrontDeskService {
    * stay as it already stands rather than moving an exit time that was already
    * recorded.
    */
-  async checkOut(ws: ScopedWorkspace, stayId: string): Promise<OperatorStay> {
+  async checkOut(
+    ws: ScopedWorkspace,
+    stayId: string,
+    body: CheckOutRequest = {},
+  ): Promise<OperatorStay> {
     const stay = assertOwned(await this.rooms.findStay(stayId), ws);
     // Through the room, never the booking: a walk in has none (ADR-054).
     assertInBranchScope(ws, stay.propertyId);
@@ -318,6 +372,10 @@ export class FrontDeskService {
       roomId: stay.roomId,
       workspaceId: ws.workspaceId,
       propertyId: stay.propertyId,
+      // Written by the SAME guarded statement that closes the stay, so a note
+      // can never land on a stay somebody else closed first (the `!closed`
+      // branch below is that race, and it must stay a read).
+      departureNote: body.note,
     });
 
     // ADR-016 D-h and AC-8. The hold runs to CHECKOUT, never to check in.
@@ -371,6 +429,13 @@ export class FrontDeskService {
     }
   }
 
+  /** `2026-09-15` to `2026-09-16`, in UTC like every business date here. */
+  private dayAfter(isoDate: string): string {
+    const d = new Date(`${isoDate}T00:00:00Z`);
+    d.setUTCDate(d.getUTCDate() + 1);
+    return d.toISOString().slice(0, 10);
+  }
+
   private presentRoom(row: RoomRow): Omit<OperatorRoom, 'occupiedBy'> {
     return {
       id: row.id,
@@ -392,6 +457,27 @@ export class FrontDeskService {
   async listStays(ws: ScopedWorkspace): Promise<OperatorStayList> {
     const rows = await this.rooms.listStays(ws.workspaceId, ws.branchScope);
     return { stays: rows.map((row) => this.presentStay(row)) };
+  }
+
+  /**
+   * ONE stay, by its own id.
+   *
+   * The record screen used to find its stay inside `listStays` above, which is
+   * the same mistake the reservation record made: a LIST is the wrong oracle
+   * for "does this record exist". `listStays` is unwindowed today, so this
+   * closes the edge before a window is ever added to it rather than after —
+   * and it stops the screen paying for every stay on the property to render
+   * one.
+   *
+   * Scoped exactly as `checkOut` scopes its stay: `assertOwned` for the
+   * workspace, `assertInBranchScope` through the ROOM's property for the
+   * branch. Through the room, never the booking, because a walk in has none
+   * (ADR-054).
+   */
+  async getStay(ws: ScopedWorkspace, stayId: string): Promise<OperatorStay> {
+    const stay = assertOwned(await this.rooms.findStay(stayId), ws);
+    assertInBranchScope(ws, stay.propertyId);
+    return this.presentStay(stay);
   }
 
   private presentStay(row: StayRow): OperatorStay {

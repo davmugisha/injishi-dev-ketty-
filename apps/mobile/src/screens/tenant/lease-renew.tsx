@@ -15,6 +15,14 @@
  * The Lease itself is untouched by this screen. `endOn` moves only when the
  * landlord approves (FL26 step 3); a portal that moved it on the request would
  * be showing a term nobody has agreed to.
+ *
+ * **Hidden in v1.0.** Renewal is P2 in the owner's cut of 2026-10-01: the route
+ * is registered behind `guard={false}` in `app/_layout.tsx`, and lease detail
+ * no longer links here (mobile audit 2026-10-05, TN-13). The screen is kept,
+ * not deleted, and it is held to the same rules as the live ones meanwhile: the
+ * request is said to be saved on this phone with the landlord not told (it used
+ * to be "sent to {landlord}"), and the toast follows the write's outcome rather
+ * than firing on every settle (TN-12).
  */
 import { useState } from 'react';
 import { View, ScrollView } from 'react-native';
@@ -35,6 +43,7 @@ import {
   Text,
   todayIso,
   useToast,
+  WriteError,
 } from '@/components';
 import { useTheme } from '@/theme/theme';
 import { useT } from '@/i18n/i18n';
@@ -61,6 +70,7 @@ export function LeaseRenew() {
   // Rwandan residential lease actually runs.
   const [months, setMonths] = useState(12);
   const [note, setNote] = useState('');
+  const [failed, setFailed] = useState(false);
 
   const sending = request.status === 'saving';
   // A request that landed in THIS session reads differently from one that was
@@ -87,23 +97,23 @@ export function LeaseRenew() {
   const endOn = addDays(addMonths(startOn, months), -1);
   const pending = lease.renewal?.state === 'pending';
 
-  const send = () => {
-    void request
-      .mutate({
-        leaseId: lease.id,
-        renewal: {
-          requestedOn: todayIso(),
-          termMonths: months,
-          startOn,
-          endOn,
-          rent: lease.rent,
-          note: note.trim(),
-          state: 'pending',
-        },
-      })
-      .then(() => {
-        toast.show(t('renew.toast', { landlord: lease.landlord }), 'success');
-      });
+  const send = async () => {
+    setFailed(false);
+    const outcome = await request.mutate({
+      leaseId: lease.id,
+      renewal: {
+        requestedOn: todayIso(),
+        termMonths: months,
+        startOn,
+        endOn,
+        rent: lease.rent,
+        note: note.trim(),
+        state: 'pending',
+      },
+    });
+    // THIS write's outcome (mobile audit 2026-10-05, TN-12).
+    if (outcome === 'done') toast.show(t('renew.toast'), 'success');
+    else if (outcome === 'error') setFailed(true);
   };
 
   return (
@@ -190,10 +200,6 @@ export function LeaseRenew() {
                 ) : null}
               </View>
             </Card>
-
-            <Text size="xs" color="textSubtle" style={{ lineHeight: 18 }}>
-              {t('renew.notWired')}
-            </Text>
           </>
         ) : (
           <>
@@ -268,6 +274,8 @@ export function LeaseRenew() {
               placeholder={t('renew.notePlaceholder')}
               rows={4}
             />
+
+            {failed ? <WriteError onRetry={() => void send()} /> : null}
           </>
         )}
       </ScrollView>
@@ -301,7 +309,7 @@ export function LeaseRenew() {
               variant="primary"
               leadingIcon="send"
               disabled={sending}
-              onPress={send}
+              onPress={() => void send()}
             >
               {sending ? t('renew.sending') : t('renew.action')}
             </Button>

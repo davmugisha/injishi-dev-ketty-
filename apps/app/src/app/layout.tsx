@@ -24,13 +24,7 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
             here at all. This runs where it stands. */}
         <script id="injishi-theme-boot" dangerouslySetInnerHTML={{ __html: THEME_BOOT }} />
       </head>
-      {/* Browser extensions (Grammarly, password managers) stamp their own
-          attributes on <body> before React loads, which the dev overlay then
-          reports as a hydration error in OUR tree. Suppressed here for the
-          same reason as on <html>: the attributes on this one element are not
-          ours to match. It is one level deep, so a real mismatch inside the
-          app is still reported. */}
-      <body suppressHydrationWarning>
+      <body>
         <link rel="stylesheet" href="/shared/css/injishi-fonts.css" precedence="default" />
         <Providers>{children}</Providers>
       </body>

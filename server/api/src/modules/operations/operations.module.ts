@@ -2,9 +2,11 @@ import { Module } from '@nestjs/common';
 
 import { isWorkerProcess } from '../../shared/process/process-role';
 import { AmenitiesService } from './application/amenities.service';
+import { BrokerService } from './application/broker.service';
 import { DepartmentsService } from './application/departments.service';
 import { FolioService } from './application/folio.service';
 import { FrontDeskService } from './application/front-desk.service';
+import { SelfCheckInService } from './application/self-check-in.service';
 import { HousekeepingService } from './application/housekeeping.service';
 import { MessagingService } from './application/messaging.service';
 import { NightAuditService } from './application/night-audit.service';
@@ -20,6 +22,7 @@ import { OffersService } from './application/offers.service';
 import { StayClaimService } from './application/stay-claim.service';
 import { StayRefundService } from './application/stay-refund.service';
 import { AmenitiesRepository } from './infrastructure/amenities.repository';
+import { BrokerOpsRepository } from './infrastructure/broker-ops.repository';
 import { DepartmentsRepository } from './infrastructure/departments.repository';
 import { FolioRepository } from './infrastructure/folio.repository';
 import { FrontDeskRepository } from './infrastructure/front-desk.repository';
@@ -33,6 +36,7 @@ import { ServiceCatalogRepository } from './infrastructure/service-catalog.repos
 import { GuestOrderingRepository } from './infrastructure/guest-ordering.repository';
 import { OutletsRepository } from './infrastructure/outlets.repository';
 import { OffersRepository } from './infrastructure/offers.repository';
+import { PreArrivalIdentityRepository } from './infrastructure/pre-arrival-identity.repository';
 import { StayClaimRepository } from './infrastructure/stay-claim.repository';
 import { StayInvitationMailer } from './infrastructure/stay-invitation.mailer';
 import { StayRefundRepository } from './infrastructure/stay-refund.repository';
@@ -84,6 +88,7 @@ import { PaymentsModule } from '../payments/payments.module';
     FrontDeskRepository,
     MessagingRepository,
     ResidenceRepository,
+    BrokerOpsRepository,
     AmenitiesRepository,
     DepartmentsRepository,
     FolioRepository,
@@ -96,10 +101,12 @@ import { PaymentsModule } from '../payments/payments.module';
     OffersRepository,
     StayClaimRepository,
     StayRefundRepository,
+    PreArrivalIdentityRepository,
     StayInvitationMailer,
     FrontDeskService,
     MessagingService,
     ResidenceService,
+    BrokerService,
     AmenitiesService,
     DepartmentsService,
     FolioService,
@@ -114,15 +121,19 @@ import { PaymentsModule } from '../payments/payments.module';
     OffersService,
     StayClaimService,
     StayRefundService,
+    SelfCheckInService,
     NightAuditService,
     ...(isWorkerProcess() ? [NightAuditProcessor] : []),
   ],
   exports: [
+    // Self check-in before arrival (ADR-060).
+    SelfCheckInService,
     // The booking module settles a pay now order's mobile money through it.
     OrderPaymentService,
     FrontDeskService,
     MessagingService,
     ResidenceService,
+    BrokerService,
     AmenitiesService,
     DepartmentsService,
     FolioService,

@@ -36,7 +36,9 @@ export const en = {
   'checkin.photoHint': 'It leads the check-in',
   'checkin.photoQueue': 'A poor connection is fine — the upload queues and resumes.',
   'checkin.photoUploadNote':
-    'Nothing is uploaded in this prototype. The photo stays on the phone until the storage endpoint lands.',
+    'The photo is sent when you finish, and kept with your booking until the front desk checks you in.',
+  'checkin.sendFailed':
+    'We could not send your check-in. Nothing you entered is lost — try again when you have a connection.',
 
   /* Step 3 — where the guest lives */
   'checkin.addressTitle': 'Where do you live?',
@@ -68,6 +70,8 @@ export const en = {
 
   /* What it says when it lands */
   'checkin.doneToast': 'You are checked in — the arrival guide is open',
+  // The write did not land: the draft is kept and nothing is unlocked.
+  'checkin.saveFailed': 'Your check-in did not save. Nothing you entered is lost. Try again.',
   'checkin.reviewTitle': 'Ready to check in',
   'checkin.reviewBody': 'Everything below goes to {property}. Nothing else is shared.',
 
@@ -128,7 +132,9 @@ export const rw: Record<keyof typeof en, string> = {
   'checkin.photoHint': 'Ni yo ibanza mu kwinjira',
   'checkin.photoQueue': 'Umurongo muke ntacyo utwaye — kohereza birategereza bikongera bigakomeza.',
   'checkin.photoUploadNote':
-    'Nta kintu kijya kuri seriveri muri iyi porogaramu y’igerageza. Ifoto isigara kuri telefoni.',
+    'Ifoto yoherezwa igihe urangije, ikabikwa hamwe n’ibyo wabitse kugeza abakozi bo ku biro bakwakiriye.',
+  'checkin.sendFailed':
+    'Ntitwashoboye kohereza ibyo wujuje. Nta cyo wanditse cyatakaye — ongera ugerageze ukibona interineti.',
 
   'checkin.addressTitle': 'Utuye he?',
   'checkin.countryOfResidence': 'Igihugu utuyemo',
@@ -156,6 +162,8 @@ export const rw: Record<keyof typeof en, string> = {
   'checkin.blockedAddressText': 'Andika aderesi utuyeho.',
 
   'checkin.doneToast': 'Wamaze kwinjira — ubuyobozi bwo kugera burafunguye',
+  // English until Kinyarwanda work starts (v1 is English only).
+  'checkin.saveFailed': en['checkin.saveFailed'],
   'checkin.reviewTitle': 'Witeguye kwinjira',
   'checkin.reviewBody': 'Ibiri hepfo byose bijya kuri {property}. Nta kindi gisangirwa.',
 

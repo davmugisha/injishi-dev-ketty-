@@ -89,9 +89,14 @@ interface TitleProps {
   title?: string;
   greeting?: string;
   action?: ReactNode;
+  /**
+   * Leave room on the left for a `BackHeader` floating over the title, which
+   * otherwise covers its first letters. Opt in, so no existing screen moves.
+   */
+  backInset?: boolean;
 }
 
-function TitleBlock({ title, greeting, action }: TitleProps) {
+function TitleBlock({ title, greeting, action, backInset }: TitleProps) {
   const { space } = useTheme();
   if (!title) return null;
 
@@ -99,6 +104,8 @@ function TitleBlock({ title, greeting, action }: TitleProps) {
     <View
       style={{
         paddingHorizontal: space[4],
+        // The back button is 38pt wide at left 14; the title starts past it.
+        ...(backInset ? { paddingLeft: 14 + 38 + space[3] } : {}),
         paddingBottom: space[3],
         flexDirection: 'row',
         alignItems: 'flex-end',
@@ -131,6 +138,7 @@ export function Screen({
   title,
   greeting,
   action,
+  backInset,
   children,
 }: TitleProps & { children: ReactNode }) {
   const { c, space } = useTheme();
@@ -145,7 +153,7 @@ export function Screen({
         }}
         showsVerticalScrollIndicator={false}
       >
-        <TitleBlock title={title} greeting={greeting} action={action} />
+        <TitleBlock title={title} greeting={greeting} action={action} backInset={backInset} />
         <View style={{ paddingHorizontal: space[4], gap: space[4] }}>{children}</View>
       </ScrollView>
       <StatusBarScrim />

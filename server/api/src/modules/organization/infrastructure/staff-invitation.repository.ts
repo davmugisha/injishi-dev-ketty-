@@ -1,12 +1,14 @@
 import type { InvitableOrgRole, OrgRole } from '@injishi/contracts';
 import { Inject, Injectable } from '@nestjs/common';
-import { type SQL, and, desc, eq, gt, sql } from 'drizzle-orm';
+import { type SQL, and, desc, eq, gt, inArray, isNull, sql } from 'drizzle-orm';
 
 import {
   auditEvents,
   orgInvitations,
+  orgMembershipBranches,
   orgMemberships,
   orgs,
+  properties,
   users,
   workspaces,
 } from '../../../database/drizzle/schema';
@@ -14,11 +16,16 @@ import {
   DRIZZLE,
   type Database,
 } from '../../../shared/database/database.module';
+import { ensureStaffFileTx } from '../../people/infrastructure/staff-file';
 
 /** Any reason an acceptance writes nothing. Rolls the transaction back. */
 export class StaffInvitationRefused extends Error {
   constructor(
-    readonly why: 'no_live_invitation' | 'wrong_account' | 'already_member',
+    readonly why:
+      | 'no_live_invitation'
+      | 'wrong_account'
+      | 'already_member'
+      | 'branches_gone',
     readonly existingRole?: OrgRole,
   ) {
     super(`Staff invitation refused: ${why}`);
@@ -32,6 +39,7 @@ export interface StaffInvitationRow {
   status: 'sent' | 'accepted' | 'revoked' | 'expired';
   expiresAt: Date;
   createdAt: Date;
+  branchIds: string[] | null;
 }
 
 /**
@@ -57,6 +65,7 @@ export class StaffInvitationRepository {
         status: orgInvitations.status,
         expiresAt: orgInvitations.expiresAt,
         createdAt: orgInvitations.createdAt,
+        branchIds: orgInvitations.branchPropertyIds,
       })
       .from(orgInvitations)
       .where(and(eq(orgInvitations.orgId, orgId), eq(orgInvitations.purpose, 'staff')))
@@ -82,6 +91,25 @@ export class StaffInvitationRepository {
   }
 
   /**
+   * Whether every id names a live branch of this org (ADR-054 AC-T1): `foreign`
+   * when one is missing or belongs to another org, `archived` when one is
+   * retired, null when all hold.
+   */
+  async branchRefusal(
+    orgId: string,
+    branchIds: readonly string[],
+  ): Promise<'foreign' | 'archived' | null> {
+    const found = await this.db
+      .select({ orgId: properties.orgId, archivedAt: properties.archivedAt })
+      .from(properties)
+      .where(inArray(properties.id, [...branchIds]));
+    if (found.length !== branchIds.length || found.some((p) => p.orgId !== orgId)) {
+      return 'foreign';
+    }
+    return found.some((p) => p.archivedAt !== null) ? 'archived' : null;
+  }
+
+  /**
    * Issue an invitation, first revoking any still-live one to the same address.
    *
    * One live invitation per address per business, so a resend replaces the
@@ -91,6 +119,7 @@ export class StaffInvitationRepository {
     orgId: string;
     email: string;
     orgRole: InvitableOrgRole;
+    branchIds: readonly string[] | null;
     token: string;
     expiresAt: Date;
     invitedByUserId: string;
@@ -113,6 +142,7 @@ export class StaffInvitationRepository {
           orgId: input.orgId,
           email: input.email.toLowerCase(),
           orgRole: input.orgRole,
+          branchPropertyIds: input.branchIds ? [...input.branchIds] : null,
           purpose: 'staff',
           token: input.token,
           expiresAt: input.expiresAt,
@@ -124,7 +154,12 @@ export class StaffInvitationRepository {
         subjectType: 'org',
         subjectId: input.orgId,
         eventType: 'team.invitation_sent',
-        payloadDiff: { invitationId: row.id, email: input.email, orgRole: input.orgRole } as never,
+        payloadDiff: {
+          invitationId: row.id,
+          email: input.email,
+          orgRole: input.orgRole,
+          branchIds: input.branchIds,
+        } as never,
         reason: null,
       });
       return row.id;
@@ -186,6 +221,7 @@ export class StaffInvitationRepository {
           id: orgInvitations.id,
           email: orgInvitations.email,
           orgRole: orgInvitations.orgRole,
+          branchPropertyIds: orgInvitations.branchPropertyIds,
         })
         .from(orgInvitations)
         .where(liveInvitation(input.orgId, input.token))
@@ -214,7 +250,29 @@ export class StaffInvitationRepository {
         throw new StaffInvitationRefused('already_member', existing.orgRole);
       }
 
+      // The branches the invite named, less any archived since it was sent
+      // (ADR-054, invite accept). A limit left with nothing would make a member
+      // who covers no branch, so it is refused instead (409).
+      let branchIds: string[] | null = null;
+      if (invitation.branchPropertyIds && invitation.branchPropertyIds.length > 0) {
+        const live = await tx
+          .select({ id: properties.id })
+          .from(properties)
+          .where(
+            and(
+              inArray(properties.id, invitation.branchPropertyIds),
+              eq(properties.orgId, input.orgId),
+              isNull(properties.archivedAt),
+            ),
+          )
+          .for('share');
+        if (live.length === 0) throw new StaffInvitationRefused('branches_gone');
+        branchIds = live.map((p) => p.id);
+      }
+
+      let membershipId: string;
       if (existing) {
+        membershipId = existing.id;
         // Somebody who used to work here comes back in the role they were
         // invited to now, on the same row, so their history stays in one place.
         await tx
@@ -227,11 +285,27 @@ export class StaffInvitationRepository {
           })
           .where(eq(orgMemberships.id, existing.id));
       } else {
-        await tx.insert(orgMemberships).values({
-          orgId: input.orgId,
-          userId: input.userId,
-          orgRole: invitation.orgRole,
-        });
+        const [created] = await tx
+          .insert(orgMemberships)
+          .values({
+            orgId: input.orgId,
+            userId: input.userId,
+            orgRole: invitation.orgRole,
+          })
+          .returning({ id: orgMemberships.id });
+        if (!created) throw new Error('Membership insert returned no row.');
+        membershipId = created.id;
+      }
+
+      // The invite decides the coverage, including for a returning member,
+      // whose old limit must not outlive the role they left.
+      await tx
+        .delete(orgMembershipBranches)
+        .where(eq(orgMembershipBranches.orgMembershipId, membershipId));
+      if (branchIds) {
+        await tx
+          .insert(orgMembershipBranches)
+          .values(branchIds.map((propertyId) => ({ orgMembershipId: membershipId, propertyId })));
       }
 
       const spent = await tx
@@ -240,6 +314,12 @@ export class StaffInvitationRepository {
         .where(and(eq(orgInvitations.id, invitation.id), eq(orgInvitations.status, 'sent')))
         .returning({ id: orgInvitations.id });
       if (spent.length === 0) throw new StaffInvitationRefused('no_live_invitation');
+
+      // Every way into a business ends with a file (ADR-058, 058-self-service
+      // AC-J2): a thin one is written in this transaction when the membership
+      // has no active file, so the Staff list never misses somebody who joined
+      // through Team.
+      await ensureStaffFileTx(tx, { orgId: input.orgId, membershipId });
 
       const [workspace] = await tx
         .select({ id: workspaces.id })
@@ -253,7 +333,11 @@ export class StaffInvitationRepository {
         subjectType: 'org',
         subjectId: input.orgId,
         eventType: 'team.invitation_accepted',
-        payloadDiff: { invitationId: invitation.id, orgRole: invitation.orgRole } as never,
+        payloadDiff: {
+          invitationId: invitation.id,
+          orgRole: invitation.orgRole,
+          branchIds,
+        } as never,
         reason: null,
       });
 

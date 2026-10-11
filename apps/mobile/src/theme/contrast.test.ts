@@ -22,6 +22,7 @@
  * "a table that only ever measures the canvas cannot see a card bug."
  */
 import { palettes, type ColorScheme, type Palette } from './palette';
+import { kitMetrics } from './tokens';
 
 /**
  * Every scheme, so a pair cannot be correct in two of them and wrong in the
@@ -96,16 +97,20 @@ const resolve = (p: Palette, ink: Ink) => (ink === WHITE ? WHITE : p[ink]);
  * failure points at a file rather than at a colour.
  */
 const PAIRS: Pair[] = [
-  /* The kit's own controls */
-  { where: 'Button primary — label on action', ink: 'bgApp', ground: 'action', floor: 4.5 },
-  { where: 'Button danger — label on danger500', ink: WHITE, ground: 'danger500', floor: 4.5 },
-  { where: 'Button secondary — label on actionSubtle', ink: 'action', ground: 'actionSubtle', floor: 4.5 },
-  { where: 'Button outline — label on surface1', ink: 'textStrong', ground: 'surface1', floor: 4.5 },
+  /* The kit's own controls. ADR-064 repainted the button and the badge; each
+     row it changed names the AC that changed it. */
+  { where: 'Button primary — textOnBrand on teal (ADR-064 AC-1)', ink: 'textOnBrand', ground: 'domainHospitality', floor: 4.5 },
+  { where: 'Button danger — textOnDanger on danger500 (ADR-064 AC-3)', ink: 'textOnDanger', ground: 'danger500', floor: 4.5 },
+  { where: 'Button secondary — textLink on surface3 (ADR-064 AC-3)', ink: 'textLink', ground: 'surface3', floor: 4.5 },
+  { where: 'Button outline — textBody on surface1 (ADR-064 AC-3)', ink: 'textBody', ground: 'surface1', floor: 4.5 },
+  { where: 'Button outline — textBody on the app ground (ADR-064 AC-3)', ink: 'textBody', ground: 'bgApp', floor: 4.5 },
   { where: 'Badge success — label on success100', ink: 'success600', ground: 'success100', over: 'surface1', floor: 4.5 },
   { where: 'Badge warning — label on warning100', ink: 'warning600', ground: 'warning100', over: 'surface1', floor: 4.5 },
   { where: 'Badge danger — label on danger100', ink: 'danger600', ground: 'danger100', over: 'surface1', floor: 4.5 },
-  { where: 'Badge brand — label on brand100', ink: 'brand700', ground: 'brand100', over: 'surface1', floor: 4.5 },
-  { where: 'Badge neutral — label on neutral100', ink: 'textBody', ground: 'neutral100', over: 'surface1', floor: 4.5 },
+  { where: 'Badge brand — textLink on surface2 (ADR-064 AC-10)', ink: 'textLink', ground: 'surface2', floor: 4.5 },
+  { where: 'Badge neutral — textBody on surface3 (ADR-064 AC-10)', ink: 'textBody', ground: 'surface3', floor: 4.5 },
+  { where: 'Badge brand solid — textOnBrand on teal (ADR-064 AC-10)', ink: 'textOnBrand', ground: 'domainHospitality', floor: 4.5 },
+  { where: 'Badge neutral solid — bgApp on textMuted (ADR-064 AC-10)', ink: 'bgApp', ground: 'textMuted', floor: 4.5 },
   { where: 'Tag selected — label on actionSubtle', ink: 'brand700', ground: 'actionSubtle', floor: 4.5 },
   { where: 'Tag — label on surface2', ink: 'textBody', ground: 'surface2', floor: 4.5 },
   { where: 'Card tint — body on elevate1', ink: 'brand900', ground: 'elevate1', floor: 4.5 },
@@ -143,18 +148,59 @@ describe.each(SCHEMES)('%s scheme', (scheme) => {
   });
 });
 
-describe('the two pairs the audit found', () => {
+describe('the pressed primary and danger buttons (ADR-064 AC-17)', () => {
   /**
-   * Asserted as failures rather than only fixed, so the reason this file exists
-   * cannot be deleted along with the memory of it. If somebody puts
-   * `textOnBrand` back on either ground, these say what happens.
+   * A pressed button draws a highlight over its fill at 10%
+   * (`kitMetrics.press.highlightFilled`, AC-5). The label has to stay readable
+   * while the finger is down, so the pair is measured on the pressed ground,
+   * not the resting one.
+   *
+   * Under ADR-064's teal the highlight was the near-ink label itself, which
+   * darkened the fill. Under ADR-068 both labels here are snow, and snow over
+   * the fill LIGHTENS it: 3.91:1 on the accent. So `Button` presses these two
+   * toward `pressInk` instead (`PAINT.press`, which `button.test.tsx` pins),
+   * and that is the highlight measured here: about 5.2:1, against 4.63:1 and
+   * 4.59:1 at rest.
    */
-  it('textOnBrand on action is invisible in light, which is why the send glyph moved', () => {
-    expect(contrast(palettes.light.textOnBrand, palettes.light.action)).toBeLessThan(1.1);
+  const alpha = Math.round(kitMetrics.press.highlightFilled * 255)
+    .toString(16)
+    .padStart(2, '0');
+
+  it.each(SCHEMES)('keeps textOnBrand above 4.5:1 on the pressed accent in %s', (scheme) => {
+    const p = palettes[scheme];
+    const pressed = composite(p.pressInk + alpha, p.domainHospitality);
+    expect(contrast(p.textOnBrand, pressed)).toBeGreaterThanOrEqual(4.5);
   });
 
-  it('textOnBrand on brand500 is under the floor in light, which is why the bubble moved', () => {
-    expect(contrast(palettes.light.textOnBrand, palettes.light.brand500)).toBeLessThan(4.5);
+  it.each(SCHEMES)('keeps textOnDanger above 4.5:1 on the pressed danger fill in %s', (scheme) => {
+    const p = palettes[scheme];
+    const pressed = composite(p.pressInk + alpha, p.danger500);
+    expect(contrast(p.textOnDanger, pressed)).toBeGreaterThanOrEqual(4.5);
+  });
+
+  it.each(SCHEMES)('would fail with the label drawn as its own highlight in %s', (scheme) => {
+    // The control: what ADR-064 drew before ADR-068 turned the label light.
+    const p = palettes[scheme];
+    const pressed = composite(p.textOnBrand + alpha, p.domainHospitality);
+    expect(contrast(p.textOnBrand, pressed)).toBeLessThan(4.5);
+  });
+});
+
+describe('the two pairs the audit found', () => {
+  /**
+   * Under ADR-025's teal these two pairs FAILED: `textOnBrand` was near-ink, so
+   * on `action` it measured about 1:1 and on `brand500` 3.18:1. That is why
+   * the send glyph and the bubble moved off it, and they stay off it. ADR-068
+   * made the accent ink snow, so both pairs now read; they are pinned at the
+   * floor so the next palette that breaks them again fails here, by name,
+   * rather than on a screen.
+   */
+  it('textOnBrand on action reads under ADR-068 (it was invisible under ADR-025)', () => {
+    expect(contrast(palettes.light.textOnBrand, palettes.light.action)).toBeGreaterThanOrEqual(4.5);
+  });
+
+  it('textOnBrand on brand500 clears the floor under ADR-068 (3.18:1 under ADR-025)', () => {
+    expect(contrast(palettes.light.textOnBrand, palettes.light.brand500)).toBeGreaterThanOrEqual(4.5);
   });
 
   /**

@@ -75,7 +75,7 @@ describe('EbmSaleTrigger', () => {
       emissions as unknown as EbmEmissionRepository,
       bookings as unknown as EbmBookingRepository,
       { add } as unknown as Queue,
-      { environment: opts.environment ?? 'production', sampleData: false },
+      { environment: opts.environment ?? 'production', sampleData: false, commit: null },
       opts.live === false ? null : ({} as EbmLive),
       opts.signPoint ?? 'booking',
     );

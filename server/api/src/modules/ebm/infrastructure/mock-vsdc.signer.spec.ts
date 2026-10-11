@@ -117,4 +117,19 @@ describe('MockVsdcSigner', () => {
       expect(sdc.typeCounter).toBeGreaterThan(0);
     }
   });
+
+  it('signs nothing on a proforma or a training ticket (clauses 16, 17)', async () => {
+    const signer = new MockVsdcSigner();
+
+    for (const receiptType of ['PS', 'TS'] as const) {
+      const { sdc } = await signer.sign(request({ receiptType }));
+
+      // Printed "EXCLUDING digital signatures": a fabricated one on a document
+      // the specification says carries none would be worse than a mock.
+      expect(sdc.internalData).toBe('');
+      expect(sdc.receiptSignature).toBe('');
+      expect(sdc.receiptLabel).toBe(receiptType);
+      expect(EbmSdcBlock.safeParse(sdc).success).toBe(true);
+    }
+  });
 });

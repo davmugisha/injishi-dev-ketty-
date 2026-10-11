@@ -236,6 +236,45 @@ export const verifiedIdentities = pgTable('verified_identities', {
 });
 
 
+/**
+ * A National ID lookup waiting for its code (ADR-060).
+ *
+ * The register answered with a person and a phone; the code went to that phone
+ * and the person is revealed only to whoever types it back. `codeHash` is the
+ * SHA-256 of the six digits, as `two_factor_challenges` does, so a read of this
+ * table is not a working verification. The row is deleted when it is spent,
+ * and dies at its expiry or its attempts cap. The document number is kept only
+ * so the confirm can bind the SAME number the code was sent for.
+ */
+export const identityChallenges = pgTable(
+  'identity_challenges',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    userId: uuid('user_id')
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    documentNumber: text('document_number').notNull(),
+    codeHash: text('code_hash').notNull(),
+    expiresAt: timestamp('expires_at', { withTimezone: true }).notNull(),
+    attempts: integer('attempts').notNull().default(0),
+    ...timestamps,
+  },
+  (t) => [index('identity_challenges_user_id_idx').on(t.userId)],
+);
+
+/**
+ * The registration wizard's answers between steps, one row per person
+ * (ADR-060). `payload` is a `RegistrationDraft`, which by its contract never
+ * holds an ID number. Deleted when the registration is created.
+ */
+export const registrationDrafts = pgTable('registration_drafts', {
+  userId: uuid('user_id')
+    .primaryKey()
+    .references(() => users.id, { onDelete: 'cascade' }),
+  payload: jsonb('payload').notNull(),
+  ...timestamps,
+});
+
 export const identityDocuments = pgTable(
   'identity_documents',
   {

@@ -19,6 +19,7 @@ import {
   uniqueIndex,
   uuid,
 } from 'drizzle-orm/pg-core';
+import { assistantConversations } from './assistant';
 import { users } from './auth';
 import { timestamps } from './columns';
 import { adapterModeEnum, adapterNameEnum, adapterStatusEnum, announcementStateEnum, auditSubjectTypeEnum, complianceArtifactTypeEnum, domainKindEnum, dsrRequestTypeEnum, dsrStateEnum, escalationStateEnum, escalationSubjectTypeEnum, escalationTypeEnum, flagScopeEnum, recordDataClassEnum, staffRoleEnum, supportTicketStateEnum, translationStatusEnum } from './enums';
@@ -248,6 +249,16 @@ export const supportTickets = pgTable('support_tickets', {
   contactEmail: text('contact_email'),
   contactName: text('contact_name'),
   contactPhone: text('contact_phone'),
+  // A ticket the person sent from the support assistant (ADR-061 D-l,
+  // migration 0054_support_assistant). The conversation link is cleared when the conversation
+  // is deleted at the end of its retention; `context` (the page, the questions
+  // asked, the tools used, the changes prepared) stays with the ticket, and is
+  // also written into `message` so the moderation desk shows it unchanged.
+  assistantConversationId: uuid('assistant_conversation_id').references(
+    () => assistantConversations.id,
+    { onDelete: 'set null' },
+  ),
+  context: jsonb('context'),
   ...timestamps,
 });
 

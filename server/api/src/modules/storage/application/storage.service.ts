@@ -13,7 +13,34 @@ import {
   STORAGE_PORT,
   type AttachmentKind,
   type StoragePort,
+  type StoredObjectKind,
 } from '../domain/storage-port';
+import { sniffMime, type SniffedMime } from '../domain/sniff-mime';
+
+/** What an HR upload is for, and the stored kind, the formats and the ceiling of each. */
+const HR_FILE_RULES = {
+  photo: { kind: 'staff_photo', mimes: ['image/jpeg', 'image/png', 'image/heic', 'image/webp'], maxBytes: 5 * 1024 * 1024 },
+  document: {
+    kind: 'staff_document',
+    mimes: ['application/pdf', 'image/jpeg', 'image/png', 'image/heic'],
+    maxBytes: 10 * 1024 * 1024,
+  },
+  attachment: {
+    kind: 'hr_attachment',
+    mimes: ['application/pdf', 'image/jpeg', 'image/png', 'image/heic', 'image/webp'],
+    maxBytes: 10 * 1024 * 1024,
+  },
+} as const satisfies Record<string, { kind: StoredObjectKind; mimes: readonly SniffedMime[]; maxBytes: number }>;
+
+export type HrFilePurpose = keyof typeof HR_FILE_RULES;
+
+/** The largest HR upload of any purpose, for the multipart parser's ceiling. */
+export const MAX_HR_FILE_BYTES = 10 * 1024 * 1024;
+
+/** The stored kind an HR purpose is kept as. */
+export function hrFileKind(purpose: HrFilePurpose): StoredObjectKind {
+  return HR_FILE_RULES[purpose].kind;
+}
 
 /**
  * A stored file, as the uploads route reports it back.
@@ -313,14 +340,18 @@ export class StorageService {
     objectKey: string;
     kind: string;
     mime: string | null;
+    sizeBytes: number | null;
     uploadedByUserId: string | null;
+    workspaceId: string | null;
   } | null> {
     const [row] = await this.db
       .select({
         objectKey: storedObjects.objectKey,
         kind: storedObjects.kind,
         mime: storedObjects.mime,
+        sizeBytes: storedObjects.sizeBytes,
         uploadedByUserId: storedObjects.uploadedByUserId,
+        workspaceId: storedObjects.workspaceId,
       })
       .from(storedObjects)
       .where(eq(storedObjects.objectKey, objectKey))
@@ -382,6 +413,77 @@ export class StorageService {
       })
       .onConflictDoNothing({ target: storedObjects.objectKey });
 
+    return put.objectKey;
+  }
+
+  /**
+   * Store one HR file and record it (ADR-058, 058-people-file): a staff
+   * photograph, a document on a file, or an attachment on a note, a policy, an
+   * announcement or a disciplinary record.
+   *
+   * The type is read from the bytes (`sniffMime`), never from the file name or
+   * the declared type, and checked against the purpose's own list: a photo is an
+   * image, a document or an attachment may also be a PDF. The workspace is
+   * recorded at once, unlike a phone attachment's, because the upload already
+   * runs behind `WorkspaceGuard`; the attach call checks the object is this
+   * workspace's and of the purpose's kind before hanging it on anything.
+   */
+  async putHrFile(input: {
+    body: Buffer;
+    filename: string;
+    purpose: HrFilePurpose;
+    uploadedByUserId: string;
+    workspaceId: string;
+  }): Promise<{ objectKey: string; purpose: HrFilePurpose; mime: string; sizeBytes: number }> {
+    const rule = HR_FILE_RULES[input.purpose];
+    if (input.body.byteLength === 0) throw new BadRequestException('That file is empty.');
+    if (input.body.byteLength > rule.maxBytes) {
+      throw new BadRequestException(`That file is larger than ${rule.maxBytes / (1024 * 1024)} MB.`);
+    }
+    const mime = sniffMime(input.body);
+    if (!mime || !(rule.mimes as readonly string[]).includes(mime)) {
+      throw new BadRequestException(
+        input.purpose === 'photo'
+          ? 'A photo must be a JPEG, PNG, HEIC or WebP image.'
+          : 'A file must be a PDF, or a JPEG, PNG or HEIC image.',
+      );
+    }
+    const put = await this.storage.put({
+      body: input.body,
+      mime,
+      filename: input.filename,
+      kind: rule.kind,
+    });
+    await this.db.insert(storedObjects).values({
+      objectKey: put.objectKey,
+      kind: rule.kind,
+      mime,
+      sizeBytes: put.sizeBytes,
+      uploadedByUserId: input.uploadedByUserId,
+      workspaceId: input.workspaceId,
+    });
+    return { objectKey: put.objectKey, purpose: input.purpose, mime, sizeBytes: put.sizeBytes };
+  }
+
+  /**
+   * Store a file payroll built: a bank or MoMo file, or a declaration
+   * (058-payroll AC-PY10, AC-PY12). Like a training certificate, these bytes
+   * were made here a moment ago, so there is no client to distrust and no
+   * mime to sniff. They carry wages and account numbers: kept private, against
+   * the workspace, read only through a five minute link.
+   */
+  async putHrPayFile(input: { body: Buffer; filename: string; workspaceId: string; createdByUserId: string }): Promise<string> {
+    const kind = 'hr_pay_file' as const;
+    const mime = 'text/csv';
+    const put = await this.storage.put({ body: input.body, mime, filename: input.filename, kind });
+    await this.db.insert(storedObjects).values({
+      objectKey: put.objectKey,
+      kind,
+      mime,
+      sizeBytes: put.sizeBytes,
+      uploadedByUserId: input.createdByUserId,
+      workspaceId: input.workspaceId,
+    });
     return put.objectKey;
   }
 

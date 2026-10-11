@@ -2,72 +2,54 @@
  * Security — frames R5, R14 and B25's "Security · 2FA · On ›".
  *
  * The frames draw one row and F-S12 §6 says what is behind it: a 2FA toggle,
- * the active sessions, and "sign out everywhere". §9 names the case the whole
- * screen exists for — *a stolen session token, mitigated by sign-out-everywhere*
- * — and that is why the sessions list is the larger half rather than the
- * toggle.
+ * the active sessions, and "sign out everywhere". This screen draws what the
+ * server can actually say, and no more.
  *
- * Three decisions worth knowing:
+ * ## Two-step sign-in is a status, not a switch
  *
- * **The current device cannot be revoked from the list.** Signing out the phone
- * in your hand from a row labelled "this device" is a control that reads as a
- * mistake even when it is not one, and `Sign out` on Account is where that
- * lives. `applySessionChange` enforces it rather than the row hiding it, so a
- * future caller cannot get it wrong.
+ * It reads `GET /api/v1/me/two-factor`, the route the step-up screen already
+ * calls. The server has no on/off route: the emailed step-up applies to anyone
+ * who holds a business or broker workspace, and a session started with an
+ * emailed code has already passed it (`two-factor.service.ts`). So the screen
+ * reports `{ required, verified }` and offers nothing to change. It used to
+ * draw a toggle over a fixture seeded "on", which flipped the fixture and
+ * toasted success while the account stayed exactly as it was (mobile audit
+ * 2026-10-05, SA-06). Its copy also said "Your number alone signs you in";
+ * sign in is a code sent by email.
  *
- * **An old session is marked, not alarmed.** An unused device is usually just
- * an unused device. What a person can actually spot is the one they do not
- * recognise, so the row carries the place and how long ago — the two facts that
- * make recognition possible — and a quiet marker past two weeks.
+ * The state carries a word as well as the shield's tint, never colour alone.
  *
- * **"Sign out everywhere" asks first.** It is the one control here whose effect
- * a person cannot see from this screen: every other device, including ones they
- * are not holding. A confirm that names the count is the difference between a
- * decision and a surprise.
+ * ## The devices list is not drawn
+ *
+ * It was invented ("iPhone 13 · Injishi", "Chrome · Windows"), and "Sign out"
+ * and "Sign out everywhere else" only edited the invention before toasting that
+ * the devices were signed out. A person acting on a stolen-session suspicion
+ * was told it was handled. Nothing ended. Until the list is read from Better
+ * Auth's own `list-sessions` (with `revoke-session` and
+ * `revoke-other-sessions` behind its buttons), the screen says plainly that it
+ * cannot list other devices.
  */
-import { useState } from 'react';
 import { View } from 'react-native';
-import Animated, { FadeOut, LinearTransition } from 'react-native-reanimated';
 import {
   BackHeader,
   Badge,
-  Button,
   Card,
   ErrorState,
   Icon,
-  ListRow,
-  ModalSheet,
   OfflineNote,
-  PressableScale,
   Screen,
-  SkeletonList,
+  Skeleton,
   Text,
   useOffline,
-  useToast,
 } from '@/components';
 import { useTheme } from '@/theme/theme';
 import { useT } from '@/i18n/i18n';
-import { useReducedMotion } from '@/motion';
-import { todayIso } from '@/components';
-import { isStaleSession, sessionMeta } from './account-format';
-import { useSessionMutation, useSessions, useTwoFactor } from './account-store';
+import { useTwoFactorState, type TwoFactorState } from './account-store';
 
 export function SecurityScreen() {
-  const { c, space, radius } = useTheme();
   const t = useT();
-  const toast = useToast();
   const offline = useOffline();
-  const reduced = useReducedMotion();
-  const today = todayIso();
-
-  const { on: twoFactor, toggle } = useTwoFactor();
-  const sessions = useSessions();
-  const revoke = useSessionMutation();
-  const [confirming, setConfirming] = useState(false);
-
-  const rows = sessions.data ?? [];
-  const others = rows.filter((s) => !s.current);
-  const busy = revoke.status === 'saving' || toggle.status === 'saving';
+  const twoFactor = useTwoFactorState();
 
   return (
     <>
@@ -75,202 +57,89 @@ export function SecurityScreen() {
       <Screen title={t('security.title')}>
         {offline ? <OfflineNote /> : null}
 
-        <Card title={t('security.twoFactorTitle')} subtitle={t('security.twoFactorBody')}>
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: space[3] }}>
-            <View
-              accessibilityElementsHidden
-              importantForAccessibility="no-hide-descendants"
-              style={{
-                width: 40,
-                height: 40,
-                borderRadius: radius.md,
-                alignItems: 'center',
-                justifyContent: 'center',
-                backgroundColor: twoFactor ? c.success100 : c.surface2,
-              }}
-            >
-              <Icon name="shield" size={19} color={twoFactor ? c.success600 : c.textMuted} />
-            </View>
-            <View style={{ flex: 1, gap: 2 }}>
-              <Text weight="medium" size="sm" color="textStrong">
-                {t('security.twoFactorLabel')}
-              </Text>
-              {/* The state carries a word, never the colour alone. */}
-              <Text size="xs" color="textMuted">
-                {t(twoFactor ? 'security.twoFactorOn' : 'security.twoFactorOff')}
-              </Text>
-            </View>
-            <PressableScale
-              accessibilityRole="switch"
-              accessibilityLabel={t('security.twoFactorLabel')}
-              accessibilityHint={t('security.twoFactorHint')}
-              accessibilityState={{ checked: twoFactor }}
-              disabled={busy}
-              haptic
-              onPress={() => {
-                void toggle.mutate(!twoFactor).then(() =>
-                  toast.show(
-                    t(twoFactor ? 'security.twoFactorOffToast' : 'security.twoFactorOnToast'),
-                    twoFactor ? 'warning' : 'success',
-                  ),
-                );
-              }}
-              style={{
-                minHeight: 44,
-                paddingHorizontal: 16,
-                justifyContent: 'center',
-                borderRadius: radius.md,
-                borderWidth: 1,
-                borderColor: twoFactor ? c.borderBrand : c.borderDefault,
-                backgroundColor: twoFactor ? c.actionSubtle : c.surface1,
-              }}
-            >
-              <Text weight="semibold" size="sm" color={twoFactor ? 'textLink' : 'textBody'}>
-                {t(twoFactor ? 'security.turnOff' : 'security.turnOn')}
-              </Text>
-            </PressableScale>
-          </View>
-        </Card>
-
-        {sessions.status === 'loading' ? (
-          <SkeletonList rows={3} label={t('state.loadingList', { label: t('security.label') })} />
-        ) : sessions.status === 'error' ? (
+        {/* A failed refetch keeps the last answer on screen: it is still the
+            last thing the server said. Only a read that never answered shows
+            the error, and its retry asks again. */}
+        {twoFactor.data ? (
+          <TwoFactorCard state={twoFactor.data} />
+        ) : twoFactor.isError ? (
           <ErrorState
             title={t('state.errorTitle')}
             body={t('state.errorBody', { label: t('security.label') })}
-            detail={sessions.error?.message}
-            onRetry={sessions.retry}
+            onRetry={() => void twoFactor.refetch()}
           />
         ) : (
-          <>
-            <Card
-              title={t('security.devicesTitle')}
-              subtitle={t('security.devicesBody', { count: rows.length })}
-              bodyStyle={{ paddingVertical: 2 }}
-            >
-              {/* Revoking removes a row, and "sign out everywhere else" removes
-                  several at once. `LinearTransition` closes the gap they leave
-                  so the rows below settle rather than jump; `FadeOut` is what
-                  makes the removal legible as a removal. Both on the UI thread,
-                  and both dropped under reduced motion — the row still goes,
-                  it just does not travel (design brief §7.6). */}
-              <Animated.View layout={reduced ? undefined : LinearTransition}>
-                {rows.map((session, i) => {
-                  const stale = isStaleSession(session, today);
-                  return (
-                    <Animated.View key={session.id} exiting={reduced ? undefined : FadeOut.duration(140)}>
-                    <ListRow
-                      icon={session.current ? 'smartphone' : 'globe'}
-                      tone={stale ? 'warning600' : undefined}
-                      title={session.label}
-                      subtitle={sessionMeta(session, today, t)}
-                      divider={i < rows.length - 1}
-                      chevron={false}
-                      accessibilityLabel={`${session.label}, ${sessionMeta(session, today, t)}${
-                        session.current ? `, ${t('security.thisDevice')}` : ''
-                      }${stale ? `, ${t('security.stale')}` : ''}`}
-                      trailing={
-                        session.current ? (
-                          <Badge tone="brand" dot>
-                            {t('security.thisDevice')}
-                          </Badge>
-                        ) : (
-                          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-                            {stale ? (
-                              <Badge tone="warning" dot>
-                                {t('security.stale')}
-                              </Badge>
-                            ) : null}
-                            <Button
-                              size="sm"
-                              variant="ghost"
-                              disabled={busy}
-                              accessibilityLabel={t('security.revokeOne', {
-                                device: session.label,
-                              })}
-                              onPress={() => {
-                                void revoke
-                                  .mutate({ kind: 'revoke', id: session.id })
-                                  .then(() =>
-                                    toast.show(
-                                      t('security.revokedToast', { device: session.label }),
-                                      'success',
-                                    ),
-                                  );
-                              }}
-                            >
-                              {t('security.revoke')}
-                            </Button>
-                          </View>
-                        )
-                      }
-                    />
-                    </Animated.View>
-                  );
-                })}
-              </Animated.View>
-            </Card>
-
-            <View style={{ gap: space[2] }}>
-              <Button
-                variant="danger"
-                size="lg"
-                block
-                leadingIcon="logOut"
-                disabled={others.length === 0 || busy}
-                onPress={() => setConfirming(true)}
-              >
-                {t('security.revokeAll')}
-              </Button>
-              {/* The consequence, printed under the button rather than found
-                  after it. Zero others is a state with its own sentence, not a
-                  greyed button with no explanation. */}
-              <Text size="xs" color="textMuted" style={{ lineHeight: 18 }}>
-                {others.length === 0
-                  ? t('security.revokeAllNone')
-                  : t('security.revokeAllNote', { count: others.length })}
-              </Text>
-            </View>
-          </>
+          <TwoFactorCard state={null} />
         )}
-      </Screen>
 
-      <ModalSheet
-        visible={confirming}
-        onClose={() => setConfirming(false)}
-        title={t('security.confirmTitle')}
-        subtitle={t('security.confirmBody', { count: others.length })}
-        footer={
-          <>
-            <Button
-              variant="danger"
-              size="lg"
-              block
-              disabled={busy}
-              onPress={() => {
-                setConfirming(false);
-                void revoke
-                  .mutate({ kind: 'revoke_others' })
-                  .then(() =>
-                    toast.show(
-                      t('security.revokedAllToast', { count: others.length }),
-                      'success',
-                    ),
-                  );
-              }}
-            >
-              {t('security.confirmAction')}
-            </Button>
-            <Button variant="ghost" size="lg" block onPress={() => setConfirming(false)}>
-              {t('security.confirmCancel')}
-            </Button>
-          </>
-        }
-      >
-        <Text size="sm" color="textBody" style={{ lineHeight: 20 }}>
-          {t('security.confirmDetail')}
+        <Text size="xs" color="textMuted" style={{ lineHeight: 18 }}>
+          {t('security.devicesNote')}
         </Text>
-      </ModalSheet>
+      </Screen>
     </>
+  );
+}
+
+/**
+ * The step-up state as one sentence, or a skeleton while it is read.
+ *
+ * Three answers, each its own sentence: needed and passed (the ordinary case
+ * for an operator signed in with an emailed code), needed and not passed (the
+ * step-up screen is where that is resolved), and not needed (a guest or a
+ * tenant, who holds no business or broker workspace).
+ */
+function TwoFactorCard({ state }: { state: TwoFactorState | null }) {
+  const { c, space, radius } = useTheme();
+  const t = useT();
+
+  const word = state ? t(state.required ? 'security.on' : 'security.notNeeded') : null;
+  const line = state
+    ? t(
+        !state.required
+          ? 'security.statusNotNeeded'
+          : state.verified
+            ? 'security.statusPassed'
+            : 'security.statusOwed',
+      )
+    : null;
+
+  return (
+    <Card title={t('security.twoFactorTitle')} subtitle={t('security.twoFactorBody')}>
+      <View
+        accessible
+        accessibilityLabel={
+          word && line
+            ? `${t('security.twoFactorLabel')}, ${word}. ${line}`
+            : `${t('security.twoFactorLabel')}, ${t('state.loading')}`
+        }
+        style={{ flexDirection: 'row', alignItems: 'center', gap: space[3] }}
+      >
+        <View
+          style={{
+            width: 40,
+            height: 40,
+            borderRadius: radius.md,
+            alignItems: 'center',
+            justifyContent: 'center',
+            backgroundColor: state?.required ? c.success100 : c.surface2,
+          }}
+        >
+          <Icon name="shield" size={19} color={state?.required ? c.success600 : c.textMuted} />
+        </View>
+        <View style={{ flex: 1, gap: 4 }}>
+          <Text weight="medium" size="sm" color="textStrong">
+            {t('security.twoFactorLabel')}
+          </Text>
+          {line ? (
+            <Text size="xs" color="textMuted" style={{ lineHeight: 18 }}>
+              {line}
+            </Text>
+          ) : (
+            <Skeleton width="80%" height={12} />
+          )}
+        </View>
+        {word ? <Badge tone={state?.required ? 'success' : 'neutral'}>{word}</Badge> : null}
+      </View>
+    </Card>
   );
 }

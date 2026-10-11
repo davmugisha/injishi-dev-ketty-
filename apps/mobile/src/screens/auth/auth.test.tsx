@@ -55,12 +55,19 @@ jest.mock('expo-router', () => ({
 
 const mockRequestSignInCode = jest.fn();
 const mockVerifySignInCode = jest.fn();
+/**
+ * What `verifySignInCode` leaves in the keychain. A verified sign in stores a
+ * token before it resolves, and `signIn()` refuses without one (mobile audit
+ * SA-20), so the default here is the token a successful verify would hold.
+ */
+let mockToken: string | null = 'token-from-verify';
 
 jest.mock('@/lib/auth', () => ({
   requestSignInCode: (...args: unknown[]) => mockRequestSignInCode(...args),
   verifySignInCode: (...args: unknown[]) => mockVerifySignInCode(...args),
-  // `session.tsx` imports these two from the same module.
+  // `session.tsx` imports these from the same module.
   readStoredToken: jest.fn(async () => null),
+  currentToken: () => mockToken,
   signOut: jest.fn(async () => ({ serverConfirmed: false })),
 }));
 
@@ -118,6 +125,7 @@ beforeEach(() => {
   jest.clearAllMocks();
   mockParams = {};
   mockDemo = { personas: null, isDemoHost: false };
+  mockToken = 'token-from-verify';
   mockRequestSignInCode.mockResolvedValue({ status: 'ok' });
   mockVerifySignInCode.mockResolvedValue({ status: 'ok' });
 });
@@ -125,7 +133,7 @@ beforeEach(() => {
 /* ------------------------------------------------------------- X1 sign in */
 
 describe.each(SCHEMES)('sign in, frame X1, %s scheme', (scheme) => {
-  it('draws the two-line display title, the field and both routes in', () => {
+  it('draws the two-line display title, the field and the one way in', () => {
     renderAuth(<SignInScreen />, scheme);
 
     expect(
@@ -137,8 +145,9 @@ describe.each(SCHEMES)('sign in, frame X1, %s scheme', (scheme) => {
       en['auth.emailLabel'],
     );
     expect(screen.getByText(en['auth.emailFootnote'])).toBeTruthy();
-    expect(screen.getByText(en['auth.or'])).toBeTruthy();
-    expect(button(en['auth.google'])).toBeTruthy();
+    // v1.0 signs in with an emailed code only (owner, 2026-10-01).
+    expect(screen.queryByText(en['auth.or'])).toBeNull();
+    expect(screen.queryByLabelText(en['auth.google'])).toBeNull();
     expect(screen.getByText(en['auth.noDocuments'])).toBeTruthy();
   });
 
@@ -262,13 +271,27 @@ describe('sign in, the email field', () => {
     expect(screen.queryByText(en['auth.sendFailedTitle'])).toBeNull();
   });
 
-  it('says out loud that Google is drawn and not wired', () => {
+  it('offers no Google sign in, which only ever toasted "not wired"', () => {
+    // Device rig 2026-10-01; mobile audit SA-13. v1.0 is emailed code only.
     renderAuth(<SignInScreen />, 'light');
-    fireEvent.press(button(en['auth.google']));
 
-    // And no longer claims the prototype signs in by phone (AC-E9).
-    expect(screen.getByText(en['auth.googleNotWired'])).toBeTruthy();
-    expect(en['auth.googleNotWired']).not.toMatch(/phone/i);
+    expect(screen.queryByLabelText(en['auth.google'])).toBeNull();
+    expect(screen.queryByText(/not wired/i)).toBeNull();
+  });
+});
+
+describe('the session, with no credential', () => {
+  it('refuses to sign in when verify left no token behind', async () => {
+    // The old fixture activate screen called `signIn()` bare and opened the
+    // shell with no credential at all (mobile audit SA-20).
+    mockToken = null;
+    mockParams = { email: ADDRESS };
+    renderAuth(<VerifyOtpScreen />, 'light');
+
+    fireEvent.changeText(screen.getByTestId('code-field'), '123456');
+
+    await waitFor(() => expect(mockVerifySignInCode).toHaveBeenCalled());
+    expect(screen.getByTestId('probe').props.children).toMatch(/^anonymous\//);
   });
 });
 
@@ -690,7 +713,6 @@ describe('in Kinyarwanda', () => {
     ).toBeTruthy();
     expect(screen.getByText(rw['auth.emailLabel'])).toBeTruthy();
     expect(button(rw['auth.continue'])).toBeTruthy();
-    expect(button(rw['auth.google'])).toBeTruthy();
   });
 
   it('draws verify code from the RW catalogue', () => {

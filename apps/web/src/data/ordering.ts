@@ -30,9 +30,19 @@ import { apiFetchParsed, type ApiResult } from "@/lib/api";
  * does not match is `failed`, never rendered.
  */
 
-/** `GET /api/v1/me/orderable`: every outlet the caller may order from right now. */
-export function fetchOrderable(): Promise<ApiResult<OrderableList>> {
-  return apiFetchParsed(OrderableList, "/api/v1/me/orderable");
+/**
+ * `GET /api/v1/me/orderable`: every outlet the caller may order from right now.
+ *
+ * `propertyId` ADDS a property to the ones resolved from the caller's open
+ * stays; it does not restrict the answer to it (`guest-ordering.service.ts`
+ * unions the two). That is what lets a conversation ask about the hotel it is
+ * ABOUT rather than the hotel the guest happens to be standing in — and it is
+ * why a caller that cares about one property must filter the answer itself.
+ * `threadOrdering` in `lib/thread-ordering.ts` is where that filter lives.
+ */
+export function fetchOrderable(propertyId?: string): Promise<ApiResult<OrderableList>> {
+  const query = propertyId ? `?propertyId=${encodeURIComponent(propertyId)}` : "";
+  return apiFetchParsed(OrderableList, `/api/v1/me/orderable${query}`);
 }
 
 /** `GET /api/v1/me/orders`: the caller's own orders, newest first. */

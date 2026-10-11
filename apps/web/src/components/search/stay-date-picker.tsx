@@ -2,10 +2,18 @@
 
 import { X } from "lucide-react";
 import { useMemo, useState } from "react";
-import type { DateRange, Matcher } from "react-day-picker";
-import { Button, Calendar } from "@injishi/ui";
-import { cn, formatDateRange, nightsBetween, pluralize, toISODate } from "@injishi/utils";
+import type { DateRange } from "react-day-picker";
+import { Button, Calendar, HALF_BAND } from "@injishi/ui";
+import { cn, formatDateRange, nightsBetween, pluralize } from "@injishi/utils";
 import type { BookingCalendar } from "@/data/availability";
+import {
+  addDays,
+  disabledDays,
+  lastBookableNight,
+  nextRange,
+  phaseOf,
+  previewModifiers,
+} from "@/lib/stay-range";
 import { FLEX_DAYS, startOfToday, type FlexDays } from "@/lib/stay-search";
 
 /**
@@ -21,14 +29,22 @@ import { FLEX_DAYS, startOfToday, type FlexDays } from "@/lib/stay-search";
  *
  * Two months at once in both, because a stay that straddles a month boundary
  * is the common case and paging back and forth to compare is where a one-month
- * picker loses people.
+ * picker loses people. Outside days are hidden: with two months side by side
+ * the first days of October were drawn twice, once faded at the foot of
+ * September and once in October, and both were clickable.
+ *
+ * What a click does, what is offered, and what the hover previews are all
+ * `lib/stay-range.ts`, which has no React in it and is unit tested on a fixed
+ * calendar. This file mounts those rules and owns nothing but the chrome.
  *
  * TWO variants, and the difference between them is real rather than cosmetic:
  *
  *  - `hero` is the floating panel under the search pill. It pins white in both
- *    themes, because it sits over a photograph, so it also pins its selection
- *    colour to ink rather than letting the theme decide. It carries the plus
- *    or minus window, which only means anything before a search has been run.
+ *    themes, because it sits over a photograph. Its selection needs no pin of
+ *    its own: the `Calendar` paints it in `foreground`/`background`, and
+ *    ADR-028's pin block redeclares both roles inside `.bg-white`, so a dark
+ *    theme does not invert the circle out from under this panel. It carries
+ *    the plus or minus window, which only means anything before a search.
  *  - `booking` sits inside the property card and follows the theme like every
  *    other surface there. It carries two summary cells that each clear their
  *    own end of the range, because by this point the guest is editing a
@@ -46,7 +62,7 @@ export function StayDatePicker({
   onFlexChange,
   onDone,
   doneLabel = "Done",
-  calendar,
+  calendar = null,
 }: {
   variant: "hero" | "booking";
   range: DateRange | undefined;
@@ -68,34 +84,37 @@ export function StayDatePicker({
    */
   calendar?: BookingCalendar | null;
 }) {
-  const [month, setMonth] = useState<Date>(range?.from ?? startOfToday());
+  // Fixed for the life of the panel: the month bounds below are Dates, and a
+  // fresh object on every render would re-clamp the view under the guest.
+  const today = useMemo(() => startOfToday(), []);
+  const [month, setMonth] = useState<Date>(range?.from ?? today);
+  const [hovered, setHovered] = useState<Date | null>(null);
 
-  const nights = range?.from && range?.to ? nightsBetween(range.from, range.to) : 0;
+  const closed = range?.from && range?.to ? { from: range.from, to: range.to } : null;
+  const nights = closed ? nightsBetween(closed.from, closed.to) : 0;
   const hero = variant === "hero";
   const showFlex = hero && flexDays !== undefined && onFlexChange !== undefined;
+  const minStay = Math.max(1, calendar?.minStay ?? 1);
 
   /**
-   * Past nights, sold-out nights, and everything past the booking horizon.
-   *
-   * This used to be `{ before: startOfToday() }` and nothing else, so the
-   * picker offered nights the API would refuse — sold out, or beyond the
-   * 18-month horizon — at the last click, after the guest had chosen a room, a
-   * party and a payment method. `MAX_HORIZON_DAYS` was a server-only constant
-   * until ADR-047; it is in `@injishi/contracts` now, so the two sides cannot
+   * Past nights, sold-out nights, and everything past the booking horizon —
+   * and, while a check-out is being chosen, everything a stay from that
+   * check-in cannot reach. `MAX_HORIZON_DAYS` was a server-only constant until
+   * ADR-047; it is in `@injishi/contracts` now, so the two sides cannot
    * disagree about how far ahead a booking opens.
-   *
-   * The sold-out rule is a PREDICATE rather than a list of dates: a `Set`
-   * consulted per rendered cell, instead of 540 `Date` objects built to be
-   * compared against.
    */
-  const disabledDays = useMemo<Matcher[]>(() => {
-    const rules: Matcher[] = [{ before: startOfToday() }];
-    if (!calendar) return rules;
+  const disabled = useMemo(
+    () => disabledDays(range, today, calendar),
+    [range, today, calendar],
+  );
 
-    rules.push({ after: new Date(`${calendar.lastBookableNight}T00:00:00`) });
-    rules.push((day: Date) => calendar.soldOut.has(toISODate(day)));
-    return rules;
-  }, [calendar]);
+  // Arrows stop at today's month and at the month a stay can last reach.
+  // react-day-picker marks the arrow `aria-disabled` at a bound, and the
+  // shared Calendar fades it; before this the past paged back forever.
+  const endMonth = useMemo(
+    () => addDays(lastBookableNight(today, calendar), 1),
+    [today, calendar],
+  );
 
   return (
     <div
@@ -104,13 +123,19 @@ export function StayDatePicker({
           ? // Pinned white, ring rather than border: it floats over the hero
             // photograph and owes an edge the page cannot supply.
             "w-[min(660px,calc(100vw-2rem))] overflow-hidden rounded-card bg-white text-ink shadow-[0_18px_50px_-12px_rgba(4,35,48,0.35)] ring-1 ring-black/5"
-          : "w-[min(640px,calc(100vw-2rem))] p-6",
+          : "w-[min(640px,calc(100vw-2rem))] px-6 pt-5",
       )}
     >
       <div
         className={cn(
           "flex flex-wrap items-start justify-between gap-4",
-          hero ? "px-6 pt-5" : "mb-4",
+          hero
+            ? "px-6 pt-5"
+            : // Sticky for the same reason the footer is: the popover caps
+              // itself to the room Radix measures and scrolls the rest, and
+              // the two summary cells are how a guest edits one end of the
+              // range. They must not be the part that scrolls away.
+              "sticky top-0 z-20 -mx-6 -mt-5 bg-popover px-6 pb-3 pt-5 text-popover-foreground",
         )}
       >
         <div>
@@ -120,12 +145,16 @@ export function StayDatePicker({
               hero ? "text-base text-ink" : "text-lg font-semibold text-page-fg",
             )}
           >
-            {nights > 0 ? pluralize(nights, "night") : headline(range, hero)}
+            {closed
+              ? hero
+                ? pluralize(nights, "night")
+                : `${pluralize(nights, "night")} · ${formatDateRange(closed.from, closed.to)}`
+              : headline(range, hero)}
           </p>
-          {!hero ? (
+          {!hero && !closed ? (
             <p className="text-sm text-page-fg-70">
-              {range?.from && range?.to
-                ? formatDateRange(range.from, range.to)
+              {minStay > 1
+                ? `${pluralize(minStay, "night")} minimum · add dates for exact pricing`
                 : "Add your travel dates for exact pricing"}
             </p>
           ) : null}
@@ -162,38 +191,47 @@ export function StayDatePicker({
         ) : null}
       </div>
 
-      {/*
-        `relative` matters: the shared Calendar positions its month nav
-        `absolute inset-x-0 top-1`, and without a positioned root here the
-        arrows escape to the header row above and land ~95px from the months
-        they actually page.
-      */}
-      <div className="relative">
-        <Calendar
-          mode="range"
-          month={month}
-          onMonthChange={setMonth}
-          numberOfMonths={2}
-          disabled={disabledDays}
-          selected={range}
-          onSelect={onChange}
-          className={cn(
-            hero
-              ? // The panel is white in both themes, so the selection cannot
-                // take the theme-following accent without inverting under it.
-                "px-4 pb-1 pt-3 [--rdp-accent-color:var(--color-ink)]"
-              : "p-0",
-          )}
-          classNames={hero ? { months: "flex flex-col sm:flex-row gap-6" } : undefined}
-        />
-      </div>
+      <Calendar
+        mode="range"
+        month={month}
+        onMonthChange={setMonth}
+        numberOfMonths={2}
+        showOutsideDays={false}
+        startMonth={today}
+        endMonth={endMonth}
+        disabled={disabled}
+        selected={range}
+        // The library's own range arithmetic is not used: `nextRange` decides
+        // what the click means from the day that was clicked, so a finished
+        // range restarts and a day before the check-in moves it.
+        onSelect={(_next, day) => {
+          setHovered(null);
+          onChange(nextRange(range, day));
+        }}
+        onDayMouseEnter={(day, modifiers) => setHovered(modifiers.disabled ? null : day)}
+        onDayMouseLeave={() => setHovered(null)}
+        modifiers={previewModifiers(range, hovered)}
+        modifiersClassNames={PREVIEW}
+        className={cn(hero ? "px-4 pb-1 pt-3" : "p-0")}
+        classNames={
+          hero
+            ? { months: "relative flex flex-col sm:flex-row gap-6" }
+            : // Tighter than the shared default, for the same reason the
+              // chrome above and below is: this panel is height-capped.
+              { month: "flex flex-col gap-3" }
+        }
+      />
 
       <div
         className={cn(
           "flex flex-wrap items-center gap-2",
           hero
             ? "border-t border-black/5 px-6 py-4"
-            : "mt-4 justify-end border-t border-input pt-4",
+            : // Sticky, because the booking popover caps itself to the space
+              // Radix measures and scrolls the rest. On a 900px-tall viewport
+              // that fold fell across this row, and the Close button was the
+              // thing below it. The band is the popover's own ground.
+              "sticky bottom-0 -mx-6 mt-3 justify-end border-t border-input bg-popover px-6 py-3 text-popover-foreground",
         )}
       >
         {showFlex ? (
@@ -252,8 +290,22 @@ export function StayDatePicker({
   );
 }
 
+/**
+ * The hover preview, drawn like the closed range it would become — the band
+ * at half strength between the check-in and the day under the pointer, the
+ * band's two ends on those two cells, and a ring on the day itself.
+ */
+const PREVIEW = {
+  preview: "[&>button]:bg-secondary/50 [&>button]:rounded-none",
+  preview_start: cn(HALF_BAND, "before:right-0 before:bg-secondary/50"),
+  preview_end: cn(
+    HALF_BAND,
+    "before:left-0 before:bg-secondary/50 [&>button]:ring-1 [&>button]:ring-inset [&>button]:ring-foreground",
+  ),
+};
+
 function headline(range: DateRange | undefined, hero: boolean): string {
-  if (!range?.from) return hero ? "Pick your dates" : "Select dates";
+  if (phaseOf(range) === "check-in") return hero ? "Pick your dates" : "Select dates";
   return hero ? "Pick a check-out date" : "Select dates";
 }
 

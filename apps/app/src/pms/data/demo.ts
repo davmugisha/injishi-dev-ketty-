@@ -10,7 +10,6 @@
 
 import type { OrgRole, Permission } from "@injishi/contracts";
 
-import { broker } from "./broker";
 import type {
   Db,
   HospitalityProperty,
@@ -117,6 +116,28 @@ export const DEMO_PERMISSIONS: Readonly<Record<OrgRole, readonly Permission[]>> 
     "folio.payment",
     "order.advance",
     "message.send",
+  ],
+  // The accountant (ADR-069 D-b): the money, bills, payments, the EBM account
+  // and refunds. No rooms, no reservations to write, no staff files.
+  finance: [
+    "money.view",
+    "folio.charge",
+    "folio.payment",
+    "folio.close",
+    "ebm.manage",
+    "ebm.refund",
+    "refund.decide",
+  ],
+  // The HR officer (ADR-069 D-b): files, roster, attendance, leave, and the
+  // pay run drafted for the owner to confirm. No money, no front desk.
+  hr: [
+    "people.view",
+    "people.manage",
+    "roster.manage",
+    "attendance.record",
+    "attendance.approve",
+    "leave.approve",
+    "payroll.draft",
   ],
   // The phone: room status and maintenance tickets only.
   housekeeper: ["housekeeping.set", "ticket.advance"],
@@ -560,20 +581,6 @@ function residence(): ResidenceProperty {
     // GH-10 is vacant since Jeanette moved out — the one unit brokers can see.
     dirListed: ["GH-10"],
     reveals: 3,
-    // A lease never produces a tax invoice; this summary is what filing needs.
-    // The step up in March is GH-07's lease starting.
-    filing: {
-      due: "31 Jan 2027",
-      months: [
-        ["January", 1530000],
-        ["February", 1530000],
-        ["March", 1710000],
-        ["April", 1710000],
-        ["May", 1710000],
-        ["June", 1710000],
-        ["July — so far", 910000],
-      ],
-    },
     msgs: 2,
   };
 }
@@ -590,6 +597,5 @@ export function buildDb(): Db {
     hotel: hotel(),
     guesthouse: guesthouse(),
     residence: residence(),
-    broker: broker(),
   };
 }

@@ -33,7 +33,7 @@ import { OtpMailer } from './infrastructure/otp-mailer';
  */
 
 const db = {} as unknown as Database;
-const platform: Platform = { environment: 'production', sampleData: false };
+const platform: Platform = { environment: 'production', sampleData: false, commit: null };
 
 /** Stands in for the global ConfigModule and DatabaseModule `AppModule` loads. */
 function infrastructure(env: Record<string, string | undefined>): Type<unknown> {

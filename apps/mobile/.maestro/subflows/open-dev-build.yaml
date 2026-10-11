@@ -1,0 +1,33 @@
+# Opens the development build at the Metro server on this machine, signed out
+# (ADR-062).
+#
+# `clearState` wipes the app's data, the keychain included, so every run starts
+# signed out with no remembered seat or appearance, whatever the last run left.
+#
+# `disableOnboarding=1` skips the dev client's first launch sheet. The dev menu
+# still opens by itself after a clean start, and while it is open Maestro cannot
+# see the app underneath it, so this waits for either the menu or the sign in
+# screen, then closes the menu if it is there.
+appId: rw.injishi.mobile
+---
+- stopApp
+- clearState
+- openLink: "injishi://expo-development-client/?url=http%3A%2F%2Flocalhost%3A8081&disableOnboarding=1"
+- extendedWaitUntil:
+    visible: "Go home|Email address"
+    # A cold Metro bundle takes a while on the low end emulator.
+    timeout: 180000
+- waitForAnimationToEnd:
+    timeout: 3000
+- repeat:
+    times: 3
+    while:
+      visible: "Go home"
+    commands:
+      - tapOn: "Close"
+      - waitForAnimationToEnd:
+          timeout: 3000
+- extendedWaitUntil:
+    visible:
+      id: "email-field"
+    timeout: 30000

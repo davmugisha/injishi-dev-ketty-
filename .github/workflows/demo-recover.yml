@@ -1,0 +1,218 @@
+name: demo-recover
+
+# Bring the public demo back when its API is down, and rebuild it: nightly at
+# the newest main commit whose ci passed, and by hand whenever it is needed.
+# ADR-052 has the demo follow STAGING nightly through host cron; the Hangaa VPS
+# is demo only (no staging to follow), so on that host this job IS the nightly,
+# and root's cron no longer runs one (infra/docker/DOKPLOY.md, "The demo").
+#
+# Which commit it builds:
+#   - schedule (01:00 UTC, 03:00 Kigali) and workflow_dispatch: the newest
+#     commit on main whose push ci succeeded, so a red main never reaches the
+#     demo, as a red commit never reaches staging. A night with no new commit
+#     rebuilds the same one, which is what resets the demo's data.
+#   - push, when THIS FILE changes on main: that commit, whose ci may still be
+#     running. It is how a change to this job proves itself.
+# Never on a pull request: scripts/check-workflow-triggers.mjs refuses that for
+# any job on injishi-vps.
+#
+# The schedule sits after backup (00:15) and before schema-capture (02:30); one
+# runner runs them one at a time, and demo-nightly.sh waits for the build lock.
+#
+# 0. Refuse unless the demo's compose project is actually running. The project
+#    name is a HOST setting, DEMO_COMPOSE_PROJECT in the runner's own `.env`
+#    (Dokploy names its projects itself: `injishi-demo-rllflw` on the Hangaa
+#    VPS). A wrong name does not fail on its own: `up` builds a second, empty
+#    demo beside the real one, on the same Traefik routers.
+# 1. Say what is running and why the API is down: ps, the API's last logs, its
+#    OOM flag, disk, the nightly logs. Read these before anything else.
+# 2. When the API is not healthy, start the demo as it is (no build) and wait
+#    for the API's health check. A container that merely stopped is back
+#    within minutes.
+# 3. Rebuild it at the pushed commit with demo-nightly.sh itself: candidate
+#    images and a freshly seeded candidate database, swapped in only after the
+#    health checks pass, swapped back when they do not. STAGING_SRC points at a
+#    checkout of this commit instead of staging's, so the demo gets this commit
+#    today.
+#
+# This job checks the commit out with actions/checkout, which the deploy jobs
+# deliberately do not, because the demo's host checkout holds no credential for
+# this private repository and cannot fetch origin. What that rule protects
+# still holds: the script that runs is the one in the commit being deployed,
+# and demo-nightly.sh builds from the host's own checkout, which it moves to
+# that commit by fetching it from this one.
+#
+# Touches the demo's compose project only. Production and staging are not named.
+
+on:
+  push:
+    branches: [main]
+    paths: [.github/workflows/demo-recover.yml]
+  schedule:
+    - cron: '0 1 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  # To read which commits' ci succeeded.
+  actions: read
+
+concurrency:
+  group: demo-recover
+  cancel-in-progress: false
+
+jobs:
+  recover:
+    name: recover the demo
+    runs-on: [self-hosted, injishi-vps]
+    timeout-minutes: 120
+    env:
+      DEMO_ROOT: /opt/injishi-demo
+      COMPOSE_FILE_REL: infra/docker/docker-compose.demo.yml
+    steps:
+      - name: Refuse unless the demo's compose project is the one running
+        run: |
+          set -euo pipefail
+          project="${DEMO_COMPOSE_PROJECT:-injishi-demo}"
+          echo "DEMO_COMPOSE_PROJECT=$project" >> "$GITHUB_ENV"
+          db=$(docker ps -a -q --filter "label=com.docker.compose.project=$project" --filter label=com.docker.compose.service=db)
+          if [ -z "$db" ]; then
+            echo "::error::No db container in compose project '$project'. Running projects: $(docker compose ls -a --format json | tr -d '\n'). Set DEMO_COMPOSE_PROJECT in the runner's .env; see infra/docker/DOKPLOY.md, 'The self hosted runner'."
+            exit 1
+          fi
+          echo "demo compose project: $project"
+
+      - name: Pick the commit to build
+        id: pick
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          if [ "$GITHUB_EVENT_NAME" = push ]; then
+            sha="$GITHUB_SHA"
+            echo "push: building the pushed commit $sha"
+          else
+            # The newest push to main whose ci succeeded. Parsed with sed, not
+            # jq: the host is not promised jq, and head_sha is a flat 40 hex.
+            sha=$(curl -fsS -H "Authorization: Bearer $GH_TOKEN" -H "Accept: application/vnd.github+json" \
+                "$GITHUB_API_URL/repos/$GITHUB_REPOSITORY/actions/workflows/ci.yml/runs?branch=main&event=push&status=success&per_page=1" |
+              sed -n 's/.*"head_sha": *"\([0-9a-f]\{40\}\)".*/\1/p' | head -1)
+            [ -n "$sha" ] || { echo "::error::no successful ci run on main to build"; exit 1; }
+            echo "$GITHUB_EVENT_NAME: building the newest main commit whose ci succeeded, $sha"
+          fi
+          echo "sha=$sha" >> "$GITHUB_OUTPUT"
+
+      - name: What the demo is running, and why the API is down
+        run: |
+          set +e
+          S="docker compose -p $DEMO_COMPOSE_PROJECT -f $DEMO_ROOT/src/$COMPOSE_FILE_REL --env-file $DEMO_ROOT/.env"
+          echo "demo checkout:    $(git -C $DEMO_ROOT/src log -1 --format='%h %ci %s')"
+          echo "::group::docker compose ps -a"
+          $S ps -a
+          echo "::endgroup::"
+          api=$($S ps -aq api)
+          if [ -n "$api" ]; then
+            docker inspect -f 'api state={{.State.Status}} exit={{.State.ExitCode}} oom={{.State.OOMKilled}} restarts={{.RestartCount}} health={{if .State.Health}}{{.State.Health.Status}}{{end}} started={{.State.StartedAt}} finished={{.State.FinishedAt}}' "$api"
+          else
+            echo "api: no container at all"
+          fi
+          echo "::group::api logs (last 200)"
+          $S logs --no-color --tail 200 api
+          echo "::endgroup::"
+          echo "::group::minio-init, redis, db"
+          $S logs --no-color --tail 40 minio-init redis db
+          echo "::endgroup::"
+          echo "::group::disk"
+          df -h / /var/lib/docker 2>/dev/null
+          docker system df
+          echo "::endgroup::"
+          for log in /var/log/injishi-demo-nightly.log /var/log/injishi-demo-reseed.log; do
+            [ -r "$log" ] || continue
+            echo "::group::$log (last 80)"
+            tail -80 "$log"
+            echo "::endgroup::"
+          done
+          exit 0
+
+      - name: Start the demo as it is, when its API is not healthy
+        id: start
+        run: |
+          set +e
+          S="docker compose -p $DEMO_COMPOSE_PROJECT -f $DEMO_ROOT/src/$COMPOSE_FILE_REL --env-file $DEMO_ROOT/.env"
+          api=$($S ps -q api)
+          status=$([ -n "$api" ] && docker inspect -f '{{if .State.Health}}{{.State.Health.Status}}{{end}}' "$api")
+          if [ "$status" = healthy ]; then
+            echo "the API is healthy; nothing to start"
+            echo "healthy=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          $S up -d --no-build
+          healthy=false
+          for i in $(seq 1 60); do
+            api=$($S ps -q api)
+            status=$([ -n "$api" ] && docker inspect -f '{{if .State.Health}}{{.State.Health.Status}}{{end}}' "$api")
+            echo "$(date -u +%T) api health: ${status:-no container}"
+            if [ "$status" = healthy ]; then healthy=true; break; fi
+            sleep 5
+          done
+          echo "healthy=$healthy" >> "$GITHUB_OUTPUT"
+          $S ps
+          if [ "$healthy" != true ]; then
+            echo "::warning::the demo API is still not healthy after starting it as it is; the rebuild below is the next step"
+            $S logs --no-color --tail 80 api
+          fi
+          exit 0
+
+      - name: Check out this commit
+        uses: actions/checkout@v5
+        with:
+          ref: ${{ steps.pick.outputs.sha }}
+          path: demo-target
+          persist-credentials: false
+          # Full history. demo-nightly.sh fetches this commit INTO the demo's
+          # checkout from here, and a shallow source hands over a commit whose
+          # parents are missing (git warns, exits 0, and leaves a repository
+          # fsck calls broken). The runner keeps this clone between runs.
+          fetch-depth: 0
+
+      - name: Rebuild the demo at this commit (demo-nightly.sh, health checked, swaps back on failure)
+        env:
+          NIGHTLY_LOCK_RETRY_MINUTES: '40'
+          HEALTH_TIMEOUT: '600'
+        run: |
+          set -euo pipefail
+          target="$GITHUB_WORKSPACE/demo-target"
+          # Never backwards on a pick. The runs API has been seen (2026-09-29)
+          # to answer an OLDER green run as the newest for a moment, which would
+          # quietly roll the demo back a day. So a scheduled or dispatched build
+          # must contain the commit the demo runs now. A push names its commit
+          # on purpose and is not held to this, and neither is a demo running a
+          # commit GitHub has never seen (nothing to compare against).
+          current=$(git -C "$DEMO_ROOT/src" rev-parse HEAD)
+          if [ "$GITHUB_EVENT_NAME" != push ] &&
+             git -C "$target" cat-file -e "$current^{commit}" 2>/dev/null &&
+             ! git -C "$target" merge-base --is-ancestor "$current" HEAD; then
+            echo "::error::refusing to move the demo backwards: it runs ${current:0:7}, which $(git -C "$target" rev-parse --short HEAD) does not contain. Run it again; if it repeats, the runs API is answering an old commit as main's newest green one."
+            exit 1
+          fi
+          echo "rebuilding the demo at $(git -C "$target" log -1 --format='%h %s')"
+          STAGING_SRC="$target" DEMO_ROOT="$DEMO_ROOT" bash "$target/infra/docker/demo-nightly.sh"
+
+      - name: What is serving now
+        if: always()
+        run: |
+          set +e
+          S="docker compose -p ${DEMO_COMPOSE_PROJECT:-injishi-demo} -f $DEMO_ROOT/src/$COMPOSE_FILE_REL --env-file $DEMO_ROOT/.env"
+          echo "demo checkout: $(git -C $DEMO_ROOT/src log -1 --format='%h %s')"
+          $S ps
+          curl -sS -m 10 https://api-demo.injishi.com/api/v1/platform; echo
+          # An API that is not healthy says why here. On 2026-10-01 this step
+          # printed only `ps`, and the reason (a refusal thrown at boot) took a
+          # second run to read.
+          api=$($S ps -aq api)
+          health=$([ -n "$api" ] && docker inspect -f '{{if .State.Health}}{{.State.Health.Status}}{{end}}' "$api")
+          if [ "$health" != healthy ]; then
+            echo "::group::api logs (last 80): the API is ${health:-not running}"
+            $S logs --no-color --tail 80 api
+            echo "::endgroup::"
+          fi

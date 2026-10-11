@@ -15,7 +15,10 @@
  * side comes back when something records costs.
  */
 
+import type { OperatorRevenue } from "@injishi/contracts";
 import { BarList, Button } from "@injishi/ui";
+import { KPI, KPIGroup } from "@injishi/ui/kpi";
+import { NumberValue } from "@injishi/ui/number-value";
 import { useState } from "react";
 
 import { cn } from "@/lib/utils";
@@ -60,6 +63,91 @@ function ShareOfTotal({ part, total }: { part: number; total: number }) {
   );
 }
 
+/**
+ * The month at a glance, above the departments: what came in, how that
+ * compares with the month before, which department carried most of it, and how
+ * many took any money at all. HeroUI Pro's KPI strip (`@injishi/ui/kpi`).
+ *
+ * Every figure is worked out from the two reads the screen makes (this month
+ * and the one before), never stored. The comparison is shown only when last
+ * month took money: a change from zero is not a percentage, and an owner told
+ * "+100%" about a new property learns nothing.
+ */
+function RevenueFigures({
+  month,
+  data,
+  previous,
+}: {
+  month: string;
+  data: OperatorRevenue;
+  previous: OperatorRevenue | undefined;
+}) {
+  const earning = data.departments.filter((d) => d.revenueRwf > 0).length;
+  const top = [...data.departments].sort((a, b) => b.revenueRwf - a.revenueRwf)[0];
+  const change = previous && previous.totalRwf > 0 ? (data.totalRwf - previous.totalRwf) / previous.totalRwf : null;
+  const trend = change === null ? null : change > 0.005 ? "up" : change < -0.005 ? "down" : "neutral";
+  const lastMonth = monthLabel(shiftMonth(month, -1));
+
+  return (
+    <KPIGroup>
+      <KPI>
+        <KPI.Header>
+          <KPI.Icon status="success">
+            <Icon name="wallet" size={16} />
+          </KPI.Icon>
+          <KPI.Title>Revenue, {monthLabel(month)}</KPI.Title>
+        </KPI.Header>
+        <KPI.Content>
+          <KPI.Value locale="en-US" maximumFractionDigits={0} value={data.totalRwf}>
+            <NumberValue.Prefix>RWF{"\u00a0"}</NumberValue.Prefix>
+          </KPI.Value>
+          {trend !== null && change !== null && (
+            <KPI.Trend trend={trend}>
+              {`${change > 0 ? "+" : ""}${Math.round(change * 100)}%`}
+              <span className="sr-only"> against {lastMonth}</span>
+            </KPI.Trend>
+          )}
+        </KPI.Content>
+      </KPI>
+      <KPIGroup.Separator />
+      <KPI>
+        <KPI.Header>
+          <KPI.Icon>
+            <Icon name="trending-up" size={16} />
+          </KPI.Icon>
+          <KPI.Title>Top department</KPI.Title>
+        </KPI.Header>
+        <KPI.Content>
+          {top && top.revenueRwf > 0 && data.totalRwf > 0 ? (
+            <span className="flex min-w-0 flex-col">
+              <span className="truncate text-lg font-semibold text-foreground">{top.name}</span>
+              <span className="text-xs text-muted-foreground">
+                {Math.round((top.revenueRwf / data.totalRwf) * 100)}% of the month
+              </span>
+            </span>
+          ) : (
+            <span className="text-sm text-muted-foreground">Nothing taken yet this month</span>
+          )}
+        </KPI.Content>
+      </KPI>
+      <KPIGroup.Separator />
+      <KPI>
+        <KPI.Header>
+          <KPI.Icon>
+            <Icon name="building-2" size={16} />
+          </KPI.Icon>
+          <KPI.Title>Departments that took money</KPI.Title>
+        </KPI.Header>
+        <KPI.Content>
+          <KPI.Value value={earning}>
+            <NumberValue.Suffix>{` of ${data.departments.length}`}</NumberValue.Suffix>
+          </KPI.Value>
+        </KPI.Content>
+      </KPI>
+    </KPIGroup>
+  );
+}
+
 export function Revenue() {
   const workspaceId = useWorkspaceId();
   const { can, reasonFor } = useCapability();
@@ -70,6 +158,9 @@ export function Revenue() {
   // A null workspace disables the read, so a caller without the permission
   // never spends a round trip to be told what the array already says.
   const query = useRevenue(mayRead ? workspaceId : null, month);
+  // Last month, for the comparison on the figures strip. The same read, one
+  // month back; it costs one request and is cached like the first.
+  const previousQuery = useRevenue(mayRead ? workspaceId : null, shiftMonth(month, -1));
 
   if (!mayRead) {
     return (
@@ -124,6 +215,8 @@ export function Revenue() {
            clipped inside a track, and nothing in the row said what share of
            the month a department carried. Departments keep the order the
            server sends, so each one sits in the same place month to month. */
+        <>
+        <RevenueFigures month={month} data={data} previous={previousQuery.data} />
         <div className={cn(surfaceClass, "overflow-hidden")}>
           <BarList
             className="px-[18px] py-4"
@@ -146,6 +239,7 @@ export function Revenue() {
             <span className="pms-num whitespace-nowrap">{fmt(data.totalRwf)}</span>
           </div>
         </div>
+        </>
       ) : null}
 
       <p style={{ fontSize: 12, color: "var(--muted)", maxWidth: 620 }}>

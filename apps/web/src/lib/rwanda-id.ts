@@ -74,6 +74,29 @@ export function formatNationalId(value: string): string {
   ].join(" ");
 }
 
+/**
+ * What a valid National ID says about its holder, or `null` for anything else
+ * (registration Phase 0).
+ *
+ * The second group is the year of birth and the digit after it is the gender,
+ * 8 for male and 7 for female. The form uses this to fill a gender left blank
+ * and to question a date of birth whose year the card contradicts. It is a
+ * prefill, never a verdict: the person can change either, and nothing here is
+ * identity verification.
+ */
+export function nationalIdFacts(
+  value: string,
+): { birthYear: number; gender: "male" | "female" | null } | null {
+  if (nationalIdError(value) !== null) return null;
+  const digits = stripSpaces(value);
+  const birthYear = Number(digits.slice(1, 5));
+  const marker = digits.slice(5, 6);
+  return {
+    birthYear,
+    gender: marker === "8" ? "male" : marker === "7" ? "female" : null,
+  };
+}
+
 /** Every kind of whitespace, not just the space bar — a paste can carry a tab. */
 function stripSpaces(value: string): string {
   return value.replace(/\s+/g, "");

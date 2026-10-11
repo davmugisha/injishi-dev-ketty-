@@ -63,4 +63,12 @@ describe.each(SCHEMES)('the photo credits screen in the %s scheme', (scheme) => 
     renderInScheme(<PhotoCreditsScreen />, scheme);
     await waitFor(() => expect(screen.getAllByText(en['photo.standIn']).length).toBeGreaterThan(0));
   });
+
+  it('keys each row’s image to its photo, so a recycled row never shows the last one', async () => {
+    // FlashList reuses rows; without a recycling key the reused image shows the
+    // previous credit's photo until the new one decodes (gaps.md B8; GB-11).
+    renderInScheme(<PhotoCreditsScreen />, scheme);
+    await waitFor(() => expect(screen.getByText(first.attribution)).toBeTruthy());
+    expect(screen.UNSAFE_getAllByProps({ recyclingKey: first.stem }).length).toBeGreaterThan(0);
+  });
 });

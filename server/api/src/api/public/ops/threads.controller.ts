@@ -11,6 +11,7 @@ import {
   Param,
   ParseUUIDPipe,
   Post,
+  Query,
   UseGuards,
 } from '@nestjs/common';
 
@@ -42,15 +43,28 @@ export class OpsThreadsController {
   constructor(private readonly messaging: MessagingService) {}
 
   /**
-   * Every conversation on this desk, newest activity first. The Inbox leaf,
-   * on both navs, is behind `message.send`.
+   * Every conversation on this desk, newest activity first, or one
+   * department's. The Inbox leaf, on both navs, is behind `message.send`.
+   *
+   * `?departmentId=` narrows it (ADR-050 D-q). The filter is not a permission:
+   * this answers with the same threads either way, and a staffer who may read
+   * the inbox may read all of it. It is how a department FINDS its own
+   * conversations — one flat list per workspace made Housekeeping read the
+   * restaurant's messages to find its own, and it got worse as the property got
+   * busier. Applied in SQL, so it gets faster rather than slower with volume.
+   *
+   * An unknown department id is an empty list rather than a refusal or,
+   * worse, every thread: a filter that silently stops filtering shows a
+   * department somebody else's conversations.
    */
   @Get()
   @RequirePermission('message.send')
   async list(
     @CurrentWorkspace() workspace: ScopedWorkspace,
+    @Query('departmentId', new ParseUUIDPipe({ optional: true }))
+    departmentId?: string,
   ): Promise<OperatorThreadList> {
-    return { threads: await this.messaging.listThreads(workspace) };
+    return { threads: await this.messaging.listThreads(workspace, departmentId) };
   }
 
   /** One conversation in full. */

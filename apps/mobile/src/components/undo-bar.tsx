@@ -45,6 +45,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Text } from './text';
 import { Icon, type IconName } from './icon';
 import { PressableScale } from './pressable-scale';
+import { usePinnedFooterHeight } from './pinned-footer';
 import { useTheme } from '@/theme/theme';
 import { useT } from '@/i18n/i18n';
 import { useReducedMotion } from '@/motion';
@@ -104,6 +105,7 @@ export function UndoBar({
 }: UndoBarProps) {
   const { c, space, radius, shadow } = useTheme();
   const insets = useSafeAreaInsets();
+  const pinnedFooter = usePinnedFooterHeight();
   const t = useT();
   const reduced = useReducedMotion();
 
@@ -156,9 +158,10 @@ export function UndoBar({
         position: 'absolute',
         left: space[4],
         right: space[4],
-        // Clear of the tab bar as well as the home indicator: this holds a
-        // control, and a control under the bar is a control nobody can press.
-        bottom: insets.bottom + 78,
+        // Clear of the tab bar as well as the home indicator, and of any action
+        // bar the screen pins (`pinned-footer.ts`): this holds a control, and a
+        // control under a bar is a control nobody can press.
+        bottom: Math.max(insets.bottom + 78, pinnedFooter + 12),
       }}
     >
       <View

@@ -128,9 +128,12 @@ export function StepUpScreen() {
       await queryClient.invalidateQueries({ queryKey: meKeys.twoFactor() });
       await queryClient.invalidateQueries({ queryKey: meKeys.workspaces() });
       toast.show(t('stepUp.done'), 'success');
-      // Back to whatever sent you here. The screen is a gate, not a
-      // destination, so it does not choose where you land.
-      router.back();
+      // Back to whatever sent you here when there is something to go back to.
+      // The shell's gate arrives by `replace`, which leaves nothing behind, and
+      // `back()` there did nothing at all: the person sat on "Verifying…"
+      // (mobile audit SA-32). The tabs root is where the gate came from.
+      if (router.canGoBack()) router.back();
+      else router.replace('/(tabs)');
       return;
     }
 

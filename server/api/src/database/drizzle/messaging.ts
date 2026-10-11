@@ -89,6 +89,36 @@ export const threads = pgTable(
              AND ${t.guestStayId} IS NOT NULL
              AND ${t.departmentId} IS NOT NULL`,
       ),
+    /**
+     * THE SAME RULE FOR A CONVERSATION OPENED BEFORE ARRIVAL (ADR-050 D-q).
+     *
+     * A guest who has booked and not yet arrived has no stay, so their desk
+     * conversation hangs off the BOOKING and the index above cannot see it:
+     * two taps on "Message Housekeeping" from the trip screen would have opened
+     * two threads, split the history, and left half of it where the desk had
+     * stopped looking — the exact failure the stay index exists to prevent.
+     *
+     * `guest_stay_id IS NULL` is what keeps the two from overlapping. A thread
+     * is scoped to a booking or to a stay and never to both
+     * (`threads_scope_exactly_one`), so the predicate is belt and braces on a
+     * rule the check constraint already holds — and it is the ADR's own wording.
+     *
+     * Partial on `status = 'active'` as well, which the stay index is not. That
+     * is the shape D-q specifies, and it decides nothing on its own: the
+     * service reads the existing conversation whatever its status and refuses
+     * to write into an archived one (a guest does not re-open what the property
+     * closed). The narrower predicate only means the database would not stop a
+     * later, deliberate re-open — it is not a second answer to that question.
+     */
+    uniqueIndex('threads_booking_department_request_uk')
+      .on(t.bookingId, t.departmentId)
+      .where(
+        sql`${t.threadKind} = 'department_request'
+             AND ${t.guestStayId} IS NULL
+             AND ${t.bookingId} IS NOT NULL
+             AND ${t.departmentId} IS NOT NULL
+             AND ${t.status} = 'active'`,
+      ),
   ],
 );
 

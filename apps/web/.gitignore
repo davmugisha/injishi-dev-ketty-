@@ -6,3 +6,6 @@ ds-bundle/
 .design-sync/.cache/
 .design-sync/learnings/
 .design-sync/node_modules
+
+# MapLibre worker, copied from node_modules by scripts/copy-maplibre-worker.mjs
+public/vendor/maplibre-gl/

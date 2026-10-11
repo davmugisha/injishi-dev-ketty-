@@ -1,33 +1,36 @@
 "use client";
 
 import {
-  type MyProfile,
-  type RegistrantCapacity,
-  countryName,
-  isRwandanAddress,
+  type IdentityStatus,
+  type VerifiedPerson,
 } from "@injishi/contracts";
 
-import { nationalIdError } from "@/lib/rwanda-id";
+import { nationalIdError, nationalIdFacts } from "@/lib/rwanda-id";
 
 import {
   AddressPicker,
   type AddressDraft,
 } from "./address-picker";
-import { Button } from "@heroui/react";
 import { COUNTRY_OPTIONS } from "./country-options";
+import {
+  NationalIdVerifier,
+  PassportScanner,
+  VerifiedIdentityCard,
+} from "./identity-verifier";
 import { PhoneInput } from "./phone-input";
 import {
   ChoiceCard,
   Field,
   Fieldset,
-  Notice,
   SelectField,
-  StepActions,
   TextInput,
 } from "./wizard-ui";
 
 /**
- * Step 1 — About you (F-S03 §6).
+ * The person registering: their draft, their name, and the typed fallback form
+ * (F-S03 §6). The step itself is `step-you.tsx` (RegisterIA board).
+ *
+ * Formerly Step 1, About you.
  *
  * Two shapes, decided by whether this account already has a profile. A new
  * registrant fills the form; a returning one is SHOWN their details to confirm
@@ -117,233 +120,115 @@ function collapse(value: string): string {
   return value.trim().replace(/\s+/g, " ");
 }
 
-export function StepAboutYou({
-  profile,
-  editing,
-  onEdit,
-  draft,
-  onDraftChange,
-  capacity,
-  onCapacityChange,
-  intendedOwner,
-  onIntendedOwnerChange,
+/**
+ * What the wizard knows about verifying this person (ADR-060): which paths the
+ * deployment can run, who they are once verified, and how the form learns of a
+ * verification. Null when neither path can run here, which keeps the typed form.
+ */
+export interface IdentityVerification {
+  available: IdentityStatus["available"];
+  verified: NonNullable<IdentityStatus["verified"]> | null;
+  method: string | null;
+  /** True when registering is held to a verified identity here. */
+  required: boolean;
+  onVerified: (person: VerifiedPerson) => void;
+}
+
+/**
+ * Who a registration is for, when it is registered on someone's behalf: the
+ * three answers the claim binds to (ADR-053 J25). Shared by About you and, when
+ * the company register moves a registrant onto this path, the Business step
+ * (ADR-060).
+ */
+export function IntendedOwnerFields({
+  value,
+  onChange,
   errors,
-  formError,
-  busy,
-  onBack,
-  onNext,
+  title = "Who are you registering for?",
 }: {
-  profile: MyProfile | null;
-  editing: boolean;
-  onEdit: () => void;
-  draft: PersonalDraft;
-  onDraftChange: (next: PersonalDraft) => void;
-  capacity: RegistrantCapacity;
-  onCapacityChange: (next: RegistrantCapacity) => void;
-  intendedOwner: { name: string; nationalId: string; email: string };
-  onIntendedOwnerChange: (next: {
-    name: string;
-    nationalId: string;
-    email: string;
-  }) => void;
+  value: { name: string; nationalId: string; email: string };
+  onChange: (next: { name: string; nationalId: string; email: string }) => void;
   errors: Record<string, string>;
-  formError: string;
-  busy: boolean;
-  onBack: () => void;
-  onNext: () => void;
+  title?: string;
 }) {
-  const showStored = profile?.complete === true && !editing;
-
   return (
-    <section aria-labelledby="step-about">
-      <h2 id="step-about" className="text-xl font-semibold tracking-tight">
-        About you
-      </h2>
-      <p className="mt-1 text-sm text-muted-foreground">
-        A business belongs to the person who registers it, so we need to know who
-        that is.
-      </p>
-
-      <div className="mt-6 space-y-6">
-        {showStored ? (
-          <StoredProfile profile={profile} onEdit={onEdit} />
-        ) : (
-          <PersonalForm draft={draft} onChange={onDraftChange} errors={errors} />
-        )}
-
-        <Fieldset
-          legend="Are you the owner?"
-          hint="An agent may register for an owner who will claim the business later. The agent never becomes the owner and never receives its money."
-          error={errors["capacity"]}
-        >
-          <div className="grid gap-3 sm:grid-cols-2">
-            <ChoiceCard
-              name="capacity"
-              value="owner"
-              checked={capacity === "owner"}
-              title="I own this business"
-              description="You will be its owner on Injishi."
-              onSelect={() => onCapacityChange("owner")}
-            />
-            <ChoiceCard
-              name="capacity"
-              value="on_behalf_of"
-              checked={capacity === "on_behalf_of"}
-              title="I'm registering for someone else"
-              description="Payouts stay locked until they claim it."
-              onSelect={() => onCapacityChange("on_behalf_of")}
-            />
-          </div>
-        </Fieldset>
-
-        {capacity === "on_behalf_of" ? (
-          <div className="space-y-4 rounded-card border border-border p-4">
-            <p className="text-sm font-semibold">Who are you registering for?</p>
-            <Field
-              label="Their full name"
-              required
-              error={errors["intendedOwner.name"]}
-            >
-              <TextInput
-                value={intendedOwner.name}
-                onChange={(e) =>
-                  onIntendedOwnerChange({ ...intendedOwner, name: e.target.value })
-                }
-              />
-            </Field>
-            {/* Required (ADR-053 J25): it is what the claim is matched on, so
-                without it nobody can ever claim the business, and a typo hands
-                it to nobody. Checked as you type once something is typed. */}
-            <Field
-              label="Their National ID"
-              required
-              hint="It is how we match the owner when they claim. 16 digits."
-              error={
-                errors["intendedOwner.nationalId"] ??
-                (intendedOwner.nationalId.trim() !== ""
-                  ? (nationalIdError(intendedOwner.nationalId) ?? undefined)
-                  : undefined)
-              }
-            >
-              <TextInput
-                inputMode="numeric"
-                placeholder="1 1995 8 0012345 12 3"
-                maxLength={24}
-                value={intendedOwner.nationalId}
-                onChange={(e) =>
-                  onIntendedOwnerChange({
-                    ...intendedOwner,
-                    nationalId: e.target.value,
-                  })
-                }
-              />
-            </Field>
-            <Field
-              label="Their email"
-              required
-              hint="We send their claim invitation here."
-              error={errors["intendedOwner.email"]}
-            >
-              <TextInput
-                type="email"
-                value={intendedOwner.email}
-                onChange={(e) =>
-                  onIntendedOwnerChange({
-                    ...intendedOwner,
-                    email: e.target.value,
-                  })
-                }
-              />
-            </Field>
-          </div>
-        ) : null}
-
-        {formError ? <Notice tone="danger">{formError}</Notice> : null}
-      </div>
-
-      <StepActions
-        onBack={onBack}
-        // Step 1 asks what you are registering, not what role you hold — the
-        // role is derived from the tile now (ADR-026). "Change role" pointed
-        // at a question that no longer exists.
-        backLabel="Change what you are registering"
-        onNext={onNext}
-        nextLabel="Continue to your business"
-        busy={busy}
-      />
-    </section>
-  );
-}
-
-/** What a returning registrant confirms rather than retypes. */
-function StoredProfile({
-  profile,
-  onEdit,
-}: {
-  profile: MyProfile;
-  onEdit: () => void;
-}) {
-  const address = profile.address;
-  const addressLine =
-    address === null
-      ? "Not given"
-      : isRwandanAddress(address)
-        ? [address.street, "Rwanda"].filter(Boolean).join(" · ")
-        : `${address.addressText} · ${countryName(address.country)}`;
-
-  return (
-    <div className="rounded-card border border-border p-4">
-      <div className="flex items-start gap-3">
-        <div className="grow">
-          <p className="text-sm font-semibold">{profile.fullName}</p>
-          <dl className="mt-2 grid gap-x-6 gap-y-1 text-sm sm:grid-cols-2">
-            <Row label="Date of birth" value={profile.dateOfBirth} />
-            <Row label="Phone" value={profile.phoneE164} />
-            <Row
-              label={
-                profile.document?.documentType === "passport"
-                  ? "Passport"
-                  : "National ID"
-              }
-              value={
-                profile.document
-                  ? `${profile.document.documentNumberMasked} · ${countryName(profile.document.issuingCountry)}`
-                  : null
-              }
-            />
-            <Row label="Address" value={addressLine} />
-          </dl>
-        </div>
-        <Button variant="ghost" size="sm" onPress={onEdit}>
-          Edit
-        </Button>
-      </div>
-      <p className="mt-3 text-xs text-muted-foreground">
-        These are the details on your Injishi account. Government reviewers see
-        them alongside your business.
-      </p>
+    <div className="space-y-4 rounded-card border border-border p-4">
+      <p className="text-sm font-semibold">{title}</p>
+      <Field
+        label="Their full name"
+        required
+        error={errors["intendedOwner.name"]}
+      >
+        <TextInput
+          value={value.name}
+          onChange={(e) =>
+            onChange({ ...value, name: e.target.value })
+          }
+        />
+      </Field>
+      {/* Required (ADR-053 J25): it is what the claim is matched on, so
+          without it nobody can ever claim the business, and a typo hands
+          it to nobody. Checked as you type once something is typed. */}
+      <Field
+        label="Their National ID"
+        required
+        hint="It is how we match the owner when they claim. 16 digits."
+        error={
+          errors["intendedOwner.nationalId"] ??
+          (value.nationalId.trim() !== ""
+            ? (nationalIdError(value.nationalId) ?? undefined)
+            : undefined)
+        }
+      >
+        <TextInput
+          inputMode="numeric"
+          placeholder="1 1995 8 0012345 12 3"
+          maxLength={24}
+          value={value.nationalId}
+          onChange={(e) =>
+            onChange({
+              ...value,
+              nationalId: e.target.value,
+            })
+          }
+        />
+      </Field>
+      <Field
+        label="Their email"
+        required
+        hint="We send their claim invitation here."
+        error={errors["intendedOwner.email"]}
+      >
+        <TextInput
+          type="email"
+          value={value.email}
+          onChange={(e) =>
+            onChange({
+              ...value,
+              email: e.target.value,
+            })
+          }
+        />
+      </Field>
     </div>
   );
 }
 
-function Row({ label, value }: { label: string; value: string | null }) {
-  return (
-    <div className="flex gap-2">
-      <dt className="text-muted-foreground">{label}</dt>
-      <dd className="font-medium">{value ?? "Not given"}</dd>
-    </div>
-  );
-}
-
-/** The form a new registrant fills in. */
-function PersonalForm({
+/**
+ * The typed form, for a deployment where no identity check can run (ADR-060
+ * keeps it: a check nobody can run cannot be required). `step-you.tsx` is the
+ * step; this is its fallback.
+ */
+export function PersonalForm({
   draft,
   onChange,
   errors,
+  verification,
 }: {
   draft: PersonalDraft;
   onChange: (next: PersonalDraft) => void;
   errors: Record<string, string>;
+  verification: IdentityVerification | null;
 }) {
   const isPassport = draft.documentType === "passport";
 
@@ -360,158 +245,214 @@ function PersonalForm({
       ? nationalIdError(draft.documentNumber)
       : null;
 
+  /** What the card says, and whether the date of birth disagrees with it. */
+  const idFacts = isPassport ? null : nationalIdFacts(draft.documentNumber);
+  const birthYearClash =
+    idFacts !== null &&
+    /^\d{4}-/.test(draft.dateOfBirth) &&
+    Number(draft.dateOfBirth.slice(0, 4)) !== idFacts.birthYear;
+
+  const path = verification && !verification.verified
+    ? isPassport
+      ? verification.available.passport
+        ? "passport"
+        : null
+      : verification.available.nationalId
+        ? "national_id"
+        : null
+    : null;
+
   return (
     <div className="space-y-4">
-      {/* One legend over three inputs, because they are one question. The
-          fieldset also carries `errors["fullName"]` — the contract validates
-          the composed name and reports against that one path, and hanging its
-          message on the first name box alone would blame the wrong field. */}
-      <Fieldset
-        legend="Your name"
-        hint="Exactly as written on your ID or passport, in the same order."
-        error={errors["fullName"]}
-      >
-        <div className="grid gap-4 sm:grid-cols-3">
-          <Field label="First name" required error={errors["firstName"]}>
-            <TextInput
-              id="you-first-name"
-              autoComplete="given-name"
-              value={draft.firstName}
-              onChange={(e) => onChange({ ...draft, firstName: e.target.value })}
+      {verification?.verified ? (
+        <VerifiedIdentityCard person={verification.verified} method={verification.method} />
+      ) : (
+        <>
+          <Fieldset legend="Which document do you have?" error={errors["document"]}>
+            <div className="grid gap-3 sm:grid-cols-2">
+              <ChoiceCard
+                name="documentType"
+                value="national_id"
+                checked={!isPassport}
+                title="Rwandan National ID"
+                description="16 digits."
+                onSelect={() =>
+                  onChange({
+                    ...draft,
+                    documentType: "national_id",
+                    documentNumber: "",
+                    issuingCountry: "RW",
+                  })
+                }
+              />
+              <ChoiceCard
+                name="documentType"
+                value="passport"
+                checked={isPassport}
+                title="Passport"
+                description="Any country."
+                onSelect={() =>
+                  onChange({
+                    ...draft,
+                    documentType: "passport",
+                    documentNumber: "",
+                  })
+                }
+              />
+            </div>
+          </Fieldset>
+          {path === "national_id" ? (
+            <NationalIdVerifier
+              documentNumber={draft.documentNumber}
+              onDocumentNumberChange={(documentNumber) => onChange({ ...draft, documentNumber })}
+              onVerified={verification!.onVerified}
+              error={errors["document.documentNumber"]}
             />
-          </Field>
-          <Field
-            label="Middle name"
-            hint="Leave blank if you have none."
-            error={errors["middleName"]}
-          >
-            <TextInput
-              id="you-middle-name"
-              autoComplete="additional-name"
-              value={draft.middleName}
-              onChange={(e) =>
-                onChange({ ...draft, middleName: e.target.value })
-              }
-            />
-          </Field>
-          <Field label="Last name" required error={errors["lastName"]}>
-            <TextInput
-              id="you-last-name"
-              autoComplete="family-name"
-              value={draft.lastName}
-              onChange={(e) => onChange({ ...draft, lastName: e.target.value })}
-            />
-          </Field>
-        </div>
-      </Fieldset>
+          ) : path === "passport" ? (
+            <PassportScanner onVerified={verification!.onVerified} />
+          ) : (
+            <>
+              {/* One legend over three inputs, because they are one question. The
+                  fieldset also carries `errors["fullName"]` — the contract validates
+                  the composed name and reports against that one path, and hanging its
+                  message on the first name box alone would blame the wrong field. */}
+              <Fieldset
+                legend="Your name"
+                hint="Exactly as written on your ID or passport, in the same order."
+                error={errors["fullName"]}
+              >
+                <div className="grid gap-4 sm:grid-cols-3">
+                  <Field label="First name" required error={errors["firstName"]}>
+                    <TextInput
+                      id="you-first-name"
+                      autoComplete="given-name"
+                      value={draft.firstName}
+                      onChange={(e) => onChange({ ...draft, firstName: e.target.value })}
+                    />
+                  </Field>
+                  <Field
+                    label="Middle name"
+                    hint="Leave blank if you have none."
+                    error={errors["middleName"]}
+                  >
+                    <TextInput
+                      id="you-middle-name"
+                      autoComplete="additional-name"
+                      value={draft.middleName}
+                      onChange={(e) =>
+                        onChange({ ...draft, middleName: e.target.value })
+                      }
+                    />
+                  </Field>
+                  <Field label="Last name" required error={errors["lastName"]}>
+                    <TextInput
+                      id="you-last-name"
+                      autoComplete="family-name"
+                      value={draft.lastName}
+                      onChange={(e) => onChange({ ...draft, lastName: e.target.value })}
+                    />
+                  </Field>
+                </div>
+              </Fieldset>
 
-      <Fieldset legend="Which document do you have?" error={errors["document"]}>
-        <div className="grid gap-3 sm:grid-cols-2">
-          <ChoiceCard
-            name="documentType"
-            value="national_id"
-            checked={!isPassport}
-            title="Rwandan National ID"
-            description="16 digits."
-            onSelect={() =>
-              onChange({
-                ...draft,
-                documentType: "national_id",
-                documentNumber: "",
-                issuingCountry: "RW",
-              })
-            }
-          />
-          <ChoiceCard
-            name="documentType"
-            value="passport"
-            checked={isPassport}
-            title="Passport"
-            description="Any country."
-            onSelect={() =>
-              onChange({
-                ...draft,
-                documentType: "passport",
-                documentNumber: "",
-              })
-            }
-          />
-        </div>
-      </Fieldset>
 
-      <Field
-        label={isPassport ? "Passport number" : "National ID number"}
-        required
-        hint={
-          isPassport
-            ? "6 to 12 letters or digits."
-            : "16 digits, as printed on the card. Type it in groups if you like — 1 1995 8 0012345 12 3 — the spaces are ignored."
-        }
-        error={errors["document.documentNumber"] ?? liveIdError ?? undefined}
-      >
-        <TextInput
-          id="you-document-number"
-          inputMode={isPassport ? "text" : "numeric"}
-          autoComplete="off"
-          placeholder={isPassport ? "PC1234567" : "1 1995 8 0012345 12 3"}
-          maxLength={isPassport ? 12 : 24}
-          aria-invalid={
-            errors["document.documentNumber"] ?? liveIdError ? true : undefined
-          }
-          value={draft.documentNumber}
-          onChange={(e) => onChange({ ...draft, documentNumber: e.target.value })}
-        />
-      </Field>
+              <Field
+                label={isPassport ? "Passport number" : "National ID number"}
+                required
+                hint={
+                  isPassport
+                    ? "6 to 12 letters or digits."
+                    : "16 digits, as printed on the card. Type it in groups if you like — 1 1995 8 0012345 12 3 — the spaces are ignored."
+                }
+                error={errors["document.documentNumber"] ?? liveIdError ?? undefined}
+              >
+                <TextInput
+                  id="you-document-number"
+                  inputMode={isPassport ? "text" : "numeric"}
+                  autoComplete="off"
+                  placeholder={isPassport ? "PC1234567" : "1 1995 8 0012345 12 3"}
+                  maxLength={isPassport ? 12 : 24}
+                  aria-invalid={
+                    errors["document.documentNumber"] ?? liveIdError ? true : undefined
+                  }
+                  value={draft.documentNumber}
+                  onChange={(e) => {
+                    const documentNumber = e.target.value;
+                    // The moment the ID becomes whole, a gender still unanswered is
+                    // read off it (Phase 0). Only then, and only into a blank: a gender
+                    // the person chose is theirs, and so is changing this one.
+                    const facts = isPassport ? null : nationalIdFacts(documentNumber);
+                    const becameWhole =
+                      facts !== null && nationalIdFacts(draft.documentNumber) === null;
+                    onChange({
+                      ...draft,
+                      documentNumber,
+                      ...(becameWhole && facts.gender && draft.gender === ""
+                        ? { gender: facts.gender }
+                        : {}),
+                    });
+                  }}
+                />
+              </Field>
 
-      {isPassport ? (
-        <Field
-          label="Issuing country"
-          required
-          error={errors["document.issuingCountry"]}
-        >
-          <SelectField
-            value={draft.issuingCountry}
-            options={COUNTRY_OPTIONS}
-            placeholder="Choose a country"
-            invalid={Boolean(errors["document.issuingCountry"])}
-            onChange={(issuingCountry) =>
-              onChange({ ...draft, issuingCountry })
-            }
-          />
-        </Field>
-      ) : null}
+              {isPassport ? (
+                <Field
+                  label="Issuing country"
+                  required
+                  error={errors["document.issuingCountry"]}
+                >
+                  <SelectField
+                    value={draft.issuingCountry}
+                    options={COUNTRY_OPTIONS}
+                    placeholder="Choose a country"
+                    invalid={Boolean(errors["document.issuingCountry"])}
+                    onChange={(issuingCountry) =>
+                      onChange({ ...draft, issuingCountry })
+                    }
+                  />
+                </Field>
+              ) : null}
 
-      <div className="grid gap-4 sm:grid-cols-2">
-        <Field
-          label="Date of birth"
-          required
-          hint="You must be 18 or over to register a business."
-          error={errors["dateOfBirth"]}
-        >
-          <TextInput
-            type="date"
-            value={draft.dateOfBirth}
-            onChange={(e) => onChange({ ...draft, dateOfBirth: e.target.value })}
-          />
-        </Field>
+              <div className="grid gap-4 sm:grid-cols-2">
+                <Field
+                  label="Date of birth"
+                  required
+                  hint={
+                    birthYearClash
+                      ? `Your National ID says you were born in ${idFacts?.birthYear}. Check the year.`
+                      : "You must be 18 or over to register a business."
+                  }
+                  error={errors["dateOfBirth"]}
+                >
+                  <TextInput
+                    type="date"
+                    value={draft.dateOfBirth}
+                    onChange={(e) => onChange({ ...draft, dateOfBirth: e.target.value })}
+                  />
+                </Field>
 
-        <Field label="Gender" hint="Optional." error={errors["gender"]}>
-          {/* "Rather not say now" is an answer, not an absence, so it stays
-              an option. See the sentinel note on `SelectField`. */}
-          <SelectField
-            value={draft.gender}
-            options={[
-              { value: "", label: "Rather not say now" },
-              { value: "female", label: "Female" },
-              { value: "male", label: "Male" },
-              { value: "other", label: "Other" },
-              { value: "prefer_not_to_say", label: "Prefer not to say" },
-            ]}
-            invalid={Boolean(errors["gender"])}
-            onChange={(gender) => onChange({ ...draft, gender })}
-          />
-        </Field>
-      </div>
+                <Field label="Gender" hint="Optional." error={errors["gender"]}>
+                  {/* "Rather not say now" is an answer, not an absence, so it stays
+                      an option. See the sentinel note on `SelectField`. */}
+                  <SelectField
+                    value={draft.gender}
+                    options={[
+                      { value: "", label: "Rather not say now" },
+                      { value: "female", label: "Female" },
+                      { value: "male", label: "Male" },
+                      { value: "other", label: "Other" },
+                      { value: "prefer_not_to_say", label: "Prefer not to say" },
+                    ]}
+                    invalid={Boolean(errors["gender"])}
+                    onChange={(gender) => onChange({ ...draft, gender })}
+                  />
+                </Field>
+              </div>
+
+            </>
+          )}
+        </>
+      )}
 
       <Field
         label="Phone"
@@ -530,12 +471,13 @@ function PersonalForm({
       <div className="rounded-card border border-border p-4">
         <p className="text-sm font-semibold">Where you live</p>
         <p className="mt-0.5 text-xs text-muted-foreground">
-          Rwanda uses Province, District and Sector. Anywhere else, just write the
-          address.
+          Rwanda uses Province, District, Sector, Cell and Village — the last two
+          are optional. Anywhere else, just write the address.
         </p>
         <div className="mt-4">
           <AddressPicker
             idPrefix="you"
+            collectVillage
             draft={draft.address}
             onChange={(address) => onChange({ ...draft, address })}
             errors={errors}

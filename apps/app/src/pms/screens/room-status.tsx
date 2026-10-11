@@ -2,16 +2,8 @@
 
 /**
  * Room status (F-P04) — the desk's view of housekeeping, floor by floor.
- * Housekeeping status is separate from availability. A card expands to set the
- * status inline.
- *
- * **HOW IT STAYS CURRENT, stated because this line used to overstate it.** It
- * claimed the board was pushed every change a housekeeper made. Nothing pushes to
- * it. It reads `GET /ops/rooms`, and that read is refreshed when the screen
- * opens, after a status is set here, when the tab comes back into view, and
- * every `REFRESH_MS` while it is visible. A room changed anywhere else — another
- * desk, a housekeeper — therefore shows here within that interval, and the
- * sentence on screen says exactly that.
+ * Housekeeping status is separate from availability; it updates live from the
+ * housekeeping phones. A card expands to set the status inline.
  *
  * **On real data** (ADR-012 step 4), following the Reservations pattern exactly:
  * `useCapability()` says what may be done, three read states are told apart, and
@@ -21,29 +13,42 @@
  * offered "Being cleaned", which has no column behind it and never had; showing
  * it on real data would let an operator set a status the server cannot store.
  * `out_of_order` goes the other way: a real state the demo never showed.
+ *
+ * **The card header is a native `<button>`, and that is deliberate.** It was
+ * `Button` from `@injishi/ui`, which is a HeroUI button, and `.button` pins a
+ * FIXED height (`h-10 md:h-9`), centres its content, and sets `white-space:
+ * nowrap` and `width: fit-content`. Three lines of card content in a 36px box
+ * overflowed it: the room name, the status badge and the room type rendered ON
+ * TOP of the action panel beneath them, and that panel's two nowrap columns ran
+ * past a 148px card that clipped them. A whole card is not a control in the
+ * button vocabulary; it is an expandable surface that happens to be pressable.
+ * `@injishi/ui`'s Button stays where a button belongs — the four status actions
+ * below, through `ActionButton`, which is the only thing here that can word a
+ * refusal (ADR-012, AC-5).
  */
 
-import { Button } from "@injishi/ui";
-import { useQueryClient } from "@tanstack/react-query";
-import { useEffect, useState } from "react";
+import { useState } from "react";
+import { DoorOpen, UserRound } from "lucide-react";
 import { useHost, usePms } from "../store";
 import type { HkStatus } from "../data/types";
 import type { HousekeepingStatus } from "@injishi/contracts";
 import { useCapability, useWorkspaceId } from "../data/capability";
 import { useRooms, useSetHousekeeping } from "../data/ops";
-import { queryKeys } from "../data/queries";
-import { ActionButton, Badge, Chip, EmptyState, LoadFailed, Skeleton } from "../components/ui";
-import { HOUSEKEEPING as HK, HOUSEKEEPING_BY as HK_BY } from "../lib/housekeeping";
+import {
+  ActionButton,
+  Badge,
+  Chip,
+  EmptyState,
+  LoadFailed,
+  SectionHeading,
+  Skeleton,
+} from "../components/ui";
+import {
+  HOUSEKEEPING as HK,
+  HOUSEKEEPING_BY as HK_BY,
+  HOUSEKEEPING_FROM_DEMO as FROM_DEMO,
+} from "../lib/housekeeping";
 
-/** The demo store's own vocabulary, mapped onto the real one. */
-const FROM_DEMO: Record<HkStatus, HousekeepingStatus> = {
-  ready: "clean",
-  needs: "dirty",
-  // The demo's middle state. It has no column, so on the way in it reads as
-  // what it actually means to a desk: this room is not ready yet.
-  cleaning: "dirty",
-  inspected: "inspected",
-};
 const TO_DEMO: Record<HousekeepingStatus, HkStatus> = {
   clean: "ready",
   dirty: "needs",
@@ -52,8 +57,16 @@ const TO_DEMO: Record<HousekeepingStatus, HkStatus> = {
   out_of_order: "needs",
 };
 
-/** How often the board re-reads `GET /ops/rooms` while it is on screen. */
-const REFRESH_MS = 30_000;
+/**
+ * How often the desk's board re-reads the rooms.
+ *
+ * The same 30 seconds the housekeeping phone polls at (`PHONE_REFRESH_MS` in
+ * `data/housekeeper.ts`), because it is the same event from the other end: a
+ * room finished upstairs has to appear downstairs. This screen said "updates
+ * live from the housekeeping phones" while reading the list exactly ONCE, so
+ * the sentence was the only live thing about it.
+ */
+const ROOM_STATUS_REFRESH_MS = 30_000;
 
 interface DeskRoom {
   id: string;
@@ -72,32 +85,10 @@ export function RoomStatus() {
 
   const workspaceId = useWorkspaceId();
   const { can, reasonFor } = useCapability();
-  const query = useRooms(workspaceId);
+  const query = useRooms(workspaceId, ROOM_STATUS_REFRESH_MS);
   const setHousekeeping = useSetHousekeeping(workspaceId);
 
   const live = workspaceId !== null;
-  const client = useQueryClient();
-
-  /*
-   * Re-read the rooms on a timer while the tab is visible. The app turns
-   * refetch-on-focus off everywhere, so without this the board would show a
-   * room as dirty long after somebody cleaned it. A hidden tab asks nothing.
-   */
-  useEffect(() => {
-    if (!live) return;
-    const refresh = () => {
-      if (document.visibilityState === "visible") {
-        void client.invalidateQueries({ queryKey: queryKeys.rooms(workspaceId) });
-      }
-    };
-    const timer = window.setInterval(refresh, REFRESH_MS);
-    document.addEventListener("visibilitychange", refresh);
-    return () => {
-      window.clearInterval(timer);
-      document.removeEventListener("visibilitychange", refresh);
-    };
-  }, [client, live, workspaceId]);
-
   const maySet = can("housekeeping.set");
   const denied = maySet ? undefined : reasonFor("housekeeping.set");
 
@@ -122,11 +113,17 @@ export function RoomStatus() {
     }
     f.rooms.push(rm);
   }
+  /* Building order, then room order. The API returns rooms in whatever order
+     the query produced them, and a desk reads this screen by walking a floor:
+     101, 102, 103. First-seen order put 204 above 201 for no reason a
+     receptionist could see. */
+  floors.sort((a, b) => floorRank(a.label) - floorRank(b.label) || a.label.localeCompare(b.label));
+  for (const f of floors) f.rooms.sort(byRoomLabel);
 
   /** What the room IS now, for the desk deciding whether it can be sold. */
   function arrived(room: DeskRoom, to: HousekeepingStatus): string {
     if (to === "clean") return `Room ${room.label} is ready to sell.`;
-    if (to === "dirty") return `Room ${room.label} needs cleaning before it can be sold.`;
+    if (to === "dirty") return `Room ${room.label} needs cleaning. It is on the housekeeping phones now.`;
     if (to === "inspected") return `Room ${room.label} is inspected and ready.`;
     return `Room ${room.label} is out of order. It won't be offered to a guest.`;
   }
@@ -148,7 +145,7 @@ export function RoomStatus() {
 
   if (live && query.isPending) {
     return (
-      <div className="pms-enter" style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(148px, 1fr))", gap: 10 }}>
+      <div className="pms-enter" style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(160px, 1fr))", gap: 10 }}>
         {[0, 1, 2, 3, 4, 5].map((i) => (
           <Skeleton key={i} height={104} delay={i * 60} />
         ))}
@@ -156,9 +153,17 @@ export function RoomStatus() {
     );
   }
 
-  if (live && query.isError) {
-    /* AC-13: unreachable is not "no rooms". A desk told it has no rooms will
-       stop looking for the one that needs cleaning. */
+  /* AC-13: unreachable is not "no rooms". A desk told it has no rooms will
+     stop looking for the one that needs cleaning.
+
+     Only when there is NOTHING to show, though. Now that the board polls, a
+     single blip 30 seconds after a good read would otherwise replace a full
+     screen of floors with a failure panel — the desk would lose the rooms it
+     was reading because a refresh it never asked for did not land. */
+  const boardIsBlank = live && query.isError && query.data === undefined;
+  const refreshFailed = live && query.isError && query.data !== undefined;
+
+  if (boardIsBlank) {
     return (
       <LoadFailed onRetry={() => void query.refetch()} retrying={query.isFetching}>
         We couldn&apos;t load your rooms. Every room is still on the property — this is on
@@ -176,77 +181,224 @@ export function RoomStatus() {
             label={h.label}
             n={rooms.filter((r) => r.hk === h.key).length}
             dot={h.dot}
+            icon={h.icon}
             active={filter === h.key}
             onClick={() => setFilter(filter === h.key ? null : h.key)}
             size="sm"
           />
         ))}
         <span style={{ flex: 1 }} />
+        {/* Says only what the screen does. On the demo store there are no
+            phones and no poll, so the clause that promises both is not
+            printed. */}
         <span style={{ fontSize: 12.5, color: "var(--muted)" }}>
-          Housekeeping status is separate from availability · {live ? "refreshed from the server every 30 seconds" : "demo rooms, not saved"}
+          Housekeeping status is separate from availability
+          {live ? " · re-reads the floors every 30 seconds, so a room finished on a housekeeping phone appears here" : ""}
         </span>
       </div>
 
+      {/* The other half of the poll: when a refresh does not land, the board
+          says so rather than quietly ageing. Nothing is hidden and nothing is
+          invented — these are the floors as of the last read. */}
+      {refreshFailed && (
+        <div
+          role="status"
+          style={{
+            display: "flex",
+            alignItems: "center",
+            gap: 10,
+            padding: "8px 12px",
+            border: "1px solid var(--line2)",
+            borderRadius: "var(--radius-surface)",
+            fontSize: 12.5,
+            color: "var(--muted)",
+          }}
+        >
+          <span aria-hidden style={{ width: 8, height: 8, borderRadius: 99, background: "var(--warn)", flexShrink: 0 }} />
+          The last refresh didn&apos;t reach us. These are the floors as we last read them.
+          <ActionButton
+            onClick={() => void query.refetch()}
+            pending={query.isFetching}
+            style={{ marginLeft: "auto", flexShrink: 0 }}
+          >
+            Try now
+          </ActionButton>
+        </div>
+      )}
+
       {rooms.length === 0 && (
         <EmptyState style={{ padding: 26, fontSize: 13.5 }}>
-          No rooms on this property yet. Add them under Inventory.
+          No rooms on this property yet. Add them under Rooms &amp; rates.
+        </EmptyState>
+      )}
+
+      {/* A filter that matches nothing used to render NOTHING: no cards, no
+          message, and the chip still lit. A desk reads that as a broken screen
+          or as an empty property, and neither is true — so name the filter that
+          is on and offer the way back out of it. */}
+      {rooms.length > 0 && shown.length === 0 && filter !== null && (
+        <EmptyState style={{ padding: 26, fontSize: 13.5 }}>
+          No room is marked &ldquo;{HK_BY[filter].label}&rdquo; right now.{" "}
+          <button
+            type="button"
+            className="font-semibold text-accent-text underline"
+            onClick={() => setFilter(null)}
+          >
+            Show all {rooms.length} rooms
+          </button>
         </EmptyState>
       )}
 
       {floors.map((f) => (
         <section key={f.label}>
-          <h2 style={{ fontSize: 11.5, fontWeight: 700, letterSpacing: "0.09em", textTransform: "uppercase", color: "var(--muted2)" }}>{f.label}</h2>
-          <div style={{ marginTop: 10, display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(148px, 1fr))", gap: 10 }}>
+          <SectionHeading n={f.rooms.length}>{f.label}</SectionHeading>
+          {/* `start`, not the grid's default stretch: one card opening its
+              status panel used to pull every card in its row down to the same
+              height, five tall empty boxes around the one that was open. */}
+          <div style={{ marginTop: 10, display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(160px, 1fr))", gap: 10, alignItems: "start" }}>
             {f.rooms.map((rm) => {
               const h = HK_BY[rm.hk];
               const sel = selected === rm.id;
+              const panelId = `hk-panel-${rm.id}`;
+              /* One card, one request. The old guard refused only a SECOND
+                 press of the SAME button, so pressing "Inspected" while
+                 "Ready" was still in flight sent both and the room landed on
+                 whichever answered last. */
+              const cardBusy =
+                setHousekeeping.isPending && setHousekeeping.variables?.roomId === rm.id;
               return (
-                <div key={rm.id} style={{ border: `1.5px solid ${sel ? "var(--accent-text)" : "var(--card-bd)"}`, background: "var(--card)", borderRadius: "var(--radius-surface)", overflow: "hidden" }}>
-                  <Button variant="ghost"
+                <div
+                  key={rm.id}
+                  style={{
+                    border: `1.5px solid ${sel ? "var(--accent-text)" : "var(--card-bd)"}`,
+                    background: "var(--card)",
+                    borderRadius: "var(--radius-surface)",
+                  }}
+                >
+                  <button
+                    type="button"
                     onClick={() => setSelected(sel ? null : rm.id)}
-                    style={{ display: "block", width: "100%", border: "none", background: "none", padding: "12px 13px 10px", cursor: "pointer", textAlign: "left" }}
+                    aria-expanded={sel}
+                    // Only while the panel is on the page: `aria-controls`
+                    // pointing at an id that does not exist is a dangling
+                    // reference, not a hint.
+                    aria-controls={sel ? panelId : undefined}
+                    /* Layout inline, tint by class: an inline `background`
+                       would outrank the hover fill and kill it. */
+                    className="block w-full cursor-pointer border-0 bg-transparent text-left hover:bg-hover"
+                    style={{
+                      padding: "12px 13px 10px",
+                      /* The hover fill has to sit INSIDE the card's corners —
+                         the card no longer clips, so a square fill would poke
+                         past them — and go square along the bottom once the
+                         panel is open and the divider is straight. */
+                      borderRadius: sel
+                        ? "calc(var(--radius-surface) - 2px) calc(var(--radius-surface) - 2px) 0 0"
+                        : "calc(var(--radius-surface) - 2px)",
+                    }}
                   >
-                    <span style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                      <span style={{ width: 9, height: 9, borderRadius: 99, background: h.dot }} />
-                      <span className="pms-num" style={{ fontSize: 16, fontWeight: 700, color: "var(--foreground)" }}>Room {rm.label}</span>
-                      <span style={{ marginLeft: "auto", fontSize: 10.5, color: "var(--faint)" }}>{rm.occupantName ? "occupied" : ""}</span>
+                    {/* THE NUMBER IN FULL. It was "Room 101" in a nowrap line
+                        beside an "occupied" tag that would not shrink, so every
+                        occupied room truncated to "Room…" and the one fact the
+                        card exists to show was the one it hid. The word "Room"
+                        is for a screen reader now; the number stands alone and
+                        wraps rather than cuts if a named room is long. Who is
+                        in it moved to an icon on this line and a line of its
+                        own below. */}
+                    <span className="flex items-start gap-2">
+                      <span data-room-label className="pms-num min-w-0 text-xl leading-tight font-bold break-words text-foreground">
+                        <span className="sr-only">Room </span>
+                        {rm.label}
+                      </span>
+                      {rm.occupantName && (
+                        <span title={`Occupied by ${rm.occupantName}`} className="mt-0.5 ml-auto flex shrink-0">
+                          <UserRound aria-hidden="true" className="size-4 text-accent-text" strokeWidth={2.2} />
+                        </span>
+                      )}
                     </span>
-                    <span style={{ display: "block", marginTop: 6 }}><Badge intent={h.intent}>{h.label}</Badge></span>
-                    <span style={{ display: "block", marginTop: 5, fontSize: 11, color: "var(--muted)", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{rm.occupantName ?? rm.typeName}</span>
-                  </Button>
+                    <span className="mt-1.5 block">
+                      <Badge intent={h.intent} icon={h.icon}>
+                        {h.label}
+                      </Badge>
+                    </span>
+                    {/* The room TYPE, always. The guest's name used to REPLACE
+                        it the moment a room was occupied, so the one screen
+                        that says what a room is stopped saying it exactly when
+                        a desk was deciding where to move somebody. Both lines
+                        fit; neither has to win. */}
+                    <span className="mt-1.5 block truncate text-2xs text-muted-foreground">{rm.typeName}</span>
+                    {/* Occupancy said in words as well as by the icon above,
+                        both ways: "Vacant" is what a desk deciding where to put
+                        a walk-in is looking for. */}
+                    <span className="mt-0.5 flex min-w-0 items-center gap-1 text-2xs">
+                      {rm.occupantName ? (
+                        <>
+                          <UserRound aria-hidden="true" className="size-3 shrink-0 text-accent-text" strokeWidth={2.2} />
+                          <span className="truncate font-semibold text-foreground">
+                            <span className="sr-only">Occupied by </span>
+                            {rm.occupantName}
+                          </span>
+                        </>
+                      ) : (
+                        <>
+                          <DoorOpen aria-hidden="true" className="size-3 shrink-0 text-muted-foreground" strokeWidth={2.2} />
+                          <span className="text-muted-foreground">Vacant</span>
+                        </>
+                      )}
+                    </span>
+                  </button>
                   {sel && (
-                    <div style={{ borderTop: "1px solid var(--line)", padding: 8, display: "grid", gridTemplateColumns: "1fr 1fr", gap: 6 }}>
+                    <div
+                      id={panelId}
+                      role="group"
+                      aria-label={`Set housekeeping status for room ${rm.label}`}
+                      /* ONE column. Two made every label nowrap inside a ~64px
+                         cell, so "Needs cleaning" and "Out of order" ran out of
+                         the card and were clipped. */
+                      style={{ borderTop: "1px solid var(--line)", padding: 8, display: "grid", gridTemplateColumns: "1fr", gap: 6 }}
+                    >
                       {HK.map((x) => {
                         const on = rm.hk === x.key;
-                        const off = Boolean(denied);
                         // The pressed button on the pressed room, so the desk
                         // can see which of the four it sent while it goes.
-                        const busy =
-                          setHousekeeping.isPending &&
-                          setHousekeeping.variables?.roomId === rm.id &&
-                          setHousekeeping.variables?.housekeeping === x.key;
+                        const busy = cardBusy && setHousekeeping.variables?.housekeeping === x.key;
                         return (
-                          <Button variant="ghost"
+                          <ActionButton
                             key={x.key}
-                            onClick={() => !off && !busy && set(rm, x.key)}
-                            aria-disabled={off || undefined}
+                            onClick={() => !cardBusy && set(rm, x.key)}
+                            deniedReason={denied}
                             pending={busy}
-                            title={denied}
+                            aria-pressed={on}
+                            /* Every one of these is inline on purpose. They
+                               contradict `.button`'s own geometry — fixed
+                               height, fit width, centred, nowrap — and an
+                               inline declaration is the one thing that cannot
+                               lose to it, whatever layer that sheet lands in.
+                               Together they make a clipped label impossible:
+                               the control fills its column, the label wraps,
+                               and the box grows to whatever that needs. */
                             style={{
+                              width: "100%",
+                              height: "auto",
                               minHeight: 34,
-                              border: `1.5px solid ${on ? "var(--accent-text)" : "var(--line2)"}`,
-                              background: on ? "var(--accent-soft)" : "var(--field)",
-                              color: on ? "var(--accent-text)" : "var(--foreground)",
-                              borderRadius: 9,
-                              fontSize: 11,
-                              fontWeight: 600,
-                              cursor: off ? "not-allowed" : "pointer",
-                              opacity: off ? 0.5 : 1,
-                              whiteSpace: "nowrap",
+                              paddingBlock: 6,
+                              justifyContent: "flex-start",
+                              whiteSpace: "normal",
+                              textAlign: "left",
+                              fontSize: 11.5,
+                              lineHeight: 1.25,
+                              ...(on
+                                ? {
+                                    borderColor: "var(--accent-text)",
+                                    background: "var(--accent-soft)",
+                                    color: "var(--accent-text)",
+                                  }
+                                : null),
                             }}
                           >
+                            <x.icon aria-hidden="true" className="size-4 shrink-0" strokeWidth={2.2} style={{ color: x.dot }} />
                             {x.label}
-                          </Button>
+                          </ActionButton>
                         );
                       })}
                     </div>
@@ -271,6 +423,17 @@ export function RoomStatus() {
 function floorOf(label: string | null): string {
   if (!label) return "Rooms";
   return /^\d{2,}$/.test(label) ? `Floor ${label[0]}` : "Rooms";
+}
+
+/** Floors climb; the unnumbered group ("Rooms") sits last. */
+function floorRank(label: string): number {
+  const digits = label.match(/\d+/);
+  return digits ? Number(digits[0]) : Number.MAX_SAFE_INTEGER;
+}
+
+/** 2 before 10, and G1 before G2: a room label is read, not sorted as text. */
+function byRoomLabel(a: DeskRoom, b: DeskRoom): number {
+  return a.label.localeCompare(b.label, undefined, { numeric: true, sensitivity: "base" });
 }
 
 /** The demo store's rooms, unchanged in behaviour from before. */

@@ -56,7 +56,13 @@ export default [
       // same change that turned them on — 164 hand-typed type sizes, 51 unnamed
       // widths and 27 colour call sites — because ADR-027's rollout is explicit
       // that a half-migrated palette looks worse than either end of it.
-      'injishi/no-raw-color-classes': 'error',
+      // One hex file: the Explore map's basemap palette. MapLibre paints the
+      // map in WebGL from literal colours and cannot read CSS variables, the
+      // same reason apps/app and apps/mobile carve out their data palettes.
+      'injishi/no-raw-color-classes': [
+        'error',
+        { allowHexIn: ['/components/explore/explore-map-style.ts'] },
+      ],
       'injishi/no-arbitrary-type-scale': ['error', { mobile: false }],
       'injishi/no-arbitrary-width': 'error',
       'injishi/ground-foreground-agreement': 'error',

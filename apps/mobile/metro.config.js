@@ -10,13 +10,24 @@
 // 'useMemo')". We pin react + react-dom (and their subpaths) to this app's own
 // copy so exactly one React is ever bundled, whatever the rest of the workspace
 // resolves. Keep it even while the versions agree. Scoped to this app only.
-const { getDefaultConfig } = require('expo/metro-config');
+const { getSentryExpoConfig } = require('@sentry/react-native/metro');
 const path = require('path');
 
 const projectRoot = __dirname;
 const workspaceRoot = path.resolve(projectRoot, '../..');
 
-const config = getDefaultConfig(projectRoot);
+// Expo's default config with Sentry's additions (ADR-063): a debug id stamped
+// into every bundle and its source map, which is how a release build's stack
+// trace is read back to the original file and line. Web replay and the web
+// feedback widget are left out because this app turns both off. The Expo
+// Router error boundary is NOT auto wrapped: the root crash screen reports
+// through `reportRenderError`, which keeps the reference it shows and the
+// event it sends the same thing. Every customisation below is unchanged, and
+// the resolveRequest shim at the bottom chains to Sentry's resolver.
+const config = getSentryExpoConfig(projectRoot, {
+  includeWebReplay: false,
+  includeWebFeedback: false,
+});
 
 // Resolve node_modules from this app first, then the workspace root.
 config.resolver.nodeModulesPaths = [
@@ -116,6 +127,37 @@ config.resolver.resolveRequest = (context, moduleName, platform) => {
     }
   }
   return (originalResolveRequest ?? context.resolveRequest)(context, moduleName, platform);
+};
+
+// Send a phone the bundle gzipped, not as a multipart stream.
+//
+// Expo Go and the dev client ask for the bundle with `Accept: multipart/mixed`
+// so they can draw a progress bar. Metro answers that with the whole dev bundle
+// UNCOMPRESSED — 17.3 MB here — because the dev server's gzip skips multipart
+// content types, and it spends ~4s on a warm graph building the stream. The
+// same request without the multipart ask comes back as plain JavaScript, which
+// IS gzipped: 2.8 MB, built in ~0.2s. On a phone over 2.4 GHz Wi-Fi the 17 MB
+// stream crawled or stalled outright, and Expo Go's bar sat still for minutes
+// (2026-10-05). Dropping the ask costs the percentage on the loading screen
+// and nothing else: React Native's bundle downloader takes a plain response
+// as readily as a multipart one, and has no read timeout to trip during a cold
+// build. Native bundle requests only; web loads its bundle from a script tag.
+const originalEnhanceMiddleware = config.server.enhanceMiddleware;
+config.server.enhanceMiddleware = (metroMiddleware, server) => {
+  const inner = originalEnhanceMiddleware
+    ? originalEnhanceMiddleware(metroMiddleware, server)
+    : metroMiddleware;
+  return (req, res, next) => {
+    const url = req.url ?? '';
+    if (
+      /\.bundle(\?|$)/.test(url) &&
+      /[?&]platform=(android|ios)(&|$)/.test(url) &&
+      req.headers.accept?.includes('multipart/mixed')
+    ) {
+      req.headers.accept = 'application/javascript';
+    }
+    return inner(req, res, next);
+  };
 };
 
 module.exports = config;

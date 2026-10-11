@@ -54,11 +54,28 @@ x-api-env: &api-env
   REDIS_URL: ${REDIS_URL}
   COOKIE_SECRET: ${COOKIE_SECRET}
   BETTER_AUTH_SECRET: ${BETTER_AUTH_SECRET}
+  # The kiosk PIN pepper (058-time AC-TM11). Staging runs the production
+  # platform, so it refuses to boot without one. Never production's.
+  HR_PIN_PEPPER: ${HR_PIN_PEPPER:?set HR_PIN_PEPPER, the kiosk PIN pepper: openssl rand -base64 32}
   BETTER_AUTH_URL: https://api.${STAGING_DOMAIN:?set STAGING_DOMAIN to a domain production does not use}
   AUTH_COOKIE_DOMAIN: .${STAGING_DOMAIN}
   CORS_ORIGINS: https://www.${STAGING_DOMAIN},https://admin.${STAGING_DOMAIN}
   GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:-}
   GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET:-}
+  # The support assistant (ADR-061). Off unless the host env file turns it on. `live` needs ANTHROPIC_API_KEY from the host env file, never from this file, and the API refuses to boot on `live` without it.
+  ASSISTANT_ADAPTER_MODE: ${ASSISTANT_ADAPTER_MODE:-off}
+  ASSISTANT_MODEL: ${ASSISTANT_MODEL:-claude-sonnet-5-5}
+  ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+  # Spending limits and prices (ADR-061 D-s, D-t), from the host env file. A
+  # blank value means the API's default: no monthly ceiling (the boot log says
+  # so on live), 30 model answers a day, and Sonnet 5.5's published prices.
+  ASSISTANT_MONTHLY_BUDGET_USD: ${ASSISTANT_MONTHLY_BUDGET_USD:-}
+  ASSISTANT_AI_TURNS_PER_DAY: ${ASSISTANT_AI_TURNS_PER_DAY:-}
+  ASSISTANT_MAX_OUTPUT_TOKENS: ${ASSISTANT_MAX_OUTPUT_TOKENS:-}
+  ASSISTANT_PRICE_INPUT_PER_MTOK_USD: ${ASSISTANT_PRICE_INPUT_PER_MTOK_USD:-}
+  ASSISTANT_PRICE_OUTPUT_PER_MTOK_USD: ${ASSISTANT_PRICE_OUTPUT_PER_MTOK_USD:-}
+  ASSISTANT_PRICE_CACHE_READ_PER_MTOK_USD: ${ASSISTANT_PRICE_CACHE_READ_PER_MTOK_USD:-}
+  ASSISTANT_PRICE_CACHE_WRITE_PER_MTOK_USD: ${ASSISTANT_PRICE_CACHE_WRITE_PER_MTOK_USD:-}
   # Object storage on this stack's minio, through the scoped user minio-init
   # creates. `injishi-minio`, not `minio`: api also joins dokploy-network, where
   # production's `minio` answers to the same name.
@@ -205,7 +222,14 @@ services:
   # own scoped user (minio/provision.sh). The API and worker start only once it
   # has exited 0.
   minio-init:
-    image: quay.io/minio/mc:RELEASE.2025-08-13T08-35-41Z
+    # minio's own SERVER image, not quay.io/minio/mc. It ships /usr/bin/mc at
+    # the release the mc image was pinned to (RELEASE.2025-08-13T08-35-41Z),
+    # plus the sh and timeout provision.sh needs. quay.io has answered 401 for
+    # MinIO's images since at least 2026-09-25, so an mc tag a host had not
+    # cached could no longer be pulled: the demo's nightly `up` failed on it
+    # five nights running and left the API stopped. One image for both
+    # services also means the one a host holds serves both.
+    image: quay.io/minio/minio:RELEASE.2025-09-07T16-13-09Z
     restart: "no"
     entrypoint: ["/bin/sh", "/provision.sh"]
     environment:
@@ -356,6 +380,8 @@ services:
     build:
       context: ../..
       dockerfile: infra/docker/Dockerfile.web
+      secrets:
+        - heroui_token
       args:
         <<: *staging-public
         OPERATOR_APP_URL: http://app:3002
@@ -413,6 +439,8 @@ services:
     build:
       context: ../..
       dockerfile: infra/docker/Dockerfile.app
+      secrets:
+        - heroui_token
       args:
         <<: *staging-public
         OPERATOR_ASSET_PREFIX: /operator-static
@@ -436,6 +464,8 @@ services:
     build:
       context: ../..
       dockerfile: infra/docker/Dockerfile.admin
+      secrets:
+        - heroui_token
       args:
         <<: *staging-public
     restart: unless-stopped
@@ -466,3 +496,10 @@ services:
     networks:
       - default
       - dokploy-network
+
+# HeroUI Pro's CI/CD token for the three frontend builds, read from this
+# stack's .env (stack settings live on the host, never in GitHub). See the
+# note in Dockerfile.web.
+secrets:
+  heroui_token:
+    environment: HEROUI_AUTH_TOKEN

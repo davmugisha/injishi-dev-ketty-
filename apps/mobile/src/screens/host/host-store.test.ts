@@ -17,7 +17,6 @@ import {
   decisionBlocked,
   handOverToHousekeeping,
   isUpcoming,
-  nextInvoice,
   nightOf,
   rowStateOf,
 } from './host-store';
@@ -227,30 +226,28 @@ describe('the housekeeping handoff', () => {
 });
 
 describe('checking out', () => {
-  it('closes the stay, issues one invoice and settles the folio', () => {
-    const before = { ...inHouse(), balanceRwf: 24000 };
+  it('closes the stay and invents nothing the server answers for', () => {
+    const before = { ...inHouse(), balanceRwf: 24000, invoice: null, escrowStatus: 'held' as const };
     const at = Date.now();
-    const [after] = applyBookingChange([before], {
-      op: 'check-out',
-      id: before.id,
-      invoice: 'EBM-2026-004418',
-      at,
-    });
+    const [after] = applyBookingChange([before], { op: 'check-out', id: before.id, at });
 
     expect(after.checkedOutAt).toBe(at);
-    expect(after.invoice).toBe('EBM-2026-004418');
-    expect(after.balanceRwf).toBe(0);
-    // Checkout is what starts the payout clock, so escrow releases here.
-    expect(after.escrowStatus).toBe('released');
+    // Mobile audit 2026-10-05, HO-04. The server issues the one tax invoice,
+    // settles the folio and releases escrow (F-B17). A checkout that never
+    // leaves the phone did none of it, so none of it is written: no
+    // `EBM-2026-…` number, no balance zeroed as if paid, no payout clock.
+    expect(after.invoice).toBeNull();
+    expect(after.balanceRwf).toBe(24000);
+    expect(after.escrowStatus).toBe('held');
     // The BOOKING's status never becomes `checked_out` — that is not one of
     // the contract's five values. The stay closing is what changed.
     expect(after.status).toBe('confirmed');
   });
 
-  it('never issues the same invoice number twice', () => {
-    const first = nextInvoice(HOST_BOOKINGS);
-    const withFirst = [...HOST_BOOKINGS, { ...inHouse(), invoice: first }];
-    expect(nextInvoice(withFirst)).not.toBe(first);
+  it('keeps an invoice the booking already carried', () => {
+    const before = { ...inHouse(), invoice: 'EBM-2026-004417' };
+    const [after] = applyBookingChange([before], { op: 'check-out', id: before.id, at: Date.now() });
+    expect(after.invoice).toBe('EBM-2026-004417');
   });
 
   it('holds a payout for the dispute buffer rather than paying out at once', () => {

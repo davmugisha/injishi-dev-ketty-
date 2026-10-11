@@ -38,9 +38,11 @@ import {
   ErrorState,
   Icon,
   InputField,
+  OfflineNote,
   PressableScale,
   Screen,
   Text,
+  useOffline,
 } from '@/components';
 import { todayIso } from '@/components';
 import { useTheme } from '@/theme/theme';
@@ -66,6 +68,7 @@ export function HostBookingsScreen() {
   const { rows, status, error, retry } = useHostBookings();
   const now = useNow();
   const today = todayIso();
+  const offline = useOffline();
 
   const [filter, setFilter] = useState<BookingFilter>('all');
   const [query, setQuery] = useState('');
@@ -143,15 +146,12 @@ export function HostBookingsScreen() {
           ) : null}
 
           {/* The shell mounts `OfflineBanner` once in `app/_layout.tsx`; what
-              this screen owes is the sentence saying what the banner means for
-              a LIST — that these rows are the last ones read, not an empty
-              book. Today carries the same line. */}
-          <View style={{ flexDirection: 'row', gap: space[2], alignItems: 'flex-start' }}>
-            <Icon name="wifiOff" size={14} color={c.textSubtle} />
-            <Text size="xs" color="textSubtle" style={{ flex: 1, lineHeight: 17 }}>
-              {t('host.offlineNote')}
-            </Text>
-          </View>
+              this screen owes is the sentence saying what offline means for
+              the bookings under it, and Today carries the same line. Only
+              while offline: it used to sit here on a working connection, and
+              it promised that every decision was kept and sent on, when only
+              a check-in is (mobile audit 2026-10-05, HO-10). */}
+          {offline ? <OfflineNote label={t('host.offlineNote')} /> : null}
         </View>
       }
       empty={
