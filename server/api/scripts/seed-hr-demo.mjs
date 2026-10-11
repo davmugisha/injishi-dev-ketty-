@@ -21,7 +21,8 @@
 //   time        four shifts, a geofence, an attendance policy with ten minutes
 //               of grace, last week, this week and next week rostered and
 //               published, a week of clock ins and outs with a few late
-//               arrivals, and whoever is on shift now clocked in
+//               arrivals and a few shifts that ran long, and whoever is on
+//               shift now clocked in
 //   leave       one request approved, one waiting, one refused
 //   checklists  a joining and a leaving list, and somebody who started three
 //               days ago partway through hers
@@ -481,14 +482,11 @@ async function time(api, branch, people, policies) {
     if (!res.ok) note('geofence', res);
   }
 
-  // The built in policy counts every minute: a minute late is late, and three
-  // minutes over is overtime for somebody to decide. An office sets a grace
-  // and a least overtime on day one, and a week of attendance reads true only
-  // with them. The least overtime is an hour, not half of one: a shift's break
-  // is taken off what was expected and nobody clocks out for it, so every full
-  // shift already reads half an hour over. Before the clock ins below: a
-  // record's figures are worked out as it closes. Left alone once the business
-  // has saved a policy of its own.
+  // The built in policy has no grace: a minute late is late, and a minute
+  // before the end is leaving early. An office sets ten minutes of each on day
+  // one, and a week of attendance reads true only with them. Before the clock
+  // ins below: a record's figures are worked out as it closes. Left alone once
+  // the business has saved a policy of its own.
   const standing = policies.find((p) => p.propertyId === null);
   if (standing && !standing.saved) {
     const res = await api.put('/ops/attendance/policies', {
@@ -497,7 +495,7 @@ async function time(api, branch, people, policies) {
       graceOutMinutes: 10,
       overtimeCutoffMinutes: standing.overtimeCutoffMinutes,
       overtimeAutoApprove: standing.overtimeAutoApprove,
-      overtimeMinMinutes: 60,
+      overtimeMinMinutes: standing.overtimeMinMinutes,
       linkWindowMinutes: standing.linkWindowMinutes,
       staleOpenHours: standing.staleOpenHours,
       defaultShiftMinutes: standing.defaultShiftMinutes,
@@ -618,8 +616,10 @@ async function attendance(api, people, shifts) {
       open += 1;
       continue;
     }
-    // One in nine stays on: overtime for somebody to decide.
-    const clockOut = new Date(end.getTime() + (steady(`${key}:out`, 9) === 0 ? 55 + steady(key, 30) : steady(`${key}:out`, 12)) * 60_000);
+    // Every minute past a shift's end is overtime for a supervisor to decide
+    // (058-time AC-TM8), so most people leave inside the grace before it, and
+    // one in nine stays on about an hour: the queue holds those, not the week.
+    const clockOut = new Date(end.getTime() + (steady(`${key}:out`, 9) === 0 ? 55 + steady(key, 30) : -steady(`${key}:out`, 7)) * 60_000);
     const outRes = await api.post(`/ops/attendance/${inRes.body.id}/clock-out`, { at: (clockOut > now ? now : clockOut).toISOString() });
     if (outRes.ok) closed += 1;
     else note(`clock out for ${names.get(entry.employee.employeeId)} on ${entry.workDate}`, outRes);
