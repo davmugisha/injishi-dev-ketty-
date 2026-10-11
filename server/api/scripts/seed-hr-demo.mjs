@@ -484,8 +484,11 @@ async function time(api, branch, people, policies) {
   // The built in policy counts every minute: a minute late is late, and three
   // minutes over is overtime for somebody to decide. An office sets a grace
   // and a least overtime on day one, and a week of attendance reads true only
-  // with them. Before the clock ins below: a record's figures are worked out
-  // as it closes. Left alone once the business has saved a policy of its own.
+  // with them. The least overtime is an hour, not half of one: a shift's break
+  // is taken off what was expected and nobody clocks out for it, so every full
+  // shift already reads half an hour over. Before the clock ins below: a
+  // record's figures are worked out as it closes. Left alone once the business
+  // has saved a policy of its own.
   const standing = policies.find((p) => p.propertyId === null);
   if (standing && !standing.saved) {
     const res = await api.put('/ops/attendance/policies', {
@@ -494,7 +497,7 @@ async function time(api, branch, people, policies) {
       graceOutMinutes: 10,
       overtimeCutoffMinutes: standing.overtimeCutoffMinutes,
       overtimeAutoApprove: standing.overtimeAutoApprove,
-      overtimeMinMinutes: 30,
+      overtimeMinMinutes: 60,
       linkWindowMinutes: standing.linkWindowMinutes,
       staleOpenHours: standing.staleOpenHours,
       defaultShiftMinutes: standing.defaultShiftMinutes,
