@@ -126,7 +126,7 @@
     "check:manifests": "node scripts/check-workspace-manifests.mjs",
     "lint:ratchet": "node scripts/lint-ratchet.mjs",
     "dev": "pnpm --filter @injishi/web dev",
-    "dev:all": "pnpm --parallel --filter @injishi/web --filter @injishi/app dev",
+    "dev:all": "node scripts/dev-all.mjs",
     "web:dev": "pnpm --filter @injishi/web dev",
     "web:build": "pnpm --filter @injishi/web build",
     "web:start": "pnpm --filter @injishi/web start",

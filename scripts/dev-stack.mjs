@@ -31,9 +31,15 @@
  * It also refuses to touch a DATABASE_URL or Redis that is not on this machine:
  * it brings up a LOCAL stack, and a .env still pointing at a hosted database
  * must not be migrated and seeded by a convenience script.
+ *
+ * `pnpm dev:all` (scripts/dev-all.mjs) imports this file rather than copying
+ * it, so there is one reader of the API's .env and one way the stack comes up.
+ * It asks `up()` to seed only a database that was never seeded, because
+ * reseeding on every start would rewrite the rows somebody is working with.
  */
 import { spawnSync } from 'node:child_process';
-import { existsSync, readFileSync } from 'node:fs';
+import { existsSync, readFileSync, realpathSync } from 'node:fs';
+import { createRequire } from 'node:module';
 import net from 'node:net';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -87,7 +93,7 @@ const RETIRED_VARIABLES = [
 ];
 
 /** An expected failure: printed as a message, never as a stack trace. */
-class StackError extends Error {}
+export class StackError extends Error {}
 
 // --- Arguments ---------------------------------------------------------------
 
@@ -115,7 +121,7 @@ function usage() {
 
 // --- The API's .env ----------------------------------------------------------
 
-function resolveApiDir() {
+export function resolveApiDir() {
   for (const rel of API_DIR_CANDIDATES) {
     const dir = path.join(ROOT, rel);
     if (existsSync(path.join(dir, 'scripts', 'migrate.mjs'))) return { dir, rel };
@@ -157,7 +163,7 @@ function parsePort(raw, name, envRel) {
   return port;
 }
 
-function readApiEnv(apiDir, apiRel) {
+export function readApiEnv(apiDir, apiRel) {
   const envFile = path.join(apiDir, '.env');
   const envRel = `${apiRel}/.env`;
   if (!existsSync(envFile)) {
@@ -278,7 +284,7 @@ function firstLine(text) {
   return (text ?? '').split(/\r?\n/).map((l) => l.trim()).find(Boolean) ?? '';
 }
 
-function assertDockerReady() {
+export function assertDockerReady() {
   const version = docker(['--version']);
   if (version.error) {
     if (version.error.code === 'ENOENT') {
@@ -372,7 +378,7 @@ async function waitHealthy(cfg, service, timeoutMs) {
   );
 }
 
-function canConnect(port, host = '127.0.0.1', timeoutMs = 1_000) {
+export function canConnect(port, host = '127.0.0.1', timeoutMs = 1_000) {
   return new Promise((resolve) => {
     const socket = net.connect({ port, host });
     const done = (ok) => {
@@ -457,14 +463,34 @@ function runNodeScript(api, cfg, step, label) {
   }
 }
 
+/**
+ * When the sample recipe last FINISHED on this database, or null when it never
+ * did: a fresh volume has no marker row, and a seed that stopped half way
+ * leaves `seeded_at` empty on purpose (seed-sample.mjs). Read through the API's
+ * own `pg`, the driver the seeds use, after migrate.mjs has created the table.
+ */
+async function lastSeededAt(api, cfg) {
+  const pg = createRequire(path.join(api.dir, 'package.json'))('pg');
+  const client = new pg.Client({ connectionString: cfg.db.url });
+  try {
+    await client.connect();
+    const { rows } = await client.query('select seeded_at from database_identity limit 1');
+    return rows[0]?.seeded_at ?? null;
+  } catch (error) {
+    throw new StackError(`Could not read the sample marker: ${error?.message ?? error}`);
+  } finally {
+    await client.end().catch(() => {});
+  }
+}
+
 // --- Commands ----------------------------------------------------------------
 
-function printPreamble(cfg, dockerInfo) {
+export function printPreamble(cfg, dockerInfo) {
   console.log(`Docker engine ${dockerInfo.engine}, Compose ${dockerInfo.compose}`);
   console.log(`Ports from ${cfg.envRel}: Postgres ${cfg.db.port}, Redis ${cfg.redis.port}`);
 }
 
-function warnAboutEnv(cfg) {
+export function warnAboutEnv(cfg) {
   const warnings = [];
   const shellDb = process.env.DATABASE_URL?.trim();
   if (shellDb && shellDb !== cfg.db.url) {
@@ -498,7 +524,7 @@ function warnAboutEnv(cfg) {
  * Mirrors `processEnvironment` in server/api/src/shared/config/platform.ts:
  * INJISHI_ENVIRONMENT when set, else production only under NODE_ENV=production.
  */
-function isProductionProcess(cfg) {
+export function isProductionProcess(cfg) {
   const explicit = cfg.env.INJISHI_ENVIRONMENT?.trim().toLowerCase();
   if (explicit) return explicit === 'production';
   return cfg.env.NODE_ENV?.trim() === 'production';
@@ -515,7 +541,8 @@ Dev stack is up, migrated, marked sample and seeded.
   Redis     127.0.0.1:${cfg.redis.port}
   Data survives \`pnpm dev:stack:down\`; \`pnpm dev:stack:reset\` wipes and re-seeds it.
 
-Start what you need, each in its own terminal, from injishi/:
+Start every app in this one terminal (mobile included) with:  pnpm dev:all
+Or start what you need, each in its own terminal, from injishi/:
   pnpm api:dev                        API       http://localhost:${apiPort}  (health: /api/v1/health)
   pnpm web:dev                        web       http://localhost:3000
   pnpm app:dev                        operator  http://localhost:3002
@@ -542,7 +569,12 @@ ${
 }`);
 }
 
-async function up(api, cfg, { reset }) {
+/**
+ * `seed: 'always'` is `pnpm dev:stack`: the recipe runs every time.
+ * `seed: 'if-needed'` is `pnpm dev:all`: it runs only on a database the recipe
+ * never finished on, so a daily start never rewrites rows somebody is using.
+ */
+export async function up(api, cfg, { reset = false, seed = 'always', summary = true } = {}) {
   assertApiInstalled(api);
 
   if (reset) {
@@ -571,11 +603,20 @@ async function up(api, cfg, { reset }) {
   await waitForPort(cfg.redis.port, 'Redis');
 
   runNodeScript(api, cfg, { script: 'migrate.mjs' }, 'Migrating (the API\'s own scripts/migrate.mjs)');
-  for (const step of STEPS) {
-    runNodeScript(api, cfg, step, `${step.script}: ${step.what}`);
+
+  const seededAt = seed === 'if-needed' ? await lastSeededAt(api, cfg) : null;
+  if (seededAt) {
+    console.log(
+      `\n→ Sample data already seeded (${seededAt.toISOString()}); keeping it. ` +
+        '`pnpm dev:stack` reseeds.',
+    );
+  } else {
+    for (const step of STEPS) {
+      runNodeScript(api, cfg, step, `${step.script}: ${step.what}`);
+    }
   }
 
-  printSummary(cfg);
+  if (summary) printSummary(cfg);
 }
 
 async function main() {
@@ -601,13 +642,31 @@ async function main() {
   await up(api, cfg, { reset: opts.reset });
 }
 
-main().catch((err) => {
-  if (err instanceof StackError) {
-    console.error(`\ndev-stack: ${err.message}`);
-  } else {
-    // Unexpected: still one readable line first, the detail after it.
-    console.error(`\ndev-stack: unexpected error: ${err?.message ?? err}`);
-    if (process.env.DEV_STACK_DEBUG) console.error(err);
+/**
+ * True when node was asked to run THIS file, false when dev-all.mjs imports it.
+ * Compared by real path, case blind on Windows: an import.meta.url built from
+ * `C:\` never equals an argv[1] typed from a `c:\` working directory.
+ */
+function isEntryPoint() {
+  if (!process.argv[1]) return false;
+  try {
+    const self = realpathSync(fileURLToPath(import.meta.url));
+    const entry = realpathSync(path.resolve(process.argv[1]));
+    return process.platform === 'win32' ? self.toLowerCase() === entry.toLowerCase() : self === entry;
+  } catch {
+    return false;
   }
-  process.exit(1);
-});
+}
+
+if (isEntryPoint()) {
+  main().catch((err) => {
+    if (err instanceof StackError) {
+      console.error(`\ndev-stack: ${err.message}`);
+    } else {
+      // Unexpected: still one readable line first, the detail after it.
+      console.error(`\ndev-stack: unexpected error: ${err?.message ?? err}`);
+      if (process.env.DEV_STACK_DEBUG) console.error(err);
+    }
+    process.exit(1);
+  });
+}
