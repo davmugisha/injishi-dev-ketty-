@@ -63,6 +63,8 @@ export function navContextOf(
     departments: grant?.departments ?? [],
     // ADR-056: the server decides; the nav only renders it.
     psfManage: grant?.psfCanManage === true,
+    // ADR-058: a staff file here is what opens My work; the grant carries it.
+    workFile: (grant?.employeeId ?? null) !== null,
     // Every pill stays absent until a live query answers it (ADR-035, D-a); a
     // fixture supplied number is not a count. What the caller passes is
     // counted from the server's own lists (`data/nav-counts.ts`).

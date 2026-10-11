@@ -970,6 +970,14 @@ export interface NavContext {
    * must still open.
    */
   psfManage?: boolean;
+  /**
+   * The person holds a staff file at this business (the grant's `employeeId`,
+   * from `GET /me/work`). It opens My work, and it is not a permission for the
+   * reason `psfManage` is not: a file is a fact about the person, held by a
+   * housekeeper and an accountant alike, and by an owner who is not on the
+   * payroll not at all.
+   */
+  workFile?: boolean;
 }
 
 /**
@@ -1130,10 +1138,52 @@ export function navFor(ctx: NavContext): NavSection[] {
   const counts = ctx.counts ?? {};
   switch (ctx.ws) {
     case "host":
-      return hostNav(ctx.departments, ctx.permissions, base, counts, ctx.psfManage === true);
+      return withMyWork(hostNav(ctx.departments, ctx.permissions, base, counts, ctx.psfManage === true), ctx, base);
     case "landlord":
-      return landlordNav(ctx.permissions, base, counts);
+      return withMyWork(landlordNav(ctx.permissions, base, counts), ctx, base);
     case "broker":
       return brokerNav(base, counts.placementsAwaiting);
   }
+}
+
+/**
+ * The lenses of My work, in the order its rail shows them. In this file for the
+ * reason `STAFF_LENSES` is: which doors a person reaches is one table.
+ */
+export const MY_WORK_LENSES: readonly { key: "today" | "time" | "leave" | "pay"; label: string; segment: string }[] = [
+  { key: "today", label: "Today", segment: "" },
+  { key: "time", label: "My time", segment: "time" },
+  { key: "leave", label: "My leave", segment: "leave" },
+  { key: "pay", label: "My pay", segment: "pay" },
+];
+
+/**
+ * My work: a person's own shifts, hours, leave and payslips, read and asked for
+ * through `/me/work` (ADR-058, 058-self-service).
+ *
+ * In the footer, beside who you are here, because it is about the PERSON and
+ * not the property: every other door in this nav is opened by what a role may
+ * do to the business, and this one by being on its staff. Whoever holds no
+ * file here is not offered it. A business workspace only; a broker has no
+ * employer in this app.
+ */
+function withMyWork(sections: NavSection[], ctx: NavContext, base: string): NavSection[] {
+  if (ctx.workFile !== true) return sections;
+  const door: NavItem = {
+    key: "my-work",
+    label: "My work",
+    icon: "id-card",
+    href: `${base}/my-work`,
+    built: true,
+    lenses: MY_WORK_LENSES.map((lens) => ({
+      key: `my-work-${lens.key}`,
+      label: lens.label,
+      href: lens.segment ? `${base}/my-work/${lens.segment}` : `${base}/my-work`,
+    })),
+  };
+  // After the body and above Settings: the footer reads the person first and
+  // the business second, and no list of doors starts with this one.
+  const you: NavSection = { label: "You", items: [door], placement: "footer" };
+  const firstFooter = sections.findIndex((s) => s.placement === "footer");
+  return firstFooter === -1 ? [...sections, you] : [...sections.slice(0, firstFooter), you, ...sections.slice(firstFooter)];
 }

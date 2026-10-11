@@ -29,6 +29,8 @@ export interface HomeGrant {
   permissions: readonly Permission[];
   departments: readonly DepartmentCategory[];
   psfCanManage?: boolean;
+  /** The person's own staff file here, which opens My work (ADR-058). */
+  employeeId?: string | null;
 }
 
 /**
@@ -62,6 +64,7 @@ function sectionsOf(grant: HomeGrant): NavSection[] {
     permissions: grant.permissions,
     departments: grant.departments,
     psfManage: grant.psfCanManage === true,
+    workFile: (grant.employeeId ?? null) !== null,
   };
   return navFor(ctx);
 }

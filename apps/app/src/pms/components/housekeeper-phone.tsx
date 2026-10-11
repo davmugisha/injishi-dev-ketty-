@@ -5,6 +5,13 @@
  * breakpoint of the desk. A room attendant sees three things: their cleaning
  * list, the rooms, and a way to report something broken (blueprint §3.3).
  *
+ * **AND THEIR OWN WORK** (ADR-058, 058-self-service). This surface replaces
+ * the shell on every route, so a door that exists only in the sidebar does not
+ * exist for the people who work here: My work is a fourth tab, for anyone the
+ * business keeps a staff file for. It clocks in and out, shows the shifts, the
+ * leave and the payslips, and asks nothing of the rooms: it opens even while
+ * the task list cannot be loaded.
+ *
  * **ON THE API.** It used to be a preview built on the demo store: "Mark ready"
  * changed only this browser tab, and the fault form reached nobody.
  * Every control now writes to the rows the desk reads (see
@@ -27,6 +34,7 @@
 import type { HousekeepingStatus, OperatorHousekeepingTask, OperatorRoom } from "@injishi/contracts";
 import { Button } from "@injishi/ui";
 import { cn } from "@/lib/utils";
+import { usePathname } from "next/navigation";
 import { useState, type ReactNode } from "react";
 
 import { useCapability, useWorkspaceId } from "../data/capability";
@@ -40,6 +48,8 @@ import {
 } from "../data/housekeeper";
 import { useMyProfile } from "../data/profile";
 import { useSignOut } from "../data/sign-out";
+import { MY_WORK_LENSES } from "../lib/nav";
+import { MyWorkPhone, type MyWorkLens } from "../screens/my-work/my-work";
 import { usePms } from "../store";
 import { currentGrant } from "../store/helpers";
 import { EMPTY_FAULT, FaultReport, type FaultDraft } from "./housekeeper/fault-report";
@@ -50,7 +60,7 @@ import { FAULTS, ROOM_STATUS, roomName } from "./housekeeper/words";
 import { Icon } from "./icon";
 import { LoadFailed, Skeleton } from "./ui";
 
-type Tab = "tasks" | "rooms" | "report";
+type Tab = "tasks" | "rooms" | "report" | "me";
 
 const OPEN = new Set(["pending", "in_progress", "blocked"]);
 
@@ -68,7 +78,11 @@ export function HousekeeperPhone() {
   const setRoom = useSetRoomStatus(workspaceId);
   const report = useReportFault(workspaceId);
 
-  const [tab, setTab] = useState<Tab>("tasks");
+  // An address under `/my-work` opens on that tab and lens, so a link the
+  // office sends ("ask for your leave here") lands where it says.
+  const [, , segment, lensSegment] = usePathname().split("/").filter(Boolean);
+  const linkedLens: MyWorkLens | undefined = MY_WORK_LENSES.find((l) => l.segment === (lensSegment ?? ""))?.key;
+  const [tab, setTab] = useState<Tab>(segment === "my-work" ? "me" : "tasks");
   const [draft, setDraft] = useState<FaultDraft>(EMPTY_FAULT);
   const [sheetRoomId, setSheetRoomId] = useState<string | null>(null);
 
@@ -80,6 +94,8 @@ export function HousekeeperPhone() {
 
   const grant = currentGrant(state);
   const placeName = grant?.propertyName ?? grant?.label ?? "Housekeeping";
+  // The person's own staff file here: what opens My work, not a permission.
+  const hasFile = resolved && (grant?.employeeId ?? null) !== null;
   const fullName = person.data?.name ?? profile.data?.fullName ?? null;
   const firstName = fullName?.trim().split(/\s+/)[0] ?? null;
 
@@ -171,16 +187,17 @@ export function HousekeeperPhone() {
     { key: "tasks", icon: "sparkles", label: "My tasks", n: myOpen },
     { key: "rooms", icon: "bed-double", label: "Rooms" },
     ...(mayReport ? [{ key: "report" as const, icon: "wrench", label: "Report" }] : []),
+    ...(hasFile ? [{ key: "me" as const, icon: "id-card", label: "My work" }] : []),
   ];
 
-  // A tab the role cannot open falls back to the list rather than rendering it.
-  const view: Tab = tab === "report" && !mayReport ? "tasks" : tab;
+  // A tab the person cannot open falls back to the list rather than rendering it.
+  const view: Tab = (tab === "report" && !mayReport) || (tab === "me" && !hasFile) ? "tasks" : tab;
 
   // Read from the live list, so a refetch while it is open shows the truth.
   const sheetRoom = view === "rooms" && sheetRoomId ? (rooms.find((r) => r.id === sheetRoomId) ?? null) : null;
 
   let body: ReactNode;
-  if (status === "loading" || (resolved && (tasksQuery.isPending || roomsQuery.isPending))) {
+  if (status === "loading" || (resolved && view !== "me" && (tasksQuery.isPending || roomsQuery.isPending))) {
     body = (
       <div className="flex flex-col gap-2.5" aria-busy="true" aria-label="Loading">
         <Skeleton height={26} />
@@ -195,6 +212,10 @@ export function HousekeeperPhone() {
         there — try again.
       </LoadFailed>
     );
+  } else if (view === "me") {
+    // Before the rooms' own failure: a person's shifts and payslips do not
+    // depend on the task list having loaded.
+    body = <MyWorkPhone initial={linkedLens} />;
   } else if (tasksQuery.isError || roomsQuery.isError) {
     body = (
       <LoadFailed

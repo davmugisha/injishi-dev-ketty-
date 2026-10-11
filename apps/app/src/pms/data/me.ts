@@ -1,4 +1,4 @@
-import { WorkspaceAccess, workspaceLabel } from "@injishi/contracts";
+import { MyWorkFileList, WorkspaceAccess, workspaceLabel } from "@injishi/contracts";
 import type {
   BranchCoverage,
   DepartmentCategory,
@@ -102,6 +102,18 @@ export interface MyWorkspace {
    * hospitality business.
    */
   psfCanManage: boolean;
+  /**
+   * This person's own staff file at this business, when HR keeps one for them
+   * (ADR-058, 058-self-service AC-SS1). It is what opens My work, and the id
+   * every `/me/work` route is addressed by.
+   *
+   * From `GET /me/work`, read beside the grants so this door is decided in the
+   * same answer as every other. Null outside a business workspace, for a
+   * person HR holds no file for (an owner who is not on the payroll), for a
+   * file the person has left, and when that read did not answer: a door that
+   * was not granted stays shut.
+   */
+  employeeId: string | null;
 }
 
 /**
@@ -191,7 +203,16 @@ export function toWorkspaceKey(
  * one tells an operator to fix something that is not broken.
  */
 export async function fetchMyWorkspaces(): Promise<MeState> {
-  const ws = await getJson<WorkspacesResponse>("/me/workspaces");
+  const [ws, work] = await Promise.all([
+    getJson<WorkspacesResponse>("/me/workspaces"),
+    getJson<unknown>("/me/work"),
+  ]);
+  // The files this person holds, by business. A missing or drifted answer is
+  // no file anywhere, which shuts My work and nothing else.
+  const files = MyWorkFileList.safeParse(work.outcome === "ok" ? work.data : null);
+  const fileAt = new Map(
+    (files.success ? files.data.files : []).filter((f) => f.status === "active").map((f) => [f.orgId, f.employeeId]),
+  );
 
   // "No session" is a real answer and "we could not ask" is not, so they are
   // checked in that order and only the first sends anyone to sign in.
@@ -234,6 +255,7 @@ export async function fetchMyWorkspaces(): Promise<MeState> {
       branchCoverage: w.branchCoverage,
       branches: w.branches,
       psfCanManage: w.psfMembership?.canManage === true,
+      employeeId: (w.orgId ? fileAt.get(w.orgId) : undefined) ?? null,
     });
   }
 
