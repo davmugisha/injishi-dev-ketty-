@@ -508,6 +508,15 @@
   min-height: 0;
   overflow-y: auto;
   padding: 20px 24px 30px;
+  /*
+   * The containing block for anything absolutely positioned inside a screen,
+   * which is every visually hidden caption and label (`sr-only`). Without it
+   * they are placed against the page, not this scrolling pane: one that sits
+   * far down a long screen stretches the DOCUMENT past the window, and the
+   * whole app scrolls into a band of blank space under itself. Measured on
+   * Staff, Roster: 477px of it under a 1250px window.
+   */
+  position: relative;
 }
 @media (max-width: 1023px) {
   .pms-main {
