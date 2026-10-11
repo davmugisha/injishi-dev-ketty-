@@ -44,6 +44,7 @@ import {
   type ListQuery,
   type OffboardEmployeeRequest,
   type UpdateEmployeeRequest,
+  type UpdateShiftTemplateRequest,
 } from "@injishi/contracts";
 import {
   useMutation,
@@ -223,6 +224,18 @@ export function useCreateShiftTemplate(
   return useMutation({
     mutationFn: async (body) =>
       ShiftTemplate.parse(await command<unknown>("/ops/shift-templates", { workspaceId: ws as string, body })),
+    onSuccess: () => refresh(client, "shift-templates"),
+  });
+}
+
+/** Change a shift's name, hours or break. What is already rostered keeps the hours it was given. */
+export function useUpdateShiftTemplate(
+  ws: string | null,
+): UseMutationResult<ShiftTemplate, Error, { id: string; body: UpdateShiftTemplateRequest }> {
+  const client = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ id, body }) =>
+      ShiftTemplate.parse(await command<unknown>(`/ops/shift-templates/${id}`, { workspaceId: ws as string, body, method: "PATCH" })),
     onSuccess: () => refresh(client, "shift-templates"),
   });
 }

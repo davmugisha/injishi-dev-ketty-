@@ -28,6 +28,7 @@ import { useListUrl, useSavedViewsFor } from "../../data/lists";
 import {
   useCancelRosterEntry,
   useCreateShiftTemplate,
+  useUpdateShiftTemplate,
   useEmployees,
   useRosterEntry,
   useRosterPage,
@@ -53,9 +54,12 @@ export function Roster() {
   const create = useRosterEntry(workspaceId);
   const cancel = useCancelRosterEntry(workspaceId);
   const createTemplate = useCreateShiftTemplate(workspaceId);
+  const updateTemplate = useUpdateShiftTemplate(workspaceId);
   const branches = currentGrant(state)?.branches ?? [];
   const [pick, setPick] = useState({ employeeId: "", shiftTemplateId: "" });
   const [shiftForm, setShiftForm] = useState<null | {
+    /** The shift being changed; absent for a new one. */
+    id?: string;
     name: string;
     propertyId: string;
     startsAt: string;
@@ -250,6 +254,28 @@ export function Roster() {
             className="mt-2.5 flex flex-col gap-4 rounded-card border border-card-bd bg-card p-5"
             onSubmit={(ev) => {
               ev.preventDefault();
+              if (shiftForm.id) {
+                updateTemplate.mutate(
+                  {
+                    id: shiftForm.id,
+                    body: {
+                      name: shiftForm.name,
+                      startsAt: shiftForm.startsAt,
+                      endsAt: shiftForm.endsAt,
+                      breakMinutes: Number(shiftForm.breakMinutes) || 0,
+                      minWorkMinutes: shiftForm.minWorkMinutes.trim() === "" ? null : Number(shiftForm.minWorkMinutes),
+                      autoClockOutMinutes: shiftForm.autoClockOutMinutes.trim() === "" ? null : Number(shiftForm.autoClockOutMinutes),
+                    },
+                  },
+                  {
+                    onSuccess: (s) => {
+                      toast(`${s.name} saved. Shifts already on the roster keep the hours they were given.`, "ok");
+                      setShiftForm(null);
+                    },
+                  },
+                );
+                return;
+              }
               createTemplate.mutate(
                 {
                   name: shiftForm.name,
@@ -273,14 +299,17 @@ export function Roster() {
               <Field label="Name" htmlFor="hr-shift-name">
                 <Input id="hr-shift-name" required placeholder="Morning, Night…" value={shiftForm.name} onChange={(e) => setShiftForm({ ...shiftForm, name: e.target.value })} className={inputClass} />
               </Field>
-              <Field label="Branch">
-                <SelectField
-                  label="Branch"
-                  value={shiftForm.propertyId}
-                  onChange={(v) => setShiftForm({ ...shiftForm, propertyId: v })}
-                  options={branches.map((b) => ({ value: b.id, label: b.name }))}
-                />
-              </Field>
+              {/* A shift stays at its branch: moved to another, it is another shift. */}
+              {!shiftForm.id && (
+                <Field label="Branch">
+                  <SelectField
+                    label="Branch"
+                    value={shiftForm.propertyId}
+                    onChange={(v) => setShiftForm({ ...shiftForm, propertyId: v })}
+                    options={branches.map((b) => ({ value: b.id, label: b.name }))}
+                  />
+                </Field>
+              )}
               <Field label="Starts" htmlFor="hr-shift-start">
                 <Input id="hr-shift-start" required type="time" value={shiftForm.startsAt} onChange={(e) => setShiftForm({ ...shiftForm, startsAt: e.target.value })} className={inputClass} />
               </Field>
@@ -297,13 +326,13 @@ export function Roster() {
                 <Input id="hr-shift-auto" inputMode="numeric" value={shiftForm.autoClockOutMinutes} onChange={(e) => setShiftForm({ ...shiftForm, autoClockOutMinutes: e.target.value })} className={inputClass} />
               </Field>
             </div>
-            <FormError error={createTemplate.error} />
+            <FormError error={shiftForm.id ? updateTemplate.error : createTemplate.error} />
             <div className="flex justify-end gap-2">
               <ActionButton type="button" onClick={() => setShiftForm(null)}>
                 Cancel
               </ActionButton>
-              <ActionButton variant="primary" type="submit" pending={createTemplate.isPending}>
-                {createTemplate.isPending ? "Saving" : "Add shift"}
+              <ActionButton variant="primary" type="submit" pending={createTemplate.isPending || updateTemplate.isPending}>
+                {createTemplate.isPending || updateTemplate.isPending ? "Saving" : shiftForm.id ? "Save the shift" : "Add shift"}
               </ActionButton>
             </div>
           </form>
@@ -325,6 +354,25 @@ export function Roster() {
                   {s.crossesMidnight && <Badge intent="info">Overnight</Badge>}
                   {s.autoClockOutMinutes !== null && (
                     <span className="text-2xs text-muted-foreground">clocks out {s.autoClockOutMinutes} min after</span>
+                  )}
+                  {mayRoster && shiftForm?.id !== s.id && (
+                    <ActionButton
+                      onClick={() => {
+                        updateTemplate.reset();
+                        setShiftForm({
+                          id: s.id,
+                          name: s.name,
+                          propertyId: s.propertyId,
+                          startsAt: s.startsAt,
+                          endsAt: s.endsAt,
+                          breakMinutes: String(s.breakMinutes),
+                          minWorkMinutes: s.minWorkMinutes === null ? "" : String(s.minWorkMinutes),
+                          autoClockOutMinutes: s.autoClockOutMinutes === null ? "" : String(s.autoClockOutMinutes),
+                        });
+                      }}
+                    >
+                      Change
+                    </ActionButton>
                   )}
                 </div>
               ))}

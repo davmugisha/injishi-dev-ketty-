@@ -42,6 +42,7 @@ export * from "./leave";
 export * from "./payroll-items";
 export * from "./payroll";
 export * from "./checklists";
+export * from "./shift-templates";
 export * from "./list-query";
 export * from "./hr-lists";
 export * from "./redaction";

@@ -232,6 +232,15 @@ export class TimeRepository {
     return row.id;
   }
 
+  /** Change a template's own fields. Entries already rostered from it are not touched. */
+  async updateTemplate(
+    tx: Tx,
+    id: string,
+    values: Partial<Pick<ShiftTemplateRow, 'name' | 'startsAt' | 'endsAt' | 'breakMinutes' | 'minWorkMinutes' | 'autoClockOutMinutes'>>,
+  ): Promise<void> {
+    await tx.update(shiftTemplates).set(values).where(eq(shiftTemplates.id, id));
+  }
+
   // --- Roster --------------------------------------------------------------
 
   private readonly entryColumns = {

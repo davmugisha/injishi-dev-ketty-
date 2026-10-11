@@ -5,6 +5,7 @@ import {
   PublishRosterRequest,
   RosterWeekQuery,
   ShiftTemplateQuery,
+  UpdateShiftTemplateRequest,
   type RosterEntry,
   type ListQuery,
   type RosterPage,
@@ -20,6 +21,7 @@ import {
   HttpCode,
   Param,
   ParseUUIDPipe,
+  Patch,
   Post,
   Query,
   UseGuards,
@@ -68,6 +70,17 @@ export class OpsShiftTemplatesController {
     @CurrentWorkspace() workspace: ScopedWorkspace,
   ): Promise<ShiftTemplate> {
     return this.time.createTemplate(workspace, body);
+  }
+
+  /** A shift's name, hours and break. What is already rostered keeps its hours. */
+  @Patch(':id')
+  @RequirePermission('roster.manage')
+  update(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body(new ZodValidationPipe(UpdateShiftTemplateRequest)) body: UpdateShiftTemplateRequest,
+    @CurrentWorkspace() workspace: ScopedWorkspace,
+  ): Promise<ShiftTemplate> {
+    return this.time.updateTemplate(workspace, id, body);
   }
 }
 
