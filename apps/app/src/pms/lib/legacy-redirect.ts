@@ -393,6 +393,7 @@ export const WORKSPACE_ROUTES: readonly string[] = [
   "staff/leave/restricted",
   "staff/leave/types",
   "staff/org-chart",
+  "staff/overview",
   "staff/payroll",
   "staff/payroll/*",
   "staff/payroll/adjustments",

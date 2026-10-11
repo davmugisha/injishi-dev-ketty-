@@ -331,3 +331,83 @@ describe("pills", () => {
     assert.equal(item(sections, "Front desk").count, null);
   });
 });
+
+describe("the Staff overview (ADR-058)", () => {
+  const first = (role) => nav.staffLenses(roleSet(role))[0]?.key;
+
+  test("it is the first Staff lens for whoever keeps files, the roster, leave or pay", () => {
+    for (const role of ["owner", "manager", "hr"]) assert.equal(first(role), "overview", role);
+    assert.equal(item(sectionsFor(grant("owner")), "People").lenses[0].label, "Overview");
+  });
+
+  test("the desk and the housekeeper are not offered it", () => {
+    for (const role of ["receptionist", "housekeeper"]) {
+      assert.ok(!nav.staffLenses(roleSet(role)).some((l) => l.key === "overview"), role);
+    }
+  });
+
+  test("/staff itself is still Employees: the overview has an address of its own", () => {
+    assert.equal(nav.STAFF_LENSES.find((l) => l.key === "employees").segment, "");
+    assert.equal(nav.STAFF_LENSES.find((l) => l.key === "overview").segment, "overview");
+    const owner = sectionsFor(grant("owner"));
+    const lit = (path) => {
+      const hit = activeEntry(owner, `${BASE}/${path}`);
+      return [hit.item.label, hit.lens?.label ?? null];
+    };
+    assert.deepEqual(lit("staff"), ["People", "Employees"]);
+    assert.deepEqual(lit("staff/overview"), ["People", "Overview"]);
+  });
+});
+
+describe("My work (058-self-service)", () => {
+  /** The nav of a grant that also carries the person's own staff file. */
+  const withFile = (g) =>
+    navFor({
+      ws: g.key,
+      workspaceId: g.workspaceId,
+      permissions: g.permissions,
+      departments: g.departments,
+      psfManage: g.psfCanManage === true,
+      workFile: true,
+    });
+
+  test("no role is offered it without a staff file: it is not a permission", () => {
+    for (const role of ["owner", "manager", "receptionist", "finance", "hr"]) {
+      const sections = sectionsFor(grant(role));
+      assert.ok(!labels(sections).includes("My work"), role);
+      assert.ok(!allowedSegments(sections).has("my-work"), role);
+    }
+  });
+
+  test("every role with a file is offered it, the desk and the accountant alike", () => {
+    for (const role of ["owner", "manager", "receptionist", "finance", "hr"]) {
+      const sections = withFile(grant(role));
+      assert.ok(labels(sections).includes("My work"), role);
+      assert.ok(allowedSegments(sections).has("my-work"), role);
+    }
+  });
+
+  test("it sits in the footer, above Settings, with its four lenses", () => {
+    const sections = withFile(grant("owner"));
+    const footer = sections.filter((s) => s.placement === "footer").flatMap((s) => s.items.map((i) => i.label));
+    assert.deepEqual(footer, ["My work", "Settings"]);
+    assert.deepEqual(item(sections, "My work").lenses.map((l) => l.label), ["Today", "My time", "My leave", "My pay"]);
+    assert.deepEqual(
+      item(sections, "My work").lenses.map((l) => l.href),
+      [`${BASE}/my-work`, `${BASE}/my-work/time`, `${BASE}/my-work/leave`, `${BASE}/my-work/pay`],
+    );
+  });
+
+  test("it is nobody's home: a file does not move where a role lands", () => {
+    for (const role of ["owner", "manager", "receptionist", "finance", "hr"]) {
+      assert.equal(homeFor(grant(role, { employeeId: "e0000000-0000-4000-8000-000000000001" })), homeFor(grant(role)), role);
+    }
+  });
+
+  test("a residence business has it too, and a broker workspace never does", () => {
+    const landlord = navFor({ ws: "landlord", workspaceId: WS, permissions: roleSet("manager"), departments: [], workFile: true });
+    assert.ok(labels(landlord).includes("My work"));
+    const broker = navFor({ ws: "broker", workspaceId: WS, permissions: [], departments: [], workFile: true });
+    assert.ok(!labels(broker).includes("My work"));
+  });
+});

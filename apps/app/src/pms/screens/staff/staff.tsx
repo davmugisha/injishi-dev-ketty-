@@ -4,14 +4,17 @@
  * Staff: everyone who works here, account or not, their files, shifts,
  * attendance, leave and pay (ADR-058).
  *
- * Seventeen lenses, each opened by the permission its own read needs
+ * Eighteen lenses, each opened by the permission its own read needs
  * (`STAFF_LENSES` in `lib/nav.ts`, the one table). The leaf is reached by any
- * HR permission, so the rail differs by person: an owner sees all seventeen, a
+ * HR permission, so the rail differs by person: an owner sees all eighteen, a
  * manager everything but the owner's (documents, discipline, payroll, the late
  * and monthly insights and configuration), the desk Roster, Rotations,
  * Attendance, Kiosks, Policies, Announcements and Time settings. A lens the
  * grant does not reach is not offered, and typed by URL it says so rather than
  * opening empty.
+ *
+ * Overview is the first of them and the only one with no list of its own: it
+ * is what the others hold that needs somebody today.
  */
 
 import type { ComponentType } from "react";
@@ -32,6 +35,7 @@ import { Employees } from "./employees";
 import { Kiosks } from "./kiosks";
 import { Leave } from "./leave";
 import { OrgChart } from "./org-chart";
+import { Overview } from "./overview";
 import { Payroll } from "./payroll";
 import { Policies } from "./policies";
 import { Roster } from "./roster";
@@ -44,6 +48,7 @@ export type StaffLens = (typeof STAFF_LENSES)[number]["key"];
 
 /** A lens may have sections of its own, each a route segment below it (Leave's, 058-leave). */
 const LENS_SCREEN: Record<StaffLens, ComponentType<{ section?: string }>> = {
+  overview: Overview,
   employees: Employees,
   "org-chart": OrgChart,
   documents: Documents,

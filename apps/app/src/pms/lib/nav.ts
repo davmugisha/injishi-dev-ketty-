@@ -293,6 +293,7 @@ export interface NavCounts {
  */
 export const STAFF_LENSES: readonly {
   key:
+    | "overview"
     | "employees"
     | "org-chart"
     | "documents"
@@ -315,6 +316,16 @@ export const STAFF_LENSES: readonly {
   segment: string;
   anyPermission: readonly Permission[];
 }[] = [
+  // What needs somebody today, drawn from the other lenses' own reads: each
+  // part of it asks the permission its read needs, so the lens itself opens to
+  // every HR permission but the desk's `attendance.record` (see `PEOPLE_DOOR`).
+  // First on the rail, and on an address of its own: `/staff` stays Employees.
+  {
+    key: "overview",
+    label: "Overview",
+    segment: "overview",
+    anyPermission: ["people.view", "people.manage", "roster.manage", "attendance.approve", "leave.approve", "payroll.draft", "payroll.run"],
+  },
   { key: "employees", label: "Employees", segment: "", anyPermission: ["people.view", "people.manage", "payroll.run"] },
   { key: "org-chart", label: "Org chart", segment: "org-chart", anyPermission: ["people.view", "people.manage", "payroll.run"] },
   { key: "documents", label: "Documents", segment: "documents", anyPermission: ["people.manage"] },
@@ -523,6 +534,7 @@ function peopleItem(base: string): NavItem {
     anyPermission: PEOPLE_DOOR,
     grants: ["staff"],
     lenses: [
+      staffLens("overview", "Overview"),
       staffLens("employees", "Employees"),
       staffLens("roster", "Roster"),
       staffLens("leave", "Leave"),
