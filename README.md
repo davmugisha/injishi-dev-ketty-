@@ -278,7 +278,13 @@ pnpm --filter @injishi/api db:migrate         # apply pending migrations
 pnpm --filter @injishi/api seed:geography     # Rwanda administrative geography
 pnpm --filter @injishi/api seed:content       # static content
 pnpm --filter @injishi/api db:seed            # the sample recipe (seed-sample.mjs); refuses an unmarked database
+pnpm --filter @injishi/api seed:hr-demo       # a working HR demo, through the running API; sample databases only
 ```
+
+`seed:hr-demo` is the one seed that needs the API up (`pnpm api:dev`): it signs
+in as the demo owners and fills Staff the way an office would, so contracts,
+rosters, attendance, leave and a confirmed pay run are rows the product wrote.
+Without it every Staff lens but Employees opens empty. Safe to run again.
 
 `db:migrate` is built on `drizzle-orm`'s migrator, **not** on `drizzle-kit`.
 drizzle-kit is a devDependency and is not in the runtime image, so a release

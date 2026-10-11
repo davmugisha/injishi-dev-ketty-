@@ -19,6 +19,7 @@
     "seed:geography": "node scripts/seed-geography.mjs",
     "seed:content": "node scripts/seed-content.mjs",
     "seed:demo": "node scripts/seed-demo.mjs",
+    "seed:hr-demo": "node scripts/seed-hr-demo.mjs",
     "db:seed": "node scripts/seed-sample.mjs",
     "db:seed:ia-verify": "node scripts/seed-ia-verify.mjs",
     "verify:role-nav": "node scripts/verify-role-nav.mjs",
