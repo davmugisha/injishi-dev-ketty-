@@ -23,11 +23,10 @@ const workspaceRoot = path.resolve(projectRoot, '../..');
 // Router error boundary is NOT auto wrapped: the root crash screen reports
 // through `reportRenderError`, which keeps the reference it shows and the
 // event it sends the same thing. Every customisation below is unchanged, and
-// the resolveRequest shim at the bottom chains to Sentry's resolver.
-const config = getSentryExpoConfig(projectRoot, {
-  includeWebReplay: false,
-  includeWebFeedback: false,
-});
+// the resolveRequest shim at the bottom chains to Sentry's resolver, after
+// finishing the feedback stub that resolver leaves half done on Windows.
+const sentryOptions = { includeWebReplay: false, includeWebFeedback: false };
+const config = getSentryExpoConfig(projectRoot, sentryOptions);
 
 // Resolve node_modules from this app first, then the workspace root.
 config.resolver.nodeModulesPaths = [
@@ -114,8 +113,34 @@ const singletons = {
   'react-dom': path.resolve(projectRoot, 'node_modules/react-dom'),
 };
 
+// Finish Sentry's feedback stub, which on Windows stubs only half of itself.
+//
+// `includeWebFeedback: false` makes Sentry's resolver return an empty module
+// for `@sentry/feedback` AND for the two wrappers `@sentry/browser` re-exports
+// it through, `./feedbackAsync.js` and `./feedbackSync.js`. Both wrappers call
+// `buildFeedbackIntegration()` the moment they load, so stubbing the package
+// without them kills the app before React Native is ready: "[runtime not
+// ready]: TypeError: undefined is not a function" in Expo Go (2026-10-11).
+// Sentry recognises a wrapper by `originModulePath.includes('@sentry/browser')`,
+// and a Windows path never contains that: it reads `node_modules\@sentry\browser`.
+// So a bundle Metro builds on Linux or macOS is whole, and one built on this
+// machine died at launch. Still unfixed upstream in 8.30.0. This is Sentry's
+// own test with the separators normalised, so where its check already matches
+// it changes nothing. Its server-only exclusion (`isFromSentryCore`) has the
+// same flaw, but on Windows that only costs bundle size, so it is left alone.
+const SENTRY_BROWSER_FEEDBACK_WRAPPER = /\/feedback(Sync|Async)/;
+const isSentryBrowserFeedbackWrapper = (context, moduleName) =>
+  SENTRY_BROWSER_FEEDBACK_WRAPPER.test(moduleName) &&
+  (context.originModulePath ?? '').replace(/\\/g, '/').includes('/@sentry/browser/');
+
 const originalResolveRequest = config.resolver.resolveRequest;
 config.resolver.resolveRequest = (context, moduleName, platform) => {
+  if (
+    sentryOptions.includeWebFeedback === false &&
+    isSentryBrowserFeedbackWrapper(context, moduleName)
+  ) {
+    return { type: 'empty' };
+  }
   for (const [name, dir] of Object.entries(singletons)) {
     if (moduleName === name || moduleName.startsWith(`${name}/`)) {
       const sub = moduleName.slice(name.length); // '' or '/client' etc.
