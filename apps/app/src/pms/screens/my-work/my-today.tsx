@@ -202,13 +202,17 @@ export function MyToday({
   return (
     <div className="flex flex-col gap-5">
       <div className="grid grid-cols-1 items-start gap-5 @3xl:grid-cols-[minmax(0,5fr)_minmax(0,6fr)]">
-        <ClockCard employeeId={employeeId} />
+        {/* The checklist under the clock, so on a phone a new starter meets
+            her first week before two weeks of shifts. */}
+        <div className="flex min-w-0 flex-col gap-5">
+          <ClockCard employeeId={employeeId} />
+          <MyChecklist employeeId={employeeId} />
+        </div>
         <div className="flex min-w-0 flex-col gap-2.5">
           <SectionHeading>Your shifts</SectionHeading>
           <Shifts employeeId={employeeId} />
         </div>
       </div>
-      <MyChecklist employeeId={employeeId} />
       <Figures employeeId={employeeId} base={base} onOpen={onOpen} />
     </div>
   );
