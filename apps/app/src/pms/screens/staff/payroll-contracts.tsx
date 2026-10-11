@@ -5,16 +5,26 @@
  * one list, with the pay terms each carries.
  *
  * A contract is written on the person's file; a raise is a new contract that
- * shortens the last one to the day before, so the wage and the dates never
- * change here. What does change here is what the contract carries: the pay
- * structure whose allowances and deductions apply to it, and its notice in
- * days. Either applies to runs not yet confirmed. Whoever writes contracts or
- * runs pay reads and sets these; only a payroll.run holder sees the structures
- * to choose from.
+ * shortens the last one to the day before, so the wage and the dates of a
+ * contract never change. What does change here is what the contract carries:
+ * the pay structure whose allowances and deductions apply to it, and its
+ * notice in days. Either applies to runs not yet confirmed. Whoever writes
+ * contracts or runs pay reads and sets these; only a payroll.run holder sees
+ * the structures to choose from.
+ *
+ * CHANGE PAY IS HERE TOO. The rule above is right and was a dead end on this
+ * screen: the one list of everybody's wages offered no way to change one, and
+ * the way that existed was three screens off, on the person's file, under a
+ * button that says "New contract". Change pay asks the two things a raise is
+ * (how much, from when) and writes that new contract through the same command
+ * the file uses, for whoever may write contracts (`people.manage`). Nothing
+ * about how pay is kept changes: the old contract ends the day before, and
+ * both stay on the file.
  */
 
-import { CONTRACT_LIST, type ContractRow } from "@injishi/contracts";
+import { CONTRACT_LIST, type ContractRow, type ContractType } from "@injishi/contracts";
 import { DataView, Input, type DataColumn } from "@injishi/ui";
+import { useQueryClient } from "@tanstack/react-query";
 import Link from "next/link";
 import { useState } from "react";
 
@@ -22,7 +32,8 @@ import { ActionButton, Badge, SectionHeading, SelectField } from "../../componen
 import { useCapability, useWorkspaceId } from "../../data/capability";
 import { useListUrl, useSavedViewsFor } from "../../data/lists";
 import { useContractPage, usePayStructures, useUpdateContractPayTerms } from "../../data/payroll";
-import { dshortIso, fmt } from "../../lib/format";
+import { useCreateContract } from "../../data/people";
+import { addDaysIso, dshortIso, fmt, todayIso } from "../../lib/format";
 import { workspaceBase } from "../../lib/nav";
 import { usePms } from "../../store";
 import { currentGrant } from "../../store/helpers";
@@ -41,6 +52,9 @@ export function PayContracts() {
   const branches = currentGrant(state)?.branches ?? [];
   const structures = usePayStructures(workspaceId);
   const [editing, setEditing] = useState<ContractRow | null>(null);
+  const [raising, setRaising] = useState<ContractRow | null>(null);
+  const { can } = useCapability();
+  const mayWrite = can("people.manage");
   const staff = `${workspaceBase(workspaceId)}/staff`;
 
   const { defaultView, savedViews } = useSavedViewsFor(workspaceId, CONTRACT_LIST.key);
@@ -88,16 +102,39 @@ export function PayContracts() {
       key: "actions",
       header: "",
       align: "end",
-      cell: (r) => (r.status === "ended" ? null : <ActionButton onClick={() => setEditing(r)}>Pay terms</ActionButton>),
+      cell: (r) =>
+        r.status === "ended" ? null : (
+          <span className="flex justify-end gap-2">
+            {mayWrite && (
+              <ActionButton
+                onClick={() => {
+                  setEditing(null);
+                  setRaising(r);
+                }}
+              >
+                Change pay
+              </ActionButton>
+            )}
+            <ActionButton
+              onClick={() => {
+                setRaising(null);
+                setEditing(r);
+              }}
+            >
+              Pay terms
+            </ActionButton>
+          </span>
+        ),
     },
   ];
 
   return (
     <div className="pms-enter flex max-w-page flex-col gap-4">
       <p className="text-sm text-muted-foreground">
-        Every contract, running and ended. A wage changes by a new contract on the person&apos;s file; the structure and
-        the notice a contract carries are set here.
+        Every contract, running and ended. Change pay gives somebody a new wage from a day you choose; the structure and
+        the notice a contract carries are set under Pay terms.
       </p>
+      {raising && <ChangePayForm key={raising.id} contract={raising} onDone={() => setRaising(null)} />}
       {editing && <PayTermsForm contract={editing} onDone={() => setEditing(null)} />}
       <section className="flex flex-col gap-3">
         <SectionHeading n={page.data?.total}>Contracts</SectionHeading>
@@ -123,6 +160,103 @@ export function PayContracts() {
         />
       </section>
     </div>
+  );
+}
+
+/**
+ * A raise, or a cut: how much, and from when. It writes a new contract of the
+ * same kind and basis through the file's own command; the server ends the one
+ * before it the day before and refuses a start that is not after it.
+ */
+function ChangePayForm({ contract, onDone }: { contract: ContractRow; onDone: () => void }) {
+  const { toast } = usePms();
+  const workspaceId = useWorkspaceId();
+  const client = useQueryClient();
+  const create = useCreateContract(workspaceId);
+  // The earliest a new contract may start: the day after this one did.
+  const earliest = addDaysIso(contract.startsOn, 1);
+  const [startsOn, setStartsOn] = useState(todayIso() > earliest ? todayIso() : earliest);
+  const [wage, setWage] = useState("");
+  const amount = Number(wage.replace(/[^\d]/g, ""));
+  const change = amount > 0 ? amount - contract.wageRwf : 0;
+
+  return (
+    <form
+      className="flex flex-col gap-4 rounded-card border border-card-bd bg-card p-5"
+      onSubmit={(ev) => {
+        ev.preventDefault();
+        create.mutate(
+          {
+            id: contract.employee.employeeId,
+            body: {
+              contractType: contract.contractType as ContractType,
+              startsOn,
+              // A fixed term keeps its end; an open contract stays open.
+              endsOn: contract.endsOn,
+              wageBasis: contract.wageBasis,
+              wageRwf: amount,
+            },
+          },
+          {
+            onSuccess: () => {
+              void client.invalidateQueries({ queryKey: ["ops", "contracts"] });
+              void client.invalidateQueries({ queryKey: ["ops", "payroll-dashboard"] });
+              toast(
+                `${contract.employee.displayName} is paid ${fmt(amount)} ${BASIS[contract.wageBasis]} from ${dshortIso(startsOn)}. A draft pay run shows it once it is recomputed.`,
+                "ok",
+              );
+              onDone();
+            },
+          },
+        );
+      }}
+    >
+      <SectionHeading>Change pay for {contract.employee.displayName}</SectionHeading>
+      <p className="text-sm text-muted-foreground">
+        Now {fmt(contract.wageRwf)} {BASIS[contract.wageBasis]}, since {dshortIso(contract.startsOn)}. The new pay starts on
+        the day you choose; what was earned before it is paid at the old one.
+      </p>
+      <div className="grid gap-4 md:grid-cols-2">
+        <Field
+          label={`New pay, ${BASIS[contract.wageBasis]}`}
+          htmlFor="change-pay-wage"
+          hint={change === 0 ? "In RWF, before tax and contributions." : `${change > 0 ? "A raise" : "A cut"} of ${fmt(Math.abs(change))}.`}
+        >
+          <Input
+            id="change-pay-wage"
+            inputMode="numeric"
+            placeholder={String(contract.wageRwf)}
+            value={wage}
+            onChange={(e) => setWage(e.target.value)}
+            className={inputClass}
+          />
+        </Field>
+        <Field label="From" htmlFor="change-pay-from" hint={`No earlier than ${dshortIso(earliest)}, the day after this contract began.`}>
+          <Input
+            id="change-pay-from"
+            type="date"
+            min={earliest}
+            value={startsOn}
+            onChange={(e) => e.target.value && setStartsOn(e.target.value)}
+            className={inputClass}
+          />
+        </Field>
+      </div>
+      <FormError error={create.error} />
+      <div className="flex justify-end gap-2">
+        <ActionButton type="button" onClick={onDone}>
+          Cancel
+        </ActionButton>
+        <ActionButton
+          variant="primary"
+          type="submit"
+          pending={create.isPending}
+          deniedReason={amount <= 0 ? "Type the new pay first." : amount === contract.wageRwf ? "That is what they are paid now." : undefined}
+        >
+          Save the new pay
+        </ActionButton>
+      </div>
+    </form>
   );
 }
 
