@@ -13,7 +13,8 @@
  *   today             who is rostered, who is in, who should be and is not,
  *                     who is on leave
  *   waiting on you    every decision sitting in a queue, with its count, each
- *                     a link to the lens that decides it
+ *                     a link to the lens that decides it, and what is late on
+ *                     a joining or leaving checklist
  *   files to put      people a pay run would leave out or a contract cannot be
  *   right             written for, and contracts and documents about to end
  *   who works here    headcount by job, and the dates an office remembers
@@ -40,6 +41,7 @@ import { cn } from "@/lib/utils";
 import { Icon } from "../../components/icon";
 import { EmptyState, LoadFailed, SectionHeading, Skeleton, StatCard } from "../../components/ui";
 import { useCapability, useWorkspaceId } from "../../data/capability";
+import { useChecklistBoard } from "../../data/checklists";
 import { useLeaveDashboard } from "../../data/leave";
 import { OPS_READ, useMayRead } from "../../data/ops";
 import { usePayrollDashboard } from "../../data/payroll";
@@ -195,6 +197,7 @@ export function Overview() {
   );
   const files = useEmployees(workspaceId, "active");
   const documents = useDocuments(workspaceId, "all");
+  const checklists = useChecklistBoard(workspaceId);
 
   // --- Today ---------------------------------------------------------------------
   const entries = (roster.data?.items ?? []).filter((e) => e.status === "scheduled" && e.publishedAt !== null);
@@ -262,6 +265,28 @@ export function Overview() {
       label: `${noun(submitted.length, "Document")} handed in, to check`,
       hint: names(submitted.map((d) => d.employee)),
       href: `${base}/documents`,
+    });
+  }
+  // Joining and leaving: what is late on a checklist in hand, and who has none.
+  const behind = (checklists.data?.checklists ?? []).filter((c) => c.overdueCount > 0);
+  const lateTasks = behind.reduce((sum, c) => sum + c.overdueCount, 0);
+  if (lateTasks > 0) {
+    waiting.push({
+      key: "checklist-late",
+      n: lateTasks,
+      label: `${noun(lateTasks, "Task")} late on a joining or leaving checklist`,
+      hint: names(behind.map((c) => c.employee)),
+      href: `${base}/checklists`,
+    });
+  }
+  const unstarted = checklists.data?.unstarted ?? [];
+  if (unstarted.length > 0) {
+    waiting.push({
+      key: "checklist-unstarted",
+      n: unstarted.length,
+      label: `${noun(unstarted.length, "Person", "People")} joined or leaving with no checklist started`,
+      hint: names(unstarted.map((u) => u.employee)),
+      href: `${base}/checklists`,
     });
   }
   const thisMonth = pay.data?.months.find((m) => m.period === month);

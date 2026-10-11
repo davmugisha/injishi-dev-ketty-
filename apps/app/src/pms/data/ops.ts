@@ -168,6 +168,8 @@ export const OPS_READ = {
   staffAnnouncements: HR_PERMISSIONS,
   hrCatalog: HR_PERMISSIONS,
   hrSettings: HR_PERMISSIONS,
+  // Joining and leaving checklists: read by whoever reads files.
+  checklists: ["people.view", "people.manage"],
   // Time (058-time). The week grid reads like the roster (`roster` above).
   rotationPatterns: ["roster.manage", "attendance.record"],
   rotationAssignments: ["roster.manage"],

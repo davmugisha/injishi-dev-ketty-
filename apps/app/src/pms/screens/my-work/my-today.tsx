@@ -4,9 +4,10 @@
  * My work · Today (ADR-058, 058-self-service).
  *
  * What somebody arriving for a shift wants in one look: the clock, the shifts
- * of this week and next, and the three figures people ask the office for most
- * (the leave they have left, the month so far, the last payslip), each a link
- * to the lens that holds the rest.
+ * of this week and next, their joining or leaving checklist while one is in
+ * hand, and the three figures people ask the office for most (the leave they
+ * have left, the month so far, the last payslip), each a link to the lens that
+ * holds the rest.
  *
  * The roster here is the PUBLISHED one (AC-TM2). A week the manager is still
  * drafting reads as nothing yet, which is what it is.
@@ -21,6 +22,7 @@ import { useMyLeaveBalances, useMyLeaveRequests, useMyMonth, useMyPayslips, useM
 import { addDaysIso, dshortIso, fmt, todayIso } from "../../lib/format";
 import { clock, daysText, hoursText } from "../staff/staff-ui";
 import { ClockCard } from "./clock-card";
+import { MyChecklist } from "./my-checklist";
 import { Loading, Panel, dayText, mondayOf, monthText } from "./my-work-ui";
 
 /** Two weeks of shifts, a row a day: this week, then next. */
@@ -206,6 +208,7 @@ export function MyToday({
           <Shifts employeeId={employeeId} />
         </div>
       </div>
+      <MyChecklist employeeId={employeeId} />
       <Figures employeeId={employeeId} base={base} onOpen={onOpen} />
     </div>
   );

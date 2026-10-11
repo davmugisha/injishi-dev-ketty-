@@ -4,9 +4,9 @@
  * Staff: everyone who works here, account or not, their files, shifts,
  * attendance, leave and pay (ADR-058).
  *
- * Eighteen lenses, each opened by the permission its own read needs
+ * Nineteen lenses, each opened by the permission its own read needs
  * (`STAFF_LENSES` in `lib/nav.ts`, the one table). The leaf is reached by any
- * HR permission, so the rail differs by person: an owner sees all eighteen, a
+ * HR permission, so the rail differs by person: an owner sees all nineteen, a
  * manager everything but the owner's (documents, discipline, payroll, the late
  * and monthly insights and configuration), the desk Roster, Rotations,
  * Attendance, Kiosks, Policies, Announcements and Time settings. A lens the
@@ -28,6 +28,7 @@ import { currentGrant } from "../../store/helpers";
 import { Announcements } from "./announcements";
 import { Attendance } from "./attendance";
 import { AttendanceRequests } from "./attendance-requests";
+import { Checklists } from "./checklists";
 import { Configuration } from "./configuration";
 import { Discipline } from "./discipline";
 import { Documents } from "./documents";
@@ -53,6 +54,7 @@ const LENS_SCREEN: Record<StaffLens, ComponentType<{ section?: string }>> = {
   "org-chart": OrgChart,
   documents: Documents,
   discipline: Discipline,
+  checklists: Checklists,
   roster: Roster,
   rotations: Rotations,
   "shift-requests": ShiftRequests,

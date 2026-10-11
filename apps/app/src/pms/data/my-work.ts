@@ -23,6 +23,7 @@
 import {
   LeaveRequest,
   MyAttendance,
+  MyChecklists,
   MyLeaveBalances,
   MyLeaveRequestList,
   MyLeaveTypeList,
@@ -102,6 +103,7 @@ export const myWorkKeys = {
   balances: (id: string | null) => ["me-work", "leave-balances", id] as const,
   leave: (id: string | null) => ["me-work", "leave", id] as const,
   payslips: (id: string | null) => ["me-work", "payslips", id] as const,
+  checklists: (id: string | null) => ["me-work", "checklists", id] as const,
   loans: (id: string | null) => ["me-work", "loans", id] as const,
 };
 
@@ -190,6 +192,15 @@ export function useMyLoans(employeeId: string | null): UseQueryResult<MyLoanList
   });
 }
 
+/** The person's own joining or leaving list: every task of it, theirs to tick marked. */
+export function useMyChecklists(employeeId: string | null): UseQueryResult<MyChecklists> {
+  return useQuery({
+    queryKey: myWorkKeys.checklists(employeeId),
+    queryFn: () => mine(`/me/work/${employeeId}/checklists`, MyChecklists),
+    enabled: employeeId !== null,
+  });
+}
+
 // --- Commands ------------------------------------------------------------------
 
 /** How long to wait for the browser to say where it is before clocking without it. */
@@ -257,6 +268,19 @@ export function useCancelMyLeave(employeeId: string | null): UseMutationResult<L
     onSuccess: () => {
       void client.invalidateQueries({ queryKey: myWorkKeys.all });
       void client.invalidateQueries({ queryKey: ["ops", "leave-requests"] });
+    },
+  });
+}
+
+/** Tick a task that is the person's own to do, or untick it. The office's tasks are refused in words. */
+export function useTickMyTask(employeeId: string | null): UseMutationResult<MyChecklists, Error, { taskId: string; done: boolean }> {
+  const client = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ taskId, done }) =>
+      MyChecklists.parse(await ask(`/me/work/${employeeId}/checklists/tasks/${taskId}/${done ? "done" : "undo"}`)),
+    onSuccess: (answer) => {
+      client.setQueryData(myWorkKeys.checklists(employeeId), answer);
+      void client.invalidateQueries({ queryKey: ["ops", "checklists"] });
     },
   });
 }

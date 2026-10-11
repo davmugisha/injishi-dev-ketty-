@@ -18,7 +18,7 @@
  */
 
 import type { LeaveRequest, LeaveType } from "@injishi/contracts";
-import { Input } from "@injishi/ui";
+import { Checkbox, Input } from "@injishi/ui";
 import { useState } from "react";
 
 import { ActionButton, Badge, EmptyState, LoadFailed, SectionHeading, SelectField } from "../../components/ui";
@@ -156,15 +156,21 @@ function AskForm({ employeeId, types, onDone }: { employeeId: string; types: rea
           />
         </Field>
       </div>
-      <div className="flex flex-wrap gap-x-6 gap-y-2 text-sm text-ink2">
-        <label className="flex items-center gap-2">
-          <input type="checkbox" checked={draft.fromAfternoon} onChange={(ev) => set({ fromAfternoon: ev.target.checked })} />
+      <div className="flex flex-wrap gap-x-6 gap-y-2">
+        <Checkbox
+          isSelected={draft.fromAfternoon}
+          onChange={(on: boolean) => set({ fromAfternoon: on })}
+          className="flex items-center gap-2.5 text-sm font-normal text-ink2"
+        >
           I work the morning of the first day
-        </label>
-        <label className="flex items-center gap-2">
-          <input type="checkbox" checked={draft.untilLunch} onChange={(ev) => set({ untilLunch: ev.target.checked })} />
+        </Checkbox>
+        <Checkbox
+          isSelected={draft.untilLunch}
+          onChange={(on: boolean) => set({ untilLunch: on })}
+          className="flex items-center gap-2.5 text-sm font-normal text-ink2"
+        >
           I am back for the afternoon of the last day
-        </label>
+        </Checkbox>
       </div>
       <Field label="Reason" htmlFor="leave-why" hint="Your manager reads this. Leave it empty if you would rather say it in person.">
         <Input

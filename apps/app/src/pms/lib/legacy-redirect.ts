@@ -383,6 +383,7 @@ export const WORKSPACE_ROUTES: readonly string[] = [
   "staff/announcements",
   "staff/attendance",
   "staff/attendance-requests",
+  "staff/checklists",
   "staff/configuration",
   "staff/discipline",
   "staff/documents",

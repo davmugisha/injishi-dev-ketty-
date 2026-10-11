@@ -298,6 +298,7 @@ export const STAFF_LENSES: readonly {
     | "org-chart"
     | "documents"
     | "discipline"
+    | "checklists"
     | "roster"
     | "rotations"
     | "shift-requests"
@@ -330,6 +331,8 @@ export const STAFF_LENSES: readonly {
   { key: "org-chart", label: "Org chart", segment: "org-chart", anyPermission: ["people.view", "people.manage", "payroll.run"] },
   { key: "documents", label: "Documents", segment: "documents", anyPermission: ["people.manage"] },
   { key: "discipline", label: "Discipline", segment: "discipline", anyPermission: ["people.manage"] },
+  // Joining and leaving: read by whoever reads files, written by `people.manage` inside it.
+  { key: "checklists", label: "Checklists", segment: "checklists", anyPermission: ["people.view", "people.manage"] },
   { key: "roster", label: "Roster", segment: "roster", anyPermission: ["roster.manage", "attendance.record", "people.view"] },
   // Time (058-time AC-TM14). Each lens opens on the reads it makes.
   { key: "rotations", label: "Rotations", segment: "rotations", anyPermission: ["roster.manage", "attendance.record"] },
