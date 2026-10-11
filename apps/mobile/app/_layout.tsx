@@ -39,23 +39,38 @@
  *
  * ### Sheets
  *
- * Every sheet is `presentation: 'formSheet'` with `sheetAllowedDetents` and
- * `sheetGrabberVisible` (decision D8). That is a real
- * `UISheetPresentationController` on iOS and the platform sheet on Android, so
- * the detents, the drag, the dismiss and the scroll handoff are the system's
- * and not ours — no sheet library, and none needed. `Sheet` in `src/components`
- * draws what goes INSIDE one.
+ * Every sheet route takes its options from `sheetRouteOptions` in
+ * `src/components/sheet-route.tsx`, and nothing here names a presentation of
+ * its own. On iOS that is `presentation: 'formSheet'` with
+ * `sheetAllowedDetents` and `sheetGrabberVisible` (decision D8): a real
+ * `UISheetPresentationController`, so the detents, the drag, the dismiss and
+ * the scroll handoff are the system's — no sheet library, and none needed.
+ *
+ * **Android does not get the platform sheet.** On 2026-10-11 Appearance and
+ * Sign out froze the app in Expo Go on the owner's phone: the sheet never
+ * arrived, the tab bar jumped, nothing took a touch again. react-native-screens'
+ * Android sheet holds itself back until the host window hands it insets, and
+ * takes over the window's own insets listener; Expo Go carries its own copy of
+ * that code, so the repository cannot fix it there. An Android sheet route is
+ * therefore a `transparentModal`, and `screenLayout={sheetScreenLayout}` on the
+ * Stack below wraps it in a sheet the app draws: a scrim, a panel that fits its
+ * content, a drag and Android's back to close it. `sheet-route.test.tsx` fails
+ * if any route asks for `formSheet` or `transparentModal` directly, so the
+ * native Android sheet cannot come back by accident. `Sheet` in
+ * `src/components` draws what goes INSIDE either kind.
  *
  * Detents are chosen per route rather than globally: a confirm is a quarter
  * sheet, a form is most of the screen, and a sheet that opens taller than its
- * content is a sheet with a dead zone under the button.
+ * content is a sheet with a dead zone under the button. On Android the content
+ * decides, which is the same rule kept exactly: a quarter of a short phone cut
+ * Appearance's Dark row off below the gesture bar.
  *
  * `ErrorBoundary` is exported below because Expo Router mounts an export of
  * that name from a layout file as the boundary for everything under it. From
  * the root layout that is the whole app.
  */
 import { QueryClientProvider } from '@tanstack/react-query';
-import { useEffect, useState, type ComponentProps, type ReactNode } from 'react';
+import { useEffect, useState, type ReactNode } from 'react';
 import { useFonts } from 'expo-font';
 import {
   Stack,
@@ -66,7 +81,6 @@ import {
   type ErrorBoundaryProps,
 } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
-import { StatusBar } from 'expo-status-bar';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import {
@@ -113,6 +127,8 @@ import { fontMap } from '@/theme/fonts';
 import { palettes } from '@/theme/tokens';
 import { useReducedMotion } from '@/motion';
 import { ErrorState, OfflineBanner, QueueBanner, ToastProvider, useOffline } from '@/components';
+import { sheetRouteOptions, sheetScreenLayout } from '@/components/sheet-route';
+import { StatusBarStyle } from '@/components/status-bar-style';
 
 SplashScreen.preventAutoHideAsync().catch(() => {});
 
@@ -367,32 +383,19 @@ export default function RootLayout() {
 }
 
 /**
- * The three sheet shapes, as `NativeStackNavigationOptions` rather than
- * `as const` objects: `sheetAllowedDetents` is typed `number[]`, and a
- * `readonly` tuple is not assignable to it.
+ * The three sheet shapes. `sheetRouteOptions` owns what each one is on each
+ * platform; on iOS these are the detents named beside them, and on Android
+ * every one fits its content (see the Sheets note at the top of this file).
  */
-type SheetOptions = ComponentProps<typeof Stack.Screen>['options'];
 
-/** A sheet that confirms one thing. Quarter height, no scroll, no dead zone. */
-const CONFIRM_SHEET: SheetOptions = {
-  presentation: 'formSheet',
-  sheetAllowedDetents: [0.34],
-  sheetGrabberVisible: true,
-};
+/** A sheet that confirms one thing. Quarter height on iOS, no scroll, no dead zone. */
+const CONFIRM_SHEET = sheetRouteOptions('confirm');
 
 /** A sheet holding a short form or a list: half, expandable to full. */
-const FORM_SHEET: SheetOptions = {
-  presentation: 'formSheet',
-  sheetAllowedDetents: [0.55, 0.95],
-  sheetGrabberVisible: true,
-};
+const FORM_SHEET = sheetRouteOptions('form');
 
 /** A sheet holding a long form. Frame W6's "Report a fault" is the tall one. */
-const TALL_SHEET: SheetOptions = {
-  presentation: 'formSheet',
-  sheetAllowedDetents: [0.92],
-  sheetGrabberVisible: true,
-};
+const TALL_SHEET = sheetRouteOptions('tall');
 
 /**
  * Inside the providers, so it can read the session and the motion preference.
@@ -520,8 +523,13 @@ function Shell() {
 
   return (
     <>
-      <StatusBar style={scheme === 'dark' ? 'light' : 'dark'} />
+      {/* Never React Native's `<StatusBar>` on Android: in Expo Go its first
+          render takes the window out of edge to edge on Android 11 to 14,
+          which froze every sheet (status-bar-style.tsx says how). */}
+      <StatusBarStyle style={scheme === 'dark' ? 'light' : 'dark'} />
       <Stack
+        // Draws Android's sheets; hands every other route back untouched.
+        screenLayout={sheetScreenLayout}
         screenOptions={{
           headerShown: false,
           contentStyle: { backgroundColor: palettes[scheme].bgApp },
