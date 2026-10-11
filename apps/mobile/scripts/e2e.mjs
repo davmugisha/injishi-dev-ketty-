@@ -38,6 +38,11 @@ import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
+// What a pass reads from the device lives beside this file so a test can import
+// it. Everything there is a pure function; everything here runs adb and Maestro.
+// See `scripts/e2e-device.mjs`.
+import { coresFrom, loadFrom, transportIdFrom, waitForSettle } from './e2e-device.mjs';
+
 const here = path.dirname(fileURLToPath(import.meta.url));
 const appDir = path.join(here, '..');
 const exe = process.platform === 'win32' ? '.exe' : '';
@@ -124,6 +129,55 @@ function reversePorts() {
   }
 }
 
+/** Blocks for `ms`. The runner is synchronous from top to bottom. */
+function sleep(ms) {
+  Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, ms);
+}
+
+/**
+ * The device's adb transport id, or null when it is not attached. The id is
+ * new every time adb reconnects, so a change across a pass means the link
+ * dropped during it.
+ */
+function transportId() {
+  return transportIdFrom(run(adb, ['devices', '-l']).stdout, device);
+}
+
+/**
+ * Clears the device's background, then waits for it to settle. Run before
+ * EACH pass, after its theme is set.
+ *
+ * On the two core emulator the rig was failing passes for reasons that had
+ * nothing to do with the app (2026-10-11): the emulator dropped its adb link
+ * mid step and Maestro lost the device, System UI stopped responding, and the
+ * app was killed for not finishing its startup. Every one of those passes had
+ * started on a saturated device. Switching to dark makes every app on it
+ * redraw, which kept the one minute load above 3 for 100 s, and Maestro used
+ * to start straight into that. Expo Go, which previews the app on this same
+ * emulator, sat in the background holding 650 MB of its 2.4 GB. Started on a
+ * quiet device, both themes passed.
+ *
+ * Settled means a one minute load under 1.5 per core. A device that never
+ * gets there runs anyway after three minutes, with a warning: a slow device is
+ * still a device the flows have to work on.
+ */
+function quietDevice() {
+  onDevice(['shell', 'am', 'force-stop', 'host.exp.exponent']);
+  onDevice(['shell', 'am', 'kill-all']);
+  const cores = coresFrom(onDevice(['shell', 'nproc']).stdout);
+  const { settled, load, waitedMs } = waitForSettle({
+    readLoad: () => loadFrom(onDevice(['shell', 'cat', '/proc/loadavg']).stdout),
+    cores,
+    sleep,
+  });
+  const waited = Math.round(waitedMs / 1000);
+  console.log(
+    settled
+      ? `e2e: device settled in ${waited} s (load ${load} on ${cores} cores)`
+      : `e2e: device still busy after ${waited} s (load ${load} on ${cores} cores); running anyway`,
+  );
+}
+
 const APP_ID = 'rw.injishi.mobile';
 const release = flag('release');
 
@@ -168,14 +222,28 @@ for (const theme of themes) {
   const out = path.join(os.tmpdir(), 'injishi-maestro', theme);
   mkdirSync(out, { recursive: true });
   console.log(`\ne2e: ${theme} theme on ${device}, output in ${out}`);
+  quietDevice();
+  const linkBefore = transportId();
   const test = run(
     maestro,
     ['--device', device, 'test', '--env', `THEME=${theme}`, '--test-output-dir', out, flow],
     { stdio: 'inherit', cwd: appDir },
   );
-  results.push({ theme, ok: test.status === 0 });
+  // Maestro reports a dropped link as whatever step it was on, or with no
+  // reason at all, so say it here: that failure is the rig, not the app.
+  const linkAfter = transportId();
+  const dropped = linkBefore !== linkAfter;
+  if (dropped) {
+    console.log(
+      `e2e: the device's adb link dropped during the ${theme} pass (transport ${linkBefore} to ${linkAfter ?? 'none'}). ` +
+        'Maestro lost the device there, so this pass says nothing about the app.',
+    );
+  }
+  results.push({ theme, ok: test.status === 0, dropped });
 }
 
 onDevice(['shell', 'cmd', 'uimode', 'night', 'no']);
-for (const { theme, ok } of results) console.log(`e2e: ${theme} ${ok ? 'passed' : 'FAILED'}`);
+for (const { theme, ok, dropped } of results) {
+  console.log(`e2e: ${theme} ${ok ? 'passed' : dropped ? 'FAILED (adb link dropped)' : 'FAILED'}`);
+}
 process.exit(results.every((r) => r.ok) ? 0 : 1);
