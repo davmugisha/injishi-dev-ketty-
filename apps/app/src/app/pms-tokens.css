@@ -62,9 +62,11 @@
   --radius: 0.5rem;
   --radius-surface: var(--radius-card);
 
-  /* Self-hosted via /shared/css/injishi-fonts.css (linked in the layout). */
-  --font-ui: "Figtree", system-ui, sans-serif;
-  --font-display: "Spectral", Georgia, serif;
+  /* Self-hosted via /shared/css/injishi-fonts.css (linked in the layout).
+     One family since 2026-10-06: the Injishi Design System sets everything
+     in Inter (ADR-068), so the display role (titles) takes it too. */
+  --font-ui: "Inter", system-ui, sans-serif;
+  --font-display: "Inter", system-ui, sans-serif;
 }
 
 /* ── Light ──────────────────────────────────────────────────────────────── */
@@ -95,7 +97,10 @@
   --field: var(--ink-50);
 
   --accent: var(--green-600);
-  --accent-ink: var(--ink-950);
+  /* The ink drawn ON the accent fill. It reads the HeroUI role, which the
+     token sheet measures (ADR-068): the green fill carries ink-950 at only
+     3.5:1 and the sheet's snow at 4.55:1. */
+  --accent-ink: var(--accent-foreground);
   --accent-text: var(--green-800);
 
   /* TINTS ARE DERIVED FROM THE HUE THAT WINS, not written beside it.
@@ -110,9 +115,11 @@
      role cannot drift from it. Measured on `--card`: `--info` on its tint
      4.84:1 light / 4.86:1 dark against 4.93:1 for the old blue pair, and
      `--accent-text` on `--accent-soft` 5.15:1 light / 5.84:1 dark against
-     5.14:1 for the old green pair. */
+     5.14:1 for the old green pair.
+     `--accent-soft` itself is no longer declared here. Since ADR-068 the
+     unlayered token sheet sets it from the design system (the accent at 15%
+     in both themes), and a declaration in this `base` layer would be dead. */
   --accent2: var(--accent);
-  --accent-soft: color-mix(in oklab, var(--accent) 12%, transparent);
 
   --ok: var(--green-800);
   --ok-bg: var(--green-100);
@@ -169,12 +176,15 @@
   --field: rgba(230, 244, 251, 0.05);
 
   --accent: var(--green-600);
-  --accent-ink: var(--ink-950);
+  /* The ink drawn ON the accent fill. It reads the HeroUI role, which the
+     token sheet measures (ADR-068): the green fill carries ink-950 at only
+     3.5:1 and the sheet's snow at 4.55:1. */
+  --accent-ink: var(--accent-foreground);
   --accent-text: var(--green-300);
 
-  /* Derived from the winning hue; see the note in `.light`. */
+  /* Derived from the winning hue; see the note in `.light`. `--accent-soft`
+     comes from the token sheet (ADR-068). */
   --accent2: var(--accent);
-  --accent-soft: color-mix(in oklab, var(--accent) 18%, transparent);
 
   --ok: #8ce47c;
   --ok-bg: rgba(111, 215, 98, 0.16);
@@ -236,6 +246,7 @@
 
 .pms-display {
   font-family: var(--font-display);
+  letter-spacing: -0.015em;
 }
 
 .pms-num {

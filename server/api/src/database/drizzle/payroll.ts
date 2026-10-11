@@ -9,6 +9,7 @@
  * calculation time, for the same reason `folio_charges.tax_rate` is
  * snapshotted rather than joined.
  */
+import { sql } from 'drizzle-orm';
 import {
   index,
   pgEnum,
@@ -17,6 +18,7 @@ import {
   timestamp,
   unique,
   uuid,
+  jsonb,
 } from 'drizzle-orm/pg-core';
 import { users } from './auth';
 import { amount, currency, timestamps } from './columns';
@@ -125,6 +127,38 @@ export const payslips = pgTable(
     rssbEmployeeRwf: amount('rssb_employee_rwf').notNull().default(0),
     rssbEmployerRwf: amount('rssb_employer_rwf').notNull().default(0),
     netRwf: amount('net_rwf').notNull(),
+    /**
+     * How the figures above were reached, line by line: what was earned, what
+     * was withheld, what the business added. Written when the payslip is
+     * computed and never recomputed, so a payslip opened next year says what
+     * it said the day it was approved, whatever the rates are by then. Empty
+     * on a payslip computed before lines were kept; the five amounts still
+     * stand.
+     */
+    lines: jsonb('lines')
+      .$type<
+        {
+          code: string;
+          label: string;
+          side: 'earning' | 'employee' | 'employer';
+          amountRwf: number;
+          basis: string | null;
+        }[]
+      >()
+      .notNull()
+      .default(sql`'[]'::jsonb`),
+    /**
+     * What the roster and the clock said about the month when this was
+     * computed. Null on a payslip from before payroll read attendance.
+     */
+    attendance: jsonb('attendance').$type<{
+      rosteredDays: number;
+      workedDays: number;
+      missedDays: number;
+      lateDays: number;
+      unpaidLeaveDays: number;
+      overtimeMinutes: number;
+    } | null>(),
     currency: currency(),
     status: payslipStatusEnum('status').notNull().default('pending'),
     paidAt: timestamp('paid_at', { withTimezone: true }),

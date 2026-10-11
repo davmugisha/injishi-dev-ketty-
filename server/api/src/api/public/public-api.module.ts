@@ -37,6 +37,9 @@ import { OpsTeamController } from './ops/team.controller';
 import { OpsEmployeesController } from './ops/employees.controller';
 import { OpsChecklistsController } from './ops/checklists.controller';
 import { OpsLeaveController } from './ops/leave.controller';
+import { OpsMyHrController } from './ops/my-hr.controller';
+import { OpsHrAttendanceController } from './ops/hr-attendance.controller';
+import { OpsHrRosterController } from './ops/hr-roster.controller';
 import { OpsFoliosController } from './ops/folios.controller';
 import { OpsHousekeepingController } from './ops/housekeeping.controller';
 import { OpsOutletPartiesController } from './ops/outlet-parties.controller';
@@ -141,6 +144,9 @@ import { WaitlistModule } from './waitlist/waitlist.module';
     OpsEmployeesController,
     OpsChecklistsController,
     OpsLeaveController,
+    OpsMyHrController,
+    OpsHrRosterController,
+    OpsHrAttendanceController,
     OpsPayrollController,
     OpsRolesController,
     OpsFoliosController,

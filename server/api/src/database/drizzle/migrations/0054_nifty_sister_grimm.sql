@@ -1,0 +1,2 @@
+ALTER TABLE "checklist_template_items" ADD COLUMN "department_id" uuid;--> statement-breakpoint
+ALTER TABLE "checklist_template_items" ADD CONSTRAINT "checklist_template_items_department_id_departments_id_fk" FOREIGN KEY ("department_id") REFERENCES "public"."departments"("id") ON DELETE set null ON UPDATE no action;

@@ -423,13 +423,21 @@ export const departmentMembers = pgTable(
     departmentId: uuid('department_id')
       .notNull()
       .references(() => departments.id, { onDelete: 'cascade' }),
-    orgMembershipId: uuid('org_membership_id')
-      .notNull()
-      .references(() => orgMemberships.id, { onDelete: 'cascade' }),
+    /**
+     * Null, with `userId`, for a staffer WITHOUT AN ACCOUNT (HR module, first
+     * pass — no ADR yet): a gardener or a night guard who is employed and paid
+     * but never signs in. Such a row is an HR record only. It holds no
+     * membership, so it carries no permission, and every operational roster
+     * inner-joins `users`, so it never appears on a board or a queue.
+     */
+    orgMembershipId: uuid('org_membership_id').references(
+      () => orgMemberships.id,
+      { onDelete: 'cascade' },
+    ),
     /** Denormalized from the membership so a board query needs no join. */
-    userId: uuid('user_id')
-      .notNull()
-      .references(() => users.id),
+    userId: uuid('user_id').references(() => users.id),
+    /** The person's name when there is no `users` row to read it from. */
+    displayName: text('display_name'),
     workspaceId: uuid('workspace_id')
       .notNull()
       .references(() => workspaces.id),
@@ -449,6 +457,12 @@ export const departmentMembers = pgTable(
     uniqueIndex('department_members_active_uk')
       .on(t.departmentId, t.userId)
       .where(sql`${t.status} = 'active'`),
+    // Either a real member (both ids) or a named person with no account.
+    // Never a row that is nobody.
+    check(
+      'department_members_person_ck',
+      sql`(${t.userId} is not null and ${t.orgMembershipId} is not null) or (${t.userId} is null and ${t.orgMembershipId} is null and ${t.displayName} is not null)`,
+    ),
   ],
 );
 

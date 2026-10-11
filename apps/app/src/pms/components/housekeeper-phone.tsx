@@ -5,6 +5,13 @@
  * breakpoint of the desk. A room attendant sees three things: their cleaning
  * list, the rooms, and a way to report something broken (blueprint §3.3).
  *
+ * And a fourth: themselves. "My HR" is their own clock, shifts, leave, tasks
+ * and payslips (HR module, self-service). It has to be HERE because this
+ * surface replaces the desktop shell for a housekeeper, sidebar and all, so the
+ * My HR leaf everybody else reaches from the sidebar does not exist for them.
+ * Every route draws this phone, so a link to `/my-hr` or `/my-hr/time` opens
+ * on that tab rather than dropping somebody on their cleaning list.
+ *
  * **ON THE API.** It used to be a preview built on the demo store: "Mark ready"
  * changed only this browser tab, and the fault form reached nobody.
  * Every control now writes to the rows the desk reads (see
@@ -27,6 +34,7 @@
 import type { HousekeepingStatus, OperatorHousekeepingTask, OperatorRoom } from "@injishi/contracts";
 import { Button } from "@injishi/ui";
 import { cn } from "@/lib/utils";
+import { usePathname } from "next/navigation";
 import { useState, type ReactNode } from "react";
 
 import { useCapability, useWorkspaceId } from "../data/capability";
@@ -40,6 +48,7 @@ import {
 } from "../data/housekeeper";
 import { useMyProfile } from "../data/profile";
 import { useSignOut } from "../data/sign-out";
+import { MyHrCompact, myHrLensOf } from "../screens/my-hr";
 import { usePms } from "../store";
 import { currentGrant } from "../store/helpers";
 import { EMPTY_FAULT, FaultReport, type FaultDraft } from "./housekeeper/fault-report";
@@ -50,7 +59,7 @@ import { FAULTS, ROOM_STATUS, roomName } from "./housekeeper/words";
 import { Icon } from "./icon";
 import { LoadFailed, Skeleton } from "./ui";
 
-type Tab = "tasks" | "rooms" | "report";
+type Tab = "tasks" | "rooms" | "report" | "me";
 
 const OPEN = new Set(["pending", "in_progress", "blocked"]);
 
@@ -68,7 +77,9 @@ export function HousekeeperPhone() {
   const setRoom = useSetRoomStatus(workspaceId);
   const report = useReportFault(workspaceId);
 
-  const [tab, setTab] = useState<Tab>("tasks");
+  // `/w/<id>/my-hr` and its parts open on My HR; everything else on the list.
+  const [, , segment, part] = usePathname().split("/").filter(Boolean);
+  const [tab, setTab] = useState<Tab>(segment === "my-hr" ? "me" : "tasks");
   const [draft, setDraft] = useState<FaultDraft>(EMPTY_FAULT);
   const [sheetRoomId, setSheetRoomId] = useState<string | null>(null);
 
@@ -171,6 +182,8 @@ export function HousekeeperPhone() {
     { key: "tasks", icon: "sparkles", label: "My tasks", n: myOpen },
     { key: "rooms", icon: "bed-double", label: "Rooms" },
     ...(mayReport ? [{ key: "report" as const, icon: "wrench", label: "Report" }] : []),
+    // No permission to wait on: reading your own record is not a power over the business.
+    { key: "me", icon: "user-round", label: "My HR" },
   ];
 
   // A tab the role cannot open falls back to the list rather than rendering it.
@@ -180,7 +193,11 @@ export function HousekeeperPhone() {
   const sheetRoom = view === "rooms" && sheetRoomId ? (rooms.find((r) => r.id === sheetRoomId) ?? null) : null;
 
   let body: ReactNode;
-  if (status === "loading" || (resolved && (tasksQuery.isPending || roomsQuery.isPending))) {
+  if (view === "me" && workspaceId !== null) {
+    // Ahead of the rooms and tasks checks: their own HR record does not wait on
+    // the cleaning list, and must still open when that list fails to load.
+    body = <MyHrCompact initialLens={segment === "my-hr" ? myHrLensOf(part) : "time"} />;
+  } else if (status === "loading" || (resolved && (tasksQuery.isPending || roomsQuery.isPending))) {
     body = (
       <div className="flex flex-col gap-2.5" aria-busy="true" aria-label="Loading">
         <Skeleton height={26} />

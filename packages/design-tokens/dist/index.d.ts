@@ -24,12 +24,12 @@ export { ink, green } from "./ramps";
 export type { Ramp, RampStep } from "./ramps";
 export { status, fixed, light, dark, aliases, fixedGrounds, radiusCard, shadowControl, palettes, } from "./semantic";
 export type { RoleMap, SemanticPalette, ThemeName } from "./semantic";
-export { herouiFixed, herouiLight, herouiDark, herouiAliases, herouiRadius, herouiFieldRadius, herouiFixedGrounds, } from "./heroui";
+export { herouiFixed, herouiLight, herouiDark, herouiAliases, herouiElevation, herouiMixes, herouiRadius, herouiFieldRadius, herouiSpacing, herouiFixedGrounds, } from "./heroui";
 export type { HeroUIPalette } from "./heroui";
 export { typeSteps, typeScale, containers, rhythm } from "./layout";
 export type { TypeStep, TypeStepName, ContainerName, RhythmName } from "./layout";
 export { motionMs, easingCurves } from "./motion";
 export type { MotionStep, EasingName } from "./motion";
-export { rnSpace, rnRadius, rnFontSize, rnLineHeight } from "./rn";
-export type { RnSpaceStep, RnRadiusStep, RnTextSize } from "./rn";
+export { rnSpace, rnRadius, rnRadiusRoles, rnFontSize, rnLineHeight } from "./rn";
+export type { RnSpaceStep, RnRadiusStep, RnRadiusRole, RnTextSize } from "./rn";
 //# sourceMappingURL=index.d.ts.map

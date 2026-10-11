@@ -1,0 +1,2 @@
+ALTER TABLE "checklist_templates" DROP CONSTRAINT "checklist_templates_default_uk";--> statement-breakpoint
+CREATE UNIQUE INDEX "checklist_templates_one_default_uk" ON "checklist_templates" USING btree ("workspace_id","kind") WHERE "checklist_templates"."is_default";

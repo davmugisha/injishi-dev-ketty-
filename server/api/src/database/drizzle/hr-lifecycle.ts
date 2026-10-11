@@ -11,9 +11,16 @@
  *
  * Leave: a balance is an ALLOCATION, never a running total — days used
  * are computed from approved leave_requests at read time. leave_type_settings
- * is per-workspace configuration (unpaid, carry-forward, applicable-after)
- * for a leave type; it decides nothing by itself, the service enforces it.
+ * is per-workspace configuration (unpaid, carry-forward, applicable-after,
+ * and the days a year an allowance is worked out from) for a leave type; it
+ * decides nothing by itself, the service enforces it.
+ *
+ * A leave_balances row is an allowance SET BY HAND. Where there is none, the
+ * allowance is worked out from the type's rule and the person's start date at
+ * read time, and nothing is stored: a rule changed today is everybody's
+ * allowance today, with no rows to rewrite.
  */
+import { sql } from 'drizzle-orm';
 import {
   boolean,
   date,
@@ -24,11 +31,12 @@ import {
   text,
   timestamp,
   unique,
+  uniqueIndex,
   uuid,
 } from 'drizzle-orm/pg-core';
 import { users } from './auth';
 import { timestamps } from './columns';
-import { departmentMembers } from './operations';
+import { departmentMembers, departments } from './operations';
 import { workspaces } from './org';
 
 // --- Phase 3: onboarding/offboarding checklists ------------------------
@@ -52,7 +60,13 @@ export const checklistTemplates = pgTable(
   },
   (t) => [
     index('checklist_templates_workspace_idx').on(t.workspaceId, t.kind),
-    unique('checklist_templates_default_uk').on(t.workspaceId, t.kind, t.isDefault),
+    // ONE default per kind, and any number of others. This used to be a plain
+    // unique over (workspace, kind, is_default), which also allowed only one
+    // NON-default template per kind — so a second template of a kind could
+    // never be created at all.
+    uniqueIndex('checklist_templates_one_default_uk')
+      .on(t.workspaceId, t.kind)
+      .where(sql`${t.isDefault}`),
   ],
 );
 
@@ -73,6 +87,15 @@ export const checklistTemplateItems = pgTable(
     sortOrder: integer('sort_order').notNull().default(0),
     assigneeRole: text('assignee_role'),
     beginOnDays: integer('begin_on_days').notNull().default(0),
+    /**
+     * Which department this task is for; null is everybody. It decides whose
+     * checklist the task is copied onto — a housekeeper is not handed the
+     * engineer's tasks. A department that is deleted leaves its tasks behind
+     * as everybody's rather than taking them with it.
+     */
+    departmentId: uuid('department_id').references(() => departments.id, {
+      onDelete: 'set null',
+    }),
     ...timestamps,
   },
   (t) => [index('checklist_template_items_template_idx').on(t.templateId)],
@@ -187,6 +210,17 @@ export const leaveTypeSettings = pgTable(
     carryForward: boolean('carry_forward').notNull().default(false),
     applicableAfterDays: integer('applicable_after_days').notNull().default(0),
     maxConsecutiveDays: integer('max_consecutive_days'),
+    /**
+     * What an allowance is worked out from (see `leave-entitlement.ts`): the
+     * days a year, and the days long service adds. NULL IS "THE DEFAULT FOR
+     * THIS TYPE", not "none": a business that saved a rule before these
+     * columns existed still gets eighteen days of annual leave worked out.
+     * Zero days a year is how a business says a type has no allowance.
+     */
+    yearlyDays: integer('yearly_days'),
+    seniorityEveryYears: integer('seniority_every_years'),
+    seniorityExtraDays: integer('seniority_extra_days'),
+    seniorityCapDays: integer('seniority_cap_days'),
     ...timestamps,
   },
   (t) => [unique('leave_type_settings_workspace_type_uk').on(t.workspaceId, t.leaveType)],

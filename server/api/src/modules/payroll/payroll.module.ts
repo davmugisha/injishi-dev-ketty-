@@ -1,17 +1,23 @@
 // server/api/src/modules/payroll/payroll.module.ts
 import { Module } from '@nestjs/common';
 
+import { HrModule } from '../hr/hr.module';
 import { PayrollService } from './application/payroll.service';
 import { PayrollRepository } from './infrastructure/payroll.repository';
+import { PayslipPdfRenderer } from './infrastructure/payslip-pdf.renderer';
 
 /**
  * HR / payroll (first pass — no ADR yet, pending team review).
  *
- * Layering matches every other module: application/ (use cases) -
- * infrastructure/ (Drizzle). No domain/ yet — the state machine here
- * (draft -> pending_approval -> approved -> paid) is still simple enough to
- * live inline in the service; split it out if it grows the way
- * `registration-status.ts` did for org registration.
+ * Layering matches every other module: application/ (use cases), domain/
+ * (how a payslip is worked out and drawn, pure) and infrastructure/ (Drizzle,
+ * and the PDF). The state machine (draft -> approved -> paid) is still simple
+ * enough to live inline in the service.
+ *
+ * Imports `HrModule` for one thing: what the roster and the clock say about
+ * a month, which a payslip is computed from. The import runs one way only. My
+ * HR draws an employee's own payslip with the same renderer, but takes the
+ * class itself rather than this module, so the two never import each other.
  *
  * Reuses the existing `team.manage` permission rather than introducing a
  * dedicated `payroll.manage` (or `hr.manage`) grant, which would require
@@ -20,7 +26,8 @@ import { PayrollRepository } from './infrastructure/payroll.repository';
  * and the team has decided who should hold it.
  */
 @Module({
-  providers: [PayrollRepository, PayrollService],
+  imports: [HrModule],
+  providers: [PayrollRepository, PayrollService, PayslipPdfRenderer],
   exports: [PayrollService],
 })
 export class PayrollModule {}

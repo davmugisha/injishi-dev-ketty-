@@ -1,6 +1,7 @@
 import {
   Body,
   Controller,
+  Delete,
   Get,
   HttpCode,
   Param,
@@ -32,6 +33,13 @@ import type { ScopedWorkspace } from '../../../shared/auth/branch-scope';
 export class OpsChecklistsController {
   constructor(private readonly checklists: ChecklistService) {}
 
+  /** Per person: tasks in all, done, and overdue. */
+  @Get('progress')
+  @RequirePermission('employee.manage')
+  progress(@CurrentWorkspace() workspace: ScopedWorkspace) {
+    return this.checklists.progress(workspace);
+  }
+
   @Get('templates')
   @RequirePermission('employee.manage')
   listTemplates(@CurrentWorkspace() workspace: ScopedWorkspace) {
@@ -47,6 +55,17 @@ export class OpsChecklistsController {
     return this.checklists.createTemplate(workspace, body.kind, body.name, body.isDefault ?? false);
   }
 
+  /** Make this template the one used for new hires or leavers. */
+  @Post('templates/:id/default')
+  @HttpCode(204)
+  @RequirePermission('employee.manage')
+  async setDefaultTemplate(
+    @Param('id', ParseUUIDPipe) id: string,
+    @CurrentWorkspace() workspace: ScopedWorkspace,
+  ): Promise<void> {
+    await this.checklists.setDefaultTemplate(workspace, id);
+  }
+
   @Get('templates/:id/items')
   @RequirePermission('employee.manage')
   listTemplateItems(@Param('id', ParseUUIDPipe) id: string) {
@@ -58,15 +77,49 @@ export class OpsChecklistsController {
   @RequirePermission('employee.manage')
   async addTemplateItem(
     @Param('id', ParseUUIDPipe) id: string,
-    @Body() body: { label: string; sortOrder?: number; assigneeRole?: string; beginOnDays?: number },
+    @Body()
+    body: {
+      label: string;
+      sortOrder?: number;
+      assigneeRole?: string;
+      beginOnDays?: number;
+      /** Which department the task is for. Absent or null is everybody. */
+      departmentId?: string | null;
+    },
+    @CurrentWorkspace() workspace: ScopedWorkspace,
   ): Promise<void> {
     await this.checklists.addTemplateItem(
+      workspace,
       id,
       body.label,
       body.sortOrder ?? 0,
       body.assigneeRole,
       body.beginOnDays,
+      body.departmentId ?? null,
     );
+  }
+
+  /** Say which department a template task is for; null is everybody. */
+  @Patch('template-items/:itemId')
+  @HttpCode(204)
+  @RequirePermission('employee.manage')
+  async setTemplateItemDepartment(
+    @Param('itemId', ParseUUIDPipe) itemId: string,
+    @Body() body: { departmentId: string | null },
+    @CurrentWorkspace() workspace: ScopedWorkspace,
+  ): Promise<void> {
+    await this.checklists.setTemplateItemDepartment(workspace, itemId, body.departmentId ?? null);
+  }
+
+  /** Remove a task from a template. */
+  @Delete('template-items/:itemId')
+  @HttpCode(204)
+  @RequirePermission('employee.manage')
+  async deleteTemplateItem(
+    @Param('itemId', ParseUUIDPipe) itemId: string,
+    @CurrentWorkspace() workspace: ScopedWorkspace,
+  ): Promise<void> {
+    await this.checklists.deleteTemplateItem(workspace, itemId);
   }
 
   @Get('employees/:departmentMemberId')

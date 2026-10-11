@@ -42,6 +42,67 @@ export class OpsEmployeesController {
     return this.employeeService.list(workspace);
   }
 
+  /** People whose employment here was ended. */
+  @Get('former')
+  @RequirePermission('employee.manage')
+  former(@CurrentWorkspace() workspace: ScopedWorkspace) {
+    return this.employeeService.former(workspace);
+  }
+
+  /** Every recorded fact about one person's employment, newest first. */
+  @Get(':id/history')
+  @RequirePermission('employee.manage')
+  history(
+    @Param('id', ParseUUIDPipe) departmentMemberId: string,
+    @CurrentWorkspace() workspace: ScopedWorkspace,
+  ) {
+    return this.employeeService.history(workspace, departmentMemberId);
+  }
+
+  /** Bring back somebody whose employment was ended. */
+  @Post(':id/reinstate')
+  @HttpCode(204)
+  @RequirePermission('employee.manage')
+  async reinstate(
+    @Param('id', ParseUUIDPipe) departmentMemberId: string,
+    @CurrentWorkspace() workspace: ScopedWorkspace,
+    @CurrentUser() user: SessionUser,
+  ): Promise<void> {
+    await this.employeeService.reinstate(workspace, departmentMemberId, user.id);
+  }
+
+  /** Add a staffer with no account -> `POST /api/v1/ops/employees`. */
+  @Post()
+  @RequirePermission('employee.manage')
+  addWithoutAccount(
+    @Body()
+    body: {
+      name: string;
+      departmentId: string;
+      jobTitle?: string;
+      employmentType?: 'full_time' | 'part_time' | 'contract' | 'casual';
+      note?: string;
+      startedOn?: string;
+    },
+    @CurrentWorkspace() workspace: ScopedWorkspace,
+    @CurrentUser() user: SessionUser,
+  ): ReturnType<EmployeeService['addWithoutAccount']> {
+    return this.employeeService.addWithoutAccount(workspace, body, user.id);
+  }
+
+  /** The day somebody really started, which their leave is worked out from. */
+  @Post(':id/start-date')
+  @HttpCode(204)
+  @RequirePermission('employee.manage')
+  async setStartDate(
+    @Param('id', ParseUUIDPipe) departmentMemberId: string,
+    @Body() body: { startedOn: string },
+    @CurrentWorkspace() workspace: ScopedWorkspace,
+    @CurrentUser() user: SessionUser,
+  ): Promise<void> {
+    await this.employeeService.setStartDate(workspace, departmentMemberId, body.startedOn, user.id);
+  }
+
   @Post(':id/events')
   @HttpCode(204)
   @RequirePermission('employee.manage')

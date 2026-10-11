@@ -57,3 +57,4 @@ export * from './training';
 export * from './payroll';
 export * from './hr';
 export * from './hr-lifecycle';
+export * from './hr-attendance';

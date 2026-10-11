@@ -365,6 +365,48 @@
       "when": 1791185615025,
       "tag": "0051_petite_captain_midlands",
       "breakpoints": true
+    },
+    {
+      "idx": 52,
+      "version": "7",
+      "when": 1791197201830,
+      "tag": "0052_premium_stature",
+      "breakpoints": true
+    },
+    {
+      "idx": 53,
+      "version": "7",
+      "when": 1791449470210,
+      "tag": "0053_cheerful_hex",
+      "breakpoints": true
+    },
+    {
+      "idx": 54,
+      "version": "7",
+      "when": 1791452783498,
+      "tag": "0054_nifty_sister_grimm",
+      "breakpoints": true
+    },
+    {
+      "idx": 55,
+      "version": "7",
+      "when": 1791472507982,
+      "tag": "0055_hr_roster_attendance",
+      "breakpoints": true
+    },
+    {
+      "idx": 56,
+      "version": "7",
+      "when": 1791536249227,
+      "tag": "0056_payslip_lines",
+      "breakpoints": true
+    },
+    {
+      "idx": 57,
+      "version": "7",
+      "when": 1791545009124,
+      "tag": "0057_leave_entitlement_rules",
+      "breakpoints": true
     }
   ]
 }

@@ -302,14 +302,25 @@ export function hostNav(
         // edit them. The screen refuses per lens instead: the roster and Roles
         // ask for `team.manage` inside.
         { key: "people", label: "Team & Departments", icon: "users", href: `${base}/people`, built: true, anyPermission: ["team.manage", "department.manage"] },
-                { key: "payroll", label: "Payroll", icon: "users", href: `${base}/payroll`, built: true, permission: "team.manage" },
-                { key: "checklists", label: "Checklists", icon: "users", href: `${base}/checklists`, built: true, permission: "employee.manage" },
-                { key: "leave", label: "Leave", icon: "users", href: `${base}/leave`, built: true, permission: "employee.manage" },
+        // Was three leaves here — payroll, checklists, leave — plus Employees as a
+        // tab inside Team & Departments. One route, four lenses (HR module, no
+        // ADR yet). Gated on `employee.manage`, which a manager holds; the
+        // Payroll lens asks for `team.manage` inside the screen.
+        { key: "hr", label: "HR", icon: "briefcase", href: `${base}/hr`, built: true, permission: "employee.manage" },
         // Settings is behind `ebm.manage`, because Integrations is where the RRA
         // EBM account is connected (ADR-041, D-o). Plan and billing stays the
         // owner's: `Settings` hides that lens and refuses it by URL.
         { key: "settings", label: "Settings", icon: "settings", href: `${base}/settings`, built: true, permission: "ebm.manage" },
       ],
+      permissions,
+    ),
+    // The employee's own side of HR: their leave, tasks and payslips (HR
+    // module, self-service — no ADR yet). It declares NO permission, which is
+    // the rule for a leaf that gates no capability: reading your own record is
+    // not a power over the business. The API resolves "me" from the session.
+    ...sectionOf(
+      "You",
+      [{ key: "my-hr", label: "My HR", icon: "user-round", href: `${base}/my-hr`, built: true }],
       permissions,
     ),
   ];
