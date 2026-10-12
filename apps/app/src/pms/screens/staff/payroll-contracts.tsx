@@ -327,6 +327,7 @@ function PayTermsForm({ contract, onDone }: { contract: ContractRow; onDone: () 
           <Field label="Pay structure" hint="Its allowances and deductions apply to this contract.">
             <SelectField
               label="Pay structure"
+              placeholder="No structure"
               value={structureId}
               onChange={setStructureId}
               options={[{ value: "", label: "No structure" }, ...active.map((s) => ({ value: s.id, label: s.name }))]}
