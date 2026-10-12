@@ -38,7 +38,6 @@ import {
   ActionButton,
   Badge,
   EmptyState,
-  Initials,
   LoadFailed,
   SectionHeading,
   SelectField,
@@ -56,13 +55,14 @@ import {
   useUpdateEmployee,
 } from "../../data/people";
 import { useEmployeePhoto, useHrCatalog, useSetPhoto } from "../../data/people-file";
-import { dshortIso, fmt, todayIso } from "../../lib/format";
+import { daysBetweenIso, dshortIso, fmt, todayIso } from "../../lib/format";
 import { workspaceBase } from "../../lib/nav";
 import { usePms } from "../../store";
 import { currentGrant } from "../../store/helpers";
 import { DisciplineTab, DocumentsTab, NotesTab, PayTab } from "./employee-records";
 import { HrFileInput } from "./hr-file-input";
 import { BalanceDetail } from "./leave-ui";
+import { Avatar } from "./staff-look";
 import { Field, FormError, RowList, inputClass, rowClass, toneIntent } from "./staff-ui";
 
 const CONTRACT_TYPE: Record<ContractType, string> = {
@@ -185,7 +185,8 @@ function Row({ label, children }: { label: string; children: ReactNode }) {
   return (
     <div className="flex flex-col gap-0.5">
       <dt className="text-2xs font-bold tracking-[0.08em] uppercase text-[var(--muted2)]">{label}</dt>
-      <dd className="text-sm text-ink">{children}</dd>
+      {/* A dash read as a fault in the data. What is missing says so, quietly. */}
+      <dd className="text-sm text-ink">{children === "—" ? <span className="text-muted-foreground">Not on file</span> : children}</dd>
     </div>
   );
 }
@@ -200,17 +201,39 @@ function Photo({ file, mayManage }: { file: EmployeeFileData; mayManage: boolean
   const photo = useEmployeePhoto(workspaceId, e.id, e.hasPhoto);
   const setPhoto = useSetPhoto(workspaceId);
 
+  // How long they have been here, as a person says it.
+  const days = Math.max(0, daysBetweenIso(e.hiredOn, todayIso()));
+  const years = Math.floor(days / 365);
+  const months = Math.floor((days % 365) / 30);
+  const here =
+    days < 30
+      ? days === 0
+        ? "Starts today"
+        : `${days} day${days === 1 ? "" : "s"}`
+      : years === 0
+        ? `${months} month${months === 1 ? "" : "s"}`
+        : `${years} year${years === 1 ? "" : "s"}${months > 0 ? `, ${months} month${months === 1 ? "" : "s"}` : ""}`;
+  const facts: { label: string; value: string }[] = [
+    { label: "Works at", value: e.workPropertyName ?? "No branch yet" },
+    { label: "Here for", value: `${here}, since ${dshortIso(e.hiredOn)}` },
+    { label: "Reports to", value: e.reportingManagerName ?? "Nobody yet" },
+    { label: "Signs in", value: e.hasAccount ? `Yes, as ${(e.orgRole ?? "a member").replace(/_/g, " ")}` : "No account" },
+  ];
+
   return (
-    <section className="flex flex-wrap items-center gap-4 rounded-card border border-card-bd bg-card p-5">
+    <section
+      className="@container flex flex-wrap items-center gap-x-4 gap-y-4 rounded-card border border-card-bd bg-card p-5"
+      style={{ backgroundImage: "linear-gradient(135deg, color-mix(in oklab, var(--accent) 8%, transparent), transparent 50%)" }}
+    >
       {e.hasPhoto && photo.data ? (
         // eslint-disable-next-line @next/next/no-img-element -- a five minute signed read; the optimiser would cache an expiring URL
         <img src={photo.data.url} alt={`${e.displayName}'s photo`} className="size-20 rounded-full object-cover" />
       ) : (
-        <Initials size={80}>{e.displayName.split(/\s+/).map((w) => w[0]).slice(0, 2).join("")}</Initials>
+        <Avatar name={e.displayName} size={80} />
       )}
       <div className="flex min-w-0 flex-1 flex-col gap-1">
-        <span className="text-sm font-semibold text-ink">{e.displayName}</span>
-        <span className="text-2xs text-muted-foreground">
+        <span className="text-xl font-bold tracking-[-0.3px] text-ink">{e.displayName}</span>
+        <span className="text-sm text-ink2">
           {[e.jobPositionTitle, e.employeeType?.title].filter(Boolean).join(" · ") || "No position yet"}
         </span>
         {e.tags.length > 0 && (
@@ -243,6 +266,14 @@ function Photo({ file, mayManage }: { file: EmployeeFileData; mayManage: boolean
           )}
         </div>
       )}
+      <dl className="grid w-full grid-cols-2 gap-x-6 gap-y-3 border-t border-line pt-4 @3xl:grid-cols-4">
+        {facts.map((fact) => (
+          <div key={fact.label} className="flex min-w-0 flex-col gap-0.5">
+            <dt className="text-2xs font-bold tracking-[0.08em] uppercase text-[var(--muted2)]">{fact.label}</dt>
+            <dd className="text-sm text-ink">{fact.value}</dd>
+          </div>
+        ))}
+      </dl>
       <FormError error={setPhoto.error} />
     </section>
   );

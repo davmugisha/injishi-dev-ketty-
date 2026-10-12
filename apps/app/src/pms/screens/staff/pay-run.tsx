@@ -42,6 +42,7 @@ import {
   type PayRunDetail,
   type Payslip,
 } from "@injishi/contracts";
+import { Banknote, Landmark, ShieldCheck, Wallet } from "lucide-react";
 import Link from "next/link";
 import { useState } from "react";
 
@@ -53,11 +54,9 @@ import {
   ActionButton,
   Badge,
   EmptyState,
-  Initials,
   LoadFailed,
   SectionHeading,
   Skeleton,
-  StatCard,
 } from "../../components/ui";
 import { useWorkspaceId } from "../../data/capability";
 import { openFileLink } from "../../data/people-file";
@@ -74,6 +73,7 @@ import { dshortIso, fmt, kigaliDateOf } from "../../lib/format";
 import { workspaceBase } from "../../lib/nav";
 import { usePms } from "../../store";
 import { ReasonForm, SIDE_GROUP, lineAmount, monthName, nextPeriodOf } from "./payroll-ui";
+import { Avatar, Figure } from "./staff-look";
 import { FormError, RowList, blockersOf, rowClass } from "./staff-ui";
 
 export function PayRunPage({ runId }: { runId: string }) {
@@ -155,14 +155,6 @@ const canCarry = (person: Waiting): boolean =>
 
 /** The reason the trail keeps beside a hold made because the person was not ready. */
 const reasonOf = (person: Waiting): string => `Not ready when the others were paid. ${person.blockers.map(said).join(" ")}`.slice(0, 480);
-
-const initialsOf = (name: string): string =>
-  name
-    .split(/\s+/)
-    .filter(Boolean)
-    .slice(0, 2)
-    .map((part) => part[0]?.toUpperCase() ?? "")
-    .join("");
 
 const peopleText = (n: number): string => `${n} ${n === 1 ? "person" : "people"}`;
 
@@ -286,10 +278,10 @@ function RunBody({ detail }: { detail: PayRunDetail }) {
     >
       <div className="@container mt-5 flex max-w-wide flex-col gap-6">
         <div className="grid grid-cols-2 gap-3 @3xl:grid-cols-4">
-          <StatCard n={fmt(run.grossRwf)} label="Gross" />
-          <StatCard n={fmt(run.payeRwf)} label="PAYE" />
-          <StatCard n={fmt(run.employeeContributionsRwf)} label="Employee contributions" />
-          <StatCard n={fmt(run.netRwf)} label="Net to pay" />
+          <Figure icon={Banknote} n={fmt(run.grossRwf)} label="Gross" />
+          <Figure icon={Landmark} n={fmt(run.payeRwf)} label="PAYE, to RRA" />
+          <Figure icon={ShieldCheck} n={fmt(run.employeeContributionsRwf)} label="Employees' share, to RSSB" />
+          <Figure icon={Wallet} n={fmt(run.netRwf)} label="Net to pay" tone="accent" />
         </div>
         <p className="text-2xs text-muted-foreground">
           The business also owes {fmt(run.employerContributionsRwf)} in employer contributions, declared and
@@ -396,7 +388,7 @@ function RunBody({ detail }: { detail: PayRunDetail }) {
             <RowList>
               {waiting.map((person, i) => (
                 <div key={person.employeeId} className={`${rowClass(i)} flex flex-wrap items-center gap-x-3 gap-y-2`} data-waiting={person.employeeId}>
-                  <Initials>{initialsOf(person.name)}</Initials>
+                  <Avatar name={person.name} size={36} />
                   <span className="flex min-w-48 flex-1 flex-col gap-0.5">
                     <Link href={`${staff}/${person.employeeId}`} className="w-fit text-sm font-semibold text-ink no-underline hover:underline">
                       {person.name}
@@ -438,7 +430,7 @@ function RunBody({ detail }: { detail: PayRunDetail }) {
             <RowList>
               {carried.map((a, i) => (
                 <div key={a.id} className={`${rowClass(i)} flex flex-wrap items-center gap-x-3 gap-y-2`} data-carried={a.employee.employeeId}>
-                  <Initials>{initialsOf(a.employee.displayName)}</Initials>
+                  <Avatar name={a.employee.displayName} size={36} />
                   <span className="flex min-w-48 flex-1 flex-col gap-0.5">
                     <span className="text-sm font-semibold text-ink">{a.employee.displayName}</span>
                     <span className="text-2xs text-muted-foreground">{a.reason}</span>
@@ -636,10 +628,12 @@ function SlipRow({
           aria-expanded={open}
           className="flex min-w-0 flex-1 flex-wrap items-center gap-3 bg-transparent text-left"
         >
-          <span className="pms-num w-14 shrink-0 text-2xs text-muted-foreground">{slip.employeeNumber}</span>
+          <Avatar name={slip.displayName} size={36} />
           <span className="flex min-w-0 flex-1 flex-col gap-0.5">
             <span className="truncate text-sm font-semibold text-ink">{slip.displayName}</span>
-            <span className="pms-num text-2xs text-muted-foreground">{slip.payableDays}/30 payable</span>
+            <span className="pms-num text-2xs text-muted-foreground">
+              {slip.employeeNumber} · {slip.payableDays}/30 days payable
+            </span>
           </span>
           <span className="pms-num text-right text-sm text-ink2">
             <span className="block">{fmt(slip.netRwf)} net</span>

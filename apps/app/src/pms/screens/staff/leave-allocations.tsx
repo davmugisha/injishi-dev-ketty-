@@ -28,6 +28,7 @@ import { useAttendancePage, useEmployees } from "../../data/people";
 import { addDaysIso, dshortIso, todayIso } from "../../lib/format";
 import { usePms } from "../../store";
 import { currentGrant } from "../../store/helpers";
+import { Avatar, FACE, WITH_FACE } from "./staff-look";
 import { Field, FormError, daysText, hoursText, inputClass } from "./staff-ui";
 
 const STATUS: Record<LeaveAllocationStatus, { label: string; intent: "ok" | "warn" | "bad" | "neutral" }> = {
@@ -70,8 +71,9 @@ export function LeaveAllocations() {
       key: "employee",
       header: "Person",
       cell: (r) => (
-        <span className="flex flex-col gap-0.5" data-allocation={r.id}>
-          <span className="font-semibold text-foreground">{r.employee.displayName}</span>
+        <span className={`${WITH_FACE}`} data-allocation={r.id}>
+          <Avatar name={r.employee.displayName} className={FACE} />
+          <span className="font-semibold whitespace-nowrap text-foreground">{r.employee.displayName}</span>
           <span className="text-2xs text-muted-foreground">{r.reason}</span>
         </span>
       ),

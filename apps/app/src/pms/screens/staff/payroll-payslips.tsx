@@ -23,9 +23,10 @@
 
 import { ListQuery, PAYSLIP_LIST, SavedViewConfig, type PaidMethod, type PayslipRow } from "@injishi/contracts";
 import { DataView, Input, type DataColumn } from "@injishi/ui";
+import { BadgeCheck, FileClock, Wallet } from "lucide-react";
 import { useState } from "react";
 
-import { ActionButton, Badge, SectionHeading, SelectField, StatCard } from "../../components/ui";
+import { ActionButton, Badge, SectionHeading, SelectField } from "../../components/ui";
 import { useWorkspaceId } from "../../data/capability";
 import { readListIds, runBulkAction, useListUrl, useSavedViewsFor } from "../../data/lists";
 import { downloadPayPdf, useMarkPaid, usePayslipPage, useUnmarkPaid } from "../../data/payroll";
@@ -33,6 +34,7 @@ import { dshortIso, fmt, kigaliDateOf, todayIso } from "../../lib/format";
 import { usePms } from "../../store";
 import { currentGrant } from "../../store/helpers";
 import { PAID_METHOD_LABEL, ReasonForm, monthName, monthShort } from "./payroll-ui";
+import { Avatar, FACE, Figure, WITH_FACE } from "./staff-look";
 import { Field, FormError, Reveal, inputClass } from "./staff-ui";
 
 interface PaidDraft {
@@ -86,8 +88,9 @@ export function Payslips() {
       key: "employee",
       header: "Person",
       cell: (r) => (
-        <span className="flex flex-col gap-0.5" data-payslip-row={r.id}>
-          <span className="whitespace-nowrap font-semibold text-foreground">{r.employee.displayName}</span>
+        <span className={`${WITH_FACE}`} data-payslip-row={r.id}>
+          <Avatar name={r.employee.displayName} className={FACE} />
+          <span className="font-semibold whitespace-nowrap text-foreground">{r.employee.displayName}</span>
           <span className="pms-num text-2xs text-muted-foreground">{r.employeeNumber}</span>
         </span>
       ),
@@ -147,7 +150,9 @@ export function Payslips() {
   return (
     <div className="pms-enter @container flex max-w-page flex-col gap-4">
       <div className="grid grid-cols-1 gap-3 @2xl:grid-cols-3" data-payslip-figures>
-        <StatCard
+        <Figure
+          icon={Wallet}
+          tone={owed.length > 0 ? "warn" : "neutral"}
           n={notPaid.data === undefined ? "…" : counted ? fmt(owedRwf) : String(owed.length)}
           label={
             notPaid.data === undefined
@@ -157,11 +162,13 @@ export function Payslips() {
                 : `Waiting to be paid, to ${owed.length} ${owed.length === 1 ? "person" : "people"}`
           }
         />
-        <StatCard
+        <Figure
+          icon={BadgeCheck}
+          tone="ok"
           n={page.data === undefined || notPaid.data === undefined ? "…" : String(Math.max(0, (page.data.statusCounts?.find((c) => c.value === "confirmed")?.count ?? 0) - owed.length))}
           label="Already paid"
         />
-        <StatCard n={notPaid.data === undefined ? "…" : String(drafts)} label={drafts === 0 ? "Drafts" : "Drafts: payable once their month is confirmed"} />
+        <Figure icon={FileClock} n={notPaid.data === undefined ? "…" : String(drafts)} label="Drafts" hint={drafts === 0 ? undefined : "Payable once their month is confirmed"} />
       </div>
 
       <div className="flex flex-wrap items-center gap-3">

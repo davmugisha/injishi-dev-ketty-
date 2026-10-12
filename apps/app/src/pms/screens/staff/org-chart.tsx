@@ -14,11 +14,11 @@ import type { OrgChartNode } from "@injishi/contracts";
 import Link from "next/link";
 import { useMemo } from "react";
 
-import { EmptyState, Initials, LoadFailed, Skeleton } from "../../components/ui";
+import { EmptyState, LoadFailed, Skeleton } from "../../components/ui";
 import { useWorkspaceId } from "../../data/capability";
 import { useOrgChart } from "../../data/people-file";
-import { initials } from "../../lib/format";
 import { workspaceBase } from "../../lib/nav";
+import { Avatar } from "./staff-look";
 
 export function OrgChart() {
   const workspaceId = useWorkspaceId();
@@ -91,7 +91,7 @@ export function OrgChart() {
 function Person({ node, base, reports }: { node: OrgChartNode; base: string; reports: number }) {
   return (
     <span className="flex items-center gap-2.5">
-      <Initials size={32}>{initials(node.displayName)}</Initials>
+      <Avatar name={node.displayName} size={32} />
       <span className="flex min-w-0 flex-col">
         <Link href={`${base}/${node.employeeId}`} className="text-sm font-semibold text-foreground no-underline hover:underline">
           {node.displayName}

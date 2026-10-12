@@ -26,6 +26,11 @@
  * read. A zero is not drawn as a zero: a queue with nothing in it is left
  * out, and an Overview with nothing waiting says so in a sentence.
  *
+ * IT OPENS ON A SENTENCE. Above the four parts the page greets whoever opened
+ * it and says where the day stands in words ("3 of 12 people on today's
+ * roster are at work"), with the roster as one bar: at work, finished, not
+ * clocked in, due later. A manager who reads nothing else has read the day.
+ *
  * NO RANKING OF PEOPLE (index contract 7). "Not clocked in" is a list of who to
  * ring this morning, in shift order; nothing here totals a person's lateness
  * or orders anybody by a figure.
@@ -33,23 +38,46 @@
 
 import { ListQuery, type AttendanceRecord, type Employee, type RosterEntry } from "@injishi/contracts";
 import { BarList } from "@injishi/ui";
+import {
+  AlarmClock,
+  ArrowLeftRight,
+  Building2,
+  CalendarDays,
+  CalendarOff,
+  CalendarPlus,
+  Clock,
+  Coins,
+  FileCheck,
+  FileWarning,
+  Inbox,
+  ListChecks,
+  MapPin,
+  Receipt,
+  Timer,
+  UserCheck,
+  UserX,
+  Wallet,
+  type LucideIcon,
+} from "lucide-react";
 import Link from "next/link";
 import type { ReactNode } from "react";
 
 import { cn } from "@/lib/utils";
 
 import { Icon } from "../../components/icon";
-import { EmptyState, LoadFailed, SectionHeading, Skeleton, StatCard } from "../../components/ui";
+import { EmptyState, LoadFailed, SectionHeading, Skeleton } from "../../components/ui";
 import { useCapability, useWorkspaceId } from "../../data/capability";
 import { useChecklistBoard } from "../../data/checklists";
+import { useSessionPerson } from "../../data/housekeeper";
 import { useLeaveDashboard } from "../../data/leave";
 import { OPS_READ, useMayRead } from "../../data/ops";
 import { usePayrollDashboard } from "../../data/payroll";
 import { useAttendancePage, useEmployees, useRosterPage } from "../../data/people";
 import { useDocuments } from "../../data/people-file";
 import { useAttendanceRequestPage, useShiftRequestPage } from "../../data/time";
-import { addDaysIso, daysBetweenIso, dshortIso, fmt, todayIso } from "../../lib/format";
+import { TIMEZONE, addDaysIso, dayPartsIso, daysBetweenIso, dshortIso, fmt, todayIso } from "../../lib/format";
 import { workspaceBase } from "../../lib/nav";
+import { Avatar, Figure, Split } from "./staff-look";
 import { RowList, clock, rowClass } from "./staff-ui";
 
 /** How far ahead a contract's or a document's end is worth saying. */
@@ -98,17 +126,41 @@ interface Waiting {
   href: string;
 }
 
-function WaitingRow({ row, index }: { row: Waiting; index: number }) {
+/** The mark of each queue, by its key: the same mark wherever that kind of work is named. */
+const MARK_OF: Record<string, LucideIcon> = {
+  leave: CalendarDays,
+  allocations: CalendarPlus,
+  shifts: ArrowLeftRight,
+  time: Clock,
+  validate: MapPin,
+  overtime: Timer,
+  documents: FileCheck,
+  "checklist-late": ListChecks,
+  "checklist-unstarted": ListChecks,
+  claims: Receipt,
+  draft: Wallet,
+  unpaid: Coins,
+  "no-contract": UserX,
+  details: FileWarning,
+  "no-branch": Building2,
+};
+
+/** A queue to decide is the product's green; a file with something wrong is a warning. */
+function WaitingRow({ row, index, wrong }: { row: Waiting; index: number; wrong?: boolean }) {
+  const Mark = MARK_OF[row.key] ?? Inbox;
   return (
-    <Link href={row.href} className={cn(rowClass(index), "flex items-center gap-3 no-underline hover:bg-hover")}>
-      <span className="pms-num grid h-8 min-w-8 shrink-0 place-items-center rounded-full bg-accent-soft px-2 text-sm font-bold text-accent-text">
-        {row.n}
+    <Link href={row.href} className={cn(rowClass(index), "group flex items-center gap-3 no-underline hover:bg-hover")}>
+      <span className={cn("grid size-9 shrink-0 place-items-center rounded-full", wrong ? "bg-warn-bg text-warn" : "bg-accent-soft text-accent-text")}>
+        <Mark aria-hidden className="size-4.5" strokeWidth={1.9} />
       </span>
       <span className="flex min-w-0 flex-1 flex-col">
         <span className="text-sm font-semibold text-ink">{row.label}</span>
         {row.hint && <span className="truncate text-2xs text-muted-foreground">{row.hint}</span>}
       </span>
-      <span aria-hidden className="text-faint">
+      <span className={cn("pms-num grid h-6 min-w-6 shrink-0 place-items-center rounded-full px-2 text-xs font-bold", wrong ? "bg-warn-bg text-warn" : "bg-[var(--accent)] text-[var(--accent-ink)]")}>
+        {row.n}
+      </span>
+      <span aria-hidden className="text-faint transition-transform duration-quick group-hover:translate-x-0.5">
         <Icon name="chevron-right" size={16} />
       </span>
     </Link>
@@ -119,11 +171,12 @@ function WaitingRow({ row, index }: { row: Waiting; index: number }) {
 function PersonRow({ index, name, detail, href }: { index: number; name: string; detail: ReactNode; href?: string }) {
   const body = (
     <>
+      <Avatar name={name} size={28} />
       <span className="min-w-0 flex-1 truncate text-sm font-semibold text-ink">{name}</span>
       <span className="pms-num shrink-0 text-2xs text-muted-foreground">{detail}</span>
     </>
   );
-  const className = cn(rowClass(index), "flex items-baseline gap-3");
+  const className = cn(rowClass(index), "flex items-center gap-2.5");
   return href ? (
     <Link href={href} className={cn(className, "no-underline hover:bg-hover")}>
       {body}
@@ -207,6 +260,16 @@ export function Overview() {
   const missing = maySheet && mayRoster ? notClockedIn(roster.data?.items ?? [], records, today, Date.now()) : [];
   const onLeave = leave.data?.onLeaveToday ?? [];
   const leaveSoon = (leave.data?.startingThisWeek ?? []).filter((l) => l.startsOn > today);
+  // The roster as one whole: each person on it is in exactly one of four places.
+  const openIds = new Set(records.filter((r) => r.status === "open").map((r) => r.employee.employeeId));
+  const doneIds = new Set(records.filter((r) => r.status === "closed" && r.workDate === today).map((r) => r.employee.employeeId));
+  const missingIds = new Set(missing.map((e) => e.employee.employeeId));
+  const rosteredIds = [...new Set(entries.map((e) => e.employee.employeeId))];
+  const atWork = rosteredIds.filter((id) => openIds.has(id)).length;
+  const finished = rosteredIds.filter((id) => !openIds.has(id) && doneIds.has(id)).length;
+  const notIn = rosteredIds.filter((id) => !openIds.has(id) && !doneIds.has(id) && missingIds.has(id)).length;
+  const dueLater = rosteredIds.length - atWork - finished - notIn;
+  const session = useSessionPerson();
 
   // --- Waiting on you -------------------------------------------------------------
   const waiting: Waiting[] = [];
@@ -404,11 +467,51 @@ export function Overview() {
   const showToday = mayRoster || maySheet || mayLeave;
   const quietDay = missing.length === 0 && onLeave.length === 0 && leaveSoon.length === 0;
 
+  // The greeting: the hour in Kigali, and the first name on the session when it has one.
+  const hour = Number(new Intl.DateTimeFormat("en-GB", { timeZone: TIMEZONE, hour: "numeric", hour12: false }).format(new Date()));
+  const firstName = session.data?.name?.trim().split(/\s+/)[0];
+  const greeting = `Good ${hour < 12 ? "morning" : hour < 17 ? "afternoon" : "evening"}${firstName ? `, ${firstName}` : ""}`;
+  const day = dayPartsIso(today);
+  const toLookAt = waiting.length + toFix.length;
+  const where =
+    mayRoster && maySheet
+      ? rostered === 0
+        ? "Nobody is on today's published roster."
+        : `${atWork} of ${plural(rostered, "person", "people")} on today's roster ${atWork === 1 ? "is" : "are"} at work.`
+      : "";
+  const next =
+    toLookAt === 0 ? "Nothing is waiting on you." : `${toLookAt === 1 ? "One thing is" : `${toLookAt} things are`} waiting on you below.`;
+
   return (
     <div className="@container relative flex max-w-page flex-col gap-6 pt-4">
-      <p className="text-sm text-muted-foreground">
-        What needs somebody today across files, time, leave and pay. Every line opens the screen that deals with it.
-      </p>
+      <section
+        aria-label="Today at a glance"
+        className="flex flex-col gap-4 rounded-card border border-card-bd bg-card px-5 py-5"
+        style={{ backgroundImage: "linear-gradient(135deg, color-mix(in oklab, var(--accent) 9%, transparent), transparent 55%)" }}
+      >
+        <div className="flex flex-wrap items-start gap-x-4 gap-y-1">
+          <span className="flex min-w-64 flex-1 flex-col gap-1">
+            <h2 className="text-xl font-bold tracking-[-0.3px] text-ink">{greeting}</h2>
+            <span className="text-sm text-ink2">
+              {where} {next}
+            </span>
+          </span>
+          <span className="pms-num rounded-full border border-card-bd bg-card px-3 py-1 text-xs font-semibold text-ink2">
+            {day.wd} {day.dd} {day.mon}
+          </span>
+        </div>
+        {mayRoster && maySheet && rostered > 0 && (
+          <Split
+            label="Today's roster"
+            parts={[
+              { key: "in", label: "At work", n: atWork, tone: "ok" },
+              { key: "done", label: "Finished for the day", n: finished, tone: "neutral" },
+              { key: "missing", label: "Not clocked in", n: notIn, tone: "warn" },
+              { key: "later", label: "Due later", n: dueLater, tone: "info" },
+            ]}
+          />
+        )}
+      </section>
 
       {failed.length > 0 && (
         <LoadFailed
@@ -419,14 +522,47 @@ export function Overview() {
         </LoadFailed>
       )}
 
-      {showToday && (
-        <div className="grid grid-cols-2 gap-3 @2xl:grid-cols-4">
-          {mayRoster && <StatCard n={String(rostered)} label="On today's roster" />}
-          {maySheet && <StatCard n={String(inNow)} label="At work now" />}
-          {maySheet && mayRoster && <StatCard n={String(missing.length)} label="Rostered, not clocked in" />}
-          {mayLeave && <StatCard n={String(onLeave.length)} label="On leave today" />}
-        </div>
-      )}
+      <div className="grid grid-cols-2 gap-3 @3xl:grid-cols-4">
+        {maySheet && (
+          <Figure
+            icon={UserCheck}
+            n={String(inNow)}
+            label="At work now"
+            hint={mayRoster ? `of ${rostered} on today's roster` : undefined}
+            tone={inNow > 0 ? "ok" : "neutral"}
+            href={`${base}/attendance`}
+          />
+        )}
+        {maySheet && mayRoster && (
+          <Figure
+            icon={AlarmClock}
+            n={String(missing.length)}
+            label="Not clocked in"
+            hint={missing.length === 0 ? "Everybody due so far is in" : "Their shift has started"}
+            tone={missing.length > 0 ? "warn" : "neutral"}
+            href={`${base}/attendance`}
+          />
+        )}
+        {mayLeave && (
+          <Figure
+            icon={CalendarOff}
+            n={String(onLeave.length)}
+            label="On leave today"
+            hint={leaveSoon.length > 0 ? `${leaveSoon.length} more this week` : undefined}
+            tone={onLeave.length > 0 ? "info" : "neutral"}
+            href={`${base}/leave`}
+          />
+        )}
+        {mayPay && thisMonth && (
+          <Figure
+            icon={Wallet}
+            n={fmt(thisMonth.netRwf)}
+            label="Net pay this month"
+            hint={`${thisMonth.status === "draft" ? "Draft, " : ""}${plural(thisMonth.headcount, "payslip")}`}
+            href={`${base}/payroll`}
+          />
+        )}
+      </div>
 
       <div className="grid grid-cols-1 items-start gap-6 @3xl:grid-cols-2">
         <Part title="Waiting on you">
@@ -508,7 +644,7 @@ export function Overview() {
             ) : (
               <RowList>
                 {toFix.map((row, index) => (
-                  <WaitingRow key={row.key} row={row} index={index} />
+                  <WaitingRow key={row.key} row={row} index={index} wrong />
                 ))}
                 {ending.map((e, index) => (
                   <PersonRow

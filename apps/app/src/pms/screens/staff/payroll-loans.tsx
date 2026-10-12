@@ -25,6 +25,7 @@ import { dshortIso, fmt, todayIso } from "../../lib/format";
 import { usePms } from "../../store";
 import { currentGrant } from "../../store/helpers";
 import { monthName, nextPeriodOf } from "./payroll-ui";
+import { Avatar, FACE, WITH_FACE } from "./staff-look";
 import { Field, FormError, Reveal, inputClass } from "./staff-ui";
 
 const KIND: Record<LoanKind, string> = { loan: "Loan", advance: "Advance" };
@@ -45,8 +46,9 @@ export function PayLoans() {
       key: "employee",
       header: "Person",
       cell: (r) => (
-        <span className="flex flex-col gap-0.5" data-loan={r.id}>
-          <span className="font-semibold text-foreground">{r.employee.displayName}</span>
+        <span className={`${WITH_FACE}`} data-loan={r.id}>
+          <Avatar name={r.employee.displayName} className={FACE} />
+          <span className="font-semibold whitespace-nowrap text-foreground">{r.employee.displayName}</span>
           {r.reason && <span className="text-2xs text-muted-foreground">{r.reason}</span>}
         </span>
       ),

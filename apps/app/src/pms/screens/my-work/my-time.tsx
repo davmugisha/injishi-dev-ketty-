@@ -14,13 +14,15 @@
 
 import type { AttendanceRecord, AttendanceRequest } from "@injishi/contracts";
 import { Button, Input } from "@injishi/ui";
+import { AlarmClock, CalendarCheck, Clock, Timer } from "lucide-react";
 import { useState } from "react";
 
 import { Icon } from "../../components/icon";
-import { ActionButton, Badge, EmptyState, LoadFailed, SectionHeading, StatCard } from "../../components/ui";
+import { ActionButton, Badge, EmptyState, LoadFailed, SectionHeading } from "../../components/ui";
 import { useAskAttendanceFix, useChangeMyKioskPin, useMyAttendance, useMyKioskPin, useMyMonth } from "../../data/my-work";
 import { dshortIso, kigaliDateOf, todayIso } from "../../lib/format";
 import { usePms } from "../../store";
+import { Figure } from "../staff/staff-look";
 import { Field, FormError, RowList, clock, fromLocalInput, hoursText, inputClass, rowClass, toLocalInput } from "../staff/staff-ui";
 import { Loading, Panel, dayText, monthEnd, monthText, shiftMonth } from "./my-work-ui";
 
@@ -214,10 +216,10 @@ export function MyTime({ employeeId }: { employeeId: string }) {
       </div>
 
       <div className="grid grid-cols-2 gap-3 @2xl:grid-cols-4">
-        <StatCard n={s ? String(s.daysWorked) : "…"} label="Days worked" />
-        <StatCard n={s ? hoursText(s.workedMinutes) : "…"} label={s ? `Worked, of ${hoursText(s.expectedMinutes)} rostered` : "Worked"} />
-        <StatCard n={s ? String(s.lateCount) : "…"} label="Late arrivals" />
-        <StatCard n={s ? hoursText(s.approvedOvertimeMinutes) : "…"} label="Overtime approved" />
+        <Figure icon={CalendarCheck} n={s ? String(s.daysWorked) : "…"} label="Days worked" />
+        <Figure icon={Clock} n={s ? hoursText(s.workedMinutes) : "…"} label="Worked" hint={s ? `of ${hoursText(s.expectedMinutes)} rostered` : undefined} />
+        <Figure icon={AlarmClock} n={s ? String(s.lateCount) : "…"} label="Late arrivals" tone={s && s.lateCount > 0 ? "warn" : "neutral"} />
+        <Figure icon={Timer} n={s ? hoursText(s.approvedOvertimeMinutes) : "…"} label="Overtime approved" />
       </div>
 
       {asking && (

@@ -30,6 +30,7 @@ import { fmt, todayIso } from "../../lib/format";
 import { usePms } from "../../store";
 import { currentGrant } from "../../store/helpers";
 import { ReasonForm, monthName } from "./payroll-ui";
+import { Avatar, FACE, WITH_FACE } from "./staff-look";
 import { Field, FormError, inputClass } from "./staff-ui";
 
 const SOURCE: Record<PayAdjustmentSource, string> = {
@@ -61,8 +62,9 @@ export function PayAdjustments() {
       key: "employee",
       header: "Person",
       cell: (r) => (
-        <span className="flex flex-col gap-0.5" data-adjustment={r.id}>
-          <span className="font-semibold text-foreground">{r.employee.displayName}</span>
+        <span className={`${WITH_FACE}`} data-adjustment={r.id}>
+          <Avatar name={r.employee.displayName} className={FACE} />
+          <span className="font-semibold whitespace-nowrap text-foreground">{r.employee.displayName}</span>
           <span className="text-2xs text-muted-foreground">{r.reason}</span>
         </span>
       ),

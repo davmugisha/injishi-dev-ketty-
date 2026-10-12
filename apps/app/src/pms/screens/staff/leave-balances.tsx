@@ -21,6 +21,7 @@ import { useHrCatalog } from "../../data/people-file";
 import { usePms } from "../../store";
 import { currentGrant } from "../../store/helpers";
 import { BalanceDetail } from "./leave-ui";
+import { Avatar, FACE, WITH_FACE } from "./staff-look";
 import { RowList, daysText, rowClass } from "./staff-ui";
 
 export function LeaveBalancesSection() {
@@ -43,8 +44,9 @@ export function LeaveBalancesSection() {
       header: "Person",
       wrap: true,
       cell: (r) => (
-        <span className="flex flex-col gap-0.5" data-balance-row={r.employee.employeeId}>
-          <span className="whitespace-nowrap font-semibold text-foreground">{r.employee.displayName}</span>
+        <span className={`${WITH_FACE}`} data-balance-row={r.employee.employeeId}>
+          <Avatar name={r.employee.displayName} className={FACE} />
+          <span className="font-semibold whitespace-nowrap text-foreground">{r.employee.displayName}</span>
           {r.employee.jobPositionTitle ? <span className="text-2xs text-muted-foreground">{r.employee.jobPositionTitle}</span> : null}
         </span>
       ),

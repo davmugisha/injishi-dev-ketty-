@@ -36,19 +36,21 @@
 
 import { ListQuery, type Kiosk, type KioskPairingCode } from "@injishi/contracts";
 import { Input } from "@injishi/ui";
+import { KeyRound, UserX } from "lucide-react";
 import { useEffect, useState } from "react";
 
 import { cn } from "@/lib/utils";
 
 import { ConfirmAction } from "../../components/confirm-action";
-import { ActionButton, Badge, EmptyState, Initials, SectionHeading, SelectField, StatCard } from "../../components/ui";
+import { ActionButton, Badge, EmptyState, SectionHeading, SelectField } from "../../components/ui";
 import { useCapability, useWorkspaceId } from "../../data/capability";
 import { useEmployees, useRosterPage } from "../../data/people";
 import { useCreateKiosk, useKioskPairingCode, useKiosks, usePinState, useRevokeKiosk, useSetPin, useUnlockPin } from "../../data/time";
-import { addDaysIso, dshortIso, initials, kigaliDateOf, todayIso } from "../../lib/format";
+import { addDaysIso, dshortIso, kigaliDateOf, todayIso } from "../../lib/format";
 import { WEB_URL } from "../../lib/sign-in-url";
 import { usePms } from "../../store";
 import { currentGrant } from "../../store/helpers";
+import { Avatar, Figure } from "./staff-look";
 import { Field, FormError, RowList, clock, inputClass, rowClass, type PersonOption } from "./staff-ui";
 
 /** How many people the PIN list draws at once. Past it, the search finds the rest: each row asks the server about one person. */
@@ -339,8 +341,13 @@ function Pins({ kiosks }: { kiosks: Kiosk[] }) {
       ) : (
         <>
           <div className="grid grid-cols-2 gap-3 @2xl:grid-cols-4">
-            <StatCard n={answered.length === shown.length ? String(withPin) : "…"} label="Have a PIN" />
-            <StatCard n={answered.length === shown.length ? String(shown.length - withPin) : "…"} label="No PIN yet" />
+            <Figure icon={KeyRound} n={answered.length === shown.length ? String(withPin) : "…"} label="Have a PIN" tone="ok" />
+            <Figure
+              icon={UserX}
+              n={answered.length === shown.length ? String(shown.length - withPin) : "…"}
+              label="No PIN yet"
+              tone={answered.length === shown.length && shown.length - withPin > 0 ? "warn" : "neutral"}
+            />
           </div>
           <div className="flex flex-wrap items-end gap-3">
             <div className="min-w-56 flex-1">
@@ -423,7 +430,7 @@ function PinRow({
   return (
     <div className={cn(rowClass(index), "flex flex-col gap-2.5")}>
       <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
-        <Initials>{initials(person.label)}</Initials>
+        <Avatar name={person.label} size={36} />
         <span className="flex min-w-44 flex-1 flex-col">
           <span className="text-sm font-semibold text-ink">{person.label}</span>
           {person.detail && <span className="pms-num text-2xs text-muted-foreground">{person.detail}</span>}

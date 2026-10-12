@@ -38,6 +38,7 @@ import { dshortIso, todayIso } from "../../lib/format";
 import { usePms } from "../../store";
 import { currentGrant } from "../../store/helpers";
 import { RosterWeekGrid } from "./roster-week";
+import { Avatar, FACE, WITH_FACE } from "./staff-look";
 import { Field, FormError, Reveal, RowList, clock, hoursText, inputClass, rowClass } from "./staff-ui";
 
 export function Roster() {
@@ -90,8 +91,9 @@ export function Roster() {
       header: "Person",
       wrap: true,
       cell: (r) => (
-        <span className="flex flex-col gap-0.5" data-roster={r.id}>
-          <span className="whitespace-nowrap font-semibold text-foreground">{r.employee.displayName}</span>
+        <span className={`${WITH_FACE}`} data-roster={r.id}>
+          <Avatar name={r.employee.displayName} className={FACE} />
+          <span className="font-semibold whitespace-nowrap text-foreground">{r.employee.displayName}</span>
           {r.employee.jobPositionTitle ? <span className="text-2xs text-muted-foreground">{r.employee.jobPositionTitle}</span> : null}
         </span>
       ),

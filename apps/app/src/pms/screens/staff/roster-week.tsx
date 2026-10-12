@@ -58,6 +58,7 @@ import { usePublishRoster, useRosterWeek } from "../../data/time";
 import { addDaysIso, dayPartsIso, dshortIso, kigaliDateOf, todayIso } from "../../lib/format";
 import { usePms } from "../../store";
 import { currentGrant } from "../../store/helpers";
+import { Avatar, FACE, WITH_FACE } from "./staff-look";
 import { FormError, clock } from "./staff-ui";
 
 /** The department filter's "no filter": an empty key would read as a blank selection. */
@@ -379,8 +380,10 @@ export function RosterWeekGrid() {
               {people.map((p) => (
                 <tr key={p.employeeId} className="border-t border-line">
                   <th scope="row" className="sticky left-0 bg-card px-3 py-2 text-left align-top font-normal">
-                    <span className="flex flex-col gap-0.5">
-                      <span className="whitespace-nowrap font-semibold text-foreground">{p.displayName}</span>
+                    {/* Seven days need the room on a small laptop: the face goes first. */}
+                    <span className={cn(WITH_FACE, "@max-3xl:gap-x-0")}>
+                      <Avatar name={p.displayName} size={28} className={cn(FACE, "@max-3xl:hidden")} />
+                      <span className="font-semibold whitespace-nowrap text-foreground">{p.displayName}</span>
                       {p.jobPositionTitle && <span className="text-2xs text-muted-foreground">{p.jobPositionTitle}</span>}
                     </span>
                   </th>

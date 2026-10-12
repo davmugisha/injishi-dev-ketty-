@@ -45,13 +45,14 @@ import {
   type EmployeeChecklist,
 } from "@injishi/contracts";
 import { Checkbox, Input } from "@injishi/ui";
+import { AlarmClock, BadgeCheck, ListChecks, UserPlus } from "lucide-react";
 import Link from "next/link";
 import { useState, type ReactNode } from "react";
 
 import { cn } from "@/lib/utils";
 
 import { ConfirmAction } from "../../components/confirm-action";
-import { ActionButton, Badge, EmptyState, Initials, LoadFailed, SectionHeading, SelectField, Skeleton, StatCard } from "../../components/ui";
+import { ActionButton, Badge, EmptyState, LoadFailed, SectionHeading, SelectField, Skeleton } from "../../components/ui";
 import { useCapability, useWorkspaceId } from "../../data/capability";
 import {
   CHECKLIST_ANCHOR,
@@ -63,9 +64,10 @@ import {
   useTickChecklistTask,
 } from "../../data/checklists";
 import { useHrCatalog } from "../../data/people-file";
-import { dshortIso, initials } from "../../lib/format";
+import { dshortIso } from "../../lib/format";
 import { workspaceBase } from "../../lib/nav";
 import { usePms } from "../../store";
+import { Avatar, Figure } from "./staff-look";
 import { Field, FormError, RowList, inputClass, rowClass } from "./staff-ui";
 
 /** When a task is due or was done, and whether it is late: one line a person can act on. */
@@ -177,7 +179,7 @@ function ChecklistCard({
   return (
     <section className="overflow-hidden rounded-card border border-card-bd bg-card" style={{ borderLeft: `3px solid ${edge}` }}>
       <header className="flex flex-wrap items-center gap-x-3 gap-y-2 px-[18px] py-3">
-        <Initials>{initials(checklist.employee.displayName)}</Initials>
+        <Avatar name={checklist.employee.displayName} size={36} />
         <span className="flex min-w-40 flex-1 flex-col">
           <Link
             href={`${base}/${checklist.employee.employeeId}`}
@@ -584,10 +586,10 @@ export function Checklists() {
       </p>
 
       <div className="grid grid-cols-2 gap-3 @2xl:grid-cols-4">
-        <StatCard n={String(open.length)} label="In hand" />
-        <StatCard n={String(lateTasks)} label={lateTasks === 1 ? "Task late" : "Tasks late"} />
-        <StatCard n={String(unstarted.length)} label="No checklist yet" />
-        <StatCard n={String(finished.length)} label="Finished" />
+        <Figure icon={ListChecks} n={String(open.length)} label="In hand" tone={open.length > 0 ? "accent" : "neutral"} />
+        <Figure icon={AlarmClock} n={String(lateTasks)} label={lateTasks === 1 ? "Task late" : "Tasks late"} tone={lateTasks > 0 ? "warn" : "neutral"} />
+        <Figure icon={UserPlus} n={String(unstarted.length)} label="No checklist yet" tone={unstarted.length > 0 ? "warn" : "neutral"} />
+        <Figure icon={BadgeCheck} n={String(finished.length)} label="Finished" tone={finished.length > 0 ? "ok" : "neutral"} />
       </div>
 
       <div role="group" aria-label="Which checklists to show" className="flex flex-wrap items-center gap-2">
@@ -608,7 +610,7 @@ export function Checklists() {
           <RowList>
             {unstarted.map((person, index) => (
               <div key={`${person.employee.employeeId}:${person.kind}`} className={cn(rowClass(index), "flex flex-wrap items-center gap-x-3 gap-y-1.5")}>
-                <Initials>{initials(person.employee.displayName)}</Initials>
+                <Avatar name={person.employee.displayName} size={36} />
                 <span className="flex min-w-44 flex-1 flex-col">
                   <span className="text-sm font-semibold text-ink">{person.employee.displayName}</span>
                   <span className="pms-num text-2xs text-muted-foreground">

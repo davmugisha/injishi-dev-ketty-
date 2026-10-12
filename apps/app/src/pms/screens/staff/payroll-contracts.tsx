@@ -37,6 +37,7 @@ import { addDaysIso, dshortIso, fmt, todayIso } from "../../lib/format";
 import { workspaceBase } from "../../lib/nav";
 import { usePms } from "../../store";
 import { currentGrant } from "../../store/helpers";
+import { Avatar, FACE, WITH_FACE } from "./staff-look";
 import { Field, FormError, Reveal, inputClass, useNarrowScreen } from "./staff-ui";
 
 const BASIS: Record<ContractRow["wageBasis"], string> = { monthly: "a month", daily: "a day", hourly: "an hour" };
@@ -69,8 +70,9 @@ export function PayContracts() {
       key: "employee",
       header: "Person",
       cell: (r) => (
-        <Link href={`${staff}/${r.employee.employeeId}/contracts`} className="flex flex-col gap-0.5 no-underline hover:underline" data-contract={r.id}>
-          <span className="whitespace-nowrap font-semibold text-foreground">{r.employee.displayName}</span>
+        <Link href={`${staff}/${r.employee.employeeId}/contracts`} className={`${WITH_FACE} no-underline hover:underline`} data-contract={r.id}>
+          <Avatar name={r.employee.displayName} className={FACE} />
+          <span className="font-semibold whitespace-nowrap text-foreground">{r.employee.displayName}</span>
           <span className="pms-num text-2xs text-muted-foreground">{r.employeeNumber}</span>
         </Link>
       ),

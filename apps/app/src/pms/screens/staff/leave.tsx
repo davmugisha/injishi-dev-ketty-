@@ -22,9 +22,10 @@
 
 import { LEAVE_REQUEST_LIST, type LeaveRequest, type LeaveRequestStatus } from "@injishi/contracts";
 import { DataView, Input, type DataColumn } from "@injishi/ui";
+import { CalendarDays, CalendarOff, CalendarPlus, Hourglass } from "lucide-react";
 import { useState, type ComponentType } from "react";
 
-import { ActionButton, Badge, EmptyState, SectionHeading, SelectField, StatCard } from "../../components/ui";
+import { ActionButton, Badge, EmptyState, SectionHeading, SelectField } from "../../components/ui";
 import { useCapability, useWorkspaceId } from "../../data/capability";
 import { useLeaveDashboard } from "../../data/leave";
 import { readListIds, runBulkAction, useListUrl, useSavedViewsFor } from "../../data/lists";
@@ -47,6 +48,7 @@ import { LeaveBalancesSection } from "./leave-balances";
 import { RestrictedPeriods } from "./leave-restricted";
 import { LeaveTypes } from "./leave-types";
 import { LEAVE_SECTIONS, LeaveNav, TermsBadges, paymentText, typeTermsText, type LeaveSection } from "./leave-ui";
+import { Avatar, FACE, Figure, WITH_FACE } from "./staff-look";
 import { Field, FormError, daysText, inputClass } from "./staff-ui";
 
 const STATUS: Record<LeaveRequestStatus, { label: string; intent: "ok" | "warn" | "bad" | "neutral" }> = {
@@ -132,8 +134,9 @@ function Requests() {
       // The reason is a sentence: it takes a second line before it makes the table scroll.
       wrap: true,
       cell: (r) => (
-        <span className="flex flex-col gap-0.5" data-leave={r.id}>
-          <span className="whitespace-nowrap font-semibold text-foreground">{r.employee.displayName}</span>
+        <span className={`${WITH_FACE}`} data-leave={r.id}>
+          <Avatar name={r.employee.displayName} className={FACE} />
+          <span className="font-semibold whitespace-nowrap text-foreground">{r.employee.displayName}</span>
           {r.reason ? <span className="text-2xs text-muted-foreground">{r.reason}</span> : null}
           {r.hasAttachment && workspaceId ? (
             <button
@@ -314,10 +317,16 @@ function Dashboard() {
   return (
     <section aria-label="Leave at a glance" className="flex flex-col gap-3">
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-        <StatCard n={String(d.onLeaveToday.length)} label="On leave today" />
-        <StatCard n={String(d.startingThisWeek.length)} label="Starting this week" />
-        <StatCard n={String(d.waiting.requests)} label={`Waiting${d.waiting.routedToMe ? `, ${d.waiting.routedToMe} routed to you` : ""}`} />
-        <StatCard n={String(d.waiting.allocations)} label="Asks for extra days" />
+        <Figure icon={CalendarOff} n={String(d.onLeaveToday.length)} label="On leave today" tone={d.onLeaveToday.length > 0 ? "info" : "neutral"} />
+        <Figure icon={CalendarDays} n={String(d.startingThisWeek.length)} label="Starting this week" />
+        <Figure
+          icon={Hourglass}
+          n={String(d.waiting.requests)}
+          label="Waiting for a decision"
+          hint={d.waiting.routedToMe ? `${d.waiting.routedToMe} routed to you` : undefined}
+          tone={d.waiting.requests > 0 ? "warn" : "neutral"}
+        />
+        <Figure icon={CalendarPlus} n={String(d.waiting.allocations)} label="Asks for extra days" tone={d.waiting.allocations > 0 ? "warn" : "neutral"} />
       </div>
       {d.onLeaveToday.length > 0 && <p className="text-sm text-ink2">Off today: {names(d.onLeaveToday)}.</p>}
       {d.startingThisWeek.length > 0 && <p className="text-sm text-ink2">Starting this week: {names(d.startingThisWeek)}.</p>}

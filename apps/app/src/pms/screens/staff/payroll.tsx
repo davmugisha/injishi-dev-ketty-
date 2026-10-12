@@ -21,11 +21,12 @@
 
 import { ListQuery, PAY_RUN_LIST, type PayRun } from "@injishi/contracts";
 import { BarList, DataView, Input, type DataColumn } from "@injishi/ui";
+import { Coins, CreditCard, Receipt, Wallet } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState, type ComponentType } from "react";
 
-import { ActionButton, Badge, EmptyState, SectionHeading, StatCard } from "../../components/ui";
+import { ActionButton, Badge, EmptyState, SectionHeading } from "../../components/ui";
 import { useWorkspaceId } from "../../data/capability";
 import { useListUrl, useSavedViewsFor } from "../../data/lists";
 import { useCreatePayRun, usePayRunPage } from "../../data/people";
@@ -43,6 +44,7 @@ import { Payslips } from "./payroll-payslips";
 import { PayRules } from "./payroll-rules";
 import { PaySettings } from "./payroll-settings";
 import { PAYROLL_SECTIONS, PayrollNav, monthName, type PayrollSection } from "./payroll-ui";
+import { Figure } from "./staff-look";
 import { Field, FormError } from "./staff-ui";
 
 export { monthName } from "./payroll-ui";
@@ -105,18 +107,12 @@ function Dashboard() {
   const latest = d.months[0];
   const months = d.months.slice(0, 6);
   return (
-    <section className="flex flex-col gap-3" aria-label="Payroll at a glance">
-      <div className="grid gap-3 md:grid-cols-4">
-        <StatCard n={latest ? fmt(latest.netRwf) : "—"} label={latest ? `Net, ${monthName(latest.period)}` : "No run yet"} />
-        <Link href={`${base}/payslips`} className="no-underline">
-          <StatCard n={String(d.unpaidPayslips)} label="Payslips confirmed, not yet paid" />
-        </Link>
-        <Link href={`${base}/claims`} className="no-underline">
-          <StatCard n={String(d.claimsWaiting)} label="Claims waiting" />
-        </Link>
-        <Link href={`${base}/loans`} className="no-underline">
-          <StatCard n={fmt(d.openLoansRwf)} label="Still owed on loans" />
-        </Link>
+    <section className="@container flex flex-col gap-3" aria-label="Payroll at a glance">
+      <div className="grid grid-cols-2 gap-3 @3xl:grid-cols-4">
+        <Figure icon={Wallet} n={latest ? fmt(latest.netRwf) : "—"} label={latest ? `Net pay, ${monthName(latest.period)}` : "No run yet"} tone="accent" />
+        <Figure icon={Coins} n={String(d.unpaidPayslips)} label="Payslips waiting to be paid" tone={d.unpaidPayslips > 0 ? "warn" : "neutral"} href={`${base}/payslips`} />
+        <Figure icon={Receipt} n={String(d.claimsWaiting)} label="Claims to decide" tone={d.claimsWaiting > 0 ? "warn" : "neutral"} href={`${base}/claims`} />
+        <Figure icon={CreditCard} n={fmt(d.openLoansRwf)} label="Still owed on loans" href={`${base}/loans`} />
       </div>
       {months.length > 0 && (
         <div className="rounded-card border border-card-bd bg-card p-4">

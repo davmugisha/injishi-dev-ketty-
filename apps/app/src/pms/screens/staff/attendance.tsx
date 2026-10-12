@@ -45,6 +45,7 @@ import { useCreateAttendanceRequest, useDecideOvertime, useValidateAttendance } 
 import { dshortIso, todayIso } from "../../lib/format";
 import { usePms } from "../../store";
 import { currentGrant } from "../../store/helpers";
+import { Avatar, FACE, Split, WITH_FACE } from "./staff-look";
 import { Field, FormError, Reveal, RowList, clock, fromLocalInput, hoursText, inputClass, rowClass, toLocalInput } from "./staff-ui";
 
 type Fixing = { id: string; name: string; clockInAt: string; clockOutAt: string; note: string };
@@ -141,8 +142,9 @@ export function Attendance() {
       header: "Person",
       wrap: true,
       cell: (r) => (
-        <span className="flex flex-col gap-0.5">
-          <span className="whitespace-nowrap font-semibold text-foreground">{r.employee.displayName}</span>
+        <span className={`${WITH_FACE}`}>
+          <Avatar name={r.employee.displayName} className={FACE} />
+          <span className="font-semibold whitespace-nowrap text-foreground">{r.employee.displayName}</span>
           <span className="text-2xs text-muted-foreground">{sourceText(r)}</span>
           {r.location && (r.location.inDistanceM !== null || r.location.outDistanceM !== null) && (
             <span className="pms-num text-2xs text-muted-foreground">
@@ -259,23 +261,46 @@ export function Attendance() {
 
   return (
     <div className="pms-enter @container flex max-w-page flex-col gap-4">
-      <section>
+      <section className="flex flex-col gap-3">
         <SectionHeading n={onShift.length}>On today&apos;s roster, {dshortIso(today)}</SectionHeading>
+        {!todayRoster.isPending && onShift.length > 0 && (
+          // Where the day stands, before the list: each shift on the roster is in one of three places.
+          <div className="rounded-card border border-card-bd bg-card px-5 py-4" data-sheet-summary>
+            <Split
+              label="Today's roster"
+              parts={[
+                { key: "in", label: "At work", n: onShift.filter((e) => openFor(e.employee.employeeId)).length, tone: "ok" },
+                {
+                  key: "done",
+                  label: "Finished for the day",
+                  n: onShift.filter((e) => !openFor(e.employee.employeeId) && sheet.some((r) => r.rosterEntryId === e.id && r.status === "closed")).length,
+                  tone: "neutral",
+                },
+                {
+                  key: "not-in",
+                  label: "Not clocked in",
+                  n: onShift.filter((e) => !openFor(e.employee.employeeId) && !sheet.some((r) => r.rosterEntryId === e.id && r.status === "closed")).length,
+                  tone: "warn",
+                },
+              ]}
+            />
+          </div>
+        )}
         {todayRoster.isPending ? null : onShift.length === 0 ? (
-          <EmptyState className="mt-2.5 p-5">Nobody is rostered today. Someone not on the roster can still be clocked in below.</EmptyState>
+          <EmptyState className="p-5">Nobody is rostered today. Someone not on the roster can still be clocked in below.</EmptyState>
         ) : (
-          <RowList>
+          <div className="overflow-hidden rounded-card border border-card-bd bg-card">
             {onShift.map((entry, i) => {
               const rec = openFor(entry.employee.employeeId);
               const done = sheet.find((r) => r.rosterEntryId === entry.id && r.status === "closed");
               return (
                 <div key={entry.id} data-sheet={entry.employee.employeeId} className={`${rowClass(i)} flex flex-wrap items-center gap-3`}>
-                  <span className="pms-num w-28 shrink-0 text-sm text-ink2">
-                    {clock(entry.startsAt)}–{clock(entry.endsAt)}
-                  </span>
+                  <Avatar name={entry.employee.displayName} size={36} />
                   <span className="flex min-w-0 flex-1 flex-col gap-0.5">
                     <span className="truncate text-sm font-semibold text-ink">{entry.employee.displayName}</span>
-                    <span className="truncate text-2xs text-muted-foreground">{entry.shiftName}</span>
+                    <span className="pms-num truncate text-2xs text-muted-foreground">
+                      {entry.shiftName} · {clock(entry.startsAt)}–{clock(entry.endsAt)}
+                    </span>
                   </span>
                   {rec ? (
                     <>
@@ -302,7 +327,7 @@ export function Attendance() {
                 </div>
               );
             })}
-          </RowList>
+          </div>
         )}
         <FormError error={clockIn.error ?? clockOut.error} />
       </section>

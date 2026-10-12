@@ -43,6 +43,7 @@ import { workspaceBase } from "../../lib/nav";
 import { usePms } from "../../store";
 import { currentGrant } from "../../store/helpers";
 import { NewStaffFile } from "./new-staff-file";
+import { Avatar } from "./staff-look";
 import { toneIntent, useNarrowScreen } from "./staff-ui";
 
 const ROLE_LABEL: Record<string, string> = {
@@ -57,7 +58,7 @@ const ROLE_LABEL: Record<string, string> = {
 export function Employees() {
   const { state } = usePms();
   const workspaceId = useWorkspaceId();
-  const narrow = useNarrowScreen(1260);
+  const narrow = useNarrowScreen(1300);
   const { can } = useCapability();
   const [adding, setAdding] = useState(false);
   const branches = currentGrant(state)?.branches ?? [];
@@ -86,7 +87,7 @@ export function Employees() {
   const columns = useMemo(() => employeeColumns(base, view === "full"), [base, view]);
 
   return (
-    <div className="pms-enter flex max-w-page flex-col gap-4">
+    <div className="pms-enter @container flex max-w-page flex-col gap-4">
       <div className="flex flex-wrap items-center gap-2">
         <span className="flex-1 text-sm text-muted-foreground">
           Everyone who works here, whether or not they ever sign in. A role comes with an account;
@@ -132,7 +133,10 @@ export function Employees() {
         }}
         card={(e) => (
           <Link href={`${base}/${e.id}`} className="flex flex-col gap-1 no-underline">
-            <span className="text-sm font-semibold text-foreground">{e.displayName}</span>
+            <span className="flex items-center gap-2.5 text-sm font-semibold text-foreground">
+              <Avatar name={e.displayName} size={36} />
+              {e.displayName}
+            </span>
             <span className="text-2xs text-muted-foreground">
               {[e.employeeNumber, e.jobPositionTitle, e.workPropertyName ?? "No branch yet"].filter(Boolean).join(" · ")}
             </span>
@@ -209,7 +213,9 @@ function employeeColumns(base: string, full: boolean): DataColumn<Employee>[] {
       key: "name",
       header: "Name",
       cell: (e) => (
-        <Link href={`${base}/${e.id}`} data-employee={e.employeeNumber} className="font-semibold text-foreground no-underline hover:underline">
+        <Link href={`${base}/${e.id}`} data-employee={e.employeeNumber} className="flex items-center gap-2.5 font-semibold whitespace-nowrap text-foreground no-underline hover:underline">
+          {/* On a small laptop the six columns need the room more than the name needs a face. */}
+          <Avatar name={e.displayName} size={28} className="@max-3xl:hidden" />
           {e.displayName}
         </Link>
       ),
