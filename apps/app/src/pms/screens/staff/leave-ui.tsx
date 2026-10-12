@@ -59,7 +59,7 @@ export function LeaveNav({
           </Link>
         );
       })}
-      <Link href={`${base}/time-settings`} className="px-2 text-sm text-muted-foreground underline-offset-2 hover:underline">
+      <Link href={`${base}/time-settings?part=holidays`} className="px-2 text-sm text-muted-foreground underline-offset-2 hover:underline">
         Holidays and weekly days off
       </Link>
     </nav>
