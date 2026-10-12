@@ -15,14 +15,11 @@
  */
 
 import { CHECKLIST_KIND_LABEL } from "@injishi/contracts";
-import { Checkbox } from "@injishi/ui";
-
-import { cn } from "@/lib/utils";
 
 import { SectionHeading } from "../../components/ui";
 import { useMyChecklists, useTickMyTask } from "../../data/my-work";
 import { usePms } from "../../store";
-import { Progress, taskWhen } from "../staff/checklists";
+import { Progress, TaskRow } from "../staff/checklists";
 import { Panel } from "./my-work-ui";
 
 export function MyChecklist({ employeeId }: { employeeId: string }) {
@@ -60,42 +57,17 @@ export function MyChecklist({ employeeId }: { employeeId: string }) {
                   : "The office does what is left, and ticks it here when it is done."}
               </p>
               <ul aria-label={`Your ${CHECKLIST_KIND_LABEL[checklist.kind].toLowerCase()} checklist`}>
-                {checklist.tasks.map((task) => {
-                  const when = taskWhen(task, today);
-                  const done = task.doneAt !== null;
-                  const label = (
-                    <span className="flex min-w-0 flex-1 flex-wrap items-baseline gap-x-2.5 gap-y-0.5">
-                      <span className={cn("text-sm", done ? "text-muted-foreground line-through" : "text-ink")}>{task.label}</span>
-                      {!task.byEmployee && !done && <span className="text-2xs text-muted-foreground">the office</span>}
-                      <span className={cn("pms-num ml-auto text-2xs", when.late ? "font-semibold text-warn" : "text-muted-foreground")}>
-                        {when.text}
-                      </span>
-                    </span>
-                  );
-                  return (
-                    <li key={task.id} className="border-t border-line px-[18px] py-2">
-                      {task.byEmployee ? (
-                        <Checkbox
-                          isSelected={done}
-                          isDisabled={tick.isPending && tick.variables?.taskId === task.id}
-                          onChange={(on: boolean) => tick.mutate({ taskId: task.id, done: on }, { onError: toastError })}
-                          className="flex w-full items-start gap-2.5 font-normal"
-                          controlClassName="mt-0.5"
-                        >
-                          {label}
-                        </Checkbox>
-                      ) : (
-                        <span className="flex items-start gap-2.5">
-                          <span aria-hidden className="mt-0.5 w-4 shrink-0 text-center text-sm text-muted-foreground">
-                            {done ? "✓" : "·"}
-                          </span>
-                          <span className="sr-only">{done ? "Done:" : "Not done:"}</span>
-                          {label}
-                        </span>
-                      )}
-                    </li>
-                  );
-                })}
+                {checklist.tasks.map((task) => (
+                  <TaskRow
+                    key={task.id}
+                    task={task}
+                    today={today}
+                    tag={task.byEmployee ? "Yours" : "The office"}
+                    canTick={task.byEmployee}
+                    busy={tick.isPending && tick.variables?.taskId === task.id}
+                    onTick={(done) => tick.mutate({ taskId: task.id, done }, { onError: toastError })}
+                  />
+                ))}
               </ul>
             </Panel>
           </div>

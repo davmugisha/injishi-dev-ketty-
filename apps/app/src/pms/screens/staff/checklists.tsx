@@ -10,10 +10,19 @@
  * master key.
  *
  * THE BOARD FIRST, the lists second. Opening this lens is asking "who is
- * partway through, and what is late", so each person's checklist is drawn with
- * its tasks and their days, unfinished before finished. The templates are the
- * business's own wording of the lists and sit below, for whoever keeps the
- * files.
+ * partway through, and what is late", so it opens on four figures that answer
+ * it, then each person's checklist, unfinished before finished. The templates
+ * are the business's own wording of the lists and sit below, for whoever keeps
+ * the files.
+ *
+ * A CHECKLIST IS A CARD THAT FOLDS. Folded it is one line: who, how far
+ * through, how many late, and the next thing to do. A card with something
+ * late opens by itself, and so does every card while there are only a few, so
+ * a hotel with one new starter sees her tasks and one with ten sees ten lines.
+ * Its edge says its state at a glance (amber: something is late; green:
+ * finished) and never alone: the words "2 late" and "Finished" say the same.
+ * A task is ticked on a round mark that fills in the hotel's green, which is
+ * the one control on the row and big enough to hit on a phone.
  *
  * A NEW FILE AND AN OFFBOARDING START THE DEFAULT LIST THEMSELVES. Somebody who
  * joined or left before a list was written shows under "No checklist yet", to
@@ -37,12 +46,12 @@ import {
 } from "@injishi/contracts";
 import { Checkbox, Input } from "@injishi/ui";
 import Link from "next/link";
-import { useState } from "react";
+import { useState, type ReactNode } from "react";
 
 import { cn } from "@/lib/utils";
 
 import { ConfirmAction } from "../../components/confirm-action";
-import { ActionButton, Badge, EmptyState, LoadFailed, SectionHeading, SelectField, Skeleton } from "../../components/ui";
+import { ActionButton, Badge, EmptyState, Initials, LoadFailed, SectionHeading, SelectField, Skeleton, StatCard } from "../../components/ui";
 import { useCapability, useWorkspaceId } from "../../data/capability";
 import {
   CHECKLIST_ANCHOR,
@@ -54,7 +63,7 @@ import {
   useTickChecklistTask,
 } from "../../data/checklists";
 import { useHrCatalog } from "../../data/people-file";
-import { dshortIso } from "../../lib/format";
+import { dshortIso, initials } from "../../lib/format";
 import { workspaceBase } from "../../lib/nav";
 import { usePms } from "../../store";
 import { Field, FormError, RowList, inputClass, rowClass } from "./staff-ui";
@@ -69,11 +78,74 @@ export function taskWhen(task: ChecklistTask, today: string): { text: string; la
 }
 
 /** How far through a checklist is, as a thin bar. The words beside it say the same, so it is hidden from a reader. */
-export function Progress({ done, total }: { done: number; total: number }) {
+export function Progress({ done, total, className }: { done: number; total: number; className?: string }) {
   return (
-    <span aria-hidden className="block h-1.5 w-24 shrink-0 overflow-hidden rounded-full bg-[var(--chart-track)]">
-      <span className="block h-full rounded-r bg-[var(--chart-1)]" style={{ width: `${total === 0 ? 0 : (done / total) * 100}%` }} />
+    <span aria-hidden className={cn("block h-1.5 w-24 shrink-0 overflow-hidden rounded-full bg-[var(--chart-track)]", className)}>
+      <span
+        className={cn("block h-full bg-[var(--chart-1)]", done < total && "rounded-r")}
+        style={{ width: `${total === 0 ? 0 : (done / total) * 100}%` }}
+      />
     </span>
+  );
+}
+
+/**
+ * One task: the mark that ticks it, what it is, whose it is, and its day.
+ *
+ * The mark is a round button that fills in the hotel's green when the task is
+ * done. For somebody who may not tick this task it is drawn the same and is
+ * not a control: they see the state, and a reader hears it in words.
+ */
+export function TaskRow({
+  task,
+  today,
+  tag,
+  canTick,
+  busy,
+  onTick,
+}: {
+  task: ChecklistTask;
+  today: string;
+  /** Whose task it is, when that is worth saying: "Theirs to do", "The office". */
+  tag?: string;
+  canTick: boolean;
+  busy?: boolean;
+  onTick?: (done: boolean) => void;
+}) {
+  const when = taskWhen(task, today);
+  const done = task.doneAt !== null;
+  const mark = cn(
+    "mt-px grid size-5 shrink-0 place-items-center rounded-full border text-2xs leading-none font-bold",
+    done ? "border-[var(--accent)] bg-[var(--accent)] text-[var(--accent-ink)]" : "border-line2 bg-card text-transparent",
+  );
+  return (
+    <li className={cn("flex items-start gap-3 border-t border-line px-[18px] py-2.5", when.late && "bg-warn-bg")}>
+      {canTick ? (
+        <button
+          type="button"
+          role="checkbox"
+          aria-checked={done}
+          aria-label={`${task.label}: ${done ? "done" : "not done"}`}
+          disabled={busy}
+          onClick={() => onTick?.(!done)}
+          className={cn(mark, "cursor-pointer hover:border-[var(--accent)]", !done && "hover:text-accent-text", busy && "opacity-50")}
+        >
+          ✓
+        </button>
+      ) : (
+        <>
+          <span aria-hidden className={cn(mark, !done && "border-dashed")}>
+            ✓
+          </span>
+          <span className="sr-only">{done ? "Done:" : "Not done:"}</span>
+        </>
+      )}
+      <span className="flex min-w-0 flex-1 flex-wrap items-baseline gap-x-2.5 gap-y-0.5">
+        <span className={cn("text-sm", done ? "text-muted-foreground line-through" : "text-ink")}>{task.label}</span>
+        {tag && !done && <Badge intent="neutral">{tag}</Badge>}
+        <span className={cn("pms-num ml-auto text-2xs", when.late ? "font-semibold text-warn" : "text-muted-foreground")}>{when.text}</span>
+      </span>
+    </li>
   );
 }
 
@@ -82,21 +154,31 @@ function ChecklistCard({
   today,
   base,
   mayManage,
+  startOpen,
 }: {
   checklist: EmployeeChecklist;
   today: string;
   base: string;
   mayManage: boolean;
+  startOpen: boolean;
 }) {
   const workspaceId = useWorkspaceId();
   const { toastError } = usePms();
   const tick = useTickChecklistTask(workspaceId);
+  const [open, setOpen] = useState(startOpen);
   const total = checklist.tasks.length;
+  const finished = checklist.doneCount === total;
+  const late = checklist.overdueCount > 0;
+  // The next thing to do: the earliest day among what is not done.
+  const next = checklist.tasks.filter((t) => t.doneAt === null).sort((a, b) => a.dueOn.localeCompare(b.dueOn))[0];
+  // The edge says the state; the badges beside the name say it in words.
+  const edge = finished ? "var(--ok)" : late ? "var(--warn)" : "var(--chart-4)";
 
   return (
-    <section className="overflow-hidden rounded-card border border-card-bd bg-card">
-      <header className="flex flex-wrap items-center gap-x-3 gap-y-1.5 px-[18px] py-3">
-        <span className="flex min-w-0 flex-1 flex-col">
+    <section className="overflow-hidden rounded-card border border-card-bd bg-card" style={{ borderLeft: `3px solid ${edge}` }}>
+      <header className="flex flex-wrap items-center gap-x-3 gap-y-2 px-[18px] py-3">
+        <Initials>{initials(checklist.employee.displayName)}</Initials>
+        <span className="flex min-w-40 flex-1 flex-col">
           <Link
             href={`${base}/${checklist.employee.employeeId}`}
             className="truncate text-sm font-semibold text-ink underline-offset-2 hover:underline"
@@ -104,60 +186,62 @@ function ChecklistCard({
             {checklist.employee.displayName}
           </Link>
           <span className="truncate text-2xs text-muted-foreground">
-            {[checklist.employee.jobPositionTitle, `${checklist.templateName}, ${CHECKLIST_ANCHOR[checklist.kind]} ${dshortIso(checklist.anchorOn)}`]
-              .filter(Boolean)
-              .join(" · ")}
+            {[checklist.employee.jobPositionTitle, `${CHECKLIST_ANCHOR[checklist.kind]} ${dshortIso(checklist.anchorOn)}`].filter(Boolean).join(" · ")}
           </span>
         </span>
-        <Badge intent={checklist.kind === "onboarding" ? "info" : "neutral"}>{CHECKLIST_KIND_LABEL[checklist.kind]}</Badge>
-        {checklist.overdueCount > 0 && <Badge intent="warn">{checklist.overdueCount} late</Badge>}
+        <span className="flex flex-wrap items-center gap-1.5">
+          <Badge intent={checklist.kind === "onboarding" ? "info" : "neutral"}>{CHECKLIST_KIND_LABEL[checklist.kind]}</Badge>
+          {late && <Badge intent="warn">{checklist.overdueCount} late</Badge>}
+          {finished && <Badge intent="ok">Finished</Badge>}
+        </span>
         <span className="flex items-center gap-2">
-          <Progress done={checklist.doneCount} total={total} />
-          <span className="pms-num text-2xs text-ink2">
+          <Progress done={checklist.doneCount} total={total} className="w-28" />
+          <span className="pms-num w-20 text-2xs text-ink2">
             {checklist.doneCount} of {total} done
           </span>
         </span>
+        <ActionButton aria-expanded={open} onClick={() => setOpen((o) => !o)}>
+          {open ? "Hide tasks" : "Show tasks"}
+        </ActionButton>
       </header>
-      <ul aria-label={`${checklist.employee.displayName}: ${CHECKLIST_KIND_LABEL[checklist.kind].toLowerCase()} tasks`}>
-        {checklist.tasks.map((task) => {
-          const when = taskWhen(task, today);
-          const done = task.doneAt !== null;
-          const busy = tick.isPending && tick.variables?.id === task.id;
-          const label = (
-            <span className="flex min-w-0 flex-1 flex-wrap items-baseline gap-x-2.5 gap-y-0.5">
-              <span className={cn("text-sm", done ? "text-muted-foreground line-through" : "text-ink")}>{task.label}</span>
-              {task.byEmployee && <span className="text-2xs text-muted-foreground">theirs to do</span>}
-              <span className={cn("pms-num ml-auto text-2xs", when.late ? "font-semibold text-warn" : "text-muted-foreground")}>
-                {when.text}
-              </span>
-            </span>
-          );
-          return (
-            <li key={task.id} className="border-t border-line px-[18px] py-2">
-              {mayManage ? (
-                <Checkbox
-                  isSelected={done}
-                  isDisabled={busy}
-                  onChange={(on: boolean) => tick.mutate({ id: task.id, done: on }, { onError: toastError })}
-                  className="flex w-full items-start gap-2.5 font-normal"
-                  controlClassName="mt-0.5"
-                >
-                  {label}
-                </Checkbox>
-              ) : (
-                <span className="flex items-start gap-2.5">
-                  <span aria-hidden className="mt-0.5 w-4 shrink-0 text-center text-sm text-muted-foreground">
-                    {done ? "✓" : "·"}
-                  </span>
-                  <span className="sr-only">{done ? "Done:" : "Not done:"}</span>
-                  {label}
-                </span>
-              )}
-            </li>
-          );
-        })}
-      </ul>
+      {!open && next && (
+        <p className="border-t border-line px-[18px] py-2 text-2xs text-muted-foreground">
+          Next: <span className="text-ink2">{next.label}</span>, <span className={next.dueOn < today ? "font-semibold text-warn" : undefined}>{taskWhen(next, today).text}</span>
+        </p>
+      )}
+      {open && (
+        <ul aria-label={`${checklist.employee.displayName}: ${CHECKLIST_KIND_LABEL[checklist.kind].toLowerCase()} tasks, from ${checklist.templateName}`}>
+          {checklist.tasks.map((task) => (
+            <TaskRow
+              key={task.id}
+              task={task}
+              today={today}
+              tag={task.byEmployee ? "Theirs to do" : undefined}
+              canTick={mayManage}
+              busy={tick.isPending && tick.variables?.id === task.id}
+              onTick={(done) => tick.mutate({ id: task.id, done }, { onError: toastError })}
+            />
+          ))}
+        </ul>
+      )}
     </section>
+  );
+}
+
+/** One way to narrow the board: every checklist, or one kind. Drawn as the Leave lens draws its sections. */
+function Narrow({ on, onPress, children }: { on: boolean; onPress: () => void; children: ReactNode }) {
+  return (
+    <button
+      type="button"
+      aria-pressed={on}
+      onClick={onPress}
+      className={cn(
+        "rounded-full border px-3 py-1 text-sm font-semibold",
+        on ? "border-accent-text bg-accent-soft text-accent-text" : "border-card-bd bg-card text-ink2 hover:bg-hover",
+      )}
+    >
+      {children}
+    </button>
   );
 }
 
@@ -454,6 +538,7 @@ export function Checklists() {
   const board = useChecklistBoard(workspaceId);
   const templates = useChecklistTemplates(workspaceId);
   const start = useStartChecklist(workspaceId);
+  const [kind, setKind] = useState<ChecklistKind | "all">("all");
 
   if (board.isPending || templates.isPending) {
     return (
@@ -479,10 +564,17 @@ export function Checklists() {
     );
   }
 
-  const { today, checklists, unstarted } = board.data;
+  const { today } = board.data;
+  const all = board.data.checklists;
+  const checklists = all.filter((c) => kind === "all" || c.kind === kind);
+  const unstarted = board.data.unstarted.filter((u) => kind === "all" || u.kind === kind);
   const open = checklists.filter((c) => c.doneCount < c.tasks.length);
   const finished = checklists.filter((c) => c.doneCount === c.tasks.length);
-  const hasDefault = (kind: ChecklistKind) => templates.data.templates.some((t) => t.kind === kind && t.isDefault);
+  const lateTasks = open.reduce((sum, c) => sum + c.overdueCount, 0);
+  const count = (k: ChecklistKind) => all.filter((c) => c.kind === k).length + board.data.unstarted.filter((u) => u.kind === k).length;
+  const hasDefault = (k: ChecklistKind) => templates.data.templates.some((t) => t.kind === k && t.isDefault);
+  // A few cards are read open; many are read as lines, the late ones open.
+  const few = open.length <= 3;
 
   return (
     <div className="@container relative flex max-w-page flex-col gap-6 pt-4">
@@ -491,12 +583,32 @@ export function Checklists() {
         by themselves; a checklist records that a thing was done and by whom, and changes no pay or access.
       </p>
 
+      <div className="grid grid-cols-2 gap-3 @2xl:grid-cols-4">
+        <StatCard n={String(open.length)} label="In hand" />
+        <StatCard n={String(lateTasks)} label={lateTasks === 1 ? "Task late" : "Tasks late"} />
+        <StatCard n={String(unstarted.length)} label="No checklist yet" />
+        <StatCard n={String(finished.length)} label="Finished" />
+      </div>
+
+      <div role="group" aria-label="Which checklists to show" className="flex flex-wrap items-center gap-2">
+        <Narrow on={kind === "all"} onPress={() => setKind("all")}>
+          All
+        </Narrow>
+        <Narrow on={kind === "onboarding"} onPress={() => setKind("onboarding")}>
+          {CHECKLIST_KIND_LABEL.onboarding} <span className="pms-num font-normal">{count("onboarding")}</span>
+        </Narrow>
+        <Narrow on={kind === "offboarding"} onPress={() => setKind("offboarding")}>
+          {CHECKLIST_KIND_LABEL.offboarding} <span className="pms-num font-normal">{count("offboarding")}</span>
+        </Narrow>
+      </div>
+
       {unstarted.length > 0 && (
         <div className="flex flex-col gap-0">
           <SectionHeading n={unstarted.length}>No checklist yet</SectionHeading>
           <RowList>
             {unstarted.map((person, index) => (
               <div key={`${person.employee.employeeId}:${person.kind}`} className={cn(rowClass(index), "flex flex-wrap items-center gap-x-3 gap-y-1.5")}>
+                <Initials>{initials(person.employee.displayName)}</Initials>
                 <span className="flex min-w-44 flex-1 flex-col">
                   <span className="text-sm font-semibold text-ink">{person.employee.displayName}</span>
                   <span className="pms-num text-2xs text-muted-foreground">
@@ -505,8 +617,10 @@ export function Checklists() {
                       .join(" · ")}
                   </span>
                 </span>
+                <Badge intent={person.kind === "onboarding" ? "info" : "neutral"}>{CHECKLIST_KIND_LABEL[person.kind]}</Badge>
                 {mayManage && (
                   <ActionButton
+                    variant="primary"
                     pending={start.isPending && start.variables?.employeeId === person.employee.employeeId && start.variables.kind === person.kind}
                     deniedReason={hasDefault(person.kind) ? undefined : `Write a ${CHECKLIST_KIND_LABEL[person.kind].toLowerCase()} checklist below and make it the default first.`}
                     onClick={() =>
@@ -516,7 +630,7 @@ export function Checklists() {
                       )
                     }
                   >
-                    Start the {CHECKLIST_KIND_LABEL[person.kind].toLowerCase()} checklist
+                    Start the checklist
                   </ActionButton>
                 )}
               </div>
@@ -529,26 +643,33 @@ export function Checklists() {
         <SectionHeading n={open.length}>In hand</SectionHeading>
         {open.length === 0 ? (
           <EmptyState>
-            {checklists.length === 0
+            {all.length === 0
               ? "Nobody has a checklist yet. The next person put on file starts one, once a joining checklist is written below."
-              : "Every checklist that was started is finished."}
+              : checklists.length === 0
+                ? "Nothing of this kind has been started."
+                : "Every checklist that was started is finished."}
           </EmptyState>
         ) : (
-          open.map((checklist) => <ChecklistCard key={checklist.id} checklist={checklist} today={today} base={base} mayManage={mayManage} />)
+          open.map((checklist) => (
+            <ChecklistCard
+              key={checklist.id}
+              checklist={checklist}
+              today={today}
+              base={base}
+              mayManage={mayManage}
+              startOpen={few || checklist.overdueCount > 0}
+            />
+          ))
         )}
       </div>
 
       {finished.length > 0 && (
-        <details>
-          <summary className="cursor-pointer text-2xs font-bold tracking-[0.09em] uppercase text-[var(--muted2)]">
-            Finished ({finished.length})
-          </summary>
-          <div className="mt-2.5 flex flex-col gap-2.5">
-            {finished.map((checklist) => (
-              <ChecklistCard key={checklist.id} checklist={checklist} today={today} base={base} mayManage={mayManage} />
-            ))}
-          </div>
-        </details>
+        <div className="flex flex-col gap-2.5">
+          <SectionHeading n={finished.length}>Finished</SectionHeading>
+          {finished.map((checklist) => (
+            <ChecklistCard key={checklist.id} checklist={checklist} today={today} base={base} mayManage={mayManage} startOpen={false} />
+          ))}
+        </div>
       )}
 
       {mayManage && <Templates templates={templates.data.templates} />}
