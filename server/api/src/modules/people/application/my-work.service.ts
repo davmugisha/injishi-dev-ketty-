@@ -8,6 +8,7 @@ import type {
   MyAttendanceRequestList,
   MyMonthlySummary,
   MyRoster,
+  MyShiftOptions,
   MyShiftRequestList,
   MyTeam,
   MyTeamAttendance,
@@ -37,7 +38,7 @@ import { displayNameOf, rosterCard } from './employee-presenter';
 import { KioskService } from './kiosk.service';
 import { MyLeaveService } from './my-leave.service';
 import { presentAttendance, presentShift, TimeRequestsService, type RequestActor } from './time-requests.service';
-import { presentEntry, presentRecord, TimeService, type RecordReader } from './time.service';
+import { presentEntry, presentRecord, presentTemplate, TimeService, type RecordReader } from './time.service';
 
 /** A person reads their own figures; a manager their reports' (index contract 7). Distances stay with validators. */
 const OWN_READER: RecordReader = { figures: true, location: false };
@@ -174,6 +175,26 @@ export class MyWorkService {
       mine: mine.map((r) => presentShift(r, employee.id)),
       askedOfMe: askedOfMe.map((r) => presentShift(r, employee.id)),
     };
+  }
+
+  /**
+   * What a request of the person's own may name (AC-TM5): the active shifts of
+   * their branch and the colleagues there, which are exactly what
+   * `createShift` accepts. Somebody with no branch on file has nothing to ask.
+   */
+  async shiftOptions(userId: string, employeeId: string): Promise<MyShiftOptions> {
+    const employee = await this.mine(userId, employeeId);
+    const propertyId = employee.workPropertyId;
+    if (!propertyId) return { shifts: [], colleagues: [] };
+    const [shifts, colleagues] = await Promise.all([
+      this.time.listTemplates(
+        employee.orgId,
+        { coverage: 'limited', selectedPropertyId: null, propertyIds: [propertyId], includesUnbranched: false },
+        propertyId,
+      ),
+      this.work.colleaguesAt(employee.orgId, propertyId, employee.id),
+    ]);
+    return { shifts: shifts.map(presentTemplate), colleagues: colleagues.map(rosterCard) };
   }
 
   async createShiftRequest(userId: string, employeeId: string, body: CreateMyShiftRequestRequest): Promise<ShiftRequest> {

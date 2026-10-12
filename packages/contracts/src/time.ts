@@ -1,6 +1,6 @@
 import { z } from "zod";
 import { LeaveAllocationRequest } from "./leave";
-import { AttendanceRecord, EmployeeStatus, LeaveRequest, RosterCard, RosterEntry } from "./people";
+import { AttendanceRecord, EmployeeStatus, LeaveRequest, RosterCard, RosterEntry, ShiftTemplate } from "./people";
 /**
  * Time (ADR-058, 058-time): publishing the roster, rotations, shift and swap
  * requests, attendance requests, overtime, the attendance policy and geofence
@@ -507,6 +507,13 @@ export const MyShiftRequestList = z.object({
     askedOfMe: z.array(ShiftRequest),
 });
 export type MyShiftRequestList = z.infer<typeof MyShiftRequestList>;
+/**
+ * `GET /me/work/:employeeId/shift-options`: what a request of the person's own
+ * may name (AC-TM5). The active shifts of the branch they work at, and the
+ * colleagues there a swap could be with: a roster card each, never a file.
+ */
+export const MyShiftOptions = z.object({ shifts: z.array(ShiftTemplate), colleagues: z.array(RosterCard) });
+export type MyShiftOptions = z.infer<typeof MyShiftOptions>;
 export const MyAttendance = z.object({
     from: IsoDate,
     to: IsoDate,

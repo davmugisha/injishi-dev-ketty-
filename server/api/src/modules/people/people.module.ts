@@ -20,6 +20,7 @@ import { LeaveTypesService } from './application/leave-types.service';
 import { LeaveService } from './application/leave.service';
 import { LoansService } from './application/loans.service';
 import { MyLeaveService } from './application/my-leave.service';
+import { MyDocumentsService } from './application/my-documents.service';
 import { MyPayService } from './application/my-pay.service';
 import { RestrictedPeriodsService } from './application/restricted-periods.service';
 import { MyWorkService } from './application/my-work.service';
@@ -138,6 +139,7 @@ import { TimeSettingsRepository } from './infrastructure/time-settings.repositor
     PayComponentsService,
     PayrollViewsService,
     MyPayService,
+    MyDocumentsService,
     HrDailyService,
     ...(isWorkerProcess() ? [HrDailyProcessor] : []),
   ],
@@ -164,6 +166,7 @@ import { TimeSettingsRepository } from './infrastructure/time-settings.repositor
     PayComponentsService,
     PayrollViewsService,
     MyPayService,
+    MyDocumentsService,
     HrDailyService,
     HrFilesService,
     PeopleFileService,

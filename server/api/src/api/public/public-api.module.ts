@@ -25,6 +25,7 @@ import { MeController } from './me/me.controller';
 import { MeStaysController } from './me/stays.controller';
 import { MeWorkController } from './me/work.controller';
 import { MeWorkChecklistsController } from './me/work-checklists.controller';
+import { MeWorkDocumentsController } from './me/work-documents.controller';
 import { MeWorkLeaveController } from './me/work-leave.controller';
 import { MeWorkPayController } from './me/work-pay.controller';
 import { KioskController } from './kiosk/kiosk.controller';
@@ -288,6 +289,7 @@ import { WaitlistModule } from './waitlist/waitlist.module';
     MeWorkLeaveController,
     MeWorkPayController,
     MeWorkChecklistsController,
+    MeWorkDocumentsController,
     KioskController,
     TwoFactorController,
     // Answers only in a demo process; 404 everywhere else (AC-S10, ADR-043).
