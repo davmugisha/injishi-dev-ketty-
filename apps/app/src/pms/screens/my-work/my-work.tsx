@@ -10,17 +10,17 @@
  * attendant on the phone surface. Until it existed they could clock a
  * colleague in and not themselves, and asked the office for their own payslip.
  *
- * FOUR LENSES, each a route segment (ADR-018, D-c), so "ask for your leave
- * here" is a link somebody can be sent: Today, My time, My leave, My pay
- * (`MY_WORK_LENSES` in `lib/nav.ts`).
+ * FIVE LENSES, each a route segment (ADR-018, D-c), so "ask for your leave
+ * here" is a link somebody can be sent: Today, My time, My leave, My pay, My
+ * documents (`MY_WORK_LENSES` in `lib/nav.ts`).
  *
  * NOTHING HERE HOLDS A PERMISSION. The door is the person's own staff file at
  * this business (`employeeId` on the grant), and every read and command goes
  * through `/me/work/:employeeId`, where the server answers only for the
  * caller's own file. Somebody with no file here is told so, rather than shown
- * four empty lenses.
+ * five empty lenses.
  *
- * `MyWorkPhone` is the same four lenses for the housekeeper's phone surface,
+ * `MyWorkPhone` is the same five lenses for the housekeeper's phone surface,
  * which has no rail and no routes of its own: a row of chips instead.
  */
 
@@ -34,6 +34,7 @@ import { EmptyState } from "../../components/ui";
 import { useWorkspaceId } from "../../data/capability";
 import { useMyWorkFile } from "../../data/my-work";
 import { MY_WORK_LENSES, workspaceBase } from "../../lib/nav";
+import { MyDocuments } from "./my-documents";
 import { MyLeave } from "./my-leave";
 import { MyPay } from "./my-pay";
 import { MyTime } from "./my-time";
@@ -70,6 +71,8 @@ function Body({ lens, employeeId, base }: { lens: MyWorkLens; employeeId: string
       return <MyLeave employeeId={employeeId} />;
     case "pay":
       return <MyPay employeeId={employeeId} />;
+    case "documents":
+      return <MyDocuments employeeId={employeeId} />;
     default:
       return <MyToday employeeId={employeeId} base={base} />;
   }
@@ -115,7 +118,7 @@ export function MyWorkPhone({ initial = "today" }: { initial?: MyWorkLens }) {
   const employeeId = useMyFileId();
   const [lens, setLens] = useState<MyWorkLens>(initial);
   const Lens: ComponentType<{ employeeId: string }> | null =
-    lens === "time" ? MyTime : lens === "leave" ? MyLeave : lens === "pay" ? MyPay : null;
+    lens === "time" ? MyTime : lens === "leave" ? MyLeave : lens === "pay" ? MyPay : lens === "documents" ? MyDocuments : null;
 
   if (employeeId === null) return NO_FILE;
 

@@ -21,6 +21,7 @@
  */
 
 import {
+  EmployeeDocumentList,
   KioskPinState,
   LeaveRequest,
   MyAttendance,
@@ -34,6 +35,8 @@ import {
   MyMonthlySummary,
   MyPayslipList,
   MyRoster,
+  MyShiftOptions,
+  MyShiftRequestList,
   MyWorkFileList,
   PhoneClockResult,
   type AttendanceRequest,
@@ -41,11 +44,15 @@ import {
   type CreateMyLeaveAllocationRequest,
   type CreateMyLeaveRequestRequest,
   type CreateMyPayClaimRequest,
+  type CreateMyShiftRequestRequest,
+  type EmployeeDocument,
   type LeaveAllocationRequest,
   type MyUpload,
   type MyWorkFile,
   type PayClaim,
   type PhoneClockRequest,
+  type ShiftRequest,
+  type UploadEmployeeDocumentRequest,
 } from "@injishi/contracts";
 import {
   useMutation,
@@ -119,6 +126,9 @@ export const myWorkKeys = {
   loans: (id: string | null) => ["me-work", "loans", id] as const,
   claims: (id: string | null) => ["me-work", "claims", id] as const,
   allocations: (id: string | null) => ["me-work", "leave-allocations", id] as const,
+  documents: (id: string | null) => ["me-work", "documents", id] as const,
+  shiftOptions: (id: string | null) => ["me-work", "shift-options", id] as const,
+  shiftRequests: (id: string | null) => ["me-work", "shift-requests", id] as const,
 };
 
 // --- Reads ---------------------------------------------------------------------
@@ -387,6 +397,93 @@ export function useCancelMyAllocation(employeeId: string | null): UseMutationRes
       void client.invalidateQueries({ queryKey: myWorkKeys.balances(employeeId) });
       void client.invalidateQueries({ queryKey: ["ops", "leave-allocations"] });
     },
+  });
+}
+
+// --- The person's own documents ------------------------------------------------------------------
+
+/** What the office asked of the person and what they handed in, each with its answer (AC-PF4). */
+export function useMyDocuments(employeeId: string | null): UseQueryResult<EmployeeDocumentList> {
+  return useQuery({
+    queryKey: myWorkKeys.documents(employeeId),
+    queryFn: () => mine(`/me/work/${employeeId}/documents`, EmployeeDocumentList),
+    enabled: employeeId !== null,
+  });
+}
+
+/** The file of a document, ahead of the document that names it. Read from its first bytes, as a note is. */
+export function uploadMyDocumentFile(employeeId: string, file: File): Promise<MyUpload> {
+  return upload<MyUpload>(`/me/work/${employeeId}/documents/files`, file);
+}
+
+/**
+ * Hand a document in: for one the office asked for (`documentId`), or a new
+ * one under a title of the person's own. It waits for the office to check it.
+ */
+export function useHandInDocument(
+  employeeId: string | null,
+): UseMutationResult<EmployeeDocument, Error, UploadEmployeeDocumentRequest> {
+  const client = useQueryClient();
+  return useMutation({
+    mutationFn: (body) => ask<EmployeeDocument>(`/me/work/${employeeId}/documents`, body),
+    onSuccess: () => {
+      void client.invalidateQueries({ queryKey: myWorkKeys.documents(employeeId) });
+      void client.invalidateQueries({ queryKey: ["ops", "documents"] });
+      // A request's counts move when one of its documents is handed in.
+      void client.invalidateQueries({ queryKey: ["ops", "document-requests"] });
+    },
+  });
+}
+
+// --- Asking for another shift, or to swap ---------------------------------------------------------
+
+/** What a request may name: the shifts of the person's branch and the colleagues there (AC-TM5). */
+export function useMyShiftOptions(employeeId: string | null, enabled = true): UseQueryResult<MyShiftOptions> {
+  return useQuery({
+    queryKey: myWorkKeys.shiftOptions(employeeId),
+    queryFn: () => mine(`/me/work/${employeeId}/shift-options`, MyShiftOptions),
+    enabled: employeeId !== null && enabled,
+  });
+}
+
+/** What the person asked, and the swaps colleagues asked of them. */
+export function useMyShiftRequests(employeeId: string | null): UseQueryResult<MyShiftRequestList> {
+  return useQuery({
+    queryKey: myWorkKeys.shiftRequests(employeeId),
+    queryFn: () => mine(`/me/work/${employeeId}/shift-requests`, MyShiftRequestList),
+    enabled: employeeId !== null,
+  });
+}
+
+/** A request moved: the person's list, their roster if it was approved meanwhile, and the office's list. */
+function useShiftRequestMoved(employeeId: string | null): () => void {
+  const client = useQueryClient();
+  return () => {
+    void client.invalidateQueries({ queryKey: myWorkKeys.shiftRequests(employeeId) });
+    void client.invalidateQueries({ queryKey: ["ops", "shift-requests"] });
+  };
+}
+
+/** Ask for another shift on some days, or to swap them with a colleague. Nothing moves until it is approved. */
+export function useAskShift(employeeId: string | null): UseMutationResult<ShiftRequest, Error, CreateMyShiftRequestRequest> {
+  const moved = useShiftRequestMoved(employeeId);
+  return useMutation({
+    mutationFn: (body) => ask<ShiftRequest>(`/me/work/${employeeId}/shift-requests`, body),
+    onSuccess: moved,
+  });
+}
+
+/**
+ * Take back a request of one's own, or answer a swap a colleague asked:
+ * accepting sends it on to whoever decides, declining ends it.
+ */
+export function useAnswerMyShift(
+  employeeId: string | null,
+): UseMutationResult<ShiftRequest, Error, { id: string; answer: "cancel" | "accept" | "decline" }> {
+  const moved = useShiftRequestMoved(employeeId);
+  return useMutation({
+    mutationFn: ({ id, answer }) => ask<ShiftRequest>(`/me/work/${employeeId}/shift-requests/${id}/${answer}`),
+    onSuccess: moved,
   });
 }
 

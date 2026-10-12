@@ -419,14 +419,14 @@ describe("My work (058-self-service)", () => {
     }
   });
 
-  test("it sits in the footer, above Settings, with its four lenses", () => {
+  test("it sits in the footer, above Settings, with its five lenses", () => {
     const sections = withFile(grant("owner"));
     const footer = sections.filter((s) => s.placement === "footer").flatMap((s) => s.items.map((i) => i.label));
     assert.deepEqual(footer, ["My work", "Settings"]);
-    assert.deepEqual(item(sections, "My work").lenses.map((l) => l.label), ["Today", "My time", "My leave", "My pay"]);
+    assert.deepEqual(item(sections, "My work").lenses.map((l) => l.label), ["Today", "My time", "My leave", "My pay", "My documents"]);
     assert.deepEqual(
       item(sections, "My work").lenses.map((l) => l.href),
-      [`${BASE}/my-work`, `${BASE}/my-work/time`, `${BASE}/my-work/leave`, `${BASE}/my-work/pay`],
+      [`${BASE}/my-work`, `${BASE}/my-work/time`, `${BASE}/my-work/leave`, `${BASE}/my-work/pay`, `${BASE}/my-work/documents`],
     );
   });
 

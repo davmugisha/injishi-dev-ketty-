@@ -4,7 +4,8 @@
  * My work · Today (ADR-058, 058-self-service).
  *
  * What somebody arriving for a shift wants in one look: the clock, the shifts
- * of this week and next, their joining or leaving checklist while one is in
+ * of this week and next (and a way to ask for another, or to swap one with a
+ * colleague: `MyShifts`), their joining or leaving checklist while one is in
  * hand, and the three figures people ask the office for most (the leave they
  * have left, the month so far, the last payslip), each a link to the lens that
  * holds the rest.
@@ -17,12 +18,13 @@ import Link from "next/link";
 
 import { cn } from "@/lib/utils";
 
-import { EmptyState, LoadFailed, SectionHeading } from "../../components/ui";
+import { EmptyState, LoadFailed } from "../../components/ui";
 import { useMyLeaveBalances, useMyLeaveRequests, useMyMonth, useMyPayslips, useMyRoster } from "../../data/my-work";
 import { addDaysIso, dshortIso, fmt, todayIso } from "../../lib/format";
 import { clock, daysText, hoursText } from "../staff/staff-ui";
 import { ClockCard } from "./clock-card";
 import { MyChecklist } from "./my-checklist";
+import { MyShifts } from "./my-shifts";
 import { Loading, Panel, dayText, mondayOf, monthText } from "./my-work-ui";
 
 /** Two weeks of shifts, a row a day: this week, then next. */
@@ -208,10 +210,9 @@ export function MyToday({
           <ClockCard employeeId={employeeId} />
           <MyChecklist employeeId={employeeId} />
         </div>
-        <div className="flex min-w-0 flex-col gap-2.5">
-          <SectionHeading>Your shifts</SectionHeading>
+        <MyShifts employeeId={employeeId}>
           <Shifts employeeId={employeeId} />
-        </div>
+        </MyShifts>
       </div>
       <Figures employeeId={employeeId} base={base} onOpen={onOpen} />
     </div>

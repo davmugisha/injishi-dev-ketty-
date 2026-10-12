@@ -339,6 +339,7 @@ export const WORKSPACE_ROUTES: readonly string[] = [
   "move-outs",
   // My work (ADR-058, 058-self-service): a person's own file, and its lenses.
   "my-work",
+  "my-work/documents",
   "my-work/leave",
   "my-work/pay",
   "my-work/time",

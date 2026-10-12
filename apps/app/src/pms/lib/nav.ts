@@ -1217,11 +1217,16 @@ export function navFor(ctx: NavContext): NavSection[] {
  * The lenses of My work, in the order its rail shows them. In this file for the
  * reason `STAFF_LENSES` is: which doors a person reaches is one table.
  */
-export const MY_WORK_LENSES: readonly { key: "today" | "time" | "leave" | "pay"; label: string; segment: string }[] = [
+export const MY_WORK_LENSES: readonly {
+  key: "today" | "time" | "leave" | "pay" | "documents";
+  label: string;
+  segment: string;
+}[] = [
   { key: "today", label: "Today", segment: "" },
   { key: "time", label: "My time", segment: "time" },
   { key: "leave", label: "My leave", segment: "leave" },
   { key: "pay", label: "My pay", segment: "pay" },
+  { key: "documents", label: "My documents", segment: "documents" },
 ];
 
 /**
