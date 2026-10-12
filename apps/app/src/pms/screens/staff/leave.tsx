@@ -129,9 +129,11 @@ function Requests() {
     {
       key: "employee",
       header: "Person",
+      // The reason is a sentence: it takes a second line before it makes the table scroll.
+      wrap: true,
       cell: (r) => (
         <span className="flex flex-col gap-0.5" data-leave={r.id}>
-          <span className="font-semibold text-foreground">{r.employee.displayName}</span>
+          <span className="whitespace-nowrap font-semibold text-foreground">{r.employee.displayName}</span>
           {r.reason ? <span className="text-2xs text-muted-foreground">{r.reason}</span> : null}
           {r.hasAttachment && workspaceId ? (
             <button
@@ -145,14 +147,21 @@ function Requests() {
         </span>
       ),
     },
-    { key: "leaveType", header: "Type", cell: (r) => r.leaveType.name },
+    {
+      key: "leaveType",
+      header: "Type",
+      wrap: true,
+      cell: (r) => <span className="whitespace-nowrap @max-4xl:whitespace-normal">{r.leaveType.name}</span>,
+    },
     {
       key: "startsOn",
       header: "From",
+      wrap: true,
+      // Two dates break between them, never inside one, and only on a narrow page.
       cell: (r) => (
-        <span className="pms-num">
-          {dshortIso(r.startsOn)}
-          {r.endsOn !== r.startsOn ? ` to ${dshortIso(r.endsOn)}` : ""}
+        <span className="pms-num flex gap-x-1 @max-4xl:flex-wrap">
+          <span className="whitespace-nowrap">{dshortIso(r.startsOn)}</span>
+          {r.endsOn !== r.startsOn ? <span className="whitespace-nowrap">to {dshortIso(r.endsOn)}</span> : null}
         </span>
       ),
     },
@@ -160,11 +169,17 @@ function Requests() {
       key: "days",
       header: "Days",
       align: "end",
-      cell: (r) => `${daysText(r.days)}${r.status === "requested" ? " (estimated)" : ""}`,
+      cell: (r) => (
+        <span className="flex flex-col items-end">
+          {daysText(r.days)}
+          {r.status === "requested" ? <span className="text-2xs text-muted-foreground">estimated</span> : null}
+        </span>
+      ),
     },
     {
       key: "status",
       header: "Status",
+      wrap: true,
       cell: (r) => (
         <span className="flex flex-col gap-1">
           <span className="flex flex-wrap gap-1.5">
@@ -196,12 +211,14 @@ function Requests() {
       key: "actions",
       header: "",
       align: "end",
+      // On a narrow page the two buttons stack before the table scrolls.
+      wrap: true,
       cell: (r) => {
         const busy = decide.isPending && decide.variables?.id === r.id;
         if (!mayDecide) return null;
         if (r.status === "requested") {
           return (
-            <span className="flex justify-end gap-2">
+            <span className="flex justify-end gap-2 @max-4xl:flex-wrap">
               <ActionButton pending={busy && decide.variables?.decision === "reject"} onClick={() => act(r, "reject")}>
                 Refuse
               </ActionButton>
@@ -224,7 +241,7 @@ function Requests() {
   ];
 
   return (
-    <div className="pms-enter flex max-w-page flex-col gap-4">
+    <div className="pms-enter @container flex max-w-page flex-col gap-4">
       <Dashboard />
 
       <div className="flex flex-wrap items-center gap-2">

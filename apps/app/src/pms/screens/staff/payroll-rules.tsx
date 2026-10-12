@@ -73,7 +73,7 @@ function RuleRow({ rule, index }: { rule: PayrollRule; index: number }) {
           <summary className="cursor-pointer text-2xs font-semibold text-muted-foreground">
             What it says{rule.history.length > 1 ? `, and ${rule.history.length - 1} earlier version${rule.history.length === 2 ? "" : "s"}` : ""}
           </summary>
-          <pre className="mt-2 overflow-x-auto rounded border border-line bg-panel p-3 text-2xs text-ink2">{JSON.stringify(rule.inForce.value, null, 2)}</pre>
+          <pre className="mt-2 rounded border border-line bg-panel p-3 text-2xs break-words whitespace-pre-wrap text-ink2">{JSON.stringify(rule.inForce.value, null, 2)}</pre>
           {rule.history.length > 1 && (
             <ul className="mt-2 flex flex-col gap-1 text-2xs text-muted-foreground">
               {rule.history.map((h) => (

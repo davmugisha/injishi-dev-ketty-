@@ -7,7 +7,7 @@
 
 import type { TagTone } from "@injishi/contracts";
 import { Checkbox, Input } from "@injishi/ui";
-import { useState, type ReactNode } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 
 import { ApiError, humanError } from "../../data/api";
 import { TIMEZONE } from "../../lib/format";
@@ -73,6 +73,26 @@ export function clock(iso: string): string {
     minute: "2-digit",
     hour12: false,
   }).format(new Date(iso));
+}
+
+/**
+ * Whether the window is narrower than a list's every column needs.
+ *
+ * A list that would scroll sideways on a small laptop starts with fewer
+ * columns there, and the rest stay one press away under Columns. False on the
+ * server and on the first render, so the two agree; a list somebody has
+ * already chosen columns for keeps their choice either way.
+ */
+export function useNarrowScreen(maxWidth: number): boolean {
+  const [narrow, setNarrow] = useState(false);
+  useEffect(() => {
+    const query = window.matchMedia(`(max-width: ${maxWidth}px)`);
+    const read = () => setNarrow(query.matches);
+    read();
+    query.addEventListener("change", read);
+    return () => query.removeEventListener("change", read);
+  }, [maxWidth]);
+  return narrow;
 }
 
 /** Minutes as hours and minutes: `7 h 05`, `45 min`. */

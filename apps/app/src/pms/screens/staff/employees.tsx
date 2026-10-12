@@ -46,7 +46,7 @@ import { dshortIso, fmt, todayIso } from "../../lib/format";
 import { workspaceBase } from "../../lib/nav";
 import { usePms } from "../../store";
 import { currentGrant } from "../../store/helpers";
-import { Field, FormError, inputClass, toneIntent } from "./staff-ui";
+import { Field, FormError, inputClass, toneIntent, useNarrowScreen } from "./staff-ui";
 
 const ROLE_LABEL: Record<string, string> = {
   owner: "Owner",
@@ -75,6 +75,7 @@ const EMPTY_FORM = {
 export function Employees() {
   const { state, toast } = usePms();
   const workspaceId = useWorkspaceId();
+  const narrow = useNarrowScreen(1260);
   const { can } = useCapability();
   const [adding, setAdding] = useState(false);
   const create = useCreateEmployee(workspaceId);
@@ -243,7 +244,13 @@ export function Employees() {
         status={page.isError ? "error" : page.isPending ? "loading" : "ready"}
         onRetry={() => void page.refetch()}
         columns={columns}
-        defaultColumns={["employeeNumber", "name", "branch", "hiredOn", "status", "account", "details", "wage"]}
+        // Eight columns need a wide window. A small laptop starts with six; Hired
+        // and Details are one press away under Columns.
+        defaultColumns={
+          narrow
+            ? ["employeeNumber", "name", "branch", "status", "account", "wage"]
+            : ["employeeNumber", "name", "branch", "hiredOn", "status", "account", "details", "wage"]
+        }
         getRowId={(e) => e.id}
         labelOf={(e) => e.displayName}
         groupKeyOf={employeeGroupKey}
@@ -339,11 +346,12 @@ function employeeColumns(base: string, full: boolean): DataColumn<Employee>[] {
         </Link>
       ),
     },
-    { key: "jobPosition", header: "Position", cell: (e) => e.jobPositionTitle ?? "None yet" },
+    { key: "jobPosition", header: "Position", wrap: true, cell: (e) => e.jobPositionTitle ?? "None yet" },
     { key: "employeeType", header: "Type", cell: (e) => e.employeeType?.title ?? "—" },
     {
       key: "tags",
       header: "Tags",
+      wrap: true,
       cell: (e) =>
         e.tags.length === 0 ? (
           "—"
@@ -357,7 +365,13 @@ function employeeColumns(base: string, full: boolean): DataColumn<Employee>[] {
           </span>
         ),
     },
-    { key: "branch", header: "Branch", cell: (e) => e.workPropertyName ?? "No branch yet" },
+    {
+      key: "branch",
+      header: "Branch",
+      // A long branch name takes a second line, never a third.
+      wrap: true,
+      cell: (e) => <span className="block min-w-32">{e.workPropertyName ?? "No branch yet"}</span>,
+    },
     { key: "hiredOn", header: "Hired", cell: (e) => <span className="pms-num">{dshortIso(e.hiredOn)}</span> },
     {
       key: "status",

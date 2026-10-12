@@ -24,7 +24,7 @@ import { downloadPayPdf, useMarkPaid, usePayslipPage, useUnmarkPaid } from "../.
 import { dshortIso, fmt, kigaliDateOf, todayIso } from "../../lib/format";
 import { usePms } from "../../store";
 import { currentGrant } from "../../store/helpers";
-import { PAID_METHOD_LABEL, ReasonForm, monthName } from "./payroll-ui";
+import { PAID_METHOD_LABEL, ReasonForm, monthName, monthShort } from "./payroll-ui";
 import { Field, FormError, inputClass } from "./staff-ui";
 
 interface PaidDraft {
@@ -55,13 +55,13 @@ export function Payslips() {
   };
 
   const columns: DataColumn<PayslipRow>[] = [
-    { key: "period", header: "Month", cell: (r) => monthName(r.period) },
+    { key: "period", header: "Month", cell: (r) => monthShort(r.period) },
     {
       key: "employee",
       header: "Person",
       cell: (r) => (
         <span className="flex flex-col gap-0.5" data-payslip-row={r.id}>
-          <span className="font-semibold text-foreground">{r.employee.displayName}</span>
+          <span className="whitespace-nowrap font-semibold text-foreground">{r.employee.displayName}</span>
           <span className="pms-num text-2xs text-muted-foreground">{r.employeeNumber}</span>
         </span>
       ),
@@ -71,32 +71,36 @@ export function Payslips() {
     {
       key: "paid",
       header: "Paid",
-      cell: (r) =>
-        r.status === "draft" ? (
-          <Badge intent="neutral">Draft</Badge>
-        ) : r.paidAt ? (
-          <span className="flex flex-col gap-0.5">
-            <Badge intent="ok">
-              {PAID_METHOD_LABEL[r.paidMethod ?? "bank"]} · {dshortIso(kigaliDateOf(r.paidAt))}
-            </Badge>
-            <span className="pms-num text-2xs text-muted-foreground">{r.paidReference}</span>
-          </span>
-        ) : (
-          <Badge intent="warn">To pay</Badge>
-        ),
-    },
-    {
-      key: "sent",
-      header: "Downloaded",
-      cell: (r) => (r.sentAt ? <span className="text-2xs text-muted-foreground">By them, {dshortIso(kigaliDateOf(r.sentAt))}</span> : null),
+      wrap: true,
+      // What became of the payslip, in one cell: paid how and when, and whether
+      // the person has downloaded it. That was a column of its own, empty on most rows.
+      cell: (r) => (
+        <span className="flex flex-col items-start gap-0.5">
+          {r.status === "draft" ? (
+            <Badge intent="neutral">Draft</Badge>
+          ) : r.paidAt ? (
+            <>
+              <Badge intent="ok">
+                {PAID_METHOD_LABEL[r.paidMethod ?? "bank"]} · {dshortIso(kigaliDateOf(r.paidAt))}
+              </Badge>
+              <span className="pms-num text-2xs text-muted-foreground">{r.paidReference}</span>
+            </>
+          ) : (
+            <Badge intent="warn">To pay</Badge>
+          )}
+          {r.sentAt ? <span className="text-2xs text-muted-foreground">Downloaded by them, {dshortIso(kigaliDateOf(r.sentAt))}</span> : null}
+        </span>
+      ),
     },
     {
       key: "actions",
       header: "",
       align: "end",
+      // On a narrow page the two buttons stack before the table scrolls.
+      wrap: true,
       cell: (r) =>
         r.status !== "confirmed" ? null : (
-          <span className="flex justify-end gap-2">
+          <span className="flex justify-end gap-2 @max-4xl:flex-wrap">
             <ActionButton onClick={() => print(r)}>PDF</ActionButton>
             {r.paidAt ? (
               <ActionButton onClick={() => setUnmarking(r)}>Unmark</ActionButton>
@@ -113,7 +117,7 @@ export function Payslips() {
   const paidLine = `${PAID_METHOD_LABEL[paid.method]} on ${dshortIso(paid.paidOn)}${paid.reference.trim() ? `, reference ${paid.reference.trim()}` : ""}`;
 
   return (
-    <div className="pms-enter flex max-w-page flex-col gap-4">
+    <div className="pms-enter @container flex max-w-page flex-col gap-4">
       <p className="text-sm text-muted-foreground">
         Mark payslips paid once the money has left: one at a time, or select several and mark them in one go with the
         same way and reference. A wrong reference is unmarked with a reason, then marked again.

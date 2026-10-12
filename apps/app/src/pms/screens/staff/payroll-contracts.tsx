@@ -37,7 +37,7 @@ import { addDaysIso, dshortIso, fmt, todayIso } from "../../lib/format";
 import { workspaceBase } from "../../lib/nav";
 import { usePms } from "../../store";
 import { currentGrant } from "../../store/helpers";
-import { Field, FormError, inputClass } from "./staff-ui";
+import { Field, FormError, inputClass, useNarrowScreen } from "./staff-ui";
 
 const BASIS: Record<ContractRow["wageBasis"], string> = { monthly: "a month", daily: "a day", hourly: "an hour" };
 const STATUS: Record<string, { label: string; intent: "ok" | "warn" | "neutral" }> = {
@@ -62,24 +62,43 @@ export function PayContracts() {
   const page = useContractPage(workspaceId, list.state.query);
   const structureName = (id: string | null) => (id ? (structures.data ?? []).find((s) => s.id === id)?.name ?? "A structure" : null);
 
+  const narrow = useNarrowScreen(1130);
+
   const columns: DataColumn<ContractRow>[] = [
     {
       key: "employee",
       header: "Person",
       cell: (r) => (
         <Link href={`${staff}/${r.employee.employeeId}/contracts`} className="flex flex-col gap-0.5 no-underline hover:underline" data-contract={r.id}>
-          <span className="font-semibold text-foreground">{r.employee.displayName}</span>
+          <span className="whitespace-nowrap font-semibold text-foreground">{r.employee.displayName}</span>
           <span className="pms-num text-2xs text-muted-foreground">{r.employeeNumber}</span>
         </Link>
       ),
     },
-    { key: "contractType", header: "Kind", cell: (r) => r.contractType.replace(/_/g, " ") },
+    { key: "contractType", header: "Kind", wrap: true, cell: (r) => r.contractType.replace(/_/g, " ") },
     {
       key: "startsOn",
       header: "Dates",
-      cell: (r) => `${dshortIso(r.startsOn)} to ${r.endsOn ? dshortIso(r.endsOn) : "open"}`,
+      wrap: true,
+      // Two dates break between them, never inside one, and only on a narrow page.
+      cell: (r) => (
+        <span className="flex gap-x-1 @max-4xl:flex-wrap">
+          <span className="whitespace-nowrap">{dshortIso(r.startsOn)}</span>
+          <span className="whitespace-nowrap">to {r.endsOn ? dshortIso(r.endsOn) : "open"}</span>
+        </span>
+      ),
     },
-    { key: "wageBasis", header: "Wage", align: "end", cell: (r) => `${fmt(r.wageRwf)} ${BASIS[r.wageBasis]}` },
+    {
+      key: "wageBasis",
+      header: "Wage",
+      align: "end",
+      cell: (r) => (
+        <span className="flex flex-col items-end">
+          {fmt(r.wageRwf)}
+          <span className="text-2xs text-muted-foreground">{BASIS[r.wageBasis]}</span>
+        </span>
+      ),
+    },
     {
       key: "terms",
       header: "Pay terms",
@@ -102,9 +121,11 @@ export function PayContracts() {
       key: "actions",
       header: "",
       align: "end",
+      // On a narrow page the two buttons stack before the table scrolls.
+      wrap: true,
       cell: (r) =>
         r.status === "ended" ? null : (
-          <span className="flex justify-end gap-2">
+          <span className="flex justify-end gap-2 @max-4xl:flex-wrap">
             {mayWrite && (
               <ActionButton
                 onClick={() => {
@@ -129,7 +150,7 @@ export function PayContracts() {
   ];
 
   return (
-    <div className="pms-enter flex max-w-page flex-col gap-4">
+    <div className="pms-enter @container flex max-w-page flex-col gap-4">
       <p className="text-sm text-muted-foreground">
         Every contract, running and ended. Change pay gives somebody a new wage from a day you choose; the structure and
         the notice a contract carries are set under Pay terms.
@@ -149,6 +170,8 @@ export function PayContracts() {
           status={page.isError ? "error" : page.isPending ? "loading" : "ready"}
           onRetry={() => void page.refetch()}
           columns={columns}
+          // A small laptop starts without the pay terms: they are behind the Pay terms button on each row.
+          defaultColumns={narrow ? ["employee", "contractType", "startsOn", "wageBasis", "status", "actions"] : undefined}
           getRowId={(r) => r.id}
           labelOf={(r) => r.employee.displayName}
           groupKeyOf={(r, field) => (field === "wageBasis" ? r.wageBasis : field === "branch" ? r.branchId : null)}

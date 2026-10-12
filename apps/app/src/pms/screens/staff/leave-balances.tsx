@@ -2,15 +2,15 @@
 
 /**
  * Leave · Balances (058-leave AC-LV13): everybody at your branches, a figure
- * per type, each the sum of that person's ledger. Open a person to read what
- * stands behind each figure: the lots still holding days, when each stops
+ * per type, each the sum of that person's ledger. "Details" on a person
+ * shows what stands behind each figure: the lots still holding days, when each stops
  * being usable, and every ledger row. Read only; days change through a request,
  * an ask for days, or the daily job.
  */
 
 import { LEAVE_BALANCE_LIST, type LeaveBalanceRow } from "@injishi/contracts";
 import { DataView, type DataColumn } from "@injishi/ui";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 import { ActionButton, LoadFailed, SectionHeading, Skeleton } from "../../components/ui";
 import { useWorkspaceId } from "../../data/capability";
@@ -41,9 +41,10 @@ export function LeaveBalancesSection() {
     {
       key: "employee",
       header: "Person",
+      wrap: true,
       cell: (r) => (
         <span className="flex flex-col gap-0.5" data-balance-row={r.employee.employeeId}>
-          <span className="font-semibold text-foreground">{r.employee.displayName}</span>
+          <span className="whitespace-nowrap font-semibold text-foreground">{r.employee.displayName}</span>
           {r.employee.jobPositionTitle ? <span className="text-2xs text-muted-foreground">{r.employee.jobPositionTitle}</span> : null}
         </span>
       ),
@@ -51,11 +52,17 @@ export function LeaveBalancesSection() {
     ...shown.map(
       (t): DataColumn<LeaveBalanceRow> => ({
         key: `type:${t.id}`,
-        header: t.name,
+        // A column a type: on a page that is all leave, "Annual" says "Annual leave" in half the width.
+        header: t.name.replace(/\s+leave$/i, "") || t.name,
         align: "end",
         cell: (r) => {
           const days = r.balances.find((b) => b.leaveTypeId === t.id)?.days;
-          return <span className="pms-num">{days === null || days === undefined ? "" : daysText(days)}</span>;
+          // The number alone: six columns of "12.5 days" are wider than a small laptop.
+          return (
+            <span className="pms-num" title={days === null || days === undefined ? undefined : daysText(days)}>
+              {days === null || days === undefined ? "" : Number.isInteger(days) ? days : days.toFixed(1)}
+            </span>
+          );
         },
       }),
     ),
@@ -69,7 +76,7 @@ export function LeaveBalancesSection() {
             setOpen(open?.id === r.employee.employeeId ? null : { id: r.employee.employeeId, name: r.employee.displayName })
           }
         >
-          {open?.id === r.employee.employeeId ? "Close" : "What stands behind it"}
+          {open?.id === r.employee.employeeId ? "Hide" : "Details"}
         </ActionButton>
       ),
     },
@@ -78,8 +85,8 @@ export function LeaveBalancesSection() {
   return (
     <div className="pms-enter flex max-w-page flex-col gap-4">
       <p className="text-sm text-muted-foreground">
-        Each figure is the sum of the person&apos;s ledger, caught up to today: what they earned, carried and were
-        given, less what they took, what was paid out and what expired.
+        Each figure is a number of days: the sum of the person&apos;s ledger, caught up to today. What they earned,
+        carried and were given, less what they took, what was paid out and what expired.
       </p>
       <section className="flex flex-col gap-3">
         <SectionHeading n={page.data?.total}>Balances</SectionHeading>
@@ -115,8 +122,13 @@ export function LeaveBalancesSection() {
 function PersonLedger({ employeeId, name }: { employeeId: string; name: string }) {
   const workspaceId = useWorkspaceId();
   const query = useLeaveBalances(workspaceId, employeeId);
+  // It opens under the table, which on a full page is below the fold: bring it into view.
+  const section = useRef<HTMLElement>(null);
+  useEffect(() => {
+    section.current?.scrollIntoView({ block: "nearest", behavior: "smooth" });
+  }, [employeeId, query.isPending]);
   return (
-    <section aria-label={`${name}: leave`} className="flex flex-col gap-2">
+    <section ref={section} aria-label={`${name}: leave`} className="flex scroll-mb-6 flex-col gap-2">
       <SectionHeading>{name}</SectionHeading>
       {query.isPending ? (
         <Skeleton height={120} />

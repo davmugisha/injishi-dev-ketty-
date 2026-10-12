@@ -88,6 +88,14 @@ export function monthName(period: string): string {
   );
 }
 
+/** `2026-09` as a table column says it: `Sep 2026`. */
+export function monthShort(period: string): string {
+  const [y, m] = period.split("-").map(Number);
+  return new Intl.DateTimeFormat("en-GB", { month: "short", year: "numeric", timeZone: "UTC" }).format(
+    new Date(Date.UTC(y, m - 1, 1)),
+  );
+}
+
 /** The month after `2026-09`. */
 export function nextPeriodOf(period: string): string {
   const [y, m] = period.split("-").map(Number);

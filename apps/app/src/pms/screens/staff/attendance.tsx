@@ -139,9 +139,10 @@ export function Attendance() {
     {
       key: "employee",
       header: "Person",
+      wrap: true,
       cell: (r) => (
         <span className="flex flex-col gap-0.5">
-          <span className="font-semibold text-foreground">{r.employee.displayName}</span>
+          <span className="whitespace-nowrap font-semibold text-foreground">{r.employee.displayName}</span>
           <span className="text-2xs text-muted-foreground">{sourceText(r)}</span>
           {r.location && (r.location.inDistanceM !== null || r.location.outDistanceM !== null) && (
             <span className="pms-num text-2xs text-muted-foreground">
@@ -166,7 +167,7 @@ export function Attendance() {
                   {(r.figures.overtimeMinutes ?? 0) > 0 && (
                     <span>
                       overtime {hoursText(r.figures.overtimeMinutes ?? 0)}
-                      {r.figures.approvedOvertimeMinutes === null ? ", to decide" : `, ${r.figures.approvedOvertimeMinutes} approved`}
+                      {r.figures.approvedOvertimeMinutes === null ? ", to decide" : `, ${hoursText(r.figures.approvedOvertimeMinutes)} approved`}
                     </span>
                   )}
                 </span>
@@ -178,12 +179,13 @@ export function Attendance() {
     {
       key: "status",
       header: "Status",
+      wrap: true,
       cell: (r) => (
         <span className="flex flex-wrap gap-1.5">
           <Badge intent={r.status === "open" ? "ok" : "neutral"}>
             {r.status === "open" ? "In" : r.status === "closed" ? "Closed" : "Corrected"}
           </Badge>
-          {!r.validated && r.status !== "superseded" && <Badge intent="warn">Waiting for validation</Badge>}
+          {!r.validated && r.status !== "superseded" && <Badge intent="warn">To validate</Badge>}
           {r.autoClosed && r.status === "closed" && <Badge intent="bad">Closed by the sweep</Badge>}
         </span>
       ),
@@ -192,8 +194,10 @@ export function Attendance() {
       key: "actions",
       header: "",
       align: "end",
+      // On a narrow page the buttons stack before the table scrolls.
+      wrap: true,
       cell: (r) => (
-        <span className="flex justify-end gap-2">
+        <span className="flex justify-end gap-2 @max-4xl:flex-wrap">
           {r.status === "open" && mayRecord && (
             <ActionButton pending={clockOut.isPending && clockOut.variables?.id === r.id} onClick={() => doClockOut(r)}>
               Clock out
@@ -254,7 +258,7 @@ export function Attendance() {
   ];
 
   return (
-    <div className="pms-enter flex max-w-page flex-col gap-4">
+    <div className="pms-enter @container flex max-w-page flex-col gap-4">
       <section>
         <SectionHeading n={onShift.length}>On today&apos;s roster, {dshortIso(today)}</SectionHeading>
         {todayRoster.isPending ? null : onShift.length === 0 ? (

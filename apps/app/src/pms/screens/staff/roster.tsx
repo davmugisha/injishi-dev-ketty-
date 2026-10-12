@@ -88,20 +88,30 @@ export function Roster() {
     {
       key: "employee",
       header: "Person",
+      wrap: true,
       cell: (r) => (
         <span className="flex flex-col gap-0.5" data-roster={r.id}>
-          <span className="font-semibold text-foreground">{r.employee.displayName}</span>
+          <span className="whitespace-nowrap font-semibold text-foreground">{r.employee.displayName}</span>
           {r.employee.jobPositionTitle ? <span className="text-2xs text-muted-foreground">{r.employee.jobPositionTitle}</span> : null}
         </span>
       ),
     },
     { key: "shift", header: "Shift", cell: (r) => r.shiftName },
-    { key: "branch", header: "Branch", cell: (r) => branchName(r.propertyId) },
+    { key: "branch", header: "Branch", wrap: true, cell: (r) => branchName(r.propertyId) },
     {
       key: "status",
       header: "Status",
+      wrap: true,
+      // The reason is a sentence: under the word, where it can take a second line.
       cell: (r) =>
-        r.status === "scheduled" ? <Badge intent="ok">Scheduled</Badge> : <Badge>{r.cancelReason ?? "Cancelled"}</Badge>,
+        r.status === "scheduled" ? (
+          <Badge intent="ok">Scheduled</Badge>
+        ) : (
+          <span className="flex flex-col items-start gap-0.5">
+            <Badge>Cancelled</Badge>
+            {r.cancelReason ? <span className="text-2xs text-muted-foreground">{r.cancelReason}</span> : null}
+          </span>
+        ),
     },
     {
       key: "actions",

@@ -341,7 +341,10 @@ export function RosterWeekGrid() {
               : "Nobody is on a shift this week here."}
         </EmptyState>
       ) : (
-        <div className="overflow-x-auto rounded-card border border-card-bd bg-card">
+        // Seven days and a name have to fit a 1366 pixel laptop: the day is two
+        // short lines, the cells are close, and on the narrowest screens a shift
+        // shows its name alone (its hours are in the key above, and on hover).
+        <div className="@container overflow-x-auto rounded-card border border-card-bd bg-card">
           <table className="w-full min-w-max border-collapse text-sm">
             <caption className="sr-only">Shifts of the week of {dshortIso(from)}</caption>
             <thead>
@@ -352,10 +355,20 @@ export function RosterWeekGrid() {
                 {days.map((d) => {
                   const parts = dayPartsIso(d);
                   return (
-                    <th key={d} scope="col" className="px-2 py-2 text-left text-2xs font-bold text-muted-foreground">
-                      <span className={d === today ? "text-foreground" : undefined}>
-                        {parts.wd} {parts.dd} {parts.mon}
-                        {d === today ? " · today" : ""}
+                    <th
+                      key={d}
+                      scope="col"
+                      aria-current={d === today ? "date" : undefined}
+                      className="px-1.5 py-2 text-left text-2xs font-bold text-muted-foreground"
+                    >
+                      <span className={cn("flex flex-col", d === today && "text-accent-text")}>
+                        <span>
+                          {parts.wd}
+                          {d === today ? " · today" : ""}
+                        </span>
+                        <span className="pms-num font-normal">
+                          {parts.dd} {parts.mon}
+                        </span>
                       </span>
                     </th>
                   );
@@ -367,7 +380,7 @@ export function RosterWeekGrid() {
                 <tr key={p.employeeId} className="border-t border-line">
                   <th scope="row" className="sticky left-0 bg-card px-3 py-2 text-left align-top font-normal">
                     <span className="flex flex-col gap-0.5">
-                      <span className="font-semibold text-foreground">{p.displayName}</span>
+                      <span className="whitespace-nowrap font-semibold text-foreground">{p.displayName}</span>
                       {p.jobPositionTitle && <span className="text-2xs text-muted-foreground">{p.jobPositionTitle}</span>}
                     </span>
                   </th>
@@ -380,16 +393,17 @@ export function RosterWeekGrid() {
                           <span
                             key={e.id}
                             data-entry={e.id}
+                            title={`${e.shiftName}, ${clock(e.startsAt)}–${clock(e.endsAt)}`}
                             style={shadeStyle(shadeOf.get(e.shiftTemplateId))}
                             className={cn(
-                              "flex flex-col gap-0.5 rounded border px-2 py-1",
+                              "flex flex-col gap-0.5 rounded border px-1.5 py-1",
                               e.publishedAt === null ? "border-dashed border-line2" : "border-transparent",
                               // A shift with no shade (its template was archived) keeps the plain outline.
                               !shadeOf.has(e.shiftTemplateId) && e.publishedAt !== null && "border-line",
                             )}
                           >
                             <span className="font-semibold text-ink">{e.shiftName}</span>
-                            <span className="pms-num text-2xs text-ink2">
+                            <span className="pms-num whitespace-nowrap text-2xs text-ink2 @max-3xl:hidden">
                               {clock(e.startsAt)}–{clock(e.endsAt)}
                             </span>
                             <span className="flex flex-wrap gap-1">
@@ -403,7 +417,7 @@ export function RosterWeekGrid() {
                     );
                     if (!mayRoster) {
                       return (
-                        <td key={d} className="px-2 py-2 align-top">
+                        <td key={d} className="px-1 py-2 align-top">
                           {chips}
                         </td>
                       );
@@ -414,7 +428,7 @@ export function RosterWeekGrid() {
                     // empty day, and nothing for a day on two shifts.
                     const current = here.length === 1 ? here[0].shiftTemplateId : here.length === 0 ? DAY_OFF : "";
                     return (
-                      <td key={d} className="p-1 align-top">
+                      <td key={d} className="p-0.5 align-top">
                         <DropdownMenu>
                           <DropdownMenuTrigger asChild>
                             <button
@@ -422,7 +436,7 @@ export function RosterWeekGrid() {
                               disabled={waiting}
                               aria-label={`${p.displayName}, ${dayName}: ${here.length > 0 ? here.map((e) => e.shiftName).join(" and ") : "off"}. Change`}
                               className={cn(
-                                "group flex min-h-14 w-full min-w-24 cursor-pointer flex-col rounded p-1 text-left hover:bg-hover",
+                                "group flex min-h-14 w-full min-w-[4.5rem] cursor-pointer flex-col rounded p-0.5 text-left hover:bg-hover",
                                 "data-[state=open]:bg-hover data-[state=open]:outline data-[state=open]:outline-2 data-[state=open]:outline-accent",
                                 waiting && "opacity-50",
                               )}
