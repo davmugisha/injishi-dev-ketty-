@@ -38,7 +38,7 @@ import { dshortIso, todayIso } from "../../lib/format";
 import { usePms } from "../../store";
 import { currentGrant } from "../../store/helpers";
 import { RosterWeekGrid } from "./roster-week";
-import { Field, FormError, RowList, clock, inputClass, rowClass } from "./staff-ui";
+import { Field, FormError, RowList, clock, hoursText, inputClass, rowClass } from "./staff-ui";
 
 export function Roster() {
   const { state, toast } = usePms();
@@ -353,7 +353,7 @@ export function Roster() {
                   {branches.length > 1 && <span className="text-2xs text-muted-foreground">{branchName(s.propertyId)}</span>}
                   {s.crossesMidnight && <Badge intent="info">Overnight</Badge>}
                   {s.autoClockOutMinutes !== null && (
-                    <span className="text-2xs text-muted-foreground">clocks out {s.autoClockOutMinutes} min after</span>
+                    <span className="text-2xs text-muted-foreground">clocks out {hoursText(s.autoClockOutMinutes)} after</span>
                   )}
                   {mayRoster && shiftForm?.id !== s.id && (
                     <ActionButton

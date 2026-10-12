@@ -304,11 +304,11 @@ export function MyTime({ employeeId }: { employeeId: string }) {
                   </span>
                   <span className="flex flex-wrap items-center gap-1.5">
                     {r.status === "open" && <Badge intent="ok">At work</Badge>}
-                    {(r.figures?.lateMinutes ?? 0) > 0 && <Badge intent="warn">Late {r.figures?.lateMinutes} min</Badge>}
-                    {(r.figures?.earlyMinutes ?? 0) > 0 && <Badge intent="neutral">Left {r.figures?.earlyMinutes} min early</Badge>}
+                    {(r.figures?.lateMinutes ?? 0) > 0 && <Badge intent="warn">Late {hoursText(r.figures?.lateMinutes ?? 0)}</Badge>}
+                    {(r.figures?.earlyMinutes ?? 0) > 0 && <Badge intent="neutral">Left {hoursText(r.figures?.earlyMinutes ?? 0)} early</Badge>}
                     {(r.figures?.overtimeMinutes ?? 0) > 0 && (
                       <Badge intent="info">
-                        Overtime {r.figures?.overtimeMinutes} min
+                        Overtime {hoursText(r.figures?.overtimeMinutes ?? 0)}
                         {r.figures?.approvedOvertimeMinutes === null ? ", to decide" : `, ${r.figures?.approvedOvertimeMinutes} approved`}
                       </Badge>
                     )}

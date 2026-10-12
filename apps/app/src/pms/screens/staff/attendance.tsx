@@ -161,11 +161,11 @@ export function Attendance() {
               r.figures ? (
                 <span className="pms-num flex flex-col gap-0.5 text-2xs text-ink2">
                   <span>worked {hoursText(r.figures.workedMinutes)}</span>
-                  {(r.figures.lateMinutes ?? 0) > 0 && <span>late {r.figures.lateMinutes} min</span>}
-                  {(r.figures.earlyMinutes ?? 0) > 0 && <span>left {r.figures.earlyMinutes} min early</span>}
+                  {(r.figures.lateMinutes ?? 0) > 0 && <span>late {hoursText(r.figures.lateMinutes ?? 0)}</span>}
+                  {(r.figures.earlyMinutes ?? 0) > 0 && <span>left {hoursText(r.figures.earlyMinutes ?? 0)} early</span>}
                   {(r.figures.overtimeMinutes ?? 0) > 0 && (
                     <span>
-                      overtime {r.figures.overtimeMinutes} min
+                      overtime {hoursText(r.figures.overtimeMinutes ?? 0)}
                       {r.figures.approvedOvertimeMinutes === null ? ", to decide" : `, ${r.figures.approvedOvertimeMinutes} approved`}
                     </span>
                   )}

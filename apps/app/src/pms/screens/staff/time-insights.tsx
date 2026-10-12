@@ -114,8 +114,8 @@ function LateEarly() {
                   </td>
                   <td className={`${td} pms-num`}>{dshortIso(r.workDate)}</td>
                   <td className={td}>{r.shiftName ?? ""}</td>
-                  <td className={`${td} pms-num text-right`}>{r.lateMinutes > 0 ? `${r.lateMinutes} min` : ""}</td>
-                  <td className={`${td} pms-num text-right`}>{r.earlyMinutes > 0 ? `${r.earlyMinutes} min` : ""}</td>
+                  <td className={`${td} pms-num text-right`}>{r.lateMinutes > 0 ? hoursText(r.lateMinutes) : ""}</td>
+                  <td className={`${td} pms-num text-right`}>{r.earlyMinutes > 0 ? hoursText(r.earlyMinutes) : ""}</td>
                 </tr>
               ))}
             </tbody>
