@@ -3,10 +3,16 @@
 /**
  * My work · My leave (ADR-058, 058-leave AC-LV6; 058-self-service AC-SS6).
  *
- * The days a person has, where each came from, what they asked for and what
- * was answered, and a form to ask. The balances are the office's own
- * `BalanceDetail`, so a person and HR read one figure, with the same lots and
- * the same ledger under it.
+ * The days a person has left, what they asked for and what was answered, and
+ * a form to ask.
+ *
+ * THREE THINGS, IN THAT ORDER. This opened on the office's own view of a
+ * balance: every lot ("1.5 days earned 01 Feb, usable to 31 Dec", ten of them
+ * for one kind of leave), the type's rules in a line, and a ledger. All true,
+ * and none of it what somebody opens My leave for. It is a tile a kind now:
+ * the days left, large, against the year's. Then the requests, each with its
+ * answer. Where every day came from is still here, the office's own
+ * `BalanceDetail` so the two can never disagree, behind one link at the foot.
  *
  * ASKING IS NOT TAKING. The server counts the working days in the range,
  * checks them against the balance on the first day, and routes the request to
@@ -17,7 +23,7 @@
  * that decides.
  */
 
-import type { LeaveRequest, LeaveType } from "@injishi/contracts";
+import type { LeaveBalance, LeaveRequest, LeaveType } from "@injishi/contracts";
 import { Checkbox, Input } from "@injishi/ui";
 import { useState } from "react";
 
@@ -32,7 +38,7 @@ import {
 } from "../../data/my-work";
 import { addDaysIso, dshortIso, todayIso } from "../../lib/format";
 import { usePms } from "../../store";
-import { BalanceDetail, TermsBadges, typeTermsText } from "../staff/leave-ui";
+import { BalanceDetail, paymentText, typeTermsText } from "../staff/leave-ui";
 import { Field, FormError, RowList, daysText, inputClass, rowClass } from "../staff/staff-ui";
 import { Loading, Panel } from "./my-work-ui";
 
@@ -208,9 +214,35 @@ function AskForm({ employeeId, types, onDone }: { employeeId: string; types: rea
   );
 }
 
+/** One kind of leave: the days left, large, against what a year gives. */
+function DaysTile({ balance }: { balance: LeaveBalance }) {
+  const t = balance.leaveType;
+  const left = balance.balanceDays ?? 0;
+  const yearly = t.yearlyEntitlementDays ?? 0;
+  return (
+    <Panel className="flex flex-col gap-2 px-5 py-4">
+      <span className="text-sm font-semibold text-ink">{t.name}</span>
+      <span className="flex items-baseline gap-1.5" data-days-left={t.name}>
+        <span className="pms-num text-xl leading-tight font-bold tracking-[-0.3px] text-ink">{Number.isInteger(left) ? left : left.toFixed(1)}</span>
+        <span className="text-sm text-ink2">{left === 1 ? "day left" : "days left"}</span>
+      </span>
+      {yearly > 0 && (
+        <span aria-hidden className="h-1.5 overflow-hidden rounded-full bg-[var(--chart-track)]">
+          <span className="block h-full rounded-full bg-[var(--accent)]" style={{ width: `${Math.max(0, Math.min(100, Math.round((left / yearly) * 100)))}%` }} />
+        </span>
+      )}
+      <span className="text-2xs text-muted-foreground">
+        {yearly > 0 ? `of ${daysText(yearly)} a year · ` : ""}
+        {paymentText(t)}
+      </span>
+    </Panel>
+  );
+}
+
 export function MyLeave({ employeeId }: { employeeId: string }) {
   const { toast, toastError } = usePms();
   const [asking, setAsking] = useState(false);
+  const [showingWhere, setShowingWhere] = useState(false);
   const balances = useMyLeaveBalances(employeeId);
   const requests = useMyLeaveRequests(employeeId);
   // The kinds this person may ask for today: the server leaves out a type for
@@ -227,16 +259,15 @@ export function MyLeave({ employeeId }: { employeeId: string }) {
       (b.balanceDays !== null || b.entries.length > 0) &&
       (open === null || open.has(b.leaveType.id) || b.entries.some((e) => e.kind === "taken")),
   );
+  // A tile is for days there are, or a kind a year gives days of: time in lieu at nought is not one.
+  const tiles = kept.filter((b) => b.balanceDays !== null && (b.balanceDays > 0 || (b.leaveType.yearlyEntitlementDays ?? 0) > 0));
   const list = [...(requests.data?.requests ?? [])].sort((a, b) => b.createdAt.localeCompare(a.createdAt));
   const today = todayIso();
 
   return (
     <div className="flex flex-col gap-5">
       <div className="flex flex-wrap items-center gap-3">
-        <p className="min-w-0 flex-1 text-sm text-muted-foreground">
-          Days are counted on the days you are rostered, or would normally work. Nothing is taken until a request is
-          approved.
-        </p>
+        <p className="min-w-0 flex-1 text-sm text-muted-foreground">Your days off, and what you have asked for. Nothing is taken until a request is approved.</p>
         {!asking && (
           <ActionButton variant="primary" onClick={() => setAsking(true)}>
             Ask for leave
@@ -259,8 +290,27 @@ export function MyLeave({ employeeId }: { employeeId: string }) {
           />
         ))}
 
+      <div className="flex flex-col gap-2.5">
+        <SectionHeading>Days you have left</SectionHeading>
+        {balances.isPending ? (
+          <Loading rows={1} />
+        ) : balances.isError ? (
+          <LoadFailed onRetry={() => void balances.refetch()} retrying={balances.isFetching}>
+            We couldn&apos;t load your days. Nothing is lost. Try again.
+          </LoadFailed>
+        ) : tiles.length === 0 ? (
+          <EmptyState>No leave has been earned on your file yet. Days are added as you work.</EmptyState>
+        ) : (
+          <div className="grid grid-cols-1 gap-3 @xl:grid-cols-2 @3xl:grid-cols-4">
+            {tiles.map((balance) => (
+              <DaysTile key={balance.leaveType.id} balance={balance} />
+            ))}
+          </div>
+        )}
+      </div>
+
       <div className="flex flex-col gap-0">
-        <SectionHeading n={list.length}>Your requests</SectionHeading>
+        <SectionHeading n={list.length}>What you asked for</SectionHeading>
         {requests.isPending ? (
           <div className="mt-2.5">
             <Loading rows={2} />
@@ -274,11 +324,10 @@ export function MyLeave({ employeeId }: { employeeId: string }) {
         ) : (
           <RowList>
             {list.map((r, index) => (
-              <div key={r.id} className={`${rowClass(index)} flex flex-wrap items-center gap-x-4 gap-y-1.5`}>
-                <span className="flex min-w-44 flex-1 flex-col">
+              <div key={r.id} className={`${rowClass(index)} flex flex-wrap items-center gap-x-4 gap-y-1.5`} data-my-request={r.id}>
+                <span className="flex min-w-44 flex-1 flex-col gap-0.5">
                   <span className="text-sm font-semibold text-ink">
-                    {r.leaveType.name}
-                    <span className="pms-num font-normal text-ink2"> · {daysText(r.days)}</span>
+                    {r.leaveType.name}, {daysText(r.days)}
                   </span>
                   <span className="pms-num text-2xs text-muted-foreground">
                     {r.startsOn === r.endsOn ? dshortIso(r.startsOn) : `${dshortIso(r.startsOn)} to ${dshortIso(r.endsOn)}`}
@@ -288,16 +337,7 @@ export function MyLeave({ employeeId }: { employeeId: string }) {
                   </span>
                   {r.decisionNote && <span className="text-2xs text-ink2">“{r.decisionNote}”</span>}
                 </span>
-                <span className="flex flex-wrap items-center gap-1.5">
-                  <Badge intent={STATUS_INTENT[r.status]}>{STATUS_LABEL[r.status]}</Badge>
-                  <TermsBadges
-                    payment={r.payment}
-                    paymentPercent={r.paymentPercent}
-                    approvalSteps={r.approvalSteps}
-                    currentStep={r.currentStep}
-                    waiting={r.status === "requested"}
-                  />
-                </span>
+                <Badge intent={STATUS_INTENT[r.status]}>{STATUS_LABEL[r.status]}</Badge>
                 {/* Waiting, or approved and not begun: the two a person can still take back. */}
                 {(r.status === "requested" || (r.status === "approved" && r.startsOn > today)) && (
                   <ActionButton
@@ -318,24 +358,24 @@ export function MyLeave({ employeeId }: { employeeId: string }) {
         )}
       </div>
 
-      <div className="flex flex-col gap-2.5">
-        <SectionHeading>Your days</SectionHeading>
-        {balances.isPending ? (
-          <Loading rows={2} />
-        ) : balances.isError ? (
-          <LoadFailed onRetry={() => void balances.refetch()} retrying={balances.isFetching}>
-            We couldn&apos;t load your days. Nothing is lost. Try again.
-          </LoadFailed>
-        ) : kept.length === 0 ? (
-          <EmptyState>No leave has been earned on your file yet. Days are added as you work.</EmptyState>
-        ) : (
-          kept.map((balance) => (
-            <Panel key={balance.leaveType.id} className="px-5 py-4">
-              <BalanceDetail balance={balance} />
-            </Panel>
-          ))
-        )}
-      </div>
+      {kept.length > 0 && (
+        <div className="flex flex-col gap-2.5">
+          <button
+            type="button"
+            aria-expanded={showingWhere}
+            onClick={() => setShowingWhere((v) => !v)}
+            className="self-start text-sm font-semibold text-accent-text underline-offset-2 hover:underline"
+          >
+            {showingWhere ? "Hide where each day came from" : "See where each day came from"}
+          </button>
+          {showingWhere &&
+            kept.map((balance) => (
+              <Panel key={balance.leaveType.id} className="px-5 py-4">
+                <BalanceDetail balance={balance} />
+              </Panel>
+            ))}
+        </div>
+      )}
     </div>
   );
 }

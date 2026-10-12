@@ -8,7 +8,8 @@
  */
 
 import type { PaidMethod, Permission, PayslipLine } from "@injishi/contracts";
-import { Input } from "@injishi/ui";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, Input } from "@injishi/ui";
+import { ChevronDown } from "lucide-react";
 import Link from "next/link";
 import { useState } from "react";
 
@@ -48,6 +49,19 @@ export const PAYROLL_SECTIONS: readonly {
 
 export type PayrollSection = (typeof PAYROLL_SECTIONS)[number]["key"];
 
+/**
+ * The sections a month's pay is run from, in the row. The others (loans,
+ * claims, adjustments, the national rules, settings) are opened now and then,
+ * and nine pills in two lines buried the four that are opened every month.
+ * They are one press away under More, and More takes the name of the section
+ * that is open, so the row always says where one is.
+ */
+const IN_THE_ROW: readonly PayrollSection[] = ["overview", "payslips", "contracts", "components"];
+
+const PILL = "rounded-full border px-3 py-1 text-sm font-semibold no-underline";
+const PILL_ON = "border-accent-text bg-accent-soft text-accent-text";
+const PILL_OFF = "border-card-bd bg-card text-ink2 hover:bg-hover";
+
 /** The row of sections under the Staff rail. */
 export function PayrollNav({
   base,
@@ -58,24 +72,47 @@ export function PayrollNav({
   active: PayrollSection;
   sections: readonly (typeof PAYROLL_SECTIONS)[number][];
 }) {
+  const hrefOf = (s: (typeof PAYROLL_SECTIONS)[number]) => (s.segment ? `${base}/payroll/${s.segment}` : `${base}/payroll`);
+  // Somebody who reaches five sections or fewer has nothing to fold away.
+  const fold = sections.length > 5;
+  const row = fold ? sections.filter((s) => IN_THE_ROW.includes(s.key)) : sections;
+  const more = fold ? sections.filter((s) => !IN_THE_ROW.includes(s.key)) : [];
+  const open = more.find((s) => s.key === active);
   return (
     <nav aria-label="Payroll sections" className="flex flex-wrap items-center gap-2">
-      {sections.map((s) => {
+      {row.map((s) => {
         const on = s.key === active;
         return (
-          <Link
-            key={s.key}
-            href={s.segment ? `${base}/payroll/${s.segment}` : `${base}/payroll`}
-            aria-current={on ? "page" : undefined}
-            className={cn(
-              "rounded-full border px-3 py-1 text-sm font-semibold no-underline",
-              on ? "border-accent-text bg-accent-soft text-accent-text" : "border-card-bd bg-card text-ink2 hover:bg-hover",
-            )}
-          >
+          <Link key={s.key} href={hrefOf(s)} aria-current={on ? "page" : undefined} className={cn(PILL, on ? PILL_ON : PILL_OFF)}>
             {s.label}
           </Link>
         );
       })}
+      {more.length > 0 && (
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <button
+              type="button"
+              aria-label={open ? `${open.label}. More payroll sections` : "More payroll sections"}
+              aria-current={open ? "page" : undefined}
+              className={cn(PILL, "inline-flex cursor-pointer items-center gap-1", open ? PILL_ON : PILL_OFF)}
+              data-payroll-more
+            >
+              {open ? open.label : "More"}
+              <ChevronDown aria-hidden className="size-4" strokeWidth={2} />
+            </button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="start" className="min-w-56">
+            {more.map((s) => (
+              <DropdownMenuItem key={s.key} asChild>
+                <Link href={hrefOf(s)} className={cn("no-underline", s.key === active ? "font-semibold text-accent-text" : "text-ink")}>
+                  {s.label}
+                </Link>
+              </DropdownMenuItem>
+            ))}
+          </DropdownMenuContent>
+        </DropdownMenu>
+      )}
     </nav>
   );
 }
