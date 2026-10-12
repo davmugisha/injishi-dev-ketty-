@@ -26,6 +26,9 @@
 //   leave       one request approved, one waiting, one refused
 //   checklists  a joining and a leaving list, and somebody who started three
 //               days ago partway through hers
+//   kiosk       one at the staff entrance, waiting for its tablet, and a PIN
+//               for everybody: DEMO_PIN below, the same for all, so whoever
+//               shows the kiosk can clock anybody in
 //   the rest    a business holiday, a policy and an announcement
 //
 // IT DRIVES THE REAL API, as the verify scripts do, signed in as the demo
@@ -106,6 +109,13 @@ const SEEDED_BY_JOB = {
   'Front desk agent': { sex: 'female', dateOfBirth: '1996-07-04', hiredYearsAgo: 1 },
   'Room attendant': { sex: 'female', dateOfBirth: '1993-10-19', hiredYearsAgo: 2 },
 };
+
+/**
+ * Every demo person's kiosk PIN. One PIN for all is wrong anywhere real and
+ * right here: the point of a demo kiosk is that whoever is showing it can
+ * clock in as the cook. A real office sets each person's own under Kiosks.
+ */
+const DEMO_PIN = '2468';
 
 const BUSINESSES = [
   { name: 'Amahoro Hospitality Group', owner: 'yves@demo.injishi.com', code: '31' },
@@ -248,6 +258,7 @@ async function seedBusiness(business) {
   await checklists(api, business, branch);
   const shifts = await time(api, branch, people, settings.body.policies ?? []);
   await leave(api, people);
+  await kiosk(api, branch);
   await attendance(api, people, shifts);
   await payRuns(api);
   await notices(api);
@@ -534,6 +545,30 @@ async function time(api, branch, people, policies) {
   }
   say(`time: ${Object.keys(shifts).length} shift(s), ${rostered} roster entr${rostered === 1 ? 'y' : 'ies'} written, ${published} published`);
   return shifts;
+}
+
+/**
+ * A kiosk at the door and a PIN for everybody on file. The kiosk is left
+ * waiting for its tablet: pairing trades a code for a cookie on one device,
+ * which only somebody holding that device can do.
+ */
+async function kiosk(api, branch) {
+  const listed = await api.get('/ops/attendance/kiosks');
+  let added = 'already there';
+  if (listed.ok && !(listed.body?.kiosks ?? []).some((k) => k.status !== 'revoked')) {
+    const res = await api.post('/ops/attendance/kiosks', { propertyId: branch.propertyId, name: 'Staff entrance' });
+    if (res.ok) added = 'Staff entrance added, waiting for its tablet';
+    else note('kiosk', res);
+  }
+  let pins = 0;
+  for (const person of (await all(api, '/ops/employees')).filter((e) => e.status === 'active')) {
+    const state = await api.get(`/ops/employees/${person.id}/kiosk-pin`);
+    if (!state.ok || state.body?.hasPin) continue;
+    const res = await api.put(`/ops/employees/${person.id}/kiosk-pin`, { pin: DEMO_PIN });
+    if (res.ok) pins += 1;
+    else note(`PIN of ${person.legalName}`, res);
+  }
+  say(`kiosk: ${added}; ${pins} PIN(s) set${pins > 0 ? ` (everybody's is ${DEMO_PIN})` : ''}`);
 }
 
 async function leave(api, people) {
