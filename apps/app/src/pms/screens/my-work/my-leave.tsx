@@ -30,8 +30,11 @@ import { useState } from "react";
 import { ActionButton, Badge, EmptyState, LoadFailed, SectionHeading, SelectField } from "../../components/ui";
 import {
   uploadMyNote,
+  useAskExtraDays,
   useAskLeave,
+  useCancelMyAllocation,
   useCancelMyLeave,
+  useMyAllocations,
   useMyLeaveBalances,
   useMyLeaveRequests,
   useMyLeaveTypes,
@@ -214,6 +217,64 @@ function AskForm({ employeeId, types, onDone }: { employeeId: string; types: rea
   );
 }
 
+/**
+ * Ask for days on top of what a kind of leave gives: a wedding that needs two
+ * more, a course. The office decides; nothing is added until it does.
+ */
+function ExtraDaysForm({ employeeId, types, onDone }: { employeeId: string; types: readonly LeaveType[]; onDone: () => void }) {
+  const { toast } = usePms();
+  const ask = useAskExtraDays(employeeId);
+  const [leaveTypeId, setLeaveTypeId] = useState("");
+  const [days, setDays] = useState("1");
+  const [reason, setReason] = useState("");
+  const n = Number(days);
+  const missing = !leaveTypeId
+    ? "Choose the kind of leave first."
+    : !(n > 0) || Math.round(n * 2) !== n * 2
+      ? "Days are whole or half: 1, 1.5, 2."
+      : reason.trim().length < 3
+        ? "Say why you need them."
+        : undefined;
+  return (
+    <Panel className="flex flex-col gap-3.5 px-5 py-4">
+      <SectionHeading>Ask for extra days</SectionHeading>
+      <div className="grid grid-cols-1 gap-3 @xl:grid-cols-3">
+        <Field label="On which leave">
+          <SelectField label="On which leave" value={leaveTypeId} onChange={setLeaveTypeId} placeholder="Choose one" options={types.map((t) => ({ value: t.id, label: t.name }))} />
+        </Field>
+        <Field label="How many days" htmlFor="extra-days">
+          <Input id="extra-days" type="number" min={0.5} step={0.5} value={days} onChange={(ev) => setDays(ev.target.value)} className={`${inputClass} pms-num`} />
+        </Field>
+        <Field label="Why" htmlFor="extra-why">
+          <Input id="extra-why" maxLength={300} value={reason} onChange={(ev) => setReason(ev.target.value)} className={inputClass} />
+        </Field>
+      </div>
+      <FormError error={ask.error} />
+      <div className="flex gap-2.5">
+        <ActionButton
+          variant="primary"
+          pending={ask.isPending}
+          deniedReason={missing}
+          onClick={() =>
+            ask.mutate(
+              { kind: "extra", leaveTypeId, days: n, reason: reason.trim() },
+              {
+                onSuccess: (r) => {
+                  toast(`Sent: ${daysText(r.days)} more of ${r.leaveType.name.toLowerCase()}. You will see the answer here.`, "ok");
+                  onDone();
+                },
+              },
+            )
+          }
+        >
+          Send the request
+        </ActionButton>
+        <ActionButton onClick={onDone}>Cancel</ActionButton>
+      </div>
+    </Panel>
+  );
+}
+
 /** One kind of leave: the days left, large, against what a year gives. */
 function DaysTile({ balance }: { balance: LeaveBalance }) {
   const t = balance.leaveType;
@@ -243,6 +304,10 @@ export function MyLeave({ employeeId }: { employeeId: string }) {
   const { toast, toastError } = usePms();
   const [asking, setAsking] = useState(false);
   const [showingWhere, setShowingWhere] = useState(false);
+  const [askingMore, setAskingMore] = useState(false);
+  const allocations = useMyAllocations(employeeId);
+  const cancelMore = useCancelMyAllocation(employeeId);
+  const more = [...(allocations.data?.requests ?? [])].sort((a, b) => b.createdAt.localeCompare(a.createdAt));
   const balances = useMyLeaveBalances(employeeId);
   const requests = useMyLeaveRequests(employeeId);
   // The kinds this person may ask for today: the server leaves out a type for
@@ -268,12 +333,24 @@ export function MyLeave({ employeeId }: { employeeId: string }) {
     <div className="flex flex-col gap-5">
       <div className="flex flex-wrap items-center gap-3">
         <p className="min-w-0 flex-1 text-sm text-muted-foreground">Your days off, and what you have asked for. Nothing is taken until a request is approved.</p>
-        {!asking && (
-          <ActionButton variant="primary" onClick={() => setAsking(true)}>
-            Ask for leave
-          </ActionButton>
+        {!asking && !askingMore && (
+          <>
+            <ActionButton onClick={() => setAskingMore(true)}>Ask for extra days</ActionButton>
+            <ActionButton variant="primary" onClick={() => setAsking(true)}>
+              Ask for leave
+            </ActionButton>
+          </>
         )}
       </div>
+
+      {askingMore && (
+        <ExtraDaysForm
+          employeeId={employeeId}
+          // Days are added to a kind that keeps a count: unpaid leave has none to add to.
+          types={(types.data?.types ?? []).filter((t) => t.status === "active" && t.yearlyEntitlementDays !== null && !t.compensatory)}
+          onDone={() => setAskingMore(false)}
+        />
+      )}
 
       {asking &&
         (types.isPending ? (
@@ -310,7 +387,7 @@ export function MyLeave({ employeeId }: { employeeId: string }) {
       </div>
 
       <div className="flex flex-col gap-0">
-        <SectionHeading n={list.length}>What you asked for</SectionHeading>
+        <SectionHeading n={list.length + more.length}>What you asked for</SectionHeading>
         {requests.isPending ? (
           <div className="mt-2.5">
             <Loading rows={2} />
@@ -319,12 +396,32 @@ export function MyLeave({ employeeId }: { employeeId: string }) {
           <LoadFailed className="mt-2.5" onRetry={() => void requests.refetch()} retrying={requests.isFetching}>
             We couldn&apos;t load your requests. Nothing is lost. Try again.
           </LoadFailed>
-        ) : list.length === 0 ? (
+        ) : list.length + more.length === 0 ? (
           <EmptyState className="mt-2.5">You have not asked for leave yet. When you do, the answer shows here.</EmptyState>
         ) : (
           <RowList>
+            {more.map((a, index) => (
+              <div key={a.id} className={`${rowClass(index)} flex flex-wrap items-center gap-x-4 gap-y-1.5`} data-my-extra={a.id}>
+                <span className="flex min-w-44 flex-1 flex-col gap-0.5">
+                  <span className="text-sm font-semibold text-ink">
+                    {daysText(a.days)} more of {a.leaveType.name.toLowerCase()}
+                  </span>
+                  <span className="text-2xs text-muted-foreground">{a.reason}</span>
+                  {a.decisionNote && <span className="text-2xs text-ink2">“{a.decisionNote}”</span>}
+                </span>
+                <Badge intent={STATUS_INTENT[a.status]}>{STATUS_LABEL[a.status]}</Badge>
+                {a.status === "requested" && (
+                  <ActionButton
+                    pending={cancelMore.isPending && cancelMore.variables?.id === a.id}
+                    onClick={() => cancelMore.mutate({ id: a.id }, { onError: toastError })}
+                  >
+                    Cancel
+                  </ActionButton>
+                )}
+              </div>
+            ))}
             {list.map((r, index) => (
-              <div key={r.id} className={`${rowClass(index)} flex flex-wrap items-center gap-x-4 gap-y-1.5`} data-my-request={r.id}>
+              <div key={r.id} className={`${rowClass(index + more.length)} flex flex-wrap items-center gap-x-4 gap-y-1.5`} data-my-request={r.id}>
                 <span className="flex min-w-44 flex-1 flex-col gap-0.5">
                   <span className="text-sm font-semibold text-ink">
                     {r.leaveType.name}, {daysText(r.days)}

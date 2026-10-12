@@ -24,6 +24,8 @@ import {
   KioskPinState,
   LeaveRequest,
   MyAttendance,
+  MyLeaveAllocationList,
+  MyPayClaimList,
   MyChecklists,
   MyLeaveBalances,
   MyLeaveRequestList,
@@ -36,9 +38,13 @@ import {
   PhoneClockResult,
   type AttendanceRequest,
   type CreateMyAttendanceRequestRequest,
+  type CreateMyLeaveAllocationRequest,
   type CreateMyLeaveRequestRequest,
+  type CreateMyPayClaimRequest,
+  type LeaveAllocationRequest,
   type MyUpload,
   type MyWorkFile,
+  type PayClaim,
   type PhoneClockRequest,
 } from "@injishi/contracts";
 import {
@@ -50,6 +56,7 @@ import {
 } from "@tanstack/react-query";
 
 import { API_BASE, ApiError, REQUEST_TIMEOUT_MS, humanMessage, readRefusal, upload } from "./api";
+import { newIdempotencyKey } from "./ops";
 
 interface Parser<T> {
   parse: (value: unknown) => T;
@@ -72,7 +79,7 @@ async function mine<T>(path: string, schema: Parser<T>): Promise<T> {
 }
 
 /** Something the person asks or does on their own file. A refusal arrives in the server's words. */
-async function ask<T>(path: string, body?: unknown, method: "POST" | "PUT" = "POST"): Promise<T> {
+async function ask<T>(path: string, body?: unknown, method: "POST" | "PUT" = "POST", idempotencyKey?: string): Promise<T> {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
   try {
@@ -80,7 +87,10 @@ async function ask<T>(path: string, body?: unknown, method: "POST" | "PUT" = "PO
       method,
       credentials: "include",
       // Only with a body: Fastify refuses an empty JSON body before any route runs.
-      headers: body === undefined ? undefined : { "Content-Type": "application/json" },
+      headers:
+        body === undefined
+          ? undefined
+          : { "Content-Type": "application/json", ...(idempotencyKey ? { "Idempotency-Key": idempotencyKey } : {}) },
       body: body === undefined ? undefined : JSON.stringify(body),
       signal: controller.signal,
     });
@@ -107,6 +117,8 @@ export const myWorkKeys = {
   checklists: (id: string | null) => ["me-work", "checklists", id] as const,
   pin: (id: string | null) => ["me-work", "kiosk-pin", id] as const,
   loans: (id: string | null) => ["me-work", "loans", id] as const,
+  claims: (id: string | null) => ["me-work", "claims", id] as const,
+  allocations: (id: string | null) => ["me-work", "leave-allocations", id] as const,
 };
 
 // --- Reads ---------------------------------------------------------------------
@@ -302,6 +314,79 @@ export function useChangeMyKioskPin(employeeId: string | null): UseMutationResul
   return useMutation({
     mutationFn: async (body) => KioskPinState.parse(await ask(`/me/work/${employeeId}/kiosk-pin`, body, "PUT")),
     onSuccess: (answer) => client.setQueryData(myWorkKeys.pin(employeeId), answer),
+  });
+}
+
+// --- Asking for money back, and for extra days ------------------------------------------------
+
+/** What the person has claimed back: each claim, and the office's answer to it (AC-PY9). */
+export function useMyClaims(employeeId: string | null): UseQueryResult<MyPayClaimList> {
+  return useQuery({
+    queryKey: myWorkKeys.claims(employeeId),
+    queryFn: () => mine(`/me/work/${employeeId}/claims`, MyPayClaimList),
+    enabled: employeeId !== null,
+  });
+}
+
+/**
+ * Ask for money back, or for unused leave to be paid out. The key makes a
+ * second press of Send the same claim, never a second one.
+ */
+export function useAskClaim(employeeId: string | null): UseMutationResult<PayClaim, Error, CreateMyPayClaimRequest> {
+  const client = useQueryClient();
+  return useMutation({
+    mutationFn: (body) => ask<PayClaim>(`/me/work/${employeeId}/claims`, body, "POST", newIdempotencyKey()),
+    onSuccess: () => {
+      void client.invalidateQueries({ queryKey: myWorkKeys.claims(employeeId) });
+      void client.invalidateQueries({ queryKey: ["ops", "pay-claims"] });
+    },
+  });
+}
+
+/** Take back a claim still waiting. A decided one is the office's to undo. */
+export function useCancelMyClaim(employeeId: string | null): UseMutationResult<PayClaim, Error, { id: string }> {
+  const client = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id }) => ask<PayClaim>(`/me/work/${employeeId}/claims/${id}/cancel`),
+    onSuccess: () => {
+      void client.invalidateQueries({ queryKey: myWorkKeys.claims(employeeId) });
+      void client.invalidateQueries({ queryKey: ["ops", "pay-claims"] });
+    },
+  });
+}
+
+/** The extra days the person has asked for, each with its answer (058-leave AC-LV7). */
+export function useMyAllocations(employeeId: string | null): UseQueryResult<MyLeaveAllocationList> {
+  return useQuery({
+    queryKey: myWorkKeys.allocations(employeeId),
+    queryFn: () => mine(`/me/work/${employeeId}/leave/allocation-requests`, MyLeaveAllocationList),
+    enabled: employeeId !== null,
+  });
+}
+
+/** Ask for days on top of what a kind of leave gives. Nothing is added until it is approved. */
+export function useAskExtraDays(
+  employeeId: string | null,
+): UseMutationResult<LeaveAllocationRequest, Error, CreateMyLeaveAllocationRequest> {
+  const client = useQueryClient();
+  return useMutation({
+    mutationFn: (body) => ask<LeaveAllocationRequest>(`/me/work/${employeeId}/leave/allocation-requests`, body),
+    onSuccess: () => {
+      void client.invalidateQueries({ queryKey: myWorkKeys.allocations(employeeId) });
+      void client.invalidateQueries({ queryKey: ["ops", "leave-allocations"] });
+    },
+  });
+}
+
+export function useCancelMyAllocation(employeeId: string | null): UseMutationResult<LeaveAllocationRequest, Error, { id: string }> {
+  const client = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id }) => ask<LeaveAllocationRequest>(`/me/work/${employeeId}/leave/allocation-requests/${id}/cancel`),
+    onSuccess: () => {
+      void client.invalidateQueries({ queryKey: myWorkKeys.allocations(employeeId) });
+      void client.invalidateQueries({ queryKey: myWorkKeys.balances(employeeId) });
+      void client.invalidateQueries({ queryKey: ["ops", "leave-allocations"] });
+    },
   });
 }
 

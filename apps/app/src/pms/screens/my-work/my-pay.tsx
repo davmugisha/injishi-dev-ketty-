@@ -3,29 +3,126 @@
 /**
  * My work · My pay (ADR-058, 058-payroll AC-PY9; 058-self-service AC-SS7).
  *
- * A person's own payslips, each a PDF the server draws, and what they still
- * owe on a loan or an advance. Only CONFIRMED months are listed: a draft is
- * the office's working copy and can still change, and a figure somebody has
- * seen is a figure they will hold the office to.
+ * A person's own payslips, each a PDF the server draws, what they still owe
+ * on a loan or an advance, and the money they have asked back. Only CONFIRMED
+ * months are listed: a draft is the office's working copy and can still
+ * change, and a figure somebody has seen is a figure they will hold the office
+ * to.
+ *
+ * MONEY BACK IS ASKED HERE. Somebody who paid for a taxi or a part out of
+ * their own pocket used to tell the office, who typed the claim for them
+ * under Payroll. They type it themselves now: how much, what for, and the
+ * receipt if they have one. The office decides it, and an approved claim is
+ * paid with the month's pay.
  *
  * No wage is shown outside a payslip, and no colleague's anything: every route
  * this page calls answers for the caller's own file or with a 404.
  */
 
+import type { PayClaim } from "@injishi/contracts";
+import { Input } from "@injishi/ui";
 import { useState } from "react";
 
 import { ActionButton, Badge, EmptyState, LoadFailed, SectionHeading } from "../../components/ui";
-import { downloadMyPayslip, useMyLoans, useMyPayslips } from "../../data/my-work";
-import { dshortIso, fmt } from "../../lib/format";
+import { downloadMyPayslip, uploadMyNote, useAskClaim, useCancelMyClaim, useMyClaims, useMyLoans, useMyPayslips } from "../../data/my-work";
+import { dshortIso, fmt, kigaliDateOf } from "../../lib/format";
 import { usePms } from "../../store";
-import { RowList, rowClass } from "../staff/staff-ui";
-import { Loading, monthText } from "./my-work-ui";
+import { Field, FormError, RowList, daysText, inputClass, rowClass } from "../staff/staff-ui";
+import { Loading, Panel, monthText } from "./my-work-ui";
+
+const CLAIM_INTENT: Record<PayClaim["status"], "info" | "ok" | "bad" | "neutral"> = {
+  requested: "info",
+  approved: "ok",
+  rejected: "bad",
+  cancelled: "neutral",
+};
+const CLAIM_LABEL: Record<PayClaim["status"], string> = {
+  requested: "Waiting",
+  approved: "Approved",
+  rejected: "Refused",
+  cancelled: "Cancelled",
+};
+
+/** Ask for money back: how much, what for, and the receipt when there is one. */
+function ClaimForm({ employeeId, onDone }: { employeeId: string; onDone: () => void }) {
+  const { toast } = usePms();
+  const ask = useAskClaim(employeeId);
+  const [amount, setAmount] = useState("");
+  const [reason, setReason] = useState("");
+  const [receipt, setReceipt] = useState<File | null>(null);
+  const [uploading, setUploading] = useState(false);
+  const [uploadError, setUploadError] = useState<unknown>(null);
+  const amountRwf = Number(amount.replace(/[^\d]/g, ""));
+  const missing = amountRwf <= 0 ? "Say how much first." : reason.trim().length < 3 ? "Say what it was for." : undefined;
+
+  async function send() {
+    if (missing || ask.isPending || uploading) return;
+    setUploadError(null);
+    let receiptKey: string | null = null;
+    if (receipt) {
+      setUploading(true);
+      try {
+        receiptKey = (await uploadMyNote(employeeId, receipt)).key;
+      } catch (error) {
+        setUploadError(error);
+        return;
+      } finally {
+        setUploading(false);
+      }
+    }
+    ask.mutate(
+      { kind: "reimbursement", amountRwf, reason: reason.trim(), receiptKey },
+      {
+        onSuccess: () => {
+          toast(`Sent: ${fmt(amountRwf)} to be paid back. You will see the answer here.`, "ok");
+          onDone();
+        },
+      },
+    );
+  }
+
+  return (
+    <Panel className="flex flex-col gap-3.5 px-5 py-4">
+      <SectionHeading>Ask for money back</SectionHeading>
+      <div className="grid grid-cols-1 gap-3 @xl:grid-cols-3">
+        <Field label="How much (RWF)" htmlFor="claim-amount">
+          <Input id="claim-amount" inputMode="numeric" placeholder="12,000" value={amount} onChange={(ev) => setAmount(ev.target.value)} className={`${inputClass} pms-num`} />
+        </Field>
+        <div className="@xl:col-span-2">
+          <Field label="What it was for" htmlFor="claim-reason">
+            <Input id="claim-reason" maxLength={300} placeholder="Taxi to the supplier, 9 October" value={reason} onChange={(ev) => setReason(ev.target.value)} className={inputClass} />
+          </Field>
+        </div>
+      </div>
+      <Field label="The receipt" htmlFor="claim-receipt" hint="Optional. A photo or a PDF, 10 MB at most. A claim with its receipt is decided sooner.">
+        <input
+          id="claim-receipt"
+          type="file"
+          accept="application/pdf,image/jpeg,image/png"
+          onChange={(ev) => setReceipt(ev.target.files?.[0] ?? null)}
+          className="text-sm text-ink2"
+        />
+      </Field>
+      <FormError error={uploadError ?? ask.error} />
+      <div className="flex gap-2.5">
+        <ActionButton variant="primary" pending={ask.isPending || uploading} deniedReason={missing} onClick={() => void send()}>
+          {uploading ? "Sending the receipt" : "Send the claim"}
+        </ActionButton>
+        <ActionButton onClick={onDone}>Cancel</ActionButton>
+      </div>
+    </Panel>
+  );
+}
 
 export function MyPay({ employeeId }: { employeeId: string }) {
   const { toastError } = usePms();
   const payslips = useMyPayslips(employeeId);
   const loans = useMyLoans(employeeId);
+  const claims = useMyClaims(employeeId);
+  const cancelClaim = useCancelMyClaim(employeeId);
   const [saving, setSaving] = useState<string | null>(null);
+  const [claiming, setClaiming] = useState(false);
+  const asked = [...(claims.data?.claims ?? [])].sort((a, b) => b.createdAt.localeCompare(a.createdAt));
 
   const slips = [...(payslips.data?.payslips ?? [])].sort((a, b) => b.period.localeCompare(a.period));
   const owed = (loans.data?.loans ?? []).filter((l) => l.settledAt === null);
@@ -44,6 +141,50 @@ export function MyPay({ employeeId }: { employeeId: string }) {
 
   return (
     <div className="flex flex-col gap-5">
+      <div className="flex flex-wrap items-center gap-3">
+        <p className="min-w-0 flex-1 text-sm text-muted-foreground">
+          Your payslips, and money you paid for work out of your own pocket.
+        </p>
+        {!claiming && (
+          <ActionButton variant="primary" onClick={() => setClaiming(true)}>
+            Ask for money back
+          </ActionButton>
+        )}
+      </div>
+
+      {claiming && <ClaimForm employeeId={employeeId} onDone={() => setClaiming(false)} />}
+
+      {asked.length > 0 && (
+        <div className="flex flex-col gap-0">
+          <SectionHeading n={asked.length}>Money you asked back</SectionHeading>
+          <RowList>
+            {asked.map((c, index) => (
+              <div key={c.id} className={`${rowClass(index)} flex flex-wrap items-center gap-x-4 gap-y-1.5`} data-my-claim={c.id}>
+                <span className="flex min-w-44 flex-1 flex-col gap-0.5">
+                  <span className="text-sm font-semibold text-ink">
+                    {c.kind === "reimbursement" ? fmt(c.amountRwf ?? 0) : `${daysText(c.days ?? 0)} of ${c.leaveType?.name.toLowerCase() ?? "leave"} paid out`}
+                  </span>
+                  <span className="text-2xs text-muted-foreground">
+                    {c.reason} · asked {dshortIso(kigaliDateOf(c.createdAt))}
+                    {c.status === "approved" ? ` · ${c.paid ? "paid" : "to be paid"} with ${monthText(c.period)}'s pay` : ""}
+                  </span>
+                  {c.decisionNote && <span className="text-2xs text-ink2">“{c.decisionNote}”</span>}
+                </span>
+                <Badge intent={CLAIM_INTENT[c.status]}>{CLAIM_LABEL[c.status]}</Badge>
+                {c.status === "requested" && (
+                  <ActionButton
+                    pending={cancelClaim.isPending && cancelClaim.variables?.id === c.id}
+                    onClick={() => cancelClaim.mutate({ id: c.id }, { onError: toastError })}
+                  >
+                    Cancel
+                  </ActionButton>
+                )}
+              </div>
+            ))}
+          </RowList>
+        </div>
+      )}
+
       <div className="flex flex-col gap-0">
         <SectionHeading n={slips.length}>Your payslips</SectionHeading>
         {payslips.isPending ? (
