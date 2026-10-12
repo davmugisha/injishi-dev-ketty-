@@ -458,22 +458,29 @@ export function computePayslip(input: PayInput): ComputedPayslip {
     const raw = c.base === 'gross' ? gross : c.base === 'basic' ? basic : contributable;
     const base = c.capRwf !== undefined ? Math.min(raw, c.capRwf) : raw;
     const capNote = c.capRwf !== undefined && raw > c.capRwf ? ` (capped at ${c.capRwf})` : '';
-    lines.push({
-      code: c.code,
-      label: `${c.label}, employee share`,
-      contractId: null,
-      basis: `${c.employeeRate} × ${base} ${c.base}${capNote}`,
-      amountRwf: applyRate(base, c.employeeRate, contributionRounding),
-      side: 'employee',
-    });
-    lines.push({
-      code: c.code,
-      label: `${c.label}, employer share`,
-      contractId: null,
-      basis: `${c.employerRate} × ${base} ${c.base}${capNote}`,
-      amountRwf: applyRate(base, c.employerRate, contributionRounding),
-      side: 'employer',
-    });
+    // A contribution only one side pays (the business alone, for occupational
+    // hazards) has no line for the other: a rate of nothing is nobody's share,
+    // not a share of zero francs on a payslip.
+    if (c.employeeRate > 0) {
+      lines.push({
+        code: c.code,
+        label: `${c.label}, employee share`,
+        contractId: null,
+        basis: `${c.employeeRate} × ${base} ${c.base}${capNote}`,
+        amountRwf: applyRate(base, c.employeeRate, contributionRounding),
+        side: 'employee',
+      });
+    }
+    if (c.employerRate > 0) {
+      lines.push({
+        code: c.code,
+        label: `${c.label}, employer share`,
+        contractId: null,
+        basis: `${c.employerRate} × ${base} ${c.base}${capNote}`,
+        amountRwf: applyRate(base, c.employerRate, contributionRounding),
+        side: 'employer',
+      });
+    }
   }
   const employeeContributions = sum(lines.filter((l) => l.side === 'employee'));
 

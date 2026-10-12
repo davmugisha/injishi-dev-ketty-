@@ -51,6 +51,21 @@ describe('pay computation (ADR-058 AC-Y1, AC-Y2, AC-Y4)', () => {
     expect(p.payeRwf).toBe(10_000 + 7_880);
   });
 
+  it('writes no line for the side that pays nothing of a contribution', () => {
+    const p = slip({
+      rssb: {
+        contributions: [
+          { code: 'pension', label: 'Pension', base: 'gross', employeeRate: 0.05, employerRate: 0.05 },
+          { code: 'hazards', label: 'Occupational hazards', base: 'gross', employeeRate: 0, employerRate: 0.02 },
+        ],
+      },
+    });
+    expect(p.lines.filter((l) => l.code === 'hazards').map((l) => [l.side, l.amountRwf])).toEqual([['employer', 4_000]]);
+    // The totals are what they were with a line of zero: nothing is taken from the person for it.
+    expect(p.employeeContributionsRwf).toBe(10_000);
+    expect(p.employerContributionsRwf).toBe(10_000 + 4_000);
+  });
+
   it('caps a contribution base when the row names a cap', () => {
     const p = slip({
       rssb: {
