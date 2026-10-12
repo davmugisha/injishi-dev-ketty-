@@ -26,6 +26,63 @@ import injishi from '../../tools/eslint-rules/index.mjs';
  * `src/` is everything else; the rule's bracket exemption is what lets `app/`
  * keep its `[id].tsx` route files.
  */
+
+/**
+ * ADR-063 invariant 1. Every privacy rule for crash reports lives in
+ * `src/lib/crash-reporter.ts`: the allowlist, the scrubber, the switch. A
+ * second importer of the SDK could set a user, attach a screenshot or send an
+ * event around all three, so the SDK has exactly one importer. Type imports are
+ * refused too: the reporter re-exports what callers need.
+ */
+const SENTRY_ONLY_IN_THE_REPORTER = {
+  name: '@sentry/react-native',
+  message:
+    'Only src/lib/crash-reporter.ts may import the Sentry SDK (ADR-063). Call its exports instead.',
+};
+
+/**
+ * 2026-10-11. React Native's `<StatusBar>` flushes `hidden: false` and
+ * `translucent: false` on its first render, and in Expo Go, where React
+ * Native's edge-to-edge flag is off, that takes the window out of edge to edge
+ * on Android 11 to 14: a pale strip under the tab bar, and every native sheet
+ * frozen waiting for insets the window swallowed. `status-bar-style.tsx` sets
+ * the icon colour without it, and is the one file allowed a `StatusBar`.
+ */
+const STATUS_BAR_ONLY_IN_ONE_FILE = [
+  {
+    name: 'expo-status-bar',
+    message:
+      'Only src/components/status-bar-style.tsx may touch the status bar: render <StatusBarStyle>. A <StatusBar> on Android takes Expo Go out of edge to edge (2026-10-11).',
+  },
+];
+
+/**
+ * The same rule for React Native's own `StatusBar`. A syntax selector rather
+ * than `importNames`, because `importNames` also refuses every
+ * `import * as ReactNative from 'react-native'`, and one file has a reason for
+ * that (`trip-platform.ts`, the deprecated `Clipboard` read on use).
+ */
+const NO_REACT_NATIVE_STATUS_BAR = {
+  selector:
+    "ImportDeclaration[source.value='react-native'] > ImportSpecifier[imported.name='StatusBar']",
+  message:
+    "Never React Native's StatusBar: render <StatusBarStyle> from src/components/status-bar-style.tsx. On Android it takes Expo Go out of edge to edge (2026-10-11).",
+};
+
+/**
+ * 2026-10-11. react-native-screens' Android `formSheet` froze the app in Expo
+ * Go, so every sheet route takes its options from `sheetRouteOptions` in
+ * `src/components/sheet-route.tsx`, which gives Android the app's own sheet.
+ * A route that names a presentation itself could bring the native sheet back
+ * to Android, and `transparentModal` is how the frame recognises a sheet, so
+ * both words are refused outside that file. Comments are not code and may use
+ * them freely.
+ */
+const SHEET_PRESENTATION_ONLY_IN_THE_HELPER = ['formSheet', 'transparentModal'].map((word) => ({
+  selector: `Literal[value='${word}']`,
+  message: `Only src/components/sheet-route.tsx may name '${word}'. Register a sheet with sheetRouteOptions(size) (2026-10-11).`,
+}));
+
 export default [
   { ignores: ['node_modules/**', '.expo/**', 'expo-env.d.ts', 'babel.config.js', 'metro.config.js'] },
   {
@@ -76,28 +133,34 @@ export default [
         { classes: false, allowHexIn: ['/src/theme/', '/src/data/photos.ts'] },
       ],
 
-      // ADR-063 invariant 1. Every privacy rule for crash reports lives in
-      // `src/lib/crash-reporter.ts`: the allowlist, the scrubber, the switch.
-      // A second importer of the SDK could set a user, attach a screenshot or
-      // send an event around all three, so the SDK has exactly one importer.
-      // Type imports are refused too: the reporter re-exports what callers need.
+      // Two modules with exactly one importer each; the reasons are above.
       'no-restricted-imports': [
         'error',
-        {
-          paths: [
-            {
-              name: '@sentry/react-native',
-              message:
-                'Only src/lib/crash-reporter.ts may import the Sentry SDK (ADR-063). Call its exports instead.',
-            },
-          ],
-        },
+        { paths: [SENTRY_ONLY_IN_THE_REPORTER, ...STATUS_BAR_ONLY_IN_ONE_FILE] },
+      ],
+      'no-restricted-syntax': [
+        'error',
+        NO_REACT_NATIVE_STATUS_BAR,
+        ...SHEET_PRESENTATION_ONLY_IN_THE_HELPER,
       ],
     },
   },
   {
-    // The one importer, and its tests, which read the SDK's types.
+    // The Sentry SDK's one importer, and its tests, which read the SDK's types.
     files: ['src/lib/crash-reporter.ts', 'src/lib/crash-reporter.test.ts'],
-    rules: { 'no-restricted-imports': 'off' },
+    rules: { 'no-restricted-imports': ['error', { paths: STATUS_BAR_ONLY_IN_ONE_FILE }] },
+  },
+  {
+    // The status bar's one importer, and its test.
+    files: ['src/components/status-bar-style.tsx', 'src/components/status-bar-style.test.tsx'],
+    rules: {
+      'no-restricted-imports': ['error', { paths: [SENTRY_ONLY_IN_THE_REPORTER] }],
+      'no-restricted-syntax': ['error', ...SHEET_PRESENTATION_ONLY_IN_THE_HELPER],
+    },
+  },
+  {
+    // The one file that names a sheet presentation, and its test.
+    files: ['src/components/sheet-route.tsx', 'src/components/sheet-route.test.tsx'],
+    rules: { 'no-restricted-syntax': ['error', NO_REACT_NATIVE_STATUS_BAR] },
   },
 ];

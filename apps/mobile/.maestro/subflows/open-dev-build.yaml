@@ -27,7 +27,12 @@ appId: rw.injishi.mobile
       - tapOn: "Close"
       - waitForAnimationToEnd:
           timeout: 3000
+# The cold start allowance belongs HERE, not only on the first wait. The dev
+# menu can open before the JavaScript has even started, which satisfies the
+# first wait in seconds; on the low end emulator (2026-10-11) the bundle then
+# started 41 s after the link and the sign in screen had still not drawn 37 s
+# later, so a 30 s wait failed a healthy cold start.
 - extendedWaitUntil:
     visible:
       id: "email-field"
-    timeout: 30000
+    timeout: 180000
