@@ -359,6 +359,38 @@ describe("the Staff overview (ADR-058)", () => {
   });
 });
 
+describe("the Staff rail's groups", () => {
+  const groups = (role) => nav.staffGroups(roleSet(role));
+  const names = (role) => groups(role).map((g) => g.label);
+
+  test("every lens is in a group, and the table is in the groups' order", () => {
+    const keys = nav.STAFF_GROUPS.map((g) => g.key);
+    const order = nav.STAFF_LENSES.map((l) => keys.indexOf(l.group));
+    assert.ok(order.every((n) => n >= 0));
+    assert.deepEqual(order, [...order].sort((a, b) => a - b));
+  });
+
+  test("the owner's nineteen lenses are eight groups", () => {
+    assert.deepEqual(names("owner"), ["Overview", "Employees", "Schedule", "Attendance", "Leave", "Payroll", "Notices", "Settings"]);
+    assert.equal(groups("owner").flatMap((g) => g.lenses).length, 19);
+  });
+
+  test("a group holds exactly the lenses the grant reaches, in the rail's old order", () => {
+    for (const role of ["owner", "manager", "hr", "receptionist", "finance", "housekeeper"]) {
+      assert.deepEqual(
+        groups(role).flatMap((g) => g.lenses.map((l) => l.key)),
+        nav.staffLenses(roleSet(role)).map((l) => l.key),
+        role,
+      );
+    }
+  });
+
+  test("the desk is offered no group it cannot open: no Employees, Leave or Payroll", () => {
+    assert.deepEqual(names("receptionist"), ["Schedule", "Attendance", "Notices", "Settings"]);
+    assert.deepEqual(groups("receptionist").find((g) => g.key === "settings").lenses.map((l) => l.key), ["time-settings"]);
+  });
+});
+
 describe("My work (058-self-service)", () => {
   /** The nav of a grant that also carries the person's own staff file. */
   const withFile = (g) =>

@@ -276,6 +276,35 @@ export interface NavCounts {
 }
 
 /**
+ * What the Staff rail shows: eight groups, not nineteen lenses.
+ *
+ * Nineteen in one row was a strip to scroll sideways, with the roster's three
+ * lenses and attendance's four spread along it as if they were unrelated. The
+ * rail names a subject, and the lenses of the open subject sit in a second row
+ * under it, where Leave and Payroll already keep their own sections. A group is
+ * not an address and decides nothing: every lens keeps its route and its gate.
+ */
+export const STAFF_GROUPS: readonly {
+  key: "overview" | "employees" | "schedule" | "attendance" | "leave" | "payroll" | "notices" | "settings";
+  label: string;
+}[] = [
+  { key: "overview", label: "Overview" },
+  // The files, and what is kept on them.
+  { key: "employees", label: "Employees" },
+  // Who works when: the week, the patterns behind it, and what staff ask to change.
+  { key: "schedule", label: "Schedule" },
+  // Who came: the sheet, what staff ask to be put right, the tablets, and the month's figures.
+  { key: "attendance", label: "Attendance" },
+  { key: "leave", label: "Leave" },
+  { key: "payroll", label: "Payroll" },
+  // What the business tells its staff.
+  { key: "notices", label: "Notices" },
+  { key: "settings", label: "Settings" },
+];
+
+export type StaffGroupKey = (typeof STAFF_GROUPS)[number]["key"];
+
+/**
  * The Staff screen's lenses and the permissions that open each (ADR-058,
  * contract 10), in the order the rail shows them.
  *
@@ -290,6 +319,9 @@ export interface NavCounts {
  * Configuration are `people.manage`'s; the org chart reads like the file list;
  * Policies and Announcements are the whole business's, so any HR permission
  * reads them, the desk included.
+ *
+ * Each lens is in one of `STAFF_GROUPS`, and the table is in the groups' order:
+ * the rail shows the groups, and the lenses of the open one beneath it.
  */
 export const STAFF_LENSES: readonly {
   key:
@@ -313,6 +345,9 @@ export const STAFF_LENSES: readonly {
     | "time-settings"
     | "configuration";
   label: string;
+  /** What it is called under its group's name, where the label would say the group again. */
+  short?: string;
+  group: StaffGroupKey;
   /** The route segment under `/staff`; empty for the default lens. */
   segment: string;
   anyPermission: readonly Permission[];
@@ -324,44 +359,61 @@ export const STAFF_LENSES: readonly {
   {
     key: "overview",
     label: "Overview",
+    group: "overview",
     segment: "overview",
     anyPermission: ["people.view", "people.manage", "roster.manage", "attendance.approve", "leave.approve", "payroll.draft", "payroll.run"],
   },
-  { key: "employees", label: "Employees", segment: "", anyPermission: ["people.view", "people.manage", "payroll.run"] },
-  { key: "org-chart", label: "Org chart", segment: "org-chart", anyPermission: ["people.view", "people.manage", "payroll.run"] },
-  { key: "documents", label: "Documents", segment: "documents", anyPermission: ["people.manage"] },
-  { key: "discipline", label: "Discipline", segment: "discipline", anyPermission: ["people.manage"] },
+  { key: "employees", label: "Employees", short: "Everyone", group: "employees", segment: "", anyPermission: ["people.view", "people.manage", "payroll.run"] },
+  { key: "org-chart", label: "Org chart", group: "employees", segment: "org-chart", anyPermission: ["people.view", "people.manage", "payroll.run"] },
+  { key: "documents", label: "Documents", group: "employees", segment: "documents", anyPermission: ["people.manage"] },
+  { key: "discipline", label: "Discipline", group: "employees", segment: "discipline", anyPermission: ["people.manage"] },
   // Joining and leaving: read by whoever reads files, written by `people.manage` inside it.
-  { key: "checklists", label: "Checklists", segment: "checklists", anyPermission: ["people.view", "people.manage"] },
-  { key: "roster", label: "Roster", segment: "roster", anyPermission: ["roster.manage", "attendance.record", "people.view"] },
+  { key: "checklists", label: "Checklists", group: "employees", segment: "checklists", anyPermission: ["people.view", "people.manage"] },
+  { key: "roster", label: "Roster", group: "schedule", segment: "roster", anyPermission: ["roster.manage", "attendance.record", "people.view"] },
   // Time (058-time AC-TM14). Each lens opens on the reads it makes.
-  { key: "rotations", label: "Rotations", segment: "rotations", anyPermission: ["roster.manage", "attendance.record"] },
-  { key: "shift-requests", label: "Shift requests", segment: "shift-requests", anyPermission: ["roster.manage"] },
-  { key: "attendance", label: "Attendance", segment: "attendance", anyPermission: ["attendance.record", "attendance.approve"] },
-  { key: "attendance-requests", label: "Attendance requests", segment: "attendance-requests", anyPermission: ["attendance.approve"] },
-  { key: "kiosks", label: "Kiosks", segment: "kiosks", anyPermission: ["attendance.record"] },
+  { key: "rotations", label: "Rotations", group: "schedule", segment: "rotations", anyPermission: ["roster.manage", "attendance.record"] },
+  { key: "shift-requests", label: "Shift requests", group: "schedule", segment: "shift-requests", anyPermission: ["roster.manage"] },
+  { key: "attendance", label: "Attendance", short: "Daily sheet", group: "attendance", segment: "attendance", anyPermission: ["attendance.record", "attendance.approve"] },
+  { key: "attendance-requests", label: "Attendance requests", short: "Requests", group: "attendance", segment: "attendance-requests", anyPermission: ["attendance.approve"] },
+  { key: "kiosks", label: "Kiosks", group: "attendance", segment: "kiosks", anyPermission: ["attendance.record"] },
+  { key: "time-insights", label: "Late and monthly", group: "attendance", segment: "time-insights", anyPermission: ["people.manage"] },
   // 058-leave: five sections below it; whoever keeps the files reaches balances, periods and types.
-  { key: "leave", label: "Leave", segment: "leave", anyPermission: ["leave.approve", "people.manage"] },
+  { key: "leave", label: "Leave", group: "leave", segment: "leave", anyPermission: ["leave.approve", "people.manage"] },
   // 058-payroll: nine sections below it; whoever writes contracts reaches the
   // Contracts list. ADR-069 D-e: whoever drafts the pay run (`payroll.draft`,
   // the HR officer) opens it too, on the Overview the draft is built from; the
   // confirm stays `payroll.run`'s inside the screen.
-  { key: "payroll", label: "Payroll", segment: "payroll", anyPermission: ["payroll.draft", "payroll.run", "people.manage"] },
-  { key: "time-insights", label: "Late and monthly", segment: "time-insights", anyPermission: ["people.manage"] },
-  { key: "policies", label: "Policies", segment: "policies", anyPermission: HR_PERMISSIONS },
-  { key: "announcements", label: "Announcements", segment: "announcements", anyPermission: HR_PERMISSIONS },
+  { key: "payroll", label: "Payroll", group: "payroll", segment: "payroll", anyPermission: ["payroll.draft", "payroll.run", "people.manage"] },
+  { key: "policies", label: "Policies", group: "notices", segment: "policies", anyPermission: HR_PERMISSIONS },
+  { key: "announcements", label: "Announcements", group: "notices", segment: "announcements", anyPermission: HR_PERMISSIONS },
   {
     key: "time-settings",
     label: "Time settings",
+    short: "Time and attendance",
+    group: "settings",
     segment: "time-settings",
     anyPermission: ["roster.manage", "attendance.record", "attendance.approve", "people.manage"],
   },
-  { key: "configuration", label: "Configuration", segment: "configuration", anyPermission: ["people.manage"] },
+  { key: "configuration", label: "Configuration", short: "Positions and tags", group: "settings", segment: "configuration", anyPermission: ["people.manage"] },
 ];
 
 /** The Staff lenses a grant reaches. */
 export function staffLenses(permissions: readonly Permission[]): typeof STAFF_LENSES[number][] {
   return STAFF_LENSES.filter((lens) => lens.anyPermission.some((p) => permissions.includes(p)));
+}
+
+/**
+ * The Staff groups a grant reaches, each with the lenses of it the grant
+ * reaches. A group opens on the first of them, and one with none is not
+ * offered, so a group is never a door onto a refusal.
+ */
+export function staffGroups(
+  permissions: readonly Permission[],
+): { key: StaffGroupKey; label: string; lenses: typeof STAFF_LENSES[number][] }[] {
+  const reachable = staffLenses(permissions);
+  return STAFF_GROUPS.map((group) => ({ ...group, lenses: reachable.filter((lens) => lens.group === group.key) })).filter(
+    (group) => group.lenses.length > 0,
+  );
 }
 
 /* ── The reads each door declares ───────────────────────────────────────── */
