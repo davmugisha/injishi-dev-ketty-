@@ -23,30 +23,27 @@
  * export, all in the URL. What a reader may filter or sort follows their file
  * view, and the server refuses the rest. Job position, employee type and tag
  * filter by the business's own catalogs (058-people-file AC-PF13).
+ *
+ * "Put someone on file" opens `NewStaffFile`: the file, and with it whatever
+ * else the hire comes with (contract, pay account, emergency contact,
+ * documents, a note), so nobody walks the file's tabs to finish a hire.
  */
 
-import {
-  EMPLOYEE_LIST,
-  EMPLOYEE_MISSING_DETAIL_LABEL,
-  EmployeePage,
-  LIST_READ,
-  type CreateEmployeeRequest,
-  type Employee,
-} from "@injishi/contracts";
-import { DataView, Input, type DataColumn } from "@injishi/ui";
+import { EMPLOYEE_LIST, EMPLOYEE_MISSING_DETAIL_LABEL, EmployeePage, LIST_READ, type Employee } from "@injishi/contracts";
+import { DataView, type DataColumn } from "@injishi/ui";
 import Link from "next/link";
 import { useMemo, useState } from "react";
 
-import { ActionButton, Badge, SectionHeading, SelectField } from "../../components/ui";
+import { ActionButton, Badge } from "../../components/ui";
 import { useCapability, useWorkspaceId } from "../../data/capability";
 import { downloadListCsv, useListPage, useListUrl, useSavedViewsFor } from "../../data/lists";
-import { useCreateEmployee } from "../../data/people";
 import { useHrCatalog } from "../../data/people-file";
-import { dshortIso, fmt, todayIso } from "../../lib/format";
+import { dshortIso, fmt } from "../../lib/format";
 import { workspaceBase } from "../../lib/nav";
 import { usePms } from "../../store";
 import { currentGrant } from "../../store/helpers";
-import { Field, FormError, inputClass, toneIntent, useNarrowScreen } from "./staff-ui";
+import { NewStaffFile } from "./new-staff-file";
+import { toneIntent, useNarrowScreen } from "./staff-ui";
 
 const ROLE_LABEL: Record<string, string> = {
   owner: "Owner",
@@ -57,30 +54,13 @@ const ROLE_LABEL: Record<string, string> = {
   housekeeper: "Housekeeper",
 };
 
-const EMPTY_FORM = {
-  legalName: "",
-  preferredName: "",
-  phone: "",
-  dateOfBirth: "",
-  sex: "",
-  idDocumentType: "national_id",
-  idDocumentNumber: "",
-  hiredOn: "",
-  workPropertyId: "",
-  jobPositionId: "",
-  rssbNumber: "",
-  email: "",
-};
-
 export function Employees() {
-  const { state, toast } = usePms();
+  const { state } = usePms();
   const workspaceId = useWorkspaceId();
   const narrow = useNarrowScreen(1260);
   const { can } = useCapability();
   const [adding, setAdding] = useState(false);
-  const create = useCreateEmployee(workspaceId);
   const branches = currentGrant(state)?.branches ?? [];
-  const [form, setForm] = useState({ ...EMPTY_FORM, hiredOn: todayIso(), workPropertyId: branches[0]?.id ?? "" });
   const base = `${workspaceBase(workspaceId)}/staff`;
   const mayManage = can("people.manage");
   const positions = useHrCatalog(workspaceId, "job-positions");
@@ -89,32 +69,6 @@ export function Employees() {
   // Every row of a catalog filters, archived ones too: a file may still carry one.
   const optionsOf = (items: { id: string; title: string; status: string }[] | undefined) =>
     (items ?? []).map((i) => ({ value: i.id, label: i.status === "archived" ? `${i.title} (archived)` : i.title }));
-
-  const set = (key: keyof typeof EMPTY_FORM) => (value: string) => setForm((f) => ({ ...f, [key]: value }));
-
-  const submit = () => {
-    const body: CreateEmployeeRequest = {
-      legalName: form.legalName,
-      preferredName: form.preferredName.trim() || null,
-      phone: form.phone,
-      dateOfBirth: form.dateOfBirth,
-      sex: form.sex as CreateEmployeeRequest["sex"],
-      idDocumentType: form.idDocumentType as CreateEmployeeRequest["idDocumentType"],
-      idDocumentNumber: form.idDocumentNumber,
-      hiredOn: form.hiredOn,
-      workPropertyId: form.workPropertyId,
-      jobPositionId: form.jobPositionId || null,
-      rssbNumber: form.rssbNumber.trim() || null,
-      email: form.email.trim() || null,
-    };
-    create.mutate(body, {
-      onSuccess: (e) => {
-        toast(`${e.displayName} is on file as employee ${e.employeeNumber}`, "ok");
-        setAdding(false);
-        setForm({ ...EMPTY_FORM, hiredOn: todayIso(), workPropertyId: branches[0]?.id ?? "" });
-      },
-    });
-  };
 
   // The file view decides what a reader may filter, sort and see; the server
   // decides what it sends, so this only keeps the screen from asking for more.
@@ -145,93 +99,7 @@ export function Employees() {
         )}
       </div>
 
-      {adding && (
-        <form
-          className="flex flex-col gap-4 rounded-card border border-card-bd bg-card p-5"
-          onSubmit={(ev) => {
-            ev.preventDefault();
-            submit();
-          }}
-        >
-          <SectionHeading>New staff file</SectionHeading>
-          <div className="grid gap-4 md:grid-cols-2">
-            <Field label="Legal name" hint="As it is written on the ID." htmlFor="hr-legal-name">
-              <Input id="hr-legal-name" required value={form.legalName} onChange={(e) => set("legalName")(e.target.value)} className={inputClass} />
-            </Field>
-            <Field label="Called" hint="Optional. What colleagues call them." htmlFor="hr-preferred">
-              <Input id="hr-preferred" value={form.preferredName} onChange={(e) => set("preferredName")(e.target.value)} className={inputClass} />
-            </Field>
-            <Field label="Phone" htmlFor="hr-phone">
-              <Input id="hr-phone" required inputMode="tel" placeholder="0788 123 456" value={form.phone} onChange={(e) => set("phone")(e.target.value)} className={inputClass} />
-            </Field>
-            <Field label="Date of birth" htmlFor="hr-dob">
-              <Input id="hr-dob" required type="date" value={form.dateOfBirth} onChange={(e) => set("dateOfBirth")(e.target.value)} className={inputClass} />
-            </Field>
-            <Field label="Sex">
-              <SelectField
-                label="Sex"
-                value={form.sex}
-                onChange={set("sex")}
-                placeholder="Choose"
-                options={[
-                  { value: "female", label: "Female" },
-                  { value: "male", label: "Male" },
-                ]}
-              />
-            </Field>
-            <Field label="ID document">
-              <SelectField
-                label="ID document"
-                value={form.idDocumentType}
-                onChange={set("idDocumentType")}
-                options={[
-                  { value: "national_id", label: "National ID" },
-                  { value: "passport", label: "Passport" },
-                ]}
-              />
-            </Field>
-            <Field label="ID number" htmlFor="hr-id-number">
-              <Input id="hr-id-number" required value={form.idDocumentNumber} onChange={(e) => set("idDocumentNumber")(e.target.value)} className={inputClass} />
-            </Field>
-            <Field label="RSSB number" hint="Optional now; pay cannot be confirmed without it." htmlFor="hr-rssb">
-              <Input id="hr-rssb" value={form.rssbNumber} onChange={(e) => set("rssbNumber")(e.target.value)} className={inputClass} />
-            </Field>
-            <Field label="Hired on" htmlFor="hr-hired">
-              <Input id="hr-hired" required type="date" value={form.hiredOn} onChange={(e) => set("hiredOn")(e.target.value)} className={inputClass} />
-            </Field>
-            <Field label="Works at">
-              <SelectField
-                label="Works at"
-                value={form.workPropertyId}
-                onChange={set("workPropertyId")}
-                placeholder="Choose a branch"
-                options={branches.map((b) => ({ value: b.id, label: b.name }))}
-              />
-            </Field>
-            <Field label="Job position" hint="Optional. Positions are kept under Configuration.">
-              <SelectField
-                label="Job position"
-                value={form.jobPositionId}
-                onChange={set("jobPositionId")}
-                placeholder="None yet"
-                options={(positions.data?.items ?? []).filter((p) => p.status === "active").map((p) => ({ value: p.id, label: p.title }))}
-              />
-            </Field>
-            <Field label="Email" hint="Optional." htmlFor="hr-email">
-              <Input id="hr-email" type="email" value={form.email} onChange={(e) => set("email")(e.target.value)} className={inputClass} />
-            </Field>
-          </div>
-          <FormError error={create.error} />
-          <div className="flex justify-end gap-2">
-            <ActionButton type="button" onClick={() => setAdding(false)}>
-              Cancel
-            </ActionButton>
-            <ActionButton variant="primary" type="submit" pending={create.isPending}>
-              {create.isPending ? "Saving" : "Put on file"}
-            </ActionButton>
-          </div>
-        </form>
-      )}
+      {adding && <NewStaffFile onDone={() => setAdding(false)} />}
 
       <DataView
         spec={EMPLOYEE_LIST}
