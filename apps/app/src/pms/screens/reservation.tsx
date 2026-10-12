@@ -123,7 +123,9 @@ function LiveReservation({
   const ofThisBooking = (stays.data?.stays ?? []).filter((s) => s.bookingId === reservation.id);
   const stay = ofThisBooking.find((s) => s.lifecycle === "open") ?? ofThisBooking[0] ?? null;
 
-  const guest = reservation.guestName ?? "Guest";
+  // A guest who booked with an email alone is shown by it; `guestName` itself,
+  // which the check-in records, stays empty.
+  const guest = reservation.guestName ?? reservation.guestEmail ?? "Guest";
 
   return (
     <ObjectPage

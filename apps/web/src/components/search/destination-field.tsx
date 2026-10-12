@@ -6,6 +6,7 @@ import { useMemo, useRef, useState } from "react";
 import { Input } from "@heroui/react";
 import { cn, pluralize } from "@injishi/utils";
 import type { Destination, DestinationKind } from "@/data/destinations";
+import { usePublishedStays } from "@/data/published-stays";
 import { KIND_LABELS, rankDestinations } from "@/lib/destination-search";
 
 /**
@@ -44,7 +45,9 @@ export function DestinationField({
   const [active, setActive] = useState(0);
   const listRef = useRef<HTMLUListElement>(null);
 
-  const ranked = useMemo(() => rankDestinations(query), [query]);
+  // Read once the field first opens; until then the fixed list stands alone.
+  const published = usePublishedStays(open);
+  const ranked = useMemo(() => rankDestinations(query, 7, published), [query, published]);
   const isEmptyQuery = query.trim().length === 0;
 
   const commit = (index: number) => {
@@ -207,11 +210,6 @@ export function DestinationField({
                           {hit.destination.context}
                         </span>
                       </span>
-                      {hit.destination.count ? (
-                        <span className="shrink-0 text-xs tabular-nums text-ink/40">
-                          {hit.destination.count}
-                        </span>
-                      ) : null}
                     </Button>
                   </li>
                 );

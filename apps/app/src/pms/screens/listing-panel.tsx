@@ -27,6 +27,8 @@ import { cn } from "@/lib/utils";
 import { ActionButton, Badge, surfaceClass } from "../components/ui";
 import { humanError } from "../data/api";
 import { publishBlockers, useSetListing } from "../data/inventory";
+import { useReservations } from "../data/reservations";
+import { todayIso } from "../lib/format";
 import { usePms } from "../store";
 
 type Refusal = { lead: string; reasons: string[] };
@@ -42,10 +44,26 @@ export function ListingPanel({
   const setListing = useSetListing(workspaceId, property.id);
   const [refusal, setRefusal] = useState<Refusal | null>(null);
   const [acts, setActs] = useState(0);
+  /** Unpublish asks first: it takes the stay off sale for every guest at once. */
+  const [confirming, setConfirming] = useState(false);
   const published = property.listingStatus === "published";
+  // Bookings this property still has to honour. Read from the desk list, which
+  // names each booking's property; null while unknown, so the warning never
+  // states a count it has not read.
+  const reservations = useReservations(published ? workspaceId : null);
+  const today = todayIso();
+  const upcoming = reservations.data
+    ? reservations.data.reservations.filter(
+        (r) =>
+          r.propertyName === property.name &&
+          r.checkOut >= today &&
+          (r.bookingStatus === "confirmed" || r.bookingStatus === "pending_approval"),
+      ).length
+    : null;
 
   const act = (next: "publish" | "unpublish") => {
     setRefusal(null);
+    setConfirming(false);
     setListing.mutate(next, {
       onSuccess: (saved) => {
         toast(
@@ -95,7 +113,7 @@ export function ListingPanel({
           {property.roomTypeCount} room types · {property.sellableRoomCount} sellable rooms
         </span>
         {published ? (
-          <ActionButton onClick={() => act("unpublish")} pending={setListing.isPending}>
+          <ActionButton onClick={() => setConfirming(true)} pending={setListing.isPending}>
             Unpublish
           </ActionButton>
         ) : (
@@ -129,6 +147,24 @@ export function ListingPanel({
           <>Not visible to guests. Publishing gives it an address guests can open.</>
         )}
       </p>
+
+      {confirming && published && (
+        <div role="alertdialog" aria-label={`Unpublish ${property.name}?`} className="flex flex-col gap-2 rounded border border-line2 bg-field px-3 py-2.5 text-sm text-foreground">
+          <p className="font-semibold">Unpublish {property.name}?</p>
+          <p>
+            Guests will no longer find it or be able to book it.
+            {upcoming !== null && upcoming > 0
+              ? ` Its ${upcoming} upcoming ${upcoming === 1 ? "booking stays" : "bookings stay"} as booked, and those guests still arrive.`
+              : " Bookings already made stay as they are."}
+          </p>
+          <div className="flex flex-wrap gap-2">
+            <ActionButton onClick={() => setConfirming(false)}>Keep it published</ActionButton>
+            <ActionButton variant="primary" onClick={() => act("unpublish")} pending={setListing.isPending}>
+              Unpublish
+            </ActionButton>
+          </div>
+        </div>
+      )}
 
       {refusal && (
         <div role="alert" className="rounded border border-line2 bg-field px-3 py-2.5 text-sm text-foreground">

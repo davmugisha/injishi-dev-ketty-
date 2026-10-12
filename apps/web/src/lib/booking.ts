@@ -66,6 +66,9 @@ export function cancellationCopy(
   if (nonRefundable) {
     return "Non-refundable — full forfeit on cancellation, regardless of tier.";
   }
-  if (!tier) return "Cancellation policy is shown before payment.";
-  return CANCELLATION_COPY[tier];
+  // No tier on the room type means flexible: it is what the server applies
+  // when the guest cancels (`cancellationOutcome`, `input.tier ?? "flexible"`).
+  // This used to say "Cancellation policy is shown before payment." on the
+  // last step before payment, so a guest paid without seeing any terms.
+  return CANCELLATION_COPY[tier ?? "flexible"];
 }

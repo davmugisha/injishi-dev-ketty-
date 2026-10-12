@@ -12,6 +12,7 @@ import { and, asc, desc, eq, inArray, sql, type SQL } from 'drizzle-orm';
 import { alias } from 'drizzle-orm/pg-core';
 
 import {
+  accountName,
   cautionHolds,
   cautionSettlements,
   contractFilings,
@@ -500,7 +501,7 @@ export class ResidenceRepository {
         unitLabel: rooms.label,
         // The lease carries a typed name for a tenant with no account yet; the
         // account's own name wins when there is one.
-        tenantName: sql<string | null>`coalesce(${users.name}, ${leases.tenantName})`,
+        tenantName: sql<string | null>`coalesce(${accountName}, ${leases.tenantName})`,
         monthlyRentRwf: leases.monthlyRentRwf,
         cautionRwf: leases.cautionRwf,
         startDate: leases.startDate,
@@ -528,7 +529,7 @@ export class ResidenceRepository {
         unitLabel: sql<
           string | null
         >`coalesce(${rooms.label}, ${leaseRooms.label})`,
-        raisedByName: users.name,
+        raisedByName: accountName,
         title: maintenanceTickets.title,
         description: maintenanceTickets.description,
         category: maintenanceTickets.category,
@@ -555,7 +556,7 @@ export class ResidenceRepository {
         leaseId: rentCharges.leaseId,
         workspaceId: leases.workspaceId,
         unitLabel: rooms.label,
-        tenantName: sql<string | null>`coalesce(${users.name}, ${leases.tenantName})`,
+        tenantName: sql<string | null>`coalesce(${accountName}, ${leases.tenantName})`,
         periodMonth: rentCharges.periodMonth,
         amountRwf: rentCharges.amountRwf,
         paidAmountRwf: rentCharges.paidAmountRwf,
@@ -588,7 +589,7 @@ export class ResidenceRepository {
         leaseId: leases.id,
         workspaceId: leases.workspaceId,
         unitLabel: rooms.label,
-        tenantName: sql<string | null>`coalesce(${users.name}, ${leases.tenantName})`,
+        tenantName: sql<string | null>`coalesce(${accountName}, ${leases.tenantName})`,
         leaseStatus: leases.status,
         startDate: leases.startDate,
         // The clock starts at signing, and a contract is signed by BOTH. The
@@ -624,7 +625,7 @@ export class ResidenceRepository {
         leaseId: cautionHolds.leaseId,
         workspaceId: leases.workspaceId,
         unitLabel: rooms.label,
-        tenantName: sql<string | null>`coalesce(${users.name}, ${leases.tenantName})`,
+        tenantName: sql<string | null>`coalesce(${accountName}, ${leases.tenantName})`,
         amountRwf: cautionHolds.amountRwf,
         status: cautionHolds.status,
         escrowId: cautionHolds.escrowId,

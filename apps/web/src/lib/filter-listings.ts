@@ -2,12 +2,10 @@ import type { AccommodationClass } from "@injishi/contracts";
 import type { Listing } from "@/data/listings";
 import { matchesBedrooms, POPULAR_FILTERS } from "@/data/explore-facets";
 import type { FacetField } from "@/data/explore-facets";
-import { demoCommerceFor } from "@/data/demo-commerce";
 import {
   billableGuests,
   type ExploreRefinement,
   type ExploreSort,
-  type PriceBasis,
   type StayIntent,
   type StayType,
 } from "@/lib/search-params";
@@ -20,7 +18,7 @@ import {
  * questions: INTENT is what the guest asked for and REFINEMENT is how they
  * narrowed the answer.
  *
- * **Dates narrow nothing here, and that is not an oversight.** The fixtures
+ * **Dates narrow nothing here, and that is not an oversight.** Listings
  * carry no availability calendar, so a date range cannot be honoured against
  * them. It is carried through the URL so it reaches the property page and the
  * booking widget without being asked for twice, and `/explore` says out loud
@@ -91,7 +89,7 @@ export function filterListings(
     // Price. The bound is compared against whichever figure the rail is
     // showing, because a guest who switched the rail to totals and typed a
     // ceiling meant that ceiling on the total.
-    const price = priceOf(listing, refinement.priceBasis);
+    const price = listing.nightlyRateRwf;
     if (refinement.minRwf !== null || refinement.maxRwf !== null) {
       if (price === null) return false;
       if (refinement.minRwf !== null && price < refinement.minRwf) return false;
@@ -110,10 +108,7 @@ export function filterListings(
     if (!hasEvery(facets.experience, refinement.experience)) return false;
     if (!hasEvery(facets.views, refinement.views)) return false;
     if (!hasEvery(facets.activities, refinement.activities)) return false;
-    if (!hasEvery(facets.payment, refinement.payment)) return false;
-    if (!hasEvery(facets.cancellation, refinement.cancellation)) return false;
     if (!hasEvery(facets.meals, refinement.meals)) return false;
-    if (!hasEvery(facets.access, refinement.access)) return false;
 
     for (const id of refinement.popular) {
       const filter = POPULAR_FILTERS.find((candidate) => candidate.id === id);
@@ -123,37 +118,19 @@ export function filterListings(
       if (filter && !filter.matches(listing)) return false;
     }
 
-    // "Only show available properties". The fixtures carry no calendar, so
-    // this stands on the one scarcity signal the page already prints: a stay
-    // marked sold out on the card must not survive a tick that says available.
-    if (refinement.available && listing.facets.roomsLeft === 0) return false;
-
-    // The fixtures carry a real `maxGuests` now, so occupancy is read rather
+    // Each listing carries a real `maxGuests`, so occupancy is read rather
     // than guessed from the bedroom count as it used to be.
     if (listing.maxGuests < guests) return false;
     return true;
   });
 
-  return sortListings(matched, refinement.sort, refinement.priceBasis);
+  return sortListings(matched, refinement.sort);
 }
 
 /** Every ticked value must be present. An empty selection narrows nothing. */
 function hasEvery(has: readonly string[], wanted: readonly string[]): boolean {
   if (wanted.length === 0) return true;
   return wanted.every((value) => has.includes(value));
-}
-
-/**
- * The figure the rail and the card are both talking about.
- *
- * `total` is one night plus VAT, which is what `data/demo-commerce.ts`
- * fabricates and what the card already prints. Reading it from there rather
- * than recomputing the VAT here is what stops the filter and the card
- * disagreeing about the same stay.
- */
-export function priceOf(listing: Listing, basis: PriceBasis): number | null {
-  if (basis === "nightly") return listing.nightlyRateRwf;
-  return demoCommerceFor(listing).totalRwf;
 }
 
 /**
@@ -179,18 +156,14 @@ export function matchesStayType(kind: AccommodationClass, type: StayType): boole
   return HOME_CLASSES.includes(kind);
 }
 
-function sortListings(
-  listings: Listing[],
-  sort: ExploreSort,
-  basis: PriceBasis,
-): Listing[] {
+function sortListings(listings: Listing[], sort: ExploreSort): Listing[] {
   const sorted = [...listings];
 
   switch (sort) {
     case "price_asc":
-      return sorted.sort(byPrice(basis, 1));
+      return sorted.sort(byPrice(1));
     case "price_desc":
-      return sorted.sort(byPrice(basis, -1));
+      return sorted.sort(byPrice(-1));
     case "rating_desc":
       return sorted.sort(byRating);
     case "bedrooms_asc":
@@ -199,22 +172,20 @@ function sortListings(
       return sorted.sort((a, b) => b.bedrooms - a.bedrooms);
     default:
       // Recommended, and it is exactly what `SORT_EXPLAINER` says it is:
-      // score first, then rate. Sponsorship is NOT read here. A paid mark that
-      // also bought a rank would make the explainer beside the control false,
-      // and that string is a promise to the guest rather than decoration.
+      // score first, then rate.
       return sorted.sort((a, b) => {
         const scoreGap = (b.rating?.score ?? 0) - (a.rating?.score ?? 0);
         if (scoreGap !== 0) return scoreGap;
-        return byPrice(basis, 1)(a, b);
+        return byPrice(1)(a, b);
       });
   }
 }
 
 /** Rate-on-request stays sort last in both directions, never as a zero. */
-function byPrice(basis: PriceBasis, direction: 1 | -1) {
+function byPrice(direction: 1 | -1) {
   return (a: Listing, b: Listing): number => {
-    const left = priceOf(a, basis);
-    const right = priceOf(b, basis);
+    const left = a.nightlyRateRwf;
+    const right = b.nightlyRateRwf;
     if (left === null && right === null) return 0;
     if (left === null) return 1;
     if (right === null) return -1;
@@ -252,9 +223,6 @@ export function poolExcluding(
 ): Listing[] {
   if (field === "districts") {
     return filterListings(listings, { ...intent, districts: [] }, refinement);
-  }
-  if (field === "available") {
-    return filterListings(listings, intent, { ...refinement, available: false });
   }
   if (field === "rating") {
     return filterListings(listings, intent, { ...refinement, rating: null });

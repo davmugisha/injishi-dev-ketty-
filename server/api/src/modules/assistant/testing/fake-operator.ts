@@ -52,6 +52,7 @@ function room(id: string, label: string): OperatorRoom {
     label,
     roomTypeId: '90000000-0000-4000-8000-0000000000aa',
     roomTypeName: 'Double room',
+    roomTypeActive: true,
     status: 'available',
     housekeeping: 'clean',
     occupiedBy: id === ROOM_205 ? { stayId: '90000000-0000-4000-8000-0000000000dd', guestName: 'Aline Uwase' } : null,

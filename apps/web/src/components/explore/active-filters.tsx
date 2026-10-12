@@ -1,6 +1,6 @@
 "use client";
 
-import { Award, Check, Coffee, RotateCcw, Waves, Wallet, X } from "lucide-react";
+import { Award, Check, Coffee, Waves, Wallet, X } from "lucide-react";
 import { useMemo } from "react";
 import { cn } from "@injishi/utils";
 import { facetSelection, facetTogglePatch } from "@/components/explore/explore-filters";
@@ -68,7 +68,7 @@ export function ActiveFilterChips({
             : `Up to ${fmt(hi!)} RWF`;
       out.push({
         key: "price",
-        label: refinement.priceBasis === "total" ? `${label} total` : label,
+        label,
         change: { refinement: { minRwf: null, maxRwf: null } },
       });
     }
@@ -142,10 +142,10 @@ export function ActiveFilterChips({
 /**
  * One-tap chips for the filters most guests reach for, so most never need
  * the rail. They write the rail's own "Popular filters" values, so a chip
- * tapped here is ticked there too, and the counts are the rail's counts.
+ * tapped here is ticked there too, and the counts are the rail's counts. A
+ * chip no listed stay would answer is left out rather than shown at zero.
  */
 const QUICK = [
-  { id: "free_cancellation", label: "Free cancellation", Icon: RotateCcw },
   { id: "breakfast", label: "Breakfast included", Icon: Coffee },
   { id: "pool", label: "Pool", Icon: Waves },
   { id: "rated_8", label: "Rated 8+", Icon: Award },
@@ -180,13 +180,12 @@ export function QuickFilters({
       {QUICK.map(({ id, label, Icon }) => {
         const on = refinement.popular.includes(id);
         const count = counts.get(id) ?? 0;
-        const dead = !on && count === 0;
+        if (!on && count === 0) return null;
         return (
           <button
             key={id}
             type="button"
             aria-pressed={on}
-            disabled={dead}
             onClick={() =>
               onRefinementChange({
                 popular: on
@@ -200,7 +199,6 @@ export function QuickFilters({
               on
                 ? "bg-accent text-accent-foreground ring-accent"
                 : "bg-card text-foreground ring-border hover:bg-surface-secondary",
-              dead && "cursor-not-allowed opacity-50 hover:bg-card",
             )}
           >
             {on ? (

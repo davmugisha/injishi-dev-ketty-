@@ -27,7 +27,7 @@ export function stayTabId(type: StayType): string {
 }
 
 /**
- * The bar above the result list: "61+ stays in Rwanda", the stay-type tabs,
+ * The bar above the result list: "61 stays in Rwanda", the stay-type tabs,
  * the sort control with its explainer one hover away, and the list/grid
  * layout switch. The map toggle shows only where the right rail's mini map
  * is not on screen, and to come back from the map view.
@@ -40,13 +40,11 @@ export function stayTabId(type: StayType): string {
  * its panel: see `EXPLORE_RESULTS_ID`.
  *
  * `data-result-count` carries the RAW NUMBER as `data-count`, separately from
- * the printed sentence. The sentence is written for a reader ("300+
- * properties"); a check that needs the true count reads the attribute rather
+ * the printed sentence. The sentence is written for a reader; a check that needs the true count reads the attribute rather
  * than parsing prose, so a later copy change cannot break it.
  */
 export function ResultsToolbar({
   count,
-  totalCatalogue,
   place,
   stayType,
   onStayTypeChange,
@@ -56,8 +54,6 @@ export function ResultsToolbar({
   onToggleMap,
 }: {
   count: number;
-  /** The whole catalogue's size, so "300+" never overstates what exists. */
-  totalCatalogue: number;
   /** Where the results are: "Rwanda", "Musanze", "2 districts". */
   place: string;
   stayType: StayType;
@@ -69,7 +65,6 @@ export function ResultsToolbar({
   onToggleMap: () => void;
 }) {
   const sortLabel = SORT_OPTIONS.find((option) => option.value === sort)?.label ?? "Sort";
-  const shown = count === totalCatalogue ? `${count}+` : String(count);
 
   // Two deliberate rows: the count and the controls that act on the whole
   // list share the first, centred on one line; the stay-type tabs take the
@@ -84,7 +79,7 @@ export function ResultsToolbar({
           data-count={count}
           className="text-xl font-bold leading-tight text-foreground"
         >
-          {count === 1 ? "1 stay" : `${shown} stays`} in {place}
+          {count === 1 ? "1 stay" : `${count} stays`} in {place}
         </h2>
 
         <div className="flex flex-wrap items-center gap-2">

@@ -25,7 +25,7 @@ import {
   SheetTitle,
 } from "@injishi/ui";
 import { cn } from "@injishi/utils";
-import { demoCommerceFor } from "@/data/demo-commerce";
+import { NoPhoto } from "@/components/stays/no-photo";
 import type { Listing } from "@/data/listings";
 import { amenityMark } from "@/lib/amenity-icon";
 import { bookingUnit } from "@/lib/booking-unit";
@@ -56,7 +56,8 @@ import { EMPTY_INTENT, MAX_PICKS, propertyHref, type StayIntent } from "@/lib/se
 
 export const COMPARE_LIMIT = MAX_PICKS;
 
-const photoOf = (listing: Listing) => listing.image.src ?? `/assets/${listing.image.stem}.jpg`;
+const photoOf = (listing: Listing): string | null =>
+  listing.image ? (listing.image.src ?? `/assets/${listing.image.stem}.jpg`) : null;
 const nameOf = (listing: Listing) =>
   `${listing.nameLead}${listing.nameRest ? ` ${listing.nameRest}` : ""}`;
 const hrefOf = (listing: Listing, intent?: StayIntent) =>
@@ -173,7 +174,11 @@ export function CompareTray({
           {selected.map((listing) => (
             <li key={listing.slug} className="compare-pop relative shrink-0" title={nameOf(listing)}>
               <span className="relative block size-12 overflow-hidden rounded-card ring-2 ring-card shadow-control">
-                <Image src={photoOf(listing)} alt="" fill sizes="48px" className="object-cover" />
+                {listing.image ? (
+                  <Image src={photoOf(listing)!} alt="" fill sizes="48px" unoptimized className="object-cover" />
+                ) : (
+                  <NoPhoto compact />
+                )}
               </span>
               <button
                 type="button"
@@ -340,16 +345,12 @@ function buildSections(selected: Listing[], intent?: StayIntent): Section[] {
           label: "Guest rating",
           cell: (l) => {
             if (!l.rating) return <span className="text-muted-foreground">Not yet rated</span>;
-            const reviews = demoCommerceFor(l).reviewCount;
             return (
               <span className="flex flex-wrap items-center gap-x-2 gap-y-1">
                 <span className="flex h-7 items-center rounded-full bg-accent px-2.5 text-xs font-bold text-accent-foreground">
                   {l.rating.score.toFixed(1)}
                 </span>
                 <span className="font-bold text-accent-text">{ratingLabel(l.rating)}</span>
-                {typeof reviews === "number" ? (
-                  <span className="text-xs text-muted-foreground">{reviews} reviews</span>
-                ) : null}
               </span>
             );
           },
@@ -669,7 +670,11 @@ function ColumnHead({
   return (
     <div className="flex flex-col gap-2.5">
       <div className="relative aspect-[16/10] w-full overflow-hidden rounded-card bg-surface-secondary">
-        <Image src={photoOf(listing)} alt={listing.image.alt} fill sizes="256px" className="object-cover" />
+        {listing.image ? (
+          <Image src={photoOf(listing)!} alt={listing.image.alt} fill sizes="256px" unoptimized className="object-cover" />
+        ) : (
+          <NoPhoto />
+        )}
         <button
           type="button"
           onClick={() => onRemove(listing.slug)}

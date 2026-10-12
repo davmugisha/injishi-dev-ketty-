@@ -5,6 +5,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { useMemo, useRef, useState, useEffect } from "react";
 import { cn } from "@injishi/utils";
+import { NoPhoto } from "@/components/stays/no-photo";
 import type { RecentStay } from "@/data/recent-stay";
 import { useRecentlyViewed } from "@/hooks/use-recently-viewed";
 import { propertyHref, type StayIntent } from "@/lib/search-params";
@@ -153,13 +154,21 @@ export function RecentlyViewedStrip({
                 className="flex items-center gap-3 rounded-card bg-card p-2 pr-3 shadow-control ring-1 ring-border transition hover:ring-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
               >
                 <span className="relative size-16 shrink-0 overflow-hidden rounded-card bg-surface-secondary">
-                  <Image
-                    src={stay.imageSrc}
-                    alt=""
-                    fill
-                    sizes="64px"
-                    className="object-cover transition-transform duration-travel ease-settle group-hover/item:scale-105"
-                  />
+                  {stay.imageSrc ? (
+                    <Image
+                      src={stay.imageSrc}
+                      // An uploaded photo is the API's photo route, on a host
+                      // `next.config` does not list; served as is, and never
+                      // cached by the optimiser past an unpublish.
+                      unoptimized
+                      alt=""
+                      fill
+                      sizes="64px"
+                      className="object-cover transition-transform duration-travel ease-settle group-hover/item:scale-105"
+                    />
+                  ) : (
+                    <NoPhoto compact />
+                  )}
                 </span>
                 <span className="min-w-0 flex-1">
                   <span className="line-clamp-2 text-sm font-bold leading-tight text-foreground">

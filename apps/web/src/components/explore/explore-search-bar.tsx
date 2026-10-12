@@ -2,7 +2,7 @@
 
 import { CalendarDays, ChevronDown, MapPin, Users, X } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { forwardRef, useCallback, useEffect, useRef, useState } from "react";
+import { forwardRef, useEffect, useRef, useState } from "react";
 import { Popover, PopoverContent, PopoverTrigger } from "@injishi/ui";
 import { cn } from "@injishi/utils";
 import { SearchIcon } from "@/components/icons";
@@ -11,6 +11,7 @@ import { GuestPanel } from "@/components/search/guest-panel";
 import { StayDatePicker } from "@/components/search/stay-date-picker";
 import type { Destination } from "@/data/destinations";
 import { SEARCH_DISTRICTS } from "@/data/search-options";
+import { setHeaderSearch, setHeaderSearchShown } from "@/lib/header-search";
 import { propertyHref, toParamDate, type StayIntent } from "@/lib/search-params";
 import {
   DEFAULT_GUESTS,
@@ -28,9 +29,10 @@ import {
  * `DestinationField`, so both surfaces suggest the same places), and a stay
  * picked there opens its page directly.
  *
- * From `lg` the bar is pinned under the header as a compact pill, with the
- * filter row (`below`) pinned under it. It publishes its bottom edge as
- * `--explore-band-bottom` so the map beside the list sits just under it.
+ * It scrolls away with the page, filter row (`below`) and all. Once it has
+ * gone, a one-line summary of it slides into the site header
+ * (`lib/header-search.ts`), and a click on that summary scrolls back up and
+ * opens "Where to?" — the full bar at the top, the short one in the header.
  *
  * It edits INTENT only. Refinement (type, price, amenities…) lives in the
  * rail; this bar is the funnel's shared vocabulary, not the rail's.
@@ -51,49 +53,53 @@ export function ExploreSearchBar({
   const [guestsOpen, setGuestsOpen] = useState(false);
   const [destOpen, setDestOpen] = useState(false);
 
-  // Publish the band's bottom edge for the pinned columns (see the doc above).
-  // A ResizeObserver catches every size change; the layout effect below also
-  // syncs straight after a fold or unfold, so the columns move in the same
-  // frame as the band rather than one observer delivery later.
   const bandRef = useRef<HTMLDivElement | null>(null);
-  const syncBand = useCallback(() => {
-    const band = bandRef.current;
-    if (!band) return;
-    const root = document.documentElement;
-    const pinned = window.matchMedia("(min-width: 1024px)").matches;
-    // `top-20` (80px) is where the band pins under the fixed header.
-    if (pinned) root.style.setProperty("--explore-band-bottom", `${80 + band.offsetHeight}px`);
-    else root.style.removeProperty("--explore-band-bottom");
-  }, []);
+
+  // Tell the header when this bar has scrolled up behind it (64px tall), so
+  // the header can show its compact summary instead.
   useEffect(() => {
     const band = bandRef.current;
-    if (!band) return;
-    const ro = new ResizeObserver(syncBand);
-    ro.observe(band);
-    return () => {
-      ro.disconnect();
-      document.documentElement.style.removeProperty("--explore-band-bottom");
-    };
-  }, [syncBand]);
+    if (!band || typeof IntersectionObserver === "undefined") return;
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        if (!entry) return;
+        setHeaderSearchShown(!entry.isIntersecting && entry.boundingClientRect.top < 64);
+      },
+      { rootMargin: "-64px 0px 0px 0px" },
+    );
+    observer.observe(band);
+    return () => observer.disconnect();
+  }, []);
 
   const place = placeLabel(intent);
   const dates = intentDateSummary(intent) ?? "Any week";
   const guests = guestSummary(intent.guests);
 
+  // What the header's summary says, and what a click on it does: back to the
+  // top, then open "Where to?" once the scroll has landed.
+  useEffect(() => {
+    setHeaderSearch({
+      place,
+      dates,
+      guests,
+      expand: () => {
+        window.scrollTo({ top: 0, behavior: "smooth" });
+        // Focus, not just `open`: the field opens on focus and closes on
+        // blur, so an open list with no focused input shuts straight away.
+        window.setTimeout(
+          () => bandRef.current?.querySelector<HTMLInputElement>("input")?.focus({ preventScroll: true }),
+          450,
+        );
+      },
+    });
+  }, [place, dates, guests]);
+  useEffect(() => () => setHeaderSearch(null), []);
+
   return (
     <div
       ref={bandRef}
       data-explore-searchbar
-      // `lg:top-20`, not `top-0`: the shared `SiteHeader` is fixed and 80px
-      // tall from `md`, so the band pins exactly under it. Below `lg` the
-      // panel stacks to three rows and pinning it would cover half a phone.
-      //
-      // The `before:` strip fills the 80px between the viewport top and the
-      // band. The site header floats as a pill once scrolled (inset from the
-      // edges, `md:top-4`), so without it the results scrolled up through
-      // that gap and showed around the pill. The header stacks above it
-      // (`z-[999999]` against this band's `z-[999998]`).
-      className="relative z-[999998] border-b border-separator bg-background py-3 lg:sticky lg:top-20 lg:py-2.5 lg:before:pointer-events-none lg:before:absolute lg:before:inset-x-0 lg:before:bottom-full lg:before:h-20 lg:before:bg-background lg:before:content-['']"
+      className="relative border-b border-separator bg-background py-3 lg:py-2.5"
     >
       <div className="container">
         <div className="mx-auto flex w-full max-w-wide flex-col rounded-card bg-card p-1.5 shadow-control ring-1 ring-border lg:flex-row lg:items-center lg:rounded-full lg:p-1 lg:pl-2">

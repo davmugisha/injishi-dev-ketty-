@@ -16,6 +16,7 @@ import {
   type StoredObjectKind,
 } from '../domain/storage-port';
 import { sniffMime, type SniffedMime } from '../domain/sniff-mime';
+import { normalisePhoto } from './photo-normaliser';
 
 /** What an HR upload is for, and the stored kind, the formats and the ceiling of each. */
 const HR_FILE_RULES = {
@@ -299,18 +300,24 @@ export class StorageService {
       throw new BadRequestException('A photograph must be 8 MB or smaller.');
     }
 
+    // Upright, fitted to 2048 px, re-encoded as JPEG and stripped of every
+    // metadata block (camera, time taken, GPS) before anything is stored:
+    // `photo-normaliser.ts` says why. The original never reaches storage.
+    const photo = await normalisePhoto(input.body, mime);
+    const filename = `${input.filename.replace(/\.[^./\\]*$/, '') || 'photo'}.jpg`;
+
     const kind = 'property_photo' as const;
     const put = await this.storage.put({
-      body: input.body,
-      mime,
-      filename: input.filename,
+      body: photo.body,
+      mime: photo.mime,
+      filename,
       kind,
     });
 
     await this.db.insert(storedObjects).values({
       objectKey: put.objectKey,
       kind,
-      mime,
+      mime: photo.mime,
       sizeBytes: put.sizeBytes,
       uploadedByUserId: input.uploadedByUserId,
       workspaceId: input.workspaceId,
@@ -319,9 +326,9 @@ export class StorageService {
     return {
       objectKey: put.objectKey,
       kind,
-      mime,
+      mime: photo.mime,
       sizeBytes: put.sizeBytes,
-      filename: input.filename,
+      filename,
       // Returned straight away so the operator sees the picture they just sent,
       // without a second round trip to ask for it.
       url: await this.signedUrl(put.objectKey),

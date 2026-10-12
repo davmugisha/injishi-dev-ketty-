@@ -5,9 +5,10 @@
  *   node scripts/seed-catalogue.mjs
  *   node scripts/seed-catalogue.mjs --reset   # delete what this script wrote
  *
- * Input is `scripts/data/catalogue.json`, written by
- * `apps/web/scripts/export-catalogue.mjs` from the curated directory in
- * `apps/web/src/data/`. Re-export after editing those files.
+ * Input is `scripts/data/catalogue.json`. It was exported from a directory of
+ * fictional stays in `apps/web/src/data/`, which was removed on 2026-10-08:
+ * the marketplace now lists only what the database holds, so this file is the
+ * catalogue's one remaining copy. Edit it directly.
  *
  * ## What this replaces
  *

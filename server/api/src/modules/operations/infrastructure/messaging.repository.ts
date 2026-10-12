@@ -18,6 +18,8 @@ import {
 } from 'drizzle-orm';
 
 import {
+  accountLabel,
+  accountName,
   bookings,
   departments,
   guestStays,
@@ -363,7 +365,7 @@ export class MessagingRepository {
     const byBooking = rows.filter((r) => r.bookingId);
     if (byBooking.length > 0) {
       const found2 = await this.db
-        .select({ threadId: bookings.id, name: users.name })
+        .select({ threadId: bookings.id, name: accountLabel })
         .from(bookings)
         .leftJoin(users, eq(users.id, bookings.guestUserId))
         .where(inArray(bookings.id, byBooking.map((r) => r.bookingId as string)));
@@ -376,7 +378,7 @@ export class MessagingRepository {
     const byStay = rows.filter((r) => r.guestStayId);
     if (byStay.length > 0) {
       const found2 = await this.db
-        .select({ stayId: guestStays.id, name: users.name })
+        .select({ stayId: guestStays.id, name: accountLabel })
         .from(guestStays)
         .leftJoin(users, eq(users.id, guestStays.guestUserId))
         .where(inArray(guestStays.id, byStay.map((r) => r.guestStayId as string)));
@@ -392,14 +394,16 @@ export class MessagingRepository {
         .select({
           leaseId: leases.id,
           name: leases.tenantName,
-          userName: users.name,
+          userName: accountName,
+          email: users.email,
         })
         .from(leases)
         .leftJoin(users, eq(users.id, leases.tenantUserId))
         .where(inArray(leases.id, byLease.map((r) => r.leaseId as string)));
       // The lease carries a typed tenant name for a tenant with no account yet;
       // the account's own name wins when there is one.
-      const byId = new Map(found2.map((r) => [r.leaseId, r.userName ?? r.name]));
+      // Then the account's email, so the inbox can tell an unnamed tenant apart.
+      const byId = new Map(found2.map((r) => [r.leaseId, r.userName ?? r.name ?? r.email]));
       for (const r of byLease) {
         found.set(r.id, byId.get(r.leaseId as string) ?? null);
       }
@@ -452,7 +456,7 @@ export class MessagingRepository {
         id: messages.id,
         threadId: messages.threadId,
         senderUserId: messages.senderUserId,
-        senderName: users.name,
+        senderName: accountLabel,
         bodyType: messages.bodyType,
         body: messages.body,
         serviceOrderId: messages.serviceOrderId,
@@ -499,7 +503,7 @@ export class MessagingRepository {
         id: messages.id,
         threadId: messages.threadId,
         senderUserId: messages.senderUserId,
-        senderName: users.name,
+        senderName: accountLabel,
         bodyType: messages.bodyType,
         body: messages.body,
         serviceOrderId: messages.serviceOrderId,
@@ -673,7 +677,7 @@ export class MessagingRepository {
         id: messages.id,
         threadId: messages.threadId,
         senderUserId: messages.senderUserId,
-        senderName: users.name,
+        senderName: accountLabel,
         bodyType: messages.bodyType,
         body: messages.body,
         serviceOrderId: messages.serviceOrderId,

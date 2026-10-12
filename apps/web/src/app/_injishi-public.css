@@ -93,6 +93,41 @@
   --animate-fade-up: fade-up 0.5s ease-out forwards;
   --animate-slide-up: slide-up 0.3s ease-out forwards;
   --animate-slide-down: slide-down 0.3s ease-out forwards;
+  /* Home page: a map pin breathing, a route drawing itself, a photograph
+   * drifting in. Reduced motion collapses all three to their end state. */
+  --animate-pin-pulse: pin-pulse 2.4s cubic-bezier(0.22, 1, 0.36, 1) infinite;
+  --animate-route-draw: route-draw 1.6s cubic-bezier(0.65, 0, 0.35, 1) forwards;
+  --animate-drift: drift 9s ease-out forwards;
+}
+
+@keyframes pin-pulse {
+  from {
+    opacity: 0.55;
+    transform: scale(1);
+  }
+  to {
+    opacity: 0;
+    transform: scale(2.6);
+  }
+}
+
+/* Paired with `pathLength="1"` and `stroke-dasharray: 1`. */
+@keyframes route-draw {
+  from {
+    stroke-dashoffset: 1;
+  }
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+
+@keyframes drift {
+  from {
+    transform: scale(1.08);
+  }
+  to {
+    transform: scale(1);
+  }
 }
 
 @keyframes fade-up {

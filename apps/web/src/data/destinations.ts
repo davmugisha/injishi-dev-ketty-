@@ -1,17 +1,17 @@
-import { LISTINGS } from "@/data/listings";
-
 /**
  * The destination index behind the hero search typeahead.
  *
- * Four kinds of thing a guest might type, ranked in this order when scores
- * tie: a district, a landmark or park, a neighbourhood, then a named stay.
+ * Three kinds of place a guest might type, ranked in this order when scores
+ * tie: a district, a landmark or park, then a neighbourhood. Named stays are
+ * the published properties, added at runtime (`data/published-stays.ts`).
  * The reference bar (vrbo.com) matches place names literally; Rwandan places
  * carry pre-1994 and colloquial names that are still what people type, so the
  * index carries them as `aliases` — someone searching "Gisenyi" or "Butare"
  * means Rubavu and Huye and should not be told there are no matches.
  *
- * Fixture data standing in for `GET /api/v1/destinations`. Shaped so the swap
- * is a change of source, not of consumers.
+ * Geography, not inventory: these are real places, and nothing here says how
+ * many stays sit in each. Shaped so `GET /api/v1/destinations` can replace it
+ * as a change of source, not of consumers.
  */
 
 export type DestinationKind = "district" | "landmark" | "area" | "stay";
@@ -27,38 +27,8 @@ export interface Destination {
   district?: string;
   /** Other names for the same place. Matched, never displayed. */
   aliases?: string[];
-  /** Listings behind it. Breaks score ties and renders as the row's right rail. */
-  count?: number;
   /** Set on stays: the listing slug, so a pick can go straight to the page. */
   slug?: string;
-}
-
-/**
- * Listings per district, counted from the catalogue the results page filters.
- *
- * The number on a row is a promise about what the next screen holds, so it is
- * derived rather than written down: a hand-set "27" next to Rubavu would
- * survive right up until the guest picked it and landed on an empty grid.
- * Places with nothing in them carry no number at all.
- */
-const COUNT_BY_DISTRICT: Record<string, number> = LISTINGS.reduce<
-  Record<string, number>
->((counts, listing) => {
-  counts[listing.district] = (counts[listing.district] ?? 0) + 1;
-  return counts;
-}, {});
-
-/** Listings whose location line names this area, e.g. "Kacyiru, Kigali". */
-function areaCount(area: string): number | undefined {
-  const needle = area.toLowerCase();
-  return (
-    LISTINGS.filter((listing) => listing.location.toLowerCase().includes(needle))
-      .length || undefined
-  );
-}
-
-function districtCount(slug: string): number | undefined {
-  return COUNT_BY_DISTRICT[slug] || undefined;
 }
 
 const DISTRICTS: Destination[] = [
@@ -68,7 +38,6 @@ const DISTRICTS: Destination[] = [
     context: "Rwanda · Capital",
     kind: "district",
     district: "kigali",
-    count: districtCount("kigali"),
   },
   {
     id: "d-musanze",
@@ -77,7 +46,6 @@ const DISTRICTS: Destination[] = [
     kind: "district",
     district: "musanze",
     aliases: ["ruhengeri"],
-    count: districtCount("musanze"),
   },
   {
     id: "d-rubavu",
@@ -86,7 +54,6 @@ const DISTRICTS: Destination[] = [
     kind: "district",
     district: "rubavu",
     aliases: ["gisenyi"],
-    count: districtCount("rubavu"),
   },
   {
     id: "d-karongi",
@@ -95,7 +62,6 @@ const DISTRICTS: Destination[] = [
     kind: "district",
     district: "karongi",
     aliases: ["kibuye"],
-    count: districtCount("karongi"),
   },
   {
     id: "d-huye",
@@ -104,7 +70,6 @@ const DISTRICTS: Destination[] = [
     kind: "district",
     district: "huye",
     aliases: ["butare"],
-    count: districtCount("huye"),
   },
 ];
 
@@ -116,7 +81,6 @@ const LANDMARKS: Destination[] = [
     kind: "landmark",
     district: "musanze",
     aliases: ["gorillas", "gorilla trekking", "virunga", "parc des volcans"],
-    count: districtCount("musanze"),
   },
   {
     id: "l-kivu",
@@ -125,7 +89,6 @@ const LANDMARKS: Destination[] = [
     kind: "landmark",
     district: "rubavu",
     aliases: ["kivu lake", "lakeside", "beach"],
-    count: districtCount("rubavu"),
   },
   {
     id: "l-nyungwe",
@@ -137,7 +100,6 @@ const LANDMARKS: Destination[] = [
     // covers yet.
     district: "huye",
     aliases: ["nyungwe national park", "canopy"],
-    count: districtCount("huye"),
   },
   {
     id: "l-akagera",
@@ -145,11 +107,9 @@ const LANDMARKS: Destination[] = [
     context: "Eastern Province · Safari",
     kind: "landmark",
     // Kayonza, not Kigali. The park is a three-hour drive east, so resolving
-    // it to the capital would have filtered to stays nowhere near it and
-    // inherited the capital's inventory count while doing so.
+    // it to the capital would have filtered to stays nowhere near it.
     district: "kayonza",
     aliases: ["safari", "big five"],
-    count: districtCount("kayonza"),
   },
 ];
 
@@ -160,7 +120,6 @@ const AREAS: Destination[] = [
     context: "Kigali · Gasabo",
     kind: "area",
     district: "kigali",
-    count: areaCount("Kacyiru"),
   },
   {
     id: "a-kimihurura",
@@ -168,7 +127,6 @@ const AREAS: Destination[] = [
     context: "Kigali · Gasabo",
     kind: "area",
     district: "kigali",
-    count: areaCount("Kimihurura"),
   },
   {
     id: "a-remera",
@@ -176,7 +134,6 @@ const AREAS: Destination[] = [
     context: "Kigali · Gasabo",
     kind: "area",
     district: "kigali",
-    count: areaCount("Remera"),
   },
   {
     id: "a-nyamirambo",
@@ -184,7 +141,6 @@ const AREAS: Destination[] = [
     context: "Kigali · Nyarugenge",
     kind: "area",
     district: "kigali",
-    count: areaCount("Nyamirambo"),
   },
   {
     id: "a-nyarutarama",
@@ -192,7 +148,6 @@ const AREAS: Destination[] = [
     context: "Kigali · Gasabo",
     kind: "area",
     district: "kigali",
-    count: areaCount("Nyarutarama"),
   },
   {
     id: "a-kiyovu",
@@ -200,7 +155,6 @@ const AREAS: Destination[] = [
     context: "Kigali · Nyarugenge",
     kind: "area",
     district: "kigali",
-    count: areaCount("Kiyovu"),
   },
   {
     id: "a-kinigi",
@@ -209,36 +163,13 @@ const AREAS: Destination[] = [
     kind: "area",
     district: "musanze",
     aliases: ["park gate"],
-    count: areaCount("Kinigi"),
   },
 ];
-
-/**
- * Named stays, folded in from the listings the results page reads.
- *
- * A guest who already knows the property name should reach it from the hero
- * rather than being made to search and then scan. They rank below places so a
- * bare "Kigali" never surfaces a stay above the city itself.
- *
- * Sourced from `LISTINGS` rather than `STAY_CATALOG`: the catalogue holds only
- * the first word of a multi-word name (the card splits it across `nameLead`
- * and `nameRest`), which put entries reading "Kigali", "Kivu" and "Gasabo"
- * into the panel directly under the real places of those names.
- */
-const STAYS: Destination[] = LISTINGS.map((listing) => ({
-  id: `s-${listing.slug}`,
-  label: [listing.nameLead, listing.nameRest].filter(Boolean).join(" "),
-  context: listing.location,
-  kind: "stay" as const,
-  district: listing.district,
-  slug: listing.slug,
-}));
 
 export const DESTINATIONS: Destination[] = [
   ...DISTRICTS,
   ...LANDMARKS,
   ...AREAS,
-  ...STAYS,
 ];
 
 /**
@@ -246,10 +177,6 @@ export const DESTINATIONS: Destination[] = [
  *
  * The reference fills this space with example phrasings; concrete places are
  * more useful than a lesson in how to phrase a query, and they are one tap
- * rather than a sentence to type. Ordered by inventory so the openers are the
- * ones that actually lead somewhere — a suggestion is a promise about the next
- * screen, and an empty grid is a bad first answer.
+ * rather than a sentence to type. The first five, in the order written above.
  */
-export const POPULAR_DESTINATIONS: Destination[] = [...DISTRICTS, ...LANDMARKS]
-  .sort((a, b) => (b.count ?? 0) - (a.count ?? 0))
-  .slice(0, 5);
+export const POPULAR_DESTINATIONS: Destination[] = [...DISTRICTS, ...LANDMARKS].slice(0, 5);

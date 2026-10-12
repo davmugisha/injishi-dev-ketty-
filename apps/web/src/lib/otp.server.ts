@@ -1,11 +1,12 @@
 "use server";
 
-import { headers } from "next/headers";
+import { cookies, headers } from "next/headers";
 import { redirect } from "next/navigation";
 
 import { AUTH_BASE_PATH } from "@injishi/auth/client";
 
 import { API_URL } from "@/lib/api";
+import { OTP_EMAIL_COOKIE, OTP_EMAIL_COOKIE_MAX_AGE } from "@/lib/otp-email-cookie";
 import {
   OTP_MESSAGES,
   TIMED_OUT,
@@ -158,6 +159,15 @@ export async function sendCodeAction(
     mode = "offline";
   }
 
-  const target = new URLSearchParams({ email, redirect: redirectTo, mode });
+  // The address goes in a short-lived HTTP-only cookie, not the URL: see
+  // `lib/otp-email-cookie.ts` for why an email must not ride in a query string.
+  (await cookies()).set(OTP_EMAIL_COOKIE, email, {
+    httpOnly: true,
+    sameSite: "lax",
+    secure: process.env.NODE_ENV === "production",
+    path: "/",
+    maxAge: OTP_EMAIL_COOKIE_MAX_AGE,
+  });
+  const target = new URLSearchParams({ redirect: redirectTo, mode });
   redirect(`/verify-otp?${target.toString()}`);
 }

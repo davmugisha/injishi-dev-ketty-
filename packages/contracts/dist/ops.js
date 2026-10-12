@@ -59,6 +59,12 @@ exports.OperatorReservation = zod_1.z.object({
     reference: zod_1.z.string().min(1),
     /** `users.name`, which is nullable: an account may exist before a name does. */
     guestName: zod_1.z.string().nullable(),
+    /**
+     * The guest account's email, for the desk to tell an unnamed guest apart
+     * (shown where `guestName` is null). DISPLAY ONLY: never copied into the
+     * check-in, which records a person's name. Defaulted so an older API parses.
+     */
+    guestEmail: zod_1.z.string().nullable().default(null),
     /** `YYYY-MM-DD`. A bare date column, so no timezone rides along. */
     checkIn: zod_1.z.string(),
     checkOut: zod_1.z.string(),
@@ -76,6 +82,14 @@ exports.OperatorReservation = zod_1.z.object({
      * row of another type before the desk drops a bar there and is refused.
      */
     roomTypeId: primitives_1.Uuid,
+    /**
+     * What the guest bought and where: the room type's name and the branch it
+     * belongs to. A host with two branches saw rows naming neither, so a
+     * request could not be told apart from one at the other property.
+     * Defaulted so an older API still parses.
+     */
+    roomTypeName: zod_1.z.string().nullable().default(null),
+    propertyName: zod_1.z.string().nullable().default(null),
     /**
      * `bookings.gross_rwf`: what this reservation is worth.
      *
@@ -177,6 +191,12 @@ exports.OperatorRoom = zod_1.z.object({
     label: zod_1.z.string().nullable(),
     roomTypeId: primitives_1.Uuid,
     roomTypeName: zod_1.z.string(),
+    /**
+     * False once the room's TYPE is archived. The room keeps its own status, so
+     * without this an archived type's rooms read as free and the desk offered
+     * them to guests. Defaults to true so an older API still parses.
+     */
+    roomTypeActive: zod_1.z.boolean().default(true),
     status: exports.RoomStatus,
     housekeeping: exports.HousekeepingStatus,
     /** The open stay in this room, if anyone is in it. */

@@ -24,8 +24,8 @@ import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } fro
 import { Map, Marker, Popup, type MapRef } from "react-map-gl/maplibre";
 import { cn } from "@injishi/utils";
 import { loadMapStyle, type MapTheme } from "@/components/explore/explore-map-style";
+import { NoPhoto } from "@/components/stays/no-photo";
 import { SaveStayButton } from "@/components/stays/save-stay-button";
-import { demoCommerceFor } from "@/data/demo-commerce";
 import type { Listing } from "@/data/listings";
 import { partyPrice } from "@/lib/party-price";
 import { formatRateNumber, NO_RATE, shortBasis } from "@/lib/price";
@@ -164,7 +164,8 @@ function boundsOf(pins: PlottedListing[]): [[number, number], [number, number]] 
 // Room for the header and switch above, the fold below, and pins growing up-right.
 const FIT_PADDING = { top: 170, bottom: 72, left: 56, right: 120 };
 
-const photoOf = (listing: Listing) => listing.image.src ?? `/assets/${listing.image.stem}.jpg`;
+const photoOf = (listing: Listing): string | null =>
+  listing.image ? (listing.image.src ?? `/assets/${listing.image.stem}.jpg`) : null;
 
 export function ExploreMap({
   listings,
@@ -701,7 +702,7 @@ function PhotoPin({
       <PinShape
         active={hovered}
         muted={viewed}
-        badge={<Image src={photoOf(listing)} alt="" fill sizes="48px" className="object-cover" />}
+        badge={<PinPhoto listing={listing} />}
         label={rate == null ? "Enquire" : shortenRate(rate)}
       />
     </button>
@@ -805,21 +806,40 @@ function MapControls({
   );
 }
 
+/**
+ * `unoptimized` on every stay photo: an uploaded one is the API's photo route,
+ * on a host `next.config` does not list, and the optimiser would also keep
+ * serving it after the property stops being public.
+ */
+function PinPhoto({ listing }: { listing: Listing }) {
+  const src = photoOf(listing);
+  return src ? (
+    <Image src={src} alt="" fill sizes="48px" unoptimized className="object-cover" />
+  ) : (
+    <NoPhoto compact />
+  );
+}
+
 function PinPreview({ listing, intent }: { listing: PlottedListing; intent?: StayIntent }) {
   const href = intent ? propertyHref(listing.slug, intent) : `/property/${listing.slug}`;
-  const reviewCount = demoCommerceFor(listing).reviewCount;
   const party = partyPrice(listing.nightlyRateRwf, listing.priceBasis, intent ?? EMPTY_INTENT);
 
   return (
     <div className="group/card relative w-[300px] bg-card p-2 text-foreground">
       <div className="relative aspect-[16/9] w-full overflow-hidden rounded-card bg-surface-secondary">
-        <Image
-          src={photoOf(listing)}
-          alt={listing.image.alt}
-          fill
-          sizes="300px"
-          className="object-cover transition-transform duration-travel ease-settle group-hover/card:scale-105"
-        />
+        {listing.image ? (
+          <Image
+            src={photoOf(listing)!}
+            // The API's photo route: see `PinPhoto`.
+            unoptimized
+            alt={listing.image.alt}
+            fill
+            sizes="300px"
+            className="object-cover transition-transform duration-travel ease-settle group-hover/card:scale-105"
+          />
+        ) : (
+          <NoPhoto />
+        )}
         {/* Lifted above the stretched link so a save never navigates. */}
         <div className="absolute right-2.5 top-2.5 z-10">
           <SaveStayButton slug={listing.slug} size="sm" />
@@ -859,9 +879,6 @@ function PinPreview({ listing, intent }: { listing: PlottedListing; intent?: Sta
             </span>
             <span className="truncate text-xs">
               <b className="font-bold text-accent-text">{ratingLabel(listing.rating)}</b>
-              {typeof reviewCount === "number" ? (
-                <span className="text-muted-foreground"> ({reviewCount} reviews)</span>
-              ) : null}
             </span>
           </div>
         ) : null}

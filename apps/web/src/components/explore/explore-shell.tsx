@@ -30,7 +30,7 @@ function MapSkeleton() {
   return <div className="h-full w-full animate-pulse rounded-card bg-surface-secondary" />;
 }
 import { EXPLORE_RESULTS_ID, ResultsToolbar, stayTabId } from "@/components/explore/results-toolbar";
-import { LISTINGS, type Listing } from "@/data/listings";
+import type { Listing } from "@/data/listings";
 import type { MapBounds } from "@/components/explore/explore-map";
 import { filterListings } from "@/lib/filter-listings";
 import {
@@ -61,17 +61,12 @@ import { intentDateSummary, guestSummary } from "@/lib/stay-search";
  * panel. On a phone the list and the map swap, with a floating toggle.
  */
 export function ExploreShell({
-  databaseListings = [],
+  databaseListings: listings = [],
 }: {
-  /**
-   * Published properties from the database that the catalogue does not
-   * describe, read by the page on the server (`data/discovery.ts`). Listed
-   * first: they are the stays a guest can actually book through Injishi.
-   */
+  /** Every published property, read by the page on the server (`data/discovery.ts`). */
   databaseListings?: Listing[];
 } = {}) {
   const router = useRouter();
-  const listings = useMemo(() => [...databaseListings, ...LISTINGS], [databaseListings]);
   const searchParams = useSearchParams();
 
   const urlIntent = useMemo(() => parseIntent(searchParams), [searchParams]);
@@ -282,7 +277,6 @@ export function ExploreShell({
         <div className={cn("min-w-0 flex-1", mapPref === true && "hidden lg:block")}>
           <ResultsToolbar
             count={listed.length}
-            totalCatalogue={listings.length}
             place={place}
             stayType={refinement.stayType}
             onStayTypeChange={(stayType) => onRefinementChange({ stayType })}
@@ -320,6 +314,7 @@ export function ExploreShell({
           >
             <ExploreResults
               results={listed}
+              all={listings}
               intent={intent}
               refinement={refinement}
               onPageChange={goToPage}
@@ -347,16 +342,15 @@ export function ExploreShell({
         </div>
 
         {mapPref !== false ? (
-          // Pinned beside the list from `lg`, under the search band (whose
-          // height the bar publishes as `--explore-band-bottom`). On a phone
-          // it takes the screen the list gave up.
+          // Pinned beside the list from `lg`, under the header. On a phone it
+          // takes the screen the list gave up.
           <aside
             data-explore-map
-            // 213px: the band's real bottom edge at `lg` (header 80 + pill and
-            // filter row 133), so the column is already where it ends up
-            // before the bar publishes the measured value.
+            // `top-20`: the fixed 64px header plus 16px of air. The search
+            // band scrolls away now (its summary moves into the header), so
+            // the map pins under the header alone.
             className={cn(
-              "sticky top-24 h-[calc(100dvh-120px)] w-full shrink-0 lg:top-[calc(var(--explore-band-bottom,213px)+16px)] lg:h-[calc(100dvh-var(--explore-band-bottom,213px)-32px)] lg:w-5/12",
+              "sticky top-24 h-[calc(100dvh-120px)] w-full shrink-0 lg:top-20 lg:h-[calc(100dvh-6rem)] lg:w-5/12",
               mapPref === null && "hidden lg:block",
             )}
           >

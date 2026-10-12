@@ -9,7 +9,7 @@ import { ServiceGallery } from "@/components/services/service-gallery";
 import { ServiceKindIcon } from "@/components/services/service-kind-mark";
 import { PageHero } from "@/components/shared/page-hero";
 import { SectionHeading } from "@/components/shared/section-heading";
-import { findCatalogueProperty } from "@/data/catalogue";
+import { fetchPublicProperty } from "@/data/public-property";
 import {
   findServiceListing,
   SERVICE_KIND_TAG,
@@ -39,12 +39,10 @@ import { formatRwf } from "@/lib/money";
  * directly under it does not open with the photograph the reader is still
  * looking at.
  *
- * The property link is checked against the catalogue rather than trusted.
- * `data/service-listings.ts` names a `propertySlug` as a plain string, and the
- * bug that pattern produces is the one `data/listings.ts` records in its own
- * header: a card that links to a page nobody wrote. `findCatalogueProperty`
- * answers whether the page exists, and the location block renders from the
- * property's own record when it does.
+ * The property link is checked against the database rather than trusted.
+ * `data/service-listings.ts` names a `propertySlug` as a plain string, and a
+ * plain string can name a page nobody published. The API answers whether the
+ * property is public; the link and the location block render only when it is.
  */
 export function generateStaticParams() {
   return serviceStaticParams();
@@ -74,7 +72,8 @@ export default async function ServiceDetailPage({
   const service = findServiceListing(slug);
   if (!service) notFound();
 
-  const property = findCatalogueProperty(service.propertySlug);
+  const read = await fetchPublicProperty(service.propertySlug);
+  const property = read.status === "found" ? read.property : null;
   const alsoHere = servicesForProperty(service.propertySlug).filter(
     (other) => other.slug !== service.slug,
   );
@@ -98,16 +97,20 @@ export default async function ServiceDetailPage({
           <ServiceKindIcon kind={service.kind} className="size-4 shrink-0" />
           {SERVICE_KIND_TAG[service.kind]}
           <span aria-hidden>/</span>
-          <Link
-            href={`/property/${service.propertySlug}`}
-            className="text-page-fg underline underline-offset-[4px]"
-          >
-            {service.propertyName}
-          </Link>
+          {property ? (
+            <Link
+              href={`/property/${service.propertySlug}`}
+              className="text-page-fg underline underline-offset-[4px]"
+            >
+              {service.propertyName}
+            </Link>
+          ) : (
+            <span className="text-page-fg">{service.propertyName}</span>
+          )}
           {property ? (
             <>
               <span aria-hidden>/</span>
-              {property.location}
+              {property.districtName ?? "Rwanda"}
             </>
           ) : null}
         </div>
@@ -172,21 +175,20 @@ export default async function ServiceDetailPage({
                   emphasis="is"
                   action={{
                     label: "See the property",
-                    href: `/property/${property.slug}`,
+                    href: `/property/${service.propertySlug}`,
                   }}
                   className="mb-6"
                 />
                 <div className="flex flex-col gap-3 rounded-card border border-border bg-card p-6">
                   <b className="text-page-fg">{property.name}</b>
                   <span className="text-sm text-page-fg-70">
-                    {property.place.addressLines[0]}, {property.location}
+                    {property.districtName ?? "Rwanda"}
                   </span>
-                  {/* `about[0]`, not `summary`. `summary` on a property record
-                      is a card meta line — "Hotel • Room only" — and printing it
-                      as the paragraph of a panel left the block saying nothing. */}
-                  <p className="m-0 max-w-read text-sm text-page-fg-70">
-                    {property.about[0]}
-                  </p>
+                  {property.description ? (
+                    <p className="m-0 max-w-read text-sm text-page-fg-70">
+                      {property.description.split(/\n{2,}/)[0]}
+                    </p>
+                  ) : null}
                 </div>
               </section>
             ) : null}

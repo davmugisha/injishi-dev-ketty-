@@ -30,11 +30,13 @@ import { useCreateProperty, useProperty } from "../data/ops";
 import { queryKeys } from "../data/queries";
 import { usePms } from "../store";
 import { currentGrant } from "../store/helpers";
+import { BranchSetupDrawer } from "./branch-setup";
 
 const inputClass = "h-10 w-full rounded border border-line2 bg-field px-3 text-sm text-foreground";
 
 function addressLine(b: OperatorPropertySummary): string {
-  return [b.address.street, b.address.sectorName, b.address.districtName].filter(Boolean).join(", ");
+  // A sector named after its district ("Kicukiro, Kicukiro") is said once.
+  return [...new Set([b.address.street, b.address.sectorName, b.address.districtName].filter((p): p is string => Boolean(p)))].join(", ");
 }
 
 export function Branches() {
@@ -44,6 +46,12 @@ export function Branches() {
   const branches = useBranches(workspaceId);
   const [adding, setAdding] = useState(false);
   const [editing, setEditing] = useState<string | null>(null);
+  /**
+   * The branch whose setup (rooms, photos, publish) is open under its row.
+   * One panel at a time, edit or setup, so the screen never stacks two forms.
+   */
+  const [settingUp, setSettingUp] = useState<string | null>(null);
+
 
   // Coverage is the grant's. Absent (the grant has not answered) reads as
   // `all`, so nothing flickers away; the API refuses a limited member anyway.
@@ -89,7 +97,19 @@ export function Branches() {
         )}
       </div>
 
-      {adding && workspaceId && <AddBranch workspaceId={workspaceId} onDone={() => setAdding(false)} />}
+      {adding && workspaceId && (
+        <AddBranch
+          workspaceId={workspaceId}
+          onDone={(createdId) => {
+            setAdding(false);
+            // Straight on to its setup: no hunting for it under Inventory.
+            if (createdId) {
+              setEditing(null);
+              setSettingUp(createdId);
+            }
+          }}
+        />
+      )}
 
       {ordered.length === 0 ? (
         <EmptyState className="p-6 text-sm">No branch on this business yet. Add the first one to start.</EmptyState>
@@ -102,7 +122,15 @@ export function Branches() {
               workspaceId={workspaceId}
               coversEvery={coversEvery}
               editing={editing === b.id}
-              onEdit={() => setEditing(editing === b.id ? null : b.id)}
+              onEdit={() => {
+                setSettingUp(null);
+                setEditing(editing === b.id ? null : b.id);
+              }}
+              settingUp={settingUp === b.id}
+              onSetup={() => {
+                setEditing(null);
+                setSettingUp(settingUp === b.id ? null : b.id);
+              }}
             />
           ))}
         </ul>
@@ -117,12 +145,16 @@ function BranchRow({
   coversEvery,
   editing,
   onEdit,
+  settingUp,
+  onSetup,
 }: {
   branch: OperatorPropertySummary;
   workspaceId: string | null;
   coversEvery: boolean;
   editing: boolean;
   onEdit: () => void;
+  settingUp: boolean;
+  onSetup: () => void;
 }) {
   const { toast } = usePms();
   const move = useMoveBranch(workspaceId);
@@ -168,12 +200,22 @@ function BranchRow({
           <span className="text-xs text-muted-foreground">{addressLine(b) || "No address yet"}</span>
           {!archived && (
             <span className="text-xs text-muted-foreground">
-              {b.roomTypeCount} room types · {b.sellableRoomCount} sellable rooms
+              {b.roomTypeCount} room {b.roomTypeCount === 1 ? "type" : "types"} · {b.sellableRoomCount} sellable{" "}
+              {b.sellableRoomCount === 1 ? "room" : "rooms"}
             </span>
           )}
         </div>
 
         <div className="flex flex-wrap gap-2">
+          {!archived && (
+            <ActionButton
+              variant={b.listingStatus === "published" || settingUp ? "secondary" : "primary"}
+              onClick={onSetup}
+              aria-expanded={settingUp}
+            >
+              {settingUp ? "Close setup" : b.listingStatus === "published" ? "Rooms & photos" : "Finish setup"}
+            </ActionButton>
+          )}
           <ActionButton variant="secondary" onClick={onEdit}>
             {editing ? "Close" : "Edit"}
           </ActionButton>
@@ -224,6 +266,9 @@ function BranchRow({
       )}
 
       {editing && workspaceId && <EditBranch workspaceId={workspaceId} branchId={b.id} onDone={onEdit} />}
+      {settingUp && workspaceId && !archived && (
+        <BranchSetupDrawer workspaceId={workspaceId} branch={b} onClose={onSetup} />
+      )}
     </li>
   );
 }
@@ -364,7 +409,14 @@ function EditBranch({ workspaceId, branchId, onDone }: { workspaceId: string; br
   );
 }
 
-function AddBranch({ workspaceId, onDone }: { workspaceId: string; onDone: () => void }) {
+function AddBranch({
+  workspaceId,
+  onDone,
+}: {
+  workspaceId: string;
+  /** The new branch's id when one was added; undefined on Cancel. */
+  onDone: (createdId?: string) => void;
+}) {
   const { toast } = usePms();
   const client = useQueryClient();
   const create = useCreateProperty(workspaceId);
@@ -381,12 +433,12 @@ function AddBranch({ workspaceId, onDone }: { workspaceId: string; onDone: () =>
     create.mutate(
       { name: trimmed, sectorId, street: street.trim() || undefined },
       {
-        onSuccess: () => {
+        onSuccess: (created) => {
           // The new branch joins the grant's list (the switcher) and this one.
           void client.invalidateQueries({ queryKey: ["inventory"] });
           void client.invalidateQueries({ queryKey: queryKeys.meWorkspaces });
-          toast(`${trimmed} is added. Give it room types, rooms and photos, then publish it.`, "ok");
-          onDone();
+          toast(`${trimmed} is added. Add its rooms and photos below, then publish it.`, "ok");
+          onDone(created.id);
         },
         onError: (err) => setError(humanError(err)),
       },
@@ -434,7 +486,7 @@ function AddBranch({ workspaceId, onDone }: { workspaceId: string; onDone: () =>
         </p>
       )}
       <div className="flex justify-end gap-2">
-        <ActionButton variant="secondary" onClick={onDone}>
+        <ActionButton variant="secondary" onClick={() => onDone()}>
           Cancel
         </ActionButton>
         <ActionButton variant="primary" type="submit" pending={create.isPending}>

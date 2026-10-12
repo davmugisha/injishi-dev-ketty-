@@ -20,6 +20,8 @@ interface ServerReservation {
   id: string;
   guestName: string | null;
   nights: number;
+  reference?: string;
+  roomTypeId?: string;
 }
 
 /**
@@ -38,6 +40,8 @@ export function seedFromServerReservation(r: ServerReservation): CheckInSeed {
     // guest in as "Guest".
     guestName: r.guestName ?? "",
     nights: r.nights,
+    reference: r.reference,
+    roomTypeId: r.roomTypeId,
   };
 }
 

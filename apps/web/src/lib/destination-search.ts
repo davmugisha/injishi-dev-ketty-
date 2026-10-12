@@ -23,8 +23,8 @@ import {
  *    200  the context line contains it     ("Gasabo" → Kacyiru, Kimihurura)
  *    150  an alias contains it
  *
- * Kind breaks ties before count does: typing "ki" should offer Kigali the
- * district before Kimihurura the neighbourhood, whatever their inventory.
+ * Kind breaks ties: typing "ki" should offer Kigali the district before
+ * Kimihurura the neighbourhood.
  */
 
 const KIND_RANK: Record<DestinationKind, number> = {
@@ -96,7 +96,12 @@ function scoreOne(destination: Destination, query: string): RankedDestination | 
  * never a blank box — the reference fills that state with example phrasings,
  * which cost a sentence of typing where these cost one tap.
  */
-export function rankDestinations(rawQuery: string, limit = 7): RankedDestination[] {
+export function rankDestinations(
+  rawQuery: string,
+  limit = 7,
+  /** Stays the database published (`data/published-stays.ts`), beside the fixed list. */
+  extra: readonly Destination[] = [],
+): RankedDestination[] {
   const query = fold(rawQuery);
 
   if (!query) {
@@ -108,7 +113,7 @@ export function rankDestinations(rawQuery: string, limit = 7): RankedDestination
   }
 
   const scored: RankedDestination[] = [];
-  for (const destination of DESTINATIONS) {
+  for (const destination of [...DESTINATIONS, ...extra]) {
     const hit = scoreOne(destination, query);
     if (hit) scored.push(hit);
   }
@@ -117,8 +122,6 @@ export function rankDestinations(rawQuery: string, limit = 7): RankedDestination
     if (b.score !== a.score) return b.score - a.score;
     const kind = KIND_RANK[a.destination.kind] - KIND_RANK[b.destination.kind];
     if (kind !== 0) return kind;
-    const count = (b.destination.count ?? 0) - (a.destination.count ?? 0);
-    if (count !== 0) return count;
     return a.destination.label.localeCompare(b.destination.label);
   });
 
