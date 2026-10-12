@@ -16,13 +16,22 @@
  * says", so the one person who has to check the tax bands against the
  * accountant's sheet read braces. A rule is a card now: what it is for, then
  * its content as that kind of rule is read (bands as a table, rates as
- * percentages, holidays as dates). The key, the versions and the stored value
- * are still there, folded under "For the accountant".
+ * percentages, holidays as dates). The key and the versions are still there,
+ * folded under each card's version line.
+ *
+ * WHERE THE FIGURES COME FROM is said twice, because it decides whether to
+ * trust them. A row's own `note` opens with what it is: `DEMO SAMPLE DATA` for
+ * the invented placeholders `seed-hr-rules.mjs` writes, `RESEARCHED` for
+ * figures looked up in public sources by `seed-hr-rules-rw.mjs`. The page
+ * counts each kind in a notice at the top, and a researched card prints its
+ * note, which names the source. Neither is the accountant's sheet.
  *
  * A rule's value is `unknown` to this screen: it is written by hand from a
  * sheet, and a new version may carry a shape this build has not seen. Each
  * reader below answers null for a value it does not recognise, and the card
- * shows the stored value instead of guessing.
+ * shows the stored value instead of guessing. That is the only place the
+ * stored value is printed: under a card that reads, it was a second copy of the
+ * same figures in braces, and read as a fault.
  */
 
 import type { PayrollRule } from "@injishi/contracts";
@@ -43,6 +52,19 @@ const text = (v: unknown): string | null => (typeof v === "string" && v.trim() !
 /** A rate kept as a fraction, as a person says it: `0.004` is `0.4%`. */
 const percent = (rate: number): string => `${Math.round(rate * 10_000) / 100}%`;
 const yesNo = (v: unknown, yes: string, no: string): string => (v === true ? yes : no);
+
+/** The pay a rate is charged on, as the rule names it and as a person says it. */
+const TAX_BASE: Record<string, string> = {
+  gross: "gross pay",
+  gross_less_employee_contributions: "gross pay, less what the employee pays to RSSB",
+  taxable: "taxable pay (everything marked as taxed, less what is taken before tax)",
+  taxable_less_employee_contributions: "taxable pay, less what the employee pays to RSSB",
+};
+const CONTRIBUTION_BASE: Record<string, string> = {
+  gross: "gross pay",
+  basic: "the basic wage",
+  contributable: "pay that counts for RSSB",
+};
 
 /** What each rule is for, in the words of somebody who does not keep the config. */
 const PURPOSE: Record<string, string> = {
@@ -67,7 +89,8 @@ export function PayRules() {
     );
   }
   const all = rules.data.rules;
-  const sample = all.filter(isSample).length;
+  const sample = all.filter((r) => noteOf(r)?.startsWith(SAMPLE)).length;
+  const researched = all.filter((r) => noteOf(r)?.startsWith(RESEARCHED)).length;
   const missing = all.filter((r) => !r.inForce).length;
 
   return (
@@ -77,10 +100,19 @@ export function PayRules() {
         version when the law changes, and each pay run records the version it used.
       </p>
 
+      {researched > 0 && (
+        <p role="note" className="rounded-card border border-card-bd bg-warn-bg px-4 py-3 text-sm text-ink" data-researched-rules>
+          <strong>Not yet confirmed by an accountant.</strong> {researched === all.length ? "These figures" : `${researched} of these rules`}{" "}
+          {researched === 1 ? "holds" : "hold"} Rwanda&apos;s published figures, looked up in public sources. Each says where it
+          comes from. Have them checked against RRA and RSSB before paying real people.
+        </p>
+      )}
       {sample > 0 && (
         <p role="note" className="rounded-card border border-card-bd bg-warn-bg px-4 py-3 text-sm text-ink" data-sample-rules>
-          <strong>Sample values.</strong> {sample === all.length ? "These figures" : `${sample} of these rules`} are invented
-          placeholders, not Rwanda&apos;s real rates. Replace them from the accountant&apos;s sheet before paying real people.
+          <strong>Sample values.</strong> {sample === all.length ? "These figures" : `${sample} of these rules`}{" "}
+          {sample === 1 ? "is an invented placeholder" : "are invented placeholders"}, not Rwanda&apos;s real rates
+          {sample === all.length ? "" : `: ${all.filter((r) => noteOf(r)?.startsWith(SAMPLE)).map((r) => r.label).join(", ")}`}. Replace them
+          from the accountant&apos;s sheet before paying real people.
         </p>
       )}
       {missing > 0 && (
@@ -99,20 +131,27 @@ export function PayRules() {
   );
 }
 
-function isSample(rule: PayrollRule): boolean {
-  const note = text(obj(rule.inForce?.value)?.note);
-  return note !== null && note.startsWith("DEMO SAMPLE DATA");
-}
+/** How a row's own note opens, by where its figures come from. */
+const SAMPLE = "DEMO SAMPLE DATA";
+const RESEARCHED = "RESEARCHED";
+
+const noteOf = (rule: PayrollRule): string | null => text(obj(rule.inForce?.value)?.note);
 
 function RuleCard({ rule }: { rule: PayrollRule }) {
   const value = rule.inForce?.value;
   const body = rule.inForce ? readRule(rule.configType, value) : null;
+  const note = noteOf(rule);
+  const kind = note?.startsWith(SAMPLE) ? "sample" : note?.startsWith(RESEARCHED) ? "researched" : null;
+  // The source, without the capitals that open the note: the notice above has said those.
+  const source = kind === "researched" && note ? note.replace(/^[A-Z ,]+\.\s*/, "") : null;
   return (
     <section className="flex flex-col gap-3 rounded-card border border-card-bd bg-card px-5 py-4" data-rule={rule.configType}>
       <div className="flex flex-col gap-0.5">
         <span className="flex flex-wrap items-center gap-2">
           <h3 className="text-sm font-bold text-ink">{rule.label[0].toUpperCase() + rule.label.slice(1)}</h3>
           {!rule.inForce && <Badge intent="bad">None in force</Badge>}
+          {kind === "sample" && <Badge intent="warn">Sample</Badge>}
+          {kind === "researched" && <Badge intent="info">Researched</Badge>}
         </span>
         {PURPOSE[rule.configType] && <span className="text-2xs text-muted-foreground">{PURPOSE[rule.configType]}</span>}
       </div>
@@ -130,9 +169,10 @@ function RuleCard({ rule }: { rule: PayrollRule }) {
           <summary className="cursor-pointer text-2xs text-muted-foreground">
             Version {rule.inForce.version}
             {rule.inForce.effectiveFrom ? `, in force since ${dshortIso(kigaliDateOf(rule.inForce.effectiveFrom))}` : ""}
-            <span className="font-semibold text-accent-text"> · For the accountant</span>
+            <span className="font-semibold text-accent-text"> · {source ? "Where this comes from" : "More"}</span>
           </summary>
           <div className="mt-2 flex flex-col gap-2">
+            {source && <p className="text-2xs text-ink2">{source}</p>}
             <span className="pms-num text-2xs text-muted-foreground">Kept as {rule.configType}</span>
             {rule.history.length > 1 && (
               <ul className="flex flex-col gap-1 text-2xs text-muted-foreground">
@@ -144,7 +184,6 @@ function RuleCard({ rule }: { rule: PayrollRule }) {
                 ))}
               </ul>
             )}
-            {body && <Stored value={value} />}
           </div>
         </details>
       )}
@@ -228,7 +267,7 @@ function paye(v: Json): ReactNode | null {
   return (
     <>
       <Figures head={["Monthly pay", "Tax on that part"]} rows={rows} />
-      <Aside>Worked out on {v.taxableBase === "gross" ? "gross pay" : (text(v.taxableBase) ?? "taxable pay")}: each part of the pay is taxed at its own rate.</Aside>
+      <Aside>Worked out on {TAX_BASE[text(v.taxableBase) ?? ""] ?? "taxable pay"}. Each part of the pay is taxed at its own rate.</Aside>
     </>
   );
 }
@@ -244,10 +283,10 @@ function rssb(v: Json): ReactNode | null {
     rows.push([
       <span key="name" className="flex flex-col">
         {text(c.label) ?? text(c.code) ?? "Contribution"}
-        <span className="text-2xs text-muted-foreground">on {c.base === "basic" ? "the basic wage" : "gross pay"}</span>
+        <span className="text-2xs text-muted-foreground">on {CONTRIBUTION_BASE[text(c.base) ?? ""] ?? "gross pay"}</span>
       </span>,
-      percent(employee),
-      percent(employer),
+      employee === 0 ? "Nothing" : percent(employee),
+      employer === 0 ? "Nothing" : percent(employer),
     ]);
   }
   return <Figures head={["Contribution", "Employee pays", "Business pays"]} rows={rows} />;
