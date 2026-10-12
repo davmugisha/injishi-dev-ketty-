@@ -25,7 +25,7 @@ import { dshortIso, fmt, kigaliDateOf, todayIso } from "../../lib/format";
 import { usePms } from "../../store";
 import { currentGrant } from "../../store/helpers";
 import { PAID_METHOD_LABEL, ReasonForm, monthName, monthShort } from "./payroll-ui";
-import { Field, FormError, inputClass } from "./staff-ui";
+import { Field, FormError, Reveal, inputClass } from "./staff-ui";
 
 interface PaidDraft {
   paidOn: string;
@@ -126,33 +126,35 @@ export function Payslips() {
       <PaidHow value={paid} onChange={setPaid} />
 
       {marking && (
-        <div className="flex flex-col gap-2 rounded-card border border-card-bd bg-card p-4">
-          <span className="text-sm text-ink">
-            Mark {marking.employee.displayName}&apos;s {monthName(marking.period)} payslip, {fmt(marking.netRwf)}, paid by {paidLine}?
-          </span>
-          <FormError error={markPaid.error} />
-          <div className="flex justify-end gap-2">
-            <ActionButton onClick={() => setMarking(null)}>Cancel</ActionButton>
-            <ActionButton
-              variant="primary"
-              pending={markPaid.isPending}
-              deniedReason={paid.reference.trim() ? undefined : "Type the reference above first"}
-              onClick={() =>
-                markPaid.mutate(
-                  { id: marking.id, paidOn: paid.paidOn, method: paid.method, reference: paid.reference.trim() },
-                  {
-                    onSuccess: (out) => {
-                      toast(`${out.employee.displayName}: marked paid`, "ok");
-                      setMarking(null);
+        <Reveal when={marking.id}>
+          <div className="flex flex-col gap-2 rounded-card border border-card-bd bg-card p-4">
+            <span className="text-sm text-ink">
+              Mark {marking.employee.displayName}&apos;s {monthName(marking.period)} payslip, {fmt(marking.netRwf)}, paid by {paidLine}?
+            </span>
+            <FormError error={markPaid.error} />
+            <div className="flex justify-end gap-2">
+              <ActionButton onClick={() => setMarking(null)}>Cancel</ActionButton>
+              <ActionButton
+                variant="primary"
+                pending={markPaid.isPending}
+                deniedReason={paid.reference.trim() ? undefined : "Type the reference above first"}
+                onClick={() =>
+                  markPaid.mutate(
+                    { id: marking.id, paidOn: paid.paidOn, method: paid.method, reference: paid.reference.trim() },
+                    {
+                      onSuccess: (out) => {
+                        toast(`${out.employee.displayName}: marked paid`, "ok");
+                        setMarking(null);
+                      },
                     },
-                  },
-                )
-              }
-            >
-              Mark paid
-            </ActionButton>
+                  )
+                }
+              >
+                Mark paid
+              </ActionButton>
+            </div>
           </div>
-        </div>
+        </Reveal>
       )}
 
       {unmarking && (

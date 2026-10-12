@@ -7,7 +7,7 @@
 
 import type { TagTone } from "@injishi/contracts";
 import { Checkbox, Input } from "@injishi/ui";
-import { useEffect, useState, type ReactNode } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 
 import { ApiError, humanError } from "../../data/api";
 import { TIMEZONE } from "../../lib/format";
@@ -73,6 +73,31 @@ export function clock(iso: string): string {
     minute: "2-digit",
     hour12: false,
   }).format(new Date(iso));
+}
+
+/**
+ * Bring what a row's button opened into view, and put the cursor in it.
+ *
+ * A list's forms are drawn above the list (Change pay, Correct, Mark paid).
+ * Pressed from a row far down a long list, the form opened above the window:
+ * the press looked as if it had done nothing. Whatever is inside this is
+ * scrolled to when it appears, and again when `when` changes, which is the row
+ * it was opened for. Something already in view does not move.
+ */
+export function Reveal({ when, children }: { when?: unknown; children: ReactNode }) {
+  const box = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const el = box.current;
+    if (!el) return;
+    el.scrollIntoView({ block: "nearest", behavior: "smooth" });
+    // The first thing to type in, never a hidden input behind a select or a file button.
+    el.querySelector<HTMLElement>("input:not([type=hidden]):not([type=file]):not([tabindex='-1']), textarea")?.focus({ preventScroll: true });
+  }, [when]);
+  return (
+    <div ref={box} className="scroll-my-4">
+      {children}
+    </div>
+  );
 }
 
 /**

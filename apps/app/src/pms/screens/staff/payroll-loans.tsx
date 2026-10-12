@@ -25,7 +25,7 @@ import { dshortIso, fmt, todayIso } from "../../lib/format";
 import { usePms } from "../../store";
 import { currentGrant } from "../../store/helpers";
 import { monthName, nextPeriodOf } from "./payroll-ui";
-import { Field, FormError, inputClass } from "./staff-ui";
+import { Field, FormError, Reveal, inputClass } from "./staff-ui";
 
 const KIND: Record<LoanKind, string> = { loan: "Loan", advance: "Advance" };
 
@@ -94,7 +94,11 @@ export function PayLoans() {
         )}
       </div>
       {adding && <LoanForm onDone={() => setAdding(false)} />}
-      {shown && <Schedule loan={shown} onClose={() => setOpen(null)} />}
+      {shown && (
+        <Reveal when={shown.id}>
+          <Schedule loan={shown} onClose={() => setOpen(null)} />
+        </Reveal>
+      )}
       <section className="flex flex-col gap-3">
         <SectionHeading n={page.data?.total}>Loans and advances</SectionHeading>
         <DataView

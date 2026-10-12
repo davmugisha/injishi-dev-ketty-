@@ -37,7 +37,7 @@ import { addDaysIso, dshortIso, fmt, todayIso } from "../../lib/format";
 import { workspaceBase } from "../../lib/nav";
 import { usePms } from "../../store";
 import { currentGrant } from "../../store/helpers";
-import { Field, FormError, inputClass, useNarrowScreen } from "./staff-ui";
+import { Field, FormError, Reveal, inputClass, useNarrowScreen } from "./staff-ui";
 
 const BASIS: Record<ContractRow["wageBasis"], string> = { monthly: "a month", daily: "a day", hourly: "an hour" };
 const STATUS: Record<string, { label: string; intent: "ok" | "warn" | "neutral" }> = {
@@ -155,8 +155,16 @@ export function PayContracts() {
         Every contract, running and ended. Change pay gives somebody a new wage from a day you choose; the structure and
         the notice a contract carries are set under Pay terms.
       </p>
-      {raising && <ChangePayForm key={raising.id} contract={raising} onDone={() => setRaising(null)} />}
-      {editing && <PayTermsForm contract={editing} onDone={() => setEditing(null)} />}
+      {raising && (
+        <Reveal when={raising.id}>
+          <ChangePayForm key={raising.id} contract={raising} onDone={() => setRaising(null)} />
+        </Reveal>
+      )}
+      {editing && (
+        <Reveal when={editing.id}>
+          <PayTermsForm key={editing.id} contract={editing} onDone={() => setEditing(null)} />
+        </Reveal>
+      )}
       <section className="flex flex-col gap-3">
         <SectionHeading n={page.data?.total}>Contracts</SectionHeading>
         <DataView

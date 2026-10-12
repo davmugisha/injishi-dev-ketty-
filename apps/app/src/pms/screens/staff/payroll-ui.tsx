@@ -16,7 +16,7 @@ import { cn } from "@/lib/utils";
 
 import { ActionButton } from "../../components/ui";
 import { fmt } from "../../lib/format";
-import { FormError, inputClass } from "./staff-ui";
+import { FormError, Reveal, inputClass } from "./staff-ui";
 
 /**
  * The sections of the Payroll lens, each a route segment under `/staff/payroll` (058-payroll AC-PY15).
@@ -124,6 +124,7 @@ export const SIDE_GROUP: Record<PayslipLine["side"], string> = {
 /**
  * Ask for a reason, then act. The trail keeps the reason beside the act, so
  * the button stays shut until three letters are typed, as the server asks.
+ * It is opened from a row and drawn above the list, so it comes into view.
  */
 export function ReasonForm({
   title,
@@ -145,40 +146,42 @@ export function ReasonForm({
   const [reason, setReason] = useState("");
   const id = `reason-${action.toLowerCase().replace(/[^a-z]+/g, "-")}`;
   return (
-    <form
-      className="flex flex-col gap-3 rounded-card border border-card-bd bg-card p-4"
-      onSubmit={(ev) => {
-        ev.preventDefault();
-        if (reason.trim().length >= 3) onSubmit(reason.trim());
-      }}
-    >
-      <label htmlFor={id} className="text-sm font-semibold text-ink">
-        {title}
-      </label>
-      <Input
-        id={id}
-        required
-        minLength={3}
-        maxLength={300}
-        value={reason}
-        placeholder={placeholder ?? "Why, in a few words"}
-        onChange={(e) => setReason(e.target.value)}
-        className={inputClass}
-      />
-      <FormError error={error} />
-      <div className="flex justify-end gap-2">
-        <ActionButton type="button" onClick={onCancel}>
-          Cancel
-        </ActionButton>
-        <ActionButton
-          variant="primary"
-          type="submit"
-          pending={pending}
-          deniedReason={reason.trim().length < 3 ? "Say why first" : undefined}
-        >
-          {action}
-        </ActionButton>
-      </div>
-    </form>
+    <Reveal when={title}>
+      <form
+        className="flex flex-col gap-3 rounded-card border border-card-bd bg-card p-4"
+        onSubmit={(ev) => {
+          ev.preventDefault();
+          if (reason.trim().length >= 3) onSubmit(reason.trim());
+        }}
+      >
+        <label htmlFor={id} className="text-sm font-semibold text-ink">
+          {title}
+        </label>
+        <Input
+          id={id}
+          required
+          minLength={3}
+          maxLength={300}
+          value={reason}
+          placeholder={placeholder ?? "Why, in a few words"}
+          onChange={(e) => setReason(e.target.value)}
+          className={inputClass}
+        />
+        <FormError error={error} />
+        <div className="flex justify-end gap-2">
+          <ActionButton type="button" onClick={onCancel}>
+            Cancel
+          </ActionButton>
+          <ActionButton
+            variant="primary"
+            type="submit"
+            pending={pending}
+            deniedReason={reason.trim().length < 3 ? "Say why first" : undefined}
+          >
+            {action}
+          </ActionButton>
+        </div>
+      </form>
+    </Reveal>
   );
 }

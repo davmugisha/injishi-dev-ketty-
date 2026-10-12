@@ -38,7 +38,7 @@ import { dshortIso, todayIso } from "../../lib/format";
 import { usePms } from "../../store";
 import { currentGrant } from "../../store/helpers";
 import { RosterWeekGrid } from "./roster-week";
-import { Field, FormError, RowList, clock, hoursText, inputClass, rowClass } from "./staff-ui";
+import { Field, FormError, Reveal, RowList, clock, hoursText, inputClass, rowClass } from "./staff-ui";
 
 export function Roster() {
   const { state, toast } = usePms();
@@ -260,92 +260,94 @@ export function Roster() {
           )}
         </div>
         {shiftForm && (
-          <form
-            className="mt-2.5 flex flex-col gap-4 rounded-card border border-card-bd bg-card p-5"
-            onSubmit={(ev) => {
-              ev.preventDefault();
-              if (shiftForm.id) {
-                updateTemplate.mutate(
-                  {
-                    id: shiftForm.id,
-                    body: {
-                      name: shiftForm.name,
-                      startsAt: shiftForm.startsAt,
-                      endsAt: shiftForm.endsAt,
-                      breakMinutes: Number(shiftForm.breakMinutes) || 0,
-                      minWorkMinutes: shiftForm.minWorkMinutes.trim() === "" ? null : Number(shiftForm.minWorkMinutes),
-                      autoClockOutMinutes: shiftForm.autoClockOutMinutes.trim() === "" ? null : Number(shiftForm.autoClockOutMinutes),
+          <Reveal when={shiftForm.id ?? "new"}>
+            <form
+              className="mt-2.5 flex flex-col gap-4 rounded-card border border-card-bd bg-card p-5"
+              onSubmit={(ev) => {
+                ev.preventDefault();
+                if (shiftForm.id) {
+                  updateTemplate.mutate(
+                    {
+                      id: shiftForm.id,
+                      body: {
+                        name: shiftForm.name,
+                        startsAt: shiftForm.startsAt,
+                        endsAt: shiftForm.endsAt,
+                        breakMinutes: Number(shiftForm.breakMinutes) || 0,
+                        minWorkMinutes: shiftForm.minWorkMinutes.trim() === "" ? null : Number(shiftForm.minWorkMinutes),
+                        autoClockOutMinutes: shiftForm.autoClockOutMinutes.trim() === "" ? null : Number(shiftForm.autoClockOutMinutes),
+                      },
                     },
+                    {
+                      onSuccess: (s) => {
+                        toast(`${s.name} saved. Shifts already on the roster keep the hours they were given.`, "ok");
+                        setShiftForm(null);
+                      },
+                    },
+                  );
+                  return;
+                }
+                createTemplate.mutate(
+                  {
+                    name: shiftForm.name,
+                    propertyId: shiftForm.propertyId,
+                    startsAt: shiftForm.startsAt,
+                    endsAt: shiftForm.endsAt,
+                    breakMinutes: Number(shiftForm.breakMinutes) || 0,
+                    minWorkMinutes: shiftForm.minWorkMinutes.trim() === "" ? null : Number(shiftForm.minWorkMinutes),
+                    autoClockOutMinutes: shiftForm.autoClockOutMinutes.trim() === "" ? null : Number(shiftForm.autoClockOutMinutes),
                   },
                   {
                     onSuccess: (s) => {
-                      toast(`${s.name} saved. Shifts already on the roster keep the hours they were given.`, "ok");
+                      toast(`${s.name} added${s.crossesMidnight ? ", running past midnight" : ""}`, "ok");
                       setShiftForm(null);
                     },
                   },
                 );
-                return;
-              }
-              createTemplate.mutate(
-                {
-                  name: shiftForm.name,
-                  propertyId: shiftForm.propertyId,
-                  startsAt: shiftForm.startsAt,
-                  endsAt: shiftForm.endsAt,
-                  breakMinutes: Number(shiftForm.breakMinutes) || 0,
-                  minWorkMinutes: shiftForm.minWorkMinutes.trim() === "" ? null : Number(shiftForm.minWorkMinutes),
-                  autoClockOutMinutes: shiftForm.autoClockOutMinutes.trim() === "" ? null : Number(shiftForm.autoClockOutMinutes),
-                },
-                {
-                  onSuccess: (s) => {
-                    toast(`${s.name} added${s.crossesMidnight ? ", running past midnight" : ""}`, "ok");
-                    setShiftForm(null);
-                  },
-                },
-              );
-            }}
-          >
-            <div className="grid gap-4 md:grid-cols-2">
-              <Field label="Name" htmlFor="hr-shift-name">
-                <Input id="hr-shift-name" required placeholder="Morning, Night…" value={shiftForm.name} onChange={(e) => setShiftForm({ ...shiftForm, name: e.target.value })} className={inputClass} />
-              </Field>
-              {/* A shift stays at its branch: moved to another, it is another shift. */}
-              {!shiftForm.id && (
-                <Field label="Branch">
-                  <SelectField
-                    label="Branch"
-                    value={shiftForm.propertyId}
-                    onChange={(v) => setShiftForm({ ...shiftForm, propertyId: v })}
-                    options={branches.map((b) => ({ value: b.id, label: b.name }))}
-                  />
+              }}
+            >
+              <div className="grid gap-4 md:grid-cols-2">
+                <Field label="Name" htmlFor="hr-shift-name">
+                  <Input id="hr-shift-name" required placeholder="Morning, Night…" value={shiftForm.name} onChange={(e) => setShiftForm({ ...shiftForm, name: e.target.value })} className={inputClass} />
                 </Field>
-              )}
-              <Field label="Starts" htmlFor="hr-shift-start">
-                <Input id="hr-shift-start" required type="time" value={shiftForm.startsAt} onChange={(e) => setShiftForm({ ...shiftForm, startsAt: e.target.value })} className={inputClass} />
-              </Field>
-              <Field label="Ends" hint="An end before the start runs past midnight." htmlFor="hr-shift-end">
-                <Input id="hr-shift-end" required type="time" value={shiftForm.endsAt} onChange={(e) => setShiftForm({ ...shiftForm, endsAt: e.target.value })} className={inputClass} />
-              </Field>
-              <Field label="Break (minutes)" htmlFor="hr-shift-break">
-                <Input id="hr-shift-break" inputMode="numeric" value={shiftForm.breakMinutes} onChange={(e) => setShiftForm({ ...shiftForm, breakMinutes: e.target.value })} className={inputClass} />
-              </Field>
-              <Field label="Minimum work (minutes)" hint="Overtime counts past this. Empty: the shift's length less its break." htmlFor="hr-shift-min">
-                <Input id="hr-shift-min" inputMode="numeric" value={shiftForm.minWorkMinutes} onChange={(e) => setShiftForm({ ...shiftForm, minWorkMinutes: e.target.value })} className={inputClass} />
-              </Field>
-              <Field label="Clock out by itself after (minutes)" hint="Past the shift's end, for whoever forgets. Empty: never." htmlFor="hr-shift-auto">
-                <Input id="hr-shift-auto" inputMode="numeric" value={shiftForm.autoClockOutMinutes} onChange={(e) => setShiftForm({ ...shiftForm, autoClockOutMinutes: e.target.value })} className={inputClass} />
-              </Field>
-            </div>
-            <FormError error={shiftForm.id ? updateTemplate.error : createTemplate.error} />
-            <div className="flex justify-end gap-2">
-              <ActionButton type="button" onClick={() => setShiftForm(null)}>
-                Cancel
-              </ActionButton>
-              <ActionButton variant="primary" type="submit" pending={createTemplate.isPending || updateTemplate.isPending}>
-                {createTemplate.isPending || updateTemplate.isPending ? "Saving" : shiftForm.id ? "Save the shift" : "Add shift"}
-              </ActionButton>
-            </div>
-          </form>
+                {/* A shift stays at its branch: moved to another, it is another shift. */}
+                {!shiftForm.id && (
+                  <Field label="Branch">
+                    <SelectField
+                      label="Branch"
+                      value={shiftForm.propertyId}
+                      onChange={(v) => setShiftForm({ ...shiftForm, propertyId: v })}
+                      options={branches.map((b) => ({ value: b.id, label: b.name }))}
+                    />
+                  </Field>
+                )}
+                <Field label="Starts" htmlFor="hr-shift-start">
+                  <Input id="hr-shift-start" required type="time" value={shiftForm.startsAt} onChange={(e) => setShiftForm({ ...shiftForm, startsAt: e.target.value })} className={inputClass} />
+                </Field>
+                <Field label="Ends" hint="An end before the start runs past midnight." htmlFor="hr-shift-end">
+                  <Input id="hr-shift-end" required type="time" value={shiftForm.endsAt} onChange={(e) => setShiftForm({ ...shiftForm, endsAt: e.target.value })} className={inputClass} />
+                </Field>
+                <Field label="Break (minutes)" htmlFor="hr-shift-break">
+                  <Input id="hr-shift-break" inputMode="numeric" value={shiftForm.breakMinutes} onChange={(e) => setShiftForm({ ...shiftForm, breakMinutes: e.target.value })} className={inputClass} />
+                </Field>
+                <Field label="Minimum work (minutes)" hint="Overtime counts past this. Empty: the shift's length less its break." htmlFor="hr-shift-min">
+                  <Input id="hr-shift-min" inputMode="numeric" value={shiftForm.minWorkMinutes} onChange={(e) => setShiftForm({ ...shiftForm, minWorkMinutes: e.target.value })} className={inputClass} />
+                </Field>
+                <Field label="Clock out by itself after (minutes)" hint="Past the shift's end, for whoever forgets. Empty: never." htmlFor="hr-shift-auto">
+                  <Input id="hr-shift-auto" inputMode="numeric" value={shiftForm.autoClockOutMinutes} onChange={(e) => setShiftForm({ ...shiftForm, autoClockOutMinutes: e.target.value })} className={inputClass} />
+                </Field>
+              </div>
+              <FormError error={shiftForm.id ? updateTemplate.error : createTemplate.error} />
+              <div className="flex justify-end gap-2">
+                <ActionButton type="button" onClick={() => setShiftForm(null)}>
+                  Cancel
+                </ActionButton>
+                <ActionButton variant="primary" type="submit" pending={createTemplate.isPending || updateTemplate.isPending}>
+                  {createTemplate.isPending || updateTemplate.isPending ? "Saving" : shiftForm.id ? "Save the shift" : "Add shift"}
+                </ActionButton>
+              </div>
+            </form>
+          </Reveal>
         )}
         {shifts.length === 0 && !shiftForm ? (
           <EmptyState className="mt-2.5 p-5">

@@ -45,7 +45,7 @@ import { useCreateAttendanceRequest, useDecideOvertime, useValidateAttendance } 
 import { dshortIso, todayIso } from "../../lib/format";
 import { usePms } from "../../store";
 import { currentGrant } from "../../store/helpers";
-import { Field, FormError, RowList, clock, fromLocalInput, hoursText, inputClass, rowClass, toLocalInput } from "./staff-ui";
+import { Field, FormError, Reveal, RowList, clock, fromLocalInput, hoursText, inputClass, rowClass, toLocalInput } from "./staff-ui";
 
 type Fixing = { id: string; name: string; clockInAt: string; clockOutAt: string; note: string };
 type Asking = { employeeId: string; name: string; recordId: string | null; workDate: string; clockInAt: string; clockOutAt: string; reason: string };
@@ -334,90 +334,94 @@ export function Attendance() {
       )}
 
       {fixing && (
-        <form
-          className="flex flex-col gap-3 rounded-card border border-card-bd bg-card p-4"
-          onSubmit={(ev) => {
-            ev.preventDefault();
-            correct.mutate(
-              {
-                id: fixing.id,
-                body: {
-                  clockInAt: fromLocalInput(fixing.clockInAt),
-                  clockOutAt: fromLocalInput(fixing.clockOutAt),
-                  note: fixing.note,
+        <Reveal when={fixing.id}>
+          <form
+            className="flex flex-col gap-3 rounded-card border border-card-bd bg-card p-4"
+            onSubmit={(ev) => {
+              ev.preventDefault();
+              correct.mutate(
+                {
+                  id: fixing.id,
+                  body: {
+                    clockInAt: fromLocalInput(fixing.clockInAt),
+                    clockOutAt: fromLocalInput(fixing.clockOutAt),
+                    note: fixing.note,
+                  },
                 },
-              },
-              {
-                onSuccess: () => {
-                  toast(`${fixing.name}'s times corrected`, "ok");
-                  setFixing(null);
+                {
+                  onSuccess: () => {
+                    toast(`${fixing.name}'s times corrected`, "ok");
+                    setFixing(null);
+                  },
                 },
-              },
-            );
-          }}
-        >
-          <SectionHeading>Correct {fixing.name}&apos;s times</SectionHeading>
-          <div className="grid gap-3 md:grid-cols-3">
-            <Field label="In" htmlFor="fix-in">
-              <Input id="fix-in" type="datetime-local" value={fixing.clockInAt} onChange={(e) => setFixing({ ...fixing, clockInAt: e.target.value })} className={inputClass} />
-            </Field>
-            <Field label="Out" htmlFor="fix-out">
-              <Input id="fix-out" type="datetime-local" value={fixing.clockOutAt} onChange={(e) => setFixing({ ...fixing, clockOutAt: e.target.value })} className={inputClass} />
-            </Field>
-            <Field label="What was wrong" htmlFor="fix-note">
-              <Input id="fix-note" required value={fixing.note} onChange={(e) => setFixing({ ...fixing, note: e.target.value })} className={inputClass} />
-            </Field>
-          </div>
-          <FormError error={correct.error} />
-          <div className="flex justify-end gap-2">
-            <ActionButton type="button" onClick={() => setFixing(null)}>
-              Cancel
-            </ActionButton>
-            <ActionButton variant="primary" type="submit" pending={correct.isPending}>
-              {correct.isPending ? "Saving" : "Save correction"}
-            </ActionButton>
-          </div>
-        </form>
+              );
+            }}
+          >
+            <SectionHeading>Correct {fixing.name}&apos;s times</SectionHeading>
+            <div className="grid gap-3 md:grid-cols-3">
+              <Field label="In" htmlFor="fix-in">
+                <Input id="fix-in" type="datetime-local" value={fixing.clockInAt} onChange={(e) => setFixing({ ...fixing, clockInAt: e.target.value })} className={inputClass} />
+              </Field>
+              <Field label="Out" htmlFor="fix-out">
+                <Input id="fix-out" type="datetime-local" value={fixing.clockOutAt} onChange={(e) => setFixing({ ...fixing, clockOutAt: e.target.value })} className={inputClass} />
+              </Field>
+              <Field label="What was wrong" htmlFor="fix-note">
+                <Input id="fix-note" required value={fixing.note} onChange={(e) => setFixing({ ...fixing, note: e.target.value })} className={inputClass} />
+              </Field>
+            </div>
+            <FormError error={correct.error} />
+            <div className="flex justify-end gap-2">
+              <ActionButton type="button" onClick={() => setFixing(null)}>
+                Cancel
+              </ActionButton>
+              <ActionButton variant="primary" type="submit" pending={correct.isPending}>
+                {correct.isPending ? "Saving" : "Save correction"}
+              </ActionButton>
+            </div>
+          </form>
+        </Reveal>
       )}
 
       {overtime && (
-        <form
-          className="flex flex-wrap items-end gap-3 rounded-card border border-card-bd bg-card p-4"
-          onSubmit={(ev) => {
-            ev.preventDefault();
-            const minutes = Number(overtime.minutes);
-            if (!Number.isInteger(minutes) || minutes < 0 || minutes > overtime.worked) return;
-            decideOvertime.mutate(
-              { id: overtime.id, approvedMinutes: minutes },
-              {
-                onSuccess: () => {
-                  toast(`${minutes} of ${overtime.worked} overtime minutes approved for ${overtime.name}`, "ok");
-                  setOvertime(null);
+        <Reveal when={overtime.id}>
+          <form
+            className="flex flex-wrap items-end gap-3 rounded-card border border-card-bd bg-card p-4"
+            onSubmit={(ev) => {
+              ev.preventDefault();
+              const minutes = Number(overtime.minutes);
+              if (!Number.isInteger(minutes) || minutes < 0 || minutes > overtime.worked) return;
+              decideOvertime.mutate(
+                { id: overtime.id, approvedMinutes: minutes },
+                {
+                  onSuccess: () => {
+                    toast(`${minutes} of ${overtime.worked} overtime minutes approved for ${overtime.name}`, "ok");
+                    setOvertime(null);
+                  },
                 },
-              },
-            );
-          }}
-        >
-          <div className="min-w-0 flex-1">
-            <Field label={`Overtime to approve for ${overtime.name}`} hint={`Up to the ${overtime.worked} worked. Only what is approved reaches pay.`} htmlFor="ot-minutes">
-              <Input id="ot-minutes" inputMode="numeric" value={overtime.minutes} onChange={(e) => setOvertime({ ...overtime, minutes: e.target.value.replace(/\D/g, "") })} className={inputClass} />
-            </Field>
-          </div>
-          <ActionButton type="button" onClick={() => setOvertime(null)}>
-            Cancel
-          </ActionButton>
-          <ActionButton
-            variant="primary"
-            type="submit"
-            pending={decideOvertime.isPending}
-            deniedReason={Number(overtime.minutes) > overtime.worked ? `At most ${overtime.worked}` : undefined}
+              );
+            }}
           >
-            Approve
-          </ActionButton>
-          <div className="w-full">
-            <FormError error={decideOvertime.error} />
-          </div>
-        </form>
+            <div className="min-w-0 flex-1">
+              <Field label={`Overtime to approve for ${overtime.name}`} hint={`Up to the ${overtime.worked} worked. Only what is approved reaches pay.`} htmlFor="ot-minutes">
+                <Input id="ot-minutes" inputMode="numeric" value={overtime.minutes} onChange={(e) => setOvertime({ ...overtime, minutes: e.target.value.replace(/\D/g, "") })} className={inputClass} />
+              </Field>
+            </div>
+            <ActionButton type="button" onClick={() => setOvertime(null)}>
+              Cancel
+            </ActionButton>
+            <ActionButton
+              variant="primary"
+              type="submit"
+              pending={decideOvertime.isPending}
+              deniedReason={Number(overtime.minutes) > overtime.worked ? `At most ${overtime.worked}` : undefined}
+            >
+              Approve
+            </ActionButton>
+            <div className="w-full">
+              <FormError error={decideOvertime.error} />
+            </div>
+          </form>
+        </Reveal>
       )}
 
       {mayRecord && !asking && (
@@ -436,71 +440,73 @@ export function Attendance() {
       )}
 
       {asking && (
-        <form
-          className="flex flex-col gap-3 rounded-card border border-card-bd bg-card p-4"
-          onSubmit={(ev) => {
-            ev.preventDefault();
-            if (!asking.employeeId || asking.reason.trim().length < 3) return;
-            ask.mutate(
-              {
-                employeeId: asking.employeeId,
-                workDate: asking.clockInAt.slice(0, 10),
-                clockInAt: fromLocalInput(asking.clockInAt),
-                clockOutAt: fromLocalInput(asking.clockOutAt),
-                recordId: asking.recordId,
-                reason: asking.reason.trim(),
-              },
-              {
-                onSuccess: (r) => {
-                  toast(`Asked. ${r.routedTo ? `It goes to ${r.routedTo.displayName}` : "A supervisor decides it"}`, "ok");
-                  setAsking(null);
+        <Reveal when={asking.recordId ?? asking.employeeId}>
+          <form
+            className="flex flex-col gap-3 rounded-card border border-card-bd bg-card p-4"
+            onSubmit={(ev) => {
+              ev.preventDefault();
+              if (!asking.employeeId || asking.reason.trim().length < 3) return;
+              ask.mutate(
+                {
+                  employeeId: asking.employeeId,
+                  workDate: asking.clockInAt.slice(0, 10),
+                  clockInAt: fromLocalInput(asking.clockInAt),
+                  clockOutAt: fromLocalInput(asking.clockOutAt),
+                  recordId: asking.recordId,
+                  reason: asking.reason.trim(),
                 },
-              },
-            );
-          }}
-        >
-          <SectionHeading>{asking.recordId ? `Ask to fix ${asking.name}'s times` : "Ask for a missed day"}</SectionHeading>
-          <div className="grid gap-3 md:grid-cols-2">
-            {!asking.recordId && (
-              <Field label="Person">
-                <SelectField
-                  label="Person"
-                  value={asking.employeeId}
-                  onChange={(v) => setAsking({ ...asking, employeeId: v })}
-                  placeholder="Choose someone"
-                  options={
-                    mayReadFiles
-                      ? (employees.data ?? []).map((e) => ({ value: e.id, label: e.displayName }))
-                      : [...new Map(onShift.map((e) => [e.employee.employeeId, e.employee.displayName])).entries()].map(([value, label]) => ({ value, label }))
-                  }
-                />
+                {
+                  onSuccess: (r) => {
+                    toast(`Asked. ${r.routedTo ? `It goes to ${r.routedTo.displayName}` : "A supervisor decides it"}`, "ok");
+                    setAsking(null);
+                  },
+                },
+              );
+            }}
+          >
+            <SectionHeading>{asking.recordId ? `Ask to fix ${asking.name}'s times` : "Ask for a missed day"}</SectionHeading>
+            <div className="grid gap-3 md:grid-cols-2">
+              {!asking.recordId && (
+                <Field label="Person">
+                  <SelectField
+                    label="Person"
+                    value={asking.employeeId}
+                    onChange={(v) => setAsking({ ...asking, employeeId: v })}
+                    placeholder="Choose someone"
+                    options={
+                      mayReadFiles
+                        ? (employees.data ?? []).map((e) => ({ value: e.id, label: e.displayName }))
+                        : [...new Map(onShift.map((e) => [e.employee.employeeId, e.employee.displayName])).entries()].map(([value, label]) => ({ value, label }))
+                    }
+                  />
+                </Field>
+              )}
+              <Field label="Why" htmlFor="ask-reason">
+                <Input id="ask-reason" required value={asking.reason} onChange={(e) => setAsking({ ...asking, reason: e.target.value })} className={inputClass} />
               </Field>
-            )}
-            <Field label="Why" htmlFor="ask-reason">
-              <Input id="ask-reason" required value={asking.reason} onChange={(e) => setAsking({ ...asking, reason: e.target.value })} className={inputClass} />
-            </Field>
-            <Field label="In" htmlFor="ask-in">
-              <Input id="ask-in" type="datetime-local" value={asking.clockInAt} onChange={(e) => setAsking({ ...asking, clockInAt: e.target.value })} className={inputClass} />
-            </Field>
-            <Field label="Out" htmlFor="ask-out">
-              <Input id="ask-out" type="datetime-local" value={asking.clockOutAt} onChange={(e) => setAsking({ ...asking, clockOutAt: e.target.value })} className={inputClass} />
-            </Field>
-          </div>
-          <FormError error={ask.error} />
-          <div className="flex justify-end gap-2">
-            <ActionButton type="button" onClick={() => setAsking(null)}>
-              Cancel
-            </ActionButton>
-            <ActionButton
-              variant="primary"
-              type="submit"
-              pending={ask.isPending}
-              deniedReason={!asking.employeeId ? "Choose someone" : asking.reason.trim().length < 3 ? "Say why" : undefined}
-            >
-              {ask.isPending ? "Asking" : "Ask"}
-            </ActionButton>
-          </div>
-        </form>
+              <Field label="In" htmlFor="ask-in">
+                <Input id="ask-in" type="datetime-local" value={asking.clockInAt} onChange={(e) => setAsking({ ...asking, clockInAt: e.target.value })} className={inputClass} />
+              </Field>
+              <Field label="Out" htmlFor="ask-out">
+                <Input id="ask-out" type="datetime-local" value={asking.clockOutAt} onChange={(e) => setAsking({ ...asking, clockOutAt: e.target.value })} className={inputClass} />
+              </Field>
+            </div>
+            <FormError error={ask.error} />
+            <div className="flex justify-end gap-2">
+              <ActionButton type="button" onClick={() => setAsking(null)}>
+                Cancel
+              </ActionButton>
+              <ActionButton
+                variant="primary"
+                type="submit"
+                pending={ask.isPending}
+                deniedReason={!asking.employeeId ? "Choose someone" : asking.reason.trim().length < 3 ? "Say why" : undefined}
+              >
+                {ask.isPending ? "Asking" : "Ask"}
+              </ActionButton>
+            </div>
+          </form>
+        </Reveal>
       )}
 
       <section className="flex flex-col gap-3">
