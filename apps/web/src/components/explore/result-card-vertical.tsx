@@ -6,6 +6,7 @@ import Link from "next/link";
 import { useEffect, useRef } from "react";
 import { cn } from "@injishi/utils";
 import { ResultGallery } from "@/components/explore/result-gallery";
+import { NoPhoto } from "@/components/stays/no-photo";
 import { SaveStayButton } from "@/components/stays/save-stay-button";
 import type { Listing } from "@/data/listings";
 import { formatRateNumber, NO_RATE, shortBasis } from "@/lib/price";
@@ -64,7 +65,11 @@ export function ResultCardVertical({
         )}
       >
         <div className="absolute inset-0">
-          <ResultGallery images={listing.gallery} alt={listing.image.alt} />
+          {listing.gallery.length > 0 ? (
+            <ResultGallery images={listing.gallery} alt={listing.image?.alt ?? ""} />
+          ) : (
+            <NoPhoto />
+          )}
         </div>
         {/* `z-20`, above the title's stretched link at `z-10`: these are
             controls and marks the link must not swallow. */}

@@ -48,6 +48,31 @@ export const users = pgTable(
 );
 
 /**
+ * An account's name as something to SHOW, or null when it has none.
+ *
+ * A first sign-in with an email code creates the user with `name = ''`, not
+ * null, because Better Auth's user shape requires a string. Read raw, that
+ * empty string was a name: the desk's inbox printed a blank row with a "?"
+ * avatar instead of its "Unnamed" fallback, and `coalesce(users.name, typed
+ * name)` never reached the name a receptionist typed for the guest. Read
+ * every guest, tenant or sender name through this, so a blank one is null
+ * and each screen's own fallback applies.
+ */
+export const accountName = sql<string | null>`nullif(btrim(${users.name}), '')`;
+
+/**
+ * Who an account is, for a screen that only needs to tell people apart: the
+ * name, else the email (owner ruling, 2026-10-12). A guest who books with an
+ * email alone has no name, and the desk's inbox showed "Unnamed" for every one
+ * of them.
+ *
+ * DISPLAY ONLY. Never feed this into a field that becomes a record of a
+ * person (a check-in, a bill, a receipt, a lease): an email there would be
+ * filed as somebody's name. Those read `accountName` and stay null.
+ */
+export const accountLabel = sql<string | null>`coalesce(nullif(btrim(${users.name}), ''), ${users.email})`;
+
+/**
  * The send cap's ledger (ADR-039, `otpSendCap()` in @injishi/auth): one row per
  * identifier (a phone number or a lowercased email) per channel, counting sends
  * in two fixed windows. It stops SENDS when a window is spent and never locks

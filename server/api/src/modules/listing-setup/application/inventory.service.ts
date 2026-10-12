@@ -113,7 +113,16 @@ export class InventoryService {
       actorUserId,
       request,
     });
-    return this.getProperty(workspace, propertyId);
+    // The branch scope was resolved by the guard before this branch existed,
+    // so its list of covered properties cannot name it, and reading it back
+    // through that scope answered "Property not found." for a branch that had
+    // just been created. The caller covers every branch (asserted above), so
+    // the new one is theirs: read it back with it added to the scope.
+    const scope = workspace.branchScope;
+    return this.getProperty(
+      { ...workspace, branchScope: { ...scope, propertyIds: [...scope.propertyIds, propertyId] } },
+      propertyId,
+    );
   }
 
   /**

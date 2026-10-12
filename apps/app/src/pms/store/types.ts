@@ -140,4 +140,12 @@ export interface CheckInDraft {
   room: string;
   nights: number;
   rate: string;
+  /** The booking's reference ("BK-…"), shown in place of its id. Null for a walk-in. */
+  reference: string | null;
+  /**
+   * The room TYPE the guest booked. The drawer offers only that type's rooms,
+   * because the server refuses a room at another branch and a guest is owed
+   * what they paid for; a move or upgrade goes through the room assignment.
+   */
+  roomTypeId: string | null;
 }

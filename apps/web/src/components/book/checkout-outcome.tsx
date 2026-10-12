@@ -228,8 +228,8 @@ export function CheckoutConfirmed({ booking }: { booking: BookingResult }) {
         {booking.nonRefundable ? <Row label="Rate" value="Non-refundable" /> : null}
       </dl>
       <p className="mb-6 text-xs text-page-fg-70">
-        Keep your reference handy for the front desk. An EBM e-invoice is issued
-        under the host&apos;s TIN.
+        Keep your reference handy for the front desk. Your receipt is kept with
+        your trips.
       </p>
       <div className="flex flex-wrap gap-3">
         <Button asChild>

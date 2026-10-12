@@ -10,7 +10,8 @@ export type RecentStay = {
   slug: string;
   name: string;
   location: string;
-  imageSrc: string;
+  /** Null when the stay has uploaded no photograph. */
+  imageSrc: string | null;
   imageAlt: string;
   /** "412,000 RWF per person / night", or the no-rate wording. */
   rateLabel: string;
@@ -22,8 +23,8 @@ export function toRecentStay(listing: Listing): RecentStay {
     slug: listing.slug,
     name: `${listing.nameLead}${listing.nameRest ? ` ${listing.nameRest}` : ""}`,
     location: listing.location,
-    imageSrc: listing.image.src ?? `/assets/${listing.image.stem}.jpg`,
-    imageAlt: listing.image.alt,
+    imageSrc: listing.image ? (listing.image.src ?? `/assets/${listing.image.stem}.jpg`) : null,
+    imageAlt: listing.image?.alt ?? "",
     rateLabel: rate ? `${rate} RWF ${shortBasis(listing.priceBasis)}` : NO_RATE,
   };
 }

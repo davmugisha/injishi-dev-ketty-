@@ -15,6 +15,7 @@ import { StayDatePicker } from "@/components/search/stay-date-picker";
 import { DestinationField } from "@/components/search/destination-field";
 import { GuestPanel } from "@/components/search/guest-panel";
 import type { Destination } from "@/data/destinations";
+import { usePublishedStays } from "@/data/published-stays";
 import { rankDestinations } from "@/lib/destination-search";
 import {
   dateSummary,
@@ -234,7 +235,8 @@ function InlineResults({
   query: string;
   onSelect: (destination: Destination) => void;
 }) {
-  const ranked = rankDestinations(query, 6);
+  const published = usePublishedStays(true);
+  const ranked = rankDestinations(query, 6, published);
 
   return (
     <ul className="overflow-hidden rounded-card border border-black/5">
@@ -257,11 +259,6 @@ function InlineResults({
                 {hit.destination.context}
               </span>
             </span>
-            {hit.destination.count ? (
-              <span className="shrink-0 text-xs tabular-nums text-ink/40">
-                {hit.destination.count}
-              </span>
-            ) : null}
           </Button>
         </li>
       ))}

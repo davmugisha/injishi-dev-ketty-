@@ -4,6 +4,7 @@ import { Job } from 'bullmq';
 import { and, eq, inArray, isNotNull } from 'drizzle-orm';
 
 import {
+  accountName,
   bookings,
   orgMemberships,
   properties,
@@ -82,7 +83,7 @@ export class BookingMailProcessor extends WorkerHost {
         refundRwf: bookings.refundRwf,
         workspaceId: bookings.workspaceId,
         guestEmail: users.email,
-        guestName: users.name,
+        guestName: accountName,
         propertyName: properties.name,
         roomTypeName: roomTypes.name,
       })
@@ -132,7 +133,7 @@ export class BookingMailProcessor extends WorkerHost {
      */
     if (HOST_MAIL_EVENTS.has(event)) {
       const managers = await this.db
-        .select({ email: users.email, name: users.name })
+        .select({ email: users.email, name: accountName })
         .from(workspaces)
         .innerJoin(orgMemberships, eq(orgMemberships.orgId, workspaces.orgId))
         .innerJoin(users, eq(users.id, orgMemberships.userId))

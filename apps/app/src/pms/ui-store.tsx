@@ -47,6 +47,10 @@ export interface CheckInSeed {
   roomId?: string;
   /** Nightly rate to prefill, in RWF. */
   rate?: number;
+  /** The booking's reference, for the drawer's header. */
+  reference?: string;
+  /** The room type the guest booked; narrows the rooms offered. */
+  roomTypeId?: string;
 }
 
 /**
@@ -143,6 +147,8 @@ export function PmsUiProvider({ children }: { children: ReactNode }) {
       room: seed?.roomId ?? "",
       nights: seed?.nights ?? 1,
       rate: seed?.rate != null ? String(seed.rate) : "",
+      reference: seed?.reference ?? null,
+      roomTypeId: seed?.roomTypeId ?? null,
     });
   }, []);
 

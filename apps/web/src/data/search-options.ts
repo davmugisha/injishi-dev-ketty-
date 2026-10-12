@@ -2,33 +2,27 @@ import {
   AccommodationClass,
   ACCOMMODATION_CLASS_LABEL,
 } from "@injishi/contracts";
-import { ALL_PROPERTIES } from "@/data/catalogue";
 
 /**
  * Options offered by the hero search bar and the explore filter rail.
  *
- * **Both option lists are computed from the CATALOGUE, never written down.**
- * They used to be hand-maintained arrays and they drifted three separate times:
- * the rail offered `guesthouse` and `apartment` when no property was either, it
- * offered `huye` when no property was there, and it silently omitted
- * `tented_camp`, `nyagatare` and `rusizi` when properties were. Five live
- * filter bugs, all of one kind. Removing the hand is the fix (ADR-011 call 4).
- *
- * A consequence worth knowing before you write a test: the rail's contents
- * depend on the content. Adding a property in a new district changes what this
- * module returns, by design, so this is not a stable thing to assert on.
+ * The vocabulary only. Which options have a stay behind them is decided at
+ * runtime against the published properties: the filter rail counts each option
+ * over the listings and drops the ones at zero (`data/explore-facets.ts`), so
+ * nothing here can offer a district or class that no stay has. These lists used
+ * to be filtered against a fictional catalogue kept in this app, removed on
+ * 2026-10-08.
  */
 
 /**
- * The districts the property fixtures actually use.
+ * The districts the search files stays under.
  *
  * This is a **facet list**, not the geography entity. `District` in
  * `@injishi/contracts` is a row with a numeric id and there are 30 of them; the
  * two were sharing a name and meaning unrelated things, so this one is
  * `DistrictSlug` and can never again be mistaken for the other (ADR-011 call 2).
  *
- * The declaration order below is the rail's order. Membership is not decided
- * here: a slug with no property behind it is filtered out below.
+ * The declaration order below is the rail's order.
  *
  * `data/destinations.ts` keeps its own wider `string` vocabulary on purpose. It
  * indexes *places* for a typeahead, so it legitimately carries landmarks and
@@ -61,27 +55,27 @@ export interface PropertyKindOption {
 }
 
 /**
- * The classes that have at least one property, in `AccommodationClass`'s own
- * declaration order so the rail's order is stable and canonical rather than
- * whatever order the fixtures happen to sit in.
+ * Every class, in `AccommodationClass`'s own declaration order so the order is
+ * stable and canonical. Which of them have a stay behind them is a fact about
+ * the database, read at runtime: the filter rail drops an option nobody can
+ * pick (`data/explore-facets.ts`).
  *
  * Every label comes from `ACCOMMODATION_CLASS_LABEL`. No class label string is
  * written by hand anywhere in this app (ADR-011 call 6).
  */
 export const PROPERTY_KIND_OPTIONS: PropertyKindOption[] =
-  AccommodationClass.options
-    .filter((value) => ALL_PROPERTIES.some((property) => property.kind === value))
-    .map((value) => ({ value, label: ACCOMMODATION_CLASS_LABEL[value] }));
+  AccommodationClass.options.map((value) => ({ value, label: ACCOMMODATION_CLASS_LABEL[value] }));
 
 export interface SearchDistrictOption {
   slug: DistrictSlug;
   name: string;
 }
 
-/** The districts that have at least one property, in declaration order. */
-export const SEARCH_DISTRICTS: SearchDistrictOption[] = DISTRICT_SLUGS.filter(
-  (slug) => ALL_PROPERTIES.some((property) => property.district === slug),
-).map((slug) => ({ slug, name: DISTRICT_NAME[slug] }));
+/** Every district the search knows, in declaration order. */
+export const SEARCH_DISTRICTS: SearchDistrictOption[] = DISTRICT_SLUGS.map((slug) => ({
+  slug,
+  name: DISTRICT_NAME[slug],
+}));
 
 /**
  * A canonical label, respelled for a slot that reads as a sentence rather than

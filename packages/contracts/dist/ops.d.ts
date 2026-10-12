@@ -38,6 +38,12 @@ export declare const OperatorReservation: z.ZodObject<{
     reference: z.ZodString;
     /** `users.name`, which is nullable: an account may exist before a name does. */
     guestName: z.ZodNullable<z.ZodString>;
+    /**
+     * The guest account's email, for the desk to tell an unnamed guest apart
+     * (shown where `guestName` is null). DISPLAY ONLY: never copied into the
+     * check-in, which records a person's name. Defaulted so an older API parses.
+     */
+    guestEmail: z.ZodDefault<z.ZodNullable<z.ZodString>>;
     /** `YYYY-MM-DD`. A bare date column, so no timezone rides along. */
     checkIn: z.ZodString;
     checkOut: z.ZodString;
@@ -56,6 +62,14 @@ export declare const OperatorReservation: z.ZodObject<{
      */
     roomTypeId: z.ZodString;
     /**
+     * What the guest bought and where: the room type's name and the branch it
+     * belongs to. A host with two branches saw rows naming neither, so a
+     * request could not be told apart from one at the other property.
+     * Defaulted so an older API still parses.
+     */
+    roomTypeName: z.ZodDefault<z.ZodNullable<z.ZodString>>;
+    propertyName: z.ZodDefault<z.ZodNullable<z.ZodString>>;
+    /**
      * `bookings.gross_rwf`: what this reservation is worth.
      *
      * NOT a folio balance. A folio sums `ledger_entries` and moves every time
@@ -69,6 +83,7 @@ export declare const OperatorReservation: z.ZodObject<{
 }, "strip", z.ZodTypeAny, {
     id: string;
     reference: string;
+    propertyName: string | null;
     guestName: string | null;
     state: "pending" | "declined" | "confirmed" | "cancelled" | "no_show" | "inhouse" | "checked_out";
     roomTypeId: string;
@@ -77,9 +92,11 @@ export declare const OperatorReservation: z.ZodObject<{
     checkOut: string;
     approvalExpiresAt: string | null;
     confirmedAt: string | null;
+    guestEmail: string | null;
     guestCount: number;
     bookingStatus: "declined" | "pending_approval" | "confirmed" | "cancelled" | "no_show";
     room: string | null;
+    roomTypeName: string | null;
     totalRwf: number | null;
 }, {
     id: string;
@@ -96,6 +113,9 @@ export declare const OperatorReservation: z.ZodObject<{
     bookingStatus: "declined" | "pending_approval" | "confirmed" | "cancelled" | "no_show";
     room: string | null;
     totalRwf: number | null;
+    propertyName?: string | null | undefined;
+    guestEmail?: string | null | undefined;
+    roomTypeName?: string | null | undefined;
 }>;
 export type OperatorReservation = z.infer<typeof OperatorReservation>;
 export declare const OperatorReservationList: z.ZodObject<{
@@ -105,6 +125,12 @@ export declare const OperatorReservationList: z.ZodObject<{
         reference: z.ZodString;
         /** `users.name`, which is nullable: an account may exist before a name does. */
         guestName: z.ZodNullable<z.ZodString>;
+        /**
+         * The guest account's email, for the desk to tell an unnamed guest apart
+         * (shown where `guestName` is null). DISPLAY ONLY: never copied into the
+         * check-in, which records a person's name. Defaulted so an older API parses.
+         */
+        guestEmail: z.ZodDefault<z.ZodNullable<z.ZodString>>;
         /** `YYYY-MM-DD`. A bare date column, so no timezone rides along. */
         checkIn: z.ZodString;
         checkOut: z.ZodString;
@@ -123,6 +149,14 @@ export declare const OperatorReservationList: z.ZodObject<{
          */
         roomTypeId: z.ZodString;
         /**
+         * What the guest bought and where: the room type's name and the branch it
+         * belongs to. A host with two branches saw rows naming neither, so a
+         * request could not be told apart from one at the other property.
+         * Defaulted so an older API still parses.
+         */
+        roomTypeName: z.ZodDefault<z.ZodNullable<z.ZodString>>;
+        propertyName: z.ZodDefault<z.ZodNullable<z.ZodString>>;
+        /**
          * `bookings.gross_rwf`: what this reservation is worth.
          *
          * NOT a folio balance. A folio sums `ledger_entries` and moves every time
@@ -136,6 +170,7 @@ export declare const OperatorReservationList: z.ZodObject<{
     }, "strip", z.ZodTypeAny, {
         id: string;
         reference: string;
+        propertyName: string | null;
         guestName: string | null;
         state: "pending" | "declined" | "confirmed" | "cancelled" | "no_show" | "inhouse" | "checked_out";
         roomTypeId: string;
@@ -144,9 +179,11 @@ export declare const OperatorReservationList: z.ZodObject<{
         checkOut: string;
         approvalExpiresAt: string | null;
         confirmedAt: string | null;
+        guestEmail: string | null;
         guestCount: number;
         bookingStatus: "declined" | "pending_approval" | "confirmed" | "cancelled" | "no_show";
         room: string | null;
+        roomTypeName: string | null;
         totalRwf: number | null;
     }, {
         id: string;
@@ -163,11 +200,15 @@ export declare const OperatorReservationList: z.ZodObject<{
         bookingStatus: "declined" | "pending_approval" | "confirmed" | "cancelled" | "no_show";
         room: string | null;
         totalRwf: number | null;
+        propertyName?: string | null | undefined;
+        guestEmail?: string | null | undefined;
+        roomTypeName?: string | null | undefined;
     }>, "many">;
 }, "strip", z.ZodTypeAny, {
     reservations: {
         id: string;
         reference: string;
+        propertyName: string | null;
         guestName: string | null;
         state: "pending" | "declined" | "confirmed" | "cancelled" | "no_show" | "inhouse" | "checked_out";
         roomTypeId: string;
@@ -176,9 +217,11 @@ export declare const OperatorReservationList: z.ZodObject<{
         checkOut: string;
         approvalExpiresAt: string | null;
         confirmedAt: string | null;
+        guestEmail: string | null;
         guestCount: number;
         bookingStatus: "declined" | "pending_approval" | "confirmed" | "cancelled" | "no_show";
         room: string | null;
+        roomTypeName: string | null;
         totalRwf: number | null;
     }[];
 }, {
@@ -197,6 +240,9 @@ export declare const OperatorReservationList: z.ZodObject<{
         bookingStatus: "declined" | "pending_approval" | "confirmed" | "cancelled" | "no_show";
         room: string | null;
         totalRwf: number | null;
+        propertyName?: string | null | undefined;
+        guestEmail?: string | null | undefined;
+        roomTypeName?: string | null | undefined;
     }[];
 }>;
 export type OperatorReservationList = z.infer<typeof OperatorReservationList>;
@@ -238,6 +284,12 @@ export declare const ReservationDecisionResult: z.ZodObject<{
     reference: z.ZodString;
     /** `users.name`, which is nullable: an account may exist before a name does. */
     guestName: z.ZodNullable<z.ZodString>;
+    /**
+     * The guest account's email, for the desk to tell an unnamed guest apart
+     * (shown where `guestName` is null). DISPLAY ONLY: never copied into the
+     * check-in, which records a person's name. Defaulted so an older API parses.
+     */
+    guestEmail: z.ZodDefault<z.ZodNullable<z.ZodString>>;
     /** `YYYY-MM-DD`. A bare date column, so no timezone rides along. */
     checkIn: z.ZodString;
     checkOut: z.ZodString;
@@ -256,6 +308,14 @@ export declare const ReservationDecisionResult: z.ZodObject<{
      */
     roomTypeId: z.ZodString;
     /**
+     * What the guest bought and where: the room type's name and the branch it
+     * belongs to. A host with two branches saw rows naming neither, so a
+     * request could not be told apart from one at the other property.
+     * Defaulted so an older API still parses.
+     */
+    roomTypeName: z.ZodDefault<z.ZodNullable<z.ZodString>>;
+    propertyName: z.ZodDefault<z.ZodNullable<z.ZodString>>;
+    /**
      * `bookings.gross_rwf`: what this reservation is worth.
      *
      * NOT a folio balance. A folio sums `ledger_entries` and moves every time
@@ -269,6 +329,7 @@ export declare const ReservationDecisionResult: z.ZodObject<{
 }, "strip", z.ZodTypeAny, {
     id: string;
     reference: string;
+    propertyName: string | null;
     guestName: string | null;
     state: "pending" | "declined" | "confirmed" | "cancelled" | "no_show" | "inhouse" | "checked_out";
     roomTypeId: string;
@@ -277,9 +338,11 @@ export declare const ReservationDecisionResult: z.ZodObject<{
     checkOut: string;
     approvalExpiresAt: string | null;
     confirmedAt: string | null;
+    guestEmail: string | null;
     guestCount: number;
     bookingStatus: "declined" | "pending_approval" | "confirmed" | "cancelled" | "no_show";
     room: string | null;
+    roomTypeName: string | null;
     totalRwf: number | null;
 }, {
     id: string;
@@ -296,6 +359,9 @@ export declare const ReservationDecisionResult: z.ZodObject<{
     bookingStatus: "declined" | "pending_approval" | "confirmed" | "cancelled" | "no_show";
     room: string | null;
     totalRwf: number | null;
+    propertyName?: string | null | undefined;
+    guestEmail?: string | null | undefined;
+    roomTypeName?: string | null | undefined;
 }>;
 export type ReservationDecisionResult = z.infer<typeof ReservationDecisionResult>;
 /** Is this room sellable? Owned by maintenance. */
@@ -332,6 +398,12 @@ export declare const OperatorRoom: z.ZodObject<{
     label: z.ZodNullable<z.ZodString>;
     roomTypeId: z.ZodString;
     roomTypeName: z.ZodString;
+    /**
+     * False once the room's TYPE is archived. The room keeps its own status, so
+     * without this an archived type's rooms read as free and the desk offered
+     * them to guests. Defaults to true so an older API still parses.
+     */
+    roomTypeActive: z.ZodDefault<z.ZodBoolean>;
     status: z.ZodEnum<["available", "maintenance", "out_of_service"]>;
     housekeeping: z.ZodEnum<["clean", "dirty", "inspected", "out_of_order"]>;
     /** The open stay in this room, if anyone is in it. */
@@ -351,6 +423,7 @@ export declare const OperatorRoom: z.ZodObject<{
     label: string | null;
     roomTypeId: string;
     roomTypeName: string;
+    roomTypeActive: boolean;
     housekeeping: "dirty" | "clean" | "inspected" | "out_of_order";
     occupiedBy: {
         stayId: string;
@@ -367,6 +440,7 @@ export declare const OperatorRoom: z.ZodObject<{
         stayId: string;
         guestName: string | null;
     } | null;
+    roomTypeActive?: boolean | undefined;
 }>;
 export type OperatorRoom = z.infer<typeof OperatorRoom>;
 export declare const OperatorRoomList: z.ZodObject<{
@@ -376,6 +450,12 @@ export declare const OperatorRoomList: z.ZodObject<{
         label: z.ZodNullable<z.ZodString>;
         roomTypeId: z.ZodString;
         roomTypeName: z.ZodString;
+        /**
+         * False once the room's TYPE is archived. The room keeps its own status, so
+         * without this an archived type's rooms read as free and the desk offered
+         * them to guests. Defaults to true so an older API still parses.
+         */
+        roomTypeActive: z.ZodDefault<z.ZodBoolean>;
         status: z.ZodEnum<["available", "maintenance", "out_of_service"]>;
         housekeeping: z.ZodEnum<["clean", "dirty", "inspected", "out_of_order"]>;
         /** The open stay in this room, if anyone is in it. */
@@ -395,6 +475,7 @@ export declare const OperatorRoomList: z.ZodObject<{
         label: string | null;
         roomTypeId: string;
         roomTypeName: string;
+        roomTypeActive: boolean;
         housekeeping: "dirty" | "clean" | "inspected" | "out_of_order";
         occupiedBy: {
             stayId: string;
@@ -411,6 +492,7 @@ export declare const OperatorRoomList: z.ZodObject<{
             stayId: string;
             guestName: string | null;
         } | null;
+        roomTypeActive?: boolean | undefined;
     }>, "many">;
 }, "strip", z.ZodTypeAny, {
     rooms: {
@@ -419,6 +501,7 @@ export declare const OperatorRoomList: z.ZodObject<{
         label: string | null;
         roomTypeId: string;
         roomTypeName: string;
+        roomTypeActive: boolean;
         housekeeping: "dirty" | "clean" | "inspected" | "out_of_order";
         occupiedBy: {
             stayId: string;
@@ -437,6 +520,7 @@ export declare const OperatorRoomList: z.ZodObject<{
             stayId: string;
             guestName: string | null;
         } | null;
+        roomTypeActive?: boolean | undefined;
     }[];
 }>;
 export type OperatorRoomList = z.infer<typeof OperatorRoomList>;

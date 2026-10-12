@@ -24,13 +24,13 @@ export const metadata: Metadata = {
  * The API's published properties are read here, on the server, exactly as
  * Explore reads them, so a heart placed on one of THOSE cards finds its card on
  * this list. `databaseListings` answers with an empty array when the API is
- * unreachable, so a down API leaves the catalogue showing rather than erroring.
+ * unreachable, so a down API shows an empty list rather than an error.
  */
 export default async function Page() {
-  const extraListings = await databaseListings();
+  const listings = await databaseListings();
   return (
     <div className="page-y container">
-      <SavedCollection extraListings={extraListings} />
+      <SavedCollection listings={listings} />
     </div>
   );
 }

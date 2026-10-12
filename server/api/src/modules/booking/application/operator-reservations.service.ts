@@ -139,6 +139,7 @@ export class OperatorReservationsService {
       id: row.id,
       reference: row.reference,
       guestName: row.guestName,
+      guestEmail: row.guestEmail,
       checkIn: row.checkIn,
       checkOut: row.checkOut,
       // One definition of a night (review 4.1); a desk row never shows fewer
@@ -149,6 +150,8 @@ export class OperatorReservationsService {
       bookingStatus: row.status,
       room: row.roomLabel,
       roomTypeId: row.roomTypeId,
+      roomTypeName: row.roomTypeName,
+      propertyName: row.propertyName,
       totalRwf: row.grossRwf,
       approvalExpiresAt: row.approvalExpiresAt?.toISOString() ?? null,
       confirmedAt: row.confirmedAt?.toISOString() ?? null,

@@ -7,14 +7,20 @@ import {
 import {
   Controller,
   Get,
-  Header,
   Param,
   ParseUUIDPipe,
-  Redirect,
+  Res,
   UseGuards,
 } from '@nestjs/common';
 
 import { ListingService } from '../../../modules/listing/application/listing.service';
+
+/** The minimum of a Fastify reply the photo route touches. */
+interface PhotoReply {
+  status(code: number): PhotoReply;
+  header(key: string, value: string): PhotoReply;
+  send(payload?: Buffer | string): PhotoReply;
+}
 import { PreLaunchGuard } from '../../../shared/pre-launch/pre-launch.guard';
 
 /**
@@ -68,14 +74,30 @@ export class PropertiesController {
    * one that is not public.
    */
   @Get('photos/:photoId')
-  @Header('Cache-Control', 'no-store')
-  @Header('Cross-Origin-Resource-Policy', 'cross-origin')
-  @Redirect()
   async photo(
     @Param('photoId') photoId: string,
-  ): Promise<{ url: string; statusCode: number }> {
+    @Res({ passthrough: true }) reply: PhotoReply,
+  ): Promise<void> {
     const url = await this.listings.publicPhotoUrl(photoId);
-    return { url, statusCode: 302 };
+    reply
+      .header('Cache-Control', 'no-store')
+      .header('Cross-Origin-Resource-Policy', 'cross-origin');
+
+    // LOCAL STORAGE ONLY. `LocalDiskStorageAdapter` has no host to sign a link
+    // for, so it answers with the file as a `data:` URL. Redirecting to that
+    // drew a broken image on every local photo: browsers will not follow a
+    // redirect to `data:`, and a photo of any size made a Location header
+    // megabytes long, which was dropped altogether (a 302 with no Location).
+    // The bytes go straight back instead. A real store (S3/MinIO) answers
+    // with an https link and takes the redirect below, unchanged.
+    const inline = /^data:([^;,]+);base64,/.exec(url);
+    if (inline) {
+      reply
+        .header('Content-Type', inline[1]!)
+        .send(Buffer.from(url.slice(inline[0].length), 'base64'));
+      return;
+    }
+    reply.status(302).header('Location', url).send();
   }
 
   /**

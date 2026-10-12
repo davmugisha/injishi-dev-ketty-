@@ -1,11 +1,9 @@
 import {
-  PropertyDetail,
   type FacilityOutlet,
   type OrderingAccess,
   type OutletKind,
   type PropertyFacility,
 } from "@injishi/contracts";
-import { apiFetchParsed, type ApiResult } from "@/lib/api";
 
 /**
  * What a property on the platform says it offers, read from the API
@@ -21,49 +19,9 @@ import { apiFetchParsed, type ApiResult } from "@/lib/api";
  * either. Joining or filtering again in the browser would be a second answer to
  * a question the server has already settled, and the two would drift.
  *
- * ## Why the catalogue stays the fallback
- *
- * `data/properties.ts` is editorial: the amenities a catalogue stay advertises,
- * written down by us. For a property the API does not serve — most of the
- * catalogue, today — that is the only honest list there is, so the page keeps
- * it. A 404 from the API is therefore the ORDINARY answer, not a failure: it
- * means this business has not published on Injishi (the same reading
- * `data/property-rooms.ts` gives it). An unreachable API is treated the same
- * way for display, because the editorial list is still true when the server is
- * down, and replacing it with an error would hide something correct behind
- * something the guest cannot act on.
+ * The property page receives the list with the rest of the property, read on
+ * the server (`data/public-property.ts`), so nothing here fetches.
  */
-
-/** Read a property's facilities by its public slug. */
-export async function fetchPropertyFacilities(
-  slug: string,
-): Promise<ApiResult<PropertyFacility[]>> {
-  // Parsed against the contract. A body that does not match (an older API
-  // that predates slice 4 and sends no `facilities`, among others) is
-  // `failed`, which `facilitiesToShow` reads as "keep the editorial amenities".
-  const result = await apiFetchParsed(
-    PropertyDetail,
-    `/api/v1/properties/slug/${encodeURIComponent(slug)}`,
-  );
-  if (result.status !== "ok") return result;
-  return { status: "ok", data: result.data.facilities };
-}
-
-/**
- * The list the page should draw, or null to keep the editorial amenities.
- *
- * Null for everything except a property the API serves that lists at least one
- * facility: still loading, a 404, a failure, a refusal, and an empty list all
- * leave the catalogue's amenities where they are. An empty list on a platform
- * property is not "this house has nothing"; it is "the host has not filled
- * this in yet", and the editorial list is the better answer to that.
- */
-export function facilitiesToShow(
-  result: ApiResult<PropertyFacility[]> | null,
-): PropertyFacility[] | null {
-  if (result?.status !== "ok") return null;
-  return result.data.length > 0 ? result.data : null;
-}
 
 /**
  * Who may order from an outlet, in words a guest reads.

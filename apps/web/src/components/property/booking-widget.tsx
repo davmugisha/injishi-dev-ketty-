@@ -32,7 +32,6 @@ import {
   type PropertyRooms,
 } from "@/data/property-rooms";
 import { retryWhileFailed, type ApiResult } from "@/lib/api";
-import type { PropertyDetail } from "@/data/properties";
 
 /**
  * The booking widget.
@@ -46,8 +45,8 @@ import type { PropertyDetail } from "@/data/properties";
  * seeds itself from them. It used to open empty on every visit and ask both
  * questions a second time, which is the defect the search contract in
  * `lib/search-params.ts` exists to close. `useSearchParams` keeps the property
- * page itself statically generated: the params are read in the browser, so the
- * page needs no `searchParams` prop and stays on `generateStaticParams`.
+ * page cacheable: the params are read in the browser, so the page needs no
+ * `searchParams` prop and is not rendered per query string.
  *
  * The three controls sit inside one bordered box divided by hairlines rather
  * than as three separate boxes. That is not decoration: it is what makes the
@@ -59,13 +58,14 @@ import type { PropertyDetail } from "@/data/properties";
  * opens the picker that unblocks it.
  */
 /**
- * The three facts the card reads about a property, and no more.
- *
- * Narrow on purpose, so a published database property (ADR-053) can be sold from
- * the same card as a catalogue record: its slug addresses the real rooms, it has
- * no rack rate to quote, and its guest ceiling is its largest room type.
+ * The two facts the card reads about a property, and no more: its slug
+ * addresses the real rooms, and its guest ceiling is its largest room type.
+ * Every rate it quotes is a room's, read from the API.
  */
-export type BookingWidgetProperty = Pick<PropertyDetail, "slug" | "nightlyRateRwf" | "maxGuests">;
+export interface BookingWidgetProperty {
+  slug: string;
+  maxGuests: number;
+}
 
 export function BookingWidget({ property }: { property: BookingWidgetProperty }) {
   const params = useSearchParams();
@@ -89,7 +89,7 @@ export function BookingWidget({ property }: { property: BookingWidgetProperty })
    * The card used to own a non-refundable checkbox. Whether that rate exists is
    * `nonrefundableEligible` on the ROOM TYPE (F-B05 Path A), and this card
    * never reads a room type, so it was offering a 10% discount on every
-   * property in the catalogue. The server drops the flag for a room type that
+   * property. The server drops the flag for a room type that
    * is not eligible, so a guest could tick it, watch the total fall, and be
    * charged the full rate (ADR-014 AC-7).
    *
@@ -179,17 +179,12 @@ export function BookingWidget({ property }: { property: BookingWidgetProperty })
   }, [bookableRoomTypeId]);
 
   /*
-   * ONE rate, and the server's wins.
-   *
-   * `property.nightlyRateRwf` is the rack rate this business publishes, which
-   * is what a directory quotes for a place it does not sell. Where Injishi DOES
-   * sell the room, the rate that matters is the one the API will charge, and
-   * quoting the other one is how a preview comes to disagree with a charge —
-   * the exact defect `lib/booking.ts` exists to prevent one layer down.
+   * ONE rate, and it is the server's: the room the API will charge for. A
+   * property with nothing on sale has no rate to quote, rather than a figure
+   * from somewhere else that a charge would then disagree with — the exact
+   * defect `lib/booking.ts` exists to prevent one layer down.
    */
-  const quotedRateRwf =
-    (bookable ?? sellable[0] ?? null)?.nightlyRateRwf ?? property.nightlyRateRwf;
-  const showingRackRate = notSold && property.nightlyRateRwf !== null;
+  const quotedRateRwf = (bookable ?? sellable[0] ?? null)?.nightlyRateRwf ?? null;
 
   const quote = useMemo(
     () =>
@@ -239,7 +234,7 @@ export function BookingWidget({ property }: { property: BookingWidgetProperty })
           // property from it server-side (`GET /api/v1/bookable/:roomTypeId`),
           // so a link can no longer name a room and a property that disagree —
           // and `data/demo-listing.ts`, which lent one seeded room to every
-          // property in the catalogue, is deleted rather than switched off.
+          // property, is deleted rather than switched off.
           roomTypeId: bookableRoomTypeId,
         })
       : null;
@@ -340,8 +335,8 @@ export function BookingWidget({ property }: { property: BookingWidgetProperty })
           asked a pricing question before there were any dates to price.
         */}
         {/*
-          The label used to read "Request to book" on every property in the
-          catalogue. That is a booking MODE, it is a per-room-type fact
+          The label used to read "Request to book" on every property. That is
+          a booking MODE, it is a per-room-type fact
           (F-B03), and nothing here knows it: a property whose rooms are
           instant_book was being told its guest would wait for a host who
           never has to answer. Where the mode is unknown the wording promises
@@ -422,11 +417,7 @@ export function BookingWidget({ property }: { property: BookingWidgetProperty })
 
         {/* One reassurance line, not two stacked at two different sizes. */}
         <p className="mt-4 text-center text-sm text-page-fg-70">
-          {bookable
-            ? "You will not be charged yet. Payment is held in escrow until check-in."
-            : showingRackRate
-              ? "Indicative rate published by the property. Injishi is not selling this stay."
-              : "You will not be charged yet. Payment is held in escrow until check-in."}
+          You will not be charged yet. Payment is held in escrow until check-in.
         </p>
 
         {quote ? (
