@@ -18,8 +18,8 @@ import { useState } from "react";
 
 import { Icon } from "../../components/icon";
 import { ActionButton, Badge, EmptyState, LoadFailed, SectionHeading, StatCard } from "../../components/ui";
-import { useAskAttendanceFix, useMyAttendance, useMyMonth } from "../../data/my-work";
-import { todayIso } from "../../lib/format";
+import { useAskAttendanceFix, useChangeMyKioskPin, useMyAttendance, useMyKioskPin, useMyMonth } from "../../data/my-work";
+import { dshortIso, kigaliDateOf, todayIso } from "../../lib/format";
 import { usePms } from "../../store";
 import { Field, FormError, RowList, clock, fromLocalInput, hoursText, inputClass, rowClass, toLocalInput } from "../staff/staff-ui";
 import { Loading, Panel, dayText, monthEnd, monthText, shiftMonth } from "./my-work-ui";
@@ -46,6 +46,101 @@ function recordNote(r: AttendanceRecord): string | null {
   if (r.source === "supervisor") return "recorded by a supervisor";
   if (r.source === "kiosk") return "at the kiosk";
   return null;
+}
+
+/**
+ * The person's own kiosk PIN: whether they have one, and a way to change it.
+ *
+ * The office sets the first PIN and tells it to the person, which means
+ * somebody else has known it. Changing it here makes it theirs: the current
+ * PIN proves who is asking, and neither is ever shown or kept in clear.
+ */
+function KioskPin({ employeeId }: { employeeId: string }) {
+  const { toast } = usePms();
+  const state = useMyKioskPin(employeeId);
+  const change = useChangeMyKioskPin(employeeId);
+  const [open, setOpen] = useState(false);
+  const [current, setCurrent] = useState("");
+  const [next, setNext] = useState("");
+  const digits = (value: string) => value.replace(/\D/g, "").slice(0, 6);
+  const ready = /^\d{4,6}$/.test(current) && /^\d{4,6}$/.test(next);
+
+  if (!state.data) return null;
+  const close = () => {
+    setOpen(false);
+    setCurrent("");
+    setNext("");
+    change.reset();
+  };
+
+  return (
+    <Panel className="flex flex-col gap-3 px-5 py-4">
+      <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
+        <span className="flex min-w-48 flex-1 flex-col gap-0.5">
+          <SectionHeading>Your kiosk PIN</SectionHeading>
+          <span className="text-sm text-ink2">
+            {state.data.hasPin
+              ? `You clock in at the tablet with your employee number and this PIN. Set ${state.data.setAt ? dshortIso(kigaliDateOf(state.data.setAt)) : "a while ago"}.`
+              : "You have no PIN for the tablet at the door yet. The office sets the first one; ask at the desk."}
+          </span>
+        </span>
+        {state.data.hasPin ? <Badge intent="ok">PIN set</Badge> : <Badge intent="warn">No PIN yet</Badge>}
+        {state.data.hasPin && !open && <ActionButton onClick={() => setOpen(true)}>Change it</ActionButton>}
+      </div>
+      {open && (
+        <div className="flex flex-wrap items-end gap-2.5">
+          <div className="w-40">
+            <Field label="Current PIN" htmlFor="my-pin-current">
+              <Input
+                id="my-pin-current"
+                type="password"
+                inputMode="numeric"
+                autoComplete="off"
+                value={current}
+                onChange={(ev) => setCurrent(digits(ev.target.value))}
+                className={inputClass}
+              />
+            </Field>
+          </div>
+          <div className="w-40">
+            <Field label="New PIN" htmlFor="my-pin-next" hint="4 to 6 digits.">
+              <Input
+                id="my-pin-next"
+                type="password"
+                inputMode="numeric"
+                autoComplete="off"
+                value={next}
+                onChange={(ev) => setNext(digits(ev.target.value))}
+                className={inputClass}
+              />
+            </Field>
+          </div>
+          <ActionButton
+            variant="primary"
+            pending={change.isPending}
+            deniedReason={ready ? (current === next ? "Choose a PIN that is not the one you have." : undefined) : "Both are 4 to 6 digits."}
+            onClick={() =>
+              change.mutate(
+                { currentPin: current, pin: next },
+                {
+                  onSuccess: () => {
+                    toast("Your kiosk PIN is changed. Only you know it now.", "ok");
+                    close();
+                  },
+                },
+              )
+            }
+          >
+            Save the new PIN
+          </ActionButton>
+          <ActionButton onClick={close}>Cancel</ActionButton>
+          <div className="w-full">
+            <FormError error={change.error} />
+          </div>
+        </div>
+      )}
+    </Panel>
+  );
 }
 
 export function MyTime({ employeeId }: { employeeId: string }) {
@@ -228,6 +323,8 @@ export function MyTime({ employeeId }: { employeeId: string }) {
           </RowList>
         )}
       </div>
+
+      <KioskPin employeeId={employeeId} />
 
       {requests.length > 0 && (
         <div className="flex flex-col gap-0">

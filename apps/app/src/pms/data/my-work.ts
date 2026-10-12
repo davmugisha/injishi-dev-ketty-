@@ -21,6 +21,7 @@
  */
 
 import {
+  KioskPinState,
   LeaveRequest,
   MyAttendance,
   MyChecklists,
@@ -71,12 +72,12 @@ async function mine<T>(path: string, schema: Parser<T>): Promise<T> {
 }
 
 /** Something the person asks or does on their own file. A refusal arrives in the server's words. */
-async function ask<T>(path: string, body?: unknown): Promise<T> {
+async function ask<T>(path: string, body?: unknown, method: "POST" | "PUT" = "POST"): Promise<T> {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
   try {
     const res = await fetch(`${API_BASE}/api/v1${path}`, {
-      method: "POST",
+      method,
       credentials: "include",
       // Only with a body: Fastify refuses an empty JSON body before any route runs.
       headers: body === undefined ? undefined : { "Content-Type": "application/json" },
@@ -104,6 +105,7 @@ export const myWorkKeys = {
   leave: (id: string | null) => ["me-work", "leave", id] as const,
   payslips: (id: string | null) => ["me-work", "payslips", id] as const,
   checklists: (id: string | null) => ["me-work", "checklists", id] as const,
+  pin: (id: string | null) => ["me-work", "kiosk-pin", id] as const,
   loans: (id: string | null) => ["me-work", "loans", id] as const,
 };
 
@@ -201,6 +203,15 @@ export function useMyChecklists(employeeId: string | null): UseQueryResult<MyChe
   });
 }
 
+/** Whether the person has a kiosk PIN, and since when. Never the PIN: nothing keeps it. */
+export function useMyKioskPin(employeeId: string | null): UseQueryResult<KioskPinState> {
+  return useQuery({
+    queryKey: myWorkKeys.pin(employeeId),
+    queryFn: () => mine(`/me/work/${employeeId}/kiosk-pin`, KioskPinState),
+    enabled: employeeId !== null,
+  });
+}
+
 // --- Commands ------------------------------------------------------------------
 
 /** How long to wait for the browser to say where it is before clocking without it. */
@@ -282,6 +293,15 @@ export function useTickMyTask(employeeId: string | null): UseMutationResult<MyCh
       client.setQueryData(myWorkKeys.checklists(employeeId), answer);
       void client.invalidateQueries({ queryKey: ["ops", "checklists"] });
     },
+  });
+}
+
+/** Change one's own kiosk PIN. The current one proves who is asking; the server refuses a wrong one in words. */
+export function useChangeMyKioskPin(employeeId: string | null): UseMutationResult<KioskPinState, Error, { currentPin: string; pin: string }> {
+  const client = useQueryClient();
+  return useMutation({
+    mutationFn: async (body) => KioskPinState.parse(await ask(`/me/work/${employeeId}/kiosk-pin`, body, "PUT")),
+    onSuccess: (answer) => client.setQueryData(myWorkKeys.pin(employeeId), answer),
   });
 }
 
