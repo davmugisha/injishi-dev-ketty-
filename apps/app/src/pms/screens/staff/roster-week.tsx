@@ -15,21 +15,38 @@
  *
  * WHOEVER MANAGES THE ROSTER EDITS IT IN PLACE. The grid used to be a picture
  * of the roster: a shift was added one at a time through the form below it,
- * and changing one meant cancelling it in the list and adding another. Now a
- * shift is chosen once ("Paint with") and every day pressed takes it: an empty
- * day gets the shift, a day on another shift is moved to it, and "Day off"
- * takes a day's shifts away. Every active person of the branch has a row, so
- * somebody with no shift yet can be given one. "Copy last week" fills the
- * empty days of the week in view from the week before.
+ * and changing one meant cancelling it in the list and adding another. Now
+ * every day of every person is a button: pressing it opens the branch's
+ * shifts, the one that day is on ticked, and choosing another moves the day to
+ * it; "Day off" takes the day's shift away. Every active person of the branch
+ * has a row, so somebody with no shift yet can be given one. "Copy last week"
+ * fills the empty days of the week in view from the week before.
  *
- * It writes through the two roster commands that already existed, one shift a
- * press: add, and cancel with a reason. A move is a cancel and an add, so the
- * server's own refusals (on approved leave, an overlap, a branch out of reach)
- * arrive in its words and the day is left as it was.
+ * It writes through the two roster commands that already existed: add, and
+ * cancel with a reason. A move is a cancel and an add, so the server's own
+ * refusals (on approved leave, an overlap, a branch out of reach) arrive in
+ * its words and the day is left as it was.
+ *
+ * A SHIFT HAS A SHADE, so a week reads at a glance: who is on mornings, where
+ * the nights fall, which day is thin. The shades are the design system's one
+ * ramp (`--chart-1` to `--chart-5`), lightest for the shift that starts
+ * earliest and darkest for the latest, so the colour says the time of day and
+ * needs no legend to be learned twice. It is never the only sign: every shift
+ * still carries its name and its hours in ink, and the key above the grid
+ * names each shade.
  */
 
 import type { RosterEntry } from "@injishi/contracts";
-import { useState } from "react";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuLabel,
+  DropdownMenuRadioGroup,
+  DropdownMenuRadioItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@injishi/ui";
+import { useState, type CSSProperties } from "react";
 
 import { cn } from "@/lib/utils";
 
@@ -46,8 +63,43 @@ import { FormError, clock } from "./staff-ui";
 /** The department filter's "no filter": an empty key would read as a blank selection. */
 const EVERY = "every";
 
-/** "Paint with" set to taking shifts away, beside the shift ids it otherwise holds. */
+/** The menu's choice that takes a day's shift away, beside the shift ids it otherwise holds. */
 const DAY_OFF = "off";
+
+/**
+ * The shades a shift may wear, earliest start first: the chart ramp from its
+ * lightest step to its darkest. Four steps for up to four shifts, which is
+ * what a hotel runs (morning, day, evening, night); a fifth takes the middle
+ * step, and past five the latest shifts share the darkest.
+ */
+const SHADES: readonly (readonly string[])[] = [
+  [],
+  ["--chart-3"],
+  ["--chart-5", "--chart-1"],
+  ["--chart-5", "--chart-3", "--chart-1"],
+  ["--chart-5", "--chart-4", "--chart-2", "--chart-1"],
+  ["--chart-5", "--chart-4", "--chart-3", "--chart-2", "--chart-1"],
+];
+
+/** A shift's shade as a tint behind its name and a bar at its edge. Text stays in ink. */
+function shadeStyle(token: string | undefined): CSSProperties | undefined {
+  if (!token) return undefined;
+  return {
+    backgroundColor: `color-mix(in oklab, var(${token}) 24%, var(--card))`,
+    borderLeft: `3px solid var(${token})`,
+  };
+}
+
+/** The small square that names a shade in the key and the menu. */
+function Swatch({ token }: { token: string | undefined }) {
+  return (
+    <span
+      aria-hidden
+      className="inline-block size-3 shrink-0 rounded-[3px] border border-line2"
+      style={token ? { backgroundColor: `var(${token})`, borderColor: `var(${token})` } : undefined}
+    />
+  );
+}
 
 /** Why a shift was cancelled, when the roster itself moved or removed it. */
 const CHANGED = "Changed on the roster";
@@ -74,17 +126,24 @@ export function RosterWeekGrid() {
   const mayRoster = can("roster.manage");
   const today = todayIso();
 
-  // Editing in place: the shifts to paint with, the people to give them to,
-  // and last week to copy from. Asked only of whoever manages the roster.
-  const templates = useShiftTemplates(mayRoster ? workspaceId : null);
+  // The branch's shifts, for the key and the shades; the hook asks only for
+  // whoever may read them, and the desk may. Then, for whoever manages the
+  // roster: the people to give shifts to, and last week to copy from.
+  const templates = useShiftTemplates(workspaceId);
   const staff = useEmployees(mayRoster ? workspaceId : null, "active");
   const lastWeek = useRosterWeek(mayRoster ? workspaceId : null, propertyId, addDaysIso(from, -7));
   const add = useRosterEntry(workspaceId);
   const cancel = useCancelRosterEntry(workspaceId);
-  const [paint, setPaint] = useState<string | null>(null);
   const [busy, setBusy] = useState<ReadonlySet<string>>(new Set());
   const [copying, setCopying] = useState(false);
-  const shifts = (templates.data?.templates ?? []).filter((t) => t.propertyId === propertyId);
+  const shifts = (templates.data?.templates ?? [])
+    .filter((t) => t.propertyId === propertyId && t.status === "active")
+    .sort((a, b) => a.startsAt.localeCompare(b.startsAt) || a.name.localeCompare(b.name));
+  // Earliest start lightest, latest darkest. By rank among the branch's
+  // shifts rather than by the clock, so two shifts never share a shade until
+  // there are more shifts than steps.
+  const ramp = SHADES[Math.min(shifts.length, SHADES.length - 1)];
+  const shadeOf = new Map(shifts.map((shift, index) => [shift.id, ramp[Math.min(index, ramp.length - 1)]]));
 
   const days = Array.from({ length: 7 }, (_, i) => addDaysIso(from, i));
   const branchDepartments = (departments.data?.departments ?? []).filter(
@@ -113,14 +172,16 @@ export function RosterWeekGrid() {
       .sort((a, b) => a.startsAt.localeCompare(b.startsAt));
 
   /**
-   * Press a day: it takes the shift being painted with. One press at a time a
-   * day, the commands in order, and the first refusal stops it and is said.
+   * Put a day on the shift chosen from its menu, or take its shift away. One
+   * change at a time a day, the commands in order, and the first refusal stops
+   * it and is said.
    */
-  async function press(employeeId: string, name: string, day: string) {
+  async function assign(employeeId: string, name: string, day: string, choice: string) {
     const key = `${employeeId}:${day}`;
-    if (paint === null || busy.has(key)) return;
+    if (busy.has(key)) return;
     const here = cell(employeeId, day);
-    const target = paint === DAY_OFF ? null : (shifts.find((s) => s.id === paint) ?? null);
+    const target = choice === DAY_OFF ? null : (shifts.find((s) => s.id === choice) ?? null);
+    if (choice !== DAY_OFF && !target) return;
     if (target && here.length === 1 && here[0].shiftTemplateId === target.id) return;
     if (!target && here.length === 0) return;
     setBusy((b) => new Set(b).add(key));
@@ -239,55 +300,33 @@ export function RosterWeekGrid() {
         </div>
       )}
 
-      {mayRoster && (
-        <div className="flex flex-col gap-2.5 rounded-card border border-card-bd bg-card px-4 py-3" data-roster-edit>
-          <div className="flex flex-wrap items-center gap-2">
-            <span className="text-2xs font-bold tracking-[0.08em] uppercase text-[var(--muted2)]">Paint with</span>
-            {shifts.map((s) => (
-              <button
-                key={s.id}
-                type="button"
-                aria-pressed={paint === s.id}
-                onClick={() => setPaint(paint === s.id ? null : s.id)}
-                className={cn(
-                  "min-h-9 rounded-full border px-3.5 text-sm font-semibold whitespace-nowrap",
-                  paint === s.id ? "border-accent-text bg-accent-soft text-accent-text" : "border-card-bd bg-card text-ink2 hover:bg-hover",
-                )}
-              >
-                {s.name}{" "}
-                <span className="pms-num font-normal">
-                  {s.startsAt}–{s.endsAt}
+      {(shifts.length > 0 || mayRoster) && (
+        <div className="flex flex-wrap items-center gap-x-4 gap-y-2" data-roster-key>
+          <ul aria-label="Shifts at this branch, and the shade of each" className="flex flex-wrap items-center gap-x-4 gap-y-1.5">
+            {shifts.map((shift) => (
+              <li key={shift.id} className="flex items-center gap-1.5 text-2xs text-ink2">
+                <Swatch token={shadeOf.get(shift.id)} />
+                <span className="font-semibold text-ink">{shift.name}</span>
+                <span className="pms-num">
+                  {shift.startsAt}–{shift.endsAt}
                 </span>
-              </button>
+              </li>
             ))}
-            {shifts.length > 0 && (
-              <button
-                type="button"
-                aria-pressed={paint === DAY_OFF}
-                onClick={() => setPaint(paint === DAY_OFF ? null : DAY_OFF)}
-                className={cn(
-                  "min-h-9 rounded-full border px-3.5 text-sm font-semibold whitespace-nowrap",
-                  paint === DAY_OFF ? "border-accent-text bg-accent-soft text-accent-text" : "border-card-bd bg-card text-ink2 hover:bg-hover",
-                )}
-              >
-                Day off
-              </button>
-            )}
-            <span className="ml-auto">
-              <ActionButton pending={copying} deniedReason={lastWeek.isPending ? "Reading last week." : undefined} onClick={() => void copyLastWeek()}>
-                {copying ? "Copying" : "Copy last week"}
-              </ActionButton>
-            </span>
-          </div>
-          <p className="text-2xs text-muted-foreground">
-            {shifts.length === 0
-              ? "This branch has no shift yet. Add one under Shifts below, then come back to give it to people."
-              : paint === null
-                ? "Choose a shift, then press the days it goes on. Pressing a day that has another shift moves it; Day off takes a day's shift away."
-                : paint === DAY_OFF
-                  ? "Press a day to take its shift away."
-                  : `Press the days ${shifts.find((s) => s.id === paint)?.name ?? "it"} goes on. Press the shift above again to stop.`}
-          </p>
+          </ul>
+          {mayRoster && (
+            <>
+              <span className="text-2xs text-muted-foreground">
+                {shifts.length === 0
+                  ? "This branch has no shift yet. Add one under Shifts below, then give it to people here."
+                  : "Press any day to choose its shift."}
+              </span>
+              <span className="ml-auto">
+                <ActionButton pending={copying} deniedReason={lastWeek.isPending ? "Reading last week." : undefined} onClick={() => void copyLastWeek()}>
+                  {copying ? "Copying" : "Copy last week"}
+                </ActionButton>
+              </span>
+            </>
+          )}
         </div>
       )}
 
@@ -341,10 +380,16 @@ export function RosterWeekGrid() {
                           <span
                             key={e.id}
                             data-entry={e.id}
-                            className={`flex flex-col gap-0.5 rounded border px-2 py-1 ${e.publishedAt === null ? "border-dashed border-line2" : "border-line"}`}
+                            style={shadeStyle(shadeOf.get(e.shiftTemplateId))}
+                            className={cn(
+                              "flex flex-col gap-0.5 rounded border px-2 py-1",
+                              e.publishedAt === null ? "border-dashed border-line2" : "border-transparent",
+                              // A shift with no shade (its template was archived) keeps the plain outline.
+                              !shadeOf.has(e.shiftTemplateId) && e.publishedAt !== null && "border-line",
+                            )}
                           >
                             <span className="font-semibold text-ink">{e.shiftName}</span>
-                            <span className="pms-num text-2xs text-muted-foreground">
+                            <span className="pms-num text-2xs text-ink2">
                               {clock(e.startsAt)}–{clock(e.endsAt)}
                             </span>
                             <span className="flex flex-wrap gap-1">
@@ -364,21 +409,67 @@ export function RosterWeekGrid() {
                       );
                     }
                     const parts = dayPartsIso(d);
+                    const dayName = `${parts.wd} ${parts.dd} ${parts.mon}`;
+                    // What the menu ticks: the one shift the day is on, off for an
+                    // empty day, and nothing for a day on two shifts.
+                    const current = here.length === 1 ? here[0].shiftTemplateId : here.length === 0 ? DAY_OFF : "";
                     return (
                       <td key={d} className="p-1 align-top">
-                        <button
-                          type="button"
-                          disabled={waiting}
-                          onClick={() => void press(p.employeeId, p.displayName, d)}
-                          aria-label={`${p.displayName}, ${parts.wd} ${parts.dd} ${parts.mon}: ${here.length > 0 ? here.map((e) => e.shiftName).join(" and ") : "off"}`}
-                          className={cn(
-                            "flex min-h-14 w-full min-w-24 flex-col rounded p-1 text-left",
-                            paint !== null ? "cursor-pointer hover:bg-accent-soft" : "cursor-default",
-                            waiting && "opacity-50",
-                          )}
-                        >
-                          {here.length > 0 ? chips : <span className="px-1 pt-1 text-2xs text-faint">{paint !== null ? "+" : "Off"}</span>}
-                        </button>
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <button
+                              type="button"
+                              disabled={waiting}
+                              aria-label={`${p.displayName}, ${dayName}: ${here.length > 0 ? here.map((e) => e.shiftName).join(" and ") : "off"}. Change`}
+                              className={cn(
+                                "group flex min-h-14 w-full min-w-24 cursor-pointer flex-col rounded p-1 text-left hover:bg-hover",
+                                "data-[state=open]:bg-hover data-[state=open]:outline data-[state=open]:outline-2 data-[state=open]:outline-accent",
+                                waiting && "opacity-50",
+                              )}
+                            >
+                              {here.length > 0 ? (
+                                chips
+                              ) : (
+                                <span className="px-1 pt-1 text-2xs text-faint">
+                                  <span className="group-hover:hidden group-focus-visible:hidden">Off</span>
+                                  <span className="hidden font-semibold text-accent-text group-hover:inline group-focus-visible:inline">+ Add a shift</span>
+                                </span>
+                              )}
+                            </button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="start" className="min-w-60">
+                            <DropdownMenuLabel className="flex flex-col gap-0.5 py-1.5">
+                              <span>{p.displayName}</span>
+                              <span className="text-2xs font-normal text-muted-foreground">{dayName}</span>
+                            </DropdownMenuLabel>
+                            <DropdownMenuSeparator />
+                            {shifts.length === 0 ? (
+                              <p className="max-w-56 px-3 py-2 text-sm text-muted-foreground">
+                                This branch has no shift yet. Add one under Shifts, below the roster.
+                              </p>
+                            ) : (
+                              <DropdownMenuRadioGroup
+                                value={current}
+                                onValueChange={(choice) => void assign(p.employeeId, p.displayName, d, choice)}
+                              >
+                                {shifts.map((shift) => (
+                                  <DropdownMenuRadioItem key={shift.id} value={shift.id} className="gap-2">
+                                    <Swatch token={shadeOf.get(shift.id)} />
+                                    <span className="flex-1">{shift.name}</span>
+                                    <span className="pms-num text-2xs font-normal text-muted-foreground">
+                                      {shift.startsAt}–{shift.endsAt}
+                                    </span>
+                                  </DropdownMenuRadioItem>
+                                ))}
+                                <DropdownMenuSeparator />
+                                <DropdownMenuRadioItem value={DAY_OFF} className="gap-2">
+                                  <Swatch token={undefined} />
+                                  <span className="flex-1">Day off</span>
+                                </DropdownMenuRadioItem>
+                              </DropdownMenuRadioGroup>
+                            )}
+                          </DropdownMenuContent>
+                        </DropdownMenu>
                       </td>
                     );
                   })}
