@@ -597,7 +597,7 @@ function assertRoomTypeOnSale(room: Pick<RoomRow, 'label' | 'roomTypeName' | 'ro
   }
 }
 
-/** The account an online prepayment is held in until payout (migration 0053). */
+/** The account an online prepayment is held in until payout (migration 0064). */
 export const ESCROW_RECEIVABLE = 'ESCROW_RECEIVABLE';
 
 /** Payment states in which the guest's money is held or already paid out. */

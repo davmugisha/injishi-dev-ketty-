@@ -14,6 +14,7 @@ import {
 } from '@nestjs/common';
 
 import { ListingService } from '../../../modules/listing/application/listing.service';
+import { PreLaunchGuard } from '../../../shared/pre-launch/pre-launch.guard';
 
 /** The minimum of a Fastify reply the photo route touches. */
 interface PhotoReply {
@@ -21,7 +22,6 @@ interface PhotoReply {
   header(key: string, value: string): PhotoReply;
   send(payload?: Buffer | string): PhotoReply;
 }
-import { PreLaunchGuard } from '../../../shared/pre-launch/pre-launch.guard';
 
 /**
  * Public API for property detail → /api/v1/properties/:id (F-B15).
@@ -72,11 +72,17 @@ export class PropertiesController {
    * every photograph arrived and drew nothing. A public photograph of a public
    * property is exactly the thing any page may embed; the route still refuses
    * one that is not public.
+   *
+   * The handler sends the reply itself, so `@Res()` WITHOUT `passthrough`:
+   * with it, Nest sends the handler's `undefined` as a second reply after this
+   * one, which Fastify logs as FST_ERR_REP_ALREADY_SENT on every photograph
+   * (`properties.controller.spec.ts`). A thrown 404 still reaches the
+   * exception filter either way.
    */
   @Get('photos/:photoId')
   async photo(
     @Param('photoId') photoId: string,
-    @Res({ passthrough: true }) reply: PhotoReply,
+    @Res() reply: PhotoReply,
   ): Promise<void> {
     const url = await this.listings.publicPhotoUrl(photoId);
     reply
