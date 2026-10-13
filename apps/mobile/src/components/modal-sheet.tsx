@@ -11,10 +11,11 @@
  *
  * ## Why this exists beside decision D8's `formSheet` routes
  *
- * D8 makes every sheet an Expo Router `formSheet`, and that is right for a
- * sheet that is reached from more than one place, deserves a URL, and wants the
- * platform's own presentation. It is wrong for the other kind, and both
- * sessions named the same two conditions:
+ * D8 makes every sheet a ROUTE — on iOS an Expo Router `formSheet`, on Android
+ * the app's own frame since 2026-10-11 (`sheet-route.tsx` says why) — and that
+ * is right for a sheet that is reached from more than one place and deserves a
+ * URL. It is wrong for the other kind, and both sessions named the same two
+ * conditions:
  *
  *   - **It is bound to one row of one screen.** A `/inspection/fail?room=201`
  *     that opened on a queue nobody had loaded is a route with no meaning.
@@ -40,6 +41,7 @@
 import { type ReactNode } from 'react';
 import { Modal, Pressable, View } from 'react-native';
 import { Sheet } from './sheet';
+import { OutsideSheetFrame } from './sheet-route';
 import { useTheme } from '@/theme/theme';
 import { useT } from '@/i18n/i18n';
 import { useReducedMotion } from '@/motion';
@@ -104,17 +106,20 @@ export function ModalSheet({
             backgroundColor: c.surface1,
           }}
         >
-          <Sheet
-            title={title}
-            subtitle={subtitle}
-            eyebrow={eyebrow}
-            grabber
-            closable={closable}
-            onClose={onClose}
-            footer={footer}
-          >
-            {children}
-          </Sheet>
+          {/* Its own sheet, never the route's: see OutsideSheetFrame. */}
+          <OutsideSheetFrame>
+            <Sheet
+              title={title}
+              subtitle={subtitle}
+              eyebrow={eyebrow}
+              grabber
+              closable={closable}
+              onClose={onClose}
+              footer={footer}
+            >
+              {children}
+            </Sheet>
+          </OutsideSheetFrame>
         </View>
       </View>
     </Modal>

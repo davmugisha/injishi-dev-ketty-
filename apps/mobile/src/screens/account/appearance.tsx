@@ -8,7 +8,10 @@
  * **White was a fourth option and has been withdrawn.** F0 added it (ADR-033);
  * it named a neutral ground, and the Light this product wants is the tinted
  * teal one. Three rows again, so the sheet is back on the shared
- * `CONFIRM_SHEET` detent that fitted three 56pt rows before F0 grew it.
+ * `CONFIRM_SHEET`. On Android that quarter detent did NOT fit them: on a
+ * 720 × 1600 phone it cut Dark off below the gesture bar, and in Expo Go the
+ * native sheet froze the app outright (2026-10-11). Android's sheet now fits
+ * its content (`src/components/sheet-route.tsx`); iOS keeps the detent.
  *
  * **Each option carries a word and a glyph, never a swatch alone.** A preview
  * tile is the obvious drawing here and it is the wrong one: the tile a reader
