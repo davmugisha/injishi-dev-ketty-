@@ -1,0 +1,60 @@
+/*
+ * Injishi design system for HeroUI Native (from the saved design system's native export).
+ * Mirrors packages/ui/src/styles/injishi.css on the web; the native export has no heading-font
+ * token, so headings stay Figtree here (Instrument Sans is web-only).
+ */
+@import "tailwindcss";
+@import "uniwind";
+@import "heroui-native/styles";
+@import "heroui-native/styles/vibrant";
+
+@theme {
+  --radius: 0.5rem;
+  --field-radius: 0.25rem;
+  --field-border-width: 0.8488516842015111px;
+  /* Family names registered by useFonts (@expo-google-fonts/figtree). */
+  --font-normal: "Figtree_400Regular";
+  --font-medium: "Figtree_500Medium";
+  --font-semibold: "Figtree_600SemiBold";
+  --font-bold: "Figtree_700Bold";
+}
+
+@layer theme {
+  @variant light {
+    --background: oklch(95.5% 0.0125 177.9);
+    --muted: oklch(58% 0.0312 177.9);
+    --surface: oklch(97.5% 0.0083 177.9);
+    --surface-secondary: oklch(95% 0.0125 177.9);
+    --surface-tertiary: oklch(93.5% 0.0166 177.9);
+    --overlay: oklch(97.5% 0.0083 177.9);
+    --default: oklch(92% 0.0125 177.9);
+    --accent: oklch(55% 0.18 177.9);
+    --field-background: oklch(97% 0.0062 177.9);
+    --border: oklch(88% 0.0156 177.9);
+    --separator: oklch(92% 0.0104 177.9);
+  }
+
+  @variant dark {
+    --background: oklch(16% 0.0208 177.9);
+    --muted: oklch(65% 0.0208 177.9);
+    --surface: oklch(20% 0.0208 177.9);
+    --surface-secondary: oklch(24% 0.0208 177.9);
+    --surface-tertiary: oklch(27% 0.0208 177.9);
+    --overlay: oklch(20% 0.0208 177.9);
+    --default: oklch(26% 0.0208 177.9);
+    --accent: oklch(70% 0.16 177.9);
+    --accent-foreground: oklch(15% 0.0208 177.9);
+    --field-background: oklch(22% 0.0187 177.9);
+    --segment: oklch(28% 0.026 177.9);
+    --border: oklch(30% 0.0208 177.9);
+    --separator: oklch(28% 0.0187 177.9);
+  }
+}
+
+@theme inline static {
+  --color-chart-1: oklch(42% 0.14 177.9);
+  --color-chart-2: oklch(50% 0.16 177.9);
+  --color-chart-3: oklch(55% 0.18 177.9);
+  --color-chart-4: oklch(65% 0.14 177.9);
+  --color-chart-5: oklch(75% 0.1 177.9);
+}

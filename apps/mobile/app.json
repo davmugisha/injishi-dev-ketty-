@@ -1,0 +1,28 @@
+{
+  "expo": {
+    "name": "Injishi",
+    "slug": "injishi",
+    "scheme": "injishi",
+    "version": "0.1.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "automatic",
+    "ios": {
+      "bundleIdentifier": "com.injishi.app",
+      "supportsTablet": false
+    },
+    "android": {
+      "package": "com.injishi.app",
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/icon.png",
+        "backgroundColor": "#E8F3F0"
+      }
+    },
+    "web": {
+      "bundler": "metro",
+      "output": "single",
+      "favicon": "./assets/icon.png"
+    },
+    "plugins": ["expo-router", "expo-sqlite", "expo-font"]
+  }
+}

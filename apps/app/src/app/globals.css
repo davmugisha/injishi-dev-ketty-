@@ -1,0 +1,36 @@
+/* Order matters: Tailwind → HeroUI OSS → HeroUI Pro → Injishi design system. */
+@import "tailwindcss";
+@import "@heroui/styles";
+@import "@heroui-pro/react/css";
+@import "@injishi/ui/styles/injishi.css";
+
+/* Scan the shared UI kit for Tailwind classes. */
+@source "../../../../packages/ui/src";
+
+@custom-variant dark (&:where([data-theme="mouve-dark"], [data-theme="mouve-dark"] *));
+
+/* Workspace shell: the content column is a raised card beside the inset sidebar (artifact: .ij-main). */
+@layer components {
+  .workspace-shell .app-layout__body {
+    margin: 8px 8px 8px 0;
+    min-height: calc(100dvh - 16px);
+    border-radius: 20px;
+    background: var(--surface);
+    box-shadow: var(--surface-shadow);
+  }
+  .workspace-shell .app-layout__header {
+    border-radius: 20px 20px 0 0;
+    background: var(--surface);
+  }
+  .workspace-shell .sidebar__menu-item[data-current="true"] .sidebar__menu-item-content {
+    background-color: var(--surface);
+    box-shadow: var(--surface-shadow);
+  }
+  @media (max-width: 768px) {
+    .workspace-shell .app-layout__body {
+      margin: 0;
+      border-radius: 0;
+      min-height: 100dvh;
+    }
+  }
+}
