@@ -1,4 +1,4 @@
-# ── injishi (web, pms, mobile, api, vendor mirror) ───────────────────────────
+# ── injishi (app, mobile, web, api, packages) ────────────────────────────────
 # Pure application code, plus the committed packages/ source. Nothing else.
 
 # ── Context / AI docs: HARD BLOCK ────────────────────────────────────────────
@@ -69,11 +69,31 @@ server/*/.turbo/
 server/*/build/
 tools/*/dist/
 *.tsbuildinfo
+# Turborepo's task cache, at the root and in every member.
+.turbo/
+# Next.js 16 rewrites this on every `next dev` and `next build` (with a
+# different types path for each), so a tracked copy is always dirty.
+next-env.d.ts
+# Expo's generated native projects, and `expo export` output: `dist-android`,
+# `dist-web` and every per-persona copy of them (`dist-web-staff`, ...).
+apps/mobile/android/
+apps/mobile/ios/
+apps/mobile/dist-*/
+
+# ── Embedded dev database ────────────────────────────────────────────────────
+# @injishi/db's libSQL/SQLite file, re-seeded from @injishi/data fixtures.
+.data/
+*.db
+*.db-journal
+*.db-wal
+*.db-shm
 
 # ── Secrets ──────────────────────────────────────────────────────────────────
+# HeroUI Pro tokens live only in .env.local (or a CI secret), never in .npmrc.
 .env
 .env.*
 !.env.example
+.npmrc.local
 
 # ── Logs / coverage / test output ────────────────────────────────────────────
 *.log
@@ -94,6 +114,9 @@ desktop.ini
 *.swp
 *~
 .gstack/
+# unlazy's local gate and hook state.
+.unlazy/
+.unlazy-hook-state.json
 
 # Local object storage (F-S09 seam, ADR-026). `LocalDiskStorageAdapter` writes
 # uploaded certificates here in development. These are real personal documents

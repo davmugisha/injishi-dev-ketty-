@@ -62,8 +62,8 @@ export declare const GuestTrip: z.ZodObject<{
 }, "strip", z.ZodTypeAny, {
     status: "declined" | "pending_approval" | "confirmed" | "cancelled" | "no_show";
     stage: "cancelled" | "in_progress" | "upcoming" | "past";
-    districtName: string | null;
     id: string;
+    districtName: string | null;
     reference: string;
     propertyName: string;
     cancellationTier: "flexible" | "moderate" | "limited" | "firm" | "strict_extended_stay" | null;
@@ -81,8 +81,8 @@ export declare const GuestTrip: z.ZodObject<{
 }, {
     status: "declined" | "pending_approval" | "confirmed" | "cancelled" | "no_show";
     stage: "cancelled" | "in_progress" | "upcoming" | "past";
-    districtName: string | null;
     id: string;
+    districtName: string | null;
     reference: string;
     propertyName: string;
     cancellationTier: "flexible" | "moderate" | "limited" | "firm" | "strict_extended_stay" | null;
@@ -138,8 +138,8 @@ export declare const MyTrips: z.ZodObject<{
     }, "strip", z.ZodTypeAny, {
         status: "declined" | "pending_approval" | "confirmed" | "cancelled" | "no_show";
         stage: "cancelled" | "in_progress" | "upcoming" | "past";
-        districtName: string | null;
         id: string;
+        districtName: string | null;
         reference: string;
         propertyName: string;
         cancellationTier: "flexible" | "moderate" | "limited" | "firm" | "strict_extended_stay" | null;
@@ -157,8 +157,8 @@ export declare const MyTrips: z.ZodObject<{
     }, {
         status: "declined" | "pending_approval" | "confirmed" | "cancelled" | "no_show";
         stage: "cancelled" | "in_progress" | "upcoming" | "past";
-        districtName: string | null;
         id: string;
+        districtName: string | null;
         reference: string;
         propertyName: string;
         cancellationTier: "flexible" | "moderate" | "limited" | "firm" | "strict_extended_stay" | null;
@@ -178,8 +178,8 @@ export declare const MyTrips: z.ZodObject<{
     trips: {
         status: "declined" | "pending_approval" | "confirmed" | "cancelled" | "no_show";
         stage: "cancelled" | "in_progress" | "upcoming" | "past";
-        districtName: string | null;
         id: string;
+        districtName: string | null;
         reference: string;
         propertyName: string;
         cancellationTier: "flexible" | "moderate" | "limited" | "firm" | "strict_extended_stay" | null;
@@ -199,8 +199,8 @@ export declare const MyTrips: z.ZodObject<{
     trips: {
         status: "declined" | "pending_approval" | "confirmed" | "cancelled" | "no_show";
         stage: "cancelled" | "in_progress" | "upcoming" | "past";
-        districtName: string | null;
         id: string;
+        districtName: string | null;
         reference: string;
         propertyName: string;
         cancellationTier: "flexible" | "moderate" | "limited" | "firm" | "strict_extended_stay" | null;

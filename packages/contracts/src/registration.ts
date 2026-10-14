@@ -232,15 +232,33 @@ export type PersonalDetails = z.infer<typeof PersonalDetails>;
 // Step 2 — Your business
 // ---------------------------------------------------------------------------
 /** A certificate the registrant attaches (schema §4.3a). */
+/**
+ * The kinds of document a business uploads about itself (`org_certificate_kind`).
+ *
+ * One name for the set, because two readers need it: the registration wizard
+ * sending an upload, and the officer's console listing what was sent. Two
+ * copies of an enum is how a kind gets added in one place and not the other.
+ */
+export const OrgCertificateKind = z.enum([
+    "rdb_grade",
+    "tourism_license",
+    "tax_clearance",
+    "fire_safety",
+    "health_inspection",
+    "other",
+]);
+export type OrgCertificateKind = z.infer<typeof OrgCertificateKind>;
+/** What each kind is called on screen, wherever a document is listed. */
+export const ORG_CERTIFICATE_KIND_LABEL: Readonly<Record<OrgCertificateKind, string>> = {
+    rdb_grade: "RDB grade certificate",
+    tourism_license: "Tourism license",
+    tax_clearance: "Tax clearance",
+    fire_safety: "Fire safety certificate",
+    health_inspection: "Health inspection",
+    other: "Other document",
+};
 export const CertificateInput = z.object({
-    kind: z.enum([
-        "rdb_grade",
-        "tourism_license",
-        "tax_clearance",
-        "fire_safety",
-        "health_inspection",
-        "other",
-    ]),
+    kind: OrgCertificateKind,
     /** Required when `kind` is `other`; the database carries the same rule. */
     kindOther: z.string().trim().min(1).max(120).optional(),
     /** Key of an already-uploaded `stored_objects` row (F-S09). */
@@ -714,6 +732,52 @@ export const RejectRegistrationRequest = z.object({
 });
 export type RejectRegistrationRequest = z.infer<typeof RejectRegistrationRequest>;
 /**
+ * A document a business uploaded with its registration, as an officer sees it.
+ *
+ * F-S03 §5 gives the field verifier two jobs — confirm the premises exist, and
+ * confirm the documents are legitimate — and only the first was ever reachable:
+ * the queue carried no documents at all, so the console drew an empty list and
+ * flagged every business as missing them.
+ *
+ * The bytes are never inlined. `url` is a SHORT LIVED signed link minted per
+ * read, and it is null when the certificate carries no object or the object has
+ * gone, so a console can say "nothing was uploaded" rather than offer a link
+ * that fails.
+ */
+export const OversightDocument = z.object({
+    id: Uuid,
+    kind: OrgCertificateKind,
+    /** Set only when `kind` is `other`; the database carries the same rule. */
+    kindOther: z.string().nullable(),
+    certificateNumber: z.string().nullable(),
+    issuedBy: z.string().nullable(),
+    issuedOn: z.string().nullable(),
+    expiresOn: z.string().nullable(),
+    /** Computed against the server's clock, never in the browser. */
+    expired: z.boolean(),
+    mime: z.string().nullable(),
+    sizeBytes: z.number().int().nullable(),
+    url: z.string().nullable(),
+    /** When a field verifier recorded that they had read this document. */
+    checkedAt: z.string().nullable(),
+    checkedByName: z.string().nullable(),
+});
+export type OversightDocument = z.infer<typeof OversightDocument>;
+/**
+ * Every document on one registration, for the officer deciding its gate.
+ *
+ * `uncheckedCount` is what the field verification gate refuses on, so a console
+ * can say how many are left instead of only reporting the refusal.
+ */
+export const OversightDocumentList = z.object({
+    orgId: Uuid,
+    legalName: z.string(),
+    status: OrgRegistrationStatus,
+    documents: z.array(OversightDocument),
+    uncheckedCount: z.number().int(),
+});
+export type OversightDocumentList = z.infer<typeof OversightDocumentList>;
+/**
  * One business waiting on this officer.
  *
  * Carries the district so a console can group by it, and `waitingSince` so the
@@ -749,6 +813,17 @@ export const OversightQueueItem = z.object({
         districtName: z.string().nullable(),
         isHeadOffice: z.boolean(),
     })),
+    /**
+     * How many documents this registration carries, and how many no officer has
+     * read yet (F-S03 §5).
+     *
+     * On the ROW, not only in the file, because the console flags a document gap
+     * in the list. It used to flag one whenever fewer than two documents were
+     * present in a field the wire never filled, so every business was labelled
+     * "Missing documents" — a warning that is on every row is not a warning.
+     */
+    documentCount: z.number().int(),
+    uncheckedDocumentCount: z.number().int(),
     /**
      * What the registrant declared, sent so the queue stops flagging every
      * hotel "No tourism license" and every file "Missing documents" for want

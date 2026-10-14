@@ -78,8 +78,8 @@ export declare const PayComponent: z.ZodObject<{
     status: "active" | "archived";
     name: string;
     kind: "deduction" | "allowance";
-    amountRwf: number | null;
     id: string;
+    amountRwf: number | null;
     taxable: boolean;
     beforeTax: boolean;
     inContributionBase: boolean;
@@ -104,8 +104,8 @@ export declare const PayComponent: z.ZodObject<{
     status: "active" | "archived";
     name: string;
     kind: "deduction" | "allowance";
-    amountRwf: number | null;
     id: string;
+    amountRwf: number | null;
     taxable: boolean;
     beforeTax: boolean;
     inContributionBase: boolean;
@@ -181,8 +181,8 @@ export declare const PayComponentList: z.ZodObject<{
         status: "active" | "archived";
         name: string;
         kind: "deduction" | "allowance";
-        amountRwf: number | null;
         id: string;
+        amountRwf: number | null;
         taxable: boolean;
         beforeTax: boolean;
         inContributionBase: boolean;
@@ -207,8 +207,8 @@ export declare const PayComponentList: z.ZodObject<{
         status: "active" | "archived";
         name: string;
         kind: "deduction" | "allowance";
-        amountRwf: number | null;
         id: string;
+        amountRwf: number | null;
         taxable: boolean;
         beforeTax: boolean;
         inContributionBase: boolean;
@@ -235,8 +235,8 @@ export declare const PayComponentList: z.ZodObject<{
         status: "active" | "archived";
         name: string;
         kind: "deduction" | "allowance";
-        amountRwf: number | null;
         id: string;
+        amountRwf: number | null;
         taxable: boolean;
         beforeTax: boolean;
         inContributionBase: boolean;
@@ -263,8 +263,8 @@ export declare const PayComponentList: z.ZodObject<{
         status: "active" | "archived";
         name: string;
         kind: "deduction" | "allowance";
-        amountRwf: number | null;
         id: string;
+        amountRwf: number | null;
         taxable: boolean;
         beforeTax: boolean;
         inContributionBase: boolean;
@@ -695,14 +695,14 @@ export declare const LoanInstallment: z.ZodObject<{
     deferredFrom: z.ZodNullable<z.ZodString>;
     paid: z.ZodBoolean;
 }, "strip", z.ZodTypeAny, {
-    amountRwf: number;
     id: string;
+    amountRwf: number;
     paid: boolean;
     period: string;
     deferredFrom: string | null;
 }, {
-    amountRwf: number;
     id: string;
+    amountRwf: number;
     paid: boolean;
     period: string;
     deferredFrom: string | null;
@@ -741,14 +741,14 @@ export declare const Loan: z.ZodObject<{
         deferredFrom: z.ZodNullable<z.ZodString>;
         paid: z.ZodBoolean;
     }, "strip", z.ZodTypeAny, {
-        amountRwf: number;
         id: string;
+        amountRwf: number;
         paid: boolean;
         period: string;
         deferredFrom: string | null;
     }, {
-        amountRwf: number;
         id: string;
+        amountRwf: number;
         paid: boolean;
         period: string;
         deferredFrom: string | null;
@@ -756,9 +756,9 @@ export declare const Loan: z.ZodObject<{
     createdAt: z.ZodString;
 }, "strip", z.ZodTypeAny, {
     kind: "loan" | "advance";
+    id: string;
     amountRwf: number;
     reason: string | null;
-    id: string;
     employee: {
         employeeId: string;
         displayName: string;
@@ -774,17 +774,17 @@ export declare const Loan: z.ZodObject<{
     paidOut: "payslip" | "outside";
     remainingRwf: number;
     schedule: {
-        amountRwf: number;
         id: string;
+        amountRwf: number;
         paid: boolean;
         period: string;
         deferredFrom: string | null;
     }[];
 }, {
     kind: "loan" | "advance";
+    id: string;
     amountRwf: number;
     reason: string | null;
-    id: string;
     employee: {
         employeeId: string;
         displayName: string;
@@ -800,8 +800,8 @@ export declare const Loan: z.ZodObject<{
     paidOut: "payslip" | "outside";
     remainingRwf: number;
     schedule: {
-        amountRwf: number;
         id: string;
+        amountRwf: number;
         paid: boolean;
         period: string;
         deferredFrom: string | null;
@@ -895,9 +895,9 @@ export declare const PayClaim: z.ZodObject<{
     status: "approved" | "rejected" | "cancelled" | "requested";
     kind: "reimbursement" | "leave_encashment";
     decidedAt: string | null;
+    id: string;
     amountRwf: number | null;
     reason: string;
-    id: string;
     decisionNote: string | null;
     employee: {
         employeeId: string;
@@ -919,9 +919,9 @@ export declare const PayClaim: z.ZodObject<{
     status: "approved" | "rejected" | "cancelled" | "requested";
     kind: "reimbursement" | "leave_encashment";
     decidedAt: string | null;
+    id: string;
     amountRwf: number | null;
     reason: string;
-    id: string;
     decisionNote: string | null;
     employee: {
         employeeId: string;
@@ -1054,9 +1054,9 @@ export declare const PayAdjustment: z.ZodObject<{
     createdAt: z.ZodString;
 }, "strip", z.ZodTypeAny, {
     status: "open" | "paid" | "waived";
+    id: string;
     amountRwf: number;
     reason: string;
-    id: string;
     source: "manual" | "leave" | "asset_fine" | "held_payslip" | "late_claim";
     employee: {
         employeeId: string;
@@ -1072,9 +1072,9 @@ export declare const PayAdjustment: z.ZodObject<{
     paidInPeriod: string | null;
 }, {
     status: "open" | "paid" | "waived";
+    id: string;
     amountRwf: number;
     reason: string;
-    id: string;
     source: "manual" | "leave" | "asset_fine" | "held_payslip" | "late_claim";
     employee: {
         employeeId: string;
@@ -1805,14 +1805,14 @@ export declare const MyLoanList: z.ZodObject<{
             deferredFrom: z.ZodNullable<z.ZodString>;
             paid: z.ZodBoolean;
         }, "strip", z.ZodTypeAny, {
-            amountRwf: number;
             id: string;
+            amountRwf: number;
             paid: boolean;
             period: string;
             deferredFrom: string | null;
         }, {
-            amountRwf: number;
             id: string;
+            amountRwf: number;
             paid: boolean;
             period: string;
             deferredFrom: string | null;
@@ -1820,9 +1820,9 @@ export declare const MyLoanList: z.ZodObject<{
         createdAt: z.ZodString;
     }, "strip", z.ZodTypeAny, {
         kind: "loan" | "advance";
+        id: string;
         amountRwf: number;
         reason: string | null;
-        id: string;
         employee: {
             employeeId: string;
             displayName: string;
@@ -1838,17 +1838,17 @@ export declare const MyLoanList: z.ZodObject<{
         paidOut: "payslip" | "outside";
         remainingRwf: number;
         schedule: {
-            amountRwf: number;
             id: string;
+            amountRwf: number;
             paid: boolean;
             period: string;
             deferredFrom: string | null;
         }[];
     }, {
         kind: "loan" | "advance";
+        id: string;
         amountRwf: number;
         reason: string | null;
-        id: string;
         employee: {
             employeeId: string;
             displayName: string;
@@ -1864,8 +1864,8 @@ export declare const MyLoanList: z.ZodObject<{
         paidOut: "payslip" | "outside";
         remainingRwf: number;
         schedule: {
-            amountRwf: number;
             id: string;
+            amountRwf: number;
             paid: boolean;
             period: string;
             deferredFrom: string | null;
@@ -1874,9 +1874,9 @@ export declare const MyLoanList: z.ZodObject<{
 }, "strip", z.ZodTypeAny, {
     loans: {
         kind: "loan" | "advance";
+        id: string;
         amountRwf: number;
         reason: string | null;
-        id: string;
         employee: {
             employeeId: string;
             displayName: string;
@@ -1892,8 +1892,8 @@ export declare const MyLoanList: z.ZodObject<{
         paidOut: "payslip" | "outside";
         remainingRwf: number;
         schedule: {
-            amountRwf: number;
             id: string;
+            amountRwf: number;
             paid: boolean;
             period: string;
             deferredFrom: string | null;
@@ -1902,9 +1902,9 @@ export declare const MyLoanList: z.ZodObject<{
 }, {
     loans: {
         kind: "loan" | "advance";
+        id: string;
         amountRwf: number;
         reason: string | null;
-        id: string;
         employee: {
             employeeId: string;
             displayName: string;
@@ -1920,8 +1920,8 @@ export declare const MyLoanList: z.ZodObject<{
         paidOut: "payslip" | "outside";
         remainingRwf: number;
         schedule: {
-            amountRwf: number;
             id: string;
+            amountRwf: number;
             paid: boolean;
             period: string;
             deferredFrom: string | null;
@@ -1975,9 +1975,9 @@ export declare const MyPayClaimList: z.ZodObject<{
         status: "approved" | "rejected" | "cancelled" | "requested";
         kind: "reimbursement" | "leave_encashment";
         decidedAt: string | null;
+        id: string;
         amountRwf: number | null;
         reason: string;
-        id: string;
         decisionNote: string | null;
         employee: {
             employeeId: string;
@@ -1999,9 +1999,9 @@ export declare const MyPayClaimList: z.ZodObject<{
         status: "approved" | "rejected" | "cancelled" | "requested";
         kind: "reimbursement" | "leave_encashment";
         decidedAt: string | null;
+        id: string;
         amountRwf: number | null;
         reason: string;
-        id: string;
         decisionNote: string | null;
         employee: {
             employeeId: string;
@@ -2025,9 +2025,9 @@ export declare const MyPayClaimList: z.ZodObject<{
         status: "approved" | "rejected" | "cancelled" | "requested";
         kind: "reimbursement" | "leave_encashment";
         decidedAt: string | null;
+        id: string;
         amountRwf: number | null;
         reason: string;
-        id: string;
         decisionNote: string | null;
         employee: {
             employeeId: string;
@@ -2051,9 +2051,9 @@ export declare const MyPayClaimList: z.ZodObject<{
         status: "approved" | "rejected" | "cancelled" | "requested";
         kind: "reimbursement" | "leave_encashment";
         decidedAt: string | null;
+        id: string;
         amountRwf: number | null;
         reason: string;
-        id: string;
         decisionNote: string | null;
         employee: {
             employeeId: string;

@@ -1,0 +1,183 @@
+"use client";
+
+import { Check, CircleCheckFill, Clock, CloudSlash, ListCheck, TriangleExclamation } from "@gravity-ui/icons";
+import { Alert, Avatar, Button, Card, Chip, ProgressBar } from "@heroui/react";
+import { ListView } from "@heroui-pro/react";
+import { type Persona, screenHref } from "@injishi/data";
+import type { HousekeepingDone, HousekeepingTask } from "@injishi/data/fixtures/platform";
+import { LinkButton, PhoneBody, PhoneTop, StatusDot, toneColor } from "@injishi/ui";
+import { useOptimistic, useTransition } from "react";
+import { setHousekeepingTaskStatus } from "./actions";
+
+/** Rooms assigned today = waiting/active tasks + rooms already done (artifact: 3 of 7). */
+export function StaffTodayView({
+  persona,
+  tasks,
+  done,
+  offline = false,
+}: {
+  persona: Persona;
+  tasks: HousekeepingTask[];
+  done: HousekeepingDone[];
+  offline?: boolean;
+}) {
+  const [pending, startTransition] = useTransition();
+  const [optimistic, setOptimistic] = useOptimistic(
+    tasks,
+    (state, { id, status }: { id: string; status: HousekeepingTask["status"] }) =>
+      status === "done" ? state.filter((t) => t.id !== id) : state.map((t) => (t.id === id ? { ...t, status } : t)),
+  );
+  const finishedNow = tasks.length - optimistic.length;
+  const doneCount = done.length + finishedNow;
+  const total = tasks.length + done.length;
+  const pct = total ? Math.round((doneCount / total) * 100) : 0;
+  const update = (id: string, status: "active" | "done") =>
+    startTransition(async () => {
+      setOptimistic({ id, status });
+      await setHousekeepingTaskStatus(id, status);
+    });
+
+  return (
+    <>
+      <PhoneTop>
+        <Avatar size="sm" variant="soft" color="accent">
+          <Avatar.Fallback>{persona.initials}</Avatar.Fallback>
+        </Avatar>
+        <div className="flex min-w-0 flex-1 flex-col">
+          <span className="text-[13px] leading-[18px] font-semibold">{persona.name}</span>
+          <span className="text-xs leading-4 text-muted">Housekeeping · Floor 2 · Isangano</span>
+        </div>
+        <LinkButton
+          href={screenHref("StaffReport")}
+          variant="ghost"
+          isIconOnly
+          aria-label="Report a problem"
+          title="Report a problem"
+        >
+          <TriangleExclamation className="size-4" />
+        </LinkButton>
+      </PhoneTop>
+
+      <PhoneBody>
+        {offline ? (
+          <Alert status="warning" role="status">
+            <Alert.Indicator>
+              <CloudSlash />
+            </Alert.Indicator>
+            <Alert.Content>
+              <Alert.Title>No connection</Alert.Title>
+              <Alert.Description>2 updates saved on this phone. They send when you are back online.</Alert.Description>
+            </Alert.Content>
+          </Alert>
+        ) : null}
+
+        <Card className="gap-3 p-4">
+          <div className="flex items-center justify-between gap-3">
+            <div className="flex min-w-0 flex-col gap-1">
+              <span className="text-xs text-muted">Monday 12 October</span>
+              <span className="text-xl leading-[26px] font-semibold">
+                {doneCount} of {total} rooms done
+              </span>
+            </div>
+            <Chip color="success" variant="soft">
+              <StatusDot tone="success" />
+              <Chip.Label>In since 07:02</Chip.Label>
+            </Chip>
+          </div>
+          <ProgressBar value={pct} aria-label="Rooms done today">
+            <ProgressBar.Track>
+              <ProgressBar.Fill />
+            </ProgressBar.Track>
+          </ProgressBar>
+          <p className="text-xs leading-4 text-muted">Shift 07:00 – 15:00 · Break 11:30</p>
+        </Card>
+
+        <section className="flex flex-col gap-2.5" aria-labelledby="next-h">
+          <h2 id="next-h" className="text-[15px] leading-[22px] font-semibold">
+            Next
+          </h2>
+          {optimistic.map((t) => (
+            <Card key={t.id} className="gap-2.5 px-4 py-3.5">
+              <div className="flex items-start gap-3">
+                <div className="flex min-w-0 flex-1 flex-col gap-0.5">
+                  <div className="flex items-center gap-2">
+                    <span className="text-xl leading-[26px] font-semibold tabular">{t.room}</span>
+                    <Chip variant="soft" color={toneColor(t.kindTone)}>
+                      {t.kind}
+                    </Chip>
+                  </div>
+                  <span className="text-[13px] leading-[18px] text-muted">{t.note}</span>
+                </div>
+                {t.flag ? (
+                  <Chip color="warning" variant="soft">
+                    <Clock className="size-3" />
+                    <Chip.Label>{t.flag}</Chip.Label>
+                  </Chip>
+                ) : null}
+              </div>
+              <div className="flex items-center gap-2">
+                {t.status === "active" ? (
+                  <Button
+                    size="lg"
+                    className="min-h-14 flex-1"
+                    onPress={() => update(t.id, "done")}
+                    isDisabled={pending}
+                  >
+                    <Check className="size-4" />
+                    Mark clean
+                  </Button>
+                ) : (
+                  <Button
+                    size="lg"
+                    className="min-h-14 flex-1"
+                    onPress={() => update(t.id, "active")}
+                    isDisabled={pending}
+                  >
+                    Start cleaning
+                  </Button>
+                )}
+                <LinkButton
+                  href={screenHref("StaffTask")}
+                  variant="secondary"
+                  size="lg"
+                  isIconOnly
+                  className="min-h-14 w-14"
+                  aria-label={`Open room ${t.room} checklist`}
+                  title={`Open room ${t.room} checklist`}
+                >
+                  <ListCheck className="size-5" />
+                </LinkButton>
+              </div>
+            </Card>
+          ))}
+        </section>
+
+        <section className="flex flex-col gap-2" aria-labelledby="done-h">
+          <h2 id="done-h" className="text-[15px] leading-[22px] font-semibold">
+            Done today
+          </h2>
+          <ListView aria-label="Done today" items={done}>
+            {(d) => (
+              <ListView.Item id={d.id} textValue={`Room ${d.room}`}>
+                <ListView.ItemContent>
+                  <CircleCheckFill className="size-4 text-success" aria-hidden="true" />
+                  <div className="flex min-w-0 flex-col">
+                    <ListView.Title className="tabular">
+                      Room {d.room} · {d.kind}
+                    </ListView.Title>
+                    <ListView.Description>{d.when}</ListView.Description>
+                  </div>
+                </ListView.ItemContent>
+                <ListView.ItemAction>
+                  <Chip variant="soft" color={toneColor(d.stateTone)}>
+                    {d.state}
+                  </Chip>
+                </ListView.ItemAction>
+              </ListView.Item>
+            )}
+          </ListView>
+        </section>
+      </PhoneBody>
+    </>
+  );
+}

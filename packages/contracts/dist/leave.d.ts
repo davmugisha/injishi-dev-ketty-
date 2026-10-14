@@ -58,8 +58,8 @@ export declare const LeaveAllocationRequest: z.ZodObject<{
     status: "approved" | "rejected" | "cancelled" | "requested";
     kind: "compensatory" | "extra";
     decidedAt: string | null;
-    reason: string;
     id: string;
+    reason: string;
     decisionNote: string | null;
     employee: {
         employeeId: string;
@@ -86,8 +86,8 @@ export declare const LeaveAllocationRequest: z.ZodObject<{
     status: "approved" | "rejected" | "cancelled" | "requested";
     kind: "compensatory" | "extra";
     decidedAt: string | null;
-    reason: string;
     id: string;
+    reason: string;
     decisionNote: string | null;
     employee: {
         employeeId: string;
@@ -838,8 +838,8 @@ export declare const MyLeaveBalances: z.ZodObject<{
         }, "strip", z.ZodTypeAny, {
             kind: "taken" | "adjustment" | "accrual" | "reversal" | "carry_forward" | "expiry" | "encashed";
             expiresOn: string | null;
-            reason: string | null;
             id: string;
+            reason: string | null;
             days: number;
             effectiveOn: string;
             periodKey: string | null;
@@ -848,8 +848,8 @@ export declare const MyLeaveBalances: z.ZodObject<{
         }, {
             kind: "taken" | "adjustment" | "accrual" | "reversal" | "carry_forward" | "expiry" | "encashed";
             expiresOn: string | null;
-            reason: string | null;
             id: string;
+            reason: string | null;
             days: number;
             effectiveOn: string;
             periodKey: string | null;
@@ -860,8 +860,8 @@ export declare const MyLeaveBalances: z.ZodObject<{
         entries: {
             kind: "taken" | "adjustment" | "accrual" | "reversal" | "carry_forward" | "expiry" | "encashed";
             expiresOn: string | null;
-            reason: string | null;
             id: string;
+            reason: string | null;
             days: number;
             effectiveOn: string;
             periodKey: string | null;
@@ -909,8 +909,8 @@ export declare const MyLeaveBalances: z.ZodObject<{
         entries: {
             kind: "taken" | "adjustment" | "accrual" | "reversal" | "carry_forward" | "expiry" | "encashed";
             expiresOn: string | null;
-            reason: string | null;
             id: string;
+            reason: string | null;
             days: number;
             effectiveOn: string;
             periodKey: string | null;
@@ -961,8 +961,8 @@ export declare const MyLeaveBalances: z.ZodObject<{
         entries: {
             kind: "taken" | "adjustment" | "accrual" | "reversal" | "carry_forward" | "expiry" | "encashed";
             expiresOn: string | null;
-            reason: string | null;
             id: string;
+            reason: string | null;
             days: number;
             effectiveOn: string;
             periodKey: string | null;
@@ -1013,8 +1013,8 @@ export declare const MyLeaveBalances: z.ZodObject<{
         entries: {
             kind: "taken" | "adjustment" | "accrual" | "reversal" | "carry_forward" | "expiry" | "encashed";
             expiresOn: string | null;
-            reason: string | null;
             id: string;
+            reason: string | null;
             days: number;
             effectiveOn: string;
             periodKey: string | null;
@@ -1131,8 +1131,8 @@ export declare const MyLeaveRequestList: z.ZodObject<{
     }, "strip", z.ZodTypeAny, {
         status: "approved" | "rejected" | "cancelled" | "requested";
         decidedAt: string | null;
-        reason: string | null;
         id: string;
+        reason: string | null;
         startsOn: string;
         decisionNote: string | null;
         payment: "paid" | "unpaid" | "partial";
@@ -1169,8 +1169,8 @@ export declare const MyLeaveRequestList: z.ZodObject<{
     }, {
         status: "approved" | "rejected" | "cancelled" | "requested";
         decidedAt: string | null;
-        reason: string | null;
         id: string;
+        reason: string | null;
         startsOn: string;
         decisionNote: string | null;
         payment: "paid" | "unpaid" | "partial";
@@ -1209,8 +1209,8 @@ export declare const MyLeaveRequestList: z.ZodObject<{
     requests: {
         status: "approved" | "rejected" | "cancelled" | "requested";
         decidedAt: string | null;
-        reason: string | null;
         id: string;
+        reason: string | null;
         startsOn: string;
         decisionNote: string | null;
         payment: "paid" | "unpaid" | "partial";
@@ -1249,8 +1249,8 @@ export declare const MyLeaveRequestList: z.ZodObject<{
     requests: {
         status: "approved" | "rejected" | "cancelled" | "requested";
         decidedAt: string | null;
-        reason: string | null;
         id: string;
+        reason: string | null;
         startsOn: string;
         decisionNote: string | null;
         payment: "paid" | "unpaid" | "partial";
@@ -1343,8 +1343,8 @@ export declare const MyLeaveAllocationList: z.ZodObject<{
         status: "approved" | "rejected" | "cancelled" | "requested";
         kind: "compensatory" | "extra";
         decidedAt: string | null;
-        reason: string;
         id: string;
+        reason: string;
         decisionNote: string | null;
         employee: {
             employeeId: string;
@@ -1371,8 +1371,8 @@ export declare const MyLeaveAllocationList: z.ZodObject<{
         status: "approved" | "rejected" | "cancelled" | "requested";
         kind: "compensatory" | "extra";
         decidedAt: string | null;
-        reason: string;
         id: string;
+        reason: string;
         decisionNote: string | null;
         employee: {
             employeeId: string;
@@ -1401,8 +1401,8 @@ export declare const MyLeaveAllocationList: z.ZodObject<{
         status: "approved" | "rejected" | "cancelled" | "requested";
         kind: "compensatory" | "extra";
         decidedAt: string | null;
-        reason: string;
         id: string;
+        reason: string;
         decisionNote: string | null;
         employee: {
             employeeId: string;
@@ -1431,8 +1431,8 @@ export declare const MyLeaveAllocationList: z.ZodObject<{
         status: "approved" | "rejected" | "cancelled" | "requested";
         kind: "compensatory" | "extra";
         decidedAt: string | null;
-        reason: string;
         id: string;
+        reason: string;
         decisionNote: string | null;
         employee: {
             employeeId: string;

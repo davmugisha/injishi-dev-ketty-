@@ -288,14 +288,14 @@ export declare const WorkspaceBranch: z.ZodObject<{
     isHeadOffice: z.ZodBoolean;
 }, "strip", z.ZodTypeAny, {
     name: string;
+    id: string;
     districtName: string | null;
     isHeadOffice: boolean;
-    id: string;
 }, {
     name: string;
+    id: string;
     districtName: string | null;
     isHeadOffice: boolean;
-    id: string;
 }>;
 export type WorkspaceBranch = z.infer<typeof WorkspaceBranch>;
 export declare const WorkspaceAccess: z.ZodObject<{
@@ -368,14 +368,14 @@ export declare const WorkspaceAccess: z.ZodObject<{
         isHeadOffice: z.ZodBoolean;
     }, "strip", z.ZodTypeAny, {
         name: string;
+        id: string;
         districtName: string | null;
         isHeadOffice: boolean;
-        id: string;
     }, {
         name: string;
+        id: string;
         districtName: string | null;
         isHeadOffice: boolean;
-        id: string;
     }>, "many">;
     /** `limited` when the member is limited to some branches. Null outside `business`. */
     branchCoverage: z.ZodNullable<z.ZodEnum<["all", "limited"]>>;
@@ -401,9 +401,9 @@ export declare const WorkspaceAccess: z.ZodObject<{
     domain: "hospitality" | "residence" | null;
     branches: {
         name: string;
+        id: string;
         districtName: string | null;
         isHeadOffice: boolean;
-        id: string;
     }[];
     orgId: string | null;
     workspaceId: string;
@@ -422,9 +422,9 @@ export declare const WorkspaceAccess: z.ZodObject<{
     domain: "hospitality" | "residence" | null;
     branches: {
         name: string;
+        id: string;
         districtName: string | null;
         isHeadOffice: boolean;
-        id: string;
     }[];
     orgId: string | null;
     workspaceId: string;

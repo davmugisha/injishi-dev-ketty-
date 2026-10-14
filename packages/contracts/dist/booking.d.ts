@@ -114,16 +114,16 @@ export declare const BookablePropertySummary: z.ZodObject<{
     photo: z.ZodNullable<z.ZodString>;
 }, "strip", z.ZodTypeAny, {
     name: string;
-    districtName: string | null;
     id: string;
+    districtName: string | null;
     slug: string | null;
     checkInTime: string | null;
     checkOutTime: string | null;
     photo: string | null;
 }, {
     name: string;
-    districtName: string | null;
     id: string;
+    districtName: string | null;
     slug: string | null;
     checkInTime: string | null;
     checkOutTime: string | null;
@@ -157,16 +157,16 @@ export declare const BookableRoom: z.ZodObject<{
         photo: z.ZodNullable<z.ZodString>;
     }, "strip", z.ZodTypeAny, {
         name: string;
-        districtName: string | null;
         id: string;
+        districtName: string | null;
         slug: string | null;
         checkInTime: string | null;
         checkOutTime: string | null;
         photo: string | null;
     }, {
         name: string;
-        districtName: string | null;
         id: string;
+        districtName: string | null;
         slug: string | null;
         checkInTime: string | null;
         checkOutTime: string | null;
@@ -221,8 +221,8 @@ export declare const BookableRoom: z.ZodObject<{
 }, "strip", z.ZodTypeAny, {
     property: {
         name: string;
-        districtName: string | null;
         id: string;
+        districtName: string | null;
         slug: string | null;
         checkInTime: string | null;
         checkOutTime: string | null;
@@ -244,8 +244,8 @@ export declare const BookableRoom: z.ZodObject<{
 }, {
     property: {
         name: string;
-        districtName: string | null;
         id: string;
+        districtName: string | null;
         slug: string | null;
         checkInTime: string | null;
         checkOutTime: string | null;

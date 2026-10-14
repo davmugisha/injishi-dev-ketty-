@@ -2595,8 +2595,8 @@ export declare const RosterEntry: z.ZodObject<{
     fromRequest: z.ZodBoolean;
 }, "strip", z.ZodTypeAny, {
     status: "scheduled" | "cancelled";
-    generated: boolean;
     id: string;
+    generated: boolean;
     employee: {
         employeeId: string;
         displayName: string;
@@ -2614,8 +2614,8 @@ export declare const RosterEntry: z.ZodObject<{
     fromRequest: boolean;
 }, {
     status: "scheduled" | "cancelled";
-    generated: boolean;
     id: string;
+    generated: boolean;
     employee: {
         employeeId: string;
         displayName: string;
@@ -3455,8 +3455,8 @@ export declare const LeaveLedgerEntry: z.ZodObject<{
 }, "strip", z.ZodTypeAny, {
     kind: "taken" | "adjustment" | "accrual" | "reversal" | "carry_forward" | "expiry" | "encashed";
     expiresOn: string | null;
-    reason: string | null;
     id: string;
+    reason: string | null;
     days: number;
     effectiveOn: string;
     periodKey: string | null;
@@ -3465,8 +3465,8 @@ export declare const LeaveLedgerEntry: z.ZodObject<{
 }, {
     kind: "taken" | "adjustment" | "accrual" | "reversal" | "carry_forward" | "expiry" | "encashed";
     expiresOn: string | null;
-    reason: string | null;
     id: string;
+    reason: string | null;
     days: number;
     effectiveOn: string;
     periodKey: string | null;
@@ -3634,8 +3634,8 @@ export declare const LeaveBalance: z.ZodObject<{
     }, "strip", z.ZodTypeAny, {
         kind: "taken" | "adjustment" | "accrual" | "reversal" | "carry_forward" | "expiry" | "encashed";
         expiresOn: string | null;
-        reason: string | null;
         id: string;
+        reason: string | null;
         days: number;
         effectiveOn: string;
         periodKey: string | null;
@@ -3644,8 +3644,8 @@ export declare const LeaveBalance: z.ZodObject<{
     }, {
         kind: "taken" | "adjustment" | "accrual" | "reversal" | "carry_forward" | "expiry" | "encashed";
         expiresOn: string | null;
-        reason: string | null;
         id: string;
+        reason: string | null;
         days: number;
         effectiveOn: string;
         periodKey: string | null;
@@ -3656,8 +3656,8 @@ export declare const LeaveBalance: z.ZodObject<{
     entries: {
         kind: "taken" | "adjustment" | "accrual" | "reversal" | "carry_forward" | "expiry" | "encashed";
         expiresOn: string | null;
-        reason: string | null;
         id: string;
+        reason: string | null;
         days: number;
         effectiveOn: string;
         periodKey: string | null;
@@ -3705,8 +3705,8 @@ export declare const LeaveBalance: z.ZodObject<{
     entries: {
         kind: "taken" | "adjustment" | "accrual" | "reversal" | "carry_forward" | "expiry" | "encashed";
         expiresOn: string | null;
-        reason: string | null;
         id: string;
+        reason: string | null;
         days: number;
         effectiveOn: string;
         periodKey: string | null;
@@ -3888,8 +3888,8 @@ export declare const LeaveBalances: z.ZodObject<{
         }, "strip", z.ZodTypeAny, {
             kind: "taken" | "adjustment" | "accrual" | "reversal" | "carry_forward" | "expiry" | "encashed";
             expiresOn: string | null;
-            reason: string | null;
             id: string;
+            reason: string | null;
             days: number;
             effectiveOn: string;
             periodKey: string | null;
@@ -3898,8 +3898,8 @@ export declare const LeaveBalances: z.ZodObject<{
         }, {
             kind: "taken" | "adjustment" | "accrual" | "reversal" | "carry_forward" | "expiry" | "encashed";
             expiresOn: string | null;
-            reason: string | null;
             id: string;
+            reason: string | null;
             days: number;
             effectiveOn: string;
             periodKey: string | null;
@@ -3910,8 +3910,8 @@ export declare const LeaveBalances: z.ZodObject<{
         entries: {
             kind: "taken" | "adjustment" | "accrual" | "reversal" | "carry_forward" | "expiry" | "encashed";
             expiresOn: string | null;
-            reason: string | null;
             id: string;
+            reason: string | null;
             days: number;
             effectiveOn: string;
             periodKey: string | null;
@@ -3959,8 +3959,8 @@ export declare const LeaveBalances: z.ZodObject<{
         entries: {
             kind: "taken" | "adjustment" | "accrual" | "reversal" | "carry_forward" | "expiry" | "encashed";
             expiresOn: string | null;
-            reason: string | null;
             id: string;
+            reason: string | null;
             days: number;
             effectiveOn: string;
             periodKey: string | null;
@@ -4011,8 +4011,8 @@ export declare const LeaveBalances: z.ZodObject<{
         entries: {
             kind: "taken" | "adjustment" | "accrual" | "reversal" | "carry_forward" | "expiry" | "encashed";
             expiresOn: string | null;
-            reason: string | null;
             id: string;
+            reason: string | null;
             days: number;
             effectiveOn: string;
             periodKey: string | null;
@@ -4063,8 +4063,8 @@ export declare const LeaveBalances: z.ZodObject<{
         entries: {
             kind: "taken" | "adjustment" | "accrual" | "reversal" | "carry_forward" | "expiry" | "encashed";
             expiresOn: string | null;
-            reason: string | null;
             id: string;
+            reason: string | null;
             days: number;
             effectiveOn: string;
             periodKey: string | null;
@@ -4189,8 +4189,8 @@ export declare const LeaveRequest: z.ZodObject<{
 }, "strip", z.ZodTypeAny, {
     status: "approved" | "rejected" | "cancelled" | "requested";
     decidedAt: string | null;
-    reason: string | null;
     id: string;
+    reason: string | null;
     startsOn: string;
     decisionNote: string | null;
     payment: "paid" | "unpaid" | "partial";
@@ -4227,8 +4227,8 @@ export declare const LeaveRequest: z.ZodObject<{
 }, {
     status: "approved" | "rejected" | "cancelled" | "requested";
     decidedAt: string | null;
-    reason: string | null;
     id: string;
+    reason: string | null;
     startsOn: string;
     decisionNote: string | null;
     payment: "paid" | "unpaid" | "partial";

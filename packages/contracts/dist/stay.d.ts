@@ -595,8 +595,8 @@ export declare const StayRefundRequestView: z.ZodObject<{
     createdAt: z.ZodString;
 }, "strip", z.ZodTypeAny, {
     decidedAt: string | null;
-    reason: "other" | "service_failure" | "room_not_as_described" | "cleanliness" | "noise" | "maintenance_unresolved" | "overcharged" | "early_departure" | "changed_plans";
     id: string;
+    reason: "other" | "service_failure" | "room_not_as_described" | "cleanliness" | "noise" | "maintenance_unresolved" | "overcharged" | "early_departure" | "changed_plans";
     decisionNote: string | null;
     detail: string;
     createdAt: string;
@@ -616,8 +616,8 @@ export declare const StayRefundRequestView: z.ZodObject<{
     refusalLabel: string | null;
 }, {
     decidedAt: string | null;
-    reason: "other" | "service_failure" | "room_not_as_described" | "cleanliness" | "noise" | "maintenance_unresolved" | "overcharged" | "early_departure" | "changed_plans";
     id: string;
+    reason: "other" | "service_failure" | "room_not_as_described" | "cleanliness" | "noise" | "maintenance_unresolved" | "overcharged" | "early_departure" | "changed_plans";
     decisionNote: string | null;
     detail: string;
     createdAt: string;
@@ -664,8 +664,8 @@ export declare const StayRefundRequestList: z.ZodObject<{
         createdAt: z.ZodString;
     }, "strip", z.ZodTypeAny, {
         decidedAt: string | null;
-        reason: "other" | "service_failure" | "room_not_as_described" | "cleanliness" | "noise" | "maintenance_unresolved" | "overcharged" | "early_departure" | "changed_plans";
         id: string;
+        reason: "other" | "service_failure" | "room_not_as_described" | "cleanliness" | "noise" | "maintenance_unresolved" | "overcharged" | "early_departure" | "changed_plans";
         decisionNote: string | null;
         detail: string;
         createdAt: string;
@@ -685,8 +685,8 @@ export declare const StayRefundRequestList: z.ZodObject<{
         refusalLabel: string | null;
     }, {
         decidedAt: string | null;
-        reason: "other" | "service_failure" | "room_not_as_described" | "cleanliness" | "noise" | "maintenance_unresolved" | "overcharged" | "early_departure" | "changed_plans";
         id: string;
+        reason: "other" | "service_failure" | "room_not_as_described" | "cleanliness" | "noise" | "maintenance_unresolved" | "overcharged" | "early_departure" | "changed_plans";
         decisionNote: string | null;
         detail: string;
         createdAt: string;
@@ -708,8 +708,8 @@ export declare const StayRefundRequestList: z.ZodObject<{
 }, "strip", z.ZodTypeAny, {
     requests: {
         decidedAt: string | null;
-        reason: "other" | "service_failure" | "room_not_as_described" | "cleanliness" | "noise" | "maintenance_unresolved" | "overcharged" | "early_departure" | "changed_plans";
         id: string;
+        reason: "other" | "service_failure" | "room_not_as_described" | "cleanliness" | "noise" | "maintenance_unresolved" | "overcharged" | "early_departure" | "changed_plans";
         decisionNote: string | null;
         detail: string;
         createdAt: string;
@@ -731,8 +731,8 @@ export declare const StayRefundRequestList: z.ZodObject<{
 }, {
     requests: {
         decidedAt: string | null;
-        reason: "other" | "service_failure" | "room_not_as_described" | "cleanliness" | "noise" | "maintenance_unresolved" | "overcharged" | "early_departure" | "changed_plans";
         id: string;
+        reason: "other" | "service_failure" | "room_not_as_described" | "cleanliness" | "noise" | "maintenance_unresolved" | "overcharged" | "early_departure" | "changed_plans";
         decisionNote: string | null;
         detail: string;
         createdAt: string;

@@ -91,8 +91,8 @@ export declare const OutletParty: z.ZodObject<{
     status: "active" | "archived";
     legalName: string;
     tin: string | null;
-    orgId: string | null;
     id: string;
+    orgId: string | null;
     contactEmail: string | null;
     contactName: string | null;
     contactPhone: string | null;
@@ -101,8 +101,8 @@ export declare const OutletParty: z.ZodObject<{
     status: "active" | "archived";
     legalName: string;
     tin: string | null;
-    orgId: string | null;
     id: string;
+    orgId: string | null;
     contactEmail: string | null;
     contactName: string | null;
     contactPhone: string | null;
@@ -126,8 +126,8 @@ export declare const OutletPartyList: z.ZodObject<{
         status: "active" | "archived";
         legalName: string;
         tin: string | null;
-        orgId: string | null;
         id: string;
+        orgId: string | null;
         contactEmail: string | null;
         contactName: string | null;
         contactPhone: string | null;
@@ -136,8 +136,8 @@ export declare const OutletPartyList: z.ZodObject<{
         status: "active" | "archived";
         legalName: string;
         tin: string | null;
-        orgId: string | null;
         id: string;
+        orgId: string | null;
         contactEmail: string | null;
         contactName: string | null;
         contactPhone: string | null;
@@ -148,8 +148,8 @@ export declare const OutletPartyList: z.ZodObject<{
         status: "active" | "archived";
         legalName: string;
         tin: string | null;
-        orgId: string | null;
         id: string;
+        orgId: string | null;
         contactEmail: string | null;
         contactName: string | null;
         contactPhone: string | null;
@@ -160,8 +160,8 @@ export declare const OutletPartyList: z.ZodObject<{
         status: "active" | "archived";
         legalName: string;
         tin: string | null;
-        orgId: string | null;
         id: string;
+        orgId: string | null;
         contactEmail: string | null;
         contactName: string | null;
         contactPhone: string | null;
@@ -242,12 +242,12 @@ export declare const OutletPartySummary: z.ZodObject<{
     orgId: z.ZodNullable<z.ZodString>;
 }, "strip", z.ZodTypeAny, {
     legalName: string;
-    orgId: string | null;
     id: string;
+    orgId: string | null;
 }, {
     legalName: string;
-    orgId: string | null;
     id: string;
+    orgId: string | null;
 }>;
 export type OutletPartySummary = z.infer<typeof OutletPartySummary>;
 export declare const OutletTenancySummary: z.ZodObject<{
@@ -283,12 +283,12 @@ export declare const OperatorOutlet: z.ZodObject<{
         orgId: z.ZodNullable<z.ZodString>;
     }, "strip", z.ZodTypeAny, {
         legalName: string;
-        orgId: string | null;
         id: string;
+        orgId: string | null;
     }, {
         legalName: string;
-        orgId: string | null;
         id: string;
+        orgId: string | null;
     }>>;
     ownerParty: z.ZodNullable<z.ZodObject<{
         id: z.ZodString;
@@ -296,12 +296,12 @@ export declare const OperatorOutlet: z.ZodObject<{
         orgId: z.ZodNullable<z.ZodString>;
     }, "strip", z.ZodTypeAny, {
         legalName: string;
-        orgId: string | null;
         id: string;
+        orgId: string | null;
     }, {
         legalName: string;
-        orgId: string | null;
         id: string;
+        orgId: string | null;
     }>>;
     /** Whose TIN signs a sale here. Decided by the server, never sent by a client. */
     taxEntityOrgId: z.ZodString;
@@ -362,8 +362,8 @@ export declare const OperatorOutlet: z.ZodObject<{
         district?: string | undefined;
         street?: string | undefined;
     } | null;
-    sortOrder: number;
     id: string;
+    sortOrder: number;
     rraBranchId: string | null;
     propertyName: string | null;
     slug: string | null;
@@ -378,13 +378,13 @@ export declare const OperatorOutlet: z.ZodObject<{
     relationshipType: "franchise" | "hotel_operated" | "third_party_managed" | "leased_tenant" | "concession" | "revenue_share";
     operatorParty: {
         legalName: string;
-        orgId: string | null;
         id: string;
+        orgId: string | null;
     } | null;
     ownerParty: {
         legalName: string;
-        orgId: string | null;
         id: string;
+        orgId: string | null;
     } | null;
     taxEntityOrgId: string;
     tenancy: {
@@ -404,8 +404,8 @@ export declare const OperatorOutlet: z.ZodObject<{
         street?: string | undefined;
         timeZone?: string | undefined;
     } | null;
-    sortOrder: number;
     id: string;
+    sortOrder: number;
     rraBranchId: string | null;
     propertyName: string | null;
     slug: string | null;
@@ -420,13 +420,13 @@ export declare const OperatorOutlet: z.ZodObject<{
     relationshipType: "franchise" | "hotel_operated" | "third_party_managed" | "leased_tenant" | "concession" | "revenue_share";
     operatorParty: {
         legalName: string;
-        orgId: string | null;
         id: string;
+        orgId: string | null;
     } | null;
     ownerParty: {
         legalName: string;
-        orgId: string | null;
         id: string;
+        orgId: string | null;
     } | null;
     taxEntityOrgId: string;
     tenancy: {
@@ -455,12 +455,12 @@ export declare const OperatorOutletList: z.ZodObject<{
             orgId: z.ZodNullable<z.ZodString>;
         }, "strip", z.ZodTypeAny, {
             legalName: string;
-            orgId: string | null;
             id: string;
+            orgId: string | null;
         }, {
             legalName: string;
-            orgId: string | null;
             id: string;
+            orgId: string | null;
         }>>;
         ownerParty: z.ZodNullable<z.ZodObject<{
             id: z.ZodString;
@@ -468,12 +468,12 @@ export declare const OperatorOutletList: z.ZodObject<{
             orgId: z.ZodNullable<z.ZodString>;
         }, "strip", z.ZodTypeAny, {
             legalName: string;
-            orgId: string | null;
             id: string;
+            orgId: string | null;
         }, {
             legalName: string;
-            orgId: string | null;
             id: string;
+            orgId: string | null;
         }>>;
         /** Whose TIN signs a sale here. Decided by the server, never sent by a client. */
         taxEntityOrgId: z.ZodString;
@@ -534,8 +534,8 @@ export declare const OperatorOutletList: z.ZodObject<{
             district?: string | undefined;
             street?: string | undefined;
         } | null;
-        sortOrder: number;
         id: string;
+        sortOrder: number;
         rraBranchId: string | null;
         propertyName: string | null;
         slug: string | null;
@@ -550,13 +550,13 @@ export declare const OperatorOutletList: z.ZodObject<{
         relationshipType: "franchise" | "hotel_operated" | "third_party_managed" | "leased_tenant" | "concession" | "revenue_share";
         operatorParty: {
             legalName: string;
-            orgId: string | null;
             id: string;
+            orgId: string | null;
         } | null;
         ownerParty: {
             legalName: string;
-            orgId: string | null;
             id: string;
+            orgId: string | null;
         } | null;
         taxEntityOrgId: string;
         tenancy: {
@@ -576,8 +576,8 @@ export declare const OperatorOutletList: z.ZodObject<{
             street?: string | undefined;
             timeZone?: string | undefined;
         } | null;
-        sortOrder: number;
         id: string;
+        sortOrder: number;
         rraBranchId: string | null;
         propertyName: string | null;
         slug: string | null;
@@ -592,13 +592,13 @@ export declare const OperatorOutletList: z.ZodObject<{
         relationshipType: "franchise" | "hotel_operated" | "third_party_managed" | "leased_tenant" | "concession" | "revenue_share";
         operatorParty: {
             legalName: string;
-            orgId: string | null;
             id: string;
+            orgId: string | null;
         } | null;
         ownerParty: {
             legalName: string;
-            orgId: string | null;
             id: string;
+            orgId: string | null;
         } | null;
         taxEntityOrgId: string;
         tenancy: {
@@ -626,8 +626,8 @@ export declare const OperatorOutletList: z.ZodObject<{
             district?: string | undefined;
             street?: string | undefined;
         } | null;
-        sortOrder: number;
         id: string;
+        sortOrder: number;
         rraBranchId: string | null;
         propertyName: string | null;
         slug: string | null;
@@ -642,13 +642,13 @@ export declare const OperatorOutletList: z.ZodObject<{
         relationshipType: "franchise" | "hotel_operated" | "third_party_managed" | "leased_tenant" | "concession" | "revenue_share";
         operatorParty: {
             legalName: string;
-            orgId: string | null;
             id: string;
+            orgId: string | null;
         } | null;
         ownerParty: {
             legalName: string;
-            orgId: string | null;
             id: string;
+            orgId: string | null;
         } | null;
         taxEntityOrgId: string;
         tenancy: {
@@ -671,8 +671,8 @@ export declare const OperatorOutletList: z.ZodObject<{
             street?: string | undefined;
             timeZone?: string | undefined;
         } | null;
-        sortOrder: number;
         id: string;
+        sortOrder: number;
         rraBranchId: string | null;
         propertyName: string | null;
         slug: string | null;
@@ -687,13 +687,13 @@ export declare const OperatorOutletList: z.ZodObject<{
         relationshipType: "franchise" | "hotel_operated" | "third_party_managed" | "leased_tenant" | "concession" | "revenue_share";
         operatorParty: {
             legalName: string;
-            orgId: string | null;
             id: string;
+            orgId: string | null;
         } | null;
         ownerParty: {
             legalName: string;
-            orgId: string | null;
             id: string;
+            orgId: string | null;
         } | null;
         taxEntityOrgId: string;
         tenancy: {

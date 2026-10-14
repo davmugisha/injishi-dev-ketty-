@@ -1,0 +1,191 @@
+/*
+ * Injishi design system — HeroUI Pro "mouve" theme + the saved Injishi overrides
+ * (heroui.pro/ds/de231dfa-8a53-40c9-ba3b-cd9d5a93685b). Figtree (body) and Instrument Sans
+ * (headings) are loaded with next/font as --font-figtree and --font-instrument-sans.
+ * Activate with <html data-theme="mouve-light|mouve-dark" data-vibrant-palette="true">.
+ * Import after tailwindcss, @heroui/styles and @heroui-pro/react/css.
+ */
+@import "@heroui-pro/react/themes/mouve";
+
+.mouve-light,
+[data-theme="mouve-light"],
+.mouve-dark,
+[data-theme="mouve-dark"] {
+  /* Border radius */
+  --radius: 0.5rem;
+  --field-radius: 0.25rem;
+
+  /* Border width */
+  --border-width-field: 0.8488516842015111px;
+  --field-border-width: 0.8488516842015111px;
+
+  /* Spacing */
+  --spacing: 0.234375rem;
+
+  /* Font: Figtree for body, Instrument Sans for headings */
+  --font-sans: var(--font-figtree, "Figtree"), ui-sans-serif, system-ui, sans-serif;
+  --font-heading: var(--font-instrument-sans, "Instrument Sans"), ui-sans-serif, system-ui, sans-serif;
+
+  /* Letter spacing */
+  --tracking-tighter: -0.06em;
+  --tracking-tight: -0.035em;
+  --tracking-normal: -0.01em;
+  --tracking-wide: 0.015em;
+  --tracking-wider: 0.04em;
+  --tracking-widest: 0.09em;
+
+  /* Font sizes */
+  --text-xs: 0.6875rem;
+  --text-xs--line-height: calc(1 / 0.6875);
+  --text-sm: 0.8125rem;
+  --text-sm--line-height: calc(1.25 / 0.8125);
+  --text-base: 0.9375rem;
+  --text-base--line-height: calc(1.5 / 0.9375);
+  --text-lg: 1.0625rem;
+  --text-lg--line-height: calc(1.75 / 1.0625);
+  --text-xl: 1.1875rem;
+  --text-xl--line-height: calc(1.75 / 1.1875);
+  --text-2xl: 1.375rem;
+  --text-2xl--line-height: calc(2 / 1.375);
+  --text-3xl: 1.75rem;
+  --text-3xl--line-height: calc(2.25 / 1.75);
+  --text-4xl: 2rem;
+  --text-4xl--line-height: calc(2.5 / 2);
+  --text-5xl: 2.75rem;
+  --text-6xl: 3.375rem;
+  --text-7xl: 4rem;
+  --text-8xl: 5.25rem;
+  --text-9xl: 7rem;
+}
+
+.mouve-light,
+[data-theme="mouve-light"] {
+  --background: oklch(95.5% 0.0125 177.9);
+  --muted: oklch(58% 0.0312 177.9);
+  --scrollbar: oklch(82% 0.0208 177.9);
+  --surface: oklch(97.5% 0.0083 177.9);
+  --surface-secondary: oklch(95% 0.0125 177.9);
+  --surface-tertiary: oklch(93.5% 0.0166 177.9);
+  --overlay: oklch(97.5% 0.0083 177.9);
+  --default: oklch(92% 0.0125 177.9);
+  --accent: oklch(55% 0.18 177.9);
+  --field-background: oklch(97% 0.0062 177.9);
+  --field-border: oklch(88% 0.0208 177.9);
+  --border: oklch(88% 0.0156 177.9);
+  --separator: oklch(92% 0.0104 177.9);
+  --backdrop: oklch(50% 0.0416 177.9 / 0.4);
+
+  --chart-1: oklch(42% 0.14 177.9);
+  --chart-2: oklch(50% 0.16 177.9);
+  --chart-3: oklch(55% 0.18 177.9);
+  --chart-4: oklch(65% 0.14 177.9);
+  --chart-5: oklch(75% 0.1 177.9);
+}
+
+.mouve-dark,
+[data-theme="mouve-dark"] {
+  color-scheme: dark;
+  --background: oklch(16% 0.0208 177.9);
+  --muted: oklch(65% 0.0208 177.9);
+  --scrollbar: oklch(35% 0.0208 177.9);
+  --surface: oklch(20% 0.0208 177.9);
+  --surface-secondary: oklch(24% 0.0208 177.9);
+  --surface-tertiary: oklch(27% 0.0208 177.9);
+  --overlay: oklch(20% 0.0208 177.9);
+  --default: oklch(26% 0.0208 177.9);
+  --accent: oklch(70% 0.16 177.9);
+  --accent-foreground: oklch(15% 0.0208 177.9);
+  --success-foreground: oklch(20% 0.0208 177.9);
+  --warning-foreground: oklch(20% 0.0208 177.9);
+  --field-background: oklch(22% 0.0187 177.9);
+  --field-border: oklch(32% 0.026 177.9);
+  --segment: oklch(28% 0.026 177.9);
+  --border: oklch(30% 0.0208 177.9);
+  --separator: oklch(28% 0.0187 177.9);
+
+  --chart-1: oklch(50% 0.12 177.9);
+  --chart-2: oklch(60% 0.14 177.9);
+  --chart-3: oklch(70% 0.16 177.9);
+  --chart-4: oklch(78% 0.12 177.9);
+  --chart-5: oklch(85% 0.08 177.9);
+}
+
+@layer base {
+  :where(h1, h2, h3, h4, h5, h6, [role="heading"]) {
+    font-family: var(--font-heading, var(--font-sans, sans-serif));
+  }
+  html,
+  body {
+    background: var(--background);
+    color: var(--foreground);
+    font-family: var(--font-sans);
+  }
+}
+
+/*
+ * Device frames: phone surfaces render in a portrait 390×844 frame on larger screens and
+ * full-bleed on phones; tablet surfaces keep their artboard size when the window is large enough.
+ */
+@layer components {
+  .device-stage {
+    min-height: 100dvh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 24px;
+    background:
+      radial-gradient(circle at 20% 10%, color-mix(in oklab, var(--accent) 10%, transparent), transparent 45%),
+      var(--background-secondary, var(--background));
+  }
+  .device-frame {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    background: var(--background);
+    width: var(--device-w);
+    height: var(--device-h);
+    max-height: calc(100dvh - 48px);
+    border-radius: 44px;
+    box-shadow:
+      0 0 0 10px color-mix(in oklab, var(--foreground) 88%, transparent),
+      0 0 0 11px color-mix(in oklab, var(--foreground) 60%, transparent),
+      var(--overlay-shadow);
+  }
+  .device-frame[data-device="tablet"] {
+    border-radius: 28px;
+  }
+  .device-frame[data-device="phone"] {
+    --device-w: 390px;
+    --device-h: 844px;
+  }
+  @media (max-width: 520px) {
+    .device-stage:has(> [data-device="phone"]) {
+      padding: 0;
+      display: block;
+    }
+    .device-frame[data-device="phone"] {
+      width: 100%;
+      height: 100dvh;
+      max-height: none;
+      border-radius: 0;
+      box-shadow: none;
+    }
+  }
+  .device-stage[data-fullbleed="true"] {
+    padding: 0;
+    display: block;
+  }
+  .device-stage[data-fullbleed="true"] > .device-frame {
+    width: 100%;
+    height: 100dvh;
+    max-height: none;
+    border-radius: 0;
+    box-shadow: none;
+  }
+}
+
+/* Tabular numbers for figures, as in the artifact (.ij-num). */
+@utility tabular {
+  font-variant-numeric: tabular-nums;
+}

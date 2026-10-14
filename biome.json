@@ -1,0 +1,48 @@
+{
+  "$schema": "https://biomejs.dev/schemas/2.5.15/schema.json",
+  "vcs": { "enabled": true, "clientKind": "git", "useIgnoreFile": true },
+  "files": {
+    "includes": [
+      "apps/app/**",
+      "apps/mobile/**",
+      "packages/data/**",
+      "packages/db/**",
+      "packages/ui/**",
+      "biome.json",
+      "turbo.json",
+      "!**/.next",
+      "!**/.next-build",
+      "!**/node_modules",
+      "!apps/app/public",
+      "!apps/mobile/assets",
+      "!apps/mobile/dist-*",
+      "!**/uniwind-types.d.ts",
+      "!apps/mobile/src/global.css"
+    ]
+  },
+  "formatter": {
+    "enabled": true,
+    "indentStyle": "space",
+    "indentWidth": 2,
+    "lineWidth": 120
+  },
+  "javascript": {
+    "formatter": { "quoteStyle": "double", "semicolons": "always", "trailingCommas": "all" }
+  },
+  "css": {
+    "parser": { "tailwindDirectives": true }
+  },
+  "assist": { "actions": { "source": { "organizeImports": "on" } } },
+  "linter": {
+    "enabled": true,
+    "domains": { "next": "recommended", "react": "recommended" },
+    "rules": {
+      "preset": "recommended",
+      "a11y": { "noSvgWithoutTitle": "off", "useSemanticElements": "warn" },
+      "suspicious": { "noArrayIndexKey": "warn" },
+      "style": { "noNonNullAssertion": "warn" },
+      "correctness": { "useExhaustiveDependencies": "warn" },
+      "complexity": { "noExcessiveCognitiveComplexity": "off" }
+    }
+  }
+}

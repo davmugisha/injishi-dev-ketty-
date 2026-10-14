@@ -296,8 +296,8 @@ export declare const PsfMembership: z.ZodObject<{
     endedAt: z.ZodNullable<z.ZodString>;
 }, "strip", z.ZodTypeAny, {
     expiresOn: string | null;
-    annualFeeRwf: number | null;
     id: string;
+    annualFeeRwf: number | null;
     source: "psf_confirmed" | "self_declared";
     tierCode: string | null;
     tierName: string | null;
@@ -306,8 +306,8 @@ export declare const PsfMembership: z.ZodObject<{
     endedAt: string | null;
 }, {
     expiresOn: string | null;
-    annualFeeRwf: number | null;
     id: string;
+    annualFeeRwf: number | null;
     source: "psf_confirmed" | "self_declared";
     tierCode: string | null;
     tierName: string | null;
@@ -474,8 +474,8 @@ export declare const PsfApplication: z.ZodObject<{
     status: "submitted" | "member" | "declined" | "withdrawn";
     requestedTierCode: string;
     decidedAt: string | null;
-    submittedAt: string;
     id: string;
+    submittedAt: string;
     requestedTierName: string;
     quotedPriceKind: "fixed" | "range" | "set_by_psf";
     quotedFeeRwf: number | null;
@@ -514,8 +514,8 @@ export declare const PsfApplication: z.ZodObject<{
     status: "submitted" | "member" | "declined" | "withdrawn";
     requestedTierCode: string;
     decidedAt: string | null;
-    submittedAt: string;
     id: string;
+    submittedAt: string;
     requestedTierName: string;
     quotedPriceKind: "fixed" | "range" | "set_by_psf";
     quotedFeeRwf: number | null;
@@ -637,8 +637,8 @@ export declare const PsfMembershipOverview: z.ZodObject<{
         endedAt: z.ZodNullable<z.ZodString>;
     }, "strip", z.ZodTypeAny, {
         expiresOn: string | null;
-        annualFeeRwf: number | null;
         id: string;
+        annualFeeRwf: number | null;
         source: "psf_confirmed" | "self_declared";
         tierCode: string | null;
         tierName: string | null;
@@ -647,8 +647,8 @@ export declare const PsfMembershipOverview: z.ZodObject<{
         endedAt: string | null;
     }, {
         expiresOn: string | null;
-        annualFeeRwf: number | null;
         id: string;
+        annualFeeRwf: number | null;
         source: "psf_confirmed" | "self_declared";
         tierCode: string | null;
         tierName: string | null;
@@ -748,8 +748,8 @@ export declare const PsfMembershipOverview: z.ZodObject<{
         requestedTierCode: string;
         stage: "waiting_tin_check" | "with_psf";
         decidedAt: string | null;
-        submittedAt: string;
         id: string;
+        submittedAt: string;
         requestedTierName: string;
         quotedPriceKind: "fixed" | "range" | "set_by_psf";
         quotedFeeRwf: number | null;
@@ -789,8 +789,8 @@ export declare const PsfMembershipOverview: z.ZodObject<{
         requestedTierCode: string;
         stage: "waiting_tin_check" | "with_psf";
         decidedAt: string | null;
-        submittedAt: string;
         id: string;
+        submittedAt: string;
         requestedTierName: string;
         quotedPriceKind: "fixed" | "range" | "set_by_psf";
         quotedFeeRwf: number | null;
@@ -916,8 +916,8 @@ export declare const PsfMembershipOverview: z.ZodObject<{
         status: "submitted" | "member" | "declined" | "withdrawn";
         requestedTierCode: string;
         decidedAt: string | null;
-        submittedAt: string;
         id: string;
+        submittedAt: string;
         requestedTierName: string;
         quotedPriceKind: "fixed" | "range" | "set_by_psf";
         quotedFeeRwf: number | null;
@@ -956,8 +956,8 @@ export declare const PsfMembershipOverview: z.ZodObject<{
         status: "submitted" | "member" | "declined" | "withdrawn";
         requestedTierCode: string;
         decidedAt: string | null;
-        submittedAt: string;
         id: string;
+        submittedAt: string;
         requestedTierName: string;
         quotedPriceKind: "fixed" | "range" | "set_by_psf";
         quotedFeeRwf: number | null;
@@ -1060,8 +1060,8 @@ export declare const PsfMembershipOverview: z.ZodObject<{
     registrationNumber: string;
     current: {
         expiresOn: string | null;
-        annualFeeRwf: number | null;
         id: string;
+        annualFeeRwf: number | null;
         source: "psf_confirmed" | "self_declared";
         tierCode: string | null;
         tierName: string | null;
@@ -1074,8 +1074,8 @@ export declare const PsfMembershipOverview: z.ZodObject<{
         requestedTierCode: string;
         stage: "waiting_tin_check" | "with_psf";
         decidedAt: string | null;
-        submittedAt: string;
         id: string;
+        submittedAt: string;
         requestedTierName: string;
         quotedPriceKind: "fixed" | "range" | "set_by_psf";
         quotedFeeRwf: number | null;
@@ -1115,8 +1115,8 @@ export declare const PsfMembershipOverview: z.ZodObject<{
         status: "submitted" | "member" | "declined" | "withdrawn";
         requestedTierCode: string;
         decidedAt: string | null;
-        submittedAt: string;
         id: string;
+        submittedAt: string;
         requestedTierName: string;
         quotedPriceKind: "fixed" | "range" | "set_by_psf";
         quotedFeeRwf: number | null;
@@ -1179,8 +1179,8 @@ export declare const PsfMembershipOverview: z.ZodObject<{
     registrationNumber: string;
     current: {
         expiresOn: string | null;
-        annualFeeRwf: number | null;
         id: string;
+        annualFeeRwf: number | null;
         source: "psf_confirmed" | "self_declared";
         tierCode: string | null;
         tierName: string | null;
@@ -1193,8 +1193,8 @@ export declare const PsfMembershipOverview: z.ZodObject<{
         requestedTierCode: string;
         stage: "waiting_tin_check" | "with_psf";
         decidedAt: string | null;
-        submittedAt: string;
         id: string;
+        submittedAt: string;
         requestedTierName: string;
         quotedPriceKind: "fixed" | "range" | "set_by_psf";
         quotedFeeRwf: number | null;
@@ -1234,8 +1234,8 @@ export declare const PsfMembershipOverview: z.ZodObject<{
         status: "submitted" | "member" | "declined" | "withdrawn";
         requestedTierCode: string;
         decidedAt: string | null;
-        submittedAt: string;
         id: string;
+        submittedAt: string;
         requestedTierName: string;
         quotedPriceKind: "fixed" | "range" | "set_by_psf";
         quotedFeeRwf: number | null;
@@ -1389,8 +1389,8 @@ export declare const AdminPsfApplication: z.ZodObject<Omit<{
     status: "submitted" | "member" | "declined" | "withdrawn";
     requestedTierCode: string;
     decidedAt: string | null;
-    submittedAt: string;
     id: string;
+    submittedAt: string;
     requestedTierName: string;
     quotedPriceKind: "fixed" | "range" | "set_by_psf";
     quotedFeeRwf: number | null;
@@ -1406,8 +1406,8 @@ export declare const AdminPsfApplication: z.ZodObject<Omit<{
     status: "submitted" | "member" | "declined" | "withdrawn";
     requestedTierCode: string;
     decidedAt: string | null;
-    submittedAt: string;
     id: string;
+    submittedAt: string;
     requestedTierName: string;
     quotedPriceKind: "fixed" | "range" | "set_by_psf";
     quotedFeeRwf: number | null;
@@ -1435,8 +1435,8 @@ export declare const AdminOrgPsf: z.ZodObject<{
         endedAt: z.ZodNullable<z.ZodString>;
     }, "strip", z.ZodTypeAny, {
         expiresOn: string | null;
-        annualFeeRwf: number | null;
         id: string;
+        annualFeeRwf: number | null;
         source: "psf_confirmed" | "self_declared";
         tierCode: string | null;
         tierName: string | null;
@@ -1445,8 +1445,8 @@ export declare const AdminOrgPsf: z.ZodObject<{
         endedAt: string | null;
     }, {
         expiresOn: string | null;
-        annualFeeRwf: number | null;
         id: string;
+        annualFeeRwf: number | null;
         source: "psf_confirmed" | "self_declared";
         tierCode: string | null;
         tierName: string | null;
@@ -1543,8 +1543,8 @@ export declare const AdminOrgPsf: z.ZodObject<{
         status: "submitted" | "member" | "declined" | "withdrawn";
         requestedTierCode: string;
         decidedAt: string | null;
-        submittedAt: string;
         id: string;
+        submittedAt: string;
         requestedTierName: string;
         quotedPriceKind: "fixed" | "range" | "set_by_psf";
         quotedFeeRwf: number | null;
@@ -1560,8 +1560,8 @@ export declare const AdminOrgPsf: z.ZodObject<{
         status: "submitted" | "member" | "declined" | "withdrawn";
         requestedTierCode: string;
         decidedAt: string | null;
-        submittedAt: string;
         id: string;
+        submittedAt: string;
         requestedTierName: string;
         quotedPriceKind: "fixed" | "range" | "set_by_psf";
         quotedFeeRwf: number | null;
@@ -1577,8 +1577,8 @@ export declare const AdminOrgPsf: z.ZodObject<{
 }, "strip", z.ZodTypeAny, {
     membership: {
         expiresOn: string | null;
-        annualFeeRwf: number | null;
         id: string;
+        annualFeeRwf: number | null;
         source: "psf_confirmed" | "self_declared";
         tierCode: string | null;
         tierName: string | null;
@@ -1590,8 +1590,8 @@ export declare const AdminOrgPsf: z.ZodObject<{
         status: "submitted" | "member" | "declined" | "withdrawn";
         requestedTierCode: string;
         decidedAt: string | null;
-        submittedAt: string;
         id: string;
+        submittedAt: string;
         requestedTierName: string;
         quotedPriceKind: "fixed" | "range" | "set_by_psf";
         quotedFeeRwf: number | null;
@@ -1607,8 +1607,8 @@ export declare const AdminOrgPsf: z.ZodObject<{
 }, {
     membership: {
         expiresOn: string | null;
-        annualFeeRwf: number | null;
         id: string;
+        annualFeeRwf: number | null;
         source: "psf_confirmed" | "self_declared";
         tierCode: string | null;
         tierName: string | null;
@@ -1620,8 +1620,8 @@ export declare const AdminOrgPsf: z.ZodObject<{
         status: "submitted" | "member" | "declined" | "withdrawn";
         requestedTierCode: string;
         decidedAt: string | null;
-        submittedAt: string;
         id: string;
+        submittedAt: string;
         requestedTierName: string;
         quotedPriceKind: "fixed" | "range" | "set_by_psf";
         quotedFeeRwf: number | null;
@@ -1990,11 +1990,11 @@ export declare const PsfOfficerApplication: z.ZodObject<{
     status: "submitted" | "member" | "declined" | "withdrawn";
     requestedTierCode: string;
     decidedAt: string | null;
+    id: string;
     orgId: string;
     districtName: string | null;
     submittedAt: string;
     registrationStatus: "pending_payment" | "submitted" | "tin_verified" | "field_verified" | "approved" | "active" | "rejected" | "suspended";
-    id: string;
     requestedTierName: string;
     quotedPriceKind: "fixed" | "range" | "set_by_psf";
     quotedFeeRwf: number | null;
@@ -2035,11 +2035,11 @@ export declare const PsfOfficerApplication: z.ZodObject<{
     status: "submitted" | "member" | "declined" | "withdrawn";
     requestedTierCode: string;
     decidedAt: string | null;
+    id: string;
     orgId: string;
     districtName: string | null;
     submittedAt: string;
     registrationStatus: "pending_payment" | "submitted" | "tin_verified" | "field_verified" | "approved" | "active" | "rejected" | "suspended";
-    id: string;
     requestedTierName: string;
     quotedPriceKind: "fixed" | "range" | "set_by_psf";
     quotedFeeRwf: number | null;

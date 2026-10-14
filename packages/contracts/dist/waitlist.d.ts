@@ -162,8 +162,8 @@ export declare const AdminWaitlistRow: z.ZodObject<{
     districtId: number | null;
     fullName: string;
     email: string;
-    districtName: string | null;
     id: string;
+    districtName: string | null;
     businessName: string | null;
     createdAt: string;
     audience: "owner" | "traveller";
@@ -177,8 +177,8 @@ export declare const AdminWaitlistRow: z.ZodObject<{
     districtId: number | null;
     fullName: string;
     email: string;
-    districtName: string | null;
     id: string;
+    districtName: string | null;
     businessName: string | null;
     createdAt: string;
     audience: "owner" | "traveller";
@@ -211,8 +211,8 @@ export declare const AdminWaitlistPage: z.ZodObject<{
         districtId: number | null;
         fullName: string;
         email: string;
-        districtName: string | null;
         id: string;
+        districtName: string | null;
         businessName: string | null;
         createdAt: string;
         audience: "owner" | "traveller";
@@ -226,8 +226,8 @@ export declare const AdminWaitlistPage: z.ZodObject<{
         districtId: number | null;
         fullName: string;
         email: string;
-        districtName: string | null;
         id: string;
+        districtName: string | null;
         businessName: string | null;
         createdAt: string;
         audience: "owner" | "traveller";
@@ -244,8 +244,8 @@ export declare const AdminWaitlistPage: z.ZodObject<{
         districtId: number | null;
         fullName: string;
         email: string;
-        districtName: string | null;
         id: string;
+        districtName: string | null;
         businessName: string | null;
         createdAt: string;
         audience: "owner" | "traveller";
@@ -262,8 +262,8 @@ export declare const AdminWaitlistPage: z.ZodObject<{
         districtId: number | null;
         fullName: string;
         email: string;
-        districtName: string | null;
         id: string;
+        districtName: string | null;
         businessName: string | null;
         createdAt: string;
         audience: "owner" | "traveller";

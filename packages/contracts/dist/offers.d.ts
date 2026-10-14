@@ -297,8 +297,8 @@ export declare const GuestOffer: z.ZodObject<{
     redeemed: z.ZodBoolean;
 }, "strip", z.ZodTypeAny, {
     name: string;
-    reason: string | null;
     id: string;
+    reason: string | null;
     startsOn: string;
     propertyName: string | null;
     scope: "room" | "service" | "folio";
@@ -316,8 +316,8 @@ export declare const GuestOffer: z.ZodObject<{
     redeemed: boolean;
 }, {
     name: string;
-    reason: string | null;
     id: string;
+    reason: string | null;
     startsOn: string;
     propertyName: string | null;
     scope: "room" | "service" | "folio";
@@ -362,8 +362,8 @@ export declare const GuestOfferList: z.ZodObject<{
         redeemed: z.ZodBoolean;
     }, "strip", z.ZodTypeAny, {
         name: string;
-        reason: string | null;
         id: string;
+        reason: string | null;
         startsOn: string;
         propertyName: string | null;
         scope: "room" | "service" | "folio";
@@ -381,8 +381,8 @@ export declare const GuestOfferList: z.ZodObject<{
         redeemed: boolean;
     }, {
         name: string;
-        reason: string | null;
         id: string;
+        reason: string | null;
         startsOn: string;
         propertyName: string | null;
         scope: "room" | "service" | "folio";
@@ -403,8 +403,8 @@ export declare const GuestOfferList: z.ZodObject<{
     stayId: string | null;
     offers: {
         name: string;
-        reason: string | null;
         id: string;
+        reason: string | null;
         startsOn: string;
         propertyName: string | null;
         scope: "room" | "service" | "folio";
@@ -425,8 +425,8 @@ export declare const GuestOfferList: z.ZodObject<{
     stayId: string | null;
     offers: {
         name: string;
-        reason: string | null;
         id: string;
+        reason: string | null;
         startsOn: string;
         propertyName: string | null;
         scope: "room" | "service" | "folio";

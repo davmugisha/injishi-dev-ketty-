@@ -491,8 +491,8 @@ export declare const EmployeeDocument: z.ZodObject<{
     status: "submitted" | "approved" | "rejected" | "requested";
     issuedOn: string | null;
     expiresOn: string | null;
-    expired: boolean;
     id: string;
+    expired: boolean;
     employee: {
         employeeId: string;
         displayName: string;
@@ -517,8 +517,8 @@ export declare const EmployeeDocument: z.ZodObject<{
     status: "submitted" | "approved" | "rejected" | "requested";
     issuedOn: string | null;
     expiresOn: string | null;
-    expired: boolean;
     id: string;
+    expired: boolean;
     employee: {
         employeeId: string;
         displayName: string;
@@ -594,8 +594,8 @@ export declare const EmployeeDocumentList: z.ZodObject<{
         status: "submitted" | "approved" | "rejected" | "requested";
         issuedOn: string | null;
         expiresOn: string | null;
-        expired: boolean;
         id: string;
+        expired: boolean;
         employee: {
             employeeId: string;
             displayName: string;
@@ -620,8 +620,8 @@ export declare const EmployeeDocumentList: z.ZodObject<{
         status: "submitted" | "approved" | "rejected" | "requested";
         issuedOn: string | null;
         expiresOn: string | null;
-        expired: boolean;
         id: string;
+        expired: boolean;
         employee: {
             employeeId: string;
             displayName: string;
@@ -648,8 +648,8 @@ export declare const EmployeeDocumentList: z.ZodObject<{
         status: "submitted" | "approved" | "rejected" | "requested";
         issuedOn: string | null;
         expiresOn: string | null;
-        expired: boolean;
         id: string;
+        expired: boolean;
         employee: {
             employeeId: string;
             displayName: string;
@@ -676,8 +676,8 @@ export declare const EmployeeDocumentList: z.ZodObject<{
         status: "submitted" | "approved" | "rejected" | "requested";
         issuedOn: string | null;
         expiresOn: string | null;
-        expired: boolean;
         id: string;
+        expired: boolean;
         employee: {
             employeeId: string;
             displayName: string;
