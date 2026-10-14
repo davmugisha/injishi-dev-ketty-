@@ -261,10 +261,13 @@ export class BookingService {
 
     const nonRefundable = input.nonRefundable && roomType.nonrefundableEligible;
 
+    // Priced per person: the rate is per guest, per night (infants are not in
+    // `guests`, so they stay free).
     const breakdown = computeBreakdown({
       nightlyRateRwf: roomType.nightlyRateRwf,
       nights,
       nonRefundable,
+      guests: input.guests,
     });
 
     /**

@@ -1,4 +1,4 @@
-import { InjectQueue, Processor, WorkerHost } from '@nestjs/bullmq';
+import { InjectQueue, OnWorkerEvent, Processor, WorkerHost } from '@nestjs/bullmq';
 import { Inject, Logger, OnModuleInit } from '@nestjs/common';
 import { DelayedError, type Job, type Queue } from 'bullmq';
 
@@ -16,6 +16,7 @@ import {
 } from '../../payments/domain/payment-port';
 import { QUEUES } from '../../../shared/queues/queues.module';
 import { BookingRepository } from './booking.repository';
+import { reportJobFailure } from '../../../shared/observability/report-job-failure';
 
 export const DRAIN_OUTBOX = 'drain-outbox';
 const DRAIN_EVERY_MS = 60_000;
@@ -215,5 +216,11 @@ export class PaymentCompensationProcessor
         ? `Released and declined ${recorded[0]?.reference} on key ${data.idempotencyKey}`
         : `Released ${data.originalRef}; booking ${data.bookingId} was already resolved`,
     );
+  }
+
+  /** A job failing its last attempt is reported (ADR-063 AC-12). Earlier attempts are retries. */
+  @OnWorkerEvent('failed')
+  onFailed(job: Job | undefined, error: Error): void {
+    reportJobFailure(QUEUES.paymentCompensation, job, error);
   }
 }

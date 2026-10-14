@@ -1,6 +1,6 @@
 "use client";
 
-import { ChevronDown, Flag } from "lucide-react";
+import { CalendarCheck, CalendarDays, ChevronDown, Flag, type LucideIcon, Users } from "lucide-react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
@@ -31,8 +31,7 @@ import {
   roomForParty,
   type PropertyRooms,
 } from "@/data/property-rooms";
-import type { ApiResult } from "@/lib/api";
-import type { PropertyDetail } from "@/data/properties";
+import { retryWhileFailed, type ApiResult } from "@/lib/api";
 
 /**
  * The booking widget.
@@ -46,8 +45,8 @@ import type { PropertyDetail } from "@/data/properties";
  * seeds itself from them. It used to open empty on every visit and ask both
  * questions a second time, which is the defect the search contract in
  * `lib/search-params.ts` exists to close. `useSearchParams` keeps the property
- * page itself statically generated: the params are read in the browser, so the
- * page needs no `searchParams` prop and stays on `generateStaticParams`.
+ * page cacheable: the params are read in the browser, so the page needs no
+ * `searchParams` prop and is not rendered per query string.
  *
  * The three controls sit inside one bordered box divided by hairlines rather
  * than as three separate boxes. That is not decoration: it is what makes the
@@ -59,13 +58,14 @@ import type { PropertyDetail } from "@/data/properties";
  * opens the picker that unblocks it.
  */
 /**
- * The three facts the card reads about a property, and no more.
- *
- * Narrow on purpose, so a published database property (ADR-053) can be sold from
- * the same card as a catalogue record: its slug addresses the real rooms, it has
- * no rack rate to quote, and its guest ceiling is its largest room type.
+ * The two facts the card reads about a property, and no more: its slug
+ * addresses the real rooms, and its guest ceiling is its largest room type.
+ * Every rate it quotes is a room's, read from the API.
  */
-export type BookingWidgetProperty = Pick<PropertyDetail, "slug" | "nightlyRateRwf" | "maxGuests">;
+export interface BookingWidgetProperty {
+  slug: string;
+  maxGuests: number;
+}
 
 export function BookingWidget({ property }: { property: BookingWidgetProperty }) {
   const params = useSearchParams();
@@ -89,7 +89,7 @@ export function BookingWidget({ property }: { property: BookingWidgetProperty })
    * The card used to own a non-refundable checkbox. Whether that rate exists is
    * `nonrefundableEligible` on the ROOM TYPE (F-B05 Path A), and this card
    * never reads a room type, so it was offering a 10% discount on every
-   * property in the catalogue. The server drops the flag for a room type that
+   * property. The server drops the flag for a room type that
    * is not eligible, so a guest could tick it, watch the total fall, and be
    * charged the full rate (ADR-014 AC-7).
    *
@@ -116,7 +116,9 @@ export function BookingWidget({ property }: { property: BookingWidgetProperty })
     let cancelled = false;
     setRooms(null);
     void (async () => {
-      const result = await fetchPropertyRooms(property.slug);
+      // Retried before it is shown: a restart of the API lasts seconds, and a
+      // guest who arrived with dates should see the rooms, not a button.
+      const result = await retryWhileFailed(() => fetchPropertyRooms(property.slug));
       if (!cancelled) setRooms(result);
     })();
     return () => {
@@ -142,6 +144,12 @@ export function BookingWidget({ property }: { property: BookingWidgetProperty })
    */
   const ceiling = largestParty(sellable);
   const maxGuests = sellable.length > 0 ? (ceiling ?? property.maxGuests) : property.maxGuests;
+  // Infants are free but never more than the stay sleeps: a link carrying
+  // five infants into a room for two is trimmed, the same ceiling the picker holds.
+  useEffect(() => {
+    if (guests.infants > maxGuests) setGuests((g) => ({ ...g, infants: maxGuests }));
+  }, [guests.infants, maxGuests]);
+
   /** Rooms are on sale, but none sleeps this many. The guest can fix this one. */
   const partyTooLarge = sellable.length > 0 && bookable === null;
 
@@ -171,17 +179,12 @@ export function BookingWidget({ property }: { property: BookingWidgetProperty })
   }, [bookableRoomTypeId]);
 
   /*
-   * ONE rate, and the server's wins.
-   *
-   * `property.nightlyRateRwf` is the rack rate this business publishes, which
-   * is what a directory quotes for a place it does not sell. Where Injishi DOES
-   * sell the room, the rate that matters is the one the API will charge, and
-   * quoting the other one is how a preview comes to disagree with a charge —
-   * the exact defect `lib/booking.ts` exists to prevent one layer down.
+   * ONE rate, and it is the server's: the room the API will charge for. A
+   * property with nothing on sale has no rate to quote, rather than a figure
+   * from somewhere else that a charge would then disagree with — the exact
+   * defect `lib/booking.ts` exists to prevent one layer down.
    */
-  const quotedRateRwf =
-    (bookable ?? sellable[0] ?? null)?.nightlyRateRwf ?? property.nightlyRateRwf;
-  const showingRackRate = notSold && property.nightlyRateRwf !== null;
+  const quotedRateRwf = (bookable ?? sellable[0] ?? null)?.nightlyRateRwf ?? null;
 
   const quote = useMemo(
     () =>
@@ -190,9 +193,11 @@ export function BookingWidget({ property }: { property: BookingWidgetProperty })
         : computeQuote({
             nightlyRateRwf: quotedRateRwf,
             nights,
+            // Priced per person: adding a guest adds their nights.
+            guests: party,
             nonRefundable,
           }),
-    [quotedRateRwf, nights, nonRefundable],
+    [quotedRateRwf, nights, party, nonRefundable],
   );
 
   /**
@@ -229,7 +234,7 @@ export function BookingWidget({ property }: { property: BookingWidgetProperty })
           // property from it server-side (`GET /api/v1/bookable/:roomTypeId`),
           // so a link can no longer name a room and a property that disagree —
           // and `data/demo-listing.ts`, which lent one seeded room to every
-          // property in the catalogue, is deleted rather than switched off.
+          // property, is deleted rather than switched off.
           roomTypeId: bookableRoomTypeId,
         })
       : null;
@@ -238,7 +243,9 @@ export function BookingWidget({ property }: { property: BookingWidgetProperty })
     <div className="flex h-max flex-col lg:sticky lg:top-24">
       <aside
         id="booking"
-        className="flex flex-col rounded-card border border-input bg-card p-6 shadow-[0_6px_16px_rgba(4,35,48,0.12)]"
+        // The same soft surface as the key-facts tiles beside it: a hairline
+        // ring, no heavy border, one quiet shadow.
+        className="flex flex-col rounded-card bg-card p-6 shadow-control ring-1 ring-border"
       >
         <h2 className="mb-5 text-xl font-semibold leading-tight text-page-fg">
           {quote ? (
@@ -253,12 +260,14 @@ export function BookingWidget({ property }: { property: BookingWidgetProperty })
           )}
         </h2>
 
-        {/* One box, three cells, hairlines between. See the note above. */}
-        <div className="overflow-hidden rounded border border-input">
-          <div className="flex">
+        {/* Three field tiles in the key-facts style: dates side by side,
+            guests full width under them. */}
+        <div className="flex flex-col gap-2">
+          <div className="grid grid-cols-2 gap-2">
             <Popover open={datesOpen} onOpenChange={setDatesOpen}>
               <PopoverTrigger asChild>
                 <FieldButton
+                  icon={CalendarDays}
                   label="Check-in"
                   value={range?.from ? formatCell(range.from) : "Add date"}
                   muted={!range?.from}
@@ -286,9 +295,8 @@ export function BookingWidget({ property }: { property: BookingWidgetProperty })
               </PopoverContent>
             </Popover>
 
-            <span aria-hidden className="w-px self-stretch bg-input" />
-
             <FieldButton
+              icon={CalendarCheck}
               label="Checkout"
               value={range?.to ? formatCell(range.to) : "Add date"}
               muted={!range?.to}
@@ -296,11 +304,10 @@ export function BookingWidget({ property }: { property: BookingWidgetProperty })
             />
           </div>
 
-          <span aria-hidden className="block h-px w-full bg-input" />
-
           <Popover open={guestsOpen} onOpenChange={setGuestsOpen}>
             <PopoverTrigger asChild>
               <FieldButton
+                icon={Users}
                 label="Guests"
                 value={guestSummary(guests)}
                 full
@@ -328,8 +335,8 @@ export function BookingWidget({ property }: { property: BookingWidgetProperty })
           asked a pricing question before there were any dates to price.
         */}
         {/*
-          The label used to read "Request to book" on every property in the
-          catalogue. That is a booking MODE, it is a per-room-type fact
+          The label used to read "Request to book" on every property. That is
+          a booking MODE, it is a per-room-type fact
           (F-B03), and nothing here knows it: a property whose rooms are
           instant_book was being told its guest would wait for a host who
           never has to answer. Where the mode is unknown the wording promises
@@ -364,13 +371,13 @@ export function BookingWidget({ property }: { property: BookingWidgetProperty })
         ) : null}
 
         {checkoutHref ? (
-          <Button asChild size="lg" className="mt-4 h-12 w-full rounded text-base">
+          <Button asChild size="lg" className="mt-4 h-12 w-full rounded-full text-base font-bold">
             <Link href={checkoutHref}>Review this stay</Link>
           </Button>
         ) : dateProblem ? (
           <Button
             size="lg"
-            className="mt-4 h-12 w-full rounded text-base"
+            className="mt-4 h-12 w-full rounded-full text-base font-bold"
             onClick={() => setDatesOpen(true)}
           >
             Pick different dates
@@ -378,7 +385,7 @@ export function BookingWidget({ property }: { property: BookingWidgetProperty })
         ) : partyTooLarge ? (
           <Button
             size="lg"
-            className="mt-4 h-12 w-full rounded text-base"
+            className="mt-4 h-12 w-full rounded-full text-base font-bold"
             onClick={() => setGuestsOpen(true)}
           >
             Change guests
@@ -386,13 +393,13 @@ export function BookingWidget({ property }: { property: BookingWidgetProperty })
         ) : unreadable ? (
           <Button
             size="lg"
-            className="mt-4 h-12 w-full rounded text-base"
+            className="mt-4 h-12 w-full rounded-full text-base font-bold"
             onClick={() => setAttempt((n) => n + 1)}
           >
             Try again
           </Button>
         ) : notSold ? (
-          <p className="mt-4 rounded border border-input p-3 text-center text-sm text-page-fg">
+          <p className="mt-4 rounded-card bg-surface-secondary p-3 text-center text-sm text-page-fg">
             This stay can&apos;t be booked online right now.{" "}
             <Link href="/support" className="underline underline-offset-4">
               Ask us about it
@@ -401,7 +408,7 @@ export function BookingWidget({ property }: { property: BookingWidgetProperty })
         ) : (
           <Button
             size="lg"
-            className="mt-4 h-12 w-full rounded text-base"
+            className="mt-4 h-12 w-full rounded-full text-base font-bold"
             onClick={() => setDatesOpen(true)}
           >
             Book Now
@@ -410,11 +417,7 @@ export function BookingWidget({ property }: { property: BookingWidgetProperty })
 
         {/* One reassurance line, not two stacked at two different sizes. */}
         <p className="mt-4 text-center text-sm text-page-fg-70">
-          {bookable
-            ? "You will not be charged yet. Payment is held in escrow until check-in."
-            : showingRackRate
-              ? "Indicative rate published by the property. Injishi is not selling this stay."
-              : "You will not be charged yet. Payment is held in escrow until check-in."}
+          You will not be charged yet. Payment is held in escrow until check-in.
         </p>
 
         {quote ? (
@@ -462,10 +465,10 @@ export function BookingWidget({ property }: { property: BookingWidgetProperty })
 export function BookingWidgetSkeleton() {
   return (
     <div className="flex h-max flex-col lg:sticky lg:top-24" aria-hidden>
-      <div className="flex flex-col gap-4 rounded-card border border-input bg-card p-6">
+      <div className="flex flex-col gap-4 rounded-card bg-card p-6 ring-1 ring-border">
         <div className="h-7 w-2/3 animate-pulse rounded bg-surface-secondary" />
-        <div className="h-[104px] animate-pulse rounded bg-surface-secondary" />
-        <div className="h-12 animate-pulse rounded bg-surface-secondary" />
+        <div className="h-[136px] animate-pulse rounded-card bg-surface-secondary" />
+        <div className="h-12 animate-pulse rounded-full bg-surface-secondary" />
         <div className="mx-auto h-4 w-4/5 animate-pulse rounded bg-surface-secondary" />
       </div>
     </div>
@@ -478,6 +481,7 @@ function formatCell(date: Date): string {
 }
 
 function FieldButton({
+  icon: Icon,
   label,
   value,
   muted = false,
@@ -486,6 +490,7 @@ function FieldButton({
   onClick,
   ...rest
 }: {
+  icon: LucideIcon;
   label: string;
   value: string;
   muted?: boolean;
@@ -500,29 +505,31 @@ function FieldButton({
       onClick={onClick}
       /* `--button-bg`, not a `bg-*` class. HeroUI's `.button--*` rules declare
          `background-color: var(--button-bg)` unlayered, and unlayered beats
-         Tailwind's `@layer utilities`, so a colour class here never lands.
-         The hover wash is ink at alpha; pure black is banned platform wide. */
-      className={`${full ? "w-full" : "flex-1"} h-auto justify-between gap-2 px-3 py-2.5 text-left font-normal [--button-bg:transparent] [--button-bg-hover:var(--surface-secondary)]`}
+         Tailwind's `@layer utilities`, so a colour class here never lands. */
+      className={`${full ? "w-full" : "w-full min-w-0"} h-auto justify-between gap-2.5 rounded-card p-3 text-left font-normal ring-1 ring-border [--button-bg:var(--card)] [--button-bg-hover:var(--surface-secondary)]`}
       {...rest}
     >
-      <span className="min-w-0">
-        <span className="block text-2xs font-semibold uppercase tracking-[0.04em] text-page-fg">
-          {label}
+      <span className="flex min-w-0 items-center gap-2.5">
+        <span className="flex size-9 shrink-0 items-center justify-center rounded-full bg-surface-secondary text-accent-text">
+          <Icon className="size-4" strokeWidth={2} aria-hidden />
         </span>
-        <span
-          className={`block truncate text-sm ${muted ? "text-page-fg-70" : "text-page-fg"}`}
-        >
-          {value}
+        <span className="min-w-0">
+          <span className="block text-xs text-page-fg-70">{label}</span>
+          <span
+            className={`block truncate text-sm font-bold ${muted ? "text-page-fg-70" : "text-page-fg"}`}
+          >
+            {value}
+          </span>
         </span>
       </span>
 
       {chevron ? (
         <ChevronDown
-          width={14}
-          height={14}
-          strokeWidth={1.6}
+          width={16}
+          height={16}
+          strokeWidth={2}
           aria-hidden
-          className={`shrink-0 text-page-fg transition-transform ${chevron === "up" ? "rotate-180" : ""}`}
+          className={`shrink-0 text-page-fg-70 transition-transform ${chevron === "up" ? "rotate-180" : ""}`}
         />
       ) : null}
     </Button>

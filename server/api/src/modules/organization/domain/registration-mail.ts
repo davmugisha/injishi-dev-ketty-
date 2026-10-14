@@ -328,16 +328,16 @@ export function officersCoveringDistrict(
 // ---------------------------------------------------------------------------
 
 /** `50000` → `RWF 50,000`. */
-function money(amountRwf: number): string {
+export function money(amountRwf: number): string {
   return `RWF ${amountRwf.toLocaleString('en-US')}`;
 }
 
-function greeting(to: Addressee): string {
+export function greeting(to: Addressee): string {
   const name = to.name?.trim();
   return name ? `Hello ${name},` : 'Hello,';
 }
 
-interface MailParts {
+export interface MailParts {
   subject: string;
   heading: string;
   greeting: string;
@@ -352,8 +352,11 @@ const SIGN_OFF = 'The Injishi team';
 const FOOTER =
   'You are receiving this email because of a business registration on Injishi.';
 
-/** One layout for every registration mail, in plain text and in HTML. */
-function compose(parts: MailParts): RegistrationMail {
+/**
+ * One layout for every registration mail, in plain text and in HTML. Exported
+ * so PSF membership mail (ADR-056, `psf-mail.ts`) looks the same.
+ */
+export function compose(parts: MailParts): RegistrationMail {
   const subject = parts.subject.replace(/[\r\n]+/g, ' ').trim();
 
   const text = [

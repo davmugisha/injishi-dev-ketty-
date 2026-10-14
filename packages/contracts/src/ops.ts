@@ -1,6 +1,6 @@
 import { z } from "zod";
 import { BookingStatus } from "./booking";
-import { ContactPhone, OrgRole, Uuid } from "./primitives";
+import { AdapterMode, ContactPhone, OrgRole, Uuid } from "./primitives";
 import { Tin } from "./registration";
 /**
  * The operator command surface (ADR-012, `/api/v1/ops/*`).
@@ -55,6 +55,12 @@ export const OperatorReservation = z.object({
     reference: z.string().min(1),
     /** `users.name`, which is nullable: an account may exist before a name does. */
     guestName: z.string().nullable(),
+    /**
+     * The guest account's email, for the desk to tell an unnamed guest apart
+     * (shown where `guestName` is null). DISPLAY ONLY: never copied into the
+     * check-in, which records a person's name. Defaulted so an older API parses.
+     */
+    guestEmail: z.string().nullable().default(null),
     /** `YYYY-MM-DD`. A bare date column, so no timezone rides along. */
     checkIn: z.string(),
     checkOut: z.string(),
@@ -72,6 +78,14 @@ export const OperatorReservation = z.object({
      * row of another type before the desk drops a bar there and is refused.
      */
     roomTypeId: Uuid,
+    /**
+     * What the guest bought and where: the room type's name and the branch it
+     * belongs to. A host with two branches saw rows naming neither, so a
+     * request could not be told apart from one at the other property.
+     * Defaulted so an older API still parses.
+     */
+    roomTypeName: z.string().nullable().default(null),
+    propertyName: z.string().nullable().default(null),
     /**
      * `bookings.gross_rwf`: what this reservation is worth.
      *
@@ -183,6 +197,12 @@ export const OperatorRoom = z.object({
     label: z.string().nullable(),
     roomTypeId: Uuid,
     roomTypeName: z.string(),
+    /**
+     * False once the room's TYPE is archived. The room keeps its own status, so
+     * without this an archived type's rooms read as free and the desk offered
+     * them to guests. Defaults to true so an older API still parses.
+     */
+    roomTypeActive: z.boolean().default(true),
     status: RoomStatus,
     housekeeping: HousekeepingStatus,
     /** The open stay in this room, if anyone is in it. */
@@ -365,7 +385,15 @@ export const WalkInRequest = z.object({
     guestName: z.string().trim().min(1).max(200),
     /** Absent means open ended. */
     plannedExitAt: z.string().optional(),
-    /** The nightly rate agreed at the counter. */
+    /**
+     * The nightly rate agreed at the counter.
+     *
+     * Absent means the room type's default rate plan, and a walk in with
+     * NEITHER is refused. The night audit bills a walk in from the price on its
+     * stay, so a stay opened without one is a room nobody is ever charged for —
+     * and check out closes that zero bill by itself, so the guest leaves and
+     * nothing is owed.
+     */
     nightlyRateRwf: z.number().int().positive().optional(),
     /**
      * The registration card, and the invitation that follows it (§6.8).
@@ -578,6 +606,59 @@ export const OperatorRentRoll = z.object({
     charges: z.array(OperatorRentCharge),
 });
 export type OperatorRentRoll = z.infer<typeof OperatorRentRoll>;
+/**
+ * Where the filing of one signed contract stands (F-R10 §8).
+ *
+ * The same three values as the `filing_status` enum, and deliberately no
+ * fourth: "not filed yet" is the ABSENCE of a filing, carried as a null status
+ * on the row below, not a state a filing can be in.
+ */
+export const FilingStatus = z.enum(["pending", "filed", "failed"]);
+export type FilingStatus = z.infer<typeof FilingStatus>;
+/**
+ * How long Injishi has to file a signed contract with the tax administration,
+ * counted from signing (F-R10 §6, §9).
+ *
+ * One definition, because both sides count against it: the API dates `due_by`
+ * from it and the operator app words the clock from it.
+ */
+export const CONTRACT_FILING_WINDOW_DAYS = 15;
+/**
+ * A lease and the filing of its contract, for the Filings lens on Finance.
+ *
+ * One row PER LEASE, not per filing, and that is the point. A lease whose
+ * contract nothing has filed is exactly what a landlord must be shown, and a
+ * list of filings cannot show it. `status` is null on such a lease, and
+ * `signedAt` says whether that is because nobody has signed yet or because the
+ * filing was never raised.
+ *
+ * `adapterMode` rides along for the reason it rides along on every other
+ * adapter-backed answer in this repository: a screen that cannot tell a real
+ * filing from a stand-in will eventually claim one. There is no RRA contract
+ * channel yet (F-R10 §11, open question O-4), so every row today is `mock`.
+ */
+export const OperatorContractFiling = z.object({
+    leaseId: Uuid,
+    unitLabel: z.string().nullable(),
+    tenantName: z.string().nullable(),
+    leaseStatus: LeaseStatus,
+    /** Null when no filing has been raised for this lease at all. */
+    status: FilingStatus.nullable(),
+    /** When the fifteen days started. The signature, or the amendment that reset it. */
+    clockStartAt: z.string().nullable(),
+    dueBy: z.string().nullable(),
+    attempts: z.number().int().nonnegative(),
+    /** Required on a failure (F-R10 §6: never silently dropped), null otherwise. */
+    failureReason: z.string().nullable(),
+    adapterMode: AdapterMode.nullable(),
+    /** The tenant's signature: what the clock starts at, when there is one. */
+    signedAt: z.string().nullable(),
+});
+export type OperatorContractFiling = z.infer<typeof OperatorContractFiling>;
+export const OperatorFilingList = z.object({
+    filings: z.array(OperatorContractFiling),
+});
+export type OperatorFilingList = z.infer<typeof OperatorFilingList>;
 /**
  * Record a rent payment against one month of one lease.
  *
@@ -1115,8 +1196,37 @@ export const OperatorTeamMember = z.object({
     /** `active` or `removed`. A removed member keeps their history. */
     status: z.string(),
     joinedAt: z.string(),
+    /**
+     * The branches this member is limited to (ADR-054 AC-T1). `null` means
+     * every branch, which an owner always is. Archived branches a member was
+     * limited to stay listed, so the screen can say why one reads as retired.
+     */
+    branchIds: z.array(Uuid).nullable(),
 });
 export type OperatorTeamMember = z.infer<typeof OperatorTeamMember>;
+/**
+ * Which branches a member covers, as a request carries it (ADR-054 AC-T1).
+ *
+ * `null` means every branch; a list means only those. An empty list is not
+ * refused here but by the service, with the other AC-T1 refusals, because
+ * "no branch at all" is a rule about the business, not the shape: it answers
+ * 422 beside "that branch is archived" rather than 400 beside a malformed id.
+ */
+export const MemberBranchIds = z.array(Uuid).nullable();
+export type MemberBranchIds = z.infer<typeof MemberBranchIds>;
+/** `PUT /api/v1/ops/team/:userId/branches`. */
+export const SetMemberBranchesRequest = z.object({
+    branchIds: MemberBranchIds,
+});
+export type SetMemberBranchesRequest = z.infer<typeof SetMemberBranchesRequest>;
+/** The words a member's branch refusal carries (ADR-054 AC-T1), one per rule. */
+export const MEMBER_BRANCHES_REFUSAL = {
+    owner: "An owner always covers every branch.",
+    empty: "Choose at least one branch, or every branch.",
+    foreign: "That branch does not belong to this business.",
+    archived: "That branch is archived. Restore it first, or choose another.",
+    residence: "A residence business has no branches to limit.",
+} as const;
 export const OperatorTeamList = z.object({
     members: z.array(OperatorTeamMember),
 });
@@ -1138,6 +1248,8 @@ export const ORG_ROLE_LABEL: Readonly<Record<OrgRole, string>> = {
     owner: "Owner",
     manager: "Manager",
     receptionist: "Front office / Receptionist",
+    finance: "Finance",
+    hr: "HR",
     housekeeper: "Housekeeper",
 };
 export const InviteStaffRequest = z.object({
@@ -1148,6 +1260,8 @@ export const InviteStaffRequest = z.object({
         .email("Use an email address like name@example.com.")
         .max(200),
     orgRole: InvitableOrgRole,
+    /** The branches the invitee will cover; absent or null is every branch (ADR-054). */
+    branchIds: MemberBranchIds.default(null),
 });
 export type InviteStaffRequest = z.infer<typeof InviteStaffRequest>;
 export const StaffInvitationStatus = z.enum(["sent", "accepted", "revoked", "expired"]);
@@ -1167,6 +1281,8 @@ export const OperatorStaffInvitation = z.object({
     status: StaffInvitationStatus,
     expiresAt: z.string(),
     createdAt: z.string(),
+    /** The branches the invitee will cover; null is every branch (ADR-054). */
+    branchIds: z.array(Uuid).nullable(),
 });
 export type OperatorStaffInvitation = z.infer<typeof OperatorStaffInvitation>;
 export const OperatorStaffInvitationList = z.object({

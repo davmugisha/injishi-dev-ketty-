@@ -1,8 +1,8 @@
 /**
  * The SMS seam (ADR-039).
  *
- * ONE interface for every text message the platform sends, which today is
- * exactly one kind: a sign-in code. Business logic calls this and nothing else;
+ * ONE interface for every text message the platform sends: a code, today the
+ * National ID identity code (ADR-060). Business logic calls this and nothing else;
  * it never names a provider, never sees an HTTP status, and never branches on
  * `mock` versus `live`. Choosing a provider is registering a different
  * implementation in `sms.module.ts` and changing nothing here or above.
@@ -20,12 +20,19 @@
  *
  * **A code never reaches a log.** Not on the happy path, not on a failure path,
  * and neither does a full phone number. There is ONE written exception, in
- * `MockSmsAdapter`, and it is made structurally unreachable in production
- * rather than switched off by configuration.
+ * `MockSmsAdapter`, and it is made structurally unreachable over a real
+ * database rather than switched off by configuration (`resolveSmsMode`).
  */
 
 /** Which side of the seam is live. Mirrors the Postgres `adapter_mode` enum. */
 export type SmsAdapterMode = 'mock' | 'live';
+
+/**
+ * How this process runs the seam: one of the two adapters, or `off`, which is
+ * no provider and no mock (a real database before a provider is registered).
+ * Never stored, which is why `off` is not an `adapter_mode` value.
+ */
+export type SmsMode = SmsAdapterMode | 'off';
 
 /** Nest injection token. Everything depends on the interface, not a class. */
 export const SMS_PORT = 'SMS_PORT';
@@ -56,7 +63,7 @@ export interface SmsMessage {
 
 export interface SmsPort {
   /** Which side of the seam this instance is. Surfaced for boot logging only. */
-  readonly mode: SmsAdapterMode;
+  readonly mode: SmsMode;
   /**
    * Send one message, or throw `SmsUnavailableError`.
    *

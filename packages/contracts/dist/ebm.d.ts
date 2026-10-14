@@ -227,13 +227,13 @@ export declare const EbmCisBlock: z.ZodObject<{
     mrc: z.ZodString;
 }, "strip", z.ZodTypeAny, {
     date: string;
-    receiptNumber: number;
     time: string;
+    receiptNumber: number;
     mrc: string;
 }, {
     date: string;
-    receiptNumber: number;
     time: string;
+    receiptNumber: number;
     mrc: string;
 }>;
 export type EbmCisBlock = z.infer<typeof EbmCisBlock>;
@@ -250,12 +250,12 @@ export declare const EbmSeller: z.ZodObject<{
      */
     tin: z.ZodString;
 }, "strip", z.ZodTypeAny, {
-    tin: string;
     address: string;
+    tin: string;
     tradeName: string;
 }, {
-    tin: string;
     address: string;
+    tin: string;
     tradeName: string;
 }>;
 export type EbmSeller = z.infer<typeof EbmSeller>;
@@ -264,11 +264,11 @@ export declare const EbmPayment: z.ZodObject<{
     label: z.ZodString;
     amountRwf: z.ZodNumber;
 }, "strip", z.ZodTypeAny, {
-    label: string;
     amountRwf: number;
+    label: string;
 }, {
-    label: string;
     amountRwf: number;
+    label: string;
 }>;
 export type EbmPayment = z.infer<typeof EbmPayment>;
 /**
@@ -298,12 +298,12 @@ export declare const EbmReceipt: z.ZodObject<{
          */
         tin: z.ZodString;
     }, "strip", z.ZodTypeAny, {
-        tin: string;
         address: string;
+        tin: string;
         tradeName: string;
     }, {
-        tin: string;
         address: string;
+        tin: string;
         tradeName: string;
     }>;
     /** Free text printed under the header, e.g. "Welcome to our shop". */
@@ -360,11 +360,11 @@ export declare const EbmReceipt: z.ZodObject<{
         label: z.ZodString;
         amountRwf: z.ZodNumber;
     }, "strip", z.ZodTypeAny, {
-        label: string;
         amountRwf: number;
+        label: string;
     }, {
-        label: string;
         amountRwf: number;
+        label: string;
     }>;
     /** 7.27 — the number of items shown on the receipt, excluding voids. */
     itemsNumber: z.ZodNumber;
@@ -438,22 +438,18 @@ export declare const EbmReceipt: z.ZodObject<{
         mrc: z.ZodString;
     }, "strip", z.ZodTypeAny, {
         date: string;
-        receiptNumber: number;
         time: string;
+        receiptNumber: number;
         mrc: string;
     }, {
         date: string;
-        receiptNumber: number;
         time: string;
+        receiptNumber: number;
         mrc: string;
     }>;
     /** Closing commercial message, one entry per printed line. */
     closingMessage: z.ZodArray<z.ZodString, "many">;
 }, "strip", z.ZodTypeAny, {
-    payment: {
-        label: string;
-        amountRwf: number;
-    };
     items: {
         name: string;
         totalRwf: number;
@@ -463,13 +459,17 @@ export declare const EbmReceipt: z.ZodObject<{
         discountPercent: number | null;
         discountedTotalRwf: number | null;
     }[];
+    payment: {
+        amountRwf: number;
+        label: string;
+    };
     totalRwf: number;
     bookingReference: string;
     receiptType: "CR" | "NR" | "PS" | "NS" | "CS" | "TS";
     transaction: "SALE" | "REFUND";
     seller: {
-        tin: string;
         address: string;
+        tin: string;
         tradeName: string;
     };
     commercialMessage: string;
@@ -496,16 +496,12 @@ export declare const EbmReceipt: z.ZodObject<{
     };
     cis: {
         date: string;
-        receiptNumber: number;
         time: string;
+        receiptNumber: number;
         mrc: string;
     };
     closingMessage: string[];
 }, {
-    payment: {
-        label: string;
-        amountRwf: number;
-    };
     items: {
         name: string;
         totalRwf: number;
@@ -515,13 +511,17 @@ export declare const EbmReceipt: z.ZodObject<{
         discountPercent: number | null;
         discountedTotalRwf: number | null;
     }[];
+    payment: {
+        amountRwf: number;
+        label: string;
+    };
     totalRwf: number;
     bookingReference: string;
     receiptType: "CR" | "NR" | "PS" | "NS" | "CS" | "TS";
     transaction: "SALE" | "REFUND";
     seller: {
-        tin: string;
         address: string;
+        tin: string;
         tradeName: string;
     };
     commercialMessage: string;
@@ -548,8 +548,8 @@ export declare const EbmReceipt: z.ZodObject<{
     };
     cis: {
         date: string;
-        receiptNumber: number;
         time: string;
+        receiptNumber: number;
         mrc: string;
     };
     closingMessage: string[];

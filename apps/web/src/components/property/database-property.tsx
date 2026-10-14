@@ -7,6 +7,7 @@ import {
   BookingWidget,
   BookingWidgetSkeleton,
 } from "@/components/property/booking-widget";
+import { PropertyFacilities } from "@/components/property/property-facilities";
 import { SectionHeading } from "@/components/shared/section-heading";
 import type { PublicProperty } from "@/data/public-property";
 
@@ -14,13 +15,13 @@ import type { PublicProperty } from "@/data/public-property";
  * A published property the API holds, rendered from its database fields only
  * (ADR-053, owner ruling of 2026-09-13).
  *
- * The catalogue page beside this is written for a curated record: a guest score
- * from a named source, a property type, specifications and an amenity list. The
- * database holds none of those, so this page does not have those sections at
- * all rather than rendering them empty or borrowing plausible values. What it
- * shows is what the owner authored in the operator app: the name, district,
- * description, check in and out times, house rules, photographs and every room
- * type with its price.
+ * Every property page is this one: the database is the only source (a curated
+ * catalogue of fictional stays used to have its own page, removed 2026-10-08).
+ * It has no guest score, property type or specifications, because the database
+ * holds none of them, and it does not render those sections empty or borrow
+ * plausible values. What it shows is what the owner authored in the operator
+ * app: the name, district, description, check in and out times, house rules,
+ * amenities, photographs and every room type with its price.
  *
  * Photographs are the API's photo route URLs, plain `<img>` rather than
  * `next/image`: the optimiser would fetch and cache the signed target itself,
@@ -33,7 +34,10 @@ export function DatabaseProperty({ property, slug }: { property: PublicProperty;
   const facts = [
     property.districtName,
     rooms.length > 0 ? pluralize(rooms.length, "room type") : null,
-    cheapest?.nightlyRateRwf != null ? `from ${formatPrice(cheapest.nightlyRateRwf)} a night` : null,
+    // Per person: bookings are charged rate × guests × nights.
+    cheapest?.nightlyRateRwf != null
+      ? `from ${formatPrice(cheapest.nightlyRateRwf)} per person, per night`
+      : null,
   ].filter((fact): fact is string => Boolean(fact));
   // The card's guest ceiling: nobody books more people than the largest room sleeps.
   const maxGuests = Math.max(1, ...rooms.map((room) => room.capacity ?? 1));
@@ -109,6 +113,8 @@ export function DatabaseProperty({ property, slug }: { property: PublicProperty;
             </section>
           ) : null}
 
+          <PropertyFacilities facilities={property.facilities} />
+
           {property.houseRules ? (
             <section className="flex flex-col gap-4">
               <SectionHeading lead="House rules" className="mb-2" />
@@ -121,11 +127,10 @@ export function DatabaseProperty({ property, slug }: { property: PublicProperty;
           ) : null}
         </div>
 
-        {/* The same card the catalogue page uses. It reads the real rooms by
-            slug in the browser, so a property that stops being public stops
+        {/* It reads the real rooms by slug in the browser, so a property that stops being public stops
             being sellable on the next load, whatever this page's cache holds. */}
         <Suspense fallback={<BookingWidgetSkeleton />}>
-          <BookingWidget property={{ slug, nightlyRateRwf: null, maxGuests }} />
+          <BookingWidget property={{ slug, maxGuests }} />
         </Suspense>
       </div>
     </div>
@@ -155,7 +160,7 @@ function RoomRow({ room }: { room: RoomTypeSummary }) {
         {room.nightlyRateRwf !== null ? (
           <>
             <b className="font-semibold">{formatPrice(room.nightlyRateRwf)}</b>{" "}
-            <span className="text-sm text-page-fg-70">a night</span>
+            <span className="text-sm text-page-fg-70">per person, per night</span>
           </>
         ) : (
           <span className="text-sm text-page-fg-70">Price on request</span>
@@ -167,8 +172,8 @@ function RoomRow({ room }: { room: RoomTypeSummary }) {
 
 /**
  * The photographs: one large frame and up to four beside it on a wide screen,
- * one swipeable strip on a phone. Only the outer corners are rounded, like the
- * catalogue mosaic, so five photographs read as one picture rather than five.
+ * one swipeable strip on a phone. Only the outer corners are rounded, so five
+ * photographs read as one picture rather than five.
  */
 function PhotoMosaic({ name, photos, slug }: { name: string; photos: string[]; slug: string }) {
   if (photos.length === 0) return null;

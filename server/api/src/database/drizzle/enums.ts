@@ -26,6 +26,12 @@ export const orgRoleEnum = pgEnum('org_role', [
   'owner',
   'manager',
   'receptionist',
+  // ADR-069 D-a: the accountant and the HR officer, each with a default set of
+  // its own rather than a manager's. Migration 0063 adds both `BEFORE
+  // 'housekeeper'`, so the database lists the roles in the order
+  // `@injishi/contracts` does.
+  'finance',
+  'hr',
   // Spec 0002 (D-b): the operator app has always shipped a housekeeper role
   // driving its own surface (the housekeeping phone, not a desktop), while this
   // enum stopped at `receptionist`. Promoting the database closes that drift.
@@ -242,6 +248,9 @@ export const oversightRoleEnum = pgEnum('oversight_role', [
   'tax_compliance_officer',
   'business_field_verifier',
   'business_approver',
+  // ADR-056: decides PSF membership applications. Posted at the PSF body with
+  // country scope only (OVERSIGHT_ROLE_POSTING in @injishi/contracts).
+  'psf_membership_officer',
 ]);
 
 export const oversightScopeLevelEnum = pgEnum('oversight_scope_level', [
@@ -408,6 +417,16 @@ export const storedObjectKindEnum = pgEnum('stored_object_kind', [
   // kind would put the two under one retention rule and one access rule, and
   // they need neither in common.
   'training_certificate',
+  // ADR-058, the people file. Three kinds because they are read by three
+  // different sets of people: a photo is a work field anyone reading files
+  // may see, a document is `people.manage` only, and an attachment follows the
+  // record it hangs on (a note, a policy, an announcement, a disciplinary act).
+  'staff_photo',
+  'staff_document',
+  'hr_attachment',
+  // 058-payroll: a bank or MoMo file, or a PAYE or RSSB declaration. Wages and
+  // account numbers: `payroll.run` only, never shown to the person.
+  'hr_pay_file',
 ]);
 
 
@@ -712,6 +731,39 @@ export const domainEventTypeEnum = pgEnum('domain_event_type', [
   'folio.balance',
   'ebm.health',
   'ebm.sale',
+  /**
+   * ADR-058 058-reports-automations AC-AU1: the closed list of HR triggers, all
+   * added at once in their own migration (0058) so every HR slice writes its
+   * events as it is built and the delivery slice only adds rules. Ids only in
+   * the payload, as every outbox row. The realtime fan out ignores them.
+   */
+  'leave.requested',
+  'leave.step2_pending',
+  'leave.decided',
+  'allocation.decided',
+  'roster.published',
+  'roster.changed',
+  'shift_request.decided',
+  'swap.requested',
+  'attendance.flagged',
+  'attendance_request.decided',
+  'document.requested',
+  'document.expiring',
+  'contract.ending',
+  'payslip.confirmed',
+  'claim.decided',
+  'pay_account.changed',
+  'ticket.created',
+  'ticket.status_changed',
+  'interview.scheduled',
+  'offer.sent',
+  'onboarding.link_sent',
+  'resignation.decided',
+  'asset.expiring',
+  'announcement.published',
+  'feedback.requested',
+  'exit_task.assigned',
+  'onboarding_task.assigned',
 ]);
 
 export const notificationCategoryEnum = pgEnum('notification_category', [
@@ -784,6 +836,10 @@ export const auditSubjectTypeEnum = pgEnum('audit_subject_type', [
   // answerable by reading payloads. The subject is the certificate, so the
   // subject type names one.
   'training_certificate',
+  // ADR-058 AC-U5: every person initiated HR action is audited against the
+  // file it touched, and a bulk pay run action against the run.
+  'employee',
+  'pay_run',
 ]);
 
 export const recordDataClassEnum = pgEnum('record_data_class', [
@@ -1084,4 +1140,93 @@ export const offerScopeEnum = pgEnum('offer_scope', [
 export const offerAudienceEnum = pgEnum('offer_audience', [
   'anyone',
   'in_house',
+]);
+
+/**
+ * ADR-056  PSF MEMBERSHIP APPLICATION.
+ *
+ * The membership families and the shape of a tier's price are enums because
+ * the form branches on them; the tiers themselves are catalogue rows admin
+ * edits (`psf_membership_tiers`), so a new price is never a migration.
+ */
+export const psfMembershipFamilyEnum = pgEnum('psf_membership_family', [
+  'golden_circle',
+  'indashyikirwa',
+  'ordinary',
+  'junior_giants',
+]);
+
+/** A fixed amount, a min to max range, or a price only PSF can quote. */
+export const psfPriceKindEnum = pgEnum('psf_price_kind', [
+  'fixed',
+  'range',
+  'set_by_psf',
+]);
+
+/**
+ * `submitted` is the only open state; the other three are terminal. Applying
+ * again writes a new row, so a decision is never overwritten by a later one.
+ */
+export const psfApplicationStatusEnum = pgEnum('psf_application_status', [
+  'submitted',
+  'member',
+  'declined',
+  'withdrawn',
+]);
+
+/** Who sent it: the owner, or the agent while an on behalf claim is open. */
+export const psfSubmittedCapacityEnum = pgEnum('psf_submitted_capacity', [
+  'owner',
+  'on_behalf_of',
+]);
+
+/** PSF's form, "Company type", as printed. */
+export const psfCompanyTypeEnum = pgEnum('psf_company_type', [
+  'cooperative',
+  'ngo',
+  'partly_state_owned',
+  'private_company',
+  'public_company',
+  'sole_trader',
+]);
+
+/** PSF's form, "Ownership", as printed. `other` carries a text. */
+export const psfOwnershipEnum = pgEnum('psf_ownership', [
+  'foreign_100',
+  'rwandan_100',
+  'franchise',
+  'joint_venture',
+  'foreign_representative',
+  'other',
+]);
+
+export const psfTradeDirectionEnum = pgEnum('psf_trade_direction', [
+  'none',
+  'export',
+  'import',
+  'both',
+]);
+
+/** PSF's form, "Role/Function", as printed. */
+export const psfContactRoleEnum = pgEnum('psf_contact_role', [
+  'owner',
+  'managing_director',
+  'ceo',
+  'chairman',
+]);
+
+export const psfDeclineReasonEnum = pgEnum('psf_decline_reason', [
+  'details_incomplete',
+  'not_eligible_for_tier',
+  'business_not_recognised',
+  'other',
+]);
+
+/**
+ * `psf_confirmed` is a PSF officer's decision in Injishi. `self_declared` is a
+ * Yes at registration that came with a membership number nobody has checked.
+ */
+export const psfMembershipSourceEnum = pgEnum('psf_membership_source', [
+  'psf_confirmed',
+  'self_declared',
 ]);

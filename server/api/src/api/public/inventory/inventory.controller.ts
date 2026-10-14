@@ -47,6 +47,7 @@ import {
 } from '../../../shared/auth/session.guard';
 import {
   CurrentWorkspace,
+  RequireEveryBranch,
   RequirePermission,
   WorkspaceGuard,
 } from '../../../shared/auth/workspace.guard';
@@ -129,6 +130,7 @@ export class InventoryController {
    * AC-M1): the same door, with a check that the caller covers every branch.
    */
   @Post('properties')
+  @RequireEveryBranch()
   createProperty(
     @Body(new ZodValidationPipe(CreatePropertyRequest))
     body: CreatePropertyRequest,
@@ -164,6 +166,10 @@ export class InventoryController {
 
   // -------------------------------------------------------------------------
   // Branches (ADR-054, AC-M3 to AC-M6)
+  //
+  // Each move is org wide, so the guard refuses a limited member 403 before
+  // the row is looked up (AC-M6). Without it they got a 404 for a branch they
+  // do not cover, which is the right answer to a read and the wrong one here.
   // -------------------------------------------------------------------------
 
   /**
@@ -172,6 +178,7 @@ export class InventoryController {
    */
   @Post('properties/:id/archive')
   @HttpCode(200)
+  @RequireEveryBranch()
   archiveBranch(
     @Param('id', ParseUUIDPipe) id: string,
     @CurrentWorkspace() workspace: ScopedWorkspace,
@@ -183,6 +190,7 @@ export class InventoryController {
   /** Restore an archived branch. Its listing stays a draft until published again. */
   @Post('properties/:id/restore')
   @HttpCode(200)
+  @RequireEveryBranch()
   restoreBranch(
     @Param('id', ParseUUIDPipe) id: string,
     @CurrentWorkspace() workspace: ScopedWorkspace,
@@ -194,6 +202,7 @@ export class InventoryController {
   /** Make this branch the head office. Answers with every active branch. */
   @Post('properties/:id/head-office')
   @HttpCode(200)
+  @RequireEveryBranch()
   async makeHeadOffice(
     @Param('id', ParseUUIDPipe) id: string,
     @CurrentWorkspace() workspace: ScopedWorkspace,

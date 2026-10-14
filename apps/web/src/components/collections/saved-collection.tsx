@@ -5,7 +5,7 @@ import { useMemo } from "react";
 import { Button } from "@injishi/ui";
 import { pluralize } from "@injishi/utils";
 import { ListingCard } from "@/components/stays/listing-card";
-import { LISTINGS } from "@/data/listings";
+import type { Listing } from "@/data/listings";
 import { useSavedStays } from "@/hooks/use-saved-stays";
 
 /**
@@ -14,34 +14,35 @@ import { useSavedStays } from "@/hooks/use-saved-stays";
  * The capture hard-coded two cards and its "Remove" buttons had no handler, so
  * nothing could ever be removed. This reads the same store the heart on every
  * listing card writes to, so the two stay in step.
+ *
+ * IT MATCHES AGAINST EVERY LISTING A HEART CAN BE ON: the properties the API
+ * publishes, which the page reads on the server exactly as Explore reads them.
+ * A saved stay that has since been unpublished simply drops off the list.
+ *
+ * It also carried a heading from the capture ("Kigali: March trip") on
+ * everybody's list — this list is not a trip and nobody named it — and a
+ * "Compare" button with no handler. Both are gone: a control that does nothing
+ * reads as broken, and a made-up title reads as somebody else's data.
  */
-export function SavedCollection() {
+export function SavedCollection({ listings: all = [] }: { listings?: Listing[] }) {
   const { saved, toggle } = useSavedStays();
 
   const listings = useMemo(
-    () => LISTINGS.filter((listing) => saved.includes(listing.slug)),
-    [saved],
+    () => all.filter((listing) => saved.includes(listing.slug)),
+    [saved, all],
   );
 
   return (
     <section className="animate-fade-up mt-6 flex flex-col gap-6">
-      <div className="flex flex-wrap items-center justify-between gap-4">
-        <div className="flex flex-col gap-1">
-          <h1 className="text-2xl font-bold text-page-fg lg:text-display-sm">
-            Kigali: March trip
-          </h1>
-          <p className="text-sm text-page-fg-70">
-            {listings.length === 0
-              ? "Nothing saved yet"
-              : `${pluralize(listings.length, "stay")} saved`}
-          </p>
-        </div>
-
-        {listings.length > 1 ? (
-          <Button variant="outline" size="sm">
-            Compare
-          </Button>
-        ) : null}
+      {/* One column, not a `justify-between` row: the "Compare" button that
+          used to sit on the other side of it is gone. */}
+      <div className="flex flex-col gap-1">
+        <h1 className="text-2xl font-bold text-page-fg lg:text-display-sm">Saved stays</h1>
+        <p className="text-sm text-page-fg-70">
+          {listings.length === 0
+            ? "Nothing saved yet"
+            : `${pluralize(listings.length, "stay")} saved`}
+        </p>
       </div>
 
       {listings.length === 0 ? (

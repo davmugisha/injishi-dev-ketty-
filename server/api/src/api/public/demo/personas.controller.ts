@@ -13,7 +13,8 @@ import {
 import { and, eq, sql } from 'drizzle-orm';
 
 import { users } from '../../../database/drizzle/auth';
-import { departmentMembers, departments } from '../../../database/drizzle/operations';
+import { departments } from '../../../database/drizzle/operations';
+import { departmentMembers } from '../../../database/drizzle/people';
 import { WorkspaceService } from '../../../shared/auth/workspace.service';
 import { storyFor } from './persona-stories';
 import { PLATFORM, type Platform } from '../../../shared/config/platform';
@@ -115,6 +116,10 @@ function surfaceFor(seat: {
  * roles by authority, then platform staff, then the personal and broker seats
  * every account can hold. So Samuel reads "Owner, Owner, Housekeeper, Guest,
  * Broker" rather than in whatever order the joins returned.
+ *
+ * The two office roles (ADR-069), finance and hr, rank after the manager and
+ * before the desk and the housekeeper: they hold the business's money and its
+ * staff files, which the desk does not.
  */
 const ROLE_RANK: readonly string[] = [
   'business_approver',
@@ -122,6 +127,8 @@ const ROLE_RANK: readonly string[] = [
   'tax_compliance_officer',
   'owner',
   'manager',
+  'finance',
+  'hr',
   'receptionist',
   'housekeeper',
   'staff',

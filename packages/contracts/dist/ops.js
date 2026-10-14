@@ -1,8 +1,8 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.OperatorDepartment = exports.DepartmentStatus = exports.DepartmentType = exports.DepartmentCategory = exports.PropertyScopedQuery = exports.AddAmenityRequest = exports.OperatorAmenityList = exports.OperatorAmenity = exports.ReturnDepositRequest = exports.OperatorDepositList = exports.OperatorDeposit = exports.RecordRentRequest = exports.OperatorRentRoll = exports.OperatorRentCharge = exports.AdvanceLeaseRequest = exports.OperatorLeaseList = exports.OperatorLease = exports.AdvanceTicketRequest = exports.OperatorTicketList = exports.OperatorTicket = exports.MaintenancePriority = exports.MaintenanceCategory = exports.SendMessageRequest = exports.OperatorMessageList = exports.OperatorMessage = exports.OperatorThreadList = exports.OperatorThread = exports.SetHousekeepingRequest = exports.CheckOutRequest = exports.WalkInRequest = exports.CheckInRequest = exports.OperatorStayList = exports.OperatorStay = exports.IssueStayClaimInviteRequest = exports.StayClaimInvite = exports.CLAIM_CODE_PATTERN = exports.StayRegistrationDetails = exports.OperatorRoomList = exports.OperatorRoom = exports.CautionStatus = exports.RentStatus = exports.LeaseStatus = exports.MaintenanceStatus = exports.HousekeepingStatus = exports.RoomStatus = exports.ReservationDecisionResult = exports.OperatorReservationQuery = exports.OperatorReservationList = exports.OperatorReservation = exports.OperatorReservationState = void 0;
-exports.OrderContext = exports.ServiceOrderStatus = exports.ServiceOrderChannel = exports.FulfillmentType = exports.ServiceCatalogStatus = exports.RaiseTicketRequest = exports.AdvanceHousekeepingTaskRequest = exports.CreateHousekeepingTaskRequest = exports.OperatorHousekeepingTaskList = exports.OperatorHousekeepingTask = exports.HousekeepingTaskStatus = exports.HousekeepingTaskType = exports.AcceptedStaffInvitation = exports.StaffInvitationPreview = exports.StaffInvitationTokenRequest = exports.OperatorStaffInvitationList = exports.OperatorStaffInvitation = exports.StaffInvitationStatus = exports.InviteStaffRequest = exports.ORG_ROLE_LABEL = exports.InvitableOrgRole = exports.OperatorTeamList = exports.OperatorTeamMember = exports.RoomAssignmentWindowQuery = exports.AssignRoomRequest = exports.OperatorRoomAssignmentList = exports.OperatorRoomAssignment = exports.RoomAssignmentStatus = exports.OperatorRevenue = exports.OperatorRevenueDepartment = exports.OperatorRevenueQuery = exports.CloseFolioResult = exports.FolioDeclaration = exports.CloseFolioRequest = exports.VoidChargeRequest = exports.TakePaymentRequest = exports.PostChargeResult = exports.PostChargeRequest = exports.OperatorFolioDetail = exports.OperatorFolioCharge = exports.OperatorFolioList = exports.OperatorFolio = exports.PaymentMethod = exports.TaxCode = exports.ChargeType = exports.FolioStatus = exports.FolioType = exports.UpdateDepartmentRequest = exports.CreateDepartmentRequest = exports.OperatorDepartmentList = void 0;
-exports.AssignDepartmentMemberRequest = exports.OperatorDepartmentMemberList = exports.OperatorDepartmentMember = exports.DepartmentPosition = exports.UpdateServiceItemRequest = exports.AdvanceServiceOrderRequest = exports.MarkOrderPaidCashResult = exports.MarkOrderPaidCashRequest = exports.CreateServiceOrderRequest = exports.OperatorServiceOrderList = exports.OperatorServiceOrder = exports.OperatorServiceOrderItem = exports.RraClassificationList = exports.RraClassificationSearch = exports.RraClassification = exports.UpsertServiceItemRequest = exports.UpdateServiceCategoryRequest = exports.CreateServiceCategoryRequest = exports.OperatorServiceCatalog = exports.OperatorServiceCategory = exports.OperatorServiceItem = exports.RraItemField = exports.SelectedOptionSnapshot = exports.SelectedOption = exports.ServiceItemOptions = exports.ServiceItemOption = exports.RraUnitCode = exports.RraClassificationCode = exports.RraItemTypeCode = void 0;
+exports.PropertyScopedQuery = exports.AddAmenityRequest = exports.OperatorAmenityList = exports.OperatorAmenity = exports.ReturnDepositRequest = exports.OperatorDepositList = exports.OperatorDeposit = exports.RecordRentRequest = exports.OperatorFilingList = exports.OperatorContractFiling = exports.CONTRACT_FILING_WINDOW_DAYS = exports.FilingStatus = exports.OperatorRentRoll = exports.OperatorRentCharge = exports.AdvanceLeaseRequest = exports.OperatorLeaseList = exports.OperatorLease = exports.AdvanceTicketRequest = exports.OperatorTicketList = exports.OperatorTicket = exports.MaintenancePriority = exports.MaintenanceCategory = exports.SendMessageRequest = exports.OperatorMessageList = exports.OperatorMessage = exports.OperatorThreadList = exports.OperatorThread = exports.SetHousekeepingRequest = exports.CheckOutRequest = exports.WalkInRequest = exports.CheckInRequest = exports.OperatorStayList = exports.OperatorStay = exports.IssueStayClaimInviteRequest = exports.StayClaimInvite = exports.CLAIM_CODE_PATTERN = exports.StayRegistrationDetails = exports.OperatorRoomList = exports.OperatorRoom = exports.CautionStatus = exports.RentStatus = exports.LeaseStatus = exports.MaintenanceStatus = exports.HousekeepingStatus = exports.RoomStatus = exports.ReservationDecisionResult = exports.OperatorReservationQuery = exports.OperatorReservationList = exports.OperatorReservation = exports.OperatorReservationState = void 0;
+exports.CreateHousekeepingTaskRequest = exports.OperatorHousekeepingTaskList = exports.OperatorHousekeepingTask = exports.HousekeepingTaskStatus = exports.HousekeepingTaskType = exports.AcceptedStaffInvitation = exports.StaffInvitationPreview = exports.StaffInvitationTokenRequest = exports.OperatorStaffInvitationList = exports.OperatorStaffInvitation = exports.StaffInvitationStatus = exports.InviteStaffRequest = exports.ORG_ROLE_LABEL = exports.InvitableOrgRole = exports.OperatorTeamList = exports.MEMBER_BRANCHES_REFUSAL = exports.SetMemberBranchesRequest = exports.MemberBranchIds = exports.OperatorTeamMember = exports.RoomAssignmentWindowQuery = exports.AssignRoomRequest = exports.OperatorRoomAssignmentList = exports.OperatorRoomAssignment = exports.RoomAssignmentStatus = exports.OperatorRevenue = exports.OperatorRevenueDepartment = exports.OperatorRevenueQuery = exports.CloseFolioResult = exports.FolioDeclaration = exports.CloseFolioRequest = exports.VoidChargeRequest = exports.TakePaymentRequest = exports.PostChargeResult = exports.PostChargeRequest = exports.OperatorFolioDetail = exports.OperatorFolioCharge = exports.OperatorFolioList = exports.OperatorFolio = exports.PaymentMethod = exports.TaxCode = exports.ChargeType = exports.FolioStatus = exports.FolioType = exports.UpdateDepartmentRequest = exports.CreateDepartmentRequest = exports.OperatorDepartmentList = exports.OperatorDepartment = exports.DepartmentStatus = exports.DepartmentType = exports.DepartmentCategory = void 0;
+exports.AssignDepartmentMemberRequest = exports.OperatorDepartmentMemberList = exports.OperatorDepartmentMember = exports.DepartmentPosition = exports.UpdateServiceItemRequest = exports.AdvanceServiceOrderRequest = exports.MarkOrderPaidCashResult = exports.MarkOrderPaidCashRequest = exports.CreateServiceOrderRequest = exports.OperatorServiceOrderList = exports.OperatorServiceOrder = exports.OperatorServiceOrderItem = exports.RraClassificationList = exports.RraClassificationSearch = exports.RraClassification = exports.UpsertServiceItemRequest = exports.UpdateServiceCategoryRequest = exports.CreateServiceCategoryRequest = exports.OperatorServiceCatalog = exports.OperatorServiceCategory = exports.OperatorServiceItem = exports.RraItemField = exports.SelectedOptionSnapshot = exports.SelectedOption = exports.ServiceItemOptions = exports.ServiceItemOption = exports.RraUnitCode = exports.RraClassificationCode = exports.RraItemTypeCode = exports.OrderContext = exports.ServiceOrderStatus = exports.ServiceOrderChannel = exports.FulfillmentType = exports.ServiceCatalogStatus = exports.RaiseTicketRequest = exports.AdvanceHousekeepingTaskRequest = void 0;
 const zod_1 = require("zod");
 const booking_1 = require("./booking");
 const primitives_1 = require("./primitives");
@@ -59,6 +59,12 @@ exports.OperatorReservation = zod_1.z.object({
     reference: zod_1.z.string().min(1),
     /** `users.name`, which is nullable: an account may exist before a name does. */
     guestName: zod_1.z.string().nullable(),
+    /**
+     * The guest account's email, for the desk to tell an unnamed guest apart
+     * (shown where `guestName` is null). DISPLAY ONLY: never copied into the
+     * check-in, which records a person's name. Defaulted so an older API parses.
+     */
+    guestEmail: zod_1.z.string().nullable().default(null),
     /** `YYYY-MM-DD`. A bare date column, so no timezone rides along. */
     checkIn: zod_1.z.string(),
     checkOut: zod_1.z.string(),
@@ -76,6 +82,14 @@ exports.OperatorReservation = zod_1.z.object({
      * row of another type before the desk drops a bar there and is refused.
      */
     roomTypeId: primitives_1.Uuid,
+    /**
+     * What the guest bought and where: the room type's name and the branch it
+     * belongs to. A host with two branches saw rows naming neither, so a
+     * request could not be told apart from one at the other property.
+     * Defaulted so an older API still parses.
+     */
+    roomTypeName: zod_1.z.string().nullable().default(null),
+    propertyName: zod_1.z.string().nullable().default(null),
     /**
      * `bookings.gross_rwf`: what this reservation is worth.
      *
@@ -177,6 +191,12 @@ exports.OperatorRoom = zod_1.z.object({
     label: zod_1.z.string().nullable(),
     roomTypeId: primitives_1.Uuid,
     roomTypeName: zod_1.z.string(),
+    /**
+     * False once the room's TYPE is archived. The room keeps its own status, so
+     * without this an archived type's rooms read as free and the desk offered
+     * them to guests. Defaults to true so an older API still parses.
+     */
+    roomTypeActive: zod_1.z.boolean().default(true),
     status: exports.RoomStatus,
     housekeeping: exports.HousekeepingStatus,
     /** The open stay in this room, if anyone is in it. */
@@ -345,7 +365,15 @@ exports.WalkInRequest = zod_1.z.object({
     guestName: zod_1.z.string().trim().min(1).max(200),
     /** Absent means open ended. */
     plannedExitAt: zod_1.z.string().optional(),
-    /** The nightly rate agreed at the counter. */
+    /**
+     * The nightly rate agreed at the counter.
+     *
+     * Absent means the room type's default rate plan, and a walk in with
+     * NEITHER is refused. The night audit bills a walk in from the price on its
+     * stay, so a stay opened without one is a room nobody is ever charged for —
+     * and check out closes that zero bill by itself, so the guest leaves and
+     * nothing is owed.
+     */
     nightlyRateRwf: zod_1.z.number().int().positive().optional(),
     /**
      * The registration card, and the invitation that follows it (§6.8).
@@ -539,6 +567,56 @@ exports.OperatorRentCharge = zod_1.z.object({
 });
 exports.OperatorRentRoll = zod_1.z.object({
     charges: zod_1.z.array(exports.OperatorRentCharge),
+});
+/**
+ * Where the filing of one signed contract stands (F-R10 §8).
+ *
+ * The same three values as the `filing_status` enum, and deliberately no
+ * fourth: "not filed yet" is the ABSENCE of a filing, carried as a null status
+ * on the row below, not a state a filing can be in.
+ */
+exports.FilingStatus = zod_1.z.enum(["pending", "filed", "failed"]);
+/**
+ * How long Injishi has to file a signed contract with the tax administration,
+ * counted from signing (F-R10 §6, §9).
+ *
+ * One definition, because both sides count against it: the API dates `due_by`
+ * from it and the operator app words the clock from it.
+ */
+exports.CONTRACT_FILING_WINDOW_DAYS = 15;
+/**
+ * A lease and the filing of its contract, for the Filings lens on Finance.
+ *
+ * One row PER LEASE, not per filing, and that is the point. A lease whose
+ * contract nothing has filed is exactly what a landlord must be shown, and a
+ * list of filings cannot show it. `status` is null on such a lease, and
+ * `signedAt` says whether that is because nobody has signed yet or because the
+ * filing was never raised.
+ *
+ * `adapterMode` rides along for the reason it rides along on every other
+ * adapter-backed answer in this repository: a screen that cannot tell a real
+ * filing from a stand-in will eventually claim one. There is no RRA contract
+ * channel yet (F-R10 §11, open question O-4), so every row today is `mock`.
+ */
+exports.OperatorContractFiling = zod_1.z.object({
+    leaseId: primitives_1.Uuid,
+    unitLabel: zod_1.z.string().nullable(),
+    tenantName: zod_1.z.string().nullable(),
+    leaseStatus: exports.LeaseStatus,
+    /** Null when no filing has been raised for this lease at all. */
+    status: exports.FilingStatus.nullable(),
+    /** When the fifteen days started. The signature, or the amendment that reset it. */
+    clockStartAt: zod_1.z.string().nullable(),
+    dueBy: zod_1.z.string().nullable(),
+    attempts: zod_1.z.number().int().nonnegative(),
+    /** Required on a failure (F-R10 §6: never silently dropped), null otherwise. */
+    failureReason: zod_1.z.string().nullable(),
+    adapterMode: primitives_1.AdapterMode.nullable(),
+    /** The tenant's signature: what the clock starts at, when there is one. */
+    signedAt: zod_1.z.string().nullable(),
+});
+exports.OperatorFilingList = zod_1.z.object({
+    filings: zod_1.z.array(exports.OperatorContractFiling),
 });
 /**
  * Record a rent payment against one month of one lease.
@@ -1038,7 +1116,34 @@ exports.OperatorTeamMember = zod_1.z.object({
     /** `active` or `removed`. A removed member keeps their history. */
     status: zod_1.z.string(),
     joinedAt: zod_1.z.string(),
+    /**
+     * The branches this member is limited to (ADR-054 AC-T1). `null` means
+     * every branch, which an owner always is. Archived branches a member was
+     * limited to stay listed, so the screen can say why one reads as retired.
+     */
+    branchIds: zod_1.z.array(primitives_1.Uuid).nullable(),
 });
+/**
+ * Which branches a member covers, as a request carries it (ADR-054 AC-T1).
+ *
+ * `null` means every branch; a list means only those. An empty list is not
+ * refused here but by the service, with the other AC-T1 refusals, because
+ * "no branch at all" is a rule about the business, not the shape: it answers
+ * 422 beside "that branch is archived" rather than 400 beside a malformed id.
+ */
+exports.MemberBranchIds = zod_1.z.array(primitives_1.Uuid).nullable();
+/** `PUT /api/v1/ops/team/:userId/branches`. */
+exports.SetMemberBranchesRequest = zod_1.z.object({
+    branchIds: exports.MemberBranchIds,
+});
+/** The words a member's branch refusal carries (ADR-054 AC-T1), one per rule. */
+exports.MEMBER_BRANCHES_REFUSAL = {
+    owner: "An owner always covers every branch.",
+    empty: "Choose at least one branch, or every branch.",
+    foreign: "That branch does not belong to this business.",
+    archived: "That branch is archived. Restore it first, or choose another.",
+    residence: "A residence business has no branches to limit.",
+};
 exports.OperatorTeamList = zod_1.z.object({
     members: zod_1.z.array(exports.OperatorTeamMember),
 });
@@ -1058,6 +1163,8 @@ exports.ORG_ROLE_LABEL = {
     owner: "Owner",
     manager: "Manager",
     receptionist: "Front office / Receptionist",
+    finance: "Finance",
+    hr: "HR",
     housekeeper: "Housekeeper",
 };
 exports.InviteStaffRequest = zod_1.z.object({
@@ -1068,6 +1175,8 @@ exports.InviteStaffRequest = zod_1.z.object({
         .email("Use an email address like name@example.com.")
         .max(200),
     orgRole: exports.InvitableOrgRole,
+    /** The branches the invitee will cover; absent or null is every branch (ADR-054). */
+    branchIds: exports.MemberBranchIds.default(null),
 });
 exports.StaffInvitationStatus = zod_1.z.enum(["sent", "accepted", "revoked", "expired"]);
 /**
@@ -1085,6 +1194,8 @@ exports.OperatorStaffInvitation = zod_1.z.object({
     status: exports.StaffInvitationStatus,
     expiresAt: zod_1.z.string(),
     createdAt: zod_1.z.string(),
+    /** The branches the invitee will cover; null is every branch (ADR-054). */
+    branchIds: zod_1.z.array(primitives_1.Uuid).nullable(),
 });
 exports.OperatorStaffInvitationList = zod_1.z.object({
     invitations: zod_1.z.array(exports.OperatorStaffInvitation),

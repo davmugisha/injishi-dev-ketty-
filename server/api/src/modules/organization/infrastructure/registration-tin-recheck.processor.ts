@@ -1,9 +1,10 @@
-import { InjectQueue, Processor, WorkerHost } from '@nestjs/bullmq';
+import { InjectQueue, OnWorkerEvent, Processor, WorkerHost } from '@nestjs/bullmq';
 import { Logger, OnModuleInit } from '@nestjs/common';
 import { Job, Queue } from 'bullmq';
 
 import { QUEUES } from '../../../shared/queues/queues.module';
 import { RegistrationService } from '../application/registration.service';
+import { reportJobFailure } from '../../../shared/observability/report-job-failure';
 
 /** The single job name this processor handles on its queue. */
 export const RECHECK_PENDING_TINS = 'recheck-pending-tins';
@@ -66,5 +67,11 @@ export class RegistrationTinRecheckProcessor
         `TIN recheck: ${outcome.rechecked}/${outcome.due} due rechecked, ${outcome.stalled} stalled at the ceiling`,
       );
     }
+  }
+
+  /** A job failing its last attempt is reported (ADR-063 AC-12). Earlier attempts are retries. */
+  @OnWorkerEvent('failed')
+  onFailed(job: Job | undefined, error: Error): void {
+    reportJobFailure(QUEUES.registrationTinRecheck, job, error);
   }
 }

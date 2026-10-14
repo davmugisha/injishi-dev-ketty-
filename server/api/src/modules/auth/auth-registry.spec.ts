@@ -29,9 +29,9 @@ const OVERSIGHT_SECRET = 'o'.repeat(40);
 const db = { name: 'the one database' } as unknown as Database;
 const mailer = { send: jest.fn() };
 
-const PRODUCTION: Platform = { environment: 'production', sampleData: false };
-const STAGING: Platform = { environment: 'production', sampleData: true };
-const DEMO: Platform = { environment: 'demo', sampleData: true };
+const PRODUCTION: Platform = { environment: 'production', sampleData: false, commit: null };
+const STAGING: Platform = { environment: 'production', sampleData: true, commit: null };
+const DEMO: Platform = { environment: 'demo', sampleData: true, commit: null };
 
 type Requested = {
   db: Database;

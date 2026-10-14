@@ -1,4 +1,4 @@
-import { InjectQueue, Processor, WorkerHost } from '@nestjs/bullmq';
+import { InjectQueue, OnWorkerEvent, Processor, WorkerHost } from '@nestjs/bullmq';
 import { Inject, Logger, OnModuleInit } from '@nestjs/common';
 import type { Job, Queue } from 'bullmq';
 
@@ -9,6 +9,7 @@ import { EMIT_JOB, EbmSaleTrigger } from '../application/ebm-sale-trigger.servic
 import { EBM_LIVE, type EbmLive } from '../domain/ebm-live';
 import { EbmConnectionRepository } from './ebm-connection.repository';
 import { EbmEmissionRepository } from './ebm-emission.repository';
+import { reportJobFailure } from '../../../shared/observability/report-job-failure';
 
 export const EBM_DRAIN = 'ebm-drain';
 const DRAIN_EVERY_MS = 60_000;
@@ -101,5 +102,11 @@ export class EbmEmissionProcessor extends WorkerHost implements OnModuleInit {
     } catch (error) {
       this.log.warn(`EBM consent-state prune failed: ${error instanceof Error ? error.message : String(error)}`);
     }
+  }
+
+  /** A job failing its last attempt is reported (ADR-063 AC-12). Earlier attempts are retries. */
+  @OnWorkerEvent('failed')
+  onFailed(job: Job | undefined, error: Error): void {
+    reportJobFailure(QUEUES.ebmEmission, job, error);
   }
 }

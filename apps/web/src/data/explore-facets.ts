@@ -1,19 +1,14 @@
 import { ACCOMMODATION_CLASS_LABEL } from "@injishi/contracts";
 import type { Listing } from "@/data/listings";
-import { LISTINGS } from "@/data/listings";
 import { SEARCH_DISTRICTS } from "@/data/search-options";
 import {
-  ACCESS_FEATURES,
   ACTIVITY_KINDS,
-  CANCELLATION_OPTIONS,
   EXPERIENCE_KINDS,
   MEAL_PLANS,
-  PAYMENT_OPTIONS,
   PROPERTY_AMENITIES,
   ROOM_AMENITIES,
   VIEW_KINDS,
 } from "@/data/stay-facets";
-import { demoCommerceFor } from "@/data/demo-commerce";
 
 /**
  * The explore filter rail: what it offers, and how many stays sit behind each
@@ -60,11 +55,6 @@ export const POPULAR_FILTERS: PopularFilter[] = [
     label: "Breakfast included",
     matches: (l) => l.facets.meals.includes("breakfast"),
   },
-  {
-    id: "free_cancellation",
-    label: "Fully refundable",
-    matches: (l) => l.facets.cancellation.includes("fully_refundable"),
-  },
   { id: "pool", label: "Pool", matches: (l) => l.facets.amenityKeys.includes("Pool") },
   {
     id: "wifi",
@@ -76,7 +66,6 @@ export const POPULAR_FILTERS: PopularFilter[] = [
     label: "Parking",
     matches: (l) => l.facets.amenityKeys.includes("Parking"),
   },
-  { id: "vip", label: "VIP Access", matches: (l) => l.facets.vip },
   {
     id: "under_50k",
     label: "Under RWF 50,000 a night",
@@ -134,13 +123,9 @@ export type FacetField =
   | "amenities"
   | "roomAmenities"
   | "experience"
-  | "available"
   | "views"
   | "activities"
-  | "payment"
-  | "cancellation"
   | "meals"
-  | "access"
   | "bedrooms";
 
 /** What a listing must hold for one option of one group. */
@@ -295,20 +280,6 @@ function specs(): GroupSpec[] {
       })),
     },
     {
-      id: "availability",
-      title: "Availability",
-      shape: "checkbox",
-      field: "available",
-      visible: 1,
-      options: [
-        {
-          value: "1",
-          label: "Only show available properties",
-          matches: (l) => l.facets.roomsLeft !== 0,
-        },
-      ],
-    },
-    {
       id: "views",
       title: "Room views",
       shape: "checkbox",
@@ -333,30 +304,6 @@ function specs(): GroupSpec[] {
       })),
     },
     {
-      id: "payment",
-      title: "Payment type",
-      shape: "checkbox",
-      field: "payment",
-      visible: 3,
-      options: PAYMENT_OPTIONS.map((payment) => ({
-        value: payment.id,
-        label: payment.label,
-        matches: (l) => l.facets.payment.includes(payment.id),
-      })),
-    },
-    {
-      id: "cancellation",
-      title: "Property cancellation options",
-      shape: "checkbox",
-      field: "cancellation",
-      visible: 2,
-      options: CANCELLATION_OPTIONS.map((option) => ({
-        value: option.id,
-        label: option.label,
-        matches: (l) => l.facets.cancellation.includes(option.id),
-      })),
-    },
-    {
       id: "meals",
       title: "Meal plans available",
       shape: "checkbox",
@@ -369,20 +316,8 @@ function specs(): GroupSpec[] {
       })),
     },
     {
-      id: "accessibility",
-      title: "Accessibility",
-      shape: "checkbox",
-      field: "access",
-      visible: 3,
-      options: ACCESS_FEATURES.map((feature) => ({
-        value: feature.id,
-        label: feature.label,
-        matches: (l) => l.facets.access.includes(feature.id),
-      })),
-    },
-    {
       id: "bedrooms",
-      title: "Number of bedrooms",
+      title: "Bedrooms per booking",
       shape: "radio",
       field: "bedrooms",
       visible: 4,
@@ -405,16 +340,23 @@ function specs(): GroupSpec[] {
  */
 export function buildFacetGroups(
   poolFor: (groupId: string, field: FacetField) => Listing[],
+  /**
+   * What is ticked per field. A ticked option is kept at a count of 0 rather
+   * than dropped: other filters can narrow its pool to nothing, and an option
+   * that vanishes while ticked is a filter nobody can untick.
+   */
+  selectedFor?: (field: FacetField) => readonly string[],
 ): FacetGroup[] {
   const groups: FacetGroup[] = [];
 
   for (const spec of specs()) {
     const pool = poolFor(spec.id, spec.field);
+    const ticked = selectedFor?.(spec.field) ?? [];
     const options: FacetOption[] = [];
 
     for (const option of spec.options) {
       const hits = pool.filter(option.matches);
-      if (hits.length === 0) continue;
+      if (hits.length === 0 && !ticked.includes(option.value)) continue;
       options.push({
         value: option.value,
         label: option.label,
@@ -517,25 +459,4 @@ export function priceHistogram(
     maxRwf: roundedTop,
     step: Math.round(step),
   };
-}
-
-/** The rail's default range, computed once from the whole catalogue. */
-export const CATALOGUE_HISTOGRAM = priceHistogram(LISTINGS);
-
-/**
- * The ceiling the range slider runs to, in RWF.
- *
- * Read from the histogram rather than typed, so adding an expensive stay moves
- * the control rather than leaving it unable to reach the new top.
- */
-export const PRICE_CEILING = CATALOGUE_HISTOGRAM?.maxRwf ?? 500_000;
-
-/** The same distribution over TOTALS, for when the rail is switched to totals. */
-export function totalHistogram(listings: Listing[]): PriceHistogram | null {
-  return priceHistogram(
-    listings.map((listing) => ({
-      ...listing,
-      nightlyRateRwf: demoCommerceFor(listing).totalRwf,
-    })),
-  );
 }

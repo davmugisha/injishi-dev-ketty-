@@ -1,8 +1,14 @@
-import { BadRequestException, ConflictException, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  ConflictException,
+  ForbiddenException,
+  NotFoundException,
+} from '@nestjs/common';
 
 import { orderLineText } from '../infrastructure/order-thread-lines';
 
 import {
+  type GuestPlaceRow,
   type GuestThreadRow,
   type MessageRow,
   MessagingRepository,
@@ -66,6 +72,12 @@ describe('MessagingService (guest)', () => {
       sendMessage: jest.Mock;
       findMessage: jest.Mock;
       markRead: jest.Mock;
+      openStaysForGuest: jest.Mock;
+      liveBookingsForGuest: jest.Mock;
+      requestableDepartments: jest.Mock;
+      deskThreadsFor: jest.Mock;
+      findGuestRequestableDepartment: jest.Mock;
+      openDepartmentThread: jest.Mock;
     };
   }
 
@@ -79,6 +91,14 @@ describe('MessagingService (guest)', () => {
       sendMessage: jest.fn().mockResolvedValue(message().id),
       findMessage: jest.fn().mockResolvedValue(message()),
       markRead: jest.fn().mockResolvedValue(undefined),
+      openStaysForGuest: jest.fn().mockResolvedValue([]),
+      liveBookingsForGuest: jest.fn().mockResolvedValue([]),
+      requestableDepartments: jest.fn().mockResolvedValue([]),
+      deskThreadsFor: jest.fn().mockResolvedValue([]),
+      findGuestRequestableDepartment: jest.fn().mockResolvedValue(null),
+      openDepartmentThread: jest
+        .fn()
+        .mockResolvedValue({ threadId: THREAD, created: true }),
       ...over,
     };
     return {
@@ -333,6 +353,195 @@ describe('MessagingService (guest)', () => {
       expect(orderLineText('submitted', order)).toBe('Order A12B was sent to In-Room Dining.');
       expect(orderLineText('acknowledged', order)).toBe('Food and Beverage has your order A12B and is on it.');
       expect(orderLineText('cancelled', order)).toBe('Order A12B was cancelled.');
+    });
+  });
+
+  /**
+   * The post-booking half (ADR-050 D-q): a guest who has not arrived yet.
+   *
+   * The SQL that finds a live booking is the repository's; what is proved here
+   * is everything the service decides on top of it, and the two that matter are
+   * the resolution order (in house beats a booking) and the two refusals, which
+   * are deliberately different answers — 404 for a desk that takes no guest
+   * messages, 403 for a desk that is simply not this person's.
+   */
+  describe('opening a conversation by department (ADR-050 D-q)', () => {
+    const PROPERTY = '88888888-8888-4888-8888-888888888888';
+    const OTHER_PROPERTY = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa';
+    const DEPARTMENT = 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb';
+    const STAY = 'dddddddd-dddd-4ddd-8ddd-dddddddddddd';
+    const BOOKING = 'eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee';
+
+    const desk = {
+      id: DEPARTMENT,
+      name: 'Housekeeping',
+      propertyId: PROPERTY,
+      workspaceId: '55555555-5555-5555-5555-555555555555',
+    };
+    const place = (over: Record<string, unknown> = {}): GuestPlaceRow => ({
+      propertyId: PROPERTY,
+      propertyName: 'Amahoro Boutique Hotel',
+      workspaceId: '55555555-5555-5555-5555-555555555555',
+      subjectId: BOOKING,
+      bookingReference: 'BK-DEMO-001',
+      checkIn: '2026-09-18',
+      ...over,
+    });
+    const ask = { departmentId: DEPARTMENT, body: 'Could you hold a cot?' };
+
+    function opening(over: Partial<Harness['repo']> = {}): Harness {
+      return harness({
+        findGuestRequestableDepartment: jest.fn().mockResolvedValue(desk),
+        ...over,
+      });
+    }
+
+    it('hangs the conversation off a live booking when the guest is not in house', async () => {
+      const { service, repo } = opening({
+        liveBookingsForGuest: jest.fn().mockResolvedValue([place()]),
+      });
+
+      const opened = await service.openThreadWithDepartment(GUEST, ask);
+
+      expect(opened).toMatchObject({ departmentId: DEPARTMENT, departmentName: 'Housekeeping' });
+      expect(repo.openDepartmentThread).toHaveBeenCalledWith(
+        expect.objectContaining({ on: { kind: 'booking', bookingId: BOOKING } }),
+      );
+    });
+
+    it('prefers the stay when the guest is in house at that property', async () => {
+      // They are HERE. The desk is working the stay, not a booking for next month.
+      const { service, repo } = opening({
+        openStaysForGuest: jest
+          .fn()
+          .mockResolvedValue([place({ subjectId: STAY, bookingReference: null })]),
+        liveBookingsForGuest: jest.fn().mockResolvedValue([place()]),
+      });
+
+      await service.openThreadWithDepartment(GUEST, ask);
+
+      expect(repo.openDepartmentThread).toHaveBeenCalledWith(
+        expect.objectContaining({ on: { kind: 'stay', guestStayId: STAY } }),
+      );
+    });
+
+    it('answers 404 for a desk that takes no guest messages, and never 403', async () => {
+      // "Exists but refuses you" maps the property's internal structure for
+      // anybody who asks.
+      const { service, repo } = harness({
+        findGuestRequestableDepartment: jest.fn().mockResolvedValue(null),
+      });
+
+      await expect(service.openThreadWithDepartment(GUEST, ask)).rejects.toThrow(
+        NotFoundException,
+      );
+      expect(repo.openDepartmentThread).not.toHaveBeenCalled();
+    });
+
+    it('answers 403 when the caller holds nothing at that property', async () => {
+      const { service, repo } = opening({
+        openStaysForGuest: jest.fn().mockResolvedValue([place({ propertyId: OTHER_PROPERTY })]),
+        liveBookingsForGuest: jest.fn().mockResolvedValue([place({ propertyId: OTHER_PROPERTY })]),
+      });
+
+      await expect(service.openThreadWithDepartment(GUEST, ask)).rejects.toThrow(
+        ForbiddenException,
+      );
+      expect(repo.openDepartmentThread).not.toHaveBeenCalled();
+    });
+
+    it('refuses to write into a conversation the property archived', async () => {
+      const { service } = opening({
+        liveBookingsForGuest: jest.fn().mockResolvedValue([place()]),
+        openDepartmentThread: jest.fn().mockResolvedValue(null),
+      });
+
+      await expect(service.openThreadWithDepartment(GUEST, ask)).rejects.toThrow(
+        ConflictException,
+      );
+    });
+
+    it('lists one place per property, in house first, with its desks', async () => {
+      const { service } = opening({
+        openStaysForGuest: jest.fn().mockResolvedValue([place({ subjectId: STAY })]),
+        // The same property again as a booking, plus one the guest only booked.
+        liveBookingsForGuest: jest
+          .fn()
+          .mockResolvedValue([place(), place({ propertyId: OTHER_PROPERTY, subjectId: 'ffffffff-ffff-4fff-8fff-ffffffffffff' })]),
+        requestableDepartments: jest.fn().mockResolvedValue([
+          { id: DEPARTMENT, propertyId: PROPERTY, name: 'Housekeeping', departmentCategory: 'rooms', phone: null },
+          { id: 'cccccccc-cccc-4ccc-8ccc-cccccccccccc', propertyId: OTHER_PROPERTY, name: 'Front Office', departmentCategory: 'rooms', phone: '0788000000' },
+        ]),
+        deskThreadsFor: jest.fn().mockResolvedValue([
+          { threadId: THREAD, departmentId: DEPARTMENT, guestStayId: STAY, bookingId: null, updatedAt: new Date('2026-09-16T08:00:00.000Z') },
+        ]),
+        unreadCounts: jest.fn().mockResolvedValue(new Map([[THREAD, 2]])),
+      });
+
+      const { places } = await service.myDepartments(GUEST);
+
+      expect(places).toHaveLength(2);
+      expect(places[0]).toMatchObject({ context: 'stay', inHouse: true, subjectId: STAY });
+      // Each place is answered with ITS OWN property's desks, never the pooled list.
+      expect(places[0]?.departments.map((d) => d.name)).toEqual(['Housekeeping']);
+      expect(places[0]?.departments[0]).toMatchObject({ threadId: THREAD, unreadCount: 2 });
+      expect(places[1]).toMatchObject({ context: 'booking', inHouse: false });
+      expect(places[1]?.departments.map((d) => d.name)).toEqual(['Front Office']);
+      // A desk with no conversation yet carries no thread and no unread.
+      expect(places[1]?.departments[0]).toMatchObject({ threadId: null, unreadCount: 0 });
+    });
+
+    it('answers a person staying and booked nowhere with an empty list, not a refusal', async () => {
+      const { service, repo } = harness();
+
+      await expect(service.myDepartments(GUEST)).resolves.toEqual({ places: [] });
+      // Nothing to look desks up for, so nothing is asked.
+      expect(repo.requestableDepartments).not.toHaveBeenCalled();
+    });
+
+    it("never lets one place's conversation show on another's desk", async () => {
+      // Two bookings, same department id impossible — but the same PROPERTY is
+      // the shape that catches a stitch keyed on the department alone.
+      const { service } = opening({
+        liveBookingsForGuest: jest.fn().mockResolvedValue([place({ subjectId: BOOKING })]),
+        openStaysForGuest: jest.fn().mockResolvedValue([place({ propertyId: OTHER_PROPERTY, subjectId: STAY })]),
+        requestableDepartments: jest.fn().mockResolvedValue([
+          { id: DEPARTMENT, propertyId: PROPERTY, name: 'Housekeeping', departmentCategory: 'rooms', phone: null },
+        ]),
+        deskThreadsFor: jest.fn().mockResolvedValue([
+          { threadId: THREAD, departmentId: DEPARTMENT, guestStayId: null, bookingId: BOOKING, updatedAt: new Date('2026-09-16T08:00:00.000Z') },
+        ]),
+      });
+
+      const { places } = await service.myDepartments(GUEST);
+      const stayPlace = places.find((p) => p.context === 'stay');
+      const bookingPlace = places.find((p) => p.context === 'booking');
+
+      expect(stayPlace?.departments).toEqual([]);
+      expect(bookingPlace?.departments[0]?.threadId).toBe(THREAD);
+    });
+  });
+
+  describe('the desk inbox filter (ADR-050 D-q)', () => {
+    it('passes the department to the query rather than filtering the answer', async () => {
+      const DEPARTMENT = 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb';
+      const listThreads = jest.fn().mockResolvedValue([]);
+      const repo = {
+        listThreads,
+        summarise: jest.fn().mockResolvedValue(new Map()),
+        counterparts: jest.fn().mockResolvedValue(new Map()),
+      };
+      const service = new MessagingService(repo as unknown as MessagingRepository);
+      const ws = {
+        workspaceId: '55555555-5555-5555-5555-555555555555',
+        branchScope: { coverage: 'all', selectedPropertyId: null, propertyIds: [], includesUnbranched: true },
+      } as unknown as ScopedWorkspace;
+
+      await service.listThreads(ws, DEPARTMENT);
+      expect(listThreads).toHaveBeenCalledWith(ws.workspaceId, ws.branchScope, DEPARTMENT);
+
+      await service.listThreads(ws);
+      expect(listThreads).toHaveBeenLastCalledWith(ws.workspaceId, ws.branchScope, undefined);
     });
   });
 

@@ -17,6 +17,9 @@ const DEV_ORIGINS = [
 /** Cookie signing secret used when COOKIE_SECRET is unset outside production. */
 const DEV_COOKIE_SECRET = 'dev-only-insecure-cookie-secret';
 
+/** PIN pepper used when HR_PIN_PEPPER is unset outside a production platform. */
+const DEV_PIN_PEPPER = 'dev-only-insecure-pin-pepper';
+
 /** Shortest secret accepted in production (32 bytes ~ `openssl rand -base64 32`). */
 export const MIN_SECRET_LENGTH = 32;
 
@@ -60,6 +63,28 @@ export function resolveCookieSecret(env: SecurityEnv): string {
     return env.cookieSecret?.trim() || DEV_COOKIE_SECRET;
   }
   return requireStrongSecret('COOKIE_SECRET', env.cookieSecret);
+}
+
+/**
+ * The server secret mixed into every kiosk PIN hash (ADR-058, 058-time
+ * AC-TM11), so a leaked `employee_kiosk_pins` table alone cannot be brute
+ * forced: a PIN is 4 to 6 digits, and without the pepper a million guesses
+ * cover them all.
+ *
+ * Required only where real people's PINs live: a production process on the
+ * production platform. The demo stack (its own platform, over a database that
+ * was empty when it was marked sample, ADR-043) and a laptop fall back to a
+ * fixed pepper, so neither needs one more secret to boot.
+ */
+export function resolvePinPepper(env: {
+  nodeEnv?: string;
+  environment: 'production' | 'demo';
+  pinPepper?: string;
+}): string {
+  if (isProduction(env.nodeEnv) && env.environment === 'production') {
+    return requireStrongSecret('HR_PIN_PEPPER', env.pinPepper);
+  }
+  return env.pinPepper?.trim() || DEV_PIN_PEPPER;
 }
 
 /**

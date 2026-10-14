@@ -39,24 +39,31 @@ export function GuestPanel({
   onChange,
   onDone,
 }: {
-  guests: GuestCounts;
-  onChange: (next: GuestCounts) => void;
+  /** Null while the field is untouched; the steppers show the default party. */
+  guests: GuestCounts | null;
+  /**
+   * Any step or tick answers the question, so it hands back a party. Reset
+   * hands back null, which UNASKS it — the field goes back to its placeholder
+   * rather than to a party of two the guest never typed.
+   */
+  onChange: (next: GuestCounts | null) => void;
   onDone: () => void;
 }) {
-  const set = (field: GuestField, value: number) =>
-    onChange({ ...guests, [field]: value });
+  const party = guests ?? DEFAULT_GUESTS;
 
-  const isDefault =
-    guests.adults === DEFAULT_GUESTS.adults &&
-    guests.children === 0 &&
-    guests.infants === 0 &&
-    !guests.pets;
+  const set = (field: GuestField, value: number) =>
+    onChange({ ...party, [field]: value });
+
+  // Reset is offered exactly while there is an answer to discard. It used to
+  // compare the counts against the default, which cannot tell a party of two
+  // somebody chose from a party of two nobody did.
+  const untouched = guests === null;
 
   return (
     <div className="w-[min(380px,calc(100vw-2rem))] overflow-hidden rounded-card bg-white shadow-[0_18px_50px_-12px_rgba(4,35,48,0.35)] ring-1 ring-black/5">
       <div className="px-6 pt-5">
         {ROWS.map(({ field, label, singular, helper }) => {
-          const value = guests[field];
+          const value = party[field];
           const { min, max } = GUEST_LIMITS[field];
           return (
             <div
@@ -99,8 +106,8 @@ export function GuestPanel({
       {/* One control. HeroUI's Checkbox carries its own label, so the separate
           `htmlFor` pairing is gone and the whole two-line row toggles. */}
       <Checkbox
-        isSelected={guests.pets}
-        onChange={(isSelected) => onChange({ ...guests, pets: isSelected })}
+        isSelected={party.pets}
+        onChange={(isSelected) => onChange({ ...party, pets: isSelected })}
         className="flex w-full items-start gap-3 border-t border-black/5 px-6 py-4 font-normal"
         controlClassName="mt-0.5"
       >
@@ -118,8 +125,8 @@ export function GuestPanel({
         <Button
           variant="link"
           size="sm"
-          disabled={isDefault}
-          onClick={() => onChange(DEFAULT_GUESTS)}
+          disabled={untouched}
+          onClick={() => onChange(null)}
           className="text-ink/50 hover:text-ink"
         >
           Reset

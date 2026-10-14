@@ -6,6 +6,7 @@ import { useMemo, useRef, useState } from "react";
 import { Input } from "@heroui/react";
 import { cn, pluralize } from "@injishi/utils";
 import type { Destination, DestinationKind } from "@/data/destinations";
+import { usePublishedStays } from "@/data/published-stays";
 import { KIND_LABELS, rankDestinations } from "@/lib/destination-search";
 
 /**
@@ -27,6 +28,8 @@ export function DestinationField({
   placeholder,
   inputRef,
   placement = "bottom",
+  inputClassName,
+  onFocus,
 }: {
   query: string;
   onQueryChange: (value: string) => void;
@@ -35,11 +38,16 @@ export function DestinationField({
   placeholder: string;
   inputRef: React.RefObject<HTMLInputElement | null>;
   placement?: "top" | "bottom";
+  /** Appended to the input's classes; Explore's bar follows the theme. */
+  inputClassName?: string;
+  onFocus?: () => void;
 }) {
   const [active, setActive] = useState(0);
   const listRef = useRef<HTMLUListElement>(null);
 
-  const ranked = useMemo(() => rankDestinations(query), [query]);
+  // Read once the field first opens; until then the fixed list stands alone.
+  const published = usePublishedStays(open);
+  const ranked = useMemo(() => rankDestinations(query, 7, published), [query, published]);
   const isEmptyQuery = query.trim().length === 0;
 
   const commit = (index: number) => {
@@ -127,7 +135,11 @@ export function DestinationField({
           setActive(0);
         }}
         onKeyDown={onKeyDown}
-        className="w-full min-w-0 border-0 px-0 py-0 text-base leading-tight shadow-none outline-none [--field-foreground:var(--color-ink)] [--field-focus:transparent] [--field-hover:transparent] [--field:transparent] [--focus:transparent] placeholder:text-ink/65"
+        onFocus={onFocus}
+        className={cn(
+          "w-full min-w-0 border-0 px-0 py-0 text-base leading-tight shadow-none outline-none [--field-foreground:var(--color-ink)] [--field-focus:transparent] [--field-hover:transparent] [--field:transparent] [--focus:transparent] placeholder:text-ink/65",
+          inputClassName,
+        )}
       />
 
       {open ? (
@@ -198,11 +210,6 @@ export function DestinationField({
                           {hit.destination.context}
                         </span>
                       </span>
-                      {hit.destination.count ? (
-                        <span className="shrink-0 text-xs tabular-nums text-ink/40">
-                          {hit.destination.count}
-                        </span>
-                      ) : null}
                     </Button>
                   </li>
                 );

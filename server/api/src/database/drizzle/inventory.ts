@@ -285,6 +285,21 @@ export const roomTypes = pgTable(
       'room_types_approval_policy_shape',
       sql`(${t.bookingMode} = 'request_to_book') OR (${t.approvalPolicy} IS NULL)`,
     ),
+    /*
+     * Residence inventory is never bookable as a stay (FL06 §5C).
+     *
+     * `BookingService.create` refuses a non-hospitality room type, so a
+     * `booking_mode` on one is a promise no endpoint can keep. A seeded row
+     * made exactly that promise — `request_to_book` on a `residence`
+     * apartment — and `GET /bookable/:roomTypeId` repeated it to the checkout,
+     * which then could not confirm. Migration 0046 nulls those columns and adds
+     * this check so the shape cannot come back through a seed or a hand-written
+     * insert.
+     */
+    check(
+      'room_types_residence_not_bookable',
+      sql`(${t.domain} = 'hospitality') OR (${t.bookingMode} IS NULL)`,
+    ),
   ],
 );
 

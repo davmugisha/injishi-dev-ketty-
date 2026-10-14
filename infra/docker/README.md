@@ -1,20 +1,26 @@
 # Local dev stack
 
-Postgres and Redis run in Docker. The API and the apps run on your machine.
-Once Docker Desktop is running, this is the only command you need, run from
-`injishi/`:
+Postgres, Redis, MinIO and Mailpit run in Docker. The API and the apps run on
+your machine. Once Docker Desktop is installed, this is the only command you
+need, run from `injishi/`:
 
 ```bash
-pnpm dev:stack          # start Postgres + Redis, migrate, seed. Safe to re-run
+pnpm dev:all            # the stack, then every app in this terminal (section 3)
+```
+
+The stack on its own:
+
+```bash
+pnpm dev:stack          # start the services, migrate, seed. Safe to re-run
 pnpm dev:stack:down     # stop the containers and keep the data
 pnpm dev:stack:reset    # delete the data, then start, migrate and seed again
 ```
 
-`scripts/dev-stack.mjs` reads `server/api/.env` (or `server/api/.env` after
-the rename) and starts Postgres and Redis on the ports it names: today that is
-**5434** and **6381**. So `pnpm api:dev` connects without any extra setup. It
-refuses to run if `DATABASE_URL` or Redis points at another machine, because it
-will not migrate or seed a hosted database.
+`scripts/dev-stack.mjs` reads `server/api/.env` and starts Postgres and Redis
+on the ports it names (the template's are **5432** and **6379**), so `pnpm
+api:dev` connects without any extra setup. It refuses to run if `DATABASE_URL`
+or Redis points at another machine, because it will not migrate or seed a
+hosted database.
 
 ## 1. Install Docker Desktop (Windows 11, one time, needs an administrator)
 
@@ -101,9 +107,10 @@ pnpm dev:stack
    (or `REDIS_URL`) from the API's `.env`.
 2. Checks that Docker is installed and its engine is running. If not, it prints
    the steps above and exits non-zero.
-3. Runs `docker compose -f infra/docker/docker-compose.yml up -d db redis` with
-   those ports and credentials. It stops first if another program already
-   holds one of those ports, such as a Postgres installed on Windows.
+3. Runs `docker compose -f infra/docker/docker-compose.yml up -d db redis
+   mailpit minio` with those ports and credentials. It stops first if another
+   program already holds one of those ports, such as a Postgres installed on
+   Windows.
 4. Waits, for a limited time, until both containers report healthy and the
    ports answer from your machine.
 5. Runs the API's own `scripts/migrate.mjs`, which applies every migration
@@ -132,13 +139,37 @@ database says what it is, rather than a URL being a different string.
 
 ## 3. Then start the apps
 
-Run each one in its own terminal, from `injishi/`:
+All of them, in one terminal, from `injishi/`:
+
+```bash
+pnpm dev:all                       # api, worker, web, admin, app, mobile
+pnpm dev:all --skip mobile         # everything except mobile
+pnpm dev:all --only web,api        # just these
+```
+
+It runs the steps of section 2 first, with two differences: it starts Docker
+Desktop itself when the engine is not running, and it seeds only a database
+the recipe never finished on (`database_identity.seeded_at` is empty), so a
+daily start keeps your data. `pnpm dev:stack` still reseeds every time. Before
+that, it runs `pnpm install --frozen-lockfile` when `pnpm-lock.yaml` changed
+since the last install, and it stops if one of the apps' ports is already
+taken, naming the process holding it.
+
+Every line is labelled with the app that printed it. Once they answer it prints
+where each one is, and a QR code for Expo Go: mobile starts with `start:go`,
+and Metro and the API url are given this PC's Wi-Fi address, so a phone on the
+same network can open it (`--lan <address>` picks another). Ctrl+C stops every
+app. The Docker services keep running; `pnpm dev:stack:down` stops them.
+
+Or each one in its own terminal:
 
 ```bash
 pnpm api:dev                       # API       http://localhost:8000
+pnpm api:worker:dev                # queue worker: queued mail waits until it runs
 pnpm web:dev                       # web       http://localhost:3000
 pnpm app:dev                       # operator  http://localhost:3002
 pnpm --filter @injishi/admin dev   # admin     http://localhost:3001
+pnpm --filter @injishi/mobile start:go   # Expo Go; set EXPO_PUBLIC_API_URL to a LAN address for a phone
 ```
 
 Sign in at <http://localhost:3000/sign-in> with `host@injishi.com` (the owner of

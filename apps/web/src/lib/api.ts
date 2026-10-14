@@ -21,6 +21,9 @@ export const API_URL =
 /** Ceiling on one API round trip. */
 const API_TIMEOUT_MS = 12_000;
 
+/** A response body that did not parse as JSON, kept apart from a JSON `null`. */
+const NOT_JSON = Symbol("not-json");
+
 /**
  * What a call to the API can turn out to be.
  *
@@ -38,9 +41,26 @@ export type ApiResult<T> =
    * machine readable reason when the API sent one (`contract_not_accepted`),
    * so a screen can act on a refusal without matching on its English.
    */
-  | { status: "refused"; message: string; httpStatus: number; code?: string }
+  | {
+      status: "refused";
+      message: string;
+      httpStatus: number;
+      code?: string;
+      /**
+       * The field refusals the validation pipe (or a service refusing in its
+       * shape) sent, each with its path, so a form can put the sentence under
+       * the field it came from rather than above the whole form.
+       */
+      issues?: RefusalIssue[];
+    }
   /** Unreachable, timed out, or an answer we could not read. */
   | { status: "failed" };
+
+/** One field refusal, as the API's validation pipe shapes it. */
+export interface RefusalIssue {
+  path: (string | number)[];
+  message: string;
+}
 
 /**
  * Messages that are the framework talking, not the product.
@@ -78,7 +98,25 @@ function messageOf(body: unknown, httpStatus: number): string {
     const m = (body as { message?: unknown }).message;
     if (typeof m === "string" && m.trim() && !FRAMEWORK_MESSAGE.test(m.trim())) return m;
   }
+  // "Validation failed" is the pipe's headline, not a sentence; the first
+  // field refusal under it is written for a person.
+  const first = issuesOf(body)[0];
+  if (first) return first.message;
   return fallbackFor(httpStatus);
+}
+
+/** The field refusals in an error body, when it carries any. */
+function issuesOf(body: unknown): RefusalIssue[] {
+  if (!body || typeof body !== "object" || !("issues" in body)) return [];
+  const raw = (body as { issues?: unknown }).issues;
+  if (!Array.isArray(raw)) return [];
+  return raw.flatMap((issue) => {
+    if (!issue || typeof issue !== "object") return [];
+    const { path, message } = issue as { path?: unknown; message?: unknown };
+    return Array.isArray(path) && typeof message === "string"
+      ? [{ path: path.filter((p): p is string | number => typeof p === "string" || typeof p === "number"), message }]
+      : [];
+  });
 }
 
 /** The refusal's machine readable `code`, when the body carries one. */
@@ -107,10 +145,16 @@ export async function apiFetch<T>(
      * intent: a fresh key per attempt is exactly the double order it prevents.
      */
     idempotencyKey?: string;
+    /**
+     * A longer ceiling for the one kind of call that legitimately takes longer
+     * than a lookup: an assistant turn, which the API itself caps at 60 s
+     * (ADR-061 D-p). Everything else keeps the default.
+     */
+    timeoutMs?: number;
   },
 ): Promise<ApiResult<T>> {
   const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), API_TIMEOUT_MS);
+  const timer = setTimeout(() => controller.abort(), init?.timeoutMs ?? API_TIMEOUT_MS);
   const headers: Record<string, string> = {};
   if (init?.body) headers["content-type"] = "application/json";
   if (init?.idempotencyKey) headers["idempotency-key"] = init.idempotencyKey;
@@ -132,7 +176,20 @@ export async function apiFetch<T>(
 
   if (res.status === 401) return { status: "unauthenticated" };
 
-  const body: unknown = await res.json().catch(() => null);
+  const body: unknown = await res.json().catch(() => NOT_JSON);
+
+  /*
+   * An error the API did not write is not an answer from the API.
+   *
+   * Every refusal Nest sends is JSON. A plain-text error on this origin is the
+   * gateway talking: while the API container restarts (a deploy, the demo's
+   * nightly rebuild) Traefik has no route and answers `404 page not found`. That
+   * used to come back as `refused` 404, which every caller reads as "gone": the
+   * booking card told a guest the stay could not be booked online, and an
+   * invite link read as invalid, for as long as the restart lasted and until a
+   * reload. It is the "we could not ask" case, so it is worded as one.
+   */
+  if (!res.ok && body === NOT_JSON) return { status: "failed" };
 
   if (!res.ok) {
     return {
@@ -140,9 +197,10 @@ export async function apiFetch<T>(
       httpStatus: res.status,
       message: messageOf(body, res.status),
       ...codeOf(body),
+      ...(issuesOf(body).length > 0 ? { issues: issuesOf(body) } : {}),
     };
   }
-  return { status: "ok", data: body as T };
+  return { status: "ok", data: (body === NOT_JSON ? null : body) as T };
 }
 
 /**
@@ -166,6 +224,30 @@ export async function apiFetchParsed<T>(
   if (result.status !== "ok") return result;
   const parsed = schema.safeParse(result.data);
   return parsed.success ? { status: "ok", data: parsed.data } : { status: "failed" };
+}
+
+/**
+ * Ask again, quietly, when we could not ask at all.
+ *
+ * For a READ a guest did not press anything to start, where a blip should heal
+ * itself rather than put a "Try again" button in front of them: an API restart
+ * lasts seconds. Only `failed` is retried. A refusal, a 401 or an answer is the
+ * API speaking, and asking again would only repeat it.
+ *
+ * Never wrap a write in this: a write that timed out may have landed.
+ */
+export async function retryWhileFailed<T>(
+  read: () => Promise<ApiResult<T>>,
+  delaysMs: readonly number[] = [1_500, 4_000],
+  sleep: (ms: number) => Promise<void> = (ms) => new Promise((done) => setTimeout(done, ms)),
+): Promise<ApiResult<T>> {
+  let result = await read();
+  for (const delay of delaysMs) {
+    if (result.status !== "failed") return result;
+    await sleep(delay);
+    result = await read();
+  }
+  return result;
 }
 
 /** One sentence for the branches that carry no server message of their own. */

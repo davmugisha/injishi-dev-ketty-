@@ -1,3 +1,5 @@
+import { cookies } from "next/headers";
+import { OTP_EMAIL_COOKIE } from "@/lib/otp-email-cookie";
 import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import VerifyOtpPanel from "@/components/auth/verify-otp-panel";
@@ -37,7 +39,10 @@ export default async function Page({
   searchParams: Promise<Record<string, string | string[] | undefined>>;
 }) {
   const params = await searchParams;
-  const email = typeof params.email === "string" ? params.email.trim() : "";
+  // From the cookie the send step set (`lib/otp-email-cookie.ts`). A `?email=`
+  // is still read, so a link an older build produced keeps working.
+  const fromQuery = typeof params.email === "string" ? params.email.trim() : "";
+  const email = fromQuery || ((await cookies()).get(OTP_EMAIL_COOKIE)?.value ?? "").trim();
   const redirectTo = safeRedirect(
     typeof params.redirect === "string" ? params.redirect : null,
   );

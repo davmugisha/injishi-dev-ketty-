@@ -7,6 +7,9 @@ describe('GeographyService', () => {
   const repo = {
     findProvinces: jest.fn(),
     findDistricts: jest.fn(),
+    findCells: jest.fn(),
+    findVillages: jest.fn(),
+    findVillagePlacement: jest.fn(),
   };
 
   const build = async (): Promise<GeographyService> => {
@@ -51,5 +54,77 @@ describe('GeographyService', () => {
     const service = await build();
 
     await expect(service.listProvinces()).rejects.toThrow();
+  });
+
+  it('passes the optional sectorId filter through when listing cells', async () => {
+    repo.findCells.mockResolvedValue([
+      { id: 1020101, name: 'Rukiri I', sectorId: 10201 },
+    ]);
+    const service = await build();
+
+    await expect(service.listCells({ sectorId: 10201 })).resolves.toEqual([
+      { id: 1020101, name: 'Rukiri I', sectorId: 10201 },
+    ]);
+    expect(repo.findCells).toHaveBeenCalledWith(10201);
+  });
+
+  it('passes the optional cellId filter through when listing villages', async () => {
+    repo.findVillages.mockResolvedValue([
+      { id: 102010101, name: 'Amahoro', cellId: 1020101 },
+    ]);
+    const service = await build();
+
+    await expect(service.listVillages({ cellId: 1020101 })).resolves.toEqual([
+      { id: 102010101, name: 'Amahoro', cellId: 1020101 },
+    ]);
+    expect(repo.findVillages).toHaveBeenCalledWith(1020101);
+  });
+
+  it('rejects a village row that violates the contract', async () => {
+    repo.findVillages.mockResolvedValue([{ id: 1, name: '', cellId: 0 }]);
+    const service = await build();
+
+    await expect(service.listVillages({})).rejects.toThrow();
+  });
+
+  it('accepts a village that sits under the sector it was sent with', async () => {
+    repo.findVillagePlacement.mockResolvedValue({
+      villageId: 102010101,
+      cellId: 1020101,
+      sectorId: 10201,
+    });
+    const service = await build();
+
+    await expect(
+      service.checkVillageInSector(102010101, 10201),
+    ).resolves.toEqual({ ok: true });
+  });
+
+  it('refuses a village that sits under a different sector', async () => {
+    repo.findVillagePlacement.mockResolvedValue({
+      villageId: 102010101,
+      cellId: 1020101,
+      sectorId: 10201,
+    });
+    const service = await build();
+
+    await expect(
+      service.checkVillageInSector(102010101, 10202),
+    ).resolves.toEqual({
+      ok: false,
+      message: 'That village is not in the sector you chose.',
+    });
+  });
+
+  it('refuses a village id no row carries, and says so differently', async () => {
+    repo.findVillagePlacement.mockResolvedValue(null);
+    const service = await build();
+
+    await expect(service.checkVillageInSector(999999999, 10201)).resolves.toEqual(
+      {
+        ok: false,
+        message: 'That village does not exist. Pick one from the list.',
+      },
+    );
   });
 });

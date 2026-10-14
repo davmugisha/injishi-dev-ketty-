@@ -8,6 +8,7 @@ import { Badge, Button, Skeleton, Textarea } from "@injishi/ui";
 import { formatPrice } from "@injishi/utils";
 import { EmptyPanel } from "@/components/app/empty-panel";
 import { Icon } from "@/components/app/icon";
+import { OrderComposer } from "@/components/app/order-composer";
 import { clockLabel, dayKey, dayLabel } from "@/components/inbox/chat-time";
 import {
   fetchMyThreads,
@@ -39,6 +40,11 @@ const CONVERSATION_POLL_MS = 5_000;
  *    answer rather than guessed at, so what is on screen is what was stored.
  *  - **An archived thread has no composer**, and says why. A closed conversation
  *    that still offers a text box is a promise the server will refuse with 409.
+ *  - **Ordering happens HERE**, in `<OrderComposer>`, and never by navigating
+ *    away (ADR-050 D-s). It used to be a `<Link>` to `/stay/order?thread=…`,
+ *    offered or withheld on the thread's own `scope` and `kind` — so a guest
+ *    in house with their booking's thread open was refused while the server
+ *    would have taken the order. The composer asks the server instead.
  */
 export function ConversationScreen({ threadId }: { threadId: string }) {
   const [state, setState] = useState<
@@ -188,29 +194,41 @@ function Conversation({
     onScreen.current = messages;
   }, [messages]);
 
+  /**
+   * Ask for the newest page and merge anything new into what is on screen.
+   *
+   * Extracted from the interval because it now has a second caller: an order
+   * placed in this conversation writes a `system` line and the order's card
+   * server-side, and waiting up to five seconds to show the guest the thing
+   * they just did is the kind of lag that makes a person press the button
+   * twice. The poll still runs — a line that lost the race with this call is
+   * picked up by the next tick.
+   */
+  const refresh = useCallback(async () => {
+    const page = await fetchThreadMessages(thread.id);
+    if (page.status !== "ok") return;
+    const shown = new Set(onScreen.current.map((m) => m.id));
+    if (page.data.messages.every((m) => shown.has(m.id))) return;
+    setMessages((prev) => {
+      const seen = new Set(prev.map((m) => m.id));
+      const fresh = page.data.messages.filter((m) => !seen.has(m.id));
+      if (fresh.length === 0) return prev;
+      return [...prev, ...fresh].sort((a, b) =>
+        a.createdAt === b.createdAt ? a.id.localeCompare(b.id) : a.createdAt.localeCompare(b.createdAt),
+      );
+    });
+    void markThreadRead(thread.id);
+    requestAnimationFrame(() => foot.current?.scrollIntoView({ block: "end", behavior: "smooth" }));
+  }, [thread.id]);
+
   useEffect(() => {
     if (thread.status === "archived") return;
     const timer = window.setInterval(() => {
       if (document.visibilityState !== "visible") return;
-      void (async () => {
-        const page = await fetchThreadMessages(thread.id);
-        if (page.status !== "ok") return;
-        const shown = new Set(onScreen.current.map((m) => m.id));
-        if (page.data.messages.every((m) => shown.has(m.id))) return;
-        setMessages((prev) => {
-          const seen = new Set(prev.map((m) => m.id));
-          const fresh = page.data.messages.filter((m) => !seen.has(m.id));
-          if (fresh.length === 0) return prev;
-          return [...prev, ...fresh].sort((a, b) =>
-            a.createdAt === b.createdAt ? a.id.localeCompare(b.id) : a.createdAt.localeCompare(b.createdAt),
-          );
-        });
-        void markThreadRead(thread.id);
-        requestAnimationFrame(() => foot.current?.scrollIntoView({ block: "end", behavior: "smooth" }));
-      })();
+      void refresh();
     }, CONVERSATION_POLL_MS);
     return () => window.clearInterval(timer);
-  }, [thread.id, thread.status]);
+  }, [thread.status, refresh]);
 
   async function loadOlder() {
     if (!older) return;
@@ -253,9 +271,6 @@ function Conversation({
     if (!firstLineOf.has(message.serviceOrderId)) firstLineOf.set(message.serviceOrderId, message.id);
     linesOf.set(message.serviceOrderId, (linesOf.get(message.serviceOrderId) ?? 0) + 1);
   }
-  // Ordering to the room belongs to a stay conversation or a desk request.
-  const mayOrder = thread.status === "active" && (thread.scope === "stay" || thread.kind === "department_request");
-
   return (
     <div className="mx-auto flex w-full max-w-read flex-col gap-block px-4 py-6">
       <header className="animate-arrive">
@@ -314,7 +329,17 @@ function Conversation({
           sent. Everything above stays readable.
         </p>
       ) : (
-        <div className="flex flex-col gap-2">
+        <div className="flex flex-col gap-3">
+          {/*
+            Ordering sits ABOVE the message box, as its own strip, and it
+            renders itself only when the server says an outlet would take the
+            order. It used to be a button beside Send that navigated to
+            `/stay/order` — and it was offered from the thread's `scope` and
+            `kind`, so a guest in house with their booking's own thread open
+            was told nothing could be ordered while the server disagreed.
+          */}
+          <OrderComposer thread={thread} onPlaced={() => void refresh()} />
+
           {sendError ? (
             <p role="alert" className="animate-settle-in flex items-start gap-2 text-sm text-destructive">
               <Icon name="triangle-alert" className="mt-0.5 size-4 shrink-0" />
@@ -329,19 +354,7 @@ function Conversation({
             aria-label="Write a message"
             rows={3}
           />
-          <div className="flex flex-wrap justify-between gap-2">
-            {mayOrder ? (
-              // The full order screen, placing into THIS conversation: its card and
-              // status lines appear here, and the screen comes back here after.
-              <Button asChild variant="outline">
-                <Link href={`/stay/order?thread=${encodeURIComponent(thread.id)}`}>
-                  <Icon name="coffee" className="size-4" />
-                  Order to my room
-                </Link>
-              </Button>
-            ) : (
-              <span />
-            )}
+          <div className="flex justify-end">
             <Button pending={sending} disabled={draft.trim().length === 0} onClick={() => void send()}>
               {sending ? "Sending…" : "Send"}
             </Button>

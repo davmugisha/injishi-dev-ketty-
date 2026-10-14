@@ -89,7 +89,7 @@ test("each class speaks its own words", () => {
   assert.equal(setupVocabularyFor({ domain: "hospitality", accommodationClass: "tented_camp" }).unitPlural, "tents");
   assert.equal(setupVocabularyFor({ domain: "hospitality", accommodationClass: "villa" }).typePlural, "Villa types");
   assert.equal(setupVocabularyFor({ domain: "hospitality", accommodationClass: "apartment" }).unitSingular, "apartment");
-  assert.equal(setupVocabularyFor({ domain: "hospitality", accommodationClass: "hotel" }).pricePeriod, "per night");
+  assert.equal(setupVocabularyFor({ domain: "hospitality", accommodationClass: "hotel" }).pricePeriod, "per person, per night");
 });
 
 test("a retired or missing class resolves rather than throws", () => {

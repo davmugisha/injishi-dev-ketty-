@@ -1,0 +1,26 @@
+-- ADR-069 D-a - `finance` and `hr` join `org_role` as default roles.
+--
+-- The accountant and the HR officer, each with a default set of its own
+-- (`ROLE_PERMISSIONS` in `@injishi/contracts`). Each value goes in `BEFORE
+-- 'housekeeper'`, so the database lists the six roles in the contract's order:
+-- owner, manager, receptionist, finance, hr, housekeeper. The one enum covers
+-- `org_memberships`, `org_invitations` and `org_role_permissions`.
+--
+-- THIS MIGRATION ONLY ADDS THE VALUES, and nothing below uses them. The rule
+-- 0005, 0009 and 0012 record: `ALTER TYPE ... ADD VALUE` is legal inside a
+-- transaction, but Postgres refuses to USE the new value until that transaction
+-- commits, and the migrator applies every pending migration in ONE transaction.
+-- So no later migration may write 'finance' or 'hr' in the batch that applies
+-- this one; the seeds run after the migrator commits, which is where the demo
+-- personas and the verification members are written.
+--
+-- The constraints that name a role stay correct with no change:
+-- `org_role_permissions_not_owner` refuses only `owner`, and
+-- `org_role_permissions_not_locked` refuses only `team.manage`, so a business
+-- may store overrides for both new roles (ADR-055) and can never grant either
+-- one the locked permission. `payroll.draft` needs no migration: `permission`
+-- is text (ADR-055 D-h).
+--
+-- FORWARD ONLY, like every migration here. Postgres cannot drop an enum value.
+ALTER TYPE "public"."org_role" ADD VALUE 'finance' BEFORE 'housekeeper';--> statement-breakpoint
+ALTER TYPE "public"."org_role" ADD VALUE 'hr' BEFORE 'housekeeper';

@@ -1,8 +1,12 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.ELEVATION_REFUSED_MESSAGE = exports.SEPARATION_OF_DUTIES_MESSAGE = exports.OVERSIGHT_OWN_BUSINESS_MESSAGE = exports.OVERSIGHT_ORG_ROLE_CONFLICT_MESSAGE = exports.OVERSIGHT_SCOPE_CONFLICT_MESSAGE = exports.OVERSIGHT_CONSOLE_NOT_BUILT_MESSAGE = exports.OVERSIGHT_COUNTRY_SCOPE_LABEL = exports.OversightConsoleGrant = exports.OversightGrant = exports.REGISTRATION_STAGE_MESSAGE = exports.WorkspaceAccess = exports.WorkspaceBranch = exports.BranchCoverage = exports.PERMISSION_LABEL = exports.Permission = void 0;
+exports.ELEVATION_REFUSED_MESSAGE = exports.SEPARATION_OF_DUTIES_MESSAGE = exports.OVERSIGHT_OWN_BUSINESS_MESSAGE = exports.OVERSIGHT_ORG_ROLE_CONFLICT_MESSAGE = exports.OVERSIGHT_SCOPE_CONFLICT_MESSAGE = exports.OVERSIGHT_CONSOLE_NOT_BUILT_MESSAGE = exports.OVERSIGHT_COUNTRY_SCOPE_LABEL = exports.OversightConsoleGrant = exports.OversightGrant = exports.REGISTRATION_STAGE_MESSAGE = exports.WorkspaceAccess = exports.WorkspaceBranch = exports.BranchCoverage = exports.SetRolePermissionsRequest = exports.OperatorRoleList = exports.OperatorRolePermissions = exports.PERMISSION_AREA_OF = exports.PERMISSION_AREA_LABEL = exports.PERMISSION_AREA = exports.LOCKED_PERMISSION_REASON = exports.LOCKED_PERMISSIONS = exports.RolePermissionOverride = exports.CustomisableOrgRole = exports.PERMISSION_LABEL = exports.Permission = void 0;
 exports.can = can;
 exports.permissionsForRole = permissionsForRole;
+exports.isCustomisableOrgRole = isCustomisableOrgRole;
+exports.isLockedPermission = isLockedPermission;
+exports.effectivePermissionsForRole = effectivePermissionsForRole;
+exports.parseRolePermissionOverride = parseRolePermissionOverride;
 exports.isOperational = isOperational;
 exports.workspaceLabel = workspaceLabel;
 exports.permissionsForWorkspace = permissionsForWorkspace;
@@ -69,18 +73,21 @@ exports.Permission = zod_1.z.enum([
      * Connect the business's RRA EBM account and choose the catalog items its
      * sales are invoiced against (ADR-041).
      *
-     * The twenty third permission, and owner plus manager only. This is the
+     * The twenty third permission: owner, manager and finance. This is the
      * taxpayer's own fiscal identity: whoever holds it decides which RRA account
      * every sale of this business is declared under, and can disconnect the
      * account and stop the declarations. A receptionist taking a booking must
-     * never be able to re-point where that booking is taxed.
+     * never be able to re-point where that booking is taxed. The accountant
+     * keeps it (ADR-069 D-b): the account and its item mapping, on Settings →
+     * Integrations.
      */
     "ebm.manage",
     /**
      * Close a bill, which SIGNS ITS SALE with RRA (ADR-050 D-t, AC-8).
      *
-     * Owner, manager and receptionist. Signing a correct sale at the desk is the
-     * desk's job, and a hotel cannot wake a manager per departure. Check out
+     * Owner, manager, receptionist and finance (ADR-069 D-b). Signing a correct
+     * sale at the desk is the desk's job, and a hotel cannot wake a manager per
+     * departure; closing a bill left open is the accountant's. Check out
      * requires it alongside `stay.checkout`, because check out is what signs:
      * gating only the close route would leave the fiscal act reachable through
      * a permission the receptionist already held.
@@ -89,8 +96,9 @@ exports.Permission = zod_1.z.enum([
     /**
      * Withdraw a signed sale with an `NR` refund receipt (ADR-050 D-t, AC-8).
      *
-     * Owner and manager only. Creating a declaration is routine; withdrawing one
-     * reduces declared turnover, and §14 wants a named person's justification.
+     * Owner, manager and finance (ADR-069 D-b), never the desk. Creating a
+     * declaration is routine; withdrawing one reduces declared turnover, and §14
+     * wants a named person's justification.
      */
     "ebm.refund",
     /**
@@ -103,14 +111,15 @@ exports.Permission = zod_1.z.enum([
      * Answer a guest's request for money back on a stay that has already begun
      * (§6.8).
      *
-     * OWNER AND MANAGER, never the desk. A booking cancellation is arithmetic —
-     * `cancellationRefund` reads a locked tier and a clock, and nobody exercises
-     * judgement — but this is the opposite: the entitlement the rules compute is
-     * a SUGGESTION, and the person deciding may approve more than it (goodwill)
-     * or refuse what it owed by citing a rule the engine cannot see. That is a
-     * discretionary spend of the business's money in front of an unhappy guest,
-     * which is exactly the decision a receptionist must be able to escalate
-     * rather than be pressed into making at the counter.
+     * OWNER, MANAGER AND FINANCE (ADR-069 D-b), never the desk. A booking
+     * cancellation is arithmetic — `cancellationRefund` reads a locked tier and a
+     * clock, and nobody exercises judgement — but this is the opposite: the
+     * entitlement the rules compute is a SUGGESTION, and the person deciding may
+     * approve more than it (goodwill) or refuse what it owed by citing a rule the
+     * engine cannot see. That is a discretionary spend of the business's money in
+     * front of an unhappy guest, which is exactly the decision a receptionist
+     * must be able to escalate rather than be pressed into making at the
+     * counter.
      */
     "refund.decide",
     /**
@@ -124,6 +133,66 @@ exports.Permission = zod_1.z.enum([
      * permission at all.
      */
     "offer.manage",
+    /**
+     * The HR module (ADR-058, cross child contract 4). Seven permissions in the
+     * `people` area, and ADR-069 D-e's `payroll.draft` makes eight, each
+     * moveable per role under ADR-055.
+     *
+     * `people.view` reads the HR file WITHOUT the sensitive fields (date of
+     * birth, ID number, RSSB number, wages). Only `people.manage` and
+     * `payroll.run` see those, and the API answers with a different schema for
+     * each, so a missed check cannot leak a field. `payroll.draft` sees the
+     * wages a pay run computes and none of the file's other sensitive fields.
+     */
+    "people.view",
+    /**
+     * Create and edit HR files and contracts, see the sensitive fields, and
+     * offboard. The owner's and `hr`'s by default (ADR-069 D-b), and in
+     * `OWNER_BY_DEFAULT` below so a manager does not inherit it; grantable: an
+     * owner may hand it to a manager. Offboarding a person who holds an account
+     * still needs `team.manage` as well, which cannot be granted.
+     */
+    "people.manage",
+    /** Shift templates and the roster. */
+    "roster.manage",
+    /**
+     * Clock a person in and out. Held by the front desk, which is who is at the
+     * door when the night shift arrives. Reads return roster cards only, so
+     * this exposes no field of the HR file.
+     */
+    "attendance.record",
+    /** Correct an attendance record, and validate a self clock in. */
+    "attendance.approve",
+    /** Decide leave, and file leave on someone's behalf. */
+    "leave.approve",
+    /**
+     * Build and revise a DRAFT pay run, and see the wages that takes (ADR-069
+     * D-e): list the runs, create a month's draft, read a run with its payslips,
+     * recompute it, hold one person out of it, and read the payroll dashboard
+     * and the national rules a draft is computed by. Never the confirm.
+     *
+     * The owner's and `hr`'s by default, so whoever prepares the month is not
+     * whoever signs it. In `OWNER_BY_DEFAULT` below, and that is required rather
+     * than stylistic: `manager` is every permission minus `OWNER_ONLY` minus
+     * `OWNER_BY_DEFAULT`, so leaving it out would hand it to every manager.
+     *
+     * A draft route admits this OR `payroll.run`, so a role a business granted
+     * `payroll.run` before the split still prepares the month it confirms and
+     * no override row needs migrating. Alone it never reaches an ID number, a
+     * date of birth, an RSSB number or a pay account.
+     */
+    "payroll.draft",
+    /**
+     * CONFIRM the pay run (ADR-069 D-e), and everything a confirmed run
+     * produces: payslips, bank and mobile money files, the RSSB and PAYE
+     * declarations, loans, claims and adjustments, how pay is computed, and the
+     * sensitive fields they need. A draft route admits it too, so it still does
+     * everything it did before `payroll.draft` existed.
+     *
+     * OWNER BY DEFAULT, like `people.manage`: what the business pays each person
+     * is the owner's to disclose, and to sign. No other default role holds it.
+     */
+    "payroll.run",
 ]);
 const ALL = exports.Permission.options;
 /**
@@ -151,18 +220,47 @@ const ALL = exports.Permission.options;
  */
 const OWNER_ONLY = ["team.manage"];
 /**
+ * What only an owner holds BY DEFAULT, and an owner may still grant (ADR-058,
+ * cross child contract 4).
+ *
+ * Different from `OWNER_ONLY` in kind, not degree. `team.manage` is the lock on
+ * the door and can never be granted; these are disclosures (a person's ID
+ * number, what each colleague earns) that a hotel may well want its general
+ * manager to hold, so they start with the owner and move with an ADR-055
+ * override like any other permission.
+ *
+ * `payroll.draft` (ADR-069 D-e) is here because `manager` is derived by
+ * subtraction: a permission left off this list is a permission every manager
+ * holds. `hr` holds `people.manage` and `payroll.draft` by its own set, not by
+ * inheriting from here, and `payroll.run` stays the owner's alone.
+ */
+const OWNER_BY_DEFAULT = ["people.manage", "payroll.draft", "payroll.run"];
+/**
  * Role to permissions, inside a business workspace.
  *
  * owner runs and OWNS the property: everything, the roster included.
  * manager runs the property: everything operational, money and the fiscal
- * account included — but does not decide who works here (`OWNER_ONLY`).
+ * account included — but does not decide who works here (`OWNER_ONLY`), and by
+ * default neither reads HR files in full nor drafts or confirms payroll
+ * (`OWNER_BY_DEFAULT`).
  * receptionist works the front desk and takes service orders: no money, no
- * team, no housekeeping board, no menu editing.
+ * team, no housekeeping board, no menu editing. Clocks staff in and out.
+ * finance is the accountant (ADR-069 D-b): reads the money, posts and voids
+ * charges, records payments, closes bills, keeps the EBM account, withdraws a
+ * signed sale and answers refund requests. No rooms, no reservations to
+ * write, no rates, no staff files, no guest inbox.
+ * hr is the HR officer (ADR-069 D-b): reads and keeps the staff files, the
+ * roster, attendance and leave, and DRAFTS the pay run; the owner confirms it.
+ * No money, no folios, no reservations, no guest inbox.
  * housekeeper is the phone: room status and maintenance tickets only.
+ *
+ * Neither `finance` nor `hr` holds `team.manage`, and no override can give it
+ * to them (`LOCKED_PERMISSIONS`). Typed by `OrgRole`, so a role added to the
+ * enum without a set here does not compile.
  */
 const ROLE_PERMISSIONS = {
     owner: new Set(ALL),
-    manager: new Set(ALL.filter((p) => !OWNER_ONLY.includes(p))),
+    manager: new Set(ALL.filter((p) => !OWNER_ONLY.includes(p) && !OWNER_BY_DEFAULT.includes(p))),
     receptionist: new Set([
         "reservation.approve",
         "reservation.assign",
@@ -173,6 +271,25 @@ const ROLE_PERMISSIONS = {
         "folio.close",
         "order.advance",
         "message.send",
+        "attendance.record",
+    ]),
+    finance: new Set([
+        "money.view",
+        "folio.charge",
+        "folio.payment",
+        "folio.close",
+        "ebm.manage",
+        "ebm.refund",
+        "refund.decide",
+    ]),
+    hr: new Set([
+        "people.view",
+        "people.manage",
+        "roster.manage",
+        "attendance.record",
+        "attendance.approve",
+        "leave.approve",
+        "payroll.draft",
     ]),
     housekeeper: new Set(["housekeeping.set", "ticket.advance"]),
 };
@@ -213,7 +330,257 @@ exports.PERMISSION_LABEL = {
     "outlet.manage": "manage outlets",
     "refund.decide": "answer a guest's refund request",
     "offer.manage": "create and retire offers",
+    "people.view": "view staff files",
+    "people.manage": "manage staff files and contracts",
+    "roster.manage": "manage the roster",
+    "attendance.record": "clock staff in and out",
+    "attendance.approve": "correct and approve attendance",
+    "leave.approve": "decide leave",
+    "payroll.draft": "draft the pay run",
+    "payroll.run": "confirm the pay run",
 };
+// ---------------------------------------------------------------------------
+// A business's own role customisation
+// ---------------------------------------------------------------------------
+/**
+ * The roles a business may customise, and the fact that `owner` is not one.
+ *
+ * The six roles above are the PLATFORM's defaults: what a hotel means by
+ * "receptionist" before anybody says otherwise. `finance` and `hr` (ADR-069
+ * D-a) are customisable like the rest, and appear on the Roles screen with
+ * their own defaults beside the others. The defaults were the whole model, and
+ * two real properties never agree with them — one lets the front desk read the
+ * month's takings, another does not let a manager withdraw a signed receipt.
+ * The choice belongs to whoever owns the business, so a business may move a
+ * permission on or off any of its staff roles, and the default set stays the
+ * starting point rather than the ceiling.
+ *
+ * `owner` is excluded exactly as `InvitableOrgRole` excludes it, and for a
+ * stronger reason: the customisation screen sits behind `team.manage`, which
+ * only an owner holds, so an owner who could edit `owner` could remove their
+ * own access to the screen that would put it back. There is no other door.
+ */
+exports.CustomisableOrgRole = primitives_1.OrgRole.exclude(["owner"]);
+/** Is this a role a business may customise? Narrows, so callers stay honest. */
+function isCustomisableOrgRole(role) {
+    return role !== "owner";
+}
+/**
+ * One deliberate departure from the default set, for one role of one business.
+ *
+ * A DELTA rather than a stored permission list, and that is the design decision
+ * rather than an implementation detail. A stored list would freeze the role at
+ * the day it was edited: the twenty sixth permission, added to the platform next
+ * quarter, would reach every business that had never opened this screen and no
+ * business that had. A delta says only what this owner CHANGED, so a role that
+ * was never customised for a permission still inherits the platform's answer for
+ * it, and the two kinds of fact stay apart.
+ */
+exports.RolePermissionOverride = zod_1.z.object({
+    orgRole: exports.CustomisableOrgRole,
+    permission: exports.Permission,
+    /** True grants a permission the default set withholds; false withdraws one it gives. */
+    granted: zod_1.z.boolean(),
+});
+/**
+ * The permissions no business may move, and why each one is here.
+ *
+ * `team.manage` is the whole list, and it is `OWNER_ONLY` restated rather than a
+ * second register: granting it to a manager would hand that manager this very
+ * screen, from which they could grant themselves the rest and re-role the owner
+ * out of their own business. Every other permission is an operational choice an
+ * owner is entitled to make; this one is the lock on the door, so it cannot be
+ * handed through the door.
+ *
+ * Locked means locked in BOTH directions. An owner cannot grant it to a
+ * manager, and the question of withdrawing it from `owner` cannot arise,
+ * because `owner` is not customisable at all.
+ */
+exports.LOCKED_PERMISSIONS = OWNER_ONLY;
+/** May an override move this permission at all? */
+function isLockedPermission(permission) {
+    return exports.LOCKED_PERMISSIONS.includes(permission);
+}
+/** Why a locked permission is locked, in words a screen can print. */
+exports.LOCKED_PERMISSION_REASON = {
+    "team.manage": "Only an owner manages the team. Granting it here would let that role change roles — including yours.",
+};
+/**
+ * Every permission a role holds AT ONE BUSINESS: the defaults, plus what that
+ * business granted, minus what it withdrew.
+ *
+ * Overrides for other roles are ignored rather than refused, so a caller may
+ * hand in the whole business's set and ask about one role. A locked permission
+ * is ignored in both directions whatever a stored row says: the row should never
+ * exist, and if one ever did — a bad migration, a hand edited database — the
+ * model must still refuse to resolve it into a grant. That is the difference
+ * between validating an input and enforcing an invariant, and only the second
+ * one survives a database somebody else wrote to.
+ *
+ * The answer keeps `Permission.options` order, like `permissionsForRole`, so
+ * two grants that hold the same powers are the same array.
+ */
+function effectivePermissionsForRole(role, overrides = []) {
+    const held = new Set(permissionsForRole(role));
+    if (isCustomisableOrgRole(role)) {
+        for (const override of overrides) {
+            if (override.orgRole !== role)
+                continue;
+            if (isLockedPermission(override.permission))
+                continue;
+            if (override.granted)
+                held.add(override.permission);
+            else
+                held.delete(override.permission);
+        }
+    }
+    return ALL.filter((p) => held.has(p));
+}
+/**
+ * Narrow one STORED row into an override the model will resolve, or null.
+ *
+ * The one place a database row becomes a permission decision, so the API service
+ * that edits the table and the resolver that reads it on every request cannot
+ * narrow it two different ways.
+ *
+ * Three rows are dropped rather than refused, and each for its own reason:
+ * a role this release does not have, a permission this release does not have —
+ * `permission` is stored as text because the vocabulary changes with a release
+ * and not with a migration, so a rolled back deploy legitimately leaves rows
+ * from a newer one — and `owner`, which is not customisable at all. Dropping is
+ * safe in both directions: an unrecognised grant grants nothing and an
+ * unrecognised withdrawal withdraws nothing.
+ *
+ * A LOCKED permission is deliberately NOT dropped here, because dropping it
+ * would make this the place the lock is enforced. It is enforced in
+ * `effectivePermissionsForRole`, which is what every consumer resolves through;
+ * a caller listing the stored rows should see a row that should not exist rather
+ * than be told there is none.
+ */
+function parseRolePermissionOverride(row) {
+    const parsed = exports.RolePermissionOverride.safeParse(row);
+    return parsed.success ? parsed.data : null;
+}
+/**
+ * How a screen groups the permissions, so a person reads a job rather than a
+ * list of twenty five dotted names.
+ *
+ * In the contract beside the permissions themselves because it is the same
+ * class of fact as `PERMISSION_LABEL`: wording that must not fork between the
+ * operator app and anything else that ever renders this. It grants nothing.
+ */
+exports.PERMISSION_AREA = zod_1.z.enum([
+    "front_desk",
+    "rooms",
+    "services",
+    "money",
+    "property",
+    "people",
+]);
+/** What each area is called. */
+exports.PERMISSION_AREA_LABEL = {
+    front_desk: "Front desk",
+    rooms: "Rooms & housekeeping",
+    services: "Services & outlets",
+    money: "Money & tax",
+    property: "Property & listings",
+    people: "People",
+};
+/** Which area each permission belongs to. Every permission has exactly one. */
+exports.PERMISSION_AREA_OF = {
+    "reservation.approve": "front_desk",
+    "reservation.assign": "front_desk",
+    "stay.checkin": "front_desk",
+    "stay.checkout": "front_desk",
+    "message.send": "front_desk",
+    "housekeeping.set": "rooms",
+    "ticket.advance": "rooms",
+    "task.assign": "rooms",
+    "order.advance": "services",
+    "menu.manage": "services",
+    "outlet.manage": "services",
+    "folio.charge": "money",
+    "folio.payment": "money",
+    "folio.close": "money",
+    "money.view": "money",
+    "ebm.manage": "money",
+    "ebm.refund": "money",
+    "refund.decide": "money",
+    "rent.record": "money",
+    "lease.advance": "property",
+    "deposit.return": "property",
+    "unit.manage": "property",
+    "listing.manage": "property",
+    "amenity.manage": "property",
+    "offer.manage": "property",
+    "department.manage": "people",
+    "team.manage": "people",
+    "people.view": "people",
+    "people.manage": "people",
+    "roster.manage": "people",
+    "attendance.record": "people",
+    "attendance.approve": "people",
+    "leave.approve": "people",
+    "payroll.draft": "people",
+    "payroll.run": "people",
+};
+// ---------------------------------------------------------------------------
+// What each role may do, at THIS business
+// ---------------------------------------------------------------------------
+/**
+ * One staff role, with the platform's answer and this business's beside it.
+ *
+ * **Three permission arrays, and none of them is redundant.** `basePermissions`
+ * is what the platform says the role means; `permissions` is what it means here;
+ * `lockedPermissions` is the subset of the first that no owner may move. A
+ * screen that had only the effective array could render a set of toggles, but it
+ * could not say which of them had been CHANGED — and "we changed this" is the
+ * one thing an owner reviewing their own policy needs to see. It is also why the
+ * difference is computed from two arrays on the wire rather than sent as a third
+ * list of deltas: the two arrays are what the server actually resolved, so they
+ * cannot disagree with each other.
+ *
+ * `memberCount` is how many ACTIVE people hold the role right now. It is here
+ * because withdrawing a permission is not an abstract act: it changes what four
+ * named colleagues can do on their next page load, and a screen that hides the
+ * number invites the owner to find out afterwards.
+ *
+ * `customisable` is false for `owner` alone, and the screen renders that row
+ * read only rather than hiding it. An owner looking for "why can nobody else
+ * close the month" must be able to see the owner's own set.
+ */
+exports.OperatorRolePermissions = zod_1.z.object({
+    orgRole: primitives_1.OrgRole,
+    /** `ORG_ROLE_LABEL[orgRole]` (in `ops.ts`), resolved server side so one table words it. */
+    label: zod_1.z.string(),
+    customisable: zod_1.z.boolean(),
+    /** The platform default for this role. */
+    basePermissions: zod_1.z.array(exports.Permission),
+    /** What the role actually holds here: the default, plus grants, minus withdrawals. */
+    permissions: zod_1.z.array(exports.Permission),
+    /** Permissions this business may not move in either direction. */
+    lockedPermissions: zod_1.z.array(exports.Permission),
+    /** Active memberships holding this role. */
+    memberCount: zod_1.z.number().int().nonnegative(),
+});
+exports.OperatorRoleList = zod_1.z.object({
+    roles: zod_1.z.array(exports.OperatorRolePermissions),
+});
+/**
+ * Set what a role may do here: the WHOLE set it should hold, not a delta.
+ *
+ * The client sends the state it wants and the server works out which
+ * departures from the default that implies. Sending deltas from the browser
+ * would make the client the author of the diff, and a client whose copy of the
+ * default set was one release stale would then write a delta that meant
+ * something else — the exact failure the stored-list design was rejected for.
+ *
+ * An empty array is legal and means a role that may do nothing. It is not the
+ * same as deleting the role, and the screen says so before it saves.
+ */
+exports.SetRolePermissionsRequest = zod_1.z.object({
+    permissions: zod_1.z.array(exports.Permission).max(64),
+});
 // ---------------------------------------------------------------------------
 // Workspace access
 // ---------------------------------------------------------------------------
@@ -299,6 +666,17 @@ exports.WorkspaceAccess = zod_1.z.object({
     branches: zod_1.z.array(exports.WorkspaceBranch),
     /** `limited` when the member is limited to some branches. Null outside `business`. */
     branchCoverage: exports.BranchCoverage.nullable(),
+    /**
+     * Whether this person may see and act on the business's PSF membership
+     * (ADR-056). Computed on the server by `isPsfApplicant`, which reads the
+     * owner membership and the on behalf claim, never a permission: a pending
+     * business holds none (ADR-053 rule 2), and the application must be
+     * reachable at every registration stage. Null outside hospitality.
+     *
+     * Defaults to null when absent, so a client built after this field landed
+     * still parses a grant from an API built before it.
+     */
+    psfMembership: zod_1.z.object({ canManage: zod_1.z.boolean() }).nullable().default(null),
 });
 /**
  * May this org's workspace actually DO anything yet?
@@ -345,13 +723,20 @@ function workspaceLabel(a) {
  * the BUSINESS OPERATOR matrix, and inventing broker or guest permissions here
  * would be a design decision, not an implementation of one. They are added when
  * their features are specced.
+ *
+ * `roleOverrides` is what THIS business decided its roles mean. It is optional
+ * and defaults to none, so every existing caller keeps the platform defaults and
+ * a business that has never opened the Roles screen is unaffected. It is applied
+ * INSIDE the registration gate rather than beside it: an org that is not
+ * `active` holds nothing, and a business cannot grant its way past its own
+ * approval.
  */
 function permissionsForWorkspace(input) {
     if (input.kind !== "business" || input.orgRole === null)
         return [];
     if (!isOperational(input.registrationStatus))
         return [];
-    return permissionsForRole(input.orgRole);
+    return effectivePermissionsForRole(input.orgRole, input.roleOverrides ?? []);
 }
 /** Refuse unless the workspace grants it. The one predicate a guard calls. */
 function workspaceAllows(access, permission) {
@@ -397,7 +782,7 @@ exports.OversightGrant = zod_1.z.object({
 exports.OversightConsoleGrant = zod_1.z.object({
     /** The assignment row, so a console can name the seat it is rendering. */
     assignmentId: primitives_1.Uuid,
-    console: zod_1.z.enum(["verification", "approval", "tax"]),
+    console: zod_1.z.enum(["verification", "approval", "tax", "membership"]),
     oversightRole: primitives_1.OversightRole,
     bodyCode: zod_1.z.string(),
     bodyName: zod_1.z.string().nullable(),
@@ -428,6 +813,8 @@ function oversightConsoleFor(role) {
             return "approval";
         case "tax_compliance_officer":
             return "tax";
+        case "psf_membership_officer":
+            return "membership";
     }
 }
 /**
@@ -508,6 +895,10 @@ function opposingGateRole(role) {
         // it opposes nothing. Holding it alongside either gate role is fine.
         case "tax_compliance_officer":
             return null;
+        // Membership is not a registration gate either (ADR-056), so a PSF
+        // field verifier may also hold it: they decide different things.
+        case "psf_membership_officer":
+            return null;
     }
 }
 exports.OVERSIGHT_SCOPE_CONFLICT_MESSAGE = "This person already holds the opposing role somewhere inside this region. " +
@@ -537,5 +928,5 @@ exports.SEPARATION_OF_DUTIES_MESSAGE = "You field-verified this business — a d
 function mayElevate(identity) {
     return identity.kycStatus === "verified" && identity.activeDocumentCount > 0;
 }
-exports.ELEVATION_REFUSED_MESSAGE = "This needs a verified identity. Add a national ID or passport to continue.";
+exports.ELEVATION_REFUSED_MESSAGE = "This needs a verified identity. Validate your National ID or scan your passport on the About you step, then try again.";
 //# sourceMappingURL=authz.js.map

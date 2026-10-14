@@ -96,6 +96,28 @@ export class RoomAssignmentRepository {
     );
   }
 
+  /**
+   * Live holds on ONE room that touch `[from, to)`, earliest first.
+   *
+   * What a walk in asks before it takes a room. The exclusion constraint only
+   * compares holds with holds, and a walk in is a stay with no hold at all, so
+   * nothing in the database stops the desk selling tonight's arrival's room to
+   * whoever walks in first.
+   */
+  async assignedOnRoomInWindow(
+    roomId: string,
+    from: string,
+    to: string,
+  ): Promise<AssignmentRow[]> {
+    return this.select(
+      and(
+        eq(roomAssignments.roomId, roomId),
+        eq(roomAssignments.status, 'assigned'),
+        sql`${roomAssignments.occupies} && daterange(${from}::date, ${to}::date, '[)')`,
+      )!,
+    );
+  }
+
   async find(id: string): Promise<AssignmentRow | null> {
     const [row] = await this.select(eq(roomAssignments.id, id));
     return row ?? null;

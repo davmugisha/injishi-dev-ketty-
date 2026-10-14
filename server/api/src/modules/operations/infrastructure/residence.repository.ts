@@ -1,4 +1,6 @@
 import type {
+  AdapterMode,
+  FilingStatus,
   LeaseStatus,
   MaintenanceCategory,
   MaintenancePriority,
@@ -10,8 +12,10 @@ import { and, asc, desc, eq, inArray, sql, type SQL } from 'drizzle-orm';
 import { alias } from 'drizzle-orm/pg-core';
 
 import {
+  accountName,
   cautionHolds,
   cautionSettlements,
+  contractFilings,
   escrows,
   leases,
   maintenanceEvents,
@@ -76,6 +80,30 @@ export interface RentChargeRow {
   dueDate: string | null;
   paidAt: Date | null;
   idempotencyKey: string | null;
+}
+
+/**
+ * One lease and the filing of its contract (F-R10).
+ *
+ * Read from the LEASE outward rather than from `contract_filings`, so a lease
+ * whose contract nothing has filed still appears — with a null `status` — which
+ * is precisely the row a landlord needs to see. A list built from the filings
+ * table can only ever show the leases somebody remembered to file.
+ */
+export interface ContractFilingRow {
+  leaseId: string;
+  workspaceId: string;
+  unitLabel: string | null;
+  tenantName: string | null;
+  leaseStatus: LeaseStatus;
+  startDate: string | null;
+  signedAt: Date | null;
+  status: FilingStatus | null;
+  clockStartAt: Date | null;
+  dueBy: Date | null;
+  attempts: number | null;
+  failureReason: string | null;
+  adapterMode: AdapterMode | null;
 }
 
 export interface DepositRow {
@@ -473,7 +501,7 @@ export class ResidenceRepository {
         unitLabel: rooms.label,
         // The lease carries a typed name for a tenant with no account yet; the
         // account's own name wins when there is one.
-        tenantName: sql<string | null>`coalesce(${users.name}, ${leases.tenantName})`,
+        tenantName: sql<string | null>`coalesce(${accountName}, ${leases.tenantName})`,
         monthlyRentRwf: leases.monthlyRentRwf,
         cautionRwf: leases.cautionRwf,
         startDate: leases.startDate,
@@ -501,7 +529,7 @@ export class ResidenceRepository {
         unitLabel: sql<
           string | null
         >`coalesce(${rooms.label}, ${leaseRooms.label})`,
-        raisedByName: users.name,
+        raisedByName: accountName,
         title: maintenanceTickets.title,
         description: maintenanceTickets.description,
         category: maintenanceTickets.category,
@@ -528,7 +556,7 @@ export class ResidenceRepository {
         leaseId: rentCharges.leaseId,
         workspaceId: leases.workspaceId,
         unitLabel: rooms.label,
-        tenantName: sql<string | null>`coalesce(${users.name}, ${leases.tenantName})`,
+        tenantName: sql<string | null>`coalesce(${accountName}, ${leases.tenantName})`,
         periodMonth: rentCharges.periodMonth,
         amountRwf: rentCharges.amountRwf,
         paidAmountRwf: rentCharges.paidAmountRwf,
@@ -545,6 +573,51 @@ export class ResidenceRepository {
       .orderBy(desc(rentCharges.periodMonth));
   }
 
+  // --- Contract filings ----------------------------------------------------
+
+  /**
+   * Every lease in this workspace, with its contract filing beside it.
+   *
+   * `leftJoin` from `leases`, not from `contract_filings`: the filing is the
+   * optional side. The workspace filter therefore sits on the lease, which is
+   * the only one of the two tables that carries a workspace at all — the same
+   * reason every other read in this file joins through it.
+   */
+  async listContractFilings(workspaceId: string): Promise<ContractFilingRow[]> {
+    return this.db
+      .select({
+        leaseId: leases.id,
+        workspaceId: leases.workspaceId,
+        unitLabel: rooms.label,
+        tenantName: sql<string | null>`coalesce(${accountName}, ${leases.tenantName})`,
+        leaseStatus: leases.status,
+        startDate: leases.startDate,
+        // The clock starts at signing, and a contract is signed by BOTH. The
+        // later signature is when it became a contract, and one signature is
+        // not a contract at all — `greatest` on its own would have reported a
+        // half-signed lease as signed, because Postgres ignores nulls in it.
+        // A raw expression, so no timestamptz parser runs on it: Postgres hands
+        // back a string, and `sql<Date>` alone would only assert the type
+        // (see messaging.repository.ts). Converted here, in the one place.
+        signedAt: sql<Date | null>`case
+          when ${leases.landlordSignedAt} is not null and ${leases.tenantSignedAt} is not null
+          then greatest(${leases.landlordSignedAt}, ${leases.tenantSignedAt})
+        end`.mapWith((v: string | Date) => new Date(v)),
+        status: contractFilings.status,
+        clockStartAt: contractFilings.clockStartAt,
+        dueBy: contractFilings.dueBy,
+        attempts: contractFilings.attempts,
+        failureReason: contractFilings.failureReason,
+        adapterMode: contractFilings.adapterMode,
+      })
+      .from(leases)
+      .leftJoin(contractFilings, eq(contractFilings.leaseId, leases.id))
+      .leftJoin(rooms, eq(rooms.id, leases.roomId))
+      .leftJoin(users, eq(users.id, leases.tenantUserId))
+      .where(eq(leases.workspaceId, workspaceId))
+      .orderBy(desc(leases.startDate));
+  }
+
   private async findDeposits(where: SQL): Promise<DepositRow[]> {
     return this.db
       .select({
@@ -552,7 +625,7 @@ export class ResidenceRepository {
         leaseId: cautionHolds.leaseId,
         workspaceId: leases.workspaceId,
         unitLabel: rooms.label,
-        tenantName: sql<string | null>`coalesce(${users.name}, ${leases.tenantName})`,
+        tenantName: sql<string | null>`coalesce(${accountName}, ${leases.tenantName})`,
         amountRwf: cautionHolds.amountRwf,
         status: cautionHolds.status,
         escrowId: cautionHolds.escrowId,

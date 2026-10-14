@@ -199,8 +199,14 @@ function TripCard({ trip, onChanged }: { trip: GuestTrip; onChanged?: () => void
           </Button>
         ) : null}
         {trip.stage === "in_progress" || trip.stage === "upcoming" ? (
+          // `/inbox` opens with the desks of every property this guest is in
+          // house at or holds a live booking with (ADR-050 D-q), so this
+          // booking's property is there to write to before arrival as well.
           <Button asChild size="sm" variant="outline">
-            <Link href="/inbox">Message the hotel</Link>
+            <Link href="/inbox">
+              <Icon name="message-square" className="size-4" />
+              Message the property
+            </Link>
           </Button>
         ) : null}
         <Button asChild size="sm" variant="outline">

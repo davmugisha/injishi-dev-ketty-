@@ -6,6 +6,7 @@ import type {
   MoneyBreakdown,
   PaymentStatus,
 } from '@injishi/contracts';
+import { stayNightlyRateRwf } from '@injishi/contracts';
 import { Inject, Injectable } from '@nestjs/common';
 import { and, desc, eq, gte, inArray, sql } from 'drizzle-orm';
 
@@ -13,6 +14,7 @@ import { makeReference } from '../domain/pricing';
 import { hasFreeUnitEveryNight } from '../domain/sellable-capacity';
 
 import {
+  accountName,
   bookings,
   escrows,
   guestStays,
@@ -158,6 +160,8 @@ export interface OperatorReservationRow {
   id: string;
   reference: string;
   guestName: string | null;
+  /** Display only: shown where there is no name, never recorded as one. */
+  guestEmail: string | null;
   checkIn: string;
   checkOut: string;
   guestCount: number;
@@ -171,6 +175,9 @@ export interface OperatorReservationRow {
   roomLabel: string | null;
   /** The room type the guest bought; a room held for them must match it. */
   roomTypeId: string;
+  /** The room type's name, and the property (branch) it belongs to. */
+  roomTypeName: string | null;
+  propertyName: string | null;
 }
 
 /** Result of a host approve/decline transition (null when nothing was still pending). */
@@ -358,7 +365,9 @@ export class BookingRepository {
           guestCount: input.guests,
           status: input.status,
           bookingMode: input.bookingMode,
-          lockedNightlyRateRwf: input.breakdown.nightlyRateRwf,
+          // The party's nightly charge (per-guest rate × guests), so every
+          // later reader of the locked rate posts what was actually paid.
+          lockedNightlyRateRwf: stayNightlyRateRwf(input.breakdown),
           lockedCancellationTier: input.cancellationTier,
           nonrefundable: input.nonRefundable,
           grossRwf: input.breakdown.grossRwf,
@@ -963,7 +972,8 @@ export class BookingRepository {
       .select({
         id: bookings.id,
         reference: bookings.reference,
-        guestName: users.name,
+        guestName: accountName,
+        guestEmail: users.email,
         checkIn: bookings.checkIn,
         checkOut: bookings.checkOut,
         guestCount: bookings.guestCount,
@@ -972,10 +982,13 @@ export class BookingRepository {
         approvalExpiresAt: bookings.approvalExpiresAt,
         confirmedAt: bookings.confirmedAt,
         roomTypeId: bookings.roomTypeId,
+        roomTypeName: roomTypes.name,
+        propertyName: properties.name,
       })
       .from(bookings)
       .leftJoin(users, eq(users.id, bookings.guestUserId))
       .leftJoin(roomTypes, eq(roomTypes.id, bookings.roomTypeId))
+      .leftJoin(properties, eq(properties.id, roomTypes.propertyId))
       .where(
         and(
           eq(bookings.workspaceId, workspaceId),
@@ -1012,7 +1025,8 @@ export class BookingRepository {
       .select({
         id: bookings.id,
         reference: bookings.reference,
-        guestName: users.name,
+        guestName: accountName,
+        guestEmail: users.email,
         checkIn: bookings.checkIn,
         checkOut: bookings.checkOut,
         guestCount: bookings.guestCount,
@@ -1021,9 +1035,13 @@ export class BookingRepository {
         approvalExpiresAt: bookings.approvalExpiresAt,
         confirmedAt: bookings.confirmedAt,
         roomTypeId: bookings.roomTypeId,
+        roomTypeName: roomTypes.name,
+        propertyName: properties.name,
       })
       .from(bookings)
       .leftJoin(users, eq(users.id, bookings.guestUserId))
+      .leftJoin(roomTypes, eq(roomTypes.id, bookings.roomTypeId))
+      .leftJoin(properties, eq(properties.id, roomTypes.propertyId))
       .where(eq(bookings.id, bookingId))
       .limit(1);
 

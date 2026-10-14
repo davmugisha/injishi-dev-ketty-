@@ -69,6 +69,24 @@ function databaseUrl() {
 const db = new pg.Pool({ connectionString: databaseUrl() });
 const q = async (text, params = []) => (await db.query(text, params)).rows;
 
+/**
+ * Registering a business needs a verified identity wherever a check can run
+ * (ADR-060). This proof is about something else, so its registrant is verified
+ * by staff, the way the demo seeds verify theirs (`manual`), under the same
+ * name and birth date the proof then sends.
+ */
+async function markVerified(email, fullName, dateOfBirth) {
+  const [user] = await q(`select id from users where lower(email) = lower($1)`, [email]);
+  if (!user) throw new Error(`markVerified: no user ${email}`);
+  await q(
+    `insert into verified_identities (user_id, kyc_status, legal_full_name, dob, verified_method, verified_at)
+     values ($1, 'verified', $2, $3, 'manual', now())
+     on conflict (user_id) do update set kyc_status = 'verified', legal_full_name = $2, dob = $3,
+       verified_method = 'manual', verified_at = now()`,
+    [user.id, fullName, dateOfBirth],
+  );
+}
+
 const JAR_FILE = join(tmpdir(), "injishi-verify-adr053-sessions.json");
 const JARS = (() => {
   try {
@@ -189,6 +207,7 @@ async function coverageOf(orgId) {
 const main = async () => {
   admin = await signIn("admin@injishi.com");
   const host = await signIn("adr053-registrant@injishi.com");
+  await markVerified("adr053-registrant@injishi.com", "ADR-053 Verify Registrant", "1990-01-01");
 
   // -------------------------------------------------------------------------
   console.log("\n=== A. One definition of region scope (AC-G8) ===");

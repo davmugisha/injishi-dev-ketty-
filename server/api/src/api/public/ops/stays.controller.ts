@@ -1,5 +1,6 @@
 import {
   CheckInRequest,
+  CheckOutRequest,
   IssueStayClaimInviteRequest,
   type OperatorStay,
   type OperatorStayList,
@@ -79,6 +80,30 @@ export class OpsStaysController {
   }
 
   /**
+   * ONE stay, by its own id.
+   *
+   * The record screen resolved its stay out of the list above, so the whole
+   * property had to be read to render one guest, and the screen's answer to
+   * "does this stay exist" was "is it in that list" — a question a list is not
+   * qualified to answer. A stay on another workspace, or on a branch outside
+   * this scope, is a 404 here, the same answer an invented id gets.
+   *
+   * Same permission set as the list, so opening a record by id is never easier
+   * than seeing it listed.
+   *
+   * `walk-in` below is a POST, so this GET cannot shadow it whatever the
+   * declaration order, and `ParseUUIDPipe` would refuse that word besides.
+   */
+  @Get(':id')
+  @RequireAnyPermission('stay.checkin', 'stay.checkout', 'folio.charge')
+  get(
+    @Param('id', ParseUUIDPipe) id: string,
+    @CurrentWorkspace() workspace: ScopedWorkspace,
+  ): Promise<OperatorStay> {
+    return this.frontDesk.getStay(workspace, id);
+  }
+
+  /**
    * Check a walk in in — somebody at the counter with no booking (ADR-035).
    *
    * **The desk had a button for this and no route behind it.** Check in names a
@@ -121,14 +146,31 @@ export class OpsStaysController {
    *
    * Needs `folio.close` as well as `stay.checkout`, because check out is what
    * signs the stay's sale (ADR-050 D-t, AC-8).
+   *
+   * **IT TAKES A BODY NOW, AND IT ALWAYS SHOULD HAVE.** `CheckOutRequest` has
+   * been declared in `@injishi/contracts` since this route was written, with a
+   * `note` field, and this method took no `@Body` at all — so the contract
+   * described a request nobody could send and nothing could store. A declared
+   * field that is silently impossible is worse than an absent one: it reads to
+   * the next person as already built.
+   *
+   * The body stays OPTIONAL, and `.default({})` is what makes that true rather
+   * than a hope. `CheckOutRequest` is an object whose every field is optional,
+   * and Zod still REFUSES `undefined` for the object itself — so validating the
+   * bare schema would turn every existing bodyless `POST /checkout` into a 400,
+   * including `scripts/verify-walk-in.mjs` and every desk on an older build.
+   * The default is applied here, at the route, rather than in the contract,
+   * because the contract describes what a client may send and this describes
+   * what this handler does when a client sends nothing.
    */
   @Post(':id/checkout')
   @RequirePermission('stay.checkout', 'folio.close')
   checkOut(
     @Param('id', ParseUUIDPipe) id: string,
+    @Body(new ZodValidationPipe(CheckOutRequest.default({}))) body: CheckOutRequest,
     @CurrentWorkspace() workspace: ScopedWorkspace,
   ): Promise<OperatorStay> {
-    return this.frontDesk.checkOut(workspace, id);
+    return this.frontDesk.checkOut(workspace, id, body);
   }
 
   /**

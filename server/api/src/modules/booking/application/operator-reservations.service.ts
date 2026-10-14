@@ -3,7 +3,11 @@ import type {
   OperatorReservationQuery,
   OperatorReservationState,
 } from '@injishi/contracts';
-import { ConflictException, Injectable } from '@nestjs/common';
+import {
+  ConflictException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 
 import { assertOwned } from '../../../shared/auth/assert-owned';
 import {
@@ -51,6 +55,37 @@ export class OperatorReservationsService {
     return query.state
       ? presented.filter((r) => r.state === query.state)
       : presented;
+  }
+
+  /**
+   * ONE reservation, by its own id, with no window and no ceiling.
+   *
+   * **This is the read the record screen never had, and its absence was a bug
+   * wearing a 404.** `list()` above is the DESK: it reaches back
+   * `DESK_WINDOW_DAYS` and stops at `DESK_LIMIT`, because a desk shows what is
+   * still relevant. The record page resolved its one booking out of that list,
+   * so a booking older than the window — or past the cap — rendered "that page
+   * isn't here" to the very operator who owns it, and `app/not-found.tsx` grew
+   * a sentence presenting that defect as a rule.
+   *
+   * A window is a property of a LIST. It must never decide whether a RECORD
+   * exists, which is why this reads the row directly.
+   *
+   * Scoped exactly as `assertOwnedAndPending` scopes a command: `assertOwned`
+   * for the workspace, then `assertInBranchScope` for the branch, both 404. A
+   * record read that skipped the second would show a booking of a branch the
+   * desk list hides (ADR-054, AC-T2).
+   */
+  async get(ws: ScopedWorkspace, bookingId: string): Promise<OperatorReservation> {
+    const owner = assertOwned(await this.bookings.findReservationOwner(bookingId), ws);
+    // Through the room type's property, the same join the desk list filters on.
+    assertInBranchScope(ws, owner.propertyId);
+
+    const row = await this.bookings.findOperatorReservation(bookingId);
+    // The ownership read found it a line ago, so an absence here is a row
+    // deleted mid-request rather than a bad id.
+    if (!row) throw new NotFoundException();
+    return this.present(row);
   }
 
   async approve(
@@ -104,6 +139,7 @@ export class OperatorReservationsService {
       id: row.id,
       reference: row.reference,
       guestName: row.guestName,
+      guestEmail: row.guestEmail,
       checkIn: row.checkIn,
       checkOut: row.checkOut,
       // One definition of a night (review 4.1); a desk row never shows fewer
@@ -114,6 +150,8 @@ export class OperatorReservationsService {
       bookingStatus: row.status,
       room: row.roomLabel,
       roomTypeId: row.roomTypeId,
+      roomTypeName: row.roomTypeName,
+      propertyName: row.propertyName,
       totalRwf: row.grossRwf,
       approvalExpiresAt: row.approvalExpiresAt?.toISOString() ?? null,
       confirmedAt: row.confirmedAt?.toISOString() ?? null,

@@ -2,6 +2,7 @@ import { z } from "zod";
 import { CancellationTier, CANCELLATION_TIERS } from "./booking";
 import { CLAIM_CODE_PATTERN as DESK_CLAIM_CODE_PATTERN, DepartmentCategory } from "./ops";
 import { RwfAmount, Uuid } from "./primitives";
+import { IdentityDocumentInput } from "./registration";
 
 /**
  * THE GUEST'S OWN STAY — `/api/v1/me/stays*` and the desk commands behind it
@@ -596,3 +597,28 @@ export const DecideStayRefundRequest = z.discriminatedUnion("decision", [
   }
 });
 export type DecideStayRefundRequest = z.infer<typeof DecideStayRefundRequest>;
+// ---------------------------------------------------------------------------
+// Self check-in before arrival (F-B09, ADR-038 child 5 AC-G8, ADR-060)
+// ---------------------------------------------------------------------------
+/**
+ * `POST /api/v1/me/bookings/:id/check-in`: the guest's own identity for a
+ * booking, sent from the phone before they reach the desk.
+ *
+ * The photo is uploaded first through `POST /api/v1/uploads` as `kind=id_photo`,
+ * and only its key comes here, so a poor connection retries a small JSON body
+ * rather than the image. The document is the same account rule registration
+ * uses, which is why a passport number is 6 to 12 characters here too.
+ */
+export const SelfCheckInRequest = z.object({
+    document: IdentityDocumentInput,
+    idPhotoObjectKey: z.string().trim().min(1).max(300),
+    addressText: z.string().trim().min(3, "Give the address you live at.").max(300),
+});
+export type SelfCheckInRequest = z.infer<typeof SelfCheckInRequest>;
+export const SelfCheckInReceipt = z.object({
+    bookingId: Uuid,
+    submittedAt: z.string(),
+    /** False only if the photo could not be attached; the identity still stands. */
+    idPhotoStored: z.boolean(),
+});
+export type SelfCheckInReceipt = z.infer<typeof SelfCheckInReceipt>;

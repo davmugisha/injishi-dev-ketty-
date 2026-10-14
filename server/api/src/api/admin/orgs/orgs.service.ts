@@ -48,6 +48,7 @@ import {
   tinVerifications,
   workspaces,
 } from '../../../database/drizzle/org';
+import { PsfMembershipService } from '../../../modules/organization/application/psf-membership.service';
 import { TIN_RECHECK_CEILING } from '../../../modules/organization/domain/tin-recheck';
 import { pendingTinAttemptsSql } from '../../../modules/organization/infrastructure/tin-recheck.sql';
 import {
@@ -86,7 +87,11 @@ const rwf = (amount: number | null): number => amount ?? 0;
  */
 @Injectable()
 export class AdminOrgsService {
-  constructor(@Inject(DRIZZLE) private readonly db: Database) {}
+  constructor(
+    @Inject(DRIZZLE) private readonly db: Database,
+    /** PSF membership for the business detail (ADR-056 AC-20). */
+    private readonly psf: PsfMembershipService,
+  ) {}
 
   // -------------------------------------------------------------------------
   // GET /admin/orgs
@@ -469,6 +474,7 @@ export class AdminOrgsService {
       memberCount: members?.n ?? 0,
       propertyCount: props?.n ?? 0,
       certificateCount: certs?.n ?? 0,
+      psf: row.domain === 'hospitality' ? await this.psf.adminView(orgId) : null,
     });
   }
 

@@ -1,0 +1,85 @@
+{
+  "title": "Injishi Operator Registration Agreement",
+  "operator": "Injishi, operated by Hangaa Softwares",
+  "clauses": [
+    {
+      "number": 1,
+      "heading": "Who this agreement is between",
+      "body": [
+        "This agreement is between Injishi, the accommodation marketplace operated in Rwanda by Hangaa Softwares, and the person named above as the registrant, who is signing either as the owner of the business or on the owner's instruction.",
+        "It covers one business only, Baseline Guest House, and the registration reference printed at the top of this document.",
+        "You are signing as an individual and you are binding the business you have named, so if you are registering on somebody else's behalf you are confirming that they asked you to, and that they will be shown what you agreed to here before they take the workspace over."
+      ]
+    },
+    {
+      "number": 2,
+      "heading": "The registration fee, and what it buys",
+      "body": [
+        "The registration fee for this business is the amount on its invoice, charged once, and you pay it after accepting this agreement.",
+        "It pays for the review that follows rather than for the outcome of that review, so settling it buys your application a place in the queue and buys nothing else, and no amount of it is a deposit against future earnings.",
+        "If a verifier or an approver decides against you, the fee is not refunded. If you then correct what they asked you to correct and send the registration back for another look, you are not charged a second time, however many rounds that takes."
+      ]
+    },
+    {
+      "number": 3,
+      "heading": "How your registration is reviewed",
+      "body": [
+        "Once the fee has settled, the tax identifier you gave goes to the Rwanda Revenue Authority for an automatic check, which normally answers within seconds and occasionally takes longer than that.",
+        "An officer from your district then visits the premises in person to confirm that the business exists where you say it does, that it is the kind of place you described, and that the certificates you attached belong to it.",
+        "A business approver reads that officer's report and makes the decision. Neither the officer nor the approver works for Injishi, so we cannot hurry either of them, we cannot see their working before they publish it, and we cannot overturn what they conclude."
+      ]
+    },
+    {
+      "number": 4,
+      "heading": "Nothing is listed and nothing is sold before approval",
+      "body": [
+        "Until this business is approved and marked active you hold the owner role over it and none of the powers that role normally carries, which means that no room, no venue and no service of yours can be listed, searched, booked or paid for.",
+        "Your workspace opens straight away so that you can watch the pipeline move, and that is the only thing it is open for at this stage. Taking a booking outside Injishi and then presenting it as one of ours is the clearest way to lose the registration you have just paid for."
+      ]
+    },
+    {
+      "number": 5,
+      "heading": "Your listing is a promise to the guest",
+      "body": [
+        "A guest reads every listing you publish as a promise about a real room in a real building, so the photographs, the prices, the stated capacity and the amenities must describe what somebody arriving that evening will actually find.",
+        "Prices are shown in Rwandan francs and must include the taxes you are obliged to charge. A fee the guest could not have seen before they booked cannot be added on arrival, and asking for one is a dispute you will lose.",
+        "When a guest arrives to a room that does not match its page, Injishi decides the dispute on the evidence of what you published, which means a listing you have not kept current is a listing that will be read against you."
+      ]
+    },
+    {
+      "number": 6,
+      "heading": "What Injishi holds about you, and why",
+      "body": [
+        "To register a business we collect and store your identity document, your date of birth and your contact details, together with the tax identifier of the business or, for a residence, the unique parcel identifier of the land it stands on, its address, and any certificates you attach.",
+        "Those identifiers are held because a district verifier and a business approver have to be able to check them against the registers they answer to, and they are disclosed to those officers and to the Rwanda Revenue Authority for that purpose and for no other purpose at all.",
+        "They are not sold, they are not used to advertise anything to you, and they are never shown to guests, who see the business and never the identity document of the person standing behind it."
+      ]
+    },
+    {
+      "number": 7,
+      "heading": "Who may act for this business",
+      "body": [
+        "Roles are granted inside your workspace, and every action taken there is recorded against the person who took it, so anybody you invite to work on your behalf acts with your authority and you stay answerable for whatever they do with it.",
+        "Keep your own sign-in to yourself. A one-time code sent to your email is the whole of your identity on Injishi, and somebody who has that code has your business."
+      ]
+    },
+    {
+      "number": 8,
+      "heading": "How either of us ends this",
+      "body": [
+        "You may end this agreement whenever you like by closing the business workspace, which withdraws your listings from sale immediately. Bookings a guest has already had accepted must still be honoured or refunded before the workspace closes.",
+        "We may end it by suspending or removing a business that trades before it is approved, that publishes listings it cannot honour, or that a government officer has ordered off the platform, and we will tell you which of those it was and what we relied on.",
+        "Ending this agreement does not return the registration fee, and it does not erase the records a verifier or an approver is required by law to keep."
+      ]
+    },
+    {
+      "number": 9,
+      "heading": "What this document is",
+      "body": [
+        "This is a demonstration build of Injishi. Nothing signed here is filed with any registry, no district officer has received it, and nobody has counter-signed it on Injishi's behalf, so it does not bind anyone and it should not be presented as though it did.",
+        "Injishi records that your account accepted this version of the agreement, and when. It does not keep the signature you drew.",
+        "The copy you download is generated in your own browser from what you typed and the signature you drew. It never leaves this device unless you send it somewhere yourself, and it is yours to keep as a record of what the finished product would ask you to agree to."
+      ]
+    }
+  ]
+}

@@ -30,7 +30,9 @@
 #
 # It never reads an application secret. Every stack value lives in that stack's
 # own .env on this host and is never passed in from GitHub, which is one of the
-# reasons the runner lives here at all.
+# reasons the runner lives here at all. The one value it reads from that .env is
+# a build credential, HeroUI Pro's CI/CD token, and only to put it in the
+# environment of `compose build` (see "the HeroUI Pro build token" below).
 #
 # Progress goes to stdout and every failure to stderr, so a caller can log one
 # and surface the other.
@@ -82,11 +84,47 @@ FRONTEND_SERVICES=(web app admin)
 [[ -f $ENV_FILE ]] || die "$ENV_FILE is missing"
 [[ -d $SRC/.git ]] || die "$SRC is not a git checkout of the injishi repo"
 
+# One value from the stack's .env, read as compose's dotenv reads a plain line:
+# the last assignment wins, an `export ` prefix, a trailing CR, one pair of
+# surrounding quotes and an unquoted value's ` #` comment are dropped. Plain
+# bash, no grep: a failing pipeline inside $(...) would fire the ERR trap.
+env_file_value() {
+  local key=$1 line value=""
+  while IFS= read -r line || [[ -n $line ]]; do
+    line=${line%$'\r'}
+    [[ $line =~ ^[[:space:]]*(export[[:space:]]+)?${key}=(.*)$ ]] && value=${BASH_REMATCH[2]}
+  done <"$ENV_FILE"
+  if [[ ${#value} -ge 2 && ( $value == \"*\" || $value == \'*\' ) ]]; then
+    value=${value:1:${#value}-2}
+  else
+    value=${value%%[[:space:]]#*}
+    value=${value%"${value##*[![:space:]]}"}
+  fi
+  printf '%s' "$value"
+}
+
+# ── the HeroUI Pro build token ────────────────────────────────────────────────
+# The web, app and admin builds need HeroUI Pro's CI/CD token (DOKPLOY.md,
+# Required secrets with no default), which the compose file hands them as a
+# BuildKit secret sourced from HEROUI_AUTH_TOKEN. Compose before v2.40 reads
+# that variable from its own process environment only, never from --env-file
+# (docker/compose, pkg/compose/build_bake.go), so on those versions a token kept
+# in this .env would never reach a build. It is read here, whatever the host
+# runs (the Hangaa VPS runs Compose 5.5.1), and put in the environment of
+# `compose build` alone, never exported to the rest of the run and never
+# logged. Missing, the deploy stops before it pulls or builds anything.
+heroui_token=$(env_file_value HEROUI_AUTH_TOKEN)
+[[ -n $heroui_token && $heroui_token != change-me ]] \
+  || die "HEROUI_AUTH_TOKEN is not set in $ENV_FILE. Add HeroUI Pro's CI/CD token there (DOKPLOY.md, Required secrets with no default)"
+
 # ── the shared build lock ───────────────────────────────────────────────────────
 # One host cannot build two stacks at once, and demo-nightly.sh takes this same
 # lock. Waiting is the point: a deploy that collides with the nightly should
-# queue behind it, not fail and not build alongside it (AC-18).
-exec 9>/var/lock/injishi-demo-nightly.lock
+# queue behind it, not fail and not build alongside it (AC-18). Opened for
+# reading, as demo-nightly.sh opens it: the file belongs to whoever created it
+# first after a boot, and flock needs no write access.
+[[ -e /var/lock/injishi-demo-nightly.lock ]] || : >>/var/lock/injishi-demo-nightly.lock
+exec 9</var/lock/injishi-demo-nightly.lock
 if ! flock -n 9; then
   log "the build lock is held; waiting up to ${LOCK_TIMEOUT}s"
   flock -w "$LOCK_TIMEOUT" 9 \
@@ -145,8 +183,8 @@ compose pull api worker \
   || die "could not pull $GHCR_IMAGE:$short. Has image.yml finished for this commit, and can this host read the registry?"
 
 # ── the frontends, built here because they bake per stack values ───────────────
-log "building the frontends on this host"
-compose build "${FRONTEND_SERVICES[@]}"
+log "building the frontends on this host (docker compose $(docker compose version --short 2>/dev/null || echo 'version unknown'))"
+HEROUI_AUTH_TOKEN=$heroui_token compose build "${FRONTEND_SERVICES[@]}"
 
 # ── up, and wait ───────────────────────────────────────────────────────────────
 log "bringing $PROJECT up"

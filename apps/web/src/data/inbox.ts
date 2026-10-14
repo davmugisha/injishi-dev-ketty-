@@ -1,10 +1,14 @@
 import {
   GuestMessage,
   GuestMessagePage,
+  MyDepartments,
   MyThreads,
+  OpenDepartmentResult,
+  type GuestDeskPlace,
   type GuestThread,
+  type OpenThreadRequest,
 } from "@injishi/contracts";
-import { apiFetch, type ApiResult } from "@/lib/api";
+import { apiFetch, apiFetchParsed, type ApiResult } from "@/lib/api";
 
 /**
  * The client for the guest's conversations — `/api/v1/me/threads*` (ADR-032).
@@ -29,6 +33,49 @@ export async function fetchMyThreads(): Promise<ApiResult<GuestThread[]>> {
   const parsed = MyThreads.safeParse(result.data);
   if (!parsed.success) return { status: "failed" };
   return { status: "ok", data: parsed.data.threads };
+}
+
+/**
+ * `GET /api/v1/me/departments`: every desk this person may write to, anywhere
+ * (ADR-050 D-q).
+ *
+ * Session scoped and takes no parameter, because a property in the answer was
+ * resolved from the caller's own stays and bookings — there is nothing to pass
+ * somebody else's. A guest staying nowhere and booked nowhere gets an empty
+ * list, never a refusal: "you may write to nobody today" is an answer, and a
+ * 403 there would have `/inbox` render an error for an ordinary account.
+ *
+ * `/inbox` opens with this rather than with `GET /me/stays/:id/departments`,
+ * which answers the same question for ONE stay. An inbox does not know which
+ * stay or booking the guest has in mind, and the guest who most needs a desk is
+ * the one who has booked and not yet arrived — who has no stay at all.
+ */
+export async function fetchMyDepartments(): Promise<ApiResult<GuestDeskPlace[]>> {
+  const result = await apiFetchParsed(MyDepartments, "/api/v1/me/departments");
+  return result.status === "ok" ? { status: "ok", data: result.data.places } : result;
+}
+
+/**
+ * `POST /api/v1/me/threads`: open or RESUME the conversation with one desk.
+ *
+ * The body names the department and nothing else; which stay or booking the
+ * thread hangs off is the server's to resolve (an open stay at that property
+ * first, else a live booking). A second call for the same desk returns the SAME
+ * thread with `created: false` and appends to it, which is what lets a screen
+ * offer "Message Housekeeping" without checking first.
+ *
+ * Distinct from `openDepartmentRequest` in `data/my-stay.ts`, which posts to
+ * `POST /me/stays/:id/requests` and needs an OPEN stay. That route is what
+ * `/stay` uses, where a stay is the whole subject of the screen. This one is
+ * what works before arrival, and it is the only one `/inbox` can use.
+ */
+export function openThread(
+  body: OpenThreadRequest,
+): Promise<ApiResult<OpenDepartmentResult>> {
+  return apiFetchParsed(OpenDepartmentResult, "/api/v1/me/threads", {
+    method: "POST",
+    body,
+  });
 }
 
 /**

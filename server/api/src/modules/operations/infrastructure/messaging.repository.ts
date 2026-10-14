@@ -5,16 +5,21 @@ import {
   desc,
   eq,
   gt,
+  gte,
   inArray,
   isNotNull,
   isNull,
   lt,
   ne,
+  notInArray,
   or,
   sql,
+  type SQL,
 } from 'drizzle-orm';
 
 import {
+  accountLabel,
+  accountName,
   bookings,
   departments,
   guestStays,
@@ -35,6 +40,7 @@ import {
   inBranchScope,
   type BranchScope,
 } from '../../../shared/auth/branch-scope';
+import { ENDED_BOOKING_STATUSES } from '../domain/live-booking';
 
 /**
  * A thread's branch (ADR-054): its booking's, else its stay's room's (a walk in
@@ -114,21 +120,88 @@ export interface GuestThreadRow extends Omit<ThreadRow, 'branchPropertyId'> {
 /** A desk a guest may write to, as the property configured it. */
 export interface RequestableDepartmentRow {
   id: string;
+  /** Which property's desk it is. Every row here has one; the filter is by property. */
+  propertyId: string | null;
   name: string;
   departmentCategory: string;
   phone: string | null;
-  threadId: string | null;
-  lastMessageAt: Date | null;
 }
 
-/** Is this a collision on the one-thread-per-stay-per-department index? */
-function isDepartmentThreadCollision(error: unknown): boolean {
+/**
+ * WHICH RECORD a desk conversation hangs off (ADR-050 D-q).
+ *
+ * A guest in house has a stay; a guest who has booked and not yet arrived has
+ * only the booking, and until this existed they could reach no desk at all. The
+ * two are one shape here because everything else about opening a conversation —
+ * the read-then-insert, the archived rule, the retry into the winner's row — is
+ * identical, and a second copy of that transaction is how the two would drift.
+ *
+ * `threads_scope_exactly_one` is why this is a union rather than a pair of
+ * nullable ids: a thread hangs off exactly one subject, and a shape that can
+ * hold both is a shape that can be filled in wrong.
+ */
+export type DeskSubject =
+  | { kind: 'stay'; guestStayId: string }
+  | { kind: 'booking'; bookingId: string };
+
+/**
+ * The partial unique that governs one-thread-per-subject-per-department, by
+ * subject. ADR-050 D-q specifies both; they cannot be one index because a
+ * conversation opened before arrival keeps its booking and gains no stay.
+ */
+const DESK_THREAD_UNIQUE: Readonly<Record<DeskSubject['kind'], string>> = {
+  stay: 'threads_stay_department_request_uk',
+  booking: 'threads_booking_department_request_uk',
+};
+
+/**
+ * Order a desk's conversations so the one a guest can still write in comes
+ * first. Written out rather than `asc(status)` — that would sort on the enum's
+ * spelling, which is only accidentally the right order.
+ */
+const ACTIVE_FIRST = sql`(${threads.status} = 'active') desc`;
+
+/**
+ * The one scope column an insert sets. The other is left UNSET rather than
+ * written as null, so `threads_scope_exactly_one` is satisfied by construction.
+ */
+function subjectColumn(
+  on: DeskSubject,
+): { guestStayId: string } | { bookingId: string } {
+  return on.kind === 'stay'
+    ? { guestStayId: on.guestStayId }
+    : { bookingId: on.bookingId };
+}
+
+/** Is this a collision on the one-thread-per-subject-per-department index? */
+function isDepartmentThreadCollision(
+  error: unknown,
+  constraint: string,
+): boolean {
   const e = error as { code?: string; constraint?: string; cause?: unknown };
   const inner = e?.code === '23505' ? e : (e?.cause as typeof e | undefined);
-  return (
-    inner?.code === '23505' &&
-    inner.constraint === 'threads_stay_department_request_uk'
-  );
+  return inner?.code === '23505' && inner.constraint === constraint;
+}
+
+/** One property a guest may write to, and the record that opens its desks. */
+export interface GuestPlaceRow {
+  propertyId: string;
+  propertyName: string;
+  workspaceId: string;
+  subjectId: string;
+  bookingReference: string | null;
+  /** The booking's check-in date, or the stay's entry instant. */
+  checkIn: string | null;
+}
+
+/** A desk conversation that already exists, keyed back to what opened it. */
+export interface DeskThreadRow {
+  threadId: string;
+  /** Never null in practice — the read asks for department threads — but the column is. */
+  departmentId: string | null;
+  guestStayId: string | null;
+  bookingId: string | null;
+  updatedAt: Date;
 }
 
 /**
@@ -147,7 +220,21 @@ function isDepartmentThreadCollision(error: unknown): boolean {
 export class MessagingRepository {
   constructor(@Inject(DRIZZLE) private readonly db: Database) {}
 
-  async listThreads(workspaceId: string, scope: BranchScope): Promise<ThreadRow[]> {
+  /**
+   * The desk's inbox, optionally narrowed to ONE department.
+   *
+   * The filter is a `WHERE` clause and never a `.filter()` on the answer. An
+   * inbox is the one read here that grows without limit — a property's whole
+   * message history — so filtering after the read would pull every thread of
+   * every department across the wire to render one department's board, and
+   * would get slower exactly as the property gets busier. `threads_department_idx`
+   * serves this.
+   */
+  async listThreads(
+    workspaceId: string,
+    scope: BranchScope,
+    departmentId?: string,
+  ): Promise<ThreadRow[]> {
     return this.db
       .select({
         id: threads.id,
@@ -166,6 +253,7 @@ export class MessagingRepository {
           eq(threads.workspaceId, workspaceId),
           // A lease thread belongs to a residence org and is unscoped (ADR-054).
           or(isNotNull(threads.leaseId), inBranchScope(THREAD_BRANCH, scope)),
+          departmentId ? eq(threads.departmentId, departmentId) : undefined,
         ),
       )
       .orderBy(desc(threads.updatedAt));
@@ -277,7 +365,7 @@ export class MessagingRepository {
     const byBooking = rows.filter((r) => r.bookingId);
     if (byBooking.length > 0) {
       const found2 = await this.db
-        .select({ threadId: bookings.id, name: users.name })
+        .select({ threadId: bookings.id, name: accountLabel })
         .from(bookings)
         .leftJoin(users, eq(users.id, bookings.guestUserId))
         .where(inArray(bookings.id, byBooking.map((r) => r.bookingId as string)));
@@ -290,7 +378,7 @@ export class MessagingRepository {
     const byStay = rows.filter((r) => r.guestStayId);
     if (byStay.length > 0) {
       const found2 = await this.db
-        .select({ stayId: guestStays.id, name: users.name })
+        .select({ stayId: guestStays.id, name: accountLabel })
         .from(guestStays)
         .leftJoin(users, eq(users.id, guestStays.guestUserId))
         .where(inArray(guestStays.id, byStay.map((r) => r.guestStayId as string)));
@@ -306,14 +394,16 @@ export class MessagingRepository {
         .select({
           leaseId: leases.id,
           name: leases.tenantName,
-          userName: users.name,
+          userName: accountName,
+          email: users.email,
         })
         .from(leases)
         .leftJoin(users, eq(users.id, leases.tenantUserId))
         .where(inArray(leases.id, byLease.map((r) => r.leaseId as string)));
       // The lease carries a typed tenant name for a tenant with no account yet;
       // the account's own name wins when there is one.
-      const byId = new Map(found2.map((r) => [r.leaseId, r.userName ?? r.name]));
+      // Then the account's email, so the inbox can tell an unnamed tenant apart.
+      const byId = new Map(found2.map((r) => [r.leaseId, r.userName ?? r.name ?? r.email]));
       for (const r of byLease) {
         found.set(r.id, byId.get(r.leaseId as string) ?? null);
       }
@@ -366,7 +456,7 @@ export class MessagingRepository {
         id: messages.id,
         threadId: messages.threadId,
         senderUserId: messages.senderUserId,
-        senderName: users.name,
+        senderName: accountLabel,
         bodyType: messages.bodyType,
         body: messages.body,
         serviceOrderId: messages.serviceOrderId,
@@ -413,7 +503,7 @@ export class MessagingRepository {
         id: messages.id,
         threadId: messages.threadId,
         senderUserId: messages.senderUserId,
-        senderName: users.name,
+        senderName: accountLabel,
         bodyType: messages.bodyType,
         body: messages.body,
         serviceOrderId: messages.serviceOrderId,
@@ -587,7 +677,7 @@ export class MessagingRepository {
         id: messages.id,
         threadId: messages.threadId,
         senderUserId: messages.senderUserId,
-        senderName: users.name,
+        senderName: accountLabel,
         bodyType: messages.bodyType,
         body: messages.body,
         serviceOrderId: messages.serviceOrderId,
@@ -627,30 +717,21 @@ export class MessagingRepository {
    * and its old threads; it does not keep the right to be messaged.
    */
   async requestableDepartments(
-    propertyId: string,
-    guestStayId: string,
+    propertyIds: readonly string[],
   ): Promise<RequestableDepartmentRow[]> {
+    if (propertyIds.length === 0) return [];
     return this.db
       .select({
         id: departments.id,
+        propertyId: departments.propertyId,
         name: departments.name,
         departmentCategory: departments.departmentCategory,
         phone: departments.phone,
-        threadId: threads.id,
-        lastMessageAt: threads.updatedAt,
       })
       .from(departments)
-      .leftJoin(
-        threads,
-        and(
-          eq(threads.departmentId, departments.id),
-          eq(threads.guestStayId, guestStayId),
-          eq(threads.threadKind, 'department_request'),
-        ),
-      )
       .where(
         and(
-          eq(departments.propertyId, propertyId),
+          inArray(departments.propertyId, [...propertyIds]),
           eq(departments.status, 'active'),
           eq(departments.guestRequestable, true),
         ),
@@ -658,28 +739,158 @@ export class MessagingRepository {
       .orderBy(asc(departments.sortOrder), asc(departments.name));
   }
 
-  /** Does this property own this department, and may a guest write to it? */
-  async findRequestableDepartment(
-    departmentId: string,
-    propertyId: string,
-  ): Promise<{ id: string; name: string; workspaceId: string } | null> {
+  /**
+   * The desk conversations these subjects already have, in one read.
+   *
+   * SEPARATE from the department list above rather than a left join onto it,
+   * because the two questions have different shapes: the desks are per
+   * PROPERTY and the conversations are per STAY OR BOOKING, and a guest can
+   * hold several of each. Joined, the desk list would have to be re-read once
+   * per place; read apart and stitched, both are one query however many places
+   * a person has.
+   */
+  async deskThreadsFor(subjects: readonly DeskSubject[]): Promise<DeskThreadRow[]> {
+    const stayIds = subjects.flatMap((s) => (s.kind === 'stay' ? [s.guestStayId] : []));
+    const bookingIds = subjects.flatMap((s) => (s.kind === 'booking' ? [s.bookingId] : []));
+    if (stayIds.length === 0 && bookingIds.length === 0) return [];
+
+    return this.db
+      .select({
+        threadId: threads.id,
+        departmentId: threads.departmentId,
+        guestStayId: threads.guestStayId,
+        bookingId: threads.bookingId,
+        updatedAt: threads.updatedAt,
+      })
+      .from(threads)
+      .where(
+        and(
+          eq(threads.threadKind, 'department_request'),
+          isNotNull(threads.departmentId),
+          or(
+            stayIds.length > 0 ? inArray(threads.guestStayId, stayIds) : undefined,
+            bookingIds.length > 0 ? inArray(threads.bookingId, bookingIds) : undefined,
+          ),
+        ),
+      )
+      // Live conversations first. A booking may hold an archived conversation
+      // AND a live one with the same desk — the booking index is partial on
+      // `status = 'active'`, which is what allows that — and the desk list must
+      // point at the one the guest can write in. Whichever is newest breaks a
+      // tie, so the answer never depends on the planner's row order.
+      .orderBy(ACTIVE_FIRST, desc(threads.updatedAt));
+  }
+
+  /**
+   * Does this department take guest messages at all, and WHERE does it stand?
+   *
+   * By id alone, because `POST /me/threads` is named by the department and
+   * nothing else: the guest tapped "Housekeeping" and the server is the one
+   * that works out which record of theirs opens it. The property comes BACK
+   * from this read and is then matched against the caller's own stays and
+   * bookings — a property id supplied by the caller would be a caller choosing
+   * which hotel to be treated as a guest of.
+   */
+  async findGuestRequestableDepartment(departmentId: string): Promise<{
+    id: string;
+    name: string;
+    propertyId: string | null;
+    workspaceId: string;
+  } | null> {
     const [row] = await this.db
       .select({
         id: departments.id,
         name: departments.name,
+        propertyId: departments.propertyId,
         workspaceId: departments.workspaceId,
       })
       .from(departments)
       .where(
         and(
           eq(departments.id, departmentId),
-          eq(departments.propertyId, propertyId),
           eq(departments.status, 'active'),
           eq(departments.guestRequestable, true),
         ),
       )
       .limit(1);
     return row ?? null;
+  }
+
+  /**
+   * The properties this person is IN HOUSE at right now.
+   *
+   * A stay with no room, and so no property, is dropped rather than listed
+   * without one: a place a guest cannot be told the name of is a row they
+   * cannot act on, and the desks hang off the property anyway.
+   */
+  async openStaysForGuest(userId: string): Promise<GuestPlaceRow[]> {
+    const rows = await this.db
+      .select({
+        propertyId: rooms.propertyId,
+        propertyName: properties.name,
+        workspaceId: guestStays.workspaceId,
+        subjectId: guestStays.id,
+        bookingReference: bookings.reference,
+        entryAt: guestStays.entryAt,
+      })
+      .from(guestStays)
+      .innerJoin(rooms, eq(rooms.id, guestStays.roomId))
+      .innerJoin(properties, eq(properties.id, rooms.propertyId))
+      .leftJoin(bookings, eq(bookings.id, guestStays.bookingId))
+      .where(
+        and(eq(guestStays.guestUserId, userId), eq(guestStays.lifecycle, 'open')),
+      )
+      .orderBy(desc(guestStays.entryAt));
+
+    return rows.map((row) => ({
+      propertyId: row.propertyId,
+      propertyName: row.propertyName,
+      workspaceId: row.workspaceId,
+      subjectId: row.subjectId,
+      bookingReference: row.bookingReference,
+      checkIn: row.entryAt.toISOString(),
+    }));
+  }
+
+  /**
+   * The properties this person holds a LIVE booking with (ADR-050 D-q).
+   *
+   * What makes a booking live is `isLiveBooking`'s to say and is rendered here
+   * as SQL once, so the rule cannot be half-applied by a call site that forgot
+   * the date half. `today` is the caller's, in the property's calendar, so one
+   * request cannot straddle midnight.
+   *
+   * Ordered by check-in, soonest first, and then by id: when a guest holds two
+   * live bookings at the same property, the desk conversation belongs to the
+   * arrival they are about to make, and the tie-break keeps that answer the
+   * same on every call rather than leaving it to the planner's row order.
+   */
+  async liveBookingsForGuest(
+    userId: string,
+    today: string,
+  ): Promise<GuestPlaceRow[]> {
+    const rows = await this.db
+      .select({
+        propertyId: roomTypes.propertyId,
+        propertyName: properties.name,
+        workspaceId: bookings.workspaceId,
+        subjectId: bookings.id,
+        bookingReference: bookings.reference,
+        checkIn: bookings.checkIn,
+      })
+      .from(bookings)
+      .innerJoin(roomTypes, eq(roomTypes.id, bookings.roomTypeId))
+      .innerJoin(properties, eq(properties.id, roomTypes.propertyId))
+      .where(
+        and(
+          eq(bookings.guestUserId, userId),
+          notInArray(bookings.status, [...ENDED_BOOKING_STATUSES]),
+          gte(bookings.checkOut, today),
+        ),
+      )
+      .orderBy(asc(bookings.checkIn), asc(bookings.id));
+
+    return rows;
   }
 
   /**
@@ -698,14 +909,23 @@ export class MessagingRepository {
    * A guest tapping Housekeeping on Monday and again on Wednesday is having one
    * conversation with housekeeping, and splitting it would leave half of it in a
    * thread the desk has stopped looking at. The read-then-insert below is
-   * exactly the check two simultaneous taps both pass, so
-   * `threads_stay_department_request_uk` is what actually refuses the loser —
-   * and the loser retries into the winner's row rather than failing in front of
-   * the guest.
+   * exactly the check two simultaneous taps both pass, so the partial unique for
+   * the subject — `threads_stay_department_request_uk` for a stay,
+   * `threads_booking_department_request_uk` for a booking (ADR-050 D-q) — is
+   * what actually refuses the loser, and the loser retries into the winner's row
+   * rather than failing in front of the guest.
+   *
+   * ## Why a booking subject is the same method and not a second one
+   *
+   * A conversation opened before arrival hangs off the BOOKING, because there is
+   * no stay yet and there may never be one. Everything else about opening it is
+   * identical, and the part that is easy to get wrong — the race, the archived
+   * rule, the retry — is the part a second copy would eventually get wrong in
+   * only one of the two places.
    */
   async openDepartmentThread(input: {
     workspaceId: string;
-    guestStayId: string;
+    on: DeskSubject;
     departmentId: string;
     subject: string | null;
     body: string;
@@ -714,10 +934,12 @@ export class MessagingRepository {
     try {
       return await this.insertDepartmentThread(input);
     } catch (error) {
-      if (!isDepartmentThreadCollision(error)) throw error;
+      if (!isDepartmentThreadCollision(error, DESK_THREAD_UNIQUE[input.on.kind])) {
+        throw error;
+      }
       // Somebody else's tap won the race. Append to what they created.
       const existing = await this.findDepartmentThread(
-        input.guestStayId,
+        input.on,
         input.departmentId,
       );
       if (!existing) throw error;
@@ -737,13 +959,12 @@ export class MessagingRepository {
       const [existing] = await tx
         .select({ id: threads.id, status: threads.status })
         .from(threads)
-        .where(
-          and(
-            eq(threads.guestStayId, input.guestStayId),
-            eq(threads.departmentId, input.departmentId),
-            eq(threads.threadKind, 'department_request'),
-          ),
-        )
+        .where(this.deskThreadWhere(input.on, input.departmentId))
+        // The live one wins when a subject holds both. Without the order, a
+        // guest whose old conversation with this desk was archived could be
+        // answered "that conversation is closed" forever while an open one sat
+        // beside it.
+        .orderBy(ACTIVE_FIRST, desc(threads.updatedAt))
         .limit(1);
 
       const threadId =
@@ -753,7 +974,7 @@ export class MessagingRepository {
             .insert(threads)
             .values({
               workspaceId: input.workspaceId,
-              guestStayId: input.guestStayId,
+              ...subjectColumn(input.on),
               departmentId: input.departmentId,
               threadKind: 'department_request',
               subject: input.subject,
@@ -787,23 +1008,38 @@ export class MessagingRepository {
     });
   }
 
-  /** The conversation this stay already has with this desk, if any. */
+  /** The conversation this stay or booking already has with this desk, if any. */
   async findDepartmentThread(
-    guestStayId: string,
+    on: DeskSubject,
     departmentId: string,
   ): Promise<{ id: string } | null> {
     const [row] = await this.db
       .select({ id: threads.id })
       .from(threads)
-      .where(
-        and(
-          eq(threads.guestStayId, guestStayId),
-          eq(threads.departmentId, departmentId),
-          eq(threads.threadKind, 'department_request'),
-        ),
-      )
+      .where(this.deskThreadWhere(on, departmentId))
+      .orderBy(ACTIVE_FIRST, desc(threads.updatedAt))
       .limit(1);
     return row ?? null;
+  }
+
+  /**
+   * The one conversation a subject may have with a desk, as a `WHERE`.
+   *
+   * Written once and used by the read inside the transaction and by the retry
+   * after a collision: those two must ask the same question, or the retry would
+   * look for a row the insert never tried to write.
+   */
+  private deskThreadWhere(
+    on: DeskSubject,
+    departmentId: string,
+  ): SQL | undefined {
+    return and(
+      on.kind === 'stay'
+        ? eq(threads.guestStayId, on.guestStayId)
+        : eq(threads.bookingId, on.bookingId),
+      eq(threads.departmentId, departmentId),
+      eq(threads.threadKind, 'department_request'),
+    );
   }
 
   /**

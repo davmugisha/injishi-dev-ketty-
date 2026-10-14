@@ -1,5 +1,5 @@
 /* Injishi brand fonts — Figtree (UI/body + numerics, IDs, code) ·
-   Spectral (display/headings). Per dox_context/ui-tokens.md. */
+   Figtree only since 2026-10-06; per dox_context/ui-tokens.md. */
 
 @font-face {
   font-family: "Figtree";
@@ -9,42 +9,3 @@
   font-display: swap;
 }
 
-@font-face {
-  font-family: "Spectral";
-  src: url("../fonts/Spectral-Medium.woff2") format("woff2");
-  font-weight: 500;
-  font-style: normal;
-  font-display: swap;
-}
-
-@font-face {
-  font-family: "Spectral";
-  src: url("../fonts/Spectral-Bold.woff2") format("woff2");
-  font-weight: 700;
-  font-style: normal;
-  font-display: swap;
-}
-
-@font-face {
-  font-family: "Spectral";
-  src: url("../fonts/Spectral-ExtraBold.woff2") format("woff2");
-  font-weight: 800;
-  font-style: normal;
-  font-display: swap;
-}
-
-@font-face {
-  font-family: "Spectral";
-  src: url("../fonts/Spectral-BoldItalic.woff2") format("woff2");
-  font-weight: 700;
-  font-style: italic;
-  font-display: swap;
-}
-
-@font-face {
-  font-family: "Spectral";
-  src: url("../fonts/Spectral-ExtraBoldItalic.woff2") format("woff2");
-  font-weight: 800;
-  font-style: italic;
-  font-display: swap;
-}

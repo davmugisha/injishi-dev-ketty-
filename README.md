@@ -45,28 +45,31 @@ In development the zone's hot-reload socket does not cross the rewrite. Open
 ## Quick start
 
 ```bash
-pnpm install                 # always from the repository root
-cp .env.example .env         # then fill in the values (see Configuration)
-pnpm dev:stack              # Postgres + Redis, migrated, marked sample, seeded
-pnpm api:dev                 # API on :4000, as the demo: every code is 123456
-pnpm dev:all                 # web on :3000 and the operator app on :3002
+pnpm install                                  # always from the repository root
+cp server/api/.env.example server/api/.env    # once: the API's settings, local-ready
+pnpm dev:all                                  # the whole product, in this terminal
 ```
+
+`pnpm dev:all` starts Docker Desktop when it is not running, brings up
+Postgres, Redis, MinIO and Mailpit, migrates (seeding only a database that was
+never seeded), then runs every app with each line labelled by its app: web on
+:3000, admin on :3001, the operator app on :3002, the API on :8000 with its
+queue worker, and mobile for Expo Go, with a QR code to scan on your phone. The
+API runs as the demo, so every sign-in code is `123456`. Ctrl+C stops the apps;
+Docker keeps running until `pnpm dev:stack:down`. `pnpm dev:all --skip mobile`
+or `--only web,api` start fewer. Installing Docker, and what the stack does, is
+`infra/docker/README.md`.
 
 Open <http://localhost:3000>. The operator surfaces are reached through that
 same origin — `/w`, `/oversight`, `/host`, `/landlord`, `/broker`. Health check
-for the API is <http://localhost:4000/api/v1/health>.
+for the API is <http://localhost:8000/api/v1/health>.
 
 `pnpm dev` starts web alone; the operator routes then 502 until `pnpm app:dev`
 is running as well.
 
-Everything in one container set instead:
-
-```bash
-docker compose -f infra/docker/docker-compose.yml up --build
-```
-
-That brings up Postgres, the API and the web app. Paths inside the compose file
-are relative to the repository root, which is why its build `context` is `../..`.
+`infra/docker/docker-compose.yml` holds the backing services only. The apps run
+on the host, with hot reload; the header of that file says why. The stack built
+from the production images is `docker-compose.staging.yml`.
 
 ---
 
@@ -256,10 +259,11 @@ Run everything from the repository root.
 
 ```bash
 pnpm install              # install
+pnpm dev:all              # everything: Docker services, migrations, then api,
+                          # worker, web, admin, app and mobile in one terminal
 pnpm dev                  # web on :3000
 pnpm app:dev              # operator app on :3002
-pnpm dev:all              # both of the above in parallel
-pnpm api:dev              # api on :4000, watch mode
+pnpm api:dev              # api on :8000, watch mode
 pnpm api:worker           # queue worker (needs the api built)
 pnpm build                # build web + app + admin + api (not mobile)
 pnpm typecheck            # tsc --noEmit across the workspace

@@ -19,9 +19,11 @@
 #      end every connection, rename the live database to `injishi_demo_prev`
 #      and `injishi_demo_next` to `injishi_demo`, keep the current images as
 #      `:demo-prev` and retag `:demo-next` as `:demo`, empty the bucket, flush
-#      Redis, empty Mailpit, start the demo again.
-#   5. CONFIRM the API and web health checks. Healthy: drop the previous
-#      database and images. Not healthy in time: swap both back, exit non zero.
+#      Redis, empty Mailpit.
+#   5. CONFIRM: start the demo again and wait for the API and web health
+#      checks. Healthy: drop the previous database and images. Not healthy in
+#      time, or `compose up` itself failing on an unhealthy API: print the new
+#      API's log, swap both back, exit non zero.
 #   6. Any failure before the swap drops the candidate database and images and
 #      leaves the running demo untouched, then exits non zero.
 #
@@ -29,13 +31,22 @@
 # a swap back: the restored database then points at uploads that are gone,
 # which a demo tolerates until the next night. Sessions die at the swap.
 #
-# It never reads a secret itself. The candidate database's URL is derived inside
-# the candidate container from the service's own DATABASE_URL, and MinIO's root
-# pair is read inside the minio-init container, from its own environment.
+# It reads one secret, and only to hand it on: HeroUI Pro's build token, passed
+# to `compose build` (see "the HeroUI Pro build token" below). The candidate
+# database's URL is derived inside the candidate container from the service's
+# own DATABASE_URL, and MinIO's root pair is read inside the minio-init
+# container, from its own environment.
 #
 # Settings, all optional:
 #   DEMO_ROOT        /opt/injishi-demo          the demo's home (.env, src/)
-#   STAGING_SRC      /opt/injishi-staging/src   staging's checkout
+#   DEMO_COMPOSE_PROJECT  injishi-demo          the running demo's compose
+#                                               project. Dokploy names its own
+#                                               (injishi-demo-rllflw on the
+#                                               Hangaa VPS); a wrong name
+#                                               builds a second, empty demo
+#   STAGING_SRC      /opt/injishi-staging/src   a checkout whose HEAD is the
+#                                               commit to run: staging's, or
+#                                               demo-recover's own checkout
 #   HEALTH_TIMEOUT   600                        seconds to wait at the confirm
 #   NIGHTLY_LOCK_RETRY_MINUTES  90              how long to wait for the lock
 #
@@ -58,7 +69,7 @@ HEALTH_TIMEOUT=${HEALTH_TIMEOUT:-600}
 NIGHTLY_LOCK_RETRY_MINUTES=${NIGHTLY_LOCK_RETRY_MINUTES:-90}
 DEMO_SRC="$DEMO_ROOT/src"
 ENV_FILE="$DEMO_ROOT/.env"
-PROJECT=injishi-demo
+PROJECT=${DEMO_COMPOSE_PROJECT:-injishi-demo}
 COMPOSE_FILE=infra/docker/docker-compose.demo.yml
 # The four images the stack builds; `worker` runs the api image.
 IMAGES=(injishi-api injishi-web injishi-app injishi-admin)
@@ -69,6 +80,25 @@ PREV_DB=injishi_demo_prev
 
 log() { printf '%s demo-nightly: %s\n' "$(date -u +%FT%TZ)" "$*"; }
 die() { log "FAILED: $*" >&2; exit 1; }
+
+# One value from the stack's .env, read as compose's dotenv reads a plain line:
+# the last assignment wins, an `export ` prefix, a trailing CR, one pair of
+# surrounding quotes and an unquoted value's ` #` comment are dropped. Plain
+# bash, no grep: a failing pipeline inside $(...) would fire the ERR trap.
+env_file_value() {
+  local key=$1 line value=""
+  while IFS= read -r line || [[ -n $line ]]; do
+    line=${line%$'\r'}
+    [[ $line =~ ^[[:space:]]*(export[[:space:]]+)?${key}=(.*)$ ]] && value=${BASH_REMATCH[2]}
+  done <"$ENV_FILE"
+  if [[ ${#value} -ge 2 && ( $value == \"*\" || $value == \'*\' ) ]]; then
+    value=${value:1:${#value}-2}
+  else
+    value=${value%%[[:space:]]#*}
+    value=${value%"${value##*[![:space:]]}"}
+  fi
+  printf '%s' "$value"
+}
 
 # Step 1 rewrites this very file (it lives in the checkout it updates), and
 # bash reads a script as it runs. So run from a private copy.
@@ -88,7 +118,13 @@ trap 'rm -f "$DEMO_NIGHTLY_COPY"' EXIT
 # UTC would cancel that night's rebuild outright. It waits now, and gives up
 # only after NIGHTLY_LOCK_RETRY_MINUTES, because a rebuild that starts an hour
 # late is worth far more than one that never ran (AC-18b).
-exec 9>/var/lock/injishi-demo-nightly.lock
+#
+# Opened for READING: flock needs no write access. /var/lock is a tmpfs, so
+# after a boot the file belongs to whichever of root's cron and the runner's
+# own user creates it first, and opening it for writing would refuse the other.
+LOCK=/var/lock/injishi-demo-nightly.lock
+[[ -e $LOCK ]] || : >>"$LOCK"
+exec 9<"$LOCK"
 lock_wait=$(( NIGHTLY_LOCK_RETRY_MINUTES * 60 ))
 if ! flock -n 9; then
   log "/var/lock/injishi-demo-nightly.lock is held; waiting up to ${NIGHTLY_LOCK_RETRY_MINUTES}m for it"
@@ -99,6 +135,24 @@ fi
 [[ -f $ENV_FILE ]] || die "$ENV_FILE is missing (copy infra/docker/dokploy-demo.env.example)"
 [[ -d $DEMO_SRC/.git ]] || die "$DEMO_SRC is not a git checkout of the injishi repo"
 [[ -d $STAGING_SRC/.git ]] || die "$STAGING_SRC is not staging's checkout"
+
+# ── the HeroUI Pro build token ────────────────────────────────────────────────
+# The web, app and admin builds need HeroUI Pro's CI/CD token (DOKPLOY.md,
+# Required secrets with no default), which the compose file hands them as a
+# BuildKit secret sourced from HEROUI_AUTH_TOKEN. Compose before v2.40 reads
+# that variable from its own process environment only, never from --env-file
+# (docker/compose, pkg/compose/build_bake.go), so on those versions a token kept
+# in this .env would never reach a build. So it is read here and put in the
+# environment of each `compose build` alone, never exported to the rest of the
+# run and never logged. Missing, the run stops before anything is built and the
+# running demo is untouched. (The Hangaa VPS runs Compose 5.5.1, which reads the
+# .env itself: the demo runs that failed from the Pro install, fc51e25, to
+# 2026-10-07 failed because this .env had no token line, and this check is what
+# said so.)
+heroui_token=$(env_file_value HEROUI_AUTH_TOKEN)
+[[ -n $heroui_token && $heroui_token != change-me ]] \
+  || die "HEROUI_AUTH_TOKEN is not set in $ENV_FILE. Add HeroUI Pro's CI/CD token there (DOKPLOY.md, Required secrets with no default). The running demo is untouched"
+log "HEROUI_AUTH_TOKEN is set in $ENV_FILE; docker compose $(docker compose version --short 2>/dev/null || echo '(version unknown)')"
 
 compose() {
   docker compose -p "$PROJECT" -f "$DEMO_SRC/$COMPOSE_FILE" --env-file "$ENV_FILE" "$@"
@@ -136,7 +190,10 @@ trap on_error ERR
 commit=$(git -C "$STAGING_SRC" rev-parse HEAD)
 short=$(git -C "$STAGING_SRC" rev-parse --short HEAD)
 log "staging is at $short; checking it out in $DEMO_SRC"
-git -C "$DEMO_SRC" fetch --quiet origin
+# Fetched from the checkout that names the commit, never from origin: the
+# demo's checkout holds no credential for this private repository, and the
+# commit is by definition already in STAGING_SRC.
+git -C "$DEMO_SRC" fetch --quiet "$STAGING_SRC" HEAD
 git -C "$DEMO_SRC" checkout --quiet --detach "$commit"
 
 # The backing services are started (or reconciled with the checked out compose
@@ -146,7 +203,13 @@ compose exec -T db sh -c 'until pg_isready -q -U "$POSTGRES_USER"; do sleep 1; d
 
 # ── 2. build the candidate images ─────────────────────────────────────────────────
 log "building :demo-next images at $short"
-DEMO_IMAGE_TAG=demo-next INJISHI_COMMIT=$short compose build api web app admin
+# One image at a time. One `compose build` of all four bakes them in parallel,
+# and three Next builds at once ran the 3.9 GB demo host out of memory and swap
+# (2026-09-14). Slower, and it finishes.
+for service in api web app admin; do
+  log "building $service"
+  HEROUI_AUTH_TOKEN=$heroui_token DEMO_IMAGE_TAG=demo-next INJISHI_COMMIT=$short compose build "$service"
+done
 
 # ── 3. a fresh candidate database: migrate, mark, seed ────────────────────────────
 log "creating $NEXT_DB and running the sample recipe into it"
@@ -204,10 +267,15 @@ compose run --rm --no-deps -T --entrypoint sh minio-init -c '
 compose exec -T redis redis-cli FLUSHALL >/dev/null
 compose restart mailpit >/dev/null
 
-compose up -d --no-build
-
 # ── 5. confirm ────────────────────────────────────────────────────────────────────
+# Starting the demo belongs to the confirm, not the swap, and its exit status is
+# not fatal. `compose up` waits on the API's health check before it starts the
+# services that depend on it, and exits non zero when the new API is unhealthy.
+# On 2026-10-01 that exit ended this script in phase 'swap', so the swap back
+# below never ran and the demo stayed down until a hand restore. The health
+# checks are what decide.
 phase=confirm
+compose up -d --no-build || log "compose up exited non zero; the health checks below decide" >&2
 health_of() {
   local id
   id=$(compose ps -q "$1")
@@ -237,6 +305,8 @@ fi
 log "the new demo is not healthy after ${HEALTH_TIMEOUT}s (api: $(health_of api), web: $(health_of web)); swapping back"
 trap - ERR
 set +e
+# Why, before the swap back recreates the container and the reason is gone.
+compose logs --no-color --tail 80 api >&2
 compose stop "${APP_SERVICES[@]}"
 psql_admin "select pg_terminate_backend(pid) from pg_stat_activity
             where datname in ('$LIVE_DB', '$PREV_DB') and pid <> pg_backend_pid()" >/dev/null

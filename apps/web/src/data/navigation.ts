@@ -4,8 +4,6 @@
  * The prototype repeated these links as literal markup in the header, the
  * mobile drawer, and the footer of all eleven pages. They live here once.
  */
-import { FEATURED_STAYS as FEATURED_PROPERTIES } from "@/data/featured-stays";
-
 export interface NavLink {
   label: string;
   href: string;
@@ -42,24 +40,19 @@ export const PRIMARY_NAV: NavLink[] = [
 ];
 
 /**
- * Footer stay links, derived from the featured properties.
+ * Footer stay links: Explore, narrowed by the kind of stay.
  *
- * Written out by hand until now, which is how `virunga-view-lodge` and
- * `lake-kivu-breeze-hotel` came to sit in the footer of every page on the
- * site pointing at property records that did not exist.
+ * These used to name four featured properties from a fictional catalogue kept
+ * in this app, removed on 2026-10-08. A filter cannot point at a stay that does
+ * not exist, so the column now offers the kinds and lets Explore list whatever
+ * the database holds.
  */
-export const FEATURED_STAYS: NavLink[] = [
-  ...FEATURED_PROPERTIES.slice(0, 4).map((stay) => ({
-    label: `${stay.nameLead}${stay.nameRest ? ` ${stay.nameRest}` : ""}`,
-    href: `/property/${stay.slug}`,
-  })),
-  // Akagera National Park spans Kayonza and Nyagatare, and its headquarters
-  // are in Kayonza. The link still filters to Nyagatare on purpose: the
-  // explore filter offers only districts that hold a listing
-  // (`SEARCH_DISTRICTS`), no listing sits in Kayonza, and the Akagera camps
-  // in the catalogue are all filed under Nyagatare. `?district=kayonza` would
-  // open on an empty grid.
-  { label: "Akagera", href: "/explore?district=nyagatare" },
+export const BROWSE_STAYS: NavLink[] = [
+  { label: "Hotels", href: "/explore?stay=hotels" },
+  { label: "Homes and apartments", href: "/explore?stay=homes" },
+  { label: "Lodges", href: "/explore?kind=lodge" },
+  { label: "Guest houses", href: "/explore?kind=guest_house" },
+  { label: "All stays", href: "/explore" },
 ];
 
 export const POPULAR_DISTRICTS: NavLink[] = [
@@ -79,14 +72,14 @@ export const PRODUCT_AND_COMPANY: NavLink[] = [
 
 /** Footer columns, left to right. */
 export const FOOTER_GROUPS: NavGroup[] = [
-  { title: "FEATURED STAYS", links: FEATURED_STAYS },
+  { title: "BROWSE STAYS", links: BROWSE_STAYS },
   { title: "POPULAR DISTRICTS", links: POPULAR_DISTRICTS },
   { title: "PRODUCT & COMPANY", links: PRODUCT_AND_COMPANY },
 ];
 
 /** The mobile drawer's two-column section grid. */
 export const MOBILE_NAV_GROUPS: NavGroup[] = [
-  { title: "FEATURED STAYS", links: FEATURED_STAYS },
+  { title: "BROWSE STAYS", links: BROWSE_STAYS },
   {
     title: "EXPLORE DISTRICTS",
     links: [

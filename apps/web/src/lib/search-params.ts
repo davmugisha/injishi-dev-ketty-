@@ -58,6 +58,7 @@ import { BUDGET_BANDS, type BudgetBandId } from "@/data/search-options";
  * | `stay`          | refinement | `all`, `hotels` or `homes`  |
  * | `available`     | refinement | `1`, omitted when false     |
  * | `compare`       | refinement | `1`, omitted when false     |
+ * | `cmp`           | refinement | comma separated slugs, ≤ 5  |
  * | `sort`          | refinement | an `ExploreSort`            |
  * | `page`          | refinement | integer, omitted at 1       |
  * | `property`      | checkout   | a property slug             |
@@ -71,6 +72,10 @@ import { BUDGET_BANDS, type BudgetBandId } from "@/data/search-options";
  * order. Two guests who tick the same three amenities in different orders must
  * land on the same URL, or an otherwise-identical view has two addresses and
  * neither the cache nor a shared link can tell they are one thing.
+ *
+ * `cmp` is the one exception. It is not a filter but the guest's comparison,
+ * and its order is the order of the columns they built, so it is written in
+ * pick order. Same picks in a different order is a genuinely different view.
  *
  * RETIRED, and why. `guests` was a second spelling of the party that the
  * `adults` and `children` pair already carries, and two spellings of one fact
@@ -253,10 +258,7 @@ export const SORT_OPTIONS: { value: ExploreSort; label: string }[] = [
 ];
 
 export const SORT_EXPLAINER =
-  "Recommended orders stays by guest score first, then by nightly rate. Paid placement is marked “Ad” and never moves a stay up the list.";
-
-/** Which prices the rail's range and the card's headline figure refer to. */
-export type PriceBasis = "nightly" | "total";
+  "Recommended orders stays by guest score first, then by nightly rate.";
 
 /**
  * The three stay-type tabs above the list.
@@ -284,8 +286,7 @@ export const STAY_TYPES: { value: StayType; label: string }[] = [
  * minimum score, a minimum bedroom count, a sort order, a page.
  */
 export interface ExploreRefinement {
-  priceBasis: PriceBasis;
-  /** Inclusive RWF bounds. Null is open on that side. */
+  /** Inclusive RWF bounds, on the nightly rate. Null is open on that side. */
   minRwf: number | null;
   maxRwf: number | null;
   kinds: AccommodationClass[];
@@ -298,25 +299,25 @@ export interface ExploreRefinement {
   experience: string[];
   views: string[];
   activities: string[];
-  payment: string[];
-  cancellation: string[];
   meals: string[];
-  access: string[];
   popular: string[];
   bedrooms: number | null;
   /** Free text matched against the property name only, not the address. */
   name: string;
   stayType: StayType;
-  /** The rail's "only show available properties" tick. */
-  available: boolean;
   /** The rail's compare tray. A view preference, not a filter. */
   compare: boolean;
+  /** The stays picked for comparison, in pick order. At most `MAX_PICKS`. */
+  picks: string[];
   sort: ExploreSort;
   page: number;
 }
 
+/** How many stays the compare view holds side by side. */
+export const MAX_PICKS = 5;
+const SLUG_PATTERN = /^[a-z0-9][a-z0-9-]{0,120}$/;
+
 export const DEFAULT_REFINEMENT: ExploreRefinement = {
-  priceBasis: "nightly",
   minRwf: null,
   maxRwf: null,
   kinds: [],
@@ -327,16 +328,13 @@ export const DEFAULT_REFINEMENT: ExploreRefinement = {
   experience: [],
   views: [],
   activities: [],
-  payment: [],
-  cancellation: [],
   meals: [],
-  access: [],
   popular: [],
   bedrooms: null,
   name: "",
   stayType: "all",
-  available: false,
   compare: false,
+  picks: [],
   sort: "recommended",
   page: 1,
 };
@@ -357,10 +355,7 @@ const LIST_FIELDS = [
   ["experience", "exp"],
   ["views", "view"],
   ["activities", "act"],
-  ["payment", "pay"],
-  ["cancellation", "cancel"],
   ["meals", "meal"],
-  ["access", "access"],
   ["popular", "popular"],
 ] as const satisfies ReadonlyArray<readonly [keyof ExploreRefinement, string]>;
 
@@ -377,9 +372,6 @@ export function parseRefinement(params: ParamsLike): ExploreRefinement {
   refinement.classes = [...new Set(readList(params.get("class")).map(Number))]
     .filter((n) => Number.isInteger(n) && n >= 1 && n <= 5)
     .sort((a, b) => b - a);
-
-  const basis = params.get("basis");
-  refinement.priceBasis = basis === "total" ? "total" : "nightly";
 
   refinement.minRwf = readMoney(params.get("min"));
   refinement.maxRwf = readMoney(params.get("max"));
@@ -414,8 +406,15 @@ export function parseRefinement(params: ParamsLike): ExploreRefinement {
     ? (stay as StayType)
     : "all";
 
-  refinement.available = params.get("available") === "1";
   refinement.compare = params.get("compare") === "1";
+  refinement.picks = [
+    ...new Set(
+      (params.get("cmp") ?? "")
+        .split(",")
+        .map((slug) => slug.trim())
+        .filter((slug) => SLUG_PATTERN.test(slug)),
+    ),
+  ].slice(0, MAX_PICKS);
 
   const sort = params.get("sort");
   refinement.sort = SORT_OPTIONS.some((option) => option.value === sort)
@@ -429,7 +428,6 @@ export function parseRefinement(params: ParamsLike): ExploreRefinement {
 
 export function serialiseRefinement(refinement: ExploreRefinement): QueryValues {
   const out: QueryValues = {
-    basis: refinement.priceBasis === "nightly" ? undefined : refinement.priceBasis,
     min: refinement.minRwf ?? undefined,
     max: refinement.maxRwf ?? undefined,
     class: refinement.classes.length ? [...refinement.classes].sort((a, b) => b - a).join(",") : undefined,
@@ -437,8 +435,9 @@ export function serialiseRefinement(refinement: ExploreRefinement): QueryValues 
     bedrooms: refinement.bedrooms ?? undefined,
     name: refinement.name.trim() || undefined,
     stay: refinement.stayType === "all" ? undefined : refinement.stayType,
-    available: refinement.available ? 1 : undefined,
     compare: refinement.compare ? 1 : undefined,
+    // Pick order, not sorted: see the `cmp` note in the header.
+    cmp: refinement.picks.length ? refinement.picks.slice(0, MAX_PICKS).join(",") : undefined,
     sort: refinement.sort === DEFAULT_REFINEMENT.sort ? undefined : refinement.sort,
     page: refinement.page > 1 ? refinement.page : undefined,
   };
@@ -460,7 +459,6 @@ export function hasRefinement(refinement: ExploreRefinement): boolean {
   if (refinement.bedrooms !== null) return true;
   if (refinement.name.trim() !== "") return true;
   if (refinement.stayType !== "all") return true;
-  if (refinement.available) return true;
   return LIST_FIELDS.some(([field]) => (refinement[field] as string[]).length > 0);
 }
 
@@ -475,7 +473,6 @@ export function refinementCount(refinement: ExploreRefinement): number {
   if (refinement.rating !== null) count += 1;
   if (refinement.bedrooms !== null) count += 1;
   if (refinement.name.trim() !== "") count += 1;
-  if (refinement.available) count += 1;
   return count;
 }
 

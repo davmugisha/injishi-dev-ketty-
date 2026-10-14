@@ -1,7 +1,7 @@
 import Link from "next/link";
-import { cn, withQuery } from "@injishi/utils";
+import { cn } from "@injishi/utils";
 import { HostKindIcons } from "@/components/icons/search";
-import { HOST_PROPERTY_KINDS } from "@/data/host";
+import { HOST_PROPERTY_KINDS, hostKindHref } from "@/data/host";
 
 /**
  * The property-type chooser — the entry point to the listing funnel.
@@ -44,6 +44,10 @@ import { HOST_PROPERTY_KINDS } from "@/data/host";
  * and on hover they rise to the card's own surface and take an ink (or white)
  * hairline. Three planes — photograph, card, tile — with no shadow anywhere.
  *
+ * Each tile goes straight to `/register` with its kind (`hostKindHref`): the
+ * wizard takes the answer as given and opens on the next question, so a tile
+ * here IS the first step of registering, not a door to a page about it.
+ *
  * No Verified Green is spent here. Four accented tiles would read as brand
  * paint rather than as the Spent Accent Rule's "single most important action",
  * and the card already carries all the pull it needs from being white on ink.
@@ -78,8 +82,8 @@ export function HostChooser({ className }: { className?: string }) {
           return (
             <li key={kind.value}>
               <Link
-                href={withQuery("/host/start", { kind: kind.value })}
-                className="flex h-full items-center gap-3 border border-transparent bg-secondary p-3.5 transition-all duration-300 hover:border-foreground hover:bg-card focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-card sm:flex-col sm:items-start sm:gap-3 sm:p-4 rounded-card bg-surface-secondary"
+                href={hostKindHref(kind.value)}
+                className="flex h-full items-center gap-3 border border-transparent bg-secondary p-3.5 transition-colors duration-quick hover:border-foreground hover:bg-card focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-card sm:flex-col sm:items-start sm:gap-3 sm:p-4 rounded-card bg-surface-secondary"
               >
                 {/* Line icon boxed in a hairline circle, per DESIGN.md's icon
                     treatment. 22px, the bottom of the documented 22–24px step:

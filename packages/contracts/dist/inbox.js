@@ -1,8 +1,9 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.SendGuestMessageInput = exports.MessagePageQuery = exports.GuestMessagePage = exports.GUEST_MESSAGE_PAGE_MAX = exports.GUEST_MESSAGE_PAGE = exports.GUEST_MESSAGE_MAX = exports.GuestMessage = exports.MyThreads = exports.GuestThread = exports.ThreadKind = exports.ThreadScope = void 0;
+exports.MyDepartments = exports.GuestDeskPlace = exports.OpenThreadRequest = exports.SendGuestMessageInput = exports.MessagePageQuery = exports.GuestMessagePage = exports.GUEST_MESSAGE_PAGE_MAX = exports.GUEST_MESSAGE_PAGE = exports.GUEST_MESSAGE_MAX = exports.GuestMessage = exports.MyThreads = exports.GuestThread = exports.ThreadKind = exports.ThreadScope = void 0;
 const zod_1 = require("zod");
 const primitives_1 = require("./primitives");
+const stay_1 = require("./stay");
 /**
  * The GUEST side of messaging — `GET/POST /api/v1/me/threads*`
  * ([ADR-032](../../../injishi.context/dox/adrs/032-guest-saved-and-messaging/032-messaging-surface.md)).
@@ -49,6 +50,19 @@ exports.GuestThread = zod_1.z.object({
     subjectId: primitives_1.Uuid,
     kind: exports.ThreadKind,
     status: zod_1.z.enum(["active", "archived"]),
+    /**
+     * WHICH property this conversation is about, as an id.
+     *
+     * The name alone was not enough to act on. Ordering, the desks a guest may
+     * write to and every other per-property question is asked of the server BY
+     * ID (`GET /me/orderable?propertyId=…`), so a screen holding only
+     * `propertyName` could render the conversation and nothing else about it —
+     * which is why ordering inside a thread had to be a link out to a screen that
+     * knew the property some other way.
+     *
+     * Null exactly where `propertyName` is null: they come from the same join.
+     */
+    propertyId: primitives_1.Uuid.nullable(),
     /**
      * Who the guest is talking to, as they think of it: the property.
      *
@@ -121,4 +135,81 @@ exports.SendGuestMessageInput = zod_1.z
     body: zod_1.z.string().trim().min(1).max(exports.GUEST_MESSAGE_MAX),
 })
     .strict();
+// ---------------------------------------------------------------------------
+// Starting one: the desks a guest may write to, before they are in house
+// ---------------------------------------------------------------------------
+/**
+ * `POST /api/v1/me/threads` (ADR-050 D-q): open or resume the conversation with
+ * one department, and say something.
+ *
+ * NAMED BY THE DEPARTMENT ALONE, and that is the whole point of this shape.
+ * `POST /me/stays/:id/requests` could only be reached by a guest who had a
+ * stay, so a person who had BOOKED and not yet arrived could reach no desk of
+ * the property at all — the department capability was invisible to everyone
+ * before check-in. The server resolves which record the conversation hangs off
+ * (an open stay at that department's property, else a live booking with it),
+ * because the guest does not know and should not have to say: they tapped
+ * "Housekeeping".
+ *
+ * THE FIRST MESSAGE IS REQUIRED, for the same reason it is on the stay route: a
+ * thread with nothing in it is a row the desk reads as a guest who wanted
+ * something and did not say what.
+ *
+ * `.strict()` so a body that names its own stay, booking or workspace is
+ * refused rather than quietly ignored — a field the server does not read is a
+ * field a client will eventually believe in.
+ */
+exports.OpenThreadRequest = zod_1.z
+    .object({
+    departmentId: primitives_1.Uuid,
+    /** Optional one-liner for the desk's list view. */
+    subject: zod_1.z.string().trim().min(1).max(120).optional(),
+    body: zod_1.z.string().trim().min(1).max(exports.GUEST_MESSAGE_MAX),
+})
+    .strict();
+/**
+ * One property a guest may write to right now, and the desks there.
+ *
+ * A PLACE, not a stay and not a booking: the guest thinks "the hotel I am at"
+ * and "the hotel I am going to", and both offer the same desks. `context` and
+ * `subjectId` say which record the server resolved the right from, so a screen
+ * can link to the trip or the stay it came from, and `inHouse` says which of
+ * the two wordings to use ("Message Housekeeping" versus "Ask before you
+ * arrive"). They agree by construction — `context === "stay"` is exactly
+ * `inHouse` — and are both here because a client should not have to know that.
+ *
+ * There is deliberately NO `canOrder` flag. Whether this person may order at
+ * this property is the outlet policy's answer and it is a per-outlet one:
+ * `GET /me/orderable?propertyId=…` is the verdict, and computing a summary of
+ * it for every row of a list screen would cost a policy resolution per row to
+ * produce a boolean that is wrong the moment an outlet closes.
+ */
+exports.GuestDeskPlace = zod_1.z.object({
+    propertyId: primitives_1.Uuid,
+    propertyName: zod_1.z.string(),
+    /** Which record opens these desks: the stay they are on, or the booking. */
+    context: zod_1.z.enum(["stay", "booking"]),
+    /** The `guest_stays` id or the `bookings` id, per `context`. */
+    subjectId: primitives_1.Uuid,
+    /** The booking's reference, for a place a guest recognises by it. Null for a walk-in. */
+    bookingReference: zod_1.z.string().nullable(),
+    /**
+     * When they arrive, or arrived: the booking's check-in date for a booking,
+     * the stay's entry instant for a stay. Read it as a moment, not as a format.
+     */
+    checkIn: zod_1.z.string().nullable(),
+    /** True when the guest is checked in here right now. */
+    inHouse: zod_1.z.boolean(),
+    /** Only the desks this property marked `guest_requestable`, its own control. */
+    departments: zod_1.z.array(stay_1.StayDepartment),
+});
+/**
+ * `GET /api/v1/me/departments`: every desk this person may write to, anywhere.
+ *
+ * Session scoped and takes no parameter. The stay-scoped
+ * `GET /me/stays/:id/departments` answers the same question for one stay and
+ * stays where it is; this one is what an inbox opens with, because an inbox
+ * does not know which stay or booking the guest has in mind.
+ */
+exports.MyDepartments = zod_1.z.object({ places: zod_1.z.array(exports.GuestDeskPlace) });
 //# sourceMappingURL=inbox.js.map

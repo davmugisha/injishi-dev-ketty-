@@ -17,8 +17,10 @@ import type {
   OrderableList,
   GuestMessage,
   GuestMessagePage,
+  MyDepartments,
   MyProfile,
   MyThreads,
+  OpenDepartmentResult,
   MyTrips,
   OversightConsoleGrant,
   StaffAccess,
@@ -26,6 +28,7 @@ import type {
 } from '@injishi/contracts';
 import {
   MessagePageQuery,
+  OpenThreadRequest,
   OrderableQuery,
   PlaceOrderRequest,
   PlaceOrderResult,
@@ -208,6 +211,49 @@ export class MeController {
   @Get('threads')
   async myThreads(@CurrentUser() user: SessionUser): Promise<MyThreads> {
     return { threads: await this.messaging.listGuestThreads(user.id) };
+  }
+
+  /**
+   * Every desk this person may write to, at every property they are in house at
+   * or hold a live booking with (ADR-050 D-q).
+   *
+   * Declared before `threads/:id/...` — there is no clash, but the picker this
+   * answers and the conversations it opens belong next to each other.
+   *
+   * `SessionGuard` alone, and no `@RequirePermission`, for the reason the whole
+   * of this controller records: a department's workspace is the PROPERTY's, so
+   * no workspace guard can speak for a guest. Every property in the answer was
+   * resolved from the caller's own stays and bookings, and the route takes no
+   * parameter at all, so there is nothing to pass somebody else's.
+   *
+   * A person staying nowhere and booked nowhere gets an empty list, never a
+   * refusal: "you may write to nobody today" is an answer, and a 403 there
+   * would have `/inbox` render an error for a perfectly ordinary account.
+   */
+  @Get('departments')
+  myDepartments(@CurrentUser() user: SessionUser): Promise<MyDepartments> {
+    return this.messaging.myDepartments(user.id);
+  }
+
+  /**
+   * Open or resume the conversation with one department, and say something.
+   *
+   * ONE CALL: the thread and its first line are written in one transaction, so
+   * a dropped connection cannot leave the desk a conversation with nothing in
+   * it. A second request for the same department returns the SAME thread and
+   * appends to it (`created: false`), which is what lets a screen offer
+   * "Message Housekeeping" without checking first.
+   *
+   * The body names the department and nothing else; which stay or booking it
+   * hangs off is the server's to resolve. See
+   * `MessagingService.openThreadWithDepartment` for what each refusal means.
+   */
+  @Post('threads')
+  openThread(
+    @Body(new ZodValidationPipe(OpenThreadRequest)) body: OpenThreadRequest,
+    @CurrentUser() user: SessionUser,
+  ): Promise<OpenDepartmentResult> {
+    return this.messaging.openThreadWithDepartment(user.id, body);
   }
 
   /**

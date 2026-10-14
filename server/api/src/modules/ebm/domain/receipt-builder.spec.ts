@@ -238,7 +238,7 @@ describe('EBM receipt arithmetic and formats', () => {
   describe('the assembled NS receipt', () => {
     it('totals what the guest was actually charged', () => {
       const s = stay();
-      const receipt = buildStayReceipt(s, priceStay(s), signature);
+      const receipt = buildStayReceipt(s, priceStay(s), signature, 'NS');
 
       expect(receipt.totalRwf).toBe(s.breakdown.grossRwf);
       expect(receipt.payment.amountRwf).toBe(s.breakdown.grossRwf);
@@ -252,7 +252,7 @@ describe('EBM receipt arithmetic and formats', () => {
 
     it('carries the VSDC blocks through untouched (7.20)', () => {
       const s = stay();
-      const receipt = buildStayReceipt(s, priceStay(s), signature);
+      const receipt = buildStayReceipt(s, priceStay(s), signature, 'NS');
 
       expect(receipt.sdc).toEqual(signature.sdc);
       expect(receipt.cis).toEqual(signature.cis);

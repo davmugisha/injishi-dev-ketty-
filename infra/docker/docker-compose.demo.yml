@@ -56,6 +56,9 @@ x-api-env: &api-env
   # The demo's own secret. Never production's: a demo session is minted with a
   # code anyone can read.
   BETTER_AUTH_SECRET: ${BETTER_AUTH_SECRET}
+  # Optional here: the demo platform falls back to a fixed pepper, because its
+  # PINs guard sample people only (058-time AC-TM11). Set one to rehearse.
+  HR_PIN_PEPPER: ${HR_PIN_PEPPER:-}
   BETTER_AUTH_URL: https://${API_HOST:-api-demo.injishi.com}
   # The shared parent domain, as production's. Cookies stay apart by NAME: a
   # demo process names its session `injishi-demo.*` (AC-8).
@@ -63,10 +66,34 @@ x-api-env: &api-env
   CORS_ORIGINS: https://${WEB_HOST:-www-demo.injishi.com},https://${ADMIN_HOST:-admin-demo.injishi.com}
   GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:-}
   GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET:-}
+  # Money alarms and what breaks (a 500, a fault inside Better Auth, a job's
+  # last failed attempt, a process that dies) go to Sentry under the `demo`
+  # environment when this is set, and nowhere but the log when it is not
+  # (ADR-063). The API and the worker both merge this anchor.
+  SENTRY_DSN: ${SENTRY_DSN:-}
   # Never live. A demo process refuses to boot on either (AC-13); pinning them
   # means a line in the env file cannot even try.
   PAYMENT_ADAPTER_MODE: mock
   VSDC_ADAPTER_MODE: mock
+  # ADR-050 D-a's new rule: a confirmed booking holds a PROFORMA (PS) and the
+  # sale is signed when the bill closes at check out. The demo declares nothing
+  # to RRA either way (ADR-041 D-p); this decides which document a guest sees.
+  # Production and staging still run the old rule (unset means `booking`).
+  EBM_SIGN_AT: checkout
+  # The support assistant (ADR-061). The deterministic mock unless the host env file says otherwise, so a presenter can show it without spending. `live` needs ANTHROPIC_API_KEY from the host env file, never from this file, and the API refuses to boot on `live` without it.
+  ASSISTANT_ADAPTER_MODE: ${ASSISTANT_ADAPTER_MODE:-mock}
+  ASSISTANT_MODEL: ${ASSISTANT_MODEL:-claude-sonnet-5-5}
+  ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+  # Spending limits and prices (ADR-061 D-s, D-t), from the host env file. A
+  # blank value means the API's default: no monthly ceiling (the boot log says
+  # so on live), 30 model answers a day, and Sonnet 5.5's published prices.
+  ASSISTANT_MONTHLY_BUDGET_USD: ${ASSISTANT_MONTHLY_BUDGET_USD:-}
+  ASSISTANT_AI_TURNS_PER_DAY: ${ASSISTANT_AI_TURNS_PER_DAY:-}
+  ASSISTANT_MAX_OUTPUT_TOKENS: ${ASSISTANT_MAX_OUTPUT_TOKENS:-}
+  ASSISTANT_PRICE_INPUT_PER_MTOK_USD: ${ASSISTANT_PRICE_INPUT_PER_MTOK_USD:-}
+  ASSISTANT_PRICE_OUTPUT_PER_MTOK_USD: ${ASSISTANT_PRICE_OUTPUT_PER_MTOK_USD:-}
+  ASSISTANT_PRICE_CACHE_READ_PER_MTOK_USD: ${ASSISTANT_PRICE_CACHE_READ_PER_MTOK_USD:-}
+  ASSISTANT_PRICE_CACHE_WRITE_PER_MTOK_USD: ${ASSISTANT_PRICE_CACHE_WRITE_PER_MTOK_USD:-}
   # This stack's own MinIO, through the scoped user minio-init creates.
   # `injishi-minio`, not `minio`: api also joins dokploy-network, where the other
   # stacks' `minio` answers to the same name.
@@ -208,7 +235,14 @@ services:
   # One shot, on every `up`: the one bucket private and encrypted, and the
   # API's own scoped user (minio/provision.sh).
   minio-init:
-    image: quay.io/minio/mc:RELEASE.2025-08-13T08-35-41Z
+    # minio's own SERVER image, not quay.io/minio/mc. It ships /usr/bin/mc at
+    # the release the mc image was pinned to (RELEASE.2025-08-13T08-35-41Z),
+    # plus the sh and timeout provision.sh needs. quay.io has answered 401 for
+    # MinIO's images since at least 2026-09-25, so an mc tag a host had not
+    # cached could no longer be pulled: the demo's nightly `up` failed on it
+    # five nights running and left the API stopped. One image for both
+    # services also means the one a host holds serves both.
+    image: quay.io/minio/minio:RELEASE.2025-09-07T16-13-09Z
     restart: "no"
     entrypoint: ["/bin/sh", "/provision.sh"]
     environment:
@@ -360,6 +394,8 @@ services:
     build:
       context: ../..
       dockerfile: infra/docker/Dockerfile.web
+      secrets:
+        - heroui_token
       args:
         <<: *demo-public
         OPERATOR_APP_URL: http://app:3002
@@ -430,6 +466,8 @@ services:
     build:
       context: ../..
       dockerfile: infra/docker/Dockerfile.app
+      secrets:
+        - heroui_token
       args:
         <<: *demo-public
         OPERATOR_ASSET_PREFIX: /operator-static
@@ -455,6 +493,8 @@ services:
     build:
       context: ../..
       dockerfile: infra/docker/Dockerfile.admin
+      secrets:
+        - heroui_token
       args:
         <<: *demo-public
     restart: unless-stopped
@@ -485,3 +525,10 @@ services:
     networks:
       - default
       - dokploy-network
+
+# HeroUI Pro's CI/CD token for the three frontend builds, read from this
+# stack's .env (stack settings live on the host, never in GitHub). See the
+# note in Dockerfile.web.
+secrets:
+  heroui_token:
+    environment: HEROUI_AUTH_TOKEN

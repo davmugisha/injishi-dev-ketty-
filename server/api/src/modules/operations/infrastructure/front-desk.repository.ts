@@ -3,8 +3,10 @@ import { Inject, Injectable } from '@nestjs/common';
 import { and, desc, eq, inArray, sql, type SQL } from 'drizzle-orm';
 
 import {
+  accountName,
   bookings,
   guestStays,
+  ratePlans,
   rooms,
   roomTypes,
   users,
@@ -37,6 +39,12 @@ export interface RoomRow {
   label: string | null;
   roomTypeId: string;
   roomTypeName: string;
+  /**
+   * False once the room's type is archived. Its rooms keep their own status,
+   * so without this an archived type's rooms still read as available and the
+   * desk could put a guest in a room the host took off sale.
+   */
+  roomTypeActive: boolean;
   status: 'available' | 'maintenance' | 'out_of_service';
   housekeeping: HousekeepingStatus;
 }
@@ -56,8 +64,15 @@ export interface CheckInSubject {
   propertyId: string | null;
   status: string;
   guestUserId: string | null;
+  /** The booking's own reference, written on the prepayment line. */
+  reference: string;
+  checkIn: string;
   checkOut: string;
   lockedNightlyRateRwf: number | null;
+  /** Whether the guest's online payment is still held (or already paid out). Null when none was taken. */
+  paymentStatus: string | null;
+  /** What has already gone back to the guest, which the prepayment line nets off. */
+  refundRwf: number | null;
 }
 
 export interface StayRow {
@@ -93,7 +108,7 @@ export class FrontDeskRepository {
   // --- Rooms ---------------------------------------------------------------
 
   async listRooms(workspaceId: string, scope: BranchScope): Promise<RoomRow[]> {
-    return this.db
+    const rows = await this.db
       .select({
         id: rooms.id,
         workspaceId: rooms.workspaceId,
@@ -101,6 +116,7 @@ export class FrontDeskRepository {
         label: rooms.label,
         roomTypeId: rooms.roomTypeId,
         roomTypeName: roomTypes.name,
+        roomTypeStatus: roomTypes.status,
         status: rooms.status,
         housekeeping: rooms.housekeepingStatus,
       })
@@ -108,6 +124,10 @@ export class FrontDeskRepository {
       .innerJoin(roomTypes, eq(roomTypes.id, rooms.roomTypeId))
       .where(and(eq(rooms.workspaceId, workspaceId), inBranchScope(rooms.propertyId, scope)))
       .orderBy(rooms.label);
+    return rows.map(({ roomTypeStatus, ...room }) => ({
+      ...room,
+      roomTypeActive: roomTypeStatus === 'active',
+    }));
   }
 
   /**
@@ -126,7 +146,7 @@ export class FrontDeskRepository {
       .select({
         roomId: guestStays.roomId,
         stayId: guestStays.id,
-        guestName: sql<string | null>`coalesce(${users.name}, ${guestStays.guestName})`,
+        guestName: sql<string | null>`coalesce(${accountName}, ${guestStays.guestName})`,
         entryAt: guestStays.entryAt,
       })
       .from(guestStays)
@@ -159,6 +179,7 @@ export class FrontDeskRepository {
         label: rooms.label,
         roomTypeId: rooms.roomTypeId,
         roomTypeName: roomTypes.name,
+        roomTypeStatus: roomTypes.status,
         status: rooms.status,
         housekeeping: rooms.housekeepingStatus,
       })
@@ -167,7 +188,9 @@ export class FrontDeskRepository {
       .where(eq(rooms.id, roomId))
       .limit(1);
 
-    return row ?? null;
+    if (!row) return null;
+    const { roomTypeStatus, ...room } = row;
+    return { ...room, roomTypeActive: roomTypeStatus === 'active' };
   }
 
   /**
@@ -192,6 +215,29 @@ export class FrontDeskRepository {
       .where(eq(rooms.id, roomId));
   }
 
+  /**
+   * The nightly price a room type sells at by default: its default, active
+   * rate plan's base price. Null when the type has no such plan or no price.
+   *
+   * Read by a walk in that arrives with no rate agreed. The night audit bills a
+   * walk in from the stay's own price, so a stay opened without one would be a
+   * room nobody is ever charged for.
+   */
+  async defaultNightlyRate(roomTypeId: string): Promise<number | null> {
+    const [row] = await this.db
+      .select({ price: ratePlans.basePriceRwf })
+      .from(ratePlans)
+      .where(
+        and(
+          eq(ratePlans.roomTypeId, roomTypeId),
+          eq(ratePlans.isDefault, true),
+          eq(ratePlans.status, 'active'),
+        ),
+      )
+      .limit(1);
+    return row?.price ?? null;
+  }
+
   // --- Stays ---------------------------------------------------------------
 
   async findCheckInSubject(bookingId: string): Promise<CheckInSubject | null> {
@@ -202,8 +248,12 @@ export class FrontDeskRepository {
         propertyId: roomTypes.propertyId,
         status: bookings.status,
         guestUserId: bookings.guestUserId,
+        reference: bookings.reference,
+        checkIn: bookings.checkIn,
         checkOut: bookings.checkOut,
         lockedNightlyRateRwf: bookings.lockedNightlyRateRwf,
+        paymentStatus: bookings.paymentStatus,
+        refundRwf: bookings.refundRwf,
       })
       .from(bookings)
       .leftJoin(roomTypes, eq(roomTypes.id, bookings.roomTypeId))
@@ -344,11 +394,28 @@ export class FrontDeskRepository {
     roomId: string;
     workspaceId: string;
     propertyId: string | null;
+    /**
+     * What the desk wrote down on the way out, or undefined for nothing.
+     *
+     * It is set in the SAME statement that closes the stay, and only when the
+     * guard matched. Writing it separately would let a note land on a stay this
+     * call did not close — which is precisely the second-press case below.
+     */
+    departureNote?: string;
   }): Promise<boolean> {
     return this.db.transaction(async (tx) => {
       const [updated] = await tx
         .update(guestStays)
-        .set({ lifecycle: 'closed', actualExitAt: new Date() })
+        .set({
+          lifecycle: 'closed',
+          actualExitAt: new Date(),
+          // Absent rather than null when nothing was typed, so a check out with
+          // no note never erases one. Nothing writes this twice today, but the
+          // column is the kind that grows a second writer.
+          ...(input.departureNote === undefined
+            ? {}
+            : { departureNote: input.departureNote }),
+        })
         .where(
           and(eq(guestStays.id, input.stayId), eq(guestStays.lifecycle, 'open')),
         )
@@ -394,7 +461,7 @@ export class FrontDeskRepository {
         roomId: guestStays.roomId,
         propertyId: rooms.propertyId,
         roomLabel: rooms.label,
-        guestName: sql<string | null>`coalesce(${users.name}, ${guestStays.guestName})`,
+        guestName: sql<string | null>`coalesce(${accountName}, ${guestStays.guestName})`,
         lifecycle: guestStays.lifecycle,
         entryAt: guestStays.entryAt,
         plannedExitAt: guestStays.plannedExitAt,

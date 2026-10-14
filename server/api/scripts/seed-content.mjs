@@ -647,6 +647,16 @@ async function main() {
          * `leases.room_id` points at `rooms`, so a unit has to be one. The room
          * TYPE above it is the shape they share — a two bedroom apartment —
          * which is what a room type is for on the hospitality side too.
+         *
+         * `booking_mode` and `approval_policy` are NULL, and that is the point,
+         * not an omission. A residence unit is let on a lease, never sold as a
+         * stay: `BookingService.create` refuses every non-hospitality room type
+         * (FL06 §5C). This row used to carry `request_to_book` /
+         * `approve_first_three`, which made the catalogue advertise a booking
+         * mode for inventory the booking service could never honour — the demo
+         * served a priced checkout for it that failed on confirm. The residence
+         * seed in `seed-demo.mjs` has always written NULL here; this one now
+         * agrees with it.
          */
         await client.query(
           `insert into room_types (id, property_id, workspace_id, name, domain, capacity,
@@ -654,7 +664,7 @@ async function main() {
                                    approval_policy, cancellation_tier, nonrefundable_eligible,
                                    min_stay, check_in_method)
            values ($1, $2, $3, 'Two-bedroom apartment', 'residence', 4, 3, 450000, 'RWF',
-                   'request_to_book', 'approve_first_three', null, false, 30, 'keypad')
+                   null, null, null, false, 30, 'keypad')
            on conflict (id) do nothing`,
           [IDS.residenceUnitType, IDS.residenceProperty, residenceWorkspace],
         );

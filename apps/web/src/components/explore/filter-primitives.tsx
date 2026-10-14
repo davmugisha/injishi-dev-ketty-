@@ -1,6 +1,28 @@
 "use client";
 
-import { Check, ChevronDown, Minus } from "lucide-react";
+import {
+  Accessibility,
+  Award,
+  Banknote,
+  BedDouble,
+  Binoculars,
+  CalendarCheck,
+  Check,
+  ChevronDown,
+  Compass,
+  ConciergeBell,
+  CreditCard,
+  House,
+  type LucideIcon,
+  MapPin,
+  Minus,
+  Mountain,
+  RotateCcw,
+  SlidersHorizontal,
+  Sparkles,
+  Star,
+  UtensilsCrossed,
+} from "lucide-react";
 import { useId, useState } from "react";
 import { Button } from "@injishi/ui";
 import { cn } from "@injishi/utils";
@@ -32,25 +54,92 @@ import { formatRateNumber } from "@/lib/price";
 
 /* ------------------------------------------------------------- section */
 
+/**
+ * One collapsible rail group: an icon, the title, a chevron, and a count of
+ * what is ticked inside when it is folded. The most used groups start open;
+ * the long tail starts folded so the rail reads as a menu rather than a wall,
+ * and any group holding a selection opens so a guest never loses a tick.
+ *
+ * Folded content stays in the DOM (`hidden`), so the facet checker that
+ * counts `data-facet-option` rows still finds every group's options.
+ */
+const SECTION_ICON: Record<string, LucideIcon> = {
+  price: Banknote,
+  popular: Sparkles,
+  neighbourhood: MapPin,
+  "property-class": Award,
+  "guest-rating": Star,
+  "property-type": House,
+  "property-amenities": ConciergeBell,
+  "room-amenities": BedDouble,
+  "traveller-experience": Compass,
+  views: Mountain,
+  activities: Binoculars,
+  meals: UtensilsCrossed,
+  bedrooms: BedDouble,
+};
+
+const OPEN_BY_DEFAULT = new Set([
+  "price",
+  "popular",
+  "neighbourhood",
+  "property-type",
+  "guest-rating",
+  "property-amenities",
+]);
+
 export function FilterSection({
   id,
   title,
   children,
   className,
+  selectedCount = 0,
 }: {
   /** Becomes `data-facet-group`, which is also the checker's handle on it. */
   id: string;
   title: string;
   children: React.ReactNode;
   className?: string;
+  /** Ticked options inside; opens the group and badges it when folded. */
+  selectedCount?: number;
 }) {
+  const [open, setOpen] = useState(OPEN_BY_DEFAULT.has(id) || selectedCount > 0);
+  const bodyId = useId();
+  const Icon = SECTION_ICON[id] ?? SlidersHorizontal;
+
   return (
     <section
       data-facet-group={id}
-      className={cn("border-t border-separator py-5 first:border-t-0", className)}
+      className={cn("border-t border-separator py-1 first:border-t-0", className)}
     >
-      <h3 className="mb-2 text-base font-bold text-foreground">{title}</h3>
-      {children}
+      <h3>
+        <button
+          type="button"
+          aria-expanded={open}
+          aria-controls={bodyId}
+          onClick={() => setOpen((v) => !v)}
+          className="-mx-1 flex w-[calc(100%+0.5rem)] items-center gap-2.5 rounded px-1 py-3 text-left text-sm font-bold text-foreground transition-colors hover:text-accent-text focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+        >
+          <Icon className="size-4 shrink-0 text-muted-foreground" strokeWidth={2} aria-hidden />
+          <span className="flex-1">{title}</span>
+          {!open && selectedCount > 0 ? (
+            <span className="flex h-5 min-w-5 items-center justify-center rounded-full bg-accent px-1.5 text-2xs font-bold text-accent-foreground">
+              {selectedCount}
+            </span>
+          ) : null}
+          <ChevronDown
+            className={cn(
+              "size-4 shrink-0 text-muted-foreground transition-transform duration-quick",
+              open && "rotate-180",
+            )}
+            strokeWidth={2.2}
+            aria-hidden
+          />
+        </button>
+      </h3>
+      <div id={bodyId} hidden={!open} className="pb-4">
+        {children}
+      </div>
     </section>
   );
 }
@@ -259,7 +348,11 @@ export function FacetBlock({
   const hidden = Math.max(0, group.options.length - group.visible);
 
   return (
-    <FilterSection id={group.id} title={group.title}>
+    <FilterSection
+      id={group.id}
+      title={group.title}
+      selectedCount={group.options.filter((o) => selected.includes(o.value)).length}
+    >
       <div role={group.shape === "radio" ? "radiogroup" : undefined}>
         {group.options.map((option, index) => (
           <div key={option.value} hidden={!expanded && index >= group.visible}>
@@ -286,26 +379,3 @@ export function FacetBlock({
 
 /* --------------------------------------------------------------- misc */
 
-/** The rail's own small "Clear" affordance, used by the header and the sheet. */
-export function ClearButton({
-  count,
-  onClear,
-  className,
-}: {
-  count: number;
-  onClear: () => void;
-  className?: string;
-}) {
-  if (count === 0) return null;
-  return (
-    <Button
-      variant="ghost"
-      size="sm"
-      shape="rounded"
-      onClick={onClear}
-      className={cn("h-auto px-2 py-1 text-sm font-bold text-accent-text", className)}
-    >
-      Clear {count}
-    </Button>
-  );
-}

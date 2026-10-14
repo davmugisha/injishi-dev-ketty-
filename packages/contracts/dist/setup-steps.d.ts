@@ -39,7 +39,12 @@ export interface SetupVocabulary {
     unitPlural: string;
     /** "room", "tent", "unit". */
     unitSingular: string;
-    /** "per night" or "per month". */
+    /**
+     * "per person, per night" or "per month". Hospitality says per person
+     * because that is what the guest is charged (`computeBreakdown`: rate x
+     * billable guests x nights); a host reading "per night" priced a room and
+     * the guest page showed the same figure per person.
+     */
     pricePeriod: string;
 }
 type StoredClass = AccommodationClass | RetiredAccommodationClass;

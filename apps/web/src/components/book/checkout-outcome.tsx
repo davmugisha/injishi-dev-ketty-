@@ -228,8 +228,8 @@ export function CheckoutConfirmed({ booking }: { booking: BookingResult }) {
         {booking.nonRefundable ? <Row label="Rate" value="Non-refundable" /> : null}
       </dl>
       <p className="mb-6 text-xs text-page-fg-70">
-        Keep your reference handy for the front desk. An EBM e-invoice is issued
-        under the host&apos;s TIN.
+        Keep your reference handy for the front desk. Your receipt is kept with
+        your trips.
       </p>
       <div className="flex flex-wrap gap-3">
         <Button asChild>
@@ -238,11 +238,17 @@ export function CheckoutConfirmed({ booking }: { booking: BookingResult }) {
         <Button asChild variant="outline">
           <Link href="/trips">See your trips</Link>
         </Button>
-        {awaitingHost ? null : (
-          <Button asChild variant="outline">
-            <Link href="/inbox">Message the hotel</Link>
-          </Button>
-        )}
+        {/* Offered whatever the status. A guest who has just booked usually has
+            a question next — an airport pickup, an early check in — and one
+            still awaiting the host's answer has the most to ask, which is
+            exactly who the old `awaitingHost` guard withheld it from. A
+            `pending_approval` booking is live (`live-booking.ts`), so `/inbox`
+            offers this property's desks for it. */}
+        <Button asChild variant="outline">
+          <Link href="/inbox">
+            Message the property
+          </Link>
+        </Button>
         <Button asChild variant="ghost">
           <Link href="/explore">Keep exploring</Link>
         </Button>

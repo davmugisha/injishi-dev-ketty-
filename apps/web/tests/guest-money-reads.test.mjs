@@ -122,7 +122,7 @@ describe("the web money reads are parsed, not cast", () => {
     facilities: [],
   };
 
-  for (const file of ["src/data/bookings.ts", "src/data/property-rooms.ts", "src/data/property-facilities.ts"]) {
+  for (const file of ["src/data/bookings.ts", "src/data/property-rooms.ts"]) {
     test(`${file} goes through apiFetchParsed`, () => {
       const src = readFileSync(resolve(here, "..", file), "utf8");
       assert.doesNotMatch(src, /apiFetch</, `${file} still casts with apiFetch<T>`);

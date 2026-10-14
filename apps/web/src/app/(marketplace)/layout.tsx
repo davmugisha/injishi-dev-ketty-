@@ -2,8 +2,10 @@ import type { Metadata, Viewport } from "next";
 import { fixed } from "@injishi/design-tokens";
 import { cn } from "@injishi/utils";
 import { pwaMetadata } from "@/lib/pwa-metadata";
+import { AssistantWidget } from "@/components/assistant/assistant-widget";
 import { ThemeProvider } from "@/components/layout/theme-provider";
-import { figtree, spectral } from "@/lib/fonts";
+import { HeroRouter } from "@/components/heroui/router";
+import { inter } from "@/lib/fonts";
 import "../_injishi-public.css";
 
 /**
@@ -88,11 +90,17 @@ export default function PublicLayout({ children }: { children: React.ReactNode }
   return (
     <html
       lang="en"
-      className={cn(figtree.variable, spectral.variable)}
+      className={cn(inter.variable)}
       suppressHydrationWarning
     >
       <body className="antialiased">
-        <ThemeProvider>{children}</ThemeProvider>
+        <ThemeProvider>
+          <HeroRouter>
+            {children}
+            {/* The support assistant (ADR-061). Draws nothing when the API has it off. */}
+            <AssistantWidget />
+          </HeroRouter>
+        </ThemeProvider>
       </body>
     </html>
   );

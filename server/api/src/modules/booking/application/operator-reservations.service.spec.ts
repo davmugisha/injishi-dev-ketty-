@@ -1,4 +1,8 @@
-import { ConflictException, ServiceUnavailableException } from '@nestjs/common';
+import {
+  ConflictException,
+  NotFoundException,
+  ServiceUnavailableException,
+} from '@nestjs/common';
 
 import type { FolioService } from '../../operations/application/folio.service';
 import type { PaymentPort } from '../../payments/domain/payment-port';
@@ -93,6 +97,9 @@ describe('OperatorReservationsService', () => {
         .fn()
         .mockResolvedValue({ propertyId: 'prop-1', guestUserId: 'user-1' }),
       findOperatorReservation: jest.fn().mockResolvedValue(deskRow),
+      // Present so a record read that wrongly went through the desk list shows
+      // up as a call rather than as an undefined crash.
+      listOperatorReservations: jest.fn().mockResolvedValue([deskRow]),
     };
     const payments = {
       mode: 'mock' as const,
@@ -163,5 +170,68 @@ describe('OperatorReservationsService', () => {
       expect.objectContaining({ bookingId: 'bk-1', workspaceId: 'ws-1', propertyId: 'prop-1' }),
     );
     expect(payments.releaseEscrow).not.toHaveBeenCalled();
+  });
+
+  /**
+   * The record read, and the defect it removes.
+   *
+   * The record screen used to resolve its booking out of `list()`, which is
+   * windowed to `DESK_WINDOW_DAYS` and capped at `DESK_LIMIT`. A booking older
+   * than the window existed, belonged to the workspace, and still rendered the
+   * app's "that page isn't here". These cases pin the three properties that
+   * make the new read correct: it does NOT go through the desk filter, and it
+   * refuses another workspace's id and another branch's id with a 404 rather
+   * than a 403.
+   */
+  describe('get', () => {
+    it('reads the booking directly, never through the windowed desk list', async () => {
+      const { repo, service } = build();
+
+      const reservation = await service.get(ws, 'bk-1');
+
+      expect(repo.findOperatorReservation).toHaveBeenCalledWith('bk-1');
+      // The desk read is what carries the 90-day window and the row cap, so a
+      // record read that touched it would inherit both.
+      expect(repo.listOperatorReservations).not.toHaveBeenCalled();
+      expect(reservation.id).toBe('bk-1');
+      expect(reservation.reference).toBe('BK-TEST-0001');
+    });
+
+    it('answers 404 for a booking on another workspace, and does not read it', async () => {
+      const { repo, service } = build();
+      repo.findReservationOwner.mockResolvedValue({
+        id: 'bk-1',
+        workspaceId: 'ws-2',
+        propertyId: 'prop-1',
+        status: 'confirmed',
+      });
+
+      await expect(service.get(ws, 'bk-1')).rejects.toBeInstanceOf(NotFoundException);
+      // 404 BEFORE the row is read: a refusal that still fetched the record
+      // would be one careless log line away from leaking it.
+      expect(repo.findOperatorReservation).not.toHaveBeenCalled();
+    });
+
+    it('answers 404 for a booking on a branch outside the scope (ADR-054, AC-T2)', async () => {
+      const { repo, service } = build();
+      repo.findReservationOwner.mockResolvedValue({
+        id: 'bk-1',
+        workspaceId: 'ws-1',
+        propertyId: 'prop-9',
+        status: 'confirmed',
+      });
+
+      await expect(service.get(ws, 'bk-1')).rejects.toBeInstanceOf(NotFoundException);
+      expect(repo.findOperatorReservation).not.toHaveBeenCalled();
+    });
+
+    it('answers 404 for an id that does not exist at all', async () => {
+      const { repo, service } = build();
+      repo.findReservationOwner.mockResolvedValue(null);
+
+      await expect(service.get(ws, 'bk-missing')).rejects.toBeInstanceOf(
+        NotFoundException,
+      );
+    });
   });
 });

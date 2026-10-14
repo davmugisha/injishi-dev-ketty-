@@ -5,9 +5,12 @@ import {
   type CreateRegistrationRequest,
   MyProfile,
   type PersonalDetails,
+  PsfTier,
+  RegistrationDraft,
   RegistrationFeeQuote,
   RegistrationSummary,
   type RegistrationBusinessType,
+  TinCheckResult,
 } from "@injishi/contracts";
 
 import {
@@ -147,6 +150,38 @@ export function resolveRegistrationFee({
   return { amountRwf: null, source: "none", configured: null };
 }
 
+/**
+ * Ask RRA about a TIN at the Business step, before anything is billed
+ * (registration Phase 0). Writes nothing.
+ */
+export async function checkTin(tin: string): Promise<ApiResult<TinCheckResult>> {
+  const res = await apiFetch<unknown>("/api/v1/registrations/tin-check", {
+    method: "POST",
+    body: { tin },
+  });
+  if (res.status !== "ok") return res;
+  const parsed = TinCheckResult.safeParse(res.data);
+  return parsed.success ? { status: "ok", data: parsed.data } : { status: "failed" };
+}
+
+/**
+ * The wizard's answers kept on the server between steps (ADR-060), or null
+ * when there are none. A draft is never allowed to hold an ID number; the
+ * contract refuses one, so the wizard must never send one either.
+ */
+export async function fetchRegistrationDraft(): Promise<ApiResult<RegistrationDraft | null>> {
+  const res = await apiFetch<unknown>("/api/v1/me/registration-draft");
+  if (res.status === "refused" && res.httpStatus === 404) return { status: "ok", data: null };
+  if (res.status !== "ok") return res;
+  const parsed = RegistrationDraft.safeParse((res.data as { draft?: unknown } | null)?.draft);
+  return parsed.success ? { status: "ok", data: parsed.data } : { status: "ok", data: null };
+}
+
+export async function saveRegistrationDraft(draft: RegistrationDraft): Promise<ApiResult<null>> {
+  const res = await apiFetch<unknown>("/api/v1/me/registration-draft", { method: "PUT", body: draft });
+  return res.status === "ok" ? { status: "ok", data: null } : res;
+}
+
 /** Create the registration at `pending_payment`, with its bill (D23). */
 export async function createRegistration(
   request: CreateRegistrationRequest,
@@ -271,5 +306,17 @@ export async function registerAsBroker(
   });
   if (res.status !== "ok") return res;
   const parsed = BrokerRegistrationSummary.safeParse(res.data);
+  return parsed.success ? { status: "ok", data: parsed.data } : { status: "failed" };
+}
+
+/**
+ * The PSF membership tiers the wizard's PSF step offers (ADR-056 AC-2). Checked
+ * against the contract so a drifted catalogue reads as unreachable, never as
+ * a tier with a blank price.
+ */
+export async function fetchPsfTiers(): Promise<ApiResult<PsfTier[]>> {
+  const res = await apiFetch<unknown>("/api/v1/psf/tiers");
+  if (res.status !== "ok") return res;
+  const parsed = PsfTier.array().safeParse(res.data);
   return parsed.success ? { status: "ok", data: parsed.data } : { status: "failed" };
 }

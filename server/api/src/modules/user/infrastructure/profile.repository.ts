@@ -1,4 +1,4 @@
-import type { Address, PersonalDetails } from '@injishi/contracts';
+import type { Address, IdentityDocumentInput, PersonalDetails } from '@injishi/contracts';
 import { isRwandanAddress } from '@injishi/contracts';
 import { Inject, Injectable } from '@nestjs/common';
 import { and, eq, ne } from 'drizzle-orm';
@@ -9,6 +9,7 @@ import {
   sectors,
   userProfiles,
   verifiedIdentities,
+  villages,
 } from '../../../database/drizzle/schema';
 import {
   DRIZZLE,
@@ -41,6 +42,9 @@ export interface ProfileRow {
   provinceId: number | null;
   districtId: number | null;
   sectorId: number | null;
+  /** Joined up from the village, never stored: `villages` resolves to its cell. */
+  cellId: number | null;
+  villageId: number | null;
   addressText: string | null;
   document: {
     documentType: 'national_id' | 'passport';
@@ -62,15 +66,17 @@ export interface ProfileRow {
 /**
  * The address columns a profile write sets.
  *
- * `villageId` is optional rather than always present: only the international
- * branch has to clear it, and a Rwandan write must leave the caller's own
- * village answer alone.
+ * Every column on both branches, `villageId` included. It used to be optional
+ * on the Rwandan branch so a write would leave an existing village alone, which
+ * was right while nothing collected one; now that Step 1 asks for it, the form
+ * is the whole answer, and a person who clears their village has to be able to
+ * clear it. Leaving it alone would make the pickers and the row disagree.
  */
 interface AddressColumns {
   country: string;
   districtId: number | null;
   sectorId: number | null;
-  villageId?: number | null;
+  villageId: number | null;
   addressText: string | null;
 }
 
@@ -85,7 +91,11 @@ export class ProfileRepository {
    * registrant who mistyped a phone number and came back should not be told
    * their profile already exists.
    */
-  async save(userId: string, details: PersonalDetails): Promise<void> {
+  async save(
+    userId: string,
+    // The service resolves the document first (a verified person may omit it).
+    details: PersonalDetails & { document: IdentityDocumentInput },
+  ): Promise<void> {
     const address = this.addressColumns(details.address);
     const doc = details.document;
     // §4.2: `user_profiles.national_id` is a display MIRROR of the primary
@@ -206,6 +216,9 @@ export class ProfileRepository {
         country: 'RW',
         districtId: address.districtId,
         sectorId: address.sectorId,
+        // Optional (D24). The cell above it is not stored: `villages` resolves
+        // upward to its cell exactly as `sectors` does to its district.
+        villageId: address.villageId ?? null,
         addressText: address.street ?? null,
       };
     }
@@ -219,10 +232,13 @@ export class ProfileRepository {
   }
 
   /**
-   * The stored profile, with the province resolved from the sector.
+   * The stored profile, with the province resolved from the sector and the cell
+   * from the village.
    *
-   * Province is joined rather than stored (D24): `sectors` already resolves
-   * upward, and a fourth copy of the same fact is a fourth chance to disagree.
+   * Neither is stored (D24): `sectors` already resolves upward to its district
+   * and province, `villages` to its cell, and another copy of the same fact is
+   * another chance to disagree. Both joins are LEFT joins, because a profile
+   * may hold no sector yet and will often hold no village.
    */
   async findByUserId(userId: string): Promise<ProfileRow | null> {
     const [row] = await this.db
@@ -234,12 +250,15 @@ export class ProfileRepository {
         country: userProfiles.country,
         districtId: userProfiles.districtId,
         sectorId: userProfiles.sectorId,
+        villageId: userProfiles.villageId,
         addressText: userProfiles.addressText,
         provinceId: districts.provinceId,
+        cellId: villages.cellId,
       })
       .from(userProfiles)
       .leftJoin(sectors, eq(sectors.id, userProfiles.sectorId))
       .leftJoin(districts, eq(districts.id, sectors.districtId))
+      .leftJoin(villages, eq(villages.id, userProfiles.villageId))
       .where(eq(userProfiles.userId, userId))
       .limit(1);
     if (!row) return null;

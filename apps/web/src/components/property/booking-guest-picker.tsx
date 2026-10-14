@@ -1,5 +1,6 @@
 "use client";
 
+import { MAX_INFANTS } from "@injishi/contracts";
 import { Button } from "@injishi/ui";
 import { cn } from "@injishi/utils";
 import { StepButton } from "@/components/shared/step-button";
@@ -35,6 +36,12 @@ export function BookingGuestPicker({
 }) {
   const billable = billableGuests(guests);
   const atCapacity = billable >= maxGuests;
+  /*
+   * Infants are free, but not unlimited: "2 guests, 5 infants" in a room that
+   * sleeps two is a party no host can take. At most MAX_INFANTS, and never more
+   * than the stay sleeps.
+   */
+  const infantCap = Math.min(MAX_INFANTS, GUEST_LIMITS.infants.max, maxGuests);
 
   return (
     <div className="w-[min(370px,calc(100vw-2rem))] p-6">
@@ -62,7 +69,7 @@ export function BookingGuestPicker({
         singular="infant"
         value={guests.infants}
         canDecrease={guests.infants > GUEST_LIMITS.infants.min}
-        canIncrease={guests.infants < GUEST_LIMITS.infants.max}
+        canIncrease={guests.infants < infantCap}
         onChange={(infants) => onChange({ ...guests, infants })}
         last
       />
@@ -75,6 +82,7 @@ export function BookingGuestPicker({
 
       <p className="mt-4 text-sm leading-snug text-page-fg-70">
         This place has a maximum of {maxGuests} guests, not including infants.
+        The price is per guest, per night; infants stay free (up to {infantCap}).
       </p>
 
       {/* A filled button, matching the date panel — an underlined word alone

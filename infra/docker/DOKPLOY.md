@@ -11,7 +11,7 @@ state (the progress tracker), not this file.
 | --- | --- | --- | --- |
 | **Production** | The real product and real data | [`docker-compose.dokploy.yml`](docker-compose.dokploy.yml) | `-p injishi`, `/opt/injishi/.env`, `/opt/injishi/src` at the released commit |
 | **Staging** | Where a release is tried first | [`docker-compose.staging.yml`](docker-compose.staging.yml) | `-p injishi-staging`, `/opt/injishi-staging/.env`, `/opt/injishi-staging/src` at the commit under test |
-| **Demo** | The public showroom: staging's commit, sample data, a published sign in code, rebuilt every night | [`docker-compose.demo.yml`](docker-compose.demo.yml) | `-p injishi-demo`, `/opt/injishi-demo/.env`, `/opt/injishi-demo/src` at staging's commit |
+| **Demo** | The public showroom: staging's commit, sample data, a published sign in code, rebuilt every night | [`docker-compose.demo.yml`](docker-compose.demo.yml) | `-p injishi-demo` (Dokploy's `injishi-demo-rllflw` on the Hangaa VPS, see [the runner](#the-self-hosted-runner)), `/opt/injishi-demo/.env`, `/opt/injishi-demo/src` at staging's commit |
 
 The demo used to live inside production's stack: the same API container
 answered on the demo host and chose a database per request. It is a stack of
@@ -139,7 +139,7 @@ which opens `admin-demo` after the step up.
 
 | Concern | Production | Demo |
 | --- | --- | --- |
-| Stack | `-p injishi` | `-p injishi-demo`, its own everything |
+| Stack | `-p injishi` | `-p injishi-demo` (or `DEMO_COMPOSE_PROJECT`), its own everything |
 | Database | `db` volume, no sample marker | its own `db`; the live database is `injishi_demo`, marked sample |
 | Redis | persistent | its own, no persistence, flushed nightly |
 | Object storage | `minio`, `storage.injishi.com` | its own `minio`, own KMS key and API user, `storage-demo.injishi.com`, emptied nightly |
@@ -183,20 +183,40 @@ then, only when all of that succeeded, swap (stop the demo, rename the live
 database to `injishi_demo_prev` and the candidate to `injishi_demo`, retag the
 images, empty the bucket, flush Redis, empty Mailpit, start the demo) and wait
 for the API and web health checks. Healthy, it drops the previous database and
-images. Not healthy within ten minutes, it swaps the previous database and
-images back and exits non zero. A failure before the swap drops the candidate
-and leaves yesterday's demo running untouched.
+images. Not healthy within ten minutes, it prints the new API's log, swaps the
+previous database and images back and exits non zero. A failure before the swap
+drops the candidate and leaves yesterday's demo running untouched.
+
+That includes `compose up` itself failing, which it does when the new API is
+unhealthy: compose waits on the API's health check before starting what
+depends on it. Until 2026-10-01 that exit ended the script before the swap back,
+and the demo stayed down from the 06:42 UTC rebuild (an API that refused to
+boot, `2f5f8d3`) until the kept `:demo-prev` images and `injishi_demo_prev`
+were swapped back by hand. That hand restore is exactly the script's own swap
+back: stop the app services, rename `injishi_demo` to `injishi_demo_next` and
+`injishi_demo_prev` to `injishi_demo`, retag each `:demo-prev` as `:demo`, `up -d`.
 
 The job reads no secret itself, holds a lock so two runs never overlap, and
 logs one line per step to `/var/log/injishi-demo-nightly.log`. A presenter
 should know that the demo runs code production has not released: the job
 guards against a broken build or seed, not a broken screen.
 
+**On the Hangaa VPS the nightly is the `demo-recover` workflow, not host
+cron.** There is no staging to follow, so at 01:00 UTC that workflow runs this
+same script on the [runner](#the-self-hosted-runner), at the newest commit on
+`main` whose `ci` succeeded; run by hand (Actions, demo-recover, Run
+workflow) it makes the same pick, and refuses one that does not contain the
+commit the demo already runs, so a stale answer from the runs API cannot roll
+the demo back. Root's crontab carries no demo line.
+`/opt/injishi-demo/demo-reseed.sh` (not in this repository) stays on the host
+for resetting the data without a rebuild: it seeds a candidate database with
+the API image already running and swaps it in, under the same build lock.
+
 **Reseeding by hand**, without rebuilding, keeps the images and reruns the
 recipe against the live database:
 
 ```sh
-cd /opt/injishi-demo/src && docker compose -p injishi-demo -f infra/docker/docker-compose.demo.yml \
+cd /opt/injishi-demo/src && docker compose -p "${DEMO_COMPOSE_PROJECT:-injishi-demo}" -f infra/docker/docker-compose.demo.yml \
   --env-file /opt/injishi-demo/.env exec -T api node scripts/seed-sample.mjs
 ```
 
@@ -282,7 +302,7 @@ public storage host, valid for at most 15 minutes.
   `minio-data` volume without the key it was written under is noise. Staging
   and the demo have keys of their own.
 - **Buckets are provisioned, never created by the API.** `minio-init`
-  (`minio/mc`, running [`minio/provision.sh`](minio/provision.sh)) runs on every
+  (minio's own server image, which ships `mc`, running [`minio/provision.sh`](minio/provision.sh)) runs on every
   `up`, idempotently: it makes the bucket private (no bucket policy, no
   anonymous access) and SSE-S3 encrypted, and creates the API's own user
   (`STORAGE_S3_ACCESS_KEY`), holding only the `injishi-api` policy: object read,
@@ -320,6 +340,30 @@ an env file: production `https://${WEB_HOST:-www.injishi.com}`, demo
 `https://www.${STAGING_DOMAIN}`. It must be an origin with no path. The API
 refuses to boot under `NODE_ENV=production` without it, exactly as it does
 without `SMTP_URL`.
+
+## Error reporting
+
+The API and the worker report to Sentry (ADR-063), in its EU region, through
+`SENTRY_DSN`: the `injishi-api` project's DSN, a public send only key. What they
+report is the four money alarms and what breaks: a request that fails with a
+500, a fault inside Better Auth's `/api/auth/*` routes, a job failing its last
+attempt, and an unhandled rejection or uncaught exception, which still exits
+the process. Nothing from a request, a user or a job goes with any of it.
+
+| Stack | Reports | Environment in Sentry | Where the DSN comes from |
+| --- | --- | --- | --- |
+| Production | yes, once the DSN is set | `production` | `SENTRY_DSN` in the env file; empty until the NCSA registration names Sentry (ADR-063 AC-13) |
+| Demo | yes, once the DSN is set | `demo` | `SENTRY_DSN` in `/opt/injishi-demo/.env` |
+| Staging | never | none | no line, and the API stays inert even if one reaches it |
+
+The API decides at boot, from the two pinned values above: it reports only as
+`production` over a `real` database or `demo` over a `sample` one. Staging
+(`production` over `sample`) and a laptop (neither pinned) never report. The
+release on every event is the commit the image was built from
+(`INJISHI_COMMIT`, baked by `Dockerfile.api`); no deploy step sets anything
+else. To prove the wiring on the demo, a staff session with
+`admin.system.view` may call `GET /api/v1/demo/crash`, which answers a 500 and
+is a 404 on every other stack.
 
 ## Admin network gate
 
@@ -361,6 +405,40 @@ The frontend Dockerfiles have no default for any `NEXT_PUBLIC_*` origin and fail
 the build when one is empty, so a build can never silently fall back to
 production's URLs. Each compose file passes all of them from its
 `x-*-public` block.
+
+`HEROUI_AUTH_TOKEN` has no default either, and it is the one value all three
+stacks share: it is HeroUI Pro's CI/CD token, one per licence, copied from
+heroui.pro/dashboard by the licence owner (never a developer's personal
+token). `@heroui-pro/react` is a stub on npm whose postinstall downloads the
+real code with it. Each compose file hands it to the web, app and admin builds
+as a BuildKit secret (`secrets: heroui_token`), so it never reaches an image
+layer.
+
+That secret is sourced from the variable `HEROUI_AUTH_TOKEN`, and **Compose
+before v2.40 reads it from its own process environment only, never from
+`--env-file`** (`pkg/compose/build_bake.go`; v2.40.0 is the first release that
+looks in the project's env file). So on those versions a token that sits only
+in the stack's `.env` never reaches a build. `demo-nightly.sh` and
+`deploy-stack.sh` therefore read the value from the stack's `.env` themselves
+and put it in the environment of `compose build` alone, whatever the host runs.
+The Hangaa VPS runs Compose 5.5.1, which reads the `.env` itself: the demo runs
+that failed from the Pro install (`fc51e25`, 2026-10-06) to 2026-10-07 failed
+because the demo's `.env` had no token line at all, and the scripts' early
+check below is what named it. A build run by hand needs the same, for example
+`HEROUI_AUTH_TOKEN=$(sed -n 's/^HEROUI_AUTH_TOKEN=//p' /opt/injishi-demo/.env)
+docker compose ... build web`, or an `up --build` with no token fails the same
+way.
+
+Unset or `change-me` in the stack's `.env`, both scripts stop before building
+with `HEROUI_AUTH_TOKEN is not set in <.env>`, so the running stack is left as
+it was. A token that reaches the build but is rejected fails the frontend
+install step instead.
+It stops there on purpose: BuildKit's layer cache never sees a secret's value,
+so an install allowed to finish without the token would be reused, without Pro,
+by every later build until the lockfile changed, and so would pnpm's own side
+effects cache, which `pnpm-workspace.yaml` turns off for the same reason. CI
+reads the same value from the repository secret of that name, the one stack
+value GitHub also holds.
 
 ## Process order
 
@@ -418,6 +496,81 @@ cookie for a domain its own host is not in. `BETTER_AUTH_SECRET` and
 `COOKIE_SECRET` must be distinct and long in every stack, and never shared
 between stacks. `OVERSIGHT_AUTH_SECRET` must not equal `BETTER_AUTH_SECRET` if
 it is ever set. Never set `OTP_DEBUG_LOG` on this host.
+
+`HR_PIN_PEPPER` (ADR-058, 058-time AC-TM11) is mixed into every kiosk PIN hash,
+so a copy of the PIN table without it is useless to a guesser. Production and
+staging compose refuse to start without it and the API refuses a short one; the
+demo falls back to a fixed pepper, because its PINs guard sample people only.
+Keep it beside the other secrets in each stack's `.env`, distinct per stack.
+Changing it invalidates every PIN already set, so each person's PIN must be set
+again; losing it has the same effect.
+
+## The self hosted runner
+
+Every workflow that touches this host (`deploy-staging`, `deploy-production`,
+`backup`, `schema-capture`, `demo-recover`) runs on ONE repository level
+runner labelled `injishi-vps`, installed on the VPS itself. GitHub's hosted
+runners cannot reach the stacks; this one lives beside them.
+
+| What | Value |
+| --- | --- |
+| Runner | repository level on `hangaasoftwares/injishi`, labels `self-hosted`, `Linux`, `X64`, `injishi-vps` |
+| User | `gha-runner`: not root, in the `docker` group |
+| Home | `/home/gha-runner/actions-runner` |
+| Service | `actions.runner.hangaasoftwares-injishi.<runner name>.service`, systemd, enabled |
+
+**The `docker` group is root on this host in all but name**: a job can mount
+the host's disk into a container. So the runner is exactly as trustworthy as
+write access to the repository, which is why no workflow naming `injishi-vps`
+may run on a pull request (`scripts/check-workflow-triggers.mjs`).
+
+**Host settings live in the runner's own `.env`**
+(`/home/gha-runner/actions-runner/.env`), which the service exports to every
+job, never in a GitHub secret. Restart the service after editing it. On the
+Hangaa VPS it holds:
+
+```sh
+DEMO_COMPOSE_PROJECT=injishi-demo-rllflw
+```
+
+Dokploy names the compose projects it creates, so the demo on this host is
+`-p injishi-demo-rllflw`, not the `-p injishi-demo` this file writes
+elsewhere. `demo-nightly.sh` and `demo-recover` read the name from this
+variable, and `demo-recover` refuses to run when no `db` container carries
+it: a wrong name does not fail by itself, it builds a second, empty demo on the
+same Traefik routers.
+
+**What it may touch.** `gha-runner` owns `/opt/injishi-demo/src`, the demo's
+checkout, and reads `/opt/injishi-demo/.env` (group `gha-runner`, mode
+0640). Give it the same two grants on `/opt/injishi-staging` and `/opt/injishi`
+when those stacks exist. The build lock `/var/lock/injishi-demo-nightly.lock`
+is opened for reading by every script that takes it, so root's cron and this
+user share it whichever created the file after a boot.
+
+**The demo's checkout fetches nothing from GitHub.** It holds no credential for
+this private repository. `demo-recover` checks the commit out with the job's
+own token, and `demo-nightly.sh` fetches it into `/opt/injishi-demo/src` from
+that checkout (`STAGING_SRC`), not from origin.
+
+**Installing it** needs an admin on the repository and root on the host:
+
+```bash
+# root: the user, and a registration token (valid one hour) from an admin's gh
+useradd --create-home --shell /bin/bash --groups docker gha-runner
+gh api -X POST repos/hangaasoftwares/injishi/actions/runners/registration-token --jq .token
+# gha-runner, in ~/actions-runner: the download and checksum lines GitHub
+# prints under Settings → Actions → Runners → New self-hosted runner → Linux x64
+./config.sh --url https://github.com/hangaasoftwares/injishi --token <token> \
+  --labels injishi-vps --name <host name> --unattended
+# root, in /home/gha-runner/actions-runner
+./svc.sh install gha-runner && ./svc.sh start
+```
+
+**On a demo only host, three of the five jobs fail, and are right to.**
+`deploy-staging` finds no `/opt/injishi-staging`; `backup` and
+`schema-capture` find no production stack and no `BACKUP_*` settings. Each red
+run is the truth about the host, not a pipeline fault, and turns green when
+staging and production arrive ([cutover](#cutover-from-the-current-host-state)).
 
 ## Releasing
 
@@ -606,15 +759,25 @@ Record the date of the last proven restore here when you do it:
   from this VPS yet. Until one does, the production deploy gate will refuse
   every dispatch, which is the correct direction to fail in. Staging and the
   demo need no backup: they are rebuilt from the recipe.
-- **MinIO gets no more security fixes, and is pulled from quay.io.** `quay.io/minio/minio:RELEASE.2025-09-07T16-13-09Z`
+- **MinIO gets no more security fixes, and can no longer be pulled.** `quay.io/minio/minio:RELEASE.2025-09-07T16-13-09Z`
   is the last community release: upstream publishes no further community builds,
   so a vulnerability found after it stays open here, in all three stacks. The
   exposure is kept small (reads only on the public hosts, console off, the API on
   a scoped user), not removed. Choose a maintained S3 server, or a paid MinIO
   build, before this store holds a volume of personal documents worth attacking.
+  Since at least 2026-09-25 quay.io also answers 401 to anonymous pulls of
+  `quay.io/minio/minio` and `quay.io/minio/mc`, and Docker Hub had already
+  dropped both. Only a host that already holds the server image can start
+  MinIO; `minio-init` now runs from that same image, which ships `mc`,
+  because the separate `mc` image had been pruned from the demo host and its
+  nightly `up` failed on the pull five nights running, leaving the API
+  stopped. A fresh host (staging's or production's first bring up, or a laptop
+  on `docker-compose.yml`'s `:latest`) cannot pull it at all: `docker save`
+  a copy from a host that has it and `docker load` it, or choose the
+  replacement first.
 - **Postgres and Redis float on their major tags** (`postgres:17-alpine`,
   `redis:7-alpine`), so a fresh host or a `docker compose pull` can bring a
-  newer minor release than the one staging tested. MinIO, `minio/mc` and
+  newer minor release than the one staging tested. MinIO and
   `axllent/mailpit:v1.31.1` are pinned to exact releases; moving one is a
   deliberate edit, tried on staging first like any release.
 - **Reference data for a real database.** Geography and the RDB classification

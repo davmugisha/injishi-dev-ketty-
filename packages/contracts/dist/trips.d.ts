@@ -60,9 +60,10 @@ export declare const GuestTrip: z.ZodObject<{
     cancellationTier: z.ZodNullable<z.ZodEnum<["flexible", "moderate", "limited", "firm", "strict_extended_stay"]>>;
     bookedAt: z.ZodString;
 }, "strip", z.ZodTypeAny, {
-    status: "pending_approval" | "confirmed" | "declined" | "cancelled" | "no_show";
-    districtName: string | null;
+    status: "declined" | "pending_approval" | "confirmed" | "cancelled" | "no_show";
+    stage: "cancelled" | "in_progress" | "upcoming" | "past";
     id: string;
+    districtName: string | null;
     reference: string;
     propertyName: string;
     cancellationTier: "flexible" | "moderate" | "limited" | "firm" | "strict_extended_stay" | null;
@@ -73,15 +74,15 @@ export declare const GuestTrip: z.ZodObject<{
     nonRefundable: boolean;
     grossRwf: number | null;
     paymentStatus: "captured" | "refunded_full" | "refunded_partial" | "forfeited" | "paid_out" | null;
-    stage: "cancelled" | "in_progress" | "upcoming" | "past";
     roomTypeName: string;
     timezone: string;
     propertySlug: string | null;
     bookedAt: string;
 }, {
-    status: "pending_approval" | "confirmed" | "declined" | "cancelled" | "no_show";
-    districtName: string | null;
+    status: "declined" | "pending_approval" | "confirmed" | "cancelled" | "no_show";
+    stage: "cancelled" | "in_progress" | "upcoming" | "past";
     id: string;
+    districtName: string | null;
     reference: string;
     propertyName: string;
     cancellationTier: "flexible" | "moderate" | "limited" | "firm" | "strict_extended_stay" | null;
@@ -92,7 +93,6 @@ export declare const GuestTrip: z.ZodObject<{
     nonRefundable: boolean;
     grossRwf: number | null;
     paymentStatus: "captured" | "refunded_full" | "refunded_partial" | "forfeited" | "paid_out" | null;
-    stage: "cancelled" | "in_progress" | "upcoming" | "past";
     roomTypeName: string;
     timezone: string;
     propertySlug: string | null;
@@ -136,9 +136,10 @@ export declare const MyTrips: z.ZodObject<{
         cancellationTier: z.ZodNullable<z.ZodEnum<["flexible", "moderate", "limited", "firm", "strict_extended_stay"]>>;
         bookedAt: z.ZodString;
     }, "strip", z.ZodTypeAny, {
-        status: "pending_approval" | "confirmed" | "declined" | "cancelled" | "no_show";
-        districtName: string | null;
+        status: "declined" | "pending_approval" | "confirmed" | "cancelled" | "no_show";
+        stage: "cancelled" | "in_progress" | "upcoming" | "past";
         id: string;
+        districtName: string | null;
         reference: string;
         propertyName: string;
         cancellationTier: "flexible" | "moderate" | "limited" | "firm" | "strict_extended_stay" | null;
@@ -149,15 +150,15 @@ export declare const MyTrips: z.ZodObject<{
         nonRefundable: boolean;
         grossRwf: number | null;
         paymentStatus: "captured" | "refunded_full" | "refunded_partial" | "forfeited" | "paid_out" | null;
-        stage: "cancelled" | "in_progress" | "upcoming" | "past";
         roomTypeName: string;
         timezone: string;
         propertySlug: string | null;
         bookedAt: string;
     }, {
-        status: "pending_approval" | "confirmed" | "declined" | "cancelled" | "no_show";
-        districtName: string | null;
+        status: "declined" | "pending_approval" | "confirmed" | "cancelled" | "no_show";
+        stage: "cancelled" | "in_progress" | "upcoming" | "past";
         id: string;
+        districtName: string | null;
         reference: string;
         propertyName: string;
         cancellationTier: "flexible" | "moderate" | "limited" | "firm" | "strict_extended_stay" | null;
@@ -168,7 +169,6 @@ export declare const MyTrips: z.ZodObject<{
         nonRefundable: boolean;
         grossRwf: number | null;
         paymentStatus: "captured" | "refunded_full" | "refunded_partial" | "forfeited" | "paid_out" | null;
-        stage: "cancelled" | "in_progress" | "upcoming" | "past";
         roomTypeName: string;
         timezone: string;
         propertySlug: string | null;
@@ -176,9 +176,10 @@ export declare const MyTrips: z.ZodObject<{
     }>, "many">;
 }, "strip", z.ZodTypeAny, {
     trips: {
-        status: "pending_approval" | "confirmed" | "declined" | "cancelled" | "no_show";
-        districtName: string | null;
+        status: "declined" | "pending_approval" | "confirmed" | "cancelled" | "no_show";
+        stage: "cancelled" | "in_progress" | "upcoming" | "past";
         id: string;
+        districtName: string | null;
         reference: string;
         propertyName: string;
         cancellationTier: "flexible" | "moderate" | "limited" | "firm" | "strict_extended_stay" | null;
@@ -189,7 +190,6 @@ export declare const MyTrips: z.ZodObject<{
         nonRefundable: boolean;
         grossRwf: number | null;
         paymentStatus: "captured" | "refunded_full" | "refunded_partial" | "forfeited" | "paid_out" | null;
-        stage: "cancelled" | "in_progress" | "upcoming" | "past";
         roomTypeName: string;
         timezone: string;
         propertySlug: string | null;
@@ -197,9 +197,10 @@ export declare const MyTrips: z.ZodObject<{
     }[];
 }, {
     trips: {
-        status: "pending_approval" | "confirmed" | "declined" | "cancelled" | "no_show";
-        districtName: string | null;
+        status: "declined" | "pending_approval" | "confirmed" | "cancelled" | "no_show";
+        stage: "cancelled" | "in_progress" | "upcoming" | "past";
         id: string;
+        districtName: string | null;
         reference: string;
         propertyName: string;
         cancellationTier: "flexible" | "moderate" | "limited" | "firm" | "strict_extended_stay" | null;
@@ -210,7 +211,6 @@ export declare const MyTrips: z.ZodObject<{
         nonRefundable: boolean;
         grossRwf: number | null;
         paymentStatus: "captured" | "refunded_full" | "refunded_partial" | "forfeited" | "paid_out" | null;
-        stage: "cancelled" | "in_progress" | "upcoming" | "past";
         roomTypeName: string;
         timezone: string;
         propertySlug: string | null;

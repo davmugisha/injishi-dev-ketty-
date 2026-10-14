@@ -45,9 +45,11 @@ import { spawnSync } from 'node:child_process';
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { computeBreakdown } from '@injishi/contracts';
 import pg from 'pg';
 
 import { assertSampleDatabase } from './sample-database.mjs';
+import { syntheticCoordFor } from './synthetic-coords.mjs';
 
 /**
  * Load `server/api/.env` when the variables are not already set.
@@ -114,6 +116,7 @@ const SW = (n) => `de300000-0000-4000-8000-0000000013${String(n).padStart(2, '0'
 const RR = (n) => `de300000-0000-4000-8000-0000000014${String(n).padStart(2, '0')}`; // rent roll
 const TH = (n) => `de300000-0000-4000-8000-0000000015${String(n).padStart(2, '0')}`; // threads
 const MS = (n) => `de300000-0000-4000-8000-0000000016${String(n).padStart(2, '0')}`; // messages
+const RLP = (n) => `de300000-0000-4000-8000-0000000017${String(n).padStart(2, '0')}`; // role permissions
 // The twenty room hotel (demo showcase, 2026-09-15). Rows added to the families
 // above take the `0029` block, so the original `00000000NNNN` ids stay exactly
 // as other scripts know them: `0029` + a two digit family + a six digit serial.
@@ -150,6 +153,9 @@ const PEOPLE = [
   // Jean-Bosco's verification queue, so a presenter can show the branches an
   // officer sees without typing a registration first.
   { id: U(16), email: 'aimable@demo.injishi.com',   name: 'Aimable Ntwari',        kyc: 'verified',   nid: '1198980012345616' },
+  // ADR-054 AC-D2: a receptionist limited to the Musanze branch, so a presenter
+  // can show that every ops screen, and every id probe, stops at her branch.
+  { id: U(17), email: 'clarisse@demo.injishi.com',  name: 'Clarisse Ingabire',     kyc: 'verified',   nid: '1199180012345617' },
 ];
 
 const ORGS = [
@@ -182,6 +188,8 @@ const MEMBERSHIPS = [
   { orgId: O(1), userId: U(4), role: 'housekeeper' },
   { orgId: O(2), userId: U(5), role: 'owner' },
   { orgId: O(3), userId: U(16), role: 'owner' },
+  // Limited to Musanze (PR(4)); `MEMBERSHIP_BRANCHES` below writes the limit.
+  { orgId: O(1), userId: U(17), role: 'receptionist' },
   // **Samuel's Green Hills hat was REMOVED (ADR-038 child 0, task 14).**
   //
   // It was here to give him a landlord seat before he had a building of his
@@ -192,6 +200,47 @@ const MEMBERSHIPS = [
   // behind it is untouched and her Landlord surface still has rows. Only
   // Samuel's second, duplicate landlord seat is gone.
 ];
+
+/**
+ * Branch limits (ADR-054 AC-T1, AC-D2). A membership with no row here covers
+ * every branch, so only the limited ones are listed. Written after the
+ * properties, which the rows reference.
+ */
+const MEMBERSHIP_BRANCHES = [
+  { orgId: O(1), userId: U(17), propertyIds: [PR(4)] },
+];
+
+/**
+ * What Amahoro decided its own roles mean (ADR-055).
+ *
+ * TWO ROWS, ONE IN EACH DIRECTION, because a demo that only ever showed a grant
+ * would leave the more surprising half — that an owner can take something AWAY
+ * from a manager — untold.
+ *
+ *  - Denise, on the front desk, can read the takings. Plenty of small hotels
+ *    give reception the day's number; the platform default does not, and this is
+ *    the business saying otherwise.
+ *  - Solange, managing, cannot withdraw a signed RRA receipt. It reduces
+ *    declared turnover, and Yves keeps that to himself.
+ *
+ * Both are chosen to be VISIBLE and to break nothing: `money.view` opens the
+ * Money section for Denise, and `ebm.refund` is a button Solange no longer
+ * has — neither is a permission any demo guide walks somebody through using.
+ *
+ * `de300000-0000-4000-8000-` ids like everything else this seed writes, so
+ * `--reset` reaches them.
+ */
+const ROLE_PERMISSIONS = [
+  {
+    id: RLP(1), orgId: O(1), role: 'receptionist',
+    permission: 'money.view', granted: true, setBy: U(1),
+  },
+  {
+    id: RLP(2), orgId: O(1), role: 'manager',
+    permission: 'ebm.refund', granted: false, setBy: U(1),
+  },
+];
+
 
 const WORKSPACES = [
   { id: W(1), kind: 'business', orgId: O(1) },
@@ -558,27 +607,48 @@ const ROOMS = [
 ];
 
 /**
- * Eight bookings, one per state the desk can show.
+ * What a seeded booking charged, priced by the booking engine's own function.
  *
- * `gross` is the nightly rate times the nights, matching how the booking engine
- * prices, so the total on screen is not a number someone made up.
+ * `computeBreakdown` from `@injishi/contracts` is what `POST /bookings` charges
+ * and what the EBM receipt re-derives its lines from, so a seeded total is the
+ * total a real guest would have paid for the same room and nights: the rate
+ * times the nights plus the guest service fee. This used to be a hand typed
+ * `rate × nights` with the fee left off, and the receipt, which refuses a
+ * charge its lines do not add back up to, answered every demo booking with a
+ * 500 "could not be invoiced". A guest who opened "See receipt" in a demo got
+ * an error instead of a document.
+ *
+ * `legacyGross` is that old flat figure. A re run repairs a row still carrying
+ * it (see `seedBooking` and `seedEscrow`) and touches no other total.
  */
+function priced(b) {
+  const roomType = ROOM_TYPES.find((rt) => rt.id === b.roomType);
+  const breakdown = computeBreakdown({
+    nightlyRateRwf: roomType.priceRwf,
+    nights: b.nights,
+    // The seed writes no `nonrefundable`, so every row takes the column default.
+    nonRefundable: false,
+  });
+  return { ...b, gross: breakdown.grossRwf, legacyGross: breakdown.accommodationRwf };
+}
+
+/** Eight bookings, one per state the desk can show. Priced by `priced()`. */
 const BOOKINGS = [
   // The two the approve and decline commands act on.
-  { id: BK(1), ref: 'BK-DEMO-001', roomType: RT(2), guest: U(11), status: 'pending_approval', in: 2,  nights: 3, gross: 450000 },
-  { id: BK(2), ref: 'BK-DEMO-002', roomType: RT(2), guest: U(12), status: 'pending_approval', in: 0,  nights: 2, gross: 300000 },
+  { id: BK(1), ref: 'BK-DEMO-001', roomType: RT(2), guest: U(11), status: 'pending_approval', in: 2,  nights: 3 },
+  { id: BK(2), ref: 'BK-DEMO-002', roomType: RT(2), guest: U(12), status: 'pending_approval', in: 0,  nights: 2 },
   // Confirmed, nobody has arrived. The second arrives today, which is what turns
   // "Reserved" into a check in button.
-  { id: BK(3), ref: 'BK-DEMO-003', roomType: RT(1), guest: U(13), status: 'confirmed', in: 7,  nights: 2, gross: 150000 },
-  { id: BK(4), ref: 'BK-DEMO-004', roomType: RT(1), guest: U(14), status: 'confirmed', in: 0,  nights: 3, gross: 225000 },
+  { id: BK(3), ref: 'BK-DEMO-003', roomType: RT(1), guest: U(13), status: 'confirmed', in: 7,  nights: 2 },
+  { id: BK(4), ref: 'BK-DEMO-004', roomType: RT(1), guest: U(14), status: 'confirmed', in: 0,  nights: 3 },
   // In house right now, and checked out last week. Both carry a guest stay.
-  { id: BK(5), ref: 'BK-DEMO-005', roomType: RT(1), guest: U(6),  status: 'confirmed', in: -1, nights: 3, gross: 225000 },
-  { id: BK(6), ref: 'BK-DEMO-006', roomType: RT(2), guest: U(11), status: 'confirmed', in: -5, nights: 3, gross: 450000 },
+  { id: BK(5), ref: 'BK-DEMO-005', roomType: RT(1), guest: U(6),  status: 'confirmed', in: -1, nights: 3 },
+  { id: BK(6), ref: 'BK-DEMO-006', roomType: RT(2), guest: U(11), status: 'confirmed', in: -5, nights: 3 },
   // Declined: the screen hides it, and proving that it hides it is the point.
-  { id: BK(7), ref: 'BK-DEMO-007', roomType: RT(1), guest: U(12), status: 'declined',  in: 4,  nights: 2, gross: 150000 },
+  { id: BK(7), ref: 'BK-DEMO-007', roomType: RT(1), guest: U(12), status: 'declined',  in: 4,  nights: 2 },
   // Cancelled: kept visible, because somebody has to see a confirmed booking go.
-  { id: BK(8), ref: 'BK-DEMO-008', roomType: RT(2), guest: U(13), status: 'cancelled', in: 10, nights: 2, gross: 300000 },
-];
+  { id: BK(8), ref: 'BK-DEMO-008', roomType: RT(2), guest: U(13), status: 'cancelled', in: 10, nights: 2 },
+].map(priced);
 
 /**
  * One conversation per booking, because that is the invariant (ADR-032).
@@ -685,12 +755,12 @@ const STAYS = [
  * belong to the lease conversations. These start at 21 in both families.
  */
 const BRANCH_BOOKINGS = [
-  { id: BK(9),  ref: 'BK-DEMO-009', roomType: RT(5), guest: U(5),  status: 'confirmed', in: 0,   nights: 2, gross: 130000, thread: TH(21), escrow: ES(21) },
-  { id: BK(10), ref: 'BK-DEMO-010', roomType: RT(5), guest: U(12), status: 'confirmed', in: -1,  nights: 3, gross: 195000, thread: TH(22), escrow: ES(22) },
-  { id: BK(11), ref: 'BK-DEMO-011', roomType: RT(6), guest: U(11), status: 'confirmed', in: 0,   nights: 2, gross: 140000, thread: TH(23), escrow: ES(23) },
-  { id: BK(12), ref: 'BK-DEMO-012', roomType: RT(6), guest: U(13), status: 'confirmed', in: -2,  nights: 4, gross: 280000, thread: TH(24), escrow: ES(24) },
-  { id: BK(13), ref: 'BK-DEMO-013', roomType: RT(7), guest: U(11), status: 'confirmed', in: -40, nights: 2, gross: 80000,  thread: TH(25), escrow: ES(25) },
-];
+  { id: BK(9),  ref: 'BK-DEMO-009', roomType: RT(5), guest: U(5),  status: 'confirmed', in: 0,   nights: 2, thread: TH(21), escrow: ES(21) },
+  { id: BK(10), ref: 'BK-DEMO-010', roomType: RT(5), guest: U(12), status: 'confirmed', in: -1,  nights: 3, thread: TH(22), escrow: ES(22) },
+  { id: BK(11), ref: 'BK-DEMO-011', roomType: RT(6), guest: U(11), status: 'confirmed', in: 0,   nights: 2, thread: TH(23), escrow: ES(23) },
+  { id: BK(12), ref: 'BK-DEMO-012', roomType: RT(6), guest: U(13), status: 'confirmed', in: -2,  nights: 4, thread: TH(24), escrow: ES(24) },
+  { id: BK(13), ref: 'BK-DEMO-013', roomType: RT(7), guest: U(11), status: 'confirmed', in: -40, nights: 2, thread: TH(25), escrow: ES(25) },
+].map(priced);
 
 const BRANCH_THREADS = BRANCH_BOOKINGS.map((b) => ({ id: b.thread, bookingId: b.id, status: 'active' }));
 
@@ -703,12 +773,12 @@ const BRANCH_STAYS = [
 /** Money already taken. A refused or cancelled request is refunded in full. */
 const ESCROWS = [
   ...BOOKINGS.map((b, i) => ({
-    id: ES(i + 1), bookingId: b.id, amountRwf: b.gross,
+    id: ES(i + 1), bookingId: b.id, amountRwf: b.gross, legacyAmountRwf: b.legacyGross,
     status: b.status === 'declined' || b.status === 'cancelled' ? 'refunded_full' : 'held',
   })),
   // The past Kicukiro stay's money was released long ago; the rest is held.
   ...BRANCH_BOOKINGS.map((b) => ({
-    id: b.escrow, bookingId: b.id, amountRwf: b.gross,
+    id: b.escrow, bookingId: b.id, amountRwf: b.gross, legacyAmountRwf: b.legacyGross,
     status: b.in + b.nights < 0 ? 'released' : 'held',
   })),
 ];
@@ -889,6 +959,48 @@ async function seedMembership(c, m) {
   );
 }
 
+// Replaces the member's limit with exactly the listed branches, so a rerun
+// changes nothing and an edit to the list converges rather than accumulating.
+async function seedMembershipBranches(c, mb) {
+  const { rows } = await c.query(
+    `SELECT id FROM org_memberships WHERE org_id = $1 AND user_id = $2 AND status = 'active' LIMIT 1`,
+    [mb.orgId, mb.userId],
+  );
+  const membershipId = rows[0]?.id;
+  if (!membershipId) throw new Error(`No active membership for ${mb.userId} to limit.`);
+  await c.query(
+    `DELETE FROM org_membership_branches
+      WHERE org_membership_id = $1 AND NOT (property_id = ANY($2::uuid[]))`,
+    [membershipId, mb.propertyIds],
+  );
+  for (const propertyId of mb.propertyIds) {
+    await c.query(
+      `INSERT INTO org_membership_branches (org_membership_id, property_id)
+       VALUES ($1, $2) ON CONFLICT DO NOTHING`,
+      [membershipId, propertyId],
+    );
+  }
+}
+
+/**
+ * One deliberate departure from a role's default set.
+ *
+ * ON CONFLICT on the natural key rather than on the id, because the unique
+ * constraint an owner would trip by editing the same role in the app is
+ * (org, role, permission) — so a reseed after a presenter has clicked around
+ * puts the demo answer back rather than failing on a row it did not write.
+ */
+async function seedRolePermission(c, r) {
+  await c.query(
+    `INSERT INTO org_role_permissions
+       (id, org_id, org_role, permission, granted, set_by_user_id)
+     VALUES ($1, $2, $3, $4, $5, $6)
+     ON CONFLICT (org_id, org_role, permission)
+     DO UPDATE SET granted = EXCLUDED.granted, updated_at = now()`,
+    [r.id, r.orgId, r.role, r.permission, r.granted, r.setBy],
+  );
+}
+
 async function seedAssignment(c, a) {
   await c.query(
     `INSERT INTO oversight_assignments
@@ -906,19 +1018,27 @@ async function seedAssignment(c, a) {
 // --- Seeding the operational half --------------------------------------------
 
 async function seedProperty(c, pr) {
+  // Synthetic dev-only coordinates (see synthetic-coords.mjs). The demo
+  // roster's businesses are fictional, so no real address is being leaked; the
+  // Explore map needs a point to plot per property.
+  const [demoLatitude, demoLongitude] = syntheticCoordFor({ district: pr.district, seed: pr.slug });
   await c.query(
     `INSERT INTO properties
        (id, org_id, workspace_id, name, description, sector_id, district_id,
+        latitude, longitude,
         address_text, check_in_time, check_out_time, house_rules, slug,
         is_head_office, rra_branch_id, archived_at, archived_by_user_id)
-     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16)
+     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18)
      ON CONFLICT (id) DO UPDATE
        SET slug = coalesce(properties.slug, excluded.slug),
-           rra_branch_id = coalesce(properties.rra_branch_id, excluded.rra_branch_id)`,
+           rra_branch_id = coalesce(properties.rra_branch_id, excluded.rra_branch_id),
+           latitude = coalesce(properties.latitude, excluded.latitude),
+           longitude = coalesce(properties.longitude, excluded.longitude)`,
     [
       pr.id, pr.orgId, pr.workspaceId, pr.name, pr.description,
       await sectorId(c, pr.district, pr.sector),
       await districtId(c, pr.district),
+      demoLatitude, demoLongitude,
       pr.street, pr.checkIn, pr.checkOut, pr.houseRules, pr.slug,
       // ADR-054. A branch is a property: the head office flag, the RRA branch
       // id a receipt declares under, and when it was archived and by whom (the
@@ -1020,6 +1140,12 @@ async function seedRoom(c, rm) {
  * `booking_mode` is copied from the room type rather than chosen here, so a
  * `pending_approval` row can never sit on an instant book product, which is a
  * state the approve command has no answer for.
+ *
+ * A re run changes one thing on an existing row: a `gross_rwf` still holding
+ * the flat `rate × nights` an older seed wrote (`$19`) becomes the priced total,
+ * so a sample database seeded before the fix is repaired by running it again
+ * and its receipts stop answering 500. The guard compares against that exact
+ * legacy figure, so a total anything else wrote is never overwritten.
  */
 async function seedBooking(c, b) {
   const roomType = ROOM_TYPES.find((rt) => rt.id === b.roomType);
@@ -1031,7 +1157,8 @@ async function seedBooking(c, b) {
         locked_nightly_rate_rwf, locked_cancellation_tier, gross_rwf,
         payment_status, decline_reason, approval_expires_at, confirmed_at)
      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18)
-     ON CONFLICT (id) DO NOTHING`,
+     ON CONFLICT (id) DO UPDATE SET gross_rwf = EXCLUDED.gross_rwf
+       WHERE bookings.gross_rwf = $19 AND bookings.gross_rwf <> EXCLUDED.gross_rwf`,
     [
       b.id, b.ref, b.roomType,
       RATE_PLANS.find((rp) => rp.roomTypeId === b.roomType).id,
@@ -1045,6 +1172,7 @@ async function seedBooking(c, b) {
       // exactly this column, so a demo request left alone really does expire.
       b.status === 'pending_approval' ? hoursFromNow(24) : null,
       b.status === 'confirmed' ? hoursFromNow(-1) : null,
+      b.legacyGross,
     ],
   );
 }
@@ -1142,8 +1270,10 @@ async function seedMessage(c, m) {
  * is the one `MockPaymentAdapter` mints for a capture, `mock_escrow_capture_`
  * plus the idempotency key, so the adapter reads it as its own.
  *
- * A re run fills a reference an older seed left null and changes nothing else,
- * so a sample database seeded before this fix is repaired by running it again.
+ * A re run fills a reference an older seed left null, and moves an amount still
+ * holding the flat `rate × nights` an older seed wrote (`$8`) to the priced
+ * total its booking now carries, and changes nothing else. So a sample database
+ * seeded before either fix is repaired by running it again.
  */
 async function seedEscrow(c, e) {
   const idempotencyKey = `seed-demo:${e.id}`;
@@ -1151,12 +1281,69 @@ async function seedEscrow(c, e) {
     `INSERT INTO escrows
        (id, workspace_id, source, booking_id, amount_rwf, status, adapter_ref, adapter_mode, idempotency_key)
      VALUES ($1, $2, 'booking', $3, $4, $5, $6, 'mock', $7)
-     ON CONFLICT (id) DO UPDATE SET adapter_ref = EXCLUDED.adapter_ref
-       WHERE escrows.adapter_ref IS NULL`,
+     ON CONFLICT (id) DO UPDATE SET
+       adapter_ref = COALESCE(escrows.adapter_ref, EXCLUDED.adapter_ref),
+       amount_rwf = CASE WHEN escrows.amount_rwf = $8 THEN EXCLUDED.amount_rwf ELSE escrows.amount_rwf END
+       WHERE escrows.adapter_ref IS NULL
+          OR (escrows.amount_rwf = $8 AND escrows.amount_rwf <> EXCLUDED.amount_rwf)`,
     // The key is derived from the row id rather than random, so re running
     // cannot trip the unique index with a second key for the same escrow.
-    [e.id, W(1), e.bookingId, e.amountRwf, e.status, `mock_escrow_capture_${idempotencyKey}`, idempotencyKey],
+    [e.id, W(1), e.bookingId, e.amountRwf, e.status, `mock_escrow_capture_${idempotencyKey}`, idempotencyKey, e.legacyAmountRwf],
   );
+}
+
+/**
+ * Put back a seeded request the auto decline sweep let expire.
+ *
+ * `BK-DEMO-001` and `002` are the approve and decline beats, and they carry a
+ * real 24 hour window, so any worker running a day after the seed declines them
+ * as `expired` and refunds the escrow. Every insert above is ON CONFLICT, so a
+ * re run used to leave them declined, and the only way back was `--reset`,
+ * which deletes the demo roster and everything anybody booked as a persona.
+ *
+ * So a re run (and `--refresh`) revives exactly that case: a seeded
+ * `pending_approval` booking now `declined` with reason `expired`, with nothing
+ * attached to it. It goes back to pending, captured, escrow held, a fresh
+ * window, and dates re-anchored to today by the seed's own offsets. A request a
+ * HOST declined, or one anything hangs off, is left as it is.
+ */
+async function reviveExpiredRequests(c) {
+  const requests = BOOKINGS.filter((b) => b.status === 'pending_approval');
+  let revived = 0;
+  await c.query('BEGIN');
+  try {
+    for (const b of requests) {
+      const { rowCount } = await c.query(
+        `UPDATE bookings SET
+           status = 'pending_approval', payment_status = 'captured',
+           decline_reason = NULL, approval_expires_at = $2,
+           sweep_claimed_until = NULL, ebm_sign_at = NULL,
+           check_in = $3, check_out = $4, updated_at = now()
+         WHERE id = $1 AND status = 'declined' AND decline_reason = 'expired'
+           AND NOT EXISTS (SELECT 1 FROM guest_stays WHERE booking_id = $1)
+           AND NOT EXISTS (SELECT 1 FROM room_assignments WHERE booking_id = $1)
+           AND NOT EXISTS (SELECT 1 FROM service_orders WHERE booking_id = $1)
+           AND NOT EXISTS (SELECT 1 FROM folios WHERE booking_id = $1)
+           AND NOT EXISTS (SELECT 1 FROM ebm_invoices WHERE booking_id = $1)
+           AND NOT EXISTS (SELECT 1 FROM payment_attempts WHERE booking_id = $1)
+           AND NOT EXISTS (SELECT 1 FROM payment_compensations WHERE booking_id = $1)`,
+        [b.id, hoursFromNow(24), day(b.in), day(b.in + b.nights)],
+      );
+      if (rowCount === 0) continue;
+      await c.query(
+        `UPDATE escrows SET status = 'held', updated_at = now()
+          WHERE booking_id = $1 AND source = 'booking' AND status = 'refunded_full'`,
+        [b.id],
+      );
+      revived += 1;
+      console.log(`revived ${b.ref}: pending again, window open for 24 hours`);
+    }
+    await c.query('COMMIT');
+  } catch (err) {
+    await c.query('ROLLBACK');
+    throw err;
+  }
+  return revived;
 }
 
 /** Delete only what this script owns, by deterministic id. Never truncates. */
@@ -2133,6 +2320,7 @@ async function main() {
     // that did not happen.
     if (REFRESH) {
       await refresh(client);
+      await reviveExpiredRequests(client);
       await assertNoSelfLease(client);
       return;
     }
@@ -2144,10 +2332,12 @@ async function main() {
     for (const o of [...ORGS, ...SAMUEL_ORGS]) await seedOrg(client, o);
     for (const w of [...WORKSPACES, ...SAMUEL_WORKSPACES]) await seedWorkspace(client, w);
     for (const m of [...MEMBERSHIPS, ...SAMUEL_MEMBERSHIPS]) await seedMembership(client, m);
+    for (const r of ROLE_PERMISSIONS) await seedRolePermission(client, r);
     for (const a of ASSIGNMENTS) await seedAssignment(client, a);
 
     // The operational half, in foreign key order.
     for (const pr of PROPERTIES) await seedProperty(client, pr);
+    for (const mb of MEMBERSHIP_BRANCHES) await seedMembershipBranches(client, mb);
     for (const l of LISTINGS) await seedListing(client, l);
     for (const rt of ROOM_TYPES) await seedRoomType(client, rt);
     for (const rp of RATE_PLANS) await seedRatePlan(client, rp);
@@ -2161,6 +2351,7 @@ async function main() {
     }
     for (const st of [...STAYS, ...BRANCH_STAYS]) await seedStay(client, st);
     for (const e of ESCROWS) await seedEscrow(client, e);
+    await reviveExpiredRequests(client);
     for (const iv of PENDING_INVOICES) await seedPaidRegistrationFee(client, iv);
 
     // The residence half: the units, leases and rent charges the Landlord rent
@@ -2220,6 +2411,19 @@ async function main() {
         .filter(Boolean).join(', ');
       console.log(`  ${b.legal_name.padEnd(26)} ${b.name.padEnd(24)} ${marks}`);
     }
+
+    const { rows: limited } = await client.query(
+      `SELECT u.email, array_agg(p.name ORDER BY p.name) AS branches
+         FROM org_membership_branches ob
+         JOIN org_memberships m ON m.id = ob.org_membership_id
+         JOIN users u ON u.id = m.user_id
+         JOIN properties p ON p.id = ob.property_id
+        WHERE m.user_id = ANY($1::uuid[])
+        GROUP BY u.email ORDER BY u.email`,
+      [PEOPLE.map((p) => p.id)],
+    );
+    console.log('\nBranch limited members (ADR-054):');
+    for (const l of limited) console.log(`  ${l.email.padEnd(28)} ${l.branches.join(', ')}`);
 
     console.log('\nSign in as yves@demo.injishi.com (code 123456) and open /host/reservations.');
     console.log('Two requests are pending; Approve and Decline both act on real rows.');

@@ -2,6 +2,7 @@ import {
   bootPlatform,
   expectedDatabaseKind,
   PlatformBootRefusal,
+  processCommit,
   processEnvironment,
   readDatabaseKind,
   resolvePlatform,
@@ -73,10 +74,11 @@ describe('resolvePlatform · the boot table (AC-11)', () => {
     expect(resolvePlatform({ environment: 'demo', expectedKind: null, marker: 'sample' })).toEqual({
       environment: 'demo',
       sampleData: true,
+      commit: null,
     });
     expect(
       resolvePlatform({ environment: 'demo', expectedKind: 'sample', marker: 'sample' }),
-    ).toEqual({ environment: 'demo', sampleData: true });
+    ).toEqual({ environment: 'demo', sampleData: true, commit: null });
   });
 
   it('refuses any process whose INJISHI_DATABASE_KIND disagrees with the marker, naming both', () => {
@@ -95,20 +97,22 @@ describe('resolvePlatform · the boot table (AC-11)', () => {
     expect(resolvePlatform({ environment: 'production', expectedKind: null, marker: 'real' })).toEqual({
       environment: 'production',
       sampleData: false,
+      commit: null,
     });
     expect(resolvePlatform({ environment: 'production', expectedKind: null, marker: 'sample' })).toEqual({
       environment: 'production',
       sampleData: true,
+      commit: null,
     });
   });
 
   it('runs production on a real database and staging on a sample one', () => {
     expect(
       resolvePlatform({ environment: 'production', expectedKind: 'real', marker: 'real', paymentAdapterMode: 'off' }),
-    ).toEqual({ environment: 'production', sampleData: false });
+    ).toEqual({ environment: 'production', sampleData: false, commit: null });
     expect(
       resolvePlatform({ environment: 'production', expectedKind: 'sample', marker: 'sample' }),
-    ).toEqual({ environment: 'production', sampleData: true });
+    ).toEqual({ environment: 'production', sampleData: true, commit: null });
   });
 });
 
@@ -199,6 +203,7 @@ describe('bootPlatform', () => {
     await expect(bootPlatform(SAMPLE, { NODE_ENV: 'development' })).resolves.toEqual({
       environment: 'demo',
       sampleData: true,
+      commit: null,
     });
   });
 
@@ -216,6 +221,39 @@ describe('bootPlatform', () => {
         INJISHI_DATABASE_KIND: 'real',
         PAYMENT_ADAPTER_MODE: 'off',
       }),
-    ).resolves.toEqual({ environment: 'production', sampleData: false });
+    ).resolves.toEqual({ environment: 'production', sampleData: false, commit: null });
+  });
+
+  it('carries the commit the image was stamped with', async () => {
+    await expect(
+      bootPlatform(SAMPLE, { NODE_ENV: 'development', INJISHI_COMMIT: 'EDF31AE' }),
+    ).resolves.toEqual({ environment: 'demo', sampleData: true, commit: 'edf31ae' });
+  });
+});
+
+/**
+ * The one fact on this payload that is about the DEPLOY rather than the
+ * platform. It decides nothing, which is exactly why it must never refuse a
+ * boot: an API that dies over a label it only reports is a worse outcome than
+ * one that cannot name itself.
+ */
+describe('processCommit', () => {
+  it('reads a stamped sha, normalised', () => {
+    expect(processCommit({ INJISHI_COMMIT: '  EDF31AE ' })).toBe('edf31ae');
+    expect(processCommit({ INJISHI_COMMIT: 'a'.repeat(40) })).toBe('a'.repeat(40));
+  });
+
+  it('is null when nothing said, which is an ordinary working tree', () => {
+    expect(processCommit({})).toBeNull();
+    expect(processCommit({ INJISHI_COMMIT: '' })).toBeNull();
+    expect(processCommit({ INJISHI_COMMIT: '   ' })).toBeNull();
+  });
+
+  it('drops anything that is not a git sha rather than echoing it', () => {
+    // A field a client may render must not carry whatever a stray variable
+    // happened to hold — a branch name, a tag, or an injected string.
+    for (const raw of ['main', 'v1.2.3', 'abc', '<script>', 'a'.repeat(41)]) {
+      expect(processCommit({ INJISHI_COMMIT: raw })).toBeNull();
+    }
   });
 });

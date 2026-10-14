@@ -211,6 +211,22 @@ export const guestStays = pgTable(
     entryAt: timestamp('entry_at', { withTimezone: true }).notNull(),
     plannedExitAt: timestamp('planned_exit_at', { withTimezone: true }),
     actualExitAt: timestamp('actual_exit_at', { withTimezone: true }),
+    /**
+     * What the desk wrote down as the guest left — "left early, keys at desk",
+     * "disputes the minibar line", "balance to be invoiced to the employer".
+     *
+     * `CheckOutRequest.note` has been in the contract since ADR-035 and there
+     * was nowhere to put it: the field was declared, the controller took no
+     * body, and anything typed would have been accepted and dropped. A column
+     * is the smaller half of fixing that; the larger half is that check out is
+     * the one moment a receptionist has a reason to write something down and
+     * the only record of it was a verbal handover.
+     *
+     * Deliberately NOT a general stay note. It is written once, by the close,
+     * and nothing else updates it — which is why it lives on the stay rather
+     * than growing a notes table nobody asked for yet.
+     */
+    departureNote: text('departure_note'),
     priceRwf: amount('price_rwf'),
     currency: currency(),
     lifecycle: stayLifecycleEnum('lifecycle').notNull().default('open'),
@@ -289,6 +305,39 @@ export const stayIdentities = pgTable('stay_identities', {
     .notNull()
     .defaultNow(),
 });
+
+
+/**
+ * The identity a guest sent from their phone BEFORE arrival (F-B09, ADR-060).
+ *
+ * Keyed by the BOOKING, because a `guest_stays` row is only created when the
+ * desk checks the guest in, and `stay_identities` cannot exist before its stay.
+ * The desk check-in copies this onto `stay_identities`, photo included, so the
+ * desk confirms what the guest sent rather than retyping it. Personal data
+ * under the same retention rules as `stay_identities`: RESTRICT, not cascade.
+ */
+export const preArrivalIdentities = pgTable('pre_arrival_identities', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  bookingId: uuid('booking_id')
+    .notNull()
+    .unique()
+    .references(() => bookings.id, { onDelete: 'restrict' }),
+  guestUserId: uuid('guest_user_id')
+    .notNull()
+    .references(() => users.id),
+  documentType: documentTypeEnum('document_type').notNull(),
+  documentNumber: text('document_number').notNull(),
+  issuingCountry: text('issuing_country').notNull(),
+  idPhotoObjectId: uuid('id_photo_object_id').references(() => storedObjects.id),
+  addressText: text('address_text').notNull(),
+  submittedAt: timestamp('submitted_at', { withTimezone: true })
+    .notNull()
+    .defaultNow(),
+  ...timestamps,
+}, (t) => [
+  index('pre_arrival_identities_guest_user_idx').on(t.guestUserId),
+  index('pre_arrival_identities_id_photo_idx').on(t.idPhotoObjectId),
+]);
 
 
 export const reviews = pgTable(

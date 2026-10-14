@@ -1,7 +1,6 @@
 import { PropertyCard, type AccommodationClass } from "@injishi/contracts";
 import { formatPrice } from "@injishi/utils";
-import { findCatalogueProperty } from "@/data/catalogue";
-import { listingFor, type Listing } from "@/data/listings";
+import { byNightlyRate, listingFor, type Listing } from "@/data/listings";
 import type { GalleryImage, PropertyDetail } from "@/data/properties";
 import { DISTRICT_SLUGS, type DistrictSlug } from "@/data/search-options";
 import { API_URL } from "@/lib/api";
@@ -9,26 +8,21 @@ import { API_URL } from "@/lib/api";
 /**
  * DISCOVERY FROM THE DATABASE (booking audit, 2026-09-13).
  *
- * Explore and `/property/[slug]` were built only from the catalogue kept in
- * this app (`data/catalogue.ts`). A property created in the operator app and
- * published was bookable by a guest who already held its checkout link, and
- * findable by nobody: it had no card and its page 404ed.
- *
- * This module reads the API's published properties ON THE SERVER, and turns
- * each one into the shape the catalogue's cards use, so every existing card and
- * filter renders it unchanged. The property PAGE does not come through here:
- * `lib/property-route.ts` resolves it (ADR-053), rendering a database property
- * from its own fields rather than dressed in the catalogue's shape. The catalogue still wins for a
- * slug it holds: those records carry sourced facts (ratings, rack rates,
- * photographs) the database does not.
+ * The one source of the stays a guest can find. This module reads the API's
+ * published properties ON THE SERVER and turns each one into the shape the
+ * cards and filters use. A catalogue of fifty-two fictional stays kept in this
+ * app used to be listed beside them; it was removed on 2026-10-08, so
+ * everything Explore, search and the home page show is in the database. The
+ * property PAGE does not come through here: `lib/property-route.ts` resolves it
+ * (ADR-053) and renders it from its own fields.
  *
  * WHAT A DATABASE PROPERTY DOES NOT HAVE, and how it is shown rather than
- * invented: no star class, no rating, no sourced rack rate beyond its own room
- * prices, no curated amenities or highlights. Each is null or empty, which the
- * components already render as "not stated".
+ * invented: no star class, no rating, no rack rate beyond its own room prices,
+ * no curated amenities or highlights, and no photograph until one is uploaded.
+ * Each is null or empty, which the components render as "not stated".
  *
  * Revalidated every minute and bounded by a timeout. An API that is down makes
- * discovery show the catalogue alone, never an error page. So does an answer
+ * discovery list nothing, never an error page. So does an answer
  * that does not match the contract: it is PARSED against `PropertyCard`, not
  * cast, because a card built from a drifted body prints a price it cannot back.
  */
@@ -55,12 +49,10 @@ async function readApi<T>(
 
 const PropertyCards = PropertyCard.array();
 
-/** Published database properties the catalogue does not already describe, as Explore cards. */
+/** Every published database property, as cards, cheapest first. */
 export async function databaseListings(): Promise<Listing[]> {
   const cards = (await readApi(PropertyCards, "/api/v1/properties")) ?? [];
-  return cards
-    .filter((card) => !findCatalogueProperty(card.slug))
-    .map((card) => listingFor(cardToProperty(card)));
+  return cards.map((card) => listingFor(cardToProperty(card))).sort(byNightlyRate);
 }
 
 /** The three Kigali districts all file under the city, as the catalogue files them. */
@@ -88,17 +80,14 @@ function kindOf(name: string): AccommodationClass {
   return "other";
 }
 
+/** The property's own photographs, and none in their place when it has uploaded none. */
 function imagesFor(card: PropertyCard): GalleryImage[] {
-  const photos = card.photos.map((src, index) => ({
+  return card.photos.map((src, index) => ({
     // A stem only keys the React list and the gallery's anchors; `src` is what renders.
     stem: `${card.slug}-${index + 1}`,
     src,
     alt: `${card.name}, photo ${index + 1}`,
   }));
-  return photos.length > 0
-    ? photos
-    : // Scenery, labelled as such, until the property uploads its own.
-      [{ stem: "kigali-hills-view-01", alt: `${card.name} has not added photos yet` }];
 }
 
 function cardToProperty(card: PropertyCard): PropertyDetail {
@@ -127,19 +116,22 @@ function cardToProperty(card: PropertyCard): PropertyDetail {
       `${card.roomTypeCount} room type${card.roomTypeCount === 1 ? "" : "s"}`,
       `Sleeps up to ${guests}`,
     ],
-    heroImage: images[0]!,
+    heroImage: images[0] ?? null,
     gallery: images,
     photoCount: card.photos.length,
-    price: { fromUsd: null, fromRwf: rate, basis: "per room, per night", includes: "Room only" },
+    // Per person: every Injishi booking is charged rate × guests × nights
+    // (owner decision 2026-09-15, `computeBreakdown`). This said "per room",
+    // so a couple read half of what checkout then charged them.
+    price: { fromUsd: null, fromRwf: rate, basis: "per person, per night", includes: "Room only" },
     nightlyRateRwf: rate,
     rating: null,
     operator: null,
-    // No leading space on `rest`: the cards add the gap themselves, as they do for
-    // catalogue records, and search joins lead and rest with one. A space here
+    // No leading space on `rest`: the cards add the gap themselves, and search
+    // joins lead and rest with one. A space here
     // doubled it, so "Kivu Crest" never matched a database property.
     cardName: { lead: lead ?? card.name, rest: rest.join(" ") },
     summary: about[0] ?? `${card.name} in ${district}.`,
-    cardImage: images[0]!,
+    cardImage: images[0] ?? null,
     about: about.length > 0 ? about : [`${card.name} is on Injishi. Choose your dates to see what is available.`],
     highlights: [],
     specs: [
@@ -148,7 +140,7 @@ function cardToProperty(card: PropertyCard): PropertyDetail {
       { label: "From", value: rate === null ? "Rate on request" : `${formatPrice(rate)} a night` },
     ],
     amenities: [],
-    place: { addressLines: [card.name, district], latitude: null, longitude: null, blurb: "" },
+    place: { addressLines: [card.name, district], latitude: card.latitude, longitude: card.longitude, blurb: "" },
     thingsToKnow: [],
     // A database record, not a sourced directory entry.
     sources: [],

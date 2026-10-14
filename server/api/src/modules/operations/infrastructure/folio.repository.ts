@@ -1296,7 +1296,19 @@ export class FolioRepository {
         workspaceId: folios.workspaceId,
         propertyId: folios.propertyId,
         bookingId: folios.bookingId,
-        lockedNightlyRateRwf: bookings.lockedNightlyRateRwf,
+        /*
+         * THE STAY'S OWN PRICE FIRST, the booking's locked rate second.
+         *
+         * This read only ever joined the booking, and a WALK IN has none, so
+         * every walk in came back with no rate, the audit skipped it with a
+         * warning, and its bill stayed at zero. Check out then closed that zero
+         * bill on its own (ADR-050), so the guest left without the room ever
+         * being charged. `guest_stays.price_rwf` is where both check ins write
+         * the nightly figure: a walk in's agreed rate, and for a reservation the
+         * locked rate or the counter override of it, which this also stops
+         * ignoring.
+         */
+        lockedNightlyRateRwf: sql<number | null>`coalesce(${guestStays.priceRwf}, ${bookings.lockedNightlyRateRwf})`.mapWith(Number),
       })
       .from(folios)
       .innerJoin(guestStays, eq(guestStays.id, folios.guestStayId))

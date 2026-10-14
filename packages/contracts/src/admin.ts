@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { AdminOrgPsf } from "./psf";
 import {
     AdapterMode,
     Domain,
@@ -96,6 +97,11 @@ export const AdminAuditSubjectType = z.enum([
     // "every audit row about this certificate" stays a query rather than a
     // search through payloads.
     "training_certificate",
+    // ADR-058 (migration 0053), caught by the same typecheck a third time. HR
+    // rows name the file or the pay run they touched; their diffs carry field
+    // names, and never an ID number, an RSSB number or a wage (AC-U5).
+    "employee",
+    "pay_run",
 ]);
 export type AdminAuditSubjectType = z.infer<typeof AdminAuditSubjectType>;
 /**
@@ -582,6 +588,11 @@ export const AdminOrgDetail = AdminOrgRow.extend({
     memberCount: z.number().int().nonnegative(),
     propertyCount: z.number().int().nonnegative(),
     certificateCount: z.number().int().nonnegative(),
+    /**
+     * PSF membership (ADR-056 AC-20). Null for a residence, which cannot hold
+     * one. Defaults to null so an older API still parses.
+     */
+    psf: AdminOrgPsf.nullable().default(null),
 });
 export type AdminOrgDetail = z.infer<typeof AdminOrgDetail>;
 /**

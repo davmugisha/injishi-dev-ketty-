@@ -6,6 +6,7 @@ import { BrokerService } from './application/broker.service';
 import { DepartmentsService } from './application/departments.service';
 import { FolioService } from './application/folio.service';
 import { FrontDeskService } from './application/front-desk.service';
+import { SelfCheckInService } from './application/self-check-in.service';
 import { HousekeepingService } from './application/housekeeping.service';
 import { MessagingService } from './application/messaging.service';
 import { NightAuditService } from './application/night-audit.service';
@@ -35,6 +36,7 @@ import { ServiceCatalogRepository } from './infrastructure/service-catalog.repos
 import { GuestOrderingRepository } from './infrastructure/guest-ordering.repository';
 import { OutletsRepository } from './infrastructure/outlets.repository';
 import { OffersRepository } from './infrastructure/offers.repository';
+import { PreArrivalIdentityRepository } from './infrastructure/pre-arrival-identity.repository';
 import { StayClaimRepository } from './infrastructure/stay-claim.repository';
 import { StayInvitationMailer } from './infrastructure/stay-invitation.mailer';
 import { StayRefundRepository } from './infrastructure/stay-refund.repository';
@@ -99,6 +101,7 @@ import { PaymentsModule } from '../payments/payments.module';
     OffersRepository,
     StayClaimRepository,
     StayRefundRepository,
+    PreArrivalIdentityRepository,
     StayInvitationMailer,
     FrontDeskService,
     MessagingService,
@@ -118,10 +121,13 @@ import { PaymentsModule } from '../payments/payments.module';
     OffersService,
     StayClaimService,
     StayRefundService,
+    SelfCheckInService,
     NightAuditService,
     ...(isWorkerProcess() ? [NightAuditProcessor] : []),
   ],
   exports: [
+    // Self check-in before arrival (ADR-060).
+    SelfCheckInService,
     // The booking module settles a pay now order's mobile money through it.
     OrderPaymentService,
     FrontDeskService,

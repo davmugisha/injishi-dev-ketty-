@@ -90,6 +90,24 @@ function databaseUrl() {
 const db = new pg.Pool({ connectionString: databaseUrl() });
 const q = async (text, params = []) => (await db.query(text, params)).rows;
 
+/**
+ * Registering a business needs a verified identity wherever a check can run
+ * (ADR-060). This proof is about something else, so its registrant is verified
+ * by staff, the way the demo seeds verify theirs (`manual`), under the same
+ * name and birth date the proof then sends.
+ */
+async function markVerified(email, fullName, dateOfBirth) {
+  const [user] = await q(`select id from users where lower(email) = lower($1)`, [email]);
+  if (!user) throw new Error(`markVerified: no user ${email}`);
+  await q(
+    `insert into verified_identities (user_id, kyc_status, legal_full_name, dob, verified_method, verified_at)
+     values ($1, 'verified', $2, $3, 'manual', now())
+     on conflict (user_id) do update set kyc_status = 'verified', legal_full_name = $2, dob = $3,
+       verified_method = 'manual', verified_at = now()`,
+    [user.id, fullName, dateOfBirth],
+  );
+}
+
 // Sessions cached in the OS temp directory, never beside the script: they are
 // live cookies, and the OTP cap is five codes per address per hour.
 const JAR_FILE = join(tmpdir(), "injishi-verify-adr053-sessions.json");
@@ -219,6 +237,7 @@ const main = async () => {
   const other = await signIn(OTHER);
   const verifier = await signIn("jeanbosco@demo.injishi.com");
   const approver = await signIn("claudine@demo.injishi.com");
+  await markVerified(REGISTRANT, "ADR-053 Verify Registrant", "1990-01-01");
   await ensureProfile(host, REGISTRANT, "ADR-053 Verify Registrant");
   await ensureProfile(owner, OWNER, "ADR-053 Verify Owner");
   await ensureProfile(owner2, OWNER2, "ADR-053 Verify Verified Owner");

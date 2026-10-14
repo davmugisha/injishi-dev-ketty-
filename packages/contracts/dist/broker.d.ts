@@ -334,17 +334,17 @@ export declare const BrokerCreditEntry: z.ZodObject<{
     createdAt: z.ZodString;
 }, "strip", z.ZodTypeAny, {
     id: string;
-    createdAt: string;
     reason: string;
-    propertyName: string | null;
     note: string | null;
+    createdAt: string;
+    propertyName: string | null;
     delta: number;
 }, {
     id: string;
-    createdAt: string;
     reason: string;
-    propertyName: string | null;
     note: string | null;
+    createdAt: string;
+    propertyName: string | null;
     delta: number;
 }>;
 export type BrokerCreditEntry = z.infer<typeof BrokerCreditEntry>;
@@ -362,36 +362,36 @@ export declare const BrokerCredits: z.ZodObject<{
         createdAt: z.ZodString;
     }, "strip", z.ZodTypeAny, {
         id: string;
-        createdAt: string;
         reason: string;
-        propertyName: string | null;
         note: string | null;
+        createdAt: string;
+        propertyName: string | null;
         delta: number;
     }, {
         id: string;
-        createdAt: string;
         reason: string;
-        propertyName: string | null;
         note: string | null;
+        createdAt: string;
+        propertyName: string | null;
         delta: number;
     }>, "many">;
 }, "strip", z.ZodTypeAny, {
     entries: {
         id: string;
-        createdAt: string;
         reason: string;
-        propertyName: string | null;
         note: string | null;
+        createdAt: string;
+        propertyName: string | null;
         delta: number;
     }[];
     balance: number;
 }, {
     entries: {
         id: string;
-        createdAt: string;
         reason: string;
-        propertyName: string | null;
         note: string | null;
+        createdAt: string;
+        propertyName: string | null;
         delta: number;
     }[];
     balance: number;
@@ -439,6 +439,7 @@ export declare const BrokerPlacement: z.ZodObject<{
     }>>;
 }, "strip", z.ZodTypeAny, {
     status: "initiated" | "converted" | "abandoned" | "unavailable";
+    id: string;
     lease: {
         status: string;
         id: string;
@@ -446,7 +447,6 @@ export declare const BrokerPlacement: z.ZodObject<{
         tenantName: string | null;
         startDate: string | null;
     } | null;
-    id: string;
     propertyName: string | null;
     listingId: string | null;
     landlordName: string | null;
@@ -457,6 +457,7 @@ export declare const BrokerPlacement: z.ZodObject<{
     } | null;
 }, {
     status: "initiated" | "converted" | "abandoned" | "unavailable";
+    id: string;
     lease: {
         status: string;
         id: string;
@@ -464,7 +465,6 @@ export declare const BrokerPlacement: z.ZodObject<{
         tenantName: string | null;
         startDate: string | null;
     } | null;
-    id: string;
     propertyName: string | null;
     listingId: string | null;
     landlordName: string | null;
@@ -516,6 +516,7 @@ export declare const BrokerPlacementList: z.ZodObject<{
         }>>;
     }, "strip", z.ZodTypeAny, {
         status: "initiated" | "converted" | "abandoned" | "unavailable";
+        id: string;
         lease: {
             status: string;
             id: string;
@@ -523,7 +524,6 @@ export declare const BrokerPlacementList: z.ZodObject<{
             tenantName: string | null;
             startDate: string | null;
         } | null;
-        id: string;
         propertyName: string | null;
         listingId: string | null;
         landlordName: string | null;
@@ -534,6 +534,7 @@ export declare const BrokerPlacementList: z.ZodObject<{
         } | null;
     }, {
         status: "initiated" | "converted" | "abandoned" | "unavailable";
+        id: string;
         lease: {
             status: string;
             id: string;
@@ -541,7 +542,6 @@ export declare const BrokerPlacementList: z.ZodObject<{
             tenantName: string | null;
             startDate: string | null;
         } | null;
-        id: string;
         propertyName: string | null;
         listingId: string | null;
         landlordName: string | null;
@@ -554,6 +554,7 @@ export declare const BrokerPlacementList: z.ZodObject<{
 }, "strip", z.ZodTypeAny, {
     placements: {
         status: "initiated" | "converted" | "abandoned" | "unavailable";
+        id: string;
         lease: {
             status: string;
             id: string;
@@ -561,7 +562,6 @@ export declare const BrokerPlacementList: z.ZodObject<{
             tenantName: string | null;
             startDate: string | null;
         } | null;
-        id: string;
         propertyName: string | null;
         listingId: string | null;
         landlordName: string | null;
@@ -574,6 +574,7 @@ export declare const BrokerPlacementList: z.ZodObject<{
 }, {
     placements: {
         status: "initiated" | "converted" | "abandoned" | "unavailable";
+        id: string;
         lease: {
             status: string;
             id: string;
@@ -581,7 +582,6 @@ export declare const BrokerPlacementList: z.ZodObject<{
             tenantName: string | null;
             startDate: string | null;
         } | null;
-        id: string;
         propertyName: string | null;
         listingId: string | null;
         landlordName: string | null;
@@ -605,8 +605,8 @@ export declare const BrokerFee: z.ZodObject<{
     updatedAt: z.ZodString;
 }, "strip", z.ZodTypeAny, {
     status: "pending" | "disbursed";
-    amountRwf: number | null;
     id: string;
+    amountRwf: number | null;
     leaseId: string;
     unitLabel: string | null;
     tenantName: string | null;
@@ -614,8 +614,8 @@ export declare const BrokerFee: z.ZodObject<{
     updatedAt: string;
 }, {
     status: "pending" | "disbursed";
-    amountRwf: number | null;
     id: string;
+    amountRwf: number | null;
     leaseId: string;
     unitLabel: string | null;
     tenantName: string | null;
@@ -640,8 +640,8 @@ export declare const BrokerEarnings: z.ZodObject<{
         updatedAt: z.ZodString;
     }, "strip", z.ZodTypeAny, {
         status: "pending" | "disbursed";
-        amountRwf: number | null;
         id: string;
+        amountRwf: number | null;
         leaseId: string;
         unitLabel: string | null;
         tenantName: string | null;
@@ -649,8 +649,8 @@ export declare const BrokerEarnings: z.ZodObject<{
         updatedAt: string;
     }, {
         status: "pending" | "disbursed";
-        amountRwf: number | null;
         id: string;
+        amountRwf: number | null;
         leaseId: string;
         unitLabel: string | null;
         tenantName: string | null;
@@ -663,8 +663,8 @@ export declare const BrokerEarnings: z.ZodObject<{
     disbursedThisYearRwf: number;
     fees: {
         status: "pending" | "disbursed";
-        amountRwf: number | null;
         id: string;
+        amountRwf: number | null;
         leaseId: string;
         unitLabel: string | null;
         tenantName: string | null;
@@ -677,8 +677,8 @@ export declare const BrokerEarnings: z.ZodObject<{
     disbursedThisYearRwf: number;
     fees: {
         status: "pending" | "disbursed";
-        amountRwf: number | null;
         id: string;
+        amountRwf: number | null;
         leaseId: string;
         unitLabel: string | null;
         tenantName: string | null;

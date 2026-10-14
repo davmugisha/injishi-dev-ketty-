@@ -17,11 +17,17 @@ export type WorkspaceKind = z.infer<typeof WorkspaceKind>;
  * role, not a job title: it is the only role whose surface is the housekeeping
  * phone rather than the desk (Spec 0002, D-b). Mirrors the `org_role` Postgres
  * enum after migration 0004.
+ *
+ * `finance` and `hr` are ADR-069 D-a: an accountant and an HR officer, each
+ * with a default set of its own rather than a manager's. Their migration adds
+ * each `BEFORE 'housekeeper'`, so the database's order is this order.
  */
 export const OrgRole = z.enum([
     "owner",
     "manager",
     "receptionist",
+    "finance",
+    "hr",
     "housekeeper",
 ]);
 export type OrgRole = z.infer<typeof OrgRole>;
@@ -89,6 +95,8 @@ export const OversightRole = z.enum([
     "tax_compliance_officer",
     "business_field_verifier",
     "business_approver",
+    /** ADR-056: decides PSF membership applications. PSF, country scope only. */
+    "psf_membership_officer",
 ]);
 export type OversightRole = z.infer<typeof OversightRole>;
 /** Region scope of an oversight assignment (Decision B). */

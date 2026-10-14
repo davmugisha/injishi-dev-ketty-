@@ -68,6 +68,26 @@ export const QUEUES = {
    * be edited when somebody withdraws.
    */
   trainingEmail: 'TrainingEmail',
+  /**
+   * ADR-056 AC-18: the daily PSF membership sweep. Ends expired memberships,
+   * sends the 30 day and on the day emails, and stamps any application that
+   * reached PSF's queue without its stamp. Its own queue for the same reason
+   * the TIN sweep has one: a scheduler's policy is per queue.
+   */
+  psfMembershipSweep: 'PsfMembershipSweep',
+  /**
+   * ADR-061 D-d: the support assistant's hourly retention sweep. Deletes
+   * expired conversations with what they prepared, expires undecided
+   * proposals, and closes interrupted approvals from the live price. Its own
+   * queue so a privacy deletion never waits behind a backlog of anything else.
+   */
+  assistantRetention: 'AssistantRetention',
+  /**
+   * ADR-058: the HR daily job. Moves contract statuses on Kigali dates and
+   * writes the leave accruals each person is owed. Its own queue, because a
+   * scheduler's policy is per queue.
+   */
+  hrDaily: 'HrDaily',
 } as const;
 
 @Global()

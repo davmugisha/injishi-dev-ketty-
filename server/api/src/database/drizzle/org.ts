@@ -236,6 +236,45 @@ export const verifiedIdentities = pgTable('verified_identities', {
 });
 
 
+/**
+ * A National ID lookup waiting for its code (ADR-060).
+ *
+ * The register answered with a person and a phone; the code went to that phone
+ * and the person is revealed only to whoever types it back. `codeHash` is the
+ * SHA-256 of the six digits, as `two_factor_challenges` does, so a read of this
+ * table is not a working verification. The row is deleted when it is spent,
+ * and dies at its expiry or its attempts cap. The document number is kept only
+ * so the confirm can bind the SAME number the code was sent for.
+ */
+export const identityChallenges = pgTable(
+  'identity_challenges',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    userId: uuid('user_id')
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    documentNumber: text('document_number').notNull(),
+    codeHash: text('code_hash').notNull(),
+    expiresAt: timestamp('expires_at', { withTimezone: true }).notNull(),
+    attempts: integer('attempts').notNull().default(0),
+    ...timestamps,
+  },
+  (t) => [index('identity_challenges_user_id_idx').on(t.userId)],
+);
+
+/**
+ * The registration wizard's answers between steps, one row per person
+ * (ADR-060). `payload` is a `RegistrationDraft`, which by its contract never
+ * holds an ID number. Deleted when the registration is created.
+ */
+export const registrationDrafts = pgTable('registration_drafts', {
+  userId: uuid('user_id')
+    .primaryKey()
+    .references(() => users.id, { onDelete: 'cascade' }),
+  payload: jsonb('payload').notNull(),
+  ...timestamps,
+});
+
 export const identityDocuments = pgTable(
   'identity_documents',
   {
@@ -323,6 +362,65 @@ export const orgMemberships = pgTable(
   (t) => [
     unique('org_memberships_org_user_uk').on(t.orgId, t.userId),
     index('org_memberships_user_idx').on(t.userId),
+  ],
+);
+
+/**
+ * What THIS business decided its staff roles mean (ADR-055).
+ *
+ * A DELTA table, not a permission list. One row says "this business moved this
+ * permission on (or off) this role"; a permission no row names still resolves
+ * from the platform's default set. Storing the whole set instead would freeze
+ * each role at the day it was last edited, so a permission added to the platform
+ * next quarter would reach every business that had never opened the screen and
+ * none that had.
+ *
+ * Two CHECK constraints carry the security argument into the database, where it
+ * survives a script nobody reviewed:
+ *
+ *  - `org_role` is never `owner`. The screen that writes here sits behind
+ *    `team.manage`, which only an owner holds, so an owner able to edit `owner`
+ *    could withdraw their own way back in. There is no second door.
+ *  - `permission` is never `team.manage`. Granting it would hand the recipient
+ *    this very screen, from which they could grant themselves the rest and
+ *    re-role the owner out of their own business.
+ *
+ * `permission` is `text` rather than an enum on purpose. The permission
+ * vocabulary lives in `@injishi/contracts` and changes with a release, not with
+ * a migration; an enum here would mean a migration for every new permission and
+ * a database that could refuse a value the code had already shipped. The CHECK
+ * above pins the one value that is a boundary, the service validates the rest
+ * against `Permission.options`, and `effectivePermissionsForRole` ignores any
+ * row it does not recognise — so an unknown value is inert rather than
+ * dangerous.
+ */
+export const orgRolePermissions = pgTable(
+  'org_role_permissions',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    orgId: uuid('org_id')
+      .notNull()
+      .references(() => orgs.id, { onDelete: 'cascade' }),
+    orgRole: orgRoleEnum('org_role').notNull(),
+    permission: text('permission').notNull(),
+    /** True grants what the default withholds; false withdraws what it gives. */
+    granted: boolean('granted').notNull(),
+    /** Who decided. Kept when that account is removed, so the record survives. */
+    setByUserId: uuid('set_by_user_id').references(() => users.id),
+    ...timestamps,
+  },
+  (t) => [
+    unique('org_role_permissions_role_permission_uk').on(
+      t.orgId,
+      t.orgRole,
+      t.permission,
+    ),
+    index('org_role_permissions_org_idx').on(t.orgId),
+    check('org_role_permissions_not_owner', sql`${t.orgRole} <> 'owner'`),
+    check(
+      'org_role_permissions_not_locked',
+      sql`${t.permission} <> 'team.manage'`,
+    ),
   ],
 );
 

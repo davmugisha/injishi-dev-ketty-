@@ -1,7 +1,6 @@
 "use client";
 
 import type { ReactNode } from "react";
-import Image from "next/image";
 import {
   Button,
   Input,
@@ -326,9 +325,9 @@ export function StepActions({
 /**
  * RWF, grouped, with no currency guessing.
  *
- * Re-exported rather than defined here: `/host/start` shows the same fee and is
- * a Server Component, so the definition lives in `lib/money.ts` where a server
- * render can reach it without pulling this `"use client"` module in.
+ * Re-exported rather than defined here: the definition lives in `lib/money.ts`,
+ * where a server render can reach it without pulling this `"use client"`
+ * module in (`/host/start` was that server render, and printed the fee).
  */
 export { formatRwf } from "@/lib/money";
 
@@ -402,157 +401,6 @@ export function TileCard({
         ) : null}
       </span>
     </label>
-  );
-}
-
-/**
- * A question with two answers (ADR-026, AC-6).
- *
- * Chamber of Tourism and PSF membership used to be checkboxes. A checkbox has
- * one state a person can reach without acting — unticked — and it means both
- * "no" and "I did not read this". These two answers go to a government officer
- * who checks them, so the difference matters: this control has no such state,
- * and `answered` says plainly whether the question has been dealt with.
- *
- * Both stay OPTIONAL in the contract, where each defaults to `false`. What
- * changed is the act, not the requirement.
- *
- * `logo` puts the body's own mark beside the question, so a registrant who
- * knows the chamber by its logo rather than its full name recognises it. The
- * tile is a fixed white ground (`bg-white`, ADR-028) because the artwork is
- * published for a light background: the Chamber of Tourism ring is near-black
- * and would vanish on the dark theme. The image is decorative (`alt=""`); the
- * legend beside it already names the body.
- */
-export function YesNoField({
-  legend,
-  hint,
-  value,
-  onChange,
-  name,
-  error,
-  logo,
-}: {
-  legend: string;
-  hint?: ReactNode;
-  value: boolean | null;
-  onChange: (next: boolean) => void;
-  name: string;
-  /** Why this question cannot be left as it is, shown under the question. */
-  error?: string;
-  /** The body's official logo, served from `public/`, with its pixel size. */
-  logo?: { src: string; width: number; height: number };
-}) {
-  return (
-    <fieldset className="flex flex-wrap items-center justify-between gap-3 rounded-card border border-border p-4">
-      {logo ? (
-        <span className="flex h-16 w-24 shrink-0 items-center justify-center rounded border border-border bg-white p-1.5">
-          <Image
-            src={logo.src}
-            width={logo.width}
-            height={logo.height}
-            alt=""
-            sizes="96px"
-            className="h-full w-auto max-w-full object-contain"
-          />
-        </span>
-      ) : null}
-      <span className="min-w-[12rem] flex-1">
-        <legend className="text-sm font-semibold">{legend}</legend>
-        {hint ? (
-          <span className="mt-0.5 block text-xs text-muted-foreground">
-            {hint}
-          </span>
-        ) : null}
-        {error ? (
-          <span className="mt-1 block text-sm text-destructive" role="alert">
-            {error}
-          </span>
-        ) : null}
-      </span>
-      <span className="flex shrink-0 gap-2" role="radiogroup" aria-label={legend}>
-        {[
-          { answer: true, label: "Yes" },
-          { answer: false, label: "No" },
-        ].map(({ answer, label }) => (
-          <label
-            key={label}
-            className={[
-              "cursor-pointer rounded border px-4 py-1.5 text-sm font-semibold transition-colors",
-              "focus-within:outline-none focus-within:ring-2 focus-within:ring-ring focus-within:ring-offset-2",
-              value === answer
-                ? "border-accent-brand bg-accent-brand text-accent-brand-foreground"
-                : "border-input text-muted-foreground hover:bg-secondary",
-            ].join(" ")}
-          >
-            <input
-              type="radio"
-              name={name}
-              checked={value === answer}
-              onChange={() => onChange(answer)}
-              className="sr-only"
-            />
-            {label}
-          </label>
-        ))}
-      </span>
-    </fieldset>
-  );
-}
-
-/**
- * One line of a review: what was asked on the left, what was answered on the
- * right, and a way back to the step that asked it.
- *
- * The `onEdit` link is the point. A review that a person cannot act on is a
- * wall of text they scroll past, and the last screen before money moves is the
- * worst place to make someone press Back four times to fix a typo.
- */
-export function SummaryRow({
-  label,
-  value,
-  onEdit,
-  editLabel = "Change",
-}: {
-  label: string;
-  value: ReactNode;
-  onEdit?: () => void;
-  editLabel?: string;
-}) {
-  return (
-    <div className="flex items-start justify-between gap-4 border-b border-border py-2.5 last:border-b-0">
-      <span className="shrink-0 text-xs uppercase tracking-wide text-muted-foreground">
-        {label}
-      </span>
-      <span className="flex min-w-0 items-baseline gap-3 text-right">
-        <span className="min-w-0 break-words text-sm">{value}</span>
-        {onEdit ? (
-          <button
-            type="button"
-            onClick={onEdit}
-            className="shrink-0 text-xs font-semibold text-accent-text underline underline-offset-2"
-          >
-            {editLabel}
-          </button>
-        ) : null}
-      </span>
-    </div>
-  );
-}
-
-/** A titled block on the review step, so the answers are grouped as they were asked. */
-export function SummaryCard({
-  title,
-  children,
-}: {
-  title: string;
-  children: ReactNode;
-}) {
-  return (
-    <section className="rounded-card border border-border bg-card p-4">
-      <h3 className="text-sm font-semibold">{title}</h3>
-      <div className="mt-2">{children}</div>
-    </section>
   );
 }
 

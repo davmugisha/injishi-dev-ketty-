@@ -121,6 +121,14 @@ const packageStyles = '@import "@injishi/ui/styles.css";';
 // those two matters and why the token block is inlined rather than imported.
 const herouiStyles = '@import "@heroui/styles";';
 
+// HeroUI Pro's component layer, straight after HeroUI OSS as Pro requires, and
+// the same import the public layer carries (`_injishi-public.css`). Without it
+// the signed-in screens drew HeroUI's stock buttons and segments while the
+// marketplace one click away drew the Pro "mouve" layer the Injishi design
+// system is built on (ADR-068): one product, two button looks. The palette
+// still comes from the inlined token block below, which outranks Pro's theme.
+const proStyles = '@import "@injishi/ui/pro.css";';
+
 // The HeroUI palette, INLINED rather than imported.
 //
 // It has to come AFTER the extracted `tokenCss`, because both define
@@ -155,7 +163,7 @@ const herouiTokens = [
 ].join(String.fromCharCode(10));
 
 const out =
-  `${header}\n@import "tailwindcss" source(none);\n${packageStyles}\n${herouiStyles}\n\n${sources}\n\n${tokenCss}\n\n${herouiTokens}\n\n${shellBlock}\n`;
+  `${header}\n@import "tailwindcss" source(none);\n${packageStyles}\n${herouiStyles}\n${proStyles}\n\n${sources}\n\n${tokenCss}\n\n${herouiTokens}\n\n${shellBlock}\n`;
 fs.writeFileSync(outFile, out, "utf8");
 console.log(
   `gen-app-css -> ${path.relative(appRoot, outFile).replace(/\\/g, "/")} ` +

@@ -1,519 +1,310 @@
 "use client";
 
-import { Button } from "@heroui/react";
-import {
-  ACCOMMODATION_CLASS_LABEL,
-  CERTIFICATE_KIND_LABEL,
-  type MyProfile,
-  type RegistrantCapacity,
-  type RegistrationFeeQuote,
-  type RegistrationSummary,
-} from "@injishi/contracts";
-import { BadgeCheck, Info, Landmark, Receipt, ShieldCheck } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useState } from "react";
+import { CERTIFICATE_KIND_LABEL, type RegistrationSummary } from "@injishi/contracts";
+import { Alert } from "@heroui/react";
+import { Button } from "@injishi/ui";
+import { ChevronDown } from "lucide-react";
+import { cn } from "@injishi/utils";
 
 import {
-  readFeeOverrides,
-  type RegistrationFeeOverrides,
-} from "@/data/registration-fees";
-import { resolveRegistrationFee } from "@/data/registration";
-import { formatNationalId } from "@/lib/rwanda-id";
+  CONTRACT_OPERATOR,
+  CONTRACT_TITLE,
+  registrationContractClauses,
+  type ContractSignature,
+  type RegistrationContractInput,
+} from "@/lib/registration-contract";
 
-import { useAddressLine } from "./address-picker";
+import { EMPTY_ADDRESS, useAddressLine, type AddressDraft } from "./address-picker";
+import type { DocumentDraft } from "./business-documents";
+import { StepCard } from "./register-shell";
+import { SignaturePad, type SignatureCapture } from "./signature-pad";
 import type { BranchDraft } from "./step-branches";
-import type { CertificateDraft } from "./step-documents";
-import type { BusinessDraft } from "./step-business";
-import { composeFullName, type PersonalDraft } from "./step-about-you";
-import type { RegistrationKind } from "./registration-kinds";
-import { REGISTRATION_KINDS, registrationForKind } from "./registration-kinds";
-import {
-  Notice,
-  StepActions,
-  SummaryCard,
-  SummaryRow,
-  formatRwf,
-} from "./wizard-ui";
+import { Notice, formatRwf } from "./wizard-ui";
 
 /**
- * Step 5 — read it back, then pay (ADR-026, AC-9; D23).
+ * Check, sign and pay (RegisterIA board): one last look, the fee, the
+ * agreement and the payment, on one screen.
  *
- * The pay step used to open on a price and a paragraph. Everything a person had
- * typed over four screens was behind a Back button, which is the wrong place
- * for it at the one moment money moves and the one moment a wrong TIN becomes
- * an officer's rejection rather than a typo.
+ * The read back is one row per answer with a Change link that lands on the
+ * step that asked, so nothing is lost by changing something here. Then the fee,
+ * which this screen states because this is the screen that charges it (owner
+ * decision 2026-09-27); then the agreement, folded away but one press from
+ * being read; then the signature, under the name the register verified rather
+ * than a name typed again (the audit's "shown, not asked"). One press, "Sign
+ * and pay", runs the server's own order: create, accept the contract, pay
+ * (ADR-053 AC-R8), each skipped once it has happened.
  *
- * So this reads it all back first, with a Change link per block that lands on
- * the step that asked. Then the bill.
- *
- * TWO VISITS, NOT ONE. The first press creates the registration and the wizard
- * moves on to the operator contract, which quotes the real bill the server
- * raised; after accepting it the registrant comes back here and the second
- * press settles it (ADR-053, AC-R8). Collapsing them would mean quoting a price from the catalog and charging
- * whatever the server decided, and those are allowed to differ — the amount is
- * LOCKED onto the invoice at creation (D8), so the bill is the only figure
- * worth showing once one exists.
+ * THE PAYMENT IS NOT MOBILE MONEY YET, and the screen says so rather than
+ * drawing an MTN or Airtel choice that goes nowhere. `POST /registrations/:id/pay`
+ * is the stand-in for the payment provider until F-S08: it records the fee as
+ * paid and sends no prompt to any phone.
  */
 
+export interface ReadBackRow {
+  label: string;
+  value: string;
+  /** The step that asked, or null when it can no longer change. */
+  change: "about" | "business" | "place" | null;
+}
+
 export function StepReviewPay({
-  kind,
-  personal,
-  profile,
-  editingProfile,
-  capacity,
-  intendedOwner,
-  business,
+  rows,
+  whereAddress,
   branches,
-  certificates,
-  quote,
+  documents,
+  amount,
+  signerName,
+  signerSource,
+  payPhone,
+  contractInput,
   summary,
-  resumed,
   busy,
   error,
-  onCreate,
-  onPay,
+  onSignAndPay,
   onBack,
-  onEditStep,
+  onChange,
+  onStartNew,
 }: {
-  kind: RegistrationKind | null;
-  personal: PersonalDraft;
-  profile: MyProfile | null;
-  editingProfile: boolean;
-  capacity: RegistrantCapacity;
-  /** Read back when registering for someone else: the claim binds to these three. */
-  intendedOwner: { name: string; nationalId: string; email: string };
-  business: BusinessDraft;
-  /** The locations beyond the head office (ADR-054). Hospitality only. */
+  /** Everything but Where and the documents, which are worded here. */
+  rows: ReadBackRow[];
+  whereAddress: AddressDraft | null;
   branches: BranchDraft[];
-  certificates: CertificateDraft[];
-  quote: RegistrationFeeQuote | null;
+  documents: DocumentDraft[];
+  /** The fee to charge, or null when this kind cannot be quoted. */
+  amount: number | null;
+  signerName: string;
+  /** "NIDA" or "passport" when the name was verified; null when typed. */
+  signerSource: "NIDA" | "passport" | null;
+  payPhone: string | null;
+  contractInput: RegistrationContractInput;
+  /** Set when the registration already exists and is waiting for its fee. */
   summary: RegistrationSummary | null;
-  /**
-   * Opened from the resume panel, so nothing was typed in this browser. The
-   * read back cards would be a column of dashes; the bill is shown alone.
-   */
-  resumed: boolean;
   busy: boolean;
   error: string;
-  onCreate: () => void;
-  onPay: () => void;
-  onBack: () => void;
-  onEditStep: (step: "place" | "about" | "business" | "branches" | "documents") => void;
+  onSignAndPay: (signature: ContractSignature | null) => Promise<void>;
+  onBack: (() => void) | null;
+  onChange: (step: "about" | "business" | "place") => void;
+  onStartNew: () => void;
 }) {
-  // The console's edits, read ONCE after mount and never during render.
-  // `readFeeOverrides` looks at `document.cookie`, which does not exist on the
-  // server: reading it inline would render one price on the server and another
-  // in the browser, and React would throw the whole bill away on hydration.
-  // Starting empty means the first paint shows the published schedule and the
-  // edited amount replaces it a frame later, which is the correct trade — a
-  // stale figure for one frame beats a torn-down pay step.
-  const [feeOverrides, setFeeOverrides] = useState<RegistrationFeeOverrides>({});
-  useEffect(() => {
-    setFeeOverrides(readFeeOverrides());
-  }, []);
+  const [terms, setTerms] = useState(false);
+  const [capture, setCapture] = useState<SignatureCapture | null>(null);
+  const [localError, setLocalError] = useState("");
+  const where = useAddressLine(whereAddress ?? EMPTY_ADDRESS);
+  const accepted = summary !== null && summary.contractAcceptedAt !== null;
+  const clauses = registrationContractClauses(contractInput);
 
-  // A broker pays nothing and is never brought here — `register-wizard.tsx`
-  // finishes that branch at the business step. Passing `null` rather than the
-  // tile keeps that true if the routing ever changes: the fallback lookup sends
-  // an unpriced type to the "Other" row, and quoting a broker RWF 100,000
-  // because a screen was reached by an unexpected path is the worst kind of
-  // wrong number.
-  const isBroker = kind !== null && registrationForKind(kind).role === "broker";
-  const fee = resolveRegistrationFee({
-    summary,
-    quote,
-    accommodationType: isBroker ? null : kind,
-    overrides: feeOverrides,
-  });
-  const amount = fee.amountRwf;
-  const kindEntry = kind
-    ? REGISTRATION_KINDS.find((k) => k.value === kind) ?? null
-    : null;
-  // The tile's own word first. `fee.configured.label` is the same word for
-  // every priced type and differs only when a type has fallen through to the
-  // "Other" row — in which case naming that row is more honest than naming the
-  // tile, because "Other" is the rate actually being quoted.
-  const feeLabel =
-    fee.configured === null
-      ? null
-      : fee.configured.accommodationType === kind
-        ? kindEntry?.label ?? fee.configured.label
-        : fee.configured.label;
-  // Derived from the tile, never from whether a field happens to be filled in.
-  // Reading `business.tin !== ""` would have been true for a host who typed a
-  // TIN and then went back and switched to Residence, and false for a host who
-  // reached this screen with the field somehow blank — two ways to show the
-  // wrong half of the summary. `registrationForKind` is the one derivation.
-  const isHospitality = kind !== null && registrationForKind(kind).role === "host";
-  const where = useAddressLine(business.address);
+  const all: ReadBackRow[] = [
+    ...rows.slice(0, 2),
+    ...(whereAddress ? [{ label: "Where", value: where ?? "Not chosen", change: "business" as const }] : []),
+    ...(branches.length
+      ? [
+          {
+            label: "Other locations",
+            value: branches.map((b) => b.name.trim() || "Unnamed").join(", "),
+            change: "business" as const,
+          },
+        ]
+      : []),
+    ...rows.slice(2),
+    ...(summary
+      ? []
+      : [
+          {
+            label: "Documents",
+            value: documents.length
+              ? documents
+                  .map((d) =>
+                    d.kind === "other" ? d.kindOther.trim() || "A document" : d.kind ? CERTIFICATE_KIND_LABEL[d.kind] : d.filename,
+                  )
+                  .join(", ")
+              : "None yet. The verifier asks at the visit.",
+            change: "business" as const,
+          },
+        ]),
+  ];
 
-  // A returning registrant confirming stored details never retyped them, so
-  // the profile is what to show back. An editing one typed a fresh block, and
-  // that block is what will be sent.
-  const usingStoredProfile = profile?.complete === true && !editingProfile;
-  // Read back through the SAME composition that will be sent, not through a
-  // second join written here. The three name boxes become one string exactly
-  // once, and this screen's job is to show that string — a separate join on
-  // this page could show a name the server never receives, on the one screen
-  // whose whole purpose is to be trusted.
-  const name = usingStoredProfile
-    ? (profile?.fullName ?? "—")
-    : composeFullName(personal) || "—";
-  const phone = usingStoredProfile
-    ? (profile?.phoneE164 ?? "—")
-    : personal.phoneE164 || "—";
-  // Grouped the way it is printed on the card, so a person checking a sixteen
-  // digit number against the document in their hand is comparing two things
-  // that look alike. An unbroken run of sixteen digits is the hardest possible
-  // thing to proofread, and this is the screen whose entire job is proofreading.
-  const documentLine = usingStoredProfile
-    ? (profile?.document?.documentNumberMasked ?? "—")
-    : personal.documentType === "national_id"
-      ? formatNationalId(personal.documentNumber) || "—"
-      : personal.documentNumber || "—";
+  async function signAndPay() {
+    if (amount === null) return;
+    if (!accepted && capture === null) {
+      setLocalError("Sign the agreement above first.");
+      return;
+    }
+    setLocalError("");
+    await onSignAndPay(
+      accepted || capture === null
+        ? null
+        : {
+            dataUrl: capture.dataUrl,
+            method: capture.method,
+            signedName: signerName,
+            // In the press handler, never during a render: a date read while
+            // rendering differs between server and browser.
+            signedAt: new Date().toISOString(),
+          },
+    );
+  }
+
+  const shown = localError || error;
 
   return (
-    <section aria-labelledby="step-pay">
-      <h2 id="step-pay" className="text-xl font-semibold tracking-tight">
-        {resumed && summary ? `Pay for ${summary.legalName}` : "Check it, then pay"}
-      </h2>
-      <p className="mt-1 text-sm text-muted-foreground">
-        {resumed && summary
-          ? "Your contract is accepted. Paying the registration fee sends the business for review."
-          : "Read this back before anything is charged. A wrong number here comes back as a rejection later."}
-      </p>
-
-      <div className="mt-6 space-y-4">
-        {resumed ? null : (
+    <StepCard
+      id="register-pay"
+      title="Check, sign and pay"
+      lead={
+        summary
+          ? `${summary.legalName} is registered and waiting for its fee. ${accepted ? "Its agreement is signed." : "Sign the agreement, then pay."}`
+          : "One last look. Change anything from here without losing the rest."
+      }
+      footer={
         <>
-        <SummaryCard title="What you are registering">
-          <SummaryRow
-            label="Kind"
-            value={kindEntry?.label ?? "—"}
-            onEdit={() => onEditStep("place")}
-          />
-          <SummaryRow
-            label="Name"
-            value={business.legalName || "—"}
-            onEdit={() => onEditStep("business")}
-          />
-          {isHospitality ? (
-            <>
-              <SummaryRow
-                label="Class"
-                value={
-                  business.accommodationClass === "other"
-                    ? business.accommodationClassOther || "Other"
-                    : business.accommodationClass
-                      ? ACCOMMODATION_CLASS_LABEL[
-                          business.accommodationClass as keyof typeof ACCOMMODATION_CLASS_LABEL
-                        ]
-                      : "—"
-                }
-                onEdit={() => onEditStep("place")}
-              />
-              <SummaryRow
-                label="TIN"
-                value={business.tin || "—"}
-                onEdit={() => onEditStep("business")}
-              />
-              <SummaryRow
-                label="Tourism licence"
-                value={business.tourismLicenseNumber || "Not given"}
-                onEdit={() => onEditStep("business")}
-              />
-              <SummaryRow
-                label="EAC star grade"
-                value={business.eacStarGrade ? `${business.eacStarGrade} star` : "Not graded"}
-                onEdit={() => onEditStep("business")}
-              />
-              <SummaryRow
-                label="Chamber of Tourism"
-                value={answer(business.chamberOfTourismMember)}
-                onEdit={() => onEditStep("business")}
-              />
-              <SummaryRow
-                label="PSF"
-                value={answer(business.psfMember)}
-                onEdit={() => onEditStep("business")}
-              />
-            </>
+          {onBack ? (
+            <Button variant="ghost" onClick={onBack}>
+              Back
+            </Button>
           ) : (
-            <>
-              <SummaryRow
-                label="Holding"
-                value={
-                  business.residenceClass === "residential_property_manager"
-                    ? "I manage it for the owner"
-                    : "I am the landlord"
-                }
-                onEdit={() => onEditStep("business")}
-              />
-              <SummaryRow
-                label="UPI"
-                value={business.upi || "—"}
-                onEdit={() => onEditStep("business")}
-              />
-            </>
+            <Button variant="ghost" onClick={onStartNew}>
+              Register a different business
+            </Button>
           )}
-          <SummaryRow
-            label="Where"
-            value={where ?? "—"}
-            onEdit={() => onEditStep("business")}
-          />
-        </SummaryCard>
-
-        {/* Every location this one fee covers (ADR-054 AC-R1), the head office
-            first. Read back because an officer approves the list as written. */}
-        {isHospitality ? (
-          <SummaryCard title="Branches">
-            <SummaryRow
-              label="Head office"
-              value={where ? `${business.legalName || "—"} · ${where}` : business.legalName || "—"}
-              onEdit={() => onEditStep("business")}
-            />
-            {branches.length === 0 ? (
-              <SummaryRow
-                label="Other branches"
-                value="None, one location"
-                onEdit={() => onEditStep("branches")}
-                editLabel="Add"
-              />
-            ) : (
-              branches.map((b, i) => (
-                <BranchSummaryRow
-                  key={b.key}
-                  index={i}
-                  branch={b}
-                  onEdit={() => onEditStep("branches")}
-                />
-              ))
-            )}
-          </SummaryCard>
-        ) : null}
-
-        <SummaryCard title="Who you are">
-          <SummaryRow
-            label="Name"
-            value={name}
-            onEdit={() => onEditStep("about")}
-          />
-          <SummaryRow
-            label="ID"
-            value={documentLine}
-            onEdit={() => onEditStep("about")}
-          />
-          <SummaryRow
-            label="Phone"
-            value={phone}
-            onEdit={() => onEditStep("about")}
-          />
-          <SummaryRow
-            label="Registering"
-            value={capacity === "owner" ? "As the owner" : "For someone else"}
-            onEdit={() => onEditStep("about")}
-          />
-        </SummaryCard>
-
-        {/* The owner's details are answers too (ADR-026 AC-9), and the ones worth
-            proofreading most: the claim mail goes to this email, and the claim is
-            refused unless the owner's document matches this national id. */}
-        {capacity === "owner" ? null : (
-          <SummaryCard title="Who owns it">
-            <SummaryRow
-              label="Name"
-              value={intendedOwner.name.trim() || "—"}
-              onEdit={() => onEditStep("about")}
-            />
-            <SummaryRow
-              label="National ID"
-              value={formatNationalId(intendedOwner.nationalId) || "—"}
-              onEdit={() => onEditStep("about")}
-            />
-            <SummaryRow
-              label="Email"
-              value={intendedOwner.email.trim() || "—"}
-              onEdit={() => onEditStep("about")}
-            />
-          </SummaryCard>
-        )}
-
-        <SummaryCard title="Documents">
-          {certificates.length === 0 ? (
-            <SummaryRow
-              label="Attached"
-              value="Nothing yet — your officer will ask at the visit"
-              onEdit={() => onEditStep("documents")}
-              editLabel="Add"
-            />
-          ) : (
-            certificates.map((c) => (
-              <SummaryRow
-                key={c.objectKey}
-                label={
-                  c.kind === "other"
-                    ? c.kindOther || "Other"
-                    : CERTIFICATE_KIND_LABEL[c.kind]
-                }
-                value={c.filename}
-                onEdit={() => onEditStep("documents")}
-              />
-            ))
-          )}
-        </SummaryCard>
+          <Button onClick={() => void signAndPay()} pending={busy} disabled={amount === null}>
+            {busy
+              ? "Recording the payment…"
+              : amount === null
+                ? "Sign and pay"
+                : accepted
+                  ? `Pay ${formatRwf(amount)}`
+                  : `Sign and pay ${formatRwf(amount)}`}
+          </Button>
         </>
-        )}
+      }
+    >
+      <dl className="flex flex-col">
+        {all.map((row) => (
+          <div
+            key={row.label}
+            className="flex flex-wrap items-baseline gap-x-4 gap-y-1 border-t border-border py-3 text-sm first:border-t-0"
+          >
+            <dt className="w-36 shrink-0 font-medium text-muted-foreground">{row.label}</dt>
+            <dd className="min-w-0 flex-1 basis-56">{row.value}</dd>
+            {row.change && !summary ? (
+              <button
+                type="button"
+                onClick={() => onChange(row.change!)}
+                className="rounded text-sm font-semibold text-accent-text underline-offset-2 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              >
+                Change<span className="sr-only"> {row.label}</span>
+              </button>
+            ) : null}
+          </div>
+        ))}
+      </dl>
 
-        {/* The bill. Its own surface rather than another summary card: it is
-            the one block on this page that is about to take money, and it
-            should not read as a sixth row of answers. */}
-        <div className="rounded-card border border-accent-brand bg-accent-brand/10 p-5">
-          <div className="flex items-baseline justify-between gap-4">
-            <span className="flex items-center gap-2 text-sm font-semibold">
-              <Receipt size={16} aria-hidden />
-              One time registration fee
-            </span>
-            <span className="text-2xl font-semibold tabular-nums">
-              {amount === null ? "—" : formatRwf(amount)}
+      <div className="flex flex-wrap items-baseline justify-between gap-2 rounded-card bg-secondary px-4 py-4">
+        <span className="flex flex-col gap-0.5">
+          <span className="text-sm font-semibold">One time registration fee</span>
+          <span className="text-xs text-muted-foreground">
+            Then a monthly plan once you are live. No commission.
+          </span>
+        </span>
+        <span className="text-2xl font-bold tabular-nums">
+          {amount === null ? "Not available" : formatRwf(amount)}
+        </span>
+      </div>
+      {amount === null ? (
+        <Notice tone="warning">
+          We could not load the fee for this kind of registration, so it cannot be paid yet.
+          Try again shortly.
+        </Notice>
+      ) : null}
+
+      {accepted ? null : (
+        <>
+          <div>
+            <button
+              type="button"
+              aria-expanded={terms}
+              aria-controls="register-terms"
+              onClick={() => setTerms(!terms)}
+              className="inline-flex items-center gap-1.5 rounded text-sm font-semibold text-accent-text underline-offset-2 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            >
+              {terms ? "Hide the operator agreement" : "Read the operator agreement"}
+              <ChevronDown size={16} aria-hidden className={cn("transition-transform", terms && "rotate-180")} />
+            </button>
+            {terms ? (
+              <div
+                id="register-terms"
+                role="region"
+                aria-label={`${CONTRACT_TITLE}, version ${contractInput.contractVersion}`}
+                tabIndex={0}
+                className="mt-2.5 max-h-80 overflow-y-auto rounded-card bg-secondary p-4 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              >
+                <p className="font-semibold">
+                  {CONTRACT_TITLE} · Version {contractInput.contractVersion}
+                </p>
+                <p className="mt-1 text-xs text-muted-foreground">
+                  Between {CONTRACT_OPERATOR} and you. Injishi records that you accepted this
+                  version and when; the copy you can download afterwards carries your signature.
+                </p>
+                <ol className="mt-4 flex flex-col gap-4">
+                  {clauses.map((clause) => (
+                    <li key={clause.number}>
+                      <h3 className="font-semibold">
+                        <span className="tabular-nums text-muted-foreground">{clause.number}.</span>{" "}
+                        {clause.heading}
+                      </h3>
+                      {clause.body.map((paragraph) => (
+                        <p key={paragraph.slice(0, 40)} className="mt-1.5 leading-relaxed text-muted-foreground">
+                          {paragraph}
+                        </p>
+                      ))}
+                    </li>
+                  ))}
+                </ol>
+              </div>
+            ) : null}
+          </div>
+
+          <div className="flex flex-col gap-2">
+            <span className="text-sm font-semibold">Sign the operator agreement</span>
+            <SignaturePad
+              value={capture}
+              onChange={(next) => {
+                setCapture(next);
+                if (next !== null) setLocalError("");
+              }}
+              signerName={signerName}
+            />
+            <span className="text-xs text-muted-foreground">
+              Signing as {signerName || "you"}
+              {signerSource === "NIDA"
+                ? ", verified with NIDA."
+                : signerSource === "passport"
+                  ? ", verified from your passport."
+                  : ", as on your account."}
             </span>
           </div>
-          {/* The fee differs by what is being registered, so the figure has to
-              say which type it is the figure FOR. A lone amount invites the
-              reader to assume it is the same for everyone, which is the exact
-              belief this feature exists to correct. */}
-          {/* Only the offline demo prices by accommodation type (`data/registration-fees.ts`).
-              The platform's fee is one catalogue row per business type (ADR-026,
-              ratified in ADR-053), so saying "the hotel rate" over a real quote
-              would describe a pricing model the platform does not have. */}
-          {feeLabel === null || fee.source !== "configured" ? null : (
-            <p className="mt-1 text-sm text-muted-foreground">
-              The {feeLabel} rate in this offline demonstration.
-            </p>
-          )}
-          <p className="mt-2 text-xs text-muted-foreground">
-            Charged once. It is not refunded if the review goes against you, and
-            you are never charged a second time to correct and resubmit.
-          </p>
-        </div>
+        </>
+      )}
 
-        {/* Said plainly, and only when it is true: this figure came from the
-            schedule this app carries rather than from the platform. Quietly
-            substituting a local number for a server price and letting it read
-            as a bill is the one thing a demo may not do. */}
-        {fee.source === "configured" && fee.configured !== null ? (
-          <aside
-            className="flex items-start gap-3 rounded-card border border-dashed border-input bg-secondary px-4 py-3 text-secondary-foreground"
-            aria-label="Demo data notice"
-          >
-            <Info
-              size={16}
-              aria-hidden
-              className="mt-0.5 shrink-0 text-muted-foreground"
-            />
-            <p className="text-xs leading-relaxed">
-              <span className="font-semibold">Demo data.</span>{" "}
-              <span className="text-muted-foreground">
-                The platform did not quote this registration, so the amount above
-                is the {fee.configured.label} rate this demonstration carries —
-                set by {fee.configured.setBy}, with effect from{" "}
-                {fee.configured.effectiveFrom}. Nothing has been charged.
-              </span>
-            </p>
-          </aside>
-        ) : null}
-
-        {amount === null ? (
-          <Notice tone="warning">
-            We couldn&apos;t load the fee for this kind of registration. It may
-            not be open yet.
-          </Notice>
-        ) : null}
-
-        <div className="grid gap-3 sm:grid-cols-3">
-          {[
-            {
-              icon: ShieldCheck,
-              title: "We check RRA",
-              body: "Your TIN is verified automatically, in seconds.",
-            },
-            {
-              icon: Landmark,
-              title: "An officer visits",
-              body: "A district officer confirms the premises and your documents.",
-            },
-            {
-              icon: BadgeCheck,
-              title: "You go live",
-              body: "An approver decides. Your subscription only starts once you are live.",
-            },
-          ].map(({ icon: Icon, title, body }) => (
-            <div
-              key={title}
-              className="rounded-card border border-border bg-card p-4"
-            >
-              <span className="flex size-9 items-center justify-center rounded-full border border-border text-muted-foreground">
-                <Icon size={16} aria-hidden />
-              </span>
-              <p className="mt-2.5 text-sm font-semibold">{title}</p>
-              <p className="mt-0.5 text-xs text-muted-foreground">{body}</p>
-            </div>
-          ))}
-        </div>
-
-        {error ? <Notice tone="danger">{error}</Notice> : null}
+      <div className="flex flex-col gap-2">
+        <span className="text-sm font-semibold">
+          Pay with mobile money{payPhone ? ` on ${payPhone}` : ""}
+        </span>
+        <Alert status="default">
+          <Alert.Indicator />
+          <Alert.Content>
+            <Alert.Title>Mobile money is not connected yet</Alert.Title>
+            <Alert.Description>
+              No prompt reaches your phone today. Pressing {accepted ? "Pay" : "Sign and pay"} records
+              the fee against this registration and sends it for review; the payment provider
+              replaces this step when it is connected.
+            </Alert.Description>
+          </Alert.Content>
+        </Alert>
       </div>
 
-      {summary === null ? (
-        <StepActions
-          onBack={onBack}
-          onNext={onCreate}
-          nextLabel="Create my registration"
-          busy={busy}
-          disabled={amount === null}
-        />
-      ) : (
-        <div className="mt-8 flex flex-wrap items-center gap-3">
-          <span className="text-sm text-muted-foreground">
-            {summary.contractAcceptedAt === null
-              ? `${summary.legalName} is created. Accept the contract before paying.`
-              : `${summary.legalName} is created, its contract is accepted, and it is waiting for payment.`}
-          </span>
-          <span className="grow" />
-          <Button
-            variant="primary"
-            onPress={onPay}
-            isDisabled={busy}
-            isPending={busy}
-          >
-            {busy ? "Paying…" : `Pay ${amount === null ? "" : formatRwf(amount)}`}
-          </Button>
-        </div>
-      )}
-    </section>
+      {shown ? <Notice tone="danger">{shown}</Notice> : null}
+    </StepCard>
   );
-}
-
-/** One declared branch, its address read back in words. */
-function BranchSummaryRow({
-  index,
-  branch,
-  onEdit,
-}: {
-  index: number;
-  branch: BranchDraft;
-  onEdit: () => void;
-}) {
-  const where = useAddressLine(branch.address);
-  const name = branch.name.trim() || "—";
-  return (
-    <SummaryRow
-      label={`Branch ${index + 1}`}
-      value={where ? `${name} · ${where}` : name}
-      onEdit={onEdit}
-    />
-  );
-}
-
-/** A membership answer as read back: never "No" for a question nobody answered. */
-function answer(value: boolean | null): string {
-  return value === null ? "Not answered" : value ? "Yes" : "No";
 }

@@ -3,10 +3,15 @@ import {
   AdminFeeSchedule,
   AdminRegistrationFee,
   type AppendRegistrationFeeRequest,
+  type CreatePsfTierRequest,
+  type PsfTier,
+  type UpdatePsfTierRequest,
 } from '@injishi/contracts';
 import {
+  ConflictException,
   Inject,
   Injectable,
+  NotFoundException,
   UnprocessableEntityException,
 } from '@nestjs/common';
 import { asc, desc, eq, sql } from 'drizzle-orm';
@@ -17,6 +22,7 @@ import {
   districts,
   featureFlags,
   placementFees,
+  psfMembershipTiers,
   registrationFees,
   subscriptionPlans,
 } from '../../../database/drizzle/schema';
@@ -170,6 +176,80 @@ export class ConfigurationAdminService {
    * The fee row and its audit row are one transaction: a price that changed with
    * nobody's name on it is the one kind of catalogue edit nobody can explain.
    */
+  // --- PSF membership tiers (ADR-056 AC-19) ---------------------------------
+
+  /** Every tier, retired ones included, in the order the form shows them. */
+  async psfTiers(): Promise<PsfTier[]> {
+    const rows = await this.db
+      .select()
+      .from(psfMembershipTiers)
+      .orderBy(asc(psfMembershipTiers.sortOrder), asc(psfMembershipTiers.code));
+    return rows.map(toPsfTier);
+  }
+
+  /** A new tier. Its code is permanent: applications and memberships name it. */
+  async createPsfTier(input: { actorUserId: string; request: CreatePsfTierRequest }): Promise<PsfTier> {
+    const { reason, code, ...fields } = input.request;
+    return this.db.transaction(async (tx) => {
+      const [clash] = await tx
+        .select({ code: psfMembershipTiers.code })
+        .from(psfMembershipTiers)
+        .where(eq(psfMembershipTiers.code, code))
+        .limit(1);
+      if (clash) throw new ConflictException('A tier with that code already exists. Edit it instead.');
+      const [row] = await tx
+        .insert(psfMembershipTiers)
+        .values({ code, ...tierColumns(fields), updatedByUserId: input.actorUserId })
+        .returning();
+      if (!row) throw new Error('PSF tier insert returned no row.');
+      await tx.insert(auditEvents).values({
+        actorUserId: input.actorUserId,
+        subjectType: 'config',
+        subjectId: null,
+        eventType: 'admin.psf_tier.created',
+        payloadDiff: { psfTier: toPsfTier(row) } as never,
+        reason,
+      });
+      return toPsfTier(row);
+    });
+  }
+
+  /**
+   * Edit a tier. Retiring one (`active: false`) takes it off the form and out
+   * of an officer's choices, while every application and membership that
+   * names it keeps reading it.
+   */
+  async updatePsfTier(input: {
+    actorUserId: string;
+    code: string;
+    request: UpdatePsfTierRequest;
+  }): Promise<PsfTier> {
+    const { reason, ...fields } = input.request;
+    return this.db.transaction(async (tx) => {
+      const [before] = await tx
+        .select()
+        .from(psfMembershipTiers)
+        .where(eq(psfMembershipTiers.code, input.code))
+        .limit(1);
+      if (!before) throw new NotFoundException('No PSF tier has that code.');
+      const [row] = await tx
+        .update(psfMembershipTiers)
+        .set({ ...tierColumns(fields), updatedByUserId: input.actorUserId, updatedAt: new Date() })
+        .where(eq(psfMembershipTiers.code, input.code))
+        .returning();
+      if (!row) throw new Error('PSF tier update returned no row.');
+      await tx.insert(auditEvents).values({
+        actorUserId: input.actorUserId,
+        subjectType: 'config',
+        subjectId: null,
+        eventType: 'admin.psf_tier.updated',
+        payloadDiff: { before: toPsfTier(before), after: toPsfTier(row) } as never,
+        reason,
+      });
+      return toPsfTier(row);
+    });
+  }
+
   async appendRegistrationFee(input: {
     actorUserId: string;
     request: AppendRegistrationFeeRequest;
@@ -315,4 +395,45 @@ export class ConfigurationAdminService {
       },
     });
   }
+}
+
+/** A tier row as the admin console reads it. */
+function toPsfTier(row: typeof psfMembershipTiers.$inferSelect): PsfTier {
+  return {
+    code: row.code,
+    family: row.family,
+    nameEn: row.nameEn,
+    nameRw: row.nameRw,
+    priceKind: row.priceKind,
+    annualFeeRwf: row.annualFeeRwf,
+    annualFeeMinRwf: row.annualFeeMinRwf,
+    annualFeeMaxRwf: row.annualFeeMaxRwf,
+    benefitsEn: row.benefitsEn,
+    benefitsRw: row.benefitsRw,
+    sortOrder: row.sortOrder,
+    active: row.active,
+  };
+}
+
+/**
+ * A tier's columns from a request. The whole price travels together: the
+ * three price columns only mean something as a set, and the database CHECK
+ * (`psf_membership_tiers_price_shape`) refuses a half written one.
+ */
+function tierColumns(
+  f: Omit<CreatePsfTierRequest, 'code' | 'reason'>,
+): Omit<typeof psfMembershipTiers.$inferInsert, 'code' | 'updatedByUserId'> {
+  return {
+    family: f.family,
+    nameEn: f.nameEn,
+    nameRw: f.nameRw ?? null,
+    priceKind: f.priceKind,
+    annualFeeRwf: f.annualFeeRwf ?? null,
+    annualFeeMinRwf: f.annualFeeMinRwf ?? null,
+    annualFeeMaxRwf: f.annualFeeMaxRwf ?? null,
+    benefitsEn: f.benefitsEn,
+    benefitsRw: f.benefitsRw ?? null,
+    sortOrder: f.sortOrder,
+    active: f.active,
+  };
 }
