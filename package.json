@@ -1,50 +1,41 @@
 {
   "name": "injishi",
   "private": true,
-  "packageManager": "pnpm@10.33.2",
+  "description": "Injishi platform: the new interface (web: Next.js, mobile: Expo), the NestJS API and the shared packages.",
+  "packageManager": "pnpm@12.3.4",
   "engines": {
-    "node": ">=20.19"
-  },
-  "pnpm": {
-    "onlyBuiltDependencies": [
-      "esbuild",
-      "msgpackr-extract",
-      "sharp"
-    ],
-    "overrides": {
-      "@types/react": "19.1.17",
-      "@types/react-dom": "19.1.11"
-    }
+    "node": ">=22.13"
   },
   "scripts": {
-    "typecheck": "pnpm -r typecheck",
-    "lint": "pnpm -r lint",
+    "dev": "turbo run dev --filter=@injishi/app",
+    "dev:mobile": "turbo run dev --filter=@injishi/mobile",
+    "build": "turbo run build",
+    "typecheck": "turbo run typecheck",
+    "lint": "biome check . && pnpm -r lint",
+    "lint:fix": "biome check --write .",
+    "format": "biome format --write .",
     "test": "pnpm -r --workspace-concurrency=1 test",
-    "build": "pnpm --filter @injishi/web --filter @injishi/app --filter @injishi/admin --filter @injishi/api build",
     "check:manifests": "node scripts/check-workspace-manifests.mjs",
     "lint:ratchet": "node scripts/lint-ratchet.mjs",
-    "dev": "pnpm --filter @injishi/web dev",
-    "dev:all": "pnpm --parallel --filter @injishi/web --filter @injishi/app dev",
     "web:dev": "pnpm --filter @injishi/web dev",
     "web:build": "pnpm --filter @injishi/web build",
     "web:start": "pnpm --filter @injishi/web start",
     "web:tokens:sync": "pnpm --filter @injishi/web tokens:sync",
-    "app:dev": "pnpm --filter @injishi/app dev",
-    "app:build": "pnpm --filter @injishi/app build",
-    "app:start": "pnpm --filter @injishi/app start",
-    "mobile:start": "pnpm --filter @injishi/mobile start",
     "api:dev": "pnpm --filter @injishi/api dev",
     "api:build": "pnpm --filter @injishi/api build",
     "api:start": "pnpm --filter @injishi/api start",
     "api:worker": "pnpm --filter @injishi/api worker",
     "api:worker:dev": "pnpm --filter @injishi/api worker:dev",
     "db:seed": "pnpm --filter @injishi/api db:seed",
+    "fixtures:seed": "pnpm --filter @injishi/db seed",
+    "fixtures:reset": "pnpm --filter @injishi/db reset",
     "dev:stack": "node scripts/dev-stack.mjs",
     "dev:stack:down": "node scripts/dev-stack.mjs --down",
     "dev:stack:reset": "node scripts/dev-stack.mjs --reset"
   },
   "devDependencies": {
-    "@types/react": "19.1.17",
-    "@types/react-dom": "19.1.11"
+    "@biomejs/biome": "2.5.15",
+    "turbo": "2.11.7",
+    "typescript": "5.9.3"
   }
 }
