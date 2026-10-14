@@ -25,6 +25,9 @@
  *   seed-demo-portfolio.mjs   the landlord's full rent roll, the district
  *                             registration pipeline, and the admin console's
  *                             reviews and support tickets
+ *   seed-broker.mjs           the brokers' credits, reveals, placements and fees
+ *   seed-demo-documents.mjs   the registration documents the field verifier and
+ *                             the approver read, as real PDFs in object storage
  *
  * then records the finish in `database_identity.seeded_at`, which
  * `GET /api/v1/platform` reports as the last reset time.
@@ -71,6 +74,11 @@ const STEPS = [
   { script: 'seed-demo-portfolio.mjs', what: 'rent roll, registration pipeline, reviews and support' },
   // Last: it places tenants on leases the two residence seeds above write.
   { script: 'seed-broker.mjs', what: 'brokers: credits, reveals, placements and fees (ADR-038 child 6)' },
+  // The documents the two government officers review, with real files behind
+  // them. It reads the pipeline `seed-demo-portfolio.mjs` wrote, so it runs
+  // after it, and it writes objects into whichever store the API is configured
+  // for (F-S03 §5).
+  { script: 'seed-demo-documents.mjs', what: 'registration documents for the businesses in the officer queues' },
 ];
 
 function fail(message) {

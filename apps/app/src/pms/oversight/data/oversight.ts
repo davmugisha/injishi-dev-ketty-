@@ -57,10 +57,13 @@ export const CLASS_LABEL: Record<string, string> = {
 /** Defaults every file carries, so each row below states only what is distinct. */
 function mkOrg(o: Partial<RegOrg> & Pick<RegOrg, "id" | "biz" | "type" | "registrant" | "tin" | "cls" | "district" | "sector" | "address" | "stage" | "submittedTs">): RegOrg {
   return {
-    docs: [],
     obo: false,
     tinOk: true,
     ageH: 6,
+    // These fixtures predate documents on the wire, and none of them names a
+    // certificate. Zero is the honest default: the live queue counts real rows.
+    documentCount: 0,
+    uncheckedDocumentCount: 0,
     fieldVerifiedBy: null,
     approvedBy: null,
     rejectReason: null,
@@ -76,14 +79,12 @@ function orgs(): RegOrg[] {
       id: "ME", biz: "Umurage Serviced Apartments", type: "host", registrant: "me",
       tin: "102 938 471", cls: "serviced_apartment", tourismLic: "TR-2026-04512", rha: true, star: 0,
       district: "Gasabo", sector: "Remera", address: "KG 11 Ave, Remera",
-      docs: [["RDB Certificate", "operating license"], ["Tourism license", "tourismregulation.rw"]],
       stage: "tin_verified", ageH: 3, submittedTs: "Today 08:20",
     }),
     mkOrg({
       id: "O2", biz: "Nyarutarama Homes", type: "landlord", registrant: "other", owner: "Diane Uwase",
       tin: "108 552 903", cls: "residential_landlord", upi: "3/04/09/02/1487",
       district: "Gasabo", sector: "Nyarutarama", address: "KG 9 Ave, Nyarutarama",
-      docs: [["RDB Certificate", "business registration"], ["Land title", "UPI 3/04/09/02/1487"]],
       stage: "field_verified", ageH: 20, fieldVerifiedBy: "Jean-Bosco Nkurunziza", submittedTs: "Yesterday 14:02",
     }),
     // Field-verified by the approver herself — the separation-of-duties case.
@@ -91,14 +92,12 @@ function orgs(): RegOrg[] {
       id: "O3", biz: "Kacyiru Apartments Mgmt", type: "landlord", registrant: "other", owner: "Eric Manzi",
       tin: "111 204 668", cls: "residential_property_manager", upi: "3/04/07/01/0932",
       district: "Gasabo", sector: "Kacyiru", address: "KG 7 Ave, Kacyiru",
-      docs: [["RDB Certificate", "business registration"], ["Land title", "UPI 3/04/07/01/0932"], ["Management mandate", "owner authorization"]],
       stage: "field_verified", ageH: 30, fieldVerifiedBy: "Claudine Mukamana", submittedTs: "2 days ago",
     }),
     mkOrg({
       id: "O4", biz: "Gasabo Stay Motel", type: "host", registrant: "other", owner: "Patrick Habimana",
       tin: "104 771 220", cls: "motel", tourismLic: "TR-2026-04781", rha: true, star: 0,
       district: "Gasabo", sector: "Kinyinya", address: "KG 200 St, Kinyinya",
-      docs: [["RDB Certificate", "operating license"], ["Tourism license", "tourismregulation.rw"]],
       stage: "tin_verified", ageH: 12, submittedTs: "Yesterday 22:10",
     }),
     // Registered by an agent: payouts stay locked until the owner claims it.
@@ -106,7 +105,6 @@ function orgs(): RegOrg[] {
       id: "O5", biz: "Remera Garden Lofts", type: "landlord", registrant: "other", owner: "Aline Keza",
       tin: "109 883 415", cls: "residential_landlord", upi: "3/04/09/05/2201",
       district: "Gasabo", sector: "Remera", address: "KG 11 Ave, Remera",
-      docs: [["RDB Certificate", "business registration"], ["Land title", "UPI 3/04/09/05/2201"]],
       stage: "tin_verified", ageH: 40, submittedTs: "2 days ago", obo: true,
     }),
     // Karongi — outside a Gasabo officer's jurisdiction entirely.
@@ -114,7 +112,6 @@ function orgs(): RegOrg[] {
       id: "O6", biz: "Kivu Breeze Resort", type: "host", registrant: "other", owner: "Serge Ntwari",
       tin: "106 220 947", cls: "vacation_hotel_resort", tourismLic: "TR-2026-03990", rha: true, star: 4,
       district: "Karongi", sector: "Bwishyura", address: "Lake Kivu shore, Karongi",
-      docs: [["RDB Certificate", "operating license"], ["Tourism license", "tourismregulation.rw"]],
       stage: "field_verified", ageH: 26, fieldVerifiedBy: "Yvette Mukamana (Karongi)", submittedTs: "Yesterday 09:30",
     }),
     // Missing its tourism license and not an RHA member — the flagged row, and
@@ -123,21 +120,18 @@ function orgs(): RegOrg[] {
       id: "O7", biz: "Kimironko Suites", type: "host", registrant: "other", owner: "Josiane Iradukunda",
       tin: "107 118 350", cls: "town_hotel", tourismLic: "TR-2026-04820", rha: false, star: 0,
       district: "Gasabo", sector: "Kimironko", address: "KG 27 Ave, Kimironko",
-      docs: [["RDB Certificate", "operating license"]],
       stage: "tin_verified", ageH: 52, submittedTs: "3 days ago",
     }),
     mkOrg({
       id: "O8", biz: "Gikondo Residences", type: "landlord", registrant: "other", owner: "Fabrice Niyonzima",
       tin: "110 447 118", cls: "residential_landlord", upi: "2/03/07/04/0771",
       district: "Kicukiro", sector: "Gikondo", address: "KK 15 Ave, Gikondo",
-      docs: [["RDB Certificate", "business registration"], ["Land title", "UPI 2/03/07/04/0771"]],
       stage: "field_verified", ageH: 18, fieldVerifiedBy: "Alice Uwimana (Kicukiro)", submittedTs: "Yesterday 11:00",
     }),
     mkOrg({
       id: "O9", biz: "Isange Lodge", type: "host", registrant: "other", owner: "Claude Bizimana",
       tin: "105 900 244", cls: "lodge", tourismLic: "TR-2026-00099", rha: true, star: 0,
       district: "Gasabo", sector: "Gisozi", address: "KG 55 St, Gisozi",
-      docs: [["RDB Certificate", "operating license"], ["Tourism license", "tourismregulation.rw"]],
       stage: "rejected", prevStage: "tin_verified", rejectReason: "license_invalid",
       rejectNote: "The license number is not in the RDB register — check the digits on your certificate.",
       ageH: 48, submittedTs: "2 days ago",

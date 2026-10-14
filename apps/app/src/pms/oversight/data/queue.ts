@@ -8,9 +8,13 @@
  * cannot drift into a second private copy of the pipeline.
  *
  * Mapping `OversightQueueItem` into the screen's `RegOrg` keeps the existing
- * queue UI. Fields the wire does not carry (docs, tourism licence, OBO flag)
- * stay empty rather than invented — inventing them would put a second, staler
- * answer beside the server's.
+ * queue UI. Fields the wire does not carry (tourism licence, OBO flag) stay
+ * empty rather than invented — inventing them would put a second, staler answer
+ * beside the server's.
+ *
+ * The documents are no longer one of those fields. The wire carries the two
+ * COUNTS per row, and `data/documents.ts` fetches the documents themselves when
+ * an officer opens the file.
  */
 
 import {
@@ -61,7 +65,8 @@ export function queueItemToRegOrg(item: OversightQueueItem): RegOrg {
     district: item.districtName ?? "—",
     sector: item.sectorName ?? "—",
     address: item.addressText ?? "—",
-    docs: [],
+    documentCount: item.documentCount,
+    uncheckedDocumentCount: item.uncheckedDocumentCount,
     branches: item.branches.map((b) => ({
       name: b.name,
       district: b.districtName,

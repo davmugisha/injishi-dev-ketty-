@@ -1,10 +1,20 @@
 import {
   type OversightDecisionPage,
+  type OversightDocumentList,
   type OversightGrant,
   OversightDecisionQuery,
   type OversightQueueItem,
 } from '@injishi/contracts';
-import { Controller, Get, Query, UseGuards } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  HttpCode,
+  Param,
+  ParseUUIDPipe,
+  Post,
+  Query,
+  UseGuards,
+} from '@nestjs/common';
 
 import { RegistrationService } from '../../../modules/organization/application/registration.service';
 import {
@@ -62,6 +72,51 @@ export class OversightController {
     @CurrentOversight() grants: OversightGrant[],
   ): Promise<OversightQueueItem[]> {
     return this.registrations.queueFor(user.id, grants);
+  }
+
+  /**
+   * The documents one registration carries → the evidence half of the field
+   * verifier's job (F-S03 §5).
+   *
+   * BOTH functions read it, and that is the point of the route. The verifier
+   * goes and looks; the approver has to see what the verifier saw, and could
+   * previously approve a business whose documents were unreachable through any
+   * API at all.
+   *
+   * Region and conflict of interest are checked by the service against the
+   * business itself, with the same helper the gates use — a read that informs a
+   * decision must not be laxer than the decision.
+   */
+  @Get('registrations/:orgId/documents')
+  @UseGuards(SessionGuard, OversightGuard)
+  @RequireOversight('business_field_verifier', 'business_approver')
+  documents(
+    @Param('orgId', ParseUUIDPipe) orgId: string,
+    @CurrentUser() user: SessionUser,
+    @CurrentOversight() grants: OversightGrant[],
+  ): Promise<OversightDocumentList> {
+    return this.registrations.documentsFor(orgId, grants, user.id);
+  }
+
+  /**
+   * Record that this officer has read one document (F-S03 §5).
+   *
+   * The field verifier's act alone. The approver reads the file and decides on
+   * it; they do not get to certify that somebody looked. 200 rather than 201: a
+   * second press is not a second check, and the answer is the list as it now
+   * stands so the console redraws from the server rather than guessing.
+   */
+  @Post('registrations/:orgId/documents/:documentId/check')
+  @HttpCode(200)
+  @UseGuards(SessionGuard, OversightGuard)
+  @RequireOversight('business_field_verifier')
+  checkDocument(
+    @Param('orgId', ParseUUIDPipe) orgId: string,
+    @Param('documentId', ParseUUIDPipe) documentId: string,
+    @CurrentUser() user: SessionUser,
+    @CurrentOversight() grants: OversightGrant[],
+  ): Promise<OversightDocumentList> {
+    return this.registrations.checkDocument(orgId, documentId, grants, user.id);
   }
 
   /**

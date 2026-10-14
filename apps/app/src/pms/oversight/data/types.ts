@@ -46,9 +46,6 @@ export interface Officer {
   seal: string;
 }
 
-/** [display name, what it is]. */
-export type RegDoc = [string, string];
-
 /** One location a business declared at registration (ADR-054 AC-R4). */
 export interface RegBranch {
   name: string;
@@ -73,7 +70,16 @@ export interface RegOrg {
   district: string;
   sector: string;
   address: string;
-  docs: RegDoc[];
+  /**
+   * How many documents the registration carries, and how many no officer has
+   * read (F-S03 §5). Counts only: the documents themselves are fetched when a
+   * file is opened, by `data/documents.ts`.
+   *
+   * This replaced a `docs` array the live queue never filled, which the list
+   * then flagged as "Missing documents" on every row.
+   */
+  documentCount: number;
+  uncheckedDocumentCount: number;
   /**
    * Every location the business declared, head office first (ADR-054 AC-R4).
    * Absent on a fixture that predates branches; the live queue always sends it.

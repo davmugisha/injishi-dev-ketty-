@@ -31,9 +31,11 @@ import {
   SheetTitle,
   Textarea,
 } from "@injishi/ui";
+import { useCheckDocument, useDocuments } from "../data/documents";
 import { useConsole } from "../store";
 import { CLASS_LABEL } from "../data/oversight";
 import type { RegOrg } from "../data/types";
+import { ORG_CERTIFICATE_KIND_LABEL, type OversightDocument } from "@injishi/contracts";
 import { ActionButton, Badge, EmptyState, Initials, Skeleton, StatCard, surfaceClass } from "../components/ui";
 import { ConfirmAction } from "../../components/confirm-action";
 // The failed-read state is the operator app's, not a second copy: the console
@@ -49,13 +51,33 @@ function ageOf(o: RegOrg) {
   return o.ageH >= 24 ? `${Math.floor(o.ageH / 24)}d` : `${o.ageH}h`;
 }
 
-/** A document gap the officer should see before they open the file. */
+/**
+ * A gap the officer should see before they open the file.
+ *
+ * The document line is the server's count, not a guess. It used to read
+ * `docs.length < 2` against an array the live queue never filled, so every
+ * business on a real queue was labelled "Missing documents" — which taught
+ * officers to ignore the flag.
+ */
 function flagOf(o: RegOrg): string | null {
   if (o.type === "host" && !o.tourismLic) return "No tourism license";
   if (o.type === "host" && o.rha === false) return "Not an RHA member";
   if (o.type === "landlord" && !o.upi) return "No land plot (UPI)";
-  if (o.docs.length < 2) return "Missing documents";
+  if (o.documentCount === 0) return "No documents uploaded";
   return null;
+}
+
+/** How big the file is, in the words a person uses about a document. */
+function sizeOf(bytes: number | null): string {
+  if (bytes === null) return "";
+  const kb = bytes / 1024;
+  return kb >= 1024 ? `${(kb / 1024).toFixed(1)} MB` : `${Math.max(1, Math.round(kb))} KB`;
+}
+
+function titleOf(doc: OversightDocument): string {
+  return doc.kind === "other" && doc.kindOther
+    ? doc.kindOther
+    : ORG_CERTIFICATE_KIND_LABEL[doc.kind];
 }
 
 export function OfficerQueue() {
@@ -346,25 +368,7 @@ export function OfficerQueue() {
                   </section>
                 )}
 
-                <section>
-                  <div className="text-2xs font-bold tracking-[0.09em] uppercase text-[var(--muted2)]">
-                    Documents
-                  </div>
-                  <div className="mt-2 flex flex-col gap-2">
-                    {sel.docs.map(([name, kind]) => (
-                      <div
-                        key={name}
-                        className="flex items-center gap-2.5 rounded border border-line2 bg-field px-3 py-2.5"
-                      >
-                        <Icon name="file-text" size={17} />
-                        <span className="min-w-0 flex-1">
-                          <span className="block text-sm font-semibold text-ink">{name}</span>
-                          <span className="block text-2xs text-muted-foreground">{kind}</span>
-                        </span>
-                      </div>
-                    ))}
-                  </div>
-                </section>
+                <DocumentSection orgId={sel.id} canCheck={officer.key === "verifier"} />
 
                 <section>
                   <div className="text-2xs font-bold tracking-[0.09em] uppercase text-[var(--muted2)]">
@@ -506,5 +510,143 @@ function Trail({ label, meta }: { label: string; meta: string }) {
       <span className="flex-1 font-medium text-ink">{label}</span>
       <span className="text-muted-foreground">{meta}</span>
     </div>
+  );
+}
+
+/**
+ * The documents this registration was submitted with (F-S03 §5).
+ *
+ * The evidence half of the field verifier's job, and it was unreachable: the
+ * queue carried no documents, so this panel drew an empty list under a heading.
+ * It reads them now, one file at a time, through short lived signed links.
+ *
+ * A verifier records that they have read each one, and the gate refuses until
+ * they all are. That is why the count here comes from the SERVER's answer after
+ * every mark rather than from a number this component keeps: the console and
+ * the gate have to be counting the same thing.
+ */
+function DocumentSection({ orgId, canCheck }: { orgId: string; canCheck: boolean }) {
+  const query = useDocuments(orgId);
+  const check = useCheckDocument(orgId);
+
+  return (
+    <section>
+      <div className="flex items-baseline gap-2">
+        <div className="text-2xs font-bold tracking-[0.09em] uppercase text-[var(--muted2)]">
+          Documents
+        </div>
+        {query.data && query.data.uncheckedCount > 0 && (
+          // An approver cannot clear this count — only the verifier records a
+          // check — so it reads as a fact for them and as work for the verifier.
+          <Badge intent="warn">
+            {query.data.uncheckedCount} {canCheck ? "to check" : "unchecked"}
+          </Badge>
+        )}
+      </div>
+
+      {query.isPending && (
+        <div className="mt-2 flex flex-col gap-2">
+          <Skeleton height={62} />
+          <Skeleton height={62} delay={60} />
+        </div>
+      )}
+
+      {query.isError && (
+        <div className="mt-2 border border-line2 bg-field px-3 py-2.5 text-xs text-muted-foreground rounded">
+          We couldn&apos;t load the documents on this file. Nothing was submitted without
+          them — this is our side.{" "}
+          <Button
+            variant="ghost"
+            onClick={() => void query.refetch()}
+            className="h-auto p-0 text-xs font-semibold text-foreground underline"
+          >
+            Try again
+          </Button>
+        </div>
+      )}
+
+      {query.data && query.data.documents.length === 0 && (
+        <div className="mt-2 border border-line2 bg-field px-3 py-2.5 text-xs text-muted-foreground rounded">
+          This registration was submitted with no documents. Nothing was lost — the wizard
+          asks for them and this business attached none.
+        </div>
+      )}
+
+      <div className="mt-2 flex flex-col gap-2">
+        {(query.data?.documents ?? []).map((doc) => {
+          const busy = check.isPending && check.variables?.documentId === doc.id;
+          return (
+            <div
+              key={doc.id}
+              className="flex flex-col gap-2 rounded border border-line2 bg-field px-3 py-2.5"
+            >
+              <div className="flex items-start gap-2.5">
+                <Icon name="file-text" size={17} />
+                <span className="min-w-0 flex-1">
+                  <span className="flex flex-wrap items-center gap-1.5">
+                    <span className="text-sm font-semibold text-ink">{titleOf(doc)}</span>
+                    {doc.expired && <Badge intent="bad">Expired</Badge>}
+                    {doc.checkedAt && <Badge intent="ok">Checked</Badge>}
+                  </span>
+                  <span className="block text-2xs text-muted-foreground">
+                    {[
+                      doc.certificateNumber,
+                      doc.issuedBy,
+                      doc.expiresOn ? `expires ${doc.expiresOn}` : null,
+                      sizeOf(doc.sizeBytes),
+                    ]
+                      .filter(Boolean)
+                      .join(" · ")}
+                  </span>
+                  {doc.checkedAt && (
+                    <span className="block text-2xs text-muted-foreground">
+                      Checked by {doc.checkedByName ?? "an officer"} on{" "}
+                      {doc.checkedAt.slice(0, 10)}
+                    </span>
+                  )}
+                </span>
+              </div>
+
+              <div className="flex items-center gap-2">
+                {doc.url ? (
+                  // A new tab, never an inline preview: the link is short lived
+                  // and the officer is reading a PDF, not a thumbnail.
+                  <a
+                    href={doc.url}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="inline-flex h-8 items-center gap-1.5 rounded border border-card-bd bg-card px-2.5 text-xs font-semibold text-foreground hover:bg-hover"
+                  >
+                    Open document
+                  </a>
+                ) : (
+                  <span className="text-2xs text-muted-foreground">
+                    No file was uploaded against this entry.
+                  </span>
+                )}
+
+                {canCheck && !doc.checkedAt && (
+                  <Button
+                    variant="outline"
+                    disabled={busy}
+                    onClick={() => check.mutate({ documentId: doc.id })}
+                    className="h-8 rounded border-card-bd bg-card px-2.5 text-xs font-semibold text-foreground hover:bg-hover"
+                  >
+                    {busy ? "Recording" : "Mark checked"}
+                  </Button>
+                )}
+              </div>
+            </div>
+          );
+        })}
+      </div>
+
+      {canCheck && query.data && query.data.uncheckedCount > 0 && (
+        <p className="mt-2 text-2xs text-muted-foreground">
+          Open each document and mark it checked. Field verification stays closed until
+          every one has been read.
+        </p>
+      )}
+    </section>
   );
 }
