@@ -1,9 +1,9 @@
 import { screens } from "@injishi/data";
 import type { DirectoryGuest, GuestProfile, ViewPurpose } from "@injishi/data/fixtures/stays";
-import { getCollection } from "@injishi/db";
 import type { Metadata } from "next";
 import { GuestsView } from "@/features/stays/GuestsView";
 import { requirePersona } from "@/lib/session";
+import { getCollection } from "@/server/data";
 
 export const metadata: Metadata = { title: screens.Guests.pageTitle };
 

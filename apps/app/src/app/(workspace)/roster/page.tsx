@@ -7,10 +7,10 @@ import type {
   Rotation,
   ShiftSwap,
 } from "@injishi/data/fixtures/people";
-import { getCollection } from "@injishi/db";
 import type { Metadata } from "next";
 import { RosterView } from "@/features/people/RosterView";
 import { requirePersona } from "@/lib/session";
+import { getCollection } from "@/server/data";
 
 export const metadata: Metadata = { title: screens.Roster.pageTitle };
 

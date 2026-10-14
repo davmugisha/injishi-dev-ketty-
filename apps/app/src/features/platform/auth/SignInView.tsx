@@ -103,16 +103,32 @@ function PersonaCard({
 
 /**
  * Sign-in page cloned from the legacy Injishi demo (www-demo.injishi.com/sign-in): photo hero on the
- * left; email + one-time code on the right, with "Explore the demo" listing every artifact persona.
+ * left; email + one-time code on the right, with "Explore the demo" listing every artifact persona on the demo stack.
  */
+
+/** "15 Oct, 03:00", in Kigali. */
+function resetLabel(iso: string): string {
+  return new Intl.DateTimeFormat("en-GB", {
+    timeZone: "Africa/Kigali",
+    day: "numeric",
+    month: "short",
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: false,
+  }).format(new Date(iso));
+}
+
 export function SignInView({
   personas,
   next,
   highlight,
+  demo,
 }: {
   personas: Persona[];
   next: string;
   highlight: string | null;
+  /** The demo's fixed code and last reset; null outside the demo, where the persona list is not drawn. */
+  demo: { code: string; seededAt: string | null } | null;
 }) {
   const [state, formAction, pending] = useActionState<SignInState, FormData>(startSignIn, {});
   const [email, setEmail] = useState(state.email ?? "");
@@ -172,55 +188,59 @@ export function SignInView({
             </Button>
           </Form>
 
-          <Card className="w-full gap-3 p-4" aria-labelledby="demo-h">
-            <div className="flex items-center justify-between gap-3">
-              <h2 id="demo-h" className="text-[15px] font-semibold">
-                Explore the demo
-              </h2>
-              <TextLink href={screenHref("Main")} className="text-[13px]">
-                How this demo works
-              </TextLink>
-            </div>
-            <p className="flex gap-1.5 text-[13px] leading-[18px] text-muted">
-              <CircleInfo className="mt-0.5 size-3.5 shrink-0" aria-hidden="true" />
-              <span>
-                Choose someone and sign in as them in one step. Typing an email by hand works too: every code is{" "}
-                <strong className="font-semibold text-foreground">123456</strong>.
-              </span>
-            </p>
-            <p className="text-xs text-muted">Demo data last reset 12 Oct, 10:00</p>
+          {demo ? (
+            <Card className="w-full gap-3 p-4" aria-labelledby="demo-h">
+              <div className="flex items-center justify-between gap-3">
+                <h2 id="demo-h" className="text-[15px] font-semibold">
+                  Explore the demo
+                </h2>
+                <TextLink href={screenHref("Main")} className="text-[13px]">
+                  How this demo works
+                </TextLink>
+              </div>
+              <p className="flex gap-1.5 text-[13px] leading-[18px] text-muted">
+                <CircleInfo className="mt-0.5 size-3.5 shrink-0" aria-hidden="true" />
+                <span>
+                  Choose someone and sign in as them in one step. Typing an email by hand works too: every code is{" "}
+                  <strong className="font-semibold text-foreground">{demo.code}</strong>.
+                </span>
+              </p>
+              {demo.seededAt ? (
+                <p className="text-xs text-muted">Demo data last reset {resetLabel(demo.seededAt)}</p>
+              ) : null}
 
-            {PERSONA_GROUPS.map((g) => {
-              const people = personas.filter((p) => p.group === g.id);
-              const open = OPEN_ENTRIES.filter((o) => o.group === g.id);
-              return (
-                <section key={g.id} className="flex flex-col gap-2.5 pt-1" aria-label={g.title}>
-                  <h3 className="pt-1 text-xs font-semibold tracking-wider text-muted uppercase">
-                    {GROUP_LABEL[g.id]}
-                  </h3>
-                  {people.map((p) => (
-                    <PersonaCard
-                      key={p.id}
-                      persona={p}
-                      next={next}
-                      highlighted={highlight === p.id}
-                      onUseEmail={useEmail}
-                    />
-                  ))}
-                  {open.map((o) => (
-                    <Card key={o.id} variant="transparent" className="gap-2 p-3.5 ring-1 ring-border">
-                      <span className="font-semibold">{o.title}</span>
-                      <span className="text-[13px] font-medium">{o.tagline}</span>
-                      <p className="text-[13px] leading-[18px] text-muted">{o.lands}</p>
-                      <LinkButton href={screenHref(o.board)} variant="outline" fullWidth className="rounded-full">
-                        {o.action}
-                      </LinkButton>
-                    </Card>
-                  ))}
-                </section>
-              );
-            })}
-          </Card>
+              {PERSONA_GROUPS.map((g) => {
+                const people = personas.filter((p) => p.group === g.id);
+                const open = OPEN_ENTRIES.filter((o) => o.group === g.id);
+                return (
+                  <section key={g.id} className="flex flex-col gap-2.5 pt-1" aria-label={g.title}>
+                    <h3 className="pt-1 text-xs font-semibold tracking-wider text-muted uppercase">
+                      {GROUP_LABEL[g.id]}
+                    </h3>
+                    {people.map((p) => (
+                      <PersonaCard
+                        key={p.id}
+                        persona={p}
+                        next={next}
+                        highlighted={highlight === p.id}
+                        onUseEmail={useEmail}
+                      />
+                    ))}
+                    {open.map((o) => (
+                      <Card key={o.id} variant="transparent" className="gap-2 p-3.5 ring-1 ring-border">
+                        <span className="font-semibold">{o.title}</span>
+                        <span className="text-[13px] font-medium">{o.tagline}</span>
+                        <p className="text-[13px] leading-[18px] text-muted">{o.lands}</p>
+                        <LinkButton href={screenHref(o.board)} variant="outline" fullWidth className="rounded-full">
+                          {o.action}
+                        </LinkButton>
+                      </Card>
+                    ))}
+                  </section>
+                );
+              })}
+            </Card>
+          ) : null}
         </div>
       </main>
     </div>

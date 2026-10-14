@@ -10,10 +10,10 @@ import type {
   SchedulerRun,
   Sweep,
 } from "@injishi/data/fixtures/admin";
-import { getCollection } from "@injishi/db";
 import type { Metadata } from "next";
 import { AdminHealthView } from "@/features/admin/AdminHealthView";
 import { requirePersona } from "@/lib/session";
+import { getCollection } from "@/server/data";
 
 export const metadata: Metadata = { title: screens.AdminHealth.pageTitle };
 

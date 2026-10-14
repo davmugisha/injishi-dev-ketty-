@@ -10,10 +10,10 @@ import type {
   VsdcDevice,
   ZReport,
 } from "@injishi/data/fixtures/accounting";
-import { getCollection } from "@injishi/db";
 import type { Metadata } from "next";
 import { FiscalReceiptsView, type FiscalTab } from "@/features/accounting/FiscalReceiptsView";
 import { requirePersona } from "@/lib/session";
+import { getCollection } from "@/server/data";
 
 export const metadata: Metadata = { title: screens.FiscalReceipts.pageTitle };
 

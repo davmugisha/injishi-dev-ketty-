@@ -6,10 +6,10 @@ import type {
   ClockRecord,
   DeskEmployee,
 } from "@injishi/data/fixtures/people";
-import { getCollection } from "@injishi/db";
 import type { Metadata } from "next";
 import { AttendanceView } from "@/features/people/AttendanceView";
 import { requirePersona } from "@/lib/session";
+import { getCollection } from "@/server/data";
 
 export const metadata: Metadata = { title: screens.Attendance.pageTitle };
 

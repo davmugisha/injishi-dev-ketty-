@@ -18,7 +18,6 @@ FROM base AS deps
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
 COPY apps/app/package.json ./apps/app/
 COPY apps/web/package.json ./apps/web/
-COPY apps/admin/package.json ./apps/admin/
 COPY apps/mobile/package.json ./apps/mobile/
 COPY server/api/package.json ./server/api/
 COPY packages/auth/package.json ./packages/auth/
@@ -26,7 +25,8 @@ COPY packages/contracts/package.json ./packages/contracts/
 COPY packages/qr/package.json ./packages/qr/
 COPY packages/design-tokens/package.json ./packages/design-tokens/
 COPY packages/ui/package.json ./packages/ui/
-COPY packages/ui-contract/package.json ./packages/ui-contract/
+COPY packages/data/package.json ./packages/data/
+COPY packages/db/package.json ./packages/db/
 COPY packages/utils/package.json ./packages/utils/
 # HeroUI Pro (a paid licence) ships a stub on npm; its postinstall downloads
 # the real code with HEROUI_AUTH_TOKEN, the team's CI/CD token (never a

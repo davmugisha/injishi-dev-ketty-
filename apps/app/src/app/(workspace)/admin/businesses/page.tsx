@@ -6,10 +6,10 @@ import type {
   LifecycleCount,
   ViewAsSession,
 } from "@injishi/data/fixtures/admin";
-import { getCollection } from "@injishi/db";
 import type { Metadata } from "next";
 import { AdminBusinessesView } from "@/features/admin/AdminBusinessesView";
 import { requirePersona } from "@/lib/session";
+import { getCollection } from "@/server/data";
 
 export const metadata: Metadata = { title: screens.AdminBusinesses.pageTitle };
 

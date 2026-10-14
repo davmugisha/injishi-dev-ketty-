@@ -8,10 +8,10 @@ import type {
   PeopleProperty,
   RosterGap,
 } from "@injishi/data/fixtures/people";
-import { getCollection } from "@injishi/db";
 import type { Metadata } from "next";
 import { PeopleHomeView } from "@/features/people/PeopleHomeView";
 import { requirePersona } from "@/lib/session";
+import { getCollection } from "@/server/data";
 
 export const metadata: Metadata = { title: screens.PeopleHome.pageTitle };
 

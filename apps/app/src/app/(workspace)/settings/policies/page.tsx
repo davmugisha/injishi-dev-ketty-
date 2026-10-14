@@ -7,10 +7,10 @@ import type {
   SettingsPoliciesTier,
   SettingsPoliciesVersion,
 } from "@injishi/data/fixtures/owner";
-import { getCollection } from "@injishi/db";
 import type { Metadata } from "next";
 import { SettingsPoliciesView } from "@/features/owner/SettingsPoliciesView";
 import { requirePersona } from "@/lib/session";
+import { getCollection } from "@/server/data";
 
 export const metadata: Metadata = { title: screens.SettingsPolicies.pageTitle };
 

@@ -11,11 +11,11 @@ import type {
   StayEvent,
   StayRecord,
 } from "@injishi/data/fixtures/stays";
-import { getCollection, getDocument } from "@injishi/db";
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { StayFolioView } from "@/features/stays/StayFolioView";
 import { requirePersona } from "@/lib/session";
+import { getCollection, getDocument } from "@/server/data";
 
 export const metadata: Metadata = { title: screens.StayFolio.pageTitle };
 

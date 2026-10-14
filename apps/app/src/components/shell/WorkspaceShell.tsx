@@ -10,6 +10,7 @@ import { usePathname, useRouter } from "next/navigation";
 import { type ReactNode, useCallback, useEffect, useState } from "react";
 import { BrandMark } from "../brand";
 import { BusinessSwitcher } from "./BusinessSwitcher";
+import { SampleDataPill } from "./SampleData";
 import { TopbarStatusPill, TopbarStatusProvider } from "./TopbarStatus";
 import { UserMenu } from "./UserMenu";
 
@@ -144,6 +145,7 @@ export function WorkspaceShell({ persona, nav, children }: { persona: Persona; n
           <Kbd className="ml-auto hidden sm:inline-flex">⌘K</Kbd>
         </LinkButton>
         <Navbar.Spacer />
+        <SampleDataPill board={current} />
         <div className="hidden items-center gap-2 lg:flex" data-topbar-status="">
           {pills.map((p, i) => (
             <TopbarStatusPill key={`${i}-${p.label}`} status={p} />

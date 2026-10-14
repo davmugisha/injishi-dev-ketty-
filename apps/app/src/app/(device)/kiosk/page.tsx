@@ -1,10 +1,10 @@
 import { type PersonaId, personas, screens } from "@injishi/data";
 import type { Kiosk, StaffProfile } from "@injishi/data/fixtures/staff";
-import { getCollection, getDocument } from "@injishi/db";
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { AttendanceKioskView, type KioskScreen } from "@/features/staff/AttendanceKioskView";
 import { requireScreen } from "@/lib/session";
+import { getCollection, getDocument } from "@/server/data";
 
 export const metadata: Metadata = { title: screens.AttendanceKiosk.pageTitle };
 

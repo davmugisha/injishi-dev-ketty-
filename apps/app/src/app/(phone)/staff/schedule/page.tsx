@@ -9,11 +9,11 @@ import type {
   StaffRequest,
   SwapColleague,
 } from "@injishi/data/fixtures/staff";
-import { getCollection, getDocument } from "@injishi/db";
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { StaffScheduleView } from "@/features/staff/StaffScheduleView";
 import { requirePersona } from "@/lib/session";
+import { getCollection, getDocument } from "@/server/data";
 
 export const metadata: Metadata = { title: screens.StaffSchedule.pageTitle };
 

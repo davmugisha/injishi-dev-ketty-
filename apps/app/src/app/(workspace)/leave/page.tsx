@@ -1,9 +1,9 @@
 import { screens } from "@injishi/data";
 import type { LeaveBalance, LeaveCalendarEntry, LeaveRequest, LeaveType } from "@injishi/data/fixtures/people";
-import { getCollection } from "@injishi/db";
 import type { Metadata } from "next";
 import { LeaveView } from "@/features/people/LeaveView";
 import { requirePersona } from "@/lib/session";
+import { getCollection } from "@/server/data";
 
 export const metadata: Metadata = { title: screens.Leave.pageTitle };
 

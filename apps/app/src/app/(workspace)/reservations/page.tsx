@@ -7,11 +7,11 @@ import type {
   ReservationsSummary,
   ReservationView,
 } from "@injishi/data/fixtures/frontdesk";
-import { getCollection } from "@injishi/db";
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { ReservationsView } from "@/features/frontdesk/ReservationsView";
 import { requirePersona } from "@/lib/session";
+import { getCollection } from "@/server/data";
 
 export const metadata: Metadata = { title: screens.Reservations.pageTitle };
 

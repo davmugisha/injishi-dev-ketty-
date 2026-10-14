@@ -10,10 +10,10 @@ import type {
   PeopleProperty,
   PolicyAck,
 } from "@injishi/data/fixtures/people";
-import { getCollection } from "@injishi/db";
 import type { Metadata } from "next";
 import { EmployeesView } from "@/features/people/EmployeesView";
 import { requirePersona } from "@/lib/session";
+import { getCollection } from "@/server/data";
 
 export const metadata: Metadata = { title: screens.Employees.pageTitle };
 

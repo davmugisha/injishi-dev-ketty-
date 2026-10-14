@@ -11,10 +11,10 @@ import type {
   ReservationRecord,
   RoomType,
 } from "@injishi/data/fixtures/frontdesk";
-import { getCollection } from "@injishi/db";
 import type { Metadata } from "next";
 import { FrontDeskTodayView } from "@/features/frontdesk/FrontDeskTodayView";
 import { requirePersona } from "@/lib/session";
+import { getCollection } from "@/server/data";
 
 export const metadata: Metadata = { title: screens.FrontDeskToday.pageTitle };
 

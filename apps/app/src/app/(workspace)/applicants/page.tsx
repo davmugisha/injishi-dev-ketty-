@@ -1,9 +1,9 @@
 import { screens } from "@injishi/data";
 import type { Applicant, RegistrationInvitation, ScreeningCheck, Vacancy } from "@injishi/data/fixtures/residence";
-import { getCollection } from "@injishi/db";
 import type { Metadata } from "next";
 import { ApplicantsView } from "@/features/residence/ApplicantsView";
 import { requirePersona } from "@/lib/session";
+import { getCollection } from "@/server/data";
 
 export const metadata: Metadata = { title: screens.Applicants.pageTitle };
 

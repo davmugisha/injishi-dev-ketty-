@@ -1,9 +1,9 @@
 import { screens } from "@injishi/data";
 import type { PackagesItem, PackagesNoticeTier, PackagesWeekend } from "@injishi/data/fixtures/commercial";
-import { getCollection } from "@injishi/db";
 import type { Metadata } from "next";
 import { PackagesView } from "@/features/commercial/PackagesView";
 import { requirePersona } from "@/lib/session";
+import { getCollection } from "@/server/data";
 
 export const metadata: Metadata = { title: screens.Packages.pageTitle };
 

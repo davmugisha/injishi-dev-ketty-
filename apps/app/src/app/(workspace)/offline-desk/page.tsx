@@ -7,11 +7,11 @@ import type {
   PaymentRail,
   SyncConflict,
 } from "@injishi/data/fixtures/stays";
-import { getCollection } from "@injishi/db";
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { OfflineDeskView } from "@/features/stays/OfflineDeskView";
 import { requirePersona } from "@/lib/session";
+import { getCollection } from "@/server/data";
 
 export const metadata: Metadata = { title: screens.OfflineDesk.pageTitle };
 

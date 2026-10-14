@@ -6,10 +6,10 @@ import type {
   StockMovement,
   StockTransfer,
 } from "@injishi/data/fixtures/stock";
-import { getCollection } from "@injishi/db";
 import type { Metadata } from "next";
 import { type LedgerTab, StockLedgerView } from "@/features/stock/StockLedgerView";
 import { requirePersona } from "@/lib/session";
+import { getCollection } from "@/server/data";
 
 export const metadata: Metadata = { title: screens.StockLedger.pageTitle };
 

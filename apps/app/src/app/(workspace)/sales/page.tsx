@@ -12,10 +12,10 @@ import type {
   SalesEventsStage,
   SalesEventsTiming,
 } from "@injishi/data/fixtures/commercial";
-import { getCollection } from "@injishi/db";
 import type { Metadata } from "next";
 import { SalesEventsView } from "@/features/commercial/SalesEventsView";
 import { requirePersona } from "@/lib/session";
+import { getCollection } from "@/server/data";
 
 export const metadata: Metadata = { title: screens.SalesEvents.pageTitle };
 

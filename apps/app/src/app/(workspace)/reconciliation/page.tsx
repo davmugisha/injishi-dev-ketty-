@@ -6,10 +6,10 @@ import type {
   ReconSource,
   SettlementBatch,
 } from "@injishi/data/fixtures/finance";
-import { getCollection } from "@injishi/db";
 import type { Metadata } from "next";
 import { ReconciliationView } from "@/features/finance/ReconciliationView";
 import { requirePersona } from "@/lib/session";
+import { getCollection } from "@/server/data";
 
 export const metadata: Metadata = { title: screens.Reconciliation.pageTitle };
 

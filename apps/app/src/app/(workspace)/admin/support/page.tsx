@@ -7,10 +7,10 @@ import type {
   TicketMessage,
   TranscriptMessage,
 } from "@injishi/data/fixtures/admin";
-import { getCollection } from "@injishi/db";
 import type { Metadata } from "next";
 import { AdminSupportView } from "@/features/admin/AdminSupportView";
 import { requirePersona } from "@/lib/session";
+import { getCollection } from "@/server/data";
 
 export const metadata: Metadata = { title: screens.AdminSupport.pageTitle };
 

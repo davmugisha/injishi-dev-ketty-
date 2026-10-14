@@ -1,9 +1,9 @@
 import { screens } from "@injishi/data";
 import type { FiscalProfile, Levy, VatDeclaration, VatSummary } from "@injishi/data/fixtures/accounting";
-import { getCollection } from "@injishi/db";
 import type { Metadata } from "next";
 import { TaxSummaryView } from "@/features/accounting/TaxSummaryView";
 import { requirePersona } from "@/lib/session";
+import { getCollection } from "@/server/data";
 
 export const metadata: Metadata = { title: screens.TaxSummary.pageTitle };
 

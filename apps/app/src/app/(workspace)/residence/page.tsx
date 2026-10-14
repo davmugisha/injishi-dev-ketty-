@@ -11,10 +11,10 @@ import type {
   ServiceTicket,
   Vacancy,
 } from "@injishi/data/fixtures/residence";
-import { getCollection } from "@injishi/db";
 import type { Metadata } from "next";
 import { ResidenceHomeView } from "@/features/residence/ResidenceHomeView";
 import { requirePersona } from "@/lib/session";
+import { getCollection } from "@/server/data";
 
 export const metadata: Metadata = { title: screens.ResidenceHome.pageTitle };
 

@@ -1,9 +1,9 @@
 import { screens } from "@injishi/data";
 import type { HousekeepingDone, HousekeepingTask } from "@injishi/data/fixtures/platform";
-import { getCollection } from "@injishi/db";
 import type { Metadata } from "next";
 import { StaffTodayView } from "@/features/platform/StaffTodayView";
 import { requirePersona } from "@/lib/session";
+import { getCollection } from "@/server/data";
 
 export const metadata: Metadata = { title: screens.StaffToday.pageTitle };
 

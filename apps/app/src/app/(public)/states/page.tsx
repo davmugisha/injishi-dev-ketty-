@@ -8,10 +8,10 @@ import type {
   SubmissionStep,
   WriteOffReason,
 } from "@injishi/data/fixtures/shared";
-import { getCollection } from "@injishi/db";
 import type { Metadata } from "next";
 import { StatesGalleryView } from "@/features/shared/StatesGalleryView";
 import { requireScreen } from "@/lib/session";
+import { getCollection } from "@/server/data";
 
 export const metadata: Metadata = { title: screens.StatesGallery.pageTitle };
 

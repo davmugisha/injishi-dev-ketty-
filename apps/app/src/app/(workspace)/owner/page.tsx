@@ -7,10 +7,10 @@ import type {
   OwnerProperty,
   RevenueDay,
 } from "@injishi/data/fixtures/platform";
-import { getCollection } from "@injishi/db";
 import type { Metadata } from "next";
 import { OwnerHomeView } from "@/features/platform/OwnerHomeView";
 import { requirePersona } from "@/lib/session";
+import { getCollection } from "@/server/data";
 
 export const metadata: Metadata = { title: screens.OwnerHome.pageTitle };
 

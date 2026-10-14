@@ -1,9 +1,9 @@
 import { screens } from "@injishi/data";
 import type { AuditEvent, AuditKpi } from "@injishi/data/fixtures/platformops";
-import { getCollection } from "@injishi/db";
 import type { Metadata } from "next";
 import { AdminAuditView } from "@/features/platformops/AdminAuditView";
 import { requirePersona } from "@/lib/session";
+import { getCollection } from "@/server/data";
 
 export const metadata: Metadata = { title: screens.AdminAudit.pageTitle };
 

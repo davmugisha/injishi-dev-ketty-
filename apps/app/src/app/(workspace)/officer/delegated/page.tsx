@@ -8,10 +8,10 @@ import type {
   OccupancySector,
   ReportingRequirement,
 } from "@injishi/data/fixtures/oversight";
-import { getCollection } from "@injishi/db";
 import type { Metadata } from "next";
 import { DelegatedReportsView } from "@/features/oversight/DelegatedReportsView";
 import { requirePersona } from "@/lib/session";
+import { getCollection } from "@/server/data";
 
 export const metadata: Metadata = { title: screens.DelegatedReports.pageTitle };
 

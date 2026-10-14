@@ -1,10 +1,10 @@
 import { screens } from "@injishi/data";
 import type { GuestProfile, MarketListing, MarketSearch } from "@injishi/data/fixtures/market";
-import { getCollection } from "@injishi/db";
 import type { Metadata } from "next";
 import { marketVisitor } from "@/features/market/format";
 import { MarketExploreView } from "@/features/market/MarketExploreView";
 import { requireScreen } from "@/lib/session";
+import { getCollection } from "@/server/data";
 
 export const metadata: Metadata = { title: screens.MarketExplore.pageTitle };
 

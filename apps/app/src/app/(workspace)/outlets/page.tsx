@@ -7,10 +7,10 @@ import type {
   OutletOrder,
   OutletOrderLoad,
 } from "@injishi/data/fixtures/operations";
-import { getCollection } from "@injishi/db";
 import type { Metadata } from "next";
 import { OutletsMenusView, type OutletTab } from "@/features/operations/OutletsMenusView";
 import { requirePersona } from "@/lib/session";
+import { getCollection } from "@/server/data";
 
 export const metadata: Metadata = { title: screens.OutletsMenus.pageTitle };
 

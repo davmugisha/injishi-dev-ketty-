@@ -7,12 +7,12 @@ import type {
   Option,
   PaymentMethod,
 } from "@injishi/data/fixtures/market";
-import { getCollection, getDocument } from "@injishi/db";
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { marketVisitor } from "@/features/market/format";
 import { type CheckoutScreen, MarketCheckoutView } from "@/features/market/MarketCheckoutView";
 import { requireScreen } from "@/lib/session";
+import { getCollection, getDocument } from "@/server/data";
 
 export const metadata: Metadata = { title: screens.MarketCheckout.pageTitle };
 

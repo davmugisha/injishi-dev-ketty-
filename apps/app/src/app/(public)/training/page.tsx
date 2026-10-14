@@ -1,10 +1,10 @@
 import { screens } from "@injishi/data";
 import type { Certificate, Course, CourseSession, Enrolment, Learner } from "@injishi/data/fixtures/public";
-import { getCollection } from "@injishi/db";
 import type { Metadata } from "next";
 import { demoLinks } from "@/features/public/links";
 import { TrainingView } from "@/features/public/TrainingView";
 import { requireScreen } from "@/lib/session";
+import { getCollection } from "@/server/data";
 
 export const metadata: Metadata = { title: screens.Training.pageTitle };
 

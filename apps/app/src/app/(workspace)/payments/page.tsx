@@ -1,9 +1,9 @@
 import { screens } from "@injishi/data";
 import type { DeskMethod, PaymentIntent, RefundRequest } from "@injishi/data/fixtures/finance";
-import { getCollection } from "@injishi/db";
 import type { Metadata } from "next";
 import { PaymentsView } from "@/features/finance/PaymentsView";
 import { requirePersona } from "@/lib/session";
+import { getCollection } from "@/server/data";
 
 export const metadata: Metadata = { title: screens.Payments.pageTitle };
 

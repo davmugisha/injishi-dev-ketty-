@@ -8,10 +8,10 @@ import type {
   StockOut,
   VoidRequest,
 } from "@injishi/data/fixtures/outlets";
-import { getCollection } from "@injishi/db";
 import type { Metadata } from "next";
 import { OutletOrdersView } from "@/features/outlets/OutletOrdersView";
 import { requirePersona } from "@/lib/session";
+import { getCollection } from "@/server/data";
 
 export const metadata: Metadata = { title: screens.OutletOrders.pageTitle };
 

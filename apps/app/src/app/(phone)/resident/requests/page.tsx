@@ -7,11 +7,11 @@ import type {
   VisitorDraft,
   VisitorPass,
 } from "@injishi/data/fixtures/resident";
-import { getCollection } from "@injishi/db";
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { TenantRequestsView } from "@/features/resident/TenantRequestsView";
 import { requirePersona } from "@/lib/session";
+import { getCollection } from "@/server/data";
 
 export const metadata: Metadata = { title: screens.TenantRequests.pageTitle };
 

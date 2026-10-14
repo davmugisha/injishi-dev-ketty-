@@ -1,10 +1,10 @@
 import { screens } from "@injishi/data";
 import type { CheckInFile } from "@injishi/data/fixtures/frontdesk";
-import { getDocument } from "@injishi/db";
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { CheckInView } from "@/features/frontdesk/CheckInView";
 import { requirePersona } from "@/lib/session";
+import { getDocument } from "@/server/data";
 
 export const metadata: Metadata = { title: screens.CheckIn.pageTitle };
 

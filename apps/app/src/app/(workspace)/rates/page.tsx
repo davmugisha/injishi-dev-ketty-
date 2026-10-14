@@ -6,11 +6,11 @@ import type {
   RatesInventoryRoomType,
   RatesInventorySpace,
 } from "@injishi/data/fixtures/commercial";
-import { getCollection } from "@injishi/db";
 import type { Metadata } from "next";
 import { ratesInventoryTab } from "@/features/commercial/RatesInventoryTabs";
 import { RatesInventoryView } from "@/features/commercial/RatesInventoryView";
 import { requirePersona } from "@/lib/session";
+import { getCollection } from "@/server/data";
 
 export const metadata: Metadata = { title: screens.RatesInventory.pageTitle };
 

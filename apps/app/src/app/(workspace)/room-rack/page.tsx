@@ -1,9 +1,9 @@
 import { screens } from "@injishi/data";
 import type { RackDay, RackLane, ReservationRecord, RoomMove } from "@injishi/data/fixtures/frontdesk";
-import { getCollection } from "@injishi/db";
 import type { Metadata } from "next";
 import { RoomRackView } from "@/features/frontdesk/RoomRackView";
 import { requirePersona } from "@/lib/session";
+import { getCollection } from "@/server/data";
 
 export const metadata: Metadata = { title: screens.RoomRack.pageTitle };
 
