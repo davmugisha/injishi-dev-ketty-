@@ -54,7 +54,12 @@ export interface SetupVocabulary {
     unitPlural: string;
     /** "room", "tent", "unit". */
     unitSingular: string;
-    /** "per night" or "per month". */
+    /**
+     * "per person, per night" or "per month". Hospitality says per person
+     * because that is what the guest is charged (`computeBreakdown`: rate x
+     * billable guests x nights); a host reading "per night" priced a room and
+     * the guest page showed the same figure per person.
+     */
     pricePeriod: string;
 }
 
@@ -69,14 +74,14 @@ const CURRENT_CLASS: Readonly<Record<RetiredAccommodationClass, AccommodationCla
 };
 
 const HOSPITALITY_VOCABULARY: Readonly<Record<AccommodationClass, SetupVocabulary>> = {
-    hotel: { typePlural: "Room types", unitPlural: "rooms", unitSingular: "room", pricePeriod: "per night" },
-    motel: { typePlural: "Room types", unitPlural: "rooms", unitSingular: "room", pricePeriod: "per night" },
-    tented_camp: { typePlural: "Tent types", unitPlural: "tents", unitSingular: "tent", pricePeriod: "per night" },
-    guest_house: { typePlural: "Room types", unitPlural: "rooms", unitSingular: "room", pricePeriod: "per night" },
-    apartment: { typePlural: "Apartment types", unitPlural: "apartments", unitSingular: "apartment", pricePeriod: "per night" },
-    lodge: { typePlural: "Room and cottage types", unitPlural: "rooms and cottages", unitSingular: "room", pricePeriod: "per night" },
-    villa: { typePlural: "Villa types", unitPlural: "villas", unitSingular: "villa", pricePeriod: "per night" },
-    other: { typePlural: "Room types", unitPlural: "rooms", unitSingular: "room", pricePeriod: "per night" },
+    hotel: { typePlural: "Room types", unitPlural: "rooms", unitSingular: "room", pricePeriod: "per person, per night" },
+    motel: { typePlural: "Room types", unitPlural: "rooms", unitSingular: "room", pricePeriod: "per person, per night" },
+    tented_camp: { typePlural: "Tent types", unitPlural: "tents", unitSingular: "tent", pricePeriod: "per person, per night" },
+    guest_house: { typePlural: "Room types", unitPlural: "rooms", unitSingular: "room", pricePeriod: "per person, per night" },
+    apartment: { typePlural: "Apartment types", unitPlural: "apartments", unitSingular: "apartment", pricePeriod: "per person, per night" },
+    lodge: { typePlural: "Room and cottage types", unitPlural: "rooms and cottages", unitSingular: "room", pricePeriod: "per person, per night" },
+    villa: { typePlural: "Villa types", unitPlural: "villas", unitSingular: "villa", pricePeriod: "per person, per night" },
+    other: { typePlural: "Room types", unitPlural: "rooms", unitSingular: "room", pricePeriod: "per person, per night" },
 };
 
 const RESIDENCE_VOCABULARY: SetupVocabulary = {

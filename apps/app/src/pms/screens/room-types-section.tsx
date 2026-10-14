@@ -39,7 +39,6 @@ import { useRoomTypes, useSaveRoomType } from "../data/inventory";
 import { useSetupProgress } from "../data/setup";
 import { RoomsEditor, parseRoomLabels } from "./rooms-editor";
 import { fmt } from "../lib/format";
-import { roomTypePhoto } from "../lib/media";
 
 const MODE_LABEL: Record<BookingMode, string> = {
   instant_book: "Books instantly",
@@ -49,6 +48,21 @@ const MODE_LABEL: Record<BookingMode, string> = {
 const inputClass = "h-10 w-full rounded border border-line2 bg-field px-3 text-sm text-foreground";
 
 type Draft = { name: string; maxGuests: string; price: string; bookingMode: BookingMode; rooms: string };
+
+/**
+ * A lone number at or above this reads as a door number as easily as a count:
+ * "201" was saved as two hundred and one rooms when room 201 was meant. From
+ * here up the form asks which, instead of guessing.
+ */
+const AMBIGUOUS_COUNT = 100;
+
+/** What the rooms field will create: a count of rooms, or rooms by number. */
+export function roomsPlan(text: string): { count: number } | { labels: string[] } | null {
+  const trimmed = text.trim();
+  if (!trimmed) return null;
+  if (/^\d+$/.test(trimmed)) return { count: Number(trimmed) };
+  return { labels: parseRoomLabels(trimmed) };
+}
 
 function draftOf(room: OperatorRoomType | null): Draft {
   return {
@@ -73,6 +87,8 @@ export function RoomTypesSection({
   const [editing, setEditing] = useState<string | null>(null);
   const [draft, setDraft] = useState<Draft>(draftOf(null));
   const [formError, setFormError] = useState<string | null>(null);
+  /** A lone large number awaiting "that many rooms" or "one room, that number". */
+  const [askRooms, setAskRooms] = useState<number | null>(null);
   const [error, setError] = useState<string | null>(null);
   /** The room type whose rooms are open for editing. */
   const [managing, setManaging] = useState<string | null>(null);
@@ -94,7 +110,8 @@ export function RoomTypesSection({
     setEditing(room ? room.id : "new");
   };
 
-  const submit = () => {
+  /** `choice` answers the "how many, or which number?" question, when asked. */
+  const submit = (choice?: "count" | "number") => {
     const name = draft.name.trim();
     const maxGuests = Number(draft.maxGuests);
     const priceText = draft.price.trim().replace(/[,\s]/g, "");
@@ -106,14 +123,24 @@ export function RoomTypesSection({
     }
     // On create: a plain number is how many, anything else is the door numbers.
     const roomsText = draft.rooms.trim();
-    const count = /^\d+$/.test(roomsText) ? Number(roomsText) : null;
-    const roomLabels = roomsText && count === null ? parseRoomLabels(roomsText) : undefined;
+    const asNumber = choice === "number" && /^\d+$/.test(roomsText);
+    const count = !asNumber && /^\d+$/.test(roomsText) ? Number(roomsText) : null;
+    const roomLabels = asNumber
+      ? [roomsText]
+      : roomsText && count === null
+        ? parseRoomLabels(roomsText)
+        : undefined;
     if (editing === "new" && !roomsText) {
       return setFormError(`Say how many ${words.unitPlural} of this type you have, or list their numbers.`);
     }
     if (count !== null && (count < 1 || count > 500)) {
       return setFormError(`Between 1 and 500 ${words.unitPlural} at once.`);
     }
+    if (editing === "new" && count !== null && count >= AMBIGUOUS_COUNT && choice !== "count") {
+      setFormError(null);
+      return setAskRooms(count);
+    }
+    setAskRooms(null);
     setFormError(null);
     save.mutate(
       {
@@ -145,7 +172,11 @@ export function RoomTypesSection({
       data-room-type={room.name}
       className={cn(surfaceClass, "overflow-hidden", room.status !== "active" && "opacity-70")}
     >
-      <MediaTile photo={roomTypePhoto(room.name)} name={room.name} radius={0} />
+      {/* No photo: a room type has none of its own yet, and the stock picture
+          this used to borrow (picked by hashing the name) showed a ski lift or
+          New York taxis as the host's room. The tile's own placeholder says
+          the room's name instead, and nothing it isn't. */}
+      <MediaTile photo={null} name={room.name} radius={0} />
       <div className="flex flex-col gap-2 px-3 py-2.5">
         <span className="text-sm font-semibold text-foreground">{room.name}</span>
         <span className="flex items-baseline gap-2">
@@ -161,7 +192,7 @@ export function RoomTypesSection({
         </span>
         <span className="flex flex-wrap items-center gap-1.5">
           <Badge intent={room.sellableRoomCount > 0 ? "ok" : "warn"}>
-            {room.sellableRoomCount > 0 ? `${room.sellableRoomCount} ${words.unitPlural} to ${perMonth ? "let" : "sell"}` : `No ${words.unitPlural} yet`}
+            {room.sellableRoomCount > 0 ? `${room.sellableRoomCount} ${room.sellableRoomCount === 1 ? words.unitSingular : words.unitPlural} to ${perMonth ? "let" : "sell"}` : `No ${words.unitPlural} yet`}
           </Badge>
           {room.status !== "active" && <Badge intent="neutral">Archived</Badge>}
         </span>
@@ -262,10 +293,32 @@ export function RoomTypesSection({
                 <input
                   aria-label={`Number of ${words.unitPlural}`}
                   value={draft.rooms}
-                  onChange={(e) => setDraft({ ...draft, rooms: e.target.value })}
+                  onChange={(e) => {
+                    setAskRooms(null);
+                    setDraft({ ...draft, rooms: e.target.value });
+                  }}
                   placeholder="e.g. 12, or 101-106, 201-206"
                   className={inputClass}
                 />
+                <RoomsPreview text={draft.rooms} words={words} />
+                {askRooms !== null ? (
+                  <span
+                    role="alert"
+                    className="flex flex-col gap-2 rounded border border-line2 bg-field p-3 text-sm text-foreground"
+                  >
+                    <span>
+                      Did you mean {askRooms} {words.unitPlural}, or one {words.unitSingular} numbered {askRooms}?
+                    </span>
+                    <span className="flex flex-wrap gap-2">
+                      <ActionButton onClick={() => submit("number")}>
+                        One {words.unitSingular}, number {askRooms}
+                      </ActionButton>
+                      <ActionButton onClick={() => submit("count")}>
+                        {askRooms} {words.unitPlural}
+                      </ActionButton>
+                    </span>
+                  </span>
+                ) : null}
                 <span className="text-2xs text-muted-foreground">
                   Each becomes a real {words.unitSingular} you can book, clean and track. Add more later under Manage {words.unitPlural}.
                 </span>
@@ -321,5 +374,32 @@ export function RoomTypesSection({
         </>
       )}
     </section>
+  );
+}
+
+/** One line under the rooms field saying exactly what Save will create. */
+function RoomsPreview({
+  text,
+  words,
+}: {
+  text: string;
+  words: { unitSingular: string; unitPlural: string };
+}) {
+  const plan = roomsPlan(text);
+  if (!plan) return null;
+  if ("count" in plan) {
+    return (
+      <span className="text-xs font-semibold text-ink">
+        Creates {plan.count} {plan.count === 1 ? words.unitSingular : words.unitPlural}
+      </span>
+    );
+  }
+  const shown = plan.labels.slice(0, 6).join(", ");
+  const more = plan.labels.length > 6 ? ` and ${plan.labels.length - 6} more` : "";
+  return (
+    <span className="text-xs font-semibold text-ink">
+      Creates {plan.labels.length} {plan.labels.length === 1 ? words.unitSingular : words.unitPlural}: {shown}
+      {more}
+    </span>
   );
 }

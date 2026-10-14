@@ -1,8 +1,8 @@
-import { Check, TicketPercent } from "lucide-react";
+import { Check } from "lucide-react";
 import Link from "next/link";
 import { cn } from "@injishi/utils";
+import { NoPhoto } from "@/components/stays/no-photo";
 import { SaveStayButton } from "@/components/stays/save-stay-button";
-import { demoCommerceFor } from "@/data/demo-commerce";
 import type { Listing } from "@/data/listings";
 import { amenityMark } from "@/lib/amenity-icon";
 import { formatRateNumber, NO_RATE, NO_RATE_BASIS, shortBasis } from "@/lib/price";
@@ -23,12 +23,10 @@ import { ratingLabel } from "@/lib/rating";
  * reaches 4.5:1 where white over an unpredictable photograph never reliably
  * does, and the caption can grow without eating the picture.
  *
- * **FIVE THINGS ON THIS CARD ARE INVENTED.** The review count, the total, the
- * struck-through price, the deal badge and the Ad mark all come from
- * `data/demo-commerce.ts`, which fabricates them because no Reviews, Pricing,
- * Promotions or Ads module exists. Read that file before believing anything
- * the card prints in those five places. The name, the address, the amenities,
- * the score and the nightly rate are real.
+ * Everything it prints is the stay's own record: name, address, amenities,
+ * score and nightly rate. The review count, "total with taxes", struck-through
+ * price, deal badge and Ad mark it used to carry were invented from the slug
+ * and are gone (2026-10-08).
  *
  * The BASIS survives the redesign even though the reference this was rebuilt
  * from has no such idea. "26,000 RWF nightly" on a per-person gorilla lodge and
@@ -72,10 +70,7 @@ export function ListingCard({
   compact?: boolean;
   className?: string;
 }) {
-  const commerce = demoCommerceFor(listing);
   const rate = formatRateNumber(listing.nightlyRateRwf);
-  const total = formatRateNumber(commerce.totalRwf);
-  const wasTotal = formatRateNumber(commerce.wasTotalRwf);
 
   return (
     <Link
@@ -86,16 +81,10 @@ export function ListingCard({
       )}
     >
       <div className="relative aspect-[16/10] w-full shrink-0 overflow-hidden">
-        <picture className="block h-full w-full">
-          <source
-            type="image/avif"
-            sizes="(max-width: 640px) 100vw, (max-width: 1280px) 50vw, 25vw"
-            srcSet={`/assets/${listing.image.stem}.avif`}
-          />
-          {/* Art-directed <picture>: next/image cannot express the AVIF/JPEG source pair. */}
+        {listing.image ? (
+          // eslint-disable-next-line @next/next/no-img-element -- a photo route URL, which the image optimiser would cache past an unpublish
           <img
-            src={`/assets/${listing.image.stem}.jpg`}
-            sizes="(max-width: 640px) 100vw, (max-width: 1280px) 50vw, 25vw"
+            src={listing.image.src ?? `/assets/${listing.image.stem}.jpg`}
             width={430}
             height={269}
             alt={listing.image.alt}
@@ -103,7 +92,9 @@ export function ListingCard({
             decoding="async"
             className="h-full w-full object-cover object-center transition-transform duration-300 group-hover:scale-105"
           />
-        </picture>
+        ) : (
+          <NoPhoto />
+        )}
 
         {/* Top right, and no word. The corner every booking site puts a heart
             in, so the mark alone carries the meaning; the label it used to
@@ -112,28 +103,19 @@ export function ListingCard({
           <SaveStayButton slug={listing.slug} size="sm" />
         </div>
 
-        {/* One row, so a stay that is both sponsored and verified cannot stack
-            two plates in the same corner. White plates rather than scrims:
-            both marks sit on unpredictable photography and have to hold their
-            contrast whatever the frame behind them turns out to be. */}
-        {commerce.sponsored || showVerified ? (
+        {/* A white plate rather than a scrim: the mark sits on unpredictable
+            photography and has to hold its contrast whatever the frame is. */}
+        {showVerified ? (
           <div className="absolute bottom-3 left-3 flex items-center gap-1.5">
-            {commerce.sponsored ? (
-              <span className="rounded bg-white/95 px-1.5 py-0.5 text-2xs leading-tight text-black/70">
-                Ad
-              </span>
-            ) : null}
             {/* `accent-ink`, and only it: the plate is a fixed white that never
                 inverts, so the mark on it cannot either. Both classes were on
                 this span, which is one too many — `accent-text` won wherever
                 `accent-ink` failed to compile, and took the badge near-white in
                 dark theme. */}
-            {showVerified ? (
-              <span className="flex items-center gap-1 rounded-full bg-white/95 px-2.5 py-1 text-2xs font-bold uppercase tracking-widest text-accent-ink">
-                <Check className="size-3 shrink-0" strokeWidth={3} aria-hidden />
-                Verified
-              </span>
-            ) : null}
+            <span className="flex items-center gap-1 rounded-full bg-white/95 px-2.5 py-1 text-2xs font-bold uppercase tracking-widest text-accent-ink">
+              <Check className="size-3 shrink-0" strokeWidth={3} aria-hidden />
+              Verified
+            </span>
           </div>
         ) : null}
       </div>
@@ -182,68 +164,27 @@ export function ListingCard({
 
         {/* Attributed, or absent. The word holds the scale in the reader's head
             so the number does not have to; it is derived from the score, never
-            stored beside it. The count beside it is NOT real. */}
+            stored beside it. */}
         {showRating && listing.rating ? (
           <div className="mt-3 flex items-center gap-2">
             <span className="flex h-7 min-w-9 shrink-0 items-center justify-center rounded bg-accent px-1.5 text-sm font-bold text-accent-foreground">
               {listing.rating.score.toFixed(1)}
             </span>
             <span className="min-w-0 truncate text-sm text-black/75">
-              <b className="font-bold text-black">{ratingLabel(listing.rating)}</b>{" "}
-              ({commerce.reviewCount} reviews)
+              <b className="font-bold text-black">{ratingLabel(listing.rating)}</b>
             </span>
           </div>
         ) : null}
 
         <div className="mt-auto flex flex-col items-start gap-1 pt-4">
-          {commerce.deal ? (
-            commerce.deal.kind === "member" ? (
-              /* `bg-black`, not `bg-ink-900`. The ink RAMP is declared as plain
-                 custom properties rather than inside `@theme`, so the variable
-                 resolves but Tailwind never generates a utility for it:
-                 `bg-ink-900` compiled to nothing and this pill rendered white
-                 text on a transparent ground over a cream card. Measured in the
-                 browser, not guessed. */
-              <span className="flex items-center gap-1.5 rounded bg-black px-2 py-1 text-xs font-bold text-white">
-                <TicketPercent className="size-3.5 shrink-0" strokeWidth={2} aria-hidden />
-                Member price available
-              </span>
-            ) : (
-              <span className="rounded bg-accent px-2 py-1 text-xs font-bold text-accent-foreground">
-                {formatRateNumber(commerce.deal.amountRwf)} RWF off
-              </span>
-            )
-          ) : null}
-
           {rate ? (
-            <>
-              <p className="text-sm text-black/75">
-                {rate} RWF{" "}
-                {/* /70, not /60: ink at 60% on the card's canvas panel measures
-                    4.50:1 — the AA floor exactly, which is a pass that any
-                    future nudge to either token turns into a failure. */}
-                <span className="text-black/70">{shortBasis(listing.priceBasis)}</span>
-              </p>
-              {total ? (
-                <p className="flex flex-wrap items-baseline gap-x-2 text-base font-bold text-black">
-                  {total} RWF total
-                  {wasTotal ? (
-                    <s className="text-sm font-normal text-black/65">{wasTotal} RWF</s>
-                  ) : null}
-                </p>
-              ) : null}
-              {/* `accent-ink`, not `success` and not `accent-text`. Measured
-                  on the rendered card: `success` is a FILL lightness and
-                  reaches 1.93:1 on the card's cream panel, against a 4.5:1
-                  floor. The panel is a FIXED light ground in both themes,
-                  so the ink must be fixed too: `accent-ink` holds one value
-                  in both, while `accent-text` carries a dark twin that would
-                  go light on a panel that never does. */}
-              <p className="flex items-center gap-1.5 text-sm text-accent-ink">
-                <Check className="size-4 shrink-0" strokeWidth={2.5} aria-hidden />
-                Total with taxes and fees
-              </p>
-            </>
+            <p className="text-base font-bold text-black">
+              {rate} RWF{" "}
+              {/* /70, not /60: ink at 60% on the card's canvas panel measures
+                  4.50:1 — the AA floor exactly, which is a pass that any
+                  future nudge to either token turns into a failure. */}
+              <span className="text-sm font-normal text-black/70">{shortBasis(listing.priceBasis)}</span>
+            </p>
           ) : (
             <>
               <p className="text-base font-bold text-black">{NO_RATE}</p>

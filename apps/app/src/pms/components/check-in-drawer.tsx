@@ -83,11 +83,21 @@ export function CheckInDrawer() {
    * act on: the guest is standing there and the screen said the room was free.
    */
   const rooms = roomsQuery.data?.rooms ?? [];
+  // A booked guest gets a room of the type they bought: the list used to offer
+  // every room of every branch, and the server now refuses one at another
+  // property. A room type the host archived is off sale for everyone.
   const freeRooms = rooms.filter(
-    (rm) => rm.id === c.room || (rm.status === "available" && rm.occupiedBy === null),
+    (rm) =>
+      rm.id === c.room ||
+      (rm.status === "available" &&
+        rm.occupiedBy === null &&
+        rm.roomTypeActive !== false &&
+        (!c.roomTypeId || rm.roomTypeId === c.roomTypeId)),
   );
   const room = rooms.find((x) => x.id === c.room);
   const rateN = parseAmount(c.rate) || 0;
+  /** A booking checked in with the rate left empty bills the rate it was booked at. */
+  const bookedRate = !c.walk && Boolean(c.resId) && rateN === 0;
   // Only a name and a room are required. The card is optional, but what is
   // typed on it must be something the contract will accept.
   const missing = !c.name.trim() || !c.room;
@@ -202,7 +212,7 @@ export function CheckInDrawer() {
               {c.walk ? "Walk-in check-in" : "Check in"}
             </h2>
             <div className="pms-num" style={{ marginTop: 2, fontSize: 12.5, color: "var(--muted)" }}>
-              {c.resId && !c.walk ? `${c.resId} · reservation` : "No reservation — the stay opens now and the bill with it"}
+              {c.resId && !c.walk ? `${c.reference ?? "Reservation"} · reservation` : "No reservation — the stay opens now and the bill with it"}
             </div>
           </div>
           <Button variant="ghost"
@@ -331,7 +341,7 @@ export function CheckInDrawer() {
             value={c.rate}
             onChange={(e) => set("rate", e.target.value)}
             inputMode="numeric"
-            placeholder="The rate agreed at the counter"
+            placeholder={c.resId && !c.walk ? "Leave empty to bill the booked rate" : "The rate agreed at the counter"}
             className="pms-num"
             style={{ ...fieldStyle, marginTop: 6, minHeight: 44, fontSize: 14 }}
           />
@@ -339,9 +349,11 @@ export function CheckInDrawer() {
 
         <div style={{ background: "var(--field)", border: "1px solid var(--line2)", borderRadius: "var(--radius-surface)", padding: "13px 15px" }}>
           <div style={{ display: "flex", justifyContent: "space-between", fontSize: 13 }}>
-            <span style={{ color: "var(--muted)" }}>{`${nightsLabel(c.nights)} × ${fmt(rateN)}`}</span>
+            <span style={{ color: "var(--muted)" }}>
+              {bookedRate ? `${nightsLabel(c.nights)} at the booked rate` : `${nightsLabel(c.nights)} × ${fmt(rateN)}`}
+            </span>
             <span className="pms-num" style={{ fontWeight: 700, color: "var(--foreground)" }}>
-              {fmt(c.nights * rateN)}
+              {bookedRate ? "As booked" : fmt(c.nights * rateN)}
             </span>
           </div>
           <div style={{ marginTop: 4, fontSize: 11.5, color: "var(--muted)" }}>

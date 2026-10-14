@@ -22,6 +22,7 @@ import {
 import { FolioRepository } from '../infrastructure/folio.repository';
 import { FolioService } from './folio.service';
 import {
+  type CheckInSubject,
   type RoomRow,
   type StayRow,
   FrontDeskRepository,
@@ -161,6 +162,15 @@ export class FrontDeskService {
 
     const room = assertOwned(await this.rooms.findRoom(roomId), ws);
     assertInBranchScope(ws, room.propertyId);
+    // The guest booked THIS property. Owning both branches is not enough: a
+    // room at another branch put the stay, its bill and its sale on a property
+    // the guest never booked, and nothing downstream could tell.
+    if (room.propertyId !== booking.propertyId) {
+      throw new BadRequestException(
+        `Room ${room.label ?? ''} is at another branch. This guest booked a room at a different property.`.replace(/\s+/g, ' '),
+      );
+    }
+    assertRoomTypeOnSale(room);
     if (room.status !== 'available') {
       throw new ConflictException(
         `Room ${room.label ?? ''} is ${room.status.replace('_', ' ')} and cannot take a guest.`.trim(),
@@ -200,7 +210,10 @@ export class FrontDeskService {
       propertyId: room.propertyId,
       guestUserId: booking.guestUserId,
     });
-    if (folioId) await this.folios.bindToStay(folioId, created.id);
+    if (folioId) {
+      await this.folios.bindToStay(folioId, created.id);
+      await this.creditPrepayment(folioId, ws.workspaceId, booking);
+    }
 
     // §6.8. Last, and never able to fail the check in: the registration card,
     // the claim code and the "continue in the app" mail. A booked guest usually
@@ -240,6 +253,7 @@ export class FrontDeskService {
   async walkIn(ws: ScopedWorkspace, body: WalkInRequest): Promise<OperatorStay> {
     const room = assertOwned(await this.rooms.findRoom(body.roomId), ws);
     assertInBranchScope(ws, room.propertyId);
+    assertRoomTypeOnSale(room);
     if (room.status !== 'available') {
       throw new ConflictException(
         `Room ${room.label ?? ''} is ${room.status.replace('_', ' ')} and cannot take a guest.`.trim(),
@@ -429,6 +443,72 @@ export class FrontDeskService {
     }
   }
 
+  /**
+   * Put the guest's online prepayment on their bill (Option A, 2026-10-08).
+   *
+   * THE BUG THIS CLOSES. A booked guest pays online and the money is held in
+   * escrow, but the bill got no line for it: the night audit then posted each
+   * night's room charge and the bill read as owing the whole room. The desk
+   * was shown "Take a payment" for a stay already paid for, and the escrow was
+   * still paid out to the host, so the room could be collected twice.
+   *
+   * The line is a `deposit` against `ESCROW_RECEIVABLE`, not a cash account:
+   * the host has not received this money, the platform holds it and owes it
+   * at payout. Its RRA means of payment is mobile money, which is how every
+   * online booking is paid (MTN MoMo or Airtel Money; card is not open).
+   *
+   * The amount is the ROOM, not the guest's whole payment: the locked nightly
+   * rate times the nights, which is exactly what the night audit will post,
+   * less anything already refunded. Injishi's guest service fee is Injishi's
+   * and never belongs on the host's bill.
+   *
+   * Idempotent by key, so a retried check in cannot credit the room twice. It
+   * never fails the check in: the guest is at the desk and the stay is open, so
+   * a failure here is logged for the Bills screen rather than thrown.
+   */
+  private async creditPrepayment(
+    folioId: string,
+    workspaceId: string,
+    booking: CheckInSubject,
+  ): Promise<void> {
+    const prepaid = prepaidRoomRwf(booking);
+    if (prepaid <= 0) return;
+    const idempotencyKey = `escrow-prepaid:${booking.id}`;
+    try {
+      if (await this.folios.findChargeByIdempotencyKey(idempotencyKey)) return;
+      await this.folios.postCharges({
+        folioId,
+        workspaceId,
+        drafts: [
+          {
+            chargeType: 'deposit',
+            description: `Paid online, held in escrow (${booking.reference})`,
+            departmentId: null,
+            quantity: 1,
+            unitPriceRwf: -prepaid,
+            amountRwf: -prepaid,
+            taxCode: null,
+            taxRate: null,
+            taxAmountRwf: null,
+            sourceRefType: 'booking',
+            sourceRefId: booking.id,
+            postedByUserId: null,
+            businessDate: null,
+            idempotencyKey,
+            accountCode: ESCROW_RECEIVABLE,
+            method: 'mobile_money',
+          },
+        ],
+      });
+    } catch (error) {
+      this.log.error(
+        `Booking ${booking.reference} checked in, but its online prepayment was not put on bill ${folioId}; ` +
+          'the bill will read as owing until it is: ' +
+          (error instanceof Error ? error.message : String(error)),
+      );
+    }
+  }
+
   /** `2026-09-15` to `2026-09-16`, in UTC like every business date here. */
   private dayAfter(isoDate: string): string {
     const d = new Date(`${isoDate}T00:00:00Z`);
@@ -442,6 +522,7 @@ export class FrontDeskService {
       label: row.label,
       roomTypeId: row.roomTypeId,
       roomTypeName: row.roomTypeName,
+      roomTypeActive: row.roomTypeActive,
       status: row.status,
       housekeeping: row.housekeeping,
     };
@@ -505,4 +586,35 @@ export class FrontDeskService {
       'That record changed while we were writing it. Refresh and try again.',
     );
   }
+}
+
+/** A room whose type the host archived is off sale, whatever its own status says. */
+function assertRoomTypeOnSale(room: Pick<RoomRow, 'label' | 'roomTypeName' | 'roomTypeActive'>): void {
+  if (!room.roomTypeActive) {
+    throw new ConflictException(
+      `Room ${room.label ?? ''} belongs to ${room.roomTypeName}, which is archived. Restore the room type or pick another room.`.replace(/\s+/g, ' '),
+    );
+  }
+}
+
+/** The account an online prepayment is held in until payout (migration 0064). */
+export const ESCROW_RECEIVABLE = 'ESCROW_RECEIVABLE';
+
+/** Payment states in which the guest's money is held or already paid out. */
+const PREPAID_STATUSES = new Set(['captured', 'refunded_partial', 'paid_out']);
+
+/**
+ * The room the guest already paid for online: the locked nightly rate times
+ * the nights, less any refund. Zero when nothing is held (refunded in full,
+ * forfeited) or no rate was locked.
+ */
+export function prepaidRoomRwf(
+  booking: Pick<CheckInSubject, 'checkIn' | 'checkOut' | 'lockedNightlyRateRwf' | 'paymentStatus' | 'refundRwf'>,
+): number {
+  if (!booking.paymentStatus || !PREPAID_STATUSES.has(booking.paymentStatus) || !booking.lockedNightlyRateRwf) return 0;
+  const nights = Math.round(
+    (Date.parse(`${booking.checkOut}T00:00:00Z`) - Date.parse(`${booking.checkIn}T00:00:00Z`)) / 86_400_000,
+  );
+  if (nights <= 0) return 0;
+  return Math.max(0, booking.lockedNightlyRateRwf * nights - (booking.refundRwf ?? 0));
 }

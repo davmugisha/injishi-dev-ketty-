@@ -3,6 +3,7 @@ import { Inject, Injectable } from '@nestjs/common';
 import { and, desc, eq, inArray, sql, type SQL } from 'drizzle-orm';
 
 import {
+  accountName,
   bookings,
   guestStays,
   ratePlans,
@@ -38,6 +39,12 @@ export interface RoomRow {
   label: string | null;
   roomTypeId: string;
   roomTypeName: string;
+  /**
+   * False once the room's type is archived. Its rooms keep their own status,
+   * so without this an archived type's rooms still read as available and the
+   * desk could put a guest in a room the host took off sale.
+   */
+  roomTypeActive: boolean;
   status: 'available' | 'maintenance' | 'out_of_service';
   housekeeping: HousekeepingStatus;
 }
@@ -57,8 +64,15 @@ export interface CheckInSubject {
   propertyId: string | null;
   status: string;
   guestUserId: string | null;
+  /** The booking's own reference, written on the prepayment line. */
+  reference: string;
+  checkIn: string;
   checkOut: string;
   lockedNightlyRateRwf: number | null;
+  /** Whether the guest's online payment is still held (or already paid out). Null when none was taken. */
+  paymentStatus: string | null;
+  /** What has already gone back to the guest, which the prepayment line nets off. */
+  refundRwf: number | null;
 }
 
 export interface StayRow {
@@ -94,7 +108,7 @@ export class FrontDeskRepository {
   // --- Rooms ---------------------------------------------------------------
 
   async listRooms(workspaceId: string, scope: BranchScope): Promise<RoomRow[]> {
-    return this.db
+    const rows = await this.db
       .select({
         id: rooms.id,
         workspaceId: rooms.workspaceId,
@@ -102,6 +116,7 @@ export class FrontDeskRepository {
         label: rooms.label,
         roomTypeId: rooms.roomTypeId,
         roomTypeName: roomTypes.name,
+        roomTypeStatus: roomTypes.status,
         status: rooms.status,
         housekeeping: rooms.housekeepingStatus,
       })
@@ -109,6 +124,10 @@ export class FrontDeskRepository {
       .innerJoin(roomTypes, eq(roomTypes.id, rooms.roomTypeId))
       .where(and(eq(rooms.workspaceId, workspaceId), inBranchScope(rooms.propertyId, scope)))
       .orderBy(rooms.label);
+    return rows.map(({ roomTypeStatus, ...room }) => ({
+      ...room,
+      roomTypeActive: roomTypeStatus === 'active',
+    }));
   }
 
   /**
@@ -127,7 +146,7 @@ export class FrontDeskRepository {
       .select({
         roomId: guestStays.roomId,
         stayId: guestStays.id,
-        guestName: sql<string | null>`coalesce(${users.name}, ${guestStays.guestName})`,
+        guestName: sql<string | null>`coalesce(${accountName}, ${guestStays.guestName})`,
         entryAt: guestStays.entryAt,
       })
       .from(guestStays)
@@ -160,6 +179,7 @@ export class FrontDeskRepository {
         label: rooms.label,
         roomTypeId: rooms.roomTypeId,
         roomTypeName: roomTypes.name,
+        roomTypeStatus: roomTypes.status,
         status: rooms.status,
         housekeeping: rooms.housekeepingStatus,
       })
@@ -168,7 +188,9 @@ export class FrontDeskRepository {
       .where(eq(rooms.id, roomId))
       .limit(1);
 
-    return row ?? null;
+    if (!row) return null;
+    const { roomTypeStatus, ...room } = row;
+    return { ...room, roomTypeActive: roomTypeStatus === 'active' };
   }
 
   /**
@@ -226,8 +248,12 @@ export class FrontDeskRepository {
         propertyId: roomTypes.propertyId,
         status: bookings.status,
         guestUserId: bookings.guestUserId,
+        reference: bookings.reference,
+        checkIn: bookings.checkIn,
         checkOut: bookings.checkOut,
         lockedNightlyRateRwf: bookings.lockedNightlyRateRwf,
+        paymentStatus: bookings.paymentStatus,
+        refundRwf: bookings.refundRwf,
       })
       .from(bookings)
       .leftJoin(roomTypes, eq(roomTypes.id, bookings.roomTypeId))
@@ -435,7 +461,7 @@ export class FrontDeskRepository {
         roomId: guestStays.roomId,
         propertyId: rooms.propertyId,
         roomLabel: rooms.label,
-        guestName: sql<string | null>`coalesce(${users.name}, ${guestStays.guestName})`,
+        guestName: sql<string | null>`coalesce(${accountName}, ${guestStays.guestName})`,
         lifecycle: guestStays.lifecycle,
         entryAt: guestStays.entryAt,
         plannedExitAt: guestStays.plannedExitAt,

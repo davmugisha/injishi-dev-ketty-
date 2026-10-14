@@ -7,11 +7,11 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { Suspense, useCallback, useMemo, useState } from "react";
 import { Input, ScrollShadow } from "@heroui/react";
 import { Button, Dialog, DialogContent, DialogDescription, DialogTitle } from "@injishi/ui";
-import { formatPrice, pluralize } from "@injishi/utils";
+import { pluralize } from "@injishi/utils";
 import { SearchIcon } from "@/components/icons";
-import { NO_RATE } from "@/lib/price";
 import { exploreHref, parseIntent } from "@/lib/search-params";
-import { STAY_CATALOG, type CatalogStay } from "@/data/stays";
+import type { Destination } from "@/data/destinations";
+import { usePublishedStays } from "@/data/published-stays";
 
 /**
  * Full-screen search.
@@ -54,7 +54,9 @@ function SearchOverlayInner({
   const params = useSearchParams();
   const [query, setQuery] = useState("");
 
-  const matches = useMemo(() => matchStays(query), [query]);
+  // The published properties, read once the overlay first opens.
+  const stays = usePublishedStays(open);
+  const matches = useMemo(() => matchStays(stays, query), [stays, query]);
 
   /**
    * The /explore URL for a typed term.
@@ -170,7 +172,7 @@ function SearchResults({
   hrefFor,
 }: {
   query: string;
-  matches: CatalogStay[];
+  matches: Destination[];
   hrefFor: (term: string) => string;
 }) {
   if (!query.trim()) return null;
@@ -190,20 +192,15 @@ function SearchResults({
       </p>
       {matches.slice(0, 8).map((stay) => (
         <Link
-          key={`${stay.name}-${stay.area}-${stay.price}`}
-          href={hrefFor(stay.name)}
+          key={stay.id}
+          href={hrefFor(stay.label)}
           className="container-left-padding container-right-padding group flex items-center justify-between gap-4 border-b border-white/10 py-3 transition-colors duration-150 hover:bg-white/5"
         >
           <span className="flex flex-col">
             <span className="text-lg text-white transition-colors group-hover:text-secondary lg:text-xl">
-              {stay.name}
+              {stay.label}
             </span>
-            <span className="text-sm text-white/50">
-              {[stay.area, stay.district].filter(Boolean).join(", ")}
-            </span>
-          </span>
-          <span className="whitespace-nowrap text-sm text-white/70">
-            {stay.price === null ? NO_RATE : `from ${formatPrice(stay.price)}`}
+            <span className="text-sm text-white/50">{stay.context}</span>
           </span>
         </Link>
       ))}
@@ -211,13 +208,11 @@ function SearchResults({
   );
 }
 
-function matchStays(query: string): CatalogStay[] {
+function matchStays(stays: Destination[], query: string): Destination[] {
   const q = query.trim().toLowerCase();
   if (!q) return [];
-  return STAY_CATALOG.filter((stay) =>
-    [stay.name, stay.area, stay.district].some((field) =>
-      field.toLowerCase().includes(q),
-    ),
+  return stays.filter((stay) =>
+    [stay.label, stay.context].some((field) => field.toLowerCase().includes(q)),
   );
 }
 

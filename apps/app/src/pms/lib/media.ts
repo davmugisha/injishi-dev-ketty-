@@ -22,37 +22,17 @@ export interface Photo {
   avif?: string;
 }
 
-const P = "/shared/img/photos";
-
-/** Every photograph the operator app ships, in a stable order. */
-const ROOM_PHOTOS: Photo[] = [
-  { src: `${P}/room1.jpg` },
-  { src: `${P}/prop1.jpg`, avif: `${P}/prop1.avif` },
-  { src: `${P}/prop2.jpg`, avif: `${P}/prop2.avif` },
-  { src: `${P}/prop3.jpg`, avif: `${P}/prop3.avif` },
-  { src: `${P}/prop4.jpg`, avif: `${P}/prop4.avif` },
-  { src: `${P}/prop6.jpg`, avif: `${P}/prop6.avif` },
-  { src: `${P}/showcase.jpg` },
-  { src: `${P}/prop5.jpg` },
-];
-
 /** Menu item photography — empty until real item photos are supplied. */
 const MENU_PHOTOS: Record<string, Photo> = {};
 
 /**
- * A stable index for a key. Same key, same photo, every render and every
- * reload — a catalog whose pictures shuffle on refresh is worse than one with
- * no pictures at all.
+ * A stable index for a key. Same key, same colour, every render and every
+ * reload.
  */
 function hash(key: string): number {
   let h = 0;
   for (let i = 0; i < key.length; i += 1) h = (h * 31 + key.charCodeAt(i)) | 0;
   return Math.abs(h);
-}
-
-/** The photo for a Room type, keyed by its stable `key` (S / D / F / G …). */
-export function roomTypePhoto(key: string): Photo {
-  return ROOM_PHOTOS[hash(key) % ROOM_PHOTOS.length];
 }
 
 /** The photo for a menu item, or null when none has been supplied yet. */

@@ -388,7 +388,13 @@ export function Today() {
                 openCheckIn(
                   r.demo
                     ? seedFromDemoReservation(r.demo)
-                    : seedFromServerReservation({ id: r.id, guestName: r.guestName, nights: r.nights }),
+                    : seedFromServerReservation({
+                        id: r.id,
+                        guestName: r.guestName,
+                        nights: r.nights,
+                        reference: r.reference,
+                        roomTypeId: r.roomTypeId,
+                      }),
                 )
               }
               onCheckout={() => departGuest(r)}
@@ -565,6 +571,14 @@ function fromServer(
     if (s.lifecycle === "open" && s.bookingId) openStayFor.set(s.bookingId, s);
   }
 
+  // Name the branch on each row once there is more than one in view: a host
+  // with two properties saw requests and arrivals that named neither.
+  const branches = new Set(reservations.map((r) => r.propertyName).filter(Boolean));
+  const whereFor = (r: OperatorReservation) =>
+    branches.size > 1 && r.propertyName
+      ? ` · ${r.propertyName}${r.roomTypeName ? `, ${r.roomTypeName}` : ""}`
+      : "";
+
   const rows: DayRow[] = [];
   for (const r of reservations) {
     const group = groupOf(r, today);
@@ -577,14 +591,14 @@ function fromServer(
         : (folios.find((f) => (stay && f.guestStayId === stay.id) || f.bookingId === r.id) ?? null);
 
     const room = r.room ?? stay?.roomLabel ?? heldRoomFor.get(r.id) ?? null;
-    const guest = r.guestName ?? "Guest";
+    const guest = r.guestName ?? r.guestEmail ?? "Guest";
 
     rows.push({
       id: r.id,
       guest,
       guestName: r.guestName,
       nights: r.nights,
-      sub: r.reference,
+      sub: `${r.reference}${whereFor(r)}`,
       ...linesFor(r, group, room, today),
       group,
       room,
@@ -595,6 +609,8 @@ function fromServer(
       // The server has no walk-in flag on a reservation, and it does not need
       // one: a walk-in never had a booking, so it is never in this list.
       walkIn: false,
+      roomTypeId: r.roomTypeId,
+      reference: r.reference,
       source: "live",
     });
   }

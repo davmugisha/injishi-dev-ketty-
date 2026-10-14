@@ -12,7 +12,7 @@ import {
 } from "@/components/explore/result-interstitials";
 import { ResultCard } from "@/components/explore/result-card";
 import { ResultCardVertical } from "@/components/explore/result-card-vertical";
-import { LISTINGS, type Listing } from "@/data/listings";
+import type { Listing } from "@/data/listings";
 import { SEARCH_DISTRICTS } from "@/data/search-options";
 import type { ExploreRefinement, StayIntent } from "@/lib/search-params";
 
@@ -29,6 +29,7 @@ import type { ExploreRefinement, StayIntent } from "@/lib/search-params";
  */
 export function ExploreResults({
   results,
+  all,
   intent,
   refinement,
   onPageChange,
@@ -41,6 +42,8 @@ export function ExploreResults({
   compare,
 }: {
   results: Listing[];
+  /** Every stay listed, before any filter: the empty state offers districts that have one. */
+  all: Listing[];
   intent: StayIntent;
   refinement: ExploreRefinement;
   onPageChange: (page: number) => void;
@@ -102,6 +105,7 @@ export function ExploreResults({
   if (results.length === 0) {
     return (
       <EmptyResults
+        all={all}
         intent={intent}
         onReset={onClearAll}
         onPickDistrict={onPickDistrict}
@@ -203,10 +207,12 @@ const PAGE_SIZE = 24;
  * thing they actually asked for.
  */
 function EmptyResults({
+  all,
   intent,
   onReset,
   onPickDistrict,
 }: {
+  all: Listing[];
   intent: StayIntent;
   onReset: () => void;
   onPickDistrict: (slug: string) => void;
@@ -218,7 +224,7 @@ function EmptyResults({
   const alternatives = SEARCH_DISTRICTS.filter(
     (district) =>
       !intent.districts.includes(district.slug) &&
-      LISTINGS.some((listing) => listing.district === district.slug),
+      all.some((listing) => listing.district === district.slug),
   );
 
   return (

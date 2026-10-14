@@ -110,6 +110,8 @@ interface DeskRow {
   nights: number;
   /** The booking reference alone: what the search box matches. */
   reference: string;
+  /** The room type a live booking bought; narrows the check-in room list. */
+  roomTypeId?: string;
   /** The reference, plus the guest reputation line on a demo request. */
   sub: string;
   dates: string;
@@ -195,9 +197,13 @@ export function Reservations() {
     if (s.lifecycle === "open" && s.bookingId) openStayFor.set(s.bookingId, { id: s.id, roomLabel: s.roomLabel });
   }
 
+  // More than one branch in the list: each row names its own (see Today).
+  const liveReservations = list.data?.reservations ?? [];
+  const manyBranches =
+    new Set(liveReservations.map((r) => r.propertyName).filter(Boolean)).size > 1;
   const rows: DeskRow[] = live
-    ? (list.data?.reservations ?? []).flatMap((r) =>
-        fromServer(r, openStayFor.get(r.id) ?? null, heldRoomFor.get(r.id) ?? null),
+    ? liveReservations.flatMap((r) =>
+        fromServer(r, openStayFor.get(r.id) ?? null, heldRoomFor.get(r.id) ?? null, manyBranches),
       )
     : P.res.filter((r) => r.status !== "declined").map((r) => fromDemo(r, P));
 
@@ -495,7 +501,13 @@ function useRowCommands({
           openCheckIn(
             r.demo
               ? seedFromDemoReservation(r.demo)
-              : seedFromServerReservation({ id: r.id, guestName: r.guestName, nights: r.nights }),
+              : seedFromServerReservation({
+                  id: r.id,
+                  guestName: r.guestName,
+                  nights: r.nights,
+                  reference: r.reference,
+                  roomTypeId: r.roomTypeId,
+                }),
           )
         }
         deniedReason={checkInReason}
@@ -716,6 +728,7 @@ function fromServer(
   r: OperatorReservation,
   stay: { id: string; roomLabel: string | null } | null,
   heldRoom: string | null,
+  nameBranch = false,
 ): DeskRow[] {
   if (r.state === "declined") return [];
 
@@ -744,11 +757,15 @@ function fromServer(
     id: r.id,
     // An account can exist before a name does, and "Guest" beats a blank cell
     // that reads as a rendering bug.
-    guest: r.guestName ?? "Guest",
+    guest: r.guestName ?? r.guestEmail ?? "Guest",
     guestName: r.guestName,
     nights: r.nights,
     reference: r.reference,
-    sub: r.reference,
+    roomTypeId: r.roomTypeId,
+    sub:
+      nameBranch && r.propertyName
+        ? `${r.reference} · ${r.propertyName}${r.roomTypeName ? `, ${r.roomTypeName}` : ""}`
+        : r.reference,
     dates: dateRangeIso(r.checkIn, r.checkOut),
     sortKey: r.checkIn,
     room: own ?? held,

@@ -84,6 +84,10 @@ export interface DayRow {
   leavesTomorrow: boolean;
   /** Whether a walk-in badge belongs on an arriving row. */
   walkIn: boolean;
+  /** The room type a live booking bought; narrows the check-in room list. */
+  roomTypeId?: string;
+  /** The live booking's own reference, for the check-in drawer's header. */
+  reference?: string;
   source: "live" | "demo";
   demo?: Reservation;
 }

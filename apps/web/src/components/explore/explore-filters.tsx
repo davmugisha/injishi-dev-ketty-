@@ -8,7 +8,6 @@ import { PriceFilter } from "@/components/explore/price-filter";
 import {
   buildFacetGroups,
   priceHistogram,
-  totalHistogram,
   type FacetField,
 } from "@/data/explore-facets";
 import type { Listing } from "@/data/listings";
@@ -16,7 +15,6 @@ import { filterListings, poolExcluding } from "@/lib/filter-listings";
 import {
   toggleFacet,
   type ExploreRefinement,
-  type PriceBasis,
   type StayIntent,
 } from "@/lib/search-params";
 
@@ -56,12 +54,8 @@ export function FilterRailBody({
   // price bound itself — the same "everything but this" pool the groups below
   // use, so the chart and the range agree about what "narrower" means.
   const pricePool = filterListings(listings, intent, { ...refinement, minRwf: null, maxRwf: null });
-  const histogram =
-    refinement.priceBasis === "total"
-      ? totalHistogram(pricePool)
-      : priceHistogram(pricePool);
+  const histogram = priceHistogram(pricePool);
 
-  const setBasis = (priceBasis: PriceBasis) => onRefinementChange({ priceBasis });
   const setRange = (minRwf: number | null, maxRwf: number | null) =>
     onRefinementChange({ minRwf, maxRwf });
 
@@ -77,10 +71,8 @@ export function FilterRailBody({
       <NameSearch value={refinement.name} onChange={(name) => onRefinementChange({ name })} />
 
       <PriceFilter
-        basis={refinement.priceBasis}
         min={refinement.minRwf}
         max={refinement.maxRwf}
-        onBasisChange={setBasis}
         onRangeChange={setRange}
         histogram={histogram}
         matchCount={filterListings(listings, intent, refinement).length}
@@ -149,8 +141,6 @@ export function facetSelection(
       return refinement.rating !== null ? [String(refinement.rating)] : [];
     case "bedrooms":
       return refinement.bedrooms !== null ? [String(refinement.bedrooms)] : [];
-    case "available":
-      return refinement.available ? ["1"] : [];
     default:
       return refinement[field] as string[];
   }
@@ -187,8 +177,6 @@ export function facetTogglePatch(
       const parsed = Number(value);
       return { refinement: { [field]: refinement[field] === parsed ? null : parsed } };
     }
-    case "available":
-      return { refinement: { available: !refinement.available } };
     default:
       return {
         refinement: {
@@ -210,12 +198,8 @@ export const CLEARED_REFINEMENT: Partial<ExploreRefinement> = {
   experience: [],
   views: [],
   activities: [],
-  payment: [],
-  cancellation: [],
   meals: [],
-  access: [],
   popular: [],
   bedrooms: null,
   name: "",
-  available: false,
 };

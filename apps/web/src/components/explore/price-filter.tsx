@@ -4,14 +4,12 @@ import { useMemo, useState } from "react";
 import { Slider } from "@injishi/ui";
 import { cn } from "@injishi/utils";
 import { FilterSection } from "@/components/explore/filter-primitives";
-import { CATALOGUE_HISTOGRAM, PRICE_CEILING, type PriceHistogram } from "@/data/explore-facets";
+import type { PriceHistogram } from "@/data/explore-facets";
 import { formatRateNumber } from "@/lib/price";
-import type { PriceBasis } from "@/lib/search-params";
 
 /**
- * The rail's price block: a histogram of the catalogue's own rates, a
- * two-handle range under it, a nightly/total basis switch, and paired min/max
- * fields.
+ * The rail's price block: a histogram of the listed stays' nightly rates, a
+ * two-handle range under it, and paired min/max fields.
  *
  * The histogram is a PICTURE OF THE FILTERED SET, redrawn as other facets
  * narrow it, not a static decoration over a fixed range. The reference draws
@@ -24,27 +22,26 @@ import type { PriceBasis } from "@/lib/search-params";
  * and refilter the grid sixty times for one gesture. `onValueCommit` is
  * Radix's release event and is what `onCommit` is wired to below.
  */
+/** The slider's top when no stay publishes a rate to draw it from. */
+const FALLBACK_CEILING_RWF = 500_000;
+
 export function PriceFilter({
-  basis,
   min,
   max,
-  onBasisChange,
   onRangeChange,
   histogram,
   matchCount,
 }: {
-  basis: PriceBasis;
   min: number | null;
   max: number | null;
-  onBasisChange: (basis: PriceBasis) => void;
   onRangeChange: (min: number | null, max: number | null) => void;
-  /** The distribution to draw. Falls back to the catalogue-wide one. */
+  /** The distribution to draw, or null when no stay in view has a rate. */
   histogram: PriceHistogram | null;
   /** Stays that pass every filter, this range included, for the live line. */
   matchCount?: number;
 }) {
-  const chart = histogram ?? CATALOGUE_HISTOGRAM;
-  const ceiling = chart?.maxRwf ?? PRICE_CEILING;
+  const chart = histogram;
+  const ceiling = chart?.maxRwf ?? FALLBACK_CEILING_RWF;
 
   const [draft, setDraft] = useState<[number, number]>([min ?? 0, max ?? ceiling]);
   const value = useMemo<[number, number]>(
@@ -64,16 +61,12 @@ export function PriceFilter({
           ? `From ${fmt(min)} RWF`
           : `${fmt(min)} – ${fmt(max)} RWF`;
 
-  // Quick ranges for the nightly rate, the figure guests think in. Total
-  // prices depend on the dates, so the presets step aside for that basis.
-  const presets =
-    basis === "nightly"
-      ? [
-          { label: "Under 100K", min: null, max: 100_000 },
-          { label: "100K – 250K", min: 100_000, max: 250_000 },
-          { label: "250K+", min: 250_000, max: null },
-        ]
-      : [];
+  // Quick ranges for the nightly rate, the figure guests think in.
+  const presets = [
+    { label: "Under 100K", min: null, max: 100_000 },
+    { label: "100K – 250K", min: 100_000, max: 250_000 },
+    { label: "250K+", min: 250_000, max: null },
+  ];
 
   const commit = (next: number[]) => {
     const [lo, hi] = next as [number, number];
@@ -86,27 +79,7 @@ export function PriceFilter({
       title="Price range"
       selectedCount={min !== null || max !== null ? 1 : 0}
     >
-      <div className="mb-1 flex rounded-full bg-surface-secondary p-0.5 text-xs font-bold">
-        {(["nightly", "total"] as const).map((option) => (
-          <button
-            key={option}
-            type="button"
-            data-price-basis
-            aria-pressed={basis === option}
-            onClick={() => onBasisChange(option)}
-            className={cn(
-              "flex-1 rounded-full px-2 py-1.5 transition-colors",
-              basis === option
-                ? "bg-white text-foreground shadow-control"
-                : "text-muted-foreground hover:text-foreground",
-            )}
-          >
-            {option === "nightly" ? "Nightly price" : "Total price"}
-          </button>
-        ))}
-      </div>
-
-      <p className="mt-3 flex items-baseline justify-between gap-2 text-sm" aria-live="polite">
+      <p className="flex items-baseline justify-between gap-2 text-sm" aria-live="polite">
         <span className="font-bold text-foreground">{rangeLine}</span>
         {typeof matchCount === "number" && (min !== null || max !== null) ? (
           <span className="shrink-0 text-xs text-muted-foreground">

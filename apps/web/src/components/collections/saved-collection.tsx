@@ -5,7 +5,7 @@ import { useMemo } from "react";
 import { Button } from "@injishi/ui";
 import { pluralize } from "@injishi/utils";
 import { ListingCard } from "@/components/stays/listing-card";
-import { LISTINGS, type Listing } from "@/data/listings";
+import type { Listing } from "@/data/listings";
 import { useSavedStays } from "@/hooks/use-saved-stays";
 
 /**
@@ -15,31 +15,22 @@ import { useSavedStays } from "@/hooks/use-saved-stays";
  * nothing could ever be removed. This reads the same store the heart on every
  * listing card writes to, so the two stay in step.
  *
- * IT MATCHES AGAINST EVERY LISTING A HEART CAN BE ON. It used to look only in
- * the catalogue kept in this app, while Explore also shows the properties the
- * API publishes (`databaseListings`), so a guest could heart one of those and
- * never find it here. The page passes those in, read on the server exactly as
- * Explore reads them.
+ * IT MATCHES AGAINST EVERY LISTING A HEART CAN BE ON: the properties the API
+ * publishes, which the page reads on the server exactly as Explore reads them.
+ * A saved stay that has since been unpublished simply drops off the list.
  *
  * It also carried a heading from the capture ("Kigali: March trip") on
  * everybody's list — this list is not a trip and nobody named it — and a
  * "Compare" button with no handler. Both are gone: a control that does nothing
  * reads as broken, and a made-up title reads as somebody else's data.
  */
-export function SavedCollection({ extraListings = [] }: { extraListings?: Listing[] }) {
+export function SavedCollection({ listings: all = [] }: { listings?: Listing[] }) {
   const { saved, toggle } = useSavedStays();
 
-  const listings = useMemo(() => {
-    // A published property whose slug the catalogue also describes arrives
-    // twice; the catalogue copy wins because it is the richer card, and `seen`
-    // keeps the second out rather than rendering the same stay in two places.
-    const seen = new Set<string>();
-    return [...LISTINGS, ...extraListings].filter((listing) => {
-      if (!saved.includes(listing.slug) || seen.has(listing.slug)) return false;
-      seen.add(listing.slug);
-      return true;
-    });
-  }, [saved, extraListings]);
+  const listings = useMemo(
+    () => all.filter((listing) => saved.includes(listing.slug)),
+    [saved, all],
+  );
 
   return (
     <section className="animate-fade-up mt-6 flex flex-col gap-6">

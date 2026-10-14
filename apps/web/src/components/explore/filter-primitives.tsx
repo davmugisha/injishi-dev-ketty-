@@ -73,13 +73,9 @@ const SECTION_ICON: Record<string, LucideIcon> = {
   "property-amenities": ConciergeBell,
   "room-amenities": BedDouble,
   "traveller-experience": Compass,
-  availability: CalendarCheck,
   views: Mountain,
   activities: Binoculars,
-  payment: CreditCard,
-  cancellation: RotateCcw,
   meals: UtensilsCrossed,
-  accessibility: Accessibility,
   bedrooms: BedDouble,
 };
 

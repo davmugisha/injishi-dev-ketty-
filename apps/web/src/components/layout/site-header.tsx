@@ -14,6 +14,7 @@ import { MobileNav } from "@/components/layout/mobile-nav";
 import { SearchOverlay } from "@/components/layout/search-overlay";
 import { PRIMARY_NAV, headerVariantFor } from "@/data/navigation";
 import { useScrolled } from "@/hooks/use-scrolled";
+import { useHeaderSearch } from "@/lib/header-search";
 
 /**
  * The site header: a centred bar that contracts into a floating pill on scroll.
@@ -89,6 +90,16 @@ export function SiteHeader() {
   const [menuOpen, setMenuOpen] = useState(false);
 
   const isWhite = variant === "white";
+  /** Explore pins its own search band under the header. A floating pill there
+   *  stacks two floating pills with page showing between them, so on Explore
+   *  the bar stays one flat, solid strip at the top and the band locks flush
+   *  beneath it. */
+  const docked = pathname?.startsWith("/explore") ?? false;
+  const floating = scrolled && !docked;
+  /** The page's own search bar has scrolled away: its summary takes the
+   *  centre of the bar (`lib/header-search.ts`). */
+  const headerSearch = useHeaderSearch();
+  const compact = headerSearch.shown ? headerSearch.search : null;
   /** The one state whose ground is a photograph, so the ink cannot follow the
    *  theme. `menuOpen` cancels it: the panel behind the bar is the theme's own
    *  background, and white content on it is invisible. */
@@ -114,7 +125,9 @@ export function SiteHeader() {
         <div
           className={cn(
             "fixed inset-x-0 z-[999999] flex justify-center px-0 transition-all duration-300 ease-out md:px-4",
-            scrolled ? "top-0 md:top-4" : "top-0",
+            floating ? "top-0 md:top-4" : "top-0",
+            docked && "bg-background",
+            docked && scrolled && "border-b border-border",
           )}
         >
           <div
@@ -124,7 +137,7 @@ export function SiteHeader() {
               // theme. At 60% the ground composited to mid-brown and the links read at
               // roughly 2:1. 85% keeps the glass and holds the text above AA.
               "w-full max-w-page border-b border-transparent transition-all duration-300 ease-out md:rounded-full md:border",
-              scrolled &&
+              floating &&
                 "border-border bg-background/95 backdrop-blur-lg supports-[backdrop-filter]:bg-background/85 md:max-w-page md:shadow-lg",
               // The panel it opens is opaque, so the bar has to be too, or the
               // hero shows through the strip above the menu.
@@ -134,7 +147,7 @@ export function SiteHeader() {
             <nav
               className={cn(
                 "flex h-16 w-full items-center justify-between gap-3 transition-all duration-300 ease-out md:h-16",
-                scrolled ? "px-4 md:px-4" : "px-4 md:px-6",
+                floating ? "px-4 md:px-4" : "px-4 md:px-6",
               )}
             >
               {/* LEFT — the wordmark, and nothing else. `min-w-0` so this
@@ -167,7 +180,27 @@ export function SiteHeader() {
                     Hiding the cluster took search and the language menu down
                     with the links, which is why the bar used to carry a second
                     search button for small screens. */}
-                <div className="flex items-center gap-1.5 max-lg:hidden">
+                {compact ? (
+                  <button
+                    type="button"
+                    data-header-search
+                    onClick={compact.expand}
+                    aria-label={`Search: ${compact.place}, ${compact.dates}, ${compact.guests}. Edit search`}
+                    className="animate-fade-up group flex h-12 items-center rounded-full bg-card pl-5 pr-1.5 text-sm font-semibold text-foreground opacity-0 shadow-control ring-1 ring-border transition-shadow duration-quick [animation-duration:0.3s] [animation-fill-mode:forwards] hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring max-lg:hidden"
+                  >
+                    <span className="max-w-[18ch] truncate">{compact.place}</span>
+                    <span aria-hidden className="mx-4 h-5 w-px bg-border" />
+                    <span className="whitespace-nowrap">{compact.dates}</span>
+                    <span aria-hidden className="mx-4 h-5 w-px bg-border" />
+                    <span className="whitespace-nowrap font-medium text-muted-foreground group-hover:text-foreground">
+                      {compact.guests}
+                    </span>
+                    <span className="ml-4 flex size-9 items-center justify-center rounded-full bg-accent text-accent-foreground">
+                      <SearchIcon className="size-4" />
+                    </span>
+                  </button>
+                ) : null}
+                <div className={cn("flex items-center gap-1.5 max-lg:hidden", compact && "hidden")}>
                   {PRIMARY_NAV.map((item) => (
                     <Button
                       key={item.href}
@@ -192,7 +225,9 @@ export function SiteHeader() {
                   size="icon"
                   onClick={() => setSearchOpen(true)}
                   aria-label="Search"
-                  className={content}
+                  // The summary pill is the search while it shows; a second
+                  // magnifier beside it would be two doors to one room.
+                  className={cn(content, compact && "lg:hidden")}
                 >
                   <SearchIcon className="size-5" />
                 </Button>

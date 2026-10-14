@@ -21,24 +21,19 @@ import {
   Wine,
   type LucideIcon,
 } from "lucide-react";
-import { useEffect, useId, useState } from "react";
+import { useId, useState } from "react";
 import { Button } from "@injishi/ui";
 import type {
   FacilityOutlet,
   OutletKind,
   PropertyFacility,
 } from "@injishi/contracts";
-import { AmenityList } from "@/components/property/amenity-list";
 import { SectionHeading } from "@/components/shared/section-heading";
 import {
   ORDERING_ACCESS_LABEL,
   OUTLET_KIND_LABEL,
-  facilitiesToShow,
-  fetchPropertyFacilities,
   hoursSummary,
 } from "@/data/property-facilities";
-import type { Amenity } from "@/data/properties";
-import type { ApiResult } from "@/lib/api";
 
 /** One glyph per outlet kind, so a long list can be scanned by shape. */
 const KIND_ICON: Record<OutletKind, LucideIcon> = {
@@ -85,51 +80,17 @@ const CATEGORY_ICON: Record<string, LucideIcon> = {
 const FOLD_AT = 8;
 
 /**
- * The property page's amenities section: the API's facilities for a property on
- * Injishi, the catalogue's editorial amenities for one that is not.
- *
- * READ IN THE BROWSER so the page stays statically generated for the whole
- * catalogue, the same reason `BookingWidget` reads its rooms here rather than
- * on the server. The static HTML therefore carries the editorial list, and it
- * stays on screen while the API is asked: there is no spinner and no skeleton
- * in front of amenities that are already true. It is swapped only when the API
- * answers with a non empty list (`facilitiesToShow` owns that decision). A 404,
- * a timeout or a refusal leaves the editorial list exactly as it was, with no
- * error line — nothing the guest can act on has failed.
- *
- * The heading is the same word in both states, so the swap changes the list
- * under a guest's eye and never the section they are reading.
+ * The property page's amenities section: what the property lists on Injishi,
+ * amenities and outlets as one list (ADR-050 D-k). Absent when it lists none:
+ * an empty list means the host has not filled it in, and a heading over
+ * nothing says less than no heading.
  */
-export function PropertyFacilities({
-  slug,
-  amenities,
-}: {
-  slug: string;
-  amenities: Amenity[];
-}) {
-  const [result, setResult] = useState<ApiResult<PropertyFacility[]> | null>(null);
-
-  useEffect(() => {
-    let cancelled = false;
-    void (async () => {
-      const next = await fetchPropertyFacilities(slug);
-      if (!cancelled) setResult(next);
-    })();
-    return () => {
-      cancelled = true;
-    };
-  }, [slug]);
-
-  const facilities = facilitiesToShow(result);
-
+export function PropertyFacilities({ facilities }: { facilities: PropertyFacility[] }) {
+  if (facilities.length === 0) return null;
   return (
     <section>
       <SectionHeading lead="Amenities" className="mb-6" />
-      {facilities ? (
-        <FacilityGrid facilities={facilities} />
-      ) : (
-        <AmenityList items={amenities} />
-      )}
+      <FacilityGrid facilities={facilities} />
     </section>
   );
 }

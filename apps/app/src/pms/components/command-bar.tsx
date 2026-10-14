@@ -95,7 +95,7 @@ export function CommandBar() {
         .forEach((r) =>
           items.push({
             group: "Reservations",
-            label: r.guestName ?? "Guest",
+            label: r.guestName ?? r.guestEmail ?? "Guest",
             sub: (r.room ? `Room ${r.room} · ` : "") + dateRangeIso(r.checkIn, r.checkOut),
             icon: "book-marked",
             href: href(`/reservations/${r.id}`),

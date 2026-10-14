@@ -245,7 +245,7 @@ function buildBars(
         roomId: stay.roomId,
         from,
         to: to > from ? to : addDaysIso(from, 1),
-        guest: stay.guestName ?? res?.guestName ?? "Guest",
+        guest: stay.guestName ?? res?.guestName ?? res?.guestEmail ?? "Guest",
         kind: "inhouse",
         reservation: res,
         hold: null,
@@ -260,7 +260,7 @@ function buildBars(
         roomId: stay.roomId,
         from,
         to,
-        guest: stay.guestName ?? res?.guestName ?? "Guest",
+        guest: stay.guestName ?? res?.guestName ?? res?.guestEmail ?? "Guest",
         kind: "out",
         reservation: res,
         hold: null,
@@ -939,7 +939,7 @@ function FocusPanel({
     );
   }
 
-  const guest = reservation.guestName ?? "Guest";
+  const guest = reservation.guestName ?? reservation.guestEmail ?? "Guest";
   const where = stayRoom
     ? `In ${stayRoom}`
     : heldRooms.length > 0
