@@ -58,6 +58,13 @@ export interface LiveSource<T extends Doc = Doc> {
    * usually a human key: a room label, a person's name, a booking reference.
    */
   naturalKey?: string;
+  /**
+   * How the parity check compares this collection with its fixtures. "identity" (the default): the same
+   * documents by `naturalKey`. "shape": the same number of documents with the same keys and kinds of value,
+   * for collections keyed by real dates or times (a 14-day revenue series, a week of roster columns) that
+   * cannot name the prototype's 12 October on any other day.
+   */
+  parity?: "identity" | "shape";
 }
 
 /** Declare an area's live sources. Keys must be collection names the pages read. */

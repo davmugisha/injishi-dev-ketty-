@@ -53,10 +53,15 @@ import { fileURLToPath } from 'node:url';
  * "0" ADR-040 recorded for `apps/admin` was that, not a count. Found and fixed
  * during ADR-040 phase 2. The package is source now, not a mirror, so a missing
  * directory is a broken checkout and it fails loudly.
+ *
+ * PR #38 (the new interface) replaced the package's `src/components/` folder with flat
+ * modules at `src/` (`icon.tsx`, `layout.tsx`, `photo.tsx`, ...), so the rule reads those.
+ * Before that change it threw on load, which failed `pnpm lint` for every package that
+ * loads this plugin, the API included, whether or not it used this rule.
  */
 function sharedComponentNames() {
   const here = dirname(fileURLToPath(import.meta.url));
-  const componentsDir = join(here, '..', '..', 'packages', 'ui', 'src', 'components');
+  const componentsDir = join(here, '..', '..', 'packages', 'ui', 'src');
   let files;
   try {
     files = readdirSync(componentsDir);
