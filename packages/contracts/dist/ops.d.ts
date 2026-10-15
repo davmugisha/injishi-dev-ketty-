@@ -3655,14 +3655,14 @@ export type HousekeepingTaskType = z.infer<typeof HousekeepingTaskType>;
  * `pending -> in_progress -> done -> inspected`, and any state to `blocked`
  * (it needs maintenance first) and back to `pending`.
  */
-export declare const HousekeepingTaskStatus: z.ZodEnum<["pending", "in_progress", "done", "inspected", "blocked"]>;
+export declare const HousekeepingTaskStatus: z.ZodEnum<["pending", "in_progress", "done", "inspected", "blocked", "failed"]>;
 export type HousekeepingTaskStatus = z.infer<typeof HousekeepingTaskStatus>;
 export declare const OperatorHousekeepingTask: z.ZodObject<{
     id: z.ZodString;
     roomId: z.ZodString;
     roomLabel: z.ZodNullable<z.ZodString>;
     taskType: z.ZodEnum<["checkout_clean", "stayover_clean", "inspection", "deep_clean", "turndown"]>;
-    status: z.ZodEnum<["pending", "in_progress", "done", "inspected", "blocked"]>;
+    status: z.ZodEnum<["pending", "in_progress", "done", "inspected", "blocked", "failed"]>;
     assignedToUserId: z.ZodNullable<z.ZodString>;
     assignedToName: z.ZodNullable<z.ZodString>;
     priority: z.ZodNumber;
@@ -3671,7 +3671,7 @@ export declare const OperatorHousekeepingTask: z.ZodObject<{
     completedAt: z.ZodNullable<z.ZodString>;
     createdAt: z.ZodString;
 }, "strip", z.ZodTypeAny, {
-    status: "pending" | "inspected" | "in_progress" | "done" | "blocked";
+    status: "pending" | "failed" | "inspected" | "in_progress" | "done" | "blocked";
     id: string;
     note: string | null;
     createdAt: string;
@@ -3684,7 +3684,7 @@ export declare const OperatorHousekeepingTask: z.ZodObject<{
     startedAt: string | null;
     completedAt: string | null;
 }, {
-    status: "pending" | "inspected" | "in_progress" | "done" | "blocked";
+    status: "pending" | "failed" | "inspected" | "in_progress" | "done" | "blocked";
     id: string;
     note: string | null;
     createdAt: string;
@@ -3704,7 +3704,7 @@ export declare const OperatorHousekeepingTaskList: z.ZodObject<{
         roomId: z.ZodString;
         roomLabel: z.ZodNullable<z.ZodString>;
         taskType: z.ZodEnum<["checkout_clean", "stayover_clean", "inspection", "deep_clean", "turndown"]>;
-        status: z.ZodEnum<["pending", "in_progress", "done", "inspected", "blocked"]>;
+        status: z.ZodEnum<["pending", "in_progress", "done", "inspected", "blocked", "failed"]>;
         assignedToUserId: z.ZodNullable<z.ZodString>;
         assignedToName: z.ZodNullable<z.ZodString>;
         priority: z.ZodNumber;
@@ -3713,7 +3713,7 @@ export declare const OperatorHousekeepingTaskList: z.ZodObject<{
         completedAt: z.ZodNullable<z.ZodString>;
         createdAt: z.ZodString;
     }, "strip", z.ZodTypeAny, {
-        status: "pending" | "inspected" | "in_progress" | "done" | "blocked";
+        status: "pending" | "failed" | "inspected" | "in_progress" | "done" | "blocked";
         id: string;
         note: string | null;
         createdAt: string;
@@ -3726,7 +3726,7 @@ export declare const OperatorHousekeepingTaskList: z.ZodObject<{
         startedAt: string | null;
         completedAt: string | null;
     }, {
-        status: "pending" | "inspected" | "in_progress" | "done" | "blocked";
+        status: "pending" | "failed" | "inspected" | "in_progress" | "done" | "blocked";
         id: string;
         note: string | null;
         createdAt: string;
@@ -3741,7 +3741,7 @@ export declare const OperatorHousekeepingTaskList: z.ZodObject<{
     }>, "many">;
 }, "strip", z.ZodTypeAny, {
     tasks: {
-        status: "pending" | "inspected" | "in_progress" | "done" | "blocked";
+        status: "pending" | "failed" | "inspected" | "in_progress" | "done" | "blocked";
         id: string;
         note: string | null;
         createdAt: string;
@@ -3756,7 +3756,7 @@ export declare const OperatorHousekeepingTaskList: z.ZodObject<{
     }[];
 }, {
     tasks: {
-        status: "pending" | "inspected" | "in_progress" | "done" | "blocked";
+        status: "pending" | "failed" | "inspected" | "in_progress" | "done" | "blocked";
         id: string;
         note: string | null;
         createdAt: string;
@@ -3778,18 +3778,26 @@ export declare const CreateHousekeepingTaskRequest: z.ZodObject<{
     assignedToUserId: z.ZodOptional<z.ZodString>;
     priority: z.ZodOptional<z.ZodNumber>;
     note: z.ZodOptional<z.ZodString>;
+    /** When the room has to be ready (an instant). */
+    dueAt: z.ZodOptional<z.ZodString>;
+    /** How long the work takes, for the attendant's load against their shift. */
+    estimatedMinutes: z.ZodOptional<z.ZodNumber>;
 }, "strip", z.ZodTypeAny, {
     roomId: string;
     taskType: "checkout_clean" | "stayover_clean" | "inspection" | "deep_clean" | "turndown";
     note?: string | undefined;
     priority?: number | undefined;
     assignedToUserId?: string | undefined;
+    dueAt?: string | undefined;
+    estimatedMinutes?: number | undefined;
 }, {
     roomId: string;
     taskType: "checkout_clean" | "stayover_clean" | "inspection" | "deep_clean" | "turndown";
     note?: string | undefined;
     priority?: number | undefined;
     assignedToUserId?: string | undefined;
+    dueAt?: string | undefined;
+    estimatedMinutes?: number | undefined;
 }>;
 export type CreateHousekeepingTaskRequest = z.infer<typeof CreateHousekeepingTaskRequest>;
 /**
@@ -3800,13 +3808,13 @@ export type CreateHousekeepingTaskRequest = z.infer<typeof CreateHousekeepingTas
  * first and not the second.
  */
 export declare const AdvanceHousekeepingTaskRequest: z.ZodObject<{
-    to: z.ZodEnum<["pending", "in_progress", "done", "inspected", "blocked"]>;
+    to: z.ZodEnum<["pending", "in_progress", "done", "inspected", "blocked", "failed"]>;
     note: z.ZodOptional<z.ZodString>;
 }, "strip", z.ZodTypeAny, {
-    to: "pending" | "inspected" | "in_progress" | "done" | "blocked";
+    to: "pending" | "failed" | "inspected" | "in_progress" | "done" | "blocked";
     note?: string | undefined;
 }, {
-    to: "pending" | "inspected" | "in_progress" | "done" | "blocked";
+    to: "pending" | "failed" | "inspected" | "in_progress" | "done" | "blocked";
     note?: string | undefined;
 }>;
 export type AdvanceHousekeepingTaskRequest = z.infer<typeof AdvanceHousekeepingTaskRequest>;

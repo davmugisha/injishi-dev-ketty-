@@ -3,9 +3,12 @@
  * only its own area's rows on top of the world (`world.mjs`). A wiring leaf adds its module here.
  */
 import * as owner from './owner.mjs';
+import * as operations from './operations.mjs';
 import * as platform from './platform.mjs';
 
 export const AREAS = [
   { area: 'platform', module: platform },
   { area: 'owner', module: owner },
+  // After platform: the housekeeping board refers to Jeanne's tasks, which platform.mjs writes.
+  { area: 'operations', module: operations },
 ];

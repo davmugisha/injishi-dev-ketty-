@@ -81,6 +81,10 @@ import {
 } from './ops/time.controller';
 import { OpsFoliosController } from './ops/folios.controller';
 import { OpsHousekeepingController } from './ops/housekeeping.controller';
+// The new interface's operations floor (real-data 1.2.3).
+import { OpsHousekeepingBoardController } from './ops/housekeeping-board.controller';
+import { OpsFoundItemsController } from './ops/lost-found.controller';
+import { OpsConditionSignalsController, OpsWorkOrdersController } from './ops/work-orders.controller';
 import { OpsOutletPartiesController } from './ops/outlet-parties.controller';
 import { OpsOutletsController } from './ops/outlets.controller';
 import {
@@ -260,6 +264,10 @@ import { WaitlistModule } from './waitlist/waitlist.module';
     OpsReportsController,
     OpsCertificatesController,
     OpsHousekeepingController,
+    OpsHousekeepingBoardController,
+    OpsWorkOrdersController,
+    OpsConditionSignalsController,
+    OpsFoundItemsController,
     OpsServiceCatalogController,
     OpsServiceOrdersController,
     OpsRraController,

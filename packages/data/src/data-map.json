@@ -1647,7 +1647,8 @@
     "missing": "no loyalty table, route or permission",
     "crud": "R",
     "seed": "demo",
-    "scope": "org"
+    "scope": "org",
+    "deferred": "Needs an /architect decision before any table: loyalty points are a liability (deferred revenue) whose value Finance has not set (the screen's own gate says so), there is no loyalty table, route or permission, and members hang off guest profiles (the guest-relations migration), which no leaf of this wave builds. A points ledger is not invented here."
   },
   {
     "collection": "operations.loyaltyTiers",
@@ -1657,7 +1658,8 @@
     "missing": "—",
     "crud": "R",
     "seed": "demo",
-    "scope": "org"
+    "scope": "org",
+    "deferred": "Needs an /architect decision before any table: loyalty points are a liability (deferred revenue) whose value Finance has not set (the screen's own gate says so), there is no loyalty table, route or permission, and members hang off guest profiles (the guest-relations migration), which no leaf of this wave builds. A points ledger is not invented here."
   },
   {
     "collection": "operations.loyaltyMembers",
@@ -1667,7 +1669,8 @@
     "missing": "—",
     "crud": "C (enrol), R",
     "seed": "demo",
-    "scope": "org"
+    "scope": "org",
+    "deferred": "Needs an /architect decision before any table: loyalty points are a liability (deferred revenue) whose value Finance has not set (the screen's own gate says so), there is no loyalty table, route or permission, and members hang off guest profiles (the guest-relations migration), which no leaf of this wave builds. A points ledger is not invented here."
   },
   {
     "collection": "operations.loyaltyCandidates",
@@ -1677,7 +1680,8 @@
     "missing": "needs guest_profiles",
     "crud": "R",
     "seed": "none",
-    "scope": "property"
+    "scope": "property",
+    "deferred": "Needs an /architect decision before any table: loyalty points are a liability (deferred revenue) whose value Finance has not set (the screen's own gate says so), there is no loyalty table, route or permission, and members hang off guest profiles (the guest-relations migration), which no leaf of this wave builds. A points ledger is not invented here. Candidates are derived from members against arrivals, so they wait with them."
   },
   {
     "collection": "operations.loyaltyTransactions",
@@ -1687,7 +1691,8 @@
     "missing": "—",
     "crud": "C (adjust), R",
     "seed": "demo",
-    "scope": "org"
+    "scope": "org",
+    "deferred": "Needs an /architect decision before any table: loyalty points are a liability (deferred revenue) whose value Finance has not set (the screen's own gate says so), there is no loyalty table, route or permission, and members hang off guest profiles (the guest-relations migration), which no leaf of this wave builds. A points ledger is not invented here."
   },
   {
     "collection": "operations.loyaltyLiability",
@@ -1697,7 +1702,8 @@
     "missing": "—",
     "crud": "R",
     "seed": "none",
-    "scope": "org"
+    "scope": "org",
+    "deferred": "Needs an /architect decision before any table: loyalty points are a liability (deferred revenue) whose value Finance has not set (the screen's own gate says so), there is no loyalty table, route or permission, and members hang off guest profiles (the guest-relations migration), which no leaf of this wave builds. A points ledger is not invented here. The liability is points times a point value that is not configured."
   },
   {
     "collection": "operations.channels",
@@ -1707,7 +1713,8 @@
     "missing": "no channel manager anything",
     "crud": "C (connect), R, U (stop sell, fix mapping, test)",
     "seed": "demo",
-    "scope": "property"
+    "scope": "property",
+    "deferred": "No channel manager exists: connections, mappings, sync events and distribution settings describe an integration (Booking.com, Expedia through a channel manager) with no adapter, provider contract or ADR. Seeding the fixture's sync log would present invented integration status as real; needs an /architect call on the channel manager provider."
   },
   {
     "collection": "operations.channelSyncLog",
@@ -1717,7 +1724,8 @@
     "missing": "—",
     "crud": "R",
     "seed": "demo",
-    "scope": "property"
+    "scope": "property",
+    "deferred": "No channel manager exists: connections, mappings, sync events and distribution settings describe an integration (Booking.com, Expedia through a channel manager) with no adapter, provider contract or ADR. Seeding the fixture's sync log would present invented integration status as real; needs an /architect call on the channel manager provider."
   },
   {
     "collection": "operations.channelSources",
@@ -1727,7 +1735,8 @@
     "missing": "bookings has no channel/source column (see frontdesk)",
     "crud": "R",
     "seed": "none",
-    "scope": "property"
+    "scope": "property",
+    "deferred": "Derived from bookings grouped by channel, but bookings carry no channel or source column (the front desk leaf owns bookings) and the commission comes from channel connections, which wait on the channel manager decision."
   },
   {
     "collection": "operations.distributionSettings",
@@ -1737,14 +1746,15 @@
     "missing": "—",
     "crud": "R, U (test connection)",
     "seed": "demo",
-    "scope": "property"
+    "scope": "property",
+    "deferred": "No channel manager exists: connections, mappings, sync events and distribution settings describe an integration (Booking.com, Expedia through a channel manager) with no adapter, provider contract or ADR. Seeding the fixture's sync log would present invented integration status as real; needs an /architect call on the channel manager provider."
   },
   {
     "collection": "operations.rooms",
     "area": "operations",
     "class": "extend",
-    "target": "rooms via GET /ops/rooms, POST /ops/rooms/:id/housekeeping [housekeeping.set]",
-    "missing": "no floor, no DND/make-up flag; note DERIVED (open stay, departure, ticket); hold from room_assignments; fixture status merges occupancy + housekeeping",
+    "target": "rooms (+ floor, service_flag) with open stays, today's assigned arrivals and open room_blocks via GET /ops/housekeeping/board [housekeeping.set | task.assign]",
+    "missing": "— (live, real-data leaf 1.2.3)",
     "crud": "R, U",
     "seed": "demo",
     "scope": "property"
@@ -1753,8 +1763,8 @@
     "collection": "operations.roomHistory",
     "area": "operations",
     "class": "new",
-    "target": "room_status_events",
-    "missing": "rooms keeps only housekeeping_updated_at/by; audit_subject_type has no room",
+    "target": "room_status_events (append only, written by task moves, inspections, checkout, blocks) via GET /ops/housekeeping/board [housekeeping.set | task.assign]",
+    "missing": "— (live, real-data leaf 1.2.3)",
     "crud": "R",
     "seed": "demo",
     "scope": "property"
@@ -1773,8 +1783,8 @@
     "collection": "operations.cleaningTasks",
     "area": "operations",
     "class": "extend",
-    "target": "housekeeping_tasks via GET/POST /ops/housekeeping-tasks, POST …/:id/advance",
-    "missing": "missing due_at, estimated_minutes, rule_id (auto), task type re_clean; columns todo/doing/clean/insp map to pending/in_progress/done/inspected",
+    "target": "housekeeping_tasks (+ due_at, estimated_minutes, rule_id, reopened_from_task_id, inspected_at/by) via GET /ops/housekeeping/board [housekeeping.set | task.assign]; POST /ops/housekeeping-tasks [task.assign], POST /ops/housekeeping/tasks/:id/assign [task.assign], POST /ops/housekeeping/tasks/:id/inspection [housekeeping.set]",
+    "missing": "— (live, real-data leaf 1.2.3)",
     "crud": "C, R, U (assign, pass)",
     "seed": "demo",
     "scope": "property"
@@ -1783,8 +1793,8 @@
     "collection": "operations.housekeepingStaff",
     "area": "operations",
     "class": "derived",
-    "target": "department_members of the Rooms department (department_position) + roster_entries (shift end) + open housekeeping_tasks load",
-    "missing": "rollup route missing",
+    "target": "housekeeping_allocations (the day's allocation sheet: section, floors, shift) via GET /ops/housekeeping/board [housekeeping.set | task.assign]",
+    "missing": "— (live, real-data leaf 1.2.3)",
     "crud": "R",
     "seed": "none",
     "scope": "property"
@@ -1793,8 +1803,8 @@
     "collection": "operations.housekeepingEscalations",
     "area": "operations",
     "class": "derived",
-    "target": "overdue housekeeping_tasks vs due_at + escalation rules",
-    "missing": "needs due_at + housekeeping_rules",
+    "target": "housekeeping_escalations (open, highest level per task) via GET /ops/housekeeping/board [housekeeping.set | task.assign]; POST /ops/housekeeping/escalations/:id/remind [task.assign]",
+    "missing": "— (live, real-data leaf 1.2.3)",
     "crud": "R, U (reassign/remind)",
     "seed": "none",
     "scope": "property"
@@ -1803,8 +1813,8 @@
     "collection": "operations.housekeepingRules",
     "area": "operations",
     "class": "new",
-    "target": "housekeeping_rules",
-    "missing": "—",
+    "target": "housekeeping_rules via GET /ops/housekeeping/board [housekeeping.set | task.assign]",
+    "missing": "— (live, real-data leaf 1.2.3)",
     "crud": "R",
     "seed": "demo",
     "scope": "property"
@@ -1813,8 +1823,8 @@
     "collection": "operations.workOrders",
     "area": "operations",
     "class": "extend",
-    "target": "maintenance_tickets + maintenance_events via GET/POST /ops/tickets, POST /ops/tickets/:id/advance [ticket.advance] (room tickets supported since ADR-016 D16)",
-    "missing": "no reference (WO-318), no assigned_to_user_id, no asset, no parts, no block request/approval (→ room_blocks), no release note; severity Critical/High/Normal/Low ↔ priority urgent/high/normal/low",
+    "target": "maintenance_tickets (+ reference, assignee or contractor, asset_id, scheduled_for, raised_via, impact and release notes) + maintenance_events (+ kind) + maintenance_parts + room_blocks + assets/spaces via GET/POST /ops/work-orders, POST :id/assign, :id/notes [ticket.advance], :id/block/decision, :id/release [listing.manage]",
+    "missing": "— (live, real-data leaf 1.2.3)",
     "crud": "C, R, U (approve/decline block, release, note)",
     "seed": "demo",
     "scope": "property"
@@ -1823,8 +1833,8 @@
     "collection": "operations.conditionSignals",
     "area": "operations",
     "class": "new",
-    "target": "condition_signals (+ assets)",
-    "missing": "—",
+    "target": "condition_signals (status open) via GET /ops/condition-signals, POST :id/work-order, :id/dismiss [ticket.advance]",
+    "missing": "— (live, real-data leaf 1.2.3)",
     "crud": "R, U (act, dismiss)",
     "seed": "demo",
     "scope": "property"
@@ -1833,8 +1843,8 @@
     "collection": "operations.signalReviews",
     "area": "operations",
     "class": "new",
-    "target": "review columns on condition_signals",
-    "missing": "—",
+    "target": "condition_signals (actioned or dismissed, with the review) via GET /ops/condition-signals [ticket.advance]",
+    "missing": "— (live, real-data leaf 1.2.3)",
     "crud": "R",
     "seed": "demo",
     "scope": "property"
@@ -1843,8 +1853,8 @@
     "collection": "operations.foundItems",
     "area": "operations",
     "class": "new",
-    "target": "found_items + found_item_events (custody chain)",
-    "missing": "—",
+    "target": "found_items + found_item_events via GET/POST /ops/found-items, POST :id/claim, :id/release, :id/disposal, :id/disposal/approve, :id/retention [lostfound.manage]",
+    "missing": "— (live, real-data leaf 1.2.3)",
     "crud": "C, R, U (claim, release, dispose, keep)",
     "seed": "demo",
     "scope": "property"
@@ -1857,7 +1867,8 @@
     "missing": "permission does not exist in authz.ts",
     "crud": "R",
     "seed": "none",
-    "scope": "org"
+    "scope": "org",
+    "deferred": "The register's access list is per person (four named people with distinct duties: approvals, custodian, intake, read only). The platform authorizes per role with ADR-055 overrides, so a per-person ACL is a new authorization mechanism needing /architect. The register itself is live and gated by the new role permission lostfound.manage (owner, manager, receptionist); deriving holders from roles would list a different set of people, since the supervisor is seeded as a housekeeper (world.mjs ROLE_GAPS)."
   },
   {
     "collection": "operations.outlets",
@@ -1867,7 +1878,8 @@
     "missing": "charge-to-room DERIVED from relationship_type; accepted payment methods and supervisor are not columns",
     "crud": "R, U",
     "seed": "demo",
-    "scope": "property"
+    "scope": "property",
+    "deferred": "Ikawa Corner is an outlet run by another business (its own TIN and EBM); the platform refuses such an outlet with a 422 until outlet tenancies exist (AGENTS.md Outlets, ADR-050), which waits on an /architect decision. A live list would drop a document the screen draws. The two hotel-operated outlets (GET /ops/outlets) wire with the rest of the outlets board once tenancies are decided."
   },
   {
     "collection": "operations.departments",
@@ -1877,7 +1889,8 @@
     "missing": "—",
     "crud": "R",
     "seed": "demo",
-    "scope": "property"
+    "scope": "property",
+    "deferred": "The third group is tenant and rental income (Ikawa Corner Ltd), which needs outlet tenancies (ADR-050, waiting on /architect); the operated and undistributed groups come straight from GET /ops/departments and wire with the outlets board."
   },
   {
     "collection": "operations.outletMenus",
@@ -1887,7 +1900,8 @@
     "missing": "no menu versioning/draft/publish (v7 live, v8 draft), no pending price, stock text is free text (recipe refs), tax label vs tax_code",
     "crud": "R, U (publish)",
     "seed": "demo",
-    "scope": "property"
+    "scope": "property",
+    "deferred": "Ikawa Corner is an outlet run by another business (its own TIN and EBM); the platform refuses such an outlet with a 422 until outlet tenancies exist (AGENTS.md Outlets, ADR-050), which waits on an /architect decision. A live list would drop a document the screen draws. The hotel's own menus also need versioned drafts and publishing (v7 live, v8 draft, pending prices), which service items do not have: a menu-management design for the outlets work."
   },
   {
     "collection": "operations.outletOrders",
@@ -1897,7 +1911,8 @@
     "missing": "service_order_channel lacks pos; no table/place label; no duplicate-held state or void reason; settlement text DERIVED",
     "crud": "R",
     "seed": "demo",
-    "scope": "property"
+    "scope": "property",
+    "deferred": "Ikawa Corner is an outlet run by another business (its own TIN and EBM); the platform refuses such an outlet with a 422 until outlet tenancies exist (AGENTS.md Outlets, ADR-050), which waits on an /architect decision. A live list would drop a document the screen draws. The board also shows POS orders, a duplicate held, voids with reasons and table labels, none of which service orders carry (no pos channel, no place label, no void reason): the POS and outlet orders work."
   },
   {
     "collection": "operations.outletOrderLoad",
@@ -1907,7 +1922,8 @@
     "missing": "—",
     "crud": "R",
     "seed": "none",
-    "scope": "property"
+    "scope": "property",
+    "deferred": "Derived per outlet from outletOrders, the tenant outlet included; it waits on the same tenancy decision and order fields."
   },
   {
     "collection": "operations.outletOffers",
@@ -1917,7 +1933,8 @@
     "missing": "offers lacks outlet_id (only department_id), daily time window, loyalty-tier audience, paused/pending_agreement status, cost-sharing party; no route lists an offer's redemptions; redemption requires guest_stay_id + folio_id, so an order-level or refused redemption cannot be recorded",
     "crud": "C, R, U",
     "seed": "demo",
-    "scope": "property"
+    "scope": "property",
+    "deferred": "Offers are department scoped; the fixture's are outlet scoped with daily time windows, loyalty-tier audiences, paused and needs-agreement states and a cost-sharing party (Ikawa Corner, a tenant). None of that exists in offers, an offer's redemptions have no list route, and a tenant cost-sharing agreement needs tenancies (/architect)."
   },
   {
     "collection": "frontdesk.deskKpis",

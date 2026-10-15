@@ -8,6 +8,13 @@ import { FolioService } from './application/folio.service';
 import { FrontDeskService } from './application/front-desk.service';
 import { SelfCheckInService } from './application/self-check-in.service';
 import { HousekeepingService } from './application/housekeeping.service';
+// The new interface's operations floor (real-data 1.2.3).
+import { HousekeepingBoardService } from './application/housekeeping-board.service';
+import { LostFoundService } from './application/lost-found.service';
+import { WorkOrdersService } from './application/work-orders.service';
+import { HousekeepingBoardRepository } from './infrastructure/housekeeping-board.repository';
+import { LostFoundRepository } from './infrastructure/lost-found.repository';
+import { WorkOrdersRepository } from './infrastructure/work-orders.repository';
 import { MessagingService } from './application/messaging.service';
 import { NightAuditService } from './application/night-audit.service';
 import { ResidenceService } from './application/residence.service';
@@ -108,6 +115,12 @@ import { PaymentsModule } from '../payments/payments.module';
     StayRefundRepository,
     PreArrivalIdentityRepository,
     StayInvitationMailer,
+    HousekeepingBoardRepository,
+    WorkOrdersRepository,
+    LostFoundRepository,
+    HousekeepingBoardService,
+    WorkOrdersService,
+    LostFoundService,
     FrontDeskService,
     MessagingService,
     ResidenceService,
@@ -154,6 +167,9 @@ import { PaymentsModule } from '../payments/payments.module';
     StayRefundService,
     NightAuditService,
     OwnerDashboardService,
+    HousekeepingBoardService,
+    WorkOrdersService,
+    LostFoundService,
   ],
 })
 export class OperationsModule {}

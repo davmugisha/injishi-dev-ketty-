@@ -52,6 +52,9 @@ import { OpsRosterController, OpsShiftTemplatesController } from './roster.contr
 import { OpsEbmController } from './ebm.controller';
 import { OpsFoliosController } from './folios.controller';
 import { OpsHousekeepingController } from './housekeeping.controller';
+import { OpsHousekeepingBoardController } from './housekeeping-board.controller';
+import { OpsFoundItemsController } from './lost-found.controller';
+import { OpsConditionSignalsController, OpsWorkOrdersController } from './work-orders.controller';
 import { OpsOffersController } from './offers.controller';
 import { OpsOutletPartiesController } from './outlet-parties.controller';
 import { OpsOutletsController } from './outlets.controller';
@@ -110,6 +113,10 @@ const CONTROLLERS: Ctor[] = [
   OpsEbmController,
   OpsFoliosController,
   OpsHousekeepingController,
+  OpsHousekeepingBoardController,
+  OpsWorkOrdersController,
+  OpsConditionSignalsController,
+  OpsFoundItemsController,
   OpsOffersController,
   OpsRefundRequestsController,
   OpsOutletPartiesController,
@@ -268,6 +275,15 @@ const EXPECTED: Record<string, readonly OrgRole[]> = {
   '/ops/folios': ['owner', 'manager', 'receptionist', 'finance'],
   '/ops/folios/:id': ['owner', 'manager', 'receptionist', 'finance'],
   '/ops/housekeeping-tasks': ['owner', 'manager', 'housekeeper'],
+  // The housekeeping board (real-data 1.2.3): the same consumers as the queue it widens.
+  '/ops/housekeeping/board': ['owner', 'manager', 'housekeeper'],
+  // The hotel's work orders and condition signals: the Maintenance leaf's consumers (`ticket.advance`).
+  '/ops/work-orders': ['owner', 'manager', 'housekeeper'],
+  '/ops/work-orders/:id': ['owner', 'manager', 'housekeeper'],
+  '/ops/condition-signals': ['owner', 'manager', 'housekeeper'],
+  // The lost and found register (`lostfound.manage`): the desk takes claims and hands items back.
+  '/ops/found-items': ['owner', 'manager', 'receptionist'],
+  '/ops/found-items/:id': ['owner', 'manager', 'receptionist'],
   '/ops/outlet-parties': ['owner', 'manager'],
   '/ops/outlets': ['owner', 'manager', 'receptionist'],
   '/ops/reservations': ['owner', 'manager', 'receptionist', 'finance'],

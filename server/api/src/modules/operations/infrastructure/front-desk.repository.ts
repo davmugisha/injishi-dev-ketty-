@@ -20,6 +20,7 @@ import {
   type BranchScope,
 } from '../../../shared/auth/branch-scope';
 import { enqueueCheckoutClean } from './housekeeping.repository';
+import { READINESS_LABEL, recordRoomEvent } from './room-events';
 
 const OPEN_STAY_PER_ROOM = 'guest_stays_one_open_per_room_uk';
 
@@ -205,14 +206,38 @@ export class FrontDeskRepository {
     housekeeping: HousekeepingStatus,
     byUserId: string,
   ): Promise<void> {
-    await this.db
-      .update(rooms)
-      .set({
-        housekeepingStatus: housekeeping,
-        housekeepingUpdatedAt: new Date(),
-        housekeepingUpdatedByUserId: byUserId,
-      })
-      .where(eq(rooms.id, roomId));
+    await this.db.transaction(async (tx) => {
+      const [before] = await tx
+        .select({
+          status: rooms.housekeepingStatus,
+          workspaceId: rooms.workspaceId,
+          propertyId: rooms.propertyId,
+        })
+        .from(rooms)
+        .where(eq(rooms.id, roomId))
+        .for('update');
+      await tx
+        .update(rooms)
+        .set({
+          housekeepingStatus: housekeeping,
+          housekeepingUpdatedAt: new Date(),
+          housekeepingUpdatedByUserId: byUserId,
+        })
+        .where(eq(rooms.id, roomId));
+      // The room's history (real-data 1.2.3): every readiness change says who and when.
+      if (before && before.status !== housekeeping) {
+        await recordRoomEvent(tx, {
+          workspaceId: before.workspaceId,
+          propertyId: before.propertyId,
+          roomId,
+          kind: 'housekeeping',
+          fromValue: before.status,
+          toValue: housekeeping,
+          summary: `${READINESS_LABEL[before.status] ?? before.status} → ${READINESS_LABEL[housekeeping] ?? housekeeping}`,
+          actorUserId: byUserId,
+        });
+      }
+    });
   }
 
   /**

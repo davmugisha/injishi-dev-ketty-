@@ -14,6 +14,7 @@ import { check, contextFor, fail, main } from "./lib/harness";
 const loaders: Record<string, () => Promise<{ flows: Flow[] }>> = {
   platform: () => import("./flows/platform"),
   owner: () => import("./flows/owner"),
+  operations: () => import("./flows/operations"),
 };
 
 function arg(name: string): string | null {

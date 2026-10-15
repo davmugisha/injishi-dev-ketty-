@@ -193,6 +193,19 @@ exports.Permission = zod_1.z.enum([
      * is the owner's to disclose, and to sign. No other default role holds it.
      */
     "payroll.run",
+    /**
+     * Keep the lost and found register (leaf real-data 1.2.3): log what was found, open a claim,
+     * release an item to its owner, propose and approve disposal, extend retention.
+     *
+     * Its own permission because none of the others is the same act: the register holds guests'
+     * valuables, their names and the identity check made before handing one back, and `stay.checkin`
+     * or `housekeeping.set` would give that to everyone who checks a guest in or cleans a room.
+     * Owner, manager and receptionist by default: the desk takes the claim calls and does the
+     * hand-back. A business that makes its housekeeping supervisor the custodian grants it to that
+     * role (ADR-055). Disposal additionally needs a SECOND person: the approver can never be the
+     * proposer, which the service refuses whatever permissions either holds.
+     */
+    "lostfound.manage",
 ]);
 const ALL = exports.Permission.options;
 /**
@@ -272,6 +285,7 @@ const ROLE_PERMISSIONS = {
         "order.advance",
         "message.send",
         "attendance.record",
+        "lostfound.manage",
     ]),
     finance: new Set([
         "money.view",
@@ -338,6 +352,7 @@ exports.PERMISSION_LABEL = {
     "leave.approve": "decide leave",
     "payroll.draft": "draft the pay run",
     "payroll.run": "confirm the pay run",
+    "lostfound.manage": "keep the lost and found register",
 };
 // ---------------------------------------------------------------------------
 // A business's own role customisation
@@ -523,6 +538,7 @@ exports.PERMISSION_AREA_OF = {
     "leave.approve": "people",
     "payroll.draft": "people",
     "payroll.run": "people",
+    "lostfound.manage": "front_desk",
 };
 // ---------------------------------------------------------------------------
 // What each role may do, at THIS business

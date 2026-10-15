@@ -22,25 +22,39 @@ import {
   Table,
   TextArea,
   TextField,
+  Toast,
 } from "@heroui/react";
 import { DropZone, Segment } from "@heroui-pro/react";
 import type { Persona } from "@injishi/data";
-import type { FoundItem, FoundItemStatus, HistoryEvent, RegisterAccess, Tone } from "@injishi/data/fixtures/operations";
+import type { FoundItem, FoundItemStatus, RegisterAccess, Tone } from "@injishi/data/fixtures/operations";
 import { GateChip, PageContent, PageHeader, SectionHeader, toneColor } from "@injishi/ui";
-import { useState } from "react";
+import { useEffect, useState, useTransition } from "react";
 import {
-  advance,
+  approveFoundItemDisposalAction,
+  keepFoundItemAction,
+  logFoundItemAction,
+  openFoundItemClaimAction,
+  releaseFoundItemAction,
+} from "./actions";
+import {
   downloadCsv,
   FieldLabel,
   FooterHint,
   FormDialog,
   firstKey,
   HistoryTimeline,
-  NOW,
+  kigaliClock,
+  kigaliDayMonth,
+  reported,
   SelectField,
+  useKigaliNow,
 } from "./shared";
 
-const TODAY = "12 Oct";
+/** "2026" in Kigali. */
+const kigaliYear = (at: Date) =>
+  new Intl.DateTimeFormat("en-GB", { timeZone: "Africa/Kigali", year: "numeric" }).format(at);
+/** "15 Oct 2026, 07:12": how the intake form writes when an item was found. */
+const foundAtText = (at: Date) => `${kigaliDayMonth(at)} ${kigaliYear(at)}, ${kigaliClock(at)}`;
 
 const STATUS: Record<FoundItemStatus, { label: string; tone: Tone }> = {
   claim: { label: "Claim · verifying", tone: "warning" },
@@ -74,18 +88,12 @@ interface PhotoFile {
   size: number;
 }
 
-const ev = (what: string, who: string, tone: HistoryEvent["tone"] = "default"): HistoryEvent => ({ what, who, tone });
 const fileSize = (bytes: number) =>
   bytes < 1024 * 1024 ? `${Math.max(1, Math.round(bytes / 1024))} KB` : `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
 
-interface OpenedClaim {
-  claimant: string;
-  booking: string;
-  statement: string;
-}
-
 export function LostFoundView({
-  persona,
+  // The register acts as the signed-in person through the API, which records who did each step.
+  persona: _persona,
   items: baseItems,
   access,
 }: {
@@ -100,89 +108,33 @@ export function LostFoundView({
   const [descOk, setDescOk] = useState(false);
   const [idOk, setIdOk] = useState(false);
   const [method, setMethod] = useState<Method>("person");
-  // Item id → how it went back to the claimant.
-  const [released, setReleased] = useState<Record<string, Method>>({});
-  // Claims opened on this screen for items in storage.
-  const [claims, setClaims] = useState<Record<string, OpenedClaim>>({});
   const [claimOpen, setClaimOpen] = useState(false);
   const [claimName, setClaimName] = useState("");
   const [claimBooking, setClaimBooking] = useState("");
   const [claimStatement, setClaimStatement] = useState("");
-  const [disposed, setDisposed] = useState<string[]>([]);
-  const [kept, setKept] = useState<string[]>([]);
-  const [added, setAdded] = useState<FoundItem[]>([]);
+  const [pending, startTransition] = useTransition();
   // Intake form
   const [desc, setDesc] = useState("");
   const [category, setCategory] = useState(CATEGORIES[0]);
   const [foundBy, setFoundBy] = useState("Emmanuel Nsengimana");
   const [area, setArea] = useState(AREAS[0]);
-  const [foundAt, setFoundAt] = useState("12 Oct 2026, 12:20");
+  // "Found at" starts at the real time in Kigali once the page is mounted.
+  const [foundAt, setFoundAt] = useState("");
   const [spot, setSpot] = useState("Under the bed, window side");
   const [valuable, setValuable] = useState(true);
   const [photos, setPhotos] = useState<PhotoFile[]>([]);
+  const now = useKigaliNow();
+  useEffect(() => {
+    if (now && !foundAt) setFoundAt(foundAtText(now));
+  }, [now, foundAt]);
 
-  // Items with this screen's decisions applied (extension, new claims, release, disposal).
-  const items = [...added, ...baseItems].map((x0): FoundItem => {
-    let x = x0;
-    if (kept.includes(x.id))
-      x = {
-        ...x,
-        status: "stored",
-        custody: advance(
-          x.custody,
-          ev("Kept 30 more days", `${persona.name} · ${NOW} · reason: guest may return in November`, "current"),
-        ),
-        retention: `Retention extended to 11 Nov 2026 by ${persona.name}.`,
-      };
-    const opened = claims[x.id];
-    if (opened && x.status === "stored")
-      x = {
-        ...x,
-        status: "claim",
-        claim: {
-          claimant: opened.claimant,
-          booking: opened.booking || "no booking",
-          matched: false,
-          match: opened.booking
-            ? `${opened.claimant} · ${opened.booking}. Check the room and dates of the stay against where the item was found.`
-            : `${opened.claimant} · no booking reference given. Check identity with care before any release.`,
-          statement: `Claimant: “${opened.statement}”`,
-        },
-        custody: advance(x.custody, ev(`Claim opened: ${opened.claimant}`, `${persona.name} · ${NOW}`, "current")),
-      };
-    const releasedHow = released[x.id];
-    if (releasedHow && x.claim)
-      return {
-        ...x,
-        status: "returned",
-        custodian: "None",
-        storage: `Returned ${TODAY}`,
-        custody: advance(
-          x.custody,
-          ev("Description matched and ID checked", `${persona.name} · ${NOW}`),
-          ev(
-            `Returned to ${x.claim.claimant} ${METHODS.find((m) => m.id === releasedHow)?.phrase ?? "in person"}`,
-            `${persona.name} · ${NOW} · signature captured`,
-            "success",
-          ),
-        ),
-        closedNote: `Returned to ${x.claim.claimant} (${x.claim.booking}) on ${TODAY} at ${NOW}. Description and ID verified by ${persona.name}; custody closed.`,
-      };
-    if (disposed.includes(x.id))
-      return {
-        ...x,
-        status: "disposed",
-        custodian: "None",
-        storage: `Donated ${TODAY}`,
-        custody: advance(x.custody, ev("Disposal approved by second person", `${persona.name} · ${NOW}`, "success")),
-        closedNote: `Donated on ${TODAY}. Proposed by ${custodian}, approved by ${persona.name}.`,
-      };
-    return x;
-  });
+  // The register is the business's record (GET /ops/found-items): intake, claims, release, disposal
+  // and keeping an item longer are commands to the API, and the screen re-reads after each.
+  const items = baseItems;
   const sel = items.find((i) => i.id === selectedId) ?? items[0];
   const open = items.filter((r) => r.status !== "returned" && r.status !== "disposed").length;
   const valuables = items.filter((r) => r.valuable && r.status !== "returned" && r.status !== "disposed").length;
-  const canRelease = descOk && idOk;
+  const canRelease = descOk && idOk && !pending;
   const claimant = sel?.claim?.claimant ?? "the guest";
   const idHint =
     method === "agent"
@@ -196,9 +148,18 @@ export function LostFoundView({
       : method === "agent"
         ? `Needs a signed letter from ${claimant} and the authorised person’s own ID.`
         : "Sent at the guest’s cost to the address on the booking profile; tracking number recorded.";
-  const nextId = `LF-26-0${42 + added.length}`;
+  // The tag the next intake will most likely get (the API assigns it, so two desks never share one).
+  const yearTag = (now ? kigaliYear(now) : "").slice(2);
+  const nextNumber =
+    Math.max(0, ...items.filter((i) => i.id.startsWith(`LF-${yearTag}-`)).map((i) => Number(i.id.split("-")[2]) || 0)) +
+    1;
+  const nextId = `LF-${yearTag}-${String(nextNumber).padStart(3, "0")}`;
   const spotShort = spot.split(",")[0].trim();
-  const spotLower = spotShort.charAt(0).toLowerCase() + spotShort.slice(1);
+
+  const act = (run: () => Promise<{ ok: true } | { ok: false; error: string }>, then?: () => void) =>
+    startTransition(async () => {
+      if (reported(await run())) then?.();
+    });
 
   const select = (id: string) => {
     setSelectedId(id);
@@ -208,31 +169,25 @@ export function LostFoundView({
   };
   const logItem = () => {
     const text = desc.trim();
-    if (!text) return;
-    const item: FoundItem = {
-      id: nextId,
-      item: text,
-      category,
-      valuable,
-      where: `${area} · ${spotLower}`,
-      when: `${TODAY} ${NOW}`,
-      foundBy,
-      custodian,
-      storage: valuable ? "Safe A · bag pending" : "Store room L-2",
-      status: "stored",
-      custody: [
-        ev(
-          `Found in ${area}, ${spotLower}`,
-          `${foundBy} · ${NOW}${photos.length ? ` · ${photos.length} photo${photos.length === 1 ? "" : "s"}` : ""}`,
-        ),
-        ev(`Logged by ${persona.name}, tag printed`, `Waiting for hand-over to ${custodian}`, "current"),
-      ],
-      retention: "Held 90 days from today, then handled under the disposal rule with two-person sign-off.",
-    };
-    setAdded((a) => [item, ...a]);
-    setDesc("");
-    setPhotos([]);
-    select(item.id);
+    if (!text || pending) return;
+    startTransition(async () => {
+      const result = await logFoundItemAction({
+        description: text,
+        category,
+        valuable,
+        area,
+        spot: spotShort,
+        foundAt,
+        foundBy,
+        custodian,
+        storage: valuable ? "Safe A · bag pending" : "Store room L-2",
+        photoCount: photos.length,
+      });
+      if (!reported(result)) return;
+      setDesc("");
+      setPhotos([]);
+      if (result.ok) select(result.value);
+    });
   };
   const openClaim = () => {
     setClaimName("");
@@ -240,15 +195,22 @@ export function LostFoundView({
     setClaimStatement("");
     setClaimOpen(true);
   };
-  const canOpenClaim = claimName.trim().length > 0 && claimStatement.trim().length > 0;
+  const canOpenClaim = claimName.trim().length > 0 && claimStatement.trim().length > 0 && !pending;
   const saveClaim = () => {
     if (!sel || !canOpenClaim) return;
-    setClaims((c) => ({
-      ...c,
-      [sel.id]: { claimant: claimName.trim(), booking: claimBooking.trim(), statement: claimStatement.trim() },
-    }));
-    setClaimOpen(false);
-    select(sel.id);
+    const id = sel.id;
+    act(
+      () =>
+        openFoundItemClaimAction(id, {
+          claimant: claimName.trim(),
+          booking: claimBooking.trim() || undefined,
+          statement: claimStatement.trim(),
+        }),
+      () => {
+        setClaimOpen(false);
+        select(id);
+      },
+    );
   };
   const addFiles = (files: File[]) =>
     setPhotos((p) => [
@@ -428,7 +390,10 @@ export function LostFoundView({
                         </Segment>
                         <span className="text-[12px] leading-4 text-muted">{methodNote}</span>
                       </div>
-                      <Button isDisabled={!canRelease} onPress={() => setReleased((r) => ({ ...r, [sel.id]: method }))}>
+                      <Button
+                        isDisabled={!canRelease}
+                        onPress={() => act(() => releaseFoundItemAction(sel.id, method))}
+                      >
                         Release item to claimant
                       </Button>
                       <span className="text-[12px] text-muted" role="status">
@@ -463,8 +428,14 @@ export function LostFoundView({
                         <GateChip icon={<ShieldExclamation className="size-3" />}>{sel.disposal.rule}</GateChip>
                       </span>
                       <div className="flex flex-wrap gap-2">
-                        <Button onPress={() => setDisposed((d) => [...d, sel.id])}>Approve disposal</Button>
-                        <Button variant="ghost" onPress={() => setKept((k) => [...k, sel.id])}>
+                        <Button isDisabled={pending} onPress={() => act(() => approveFoundItemDisposalAction(sel.id))}>
+                          Approve disposal
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          isDisabled={pending}
+                          onPress={() => act(() => keepFoundItemAction(sel.id, 30, "the guest may still return"))}
+                        >
                           Keep 30 more days
                         </Button>
                       </div>
@@ -571,7 +542,7 @@ export function LostFoundView({
                   </DropZone.FileList>
                 ) : null}
               </DropZone>
-              <Button isDisabled={!desc.trim()} onPress={logItem}>
+              <Button isDisabled={!desc.trim() || !foundAt || pending} onPress={logItem}>
                 <Printer className="size-4" />
                 Log item and print tag
               </Button>
@@ -635,6 +606,7 @@ export function LostFoundView({
           </TextField>
         </FormDialog>
       ) : null}
+      <Toast.Provider placement="bottom" />
     </PageContent>
   );
 }
