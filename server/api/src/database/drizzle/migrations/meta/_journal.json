@@ -477,6 +477,13 @@
       "when": 1792048963633,
       "tag": "0067_interface_people",
       "breakpoints": true
+    },
+    {
+      "idx": 68,
+      "version": "7",
+      "when": 1792058144384,
+      "tag": "0068_interface_frontdesk",
+      "breakpoints": true
     }
   ]
 }

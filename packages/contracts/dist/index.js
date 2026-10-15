@@ -65,4 +65,6 @@ __exportStar(require("./redaction"), exports);
 __exportStar(require("./housekeeping-board"), exports);
 __exportStar(require("./maintenance"), exports);
 __exportStar(require("./lost-found"), exports);
+// The front desk's day in one read, and the no-show command (interface real-data, frontdesk leaf).
+__exportStar(require("./front-desk"), exports);
 //# sourceMappingURL=index.js.map

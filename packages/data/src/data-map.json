@@ -1940,8 +1940,8 @@
     "collection": "frontdesk.deskKpis",
     "area": "frontdesk",
     "class": "derived",
-    "target": "counts over bookings, guest_stays, rooms/room_assignments, threads",
-    "missing": "GET /ops/front-desk/today missing",
+    "target": "derived from GET /api/v1/ops/front-desk (the desk's day: bookings, stays, rooms, room types; one read per request)",
+    "missing": "—",
     "crud": "R",
     "seed": "none",
     "scope": "property"
@@ -1950,7 +1950,7 @@
     "collection": "frontdesk.queueTabs",
     "area": "frontdesk",
     "class": "derived",
-    "target": "counts of the three queues (labels static)",
+    "target": "derived from GET /api/v1/ops/front-desk (the desk's day: bookings, stays, rooms, room types; one read per request)",
     "missing": "—",
     "crud": "R",
     "seed": "none",
@@ -1960,8 +1960,8 @@
     "collection": "frontdesk.arrivals",
     "area": "frontdesk",
     "class": "extend",
-    "target": "bookings via GET /ops/reservations (+ room_assignments, rooms, pre_arrival_identities → idStatus, folios balance)",
-    "missing": "bookings lacks channel/source (agent/company), eta, guest note/requests; \"at desk\" flag",
+    "target": "bookings (+ channel, adults/children, eta, desk_note: migration interface_frontdesk) + room_assignments + pre_arrival_identities via GET /api/v1/ops/front-desk (the desk's day: bookings, stays, rooms, room types; one read per request); Assign → POST /ops/reservations/:id/assign",
+    "missing": "Booking parties (agent/company identities), guest-request workflow and actual at-desk presence are not recorded; the next expected guest is shown instead.",
     "crud": "R, U (Assign room → POST /ops/reservations/:id/assign)",
     "seed": "demo",
     "scope": "property"
@@ -1970,8 +1970,8 @@
     "collection": "frontdesk.inHouse",
     "area": "frontdesk",
     "class": "extend",
-    "target": "guest_stays via GET /ops/stays (+ folios via GET /ops/folios)",
-    "missing": "source (bookings.channel), stay notes; night x of y DERIVED",
+    "target": "guest_stays (+ reference, desk_note) + folios via GET /api/v1/ops/front-desk (the desk's day: bookings, stays, rooms, room types; one read per request)",
+    "missing": "—",
     "crud": "R",
     "seed": "demo",
     "scope": "property"
@@ -1980,7 +1980,7 @@
     "collection": "frontdesk.departures",
     "area": "frontdesk",
     "class": "extend",
-    "target": "guest_stays (planned exit today) + folios + ebm_invoices (fiscal state)",
+    "target": "guest_stays leaving today (open) or left today (closed) + folios via GET /api/v1/ops/front-desk (the desk's day: bookings, stays, rooms, room types; one read per request)",
     "missing": "late checkout time/fee not stored",
     "crud": "R",
     "seed": "demo",
@@ -1991,16 +1991,17 @@
     "area": "frontdesk",
     "class": "extend",
     "target": "threads (thread_kind='department_request', links service_order_id/maintenance_ticket_id) via GET /ops/threads [message.send]",
-    "missing": "threads have only active",
-    "crud": "archived; no request status (New/Overdue/Decide), due time, assignee, completion",
+    "missing": "threads have only active|archived: no request status (New/Overdue/Decide), due time, assignee or completion",
+    "crud": "R, U (complete)",
     "seed": "demo",
-    "scope": "demo"
+    "scope": "property",
+    "deferred": "Guest requests are department threads with no request workflow: no status (new, overdue, decide), due time, assignee or completion on threads, and no route to complete one from the desk. Needs an /architect call on the desk request workflow (ADR-050 D-q children) before columns are added."
   },
   {
     "collection": "frontdesk.readiness",
     "area": "frontdesk",
     "class": "derived",
-    "target": "today's room_assignments × rooms.housekeeping_status × booking guest",
+    "target": "today's arrival holds × rooms.housekeeping_status via GET /api/v1/ops/front-desk (the desk's day: bookings, stays, rooms, room types; one read per request)",
     "missing": "—",
     "crud": "R",
     "seed": "none",
@@ -2014,13 +2015,14 @@
     "missing": "bed text lives in beds tables with no route",
     "crud": "R",
     "seed": "demo",
-    "scope": "property"
+    "scope": "property",
+    "deferred": "Read with the walk-in quote, which keys room types by the prototype's slugs (queen, twin, dlv, family) and holds a room while the guest decides; quote holds (stay_quotes) are not built, so the type list stays with the quote. The live counts exist already (FrontDeskBoard.roomTypes[].freeTonight on GET /ops/front-desk)."
   },
   {
     "collection": "frontdesk.rooms",
     "area": "frontdesk",
     "class": "exists",
-    "target": "rooms via GET /ops/rooms",
+    "target": "every room nobody stays in tonight (held rooms shown, never ready) via GET /api/v1/ops/front-desk (the desk's day: bookings, stays, rooms, room types; one read per request)",
     "missing": "note DERIVED",
     "crud": "R",
     "seed": "demo",
@@ -2030,8 +2032,8 @@
     "collection": "frontdesk.checkIns",
     "area": "frontdesk",
     "class": "extend",
-    "target": "bookings + pre_arrival_identities + stay_identities + room_assignments + folios + guest_stays.claim_code via GET /ops/reservations/:id, POST /ops/stays/:id/checkin [stay.checkin]",
-    "missing": "no booking_parties (occupants, payer, booker/agent); no adults/children split; special requests; room-override approval; desk mobile-money prompt against a folio (payment_attempts has no folio purpose); registration card; duplicate-profile link (guest_profiles)",
+    "target": "one of today's arrivals via GET /api/v1/ops/front-desk (the desk's day: bookings, stays, rooms, room types; one read per request) (+ GET /ops/stays/:id/claim-invite once checked in); list = the next arrival by ETA; Complete → POST /ops/stays/:bookingId/checkin (+ POST /ops/folios/:id/payments for desk cash, Idempotency-Key per press)",
+    "missing": "Booking parties (occupants, payer, booker/agent), room-override approval, desk mobile-money prompt against a folio, registration-card generation and guest-profile linking remain absent or unwired.",
     "crud": "R, C (stay), U",
     "seed": "demo",
     "scope": "property"
@@ -2044,7 +2046,8 @@
     "missing": "—",
     "crud": "R",
     "seed": "none",
-    "scope": "org"
+    "scope": "org",
+    "deferred": "Needs a per-business guest record (guest_profiles) to search and link: walk-ins have no users row and nothing ties one person's stays together per business. An /architect decision (guest profiles, merge rules, consent)."
   },
   {
     "collection": "frontdesk.walkInQuotes",
@@ -2054,7 +2057,8 @@
     "missing": "POST /ops/stays/walk-in opens the stay at once; there is no quote, hold, expiry or SMS quote",
     "crud": "C, R, U (hold, extend, release)",
     "seed": "demo",
-    "scope": "property"
+    "scope": "property",
+    "deferred": "A quote with a timed inventory hold (stay_quotes: hold, extend, release, expiry) does not exist, and sellable capacity would have to count held quotes; POST /ops/stays/walk-in opens the stay at once. The hold model needs deciding before it is built."
   },
   {
     "collection": "frontdesk.rackDays",
@@ -2064,7 +2068,8 @@
     "missing": "—",
     "crud": "R",
     "seed": "none",
-    "scope": "property"
+    "scope": "property",
+    "deferred": "The room rack draws days and lanes on one axis, and its lanes need group allotments and out-of-order blocks that have no tables yet (group_blocks: commercial area; room_blocks: operations area), so the days stay with the lanes."
   },
   {
     "collection": "frontdesk.rackLanes",
@@ -2074,7 +2079,8 @@
     "missing": "group/room block tables missing",
     "crud": "R",
     "seed": "none",
-    "scope": "property"
+    "scope": "property",
+    "deferred": "Lanes draw group allotments and out-of-order room blocks, which have no tables (group_blocks, room_blocks), and the prototype's lanes are a curated few rooms per type. Served when those blocks exist; the holds and stays they also draw are live on GET /ops/front-desk."
   },
   {
     "collection": "frontdesk.roomMoves",
@@ -2084,14 +2090,15 @@
     "missing": "no move reason/planned state; moving an IN-HOUSE guest changes guest_stays.room_id and has no route (POST /ops/stays/:id/move); key reissue",
     "crud": "C, R, U (confirm move)",
     "seed": "demo",
-    "scope": "property"
+    "scope": "property",
+    "deferred": "A proposed split-stay move with its checks has no record (no planned-move state), and moving a guest already in house needs POST /ops/stays/:id/move (re-point the stay, re-issue keys), which does not exist. A booking's split legs before arrival are live (room_assignments)."
   },
   {
     "collection": "frontdesk.reservations",
     "area": "frontdesk",
     "class": "extend",
-    "target": "bookings via GET /ops/reservations",
-    "missing": "channel, adults/children, phone, deposit/payment summary (payment_attempts/escrows), requested date change; actions: modify dates (no route), cancel (POST /bookings/:id/host-cancel exists), no-show (no route)",
+    "target": "bookings not declined and not checked out via GET /api/v1/ops/front-desk (the desk's day: bookings, stays, rooms, room types; one read per request), with the server's cancel and no-show quotes (cancellationRefund on the locked tier); Cancel → POST /ops/reservations/:id/cancel, Mark no-show → POST /ops/reservations/:id/no-show",
+    "missing": "Modify-dates/reprice route, requested date-change record and booking parties remain absent. Cancel and no-show commands are built.",
     "crud": "R, U",
     "seed": "demo",
     "scope": "property"
@@ -2120,8 +2127,8 @@
     "collection": "frontdesk.bookingRequests",
     "area": "frontdesk",
     "class": "extend",
-    "target": "bookings status pending_approval via GET /ops/reservations?state=pending, POST /ops/reservations/:id/approve, …/decline",
-    "missing": "channel; guest message lives in the reservation threads/messages and is not joined; decline reason text; windowUsed DERIVED from approval_expires_at",
+    "target": "bookings pending_approval (+ the guest's first message on the reservation thread) via GET /api/v1/ops/front-desk (the desk's day: bookings, stays, rooms, room types; one read per request); Approve/Decline → POST /ops/reservations/:id/approve|decline",
+    "missing": "Decline reason text is not accepted by the existing decision command; window used is derived from the expiry against the default 24-hour window.",
     "crud": "R, U",
     "seed": "demo",
     "scope": "property"
@@ -2134,7 +2141,8 @@
     "missing": "fixture names a property policy \"CXL-STD v3\" with 4 notice tiers; no table for property-named policies",
     "crud": "R",
     "seed": "prod",
-    "scope": "platform"
+    "scope": "platform",
+    "deferred": "Names a property's own cancellation policy (CXL-STD v3, four notice tiers); the platform's tiers are two-window rules in code (CANCELLATION_TIERS), which cannot state it, and property-named policies have no table. The desk's cancel and no-show show the server's quote on the booking's locked tier instead."
   },
   {
     "collection": "frontdesk.reservationRecords",
@@ -2144,7 +2152,8 @@
     "missing": "booking_parties; per-night lines DERIVED from locked rate + assignments; terms snapshot id; payment attempt history (payment_attempt_events); proforma (ebm_invoices PS); booking history (no audit writes for booking)",
     "crud": "R, U",
     "seed": "demo",
-    "scope": "property"
+    "scope": "property",
+    "deferred": "The record joins booking parties (booker, occupants, payer, company: no booking_parties), the saved terms snapshot, payment attempt history (no payment_attempt_events) and booking audit history (nothing writes booking audit rows); none exist. And every booking has a record, so the list cannot be the prototype's one curated record."
   },
   {
     "collection": "stays.stays",
@@ -2154,7 +2163,8 @@
     "missing": "no human reference (ST-8812), adults, contracting company/payer, late checkout; freeNights/nextBooking DERIVED from room_assignments/bookings; extend stay has no route",
     "crud": "R, U (extend, late checkout)",
     "seed": "demo",
-    "scope": "property"
+    "scope": "property",
+    "deferred": "The stay record (StayFolio) is served whole or not at all: its bill groups every line by the outlet that sold it (Isangano Terrace, Lake Bar, Laundry, Minibar) and the interface world has no outlets until the outlets area seeds them; and its payments include payments in flight (a desk MoMo prompt against a bill, an unmatched bank transfer) that have no table. Serving the lines live beside fixture payments would show a balance that is not the bill's."
   },
   {
     "collection": "stays.stayRecords",
@@ -2164,7 +2174,8 @@
     "missing": "—",
     "crud": "R",
     "seed": "none",
-    "scope": "property"
+    "scope": "property",
+    "deferred": "Derived per stay on the stay record, which is deferred: The stay record (StayFolio) is served whole or not at all: its bill groups every line by the outlet that sold it (Isangano Terrace, Lake Bar, Laundry, Minibar) and the interface world has no outlets until the outlets area seeds them; and its payments include payments in flight (a desk MoMo prompt against a bill, an unmatched bank transfer) that have no table. Serving the lines live beside fixture payments would show a balance that is not the bill's."
   },
   {
     "collection": "stays.folioLines",
@@ -2174,7 +2185,8 @@
     "missing": "src human refs need a join on source_ref_type/id; mine = posted_by_user_id = caller",
     "crud": "C, R (void = reversal line)",
     "seed": "demo",
-    "scope": "property"
+    "scope": "property",
+    "deferred": "Read whole by the stay page and filtered by stay, and grouped by outlet labels the world has no outlets for yet. The stay record (StayFolio) is served whole or not at all: its bill groups every line by the outlet that sold it (Isangano Terrace, Lake Bar, Laundry, Minibar) and the interface world has no outlets until the outlets area seeds them; and its payments include payments in flight (a desk MoMo prompt against a bill, an unmatched bank transfer) that have no table. Serving the lines live beside fixture payments would show a balance that is not the bill's."
   },
   {
     "collection": "stays.folioPayments",
@@ -2184,7 +2196,8 @@
     "missing": "payment_attempts.purpose lacks folio (+ folio_id), so a pending desk MoMo prompt cannot exist; unmatched bank transfer needs unallocated_receipts; POST /ops/folios/:id/payments [folio.payment] records confirmed money only",
     "crud": "C, R",
     "seed": "demo",
-    "scope": "property"
+    "scope": "property",
+    "deferred": "Payments in flight have no table: payment_attempts has no folio purpose (a desk MoMo prompt against a bill) and unmatched bank transfers (unallocated receipts) do not exist. Serving only the confirmed payment lines would drop two of the three the screen shows and change its balance."
   },
   {
     "collection": "stays.stayHistory",
@@ -2194,7 +2207,8 @@
     "missing": "nothing writes guest_stay audit rows (only employee/org/pay_run/property/user/training_certificate do); GET /ops/stays/:id/history missing",
     "crud": "R",
     "seed": "demo",
-    "scope": "property"
+    "scope": "property",
+    "deferred": "Nothing writes stay audit rows (audit_events with subject guest_stay) and there is no GET /ops/stays/:id/history; seeding a move and a key history the system cannot produce would be invented."
   },
   {
     "collection": "stays.stayAccess",
@@ -2204,7 +2218,8 @@
     "missing": "resend claim code exists (POST /ops/stays/:id/claim-invite)",
     "crud": "R, U",
     "seed": "demo",
-    "scope": "property"
+    "scope": "property",
+    "deferred": "Key cards and mobile keys need a lock provider integration and a stay_keys table; only the app claim exists (guest_stays.claim_status)."
   },
   {
     "collection": "stays.stayDocuments",
@@ -2214,7 +2229,8 @@
     "missing": "folio/order NS has no print route",
     "crud": "R",
     "seed": "none",
-    "scope": "property"
+    "scope": "property",
+    "deferred": "A folio's fiscal receipts have no list or print route (GET /ops/folios/:id/receipts), the demo declares nothing (ADR-043), and the commercial invoice needs the city ledger."
   },
   {
     "collection": "stays.lateCheckoutOptions",
@@ -2224,7 +2240,8 @@
     "missing": "no late checkout fee schedule column",
     "crud": "R",
     "seed": "demo",
-    "scope": "property"
+    "scope": "property",
+    "deferred": "A property's late-checkout fee schedule has no column and nothing applies one (no late-checkout route posting the fee and moving the planned exit); read only by the deferred stay record."
   },
   {
     "collection": "stays.chargeDepartments",
@@ -2234,7 +2251,8 @@
     "missing": "—",
     "crud": "R",
     "seed": "demo",
-    "scope": "property"
+    "scope": "property",
+    "deferred": "The charge drawer offers outlets (Isangano Terrace, Lake Bar, Minibar) and Laundry; the interface world has only the USALI departments until the outlets area seeds outlets, and the drawer is on the deferred stay record."
   },
   {
     "collection": "stays.deskTenders",
@@ -2244,7 +2262,8 @@
     "missing": "network (MTN vs Airtel) not in the enum",
     "crud": "R",
     "seed": "prod",
-    "scope": "platform"
+    "scope": "platform",
+    "deferred": "The payment drawer splits mobile money by network (MTN, Airtel), which PaymentMethod does not, and a desk MoMo prompt against a bill does not exist; the drawer is on the deferred stay record."
   },
   {
     "collection": "stays.checkouts",
@@ -2254,7 +2273,8 @@
     "missing": "no folio split/transfer route; check-out exists (POST /ops/stays/:id/checkout)",
     "crud": "R, U",
     "seed": "demo",
-    "scope": "property"
+    "scope": "property",
+    "deferred": "Checkout moves the company share to a company account (trade_accounts, city_ledger_entries with authorisation and invoice), which does not exist: an /architect decision on company accounts and the city ledger. Check out itself exists (POST /ops/stays/:id/checkout)."
   },
   {
     "collection": "stays.checkoutLedger",
@@ -2264,7 +2284,8 @@
     "missing": "—",
     "crud": "R",
     "seed": "none",
-    "scope": "property"
+    "scope": "property",
+    "deferred": "Sums the company-ledger move, the unmatched bank transfer and the MoMo attempt, none of which have tables (see stays.checkouts and stays.folioPayments)."
   },
   {
     "collection": "stays.momoTrail",
@@ -2274,7 +2295,8 @@
     "missing": "single state column; needs payment_attempt_events, an unknown state, folio purpose",
     "crud": "R",
     "seed": "demo",
-    "scope": "property"
+    "scope": "property",
+    "deferred": "A MoMo payment against a bill has no attempt or event history: payment_attempts has no folio purpose, and payment_attempt_events and an unknown state do not exist."
   },
   {
     "collection": "stays.fiscalReceipts",
@@ -2284,7 +2306,8 @@
     "missing": "no route lists/prints a folio's receipts (GET /ops/folios/:id/receipts); fixture splits company + guest receipts, backend raises one NS per folio close",
     "crud": "R",
     "seed": "demo",
-    "scope": "property"
+    "scope": "property",
+    "deferred": "The screen splits one checkout into a company and a guest receipt; the platform raises one NS per folio close, the demo declares nothing (ADR-043), and no route lists a folio's receipts."
   },
   {
     "collection": "stays.checkoutKeys",
@@ -2294,13 +2317,14 @@
     "missing": "revoke route",
     "crud": "R, U (revoke)",
     "seed": "demo",
-    "scope": "property"
+    "scope": "property",
+    "deferred": "Revoking keys at checkout needs stay_keys and a lock provider (see stays.stayAccess)."
   },
   {
     "collection": "stays.threads",
     "area": "stays",
     "class": "extend",
-    "target": "threads + messages + thread_reads via GET /ops/threads, GET/POST /ops/threads/:id/messages [message.send]",
+    "target": "threads + messages via GET /api/v1/ops/threads and GET /ops/threads/:id/messages [message.send] (a pending request's thread is answered from Reservations → Requests); Send → POST /ops/threads/:id/messages",
     "missing": "no assignee, status (open/escalated/waiting/closed), SLA due, escalation; internal notes (message_body_type lacks note); SMS/email channel + delivery state; operator unread (no operator mark-read route); consent",
     "crud": "C (send), R, U (assign, escalate)",
     "seed": "demo",
@@ -2310,8 +2334,8 @@
     "collection": "stays.messageTemplates",
     "area": "stays",
     "class": "new",
-    "target": "message_templates (org, EN/RW/FR)",
-    "missing": "email_templates (governance) is platform mail, not desk replies",
+    "target": "message_templates (new: migration interface_frontdesk) via GET /api/v1/ops/message-templates [message.send]",
+    "missing": "Template editing routes are not built; this leaf serves active templates read only.",
     "crud": "R",
     "seed": "demo",
     "scope": "org"
@@ -2324,7 +2348,8 @@
     "missing": "walk-ins have no users row; nothing ties stays of one person together per business",
     "crud": "R, U (merge)",
     "seed": "demo",
-    "scope": "org"
+    "scope": "org",
+    "deferred": "Needs a per-business guest record (guest_profiles with references and duplicate candidates); walk-ins have no users row and nothing ties one person's stays together per business. An /architect decision (guest profiles, merge, consent)."
   },
   {
     "collection": "stays.guestProfiles",
@@ -2334,7 +2359,8 @@
     "missing": "—",
     "crud": "R, U (merge, log a view)",
     "seed": "demo",
-    "scope": "org"
+    "scope": "org",
+    "deferred": "Joins guest profiles, preferences, consents and loyalty, none of which exist (see stays.directory); the access log and the ID documents exist but hang off the profile."
   },
   {
     "collection": "stays.viewPurposes",
@@ -2354,7 +2380,8 @@
     "missing": "—",
     "crud": "R",
     "seed": "none",
-    "scope": "property"
+    "scope": "property",
+    "deferred": "The offline desk is the client's cached copy of today's arrivals plus a local outbox replayed on reconnect; neither the cache nor the replay exists, and check-in and walk-in take no Idempotency-Key, so a replay could admit a guest twice. A live read would be the online desk under an offline label."
   },
   {
     "collection": "stays.offlineQueue",
@@ -2384,7 +2411,8 @@
     "missing": "—",
     "crud": "R",
     "seed": "none",
-    "scope": "property"
+    "scope": "property",
+    "deferred": "Part of the offline desk's cached copy (see stays.offlineArrivals): who cash can be noted for while the desk is offline."
   },
   {
     "collection": "stays.syncConflicts",
@@ -2394,7 +2422,8 @@
     "missing": "—",
     "crud": "R, U",
     "seed": "none",
-    "scope": "property"
+    "scope": "property",
+    "deferred": "Replay conflicts exist only once the offline outbox replays (see stays.offlineArrivals)."
   },
   {
     "collection": "stays.conflictChoices",

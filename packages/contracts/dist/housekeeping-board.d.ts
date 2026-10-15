@@ -84,8 +84,8 @@ export declare const HousekeepingBoardRoom: z.ZodObject<{
         guestName: string | null;
         plannedExitAt: string | null;
     } | null;
-    floor: number | null;
     housekeepingUpdatedAt: string | null;
+    floor: number | null;
     serviceFlag: "dnd" | "make_up_room" | null;
     arrival: {
         guestName: string | null;
@@ -111,8 +111,8 @@ export declare const HousekeepingBoardRoom: z.ZodObject<{
         guestName: string | null;
         plannedExitAt: string | null;
     } | null;
-    floor: number | null;
     housekeepingUpdatedAt: string | null;
+    floor: number | null;
     serviceFlag: "dnd" | "make_up_room" | null;
     arrival: {
         guestName: string | null;
@@ -406,8 +406,8 @@ export declare const HousekeepingBoard: z.ZodObject<{
             guestName: string | null;
             plannedExitAt: string | null;
         } | null;
-        floor: number | null;
         housekeepingUpdatedAt: string | null;
+        floor: number | null;
         serviceFlag: "dnd" | "make_up_room" | null;
         arrival: {
             guestName: string | null;
@@ -433,8 +433,8 @@ export declare const HousekeepingBoard: z.ZodObject<{
             guestName: string | null;
             plannedExitAt: string | null;
         } | null;
-        floor: number | null;
         housekeepingUpdatedAt: string | null;
+        floor: number | null;
         serviceFlag: "dnd" | "make_up_room" | null;
         arrival: {
             guestName: string | null;
@@ -679,8 +679,8 @@ export declare const HousekeepingBoard: z.ZodObject<{
             guestName: string | null;
             plannedExitAt: string | null;
         } | null;
-        floor: number | null;
         housekeepingUpdatedAt: string | null;
+        floor: number | null;
         serviceFlag: "dnd" | "make_up_room" | null;
         arrival: {
             guestName: string | null;
@@ -772,8 +772,8 @@ export declare const HousekeepingBoard: z.ZodObject<{
             guestName: string | null;
             plannedExitAt: string | null;
         } | null;
-        floor: number | null;
         housekeepingUpdatedAt: string | null;
+        floor: number | null;
         serviceFlag: "dnd" | "make_up_room" | null;
         arrival: {
             guestName: string | null;

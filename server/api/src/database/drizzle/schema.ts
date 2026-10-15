@@ -43,6 +43,10 @@ export * from './geography';
 export * from './org';
 export * from './inventory';
 export * from './hospitality';
+// The front desk's booking channel enum (interface real-data, frontdesk leaf).
+export * from './interface-frontdesk';
+// Desk reply templates per business (interface real-data, frontdesk leaf, stays area).
+export * from './interface-stays';
 export * from './residence';
 export * from './messaging';
 export * from './money';

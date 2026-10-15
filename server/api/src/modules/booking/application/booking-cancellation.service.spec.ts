@@ -5,6 +5,7 @@ import type { BookingRepository, CancellableBooking } from '../infrastructure/bo
 import { BookingCancellationService, hoursUntilCheckIn } from './booking-cancellation.service';
 import type { BookingNotificationsService } from './booking-notifications.service';
 import { everyBranch } from '../../../shared/auth/branch-scope.fixture';
+import type { ScopedWorkspace } from '../../../shared/auth/branch-scope';
 
 /**
  * Cancellation and refund tiers (F-B11, ADR-051). The provider is told before
@@ -43,13 +44,16 @@ describe('BookingCancellationService', () => {
     opts: { providerDown?: boolean; recorded?: boolean } = {},
   ): {
     service: BookingCancellationService;
-    repo: { findForCancellation: jest.Mock; recordCancellation: jest.Mock };
+    repo: { findForCancellation: jest.Mock; recordCancellation: jest.Mock; recordNoShow: jest.Mock };
     payments: { releaseEscrow: jest.Mock; refund: jest.Mock };
     notifications: { notify: jest.Mock };
   } {
     const repo = {
       findForCancellation: jest.fn().mockResolvedValue(row),
       recordCancellation: jest
+        .fn()
+        .mockResolvedValue(opts.recorded === false ? null : { id: row?.bookingId, reference: row?.reference }),
+      recordNoShow: jest
         .fn()
         .mockResolvedValue(opts.recorded === false ? null : { id: row?.bookingId, reference: row?.reference }),
     };
@@ -186,5 +190,88 @@ describe('BookingCancellationService', () => {
     expect(hoursUntilCheckIn({ checkIn: '2026-10-02', checkInTime: '14:00:00' }, now)).toBe(24);
     expect(hoursUntilCheckIn({ checkIn: '2026-10-02', checkInTime: null }, now)).toBe(24);
     expect(hoursUntilCheckIn({ checkIn: '2026-10-02', checkInTime: '12:00' }, now)).toBe(22);
+  });
+
+  const desk = (): Pick<ScopedWorkspace, 'workspaceId' | 'branchScope'> => ({
+    workspaceId: '55555555-5555-5555-5555-555555555555',
+    branchScope: everyBranch('prop-1'),
+  });
+
+  it('uses the guest tier when the desk cancels at the guest request and keeps its reason', async () => {
+    const { service, repo, payments } = build(booking({ tier: 'moderate', checkIn: daysAhead(2) }));
+    const result = await service.cancelAtGuestRequest('b', desk(), 'Guest changed plans');
+    expect(result).toMatchObject({ cancelledBy: 'guest', refundRwf: 50_000 });
+    expect(payments.refund).toHaveBeenCalledWith(expect.objectContaining({ amountRwf: 50_000 }));
+    expect(repo.recordCancellation).toHaveBeenCalledWith(expect.objectContaining({ reason: 'Guest changed plans' }));
+  });
+
+  it('refunds a no-show on the locked late tier before recording the operator and reason', async () => {
+    const { service, repo, payments } = build(booking({ tier: 'moderate', checkIn: daysAhead(-1) }));
+    const order: string[] = [];
+    payments.refund.mockImplementation(async () => { order.push('provider'); return {}; });
+    repo.recordNoShow.mockImplementation(async () => { order.push('ledger'); return { id: 'b', reference: 'r' }; });
+
+    const result = await service.markNoShow('b', desk(), { byUserId: GUEST, reason: 'Did not arrive' });
+
+    expect(result).toMatchObject({ refundRwf: 50_000, forfeitRwf: 50_000 });
+    expect(order).toEqual(['provider', 'ledger']);
+    expect(payments.refund).toHaveBeenCalledWith(expect.objectContaining({
+      amountRwf: 50_000, idempotencyKey: 'cancel-refund:ws:booking-capture:tok',
+    }));
+    expect(repo.recordNoShow).toHaveBeenCalledWith(expect.objectContaining({
+      outcome: 'refunded_partial', refundRwf: 50_000, byUserId: GUEST, reason: 'Did not arrive',
+    }));
+  });
+
+  it('records a no-show with no payment without inventing a money outcome', async () => {
+    const { service, repo, payments } = build(booking({
+      checkIn: daysAhead(-1), escrowId: null, escrowStatus: null, escrowAmountRwf: null, paymentStatus: null,
+    }));
+    expect(await service.markNoShow('b', desk(), { byUserId: GUEST, reason: null }))
+      .toMatchObject({ refundRwf: 0, forfeitRwf: 0 });
+    expect(repo.recordNoShow).toHaveBeenCalledWith(expect.objectContaining({ outcome: null, refundRwf: null }));
+    expect(payments.releaseEscrow).not.toHaveBeenCalled();
+    expect(payments.refund).not.toHaveBeenCalled();
+  });
+
+  it('uses one provider refund key when cancellation and no-show compete for the same booking', async () => {
+    const { service, payments } = build(booking({ tier: 'moderate', checkIn: daysAhead(-1) }));
+    await service.markNoShow('b', desk(), { byUserId: GUEST, reason: null });
+    await service.cancelAtGuestRequest('b', desk(), 'Guest called');
+    const keys = payments.refund.mock.calls.map(([input]) => input.idempotencyKey);
+    expect(keys).toHaveLength(2);
+    expect(new Set(keys).size).toBe(1);
+  });
+
+  it('refuses future, arrived, pending and already recorded no-shows before moving money', async () => {
+    for (const over of [
+      { checkIn: daysAhead(2) },
+      { checkIn: daysAhead(-1), stays: 1 },
+      { checkIn: daysAhead(-1), status: 'pending_approval' as const },
+      { checkIn: daysAhead(-1), status: 'no_show' as const },
+    ]) {
+      const { service, repo, payments } = build(booking(over));
+      await expect(service.markNoShow('b', desk(), { byUserId: GUEST, reason: null }))
+        .rejects.toBeInstanceOf(ConflictException);
+      expect(repo.recordNoShow).not.toHaveBeenCalled();
+      expect(payments.releaseEscrow).not.toHaveBeenCalled();
+      expect(payments.refund).not.toHaveBeenCalled();
+    }
+  });
+
+  it('does not record a no-show if its refund cannot be confirmed', async () => {
+    const { service, repo } = build(booking({ tier: 'moderate', checkIn: daysAhead(-1) }), { providerDown: true });
+    await expect(service.markNoShow('b', desk(), { byUserId: GUEST, reason: null }))
+      .rejects.toBeInstanceOf(ServiceUnavailableException);
+    expect(repo.recordNoShow).not.toHaveBeenCalled();
+  });
+
+  it('answers 404 for a no-show outside the covered branch and moves no money', async () => {
+    const { service, repo, payments } = build(booking({ checkIn: daysAhead(-1) }));
+    await expect(service.markNoShow('b', { ...desk(), branchScope: everyBranch('prop-2') }, { byUserId: GUEST, reason: null }))
+      .rejects.toBeInstanceOf(NotFoundException);
+    expect(repo.recordNoShow).not.toHaveBeenCalled();
+    expect(payments.releaseEscrow).not.toHaveBeenCalled();
+    expect(payments.refund).not.toHaveBeenCalled();
   });
 });

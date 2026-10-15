@@ -11,7 +11,8 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { ReservationsView } from "@/features/frontdesk/ReservationsView";
 import { requirePersona } from "@/lib/session";
-import { getCollection } from "@/server/data";
+import { getCollection, requestContext } from "@/server/data";
+import { dayNumber } from "@/server/sources/frontdesk";
 
 export const metadata: Metadata = { title: screens.Reservations.pageTitle };
 
@@ -36,7 +37,15 @@ export default async function ReservationsPage({
   return (
     <ReservationsView
       persona={persona}
-      data={{ bookings, views, summary, requests, tiers, recordIds: records.map((r) => r.id) }}
+      data={{
+        bookings,
+        views,
+        summary,
+        requests,
+        tiers,
+        recordIds: records.map((r) => r.id),
+        today: dayNumber((await requestContext()).today.iso),
+      }}
       initialBooking={booking ?? null}
       initialView={view === "requests" ? "requests" : "all"}
     />

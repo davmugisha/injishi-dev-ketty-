@@ -52,10 +52,12 @@ import { OpsPoliciesController } from './policies.controller';
 import { OpsRosterController, OpsShiftTemplatesController } from './roster.controller';
 import { OpsEbmController } from './ebm.controller';
 import { OpsFoliosController } from './folios.controller';
+import { OpsFrontDeskController } from './front-desk.controller';
 import { OpsHousekeepingController } from './housekeeping.controller';
 import { OpsHousekeepingBoardController } from './housekeeping-board.controller';
 import { OpsFoundItemsController } from './lost-found.controller';
 import { OpsConditionSignalsController, OpsWorkOrdersController } from './work-orders.controller';
+import { OpsMessageTemplatesController } from './message-templates.controller';
 import { OpsOffersController } from './offers.controller';
 import { OpsOutletPartiesController } from './outlet-parties.controller';
 import { OpsOutletsController } from './outlets.controller';
@@ -113,11 +115,13 @@ const CONTROLLERS: Ctor[] = [
   OpsDepartmentsController,
   OpsEbmController,
   OpsFoliosController,
+  OpsFrontDeskController,
   OpsHousekeepingController,
   OpsHousekeepingBoardController,
   OpsWorkOrdersController,
   OpsConditionSignalsController,
   OpsFoundItemsController,
+  OpsMessageTemplatesController,
   OpsOffersController,
   OpsRefundRequestsController,
   OpsOutletPartiesController,
@@ -277,6 +281,10 @@ const EXPECTED: Record<string, readonly OrgRole[]> = {
   '/ops/ebm/customers': ['owner', 'manager', 'finance'],
   '/ops/folios': ['owner', 'manager', 'receptionist', 'finance'],
   '/ops/folios/:id': ['owner', 'manager', 'receptionist', 'finance'],
+  // The desk's day in one read (interface real-data): the reservations list's
+  // readers, because it summarises the same bookings; a bill balance in it is
+  // null unless the caller also reads bills.
+  '/ops/front-desk': ['owner', 'manager', 'receptionist', 'finance'],
   '/ops/housekeeping-tasks': ['owner', 'manager', 'housekeeper'],
   // The housekeeping board (real-data 1.2.3): the same consumers as the queue it widens.
   '/ops/housekeeping/board': ['owner', 'manager', 'housekeeper'],
@@ -287,6 +295,9 @@ const EXPECTED: Record<string, readonly OrgRole[]> = {
   // The lost and found register (`lostfound.manage`): the desk takes claims and hands items back.
   '/ops/found-items': ['owner', 'manager', 'receptionist'],
   '/ops/found-items/:id': ['owner', 'manager', 'receptionist'],
+  // Reply templates are only ever put in a draft the desk then sends, so they
+  // read like the inbox they serve.
+  '/ops/message-templates': ['owner', 'manager', 'receptionist'],
   '/ops/outlet-parties': ['owner', 'manager'],
   '/ops/outlets': ['owner', 'manager', 'receptionist'],
   '/ops/reservations': ['owner', 'manager', 'receptionist', 'finance'],

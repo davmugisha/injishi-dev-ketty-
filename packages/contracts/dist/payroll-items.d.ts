@@ -14,11 +14,11 @@ export declare const PayCondition: z.ZodObject<{
     value: z.ZodString;
 }, "strip", z.ZodTypeAny, {
     value: string;
-    field: "sex" | "marital_status" | "children" | "years_of_service" | "prior_experience" | "employee_type" | "job_position" | "department" | "branch" | "wage_basis";
+    field: "children" | "sex" | "marital_status" | "years_of_service" | "prior_experience" | "employee_type" | "job_position" | "department" | "branch" | "wage_basis";
     op: "eq" | "ne" | "in" | "gt" | "gte" | "lt" | "lte";
 }, {
     value: string;
-    field: "sex" | "marital_status" | "children" | "years_of_service" | "prior_experience" | "employee_type" | "job_position" | "department" | "branch" | "wage_basis";
+    field: "children" | "sex" | "marital_status" | "years_of_service" | "prior_experience" | "employee_type" | "job_position" | "department" | "branch" | "wage_basis";
     op: "eq" | "ne" | "in" | "gt" | "gte" | "lt" | "lte";
 }>;
 export type PayCondition = z.infer<typeof PayCondition>;
@@ -46,11 +46,11 @@ export declare const PayComponent: z.ZodObject<{
         value: z.ZodString;
     }, "strip", z.ZodTypeAny, {
         value: string;
-        field: "sex" | "marital_status" | "children" | "years_of_service" | "prior_experience" | "employee_type" | "job_position" | "department" | "branch" | "wage_basis";
+        field: "children" | "sex" | "marital_status" | "years_of_service" | "prior_experience" | "employee_type" | "job_position" | "department" | "branch" | "wage_basis";
         op: "eq" | "ne" | "in" | "gt" | "gte" | "lt" | "lte";
     }, {
         value: string;
-        field: "sex" | "marital_status" | "children" | "years_of_service" | "prior_experience" | "employee_type" | "job_position" | "department" | "branch" | "wage_basis";
+        field: "children" | "sex" | "marital_status" | "years_of_service" | "prior_experience" | "employee_type" | "job_position" | "department" | "branch" | "wage_basis";
         op: "eq" | "ne" | "in" | "gt" | "gte" | "lt" | "lte";
     }>>;
     appliesAllActive: z.ZodBoolean;
@@ -88,7 +88,7 @@ export declare const PayComponent: z.ZodObject<{
     capRwf: number | null;
     condition: {
         value: string;
-        field: "sex" | "marital_status" | "children" | "years_of_service" | "prior_experience" | "employee_type" | "job_position" | "department" | "branch" | "wage_basis";
+        field: "children" | "sex" | "marital_status" | "years_of_service" | "prior_experience" | "employee_type" | "job_position" | "department" | "branch" | "wage_basis";
         op: "eq" | "ne" | "in" | "gt" | "gte" | "lt" | "lte";
     } | null;
     appliesAllActive: boolean;
@@ -114,7 +114,7 @@ export declare const PayComponent: z.ZodObject<{
     capRwf: number | null;
     condition: {
         value: string;
-        field: "sex" | "marital_status" | "children" | "years_of_service" | "prior_experience" | "employee_type" | "job_position" | "department" | "branch" | "wage_basis";
+        field: "children" | "sex" | "marital_status" | "years_of_service" | "prior_experience" | "employee_type" | "job_position" | "department" | "branch" | "wage_basis";
         op: "eq" | "ne" | "in" | "gt" | "gte" | "lt" | "lte";
     } | null;
     appliesAllActive: boolean;
@@ -149,11 +149,11 @@ export declare const PayComponentList: z.ZodObject<{
             value: z.ZodString;
         }, "strip", z.ZodTypeAny, {
             value: string;
-            field: "sex" | "marital_status" | "children" | "years_of_service" | "prior_experience" | "employee_type" | "job_position" | "department" | "branch" | "wage_basis";
+            field: "children" | "sex" | "marital_status" | "years_of_service" | "prior_experience" | "employee_type" | "job_position" | "department" | "branch" | "wage_basis";
             op: "eq" | "ne" | "in" | "gt" | "gte" | "lt" | "lte";
         }, {
             value: string;
-            field: "sex" | "marital_status" | "children" | "years_of_service" | "prior_experience" | "employee_type" | "job_position" | "department" | "branch" | "wage_basis";
+            field: "children" | "sex" | "marital_status" | "years_of_service" | "prior_experience" | "employee_type" | "job_position" | "department" | "branch" | "wage_basis";
             op: "eq" | "ne" | "in" | "gt" | "gte" | "lt" | "lte";
         }>>;
         appliesAllActive: z.ZodBoolean;
@@ -191,7 +191,7 @@ export declare const PayComponentList: z.ZodObject<{
         capRwf: number | null;
         condition: {
             value: string;
-            field: "sex" | "marital_status" | "children" | "years_of_service" | "prior_experience" | "employee_type" | "job_position" | "department" | "branch" | "wage_basis";
+            field: "children" | "sex" | "marital_status" | "years_of_service" | "prior_experience" | "employee_type" | "job_position" | "department" | "branch" | "wage_basis";
             op: "eq" | "ne" | "in" | "gt" | "gte" | "lt" | "lte";
         } | null;
         appliesAllActive: boolean;
@@ -217,7 +217,7 @@ export declare const PayComponentList: z.ZodObject<{
         capRwf: number | null;
         condition: {
             value: string;
-            field: "sex" | "marital_status" | "children" | "years_of_service" | "prior_experience" | "employee_type" | "job_position" | "department" | "branch" | "wage_basis";
+            field: "children" | "sex" | "marital_status" | "years_of_service" | "prior_experience" | "employee_type" | "job_position" | "department" | "branch" | "wage_basis";
             op: "eq" | "ne" | "in" | "gt" | "gte" | "lt" | "lte";
         } | null;
         appliesAllActive: boolean;
@@ -245,7 +245,7 @@ export declare const PayComponentList: z.ZodObject<{
         capRwf: number | null;
         condition: {
             value: string;
-            field: "sex" | "marital_status" | "children" | "years_of_service" | "prior_experience" | "employee_type" | "job_position" | "department" | "branch" | "wage_basis";
+            field: "children" | "sex" | "marital_status" | "years_of_service" | "prior_experience" | "employee_type" | "job_position" | "department" | "branch" | "wage_basis";
             op: "eq" | "ne" | "in" | "gt" | "gte" | "lt" | "lte";
         } | null;
         appliesAllActive: boolean;
@@ -273,7 +273,7 @@ export declare const PayComponentList: z.ZodObject<{
         capRwf: number | null;
         condition: {
             value: string;
-            field: "sex" | "marital_status" | "children" | "years_of_service" | "prior_experience" | "employee_type" | "job_position" | "department" | "branch" | "wage_basis";
+            field: "children" | "sex" | "marital_status" | "years_of_service" | "prior_experience" | "employee_type" | "job_position" | "department" | "branch" | "wage_basis";
             op: "eq" | "ne" | "in" | "gt" | "gte" | "lt" | "lte";
         } | null;
         appliesAllActive: boolean;
@@ -308,11 +308,11 @@ export declare const CreatePayComponentRequest: z.ZodEffects<z.ZodObject<{
         value: z.ZodString;
     }, "strip", z.ZodTypeAny, {
         value: string;
-        field: "sex" | "marital_status" | "children" | "years_of_service" | "prior_experience" | "employee_type" | "job_position" | "department" | "branch" | "wage_basis";
+        field: "children" | "sex" | "marital_status" | "years_of_service" | "prior_experience" | "employee_type" | "job_position" | "department" | "branch" | "wage_basis";
         op: "eq" | "ne" | "in" | "gt" | "gte" | "lt" | "lte";
     }, {
         value: string;
-        field: "sex" | "marital_status" | "children" | "years_of_service" | "prior_experience" | "employee_type" | "job_position" | "department" | "branch" | "wage_basis";
+        field: "children" | "sex" | "marital_status" | "years_of_service" | "prior_experience" | "employee_type" | "job_position" | "department" | "branch" | "wage_basis";
         op: "eq" | "ne" | "in" | "gt" | "gte" | "lt" | "lte";
     }>>;
     appliesAllActive: z.ZodBoolean;
@@ -342,7 +342,7 @@ export declare const CreatePayComponentRequest: z.ZodEffects<z.ZodObject<{
     capRwf: number | null;
     condition: {
         value: string;
-        field: "sex" | "marital_status" | "children" | "years_of_service" | "prior_experience" | "employee_type" | "job_position" | "department" | "branch" | "wage_basis";
+        field: "children" | "sex" | "marital_status" | "years_of_service" | "prior_experience" | "employee_type" | "job_position" | "department" | "branch" | "wage_basis";
         op: "eq" | "ne" | "in" | "gt" | "gte" | "lt" | "lte";
     } | null;
     appliesAllActive: boolean;
@@ -364,7 +364,7 @@ export declare const CreatePayComponentRequest: z.ZodEffects<z.ZodObject<{
     capRwf: number | null;
     condition: {
         value: string;
-        field: "sex" | "marital_status" | "children" | "years_of_service" | "prior_experience" | "employee_type" | "job_position" | "department" | "branch" | "wage_basis";
+        field: "children" | "sex" | "marital_status" | "years_of_service" | "prior_experience" | "employee_type" | "job_position" | "department" | "branch" | "wage_basis";
         op: "eq" | "ne" | "in" | "gt" | "gte" | "lt" | "lte";
     } | null;
     appliesAllActive: boolean;
@@ -386,7 +386,7 @@ export declare const CreatePayComponentRequest: z.ZodEffects<z.ZodObject<{
     capRwf: number | null;
     condition: {
         value: string;
-        field: "sex" | "marital_status" | "children" | "years_of_service" | "prior_experience" | "employee_type" | "job_position" | "department" | "branch" | "wage_basis";
+        field: "children" | "sex" | "marital_status" | "years_of_service" | "prior_experience" | "employee_type" | "job_position" | "department" | "branch" | "wage_basis";
         op: "eq" | "ne" | "in" | "gt" | "gte" | "lt" | "lte";
     } | null;
     appliesAllActive: boolean;
@@ -408,7 +408,7 @@ export declare const CreatePayComponentRequest: z.ZodEffects<z.ZodObject<{
     capRwf: number | null;
     condition: {
         value: string;
-        field: "sex" | "marital_status" | "children" | "years_of_service" | "prior_experience" | "employee_type" | "job_position" | "department" | "branch" | "wage_basis";
+        field: "children" | "sex" | "marital_status" | "years_of_service" | "prior_experience" | "employee_type" | "job_position" | "department" | "branch" | "wage_basis";
         op: "eq" | "ne" | "in" | "gt" | "gte" | "lt" | "lte";
     } | null;
     appliesAllActive: boolean;
@@ -437,11 +437,11 @@ export declare const UpdatePayComponentRequest: z.ZodEffects<z.ZodEffects<z.ZodO
         value: z.ZodString;
     }, "strip", z.ZodTypeAny, {
         value: string;
-        field: "sex" | "marital_status" | "children" | "years_of_service" | "prior_experience" | "employee_type" | "job_position" | "department" | "branch" | "wage_basis";
+        field: "children" | "sex" | "marital_status" | "years_of_service" | "prior_experience" | "employee_type" | "job_position" | "department" | "branch" | "wage_basis";
         op: "eq" | "ne" | "in" | "gt" | "gte" | "lt" | "lte";
     }, {
         value: string;
-        field: "sex" | "marital_status" | "children" | "years_of_service" | "prior_experience" | "employee_type" | "job_position" | "department" | "branch" | "wage_basis";
+        field: "children" | "sex" | "marital_status" | "years_of_service" | "prior_experience" | "employee_type" | "job_position" | "department" | "branch" | "wage_basis";
         op: "eq" | "ne" | "in" | "gt" | "gte" | "lt" | "lte";
     }>>>;
     appliesAllActive: z.ZodOptional<z.ZodBoolean>;
@@ -470,7 +470,7 @@ export declare const UpdatePayComponentRequest: z.ZodEffects<z.ZodEffects<z.ZodO
     capRwf?: number | null | undefined;
     condition?: {
         value: string;
-        field: "sex" | "marital_status" | "children" | "years_of_service" | "prior_experience" | "employee_type" | "job_position" | "department" | "branch" | "wage_basis";
+        field: "children" | "sex" | "marital_status" | "years_of_service" | "prior_experience" | "employee_type" | "job_position" | "department" | "branch" | "wage_basis";
         op: "eq" | "ne" | "in" | "gt" | "gte" | "lt" | "lte";
     } | null | undefined;
     appliesAllActive?: boolean | undefined;
@@ -492,7 +492,7 @@ export declare const UpdatePayComponentRequest: z.ZodEffects<z.ZodEffects<z.ZodO
     capRwf?: number | null | undefined;
     condition?: {
         value: string;
-        field: "sex" | "marital_status" | "children" | "years_of_service" | "prior_experience" | "employee_type" | "job_position" | "department" | "branch" | "wage_basis";
+        field: "children" | "sex" | "marital_status" | "years_of_service" | "prior_experience" | "employee_type" | "job_position" | "department" | "branch" | "wage_basis";
         op: "eq" | "ne" | "in" | "gt" | "gte" | "lt" | "lte";
     } | null | undefined;
     appliesAllActive?: boolean | undefined;
@@ -514,7 +514,7 @@ export declare const UpdatePayComponentRequest: z.ZodEffects<z.ZodEffects<z.ZodO
     capRwf?: number | null | undefined;
     condition?: {
         value: string;
-        field: "sex" | "marital_status" | "children" | "years_of_service" | "prior_experience" | "employee_type" | "job_position" | "department" | "branch" | "wage_basis";
+        field: "children" | "sex" | "marital_status" | "years_of_service" | "prior_experience" | "employee_type" | "job_position" | "department" | "branch" | "wage_basis";
         op: "eq" | "ne" | "in" | "gt" | "gte" | "lt" | "lte";
     } | null | undefined;
     appliesAllActive?: boolean | undefined;
@@ -536,7 +536,7 @@ export declare const UpdatePayComponentRequest: z.ZodEffects<z.ZodEffects<z.ZodO
     capRwf?: number | null | undefined;
     condition?: {
         value: string;
-        field: "sex" | "marital_status" | "children" | "years_of_service" | "prior_experience" | "employee_type" | "job_position" | "department" | "branch" | "wage_basis";
+        field: "children" | "sex" | "marital_status" | "years_of_service" | "prior_experience" | "employee_type" | "job_position" | "department" | "branch" | "wage_basis";
         op: "eq" | "ne" | "in" | "gt" | "gte" | "lt" | "lte";
     } | null | undefined;
     appliesAllActive?: boolean | undefined;
@@ -558,7 +558,7 @@ export declare const UpdatePayComponentRequest: z.ZodEffects<z.ZodEffects<z.ZodO
     capRwf?: number | null | undefined;
     condition?: {
         value: string;
-        field: "sex" | "marital_status" | "children" | "years_of_service" | "prior_experience" | "employee_type" | "job_position" | "department" | "branch" | "wage_basis";
+        field: "children" | "sex" | "marital_status" | "years_of_service" | "prior_experience" | "employee_type" | "job_position" | "department" | "branch" | "wage_basis";
         op: "eq" | "ne" | "in" | "gt" | "gte" | "lt" | "lte";
     } | null | undefined;
     appliesAllActive?: boolean | undefined;
@@ -580,7 +580,7 @@ export declare const UpdatePayComponentRequest: z.ZodEffects<z.ZodEffects<z.ZodO
     capRwf?: number | null | undefined;
     condition?: {
         value: string;
-        field: "sex" | "marital_status" | "children" | "years_of_service" | "prior_experience" | "employee_type" | "job_position" | "department" | "branch" | "wage_basis";
+        field: "children" | "sex" | "marital_status" | "years_of_service" | "prior_experience" | "employee_type" | "job_position" | "department" | "branch" | "wage_basis";
         op: "eq" | "ne" | "in" | "gt" | "gte" | "lt" | "lte";
     } | null | undefined;
     appliesAllActive?: boolean | undefined;

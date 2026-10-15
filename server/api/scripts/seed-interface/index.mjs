@@ -5,7 +5,9 @@
 import * as owner from './owner.mjs';
 import * as operations from './operations.mjs';
 import * as people from './people.mjs';
+import * as frontdesk from './frontdesk.mjs';
 import * as platform from './platform.mjs';
+import * as stays from './stays.mjs';
 
 export const AREAS = [
   { area: 'platform', module: platform },
@@ -13,4 +15,7 @@ export const AREAS = [
   // After platform: the housekeeping board refers to Jeanne's tasks, which platform.mjs writes.
   { area: 'operations', module: operations },
   { area: 'people', module: people },
+  // Bookings, stays and bills before the conversations about them (stays hangs threads off bookings).
+  { area: 'frontdesk', module: frontdesk },
+  { area: 'stays', module: stays },
 ];

@@ -15,6 +15,7 @@ import type { Metadata } from "next";
 import { FrontDeskTodayView } from "@/features/frontdesk/FrontDeskTodayView";
 import { requirePersona } from "@/lib/session";
 import { getCollection } from "@/server/data";
+import { kigaliToday } from "@/server/sources/context";
 
 export const metadata: Metadata = { title: screens.FrontDeskToday.pageTitle };
 
@@ -49,6 +50,7 @@ export default async function FrontDeskTodayPage({ searchParams }: { searchParam
         roomTypes,
         rooms,
         recordIds: records.map((r) => r.id),
+        today: kigaliToday().iso,
       }}
     />
   );
