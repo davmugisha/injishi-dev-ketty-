@@ -13,6 +13,8 @@ import { check, contextFor, fail, main } from "./lib/harness";
 
 const loaders: Record<string, () => Promise<{ flows: Flow[] }>> = {
   platform: () => import("./flows/platform"),
+  frontdesk: () => import("./flows/frontdesk"),
+  stays: () => import("./flows/stays"),
 };
 
 function arg(name: string): string | null {

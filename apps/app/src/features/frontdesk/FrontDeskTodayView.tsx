@@ -62,8 +62,9 @@ import {
 } from "@injishi/ui";
 import NextLink from "next/link";
 import { useRouter } from "next/navigation";
-import { Fragment, type ReactNode, useEffect, useMemo, useRef, useState } from "react";
+import { Fragment, type ReactNode, useEffect, useMemo, useRef, useState, useTransition } from "react";
 import { TopbarStatus } from "@/components/shell/TopbarStatus";
+import { assignArrivalRoom } from "./actions";
 import { bookingHref, isReady, plural, ROOM_STATUS } from "./shared";
 
 export interface FrontDeskTodayData {
@@ -77,9 +78,36 @@ export interface FrontDeskTodayData {
   roomTypes: RoomType[];
   rooms: DeskRoom[];
   recordIds: string[];
+  /** Today in Kigali (YYYY-MM-DD), as the page read it; the header's date. */
+  today?: string;
 }
 
 type TabId = QueueTab["id"];
+
+const DAY_NAME = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
+const MONTH_NAME = [
+  "January",
+  "February",
+  "March",
+  "April",
+  "May",
+  "June",
+  "July",
+  "August",
+  "September",
+  "October",
+  "November",
+  "December",
+];
+
+/** "Monday 12 October 2026" for a calendar day. */
+function longDay(iso: string): string {
+  const d = new Date(`${iso}T12:00:00Z`);
+  return `${DAY_NAME[d.getUTCDay()]} ${d.getUTCDate()} ${MONTH_NAME[d.getUTCMonth()]} ${d.getUTCFullYear()}`;
+}
+
+/** Where the check-in of one arrival opens. */
+const checkInHref = (bookingId: string) => `${screenHref("CheckIn")}?booking=${encodeURIComponent(bookingId)}`;
 
 /** One table row, whichever queue it comes from. */
 interface QueueRow {
@@ -149,6 +177,7 @@ export function FrontDeskTodayView({ data, offline = false }: { data: FrontDeskT
   const [assignFor, setAssignFor] = useState<string | null>(null);
   const [pick, setPick] = useState<string | null>(null);
   const [doneReq, setDoneReq] = useState<Record<string, boolean>>({});
+  const [assigning, startAssign] = useTransition();
   const [nights, setNights] = useState(1);
   const [adults, setAdults] = useState(2);
   const searchRef = useRef<HTMLInputElement>(null);
@@ -184,7 +213,7 @@ export function FrontDeskTodayView({ data, offline = false }: { data: FrontDeskT
           primary: room
             ? {
                 kind: "link",
-                href: screenHref("CheckIn"),
+                href: checkInHref(r.bookingId),
                 label: "Check in",
                 variant: r.atDesk ? "primary" : "secondary",
               }
@@ -263,6 +292,13 @@ export function FrontDeskTodayView({ data, offline = false }: { data: FrontDeskT
   const unassigned = data.arrivals.filter((a) => !a.room && !assigned[a.id]);
 
   const target = data.arrivals.find((a) => a.id === assignFor) ?? null;
+  // Who the header talks about: the guest at the desk, and the rest of today's arrivals.
+  const atDesk = data.arrivals.find((a) => a.atDesk) ?? data.arrivals[0] ?? null;
+  const others = data.arrivals.filter((a) => a !== atDesk);
+  const stillCleaning = others.filter((a) => a.room && !isReady(a.roomStatus)).length;
+  const headline = atDesk
+    ? `${atDesk.name} is next. ${others.length} more ${others.length === 1 ? "guest arrives" : "guests arrive"} today and ${stillCleaning} of their rooms ${stillCleaning === 1 ? "is" : "are"} still being cleaned.`
+    : "Nobody else arrives today.";
   const targetRooms = target ? data.rooms.filter((r) => r.roomType === target.roomType) : [];
   const walkInHref = `${screenHref("WalkIn")}?nights=${nights}&adults=${adults}`;
 
@@ -276,11 +312,21 @@ export function FrontDeskTodayView({ data, offline = false }: { data: FrontDeskT
   };
   const confirmAssign = () => {
     if (!pick || !target) return;
-    setAssigned((a) => ({ ...a, [target.id]: pick }));
-    toast.success(`Room ${pick} assigned to ${target.name} · housekeeping notified`, {
-      indicator: <CircleCheck className="size-4" />,
+    const chosen = pick;
+    const arrival = target;
+    // The hold is the API's: it refuses a room held for somebody else, or of another type.
+    startAssign(async () => {
+      const result = await assignArrivalRoom(arrival.bookingId, chosen);
+      if (!result.ok) {
+        toast.danger(`Room ${chosen} was not assigned: ${result.error}`);
+        return;
+      }
+      setAssigned((a) => ({ ...a, [arrival.id]: chosen }));
+      toast.success(`Room ${chosen} assigned to ${arrival.name} · housekeeping notified`, {
+        indicator: <CircleCheck className="size-4" />,
+      });
+      closeAssign();
     });
-    closeAssign();
   };
 
   // Desk shortcuts advertised under the search field: / search, ↑↓ move, Enter open, C check in,
@@ -334,9 +380,9 @@ export function FrontDeskTodayView({ data, offline = false }: { data: FrontDeskT
         />
       ) : null}
       <PageHeader
-        eyebrow="Monday 12 October 2026 · Isangano Lakeside Hotel · Morning shift"
+        eyebrow={`${data.today ? longDay(data.today) : "Monday 12 October 2026"} · Isangano Lakeside Hotel · Morning shift`}
         title="Today"
-        description="Sarah Kimani is at the desk. 8 more guests arrive today and 3 of their rooms are still being cleaned."
+        description={headline}
         actions={
           <>
             <LinkButton href={screenHref("RoomRack")} variant="ghost">
@@ -347,9 +393,9 @@ export function FrontDeskTodayView({ data, offline = false }: { data: FrontDeskT
               <PersonPlus className="size-4" />
               Walk-in
             </LinkButton>
-            <LinkButton href={screenHref("CheckIn")}>
+            <LinkButton href={atDesk ? checkInHref(atDesk.bookingId) : screenHref("CheckIn")}>
               <ArrowRightToSquare className="size-4" />
-              Check in Sarah Kimani
+              {atDesk ? `Check in ${atDesk.name}` : "Check in"}
             </LinkButton>
           </>
         }
@@ -703,7 +749,7 @@ export function FrontDeskTodayView({ data, offline = false }: { data: FrontDeskT
               <Button variant="secondary" onPress={closeAssign}>
                 Cancel
               </Button>
-              <Button isDisabled={!pick} onPress={confirmAssign}>
+              <Button isDisabled={!pick || assigning} onPress={confirmAssign}>
                 {pick ? `Assign room ${pick}` : "Choose a room"}
               </Button>
             </Drawer.Footer>
