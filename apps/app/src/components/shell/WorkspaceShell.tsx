@@ -93,7 +93,7 @@ export function WorkspaceShell({ persona, nav, children }: { persona: Persona; n
       <NextLink
         href="/"
         className="flex items-center gap-2.5 px-1.5 py-1 text-foreground no-underline"
-        aria-label="Injishi prototype hub"
+        aria-label="Injishi home"
       >
         <BrandMark size={28} />
         <span className="text-[15px] font-semibold" data-sidebar="label">

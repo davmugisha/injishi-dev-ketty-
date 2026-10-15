@@ -5,7 +5,7 @@ import type { PublicVisitor } from "./PublicChrome";
 export type DemoLinks = Partial<Record<BoardId, string>>;
 
 /**
- * Where links from a public page to demo screens go for this visitor (as on the prototype hub): straight to the
+ * Where links from a public page to demo screens go for this visitor: straight to the
  * screen when it is public or the visitor may open it, otherwise to sign-in with the persona the screen was
  * designed for, landing on the screen afterwards.
  */
