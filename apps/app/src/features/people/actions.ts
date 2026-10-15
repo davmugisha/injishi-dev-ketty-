@@ -1,80 +1,135 @@
 "use server";
 
 import { screenHref } from "@injishi/data";
-import type { ClockCorrection, ClockRecord, DeskEmployee, LeaveRequest } from "@injishi/data/fixtures/people";
-import { getDocument, saveDocument, updateDocument } from "@injishi/db";
 import { revalidatePath } from "next/cache";
 import { requirePersona } from "@/lib/session";
+import { ApiError } from "@/server/api";
+import { requestContext } from "@/server/data";
+import {
+  type DeskEntry,
+  decideCorrection as decideCorrectionApi,
+  decideLeave as decideLeaveApi,
+  decideSwap as decideSwapApi,
+  publishWeek as publishWeekApi,
+  type RosterWeekId,
+  type ShiftLetter,
+  saveDeskEntry as saveDeskEntryApi,
+  setChecklistStep,
+  setLent as setLentApi,
+  setShift as setShiftApi,
+} from "@/server/mutations/people";
+
+/** What a people action answers: done, or the API's refusal in words the screen can show. */
+export type ActionResult = { ok: true } | { ok: false; error: string };
+
+async function attempt(run: () => Promise<unknown>): Promise<ActionResult> {
+  try {
+    await run();
+    return { ok: true };
+  } catch (error) {
+    if (error instanceof ApiError) return { ok: false, error: error.message };
+    throw error;
+  }
+}
 
 /**
- * HR decides a leave request the line manager has already approved (People · home and Leave).
- * Declining needs a reason, which is sent to the employee and the line manager.
+ * HR decides a leave request the line manager has already approved (People · home and Leave), on
+ * the API: approving writes the ledger and takes the person off their shifts; declining needs a
+ * reason, which the person and the line manager read.
  */
-export async function decideLeave(id: string, decision: "approved" | "declined", reason?: string): Promise<void> {
+export async function decideLeave(
+  id: string,
+  decision: "approved" | "declined",
+  reason?: string,
+): Promise<ActionResult> {
   await requirePersona("Leave");
-  const request = await getDocument<LeaveRequest>("people.leaveRequests", id);
-  if (request?.step !== "hr" || request.hrDecision) return;
-  const why = (reason ?? "").trim();
-  if (decision === "declined" && !why) return;
-  await updateDocument<LeaveRequest>("people.leaveRequests", id, {
-    hrDecision: decision,
-    hrReason: decision === "declined" ? why : null,
-  });
+  const ctx = await requestContext();
+  const result = await attempt(() => decideLeaveApi(ctx, id, decision, reason));
   revalidatePath(screenHref("Leave"));
   revalidatePath(screenHref("PeopleHome"));
+  revalidatePath(screenHref("Roster"));
+  return result;
 }
 
 /** HR approves or declines a clock correction a line manager has confirmed. The original record is kept. */
-export async function decideCorrection(id: string, decision: "approved" | "declined", note?: string): Promise<void> {
-  const persona = await requirePersona("Attendance");
-  const correction = await getDocument<ClockCorrection>("people.corrections", id);
-  if (correction?.state !== "pending") return;
-  const first = correction.name.split(" ")[0];
-  await updateDocument<ClockCorrection>("people.corrections", id, {
-    state: decision,
-    hrNote: (note ?? "").trim() || null,
-    outcome:
-      decision === "approved"
-        ? `Correction entry added by ${persona.name}. The original clock record is kept.`
-        : `Declined by ${persona.name}. The reason was sent to ${first} and the line manager.`,
-  });
+export async function decideCorrection(
+  id: string,
+  decision: "approved" | "declined",
+  note?: string,
+): Promise<ActionResult> {
+  await requirePersona("Attendance");
+  const ctx = await requestContext();
+  const result = await attempt(() => decideCorrectionApi(ctx, id, decision, note));
   revalidatePath(screenHref("Attendance"));
+  return result;
 }
 
-export interface DeskEntryInput {
-  employee: string;
-  date: string;
-  clockIn: string;
-  clockOut: string;
-  reason: string;
-  justification: string;
-}
+export type DeskEntryInput = DeskEntry;
 
 /** Desk entry for when the kiosk or phone could not record a clock. A justification is required. */
-export async function saveDeskEntry(input: DeskEntryInput): Promise<{ ok: boolean; name?: string }> {
-  const persona = await requirePersona("Attendance");
-  const justification = input.justification.trim();
-  const employee = await getDocument<DeskEmployee>("people.deskEmployees", input.employee);
-  if (!employee || !justification) return { ok: false };
-  const now = new Date();
-  await saveDocument<ClockRecord>("people.clockRecords", {
-    id: `desk-${now.getTime()}`,
-    day: "today",
-    name: employee.name,
-    dept: employee.dept,
-    property: employee.property,
-    shift: employee.shift,
-    clockIn: input.clockIn.trim() || "06:00",
-    source: "desk",
-    sourceNote: `By ${persona.name} · justification on file`,
-    clockOut: input.clockOut.trim() || "—",
-    status: "Awaiting manager",
-    tone: "info",
-    addedAt: now.toISOString(),
-    date: input.date.trim(),
-    reason: input.reason,
-    justification,
-  });
+export async function saveDeskEntry(input: DeskEntryInput): Promise<ActionResult & { name?: string }> {
+  await requirePersona("Attendance");
+  const ctx = await requestContext();
+  const result = await attempt(() => saveDeskEntryApi(ctx, input));
   revalidatePath(screenHref("Attendance"));
-  return { ok: true, name: employee.name };
+  revalidatePath(screenHref("PeopleHome"));
+  return result;
+}
+
+/** Tick or untick an offboarding step on the Employees screen. */
+export async function setOffboardingStep(id: string, done: boolean): Promise<ActionResult> {
+  await requirePersona("Employees");
+  const ctx = await requestContext();
+  const result = await attempt(() => setChecklistStep(ctx, id, done));
+  revalidatePath(screenHref("Employees"));
+  revalidatePath(screenHref("PeopleHome"));
+  return result;
+}
+
+/** Change one cell of the roster grid (a shift, or a day off). */
+export async function setRosterShift(
+  week: RosterWeekId,
+  employeeId: string,
+  dayIndex: number,
+  shift: ShiftLetter,
+): Promise<ActionResult> {
+  await requirePersona("Roster");
+  const ctx = await requestContext();
+  const result = await attempt(() => setShiftApi(ctx, { week, employeeId, dayIndex, shift }));
+  revalidatePath(screenHref("Roster"));
+  revalidatePath(screenHref("PeopleHome"));
+  return result;
+}
+
+/** Lend one shift to the business's other branch, or bring it home. */
+export async function setRosterLent(
+  week: RosterWeekId,
+  employeeId: string,
+  dayIndex: number,
+  lent: boolean,
+): Promise<ActionResult> {
+  await requirePersona("Roster");
+  const ctx = await requestContext();
+  const result = await attempt(() => setLentApi(ctx, { week, employeeId, dayIndex, lent }));
+  revalidatePath(screenHref("Roster"));
+  return result;
+}
+
+/** Publish a week of the roster: its drafts reach the staff app. */
+export async function publishRosterWeek(week: RosterWeekId): Promise<ActionResult> {
+  await requirePersona("Roster");
+  const ctx = await requestContext();
+  const result = await attempt(() => publishWeekApi(ctx, week));
+  revalidatePath(screenHref("Roster"));
+  return result;
+}
+
+/** Approve or decline a shift swap both colleagues agreed to. */
+export async function decideShiftSwap(id: string, decision: "approved" | "declined"): Promise<ActionResult> {
+  await requirePersona("Roster");
+  const ctx = await requestContext();
+  const result = await attempt(() => decideSwapApi(ctx, id, decision));
+  revalidatePath(screenHref("Roster"));
+  revalidatePath(screenHref("PeopleHome"));
+  return result;
 }

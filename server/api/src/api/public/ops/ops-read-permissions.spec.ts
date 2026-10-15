@@ -34,6 +34,7 @@ import {
 } from './leave.controller';
 import { OpsListViewsController } from './list-views.controller';
 import { OpsOrgChartController } from './org-chart.controller';
+import { OpsHrWorkforceController, OpsRosterCoverController } from './hr-workforce.controller';
 import { OpsPayAccountsController } from './pay-accounts.controller';
 import { OpsPayRunsController } from './pay-runs.controller';
 import {
@@ -146,6 +147,8 @@ const CONTROLLERS: Ctor[] = [
   OpsStaffAnnouncementsController,
   OpsDisciplinaryActionsController,
   OpsOrgChartController,
+  OpsHrWorkforceController,
+  OpsRosterCoverController,
   OpsRotationPatternsController,
   OpsRotationAssignmentsController,
   OpsShiftRequestsController,
@@ -346,6 +349,16 @@ const EXPECTED: Record<string, readonly OrgRole[]> = {
   '/ops/staff-announcements/:id/files/:index': ['owner', 'manager', 'receptionist', 'hr'],
   // Roster card fields only, as the file list (AC-PF10).
   '/ops/org-chart': ['owner', 'manager', 'hr'],
+  // The new interface's HR screens (real-data, people). Teams and grades are work
+  // fields, read under any HR permission as a leave type's name is; cover reads
+  // like the roster; what a contract pays and where pay goes reads like the
+  // contracts list; papers, departures and family are `people.manage` alone.
+  '/ops/hr/teams': ['owner', 'manager', 'receptionist', 'hr'],
+  '/ops/roster/cover': ['owner', 'manager', 'receptionist', 'hr'],
+  '/ops/hr/compensation': ['owner', 'hr'],
+  '/ops/hr/expiring-documents': ['owner', 'hr'],
+  '/ops/hr/checklists': ['owner', 'hr'],
+  '/ops/hr/dependants': ['owner', 'hr'],
   // Time (058-time). The week grid reads like the roster; the desk reads the
   // rotations it clocks people onto, the policies it punches under, its
   // kiosks and whether a person has a PIN. Requests are decided by those who

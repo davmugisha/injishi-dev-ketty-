@@ -46,6 +46,7 @@ import { OpsDocumentRequestsController } from './ops/document-requests.controlle
 import { OpsDocumentsController } from './ops/documents.controller';
 import { OpsHrController } from './ops/hr.controller';
 import { OpsOrgChartController } from './ops/org-chart.controller';
+import { OpsHrWorkforceController, OpsRosterCoverController } from './ops/hr-workforce.controller';
 import { OpsPayAccountsController } from './ops/pay-accounts.controller';
 import { OpsPoliciesController } from './ops/policies.controller';
 import { OpsStaffAnnouncementsController } from './ops/staff-announcements.controller';
@@ -220,6 +221,9 @@ import { WaitlistModule } from './waitlist/waitlist.module';
     OpsStaffAnnouncementsController,
     OpsDisciplinaryActionsController,
     OpsOrgChartController,
+    // The new interface's HR screens (real-data, people): teams, cover, compensation, checklists, dependants.
+    OpsHrWorkforceController,
+    OpsRosterCoverController,
     // Saved list views for every list (058-list-framework).
     OpsListViewsController,
     OpsShiftTemplatesController,

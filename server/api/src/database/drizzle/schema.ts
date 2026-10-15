@@ -64,3 +64,5 @@ export * from './people-pay';
 // The list framework (ADR-058 slice 2): saved views and the export log.
 export * from './lists';
 export * from './assistant';
+// The new interface's HR screens (real-data, people): teams, minimum cover, checklists, dependants.
+export * from './interface-people';

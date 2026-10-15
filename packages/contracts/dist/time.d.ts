@@ -951,6 +951,14 @@ export declare const AttendanceRequest: z.ZodObject<{
     decisionNote: z.ZodNullable<z.ZodString>;
     resultRecordId: z.ZodNullable<z.ZodString>;
     createdAt: z.ZodString;
+    /** What backs the times asked for: a work order closed, a handover note signed. */
+    evidence: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    /** The line manager who confirmed the times before the request reached the office. */
+    managerConfirmedByName: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    managerConfirmedAt: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    /** The record as it stands, so a reader sees what would change. */
+    recordClockInAt: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    recordClockOutAt: z.ZodOptional<z.ZodNullable<z.ZodString>>;
 }, "strip", z.ZodTypeAny, {
     status: "approved" | "rejected" | "cancelled" | "requested";
     decidedAt: string | null;
@@ -976,6 +984,11 @@ export declare const AttendanceRequest: z.ZodObject<{
     } | null;
     recordId: string | null;
     resultRecordId: string | null;
+    evidence?: string | null | undefined;
+    managerConfirmedByName?: string | null | undefined;
+    managerConfirmedAt?: string | null | undefined;
+    recordClockInAt?: string | null | undefined;
+    recordClockOutAt?: string | null | undefined;
 }, {
     status: "approved" | "rejected" | "cancelled" | "requested";
     decidedAt: string | null;
@@ -1001,6 +1014,11 @@ export declare const AttendanceRequest: z.ZodObject<{
     } | null;
     recordId: string | null;
     resultRecordId: string | null;
+    evidence?: string | null | undefined;
+    managerConfirmedByName?: string | null | undefined;
+    managerConfirmedAt?: string | null | undefined;
+    recordClockInAt?: string | null | undefined;
+    recordClockOutAt?: string | null | undefined;
 }>;
 export type AttendanceRequest = z.infer<typeof AttendanceRequest>;
 /** `POST /ops/attendance-requests`: on someone's behalf (`attendance.record`). */
@@ -3200,6 +3218,14 @@ export declare const MyAttendance: z.ZodObject<{
         decisionNote: z.ZodNullable<z.ZodString>;
         resultRecordId: z.ZodNullable<z.ZodString>;
         createdAt: z.ZodString;
+        /** What backs the times asked for: a work order closed, a handover note signed. */
+        evidence: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+        /** The line manager who confirmed the times before the request reached the office. */
+        managerConfirmedByName: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+        managerConfirmedAt: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+        /** The record as it stands, so a reader sees what would change. */
+        recordClockInAt: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+        recordClockOutAt: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     }, "strip", z.ZodTypeAny, {
         status: "approved" | "rejected" | "cancelled" | "requested";
         decidedAt: string | null;
@@ -3225,6 +3251,11 @@ export declare const MyAttendance: z.ZodObject<{
         } | null;
         recordId: string | null;
         resultRecordId: string | null;
+        evidence?: string | null | undefined;
+        managerConfirmedByName?: string | null | undefined;
+        managerConfirmedAt?: string | null | undefined;
+        recordClockInAt?: string | null | undefined;
+        recordClockOutAt?: string | null | undefined;
     }, {
         status: "approved" | "rejected" | "cancelled" | "requested";
         decidedAt: string | null;
@@ -3250,6 +3281,11 @@ export declare const MyAttendance: z.ZodObject<{
         } | null;
         recordId: string | null;
         resultRecordId: string | null;
+        evidence?: string | null | undefined;
+        managerConfirmedByName?: string | null | undefined;
+        managerConfirmedAt?: string | null | undefined;
+        recordClockInAt?: string | null | undefined;
+        recordClockOutAt?: string | null | undefined;
     }>, "many">;
 }, "strip", z.ZodTypeAny, {
     requests: {
@@ -3277,6 +3313,11 @@ export declare const MyAttendance: z.ZodObject<{
         } | null;
         recordId: string | null;
         resultRecordId: string | null;
+        evidence?: string | null | undefined;
+        managerConfirmedByName?: string | null | undefined;
+        managerConfirmedAt?: string | null | undefined;
+        recordClockInAt?: string | null | undefined;
+        recordClockOutAt?: string | null | undefined;
     }[];
     from: string;
     to: string;
@@ -3339,6 +3380,11 @@ export declare const MyAttendance: z.ZodObject<{
         } | null;
         recordId: string | null;
         resultRecordId: string | null;
+        evidence?: string | null | undefined;
+        managerConfirmedByName?: string | null | undefined;
+        managerConfirmedAt?: string | null | undefined;
+        recordClockInAt?: string | null | undefined;
+        recordClockOutAt?: string | null | undefined;
     }[];
     from: string;
     to: string;
@@ -3420,6 +3466,14 @@ export declare const MyAttendanceRequestList: z.ZodObject<{
         decisionNote: z.ZodNullable<z.ZodString>;
         resultRecordId: z.ZodNullable<z.ZodString>;
         createdAt: z.ZodString;
+        /** What backs the times asked for: a work order closed, a handover note signed. */
+        evidence: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+        /** The line manager who confirmed the times before the request reached the office. */
+        managerConfirmedByName: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+        managerConfirmedAt: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+        /** The record as it stands, so a reader sees what would change. */
+        recordClockInAt: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+        recordClockOutAt: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     }, "strip", z.ZodTypeAny, {
         status: "approved" | "rejected" | "cancelled" | "requested";
         decidedAt: string | null;
@@ -3445,6 +3499,11 @@ export declare const MyAttendanceRequestList: z.ZodObject<{
         } | null;
         recordId: string | null;
         resultRecordId: string | null;
+        evidence?: string | null | undefined;
+        managerConfirmedByName?: string | null | undefined;
+        managerConfirmedAt?: string | null | undefined;
+        recordClockInAt?: string | null | undefined;
+        recordClockOutAt?: string | null | undefined;
     }, {
         status: "approved" | "rejected" | "cancelled" | "requested";
         decidedAt: string | null;
@@ -3470,6 +3529,11 @@ export declare const MyAttendanceRequestList: z.ZodObject<{
         } | null;
         recordId: string | null;
         resultRecordId: string | null;
+        evidence?: string | null | undefined;
+        managerConfirmedByName?: string | null | undefined;
+        managerConfirmedAt?: string | null | undefined;
+        recordClockInAt?: string | null | undefined;
+        recordClockOutAt?: string | null | undefined;
     }>, "many">;
 }, "strip", z.ZodTypeAny, {
     requests: {
@@ -3497,6 +3561,11 @@ export declare const MyAttendanceRequestList: z.ZodObject<{
         } | null;
         recordId: string | null;
         resultRecordId: string | null;
+        evidence?: string | null | undefined;
+        managerConfirmedByName?: string | null | undefined;
+        managerConfirmedAt?: string | null | undefined;
+        recordClockInAt?: string | null | undefined;
+        recordClockOutAt?: string | null | undefined;
     }[];
 }, {
     requests: {
@@ -3524,6 +3593,11 @@ export declare const MyAttendanceRequestList: z.ZodObject<{
         } | null;
         recordId: string | null;
         resultRecordId: string | null;
+        evidence?: string | null | undefined;
+        managerConfirmedByName?: string | null | undefined;
+        managerConfirmedAt?: string | null | undefined;
+        recordClockInAt?: string | null | undefined;
+        recordClockOutAt?: string | null | undefined;
     }[];
 }>;
 export type MyAttendanceRequestList = z.infer<typeof MyAttendanceRequestList>;
@@ -4220,6 +4294,14 @@ export declare const MyTeamRequests: z.ZodObject<{
         decisionNote: z.ZodNullable<z.ZodString>;
         resultRecordId: z.ZodNullable<z.ZodString>;
         createdAt: z.ZodString;
+        /** What backs the times asked for: a work order closed, a handover note signed. */
+        evidence: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+        /** The line manager who confirmed the times before the request reached the office. */
+        managerConfirmedByName: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+        managerConfirmedAt: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+        /** The record as it stands, so a reader sees what would change. */
+        recordClockInAt: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+        recordClockOutAt: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     }, "strip", z.ZodTypeAny, {
         status: "approved" | "rejected" | "cancelled" | "requested";
         decidedAt: string | null;
@@ -4245,6 +4327,11 @@ export declare const MyTeamRequests: z.ZodObject<{
         } | null;
         recordId: string | null;
         resultRecordId: string | null;
+        evidence?: string | null | undefined;
+        managerConfirmedByName?: string | null | undefined;
+        managerConfirmedAt?: string | null | undefined;
+        recordClockInAt?: string | null | undefined;
+        recordClockOutAt?: string | null | undefined;
     }, {
         status: "approved" | "rejected" | "cancelled" | "requested";
         decidedAt: string | null;
@@ -4270,6 +4357,11 @@ export declare const MyTeamRequests: z.ZodObject<{
         } | null;
         recordId: string | null;
         resultRecordId: string | null;
+        evidence?: string | null | undefined;
+        managerConfirmedByName?: string | null | undefined;
+        managerConfirmedAt?: string | null | undefined;
+        recordClockInAt?: string | null | undefined;
+        recordClockOutAt?: string | null | undefined;
     }>, "many">;
     /** 058-leave: leave and allocation requests routed to the caller. */
     leave: z.ZodArray<z.ZodObject<{
@@ -4621,6 +4713,11 @@ export declare const MyTeamRequests: z.ZodObject<{
         } | null;
         recordId: string | null;
         resultRecordId: string | null;
+        evidence?: string | null | undefined;
+        managerConfirmedByName?: string | null | undefined;
+        managerConfirmedAt?: string | null | undefined;
+        recordClockInAt?: string | null | undefined;
+        recordClockOutAt?: string | null | undefined;
     }[];
     allocation: {
         status: "approved" | "rejected" | "cancelled" | "requested";
@@ -4750,6 +4847,11 @@ export declare const MyTeamRequests: z.ZodObject<{
         } | null;
         recordId: string | null;
         resultRecordId: string | null;
+        evidence?: string | null | undefined;
+        managerConfirmedByName?: string | null | undefined;
+        managerConfirmedAt?: string | null | undefined;
+        recordClockInAt?: string | null | undefined;
+        recordClockOutAt?: string | null | undefined;
     }[];
     allocation: {
         status: "approved" | "rejected" | "cancelled" | "requested";

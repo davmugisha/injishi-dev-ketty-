@@ -1863,6 +1863,11 @@ export declare const AttendanceRequestPage: z.ZodObject<{
         decisionNote: z.ZodNullable<z.ZodString>;
         resultRecordId: z.ZodNullable<z.ZodString>;
         createdAt: z.ZodString;
+        evidence: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+        managerConfirmedByName: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+        managerConfirmedAt: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+        recordClockInAt: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+        recordClockOutAt: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     }, "strip", z.ZodTypeAny, {
         status: "approved" | "rejected" | "cancelled" | "requested";
         decidedAt: string | null;
@@ -1888,6 +1893,11 @@ export declare const AttendanceRequestPage: z.ZodObject<{
         } | null;
         recordId: string | null;
         resultRecordId: string | null;
+        evidence?: string | null | undefined;
+        managerConfirmedByName?: string | null | undefined;
+        managerConfirmedAt?: string | null | undefined;
+        recordClockInAt?: string | null | undefined;
+        recordClockOutAt?: string | null | undefined;
     }, {
         status: "approved" | "rejected" | "cancelled" | "requested";
         decidedAt: string | null;
@@ -1913,6 +1923,11 @@ export declare const AttendanceRequestPage: z.ZodObject<{
         } | null;
         recordId: string | null;
         resultRecordId: string | null;
+        evidence?: string | null | undefined;
+        managerConfirmedByName?: string | null | undefined;
+        managerConfirmedAt?: string | null | undefined;
+        recordClockInAt?: string | null | undefined;
+        recordClockOutAt?: string | null | undefined;
     }>, "many">;
     total: z.ZodNumber;
     page: z.ZodNumber;
@@ -1976,6 +1991,11 @@ export declare const AttendanceRequestPage: z.ZodObject<{
         } | null;
         recordId: string | null;
         resultRecordId: string | null;
+        evidence?: string | null | undefined;
+        managerConfirmedByName?: string | null | undefined;
+        managerConfirmedAt?: string | null | undefined;
+        recordClockInAt?: string | null | undefined;
+        recordClockOutAt?: string | null | undefined;
     }[];
     total: number;
     page: number;
@@ -2019,6 +2039,11 @@ export declare const AttendanceRequestPage: z.ZodObject<{
         } | null;
         recordId: string | null;
         resultRecordId: string | null;
+        evidence?: string | null | undefined;
+        managerConfirmedByName?: string | null | undefined;
+        managerConfirmedAt?: string | null | undefined;
+        recordClockInAt?: string | null | undefined;
+        recordClockOutAt?: string | null | undefined;
     }[];
     total: number;
     page: number;

@@ -300,6 +300,8 @@ export const employees = pgTable(
      * `hired_on` by migration 0057, and written with it on every create.
      */
     serviceFrom: date('service_from').notNull(),
+    /** The business's own pay grade ("H2"): a work field, free text until grades carry bands. */
+    grade: text('grade'),
     ...timestamps,
   },
   (t) => [
@@ -378,9 +380,17 @@ export const employmentContracts = pgTable(
     noticeDays: integer('notice_days'),
     documentKey: text('document_key'),
     createdByUserId: uuid('created_by_user_id').references(() => users.id),
+    /** The last day of probation, when the contract starts one. */
+    probationEndsOn: date('probation_ends_on'),
+    /** Why this contract was made: a hire, an annual review, a promotion. */
+    changeReason: text('change_reason'),
     ...timestamps,
   },
   (t) => [
+    check(
+      'employment_contracts_probation_ck',
+      sql`${t.probationEndsOn} IS NULL OR ${t.probationEndsOn} >= ${t.startsOn}`,
+    ),
     uniqueIndex('employment_contracts_one_active_uk')
       .on(t.employeeId)
       .where(sql`${t.status} = 'active'`),
@@ -683,6 +693,13 @@ export const leaveTypes = pgTable(
     seniorityCapDays: numeric('seniority_cap_days', { precision: 5, scale: 1, mode: 'number' }),
     /** The defaults row this type came from. */
     configEntryId: uuid('config_entry_id'),
+    /**
+     * When the owner signed the type off as the business's policy. Null: still
+     * the configured value nobody has verified (a national default awaiting the
+     * payroll expert, or an edit awaiting the owner).
+     */
+    verifiedAt: timestamp('verified_at', { withTimezone: true }),
+    verifiedByUserId: uuid('verified_by_user_id').references(() => users.id),
     status: hrCatalogStatusEnum('status').notNull().default('active'),
     ...timestamps,
   },

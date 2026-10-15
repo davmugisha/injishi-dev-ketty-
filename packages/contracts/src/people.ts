@@ -467,6 +467,8 @@ export const ClockInRequest = z.object({
     /** At most 5 minutes ahead and 7 days behind the server clock. */
     at: Instant.optional(),
     rosterEntryId: Uuid.optional(),
+    /** Why the desk wrote it and who confirmed the time: kept on the record. */
+    note: z.string().trim().min(3, "Say who confirmed the time.").max(300).optional(),
 });
 export type ClockInRequest = z.infer<typeof ClockInRequest>;
 export const ClockOutRequest = z.object({ at: Instant.optional() });
@@ -521,6 +523,9 @@ export const LeaveType = LeaveTypeRules.extend({
     id: Uuid,
     code: z.string(),
     status: LeaveTypeStatus,
+    /** When the owner signed the type off as the business's policy; null while it is the configured value nobody verified. */
+    verifiedAt: z.string().nullable().optional(),
+    verifiedByName: z.string().nullable().optional(),
 });
 export type LeaveType = z.infer<typeof LeaveType>;
 export const LeaveTypeList = z.object({ types: z.array(LeaveType) });

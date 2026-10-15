@@ -422,6 +422,8 @@ exports.ClockInRequest = zod_1.z.object({
     /** At most 5 minutes ahead and 7 days behind the server clock. */
     at: Instant.optional(),
     rosterEntryId: primitives_1.Uuid.optional(),
+    /** Why the desk wrote it and who confirmed the time: kept on the record. */
+    note: zod_1.z.string().trim().min(3, "Say who confirmed the time.").max(300).optional(),
 });
 exports.ClockOutRequest = zod_1.z.object({ at: Instant.optional() });
 exports.CorrectAttendanceRequest = zod_1.z.object({
@@ -472,6 +474,9 @@ exports.LeaveType = LeaveTypeRules.extend({
     id: primitives_1.Uuid,
     code: zod_1.z.string(),
     status: exports.LeaveTypeStatus,
+    /** When the owner signed the type off as the business's policy; null while it is the configured value nobody verified. */
+    verifiedAt: zod_1.z.string().nullable().optional(),
+    verifiedByName: zod_1.z.string().nullable().optional(),
 });
 exports.LeaveTypeList = zod_1.z.object({ types: zod_1.z.array(exports.LeaveType) });
 function leaveTypeRefine(b, ctx) {
