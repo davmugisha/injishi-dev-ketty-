@@ -6,6 +6,7 @@ import { BookingModule } from '../../modules/booking/booking.module';
 import { GeographyModule } from '../../modules/geography/geography.module';
 import { ListingSetupModule } from '../../modules/listing-setup/listing-setup.module';
 import { ListingModule } from '../../modules/listing/listing.module';
+import { MarketplaceModule } from '../../modules/marketplace/marketplace.module';
 import { OperationsModule } from '../../modules/operations/operations.module';
 import { OrganizationModule } from '../../modules/organization/organization.module';
 import { ListsModule } from '../../modules/lists/lists.module';
@@ -29,6 +30,15 @@ import { MeWorkPayController } from './me/work-pay.controller';
 import { KioskController } from './kiosk/kiosk.controller';
 import { TwoFactorController } from './me/two-factor.controller';
 import { AvailabilityController } from './properties/availability.controller';
+import { MarketplaceController } from './properties/marketplace.controller';
+import {
+  MeBusinessesController,
+  MeCollectionsController,
+  MeConsentsController,
+  MeGuestContactController,
+  MeSavedController,
+  MeTripFactsController,
+} from './me/saved.controller';
 import {
   BookableController,
   PropertiesController,
@@ -152,6 +162,8 @@ import { WaitlistModule } from './waitlist/waitlist.module';
     AuthModule,
     GeographyModule,
     ListingModule,
+    // The interface marketplace and guest account (real-data 1.3.2).
+    MarketplaceModule,
     ListingSetupModule,
     BookingModule,
     OperationsModule,
@@ -187,6 +199,8 @@ import { WaitlistModule } from './waitlist/waitlist.module';
     BookableController,
     // What is left to sell, per night (ADR-047 wave E).
     AvailabilityController,
+    // The interface marketplace's cards, rooms and property pages (real-data 1.3.2).
+    MarketplaceController,
     BookingsController,
     // The host's approve and decline, behind WorkspaceGuard (ADR-053, AC-A5).
     BookingDecisionsController,
@@ -304,6 +318,13 @@ import { WaitlistModule } from './waitlist/waitlist.module';
      * authorizes, proved per route.
      */
     MeStaysController,
+    // The guest account (real-data 1.3.2): the heart, named lists, consent, contact, trip facts.
+    MeSavedController,
+    MeCollectionsController,
+    MeConsentsController,
+    MeGuestContactController,
+    MeTripFactsController,
+    MeBusinessesController,
     MeWorkController,
     MeWorkLeaveController,
     MeWorkPayController,

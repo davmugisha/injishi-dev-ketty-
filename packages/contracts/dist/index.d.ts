@@ -50,4 +50,5 @@ export * from "./housekeeping-board";
 export * from "./maintenance";
 export * from "./lost-found";
 export * from "./front-desk";
+export * from "./marketplace";
 //# sourceMappingURL=index.d.ts.map

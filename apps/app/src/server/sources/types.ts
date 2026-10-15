@@ -4,7 +4,7 @@
  * contract). Loaders are plain async functions: no `next/*` import, so `scripts/verify-*.ts` run them.
  */
 
-import type { Persona } from "@injishi/data";
+import type { Persona, PersonaId } from "@injishi/data";
 import type { Doc } from "@injishi/data/types";
 import type { ApiClient, RequestOptions } from "../api";
 import type { Account, Workspace } from "../auth";
@@ -65,6 +65,8 @@ export interface LiveSource<T extends Doc = Doc> {
    * cannot name the prototype's 12 October on any other day.
    */
   parity?: "identity" | "shape";
+  /** Account data on public pages is empty anonymously. Verify that refusal, then compare this sample account. */
+  accountParityPersona?: PersonaId;
 }
 
 /** Declare an area's live sources. Keys must be collection names the pages read. */

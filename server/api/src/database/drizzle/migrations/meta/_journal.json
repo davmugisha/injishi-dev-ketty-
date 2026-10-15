@@ -484,6 +484,13 @@
       "when": 1792058144384,
       "tag": "0068_interface_frontdesk",
       "breakpoints": true
+    },
+    {
+      "idx": 69,
+      "version": "7",
+      "when": 1792063326048,
+      "tag": "0069_interface_market",
+      "breakpoints": true
     }
   ]
 }

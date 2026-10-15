@@ -73,3 +73,6 @@ export * from './assistant';
 export * from './interface-operations';
 // The new interface's HR screens (real-data, people): teams, minimum cover, checklists, dependants.
 export * from './interface-people';
+// The new interface's marketplace and guest account (real-data 1.3.2): marketplace cards for
+// properties and room types, and the append-only consent history.
+export * from './interface-market';

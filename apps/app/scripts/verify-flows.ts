@@ -18,6 +18,8 @@ const loaders: Record<string, () => Promise<{ flows: Flow[] }>> = {
   people: () => import("./flows/people"),
   frontdesk: () => import("./flows/frontdesk"),
   stays: () => import("./flows/stays"),
+  market: () => import("./flows/market"),
+  public: () => import("./flows/public"),
 };
 
 function arg(name: string): string | null {

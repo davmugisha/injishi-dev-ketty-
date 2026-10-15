@@ -179,6 +179,8 @@ export const userProfiles = pgTable(
       .primaryKey()
       .references(() => users.id, { onDelete: 'cascade' }),
     displayName: text('display_name'),
+    /** The language the person reads Injishi in (the guest account's choice). */
+    locale: text('locale').notNull().default('en'),
     avatarObjectKey: text('avatar_object_key'),
     phoneE164: text('phone_e164'),
     // Demoted (Decision A): uniqueness now lives in `identity_documents`. Kept as
@@ -201,6 +203,7 @@ export const userProfiles = pgTable(
     ...timestamps,
   },
   (t) => [
+    check('user_profiles_locale', sql`${t.locale} IN ('en', 'rw', 'fr')`),
     check(
       'user_profiles_address_country_shape',
       sql`${t.country} = 'RW'

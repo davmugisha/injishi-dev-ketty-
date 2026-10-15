@@ -8,6 +8,7 @@ import * as people from './people.mjs';
 import * as frontdesk from './frontdesk.mjs';
 import * as platform from './platform.mjs';
 import * as stays from './stays.mjs';
+import * as market from './market.mjs';
 
 export const AREAS = [
   { area: 'platform', module: platform },
@@ -18,4 +19,5 @@ export const AREAS = [
   // Bookings, stays and bills before the conversations about them (stays hangs threads off bookings).
   { area: 'frontdesk', module: frontdesk },
   { area: 'stays', module: stays },
+  { area: 'market', module: market },
 ];

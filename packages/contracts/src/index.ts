@@ -51,3 +51,4 @@ export * from "./maintenance";
 export * from "./lost-found";
 // The front desk's day in one read, and the no-show command (interface real-data, frontdesk leaf).
 export * from "./front-desk";
+export * from "./marketplace";
