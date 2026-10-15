@@ -102,7 +102,6 @@ export function LeaveView({
   const [declining, setDeclining] = useState(false);
   const [why, setWhy] = useState("");
   const [whyErr, setWhyErr] = useState(false);
-  const [reminded, setReminded] = useState<Record<string, boolean>>({});
   const [lower, setLower] = useState<"bal" | "rules">(initial.show);
   const [pending, startTransition] = useTransition();
   const [requests, decideOptimistic] = useOptimistic(data.requests, (state, d: Decision) =>
@@ -519,10 +518,11 @@ export function LeaveView({
               <Button
                 variant="secondary"
                 className="self-start"
-                isDisabled={!!reminded[cur.id]}
-                onPress={() => setReminded((m) => ({ ...m, [cur.id]: true }))}
+                onPress={() =>
+                  toast.danger("Leave reminders are not available yet. Contact the line manager directly.")
+                }
               >
-                {reminded[cur.id] ? `Reminder sent to ${lmFirst}` : `Remind ${lmFirst}`}
+                {`Remind ${lmFirst}`}
               </Button>
             </>
           ) : null}

@@ -294,10 +294,7 @@ export function RosterView({
     });
   };
   const reset = () => {
-    setGrids({ ...grids, [wk]: null });
-    if (wk === "this") setSwapState({});
-    setLent({ ...lent, [wk]: Object.fromEntries(W.lent.map((k) => [k, true])) });
-    setEdits(bump(wk, 1));
+    toast.danger("Resetting the whole roster to rotations is not available yet. Edit individual shifts to save them.");
   };
   const decideSwap = (w: (typeof swaps)[number], decision: "approved" | "declined") => {
     const before = grids.this ?? null;

@@ -72,7 +72,6 @@ export function EmployeesView({
   const [selected, setSelected] = useState(initial.employee);
   const [tab, setTab] = useState(initial.tab);
   const [log, setLog] = useState<FileLogEntry[]>([]);
-  const [asked, setAsked] = useState<Record<string, boolean>>({});
   const [ob, setOb] = useState<Record<string, boolean>>(() =>
     Object.fromEntries(data.offboarding.map((t) => [t.id, t.done])),
   );
@@ -385,8 +384,12 @@ export function EmployeesView({
             onTabChange={setTab}
             log={log}
             onView={(entry) => setLog((l) => [entry, ...l])}
-            loginRequested={!!asked[current.id]}
-            onRequestLogin={() => setAsked((a) => ({ ...a, [current.id]: true }))}
+            loginRequested={false}
+            onRequestLogin={() =>
+              toast.danger(
+                "Login access requests are not available yet. Ask the owner to invite this person from Team and roles.",
+              )
+            }
           />
         ) : (
           <Card className="p-[18px]">
