@@ -44,4 +44,5 @@ export * from "./payroll";
 export * from "./list-query";
 export * from "./hr-lists";
 export * from "./redaction";
+export * from "./front-desk";
 //# sourceMappingURL=index.d.ts.map

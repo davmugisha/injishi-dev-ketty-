@@ -51,7 +51,9 @@ import { OpsPoliciesController } from './policies.controller';
 import { OpsRosterController, OpsShiftTemplatesController } from './roster.controller';
 import { OpsEbmController } from './ebm.controller';
 import { OpsFoliosController } from './folios.controller';
+import { OpsFrontDeskController } from './front-desk.controller';
 import { OpsHousekeepingController } from './housekeeping.controller';
+import { OpsMessageTemplatesController } from './message-templates.controller';
 import { OpsOffersController } from './offers.controller';
 import { OpsOutletPartiesController } from './outlet-parties.controller';
 import { OpsOutletsController } from './outlets.controller';
@@ -107,7 +109,9 @@ const CONTROLLERS: Ctor[] = [
   OpsDepartmentsController,
   OpsEbmController,
   OpsFoliosController,
+  OpsFrontDeskController,
   OpsHousekeepingController,
+  OpsMessageTemplatesController,
   OpsOffersController,
   OpsRefundRequestsController,
   OpsOutletPartiesController,
@@ -262,7 +266,14 @@ const EXPECTED: Record<string, readonly OrgRole[]> = {
   '/ops/ebm/customers': ['owner', 'manager', 'finance'],
   '/ops/folios': ['owner', 'manager', 'receptionist', 'finance'],
   '/ops/folios/:id': ['owner', 'manager', 'receptionist', 'finance'],
+  // The desk's day in one read (interface real-data): the reservations list's
+  // readers, because it summarises the same bookings; a bill balance in it is
+  // null unless the caller also reads bills.
+  '/ops/front-desk': ['owner', 'manager', 'receptionist', 'finance'],
   '/ops/housekeeping-tasks': ['owner', 'manager', 'housekeeper'],
+  // Reply templates are only ever put in a draft the desk then sends, so they
+  // read like the inbox they serve.
+  '/ops/message-templates': ['owner', 'manager', 'receptionist'],
   '/ops/outlet-parties': ['owner', 'manager'],
   '/ops/outlets': ['owner', 'manager', 'receptionist'],
   '/ops/reservations': ['owner', 'manager', 'receptionist', 'finance'],

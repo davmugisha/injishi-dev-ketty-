@@ -5,8 +5,10 @@ import {
 } from '@nestjs/common';
 
 import type { FolioService } from '../../operations/application/folio.service';
+import type { RoomAssignmentService } from '../../operations/application/room-assignment.service';
 import type { PaymentPort } from '../../payments/domain/payment-port';
 import type { BookingRepository } from '../infrastructure/booking.repository';
+import type { BookingCancellationService } from './booking-cancellation.service';
 import { BookingDecisionService } from './booking-decision.service';
 import { BookingNotificationsService } from './booking-notifications.service';
 import { OperatorReservationsService } from './operator-reservations.service';
@@ -122,6 +124,9 @@ describe('OperatorReservationsService', () => {
     const service = new OperatorReservationsService(
       repo as unknown as BookingRepository,
       decisions,
+      // The no-show command's collaborators; nothing here exercises it.
+      {} as unknown as BookingCancellationService,
+      { releaseForBooking: jest.fn() } as unknown as RoomAssignmentService,
     );
     return { repo, payments, folios, service, calls };
   }

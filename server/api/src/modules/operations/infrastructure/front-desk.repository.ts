@@ -6,6 +6,7 @@ import {
   accountName,
   bookings,
   guestStays,
+  properties,
   ratePlans,
   rooms,
   roomTypes,
@@ -19,6 +20,7 @@ import {
   inBranchScope,
   type BranchScope,
 } from '../../../shared/auth/branch-scope';
+import { makeStayReference, STAY_REFERENCE_INDEX } from '../domain/stay-reference';
 import { enqueueCheckoutClean } from './housekeeping.repository';
 
 const OPEN_STAY_PER_ROOM = 'guest_stays_one_open_per_room_uk';
@@ -28,6 +30,13 @@ export function isOpenStayCollision(error: unknown): boolean {
   const e = error as { code?: string; constraint?: string; cause?: unknown };
   const inner = e?.code === '23505' ? e : (e?.cause as typeof e | undefined);
   return inner?.code === '23505' && inner.constraint === OPEN_STAY_PER_ROOM;
+}
+
+/** A 23505 raised by a repeated stay reference: draw another and try again. */
+function isStayReferenceCollision(error: unknown): boolean {
+  const e = error as { code?: string; constraint?: string; cause?: unknown };
+  const inner = e?.code === '23505' ? e : (e?.cause as typeof e | undefined);
+  return inner?.code === '23505' && inner.constraint === STAY_REFERENCE_INDEX;
 }
 
 /** A room plus the two statuses that are never the same question. */
@@ -73,6 +82,11 @@ export interface CheckInSubject {
   paymentStatus: string | null;
   /** What has already gone back to the guest, which the prepayment line nets off. */
   refundRwf: number | null;
+  /**
+   * The property's checkout hour (`HH:MM:SS`), which the stay's planned exit
+   * is set to. Optional so a caller that never needed it still type checks.
+   */
+  checkOutTime?: string | null;
 }
 
 export interface StayRow {
@@ -254,9 +268,11 @@ export class FrontDeskRepository {
         lockedNightlyRateRwf: bookings.lockedNightlyRateRwf,
         paymentStatus: bookings.paymentStatus,
         refundRwf: bookings.refundRwf,
+        checkOutTime: properties.checkOutTime,
       })
       .from(bookings)
       .leftJoin(roomTypes, eq(roomTypes.id, bookings.roomTypeId))
+      .leftJoin(properties, eq(properties.id, roomTypes.propertyId))
       .where(eq(bookings.id, bookingId))
       .limit(1);
 
@@ -327,20 +343,25 @@ export class FrontDeskRepository {
     plannedExitAt: Date | null;
     priceRwf: number | null;
   }): Promise<string | null> {
-    try {
-      return await this.insertOpenStay(input);
-    } catch (error) {
-      // The re-check below locks open stays, and a free room has none to lock,
-      // so two desks can both pass it. The partial unique index
-      // `guest_stays_one_open_per_room_uk` is what actually refuses the second
-      // insert; it answers exactly as the re-check does, with null.
-      if (isOpenStayCollision(error)) return null;
-      throw error;
+    // A repeated reference is a draw that collided, not a refusal: draw again,
+    // a bounded number of times (one in a billion per draw).
+    for (let attempt = 1; ; attempt++) {
+      try {
+        return await this.insertOpenStay({ ...input, reference: makeStayReference() });
+      } catch (error) {
+        // The re-check below locks open stays, and a free room has none to lock,
+        // so two desks can both pass it. The partial unique index
+        // `guest_stays_one_open_per_room_uk` is what actually refuses the second
+        // insert; it answers exactly as the re-check does, with null.
+        if (isOpenStayCollision(error)) return null;
+        if (attempt < 3 && isStayReferenceCollision(error)) continue;
+        throw error;
+      }
     }
   }
 
   private insertOpenStay(
-    input: Parameters<FrontDeskRepository['openStay']>[0],
+    input: Parameters<FrontDeskRepository['openStay']>[0] & { reference: string },
   ): Promise<string | null> {
     return this.db.transaction(async (tx) => {
       // Re-check occupancy INSIDE the transaction. Checking outside it proves
@@ -372,6 +393,7 @@ export class FrontDeskRepository {
           plannedExitAt: input.plannedExitAt,
           priceRwf: input.priceRwf,
           lifecycle: 'open',
+          reference: input.reference,
         })
         .returning({ id: guestStays.id });
 

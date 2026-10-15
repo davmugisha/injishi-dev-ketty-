@@ -44,3 +44,5 @@ export * from "./payroll";
 export * from "./list-query";
 export * from "./hr-lists";
 export * from "./redaction";
+// The front desk's day in one read, and the no-show command (interface real-data, frontdesk leaf).
+export * from "./front-desk";

@@ -106,6 +106,9 @@ import {
 import { OpsRoomsController } from './ops/rooms.controller';
 import { OpsThreadsController } from './ops/threads.controller';
 import { OpsStaysController } from './ops/stays.controller';
+// The front desk's day in one read (interface real-data, frontdesk leaf).
+import { OpsFrontDeskController } from './ops/front-desk.controller';
+import { OpsMessageTemplatesController } from './ops/message-templates.controller';
 import { OversightController } from './oversight/oversight.controller';
 import { PlatformController } from './platform/platform.controller';
 import {
@@ -258,6 +261,8 @@ import { WaitlistModule } from './waitlist/waitlist.module';
     OpsServiceOrdersController,
     OpsRraController,
     OpsStaysController,
+    OpsFrontDeskController,
+    OpsMessageTemplatesController,
     OpsThreadsController,
     OpsLeasesController,
     OpsRentRollController,
