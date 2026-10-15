@@ -684,9 +684,9 @@ export declare const OperatorCertificate: z.ZodObject<{
     createdAt: string;
     propertyName: string | null;
     propertyId: string | null;
+    verifiedAt: string | null;
     followUp: string | null;
     fileName: string | null;
-    verifiedAt: string | null;
 }, {
     status: "requested" | "on_file";
     kind: "other" | "rdb_grade" | "tourism_license" | "tax_clearance" | "fire_safety" | "health_inspection";
@@ -699,9 +699,9 @@ export declare const OperatorCertificate: z.ZodObject<{
     createdAt: string;
     propertyName: string | null;
     propertyId: string | null;
+    verifiedAt: string | null;
     followUp: string | null;
     fileName: string | null;
-    verifiedAt: string | null;
 }>;
 export type OperatorCertificate = z.infer<typeof OperatorCertificate>;
 /** `GET /api/v1/ops/certificates`: the business's documents, soonest expiry first. */
@@ -744,9 +744,9 @@ export declare const OperatorCertificateList: z.ZodObject<{
         createdAt: string;
         propertyName: string | null;
         propertyId: string | null;
+        verifiedAt: string | null;
         followUp: string | null;
         fileName: string | null;
-        verifiedAt: string | null;
     }, {
         status: "requested" | "on_file";
         kind: "other" | "rdb_grade" | "tourism_license" | "tax_clearance" | "fire_safety" | "health_inspection";
@@ -759,9 +759,9 @@ export declare const OperatorCertificateList: z.ZodObject<{
         createdAt: string;
         propertyName: string | null;
         propertyId: string | null;
+        verifiedAt: string | null;
         followUp: string | null;
         fileName: string | null;
-        verifiedAt: string | null;
     }>, "many">;
 }, "strip", z.ZodTypeAny, {
     legalName: string;
@@ -777,9 +777,9 @@ export declare const OperatorCertificateList: z.ZodObject<{
         createdAt: string;
         propertyName: string | null;
         propertyId: string | null;
+        verifiedAt: string | null;
         followUp: string | null;
         fileName: string | null;
-        verifiedAt: string | null;
     }[];
     tin: string | null;
     chamberOfTourismMember: boolean;
@@ -797,9 +797,9 @@ export declare const OperatorCertificateList: z.ZodObject<{
         createdAt: string;
         propertyName: string | null;
         propertyId: string | null;
+        verifiedAt: string | null;
         followUp: string | null;
         fileName: string | null;
-        verifiedAt: string | null;
     }[];
     tin: string | null;
     chamberOfTourismMember: boolean;

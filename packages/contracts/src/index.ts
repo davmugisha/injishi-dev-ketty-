@@ -44,6 +44,7 @@ export * from "./payroll";
 export * from "./list-query";
 export * from "./owner";
 export * from "./hr-lists";
+export * from "./hr-workforce";
 export * from "./redaction";
 export * from "./housekeeping-board";
 export * from "./maintenance";

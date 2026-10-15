@@ -747,6 +747,8 @@ export declare const MyLeaveBalances: z.ZodObject<{
             id: z.ZodString;
             code: z.ZodString;
             status: z.ZodEnum<["active", "archived"]>;
+            verifiedAt: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+            verifiedByName: z.ZodOptional<z.ZodNullable<z.ZodString>>;
         }, "strip", z.ZodTypeAny, {
             code: string;
             status: "active" | "archived";
@@ -774,6 +776,8 @@ export declare const MyLeaveBalances: z.ZodObject<{
             seniorityEveryYears: number | null;
             seniorityExtraDays: number | null;
             seniorityCapDays: number | null;
+            verifiedAt?: string | null | undefined;
+            verifiedByName?: string | null | undefined;
         }, {
             code: string;
             status: "active" | "archived";
@@ -801,6 +805,8 @@ export declare const MyLeaveBalances: z.ZodObject<{
             seniorityEveryYears: number | null;
             seniorityExtraDays: number | null;
             seniorityCapDays: number | null;
+            verifiedAt?: string | null | undefined;
+            verifiedByName?: string | null | undefined;
         }>;
         balanceDays: z.ZodNullable<z.ZodNumber>;
         lots: z.ZodArray<z.ZodObject<{
@@ -895,6 +901,8 @@ export declare const MyLeaveBalances: z.ZodObject<{
             seniorityEveryYears: number | null;
             seniorityExtraDays: number | null;
             seniorityCapDays: number | null;
+            verifiedAt?: string | null | undefined;
+            verifiedByName?: string | null | undefined;
         };
         balanceDays: number | null;
         lots: {
@@ -944,6 +952,8 @@ export declare const MyLeaveBalances: z.ZodObject<{
             seniorityEveryYears: number | null;
             seniorityExtraDays: number | null;
             seniorityCapDays: number | null;
+            verifiedAt?: string | null | undefined;
+            verifiedByName?: string | null | undefined;
         };
         balanceDays: number | null;
         lots: {
@@ -996,6 +1006,8 @@ export declare const MyLeaveBalances: z.ZodObject<{
             seniorityEveryYears: number | null;
             seniorityExtraDays: number | null;
             seniorityCapDays: number | null;
+            verifiedAt?: string | null | undefined;
+            verifiedByName?: string | null | undefined;
         };
         balanceDays: number | null;
         lots: {
@@ -1048,6 +1060,8 @@ export declare const MyLeaveBalances: z.ZodObject<{
             seniorityEveryYears: number | null;
             seniorityExtraDays: number | null;
             seniorityCapDays: number | null;
+            verifiedAt?: string | null | undefined;
+            verifiedByName?: string | null | undefined;
         };
         balanceDays: number | null;
         lots: {
@@ -1488,6 +1502,8 @@ export declare const MyLeaveTypeList: z.ZodObject<{
         id: z.ZodString;
         code: z.ZodString;
         status: z.ZodEnum<["active", "archived"]>;
+        verifiedAt: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+        verifiedByName: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     }, "strip", z.ZodTypeAny, {
         code: string;
         status: "active" | "archived";
@@ -1515,6 +1531,8 @@ export declare const MyLeaveTypeList: z.ZodObject<{
         seniorityEveryYears: number | null;
         seniorityExtraDays: number | null;
         seniorityCapDays: number | null;
+        verifiedAt?: string | null | undefined;
+        verifiedByName?: string | null | undefined;
     }, {
         code: string;
         status: "active" | "archived";
@@ -1542,6 +1560,8 @@ export declare const MyLeaveTypeList: z.ZodObject<{
         seniorityEveryYears: number | null;
         seniorityExtraDays: number | null;
         seniorityCapDays: number | null;
+        verifiedAt?: string | null | undefined;
+        verifiedByName?: string | null | undefined;
     }>, "many">;
 }, "strip", z.ZodTypeAny, {
     types: {
@@ -1571,6 +1591,8 @@ export declare const MyLeaveTypeList: z.ZodObject<{
         seniorityEveryYears: number | null;
         seniorityExtraDays: number | null;
         seniorityCapDays: number | null;
+        verifiedAt?: string | null | undefined;
+        verifiedByName?: string | null | undefined;
     }[];
 }, {
     types: {
@@ -1600,6 +1622,8 @@ export declare const MyLeaveTypeList: z.ZodObject<{
         seniorityEveryYears: number | null;
         seniorityExtraDays: number | null;
         seniorityCapDays: number | null;
+        verifiedAt?: string | null | undefined;
+        verifiedByName?: string | null | undefined;
     }[];
 }>;
 export type MyLeaveTypeList = z.infer<typeof MyLeaveTypeList>;

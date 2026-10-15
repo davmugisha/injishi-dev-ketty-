@@ -67,3 +67,5 @@ export * from './assistant';
 // The new interface's operations floor (real-data 1.2.3): room blocks and history, housekeeping
 // rules, allocations and escalations, assets, parts, condition signals, lost and found.
 export * from './interface-operations';
+// The new interface's HR screens (real-data, people): teams, minimum cover, checklists, dependants.
+export * from './interface-people';

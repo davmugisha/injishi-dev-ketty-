@@ -10,7 +10,7 @@ import {
   ShieldExclamation,
   TriangleExclamation,
 } from "@gravity-ui/icons";
-import { Avatar, AvatarGroup, Button, Chip } from "@heroui/react";
+import { Avatar, AvatarGroup, Button, Chip, Toast, toast } from "@heroui/react";
 import { EmptyState, ItemCard, ItemCardGroup, KPIGroup, ListView, Segment, Stepper, Timeline } from "@heroui-pro/react";
 import { KPI } from "@heroui-pro/react/kpi";
 import { type BoardId, type Persona, screenHref } from "@injishi/data";
@@ -38,6 +38,7 @@ import {
 import NextLink from "next/link";
 import { Fragment, useOptimistic, useState, useTransition } from "react";
 import { decideLeave } from "./actions";
+import { addDays, fullDay, rangeShort } from "./days";
 import { firstName, initials, PanelCard } from "./parts";
 
 export interface PeopleHomeData {
@@ -61,7 +62,18 @@ interface Issue {
   board: BoardId;
 }
 
-export function PeopleHomeView({ persona, data }: { persona: Persona; data: PeopleHomeData }) {
+export function PeopleHomeView({
+  persona,
+  data,
+  today,
+  now,
+}: {
+  persona: Persona;
+  data: PeopleHomeData;
+  /** Today in Kigali ("2026-10-15") and the time the page was drawn ("09:40"). */
+  today: string;
+  now: string;
+}) {
   const [property, setProperty] = useState<PropertyFilter>("all");
   const [open, setOpen] = useState<Record<string, boolean>>({ hk: true });
   const [pending, startTransition] = useTransition();
@@ -110,7 +122,8 @@ export function PeopleHomeView({ persona, data }: { persona: Persona; data: Peop
   const approve = (id: string) =>
     startTransition(async () => {
       approveOptimistic(id);
-      await decideLeave(id, "approved");
+      const result = await decideLeave(id, "approved");
+      if (!result.ok) toast.danger(result.error);
     });
 
   const gaps = inScope(data.gaps);
@@ -174,7 +187,7 @@ export function PeopleHomeView({ persona, data }: { persona: Persona; data: Peop
     <PageContent>
       <PageHeader
         size="hello"
-        eyebrow="Monday 12 October 2026 · People · 09:40"
+        eyebrow={`${fullDay(today)} · People · ${now}`}
         title={`Good morning, ${persona.firstName}`}
         description={subline}
         actions={
@@ -233,7 +246,7 @@ export function PeopleHomeView({ persona, data }: { persona: Persona; data: Peop
         <PanelCard
           id="in-h"
           title="Who Is In Now"
-          description="From kiosk, phone and desk clock-ins · updated 09:38"
+          description={`From kiosk, phone and desk clock-ins · updated ${now}`}
           action={
             <LinkButton href={screenHref("Attendance")} size="sm" variant="ghost">
               Attendance
@@ -390,7 +403,7 @@ export function PeopleHomeView({ persona, data }: { persona: Persona; data: Peop
             id="gap-h"
             title="Roster Gaps · Next 7 Days"
             description="Against minimum cover set by each department head"
-            action={<Chip variant="soft">12–18 Oct</Chip>}
+            action={<Chip variant="soft">{rangeShort(today, addDays(today, 6))}</Chip>}
             className="gap-2.5"
           >
             {gaps.map((g) => (
@@ -494,6 +507,7 @@ export function PeopleHomeView({ persona, data }: { persona: Persona; data: Peop
           </ListView>
         </PanelCard>
       </div>
+      <Toast.Provider placement="bottom" />
     </PageContent>
   );
 }

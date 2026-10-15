@@ -15,6 +15,7 @@ const loaders: Record<string, () => Promise<{ flows: Flow[] }>> = {
   platform: () => import("./flows/platform"),
   owner: () => import("./flows/owner"),
   operations: () => import("./flows/operations"),
+  people: () => import("./flows/people"),
 };
 
 function arg(name: string): string | null {

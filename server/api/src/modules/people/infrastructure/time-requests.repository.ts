@@ -103,6 +103,12 @@ export interface AttendanceRequestRow {
   decisionNote: string | null;
   resultRecordId: string | null;
   createdAt: Date;
+  // real-data, people: what backs the ask, the manager who confirmed it, and the record as it stands.
+  evidence: string | null;
+  managerConfirmedAt: Date | null;
+  managerConfirmedByName: string | null;
+  recordClockInAt: Date | string | null;
+  recordClockOutAt: Date | string | null;
 }
 
 function routedToMe(column: SQL | typeof shiftRequests.routedToEmployeeId, me: string | null): SQL {
@@ -335,6 +341,11 @@ export class TimeRequestsRepository {
     decisionNote: attendanceRequests.decisionNote,
     resultRecordId: attendanceRequests.resultRecordId,
     createdAt: attendanceRequests.createdAt,
+    evidence: attendanceRequests.evidence,
+    managerConfirmedAt: attendanceRequests.managerConfirmedAt,
+    managerConfirmedByName: sql<string | null>`(select ${users.name} from ${users} where ${users.id} = ${attendanceRequests.managerConfirmedByUserId})`,
+    recordClockInAt: sql<Date | string | null>`(select r.clock_in_at from attendance_records r where r.id = ${attendanceRequests.recordId})`,
+    recordClockOutAt: sql<Date | string | null>`(select r.clock_out_at from attendance_records r where r.id = ${attendanceRequests.recordId})`,
   };
 
   // The joined select builder's type is drizzle's to spell, and every caller

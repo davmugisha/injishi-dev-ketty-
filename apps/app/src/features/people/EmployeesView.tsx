@@ -1,7 +1,19 @@
 "use client";
 
 import { Hierarchy, LayoutList, Lock, PersonMagnifier, PersonPlus } from "@gravity-ui/icons";
-import { Avatar, Card, Checkbox, Chip, ProgressBar, SearchField, Table, Tag, TagGroup } from "@heroui/react";
+import {
+  Avatar,
+  Card,
+  Checkbox,
+  Chip,
+  ProgressBar,
+  SearchField,
+  Table,
+  Tag,
+  TagGroup,
+  Toast,
+  toast,
+} from "@heroui/react";
 import { EmptyState, ItemCard, NativeSelect, Segment } from "@heroui-pro/react";
 import { screenHref } from "@injishi/data";
 import type {
@@ -18,7 +30,8 @@ import type {
   PropertyId,
 } from "@injishi/data/fixtures/people";
 import { LinkButton, PageContent, PageHeader, toneColor } from "@injishi/ui";
-import { useState } from "react";
+import { useState, useTransition } from "react";
+import { setOffboardingStep } from "./actions";
 import { EmployeeFileCard, type FileLogEntry } from "./EmployeeFileCard";
 import { LoginChip, STATUS } from "./employee-status";
 import { initials, PanelCard } from "./parts";
@@ -59,10 +72,21 @@ export function EmployeesView({
   const [selected, setSelected] = useState(initial.employee);
   const [tab, setTab] = useState(initial.tab);
   const [log, setLog] = useState<FileLogEntry[]>([]);
-  const [asked, setAsked] = useState<Record<string, boolean>>({});
   const [ob, setOb] = useState<Record<string, boolean>>(() =>
     Object.fromEntries(data.offboarding.map((t) => [t.id, t.done])),
   );
+  const [, startTransition] = useTransition();
+  // Ticking a step is recorded on the API at once; a refusal takes the tick back and says why.
+  const tick = (id: string, done: boolean) => {
+    setOb((o) => ({ ...o, [id]: done }));
+    startTransition(async () => {
+      const result = await setOffboardingStep(id, done);
+      if (!result.ok) {
+        setOb((o) => ({ ...o, [id]: !done }));
+        toast.danger(result.error);
+      }
+    });
+  };
 
   const short = (id: PropertyId) => data.properties.find((p) => p.id === id)?.short ?? id;
   const q = query.trim().toLowerCase();
@@ -82,7 +106,7 @@ export function EmployeesView({
   return (
     <PageContent>
       <PageHeader
-        eyebrow={`People › Employees · 48 records across ${data.properties.length} properties`}
+        eyebrow={`People › Employees · ${data.employees.length} records across ${data.properties.length} properties`}
         title="Employees"
         description="An employee file is not an Injishi login. Access is granted and revoked separately by the owner."
         actions={
@@ -252,7 +276,9 @@ export function EmployeesView({
                   </EmptyState.Header>
                 </EmptyState>
               )}
-              <p className="text-xs text-muted">Showing {rows.length} of 48 · sorted by department</p>
+              <p className="text-xs text-muted">
+                Showing {rows.length} of {data.employees.length} · sorted by department
+              </p>
             </>
           ) : (
             <PanelCard
@@ -292,7 +318,7 @@ export function EmployeesView({
             <PanelCard
               id="off-h"
               title={`Offboarding · ${leaver.name}`}
-              description="Barman, Lake Bar · resigned 20 Sep · last day Tue 20 Oct · the employee record stays for retention"
+              description={`${leaver.position} · ${leaver.contractShort.charAt(0).toLowerCase()}${leaver.contractShort.slice(1)} · the employee record stays for retention`}
               leading={
                 <Avatar variant="soft" color="warning">
                   <Avatar.Fallback>{initials(leaver.name)}</Avatar.Fallback>
@@ -318,7 +344,7 @@ export function EmployeesView({
                       <Checkbox
                         aria-label={t.title}
                         isSelected={!!ob[t.id]}
-                        onChange={(v) => setOb((o) => ({ ...o, [t.id]: v }))}
+                        onChange={(v) => tick(t.id, v)}
                         className="mt-0.5"
                       >
                         <Checkbox.Content>
@@ -358,8 +384,12 @@ export function EmployeesView({
             onTabChange={setTab}
             log={log}
             onView={(entry) => setLog((l) => [entry, ...l])}
-            loginRequested={!!asked[current.id]}
-            onRequestLogin={() => setAsked((a) => ({ ...a, [current.id]: true }))}
+            loginRequested={false}
+            onRequestLogin={() =>
+              toast.danger(
+                "Login access requests are not available yet. Ask the owner to invite this person from Team and roles.",
+              )
+            }
           />
         ) : (
           <Card className="p-[18px]">
@@ -367,6 +397,7 @@ export function EmployeesView({
           </Card>
         )}
       </div>
+      <Toast.Provider placement="bottom" />
     </PageContent>
   );
 }

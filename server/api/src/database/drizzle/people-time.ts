@@ -237,6 +237,11 @@ export const attendanceRequests = pgTable(
     decisionNote: text('decision_note'),
     /** The record an approval wrote. */
     resultRecordId: uuid('result_record_id').references(() => attendanceRecords.id),
+    /** What backs the times asked for: a work order closed, a handover note signed. */
+    evidence: text('evidence'),
+    /** The line manager who confirmed the times before the request reached HR. */
+    managerConfirmedByUserId: uuid('manager_confirmed_by_user_id').references(() => users.id),
+    managerConfirmedAt: timestamp('manager_confirmed_at', { withTimezone: true }),
     ...timestamps,
   },
   (t) => [

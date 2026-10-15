@@ -10,7 +10,21 @@ import {
   TriangleExclamation,
   Xmark,
 } from "@gravity-ui/icons";
-import { Alert, Avatar, Button, Card, Chip, FieldError, Label, Table, Tabs, TextArea, TextField } from "@heroui/react";
+import {
+  Alert,
+  Avatar,
+  Button,
+  Card,
+  Chip,
+  FieldError,
+  Label,
+  Table,
+  Tabs,
+  TextArea,
+  TextField,
+  Toast,
+  toast,
+} from "@heroui/react";
 import { EmptyState, Segment, Stepper, Widget } from "@heroui-pro/react";
 import { type Persona, screenHref } from "@injishi/data";
 import type {
@@ -33,6 +47,7 @@ import {
 } from "@injishi/ui";
 import { type CSSProperties, useOptimistic, useState, useTransition } from "react";
 import { decideLeave } from "./actions";
+import { addDays, dayOfMonth, rangeLong, weekdayIndex } from "./days";
 import { firstName, initials } from "./parts";
 
 export interface LeaveData {
@@ -59,30 +74,8 @@ const STEP: Record<LeaveStep, { label: string; tone: Tone; dots: [Tone | null, T
   lmdeclined: { label: "Declined by manager", tone: "danger", dots: ["danger", null] },
 };
 
-/** Calendar: 12 October → 1 November, weeks start Monday. */
-const CAL_DAYS = [
-  "12",
-  "13",
-  "14",
-  "15",
-  "16",
-  "17",
-  "18",
-  "19",
-  "20",
-  "21",
-  "22",
-  "23",
-  "24",
-  "25",
-  "26",
-  "27",
-  "28",
-  "29",
-  "30",
-  "31",
-  "1",
-];
+/** Calendar: the 21 days from today (a request's `cal` counts its first day from today). */
+const CAL_LENGTH = 21;
 const CAL_DOW = ["M", "T", "W", "T", "F", "S", "S"];
 const CAL_GRID: CSSProperties = { gridTemplateColumns: "150px repeat(21, minmax(min(24px, 100%), 1fr))" };
 
@@ -96,27 +89,51 @@ export function LeaveView({
   persona,
   data,
   initial,
+  today,
 }: {
   persona: Persona;
   data: LeaveData;
   initial: { request: string; tab: Group; show: "bal" | "rules" };
+  /** Today in Kigali ("2026-10-15"): the calendar's first day. */
+  today: string;
 }) {
   const [tab, setTab] = useState<Group>(initial.tab);
   const [sel, setSel] = useState(initial.request);
   const [declining, setDeclining] = useState(false);
   const [why, setWhy] = useState("");
   const [whyErr, setWhyErr] = useState(false);
-  const [reminded, setReminded] = useState<Record<string, boolean>>({});
   const [lower, setLower] = useState<"bal" | "rules">(initial.show);
   const [pending, startTransition] = useTransition();
   const [requests, decideOptimistic] = useOptimistic(data.requests, (state, d: Decision) =>
     state.map((r) => (r.id === d.id ? { ...r, hrDecision: d.decision, hrReason: d.reason } : r)),
   );
 
+  const calDays = Array.from({ length: CAL_LENGTH }, (_, i) => addDays(today, i));
+  const year = Number(today.slice(0, 4));
   const rows = requests.filter((r) => groupOf(stepOf(r)) === tab);
   const count = (g: Group) => requests.filter((r) => groupOf(stepOf(r)) === g).length;
 
-  const cur = requests.find((r) => r.id === sel) ?? requests[0];
+  const found = requests.find((r) => r.id === sel) ?? requests[0];
+  // Live data can hold no request at all: the queue then shows its empty state and nothing to decide.
+  if (!found) {
+    return (
+      <PageContent>
+        <PageHeader eyebrow={`People › Leave · ${year} leave year`} title="Leave" description="Nothing to decide." />
+        <EmptyState size="sm">
+          <EmptyState.Header>
+            <EmptyState.Media variant="icon">
+              <CircleCheck />
+            </EmptyState.Media>
+            <EmptyState.Title>No leave requests</EmptyState.Title>
+            <EmptyState.Description>
+              New requests arrive here after the line manager approves them.
+            </EmptyState.Description>
+          </EmptyState.Header>
+        </EmptyState>
+      </PageContent>
+    );
+  }
+  const cur = found;
   const first = firstName(cur.name);
   const lmFirst = firstName(cur.lm);
   const st = stepOf(cur);
@@ -132,7 +149,8 @@ export function LeaveView({
     startTransition(async () => {
       decideOptimistic({ id: cur.id, decision, reason });
       setDeclining(false);
-      await decideLeave(cur.id, decision, reason ?? undefined);
+      const result = await decideLeave(cur.id, decision, reason ?? undefined);
+      if (!result.ok) toast.danger(result.error);
     });
   const decline = () => {
     if (!declining) {
@@ -212,7 +230,12 @@ export function LeaveView({
       label: `${r.type.split(" ·")[0]}${r.step === "approved" ? "" : " · pending"}`,
       approved: r.step === "approved",
     }));
-  const calAria = `Leave from 12 October to 1 November: ${calRows.map((c) => `${c.name} ${c.label}`).join("; ")}`;
+  const calRange = rangeLong(calDays[0], calDays[CAL_LENGTH - 1]);
+  const calAria = `Leave ${calRange}: ${calRows.map((c) => `${c.name} ${c.label}`).join("; ")}`;
+  // The next request beyond the calendar that still waits on somebody.
+  const next = requests.find(
+    (r) => !r.cal && (stepOf(r) === "lm" || stepOf(r) === "hr") && !r.roster.startsWith("Past dates"),
+  );
 
   // Balances move pending days into taken when HR approves; a decline releases them.
   const balances = data.balances.map((b) => {
@@ -301,7 +324,7 @@ export function LeaveView({
   return (
     <PageContent>
       <PageHeader
-        eyebrow="People › Leave · 2026 leave year"
+        eyebrow={`People › Leave · ${year} leave year`}
         title="Leave"
         description="The line manager decides first, then HR. Approving updates balances and releases the shifts on the roster."
         actions={
@@ -337,7 +360,7 @@ export function LeaveView({
 
           <Widget aria-labelledby="cal-h">
             <Widget.Header>
-              <Widget.Title id="cal-h">Leave Calendar · 12 October – 1 November</Widget.Title>
+              <Widget.Title id="cal-h">Leave Calendar · {calRange}</Widget.Title>
               <Widget.Legend>
                 <Widget.LegendItem color="var(--chart-3)">Approved</Widget.LegendItem>
                 <Widget.LegendItem
@@ -352,13 +375,13 @@ export function LeaveView({
               <div role="img" aria-label={calAria} className="flex min-w-[690px] flex-col gap-1.5">
                 <div className="grid gap-0.5 text-[11px] leading-[13px] text-muted" style={CAL_GRID}>
                   <span className="self-end">Weeks start Monday</span>
-                  {CAL_DAYS.map((d, i) => (
+                  {calDays.map((d) => (
                     <span
                       key={d}
-                      className={`rounded-md py-0.5 text-center ${i % 7 >= 5 ? "bg-surface-secondary" : ""}`}
+                      className={`rounded-md py-0.5 text-center ${weekdayIndex(d) >= 5 ? "bg-surface-secondary" : ""}`}
                     >
-                      <span className="block">{CAL_DOW[i % 7]}</span>
-                      <span className="block font-semibold tabular">{d}</span>
+                      <span className="block">{CAL_DOW[weekdayIndex(d)]}</span>
+                      <span className="block font-semibold tabular">{dayOfMonth(d)}</span>
                     </span>
                   ))}
                 </div>
@@ -379,9 +402,12 @@ export function LeaveView({
                   </div>
                 ))}
               </div>
-              <p className="text-xs text-muted">
-                Next: Felix Munyaneza, circumstantial leave 2–5 Nov, with his line manager.
-              </p>
+              {next ? (
+                <p className="text-xs text-muted">
+                  Next: {next.name}, {next.homeType.toLowerCase()} {next.dates},{" "}
+                  {stepOf(next) === "lm" ? `with ${next.lm}` : "with you"}.
+                </p>
+              ) : null}
             </Widget.Content>
           </Widget>
         </div>
@@ -492,10 +518,11 @@ export function LeaveView({
               <Button
                 variant="secondary"
                 className="self-start"
-                isDisabled={!!reminded[cur.id]}
-                onPress={() => setReminded((m) => ({ ...m, [cur.id]: true }))}
+                onPress={() =>
+                  toast.danger("Leave reminders are not available yet. Contact the line manager directly.")
+                }
               >
-                {reminded[cur.id] ? `Reminder sent to ${lmFirst}` : `Remind ${lmFirst}`}
+                {`Remind ${lmFirst}`}
               </Button>
             </>
           ) : null}
@@ -533,8 +560,8 @@ export function LeaveView({
                 <Table.Content aria-label="Annual leave balances">
                   <Table.Header>
                     <Table.Column isRowHeader>Employee</Table.Column>
-                    <Table.Column className="text-right">Carried from 2025</Table.Column>
-                    <Table.Column className="text-right">Accrued 2026</Table.Column>
+                    <Table.Column className="text-right">Carried from {year - 1}</Table.Column>
+                    <Table.Column className="text-right">Accrued {year}</Table.Column>
                     <Table.Column className="text-right">Taken</Table.Column>
                     <Table.Column className="text-right">Pending</Table.Column>
                     <Table.Column className="text-right">Available</Table.Column>
@@ -559,7 +586,8 @@ export function LeaveView({
               </Table.ScrollContainer>
             </Table>
             <p className="text-xs text-muted">
-              Annual leave in days. Carried days must be used by 31 March 2027 under the current carry-forward rule.
+              Annual leave in days. Carried days must be used within the window the annual leave type sets, or they
+              expire.
             </p>
           </>
         ) : (
@@ -608,6 +636,7 @@ export function LeaveView({
           </>
         )}
       </Card>
+      <Toast.Provider placement="bottom" />
     </PageContent>
   );
 }

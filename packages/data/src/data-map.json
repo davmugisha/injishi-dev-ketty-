@@ -2854,7 +2854,8 @@
     "missing": "Branch-scope filtering on this route is unverified",
     "crud": "R",
     "seed": "demo",
-    "scope": "org"
+    "scope": "org",
+    "live": "The branches of the business workspaces the HR officer holds (GET /me/workspaces), head office first."
   },
   {
     "collection": "people.presence",
@@ -2864,7 +2865,8 @@
     "missing": "A per-department presence aggregate route",
     "crud": "R",
     "seed": "none",
-    "scope": "property"
+    "scope": "property",
+    "live": "Derived per team from today's roster entries, clock records and approved leave (GET /ops/roster/week, GET /ops/attendance, GET /ops/leave/requests)."
   },
   {
     "collection": "people.rosterGaps",
@@ -2874,7 +2876,8 @@
     "missing": "roster_cover_requirements [NEW]: minimum cover is not stored anywhere",
     "crud": "R",
     "seed": "none",
-    "scope": "property"
+    "scope": "property",
+    "live": "Derived from roster_cover_requirements (GET /ops/roster/cover) against the next seven days of roster entries."
   },
   {
     "collection": "people.payRunSummary",
@@ -2884,7 +2887,8 @@
     "missing": "Submitted/review stage and release stamps (see payroll). The fixture is one run across two employers; the backend has one run per org per month (pay_runs_period_uk)",
     "crud": "R",
     "seed": "none",
-    "scope": "org"
+    "scope": "org",
+    "deferred": "The pay run belongs to the payroll area, and the card's Review and Owner confirmation steps need a submitted stage and release stamps that pay_runs lacks (draft and confirmed only); its one run across two employers also contradicts pay_runs_period_uk (one run per business per month). Wired with payroll."
   },
   {
     "collection": "people.expiring",
@@ -2894,7 +2898,8 @@
     "missing": "employment_contracts.probation_ends_on (no probation column exists)",
     "crud": "R",
     "seed": "none",
-    "scope": "org"
+    "scope": "org",
+    "live": "Derived from fixed-term contract ends (GET /ops/hr/compensation), probation ends (employment_contracts.probation_ends_on), files offboarded with a last day ahead, and documents expiring (GET /ops/hr/expiring-documents)."
   },
   {
     "collection": "people.tickets",
@@ -2904,7 +2909,8 @@
     "missing": "Table (hr_comment_subject already has ticket)",
     "crud": "R",
     "seed": "demo",
-    "scope": "org"
+    "scope": "org",
+    "deferred": "The staff helpdesk is one table shared with payroll.helpdeskTickets (StaffServices board), whose area owns its schema (hr_tickets) and routes; building it here would fork the design before that board is wired."
   },
   {
     "collection": "people.employees",
@@ -2914,7 +2920,8 @@
     "missing": "**Columns:** grade (none anywhere) and probation_ends_on. **Base + allowance split:** the contract holds a single wage_rwf, so allowances must come from pay_components plus a structure or targets. **Status:** the values leave/leaving/probation are not in hr_employee_status (active/offboarded); derive them from leave, a future offboarded_on and probation. The employer TIN derives from orgs",
     "crud": "C R U",
     "seed": "demo",
-    "scope": "org (work_property_id)"
+    "scope": "org (work_property_id)",
+    "live": "employees (+ grade) with hr_teams placement, contract terms and pay accounts: GET /ops/employees, GET /ops/hr/teams, GET /ops/hr/compensation. Status leave/leaving/probation derived (approved leave today, offboarded with a last day ahead, probation end on the current contract)."
   },
   {
     "collection": "people.compensation",
@@ -2924,7 +2931,8 @@
     "missing": "Missing: an allowance amount per change, change_reason, approved_by_user_id / approved_at, and a proposed status for \"Propose a pay change → owner approves\"",
     "crud": "C R U",
     "seed": "demo",
-    "scope": "org"
+    "scope": "org",
+    "live": "employment_contracts (+ change_reason, probation_ends_on) with the fixed allowances of their pay structure and who made them: GET /ops/hr/compensation."
   },
   {
     "collection": "people.fileDocuments",
@@ -2934,7 +2942,8 @@
     "missing": "The fixture is a template list with no employeeId. The mapper must key it by employee",
     "crud": "C R",
     "seed": "demo",
-    "scope": "org"
+    "scope": "org",
+    "live": "document_requests, the documents asked of every file: GET /ops/document-requests."
   },
   {
     "collection": "people.fileAccess",
@@ -2944,7 +2953,8 @@
     "missing": "No operator route to read a file's access log (GET /ops/employees/:id/access-log)",
     "crud": "R",
     "seed": "demo",
-    "scope": "org"
+    "scope": "org",
+    "deferred": "A file's access log is per person (audit_events per employee), but the screen reads one list for every file (FileAccess has no employee key), so live data would show everybody's views on each file; it needs the view keyed by employee and a GET /ops/employees/:id/access-log route."
   },
   {
     "collection": "people.family",
@@ -2954,7 +2964,8 @@
     "missing": "Table + routes (people.manage only; personal data)",
     "crud": "R (C U)",
     "seed": "demo",
-    "scope": "org"
+    "scope": "org",
+    "live": "employee_dependants (new): GET /ops/hr/dependants (people.manage)."
   },
   {
     "collection": "people.policies",
@@ -2964,7 +2975,8 @@
     "missing": "Policy version; per-employee acknowledgement table (staff_policy_acknowledgements); a reminder action",
     "crud": "R U",
     "seed": "demo",
-    "scope": "org"
+    "scope": "org",
+    "deferred": "Acknowledgements are per person and per policy version, which no table holds (staff_policies has no version and no acknowledgement table), and the screen reads one list for every file (PolicyAck has no employee key); needs staff_policy_acknowledgements and a view keyed by employee."
   },
   {
     "collection": "people.orgChart",
@@ -2974,7 +2986,8 @@
     "missing": "The headcount per node derives from the same table",
     "crud": "R",
     "seed": "none",
-    "scope": "org"
+    "scope": "org",
+    "live": "Built from the reporting lines of both businesses' files (GET /ops/employees); team leads (hr_teams.lead_employee_id) show under their manager."
   },
   {
     "collection": "people.offboarding",
@@ -2984,7 +2997,8 @@
     "missing": "Checklist table + toggle route",
     "crud": "R U",
     "seed": "demo",
-    "scope": "org"
+    "scope": "org",
+    "live": "hr_checklist_items (new, checklist offboarding) of the leaver: GET /ops/hr/checklists, POST /ops/hr/checklist-items/:id."
   },
   {
     "collection": "people.rosterGroups",
@@ -2994,7 +3008,8 @@
     "missing": "Table + routes",
     "crud": "R U",
     "seed": "demo",
-    "scope": "property"
+    "scope": "property",
+    "live": "roster_cover_requirements (new) of the roster branch: GET /ops/roster/cover."
   },
   {
     "collection": "people.rosterStaff",
@@ -3004,7 +3019,8 @@
     "missing": "Fixture shift codes (\"MMOOMMM\") map to shift_templates; staff \"lent\" to another branch are entries at another property_id",
     "crud": "C R U",
     "seed": "demo",
-    "scope": "property"
+    "scope": "property",
+    "live": "roster_entries of the seven days from today and the seven after (GET /ops/roster/week), members of teams with a cover rule, with their rotation (GET /ops/rotation-assignments)."
   },
   {
     "collection": "people.rosterWeeks",
@@ -3014,7 +3030,8 @@
     "missing": "—",
     "crud": "R C",
     "seed": "demo",
-    "scope": "property"
+    "scope": "property",
+    "live": "roster_publications and draft entries of the two weeks: GET /ops/roster/week; POST /ops/roster/publish."
   },
   {
     "collection": "people.shiftSwaps",
@@ -3024,7 +3041,8 @@
     "missing": "—",
     "crud": "R U",
     "seed": "demo",
-    "scope": "org"
+    "scope": "org",
+    "live": "shift_requests (kind swap, colleague agreed) of this week: GET /ops/shift-requests, POST .../:id/approve|reject."
   },
   {
     "collection": "people.rotations",
@@ -3034,7 +3052,8 @@
     "missing": "—",
     "crud": "R U",
     "seed": "demo",
-    "scope": "property"
+    "scope": "property",
+    "live": "rotation_patterns (named \"Rotation <code> · <description>\") and open rotation_assignments: GET /ops/rotation-patterns, GET /ops/rotation-assignments."
   },
   {
     "collection": "people.holidays",
@@ -3044,7 +3063,8 @@
     "missing": "National rows: production has none (only the demo seed writes invented ones), and GET /ops/hr/holidays returns org_holidays only. A route exposing national holidays is missing",
     "crud": "R",
     "seed": "prod",
-    "scope": "platform"
+    "scope": "platform",
+    "deferred": "Reference data production does not have: national holidays live only as invented placeholder config rows on sample databases (hr.rw.public_holidays, two dates a year), so a live list would show placeholders, not Rwanda's calendar. Needs the production holiday migration from the accountant's sheet, then a route that reads it."
   },
   {
     "collection": "people.clockRecords",
@@ -3054,7 +3074,8 @@
     "missing": "Source desk = enum supervisor. Status strings derive from late_minutes / status",
     "crud": "C R U",
     "seed": "demo",
-    "scope": "org (+property via roster)"
+    "scope": "org (+property via roster)",
+    "live": "attendance_records of today and yesterday (GET /ops/attendance), with absent rows for started shifts nobody clocked in to."
   },
   {
     "collection": "people.corrections",
@@ -3064,7 +3085,8 @@
     "missing": "The fixture has two steps (manager confirms, then HR decides); the backend has one decision under attendance.approve. Missing: manager_confirmed_by_user_id/_at and an evidence field (or an hr_request_comments row)",
     "crud": "R U",
     "seed": "demo",
-    "scope": "org"
+    "scope": "org",
+    "live": "attendance_requests (+ evidence, manager confirmation): GET /ops/attendance-requests, POST .../:id/approve|reject."
   },
   {
     "collection": "people.attendanceExceptions",
@@ -3074,7 +3096,8 @@
     "missing": "An exceptions route",
     "crud": "R",
     "seed": "none",
-    "scope": "property"
+    "scope": "property",
+    "live": "Derived: absent (started shift, no record, no leave), late (past the grace), missed clock-out (a record the sweep closed and nobody put right)."
   },
   {
     "collection": "people.deskEmployees",
@@ -3084,7 +3107,8 @@
     "missing": "—",
     "crud": "R",
     "seed": "none",
-    "scope": "property"
+    "scope": "property",
+    "live": "Derived: absent today, a missed clock-out with no correction asked, or rostered this week with no kiosk PIN."
   },
   {
     "collection": "people.attendanceSummary",
@@ -3094,7 +3118,8 @@
     "missing": "Summary route",
     "crud": "R",
     "seed": "none",
-    "scope": "property"
+    "scope": "property",
+    "live": "Derived from today's records, roster and the attendance policy's grace (GET /ops/attendance/policies)."
   },
   {
     "collection": "people.leaveRequests",
@@ -3104,7 +3129,8 @@
     "missing": "— (decideLeave writes this collection today)",
     "crud": "R U",
     "seed": "demo",
-    "scope": "org"
+    "scope": "org",
+    "live": "leave_requests + leave_request_approvals: waiting, or decided in the last 14 days. GET /ops/leave/requests, POST .../:id/approve|reject."
   },
   {
     "collection": "people.leaveBalances",
@@ -3114,7 +3140,8 @@
     "missing": "—",
     "crud": "R",
     "seed": "none",
-    "scope": "org"
+    "scope": "org",
+    "live": "Sums of leave_ledger_entries (GET /ops/employees/:id/leave-balances) for people who used annual leave this year or are asking for some."
   },
   {
     "collection": "people.leaveTypes",
@@ -3124,7 +3151,8 @@
     "missing": "verified_at / verified_by_user_id (\"Configured · unverified\"). \"Owner over 5 days\" needs a third conditional approver (approval_steps ≤ 2). Per-event entitlement (circumstantial) is not modelled",
     "crud": "R U",
     "seed": "demo",
-    "scope": "org"
+    "scope": "org",
+    "live": "leave_types (+ verified_at, verified_by_user_id): GET /ops/leave/types."
   },
   {
     "collection": "people.leaveCalendar",
@@ -3134,7 +3162,8 @@
     "missing": "—",
     "crud": "R",
     "seed": "none",
-    "scope": "org"
+    "scope": "org",
+    "live": "Approved leave in the 21 days from today decided too long ago to be in the queue."
   },
   {
     "collection": "payroll.payRates",
