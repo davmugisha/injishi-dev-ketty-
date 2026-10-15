@@ -470,6 +470,13 @@
       "when": 1792044989825,
       "tag": "0066_interface_operations",
       "breakpoints": true
+    },
+    {
+      "idx": 67,
+      "version": "7",
+      "when": 1792056869695,
+      "tag": "0067_interface_market",
+      "breakpoints": true
     }
   ]
 }

@@ -36,6 +36,8 @@ import {
   TagGroup,
   TextArea,
   TextField,
+  Toast,
+  toast,
 } from "@heroui/react";
 import { NativeSelect, RadioButtonGroup } from "@heroui-pro/react";
 import { screenHref } from "@injishi/data";
@@ -43,7 +45,8 @@ import type { MarketCheckout, MarketProperty, MarketTone, Option, PaymentMethod 
 import type { StockKey } from "@injishi/data/media";
 import { stock } from "@injishi/data/media";
 import { GateChip, KeyValueList, LinkButton, Photo, TextLink } from "@injishi/ui";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState, useTransition } from "react";
+import { type CheckoutResult, checkPaymentAction, payCheckoutAction } from "./actions";
 import { plural, propertyHref, rwf } from "./format";
 import { MarketHeader, MarketMain, type MarketVisitor } from "./MarketChrome";
 
@@ -98,14 +101,23 @@ export function MarketCheckoutView({
   const [arrival, setArrival] = useState(booking.arrival);
   const [picked, setPicked] = useState<string[]>(booking.requests);
   const [resent, setResent] = useState(false);
-  const [checks, setChecks] = useState(0);
-  const [secs, setSecs] = useState(300);
-  const [auto, setAuto] = useState(false);
+  const [secs, setSecs] = useState(0);
+  const [numbers, setNumbers] = useState<Record<string, string>>(() =>
+    Object.fromEntries(methods.map((m) => [m.id, m.number ?? ""])),
+  );
+  /** The real attempt: what the API said about the last press of Pay or Send request. */
+  const [result, setResult] = useState<CheckoutResult | null>(null);
+  const [lastCheck, setLastCheck] = useState<string>("");
+  const [paying, startPaying] = useTransition();
+  const polling = useRef<string | null>(null);
 
   const method = methods.find((m) => m.id === methodId) ?? methods[0];
   const sub = booking.rate * booking.nights;
-  const vat = Math.round((sub * booking.vatRate) / (100 + booking.vatRate));
-  const amount = rwf(sub);
+  // The guest service fee the booking service adds to every stay (absent from the prototype's documents).
+  const fee = booking.serviceFee ?? 0;
+  const total = sub + fee;
+  const vat = Math.round((total * booking.vatRate) / (100 + booking.vatRate));
+  const amount = rwf(total);
   const propertyUrl = propertyHref(booking.property);
   const showForm =
     screen === "checkout" || screen === "request" || screen === "approve-on-phone" || screen === "payment-unclear";
@@ -118,28 +130,104 @@ export function MarketCheckoutView({
   const mm = Math.floor(secs / 60);
   const ss = String(secs % 60).padStart(2, "0");
 
+  // The prompt's countdown, from the provider's own expiry.
   useEffect(() => {
-    if (screen !== "approve-on-phone") return;
-    const id = window.setInterval(() => setSecs((cur) => (cur > 0 ? cur - 1 : 0)), 1000);
+    if (screen !== "approve-on-phone" || !result?.expiresAt) return;
+    const ends = Date.parse(result.expiresAt);
+    const tick = () => setSecs(Math.max(0, Math.round((ends - Date.now()) / 1000)));
+    tick();
+    const id = window.setInterval(tick, 1000);
     return () => window.clearInterval(id);
-  }, [screen]);
+  }, [screen, result?.expiresAt]);
 
-  useEffect(() => {
-    if (screen === "approve-on-phone" && auto && secs <= 295) {
-      setScreen("booked");
-      setAuto(false);
-    }
-  }, [screen, auto, secs]);
-
-  const pay = () => {
-    if (isRequest) setScreen("request-sent");
-    else {
+  /** Where the API says a press got to: booked, still on the phone, or over. */
+  const land = (r: CheckoutResult) => {
+    setResult(r);
+    setLastCheck(
+      new Intl.DateTimeFormat("en-GB", {
+        hour: "2-digit",
+        minute: "2-digit",
+        second: "2-digit",
+        timeZone: "Africa/Kigali",
+      }).format(new Date()),
+    );
+    if (r.state === "confirmed") {
+      polling.current = null;
+      setScreen(r.bookingStatus === "pending_approval" ? "request-sent" : "booked");
+    } else if (r.state === "refused" || r.state === "expired") {
+      polling.current = null;
+      setScreen(isRequest ? "request" : "checkout");
+      toast.danger(
+        r.failureReason ??
+          (r.state === "expired"
+            ? "Nobody approved the prompt in time. Nothing was taken."
+            : "The payment was declined. Nothing was taken."),
+      );
+    } else {
       setScreen("approve-on-phone");
-      setAuto(true);
-      setSecs(300);
-      setResent(false);
     }
   };
+
+  // While a prompt sits on the handset, ask every two seconds (the API's poll is built for it).
+  useEffect(() => {
+    const token = result?.state === "prompting" ? result.attemptToken : null;
+    polling.current = token;
+    if (!token) return;
+    const id = window.setInterval(async () => {
+      if (polling.current !== token) return;
+      try {
+        const next = await checkPaymentAction(token);
+        if (polling.current !== token) return;
+        if (next.ok) land(next.value);
+        else {
+          polling.current = null;
+          setScreen("payment-unclear");
+        }
+      } catch {
+        polling.current = null;
+        setScreen("payment-unclear");
+      }
+    }, 2000);
+    return () => window.clearInterval(id);
+  }, [result?.state, result?.attemptToken]);
+
+  /** One press of Pay (or Send request): a fresh attempt token, minted here and only here. */
+  const pay = () => {
+    if (!method || method.kind === "card") {
+      toast.danger(
+        "Card payments need the bank's secure card form, which is not connected yet. Pay with mobile money.",
+      );
+      return;
+    }
+    const network = method.id === "airtel" ? "airtel_money" : "mtn_momo";
+    const token = crypto.randomUUID();
+    startPaying(async () => {
+      const r = await payCheckoutAction(booking.id, { network, number: numbers[method.id] ?? "" }, token);
+      if (r.ok) land(r.value);
+      else toast.danger(r.error);
+    });
+  };
+
+  const checkNow = () => {
+    const token = result?.attemptToken;
+    if (!token) return;
+    startPaying(async () => {
+      const r = await checkPaymentAction(token);
+      if (r.ok) land(r.value);
+      else toast.danger(r.error);
+    });
+  };
+
+  const reference = result?.reference ?? booking.reference;
+  const replyBy = result?.approvalExpiresAt
+    ? new Intl.DateTimeFormat("en-GB", {
+        day: "numeric",
+        month: "short",
+        hour: "2-digit",
+        minute: "2-digit",
+        timeZone: "Africa/Kigali",
+      }).format(new Date(result.approvalExpiresAt))
+    : booking.replyBy;
 
   return (
     <>
@@ -246,7 +334,11 @@ export function MarketCheckoutView({
                       <h2 id="pay-h" className="text-base font-semibold">
                         {isRequest ? "Pay if accepted" : "Pay with"}
                       </h2>
-                      {isRequest ? <span className="text-[13px] text-muted">Nothing is charged now.</span> : null}
+                      {isRequest ? (
+                        <span className="text-[13px] text-muted">
+                          Held until the hotel replies, refunded in full if they decline.
+                        </span>
+                      ) : null}
                     </div>
                     <RadioButtonGroup
                       aria-label="Payment method"
@@ -274,7 +366,12 @@ export function MarketCheckoutView({
                       ))}
                     </RadioButtonGroup>
                     {method?.kind === "mobile" ? (
-                      <TextField fullWidth defaultValue={method.number ?? ""} className="max-w-[360px] gap-1">
+                      <TextField
+                        fullWidth
+                        value={numbers[method.id] ?? ""}
+                        onChange={(v) => setNumbers((cur) => ({ ...cur, [method.id]: v }))}
+                        className="max-w-[360px] gap-1"
+                      >
                         <Label htmlFor={`msisdn-${method.id}`}>{method.label} number</Label>
                         <Input id={`msisdn-${method.id}`} inputMode="tel" autoComplete="tel" />
                         <Description>You’ll approve with your PIN on this phone.</Description>
@@ -419,7 +516,11 @@ export function MarketCheckoutView({
                       <TextLink href={propertyUrl}>house rules</TextLink> and{" "}
                       <TextLink href={propertyUrl}>cancellation terms</TextLink>.
                     </p>
-                    <Button className="h-[54px] w-full rounded-[14px] text-base font-semibold" onPress={pay}>
+                    <Button
+                      className="h-[54px] w-full rounded-[14px] text-base font-semibold"
+                      isDisabled={paying}
+                      onPress={pay}
+                    >
                       {isRequest ? <PaperPlane className="size-4" /> : <Lock className="size-4" />}
                       {isRequest ? "Send request" : `Pay ${amount}`}
                     </Button>
@@ -458,8 +559,14 @@ export function MarketCheckoutView({
                         <dt>
                           {rwf(booking.rate)} × {plural(booking.nights, "night", "nights")}
                         </dt>
-                        <dd className="tabular">{amount}</dd>
+                        <dd className="tabular">{rwf(sub)}</dd>
                       </div>
+                      {fee ? (
+                        <div className="flex items-center justify-between gap-3">
+                          <dt>Service fee</dt>
+                          <dd className="tabular">{rwf(fee)}</dd>
+                        </div>
+                      ) : null}
                       <div className="flex items-center justify-between gap-3">
                         <dt className="inline-flex items-center gap-2 text-muted">
                           VAT {booking.vatRate}% included
@@ -512,7 +619,7 @@ export function MarketCheckoutView({
                     </div>
                     <div className="flex flex-col items-end">
                       <span className="text-xs text-muted">Confirmation</span>
-                      <span className="text-base font-semibold tabular">{booking.reference}</span>
+                      <span className="text-base font-semibold tabular">{reference}</span>
                     </div>
                   </div>
                   <div className="grid grid-cols-2 rounded-2xl border border-separator">
@@ -555,8 +662,11 @@ export function MarketCheckoutView({
                 </div>
                 <KeyValueList
                   items={[
-                    { label: "Method", value: payLabel },
-                    { label: "Reference", value: <span className="tabular">{method?.reference}</span> },
+                    {
+                      label: "Method",
+                      value: result?.payerMasked ? `${method?.provider} ${result.payerMasked}` : payLabel,
+                    },
+                    { label: "Reference", value: <span className="tabular">{result?.providerRef ?? reference}</span> },
                     { label: "Paid to", value: booking.payee },
                   ]}
                 />
@@ -588,7 +698,7 @@ export function MarketCheckoutView({
                   Request sent
                 </h1>
                 <p className="text-[15px] leading-[22px] text-muted">
-                  The hotel replies by {booking.replyBy} today. Nothing is charged until they accept.
+                  The hotel replies by {replyBy}. Your payment is held and refunded in full if they decline.
                 </p>
               </div>
               <Card className="gap-5 rounded-3xl p-6">
@@ -605,7 +715,7 @@ export function MarketCheckoutView({
                         </span>
                       ),
                     },
-                    { label: "Request", value: <span className="tabular">{booking.reference}</span> },
+                    { label: "Request", value: <span className="tabular">{reference}</span> },
                   ]}
                 />
                 <Alert status="default">
@@ -613,7 +723,7 @@ export function MarketCheckoutView({
                     <Lock />
                   </Alert.Indicator>
                   <Alert.Content>
-                    <Alert.Title>Suite held until {booking.replyBy}</Alert.Title>
+                    <Alert.Title>Room held until {replyBy}</Alert.Title>
                     <Alert.Description>
                       If the hotel doesn’t reply in time, the hold ends and you can pick another room.
                     </Alert.Description>
@@ -677,8 +787,9 @@ export function MarketCheckoutView({
                 variant="secondary"
                 className="flex-1"
                 onPress={() => {
+                  polling.current = null;
+                  setResult(null);
                   setScreen(isRequest ? "request" : "checkout");
-                  setAuto(false);
                 }}
               >
                 Change method
@@ -687,9 +798,12 @@ export function MarketCheckoutView({
                 <Button
                   variant="secondary"
                   className="flex-1"
+                  isDisabled={paying}
                   onPress={() => {
+                    // A new prompt is a new press: a fresh attempt; the first one lapses on its own.
+                    polling.current = null;
                     setResent(true);
-                    setSecs(300);
+                    pay();
                   }}
                 >
                   <ArrowsRotateRight className="size-4" />
@@ -719,12 +833,19 @@ export function MarketCheckoutView({
               <KeyValueList
                 items={[
                   { label: "Amount", value: <span className="tabular">{amount}</span> },
-                  { label: "Payment", value: <span className="tabular">{booking.payment.intent}</span> },
                   {
-                    label: "Last check",
-                    value: booking.payment.checks[Math.min(checks, booking.payment.checks.length - 1)],
+                    label: "Payment",
+                    value: (
+                      <span className="tabular">{result?.attemptToken.slice(0, 8) ?? booking.payment.intent}</span>
+                    ),
                   },
-                  { label: "Room held", value: booking.payment.heldUntil },
+                  { label: "Last check", value: lastCheck || "Not yet" },
+                  {
+                    label: "Room held",
+                    value: result?.expiresAt
+                      ? `Until ${new Intl.DateTimeFormat("en-GB", { hour: "2-digit", minute: "2-digit", timeZone: "Africa/Kigali" }).format(new Date(result.expiresAt))}`
+                      : booking.payment.heldUntil,
+                  },
                 ]}
               />
             </div>
@@ -732,7 +853,7 @@ export function MarketCheckoutView({
               <LinkButton href={screenHref("PublicHelp")} variant="ghost" className="flex-1">
                 Get help
               </LinkButton>
-              <Button className="flex-1" onPress={() => setChecks((n) => n + 1)}>
+              <Button className="flex-1" isDisabled={paying} onPress={checkNow}>
                 <ArrowsRotateRight className="size-4" />
                 Check now
               </Button>
@@ -740,6 +861,7 @@ export function MarketCheckoutView({
           </Modal.Dialog>
         </Modal.Container>
       </Modal.Backdrop>
+      <Toast.Provider placement="bottom" />
     </>
   );
 }

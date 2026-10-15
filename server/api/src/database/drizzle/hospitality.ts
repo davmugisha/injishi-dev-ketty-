@@ -417,12 +417,23 @@ export const collections = pgTable(
 export const collectionItems = pgTable(
   'collection_items',
   {
+    /**
+     * A row id beside the composite key, so a seed can name the rows it wrote
+     * (the interface seed converges every table on ids). The key is unchanged.
+     */
+    id: uuid('id').notNull().defaultRandom().unique(),
     collectionId: uuid('collection_id')
       .notNull()
       .references(() => collections.id, { onDelete: 'cascade' }),
     propertyId: uuid('property_id')
       .notNull()
       .references(() => properties.id, { onDelete: 'cascade' }),
+    /**
+     * The nightly rate (or monthly rent) when it was saved, whole francs, so the
+     * list can say the price moved. Null for a save made before the column, or a
+     * property that had no price.
+     */
+    savedPriceRwf: bigint('saved_price_rwf', { mode: 'number' }),
     createdAt: timestamp('created_at', { withTimezone: true })
       .notNull()
       .defaultNow(),

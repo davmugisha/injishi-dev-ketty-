@@ -5,10 +5,12 @@
 import * as owner from './owner.mjs';
 import * as operations from './operations.mjs';
 import * as platform from './platform.mjs';
+import * as market from './market.mjs';
 
 export const AREAS = [
   { area: 'platform', module: platform },
   { area: 'owner', module: owner },
   // After platform: the housekeeping board refers to Jeanne's tasks, which platform.mjs writes.
   { area: 'operations', module: operations },
+  { area: 'market', module: market },
 ];

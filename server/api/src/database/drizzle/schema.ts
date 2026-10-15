@@ -67,3 +67,6 @@ export * from './assistant';
 // The new interface's operations floor (real-data 1.2.3): room blocks and history, housekeeping
 // rules, allocations and escalations, assets, parts, condition signals, lost and found.
 export * from './interface-operations';
+// The new interface's marketplace and guest account (real-data 1.3.2): marketplace cards for
+// properties and room types, and the append-only consent history.
+export * from './interface-market';

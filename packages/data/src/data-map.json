@@ -4924,7 +4924,8 @@
     "missing": "host reply (reply_body, reply_by_user_id, replied_at); new review_helpful_votes, review_reports (reason + moderation ref \"MOD-2291\"); reviewer display from users.name + user_profiles.country; stay line from guest_stays/bookings. No route: add GET /properties/:id/reviews, POST /reviews/:id/report, POST /reviews/:id/helpful",
     "crud": "R, C (report, helpful)",
     "seed": "demo",
-    "scope": "property"
+    "scope": "property",
+    "deferred": "Reviews have no route at all (no GET /properties/:id/reviews, no /me/reviews, no report or helpful command) and the fixture needs the host reply columns, review_helpful_votes and review_reports with a moderation reference; the double-blind publication rule (hidden until both sides write or 14 days pass) belongs to a reviews module that does not exist. Too large for this leaf; a reviews slice of its own."
   },
   {
     "collection": "market.reportReasons",
@@ -4964,7 +4965,8 @@
     "missing": "4 entries vs 9 in guest.countries",
     "crud": "R",
     "seed": "prod",
-    "scope": "platform"
+    "scope": "platform",
+    "deferred": "Reference data compiled into both sides: COUNTRY_NAMES in @injishi/contracts is what the API resolves a typed country against (PUT /me/guest-contact). No route serves it and the fixture's four countries are a prototype subset; serving the full list changes the picker, so it stays on the fixture until the account form adopts the contracts list."
   },
   {
     "collection": "market.arrivalWindows",
@@ -5034,7 +5036,8 @@
     "missing": "needs the reviews routes",
     "crud": "R",
     "seed": "none",
-    "scope": "user"
+    "scope": "user",
+    "deferred": "Derived from reviews. Reviews have no route at all (no GET /properties/:id/reviews, no /me/reviews, no report or helpful command) and the fixture needs the host reply columns, review_helpful_votes and review_reports with a moderation reference; the double-blind publication rule (hidden until both sides write or 14 days pass) belongs to a reviews module that does not exist. Too large for this leaf; a reviews slice of its own."
   },
   {
     "collection": "market.guestReviews",
@@ -5044,7 +5047,8 @@
     "missing": "GET /me/reviews; \"host replied\" uses the reply columns; hidden-until visibility derived",
     "crud": "R",
     "seed": "demo",
-    "scope": "user"
+    "scope": "user",
+    "deferred": "Needs GET /me/reviews and the host reply columns. Reviews have no route at all (no GET /properties/:id/reviews, no /me/reviews, no report or helpful command) and the fixture needs the host reply columns, review_helpful_votes and review_reports with a moderation reference; the double-blind publication rule (hidden until both sides write or 14 days pass) belongs to a reviews module that does not exist. Too large for this leaf; a reviews slice of its own."
   },
   {
     "collection": "market.consents",
@@ -5064,7 +5068,8 @@
     "missing": "user_profiles.locale. Fixture offers fr; translation_entries, amenities, email_templates, announcements store only en/rw",
     "crud": "R",
     "seed": "prod",
-    "scope": "platform"
+    "scope": "platform",
+    "deferred": "The language choice is stored live (user_profiles.locale, en/rw/fr, through PUT /me/guest-contact), but the list of languages the interface is translated into is a code constant, not data: translation_entries, amenities and email templates hold only en and rw, so offering fr is a product decision, not a read."
   },
   {
     "collection": "public.hostSteps",
@@ -5104,7 +5109,8 @@
     "missing": "audience, unit_label, is_featured; public read route (only admin configuration reads it). Prices are \"[PRICING PENDING APPROVAL]\"",
     "crud": "R",
     "seed": "prod",
-    "scope": "platform"
+    "scope": "platform",
+    "deferred": "Prices are [PRICING PENDING APPROVAL]: subscription_plans has no audience, unit label or featured flag and no public read route (only admin configuration reads it). Awaits the owner's pricing decision."
   },
   {
     "collection": "public.hostFees",
@@ -5114,7 +5120,8 @@
     "missing": "public read route; commission key. Fixture values are text, not amounts",
     "crud": "R",
     "seed": "prod",
-    "scope": "platform"
+    "scope": "platform",
+    "deferred": "Fee values in the fixture are text awaiting the owner's pricing decision; registration_fees and the commission config entry have no public read route (admin only)."
   },
   {
     "collection": "public.helpGuides",
@@ -5134,7 +5141,8 @@
     "missing": "public GET /platform/status",
     "crud": "R",
     "seed": "none",
-    "scope": "platform"
+    "scope": "platform",
+    "deferred": "Needs a public GET /platform/status over adapter_health_snapshots and queue_health_snapshots, deciding which components the public may see; publishing internal health is a governance decision (admin only today), not made in this leaf."
   },
   {
     "collection": "public.incidentUpdates",
@@ -5144,7 +5152,8 @@
     "missing": "admin write + public read",
     "crud": "R",
     "seed": "demo",
-    "scope": "platform"
+    "scope": "platform",
+    "deferred": "No status_incidents tables, no admin write and no public read: the status page's incident log is a new admin feature with its own owner."
   },
   {
     "collection": "public.policies",
@@ -5154,7 +5163,8 @@
     "missing": "public read route",
     "crud": "R",
     "seed": "prod",
-    "scope": "platform"
+    "scope": "platform",
+    "deferred": "No legal_documents table and no public read; the precedent (OPERATOR_CONTRACT_VERSION rendered from code) keeps legal text in code, so moving policies into data is a decision for the legal owner, not this leaf."
   },
   {
     "collection": "public.processors",
@@ -5164,7 +5174,8 @@
     "missing": "public read route; a details schema (purpose, data, location, status)",
     "crud": "R",
     "seed": "prod",
-    "scope": "platform"
+    "scope": "platform",
+    "deferred": "The processor inventory lives in compliance_artifacts with an admin-only read and no public details schema (purpose, data, location, status); publishing it needs that schema and a compliance sign-off."
   },
   {
     "collection": "public.supportBusinesses",
@@ -5184,7 +5195,8 @@
     "missing": "audience/team, cover object key + caption, delivery format, module count, certificate_validity_months, description",
     "crud": "R",
     "seed": "demo",
-    "scope": "platform"
+    "scope": "platform",
+    "deferred": "Training (ADR-049) is served by /training, but the interface's documents need what the schema lacks: course audience, cover, delivery format, module count and certificate validity on training_courses; session language and code; employer approval, waitlist, pre-course modules and assessment on registrations. Extending the platform's public course is an ADR-049 change, not a marketplace one; left for a training leaf."
   },
   {
     "collection": "public.courseSessions",
@@ -5194,7 +5206,8 @@
     "missing": "language, code (\"FDE-2610-K\"); attended DERIVED from attendance decisions; mine DERIVED from my registration. \"Thu 5 and 12 Nov\" is two dates; a session is one starts_at..ends_at window",
     "crud": "R",
     "seed": "demo",
-    "scope": "platform"
+    "scope": "platform",
+    "deferred": "Training (ADR-049) is served by /training, but the interface's documents need what the schema lacks: course audience, cover, delivery format, module count and certificate validity on training_courses; session language and code; employer approval, waitlist, pre-course modules and assessment on registrations. Extending the platform's public course is an ADR-049 change, not a marketplace one; left for a training leaf."
   },
   {
     "collection": "public.learners",
@@ -5204,7 +5217,8 @@
     "missing": "personaId/home are demo shell fields",
     "crud": "R",
     "seed": "demo",
-    "scope": "user"
+    "scope": "user",
+    "deferred": "The training learner is a demo shell field (personaId, home); it is the signed-in person, read through the training screens that stay on fixtures until the training leaf (see public.courses)."
   },
   {
     "collection": "public.enrolments",
@@ -5214,7 +5228,8 @@
     "missing": "employer approval (requested status, approved_by_user_id, approved_at), waitlist (waitlisted), pre-course modules + progress (new tables), assessment score",
     "crud": "C, R, D",
     "seed": "demo",
-    "scope": "user"
+    "scope": "user",
+    "deferred": "Training (ADR-049) is served by /training, but the interface's documents need what the schema lacks: course audience, cover, delivery format, module count and certificate validity on training_courses; session language and code; employer approval, waitlist, pre-course modules and assessment on registrations. Extending the platform's public course is an ADR-049 change, not a marketplace one; left for a training leaf."
   },
   {
     "collection": "public.certificates",
@@ -5224,7 +5239,8 @@
     "missing": "valid_until (fixture \"Valid 2 years\"). Lookup by serial is not a route: verify is by token only, by design (AC-17)",
     "crud": "R",
     "seed": "demo",
-    "scope": "user"
+    "scope": "user",
+    "deferred": "Training (ADR-049) is served by /training, but the interface's documents need what the schema lacks: course audience, cover, delivery format, module count and certificate validity on training_courses; session language and code; employer approval, waitlist, pre-course modules and assessment on registrations. Extending the platform's public course is an ADR-049 change, not a marketplace one; left for a training leaf. Certificate lookup by serial is not a route by design (AC-17: verify is by token only)."
   },
   {
     "collection": "public.brokerRegistrations",
@@ -5234,7 +5250,8 @@
     "missing": "reference (\"BRK-0147\"), renews_at, service areas (new broker_service_areas), terms_version/accepted_at, listed; no self route (GET /ops/broker/directory returns brokerStatus only)",
     "crud": "R, U (listed)",
     "seed": "demo",
-    "scope": "user"
+    "scope": "user",
+    "deferred": "The broker workspace is not wired in this leaf. Its fixture vocabulary disagrees with the platform: placement stages (introduced/viewing/application/lease_signed) against placement_status (initiated/converted/abandoned/unavailable), earnings statuses beyond pending/disbursed, and leads, disputes and credit packs have no tables or routes. Needs an /architect decision on the broker placement lifecycle before any of it is served."
   },
   {
     "collection": "public.brokerKpis",
@@ -5244,7 +5261,8 @@
     "missing": "—",
     "crud": "R",
     "seed": "none",
-    "scope": "user"
+    "scope": "user",
+    "deferred": "The broker workspace is not wired in this leaf. Its fixture vocabulary disagrees with the platform: placement stages (introduced/viewing/application/lease_signed) against placement_status (initiated/converted/abandoned/unavailable), earnings statuses beyond pending/disbursed, and leads, disputes and credit packs have no tables or routes. Needs an /architect decision on the broker placement lifecycle before any of it is served."
   },
   {
     "collection": "public.placements",
@@ -5254,7 +5272,8 @@
     "missing": "stage (introduced/viewing/application/lease_signed) vs placement_status initiated/converted/abandoned/unavailable; tenant name/phone/consent; unit + rent snapshot; new tenant_placement_events; a stage-advance route",
     "crud": "C, R, U",
     "seed": "demo",
-    "scope": "user"
+    "scope": "user",
+    "deferred": "The broker workspace is not wired in this leaf. Its fixture vocabulary disagrees with the platform: placement stages (introduced/viewing/application/lease_signed) against placement_status (initiated/converted/abandoned/unavailable), earnings statuses beyond pending/disbursed, and leads, disputes and credit packs have no tables or routes. Needs an /architect decision on the broker placement lifecycle before any of it is served."
   },
   {
     "collection": "public.brokerLeads",
@@ -5264,7 +5283,8 @@
     "missing": "GET/POST/PATCH /ops/broker/leads",
     "crud": "C, R, U",
     "seed": "demo",
-    "scope": "user"
+    "scope": "user",
+    "deferred": "The broker workspace is not wired in this leaf. Its fixture vocabulary disagrees with the platform: placement stages (introduced/viewing/application/lease_signed) against placement_status (initiated/converted/abandoned/unavailable), earnings statuses beyond pending/disbursed, and leads, disputes and credit packs have no tables or routes. Needs an /architect decision on the broker placement lifecycle before any of it is served."
   },
   {
     "collection": "public.brokerEarnings",
@@ -5274,7 +5294,8 @@
     "missing": "fee basis, due date, landlord payment ref/time, hold reason; status beyond pending/disbursed (awaiting landlord, landlord paid, on hold)",
     "crud": "R",
     "seed": "demo",
-    "scope": "user"
+    "scope": "user",
+    "deferred": "The broker workspace is not wired in this leaf. Its fixture vocabulary disagrees with the platform: placement stages (introduced/viewing/application/lease_signed) against placement_status (initiated/converted/abandoned/unavailable), earnings statuses beyond pending/disbursed, and leads, disputes and credit packs have no tables or routes. Needs an /architect decision on the broker placement lifecycle before any of it is served."
   },
   {
     "collection": "public.brokerDisputes",
@@ -5284,7 +5305,8 @@
     "missing": "routes to open, reply, add evidence",
     "crud": "C, R, U",
     "seed": "demo",
-    "scope": "user"
+    "scope": "user",
+    "deferred": "The broker workspace is not wired in this leaf. Its fixture vocabulary disagrees with the platform: placement stages (introduced/viewing/application/lease_signed) against placement_status (initiated/converted/abandoned/unavailable), earnings statuses beyond pending/disbursed, and leads, disputes and credit packs have no tables or routes. Needs an /architect decision on the broker placement lifecycle before any of it is served."
   },
   {
     "collection": "public.brokerCredits",
@@ -5294,7 +5316,8 @@
     "missing": "—",
     "crud": "R",
     "seed": "none",
-    "scope": "user"
+    "scope": "user",
+    "deferred": "The broker workspace is not wired in this leaf. Its fixture vocabulary disagrees with the platform: placement stages (introduced/viewing/application/lease_signed) against placement_status (initiated/converted/abandoned/unavailable), earnings statuses beyond pending/disbursed, and leads, disputes and credit packs have no tables or routes. Needs an /architect decision on the broker placement lifecycle before any of it is served."
   },
   {
     "collection": "public.brokerFeeTerms",
@@ -5314,7 +5337,8 @@
     "missing": "broker policy (open/mandate/exclusive/direct) + new broker_mandates; per-listing reveal cost (backend: one product revealCost); available_from; landlord verified date",
     "crud": "R, C (reveal)",
     "seed": "demo",
-    "scope": "property"
+    "scope": "property",
+    "deferred": "The broker workspace is not wired in this leaf. Its fixture vocabulary disagrees with the platform: placement stages (introduced/viewing/application/lease_signed) against placement_status (initiated/converted/abandoned/unavailable), earnings statuses beyond pending/disbursed, and leads, disputes and credit packs have no tables or routes. Needs an /architect decision on the broker placement lifecycle before any of it is served."
   },
   {
     "collection": "public.creditLog",
@@ -5324,7 +5348,8 @@
     "missing": "reveal outcome (valid / out of service) on contact_reveals; human refs (\"RV-1188\"). Fixture row RV-1131 covers two reveals (-4) vs one ledger row per reveal (reveal_id unique)",
     "crud": "R",
     "seed": "demo",
-    "scope": "user"
+    "scope": "user",
+    "deferred": "The broker workspace is not wired in this leaf. Its fixture vocabulary disagrees with the platform: placement stages (introduced/viewing/application/lease_signed) against placement_status (initiated/converted/abandoned/unavailable), earnings statuses beyond pending/disbursed, and leads, disputes and credit packs have no tables or routes. Needs an /architect decision on the broker placement lifecycle before any of it is served."
   },
   {
     "collection": "public.creditPacks",
@@ -5334,7 +5359,8 @@
     "missing": "purchase route; broker_reveal_credits.reason has no purchase value (text, documented as plan_grant/reveal/refund/correction)",
     "crud": "R, C (buy)",
     "seed": "prod",
-    "scope": "platform"
+    "scope": "platform",
+    "deferred": "The broker workspace is not wired in this leaf. Its fixture vocabulary disagrees with the platform: placement stages (introduced/viewing/application/lease_signed) against placement_status (initiated/converted/abandoned/unavailable), earnings statuses beyond pending/disbursed, and leads, disputes and credit packs have no tables or routes. Needs an /architect decision on the broker placement lifecycle before any of it is served. Credit packs are also priced, and prices await the owner."
   },
   {
     "collection": "oversight.mandateStates",

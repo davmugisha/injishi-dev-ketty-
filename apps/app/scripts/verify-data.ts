@@ -82,6 +82,12 @@ void main(async () => {
     const source = liveSources[name];
     const readers = readersOf(name);
     const personas = [...new Set(readers.map((r) => r.persona))] as (PersonaId | null)[];
+    if (source.accountParityPersona && personas.includes(null)) {
+      const anonymous = await source.list(await contextFor(null));
+      check(anonymous.length === 0, `${name}: anonymous account data must be exactly []`);
+      console.log(`  ✓ ${name} as anonymous: no account data disclosed`);
+      personas.splice(personas.indexOf(null), 1, source.accountParityPersona);
+    }
     check(personas.length > 0, `${name} has a live source but no page reads it`);
     for (const persona of personas) {
       const ctx = await contextFor(persona);

@@ -32,6 +32,8 @@ import {
   Radio,
   RadioGroup,
   Switch,
+  Toast,
+  toast,
 } from "@heroui/react";
 import { RadioButtonGroup, Timeline } from "@heroui-pro/react";
 import { NumberStepper } from "@heroui-pro/react/number-stepper";
@@ -39,7 +41,8 @@ import { screenHref } from "@injishi/data";
 import type { MarketProperty, MarketReview, MarketRoom, ReportReason } from "@injishi/data/fixtures/market";
 import { stock } from "@injishi/data/media";
 import { GateChip, Icon, KeyValueList, LinkButton, Photo, StatusDot } from "@injishi/ui";
-import { useState } from "react";
+import { useState, useTransition } from "react";
+import { setSavedBySlugAction } from "./actions";
 import { dayNumber, fmtDay, plural, propertyHref, rwf, shortRange, weekday } from "./format";
 import { MarketFooter, MarketHeader, MarketMain, type MarketVisitor } from "./MarketChrome";
 import { Stars } from "./stars";
@@ -93,7 +96,15 @@ export function MarketPropertyView({
   const [adults, setAdults] = useState(property.stay.adults);
   const [kids, setKids] = useState(property.stay.children);
   const [panel, setPanel] = useState<"dates" | "guests" | null>(initialPanel === "none" ? null : initialPanel);
-  const [saved, setSaved] = useState(true);
+  const [saved, setSaved] = useState(Boolean(property.savedTo));
+  const [saving, startSaving] = useTransition();
+  /** The heart saves to (or removes from) the signed-in person's lists; a refusal is shown. */
+  const toggleSaved = () =>
+    startSaving(async () => {
+      const result = await setSavedBySlugAction(property.id, !saved);
+      if (result.ok) setSaved((v) => !v);
+      else toast.danger(result.error);
+    });
   const [reportFor, setReportFor] = useState<string | null>(null);
   const [reason, setReason] = useState(reasons[0]?.id ?? "fake");
   const [reported, setReported] = useState<string[]>([]);
@@ -142,7 +153,7 @@ export function MarketPropertyView({
   const ctaNote = !hasNights
     ? "Prices shown per night"
     : request
-      ? "Pay only if the hotel accepts"
+      ? "Held until the hotel replies, refunded if declined"
       : "You won’t be charged yet";
   const family = rooms.find((r) => r.sleeps === Math.max(...rooms.map((r) => r.sleeps)));
   const capNote = room
@@ -229,9 +240,9 @@ export function MarketPropertyView({
             </div>
           </div>
           <div className="flex flex-wrap items-center gap-2">
-            <Button variant="secondary" size="sm" aria-pressed={saved} onPress={() => setSaved((v) => !v)}>
+            <Button variant="secondary" size="sm" aria-pressed={saved} isDisabled={saving} onPress={toggleSaved}>
               {saved ? <HeartFill className="size-4 text-danger" /> : <Heart className="size-4" />}
-              {saved ? `Saved to ${property.savedTo}` : "Save"}
+              {saved ? (property.savedTo ? `Saved to ${property.savedTo}` : "Saved") : "Save"}
             </Button>
             <Button variant="tertiary" size="sm">
               <ArrowShapeTurnUpRight className="size-4" />
@@ -933,6 +944,7 @@ export function MarketPropertyView({
         </div>
       </MarketMain>
       <MarketFooter width="regular" links={4} />
+      <Toast.Provider placement="bottom" />
       <div className="sticky bottom-0 z-20 hidden items-center gap-3 border-t border-separator bg-surface px-4 py-3 max-[760px]:flex">
         <a href="#book" className="flex min-w-0 flex-1 flex-col text-inherit no-underline">
           <span className="text-base font-semibold tabular">

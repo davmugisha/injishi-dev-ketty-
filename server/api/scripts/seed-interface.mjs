@@ -67,11 +67,16 @@ try {
      * the fixture day instead of accumulating what a demo day or a verify flow created. Declare parents before
      * children (bookings before stays): removal runs in reverse order of first declaration.
      * `scope` names the column that places a row in the interface world and its values (default: the
-     * interface's business workspaces).
+     * interface's business workspaces). Modules that keep the same table under different scopes each get
+     * theirs: values are unioned per column, so a later module's scope is never dropped in favour of an
+     * earlier one's, and every module's kept ids protect its rows from every scope.
      */
     keep(table, ids, scope = { column: 'workspace_id', values: INTERFACE_WORKSPACES }) {
-      const entry = kept.get(table) ?? { ids: new Set(), scope };
+      const entry = kept.get(table) ?? { ids: new Set(), scopes: [] };
       for (const id of ids) entry.ids.add(id);
+      const same = entry.scopes.find((s) => s.column === scope.column);
+      if (same) for (const v of scope.values) if (!same.values.includes(v)) same.values.push(v);
+      if (!same) entry.scopes.push({ column: scope.column, values: [...scope.values] });
       kept.set(table, entry);
     },
   };
@@ -87,13 +92,15 @@ try {
       throw new Error(`${area}: ${error?.message ?? error}`, { cause: error });
     }
   }
-  for (const [table, { ids, scope }] of [...kept.entries()].reverse()) {
-    if (!/^[a-z_]+$/.test(table) || !/^[a-z_]+$/.test(scope.column)) throw new Error(`bad table or column: ${table}.${scope.column}`);
-    const { rowCount } = await client.query(
-      `DELETE FROM ${table} WHERE ${scope.column} = ANY($1::uuid[]) AND NOT (id = ANY($2::uuid[]))`,
-      [scope.values, [...ids]],
-    );
-    if (rowCount) log(`converged ${table}: ${rowCount} row(s) made since the last seed removed`);
+  for (const [table, { ids, scopes }] of [...kept.entries()].reverse()) {
+    for (const scope of scopes) {
+      if (!/^[a-z_]+$/.test(table) || !/^[a-z_]+$/.test(scope.column)) throw new Error(`bad table or column: ${table}.${scope.column}`);
+      const { rowCount } = await client.query(
+        `DELETE FROM ${table} WHERE ${scope.column} = ANY($1::uuid[]) AND NOT (id = ANY($2::uuid[]))`,
+        [scope.values, [...ids]],
+      );
+      if (rowCount) log(`converged ${table}: ${rowCount} row(s) made since the last seed removed`);
+    }
   }
   await client.query('COMMIT');
   console.log('INTERFACE SEED DONE');
