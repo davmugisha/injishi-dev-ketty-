@@ -82,12 +82,12 @@ export declare const WorkOrderBlock: z.ZodObject<{
     reason: string;
     decisionNote: string | null;
     releasedAt: string | null;
+    releasedByName: string | null;
     startsAt: string;
     endsAt: string | null;
     decidedByName: string | null;
     requestedByName: string | null;
     requestedAt: string;
-    releasedByName: string | null;
     affectedReservations: number;
 }, {
     status: "active" | "declined" | "released" | "requested";
@@ -96,12 +96,12 @@ export declare const WorkOrderBlock: z.ZodObject<{
     reason: string;
     decisionNote: string | null;
     releasedAt: string | null;
+    releasedByName: string | null;
     startsAt: string;
     endsAt: string | null;
     decidedByName: string | null;
     requestedByName: string | null;
     requestedAt: string;
-    releasedByName: string | null;
     affectedReservations: number;
 }>;
 export type WorkOrderBlock = z.infer<typeof WorkOrderBlock>;
@@ -224,12 +224,12 @@ export declare const WorkOrder: z.ZodObject<{
         reason: string;
         decisionNote: string | null;
         releasedAt: string | null;
+        releasedByName: string | null;
         startsAt: string;
         endsAt: string | null;
         decidedByName: string | null;
         requestedByName: string | null;
         requestedAt: string;
-        releasedByName: string | null;
         affectedReservations: number;
     }, {
         status: "active" | "declined" | "released" | "requested";
@@ -238,12 +238,12 @@ export declare const WorkOrder: z.ZodObject<{
         reason: string;
         decisionNote: string | null;
         releasedAt: string | null;
+        releasedByName: string | null;
         startsAt: string;
         endsAt: string | null;
         decidedByName: string | null;
         requestedByName: string | null;
         requestedAt: string;
-        releasedByName: string | null;
         affectedReservations: number;
     }>>;
     resolvedAt: z.ZodNullable<z.ZodString>;
@@ -271,6 +271,7 @@ export declare const WorkOrder: z.ZodObject<{
     propertyId: string | null;
     assignedToUserId: string | null;
     assignedToName: string | null;
+    spaceId: string | null;
     floor: number | null;
     block: {
         status: "active" | "declined" | "released" | "requested";
@@ -279,12 +280,12 @@ export declare const WorkOrder: z.ZodObject<{
         reason: string;
         decisionNote: string | null;
         releasedAt: string | null;
+        releasedByName: string | null;
         startsAt: string;
         endsAt: string | null;
         decidedByName: string | null;
         requestedByName: string | null;
         requestedAt: string;
-        releasedByName: string | null;
         affectedReservations: number;
     } | null;
     raisedAt: string;
@@ -301,7 +302,6 @@ export declare const WorkOrder: z.ZodObject<{
         state: "requested" | "ordered" | "issued" | "contractor";
         quantity: number;
     }[];
-    spaceId: string | null;
     spaceName: string | null;
     assetId: string | null;
     assetName: string | null;
@@ -333,6 +333,7 @@ export declare const WorkOrder: z.ZodObject<{
     propertyId: string | null;
     assignedToUserId: string | null;
     assignedToName: string | null;
+    spaceId: string | null;
     floor: number | null;
     block: {
         status: "active" | "declined" | "released" | "requested";
@@ -341,12 +342,12 @@ export declare const WorkOrder: z.ZodObject<{
         reason: string;
         decisionNote: string | null;
         releasedAt: string | null;
+        releasedByName: string | null;
         startsAt: string;
         endsAt: string | null;
         decidedByName: string | null;
         requestedByName: string | null;
         requestedAt: string;
-        releasedByName: string | null;
         affectedReservations: number;
     } | null;
     raisedAt: string;
@@ -363,7 +364,6 @@ export declare const WorkOrder: z.ZodObject<{
         state: "requested" | "ordered" | "issued" | "contractor";
         quantity: number;
     }[];
-    spaceId: string | null;
     spaceName: string | null;
     assetId: string | null;
     assetName: string | null;
@@ -494,12 +494,12 @@ export declare const WorkOrderList: z.ZodObject<{
             reason: string;
             decisionNote: string | null;
             releasedAt: string | null;
+            releasedByName: string | null;
             startsAt: string;
             endsAt: string | null;
             decidedByName: string | null;
             requestedByName: string | null;
             requestedAt: string;
-            releasedByName: string | null;
             affectedReservations: number;
         }, {
             status: "active" | "declined" | "released" | "requested";
@@ -508,12 +508,12 @@ export declare const WorkOrderList: z.ZodObject<{
             reason: string;
             decisionNote: string | null;
             releasedAt: string | null;
+            releasedByName: string | null;
             startsAt: string;
             endsAt: string | null;
             decidedByName: string | null;
             requestedByName: string | null;
             requestedAt: string;
-            releasedByName: string | null;
             affectedReservations: number;
         }>>;
         resolvedAt: z.ZodNullable<z.ZodString>;
@@ -541,6 +541,7 @@ export declare const WorkOrderList: z.ZodObject<{
         propertyId: string | null;
         assignedToUserId: string | null;
         assignedToName: string | null;
+        spaceId: string | null;
         floor: number | null;
         block: {
             status: "active" | "declined" | "released" | "requested";
@@ -549,12 +550,12 @@ export declare const WorkOrderList: z.ZodObject<{
             reason: string;
             decisionNote: string | null;
             releasedAt: string | null;
+            releasedByName: string | null;
             startsAt: string;
             endsAt: string | null;
             decidedByName: string | null;
             requestedByName: string | null;
             requestedAt: string;
-            releasedByName: string | null;
             affectedReservations: number;
         } | null;
         raisedAt: string;
@@ -571,7 +572,6 @@ export declare const WorkOrderList: z.ZodObject<{
             state: "requested" | "ordered" | "issued" | "contractor";
             quantity: number;
         }[];
-        spaceId: string | null;
         spaceName: string | null;
         assetId: string | null;
         assetName: string | null;
@@ -603,6 +603,7 @@ export declare const WorkOrderList: z.ZodObject<{
         propertyId: string | null;
         assignedToUserId: string | null;
         assignedToName: string | null;
+        spaceId: string | null;
         floor: number | null;
         block: {
             status: "active" | "declined" | "released" | "requested";
@@ -611,12 +612,12 @@ export declare const WorkOrderList: z.ZodObject<{
             reason: string;
             decisionNote: string | null;
             releasedAt: string | null;
+            releasedByName: string | null;
             startsAt: string;
             endsAt: string | null;
             decidedByName: string | null;
             requestedByName: string | null;
             requestedAt: string;
-            releasedByName: string | null;
             affectedReservations: number;
         } | null;
         raisedAt: string;
@@ -633,7 +634,6 @@ export declare const WorkOrderList: z.ZodObject<{
             state: "requested" | "ordered" | "issued" | "contractor";
             quantity: number;
         }[];
-        spaceId: string | null;
         spaceName: string | null;
         assetId: string | null;
         assetName: string | null;
@@ -691,6 +691,7 @@ export declare const WorkOrderList: z.ZodObject<{
         propertyId: string | null;
         assignedToUserId: string | null;
         assignedToName: string | null;
+        spaceId: string | null;
         floor: number | null;
         block: {
             status: "active" | "declined" | "released" | "requested";
@@ -699,12 +700,12 @@ export declare const WorkOrderList: z.ZodObject<{
             reason: string;
             decisionNote: string | null;
             releasedAt: string | null;
+            releasedByName: string | null;
             startsAt: string;
             endsAt: string | null;
             decidedByName: string | null;
             requestedByName: string | null;
             requestedAt: string;
-            releasedByName: string | null;
             affectedReservations: number;
         } | null;
         raisedAt: string;
@@ -721,7 +722,6 @@ export declare const WorkOrderList: z.ZodObject<{
             state: "requested" | "ordered" | "issued" | "contractor";
             quantity: number;
         }[];
-        spaceId: string | null;
         spaceName: string | null;
         assetId: string | null;
         assetName: string | null;
@@ -764,6 +764,7 @@ export declare const WorkOrderList: z.ZodObject<{
         propertyId: string | null;
         assignedToUserId: string | null;
         assignedToName: string | null;
+        spaceId: string | null;
         floor: number | null;
         block: {
             status: "active" | "declined" | "released" | "requested";
@@ -772,12 +773,12 @@ export declare const WorkOrderList: z.ZodObject<{
             reason: string;
             decisionNote: string | null;
             releasedAt: string | null;
+            releasedByName: string | null;
             startsAt: string;
             endsAt: string | null;
             decidedByName: string | null;
             requestedByName: string | null;
             requestedAt: string;
-            releasedByName: string | null;
             affectedReservations: number;
         } | null;
         raisedAt: string;
@@ -794,7 +795,6 @@ export declare const WorkOrderList: z.ZodObject<{
             state: "requested" | "ordered" | "issued" | "contractor";
             quantity: number;
         }[];
-        spaceId: string | null;
         spaceName: string | null;
         assetId: string | null;
         assetName: string | null;

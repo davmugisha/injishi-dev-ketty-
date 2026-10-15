@@ -21,6 +21,7 @@ import { LeaveService } from './application/leave.service';
 import { LoansService } from './application/loans.service';
 import { MyLeaveService } from './application/my-leave.service';
 import { MyPayService } from './application/my-pay.service';
+import { MyStaffService } from './application/my-staff.service';
 import { RestrictedPeriodsService } from './application/restricted-periods.service';
 import { MyWorkService } from './application/my-work.service';
 import { PayAdjustmentsService } from './application/pay-adjustments.service';
@@ -43,6 +44,7 @@ import { HrWorkforceRepository } from './infrastructure/hr-workforce.repository'
 import { KioskRepository } from './infrastructure/kiosk.repository';
 import { LeaveExtraRepository } from './infrastructure/leave-extra.repository';
 import { LeaveRepository } from './infrastructure/leave.repository';
+import { MyStaffRepository } from './infrastructure/my-staff.repository';
 import { MyWorkRepository } from './infrastructure/my-work.repository';
 import { PayItemsRepository } from './infrastructure/pay-items.repository';
 import { PayRecordsRepository } from './infrastructure/pay-records.repository';
@@ -99,6 +101,7 @@ import { TimeSettingsRepository } from './infrastructure/time-settings.repositor
     TimeRequestsRepository,
     KioskRepository,
     MyWorkRepository,
+    MyStaffRepository,
     HrWorkforceRepository,
     {
       provide: HR_PIN_PEPPER,
@@ -138,6 +141,7 @@ import { TimeSettingsRepository } from './infrastructure/time-settings.repositor
     PayComponentsService,
     PayrollViewsService,
     MyPayService,
+    MyStaffService,
     HrDailyService,
     ...(isWorkerProcess() ? [HrDailyProcessor] : []),
   ],
@@ -155,6 +159,7 @@ import { TimeSettingsRepository } from './infrastructure/time-settings.repositor
     LeaveAllocationsService,
     RestrictedPeriodsService,
     MyLeaveService,
+    MyStaffService,
     PayRunsService,
     PayslipsService,
     PayFilesService,

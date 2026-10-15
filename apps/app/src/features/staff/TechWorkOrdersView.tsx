@@ -22,13 +22,27 @@ import {
   Plus,
   Stopwatch,
 } from "@gravity-ui/icons";
-import { Avatar, Button, Card, Chip, Description, Input, Label, Switch, TextArea, TextField } from "@heroui/react";
+import {
+  Avatar,
+  Button,
+  Card,
+  Chip,
+  Description,
+  Input,
+  Label,
+  Switch,
+  TextArea,
+  TextField,
+  toast,
+} from "@heroui/react";
 import { ItemCard, ListView, Timeline } from "@heroui-pro/react";
 import type { Persona } from "@injishi/data";
 import type { StaffProfile, StorePart, WorkOrder, WorkOrderPart } from "@injishi/data/fixtures/staff";
 import { Icon, KeyValueList, PhoneBody, PhoneTop, toneColor } from "@injishi/ui";
-import { type ReactNode, useState } from "react";
-import { PhoneActionBar, PhoneSheet, PhoneTitle, PhotoTile, renderAsButton, renderSection } from "./parts";
+import { type ReactNode, useState, useTransition } from "react";
+import { reported } from "../operations/shared";
+import { noteWorkOrderAction, resolveWorkOrderAction, setWorkOrderTimerAction } from "./actions";
+import { kigaliClock, PhoneActionBar, PhoneSheet, PhoneTitle, PhotoTile, renderAsButton, renderSection } from "./parts";
 
 export interface TechWorkOrdersData {
   profile: StaffProfile;
@@ -53,12 +67,14 @@ const PRIORITY: Record<WorkOrder["priority"], "danger" | "warning" | "default"> 
   Planned: "default",
 };
 
-/** The time a job started today on the demo clock, and the time it is "now". */
-const STARTED_AT = "11:12";
-const STOPPED_AT = "11:13";
-
 type KeyedPart = WorkOrderPart & { key: string };
 type KeyedNote = WorkOrder["notes"][number] & { key: string };
+
+const NOT_YET = {
+  photo: "Photos cannot be sent from the phone yet. Show the problem in a note.",
+  part: "The store is not connected yet. Ask Patrick to issue the part.",
+  reopen: "A fixed order cannot be reopened from the phone yet. Ask the office to raise a new one.",
+};
 
 interface Step {
   status: "success" | "current" | "default";
@@ -69,33 +85,28 @@ interface Step {
 
 /** Technician's work orders: queue, and one job with photos, block, parts, time and notes (artifact: TechWorkOrders). */
 export function TechWorkOrdersView({ persona, data }: { persona: Persona; data: TechWorkOrdersData }) {
-  const { profile, orders, store } = data;
+  const { profile, store } = data;
   const [view, setView] = useState<"queue" | "detail">("detail");
-  const [woId, setWoId] = useState(orders.find((o) => o.status === "progress")?.id ?? orders[0]?.id ?? "");
-  const [status, setStatus] = useState<Record<string, WorkOrder["status"]>>({});
-  const [added, setAdded] = useState<Record<string, KeyedPart[]>>({});
-  /** Photos taken on this phone, per work order (ids are capture times). */
-  const [extraPhotos, setExtraPhotos] = useState<Record<string, number[]>>({});
-  const [timing, setTiming] = useState(true);
-  const [notes, setNotes] = useState<Record<string, KeyedNote[]>>({});
+  const [woId, setWoId] = useState(data.orders.find((o) => o.status === "progress")?.id ?? data.orders[0]?.id ?? "");
   const [draft, setDraft] = useState("");
   const [sheet, setSheet] = useState<"" | "parts" | "resolve">("");
   const [askRelease, setAskRelease] = useState(true);
-  const [resolved, setResolved] = useState<Record<string, boolean>>({});
+  const [fix, setFix] = useState<Record<string, string>>({});
+  /** Orders fixed on this phone, as they stood when fixed: a fixed order leaves the open list. */
+  const [resolved, setResolved] = useState<Record<string, { order: WorkOrder; at: string }>>({});
+  const [pending, startTransition] = useTransition();
+  const orders = [...data.orders.filter((o) => !resolved[o.id]), ...Object.values(resolved).map((x) => x.order)];
 
-  const statusOf = (o: WorkOrder): Status => (resolved[o.id] ? "resolved" : (status[o.id] ?? o.status));
+  const statusOf = (o: WorkOrder): Status => (resolved[o.id] ? "resolved" : o.status);
   const openCount = orders.filter((o) => statusOf(o) !== "resolved").length;
   const until = profile.shift.split("–")[1]?.trim() ?? "";
 
   const w = orders.find((o) => o.id === woId) ?? orders[0];
   const s = statusOf(w);
   const isResolved = s === "resolved";
-  const photos = [
-    ...w.photos.map((p) => ({ ...p, key: p.caption })),
-    ...(extraPhotos[w.id] ?? []).map((id) => ({ caption: "Just now", image: null, key: `new-${id}` })),
-  ];
-  const parts: KeyedPart[] = [...w.parts.map((p) => ({ ...p, key: p.name })), ...(added[w.id] ?? [])];
-  const running = w.repair ? timing && !isResolved : s === "progress" && timing && !isResolved;
+  const photos = w.photos.map((p) => ({ ...p, key: p.caption }));
+  const parts: KeyedPart[] = w.parts.map((p) => ({ ...p, key: p.name }));
+  const running = Boolean(w.repair) && !isResolved;
   const log = w.log.map((l) => ({ ...l, live: false }));
   if (w.repair)
     log.push({
@@ -104,23 +115,16 @@ export function TechWorkOrdersView({ persona, data }: { persona: Persona; data: 
       dur: w.repair.dur,
       live: running,
     });
-  else if (s === "progress")
-    log.push({
-      what: "Repair",
-      when: running ? `Today · ${STARTED_AT} – now` : `Today · ${STARTED_AT} – ${STOPPED_AT}`,
-      dur: "1 min",
-      live: running,
-    });
   const timeTotal = w.timeTotal ?? (log.length ? "" : "Nothing logged yet");
   const canTime = !isResolved && (!!w.repair || s === "progress");
-  const woNotes: KeyedNote[] = [...w.notes.map((n) => ({ ...n, key: `${n.who}-${n.when}` })), ...(notes[w.id] ?? [])];
+  const woNotes: KeyedNote[] = w.notes.map((n) => ({ ...n, key: `${n.who}-${n.when}-${n.text.slice(0, 24)}` }));
   const block = w.block;
 
   const fixed: Step = {
     status: "success",
     icon: <Check />,
     title: "Fixed by you",
-    detail: `Today 11:20 · ${parts.length} part${parts.length === 1 ? "" : "s"} · time logged`,
+    detail: `Today ${resolved[w.id]?.at ?? kigaliClock()} · ${parts.length} part${parts.length === 1 ? "" : "s"} · time logged`,
   };
   const release: Step[] = !block
     ? [fixed, { status: "default", icon: <Bell />, title: "Reporter gets a message", detail: w.from }]
@@ -152,16 +156,23 @@ export function TechWorkOrdersView({ persona, data }: { persona: Persona; data: 
 
   const addNote = () => {
     const text = draft.trim();
-    if (!text) return;
-    setDraft("");
-    setNotes((n) => ({
-      ...n,
-      [w.id]: [
-        ...(n[w.id] ?? []),
-        { key: `note-${Date.now()}`, initials: persona.initials, who: "You", when: "now", text },
-      ],
-    }));
+    if (!text || pending) return;
+    startTransition(async () => {
+      if (reported(await noteWorkOrderAction(w.id, text))) setDraft("");
+    });
   };
+  const setTimer = (on: boolean) =>
+    startTransition(async () => {
+      reported(await setWorkOrderTimerAction(w.id, on));
+    });
+  const fixText = fix[w.id] ?? w.fix;
+  const resolve = () =>
+    startTransition(async () => {
+      if (!reported(await resolveWorkOrderAction(w.id, { fix: fixText, askRelease: Boolean(block) && askRelease })))
+        return;
+      setSheet("");
+      setResolved((r) => ({ ...r, [w.id]: { order: { ...w, repair: null, fix: fixText }, at: kigaliClock() } }));
+    });
 
   return (
     <>
@@ -273,11 +284,7 @@ export function TechWorkOrdersView({ persona, data }: { persona: Persona; data: 
                     </Timeline.Item>
                   ))}
                 </Timeline>
-                <Button
-                  variant="ghost"
-                  className="min-h-11 self-start"
-                  onPress={() => setResolved((r) => ({ ...r, [w.id]: false }))}
-                >
+                <Button variant="ghost" className="min-h-11 self-start" onPress={() => toast.danger(NOT_YET.reopen)}>
                   Reopen
                 </Button>
               </Card>
@@ -312,7 +319,7 @@ export function TechWorkOrdersView({ persona, data }: { persona: Persona; data: 
                   variant="secondary"
                   fullWidth
                   className="h-[84px] flex-col gap-[4px] rounded-[14px]"
-                  onPress={() => setExtraPhotos((x) => ({ ...x, [w.id]: [...(x[w.id] ?? []), Date.now()] }))}
+                  onPress={() => toast.danger(NOT_YET.photo)}
                 >
                   <Camera className="size-5" />
                   Add
@@ -429,7 +436,8 @@ export function TechWorkOrdersView({ persona, data }: { persona: Persona; data: 
                   size="lg"
                   fullWidth
                   className="min-h-12"
-                  onPress={() => setTiming((t) => !t)}
+                  isDisabled={pending}
+                  onPress={() => setTimer(!running)}
                 >
                   {running ? <CirclePause className="size-4" /> : <CirclePlay className="size-4" />}
                   {running ? "Stop timer" : "Start timer"}
@@ -465,7 +473,7 @@ export function TechWorkOrdersView({ persona, data }: { persona: Persona; data: 
                     }}
                   />
                 </TextField>
-                <Button variant="secondary" className="min-h-11" onPress={addNote}>
+                <Button variant="secondary" className="min-h-11" isDisabled={pending} onPress={addNote}>
                   Add
                 </Button>
               </div>
@@ -476,14 +484,7 @@ export function TechWorkOrdersView({ persona, data }: { persona: Persona; data: 
 
       {view === "detail" && s === "new" ? (
         <PhoneActionBar>
-          <Button
-            size="lg"
-            className="min-h-14 flex-1"
-            onPress={() => {
-              setStatus((st) => ({ ...st, [w.id]: "progress" }));
-              setTiming(true);
-            }}
-          >
+          <Button size="lg" className="min-h-14 flex-1" isDisabled={pending} onPress={() => setTimer(true)}>
             <CirclePlay className="size-4" />
             Start work
           </Button>
@@ -512,20 +513,7 @@ export function TechWorkOrdersView({ persona, data }: { persona: Persona; data: 
             const part = store.find((p) => p.id === key);
             if (!part?.available) return;
             setSheet("");
-            setAdded((a) => ({
-              ...a,
-              [w.id]: [
-                ...(a[w.id] ?? []),
-                {
-                  key: `req-${Date.now()}`,
-                  name: part.name,
-                  qty: "× 1",
-                  meta: "Requested just now · Patrick confirms the issue",
-                  chip: "Requested",
-                  tone: "warning",
-                },
-              ],
-            }));
+            toast.danger(NOT_YET.part);
           }}
           className="shrink-0"
         >
@@ -559,7 +547,13 @@ export function TechWorkOrdersView({ persona, data }: { persona: Persona; data: 
         heading={`Resolve ${w.ref}`}
         description={`${w.where} · ${w.what}`}
       >
-        <TextField key={w.id} defaultValue={w.fix} fullWidth className="flex flex-col gap-1">
+        <TextField
+          key={w.id}
+          value={fixText}
+          onChange={(v) => setFix((f) => ({ ...f, [w.id]: v }))}
+          fullWidth
+          className="flex flex-col gap-1"
+        >
           <Label>What did you do?</Label>
           <TextArea rows={3} />
         </TextField>
@@ -593,16 +587,7 @@ export function TechWorkOrdersView({ persona, data }: { persona: Persona; data: 
           <Button variant="secondary" size="lg" fullWidth className="min-h-14" onPress={() => setSheet("")}>
             Cancel
           </Button>
-          <Button
-            size="lg"
-            fullWidth
-            className="min-h-14"
-            onPress={() => {
-              setSheet("");
-              setTiming(false);
-              setResolved((r) => ({ ...r, [w.id]: true }));
-            }}
-          >
+          <Button size="lg" fullWidth className="min-h-14" isDisabled={pending || !fixText.trim()} onPress={resolve}>
             Mark resolved
           </Button>
         </div>

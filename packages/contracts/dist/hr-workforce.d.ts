@@ -287,9 +287,9 @@ export declare const ContractTerms: z.ZodObject<{
     status: "active" | "scheduled" | "ended";
     decidedAt: string;
     startsOn: string;
+    contractType: "permanent" | "fixed_term" | "casual";
     contractId: string;
     employeeId: string;
-    contractType: "permanent" | "fixed_term" | "casual";
     endsOn: string | null;
     wageRwf: number;
     endReason: string | null;
@@ -301,9 +301,9 @@ export declare const ContractTerms: z.ZodObject<{
     status: "active" | "scheduled" | "ended";
     decidedAt: string;
     startsOn: string;
+    contractType: "permanent" | "fixed_term" | "casual";
     contractId: string;
     employeeId: string;
-    contractType: "permanent" | "fixed_term" | "casual";
     endsOn: string | null;
     wageRwf: number;
     endReason: string | null;
@@ -355,9 +355,9 @@ export declare const HrCompensation: z.ZodObject<{
         status: "active" | "scheduled" | "ended";
         decidedAt: string;
         startsOn: string;
+        contractType: "permanent" | "fixed_term" | "casual";
         contractId: string;
         employeeId: string;
-        contractType: "permanent" | "fixed_term" | "casual";
         endsOn: string | null;
         wageRwf: number;
         endReason: string | null;
@@ -369,9 +369,9 @@ export declare const HrCompensation: z.ZodObject<{
         status: "active" | "scheduled" | "ended";
         decidedAt: string;
         startsOn: string;
+        contractType: "permanent" | "fixed_term" | "casual";
         contractId: string;
         employeeId: string;
-        contractType: "permanent" | "fixed_term" | "casual";
         endsOn: string | null;
         wageRwf: number;
         endReason: string | null;
@@ -404,9 +404,9 @@ export declare const HrCompensation: z.ZodObject<{
         status: "active" | "scheduled" | "ended";
         decidedAt: string;
         startsOn: string;
+        contractType: "permanent" | "fixed_term" | "casual";
         contractId: string;
         employeeId: string;
-        contractType: "permanent" | "fixed_term" | "casual";
         endsOn: string | null;
         wageRwf: number;
         endReason: string | null;
@@ -426,9 +426,9 @@ export declare const HrCompensation: z.ZodObject<{
         status: "active" | "scheduled" | "ended";
         decidedAt: string;
         startsOn: string;
+        contractType: "permanent" | "fixed_term" | "casual";
         contractId: string;
         employeeId: string;
-        contractType: "permanent" | "fixed_term" | "casual";
         endsOn: string | null;
         wageRwf: number;
         endReason: string | null;
@@ -524,8 +524,8 @@ export declare const HrChecklistItem: z.ZodObject<{
     sortOrder: number;
     title: string;
     detail: string | null;
-    employeeId: string;
     checklist: "onboarding" | "offboarding";
+    employeeId: string;
     ownerOnly: boolean;
     doneAt: string | null;
     doneByName: string | null;
@@ -535,8 +535,8 @@ export declare const HrChecklistItem: z.ZodObject<{
     sortOrder: number;
     title: string;
     detail: string | null;
-    employeeId: string;
     checklist: "onboarding" | "offboarding";
+    employeeId: string;
     ownerOnly: boolean;
     doneAt: string | null;
     doneByName: string | null;
@@ -561,8 +561,8 @@ export declare const HrChecklistItemList: z.ZodObject<{
         sortOrder: number;
         title: string;
         detail: string | null;
-        employeeId: string;
         checklist: "onboarding" | "offboarding";
+        employeeId: string;
         ownerOnly: boolean;
         doneAt: string | null;
         doneByName: string | null;
@@ -572,8 +572,8 @@ export declare const HrChecklistItemList: z.ZodObject<{
         sortOrder: number;
         title: string;
         detail: string | null;
-        employeeId: string;
         checklist: "onboarding" | "offboarding";
+        employeeId: string;
         ownerOnly: boolean;
         doneAt: string | null;
         doneByName: string | null;
@@ -585,8 +585,8 @@ export declare const HrChecklistItemList: z.ZodObject<{
         sortOrder: number;
         title: string;
         detail: string | null;
-        employeeId: string;
         checklist: "onboarding" | "offboarding";
+        employeeId: string;
         ownerOnly: boolean;
         doneAt: string | null;
         doneByName: string | null;
@@ -598,8 +598,8 @@ export declare const HrChecklistItemList: z.ZodObject<{
         sortOrder: number;
         title: string;
         detail: string | null;
-        employeeId: string;
         checklist: "onboarding" | "offboarding";
+        employeeId: string;
         ownerOnly: boolean;
         doneAt: string | null;
         doneByName: string | null;

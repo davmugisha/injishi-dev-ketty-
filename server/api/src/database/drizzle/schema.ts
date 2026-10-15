@@ -79,3 +79,6 @@ export * from './interface-market';
 // The new interface's residence (real-data 1.3.1): blocks, units, rent payments and reminders, gate
 // codes, lease clauses, applications.
 export * from './interface-residence';
+// The new interface's staff phone (real-data 1.3.3): checklists and their results, minibar counts,
+// time on a work order.
+export * from './interface-staff';

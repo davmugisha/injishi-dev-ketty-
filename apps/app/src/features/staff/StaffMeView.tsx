@@ -11,7 +11,6 @@ import {
   CircleCheck,
   CircleQuestion,
   Comment,
-  FileArrowUp,
   FileText,
   Fingerprint,
   Hourglass,
@@ -21,7 +20,18 @@ import {
   ShieldKeyhole,
   Suitcase,
 } from "@gravity-ui/icons";
-import { Avatar, Button, Card, Chip, Label, TextArea, TextField, ToggleButton, ToggleButtonGroup } from "@heroui/react";
+import {
+  Avatar,
+  Button,
+  Card,
+  Chip,
+  Label,
+  TextArea,
+  TextField,
+  ToggleButton,
+  ToggleButtonGroup,
+  toast,
+} from "@heroui/react";
 import { ItemCard, ListView, Segment } from "@heroui-pro/react";
 import { type Persona, screenHref } from "@injishi/data";
 import type {
@@ -108,8 +118,6 @@ export function StaffMeView({
   const [pdfSaved, setPdfSaved] = useState(false);
   const [lang, setLang] = useState<"en" | "rw">("en");
   const [topic, setTopic] = useState("uniform");
-  const [docAdded, setDocAdded] = useState(false);
-  const [helpSent, setHelpSent] = useState<string | null>(null);
   const [signingOut, startSignOut] = useTransition();
   const t = COPY[lang];
 
@@ -119,31 +127,8 @@ export function StaffMeView({
   const asked = requests.filter((q) => q.status === "manager").reduce((a, q) => a + q.days, 0);
   const topicDoc = topics.find((x) => x.id === topic) ?? topics[0];
 
-  const documents: StaffDocument[] = docAdded
-    ? [
-        {
-          id: "doctor-note",
-          icon: "FileArrowUp",
-          name: "Doctor’s note",
-          meta: "Photo taken just now · sending on weak signal",
-          chip: "Sending",
-          tone: "warning",
-        },
-        ...data.documents,
-      ]
-    : data.documents;
-  const tickets: HelpTicket[] = helpSent
-    ? [
-        {
-          id: "HD-0931",
-          title: `${helpSent} question`,
-          meta: "HD-0931 · sent just now",
-          chip: "Sent",
-          tone: "default",
-        },
-        ...data.tickets,
-      ]
-    : data.tickets;
+  const documents: StaffDocument[] = data.documents;
+  const tickets: HelpTicket[] = data.tickets;
 
   const press = (d: string) => {
     const next = (pin + d).slice(0, 4);
@@ -341,7 +326,6 @@ export function StaffMeView({
                       className="min-h-12"
                       onPress={() => {
                         setTopic("pay");
-                        setHelpSent(null);
                         setSheet("help");
                       }}
                     >
@@ -381,7 +365,11 @@ export function StaffMeView({
         <section className="flex flex-col gap-[8px]" aria-labelledby="doc-h">
           <div className="flex min-h-11 items-center justify-between">
             <SectionTitle id="doc-h">{t.docs}</SectionTitle>
-            <Button variant="ghost" className="min-h-11" onPress={() => setDocAdded(true)}>
+            <Button
+              variant="ghost"
+              className="min-h-11"
+              onPress={() => toast.danger("Documents cannot be sent from the phone yet. Hand the paper to HR.")}
+            >
               <Camera className="size-4" />
               Add
             </Button>
@@ -390,11 +378,7 @@ export function StaffMeView({
             {(d) => (
               <ListView.Item id={d.id} textValue={d.name} className="min-h-14">
                 <ListView.ItemContent>
-                  {d.id === "doctor-note" ? (
-                    <FileArrowUp className="size-4 shrink-0" aria-hidden="true" />
-                  ) : (
-                    <Icon name={d.icon} className="size-4 shrink-0" />
-                  )}
+                  <Icon name={d.icon} className="size-4 shrink-0" />
                   <div className="flex min-w-0 flex-col">
                     <ListView.Title>{d.name}</ListView.Title>
                     <ListView.Description>{d.meta}</ListView.Description>
@@ -453,16 +437,7 @@ export function StaffMeView({
               </ListView.Item>
             )}
           </ListView>
-          <Button
-            variant="secondary"
-            size="lg"
-            fullWidth
-            className="min-h-14"
-            onPress={() => {
-              setHelpSent(null);
-              setSheet("help");
-            }}
-          >
+          <Button variant="secondary" size="lg" fullWidth className="min-h-14" onPress={() => setSheet("help")}>
             <Comment className="size-4" />
             Ask HR or IT
           </Button>
@@ -615,8 +590,8 @@ export function StaffMeView({
             fullWidth
             className="min-h-14"
             onPress={() => {
-              setHelpSent(topicDoc.label);
               setSheet("");
+              toast.danger("Questions cannot be sent to HR or IT from the phone yet. Ask Diane in person.");
             }}
           >
             <PaperPlane className="size-4" />

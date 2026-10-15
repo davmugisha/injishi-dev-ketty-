@@ -52,4 +52,5 @@ export * from "./lost-found";
 export * from "./front-desk";
 export * from "./marketplace";
 export * from "./interface-residence";
+export * from "./staff-phone";
 //# sourceMappingURL=index.d.ts.map

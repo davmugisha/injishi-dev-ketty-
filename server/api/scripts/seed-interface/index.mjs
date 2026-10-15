@@ -11,6 +11,7 @@ import * as stays from './stays.mjs';
 import * as market from './market.mjs';
 import * as residence from './residence.mjs';
 import * as resident from './resident.mjs';
+import * as staff from './staff.mjs';
 
 export const AREAS = [
   { area: 'platform', module: platform },
@@ -25,4 +26,6 @@ export const AREAS = [
   // Kacyiru Court: the residence manager's screens, then what only the tenant's phone adds.
   { area: 'residence', module: residence },
   { area: 'resident', module: resident },
+  // After platform and people: the phone's ticks name platform's tasks, its papers name people's files.
+  { area: 'staff', module: staff },
 ];

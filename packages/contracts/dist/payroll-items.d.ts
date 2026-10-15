@@ -907,8 +907,8 @@ export declare const PayClaim: z.ZodObject<{
     paid: boolean;
     createdAt: string;
     branchId: string | null;
-    period: string;
     days: number | null;
+    period: string;
     leaveType: {
         name: string;
         id: string;
@@ -931,8 +931,8 @@ export declare const PayClaim: z.ZodObject<{
     paid: boolean;
     createdAt: string;
     branchId: string | null;
-    period: string;
     days: number | null;
+    period: string;
     leaveType: {
         name: string;
         id: string;
@@ -1669,8 +1669,8 @@ export declare const ContractRow: z.ZodObject<{
         jobPositionTitle: string | null;
     };
     branchId: string | null;
-    employeeNumber: string;
     contractType: string;
+    employeeNumber: string;
     endsOn: string | null;
     wageBasis: "monthly" | "daily" | "hourly";
     wageRwf: number;
@@ -1686,8 +1686,8 @@ export declare const ContractRow: z.ZodObject<{
         jobPositionTitle: string | null;
     };
     branchId: string | null;
-    employeeNumber: string;
     contractType: string;
+    employeeNumber: string;
     endsOn: string | null;
     wageBasis: "monthly" | "daily" | "hourly";
     wageRwf: number;
@@ -1987,8 +1987,8 @@ export declare const MyPayClaimList: z.ZodObject<{
         paid: boolean;
         createdAt: string;
         branchId: string | null;
-        period: string;
         days: number | null;
+        period: string;
         leaveType: {
             name: string;
             id: string;
@@ -2011,8 +2011,8 @@ export declare const MyPayClaimList: z.ZodObject<{
         paid: boolean;
         createdAt: string;
         branchId: string | null;
-        period: string;
         days: number | null;
+        period: string;
         leaveType: {
             name: string;
             id: string;
@@ -2037,8 +2037,8 @@ export declare const MyPayClaimList: z.ZodObject<{
         paid: boolean;
         createdAt: string;
         branchId: string | null;
-        period: string;
         days: number | null;
+        period: string;
         leaveType: {
             name: string;
             id: string;
@@ -2063,8 +2063,8 @@ export declare const MyPayClaimList: z.ZodObject<{
         paid: boolean;
         createdAt: string;
         branchId: string | null;
-        period: string;
         days: number | null;
+        period: string;
         leaveType: {
             name: string;
             id: string;

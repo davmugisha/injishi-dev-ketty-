@@ -34,8 +34,10 @@ import { screenHref } from "@injishi/data";
 import type { ProblemCategory, ProblemReport, ReportPlace, UrgencyLevel } from "@injishi/data/fixtures/staff";
 import { Icon, KeyValueList, LinkButton, PhoneBody, PhoneTop, StatusDot } from "@injishi/ui";
 import type { ReactNode } from "react";
-import { useState } from "react";
-import { PhoneActionBar, PhoneTitle, PhotoTile, renderSection, ToneTile } from "./parts";
+import { useState, useTransition } from "react";
+import { reported } from "../operations/shared";
+import { reportProblemAction } from "./actions";
+import { kigaliClock, PhoneActionBar, PhoneTitle, PhotoTile, renderSection, ToneTile } from "./parts";
 
 export interface StaffReportData {
   places: ReportPlace[];
@@ -56,18 +58,40 @@ const photoLabel = (n: number) => (n ? `${n} ${n === 1 ? "photo" : "photos"}` : 
 /** Housekeeper reports a problem to maintenance: place, category, urgency, photo (artifact: StaffReport). */
 export function StaffReportView({ data, offline = false }: { data: StaffReportData; offline?: boolean }) {
   const { places, categories, urgencies, report } = data;
-  const [place, setPlace] = useState(report.place);
+  const [place, setPlace] = useState(() =>
+    places.some((p) => p.id === report.place) ? report.place : (places[0]?.id ?? ""),
+  );
   const [category, setCategory] = useState(report.category);
   const [urgency, setUrgency] = useState(report.urgency);
   const [photos, setPhotos] = useState(report.photos);
   const [block, setBlock] = useState(report.askBlock);
-  const [sent, setSent] = useState(false);
-  const [retried, setRetried] = useState(false);
+  const [description, setDescription] = useState(report.description);
+  /** The ticket the report got and when it was sent (or saved, offline). */
+  const [sent, setSent] = useState<{ ticket: string; at: string } | null>(null);
+  const [retried, setRetried] = useState<string | null>(null);
+  const [pending, startTransition] = useTransition();
 
   const placeDoc = places.find((p) => p.id === place) ?? places[0];
   const isRoom = placeDoc.isRoom;
   const blockOn = block && isRoom;
-  const where = isRoom ? `Room ${placeDoc.label}` : "Floor 2 corridor";
+  const where = isRoom ? `Room ${placeDoc.label}` : placeDoc.label;
+  const send = () => {
+    if (offline) return setSent({ ticket: "", at: kigaliClock() });
+    startTransition(async () => {
+      const result = await reportProblemAction({
+        place: placeDoc.label,
+        isRoom,
+        category,
+        urgency,
+        description,
+        askBlock: blockOn,
+      });
+      if (reported(result) && result.ok) {
+        setSent({ ticket: result.value, at: kigaliClock() });
+        setRetried(null);
+      }
+    });
+  };
   const cat = categories.find((c) => c.id === category) ?? categories[0];
   const sev = urgencies.find((u) => u.id === urgency) ?? urgencies[0];
   const backLabel = `Back to room ${report.place}`;
@@ -78,7 +102,7 @@ export function StaffReportView({ data, offline = false }: { data: StaffReportDa
           status: "warning",
           icon: <FloppyDisk />,
           title: "Saved on this phone",
-          detail: `${report.sentAt} · waiting for signal`,
+          detail: `${sent?.at ?? ""} · waiting for signal`,
         },
         {
           status: "default",
@@ -98,7 +122,7 @@ export function StaffReportView({ data, offline = false }: { data: StaffReportDa
           status: "success",
           icon: <Check />,
           title: "Sent to maintenance",
-          detail: `${report.sentAt} · ${photos ? `with ${photoLabel(photos)}` : "no photo"}`,
+          detail: `${sent?.at ?? ""} · ${photos ? `with ${photoLabel(photos)}` : "no photo"}`,
         },
         {
           status: "current",
@@ -131,11 +155,12 @@ export function StaffReportView({ data, offline = false }: { data: StaffReportDa
       : "Leave this off if guests can still use the room.";
 
   const reset = () => {
-    setSent(false);
+    setSent(null);
     setPhotos(0);
     setUrgency(report.urgency);
     setCategory(report.category);
-    setRetried(false);
+    setDescription("");
+    setRetried(null);
   };
 
   return (
@@ -300,7 +325,7 @@ export function StaffReportView({ data, offline = false }: { data: StaffReportDa
               <p className="text-xs leading-4 text-muted">Photos are made smaller so they send on weak signal.</p>
             </section>
 
-            <TextField defaultValue={report.description} fullWidth className="flex flex-col gap-1">
+            <TextField value={description} onChange={setDescription} fullWidth className="flex flex-col gap-1">
               <Label>What did you see?</Label>
               <TextArea rows={3} />
               <Description>A few words is enough.</Description>
@@ -344,7 +369,7 @@ export function StaffReportView({ data, offline = false }: { data: StaffReportDa
                 {offline ? "Saved on phone · will send" : "Report sent"}
               </h2>
               {!offline ? (
-                <span className="text-[28px] leading-9 font-semibold tracking-[-0.01em] tabular">{report.ticket}</span>
+                <span className="text-[28px] leading-9 font-semibold tracking-[-0.01em] tabular">{sent?.ticket}</span>
               ) : null}
               <p className="text-muted">
                 {offline
@@ -376,13 +401,19 @@ export function StaffReportView({ data, offline = false }: { data: StaffReportDa
             </Timeline>
             {offline ? (
               <>
-                <Button variant="secondary" size="lg" fullWidth className="min-h-14" onPress={() => setRetried(true)}>
+                <Button
+                  variant="secondary"
+                  size="lg"
+                  fullWidth
+                  className="min-h-14"
+                  onPress={() => setRetried(kigaliClock())}
+                >
                   <ArrowsRotateRight className="size-4" />
                   Try sending now
                 </Button>
                 {retried ? (
                   <p role="status" className="text-xs leading-4 text-muted">
-                    Still no signal at 10:53. The phone keeps trying on its own.
+                    Still no signal at {retried}. The phone keeps trying on its own.
                   </p>
                 ) : null}
               </>
@@ -399,15 +430,7 @@ export function StaffReportView({ data, offline = false }: { data: StaffReportDa
 
       {!sent ? (
         <PhoneActionBar className="flex-col">
-          <Button
-            size="lg"
-            fullWidth
-            className="min-h-14"
-            onPress={() => {
-              setSent(true);
-              setRetried(false);
-            }}
-          >
+          <Button size="lg" fullWidth className="min-h-14" isDisabled={pending || !description.trim()} onPress={send}>
             {offline ? <FloppyDisk className="size-4" /> : <PaperPlane className="size-4" />}
             {offline ? "Save report on phone" : "Send report"}
           </Button>

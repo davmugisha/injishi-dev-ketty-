@@ -54,3 +54,4 @@ export * from "./front-desk";
 export * from "./marketplace";
 // The residence screens of the new interface (real-data 1.3.1).
 export * from "./interface-residence";
+export * from "./staff-phone";

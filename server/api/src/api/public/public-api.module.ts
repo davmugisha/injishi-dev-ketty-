@@ -94,6 +94,9 @@ import { OpsFoliosController } from './ops/folios.controller';
 import { OpsHousekeepingController } from './ops/housekeeping.controller';
 // The new interface's operations floor (real-data 1.2.3).
 import { OpsHousekeepingBoardController } from './ops/housekeeping-board.controller';
+// The staff phone (real-data 1.3.3).
+import { OpsHousekeepingPhoneController, OpsWorkOrderTimeController } from './ops/staff-phone.controller';
+import { MeWorkStaffController } from './me/work-staff.controller';
 import { OpsFoundItemsController } from './ops/lost-found.controller';
 import { OpsConditionSignalsController, OpsWorkOrdersController } from './ops/work-orders.controller';
 // The new interface's residence (real-data 1.3.1): the manager's screens and the tenant's phone.
@@ -289,6 +292,8 @@ import { WaitlistModule } from './waitlist/waitlist.module';
     OpsCertificatesController,
     OpsHousekeepingController,
     OpsHousekeepingBoardController,
+    OpsHousekeepingPhoneController,
+    OpsWorkOrderTimeController,
     OpsWorkOrdersController,
     OpsConditionSignalsController,
     OpsFoundItemsController,
@@ -332,6 +337,7 @@ import { WaitlistModule } from './waitlist/waitlist.module';
     MeResidentController,
     MeWorkController,
     MeWorkLeaveController,
+    MeWorkStaffController,
     MeWorkPayController,
     KioskController,
     TwoFactorController,

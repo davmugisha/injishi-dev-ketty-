@@ -162,15 +162,6 @@ export declare const FoundItem: z.ZodObject<{
     roomId: string | null;
     description: string;
     propertyId: string;
-    claim: {
-        openedAt: string;
-        bookingReference: string | null;
-        claimantName: string;
-        statement: string;
-        matched: boolean;
-        matchNote: string;
-        openedByName: string | null;
-    } | null;
     valuable: boolean;
     foundLocation: string;
     foundSpot: string | null;
@@ -182,6 +173,15 @@ export declare const FoundItem: z.ZodObject<{
     storageLocation: string | null;
     retentionUntil: string;
     retentionNote: string | null;
+    claim: {
+        openedAt: string;
+        bookingReference: string | null;
+        claimantName: string;
+        statement: string;
+        matched: boolean;
+        matchNote: string;
+        openedByName: string | null;
+    } | null;
     release: {
         method: "in_person" | "authorised_person" | "courier";
         releasedAt: string;
@@ -212,15 +212,6 @@ export declare const FoundItem: z.ZodObject<{
     roomId: string | null;
     description: string;
     propertyId: string;
-    claim: {
-        openedAt: string;
-        bookingReference: string | null;
-        claimantName: string;
-        statement: string;
-        matched: boolean;
-        matchNote: string;
-        openedByName: string | null;
-    } | null;
     valuable: boolean;
     foundLocation: string;
     foundSpot: string | null;
@@ -232,6 +223,15 @@ export declare const FoundItem: z.ZodObject<{
     storageLocation: string | null;
     retentionUntil: string;
     retentionNote: string | null;
+    claim: {
+        openedAt: string;
+        bookingReference: string | null;
+        claimantName: string;
+        statement: string;
+        matched: boolean;
+        matchNote: string;
+        openedByName: string | null;
+    } | null;
     release: {
         method: "in_person" | "authorised_person" | "courier";
         releasedAt: string;
@@ -383,15 +383,6 @@ export declare const FoundItemList: z.ZodObject<{
         roomId: string | null;
         description: string;
         propertyId: string;
-        claim: {
-            openedAt: string;
-            bookingReference: string | null;
-            claimantName: string;
-            statement: string;
-            matched: boolean;
-            matchNote: string;
-            openedByName: string | null;
-        } | null;
         valuable: boolean;
         foundLocation: string;
         foundSpot: string | null;
@@ -403,6 +394,15 @@ export declare const FoundItemList: z.ZodObject<{
         storageLocation: string | null;
         retentionUntil: string;
         retentionNote: string | null;
+        claim: {
+            openedAt: string;
+            bookingReference: string | null;
+            claimantName: string;
+            statement: string;
+            matched: boolean;
+            matchNote: string;
+            openedByName: string | null;
+        } | null;
         release: {
             method: "in_person" | "authorised_person" | "courier";
             releasedAt: string;
@@ -433,15 +433,6 @@ export declare const FoundItemList: z.ZodObject<{
         roomId: string | null;
         description: string;
         propertyId: string;
-        claim: {
-            openedAt: string;
-            bookingReference: string | null;
-            claimantName: string;
-            statement: string;
-            matched: boolean;
-            matchNote: string;
-            openedByName: string | null;
-        } | null;
         valuable: boolean;
         foundLocation: string;
         foundSpot: string | null;
@@ -453,6 +444,15 @@ export declare const FoundItemList: z.ZodObject<{
         storageLocation: string | null;
         retentionUntil: string;
         retentionNote: string | null;
+        claim: {
+            openedAt: string;
+            bookingReference: string | null;
+            claimantName: string;
+            statement: string;
+            matched: boolean;
+            matchNote: string;
+            openedByName: string | null;
+        } | null;
         release: {
             method: "in_person" | "authorised_person" | "courier";
             releasedAt: string;
@@ -498,15 +498,6 @@ export declare const FoundItemList: z.ZodObject<{
         roomId: string | null;
         description: string;
         propertyId: string;
-        claim: {
-            openedAt: string;
-            bookingReference: string | null;
-            claimantName: string;
-            statement: string;
-            matched: boolean;
-            matchNote: string;
-            openedByName: string | null;
-        } | null;
         valuable: boolean;
         foundLocation: string;
         foundSpot: string | null;
@@ -518,6 +509,15 @@ export declare const FoundItemList: z.ZodObject<{
         storageLocation: string | null;
         retentionUntil: string;
         retentionNote: string | null;
+        claim: {
+            openedAt: string;
+            bookingReference: string | null;
+            claimantName: string;
+            statement: string;
+            matched: boolean;
+            matchNote: string;
+            openedByName: string | null;
+        } | null;
         release: {
             method: "in_person" | "authorised_person" | "courier";
             releasedAt: string;
@@ -555,15 +555,6 @@ export declare const FoundItemList: z.ZodObject<{
         roomId: string | null;
         description: string;
         propertyId: string;
-        claim: {
-            openedAt: string;
-            bookingReference: string | null;
-            claimantName: string;
-            statement: string;
-            matched: boolean;
-            matchNote: string;
-            openedByName: string | null;
-        } | null;
         valuable: boolean;
         foundLocation: string;
         foundSpot: string | null;
@@ -575,6 +566,15 @@ export declare const FoundItemList: z.ZodObject<{
         storageLocation: string | null;
         retentionUntil: string;
         retentionNote: string | null;
+        claim: {
+            openedAt: string;
+            bookingReference: string | null;
+            claimantName: string;
+            statement: string;
+            matched: boolean;
+            matchNote: string;
+            openedByName: string | null;
+        } | null;
         release: {
             method: "in_person" | "authorised_person" | "courier";
             releasedAt: string;

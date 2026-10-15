@@ -22,6 +22,7 @@ import {
   HousekeepingBoardRepository,
 } from '../infrastructure/housekeeping-board.repository';
 import { kigaliDay, memberHoldsAt, recordRoomEvent, setRoomReadinessTx } from '../infrastructure/room-events';
+import { StaffPhoneRepository } from '../infrastructure/staff-phone.repository';
 
 /** A Date or an ISO string from the driver, as an ISO string. */
 export function iso(value: Date | string | null | undefined): string | null {
@@ -47,7 +48,10 @@ const TASK_LABEL: Record<string, string> = {
  */
 @Injectable()
 export class HousekeepingBoardService {
-  constructor(private readonly board: HousekeepingBoardRepository) {}
+  constructor(
+    private readonly board: HousekeepingBoardRepository,
+    private readonly phone: StaffPhoneRepository,
+  ) {}
 
   async read(ws: ScopedWorkspace, requestedPropertyId?: string): Promise<HousekeepingBoard> {
     const property = await this.property(ws, requestedPropertyId);
@@ -236,6 +240,13 @@ export class HousekeepingBoardService {
       if (task.assigned_to_user_id && task.assigned_to_user_id === actorUserId) {
         throw new ForbiddenException('You cleaned this room, so someone else has to inspect it.');
       }
+      await this.phone.writeInspectionChecks(tx, {
+        workspaceId: task.workspace_id,
+        taskId: task.id,
+        propertyId: task.property_id,
+        userId: actorUserId,
+        checks: body.checks ?? [],
+      });
       if (body.result === 'pass') {
         await tx.execute(sql`
           update housekeeping_tasks

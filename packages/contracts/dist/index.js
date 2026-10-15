@@ -70,4 +70,5 @@ __exportStar(require("./front-desk"), exports);
 __exportStar(require("./marketplace"), exports);
 // The residence screens of the new interface (real-data 1.3.1).
 __exportStar(require("./interface-residence"), exports);
+__exportStar(require("./staff-phone"), exports);
 //# sourceMappingURL=index.js.map

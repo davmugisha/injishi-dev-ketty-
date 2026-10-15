@@ -68,8 +68,8 @@ export declare const LeaveAllocationRequest: z.ZodObject<{
     };
     createdAt: string;
     branchId: string | null;
-    workDate: string | null;
     days: number;
+    workDate: string | null;
     leaveType: {
         name: string;
         id: string;
@@ -96,8 +96,8 @@ export declare const LeaveAllocationRequest: z.ZodObject<{
     };
     createdAt: string;
     branchId: string | null;
-    workDate: string | null;
     days: number;
+    workDate: string | null;
     leaveType: {
         name: string;
         id: string;
@@ -1157,10 +1157,10 @@ export declare const MyLeaveRequestList: z.ZodObject<{
         };
         createdAt: string;
         branchId: string | null;
+        days: number;
         endsOn: string;
         paymentPercent: number | null;
         approvalSteps: number;
-        days: number;
         leaveType: {
             code: string;
             name: string;
@@ -1195,10 +1195,10 @@ export declare const MyLeaveRequestList: z.ZodObject<{
         };
         createdAt: string;
         branchId: string | null;
+        days: number;
         endsOn: string;
         paymentPercent: number | null;
         approvalSteps: number;
-        days: number;
         leaveType: {
             code: string;
             name: string;
@@ -1235,10 +1235,10 @@ export declare const MyLeaveRequestList: z.ZodObject<{
         };
         createdAt: string;
         branchId: string | null;
+        days: number;
         endsOn: string;
         paymentPercent: number | null;
         approvalSteps: number;
-        days: number;
         leaveType: {
             code: string;
             name: string;
@@ -1275,10 +1275,10 @@ export declare const MyLeaveRequestList: z.ZodObject<{
         };
         createdAt: string;
         branchId: string | null;
+        days: number;
         endsOn: string;
         paymentPercent: number | null;
         approvalSteps: number;
-        days: number;
         leaveType: {
             code: string;
             name: string;
@@ -1367,8 +1367,8 @@ export declare const MyLeaveAllocationList: z.ZodObject<{
         };
         createdAt: string;
         branchId: string | null;
-        workDate: string | null;
         days: number;
+        workDate: string | null;
         leaveType: {
             name: string;
             id: string;
@@ -1395,8 +1395,8 @@ export declare const MyLeaveAllocationList: z.ZodObject<{
         };
         createdAt: string;
         branchId: string | null;
-        workDate: string | null;
         days: number;
+        workDate: string | null;
         leaveType: {
             name: string;
             id: string;
@@ -1425,8 +1425,8 @@ export declare const MyLeaveAllocationList: z.ZodObject<{
         };
         createdAt: string;
         branchId: string | null;
-        workDate: string | null;
         days: number;
+        workDate: string | null;
         leaveType: {
             name: string;
             id: string;
@@ -1455,8 +1455,8 @@ export declare const MyLeaveAllocationList: z.ZodObject<{
         };
         createdAt: string;
         branchId: string | null;
-        workDate: string | null;
         days: number;
+        workDate: string | null;
         leaveType: {
             name: string;
             id: string;

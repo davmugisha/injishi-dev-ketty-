@@ -389,6 +389,8 @@ export const spaces = pgTable('spaces', {
     .references(() => properties.id, { onDelete: 'cascade' }),
   name: text('name').notNull(),
   description: text('description'),
+  /** The floor the space is on ("Corridor F2"), so a phone offers the places on the floors a person works. */
+  floor: smallint('floor'),
   sortOrder: integer('sort_order').notNull().default(0),
   ...timestamps,
 });

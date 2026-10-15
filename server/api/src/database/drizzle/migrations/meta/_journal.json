@@ -498,6 +498,13 @@
       "when": 1792064039480,
       "tag": "0070_interface_residence",
       "breakpoints": true
+    },
+    {
+      "idx": 71,
+      "version": "7",
+      "when": 1792066719493,
+      "tag": "0071_interface_staff",
+      "breakpoints": true
     }
   ]
 }
