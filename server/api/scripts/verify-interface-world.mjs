@@ -46,6 +46,7 @@ function seed() {
 
 /** Row counts in the interface world: [query, which ids it is scoped by]. */
 const COUNTS = {
+  // Area seeds may add demo staff at the same domain (operations adds three housekeepers); the world is the 18.
   users: [`SELECT count(*)::int AS n FROM users WHERE email LIKE '%@app.demo.injishi.com'`, null],
   orgs: ['SELECT count(*)::int AS n FROM orgs WHERE id = ANY($1::uuid[])', 'orgs'],
   memberships: [`SELECT count(*)::int AS n FROM org_memberships WHERE org_id = ANY($1::uuid[]) AND status = 'active'`, 'orgs'],
@@ -83,7 +84,7 @@ try {
 
   const { personas, fx } = loadFixtures();
   const ids = Object.keys(personas);
-  expect(now.users === ids.length, `${now.users} users at @app.demo.injishi.com, expected ${ids.length}`);
+  expect(now.users >= ids.length, `${now.users} users at @app.demo.injishi.com, expected at least the ${ids.length} personas`);
   for (const id of ids) {
     const { rows } = await c.query('SELECT id FROM users WHERE lower(email) = lower($1)', [personas[id].email]);
     expect(rows.length === 1, `${personas[id].email} is not a user`);

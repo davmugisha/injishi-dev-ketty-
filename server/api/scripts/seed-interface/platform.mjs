@@ -37,7 +37,8 @@ export async function seed({ c, fx, log, keep }) {
       `INSERT INTO housekeeping_tasks
          (id, room_id, property_id, department_id, workspace_id, task_type, status, assigned_to_user_id, priority, note)
        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
-       ON CONFLICT (id) DO UPDATE SET status = EXCLUDED.status, note = EXCLUDED.note, started_at = NULL, completed_at = NULL`,
+       ON CONFLICT (id) DO UPDATE SET status = EXCLUDED.status, note = EXCLUDED.note, started_at = NULL, completed_at = NULL,
+         assigned_to_user_id = EXCLUDED.assigned_to_user_id, priority = EXCLUDED.priority`,
       [iid('hk-task', `isangano:${t.room}:today`), roomId('isangano', t.room), PROPERTY.isangano, department,
         WORKSPACE.hotel, type, t.status === 'active' ? 'in_progress' : 'pending', jeanne, priority,
         [t.flag, t.note].filter(Boolean).join(' · ')],
@@ -56,6 +57,7 @@ export async function seed({ c, fx, log, keep }) {
           note, started_at, completed_at)
        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, 0, NULL, $9, $10)
        ON CONFLICT (id) DO UPDATE SET status = EXCLUDED.status, started_at = EXCLUDED.started_at,
+         assigned_to_user_id = EXCLUDED.assigned_to_user_id,
          completed_at = EXCLUDED.completed_at`,
       [iid('hk-task', `isangano:${d.room}:today`), roomId('isangano', d.room), PROPERTY.isangano, department,
         WORKSPACE.hotel, type, inspected ? 'inspected' : 'done', jeanne,
