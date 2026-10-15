@@ -16,8 +16,10 @@ import {
   integer,
   jsonb,
   numeric,
+  pgEnum,
   pgTable,
   primaryKey,
+  smallint,
   text,
   time,
   timestamp,
@@ -304,6 +306,9 @@ export const roomTypes = pgTable(
 );
 
 
+/** A guest's sign on the door (real-data 1.2.3). Here rather than in enums.ts: only `rooms` uses it. */
+export const roomServiceFlagEnum = pgEnum('room_service_flag', ['dnd', 'make_up_room']);
+
 export const rooms = pgTable(
   'rooms',
   {
@@ -339,6 +344,11 @@ export const rooms = pgTable(
     housekeepingUpdatedByUserId: uuid('housekeeping_updated_by_user_id').references(
       () => users.id,
     ),
+    /** The floor it is on, as the housekeeping board groups rooms (real-data 1.2.3). */
+    floor: smallint('floor'),
+    /** A sign on the door: do not disturb, or please make up the room. Cleared with the stay. */
+    serviceFlag: roomServiceFlagEnum('service_flag'),
+    serviceFlagSetAt: timestamp('service_flag_set_at', { withTimezone: true }),
     ...timestamps,
   },
   (t) => [

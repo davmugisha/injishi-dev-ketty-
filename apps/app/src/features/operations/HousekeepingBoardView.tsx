@@ -12,6 +12,7 @@ import {
   NumberField,
   ProgressBar,
   TextField,
+  Toast,
   ToggleButton,
 } from "@heroui/react";
 import { Kanban, ListView, Segment, Stepper } from "@heroui-pro/react";
@@ -29,8 +30,26 @@ import type {
   Tone,
 } from "@injishi/data/fixtures/operations";
 import { GateChip, Icon, LinkButton, PageContent, PageHeader, SectionHeader, toneColor } from "@injishi/ui";
-import { type CSSProperties, useState } from "react";
-import { FieldLabel, FooterHint, FormDialog, firstKey, HistoryTimeline, NOW, SelectField } from "./shared";
+import { type CSSProperties, useState, useTransition } from "react";
+import {
+  addCleaningTaskAction,
+  assignCleaningTaskAction,
+  inspectCleaningTaskAction,
+  remindEscalationAction,
+} from "./actions";
+import {
+  FieldLabel,
+  FooterHint,
+  FormDialog,
+  firstKey,
+  HistoryTimeline,
+  kigaliClock,
+  kigaliLongDate,
+  pressKey,
+  reported,
+  SelectField,
+  useKigaliNow,
+} from "./shared";
 
 export interface HousekeepingData {
   rooms: HousekeepingRoom[];
@@ -137,7 +156,8 @@ const shortName = (name: string) => {
 };
 
 export function HousekeepingBoardView({
-  persona,
+  // The board acts as the signed-in person through the API, which stamps who did what.
+  persona: _persona,
   initialView,
   data,
 }: {
@@ -156,18 +176,19 @@ export function HousekeepingBoardView({
     reassignEsc ? (data.tasks.find((t) => t.id === reassignEsc.task)?.room ?? "") : "",
   );
   const [taskId, setTaskId] = useState(reassignEsc?.task ?? data.tasks[0]?.id ?? "");
-  const [assigned, setAssigned] = useState<Record<string, string>>({});
-  const [moved, setMoved] = useState<Record<string, "insp" | "todo">>({});
-  const [reminded, setReminded] = useState(false);
-  // Tasks added by hand on this screen.
-  const [created, setCreated] = useState<CleaningTask[]>([]);
+  // A reminder already sent reads as done (the API keeps it; the button stays disabled).
+  const [reminded, setReminded] = useState(Boolean(remindEsc?.doneCta && remindEsc.cta === remindEsc.doneCta));
+  const [pending, startTransition] = useTransition();
   const [addOpen, setAddOpen] = useState(false);
   const [newRoom, setNewRoom] = useState("");
   const [newKind, setNewKind] = useState<CleaningTask["kind"]>("Checkout");
   const [newAssignee, setNewAssignee] = useState("none");
   const [newDue, setNewDue] = useState("By 15:00");
   const [newMinutes, setNewMinutes] = useState(45);
-  const allTasks = [...data.tasks, ...created];
+  // Failing an inspection asks what was not right: the re-clean carries the reason.
+  const [failTask, setFailTask] = useState<CleaningTask | null>(null);
+  const [failReason, setFailReason] = useState("");
+  const now = useKigaliNow();
 
   const setView = (v: View) => {
     setViewState(v);
@@ -176,45 +197,10 @@ export function HousekeepingBoardView({
     window.history.replaceState(null, "", url);
   };
 
-  // Tasks with this screen's decisions applied (inspections passed/failed, reassignments).
-  const tasks: CleaningTask[] = allTasks.map((t) => {
-    const assignee = t.id in assigned ? assigned[t.id] : t.assignee;
-    let x: CleaningTask = { ...t, assignee };
-    if (moved[t.id] === "insp")
-      x = {
-        ...x,
-        column: "insp",
-        due: `Passed ${NOW} · ${persona.name}`,
-        priority: undefined,
-        priorityTone: undefined,
-      };
-    if (moved[t.id] === "todo")
-      x = {
-        ...x,
-        column: "todo",
-        kind: "Re-clean",
-        due: `Failed inspection ${NOW} · bathroom not finished`,
-        priority: "High",
-        priorityTone: "warning",
-        minutes: 25,
-      };
-    if (reassignEsc?.task === t.id && assignee !== t.assignee) {
-      const rest = t.due.split(" · ").slice(1).join(" · ");
-      x = { ...x, due: `Reassigned ${NOW}${rest ? ` · ${rest}` : ""}` };
-    }
-    return x;
-  });
-
-  // Room status with the same decisions applied.
-  const rooms = data.rooms.map((r) => {
-    let { status, note } = r;
-    for (const t of allTasks.filter((x) => x.room === r.id)) {
-      if (moved[t.id] === "insp") [status, note] = ["inspected", "Ready"];
-      if (moved[t.id] === "todo") [status, note] = ["dirty", "Re-clean"];
-      if (!t.assignee && assigned[t.id]) note = t.kind;
-    }
-    return { ...r, status, note };
-  });
+  // Tasks and rooms are the business's record (GET /ops/housekeeping/board): every decision on this
+  // screen is a command to the API, and the board re-reads afterwards.
+  const tasks: CleaningTask[] = data.tasks;
+  const rooms = data.rooms;
   const counts = Object.fromEntries(STATUS_ORDER.map((s) => [s, rooms.filter((r) => r.status === s).length])) as Record<
     RoomStatus,
     number
@@ -232,9 +218,8 @@ export function HousekeepingBoardView({
   const task = tasks.find((t) => t.id === taskId) ?? tasks[0];
   const room = rooms.find((r) => r.id === roomId) ?? rooms[0];
   const roomTask = room ? tasks.find((t) => t.room === room.id && t.column !== "insp") : undefined;
-  const roomMoved = room ? allTasks.some((t) => t.room === room.id && moved[t.id]) : false;
   const roomEvents = room
-    ? (!roomMoved && data.roomHistory.find((h) => h.id === room.id)?.events) ||
+    ? data.roomHistory.find((h) => h.id === room.id)?.events ||
       data.statusHistory.find((h) => h.id === room.status)?.events ||
       []
     : [];
@@ -242,7 +227,8 @@ export function HousekeepingBoardView({
   const workload = housekeepers.map((p) => {
     const mine = tasks.filter((t) => t.assignee === p.id && (t.column === "todo" || t.column === "doing"));
     const load = mine.reduce((a, t) => a + (t.minutes ?? 0), 0);
-    const pct = Math.min(100, Math.round((load / p.minutesLeft) * 100));
+    // A shift that has ended leaves no minutes: any open work is over by all of it.
+    const pct = p.minutesLeft > 0 ? Math.min(100, Math.round((load / p.minutesLeft) * 100)) : load > 0 ? 100 : 0;
     const over = load - p.minutesLeft;
     return {
       ...p,
@@ -257,32 +243,37 @@ export function HousekeepingBoardView({
   const waiting = tasks.filter((t) => t.column === "clean");
   const oldest = waiting.find((t) => t.priority === "Overdue");
   const oldestWait = oldest?.due.split("waiting ")[1];
-  const inspQueue = `${waiting.length} inspections waiting${oldest && oldestWait ? ` · oldest ${oldestWait} min (${oldest.room})` : ""}${reminded ? ` · reminded ${NOW}` : ""}`;
+  const inspQueue = `${waiting.length} inspections waiting${oldest && oldestWait ? ` · oldest ${oldestWait} min (${oldest.room})` : ""}${reminded ? ` · reminded${now ? ` ${kigaliClock(now)}` : ""}` : ""}`;
 
-  const reassignTask = reassignEsc ? tasks.find((t) => t.id === reassignEsc.task) : undefined;
-  const reassignOriginal = reassignEsc ? data.tasks.find((t) => t.id === reassignEsc.task) : undefined;
+  const act = (run: () => Promise<{ ok: true } | { ok: false; error: string }>, then?: () => void) =>
+    startTransition(async () => {
+      if (reported(await run())) then?.();
+    });
+
   const escalations = [
-    reassignEsc &&
-    reassignTask &&
-    reassignTask.column === "todo" &&
-    reassignTask.assignee === reassignOriginal?.assignee
+    reassignEsc && tasks.some((t) => t.id === reassignEsc.task && t.column === "todo")
       ? {
           ...reassignEsc,
           label: reassignEsc.cta,
           disabled: false,
           act: () => {
+            const target = tasks.find((t) => t.id === reassignEsc.task);
             setView("tasks");
             setTaskId(reassignEsc.task);
-            setRoomId(reassignTask.room);
+            if (target) setRoomId(target.room);
           },
         }
       : null,
-    remindEsc && !moved[remindEsc.task]
+    remindEsc
       ? {
           ...remindEsc,
           label: reminded ? (remindEsc.doneCta ?? remindEsc.cta) : remindEsc.cta,
-          disabled: reminded,
-          act: () => setReminded(true),
+          disabled: reminded || pending,
+          act: () =>
+            act(
+              () => remindEscalationAction(remindEsc.id),
+              () => setReminded(true),
+            ),
         }
       : null,
   ].filter((e) => e !== null);
@@ -306,29 +297,48 @@ export function HousekeepingBoardView({
     setAddOpen(true);
   };
   const addTask = () => {
-    if (!newRoom || !newDue.trim()) return;
-    const t: CleaningTask = {
-      id: `t${newRoom}-hand-${created.length + 1}`,
-      room: newRoom,
-      kind: newKind,
-      column: "todo",
-      assignee: newAssignee === "none" ? null : newAssignee,
-      due: `${newDue.trim()} · added ${NOW} by ${persona.firstName}`,
-      minutes: Number.isFinite(newMinutes) ? newMinutes : undefined,
-      auto: false,
-    };
-    setCreated((c) => [...c, t]);
-    setAddOpen(false);
-    setView("tasks");
-    setTaskId(t.id);
-    setRoomId(t.room);
+    if (!newRoom || !newDue.trim() || newKind === "Re-clean") return;
+    const key = pressKey();
+    const kind = newKind;
+    startTransition(async () => {
+      const result = await addCleaningTaskAction(
+        {
+          room: newRoom,
+          kind,
+          assignee: newAssignee === "none" ? null : newAssignee,
+          due: newDue.trim(),
+          minutes: Number.isFinite(newMinutes) ? newMinutes : undefined,
+        },
+        key,
+      );
+      if (!reported(result)) return;
+      setAddOpen(false);
+      setView("tasks");
+      if (result.ok) setTaskId(result.value);
+      setRoomId(newRoom);
+    });
+  };
+  const failInspection = () => {
+    const t = failTask;
+    const reason = failReason.trim();
+    if (!t || !reason) return;
+    act(
+      () => inspectCleaningTaskAction(t.id, "fail", reason),
+      () => {
+        setFailTask(null);
+        setFailReason("");
+        setRoomId(t.room);
+      },
+    );
   };
   const newLoad = workload.find((p) => p.id === newAssignee);
 
   return (
     <PageContent>
       <PageHeader
-        eyebrow="Monday 12 October 2026 · 12:20 · Isangano Lakeside Hotel"
+        eyebrow={
+          now ? `${kigaliLongDate(now)} · ${kigaliClock(now)} · Isangano Lakeside Hotel` : "Isangano Lakeside Hotel"
+        }
         title="Housekeeping"
         description="Room status and cleaning tasks. A room is offered to arrivals only after it passes inspection."
         actions={
@@ -550,7 +560,8 @@ export function HousekeepingBoardView({
                                     variant="secondary"
                                     className="flex-1"
                                     aria-label={`Pass inspection of room ${t.room}`}
-                                    onPress={() => setMoved((m) => ({ ...m, [t.id]: "insp" }))}
+                                    isDisabled={pending}
+                                    onPress={() => act(() => inspectCleaningTaskAction(t.id, "pass"))}
                                   >
                                     Pass
                                   </Button>
@@ -558,9 +569,11 @@ export function HousekeepingBoardView({
                                     size="sm"
                                     variant="ghost"
                                     aria-label={`Fail inspection of room ${t.room}`}
+                                    isDisabled={pending}
                                     onPress={() => {
-                                      setMoved((m) => ({ ...m, [t.id]: "todo" }));
                                       selectTask(t.id);
+                                      setFailReason("");
+                                      setFailTask(t);
                                     }}
                                   >
                                     Fail
@@ -613,7 +626,8 @@ export function HousekeepingBoardView({
                           size="sm"
                           variant="secondary"
                           aria-label={`Assign room ${task.room} to ${p.name}`}
-                          onPress={() => setAssigned((a) => ({ ...a, [task.id]: p.id }))}
+                          isDisabled={pending}
+                          onPress={() => act(() => assignCleaningTaskAction(task.id, p.id))}
                         >
                           Assign
                         </Button>
@@ -730,7 +744,7 @@ export function HousekeepingBoardView({
             <Button variant="secondary" onPress={() => setAddOpen(false)}>
               Cancel
             </Button>
-            <Button isDisabled={!newRoom || !newDue.trim()} onPress={addTask}>
+            <Button isDisabled={!newRoom || !newDue.trim() || pending} onPress={addTask}>
               Add task
             </Button>
           </>
@@ -782,6 +796,30 @@ export function HousekeepingBoardView({
           </NumberField>
         </div>
       </FormDialog>
+      <FormDialog
+        isOpen={failTask !== null}
+        onOpenChange={(open) => {
+          if (!open) setFailTask(null);
+        }}
+        title={failTask ? `Fail inspection of room ${failTask.room}` : "Fail inspection"}
+        description="The room goes back to To do as a re-clean for the same person, with your reason."
+        footer={
+          <>
+            <Button variant="secondary" onPress={() => setFailTask(null)}>
+              Cancel
+            </Button>
+            <Button isDisabled={!failReason.trim() || pending} onPress={failInspection}>
+              Fail inspection
+            </Button>
+          </>
+        }
+      >
+        <TextField fullWidth value={failReason} onChange={setFailReason} isRequired className="gap-1">
+          <Label>What was not right</Label>
+          <Input placeholder="Bathroom not finished" />
+        </TextField>
+      </FormDialog>
+      <Toast.Provider placement="bottom" />
     </PageContent>
   );
 }

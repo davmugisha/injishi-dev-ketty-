@@ -16,6 +16,7 @@ import {
   inet,
   integer,
   jsonb,
+  pgEnum,
   pgTable,
   text,
   timestamp,
@@ -26,6 +27,8 @@ import {
 } from 'drizzle-orm/pg-core';
 import { users } from './auth';
 import { amount, currency, timestamps } from './columns';
+// Lazy only (inside `references`): interface-operations imports this module back.
+import { assets } from './interface-operations';
 import { adapterModeEnum, brokerStatusEnum, paymentAttemptPurposeEnum, paymentAttemptStateEnum, cautionStatusEnum, escrowSourceEnum, escrowStatusEnum, filingStatusEnum, invitationStatusEnum, leaseStatusEnum, maintenanceCategoryEnum, maintenancePriorityEnum, maintenanceRaisedByRoleEnum, maintenanceStatusEnum, placementStatusEnum, renewalStatusEnum, rentStatusEnum, signerRoleEnum } from './enums';
 import { bookings, guestStays, storedObjects } from './hospitality';
 import { listings, properties, rooms, spaces } from './inventory';
@@ -497,6 +500,24 @@ export const maintenanceTickets = pgTable(
     photoObjectKeys: jsonb('photo_object_keys'),
     status: maintenanceStatusEnum('status').notNull().default('open'),
     resolvedAt: timestamp('resolved_at', { withTimezone: true }),
+    // --- The hotel's work order (real-data 1.2.3) ---
+    /** "WO-318": what people say on the radio. Unique per workspace. */
+    reference: text('reference'),
+    assignedToUserId: uuid('assigned_to_user_id').references(() => users.id),
+    /** An outside firm doing the work, when no staff member is. */
+    assignedContractor: text('assigned_contractor'),
+    assetId: uuid('asset_id').references((): AnyPgColumn => assets.id, {
+      onDelete: 'set null',
+    }),
+    scheduledFor: date('scheduled_for'),
+    /** How it reached us: "staff app", "front desk · guest complaint", "planned schedule". */
+    raisedVia: text('raised_via'),
+    /** What the fault means for the operation while it is open. */
+    impactNote: text('impact_note'),
+    /** What must be true before the room goes back on sale. */
+    releaseNote: text('release_note'),
+    verifiedAt: timestamp('verified_at', { withTimezone: true }),
+    verifiedByUserId: uuid('verified_by_user_id').references(() => users.id),
     ...timestamps,
   },
   (t) => [
@@ -504,6 +525,9 @@ export const maintenanceTickets = pgTable(
       t.workspaceId,
       t.status,
     ),
+    uniqueIndex('maintenance_tickets_workspace_reference_uk')
+      .on(t.workspaceId, t.reference)
+      .where(sql`${t.reference} IS NOT NULL`),
     index('maintenance_tickets_property_idx').on(t.propertyId),
     index('maintenance_tickets_room_idx').on(t.roomId),
     index('maintenance_tickets_lease_idx').on(t.leaseId),
@@ -520,12 +544,32 @@ export const maintenanceTickets = pgTable(
 );
 
 
+/** What a step on a work order's timeline was (real-data 1.2.3). A plain note is `note`. */
+export const maintenanceEventKindEnum = pgEnum('maintenance_event_kind', [
+  'reported',
+  'assigned',
+  'block_requested',
+  'block_approved',
+  'block_declined',
+  'block_released',
+  'parts',
+  'scheduled',
+  'started',
+  'note',
+  'next_step',
+  'fixed',
+  'verified',
+  'from_signal',
+  'planned',
+]);
+
 export const maintenanceEvents = pgTable('maintenance_events', {
   id: uuid('id').primaryKey().defaultRandom(),
   ticketId: uuid('ticket_id')
     .notNull()
     .references(() => maintenanceTickets.id, { onDelete: 'cascade' }),
   authorUserId: uuid('author_user_id').references(() => users.id),
+  kind: maintenanceEventKindEnum('kind').notNull().default('note'),
   note: text('note'),
   photoObjectId: uuid('photo_object_id').references(() => storedObjects.id),
   createdAt: timestamp('created_at', { withTimezone: true })

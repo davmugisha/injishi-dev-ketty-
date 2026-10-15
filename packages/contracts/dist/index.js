@@ -60,4 +60,7 @@ __exportStar(require("./payroll"), exports);
 __exportStar(require("./list-query"), exports);
 __exportStar(require("./hr-lists"), exports);
 __exportStar(require("./redaction"), exports);
+__exportStar(require("./housekeeping-board"), exports);
+__exportStar(require("./maintenance"), exports);
+__exportStar(require("./lost-found"), exports);
 //# sourceMappingURL=index.js.map

@@ -1236,6 +1236,11 @@ exports.HousekeepingTaskStatus = zod_1.z.enum([
     "done",
     "inspected",
     "blocked",
+    /**
+     * The clean did not pass inspection. Terminal: the room goes back on the board as a NEW task
+     * (a re-clean naming this one), so the record of who cleaned it, who failed it and why stays.
+     */
+    "failed",
 ]);
 exports.OperatorHousekeepingTask = zod_1.z.object({
     id: primitives_1.Uuid,
@@ -1261,6 +1266,10 @@ exports.CreateHousekeepingTaskRequest = zod_1.z.object({
     assignedToUserId: primitives_1.Uuid.optional(),
     priority: zod_1.z.number().int().min(0).max(100).optional(),
     note: zod_1.z.string().trim().max(500).optional(),
+    /** When the room has to be ready (an instant). */
+    dueAt: zod_1.z.string().datetime({ offset: true }).optional(),
+    /** How long the work takes, for the attendant's load against their shift. */
+    estimatedMinutes: zod_1.z.number().int().min(5).max(480).optional(),
 });
 /**
  * Move a task along.

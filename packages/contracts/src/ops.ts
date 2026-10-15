@@ -1329,6 +1329,11 @@ export const HousekeepingTaskStatus = z.enum([
     "done",
     "inspected",
     "blocked",
+    /**
+     * The clean did not pass inspection. Terminal: the room goes back on the board as a NEW task
+     * (a re-clean naming this one), so the record of who cleaned it, who failed it and why stays.
+     */
+    "failed",
 ]);
 export type HousekeepingTaskStatus = z.infer<typeof HousekeepingTaskStatus>;
 export const OperatorHousekeepingTask = z.object({
@@ -1357,6 +1362,10 @@ export const CreateHousekeepingTaskRequest = z.object({
     assignedToUserId: Uuid.optional(),
     priority: z.number().int().min(0).max(100).optional(),
     note: z.string().trim().max(500).optional(),
+    /** When the room has to be ready (an instant). */
+    dueAt: z.string().datetime({ offset: true }).optional(),
+    /** How long the work takes, for the attendant's load against their shift. */
+    estimatedMinutes: z.number().int().min(5).max(480).optional(),
 });
 export type CreateHousekeepingTaskRequest = z.infer<typeof CreateHousekeepingTaskRequest>;
 /**
