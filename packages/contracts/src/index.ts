@@ -52,3 +52,5 @@ export * from "./lost-found";
 // The front desk's day in one read, and the no-show command (interface real-data, frontdesk leaf).
 export * from "./front-desk";
 export * from "./marketplace";
+// The residence screens of the new interface (real-data 1.3.1).
+export * from "./interface-residence";

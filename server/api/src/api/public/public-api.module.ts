@@ -96,6 +96,9 @@ import { OpsHousekeepingController } from './ops/housekeeping.controller';
 import { OpsHousekeepingBoardController } from './ops/housekeeping-board.controller';
 import { OpsFoundItemsController } from './ops/lost-found.controller';
 import { OpsConditionSignalsController, OpsWorkOrdersController } from './ops/work-orders.controller';
+// The new interface's residence (real-data 1.3.1): the manager's screens and the tenant's phone.
+import { OpsResidenceController } from './ops/residence-interface.controller';
+import { MeResidentController } from './me/resident.controller';
 import { OpsOutletPartiesController } from './ops/outlet-parties.controller';
 import { OpsOutletsController } from './ops/outlets.controller';
 import {
@@ -289,6 +292,7 @@ import { WaitlistModule } from './waitlist/waitlist.module';
     OpsWorkOrdersController,
     OpsConditionSignalsController,
     OpsFoundItemsController,
+    OpsResidenceController,
     OpsServiceCatalogController,
     OpsServiceOrdersController,
     OpsRraController,
@@ -325,6 +329,7 @@ import { WaitlistModule } from './waitlist/waitlist.module';
     MeGuestContactController,
     MeTripFactsController,
     MeBusinessesController,
+    MeResidentController,
     MeWorkController,
     MeWorkLeaveController,
     MeWorkPayController,

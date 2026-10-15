@@ -11,9 +11,10 @@ import type {
   VisitorDraft,
   VisitorPass,
 } from "@injishi/data/fixtures/resident";
-import { stock } from "@injishi/data/media";
-import { PhoneBody, PhoneTop, Photo } from "@injishi/ui";
+import { PhoneBody, PhoneTop } from "@injishi/ui";
+import { useRouter } from "next/navigation";
 import { useState } from "react";
+import { registerVisitorAction, requestRepairAction } from "./actions";
 import { PhoneToasts, ResidentTitle, renderSection, SectionTitle, ToneChip } from "./parts";
 
 type Tab = "repairs" | "visitors";
@@ -37,56 +38,64 @@ export function TenantRequestsView({
   const [tab, setTab] = useState<Tab>("repairs");
   const [category, setCategory] = useState(draft.category);
   const [desc, setDesc] = useState("");
-  const [photo, setPhoto] = useState(true);
   const [entry, setEntry] = useState(draft.staffMayEnter);
-  const [submitted, setSubmitted] = useState<RepairRequest[]>([]);
   const [visitorName, setVisitorName] = useState(visitorDraft.name);
+  const [visitDate, setVisitDate] = useState(visitorDraft.date);
+  const [visitTime, setVisitTime] = useState(visitorDraft.time);
   const [overnight, setOvernight] = useState(false);
-  const [codeReady, setCodeReady] = useState(false);
+  /** The code the gate issued for the visitor just registered, with the name and day it was issued for. */
+  const [issued, setIssued] = useState<{ code: string; name: string; when: string } | null>(null);
+  const [busy, setBusy] = useState(false);
+  const router = useRouter();
 
-  const repairRows = [...submitted, ...repairs];
-  const issued: VisitorPass[] = codeReady
-    ? [
-        {
-          id: `local-${visitorDraft.code}`,
-          name: visitorName,
-          desc: `${visitorDraft.date}, ${visitorDraft.time} · registered just now`,
-          state: "Code issued",
-          tone: "info",
-          code: visitorDraft.code,
-        },
-      ]
-    : [];
-  const visitorRows = [...issued, ...visitors];
+  const repairRows: RepairRequest[] = repairs;
+  const visitorRows: VisitorPass[] = visitors;
   const canSend = desc.trim().length > 0;
 
-  const submit = () => {
+  /** Send request → `POST /me/residence/repairs`; the list comes back from the server with its WO number. */
+  const submit = async () => {
     const text = desc.trim();
-    if (!text) return;
-    setSubmitted((items) => [
-      {
-        id: `local-${items.length + 1}`,
-        title: text.slice(0, 60),
-        desc: "Sent just now · management will reply here",
-        state: "Submitted",
-        tone: "warning",
-        sentAt: new Date().toISOString(),
-        category,
-        staffMayEnter: entry,
-        photos: photo ? 1 : 0,
-      },
-      ...items,
-    ]);
+    if (!text || busy) return;
+    setBusy(true);
+    const result = await requestRepairAction({ unit: tenancy.unit, category, description: text, staffMayEnter: entry });
+    setBusy(false);
+    if (!result.ok) {
+      toast.danger(result.error);
+      return;
+    }
     setDesc("");
-    toast("Request sent to management", { indicator: <CircleCheck /> });
+    toast(`Request ${result.value} sent to management`, { indicator: <CircleCheck /> });
+    router.refresh();
+  };
+
+  /** Get access code → `POST /me/residence/visitor-passes`; the server mints the code. */
+  const getCode = async () => {
+    if (busy) return;
+    setBusy(true);
+    const name = visitorName.trim();
+    const result = await registerVisitorAction({
+      unit: tenancy.unit,
+      visitorName: name,
+      date: visitDate,
+      time: visitTime,
+      overnight,
+    });
+    setBusy(false);
+    if (!result.ok) {
+      toast.danger(result.error);
+      return;
+    }
+    setIssued({ code: result.value.code, name, when: `${visitDate}, ${visitTime}` });
+    router.refresh();
   };
 
   const shareCode = async () => {
+    if (!issued) return;
     try {
-      await navigator.clipboard.writeText(visitorDraft.code);
-      toast(`Code ${visitorDraft.code} copied`, { indicator: <CircleCheck /> });
+      await navigator.clipboard.writeText(issued.code);
+      toast(`Code ${issued.code} copied`, { indicator: <CircleCheck /> });
     } catch {
-      toast(`Code ${visitorDraft.code}`, { indicator: <CircleCheck /> });
+      toast(`Code ${issued.code}`, { indicator: <CircleCheck /> });
     }
   };
 
@@ -139,23 +148,16 @@ export function TenantRequestsView({
               <div className="flex flex-col gap-[6px]">
                 <Label>Photos</Label>
                 <div className="flex gap-2">
-                  {photo ? (
-                    <figure className="relative m-0 size-[72px] overflow-hidden rounded-[14px] bg-surface-secondary">
-                      <Photo
-                        image={stock[draft.photo]}
-                        alt="Attached photo of the problem"
-                        fill
-                        sizes="72px"
-                        priority
-                      />
-                    </figure>
-                  ) : null}
                   <Button
                     isIconOnly
                     variant="secondary"
                     aria-label="Add a photo"
                     className="size-[72px] rounded-[14px]"
-                    onPress={() => setPhoto(true)}
+                    onPress={() =>
+                      toast.danger(
+                        "Adding photos is not available yet. Describe the problem in words; nothing was attached.",
+                      )
+                    }
                   >
                     <Camera className="size-5" />
                   </Button>
@@ -169,7 +171,7 @@ export function TenantRequestsView({
                   <span className="text-[14px]">Staff may enter if I am not home</span>
                 </Switch.Content>
               </Switch>
-              <Button variant="primary" size="lg" fullWidth onPress={submit} isDisabled={!canSend}>
+              <Button variant="primary" size="lg" fullWidth onPress={submit} isDisabled={!canSend || busy}>
                 Send request
               </Button>
               {canSend ? null : <span className="text-[12px] text-muted">Add a short description to send.</span>}
@@ -202,13 +204,11 @@ export function TenantRequestsView({
           </>
         ) : (
           <>
-            {codeReady ? (
+            {issued ? (
               <Card render={renderSection} aria-live="polite" className="items-center gap-[10px] p-4 text-center">
-                <span className="text-[12px] text-muted">Access code for {visitorName}</span>
-                <span className="text-[36px] leading-[44px] font-bold tracking-[6px] tabular">{visitorDraft.code}</span>
-                <span className="text-[13px]">
-                  Valid {visitorDraft.dateLong}, {visitorDraft.time} · expires automatically
-                </span>
+                <span className="text-[12px] text-muted">Access code for {issued.name}</span>
+                <span className="text-[36px] leading-[44px] font-bold tracking-[6px] tabular">{issued.code}</span>
+                <span className="text-[13px]">Valid {issued.when} · expires automatically</span>
                 <Button variant="secondary" onPress={shareCode}>
                   <PaperPlane className="size-4" />
                   Share code
@@ -225,11 +225,11 @@ export function TenantRequestsView({
                 <Input id="pv-n" />
               </TextField>
               <div className="grid grid-cols-2 gap-[10px]">
-                <TextField fullWidth defaultValue={visitorDraft.date} className="gap-1">
+                <TextField fullWidth value={visitDate} onChange={setVisitDate} className="gap-1">
                   <Label htmlFor="pv-d">Date</Label>
                   <Input id="pv-d" />
                 </TextField>
-                <TextField fullWidth defaultValue={visitorDraft.time} className="gap-1">
+                <TextField fullWidth value={visitTime} onChange={setVisitTime} className="gap-1">
                   <Label htmlFor="pv-t">Time</Label>
                   <Input id="pv-t" />
                 </TextField>
@@ -248,7 +248,7 @@ export function TenantRequestsView({
                   issued.
                 </span>
               ) : null}
-              <Button variant="primary" size="lg" fullWidth onPress={() => setCodeReady(true)}>
+              <Button variant="primary" size="lg" fullWidth onPress={getCode} isDisabled={busy || !visitorName.trim()}>
                 Get access code
               </Button>
             </Card>

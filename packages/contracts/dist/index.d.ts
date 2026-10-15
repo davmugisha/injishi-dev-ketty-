@@ -51,4 +51,5 @@ export * from "./maintenance";
 export * from "./lost-found";
 export * from "./front-desk";
 export * from "./marketplace";
+export * from "./interface-residence";
 //# sourceMappingURL=index.d.ts.map

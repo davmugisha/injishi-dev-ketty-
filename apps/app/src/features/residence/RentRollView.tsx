@@ -17,11 +17,13 @@ import type {
 } from "@injishi/data/fixtures/residence";
 import { GateChip, Icon, LinkButton, PageContent, PageHeader } from "@injishi/ui";
 import { Fragment, useState } from "react";
+import { recordPaymentAction, remindResidentsAction } from "./actions";
 import {
   Dot,
   downloadCsv,
   FormDialog,
   firstKey,
+  kigaliCalendar,
   Legend,
   lineTab,
   money,
@@ -63,7 +65,6 @@ const MONTH_WORD: Record<RentMonth, string> = {
   unknown: "result unknown",
   none: "no lease",
 };
-const MONTHS = ["July", "August", "September", "October"];
 const LEGEND: { tone: Tone; label: string }[] = [
   { tone: "success", label: "Paid on time" },
   { tone: "accent", label: "Paid late" },
@@ -83,20 +84,20 @@ const REMINDER_TEXT =
   "Hello, your rent balance at Kacyiru Court is overdue. Please pay in the resident app or contact Solange to agree a plan.";
 
 /** The ledger of a lease with nothing outstanding: this month's charge closed by a verified payment. */
-function closedLedger(row: RentRollRow): LedgerEntry[] {
+function closedLedger(row: RentRollRow, month: string): LedgerEntry[] {
   return [
     {
       icon: "FileDollar",
-      title: "October rent",
+      title: `${month} rent`,
       desc: `Charged on the ${row.due} · closed by verified payment`,
       amount: row.rent,
       state: "Closed",
       tone: "success",
     },
     {
-      icon: "Smartphone",
-      title: "MTN MoMo payment",
-      desc: "Provider reference on file · allocated to October rent",
+      icon: "Receipt",
+      title: "Verified payment",
+      desc: `Provider or bank reference on file · allocated to ${month} rent`,
       amount: row.rent,
       state: "Verified",
       tone: "success",
@@ -105,14 +106,16 @@ function closedLedger(row: RentRollRow): LedgerEntry[] {
 }
 
 export function RentRollView({ persona, data }: { persona: Persona; data: RentRollData }) {
+  // The roll's month and its four-month history are this month's in Kigali, not the prototype's October.
+  const cal = kigaliCalendar();
+  const MONTHS = cal.lastFourMonths;
   const [filter, setFilter] = useState<Filter>("all");
   const [sel, setSel] = useState("A-03");
   const [recordOpen, setRecordOpen] = useState(false);
   const [record, setRecord] = useState({ method: METHODS[0], amount: "", ref: "" });
-  const [recorded, setRecorded] = useState<Record<string, LedgerEntry[]>>({});
   const [remindFor, setRemindFor] = useState<string[] | null>(null);
   const [message, setMessage] = useState(REMINDER_TEXT);
-  const [reminded, setReminded] = useState<string[]>([]);
+  const [busy, setBusy] = useState(false);
 
   const counts = Object.fromEntries(FILTERS.map((f) => [f.id, data.rows.filter(f.test).length])) as Record<
     Filter,
@@ -120,13 +123,9 @@ export function RentRollView({ persona, data }: { persona: Persona; data: RentRo
   >;
   const row = data.rows.find((r) => r.id === sel) ?? data.rows[0];
   const detail = data.ledgers.find((l) => l.id === row.id);
-  const ledger = [...(detail?.ledger ?? closedLedger(row)), ...(recorded[row.id] ?? [])];
-  const reminders = [
-    ...(detail?.reminders ?? []).map((m) => (reminded.includes(row.id) ? { ...m, status: "success" as const } : m)),
-    ...(reminded.includes(row.id)
-      ? [{ title: "In-app and email reminder", when: "12 Oct · queued by Solange", status: "current" as const }]
-      : []),
-  ];
+  // The ledger and the reminders are the API's: a saved payment or a sent reminder comes back with the page.
+  const ledger = detail?.ledger ?? closedLedger(row, cal.month);
+  const reminders = detail?.reminders ?? [];
   const status = STATUS[row.status];
   const balanceLabel =
     row.status === "arrears" ? "Overdue balance" : row.status === "paid" ? "Balance" : "Balance · payment in flight";
@@ -141,29 +140,29 @@ export function RentRollView({ persona, data }: { persona: Persona; data: RentRo
     .map((r) => {
       const history = data.ledgers.find((l) => l.id === r.id)?.reminders ?? [];
       const latest = history[history.length - 1];
-      const last = reminded.includes(r.id) ? "12 Oct" : (latest?.when.split(" · ")[0] ?? "never");
+      const last = latest?.when.split(" · ")[0] ?? "never";
       return { ...r, last };
     });
   const recipients = arrears.filter((a) => remindFor?.includes(a.id));
 
   const amount = Number(record.amount.replace(/[^\d]/g, ""));
   const canSave = amount > 0 && record.ref.trim().length > 2;
-  const saveRecord = () => {
-    if (!canSave) return;
-    setRecorded((m) => ({
-      ...m,
-      [row.id]: [
-        ...(m[row.id] ?? []),
-        {
-          icon: record.method === "Bank transfer" || record.method === "Cash at the office" ? "Receipt" : "Smartphone",
-          title: `${record.method} payment`,
-          desc: `Recorded by ${persona.name} · ref ${record.ref.trim()} · waiting for Payments to match it`,
-          amount,
-          state: "Pending",
-          tone: "info",
-        },
-      ],
-    }));
+  /**
+   * Save as pending (`POST /ops/residence/rent-payments`). The Idempotency-Key is minted here, once per
+   * press, so a request the network retries is still one payment.
+   */
+  const saveRecord = async () => {
+    if (!canSave || busy) return;
+    setBusy(true);
+    const result = await recordPaymentAction(
+      { unit: row.id, amountRwf: amount, method: record.method, providerRef: record.ref.trim() },
+      crypto.randomUUID(),
+    );
+    setBusy(false);
+    if (!result.ok) {
+      toast.danger(result.error);
+      return;
+    }
     setRecord({ method: METHODS[0], amount: "", ref: "" });
     setRecordOpen(false);
     toast.success(`${money(amount)} saved as pending for ${row.id} · not counted until verified`, {
@@ -171,9 +170,17 @@ export function RentRollView({ persona, data }: { persona: Persona; data: RentRo
     });
   };
 
-  const sendReminders = () => {
+  /** Send reminders (`POST /ops/residence/rent-reminders`); each lands in that lease's reminder history. */
+  const sendReminders = async () => {
     const ids = recipients.map((r) => r.id);
-    setReminded((s) => [...new Set([...s, ...ids])]);
+    if (busy) return;
+    setBusy(true);
+    const result = await remindResidentsAction(ids, message);
+    setBusy(false);
+    if (!result.ok) {
+      toast.danger(result.error);
+      return;
+    }
     setRemindFor(null);
     toast.success(
       `${ids.length} ${ids.length === 1 ? "reminder" : "reminders"} queued · delivery status appears in each history`,
@@ -182,8 +189,8 @@ export function RentRollView({ persona, data }: { persona: Persona; data: RentRo
   };
 
   const exportCsv = () =>
-    downloadCsv("kacyiru-court-rent-roll-2026-10.csv", [
-      ["Unit", "Resident", "Lease", "Due", ...MONTHS, "October charge", "Verified", "Overdue", "Status"],
+    downloadCsv(`kacyiru-court-rent-roll-${cal.iso.slice(0, 7)}.csv`, [
+      ["Unit", "Resident", "Lease", "Due", ...MONTHS, `${cal.month} charge`, "Verified", "Overdue", "Status"],
       ...data.rows.map((r) => [
         r.id,
         r.name,
@@ -200,7 +207,7 @@ export function RentRollView({ persona, data }: { persona: Persona; data: RentRo
   return (
     <PageContent>
       <PageHeader
-        eyebrow="Tenancy · October 2026 · Kacyiru Court Residences"
+        eyebrow={`Tenancy · ${cal.month} ${cal.year} · Kacyiru Court Residences`}
         title="Rent Roll"
         description={`Scheduled rent from ${data.rows.length} active leases. A charge closes only when verified payments cover it in full.`}
         actions={
@@ -217,7 +224,7 @@ export function RentRollView({ persona, data }: { persona: Persona; data: RentRo
         }
       />
 
-      <section aria-label="October rent figures">
+      <section aria-label={`${cal.month} rent figures`}>
         <KPIGroup className="flex-wrap">
           {data.kpis.map((k, i) => (
             <Fragment key={k.id}>
@@ -277,8 +284,8 @@ export function RentRollView({ persona, data }: { persona: Persona; data: RentRo
                       <Table.Header>
                         <Table.Column isRowHeader>Unit</Table.Column>
                         <Table.Column>Resident</Table.Column>
-                        <Table.Column>Jul–Oct</Table.Column>
-                        <Table.Column className="text-right">October charge</Table.Column>
+                        <Table.Column>{`${MONTHS[0].slice(0, 3)}–${MONTHS[3].slice(0, 3)}`}</Table.Column>
+                        <Table.Column className="text-right">{`${cal.month} charge`}</Table.Column>
                         <Table.Column className="text-right">Overdue</Table.Column>
                         <Table.Column>Status</Table.Column>
                       </Table.Header>
@@ -442,7 +449,7 @@ export function RentRollView({ persona, data }: { persona: Persona; data: RentRo
                   <Button size="sm" variant="ghost" onPress={() => setRecordOpen(false)}>
                     Cancel
                   </Button>
-                  <Button size="sm" isDisabled={!canSave} onPress={saveRecord}>
+                  <Button size="sm" isDisabled={!canSave || busy} onPress={saveRecord}>
                     Save as pending
                   </Button>
                 </div>
@@ -504,7 +511,7 @@ export function RentRollView({ persona, data }: { persona: Persona; data: RentRo
             <Button variant="secondary" onPress={() => setRemindFor(null)}>
               Cancel
             </Button>
-            <Button onPress={sendReminders} isDisabled={!recipients.length || !message.trim()}>
+            <Button onPress={sendReminders} isDisabled={!recipients.length || !message.trim() || busy}>
               Send {recipients.length} {recipients.length === 1 ? "reminder" : "reminders"}
             </Button>
           </>

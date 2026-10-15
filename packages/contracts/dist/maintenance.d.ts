@@ -131,7 +131,7 @@ export declare const WorkOrder: z.ZodObject<{
     assetName: z.ZodNullable<z.ZodString>;
     title: z.ZodString;
     description: z.ZodNullable<z.ZodString>;
-    category: z.ZodNullable<z.ZodEnum<["plumbing", "electrical", "hvac", "appliance", "furniture", "it_tech", "safety", "other"]>>;
+    category: z.ZodNullable<z.ZodEnum<["plumbing", "electrical", "hvac", "appliance", "furniture", "it_tech", "safety", "other", "doors_windows", "decoration"]>>;
     priority: z.ZodEnum<["low", "normal", "high", "urgent"]>;
     status: z.ZodEnum<["open", "assigned", "in_progress", "resolved", "closed", "cancelled"]>;
     assignedToUserId: z.ZodNullable<z.ZodString>;
@@ -260,7 +260,7 @@ export declare const WorkOrder: z.ZodObject<{
         actorName: string | null;
     }[];
     reference: string;
-    category: "other" | "plumbing" | "electrical" | "hvac" | "appliance" | "furniture" | "it_tech" | "safety" | null;
+    category: "other" | "plumbing" | "electrical" | "hvac" | "appliance" | "furniture" | "it_tech" | "safety" | "doors_windows" | "decoration" | null;
     resolvedAt: string | null;
     roomTypeName: string | null;
     roomId: string | null;
@@ -322,7 +322,7 @@ export declare const WorkOrder: z.ZodObject<{
         actorName: string | null;
     }[];
     reference: string;
-    category: "other" | "plumbing" | "electrical" | "hvac" | "appliance" | "furniture" | "it_tech" | "safety" | null;
+    category: "other" | "plumbing" | "electrical" | "hvac" | "appliance" | "furniture" | "it_tech" | "safety" | "doors_windows" | "decoration" | null;
     resolvedAt: string | null;
     roomTypeName: string | null;
     roomId: string | null;
@@ -401,7 +401,7 @@ export declare const WorkOrderList: z.ZodObject<{
         assetName: z.ZodNullable<z.ZodString>;
         title: z.ZodString;
         description: z.ZodNullable<z.ZodString>;
-        category: z.ZodNullable<z.ZodEnum<["plumbing", "electrical", "hvac", "appliance", "furniture", "it_tech", "safety", "other"]>>;
+        category: z.ZodNullable<z.ZodEnum<["plumbing", "electrical", "hvac", "appliance", "furniture", "it_tech", "safety", "other", "doors_windows", "decoration"]>>;
         priority: z.ZodEnum<["low", "normal", "high", "urgent"]>;
         status: z.ZodEnum<["open", "assigned", "in_progress", "resolved", "closed", "cancelled"]>;
         assignedToUserId: z.ZodNullable<z.ZodString>;
@@ -530,7 +530,7 @@ export declare const WorkOrderList: z.ZodObject<{
             actorName: string | null;
         }[];
         reference: string;
-        category: "other" | "plumbing" | "electrical" | "hvac" | "appliance" | "furniture" | "it_tech" | "safety" | null;
+        category: "other" | "plumbing" | "electrical" | "hvac" | "appliance" | "furniture" | "it_tech" | "safety" | "doors_windows" | "decoration" | null;
         resolvedAt: string | null;
         roomTypeName: string | null;
         roomId: string | null;
@@ -592,7 +592,7 @@ export declare const WorkOrderList: z.ZodObject<{
             actorName: string | null;
         }[];
         reference: string;
-        category: "other" | "plumbing" | "electrical" | "hvac" | "appliance" | "furniture" | "it_tech" | "safety" | null;
+        category: "other" | "plumbing" | "electrical" | "hvac" | "appliance" | "furniture" | "it_tech" | "safety" | "doors_windows" | "decoration" | null;
         resolvedAt: string | null;
         roomTypeName: string | null;
         roomId: string | null;
@@ -680,7 +680,7 @@ export declare const WorkOrderList: z.ZodObject<{
             actorName: string | null;
         }[];
         reference: string;
-        category: "other" | "plumbing" | "electrical" | "hvac" | "appliance" | "furniture" | "it_tech" | "safety" | null;
+        category: "other" | "plumbing" | "electrical" | "hvac" | "appliance" | "furniture" | "it_tech" | "safety" | "doors_windows" | "decoration" | null;
         resolvedAt: string | null;
         roomTypeName: string | null;
         roomId: string | null;
@@ -753,7 +753,7 @@ export declare const WorkOrderList: z.ZodObject<{
             actorName: string | null;
         }[];
         reference: string;
-        category: "other" | "plumbing" | "electrical" | "hvac" | "appliance" | "furniture" | "it_tech" | "safety" | null;
+        category: "other" | "plumbing" | "electrical" | "hvac" | "appliance" | "furniture" | "it_tech" | "safety" | "doors_windows" | "decoration" | null;
         resolvedAt: string | null;
         roomTypeName: string | null;
         roomId: string | null;
@@ -825,7 +825,7 @@ export declare const CreateWorkOrderRequest: z.ZodObject<{
     propertyId: z.ZodOptional<z.ZodString>;
     title: z.ZodString;
     description: z.ZodOptional<z.ZodString>;
-    category: z.ZodOptional<z.ZodEnum<["plumbing", "electrical", "hvac", "appliance", "furniture", "it_tech", "safety", "other"]>>;
+    category: z.ZodOptional<z.ZodEnum<["plumbing", "electrical", "hvac", "appliance", "furniture", "it_tech", "safety", "other", "doors_windows", "decoration"]>>;
     priority: z.ZodDefault<z.ZodEnum<["low", "normal", "high", "urgent"]>>;
     assignee: z.ZodOptional<z.ZodEffects<z.ZodObject<{
         userId: z.ZodOptional<z.ZodString>;
@@ -855,7 +855,7 @@ export declare const CreateWorkOrderRequest: z.ZodObject<{
     title: string;
     priority: "low" | "normal" | "high" | "urgent";
     location: string;
-    category?: "other" | "plumbing" | "electrical" | "hvac" | "appliance" | "furniture" | "it_tech" | "safety" | undefined;
+    category?: "other" | "plumbing" | "electrical" | "hvac" | "appliance" | "furniture" | "it_tech" | "safety" | "doors_windows" | "decoration" | undefined;
     description?: string | undefined;
     propertyId?: string | undefined;
     assignee?: {
@@ -868,7 +868,7 @@ export declare const CreateWorkOrderRequest: z.ZodObject<{
 }, {
     title: string;
     location: string;
-    category?: "other" | "plumbing" | "electrical" | "hvac" | "appliance" | "furniture" | "it_tech" | "safety" | undefined;
+    category?: "other" | "plumbing" | "electrical" | "hvac" | "appliance" | "furniture" | "it_tech" | "safety" | "doors_windows" | "decoration" | undefined;
     description?: string | undefined;
     priority?: "low" | "normal" | "high" | "urgent" | undefined;
     propertyId?: string | undefined;

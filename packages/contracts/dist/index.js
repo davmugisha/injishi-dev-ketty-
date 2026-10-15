@@ -68,4 +68,6 @@ __exportStar(require("./lost-found"), exports);
 // The front desk's day in one read, and the no-show command (interface real-data, frontdesk leaf).
 __exportStar(require("./front-desk"), exports);
 __exportStar(require("./marketplace"), exports);
+// The residence screens of the new interface (real-data 1.3.1).
+__exportStar(require("./interface-residence"), exports);
 //# sourceMappingURL=index.js.map

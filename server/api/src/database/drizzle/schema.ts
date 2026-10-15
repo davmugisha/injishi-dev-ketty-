@@ -76,3 +76,6 @@ export * from './interface-people';
 // The new interface's marketplace and guest account (real-data 1.3.2): marketplace cards for
 // properties and room types, and the append-only consent history.
 export * from './interface-market';
+// The new interface's residence (real-data 1.3.1): blocks, units, rent payments and reminders, gate
+// codes, lease clauses, applications.
+export * from './interface-residence';

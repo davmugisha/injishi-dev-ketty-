@@ -9,6 +9,8 @@ import * as frontdesk from './frontdesk.mjs';
 import * as platform from './platform.mjs';
 import * as stays from './stays.mjs';
 import * as market from './market.mjs';
+import * as residence from './residence.mjs';
+import * as resident from './resident.mjs';
 
 export const AREAS = [
   { area: 'platform', module: platform },
@@ -20,4 +22,7 @@ export const AREAS = [
   { area: 'frontdesk', module: frontdesk },
   { area: 'stays', module: stays },
   { area: 'market', module: market },
+  // Kacyiru Court: the residence manager's screens, then what only the tenant's phone adds.
+  { area: 'residence', module: residence },
+  { area: 'resident', module: resident },
 ];

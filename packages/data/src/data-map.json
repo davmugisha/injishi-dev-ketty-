@@ -4272,7 +4272,8 @@
     "missing": "Fixture models a manual delivery: stage draft/awaiting ack, \"sent 21 Nov, delivered in person\", \"Record acknowledgement\". filing_status is pending/filed/failed (adapter job). Needs sent_at, delivery_method, delivered_by_user_id, acknowledged_at, acknowledgement_object_id, and a route POST /ops/filings/:leaseId/acknowledge",
     "crud": "R U",
     "seed": "demo",
-    "scope": "org"
+    "scope": "org",
+    "deferred": "The fixture models a MANUAL delivery of the signed lease to an authority (sent on, delivered in person, acknowledgement recorded with a scan); contract_filings models an adapter job (pending/filed/failed), and which authority receives a residential lease filing, and how, is undecided (F-R10 carries an unverified rule awaiting legal sign-off). Delivery columns and an acknowledge route need an /architect decision first. The lease register already reads each lease's filing state from contract_filings; \"Record acknowledgement\" says it is not available."
   },
   {
     "collection": "residence.applicants",
@@ -4302,7 +4303,8 @@
     "missing": "Table is \"invite a tenant to an EXISTING lease\" (lease_id NOT NULL, email NOT NULL). Fixture invites a person to APPLY for a unit before any lease: needs lease_id nullable, room_id, application_id, name, phone, channel (email/link/broker), invited_by_user_id, revoked_at. No route (send/resend/revoke)",
     "crud": "C R U",
     "seed": "demo",
-    "scope": "org (property)"
+    "scope": "org (property)",
+    "deferred": "lease_invitations invites a tenant to an EXISTING lease (lease_id and email NOT NULL); the fixture invites a person to APPLY for a unit before any lease exists, by email, link or broker. Making lease_id nullable changes what the table means and who may be reached before screening (an open link to apply), which needs an /architect decision (invite-to-apply versus listing enquiries). Send, resend and revoke on Applicants say they are not available."
   },
   {
     "collection": "residence.leases",
@@ -4392,7 +4394,8 @@
     "missing": "inspection checklist with before/after and photos, per-deduction evidence, resident accept/dispute, manager decision keep/reduce/drop, approver ≠ proposer, refund verification. POST /ops/deposits/:id/return settles in one step with no deductions list. Routes for notice record, inspection book/start/sign, deductions, approval missing",
     "crud": "C R U",
     "seed": "demo",
-    "scope": "org"
+    "scope": "org",
+    "deferred": "The settlement workflow (inspection checklist with before/after photos, per-deduction evidence, resident accept or dispute, approver different from proposer, refund verification) has no tables, and POST /ops/deposits/:id/return settles a caution in one step with no deductions list. Deductions are money kept from a tenant and need their own decision (proposer/approver separation, dispute path, evidence storage) before they are built. Recording a notice is live (POST /ops/residence/notices, move_out_notices); sending a settlement for approval says it is not available."
   },
   {
     "collection": "residence.tickets",
@@ -4472,7 +4475,8 @@
     "missing": "purpose enum lacks rent; needs rent_charge_id FK and the payment_attempts_purpose_shape CHECK widened; part payment (partDefault, minPart) is policy, recheck cadence is a constant. Route POST /me/rent-charges/:id/pay + poll",
     "crud": "C R",
     "seed": "demo",
-    "scope": "user"
+    "scope": "user",
+    "deferred": "Paying rent by mobile money needs payment_attempts.purpose to admit rent (the enum and the payment_attempts_purpose_shape CHECK), a rent_charge_id on the attempt, and the provider settlement to write a verified rent_payments row; that is the payments domain's adapter and callback path, not this leaf. The Pay button says it is not available and nothing is charged; a payment made at the office or by bank is recorded by management (POST /ops/residence/rent-payments, saved as pending)."
   },
   {
     "collection": "resident.payNetworks",
@@ -4582,7 +4586,8 @@
     "missing": "table + GET /me/leases/:id/documents (signed download links, like HR files)",
     "crud": "R",
     "seed": "demo",
-    "scope": "user"
+    "scope": "user",
+    "deferred": "Needs a lease documents table and short-lived signed download links (as HR files have), and nothing on the platform produces a signed lease PDF to list yet (no route renders the contract). Left on fixtures until the contract document exists."
   },
   {
     "collection": "resident.moveOutSteps",
