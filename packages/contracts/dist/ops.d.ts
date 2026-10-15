@@ -1186,7 +1186,7 @@ export declare const SendMessageRequest: z.ZodObject<{
 }>;
 export type SendMessageRequest = z.infer<typeof SendMessageRequest>;
 /** What a work order is about. */
-export declare const MaintenanceCategory: z.ZodEnum<["plumbing", "electrical", "hvac", "appliance", "furniture", "it_tech", "safety", "other"]>;
+export declare const MaintenanceCategory: z.ZodEnum<["plumbing", "electrical", "hvac", "appliance", "furniture", "it_tech", "safety", "other", "doors_windows", "decoration"]>;
 export type MaintenanceCategory = z.infer<typeof MaintenanceCategory>;
 export declare const MaintenancePriority: z.ZodEnum<["low", "normal", "high", "urgent"]>;
 export type MaintenancePriority = z.infer<typeof MaintenancePriority>;
@@ -1211,7 +1211,7 @@ export declare const OperatorTicket: z.ZodObject<{
     raisedByName: z.ZodNullable<z.ZodString>;
     title: z.ZodString;
     description: z.ZodNullable<z.ZodString>;
-    category: z.ZodNullable<z.ZodEnum<["plumbing", "electrical", "hvac", "appliance", "furniture", "it_tech", "safety", "other"]>>;
+    category: z.ZodNullable<z.ZodEnum<["plumbing", "electrical", "hvac", "appliance", "furniture", "it_tech", "safety", "other", "doors_windows", "decoration"]>>;
     priority: z.ZodEnum<["low", "normal", "high", "urgent"]>;
     status: z.ZodEnum<["open", "assigned", "in_progress", "resolved", "closed", "cancelled"]>;
     resolvedAt: z.ZodNullable<z.ZodString>;
@@ -1222,7 +1222,7 @@ export declare const OperatorTicket: z.ZodObject<{
     id: string;
     title: string;
     createdAt: string;
-    category: "other" | "plumbing" | "electrical" | "hvac" | "appliance" | "furniture" | "it_tech" | "safety" | null;
+    category: "other" | "plumbing" | "electrical" | "hvac" | "appliance" | "furniture" | "it_tech" | "safety" | "doors_windows" | "decoration" | null;
     resolvedAt: string | null;
     roomId: string | null;
     leaseId: string | null;
@@ -1236,7 +1236,7 @@ export declare const OperatorTicket: z.ZodObject<{
     id: string;
     title: string;
     createdAt: string;
-    category: "other" | "plumbing" | "electrical" | "hvac" | "appliance" | "furniture" | "it_tech" | "safety" | null;
+    category: "other" | "plumbing" | "electrical" | "hvac" | "appliance" | "furniture" | "it_tech" | "safety" | "doors_windows" | "decoration" | null;
     resolvedAt: string | null;
     roomId: string | null;
     leaseId: string | null;
@@ -1257,7 +1257,7 @@ export declare const OperatorTicketList: z.ZodObject<{
         raisedByName: z.ZodNullable<z.ZodString>;
         title: z.ZodString;
         description: z.ZodNullable<z.ZodString>;
-        category: z.ZodNullable<z.ZodEnum<["plumbing", "electrical", "hvac", "appliance", "furniture", "it_tech", "safety", "other"]>>;
+        category: z.ZodNullable<z.ZodEnum<["plumbing", "electrical", "hvac", "appliance", "furniture", "it_tech", "safety", "other", "doors_windows", "decoration"]>>;
         priority: z.ZodEnum<["low", "normal", "high", "urgent"]>;
         status: z.ZodEnum<["open", "assigned", "in_progress", "resolved", "closed", "cancelled"]>;
         resolvedAt: z.ZodNullable<z.ZodString>;
@@ -1268,7 +1268,7 @@ export declare const OperatorTicketList: z.ZodObject<{
         id: string;
         title: string;
         createdAt: string;
-        category: "other" | "plumbing" | "electrical" | "hvac" | "appliance" | "furniture" | "it_tech" | "safety" | null;
+        category: "other" | "plumbing" | "electrical" | "hvac" | "appliance" | "furniture" | "it_tech" | "safety" | "doors_windows" | "decoration" | null;
         resolvedAt: string | null;
         roomId: string | null;
         leaseId: string | null;
@@ -1282,7 +1282,7 @@ export declare const OperatorTicketList: z.ZodObject<{
         id: string;
         title: string;
         createdAt: string;
-        category: "other" | "plumbing" | "electrical" | "hvac" | "appliance" | "furniture" | "it_tech" | "safety" | null;
+        category: "other" | "plumbing" | "electrical" | "hvac" | "appliance" | "furniture" | "it_tech" | "safety" | "doors_windows" | "decoration" | null;
         resolvedAt: string | null;
         roomId: string | null;
         leaseId: string | null;
@@ -1298,7 +1298,7 @@ export declare const OperatorTicketList: z.ZodObject<{
         id: string;
         title: string;
         createdAt: string;
-        category: "other" | "plumbing" | "electrical" | "hvac" | "appliance" | "furniture" | "it_tech" | "safety" | null;
+        category: "other" | "plumbing" | "electrical" | "hvac" | "appliance" | "furniture" | "it_tech" | "safety" | "doors_windows" | "decoration" | null;
         resolvedAt: string | null;
         roomId: string | null;
         leaseId: string | null;
@@ -1314,7 +1314,7 @@ export declare const OperatorTicketList: z.ZodObject<{
         id: string;
         title: string;
         createdAt: string;
-        category: "other" | "plumbing" | "electrical" | "hvac" | "appliance" | "furniture" | "it_tech" | "safety" | null;
+        category: "other" | "plumbing" | "electrical" | "hvac" | "appliance" | "furniture" | "it_tech" | "safety" | "doors_windows" | "decoration" | null;
         resolvedAt: string | null;
         roomId: string | null;
         leaseId: string | null;
@@ -3830,32 +3830,32 @@ export declare const RaiseTicketRequest: z.ZodEffects<z.ZodObject<{
     leaseId: z.ZodOptional<z.ZodString>;
     title: z.ZodString;
     description: z.ZodOptional<z.ZodString>;
-    category: z.ZodOptional<z.ZodEnum<["plumbing", "electrical", "hvac", "appliance", "furniture", "it_tech", "safety", "other"]>>;
+    category: z.ZodOptional<z.ZodEnum<["plumbing", "electrical", "hvac", "appliance", "furniture", "it_tech", "safety", "other", "doors_windows", "decoration"]>>;
     priority: z.ZodOptional<z.ZodEnum<["low", "normal", "high", "urgent"]>>;
 }, "strip", z.ZodTypeAny, {
     title: string;
-    category?: "other" | "plumbing" | "electrical" | "hvac" | "appliance" | "furniture" | "it_tech" | "safety" | undefined;
+    category?: "other" | "plumbing" | "electrical" | "hvac" | "appliance" | "furniture" | "it_tech" | "safety" | "doors_windows" | "decoration" | undefined;
     roomId?: string | undefined;
     leaseId?: string | undefined;
     description?: string | undefined;
     priority?: "low" | "normal" | "high" | "urgent" | undefined;
 }, {
     title: string;
-    category?: "other" | "plumbing" | "electrical" | "hvac" | "appliance" | "furniture" | "it_tech" | "safety" | undefined;
+    category?: "other" | "plumbing" | "electrical" | "hvac" | "appliance" | "furniture" | "it_tech" | "safety" | "doors_windows" | "decoration" | undefined;
     roomId?: string | undefined;
     leaseId?: string | undefined;
     description?: string | undefined;
     priority?: "low" | "normal" | "high" | "urgent" | undefined;
 }>, {
     title: string;
-    category?: "other" | "plumbing" | "electrical" | "hvac" | "appliance" | "furniture" | "it_tech" | "safety" | undefined;
+    category?: "other" | "plumbing" | "electrical" | "hvac" | "appliance" | "furniture" | "it_tech" | "safety" | "doors_windows" | "decoration" | undefined;
     roomId?: string | undefined;
     leaseId?: string | undefined;
     description?: string | undefined;
     priority?: "low" | "normal" | "high" | "urgent" | undefined;
 }, {
     title: string;
-    category?: "other" | "plumbing" | "electrical" | "hvac" | "appliance" | "furniture" | "it_tech" | "safety" | undefined;
+    category?: "other" | "plumbing" | "electrical" | "hvac" | "appliance" | "furniture" | "it_tech" | "safety" | "doors_windows" | "decoration" | undefined;
     roomId?: string | undefined;
     leaseId?: string | undefined;
     description?: string | undefined;

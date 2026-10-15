@@ -69,3 +69,6 @@ export * from './assistant';
 export * from './interface-operations';
 // The new interface's HR screens (real-data, people): teams, minimum cover, checklists, dependants.
 export * from './interface-people';
+// The new interface's residence (real-data 1.3.1): blocks, units, rent payments and reminders, gate
+// codes, lease clauses, applications.
+export * from './interface-residence';

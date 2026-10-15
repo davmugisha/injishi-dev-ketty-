@@ -49,3 +49,5 @@ export * from "./redaction";
 export * from "./housekeeping-board";
 export * from "./maintenance";
 export * from "./lost-found";
+// The residence screens of the new interface (real-data 1.3.1).
+export * from "./interface-residence";

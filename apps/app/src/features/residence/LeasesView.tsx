@@ -47,7 +47,8 @@ import type {
 import { GateChip, KeyValueList, LinkButton, PageContent, PageHeader } from "@injishi/ui";
 import NextLink from "next/link";
 import { Fragment, type ReactNode, useState } from "react";
-import { downloadCsv, firstKey, lineTab, money, SubHeading, TabCount, ToneChip } from "./shared";
+import { remindAboutOfferAction, withdrawOfferAction } from "./actions";
+import { downloadCsv, firstKey, kigaliCalendar, lineTab, money, SubHeading, TabCount, ToneChip } from "./shared";
 
 export interface LeasesData {
   leases: Lease[];
@@ -230,11 +231,34 @@ export function LeasesView({ persona, data }: { persona: Persona; data: LeasesDa
     setAckFile((m) => ({ ...m, [lease.id]: file }));
     setAck((m) => ({ ...m, [lease.id]: "uploaded" }));
   };
+  // A filing's acknowledgement has nowhere to be kept yet: the filing record is the filing adapter's
+  // (pending, filed, failed), not a delivered paper with a stamp. Say so rather than pretend it saved.
   const recordAck = () => {
-    setAck((m) => ({ ...m, [lease.id]: "done" }));
-    toast.success(`${lease.id} filing acknowledged · evidence kept with the lease`, {
+    toast.danger(
+      `Recording an acknowledgement is not available yet. ${lease.id}'s filing status comes from the filing service.`,
+    );
+  };
+
+  /** Chase the resident about the open offer (`POST /ops/residence/offers/:id/remind`). */
+  const remindOffer = async () => {
+    const result = await remindAboutOfferAction(lease.id);
+    if (!result.ok) {
+      toast.danger(result.error);
+      return;
+    }
+    toast.success(`Reminder sent to ${lease.resident} · in the resident app`, {
       indicator: <CircleCheck className="size-4" />,
     });
+  };
+
+  /** Withdraw the open offer (`POST /ops/residence/offers/:id/withdraw`). */
+  const withdrawOffer = async () => {
+    const result = await withdrawOfferAction(lease.id);
+    if (!result.ok) {
+      toast.danger(result.error);
+      return;
+    }
+    toast.success(`Renewal offer to ${lease.resident} withdrawn`, { indicator: <CircleCheck className="size-4" /> });
   };
 
   return (
@@ -539,18 +563,10 @@ export function LeasesView({ persona, data }: { persona: Persona; data: LeasesDa
                     </Timeline>
                     <p className="text-[12px] leading-4 text-muted">{lease.offer.note}</p>
                     <div className="flex flex-wrap gap-2">
-                      <Button
-                        size="sm"
-                        variant="secondary"
-                        onPress={() =>
-                          toast.success(`Reminder sent to ${lease.resident} · in-app and email`, {
-                            indicator: <CircleCheck className="size-4" />,
-                          })
-                        }
-                      >
+                      <Button size="sm" variant="secondary" onPress={remindOffer}>
                         Send a reminder
                       </Button>
-                      <Button size="sm" variant="ghost">
+                      <Button size="sm" variant="ghost" onPress={withdrawOffer}>
                         Withdraw offer
                       </Button>
                     </div>
@@ -703,7 +719,10 @@ export function LeasesView({ persona, data }: { persona: Persona; data: LeasesDa
                   </div>
                   <KeyValueList
                     items={[
-                      { label: "Verified rent, Jan–Sep 2026", value: <span className="tabular">{lease.income}</span> },
+                      {
+                        label: `Verified rent, ${kigaliCalendar().year} to date`,
+                        value: <span className="tabular">{lease.income}</span>,
+                      },
                       { label: "Legal entity", value: "Amahoro Residences Ltd · TIN 102 345 990" },
                       {
                         label: "Tax rules applied",
@@ -716,8 +735,14 @@ export function LeasesView({ persona, data }: { persona: Persona; data: LeasesDa
                       size="sm"
                       variant="secondary"
                       onPress={() =>
-                        downloadCsv(`${lease.id}-rent-summary-2026.csv`, [
-                          ["Lease", "Unit", "Tenant", "Legal entity", "Verified rent, Jan–Sep 2026"],
+                        downloadCsv(`${lease.id}-rent-summary-${kigaliCalendar().year}.csv`, [
+                          [
+                            "Lease",
+                            "Unit",
+                            "Tenant",
+                            "Legal entity",
+                            `Verified rent, ${kigaliCalendar().year} to date`,
+                          ],
                           [lease.id, lease.unit, lease.resident, "Amahoro Residences Ltd", lease.income],
                         ])
                       }

@@ -15,6 +15,9 @@ import { WorkOrdersService } from './application/work-orders.service';
 import { HousekeepingBoardRepository } from './infrastructure/housekeeping-board.repository';
 import { LostFoundRepository } from './infrastructure/lost-found.repository';
 import { WorkOrdersRepository } from './infrastructure/work-orders.repository';
+// The new interface's residence (real-data 1.3.1).
+import { ResidenceInterfaceService } from './application/residence-interface.service';
+import { ResidenceInterfaceRepository } from './infrastructure/residence-interface.repository';
 import { MessagingService } from './application/messaging.service';
 import { NightAuditService } from './application/night-audit.service';
 import { ResidenceService } from './application/residence.service';
@@ -118,9 +121,11 @@ import { PaymentsModule } from '../payments/payments.module';
     HousekeepingBoardRepository,
     WorkOrdersRepository,
     LostFoundRepository,
+    ResidenceInterfaceRepository,
     HousekeepingBoardService,
     WorkOrdersService,
     LostFoundService,
+    ResidenceInterfaceService,
     FrontDeskService,
     MessagingService,
     ResidenceService,
@@ -170,6 +175,7 @@ import { PaymentsModule } from '../payments/payments.module';
     HousekeepingBoardService,
     WorkOrdersService,
     LostFoundService,
+    ResidenceInterfaceService,
   ],
 })
 export class OperationsModule {}

@@ -11,7 +11,7 @@ import {
   Wrench,
   Xmark,
 } from "@gravity-ui/icons";
-import { Alert, Avatar, Button, Card, Input, TextField } from "@heroui/react";
+import { Alert, Avatar, Button, Card, Input, TextField, toast } from "@heroui/react";
 import { ItemCard, ListView } from "@heroui-pro/react";
 import { type Persona, screenHref } from "@injishi/data";
 import type {
@@ -25,9 +25,11 @@ import type {
 } from "@injishi/data/fixtures/resident";
 import { formatRwf, Icon, LinkButton, PhoneBody, PhoneTop, StatusDot } from "@injishi/ui";
 import NextLink from "next/link";
+import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { PhoneSheet } from "@/components/phone/PhoneSheet";
-import { downloadText, pressableCard, renderButton, renderSection, SectionTitle, ToneChip } from "./parts";
+import { sendMessageAction } from "./actions";
+import { downloadText, PhoneToasts, pressableCard, renderButton, renderSection, SectionTitle, ToneChip } from "./parts";
 
 /** Resident home: rent due, renewal, quick actions, deposit, notices and messages (artifact: TenantHome). */
 export function TenantHomeView({
@@ -52,18 +54,37 @@ export function TenantHomeView({
   const [open, setOpen] = useState(false);
   const [draft, setDraft] = useState("");
   const [sent, setSent] = useState<ThreadMessage[]>([]);
-  const threadMessages = [...messages, ...sent];
+  const router = useRouter();
+  // A sent line stays until the server's copy of the conversation carries it.
+  const threadMessages = [
+    ...messages,
+    ...sent.filter((s) => !messages.some((m) => m.from === "resident" && m.text === s.text)),
+  ];
   const unreadLabel =
     thread.unread > 0 ? `Messages from management, ${thread.unread} unread` : "Messages from management";
 
-  const send = () => {
+  /** Send message → `POST /me/threads/:id/messages`; shown at once, then read back from the server. */
+  const send = async () => {
     const text = draft.trim();
     if (!text) return;
-    setSent((items) => [
-      ...items,
-      { id: `local-${items.length + 1}`, thread: thread.id, from: "resident", text, meta: "You · just now · sent" },
-    ]);
+    const local: ThreadMessage = {
+      id: `local-${Date.now()}`,
+      thread: thread.id,
+      from: "resident",
+      text,
+      meta: "You · just now · sending",
+    };
+    setSent((items) => [...items, local]);
     setDraft("");
+    const result = await sendMessageAction(thread.id, text);
+    if (!result.ok) {
+      setSent((items) => items.filter((m) => m.id !== local.id));
+      setDraft(text);
+      toast.danger(result.error);
+      return;
+    }
+    setSent((items) => items.map((m) => (m.id === local.id ? { ...m, meta: "You · just now · sent" } : m)));
+    router.refresh();
   };
 
   const saveReceipt = () => {
@@ -272,6 +293,7 @@ export function TenantHomeView({
           Management usually replies within a working day. For emergencies call the caretaker at the gate.
         </span>
       </PhoneSheet>
+      <PhoneToasts />
     </>
   );
 }

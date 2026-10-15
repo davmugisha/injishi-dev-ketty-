@@ -49,4 +49,5 @@ export * from "./redaction";
 export * from "./housekeeping-board";
 export * from "./maintenance";
 export * from "./lost-found";
+export * from "./interface-residence";
 //# sourceMappingURL=index.d.ts.map

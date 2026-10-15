@@ -481,6 +481,9 @@ export const maintenanceCategoryEnum = pgEnum('maintenance_category', [
   'it_tech',
   'safety',
   'other',
+  // A residence's repairs (real-data 1.3.1): locks, doors and windows; a repaint before letting.
+  'doors_windows',
+  'decoration',
 ]);
 
 export const maintenancePriorityEnum = pgEnum('maintenance_priority', [

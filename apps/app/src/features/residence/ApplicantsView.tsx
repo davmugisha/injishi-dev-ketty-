@@ -42,7 +42,9 @@ import type {
   Vacancy,
 } from "@injishi/data/fixtures/residence";
 import { GateChip, KeyValueList, LinkButton, PageContent, PageHeader, toneColor } from "@injishi/ui";
+import { useRouter } from "next/navigation";
 import { useState } from "react";
+import { convertToLeaseAction, declineApplicationAction, recordScreeningAction } from "./actions";
 import { FormDialog, firstKey, lineTab, money, plain, SelectField, SubHeading, TabCount, ToneChip } from "./shared";
 
 export interface ApplicantsData {
@@ -54,11 +56,8 @@ export interface ApplicantsData {
 
 type Tab = "applicants" | "invites";
 
-/** The next lease number, as the lease register will assign it. */
-const NEXT_LEASE = "L-KC-025";
-/** A draft holds the unit until this date; then it is released. */
-const HOLD_UNTIL = "26 Oct";
 const TEMPLATES = ["Kacyiru Court residential lease v3", "Kacyiru Court company lease v2"];
+const UNAVAILABLE_INVITES = "Invitations to apply are not available yet. Nothing was sent.";
 
 const inviteMessage = (unit: string) =>
   `Thank you for viewing ${unit}. Please register and upload your ID and proof of income.`;
@@ -72,6 +71,11 @@ export function ApplicantsView({ persona, data }: { persona: Persona; data: Appl
   );
   const [convertOpen, setConvertOpen] = useState(false);
   const [template, setTemplate] = useState(TEMPLATES[0]);
+  const [terms, setTerms] = useState({ start: "", term: "", rent: "", deposit: "", notice: "30 days" });
+  const [busy, setBusy] = useState(false);
+  const [declineOpen, setDeclineOpen] = useState(false);
+  const [declineReason, setDeclineReason] = useState("");
+  const router = useRouter();
   const [inviteOpen, setInviteOpen] = useState(false);
   const unitOptions = data.vacancies.map((v) => ({
     id: v.unit,
@@ -97,13 +101,63 @@ export function ApplicantsView({ persona, data }: { persona: Persona; data: Appl
   const done = state.filter(Boolean).length;
   const ready = !!profile && done === total;
 
-  const toggleCheck = (i: number, on: boolean) => {
+  /** A screening tick is recorded on the application (`PUT /ops/residence/applications/:id/screening`). */
+  const toggleCheck = async (i: number, on: boolean) => {
     if (!applicant) return;
-    setChecks((m) => {
-      const next = [...(m[applicant.id] ?? [])];
-      next[i] = on;
-      return { ...m, [applicant.id]: next };
+    const before = checks[applicant.id] ?? [];
+    const next = [...before];
+    next[i] = on;
+    setChecks((m) => ({ ...m, [applicant.id]: next }));
+    const result = await recordScreeningAction(applicant.id, next);
+    if (!result.ok) {
+      setChecks((m) => ({ ...m, [applicant.id]: before }));
+      toast.danger(result.error);
+    }
+  };
+
+  const openConvert = () => {
+    if (!profile) return;
+    setTerms({
+      start: profile.moveIn,
+      term: profile.term,
+      rent: plain(profile.rent),
+      deposit: plain(profile.deposit),
+      notice: "30 days",
     });
+    setConvertOpen(true);
+  };
+
+  /** Create the lease draft (`POST /ops/residence/applications/:id/convert`), then open the register. */
+  const convert = async () => {
+    if (!applicant || busy) return;
+    setBusy(true);
+    const result = await convertToLeaseAction(applicant.id, terms);
+    setBusy(false);
+    if (!result.ok) {
+      toast.danger(result.error);
+      return;
+    }
+    setConvertOpen(false);
+    toast.success(`Lease draft ${result.value} created for ${applicant.name}`, {
+      indicator: <CircleCheck className="size-4" />,
+    });
+    router.push(screenHref("Leases"));
+  };
+
+  /** Decline with reason → `POST /ops/residence/applications/:id/decline`. */
+  const decline = async () => {
+    if (!applicant || busy) return;
+    setBusy(true);
+    const result = await declineApplicationAction(applicant.id, declineReason);
+    setBusy(false);
+    if (!result.ok) {
+      toast.danger(result.error);
+      return;
+    }
+    setDeclineOpen(false);
+    setDeclineReason("");
+    toast.success(`${applicant.name}'s application declined`, { indicator: <CircleCheck className="size-4" /> });
+    router.refresh();
   };
 
   const openInvite = () => {
@@ -112,30 +166,10 @@ export function ApplicantsView({ persona, data }: { persona: Persona; data: Appl
   };
   const emailOk = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(invite.email.trim());
   const canSend = invite.name.trim().length > 1 && emailOk;
+  // Invitations to apply are not wired: nothing would carry them (see the data map's residence.invitations).
   const sendInvite = () => {
     if (!canSend) return;
-    // Addresses are shown masked after the @, as in the rest of the register.
-    const [local] = invite.email.trim().split("@");
-    setSent((s) => [
-      {
-        id: `inv-new-${s.length + 1}`,
-        name: invite.name.trim(),
-        contact: `${local}@… · email`,
-        unit: invite.unit,
-        by: persona.name,
-        sent: "12 Oct",
-        expires: "19 Oct",
-        status: "Sent",
-        statusTone: "info",
-        action: "Resend",
-      },
-      ...s,
-    ]);
-    setInviteOpen(false);
-    setTab("invites");
-    toast.success(`Invitation sent to ${invite.name.trim()} · expires 19 Oct`, {
-      indicator: <CircleCheck className="size-4" />,
-    });
+    toast.danger(UNAVAILABLE_INVITES);
   };
 
   const openProfile = (id: string) => {
@@ -249,7 +283,8 @@ export function ApplicantsView({ persona, data }: { persona: Persona; data: Appl
                 done={done}
                 ready={ready}
                 onToggle={toggleCheck}
-                onConvert={() => setConvertOpen(true)}
+                onConvert={openConvert}
+                onDecline={() => setDeclineOpen(true)}
               />
             ) : applicant ? (
               <Card className="p-5" aria-label="Registration not completed" render={(p) => <section {...p} />}>
@@ -262,18 +297,10 @@ export function ApplicantsView({ persona, data }: { persona: Persona; data: Appl
                     <EmptyState.Description>{applicant.pendingNote}</EmptyState.Description>
                   </EmptyState.Header>
                   <EmptyState.Content className="flex flex-row flex-wrap justify-center gap-2">
-                    <Button
-                      size="sm"
-                      variant="secondary"
-                      onPress={() =>
-                        toast.success(`Invitation resent to ${applicant.name} · expires 19 Oct`, {
-                          indicator: <CircleCheck className="size-4" />,
-                        })
-                      }
-                    >
+                    <Button size="sm" variant="secondary" onPress={() => toast.danger(UNAVAILABLE_INVITES)}>
                       Resend invitation
                     </Button>
-                    <Button size="sm" variant="ghost">
+                    <Button size="sm" variant="ghost" onPress={() => toast.danger(UNAVAILABLE_INVITES)}>
                       Revoke
                     </Button>
                   </EmptyState.Content>
@@ -332,11 +359,7 @@ export function ApplicantsView({ persona, data }: { persona: Persona; data: Appl
                               size="sm"
                               variant="ghost"
                               aria-label={`Resend invitation to ${i.name}`}
-                              onPress={() =>
-                                toast.success(`Invitation resent to ${i.name} · expires 19 Oct`, {
-                                  indicator: <CircleCheck className="size-4" />,
-                                })
-                              }
+                              onPress={() => toast.danger(UNAVAILABLE_INVITES)}
                             >
                               Resend
                             </Button>
@@ -358,37 +381,64 @@ export function ApplicantsView({ persona, data }: { persona: Persona; data: Appl
           onOpenChange={setConvertOpen}
           size="lg"
           className="sm:max-w-[640px]"
-          title={`Create lease draft ${NEXT_LEASE}`}
+          title="Create a lease draft"
           description={`${applicant.name} · ${profile.unitLabel}`}
           footer={
             <>
               <Button variant="secondary" onPress={() => setConvertOpen(false)}>
                 Cancel
               </Button>
-              <LinkButton href={screenHref("Leases")}>Create draft and open lease</LinkButton>
+              <Button onPress={convert} isDisabled={busy}>
+                Create draft and open lease
+              </Button>
             </>
           }
         >
           <div className="grid gap-3 sm:grid-cols-2">
-            <TextField fullWidth defaultValue={profile.moveIn} className="gap-1">
+            <TextField
+              fullWidth
+              value={terms.start}
+              onChange={(start) => setTerms((s) => ({ ...s, start }))}
+              className="gap-1"
+            >
               <Label>Start date</Label>
               <Input />
             </TextField>
-            <TextField fullWidth defaultValue={profile.term} className="gap-1">
+            <TextField
+              fullWidth
+              value={terms.term}
+              onChange={(term) => setTerms((s) => ({ ...s, term }))}
+              className="gap-1"
+            >
               <Label>Term</Label>
               <Input />
             </TextField>
-            <TextField fullWidth defaultValue={plain(profile.rent)} className="gap-1">
+            <TextField
+              fullWidth
+              value={terms.rent}
+              onChange={(rent) => setTerms((s) => ({ ...s, rent }))}
+              className="gap-1"
+            >
               <Label>Monthly rent (RWF)</Label>
               <Input inputMode="numeric" className="tabular" />
               <Description>Due on the 1st of each month</Description>
             </TextField>
-            <TextField fullWidth defaultValue={plain(profile.deposit)} className="gap-1">
+            <TextField
+              fullWidth
+              value={terms.deposit}
+              onChange={(deposit) => setTerms((s) => ({ ...s, deposit }))}
+              className="gap-1"
+            >
               <Label>Caution deposit (RWF)</Label>
               <Input inputMode="numeric" className="tabular" />
               <Description>Two months’ rent, held as a liability</Description>
             </TextField>
-            <TextField fullWidth defaultValue="30 days" className="gap-1">
+            <TextField
+              fullWidth
+              value={terms.notice}
+              onChange={(notice) => setTerms((s) => ({ ...s, notice }))}
+              className="gap-1"
+            >
               <Label>Notice period</Label>
               <Input />
             </TextField>
@@ -401,8 +451,8 @@ export function ApplicantsView({ persona, data }: { persona: Persona; data: Appl
             <Alert.Content>
               <Alert.Title>The unit is held for these dates</Alert.Title>
               <Alert.Description>
-                {applicant.unit} is held while the draft is out for signature and released if it is not signed by{" "}
-                {HOLD_UNTIL}. It is never offered as a nightly stay.
+                {applicant.unit} is held while the draft is out for signature, until it is signed or cancelled. It is
+                never offered as a nightly stay.
               </Alert.Description>
             </Alert.Content>
           </Alert>
@@ -411,6 +461,30 @@ export function ApplicantsView({ persona, data }: { persona: Persona; data: Appl
               A placement event for {profile.broker.name} is recorded only when both parties have signed.
             </p>
           ) : null}
+        </FormDialog>
+      ) : null}
+
+      {applicant ? (
+        <FormDialog
+          isOpen={declineOpen}
+          onOpenChange={setDeclineOpen}
+          title={`Decline ${applicant.name}`}
+          description={`${applicant.unit} · the reason is what the applicant is told`}
+          footer={
+            <>
+              <Button variant="secondary" onPress={() => setDeclineOpen(false)}>
+                Cancel
+              </Button>
+              <Button variant="danger" onPress={decline} isDisabled={busy || declineReason.trim().length < 3}>
+                Decline application
+              </Button>
+            </>
+          }
+        >
+          <TextField fullWidth value={declineReason} onChange={setDeclineReason} className="gap-1">
+            <Label>Reason</Label>
+            <TextArea rows={3} />
+          </TextField>
         </FormDialog>
       ) : null}
 
@@ -500,6 +574,7 @@ function ProfileCard({
   ready,
   onToggle,
   onConvert,
+  onDecline,
 }: {
   applicant: Applicant;
   profile: ApplicantProfile;
@@ -509,6 +584,7 @@ function ProfileCard({
   ready: boolean;
   onToggle: (i: number, on: boolean) => void;
   onConvert: () => void;
+  onDecline: () => void;
 }) {
   const total = checks.length;
   const broker = profile.broker;
@@ -584,9 +660,9 @@ function ProfileCard({
             size="sm"
             variant="ghost"
             onPress={() =>
-              toast.success(`Document request sent to ${applicant.name}`, {
-                indicator: <CircleCheck className="size-4" />,
-              })
+              toast.danger(
+                "Document requests are not available yet: ask the applicant to upload it in the Injishi app.",
+              )
             }
           >
             <PaperPlane className="size-4" />
@@ -674,7 +750,9 @@ function ProfileCard({
             : `Finish ${total - done} remaining checks before converting to a lease.`}
         </span>
         <div className="ml-auto flex flex-wrap items-center gap-2">
-          <Button variant="ghost">Decline with reason</Button>
+          <Button variant="ghost" onPress={onDecline}>
+            Decline with reason
+          </Button>
           <Button isDisabled={!ready} onPress={onConvert}>
             <FilePlus className="size-4" />
             Convert to lease draft

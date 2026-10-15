@@ -475,6 +475,10 @@ exports.MaintenanceCategory = zod_1.z.enum([
     "it_tech",
     "safety",
     "other",
+    // A residence's repairs (real-data 1.3.1): a stiff lock or a broken window latch, and a repaint
+    // before a unit is let again. Extended, never narrowed.
+    "doors_windows",
+    "decoration",
 ]);
 exports.MaintenancePriority = zod_1.z.enum(["low", "normal", "high", "urgent"]);
 /**

@@ -1,7 +1,7 @@
 "use client";
 
-import { ArrowRightFromSquare, CircleInfo, PaperPlane, Pencil, Xmark } from "@gravity-ui/icons";
-import { Alert, Button, Card, Description, Input, Label, TextArea, TextField } from "@heroui/react";
+import { ArrowRightFromSquare, CircleCheck, CircleInfo, PaperPlane, Pencil, Xmark } from "@gravity-ui/icons";
+import { Alert, Button, Card, Description, Input, Label, TextArea, TextField, toast } from "@heroui/react";
 import { ListView, NativeSelect, Timeline } from "@heroui-pro/react";
 import type {
   LeaseDocument,
@@ -12,9 +12,11 @@ import type {
   Tenancy,
 } from "@injishi/data/fixtures/resident";
 import { formatNumber, formatRwf, Icon, KeyValueList, PhoneBody, PhoneTop } from "@injishi/ui";
+import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { PhoneSheet } from "@/components/phone/PhoneSheet";
-import { ResidentTitle, renderSection, SectionTitle, ToneChip } from "./parts";
+import { answerRenewalAction, giveNoticeAction } from "./actions";
+import { PhoneToasts, ResidentTitle, renderSection, SectionTitle, ToneChip } from "./parts";
 
 type OfferState = RenewalOffer["status"];
 
@@ -37,6 +39,9 @@ export function TenantLeaseView({
   const [sheet, setSheet] = useState(false);
   const [reason, setReason] = useState(reasons[0]?.id ?? "");
   const [note, setNote] = useState("");
+  const [moveOut, setMoveOut] = useState(tenancy.moveOutDefault);
+  const [busy, setBusy] = useState(false);
+  const router = useRouter();
 
   const noticeOn = notice !== null;
   const accepted = offerState === "accepted";
@@ -75,15 +80,37 @@ export function TenantLeaseView({
     ...documents,
   ];
 
-  const sendNotice = () => {
-    setNotice({
-      moveOut: tenancy.endsOn,
-      reason,
-      note,
-      sentAt: "Today",
+  /** Accept or Decline → `POST /me/residence/offers/:id/answer`. */
+  const answer = async (to: "accepted" | "declined") => {
+    if (busy) return;
+    setBusy(true);
+    const result = await answerRenewalAction(offer.id, to);
+    setBusy(false);
+    if (!result.ok) {
+      toast.danger(result.error);
+      return;
+    }
+    setOfferState(to);
+    toast(to === "accepted" ? "Renewal accepted · the amendment comes next" : "Renewal declined", {
+      indicator: <CircleCheck />,
     });
-    setOfferState("declined");
+    router.refresh();
+  };
+
+  /** Send notice → `POST /me/residence/leases/:id/notice`: written notice, held to the lease's period. */
+  const sendNotice = async () => {
+    if (busy) return;
+    setBusy(true);
+    const result = await giveNoticeAction(tenancy.id, { moveOut, reason, note });
+    setBusy(false);
+    if (!result.ok) {
+      toast.danger(result.error);
+      return;
+    }
+    setNotice({ moveOut, reason, note, sentAt: "Today" });
     setSheet(false);
+    toast("Notice sent to management", { indicator: <CircleCheck /> });
+    router.refresh();
   };
 
   return (
@@ -131,10 +158,22 @@ export function TenantLeaseView({
               ]}
             />
             <div className="flex gap-2">
-              <Button variant="secondary" size="lg" className="flex-1" onPress={() => setOfferState("declined")}>
+              <Button
+                variant="secondary"
+                size="lg"
+                className="flex-1"
+                onPress={() => answer("declined")}
+                isDisabled={busy}
+              >
                 Decline
               </Button>
-              <Button variant="primary" size="lg" className="flex-1" onPress={() => setOfferState("accepted")}>
+              <Button
+                variant="primary"
+                size="lg"
+                className="flex-1"
+                onPress={() => answer("accepted")}
+                isDisabled={busy}
+              >
                 Accept
               </Button>
             </div>
@@ -259,7 +298,7 @@ export function TenantLeaseView({
           </span>
         }
       >
-        <TextField fullWidth defaultValue={tenancy.moveOutDefault} className="gap-1">
+        <TextField fullWidth value={moveOut} onChange={setMoveOut} className="gap-1">
           <Label htmlFor="nt-date">Move-out date</Label>
           <Input id="nt-date" />
           <Description>
@@ -300,10 +339,11 @@ export function TenantLeaseView({
             ))}
           </Timeline>
         </div>
-        <Button variant="primary" size="lg" fullWidth onPress={sendNotice}>
+        <Button variant="primary" size="lg" fullWidth onPress={sendNotice} isDisabled={busy}>
           Send notice
         </Button>
       </PhoneSheet>
+      <PhoneToasts />
     </>
   );
 }

@@ -41,9 +41,11 @@ import type {
 } from "@injishi/data/fixtures/residence";
 import { stock } from "@injishi/data/media";
 import { KeyValueList, PageContent, PageHeader, Photo } from "@injishi/ui";
+import { useRouter } from "next/navigation";
 import { type CSSProperties, Fragment, useState } from "react";
 import { TopbarStatus } from "@/components/shell/TopbarStatus";
-import { downloadCsv, FormDialog, lineTab, money, SelectField, SubHeading, ToneChip } from "./shared";
+import { recordNoticeAction } from "./actions";
+import { downloadCsv, FormDialog, kigaliCalendar, lineTab, money, SelectField, SubHeading, ToneChip } from "./shared";
 
 export interface MoveOutsData {
   kpis: DepositKpi[];
@@ -78,6 +80,14 @@ const caseVars = {
 } as CSSProperties;
 
 const firstName = (name: string) => name.split(" ")[0];
+/** "14 Nov 2026": a calendar day `days` after `iso`. */
+const dayMonthYearOf = (iso: string, days: number) =>
+  new Date(Date.parse(`${iso}T12:00:00Z`) + days * 86_400_000).toLocaleDateString("en-GB", {
+    day: "numeric",
+    month: "short",
+    year: "numeric",
+    timeZone: "UTC",
+  });
 
 export function MoveOutsView({ persona, data }: { persona: Persona; data: MoveOutsData }) {
   const [added, setAdded] = useState<MoveOutCase[]>([]);
@@ -92,12 +102,15 @@ export function MoveOutsView({ persona, data }: { persona: Persona; data: MoveOu
   const [registerOpen, setRegisterOpen] = useState(false);
   const [noticeOpen, setNoticeOpen] = useState(false);
   const noticeUnits = data.units.filter((u) => u.lease && !cases.some((c) => c.id === u.id));
+  const [today] = useState(() => kigaliCalendar());
   const [notice, setNotice] = useState({
     unit: noticeUnits[0]?.id ?? "",
-    received: "12 Oct 2026",
-    movesOut: "11 Nov 2026",
+    received: `${today.short} ${today.year}`,
+    movesOut: dayMonthYearOf(today.iso, 30),
     channel: CHANNELS[1],
   });
+  const [busy, setBusy] = useState(false);
+  const router = useRouter();
 
   const c = cases.find((x) => x.id === sel) ?? cases[0];
   if (!c) return null;
@@ -155,12 +168,13 @@ export function MoveOutsView({ persona, data }: { persona: Persona; data: MoveOu
     setDecision(d);
     setStage("ready");
   };
+  // Deposit settlements are not wired: deductions, disputes and their approval have no record yet (the
+  // data map's residence.moveOuts). Say so rather than claim it was sent.
   const sendForApproval = () => {
     setApproveOpen(false);
-    setStage("approval");
-    toast.success(`Settlement sent to ${approver?.name ?? "the approver"} · ${c.lease}`, {
-      indicator: <CircleCheck className="size-4" />,
-    });
+    toast.danger(
+      `Sending a settlement for approval is not available yet. Nothing was sent to ${approver?.name ?? "the approver"}.`,
+    );
   };
 
   const deposits = [
@@ -190,9 +204,18 @@ export function MoveOutsView({ persona, data }: { persona: Persona; data: MoveOu
   ];
   const depositTotal = deposits.reduce((t, d) => t + d.amount, 0);
 
-  const recordNotice = () => {
+  /** Record a notice → `POST /ops/residence/notices`; the case joins the list once the API has it. */
+  const recordNotice = async () => {
     const u = data.units.find((x) => x.id === notice.unit);
-    if (!u) return;
+    if (!u || busy) return;
+    setBusy(true);
+    const result = await recordNoticeAction(notice);
+    setBusy(false);
+    if (!result.ok) {
+      toast.danger(result.error);
+      return;
+    }
+    router.refresh();
     const held = u.rent * 2;
     const next: MoveOutCase = {
       id: u.id,
@@ -671,7 +694,7 @@ export function MoveOutsView({ persona, data }: { persona: Persona; data: MoveOu
             <Button variant="secondary" onPress={() => setNoticeOpen(false)}>
               Cancel
             </Button>
-            <Button onPress={recordNotice} isDisabled={!notice.unit || !notice.movesOut.trim()}>
+            <Button onPress={recordNotice} isDisabled={busy || !notice.unit || !notice.movesOut.trim()}>
               Record notice
             </Button>
           </>

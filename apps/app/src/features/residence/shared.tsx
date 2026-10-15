@@ -206,6 +206,46 @@ export function FormDialog({
   );
 }
 
+const MONTH_NAMES = [
+  "January",
+  "February",
+  "March",
+  "April",
+  "May",
+  "June",
+  "July",
+  "August",
+  "September",
+  "October",
+  "November",
+  "December",
+];
+const WEEKDAY_NAMES = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
+
+/**
+ * Today in Kigali, as the residence screens' headings name it ("Monday 12 October 2026", "October"),
+ * so a heading reads the day it is rather than the prototype's 12 October.
+ */
+export function kigaliCalendar(now: Date = new Date()) {
+  const iso = new Intl.DateTimeFormat("en-CA", { timeZone: "Africa/Kigali" }).format(now);
+  const y = Number(iso.slice(0, 4));
+  const m = Number(iso.slice(5, 7)) - 1;
+  const d = Number(iso.slice(8, 10));
+  const monthAt = (offset: number) => MONTH_NAMES[(((m + offset) % 12) + 12) % 12];
+  return {
+    iso,
+    /** "Monday 12 October 2026". */
+    longDate: `${WEEKDAY_NAMES[new Date(Date.UTC(y, m, d)).getUTCDay()]} ${d} ${MONTH_NAMES[m]} ${y}`,
+    /** "12 Oct". */
+    short: `${d} ${MONTH_NAMES[m].slice(0, 3)}`,
+    /** "October". */
+    month: MONTH_NAMES[m],
+    year: String(y),
+    /** The rent roll's four months, oldest first: "July" … "October". */
+    lastFourMonths: [-3, -2, -1, 0].map(monthAt),
+  };
+}
+
 /** Download rows as a CSV file (registers, logs and summaries exported from these screens). */
 export function downloadCsv(filename: string, rows: (string | number | null | undefined)[][]) {
   const cell = (v: string | number | null | undefined) => {

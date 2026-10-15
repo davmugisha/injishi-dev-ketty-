@@ -29,6 +29,13 @@ import type {
 import { stock } from "@injishi/data/media";
 import { Icon, KeyValueList, PageContent, PageHeader, Photo } from "@injishi/ui";
 import { type CSSProperties, Fragment, useState } from "react";
+import {
+  createTicketAction,
+  decideAccessAction,
+  moveTicketAction,
+  preregisterVisitorAction,
+  writeOnTicketAction,
+} from "./actions";
 import { downloadCsv, FormDialog, firstKey, lineTab, SelectField, SubHeading, TabCount, ToneChip } from "./shared";
 
 export interface ResidenceServiceData {
@@ -65,19 +72,17 @@ const CATEGORIES = ["Plumbing", "Electrical", "Doors and locks", "Appliances", "
 const CROPS = ["object-center", "object-bottom", "object-top"];
 const ENTRY = ["Yes, if nobody is home", "Only when home", "Not needed · common area"];
 
-const firstName = (name: string) => name.split(" ")[0];
-
 export function ResidenceServiceView({ persona, data }: { persona: Persona; data: ResidenceServiceData }) {
   const [tab, setTab] = useState<Tab>("maint");
-  const [created, setCreated] = useState<ServiceTicket[]>([]);
-  const tickets = [...data.tickets, ...created];
-  const [sel, setSel] = useState("WO-345");
+  // Every write goes to the API and the screen redraws from what it answers: no local copies of records.
+  const tickets = data.tickets;
+  const [sel, setSel] = useState(data.tickets[0]?.id ?? "");
   const [moved, setMoved] = useState<Record<string, TicketStatus>>({});
-  const [sent, setSent] = useState<Record<string, Message[]>>({});
   const [draft, setDraft] = useState("");
   const [note, setNote] = useState(false);
+  const [busy, setBusy] = useState(false);
   const [requests, setRequests] = useState<Record<string, AccessRequest["status"]>>({});
-  const [visitors, setVisitors] = useState<PreregisteredVisitor[]>(data.visitors);
+  const visitors: PreregisteredVisitor[] = data.visitors;
 
   const unitOptions = [
     ...data.units.map((u) => ({ id: u.id, label: u.resident ? `${u.id} · ${u.resident}` : `${u.id} · vacant` })),
@@ -93,7 +98,7 @@ export function ResidenceServiceView({ persona, data }: { persona: Persona; data
   const t = tickets.find((x) => x.id === sel) ?? tickets[0];
   const current = statusOf(t);
   const status = STATUS[current];
-  const thread = [...t.thread, ...(sent[t.id] ?? [])];
+  const thread: Message[] = t.thread;
   // Vacant units and common areas have no resident to write to: the thread holds internal notes only.
   const noResident = t.resident.startsWith("no one");
   const isNote = note || noResident;
@@ -104,79 +109,74 @@ export function ResidenceServiceView({ persona, data }: { persona: Persona; data
   const requestState = (r: AccessRequest) => requests[r.id] ?? r.status;
   const toApprove = data.requests.filter((r) => requestState(r) === "open").length;
 
-  const send = () => {
+  /** Reply to the resident or leave an internal note (`POST /ops/residence/repairs/:id/messages`). */
+  const send = async () => {
     const text = draft.trim();
-    if (!text) return;
-    const msg: Message = {
-      from: isNote ? "note" : "manager",
-      text,
-      meta: `${isNote ? "Internal note · " : ""}${firstName(persona.name)} · just now`,
-    };
-    setSent((m) => ({ ...m, [t.id]: [...(m[t.id] ?? []), msg] }));
+    if (!text || busy) return;
+    setBusy(true);
+    const result = await writeOnTicketAction(t.id, text, isNote);
+    setBusy(false);
+    if (!result.ok) {
+      toast.danger(result.error);
+      return;
+    }
     setDraft("");
   };
 
-  const createTicket = () => {
+  /** New ticket (`POST /ops/residence/repairs`): the API gives it the next WO number. */
+  const createTicket = async () => {
     const title = ticket.title.trim();
-    if (!title) return;
-    const unit = data.units.find((u) => u.id === ticket.unit);
-    const max = Math.max(...tickets.map((x) => Number(x.id.replace(/\D/g, "")) || 0));
-    const id = `WO-${max + 1}`;
-    const next: ServiceTicket = {
-      id,
-      unit: ticket.unit,
-      title,
-      who: "Not assigned · created by you",
-      status: "new",
-      category: unit ? ticket.category : `${ticket.category} · common area`,
-      resident: unit ? unit.resident || "no one (vacant)" : "no one (common area)",
-      reported: `Created by ${persona.name} · 12 Oct`,
-      entry: ticket.entry,
-      assignee: "Not assigned",
-      visit: "Not booked",
-      cost: "Landlord",
-      photos: [],
-      thread: [],
-    };
-    setCreated((c) => [...c, next]);
-    setSel(id);
+    if (!title || busy) return;
+    setBusy(true);
+    const result = await createTicketAction({ ...ticket, title });
+    setBusy(false);
+    if (!result.ok) {
+      toast.danger(result.error);
+      return;
+    }
+    setSel(result.value);
     setDraft("");
     setTab("maint");
     setTicketOpen(false);
-    toast.success(`${id} created · ${title}`, { indicator: <CircleCheck className="size-4" /> });
+    toast.success(`${result.value} created · ${title}`, { indicator: <CircleCheck className="size-4" /> });
   };
 
-  const preregister = () => {
+  /** Pre-register a visitor (`POST /ops/residence/visitor-passes`): the gate code comes from the API. */
+  const preregister = async () => {
     const name = visitor.name.trim();
     const unit = data.units.find((u) => u.id === visitor.unit);
-    if (!name || !unit) return;
-    // Gate codes are four digits and unique among the codes in use.
-    let code = 6203;
-    while (visitors.some((v) => v.code === String(code))) code += 137;
-    const initials = name
-      .split(" ")
-      .map((w) => w.charAt(0).toUpperCase())
-      .slice(0, 2)
-      .join("");
-    setVisitors((v) => [
-      {
-        id: String(code),
-        initials,
-        name,
-        unit: unit.id,
-        window: visitor.window.trim() || "Today",
-        by: persona.name,
-        code: String(code),
-        state: "Approved",
-        tone: "success",
-      },
-      ...v,
-    ]);
+    if (!name || !unit || busy) return;
+    setBusy(true);
+    const result = await preregisterVisitorAction({ unit: unit.id, name, window: visitor.window });
+    setBusy(false);
+    if (!result.ok) {
+      toast.danger(result.error);
+      return;
+    }
     setTab("visit");
     setVisitorOpen(false);
-    toast.success(`Code ${code} sent to ${name} · checked at the gate tablet`, {
+    toast.success(`Code ${result.value.code} sent to ${name} · checked at the gate tablet`, {
       indicator: <CircleCheck className="size-4" />,
     });
+  };
+
+  const move = async (to: TicketStatus) => {
+    if (to === "new") return;
+    const result = await moveTicketAction(t.id, to);
+    if (!result.ok) {
+      toast.danger(result.error);
+      return;
+    }
+    setMoved((m) => ({ ...m, [t.id]: to }));
+  };
+
+  const decide = async (r: AccessRequest, decision: "approved" | "declined") => {
+    const result = await decideAccessAction(r.id, decision);
+    if (!result.ok) {
+      toast.danger(result.error);
+      return;
+    }
+    setRequests((m) => ({ ...m, [r.id]: decision }));
   };
 
   return (
@@ -325,7 +325,7 @@ export function ResidenceServiceView({ persona, data }: { persona: Persona; data
                 key={`${t.id}-${current}`}
                 aria-label="Ticket status"
                 selectedKey={current === "new" ? undefined : current}
-                onSelectionChange={(k) => setMoved((m) => ({ ...m, [t.id]: k as TicketStatus }))}
+                onSelectionChange={(k) => void move(k as TicketStatus)}
                 className="self-start"
               >
                 {MOVES.map((s) => (
@@ -384,7 +384,13 @@ export function ResidenceServiceView({ persona, data }: { persona: Persona; data
                         </Button>
                       </PromptInput.ToolbarStart>
                       <PromptInput.ToolbarEnd>
-                        <Button size="sm" isIconOnly aria-label="Send" isDisabled={!draft.trim()} onPress={send}>
+                        <Button
+                          size="sm"
+                          isIconOnly
+                          aria-label="Send"
+                          isDisabled={!draft.trim() || busy}
+                          onPress={send}
+                        >
                           <PaperPlane className="size-4" />
                         </Button>
                       </PromptInput.ToolbarEnd>
@@ -392,7 +398,7 @@ export function ResidenceServiceView({ persona, data }: { persona: Persona; data
                   </PromptInput.Shell>
                 </PromptInput>
                 <span className="text-[12px] text-muted">
-                  Delivered in the resident app and by email. Internal notes are never shown to residents.
+                  Delivered in the resident app. Internal notes are never shown to residents.
                 </span>
               </div>
             </Card>
@@ -425,14 +431,10 @@ export function ResidenceServiceView({ persona, data }: { persona: Persona; data
                           <ItemCard.Description className="whitespace-normal tabular">{r.desc}</ItemCard.Description>
                           {st === "open" ? (
                             <div className="mt-1.5 flex flex-wrap gap-2">
-                              <Button size="sm" onPress={() => setRequests((m) => ({ ...m, [r.id]: "approved" }))}>
+                              <Button size="sm" onPress={() => decide(r, "approved")}>
                                 {r.approveLabel}
                               </Button>
-                              <Button
-                                size="sm"
-                                variant="ghost"
-                                onPress={() => setRequests((m) => ({ ...m, [r.id]: "declined" }))}
-                              >
+                              <Button size="sm" variant="ghost" onPress={() => decide(r, "declined")}>
                                 Decline with reason
                               </Button>
                             </div>
@@ -560,7 +562,7 @@ export function ResidenceServiceView({ persona, data }: { persona: Persona; data
             <Button variant="secondary" onPress={() => setTicketOpen(false)}>
               Cancel
             </Button>
-            <Button onPress={createTicket} isDisabled={!ticket.title.trim()}>
+            <Button onPress={createTicket} isDisabled={!ticket.title.trim() || busy}>
               Create ticket
             </Button>
           </>
@@ -614,7 +616,7 @@ export function ResidenceServiceView({ persona, data }: { persona: Persona; data
             <Button variant="secondary" onPress={() => setVisitorOpen(false)}>
               Cancel
             </Button>
-            <Button onPress={preregister} isDisabled={!visitor.name.trim() || !visitor.unit}>
+            <Button onPress={preregister} isDisabled={!visitor.name.trim() || !visitor.unit || busy}>
               Send gate code
             </Button>
           </>

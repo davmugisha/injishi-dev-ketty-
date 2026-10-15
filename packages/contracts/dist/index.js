@@ -65,4 +65,6 @@ __exportStar(require("./redaction"), exports);
 __exportStar(require("./housekeeping-board"), exports);
 __exportStar(require("./maintenance"), exports);
 __exportStar(require("./lost-found"), exports);
+// The residence screens of the new interface (real-data 1.3.1).
+__exportStar(require("./interface-residence"), exports);
 //# sourceMappingURL=index.js.map
