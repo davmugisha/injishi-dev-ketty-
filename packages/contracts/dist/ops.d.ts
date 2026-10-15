@@ -3334,6 +3334,12 @@ export declare const OperatorTeamMember: z.ZodObject<{
      * limited to stay listed, so the screen can say why one reads as retired.
      */
     branchIds: z.ZodNullable<z.ZodArray<z.ZodString, "many">>;
+    /** The last time any of their sessions was used, or null when they never signed in. */
+    lastActiveAt: z.ZodNullable<z.ZodString>;
+    /** When a removed member was taken off the business; null while active. */
+    removedAt: z.ZodNullable<z.ZodString>;
+    /** Their identity is verified (KYC), which an ownership transfer will ask for. */
+    identityVerified: z.ZodBoolean;
 }, "strip", z.ZodTypeAny, {
     status: string;
     name: string | null;
@@ -3341,7 +3347,10 @@ export declare const OperatorTeamMember: z.ZodObject<{
     userId: string;
     orgRole: "owner" | "manager" | "receptionist" | "finance" | "hr" | "housekeeper";
     joinedAt: string;
+    removedAt: string | null;
     branchIds: string[] | null;
+    lastActiveAt: string | null;
+    identityVerified: boolean;
 }, {
     status: string;
     name: string | null;
@@ -3349,7 +3358,10 @@ export declare const OperatorTeamMember: z.ZodObject<{
     userId: string;
     orgRole: "owner" | "manager" | "receptionist" | "finance" | "hr" | "housekeeper";
     joinedAt: string;
+    removedAt: string | null;
     branchIds: string[] | null;
+    lastActiveAt: string | null;
+    identityVerified: boolean;
 }>;
 export type OperatorTeamMember = z.infer<typeof OperatorTeamMember>;
 /**
@@ -3394,6 +3406,12 @@ export declare const OperatorTeamList: z.ZodObject<{
          * limited to stay listed, so the screen can say why one reads as retired.
          */
         branchIds: z.ZodNullable<z.ZodArray<z.ZodString, "many">>;
+        /** The last time any of their sessions was used, or null when they never signed in. */
+        lastActiveAt: z.ZodNullable<z.ZodString>;
+        /** When a removed member was taken off the business; null while active. */
+        removedAt: z.ZodNullable<z.ZodString>;
+        /** Their identity is verified (KYC), which an ownership transfer will ask for. */
+        identityVerified: z.ZodBoolean;
     }, "strip", z.ZodTypeAny, {
         status: string;
         name: string | null;
@@ -3401,7 +3419,10 @@ export declare const OperatorTeamList: z.ZodObject<{
         userId: string;
         orgRole: "owner" | "manager" | "receptionist" | "finance" | "hr" | "housekeeper";
         joinedAt: string;
+        removedAt: string | null;
         branchIds: string[] | null;
+        lastActiveAt: string | null;
+        identityVerified: boolean;
     }, {
         status: string;
         name: string | null;
@@ -3409,7 +3430,10 @@ export declare const OperatorTeamList: z.ZodObject<{
         userId: string;
         orgRole: "owner" | "manager" | "receptionist" | "finance" | "hr" | "housekeeper";
         joinedAt: string;
+        removedAt: string | null;
         branchIds: string[] | null;
+        lastActiveAt: string | null;
+        identityVerified: boolean;
     }>, "many">;
 }, "strip", z.ZodTypeAny, {
     members: {
@@ -3419,7 +3443,10 @@ export declare const OperatorTeamList: z.ZodObject<{
         userId: string;
         orgRole: "owner" | "manager" | "receptionist" | "finance" | "hr" | "housekeeper";
         joinedAt: string;
+        removedAt: string | null;
         branchIds: string[] | null;
+        lastActiveAt: string | null;
+        identityVerified: boolean;
     }[];
 }, {
     members: {
@@ -3429,7 +3456,10 @@ export declare const OperatorTeamList: z.ZodObject<{
         userId: string;
         orgRole: "owner" | "manager" | "receptionist" | "finance" | "hr" | "housekeeper";
         joinedAt: string;
+        removedAt: string | null;
         branchIds: string[] | null;
+        lastActiveAt: string | null;
+        identityVerified: boolean;
     }[];
 }>;
 export type OperatorTeamList = z.infer<typeof OperatorTeamList>;
@@ -3445,6 +3475,8 @@ export type InvitableOrgRole = z.infer<typeof InvitableOrgRole>;
 /** What a role is called on screens and in the invitation mail. */
 export declare const ORG_ROLE_LABEL: Readonly<Record<OrgRole, string>>;
 export declare const InviteStaffRequest: z.ZodObject<{
+    /** The person's name as the inviter typed it, shown on the Team screen until they accept. */
+    name: z.ZodOptional<z.ZodString>;
     email: z.ZodString;
     orgRole: z.ZodEnum<["manager", "receptionist", "finance", "hr", "housekeeper"]>;
     /** The branches the invitee will cover; absent or null is every branch (ADR-054). */
@@ -3453,12 +3485,34 @@ export declare const InviteStaffRequest: z.ZodObject<{
     email: string;
     orgRole: "manager" | "receptionist" | "finance" | "hr" | "housekeeper";
     branchIds: string[] | null;
+    name?: string | undefined;
 }, {
     email: string;
     orgRole: "manager" | "receptionist" | "finance" | "hr" | "housekeeper";
+    name?: string | undefined;
     branchIds?: string[] | null | undefined;
 }>;
 export type InviteStaffRequest = z.infer<typeof InviteStaffRequest>;
+/**
+ * `PATCH /api/v1/ops/team/:userId/role`: move a member to another staff role.
+ *
+ * `InvitableOrgRole` refuses `owner` on the way in, and the service refuses a
+ * member who IS the owner on the way out: ownership changes hands through the
+ * owner claim, which checks an identity document, never through this.
+ */
+export declare const ChangeMemberRoleRequest: z.ZodObject<{
+    orgRole: z.ZodEnum<["manager", "receptionist", "finance", "hr", "housekeeper"]>;
+}, "strip", z.ZodTypeAny, {
+    orgRole: "manager" | "receptionist" | "finance" | "hr" | "housekeeper";
+}, {
+    orgRole: "manager" | "receptionist" | "finance" | "hr" | "housekeeper";
+}>;
+export type ChangeMemberRoleRequest = z.infer<typeof ChangeMemberRoleRequest>;
+/** The words a role change refusal carries, one per rule. */
+export declare const MEMBER_ROLE_REFUSAL: {
+    readonly owner: "An owner's role changes only through an ownership transfer.";
+    readonly same: "This member already holds that role.";
+};
 export declare const StaffInvitationStatus: z.ZodEnum<["sent", "accepted", "revoked", "expired"]>;
 export type StaffInvitationStatus = z.infer<typeof StaffInvitationStatus>;
 /**
@@ -3478,8 +3532,11 @@ export declare const OperatorStaffInvitation: z.ZodObject<{
     createdAt: z.ZodString;
     /** The branches the invitee will cover; null is every branch (ADR-054). */
     branchIds: z.ZodNullable<z.ZodArray<z.ZodString, "many">>;
+    /** The name the inviter typed, or null for an invitation sent with an address only. */
+    name: z.ZodNullable<z.ZodString>;
 }, "strip", z.ZodTypeAny, {
     status: "expired" | "sent" | "accepted" | "revoked";
+    name: string | null;
     email: string;
     id: string;
     createdAt: string;
@@ -3488,6 +3545,7 @@ export declare const OperatorStaffInvitation: z.ZodObject<{
     branchIds: string[] | null;
 }, {
     status: "expired" | "sent" | "accepted" | "revoked";
+    name: string | null;
     email: string;
     id: string;
     createdAt: string;
@@ -3507,8 +3565,11 @@ export declare const OperatorStaffInvitationList: z.ZodObject<{
         createdAt: z.ZodString;
         /** The branches the invitee will cover; null is every branch (ADR-054). */
         branchIds: z.ZodNullable<z.ZodArray<z.ZodString, "many">>;
+        /** The name the inviter typed, or null for an invitation sent with an address only. */
+        name: z.ZodNullable<z.ZodString>;
     }, "strip", z.ZodTypeAny, {
         status: "expired" | "sent" | "accepted" | "revoked";
+        name: string | null;
         email: string;
         id: string;
         createdAt: string;
@@ -3517,6 +3578,7 @@ export declare const OperatorStaffInvitationList: z.ZodObject<{
         branchIds: string[] | null;
     }, {
         status: "expired" | "sent" | "accepted" | "revoked";
+        name: string | null;
         email: string;
         id: string;
         createdAt: string;
@@ -3527,6 +3589,7 @@ export declare const OperatorStaffInvitationList: z.ZodObject<{
 }, "strip", z.ZodTypeAny, {
     invitations: {
         status: "expired" | "sent" | "accepted" | "revoked";
+        name: string | null;
         email: string;
         id: string;
         createdAt: string;
@@ -3537,6 +3600,7 @@ export declare const OperatorStaffInvitationList: z.ZodObject<{
 }, {
     invitations: {
         status: "expired" | "sent" | "accepted" | "revoked";
+        name: string | null;
         email: string;
         id: string;
         createdAt: string;

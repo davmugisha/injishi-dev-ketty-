@@ -12,6 +12,7 @@ import { MessagingService } from './application/messaging.service';
 import { NightAuditService } from './application/night-audit.service';
 import { ResidenceService } from './application/residence.service';
 import { RevenueService } from './application/revenue.service';
+import { OwnerDashboardService } from './application/owner-dashboard.service';
 import { RoomAssignmentService } from './application/room-assignment.service';
 import { ServiceCatalogService } from './application/service-catalog.service';
 import { GuestOrderingService } from './application/guest-ordering.service';
@@ -31,6 +32,7 @@ import { MessagingRepository } from './infrastructure/messaging.repository';
 import { NightAuditProcessor } from './infrastructure/night-audit.processor';
 import { ResidenceRepository } from './infrastructure/residence.repository';
 import { RevenueRepository } from './infrastructure/revenue.repository';
+import { OwnerDashboardRepository } from './infrastructure/owner-dashboard.repository';
 import { RoomAssignmentRepository } from './infrastructure/room-assignment.repository';
 import { ServiceCatalogRepository } from './infrastructure/service-catalog.repository';
 import { GuestOrderingRepository } from './infrastructure/guest-ordering.repository';
@@ -93,6 +95,9 @@ import { PaymentsModule } from '../payments/payments.module';
     DepartmentsRepository,
     FolioRepository,
     RevenueRepository,
+    // The owner's figures (dashboard, revenue by day, performance by branch):
+    // sums over the folio, booking and payment rows this module writes.
+    OwnerDashboardRepository,
     RoomAssignmentRepository,
     HousekeepingRepository,
     ServiceCatalogRepository,
@@ -111,6 +116,7 @@ import { PaymentsModule } from '../payments/payments.module';
     DepartmentsService,
     FolioService,
     RevenueService,
+    OwnerDashboardService,
     RoomAssignmentService,
     HousekeepingService,
     ServiceCatalogService,
@@ -147,6 +153,7 @@ import { PaymentsModule } from '../payments/payments.module';
     StayClaimService,
     StayRefundService,
     NightAuditService,
+    OwnerDashboardService,
   ],
 })
 export class OperationsModule {}

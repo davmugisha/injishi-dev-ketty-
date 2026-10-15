@@ -97,6 +97,14 @@ export const properties = pgTable(
      * retired id is never handed to a second location.
      */
     rraBranchId: text('rra_branch_id'),
+    /**
+     * The business's own short code for this branch ("ISG", "ISH"): the one its
+     * people say, and the one its reports and member scopes print. Two to four
+     * capitals, unique within the org where set. Unrelated to `rra_branch_id`,
+     * which RRA issues and which is two digits. Nullable: a branch that
+     * predates it has none until somebody chooses one.
+     */
+    branchCode: text('branch_code'),
     /** Set when the branch is archived. Its history stays readable. */
     archivedAt: timestamp('archived_at', { withTimezone: true }),
     archivedByUserId: uuid('archived_by_user_id').references(() => users.id),
@@ -118,6 +126,10 @@ export const properties = pgTable(
       .on(t.orgId, t.rraBranchId)
       .where(sql`${t.rraBranchId} IS NOT NULL`),
     check('properties_rra_branch_id_ck', sql`${t.rraBranchId} ~ '^[0-9]{2}$'`),
+    uniqueIndex('properties_org_branch_code_uk')
+      .on(t.orgId, t.branchCode)
+      .where(sql`${t.branchCode} IS NOT NULL`),
+    check('properties_branch_code_ck', sql`${t.branchCode} ~ '^[A-Z]{2,4}$'`),
     check(
       'properties_head_office_not_archived_ck',
       sql`NOT (${t.isHeadOffice} AND ${t.archivedAt} IS NOT NULL)`,

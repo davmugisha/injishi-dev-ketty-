@@ -1,4 +1,5 @@
 import {
+  ChangeMemberRoleRequest,
   InviteStaffRequest,
   SetMemberBranchesRequest,
   type OperatorStaffInvitation,
@@ -13,6 +14,7 @@ import {
   HttpCode,
   Param,
   ParseUUIDPipe,
+  Patch,
   Post,
   Put,
   UseGuards,
@@ -91,6 +93,25 @@ export class OpsTeamController {
     @CurrentUser() user: SessionUser,
   ): Promise<OperatorTeamMember> {
     return this.team.setBranches(workspace, userId, body.branchIds, user.id);
+  }
+
+  /**
+   * Move a member to another staff role. `team.manage` only, which is the
+   * owner's alone and can never be granted, and an org wide write, so a member
+   * limited to some branches is refused (AC-M6). Neither direction can touch
+   * `owner`: the body cannot name it and the service refuses a member who
+   * holds it. Audited as `team.member_role_changed`.
+   */
+  @Patch(':userId/role')
+  @RequirePermission('team.manage')
+  @RequireEveryBranch()
+  changeRole(
+    @Param('userId', ParseUUIDPipe) userId: string,
+    @Body(new ZodValidationPipe(ChangeMemberRoleRequest)) body: ChangeMemberRoleRequest,
+    @CurrentWorkspace() workspace: ScopedWorkspace,
+    @CurrentUser() user: SessionUser,
+  ): Promise<OperatorTeamMember> {
+    return this.team.changeRole(workspace, userId, body.orgRole, user.id);
   }
 
   /** Invite somebody by email into a role. Mails them a single use link. */

@@ -58,6 +58,7 @@ __exportStar(require("./leave"), exports);
 __exportStar(require("./payroll-items"), exports);
 __exportStar(require("./payroll"), exports);
 __exportStar(require("./list-query"), exports);
+__exportStar(require("./owner"), exports);
 __exportStar(require("./hr-lists"), exports);
 __exportStar(require("./redaction"), exports);
 //# sourceMappingURL=index.js.map

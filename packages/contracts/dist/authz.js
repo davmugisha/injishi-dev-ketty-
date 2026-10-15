@@ -1,6 +1,6 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.ELEVATION_REFUSED_MESSAGE = exports.SEPARATION_OF_DUTIES_MESSAGE = exports.OVERSIGHT_OWN_BUSINESS_MESSAGE = exports.OVERSIGHT_ORG_ROLE_CONFLICT_MESSAGE = exports.OVERSIGHT_SCOPE_CONFLICT_MESSAGE = exports.OVERSIGHT_CONSOLE_NOT_BUILT_MESSAGE = exports.OVERSIGHT_COUNTRY_SCOPE_LABEL = exports.OversightConsoleGrant = exports.OversightGrant = exports.REGISTRATION_STAGE_MESSAGE = exports.WorkspaceAccess = exports.WorkspaceBranch = exports.BranchCoverage = exports.SetRolePermissionsRequest = exports.OperatorRoleList = exports.OperatorRolePermissions = exports.PERMISSION_AREA_OF = exports.PERMISSION_AREA_LABEL = exports.PERMISSION_AREA = exports.LOCKED_PERMISSION_REASON = exports.LOCKED_PERMISSIONS = exports.RolePermissionOverride = exports.CustomisableOrgRole = exports.PERMISSION_LABEL = exports.Permission = void 0;
+exports.ELEVATION_REFUSED_MESSAGE = exports.SEPARATION_OF_DUTIES_MESSAGE = exports.OVERSIGHT_OWN_BUSINESS_MESSAGE = exports.OVERSIGHT_ORG_ROLE_CONFLICT_MESSAGE = exports.OVERSIGHT_SCOPE_CONFLICT_MESSAGE = exports.OVERSIGHT_CONSOLE_NOT_BUILT_MESSAGE = exports.OVERSIGHT_COUNTRY_SCOPE_LABEL = exports.OversightConsoleGrant = exports.OversightGrant = exports.REGISTRATION_STAGE_MESSAGE = exports.WorkspaceAccess = exports.WorkspaceBranch = exports.BranchCoverage = exports.SetRolePermissionsRequest = exports.OperatorRoleList = exports.OperatorPermissionArea = exports.OperatorRolePermissions = exports.PERMISSION_AREA_OF = exports.PERMISSION_AREA_LABEL = exports.PERMISSION_AREA = exports.LOCKED_PERMISSION_REASON = exports.LOCKED_PERMISSIONS = exports.RolePermissionOverride = exports.CustomisableOrgRole = exports.PERMISSION_LABEL = exports.Permission = void 0;
 exports.can = can;
 exports.permissionsForRole = permissionsForRole;
 exports.isCustomisableOrgRole = isCustomisableOrgRole;
@@ -563,8 +563,22 @@ exports.OperatorRolePermissions = zod_1.z.object({
     /** Active memberships holding this role. */
     memberCount: zod_1.z.number().int().nonnegative(),
 });
+/**
+ * One area of the permission matrix as a screen draws it: the area's words and
+ * each permission's words, from `PERMISSION_AREA_LABEL` and `PERMISSION_LABEL`.
+ * Served with the roles so a client never keeps its own copy of the
+ * vocabulary, which is how a matrix comes to list a permission that does not
+ * exist. It grants nothing.
+ */
+exports.OperatorPermissionArea = zod_1.z.object({
+    area: exports.PERMISSION_AREA,
+    label: zod_1.z.string(),
+    permissions: zod_1.z.array(zod_1.z.object({ permission: exports.Permission, label: zod_1.z.string() })),
+});
 exports.OperatorRoleList = zod_1.z.object({
     roles: zod_1.z.array(exports.OperatorRolePermissions),
+    /** Every area and permission, in the platform's order. */
+    areas: zod_1.z.array(exports.OperatorPermissionArea),
 });
 /**
  * Set what a role may do here: the WHOLE set it should hold, not a delta.

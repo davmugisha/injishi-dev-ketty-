@@ -182,6 +182,8 @@ export const OperatorPropertySummary = z.object({
     isHeadOffice: z.boolean(),
     /** The two digit branch id RRA issued for this location, or null. */
     rraBranchId: z.string().nullable(),
+    /** The business's own short code for the branch ("ISG"), or null until one is chosen. */
+    branchCode: z.string().nullable(),
     /** Set when the branch is archived; its history stays readable. */
     archivedAt: z.string().nullable(),
 });

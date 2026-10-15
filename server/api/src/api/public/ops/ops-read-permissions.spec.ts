@@ -65,6 +65,8 @@ import {
   OpsTicketsController,
 } from './residence.controller';
 import { OpsRevenueController } from './revenue.controller';
+import { OpsCertificatesController } from './certificates.controller';
+import { OpsOwnerDashboardController, OpsReportsController } from './owner-dashboard.controller';
 import { OpsRoomsController } from './rooms.controller';
 import {
   OpsRraController,
@@ -120,6 +122,9 @@ const CONTROLLERS: Ctor[] = [
   OpsTicketsController,
   OpsDepositsController,
   OpsRevenueController,
+  OpsOwnerDashboardController,
+  OpsReportsController,
+  OpsCertificatesController,
   OpsRoomsController,
   OpsServiceCatalogController,
   OpsServiceOrdersController,
@@ -284,6 +289,12 @@ const EXPECTED: Record<string, readonly OrgRole[]> = {
   '/ops/tickets': ['owner', 'manager', 'housekeeper'],
   '/ops/deposits': ['owner', 'manager', 'finance'],
   '/ops/revenue': ['owner', 'manager', 'finance'],
+  // The owner's figures: what the business earned and holds, read on money.view like the month above.
+  '/ops/revenue/daily': ['owner', 'manager', 'finance'],
+  '/ops/dashboard/owner': ['owner', 'manager', 'finance'],
+  '/ops/reports/performance': ['owner', 'manager', 'finance'],
+  // Licences on file: listing.manage (what a listing rests on) or money.view (fiscal standing).
+  '/ops/certificates': ['owner', 'manager', 'finance'],
   '/ops/rooms': ['owner', 'manager', 'receptionist', 'housekeeper'],
   '/ops/service-catalog': ['owner', 'manager', 'receptionist'],
   '/ops/service-orders': ['owner', 'manager', 'receptionist'],
@@ -321,7 +332,8 @@ const EXPECTED: Record<string, readonly OrgRole[]> = {
   // Saved views of every HR list, declared on the union of the lists' reads and
   // narrowed to the list's own in the service: the desk reads the views of the
   // roster and the attendance sheet it works, and nothing else.
-  '/ops/list-views': ['owner', 'manager', 'receptionist', 'hr'],
+  // The owner's Reports views (`owner.reports`, money.view) admit finance as well.
+  '/ops/list-views': ['owner', 'manager', 'receptionist', 'finance', 'hr'],
   // The people file (058-people-file AC-PF2). The photo is a work field, so it
   // reads like the file. Pay accounts are `people.manage` or `payroll.run`;
   // notes, documents and discipline are `people.manage` alone. All three are

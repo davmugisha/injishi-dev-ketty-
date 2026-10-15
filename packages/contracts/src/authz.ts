@@ -554,8 +554,23 @@ export const OperatorRolePermissions = z.object({
     memberCount: z.number().int().nonnegative(),
 });
 export type OperatorRolePermissions = z.infer<typeof OperatorRolePermissions>;
+/**
+ * One area of the permission matrix as a screen draws it: the area's words and
+ * each permission's words, from `PERMISSION_AREA_LABEL` and `PERMISSION_LABEL`.
+ * Served with the roles so a client never keeps its own copy of the
+ * vocabulary, which is how a matrix comes to list a permission that does not
+ * exist. It grants nothing.
+ */
+export const OperatorPermissionArea = z.object({
+    area: PERMISSION_AREA,
+    label: z.string(),
+    permissions: z.array(z.object({ permission: Permission, label: z.string() })),
+});
+export type OperatorPermissionArea = z.infer<typeof OperatorPermissionArea>;
 export const OperatorRoleList = z.object({
     roles: z.array(OperatorRolePermissions),
+    /** Every area and permission, in the platform's order. */
+    areas: z.array(OperatorPermissionArea),
 });
 export type OperatorRoleList = z.infer<typeof OperatorRoleList>;
 /**

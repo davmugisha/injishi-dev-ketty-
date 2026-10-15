@@ -1,7 +1,7 @@
 "use client";
 
 import { ArrowDownToLine, Bookmark, Plus } from "@gravity-ui/icons";
-import { Button, Card, Chip, Label, ListBox, Select, Tabs } from "@heroui/react";
+import { Button, Card, Chip, Label, ListBox, Select, Tabs, Toast, toast } from "@heroui/react";
 import { ListView, Segment } from "@heroui-pro/react";
 import type {
   ReportsAgingBucket,
@@ -25,6 +25,7 @@ import type {
 } from "@injishi/data/fixtures/owner";
 import { Icon, PageContent, PageHeader, toneColor } from "@injishi/ui";
 import { useState } from "react";
+import { saveReportsView } from "./ReportsActions";
 import { ReportsFinancialPanel, ReportsResidencePanel, ReportsSummary } from "./ReportsFinancial";
 import { ReportsPerformancePanel, type ReportsTrendMetric } from "./ReportsPerformance";
 
@@ -52,8 +53,19 @@ const TABS: { id: ReportsTab; label: string }[] = [
   { id: "res", label: "Residence" },
 ];
 
-const DATE_RANGES = [{ id: "mtd", label: "1–12 Oct 2026 · month to date" }];
-const COMPARISONS = [{ id: "ly", label: "Same dates 2025" }];
+/** Month to date in Kigali, tonight included: the window the key figures are read over. */
+function monthToDate(now = new Date()): { range: string; lastYear: string } {
+  const part = (type: "day" | "month" | "year") =>
+    new Intl.DateTimeFormat("en-GB", {
+      timeZone: "Africa/Kigali",
+      [type]: type === "month" ? "short" : "numeric",
+    }).format(now);
+  const year = Number(part("year"));
+  return { range: `1–${part("day")} ${part("month")} ${year} · month to date`, lastYear: `Same dates ${year - 1}` };
+}
+const WINDOW = monthToDate();
+const DATE_RANGES = [{ id: "mtd", label: WINDOW.range }];
+const COMPARISONS = [{ id: "ly", label: WINDOW.lastYear }];
 
 /** A filter label above its control (artifact: 12px muted caption). */
 function FilterLabel({ children }: { children: string }) {
@@ -61,10 +73,13 @@ function FilterLabel({ children }: { children: string }) {
 }
 
 export function ReportsView({ data }: { data: ReportsData }) {
-  const [tab, setTab] = useState<ReportsTab>("perf");
-  const [propertyId, setPropertyId] = useState<ReportsPropertyId>("all");
-  const [view, setView] = useState<string | null>("owner");
+  // The screen opens on the person's first saved view (their default comes first), not a fixed record.
+  const first = data.savedViews[0];
+  const [tab, setTab] = useState<ReportsTab>(first?.tab ?? "perf");
+  const [propertyId, setPropertyId] = useState<ReportsPropertyId>(first?.property ?? "all");
+  const [view, setView] = useState<string | null>(first?.id ?? null);
   const [saved, setSaved] = useState(false);
+  const [saving, setSaving] = useState(false);
   const [metric, setMetric] = useState<ReportsTrendMetric>("occ");
   const [definition, setDefinition] = useState<ReportsMeasureId | null>("occ");
 
@@ -78,10 +93,24 @@ export function ReportsView({ data }: { data: ReportsData }) {
   const pickProperty = (id: ReportsPropertyId) => {
     setPropertyId(id);
     setView(null);
+    setSaved(false);
+  };
+  const saveView = async () => {
+    setSaving(true);
+    try {
+      const result = await saveReportsView({ tab, property: propertyId, propertyLabel: property?.label ?? propertyId });
+      if (result.ok) {
+        setSaved(true);
+        toast.success(`Saved as “${result.name}”`);
+      } else toast.danger(result.message);
+    } finally {
+      setSaving(false);
+    }
   };
 
   return (
     <PageContent>
+      <Toast.Provider placement="bottom" />
       <PageHeader
         eyebrow="Amahoro Hospitality Group · Reports"
         title="Reports"
@@ -92,7 +121,7 @@ export function ReportsView({ data }: { data: ReportsData }) {
               <ArrowDownToLine className="size-4" />
               Export
             </Button>
-            <Button onPress={() => setSaved(true)}>
+            <Button isDisabled={saving || saved} onPress={saveView}>
               <Bookmark className="size-4" />
               {saved ? "View saved" : "Save view"}
             </Button>
@@ -174,7 +203,14 @@ export function ReportsView({ data }: { data: ReportsData }) {
         </div>
       </Card>
 
-      <Tabs selectedKey={tab} onSelectionChange={(k) => setTab(String(k) as ReportsTab)} className="w-full gap-0">
+      <Tabs
+        selectedKey={tab}
+        onSelectionChange={(k) => {
+          setTab(String(k) as ReportsTab);
+          setSaved(false);
+        }}
+        className="w-full gap-0"
+      >
         <Tabs.ListContainer>
           <Tabs.List aria-label="Report" className="w-full">
             {TABS.map((t) => (

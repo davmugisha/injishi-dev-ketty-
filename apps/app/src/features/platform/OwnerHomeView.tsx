@@ -55,8 +55,25 @@ function KpiTrend({ kpi }: { kpi: OwnerKpi }) {
   );
 }
 
+/** "Thursday 15 October 2026", today in Kigali. */
+function kigaliLongDate(now = new Date()): string {
+  return new Intl.DateTimeFormat("en-GB", {
+    timeZone: "Africa/Kigali",
+    weekday: "long",
+    day: "numeric",
+    month: "long",
+    year: "numeric",
+  })
+    .format(now)
+    .replace(",", "");
+}
+
+const COUNT_WORDS = ["No", "One", "Two", "Three", "Four", "Five", "Six", "Seven", "Eight", "Nine"];
+
 export function OwnerHomeView({ persona, data }: { persona: Persona; data: OwnerHomeData }) {
   const [period, setPeriod] = useState("today");
+  const waiting = data.decisions.length;
+  const unsettled = data.kpis.find((k) => k.id === "unsettled");
   const labelAt = (i: number) =>
     i === 0 || i === 6 || i === data.revenueDays.length - 1 ? data.revenueDays[i]?.label : "";
 
@@ -64,9 +81,15 @@ export function OwnerHomeView({ persona, data }: { persona: Persona; data: Owner
     <PageContent>
       <PageHeader
         size="hello"
-        eyebrow={<>Monday 12 October 2026 · {persona.role}</>}
+        eyebrow={
+          <>
+            {kigaliLongDate()} · {persona.role}
+          </>
+        }
         title={`Good morning, ${persona.firstName}`}
-        description="Four decisions are waiting for you. Two payment exceptions are with Finance."
+        description={`${COUNT_WORDS[waiting] ?? waiting} ${waiting === 1 ? "decision is" : "decisions are"} waiting for you.${
+          unsettled && unsettled.trendTone === "danger" ? ` ${unsettled.trend} unsettled are with Finance.` : ""
+        }`}
         actions={
           <>
             <Segment aria-label="Period" selectedKey={period} onSelectionChange={(k) => setPeriod(String(k))}>

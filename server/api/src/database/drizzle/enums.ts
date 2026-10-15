@@ -217,6 +217,9 @@ export const genderEnum = pgEnum('gender', [
  * A list, not columns: the form offers "add other certificates", so the tail is
  * open and a column per certificate type would need a migration per form.
  */
+/** Whether a business document exists yet: asked of its issuer, or on file (Compliance → Licences). */
+export const orgCertificateStatusEnum = pgEnum('org_certificate_status', ['requested', 'on_file']);
+
 export const orgCertificateKindEnum = pgEnum('org_certificate_kind', [
   'rdb_grade',
   'tourism_license',
