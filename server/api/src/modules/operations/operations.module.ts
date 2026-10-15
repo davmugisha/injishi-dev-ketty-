@@ -15,6 +15,10 @@ import { WorkOrdersService } from './application/work-orders.service';
 import { HousekeepingBoardRepository } from './infrastructure/housekeeping-board.repository';
 import { LostFoundRepository } from './infrastructure/lost-found.repository';
 import { WorkOrdersRepository } from './infrastructure/work-orders.repository';
+// The staff phone (real-data 1.3.3).
+import { StaffPhoneService } from './application/staff-phone.service';
+import { WorkOrderTimeService } from './application/work-order-time.service';
+import { StaffPhoneRepository } from './infrastructure/staff-phone.repository';
 import { MessagingService } from './application/messaging.service';
 import { NightAuditService } from './application/night-audit.service';
 import { ResidenceService } from './application/residence.service';
@@ -121,6 +125,9 @@ import { PaymentsModule } from '../payments/payments.module';
     HousekeepingBoardService,
     WorkOrdersService,
     LostFoundService,
+    StaffPhoneRepository,
+    StaffPhoneService,
+    WorkOrderTimeService,
     FrontDeskService,
     MessagingService,
     ResidenceService,
@@ -170,6 +177,8 @@ import { PaymentsModule } from '../payments/payments.module';
     HousekeepingBoardService,
     WorkOrdersService,
     LostFoundService,
+    StaffPhoneService,
+    WorkOrderTimeService,
   ],
 })
 export class OperationsModule {}

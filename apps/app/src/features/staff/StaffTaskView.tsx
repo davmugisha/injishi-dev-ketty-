@@ -48,8 +48,10 @@ import type {
 } from "@injishi/data/fixtures/staff";
 import { stock } from "@injishi/data/media";
 import { Icon, LinkButton, PhoneBody, PhoneTop, Photo, toneColor } from "@injishi/ui";
-import { useState } from "react";
-import { PhoneActionBar, PhoneSheet, PhoneTitle, renderSection, ToneTile } from "./parts";
+import { useState, useTransition } from "react";
+import { reported } from "../operations/shared";
+import { logRoomFoundItemAction, moveRoomTaskAction, sendMinibarCountAction, setRoomCheckAction } from "./actions";
+import { kigaliClock, PhoneActionBar, PhoneSheet, PhoneTitle, renderSection, ToneTile } from "./parts";
 
 export interface StaffTaskData {
   rooms: CleaningRoom[];
@@ -86,11 +88,14 @@ export function StaffTaskView({
   const [used, setUsed] = useState<Record<string, number>>(() =>
     Object.fromEntries(minibar.map((m) => [m.id, m.used])),
   );
-  const [miniSent, setMiniSent] = useState(false);
+  const [miniSent, setMiniSent] = useState<string | null>(null);
   const [sheet, setSheet] = useState<"" | "confirm" | "found">("");
   const [spot, setSpot] = useState(found.spot);
   const [foundPhoto, setFoundPhoto] = useState(true);
-  const [foundLogged, setFoundLogged] = useState(false);
+  const [foundText, setFoundText] = useState(found.description);
+  const [foundLogged, setFoundLogged] = useState<{ ref: string; name: string } | null>(null);
+  const [cleanedAt, setCleanedAt] = useState<Record<string, string>>({});
+  const [pending, startTransition] = useTransition();
 
   const r = rooms.find((x) => x.no === roomNo) ?? rooms[0];
   const roomStatus = status[r.no];
@@ -114,19 +119,56 @@ export function StaffTaskView({
   const pct = totalN ? Math.round((doneN / totalN) * 100) : 0;
   const usedTotal = minibar.reduce((a, m) => a + (used[m.id] ?? 0), 0);
 
-  const toggleCheck = (key: string, on: boolean) =>
+  const setCheck = (key: string, on: boolean) =>
     setChecks((prev) => {
       const next = new Set(prev);
       if (on) next.add(key);
       else next.delete(key);
       return next;
     });
-
-  const finish = () => {
-    setSheet("");
-    setPaused(false);
-    setStatus((s) => ({ ...s, [r.no]: "done" }));
+  const toggleCheck = (key: string, itemId: string, on: boolean) => {
+    setCheck(key, on);
+    if (offline) return;
+    startTransition(async () => {
+      if (!reported(await setRoomCheckAction(r.id, itemId, on))) setCheck(key, !on);
+    });
   };
+
+  const moveRoom = (to: "in_progress" | "done", after: () => void) => {
+    if (offline) return after();
+    startTransition(async () => {
+      if (reported(await moveRoomTaskAction(r.id, to))) after();
+    });
+  };
+  const finish = () =>
+    moveRoom("done", () => {
+      setSheet("");
+      setPaused(false);
+      setCleanedAt((c) => ({ ...c, [r.no]: kigaliClock() }));
+      setStatus((s) => ({ ...s, [r.no]: "done" }));
+    });
+  const sendMinibar = () => {
+    if (offline) return setMiniSent(kigaliClock());
+    startTransition(async () => {
+      const counts = minibar.map((m) => ({ itemId: m.id, used: used[m.id] ?? 0 }));
+      if (reported(await sendMinibarCountAction(r.id, counts))) setMiniSent(kigaliClock());
+    });
+  };
+  const logFound = () => {
+    const name = foundText.split(",")[0]?.trim() || foundText.trim();
+    if (offline) {
+      setSheet("");
+      setFoundLogged({ ref: "not sent yet", name });
+      return;
+    }
+    startTransition(async () => {
+      const result = await logRoomFoundItemAction(r.id, { description: foundText, spot: spotPhrase });
+      if (!reported(result) || !result.ok) return;
+      setSheet("");
+      setFoundLogged({ ref: result.value, name });
+    });
+  };
+  const doneAt = cleanedAt[r.no] ?? kigaliClock();
   const markClean = () => (left.length ? setSheet("confirm") : finish());
 
   const statusChip =
@@ -277,7 +319,7 @@ export function StaffTaskView({
                   <Checkbox
                     key={it.key}
                     isSelected={it.on}
-                    onChange={(on) => toggleCheck(it.key, on)}
+                    onChange={(on) => toggleCheck(it.key, it.id, on)}
                     className="w-full"
                   >
                     <Checkbox.Content className="flex min-h-12 w-full items-center gap-[12px] rounded-[12px] px-[8px] py-[6px] hover:bg-surface-secondary">
@@ -318,7 +360,7 @@ export function StaffTaskView({
                     minValue={0}
                     maxValue={9}
                     onChange={(v) => setUsed((u) => ({ ...u, [m.id]: Number.isNaN(v) ? 0 : v }))}
-                    isDisabled={miniSent}
+                    isDisabled={miniSent !== null}
                   >
                     <NumberStepper.Group>
                       <NumberStepper.DecrementButton aria-label={`One less ${m.label}`} className="size-11" />
@@ -337,8 +379,8 @@ export function StaffTaskView({
                         {offline
                           ? "Saved on phone · will send"
                           : usedTotal
-                            ? "Sent to front desk at 10:58"
-                            : "Nothing used · sent at 10:58"}
+                            ? `Sent to front desk at ${miniSent}`
+                            : `Nothing used · sent at ${miniSent}`}
                       </Alert.Title>
                       <Alert.Description>
                         {offline
@@ -349,12 +391,19 @@ export function StaffTaskView({
                       </Alert.Description>
                     </Alert.Content>
                   </Alert>
-                  <Button variant="ghost" className="min-h-11 self-start" onPress={() => setMiniSent(false)}>
+                  <Button variant="ghost" className="min-h-11 self-start" onPress={() => setMiniSent(null)}>
                     Change the count
                   </Button>
                 </>
               ) : (
-                <Button variant="secondary" size="lg" fullWidth className="min-h-14" onPress={() => setMiniSent(true)}>
+                <Button
+                  variant="secondary"
+                  size="lg"
+                  fullWidth
+                  className="min-h-14"
+                  isDisabled={pending}
+                  onPress={sendMinibar}
+                >
                   <PaperPlane className="size-4" />
                   Send count to front desk
                 </Button>
@@ -388,7 +437,7 @@ export function StaffTaskView({
                   </ItemCard.Icon>
                   <ItemCard.Content>
                     <ItemCard.Title>
-                      {found.name} · {found.ref}
+                      {foundLogged.name} · {foundLogged.ref}
                     </ItemCard.Title>
                     <ItemCard.Description className="whitespace-normal">
                       Found in the {spotPhrase} · with you until you hand it to {found.holder}
@@ -414,8 +463,8 @@ export function StaffTaskView({
               </h2>
               <p className="text-muted">
                 {offline
-                  ? "Saved on this phone at 11:06. Front desk still sees the room as dirty until it sends."
-                  : "Sent at 11:06. Front desk sees it as Clean, not Ready. It becomes Ready after Beatrice inspects it."}
+                  ? `Saved on this phone at ${doneAt}. Front desk still sees the room as dirty until it sends.`
+                  : `Sent at ${doneAt}. Front desk sees it as Clean, not Ready. It becomes Ready after Beatrice inspects it.`}
               </p>
             </div>
             <Timeline size="sm" density="compact">
@@ -427,7 +476,7 @@ export function StaffTaskView({
                 <Timeline.Content>
                   <span className="font-medium">Cleaned by you</span>
                   <span className="text-xs leading-4 text-muted">
-                    {offline ? "11:06 · waiting for signal" : `11:06 · ${doneN} of ${totalN} checks ticked`}
+                    {offline ? `${doneAt} · waiting for signal` : `${doneAt} · ${doneN} of ${totalN} checks ticked`}
                   </span>
                 </Timeline.Content>
               </Timeline.Item>
@@ -542,7 +591,7 @@ export function StaffTaskView({
             <span className="text-[17px] leading-[22px] font-semibold tabular">{r.timer}</span>
             <span className="text-[11px] leading-[14px] text-muted">{paused ? "Paused" : r.started}</span>
           </span>
-          <Button size="lg" className="min-h-14 flex-1" onPress={markClean}>
+          <Button size="lg" className="min-h-14 flex-1" isDisabled={pending} onPress={markClean}>
             <Check className="size-4" />
             Mark clean
           </Button>
@@ -553,7 +602,8 @@ export function StaffTaskView({
           <Button
             size="lg"
             className="min-h-14 flex-1"
-            onPress={() => setStatus((s) => ({ ...s, [r.no]: "cleaning" }))}
+            isDisabled={pending}
+            onPress={() => moveRoom("in_progress", () => setStatus((s) => ({ ...s, [r.no]: "cleaning" })))}
           >
             <CirclePlay className="size-4" />
             Start cleaning room {r.no}
@@ -578,7 +628,7 @@ export function StaffTaskView({
         <Button size="lg" fullWidth className="min-h-14" onPress={() => setSheet("")}>
           Keep cleaning
         </Button>
-        <Button variant="secondary" size="lg" fullWidth className="min-h-14" onPress={finish}>
+        <Button variant="secondary" size="lg" fullWidth className="min-h-14" isDisabled={pending} onPress={finish}>
           Mark clean anyway
         </Button>
       </PhoneSheet>
@@ -607,7 +657,7 @@ export function StaffTaskView({
             Take a photo of the item
           </Button>
         )}
-        <TextField defaultValue={found.description} fullWidth className="flex flex-col gap-1">
+        <TextField value={foundText} onChange={setFoundText} fullWidth className="flex flex-col gap-1">
           <Label>What is it?</Label>
           <Input className="min-h-11" />
         </TextField>
@@ -642,15 +692,7 @@ export function StaffTaskView({
           <Button variant="secondary" size="lg" fullWidth className="min-h-14" onPress={() => setSheet("")}>
             Cancel
           </Button>
-          <Button
-            size="lg"
-            fullWidth
-            className="min-h-14"
-            onPress={() => {
-              setSheet("");
-              setFoundLogged(true);
-            }}
-          >
+          <Button size="lg" fullWidth className="min-h-14" isDisabled={pending || !foundText.trim()} onPress={logFound}>
             Log the item
           </Button>
         </div>

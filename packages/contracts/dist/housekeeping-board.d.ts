@@ -315,9 +315,9 @@ export declare const RoomStatusEvent: z.ZodObject<{
     occurredAt: string;
     actorName: string | null;
     roomId: string;
+    summary: string;
     fromValue: string | null;
     toValue: string | null;
-    summary: string;
 }, {
     kind: "escalation" | "housekeeping" | "block" | "inventory" | "occupancy" | "task_assigned" | "task_created" | "inspection_failed" | "fault_reported";
     id: string;
@@ -325,9 +325,9 @@ export declare const RoomStatusEvent: z.ZodObject<{
     occurredAt: string;
     actorName: string | null;
     roomId: string;
+    summary: string;
     fromValue: string | null;
     toValue: string | null;
-    summary: string;
 }>;
 export type RoomStatusEvent = z.infer<typeof RoomStatusEvent>;
 export declare const HousekeepingBoard: z.ZodObject<{
@@ -620,9 +620,9 @@ export declare const HousekeepingBoard: z.ZodObject<{
         occurredAt: string;
         actorName: string | null;
         roomId: string;
+        summary: string;
         fromValue: string | null;
         toValue: string | null;
-        summary: string;
     }, {
         kind: "escalation" | "housekeeping" | "block" | "inventory" | "occupancy" | "task_assigned" | "task_created" | "inspection_failed" | "fault_reported";
         id: string;
@@ -630,9 +630,9 @@ export declare const HousekeepingBoard: z.ZodObject<{
         occurredAt: string;
         actorName: string | null;
         roomId: string;
+        summary: string;
         fromValue: string | null;
         toValue: string | null;
-        summary: string;
     }>, "many">;
 }, "strip", z.ZodTypeAny, {
     history: {
@@ -642,9 +642,9 @@ export declare const HousekeepingBoard: z.ZodObject<{
         occurredAt: string;
         actorName: string | null;
         roomId: string;
+        summary: string;
         fromValue: string | null;
         toValue: string | null;
-        summary: string;
     }[];
     propertyName: string;
     escalations: {
@@ -735,9 +735,9 @@ export declare const HousekeepingBoard: z.ZodObject<{
         occurredAt: string;
         actorName: string | null;
         roomId: string;
+        summary: string;
         fromValue: string | null;
         toValue: string | null;
-        summary: string;
     }[];
     propertyName: string;
     escalations: {
@@ -835,21 +835,74 @@ export type AssignHousekeepingTaskRequest = z.infer<typeof AssignHousekeepingTas
  * Pass or fail a cleaned room. Failing reopens it as a re-clean for the same person, with the reason;
  * the reason is required, because "failed" with no reason is a dispute nobody can settle.
  */
-export declare const InspectHousekeepingTaskRequest: z.ZodEffects<z.ZodObject<{
+export declare const InspectHousekeepingTaskRequest: z.ZodEffects<z.ZodEffects<z.ZodObject<{
     result: z.ZodEnum<["pass", "fail"]>;
     reason: z.ZodOptional<z.ZodString>;
+    /**
+     * The inspection checklist, item by item (real-data 1.3.3, the supervisor's phone): written with the
+     * decision, in the same transaction. A pass with a failed check is refused.
+     */
+    checks: z.ZodOptional<z.ZodArray<z.ZodObject<{
+        itemId: z.ZodString;
+        result: z.ZodEnum<["pass", "fail"]>;
+        photoObjectKey: z.ZodOptional<z.ZodString>;
+    }, "strip", z.ZodTypeAny, {
+        result: "pass" | "fail";
+        itemId: string;
+        photoObjectKey?: string | undefined;
+    }, {
+        result: "pass" | "fail";
+        itemId: string;
+        photoObjectKey?: string | undefined;
+    }>, "many">>;
 }, "strip", z.ZodTypeAny, {
     result: "pass" | "fail";
     reason?: string | undefined;
+    checks?: {
+        result: "pass" | "fail";
+        itemId: string;
+        photoObjectKey?: string | undefined;
+    }[] | undefined;
 }, {
     result: "pass" | "fail";
     reason?: string | undefined;
+    checks?: {
+        result: "pass" | "fail";
+        itemId: string;
+        photoObjectKey?: string | undefined;
+    }[] | undefined;
 }>, {
     result: "pass" | "fail";
     reason?: string | undefined;
+    checks?: {
+        result: "pass" | "fail";
+        itemId: string;
+        photoObjectKey?: string | undefined;
+    }[] | undefined;
 }, {
     result: "pass" | "fail";
     reason?: string | undefined;
+    checks?: {
+        result: "pass" | "fail";
+        itemId: string;
+        photoObjectKey?: string | undefined;
+    }[] | undefined;
+}>, {
+    result: "pass" | "fail";
+    reason?: string | undefined;
+    checks?: {
+        result: "pass" | "fail";
+        itemId: string;
+        photoObjectKey?: string | undefined;
+    }[] | undefined;
+}, {
+    result: "pass" | "fail";
+    reason?: string | undefined;
+    checks?: {
+        result: "pass" | "fail";
+        itemId: string;
+        photoObjectKey?: string | undefined;
+    }[] | undefined;
 }>;
 export type InspectHousekeepingTaskRequest = z.infer<typeof InspectHousekeepingTaskRequest>;
 //# sourceMappingURL=housekeeping-board.d.ts.map

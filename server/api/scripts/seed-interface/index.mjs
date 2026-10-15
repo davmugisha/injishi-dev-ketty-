@@ -6,6 +6,7 @@ import * as owner from './owner.mjs';
 import * as operations from './operations.mjs';
 import * as people from './people.mjs';
 import * as platform from './platform.mjs';
+import * as staff from './staff.mjs';
 
 export const AREAS = [
   { area: 'platform', module: platform },
@@ -13,4 +14,6 @@ export const AREAS = [
   // After platform: the housekeeping board refers to Jeanne's tasks, which platform.mjs writes.
   { area: 'operations', module: operations },
   { area: 'people', module: people },
+  // After platform and people: the phone's ticks name platform's tasks, its papers name people's files.
+  { area: 'staff', module: staff },
 ];

@@ -4,6 +4,7 @@ exports.InspectHousekeepingTaskRequest = exports.AssignHousekeepingTaskRequest =
 const zod_1 = require("zod");
 const ops_1 = require("./ops");
 const primitives_1 = require("./primitives");
+const staff_phone_1 = require("./staff-phone");
 /**
  * The housekeeping board (`GET /api/v1/ops/housekeeping/board`): one property's rooms, today's
  * cleaning tasks, who works housekeeping today, the open escalations, the rules that create tasks,
@@ -156,6 +157,15 @@ exports.InspectHousekeepingTaskRequest = zod_1.z
     .object({
     result: zod_1.z.enum(["pass", "fail"]),
     reason: zod_1.z.string().trim().min(1).max(300).optional(),
+    /**
+     * The inspection checklist, item by item (real-data 1.3.3, the supervisor's phone): written with the
+     * decision, in the same transaction. A pass with a failed check is refused.
+     */
+    checks: zod_1.z.array(staff_phone_1.InspectionCheckVerdict).max(60).optional(),
+})
+    .refine((v) => v.result === "fail" || !(v.checks ?? []).some((c) => c.result === "fail"), {
+    message: "A room with a failed check cannot pass.",
+    path: ["checks"],
 })
     .refine((v) => v.result === "pass" || Boolean(v.reason), {
     message: "Say what was not right, so the re-clean knows what to fix.",

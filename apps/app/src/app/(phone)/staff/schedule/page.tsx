@@ -27,7 +27,7 @@ export default async function StaffSchedulePage() {
       getCollection<SwapColleague>("staff.swapColleagues"),
       getCollection<StaffRequest>("staff.requests"),
       getCollection<LeaveType>("staff.leaveTypes"),
-      getDocument<LeaveBalance>("staff.leaveBalances", "housekeeper"),
+      getDocument<LeaveBalance>("staff.leaveBalances", persona.id),
       getCollection<LeaveApprover>("staff.leaveApprovers"),
       getDocument<LeaveDraft>("staff.leaveDrafts", "christmas"),
     ]);

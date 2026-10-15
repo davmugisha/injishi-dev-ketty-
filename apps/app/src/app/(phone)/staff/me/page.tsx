@@ -24,7 +24,7 @@ export default async function StaffMePage({ searchParams }: { searchParams: Prom
       getDocument<StaffProfile>("staff.profiles", persona.id),
       getDocument<StaffProfile>("staff.profiles", "housekeeper"),
       getCollection<Payslip>("staff.payslips"),
-      getDocument<LeaveBalance>("staff.leaveBalances", "housekeeper"),
+      getDocument<LeaveBalance>("staff.leaveBalances", persona.id),
       getCollection<StaffRequest>("staff.requests"),
       getCollection<StaffDocument>("staff.documents"),
       getCollection<LoanedAsset>("staff.assets"),

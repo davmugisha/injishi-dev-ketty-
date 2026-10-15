@@ -69,3 +69,6 @@ export * from './assistant';
 export * from './interface-operations';
 // The new interface's HR screens (real-data, people): teams, minimum cover, checklists, dependants.
 export * from './interface-people';
+// The new interface's staff phone (real-data 1.3.3): checklists and their results, minibar counts,
+// time on a work order.
+export * from './interface-staff';

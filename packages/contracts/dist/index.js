@@ -65,4 +65,5 @@ __exportStar(require("./redaction"), exports);
 __exportStar(require("./housekeeping-board"), exports);
 __exportStar(require("./maintenance"), exports);
 __exportStar(require("./lost-found"), exports);
+__exportStar(require("./staff-phone"), exports);
 //# sourceMappingURL=index.js.map

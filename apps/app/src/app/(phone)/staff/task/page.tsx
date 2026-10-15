@@ -25,7 +25,7 @@ export default async function StaffTaskPage({ searchParams }: { searchParams: Pr
     getCollection<MinibarItem>("staff.minibarItems"),
     getCollection<FoundItemSpot>("staff.foundSpots"),
     getCollection<FoundItem>("staff.foundItems"),
-    getDocument<StaffProfile>("staff.profiles", "housekeeper"),
+    getDocument<StaffProfile>("staff.profiles", persona.id),
   ]);
   const found = foundItems[0];
   if (!rooms.length || !found || !profile) notFound();

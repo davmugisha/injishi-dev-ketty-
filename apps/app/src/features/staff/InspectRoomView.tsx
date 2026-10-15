@@ -23,13 +23,16 @@ import {
   TextField,
   ToggleButton,
   ToggleButtonGroup,
+  toast,
 } from "@heroui/react";
 import { RadioButtonGroup } from "@heroui-pro/react";
 import type { Persona } from "@injishi/data";
 import type { CheckResult, InspectionCheck, InspectionRoom, StaffProfile } from "@injishi/data/fixtures/staff";
 import { PhoneBody, PhoneTop, StatusDot } from "@injishi/ui";
-import { useState } from "react";
-import { PhoneTitle, PhotoTile, renderSection, ToneTile } from "./parts";
+import { useState, useTransition } from "react";
+import { reported } from "../operations/shared";
+import { inspectRoomAction } from "./actions";
+import { kigaliClock, PhoneTitle, PhotoTile, renderSection, ToneTile } from "./parts";
 
 export interface InspectRoomData {
   profile: StaffProfile;
@@ -37,10 +40,7 @@ export interface InspectRoomData {
   checks: InspectionCheck[];
 }
 
-type Decision = "released" | "returned";
-
-/** Time the demo decision is recorded (the artifact's "now"). */
-const NOW = "11:14";
+type Decision = { kind: "released" | "returned"; at: string };
 
 /** Supervisor inspects cleaned rooms and releases them to the front desk or returns them (artifact: InspectRoom). */
 export function InspectRoomView({ persona, data }: { persona: Persona; data: InspectRoomData }) {
@@ -56,10 +56,15 @@ export function InspectRoomView({ persona, data }: { persona: Persona; data: Ins
     Object.fromEntries(rooms.filter((r) => r.outcome).map((r) => [r.no, r.outcome as "release" | "return"])),
   );
   const [decided, setDecided] = useState<Record<string, Decision>>({});
+  const [notes, setNotes] = useState<Record<string, string>>(() =>
+    Object.fromEntries(rooms.map((x) => [x.no, x.note])),
+  );
+  const [pending, startTransition] = useTransition();
 
   const r = rooms.find((x) => x.no === roomNo) ?? rooms[0];
   const res = results[r.no] ?? {};
-  const decision = decided[r.no];
+  const decision = decided[r.no]?.kind;
+  const NOW = decided[r.no]?.at ?? "";
   const waiting = rooms.filter((x) => !decided[x.no]).length;
 
   const checked = checks.filter((c) => res[c.id]).length;
@@ -93,6 +98,23 @@ export function InspectRoomView({ persona, data }: { persona: Persona; data: Ins
       else next.delete(`${r.no}:${checkId}`);
       return next;
     });
+
+  const decide = () => {
+    const note = (notes[r.no] ?? "").trim();
+    const reason = isReturn
+      ? [failed.map((c) => c.label).join("; "), note].filter(Boolean).join(". ").slice(0, 300)
+      : undefined;
+    const verdicts = checks.flatMap((c) => (res[c.id] ? [{ itemId: c.id, result: res[c.id] as "pass" | "fail" }] : []));
+    startTransition(async () => {
+      const result = await inspectRoomAction(r.id, {
+        result: isReturn ? "fail" : "pass",
+        reason,
+        checks: verdicts,
+      });
+      if (reported(result))
+        setDecided((d) => ({ ...d, [r.no]: { kind: isReturn ? "returned" : "released", at: kigaliClock() } }));
+    });
+  };
 
   const arrivalTime = r.arrival.startsWith("Arrival") ? r.arrival.replace("Arrival ", "") : null;
   const done =
@@ -142,7 +164,7 @@ export function InspectRoomView({ persona, data }: { persona: Persona; data: Ins
           className="w-full justify-start gap-[6px] overflow-x-auto pb-[2px]"
         >
           {rooms.map((q) => {
-            const d = decided[q.no];
+            const d = decided[q.no]?.kind;
             const tag = d === "released" ? "Inspected" : d === "returned" ? "Returned" : q.wait;
             const tone = d === "released" ? "success" : d === "returned" ? "warning" : q.late ? "danger" : "info";
             return (
@@ -333,7 +355,12 @@ export function InspectRoomView({ persona, data }: { persona: Persona; data: Ins
                       ))}
                     </ul>
                   ) : null}
-                  <TextField key={r.no} defaultValue={r.note} fullWidth>
+                  <TextField
+                    key={r.no}
+                    value={notes[r.no] ?? ""}
+                    onChange={(v) => setNotes((n) => ({ ...n, [r.no]: v }))}
+                    fullWidth
+                  >
                     <Label className="sr-only">Note for {r.cleanedByFirst}</Label>
                     <TextArea rows={2} placeholder="Tell her what to fix" />
                   </TextField>
@@ -344,13 +371,7 @@ export function InspectRoomView({ persona, data }: { persona: Persona; data: Ins
                   {block}
                 </p>
               ) : null}
-              <Button
-                size="lg"
-                fullWidth
-                className="min-h-14"
-                isDisabled={!!block}
-                onPress={() => setDecided((d) => ({ ...d, [r.no]: isReturn ? "returned" : "released" }))}
-              >
+              <Button size="lg" fullWidth className="min-h-14" isDisabled={!!block || pending} onPress={decide}>
                 {isReturn ? `Return to ${r.cleanedByFirst}` : `Release room ${r.no}`}
               </Button>
               <p className="text-xs leading-4 text-muted">Saved in the room history with your name and the time.</p>
@@ -379,11 +400,9 @@ export function InspectRoomView({ persona, data }: { persona: Persona; data: Ins
               variant="ghost"
               className="min-h-11"
               onPress={() =>
-                setDecided((d) => {
-                  const next = { ...d };
-                  delete next[r.no];
-                  return next;
-                })
+                toast.danger(
+                  "Undo is not available yet. A returned room comes back to you after the re-clean; ask the front desk to hold a released one.",
+                )
               }
             >
               Undo within 1 minute
