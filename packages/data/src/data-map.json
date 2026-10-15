@@ -37,7 +37,8 @@
     "missing": "approval_requests (new, see owner.approvalRequests); GET /ops/approvals?status=pending&limit=4",
     "crud": "R",
     "seed": "none",
-    "scope": "org"
+    "scope": "org",
+    "deferred": "The owner home's top pending decisions are the Approvals inbox's first four. The inbox could be derived only for pay runs (POST /ops/pay-runs/:id/confirm), refunds (POST /ops/refund-requests/:id/decision) and invitations; 5 of the 8 fixture requests (rate change, write-off, folio reopen, EBM credential change, two-approver bank match) have no record or command on the platform, so a derived inbox cannot hold them. Needs an /architect decision: an approval_requests table that runs each subject's own command (with step-up), or those commands first."
   },
   {
     "collection": "platform.revenueDays",
@@ -67,7 +68,8 @@
     "missing": "no insights job/route; no AR (city ledger) table and no stock tables in this schema (accounting/stock areas)",
     "crud": "R",
     "seed": "none",
-    "scope": "org"
+    "scope": "org",
+    "deferred": "Two of the three insights read data the schema does not have: city-ledger receivables (accounting area) and stock levels (stock area); and no insights job exists to decide what is worth saying. Housekeeping turnaround is derivable from housekeeping_tasks started_at/completed_at once the rest exists."
   },
   {
     "collection": "platform.ownerCompliance",
@@ -567,7 +569,8 @@
     "missing": "table + GET /ops/approvals, POST /ops/approvals/:id/decide (step-up); deciding must run the subject's own command",
     "crud": "R, U",
     "seed": "demo",
-    "scope": "org"
+    "scope": "org",
+    "deferred": "The inbox could be derived only for pay runs (POST /ops/pay-runs/:id/confirm), refunds (POST /ops/refund-requests/:id/decision) and invitations; 5 of the 8 fixture requests (rate change, write-off, folio reopen, EBM credential change, two-approver bank match) have no record or command on the platform, so a derived inbox cannot hold them. Needs an /architect decision: an approval_requests table that runs each subject's own command (with step-up), or those commands first."
   },
   {
     "collection": "owner.approvalHistory",
@@ -577,7 +580,8 @@
     "missing": "same table",
     "crud": "R",
     "seed": "none",
-    "scope": "org"
+    "scope": "org",
+    "deferred": "Decided requests of the same inbox. The inbox could be derived only for pay runs (POST /ops/pay-runs/:id/confirm), refunds (POST /ops/refund-requests/:id/decision) and invitations; 5 of the 8 fixture requests (rate change, write-off, folio reopen, EBM credential change, two-approver bank match) have no record or command on the platform, so a derived inbox cannot hold them. Needs an /architect decision: an approval_requests table that runs each subject's own command (with step-up), or those commands first."
   },
   {
     "collection": "owner.reportsProperties",
@@ -627,7 +631,8 @@
     "missing": "daily series route",
     "crud": "R",
     "seed": "none",
-    "scope": "org / property"
+    "scope": "org / property",
+    "deferred": "Derivable today (GET /ops/reports/performance gives sold and available nights per branch), but every document is keyed by a calendar date and the fixture set is the 1-12 Oct prototype window, so a live month-to-date series matches it on no other day; built when the parity check compares a dated series by position, or the series moves onto positional ids like platform.revenueDays."
   },
   {
     "collection": "owner.reportsPickup",
@@ -637,7 +642,8 @@
     "missing": "route",
     "crud": "R",
     "seed": "none",
-    "scope": "org / property"
+    "scope": "org / property",
+    "deferred": "Derivable from bookings (confirmed_at/cancelled_at as of today and today-7, nights per future week), but the fixture keys each week by an ISO week of the prototype day (2026-w42…w45), so a live forward window matches it on no other week; build with the date-series rule of owner.reportsTrendDays."
   },
   {
     "collection": "owner.reportsRoomTypes",
@@ -647,7 +653,8 @@
     "missing": "route",
     "crud": "R",
     "seed": "none",
-    "scope": "property"
+    "scope": "property",
+    "deferred": "The world seeds Ishyamba as one Forest Tent type of 18 tents; the fixture splits it into Forest Tent (14) and Family Tent (4). The per-type figures are derivable (room_types + rooms + room charges), but the room-type split is the world's to change, not the owner area's."
   },
   {
     "collection": "owner.reportsChannels",
@@ -657,7 +664,8 @@
     "missing": "bookings has no channel/source column; commission has no source",
     "crud": "R",
     "seed": "none",
-    "scope": "org"
+    "scope": "org",
+    "deferred": "bookings carries no channel or source column and no commission, so nights by channel cannot be counted; needs bookings.channel (and channel commission) from the commercial area first."
   },
   {
     "collection": "owner.reportsSummaryKpis",
@@ -667,7 +675,8 @@
     "missing": "no departmental expense / hotel GL table in this schema (accounting area)",
     "crud": "R",
     "seed": "none",
-    "scope": "org"
+    "scope": "org",
+    "deferred": "The Financial tab's GOP and margins need expenses, and the Residence tab's figures need Kacyiru's leases. Needs a departmental expense ledger (USALI costs, GOP) that this schema does not have: /ops/revenue says revenue only on purpose. The accounting area owns the general ledger; build after it exists."
   },
   {
     "collection": "owner.reportsProfitLines",
@@ -677,7 +686,8 @@
     "missing": "expenses source missing; fixture values are strings in RWF millions",
     "crud": "R",
     "seed": "none",
-    "scope": "org"
+    "scope": "org",
+    "deferred": "Needs a departmental expense ledger (USALI costs, GOP) that this schema does not have: /ops/revenue says revenue only on purpose. The accounting area owns the general ledger; build after it exists."
   },
   {
     "collection": "owner.reportsAging",
@@ -687,7 +697,8 @@
     "missing": "no AR invoice table (accounting area); amounts are float millions",
     "crud": "R",
     "seed": "none",
-    "scope": "org"
+    "scope": "org",
+    "deferred": "Needs city-ledger receivables (company accounts, AR invoices aged by due date) that this schema does not have; the accounting area owns AR. Fixture amounts are float RWF millions too."
   },
   {
     "collection": "owner.reportsDebtors",
@@ -697,7 +708,8 @@
     "missing": "no company account / AR tables",
     "crud": "R",
     "seed": "none",
-    "scope": "org"
+    "scope": "org",
+    "deferred": "Needs city-ledger receivables (company accounts, AR invoices aged by due date) that this schema does not have; the accounting area owns AR. Fixture amounts are float RWF millions too."
   },
   {
     "collection": "owner.reportsVacantUnits",
@@ -707,7 +719,8 @@
     "missing": "viewings not modelled (\"2 viewings booked\")",
     "crud": "R",
     "seed": "none",
-    "scope": "property"
+    "scope": "property",
+    "deferred": "Kacyiru Court's units, leases and rent charges are the residence area's seed (the world gives the residence no units yet), and viewings and payment plans are not modelled; derive from rooms, leases and rent_charges (GET /ops/rent-roll) once the residence area seeds them."
   },
   {
     "collection": "owner.reportsArrears",
@@ -717,7 +730,8 @@
     "missing": "payment-plan notes not modelled",
     "crud": "R",
     "seed": "none",
-    "scope": "property"
+    "scope": "property",
+    "deferred": "Kacyiru Court's units, leases and rent charges are the residence area's seed (the world gives the residence no units yet), and viewings and payment plans are not modelled; derive from rooms, leases and rent_charges (GET /ops/rent-roll) once the residence area seeds them."
   },
   {
     "collection": "owner.reportsSchedules",
@@ -727,7 +741,8 @@
     "missing": "table + CRUD routes + worker job",
     "crud": "C, R, U, D",
     "seed": "demo",
-    "scope": "org"
+    "scope": "org",
+    "deferred": "A schedule needs a delivery worker that renders the packs (PDF/CSV) and mails them, cut per recipient's permissions; nothing runs report_runs on a schedule yet, and storing schedules nobody delivers would be a promise the platform does not keep."
   },
   {
     "collection": "owner.complianceKpis",
@@ -737,7 +752,8 @@
     "missing": "summary route",
     "crud": "R",
     "seed": "none",
-    "scope": "org"
+    "scope": "org",
+    "deferred": "Two of its four figures summarise collections that are not built (compliance submissions, business-scoped data subject requests); counting them as zero beside a list that shows them would contradict the screen. Licences and memberships are live."
   },
   {
     "collection": "owner.complianceSubmissions",
@@ -747,7 +763,8 @@
     "missing": "table + create/advance/return-to-draft/record-outcome routes; preparer ≠ approver",
     "crud": "C, R, U",
     "seed": "demo",
-    "scope": "org"
+    "scope": "org",
+    "deferred": "Needs a new compliance_submissions table with a maker-checker rule (preparer is never the approver), proof uploads and an outcome; the reporting-gate checklist on the same screen says government reporting must not be enabled before its legal basis is verified, so this waits for that decision."
   },
   {
     "collection": "owner.complianceLicences",
@@ -787,7 +804,8 @@
     "missing": "org_id/property_id, legal_basis, actor role; record_data_class lacks guest_profile/rooming_list/marketing_list; only GET /admin/audit/access-logs exists",
     "crud": "C (system), R",
     "seed": "demo",
-    "scope": "org"
+    "scope": "org",
+    "deferred": "record_access_logs is a platform log with no org column or legal basis, and nothing writes a row when an operator opens a guest record; logging reads of personal data per business is a system-wide instrumentation decision (/architect), not an owner-screen table."
   },
   {
     "collection": "owner.complianceDataRequests",
@@ -797,7 +815,8 @@
     "missing": "user/platform-scoped today: needs org_id (business as controller), requester name/email for guests without an account, identity_verified_at, decision fields, due_at; dsr_state needs in_progress/awaiting_decision/partially_fulfilled/rejected; routes GET /ops/data-requests, POST /ops/data-requests/:id/decide",
     "crud": "R, U",
     "seed": "demo",
-    "scope": "org"
+    "scope": "org",
+    "deferred": "data_subject_requests is platform-scoped (Injishi as controller) with two states; a business answering requests as controller needs an org column, requester identity for guests without an account, due dates and decision states, and a decision on who is controller for what (/architect)."
   },
   {
     "collection": "owner.teamRolesMembers",
@@ -837,7 +856,8 @@
     "missing": "group of legal entities not modelled",
     "crud": "R",
     "seed": "none",
-    "scope": "org"
+    "scope": "org",
+    "deferred": "Membership scope is per branch (org_membership_branches, ADR-054): the tree's outlet rows (Isangano Terrace and Lake Bar) cannot be granted and Ikawa Corner is another merchant (outlet_parties). Live members' scopeIds use the branch codes isg/ish/kcr this tree already names; outlet-level scope needs an org_membership_outlets decision."
   },
   {
     "collection": "owner.teamRolesInvite",
@@ -857,7 +877,8 @@
     "missing": "operator route GET /ops/billing (only GET /admin/orgs/:orgId/subscription exists)",
     "crud": "R",
     "seed": "none",
-    "scope": "org"
+    "scope": "org",
+    "deferred": "Plan and billing needs owner decisions first: subscription prices and plan limits are pending approval (subscription_plans.feature_set has no limit keys), and the operator side of billing has no route (only GET /admin/orgs/:orgId/subscription); subscription charge retries cannot reuse payment_attempts (guest-only CHECK)."
   },
   {
     "collection": "owner.planBillingNextLines",
@@ -867,7 +888,8 @@
     "missing": "add-ons not modelled (subscription_items); prices pending approval",
     "crud": "R",
     "seed": "none",
-    "scope": "org"
+    "scope": "org",
+    "deferred": "Plan and billing needs owner decisions first: subscription prices and plan limits are pending approval (subscription_plans.feature_set has no limit keys), and the operator side of billing has no route (only GET /admin/orgs/:orgId/subscription); subscription charge retries cannot reuse payment_attempts (guest-only CHECK)."
   },
   {
     "collection": "owner.planBillingRetries",
@@ -877,7 +899,8 @@
     "missing": "payment_attempts cannot hold these: guest_user_id NOT NULL and CHECK payment_attempts_purpose_shape allows booking/service_order only; plus subscriptions.grace_period_ends_at",
     "crud": "R",
     "seed": "demo",
-    "scope": "org"
+    "scope": "org",
+    "deferred": "Plan and billing needs owner decisions first: subscription prices and plan limits are pending approval (subscription_plans.feature_set has no limit keys), and the operator side of billing has no route (only GET /admin/orgs/:orgId/subscription); subscription charge retries cannot reuse payment_attempts (guest-only CHECK)."
   },
   {
     "collection": "owner.planBillingEntitlements",
@@ -887,7 +910,8 @@
     "missing": "feature_set jsonb has no defined limit keys",
     "crud": "R",
     "seed": "none",
-    "scope": "org"
+    "scope": "org",
+    "deferred": "Plan and billing needs owner decisions first: subscription prices and plan limits are pending approval (subscription_plans.feature_set has no limit keys), and the operator side of billing has no route (only GET /admin/orgs/:orgId/subscription); subscription charge retries cannot reuse payment_attempts (guest-only CHECK)."
   },
   {
     "collection": "owner.planBillingInvoices",
@@ -897,7 +921,8 @@
     "missing": "no operator route; display number (INJ-2026-1001); status \"Retrying\" not in enum (derive from failed + next attempt); provider reference lives on the attempt",
     "crud": "R",
     "seed": "demo",
-    "scope": "org"
+    "scope": "org",
+    "deferred": "Plan and billing needs owner decisions first: subscription prices and plan limits are pending approval (subscription_plans.feature_set has no limit keys), and the operator side of billing has no route (only GET /admin/orgs/:orgId/subscription); subscription charge retries cannot reuse payment_attempts (guest-only CHECK)."
   },
   {
     "collection": "owner.planBillingMethods",
@@ -907,7 +932,8 @@
     "missing": "table + routes",
     "crud": "C, R, U",
     "seed": "demo",
-    "scope": "org"
+    "scope": "org",
+    "deferred": "Plan and billing needs owner decisions first: subscription prices and plan limits are pending approval (subscription_plans.feature_set has no limit keys), and the operator side of billing has no route (only GET /admin/orgs/:orgId/subscription); subscription charge retries cannot reuse payment_attempts (guest-only CHECK)."
   },
   {
     "collection": "owner.planBillingInvoiceKinds",
@@ -927,7 +953,8 @@
     "missing": "routes POST /ops/billing/pay, /change-plan, /cancel; subscriptions.cancel_reason",
     "crud": "R, U",
     "seed": "prod",
-    "scope": "platform"
+    "scope": "platform",
+    "deferred": "Plan and billing needs owner decisions first: subscription prices and plan limits are pending approval (subscription_plans.feature_set has no limit keys), and the operator side of billing has no route (only GET /admin/orgs/:orgId/subscription); subscription charge retries cannot reuse payment_attempts (guest-only CHECK)."
   },
   {
     "collection": "owner.settingsBusinessNodes",
@@ -937,7 +964,8 @@
     "missing": "no group/tenant spanning two legal entities; department ledger-account mapping has no table; fiscal devices per property not stored",
     "crud": "R",
     "seed": "none",
-    "scope": "org"
+    "scope": "org",
+    "deferred": "The business tree is the \"two legal entities in one tenant\" story (Amahoro Hospitality Ltd + Amahoro Residences Ltd under one group): orgs is one legal entity per workspace and no group/tenant spans two, so the tree, and the profile that hangs off its node ids, need an /architect decision. Property edits exist (PATCH /inventory/properties/:id) for when it is decided."
   },
   {
     "collection": "owner.settingsBusinessProfiles",
@@ -947,7 +975,8 @@
     "missing": "property kind (class lives on orgs.accommodation_class), branch_code (ISG; rra_branch_id is 2 digits), listed status from listings; location options from geography",
     "crud": "R, U",
     "seed": "demo",
-    "scope": "property"
+    "scope": "property",
+    "deferred": "The business tree is the \"two legal entities in one tenant\" story (Amahoro Hospitality Ltd + Amahoro Residences Ltd under one group): orgs is one legal entity per workspace and no group/tenant spans two, so the tree, and the profile that hangs off its node ids, need an /architect decision. Property edits exist (PATCH /inventory/properties/:id) for when it is decided."
   },
   {
     "collection": "owner.settingsBusinessUnits",
@@ -957,7 +986,8 @@
     "missing": "pending domain change (requested_domain, effective date) not modelled; room ranges/\"from\" rate derived",
     "crud": "R, U",
     "seed": "demo",
-    "scope": "property"
+    "scope": "property",
+    "deferred": "A pending domain change of a room type (hospitality to residence, with an effective date) is not modelled, and the fixture's Lake Apartments type does not exist in the world; needs requested_domain/effective date on room_types and the preview route, after the two-entity decision (leases would be issued by which entity)."
   },
   {
     "collection": "owner.settingsBusinessDomainChecks",
@@ -967,7 +997,8 @@
     "missing": "POST /inventory/room-types/:id/domain-change/preview",
     "crud": "R",
     "seed": "none",
-    "scope": "property"
+    "scope": "property",
+    "deferred": "The checks preview a room type's domain change, which is not modelled (see owner.settingsBusinessUnits)."
   },
   {
     "collection": "owner.settingsBusinessBranches",
@@ -977,7 +1008,8 @@
     "missing": "branch_code",
     "crud": "R",
     "seed": "demo",
-    "scope": "org"
+    "scope": "org",
+    "deferred": "Lists a standalone outlet (Isangano Express kiosk) beside the branches; outlets are the outlets area's seed and the branch list without it would not be the business's. Branch codes (properties.branch_code, ISG/ISH/KCR) are built and seeded for when it is wired."
   },
   {
     "collection": "owner.settingsPoliciesGroups",
@@ -1007,7 +1039,8 @@
     "missing": "table + GET/PUT /ops/property-policies/:propertyId (/ops/policies is already HR staff policies)",
     "crud": "R, U",
     "seed": "demo",
-    "scope": "property"
+    "scope": "property",
+    "deferred": "Policy settings nothing enforces: deposits, no-show charges, approval limits, ID retention and dirty-room overrides are read by no booking, folio or refund rule today, and the screen saves one org-wide set while the backend scopes some settings per property (check-in/out on properties, booking mode on room types). Needs an /architect decision on a property policy model before storing values the platform would not keep."
   },
   {
     "collection": "owner.settingsPoliciesTiers",
@@ -1017,7 +1050,8 @@
     "missing": "model mismatch: fixture = 4 owner-defined windows per policy; backend = 5 fixed named tiers per room type",
     "crud": "R",
     "seed": "prod",
-    "scope": "platform"
+    "scope": "platform",
+    "deferred": "Contradicts the built model: the fixture has owner-defined, versioned cancellation windows per policy, while the platform has five fixed CANCELLATION_TIERS in contracts booking.ts, chosen per room type and locked on each booking. Needs an /architect decision before either side changes."
   },
   {
     "collection": "owner.settingsPoliciesVersions",
@@ -1027,7 +1061,8 @@
     "missing": "needs an /architect decision against CANCELLATION_TIERS; bookings would lock a version id",
     "crud": "R, U (publish)",
     "seed": "demo",
-    "scope": "property"
+    "scope": "property",
+    "deferred": "Contradicts the built model: the fixture has owner-defined, versioned cancellation windows per policy, while the platform has five fixed CANCELLATION_TIERS in contracts booking.ts, chosen per room type and locked on each booking. Needs an /architect decision before either side changes."
   },
   {
     "collection": "owner.settingsPoliciesOutlets",
@@ -1037,7 +1072,8 @@
     "missing": "charge-to-room flag, per-stay limit, rule text; settlement agreement on the tenancy",
     "crud": "R, U",
     "seed": "demo",
-    "scope": "property"
+    "scope": "property",
+    "deferred": "Charge-to-room per outlet needs columns on outlets (allowed, per-stay limit, rule) and a settlement agreement on the tenancy, and the outlets themselves are the outlets area's seed; the tenant outlet's refusal waits for tenancies (an /architect decision, AGENTS.md Outlets)."
   },
   {
     "collection": "owner.integrationsConnections",
@@ -1047,7 +1083,8 @@
     "missing": "tables + GET /ops/integrations, POST /ops/integrations/:id/test; API client keys and channel mapping have no tables",
     "crud": "R, U, C (test run)",
     "seed": "demo",
-    "scope": "org"
+    "scope": "org",
+    "deferred": "Only the EBM row has a record (ebm_connections, GET /ops/ebm/connection); bank, MoMo, channel manager, accounting export, door locks and API keys have no org-level table, and payment provider health is platform-wide (adapter_health_snapshots). Needs org_integrations and test runs designed first."
   },
   {
     "collection": "owner.auditLogAreas",
@@ -1067,7 +1104,8 @@
     "missing": "org id is only inside payload_diff.orgId (modules/people/infrastructure/hr-audit.ts): add org_id, property_id, seq, hash, request_id, ip_address, user_agent, step_up_method, actor_role; only GET /admin/audit exists → GET /ops/audit",
     "crud": "R",
     "seed": "demo",
-    "scope": "org"
+    "scope": "org",
+    "deferred": "audit_events has no org column (the business is only inside payload_diff for some writers) and no hash chain, request id or step-up fields; an org-scoped, tamper-evident audit log needs every writer to stamp the org and a chain-verify job, which is a governance /architect decision. Only GET /admin/audit reads it today."
   },
   {
     "collection": "owner.auditLogRetention",
@@ -1077,7 +1115,8 @@
     "missing": "table + PUT with step-up",
     "crud": "R, U",
     "seed": "demo",
-    "scope": "org"
+    "scope": "org",
+    "deferred": "Retention rules per record class need an org settings home and a purge job that honours legal holds; no business-level retention setting exists, and the platform's retention is per stored object."
   },
   {
     "collection": "owner.auditLogExportFormats",
@@ -1097,7 +1136,8 @@
     "missing": "chain-verify job; export id from report_runs",
     "crud": "R",
     "seed": "none",
-    "scope": "org"
+    "scope": "org",
+    "deferred": "audit_events has no org column (the business is only inside payload_diff for some writers) and no hash chain, request id or step-up fields; an org-scoped, tamper-evident audit log needs every writer to stamp the org and a chain-verify job, which is a governance /architect decision. Only GET /admin/audit reads it today."
   },
   {
     "collection": "commercial.managerKpis",

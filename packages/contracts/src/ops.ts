@@ -1202,6 +1202,12 @@ export const OperatorTeamMember = z.object({
      * limited to stay listed, so the screen can say why one reads as retired.
      */
     branchIds: z.array(Uuid).nullable(),
+    /** The last time any of their sessions was used, or null when they never signed in. */
+    lastActiveAt: z.string().nullable(),
+    /** When a removed member was taken off the business; null while active. */
+    removedAt: z.string().nullable(),
+    /** Their identity is verified (KYC), which an ownership transfer will ask for. */
+    identityVerified: z.boolean(),
 });
 export type OperatorTeamMember = z.infer<typeof OperatorTeamMember>;
 /**
@@ -1253,6 +1259,8 @@ export const ORG_ROLE_LABEL: Readonly<Record<OrgRole, string>> = {
     housekeeper: "Housekeeper",
 };
 export const InviteStaffRequest = z.object({
+    /** The person's name as the inviter typed it, shown on the Team screen until they accept. */
+    name: z.string().trim().min(1).max(120).optional(),
     email: z
         .string()
         .trim()
@@ -1264,6 +1272,22 @@ export const InviteStaffRequest = z.object({
     branchIds: MemberBranchIds.default(null),
 });
 export type InviteStaffRequest = z.infer<typeof InviteStaffRequest>;
+/**
+ * `PATCH /api/v1/ops/team/:userId/role`: move a member to another staff role.
+ *
+ * `InvitableOrgRole` refuses `owner` on the way in, and the service refuses a
+ * member who IS the owner on the way out: ownership changes hands through the
+ * owner claim, which checks an identity document, never through this.
+ */
+export const ChangeMemberRoleRequest = z.object({
+    orgRole: InvitableOrgRole,
+});
+export type ChangeMemberRoleRequest = z.infer<typeof ChangeMemberRoleRequest>;
+/** The words a role change refusal carries, one per rule. */
+export const MEMBER_ROLE_REFUSAL = {
+    owner: "An owner's role changes only through an ownership transfer.",
+    same: "This member already holds that role.",
+} as const;
 export const StaffInvitationStatus = z.enum(["sent", "accepted", "revoked", "expired"]);
 export type StaffInvitationStatus = z.infer<typeof StaffInvitationStatus>;
 /**
@@ -1283,6 +1307,8 @@ export const OperatorStaffInvitation = z.object({
     createdAt: z.string(),
     /** The branches the invitee will cover; null is every branch (ADR-054). */
     branchIds: z.array(Uuid).nullable(),
+    /** The name the inviter typed, or null for an invitation sent with an address only. */
+    name: z.string().nullable(),
 });
 export type OperatorStaffInvitation = z.infer<typeof OperatorStaffInvitation>;
 export const OperatorStaffInvitationList = z.object({

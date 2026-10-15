@@ -96,6 +96,8 @@ import { OpsBrokerController } from './ops/broker.controller';
 import { OpsOffersController } from './ops/offers.controller';
 import { OpsRefundRequestsController } from './ops/refunds.controller';
 import { OpsRevenueController } from './ops/revenue.controller';
+import { OpsOwnerDashboardController, OpsReportsController } from './ops/owner-dashboard.controller';
+import { OpsCertificatesController } from './ops/certificates.controller';
 import {
   OpsDepositsController,
   OpsFilingsController,
@@ -253,6 +255,10 @@ import { WaitlistModule } from './waitlist/waitlist.module';
     OpsRefundRequestsController,
     OpsOffersController,
     OpsRevenueController,
+    // The owner's figures and documents (interface real-data leaf, owner area).
+    OpsOwnerDashboardController,
+    OpsReportsController,
+    OpsCertificatesController,
     OpsHousekeepingController,
     OpsServiceCatalogController,
     OpsServiceOrdersController,
