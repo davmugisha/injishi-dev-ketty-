@@ -22,7 +22,7 @@ async function roomsDepartment(c) {
   return rows[0]?.id ?? null;
 }
 
-export async function seed({ c, fx, log }) {
+export async function seed({ c, fx, log, keep }) {
   const department = await roomsDepartment(c);
   const jeanne = userId('housekeeper');
   const seeded = [];
@@ -63,11 +63,8 @@ export async function seed({ c, fx, log }) {
     );
     written++;
   }
-  // The seed is the truth for the interface world: tasks people made during a demo day go, so a re run
-  // converges on the fixture day rather than accumulating.
-  const { rowCount: removed } = await c.query(
-    'DELETE FROM housekeeping_tasks WHERE workspace_id = $1 AND NOT (id = ANY($2::uuid[]))',
-    [WORKSPACE.hotel, seeded],
-  );
-  log(`platform: ${written} housekeeping tasks at Isangano for Jeanne Nyiraneza (${removed} made since the last seed removed)`);
+  // The seed is the truth for the interface world: tasks people made during a demo day go when the seed
+  // converges (seed-interface.mjs removes every task in the interface workspaces no module kept).
+  keep('housekeeping_tasks', seeded);
+  log(`platform: ${written} housekeeping tasks at Isangano for Jeanne Nyiraneza`);
 }

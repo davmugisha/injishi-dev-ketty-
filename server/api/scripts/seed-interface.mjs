@@ -24,7 +24,10 @@ import { seedMissingDepartments } from './property-departments.mjs';
 import { assertSampleDatabase, describeDatabase } from './sample-database.mjs';
 import { AREAS } from './seed-interface/index.mjs';
 import { loadFixtures, TODAY } from './seed-interface/lib.mjs';
-import { seedWorld } from './seed-interface/world.mjs';
+import { seedWorld, WORKSPACE } from './seed-interface/world.mjs';
+
+/** The business workspaces of the interface world: convergence never reaches past them. */
+const INTERFACE_WORKSPACES = [WORKSPACE.hotel, WORKSPACE.residences];
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 
@@ -52,7 +55,26 @@ try {
   const log = (line) => console.log(`  ${line}`);
   console.log(`Seeding the interface world into ${describeDatabase(url)} (today in Kigali: ${TODAY}).`);
   await client.query('BEGIN');
-  const ctx = { c: client, fx, personas, log };
+  const kept = new Map();
+  const ctx = {
+    c: client,
+    fx,
+    personas,
+    log,
+    /**
+     * Declare the rows a module wrote to a table it owns inside the interface world. After every module has
+     * run, rows of that table in the interface scope that NO module kept are removed, so a re run converges on
+     * the fixture day instead of accumulating what a demo day or a verify flow created. Declare parents before
+     * children (bookings before stays): removal runs in reverse order of first declaration.
+     * `scope` names the column that places a row in the interface world and its values (default: the
+     * interface's business workspaces).
+     */
+    keep(table, ids, scope = { column: 'workspace_id', values: INTERFACE_WORKSPACES }) {
+      const entry = kept.get(table) ?? { ids: new Set(), scope };
+      for (const id of ids) entry.ids.add(id);
+      kept.set(table, entry);
+    },
+  };
   await seedWorld(ctx);
   // Departments and the head office before any area: tasks, staff and charges point at departments.
   const departments = await seedMissingDepartments(client);
@@ -64,6 +86,14 @@ try {
     } catch (error) {
       throw new Error(`${area}: ${error?.message ?? error}`, { cause: error });
     }
+  }
+  for (const [table, { ids, scope }] of [...kept.entries()].reverse()) {
+    if (!/^[a-z_]+$/.test(table) || !/^[a-z_]+$/.test(scope.column)) throw new Error(`bad table or column: ${table}.${scope.column}`);
+    const { rowCount } = await client.query(
+      `DELETE FROM ${table} WHERE ${scope.column} = ANY($1::uuid[]) AND NOT (id = ANY($2::uuid[]))`,
+      [scope.values, [...ids]],
+    );
+    if (rowCount) log(`converged ${table}: ${rowCount} row(s) made since the last seed removed`);
   }
   await client.query('COMMIT');
   console.log('INTERFACE SEED DONE');
