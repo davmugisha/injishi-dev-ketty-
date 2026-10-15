@@ -10,6 +10,7 @@
  *   - the same documents, matched on the source's `naturalKey` (ids differ: fixture slugs vs uuids);
  *   - every key the fixtures always carry, with a value of the same kind (string, number, boolean,
  *     array, object; null where a fixture has null).
+ * A source declaring `parity: "shape"` (documents keyed by real dates) is held to the count and the shape only.
  * Prints "DATA PARITY OK <n> collections" only when all of them hold. Seed first:
  * `node server/api/scripts/seed-interface.mjs`.
  */
@@ -25,9 +26,16 @@ function arg(name: string): string | null {
 
 const kind = (v: unknown) => (v === null ? "null" : Array.isArray(v) ? "array" : typeof v);
 
-function compare(collection: string, live: Doc[], fixture: Doc[], naturalKey: string | undefined): string[] {
+function compare(
+  collection: string,
+  live: Doc[],
+  fixture: Doc[],
+  naturalKey: string | undefined,
+  parity: "identity" | "shape" = "identity",
+): string[] {
   const problems: string[] = [];
   if (live.length !== fixture.length) problems.push(`${live.length} documents, the fixtures have ${fixture.length}`);
+  if (parity === "shape") return [...problems, ...shapeProblems(live, fixture)].map((p) => `${collection}: ${p}`);
   const key = naturalKey ?? "id";
   const names = (docs: Doc[]) => docs.map((d) => String((d as Record<string, unknown>)[key])).sort();
   const want = names(fixture);
@@ -36,7 +44,13 @@ function compare(collection: string, live: Doc[], fixture: Doc[], naturalKey: st
   const extra = got.filter((n) => !want.includes(n));
   if (missing.length) problems.push(`missing ${key}: ${missing.join(", ")}`);
   if (extra.length) problems.push(`unexpected ${key}: ${extra.join(", ")}`);
-  // Keys every fixture document carries, and the kinds of value they take.
+  problems.push(...shapeProblems(live, fixture));
+  return problems.map((p) => `${collection}: ${p}`);
+}
+
+/** Keys every fixture document carries, and the kinds of value they take. */
+function shapeProblems(live: Doc[], fixture: Doc[]): string[] {
+  const problems: string[] = [];
   const required = Object.keys(fixture[0] ?? {}).filter((k) => fixture.every((d) => k in d));
   for (const k of required) {
     const kinds = new Set(fixture.map((d) => kind((d as Record<string, unknown>)[k])));
@@ -52,7 +66,7 @@ function compare(collection: string, live: Doc[], fixture: Doc[], naturalKey: st
       }
     }
   }
-  return problems.map((p) => `${collection}: ${p}`);
+  return problems;
 }
 
 void main(async () => {
@@ -77,7 +91,7 @@ void main(async () => {
       } catch (error) {
         fail(`${name} as ${persona ?? "anonymous"}: ${error instanceof Error ? error.message : String(error)}`);
       }
-      const found = compare(name, live, fixtures(name), source.naturalKey);
+      const found = compare(name, live, fixtures(name), source.naturalKey, source.parity);
       console.log(`  ${found.length ? "✗" : "✓"} ${name} as ${persona ?? "anonymous"}: ${live.length} documents`);
       problems.push(...found.map((p) => `${p} (as ${persona ?? "anonymous"})`));
     }
