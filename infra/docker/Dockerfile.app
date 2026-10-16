@@ -25,6 +25,10 @@ COPY packages/contracts/package.json ./packages/contracts/
 COPY packages/qr/package.json ./packages/qr/
 COPY packages/design-tokens/package.json ./packages/design-tokens/
 COPY packages/ui/package.json ./packages/ui/
+# Full `pnpm install` below needs every workspace member the lockfile names.
+# apps/web (copied above) aliases @injishi/ui to web-ui; ui-contract is its peer.
+COPY packages/web-ui/package.json ./packages/web-ui/
+COPY packages/ui-contract/package.json ./packages/ui-contract/
 COPY packages/data/package.json ./packages/data/
 COPY packages/db/package.json ./packages/db/
 COPY packages/utils/package.json ./packages/utils/
