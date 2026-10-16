@@ -72,8 +72,9 @@ ENV_FILE="$DEMO_ROOT/.env"
 PROJECT=${DEMO_COMPOSE_PROJECT:-injishi-demo}
 COMPOSE_FILE=infra/docker/docker-compose.demo.yml
 # The four images the stack builds; `worker` runs the api image.
-IMAGES=(injishi-api injishi-web injishi-app injishi-admin)
-APP_SERVICES=(api worker web app admin)
+# No injishi-admin: apps/admin was removed; staff console lives in apps/app at /admin.
+IMAGES=(injishi-api injishi-web injishi-app)
+APP_SERVICES=(api worker web app)
 LIVE_DB=injishi_demo
 NEXT_DB=injishi_demo_next
 PREV_DB=injishi_demo_prev
@@ -203,10 +204,11 @@ compose exec -T db sh -c 'until pg_isready -q -U "$POSTGRES_USER"; do sleep 1; d
 
 # ── 2. build the candidate images ─────────────────────────────────────────────────
 log "building :demo-next images at $short"
-# One image at a time. One `compose build` of all four bakes them in parallel,
+# One image at a time. One `compose build` of all three bakes them in parallel,
 # and three Next builds at once ran the 3.9 GB demo host out of memory and swap
-# (2026-09-14). Slower, and it finishes.
-for service in api web app admin; do
+# (2026-09-14). Slower, and it finishes. Admin is apps/app's /admin, not a
+# fourth image.
+for service in api web app; do
   log "building $service"
   HEROUI_AUTH_TOKEN=$heroui_token DEMO_IMAGE_TAG=demo-next INJISHI_COMMIT=$short compose build "$service"
 done
@@ -275,7 +277,8 @@ compose restart mailpit >/dev/null
 # below never ran and the demo stayed down until a hand restore. The health
 # checks are what decide.
 phase=confirm
-compose up -d --no-build || log "compose up exited non zero; the health checks below decide" >&2
+# --remove-orphans drops the retired injishi-admin service (staff is apps/app now).
+compose up -d --no-build --remove-orphans || log "compose up exited non zero; the health checks below decide" >&2
 health_of() {
   local id
   id=$(compose ps -q "$1")
