@@ -460,7 +460,9 @@ services:
       - default
       - dokploy-network
 
-  # The operator zone behind web. Compose network only: no public hostname.
+  # The new interface (operator + staff). Public on admin-demo (staff console
+  # lives at /admin inside this app; apps/admin is gone). Compose-only for
+  # everything else: web still owns app-demo redirects into the marketplace zone.
   app:
     image: injishi-app:${DEMO_IMAGE_TAG:-demo}
     build:
@@ -483,40 +485,22 @@ services:
       api:
         condition: service_healthy
     deploy: *large
-    networks:
-      - default
-
-  # The staff console, behind ADMIN_ALLOWED_IPS like production's (AC-3). The
-  # staff persona (`ops@demo.injishi.com`) opens it after the step up.
-  admin:
-    image: injishi-admin:${DEMO_IMAGE_TAG:-demo}
-    build:
-      context: ../..
-      dockerfile: infra/docker/Dockerfile.admin
-      secrets:
-        - heroui_token
-      args:
-        <<: *demo-public
-    restart: unless-stopped
-    environment:
-      <<: *demo-public
-      NODE_ENV: production
-      PORT: "3001"
-    expose:
-      - "3001"
-    depends_on:
-      api:
-        condition: service_healthy
-    deploy: *medium
     labels:
       - traefik.enable=true
       - traefik.docker.network=dokploy-network
-      - traefik.http.services.injishi-demo-admin.loadbalancer.server.port=3001
+      - traefik.http.services.injishi-demo-admin.loadbalancer.server.port=3002
       - traefik.http.middlewares.injishi-demo-admin-allow.ipallowlist.sourcerange=${ADMIN_ALLOWED_IPS:-127.0.0.1/32}
+      - traefik.http.middlewares.injishi-demo-admin-root.redirectregex.regex=^https?://[^/]+/?$$
+      - traefik.http.middlewares.injishi-demo-admin-root.redirectregex.replacement=https://${ADMIN_HOST:-admin-demo.injishi.com}/admin
       - traefik.http.routers.injishi-demo-admin-http.rule=Host(`${ADMIN_HOST:-admin-demo.injishi.com}`)
       - traefik.http.routers.injishi-demo-admin-http.entrypoints=web
       - traefik.http.routers.injishi-demo-admin-http.middlewares=redirect-to-https@file
       - traefik.http.routers.injishi-demo-admin-http.service=injishi-demo-admin
+      - traefik.http.routers.injishi-demo-admin-root.rule=Host(`${ADMIN_HOST:-admin-demo.injishi.com}`) && Path(`/`)
+      - traefik.http.routers.injishi-demo-admin-root.entrypoints=websecure
+      - traefik.http.routers.injishi-demo-admin-root.tls.certresolver=letsencrypt
+      - traefik.http.routers.injishi-demo-admin-root.middlewares=injishi-demo-admin-allow,injishi-demo-admin-root
+      - traefik.http.routers.injishi-demo-admin-root.service=injishi-demo-admin
       - traefik.http.routers.injishi-demo-admin.rule=Host(`${ADMIN_HOST:-admin-demo.injishi.com}`)
       - traefik.http.routers.injishi-demo-admin.entrypoints=websecure
       - traefik.http.routers.injishi-demo-admin.tls.certresolver=letsencrypt
@@ -526,7 +510,7 @@ services:
       - default
       - dokploy-network
 
-# HeroUI Pro's CI/CD token for the three frontend builds, read from this
+# HeroUI Pro's CI/CD token for the frontend builds, read from this
 # stack's .env (stack settings live on the host, never in GitHub). See the
 # note in Dockerfile.web.
 secrets:
