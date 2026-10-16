@@ -147,7 +147,15 @@ const nextConfig: NextConfig = {
     };
   },
   async redirects() {
+    /**
+     * Signing in and registering a business happen in the operator app
+     * (`apps/app`), on its own origin. Redirects run before middleware, so the
+     * private-page gate's bounce to `/sign-in` lands there too.
+     */
+    const appUrl = (process.env.NEXT_PUBLIC_PMS_URL || "http://localhost:3002").replace(/\/$/, "");
     return [
+      { source: "/sign-in", destination: `${appUrl}/sign-in`, permanent: false },
+      { source: "/register", destination: `${appUrl}/register`, permanent: false },
       { source: "/home/index.html", destination: "/", permanent: false },
       { source: "/home", destination: "/", permanent: false },
       ...webAppScreens.map((s) => ({

@@ -26,7 +26,7 @@
     "@injishi/auth": "workspace:*",
     "@injishi/contracts": "workspace:*",
     "@injishi/qr": "workspace:*",
-    "@injishi/ui": "workspace:*",
+    "@injishi/ui": "workspace:@injishi/web-ui@*",
     "@injishi/utils": "workspace:*",
     "@paper-design/shaders-react": "^0.0.80",
     "class-variance-authority": "^0.7.1",
