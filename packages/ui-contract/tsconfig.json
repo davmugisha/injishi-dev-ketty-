@@ -1,0 +1,19 @@
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "module": "ESNext",
+    "moduleResolution": "bundler",
+    "strict": true,
+    "noEmit": true,
+    // OFF on purpose, unlike every other package here. The whole package IS a
+    // declaration file, and skipLibCheck skips declaration files, so leaving it
+    // on would make `typecheck` check nothing at all, including the self checks
+    // at the bottom of src/index.d.ts.
+    "skipLibCheck": false,
+    "isolatedModules": true,
+    "forceConsistentCasingInFileNames": true,
+    // No ambient @types: this package describes names, it runs in no runtime.
+    "types": []
+  },
+  "include": ["src/**/*.ts"]
+}

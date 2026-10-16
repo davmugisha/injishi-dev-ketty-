@@ -7,7 +7,7 @@
     "node": ">=22.13"
   },
   "scripts": {
-    "dev": "turbo run dev --filter=@injishi/app",
+    "dev": "turbo run dev --filter=@injishi/web --filter=@injishi/app",
     "dev:mobile": "turbo run dev --filter=@injishi/mobile",
     "build": "turbo run build",
     "typecheck": "turbo run typecheck",
@@ -22,6 +22,9 @@
     "web:build": "pnpm --filter @injishi/web build",
     "web:start": "pnpm --filter @injishi/web start",
     "web:tokens:sync": "pnpm --filter @injishi/web tokens:sync",
+    "app:dev": "pnpm --filter @injishi/app dev",
+    "app:build": "pnpm --filter @injishi/app build",
+    "app:start": "pnpm --filter @injishi/app start",
     "api:dev": "pnpm --filter @injishi/api dev",
     "api:build": "pnpm --filter @injishi/api build",
     "api:start": "pnpm --filter @injishi/api start",

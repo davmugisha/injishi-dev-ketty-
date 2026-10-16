@@ -11,6 +11,11 @@ const config: NextConfig = {
     optimizePackageImports: ["@gravity-ui/icons"],
   },
   devIndicators: false,
+  // The product's front door is the marketplace (apps/web); this app has no page at `/`.
+  async redirects() {
+    const webUrl = (process.env.NEXT_PUBLIC_WEB_URL || "http://localhost:3000").replace(/\/$/, "");
+    return [{ source: "/", destination: webUrl, permanent: false }];
+  },
 };
 
 export default config;
