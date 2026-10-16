@@ -31,6 +31,11 @@ COPY packages/contracts/package.json ./packages/contracts/
 COPY packages/qr/package.json ./packages/qr/
 COPY packages/design-tokens/package.json ./packages/design-tokens/
 COPY packages/ui/package.json ./packages/ui/
+# apps/web aliases @injishi/ui to @injishi/web-ui (PR #40); without these two
+# manifests the install never pulls HeroUI Pro for the package that owns pro.css,
+# and `next build` fails resolving `@heroui-pro/react/css` from packages/web-ui.
+COPY packages/web-ui/package.json ./packages/web-ui/
+COPY packages/ui-contract/package.json ./packages/ui-contract/
 COPY packages/data/package.json ./packages/data/
 COPY packages/db/package.json ./packages/db/
 COPY packages/utils/package.json ./packages/utils/
