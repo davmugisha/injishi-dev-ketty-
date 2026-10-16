@@ -1,10 +1,10 @@
 import { screens } from "@injishi/data";
 import type { GoodsReceipt, MatchResolution, ReasonOption, ReceiptLine } from "@injishi/data/fixtures/stock";
-import { getCollection, getDocument } from "@injishi/db";
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { GoodsReceiptView } from "@/features/stock/GoodsReceiptView";
 import { requirePersona } from "@/lib/session";
+import { getCollection, getDocument } from "@/server/data";
 
 export const metadata: Metadata = { title: screens.GoodsReceipt.pageTitle };
 

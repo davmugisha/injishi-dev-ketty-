@@ -19,6 +19,7 @@ import {
   numeric,
   pgEnum,
   pgTable,
+  smallint,
   text,
   timestamp,
   unique,
@@ -30,6 +31,8 @@ import { users } from './auth';
 import { amount, currency, timestamps } from './columns';
 import { taxCodeEnum } from './enums';
 import { bookings, guestStays } from './hospitality';
+// Lazy only (inside `references`): interface-operations imports this module back.
+import { housekeepingRules } from './interface-operations';
 import { amenities, properties, rooms } from './inventory';
 import { ebmInvoices } from './money';
 import { orgs, workspaces } from './org';
@@ -818,6 +821,8 @@ export const housekeepingTaskStatusEnum = pgEnum('housekeeping_task_status', [
   'done',
   'inspected',
   'blocked',
+  // The clean did not pass inspection; a re-clean task names this one (real-data 1.2.3).
+  'failed',
 ]);
 
 
@@ -862,7 +867,23 @@ export const housekeepingTasks = pgTable(
      */
     idempotencyKey: text('idempotency_key'),
     startedAt: timestamp('started_at', { withTimezone: true }),
+    /** When the clean was finished (`done`). Inspection keeps it and stamps its own time below. */
     completedAt: timestamp('completed_at', { withTimezone: true }),
+    // --- The housekeeping board (real-data 1.2.3) ---
+    /** When the room has to be ready. */
+    dueAt: timestamp('due_at', { withTimezone: true }),
+    estimatedMinutes: smallint('estimated_minutes'),
+    /** The rule that created it; null when a person added it by hand. */
+    ruleId: uuid('rule_id').references((): AnyPgColumn => housekeepingRules.id, {
+      onDelete: 'set null',
+    }),
+    /** A re-clean names the task whose inspection failed. */
+    reopenedFromTaskId: uuid('reopened_from_task_id').references(
+      (): AnyPgColumn => housekeepingTasks.id,
+    ),
+    inspectedAt: timestamp('inspected_at', { withTimezone: true }),
+    inspectedByUserId: uuid('inspected_by_user_id').references(() => users.id),
+    inspectionNote: text('inspection_note'),
     ...timestamps,
   },
   (t) => [

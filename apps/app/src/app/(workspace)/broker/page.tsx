@@ -7,10 +7,10 @@ import type {
   BrokerRegistration,
   Placement,
 } from "@injishi/data/fixtures/public";
-import { getCollection } from "@injishi/db";
 import type { Metadata } from "next";
 import { BrokerWorkView } from "@/features/public/BrokerWorkView";
 import { requirePersona } from "@/lib/session";
+import { getCollection } from "@/server/data";
 
 export const metadata: Metadata = { title: screens.BrokerWork.pageTitle };
 

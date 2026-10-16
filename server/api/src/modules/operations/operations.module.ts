@@ -6,12 +6,28 @@ import { BrokerService } from './application/broker.service';
 import { DepartmentsService } from './application/departments.service';
 import { FolioService } from './application/folio.service';
 import { FrontDeskService } from './application/front-desk.service';
+import { FrontDeskBoardService } from './application/front-desk-board.service';
 import { SelfCheckInService } from './application/self-check-in.service';
 import { HousekeepingService } from './application/housekeeping.service';
+// The new interface's operations floor (real-data 1.2.3).
+import { HousekeepingBoardService } from './application/housekeeping-board.service';
+import { LostFoundService } from './application/lost-found.service';
+import { WorkOrdersService } from './application/work-orders.service';
+import { HousekeepingBoardRepository } from './infrastructure/housekeeping-board.repository';
+import { LostFoundRepository } from './infrastructure/lost-found.repository';
+import { WorkOrdersRepository } from './infrastructure/work-orders.repository';
+// The new interface's residence (real-data 1.3.1).
+import { ResidenceInterfaceService } from './application/residence-interface.service';
+import { ResidenceInterfaceRepository } from './infrastructure/residence-interface.repository';
+// The staff phone (real-data 1.3.3).
+import { StaffPhoneService } from './application/staff-phone.service';
+import { WorkOrderTimeService } from './application/work-order-time.service';
+import { StaffPhoneRepository } from './infrastructure/staff-phone.repository';
 import { MessagingService } from './application/messaging.service';
 import { NightAuditService } from './application/night-audit.service';
 import { ResidenceService } from './application/residence.service';
 import { RevenueService } from './application/revenue.service';
+import { OwnerDashboardService } from './application/owner-dashboard.service';
 import { RoomAssignmentService } from './application/room-assignment.service';
 import { ServiceCatalogService } from './application/service-catalog.service';
 import { GuestOrderingService } from './application/guest-ordering.service';
@@ -26,11 +42,14 @@ import { BrokerOpsRepository } from './infrastructure/broker-ops.repository';
 import { DepartmentsRepository } from './infrastructure/departments.repository';
 import { FolioRepository } from './infrastructure/folio.repository';
 import { FrontDeskRepository } from './infrastructure/front-desk.repository';
+import { FrontDeskBoardRepository } from './infrastructure/front-desk-board.repository';
+import { MessageTemplatesRepository } from './infrastructure/message-templates.repository';
 import { HousekeepingRepository } from './infrastructure/housekeeping.repository';
 import { MessagingRepository } from './infrastructure/messaging.repository';
 import { NightAuditProcessor } from './infrastructure/night-audit.processor';
 import { ResidenceRepository } from './infrastructure/residence.repository';
 import { RevenueRepository } from './infrastructure/revenue.repository';
+import { OwnerDashboardRepository } from './infrastructure/owner-dashboard.repository';
 import { RoomAssignmentRepository } from './infrastructure/room-assignment.repository';
 import { ServiceCatalogRepository } from './infrastructure/service-catalog.repository';
 import { GuestOrderingRepository } from './infrastructure/guest-ordering.repository';
@@ -86,6 +105,10 @@ import { PaymentsModule } from '../payments/payments.module';
   imports: [MailerModule, PaymentsModule],
   providers: [
     FrontDeskRepository,
+    // The front desk's day in one read (interface real-data, frontdesk leaf).
+    FrontDeskBoardRepository,
+    FrontDeskBoardService,
+    MessageTemplatesRepository,
     MessagingRepository,
     ResidenceRepository,
     BrokerOpsRepository,
@@ -93,6 +116,9 @@ import { PaymentsModule } from '../payments/payments.module';
     DepartmentsRepository,
     FolioRepository,
     RevenueRepository,
+    // The owner's figures (dashboard, revenue by day, performance by branch):
+    // sums over the folio, booking and payment rows this module writes.
+    OwnerDashboardRepository,
     RoomAssignmentRepository,
     HousekeepingRepository,
     ServiceCatalogRepository,
@@ -103,6 +129,17 @@ import { PaymentsModule } from '../payments/payments.module';
     StayRefundRepository,
     PreArrivalIdentityRepository,
     StayInvitationMailer,
+    HousekeepingBoardRepository,
+    WorkOrdersRepository,
+    LostFoundRepository,
+    ResidenceInterfaceRepository,
+    HousekeepingBoardService,
+    WorkOrdersService,
+    LostFoundService,
+    ResidenceInterfaceService,
+    StaffPhoneRepository,
+    StaffPhoneService,
+    WorkOrderTimeService,
     FrontDeskService,
     MessagingService,
     ResidenceService,
@@ -111,6 +148,7 @@ import { PaymentsModule } from '../payments/payments.module';
     DepartmentsService,
     FolioService,
     RevenueService,
+    OwnerDashboardService,
     RoomAssignmentService,
     HousekeepingService,
     ServiceCatalogService,
@@ -126,6 +164,9 @@ import { PaymentsModule } from '../payments/payments.module';
     ...(isWorkerProcess() ? [NightAuditProcessor] : []),
   ],
   exports: [
+    // For OpsFrontDeskController and OpsMessageTemplatesController in PublicApiModule.
+    FrontDeskBoardService,
+    MessageTemplatesRepository,
     // Self check-in before arrival (ADR-060).
     SelfCheckInService,
     // The booking module settles a pay now order's mobile money through it.
@@ -147,6 +188,13 @@ import { PaymentsModule } from '../payments/payments.module';
     StayClaimService,
     StayRefundService,
     NightAuditService,
+    OwnerDashboardService,
+    HousekeepingBoardService,
+    WorkOrdersService,
+    LostFoundService,
+    ResidenceInterfaceService,
+    StaffPhoneService,
+    WorkOrderTimeService,
   ],
 })
 export class OperationsModule {}

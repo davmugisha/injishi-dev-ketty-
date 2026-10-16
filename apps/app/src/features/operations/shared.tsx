@@ -1,13 +1,70 @@
 "use client";
 
-import { Label, ListBox, Modal, Select } from "@heroui/react";
+import { Label, ListBox, Modal, Select, toast } from "@heroui/react";
 import { Timeline } from "@heroui-pro/react";
 import type { HistoryEvent } from "@injishi/data/fixtures/operations";
 import { toneStatus } from "@injishi/ui";
-import { type Key, type ReactNode, useId } from "react";
+import { type Key, type ReactNode, useEffect, useId, useState } from "react";
 
-/** The boards' clock: decisions taken on these screens are stamped at this time. */
+/** The prototype clock of the boards still drawn from fixtures (Loyalty, Distribution, Outlets). */
 export const NOW = "12:20";
+
+const KIGALI = "Africa/Kigali";
+
+/** "07:12" in Kigali. */
+export function kigaliClock(at: Date): string {
+  return new Intl.DateTimeFormat("en-GB", {
+    timeZone: KIGALI,
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: false,
+  }).format(at);
+}
+
+/** "15 Oct" in Kigali. */
+export function kigaliDayMonth(at: Date): string {
+  return new Intl.DateTimeFormat("en-GB", { timeZone: KIGALI, day: "numeric", month: "short" }).format(at);
+}
+
+/** "Thursday 15 October 2026" in Kigali. */
+export function kigaliLongDate(at: Date): string {
+  const parts = new Intl.DateTimeFormat("en-GB", {
+    timeZone: KIGALI,
+    weekday: "long",
+    day: "numeric",
+    month: "long",
+    year: "numeric",
+  }).formatToParts(at);
+  const part = (type: string) => parts.find((p) => p.type === type)?.value ?? "";
+  return `${part("weekday")} ${part("day")} ${part("month")} ${part("year")}`;
+}
+
+/**
+ * The real time in Kigali for the live boards, refreshed every minute. Null during the server render
+ * and the first client render, so the two always agree; the clock appears once the page is mounted.
+ */
+export function useKigaliNow(): Date | null {
+  const [now, setNow] = useState<Date | null>(null);
+  useEffect(() => {
+    setNow(new Date());
+    const timer = setInterval(() => setNow(new Date()), 60_000);
+    return () => clearInterval(timer);
+  }, []);
+  return now;
+}
+
+/** Show an action's refusal in a toast. True when the action went through. */
+export function reported(result: { ok: true } | { ok: false; error: string }): boolean {
+  if (!result.ok) toast.danger(result.error);
+  return result.ok;
+}
+
+/** One key per press, for a command the API lets a replay land once (`Idempotency-Key`). */
+export function pressKey(): string {
+  return typeof crypto !== "undefined" && "randomUUID" in crypto
+    ? crypto.randomUUID()
+    : `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+}
 
 /** Field label used above groups inside cards (artifact: .label). */
 export function FieldLabel({ children, id }: { children: ReactNode; id?: string }) {

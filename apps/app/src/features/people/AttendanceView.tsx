@@ -23,6 +23,8 @@ import {
   Tabs,
   TextArea,
   TextField,
+  Toast,
+  toast,
 } from "@heroui/react";
 import { ItemCard, ItemCardGroup, KPIGroup, NativeSelect, Segment } from "@heroui-pro/react";
 import { KPI } from "@heroui-pro/react/kpi";
@@ -38,6 +40,7 @@ import type {
 import { Icon, LinkButton, PageContent, PageHeader, toneColor } from "@injishi/ui";
 import { Fragment, type ReactNode, useOptimistic, useState, useTransition } from "react";
 import { decideCorrection, saveDeskEntry } from "./actions";
+import { dayMonthYear, fullDay } from "./days";
 import { firstName, PanelCard } from "./parts";
 
 export interface AttendanceData {
@@ -65,10 +68,15 @@ export function AttendanceView({
   persona,
   data,
   initial,
+  today,
+  now,
 }: {
   persona: Persona;
   data: AttendanceData;
   initial: { day: Day; tab: View };
+  /** Today in Kigali ("2026-10-15") and the time the page was drawn ("09:40"). */
+  today: string;
+  now: string;
 }) {
   const { summary } = data;
   const [day, setDay] = useState<Day>(initial.day);
@@ -84,7 +92,7 @@ export function AttendanceView({
 
   // Desk entry form.
   const [emp, setEmp] = useState(data.deskEmployees[0]?.id ?? "");
-  const [date, setDate] = useState("12 Oct 2026");
+  const [date, setDate] = useState(() => dayMonthYear(today));
   const [clockIn, setClockIn] = useState("06:00");
   const [clockOut, setClockOut] = useState("");
   const [reason, setReason] = useState(DESK_REASONS[0]);
@@ -152,7 +160,8 @@ export function AttendanceView({
             ? `Correction entry added by ${persona.name}. The original clock record is kept.`
             : `Declined by ${persona.name}. The reason was sent to ${firstName(c.name)} and the line manager.`,
       });
-      await decideCorrection(c.id, state, declineNotes[c.id]);
+      const result = await decideCorrection(c.id, state, declineNotes[c.id]);
+      if (!result.ok) toast.danger(result.error);
     });
 
   const save = () => {
@@ -173,15 +182,18 @@ export function AttendanceView({
         source: "desk",
         sourceNote: `By ${persona.name} · justification on file`,
         clockOut: clockOut.trim() || "—",
-        status: "Awaiting manager",
+        status: "Saving",
         tone: "info",
         addedAt: new Date().toISOString(),
       });
       const res = await saveDeskEntry(entry);
       if (res.ok) {
-        setSavedName(res.name ?? employee.name);
+        setSavedName(employee.name);
         setJustification("");
         setShowError(false);
+      } else {
+        setSavedName(null);
+        toast.danger(res.error);
       }
     });
     setDay("today");
@@ -196,7 +208,7 @@ export function AttendanceView({
   return (
     <PageContent>
       <PageHeader
-        eyebrow="Monday 12 October 2026 · all properties · 09:40"
+        eyebrow={`${fullDay(today)} · all properties · ${now}`}
         title="Attendance"
         description="Clock records keep their source. Corrections add a new entry with a reason; the original is never edited."
         actions={
@@ -527,8 +539,8 @@ export function AttendanceView({
                 <Alert.Content>
                   <Alert.Title>Desk entry saved for {savedName}</Alert.Title>
                   <Alert.Description>
-                    Added to today’s records with source Desk. It goes into payroll only after the line manager
-                    confirms.
+                    Added to the records with source Desk, validated as you saved it. The reason and the
+                    justification stay on the record.
                   </Alert.Description>
                 </Alert.Content>
               </Alert>
@@ -536,6 +548,7 @@ export function AttendanceView({
           </PanelCard>
         </div>
       </div>
+      <Toast.Provider placement="bottom" />
     </PageContent>
   );
 }

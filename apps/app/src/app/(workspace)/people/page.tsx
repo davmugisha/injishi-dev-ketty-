@@ -8,10 +8,11 @@ import type {
   PeopleProperty,
   RosterGap,
 } from "@injishi/data/fixtures/people";
-import { getCollection } from "@injishi/db";
 import type { Metadata } from "next";
 import { PeopleHomeView } from "@/features/people/PeopleHomeView";
 import { requirePersona } from "@/lib/session";
+import { getCollection, requestContext } from "@/server/data";
+import { clock } from "@/server/format";
 
 export const metadata: Metadata = { title: screens.PeopleHome.pageTitle };
 
@@ -26,10 +27,13 @@ export default async function PeopleHomePage() {
     getCollection<ExpiringItem>("people.expiring"),
     getCollection<HelpdeskTicket>("people.tickets"),
   ]);
+  const { today } = await requestContext();
   return (
     <PeopleHomeView
       persona={persona}
       data={{ properties, presence, leave, gaps, payRun: payRuns[0], expiring, tickets }}
+      today={today.iso}
+      now={clock(new Date())}
     />
   );
 }

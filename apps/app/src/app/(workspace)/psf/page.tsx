@@ -1,9 +1,9 @@
 import { screens } from "@injishi/data";
 import type { ChamberMember, MembershipApplication } from "@injishi/data/fixtures/oversight";
-import { getCollection } from "@injishi/db";
 import type { Metadata } from "next";
 import { PsfConsoleView } from "@/features/oversight/PsfConsoleView";
 import { requirePersona } from "@/lib/session";
+import { getCollection } from "@/server/data";
 
 export const metadata: Metadata = { title: screens.PsfConsole.pageTitle };
 

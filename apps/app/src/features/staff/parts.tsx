@@ -10,6 +10,11 @@ import { createPortal } from "react-dom";
 
 const cx = (...c: (string | false | null | undefined)[]) => c.filter(Boolean).join(" ");
 
+/** The Kigali wall clock now, "11:06": when the person did something on this phone. */
+export function kigaliClock(at: Date = new Date()): string {
+  return at.toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit", timeZone: "Africa/Kigali" });
+}
+
 /**
  * Renders an ItemCard as a native button — the documented ItemCard "Pressable" pattern
  * (docs/heroui/item-card.md), used where the whole card is one tap target.

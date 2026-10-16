@@ -1,9 +1,9 @@
 import { screens } from "@injishi/data";
 import type { BasketLine, MenuCategory, MenuItem, RoomServiceOrder, ServiceHour } from "@injishi/data/fixtures/outlets";
-import { getCollection } from "@injishi/db";
 import type { Metadata } from "next";
 import { QrOrderView, type QrStep } from "@/features/outlets/QrOrderView";
 import { requirePersona } from "@/lib/session";
+import { getCollection } from "@/server/data";
 
 export const metadata: Metadata = { title: screens.QROrder.pageTitle };
 

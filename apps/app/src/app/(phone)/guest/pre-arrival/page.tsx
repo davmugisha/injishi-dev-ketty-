@@ -8,11 +8,11 @@ import type {
   PreArrivalForm,
   PreArrivalNextStep,
 } from "@injishi/data/fixtures/guest";
-import { getCollection, getDocument } from "@injishi/db";
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { GuestPreArrivalView, type PreArrivalStep } from "@/features/guest/GuestPreArrivalView";
 import { requirePersona } from "@/lib/session";
+import { getCollection, getDocument } from "@/server/data";
 
 export const metadata: Metadata = { title: screens.GuestPreArrival.pageTitle };
 

@@ -1,9 +1,9 @@
 import { screens } from "@injishi/data";
 import type { IntegrationsConnection } from "@injishi/data/fixtures/owner";
-import { getCollection } from "@injishi/db";
 import type { Metadata } from "next";
 import { IntegrationsView } from "@/features/owner/IntegrationsView";
 import { requirePersona } from "@/lib/session";
+import { getCollection } from "@/server/data";
 
 export const metadata: Metadata = { title: screens.Integrations.pageTitle };
 

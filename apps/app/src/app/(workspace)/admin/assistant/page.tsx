@@ -7,10 +7,10 @@ import type {
   UsageAlert,
   UsageMonth,
 } from "@injishi/data/fixtures/platformops";
-import { getCollection } from "@injishi/db";
 import type { Metadata } from "next";
 import { AssistantUsageView } from "@/features/platformops/AssistantUsageView";
 import { requirePersona } from "@/lib/session";
+import { getCollection } from "@/server/data";
 
 export const metadata: Metadata = { title: screens.AssistantUsage.pageTitle };
 

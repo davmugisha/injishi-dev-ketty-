@@ -11,7 +11,20 @@ import {
   Suitcase,
   TriangleExclamation,
 } from "@gravity-ui/icons";
-import { Alert, Button, Card, Chip, Description, Fieldset, Label, Modal, Table, Tabs } from "@heroui/react";
+import {
+  Alert,
+  Button,
+  Card,
+  Chip,
+  Description,
+  Fieldset,
+  Label,
+  Modal,
+  Table,
+  Tabs,
+  Toast,
+  toast,
+} from "@heroui/react";
 import { ListView, NativeSelect, Segment } from "@heroui-pro/react";
 import { screenHref } from "@injishi/data";
 import type {
@@ -25,8 +38,10 @@ import type {
   WeekId,
 } from "@injishi/data/fixtures/people";
 import { GateChip, KeyValueList, LinkButton, PageContent, PageHeader } from "@injishi/ui";
-import { Fragment, useState } from "react";
+import { Fragment, useState, useTransition } from "react";
 import { TopbarStatus } from "@/components/shell/TopbarStatus";
+import { decideShiftSwap, publishRosterWeek, setRosterLent, setRosterShift } from "./actions";
+import { addDays, longDay, shortDay, weekdayLong } from "./days";
 import { PanelCard } from "./parts";
 
 export interface RosterData {
@@ -40,8 +55,6 @@ export interface RosterData {
 
 type Grid = Record<string, ShiftCode[]>;
 
-const DOW = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
-const DOW_LONG = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];
 /** Cell label, long name (aria + editor) and legend label per shift code. */
 const LABEL: Record<ShiftCode, string> = { M: "07–15", E: "15–23", N: "23–07", O: "Off", L: "Leave" };
 const NAME: Record<ShiftCode, string> = {
@@ -49,7 +62,7 @@ const NAME: Record<ShiftCode, string> = {
   E: "Evening 15:00–23:00",
   N: "Night 23:00–07:00",
   O: "Day off",
-  L: "Sick leave",
+  L: "On leave",
 };
 const LEGEND: Record<ShiftCode, string> = {
   M: "Morning 07–15",
@@ -68,7 +81,21 @@ const SWATCH: Record<ShiftCode, string> = {
 const MAX_WEEK_HOURS = 45;
 const plural = (n: number, one: string, many = `${one}s`) => (n === 1 ? one : many);
 
-export function RosterView({ data, initialWeek }: { data: RosterData; initialWeek: WeekId }) {
+export function RosterView({
+  data,
+  initialWeek,
+  today,
+  branchName,
+  otherBranchName,
+}: {
+  data: RosterData;
+  initialWeek: WeekId;
+  /** Today in Kigali ("2026-10-15"): "this week" is the seven days from today, "next week" the seven after. */
+  today: string;
+  /** The branch this roster is for, and the one a shift can be lent to. */
+  branchName: string;
+  otherBranchName: string;
+}) {
   const { groups, staff, rotations, holidays } = data;
   const weekOf = (w: WeekId) => data.weeks.find((x) => x.id === w) ?? data.weeks[0];
 
@@ -77,37 +104,83 @@ export function RosterView({ data, initialWeek }: { data: RosterData; initialWee
   const [sel, setSel] = useState<{ r: string; d: number }>({ r: staff[0]?.id ?? "", d: 5 });
   const [dept, setDept] = useState("all");
   const [lent, setLent] = useState<Record<WeekId, Record<string, boolean>>>(() => ({
-    this: Object.fromEntries(weekOf("this").lent.map((k) => [k, true])),
-    next: Object.fromEntries(weekOf("next").lent.map((k) => [k, true])),
+    this: Object.fromEntries((weekOf("this")?.lent ?? []).map((k) => [k, true])),
+    next: Object.fromEntries((weekOf("next")?.lent ?? []).map((k) => [k, true])),
   }));
   const [swapState, setSwapState] = useState<Partial<Record<string, "approved" | "declined">>>({});
   const [pub, setPub] = useState<Record<WeekId, "published" | "draft">>(() => ({
-    this: weekOf("this").status,
-    next: weekOf("next").status,
+    this: weekOf("this")?.status ?? "draft",
+    next: weekOf("next")?.status ?? "draft",
   }));
-  const [edits, setEdits] = useState<Record<WeekId, number>>({ this: 0, next: 0 });
+  const [edits, setEdits] = useState<Record<WeekId, number>>(() => ({
+    this: weekOf("this")?.pendingChanges ?? 0,
+    next: weekOf("next")?.pendingChanges ?? 0,
+  }));
+  const [, startTransition] = useTransition();
   const [pubAt, setPubAt] = useState<Record<WeekId, string>>(() => ({
-    this: weekOf("this").publishedAt ?? "",
-    next: weekOf("next").publishedAt ?? "",
+    this: weekOf("this")?.publishedAt ?? "",
+    next: weekOf("next")?.publishedAt ?? "",
   }));
   const [dialog, setDialog] = useState(false);
 
+  // Live data can hold no team with a minimum cover at this branch, and so no one to roster yet.
+  if (staff.length === 0 || groups.length === 0 || data.weeks.length === 0) {
+    return (
+      <PageContent>
+        <PageHeader
+          eyebrow={`${branchName} · today is ${longDay(today)}`}
+          title="Roster"
+          description="No team at this branch has a minimum cover set yet, so there is no roster grid to draw."
+        />
+      </PageContent>
+    );
+  }
+
   const W = weekOf(wk);
-  const days = DOW.map((d, i) => `${d} ${W.start + i}`);
-  const longDays = DOW_LONG.map((d, i) => `${d} ${W.start + i} October`);
+  const weekStart = addDays(today, wk === "next" ? 7 : 0);
+  const dates = Array.from({ length: 7 }, (_, i) => addDays(weekStart, i));
+  const days = dates.map(shortDay);
+  const longDays = dates.map(longDay);
 
   const initialGrid = (w: WeekId): Grid =>
     Object.fromEntries(staff.map((p) => [p.id, p.shifts[w].split("") as ShiftCode[]]));
   const gridOf = (w: WeekId): Grid => grids[w] ?? initialGrid(w);
   const grid = gridOf(wk);
   const lentNow = lent[wk];
-  const bump = (w: WeekId, n: number) => (pub[w] === "published" ? { ...edits, [w]: edits[w] + n } : edits);
+  // A change to a published week reaches the person at once (the API publishes it and tells them),
+  // so nothing waits to be sent: only a draft week's changes wait for Publish.
+  const bump = (_w: WeekId, _n: number) => edits;
   const copy = (g: Grid): Grid => Object.fromEntries(Object.entries(g).map(([k, v]) => [k, [...v]]));
   const setCell = (rid: string, d: number, v: ShiftCode) => {
+    const before = grid[rid][d];
+    const week = wk;
     const next = copy(grid);
     next[rid][d] = v;
     setGrids({ ...grids, [wk]: next });
     setEdits(bump(wk, 1));
+    if (v === "L") return;
+    startTransition(async () => {
+      const result = await setRosterShift(week, rid, d, v);
+      if (!result.ok) {
+        setGrids((g) => {
+          const back = copy(g[week] ?? initialGrid(week));
+          back[rid][d] = before;
+          return { ...g, [week]: back };
+        });
+        toast.danger(result.error);
+      }
+    });
+  };
+  const setLentCell = (rid: string, d: number, isLent: boolean) => {
+    const week = wk;
+    setLent({ ...lent, [week]: { ...lentNow, [`${rid}-${d}`]: isLent } });
+    startTransition(async () => {
+      const result = await setRosterLent(week, rid, d, isLent);
+      if (!result.ok) {
+        setLent((l) => ({ ...l, [week]: { ...l[week], [`${rid}-${d}`]: !isLent } }));
+        toast.danger(result.error);
+      }
+    });
   };
 
   const hoursOf = (rid: string, g: Grid = grid) => g[rid].filter((v) => v !== "O" && v !== "L").length * 8;
@@ -177,7 +250,10 @@ export function RosterView({ data, initialWeek }: { data: RosterData; initialWee
             ? "Approved · both notified"
             : "Declined · both notified",
       tone: st === "declined" ? ("default" as const) : delta < 0 ? ("warning" as const) : ("success" as const),
-      outcome: st === "approved" ? "Shifts swapped in the week 42 grid." : "The original shifts stay.",
+      outcome:
+        st === "approved"
+          ? `Shifts swapped in the week ${weekOf("this")?.number ?? ""} grid.`
+          : "The original shifts stay.",
     };
   });
 
@@ -197,26 +273,44 @@ export function RosterView({ data, initialWeek }: { data: RosterData; initialWee
   const dlgTitle = isPub ? `Send ${ed} ${plural(ed, "change")} for week ${wkNo}?` : `Publish week ${W.range}?`;
   const dlgText = isPub
     ? "Only the people whose shifts changed are notified, in the staff app and by SMS."
-    : `${staff.length} staff at Isangano Lakeside Hotel get their shifts in the staff app and by SMS. Later changes notify only the people affected.`;
+    : `${staff.length} staff at ${branchName} get their shifts in the staff app and by SMS. Later changes notify only the people affected.`;
   const confirmLabel = `${isPub ? "Send changes" : "Publish"}${hasWarnings ? ` with ${gaps.length} ${plural(gaps.length, "gap")}` : ""}`;
 
   const publish = () => {
+    const week = wk;
+    const was = { pub: pub[week], edits: edits[week], at: pubAt[week] };
     setDialog(false);
-    setPub({ ...pub, [wk]: "published" });
-    setEdits({ ...edits, [wk]: 0 });
-    setPubAt({ ...pubAt, [wk]: pubAt[wk] || "today" });
+    setPub({ ...pub, [week]: "published" });
+    setEdits({ ...edits, [week]: 0 });
+    setPubAt({ ...pubAt, [week]: pubAt[week] || "today" });
+    startTransition(async () => {
+      const result = await publishRosterWeek(week);
+      if (!result.ok) {
+        setPub((p) => ({ ...p, [week]: was.pub }));
+        setEdits((e) => ({ ...e, [week]: was.edits }));
+        setPubAt((p) => ({ ...p, [week]: was.at }));
+        toast.danger(result.error);
+      }
+    });
   };
   const reset = () => {
-    setGrids({ ...grids, [wk]: null });
-    if (wk === "this") setSwapState({});
-    setLent({ ...lent, [wk]: Object.fromEntries(W.lent.map((k) => [k, true])) });
-    setEdits(bump(wk, 1));
+    toast.danger("Resetting the whole roster to rotations is not available yet. Edit individual shifts to save them.");
   };
-  const approveSwap = (w: (typeof swaps)[number]) => {
-    setGrids({ ...grids, this: w.swapped });
-    setSwapState({ ...swapState, [w.id]: "approved" });
+  const decideSwap = (w: (typeof swaps)[number], decision: "approved" | "declined") => {
+    const before = grids.this ?? null;
+    if (decision === "approved") setGrids({ ...grids, this: w.swapped });
+    setSwapState({ ...swapState, [w.id]: decision });
     setEdits(bump("this", 2));
+    startTransition(async () => {
+      const result = await decideShiftSwap(w.id, decision);
+      if (!result.ok) {
+        if (decision === "approved") setGrids((g) => ({ ...g, this: before }));
+        setSwapState((s) => ({ ...s, [w.id]: undefined }));
+        toast.danger(result.error);
+      }
+    });
   };
+  const approveSwap = (w: (typeof swaps)[number]) => decideSwap(w, "approved");
 
   return (
     <PageContent>
@@ -227,7 +321,7 @@ export function RosterView({ data, initialWeek }: { data: RosterData; initialWee
         label={pubLabel}
       />
       <PageHeader
-        eyebrow={`${W.label} · Isangano Lakeside Hotel · today is Monday 12 October`}
+        eyebrow={`${W.label} · ${branchName} · today is ${longDay(today)}`}
         title="Roster"
         description="Click any shift to change it. Staff see a week in the staff app once you publish it; later changes notify only the people affected."
         actions={
@@ -363,7 +457,7 @@ export function RosterView({ data, initialWeek }: { data: RosterData; initialWee
                                     size="sm"
                                     variant="ghost"
                                     aria-pressed={isSel}
-                                    aria-label={`${p.name}, ${longDays[d]}: ${NAME[v]}${isLent ? ", lent to Ishyamba Forest Lodge" : ""}. Edit shift`}
+                                    aria-label={`${p.name}, ${longDays[d]}: ${NAME[v]}${isLent ? `, lent to ${otherBranchName}` : ""}. Edit shift`}
                                     onPress={() => setSel({ r: p.id, d })}
                                     className={`h-auto min-h-8 w-full min-w-0 flex-col gap-0 rounded-lg px-1 py-0.5 text-xs font-semibold tabular hover:opacity-90 ${SWATCH[v]} ${isSel ? "outline-2 outline-offset-1 outline-solid outline-[var(--focus)]" : ""}`}
                                   >
@@ -438,18 +532,15 @@ export function RosterView({ data, initialWeek }: { data: RosterData; initialWee
                     id="ed-dept"
                     aria-describedby="ed-dept-help"
                     value={selLent ? "lodge" : "home"}
-                    onChange={(ev) => {
-                      setLent({ ...lent, [wk]: { ...lentNow, [`${sp.id}-${sel.d}`]: ev.target.value === "lodge" } });
-                      setEdits(bump(wk, 1));
-                    }}
+                    onChange={(ev) => setLentCell(sp.id, sel.d, ev.target.value === "lodge")}
                   >
                     <NativeSelect.Option value="home">{home} (home department)</NativeSelect.Option>
-                    <NativeSelect.Option value="lodge">Lent to Ishyamba Forest Lodge</NativeSelect.Option>
+                    <NativeSelect.Option value="lodge">Lent to {otherBranchName}</NativeSelect.Option>
                     <NativeSelect.Indicator />
                   </NativeSelect.Trigger>
                   <Description id="ed-dept-help">
                     {selLent
-                      ? `Counts toward Ishyamba Forest Lodge cover, not ${home.toLowerCase()}.`
+                      ? `Counts toward ${otherBranchName} cover, not ${home.toLowerCase()}.`
                       : "Lend for one shift without changing the home department."}
                   </Description>
                 </NativeSelect>
@@ -460,7 +551,7 @@ export function RosterView({ data, initialWeek }: { data: RosterData; initialWee
                   <Suitcase />
                 </Alert.Indicator>
                 <Alert.Content>
-                  <Alert.Title>On approved sick leave</Alert.Title>
+                  <Alert.Title>On approved leave</Alert.Title>
                   <Alert.Description>Leave days come from Leave and cannot be overwritten here.</Alert.Description>
                 </Alert.Content>
               </Alert>
@@ -506,7 +597,7 @@ export function RosterView({ data, initialWeek }: { data: RosterData; initialWee
             ) : (
               <Chip variant="soft" color="success" className="self-start">
                 <Check className="size-3" />
-                <Chip.Label>Saturday meets minimum cover</Chip.Label>
+                <Chip.Label>{weekdayLong(dates[5])} meets minimum cover</Chip.Label>
               </Chip>
             )}
           </PanelCard>
@@ -530,11 +621,7 @@ export function RosterView({ data, initialWeek }: { data: RosterData; initialWee
                     <Button size="sm" onPress={() => approveSwap(w)}>
                       Approve swap
                     </Button>
-                    <Button
-                      size="sm"
-                      variant="ghost"
-                      onPress={() => setSwapState({ ...swapState, [w.id]: "declined" })}
-                    >
+                    <Button size="sm" variant="ghost" onPress={() => decideSwap(w, "declined")}>
                       Decline
                     </Button>
                   </div>
@@ -644,6 +731,7 @@ export function RosterView({ data, initialWeek }: { data: RosterData; initialWee
           </Modal.Dialog>
         </Modal.Container>
       </Modal.Backdrop>
+      <Toast.Provider placement="bottom" />
     </PageContent>
   );
 }

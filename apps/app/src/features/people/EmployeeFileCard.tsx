@@ -1,17 +1,7 @@
 "use client";
 
-import {
-  BookOpen,
-  Calculator,
-  Comment,
-  Eye,
-  Lock,
-  PaperPlane,
-  Pencil,
-  Persons,
-  ShieldKeyhole,
-} from "@gravity-ui/icons";
-import { Alert, Avatar, Button, Card, Chip, Input, Label, Table, Tabs, TextField } from "@heroui/react";
+import { BookOpen, Calculator, Comment, Eye, Lock, Pencil, Persons, ShieldKeyhole } from "@gravity-ui/icons";
+import { Alert, Avatar, Button, Card, Chip, Input, Label, Table, Tabs, TextField, toast } from "@heroui/react";
 import { EmptyState, ListView, NativeSelect, Timeline } from "@heroui-pro/react";
 import { screenHref } from "@injishi/data";
 import type {
@@ -56,7 +46,6 @@ export function EmployeeFileCard({
   tab,
   onTabChange,
   log,
-  onView,
   loginRequested,
   onRequestLogin,
 }: {
@@ -75,10 +64,9 @@ export function EmployeeFileCard({
   onRequestLogin: () => void;
 }) {
   const first = firstName(e.name);
-  const [proposal, setProposal] = useState<"closed" | "open" | "sent">("closed");
+  const [proposal, setProposal] = useState<"closed" | "open">("closed");
   const [newBase, setNewBase] = useState(String(e.base + 15000));
   const [effective, setEffective] = useState<"next" | "mid">("next");
-  const [reminded, setReminded] = useState(false);
 
   const parsed = Number.parseInt(newBase.replace(/[^0-9]/g, ""), 10);
   const diff = (Number.isNaN(parsed) ? e.base : parsed) - e.base;
@@ -281,22 +269,15 @@ export function EmployeeFileCard({
                 <Button variant="ghost" onPress={() => setProposal("closed")}>
                   Cancel
                 </Button>
-                <Button onPress={() => setProposal("sent")}>Send to owner for approval</Button>
+                <Button
+                  onPress={() =>
+                    toast.danger("Pay change approval is not available yet. This proposal has not been sent or saved.")
+                  }
+                >
+                  Send to owner for approval
+                </Button>
               </div>
             </Card>
-          ) : null}
-          {proposal === "sent" ? (
-            <Alert status="accent">
-              <Alert.Indicator>
-                <PaperPlane />
-              </Alert.Indicator>
-              <Alert.Content>
-                <Alert.Title>Waiting for Didier Mugenzi</Alert.Title>
-                <Alert.Description>
-                  The change is recorded with its effective date. It reaches payroll only after he approves.
-                </Alert.Description>
-              </Alert.Content>
-            </Alert>
           ) : null}
         </Tabs.Panel>
 
@@ -308,8 +289,7 @@ export function EmployeeFileCard({
             <Alert.Content>
               <Alert.Title>Restricted to HR, the owner and {first}</Alert.Title>
               <Alert.Description>
-                Every view and download is logged. Retention follows your records policy (configured, not yet legally
-                reviewed).
+                Document downloads and the access log are not available in this interface yet.
               </Alert.Description>
             </Alert.Content>
           </Alert>
@@ -330,13 +310,7 @@ export function EmployeeFileCard({
                     size="sm"
                     variant="secondary"
                     aria-label={`View ${d.title.toLowerCase()}`}
-                    onPress={() =>
-                      onView({
-                        id: `${Date.now()}-${d.id}`,
-                        what: `You viewed ${d.title.toLowerCase()} · ${e.name}`,
-                        when: "Just now · reason: HR file review",
-                      })
-                    }
+                    onPress={() => toast.danger("Document viewing is not available yet. No document has been opened.")}
                   >
                     <Eye className="size-4" />
                     View
@@ -401,8 +375,14 @@ export function EmployeeFileCard({
                 </EmptyState.Description>
               </EmptyState.Header>
               <EmptyState.Content>
-                <Button size="sm" variant="secondary" isDisabled={reminded} onPress={() => setReminded(true)}>
-                  {reminded ? `Reminder sent to ${first}` : "Send a reminder"}
+                <Button
+                  size="sm"
+                  variant="secondary"
+                  onPress={() =>
+                    toast.danger("Family record reminders are not available yet. Contact the employee directly.")
+                  }
+                >
+                  Send a reminder
                 </Button>
               </EmptyState.Content>
             </EmptyState>

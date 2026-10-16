@@ -194,6 +194,11 @@ export interface MarketCheckout {
   dates: string;
   nights: number;
   rate: number;
+  /**
+   * The guest service fee on top of the stay, RWF. The booking service charges it on every stay
+   * (`GUEST_SERVICE_FEE_RATE`); the prototype drew no fee, so its documents leave it out.
+   */
+  serviceFee?: number;
   vatRate: number;
   vatStatus: string;
   guests: string;

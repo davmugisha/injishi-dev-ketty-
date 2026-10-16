@@ -33,6 +33,8 @@ import {
   Spinner,
   TextArea,
   TextField,
+  Toast,
+  toast,
 } from "@heroui/react";
 import { ItemCard, ListView, RadioButtonGroup, Segment, Stepper } from "@heroui-pro/react";
 import { NumberStepper } from "@heroui-pro/react/number-stepper";
@@ -51,7 +53,8 @@ import {
   toneColor,
 } from "@injishi/ui";
 import NextLink from "next/link";
-import { type ReactNode, useEffect, useRef, useState } from "react";
+import { type ReactNode, useEffect, useRef, useState, useTransition } from "react";
+import { checkInGuest } from "./actions";
 import { ChoiceSelect, isReady, ROOM_STATUS } from "./shared";
 
 type Step = 1 | 2 | 3 | 4 | 5;
@@ -72,18 +75,27 @@ function SectionTitle({ title, children }: { title: ReactNode; children?: ReactN
 }
 
 export function CheckInView({ persona, file }: { persona: Persona; file: CheckInFile }) {
-  const [step, setStep] = useState<Step>(1);
-  const [maxStep, setMaxStep] = useState<Step>(1);
+  // A guest already checked in opens on the finished card (the page reads the stay back after the command).
+  const [step, setStep] = useState<Step>(file.stayId ? 5 : 1);
+  const [maxStep, setMaxStep] = useState<Step>(file.stayId ? 5 : 1);
+  const [saving, startSaving] = useTransition();
+  /** The key of the one press of "Record cash", minted at that press and sent with the check-in. */
+  const [cashKey, setCashKey] = useState<string | null>(null);
+  const [cashAt, setCashAt] = useState("");
   const [idOk, setIdOk] = useState(false);
   const [occScanned, setOccScanned] = useState(false);
   const [occType, setOccType] = useState(file.occupant.documentTypes[0] ?? "Passport");
   const [occNo, setOccNo] = useState("");
-  const [dup, setDup] = useState<"open" | "linked" | "separate">("open");
-  const [room, setRoom] = useState(file.defaultRoom);
+  // No candidate profile means nothing to review (guest profiles per business are not built yet).
+  const [dup, setDup] = useState<"open" | "linked" | "separate">(file.duplicate.cards.length ? "open" : "separate");
+  const [room, setRoom] = useState(file.stayId ? file.preAssignedRoom || file.defaultRoom : file.defaultRoom);
   const [ovr, setOvr] = useState<"none" | "form" | "sent">("none");
   const [ovrReason, setOvrReason] = useState(file.override.reasons[0] ?? "");
   const [ovrApprover, setOvrApprover] = useState(file.override.approvers[0] ?? "");
-  const [pay, setPay] = useState<PaymentMethod["id"]>("momo");
+  // The first way to pay the desk can take today; a booking paid in full online owes nothing at the desk.
+  const [pay, setPay] = useState<PaymentMethod["id"]>(
+    file.deposit.amount === 0 ? "later" : (file.methods.find((m) => !m.disabled && m.id !== "later")?.id ?? "later"),
+  );
   const [net, setNet] = useState<MobileNetwork["id"]>("MTN");
   const [payState, setPayState] = useState<PayState>("idle");
   const [cashIn, setCashIn] = useState(formatRwf(file.deposit.cashReceived));
@@ -98,18 +110,23 @@ export function CheckInView({ persona, file }: { persona: Persona; file: CheckIn
   const approverName = ovrApprover.split(" · ")[0] ?? ovrApprover;
   const approverFirst = approverName.split(" ")[0];
   const paid = payState === "verified" || payState === "cash";
+  /** Paid in full online when booked: the bill opens with it credited, and nothing is taken at the desk. */
+  const nothingDue = file.deposit.amount === 0;
   const roomState = file.rooms.find((r) => r.room === room);
 
   const payDesc: Record<PayState, string> = {
     idle: "Not started",
     pending: `${netLabel} · pending`,
     verified: `${netLabel} · verified`,
-    cash: "Cash recorded",
+    cash: "Cash counted",
   };
   const steps = [
     { title: "Guest", desc: idOk ? "ID checked" : "Check ID" },
     { title: "Room", desc: `Room ${room}` },
-    { title: "Payment", desc: pay === "later" ? "Pay at checkout" : payDesc[payState] },
+    {
+      title: "Payment",
+      desc: nothingDue && payState === "idle" ? "Paid online" : pay === "later" ? "Pay at checkout" : payDesc[payState],
+    },
     { title: "Key", desc: keyGiven ? "Physical key given" : "Physical key" },
     { title: "Done", desc: "Registration" },
   ];
@@ -118,7 +135,9 @@ export function CheckInView({ persona, file }: { persona: Persona; file: CheckIn
   if (pay === "later") payCheck = ["success", "Pay at checkout · agent guarantee"];
   else if (payState === "pending") payCheck = ["warning", `${netLabel} pending · not paid yet`];
   else if (payState === "verified") payCheck = ["success", `Verified · ${netLabel} · ${momoRef}`];
-  else if (payState === "cash") payCheck = ["success", `Cash recorded · ${file.deposit.till}`];
+  else if (payState === "cash") payCheck = ["success", `Cash counted · ${file.deposit.till}`];
+  // Paid in full online when booked: nothing to take at the desk, whichever way pays the extras.
+  if (nothingDue && payState === "idle") payCheck = ["success", "Paid online when booked"];
 
   const checks: { label: string; tone: Tone; state: string }[] = [
     {
@@ -133,7 +152,9 @@ export function CheckInView({ persona, file }: { persona: Persona; file: CheckIn
         dup === "linked"
           ? `Linked to ${file.duplicate.existingId}`
           : dup === "separate"
-            ? "Kept separate"
+            ? file.duplicate.cards.length
+              ? "Kept separate"
+              : "No matching profile"
             : "Possible match to review",
     },
     {
@@ -153,16 +174,18 @@ export function CheckInView({ persona, file }: { persona: Persona; file: CheckIn
     {
       icon: "House",
       title: `Stay ${file.stayId}`,
-      desc: `Room ${room} · 12 → 14 Oct`,
+      desc: `Room ${room} · ${file.dates}`,
       chip: "In house",
       tone: "success",
     },
     {
       icon: "Receipt",
       title: `Folio ${file.folioId}`,
-      desc: paid
-        ? `${formatRwf(file.deposit.stayTotal - file.deposit.amount)} due after deposit`
-        : `${formatRwf(file.deposit.stayTotal)} due`,
+      desc: nothingDue
+        ? "Room paid online · extras settled at checkout"
+        : paid
+          ? `${formatRwf(file.deposit.stayTotal - file.deposit.amount)} due after deposit`
+          : `${formatRwf(file.deposit.stayTotal)} due`,
       chip: "Open",
       tone: "default",
     },
@@ -170,23 +193,28 @@ export function CheckInView({ persona, file }: { persona: Persona; file: CheckIn
     {
       icon: "Wallet",
       title: `Deposit ${file.depositId}`,
-      desc: pay === "later" ? "Collect at checkout" : payCheck[1],
+      desc: nothingDue && payState === "idle" ? payCheck[1] : pay === "later" ? "Collect at checkout" : payCheck[1],
       chip:
-        pay === "later"
-          ? "Not taken"
-          : payState === "verified"
-            ? "Verified"
-            : payState === "cash"
-              ? "Recorded"
-              : payState === "pending"
-                ? "Pending"
-                : "Not started",
-      tone: paid ? "success" : "warning",
+        nothingDue && payState === "idle"
+          ? "Paid"
+          : pay === "later"
+            ? "Not taken"
+            : payState === "verified"
+              ? "Verified"
+              : payState === "cash"
+                ? "Recorded"
+                : payState === "pending"
+                  ? "Pending"
+                  : "Not started",
+      tone: paid || nothingDue ? "success" : "warning",
     },
   ] as const;
 
   const blocked =
-    (step === 1 && !idOk) || (step === 3 && pay !== "later" && payState === "idle") || (step === 4 && !keyGiven);
+    saving ||
+    (step === 1 && !idOk) ||
+    (step === 3 && pay !== "later" && payState === "idle" && !nothingDue) ||
+    (step === 4 && !keyGiven);
   const hint =
     step === 1
       ? idOk
@@ -199,9 +227,11 @@ export function CheckInView({ persona, file }: { persona: Persona; file: CheckIn
         : step === 3
           ? blocked
             ? "Take the deposit or choose pay at checkout"
-            : payState === "pending"
-              ? "You can continue: the folio shows the deposit as pending until the provider confirms"
-              : "Deposit settled for check-in"
+            : nothingDue && payState === "idle"
+              ? "Paid online when booked · nothing to take now"
+              : payState === "pending"
+                ? "You can continue: the folio shows the deposit as pending until the provider confirms"
+                : "Deposit settled for check-in"
           : step === 4
             ? keyGiven
               ? "Physical key handed over"
@@ -211,6 +241,24 @@ export function CheckInView({ persona, file }: { persona: Persona; file: CheckIn
   const next = () => {
     if (blocked || step >= 5) return;
     const n = (step + 1) as Step;
+    if (n === 5) {
+      // Complete check-in: the stay and its bill open on the API, and cash counted at the desk is
+      // recorded on that bill under the key minted when it was counted.
+      startSaving(async () => {
+        const result = await checkInGuest({
+          bookingRef: file.id,
+          roomLabel: room,
+          cash: payState === "cash" && cashKey ? { amountRwf: file.deposit.amount, idempotencyKey: cashKey } : null,
+        });
+        if (!result.ok) {
+          toast.danger(`Check-in needs attention: ${result.error}`);
+          return;
+        }
+        setStep(5);
+        setMaxStep(5);
+      });
+      return;
+    }
     setStep(n);
     setMaxStep((m) => (n > m ? n : m));
   };
@@ -233,6 +281,7 @@ export function CheckInView({ persona, file }: { persona: Persona; file: CheckIn
 
   return (
     <PageContent className="text-[14px] leading-5">
+      <Toast.Provider placement="bottom" />
       <PageHeader
         eyebrow={
           <>
@@ -299,7 +348,7 @@ export function CheckInView({ persona, file }: { persona: Persona; file: CheckIn
                 </Chip>
               </div>
 
-              {dup === "open" ? (
+              {!file.duplicate.cards.length ? null : dup === "open" ? (
                 <Alert status="warning" role="status">
                   <Alert.Indicator>
                     <Persons />
@@ -585,9 +634,18 @@ export function CheckInView({ persona, file }: { persona: Persona; file: CheckIn
           {step === 3 ? (
             <div className="flex flex-col gap-4">
               <SectionTitle title="Deposit and Payment">
-                {file.deposit.policy}, from this booking's terms: a 1-night deposit of{" "}
-                <span className="font-semibold text-foreground tabular">{deposit}</span> now, or pay at checkout because{" "}
-                {file.bookedBy} guarantees the booking (voucher {file.deposit.voucher}).
+                {nothingDue ? (
+                  <>
+                    The stay was paid in full online when it was booked (voucher {file.deposit.voucher}), so there is
+                    nothing to take now. Extras go on the bill and are settled at checkout.
+                  </>
+                ) : (
+                  <>
+                    {file.deposit.policy}, from this booking's terms: a 1-night deposit of{" "}
+                    <span className="font-semibold text-foreground tabular">{deposit}</span> now, or pay at checkout
+                    because {file.bookedBy} guarantees the booking (voucher {file.deposit.voucher}).
+                  </>
+                )}
               </SectionTitle>
               <RadioButtonGroup
                 aria-label={`How ${file.firstName} pays`}
@@ -718,7 +776,21 @@ export function CheckInView({ persona, file }: { persona: Persona; file: CheckIn
                   </div>
                   {payState === "idle" ? (
                     <div>
-                      <Button onPress={() => setPayState("cash")} isDisabled={change < 0}>
+                      <Button
+                        onPress={() => {
+                          setCashKey(crypto.randomUUID());
+                          setCashAt(
+                            new Intl.DateTimeFormat("en-GB", {
+                              timeZone: "Africa/Kigali",
+                              hour: "2-digit",
+                              minute: "2-digit",
+                              hour12: false,
+                            }).format(new Date()),
+                          );
+                          setPayState("cash");
+                        }}
+                        isDisabled={change < 0}
+                      >
                         <Wallet className="size-4" />
                         Record {deposit} cash
                       </Button>
@@ -730,10 +802,11 @@ export function CheckInView({ persona, file }: { persona: Persona; file: CheckIn
                         <Wallet />
                       </Alert.Indicator>
                       <Alert.Content>
-                        <Alert.Title>Cash recorded to {file.deposit.till} · 10:48</Alert.Title>
+                        <Alert.Title>
+                          Cash counted for {file.deposit.till} · {cashAt}
+                        </Alert.Title>
                         <Alert.Description>
-                          Counted against {persona.name}'s shift at shift close. Payment receipt printed; not a fiscal
-                          receipt.
+                          This cash will be recorded on the bill when you complete check-in.
                         </Alert.Description>
                       </Alert.Content>
                     </Alert>
@@ -747,10 +820,11 @@ export function CheckInView({ persona, file }: { persona: Persona; file: CheckIn
                     <Clock />
                   </Alert.Indicator>
                   <Alert.Content>
-                    <Alert.Title>Pay at checkout</Alert.Title>
+                    <Alert.Title>{nothingDue ? "Nothing to take now" : "Pay at checkout"}</Alert.Title>
                     <Alert.Description>
-                      Allowed by {file.deposit.policy} because {file.bookedBy} guarantees the booking (voucher{" "}
-                      {file.deposit.voucher}). The folio opens with {formatRwf(file.deposit.stayTotal)} due.
+                      {nothingDue
+                        ? "The bill opens with the room's online payment credited, so it owes nothing for the nights. Extras are collected at checkout."
+                        : `Allowed by ${file.deposit.policy} because ${file.bookedBy} guarantees the booking (voucher ${file.deposit.voucher}). The folio opens with ${formatRwf(file.deposit.amount)} due.`}
                     </Alert.Description>
                   </Alert.Content>
                 </Alert>

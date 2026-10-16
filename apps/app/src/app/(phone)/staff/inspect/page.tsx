@@ -1,10 +1,10 @@
 import { screens } from "@injishi/data";
 import type { InspectionCheck, InspectionRoom, StaffProfile } from "@injishi/data/fixtures/staff";
-import { getCollection, getDocument } from "@injishi/db";
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { InspectRoomView } from "@/features/staff/InspectRoomView";
 import { requirePersona } from "@/lib/session";
+import { getCollection, getDocument } from "@/server/data";
 
 export const metadata: Metadata = { title: screens.InspectRoom.pageTitle };
 

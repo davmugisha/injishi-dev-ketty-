@@ -1,9 +1,9 @@
 import { screens } from "@injishi/data";
 import type { FoundItem, RegisterAccess } from "@injishi/data/fixtures/operations";
-import { getCollection } from "@injishi/db";
 import type { Metadata } from "next";
 import { LostFoundView } from "@/features/operations/LostFoundView";
 import { requirePersona } from "@/lib/session";
+import { getCollection } from "@/server/data";
 
 export const metadata: Metadata = { title: screens.LostFound.pageTitle };
 

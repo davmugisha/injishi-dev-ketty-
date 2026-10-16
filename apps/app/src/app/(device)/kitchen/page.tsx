@@ -1,9 +1,9 @@
 import { screens } from "@injishi/data";
 import type { KitchenStation, KitchenTicket } from "@injishi/data/fixtures/outlets";
-import { getCollection } from "@injishi/db";
 import type { Metadata } from "next";
 import { KitchenDisplayView } from "@/features/outlets/KitchenDisplayView";
 import { requirePersona } from "@/lib/session";
+import { getCollection } from "@/server/data";
 
 export const metadata: Metadata = { title: screens.KitchenDisplay.pageTitle };
 

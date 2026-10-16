@@ -1,9 +1,9 @@
 import { screens } from "@injishi/data";
 import type { AuditIssue, AuditRun, AuditStep } from "@injishi/data/fixtures/finance";
-import { getCollection } from "@injishi/db";
 import type { Metadata } from "next";
 import { NightAuditView } from "@/features/finance/NightAuditView";
 import { requirePersona } from "@/lib/session";
+import { getCollection } from "@/server/data";
 
 export const metadata: Metadata = { title: screens.NightAudit.pageTitle };
 

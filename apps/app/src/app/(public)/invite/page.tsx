@@ -1,10 +1,10 @@
 import { screens } from "@injishi/data";
 import type { Invitation, InvitationState, InviteStatus, RoleScope } from "@injishi/data/fixtures/shared";
-import { getCollection } from "@injishi/db";
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { InviteAcceptView } from "@/features/shared/InviteAcceptView";
 import { requireScreen } from "@/lib/session";
+import { getCollection } from "@/server/data";
 
 export const metadata: Metadata = { title: screens.InviteAccept.pageTitle };
 

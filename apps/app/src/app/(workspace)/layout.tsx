@@ -1,4 +1,4 @@
-import { navigationFor, personas } from "@injishi/data";
+import { navigationFor } from "@injishi/data";
 import { redirect } from "next/navigation";
 import type { ReactNode } from "react";
 import { WorkspaceShell } from "@/components/shell/WorkspaceShell";
@@ -22,7 +22,7 @@ export default async function WorkspaceLayout({ children }: { children: ReactNod
     ];
   }
   return (
-    <WorkspaceShell persona={personas[persona.id]} nav={nav}>
+    <WorkspaceShell persona={persona} nav={nav}>
       {children}
     </WorkspaceShell>
   );

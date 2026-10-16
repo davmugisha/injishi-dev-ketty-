@@ -8,11 +8,11 @@ import type {
   ListingPhoto,
   ListingPolicy,
 } from "@injishi/data/fixtures/commercial";
-import { getCollection } from "@injishi/db";
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { ListingView } from "@/features/commercial/ListingView";
 import { requirePersona } from "@/lib/session";
+import { getCollection } from "@/server/data";
 
 export const metadata: Metadata = { title: screens.Listing.pageTitle };
 

@@ -7,10 +7,10 @@ import type {
   RoomChargeTarget,
   TicketLine,
 } from "@injishi/data/fixtures/outlets";
-import { getCollection } from "@injishi/db";
 import type { Metadata } from "next";
 import { PosView } from "@/features/outlets/PosView";
 import { requirePersona } from "@/lib/session";
+import { getCollection } from "@/server/data";
 
 export const metadata: Metadata = { title: screens.POS.pageTitle };
 

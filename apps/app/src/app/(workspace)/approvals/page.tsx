@@ -1,9 +1,9 @@
 import { screens } from "@injishi/data";
 import type { ApprovalHistoryEntry, ApprovalRequest } from "@injishi/data/fixtures/owner";
-import { getCollection } from "@injishi/db";
 import type { Metadata } from "next";
 import { ApprovalsView } from "@/features/owner/ApprovalsView";
 import { requirePersona } from "@/lib/session";
+import { getCollection } from "@/server/data";
 
 export const metadata: Metadata = { title: screens.Approvals.pageTitle };
 

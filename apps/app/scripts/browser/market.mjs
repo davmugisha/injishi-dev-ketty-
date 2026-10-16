@@ -1,0 +1,88 @@
+#!/usr/bin/env node
+/**
+ * The guest account's saved lists and the Explore heart, in a real browser: Sarah signs in, opens Saved on
+ * /trips, creates a list that survives a reload, hearts a stay on /explore and finds it still saved after a
+ * reload, then takes the heart off again.
+ *
+ *   APP_URL=http://localhost:3040 node scripts/browser/market.mjs
+ *
+ * Needs the app's dev server (pointed at a demo API) and a freshly seeded interface world. Prints
+ * "BROWSER MARKET OK" only when every step held.
+ */
+import { launch } from "../lib/cdp.mjs";
+
+const APP = (process.env.APP_URL ?? "http://localhost:3040").replace(/\/$/, "");
+const NAME = `Browser list ${Date.now().toString(36)}`;
+
+const fail = (message) => {
+  throw new Error(message);
+};
+
+const clickTab = (id) =>
+  `(() => { const t = [...document.querySelectorAll('[role=tab]')].find((el) => el.getAttribute('data-key') === '${id}' || el.id.endsWith('${id}') || /${id}/i.test(el.innerText)); t?.click(); return !!t; })()`;
+
+/** The first stay heart that is not pressed, as its aria-label. */
+const firstUnsaved = `(() => [...document.querySelectorAll('button[aria-label^="Save "]')].map((b) => b.getAttribute('aria-label'))[0] ?? null)()`;
+
+const { page, close } = await launch();
+try {
+  await page.goto(`${APP}/api/demo/sign-in?persona=guest&next=/trips`);
+  await page.waitFor("location.pathname === '/trips'", "/trips after signing in", 120_000);
+  await page.waitForText("Upcoming", 120_000);
+  console.log("  signed in as Sarah and landed on /trips");
+
+  if (!(await page.eval(clickTab("saved")))) fail("no Saved tab on /trips");
+  await page.waitForText("New collection");
+  await page.press("New collection");
+  await page.waitFor("!!document.getElementById('new-col')", "the new collection field");
+  await page.type("#new-col", NAME);
+  await page.press("Create");
+  await page.waitFor(
+    `document.body.innerText.includes(${JSON.stringify(NAME)}) && !document.getElementById('new-col')`,
+    "the new list to appear",
+  );
+  await page.reload();
+  await page.waitForText("Upcoming", 60_000);
+  await page.eval(clickTab("saved"));
+  await page.waitForText(NAME, 30_000);
+  console.log(`  created "${NAME}" on the Saved tab, and it is still there after a reload`);
+
+  await page.goto(`${APP}/explore`);
+  await page.waitFor(`!!${firstUnsaved}`, "a stay that is not saved yet", 90_000);
+  const label = await page.eval(firstUnsaved);
+  const place = label.replace(/^Save /, "");
+  await page.eval(`document.querySelector('button[aria-label=${JSON.stringify(label)}]').click()`);
+  const removeLabel = `Remove ${place} from saved`;
+  await page.waitFor(
+    `!!document.querySelector('button[aria-label=${JSON.stringify(removeLabel)}]')`,
+    `${place} to show as saved`,
+  );
+  await page.reload();
+  await page.waitFor(
+    `!!document.querySelector('button[aria-label=${JSON.stringify(removeLabel)}]')`,
+    `${place} still saved after a reload`,
+    90_000,
+  );
+  console.log(`  hearted ${place} on /explore, and it is still saved after a reload`);
+
+  await page.eval(`document.querySelector('button[aria-label=${JSON.stringify(removeLabel)}]').click()`);
+  await page.waitFor(
+    `!!document.querySelector('button[aria-label=${JSON.stringify(label)}]')`,
+    `${place} to show as unsaved`,
+  );
+  await page.reload();
+  await page.waitFor(
+    `!!document.querySelector('button[aria-label=${JSON.stringify(label)}]')`,
+    `${place} still unsaved after a reload`,
+    90_000,
+  );
+  console.log(`  took the heart off ${place}, and it stays off after a reload`);
+
+  console.log("BROWSER MARKET OK");
+} catch (error) {
+  console.error(`FAILED: ${error.message}`);
+  console.error(`  at ${await page.url().catch(() => "?")}`);
+  process.exitCode = 1;
+} finally {
+  await close();
+}

@@ -7,10 +7,10 @@ import type {
   PlatformSetting,
   PricePlan,
 } from "@injishi/data/fixtures/platformops";
-import { getCollection } from "@injishi/db";
 import type { Metadata } from "next";
 import { AdminRulesView } from "@/features/platformops/AdminRulesView";
 import { requirePersona } from "@/lib/session";
+import { getCollection } from "@/server/data";
 
 export const metadata: Metadata = { title: screens.AdminRules.pageTitle };
 

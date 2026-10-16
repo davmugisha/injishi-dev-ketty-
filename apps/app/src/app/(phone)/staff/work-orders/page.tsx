@@ -1,10 +1,10 @@
 import { screens } from "@injishi/data";
 import type { StaffProfile, StorePart, WorkOrder } from "@injishi/data/fixtures/staff";
-import { getCollection, getDocument } from "@injishi/db";
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { TechWorkOrdersView } from "@/features/staff/TechWorkOrdersView";
 import { requirePersona } from "@/lib/session";
+import { getCollection, getDocument } from "@/server/data";
 
 export const metadata: Metadata = { title: screens.TechWorkOrders.pageTitle };
 

@@ -6,10 +6,10 @@ import type {
   GovernmentBody,
   OfficerPermission,
 } from "@injishi/data/fixtures/oversight";
-import { getCollection } from "@injishi/db";
 import type { Metadata } from "next";
 import { DistrictAdminView } from "@/features/oversight/DistrictAdminView";
 import { requirePersona } from "@/lib/session";
+import { getCollection } from "@/server/data";
 
 export const metadata: Metadata = { title: screens.DistrictAdmin.pageTitle };
 

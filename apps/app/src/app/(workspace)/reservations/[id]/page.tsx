@@ -1,10 +1,10 @@
 import { screens } from "@injishi/data";
 import type { CancellationTier, PaymentOutcome, ReservationRecord } from "@injishi/data/fixtures/frontdesk";
-import { getCollection, getDocument } from "@injishi/db";
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { ReservationDetailView } from "@/features/frontdesk/ReservationDetailView";
 import { requirePersona } from "@/lib/session";
+import { getCollection, getDocument } from "@/server/data";
 
 type Params = Promise<{ id: string }>;
 

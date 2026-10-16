@@ -1,4 +1,7 @@
 import type {
+  BookingCancellationResult,
+  CancelReservationRequest,
+  MarkNoShowRequest,
   OperatorReservation,
   OperatorReservationQuery,
   OperatorReservationState,
@@ -14,6 +17,7 @@ import {
   assertInBranchScope,
   type ScopedWorkspace,
 } from '../../../shared/auth/branch-scope';
+import { RoomAssignmentService } from '../../operations/application/room-assignment.service';
 import { localToday, nightsBetween } from '../domain/pricing';
 import {
   DESK_WINDOW_DAYS,
@@ -21,6 +25,7 @@ import {
   type OperatorReservationRow,
   BookingRepository,
 } from '../infrastructure/booking.repository';
+import { BookingCancellationService } from './booking-cancellation.service';
 import { BookingDecisionService } from './booking-decision.service';
 
 /**
@@ -38,6 +43,10 @@ export class OperatorReservationsService {
   constructor(
     private readonly bookings: BookingRepository,
     private readonly decisions: BookingDecisionService,
+    /** The money of a no-show is a late cancellation's, decided there. */
+    private readonly cancellations: BookingCancellationService,
+    /** A no-show's holds go back on sale for the nights it will never use. */
+    private readonly assignments: RoomAssignmentService,
   ) {}
 
   async list(
@@ -110,6 +119,43 @@ export class OperatorReservationsService {
       workspaceId: ws.workspaceId,
     });
     return this.readBack(bookingId);
+  }
+
+  /**
+   * Record that a confirmed guest never arrived (`POST /ops/reservations/:id/no-show`).
+   *
+   * The money is `BookingCancellationService.markNoShow`'s to move, on the
+   * tier the booking locked. Then every room still held for the booking is
+   * released: a no-show sleeps nowhere, and a hold left standing would keep
+   * its room off sale for every night the guest is not coming.
+   */
+  async markNoShow(
+    ws: ScopedWorkspace,
+    bookingId: string,
+    body: MarkNoShowRequest,
+    userId: string,
+  ): Promise<OperatorReservation> {
+    await this.cancellations.markNoShow(bookingId, ws, {
+      reason: body.reason ?? null,
+      byUserId: userId,
+    });
+    await this.assignments.releaseForBooking(bookingId);
+    return this.readBack(bookingId);
+  }
+
+  /**
+   * Cancel at the guest's request (`POST /ops/reservations/:id/cancel`): the
+   * refund is the booking's own tier, decided and paid by
+   * `BookingCancellationService`. The rooms held for it go back on sale.
+   */
+  async cancelAtGuestRequest(
+    ws: ScopedWorkspace,
+    bookingId: string,
+    body: CancelReservationRequest,
+  ): Promise<BookingCancellationResult> {
+    const result = await this.cancellations.cancelAtGuestRequest(bookingId, ws, body.reason ?? null);
+    await this.assignments.releaseForBooking(bookingId);
+    return result;
   }
 
   private async assertOwnedAndPending(

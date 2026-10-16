@@ -1,9 +1,9 @@
 import { screens } from "@injishi/data";
 import type { LedgerAccount, LedgerPosting, MoneyOverride, ReconRun } from "@injishi/data/fixtures/admin";
-import { getCollection } from "@injishi/db";
 import type { Metadata } from "next";
 import { AdminMoneyView } from "@/features/admin/AdminMoneyView";
 import { requirePersona } from "@/lib/session";
+import { getCollection } from "@/server/data";
 
 export const metadata: Metadata = { title: screens.AdminMoney.pageTitle };
 

@@ -1,78 +1,101 @@
 "use server";
 
 import { canAccess, homeHref, type PersonaId, personas, screenByPath } from "@injishi/data";
-import { createSession, deleteSession, startOtp, verifyOtp } from "@injishi/db";
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
-import { OTP_COOKIE, SESSION_COOKIE, safeNext } from "./session";
+import {
+  accountFor,
+  demoSignInCode,
+  OTP_TTL_SECONDS,
+  sendSignInCode,
+  signOutOfApi,
+  verifySignInCode,
+} from "@/server/auth";
+import {
+  currentSessionCookie,
+  encodeSessionCookie,
+  OTP_COOKIE,
+  type PendingSignIn,
+  readPendingSignIn,
+  SESSION_COOKIE,
+  safeNext,
+} from "./session";
 
 export type SignInState = { error?: string; email?: string };
 
 const secure = process.env.NODE_ENV === "production";
 
-async function beginChallenge(email: string, next: string | null) {
-  const started = await startOtp(email);
-  if (!started.ok) return started;
-  (await cookies()).set(OTP_COOKIE, started.challengeId, {
+const SEND_ERRORS = {
+  "invalid-email": "That doesn’t look like an email address.",
+  "too-many": "Too many codes for this email. Wait an hour, or use the newest code we sent.",
+  unavailable: "We couldn’t reach Injishi to send your code. Try again in a moment.",
+} as const;
+
+/** Ask the API to send a code, remember who it went to, and move to the code step. */
+async function beginChallenge(email: string, next: string | null): Promise<SignInState> {
+  const sent = await sendSignInCode(email);
+  if (!sent.ok) return { error: SEND_ERRORS[sent.reason], email };
+  const pending: PendingSignIn = { email: email.trim().toLowerCase(), sentAt: Date.now() };
+  (await cookies()).set(OTP_COOKIE, Buffer.from(JSON.stringify(pending)).toString("base64url"), {
     httpOnly: true,
     sameSite: "lax",
     secure,
     path: "/",
-    maxAge: 10 * 60,
+    maxAge: OTP_TTL_SECONDS,
   });
-  const params = new URLSearchParams({ email: started.email });
+  const params = new URLSearchParams({ email: pending.email });
   if (next) params.set("next", next);
   redirect(`/verify?${params.toString()}`);
 }
 
-/** "Continue" on the sign-in form: start a one-time-code challenge for the typed email. */
+/** "Continue" on the sign-in form: send a one-time code to the typed email. */
 export async function startSignIn(_prev: SignInState, form: FormData): Promise<SignInState> {
   const email = String(form.get("email") ?? "").trim();
   const next = safeNext(String(form.get("next") ?? ""));
   if (!email) return { error: "Enter your email to continue.", email };
-  if (!/^\S+@\S+\.\S+$/.test(email)) return { error: "That doesn’t look like an email address.", email };
-  await beginChallenge(email, next);
-  return {
-    error: "There’s no demo account with that email. Choose someone from Explore the demo, or check the spelling.",
-    email,
-  };
+  if (!/^\S+@\S+\.\S+$/.test(email)) return { error: SEND_ERRORS["invalid-email"], email };
+  return beginChallenge(email, next);
 }
 
-/** "Sign in as …" on a demo persona card: same code step, with the demo code filled in. */
+/** "Sign in as …" on a demo persona card: same code step, for that persona's email. */
 export async function signInAs(personaId: PersonaId, next?: string): Promise<void> {
   const persona = personas[personaId];
-  if (!persona) redirect("/sign-in");
-  await beginChallenge(persona.email, safeNext(next));
+  // Only the demo has personas to sign in as; anywhere else this would mail a code to an address nobody owns.
+  if (!persona || !(await demoSignInCode())) redirect("/sign-in");
+  const failed = await beginChallenge(persona.email, safeNext(next));
+  if (failed.error) redirect(`/sign-in?error=${encodeURIComponent(failed.error)}`);
 }
 
 export type VerifyState = { error?: string; attemptsLeft?: number };
 
-/** "Verify and continue" on the code step. */
+const VERIFY_ERRORS = {
+  "wrong-code": "That code didn’t match. Use the newest message we sent.",
+  expired: "This code has expired. Go back and ask for a new one.",
+  "too-many": "Too many wrong codes. Ask for a new code.",
+  unavailable: "We couldn’t reach Injishi to check your code. Try again in a moment.",
+} as const;
+
+/** "Verify and continue" on the code step: the API checks the code and opens a session. */
 export async function verifyCode(_prev: VerifyState, form: FormData): Promise<VerifyState> {
   const store = await cookies();
-  const challengeId = store.get(OTP_COOKIE)?.value;
+  const pending = readPendingSignIn(store.get(OTP_COOKIE)?.value);
   const code = String(form.get("code") ?? "");
-  if (!challengeId) return { error: "This code has expired. Go back and ask for a new one." };
+  if (!pending) return { error: VERIFY_ERRORS.expired };
   if (code.replace(/\D/g, "").length !== 6) return { error: "Enter all 6 digits of the code." };
-  const result = await verifyOtp(challengeId, code);
-  if (!result.ok) {
-    if (result.reason === "wrong-code")
-      return {
-        error: `That code didn’t match. Use the newest message we sent. ${result.attemptsLeft} ${result.attemptsLeft === 1 ? "try" : "tries"} left.`,
-        attemptsLeft: result.attemptsLeft,
-      };
-    if (result.reason === "locked")
-      return { error: "Too many wrong codes. Sign-in is paused for 15 minutes for this email.", attemptsLeft: 0 };
-    return { error: "This code has expired. Go back and ask for a new one." };
-  }
-  const { token, expiresAt } = await createSession(result.personaId);
-  store.set(SESSION_COOKIE, token, { httpOnly: true, sameSite: "lax", secure, path: "/", expires: expiresAt });
+  const result = await verifySignInCode(pending.email, code);
+  if (!result.ok) return { error: VERIFY_ERRORS[result.reason] };
+  store.set(SESSION_COOKIE, encodeSessionCookie(result.cookie), {
+    httpOnly: true,
+    sameSite: "lax",
+    secure,
+    path: "/",
+    expires: result.expiresAt,
+  });
   store.delete(OTP_COOKIE);
+  const account = await accountFor(result.cookie);
+  const personaId = account?.persona.id ?? "guest";
   const next = safeNext(String(form.get("next") ?? ""));
-  const target =
-    next && screenByPath(next.split("?")[0]) && canAccessPath(result.personaId, next)
-      ? next
-      : homeHref(result.personaId);
+  const target = next && canAccessPath(personaId, next) ? next : homeHref(personaId);
   redirect(target);
 }
 
@@ -83,15 +106,14 @@ function canAccessPath(personaId: PersonaId, path: string): boolean {
 
 /** Request a fresh code for the email on the code step. */
 export async function resendCode(email: string, next?: string): Promise<void> {
-  const started = await beginChallenge(email, safeNext(next));
-  if (started && !started.ok) redirect("/sign-in");
+  const failed = await beginChallenge(email, safeNext(next));
+  if (failed.error) redirect("/sign-in");
 }
 
-/** Sign out (also "Switch user"): ends the session and returns to the persona list. */
+/** Sign out (also "Switch user"): ends the API session and returns to the persona list. */
 export async function signOut(): Promise<void> {
-  const store = await cookies();
-  const token = store.get(SESSION_COOKIE)?.value;
-  if (token) await deleteSession(token);
-  store.delete(SESSION_COOKIE);
+  const cookie = await currentSessionCookie();
+  if (cookie) await signOutOfApi(cookie);
+  (await cookies()).delete(SESSION_COOKIE);
   redirect("/sign-in");
 }

@@ -6,11 +6,11 @@ import type {
   AuditLogExportFormat,
   AuditLogRetentionRule,
 } from "@injishi/data/fixtures/owner";
-import { getCollection } from "@injishi/db";
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { AuditLogView } from "@/features/owner/AuditLogView";
 import { requirePersona } from "@/lib/session";
+import { getCollection } from "@/server/data";
 
 export const metadata: Metadata = { title: screens.AuditLog.pageTitle };
 

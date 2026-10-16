@@ -304,7 +304,9 @@ services:
     image: ghcr.io/hangaasoftwares/injishi-api:${INJISHI_API_TAG:?set by deploy-stack.sh to the commit being deployed}
     restart: unless-stopped
     # Image WORKDIR is /app. Repo-root spelling: node server/api/scripts/migrate.mjs
-    command: ["sh", "-c", "node scripts/migrate.mjs && node dist/main.js"]
+    # Then the platform reference data (geography, RDB classes, amenities, government bodies, the VAT row):
+    # idempotent, never a user or a sample row, so it is safe on every start (seed-reference.mjs).
+    command: ["sh", "-c", "node scripts/migrate.mjs && node scripts/seed-reference.mjs && node dist/main.js"]
     environment:
       <<: *api-env
       INJISHI_PROCESS: http

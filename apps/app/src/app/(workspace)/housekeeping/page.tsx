@@ -8,10 +8,10 @@ import type {
   RoomHistory,
   RoomStatusHistory,
 } from "@injishi/data/fixtures/operations";
-import { getCollection } from "@injishi/db";
 import type { Metadata } from "next";
 import { HousekeepingBoardView } from "@/features/operations/HousekeepingBoardView";
 import { requirePersona } from "@/lib/session";
+import { getCollection } from "@/server/data";
 
 export const metadata: Metadata = { title: screens.HousekeepingBoard.pageTitle };
 

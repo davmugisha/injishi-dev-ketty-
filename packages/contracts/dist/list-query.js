@@ -450,6 +450,8 @@ exports.LIST_READ = {
     "staff.pay-claims": ["payroll.run"],
     "staff.pay-adjustments": ["payroll.run"],
     "staff.contracts": ["people.manage", "payroll.run"],
+    // The owner's Reports screen: a saved view is a tab and a branch, read on money.view like the reports.
+    "owner.reports": ["money.view"],
 };
 function isListKey(key) {
     return Object.prototype.hasOwnProperty.call(exports.LIST_READ, key);

@@ -7,11 +7,11 @@ import type {
   GuestTrip,
   HotelDepartment,
 } from "@injishi/data/fixtures/guest";
-import { getCollection, getDocument } from "@injishi/db";
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { GuestTripView } from "@/features/guest/GuestTripView";
 import { requirePersona } from "@/lib/session";
+import { getCollection, getDocument } from "@/server/data";
 
 export const metadata: Metadata = { title: screens.GuestTrip.pageTitle };
 

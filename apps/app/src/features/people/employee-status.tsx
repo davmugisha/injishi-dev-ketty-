@@ -5,8 +5,9 @@ import { type Tone, toneColor } from "@injishi/ui";
 
 export const STATUS: Record<EmployeeStatus, { label: string; tone: Tone }> = {
   active: { label: "Active", tone: "success" },
-  leave: { label: "On sick leave", tone: "info" },
-  leaving: { label: "Leaving 20 Oct", tone: "warning" },
+  // The prototype's "On sick leave" and "Leaving 20 Oct" named one person's day; the contract line carries the date.
+  leave: { label: "On leave", tone: "info" },
+  leaving: { label: "Leaving", tone: "warning" },
   probation: { label: "Probation", tone: "accent" },
 };
 

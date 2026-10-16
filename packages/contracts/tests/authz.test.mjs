@@ -71,7 +71,8 @@ describe("the six org roles", () => {
     // 27: ADR-054 removed `property.switch` (AC-S4) from the 28 origin carried.
     // 34: ADR-058 added the seven HR permissions (cross child contract 4).
     // 35: ADR-069 D-e added `payroll.draft`.
-    assert.equal(permissionsForRole("owner").length, 35);
+    // 36: real-data leaf 1.2.3 added `lostfound.manage`.
+    assert.equal(permissionsForRole("owner").length, 36);
   });
 
   test("manager holds everything except team.manage and the three HR disclosures", () => {
@@ -83,7 +84,7 @@ describe("the six org roles", () => {
       permissionsForRole("manager"),
       Permission.options.filter((p) => !withheld.includes(p)),
     );
-    assert.equal(permissionsForRole("manager").length, 31);
+    assert.equal(permissionsForRole("manager").length, 32);
   });
 
   test("receptionist works the front desk and takes orders", () => {
@@ -100,6 +101,8 @@ describe("the six org roles", () => {
       "folio.close",
       // ADR-058: the desk is who is at the door when the night shift arrives.
       "attendance.record",
+      // real-data leaf 1.2.3: the desk takes lost property claims and hands items back.
+      "lostfound.manage",
     ]);
   });
 

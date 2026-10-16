@@ -1,9 +1,9 @@
 import { screens } from "@injishi/data";
 import type { DeskArrival, DeskFigure, RecentSearch, SearchEntry } from "@injishi/data/fixtures/shared";
-import { getCollection } from "@injishi/db";
 import type { Metadata } from "next";
 import { GlobalSearchView } from "@/features/shared/GlobalSearchView";
 import { requirePersona } from "@/lib/session";
+import { getCollection } from "@/server/data";
 
 export const metadata: Metadata = { title: screens.GlobalSearch.pageTitle };
 

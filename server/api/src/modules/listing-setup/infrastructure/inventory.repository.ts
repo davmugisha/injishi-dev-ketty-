@@ -84,6 +84,7 @@ export interface PropertyRow {
   publishedAt: Date | null;
   isHeadOffice: boolean;
   rraBranchId: string | null;
+  branchCode: string | null;
   archivedAt: Date | null;
 }
 
@@ -117,6 +118,7 @@ const PROPERTY_COLUMNS = {
   publishedAt: listings.publishedAt,
   isHeadOffice: properties.isHeadOffice,
   rraBranchId: properties.rraBranchId,
+  branchCode: properties.branchCode,
   archivedAt: properties.archivedAt,
 };
 

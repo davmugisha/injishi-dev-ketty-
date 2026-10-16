@@ -16,10 +16,10 @@ import type {
   ReportsTrendDay,
   ReportsVacantUnit,
 } from "@injishi/data/fixtures/owner";
-import { getCollection } from "@injishi/db";
 import type { Metadata } from "next";
 import { ReportsView } from "@/features/owner/ReportsView";
 import { requirePersona } from "@/lib/session";
+import { getCollection } from "@/server/data";
 
 export const metadata: Metadata = { title: screens.Reports.pageTitle };
 

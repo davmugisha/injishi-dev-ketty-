@@ -6,10 +6,10 @@ import type {
   ServiceTicket,
   VisitorLogEntry,
 } from "@injishi/data/fixtures/residence";
-import { getCollection } from "@injishi/db";
 import type { Metadata } from "next";
 import { ResidenceServiceView } from "@/features/residence/ResidenceServiceView";
 import { requirePersona } from "@/lib/session";
+import { getCollection } from "@/server/data";
 
 export const metadata: Metadata = { title: screens.ResidenceService.pageTitle };
 

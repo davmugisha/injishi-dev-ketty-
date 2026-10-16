@@ -12,7 +12,22 @@ import {
   Persons,
   Plus,
 } from "@gravity-ui/icons";
-import { Alert, Avatar, Button, Card, Chip, Input, Label, Switch, Table, Tabs, TextField } from "@heroui/react";
+import {
+  Alert,
+  Avatar,
+  Button,
+  Card,
+  Chip,
+  Form,
+  Input,
+  Label,
+  Switch,
+  Table,
+  Tabs,
+  TextField,
+  Toast,
+  toast,
+} from "@heroui/react";
 import { EmptyState, ItemCard, ItemCardGroup, ListView, Segment } from "@heroui-pro/react";
 import { type BoardId, screenHref } from "@injishi/data";
 import type {
@@ -27,8 +42,16 @@ import type {
 } from "@injishi/data/fixtures/market";
 import { stock } from "@injishi/data/media";
 import { Icon, LinkButton, Photo, SectionHeader, TextLink } from "@injishi/ui";
-import { useState } from "react";
-import { chipColor } from "./format";
+import { type FormEvent, useState, useTransition } from "react";
+import {
+  createCollectionAction,
+  type MarketActionResult,
+  removeFromCollectionAction,
+  saveContactAction,
+  setConsentAction,
+  withdrawRequestAction,
+} from "./actions";
+import { chipColor, propertyHref } from "./format";
 import { MarketFooter, MarketHeader, MarketMain, type MarketVisitor } from "./MarketChrome";
 import { Stars } from "./stars";
 
@@ -72,8 +95,33 @@ export function GuestAccountView({
   const [tab, setTab] = useState<AccountTab>("trips");
   const [col, setCol] = useState(collections[0]?.id ?? "");
   const [removed, setRemoved] = useState<string[]>([]);
-  const [withdrawn, setWithdrawn] = useState(false);
+  const [withdrawn, setWithdrawn] = useState<string[]>([]);
+  const [creating, setCreating] = useState(false);
+  const [newName, setNewName] = useState("");
+  const [name, setName] = useState(profile.name);
+  const [mobile, setMobile] = useState(profile.mobile);
+  const [country, setCountry] = useState(profile.country);
   const [lang, setLang] = useState(profile.language);
+  const [pending, startTransition] = useTransition();
+  /** Run one write; a refusal is shown, never swallowed. */
+  const act = <T,>(run: () => Promise<MarketActionResult<T>>, then?: (value: T) => void) =>
+    startTransition(async () => {
+      const result = await run();
+      if (result.ok) then?.(result.value);
+      else toast.danger(result.error);
+    });
+  const createCollection = (e: FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    if (!newName.trim()) return;
+    act(
+      () => createCollectionAction(newName.trim()),
+      (id) => {
+        setCol(id);
+        setCreating(false);
+        setNewName("");
+      },
+    );
+  };
   const [consentOn, setConsentOn] = useState<Record<string, boolean>>(() =>
     Object.fromEntries(consents.map((c) => [c.id, c.on])),
   );
@@ -156,7 +204,8 @@ export function GuestAccountView({
               <SectionHeader id="up-h" title="Upcoming" />
               <div className="grid gap-4 [grid-template-columns:repeat(auto-fit,minmax(min(420px,100%),1fr))]">
                 {upcoming.map((u) => {
-                  const facts = u.withdrawable && withdrawn && u.withdrawnFacts ? u.withdrawnFacts : u.facts;
+                  const facts =
+                    u.withdrawable && withdrawn.includes(u.id) && u.withdrawnFacts ? u.withdrawnFacts : u.facts;
                   return (
                     <Card key={u.id} render={(p) => <article {...p} />} className="flex-row gap-0 overflow-hidden p-0">
                       <div className="relative w-[150px] shrink-0 self-stretch bg-surface-secondary">
@@ -195,12 +244,22 @@ export function GuestAccountView({
                             </LinkButton>
                           ))}
                           {u.withdrawable ? (
-                            withdrawn ? (
+                            withdrawn.includes(u.id) ? (
                               <Chip size="sm" variant="soft">
                                 <Chip.Label>Request withdrawn · hold released</Chip.Label>
                               </Chip>
                             ) : (
-                              <Button variant="ghost" size="sm" onPress={() => setWithdrawn(true)}>
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                isDisabled={pending}
+                                onPress={() =>
+                                  act(
+                                    () => withdrawRequestAction(u.id),
+                                    () => setWithdrawn((cur) => [...cur, u.id]),
+                                  )
+                                }
+                              >
                                 Withdraw request
                               </Button>
                             )
@@ -278,19 +337,30 @@ export function GuestAccountView({
           </>
         ) : null}
 
-        {tab === "saved" && collection ? (
+        {tab === "saved" ? (
           <div className="flex flex-wrap items-start gap-5">
             <section className="flex min-w-[min(280px,100%)] flex-[0_1_340px] flex-col gap-2.5" aria-labelledby="col-h">
               <div className="flex items-center justify-between gap-2">
                 <SectionHeader id="col-h" title="Collections" />
-                <Button variant="ghost" size="sm">
+                <Button variant="ghost" size="sm" aria-expanded={creating} onPress={() => setCreating((v) => !v)}>
                   <Plus className="size-4" />
                   New collection
                 </Button>
               </div>
+              {creating ? (
+                <Form aria-label="New collection" className="flex items-end gap-2" onSubmit={createCollection}>
+                  <TextField fullWidth value={newName} onChange={setNewName} className="gap-1">
+                    <Label htmlFor="new-col">Name</Label>
+                    <Input id="new-col" placeholder="Kigali weekend" autoFocus />
+                  </TextField>
+                  <Button type="submit" size="sm" isDisabled={pending || !newName.trim()}>
+                    Create
+                  </Button>
+                </Form>
+              ) : null}
               {collections.map((c) => {
                 const left = c.items.filter((it) => !removed.includes(`${c.id}${it.id}`)).length;
-                const selected = c.id === collection.id;
+                const selected = c.id === collection?.id;
                 return (
                   <ItemCard<"button">
                     key={c.id}
@@ -318,74 +388,82 @@ export function GuestAccountView({
                 Collections are private unless you share them. Hosts never see who saved their listing.
               </p>
             </section>
-            <Card className="min-w-0 flex-[1_1_520px] gap-3 p-[18px]" aria-labelledby="cold-h">
-              <div className="flex flex-wrap items-center justify-between gap-2">
-                <div className="flex flex-col gap-0.5">
-                  <h2 id="cold-h" className="text-[15px] leading-[22px] font-semibold">
-                    {collection.name}
-                  </h2>
-                  <span className="text-xs text-muted">
-                    {collection.visibility} · {collection.items.length} {collection.noun}
-                  </span>
+            {collection ? (
+              <Card className="min-w-0 flex-[1_1_520px] gap-3 p-[18px]" aria-labelledby="cold-h">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <div className="flex flex-col gap-0.5">
+                    <h2 id="cold-h" className="text-[15px] leading-[22px] font-semibold">
+                      {collection.name}
+                    </h2>
+                    <span className="text-xs text-muted">
+                      {collection.visibility} · {collection.items.length} {collection.noun}
+                    </span>
+                  </div>
+                  <Button variant="secondary" size="sm">
+                    <Persons className="size-4" />
+                    Share
+                  </Button>
                 </div>
-                <Button variant="secondary" size="sm">
-                  <Persons className="size-4" />
-                  Share
-                </Button>
-              </div>
-              {items.length ? (
-                <ListView
-                  aria-label={collection.name}
-                  variant="secondary"
-                  items={items.map((it) => ({ ...it, key: it.id }))}
-                >
-                  {(it) => (
-                    <ListView.Item id={it.id} textValue={it.name} className="items-center">
-                      <ListView.ItemContent className="items-center gap-3">
-                        <span className="relative h-[52px] w-16 shrink-0 overflow-hidden rounded-xl bg-surface-secondary">
-                          <Photo image={stock[it.photo]} alt="" fill sizes="64px" />
-                        </span>
-                        <span className="flex min-w-0 flex-col gap-0.5">
-                          <ListView.Title className="font-medium">
-                            <TextLink href={placeHref(it.board, it.id)}>{it.name}</TextLink>
-                          </ListView.Title>
-                          <ListView.Description className="text-xs">{it.line}</ListView.Description>
-                        </span>
-                      </ListView.ItemContent>
-                      <Chip size="sm" variant="soft" color={chipColor(it.tone)}>
-                        <Chip.Label>{it.note}</Chip.Label>
-                      </Chip>
-                      <ListView.ItemAction>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          isIconOnly
-                          aria-label={`Remove ${it.name} from ${collection.name}`}
-                          onPress={() => setRemoved((cur) => [...cur, `${collection.id}${it.id}`])}
-                        >
-                          <HeartFill className="size-4 text-danger" />
-                        </Button>
-                      </ListView.ItemAction>
-                    </ListView.Item>
-                  )}
-                </ListView>
-              ) : (
-                <EmptyState size="sm">
-                  <EmptyState.Header>
-                    <EmptyState.Media variant="icon">
-                      <Heart />
-                    </EmptyState.Media>
-                    <EmptyState.Title>Nothing saved here yet</EmptyState.Title>
-                    <EmptyState.Description>Tap the heart on any stay or home to add it.</EmptyState.Description>
-                  </EmptyState.Header>
-                  <EmptyState.Content>
-                    <LinkButton href={screenHref("MarketExplore")} variant="secondary" size="sm">
-                      Explore stays
-                    </LinkButton>
-                  </EmptyState.Content>
-                </EmptyState>
-              )}
-            </Card>
+                {items.length ? (
+                  <ListView
+                    aria-label={collection.name}
+                    variant="secondary"
+                    items={items.map((it) => ({ ...it, key: it.id }))}
+                  >
+                    {(it) => (
+                      <ListView.Item id={it.id} textValue={it.name} className="items-center">
+                        <ListView.ItemContent className="items-center gap-3">
+                          <span className="relative h-[52px] w-16 shrink-0 overflow-hidden rounded-xl bg-surface-secondary">
+                            <Photo image={stock[it.photo]} alt="" fill sizes="64px" />
+                          </span>
+                          <span className="flex min-w-0 flex-col gap-0.5">
+                            <ListView.Title className="font-medium">
+                              <TextLink href={placeHref(it.board, it.id)}>{it.name}</TextLink>
+                            </ListView.Title>
+                            <ListView.Description className="text-xs">{it.line}</ListView.Description>
+                          </span>
+                        </ListView.ItemContent>
+                        <Chip size="sm" variant="soft" color={chipColor(it.tone)}>
+                          <Chip.Label>{it.note}</Chip.Label>
+                        </Chip>
+                        <ListView.ItemAction>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            isIconOnly
+                            aria-label={`Remove ${it.name} from ${collection.name}`}
+                            isDisabled={pending}
+                            onPress={() =>
+                              act(
+                                () => removeFromCollectionAction(collection.id, it.id),
+                                () => setRemoved((cur) => [...cur, `${collection.id}${it.id}`]),
+                              )
+                            }
+                          >
+                            <HeartFill className="size-4 text-danger" />
+                          </Button>
+                        </ListView.ItemAction>
+                      </ListView.Item>
+                    )}
+                  </ListView>
+                ) : (
+                  <EmptyState size="sm">
+                    <EmptyState.Header>
+                      <EmptyState.Media variant="icon">
+                        <Heart />
+                      </EmptyState.Media>
+                      <EmptyState.Title>Nothing saved here yet</EmptyState.Title>
+                      <EmptyState.Description>Tap the heart on any stay or home to add it.</EmptyState.Description>
+                    </EmptyState.Header>
+                    <EmptyState.Content>
+                      <LinkButton href={screenHref("MarketExplore")} variant="secondary" size="sm">
+                        Explore stays
+                      </LinkButton>
+                    </EmptyState.Content>
+                  </EmptyState>
+                )}
+              </Card>
+            ) : null}
           </div>
         ) : null}
 
@@ -482,19 +560,19 @@ export function GuestAccountView({
                 <Card.Description>Shared with a host only when you book with them</Card.Description>
               </Card.Header>
               <div className="grid gap-3 [grid-template-columns:repeat(auto-fit,minmax(min(180px,100%),1fr))]">
-                <TextField fullWidth defaultValue={profile.name} className="gap-1">
+                <TextField fullWidth value={name} onChange={setName} className="gap-1">
                   <Label htmlFor="p-name">Full name</Label>
                   <Input id="p-name" />
                 </TextField>
-                <TextField fullWidth defaultValue={profile.email} className="gap-1">
+                <TextField fullWidth defaultValue={profile.email} isReadOnly className="gap-1">
                   <Label htmlFor="p-mail">Email</Label>
                   <Input id="p-mail" />
                 </TextField>
-                <TextField fullWidth defaultValue={profile.mobile} className="gap-1">
+                <TextField fullWidth value={mobile} onChange={setMobile} className="gap-1">
                   <Label htmlFor="p-phone">Mobile</Label>
                   <Input id="p-phone" />
                 </TextField>
-                <TextField fullWidth defaultValue={profile.country} className="gap-1">
+                <TextField fullWidth value={country} onChange={setCountry} className="gap-1">
                   <Label htmlFor="p-country">Country</Label>
                   <Input id="p-country" />
                 </TextField>
@@ -511,7 +589,18 @@ export function GuestAccountView({
                 </Segment>
               </div>
               <div className="flex justify-end">
-                <Button size="sm">Save profile</Button>
+                <Button
+                  size="sm"
+                  isDisabled={pending}
+                  onPress={() =>
+                    act(
+                      () => saveContactAction({ name, phone: mobile, country, locale: lang }),
+                      () => toast.success("Profile saved"),
+                    )
+                  }
+                >
+                  Save profile
+                </Button>
               </div>
             </Card>
             <Card className="gap-1.5 p-5" aria-labelledby="cons-h">
@@ -530,8 +619,13 @@ export function GuestAccountView({
                   <Switch
                     aria-label={c.label}
                     isSelected={consentOn[c.id] ?? c.on}
-                    isDisabled={c.locked}
-                    onChange={(on) => setConsentOn((cur) => ({ ...cur, [c.id]: on }))}
+                    isDisabled={c.locked || pending}
+                    onChange={(on) =>
+                      act(
+                        () => setConsentAction(c.id, on),
+                        () => setConsentOn((cur) => ({ ...cur, [c.id]: on })),
+                      )
+                    }
                   >
                     <Switch.Content>
                       <Switch.Control>
@@ -562,12 +656,13 @@ export function GuestAccountView({
         ) : null}
       </MarketMain>
       <MarketFooter width="regular" links={3} />
+      <Toast.Provider placement="bottom" />
     </>
   );
 }
 
-/** Saved Isangano opens its property page; every other saved place returns to explore. */
+/** A saved place with a page opens it (its id is the page's slug); any other returns to explore. */
 function placeHref(board: BoardId, id: string) {
-  if (board === "MarketProperty" && id === "isangano") return screenHref("MarketProperty");
+  if (board === "MarketProperty") return propertyHref(id);
   return screenHref(board);
 }

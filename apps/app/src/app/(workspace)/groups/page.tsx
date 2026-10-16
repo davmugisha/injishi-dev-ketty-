@@ -1,9 +1,9 @@
 import { screens } from "@injishi/data";
 import type { GroupsBlock } from "@injishi/data/fixtures/commercial";
-import { getCollection } from "@injishi/db";
 import type { Metadata } from "next";
 import { GroupsView } from "@/features/commercial/GroupsView";
 import { requirePersona } from "@/lib/session";
+import { getCollection } from "@/server/data";
 
 export const metadata: Metadata = { title: screens.Groups.pageTitle };
 

@@ -1,9 +1,9 @@
 import { screens } from "@injishi/data";
 import type { CaptureEvent, FunnelStep, InsightArea, NorthStarStep } from "@injishi/data/fixtures/platformops";
-import { getCollection } from "@injishi/db";
 import type { Metadata } from "next";
 import { AdminInsightsView } from "@/features/platformops/AdminInsightsView";
 import { requirePersona } from "@/lib/session";
+import { getCollection } from "@/server/data";
 
 export const metadata: Metadata = { title: screens.AdminInsights.pageTitle };
 

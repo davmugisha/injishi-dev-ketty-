@@ -6,10 +6,10 @@ import type {
   JournalEntry,
   LedgerAccount,
 } from "@injishi/data/fixtures/accounting";
-import { getCollection } from "@injishi/db";
 import type { Metadata } from "next";
 import { GeneralLedgerView, type LedgerTab } from "@/features/accounting/GeneralLedgerView";
 import { requirePersona } from "@/lib/session";
+import { getCollection } from "@/server/data";
 
 export const metadata: Metadata = { title: screens.GeneralLedger.pageTitle };
 

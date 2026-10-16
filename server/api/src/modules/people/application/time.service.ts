@@ -411,6 +411,8 @@ export class TimeService {
       userId,
       validated: true,
       rosterEntryId: body.rosterEntryId ?? null,
+      // The desk's reason and who confirmed the time stay on the record (real-data, people).
+      note: body.note?.trim() || null,
     });
     return this.presentRecordById(id, recordReaderOf(ws));
   }
