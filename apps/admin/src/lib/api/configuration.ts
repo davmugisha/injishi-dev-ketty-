@@ -1,4 +1,4 @@
-import { AdminConfiguration, AdminFeeSchedule, PsfTier } from "@injishi/contracts";
+import { AdminConfiguration, AdminFeeSchedule, PsfCatalogue, PsfTier } from "@injishi/contracts";
 
 import { apiGet, type ApiResult } from "./server";
 
@@ -26,4 +26,12 @@ export function getFeeSchedule(): Promise<ApiResult<AdminFeeSchedule>> {
 /** The PSF membership tiers, retired ones included (ADR-056 AC-19). P: `admin.config.view`. */
 export function getPsfTiers(): Promise<ApiResult<PsfTier[]>> {
   return apiGet(`${BASE}/psf-tiers`, PsfTier.array());
+}
+
+/**
+ * PSF's sector catalogue (the PSF path): every cluster with its associations,
+ * retired ones included. P: `admin.config.view`.
+ */
+export function getPsfCatalogue(): Promise<ApiResult<PsfCatalogue>> {
+  return apiGet(`${BASE}/psf-catalogue`, PsfCatalogue);
 }

@@ -8,9 +8,10 @@
  * the editor; everyone else reads the list, which is the same answer the API
  * would give them.
  *
- * The seeded Indashyikirwa, Ordinary and Junior Giants prices are
- * placeholders from an unverified summary (ADR-056 rationale.md). PSF's own
- * price list replaces them here.
+ * PSF's tiers as the owner gave them on 2026-10-15: Golden Circle from
+ * 5,000,000 a year (`minimum`, a floor with no ceiling), Indashyikirwa from
+ * 200,000, and Indatwa in four bands down to 10,000. Ordinary and Junior
+ * Giants are retired; their rows stay so the applications that name them read.
  */
 import {
   CreatePsfTierRequest,
@@ -32,6 +33,7 @@ const subscribeNothing = () => () => {};
 const PRICE_KIND_LABEL: Record<PsfPriceKind, string> = {
   fixed: "A fixed amount",
   range: "A range",
+  minimum: "From an amount up",
   set_by_psf: "Set by PSF",
 };
 
@@ -43,6 +45,7 @@ function price(t: PsfTier): string {
   if (t.priceKind === "range" && t.annualFeeMinRwf !== null && t.annualFeeMaxRwf !== null) {
     return `${rwf(t.annualFeeMinRwf)} to ${rwf(t.annualFeeMaxRwf)} a year`;
   }
+  if (t.priceKind === "minimum" && t.annualFeeMinRwf !== null) return `From ${rwf(t.annualFeeMinRwf)} a year`;
   return "Set by PSF";
 }
 
@@ -64,7 +67,7 @@ interface Draft {
 
 const EMPTY: Draft = {
   code: "",
-  family: "ordinary",
+  family: "indatwa",
   nameEn: "",
   nameRw: "",
   priceKind: "fixed",
@@ -108,7 +111,7 @@ function requestOf(d: Draft) {
     nameRw: d.nameRw.trim() || null,
     priceKind: d.priceKind,
     annualFeeRwf: d.priceKind === "fixed" ? num(d.fee) : null,
-    annualFeeMinRwf: d.priceKind === "range" ? num(d.min) : null,
+    annualFeeMinRwf: d.priceKind === "range" || d.priceKind === "minimum" ? num(d.min) : null,
     annualFeeMaxRwf: d.priceKind === "range" ? num(d.max) : null,
     benefitsEn: lines(d.benefitsEn),
     benefitsRw: rw.length > 0 ? rw : null,
@@ -218,6 +221,12 @@ export function TierCatalogue({ tiers }: { tiers: PsfTier[] }) {
               <label className="block text-sm font-semibold">
                 Annual fee (RWF)
                 <Input aria-label="Annual fee" inputMode="numeric" value={d.fee} onChange={(e) => set("fee", e.target.value)} className="mt-1 w-full" />
+              </label>
+            )}
+            {d.priceKind === "minimum" && (
+              <label className="block text-sm font-semibold">
+                From (RWF), with no ceiling
+                <Input aria-label="Lowest fee" inputMode="numeric" value={d.min} onChange={(e) => set("min", e.target.value)} className="mt-1 w-full" />
               </label>
             )}
             {d.priceKind === "range" && (

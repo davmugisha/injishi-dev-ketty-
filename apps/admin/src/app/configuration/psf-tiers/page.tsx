@@ -11,8 +11,9 @@ const PERMISSION = "admin.config.view";
 
 /**
  * The PSF membership tiers the apply form offers (ADR-056 AC-19): their
- * names, prices and benefits. PSF invoices the business itself; these are
- * what the form shows, and what an officer confirms against.
+ * names, prices and benefits. A business picks one and the amount it will pay
+ * inside its band; once PSF approves, it pays that through Injishi, and the
+ * fee goes to PSF.
  */
 export default async function Page() {
   const result = await getPsfTiers();
@@ -36,10 +37,10 @@ export default async function Page() {
               <h1 className="font-display text-3xl font-bold">PSF membership tiers</h1>
             </div>
             <p className="mt-3 max-w-read text-sm leading-6 text-muted-foreground">
-              What a business can apply for when it joins the Private Sector Federation through Injishi. PSF
-              invoices the business directly; these prices are what the form shows. An application already sent
-              keeps the price it was shown, and a retired tier stays on every application and membership that
-              names it.
+              What a business can apply for when it joins the Private Sector Federation through Injishi. A
+              business picks a tier and the amount it will pay inside the band, and pays it through Injishi once
+              PSF approves; the fee goes to PSF. An application already sent keeps the price it was shown, and a
+              retired tier stays on every application and membership that names it.
             </p>
           </section>
 

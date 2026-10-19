@@ -122,6 +122,11 @@ export const CONFIGURATION_SUBNAV: {
     detail: "What a business can apply for to join PSF",
   },
   {
+    href: "/configuration/psf-sectors",
+    label: "PSF sectors",
+    detail: "PSF's clusters and the associations businesses join",
+  },
+  {
     href: "/configuration/government-bodies",
     label: "Government bodies",
     detail: "The institutions officers are appointed from",
