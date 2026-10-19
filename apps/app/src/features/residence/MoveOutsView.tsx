@@ -44,6 +44,7 @@ const CHANNELS = ["Letter", "Resident app", "Email", "In person"];
 const DISPUTE_UNAVAILABLE =
   "Deciding a disputed deduction is not available yet. Nothing was recorded and the resident was not told.";
 const INSPECTION_UNAVAILABLE = "Booking a move-out inspection is not available yet. Nothing was booked.";
+const INSPECTION_REPORT_UNAVAILABLE = "An inspection report is not available yet: inspections are not recorded.";
 
 /** Thumbnails of one area cycle the crop so several shots of the same stock photo read as different photos. */
 const CROPS = ["object-center", "object-left", "object-right"];
@@ -76,7 +77,7 @@ export function MoveOutsView({ data }: { persona: Persona; data: MoveOutsData })
   const [registerOpen, setRegisterOpen] = useState(false);
   const [noticeOpen, setNoticeOpen] = useState(false);
   // A unit already under notice is not offered again (the API refuses a second notice on a lease).
-  const noticeUnits = data.units.filter((u) => u.lease && u.status !== "notice" && !cases.some((c) => c.id === u.id));
+  const noticeUnits = data.units.filter((u) => u.lease && u.status !== "notice");
   const [today] = useState(() => kigaliCalendar());
   const [notice, setNotice] = useState({
     unit: noticeUnits[0]?.id ?? "",
@@ -110,16 +111,6 @@ export function MoveOutsView({ data }: { persona: Persona; data: MoveOutsData })
           tone: (leaving ? "accent" : "success") as Tone,
         };
       }),
-    ...cases
-      .filter((x) => x.step < STEPS.length && x.inspection.done)
-      .map((x) => ({
-        id: `${x.id}-prev`,
-        who: `${x.name} (previous resident of ${x.id})`,
-        lease: x.lease,
-        amount: x.deposit,
-        state: "In settlement",
-        tone: "warning" as Tone,
-      })),
   ];
   const depositTotal = deposits.reduce((t, d) => t + d.amount, 0);
 
@@ -276,17 +267,7 @@ export function MoveOutsView({ data }: { persona: Persona; data: MoveOutsData })
                 <div className="flex flex-col gap-3">
                   <div className="flex flex-wrap items-center justify-between gap-2">
                     <span className="text-[13px] text-muted">{c.inspection.meta}</span>
-                    <Button
-                      size="sm"
-                      variant="ghost"
-                      onPress={() => {
-                        if (!c.inspection.done) return;
-                        downloadCsv(`${c.lease}-move-out-inspection.csv`, [
-                          ["Area", "At move-in", "At move-out", "Photos", "Finding"],
-                          ...c.inspection.checklist.map((i) => [i.area, i.before, i.after, i.photos, i.finding]),
-                        ]);
-                      }}
-                    >
+                    <Button size="sm" variant="ghost" onPress={() => toast.warning(INSPECTION_REPORT_UNAVAILABLE)}>
                       <ArrowDownToLine className="size-4" />
                       Inspection report
                     </Button>
@@ -355,7 +336,7 @@ export function MoveOutsView({ data }: { persona: Persona; data: MoveOutsData })
                         Start inspection
                       </Button>
                     </span>
-                    <span className="text-[12px] text-muted">{c.inspection.hint}</span>
+                    <span className="text-[12px] text-muted">Inspections are not recorded on the platform yet.</span>
                   </EmptyState.Content>
                 </EmptyState>
               )}

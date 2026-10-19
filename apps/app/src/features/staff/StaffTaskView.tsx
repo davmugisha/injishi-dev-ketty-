@@ -476,7 +476,7 @@ export function StaffTaskView({
                   <Timeline.Connector />
                 </Timeline.Rail>
                 <Timeline.Content>
-                  <span className="font-medium">Inspection by Beatrice</span>
+                  <span className="font-medium">Inspection by a supervisor</span>
                   <span className="text-xs leading-4 text-muted">Required before the room can be sold</span>
                 </Timeline.Content>
               </Timeline.Item>

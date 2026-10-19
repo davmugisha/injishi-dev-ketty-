@@ -146,13 +146,13 @@ export function TechWorkOrdersView({ persona, data }: { persona: Persona; data: 
           {
             status: "current",
             icon: <CheckDouble />,
-            title: "Room check by Beatrice",
+            title: "Room check by housekeeping",
             detail: "Housekeeping inspects before guests",
           },
           {
             status: "default",
             icon: <LockOpen />,
-            title: "Aline releases the block",
+            title: "A manager releases the block",
             detail: "Only the manager can put the room back on sale",
           },
           { status: "default", icon: <Key />, title: "Back on sale", detail: "Front desk sees it as available" },
@@ -594,7 +594,7 @@ export function TechWorkOrdersView({ persona, data }: { persona: Persona; data: 
               <CircleInfo className="mt-[1px] size-4 shrink-0" aria-hidden="true" />
               <span>
                 {askRelease
-                  ? "The room stays blocked until Beatrice checks it and Aline releases it. You cannot put it back on sale yourself."
+                  ? "The room stays blocked until housekeeping checks it and a manager releases it. You cannot put it back on sale yourself."
                   : block.keep}
               </span>
             </p>

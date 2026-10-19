@@ -179,7 +179,7 @@ export function InspectRoomView({ persona, data }: { persona: Persona; data: Ins
           tone: "warning" as const,
           icon: <ArrowUturnCcwLeft />,
           title: `Returned to ${r.cleanedByFirst}`,
-          text: "It is at the top of her list now. The room stays Clean, not Ready, until you inspect it again.",
+          text: "The room goes back to dirty with a re-clean on her list. It is inspected again after that.",
           chip: "Returned · not sellable",
           history: `Returned by ${persona.name} at ${NOW} · ${fails} failed check${fails === 1 ? "" : "s"}${
             photoCount ? `, ${photoCount} photo${photoCount === 1 ? "" : "s"}` : ""
@@ -190,7 +190,7 @@ export function InspectRoomView({ persona, data }: { persona: Persona; data: Ins
           icon: <CheckDouble />,
           title: `Room ${r.no} is Inspected`,
           text: `Front desk sees it as Ready from ${NOW}. ${
-            arrivalTime ? `Eric can assign it for the ${arrivalTime} arrival.` : "It can be sold tonight."
+            arrivalTime ? `Front desk can assign it for the ${arrivalTime} arrival.` : "It can be sold tonight."
           }`,
           chip: "Inspected",
           history: `Inspected by ${persona.name} at ${NOW} · ${checked} of ${checks.length} passed`,

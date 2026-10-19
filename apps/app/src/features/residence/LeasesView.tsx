@@ -222,7 +222,7 @@ export function LeasesView({ data }: { persona: Persona; data: LeasesData }) {
       toast.danger(result.error);
       return;
     }
-    toast.success(`Reminder sent to ${lease.resident} · in the resident app`, {
+    toast.success(`Reminder recorded for ${lease.resident} · shown in the resident app if they use it`, {
       indicator: <CircleCheck className="size-4" />,
     });
   };
@@ -251,7 +251,7 @@ export function LeasesView({ data }: { persona: Persona; data: LeasesData }) {
             </LinkButton>
             <LinkButton href={screenHref("Applicants")}>
               <FilePlus className="size-4" />
-              New lease from applicant
+              Open applicants
             </LinkButton>
           </>
         }

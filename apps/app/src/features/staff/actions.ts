@@ -6,6 +6,7 @@ import { requirePersona } from "@/lib/session";
 import { ApiError, ApiUnreachableError } from "@/server/api";
 import { requestContext } from "@/server/data";
 import * as staff from "@/server/mutations/staff";
+import { NoWorkspaceError } from "@/server/sources/types";
 
 /**
  * The staff phones' writes. Each one checks the screen is the person's, calls the API through
@@ -27,6 +28,7 @@ async function run<T>(board: BoardId, path: string | null, act: () => Promise<T>
       return { ok: false, error: error.message };
     }
     if (error instanceof staff.StaffInputError) return { ok: false, error: error.message };
+    if (error instanceof NoWorkspaceError) return { ok: false, error: error.message };
     if (error instanceof ApiUnreachableError)
       return { ok: false, error: "The Injishi service did not answer. Try again." };
     throw error;

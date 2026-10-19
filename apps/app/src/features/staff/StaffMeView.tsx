@@ -543,7 +543,7 @@ export function StaffMeView({
           <Button variant="ghost" className="min-h-11" onPress={closeSheet}>
             Cancel
           </Button>
-          <span className="text-xs text-muted">Forgot it? Ask Diane in HR.</span>
+          <span className="text-xs text-muted">Forgot it? Ask HR.</span>
         </div>
       </PhoneSheet>
 
@@ -551,7 +551,7 @@ export function StaffMeView({
         isOpen={sheet === "help"}
         onOpenChange={(o) => !o && closeSheet()}
         heading="Ask HR or IT"
-        description="Sending a question from the phone is not available yet. Ask Diane Ingabire (HR) in person."
+        description="Sending a question from the phone is not available yet. Ask HR in person."
       >
         <ToggleButtonGroup
           aria-label="Topic"
@@ -585,7 +585,7 @@ export function StaffMeView({
             className="min-h-14"
             onPress={() => {
               setSheet("");
-              toast.warning("Questions cannot be sent to HR or IT from the phone yet. Ask Diane in person.");
+              toast.warning("Questions cannot be sent to HR or IT from the phone yet. Ask HR in person.");
             }}
           >
             <PaperPlane className="size-4" />

@@ -194,7 +194,7 @@ export function PublicHelpView({
     {
       id: "agent",
       title: "With a support agent",
-      detail: privacy ? "Handled by our data protection lead" : "Next · a person on the support team picks it up",
+      detail: "Next · a person on the support team picks it up",
     },
     { id: "waiting", title: "Waiting for you", detail: "Only if we need more information" },
     { id: "resolved", title: "Resolved", detail: "Closed by support once answered" },

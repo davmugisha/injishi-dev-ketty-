@@ -547,9 +547,7 @@ export function ApplicantsView({ persona, data }: { persona: Persona; data: Appl
                 <Label>Message</Label>
                 <TextArea rows={3} />
               </TextField>
-              <p className="text-[12px] text-muted">
-                Expires in 7 days. You can resend or revoke it from Registration invitations.
-              </p>
+              <p className="text-[12px] text-muted">Sending invitations is not available yet.</p>
             </Drawer.Body>
             <Drawer.Footer className="flex justify-end gap-2">
               <Button variant="secondary" onPress={() => setInviteOpen(false)}>

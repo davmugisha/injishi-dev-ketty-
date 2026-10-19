@@ -115,10 +115,21 @@ try {
     await page.press("Done");
     await page.waitForText("Saved to your account", 30_000);
   };
-  const MOBILE = "+250788400199";
+  const MOBILE = was === "+250788400199" ? "+250788400188" : "+250788400199";
   await setMobile(MOBILE);
+  await page.waitFor(`!document.getElementById('ph')`, "the details to close after saving", 30_000);
   await page.reload();
-  await page.waitFor(`document.body.innerText.includes(${JSON.stringify(MOBILE)})`, "the saved mobile after a reload", 90_000);
+  await page.waitForText("Your details", 90_000);
+  try {
+    await page.waitFor(
+      `document.body.innerText.includes(${JSON.stringify(MOBILE)})`,
+      "the saved mobile after a reload",
+      60_000,
+    );
+  } catch (error) {
+    console.error(`  Your details read: ${await summary()}`);
+    throw error;
+  }
   console.log(`  Your details: mobile changed to ${MOBILE}, saved to her account, still there after a reload`);
   if (was && was !== MOBILE) await setMobile(was);
 

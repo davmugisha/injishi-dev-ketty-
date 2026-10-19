@@ -47,7 +47,7 @@ import { GateChip, Icon, KeyValueList, PhoneBody, PhoneTop, toneColor } from "@i
 import { type ReactNode, useState, useTransition } from "react";
 import { reported } from "../operations/shared";
 import { askLeaveAction, cancelRequestAction } from "./actions";
-import { PhoneSheet, PhoneTitle, renderArticle, renderSection } from "./parts";
+import { PhoneSheet, PhoneTitle, PhoneToasts, renderArticle, renderSection } from "./parts";
 
 export interface StaffScheduleData {
   profile: StaffProfile;
@@ -580,6 +580,7 @@ export function StaffScheduleView({ persona, data }: { persona: Persona; data: S
           </Button>
         </div>
       </PhoneSheet>
+      <PhoneToasts />
     </>
   );
 }
