@@ -28,12 +28,14 @@ export const metadata: Metadata = {
  * The closing card sends people back up to the chooser rather than into a
  * registration with no kind, which asked the kind a second time.
  *
- * `overflow-x-hidden` because the hero's scrim and the steps' connector rules
- * both run past the content column by design.
+ * `overflow-x-clip` because the hero's scrim and the steps' connector rules
+ * both run past the content column by design. `hidden` would compute the
+ * other axis to `auto` and can swallow the window scroll the header's pill
+ * listens for.
  */
 export default function HostPage() {
   return (
-    <div className="flex flex-col overflow-x-hidden">
+    <div className="flex flex-col overflow-x-clip">
       <HostHero />
       <HostBrokerLine />
       <HostSteps />
