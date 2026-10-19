@@ -2,7 +2,9 @@
 /**
  * The guest account's saved lists and the Explore heart, in a real browser: Sarah signs in, opens Saved on
  * /trips, creates a list that survives a reload, hearts a stay on /explore and finds it still saved after a
- * reload, then takes the heart off again.
+ * reload, then takes the heart off again. On the checkout she edits Your details: the new mobile number is
+ * saved to her account and is still there after a reload (then put back). On the property page Report this
+ * listing opens a real support ticket.
  *
  *   APP_URL=http://localhost:3040 node scripts/browser/market.mjs
  *
@@ -96,6 +98,42 @@ try {
     90_000,
   );
   console.log(`  took the heart off ${place}, and it stays off after a reload`);
+
+  // Your details on the checkout: saved to her account (PUT /me/guest-contact), so a reload shows it.
+  await page.goto(`${APP}/book`);
+  await page.waitForText("Your details", 90_000);
+  const summary = () =>
+    page.eval(
+      "[...document.querySelectorAll('h2')].find((h) => h.innerText.includes('Your details'))?.parentElement?.innerText ?? ''",
+    );
+  const was = ((await summary()).split(" · ").pop() ?? "").trim();
+  const setMobile = async (value) => {
+    await page.press("Edit");
+    await page.waitFor("!!document.getElementById('ph')", "the mobile field");
+    await page.eval("(() => { const el = document.getElementById('ph'); el.focus(); el.select(); })()");
+    await page.send("Input.insertText", { text: value });
+    await page.press("Done");
+    await page.waitForText("Saved to your account", 30_000);
+  };
+  const MOBILE = "+250788400199";
+  await setMobile(MOBILE);
+  await page.reload();
+  await page.waitFor(`document.body.innerText.includes(${JSON.stringify(MOBILE)})`, "the saved mobile after a reload", 90_000);
+  console.log(`  Your details: mobile changed to ${MOBILE}, saved to her account, still there after a reload`);
+  if (was && was !== MOBILE) await setMobile(was);
+
+  // Report this listing: a support ticket about the place, its number on the page.
+  const slug = await page.eval(
+    `(document.querySelector('a[aria-label^="Back to"]')?.getAttribute('href') ?? '').split('/').pop()`,
+  );
+  if (!slug) throw new Error("no property link on the checkout");
+  await page.goto(`${APP}/explore/${slug}`);
+  await page.waitForText("Report this listing", 90_000);
+  await page.press("Report this listing");
+  await page.waitForText("Why are you reporting this listing?", 30_000);
+  await page.press("Send report");
+  await page.waitForText("Sent to Injishi support · ticket", 60_000);
+  console.log(`  reported /explore/${slug}: a support ticket number came back`);
 
   console.log("BROWSER MARKET OK");
 } catch (error) {

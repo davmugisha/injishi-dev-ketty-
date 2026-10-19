@@ -56,7 +56,8 @@ export interface ApplicantsData {
 
 type Tab = "applicants" | "invites";
 
-const TEMPLATES = ["Kacyiru Court residential lease v3", "Kacyiru Court company lease v2"];
+/** The one lease a draft is made from: the convert route takes no template (`ConvertApplicationRequest`). */
+const TEMPLATE = "Kacyiru Court residential lease v3";
 const UNAVAILABLE_INVITES = "Invitations to apply are not available yet. Nothing was sent.";
 
 const inviteMessage = (unit: string) =>
@@ -70,7 +71,6 @@ export function ApplicantsView({ persona, data }: { persona: Persona; data: Appl
     Object.fromEntries(data.applicants.filter((a) => a.profile).map((a) => [a.id, [...(a.profile?.checks ?? [])]])),
   );
   const [convertOpen, setConvertOpen] = useState(false);
-  const [template, setTemplate] = useState(TEMPLATES[0]);
   const [terms, setTerms] = useState({ start: "", term: "", rent: "", deposit: "", notice: "30 days" });
   const [busy, setBusy] = useState(false);
   const [declineOpen, setDeclineOpen] = useState(false);
@@ -442,7 +442,11 @@ export function ApplicantsView({ persona, data }: { persona: Persona; data: Appl
               <Label>Notice period</Label>
               <Input />
             </TextField>
-            <SelectField label="Contract template" value={template} options={TEMPLATES} onChange={setTemplate} />
+            <TextField fullWidth value={TEMPLATE} isReadOnly className="gap-1">
+              <Label>Contract template</Label>
+              <Input />
+              <Description>The building’s standard lease. Another template cannot be chosen yet.</Description>
+            </TextField>
           </div>
           <Alert status="accent">
             <Alert.Indicator>

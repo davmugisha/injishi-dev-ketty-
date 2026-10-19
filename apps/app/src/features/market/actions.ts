@@ -48,6 +48,11 @@ export async function setSavedBySlugAction(slug: string, on: boolean) {
   return run("MarketProperty", (ctx) => market.setSavedBySlug(ctx, slug, on));
 }
 
+/** "Report this listing" → a support ticket about it (`POST /support/tickets`, topic listing). Answers its id. */
+export async function reportListingAction(slug: string, reason: string, detail: string) {
+  return run("MarketProperty", async (ctx) => (await market.reportListing(ctx, { slug, reason, detail })).id, false);
+}
+
 // ── The guest account ───────────────────────────────────────────────────────────────────────────
 
 export async function createCollectionAction(name: string) {
@@ -136,6 +141,24 @@ export async function payCheckoutAction(
       failureReason: null,
     });
   });
+}
+
+/** "Your details" → the person's own contact record (`PUT /me/guest-contact`); a booking takes no guest details. */
+export async function saveCheckoutDetailsAction(input: {
+  firstName: string;
+  lastName: string;
+  mobile: string;
+  country: string;
+}) {
+  return run("MarketCheckout", (ctx) => market.saveCheckoutDetails(ctx, input));
+}
+
+/**
+ * "Cancel request" on a request just sent → `POST /bookings/:reference/cancel`. A request the host has not
+ * accepted is refunded in full; the answer carries the refund the server decided.
+ */
+export async function cancelCheckoutRequestAction(reference: string) {
+  return run("MarketCheckout", (ctx) => market.cancelBooking(ctx, reference));
 }
 
 /** Ask where a press of Pay got to. */

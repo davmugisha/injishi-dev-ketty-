@@ -28,6 +28,8 @@ import {
   Tag,
   TagGroup,
   TextField,
+  Toast,
+  toast,
 } from "@heroui/react";
 import { ItemCard, Segment, Timeline } from "@heroui-pro/react";
 import { screenHref } from "@injishi/data";
@@ -71,15 +73,21 @@ const SAMPLES = [
   { id: "INJ-HKS-26-9999", label: "Unknown code" },
 ];
 
-function seatOf(session: CourseSession, requested: boolean) {
+/**
+ * Why a seat cannot be asked for here yet: the sessions on this page are the prototype's (the training collections
+ * are deferred until the course schema grows, data map public.courseSessions), so there is no real session to
+ * register for, and the API's registration (`POST /training/registrations`) has no employer approval or waitlist.
+ */
+const SEAT_UNAVAILABLE =
+  "Asking for a seat is not available here yet. Nothing was requested; ask your manager to register you.";
+
+function seatOf(session: CourseSession) {
   const full = session.taken >= session.capacity;
-  const taken = session.taken + (requested && !full ? 1 : 0);
+  const taken = session.taken;
   let chip: { label: string; tone: Tone } | null = null;
   if (session.attended) chip = { label: `Completed · ${session.attended}`, tone: "default" };
   else if (session.mine) chip = { label: "You're enrolled", tone: "success" };
-  else if (requested && full) chip = { label: "On waitlist · position 3", tone: "info" };
-  else if (requested) chip = { label: "Requested · waiting for your manager", tone: "warning" };
-  const open = !session.attended && !session.mine && !requested;
+  const open = !session.attended && !session.mine;
   const seatText = session.attended
     ? session.attended
     : full
@@ -99,7 +107,6 @@ function seatOf(session: CourseSession, requested: boolean) {
 export function TrainingView({ links, data }: { links: DemoLinks; data: TrainingData }) {
   const [team, setTeam] = useState<TeamFilter>("all");
   const [courseId, setCourseId] = useState("fde");
-  const [requested, setRequested] = useState<string[]>([]);
   const [code, setCode] = useState("INJ-FDE-26-0417");
   const [checked, setChecked] = useState("INJ-FDE-26-0417");
   const [qr, setQr] = useState(false);
@@ -119,7 +126,7 @@ export function TrainingView({ links, data }: { links: DemoLinks; data: Training
         ? "revoked"
         : "none";
 
-  const ask = (id: string) => setRequested((cur) => (cur.includes(id) ? cur : [...cur, id]));
+  const ask = () => toast.warning(SEAT_UNAVAILABLE);
   const checkCode = (value: string) => {
     const next = value.trim().toUpperCase();
     setCode(next);
@@ -275,7 +282,7 @@ export function TrainingView({ links, data }: { links: DemoLinks; data: Training
                   {data.sessions
                     .filter((session) => session.course === course.id)
                     .map((session) => {
-                      const seat = seatOf(session, requested.includes(session.id));
+                      const seat = seatOf(session);
                       return (
                         <Table.Row key={session.id} id={session.id}>
                           <Table.Cell>
@@ -318,12 +325,12 @@ export function TrainingView({ links, data }: { links: DemoLinks; data: Training
                           </Table.Cell>
                           <Table.Cell className="text-right">
                             {seat.canEnrol ? (
-                              <Button size="sm" onPress={() => ask(session.id)}>
+                              <Button size="sm" onPress={ask}>
                                 Request a seat
                               </Button>
                             ) : null}
                             {seat.canWait ? (
-                              <Button size="sm" variant="secondary" onPress={() => ask(session.id)}>
+                              <Button size="sm" variant="secondary" onPress={ask}>
                                 Join waitlist
                               </Button>
                             ) : null}
@@ -426,6 +433,7 @@ export function TrainingView({ links, data }: { links: DemoLinks; data: Training
                         variant="ghost"
                         aria-label="Download certificate PDF"
                         className="min-w-8 px-1.5"
+                        onPress={() => toast.warning("Downloading the certificate is not available here yet.")}
                       >
                         <FileArrowDown className="size-4" />
                       </Button>
@@ -573,6 +581,7 @@ export function TrainingView({ links, data }: { links: DemoLinks; data: Training
         </div>
       </PublicMain>
 
+      <Toast.Provider placement="bottom" />
       <PublicFooter
         links={[
           { label: "Help centre", href: screenHref("PublicHelp") },

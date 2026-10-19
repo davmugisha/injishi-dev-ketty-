@@ -41,8 +41,17 @@ import type { StaffProfile, StorePart, WorkOrder, WorkOrderPart } from "@injishi
 import { Icon, KeyValueList, PhoneBody, PhoneTop, toneColor } from "@injishi/ui";
 import { type ReactNode, useState, useTransition } from "react";
 import { reported } from "../operations/shared";
-import { noteWorkOrderAction, resolveWorkOrderAction, setWorkOrderTimerAction } from "./actions";
-import { kigaliClock, PhoneActionBar, PhoneSheet, PhoneTitle, PhotoTile, renderAsButton, renderSection } from "./parts";
+import { noteWorkOrderAction, resolveWorkOrderAction, setWorkOrderTimerAction, startWorkOrderAction } from "./actions";
+import {
+  kigaliClock,
+  PhoneActionBar,
+  PhoneSheet,
+  PhoneTitle,
+  PhoneToasts,
+  PhotoTile,
+  renderAsButton,
+  renderSection,
+} from "./parts";
 
 export interface TechWorkOrdersData {
   profile: StaffProfile;
@@ -127,7 +136,10 @@ export function TechWorkOrdersView({ persona, data }: { persona: Persona; data: 
     detail: `Today ${resolved[w.id]?.at ?? kigaliClock()} · ${parts.length} part${parts.length === 1 ? "" : "s"} · time logged`,
   };
   const release: Step[] = !block
-    ? [fixed, { status: "default", icon: <Bell />, title: "Reporter gets a message", detail: w.from }]
+    ? [
+        fixed,
+        { status: "default", icon: <Bell />, title: "Shows as fixed on the work order", detail: `Raised by ${w.from}` },
+      ]
     : askRelease
       ? [
           fixed,
@@ -164,6 +176,11 @@ export function TechWorkOrdersView({ persona, data }: { persona: Persona; data: 
   const setTimer = (on: boolean) =>
     startTransition(async () => {
       reported(await setWorkOrderTimerAction(w.id, on));
+    });
+  /** "Start work": the order goes In progress on the API (`/ops/work-orders/:id/start`); the repair timer is its own button. */
+  const startWork = () =>
+    startTransition(async () => {
+      reported(await startWorkOrderAction(w.id));
     });
   const fixText = fix[w.id] ?? w.fix;
   const resolve = () =>
@@ -284,7 +301,7 @@ export function TechWorkOrdersView({ persona, data }: { persona: Persona; data: 
                     </Timeline.Item>
                   ))}
                 </Timeline>
-                <Button variant="ghost" className="min-h-11 self-start" onPress={() => toast.danger(NOT_YET.reopen)}>
+                <Button variant="ghost" className="min-h-11 self-start" onPress={() => toast.warning(NOT_YET.reopen)}>
                   Reopen
                 </Button>
               </Card>
@@ -319,7 +336,7 @@ export function TechWorkOrdersView({ persona, data }: { persona: Persona; data: 
                   variant="secondary"
                   fullWidth
                   className="h-[84px] flex-col gap-[4px] rounded-[14px]"
-                  onPress={() => toast.danger(NOT_YET.photo)}
+                  onPress={() => toast.warning(NOT_YET.photo)}
                 >
                   <Camera className="size-5" />
                   Add
@@ -484,7 +501,7 @@ export function TechWorkOrdersView({ persona, data }: { persona: Persona; data: 
 
       {view === "detail" && s === "new" ? (
         <PhoneActionBar>
-          <Button size="lg" className="min-h-14 flex-1" isDisabled={pending} onPress={() => setTimer(true)}>
+          <Button size="lg" className="min-h-14 flex-1" isDisabled={pending} onPress={startWork}>
             <CirclePlay className="size-4" />
             Start work
           </Button>
@@ -513,7 +530,7 @@ export function TechWorkOrdersView({ persona, data }: { persona: Persona; data: 
             const part = store.find((p) => p.id === key);
             if (!part?.available) return;
             setSheet("");
-            toast.danger(NOT_YET.part);
+            toast.warning(NOT_YET.part);
           }}
           className="shrink-0"
         >
@@ -592,6 +609,7 @@ export function TechWorkOrdersView({ persona, data }: { persona: Persona; data: 
           </Button>
         </div>
       </PhoneSheet>
+      <PhoneToasts />
     </>
   );
 }

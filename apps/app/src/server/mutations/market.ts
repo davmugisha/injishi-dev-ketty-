@@ -3,6 +3,7 @@
  * both call them. Everything here acts as the signed-in person on their own rows (`/me/*`, `/bookings`):
  * the API takes the person from the session and answers 404 for anything that is not theirs.
  */
+import { listingReportLabel } from "../../features/market/report-reasons";
 import { ApiError } from "../api";
 import { CONSENT_PURPOSE, type CollectionApi, catalogue, checkoutDrafts, myCollections } from "../sources/market";
 import type { SourceContext } from "../sources/types";
@@ -68,6 +69,51 @@ export interface ContactInput {
 
 export async function saveContact(ctx: SourceContext, input: ContactInput): Promise<void> {
   await ctx.api.put("/api/v1/me/guest-contact", input);
+}
+
+/**
+ * The checkout's "Your details". The booking route takes no guest details (a booking is the signed-in person's),
+ * so what the person edits here is their own contact record (`PUT /me/guest-contact`), the one the account page
+ * edits too. The language they chose is kept as it is.
+ */
+export async function saveCheckoutDetails(
+  ctx: SourceContext,
+  input: { firstName: string; lastName: string; mobile: string; country: string },
+): Promise<void> {
+  const name = `${input.firstName.trim()} ${input.lastName.trim()}`.trim();
+  if (!name) throw new ApiError(400, null, "Enter your name.", null);
+  const current = await ctx.api.get<{ locale: string }>("/api/v1/me/guest-contact");
+  await saveContact(ctx, { name, phone: input.mobile.trim(), country: input.country, locale: current.locale });
+}
+
+// ── Reports ────────────────────────────────────────────────────────────────────────────────────────
+
+/**
+ * "Report this listing": a support ticket about the listing (`POST /support/tickets`, topic `listing`), the intake
+ * Injishi support works from. It is the signed-in person's: the API attributes it from the session, and the reply
+ * goes to their account's email. Answers the ticket id.
+ */
+export async function reportListing(
+  ctx: SourceContext,
+  input: { slug: string; reason: string; detail: string },
+): Promise<{ id: string }> {
+  const email = ctx.account?.user.email;
+  if (!email) throw new ApiError(401, null, "Sign in to report a listing.", null);
+  const reason = listingReportLabel(input.reason);
+  if (!reason) throw new ApiError(400, null, "Choose why you are reporting this listing.", null);
+  const card = (await catalogue(ctx)).find((c) => c.slug === input.slug);
+  if (!card) throw new ApiError(404, null, "That place is no longer listed.", null);
+  const detail = input.detail.trim().slice(0, 2000);
+  const message = [`Report about a listing: ${card.name} (${card.slug})`, `Reason: ${reason}`, detail]
+    .filter(Boolean)
+    .join("\n");
+  const name = ctx.account?.user.name?.trim();
+  return ctx.api.post<{ id: string }>("/api/v1/support/tickets", {
+    topic: "listing",
+    message,
+    email,
+    ...(name ? { name: name.slice(0, 120) } : {}),
+  });
 }
 
 // ── Bookings ─────────────────────────────────────────────────────────────────────────────────────

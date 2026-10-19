@@ -435,7 +435,7 @@ export function ResidenceServiceView({ persona, data }: { persona: Persona; data
                                 {r.approveLabel}
                               </Button>
                               <Button size="sm" variant="ghost" onPress={() => decide(r, "declined")}>
-                                Decline with reason
+                                Decline
                               </Button>
                             </div>
                           ) : null}

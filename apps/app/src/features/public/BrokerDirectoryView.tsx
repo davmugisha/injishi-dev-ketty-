@@ -13,9 +13,8 @@ import {
   Plus,
   ScalesBalanced,
   SealCheck,
-  Ticket,
 } from "@gravity-ui/icons";
-import { Alert, Button, Card, Chip, Modal, SearchField, Switch, Table } from "@heroui/react";
+import { Alert, Button, Card, Chip, Modal, SearchField, Switch, Table, Toast, toast } from "@heroui/react";
 import { EmptyState, RadioButtonGroup, Segment } from "@heroui-pro/react";
 import { screenHref } from "@injishi/data";
 import type {
@@ -24,7 +23,6 @@ import type {
   CreditLogEntry,
   CreditPack,
   DirectoryListing,
-  Tone,
 } from "@injishi/data/fixtures/public";
 import { stock } from "@injishi/data/media";
 import {
@@ -60,6 +58,13 @@ const TYPES = [
 ] as const;
 
 type HomeType = (typeof TYPES)[number]["id"];
+
+/**
+ * Why a reveal changes nothing yet: the directory on this page is the prototype's (data map public.directoryListings
+ * is deferred until the broker placement lifecycle is decided), so revealing would send a sample listing to the API
+ * (`POST /ops/broker/directory/:listingId/reveal`). No credit is taken and no contact is shown.
+ */
+const REVEAL_UNAVAILABLE = "Revealing a landlord's contact is not available yet. No credits were used.";
 
 function firstKey(keys: "all" | Set<Key>): string | null {
   if (keys === "all") return null;
@@ -100,11 +105,11 @@ function policyColor(listing: DirectoryListing): "success" | "accent" | "default
 /** Broker · directory and credits (artifact: BrokerDirectory.dc.html) — listings, reveals and credit packs. */
 export function BrokerDirectoryView({ data }: { data: BrokerDirectoryData }) {
   const account = data.credits[0];
-  const [balance, setBalance] = useState(account?.balance ?? 0);
+  // Credits come from the server, never from arithmetic here; while the directory is sample data the balance is
+  // the account's as read, and a reveal changes nothing (see REVEAL_UNAVAILABLE).
+  const balance = account?.balance ?? 0;
   const [selectedId, setSelectedId] = useState("kiyovu");
-  const [confirming, setConfirming] = useState(true);
   const revealed = data.listings.filter((listing) => listing.revealed).map((listing) => listing.id);
-  const [fresh, setFresh] = useState<string[]>([]);
   const [type, setType] = useState<HomeType>("all");
   const [query, setQuery] = useState("");
   const [openOnly, setOpenOnly] = useState(false);
@@ -119,35 +124,15 @@ export function BrokerDirectoryView({ data }: { data: BrokerDirectoryData }) {
     return true;
   });
   const selected = data.listings.find((listing) => listing.id === selectedId) ?? data.listings[0];
-  const revealedIds = new Set([...revealed, ...fresh]);
-  const used =
-    (account?.usedThisMonth ?? 0) +
-    fresh.reduce((sum, id) => sum + (data.listings.find((listing) => listing.id === id)?.cost ?? 0), 0);
-  const reveals = (account?.revealsThisMonth ?? 0) + fresh.length;
+  const revealedIds = new Set(revealed);
+  const used = account?.usedThisMonth ?? 0;
+  const reveals = account?.revealsThisMonth ?? 0;
   const shown = selected ? revealedIds.has(selected.id) || selected.policy === "mandate" : false;
   const canReveal = !!selected && !shown && !selected.blockReason;
   const short = !!selected && balance < selected.cost;
-  const showConfirm = canReveal && confirming && !short;
-  const log: CreditLogEntry[] = [
-    ...fresh.map((id) => {
-      const listing = data.listings.find((item) => item.id === id);
-      return {
-        id: `new-${id}`,
-        when: "Today, 10:52",
-        what: `Revealed ${listing?.name ?? "listing"}`,
-        credits: -(listing?.cost ?? 0),
-        outcome: "Revealed · logged",
-        tone: "success" as Tone,
-        ref: "RV-1203",
-      };
-    }),
-    ...data.log,
-  ];
+  const log: CreditLogEntry[] = data.log;
 
-  const pick = (id: string) => {
-    setSelectedId(id);
-    setConfirming(false);
-  };
+  const pick = (id: string) => setSelectedId(id);
 
   return (
     <PageContent>
@@ -381,57 +366,22 @@ export function BrokerDirectoryView({ data }: { data: BrokerDirectoryData }) {
                         <span>{selected.email}</span>
                       </span>
                     ) : null}
-                    <span className="text-[12px] text-muted">
-                      {fresh.includes(selected.id)
-                        ? `Revealed today, 10:52 · ${costText(selected.cost)} · RV-1203`
-                        : selected.note}
-                    </span>
+                    <span className="text-[12px] text-muted">{selected.note}</span>
                   </Card>
                   <TextLink href={screenHref("BrokerWork")} className="text-[12px]">
                     Contact wrong? Open a dispute
                   </TextLink>
                 </>
               ) : null}
-              {canReveal && !showConfirm ? (
+              {canReveal ? (
                 <>
-                  <Button isDisabled={short} onPress={() => setConfirming(true)}>
+                  <Button isDisabled={short} onPress={() => toast.warning(REVEAL_UNAVAILABLE)}>
                     <Eye className="size-4" />
                     Reveal contact · {costText(selected.cost)}
                   </Button>
                   {short ? (
                     <span className="text-[12px] text-muted">Not enough credits. Buy credits to continue.</span>
                   ) : null}
-                </>
-              ) : null}
-              {showConfirm ? (
-                <>
-                  <Alert status="accent">
-                    <Alert.Indicator>
-                      <Ticket />
-                    </Alert.Indicator>
-                    <Alert.Content>
-                      <Alert.Title>Reveal for {costText(selected.cost)}?</Alert.Title>
-                      <Alert.Description>
-                        Your balance goes from {balance} to {Math.max(0, balance - selected.cost)}. The landlord is told
-                        that you revealed their contact. Charged once; revealing again is free.
-                      </Alert.Description>
-                    </Alert.Content>
-                  </Alert>
-                  <div className="flex justify-end gap-2">
-                    <Button size="sm" variant="ghost" onPress={() => setConfirming(false)}>
-                      Cancel
-                    </Button>
-                    <Button
-                      size="sm"
-                      onPress={() => {
-                        setFresh((cur) => [...cur, selected.id]);
-                        setBalance((current) => current - selected.cost);
-                        setConfirming(false);
-                      }}
-                    >
-                      Confirm reveal
-                    </Button>
-                  </div>
                 </>
               ) : null}
               {selected.blockReason ? (
@@ -540,8 +490,8 @@ export function BrokerDirectoryView({ data }: { data: BrokerDirectoryData }) {
                 <Alert.Content>
                   <Alert.Title>Purchases open once prices are approved</Alert.Title>
                   <Alert.Description>
-                    Credit prices are still being agreed. We’ll notify you when packs go on sale. Your current balance
-                    keeps working.
+                    Credit prices are still being agreed, so packs are not on sale yet. Your current balance keeps
+                    working.
                   </Alert.Description>
                 </Alert.Content>
               </Alert>
@@ -555,6 +505,7 @@ export function BrokerDirectoryView({ data }: { data: BrokerDirectoryData }) {
           </Modal.Dialog>
         </Modal.Container>
       </Modal.Backdrop>
+      <Toast.Provider placement="bottom" />
     </PageContent>
   );
 }

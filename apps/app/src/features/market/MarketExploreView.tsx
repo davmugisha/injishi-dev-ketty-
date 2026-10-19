@@ -140,7 +140,6 @@ export function MarketExploreView({
       if (result.ok) setSaved((s) => toggleIn(s, id));
       else toast.danger(result.error);
     });
-  const [asked, setAsked] = useState<string[]>([]);
   const [move, setMove] = useState(true);
   const [zoom, setZoom] = useState(0);
 
@@ -425,7 +424,6 @@ export function MarketExploreView({
                   {results.map((l) => {
                     const isSaved = saved.includes(l.id);
                     const isSel = selItem?.id === l.id;
-                    const wasAsked = asked.includes(l.id);
                     return (
                       <Card
                         key={l.id}
@@ -487,21 +485,18 @@ export function MarketExploreView({
                           </div>
                           {homes ? (
                             <div className="mt-1 flex items-center gap-2">
-                              {wasAsked ? (
-                                <Chip size="sm" variant="soft" color="warning">
-                                  <Clock className="size-3" />
-                                  <Chip.Label>Viewing requested · landlord replies within 2 days</Chip.Label>
-                                </Chip>
-                              ) : (
-                                <Button
-                                  variant="secondary"
-                                  size="sm"
-                                  onPress={() => setAsked((a) => toggleIn(a, l.id))}
-                                >
-                                  <Calendar className="size-4" />
-                                  Request a viewing
-                                </Button>
-                              )}
+                              <Button
+                                variant="secondary"
+                                size="sm"
+                                onPress={() =>
+                                  toast.warning(
+                                    `Requesting a viewing is not available yet. Nothing was sent to the landlord of ${l.name}.`,
+                                  )
+                                }
+                              >
+                                <Calendar className="size-4" />
+                                Request a viewing
+                              </Button>
                             </div>
                           ) : null}
                         </div>

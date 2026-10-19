@@ -48,7 +48,7 @@ import type {
 import { GateChip, Icon, LinkButton, StatusDot, TextLink, toneColor } from "@injishi/ui";
 import { type FormEvent, useState, useTransition } from "react";
 import { openSupportTicketAction } from "./actions";
-import { ChoiceField, fileSize } from "./fields";
+import { ChoiceField } from "./fields";
 import type { DemoLinks } from "./links";
 import { PublicFooter, PublicHeader, PublicMain, type PublicVisitor, SignInAction } from "./PublicChrome";
 import { linkTo } from "./shared";
@@ -74,7 +74,7 @@ const COPY = {
     popular: "Popular:",
     status: "System status",
     contact: "Contact support",
-    contactSub: "A person reads every ticket. You can follow it from your account.",
+    contactSub: "A person reads every ticket and replies by email.",
     category: "Category",
     business: "Business",
     describe: "Describe the problem",
@@ -92,7 +92,7 @@ const COPY = {
     popular: "Ibikunzwe:",
     status: "Uko serivisi zihagaze",
     contact: "Twandikire",
-    contactSub: "Umuntu asoma buri kibazo. Ushobora kugikurikirana kuri konti yawe.",
+    contactSub: "Umuntu asoma buri kibazo, akagusubiza kuri imeri.",
     category: "Icyiciro",
     business: "Ikigo",
     describe: "Sobanura ikibazo",
@@ -146,12 +146,6 @@ const PROBLEM =
 const DATA_REQUEST =
   "I would like a copy of the personal data you hold about me, and to know which businesses it was shared with.";
 
-interface Attachment {
-  id: string;
-  name: string;
-  meta: string;
-}
-
 /** Public · help and support (artifact: PublicHelp.dc.html) — guides, system status, support and privacy. */
 export function PublicHelpView({
   visitor,
@@ -178,9 +172,6 @@ export function PublicHelpView({
   const [reference, setReference] = useState("PI-77142");
   const [problem, setProblem] = useState(PROBLEM);
   const [dataRequest, setDataRequest] = useState(DATA_REQUEST);
-  const [files, setFiles] = useState<Attachment[]>([
-    { id: "momo-sms-1042", name: "momo-sms-1042.jpg", meta: "184 KB · uploaded" },
-  ]);
   const [sent, setSent] = useState(false);
   const [ticket, setTicket] = useState("");
   const [sending, startSending] = useTransition();
@@ -204,19 +195,18 @@ export function PublicHelpView({
     {
       id: "agent",
       title: "With a support agent",
-      detail: privacy ? "Handled by our data protection lead" : "Next · you get an email when someone picks it up",
+      detail: privacy ? "Handled by our data protection lead" : "Next · a person on the support team picks it up",
     },
     { id: "waiting", title: "Waiting for you", detail: "Only if we need more information" },
     { id: "resolved", title: "Resolved", detail: "You can reopen within 14 days" },
   ];
 
-  const addFiles = (list: File[]) =>
-    setFiles((cur) => [
-      ...cur,
-      ...list
-        .filter((f) => /\.(jpe?g|png|pdf)$/i.test(f.name) && f.size <= 10 * 1024 * 1024)
-        .map((f, i) => ({ id: `${Date.now()}-${i}-${f.name}`, name: f.name, meta: `${fileSize(f.size)} · uploaded` })),
-    ]);
+  // The support intake takes text only and no route stores a file for a ticket, so nothing is attached:
+  // choosing or dropping a file says so and keeps nothing.
+  const addFiles = (list: File[]) => {
+    if (!list.length) return;
+    toast.warning("Attaching a file is not available yet. Nothing was attached; describe it in your message.");
+  };
   const send = (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     const body = privacy ? dataRequest : problem;
@@ -227,7 +217,6 @@ export function PublicHelpView({
       !privacy && reference.trim() ? `Reference: ${reference.trim()}` : null,
     ].filter(Boolean);
     startSending(async () => {
-      // Attachments are not sent: the support intake takes text only, and has no file route yet.
       const result = await openSupportTicketAction({
         topic: TOPIC[cat] ?? "other",
         message: `${context.join("\n")}\n\n${body}`,
@@ -462,7 +451,7 @@ export function PublicHelpView({
                   <Alert.Content>
                     <Alert.Title>Ticket {ticket.slice(0, 8).toUpperCase()} created</Alert.Title>
                     <Alert.Description>
-                      {ticketLine} We emailed a copy to {replyTo} and will write again when a person picks it up.
+                      {ticketLine} A person on the support team reads it and replies to {replyTo}.
                     </Alert.Description>
                   </Alert.Content>
                 </Alert>
@@ -479,9 +468,6 @@ export function PublicHelpView({
                   ))}
                 </Stepper>
                 <div className="flex flex-wrap items-center gap-[8px]">
-                  <LinkButton href={linkTo(links, "Account")} variant="secondary" size="sm">
-                    Track in your account
-                  </LinkButton>
                   <Button variant="ghost" size="sm" onPress={() => setSent(false)}>
                     Send another
                   </Button>
@@ -569,7 +555,7 @@ export function PublicHelpView({
                       <Paperclip className="size-6" />
                     </DropZone.Icon>
                     <DropZone.Label>Drop a screenshot or PDF here</DropZone.Label>
-                    <DropZone.Description>JPG, PNG or PDF · up to 10 MB each</DropZone.Description>
+                    <DropZone.Description>Not available yet · describe it in your message</DropZone.Description>
                     <DropZone.Trigger>Choose file</DropZone.Trigger>
                   </DropZone.Area>
                   <DropZone.Input
@@ -577,26 +563,6 @@ export function PublicHelpView({
                     multiple
                     onSelect={(list) => addFiles([...list])}
                   />
-                  {files.length ? (
-                    <DropZone.FileList>
-                      {files.map((f) => {
-                        const ext = (f.name.split(".").pop() ?? "jpg").toUpperCase();
-                        return (
-                          <DropZone.FileItem key={f.id} status="complete">
-                            <DropZone.FileFormatIcon format={ext} color={ext === "PDF" ? "red" : "blue"} />
-                            <DropZone.FileInfo>
-                              <DropZone.FileName>{f.name}</DropZone.FileName>
-                              <DropZone.FileMeta>{f.meta}</DropZone.FileMeta>
-                            </DropZone.FileInfo>
-                            <DropZone.FileRemoveTrigger
-                              aria-label={`Remove ${f.name}`}
-                              onPress={() => setFiles((cur) => cur.filter((x) => x.id !== f.id))}
-                            />
-                          </DropZone.FileItem>
-                        );
-                      })}
-                    </DropZone.FileList>
-                  ) : null}
                 </DropZone>
                 <div className="flex flex-wrap items-center justify-between gap-[10px]">
                   <TextLink href={linkTo(links, "Assistant")} className="text-[13px]">

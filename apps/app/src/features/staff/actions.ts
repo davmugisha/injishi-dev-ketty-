@@ -14,11 +14,12 @@ import * as staff from "@/server/mutations/staff";
  */
 export type ActionResult<T = undefined> = { ok: true; value: T } | { ok: false; error: string };
 
-async function run<T>(board: BoardId, path: string, act: () => Promise<T>): Promise<ActionResult<T>> {
+/** `path` is the screen to refresh after a write; null for a step that changes no record on its own (a photo upload). */
+async function run<T>(board: BoardId, path: string | null, act: () => Promise<T>): Promise<ActionResult<T>> {
   await requirePersona(board);
   try {
     const value = await act();
-    revalidatePath(path);
+    if (path) revalidatePath(path);
     return { ok: true, value };
   } catch (error) {
     if (error instanceof ApiError) {
@@ -70,9 +71,25 @@ export async function reportProblemAction(input: staff.NewProblemReport): Promis
 
 // ── /staff/inspect ──────────────────────────────────────────────────────────────────────────────────
 
+/**
+ * A photo of a failed check, taken on the supervisor's phone: stored by the API (`POST /api/v1/uploads`) and
+ * answered with its key, which the inspection then names on the check. The form carries `photo` (the shrunk
+ * file) and `attemptToken` (one per photo, so a retry returns the same key).
+ */
+export async function uploadInspectionPhotoAction(form: FormData): Promise<ActionResult<string>> {
+  return run("InspectRoom", null, async () => {
+    const photo = form.get("photo");
+    const token = form.get("attemptToken");
+    if (!(photo instanceof Blob)) throw new staff.StaffInputError("Take the photo first.");
+    const name = photo instanceof File ? photo.name : "photo.jpg";
+    const uploaded = await staff.uploadPhoto(await ctx(), photo, name, typeof token === "string" ? token : "");
+    return uploaded.objectKey;
+  });
+}
+
 export async function inspectRoomAction(
   taskId: string,
-  input: { result: "pass" | "fail"; reason?: string; checks: { itemId: string; result: "pass" | "fail" }[] },
+  input: { result: "pass" | "fail"; reason?: string; checks: staff.InspectionVerdict[] },
 ): Promise<ActionResult> {
   return run("InspectRoom", "/staff/inspect", async () => done(staff.inspectRoom(await ctx(), taskId, input)));
 }
