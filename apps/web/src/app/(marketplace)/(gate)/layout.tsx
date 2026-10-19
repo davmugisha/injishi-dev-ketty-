@@ -1,5 +1,19 @@
+import { Figtree, Instrument_Sans } from "next/font/google";
 import { WaitlistFooter } from "@/components/waitlist/waitlist-footer";
 import { WaitlistHeader } from "@/components/waitlist/waitlist-header";
+import "./waitlist-theme.css";
+
+const figtree = Figtree({
+  subsets: ["latin", "latin-ext"],
+  variable: "--font-figtree",
+  display: "swap",
+});
+
+const instrumentSans = Instrument_Sans({
+  subsets: ["latin", "latin-ext"],
+  variable: "--font-instrument-sans",
+  display: "swap",
+});
 
 /**
  * The chrome while the gate is up (ADR-048 AC-19).
@@ -27,7 +41,19 @@ export default function GateLayout({
   children: React.ReactNode;
 }) {
   return (
-    <div className="flex min-h-screen flex-col">
+    <div
+      id="waitlist-theme"
+      className={`${figtree.variable} ${instrumentSans.variable} waitlist-theme flex min-h-screen flex-col font-sans`}
+      data-theme="mouve-light"
+      data-vibrant-palette="true"
+      suppressHydrationWarning
+    >
+      <script
+        dangerouslySetInnerHTML={{
+          __html:
+            "try{var d=document.documentElement.classList.contains('dark');document.currentScript.parentElement.setAttribute('data-theme',d?'mouve-dark':'mouve-light')}catch(e){}",
+        }}
+      />
       <WaitlistHeader />
       <main className="flex-1">{children}</main>
       <WaitlistFooter />

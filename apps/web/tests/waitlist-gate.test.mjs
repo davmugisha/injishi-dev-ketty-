@@ -119,6 +119,11 @@ describe("the allowlist opens exactly what AC-2 names", () => {
     "/training/enroll",
     "/verify",
     "/verify/JZDSHY31DXFDBNS7NGPRXN0XYV2EZ1VV",
+    // Amended 2026-10-19: List Accommodation in the waitlist header opens the
+    // host page, and every way forward on it lands on the wizard.
+    "/host",
+    "/host/start",
+    "/register",
   ];
 
   for (const pathname of open) {
@@ -133,7 +138,6 @@ describe("the allowlist gates the unfinished marketplace", () => {
     "/",
     "/explore",
     "/property/lanternhouse-hotel-kiyovu",
-    "/register",
     "/activate",
     "/claim-org",
     "/book",
@@ -149,6 +153,10 @@ describe("the allowlist gates the unfinished marketplace", () => {
     "/verifying",
     "/startup",
     "/legal/privacy-policy-old",
+    "/hosts",
+    "/hostel",
+    "/registered",
+    "/register-business",
   ];
 
   for (const pathname of gated) {
@@ -170,6 +178,45 @@ describe("the allowlist and the sign-in route cannot drift apart", () => {
   // page that leads somewhere the gate bounces back is AC-19's one prohibition.
   for (const href of ["/legal/privacy", "/legal/terms", "/support", "/sign-in"]) {
     test(`the footer link ${href} does not bounce`, () => {
+      assert.equal(isWaitlistOpen(href), true);
+    });
+  }
+});
+
+describe("the waitlist header's two doors do not bounce", () => {
+  // The header renders the marketplace's own `AccountMenu` (Sign In) and
+  // `HostCta` (List Accommodation, or Resume registration for somebody already
+  // in the pipeline). The hrefs are READ from those files rather than restated,
+  // so a control that grows a new destination fails here before it ships a
+  // button that redirects to the page it sits on (AC-19). The one dynamic href,
+  // `/w/<id>`, is shown only to a signed-in operator, whom the session lets
+  // through (AC-3), so only the literal ones are a stranger's.
+  const header = readFileSync(
+    resolve(here, "../src/components/waitlist/waitlist-header.tsx"),
+    "utf8",
+  );
+  const literalHrefs = (file, pattern) =>
+    [...readFileSync(resolve(here, "../src/components/layout", file), "utf8").matchAll(pattern)].map(
+      (m) => m[1],
+    );
+
+  test("the header still mounts both controls", () => {
+    assert.match(header, /<AccountMenu\b/);
+    assert.match(header, /<HostCta\b/);
+  });
+
+  const doors = [
+    ...literalHrefs("account-menu.tsx", /<Link\s+href="(\/[^"]*)"/g),
+    ...literalHrefs("host-cta.tsx", /href:\s*"(\/[^"]*)"/g),
+  ];
+
+  test("both files still name literal destinations", () => {
+    assert.ok(doors.includes("/sign-in"), `AccountMenu offers ${doors.join(", ")}`);
+    assert.ok(doors.includes("/host"), `HostCta offers ${doors.join(", ")}`);
+  });
+
+  for (const href of new Set(doors)) {
+    test(`${href} does not bounce`, () => {
       assert.equal(isWaitlistOpen(href), true);
     });
   }
