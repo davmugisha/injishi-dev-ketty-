@@ -39,6 +39,7 @@ import {
 import { users } from './auth';
 import { amount, timestamps } from './columns';
 import {
+  adapterModeEnum,
   documentTypeEnum,
   genderEnum,
   psfApplicationStatusEnum,
@@ -84,6 +85,8 @@ export const psfMembershipTiers = pgTable(
           OR (${t.priceKind} = 'range' AND ${t.annualFeeRwf} IS NULL
             AND ${t.annualFeeMinRwf} IS NOT NULL AND ${t.annualFeeMaxRwf} IS NOT NULL
             AND ${t.annualFeeMinRwf} > 0 AND ${t.annualFeeMinRwf} < ${t.annualFeeMaxRwf})
+          OR (${t.priceKind} NOT IN ('fixed', 'range', 'set_by_psf') AND ${t.annualFeeRwf} IS NULL
+            AND ${t.annualFeeMinRwf} IS NOT NULL AND ${t.annualFeeMinRwf} > 0 AND ${t.annualFeeMaxRwf} IS NULL)
           OR (${t.priceKind} = 'set_by_psf' AND ${t.annualFeeRwf} IS NULL
             AND ${t.annualFeeMinRwf} IS NULL AND ${t.annualFeeMaxRwf} IS NULL)`,
     ),
@@ -115,12 +118,17 @@ export const psfMembershipApplications = pgTable(
     quotedFeeRwf: amount('quoted_fee_rwf'),
     quotedFeeMinRwf: amount('quoted_fee_min_rwf'),
     quotedFeeMaxRwf: amount('quoted_fee_max_rwf'),
+    // What the business said it would pay a year, inside its band. Null only
+    // for a tier PSF prices itself, whose amount the officer names.
+    declaredFeeRwf: amount('declared_fee_rwf'),
 
     // Member profile, as filed.
     companyName: text('company_name').notNull(),
-    // `tin` in v1: a hospitality business always carries one (D24).
+    // `tin` for a hotel (D24 makes it carry one). On the PSF path, whatever the
+    // business registered with: `tin`, `rca`, `rgb`, `other` or `none`.
     registrationType: text('registration_type').notNull(),
-    registrationNumber: text('registration_number').notNull(),
+    // Null only for a business registered nowhere yet (`none`).
+    registrationNumber: text('registration_number'),
     website: text('website'),
     streetAddress: text('street_address').notNull(),
     companyType: psfCompanyTypeEnum('company_type').notNull(),
@@ -158,6 +166,20 @@ export const psfMembershipApplications = pgTable(
     decisionBodyCode: text('decision_body_code'),
     declineReason: psfDeclineReasonEnum('decline_reason'),
     decisionNote: text('decision_note'),
+    // Set on approval (the PSF path): the number PSF gave, and what the
+    // business now owes, which is its declared amount unless PSF prices the tier.
+    approvedMembershipNumber: text('approved_membership_number'),
+    approvedFeeRwf: amount('approved_fee_rwf'),
+
+    // The payment that makes an approved application a membership. Captured
+    // through the payment seam into Injishi's account and passed on to PSF;
+    // `remitted_at` is when it was, so finance can see what is still owed.
+    paidAt: timestamp('paid_at', { withTimezone: true }),
+    paidAmountRwf: amount('paid_amount_rwf'),
+    paymentRef: text('payment_ref'),
+    paymentMode: adapterModeEnum('payment_mode'),
+    remittedAt: timestamp('remitted_at', { withTimezone: true }),
+    remittanceRef: text('remittance_ref'),
 
     withdrawnAt: timestamp('withdrawn_at', { withTimezone: true }),
     withdrawnByUserId: uuid('withdrawn_by_user_id').references(
@@ -166,9 +188,12 @@ export const psfMembershipApplications = pgTable(
     ...timestamps,
   },
   (t) => [
+    // Open is `submitted` or `approved`, named by the three values it is NOT:
+    // `approved` joined the enum in the same migration batch (see 0065), and an
+    // index predicate may not cast an enum to text, which is not immutable.
     uniqueIndex('psf_membership_applications_one_open_uk')
       .on(t.orgId)
-      .where(sql`${t.status} = 'submitted'`),
+      .where(sql`${t.status} NOT IN ('member', 'declined', 'withdrawn')`),
     index('psf_membership_applications_org_idx').on(t.orgId),
     index('psf_membership_applications_queue_idx').on(t.status, t.queuedAt),
     check(
@@ -186,10 +211,27 @@ export const psfMembershipApplications = pgTable(
     ),
     check(
       'psf_membership_applications_decision_shape',
-      sql`(${t.status} IN ('member', 'declined')) = (${t.decidedAt} IS NOT NULL AND ${t.decidedByUserId} IS NOT NULL AND ${t.decisionBodyCode} IS NOT NULL)
+      sql`(${t.status} NOT IN ('submitted', 'withdrawn')) = (${t.decidedAt} IS NOT NULL AND ${t.decidedByUserId} IS NOT NULL AND ${t.decisionBodyCode} IS NOT NULL)
           AND (${t.status} = 'declined') = (${t.declineReason} IS NOT NULL)
           AND (${t.declineReason} IS DISTINCT FROM 'other' OR ${t.decisionNote} IS NOT NULL)
           AND (${t.status} = 'withdrawn') = (${t.withdrawnAt} IS NOT NULL AND ${t.withdrawnByUserId} IS NOT NULL)`,
+    ),
+    // An approval names a number and an amount; a payment is all of its parts
+    // or none, lands only on a member, and a remittance only on a payment.
+    check(
+      'psf_membership_applications_payment_shape',
+      sql`(${t.status} IN ('submitted', 'member', 'declined', 'withdrawn') OR (${t.approvedMembershipNumber} IS NOT NULL AND ${t.approvedFeeRwf} IS NOT NULL))
+          AND ((${t.paidAt} IS NULL) = (${t.paidAmountRwf} IS NULL)
+               AND (${t.paidAt} IS NULL) = (${t.paymentRef} IS NULL)
+               AND (${t.paidAt} IS NULL) = (${t.paymentMode} IS NULL))
+          AND (${t.paidAt} IS NULL OR ${t.status} = 'member')
+          AND (${t.remittedAt} IS NULL OR ${t.paidAt} IS NOT NULL)
+          AND ((${t.remittedAt} IS NULL) = (${t.remittanceRef} IS NULL))`,
+    ),
+    // A business registered nowhere files no number, and every other one does.
+    check(
+      'psf_membership_applications_registration_shape',
+      sql`(${t.registrationType} = 'none') = (${t.registrationNumber} IS NULL)`,
     ),
   ],
 );

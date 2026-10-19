@@ -30,6 +30,7 @@ import {
   supportTickets,
   users,
 } from '../../../database/drizzle/schema';
+import type { Domain } from '@injishi/contracts';
 
 export interface AdminAuditEventRow {
   id: string;
@@ -96,7 +97,7 @@ export interface AdminTicketRow {
   requesterUserId: string | null;
   category: string | null;
   state: AdminSupportTicketState;
-  domain: 'hospitality' | 'residence' | null;
+  domain: Domain | null;
   districtId: number | null;
   firstResponseAt: Date | null;
   resolvedAt: Date | null;

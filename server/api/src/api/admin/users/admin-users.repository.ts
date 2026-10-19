@@ -45,6 +45,7 @@ import {
   users,
   verifiedIdentities,
 } from '../../../database/drizzle/schema';
+import type { Domain } from '@injishi/contracts';
 
 /** One row of the directory before its side tables are attached. */
 export interface AdminUserBaseRow {
@@ -70,7 +71,7 @@ export interface AdminUserMembershipRow {
   userId: string;
   orgId: string;
   orgName: string;
-  domain: 'hospitality' | 'residence';
+  domain: Domain;
   orgRole: OrgRole;
   payoutLocked: boolean | null;
 }

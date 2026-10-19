@@ -22,15 +22,18 @@ import type {
  * The business id is the caller's to add: the wizard's business does not
  * exist until the create transaction writes it.
  *
- * The registration number is the business's TIN and never an input, which is
- * what makes AC-3's "not editable" true on the wire. The price is COPIED from
- * the tier as it stands now, so a later price edit never rewrites what the
- * business saw when it applied.
+ * The registration is the business's own and never an input, which is what
+ * makes AC-3's "not editable" true on the wire: a hotel's TIN, or whatever a
+ * PSF business registered with (`tin`, `rca`, `rgb`, `other`, or `none` with
+ * no number). The price is COPIED from the tier as it stands now, so a later
+ * price edit never rewrites what the business saw when it applied, and the
+ * amount the business declared rides beside it.
  */
 export function buildPsfApplicationRow(input: {
   submittedByUserId: string;
   capacity: PsfSubmittedCapacity;
-  registrationNumber: string;
+  registrationType: string;
+  registrationNumber: string | null;
   tier: Pick<PsfTierRow, 'code' | 'priceKind' | 'annualFeeRwf' | 'annualFeeMinRwf' | 'annualFeeMaxRwf'>;
   /** The ID resolved: typed, or copied from the profile by the caller. */
   form: PsfApplicationInput & { idDocument: PsfIdDocument };
@@ -48,9 +51,11 @@ export function buildPsfApplicationRow(input: {
     quotedFeeRwf: tier.annualFeeRwf,
     quotedFeeMinRwf: tier.annualFeeMinRwf,
     quotedFeeMaxRwf: tier.annualFeeMaxRwf,
+    // A tier PSF prices itself takes no amount from the business.
+    declaredFeeRwf: tier.priceKind === 'set_by_psf' ? null : (form.declaredFeeRwf ?? null),
     companyName: form.companyName,
-    registrationType: 'tin',
-    registrationNumber: input.registrationNumber,
+    registrationType: input.registrationType,
+    registrationNumber: input.registrationType === 'none' ? null : input.registrationNumber,
     website: form.website ?? null,
     streetAddress: form.streetAddress,
     companyType: form.companyType,
@@ -86,6 +91,7 @@ export function toPsfApplicationView(row: PsfApplicationWithNames): PsfApplicati
     quotedFeeRwf: row.quotedFeeRwf,
     quotedFeeMinRwf: row.quotedFeeMinRwf,
     quotedFeeMaxRwf: row.quotedFeeMaxRwf,
+    declaredFeeRwf: row.declaredFeeRwf,
     submittedAt: row.createdAt.toISOString(),
     submittedCapacity: row.submittedCapacity,
     submittedByName: row.submittedByName,
@@ -93,6 +99,17 @@ export function toPsfApplicationView(row: PsfApplicationWithNames): PsfApplicati
     decidedAt: iso(row.decidedAt),
     declineReason: row.declineReason,
     decisionNote: row.decisionNote,
+    approvedMembershipNumber: row.approvedMembershipNumber,
+    approvedFeeRwf: row.approvedFeeRwf,
+    payment:
+      row.paidAt && row.paidAmountRwf !== null && row.paymentRef
+        ? {
+            paidAt: row.paidAt.toISOString(),
+            amountRwf: row.paidAmountRwf,
+            reference: row.paymentRef,
+            remittedAt: iso(row.remittedAt),
+          }
+        : null,
     withdrawnAt: iso(row.withdrawnAt),
     form: {
       companyName: row.companyName,

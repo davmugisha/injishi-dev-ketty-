@@ -12,6 +12,7 @@ import {
   type StaffAccess,
   type WorkspaceAccess,
   isPsfApplicant,
+  PSF_DOMAINS,
   mayElevate,
   oversightConsoleFor,
   parseRolePermissionOverride,
@@ -292,8 +293,9 @@ export class WorkspaceService {
         propertyName: branches[0]?.name ?? null,
         branches,
         branchCoverage: limit ? ('limited' as const) : ('all' as const),
+        // A hotel or a PSF business may hold a PSF membership; a residence may not.
         psfMembership:
-          w.domain === 'hospitality'
+          w.domain !== null && PSF_DOMAINS.includes(w.domain)
             ? {
                 canManage: isPsfApplicant({
                   userId,

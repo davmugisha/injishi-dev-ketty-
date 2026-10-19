@@ -2,6 +2,7 @@ import { Module } from '@nestjs/common';
 
 import { isWorkerProcess } from '../../shared/process/process-role';
 import { GeographyModule } from '../geography/geography.module';
+import { PaymentsModule } from '../payments/payments.module';
 import { MailerModule } from '../mailer/mailer.module';
 import { UserModule } from '../user/user.module';
 
@@ -49,7 +50,9 @@ import { tinAdapterProvider } from './infrastructure/tin-adapter.provider';
   // GeographyModule for one question only: whether the village on a
   // registration's address sits under its sector (D24). `villages` is that
   // module's table, so the join lives there and this module composes it.
-  imports: [UserModule, MailerModule, GeographyModule],
+  // PaymentsModule for the PSF membership fee (the PSF path): a business pays
+  // it here, through the one payment seam, and it is passed on to PSF.
+  imports: [UserModule, MailerModule, GeographyModule, PaymentsModule],
   providers: [
     OrganizationRepository,
     BrokerRepository,

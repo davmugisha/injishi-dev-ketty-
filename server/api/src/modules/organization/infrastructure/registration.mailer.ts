@@ -12,6 +12,7 @@ import {
   officerQueueMail,
   officersCoveringDistrict,
   oversightQueueLink,
+  psfBusinessRegisteredMail,
   registrationApprovedMail,
   registrationLink,
   registrationReceivedMail,
@@ -21,6 +22,7 @@ import {
   type RegistrationMail,
   type RejectionGate,
 } from '../domain/registration-mail';
+import { psfMembershipLink } from '../domain/psf-mail';
 import { OrganizationRepository } from './organization.repository';
 
 type Recipient = { userId: string; email: string; name: string | null };
@@ -83,6 +85,19 @@ export class RegistrationMailer {
         hasTin: facts.tin !== null,
         resubmitted,
         link: registrationLink(this.webUrl),
+      }),
+    );
+  }
+
+  /** THE PSF PATH: registered, with its code. The next step is membership. */
+  registeredForPsf(orgId: string): Promise<void> {
+    return this.toOwners(orgId, 'registered for PSF', (to, facts) =>
+      psfBusinessRegisteredMail({
+        to,
+        legalName: facts.legalName,
+        businessCode: facts.businessCode,
+        districtName: facts.districtName,
+        link: psfMembershipLink(this.webUrl, facts.workspaceId),
       }),
     );
   }

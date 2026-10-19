@@ -1,8 +1,12 @@
-import type {
-  Domain,
-  OrgRegistrationStatus,
-  RegistrationBusinessType,
-  RegistrationRejectionReason,
+import {
+  districtLetters,
+  formatBusinessCode,
+  type Domain,
+  type EnterpriseRegistrationKind,
+  type OrgRegistrationStatus,
+  type PsfOwnerGroup,
+  type RegistrationBusinessType,
+  type RegistrationRejectionReason,
 } from '@injishi/contracts';
 import { Inject, Injectable } from '@nestjs/common';
 import {
@@ -13,11 +17,13 @@ import {
   isNotNull,
   isNull,
   lte,
+  or,
   sql,
 } from 'drizzle-orm';
 
 import {
   auditEvents,
+  businessCodeCounters,
   districts,
   oboRegistrations,
   orgCertificates,
@@ -149,6 +155,15 @@ export interface CreateOrgRow {
   psfApplication: Omit<NewPsfApplication, 'orgId'> | null;
   /** A Yes with a membership number (ADR-056 AC-7). Null otherwise. */
   psfMembershipNumber: string | null;
+  /**
+   * THE PSF PATH. The association a business belongs to (required for an
+   * `enterprise`, RHA by default for a hotel), its owner groups, and how an
+   * `enterprise` is registered when its TIN is optional.
+   */
+  psfAssociationCode: string | null;
+  ownerGroups: PsfOwnerGroup[];
+  registrationKind: EnterpriseRegistrationKind | null;
+  registrationNumber: string | null;
 }
 
 export interface CreatedOrg {
@@ -262,6 +277,10 @@ export class OrganizationRepository {
           sectorId: input.sectorId,
           villageId: input.villageId,
           addressText: input.addressText,
+          psfAssociationCode: input.psfAssociationCode,
+          ownerGroups: input.ownerGroups,
+          registrationKind: input.registrationKind,
+          registrationNumber: input.registrationNumber,
           registrationStatus: 'pending_payment',
         })
         .returning({ id: orgs.id });
@@ -446,6 +465,14 @@ export class OrganizationRepository {
    * The org moves FIRST and the invoice second. The other way round, an org
    * refused on its contract would still have committed a paid invoice, because
    * returning from a transaction commits whatever it already wrote.
+   *
+   * A business on the PSF path (`enterprise`) signs no operator contract: it
+   * lists nothing on the marketplace, which is what the contract governs.
+   *
+   * The business's code (`KIC0001`) is issued HERE, in the same transaction,
+   * because paying is what makes a registration a registered business: a code
+   * is never spent on a draft nobody paid for, and a paid business always has
+   * one.
    */
   async settleRegistrationFee(
     orgId: string,
@@ -460,7 +487,7 @@ export class OrganizationRepository {
             and(
               eq(orgs.id, orgId),
               eq(orgs.registrationStatus, 'pending_payment'),
-              isNotNull(orgs.contractVersion),
+              or(isNotNull(orgs.contractVersion), eq(orgs.domain, 'enterprise')),
             ),
           )
           .returning({ id: orgs.id });
@@ -490,6 +517,7 @@ export class OrganizationRepository {
           to: 'submitted',
           mover: { trigger: 'registrant', actorUserId },
         });
+        await issueBusinessCode(tx, orgId);
         return true;
       });
     } catch (error) {
@@ -626,6 +654,7 @@ export class OrganizationRepository {
         legalName: string;
         domain: Domain;
         accommodationClass: string | null;
+        businessCode: string | null;
         tin: string | null;
         districtId: number | null;
         status: OrgRegistrationStatus;
@@ -644,6 +673,7 @@ export class OrganizationRepository {
         legalName: orgs.legalName,
         domain: orgs.domain,
         accommodationClass: orgs.accommodationClass,
+        businessCode: orgs.businessCode,
         tin: orgs.tin,
         districtId: orgs.districtId,
         status: orgs.registrationStatus,
@@ -1217,6 +1247,7 @@ export class OrganizationRepository {
   async registrationMailFacts(orgId: string): Promise<{
     legalName: string;
     tin: string | null;
+    businessCode: string | null;
     districtId: number | null;
     districtName: string | null;
     sectorName: string | null;
@@ -1226,6 +1257,7 @@ export class OrganizationRepository {
       .select({
         legalName: orgs.legalName,
         tin: orgs.tin,
+        businessCode: orgs.businessCode,
         districtId: orgs.districtId,
         districtName: districts.name,
         sectorName: sectors.name,
@@ -1320,4 +1352,50 @@ export class OrganizationRepository {
         districtId: r.districtId,
       }));
   }
+}
+
+/**
+ * Give a business its code: its district's letters and the next number there
+ * (`DISTRICT_LETTERS` in `@injishi/contracts`). Inside the caller's transaction.
+ *
+ * The counter is bumped with one upsert, which takes the district's counter
+ * row lock, so two businesses settling at once in the same district queue on
+ * it and draw consecutive numbers rather than the same one. A business that
+ * already has a code keeps it (the code never changes), and one with no
+ * district gets none rather than a made up one.
+ *
+ * A number already taken (a code set by hand, a counter restored from an old
+ * backup) is skipped rather than failing the payment that drew it.
+ */
+async function issueBusinessCode(
+  tx: Parameters<Parameters<Database['transaction']>[0]>[0],
+  orgId: string,
+): Promise<string | null> {
+  const [org] = await tx
+    .select({ districtId: orgs.districtId, districtName: districts.name, code: orgs.businessCode })
+    .from(orgs)
+    .leftJoin(districts, eq(districts.id, orgs.districtId))
+    .where(eq(orgs.id, orgId))
+    .limit(1);
+  if (!org) return null;
+  if (org.code || org.districtId === null) return org.code;
+
+  const letters = districtLetters(org.districtId, org.districtName);
+  for (let attempt = 0; attempt < 5; attempt += 1) {
+    const [counter] = await tx
+      .insert(businessCodeCounters)
+      .values({ districtId: org.districtId, lastNumber: 1 })
+      .onConflictDoUpdate({
+        target: businessCodeCounters.districtId,
+        set: { lastNumber: sql`${businessCodeCounters.lastNumber} + 1`, updatedAt: new Date() },
+      })
+      .returning({ n: businessCodeCounters.lastNumber });
+    if (!counter) throw new Error('Business code counter returned no row.');
+    const code = formatBusinessCode(letters, counter.n);
+    const [taken] = await tx.select({ id: orgs.id }).from(orgs).where(eq(orgs.businessCode, code)).limit(1);
+    if (taken) continue;
+    await tx.update(orgs).set({ businessCode: code }).where(eq(orgs.id, orgId));
+    return code;
+  }
+  throw new Error(`No free business code in district ${org.districtId} after five tries.`);
 }

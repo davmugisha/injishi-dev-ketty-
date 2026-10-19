@@ -113,6 +113,7 @@ import { OversightController } from './oversight/oversight.controller';
 import { PlatformController } from './platform/platform.controller';
 import {
   OversightPsfController,
+  OversightPsfRegisterController,
   PsfMembershipController,
   PsfTiersController,
 } from './psf/psf-membership.controller';
@@ -194,11 +195,13 @@ import { WaitlistModule } from './waitlist/waitlist.module';
     OrgClaimsController,
     // Accepting a staff invitation, before the invitee holds the workspace.
     StaffInvitationsController,
-    // PSF membership (ADR-056): the tiers, a business's application, and the
-    // PSF membership officer's queue.
+    // PSF membership (ADR-056, widened by the PSF path): the tiers and sectors,
+    // a business's application and payment, the PSF membership officer's
+    // queue, and the register of their region's businesses.
     PsfTiersController,
     PsfMembershipController,
     OversightPsfController,
+    OversightPsfRegisterController,
     UploadsController,
     InventoryController,
     OpsReservationsController,

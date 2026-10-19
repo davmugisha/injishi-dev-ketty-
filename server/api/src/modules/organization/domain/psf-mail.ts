@@ -1,9 +1,9 @@
 /**
- * PSF membership mail (ADR-056 AC-9, AC-11, AC-12, AC-18).
+ * PSF membership mail (ADR-056 AC-9, AC-11, AC-12, AC-18, and the PSF path).
  *
- * Six messages, in the same layout as registration mail (`compose`). PSF
- * invoices the business itself, so none of them asks for money; the member
- * mail says who sends the invoice.
+ * Seven messages, in the same layout as registration mail (`compose`). Since
+ * the PSF path, the business pays its membership fee through Injishi: the
+ * approval mail asks for it, and the member mail is the receipt.
  */
 import { PSF_FEE_NOTICE } from '@injishi/contracts';
 
@@ -70,6 +70,34 @@ export function psfOfficerQueueMail(input: {
   });
 }
 
+/** PSF approved: the business now pays, from its portal. */
+export function psfApprovedMail(input: {
+  to: Addressee;
+  legalName: string;
+  tierName: string;
+  membershipNumber: string;
+  feeRwf: number;
+  link: string;
+}): RegistrationMail {
+  return compose({
+    subject: `PSF approved ${input.legalName}: pay to become a member`,
+    heading: 'PSF approved your application',
+    greeting: greeting(input.to),
+    paragraphs: [
+      `A PSF membership officer approved ${input.legalName} as ${input.tierName}.`,
+      'Pay the membership fee by mobile money from your portal. Your membership starts the day you pay, and lasts a year.',
+    ],
+    details: [
+      ['Tier', input.tierName],
+      ['Membership number', input.membershipNumber],
+      ['To pay', money(input.feeRwf)],
+    ],
+    after: [PSF_FEE_NOTICE],
+    cta: { label: 'Pay your membership', href: input.link },
+  });
+}
+
+/** Paid, and so a member: the receipt and the welcome in one. */
 export function psfMemberMail(input: {
   to: Addressee;
   legalName: string;
@@ -78,20 +106,27 @@ export function psfMemberMail(input: {
   annualFeeRwf: number;
   startsOn: string;
   expiresOn: string;
+  /** The payment reference, when the fee was paid through Injishi. */
+  paymentReference: string | null;
   link: string;
 }): RegistrationMail {
   return compose({
     subject: `${input.legalName} is now a PSF member`,
     heading: 'Welcome to PSF',
     greeting: greeting(input.to),
-    paragraphs: [`PSF has accepted ${input.legalName} as a member.`],
+    paragraphs: [
+      input.paymentReference
+        ? `We received your payment, and ${input.legalName} is now a member of the Private Sector Federation.`
+        : `PSF has accepted ${input.legalName} as a member.`,
+    ],
     details: [
       ['Tier', input.tierName],
       ['Membership number', input.membershipNumber],
-      ['Annual fee', money(input.annualFeeRwf)],
+      [input.paymentReference ? 'Paid' : 'Annual fee', money(input.annualFeeRwf)],
+      ...(input.paymentReference ? ([['Payment reference', input.paymentReference]] as [string, string][]) : []),
       ['Valid', `${input.startsOn} to ${input.expiresOn}`],
     ],
-    after: [PSF_FEE_NOTICE],
+    after: ['The fee goes to PSF. Injishi keeps none of it.'],
     cta: { label: 'See your membership', href: input.link },
   });
 }

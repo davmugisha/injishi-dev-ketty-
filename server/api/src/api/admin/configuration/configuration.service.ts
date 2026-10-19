@@ -3,9 +3,16 @@ import {
   AdminFeeSchedule,
   AdminRegistrationFee,
   type AppendRegistrationFeeRequest,
+  type CreatePsfAssociationRequest,
+  type CreatePsfClusterRequest,
   type CreatePsfTierRequest,
+  type PsfAssociation,
+  type PsfCatalogue,
+  type PsfCluster,
   type PsfTier,
   type UpdatePsfTierRequest,
+  type UpsertPsfAssociationRequest,
+  type UpsertPsfClusterRequest,
 } from '@injishi/contracts';
 import {
   ConflictException,
@@ -22,6 +29,8 @@ import {
   districts,
   featureFlags,
   placementFees,
+  psfAssociations,
+  psfClusters,
   psfMembershipTiers,
   registrationFees,
   subscriptionPlans,
@@ -250,6 +259,149 @@ export class ConfigurationAdminService {
     });
   }
 
+  // --- PSF's sector catalogue (the PSF path) -----------------------------------
+
+  /**
+   * Every cluster with every association, retired ones included, in the order
+   * the forms show them. The registration form reads the active ones only
+   * (`GET /psf/catalogue`).
+   */
+  async psfCatalogue(): Promise<PsfCatalogue> {
+    const [clusters, associations] = await Promise.all([
+      this.db.select().from(psfClusters).orderBy(asc(psfClusters.sortOrder), asc(psfClusters.code)),
+      this.db.select().from(psfAssociations).orderBy(asc(psfAssociations.sortOrder), asc(psfAssociations.nameEn)),
+    ]);
+    return {
+      clusters: clusters.map((c) =>
+        toPsfCluster(c, associations.filter((a) => a.clusterCode === c.code)),
+      ),
+    };
+  }
+
+  /** A new cluster. Its code is permanent: associations, and so businesses, hang off it. */
+  async createPsfCluster(input: { actorUserId: string; request: CreatePsfClusterRequest }): Promise<PsfCatalogue> {
+    const { reason, code, ...fields } = input.request;
+    await this.db.transaction(async (tx) => {
+      const [clash] = await tx.select({ code: psfClusters.code }).from(psfClusters).where(eq(psfClusters.code, code)).limit(1);
+      if (clash) throw new ConflictException('A cluster with that code already exists. Edit it instead.');
+      const [row] = await tx
+        .insert(psfClusters)
+        .values({ code, ...clusterColumns(fields), updatedByUserId: input.actorUserId })
+        .returning();
+      await tx.insert(auditEvents).values({
+        actorUserId: input.actorUserId,
+        subjectType: 'config',
+        subjectId: null,
+        eventType: 'admin.psf_cluster.created',
+        payloadDiff: { psfCluster: row } as never,
+        reason,
+      });
+    });
+    return this.psfCatalogue();
+  }
+
+  /**
+   * Edit a cluster. Retiring one takes it, and every association in it, off
+   * the registration form; the businesses already filed under it keep reading it.
+   */
+  async updatePsfCluster(input: {
+    actorUserId: string;
+    code: string;
+    request: UpsertPsfClusterRequest;
+  }): Promise<PsfCatalogue> {
+    const { reason, ...fields } = input.request;
+    await this.db.transaction(async (tx) => {
+      const [before] = await tx.select().from(psfClusters).where(eq(psfClusters.code, input.code)).limit(1);
+      if (!before) throw new NotFoundException('No PSF cluster has that code.');
+      const [row] = await tx
+        .update(psfClusters)
+        .set({ ...clusterColumns(fields), updatedByUserId: input.actorUserId, updatedAt: new Date() })
+        .where(eq(psfClusters.code, input.code))
+        .returning();
+      await tx.insert(auditEvents).values({
+        actorUserId: input.actorUserId,
+        subjectType: 'config',
+        subjectId: null,
+        eventType: 'admin.psf_cluster.updated',
+        payloadDiff: { before, after: row } as never,
+        reason,
+      });
+    });
+    return this.psfCatalogue();
+  }
+
+  /** A new association, in an existing cluster. Its code is permanent: businesses name it. */
+  async createPsfAssociation(input: {
+    actorUserId: string;
+    request: CreatePsfAssociationRequest;
+  }): Promise<PsfCatalogue> {
+    const { reason, code, ...fields } = input.request;
+    await this.db.transaction(async (tx) => {
+      const [clash] = await tx
+        .select({ code: psfAssociations.code })
+        .from(psfAssociations)
+        .where(eq(psfAssociations.code, code))
+        .limit(1);
+      if (clash) throw new ConflictException('An association with that code already exists. Edit it instead.');
+      await this.assertCluster(tx, fields.clusterCode);
+      const [row] = await tx
+        .insert(psfAssociations)
+        .values({ code, ...associationColumns(fields), updatedByUserId: input.actorUserId })
+        .returning();
+      await tx.insert(auditEvents).values({
+        actorUserId: input.actorUserId,
+        subjectType: 'config',
+        subjectId: null,
+        eventType: 'admin.psf_association.created',
+        payloadDiff: { psfAssociation: row } as never,
+        reason,
+      });
+    });
+    return this.psfCatalogue();
+  }
+
+  /** Edit an association, or move it to another cluster. */
+  async updatePsfAssociation(input: {
+    actorUserId: string;
+    code: string;
+    request: UpsertPsfAssociationRequest;
+  }): Promise<PsfCatalogue> {
+    const { reason, ...fields } = input.request;
+    await this.db.transaction(async (tx) => {
+      const [before] = await tx.select().from(psfAssociations).where(eq(psfAssociations.code, input.code)).limit(1);
+      if (!before) throw new NotFoundException('No PSF association has that code.');
+      await this.assertCluster(tx, fields.clusterCode);
+      const [row] = await tx
+        .update(psfAssociations)
+        .set({ ...associationColumns(fields), updatedByUserId: input.actorUserId, updatedAt: new Date() })
+        .where(eq(psfAssociations.code, input.code))
+        .returning();
+      await tx.insert(auditEvents).values({
+        actorUserId: input.actorUserId,
+        subjectType: 'config',
+        subjectId: null,
+        eventType: 'admin.psf_association.updated',
+        payloadDiff: { before, after: row } as never,
+        reason,
+      });
+    });
+    return this.psfCatalogue();
+  }
+
+  /** The cluster an association names must exist, refused at its field when not. */
+  private async assertCluster(
+    tx: Parameters<Parameters<Database['transaction']>[0]>[0],
+    clusterCode: string,
+  ): Promise<void> {
+    const [cluster] = await tx.select({ code: psfClusters.code }).from(psfClusters).where(eq(psfClusters.code, clusterCode)).limit(1);
+    if (!cluster) {
+      throw new UnprocessableEntityException({
+        message: 'Validation failed',
+        issues: [{ code: 'custom', path: ['clusterCode'], message: 'Pick a cluster from the list.' }],
+      });
+    }
+  }
+
   async appendRegistrationFee(input: {
     actorUserId: string;
     request: AppendRegistrationFeeRequest;
@@ -395,6 +547,57 @@ export class ConfigurationAdminService {
       },
     });
   }
+}
+
+/** A cluster row, with its associations, as the admin console reads it. */
+function toPsfCluster(
+  row: typeof psfClusters.$inferSelect,
+  associations: (typeof psfAssociations.$inferSelect)[],
+): PsfCluster {
+  return {
+    code: row.code,
+    nameEn: row.nameEn,
+    nameRw: row.nameRw,
+    description: row.description,
+    sortOrder: row.sortOrder,
+    active: row.active,
+    associations: associations.map(toPsfAssociation),
+  };
+}
+
+function toPsfAssociation(row: typeof psfAssociations.$inferSelect): PsfAssociation {
+  return {
+    code: row.code,
+    clusterCode: row.clusterCode,
+    nameEn: row.nameEn,
+    acronym: row.acronym,
+    sortOrder: row.sortOrder,
+    active: row.active,
+  };
+}
+
+function clusterColumns(
+  f: Omit<UpsertPsfClusterRequest, 'reason'>,
+): Omit<typeof psfClusters.$inferInsert, 'code' | 'updatedByUserId'> {
+  return {
+    nameEn: f.nameEn,
+    nameRw: f.nameRw ?? null,
+    description: f.description ?? null,
+    sortOrder: f.sortOrder,
+    active: f.active,
+  };
+}
+
+function associationColumns(
+  f: Omit<UpsertPsfAssociationRequest, 'reason'>,
+): Omit<typeof psfAssociations.$inferInsert, 'code' | 'updatedByUserId'> {
+  return {
+    clusterCode: f.clusterCode,
+    nameEn: f.nameEn,
+    acronym: f.acronym ?? null,
+    sortOrder: f.sortOrder,
+    active: f.active,
+  };
 }
 
 /** A tier row as the admin console reads it. */

@@ -239,7 +239,11 @@ export class RegistrationService {
       issues.push({
         code: 'custom',
         path: ['capacity'],
-        message: `You are not listed as a director of ${business.legalName}. Register it on behalf of its owner.`,
+        // The PSF path has no on behalf registration, so it cannot offer one.
+        message:
+          request.role === 'enterprise'
+            ? `You are not listed as a director of ${business.legalName}. One of its directors registers it for PSF.`
+            : `You are not listed as a director of ${business.legalName}. Register it on behalf of its owner.`,
       });
     }
     return issues;
@@ -292,8 +296,16 @@ export class RegistrationService {
 
     const b = request.business;
     const address = b.address;
-    if (b.domain === 'hospitality') {
-      const tinOutcome = await this.verifyTinSafely(b.tin);
+    // The TIN a business carries: always for a hotel, when it chose one for a
+    // PSF business (the PSF path makes it optional), never for a residence.
+    const tin =
+      b.domain === 'hospitality'
+        ? b.tin
+        : b.domain === 'enterprise' && b.registrationKind === 'tin'
+          ? (b.tin ?? null)
+          : null;
+    if (tin) {
+      const tinOutcome = await this.verifyTinSafely(tin);
       // The shape the validation pipe gives, so the wizard puts each sentence
       // under the field it came from.
       const issues =
@@ -309,6 +321,16 @@ export class RegistrationService {
     await this.assertVillagesPlaced(b);
     const branches = await this.branchRowsFor(b);
 
+    // THE PSF PATH: the sector a business names must still be on PSF's list,
+    // read before anything is written like a tier is. A hotel is filed under
+    // PSF's hospitality association by default, while PSF lists one.
+    const psfAssociationCode =
+      b.domain === 'enterprise'
+        ? (await this.psf.associationForRegistration(b.associationCode)).code
+        : b.domain === 'hospitality' && (await this.psf.associationOffered(HOTEL_ASSOCIATION))
+          ? HOTEL_ASSOCIATION
+          : null;
+
     // ADR-056 AC-6: an application a No carries is filed in the create
     // transaction below, so the form someone filled cannot be lost between
     // two calls. Its tier is checked here, first, so a retired one refuses the
@@ -323,10 +345,18 @@ export class RegistrationService {
             tin: b.tin,
           }
         : null;
+    if (psfFiling) {
+      this.psf.assertDeclaredFee(psfFiling.tier, psfFiling.form.declaredFeeRwf, [
+        'business',
+        'psfApplication',
+        'declaredFeeRwf',
+      ]);
+    }
     const psfApplication = psfFiling
       ? buildPsfApplicationRow({
           submittedByUserId: registrantUserId,
           capacity: request.capacity === 'on_behalf_of' ? 'on_behalf_of' : 'owner',
+          registrationType: 'tin',
           registrationNumber: psfFiling.tin,
           tier: psfFiling.tier,
           form: psfFiling.form,
@@ -361,9 +391,15 @@ export class RegistrationService {
         eacStarGrade:
           b.domain === 'hospitality' ? (b.eacStarGrade ?? null) : null,
         // D24: a business carries a TIN, a residence carries a UPI. The database
-        // carries the same rule, so this maps rather than decides.
-        tin: b.domain === 'hospitality' ? b.tin : null,
-        upi: b.domain === 'hospitality' ? (b.upi ?? null) : b.upi,
+        // carries the same rule, so this maps rather than decides. A PSF
+        // business carries a TIN only when it registered with one.
+        tin,
+        upi: b.domain === 'hospitality' ? (b.upi ?? null) : b.domain === 'residence' ? b.upi : null,
+        psfAssociationCode,
+        ownerGroups: b.domain === 'enterprise' ? b.ownerGroups : [],
+        registrationKind: b.domain === 'enterprise' ? b.registrationKind : null,
+        registrationNumber:
+          b.domain === 'enterprise' ? (b.registrationNumber ?? null) : null,
         districtId: address.districtId,
         sectorId: address.sectorId,
         // D24: the fifth level, optional and the only one below sector that is
@@ -412,7 +448,11 @@ export class RegistrationService {
           registrantName: await this.orgs.displayNameFor(registrantUserId),
         });
       }
-      await this.mail.received(created.orgId, created.amountDueRwf);
+      // A PSF business is created and paid in one press, with no contract to
+      // read in between, so it is mailed once, when it is registered.
+      if (b.domain !== 'enterprise') {
+        await this.mail.received(created.orgId, created.amountDueRwf);
+      }
       // The server holds the registration now, so the wizard's draft has
       // nothing left to remember, and must not offer to resume it (ADR-060).
       await this.drafts.clear(registrantUserId);
@@ -439,6 +479,8 @@ export class RegistrationService {
         contractAcceptedAt: null,
         // An OBO registration is born locked (FL02); nobody else's is.
         payoutLocked: created.obo ? true : null,
+        // Issued when the fee settles.
+        businessCode: null,
       };
     } catch (err) {
       if (err instanceof DuplicateTinError) {
@@ -598,7 +640,8 @@ export class RegistrationService {
         if (
           after &&
           awaitsRegistrationFee(after.status) &&
-          after.contractVersion === null
+          after.contractVersion === null &&
+          after.domain !== 'enterprise'
         ) {
           throw new ConflictException({
             code: 'contract_not_accepted' satisfies RegistrationConflictCode,
@@ -607,8 +650,9 @@ export class RegistrationService {
           });
         }
         this.log.log(`Registration fee for ${orgId} was already settled.`);
-      } else {
+      } else if (before.domain !== 'enterprise') {
         // Only the call that settled mails, so a repeated callback is silent.
+        // A PSF business is mailed when it is registered, a moment later.
         await this.mail.submitted(orgId, false);
       }
       await this.runTinCheck(orgId);
@@ -683,6 +727,11 @@ export class RegistrationService {
     if (!org) throw new NotFoundException('Registration not found.');
     if (org.status !== 'submitted') return;
 
+    if (org.domain === 'enterprise') {
+      await this.registerForPsf(orgId, org.tin);
+      return;
+    }
+
     if (!org.tin) {
       // A residence has no TIN to check, so the automatic gate does not apply
       // and it goes straight to the human ones.
@@ -730,6 +779,45 @@ export class RegistrationService {
     // `pending` is RRA being unreachable, never a rejection. The org holds at
     // `submitted` and is retried; telling a real business it failed a check
     // that never ran would be the worse error (F-S03 §8).
+  }
+
+  /**
+   * THE PSF PATH: a business of any sector is registered once its fee settles
+   * and its TIN, when it gave one, is confirmed. No field visit and no
+   * approval: Injishi's part ends here, and PSF's membership queue takes over.
+   *
+   * With a TIN, the RRA check runs exactly as a hotel's does and writes its
+   * `tin_verifications` row: a pass registers it, a refusal rejects it with the
+   * same mail, and an unanswered check holds it at `submitted` for the sweep.
+   * Without one, it is registered at once; the PSF officer sees "No TIN".
+   */
+  private async registerForPsf(orgId: string, tin: string | null): Promise<void> {
+    if (tin) {
+      const outcome = await this.tin.verify(tin);
+      await this.orgs.recordTinCheck({
+        orgId,
+        tin,
+        result: outcome.result,
+        latencyMs: outcome.latencyMs,
+        adapterMode: outcome.adapterMode,
+        raw: outcome.raw,
+      });
+      if (outcome.result === 'failed') {
+        const to = nextStatus('submitted', 'rejected');
+        if (to && (await this.orgs.advance(orgId, 'submitted', to, SYSTEM_MOVER))) {
+          await this.mail.rejected(orgId, { gate: 'tin_check', reasonCode: null, notes: null });
+        }
+        return;
+      }
+      // Unreachable is never a rejection (F-S03 §8): hold, and the sweep retries.
+      if (outcome.result !== 'verified') return;
+    }
+    const to = nextStatus('submitted', 'enterprise_registered');
+    if (to && (await this.orgs.advance(orgId, 'submitted', to, SYSTEM_MOVER))) {
+      await this.mail.registeredForPsf(orgId);
+      // An application filed before this moment joins PSF's queue now.
+      await this.psf.markQueued(orgId);
+    }
   }
 
   /**
@@ -808,6 +896,7 @@ export class RegistrationService {
       contractVersion: org.contractVersion,
       contractAcceptedAt: org.contractAcceptedAt?.toISOString() ?? null,
       payoutLocked,
+      businessCode: org.businessCode,
     };
   }
 
@@ -1187,6 +1276,12 @@ function isDirector(
 function normalizeName(name: string): string {
   return name.trim().replace(/\s+/g, ' ').toLowerCase();
 }
+
+/**
+ * The association a hotel is filed under on PSF's register: the Rwanda
+ * Hospitality Association, in the Services cluster.
+ */
+const HOTEL_ASSOCIATION = 'rha';
 
 /** What a registrant is told when RRA does not recognise their TIN. */
 const TIN_REFUSED_MESSAGE =

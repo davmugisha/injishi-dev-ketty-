@@ -6,6 +6,7 @@ import { resolveWebUrl } from '../../../shared/config/web-url';
 import { MAILER_PORT, type MailerPort } from '../../mailer/domain/mailer-port';
 import {
   psfApplicationReceivedMail,
+  psfApprovedMail,
   psfDeclinedMail,
   psfExpiredMail,
   psfExpiringMail,
@@ -50,9 +51,22 @@ export class PsfMembershipMailer {
     );
   }
 
+  approved(orgId: string, d: { tierName: string; membershipNumber: string; feeRwf: number }): Promise<void> {
+    return this.toApplicants(orgId, 'approved', (to, legalName, link) =>
+      psfApprovedMail({ to, legalName, ...d, link }),
+    );
+  }
+
   member(
     orgId: string,
-    d: { tierName: string; membershipNumber: string; annualFeeRwf: number; startsOn: string; expiresOn: string },
+    d: {
+      tierName: string;
+      membershipNumber: string;
+      annualFeeRwf: number;
+      startsOn: string;
+      expiresOn: string;
+      paymentReference: string | null;
+    },
   ): Promise<void> {
     return this.toApplicants(orgId, 'member', (to, legalName, link) =>
       psfMemberMail({ to, legalName, ...d, link }),
@@ -77,12 +91,16 @@ export class PsfMembershipMailer {
     );
   }
 
-  /** Every active PSF membership officer, once per application (AC-9). */
+  /**
+   * Every active PSF membership officer whose region covers the business, once
+   * per application (AC-9). A district officer hears of their own district's
+   * applications only, and a country officer of all of them.
+   */
   queueEntered(orgId: string, tierName: string): Promise<void> {
     return this.guarded('queue entered', orgId, async () => {
       const facts = await this.repo.orgFacts(orgId);
       if (!facts) return;
-      const emails = await this.repo.membershipOfficerEmails();
+      const emails = await this.repo.membershipOfficerEmails(facts.districtId);
       if (emails.length === 0) {
         this.logger.warn(
           `No PSF membership officer is appointed; nobody was mailed about the application of org ${orgId}.`,

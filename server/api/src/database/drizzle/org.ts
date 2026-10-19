@@ -27,9 +27,10 @@ import {
 } from 'drizzle-orm/pg-core';
 import { users } from './auth';
 import { timestamps } from './columns';
-import { adapterModeEnum, documentTypeEnum, domainKindEnum, genderEnum, globalRoleEnum, identityDocumentStatusEnum, invitationPurposeEnum, invitationStatusEnum, kycStatusEnum, oboClaimStatusEnum, orgCertificateKindEnum, orgMembershipStatusEnum, orgRegistrationStatusEnum, orgRoleEnum, oversightRoleEnum, oversightScopeLevelEnum, rdbClassificationKindEnum, registrationRejectionReasonEnum, registrationReviewDecisionEnum, registrationTransitionTriggerEnum, tinVerificationResultEnum, workspaceKindEnum } from './enums';
+import { adapterModeEnum, documentTypeEnum, domainKindEnum, enterpriseRegistrationKindEnum, genderEnum, globalRoleEnum, identityDocumentStatusEnum, invitationPurposeEnum, invitationStatusEnum, kycStatusEnum, oboClaimStatusEnum, orgCertificateKindEnum, orgMembershipStatusEnum, orgRegistrationStatusEnum, orgRoleEnum, oversightRoleEnum, oversightScopeLevelEnum, psfOwnerGroupEnum, rdbClassificationKindEnum, registrationRejectionReasonEnum, registrationReviewDecisionEnum, registrationTransitionTriggerEnum, tinVerificationResultEnum, workspaceKindEnum } from './enums';
 import { districts, provinces, sectors, villages } from './geography';
 import { storedObjects } from './hospitality';
+import { psfAssociations } from './psf-catalogue';
 
 export const rdbClassifications = pgTable('rdb_classifications', {
   code: text('code').primaryKey(),
@@ -104,24 +105,71 @@ export const orgs = pgTable(
     contractAcceptedByUserId: uuid('contract_accepted_by_user_id').references(
       () => users.id,
     ),
+    /**
+     * The business's code: its district's letters and a number, `KIC0001`
+     * (`DISTRICT_LETTERS` in `@injishi/contracts`). Given when the registration
+     * fee settles, from `business_code_counters`, and never changed, not even
+     * when the business moves district. Null until the fee is paid.
+     */
+    businessCode: text('business_code'),
+    /**
+     * THE PSF PATH. The association a business belongs to, which names its
+     * sector (the cluster follows from it). Required for an `enterprise`,
+     * optional for a hotel, which PSF files under Services anyway.
+     */
+    psfAssociationCode: text('psf_association_code').references(
+      () => psfAssociations.code,
+    ),
+    // PSF's Specialized cluster, as markers on a business of any sector.
+    ownerGroups: psfOwnerGroupEnum('owner_groups')
+      .array()
+      .notNull()
+      .default(sql`'{}'::psf_owner_group[]`),
+    /**
+     * How an `enterprise` is registered: a TIN, RCA, RGB, another register, or
+     * none yet. The PSF path makes the TIN optional; `registration_number` is
+     * the number for RCA, RGB and other. Both null on every other domain.
+     */
+    registrationKind: enterpriseRegistrationKindEnum('registration_kind'),
+    registrationNumber: text('registration_number'),
     ...timestamps,
   },
   (t) => [
     unique('orgs_tin_uk').on(t.tin),
+    unique('orgs_business_code_uk').on(t.businessCode),
+    index('orgs_psf_association_idx').on(t.psfAssociationCode),
     index('orgs_district_idx').on(t.districtId),
     index('orgs_registration_status_idx').on(t.registrationStatus),
+    // `enterprise` is named by the two values it is NOT: it joined `domain_kind`
+    // in the same migration batch as this check, and Postgres refuses a new
+    // enum value until that batch commits (see 0065). The three are all there is.
     check(
       'orgs_domain_shape',
       sql`(${t.domain} = 'hospitality' AND ${t.accommodationClass} IS NOT NULL)
-          OR (${t.domain} = 'residence' AND ${t.residenceClass} IS NOT NULL AND ${t.tourismLicenseNumber} IS NULL AND NOT ${t.psfMember})`,
+          OR (${t.domain} = 'residence' AND ${t.residenceClass} IS NOT NULL AND ${t.tourismLicenseNumber} IS NULL AND NOT ${t.psfMember})
+          OR (${t.domain} NOT IN ('hospitality', 'residence') AND ${t.accommodationClass} IS NULL AND ${t.residenceClass} IS NULL
+              AND ${t.tourismLicenseNumber} IS NULL AND ${t.psfAssociationCode} IS NOT NULL)`,
     ),
     // D24: TIN for businesses, UPI for residences. The identifier a registration
     // is checked against differs by domain, so requiring both would block half
     // the registrants and requiring neither would let an unidentifiable org in.
+    // The PSF path is the exception that names itself: its TIN is optional, and
+    // `orgs_registration_shape` says what stands in for it.
     check(
       'orgs_identifier_shape',
       sql`(${t.domain} = 'hospitality' AND ${t.tin} IS NOT NULL)
-          OR (${t.domain} = 'residence' AND ${t.upi} IS NOT NULL)`,
+          OR (${t.domain} = 'residence' AND ${t.upi} IS NOT NULL)
+          OR (${t.domain} NOT IN ('hospitality', 'residence'))`,
+    ),
+    // THE PSF PATH: an `enterprise` says how it is registered, a TIN goes with
+    // `tin` and only with it, and a number with RCA, RGB and other. No other
+    // domain carries either column.
+    check(
+      'orgs_registration_shape',
+      sql`(${t.domain} IN ('hospitality', 'residence') AND ${t.registrationKind} IS NULL AND ${t.registrationNumber} IS NULL)
+          OR (${t.domain} NOT IN ('hospitality', 'residence') AND ${t.registrationKind} IS NOT NULL
+              AND (${t.registrationKind} = 'tin') = (${t.tin} IS NOT NULL)
+              AND (${t.registrationKind} IN ('rca', 'rgb', 'other')) = (${t.registrationNumber} IS NOT NULL))`,
     ),
     check(
       'orgs_accommodation_class_other_shape',

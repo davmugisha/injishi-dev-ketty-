@@ -110,6 +110,35 @@ export function registrationReceivedMail(input: {
 }
 
 /**
+ * THE PSF PATH. A business of any sector is registered the moment its fee is
+ * paid and its TIN, if it gave one, is confirmed: no district visit, no
+ * approval. The mail gives it its code and its next step, PSF membership.
+ */
+export function psfBusinessRegisteredMail(input: {
+  to: Addressee;
+  legalName: string;
+  businessCode: string | null;
+  districtName: string | null;
+  link: string;
+}): RegistrationMail {
+  return compose({
+    subject: `${input.legalName} is registered${input.businessCode ? `: ${input.businessCode}` : ''}`,
+    heading: 'Your business is registered',
+    greeting: greeting(input.to),
+    paragraphs: [
+      `${input.legalName} is registered on Injishi, and the Private Sector Federation (PSF) can now find it.`,
+      'Your next step is PSF membership: pick the tier your business can afford and apply from your portal. PSF reviews it, and you pay the membership fee there once it is approved.',
+    ],
+    details: [
+      ...(input.businessCode ? ([['Business code', input.businessCode]] as [string, string][]) : []),
+      ...(input.districtName ? ([['District', input.districtName]] as [string, string][]) : []),
+    ],
+    after: ['Quote your business code whenever you deal with PSF. It never changes.'],
+    cta: { label: 'Apply for PSF membership', href: input.link },
+  });
+}
+
+/**
  * 2. Paid (or corrected and resubmitted): the business is in the pipeline and
  * the registrant has nothing to do but wait.
  */

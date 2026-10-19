@@ -46,10 +46,15 @@ export const workspaceKindEnum = pgEnum('workspace_kind', [
   'personal',
 ]);
 
-/** hospitality | residence - reused for orgs.domain, room_types.domain, support_tickets.domain. */
+/**
+ * hospitality | residence | enterprise - reused for orgs.domain,
+ * room_types.domain, support_tickets.domain. `enterprise` is the PSF path: a
+ * business of any sector, which lists nothing and so never has a room type.
+ */
 export const domainKindEnum = pgEnum('domain_kind', [
   'hospitality',
   'residence',
+  'enterprise',
 ]);
 
 export const rdbClassificationKindEnum = pgEnum('rdb_classification_kind', [
@@ -580,10 +585,10 @@ export const payoutStatusEnum = pgEnum('payout_status', [
 
 export const planBillingPeriodEnum = pgEnum('plan_billing_period', ['monthly']);
 
-/** The three registration paths a registrant picks between (D21 §8.3a). */
+/** The four registration paths a registrant picks between (D21 §8.3a). */
 export const registrationBusinessTypeEnum = pgEnum(
   'registration_business_type',
-  ['hospitality', 'residence', 'broker'],
+  ['hospitality', 'residence', 'broker', 'enterprise'],
 );
 
 /**
@@ -1152,27 +1157,56 @@ export const offerAudienceEnum = pgEnum('offer_audience', [
 export const psfMembershipFamilyEnum = pgEnum('psf_membership_family', [
   'golden_circle',
   'indashyikirwa',
+  // 2026-10-15: PSF's band for small and growing businesses. `ordinary` and
+  // `junior_giants` are retired and stay for the rows that name them.
+  'indatwa',
   'ordinary',
   'junior_giants',
 ]);
 
-/** A fixed amount, a min to max range, or a price only PSF can quote. */
+/**
+ * A fixed amount, a min to max range, a floor with no ceiling (`minimum`,
+ * Golden Circle's 5,000,000 and up), or a price only PSF can quote.
+ */
 export const psfPriceKindEnum = pgEnum('psf_price_kind', [
   'fixed',
   'range',
+  'minimum',
   'set_by_psf',
 ]);
 
 /**
- * `submitted` is the only open state; the other three are terminal. Applying
- * again writes a new row, so a decision is never overwritten by a later one.
+ * `submitted` waits on PSF and `approved` waits on the business's payment;
+ * both are open. The other three are terminal. Applying again writes a new
+ * row, so a decision is never overwritten by a later one.
  */
 export const psfApplicationStatusEnum = pgEnum('psf_application_status', [
   'submitted',
+  'approved',
   'member',
   'declined',
   'withdrawn',
 ]);
+
+/**
+ * PSF's Specialized cluster, as a marker on a business of any sector: owned by
+ * women, by young people, or by a person with a disability.
+ */
+export const psfOwnerGroupEnum = pgEnum('psf_owner_group', [
+  'women',
+  'youth',
+  'pwd',
+]);
+
+/**
+ * How a PSF business is registered (the PSF path makes the TIN optional): an
+ * RRA TIN, a cooperative with RCA, an NGO with RGB, another registration, or
+ * none yet.
+ */
+export const enterpriseRegistrationKindEnum = pgEnum(
+  'enterprise_registration_kind',
+  ['tin', 'rca', 'rgb', 'other', 'none'],
+);
 
 /** Who sent it: the owner, or the agent while an on behalf claim is open. */
 export const psfSubmittedCapacityEnum = pgEnum('psf_submitted_capacity', [

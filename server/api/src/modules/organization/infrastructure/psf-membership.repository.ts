@@ -1,9 +1,12 @@
 import {
   PSF_QUEUE_REGISTRATION_STATES,
   type Domain,
+  type EnterpriseRegistrationKind,
   type OrgRegistrationStatus,
   type OrgRole,
   type PsfDeclineReason,
+  type PsfOwnerGroup,
+  type PsfStanding,
 } from '@injishi/contracts';
 import { Inject, Injectable } from '@nestjs/common';
 import { and, asc, desc, eq, gt, inArray, isNull, lt, or, sql, type SQL } from 'drizzle-orm';
@@ -16,9 +19,13 @@ import {
   orgMemberships,
   orgs,
   oversightAssignments,
+  provinces,
+  psfAssociations,
+  psfClusters,
   psfMembershipApplications,
   psfMembershipTiers,
   psfMemberships,
+  sectors,
   userProfiles,
   users,
   verifiedIdentities,
@@ -31,15 +38,24 @@ import {
 import type { Tx } from '../../listing-setup/infrastructure/insert-property';
 
 /**
- * PSF membership (ADR-056): the tier catalogue, the application as filed, and
- * the live membership. One repository for the three tables, because every
- * write that touches two of them has to happen in one transaction.
+ * PSF membership (ADR-056, widened by the PSF path): the tier catalogue, the
+ * sector catalogue, the application as filed, and the live membership. One
+ * repository for these tables, because every write that touches two of them
+ * has to happen in one transaction.
  */
 
 export type NewPsfApplication = typeof psfMembershipApplications.$inferInsert;
 export type PsfApplicationRow = typeof psfMembershipApplications.$inferSelect;
 export type PsfTierRow = typeof psfMembershipTiers.$inferSelect;
 export type PsfMembershipRow = typeof psfMemberships.$inferSelect;
+export type PsfClusterRow = typeof psfClusters.$inferSelect;
+export type PsfAssociationRow = typeof psfAssociations.$inferSelect;
+
+/**
+ * The districts an officer may see: null for the whole country, else the ids
+ * (`districtScopeOf` in `@injishi/contracts`). An empty list sees nothing.
+ */
+export type PsfScope = readonly number[] | null;
 
 /** A second open application for the same business (AC-16). */
 export class OpenPsfApplicationExists extends Error {
@@ -90,7 +106,7 @@ export async function insertSelfDeclaredMembership(
   await tx.insert(psfMemberships).values({ ...row, source: 'self_declared' });
 }
 
-/** What the applicant rule and the prefill read about a business. */
+/** What the applicant rule, the prefill and PSF's view read about a business. */
 export interface PsfOrgFacts {
   id: string;
   domain: Domain;
@@ -100,7 +116,14 @@ export interface PsfOrgFacts {
   accommodationClass: string | null;
   accommodationClassOther: string | null;
   registrationStatus: OrgRegistrationStatus;
+  districtId: number | null;
   districtName: string | null;
+  businessCode: string | null;
+  registrationKind: EnterpriseRegistrationKind | null;
+  registrationNumber: string | null;
+  ownerGroups: PsfOwnerGroup[];
+  associationName: string | null;
+  clusterName: string | null;
   obo: {
     registrantUserId: string;
     claimStatus: 'registrant_held' | 'owner_claimed' | 'expired';
@@ -121,13 +144,69 @@ export interface PsfQueueRow {
   applicationId: string;
   orgId: string;
   businessName: string;
+  businessCode: string | null;
+  domain: Domain;
   districtName: string | null;
+  associationName: string | null;
+  ownerGroups: PsfOwnerGroup[];
   requestedTierName: string;
+  declaredFeeRwf: number | null;
   submittedAt: Date;
   queuedAt: Date | null;
   sortAt: Date;
   registrationStatus: OrgRegistrationStatus;
   officerHasStake: boolean;
+}
+
+/** An application as the officer reads it, with the business around it. */
+export type PsfOfficerApplicationRow = PsfApplicationWithNames & {
+  businessName: string;
+  districtName: string | null;
+  registrationStatus: OrgRegistrationStatus;
+  officerHasStake: boolean;
+  domain: Domain;
+  businessCode: string | null;
+  clusterName: string | null;
+  associationName: string | null;
+  ownerGroups: PsfOwnerGroup[];
+  registrationKind: EnterpriseRegistrationKind | null;
+};
+
+/** One business on the officer's register. */
+export interface PsfBusinessRegisterRow {
+  orgId: string;
+  businessCode: string | null;
+  legalName: string;
+  domain: Domain;
+  districtId: number | null;
+  districtName: string | null;
+  sectorName: string | null;
+  clusterCode: string | null;
+  clusterName: string | null;
+  associationName: string | null;
+  associationAcronym: string | null;
+  ownerGroups: PsfOwnerGroup[];
+  registrationKind: EnterpriseRegistrationKind | null;
+  hasTin: boolean;
+  registeredAt: Date;
+  standing: PsfStanding;
+  tierName: string | null;
+  membershipNumber: string | null;
+  expiresOn: string | null;
+  openApplicationId: string | null;
+}
+
+/** The register's filters, already validated and resolved. */
+export interface PsfRegisterFilter {
+  q?: string;
+  districtId?: number;
+  clusterCode?: string;
+  associationCode?: string;
+  tierCode?: string;
+  standing?: PsfStanding;
+  group?: PsfOwnerGroup;
+  tin?: 'with' | 'without';
+  kind?: 'enterprise' | 'hospitality';
 }
 
 const submitter = alias(users, 'psf_submitter');
@@ -152,6 +231,57 @@ function displayName(
 
 const submittedByName = displayName(submitter, submitterIdentity);
 
+/** Open is `submitted` (with PSF) or `approved` (waiting on the payment). */
+const OPEN_STATUS_SQL = inArray(psfMembershipApplications.status, ['submitted', 'approved']);
+
+/** A business's region, as a condition. Null scope is the whole country. */
+function inScope(scope: PsfScope): SQL | undefined {
+  if (scope === null) return undefined;
+  if (scope.length === 0) return sql`false`;
+  return inArray(orgs.districtId, [...scope]);
+}
+
+/**
+ * The businesses PSF's register lists: a PSF business or a hotel, past its
+ * registration fee and not refused. A residence is never a PSF business.
+ */
+const ON_REGISTER_SQL = sql`${orgs.domain}::text IN ('enterprise', 'hospitality')
+  AND ${orgs.registrationStatus} NOT IN ('pending_payment', 'rejected')`;
+
+/**
+ * The business on the outer row, named in full. Inside a correlated subquery an
+ * interpolated `${orgs.id}` is NOT safe: Drizzle leaves column names unqualified
+ * when a query reads one table, and a bare "id" inside `FROM psf_memberships m`
+ * binds to the membership's own id, so the subquery silently matches nothing.
+ */
+const ORG_ID = sql.raw('"orgs"."id"');
+
+/**
+ * Where a business stands with PSF, derived from its rows (`PsfStanding`).
+ * One expression, read by the register's column, its filter and its counts, so
+ * the three can never disagree.
+ */
+const STANDING_SQL = sql<PsfStanding>`(CASE
+  WHEN EXISTS (SELECT 1 FROM ${psfMemberships} m
+                WHERE m.org_id = ${ORG_ID} AND m.ended_at IS NULL) THEN 'member'
+  WHEN EXISTS (SELECT 1 FROM ${psfMembershipApplications} a
+                WHERE a.org_id = ${ORG_ID} AND a.status = 'approved') THEN 'awaiting_payment'
+  WHEN EXISTS (SELECT 1 FROM ${psfMembershipApplications} a
+                WHERE a.org_id = ${ORG_ID} AND a.status = 'submitted') THEN 'applied'
+  WHEN EXISTS (SELECT 1 FROM ${psfMemberships} m WHERE m.org_id = ${ORG_ID}) THEN 'lapsed'
+  WHEN (SELECT a.status FROM ${psfMembershipApplications} a
+         WHERE a.org_id = ${ORG_ID} AND a.status <> 'withdrawn'
+         ORDER BY a.created_at DESC LIMIT 1) = 'declined' THEN 'declined'
+  ELSE 'not_applied'
+END)`;
+
+/** The current membership, or the open application, of the business on this row. */
+const CURRENT_MEMBERSHIP = sql`(SELECT m.id FROM ${psfMemberships} m
+  WHERE m.org_id = ${ORG_ID} AND m.ended_at IS NULL LIMIT 1)`;
+const OPEN_APPLICATION = sql`(SELECT a.id FROM ${psfMembershipApplications} a
+  WHERE a.org_id = ${ORG_ID} AND a.status IN ('submitted', 'approved')
+  ORDER BY a.created_at DESC LIMIT 1)`;
+
 @Injectable()
 export class PsfMembershipRepository {
   constructor(@Inject(DRIZZLE) private readonly db: Database) {}
@@ -169,7 +299,14 @@ export class PsfMembershipRepository {
         accommodationClass: orgs.accommodationClass,
         accommodationClassOther: orgs.accommodationClassOther,
         registrationStatus: orgs.registrationStatus,
+        districtId: orgs.districtId,
         districtName: districts.name,
+        businessCode: orgs.businessCode,
+        registrationKind: orgs.registrationKind,
+        registrationNumber: orgs.registrationNumber,
+        ownerGroups: orgs.ownerGroups,
+        associationName: psfAssociations.nameEn,
+        clusterName: psfClusters.nameEn,
         oboRegistrant: oboRegistrations.registrantUserId,
         oboClaimStatus: oboRegistrations.claimStatus,
         intendedOwnerName: oboRegistrations.intendedOwnerName,
@@ -178,6 +315,8 @@ export class PsfMembershipRepository {
       })
       .from(orgs)
       .leftJoin(districts, eq(districts.id, orgs.districtId))
+      .leftJoin(psfAssociations, eq(psfAssociations.code, orgs.psfAssociationCode))
+      .leftJoin(psfClusters, eq(psfClusters.code, psfAssociations.clusterCode))
       .leftJoin(oboRegistrations, eq(oboRegistrations.orgId, orgs.id))
       .where(eq(orgs.id, orgId))
       .limit(1);
@@ -205,7 +344,7 @@ export class PsfMembershipRepository {
     };
   }
 
-  /** The business's workspace, for the links mail carries. */
+  /** The business's workspace, for the links mail carries and the payment seam. */
   async workspaceIdFor(orgId: string): Promise<string | null> {
     const [row] = await this.db
       .select({ id: workspaces.id })
@@ -318,7 +457,7 @@ export class PsfMembershipRepository {
     };
   }
 
-  // --- The catalogue ---------------------------------------------------------
+  // --- The tier catalogue ----------------------------------------------------
 
   async tiers(activeOnly: boolean): Promise<PsfTierRow[]> {
     return this.db
@@ -335,6 +474,41 @@ export class PsfMembershipRepository {
       .where(eq(psfMembershipTiers.code, code))
       .limit(1);
     return row ?? null;
+  }
+
+  // --- The sector catalogue --------------------------------------------------
+
+  async clusters(activeOnly: boolean): Promise<PsfClusterRow[]> {
+    return this.db
+      .select()
+      .from(psfClusters)
+      .where(activeOnly ? eq(psfClusters.active, true) : undefined)
+      .orderBy(asc(psfClusters.sortOrder), asc(psfClusters.code));
+  }
+
+  async associations(activeOnly: boolean): Promise<PsfAssociationRow[]> {
+    return this.db
+      .select()
+      .from(psfAssociations)
+      .where(activeOnly ? eq(psfAssociations.active, true) : undefined)
+      .orderBy(asc(psfAssociations.sortOrder), asc(psfAssociations.nameEn));
+  }
+
+  /** An association a business may still name: it, and its cluster, active. */
+  async activeAssociation(code: string): Promise<PsfAssociationRow | null> {
+    const [row] = await this.db
+      .select({ association: psfAssociations })
+      .from(psfAssociations)
+      .innerJoin(psfClusters, eq(psfClusters.code, psfAssociations.clusterCode))
+      .where(
+        and(
+          eq(psfAssociations.code, code),
+          eq(psfAssociations.active, true),
+          eq(psfClusters.active, true),
+        ),
+      )
+      .limit(1);
+    return row?.association ?? null;
   }
 
   // --- Applications and memberships of one business --------------------------
@@ -379,7 +553,11 @@ export class PsfMembershipRepository {
     return insertPsfApplication(this.db, row);
   }
 
-  /** Guarded: only a `submitted` application of THIS business moves. */
+  /**
+   * Guarded: only an OPEN application of THIS business moves. An approved one
+   * may be withdrawn too: a business that decides not to pay says so, rather
+   * than leaving PSF's approval waiting forever.
+   */
   async withdraw(orgId: string, applicationId: string, userId: string): Promise<boolean> {
     const moved = await this.db
       .update(psfMembershipApplications)
@@ -387,13 +565,19 @@ export class PsfMembershipRepository {
         status: 'withdrawn',
         withdrawnAt: new Date(),
         withdrawnByUserId: userId,
+        // An approval withdrawn is no longer a decision anyone stands behind.
+        decidedAt: null,
+        decidedByUserId: null,
+        decisionBodyCode: null,
+        approvedMembershipNumber: null,
+        approvedFeeRwf: null,
         updatedAt: new Date(),
       })
       .where(
         and(
           eq(psfMembershipApplications.id, applicationId),
           eq(psfMembershipApplications.orgId, orgId),
-          eq(psfMembershipApplications.status, 'submitted'),
+          OPEN_STATUS_SQL,
         ),
       )
       .returning({ id: psfMembershipApplications.id });
@@ -454,7 +638,7 @@ export class PsfMembershipRepository {
     )`;
   }
 
-  /** In the queue: open, and the business past the TIN check in good standing (AC-8). */
+  /** In the queue: waiting on PSF, and the business past the TIN check in good standing (AC-8). */
   private inQueue(): SQL | undefined {
     return and(
       eq(psfMembershipApplications.status, 'submitted'),
@@ -468,6 +652,7 @@ export class PsfMembershipRepository {
 
   async queuePage(
     officerUserId: string,
+    scope: PsfScope,
     after: { sortAt: Date; id: string } | undefined,
     limit: number,
   ): Promise<{ rows: PsfQueueRow[]; more: boolean }> {
@@ -477,8 +662,13 @@ export class PsfMembershipRepository {
         applicationId: psfMembershipApplications.id,
         orgId: orgs.id,
         businessName: orgs.legalName,
+        businessCode: orgs.businessCode,
+        domain: orgs.domain,
         districtName: districts.name,
+        associationName: psfAssociations.nameEn,
+        ownerGroups: orgs.ownerGroups,
         requestedTierName: psfMembershipTiers.nameEn,
+        declaredFeeRwf: psfMembershipApplications.declaredFeeRwf,
         submittedAt: psfMembershipApplications.createdAt,
         queuedAt: psfMembershipApplications.queuedAt,
         sortAt: sortAt.mapWith((v: string | Date) => new Date(v)),
@@ -492,9 +682,11 @@ export class PsfMembershipRepository {
         eq(psfMembershipTiers.code, psfMembershipApplications.requestedTierCode),
       )
       .leftJoin(districts, eq(districts.id, orgs.districtId))
+      .leftJoin(psfAssociations, eq(psfAssociations.code, orgs.psfAssociationCode))
       .where(
         and(
           this.inQueue(),
+          inScope(scope),
           // Oldest first, so the cursor moves forward in time.
           after
             ? or(
@@ -509,19 +701,16 @@ export class PsfMembershipRepository {
     return { rows: rows.slice(0, limit), more: rows.length > limit };
   }
 
-  /** One application as the officer reads it, or null when it is not in the queue. */
+  /**
+   * One application as the officer reads it, or null when it is outside their
+   * region or not one PSF has in hand: waiting on PSF (the queue) or approved
+   * and waiting on the payment, which the register opens.
+   */
   async officerApplication(
     officerUserId: string,
+    scope: PsfScope,
     applicationId: string,
-  ): Promise<
-    | (PsfApplicationWithNames & {
-        businessName: string;
-        districtName: string | null;
-        registrationStatus: OrgRegistrationStatus;
-        officerHasStake: boolean;
-      })
-    | null
-  > {
+  ): Promise<PsfOfficerApplicationRow | null> {
     const [row] = await this.db
       .select({
         application: psfMembershipApplications,
@@ -531,6 +720,12 @@ export class PsfMembershipRepository {
         districtName: districts.name,
         registrationStatus: orgs.registrationStatus,
         officerHasStake: this.stakeSql(officerUserId).mapWith(Boolean),
+        domain: orgs.domain,
+        businessCode: orgs.businessCode,
+        clusterName: psfClusters.nameEn,
+        associationName: psfAssociations.nameEn,
+        ownerGroups: orgs.ownerGroups,
+        registrationKind: orgs.registrationKind,
       })
       .from(psfMembershipApplications)
       .innerJoin(orgs, eq(orgs.id, psfMembershipApplications.orgId))
@@ -541,77 +736,55 @@ export class PsfMembershipRepository {
       .leftJoin(submitter, eq(submitter.id, psfMembershipApplications.submittedByUserId))
       .leftJoin(submitterIdentity, eq(submitterIdentity.userId, submitter.id))
       .leftJoin(districts, eq(districts.id, orgs.districtId))
-      .where(and(eq(psfMembershipApplications.id, applicationId), this.inQueue()))
+      .leftJoin(psfAssociations, eq(psfAssociations.code, orgs.psfAssociationCode))
+      .leftJoin(psfClusters, eq(psfClusters.code, psfAssociations.clusterCode))
+      .where(
+        and(
+          eq(psfMembershipApplications.id, applicationId),
+          OPEN_STATUS_SQL,
+          inArray(orgs.registrationStatus, [...PSF_QUEUE_REGISTRATION_STATES]),
+          inScope(scope),
+        ),
+      )
       .limit(1);
     if (!row) return null;
-    return {
-      ...row.application,
-      requestedTierName: row.requestedTierName,
-      submittedByName: row.submittedByName,
-      businessName: row.businessName,
-      districtName: row.districtName,
-      registrationStatus: row.registrationStatus,
-      officerHasStake: row.officerHasStake,
-    };
+    const { application, ...rest } = row;
+    return { ...application, ...rest };
   }
 
   /**
-   * Mark an application `member` (AC-11), as ONE transaction in the order
-   * ADR-056 fixes: the guarded move first; if it moved nothing (decided,
-   * withdrawn, or another officer won the race) write nothing else. Otherwise
-   * end the current membership, write the confirmed one, and set the flag.
+   * Approve an application (AC-11 as the PSF path changed it): `submitted →
+   * approved`, guarded like every move. The membership waits for the payment.
    */
-  async decideMember(input: {
+  async approve(input: {
     applicationId: string;
     officerUserId: string;
     bodyCode: string;
-    tierCode: string;
     membershipNumber: string;
-    annualFeeRwf: number;
-    startsOn: string;
-    expiresOn: string;
+    feeRwf: number;
+    note: string | null;
   }): Promise<{ orgId: string } | null> {
-    return this.db.transaction(async (tx) => {
-      const now = new Date();
-      const [moved] = await tx
-        .update(psfMembershipApplications)
-        .set({
-          status: 'member',
-          decidedAt: now,
-          decidedByUserId: input.officerUserId,
-          decisionBodyCode: input.bodyCode,
-          updatedAt: now,
-        })
-        .where(
-          and(
-            eq(psfMembershipApplications.id, input.applicationId),
-            eq(psfMembershipApplications.status, 'submitted'),
-          ),
-        )
-        .returning({ orgId: psfMembershipApplications.orgId });
-      if (!moved) return null;
-
-      await tx
-        .update(psfMemberships)
-        .set({ endedAt: now, updatedAt: now })
-        .where(and(eq(psfMemberships.orgId, moved.orgId), isNull(psfMemberships.endedAt)));
-      await tx.insert(psfMemberships).values({
-        orgId: moved.orgId,
-        source: 'psf_confirmed',
-        applicationId: input.applicationId,
-        tierCode: input.tierCode,
-        membershipNumber: input.membershipNumber,
-        annualFeeRwf: input.annualFeeRwf,
-        startsOn: input.startsOn,
-        expiresOn: input.expiresOn,
-        recordedByUserId: input.officerUserId,
-      });
-      await tx
-        .update(orgs)
-        .set({ psfMember: true, updatedAt: now })
-        .where(eq(orgs.id, moved.orgId));
-      return { orgId: moved.orgId };
-    });
+    const now = new Date();
+    const [moved] = await this.db
+      .update(psfMembershipApplications)
+      .set({
+        status: 'approved',
+        decidedAt: now,
+        decidedByUserId: input.officerUserId,
+        decisionBodyCode: input.bodyCode,
+        decisionNote: input.note,
+        approvedMembershipNumber: input.membershipNumber,
+        approvedFeeRwf: input.feeRwf,
+        updatedAt: now,
+      })
+      .where(
+        and(
+          eq(psfMembershipApplications.id, input.applicationId),
+          eq(psfMembershipApplications.status, 'submitted'),
+        ),
+      )
+      .returning({ orgId: psfMembershipApplications.orgId });
+    return moved ?? null;
   }
 
   /** Decline (AC-12). Guarded like every other move. */
@@ -644,8 +817,102 @@ export class PsfMembershipRepository {
     return moved ?? null;
   }
 
-  /** Where the membership officer emails go (AC-9). */
-  async membershipOfficerEmails(): Promise<string[]> {
+  /**
+   * The payment that makes an approved application a membership, as ONE
+   * transaction: the guarded move first (`approved → member`, with the
+   * payment on it); if it moved nothing (paid already, withdrawn, raced) write
+   * nothing else. Otherwise end the current membership, write the confirmed
+   * one, and set the business's flag.
+   */
+  async recordPayment(input: {
+    applicationId: string;
+    orgId: string;
+    amountRwf: number;
+    paymentRef: string;
+    paymentMode: 'mock' | 'live';
+    paidAt: Date;
+    startsOn: string;
+    expiresOn: string;
+    recordedByUserId: string;
+  }): Promise<{ tierCode: string; membershipNumber: string } | null> {
+    return this.db.transaction(async (tx) => {
+      const [moved] = await tx
+        .update(psfMembershipApplications)
+        .set({
+          status: 'member',
+          paidAt: input.paidAt,
+          paidAmountRwf: input.amountRwf,
+          paymentRef: input.paymentRef,
+          paymentMode: input.paymentMode,
+          updatedAt: input.paidAt,
+        })
+        .where(
+          and(
+            eq(psfMembershipApplications.id, input.applicationId),
+            eq(psfMembershipApplications.orgId, input.orgId),
+            eq(psfMembershipApplications.status, 'approved'),
+          ),
+        )
+        .returning({
+          tierCode: psfMembershipApplications.requestedTierCode,
+          membershipNumber: psfMembershipApplications.approvedMembershipNumber,
+        });
+      if (!moved || !moved.membershipNumber) return null;
+
+      await tx
+        .update(psfMemberships)
+        .set({ endedAt: input.paidAt, updatedAt: input.paidAt })
+        .where(and(eq(psfMemberships.orgId, input.orgId), isNull(psfMemberships.endedAt)));
+      await tx.insert(psfMemberships).values({
+        orgId: input.orgId,
+        source: 'psf_confirmed',
+        applicationId: input.applicationId,
+        tierCode: moved.tierCode,
+        membershipNumber: moved.membershipNumber,
+        annualFeeRwf: input.amountRwf,
+        startsOn: input.startsOn,
+        expiresOn: input.expiresOn,
+        recordedByUserId: input.recordedByUserId,
+      });
+      await tx
+        .update(orgs)
+        .set({ psfMember: true, updatedAt: input.paidAt })
+        .where(eq(orgs.id, input.orgId));
+      return { tierCode: moved.tierCode, membershipNumber: moved.membershipNumber };
+    });
+  }
+
+  /** Record that a paid fee was passed on to PSF. Once: a remitted row stays remitted. */
+  async recordRemittance(applicationId: string, remittanceRef: string): Promise<void> {
+    await this.db
+      .update(psfMembershipApplications)
+      .set({ remittedAt: new Date(), remittanceRef, updatedAt: new Date() })
+      .where(
+        and(
+          eq(psfMembershipApplications.id, applicationId),
+          isNull(psfMembershipApplications.remittedAt),
+          sql`${psfMembershipApplications.paidAt} IS NOT NULL`,
+        ),
+      );
+  }
+
+  /**
+   * Where the membership officer emails go (AC-9): every active officer whose
+   * region covers the business's district. A business with no district reaches
+   * country officers only, the same rule `scopeCoversDistrict` applies.
+   */
+  async membershipOfficerEmails(districtId: number | null): Promise<string[]> {
+    const covers =
+      districtId === null
+        ? eq(oversightAssignments.scopeLevel, 'country')
+        : or(
+            eq(oversightAssignments.scopeLevel, 'country'),
+            and(eq(oversightAssignments.scopeLevel, 'district'), eq(oversightAssignments.districtId, districtId)),
+            and(
+              eq(oversightAssignments.scopeLevel, 'province'),
+              sql`${oversightAssignments.provinceId} = (SELECT d.province_id FROM ${districts} d WHERE d.id = ${districtId})`,
+            ),
+          );
     const rows = await this.db
       .selectDistinct({ email: users.email })
       .from(oversightAssignments)
@@ -654,9 +921,220 @@ export class PsfMembershipRepository {
         and(
           eq(oversightAssignments.oversightRole, 'psf_membership_officer'),
           isNull(oversightAssignments.revokedAt),
+          covers,
         ),
       );
     return rows.map((r) => r.email);
+  }
+
+  // --- The officer's register of businesses ----------------------------------
+
+  /** The register's filters as one condition, on top of its base and the scope. */
+  private registerWhere(scope: PsfScope, f: PsfRegisterFilter): SQL | undefined {
+    const q = f.q?.trim();
+    const like = q ? `%${q.replace(/[%_\\]/g, (c) => `\\${c}`)}%` : null;
+    return and(
+      ON_REGISTER_SQL,
+      inScope(scope),
+      f.districtId !== undefined ? eq(orgs.districtId, f.districtId) : undefined,
+      f.associationCode ? eq(orgs.psfAssociationCode, f.associationCode) : undefined,
+      f.clusterCode ? eq(psfAssociations.clusterCode, f.clusterCode) : undefined,
+      f.group ? sql`${f.group}::psf_owner_group = ANY(${orgs.ownerGroups})` : undefined,
+      f.tin === 'with' ? sql`${orgs.tin} IS NOT NULL` : f.tin === 'without' ? sql`${orgs.tin} IS NULL` : undefined,
+      f.kind ? sql`${orgs.domain}::text = ${f.kind}` : undefined,
+      f.standing ? sql`${STANDING_SQL} = ${f.standing}` : undefined,
+      f.tierCode
+        ? sql`coalesce(
+            (SELECT m.tier_code FROM ${psfMemberships} m WHERE m.org_id = ${ORG_ID} AND m.ended_at IS NULL LIMIT 1),
+            (SELECT a.requested_tier_code FROM ${psfMembershipApplications} a
+              WHERE a.org_id = ${ORG_ID} AND a.status IN ('submitted', 'approved') LIMIT 1)
+          ) = ${f.tierCode}`
+        : undefined,
+      like
+        ? or(
+            sql`${orgs.legalName} ILIKE ${like}`,
+            sql`${orgs.businessCode} ILIKE ${like}`,
+            sql`${orgs.tin} ILIKE ${like}`,
+          )
+        : undefined,
+    );
+  }
+
+  async registerPage(
+    scope: PsfScope,
+    filter: PsfRegisterFilter,
+    after: { sortAt: Date; id: string } | undefined,
+    limit: number,
+  ): Promise<{ rows: PsfBusinessRegisterRow[]; more: boolean; total: number }> {
+    const where = this.registerWhere(scope, filter);
+    const currentTier = alias(psfMembershipTiers, 'psf_current_tier');
+    const openTier = alias(psfMembershipTiers, 'psf_open_tier');
+    const current = alias(psfMemberships, 'psf_current');
+    const open = alias(psfMembershipApplications, 'psf_open');
+
+    const rows = await this.db
+      .select({
+        orgId: orgs.id,
+        businessCode: orgs.businessCode,
+        legalName: orgs.legalName,
+        domain: orgs.domain,
+        districtId: orgs.districtId,
+        districtName: districts.name,
+        sectorName: sectors.name,
+        clusterCode: psfClusters.code,
+        clusterName: psfClusters.nameEn,
+        associationName: psfAssociations.nameEn,
+        associationAcronym: psfAssociations.acronym,
+        ownerGroups: orgs.ownerGroups,
+        registrationKind: orgs.registrationKind,
+        hasTin: sql<boolean>`${orgs.tin} IS NOT NULL`.mapWith(Boolean),
+        registeredAt: orgs.createdAt,
+        standing: STANDING_SQL,
+        tierName: sql<string | null>`coalesce(${currentTier.nameEn}, ${openTier.nameEn})`,
+        membershipNumber: sql<string | null>`coalesce(${current.membershipNumber}, ${open.approvedMembershipNumber})`,
+        expiresOn: current.expiresOn,
+        openApplicationId: open.id,
+      })
+      .from(orgs)
+      .leftJoin(districts, eq(districts.id, orgs.districtId))
+      .leftJoin(sectors, eq(sectors.id, orgs.sectorId))
+      .leftJoin(psfAssociations, eq(psfAssociations.code, orgs.psfAssociationCode))
+      .leftJoin(psfClusters, eq(psfClusters.code, psfAssociations.clusterCode))
+      .leftJoin(current, sql`${current.id} = ${CURRENT_MEMBERSHIP}`)
+      .leftJoin(currentTier, eq(currentTier.code, current.tierCode))
+      .leftJoin(open, sql`${open.id} = ${OPEN_APPLICATION}`)
+      .leftJoin(openTier, eq(openTier.code, open.requestedTierCode))
+      .where(
+        and(
+          where,
+          // Newest first, so the cursor moves back in time.
+          after
+            ? or(lt(orgs.createdAt, after.sortAt), and(eq(orgs.createdAt, after.sortAt), lt(orgs.id, after.id)))
+            : undefined,
+        ),
+      )
+      .orderBy(desc(orgs.createdAt), desc(orgs.id))
+      .limit(limit + 1);
+
+    const [counted] = await this.db
+      .select({ n: sql<number>`count(*)::int` })
+      .from(orgs)
+      .leftJoin(psfAssociations, eq(psfAssociations.code, orgs.psfAssociationCode))
+      .where(where);
+
+    return {
+      rows: rows.slice(0, limit).map((r) => ({ ...r, standing: r.standing as PsfStanding })),
+      more: rows.length > limit,
+      total: counted?.n ?? 0,
+    };
+  }
+
+  /** The officer's region at a glance: totals and counts under each heading. */
+  async registerSummary(scope: PsfScope, yearStart: Date): Promise<{
+    total: number;
+    members: number;
+    waiting: number;
+    paidThisYearRwf: number;
+    byCluster: { key: string | null; label: string | null; count: number }[];
+    byStanding: { key: PsfStanding; count: number }[];
+    byGroup: { key: PsfOwnerGroup; count: number }[];
+    byDistrict: { key: number | null; label: string | null; count: number }[];
+  }> {
+    const base = and(ON_REGISTER_SQL, inScope(scope));
+
+    const [byCluster, byStanding, byGroup, byDistrict, waitingRows, paidRows] = await Promise.all([
+      this.db
+        .select({ key: psfClusters.code, label: psfClusters.nameEn, count: sql<number>`count(*)::int` })
+        .from(orgs)
+        .leftJoin(psfAssociations, eq(psfAssociations.code, orgs.psfAssociationCode))
+        .leftJoin(psfClusters, eq(psfClusters.code, psfAssociations.clusterCode))
+        .where(base)
+        .groupBy(psfClusters.code, psfClusters.nameEn, psfClusters.sortOrder)
+        .orderBy(asc(psfClusters.sortOrder)),
+      this.db
+        .select({ key: STANDING_SQL, count: sql<number>`count(*)::int` })
+        .from(orgs)
+        .where(base)
+        .groupBy(sql`1`),
+      this.db.execute<{ key: PsfOwnerGroup; count: number }>(
+        sql`SELECT g.grp::text AS key, count(*)::int AS count
+              FROM ${orgs}
+              LEFT JOIN ${psfAssociations} ON ${psfAssociations.code} = ${orgs.psfAssociationCode}
+              CROSS JOIN LATERAL unnest(${orgs.ownerGroups}) AS g(grp)
+             WHERE ${base}
+             GROUP BY g.grp
+             ORDER BY g.grp`,
+      ),
+      this.db
+        .select({ key: orgs.districtId, label: districts.name, count: sql<number>`count(*)::int` })
+        .from(orgs)
+        .leftJoin(districts, eq(districts.id, orgs.districtId))
+        .where(base)
+        .groupBy(orgs.districtId, districts.name)
+        .orderBy(desc(sql`count(*)`), asc(districts.name)),
+      this.db
+        .select({ n: sql<number>`count(*)::int` })
+        .from(psfMembershipApplications)
+        .innerJoin(orgs, eq(orgs.id, psfMembershipApplications.orgId))
+        .where(and(base, this.inQueue())),
+      this.db
+        .select({ sum: sql<number>`coalesce(sum(${psfMembershipApplications.paidAmountRwf}), 0)::bigint` })
+        .from(psfMembershipApplications)
+        .innerJoin(orgs, eq(orgs.id, psfMembershipApplications.orgId))
+        .where(
+          and(
+            inScope(scope),
+            sql`${psfMembershipApplications.paidAt} >= ${yearStart}`,
+          ),
+        ),
+    ]);
+
+    const standing = byStanding.map((r) => ({ key: r.key as PsfStanding, count: r.count }));
+    // node-postgres puts the rows on `.rows`; some drivers return the array.
+    const groupRows = Array.isArray(byGroup)
+      ? (byGroup as { key: PsfOwnerGroup; count: number }[])
+      : ((byGroup as { rows?: { key: PsfOwnerGroup; count: number }[] }).rows ?? []);
+    return {
+      total: byDistrict.reduce((n, r) => n + r.count, 0),
+      members: standing.find((s) => s.key === 'member')?.count ?? 0,
+      waiting: waitingRows[0]?.n ?? 0,
+      paidThisYearRwf: Number(paidRows[0]?.sum ?? 0),
+      byCluster,
+      byStanding: standing,
+      byGroup: groupRows.map((r) => ({ key: r.key, count: Number(r.count) })),
+      byDistrict,
+    };
+  }
+
+  /** District and province names, to say an officer's region in words. */
+  async regionNames(districtIds: number[], provinceIds: number[]): Promise<{
+    districts: Map<number, string>;
+    provinces: Map<number, string>;
+  }> {
+    const [d, p] = await Promise.all([
+      districtIds.length
+        ? this.db.select({ id: districts.id, name: districts.name }).from(districts).where(inArray(districts.id, districtIds))
+        : Promise.resolve([]),
+      provinceIds.length
+        ? this.db.select({ id: provinces.id, name: provinces.name }).from(provinces).where(inArray(provinces.id, provinceIds))
+        : Promise.resolve([]),
+    ]);
+    return {
+      districts: new Map(d.map((r) => [r.id, r.name])),
+      provinces: new Map(p.map((r) => [r.id, r.name])),
+    };
+  }
+
+  /** The districts of each province, for `districtScopeOf`. */
+  async districtsByProvince(provinceIds: number[]): Promise<Map<number, number[]>> {
+    if (provinceIds.length === 0) return new Map();
+    const rows = await this.db
+      .select({ id: districts.id, provinceId: districts.provinceId })
+      .from(districts)
+      .where(inArray(districts.provinceId, provinceIds));
+    const out = new Map<number, number[]>();
+    for (const r of rows) out.set(r.provinceId, [...(out.get(r.provinceId) ?? []), r.id]);
+    return out;
   }
 
   // --- Expiry (AC-18) ---------------------------------------------------------
@@ -682,9 +1160,9 @@ export class PsfMembershipRepository {
           .where(
             and(
               inArray(orgs.id, orgIds),
-              sql`NOT EXISTS (SELECT 1 FROM ${psfMemberships}
-                               WHERE ${psfMemberships.orgId} = ${orgs.id}
-                                 AND ${psfMemberships.endedAt} IS NULL)`,
+              sql`NOT EXISTS (SELECT 1 FROM ${psfMemberships} m
+                               WHERE m.org_id = ${ORG_ID}
+                                 AND m.ended_at IS NULL)`,
             ),
           );
       }

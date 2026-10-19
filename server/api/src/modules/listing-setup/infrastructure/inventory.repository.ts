@@ -400,11 +400,15 @@ export class InventoryRepository {
       )
       .orderBy(roomTypes.name);
 
-    return rows.map((r) => ({
-      ...r,
-      basePriceRwf: r.basePriceRwf ?? null,
-      sellableRoomCount: Number(r.sellableRoomCount),
-    }));
+    // `room_types.domain` shares `domain_kind`, but a PSF business (`enterprise`)
+    // never has a room type; the guard only narrows the type to say so.
+    return rows
+      .filter((r): r is typeof r & { domain: 'hospitality' | 'residence' } => r.domain !== 'enterprise')
+      .map((r) => ({
+        ...r,
+        basePriceRwf: r.basePriceRwf ?? null,
+        sellableRoomCount: Number(r.sellableRoomCount),
+      }));
   }
 
   /** Room type and sellable room counts for a whole workspace, in one query. */

@@ -327,7 +327,9 @@ export class RoomTypesRepository {
       .innerJoin(orgs, eq(orgs.id, properties.orgId))
       .where(eq(properties.id, propertyId))
       .limit(1);
-    return row?.domain ?? null;
+    // A PSF business lists nothing and has no property to hold a room type.
+    const domain = row?.domain ?? null;
+    return domain === 'enterprise' ? null : domain;
   }
 
   private normalise(row: {
