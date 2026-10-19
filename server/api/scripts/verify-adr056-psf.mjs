@@ -6,12 +6,14 @@
 // one. Every assertion is a real request over a real session.
 //
 // WHAT IT PROVES:
-//   A. The tier catalogue reads in its order, signed in (AC-2).
+//   A. The tier catalogue reads in its order, without a session (AC-2, made
+//      public by the PSF path: the PSF page shows it to a visitor).
 //   B. The business side: the applicant reads its page, a receptionist and a
 //      residence are refused, a second open application is refused, a
 //      withdrawal reopens the door (AC-15, AC-16, AC-22).
 //   C. The officer side: one national queue, the filed form, two officers
-//      racing to one decision, a decline with its reason (AC-10 to AC-13).
+//      racing to one approval, the business paying to become a member, a
+//      decline with its reason (AC-10 to AC-13, as the PSF path changed them).
 //   D. Queue membership is derived: a rejected business leaves the queue with
 //      nothing written to the application, and returns unchanged (AC-8).
 //   E. An officer who joins a business after being appointed cannot decide its
@@ -155,7 +157,8 @@ await resetPsfState();
 
 function form(overrides = {}) {
   return {
-    requestedTierCode: 'golden_circle_silver',
+    requestedTierCode: 'golden_circle',
+    declaredFeeRwf: 5_000_000,
     companyName: 'Amahoro Hospitality Group',
     streetAddress: 'KN 3 Rd, Kigali',
     companyType: 'private_company',
@@ -175,13 +178,8 @@ function form(overrides = {}) {
   };
 }
 
-const member = (tierCode = 'ordinary_300k') => ({
-  tierCode,
-  membershipNumber: `PSF/VERIFY/${Date.now()}`,
-  annualFeeRwf: 300000,
-  startsOn: '2026-09-27',
-  expiresOn: '2027-09-26',
-});
+/** An approval: PSF's number. The business's own amount stands (the PSF path). */
+const approval = () => ({ membershipNumber: `PSF/VERIFY/${Date.now()}` });
 
 const main = async () => {
   const innocent = await signIn('innocent.niyonsaba@guests.demo.injishi.com');
@@ -195,9 +193,9 @@ const main = async () => {
   console.log('\n=== A. The tier catalogue (AC-2) ===');
   const tiers = await call(innocent, 'GET', '/api/v1/psf/tiers');
   check('tiers read 200', tiers.status === 200, tiers.status);
-  check('eight active tiers, Platinum first', tiers.json?.length === 8 && tiers.json[0].code === 'golden_circle_platinum');
-  check('a range tier carries its range', tiers.json?.find((t) => t.code === 'indashyikirwa')?.annualFeeMaxRwf === 3000000);
-  check('signed out is refused', (await call(null, 'GET', '/api/v1/psf/tiers')).status === 401);
+  check('six active tiers, Golden Circle first', tiers.json?.length === 6 && tiers.json[0].code === 'golden_circle');
+  check('a range tier carries its range', tiers.json?.find((t) => t.code === 'indashyikirwa')?.annualFeeMaxRwf === 4999999);
+  check('signed out reads them too', (await call(null, 'GET', '/api/v1/psf/tiers')).status === 200);
 
   console.log('\n=== B. The business side (AC-15, AC-16, AC-22) ===');
   const u = await call(innocent, 'GET', `/api/v1/orgs/${UMUCYO}/psf-membership`);
@@ -223,7 +221,8 @@ const main = async () => {
   const applied = await call(yves, 'POST', `/api/v1/orgs/${AMAHORO}/psf-applications`, form());
   check('the owner applies 201', applied.status === 201, `${applied.status} ${applied.text.slice(0, 160)}`);
   check('an active business goes straight to PSF and is stamped', applied.json?.open?.stage === 'with_psf' && applied.json?.open?.queuedAt !== null);
-  check('the price shown is copied onto it', applied.json?.open?.quotedFeeRwf === 5000000);
+  check('the price shown and the amount chosen are copied onto it',
+    applied.json?.open?.quotedFeeMinRwf === 5000000 && applied.json?.open?.declaredFeeRwf === 5000000);
   const firstId = applied.json?.open?.id;
   const w = await call(yves, 'POST', `/api/v1/orgs/${AMAHORO}/psf-applications/${firstId}/withdraw`);
   check('the owner withdraws 200', w.status === 200 && w.json?.open === null && w.json?.history?.[0]?.status === 'withdrawn');
@@ -262,17 +261,23 @@ const main = async () => {
   check('the officer reads one national queue', q.status === 200, q.status);
   const umucyoItem = q.json?.items?.find((i) => i.orgId === UMUCYO);
   check('it lists Umucyo and Amahoro', Boolean(umucyoItem) && q.json.items.some((i) => i.applicationId === amahoroApp));
-  check('oldest first', umucyoItem && q.json.items[0].orgId === UMUCYO);
+  const order = (q.json?.items ?? []).map((i) => new Date(i.queuedAt ?? i.submittedAt).getTime());
+  check('oldest first', order.every((t, i) => i === 0 || order[i - 1] <= t));
   const detail = await call(eric, 'GET', `/api/v1/oversight/psf-applications/${umucyoItem.applicationId}`);
   check('the filed form reads back', detail.status === 200 && detail.json?.form?.firstName === 'Innocent');
-  check('bad dates are refused 400', (await call(eric, 'POST', `/api/v1/oversight/psf-applications/${umucyoItem.applicationId}/member`, { ...member(), expiresOn: '2026-01-01' })).status === 400);
+  check('an approval with no number is refused 400', (await call(eric, 'POST', `/api/v1/oversight/psf-applications/${umucyoItem.applicationId}/approve`, { membershipNumber: '' })).status === 400);
 
   const [r1, r2] = await Promise.all([
-    call(eric, 'POST', `/api/v1/oversight/psf-applications/${umucyoItem.applicationId}/member`, member()),
-    call(eric, 'POST', `/api/v1/oversight/psf-applications/${umucyoItem.applicationId}/member`, member()),
+    call(eric, 'POST', `/api/v1/oversight/psf-applications/${umucyoItem.applicationId}/approve`, approval()),
+    call(eric, 'POST', `/api/v1/oversight/psf-applications/${umucyoItem.applicationId}/approve`, approval()),
   ]);
   const statuses = [r1.status, r2.status].sort();
-  check('two racing decisions: one 200, one 409', statuses[0] === 200 && statuses[1] === 409, statuses.join(','));
+  check('two racing approvals: one 200, one 409', statuses[0] === 200 && statuses[1] === 409, statuses.join(','));
+  const waiting = await call(innocent, 'GET', `/api/v1/orgs/${UMUCYO}/psf-membership`);
+  check('approved, it waits on the payment and no membership exists yet',
+    waiting.json?.open?.stage === 'awaiting_payment' && waiting.json?.current === null);
+  const paid = await call(innocent, 'POST', `/api/v1/orgs/${UMUCYO}/psf-applications/${umucyoItem.applicationId}/pay`, { phoneE164: '+250788000101' });
+  check('the owner pays 200', paid.status === 200, `${paid.status} ${paid.text.slice(0, 160)}`);
   const memberships = await db.query('SELECT count(*)::int n FROM psf_memberships WHERE org_id = $1 AND ended_at IS NULL', [UMUCYO]);
   check('exactly one current membership', memberships.rows[0].n === 1, memberships.rows[0].n);
   const flag = await db.query('SELECT psf_member FROM orgs WHERE id = $1', [UMUCYO]);
@@ -316,7 +321,7 @@ const main = async () => {
   try {
     const item = ((await call(eric, 'GET', '/api/v1/oversight/psf-applications')).json?.items ?? []).find((i) => i.applicationId === inzoziId);
     check('the queue marks it as one they cannot decide', item?.canDecide === false);
-    check('deciding it is refused 403', (await call(eric, 'POST', `/api/v1/oversight/psf-applications/${inzoziId}/member`, member())).status === 403);
+    check('deciding it is refused 403', (await call(eric, 'POST', `/api/v1/oversight/psf-applications/${inzoziId}/approve`, approval())).status === 403);
   } finally {
     await db.query('DELETE FROM org_memberships WHERE org_id = $1 AND user_id = $2', [INZOZI, ericId]);
   }
@@ -362,17 +367,17 @@ const main = async () => {
   const applyTin = tin();
   const reg = await call(rayan, 'POST', '/api/v1/registrations', hotel(applyTin, {
     psfMember: false,
-    psfApplication: form({ requestedTierCode: 'ordinary_100k', companyName: `ADR-056 Verify Hotel ${applyTin}`, email: 'rayan@demo.injishi.com', firstName: 'Rayan', lastName: 'Iraguha', idDocument: { documentType: 'national_id', documentNumber: '1199080123456789' } }),
+    psfApplication: form({ requestedTierCode: 'indatwa_10k', declaredFeeRwf: 15000, companyName: `ADR-056 Verify Hotel ${applyTin}`, email: 'rayan@demo.injishi.com', firstName: 'Rayan', lastName: 'Iraguha', idDocument: { documentType: 'national_id', documentNumber: '1199080123456789' } }),
   }));
   check('a registration with an application is created', reg.status === 201 || reg.status === 200, `${reg.status} ${reg.text.slice(0, 200)}`);
   const filed = (await db.query(
-    `SELECT a.status, a.queued_at, a.registration_number, a.submitted_capacity, a.quoted_fee_rwf
+    `SELECT a.status, a.queued_at, a.registration_number, a.submitted_capacity, a.quoted_fee_min_rwf, a.declared_fee_rwf
        FROM psf_membership_applications a JOIN orgs o ON o.id = a.org_id WHERE o.tin = $1`,
     [applyTin],
   )).rows[0];
   check('its application is filed in the same write', filed?.status === 'submitted' && filed?.registration_number === applyTin && filed?.submitted_capacity === 'owner');
   check('it waits for the TIN check, unstamped', filed?.queued_at === null);
-  check('the price shown is copied', Number(filed?.quoted_fee_rwf) === 100000);
+  check('the price shown and the amount chosen are copied', Number(filed?.quoted_fee_min_rwf) === 10000 && Number(filed?.declared_fee_rwf) === 15000);
   const regOrg = reg.json?.orgId;
   const view = await call(rayan, 'GET', `/api/v1/orgs/${regOrg}/psf-membership`);
   check('the registrant sees it waiting for the TIN check', view.json?.open?.stage === 'waiting_tin_check', view.json?.open?.stage);
@@ -402,28 +407,28 @@ const main = async () => {
   check('a residence carrying an application is refused', (await call(rayan, 'POST', '/api/v1/registrations', residence)).status === 400);
 
   const retiredTin = tin();
-  await db.query(`UPDATE psf_membership_tiers SET active = false WHERE code = 'junior_giants'`);
+  await db.query(`UPDATE psf_membership_tiers SET active = false WHERE code = 'indatwa_10k'`);
   try {
     const retired = await call(rayan, 'POST', '/api/v1/registrations', hotel(retiredTin, {
       psfMember: false,
-      psfApplication: form({ requestedTierCode: 'junior_giants', idDocument: { documentType: 'national_id', documentNumber: '1199080123456789' } }),
+      psfApplication: form({ requestedTierCode: 'indatwa_10k', declaredFeeRwf: 15000, idDocument: { documentType: 'national_id', documentNumber: '1199080123456789' } }),
     }));
     check('a retired tier refuses the whole registration 422', retired.status === 422, `${retired.status} ${retired.text.slice(0, 160)}`);
     const written = (await db.query('SELECT count(*)::int n FROM orgs WHERE tin = $1', [retiredTin])).rows[0].n;
     check('and nothing is written', written === 0, written);
   } finally {
-    await db.query(`UPDATE psf_membership_tiers SET active = true WHERE code = 'junior_giants'`);
+    await db.query(`UPDATE psf_membership_tiers SET active = true WHERE code = 'indatwa_10k'`);
   }
 
   console.log('\n=== H. Admin: the tier catalogue and the business detail (AC-19, AC-20) ===');
   const admin = await signIn('admin@injishi.com');
   const list = await call(admin, 'GET', '/api/v1/admin/configuration/psf-tiers');
-  check('admin reads every tier', list.status === 200 && list.json?.length >= 8, list.status);
+  check('admin reads every tier, retired ones too', list.status === 200 && list.json?.length >= 13, list.status);
   check('a business owner cannot', (await call(yves, 'GET', '/api/v1/admin/configuration/psf-tiers')).status === 403);
   const code = `verify_${Date.now().toString(36)}`;
   const tierBody = {
     code,
-    family: 'ordinary',
+    family: 'indatwa',
     nameEn: 'ADR-056 verify tier',
     priceKind: 'fixed',
     annualFeeRwf: 150000,
@@ -462,10 +467,13 @@ const main = async () => {
       reason: 'ADR-056 verification',
       ...over,
     });
-  check('refused at district scope 422', (await grant({ scopeLevel: 'district', districtId: 102 })).status === 422);
   check('refused at another body 422', (await grant({ governmentBodyCode: 'MINALOC' })).status === 422);
   const ok = await grant({});
   check('granted at PSF, country scope 201', ok.status === 201, `${ok.status} ${ok.text.slice(0, 160)}`);
+  await db.query(`DELETE FROM oversight_assignments WHERE user_id = $1 AND oversight_role = 'psf_membership_officer'`, [target]);
+  // The PSF path: PSF posts officers to a district too, who see that district only.
+  const district = await grant({ scopeLevel: 'district', provinceId: 1, districtId: 102 });
+  check('granted at PSF, district scope 201', district.status === 201, `${district.status} ${district.text.slice(0, 160)}`);
   await db.query(`DELETE FROM oversight_assignments WHERE user_id = $1 AND oversight_role = 'psf_membership_officer'`, [target]);
 };
 
