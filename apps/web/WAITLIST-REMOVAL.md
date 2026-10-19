@@ -29,7 +29,7 @@ Every path below exists only for the waitlist. Remove the file or the folder.
 | `src/data/waitlist.ts` | the API client |
 | `src/data/waitlist-content.ts` | every string on the page |
 | `src/lib/waitlist-gate.ts` | the host and path matchers the gate reads |
-| `tests/waitlist-gate.test.mjs` | the 50 tests over those matchers |
+| `tests/waitlist-gate.test.mjs` | the tests over those matchers and over the doors the waitlist header offers |
 | `public/waitlist/` | the hero, the OG card, the two band images, the six district tiles and `ASSETS.md`, which records where each one came from |
 | `WAITLIST-REMOVAL.md` | this file |
 

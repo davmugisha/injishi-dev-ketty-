@@ -57,7 +57,7 @@ export function isGatedHost(raw: string | null | undefined): boolean {
 /**
  * What stays reachable while the gate is up (AC-2).
  *
- * Three groups, and each is here for a reason worth keeping:
+ * Five groups, and each is here for a reason worth keeping:
  *
  * - `/waitlist` and below, because it is where the gate SENDS people, and a
  *   gate that redirects its own destination takes the site down.
@@ -68,15 +68,23 @@ export function isGatedHost(raw: string | null | undefined): boolean {
  * - `/support`, `/legal/privacy` and `/legal/terms`, because the page links to
  *   all three and Law 058/2021 expects the privacy notice to be readable by the
  *   person being asked for their details.
- *
  * - `/training` and `/verify`, because ADR-049 ships before launch. A printed
  *   certificate's QR points at `/verify/<token>` on this very domain, so gating
  *   it makes every certificate unverifiable for as long as the waitlist stands,
  *   and `/training` is how a pilot host registers for the session that issues
  *   one.
+ * - `/host` and `/register`, because the waitlist header offers List
+ *   Accommodation beside Sign In (2026-10-19, the owner's call, amending
+ *   ADR-048 AC-2). `/host` is the "list your accommodation" page that button
+ *   opens, and every way forward on it (the kind tiles, the closing card,
+ *   `/host/start`) lands on `/register`. The wizard signs a stranger in
+ *   inline, and from then on the session opens the rest (AC-3). Neither page
+ *   shows a listing: a registration enters the review pipeline, and nothing
+ *   reaches the marketplace before approval (D20, D23). Gated, the button
+ *   bounced straight back to the page it sits on, which AC-19 forbids.
  *
- * `/register`, `/activate`, `/claim-org`, `/explore` and `/property` are all
- * deliberately absent: they are the unfinished marketplace this gate covers.
+ * `/activate`, `/claim-org`, `/explore` and `/property` are still deliberately
+ * absent: they are the unfinished marketplace this gate covers.
  *
  * Next's static asset paths are not listed because the `matcher` at the foot of
  * `middleware.ts` already keeps middleware off them entirely. `/api/auth/` is
@@ -93,6 +101,8 @@ export const WAITLIST_OPEN_PREFIXES = [
   "/legal/terms",
   "/training",
   "/verify",
+  "/host",
+  "/register",
 ];
 
 /**

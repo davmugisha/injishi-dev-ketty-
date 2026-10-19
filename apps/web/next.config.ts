@@ -1,6 +1,7 @@
 import { fileURLToPath } from "node:url";
 import type { NextConfig } from "next";
 import withSerwistInit from "@serwist/next";
+import { appHandoffRedirects } from "./src/lib/app-handoff";
 
 /**
  * The marketing `screens` list that used to sit here is gone with the captured
@@ -149,13 +150,16 @@ const nextConfig: NextConfig = {
   async redirects() {
     /**
      * Signing in and registering a business happen in the operator app
-     * (`apps/app`), on its own origin. Redirects run before middleware, so the
-     * private-page gate's bounce to `/sign-in` lands there too.
+     * (`apps/app`) when it runs on its OWN origin, as it does on a laptop
+     * (:3002). Redirects run before middleware, so the private-page gate's
+     * bounce to `/sign-in` lands there too.
+     *
+     * Only then. In a deployed stack the app is a zone under this origin, and
+     * the unconditional version of these two lines sent `/sign-in` to itself
+     * on www.injishi.com. `app-handoff.ts` says why and decides.
      */
-    const appUrl = (process.env.NEXT_PUBLIC_PMS_URL || "http://localhost:3002").replace(/\/$/, "");
     return [
-      { source: "/sign-in", destination: `${appUrl}/sign-in`, permanent: false },
-      { source: "/register", destination: `${appUrl}/register`, permanent: false },
+      ...appHandoffRedirects(process.env.NEXT_PUBLIC_WEB_URL, process.env.NEXT_PUBLIC_PMS_URL),
       { source: "/home/index.html", destination: "/", permanent: false },
       { source: "/home", destination: "/", permanent: false },
       ...webAppScreens.map((s) => ({
