@@ -27,6 +27,8 @@ import {
   Switch,
   Table,
   TextField,
+  Toast,
+  toast,
 } from "@heroui/react";
 import { EmptyState, ItemCard, ListView, RadioButtonGroup, Segment } from "@heroui-pro/react";
 import { type Persona, screenHref } from "@injishi/data";
@@ -61,7 +63,6 @@ function InfoItemRow({ item }: { item: InfoItem }) {
 }
 
 export function GuestsView({
-  persona,
   directory,
   profiles,
   purposes,
@@ -74,20 +75,22 @@ export function GuestsView({
   const [sel, setSel] = useState(profiles[0]?.id ?? directory[0]?.id ?? "");
   const [scope, setScope] = useState<"property" | "group">("property");
   const [q, setQ] = useState("");
-  const [dup, setDup] = useState<DupState>("open");
   const [mergeOpen, setMergeOpen] = useState(false);
   const [mReason, setMReason] = useState("");
   const [ack, setAck] = useState(false);
   const [viewOpen, setViewOpen] = useState(false);
   const [purpose, setPurpose] = useState("");
-  const [idShown, setIdShown] = useState(false);
-  const [viewed, setViewed] = useState("");
-  const [mkt, setMkt] = useState(true);
-  const [prefs, setPrefs] = useState<GuestProfile["preferences"]>([]);
   const [newPref, setNewPref] = useState("");
-  const [logged, setLogged] = useState(false);
-
-  const merged = dup === "merged";
+  /**
+   * The directory and profiles are the prototype's sample: guest profiles per business (merges, consents,
+   * preferences, privacy requests, the document access log) are not built. Every change here says so and
+   * changes nothing, and no document number is shown.
+   */
+  const unavailable = (what: string) => toast.warning(`${what} is not available yet. Nothing was changed.`);
+  const dup: DupState = "open";
+  const merged = false;
+  const idShown = false;
+  const mkt = true;
   const guests = directory.filter((g) => !(g.candidate && merged));
   const needle = q.trim().toLowerCase();
   const list = guests.filter(
@@ -103,6 +106,7 @@ export function GuestsView({
 
   return (
     <PageContent>
+      <Toast.Provider placement="bottom" />
       <PageHeader
         eyebrow="Isangano Lakeside Hotel · Guest directory"
         title="Guests"
@@ -305,7 +309,7 @@ export function GuestsView({
                       for 30 days.
                     </p>
                     <div className="flex flex-wrap justify-end gap-2">
-                      <Button variant="ghost" onPress={() => setDup("dismissed")}>
+                      <Button variant="ghost" onPress={() => unavailable("Recording two profiles as different people")}>
                         Not the same person
                       </Button>
                       <Button
@@ -322,11 +326,7 @@ export function GuestsView({
                     </div>
                   </>
                 ) : (
-                  <p className="text-[13px]">
-                    {merged
-                      ? `Merged at 10:52 by ${persona.name} · reason: ${mReason} · audit AUD-77120. A manager can undo this until 11 Nov.`
-                      : `Marked as different people at 10:52 by ${persona.name}. ${profile.candidateId} will not be suggested again for this profile.`}
-                  </p>
+                  <p className="text-[13px]">{profile.candidateId} has not been reviewed.</p>
                 )}
               </Card>
 
@@ -368,7 +368,7 @@ export function GuestsView({
                       </ItemCard.Content>
                       <ItemCard.Action>
                         {idShown ? (
-                          <Button size="sm" variant="ghost" onPress={() => setIdShown(false)}>
+                          <Button size="sm" variant="ghost">
                             <EyeSlash className="size-4" />
                             Hide
                           </Button>
@@ -389,10 +389,7 @@ export function GuestsView({
                     </ItemCard>
                     <span className="text-[12px] text-muted">Access log</span>
                     <ul className="flex flex-col gap-1">
-                      {[
-                        ...profile.accessLog,
-                        ...(viewed ? [{ icon: "Eye", text: `Today 10:52 · ${persona.name} · ${viewed}` }] : []),
-                      ].map((l) => (
+                      {profile.accessLog.map((l) => (
                         <li key={l.text} className="flex items-center gap-2 text-[12px] leading-4 tabular">
                           <Icon name={l.icon} className="size-3.5 shrink-0 text-muted" />
                           <span>{l.text}</span>
@@ -403,7 +400,11 @@ export function GuestsView({
 
                   <Card aria-labelledby="cs-h" className="gap-2.5 px-[18px] py-4">
                     <CardHeading id="cs-h" title="Consent and Privacy Requests" />
-                    <Switch isSelected={mkt} isDisabled={!mkt} onChange={(on) => (on ? null : setMkt(false))}>
+                    <Switch
+                      isSelected={mkt}
+                      isDisabled={!mkt}
+                      onChange={() => unavailable("Recording a marketing opt-out")}
+                    >
                       <Switch.Content>
                         <Switch.Control>
                           <Switch.Thumb />
@@ -411,44 +412,31 @@ export function GuestsView({
                         Marketing email from Amahoro
                       </Switch.Content>
                     </Switch>
-                    <span className="text-[12px] leading-4 text-muted">
-                      {mkt
-                        ? profile.marketing.optedIn
-                        : `Opted out today 10:52 · recorded by ${persona.name} · source: guest asked at the desk. Only the guest can opt back in, in the app or on a signed form.`}
-                    </span>
+                    <span className="text-[12px] leading-4 text-muted">{profile.marketing.optedIn}</span>
                     <KeyValueList items={profile.consent.map((c) => ({ label: c.label, value: c.value }))} />
                     <Separator />
                     {profile.requests.map((r) => (
                       <InfoItemRow key={r.title} item={r} />
                     ))}
                     <InfoItemRow
-                      item={
-                        logged
-                          ? {
-                              icon: "FileArrowDown",
-                              title: "PR-0197 · Copy of my data",
-                              detail:
-                                "Logged today 10:52 at the desk · identity to be confirmed by the privacy lead · due 11 Nov",
-                              state: "Received",
-                              tone: "default",
-                              emphasis: "soft",
-                            }
-                          : {
-                              icon: "FileArrowDown",
-                              title: "Copy of data (portability)",
-                              detail: "No request open",
-                              state: "None",
-                              tone: "default",
-                              emphasis: "tertiary",
-                            }
-                      }
+                      item={{
+                        icon: "FileArrowDown",
+                        title: "Copy of data (portability)",
+                        detail: "No request open",
+                        state: "None",
+                        tone: "default",
+                        emphasis: "tertiary",
+                      }}
                     />
-                    {logged ? null : (
-                      <Button size="sm" variant="ghost" className="self-start" onPress={() => setLogged(true)}>
-                        <Plus className="size-4" />
-                        Log a data copy request
-                      </Button>
-                    )}
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      className="self-start"
+                      onPress={() => unavailable("Logging a data copy request")}
+                    >
+                      <Plus className="size-4" />
+                      Log a data copy request
+                    </Button>
                   </Card>
                 </div>
 
@@ -464,7 +452,7 @@ export function GuestsView({
                         </ToneChip>
                       }
                     />
-                    {[...profile.preferences, ...prefs].map((p) => (
+                    {profile.preferences.map((p) => (
                       <InfoRow key={p.text} icon={p.icon} title={p.text} detail={p.src} />
                     ))}
                     <div className="flex items-end gap-2">
@@ -475,19 +463,12 @@ export function GuestsView({
                       <Button
                         variant="secondary"
                         isDisabled={!newPref.trim()}
-                        onPress={() => {
-                          if (!newPref.trim()) return;
-                          setPrefs([
-                            ...prefs,
-                            { icon: "Pencil", text: newPref.trim(), src: `Front desk · ${persona.name} · today 10:52` },
-                          ]);
-                          setNewPref("");
-                        }}
+                        onPress={() => unavailable("Adding a preference")}
                       >
                         Add
                       </Button>
                     </div>
-                    <Description>Saved with your name and today’s date as its source.</Description>
+                    <Description>Adding preferences is not available yet: nothing typed here is kept.</Description>
                   </Card>
 
                   <Card aria-labelledby="sy-h" className="gap-2.5 px-[18px] py-4">
@@ -564,7 +545,7 @@ export function GuestsView({
                 Why do you need to see this passport?
               </Modal.Heading>
               <p className="text-[13px] text-muted">
-                {profile?.name} · passport · Kenya. Your name, the time and the purpose are recorded.
+                {profile?.name} · passport · Kenya. Opening a document with a purpose is not available yet.
               </p>
             </Modal.Header>
             <Modal.Body>
@@ -588,8 +569,7 @@ export function GuestsView({
                 onPress={() => {
                   if (!purpose) return;
                   setViewOpen(false);
-                  setIdShown(true);
-                  setViewed(purpose);
+                  unavailable("Showing a guest's document and logging the view");
                 }}
               >
                 Show and log
@@ -607,8 +587,8 @@ export function GuestsView({
                 Merge {profile?.candidateId} into {profile?.id}?
               </Modal.Heading>
               <p className="text-[13px] text-muted">
-                One stay at Ishyamba Forest Lodge moves to {profile?.name}’s profile. Both identity documents stay as
-                separate records. This is logged with your name and reason.
+                One stay at Ishyamba Forest Lodge would move to {profile?.name}’s profile. Merging profiles is not
+                available yet.
               </p>
             </Modal.Header>
             <Modal.Body className="flex flex-col gap-4">
@@ -636,8 +616,8 @@ export function GuestsView({
                 isDisabled={!mReason || !ack}
                 onPress={() => {
                   if (!mReason || !ack) return;
-                  setDup("merged");
                   setMergeOpen(false);
+                  unavailable("Merging guest profiles");
                 }}
               >
                 Merge profiles

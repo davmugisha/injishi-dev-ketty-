@@ -30,7 +30,7 @@
  */
 import { computeBreakdown, stayNightlyRateRwf } from '@injishi/contracts';
 
-import { day, iid, kigaliAt, kigaliToday, userId } from './lib.mjs';
+import { day, FIXTURE_TODAY, iid, kigaliAt, kigaliToday, parseFixtureDate, userId } from './lib.mjs';
 import { ORG, PROPERTY, roomId, roomTypeId, WORKSPACE } from './world.mjs';
 
 const GUEST_DOMAIN = 'guests.app.demo.injishi.com';
@@ -75,7 +75,10 @@ export const BOOKINGS = [
   { ref: 'BK-20430', name: 'Amina Uwase', type: 'queen', in: -1, nights: 4, adults: 2, channel: 'direct', stay: { ref: 'ST-8808', room: '206', folio: 'F-5515', note: 'Do not disturb until 11:00 · towels requested' } },
   { ref: 'BK-20432', name: 'Samuel Mugabo', type: 'queen', in: -1, nights: 2, adults: 1, channel: 'phone', stay: { ref: 'ST-8810', room: '306', folio: 'F-5518', note: 'Pays extras at checkout' } },
   // In house, leaving today.
-  { ref: 'BK-20420', name: 'Chen Wei', type: 'queen', in: -3, nights: 3, adults: 1, channel: 'direct', stay: { ref: 'ST-8781', room: '105', folio: 'F-5486', note: 'Taxi booked 11:15', extras: [{ text: 'Lake Bar and laundry', gross: 46500 }] } },
+  // The first guest due out who still owes: the stay the Stay and folio and Checkout screens open on, so its
+  // bill is the stay record's (stays.folioLines, stays.folioPayments) moved onto this day: five nights, the
+  // outlet and laundry charges, a bar round voided at the desk, and the desk's own surcharge.
+  { ref: 'BK-20420', name: 'Chen Wei', type: 'queen', in: -5, nights: 5, adults: 1, channel: 'direct', stay: { ref: 'ST-8781', room: '105', folio: 'F-5486', note: 'Taxi booked 11:15', bill: 'stays.folioLines' } },
   { ref: 'BK-20423', name: 'Eduardo Silva', type: 'twin', in: -4, nights: 4, adults: 2, channel: 'marketplace', stay: { ref: 'ST-8778', room: '207', folio: 'F-5482', note: 'Keys at desk' } },
   { ref: 'BK-20428', name: 'Rania Haddad', type: 'twin', in: -2, nights: 2, adults: 1, channel: 'travel_agent', stay: { ref: 'ST-8796', room: '109', folio: 'F-5503', note: 'Split bill', extras: [{ text: 'Extras, agent invoiced', gross: 212400 }] } },
   { ref: 'BK-20426', name: 'Nkechi Eze', type: 'queen', in: -3, nights: 3, adults: 1, channel: 'direct', stay: { ref: 'ST-8783', room: '303', folio: 'F-5488', note: 'Late checkout free under policy', leaves: '14:00', extras: [{ text: 'Terrace lunch', gross: 18500 }] } },
@@ -120,13 +123,15 @@ async function departmentOf(c, category) {
   return rows[0].id;
 }
 
+const ACCOUNT_CODES = [
+  'REVENUE_ROOMS', 'REVENUE_FNB', 'REVENUE_OTHER_OPERATED', 'TAX_PAYABLE', 'ESCROW_RECEIVABLE', 'CASH_ON_HAND',
+  'CASH_MOBILE_MONEY',
+];
+
 async function accounts(c) {
-  const { rows } = await c.query(
-    `SELECT id, code FROM ledger_accounts WHERE code = ANY($1)`,
-    [['REVENUE_ROOMS', 'REVENUE_FNB', 'TAX_PAYABLE', 'ESCROW_RECEIVABLE']],
-  );
+  const { rows } = await c.query(`SELECT id, code FROM ledger_accounts WHERE code = ANY($1)`, [ACCOUNT_CODES]);
   const byCode = Object.fromEntries(rows.map((r) => [r.code, r.id]));
-  for (const code of ['REVENUE_ROOMS', 'REVENUE_FNB', 'TAX_PAYABLE', 'ESCROW_RECEIVABLE']) {
+  for (const code of ACCOUNT_CODES) {
     if (!byCode[code]) throw new Error(`Ledger account ${code} is missing; migrations have not run.`);
   }
   return byCode;
@@ -144,6 +149,87 @@ async function vatRate(c) {
   const rate = rows[0]?.value?.TAX_B;
   if (typeof rate !== 'number') throw new Error('No effective TAX_B rate in config_entries (tax_rates).');
   return rate;
+}
+
+/** Days from the fixture's prototype day (12 Oct) to a fixture date like "8 Oct". */
+function fixtureOffset(text) {
+  return Math.round((Date.parse(`${parseFixtureDate(text)}T12:00:00Z`) - Date.parse(`${FIXTURE_TODAY}T12:00:00Z`)) / 86_400_000);
+}
+
+/**
+ * The stay record's bill (stays.folioLines, stays.folioPayments) as the platform writes one, on the stay
+ * that carries it. Every extra is typed before tax with its VAT as its own line, exactly as
+ * `FolioService.postCharge` posts a desk charge (the fixture's amounts are what the guest pays, so the net
+ * is taken back out of them); an outlet's till posts as `external_pos`; the round voided at the desk is the
+ * charge plus a reversing line naming it, its VAT reversed with it. The fixture's room nights are the night
+ * audit's, which the loop above already posts.
+ *
+ * Payments: the fixture's verified deposit is the online prepayment check in credits. Its pending Airtel
+ * prompt and unmatched bank transfer are payments in flight, which have no table, and recording them as
+ * paid would be false; the bill instead carries two payments the desk confirmed (cash, and mobile money it
+ * saw arrive), so the screen still lists three, all of them real money.
+ */
+function stayRecordBill({ fx, s, b, vat, fnbDept, otherDept, account, eric, now }) {
+  const lines = fx(s.bill).filter((l) => !l.night);
+  const reversals = lines.filter((l) => l.reversal);
+  const posters = {
+    'Eric Habimana': eric,
+    'Jeanne Nyiraneza': userId('housekeeper'),
+    'Claudine Mukamana': userId('waiter'),
+  };
+  const out = [];
+  let voids = 0;
+  for (const l of lines) {
+    if (l.reversal) continue;
+    const offset = Math.max(b.in, Math.min(0, fixtureOffset(l.date)));
+    const at = pastOnItsDay(kigaliAt(l.mine ? '09:30' : '20:05', offset), now);
+    const laundry = l.dept === 'Laundry';
+    const till = /\bPOS\b/.test(l.by) || / order /.test(l.src);
+    const by = posters[l.by] ?? null;
+    const net = Math.round(l.amount / (1 + vat));
+    const taxAmount = Math.round(net * vat);
+    const key = `seed-interface:${s.ref}:bill:${l.id}`;
+    const dept = laundry ? otherDept : fnbDept;
+    const revenue = laundry ? account.REVENUE_OTHER_OPERATED : account.REVENUE_FNB;
+    out.push({
+      key, type: 'pos', text: l.title, dept, amount: net, taxCode: 'TAX_B', taxRate: vat, taxAmount,
+      src: till ? 'external_pos' : 'manual', srcId: null, at, account: revenue, by,
+    });
+    out.push({
+      key: `${key}:tax`, type: 'tax', text: `TAX_B on ${l.title}`, dept: null, amount: taxAmount, taxCode: 'TAX_B',
+      taxRate: vat, src: 'tax', parentKey: key, at, account: account.TAX_PAYABLE, by,
+    });
+    if (!l.voided) continue;
+    const r = reversals[voids++];
+    if (!r) throw new Error(`${s.bill}: ${l.id} is voided but no reversal line follows it`);
+    const reason = r.src.split(' · ')[1] ?? 'Voided';
+    const voidAt = pastOnItsDay(kigaliAt('21:15', Math.max(b.in, Math.min(0, fixtureOffset(r.date)))), now);
+    const voidBy = posters[r.by] ?? eric;
+    out.push({
+      key: `${key}:void`, type: 'pos', text: `Void: ${l.title} (${reason})`, dept, amount: -net, taxCode: 'TAX_B',
+      taxRate: vat, src: 'void', parentKey: key, at: voidAt, account: revenue, by: voidBy,
+    });
+    out.push({
+      key: `${key}:void:tax`, type: 'tax', text: `Void: TAX_B on ${l.title}`, dept: null, amount: -taxAmount,
+      taxCode: 'TAX_B', taxRate: vat, src: 'void', parentKey: `${key}:tax`, at: voidAt, account: account.TAX_PAYABLE,
+      by: voidBy,
+    });
+  }
+  const paid = [
+    { key: 'cash', text: 'Payment (cash) Desk', amount: 20_000, method: '01', account: account.CASH_ON_HAND, offset: -2 },
+    {
+      key: 'mobile-money', text: 'Payment (mobile_money) MTN MoMo at the desk', amount: 39_000, method: '06',
+      account: account.CASH_MOBILE_MONEY, offset: -1,
+    },
+  ];
+  for (const p of paid) {
+    out.push({
+      key: `seed-interface:${s.ref}:bill:payment:${p.key}`, type: 'payment', text: p.text, dept: null, amount: -p.amount,
+      tax: null, src: 'manual', srcId: null, method: p.method, at: pastOnItsDay(kigaliAt('18:40', p.offset), now),
+      account: p.account, by: eric,
+    });
+  }
+  return out;
 }
 
 async function upsertGuest(c, name) {
@@ -174,6 +260,7 @@ export async function seed(ctx) {
   const rates = ratesFrom(fx);
   const roomsDept = await departmentOf(c, 'rooms');
   const fnbDept = await departmentOf(c, 'fnb');
+  const otherDept = await departmentOf(c, 'other_operated');
   const account = await accounts(c);
   const vat = await vatRate(c);
   const eric = userId('frontdesk');
@@ -344,6 +431,7 @@ export async function seed(ctx) {
         taxRate: vat, src: 'tax', parentKey: key, at: kigaliAt('20:05', -1), account: account.TAX_PAYABLE, by: eric,
       });
     }
+    if (s.bill) charges.push(...stayRecordBill({ fx, s, b, vat, fnbDept, otherDept, account, eric, now }));
     const balance = charges.reduce((sum, ch) => sum + ch.amount, 0);
     if (closedAt && balance !== 0) throw new Error(`${s.ref} checked out owing ${balance}: a bill never closes owing money.`);
     const folioStatus = closedAt ? 'closed' : balance === 0 ? 'settled' : 'open';
@@ -358,6 +446,9 @@ export async function seed(ctx) {
     );
     kept.folios.push(fid);
 
+    // A line this seed wrote on an earlier day, or under an earlier definition of the day (a stay that grew a
+    // night, a charge whose amount changed), is brought back to what the day says now: the bill is the
+    // story's, not a record of past seed runs. Nothing a person or a flow posted is touched (they converge).
     for (const ch of charges) {
       const cid = iid('folio-charge', ch.key);
       const parent = ch.parentKey ? iid('folio-charge', ch.parentKey) : ch.srcId;
@@ -367,7 +458,12 @@ export async function seed(ctx) {
             quantity, unit_price_rwf, amount_rwf, tax_code, tax_rate, tax_amount_rwf, source_ref_type, source_ref_id,
             posted_by_user_id, business_date, idempotency_key, posted_at)
          VALUES ($1, $2, $3, $4, $5, $6, $7, $8, 1, $9, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18)
-         ON CONFLICT (id) DO NOTHING`,
+         ON CONFLICT (id) DO UPDATE SET
+           description = EXCLUDED.description, unit_price_rwf = EXCLUDED.unit_price_rwf,
+           amount_rwf = EXCLUDED.amount_rwf, tax_amount_rwf = EXCLUDED.tax_amount_rwf,
+           department_id = EXCLUDED.department_id, source_ref_type = EXCLUDED.source_ref_type,
+           source_ref_id = EXCLUDED.source_ref_id, posted_by_user_id = EXCLUDED.posted_by_user_id,
+           payment_method_code = EXCLUDED.payment_method_code, posted_at = EXCLUDED.posted_at`,
         [cid, fid, WORKSPACE.hotel, ch.dept, ORG.hotel, ch.method ?? null, ch.type, ch.text, ch.amount,
           ch.taxCode ?? null, ch.taxRate == null ? null : String(ch.taxRate), ch.type === 'tax' ? null : (ch.taxAmount ?? null),
           ch.src, parent ?? null, ch.by ?? null, ch.businessDate ?? null, ch.key, ch.at],
@@ -378,12 +474,14 @@ export async function seed(ctx) {
       await c.query(
         `INSERT INTO ledger_transactions (id, kind, idempotency_key, memo, occurred_at)
          VALUES ($1, $2, $3, $4, $5) ON CONFLICT (id) DO NOTHING`,
-        [tid, ch.type === 'deposit' ? 'folio_settle' : 'folio_post', ch.key, ch.text, ch.at],
+        [tid, ch.type === 'deposit' || ch.type === 'payment' ? 'folio_settle' : 'folio_post', ch.key, ch.text, ch.at],
       );
       const eid = iid('ledger-entry', ch.key);
       await c.query(
         `INSERT INTO ledger_entries (id, transaction_id, account_id, amount_rwf, workspace_id, related_type, related_id, created_at)
-         VALUES ($1, $2, $3, $4, $5, 'folio_charge', $6, $7) ON CONFLICT (id) DO NOTHING`,
+         VALUES ($1, $2, $3, $4, $5, 'folio_charge', $6, $7)
+         ON CONFLICT (id) DO UPDATE SET account_id = EXCLUDED.account_id, amount_rwf = EXCLUDED.amount_rwf,
+           created_at = EXCLUDED.created_at`,
         [eid, tid, ch.account, ch.amount, WORKSPACE.hotel, cid, ch.at],
       );
       kept.entries.push(eid);

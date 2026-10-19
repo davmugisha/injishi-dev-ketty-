@@ -7,16 +7,28 @@ import {
   BroomMotion,
   Check,
   CircleCheck,
-  CircleQuestion,
   Comments,
-  FileExclamation,
   Key,
   Lock,
   PaperPlane,
   Receipt,
+  Wallet,
 } from "@gravity-ui/icons";
-import { Alert, Button, Card, Checkbox, Input, Label, Separator, Switch, Table, TextField } from "@heroui/react";
-import { Segment, Stepper, Timeline } from "@heroui-pro/react";
+import {
+  Alert,
+  Button,
+  Card,
+  Checkbox,
+  Input,
+  Label,
+  Separator,
+  Switch,
+  Table,
+  TextField,
+  Toast,
+  toast,
+} from "@heroui/react";
+import { Stepper } from "@heroui-pro/react";
 import { type Persona, screenHref } from "@injishi/data";
 import type {
   CheckoutCase,
@@ -24,17 +36,23 @@ import type {
   CheckoutLedgerLine,
   FiscalReceiptDraft,
   MomoEvent,
-  Tone,
 } from "@injishi/data/fixtures/stays";
-import { Icon, KeyValueList, LinkButton, PageContent, PageHeader } from "@injishi/ui";
+import { KeyValueList, LinkButton, PageContent, PageHeader } from "@injishi/ui";
 import NextLink from "next/link";
-import { useState } from "react";
-import { FiscalQr } from "./FiscalQr";
-import { CardHeading, InfoRow, Note, rwf, StatTile, ToneChip } from "./parts";
+import { useRouter } from "next/navigation";
+import { useState, useTransition } from "react";
+import { checkOutGuest } from "./actions";
+import { CardHeading, Note, rwf, StatTile, ToneChip } from "./parts";
 
 export type ReceiptOutcome = "pending" | "issued" | "unknown";
 export type MomoState = "idle" | "pending" | "unknown" | "verified";
 
+/**
+ * What the page hands the screen. The checkout and its ledger are the next guest due out, read live;
+ * the MoMo trail, the fiscal receipt drafts and the key list are the prototype's sample (payments in
+ * flight, a receipt list and key cards have no table), so this screen does not draw them as if they
+ * were this guest's.
+ */
 export interface CheckoutData {
   checkout: CheckoutCase;
   ledger: CheckoutLedgerLine[];
@@ -45,135 +63,64 @@ export interface CheckoutData {
 
 type StepStatus = "complete" | "active" | "inactive";
 
-const MOMO_CHIP: Record<MomoState, { label: string; tone: Tone }> = {
-  idle: { label: "RWF 39,000 open", tone: "warning" },
-  pending: { label: "Pending", tone: "warning" },
-  unknown: { label: "Unknown — checking", tone: "warning" },
-  verified: { label: "Verified", tone: "success" },
-};
-const LANGS = ["EN", "RW", "FR"] as const;
-
-interface ReceiptView {
-  receipt: FiscalReceiptDraft;
-  sub: string;
-  chip: string;
-  tone: Tone;
-  ebm: string | null;
-  canRecheck: boolean;
-  lines: string[];
-}
+const kigaliClock = () =>
+  new Intl.DateTimeFormat("en-GB", {
+    timeZone: "Africa/Kigali",
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: false,
+  }).format(new Date());
 
 export function CheckoutView({
   data,
-  receipt: outcome,
-  initialMomo,
 }: {
   persona: Persona;
   data: CheckoutData;
-  receipt: ReceiptOutcome;
-  initialMomo: MomoState;
+  /** The prototype's state switches (`?receipt=`, `?momo=`); the live screen shows what the API says. */
+  receipt?: ReceiptOutcome;
+  initialMomo?: MomoState;
 }) {
   const c = data.checkout;
-  const [momo, setMomo] = useState<MomoState>(initialMomo);
-  const [keys, setKeys] = useState<"idle" | "requested">("idle");
-  const [card, setCard] = useState(false);
-  const [survey, setSurvey] = useState(true);
-  const [lang, setLang] = useState<(typeof LANGS)[number]>("EN");
-  const [tin, setTin] = useState(true);
-  const [done, setDone] = useState(false);
-  const [checks, setChecks] = useState(0);
-  const [refreshed, setRefreshed] = useState(false);
+  const router = useRouter();
+  const [cardsBack, setCardsBack] = useState(false);
+  const [checkedAt, setCheckedAt] = useState(kigaliClock);
+  const [done, setDone] = useState<{ title: string; text: string } | null>(null);
+  const [busy, startBusy] = useTransition();
 
-  const guestPaid = momo === "verified";
-  const ledger = data.ledger.filter((l) => !l.afterGuestPaid || guestPaid);
+  const unavailable = (what: string) => toast.warning(`${what} is not available yet. Nothing was changed.`);
+  const stayHref = `/stays/${encodeURIComponent(c.stayId)}`;
+  const company = c.companyShare > 0 && !!c.company;
+
+  const ledger = data.ledger.filter((l) => !l.afterGuestPaid);
+  const posted = ledger.filter((l) => l.item.startsWith("Charges")).reduce((n, l) => n + (l.amount ?? 0), 0);
+  const paid = -ledger.filter((l) => !l.item.startsWith("Charges")).reduce((n, l) => n + (l.amount ?? 0), 0);
+  const settled = c.guestShare === 0;
   const windows = [
     {
       label: "Balance due now",
-      amount: rwf(guestPaid ? 0 : c.guestShare),
-      note: guestPaid ? `Folio ${c.folioId} can close` : "Guest share, waiting for MTN",
+      amount: rwf(c.guestShare),
+      note: settled ? `Folio ${c.folioId} can close` : "Take it on the stay's bill before checkout",
     },
-    { label: "Company share", amount: rwf(c.companyShare), note: "On the city ledger, invoiced" },
-    { label: "Not counted", amount: rwf(c.unmatched), note: "Unmatched transfer, with Finance" },
+    { label: "Charges posted", amount: rwf(posted), note: "Every line with its VAT" },
+    { label: "Paid on the bill", amount: rwf(paid), note: "Confirmed money only" },
   ];
 
-  const event = (id: MomoEvent["id"]) => data.momoTrail.find((e) => e.id === id);
-  const trail: (MomoEvent & { status: "default" | "current" | "warning" | "success" })[] = [];
-  const push = (id: MomoEvent["id"], status: "default" | "current" | "warning" | "success") => {
-    const e = event(id);
-    if (e) trail.push({ ...e, status });
+  /** Read the bill again from the API (the page re-reads the desk's day). */
+  const refresh = () => {
+    router.refresh();
+    setCheckedAt(kigaliClock());
   };
-  if (momo !== "idle") push("initiated", "default");
-  if (momo !== "idle") push("pending", momo === "pending" ? "current" : "default");
-  if (momo === "unknown" || momo === "verified") push("unknown", momo === "unknown" ? "warning" : "default");
-  if (momo === "verified") push("verified", "success");
 
-  const receiptView = (r: FiscalReceiptDraft): ReceiptView => {
-    const settled = r.payer === "company" || guestPaid;
-    const amount = rwf(r.amount);
-    const sub = `${r.payer === "company" && !tin && r.buyerWithoutTin ? r.buyerWithoutTin : r.buyer} · ${amount} incl. VAT`;
-    const base = { receipt: r, sub, ebm: null, canRecheck: false };
-    if (!settled)
-      return {
-        ...base,
-        chip: "Waiting for settlement",
-        tone: "default",
-        lines: ["Not sent to the VSDC yet. It is requested once this share is fully paid."],
-      };
-    if (outcome === "issued")
-      return {
-        ...base,
-        chip: "Issued",
-        tone: "success",
-        ebm: `EBM-26-${r.number}`,
-        lines: [
-          `Fiscal receipt EBM-26-${r.number} · normal sale · ${amount}`,
-          `SDC ID SDC010012345 · receipt ${r.number}/10489 · signed ${r.requestedAt}`,
-          "Emailed to the guest with the QR code",
-        ],
-      };
-    if (outcome === "unknown")
-      return {
-        ...base,
-        chip: "Unknown — Finance follows up",
-        tone: "warning",
-        lines: [
-          `Request FR-${r.number} sent ${r.requestedAt} · the VSDC did not answer`,
-          "Do not reissue: a second request could create a duplicate fiscal sale. Finance checks the VSDC journal.",
-        ],
-      };
-    return {
-      ...base,
-      chip: "Pending at VSDC",
-      tone: "warning",
-      canRecheck: true,
-      lines: [
-        `Request FR-${r.number} sent ${r.requestedAt} · retry ${1 + checks} of 5 uses the same request ID, so no duplicate is possible`,
-        checks ? `Checked 10:5${7 + Math.min(checks, 2)} · still pending` : "No EBM number until the VSDC signs it",
-      ],
-    };
-  };
-  const receipts = data.receipts.map(receiptView);
-
-  const revoked = keys === "requested";
-  const keyRows = data.keys.map((k) => ({
-    ...k,
-    detail: revoked ? (card && k.returnedDetail ? k.returnedDetail : k.revokedDetail) : k.detail,
-    state: revoked ? k.revokedState : k.state,
-    tone: revoked ? k.revokedTone : ("default" as Tone),
-  }));
-
-  const settled = guestPaid;
-  const outcomeWord = outcome === "issued" ? "issued" : outcome === "unknown" ? "unknown" : "pending";
   const steps: { label: string; hint: string; status: StepStatus }[] = [
-    { label: "Balance", hint: "Verified 10:48", status: "complete" },
-    { label: "Settle", hint: settled ? "Fully covered" : "Guest share open", status: settled ? "complete" : "active" },
+    { label: "Balance", hint: `Read ${checkedAt}`, status: "complete" },
     {
-      label: "Receipts",
-      hint: `${settled ? "All" : "Company"} ${outcomeWord}`,
-      status: settled && outcome === "issued" ? "complete" : "active",
+      label: "Settle",
+      hint: settled ? "Nothing left to pay" : `${rwf(c.guestShare)} open`,
+      status: settled ? "complete" : "active",
     },
-    { label: "Keys", hint: revoked ? "Requested" : "Not yet", status: revoked ? "complete" : "inactive" },
-    { label: "Depart", hint: done ? "10:58" : "Not yet", status: done ? "complete" : "inactive" },
+    { label: "Receipts", hint: "From the bill's close", status: settled ? "active" : "inactive" },
+    { label: "Keys", hint: cardsBack ? "Collected" : "Physical key", status: cardsBack ? "complete" : "inactive" },
+    { label: "Depart", hint: "Not yet", status: "inactive" },
   ];
   const firstOpen = Math.max(
     0,
@@ -183,20 +130,35 @@ export function CheckoutView({
   const blockers: string[] = [];
   if (!settled)
     blockers.push(
-      momo === "unknown"
-        ? "The MTN payment is Unknown, so the folio stays open."
-        : `The guest share of ${rwf(c.guestShare)} is not verified yet.`,
+      `${c.guest} still owes ${rwf(c.guestShare)} on folio ${c.folioId}. Take it on the stay's bill first.`,
     );
-  if (!revoked) blockers.push("Revoke the keys first.");
-  const follows = settled && outcome !== "issued";
-  const doneText = `Stay ${c.stayId} checked out · booking ${c.bookingId} completed · folio ${c.folioId} closed with ${rwf(
-    c.companyShare,
-  )} on the Umurage Consulting ledger · room ${c.room} set to Dirty and ${c.housekeeper} notified${
-    survey ? ` · survey emailed in ${lang}` : ""
-  }.`;
+
+  /** Complete checkout: POST /ops/stays/:id/checkout closes the stay and a bill settled to zero. */
+  const complete = () => {
+    if (blockers.length || busy) return;
+    const guest = c.guest;
+    startBusy(async () => {
+      const result = await checkOutGuest(c.stayId, "Checkout");
+      if (!result.ok) {
+        toast.danger(`${guest} was not checked out: ${result.error}`);
+        return;
+      }
+      const out = result.value;
+      const bill =
+        out.folioStatus === "closed"
+          ? `folio ${out.folioNumber} closed and locked`
+          : `folio ${out.folioNumber ?? ""} left open with ${rwf(out.balanceRwf)} for Finance`;
+      setDone({
+        title: `${out.guest} checked out at ${kigaliClock()}`,
+        text: `Stay ${c.stayId} closed · ${bill} · room ${out.room} set to Dirty for housekeeping.`,
+      });
+      toast.success(`${out.guest} checked out · room ${out.room} set to Dirty`);
+    });
+  };
 
   return (
     <PageContent>
+      <Toast.Provider placement="bottom" />
       <PageHeader
         eyebrow={
           <>
@@ -210,10 +172,10 @@ export function CheckoutView({
           </>
         }
         title={`Check Out ${c.guest} · Room ${c.room}`}
-        description={`Stay ${c.stayId} · Folio ${c.folioId} · due out ${c.dueOut}. Nothing is marked paid until the provider confirms it.`}
+        description={`Stay ${c.stayId} · Folio ${c.folioId} · due out ${c.dueOut}. The next guest due out; others check out from their stay's page.`}
         actions={
           <>
-            <LinkButton href={screenHref("StayFolio")} variant="secondary">
+            <LinkButton href={stayHref} variant="secondary">
               <Receipt className="size-4" />
               Open stay and folio
             </LinkButton>
@@ -221,14 +183,10 @@ export function CheckoutView({
               <Comments className="size-4" />
               Message guest
             </LinkButton>
-            {done ? (
-              <LinkButton href={screenHref("FrontDeskToday")}>Back to departures</LinkButton>
-            ) : (
-              <Button isDisabled={blockers.length > 0} onPress={() => setDone(true)}>
-                <ArrowRightFromSquare className="size-4" />
-                {follows ? "Check out · receipt to follow" : "Complete checkout"}
-              </Button>
-            )}
+            <Button isDisabled={blockers.length > 0 || busy} onPress={complete}>
+              <ArrowRightFromSquare className="size-4" />
+              Complete checkout
+            </Button>
           </>
         }
       />
@@ -248,40 +206,21 @@ export function CheckoutView({
         ))}
       </Stepper>
 
-      {blockers.length ? (
-        <Note icon="Lock" iconClassName="text-danger" lead="Not ready to check out." role="status">
-          {blockers.join(" ")}
-        </Note>
-      ) : null}
-      {follows && !done ? (
-        <Alert status="default">
-          <Alert.Indicator>
-            <FileExclamation />
-          </Alert.Indicator>
-          <Alert.Content>
-            <Alert.Title>
-              {outcome === "unknown"
-                ? "Receipt outcome unknown — documented exception"
-                : "Receipt still pending — documented exception"}
-            </Alert.Title>
-            <Alert.Description>
-              {outcome === "unknown"
-                ? "You can complete checkout. Do not reissue. Finance follows up with the VSDC and emails the receipt once it is confirmed."
-                : "You can complete checkout. The receipt is emailed to the guest and the company once the VSDC signs it."}
-            </Alert.Description>
-          </Alert.Content>
-        </Alert>
-      ) : null}
       {done ? (
         <Alert status="success" role="status">
           <Alert.Indicator>
             <CircleCheck />
           </Alert.Indicator>
           <Alert.Content>
-            <Alert.Title>{c.guest} checked out at 10:58</Alert.Title>
-            <Alert.Description>{doneText}</Alert.Description>
+            <Alert.Title>{done.title}</Alert.Title>
+            <Alert.Description>{done.text} The next guest due out is shown below.</Alert.Description>
           </Alert.Content>
         </Alert>
+      ) : null}
+      {blockers.length ? (
+        <Note icon="Lock" iconClassName="text-danger" lead="Not ready to check out." role="status">
+          {blockers.join(" ")}
+        </Note>
       ) : null}
 
       <div className="flex flex-wrap items-start gap-4">
@@ -290,9 +229,9 @@ export function CheckoutView({
             <CardHeading
               id="b-h"
               title="1 · Verify the Balance"
-              sub={`Posted charges against provider-confirmed payments only · checked ${refreshed ? "10:54" : "10:48"}`}
+              sub={`Posted charges against confirmed payments · read ${checkedAt}`}
               action={
-                <Button size="sm" variant="secondary" onPress={() => setRefreshed(true)}>
+                <Button size="sm" variant="secondary" onPress={refresh}>
                   <ArrowsRotateRight className="size-4" />
                   Refresh payments
                 </Button>
@@ -341,32 +280,27 @@ export function CheckoutView({
             <CardHeading
               id="s-h"
               title="2 · Settle What Is Left"
-              sub="The booking routes room nights and meals to the company. Bar and laundry are the guest’s."
+              sub={
+                company
+                  ? `The booking routes room nights and meals to ${c.company}.`
+                  : "Everything on this bill is the guest's to settle."
+              }
             />
 
-            <Card variant="secondary" className="gap-2.5 px-4 py-3.5">
-              <div className="flex flex-wrap items-start justify-between gap-2">
-                <div className="flex min-w-0 flex-col">
-                  <span className="text-[14px] font-semibold">Company share · {c.company}</span>
-                  <span className="text-[12px] text-muted tabular">
-                    {c.companyTin} · city ledger {c.cityLedger}
-                  </span>
+            {company ? (
+              <Card variant="secondary" className="gap-2.5 px-4 py-3.5">
+                <div className="flex flex-wrap items-start justify-between gap-2">
+                  <div className="flex min-w-0 flex-col">
+                    <span className="text-[14px] font-semibold">Company share · {c.company}</span>
+                    <span className="text-[12px] text-muted tabular">
+                      {c.companyTin} · city ledger {c.cityLedger}
+                    </span>
+                  </div>
+                  <ToneChip tone="accent">Moved to company ledger</ToneChip>
                 </div>
-                <ToneChip tone="accent">Documented exception · moved to company ledger</ToneChip>
-              </div>
-              <KeyValueList items={c.transfer.map((t) => ({ label: t.label, value: t.value }))} />
-              <Note icon="TriangleExclamation" size="xs" lead="Umurage Consulting has invoices 62 days past due.">
-                Finance has been told. The unmatched {rwf(c.unmatched)} transfer is applied to this invoice once Finance
-                confirms it.
-              </Note>
-              <div className="flex flex-wrap items-center gap-2">
-                <Button size="sm" variant="ghost" isDisabled>
-                  <Lock className="size-4" />
-                  Reverse move
-                </Button>
-                <span className="text-[12px] text-muted">Only Finance can reverse a ledger transfer.</span>
-              </div>
-            </Card>
+                <KeyValueList items={c.transfer.map((t) => ({ label: t.label, value: t.value }))} />
+              </Card>
+            ) : null}
 
             <Card variant="secondary" className="gap-2.5 px-4 py-3.5">
               <div className="flex flex-wrap items-start justify-between gap-2">
@@ -374,9 +308,11 @@ export function CheckoutView({
                   <span className="text-[14px] font-semibold">Guest share · {c.guest}</span>
                   <span className="text-[12px] text-muted">{c.guestShareDetail}</span>
                 </div>
-                <ToneChip tone={MOMO_CHIP[momo].tone}>{MOMO_CHIP[momo].label}</ToneChip>
+                <ToneChip tone={settled ? "success" : "warning"}>
+                  {settled ? "Settled" : `${rwf(c.guestShare)} open`}
+                </ToneChip>
               </div>
-              {momo === "idle" ? (
+              {settled ? null : (
                 <>
                   <div className="flex flex-wrap items-end gap-3">
                     <TextField defaultValue={c.momoPhone} className="flex-[1_1_200px]">
@@ -387,66 +323,22 @@ export function CheckoutView({
                       <span className="text-sm font-medium">Amount</span>
                       <span className="flex h-9 items-center font-semibold tabular">{rwf(c.guestShare)}</span>
                     </div>
-                    <Button onPress={() => setMomo("pending")}>
+                    <Button onPress={() => unavailable("A MoMo payment request from the desk")}>
                       <PaperPlane className="size-4" />
                       Send MoMo request
                     </Button>
                   </div>
-                  <p className="text-[12px] text-muted">
-                    The earlier Airtel Money request expired without charging the guest, so a new request is safe.
-                  </p>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <LinkButton href={stayHref} size="sm" variant="secondary">
+                      <Wallet className="size-4" />
+                      Take cash on the bill
+                    </LinkButton>
+                    <span className="text-[12px] text-muted">
+                      Mobile money prompts from the desk are not connected yet. Cash is recorded on the stay's page.
+                    </span>
+                  </div>
                 </>
-              ) : null}
-              {trail.length ? (
-                <Timeline size="sm" density="compact" aria-label="MTN MoMo request">
-                  {trail.map((t) => (
-                    <Timeline.Item key={t.id} status={t.status}>
-                      <Timeline.Rail>
-                        <Timeline.Marker>
-                          <Icon name={t.icon} className="size-3" />
-                        </Timeline.Marker>
-                        <Timeline.Connector />
-                      </Timeline.Rail>
-                      <Timeline.Content className="flex flex-col pb-0.5 text-sm">
-                        <span className="font-medium">{t.title}</span>
-                        <span className="text-[12px] leading-4 text-muted tabular">{t.detail}</span>
-                      </Timeline.Content>
-                    </Timeline.Item>
-                  ))}
-                </Timeline>
-              ) : null}
-              {momo === "unknown" ? (
-                <Alert status="warning" role="status">
-                  <Alert.Indicator>
-                    <CircleQuestion />
-                  </Alert.Indicator>
-                  <Alert.Content>
-                    <Alert.Title>Unknown — checking with MTN</Alert.Title>
-                    <Alert.Description>
-                      MTN did not answer in time. The guest may or may not have approved. The folio stays open and is
-                      not marked paid. Do not send a second request or take cash for this amount until MTN answers.
-                    </Alert.Description>
-                  </Alert.Content>
-                </Alert>
-              ) : null}
-              {momo === "pending" || momo === "unknown" ? (
-                <div className="flex flex-wrap items-center gap-2">
-                  <Button
-                    size="sm"
-                    variant="secondary"
-                    onPress={() => setMomo(momo === "pending" ? "unknown" : "verified")}
-                  >
-                    <ArrowsRotateRight className="size-4" />
-                    Check status with MTN
-                  </Button>
-                  <Button size="sm" variant="ghost" isDisabled>
-                    Take cash instead
-                  </Button>
-                  <span className="text-[12px] text-muted">
-                    Cash opens once MTN gives a final answer, so the guest is never charged twice.
-                  </span>
-                </div>
-              ) : null}
+              )}
             </Card>
           </Card>
         </div>
@@ -456,94 +348,59 @@ export function CheckoutView({
             <CardHeading
               id="f-h"
               title="3 · Fiscal Receipts and Invoice"
-              sub="Each settled share gets one fiscal receipt from the VSDC under Amahoro Hospitality Ltd, TIN 102 345 678"
+              sub="One fiscal receipt per bill, from the moment the bill closes"
             />
-            {receipts.map((r) => (
-              <Card key={r.receipt.id} variant="secondary" className="gap-2.5 px-4 py-3.5">
-                <div className="flex flex-wrap items-start justify-between gap-2">
-                  <div className="flex min-w-0 flex-col">
-                    <span className="text-[14px] font-semibold">{r.receipt.title}</span>
-                    <span className="text-[12px] text-muted tabular">{r.sub}</span>
-                  </div>
-                  <ToneChip tone={r.tone}>{r.chip}</ToneChip>
+            <Card variant="secondary" className="gap-2.5 px-4 py-3.5">
+              <div className="flex flex-wrap items-start justify-between gap-2">
+                <div className="flex min-w-0 flex-col">
+                  <span className="text-[14px] font-semibold">Fiscal receipt · folio {c.folioId}</span>
+                  <span className="text-[12px] text-muted tabular">Buyer {c.guest}</span>
                 </div>
-                <div className="flex items-start gap-3.5">
-                  {r.ebm ? <FiscalQr code={r.ebm} /> : null}
-                  <div className="flex min-w-0 flex-1 flex-col gap-1">
-                    {r.lines.map((x) => (
-                      <span key={x} className="text-[13px] leading-[18px] tabular">
-                        {x}
-                      </span>
-                    ))}
-                    {r.canRecheck ? (
-                      <Button
-                        size="sm"
-                        variant="secondary"
-                        className="self-start"
-                        onPress={() => setChecks(checks + 1)}
-                      >
-                        <ArrowsRotateRight className="size-4" />
-                        Check VSDC status
-                      </Button>
-                    ) : null}
-                  </div>
-                </div>
-              </Card>
-            ))}
-            <div className="flex items-start gap-2.5 pt-0.5">
-              <Briefcase className="mt-0.5 size-4 shrink-0 text-muted" aria-hidden="true" />
-              <div className="flex min-w-0 flex-1 flex-col gap-0.5">
-                <span className="text-[14px] font-medium">
-                  Commercial invoice {c.invoice.number} · {c.company}
-                </span>
-                <span className="text-[12px] leading-4 text-muted tabular">
-                  {c.companyTin} · {rwf(c.companyShare)} · due {c.invoice.due} · on the city ledger. A commercial
-                  invoice is a request to pay, not a fiscal receipt.
-                </span>
+                <ToneChip tone="default">{settled ? "Closed at checkout" : "Waiting for settlement"}</ToneChip>
               </div>
-              <ToneChip tone="default">Commercial invoice</ToneChip>
-            </div>
-            <Switch isSelected={tin} onChange={setTin}>
-              <Switch.Content>
-                <Switch.Control>
-                  <Switch.Thumb />
-                </Switch.Control>
-                Print the company TIN on the company fiscal receipt
-              </Switch.Content>
-            </Switch>
+              <span className="text-[13px] leading-[18px]">
+                {settled
+                  ? "Completing checkout closes and locks the bill, which is the fiscal act. This screen does not show the fiscal receipt yet."
+                  : "Not requested yet. A bill closes only once it is settled to zero."}
+              </span>
+            </Card>
+            {company ? (
+              <div className="flex items-start gap-2.5 pt-0.5">
+                <Briefcase className="mt-0.5 size-4 shrink-0 text-muted" aria-hidden="true" />
+                <div className="flex min-w-0 flex-1 flex-col gap-0.5">
+                  <span className="text-[14px] font-medium">
+                    Commercial invoice {c.invoice.number} · {c.company}
+                  </span>
+                  <span className="text-[12px] leading-4 text-muted tabular">
+                    {c.companyTin} · {rwf(c.companyShare)} · due {c.invoice.due}
+                  </span>
+                </div>
+                <ToneChip tone="default">Commercial invoice</ToneChip>
+              </div>
+            ) : null}
           </Card>
 
           <Card aria-labelledby="k-h" className="gap-3 p-[18px]">
             <CardHeading
               id="k-h"
               title="4 · Keys and Departure"
-              sub="Revocation is requested from the lock provider and shown as it answers"
+              sub="No lock provider is connected: keys are physical"
             />
-            {keyRows.map((k) => (
-              <InfoRow
-                key={k.id}
-                icon={k.icon}
-                title={k.title}
-                detail={k.detail}
-                trailing={<ToneChip tone={k.tone}>{k.state}</ToneChip>}
-              />
-            ))}
-            <Checkbox isSelected={card} onChange={setCard}>
+            <Checkbox isSelected={cardsBack} onChange={setCardsBack}>
               <Checkbox.Content>
                 <Checkbox.Control>
                   <Checkbox.Indicator />
                 </Checkbox.Control>
-                Key card #2 handed back at the desk
+                Key cards collected at the desk
               </Checkbox.Content>
             </Checkbox>
-            {revoked ? null : (
-              <Button variant="secondary" className="self-start" onPress={() => setKeys("requested")}>
-                <Key className="size-4" />
-                Revoke keys for {c.room}
-              </Button>
-            )}
+            <p className="text-[12px] leading-4 text-muted">A reminder for the desk; returned keys are not recorded.</p>
+            <Button variant="secondary" className="self-start" onPress={() => unavailable("Revoking digital keys")}>
+              <Key className="size-4" />
+              Revoke keys for {c.room}
+            </Button>
             <Separator />
-            <Switch isSelected={survey} onChange={setSurvey}>
+            <Switch isSelected={false} isDisabled>
               <Switch.Content>
                 <Switch.Control>
                   <Switch.Thumb />
@@ -551,30 +408,16 @@ export function CheckoutView({
                 Send departure survey by email
               </Switch.Content>
             </Switch>
-            {survey ? (
-              <div className="flex flex-wrap items-center justify-between gap-2">
-                <span className="text-[12px] text-muted">Language</span>
-                <Segment
-                  aria-label="Survey language"
-                  selectedKey={lang}
-                  onSelectionChange={(k) => setLang(String(k) as (typeof LANGS)[number])}
-                >
-                  {LANGS.map((l) => (
-                    <Segment.Item key={l} id={l}>
-                      {l}
-                    </Segment.Item>
-                  ))}
-                </Segment>
-              </div>
-            ) : null}
             <p className="text-[12px] leading-4 text-muted">
-              Service message under the stay. Thomas opted out of marketing on 7 Oct, so no offers are attached.
+              Departure surveys are not connected yet; nothing is sent.
             </p>
             <p className="flex items-center gap-2 text-[13px]">
               <BroomMotion className="size-4 shrink-0 text-muted" aria-hidden="true" />
-              <span>
-                Room {c.room} goes to Dirty on checkout. No arrival in {c.room} today.
-              </span>
+              <span>Room {c.room} goes to Dirty on checkout.</span>
+            </p>
+            <p className="flex items-center gap-2 text-[12px] text-muted">
+              <Lock className="size-3.5 shrink-0" aria-hidden="true" />
+              <span>Only the stay's own bill is closed here; a bill in credit is left open for Finance.</span>
             </p>
           </Card>
         </div>
