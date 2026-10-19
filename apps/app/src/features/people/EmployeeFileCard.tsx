@@ -175,15 +175,10 @@ export function EmployeeFileCard({
                   None. Clocks in at the kiosk with a PIN and receives payslips by SMS link.
                 </span>
                 <div className="flex flex-wrap items-center gap-2">
-                  {loginRequested ? (
-                    <Chip size="sm" variant="soft" color="accent">
-                      Request sent to Didier Mugenzi
-                    </Chip>
-                  ) : (
-                    <Button size="sm" variant="secondary" onPress={onRequestLogin}>
-                      Ask the owner for a login
-                    </Button>
-                  )}
+                  {/* Asking for a login is not available yet (the press says so), so nothing reads "request sent". */}
+                  <Button size="sm" variant="secondary" isDisabled={loginRequested} onPress={onRequestLogin}>
+                    Ask the owner for a login
+                  </Button>
                   <span className="text-xs text-muted">HR cannot grant logins.</span>
                 </div>
               </>

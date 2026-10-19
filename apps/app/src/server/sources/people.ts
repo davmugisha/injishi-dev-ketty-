@@ -1360,7 +1360,8 @@ export const sources = defineSources({
           status: "default",
           icon: /medical|health|food|certificate/i.test(d.title) ? "Stethoscope" : "FileText",
           title: `${p.displayName} · ${d.title.toLowerCase()} expires ${dayMonth(d.expiresOn)}`,
-          detail: "Renewal reminder sent to them and their line manager",
+          // Not "reminder sent": the document.expiring trigger waits in the outbox and nothing delivers it yet.
+          detail: "Renewal due · no reminder is sent automatically",
           board: "Employees",
           employee: p.id,
           on: d.expiresOn,
@@ -1684,7 +1685,9 @@ function attendanceDay(ctx: SourceContext): Promise<AttendanceDay> {
         kind: "absent",
         icon: "PersonXmark",
         title: `${e.employee.displayName} · no clock-in today`,
-        detail: `${w.dept}, ${w.property} · shift ${entryTimes(e)} · no leave recorded${lead && lead.id !== p?.id ? ` · ${lead.displayName} informed` : ""}`,
+        // The line manager is named, not "informed": the attendance trigger waits in the outbox and nothing
+        // delivers it yet (people/infrastructure/hr-events.ts).
+        detail: `${w.dept}, ${w.property} · shift ${entryTimes(e)} · no leave recorded${lead && lead.id !== p?.id ? ` · line manager ${lead.displayName}` : ""}`,
         state: "Absent",
         tone: "danger",
         deskEmployee: e.employee.employeeId,
