@@ -16,8 +16,28 @@
  */
 import type { PersonaId } from "@injishi/data";
 import type { Doc } from "@injishi/data/types";
+import { kigaliToday, sourceContextFor } from "../src/server/sources/context";
 import { liveSources } from "../src/server/sources/index";
-import { check, contextFor, fail, fixtures, main, readersOf } from "./lib/harness";
+import type { SourceContext } from "../src/server/sources/types";
+import { check, cookieFor, fail, fixtures, main, readersOf } from "./lib/harness";
+
+/**
+ * The fixtures are a snapshot of the prototype day at 12:20 in Kigali (the operations board's clock,
+ * `NOW` in features/operations/shared.tsx; its events are stamped 12:20). The seed moves that day onto its
+ * own day (DEMO_SEED_NOW when set, else today), so every context here takes "now" as that day at 12:20.
+ * Time-of-day facts (absent once a shift has started, minutes left) then compare at any hour. "today" is
+ * the same Kigali day either way.
+ */
+const FIXTURE_CLOCK = "12:20";
+function fixtureMoment(): Date {
+  const seedNow = process.env.DEMO_SEED_NOW ? new Date(process.env.DEMO_SEED_NOW) : new Date();
+  return new Date(`${kigaliToday(seedNow).iso}T${FIXTURE_CLOCK}:00+02:00`);
+}
+
+/** The context a page gets when this persona is signed in, with its clock at the fixtures' moment. */
+async function contextFor(persona: PersonaId | null): Promise<SourceContext> {
+  return sourceContextFor(persona ? await cookieFor(persona) : null, fixtureMoment());
+}
 
 function arg(name: string): string | null {
   const i = process.argv.indexOf(name);
@@ -102,6 +122,7 @@ void main(async () => {
       problems.push(...found.map((p) => `${p} (as ${persona ?? "anonymous"})`));
     }
   }
+  console.log(`  (read as of ${fixtureMoment().toISOString()}, the fixtures' 12:20 in Kigali on the seed day)`);
   if (problems.length) fail(`\n  ${problems.join("\n  ")}`);
   return `DATA PARITY OK ${names.length} collections`;
 });

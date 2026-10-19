@@ -206,7 +206,7 @@ const STATUS_ORDER: TeamRolesMemberStatus[] = ["active", "pending", "invited", "
 /** "Now", "Today 09:58", "Yesterday 22:40", "11 Oct 16:20". */
 function lastActive(ctx: SourceContext, iso: string | null): string {
   if (!iso) return "Never signed in";
-  if (Date.now() - Date.parse(iso) < 5 * 60_000) return "Now";
+  if (ctx.now.getTime() - Date.parse(iso) < 5 * 60_000) return "Now";
   const day = kigaliDate(iso);
   const yesterday = new Date(ctx.today.noon.getTime() - 86_400_000).toISOString().slice(0, 10);
   const when = day === ctx.today.iso ? "Today" : day === yesterday ? "Yesterday" : dayMonth(day);
@@ -293,7 +293,7 @@ async function teamMembers(ctx: SourceContext): Promise<TeamRolesMember[]> {
       const open = i.status === "sent";
       // A cancelled or lapsed invitation is listed for a month, so the owner sees what became of it, then
       // drops off the screen (it stays on the API's record).
-      if (!open && Date.now() - Date.parse(i.expiresAt) > 30 * 86_400_000) continue;
+      if (!open && ctx.now.getTime() - Date.parse(i.expiresAt) > 30 * 86_400_000) continue;
       const name = i.name?.trim() || i.email.split("@")[0];
       const keys = keysFor(i.branchIds);
       invited.push({
@@ -685,7 +685,7 @@ export const sources = defineSources({
       // An invitation link lives seven days (one single use, 7 day rule for every org_invitations row,
       // architecture-schema.md; staffInvitationExpiresAt on the API). The API offers no other lifetime,
       // so the form offers none.
-      const expires = new Date(Date.now() + 7 * 86_400_000);
+      const expires = new Date(ctx.now.getTime() + 7 * 86_400_000);
       const weekday = new Intl.DateTimeFormat("en-GB", { timeZone: "Africa/Kigali", weekday: "short" }).format(expires);
       const phone = ctx.persona?.phone ?? "";
       return [

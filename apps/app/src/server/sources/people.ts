@@ -1561,7 +1561,7 @@ function attendanceDay(ctx: SourceContext): Promise<AttendanceDay> {
   return once(ctx, "attendance-day", async () => {
     const today = ctx.today.iso;
     const yesterday = addDays(today, -1);
-    const now = Date.now();
+    const now = ctx.now.getTime();
     const [{ people, byId, teams, branchName }, records, requests, { entries }, leave, grace] = await Promise.all([
       workforce(ctx),
       recordsOf(ctx),
