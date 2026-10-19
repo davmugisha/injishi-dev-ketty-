@@ -505,6 +505,13 @@
       "when": 1792066719493,
       "tag": "0071_interface_staff",
       "breakpoints": true
+    },
+    {
+      "idx": 72,
+      "version": "7",
+      "when": 1792397078710,
+      "tag": "0072_register_artboard_document_kinds",
+      "breakpoints": true
     }
   ]
 }

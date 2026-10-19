@@ -118,7 +118,16 @@ export interface ApiCertificates {
   chamberOfTourismMember: boolean;
   certificates: {
     id: string;
-    kind: "rdb_grade" | "tourism_license" | "tax_clearance" | "fire_safety" | "health_inspection" | "other";
+    kind:
+      | "rdb_grade"
+      | "tourism_license"
+      | "tax_clearance"
+      | "fire_safety"
+      | "health_inspection"
+      | "other"
+      | "rdb_certificate"
+      | "psf_certificate"
+      | "land_title";
     kindOther: string | null;
     propertyId: string | null;
     propertyName: string | null;
@@ -489,6 +498,9 @@ const KIND_NAME: Record<ApiCertificates["certificates"][number]["kind"], string>
   fire_safety: "Fire safety certificate",
   health_inspection: "Health inspection",
   other: "Other document",
+  rdb_certificate: "RDB certificate",
+  psf_certificate: "PSF certificate",
+  land_title: "Land title",
 };
 
 /** Every business's documents, each with the business it belongs to. */

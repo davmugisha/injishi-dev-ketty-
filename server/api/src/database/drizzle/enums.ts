@@ -227,6 +227,11 @@ export const orgCertificateKindEnum = pgEnum('org_certificate_kind', [
   'fire_safety',
   'health_inspection',
   'other',
+  // The registration artboard's rows (2026-10-19): the RDB certificate, the
+  // PSF certificate, and a residence's land title.
+  'rdb_certificate',
+  'psf_certificate',
+  'land_title',
 ]);
 
 
