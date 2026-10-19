@@ -65,10 +65,14 @@ async function fileLeave(
       });
       return { id: created.id, startsOn };
     } catch (error) {
-      if ((error as { status?: number }).status !== 409) throw error;
+      // 409: those days are already on leave. 422: they hold no working day (a weekend the person is not
+      // rostered on, or a public holiday such as 25 December). Either way, try the same weekday a week later.
+      const { status, message } = error as { status?: number; message?: string };
+      const noWorkingDay = status === 422 && /no working day/i.test(message ?? "");
+      if (status !== 409 && !noWorkingDay) throw error;
     }
   }
-  throw new Error("no free days found for a leave request");
+  throw new Error("no free working days found for a leave request");
 }
 
 export const flows: Flow[] = [

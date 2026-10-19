@@ -14,12 +14,28 @@ import { launch } from "../lib/cdp.mjs";
 const APP = (process.env.APP_URL ?? "http://localhost:3040").replace(/\/$/, "");
 const NAME = `Browser list ${Date.now().toString(36)}`;
 
-const fail = (message) => {
-  throw new Error(message);
-};
-
-const clickTab = (id) =>
-  `(() => { const t = [...document.querySelectorAll('[role=tab]')].find((el) => el.getAttribute('data-key') === '${id}' || el.id.endsWith('${id}') || /${id}/i.test(el.innerText)); t?.click(); return !!t; })()`;
+/**
+ * Opens a tab with a real pointer press (React Aria ignores a synthetic click()), pressing again until `ready`
+ * holds: a press that lands before the page has hydrated does nothing, so one press is not proof either way.
+ */
+async function openTab(page, id, ready, what) {
+  const until = Date.now() + 60_000;
+  while (Date.now() < until) {
+    const box = await page.eval(
+      `(() => { const t = [...document.querySelectorAll('[role=tab]')].find((el) => el.getAttribute('data-key') === '${id}' || el.id.endsWith('${id}') || /${id}/i.test(el.innerText)); if (!t) return null; const r = t.getBoundingClientRect(); return { x: r.left + r.width / 2, y: r.top + r.height / 2 }; })()`,
+    );
+    if (box) {
+      for (const type of ["mouseMoved", "mousePressed", "mouseReleased"]) {
+        await page.send("Input.dispatchMouseEvent", { type, x: box.x, y: box.y, button: "left", clickCount: 1 });
+      }
+    }
+    try {
+      await page.waitFor(ready, what, 3_000);
+      return;
+    } catch {}
+  }
+  throw new Error(`could not open the ${id} tab (${what})`);
+}
 
 /** The first stay heart that is not pressed, as its aria-label. */
 const firstUnsaved = `(() => [...document.querySelectorAll('button[aria-label^="Save "]')].map((b) => b.getAttribute('aria-label'))[0] ?? null)()`;
@@ -31,8 +47,7 @@ try {
   await page.waitForText("Upcoming", 120_000);
   console.log("  signed in as Sarah and landed on /trips");
 
-  if (!(await page.eval(clickTab("saved")))) fail("no Saved tab on /trips");
-  await page.waitForText("New collection");
+  await openTab(page, "saved", "document.body.innerText.includes('New collection')", "the Saved tab's collections");
   await page.press("New collection");
   await page.waitFor("!!document.getElementById('new-col')", "the new collection field");
   await page.type("#new-col", NAME);
@@ -43,8 +58,12 @@ try {
   );
   await page.reload();
   await page.waitForText("Upcoming", 60_000);
-  await page.eval(clickTab("saved"));
-  await page.waitForText(NAME, 30_000);
+  await openTab(
+    page,
+    "saved",
+    `document.body.innerText.includes(${JSON.stringify(NAME)})`,
+    "the new list after the reload",
+  );
   console.log(`  created "${NAME}" on the Saved tab, and it is still there after a reload`);
 
   await page.goto(`${APP}/explore`);

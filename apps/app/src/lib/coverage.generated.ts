@@ -59,7 +59,6 @@ export const sampleCollectionsByBoard: Record<string, number> = {
   Listing: 6,
   LostFound: 1,
   Loyalty: 6,
-  Main: 0,
   Maintenance: 0,
   ManagerToday: 8,
   MarketCheckout: 1,
