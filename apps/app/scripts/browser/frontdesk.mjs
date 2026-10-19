@@ -2,7 +2,9 @@
 /**
  * The front desk, in a real browser, on Postgres through the API: Eric (front desk) answers a request
  * to book on Reservations → Requests and the answer survives a reload; then on Today he gives the
- * arrival without a room a room from the assign drawer, and the room is still there after a reload.
+ * arrival without a room a room from the assign drawer, and the room is still there after a reload;
+ * then he checks a walk-in in from the walk-in screen and lands on the new stay's page, which reads the
+ * stay after a reload.
  *
  *   APP_URL=http://localhost:3042 node scripts/browser/frontdesk.mjs
  *
@@ -73,6 +75,34 @@ try {
   );
   if (!row.includes(picked)) fail(`after a reload ${guest}'s row reads: ${row.replace(/\s+/g, " ")}`);
   console.log(`  Today: ${guest} was given room ${picked} from the drawer, and keeps it after a reload`);
+
+  // Walk-in: choose a room type with a room free tonight, name the guest, and check them in for real.
+  await page.goto(`${APP}/walk-in`);
+  await page.waitForText("Availability by Room Type", 120_000);
+  await new Promise((r) => setTimeout(r, 2_000));
+  const typeBox = await page.eval(`(() => {
+    const radio = [...document.querySelectorAll('input[type=radio]')].find((r) => !r.disabled && r.closest('table'));
+    const label = radio?.closest('label');
+    if (!label) return null;
+    label.scrollIntoView({ block: 'center' });
+    const r = label.getBoundingClientRect();
+    return { x: r.left + 12, y: r.top + r.height / 2 };
+  })()`);
+  if (!typeBox) fail("the walk-in screen offers no room type with a room free tonight");
+  for (const type of ["mouseMoved", "mousePressed", "mouseReleased"]) {
+    await page.send("Input.dispatchMouseEvent", { type, x: typeBox.x, y: typeBox.y, button: "left", clickCount: 1 });
+  }
+  const walkInName = `Browser Walkin ${Date.now() % 100000}`;
+  await page.type('input[placeholder="As on the guest\'s ID"]', walkInName);
+  await page.press(`Check in ${walkInName}`);
+  await page.waitFor("location.pathname.startsWith('/stays/')", "the walk-in's stay page", 60_000);
+  const stayPath = await page.eval("location.pathname");
+  await page.reload();
+  await page.waitForText("Payments and Balance", 120_000);
+  await page.waitForText(walkInName, 60_000);
+  console.log(
+    `  Walk-in: ${walkInName} was checked in from the walk-in screen; ${stayPath} reads the stay after a reload`,
+  );
 
   console.log("BROWSER FRONTDESK OK");
 } catch (error) {

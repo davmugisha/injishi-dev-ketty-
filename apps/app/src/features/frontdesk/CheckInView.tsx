@@ -2,7 +2,6 @@
 
 import {
   ArrowLeft,
-  ArrowsRotateRight,
   Camera,
   CircleCheck,
   CircleInfo,
@@ -30,7 +29,6 @@ import {
   Input,
   Kbd,
   Label,
-  Spinner,
   TextArea,
   TextField,
   Toast,
@@ -81,15 +79,14 @@ export function CheckInView({ persona, file }: { persona: Persona; file: CheckIn
   const [saving, startSaving] = useTransition();
   /** The key of the one press of "Record cash", minted at that press and sent with the check-in. */
   const [cashKey, setCashKey] = useState<string | null>(null);
+  /** The cash the person typed, fixed at the press of "Record cash": exactly what goes on the bill. */
+  const [cashTaken, setCashTaken] = useState(0);
   const [cashAt, setCashAt] = useState("");
   const [idOk, setIdOk] = useState(false);
-  const [occScanned, setOccScanned] = useState(false);
-  const [occType, setOccType] = useState(file.occupant.documentTypes[0] ?? "Passport");
-  const [occNo, setOccNo] = useState("");
   // No candidate profile means nothing to review (guest profiles per business are not built yet).
-  const [dup, setDup] = useState<"open" | "linked" | "separate">(file.duplicate.cards.length ? "open" : "separate");
+  const dup: "open" | "separate" = file.duplicate.cards.length ? "open" : "separate";
   const [room, setRoom] = useState(file.stayId ? file.preAssignedRoom || file.defaultRoom : file.defaultRoom);
-  const [ovr, setOvr] = useState<"none" | "form" | "sent">("none");
+  const [ovr, setOvr] = useState<"none" | "form">("none");
   const [ovrReason, setOvrReason] = useState(file.override.reasons[0] ?? "");
   const [ovrApprover, setOvrApprover] = useState(file.override.approvers[0] ?? "");
   // The first way to pay the desk can take today; a booking paid in full online owes nothing at the desk.
@@ -98,18 +95,18 @@ export function CheckInView({ persona, file }: { persona: Persona; file: CheckIn
   );
   const [net, setNet] = useState<MobileNetwork["id"]>("MTN");
   const [payState, setPayState] = useState<PayState>("idle");
-  const [cashIn, setCashIn] = useState(formatRwf(file.deposit.cashReceived));
+  // Empty until the person types what they counted: the bill records that, never the amount due.
+  const [cashIn, setCashIn] = useState("");
   const [cards, setCards] = useState(2);
   const [keyGiven, setKeyGiven] = useState(false);
-  const [claimSent, setClaimSent] = useState(false);
 
   const network = file.networks.find((n) => n.id === net) ?? file.networks[0];
   const netLabel = network?.label ?? "";
   const momoRef = network?.ref ?? "";
   const deposit = formatRwf(file.deposit.amount);
-  const approverName = ovrApprover.split(" · ")[0] ?? ovrApprover;
-  const approverFirst = approverName.split(" ")[0];
   const paid = payState === "verified" || payState === "cash";
+  /** Nothing here is connected to a provider or a lock: say so, and change nothing. */
+  const unavailable = (what: string) => toast.warning(`${what} is not available yet. Nothing was changed.`);
   /** Paid in full online when booked: the bill opens with it credited, and nothing is taken at the desk. */
   const nothingDue = file.deposit.amount === 0;
   const roomState = file.rooms.find((r) => r.room === room);
@@ -118,7 +115,7 @@ export function CheckInView({ persona, file }: { persona: Persona; file: CheckIn
     idle: "Not started",
     pending: `${netLabel} · pending`,
     verified: `${netLabel} · verified`,
-    cash: "Cash counted",
+    cash: `Cash ${formatRwf(cashTaken)} counted`,
   };
   const steps = [
     { title: "Guest", desc: idOk ? "ID checked" : "Check ID" },
@@ -135,7 +132,7 @@ export function CheckInView({ persona, file }: { persona: Persona; file: CheckIn
   if (pay === "later") payCheck = ["success", "Pay at checkout · agent guarantee"];
   else if (payState === "pending") payCheck = ["warning", `${netLabel} pending · not paid yet`];
   else if (payState === "verified") payCheck = ["success", `Verified · ${netLabel} · ${momoRef}`];
-  else if (payState === "cash") payCheck = ["success", `Cash counted · ${file.deposit.till}`];
+  else if (payState === "cash") payCheck = ["success", `Cash ${formatRwf(cashTaken)} counted · ${file.deposit.till}`];
   // Paid in full online when booked: nothing to take at the desk, whichever way pays the extras.
   if (nothingDue && payState === "idle") payCheck = ["success", "Paid online when booked"];
 
@@ -143,19 +140,13 @@ export function CheckInView({ persona, file }: { persona: Persona; file: CheckIn
     {
       label: "ID checked",
       tone: idOk ? "success" : "warning",
-      state: idOk ? "Passport compared at the desk" : "Compare the passport with the guest",
+      // The check is the desk's own confirmation; the stay does not record it yet.
+      state: idOk ? "Compared at the desk · not recorded on the stay" : "Compare the ID with the guest",
     },
     {
       label: "Duplicate reviewed",
       tone: dup !== "open" ? "success" : "warning",
-      state:
-        dup === "linked"
-          ? `Linked to ${file.duplicate.existingId}`
-          : dup === "separate"
-            ? file.duplicate.cards.length
-              ? "Kept separate"
-              : "No matching profile"
-            : "Possible match to review",
+      state: dup === "open" ? "Possible match to review" : "No guest profiles to compare yet",
     },
     {
       label: "Room ready",
@@ -166,7 +157,7 @@ export function CheckInView({ persona, file }: { persona: Persona; file: CheckIn
     {
       label: "Key",
       tone: keyGiven ? "success" : "default",
-      state: keyGiven ? `Physical key ${room} · ${cards} cards` : "No lock provider · physical key",
+      state: keyGiven ? `Physical key ${room} · ${cards} cards handed over` : "No lock provider · physical key",
     },
   ];
 
@@ -183,9 +174,13 @@ export function CheckInView({ persona, file }: { persona: Persona; file: CheckIn
       title: `Folio ${file.folioId}`,
       desc: nothingDue
         ? "Room paid online · extras settled at checkout"
-        : paid
-          ? `${formatRwf(file.deposit.stayTotal - file.deposit.amount)} due after deposit`
-          : `${formatRwf(file.deposit.stayTotal)} due`,
+        : payState === "cash"
+          ? file.deposit.amount > cashTaken
+            ? `${formatRwf(file.deposit.amount - cashTaken)} still due after the cash`
+            : cashTaken > file.deposit.amount
+              ? `${formatRwf(cashTaken - file.deposit.amount)} in credit for extras`
+              : "Room paid · extras settled at checkout"
+          : `${formatRwf(file.deposit.amount)} due`,
       chip: "Open",
       tone: "default",
     },
@@ -229,9 +224,11 @@ export function CheckInView({ persona, file }: { persona: Persona; file: CheckIn
             ? "Take the deposit or choose pay at checkout"
             : nothingDue && payState === "idle"
               ? "Paid online when booked · nothing to take now"
-              : payState === "pending"
-                ? "You can continue: the folio shows the deposit as pending until the provider confirms"
-                : "Deposit settled for check-in"
+              : payState === "cash" && cashTaken < file.deposit.amount
+                ? `${formatRwf(file.deposit.amount - cashTaken)} stays due and is collected at checkout`
+                : payState === "cash"
+                  ? "Cash counted for check-in"
+                  : "Settled for check-in"
           : step === 4
             ? keyGiven
               ? "Physical key handed over"
@@ -248,7 +245,9 @@ export function CheckInView({ persona, file }: { persona: Persona; file: CheckIn
         const result = await checkInGuest({
           bookingRef: file.id,
           roomLabel: room,
-          cash: payState === "cash" && cashKey ? { amountRwf: file.deposit.amount, idempotencyKey: cashKey } : null,
+          // The cash the person typed and recorded, never the amount due.
+          cash:
+            payState === "cash" && cashKey && cashTaken > 0 ? { amountRwf: cashTaken, idempotencyKey: cashKey } : null,
         });
         if (!result.ok) {
           toast.danger(`Check-in needs attention: ${result.error}`);
@@ -277,7 +276,8 @@ export function CheckInView({ persona, file }: { persona: Persona; file: CheckIn
     return () => window.removeEventListener("keydown", onKey);
   }, []);
 
-  const change = amountOf(cashIn) - file.deposit.amount;
+  /** What the bill would owe (positive) or hold in credit (negative) once the typed cash is recorded. */
+  const leftAfterCash = file.deposit.amount - amountOf(cashIn);
 
   return (
     <PageContent className="text-[14px] leading-5">
@@ -298,15 +298,17 @@ export function CheckInView({ persona, file }: { persona: Persona; file: CheckIn
         description={`${file.roomType} · ${file.dates} · ${file.nights} nights · ${file.adults} adults · booked by ${file.bookedBy}`}
         actions={
           <>
+            {/* Nothing locks an arrival to one desk; a second check-in of the same booking gets the same stay. */}
             <GateChip icon={<Lock className="size-3" />}>
-              Only this desk can check in {file.id} · since {file.lockedSince}
+              Opened {file.lockedSince} · checking in twice opens one stay
             </GateChip>
             <LinkButton href={screenHref("Messages")} variant="ghost">
               <Comment className="size-4" />
               Message
             </LinkButton>
+            {/* Only a link: nothing typed here is kept until check-in is completed. */}
             <LinkButton href={screenHref("FrontDeskToday")} variant="secondary">
-              Save and exit
+              Exit to Today
             </LinkButton>
           </>
         }
@@ -348,7 +350,7 @@ export function CheckInView({ persona, file }: { persona: Persona; file: CheckIn
                 </Chip>
               </div>
 
-              {!file.duplicate.cards.length ? null : dup === "open" ? (
+              {!file.duplicate.cards.length ? null : (
                 <Alert status="warning" role="status">
                   <Alert.Indicator>
                     <Persons />
@@ -373,37 +375,25 @@ export function CheckInView({ persona, file }: { persona: Persona; file: CheckIn
                       ))}
                     </div>
                     <div className="mt-2.5 flex flex-wrap gap-2">
-                      <Button size="sm" variant="secondary" onPress={() => setDup("linked")}>
+                      {/* Guest profiles per business are not built, so nothing can be linked or kept apart. */}
+                      <Button
+                        size="sm"
+                        variant="secondary"
+                        onPress={() => unavailable("Linking a stay to a guest profile")}
+                      >
                         Same person · link this stay
                       </Button>
-                      <Button size="sm" variant="secondary" onPress={() => setDup("separate")}>
+                      <Button
+                        size="sm"
+                        variant="secondary"
+                        onPress={() => unavailable("Recording two profiles as different people")}
+                      >
                         Different people · keep separate
                       </Button>
                       <LinkButton href={screenHref("Guests")} size="sm" variant="ghost">
                         Compare in Guests
                       </LinkButton>
                     </div>
-                  </Alert.Content>
-                </Alert>
-              ) : (
-                <Alert status="default" role="status">
-                  <Alert.Indicator>
-                    <CircleCheck />
-                  </Alert.Indicator>
-                  <Alert.Content>
-                    <Alert.Title>
-                      {dup === "linked"
-                        ? `Stay linked to existing profile ${file.duplicate.existingId}`
-                        : "Kept as a separate new profile"}
-                    </Alert.Title>
-                    <Alert.Description>
-                      {dup === "linked"
-                        ? "Only this stay is linked; the two records are not merged. Logged with your name."
-                        : "Both profiles stay as they are. Logged with your name."}{" "}
-                      <Button size="sm" variant="ghost" onPress={() => setDup("open")}>
-                        Undo
-                      </Button>
-                    </Alert.Description>
                   </Alert.Content>
                 </Alert>
               )}
@@ -423,7 +413,7 @@ export function CheckInView({ persona, file }: { persona: Persona; file: CheckIn
                       ))}
                     </span>
                   </div>
-                  <Button size="sm" variant="ghost">
+                  <Button size="sm" variant="ghost" onPress={() => unavailable("Opening the guest's document here")}>
                     <Eye className="size-4" />
                     View document
                   </Button>
@@ -435,19 +425,19 @@ export function CheckInView({ persona, file }: { persona: Persona; file: CheckIn
                   }))}
                 />
                 <p className="text-xs text-muted">
-                  Full document numbers stay masked. Opening the document is logged with your name and the reason
-                  “check-in”.
+                  Full document numbers stay masked. Compare the ID the guest hands you with the name on the booking.
                 </p>
                 <Checkbox isSelected={idOk} onChange={setIdOk}>
                   <Checkbox.Content className="flex items-center gap-2.5">
                     <Checkbox.Control>
                       <Checkbox.Indicator />
                     </Checkbox.Control>
-                    <span className="font-medium">
-                      I compared the passport photo and name with the guest at the desk
-                    </span>
+                    <span className="font-medium">I compared the ID photo and name with the guest at the desk</span>
                   </Checkbox.Content>
                 </Checkbox>
+                <p className="text-xs text-muted">
+                  Your confirmation lets you continue; the stay does not record the ID check yet.
+                </p>
               </Card>
 
               <Card variant="secondary" className="gap-3 p-4">
@@ -461,38 +451,31 @@ export function CheckInView({ persona, file }: { persona: Persona; file: CheckIn
                       <Chip size="sm" variant="soft">
                         Occupant
                       </Chip>
-                      <Chip size="sm" variant="soft" color={occScanned ? "success" : "warning"}>
-                        {occScanned ? `Scanned at desk ${file.occupant.scannedAt}` : "ID not received"}
+                      <Chip size="sm" variant="soft" color="warning">
+                        ID not received
                       </Chip>
                     </span>
                   </div>
-                  <Button
-                    size="sm"
-                    variant="secondary"
-                    onPress={() => {
-                      setOccScanned(true);
-                      setOccNo(file.occupant.scannedNumber);
-                    }}
-                  >
+                  <Button size="sm" variant="secondary" onPress={() => unavailable("Scanning a document")}>
                     <Camera className="size-4" />
                     Scan document
                   </Button>
                 </div>
+                {/* A stay records one guest's registration card; a second guest's document has nowhere to go yet. */}
                 <div className="grid gap-2.5 [grid-template-columns:repeat(auto-fit,minmax(min(160px,100%),1fr))]">
                   <ChoiceSelect
                     label="Document type"
                     options={file.occupant.documentTypes}
-                    value={occType}
-                    onChange={setOccType}
+                    value={file.occupant.documentTypes[0] ?? ""}
+                    onChange={() => unavailable("Recording a second guest's document")}
                   />
-                  <TextField value={occNo} onChange={setOccNo} className="flex flex-col gap-1">
+                  <TextField isDisabled className="flex flex-col gap-1">
                     <Label>Document number</Label>
                     <Input placeholder="As printed" className="tabular" />
                   </TextField>
                 </div>
                 <p className="text-xs text-muted">
-                  Fields follow this property's registration settings. {file.occupant.name.split(" ")[0]}'s details can
-                  be completed before tonight's guest register closes.
+                  Recording a second guest's document is not available yet: nothing typed here would be kept.
                 </p>
               </Card>
 
@@ -562,8 +545,9 @@ export function CheckInView({ persona, file }: { persona: Persona; file: CheckIn
                 <Alert.Content>
                   <Alert.Title>Room {room} · same type and rate as booked</Alert.Title>
                   <Alert.Description>
-                    Housekeeping is told {file.preAssignedRoom} is no longer needed for this arrival. The change is
-                    saved on the stay's room history.
+                    {file.preAssignedRoom && room !== file.preAssignedRoom
+                      ? `The guest is checked in to ${room}. ${file.preAssignedRoom} stays held for this booking until checkout; release it from Reservations if nobody else needs it.`
+                      : "The stay opens in this room when you complete check-in."}
                   </Alert.Description>
                 </Alert.Content>
               </Alert>
@@ -571,8 +555,8 @@ export function CheckInView({ persona, file }: { persona: Persona; file: CheckIn
                 <div className="flex flex-col gap-0.5">
                   <span className="font-semibold">Need a room that isn't ready?</span>
                   <span className="text-[13px] text-muted">
-                    Checking into a dirty or out-of-order room needs a reason and a manager's approval. It's recorded
-                    with your name.
+                    Checking into a dirty or out-of-order room needs a manager's approval, and approvals are not
+                    connected yet. Choose a ready room.
                   </span>
                 </div>
                 {ovr === "none" ? (
@@ -604,7 +588,7 @@ export function CheckInView({ persona, file }: { persona: Persona; file: CheckIn
                       <TextArea rows={2} />
                     </TextField>
                     <div className="flex gap-2">
-                      <Button size="sm" onPress={() => setOvr("sent")}>
+                      <Button size="sm" onPress={() => unavailable("Sending a room override for approval")}>
                         Send for approval
                       </Button>
                       <Button size="sm" variant="ghost" onPress={() => setOvr("none")}>
@@ -612,20 +596,6 @@ export function CheckInView({ persona, file }: { persona: Persona; file: CheckIn
                       </Button>
                     </div>
                   </>
-                ) : null}
-                {ovr === "sent" ? (
-                  <div className="flex flex-wrap items-center gap-2">
-                    <Chip variant="soft" color="warning">
-                      <Clock className="size-3" />
-                      <Chip.Label>
-                        Waiting for {approverName} · sent {file.override.sentAt}
-                      </Chip.Label>
-                    </Chip>
-                    <span className="text-xs text-muted">
-                      Continue with {room} meanwhile. {file.preAssignedRoom} unlocks here only if {approverFirst}{" "}
-                      approves.
-                    </span>
-                  </div>
                 ) : null}
               </Card>
             </div>
@@ -705,79 +675,52 @@ export function CheckInView({ persona, file }: { persona: Persona; file: CheckIn
                       <Input className="tabular" />
                     </TextField>
                   </div>
-                  {payState === "idle" ? (
-                    <div className="flex flex-wrap items-center gap-2.5">
-                      <Button onPress={() => setPayState("pending")}>
-                        <PaperPlane className="size-4" />
-                        Send payment request
-                      </Button>
-                      <span className="text-xs text-muted">
-                        {file.firstName} approves it on her phone with her PIN.
-                      </span>
-                    </div>
-                  ) : null}
-                  {payState === "pending" ? (
-                    <Alert status="default" role="status">
-                      <Alert.Indicator>
-                        <Spinner size="sm" aria-label="Waiting" />
-                      </Alert.Indicator>
-                      <Alert.Content>
-                        <Alert.Title>Pending · waiting for {netLabel} to confirm</Alert.Title>
-                        <Alert.Description className="tabular">
-                          Sent {file.deposit.sentAt} to {file.deposit.phoneMasked} · provider ref {momoRef} · not paid
-                          until the provider confirms.
-                        </Alert.Description>
-                        <div className="mt-2 flex gap-2">
-                          <Button size="sm" variant="secondary" onPress={() => setPayState("verified")}>
-                            <ArrowsRotateRight className="size-4" />
-                            Check status
-                          </Button>
-                          <Button size="sm" variant="ghost" onPress={() => setPayState("idle")}>
-                            Cancel request
-                          </Button>
-                        </div>
-                      </Alert.Content>
-                    </Alert>
-                  ) : null}
-                  {payState === "verified" ? (
-                    <Alert status="success" role="status">
-                      <Alert.Indicator>
-                        <CircleCheck />
-                      </Alert.Indicator>
-                      <Alert.Content>
-                        <Alert.Title>Verified by {netLabel}</Alert.Title>
-                        <Alert.Description className="tabular">
-                          {deposit} · ref {momoRef} · confirmed {file.deposit.confirmedAt} · allocated to folio{" "}
-                          {file.folioId} as a deposit. A payment receipt prints now; the EBM fiscal receipt is issued at
-                          settlement.
-                        </Alert.Description>
-                      </Alert.Content>
-                    </Alert>
-                  ) : null}
-                  <p className="text-xs text-muted">
-                    Resending uses the same request key, so {file.firstName} can't be charged twice.
-                  </p>
+                  {/* A prompt from the desk to the guest's phone has no route: the bill takes cash only. */}
+                  <div className="flex flex-wrap items-center gap-2.5">
+                    <Button onPress={() => unavailable(`A ${netLabel} payment request from the desk`)}>
+                      <PaperPlane className="size-4" />
+                      Send payment request
+                    </Button>
+                    <span className="text-xs text-muted">
+                      Mobile money prompts are not connected yet. Take cash, or collect at checkout.
+                    </span>
+                  </div>
                 </Card>
               ) : null}
 
               {pay === "cash" ? (
                 <Card variant="secondary" className="gap-3 p-4">
                   <div className="grid gap-2.5 [grid-template-columns:repeat(auto-fit,minmax(min(200px,100%),1fr))]">
-                    <TextField value={cashIn} onChange={setCashIn} className="flex flex-col gap-1">
-                      <Label>Cash received</Label>
+                    <TextField
+                      value={cashIn}
+                      onChange={setCashIn}
+                      isReadOnly={payState === "cash"}
+                      className="flex flex-col gap-1"
+                    >
+                      <Label>Cash received for the bill</Label>
                       <Input className="tabular" inputMode="numeric" />
                     </TextField>
                     <div className="flex flex-col gap-1">
-                      <span className="text-sm font-medium">Change to give</span>
+                      <span className="text-sm font-medium">After this cash</span>
                       <output className="pt-1.5 text-lg font-semibold tabular" aria-live="polite">
-                        {change >= 0 ? formatRwf(change) : `${formatRwf(-change)} short`}
+                        {leftAfterCash > 0
+                          ? `${formatRwf(leftAfterCash)} still due`
+                          : leftAfterCash < 0
+                            ? `${formatRwf(-leftAfterCash)} in credit`
+                            : "Settled"}
                       </output>
                     </div>
                   </div>
+                  <p className="text-xs text-muted">
+                    Type what goes into the till for this bill, after any change you give back. Exactly that amount is
+                    recorded; anything above {deposit} stays on the bill as credit for extras.
+                  </p>
                   {payState === "idle" ? (
                     <div>
                       <Button
                         onPress={() => {
+                          // One key per press, and the amount fixed at the press: what is recorded is what was typed.
+                          setCashTaken(amountOf(cashIn));
                           setCashKey(crypto.randomUUID());
                           setCashAt(
                             new Intl.DateTimeFormat("en-GB", {
@@ -789,10 +732,10 @@ export function CheckInView({ persona, file }: { persona: Persona; file: CheckIn
                           );
                           setPayState("cash");
                         }}
-                        isDisabled={change < 0}
+                        isDisabled={amountOf(cashIn) <= 0}
                       >
                         <Wallet className="size-4" />
-                        Record {deposit} cash
+                        Record {formatRwf(amountOf(cashIn))} cash
                       </Button>
                     </div>
                   ) : null}
@@ -803,10 +746,21 @@ export function CheckInView({ persona, file }: { persona: Persona; file: CheckIn
                       </Alert.Indicator>
                       <Alert.Content>
                         <Alert.Title>
-                          Cash counted for {file.deposit.till} · {cashAt}
+                          {formatRwf(cashTaken)} counted for {file.deposit.till} · {cashAt}
                         </Alert.Title>
                         <Alert.Description>
-                          This cash will be recorded on the bill when you complete check-in.
+                          This cash is recorded on the bill when you complete check-in.{" "}
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            onPress={() => {
+                              setPayState("idle");
+                              setCashKey(null);
+                              setCashTaken(0);
+                            }}
+                          >
+                            Change amount
+                          </Button>
                         </Alert.Description>
                       </Alert.Content>
                     </Alert>
@@ -876,33 +830,45 @@ export function CheckInView({ persona, file }: { persona: Persona; file: CheckIn
                       <span className="font-medium">Key cards handed to {file.guest}</span>
                     </Checkbox.Content>
                   </Checkbox>
-                  <p className="text-xs text-muted">Logged on the stay. Collected back at checkout.</p>
+                  <p className="text-xs text-muted">
+                    A reminder for the desk: key cards are not recorded on the stay yet. Collect them at checkout.
+                  </p>
                 </Card>
                 <Card variant="secondary" className="gap-3 p-4">
                   <div className="flex items-center justify-between gap-2">
                     <span className="font-semibold">Stay claim</span>
-                    <Chip size="sm" variant="soft" color={claimSent ? "warning" : "default"}>
-                      {claimSent ? "Link sent 10:49 · not claimed yet" : "Not claimed"}
+                    <Chip size="sm" variant="soft" color="default">
+                      {file.claimCode ? "Not claimed" : "Made at check-in"}
                     </Chip>
                   </div>
                   <div className="flex items-start gap-3.5">
                     <div
                       role="img"
-                      aria-label={`Stay claim QR code for ${file.stayId}`}
+                      aria-label="Stay claim QR code"
                       className="flex size-[104px] flex-none items-center justify-center rounded-[14px] bg-surface shadow-surface"
                     >
                       <QrCode className="size-[72px]" aria-hidden="true" />
                     </div>
                     <div className="flex flex-col gap-1">
                       <span className="text-xs text-muted">Claim code</span>
-                      <span className="text-lg font-semibold tracking-[0.04em] tabular">{file.claimCode}</span>
-                      <span className="text-xs text-muted">Stay {file.stayId} · expires at checkout</span>
+                      <span className="text-lg font-semibold tracking-[0.04em] tabular">
+                        {file.claimCode || "None yet"}
+                      </span>
+                      <span className="text-xs text-muted">
+                        {file.claimCode ? `Stay ${file.stayId} · expires at checkout` : "The stay does not exist yet"}
+                      </span>
                     </div>
                   </div>
-                  <Button size="sm" variant="secondary" className="self-start" onPress={() => setClaimSent(true)}>
+                  {/* POST /ops/stays/:id/claim-invite needs the stay, which completing check-in opens. SMS has no route. */}
+                  <Button size="sm" variant="secondary" className="self-start" isDisabled>
                     <PaperPlane className="size-4" />
-                    Send link by SMS
+                    Email the claim code
                   </Button>
+                  <p className="text-xs text-muted">
+                    A guest who booked with an Injishi account finds the stay in their app once checked in, with no
+                    code. For anyone else, email the code from the stay's page after check-in. Codes are not sent by
+                    SMS.
+                  </p>
                   <GateChip icon={<ShieldExclamation className="size-3" />} className="self-start">
                     A claim is not proof of identity
                   </GateChip>
@@ -926,7 +892,8 @@ export function CheckInView({ persona, file }: { persona: Persona; file: CheckIn
                     {file.guest} is checked in to room {room}
                   </h2>
                   <span className="text-[13px] text-muted">
-                    {file.checkedInAt} · by {persona.name} · Isangano Lakeside Hotel
+                    {file.checkedInAt ? `Checked in ${file.checkedInAt}` : "Checked in"}
+                    {file.stayId ? ` · stay ${file.stayId}` : ""} · signed in as {persona.name}
                   </span>
                 </div>
               </div>
@@ -983,7 +950,10 @@ export function CheckInView({ persona, file }: { persona: Persona; file: CheckIn
                   <ArrowLeft className="size-4" />
                   Back to Today
                 </LinkButton>
-                <LinkButton href={screenHref("StayFolio")} variant="secondary">
+                <LinkButton
+                  href={file.stayId ? `/stays/${encodeURIComponent(file.stayId)}` : screenHref("FrontDeskToday")}
+                  variant="secondary"
+                >
                   <Receipt className="size-4" />
                   Open stay folio
                 </LinkButton>

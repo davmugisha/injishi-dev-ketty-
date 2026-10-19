@@ -5,6 +5,8 @@
  *   - an arrival with no room is given one and checked in, and cash counted at the desk lands on the
  *     bill once, however many times the press is replayed (Today → Assign, Check-in);
  *   - a guest who never came is recorded as a no-show, and the room held for them goes back on sale;
+ *   - a walk-in is checked in from the walk-in screen into a ready room of the type chosen, with its bill,
+ *     and the claim code goes to their email; a guest who booked with an account has nothing to claim;
  *   - a booking is cancelled at the guest's request and refunded on its tier (Reservations → Cancel);
  *   - people without the permission are refused: a housekeeper (no desk permission at all) and the
  *     accountant (reads the money, decides no reservation).
@@ -19,7 +21,9 @@ import type {
   DeskRoom,
   InHouseStay,
   Reservation,
+  RoomType,
 } from "@injishi/data/fixtures/frontdesk";
+import type { Stay } from "@injishi/data/fixtures/stays";
 import {
   approveRequest,
   assignRoom,
@@ -27,8 +31,11 @@ import {
   checkIn,
   declineRequest,
   markNoShow,
+  sendClaimInvite,
+  walkIn,
 } from "../../src/server/mutations/frontdesk";
 import { sources } from "../../src/server/sources/frontdesk";
+import { sources as staySources } from "../../src/server/sources/stays";
 import type { SourceContext } from "../../src/server/sources/types";
 import type { Flow } from "./types";
 
@@ -186,6 +193,64 @@ export const flows: Flow[] = [
       step(
         `${missing.id} (${missing.guest}) recorded as a no-show: ${missing.noShowQuote.rule} Room ${heldRoom ?? "none"} released`,
       );
+    },
+  },
+  {
+    name: "a walk-in is checked in to a ready room of the chosen type with its bill, and gets the claim code by email",
+    async run({ as, check, refused, step }) {
+      const eric = await as("frontdesk");
+      const types = await list<RoomType>("frontdesk.roomTypes", eric);
+      const type = types.find((t) => t.free > 0 && !t.soldNote);
+      check(type, "no room type has a room free tonight; reseed the interface world");
+      const input = {
+        roomTypeId: type.id,
+        nights: 2,
+        guestName: "Flow Walk-in Guest",
+        phone: "+250 788 000 111",
+        email: "walkin.flow@app.demo.injishi.com",
+      };
+
+      const jeanne = await as("housekeeper");
+      await refused(403, () => walkIn(jeanne, input), "a housekeeper checking a walk-in in");
+      step("a housekeeper (no stay.checkin) is refused with 403");
+
+      const done = await walkIn(eric, input);
+      check(done.stayReference?.startsWith("ST-"), `the walk-in opened with reference ${done.stayReference}`);
+      const inHouse = (await list<InHouseStay>("frontdesk.inHouse", eric)).find((s) => s.stayId === done.stayReference);
+      check(
+        inHouse && inHouse.name === input.guestName && inHouse.source === "Walk-in" && inHouse.room === done.room,
+        `Today reads ${JSON.stringify(inHouse)}`,
+      );
+      check(done.folioNumber && inHouse.folioId === done.folioNumber, `the bill reads ${done.folioNumber}`);
+      const after = (await list<RoomType>("frontdesk.roomTypes", eric)).find((t) => t.id === type.id);
+      check(after?.free === type.free - 1, `${type.name} reads ${after?.free} free, was ${type.free}`);
+      const page = (await staySources["stays.stays"].get?.(await as("frontdesk"), done.stayReference ?? "")) as
+        | Stay
+        | undefined;
+      check(
+        page?.guest === input.guestName && page.bookingId === "Walk-in",
+        `the stay page reads ${JSON.stringify(page)}`,
+      );
+      step(
+        `${input.guestName} checked in as a walk-in to ${type.name} room ${done.room} (${done.stayReference}, bill ${done.folioNumber}); ${type.name} now has ${after?.free} free`,
+      );
+
+      // The claim code: the walk-in has no account, so it can be (re)sent to the address on the stay.
+      const invite = await sendClaimInvite(eric, done.stayReference ?? done.stayId);
+      check(invite.claimCode && invite.email === input.email, `the invite reads ${JSON.stringify(invite)}`);
+      step(
+        `claim code ${invite.claimCode} ${invite.invitationSent ? "emailed" : "not emailed (mail relay refused)"} to ${invite.email}`,
+      );
+
+      // A guest who booked with an account has the stay in their app already: there is nothing to claim.
+      const booked = (await list<InHouseStay>("frontdesk.inHouse", eric)).find((s) => s.source !== "Walk-in");
+      check(booked, "no booked guest is in house to probe the refusal with");
+      await refused(
+        409,
+        () => sendClaimInvite(eric, booked.stayId),
+        "a claim code for a guest who booked with an account",
+      );
+      step(`a claim code for ${booked.name}, who booked with an Injishi account, is refused with 409`);
     },
   },
   {

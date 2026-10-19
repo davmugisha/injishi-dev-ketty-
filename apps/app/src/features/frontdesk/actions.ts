@@ -13,6 +13,9 @@ import {
   declineRequest,
   markNoShow,
   type RefundOutcome,
+  type WalkedIn,
+  type WalkInInput,
+  walkIn,
 } from "@/server/mutations/frontdesk";
 
 /**
@@ -37,10 +40,19 @@ async function attempt<T>(run: () => Promise<T>): Promise<ActionResult<T>> {
   }
 }
 
-const DESK = ["/front-desk", "/reservations", "/check-in", "/room-rack", "/messages"];
+const DESK = ["/front-desk", "/reservations", "/check-in", "/check-out", "/walk-in", "/room-rack", "/messages"];
 const refresh = () => {
   for (const path of DESK) revalidatePath(path);
+  revalidatePath("/stays/[id]", "page");
 };
+
+/** Walk-in → Check in: open the stay and its bill in a ready room of the chosen type. */
+export async function checkInWalkIn(input: WalkInInput): Promise<ActionResult<WalkedIn>> {
+  await requirePersona("WalkIn");
+  const result = await attempt(async () => walkIn(await requestContext(), input));
+  if (result.ok) refresh();
+  return result;
+}
 
 /** Today → Assign room: hold the room for the arrival's whole stay. */
 export async function assignArrivalRoom(bookingRef: string, roomLabel: string): Promise<ActionResult> {

@@ -3,8 +3,8 @@
  * frontdesk fixture document types. One read per request feeds every collection of the board: the
  * server decides "today" once, in Kigali, and every queue is cut from that one snapshot.
  *
- * What is not here stays on fixtures, each with its reason in the data map: the walk-in quote and its
- * room types (quote holds have no table), the room rack (group and out-of-order blocks), guest
+ * What is not here stays on fixtures, each with its reason in the data map: the walk-in quote (quote
+ * holds have no table; its room types are live), the room rack (group and out-of-order blocks), guest
  * requests (no request workflow on threads), the reservation record (booking parties, terms snapshot,
  * payment history) and the property-named cancellation policy.
  */
@@ -21,6 +21,7 @@ import type {
   ReadinessRoom,
   Reservation,
   RoomStatus,
+  RoomType,
   Tone,
 } from "@injishi/data/fixtures/frontdesk";
 import { clock, dayMonth, dayMonthYear, kigaliDate, rwf } from "../format";
@@ -126,6 +127,18 @@ export interface ApiRoom {
   heldTonightBy: { bookingId: string; reference: string; guestName: string | null } | null;
 }
 
+/** FrontDeskRoomType: a type of room at the property, with what is left of it tonight. */
+export interface ApiRoomType {
+  id: string;
+  name: string;
+  sleeps: number;
+  rateRwf: number | null;
+  beds: string | null;
+  active: boolean;
+  roomCount: number;
+  freeTonight: number;
+}
+
 export interface ApiBoard {
   property: { id: string; name: string; checkInTime: string | null; checkOutTime: string | null };
   today: string;
@@ -134,6 +147,7 @@ export interface ApiBoard {
   bookings: ApiBooking[];
   stays: ApiStay[];
   rooms: ApiRoom[];
+  roomTypes: ApiRoomType[];
 }
 
 const boards = new WeakMap<SourceContext, Promise<ApiBoard>>();
@@ -348,6 +362,26 @@ function presentInHouse(s: ApiStay, board: ApiBoard): InHouseStay {
   };
 }
 
+/**
+ * The order the desk deals with guests who are leaving: whoever is due out first, and at the same
+ * hour whoever still owes money first, then by stay reference so two reads never disagree. Today's
+ * Departures and the Checkout screen share it, so the first open row on Today is the guest Checkout
+ * opens on.
+ */
+export function departureOrder(a: ApiStay, b: ApiStay): number {
+  const owes = (s: ApiStay) => ((s.folio?.balanceRwf ?? 0) > 0 ? 0 : 1);
+  return (
+    (a.plannedExitAt ?? "9999").localeCompare(b.plannedExitAt ?? "9999") ||
+    owes(a) - owes(b) ||
+    (a.reference ?? a.id).localeCompare(b.reference ?? b.id)
+  );
+}
+
+/** The guest the Checkout screen opens on: the next one due out (today's first, else the next day's). */
+export function nextDeparture(board: ApiBoard): ApiStay | null {
+  return board.stays.filter((s) => s.lifecycle === "open").sort(departureOrder)[0] ?? null;
+}
+
 /** Everyone leaving today: still in the building (due or late) and already out. */
 function departuresOf(board: ApiBoard): ApiStay[] {
   const today = board.today;
@@ -356,9 +390,14 @@ function departuresOf(board: ApiBoard): ApiStay[] {
       (s.lifecycle === "open" && s.plannedExitAt && kigaliDate(s.plannedExitAt) <= today) ||
       (s.lifecycle === "closed" && s.actualExitAt && kigaliDate(s.actualExitAt) === today),
   );
-  const at = (s: ApiStay) => (s.lifecycle === "open" ? (s.plannedExitAt ?? "") : (s.actualExitAt ?? ""));
   return leaving.sort((a, b) =>
-    a.lifecycle === b.lifecycle ? at(a).localeCompare(at(b)) : a.lifecycle === "open" ? -1 : 1,
+    a.lifecycle === b.lifecycle
+      ? a.lifecycle === "open"
+        ? departureOrder(a, b)
+        : (a.actualExitAt ?? "").localeCompare(b.actualExitAt ?? "")
+      : a.lifecycle === "open"
+        ? -1
+        : 1,
   );
 }
 
@@ -535,6 +574,27 @@ function presentRooms(board: ApiBoard): DeskRoom[] {
     });
 }
 
+/**
+ * The room types the desk sells, with what is left tonight (Today's quick walk-in panel and the
+ * walk-in screen). `id` is the type's own id: the walk-in names it when it opens the stay. The
+ * prototype keyed types by slugs ("queen", "dlv") the database does not have; nothing reads them
+ * as slugs once the quote's sample conflict is gone.
+ */
+function presentRoomTypes(board: ApiBoard): RoomType[] {
+  return board.roomTypes
+    .filter((t) => t.active)
+    .map((t) => ({
+      id: t.id as RoomType["id"],
+      name: t.name,
+      beds: t.beds ?? "",
+      sleeps: t.sleeps,
+      rate: t.rateRwf ?? 0,
+      left: t.freeTonight,
+      free: t.freeTonight,
+      soldNote: t.freeTonight === 0 ? "Full tonight" : null,
+    }));
+}
+
 // ── Check-in ─────────────────────────────────────────────────────────────────
 
 /** A check-in file for one of today's arrivals (or one checked in today). */
@@ -691,9 +751,10 @@ async function presentCheckIn(ctx: SourceContext, b: ApiBooking, board: ApiBoard
         id: "rc",
         icon: "FileText",
         title: `Registration card · ${b.reference}`,
-        desc: `${name} · recorded on the stay at check-in`,
-        chip: stay ? "Recorded" : "At check-in",
-        tone: stay ? "success" : "default",
+        // The card is printed for the guest to sign; the stay records an ID only when the guest sent one ahead.
+        desc: `${name} · ${b.preArrivalIdentity ? "ID sent from the guest app before arrival" : "print it for the guest to sign"}`,
+        chip: stay ? "Print to sign" : "At check-in",
+        tone: "default",
         printable: !!stay,
       },
       {
@@ -963,6 +1024,12 @@ export const sources = defineSources({
       const board = await deskBoard(ctx);
       const atDesk = arrivalsOf(board)[0]?.id ?? null;
       return reservationsOf(board).map((b) => presentReservation(b, board, atDesk));
+    },
+  },
+  "frontdesk.roomTypes": {
+    naturalKey: "name",
+    async list(ctx): Promise<RoomType[]> {
+      return presentRoomTypes(await deskBoard(ctx));
     },
   },
   "frontdesk.bookingRequests": {

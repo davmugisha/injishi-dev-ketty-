@@ -106,6 +106,9 @@ function longDay(iso: string): string {
   return `${DAY_NAME[d.getUTCDay()]} ${d.getUTCDate()} ${MONTH_NAME[d.getUTCMonth()]} ${d.getUTCFullYear()}`;
 }
 
+/** A stay's own page (Stay and folio), by the stay's id. */
+const stayHref = (stayId: string) => `/stays/${encodeURIComponent(stayId)}`;
+
 /** Where the check-in of one arrival opens. */
 const checkInHref = (bookingId: string) => `${screenHref("CheckIn")}?booking=${encodeURIComponent(bookingId)}`;
 
@@ -176,7 +179,6 @@ export function FrontDeskTodayView({ data, offline = false }: { data: FrontDeskT
   const [assigned, setAssigned] = useState<Record<string, string>>({});
   const [assignFor, setAssignFor] = useState<string | null>(null);
   const [pick, setPick] = useState<string | null>(null);
-  const [doneReq, setDoneReq] = useState<Record<string, boolean>>({});
   const [assigning, startAssign] = useTransition();
   const [nights, setNights] = useState(1);
   const [adults, setAdults] = useState(2);
@@ -229,7 +231,7 @@ export function FrontDeskTodayView({ data, offline = false }: { data: FrontDeskT
         name: r.name,
         sub: `${r.bookingId} · night ${r.night} of ${r.of} · ${r.source}`,
         search: `${r.name} ${r.bookingId} ${r.room} ${r.stayId}`,
-        openHref: screenHref("StayFolio"),
+        openHref: stayHref(r.id),
         openLabel: `Open stay for ${r.name}`,
         room: { no: r.room, label: "Occupied", tone: "default", reassign: false },
         status: { tone: "success", icon: <House className="size-3" />, label: `${r.stayId} · In house` },
@@ -238,7 +240,7 @@ export function FrontDeskTodayView({ data, offline = false }: { data: FrontDeskT
         balanceChip: false,
         time: r.leaving,
         note: r.note,
-        primary: { kind: "link", href: screenHref("StayFolio"), label: "Folio", variant: "secondary" },
+        primary: { kind: "link", href: stayHref(r.id), label: "Folio", variant: "secondary" },
         extra: {
           href: screenHref("RoomRack"),
           label: `Move ${r.name} to another room`,
@@ -247,14 +249,16 @@ export function FrontDeskTodayView({ data, offline = false }: { data: FrontDeskT
         arrival: null,
       }));
     }
-    return data.departures.map((r, i) => {
+    // Checkout opens on the first guest still due out; everyone else checks out from their stay's page.
+    const next = data.departures.find((d) => d.checkout === "due" || d.checkout === "late")?.id;
+    return data.departures.map((r) => {
       const done = r.checkout === "out" || r.checkout === "fiscal";
       return {
         id: r.id,
         name: r.name,
         sub: `${r.bookingId} · ${plural(r.nights, "night")} · ${r.source}`,
         search: `${r.name} ${r.bookingId} ${r.room}`,
-        openHref: screenHref("StayFolio"),
+        openHref: stayHref(r.id),
         openLabel: `Open stay for ${r.name}`,
         room: done
           ? { no: r.room, label: "Dirty · to clean", tone: "warning", reassign: false }
@@ -266,16 +270,16 @@ export function FrontDeskTodayView({ data, offline = false }: { data: FrontDeskT
         time: r.time,
         note: r.note,
         primary: done
-          ? { kind: "link", href: screenHref("StayFolio"), label: "View", variant: "ghost" }
+          ? { kind: "link", href: stayHref(r.id), label: "View", variant: "ghost" }
           : {
               kind: "link",
-              href: screenHref("Checkout"),
+              href: r.id === next ? screenHref("Checkout") : stayHref(r.id),
               label: "Check out",
-              variant: i === 0 ? "primary" : "secondary",
+              variant: r.id === next ? "primary" : "secondary",
             },
         extra: done
           ? null
-          : { href: screenHref("StayFolio"), label: `Open folio for ${r.name}`, icon: <Receipt className="size-4" /> },
+          : { href: stayHref(r.id), label: `Open folio for ${r.name}`, icon: <Receipt className="size-4" /> },
         arrival: null,
       };
     });
@@ -286,7 +290,7 @@ export function FrontDeskTodayView({ data, offline = false }: { data: FrontDeskT
   const tabDef = data.tabs.find((t) => t.id === tab) ?? data.tabs[0];
   const cols = COLUMNS[tab];
 
-  const openRequests = data.requests.filter((r) => !doneReq[r.id]).length;
+  const openRequests = data.requests.length;
   const readyCount = data.readiness.filter((r) => isReady(r.status)).length;
   const readyPct = data.readiness.length ? Math.round((readyCount / data.readiness.length) * 100) : 0;
   const unassigned = data.arrivals.filter((a) => !a.room && !assigned[a.id]);
@@ -322,7 +326,7 @@ export function FrontDeskTodayView({ data, offline = false }: { data: FrontDeskT
         return;
       }
       setAssigned((a) => ({ ...a, [arrival.id]: chosen }));
-      toast.success(`Room ${chosen} assigned to ${arrival.name} · housekeeping notified`, {
+      toast.success(`Room ${chosen} held for ${arrival.name} for the whole stay`, {
         indicator: <CircleCheck className="size-4" />,
       });
       closeAssign();
@@ -375,7 +379,7 @@ export function FrontDeskTodayView({ data, offline = false }: { data: FrontDeskT
           kind="chip"
           tone="warning"
           icon="CloudSlash"
-          label="Offline · 2 queued"
+          label="Offline preview"
           board="OfflineDesk"
         />
       ) : null}
@@ -407,11 +411,11 @@ export function FrontDeskTodayView({ data, offline = false }: { data: FrontDeskT
             <CloudSlash />
           </Alert.Indicator>
           <Alert.Content>
-            <Alert.Title>Connection lost at 10:38 · working from this desk's copy</Alert.Title>
+            <Alert.Title>Offline desk preview · nothing is queued on this computer</Alert.Title>
             <Alert.Description>
-              Lists below are from 10:38. Check-ins and notes are queued and sent when the line is back. Payments and
-              keys wait for the connection; nothing is marked paid offline.{" "}
-              <TextLink href={screenHref("OfflineDesk")}>Open the offline queue</TextLink>
+              Working offline is not available yet: this page still reads and writes through the connection, and no
+              check-in or note is kept to send later.{" "}
+              <TextLink href={screenHref("OfflineDesk")}>See the offline desk preview</TextLink>
             </Alert.Description>
           </Alert.Content>
         </Alert>
@@ -538,7 +542,7 @@ export function FrontDeskTodayView({ data, offline = false }: { data: FrontDeskT
             </div>
             <ul className="flex flex-col gap-1.5">
               {data.requests.map((rq) => {
-                const done = !!doneReq[rq.id];
+                const done = false;
                 return (
                   <li key={rq.id}>
                     <ItemCard variant="secondary" className="items-center gap-2.5 px-2.5 py-2">
@@ -563,7 +567,10 @@ export function FrontDeskTodayView({ data, offline = false }: { data: FrontDeskT
                             variant="secondary"
                             isIconOnly
                             aria-label={`Mark ${rq.title} done`}
-                            onPress={() => setDoneReq((d) => ({ ...d, [rq.id]: true }))}
+                            onPress={() =>
+                              // Guest requests have no workflow on threads yet (frontdesk.guestRequests is sample data).
+                              toast.warning("Completing a guest request is not available yet. Nothing was changed.")
+                            }
                           >
                             <Check className="size-4" />
                           </Button>
@@ -742,7 +749,7 @@ export function FrontDeskTodayView({ data, offline = false }: { data: FrontDeskT
                 })}
               </RadioButtonGroup>
               <p className="text-xs text-muted">
-                Housekeeping is told about the assignment. The rate doesn't change within the booked room type.
+                The room is held for this guest's whole stay. The rate doesn't change within the booked room type.
               </p>
             </Drawer.Body>
             <Drawer.Footer className="flex justify-end gap-2">
