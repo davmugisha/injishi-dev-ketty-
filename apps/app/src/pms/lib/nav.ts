@@ -911,6 +911,7 @@ export function workspaceHome(
 export const WORKSPACE_LANDING_ORDER: readonly WorkspaceKey[] = [
   "host",
   "landlord",
+  "enterprise",
   "broker",
 ];
 
@@ -1210,7 +1211,33 @@ export function navFor(ctx: NavContext): NavSection[] {
       return withMyWork(landlordNav(ctx.permissions, base, counts), ctx, base);
     case "broker":
       return brokerNav(base, counts.placementsAwaiting);
+    case "enterprise":
+      return enterpriseNav(base, ctx.psfManage === true);
   }
+}
+
+/**
+ * A PSF business (the PSF path): its portal is its PSF membership, so that is
+ * the whole nav. Gated on the grant's `canManage`, never a permission, for the
+ * reason Memberships is in a hotel's Settings: the owner must reach it at every
+ * registration stage, and a pending business holds no permission.
+ */
+function enterpriseNav(base: string, psfManage: boolean): NavSection[] {
+  if (!psfManage) return [];
+  return [
+    {
+      label: "PSF",
+      items: [
+        {
+          key: "psf-membership",
+          label: "Membership",
+          icon: "badge-check",
+          href: `${base}/psf-membership`,
+          built: true,
+        },
+      ],
+    },
+  ];
 }
 
 /**

@@ -124,6 +124,7 @@ const KIND_LABEL: Record<WorkspaceKey, string> = {
   host: "Hotel",
   landlord: "Residence",
   broker: "Broker",
+  enterprise: "PSF business",
 };
 
 /** A destination's row. Pill shaped, the icon leading, as the board draws it. */

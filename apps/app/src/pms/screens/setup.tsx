@@ -302,7 +302,7 @@ export function Setup() {
               key={pr.id}
               workspaceId={wsId}
               property={pr}
-              domain={p.domain}
+              domain={listingDomain(p.domain)}
               accommodationClass={p.accommodationClass}
               onBack={onBack}
               onDone={onSaved}
@@ -502,7 +502,7 @@ export function Setup() {
             property={property}
             steps={steps}
             words={words}
-            domain={p.domain}
+            domain={listingDomain(p.domain)}
             accommodationClass={p.accommodationClass}
             fixHref={(key) => hrefWith({ view: null, step: key })}
             onPublished={() => go({ view: "open" })}
@@ -530,4 +530,13 @@ export function Setup() {
       )}
     </div>
   );
+}
+
+/**
+ * The domain a listing is set up in. A PSF business (`enterprise`) lists
+ * nothing and has no Setup in its nav, so it never arrives here; the narrowing
+ * only says so to the compiler, and reads it as a hotel if it ever did.
+ */
+function listingDomain(domain: "hospitality" | "residence" | "enterprise"): "hospitality" | "residence" {
+  return domain === "residence" ? "residence" : "hospitality";
 }

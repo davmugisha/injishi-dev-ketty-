@@ -174,8 +174,10 @@ export function toWorkspaceKey(
 ): WorkspaceKey | null {
   switch (access.kind) {
     case "business":
-      // The one place Host and Landlord are told apart.
-      return access.domain === "residence" ? "landlord" : "host";
+      // The one place Host, Landlord and a PSF business are told apart.
+      if (access.domain === "residence") return "landlord";
+      if (access.domain === "enterprise") return "enterprise";
+      return "host";
     case "broker":
       return "broker";
     case "personal":

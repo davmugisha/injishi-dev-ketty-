@@ -54,6 +54,8 @@ const HOME_SCREEN: Readonly<Record<WorkspaceKey, Partial<Record<OrgRole, string>
   // and every other role keeps the Rent roll.
   landlord: { finance: "/finance", hr: "/people", default: "/rent-roll" },
   broker: { default: "/directory" },
+  // A PSF business has one screen, its PSF portal, for everyone who holds it.
+  enterprise: { default: "/psf-membership" },
 };
 
 /** The nav this grant reaches, built the way the shell builds it. */

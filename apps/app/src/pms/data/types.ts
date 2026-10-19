@@ -43,7 +43,12 @@ export type { OrgRole } from "@injishi/contracts";
  * (ADR-018, move 2), and this union is the shape that fact makes true.
  *
  */
-export type WorkspaceKey = "host" | "landlord" | "broker";
+/**
+ * `enterprise` is a PSF business (the PSF path): a business of any sector that
+ * registered to join the Private Sector Federation. It lists nothing, so its
+ * workspace is its PSF portal and nothing else.
+ */
+export type WorkspaceKey = "host" | "landlord" | "broker" | "enterprise";
 
 export type PropertyKey = "hotel" | "guesthouse";
 
