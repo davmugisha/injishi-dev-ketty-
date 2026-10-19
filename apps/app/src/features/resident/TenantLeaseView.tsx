@@ -60,20 +60,8 @@ export function TenantLeaseView({
             icon: "PaperPlane" as const,
             title: "Notice to move out",
             desc: `Sent today · move-out ${notice.moveOut}`,
-            state: "Awaiting acknowledgement",
+            state: "Notice given",
             tone: "info" as const,
-          },
-        ]
-      : []),
-    ...(accepted
-      ? [
-          {
-            id: "renewal-amendment",
-            icon: "Pencil" as const,
-            title: "Renewal amendment",
-            desc: "Sent today · sign with a one-time code",
-            state: "Your signature needed",
-            tone: "warning" as const,
           },
         ]
       : []),
@@ -91,7 +79,7 @@ export function TenantLeaseView({
       return;
     }
     setOfferState(to);
-    toast(to === "accepted" ? "Renewal accepted · the amendment comes next" : "Renewal declined", {
+    toast(to === "accepted" ? "Renewal accepted · management sees your answer" : "Renewal declined", {
       indicator: <CircleCheck />,
     });
     router.refresh();
@@ -178,7 +166,7 @@ export function TenantLeaseView({
               </Button>
             </div>
             <span className="text-[12px] leading-4 text-muted">
-              Accepting sends you an amendment to sign. Nothing changes until both you and the landlord have signed.
+              Accepting tells management. Nothing changes until both you and the landlord have signed an amendment.
             </span>
           </Card>
         ) : null}
@@ -189,10 +177,10 @@ export function TenantLeaseView({
               <Pencil />
             </Alert.Indicator>
             <Alert.Content>
-              <Alert.Title>Renewal accepted · sign the amendment</Alert.Title>
+              <Alert.Title>Renewal accepted</Alert.Title>
               <Alert.Description>
-                We sent the amendment for your e-signature with a one-time code. Your lease is renewed only after both
-                signatures.
+                Management sees your answer. Your lease is renewed only after you and the landlord sign the amendment;
+                signing in the app is not available yet.
               </Alert.Description>
             </Alert.Content>
           </Alert>
@@ -220,7 +208,7 @@ export function TenantLeaseView({
             <Alert.Content>
               <Alert.Title>Notice sent · moving out {notice.moveOut}</Alert.Title>
               <Alert.Description>
-                Waiting for management to acknowledge. You will be offered an inspection time.
+                Management sees it on your unit. Agree the move-out inspection with them directly.
               </Alert.Description>
             </Alert.Content>
           </Alert>

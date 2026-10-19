@@ -7,7 +7,6 @@ import {
   CircleCheck,
   Clock,
   FileArrowUp,
-  FileCheck,
   FilePlus,
   Files,
   ListCheck,
@@ -20,20 +19,7 @@ import {
   Wallet,
   Wrench,
 } from "@gravity-ui/icons";
-import {
-  Alert,
-  Avatar,
-  Button,
-  Card,
-  Input,
-  Label,
-  SearchField,
-  Separator,
-  Tabs,
-  TextField,
-  Toast,
-  toast,
-} from "@heroui/react";
+import { Alert, Avatar, Button, Card, SearchField, Separator, Tabs, Toast, toast } from "@heroui/react";
 import { DropZone, EmptyState, ItemCard, ItemCardGroup, ListView, Stepper, Timeline } from "@heroui-pro/react";
 import { type BoardId, type Persona, screenHref } from "@injishi/data";
 import type {
@@ -58,7 +44,15 @@ export interface LeasesData {
 }
 
 type Tab = "overview" | "contract" | "renewals" | "filings";
-type Ack = "missing" | "uploaded" | "done";
+/**
+ * Why the acknowledgement cannot be attached: a filing record is the filing service's (pending, filed, failed),
+ * with no field for a delivered paper or its stamp, and the API's upload route takes phone photographs for records
+ * that name them, not a filing's evidence. So choosing a file keeps nothing and says so.
+ */
+const ACK_UNAVAILABLE =
+  "Attaching the acknowledgement is not available yet. Nothing was uploaded; keep the stamped copy on file.";
+/** Drafting the contract happens outside the app: no route edits a lease's clauses. */
+const CLAUSES_UNAVAILABLE = "Editing clauses is not available yet. The draft keeps the building's standard lease.";
 
 /** How a filing stage reads, and how far along the filing steps it is (5 = every step complete). */
 const FILING: Record<FilingStage, { state: string; tone: Tone; step: number }> = {
@@ -95,16 +89,10 @@ const initials = (name: string) =>
     .slice(0, 2)
     .join("");
 
-const fileSize = (bytes: number) =>
-  bytes >= 1024 * 1024 ? `${(bytes / (1024 * 1024)).toFixed(1)} MB` : `${Math.max(1, Math.round(bytes / 1024))} KB`;
-
-export function LeasesView({ persona, data }: { persona: Persona; data: LeasesData }) {
+export function LeasesView({ data }: { persona: Persona; data: LeasesData }) {
   const [sel, setSel] = useState(data.leases[0]?.id ?? "");
   const [tab, setTab] = useState<Tab>("overview");
   const [query, setQuery] = useState("");
-  const [ack, setAck] = useState<Record<string, Ack>>({});
-  const [ackFile, setAckFile] = useState<Record<string, { name: string; size: number }>>({});
-  const [ackRef, setAckRef] = useState("");
 
   const activeLeases = data.units.filter((u) => u.lease).length;
   const drafts = data.leases.filter((l) => !l.signedOn).length;
@@ -118,8 +106,7 @@ export function LeasesView({ persona, data }: { persona: Persona; data: LeasesDa
 
   const isDraft = !lease.signedOn;
   const isCompany = lease.resident.includes("Ltd");
-  const ackState = ack[lease.id] ?? "missing";
-  const stage: FilingStage = lease.filing.stage === "followup" && ackState === "done" ? "ack" : lease.filing.stage;
+  const stage: FilingStage = lease.filing.stage;
   const filing = FILING[stage];
   const term = `${lease.start} – ${lease.end} · 12 months`;
 
@@ -195,15 +182,14 @@ export function LeasesView({ persona, data }: { persona: Persona; data: LeasesDa
           party: "Tenant",
           state: "Signed",
           tone: "success" as Tone,
-          evidence:
-            lease.signatures?.tenant ?? `Signed before ${lease.signedOn} · one-time code verified · fingerprint stored`,
+          evidence: lease.signatures?.tenant ?? `Signed ${lease.signedOn}`,
         },
         {
           name: "Solange Uwimana",
           party: "Landlord · Amahoro Residences Ltd",
           state: "Signed",
           tone: "success" as Tone,
-          evidence: lease.signatures?.landlord ?? `Signed ${lease.signedOn} · one-time code verified`,
+          evidence: lease.signatures?.landlord ?? `Signed ${lease.signedOn}`,
         },
       ];
 
@@ -227,17 +213,7 @@ export function LeasesView({ persona, data }: { persona: Persona; data: LeasesDa
     { id: "filings", label: "Filings & declarations", count: stage === "followup" || stage === "draft" ? 1 : 0 },
   ];
 
-  const attach = (file: { name: string; size: number }) => {
-    setAckFile((m) => ({ ...m, [lease.id]: file }));
-    setAck((m) => ({ ...m, [lease.id]: "uploaded" }));
-  };
-  // A filing's acknowledgement has nowhere to be kept yet: the filing record is the filing adapter's
-  // (pending, filed, failed), not a delivered paper with a stamp. Say so rather than pretend it saved.
-  const recordAck = () => {
-    toast.danger(
-      `Recording an acknowledgement is not available yet. ${lease.id}'s filing status comes from the filing service.`,
-    );
-  };
+  const attach = () => toast.warning(ACK_UNAVAILABLE);
 
   /** Chase the resident about the open offer (`POST /ops/residence/offers/:id/remind`). */
   const remindOffer = async () => {
@@ -246,7 +222,7 @@ export function LeasesView({ persona, data }: { persona: Persona; data: LeasesDa
       toast.danger(result.error);
       return;
     }
-    toast.success(`Reminder sent to ${lease.resident} · in the resident app`, {
+    toast.success(`Reminder recorded for ${lease.resident} · shown in the resident app if they use it`, {
       indicator: <CircleCheck className="size-4" />,
     });
   };
@@ -275,7 +251,7 @@ export function LeasesView({ persona, data }: { persona: Persona; data: LeasesDa
             </LinkButton>
             <LinkButton href={screenHref("Applicants")}>
               <FilePlus className="size-4" />
-              New lease from applicant
+              Open applicants
             </LinkButton>
           </>
         }
@@ -452,7 +428,12 @@ export function LeasesView({ persona, data }: { persona: Persona; data: LeasesDa
                         {isDraft ? "Draft · editable" : "Signed version 2 · locked"}
                       </span>
                     </div>
-                    <Button size="sm" variant="secondary" isDisabled={!isDraft}>
+                    <Button
+                      size="sm"
+                      variant="secondary"
+                      isDisabled={!isDraft}
+                      onPress={() => toast.warning(CLAUSES_UNAVAILABLE)}
+                    >
                       <Pencil className="size-4" />
                       Edit clauses
                     </Button>
@@ -647,18 +628,12 @@ export function LeasesView({ persona, data }: { persona: Persona; data: LeasesDa
                       { label: "Status", value: <ToneChip tone={filing.tone}>{filing.state}</ToneChip> },
                     ]}
                   />
-                  {stage === "followup" && ackState === "missing" ? (
+                  {stage === "followup" ? (
                     <DropZone>
                       <DropZone.Area
                         className="p-[18px]"
                         onDrop={async (e) => {
-                          for (const item of e.items) {
-                            if (item.kind === "file") {
-                              const f = await item.getFile();
-                              attach({ name: f.name, size: f.size });
-                              return;
-                            }
-                          }
+                          if (e.items.some((item) => item.kind === "file")) attach();
                         }}
                       >
                         <DropZone.Icon>
@@ -666,46 +641,20 @@ export function LeasesView({ persona, data }: { persona: Persona; data: LeasesDa
                         </DropZone.Icon>
                         <DropZone.Label>Upload the signed or stamped acknowledgement</DropZone.Label>
                         <DropZone.Description>
-                          PDF or photo. Nothing is marked acknowledged without this evidence.
+                          Not available yet. Nothing is marked acknowledged without this evidence.
                         </DropZone.Description>
                         <DropZone.Trigger>Choose file</DropZone.Trigger>
                       </DropZone.Area>
                       <DropZone.Input
                         accept="application/pdf,image/*"
                         onSelect={(files) => {
-                          const f = files[0];
-                          if (f) attach({ name: f.name, size: f.size });
+                          if (files[0]) attach();
                         }}
                       />
                     </DropZone>
                   ) : null}
-                  {stage === "followup" && ackState === "uploaded" ? (
-                    <>
-                      <DropZone>
-                        <DropZone.FileList>
-                          <DropZone.FileItem status="complete">
-                            <FileCheck className="size-5 shrink-0 text-success" aria-hidden="true" />
-                            <DropZone.FileInfo>
-                              <DropZone.FileName>{ackFile[lease.id]?.name}</DropZone.FileName>
-                              <DropZone.FileMeta>
-                                {fileSize(ackFile[lease.id]?.size ?? 0)} · uploaded just now by {persona.name}
-                              </DropZone.FileMeta>
-                            </DropZone.FileInfo>
-                          </DropZone.FileItem>
-                        </DropZone.FileList>
-                      </DropZone>
-                      <div className="flex flex-wrap items-end gap-2">
-                        <TextField fullWidth value={ackRef} onChange={setAckRef} className="min-w-[220px] flex-1 gap-1">
-                          <Label>Reference written on the acknowledgement</Label>
-                          <Input placeholder="As shown on the stamp or receipt" />
-                        </TextField>
-                        <Button onPress={recordAck}>Record acknowledgement</Button>
-                      </div>
-                    </>
-                  ) : null}
                   <span className="text-[12px] leading-4 text-muted">
-                    Injishi does not file leases with any authority. It tracks your configured deadline and the evidence
-                    you upload.
+                    Injishi does not file leases with any authority. It tracks your configured deadline.
                   </span>
                 </Card>
 

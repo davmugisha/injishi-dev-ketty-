@@ -20,7 +20,6 @@ import {
   Button,
   Card,
   Checkbox,
-  CheckboxGroup,
   Chip,
   FieldError,
   Form,
@@ -28,6 +27,8 @@ import {
   Label,
   ProgressBar,
   TextField,
+  Toast,
+  toast,
 } from "@heroui/react";
 import { ItemCard, Segment } from "@heroui-pro/react";
 import { screenHref } from "@injishi/data";
@@ -35,7 +36,8 @@ import type { HostFeature, HostFee, HostKind, HostPlan, HostStep, ReadinessItem 
 import { stock } from "@injishi/data/media";
 import { GateChip, Icon, LinkButton, StatusDot, TextLink } from "@injishi/ui";
 import NextLink from "next/link";
-import { type FormEvent, useState } from "react";
+import { type FormEvent, useState, useTransition } from "react";
+import { joinWaitlistAction, requestDemoAction } from "./actions";
 import { ChoiceField, filled } from "./fields";
 import type { DemoLinks } from "./links";
 import {
@@ -77,16 +79,59 @@ const BUSINESS_TYPES = [
   { id: "outlet", label: "Restaurant, bar or café" },
 ];
 
+/** Rwanda's thirty districts: the API resolves the one chosen to its id (`GET /geography/districts`). */
 const DISTRICTS = [
-  { id: "gasabo", label: "Gasabo" },
-  { id: "kicukiro", label: "Kicukiro" },
-  { id: "nyarugenge", label: "Nyarugenge" },
-  { id: "rubavu", label: "Rubavu" },
-  { id: "musanze", label: "Musanze" },
-  { id: "huye", label: "Huye" },
-  { id: "nyamagabe", label: "Nyamagabe" },
-  { id: "other", label: "Another district" },
-];
+  "Bugesera",
+  "Burera",
+  "Gakenke",
+  "Gasabo",
+  "Gatsibo",
+  "Gicumbi",
+  "Gisagara",
+  "Huye",
+  "Kamonyi",
+  "Karongi",
+  "Kayonza",
+  "Kicukiro",
+  "Kirehe",
+  "Muhanga",
+  "Musanze",
+  "Ngoma",
+  "Ngororero",
+  "Nyabihu",
+  "Nyagatare",
+  "Nyamagabe",
+  "Nyamasheke",
+  "Nyanza",
+  "Nyarugenge",
+  "Nyaruguru",
+  "Rubavu",
+  "Ruhango",
+  "Rulindo",
+  "Rusizi",
+  "Rutsiro",
+  "Rwamagana",
+].map((name) => ({ id: name, label: name }));
+
+/** What the waitlist records about a property (`WaitlistPropertyType` and `WaitlistSizeBand` on the API). */
+const PROPERTY_TYPES = [
+  { id: "hotel", label: "Hotel" },
+  { id: "guest_house", label: "Guest house" },
+  { id: "apartment", label: "Apartment" },
+  { id: "lodge", label: "Lodge" },
+  { id: "villa", label: "Villa" },
+  { id: "hostel", label: "Hostel" },
+  { id: "homestay", label: "Homestay" },
+  { id: "campsite", label: "Campsite" },
+] as const;
+const SIZE_BANDS = [
+  { id: "1_5", label: "1 to 5 rooms or units" },
+  { id: "6_20", label: "6 to 20" },
+  { id: "21_50", label: "21 to 50" },
+  { id: "50_plus", label: "More than 50" },
+] as const;
+type PropertyType = (typeof PROPERTY_TYPES)[number]["id"];
+type SizeBand = (typeof SIZE_BANDS)[number]["id"];
 
 const SOURCES = [
   { id: "agent", label: "A field agent visited" },
@@ -102,12 +147,6 @@ const FORMATS = [
   { id: "onsite", label: "At my property", note: "A field agent visits where the programme runs in your district" },
 ];
 
-const INTERESTS = [
-  { id: "market", label: "Listing on the marketplace" },
-  { id: "residence", label: "Residence and rent tools" },
-  { id: "training", label: "Training for my staff" },
-];
-
 /** Public · for hosts (artifact: PublicHost.dc.html) — the marketing page for businesses. */
 export function PublicHostView({
   visitor,
@@ -121,33 +160,81 @@ export function PublicHostView({
   const [kind, setKind] = useState<HostKind>("hotel");
   const [plan, setPlan] = useState("property");
 
-  const [visitAsked, setVisitAsked] = useState(false);
-  const [agentApplied, setAgentApplied] = useState(false);
-
-  const [name, setName] = useState("Didier Mugenzi");
-  const [business, setBusiness] = useState("Amahoro Hospitality Group");
+  // A demo request becomes a support ticket (`POST /support/tickets`): the support team reads it.
+  const [name, setName] = useState(visitor?.name ?? "");
+  const [email, setEmail] = useState("");
+  const [business, setBusiness] = useState("");
   const [bizType, setBizType] = useState("hotel");
-  const [district, setDistrict] = useState("rubavu");
-  const [phone, setPhone] = useState("078 300 1122");
+  const [district, setDistrict] = useState("Gasabo");
+  const [phone, setPhone] = useState("");
   const [source, setSource] = useState("agent");
   const [format, setFormat] = useState("online");
-  const [demoSent, setDemoSent] = useState(false);
+  const [demoTicket, setDemoTicket] = useState<string | null>(null);
+  const [sendingDemo, startSendingDemo] = useTransition();
 
-  const [contact, setContact] = useState("");
-  const [interests, setInterests] = useState<string[]>(["market"]);
-  const [waitSent, setWaitSent] = useState(false);
+  // The waitlist is the API's owner signup (`POST /waitlist/signups`).
+  const [wName, setWName] = useState(visitor?.name ?? "");
+  const [wEmail, setWEmail] = useState("");
+  const [wPhone, setWPhone] = useState("");
+  const [wBusiness, setWBusiness] = useState("");
+  const [wDistrict, setWDistrict] = useState("Gasabo");
+  const [wType, setWType] = useState<PropertyType>("hotel");
+  const [wSize, setWSize] = useState<SizeBand>("1_5");
+  const [optIn, setOptIn] = useState(false);
+  const [joined, setJoined] = useState<{ email: string; already: boolean } | null>(null);
+  const [joining, startJoining] = useTransition();
 
   const features = data.features.filter((f) => f.kind === kind);
   const formatNote = FORMATS.find((f) => f.id === format)?.note;
-  const picked = INTERESTS.filter((i) => interests.includes(i.id)).map((i) => i.label.toLowerCase());
+  const label = (list: readonly { id: string; label: string }[], id: string) =>
+    list.find((o) => o.id === id)?.label ?? id;
 
   const sendDemo = (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    setDemoSent(true);
+    startSendingDemo(async () => {
+      const result = await requestDemoAction({
+        name,
+        email,
+        phone,
+        business,
+        businessType: label(BUSINESS_TYPES, bizType),
+        district,
+        heardFrom: label(SOURCES, source),
+        format: label(FORMATS, format),
+        plan: data.plans.find((p) => p.id === plan)?.name,
+      });
+      if (!result.ok) {
+        toast.danger(result.error);
+        return;
+      }
+      setDemoTicket(result.value.id);
+    });
   };
   const joinWaitlist = (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    setWaitSent(true);
+    startJoining(async () => {
+      const result = await joinWaitlistAction({
+        fullName: wName,
+        email: wEmail,
+        phone: wPhone,
+        businessName: wBusiness,
+        district: wDistrict,
+        propertyType: wType,
+        sizeBand: wSize,
+        marketingOptIn: optIn,
+      });
+      if (!result.ok) {
+        toast.danger(result.error);
+        return;
+      }
+      setJoined({ email: wEmail.trim(), already: result.value.alreadyJoined });
+    });
+  };
+  /** "Request an agent visit": the demo form, set to a visit at the property. The request is sent from there. */
+  const askForVisit = () => {
+    setFormat("onsite");
+    setDemoTicket(null);
+    document.getElementById("demo-h")?.scrollIntoView({ behavior: "smooth", block: "start" });
   };
 
   return (
@@ -380,7 +467,11 @@ export function PublicHostView({
                   variant="secondary"
                   className="mt-auto self-start"
                   aria-pressed={plan === p.id}
-                  onPress={() => setPlan(p.id)}
+                  onPress={() => {
+                    setPlan(p.id);
+                    setDemoTicket(null);
+                    document.getElementById("demo-h")?.scrollIntoView({ behavior: "smooth", block: "start" });
+                  }}
                 >
                   Ask about {p.name}
                 </Button>
@@ -424,13 +515,16 @@ export function PublicHostView({
             </p>
           </div>
           <div className="flex min-w-0 flex-[0_1_230px] flex-col gap-[8px]">
-            <Button variant="secondary" isDisabled={visitAsked} onPress={() => setVisitAsked(true)}>
+            <Button variant="secondary" onPress={askForVisit}>
               <MapPin className="size-4" />
-              {visitAsked ? "Visit requested · we’ll call you" : "Request an agent visit"}
+              Request an agent visit
             </Button>
-            <Button variant="tertiary" isDisabled={agentApplied} onPress={() => setAgentApplied(true)}>
+            <Button
+              variant="tertiary"
+              onPress={() => toast.warning("Applying as a field agent is not available yet. Nothing was sent.")}
+            >
               <PersonPlus className="size-4" />
-              {agentApplied ? "Application started · check your email" : "Apply as a field agent"}
+              Apply as a field agent
             </Button>
             <TextLink href={`${screenHref("Training")}#verify`} className="self-center text-[13px]">
               Verify an agent’s certificate
@@ -450,22 +544,21 @@ export function PublicHostView({
               title="Request a Demo"
               sub="We walk you through your own kind of property, online or on site."
             />
-            {demoSent ? (
+            {demoTicket ? (
               <>
                 <Alert status="success" role="status">
                   <Alert.Indicator>
                     <CircleCheck />
                   </Alert.Indicator>
                   <Alert.Content>
-                    <Alert.Title>Request received · DEM-1042</Alert.Title>
+                    <Alert.Title>Sent to Injishi support · ticket {demoTicket.slice(0, 8).toUpperCase()}</Alert.Title>
                     <Alert.Description>
-                      A team member will call {phone} within 2 working days to agree a time. This is a request, not a
-                      booked slot yet.
+                      A person on the Injishi team reads it. This is a request, not a booked slot.
                     </Alert.Description>
                   </Alert.Content>
                 </Alert>
-                <Button variant="ghost" size="sm" className="self-start" onPress={() => setDemoSent(false)}>
-                  Edit request
+                <Button variant="ghost" size="sm" className="self-start" onPress={() => setDemoTicket(null)}>
+                  Send another request
                 </Button>
               </>
             ) : (
@@ -480,6 +573,18 @@ export function PublicHostView({
                   >
                     <Label>Your name</Label>
                     <Input />
+                    <FieldError />
+                  </TextField>
+                  <TextField
+                    variant="secondary"
+                    type="email"
+                    value={email}
+                    onChange={setEmail}
+                    validate={filled("Enter an email address we can reply to.")}
+                    className="gap-[4px]"
+                  >
+                    <Label>Email</Label>
+                    <Input autoComplete="email" />
                     <FieldError />
                   </TextField>
                   <TextField
@@ -546,9 +651,10 @@ export function PublicHostView({
                 </div>
                 <div className="flex flex-wrap items-center justify-between gap-[12px]">
                   <span className="max-w-[420px] text-[12px] text-muted">
-                    We use these details only to arrange your demo. See the privacy notice in the help centre.
+                    Sent to Injishi support as a ticket and used only to arrange your demo. See the privacy notice in
+                    the help centre.
                   </span>
-                  <Button type="submit">
+                  <Button type="submit" isDisabled={sendingDemo}>
                     <PaperPlane className="size-4" />
                     Request demo
                   </Button>
@@ -570,45 +676,95 @@ export function PublicHostView({
               title="Join the Waitlist"
               sub="Not ready yet? Hear when your district opens and prices are published."
             />
-            {waitSent ? (
+            {joined ? (
               <Alert status="success" role="status">
                 <Alert.Indicator>
                   <CircleCheck />
                 </Alert.Indicator>
                 <Alert.Content>
-                  <Alert.Title>You’re on the waitlist</Alert.Title>
+                  <Alert.Title>{joined.already ? "Already on the waitlist" : "You’re on the waitlist"}</Alert.Title>
                   <Alert.Description>
-                    We’ll message you about {picked.length ? picked.join(", ") : "launch news"}. Unsubscribe from any
-                    message.
+                    {joined.already
+                      ? `${joined.email} was already on the list; nothing was added twice.`
+                      : `${joined.email} is on the list. Injishi invites people from it when registration opens.`}
                   </Alert.Description>
                 </Alert.Content>
               </Alert>
             ) : (
               <Form aria-labelledby="wait-h" className="flex flex-col gap-[14px]" onSubmit={joinWaitlist}>
-                <TextField
-                  value={contact}
-                  onChange={setContact}
-                  validate={filled("Enter an email address or phone number.")}
-                  className="gap-[4px]"
-                >
-                  <Label>Email or phone</Label>
-                  <Input placeholder="you@business.rw or 078…" />
-                  <FieldError />
-                </TextField>
-                <CheckboxGroup value={interests} onChange={setInterests} className="gap-[8px]">
-                  <Label className="mb-[6px]">Tell me about</Label>
-                  {INTERESTS.map((it) => (
-                    <Checkbox key={it.id} value={it.id} className="mt-0">
-                      <Checkbox.Content className="gap-[10px]">
-                        <Checkbox.Control>
-                          <Checkbox.Indicator />
-                        </Checkbox.Control>
-                        {it.label}
-                      </Checkbox.Content>
-                    </Checkbox>
-                  ))}
-                </CheckboxGroup>
-                <Button type="submit" className="self-start">
+                <div className="grid gap-[12px] [grid-template-columns:repeat(auto-fit,minmax(min(200px,100%),1fr))]">
+                  <TextField
+                    value={wName}
+                    onChange={setWName}
+                    validate={filled("Enter your name.")}
+                    className="gap-[4px]"
+                  >
+                    <Label>Your name</Label>
+                    <Input autoComplete="name" />
+                    <FieldError />
+                  </TextField>
+                  <TextField
+                    type="email"
+                    value={wEmail}
+                    onChange={setWEmail}
+                    validate={filled("Enter an email address.")}
+                    className="gap-[4px]"
+                  >
+                    <Label>Email</Label>
+                    <Input placeholder="you@business.rw" autoComplete="email" />
+                    <FieldError />
+                  </TextField>
+                  <TextField
+                    value={wPhone}
+                    onChange={setWPhone}
+                    validate={filled("Enter a Rwandan phone number.")}
+                    className="gap-[4px]"
+                  >
+                    <Label>Phone</Label>
+                    <Input type="tel" inputMode="tel" placeholder="078…" />
+                    <FieldError />
+                  </TextField>
+                  <TextField
+                    value={wBusiness}
+                    onChange={setWBusiness}
+                    validate={filled("Enter the business name.")}
+                    className="gap-[4px]"
+                  >
+                    <Label>Business name</Label>
+                    <Input />
+                    <FieldError />
+                  </TextField>
+                  <ChoiceField
+                    id="w-dist"
+                    label="District"
+                    value={wDistrict}
+                    onChange={setWDistrict}
+                    options={DISTRICTS}
+                  />
+                  <ChoiceField
+                    id="w-type"
+                    label="Property type"
+                    value={wType}
+                    onChange={(v) => setWType(v as PropertyType)}
+                    options={PROPERTY_TYPES}
+                  />
+                  <ChoiceField
+                    id="w-size"
+                    label="Rooms or units"
+                    value={wSize}
+                    onChange={(v) => setWSize(v as SizeBand)}
+                    options={SIZE_BANDS}
+                  />
+                </div>
+                <Checkbox isSelected={optIn} onChange={setOptIn} className="mt-0">
+                  <Checkbox.Content className="gap-[10px]">
+                    <Checkbox.Control>
+                      <Checkbox.Indicator />
+                    </Checkbox.Control>
+                    Also send me product news
+                  </Checkbox.Content>
+                </Checkbox>
+                <Button type="submit" className="self-start" isDisabled={joining}>
                   Join the waitlist
                 </Button>
               </Form>
@@ -617,6 +773,7 @@ export function PublicHostView({
         </div>
       </PublicMain>
 
+      <Toast.Provider placement="bottom" />
       <PublicFooter
         links={[
           { label: "Help centre", href: screenHref("PublicHelp") },

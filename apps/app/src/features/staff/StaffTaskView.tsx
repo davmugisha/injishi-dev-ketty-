@@ -33,6 +33,7 @@ import {
   TextField,
   ToggleButton,
   ToggleButtonGroup,
+  toast,
 } from "@heroui/react";
 import { ItemCard, ListView, Segment, Timeline } from "@heroui-pro/react";
 import { NumberStepper } from "@heroui-pro/react/number-stepper";
@@ -46,12 +47,11 @@ import type {
   MinibarItem,
   StaffProfile,
 } from "@injishi/data/fixtures/staff";
-import { stock } from "@injishi/data/media";
-import { Icon, LinkButton, PhoneBody, PhoneTop, Photo, toneColor } from "@injishi/ui";
+import { Icon, LinkButton, PhoneBody, PhoneTop, toneColor } from "@injishi/ui";
 import { useState, useTransition } from "react";
 import { reported } from "../operations/shared";
 import { logRoomFoundItemAction, moveRoomTaskAction, sendMinibarCountAction, setRoomCheckAction } from "./actions";
-import { kigaliClock, PhoneActionBar, PhoneSheet, PhoneTitle, renderSection, ToneTile } from "./parts";
+import { kigaliClock, PhoneActionBar, PhoneSheet, PhoneTitle, PhoneToasts, renderSection, ToneTile } from "./parts";
 
 export interface StaffTaskData {
   rooms: CleaningRoom[];
@@ -64,6 +64,9 @@ export interface StaffTaskData {
 }
 
 type RoomStatus = CleaningRoom["status"];
+
+/** With no signal nothing is kept on the phone, so nothing is pretended: the person is told it was not saved. */
+const NO_SIGNAL = "No signal: this was not saved and is not kept on the phone. Do it again when you have signal.";
 
 /** Housekeeper's room task: checklist, minibar count, found items and "mark clean" (artifact: StaffTask). */
 export function StaffTaskView({
@@ -84,14 +87,12 @@ export function StaffTaskView({
   const [checks, setChecks] = useState<Set<string>>(
     () => new Set(rooms.flatMap((r) => r.ticked.map((id) => `${r.no}:${id}`))),
   );
-  const [paused, setPaused] = useState(false);
   const [used, setUsed] = useState<Record<string, number>>(() =>
     Object.fromEntries(minibar.map((m) => [m.id, m.used])),
   );
   const [miniSent, setMiniSent] = useState<string | null>(null);
   const [sheet, setSheet] = useState<"" | "confirm" | "found">("");
   const [spot, setSpot] = useState(found.spot);
-  const [foundPhoto, setFoundPhoto] = useState(true);
   const [foundText, setFoundText] = useState(found.description);
   const [foundLogged, setFoundLogged] = useState<{ ref: string; name: string } | null>(null);
   const [cleanedAt, setCleanedAt] = useState<Record<string, string>>({});
@@ -127,15 +128,15 @@ export function StaffTaskView({
       return next;
     });
   const toggleCheck = (key: string, itemId: string, on: boolean) => {
+    if (offline) return toast.warning(NO_SIGNAL);
     setCheck(key, on);
-    if (offline) return;
     startTransition(async () => {
       if (!reported(await setRoomCheckAction(r.id, itemId, on))) setCheck(key, !on);
     });
   };
 
   const moveRoom = (to: "in_progress" | "done", after: () => void) => {
-    if (offline) return after();
+    if (offline) return toast.warning(NO_SIGNAL);
     startTransition(async () => {
       if (reported(await moveRoomTaskAction(r.id, to))) after();
     });
@@ -143,12 +144,11 @@ export function StaffTaskView({
   const finish = () =>
     moveRoom("done", () => {
       setSheet("");
-      setPaused(false);
       setCleanedAt((c) => ({ ...c, [r.no]: kigaliClock() }));
       setStatus((s) => ({ ...s, [r.no]: "done" }));
     });
   const sendMinibar = () => {
-    if (offline) return setMiniSent(kigaliClock());
+    if (offline) return toast.warning(NO_SIGNAL);
     startTransition(async () => {
       const counts = minibar.map((m) => ({ itemId: m.id, used: used[m.id] ?? 0 }));
       if (reported(await sendMinibarCountAction(r.id, counts))) setMiniSent(kigaliClock());
@@ -156,11 +156,7 @@ export function StaffTaskView({
   };
   const logFound = () => {
     const name = foundText.split(",")[0]?.trim() || foundText.trim();
-    if (offline) {
-      setSheet("");
-      setFoundLogged({ ref: "not sent yet", name });
-      return;
-    }
+    if (offline) return toast.warning(NO_SIGNAL);
     startTransition(async () => {
       const result = await logRoomFoundItemAction(r.id, { description: foundText, spot: spotPhrase });
       if (!reported(result) || !result.ok) return;
@@ -173,14 +169,10 @@ export function StaffTaskView({
 
   const statusChip =
     roomStatus === "cleaning"
-      ? paused
-        ? { label: "Paused", color: "default" as const }
-        : { label: "Cleaning", color: "accent" as const }
+      ? { label: "Cleaning", color: "accent" as const }
       : roomStatus === "waiting"
         ? { label: "Waiting", color: "default" as const }
-        : offline
-          ? { label: "Not sent yet", color: "warning" as const }
-          : { label: "Clean", color: "success" as const };
+        : { label: "Clean", color: "success" as const };
 
   const nextRoom = rooms.find((x) => x.no !== r.no && status[x.no] !== "done");
   const todo = rooms.filter((x) => status[x.no] !== "done");
@@ -190,9 +182,9 @@ export function StaffTaskView({
       id: x.id,
       no: x.no,
       kind: x.kind,
-      when: offline ? "Just now · saved on phone" : "Just now · waiting for inspection",
-      state: offline ? "Not sent yet" : "Clean",
-      stateTone: offline ? ("warning" as const) : ("success" as const),
+      when: "Just now · waiting for inspection",
+      state: "Clean",
+      stateTone: "success" as const,
     }));
   const fin = [...finishedNow, ...finished];
   const spotPhrase = spots.find((s) => s.id === spot)?.phrase ?? spot;
@@ -261,7 +253,7 @@ export function StaffTaskView({
             <Alert.Content>
               <Alert.Title>No connection</Alert.Title>
               <Alert.Description>
-                Keep working. Ticks and reports are saved on this phone and send when signal is back.
+                Nothing is saved on this phone. Ticks, counts and found items are sent only when there is signal.
               </Alert.Description>
             </Alert.Content>
           </Alert>
@@ -372,22 +364,18 @@ export function StaffTaskView({
               ))}
               {miniSent ? (
                 <>
-                  <Alert status={offline ? "warning" : "success"} role="status">
-                    <Alert.Indicator>{offline ? <CloudSlash /> : <CircleCheck />}</Alert.Indicator>
+                  <Alert status="success" role="status">
+                    <Alert.Indicator>
+                      <CircleCheck />
+                    </Alert.Indicator>
                     <Alert.Content>
                       <Alert.Title>
-                        {offline
-                          ? "Saved on phone · will send"
-                          : usedTotal
-                            ? `Sent to front desk at ${miniSent}`
-                            : `Nothing used · sent at ${miniSent}`}
+                        {usedTotal ? `Sent to front desk at ${miniSent}` : `Nothing used · sent at ${miniSent}`}
                       </Alert.Title>
                       <Alert.Description>
-                        {offline
-                          ? "Front desk gets the count when you are back online."
-                          : usedTotal
-                            ? `${usedTotal} items reported. Eric checks the folio; you do not take any money.`
-                            : "Front desk will not add minibar charges for this stay."}
+                        {usedTotal
+                          ? `${usedTotal} items reported. Front desk checks the folio; you do not take any money.`
+                          : "Front desk will not add minibar charges for this stay."}
                       </Alert.Description>
                     </Alert.Content>
                   </Alert>
@@ -444,8 +432,8 @@ export function StaffTaskView({
                     </ItemCard.Description>
                   </ItemCard.Content>
                   <ItemCard.Action>
-                    <Chip size="sm" variant="soft" color={offline ? "warning" : "default"}>
-                      {offline ? "Not sent yet" : "Logged"}
+                    <Chip size="sm" variant="soft">
+                      Logged
                     </Chip>
                   </ItemCard.Action>
                 </ItemCard>
@@ -456,31 +444,31 @@ export function StaffTaskView({
 
         {isTask && roomStatus === "done" ? (
           <Card render={renderSection} className="gap-[14px] p-[20px]" aria-labelledby="done-h">
-            <ToneTile tone={offline ? "warning" : "success"}>{offline ? <CloudSlash /> : <CircleCheck />}</ToneTile>
+            <ToneTile tone="success">
+              <CircleCheck />
+            </ToneTile>
             <div className="flex flex-col gap-1">
               <h2 id="done-h" className="text-xl leading-[26px] font-semibold">
                 Room {r.no} marked clean
               </h2>
               <p className="text-muted">
-                {offline
-                  ? `Saved on this phone at ${doneAt}. Front desk still sees the room as dirty until it sends.`
-                  : `Sent at ${doneAt}. Front desk sees it as Clean, not Ready. It becomes Ready after Beatrice inspects it.`}
+                {`Sent at ${doneAt}. Front desk sees it as Clean, not Ready. It becomes Ready after a supervisor inspects it.`}
               </p>
             </div>
             <Timeline size="sm" density="compact">
-              <Timeline.Item status={offline ? "warning" : "success"}>
+              <Timeline.Item status="success">
                 <Timeline.Rail>
-                  <Timeline.Marker>{offline ? <CloudSlash /> : <Check />}</Timeline.Marker>
+                  <Timeline.Marker>
+                    <Check />
+                  </Timeline.Marker>
                   <Timeline.Connector />
                 </Timeline.Rail>
                 <Timeline.Content>
                   <span className="font-medium">Cleaned by you</span>
-                  <span className="text-xs leading-4 text-muted">
-                    {offline ? `${doneAt} · waiting for signal` : `${doneAt} · ${doneN} of ${totalN} checks ticked`}
-                  </span>
+                  <span className="text-xs leading-4 text-muted">{`${doneAt} · ${doneN} of ${totalN} checks ticked`}</span>
                 </Timeline.Content>
               </Timeline.Item>
-              <Timeline.Item status={offline ? "default" : "current"}>
+              <Timeline.Item status="current">
                 <Timeline.Rail>
                   <Timeline.Marker>
                     <CheckDouble />
@@ -488,7 +476,7 @@ export function StaffTaskView({
                   <Timeline.Connector />
                 </Timeline.Rail>
                 <Timeline.Content>
-                  <span className="font-medium">Inspection by Beatrice</span>
+                  <span className="font-medium">Inspection by a supervisor</span>
                   <span className="text-xs leading-4 text-muted">Required before the room can be sold</span>
                 </Timeline.Content>
               </Timeline.Item>
@@ -582,14 +570,16 @@ export function StaffTaskView({
             size="lg"
             isIconOnly
             className="h-14 w-14"
-            aria-label={paused ? "Resume timer" : "Pause timer"}
-            onPress={() => setPaused((p) => !p)}
+            aria-label="Pause timer"
+            onPress={() =>
+              toast.warning("Pausing the room timer is not available yet. The time runs until you mark the room clean.")
+            }
           >
-            {paused ? <CirclePlay className="size-5" /> : <CirclePause className="size-5" />}
+            <CirclePause className="size-5" />
           </Button>
           <span className="flex min-w-[72px] flex-col" role="timer" aria-label="Time in room">
             <span className="text-[17px] leading-[22px] font-semibold tabular">{r.timer}</span>
-            <span className="text-[11px] leading-[14px] text-muted">{paused ? "Paused" : r.started}</span>
+            <span className="text-[11px] leading-[14px] text-muted">{r.started}</span>
           </span>
           <Button size="lg" className="min-h-14 flex-1" isDisabled={pending} onPress={markClean}>
             <Check className="size-4" />
@@ -639,24 +629,23 @@ export function StaffTaskView({
         heading={`Found an item in room ${r.no}`}
         description="It goes to Lost and found with you as the first person holding it."
       >
-        {foundPhoto ? (
-          <div className="flex items-center gap-[12px]">
-            <Photo image={stock[found.photo]} className="h-[72px] w-[96px] shrink-0 rounded-[14px]" sizes="96px" />
-            <div className="flex flex-1 flex-col gap-[2px]">
-              <span className="font-medium">Photo taken</span>
-              <span className="text-xs text-muted">Small file · sends on weak signal</span>
-            </div>
-            <Button variant="ghost" className="min-h-11" onPress={() => setFoundPhoto(false)}>
-              <Camera className="size-4" />
-              Retake
-            </Button>
-          </div>
-        ) : (
-          <Button variant="secondary" size="lg" fullWidth className="min-h-14" onPress={() => setFoundPhoto(true)}>
+        <div className="flex flex-col gap-[4px]">
+          <Button
+            variant="secondary"
+            size="lg"
+            fullWidth
+            className="min-h-14"
+            onPress={() =>
+              toast.warning("A photo cannot be logged with a found item yet. Say what it is and where it was.")
+            }
+          >
             <Camera className="size-4" />
             Take a photo of the item
           </Button>
-        )}
+          <span className="text-xs leading-4 text-muted">
+            Not available yet: the register takes no photo from the phone.
+          </span>
+        </div>
         <TextField value={foundText} onChange={setFoundText} fullWidth className="flex flex-col gap-1">
           <Label>What is it?</Label>
           <Input className="min-h-11" />
@@ -697,6 +686,7 @@ export function StaffTaskView({
           </Button>
         </div>
       </PhoneSheet>
+      <PhoneToasts />
     </>
   );
 }

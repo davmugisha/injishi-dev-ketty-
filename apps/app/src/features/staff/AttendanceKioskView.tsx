@@ -1,25 +1,13 @@
 "use client";
 
-import {
-  ArrowLeft,
-  ArrowRightToSquare,
-  ArrowsRotateLeft,
-  CircleCheck,
-  Clock,
-  CloudSlash,
-  Keyboard,
-  QrCode,
-  ShieldCheck,
-} from "@gravity-ui/icons";
-import { Button, Card, Chip, Label, ProgressBar } from "@heroui/react";
+import { ArrowLeft, ArrowsRotateLeft, Keyboard, QrCode, ShieldCheck } from "@gravity-ui/icons";
+import { Button, Chip } from "@heroui/react";
 import { Segment } from "@heroui-pro/react";
 import type { Kiosk, StaffProfile } from "@injishi/data/fixtures/staff";
-import { stock } from "@injishi/data/media";
-import { Photo, StatusDot } from "@injishi/ui";
+import { StatusDot } from "@injishi/ui";
 import { motion, useReducedMotion } from "motion/react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { BrandMark } from "@/components/brand";
-import { ToneTile } from "./parts";
 
 export type KioskScreen = "pin" | "qr" | "confirm" | "done";
 
@@ -31,8 +19,13 @@ export interface KioskStaff {
 
 const KEYS = ["1", "2", "3", "4", "5", "6", "7", "8", "9", "clear", "0", "del"] as const;
 
-/** The PIN the demo treats as unknown (any other 4 digits match the demo staff member). */
-const UNKNOWN_PIN = "0000";
+/**
+ * Why nobody is clocked in here yet. The API's kiosk (`POST /api/v1/kiosk/punch`) answers only a tablet paired
+ * with a one-time code, through a device cookie this app does not hold, and it takes an employee number with the
+ * PIN. Until the tablet is paired this screen checks nothing, so it accepts no PIN and no card.
+ */
+const NOT_CONNECTED =
+  "This kiosk is not connected to Injishi attendance yet, so it cannot check a PIN or a card. Ask the front desk or your supervisor to record your time.";
 
 /** Camera area of the staff-card scanner: a live viewfinder, not a photo. */
 function Viewfinder({ onScan }: { onScan: () => void }) {
@@ -68,30 +61,30 @@ function Viewfinder({ onScan }: { onScan: () => void }) {
         transition={reduce ? { duration: 0 } : { duration: 2.6, repeat: Number.POSITIVE_INFINITY, ease: "easeInOut" }}
       />
       <QrCode className="size-[72px] opacity-70" aria-hidden="true" />
-      <span className="text-sm">Looking for a card…</span>
+      <span className="text-sm">Card reader not connected</span>
     </Button>
   );
 }
 
-/** Staff clock-in kiosk at the staff entrance: PIN or staff card, confirm, done (artifact: AttendanceKiosk). */
+/**
+ * Staff clock-in kiosk at the staff entrance: PIN or staff card (artifact: AttendanceKiosk). Not connected to the
+ * API's kiosk yet (see NOT_CONNECTED), so it confirms nobody and clocks nobody in: a full PIN or a card held to the
+ * camera says so instead. `staff`, `offline` and a `confirm`/`done` initial screen are accepted and unused.
+ */
 export function AttendanceKioskView({
   kiosk,
-  staff,
   initialScreen = "pin",
-  offline = false,
 }: {
   kiosk: Kiosk;
   staff: KioskStaff;
   initialScreen?: KioskScreen;
   offline?: boolean;
 }) {
-  const [step, setStep] = useState<KioskScreen>(initialScreen);
+  const [step, setStep] = useState<"pin" | "qr">(initialScreen === "qr" ? "qr" : "pin");
   const [pin, setPin] = useState("");
   const [err, setErr] = useState(false);
   const rootRef = useRef<HTMLDivElement>(null);
   const lastTap = useRef(0);
-  const [remaining, setRemaining] = useState(kiosk.resetSeconds);
-  const { profile } = staff;
 
   const reset = useCallback(() => {
     setStep("pin");
@@ -107,13 +100,9 @@ export function AttendanceKioskView({
         setErr(false);
         return;
       }
+      // Nothing can check the PIN, so a full PIN opens nothing.
       setPin("");
-      if (next === UNKNOWN_PIN) {
-        setErr(true);
-        return;
-      }
-      setErr(false);
-      setStep("confirm");
+      setErr(true);
     },
     [pin],
   );
@@ -124,7 +113,6 @@ export function AttendanceKioskView({
     if (!el) return;
     const touch = () => {
       lastTap.current = Date.now();
-      setRemaining(kiosk.resetSeconds);
     };
     touch();
     el.addEventListener("pointerdown", touch, true);
@@ -133,16 +121,15 @@ export function AttendanceKioskView({
       el.removeEventListener("pointerdown", touch, true);
       window.removeEventListener("keydown", touch, true);
     };
-  }, [kiosk.resetSeconds]);
+  }, []);
 
-  // Goes back to the start 10 seconds after the last tap (counted down on the done screen).
+  // Goes back to the start some seconds after the last tap.
   const idle = step === "pin" && pin === "" && !err;
   useEffect(() => {
     if (idle) return;
     const id = window.setInterval(() => {
       const left = kiosk.resetSeconds - Math.floor((Date.now() - lastTap.current) / 1000);
       if (left <= 0) reset();
-      else setRemaining(left);
     }, 250);
     return () => window.clearInterval(id);
   }, [idle, kiosk.resetSeconds, reset]);
@@ -162,7 +149,7 @@ export function AttendanceKioskView({
     return () => window.removeEventListener("keydown", onKey);
   }, [step, press]);
 
-  const pick = (s: KioskScreen) => {
+  const pick = (s: "pin" | "qr") => {
     setStep(s);
     setPin("");
     setErr(false);
@@ -191,11 +178,9 @@ export function AttendanceKioskView({
             {kiosk.time}
           </span>
           <span className="text-xl leading-7 font-medium">{kiosk.date}</span>
-          <Chip color={offline ? "warning" : "success"} variant="soft" className="mt-[12px] self-start">
-            <StatusDot tone={offline ? "warning" : "success"} />
-            <Chip.Label>
-              {offline ? `Offline · ${kiosk.queued} clock-ins waiting to send` : "Online · times sent straight away"}
-            </Chip.Label>
+          <Chip color="warning" variant="soft" className="mt-[12px] self-start">
+            <StatusDot tone="warning" />
+            <Chip.Label>Not connected · clock in at the front desk</Chip.Label>
           </Chip>
         </div>
 
@@ -212,24 +197,22 @@ export function AttendanceKioskView({
       </aside>
 
       <main className="relative flex min-w-0 flex-1 flex-col items-center justify-center gap-[24px] p-[32px]">
-        {step === "pin" || step === "qr" ? (
-          <Segment
-            aria-label="How to clock in"
-            size="lg"
-            selectedKey={step}
-            onSelectionChange={(k) => pick(k === "qr" ? "qr" : "pin")}
-            className="absolute top-[28px]"
-          >
-            <Segment.Item id="pin" className="h-12 gap-[8px] px-[22px] text-[15px]">
-              <Keyboard className="size-4" />
-              PIN
-            </Segment.Item>
-            <Segment.Item id="qr" className="h-12 gap-[8px] px-[22px] text-[15px]">
-              <QrCode className="size-4" />
-              Staff card
-            </Segment.Item>
-          </Segment>
-        ) : null}
+        <Segment
+          aria-label="How to clock in"
+          size="lg"
+          selectedKey={step}
+          onSelectionChange={(k) => pick(k === "qr" ? "qr" : "pin")}
+          className="absolute top-[28px]"
+        >
+          <Segment.Item id="pin" className="h-12 gap-[8px] px-[22px] text-[15px]">
+            <Keyboard className="size-4" />
+            PIN
+          </Segment.Item>
+          <Segment.Item id="qr" className="h-12 gap-[8px] px-[22px] text-[15px]">
+            <QrCode className="size-4" />
+            Staff card
+          </Segment.Item>
+        </Segment>
 
         {step === "pin" ? (
           <>
@@ -252,8 +235,8 @@ export function AttendanceKioskView({
               ))}
             </div>
             {err ? (
-              <p role="alert" className="-mt-[8px] text-[15px] text-danger-soft-foreground">
-                PIN not found. Try again, or ask your supervisor.
+              <p role="alert" className="-mt-[8px] max-w-[440px] text-center text-[15px] text-warning-soft-foreground">
+                {NOT_CONNECTED}
               </p>
             ) : null}
             <div className="grid grid-cols-[repeat(3,104px)] gap-[12px]">
@@ -303,91 +286,16 @@ export function AttendanceKioskView({
               <h1 className="text-[28px] leading-9 font-semibold">Scan your staff card</h1>
               <p className="text-[15px] text-muted">Hold the QR code on your card in the frame.</p>
             </div>
-            <Viewfinder onScan={() => setStep("confirm")} />
+            <Viewfinder onScan={() => setErr(true)} />
+            {err ? (
+              <p role="alert" className="max-w-[440px] text-center text-[15px] text-warning-soft-foreground">
+                {NOT_CONNECTED}
+              </p>
+            ) : null}
             <Button variant="ghost" size="lg" className="min-h-[52px]" onPress={() => pick("pin")}>
               No card? Use your PIN
             </Button>
           </>
-        ) : null}
-
-        {step === "confirm" ? (
-          <>
-            <h1 className="text-[28px] leading-9 font-semibold">Is this you?</h1>
-            <Card className="w-[440px] items-center gap-[14px] px-[40px] py-[28px] text-center">
-              {profile.photo ? (
-                <div role="img" aria-label="Staff photo" className="relative size-[140px] overflow-hidden rounded-full">
-                  <Photo image={stock[profile.photo]} alt="" fill priority sizes="140px" className="object-[50%_30%]" />
-                </div>
-              ) : null}
-              <div className="flex flex-col items-center gap-[2px]">
-                <span className="text-[28px] leading-9 font-semibold">{staff.name}</span>
-                <span className="text-base leading-[22px] text-muted">
-                  {profile.department} · {profile.area}
-                </span>
-              </div>
-              <Chip variant="soft">
-                <Clock className="size-3" />
-                <Chip.Label>Today {profile.shift}</Chip.Label>
-              </Chip>
-            </Card>
-            <div className="grid w-[440px] grid-cols-[1fr_1.6fr] gap-[12px]">
-              <Button
-                variant="secondary"
-                size="lg"
-                fullWidth
-                className="h-[72px] rounded-[22px] text-[17px]"
-                onPress={reset}
-              >
-                Not you?
-              </Button>
-              <Button
-                size="lg"
-                fullWidth
-                className="h-[72px] rounded-[22px] text-[17px]"
-                onPress={() => setStep("done")}
-              >
-                <ArrowRightToSquare className="size-5" />
-                Clock in
-              </Button>
-            </div>
-            <p className="text-[13px] text-muted">Not you? Nothing is saved. The kiosk goes back to the start.</p>
-          </>
-        ) : null}
-
-        {step === "done" ? (
-          <div role="status" className="flex w-[480px] flex-col items-center gap-[16px] text-center">
-            <ToneTile tone={offline ? "warning" : "success"} className="size-[112px] rounded-[36px] [&>svg]:size-14">
-              {offline ? <CloudSlash /> : <CircleCheck />}
-            </ToneTile>
-            <h1 className="text-[40px] leading-[48px] font-semibold tracking-[-0.02em] tabular">
-              {offline ? `Saved on this kiosk · ${kiosk.time}` : `Clocked in ${kiosk.time}`}
-            </h1>
-            <p className="text-xl leading-7 font-medium">
-              Shift {profile.shift} · {profile.area}
-            </p>
-            <p className="text-[15px] leading-[22px] text-muted">
-              {offline
-                ? "No connection right now. Your time is kept from the kiosk clock and sends to your attendance record when the connection is back."
-                : `Have a good shift, ${staff.firstName}. Your rooms are on your phone.`}
-            </p>
-            <ProgressBar
-              aria-label="Time until the kiosk resets"
-              value={((kiosk.resetSeconds - remaining) / kiosk.resetSeconds) * 100}
-              valueLabel={`in ${remaining} s`}
-              className="mt-[8px] flex w-[320px] flex-col gap-[6px]"
-            >
-              <div className="flex items-center justify-between">
-                <Label>Next person</Label>
-                <ProgressBar.Output className="tabular" />
-              </div>
-              <ProgressBar.Track>
-                <ProgressBar.Fill />
-              </ProgressBar.Track>
-            </ProgressBar>
-            <Button variant="secondary" size="lg" className="h-16 w-[240px] rounded-[22px] text-[17px]" onPress={reset}>
-              Done
-            </Button>
-          </div>
         ) : null}
       </main>
     </div>

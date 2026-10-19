@@ -28,6 +28,8 @@ import {
   Tag,
   TagGroup,
   TextField,
+  Toast,
+  toast,
 } from "@heroui/react";
 import { ItemCard, Segment, Timeline } from "@heroui-pro/react";
 import { screenHref } from "@injishi/data";
@@ -71,15 +73,21 @@ const SAMPLES = [
   { id: "INJ-HKS-26-9999", label: "Unknown code" },
 ];
 
-function seatOf(session: CourseSession, requested: boolean) {
+/**
+ * Why a seat cannot be asked for here yet: the sessions on this page are the prototype's (the training collections
+ * are deferred until the course schema grows, data map public.courseSessions), so there is no real session to
+ * register for, and the API's registration (`POST /training/registrations`) has no employer approval or waitlist.
+ */
+const SEAT_UNAVAILABLE =
+  "Asking for a seat is not available here yet. Nothing was requested; ask your manager to register you.";
+
+function seatOf(session: CourseSession) {
   const full = session.taken >= session.capacity;
-  const taken = session.taken + (requested && !full ? 1 : 0);
+  const taken = session.taken;
   let chip: { label: string; tone: Tone } | null = null;
   if (session.attended) chip = { label: `Completed · ${session.attended}`, tone: "default" };
   else if (session.mine) chip = { label: "You're enrolled", tone: "success" };
-  else if (requested && full) chip = { label: "On waitlist · position 3", tone: "info" };
-  else if (requested) chip = { label: "Requested · waiting for your manager", tone: "warning" };
-  const open = !session.attended && !session.mine && !requested;
+  const open = !session.attended && !session.mine;
   const seatText = session.attended
     ? session.attended
     : full
@@ -99,10 +107,8 @@ function seatOf(session: CourseSession, requested: boolean) {
 export function TrainingView({ links, data }: { links: DemoLinks; data: TrainingData }) {
   const [team, setTeam] = useState<TeamFilter>("all");
   const [courseId, setCourseId] = useState("fde");
-  const [requested, setRequested] = useState<string[]>([]);
   const [code, setCode] = useState("INJ-FDE-26-0417");
   const [checked, setChecked] = useState("INJ-FDE-26-0417");
-  const [qr, setQr] = useState(false);
 
   const learner = data.learners[0];
   const course = data.courses.find((c) => c.id === courseId) ?? data.courses[0];
@@ -119,7 +125,7 @@ export function TrainingView({ links, data }: { links: DemoLinks; data: Training
         ? "revoked"
         : "none";
 
-  const ask = (id: string) => setRequested((cur) => (cur.includes(id) ? cur : [...cur, id]));
+  const ask = () => toast.warning(SEAT_UNAVAILABLE);
   const checkCode = (value: string) => {
     const next = value.trim().toUpperCase();
     setCode(next);
@@ -275,7 +281,7 @@ export function TrainingView({ links, data }: { links: DemoLinks; data: Training
                   {data.sessions
                     .filter((session) => session.course === course.id)
                     .map((session) => {
-                      const seat = seatOf(session, requested.includes(session.id));
+                      const seat = seatOf(session);
                       return (
                         <Table.Row key={session.id} id={session.id}>
                           <Table.Cell>
@@ -318,12 +324,12 @@ export function TrainingView({ links, data }: { links: DemoLinks; data: Training
                           </Table.Cell>
                           <Table.Cell className="text-right">
                             {seat.canEnrol ? (
-                              <Button size="sm" onPress={() => ask(session.id)}>
+                              <Button size="sm" onPress={ask}>
                                 Request a seat
                               </Button>
                             ) : null}
                             {seat.canWait ? (
-                              <Button size="sm" variant="secondary" onPress={() => ask(session.id)}>
+                              <Button size="sm" variant="secondary" onPress={ask}>
                                 Join waitlist
                               </Button>
                             ) : null}
@@ -426,31 +432,21 @@ export function TrainingView({ links, data }: { links: DemoLinks; data: Training
                         variant="ghost"
                         aria-label="Download certificate PDF"
                         className="min-w-8 px-1.5"
+                        onPress={() => toast.warning("Downloading the certificate is not available here yet.")}
                       >
                         <FileArrowDown className="size-4" />
                       </Button>
-                      <Button size="sm" variant="secondary" aria-expanded={qr} onPress={() => setQr((open) => !open)}>
+                      <Button
+                        size="sm"
+                        variant="secondary"
+                        onPress={() => toast.warning("Showing your certificate's QR code is not available here yet.")}
+                      >
                         <QrCode className="size-4" />
-                        {qr ? "Hide QR" : "Show QR"}
+                        Show QR
                       </Button>
                     </span>
                   </ItemCard.Action>
                 </ItemCard>
-                {qr ? (
-                  <Card variant="secondary" className="flex-row items-center gap-2.5 p-3.5">
-                    <div
-                      className="flex size-24 shrink-0 items-center justify-center rounded-xl bg-surface"
-                      role="img"
-                      aria-label={`QR code for certificate ${held.id}`}
-                    >
-                      <QrCode className="size-16" aria-hidden="true" />
-                    </div>
-                    <span className="text-[12px] leading-[17px] text-muted">
-                      Show this to an employer. Scanning it opens the public check below with the code filled in. The QR
-                      is signed, so a copied image still verifies against our register.
-                    </span>
-                  </Card>
-                ) : null}
               </div>
             ) : null}
           </Card>
@@ -465,7 +461,8 @@ export function TrainingView({ links, data }: { links: DemoLinks; data: Training
                 Verify a Certificate
               </h2>
               <span className="text-[12px] text-muted">
-                For employers and anyone else. We only show what is printed on the certificate.
+                For employers and anyone else. This page checks its own sample register; checking a code with Injishi is
+                not available here yet.
               </span>
             </div>
             <div className="flex items-end gap-2">
@@ -475,7 +472,11 @@ export function TrainingView({ links, data }: { links: DemoLinks; data: Training
               </TextField>
               <Button onPress={() => setChecked(code)}>Verify</Button>
             </div>
-            <Button variant="secondary" className="self-start" onPress={() => checkCode("INJ-FDE-26-0417")}>
+            <Button
+              variant="secondary"
+              className="self-start"
+              onPress={() => toast.warning("Scanning a QR code is not available here yet. Type the code instead.")}
+            >
               <Camera className="size-4" />
               Scan QR instead
             </Button>
@@ -512,7 +513,7 @@ export function TrainingView({ links, data }: { links: DemoLinks; data: Training
                   </Alert.Indicator>
                   <Alert.Content>
                     <Alert.Title>Valid certificate</Alert.Title>
-                    <Alert.Description>Signature checked against the Injishi register just now.</Alert.Description>
+                    <Alert.Description>Found on this page's sample register.</Alert.Description>
                   </Alert.Content>
                 </Alert>
                 <KeyValueList
@@ -535,8 +536,8 @@ export function TrainingView({ links, data }: { links: DemoLinks; data: Training
                   <Alert.Content>
                     <Alert.Title>Revoked · do not accept</Alert.Title>
                     <Alert.Description>
-                      Injishi revoked this certificate on {found.revokedOn}. The reason is recorded with the issuer and
-                      not shown publicly.
+                      Marked revoked on {found.revokedOn} in this page's sample register. The reason is not shown
+                      publicly.
                     </Alert.Description>
                   </Alert.Content>
                 </Alert>
@@ -566,13 +567,13 @@ export function TrainingView({ links, data }: { links: DemoLinks; data: Training
             ) : null}
             <p className="flex gap-1.5 text-[12px] leading-[17px] text-muted">
               <ShieldCheck className="mt-0.5 size-3 shrink-0" aria-hidden="true" />
-              We never show the holder’s employer, contact details or scores. Each check is logged without storing who
-              checked.
+              We never show the holder’s employer, contact details or scores.
             </p>
           </Card>
         </div>
       </PublicMain>
 
+      <Toast.Provider placement="bottom" />
       <PublicFooter
         links={[
           { label: "Help centre", href: screenHref("PublicHelp") },

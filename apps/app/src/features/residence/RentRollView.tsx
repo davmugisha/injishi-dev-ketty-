@@ -81,7 +81,7 @@ const FILTERS: { id: Filter; label: string; test: (r: RentRollRow) => boolean }[
 ];
 const METHODS = ["Bank transfer", "MTN MoMo", "Airtel Money", "Cash at the office"];
 const REMINDER_TEXT =
-  "Hello, your rent balance at Kacyiru Court is overdue. Please pay in the resident app or contact Solange to agree a plan.";
+  "Hello, your rent balance at Kacyiru Court is overdue. Please pay by bank transfer or at the office, or contact Solange to agree a plan.";
 
 /** The ledger of a lease with nothing outstanding: this month's charge closed by a verified payment. */
 function closedLedger(row: RentRollRow, month: string): LedgerEntry[] {
@@ -183,7 +183,7 @@ export function RentRollView({ persona, data }: { persona: Persona; data: RentRo
     }
     setRemindFor(null);
     toast.success(
-      `${ids.length} ${ids.length === 1 ? "reminder" : "reminders"} queued · delivery status appears in each history`,
+      `${ids.length} ${ids.length === 1 ? "reminder" : "reminders"} recorded · residents who use the app see it there`,
       { indicator: <CircleCheck className="size-4" /> },
     );
   };
@@ -505,7 +505,7 @@ export function RentRollView({ persona, data }: { persona: Persona; data: RentRo
         isOpen={remindFor !== null}
         onOpenChange={(open) => (open ? null : setRemindFor(null))}
         title="Send rent reminders"
-        description="In-app message and email · SMS is not available yet"
+        description="Shown in the resident app to residents who use it · email and SMS are not available yet"
         footer={
           <>
             <Button variant="secondary" onPress={() => setRemindFor(null)}>

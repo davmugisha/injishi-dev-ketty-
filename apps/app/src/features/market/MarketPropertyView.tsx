@@ -32,6 +32,8 @@ import {
   Radio,
   RadioGroup,
   Switch,
+  TextArea,
+  TextField,
   Toast,
   toast,
 } from "@heroui/react";
@@ -42,9 +44,10 @@ import type { MarketProperty, MarketReview, MarketRoom, ReportReason } from "@in
 import { stock } from "@injishi/data/media";
 import { GateChip, Icon, KeyValueList, LinkButton, Photo, StatusDot } from "@injishi/ui";
 import { useState, useTransition } from "react";
-import { setSavedBySlugAction } from "./actions";
+import { reportListingAction, setSavedBySlugAction } from "./actions";
 import { dayNumber, fmtDay, plural, propertyHref, rwf, shortRange, weekday } from "./format";
 import { MarketFooter, MarketHeader, MarketMain, type MarketVisitor } from "./MarketChrome";
+import { LISTING_REPORT_REASONS } from "./report-reasons";
 import { Stars } from "./stars";
 
 export type PropertyPanel = "none" | "dates" | "guests";
@@ -74,13 +77,13 @@ export function MarketPropertyView({
   property,
   rooms,
   reviews,
-  reasons,
   initialPanel,
 }: {
   visitor: MarketVisitor | null;
   property: MarketProperty;
   rooms: MarketRoom[];
   reviews: MarketReview[];
+  /** Why a review is reported. Unused while reporting a review is not available (reviews are not on the API). */
   reasons: ReportReason[];
   initialPanel: PropertyPanel;
 }) {
@@ -105,10 +108,23 @@ export function MarketPropertyView({
       if (result.ok) setSaved((v) => !v);
       else toast.danger(result.error);
     });
-  const [reportFor, setReportFor] = useState<string | null>(null);
-  const [reason, setReason] = useState(reasons[0]?.id ?? "fake");
-  const [reported, setReported] = useState<string[]>([]);
-  const [listingReported, setListingReported] = useState(false);
+  /** "Report this listing": the open form, the reason picked, and the support ticket it became. */
+  const [listingForm, setListingForm] = useState(false);
+  const [listingReason, setListingReason] = useState<string>(LISTING_REPORT_REASONS[0].id);
+  const [listingDetail, setListingDetail] = useState("");
+  const [listingTicket, setListingTicket] = useState<string | null>(null);
+  const [reporting, startReporting] = useTransition();
+  const sendListingReport = () =>
+    startReporting(async () => {
+      const result = await reportListingAction(property.id, listingReason, listingDetail);
+      if (!result.ok) {
+        toast.danger(result.error);
+        return;
+      }
+      setListingTicket(result.value);
+      setListingForm(false);
+      setListingDetail("");
+    });
 
   const room = rooms.find((r) => r.id === roomId) ?? rooms[0];
   const guests = adults + kids;
@@ -244,7 +260,16 @@ export function MarketPropertyView({
               {saved ? <HeartFill className="size-4 text-danger" /> : <Heart className="size-4" />}
               {saved ? (property.savedTo ? `Saved to ${property.savedTo}` : "Saved") : "Save"}
             </Button>
-            <Button variant="tertiary" size="sm">
+            <Button
+              variant="tertiary"
+              size="sm"
+              onPress={() =>
+                navigator.clipboard.writeText(window.location.href).then(
+                  () => toast.success("Link copied"),
+                  () => toast.warning("The link could not be copied. Copy it from the address bar."),
+                )
+              }
+            >
               <ArrowShapeTurnUpRight className="size-4" />
               Share
             </Button>
@@ -467,8 +492,6 @@ export function MarketPropertyView({
               </p>
               <div className="grid items-start gap-3.5 [grid-template-columns:repeat(auto-fit,minmax(min(320px,100%),1fr))]">
                 {reviews.map((rv) => {
-                  const reporting = reportFor === rv.id;
-                  const wasReported = reported.includes(rv.id);
                   return (
                     <Card key={rv.id} render={(p) => <article {...p} />} className="gap-2.5 p-4">
                       <div className="flex items-center gap-3">
@@ -493,73 +516,26 @@ export function MarketPropertyView({
                         <span className="flex-1 text-xs text-muted">
                           {rv.published} · {rv.helpful} found this helpful
                         </span>
-                        {!reporting && !wasReported ? (
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onPress={() => {
-                              setReportFor(rv.id);
-                              setReason(reasons[0]?.id ?? "fake");
-                            }}
-                          >
-                            <Flag className="size-4" />
-                            Report
-                          </Button>
-                        ) : null}
-                      </div>
-                      {reporting ? (
-                        <Card
-                          variant="secondary"
-                          className="gap-2.5 p-3.5"
-                          role="group"
-                          aria-label="Report this review"
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onPress={() =>
+                            toast.warning("Reporting a review is not available yet. Nothing was sent to a moderator.")
+                          }
                         >
-                          <span className="text-[13px] font-semibold">Why are you reporting this review?</span>
-                          <RadioGroup aria-label="Reason" value={reason} onChange={setReason} className="gap-1.5">
-                            {reasons.map((re) => (
-                              <Radio key={re.id} value={re.id}>
-                                <Radio.Content>
-                                  <Radio.Control>
-                                    <Radio.Indicator />
-                                  </Radio.Control>
-                                  <Label>{re.label}</Label>
-                                </Radio.Content>
-                              </Radio>
-                            ))}
-                          </RadioGroup>
-                          <div className="flex justify-end gap-2">
-                            <Button variant="ghost" size="sm" onPress={() => setReportFor(null)}>
-                              Cancel
-                            </Button>
-                            <Button
-                              size="sm"
-                              onPress={() => {
-                                setReported((cur) => [...cur, rv.id]);
-                                setReportFor(null);
-                              }}
-                            >
-                              Send report
-                            </Button>
-                          </div>
-                        </Card>
-                      ) : null}
-                      {wasReported ? (
-                        <Alert status="default">
-                          <Alert.Indicator />
-                          <Alert.Content>
-                            <Alert.Title>Report received · {rv.reportRef}</Alert.Title>
-                            <Alert.Description>
-                              A moderator will look at it within 2 working days. The review stays up meanwhile, and we
-                              will email you the decision.
-                            </Alert.Description>
-                          </Alert.Content>
-                        </Alert>
-                      ) : null}
+                          <Flag className="size-4" />
+                          Report
+                        </Button>
+                      </div>
                     </Card>
                   );
                 })}
               </div>
-              <Button variant="secondary" className="self-start">
+              <Button
+                variant="secondary"
+                className="self-start"
+                onPress={() => toast.warning("Reading every review is not available yet.")}
+              >
                 Show all {property.reviewCount} reviews
               </Button>
             </section>
@@ -629,13 +605,49 @@ export function MarketPropertyView({
                 <GateChip icon={<Icon name="ShieldExclamation" className="size-3" />}>
                   {property.business.evidence}
                 </GateChip>
-                {listingReported ? (
+                {listingTicket ? (
                   <Chip size="sm" variant="soft" className="self-start">
                     <Icon name="Check" className="size-3" />
-                    <Chip.Label>Sent to our trust team</Chip.Label>
+                    <Chip.Label>Sent to Injishi support · ticket {listingTicket.slice(0, 8).toUpperCase()}</Chip.Label>
                   </Chip>
+                ) : listingForm ? (
+                  <Card variant="secondary" className="gap-2.5 p-3.5" role="group" aria-label="Report this listing">
+                    <span className="text-[13px] font-semibold">Why are you reporting this listing?</span>
+                    <RadioGroup
+                      aria-label="Reason"
+                      value={listingReason}
+                      onChange={setListingReason}
+                      className="gap-1.5"
+                    >
+                      {LISTING_REPORT_REASONS.map((re) => (
+                        <Radio key={re.id} value={re.id}>
+                          <Radio.Content>
+                            <Radio.Control>
+                              <Radio.Indicator />
+                            </Radio.Control>
+                            <Label>{re.label}</Label>
+                          </Radio.Content>
+                        </Radio>
+                      ))}
+                    </RadioGroup>
+                    <TextField value={listingDetail} onChange={setListingDetail} className="gap-1">
+                      <Label>What did you notice? (optional)</Label>
+                      <TextArea rows={2} />
+                    </TextField>
+                    <span className="text-xs text-muted">
+                      It goes to Injishi support as a ticket, from your account&apos;s email.
+                    </span>
+                    <div className="flex justify-end gap-2">
+                      <Button variant="ghost" size="sm" onPress={() => setListingForm(false)}>
+                        Cancel
+                      </Button>
+                      <Button size="sm" isDisabled={reporting} onPress={sendListingReport}>
+                        Send report
+                      </Button>
+                    </div>
+                  </Card>
                 ) : (
-                  <Button variant="ghost" size="sm" className="self-start" onPress={() => setListingReported(true)}>
+                  <Button variant="ghost" size="sm" className="self-start" onPress={() => setListingForm(true)}>
                     <Flag className="size-4" />
                     Report this listing
                   </Button>
@@ -917,6 +929,12 @@ export function MarketPropertyView({
                   </Button>
                 )}
                 <span className="text-center text-[13px] text-muted">{ctaNote}</span>
+                {ctaLink ? (
+                  <span className="text-center text-xs text-muted">
+                    Dates, guests, plan and package chosen here are not carried to checkout yet: checkout shows the stay
+                    it books before you pay.
+                  </span>
+                ) : null}
               </div>
 
               {hasNights ? (

@@ -1,5 +1,6 @@
 "use client";
 
+import { Toast } from "@heroui/react";
 import { Sheet } from "@heroui-pro/react";
 import type { StockKey } from "@injishi/data/media";
 import { stock } from "@injishi/data/media";
@@ -104,6 +105,23 @@ export function PhoneSheet({
             </Sheet.Content>
           </Sheet.Backdrop>
         </Sheet>
+      </UNSAFE_PortalProvider>
+    </>
+  );
+}
+
+/**
+ * Toasts of a staff phone screen, inside the phone frame and above the tab bar. Every refusal the API sends
+ * back (`reported()`) and every "not available yet" is a toast, so a screen that toasts must render this.
+ */
+export function PhoneToasts() {
+  const { anchor, portal, host } = usePhoneOverlayHost();
+  return (
+    <>
+      {anchor}
+      {portal}
+      <UNSAFE_PortalProvider getContainer={() => host}>
+        <Toast.Provider placement="bottom" className="bottom-[96px] w-[calc(100%-32px)] min-w-0" />
       </UNSAFE_PortalProvider>
     </>
   );
