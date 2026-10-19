@@ -155,9 +155,12 @@ export function ResidenceServiceView({ persona, data }: { persona: Persona; data
     }
     setTab("visit");
     setVisitorOpen(false);
-    toast.success(`Code ${result.value.code} sent to ${name} · checked at the gate tablet`, {
-      indicator: <CircleCheck className="size-4" />,
-    });
+    toast.success(
+      `Pass issued for ${name} · code ${result.value.code}. Give the code to the visitor; it is not sent.`,
+      {
+        indicator: <CircleCheck className="size-4" />,
+      },
+    );
   };
 
   const move = async (to: TicketStatus) => {
@@ -461,7 +464,9 @@ export function ResidenceServiceView({ persona, data }: { persona: Persona; data
                 >
                   Pre-registered Visitors
                 </Card.Title>
-                <Card.Description>Codes are checked at the gate tablet and expire automatically</Card.Description>
+                <Card.Description>
+                  Each pass holds its code and time window; give the code to the visitor
+                </Card.Description>
               </Card.Header>
               <ListView aria-label="Pre-registered visitors" variant="secondary" items={visitors}>
                 {(v) => (
@@ -610,14 +615,14 @@ export function ResidenceServiceView({ persona, data }: { persona: Persona; data
         isOpen={visitorOpen}
         onOpenChange={setVisitorOpen}
         title="Pre-register a visitor"
-        description="The visitor gets a gate code that the gate tablet checks. It expires at the end of the window."
+        description="Issues a pass with a gate code for the window. Give the code to the visitor yourself: it is not sent to them."
         footer={
           <>
             <Button variant="secondary" onPress={() => setVisitorOpen(false)}>
               Cancel
             </Button>
             <Button onPress={preregister} isDisabled={!visitor.name.trim() || !visitor.unit || busy}>
-              Send gate code
+              Issue gate code
             </Button>
           </>
         }

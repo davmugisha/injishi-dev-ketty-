@@ -100,6 +100,8 @@ export interface DemoRequestInput {
   heardFrom: string;
   /** "Online" or "At my property" (a field agent visit). */
   format: string;
+  /** The plan the person asked about on the pricing cards, if any. */
+  plan?: string;
 }
 
 /**
@@ -117,6 +119,7 @@ export async function requestDemo(ctx: SourceContext, input: DemoRequestInput): 
     `Business type: ${input.businessType}`,
     `District: ${input.district}`,
     `Demo: ${input.format}`,
+    ...(input.plan ? [`Asked about: ${input.plan}`] : []),
     `Phone: ${input.phone.trim()}`,
     `Heard about Injishi from: ${input.heardFrom}`,
   ].join("\n");

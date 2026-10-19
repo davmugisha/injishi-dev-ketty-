@@ -982,12 +982,12 @@ function offerOf(l: ApiLease, o: ApiOffer): R.RenewalOffer {
     });
   }
   if (o.status === "accepted")
-    events.push({ title: "Amendment awaiting signatures", when: "Sent for e-signature", status: "current" });
+    events.push({ title: "Amendment to sign", when: "Not sent: e-signature is not available yet", status: "current" });
   const state =
     o.status === "open"
       ? { state: "Waiting for resident", tone: "warning" as const }
       : o.status === "accepted"
-        ? { state: "Accepted · signing", tone: "info" as const }
+        ? { state: "Accepted · to sign", tone: "info" as const }
         : o.status === "signed"
           ? { state: "Signed by both", tone: "success" as const }
           : { state: o.status === "withdrawn" ? "Withdrawn" : "Declined", tone: "default" as const };

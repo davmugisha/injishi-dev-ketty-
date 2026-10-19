@@ -201,6 +201,7 @@ export function PublicHostView({
         district,
         heardFrom: label(SOURCES, source),
         format: label(FORMATS, format),
+        plan: data.plans.find((p) => p.id === plan)?.name,
       });
       if (!result.ok) {
         toast.danger(result.error);
@@ -466,7 +467,11 @@ export function PublicHostView({
                   variant="secondary"
                   className="mt-auto self-start"
                   aria-pressed={plan === p.id}
-                  onPress={() => setPlan(p.id)}
+                  onPress={() => {
+                    setPlan(p.id);
+                    setDemoTicket(null);
+                    document.getElementById("demo-h")?.scrollIntoView({ behavior: "smooth", block: "start" });
+                  }}
                 >
                   Ask about {p.name}
                 </Button>
@@ -548,7 +553,7 @@ export function PublicHostView({
                   <Alert.Content>
                     <Alert.Title>Sent to Injishi support · ticket {demoTicket.slice(0, 8).toUpperCase()}</Alert.Title>
                     <Alert.Description>
-                      A person on the team reads it and replies to {email.trim()}. This is a request, not a booked slot.
+                      A person on the Injishi team reads it. This is a request, not a booked slot.
                     </Alert.Description>
                   </Alert.Content>
                 </Alert>

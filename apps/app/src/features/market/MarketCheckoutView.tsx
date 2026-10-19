@@ -198,8 +198,11 @@ export function MarketCheckoutView({
     return () => window.clearInterval(id);
   }, [result?.state, result?.attemptToken]);
 
-  /** One press of Pay (or Send request): a fresh attempt token, minted here and only here. */
-  const pay = () => {
+  /**
+   * One press of Pay (or Send request): a fresh attempt token, minted here and only here. `resend` marks a press of
+   * Resend, whose chip shows only once the API has put the new prompt on the handset.
+   */
+  const pay = (resend = false) => {
     if (!method || method.kind === "card") {
       toast.danger(
         "Card payments need the bank's secure card form, which is not connected yet. Pay with mobile money.",
@@ -210,8 +213,10 @@ export function MarketCheckoutView({
     const token = crypto.randomUUID();
     startPaying(async () => {
       const r = await payCheckoutAction(booking.id, { network, number: numbers[method.id] ?? "" }, token);
-      if (r.ok) land(r.value);
-      else toast.danger(r.error);
+      if (r.ok) {
+        land(r.value);
+        if (resend && r.value.state === "prompting") setResent(true);
+      } else toast.danger(r.error);
     });
   };
 
@@ -501,7 +506,7 @@ export function MarketCheckoutView({
                     <Button
                       className="h-[54px] w-full rounded-[14px] text-base font-semibold"
                       isDisabled={paying}
-                      onPress={pay}
+                      onPress={() => pay()}
                     >
                       {isRequest ? <PaperPlane className="size-4" /> : <Lock className="size-4" />}
                       {isRequest ? "Send request" : `Pay ${amount}`}
@@ -770,7 +775,7 @@ export function MarketCheckoutView({
             {resent ? (
               <Chip size="sm" variant="soft" className="self-center">
                 <ArrowsRotateRight className="size-3" />
-                <Chip.Label>New prompt sent · the first was cancelled</Chip.Label>
+                <Chip.Label>New prompt sent · the first one lapses on its own</Chip.Label>
               </Chip>
             ) : null}
             <span className="text-[13px] text-muted tabular">
@@ -796,8 +801,8 @@ export function MarketCheckoutView({
                   onPress={() => {
                     // A new prompt is a new press: a fresh attempt; the first one lapses on its own.
                     polling.current = null;
-                    setResent(true);
-                    pay();
+                    setResent(false);
+                    pay(true);
                   }}
                 >
                   <ArrowsRotateRight className="size-4" />
@@ -820,7 +825,8 @@ export function MarketCheckoutView({
                 Checking your payment
               </h2>
               <p className="text-sm text-muted">
-                {method?.provider} hasn’t confirmed yet. Please don’t pay again: if it goes through, the booking confirmation is emailed to you.
+                {method?.provider} hasn’t confirmed yet. Please don’t pay again: if it goes through, the booking
+                confirmation is emailed to you.
               </p>
             </div>
             <div className="rounded-2xl bg-surface-secondary px-4 py-3.5">

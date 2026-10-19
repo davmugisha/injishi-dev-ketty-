@@ -118,6 +118,27 @@ function spanLabel(from: Date | null, to: Date | null): string {
 
 const NOT_YET_SWAP = "Swaps cannot be asked from the phone yet. Ask Beatrice to arrange it.";
 
+/** "15 Dec 2026" or "Tue 15 Dec 2026", as the leave form shows a date, at noon UTC; null when unreadable. */
+function formDay(text: string): Date | null {
+  const m = text.trim().match(/(\d{1,2}) ([A-Z][a-z]{2})[a-z]* (\d{4})$/);
+  const month = m ? MONTHS.indexOf(m[2] as string) : -1;
+  if (!m || month < 0) return null;
+  return new Date(Date.UTC(Number(m[3]), month, Number(m[1]), 12));
+}
+
+/** Monday to Friday from one date to another, both counted; null when either is unreadable or they run backwards. */
+function weekdaysBetween(from: string, to: string): number | null {
+  const a = formDay(from);
+  const b = formDay(to);
+  if (!a || !b || b < a) return null;
+  let n = 0;
+  for (let d = a.getTime(); d <= b.getTime(); d += 86_400_000) {
+    const day = new Date(d).getUTCDay();
+    if (day !== 0 && day !== 6) n++;
+  }
+  return n;
+}
+
 /** Shifts, leave and requests of a staff member (artifact: StaffSchedule). */
 export function StaffScheduleView({ persona, data }: { persona: Persona; data: StaffScheduleData }) {
   const { profile, shifts, colleagues, leaveTypes, balance, approvers, draft } = data;
@@ -139,10 +160,15 @@ export function StaffScheduleView({ persona, data }: { persona: Persona; data: S
   const open = requests.filter((q) => q.status === "manager" || q.status === "colleague").length;
   const pendingDays = requests.filter((q) => q.status === "manager").reduce((a, q) => a + q.days, 0);
   const type = leaveTypes.find((t) => t.id === leaveType) ?? leaveTypes[0];
-  const left = balance.left - pendingDays - draft.workingDays;
-  const afterText = type.usesBalance
-    ? `If approved, with the ${pendingDays} days already asked for, you have ${fmtDays(left)} days left.`
-    : "This does not change your annual leave balance.";
+  // Counted here from the dates typed; HR counts again on approval (rostered days, public holidays).
+  const asked = weekdaysBetween(from, to);
+  const left = balance.left - pendingDays - (asked ?? 0);
+  const afterText =
+    asked === null
+      ? "Write both dates as “15 Dec 2026” to see the days."
+      : type.usesBalance
+        ? `About ${asked} weekdays. If approved, with the ${pendingDays} days already asked for, you have ${fmtDays(left)} days left. HR counts your rostered days and public holidays.`
+        : "This does not change your annual leave balance.";
 
   const weekShifts = shifts.filter((s) => s.week === 0);
   const firstDay = dayOf(weekShifts[0]?.long ?? "");
@@ -170,7 +196,9 @@ export function StaffScheduleView({ persona, data }: { persona: Persona; data: S
     startTransition(async () => {
       if (!reported(await askLeaveAction({ leaveTypeId: type.id, from, to, reason }))) return;
       setTab("requests");
-      setJustSent("Beatrice gets it first. Diane (HR) checks your balance after she approves.");
+      setJustSent(
+        approvers.length ? `Sent for approval: ${approvers.map((a) => a.name).join(", then ")}.` : "Sent for approval.",
+      );
     });
   };
 
@@ -320,7 +348,7 @@ export function StaffScheduleView({ persona, data }: { persona: Persona; data: S
                     </EmptyState.Media>
                     <EmptyState.Title>Not published yet</EmptyState.Title>
                     <EmptyState.Description>
-                      Beatrice publishes next week's roster by Thursday. You get a message when it is ready.
+                      Next week's shifts show here once the roster is published.
                     </EmptyState.Description>
                   </EmptyState.Header>
                 </EmptyState>
@@ -415,7 +443,7 @@ export function StaffScheduleView({ persona, data }: { persona: Persona; data: S
                   <Calculator />
                 </Alert.Indicator>
                 <Alert.Content>
-                  <Alert.Title>{draft.workingDays} working days</Alert.Title>
+                  <Alert.Title>{asked === null ? "Working days" : `${asked} working days`}</Alert.Title>
                   <Alert.Description>{afterText}</Alert.Description>
                 </Alert.Content>
               </Alert>

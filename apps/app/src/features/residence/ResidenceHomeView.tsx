@@ -178,7 +178,7 @@ export function ResidenceHomeView({ persona, data }: { persona: Persona; data: R
             </LinkButton>
             <LinkButton href={screenHref("Applicants")}>
               <PersonPlus className="size-4" />
-              Invite applicant
+              Open applicants
             </LinkButton>
           </>
         }
@@ -458,7 +458,7 @@ export function ResidenceHomeView({ persona, data }: { persona: Persona; data: R
             {isVacant ? (
               <LinkButton href={screenHref("Applicants")} size="sm" className="self-start">
                 <PersonPlus className="size-4" />
-                Invite an applicant
+                Open applicants
               </LinkButton>
             ) : (
               <div className="flex flex-wrap gap-2">

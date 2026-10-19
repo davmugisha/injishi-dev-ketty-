@@ -74,7 +74,7 @@ const COPY = {
     popular: "Popular:",
     status: "System status",
     contact: "Contact support",
-    contactSub: "A person reads every ticket and replies by email.",
+    contactSub: "A person on the support team reads every ticket.",
     category: "Category",
     business: "Business",
     describe: "Describe the problem",
@@ -92,7 +92,7 @@ const COPY = {
     popular: "Ibikunzwe:",
     status: "Uko serivisi zihagaze",
     contact: "Twandikire",
-    contactSub: "Umuntu asoma buri kibazo, akagusubiza kuri imeri.",
+    contactSub: "Umuntu asoma buri kibazo.",
     category: "Icyiciro",
     business: "Ikigo",
     describe: "Sobanura ikibazo",
@@ -141,8 +141,6 @@ const TOPIC: Record<string, "booking" | "payment" | "listing" | "other"> = {
   bookings: "booking",
 };
 
-const PROBLEM =
-  "A guest paid RWF 280,000 by MTN MoMo at 10:42. Their phone shows the money left, but the folio still says Pending after 15 minutes.";
 const DATA_REQUEST =
   "I would like a copy of the personal data you hold about me, and to know which businesses it was shared with.";
 
@@ -166,11 +164,12 @@ export function PublicHelpView({
   const [who, setWho] = useState("biz");
   const [cat, setCat] = useState("payments");
   const [business, setBusiness] = useState(data.businesses[0]?.id ?? "");
-  const [bizReply, setBizReply] = useState("eric.habimana@isangano.example");
-  const [place, setPlace] = useState("Isangano Lakeside Hotel");
-  const [guestReply, setGuestReply] = useState("sarah.kimani@example.com");
-  const [reference, setReference] = useState("PI-77142");
-  const [problem, setProblem] = useState(PROBLEM);
+  // The form opens a real ticket, so it starts empty: a sample reply address would file someone else's email.
+  const [bizReply, setBizReply] = useState("");
+  const [place, setPlace] = useState("");
+  const [guestReply, setGuestReply] = useState("");
+  const [reference, setReference] = useState("");
+  const [problem, setProblem] = useState("");
   const [dataRequest, setDataRequest] = useState(DATA_REQUEST);
   const [sent, setSent] = useState(false);
   const [ticket, setTicket] = useState("");
@@ -198,7 +197,7 @@ export function PublicHelpView({
       detail: privacy ? "Handled by our data protection lead" : "Next · a person on the support team picks it up",
     },
     { id: "waiting", title: "Waiting for you", detail: "Only if we need more information" },
-    { id: "resolved", title: "Resolved", detail: "You can reopen within 14 days" },
+    { id: "resolved", title: "Resolved", detail: "Closed by support once answered" },
   ];
 
   // The support intake takes text only and no route stores a file for a ticket, so nothing is attached:
@@ -451,7 +450,7 @@ export function PublicHelpView({
                   <Alert.Content>
                     <Alert.Title>Ticket {ticket.slice(0, 8).toUpperCase()} created</Alert.Title>
                     <Alert.Description>
-                      {ticketLine} A person on the support team reads it and replies to {replyTo}.
+                      {ticketLine} A person on the support team reads it. Your reply address is {replyTo}.
                     </Alert.Description>
                   </Alert.Content>
                 </Alert>
@@ -619,11 +618,19 @@ export function PublicHelpView({
               ))}
             </Tabs>
             <div className="flex flex-wrap items-center gap-[8px]">
-              <Button variant="secondary" size="sm">
+              <Button
+                variant="secondary"
+                size="sm"
+                onPress={() => toast.warning("The full text of this document is not available here yet.")}
+              >
                 <BookOpen className="size-4" />
                 Read in full
               </Button>
-              <Button variant="ghost" size="sm">
+              <Button
+                variant="ghost"
+                size="sm"
+                onPress={() => toast.warning("Downloading this document is not available yet.")}
+              >
                 <FileArrowDown className="size-4" />
                 PDF
               </Button>

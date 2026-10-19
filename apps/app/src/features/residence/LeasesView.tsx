@@ -182,15 +182,14 @@ export function LeasesView({ data }: { persona: Persona; data: LeasesData }) {
           party: "Tenant",
           state: "Signed",
           tone: "success" as Tone,
-          evidence:
-            lease.signatures?.tenant ?? `Signed before ${lease.signedOn} · one-time code verified · fingerprint stored`,
+          evidence: lease.signatures?.tenant ?? `Signed ${lease.signedOn}`,
         },
         {
           name: "Solange Uwimana",
           party: "Landlord · Amahoro Residences Ltd",
           state: "Signed",
           tone: "success" as Tone,
-          evidence: lease.signatures?.landlord ?? `Signed ${lease.signedOn} · one-time code verified`,
+          evidence: lease.signatures?.landlord ?? `Signed ${lease.signedOn}`,
         },
       ];
 

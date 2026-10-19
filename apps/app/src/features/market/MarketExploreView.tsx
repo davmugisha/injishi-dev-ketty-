@@ -177,7 +177,11 @@ export function MarketExploreView({
     setAmen([]);
     setBook("any");
   };
-  const submit = (e: FormEvent) => e.preventDefault();
+  // Searching by place and dates is not on the API's catalogue read yet: the filters beside the results work.
+  const submit = (e: FormEvent) => {
+    e.preventDefault();
+    toast.warning("Searching by place and dates is not available yet. Use the filters beside the results.");
+  };
 
   return (
     <>

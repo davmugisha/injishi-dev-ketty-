@@ -136,7 +136,7 @@ export function TenantPayView({
         <TextField fullWidth type="tel" value={phone} onChange={setPhone} className="gap-1">
           <Label htmlFor="phone">Phone number</Label>
           <Input id="phone" className="tabular" inputMode="tel" />
-          <Description>You will get a prompt on this phone to approve with your PIN.</Description>
+          <Description>Paying in the app is not available yet, so no prompt is sent.</Description>
         </TextField>
 
         <Button variant="primary" size="lg" fullWidth onPress={() => setStep("confirm")}>

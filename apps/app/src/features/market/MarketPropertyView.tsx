@@ -260,7 +260,16 @@ export function MarketPropertyView({
               {saved ? <HeartFill className="size-4 text-danger" /> : <Heart className="size-4" />}
               {saved ? (property.savedTo ? `Saved to ${property.savedTo}` : "Saved") : "Save"}
             </Button>
-            <Button variant="tertiary" size="sm">
+            <Button
+              variant="tertiary"
+              size="sm"
+              onPress={() =>
+                navigator.clipboard.writeText(window.location.href).then(
+                  () => toast.success("Link copied"),
+                  () => toast.warning("The link could not be copied. Copy it from the address bar."),
+                )
+              }
+            >
               <ArrowShapeTurnUpRight className="size-4" />
               Share
             </Button>
@@ -522,7 +531,11 @@ export function MarketPropertyView({
                   );
                 })}
               </div>
-              <Button variant="secondary" className="self-start">
+              <Button
+                variant="secondary"
+                className="self-start"
+                onPress={() => toast.warning("Reading every review is not available yet.")}
+              >
                 Show all {property.reviewCount} reviews
               </Button>
             </section>
@@ -916,6 +929,12 @@ export function MarketPropertyView({
                   </Button>
                 )}
                 <span className="text-center text-[13px] text-muted">{ctaNote}</span>
+                {ctaLink ? (
+                  <span className="text-center text-xs text-muted">
+                    Dates, guests, plan and package chosen here are not carried to checkout yet: checkout shows the stay
+                    it books before you pay.
+                  </span>
+                ) : null}
               </div>
 
               {hasNights ? (

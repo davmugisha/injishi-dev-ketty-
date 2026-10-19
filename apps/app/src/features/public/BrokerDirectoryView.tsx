@@ -411,7 +411,11 @@ export function BrokerDirectoryView({ data }: { data: BrokerDirectoryData }) {
           <h2 id="log-h" className="text-[15px] leading-[22px] font-semibold">
             Reveal and Credit Log
           </h2>
-          <Button size="sm" variant="ghost">
+          <Button
+            size="sm"
+            variant="ghost"
+            onPress={() => toast.warning("Exporting the credit log is not available yet.")}
+          >
             <FileArrowDown className="size-4" />
             Export
           </Button>

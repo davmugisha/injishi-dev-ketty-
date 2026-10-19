@@ -399,7 +399,11 @@ export function GuestAccountView({
                       {collection.visibility} · {collection.items.length} {collection.noun}
                     </span>
                   </div>
-                  <Button variant="secondary" size="sm">
+                  <Button
+                    variant="secondary"
+                    size="sm"
+                    onPress={() => toast.warning("Sharing a list is not available yet. Nothing was shared.")}
+                  >
                     <Persons className="size-4" />
                     Share
                   </Button>
@@ -638,8 +642,7 @@ export function GuestAccountView({
               <Card variant="secondary" className="mt-2 gap-2 p-3.5">
                 <span className="text-[13px] font-semibold">Your data</span>
                 <span className="text-xs leading-[17px] text-muted">
-                  Ask for a copy, a correction or deletion of your personal data. Your data export from 1 Oct is ready
-                  until 15 Oct.
+                  Ask for a copy, a correction or deletion of your personal data.
                 </span>
                 <div className="flex flex-wrap gap-2">
                   <LinkButton href={screenHref("Account")} variant="secondary" size="sm">

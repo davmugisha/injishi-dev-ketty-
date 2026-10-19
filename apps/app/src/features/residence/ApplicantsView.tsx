@@ -169,7 +169,7 @@ export function ApplicantsView({ persona, data }: { persona: Persona; data: Appl
   // Invitations to apply are not wired: nothing would carry them (see the data map's residence.invitations).
   const sendInvite = () => {
     if (!canSend) return;
-    toast.danger(UNAVAILABLE_INVITES);
+    toast.warning(UNAVAILABLE_INVITES);
   };
 
   const openProfile = (id: string) => {
@@ -297,10 +297,10 @@ export function ApplicantsView({ persona, data }: { persona: Persona; data: Appl
                     <EmptyState.Description>{applicant.pendingNote}</EmptyState.Description>
                   </EmptyState.Header>
                   <EmptyState.Content className="flex flex-row flex-wrap justify-center gap-2">
-                    <Button size="sm" variant="secondary" onPress={() => toast.danger(UNAVAILABLE_INVITES)}>
+                    <Button size="sm" variant="secondary" onPress={() => toast.warning(UNAVAILABLE_INVITES)}>
                       Resend invitation
                     </Button>
-                    <Button size="sm" variant="ghost" onPress={() => toast.danger(UNAVAILABLE_INVITES)}>
+                    <Button size="sm" variant="ghost" onPress={() => toast.warning(UNAVAILABLE_INVITES)}>
                       Revoke
                     </Button>
                   </EmptyState.Content>
@@ -313,8 +313,8 @@ export function ApplicantsView({ persona, data }: { persona: Persona; data: Appl
         <Tabs.Panel id="invites" className="pt-5">
           <section className="flex flex-col gap-3" aria-label="Registration invitations">
             <p className="text-[13px] text-muted">
-              Invitations are sent by email or in-app link and expire after 7 days. Accepting creates a resident
-              profile, not a lease.
+              Sending invitations is not available yet, and the rows below are sample data. When it is, accepting an
+              invitation will create a resident profile, not a lease.
             </p>
             <Table>
               <Table.ScrollContainer>
@@ -359,7 +359,7 @@ export function ApplicantsView({ persona, data }: { persona: Persona; data: Appl
                               size="sm"
                               variant="ghost"
                               aria-label={`Resend invitation to ${i.name}`}
-                              onPress={() => toast.danger(UNAVAILABLE_INVITES)}
+                              onPress={() => toast.warning(UNAVAILABLE_INVITES)}
                             >
                               Resend
                             </Button>
@@ -473,7 +473,7 @@ export function ApplicantsView({ persona, data }: { persona: Persona; data: Appl
           isOpen={declineOpen}
           onOpenChange={setDeclineOpen}
           title={`Decline ${applicant.name}`}
-          description={`${applicant.unit} · the reason is what the applicant is told`}
+          description={`${applicant.unit} · the reason is kept with the application; the applicant is not sent it`}
           footer={
             <>
               <Button variant="secondary" onPress={() => setDeclineOpen(false)}>
@@ -685,7 +685,13 @@ function ProfileCard({
               </ListView.ItemContent>
               <ListView.ItemAction className="flex items-center gap-2">
                 <ToneChip tone={d.tone}>{d.state}</ToneChip>
-                <Button size="sm" variant="ghost" isIconOnly aria-label={`View ${d.name}`}>
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  isIconOnly
+                  aria-label={`View ${d.name}`}
+                  onPress={() => toast.warning("Opening an applicant's document is not available yet.")}
+                >
                   <Eye className="size-4" />
                 </Button>
               </ListView.ItemAction>

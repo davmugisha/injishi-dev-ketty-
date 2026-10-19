@@ -551,7 +551,7 @@ export function StaffMeView({
         isOpen={sheet === "help"}
         onOpenChange={(o) => !o && closeSheet()}
         heading="Ask HR or IT"
-        description="Diane Ingabire (HR) answers here and by SMS, usually within a day."
+        description="Sending a question from the phone is not available yet. Ask Diane Ingabire (HR) in person."
       >
         <ToggleButtonGroup
           aria-label="Topic"

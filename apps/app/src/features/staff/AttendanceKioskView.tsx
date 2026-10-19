@@ -61,7 +61,7 @@ function Viewfinder({ onScan }: { onScan: () => void }) {
         transition={reduce ? { duration: 0 } : { duration: 2.6, repeat: Number.POSITIVE_INFINITY, ease: "easeInOut" }}
       />
       <QrCode className="size-[72px] opacity-70" aria-hidden="true" />
-      <span className="text-sm">Looking for a card…</span>
+      <span className="text-sm">Card reader not connected</span>
     </Button>
   );
 }
