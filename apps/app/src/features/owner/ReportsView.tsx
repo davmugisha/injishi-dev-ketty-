@@ -117,7 +117,10 @@ export function ReportsView({ data }: { data: ReportsData }) {
         description="Defined measures with their source. Open any figure to see the records behind it."
         actions={
           <>
-            <Button variant="secondary">
+            <Button
+              variant="secondary"
+              onPress={() => toast.warning("Exporting reports is not available yet. No file was made.")}
+            >
               <ArrowDownToLine className="size-4" />
               Export
             </Button>
@@ -254,7 +257,15 @@ export function ReportsView({ data }: { data: ReportsData }) {
             </Card.Title>
             <Card.Description>Each copy is cut to what the recipient is allowed to see</Card.Description>
           </Card.Header>
-          <Button size="sm" variant="secondary">
+          <Button
+            size="sm"
+            variant="secondary"
+            onPress={() =>
+              toast.warning(
+                "Scheduling exports is not available yet. The schedules listed here are sample data; nothing was scheduled.",
+              )
+            }
+          >
             <Plus className="size-4" />
             New schedule
           </Button>

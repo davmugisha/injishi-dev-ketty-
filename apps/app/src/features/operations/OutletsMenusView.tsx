@@ -1,7 +1,7 @@
 "use client";
 
 import { Display, Flame, Gift, Lock, PencilToSquare, ShieldExclamation, ShoppingCart } from "@gravity-ui/icons";
-import { Alert, Button, Card, Chip, Separator, Switch, Table, Tabs } from "@heroui/react";
+import { Alert, Button, Card, Chip, Separator, Switch, Table, Tabs, Toast, toast } from "@heroui/react";
 import { EmptyState, KPIGroup, ListView } from "@heroui-pro/react";
 import { KPI } from "@heroui-pro/react/kpi";
 import { type Persona, screenHref } from "@injishi/data";
@@ -45,11 +45,18 @@ const TABS: { id: OutletTab; label: string }[] = [
   { id: "orders", label: "Orders" },
   { id: "offers", label: "Offers" },
 ];
-/** The board's clock: decisions taken on this screen are stamped at this time. */
-const NOW = "12:20";
+/**
+ * What this board cannot change yet, said plainly. The outlets and their menus are sample data
+ * (`operations.outlets` and `outletMenus` are deferred: an outlet run by another business waits on tenancies,
+ * ADR-050, and menus have no versioned drafts). Charge to room is not a column either: it follows from who runs
+ * the outlet, and `orderingAccess` on the API decides who may order, not who may sign to a folio. So the switch
+ * and "publish" change nothing on screen.
+ */
+const unavailable = (what: string) =>
+  toast.warning(`${what} is not available yet. These outlets and menus are sample data; nothing was changed.`);
 
 export function OutletsMenusView({
-  persona,
+  persona: _persona,
   initialTab,
   data,
 }: {
@@ -58,11 +65,7 @@ export function OutletsMenusView({
   data: OutletsData;
 }) {
   const [tab, setTabState] = useState<OutletTab>(initialTab);
-  const [charge, setCharge] = useState<Record<string, boolean>>(() =>
-    Object.fromEntries(data.outlets.map((o) => [o.id, o.chargeAllowed && o.chargeToRoom])),
-  );
   const [menuId, setMenuId] = useState(data.menus[0]?.id ?? "");
-  const [published, setPublished] = useState<string[]>([]);
   const [offerId, setOfferId] = useState(data.offers[0]?.id ?? "");
 
   const setTab = (t: OutletTab) => {
@@ -72,26 +75,14 @@ export function OutletsMenusView({
     window.history.replaceState(null, "", url);
   };
 
-  // Menus with any published draft applied.
+  // Menus as they are: a draft stays a draft (publishing is not available yet).
   const menus = data.menus.map((m) => {
-    const live = Boolean(m.draft && published.includes(m.id));
     return {
       ...m,
-      live,
-      sub: live && m.draft ? m.draft.sub : m.sub,
-      version: live && m.draft ? m.draft.version : m.version,
+      live: false,
       items: m.items.map((i) => {
         const d = i.draft;
-        if (!d) return { ...i, note: "" };
-        if (live)
-          return {
-            ...i,
-            price: d.price ?? i.price,
-            status: d.status ?? i.status,
-            tone: d.tone ?? i.tone,
-            note: d.price ? `was ${formatNumber(i.price)}` : "",
-          };
-        return { ...i, note: d.price ? `draft ${formatNumber(d.price)}` : "" };
+        return { ...i, note: d?.price ? `draft ${formatNumber(d.price)}` : "" };
       }),
     };
   });
@@ -100,6 +91,7 @@ export function OutletsMenusView({
 
   return (
     <PageContent>
+      <Toast.Provider placement="bottom" />
       <PageHeader
         eyebrow="Isangano Lakeside Hotel · Property"
         title="Outlets & Services"
@@ -137,7 +129,7 @@ export function OutletsMenusView({
         <Tabs.Panel id="outlets" className="p-0 flex flex-col gap-[20px]">
           <div className="grid items-start gap-[16px] [grid-template-columns:repeat(auto-fit,minmax(min(320px,100%),1fr))]">
             {data.outlets.map((o) => {
-              const on = Boolean(charge[o.id]);
+              const on = o.chargeAllowed && o.chargeToRoom;
               return (
                 <Card key={o.id} aria-label={o.name} className="gap-3 p-[18px]">
                   <div className="flex items-start justify-between gap-3">
@@ -162,7 +154,7 @@ export function OutletsMenusView({
                     <Switch
                       isSelected={on}
                       isDisabled={!o.chargeAllowed}
-                      onChange={(v) => setCharge((c) => ({ ...c, [o.id]: v }))}
+                      onChange={(v) => unavailable(`Turning charge to room ${v ? "on" : "off"} at ${o.name}`)}
                     >
                       <Switch.Content className="text-[14px]">
                         <Switch.Control>
@@ -175,7 +167,7 @@ export function OutletsMenusView({
                       <p className="text-[12px] leading-4 text-muted" role="status">
                         {on
                           ? `Guests with an active stay and charge privileges can sign to their folio, within the stay’s limit. The line keeps ${o.name} as its department; the hotel issues one fiscal receipt at settlement, never a second at the outlet.`
-                          : `Off: guests pay at ${o.name}. Turned off by ${persona.name}, ${NOW}.`}
+                          : `Off: guests pay at ${o.name}.`}
                       </p>
                     ) : (
                       <Alert status="warning">
@@ -277,7 +269,7 @@ export function OutletsMenusView({
                     <Alert.Title>{menu.draft.title}</Alert.Title>
                     <Alert.Description>{menu.draft.description}</Alert.Description>
                   </Alert.Content>
-                  <Button size="sm" onPress={() => setPublished((p) => [...p, menu.id])}>
+                  <Button size="sm" onPress={() => unavailable(`“${menu.draft?.action ?? "Publishing"}”`)}>
                     {menu.draft.action}
                   </Button>
                 </Alert>

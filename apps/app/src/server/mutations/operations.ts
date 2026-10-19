@@ -263,10 +263,14 @@ export interface NewFoundItem {
   /** The custodian's name, when the register knows them. */
   custodian?: string | null;
   storage?: string;
-  photoCount?: number;
 }
 
-/** "Log item": a new entry in the register. Returns its reference ("LF-26-042"). */
+/**
+ * "Log item": a new entry in the register. Returns its reference ("LF-26-042").
+ *
+ * No photo count is sent: the register stores no photographs (`POST /uploads` takes no found-item kind and the
+ * intake takes no key), so naming "3 photos" on the custody log would record pictures nobody kept.
+ */
 export async function logFoundItem(ctx: SourceContext, input: NewFoundItem): Promise<string> {
   const list = await foundItems(ctx);
   const person = (name: string | null | undefined) =>
@@ -284,7 +288,6 @@ export async function logFoundItem(ctx: SourceContext, input: NewFoundItem): Pro
     ...(foundByUserId ? { foundByUserId } : {}),
     ...(custodianUserId ? { custodianUserId } : {}),
     ...(input.storage ? { storageLocation: input.storage } : {}),
-    ...(input.photoCount ? { photoCount: input.photoCount } : {}),
   });
   forgetOperations(ctx);
   return created.reference;

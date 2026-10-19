@@ -1,13 +1,22 @@
 "use client";
 
 import { Check, CircleCheckFill, Clock, CloudSlash, ListCheck, TriangleExclamation } from "@gravity-ui/icons";
-import { Alert, Avatar, Button, Card, Chip, ProgressBar } from "@heroui/react";
+import { Alert, Avatar, Button, Card, Chip, ProgressBar, Toast, toast } from "@heroui/react";
 import { ListView } from "@heroui-pro/react";
 import { type Persona, screenHref } from "@injishi/data";
 import type { HousekeepingDone, HousekeepingTask } from "@injishi/data/fixtures/platform";
 import { LinkButton, PhoneBody, PhoneTop, StatusDot, toneColor } from "@injishi/ui";
 import { useOptimistic, useTransition } from "react";
 import { setHousekeepingTaskStatus } from "./actions";
+
+/** "Monday 12 October": today in Kigali. */
+const todayLong = () =>
+  new Intl.DateTimeFormat("en-GB", {
+    timeZone: "Africa/Kigali",
+    weekday: "long",
+    day: "numeric",
+    month: "long",
+  }).format(new Date());
 
 /** Rooms assigned today = waiting/active tasks + rooms already done (artifact: 3 of 7). */
 export function StaffTodayView({
@@ -31,14 +40,18 @@ export function StaffTodayView({
   const doneCount = done.length + finishedNow;
   const total = tasks.length + done.length;
   const pct = total ? Math.round((doneCount / total) * 100) : 0;
+  // A refused move comes back as words; the optimistic change falls away with the transition, so the card
+  // shows the room as the API holds it.
   const update = (id: string, status: "active" | "done") =>
     startTransition(async () => {
       setOptimistic({ id, status });
-      await setHousekeepingTaskStatus(id, status);
+      const result = await setHousekeepingTaskStatus(id, status);
+      if (!result.ok) toast.danger(result.error);
     });
 
   return (
     <>
+      <Toast.Provider placement="top" />
       <PhoneTop>
         <Avatar size="sm" variant="soft" color="accent">
           <Avatar.Fallback>{persona.initials}</Avatar.Fallback>
@@ -66,7 +79,9 @@ export function StaffTodayView({
             </Alert.Indicator>
             <Alert.Content>
               <Alert.Title>No connection</Alert.Title>
-              <Alert.Description>2 updates saved on this phone. They send when you are back online.</Alert.Description>
+              <Alert.Description>
+                Rooms cannot be started or marked clean until you are back online. Nothing is saved on this phone.
+              </Alert.Description>
             </Alert.Content>
           </Alert>
         ) : null}
@@ -74,7 +89,7 @@ export function StaffTodayView({
         <Card className="gap-3 p-4">
           <div className="flex items-center justify-between gap-3">
             <div className="flex min-w-0 flex-col gap-1">
-              <span className="text-xs text-muted">Monday 12 October</span>
+              <span className="text-xs text-muted">{todayLong()}</span>
               <span className="text-xl leading-[26px] font-semibold">
                 {doneCount} of {total} rooms done
               </span>
@@ -121,7 +136,7 @@ export function StaffTodayView({
                     size="lg"
                     className="min-h-14 flex-1"
                     onPress={() => update(t.id, "done")}
-                    isDisabled={pending}
+                    isDisabled={pending || offline}
                   >
                     <Check className="size-4" />
                     Mark clean
@@ -131,7 +146,7 @@ export function StaffTodayView({
                     size="lg"
                     className="min-h-14 flex-1"
                     onPress={() => update(t.id, "active")}
-                    isDisabled={pending}
+                    isDisabled={pending || offline}
                   >
                     Start cleaning
                   </Button>

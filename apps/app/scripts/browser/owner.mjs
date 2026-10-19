@@ -1,10 +1,14 @@
 #!/usr/bin/env node
 /**
  * The owner's Team and Roles screen in a real browser: Didier signs in, the members come from Postgres
- * (the open invitation and the revoked member the seed wrote among them), he invites somebody to the lodge,
- * the invitation is on the list after a reload, and cancelling it from Manage Member makes it read
- * "Revoked" after another reload. Every write went through the API (`POST /ops/team/invitations`,
- * `POST /ops/team/invitations/:id/revoke`).
+ * (the open invitation and the revoked member the seed wrote among them), he asks the API for a step-up code
+ * (`POST /me/two-factor/send`), a wrong code is refused by the API and the invitation is not written, the right
+ * one lets him invite somebody to the lodge, the invitation is on the list after a reload, and cancelling it
+ * from Manage Member makes it read "Revoked" after another reload. Every write went through the API
+ * (`POST /me/two-factor/verify`, `POST /ops/team/invitations`, `POST /ops/team/invitations/:id/revoke`).
+ *
+ * Then the controls that cannot work yet say so and change nothing: "Remove from list" leaves the revoked
+ * member listed, and on Approvals "Confirm pay run" leaves the request waiting, both after a reload.
  *
  *   APP_URL=http://localhost:3040 node scripts/browser/owner.mjs
  *
@@ -76,9 +80,20 @@ try {
   // The invite panel opens with the screen; fill it as the owner would.
   await page.waitForText("Invite a Member", 30_000);
   await fill("Full name", NAME);
-  await fill("Email or mobile", EMAIL);
+  await fill("Email", EMAIL);
   await click("label", "Ishyamba Forest Lodge");
-  await fill("Verify it", "123456");
+  await page.press("Email me a code");
+  await page.waitForText("Code sent to", 60_000);
+  // A wrong code is the API's to refuse: the invitation is not written.
+  await fill("Verify it", "000000");
+  await page.press("Send invite");
+  await page.waitForText("didn't match", 60_000);
+  if ((await page.eval(rows)).some((r) => r.includes(NAME))) fail("a wrong step-up code still wrote the invitation");
+  console.log("  a wrong step-up code was refused by the API and nothing was written");
+  await page.eval(
+    `(() => { const i = [...document.querySelectorAll('input[autocomplete=one-time-code]')].find((e) => e.getBoundingClientRect().width > 0); i.focus(); i.select(); })()`,
+  );
+  await page.send("Input.insertText", { text: "123456" });
   await page.press("Send invite");
   await page.waitForText(`Invite sent to ${NAME}`, 60_000);
   await page.reload();
@@ -101,6 +116,35 @@ try {
   if (!/Revoked/.test(cancelled) || !/Invite cancelled/.test(cancelled))
     fail(`after a reload the cancelled invitation reads: ${cancelled}`);
   console.log("  Cancel invite revoked it on the API: it reads Revoked after a reload");
+
+  // A member whose access ended stays listed: "Remove from list" says so and hides nobody.
+  await page.press("Cancel");
+  await page.waitFor("!document.body.innerText.includes('Invite a Member')", "the invite panel to close again", 30_000);
+  await click('button[aria-label="Manage Emmanuel Nkusi"]');
+  await page.waitForText("Manage Member", 30_000);
+  await page.press("Remove from list");
+  await page.waitForText("is not available yet", 30_000);
+  await page.reload();
+  await page.waitForText("Emmanuel Nkusi", 90_000);
+  if (!(await page.eval(rows)).some((r) => r.includes("Emmanuel Nkusi") && /Revoked/.test(r)))
+    fail("the revoked member is no longer listed after Remove from list");
+  console.log("  Remove from list said it is not available, and the revoked member is still listed after a reload");
+
+  // Approvals are sample data: confirming a pay run there is refused in words and nothing is decided.
+  await page.goto(`${APP}/approvals`);
+  await page.waitForText("Confirm October pay run", 120_000);
+  await page.waitFor(
+    `Object.keys([...document.querySelectorAll("button")].find((b) => b.innerText.includes("Confirm pay run")) ?? {}).some((k) => k.startsWith("__reactProps"))`,
+    "the approvals screen to hydrate",
+    120_000,
+  );
+  await page.press("Confirm pay run");
+  await page.waitForText("is not available yet", 30_000);
+  if (await page.eval("!!document.querySelector('[role=dialog]')")) fail("Confirm pay run opened a step-up dialog");
+  await page.reload();
+  await page.waitForText("Confirm October pay run", 90_000);
+  if (!(await page.text()).includes("Waiting for you")) fail("the pay run request no longer reads Waiting for you");
+  console.log("  Confirm pay run said it is not available; the request still waits after a reload");
 
   console.log("BROWSER OWNER OK");
 } catch (error) {

@@ -1,7 +1,7 @@
 "use client";
 
-import { Clock, Lock, OctagonXmark } from "@gravity-ui/icons";
-import { Alert, Button, Card, Chip, Description, Input, Label, ListBox, Select, Table, TextField } from "@heroui/react";
+import { Lock, OctagonXmark } from "@gravity-ui/icons";
+import { Button, Card, Chip, Description, Input, Label, ListBox, Select, Table, TextField, toast } from "@heroui/react";
 import { Segment } from "@heroui-pro/react";
 import { screenHref } from "@injishi/data";
 import type {
@@ -10,15 +10,26 @@ import type {
   SettingsBusinessUnit,
 } from "@injishi/data/fixtures/owner";
 import { KeyValueList, LinkButton, TextLink, toneColor } from "@injishi/ui";
-import { useState, useTransition } from "react";
-import { type SettingsBusinessProfilePatch, saveSettingsBusinessProfile } from "./SettingsBusinessActions";
+import { useState } from "react";
 
 type Domain = SettingsBusinessUnit["domain"];
+
+/** The profile fields the form edits. */
+type SettingsBusinessProfilePatch = Pick<SettingsBusinessProfile, "name" | "type" | "location" | "phone" | "email">;
 
 const DOMAINS: { id: Domain; label: string }[] = [
   { id: "hospitality", label: "Hospitality" },
   { id: "residence", label: "Residence" },
 ];
+
+/**
+ * What this card cannot save yet, said plainly. The profile, the units and their domain checks are sample
+ * data: the business tree they hang off waits on an /architect decision (two legal entities in one tenant),
+ * and the property type and the pending domain change have no column. So nothing here is sent to the API,
+ * and the screen never shows a save, a request or a schedule that did not happen.
+ */
+const unavailable = (what: string) =>
+  toast.warning(`${what} is not available yet. This profile is sample data, so nothing was saved or scheduled.`);
 
 const formOf = (p: SettingsBusinessProfile): SettingsBusinessProfilePatch => ({
   name: p.name,
@@ -79,35 +90,23 @@ export function SettingsBusinessProperty({
   checks: SettingsBusinessDomainCheck[];
 }) {
   const [form, setForm] = useState(() => formOf(profile));
-  const [pending, startTransition] = useTransition();
-  const [requested, setRequested] = useState<Record<string, Domain | null>>(() =>
-    Object.fromEntries(units.map((u) => [u.id, u.requestedDomain])),
-  );
-  const [scheduled, setScheduled] = useState<Record<string, boolean>>({});
 
   const field = (k: keyof SettingsBusinessProfilePatch) => (v: string) => setForm((f) => ({ ...f, [k]: v }));
-  const dirty = (Object.keys(form) as (keyof SettingsBusinessProfilePatch)[]).some((k) => form[k] !== profile[k]);
-  const save = () =>
-    startTransition(async () => {
-      if (dirty) await saveSettingsBusinessProfile(profile.id, form);
-    });
 
+  // A unit's domain shows what the record says: its own domain, or the change already requested for it.
   const changing = units.find((u) => checks.some((c) => c.unit === u.id));
   const unitChecks = changing ? checks.filter((c) => c.unit === changing.id) : [];
-  const isBlocked = (u: SettingsBusinessUnit) => !!requested[u.id] && requested[u.id] !== u.domain && !scheduled[u.id];
+  const isBlocked = (u: SettingsBusinessUnit) => !!u.requestedDomain && u.requestedDomain !== u.domain;
   const showChecks = changing ? isBlocked(changing) : false;
-  const isScheduled = changing ? !!scheduled[changing.id] : false;
 
   const status = (u: SettingsBusinessUnit) => {
-    if (scheduled[u.id]) return { label: "Residence from 3 Dec", tone: "accent" as const };
     if (isBlocked(u)) return { label: "Change blocked", tone: "danger" as const };
     return { label: "Sellable", tone: "success" as const };
   };
-  const domainShown = (u: SettingsBusinessUnit): Domain => (scheduled[u.id] ? u.domain : (requested[u.id] ?? u.domain));
+  const domainShown = (u: SettingsBusinessUnit): Domain => u.requestedDomain ?? u.domain;
   const pickDomain = (u: SettingsBusinessUnit, d: Domain) => {
-    if (!checks.some((c) => c.unit === u.id)) return;
-    setRequested((r) => ({ ...r, [u.id]: d === u.domain ? null : d }));
-    setScheduled((s) => ({ ...s, [u.id]: false }));
+    if (d === domainShown(u)) return;
+    unavailable(`Moving ${u.name} to ${d === "residence" ? "Residence" : "Hospitality"}`);
   };
 
   return (
@@ -176,10 +175,10 @@ export function SettingsBusinessProperty({
         />
 
         <div className="flex justify-end gap-2">
-          <Button variant="ghost" isDisabled={pending} onPress={() => setForm(formOf(profile))}>
+          <Button variant="ghost" onPress={() => setForm(formOf(profile))}>
             Discard
           </Button>
-          <Button isDisabled={pending || !form.name.trim()} onPress={save}>
+          <Button isDisabled={!form.name.trim()} onPress={() => unavailable("Saving the property profile")}>
             Save profile
           </Button>
         </div>
@@ -265,38 +264,17 @@ export function SettingsBusinessProperty({
               ))}
             </ul>
             <div className="flex flex-wrap gap-2">
-              <Button size="sm" onPress={() => setScheduled((s) => ({ ...s, [changing.id]: true }))}>
+              <Button size="sm" onPress={() => unavailable("Scheduling the domain change")}>
                 Schedule from 3 Dec 2026
               </Button>
               <LinkButton href={screenHref("Reservations")} size="sm" variant="secondary">
                 Open the 3 bookings
               </LinkButton>
-              <Button
-                size="sm"
-                variant="ghost"
-                onPress={() => {
-                  setRequested((r) => ({ ...r, [changing.id]: null }));
-                  setScheduled((s) => ({ ...s, [changing.id]: false }));
-                }}
-              >
+              <Button size="sm" variant="ghost" onPress={() => unavailable("Withdrawing the domain change")}>
                 Keep as hospitality
               </Button>
             </div>
           </Card>
-        ) : null}
-        {isScheduled ? (
-          <Alert status="accent" role="status">
-            <Alert.Indicator>
-              <Clock />
-            </Alert.Indicator>
-            <Alert.Content>
-              <Alert.Title>Residence from 3 Dec 2026 · scheduled</Alert.Title>
-              <Alert.Description>
-                405–406 stay sellable until 2 Dec. Rates and channel listings for them end on that date; history stays
-                attached. Recorded in the audit log.
-              </Alert.Description>
-            </Alert.Content>
-          </Alert>
         ) : null}
       </Card>
     </>

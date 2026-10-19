@@ -1,7 +1,7 @@
 "use client";
 
-import { ArrowsRotateRight, Clock, ListTimeline, ShieldCheck, ShieldKeyhole } from "@gravity-ui/icons";
-import { Alert, Button, Card, ListBox, SearchField, Select, Table, Tabs } from "@heroui/react";
+import { ListTimeline, ShieldCheck, ShieldKeyhole } from "@gravity-ui/icons";
+import { Button, Card, ListBox, SearchField, Select, Table, Tabs, Toast, toast } from "@heroui/react";
 import { EmptyState, Segment } from "@heroui-pro/react";
 import type {
   AuditLogArea,
@@ -11,15 +11,10 @@ import type {
   AuditLogRetentionRule,
 } from "@injishi/data/fixtures/owner";
 import { formatNumber, PageContent, PageHeader } from "@injishi/ui";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { AuditLogExportDialog } from "./AuditLogExportDialog";
 import { AuditLogInspector } from "./AuditLogInspector";
-import {
-  AuditLogRetention,
-  type AuditLogRetentionState,
-  auditLogRetentionDirty,
-  auditLogRetentionInitial,
-} from "./AuditLogRetention";
+import { AuditLogRetention, type AuditLogRetentionState, auditLogRetentionInitial } from "./AuditLogRetention";
 import { SettingsNav } from "./SettingsNav";
 
 export interface AuditLogData {
@@ -46,7 +41,13 @@ const PERIODS = [
   { id: "30d", label: "Last 30 days", scope: "Last 30 days", span: "the last 30 days" },
 ] as const;
 
-type ChainCheck = "idle" | "running" | "done";
+/**
+ * What this screen cannot do yet, said plainly. The entries, the chain and the retention rules are sample
+ * data (`owner.auditLog*` are deferred), and no route verifies the chain, exports entries or stores
+ * retention rules, so these controls change nothing.
+ */
+const unavailable = (what: string) =>
+  toast.warning(`${what} is not available yet. This audit log is sample data; nothing was checked, saved or queued.`);
 
 /** Shorten a reason for the table column; the inspector shows it in full. */
 const shortReason = (reason: string) => {
@@ -62,18 +63,8 @@ export function AuditLogView({ initialTab, data }: { initialTab: AuditLogTab; da
   const [property, setProperty] = useState<string>("all");
   const [period, setPeriod] = useState<string>("7d");
   const [selectedId, setSelectedId] = useState(DEFAULT_ENTRY_ID);
-  const [check, setCheck] = useState<ChainCheck>("idle");
   const [exportOpen, setExportOpen] = useState(false);
-  const [recorded, setRecorded] = useState(0);
-  const [queuedEntry, setQueuedEntry] = useState<string | null>(null);
   const [retention, setRetention] = useState<AuditLogRetentionState>(() => auditLogRetentionInitial(data.retention));
-
-  // A verification run finishes on its own; "Show result" just skips the wait.
-  useEffect(() => {
-    if (check !== "running") return;
-    const t = setTimeout(() => setCheck("done"), 2500);
-    return () => clearTimeout(t);
-  }, [check]);
 
   const areaOf = (id: string) => data.areas.find((a) => a.id === id);
   const prop = PROPERTIES.find((p) => p.id === property) ?? PROPERTIES[0];
@@ -92,23 +83,12 @@ export function AuditLogView({ initialTab, data }: { initialTab: AuditLogTab; da
   const areaName = area === "all" ? "all areas" : (areaOf(area)?.label.toLowerCase() ?? area);
   const exportScope = `${per.scope} · ${areaName} · ${prop.scope}`;
 
-  /** Number of the next audit entry this session writes (exports and settings saves are audited too). */
-  const nextEntry = () => {
-    const n = formatNumber(chain.entries + recorded + 1);
-    setRecorded((r) => r + 1);
-    return n;
-  };
-
   const entriesCount = formatNumber(chain.entries);
-  const chainTitle =
-    check === "running"
-      ? `Checking ${entriesCount} entries…`
-      : check === "done"
-        ? "Chain intact · checked just now · no gaps, no changes"
-        : `Chain intact · ${entriesCount} entries · checked ${chain.checkedAt} · no gaps`;
+  const chainTitle = `Chain intact · ${entriesCount} entries · checked ${chain.checkedAt} · no gaps`;
 
   return (
     <PageContent>
+      <Toast.Provider placement="bottom" />
       <PageHeader
         eyebrow="Settings · Amahoro Hospitality Group"
         title="Audit Log"
@@ -124,11 +104,7 @@ export function AuditLogView({ initialTab, data }: { initialTab: AuditLogTab; da
       <SettingsNav current="AuditLog" />
 
       <Card variant="secondary" role="status" className="flex-row flex-wrap items-center gap-3 px-[14px] py-2.5">
-        {check === "running" ? (
-          <ArrowsRotateRight className="size-4 shrink-0 animate-spin text-muted" aria-hidden="true" />
-        ) : (
-          <ShieldCheck className="size-4 shrink-0 text-success" aria-hidden="true" />
-        )}
+        <ShieldCheck className="size-4 shrink-0 text-success" aria-hidden="true" />
         <span className="flex min-w-[min(260px,100%)] flex-1 flex-col">
           <span className="text-[13px] leading-[18px] font-semibold">{chainTitle}</span>
           <span className="text-xs text-muted tabular">
@@ -136,25 +112,10 @@ export function AuditLogView({ initialTab, data }: { initialTab: AuditLogTab; da
             {entriesCount} · {chain.latestHash}
           </span>
         </span>
-        <Button size="sm" variant="ghost" onPress={() => setCheck(check === "running" ? "done" : "running")}>
-          {check === "running" ? "Show result" : "Verify now"}
+        <Button size="sm" variant="ghost" onPress={() => unavailable("Verifying the chain")}>
+          Verify now
         </Button>
       </Card>
-
-      {queuedEntry ? (
-        <Alert status="accent" role="status">
-          <Alert.Indicator>
-            <Clock />
-          </Alert.Indicator>
-          <Alert.Content>
-            <Alert.Title>Export {chain.nextExport} is being prepared · Pending</Alert.Title>
-            <Alert.Description>
-              The download link appears here and in Notifications, valid for 24 hours. This export is itself recorded as
-              entry #{queuedEntry}.
-            </Alert.Description>
-          </Alert.Content>
-        </Alert>
-      ) : null}
 
       <Tabs
         variant="secondary"
@@ -324,14 +285,7 @@ export function AuditLogView({ initialTab, data }: { initialTab: AuditLogTab; da
             rules={data.retention}
             state={retention}
             onChange={setRetention}
-            onSave={() => {
-              if (!auditLogRetentionDirty(data.retention, retention)) return;
-              setRetention({
-                ...retention,
-                saved: { values: retention.values, hold: retention.hold },
-                savedEntry: nextEntry(),
-              });
-            }}
+            onSave={() => unavailable("Saving retention rules")}
           />
         </Tabs.Panel>
       </Tabs>
@@ -341,10 +295,6 @@ export function AuditLogView({ initialTab, data }: { initialTab: AuditLogTab; da
         onOpenChange={setExportOpen}
         scope={exportScope}
         formats={data.formats}
-        onExport={() => {
-          setExportOpen(false);
-          setQueuedEntry(nextEntry());
-        }}
       />
     </PageContent>
   );

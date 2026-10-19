@@ -575,7 +575,7 @@ export function MaintenanceView({ persona, data }: { persona: Persona; data: Mai
             <FooterHint>
               {newOwner === "none"
                 ? `Unassigned · ${newSeverity} severity is ${DUE_WITHIN[newSeverity]}`
-                : `${newOwner} is notified in the staff app`}
+                : `Assigned to ${newOwner} · no message is sent`}
             </FooterHint>
             <Button variant="secondary" onPress={() => setNewOpen(false)}>
               Cancel

@@ -226,29 +226,48 @@ export function TeamRolesScopePicker({
   );
 }
 
-/** Step-up verification code (artifact: card with "Verify it’s you"). */
+/** Where the step-up code went, and the "Send code" press (the API emails it: `POST /me/two-factor/send`). */
+export interface TeamRolesStepUpChannel {
+  /** The masked address the API answered, or null before a code was asked for. */
+  sentTo: string | null;
+  sending: boolean;
+  onSend: () => void;
+}
+
+/**
+ * Step-up verification code (artifact: card with "Verify it’s you"). The code is emailed by the API and checked
+ * by the API when the grant is sent (`POST /me/two-factor/verify`); this field never decides a code is good.
+ * Without a `channel` the step-up is shown as not available: the field takes nothing.
+ */
 export function TeamRolesStepUp({
-  phone,
+  channel,
   value,
   onChange,
   description,
 }: {
-  phone: string;
+  channel: TeamRolesStepUpChannel | null;
   value: string;
   onChange: (code: string) => void;
   description?: string;
 }) {
   return (
     <Card variant="secondary" className="gap-1.5 px-3.5 py-3">
-      <TextField value={value} onChange={onChange} className="gap-1.5">
-        <Label>Verify it’s you · code sent to {phone}</Label>
-        <Input
-          placeholder="6-digit code"
-          autoComplete="one-time-code"
-          inputMode="numeric"
-          maxLength={7}
-          className="max-w-[200px] tracking-[0.2em]"
-        />
+      <TextField value={value} onChange={onChange} isDisabled={!channel} className="gap-1.5">
+        <Label>{channel?.sentTo ? `Verify it’s you · code emailed to ${channel.sentTo}` : "Verify it’s you"}</Label>
+        <div className="flex flex-wrap items-center gap-2">
+          <Input
+            placeholder="6-digit code"
+            autoComplete="one-time-code"
+            inputMode="numeric"
+            maxLength={7}
+            className="max-w-[200px] tracking-[0.2em]"
+          />
+          {channel ? (
+            <Button size="sm" variant="secondary" isDisabled={channel.sending} onPress={channel.onSend}>
+              {channel.sentTo ? "Send a new code" : "Email me a code"}
+            </Button>
+          ) : null}
+        </div>
         {description ? <Description>{description}</Description> : null}
       </TextField>
     </Card>
@@ -266,9 +285,6 @@ export interface TeamRolesInviteState {
   code: string;
 }
 
-/** Roles whose members always sign in with two-step verification. */
-const TWO_STEP_ROLES: TeamRolesRoleId[] = ["owner", "manager", "finance", "hr"];
-
 /** Body of the Invite a Member panel. */
 export function TeamRolesInviteForm({
   draft,
@@ -278,6 +294,7 @@ export function TeamRolesInviteForm({
   scopes,
   countFor,
   permissionsFor,
+  stepUp,
 }: {
   draft: TeamRolesInviteDraft;
   state: TeamRolesInviteState;
@@ -286,10 +303,10 @@ export function TeamRolesInviteForm({
   scopes: TeamRolesScope[];
   countFor: (role: TeamRolesRole) => number;
   permissionsFor: (role: TeamRolesRole) => string[];
+  stepUp: TeamRolesStepUpChannel;
 }) {
   const role = roles.find((r) => r.id === state.role) ?? roles[0];
   const expiry = draft.expiries.find((e) => e.id === state.expiry) ?? draft.expiries[0];
-  const twoStepLocked = TWO_STEP_ROLES.includes(state.role);
   return (
     <>
       <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2">
@@ -298,7 +315,7 @@ export function TeamRolesInviteForm({
           <Input variant="secondary" />
         </TextField>
         <TextField value={state.contact} onChange={(contact) => onChange({ contact })} className="gap-1">
-          <Label>Email or mobile</Label>
+          <Label>Email</Label>
           <Input variant="secondary" />
         </TextField>
       </div>
@@ -338,33 +355,33 @@ export function TeamRolesInviteForm({
         </p>
       </div>
 
-      <TextField value={state.endDate} onChange={(endDate) => onChange({ endDate })} className="gap-1">
+      {/* An invitation carries no end date on the platform, so the field takes nothing rather than drop what is typed. */}
+      <TextField value={state.endDate} isDisabled className="gap-1">
         <Label>Access ends (optional)</Label>
         <Input variant="secondary" placeholder="No end date, for permanent staff" />
-        <Description>Use for seasonal or temporary staff. Access stops automatically on this date.</Description>
+        <Description>
+          An end date is not available yet: access does not stop on its own. Revoke it when the person leaves.
+        </Description>
       </TextField>
 
+      {/* Every sign-in to a business steps up with an emailed code (F-S02), whatever the role, so this is never off. */}
       <div className="flex flex-col gap-1.5">
-        <CellSwitch
-          variant="secondary"
-          isSelected={twoStepLocked || state.twoStep}
-          isDisabled={twoStepLocked}
-          onChange={(twoStep) => onChange({ twoStep })}
-          className="w-full"
-        >
+        <CellSwitch variant="secondary" isSelected isDisabled className="w-full">
           <CellSwitch.Trigger>
             <CellSwitch.Label>Require two-step verification</CellSwitch.Label>
             <CellSwitch.Control />
           </CellSwitch.Trigger>
         </CellSwitch>
-        <p className="text-xs leading-4 text-muted">Always on for Owner, General manager, Finance and HR.</p>
+        <p className="text-xs leading-4 text-muted">
+          Always on: everyone who works in a business confirms an emailed code when they sign in.
+        </p>
       </div>
 
       <TeamRolesStepUp
-        phone={draft.verifyPhone}
+        channel={stepUp}
         value={state.code}
         onChange={(code) => onChange({ code })}
-        description="Granting access always needs step-up verification."
+        description="Granting access always needs step-up verification. The code is checked when you send the invite."
       />
     </>
   );

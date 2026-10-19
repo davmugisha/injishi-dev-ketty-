@@ -271,7 +271,7 @@ export function EmployeeFileCard({
                 </Button>
                 <Button
                   onPress={() =>
-                    toast.danger("Pay change approval is not available yet. This proposal has not been sent or saved.")
+                    toast.warning("Pay change approval is not available yet. This proposal has not been sent or saved.")
                   }
                 >
                   Send to owner for approval
@@ -310,7 +310,7 @@ export function EmployeeFileCard({
                     size="sm"
                     variant="secondary"
                     aria-label={`View ${d.title.toLowerCase()}`}
-                    onPress={() => toast.danger("Document viewing is not available yet. No document has been opened.")}
+                    onPress={() => toast.warning("Document viewing is not available yet. No document has been opened.")}
                   >
                     <Eye className="size-4" />
                     View
@@ -379,7 +379,7 @@ export function EmployeeFileCard({
                   size="sm"
                   variant="secondary"
                   onPress={() =>
-                    toast.danger("Family record reminders are not available yet. Contact the employee directly.")
+                    toast.warning("Family record reminders are not available yet. Contact the employee directly.")
                   }
                 >
                   Send a reminder

@@ -2,7 +2,6 @@
 
 import {
   ArrowsRotateRight,
-  CirclePause,
   Copy,
   CopyCheck,
   Eye,
@@ -11,7 +10,21 @@ import {
   ShieldExclamation,
   TriangleExclamation,
 } from "@gravity-ui/icons";
-import { Alert, Button, Card, Chip, Description, Input, Label, Switch, Table, Tabs, TextField } from "@heroui/react";
+import {
+  Alert,
+  Button,
+  Card,
+  Chip,
+  Description,
+  Input,
+  Label,
+  Switch,
+  Table,
+  Tabs,
+  TextField,
+  Toast,
+  toast,
+} from "@heroui/react";
 import { KPIGroup, ListView, Segment } from "@heroui-pro/react";
 import { KPI } from "@heroui-pro/react/kpi";
 import { type Persona, personas, screenHref } from "@injishi/data";
@@ -37,7 +50,7 @@ import {
 } from "@injishi/ui";
 import { Fragment, useState } from "react";
 import { TopbarStatus } from "@/components/shell/TopbarStatus";
-import { FieldLabel, FooterHint, FormDialog, firstKey, NOW } from "./shared";
+import { FieldLabel, FooterHint, FormDialog, firstKey } from "./shared";
 
 export interface ChannelsData {
   channels: Channel[];
@@ -46,65 +59,47 @@ export interface ChannelsData {
   settings: DistributionSettings;
 }
 
-type LogStatus = SyncStatus | "queued";
-const LOG_STATUS: Record<LogStatus, { label: string; tone: Tone }> = {
+const LOG_STATUS: Record<SyncStatus, { label: string; tone: Tone }> = {
   ok: { label: "Delivered", tone: "success" },
   failed: { label: "Failed · retrying", tone: "danger" },
   unknown: { label: "Unknown · checking", tone: "warning" },
   dup: { label: "Duplicate ignored", tone: "default" },
-  queued: { label: "Retry queued", tone: "info" },
 };
+
+/**
+ * What this screen cannot do yet, said plainly. Channels, the sync log and the distribution settings are
+ * sample data (`operations.channels`, `channelSyncLog` and `distributionSettings` are deferred: no channel
+ * manager is connected and no route stops sell, retries a push, tests a connection, saves a mapping or asks for
+ * a connection), so these controls change nothing on screen.
+ */
+const unavailable = (what: string) =>
+  toast.warning(`${what} is not available yet. No channel manager is connected; nothing was sent or changed.`);
 const COMPACT_RWF = { style: "currency", currency: "RWF", notation: "compact", maximumFractionDigits: 1 } as const;
 const rwfM = (n: number) => formatNumber(n, { ...COMPACT_RWF, minimumFractionDigits: 1 });
 const pct = (part: number, whole: number) => Math.round((part / whole) * 100);
 
-export function ChannelsView({ persona, data }: { persona: Persona; data: ChannelsData }) {
+// The channels act as the signed-in person once a channel manager is connected; nothing here writes yet.
+export function ChannelsView({ persona: _persona, data }: { persona: Persona; data: ChannelsData }) {
   const { syncLog, sources, settings } = data;
   const ownerName = personas.owner.name;
   const failing = data.channels.find((c) => c.tone === "danger" && c.canStopSell) ?? null;
   const [selectedId, setSelectedId] = useState(failing?.id ?? data.channels[0]?.id ?? "");
   const [tab, setTab] = useState("log");
   const [issuesOnly, setIssuesOnly] = useState(false);
-  const [retried, setRetried] = useState<Record<string, boolean>>({});
-  const [stopped, setStopped] = useState<Record<string, boolean>>({});
   const [copied, setCopied] = useState(false);
-  const [tested, setTested] = useState(false);
-  // Mapping fixes (channel → our room type or rate plan → name on the channel) and connection requests.
-  const [fixes, setFixes] = useState<Record<string, Record<string, string>>>({});
+  // The mapping a person types before saving; saving is not available yet, so it is never applied.
   const [fixOpen, setFixOpen] = useState(false);
   const [fixDraft, setFixDraft] = useState<Record<string, string>>({});
   const [connectOpen, setConnectOpen] = useState(false);
-  const [requested, setRequested] = useState<Record<string, boolean>>({});
 
-  // Channels with this screen's changes applied.
-  const channels = data.channels.map((c) => {
-    const fix = fixes[c.id];
-    const mapping = c.mapping.map((m) => (fix?.[m.ours] ? { ...m, theirs: fix[m.ours], mapped: true } : m));
-    const count = (kind: "room" | "rate") => {
-      const all = mapping.filter((m) => m.kind === kind);
-      return `${all.filter((m) => m.mapped).length} of ${all.length}`;
-    };
-    const nowComplete = Boolean(fix) && mapping.every((m) => m.mapped) && c.connection === "Mapping incomplete";
-    return {
-      ...c,
-      mapping,
-      roomsMapped: mapping.length ? count("room") : c.roomsMapped,
-      ratesMapped: mapping.length ? count("rate") : c.ratesMapped,
-      connection: requested[c.id] ? "Approval requested" : nowComplete ? "Connected" : c.connection,
-      tone: (requested[c.id] ? "warning" : nowComplete ? "success" : c.tone) as Tone,
-    };
-  });
+  const channels = data.channels;
   const connectable = data.channels.filter((c) => c.connection === "Not connected");
 
   const nameOf = (id: string) => channels.find((c) => c.id === id)?.name ?? id;
-  const selling = (id: string) => !stopped[id];
   const selected = channels.find((c) => c.id === selectedId) ?? channels[0];
 
-  const log = syncLog.map((l) => {
-    const status: LogStatus = retried[l.id] ? "queued" : l.status;
-    return { ...l, shown: status, isIssue: l.status === "failed" || l.status === "unknown" };
-  });
-  const issueCount = log.filter((l) => l.isIssue && !retried[l.id]).length;
+  const log = syncLog.map((l) => ({ ...l, shown: l.status, isIssue: l.status === "failed" || l.status === "unknown" }));
+  const issueCount = log.filter((l) => l.isIssue).length;
   const visibleLog = log.filter((l) => !issuesOnly || l.isIssue);
   const failingPull = failing ? log.find((l) => l.channel === failing.id && l.isIssue) : undefined;
 
@@ -151,24 +146,14 @@ export function ChannelsView({ persona, data }: { persona: Persona; data: Channe
     },
   ];
 
-  const failingStopped = failing ? !selling(failing.id) : false;
-  const attemptNote = failingPull
-    ? retried[failingPull.id]
-      ? "manual retry queued for 09:44"
-      : `attempt ${failingPull.attempts}`
-    : "";
+  const attemptNote = failingPull ? `attempt ${failingPull.attempts}` : "";
   const unmapped = selected ? selected.mapping.filter((m) => !m.mapped) : [];
   const openFix = () => {
     setFixDraft({});
     setFixOpen(true);
   };
   const fixReady = unmapped.length > 0 && unmapped.every((m) => (fixDraft[m.ours] ?? "").trim().length > 0);
-  const saveFix = () => {
-    if (!selected || !fixReady) return;
-    const entries = Object.fromEntries(unmapped.map((m) => [m.ours, (fixDraft[m.ours] ?? "").trim()]));
-    setFixes((x) => ({ ...x, [selected.id]: { ...(x[selected.id] ?? {}), ...entries } }));
-    setFixOpen(false);
-  };
+  const saveFix = () => unavailable("Saving a channel mapping");
   const copyLink = async () => {
     try {
       await navigator.clipboard?.writeText(`https://${settings.bookingUrl}`);
@@ -180,6 +165,7 @@ export function ChannelsView({ persona, data }: { persona: Persona; data: Channe
 
   return (
     <PageContent>
+      <Toast.Provider placement="bottom" />
       {issueCount ? (
         <TopbarStatus
           kind="chip"
@@ -208,7 +194,7 @@ export function ChannelsView({ persona, data }: { persona: Persona; data: Channe
         }
       />
 
-      {failing && !failingStopped ? (
+      {failing ? (
         <Alert status="danger" role="alert">
           <Alert.Indicator>
             <TriangleExclamation />
@@ -223,37 +209,20 @@ export function ChannelsView({ persona, data }: { persona: Persona; data: Channe
               channel manager, or stop selling on {failing.name} until it is fixed.
             </Alert.Description>
             <div className="mt-2.5 flex flex-wrap gap-2">
-              <Button size="sm" variant="danger" onPress={() => setStopped((s) => ({ ...s, [failing.id]: true }))}>
+              <Button size="sm" variant="danger" onPress={() => unavailable(`Stopping sales on ${failing.name}`)}>
                 Stop sell on {failing.name}
               </Button>
               <Button
                 size="sm"
                 variant="secondary"
-                isDisabled={!failingPull || retried[failingPull.id]}
-                onPress={() => failingPull && setRetried((r) => ({ ...r, [failingPull.id]: true }))}
+                isDisabled={!failingPull}
+                onPress={() => unavailable("Retrying the reservation pull")}
               >
                 <ArrowsRotateRight className="size-4" />
                 Retry now
               </Button>
             </div>
           </Alert.Content>
-        </Alert>
-      ) : null}
-      {failing && failingStopped ? (
-        <Alert status="warning" role="status">
-          <Alert.Indicator>
-            <CirclePause />
-          </Alert.Indicator>
-          <Alert.Content className="flex-1">
-            <Alert.Title>{failing.name} is on stop-sell</Alert.Title>
-            <Alert.Description>
-              0 rooms are offered on {failing.name} from 09:44, logged against {persona.name}. Reservations made before
-              then are still missing until the token is renewed; check them against the channel extranet.
-            </Alert.Description>
-          </Alert.Content>
-          <Button size="sm" variant="secondary" onPress={() => setStopped((s) => ({ ...s, [failing.id]: false }))}>
-            Resume selling
-          </Button>
         </Alert>
       ) : null}
 
@@ -305,7 +274,6 @@ export function ChannelsView({ persona, data }: { persona: Persona; data: Channe
                   </Table.Header>
                   <Table.Body>
                     {channels.map((c) => {
-                      const isStopped = !selling(c.id);
                       return (
                         <Table.Row key={c.id} id={c.id} className="cursor-pointer">
                           <Table.Cell>
@@ -315,8 +283,8 @@ export function ChannelsView({ persona, data }: { persona: Persona; data: Channe
                             </span>
                           </Table.Cell>
                           <Table.Cell>
-                            <Chip size="sm" variant="soft" color={toneColor(isStopped ? "warning" : c.tone)}>
-                              {isStopped ? "Stop-sell" : c.connection}
+                            <Chip size="sm" variant="soft" color={toneColor(c.tone)}>
+                              {c.connection}
                             </Chip>
                           </Table.Cell>
                           <Table.Cell className="text-[13px] tabular">{c.roomsMapped}</Table.Cell>
@@ -413,7 +381,7 @@ export function ChannelsView({ persona, data }: { persona: Persona; data: Channe
                                     size="sm"
                                     variant="ghost"
                                     aria-label={`Retry ${nameOf(l.channel)} ${l.type.toLowerCase()} at ${l.time}`}
-                                    onPress={() => setRetried((r) => ({ ...r, [l.id]: true }))}
+                                    onPress={() => unavailable("Retrying a sync")}
                                   >
                                     <ArrowsRotateRight className="size-4" />
                                     Retry
@@ -506,23 +474,11 @@ export function ChannelsView({ persona, data }: { persona: Persona; data: Channe
                   </h2>
                   <span className="text-[12px] text-muted">{selected.via}</span>
                 </div>
-                <Chip size="sm" variant="soft" color={toneColor(selling(selected.id) ? selected.tone : "warning")}>
-                  {selling(selected.id) ? selected.connection : "Stop-sell"}
+                <Chip size="sm" variant="soft" color={toneColor(selected.tone)}>
+                  {selected.connection}
                 </Chip>
               </div>
               <p className="text-[13px] leading-[18px]">{selected.note}</p>
-              {fixes[selected.id] ? (
-                <p className="text-[12px] leading-4 text-muted" role="status">
-                  Mapping saved by {persona.name} at {NOW}. Rates and availability for{" "}
-                  {Object.keys(fixes[selected.id]).join(", ")} go out with the next push.
-                </p>
-              ) : null}
-              {requested[selected.id] ? (
-                <p className="text-[12px] leading-4 text-muted" role="status">
-                  Approval requested from {ownerName} by {persona.name} at {NOW}. Connecting starts once the agreement
-                  is signed.
-                </p>
-              ) : null}
               {selected.mapping.length ? (
                 <div className="flex flex-col gap-2">
                   <FieldLabel id="map-l">Room and rate mapping</FieldLabel>
@@ -557,11 +513,7 @@ export function ChannelsView({ persona, data }: { persona: Persona; data: Channe
                     </Button>
                   ) : null}
                   {selected.canStopSell ? (
-                    <Switch
-                      size="sm"
-                      isSelected={selling(selected.id)}
-                      onChange={(on) => setStopped((s) => ({ ...s, [selected.id]: !on }))}
-                    >
+                    <Switch size="sm" isSelected onChange={() => unavailable(`Stopping sales on ${selected.name}`)}>
                       <Switch.Content className="text-[14px]">
                         <Switch.Control>
                           <Switch.Thumb />
@@ -600,14 +552,10 @@ export function ChannelsView({ persona, data }: { persona: Persona; data: Channe
                 ]}
               />
               <div className="flex flex-wrap items-center gap-2">
-                <Button size="sm" variant="secondary" onPress={() => setTested(true)}>
+                <Button size="sm" variant="secondary" onPress={() => unavailable("Testing the connection")}>
                   Test connection
                 </Button>
-                <span className="text-[12px] text-muted" role="status">
-                  {tested
-                    ? `Responded in 420 ms at 09:44 · token for ${failing?.name ?? "the channel"} still rejected`
-                    : settings.lastTest}
-                </span>
+                <span className="text-[12px] text-muted">{settings.lastTest}</span>
               </div>
             </Card.Content>
           </Card>
@@ -710,12 +658,7 @@ export function ChannelsView({ persona, data }: { persona: Persona; data: Channe
         }
       >
         {connectable.length ? (
-          <ListView
-            variant="secondary"
-            aria-label="Channels you can connect"
-            items={connectable}
-            dependencies={[requested]}
-          >
+          <ListView variant="secondary" aria-label="Channels you can connect" items={connectable}>
             {(c) => (
               <ListView.Item id={c.id} textValue={c.name}>
                 <ListView.ItemContent>
@@ -727,19 +670,13 @@ export function ChannelsView({ persona, data }: { persona: Persona; data: Channe
                   </div>
                 </ListView.ItemContent>
                 <ListView.ItemAction>
-                  {requested[c.id] ? (
-                    <Chip size="sm" variant="soft" color="warning">
-                      Approval requested
-                    </Chip>
-                  ) : (
-                    <Button
-                      size="sm"
-                      aria-label={`Request approval to connect ${c.name}`}
-                      onPress={() => setRequested((r) => ({ ...r, [c.id]: true }))}
-                    >
-                      Request approval
-                    </Button>
-                  )}
+                  <Button
+                    size="sm"
+                    aria-label={`Request approval to connect ${c.name}`}
+                    onPress={() => unavailable(`Requesting approval to connect ${c.name}`)}
+                  >
+                    Request approval
+                  </Button>
                 </ListView.ItemAction>
               </ListView.Item>
             )}

@@ -29,10 +29,10 @@ export const TEAM_ROLES_STATUS: Record<TeamRolesMemberStatus, { label: string; t
 export const TEAM_ROLES_HELP = {
   owner: "The owner cannot be revoked. Use ownership transfer to hand over the business.",
   active:
-    "Revoking signs this person out of every device at once and stops access immediately. Their employee record in People is not changed.",
+    "Revoking access from this screen is not available yet: access ends when the person's staff file is offboarded. You can change their role or the properties they cover.",
   invited: "Cancelling makes the invite link stop working. They never had access.",
   pending: "This invite was requested by Aline Uwase and waits for your approval. Nothing has been sent yet.",
-  revoked: "No access. Kept on the list for the audit trail; you can remove it from view.",
+  revoked: "No access. Kept on the list as the record of who had access.",
 } as const;
 
 /** Role presets as permission keys per role (the saved baseline the matrix edits are compared with). */

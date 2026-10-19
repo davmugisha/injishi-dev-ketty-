@@ -335,7 +335,6 @@ export function PeopleHomeView({
             </ItemCardGroup.Header>
             {homeLeave.map((l) => {
               const canDecide = l.step === "hr" && !l.hrDecision;
-              const first = firstName(l.name);
               return (
                 <ItemCard key={l.id} className="flex-wrap items-start">
                   <Avatar size="sm" variant="soft">
@@ -384,12 +383,12 @@ export function PeopleHomeView({
                     {l.hrDecision === "approved" ? (
                       <Chip variant="soft" color="success">
                         <Check className="size-3" />
-                        <Chip.Label>Approved · {first} notified</Chip.Label>
+                        <Chip.Label>Approved · recorded</Chip.Label>
                       </Chip>
                     ) : null}
                     {l.hrDecision === "declined" ? (
                       <Chip variant="soft">
-                        <Chip.Label>Declined · {first} notified</Chip.Label>
+                        <Chip.Label>Declined · recorded</Chip.Label>
                       </Chip>
                     ) : null}
                     {l.step === "lm" ? <span className="text-xs text-muted">Not yours yet</span> : null}

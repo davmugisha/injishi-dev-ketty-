@@ -333,14 +333,18 @@ export const flows: Flow[] = [
         foundBy: "Emmanuel Nsengimana",
         custodian: "Beatrice Mukandori",
         storage: "Store room L-2",
-        photoCount: 1,
       });
       let item = (await read<FoundItem>(manager, "operations.foundItems")).find((i) => i.id === ref);
       check(
         item?.status === "stored" && item.where === "Room 309 · Wardrobe" && item.custodian === "Beatrice Mukandori",
         `the new item reads ${JSON.stringify(item)}`,
       );
-      step(`manager logged ${ref}`);
+      // The screen keeps no photos, so the custody log must not claim any.
+      check(
+        !item.custody.some((c) => /photo/i.test(`${c.what} ${c.who}`)),
+        `the intake claims photos nobody kept: ${JSON.stringify(item.custody)}`,
+      );
+      step(`manager logged ${ref}, with no photo claimed on its custody log`);
 
       await ops.openFoundItemClaim(frontdesk, ref, {
         claimant: "Amina Uwase",

@@ -1,14 +1,13 @@
 "use client";
 
 import { CircleCheck, ShieldCheck, ShieldKeyhole, Sliders } from "@gravity-ui/icons";
-import { Avatar, Card, Chip, Table, Tabs } from "@heroui/react";
+import { Avatar, Card, Chip, Table, Tabs, Toast, toast } from "@heroui/react";
 import { EmptyState, ListView, Segment } from "@heroui-pro/react";
 import { type Persona, screenHref } from "@injishi/data";
 import type { ApprovalArea, ApprovalHistoryEntry, ApprovalRequest } from "@injishi/data/fixtures/owner";
 import { Icon, LinkButton, PageContent, PageHeader, StatusDot, toneColor } from "@injishi/ui";
-import { useOptimistic, useState, useTransition } from "react";
-import { decideApproval } from "./ApprovalsActions";
-import { ApprovalDetail, type Decision } from "./ApprovalsDetail";
+import { useState } from "react";
+import { ApprovalDetail } from "./ApprovalsDetail";
 
 const FILTERS: { id: "all" | ApprovalArea; label: string }[] = [
   { id: "all", label: "All" },
@@ -18,8 +17,15 @@ const FILTERS: { id: "all" | ApprovalArea; label: string }[] = [
   { id: "rates", label: "Rates" },
 ];
 
-/** The demo clock of the prototype: decisions taken now are recorded at 10:42 on Monday 12 October. */
-const NOW = "Today 10:42";
+/** "Monday 12 October 2026", today in Kigali. */
+const todayLong = () =>
+  new Intl.DateTimeFormat("en-GB", {
+    timeZone: "Africa/Kigali",
+    weekday: "long",
+    day: "numeric",
+    month: "long",
+    year: "numeric",
+  }).format(new Date());
 
 function statusOf(r: ApprovalRequest) {
   if (r.decision === "approved") return { label: "Approved", tone: "success" as const };
@@ -39,41 +45,30 @@ export function ApprovalsView({
   const [tab, setTab] = useState("waiting");
   const [filter, setFilter] = useState<"all" | ApprovalArea>("all");
   const [sel, setSel] = useState(requests[0]?.id ?? "");
-  const [, startTransition] = useTransition();
-  const [items, applyDecision] = useOptimistic(requests, (state, d: Decision & { id: string }) =>
-    state.map((r) => (r.id === d.id ? { ...r, decision: d.decision, decisionReason: d.reason } : r)),
-  );
 
+  // The inbox is sample data: deciding here records nothing, so the screen never shows a request as
+  // decided by this person (see ApprovalDetail).
+  const items = requests;
   const openCount = items.filter((r) => !r.decision).length;
   const newCount = items.filter((r) => r.isNew).length;
   const list = items.filter((r) => filter === "all" || r.area === filter);
   const cur = items.find((r) => r.id === sel) ?? items[0];
+  const rows = history;
 
-  const decide = (id: string, d: Decision) =>
-    startTransition(async () => {
-      applyDecision({ id, ...d });
-      await decideApproval(id, d.decision, d.reason);
-    });
-
-  const decidedRows: ApprovalHistoryEntry[] = items
-    .filter((r) => r.decision)
-    .map((r) => ({
-      id: `now-${r.id}`,
-      when: NOW,
-      title: r.title,
-      ref: r.type,
-      by: r.who,
-      decision: r.decision === "approved" ? "Approved" : "Declined",
-      decisionTone: r.decision === "approved" ? "success" : "default",
-      decider: persona.name,
-      note: r.decision === "approved" ? r.okDesc : r.decisionReason,
-    }));
-  const rows = [...decidedRows, ...history];
+  const unavailable = (action: string) =>
+    toast.warning(
+      `${action} is not available yet. These requests are sample data, so nothing was approved or declined and nobody was told.`,
+    );
 
   return (
     <PageContent>
+      <Toast.Provider placement="bottom" />
       <PageHeader
-        eyebrow={<>Monday 12 October 2026 · {persona.role}</>}
+        eyebrow={
+          <>
+            {todayLong()} · {persona.role}
+          </>
+        }
         title="Approvals"
         description={`${openCount} requests are open, ${newCount} of them new since yesterday. Each shows who asked, why, and the records behind it.`}
         actions={
@@ -198,7 +193,7 @@ export function ApprovalsView({
               <ApprovalDetail
                 key={cur.id}
                 request={cur}
-                onDecide={(d) => decide(cur.id, d)}
+                onUnavailable={unavailable}
                 auditHref={screenHref("AuditLog")}
               />
             ) : null}
