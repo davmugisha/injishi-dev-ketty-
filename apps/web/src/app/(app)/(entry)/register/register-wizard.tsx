@@ -2,6 +2,8 @@
 
 import {
   ACCOMMODATION_CLASS_LABEL,
+  ENTERPRISE_REGISTRATION_KIND_LABEL,
+  PSF_OWNER_GROUP_SHORT,
   BusinessDetails,
   CreateRegistrationRequest,
   IntendedOwner,
@@ -77,6 +79,8 @@ import {
 } from "./step-business";
 import { downloadSignedContract } from "./step-contract";
 import { StepPlace } from "./step-place";
+import { StepPsfBusiness, ownerGroupsOf } from "./step-psf-business";
+import { PsfRegistered, StepPsfPay } from "./step-psf-pay";
 import { StepReviewPay, type ReadBackRow } from "./step-review-pay";
 import { StepYou, maskedPhone } from "./step-you";
 import { Notice, formatRwf } from "./wizard-ui";
@@ -164,11 +168,18 @@ const EMPTY_BUSINESS: BusinessDraft = {
   psfMembershipNumber: "",
   eacStarGrade: "",
   address: { ...EMPTY_ADDRESS },
+  psfRegistrationKind: "",
+  psfRegistrationNumber: "",
+  psfClusterCode: "",
+  psfAssociationCode: "",
+  psfSectorLabel: "",
+  psfOwnerGroups: "",
 };
 
 /** The kind a stored registration is, for the header chip and the agreement. */
 function kindOfSummary(summary: RegistrationSummary): RegistrationKind | null {
   if (summary.domain === "residence") return "residence";
+  if (summary.domain === "enterprise") return "psf";
   const cls = summary.accommodationClass;
   return cls && findRegistrationKind(cls) ? (cls as RegistrationKind) : null;
 }
@@ -555,7 +566,12 @@ export default function RegisterWizard({
   const submitBusiness = () => {
     setErrors({});
     setFormError("");
-    if (role === "host") {
+    if (role === "enterprise" && business.psfRegistrationKind === "") {
+      setErrors({ "business.registrationKind": "Pick how your business is registered." });
+      setFormError("Some of your business details need fixing.");
+      return;
+    }
+    if (role === "host" || (role === "enterprise" && business.psfRegistrationKind === "tin")) {
       const tin = normalizeTin(business.tin);
       const verdict = tinCheck?.tin === tin ? tinCheck.verdict : null;
       if (!verdict) {
@@ -575,7 +591,8 @@ export default function RegisterWizard({
     const parsed = BusinessDetails.safeParse(
       businessCandidate(business, role, kind, docs, role === "host" ? branches : []),
     );
-    const owner = capacity === "on_behalf_of" ? IntendedOwner.safeParse(intendedOwner) : null;
+    // A PSF business is registered by its owner (the contract refuses on behalf).
+    const owner = capacity === "on_behalf_of" && role !== "enterprise" ? IntendedOwner.safeParse(intendedOwner) : null;
     const docProblems = documentErrors(docs);
     if (!parsed.success || (owner && !owner.success) || Object.keys(docProblems).length > 0 || upiProblem !== null) {
       const ownerErrors = owner && !owner.success ? prefix("intendedOwner", issuesToErrors(owner.error.issues)) : {};
@@ -605,12 +622,13 @@ export default function RegisterWizard({
   const createFromAnswers = async (): Promise<ApiResult<RegistrationSummary> | null> => {
     if (!role) return null;
     const sendPersonal = !(profile?.complete === true && !editingProfile);
+    const onBehalf = capacity === "on_behalf_of" && role !== "enterprise";
     const request = {
       role,
-      capacity,
+      capacity: onBehalf ? capacity : "owner",
       ...(sendPersonal ? { personal: personalCandidate(personal, identityVerified) } : {}),
       business: businessCandidate(business, role, kind, docs, branches),
-      ...(capacity === "on_behalf_of"
+      ...(onBehalf
         ? {
             intendedOwner: {
               name: intendedOwner.name.trim(),
@@ -655,7 +673,8 @@ export default function RegisterWizard({
         setPhase("review");
         return;
       }
-      if (current.contractAcceptedAt === null) {
+      // A PSF business lists nothing, so it signs no operator contract.
+      if (current.contractAcceptedAt === null && current.domain !== "enterprise") {
         const accepted = await acceptRegistrationContract(current.orgId, OPERATOR_CONTRACT_VERSION);
         if (accepted.status !== "ok") {
           if (accepted.status === "refused" && accepted.code === "contract_not_open") {
@@ -738,7 +757,9 @@ export default function RegisterWizard({
   const summaryKindLabel = summary
     ? summary.domain === "residence"
       ? "Residence"
-      : summary.accommodationClass
+      : summary.domain === "enterprise"
+        ? "PSF business"
+        : summary.accommodationClass
         ? (ACCOMMODATION_CLASS_LABEL[summary.accommodationClass as keyof typeof ACCOMMODATION_CLASS_LABEL] ?? null)
         : null
     : null;
@@ -751,11 +772,16 @@ export default function RegisterWizard({
     {
       id: "business",
       title: "Business",
-      sub: role === "landlord" ? "Land register UPI and address" : "RRA TIN and address",
+      sub:
+        role === "landlord"
+          ? "Land register UPI and address"
+          : role === "enterprise"
+            ? "Sector, address and registration"
+            : "RRA TIN and address",
     },
     {
       id: "pay",
-      title: "Check, sign and pay",
+      title: role === "enterprise" ? "Check and pay" : "Check, sign and pay",
       sub: fee !== null ? `${formatRwf(fee)}, one time` : "The one time fee",
     },
   ];
@@ -802,6 +828,9 @@ export default function RegisterWizard({
         onStartNew={startNew}
       />
     );
+  } else if (phase === "review" && summary && summary.domain === "enterprise") {
+    // THE PSF PATH: registered the moment the fee settles, with its code.
+    body = <PsfRegistered summary={summary} />;
   } else if (phase === "review" && summary) {
     body = (
       <InReview
@@ -867,6 +896,24 @@ export default function RegisterWizard({
         onBack={carried ? undefined : () => setPhase("place")}
       />
     );
+  } else if (phase === "business" && role === "enterprise") {
+    body = (
+      <StepPsfBusiness
+        draft={business}
+        onChange={setBusiness}
+        tinCheck={tinCheck}
+        onTinCheck={setTinCheck}
+        onRegistry={onRegistry}
+        errors={errors}
+        formError={formError}
+        busy={busy}
+        onBack={() => {
+          setFormError("");
+          setPhase("about");
+        }}
+        onNext={submitBusiness}
+      />
+    );
   } else if (phase === "business" && (role === "host" || role === "landlord")) {
     body = (
       <StepBusiness
@@ -897,6 +944,30 @@ export default function RegisterWizard({
           setPhase("about");
         }}
         onNext={submitBusiness}
+      />
+    );
+  } else if (phase === "pay" && (summary ? summary.domain === "enterprise" : role === "enterprise")) {
+    body = (
+      <StepPsfPay
+        rows={psfReadBackRows({ summary, business, tinCheck, registrantName, identity, profile, editingProfile, personal })}
+        whereAddress={summary ? null : business.address}
+        amount={fee}
+        busy={busy}
+        error={formError}
+        onPay={() => signAndPay(null)}
+        onBack={
+          summary
+            ? null
+            : () => {
+                setFormError("");
+                setPhase("business");
+              }
+        }
+        onChange={(step) => {
+          setFormError("");
+          if (step === "place") changeKind();
+          else setPhase(step);
+        }}
       />
     );
   } else if (phase === "pay" && (summary || role === "host" || role === "landlord")) {
@@ -1136,6 +1207,61 @@ function readBackRows({
   ];
 }
 
+/** The read back of Check and pay on the PSF path: what PSF will be told. */
+function psfReadBackRows({
+  summary,
+  business,
+  tinCheck,
+  registrantName,
+  identity,
+  profile,
+  editingProfile,
+  personal,
+}: {
+  summary: RegistrationSummary | null;
+  business: BusinessDraft;
+  tinCheck: TinCheck;
+  registrantName: string;
+  identity: IdentityStatus | null;
+  profile: MyProfile | null;
+  editingProfile: boolean;
+  personal: PersonalDraft;
+}): ReadBackRow[] {
+  if (summary) {
+    return [{ label: "Registering", value: `PSF business · ${summary.legalName}`, change: null }];
+  }
+  const kind = business.psfRegistrationKind;
+  const tin = normalizeTin(business.tin);
+  const verdict = tinCheck?.tin === tin ? tinCheck.verdict : null;
+  const registration =
+    kind === "tin"
+      ? `TIN ${formatTin(tin)}${verdict?.result === "verified" ? " · checked with RRA" : verdict?.result === "pending" ? " · RRA checks it again after payment" : ""}`
+      : kind === "none"
+        ? ENTERPRISE_REGISTRATION_KIND_LABEL.none
+        : kind
+          ? `${kind === "other" ? "Registration" : kind.toUpperCase()} ${business.psfRegistrationNumber.trim() || "number not given"}`
+          : "Not answered";
+  const stored = profile?.complete === true && !editingProfile;
+  const doc = identity?.verified
+    ? `${identity.verified.documentType === "passport" ? "Passport" : "National ID"} ${identity.verified.documentNumberMasked}`
+    : stored && profile?.document
+      ? `${profile.document.documentType === "passport" ? "Passport" : "National ID"} ${profile.document.documentNumberMasked}`
+      : null;
+  const phone = maskedPhone(stored ? profile?.phoneE164 : personal.phoneE164);
+  const groups = ownerGroupsOf(business);
+  return [
+    { label: "Registering", value: `PSF business · ${business.legalName.trim() || "Not named yet"}`, change: "place" },
+    { label: "Registration", value: registration, change: "business" },
+    { label: "Sector", value: business.psfAssociationCode ? business.psfSectorLabel || "Chosen" : "Not chosen", change: "business" },
+    {
+      label: "Owned by",
+      value: groups.length ? groups.map((g) => PSF_OWNER_GROUP_SHORT[g]).join(", ") : "Not marked",
+      change: "business",
+    },
+    { label: "You", value: [registrantName || "Not named yet", doc, phone].filter(Boolean).join(" · "), change: "about" },
+  ];
+}
+
 /**
  * The draft holds strings because that is what the DOM produces. The contract
  * wants numbers, optionals actually absent, and no empty strings standing in
@@ -1181,6 +1307,22 @@ function businessCandidate(
       objectKey: c.objectKey,
     }));
 
+  // THE PSF PATH: a TIN only with `tin`, a number only with RCA, RGB and other.
+  if (role === "enterprise") {
+    const registrationKind = d.psfRegistrationKind;
+    const numbered = registrationKind === "rca" || registrationKind === "rgb" || registrationKind === "other";
+    return {
+      domain: "enterprise",
+      legalName: d.legalName,
+      address,
+      certificates: [],
+      ...(registrationKind ? { registrationKind } : {}),
+      ...(registrationKind === "tin" ? { tin: d.tin } : {}),
+      ...(numbered && d.psfRegistrationNumber.trim() ? { registrationNumber: d.psfRegistrationNumber.trim() } : {}),
+      associationCode: d.psfAssociationCode,
+      ownerGroups: ownerGroupsOf(d),
+    };
+  }
   if (role === "landlord") {
     return {
       domain: "residence",

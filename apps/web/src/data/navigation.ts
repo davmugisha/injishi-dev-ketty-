@@ -220,6 +220,9 @@ const WHITE_HEADER_ROUTES = [
   // ground with no photograph, so the dark variant painted white ink on white.
   "/training",
   "/verify",
+  // The PSF page opens on a tonal band, never a photograph: a business of any
+  // sector has no place to show, so the dark variant would paint white on it.
+  "/psf",
 ];
 
 export function headerVariantFor(pathname: string): "dark" | "white" {

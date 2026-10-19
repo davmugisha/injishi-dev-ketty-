@@ -48,11 +48,21 @@ const BROKER = ["place", "about"].map((id) => ({ id }));
 describe("a tile on /host", () => {
   test("goes straight to /register with its kind", () => {
     for (const kind of HOST_PROPERTY_KINDS) {
+      // The PSF tile is the one exception: it opens the PSF page first, which
+      // says what joining PSF costs, and whose button registers (next test).
+      if (kind.value === "psf") continue;
       const href = hostKindHref(kind.value);
       const url = new URL(href, "http://x.invalid");
       assert.equal(url.pathname, "/register", `${kind.value} links to ${href}`);
       assert.equal(url.searchParams.get("kind"), kind.value);
     }
+  });
+
+  test("the PSF tile opens the PSF page, and its kind registers a PSF business", () => {
+    assert.equal(hostKindHref("psf"), "/psf");
+    assert.equal(findRegistrationKind("psf")?.label, "PSF business");
+    assert.equal(registrationForKind("psf").role, "enterprise");
+    assert.equal(registrationForKind("psf").accommodationClass, null);
   });
 
   test("carries a kind the registration form accepts, so none lands unanswered", () => {

@@ -1,5 +1,6 @@
 import type { SVGProps } from "react";
 import {
+  Briefcase,
   Building,
   Building2,
   Castle,
@@ -146,6 +147,15 @@ export function BarRestaurantIcon({ size = 24, ...props }: MarkProps) {
   );
 }
 
+/**
+ * The PSF tile: a business of any sector, joining the Private Sector
+ * Federation. Not a building, because it is not a place to stay, and not the
+ * broker's handshake, because it is a business in its own right.
+ */
+export function PsfIcon({ size = 24, ...props }: MarkProps) {
+  return <Briefcase width={size} height={size} strokeWidth={1.7} aria-hidden {...props} />;
+}
+
 export const HostKindIcons: Record<
   HostKind,
   (props: MarkProps) => React.JSX.Element
@@ -153,4 +163,5 @@ export const HostKindIcons: Record<
   ...PropertyKindIcons,
   residence: ResidenceIcon,
   bar_restaurant: BarRestaurantIcon,
+  psf: PsfIcon,
 };

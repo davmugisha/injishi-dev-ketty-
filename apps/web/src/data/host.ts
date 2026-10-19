@@ -35,7 +35,7 @@ import {
  * The union is widened HERE, at the one screen that asks all three questions in
  * one card, so the contract keeps saying the true thing.
  */
-export type HostKind = AccommodationClass | "residence" | "bar_restaurant";
+export type HostKind = AccommodationClass | "residence" | "bar_restaurant" | "psf";
 
 export interface HostPropertyKind {
   value: HostKind;
@@ -64,6 +64,12 @@ export interface HostPropertyKind {
  */
 const RESIDENCE_LABEL = "Residence";
 const BAR_RESTAURANT_LABEL = "Bar & Restaurant";
+/**
+ * THE PSF PATH. Not a place at all: a business of any sector (a factory, a
+ * shop, a cooperative, a garage) registering on Injishi to join the Private
+ * Sector Federation. Named PSF on the card, as the owner asked (2026-10-15).
+ */
+const PSF_LABEL = "PSF";
 
 const CHOOSER: ReadonlyArray<{ value: HostKind; blurb: string }> = [
   { value: "hotel", blurb: "Serviced rooms, front desk" },
@@ -75,6 +81,7 @@ const CHOOSER: ReadonlyArray<{ value: HostKind; blurb: string }> = [
   { value: "villa", blurb: "A whole house, one party" },
   { value: "bar_restaurant", blurb: "Food and drink, no rooms" },
   { value: "residence", blurb: "Let on a lease, not nightly" },
+  { value: "psf", blurb: "Any business: join the Private Sector Federation" },
 ];
 
 export const HOST_PROPERTY_KINDS: HostPropertyKind[] = CHOOSER.map(
@@ -85,7 +92,9 @@ export const HOST_PROPERTY_KINDS: HostPropertyKind[] = CHOOSER.map(
         ? RESIDENCE_LABEL
         : value === "bar_restaurant"
           ? BAR_RESTAURANT_LABEL
-          : ACCOMMODATION_CLASS_LABEL[value],
+          : value === "psf"
+            ? PSF_LABEL
+            : ACCOMMODATION_CLASS_LABEL[value],
     blurb,
   }),
 );
@@ -106,6 +115,9 @@ export const HOST_PROPERTY_KINDS: HostPropertyKind[] = CHOOSER.map(
  * (`safeRedirect` keeps the search string).
  */
 export function hostKindHref(kind: HostKind): string {
+  // PSF opens on its own page first: what membership is, what it costs, and
+  // that it starts with a 5,000 registration. Its button then registers.
+  if (kind === "psf") return "/psf";
   return `/register?kind=${encodeURIComponent(kind)}`;
 }
 
@@ -223,7 +235,7 @@ export const HOST_FAQ: HostFaqGroup[] = [
       {
         question: "What kind of accommodation can I list?",
         answer:
-          "Hotels, motels, tented camps, guest houses, apartments, lodges and villas anywhere in Rwanda. Bars and restaurants register here too, and so do residences let on a lease, on the same verification. If you can show you are entitled to run or let the place, it qualifies.",
+          "Hotels, motels, tented camps, guest houses, apartments, lodges and villas anywhere in Rwanda. Bars and restaurants register here too, and so do residences let on a lease, on the same verification. If you can show you are entitled to run or let the place, it qualifies. A business of any other sector registers through the PSF tile to join the Private Sector Federation.",
       },
       {
         question: "How long until my listing is live?",

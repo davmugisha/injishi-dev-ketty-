@@ -34,6 +34,9 @@ import { Notice, StepActions, TileCard } from "./wizard-ui";
 /** One sentence, and no figure in it. */
 const FEE_LINE =
   "A one time registration fee, paid at the last step, then a monthly plan once you are live. No commission.";
+/** A PSF business lists nothing, so it has no plan: the fee, then PSF's own membership. */
+const PSF_FEE_LINE =
+  "A one time registration fee, paid at the last step. Your PSF membership fee is separate, and paid once PSF approves you.";
 
 export function StepPlace({
   kind,
@@ -51,6 +54,7 @@ export function StepPlace({
   const stay = REGISTRATION_KINDS.filter((k) => k.group === "stay");
   const venue = REGISTRATION_KINDS.filter((k) => k.group === "venue");
   const lease = REGISTRATION_KINDS.filter((k) => k.group === "lease");
+  const psf = REGISTRATION_KINDS.filter((k) => k.group === "psf");
 
   return (
     <section aria-labelledby="step-place">
@@ -136,12 +140,40 @@ export function StepPlace({
           </div>
         </fieldset>
 
+        {/* THE PSF PATH: not a place at all. A business of any sector joins
+            the Private Sector Federation through Injishi, so it sits apart from
+            the three questions about where people stay, eat or live. */}
+        <fieldset>
+          <legend className="text-sm font-semibold">
+            Any other business, joining PSF
+          </legend>
+          <div className="mt-3 grid grid-cols-2 gap-3 sm:grid-cols-4">
+            {psf.map((entry) => {
+              const Icon = iconFor(entry.value);
+              return (
+                <TileCard
+                  key={entry.value}
+                  name="registrationKind"
+                  value={entry.value}
+                  checked={kind === entry.value}
+                  label={entry.label}
+                  blurb={entry.blurb}
+                  icon={<Icon size={20} />}
+                  onSelect={() => onChoose(entry.value)}
+                />
+              );
+            })}
+          </div>
+        </fieldset>
+
         {chosen ? (
           <Notice tone="info">
             <b>{chosen.label}.</b> {whatWeAskFor(chosen.value)}{" "}
             {chosen.value === "broker"
               ? "There is no registration fee."
-              : FEE_LINE}
+              : chosen.value === "psf"
+                ? PSF_FEE_LINE
+                : FEE_LINE}
           </Notice>
         ) : null}
       </div>
